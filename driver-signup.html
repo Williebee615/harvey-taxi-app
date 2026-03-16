@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Drive With Harvey Taxi</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+
+body{
+font-family:Arial;
+background:#111;
+color:white;
+padding:20px;
+text-align:center;
+}
+
+.container{
+max-width:500px;
+margin:auto;
+}
+
+h1{
+color:#ffd700;
+}
+
+input,select{
+width:100%;
+padding:14px;
+margin:10px 0;
+border:none;
+border-radius:10px;
+font-size:16px;
+}
+
+button{
+width:100%;
+background:#1e90ff;
+color:white;
+border:none;
+padding:15px;
+font-size:18px;
+border-radius:10px;
+margin-top:10px;
+}
+
+.success{
+margin-top:20px;
+color:#ffd700;
+font-weight:bold;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>🚕 Drive With Harvey Taxi</h1>
+
+<p>Join our growing transportation network.</p>
+
+<form id="driverForm">
+
+<input type="text" id="name" placeholder="Full Name" required>
+
+<input type="text" id="phone" placeholder="Phone Number" required>
+
+<input type="email" id="email" placeholder="Email Address" required>
+
+<input type="text" id="city" placeholder="City" required>
+
+<input type="text" id="state" placeholder="State" required>
+
+<select id="vehicle">
+
+<option value="">Vehicle Type</option>
+
+<option>Sedan</option>
+
+<option>SUV</option>
+
+<option>Van</option>
+
+<option>Taxi Cab</option>
+
+<option>Luxury Vehicle</option>
+
+</select>
+
+<select id="type">
+
+<option value="">Driver Type</option>
+
+<option>Harvey Taxi Driver</option>
+
+<option>Independent Driver</option>
+
+<option>Fleet Driver</option>
+
+</select>
+
+<button type="submit">Apply Now</button>
+
+</form>
+
+<div id="message" class="success"></div>
+
+</div>
+
+<script>
+
+document.getElementById("driverForm").addEventListener("submit",async function(e){
+
+e.preventDefault();
+
+const driver={
+
+name:document.getElementById("name").value,
+
+phone:document.getElementById("phone").value,
+
+email:document.getElementById("email").value,
+
+city:document.getElementById("city").value,
+
+state:document.getElementById("state").value,
+
+vehicle:document.getElementById("vehicle").value,
+
+type:document.getElementById("type").value
+
+};
+
+const res=await fetch("/driver-signup",{
+
+method:"POST",
+
+headers:{
+
+"Content-Type":"application/json"
+
+},
+
+body:JSON.stringify(driver)
+
+});
+
+const data=await res.json();
+
+if(data.success){
+
+document.getElementById("message").innerText="Application submitted successfully";
+
+document.getElementById("driverForm").reset();
+
+}else{
+
+document.getElementById("message").innerText="Submission failed";
+
+}
+
+});
+
+</script>
+
+</body>
+</html>
