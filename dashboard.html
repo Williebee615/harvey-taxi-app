@@ -1,122 +1,217 @@
 <!DOCTYPE html>
 <html>
-
 <head>
+  <title>Harvey Taxi Dispatch Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<title>Dispatch Dashboard</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-<meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    body{
+      background:#111;
+      color:white;
+      font-family:Arial,sans-serif;
+      padding:20px;
+      margin:0;
+    }
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+    h1{
+      color:#ffd700;
+      font-size:44px;
+      margin-bottom:18px;
+    }
 
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    button{
+      background:#ffd700;
+      color:black;
+      border:none;
+      padding:12px 18px;
+      border-radius:10px;
+      font-weight:bold;
+      font-size:18px;
+      cursor:pointer;
+      margin-bottom:16px;
+    }
 
-<style>
+    #map{
+      height:360px;
+      border-radius:12px;
+      margin-bottom:20px;
+      overflow:hidden;
+    }
 
-body{
-background:#111;
-color:white;
-font-family:Arial;
-padding:20px;
-}
+    .ride{
+      background:#222;
+      padding:16px;
+      border-radius:12px;
+      margin:12px 0;
+    }
 
-#map{
-height:350px;
-border-radius:10px;
-margin-bottom:20px;
-}
+    .muted{
+      color:#bbb;
+    }
 
-.ride{
-background:#222;
-padding:15px;
-border-radius:10px;
-margin:10px 0;
-}
+    .badge{
+      display:inline-block;
+      margin-top:10px;
+      padding:7px 12px;
+      border-radius:10px;
+      font-size:13px;
+      font-weight:bold;
+    }
 
-</style>
+    .waiting{
+      background:#444;
+      color:white;
+    }
 
+    .accepted{
+      background:#1e90ff;
+      color:white;
+    }
+
+    .completed{
+      background:#28a745;
+      color:white;
+    }
+  </style>
 </head>
-
 <body>
 
-<h1>🚕 Dispatch Dashboard</h1>
+  <h1>🚕 Harvey Taxi Dispatch Dashboard</h1>
 
-<div id="map"></div>
+  <button onclick="loadRides()">Refresh Rides</button>
 
-<div id="rides"></div>
+  <div id="map"></div>
 
-<script>
+  <div id="rides"></div>
 
-const map = L.map("map").setView([36.1627,-86.7816],11)
+  <script>
+    const map = L.map("map").setView([36.1627, -86.7816], 11);
 
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map)
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "&copy; OpenStreetMap contributors"
+    }).addTo(map);
 
-let rideMarkers=[]
-let driverMarkers=[]
+    let rideMarkers = [];
+    let driverMarkers = [];
 
-async function loadRides(){
+    function clearRideMarkers() {
+      rideMarkers.forEach((m) => map.removeLayer(m));
+      rideMarkers = [];
+    }
 
-const res = await fetch("/rides")
+    function clearDriverMarkers() {
+      driverMarkers.forEach((m) => map.removeLayer(m));
+      driverMarkers = [];
+    }
 
-const rides = await res.json()
+    async function geocodeLocation(locationText) {
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locationText)}`;
+        const res = await fetch(url, {
+          headers: { "Accept": "application/json" }
+        });
+        const data = await res.json();
 
-const container = document.getElementById("rides")
+        if (data && data.length > 0) {
+          return {
+            lat: parseFloat(data[0].lat),
+            lon: parseFloat(data[0].lon)
+          };
+        }
+      } catch (err) {
+        console.error("Geocode error:", err);
+      }
 
-container.innerHTML=""
+      return null;
+    }
 
-rideMarkers.forEach(m=>map.removeLayer(m))
-rideMarkers=[]
+    async function loadRides() {
+      try {
+        const res = await fetch("/rides");
+        const rides = await res.json();
 
-rides.forEach(r=>{
+        const container = document.getElementById("rides");
+        container.innerHTML = "";
+        clearRideMarkers();
 
-const div = document.createElement("div")
+        if (!rides.length) {
+          container.innerHTML = "<p class='muted'>No ride requests yet.</p>";
+          return;
+        }
 
-div.className="ride"
+        for (const ride of rides) {
+          const div = document.createElement("div");
+          div.className = "ride";
 
-div.innerHTML=`
-<b>${r.name}</b><br>
-Pickup: ${r.pickup}<br>
-Dropoff: ${r.dropoff}<br>
-Status: ${r.status}<br>
-Driver: ${r.acceptedBy || "-"}
-`
+          const statusClass = ride.status || "waiting";
 
-container.appendChild(div)
+          div.innerHTML = `
+            <b>Name:</b> ${ride.name || "N/A"}<br>
+            <b>Phone:</b> ${ride.phone || "N/A"}<br>
+            <b>Pickup:</b> ${ride.pickup || "N/A"}<br>
+            <b>Dropoff:</b> ${ride.dropoff || "N/A"}<br>
+            <b>Accepted By:</b> ${ride.acceptedBy || "-"}<br>
+            <div class="badge ${statusClass}">Status: ${ride.status || "waiting"}</div>
+          `;
 
-})
+          container.appendChild(div);
 
-}
+          if (ride.pickup) {
+            const coords = await geocodeLocation(ride.pickup + ", Nashville, TN");
 
-async function loadDrivers(){
+            if (coords) {
+              const marker = L.marker([coords.lat, coords.lon])
+                .addTo(map)
+                .bindPopup(`
+                  <b>${ride.name || "Rider"}</b><br>
+                  Pickup: ${ride.pickup}<br>
+                  Dropoff: ${ride.dropoff || "N/A"}<br>
+                  Accepted By: ${ride.acceptedBy || "-"}<br>
+                  Status: ${ride.status || "waiting"}
+                `);
 
-const res = await fetch("/driver-locations")
+              rideMarkers.push(marker);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Ride loading error:", error);
+      }
+    }
 
-const drivers = await res.json()
+    async function loadDrivers() {
+      try {
+        const res = await fetch("/driver-locations");
+        const drivers = await res.json();
 
-driverMarkers.forEach(m=>map.removeLayer(m))
-driverMarkers=[]
+        clearDriverMarkers();
 
-drivers.forEach(d=>{
+        drivers.forEach((d) => {
+          const marker = L.marker([d.lat, d.lng], {
+            icon: L.icon({
+              iconUrl: "https://cdn-icons-png.flaticon.com/512/684/684908.png",
+              iconSize: [28, 28]
+            })
+          })
+            .addTo(map)
+            .bindPopup("Driver: " + d.name);
 
-const marker = L.marker([d.lat,d.lng]).addTo(map)
+          driverMarkers.push(marker);
+        });
+      } catch (error) {
+        console.error("Driver loading error:", error);
+      }
+    }
 
-.bindPopup("Driver: "+d.name)
+    setInterval(loadRides, 8000);
+    setInterval(loadDrivers, 5000);
 
-driverMarkers.push(marker)
-
-})
-
-}
-
-setInterval(loadRides,8000)
-
-setInterval(loadDrivers,5000)
-
-loadRides()
-
-loadDrivers()
-
-</script>
+    loadRides();
+    loadDrivers();
+  </script>
 
 </body>
 </html>
