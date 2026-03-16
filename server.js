@@ -1,31 +1,19 @@
+// Import express
 const express = require('express');
 const bodyParser = require('body-parser');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
+// Body Parser Middleware
 app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
-let rides = []; // In-memory storage for rides
+// Serve static files
+app.use(express.static(__dirname));
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'OK', time: new Date() });
+// Routes
+app.get('/request-ride', (req, res) => {
+    res.sendFile(__dirname + '/request-ride.html');
 });
 
-// Ride request endpoint
-app.post('/ride/request', (req, res) => {
-    const { riderName, destination } = req.body;
-    const newRide = { id: rides.length + 1, riderName, destination, status: 'requested' };
-    rides.push(newRide);
-    res.status(201).json(newRide);
-});
-
-// Get all rides endpoint
-app.get('/rides', (req, res) => {
-    res.json(rides);
-});
-
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-});
+// Other existing code...
