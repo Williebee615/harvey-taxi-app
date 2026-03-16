@@ -82,4 +82,135 @@
 </head>
 <body>
 
-  <
+  <h1>🚕 Harvey Taxi Dispatch Dashboard</h1>
+
+  <div class="topbar">
+    <button onclick="loadRides()">Refresh Rides</button>
+  </div>
+
+  <div id="map"></div>
+
+  <div id="rides"></div>
+
+  <script>
+    const map = L.map('map').setView([36.1627, -86.7816], 11);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    let rideMarkers = [];
+    let driverMarkers = [];
+
+    function clearRideMarkers() {
+      rideMarkers.forEach(marker => map.removeLayer(marker));
+      rideMarkers = [];
+    }
+
+    async function geocodeLocation(locationText) {
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locationText)}`;
+        const res = await fetch(url, {
+          headers: {
+            "Accept": "application/json"
+          }
+        });
+        const data = await res.json();
+
+        if (data && data.length > 0) {
+          return {
+            lat: parseFloat(data[0].lat),
+            lon: parseFloat(data[0].lon)
+          };
+        }
+      } catch (err) {
+        console.error("Geocode error:", err);
+      }
+      return null;
+    }
+
+    async function loadRides() {
+      try {
+        const res = await fetch("/rides");
+        const rides = await res.json();
+
+        const container = document.getElementById("rides");
+        container.innerHTML = "";
+        clearRideMarkers();
+
+        if (!rides.length) {
+          container.innerHTML = '<p class="muted">No ride requests yet.</p>';
+          return;
+        }
+
+        for (const ride of rides) {
+          const div = document.createElement("div");
+          div.className = "ride";
+
+          const statusClass = ride.status || "waiting";
+
+          div.innerHTML = `
+            <b>Name:</b> ${ride.name || "N/A"}<br>
+            <b>Phone:</b> ${ride.phone || "N/A"}<br>
+            <b>Pickup:</b> ${ride.pickup || "N/A"}<br>
+            <b>Dropoff:</b> ${ride.dropoff || "N/A"}<br>
+            <div class="badge ${statusClass}">Status: ${ride.status || "waiting"}</div>
+          `;
+
+          container.appendChild(div);
+
+          if (ride.pickup) {
+            const coords = await geocodeLocation(ride.pickup + ", Nashville, TN");
+            if (coords) {
+              const marker = L.marker([coords.lat, coords.lon])
+                .addTo(map)
+                .bindPopup(`
+                  <b>${ride.name || "Rider"}</b><br>
+                  Pickup: ${ride.pickup}<br>
+                  Dropoff: ${ride.dropoff || "N/A"}<br>
+                  Status: ${ride.status || "waiting"}
+                `);
+
+              rideMarkers.push(marker);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Ride loading error:", error);
+      }
+    }
+
+    async function loadDrivers() {
+      try {
+        const res = await fetch("/driver-locations");
+        const drivers = await res.json();
+
+        driverMarkers.forEach(marker => map.removeLayer(marker));
+        driverMarkers = [];
+
+        drivers.forEach(driver => {
+          const marker = L.marker([driver.lat, driver.lng], {
+            icon: L.icon({
+              iconUrl: "https://cdn-icons-png.flaticon.com/512/61/61168.png",
+              iconSize: [30, 30]
+            })
+          })
+          .addTo(map)
+          .bindPopup("Driver: " + driver.name);
+
+          driverMarkers.push(marker);
+        });
+      } catch (error) {
+        console.error("Driver loading error:", error);
+      }
+    }
+
+    loadRides();
+    loadDrivers();
+
+    setInterval(loadRides, 10000);
+    setInterval(loadDrivers, 5000);
+  </script>
+
+</body>
+</html>
