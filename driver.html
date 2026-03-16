@@ -1,93 +1,149 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Harvey Taxi Driver App</title>
-
-<style>
-body{
-font-family:Arial;
-background:#111;
-color:white;
-padding:20px;
-}
-
-h1{
-color:#FFD700;
-}
-
-.ride{
-background:#222;
-padding:15px;
-margin:10px 0;
-border-radius:10px;
-}
-
-button{
-background:#FFD700;
-border:none;
-padding:10px;
-margin-top:10px;
-border-radius:6px;
-cursor:pointer;
-}
-</style>
-
+  <title>Harvey Taxi Driver App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body{
+      font-family:Arial,sans-serif;
+      background:#111;
+      color:white;
+      padding:20px;
+      margin:0;
+    }
+    h1{
+      color:#FFD700;
+    }
+    .topbar{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-bottom:15px;
+    }
+    input{
+      padding:10px;
+      border-radius:8px;
+      border:none;
+      width:220px;
+      max-width:100%;
+    }
+    button{
+      background:#FFD700;
+      border:none;
+      padding:10px 14px;
+      border-radius:8px;
+      cursor:pointer;
+      font-weight:bold;
+    }
+    .ride{
+      background:#222;
+      padding:15px;
+      margin:12px 0;
+      border-radius:12px;
+    }
+    .status{
+      display:inline-block;
+      padding:6px 10px;
+      border-radius:8px;
+      margin-top:8px;
+      font-size:14px;
+    }
+    .requested{ background:#444; }
+    .accepted{ background:#1e90ff; }
+    .completed{ background:#2e8b57; }
+    .muted{
+      color:#bbb;
+    }
+  </style>
 </head>
-
 <body>
 
-<h1>🚕 Harvey Taxi Driver App</h1>
+  <h1>🚕 Harvey Taxi Driver App</h1>
 
-<button onclick="loadRides()">Refresh Rides</button>
+  <div class="topbar">
+    <input id="driverName" placeholder="Enter driver name">
+    <button onclick="loadRides()">Refresh Rides</button>
+  </div>
 
-<div id="rides"></div>
+  <div id="rides"></div>
 
-<script>
+  <script>
+    async function loadRides(){
+      const res = await fetch("/rides");
+      const rides = await res.json();
+      const container = document.getElementById("rides");
+      container.innerHTML = "";
 
-async function loadRides(){
+      if (!rides.length) {
+        container.innerHTML = '<p class="muted">No rides yet.</p>';
+        return;
+      }
 
-const res = await fetch("/rides")
-const rides = await res.json()
+      rides
+        .slice()
+        .reverse()
+        .forEach((ride)=>{
+          const div = document.createElement("div");
+          div.className = "ride";
 
-const container = document.getElementById("rides")
-container.innerHTML=""
+          let buttons = "";
 
-rides.forEach((ride,i)=>{
+          if (ride.status === "requested") {
+            buttons = `<button onclick="acceptRide(${ride.id})">Accept Ride</button>`;
+          } else if (ride.status === "accepted") {
+            buttons = `<button onclick="completeRide(${ride.id})">Complete Ride</button>`;
+          }
 
-const div=document.createElement("div")
-div.className="ride"
+          div.innerHTML = `
+            <b>Name:</b> ${ride.name || ride.rider || "N/A"}<br>
+            <b>Phone:</b> ${ride.phone || "N/A"}<br>
+            <b>Pickup:</b> ${ride.pickup || "N/A"}<br>
+            <b>Dropoff:</b> ${ride.dropoff || "N/A"}<br>
+            <b>Requested:</b> ${ride.time || "N/A"}<br>
+            <b>Accepted By:</b> ${ride.acceptedBy || "Nobody yet"}<br>
+            <div class="status ${ride.status}">Status: ${ride.status}</div>
+            <div style="margin-top:10px;">${buttons}</div>
+          `;
 
-div.innerHTML=`
+          container.appendChild(div);
+        });
+    }
 
-<b>Name:</b> ${ride.name}<br>
-<b>Phone:</b> ${ride.phone}<br>
-<b>Pickup:</b> ${ride.pickup}<br>
-<b>Dropoff:</b> ${ride.dropoff}<br>
+    async function acceptRide(id){
+      const driverName = document.getElementById("driverName").value.trim() || "Driver";
 
-<button onclick="acceptRide(${i})">Accept Ride</button>
-<button onclick="completeRide(${i})">Complete Ride</button>
+      const res = await fetch(`/accept/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ driverName })
+      });
 
-`
+      const data = await res.json();
 
-container.appendChild(div)
+      if (!data.success) {
+        alert(data.message || "Could not accept ride");
+      }
 
-})
+      loadRides();
+    }
 
-}
+    async function completeRide(id){
+      const res = await fetch(`/complete/${id}`, {
+        method: "POST"
+      });
 
-async function acceptRide(i){
-await fetch("/accept/"+i)
-loadRides()
-}
+      const data = await res.json();
 
-async function completeRide(i){
-await fetch("/complete/"+i)
-loadRides()
-}
+      if (!data.success) {
+        alert(data.message || "Could not complete ride");
+      }
 
-loadRides()
+      loadRides();
+    }
 
-</script>
+    loadRides();
+    setInterval(loadRides, 5000);
+  </script>
 
 </body>
 </html>
