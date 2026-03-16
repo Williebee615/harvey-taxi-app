@@ -15,17 +15,11 @@
       color:white;
       padding:20px;
     }
-
     h1{
       color:#ffd700;
       font-size:48px;
       margin-bottom:15px;
     }
-
-    .topbar{
-      margin-bottom:15px;
-    }
-
     button{
       background:#ffd700;
       color:black;
@@ -34,8 +28,8 @@
       border-radius:8px;
       font-weight:bold;
       cursor:pointer;
+      margin-bottom:15px;
     }
-
     #map{
       width:100%;
       height:350px;
@@ -43,18 +37,15 @@
       margin-bottom:20px;
       overflow:hidden;
     }
-
     .ride{
       background:#222;
       padding:15px;
       margin:12px 0;
       border-radius:12px;
     }
-
     .muted{
       color:#bbb;
     }
-
     .badge{
       display:inline-block;
       margin-top:8px;
@@ -63,33 +54,18 @@
       font-size:13px;
       font-weight:bold;
     }
-
-    .waiting{
-      background:#444;
-      color:white;
-    }
-
-    .accepted{
-      background:#1e90ff;
-      color:white;
-    }
-
-    .completed{
-      background:#28a745;
-      color:white;
-    }
+    .waiting{ background:#444; color:white; }
+    .accepted{ background:#1e90ff; color:white; }
+    .completed{ background:#28a745; color:white; }
   </style>
 </head>
 <body>
 
   <h1>🚕 Harvey Taxi Dispatch Dashboard</h1>
 
-  <div class="topbar">
-    <button onclick="loadRides()">Refresh Rides</button>
-  </div>
+  <button onclick="loadRides()">Refresh Rides</button>
 
   <div id="map"></div>
-
   <div id="rides"></div>
 
   <script>
@@ -111,9 +87,7 @@
       try {
         const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locationText)}`;
         const res = await fetch(url, {
-          headers: {
-            "Accept": "application/json"
-          }
+          headers: { "Accept": "application/json" }
         });
         const data = await res.json();
 
@@ -154,6 +128,7 @@
             <b>Phone:</b> ${ride.phone || "N/A"}<br>
             <b>Pickup:</b> ${ride.pickup || "N/A"}<br>
             <b>Dropoff:</b> ${ride.dropoff || "N/A"}<br>
+            <b>Accepted By:</b> ${ride.acceptedBy || "-"}<br>
             <div class="badge ${statusClass}">Status: ${ride.status || "waiting"}</div>
           `;
 
@@ -168,6 +143,7 @@
                   <b>${ride.name || "Rider"}</b><br>
                   Pickup: ${ride.pickup}<br>
                   Dropoff: ${ride.dropoff || "N/A"}<br>
+                  Accepted By: ${ride.acceptedBy || "-"}<br>
                   Status: ${ride.status || "waiting"}
                 `);
 
