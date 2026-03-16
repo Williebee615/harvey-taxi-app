@@ -1,15 +1,13 @@
 {
-  "name": "harvey-taxi-app-backend",
+  "name": "harvey-taxi-app",
   "version": "1.0.0",
-  "description": "Express backend for Harvey Taxi App Render deployment",
+  "description": "Harvey Taxi ride system",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
-  "engines": {
-    "node": ">=18"
-  },
   "dependencies": {
-    "express": "^4.19.2"
+    "express": "^4.18.2",
+    "sqlite3": "^5.1.6"
   }
 }
