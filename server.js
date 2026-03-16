@@ -22,7 +22,8 @@ db.serialize(() => {
       phone TEXT,
       pickup TEXT,
       dropoff TEXT,
-      status TEXT DEFAULT 'waiting'
+      status TEXT DEFAULT 'waiting',
+      acceptedBy TEXT DEFAULT ''
     )
   `);
 
@@ -45,7 +46,7 @@ app.post("/request-ride", (req, res) => {
   const { name, phone, pickup, dropoff } = req.body;
 
   db.run(
-    "INSERT INTO rides (name, phone, pickup, dropoff) VALUES (?, ?, ?, ?)",
+    "INSERT INTO rides (name, phone, pickup, dropoff, status, acceptedBy) VALUES (?, ?, ?, ?, 'waiting', '')",
     [name, phone, pickup, dropoff],
     (err) => {
       if (err) {
@@ -66,6 +67,41 @@ app.get("/rides", (req, res) => {
     }
     res.json(rows);
   });
+});
+
+/* ACCEPT RIDE */
+app.post("/accept-ride/:id", (req, res) => {
+  const rideId = req.params.id;
+  const { driverName } = req.body;
+
+  db.run(
+    "UPDATE rides SET status = 'accepted', acceptedBy = ? WHERE id = ?",
+    [driverName || "Driver", rideId],
+    function (err) {
+      if (err) {
+        res.status(500).send(err);
+        return;
+      }
+      res.json({ success: true });
+    }
+  );
+});
+
+/* COMPLETE RIDE */
+app.post("/complete-ride/:id", (req, res) => {
+  const rideId = req.params.id;
+
+  db.run(
+    "UPDATE rides SET status = 'completed' WHERE id = ?",
+    [rideId],
+    function (err) {
+      if (err) {
+        res.status(500).send(err);
+        return;
+      }
+      res.json({ success: true });
+    }
+  );
 });
 
 /* DRIVER SIGNUP */
@@ -96,12 +132,12 @@ app.get("/drivers", (req, res) => {
   });
 });
 
-/* LIVE DRIVER LOCATION */
+/* DRIVER LOCATION */
 app.post("/driver-location", (req, res) => {
   const { name, lat, lng } = req.body;
 
   if (!name || lat === undefined || lng === undefined) {
-    return res.status(400).json({ success: false, message: "Missing driver location data" });
+    return res.status(400).json({ success: false });
   }
 
   const existing = driverLocations.find((d) => d.name === name);
@@ -124,9 +160,7 @@ app.post("/driver-location", (req, res) => {
 
 app.get("/driver-locations", (req, res) => {
   const now = Date.now();
-
   driverLocations = driverLocations.filter((d) => now - d.updatedAt < 60000);
-
   res.json(driverLocations);
 });
 
