@@ -3,7 +3,6 @@
 <head>
   <title>Harvey Taxi Driver App</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
   <style>
     body{
       font-family:Arial,sans-serif;
@@ -12,13 +11,11 @@
       padding:20px;
       margin:0;
     }
-
     h1{
       color:#ffd700;
       font-size:48px;
       margin-bottom:20px;
     }
-
     input{
       width:100%;
       max-width:500px;
@@ -29,7 +26,6 @@
       margin-bottom:16px;
       box-sizing:border-box;
     }
-
     button{
       background:#ffd700;
       color:#007bff;
@@ -39,26 +35,26 @@
       font-size:18px;
       font-weight:bold;
       cursor:pointer;
-      margin-bottom:20px;
+      margin-bottom:12px;
+      margin-right:10px;
     }
-
     .ride{
       background:#222;
       padding:16px;
       border-radius:12px;
       margin:14px 0;
     }
-
     .accept{
       background:#28a745;
       color:white;
-      margin-top:12px;
     }
-
+    .complete{
+      background:#1e90ff;
+      color:white;
+    }
     .muted{
       color:#bbb;
     }
-
     .status{
       display:inline-block;
       margin-top:10px;
@@ -98,16 +94,52 @@
         const div = document.createElement("div");
         div.className = "ride";
 
+        let buttons = "";
+
+        if (ride.status === "waiting") {
+          buttons += `<button class="accept" onclick="acceptRide(${ride.id})">Accept Ride</button>`;
+        }
+
+        if (ride.status === "accepted") {
+          buttons += `<button class="complete" onclick="completeRide(${ride.id})">Complete Ride</button>`;
+        }
+
         div.innerHTML = `
           <b>Name:</b> ${ride.name}<br>
           <b>Phone:</b> ${ride.phone}<br>
           <b>Pickup:</b> ${ride.pickup}<br>
           <b>Dropoff:</b> ${ride.dropoff}<br>
-          <div class="status">Status: ${ride.status}</div>
+          <b>Accepted By:</b> ${ride.acceptedBy || "-"}<br>
+          <div class="status">Status: ${ride.status}</div><br>
+          ${buttons}
         `;
 
         container.appendChild(div);
       });
+    }
+
+    async function acceptRide(id) {
+      const driverName = document.getElementById("driverName").value.trim();
+      if (!driverName) {
+        alert("Enter driver name first");
+        return;
+      }
+
+      await fetch("/accept-ride/" + id, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ driverName })
+      });
+
+      loadRides();
+    }
+
+    async function completeRide(id) {
+      await fetch("/complete-ride/" + id, {
+        method: "POST"
+      });
+
+      loadRides();
     }
 
     function sendLocation() {
@@ -130,14 +162,8 @@
 
           await fetch("/driver-location", {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-              name,
-              lat,
-              lng
-            })
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, lat, lng })
           });
 
           document.getElementById("locationStatus").innerText =
@@ -147,9 +173,7 @@
           document.getElementById("locationStatus").innerText =
             "Location error: " + error.message;
         },
-        {
-          enableHighAccuracy: true
-        }
+        { enableHighAccuracy: true }
       );
     }
 
