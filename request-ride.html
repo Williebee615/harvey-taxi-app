@@ -1,77 +1,99 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>Request a Ride - Harvey Taxi</title>
-<style>
-body {
-    font-family: Arial;
-    background:#111;
-    color:white;
-    text-align:center;
-}
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Harvey Taxi - Request a Ride</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #111;
+      color: white;
+      margin: 0;
+      padding: 40px 20px;
+      text-align: center;
+    }
 
-.container{
-    margin-top:50px;
-}
+    h1 {
+      color: #fff;
+      margin-bottom: 24px;
+    }
 
-input{
-    display:block;
-    margin:10px auto;
-    padding:10px;
-    width:250px;
-}
+    .container {
+      max-width: 420px;
+      margin: 0 auto;
+    }
 
-button{
-    padding:12px 25px;
-    background:#1e90ff;
-    border:none;
-    color:white;
-    font-size:16px;
-    border-radius:6px;
-}
-</style>
+    input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 12px;
+      margin: 10px 0;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+
+    button {
+      background: #1e90ff;
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    .message {
+      margin-top: 18px;
+      color: #FFD700;
+      font-weight: bold;
+    }
+  </style>
 </head>
-
 <body>
+  <div class="container">
+    <h1>🚕 Request a Ride</h1>
 
-<div class="container">
+    <form id="rideForm">
+      <input type="text" id="name" placeholder="Name" required />
+      <input type="text" id="phone" placeholder="Phone" required />
+      <input type="text" id="pickup" placeholder="Pickup Location" required />
+      <input type="text" id="dropoff" placeholder="Dropoff Location" required />
+      <button type="submit">Request Ride</button>
+    </form>
 
-<h1>🚕 Request a Ride</h1>
+    <div id="message" class="message"></div>
+  </div>
 
-<input id="name" placeholder="Name">
+  <script>
+    document.getElementById("rideForm").addEventListener("submit", async function (e) {
+      e.preventDefault();
 
-<input id="phone" placeholder="Phone">
+      const ride = {
+        name: document.getElementById("name").value,
+        phone: document.getElementById("phone").value,
+        pickup: document.getElementById("pickup").value,
+        dropoff: document.getElementById("dropoff").value
+      };
 
-<input id="pickup" placeholder="Pickup Location">
+      const res = await fetch("/request-ride", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(ride)
+      });
 
-<input id="dropoff" placeholder="Dropoff Location">
+      const data = await res.json();
 
-<button onclick="requestRide()">Request Ride</button>
-
-</div>
-
-<script>
-
-async function requestRide(){
-
-const ride = {
-name: document.getElementById("name").value,
-phone: document.getElementById("phone").value,
-pickup: document.getElementById("pickup").value,
-dropoff: document.getElementById("dropoff").value
-};
-
-await fetch("/request-ride",{
-method:"POST",
-headers:{'Content-Type':'application/json'},
-body:JSON.stringify(ride)
-});
-
-alert("Ride Requested!");
-
-}
-
-</script>
-
+      if (data.success) {
+        document.getElementById("message").textContent = "Ride request sent successfully!";
+        document.getElementById("rideForm").reset();
+      } else {
+        document.getElementById("message").textContent = "Something went wrong. Please try again.";
+      }
+    });
+  </script>
 </body>
 </html>
