@@ -18,6 +18,7 @@
 
     h1{
       color:#ffd700;
+      font-size:48px;
       margin-bottom:15px;
     }
 
@@ -81,100 +82,4 @@
 </head>
 <body>
 
-  <h1>🚕 Harvey Taxi Dispatch Dashboard</h1>
-
-  <div class="topbar">
-    <button onclick="loadRides()">Refresh Rides</button>
-  </div>
-
-  <div id="map"></div>
-
-  <div id="rides"></div>
-
-  <script>
-    const map = L.map('map').setView([36.1627, -86.7816], 11); // Nashville
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
-
-    let rideMarkers = [];
-
-    function clearMarkers() {
-      rideMarkers.forEach(marker => map.removeLayer(marker));
-      rideMarkers = [];
-    }
-
-    async function geocodeLocation(locationText) {
-      try {
-        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locationText)}`;
-        const res = await fetch(url, {
-          headers: {
-            "Accept": "application/json"
-          }
-        });
-        const data = await res.json();
-
-        if (data && data.length > 0) {
-          return {
-            lat: parseFloat(data[0].lat),
-            lon: parseFloat(data[0].lon)
-          };
-        }
-      } catch (err) {
-        console.error("Geocode error:", err);
-      }
-      return null;
-    }
-
-    async function loadRides() {
-      const res = await fetch("/rides");
-      const rides = await res.json();
-
-      const container = document.getElementById("rides");
-      container.innerHTML = "";
-      clearMarkers();
-
-      if (!rides.length) {
-        container.innerHTML = '<p class="muted">No ride requests yet.</p>';
-        return;
-      }
-
-      for (const ride of rides) {
-        const div = document.createElement("div");
-        div.className = "ride";
-
-        div.innerHTML = `
-          <b>Name:</b> ${ride.name || "N/A"}<br>
-          <b>Phone:</b> ${ride.phone || "N/A"}<br>
-          <b>Pickup:</b> ${ride.pickup || "N/A"}<br>
-          <b>Dropoff:</b> ${ride.dropoff || "N/A"}<br>
-          <div class="badge ${ride.status || "waiting"}">Status: ${ride.status || "waiting"}</div>
-        `;
-
-        container.appendChild(div);
-
-        if (ride.pickup) {
-          const coords = await geocodeLocation(ride.pickup + ", Nashville, TN");
-          if (coords) {
-            const marker = L.marker([coords.lat, coords.lon])
-              .addTo(map)
-              .bindPopup(`
-                <b>${ride.name || "Rider"}</b><br>
-                Pickup: ${ride.pickup}<br>
-                Dropoff: ${ride.dropoff || "N/A"}<br>
-                Status: ${ride.status || "waiting"}
-              `);
-
-            rideMarkers.push(marker);
-          }
-        }
-      }
-    }
-
-    loadRides();
-    setInterval(loadRides, 10000);
-  </script>
-
-</body>
-</html>
+  <
