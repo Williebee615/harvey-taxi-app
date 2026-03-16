@@ -73,13 +73,27 @@
       background:#444;
       font-weight:bold;
     }
+
+    .loginBox{
+      background:#1c1c1c;
+      padding:16px;
+      border-radius:12px;
+      margin-bottom:18px;
+    }
   </style>
 </head>
 <body>
 
   <h1>🚕 Harvey Taxi Driver App</h1>
 
-  <input id="driverName" placeholder="Enter driver name" />
+  <div class="loginBox">
+    <input id="driverPhone" placeholder="Driver phone" />
+    <input id="driverPassword" placeholder="Password" type="password" />
+    <button onclick="loginDriver()">Driver Login</button>
+    <div id="loginStatus" class="muted">Please log in.</div>
+  </div>
+
+  <input id="driverName" placeholder="Approved driver name" readonly />
 
   <button onclick="loadRides()">Refresh Rides</button>
 
@@ -88,6 +102,35 @@
   <div id="rides"></div>
 
   <script>
+    let loggedInDriver = null;
+
+    async function loginDriver() {
+      const phone = document.getElementById("driverPhone").value.trim();
+      const password = document.getElementById("driverPassword").value.trim();
+
+      const res = await fetch("/driver-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, password })
+      });
+
+      const data = await res.json();
+
+      if (!data.success) {
+        document.getElementById("loginStatus").innerText = data.error || "Login failed";
+        return;
+      }
+
+      loggedInDriver = data.driver;
+      document.getElementById("driverName").value = data.driver.name;
+      document.getElementById("loginStatus").innerText = "Logged in as " + data.driver.name;
+      loadRides();
+    }
+
+    function getDriverName() {
+      return document.getElementById("driverName").value.trim();
+    }
+
     async function loadRides() {
       const res = await fetch("/rides");
       const rides = await res.json();
@@ -106,7 +149,7 @@
 
         let buttons = "";
 
-        if (ride.status === "waiting") {
+        if (ride.status === "waiting" && loggedInDriver) {
           buttons += `<button class="accept" onclick="acceptRide(${ride.id})">Accept Ride</button>`;
         }
 
@@ -119,6 +162,7 @@
           <b>Phone:</b> ${ride.phone}<br>
           <b>Pickup:</b> ${ride.pickup}<br>
           <b>Dropoff:</b> ${ride.dropoff}<br>
+          <b>Fare:</b> $${Number(ride.fare || 0).toFixed(2)}<br>
           <b>Accepted By:</b> ${ride.acceptedBy || "-"}<br>
           <div class="status">Status: ${ride.status}</div><br>
           ${buttons}
@@ -128,15 +172,11 @@
       });
     }
 
-    function getDriverName() {
-      return document.getElementById("driverName").value.trim();
-    }
-
     async function acceptRide(id) {
       const driverName = getDriverName();
 
       if (!driverName) {
-        alert("Enter driver name first");
+        alert("Log in first");
         return;
       }
 
@@ -161,7 +201,7 @@
       const name = getDriverName();
 
       if (!name) {
-        document.getElementById("locationStatus").innerText = "Enter driver name to start location tracking.";
+        document.getElementById("locationStatus").innerText = "Log in to start location tracking.";
         return;
       }
 
