@@ -2,7 +2,8 @@
 <html>
 <head>
   <title>Harvey Taxi Driver App</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
   <style>
     body{
       font-family:Arial,sans-serif;
@@ -11,50 +12,59 @@
       padding:20px;
       margin:0;
     }
+
     h1{
       color:#ffd700;
-      font-size:48px;
+      font-size:42px;
       margin-bottom:20px;
     }
+
     input{
       width:100%;
-      max-width:500px;
+      max-width:420px;
       padding:16px;
       border:none;
       border-radius:12px;
       font-size:18px;
-      margin-bottom:16px;
+      margin-bottom:12px;
       box-sizing:border-box;
     }
+
     button{
       background:#ffd700;
-      color:#007bff;
+      color:#0b57d0;
       border:none;
-      padding:16px 24px;
+      padding:14px 22px;
       border-radius:12px;
-      font-size:18px;
       font-weight:bold;
+      font-size:18px;
       cursor:pointer;
-      margin-bottom:12px;
-      margin-right:10px;
+      margin-bottom:14px;
+      margin-right:8px;
     }
+
     .ride{
       background:#222;
       padding:16px;
       border-radius:12px;
-      margin:14px 0;
+      margin:12px 0;
     }
+
     .accept{
       background:#28a745;
       color:white;
     }
+
     .complete{
       background:#1e90ff;
       color:white;
     }
+
     .muted{
       color:#bbb;
+      margin:8px 0 16px;
     }
+
     .status{
       display:inline-block;
       margin-top:10px;
@@ -69,7 +79,7 @@
 
   <h1>🚕 Harvey Taxi Driver App</h1>
 
-  <input id="driverName" placeholder="Enter driver name">
+  <input id="driverName" placeholder="Enter driver name" />
 
   <button onclick="loadRides()">Refresh Rides</button>
 
@@ -100,7 +110,7 @@
           buttons += `<button class="accept" onclick="acceptRide(${ride.id})">Accept Ride</button>`;
         }
 
-        if (ride.status === "accepted") {
+        if (ride.status === "accepted" && ride.acceptedBy === getDriverName()) {
           buttons += `<button class="complete" onclick="completeRide(${ride.id})">Complete Ride</button>`;
         }
 
@@ -118,8 +128,13 @@
       });
     }
 
+    function getDriverName() {
+      return document.getElementById("driverName").value.trim();
+    }
+
     async function acceptRide(id) {
-      const driverName = document.getElementById("driverName").value.trim();
+      const driverName = getDriverName();
+
       if (!driverName) {
         alert("Enter driver name first");
         return;
@@ -143,7 +158,7 @@
     }
 
     function sendLocation() {
-      const name = document.getElementById("driverName").value.trim();
+      const name = getDriverName();
 
       if (!name) {
         document.getElementById("locationStatus").innerText = "Enter driver name to start location tracking.";
@@ -156,29 +171,32 @@
       }
 
       navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const lat = position.coords.latitude;
-          const lng = position.coords.longitude;
-
+        async (pos) => {
           await fetch("/driver-location", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name, lat, lng })
+            body: JSON.stringify({
+              name,
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude
+            })
           });
 
           document.getElementById("locationStatus").innerText =
-            "Location shared: " + lat.toFixed(5) + ", " + lng.toFixed(5);
+            "Location shared: " +
+            pos.coords.latitude.toFixed(5) +
+            ", " +
+            pos.coords.longitude.toFixed(5);
         },
-        (error) => {
-          document.getElementById("locationStatus").innerText =
-            "Location error: " + error.message;
+        (err) => {
+          document.getElementById("locationStatus").innerText = "Location error: " + err.message;
         },
         { enableHighAccuracy: true }
       );
     }
 
     setInterval(sendLocation, 5000);
-    setInterval(loadRides, 10000);
+    setInterval(loadRides, 8000);
 
     loadRides();
   </script>
