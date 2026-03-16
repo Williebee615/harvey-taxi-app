@@ -2,7 +2,8 @@
 <html>
 <head>
   <title>Harvey Taxi Admin Panel</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
   <style>
     body{
       font-family:Arial,sans-serif;
@@ -11,54 +12,186 @@
       margin:0;
       padding:20px;
     }
+
     h1,h2{
       color:#ffd700;
     }
-    .section{
-      margin-bottom:30px;
+
+    .stats{
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:12px;
+      margin-bottom:20px;
     }
+
     .card{
       background:#222;
-      padding:15px;
+      padding:14px;
       border-radius:12px;
-      margin:12px 0;
+      margin-bottom:12px;
     }
+
+    .stat{
+      background:#1b1b1b;
+      padding:14px;
+      border-radius:12px;
+    }
+
     button{
-      background:#1e90ff;
-      color:white;
       border:none;
       padding:10px 14px;
-      border-radius:8px;
+      border-radius:10px;
       font-weight:bold;
       cursor:pointer;
-      margin-top:10px;
       margin-right:8px;
+      margin-top:10px;
     }
-    .approve{
-      background:#28a745;
-    }
-    .refresh{
-      background:#ffd700;
-      color:black;
-    }
-    .muted{
-      color:#bbb;
-    }
+
+    .approve{ background:#28a745; color:white; }
+    .reject{ background:#dc3545; color:white; }
+    .refresh{ background:#ffd700; color:black; }
+
     .badge{
       display:inline-block;
+      margin-top:8px;
       padding:6px 10px;
       border-radius:8px;
       font-size:13px;
       font-weight:bold;
-      margin-top:8px;
     }
+
     .pending{ background:#6c757d; }
     .approved{ background:#28a745; }
+    .rejected{ background:#dc3545; }
     .waiting{ background:#444; }
     .accepted{ background:#1e90ff; }
     .completed{ background:#28a745; }
+
+    .section{
+      margin-top:24px;
+    }
   </style>
 </head>
 <body>
 
-  <h1>🚕 Harvey Taxi Admin Panel</h
+  <h1>🚕 Harvey Taxi Admin Panel</h1>
+
+  <button class="refresh" onclick="loadEverything()">Refresh Everything</button>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="section">
+    <h2>Driver Applications</h2>
+    <div id="drivers"></div>
+  </div>
+
+  <div class="section">
+    <h2>Ride Activity</h2>
+    <div id="rides"></div>
+  </div>
+
+  <script>
+    async function loadAnalytics() {
+      const res = await fetch("/analytics");
+      const data = await res.json();
+
+      document.getElementById("stats").innerHTML = `
+        <div class="stat"><b>Total Rides:</b><br>${data.totalRides || 0}</div>
+        <div class="stat"><b>Completed Rides:</b><br>${data.completedRides || 0}</div>
+        <div class="stat"><b>Total Drivers:</b><br>${data.totalDrivers || 0}</div>
+        <div class="stat"><b>Approved Drivers:</b><br>${data.approvedDrivers || 0}</div>
+        <div class="stat"><b>Waiting Rides:</b><br>${data.waitingRides || 0}</div>
+        <div class="stat"><b>Gross Revenue:</b><br>$${Number(data.grossRevenue || 0).toFixed(2)}</div>
+      `;
+    }
+
+    async function loadDrivers() {
+      const res = await fetch("/drivers");
+      const drivers = await res.json();
+
+      const container = document.getElementById("drivers");
+      container.innerHTML = "";
+
+      if (!drivers.length) {
+        container.innerHTML = "<div class='card'>No driver applications yet.</div>";
+        return;
+      }
+
+      drivers.forEach(driver => {
+        const div = document.createElement("div");
+        div.className = "card";
+
+        let buttons = "";
+        if (driver.status === "pending") {
+          buttons = `
+            <button class="approve" onclick="approveDriver(${driver.id})">Approve</button>
+            <button class="reject" onclick="rejectDriver(${driver.id})">Reject</button>
+          `;
+        }
+
+        div.innerHTML = `
+          <b>${driver.name}</b><br>
+          Phone: ${driver.phone}<br>
+          Email: ${driver.email}<br>
+          City: ${driver.city}, ${driver.state}<br>
+          Vehicle: ${driver.vehicle}<br>
+          Type: ${driver.type}<br>
+          Earnings: $${Number(driver.earnings || 0).toFixed(2)}<br>
+          <div class="badge ${driver.status}">${driver.status}</div><br>
+          ${buttons}
+        `;
+
+        container.appendChild(div);
+      });
+    }
+
+    async function loadRides() {
+      const res = await fetch("/rides");
+      const rides = await res.json();
+
+      const container = document.getElementById("rides");
+      container.innerHTML = "";
+
+      if (!rides.length) {
+        container.innerHTML = "<div class='card'>No rides yet.</div>";
+        return;
+      }
+
+      rides.forEach(ride => {
+        const div = document.createElement("div");
+        div.className = "card";
+        div.innerHTML = `
+          <b>${ride.name}</b><br>
+          Phone: ${ride.phone}<br>
+          Pickup: ${ride.pickup}<br>
+          Dropoff: ${ride.dropoff}<br>
+          Accepted By: ${ride.acceptedBy || "-"}<br>
+          Fare: $${Number(ride.fare || 0).toFixed(2)}<br>
+          <div class="badge ${ride.status}">${ride.status}</div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    async function approveDriver(id) {
+      await fetch("/approve-driver/" + id, { method: "POST" });
+      loadEverything();
+    }
+
+    async function rejectDriver(id) {
+      await fetch("/reject-driver/" + id, { method: "POST" });
+      loadEverything();
+    }
+
+    function loadEverything() {
+      loadAnalytics();
+      loadDrivers();
+      loadRides();
+    }
+
+    loadEverything();
+    setInterval(loadEverything, 10000);
+  </script>
+
+</body>
+</html>
