@@ -1,4 +1,5 @@
 const express = require("express");
+const path = require("path");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -7,45 +8,32 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Serve static files
+app.use(express.static(__dirname));
+
 // Temporary ride storage
 let rides = [];
 
 // Home route
 app.get("/", (req, res) => {
-  res.send("🚕 Harvey Taxi API is running");
+  res.sendFile(path.join(__dirname, "request-ride.html"));
 });
 
-// Health check
-app.get("/health", (req, res) => {
-  res.json({ status: "OK" });
+// Handle ride request
+app.post("/request-ride", (req, res) => {
+  const ride = req.body;
+  rides.push(ride);
+
+  console.log("New Ride Request:", ride);
+
+  res.send("Ride request received! A driver will contact you soon.");
 });
 
-// Get all ride requests
+// View all rides
 app.get("/rides", (req, res) => {
   res.json(rides);
 });
 
-// Request a ride
-app.post("/ride/request", (req, res) => {
-  const ride = {
-    id: rides.length + 1,
-    pickup: req.body.pickup,
-    dropoff: req.body.dropoff,
-    rider: req.body.rider,
-    status: "requested",
-    time: new Date()
-  };
-
-  rides.push(ride);
-
-  res.json({
-    success: true,
-    message: "Ride requested successfully",
-    ride
-  });
-});
-
-// Start server
-app.listen(PORT, "0.0.0.0", () => {
+app.listen(PORT, () => {
   console.log(`🚕 Harvey Taxi server running on port ${PORT}`);
 });
