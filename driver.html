@@ -2,7 +2,8 @@
 <html>
 <head>
   <title>Harvey Taxi Driver App</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <style>
     body{
       font-family:Arial,sans-serif;
@@ -11,48 +12,60 @@
       padding:20px;
       margin:0;
     }
+
     h1{
-      color:#FFD700;
+      color:#ffd700;
+      font-size:48px;
+      margin-bottom:20px;
     }
-    .topbar{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      margin-bottom:15px;
-    }
+
     input{
-      padding:10px;
-      border-radius:8px;
+      width:100%;
+      max-width:500px;
+      padding:16px;
       border:none;
-      width:220px;
-      max-width:100%;
+      border-radius:12px;
+      font-size:18px;
+      margin-bottom:16px;
+      box-sizing:border-box;
     }
+
     button{
-      background:#FFD700;
+      background:#ffd700;
+      color:#007bff;
       border:none;
-      padding:10px 14px;
-      border-radius:8px;
-      cursor:pointer;
+      padding:16px 24px;
+      border-radius:12px;
+      font-size:18px;
       font-weight:bold;
+      cursor:pointer;
+      margin-bottom:20px;
     }
+
     .ride{
       background:#222;
-      padding:15px;
-      margin:12px 0;
+      padding:16px;
       border-radius:12px;
+      margin:14px 0;
     }
-    .status{
-      display:inline-block;
-      padding:6px 10px;
-      border-radius:8px;
-      margin-top:8px;
-      font-size:14px;
+
+    .accept{
+      background:#28a745;
+      color:white;
+      margin-top:12px;
     }
-    .requested{ background:#444; }
-    .accepted{ background:#1e90ff; }
-    .completed{ background:#2e8b57; }
+
     .muted{
       color:#bbb;
+    }
+
+    .status{
+      display:inline-block;
+      margin-top:10px;
+      padding:8px 12px;
+      border-radius:10px;
+      background:#444;
+      font-weight:bold;
     }
   </style>
 </head>
@@ -60,89 +73,90 @@
 
   <h1>🚕 Harvey Taxi Driver App</h1>
 
-  <div class="topbar">
-    <input id="driverName" placeholder="Enter driver name">
-    <button onclick="loadRides()">Refresh Rides</button>
-  </div>
+  <input id="driverName" placeholder="Enter driver name">
+
+  <button onclick="loadRides()">Refresh Rides</button>
+
+  <div id="locationStatus" class="muted">Location tracking not started.</div>
 
   <div id="rides"></div>
 
   <script>
-    async function loadRides(){
+    async function loadRides() {
       const res = await fetch("/rides");
       const rides = await res.json();
+
       const container = document.getElementById("rides");
       container.innerHTML = "";
 
       if (!rides.length) {
-        container.innerHTML = '<p class="muted">No rides yet.</p>';
+        container.innerHTML = "<p class='muted'>No rides yet.</p>";
         return;
       }
 
-      rides
-        .slice()
-        .reverse()
-        .forEach((ride)=>{
-          const div = document.createElement("div");
-          div.className = "ride";
+      rides.forEach((ride) => {
+        const div = document.createElement("div");
+        div.className = "ride";
 
-          let buttons = "";
+        div.innerHTML = `
+          <b>Name:</b> ${ride.name}<br>
+          <b>Phone:</b> ${ride.phone}<br>
+          <b>Pickup:</b> ${ride.pickup}<br>
+          <b>Dropoff:</b> ${ride.dropoff}<br>
+          <div class="status">Status: ${ride.status}</div>
+        `;
 
-          if (ride.status === "requested") {
-            buttons = `<button onclick="acceptRide(${ride.id})">Accept Ride</button>`;
-          } else if (ride.status === "accepted") {
-            buttons = `<button onclick="completeRide(${ride.id})">Complete Ride</button>`;
-          }
-
-          div.innerHTML = `
-            <b>Name:</b> ${ride.name || ride.rider || "N/A"}<br>
-            <b>Phone:</b> ${ride.phone || "N/A"}<br>
-            <b>Pickup:</b> ${ride.pickup || "N/A"}<br>
-            <b>Dropoff:</b> ${ride.dropoff || "N/A"}<br>
-            <b>Requested:</b> ${ride.time || "N/A"}<br>
-            <b>Accepted By:</b> ${ride.acceptedBy || "Nobody yet"}<br>
-            <div class="status ${ride.status}">Status: ${ride.status}</div>
-            <div style="margin-top:10px;">${buttons}</div>
-          `;
-
-          container.appendChild(div);
-        });
+        container.appendChild(div);
+      });
     }
 
-    async function acceptRide(id){
-      const driverName = document.getElementById("driverName").value.trim() || "Driver";
+    function sendLocation() {
+      const name = document.getElementById("driverName").value.trim();
 
-      const res = await fetch(`/accept/${id}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ driverName })
-      });
-
-      const data = await res.json();
-
-      if (!data.success) {
-        alert(data.message || "Could not accept ride");
+      if (!name) {
+        document.getElementById("locationStatus").innerText = "Enter driver name to start location tracking.";
+        return;
       }
 
-      loadRides();
-    }
-
-    async function completeRide(id){
-      const res = await fetch(`/complete/${id}`, {
-        method: "POST"
-      });
-
-      const data = await res.json();
-
-      if (!data.success) {
-        alert(data.message || "Could not complete ride");
+      if (!navigator.geolocation) {
+        document.getElementById("locationStatus").innerText = "Geolocation is not supported on this device.";
+        return;
       }
 
-      loadRides();
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+
+          await fetch("/driver-location", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              name,
+              lat,
+              lng
+            })
+          });
+
+          document.getElementById("locationStatus").innerText =
+            "Location shared: " + lat.toFixed(5) + ", " + lng.toFixed(5);
+        },
+        (error) => {
+          document.getElementById("locationStatus").innerText =
+            "Location error: " + error.message;
+        },
+        {
+          enableHighAccuracy: true
+        }
+      );
     }
+
+    setInterval(sendLocation, 5000);
+    setInterval(loadRides, 10000);
 
     loadRides();
-    setInterval(loadRides, 5000);
   </script>
 
 </body>
