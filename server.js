@@ -31,21 +31,21 @@ app.post("/request-ride", (req, res) => {
     [name, phone, pickup, dropoff, "waiting"],
     function (err) {
       if (err) {
-        res.status(500).send("Error saving ride");
-      } else {
-        const ride = {
-          id: this.lastID,
-          name,
-          phone,
-          pickup,
-          dropoff,
-          status: "waiting"
-        };
-
-        io.emit("newRide", ride);
-
-        res.json({ success: true });
+        return res.status(500).send("Error saving ride");
       }
+
+      const ride = {
+        id: this.lastID,
+        name,
+        phone,
+        pickup,
+        dropoff,
+        status: "waiting"
+      };
+
+      io.emit("newRide", ride);
+
+      res.json({ success: true });
     }
   );
 });
@@ -65,6 +65,8 @@ app.post("/accept-ride/:id", (req, res) => {
   });
 });
 
-server.listen(process.env.PORT || 10000, () => {
-  console.log("🚕 Harvey Taxi server running");
+const PORT = process.env.PORT || 10000;
+
+server.listen(PORT, () => {
+  console.log("🚕 Harvey Taxi server running on port " + PORT);
 });
