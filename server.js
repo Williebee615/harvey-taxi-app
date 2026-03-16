@@ -1,72 +1,140 @@
 const express = require("express");
 const sqlite3 = require("sqlite3").verbose();
-const http = require("http");
-const { Server } = require("socket.io");
+const path = require("path");
 
 const app = express();
-const server = http.createServer(app);
-const io = new Server(server);
+const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(express.static(__dirname));
 
-const db = new sqlite3.Database("./rides.db");
+/* DATABASE */
+
+const db = new sqlite3.Database("./taxi.db");
+
+/* CREATE TABLES */
 
 db.serialize(() => {
-  db.run(`CREATE TABLE IF NOT EXISTS rides (
+
+  db.run(`
+  CREATE TABLE IF NOT EXISTS rides (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT,
     phone TEXT,
     pickup TEXT,
     dropoff TEXT,
-    status TEXT
-  )`);
+    status TEXT DEFAULT 'waiting'
+  )
+  `);
+
+  db.run(`
+  CREATE TABLE IF NOT EXISTS drivers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT,
+    phone TEXT,
+    email TEXT,
+    city TEXT,
+    state TEXT,
+    vehicle TEXT,
+    type TEXT
+  )
+  `);
+
 });
 
+/* -------------------- */
+/* RIDE REQUEST */
+/* -------------------- */
+
 app.post("/request-ride", (req, res) => {
+
   const { name, phone, pickup, dropoff } = req.body;
 
   db.run(
-    "INSERT INTO rides (name, phone, pickup, dropoff, status) VALUES (?, ?, ?, ?, ?)",
-    [name, phone, pickup, dropoff, "waiting"],
+    "INSERT INTO rides (name, phone, pickup, dropoff) VALUES (?, ?, ?, ?)",
+    [name, phone, pickup, dropoff],
     function (err) {
+
       if (err) {
-        return res.status(500).send("Error saving ride");
+        res.status(500).send(err);
+        return;
       }
 
-      const ride = {
-        id: this.lastID,
-        name,
-        phone,
-        pickup,
-        dropoff,
-        status: "waiting"
-      };
-
-      io.emit("newRide", ride);
-
       res.json({ success: true });
+
     }
   );
+
 });
+
+/* -------------------- */
+/* GET RIDES */
+/* -------------------- */
 
 app.get("/rides", (req, res) => {
-  db.all("SELECT * FROM rides", [], (err, rows) => {
+
+  db.all("SELECT * FROM rides ORDER BY id DESC", [], (err, rows) => {
+
+    if (err) {
+      res.status(500).send(err);
+      return;
+    }
+
     res.json(rows);
+
   });
+
 });
 
-app.post("/accept-ride/:id", (req, res) => {
-  const id = req.params.id;
+/* -------------------- */
+/* DRIVER SIGNUP */
+/* -------------------- */
 
-  db.run("UPDATE rides SET status='accepted' WHERE id=?", [id], () => {
-    io.emit("rideAccepted", id);
-    res.json({ success: true });
-  });
+app.post("/driver-signup", (req, res) => {
+
+  const { name, phone, email, city, state, vehicle, type } = req.body;
+
+  db.run(
+    "INSERT INTO drivers (name, phone, email, city, state, vehicle, type) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    [name, phone, email, city, state, vehicle, type],
+    function (err) {
+
+      if (err) {
+        res.status(500).send(err);
+        return;
+      }
+
+      res.json({ success: true });
+
+    }
+  );
+
 });
 
-const PORT = process.env.PORT || 10000;
+/* -------------------- */
+/* GET DRIVERS */
+/* -------------------- */
 
-server.listen(PORT, () => {
-  console.log("🚕 Harvey Taxi server running on port " + PORT);
+app.get("/drivers", (req, res) => {
+
+  db.all("SELECT * FROM drivers ORDER BY id DESC", [], (err, rows) => {
+
+    if (err) {
+      res.status(500).send(err);
+      return;
+    }
+
+    res.json(rows);
+
+  });
+
+});
+
+/* -------------------- */
+/* START SERVER */
+/* -------------------- */
+
+app.listen(PORT, () => {
+  console.log("Harvey Taxi server running on port " + PORT);
 });
