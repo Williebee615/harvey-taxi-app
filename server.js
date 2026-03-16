@@ -21,7 +21,9 @@ db.serialize(() => {
       pickup TEXT,
       dropoff TEXT,
       status TEXT DEFAULT 'waiting',
-      acceptedBy TEXT DEFAULT ''
+      acceptedBy TEXT DEFAULT '',
+      fare REAL DEFAULT 0,
+      createdAt TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
@@ -34,20 +36,59 @@ db.serialize(() => {
       city TEXT,
       state TEXT,
       vehicle TEXT,
-      type TEXT
+      type TEXT,
+      status TEXT DEFAULT 'pending',
+      earnings REAL DEFAULT 0,
+      password TEXT DEFAULT '1234',
+      createdAt TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS settings (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      baseFare REAL DEFAULT 5,
+      perMile REAL DEFAULT 2
+    )
+  `);
+
+  db.run(`
+    INSERT OR IGNORE INTO settings (id, baseFare, perMile)
+    VALUES (1, 5, 2)
+  `);
+
+  db.run(`ALTER TABLE rides ADD COLUMN fare REAL DEFAULT 0`, () => {});
+  db.run(`ALTER TABLE rides ADD COLUMN createdAt TEXT DEFAULT CURRENT_TIMESTAMP`, () => {});
+  db.run(`ALTER TABLE drivers ADD COLUMN status TEXT DEFAULT 'pending'`, () => {});
+  db.run(`ALTER TABLE drivers ADD COLUMN earnings REAL DEFAULT 0`, () => {});
+  db.run(`ALTER TABLE drivers ADD COLUMN password TEXT DEFAULT '1234'`, () => {});
+  db.run(`ALTER TABLE drivers ADD COLUMN createdAt TEXT DEFAULT CURRENT_TIMESTAMP`, () => {});
 });
+
+function estimateFare(pickup, dropoff) {
+  const baseFare = 5;
+  const distanceHint = Math.max(1, Math.ceil((pickup.length + dropoff.length) / 20));
+  return Number((baseFare + distanceHint * 2).toFixed(2));
+}
+
+/* RIDES */
 
 app.post("/request-ride", (req, res) => {
   const { name, phone, pickup, dropoff } = req.body;
 
+  if (!name || !phone || !pickup || !dropoff) {
+    return res.status(400).json({ success: false, error: "Missing ride fields" });
+  }
+
+  const fare = estimateFare(pickup, dropoff);
+
   db.run(
-    "INSERT INTO rides (name, phone, pickup, dropoff, status, acceptedBy) VALUES (?, ?, ?, ?, 'waiting', '')",
-    [name, phone, pickup, dropoff],
-    (err) => {
+    `INSERT INTO rides (name, phone, pickup, dropoff, status, acceptedBy, fare)
+     VALUES (?, ?, ?, ?, 'waiting', '', ?)`,
+    [name, phone, pickup, dropoff, fare],
+    function (err) {
       if (err) return res.status(500).json({ success: false, error: err.message });
-      res.json({ success: true });
+      res.json({ success: true, rideId: this.lastID, fare });
     }
   );
 });
@@ -63,12 +104,18 @@ app.post("/accept-ride/:id", (req, res) => {
   const rideId = req.params.id;
   const { driverName } = req.body;
 
+  if (!driverName) {
+    return res.status(400).json({ success: false, error: "Driver name required" });
+  }
+
   db.run(
-    "UPDATE rides SET status = 'accepted', acceptedBy = ? WHERE id = ?",
-    [driverName || "Driver", rideId],
+    `UPDATE rides
+     SET status = 'accepted', acceptedBy = ?
+     WHERE id = ? AND status = 'waiting'`,
+    [driverName, rideId],
     function (err) {
       if (err) return res.status(500).json({ success: false, error: err.message });
-      res.json({ success: true });
+      res.json({ success: this.changes > 0 });
     }
   );
 });
@@ -76,25 +123,66 @@ app.post("/accept-ride/:id", (req, res) => {
 app.post("/complete-ride/:id", (req, res) => {
   const rideId = req.params.id;
 
+  db.get("SELECT * FROM rides WHERE id = ?", [rideId], (err, ride) => {
+    if (err || !ride) {
+      return res.status(404).json({ success: false, error: "Ride not found" });
+    }
+
+    db.run(
+      "UPDATE rides SET status = 'completed' WHERE id = ?",
+      [rideId],
+      (updateErr) => {
+        if (updateErr) return res.status(500).json({ success: false, error: updateErr.message });
+
+        if (ride.acceptedBy) {
+          db.run(
+            "UPDATE drivers SET earnings = earnings + ? WHERE name = ?",
+            [Number((ride.fare || 0) * 0.8), ride.acceptedBy],
+            () => {
+              res.json({ success: true });
+            }
+          );
+        } else {
+          res.json({ success: true });
+        }
+      }
+    );
+  });
+});
+
+/* DRIVER SIGNUP + LOGIN */
+
+app.post("/driver-signup", (req, res) => {
+  const { name, phone, email, city, state, vehicle, type, password } = req.body;
+
+  if (!name || !phone || !email || !city || !state || !vehicle || !type) {
+    return res.status(400).json({ success: false, error: "Missing driver fields" });
+  }
+
   db.run(
-    "UPDATE rides SET status = 'completed' WHERE id = ?",
-    [rideId],
+    `INSERT INTO drivers (name, phone, email, city, state, vehicle, type, status, earnings, password)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', 0, ?)`,
+    [name, phone, email, city, state, vehicle, type, password || "1234"],
     function (err) {
       if (err) return res.status(500).json({ success: false, error: err.message });
-      res.json({ success: true });
+      res.json({ success: true, driverId: this.lastID });
     }
   );
 });
 
-app.post("/driver-signup", (req, res) => {
-  const { name, phone, email, city, state, vehicle, type } = req.body;
+app.post("/driver-login", (req, res) => {
+  const { phone, password } = req.body;
 
-  db.run(
-    "INSERT INTO drivers (name, phone, email, city, state, vehicle, type) VALUES (?, ?, ?, ?, ?, ?, ?)",
-    [name, phone, email, city, state, vehicle, type],
-    (err) => {
+  db.get(
+    "SELECT * FROM drivers WHERE phone = ? AND password = ?",
+    [phone, password],
+    (err, driver) => {
       if (err) return res.status(500).json({ success: false, error: err.message });
-      res.json({ success: true });
+      if (!driver) return res.status(401).json({ success: false, error: "Invalid login" });
+      if (driver.status !== "approved") {
+        return res.status(403).json({ success: false, error: "Driver not approved yet" });
+      }
+      res.json({ success: true, driver });
     }
   );
 });
@@ -105,6 +193,30 @@ app.get("/drivers", (req, res) => {
     res.json(rows);
   });
 });
+
+app.post("/approve-driver/:id", (req, res) => {
+  db.run(
+    "UPDATE drivers SET status = 'approved' WHERE id = ?",
+    [req.params.id],
+    function (err) {
+      if (err) return res.status(500).json({ success: false, error: err.message });
+      res.json({ success: this.changes > 0 });
+    }
+  );
+});
+
+app.post("/reject-driver/:id", (req, res) => {
+  db.run(
+    "UPDATE drivers SET status = 'rejected' WHERE id = ?",
+    [req.params.id],
+    function (err) {
+      if (err) return res.status(500).json({ success: false, error: err.message });
+      res.json({ success: this.changes > 0 });
+    }
+  );
+});
+
+/* DRIVER LOCATIONS */
 
 app.post("/driver-location", (req, res) => {
   const { name, lat, lng } = req.body;
@@ -142,6 +254,41 @@ app.get("/driver-locations", (req, res) => {
   const now = Date.now();
   driverLocations = driverLocations.filter((d) => now - d.updatedAt < 60000);
   res.json(driverLocations);
+});
+
+/* ANALYTICS */
+
+app.get("/analytics", (req, res) => {
+  db.get(
+    `SELECT
+      COUNT(*) AS totalRides,
+      SUM(CASE WHEN status='waiting' THEN 1 ELSE 0 END) AS waitingRides,
+      SUM(CASE WHEN status='accepted' THEN 1 ELSE 0 END) AS acceptedRides,
+      SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) AS completedRides,
+      COALESCE(SUM(fare),0) AS grossRevenue
+     FROM rides`,
+    [],
+    (err, rideStats) => {
+      if (err) return res.status(500).json({ success: false, error: err.message });
+
+      db.get(
+        `SELECT
+          COUNT(*) AS totalDrivers,
+          SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) AS pendingDrivers,
+          SUM(CASE WHEN status='approved' THEN 1 ELSE 0 END) AS approvedDrivers
+         FROM drivers`,
+        [],
+        (driverErr, driverStats) => {
+          if (driverErr) return res.status(500).json({ success: false, error: driverErr.message });
+
+          res.json({
+            ...rideStats,
+            ...driverStats
+          });
+        }
+      );
+    }
+  );
 });
 
 app.listen(PORT, () => {
