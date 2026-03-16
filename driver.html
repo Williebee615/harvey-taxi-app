@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Harvey Taxi Driver App</title>
+
+<style>
+body{
+font-family:Arial;
+background:#111;
+color:white;
+padding:20px;
+}
+
+h1{
+color:#FFD700;
+}
+
+.ride{
+background:#222;
+padding:15px;
+margin:10px 0;
+border-radius:10px;
+}
+
+button{
+background:#FFD700;
+border:none;
+padding:10px;
+margin-top:10px;
+border-radius:6px;
+cursor:pointer;
+}
+</style>
+
+</head>
+
+<body>
+
+<h1>🚕 Harvey Taxi Driver App</h1>
+
+<button onclick="loadRides()">Refresh Rides</button>
+
+<div id="rides"></div>
+
+<script>
+
+async function loadRides(){
+
+const res = await fetch("/rides")
+const rides = await res.json()
+
+const container = document.getElementById("rides")
+container.innerHTML=""
+
+rides.forEach((ride,i)=>{
+
+const div=document.createElement("div")
+div.className="ride"
+
+div.innerHTML=`
+
+<b>Name:</b> ${ride.name}<br>
+<b>Phone:</b> ${ride.phone}<br>
+<b>Pickup:</b> ${ride.pickup}<br>
+<b>Dropoff:</b> ${ride.dropoff}<br>
+
+<button onclick="acceptRide(${i})">Accept Ride</button>
+<button onclick="completeRide(${i})">Complete Ride</button>
+
+`
+
+container.appendChild(div)
+
+})
+
+}
+
+async function acceptRide(i){
+await fetch("/accept/"+i)
+loadRides()
+}
+
+async function completeRide(i){
+await fetch("/complete/"+i)
+loadRides()
+}
+
+loadRides()
+
+</script>
+
+</body>
+</html>
