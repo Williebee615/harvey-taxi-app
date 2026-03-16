@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Harvey Taxi Dispatch</title>
+<style>
+body{font-family:Arial;background:#111;color:#fff;padding:20px}
+.card{background:#222;padding:15px;margin:10px;border-radius:10px}
+button{background:#ffd000;border:none;padding:10px;border-radius:6px}
+</style>
+</head>
+
+<body>
+
+<h1>🚕 Harvey Taxi Dispatch Dashboard</h1>
+
+<button onclick="loadRides()">Refresh Rides</button>
+
+<div id="rides"></div>
+
+<script>
+
+async function loadRides(){
+
+const res = await fetch("/rides")
+const rides = await res.json()
+
+const container = document.getElementById("rides")
+
+container.innerHTML=""
+
+rides.forEach(r=>{
+container.innerHTML += `
+<div class="card">
+<b>Rider:</b> ${r.name || r.rider}<br>
+<b>Phone:</b> ${r.phone}<br>
+<b>Pickup:</b> ${r.pickup}<br>
+<b>Dropoff:</b> ${r.dropoff}<br>
+</div>`
+})
+
+}
+
+loadRides()
+
+</script>
+
+</body>
+</html>
