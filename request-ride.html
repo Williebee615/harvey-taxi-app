@@ -1,1 +1,77 @@
-<!DOCTYPE html>\n<html lang="en">\n<head>\n    <meta charset="UTF-8">\n    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n    <title>Request Ride</title>\n    <style>\n        body { font-family: Arial, sans-serif; margin: 20px; }\n        form { display: flex; flex-direction: column; }\n        label { margin-bottom: 5px; }\n        input, button { margin-bottom: 15px; padding: 10px; }\n    </style>\n</head>\n<body>\n    <h1>Request a Ride</h1>\n    <form id="rideRequestForm">\n        <label for="name">Name:</label>\n        <input type="text" id="name" name="name" required>\n        <label for="phone">Phone:</label>\n        <input type="tel" id="phone" name="phone" required>\n        <label for="pickup">Pickup Location:</label>\n        <input type="text" id="pickup" name="pickup" required>\n        <label for="dropoff">Dropoff Location:</label>\n        <input type="text" id="dropoff" name="dropoff" required>\n        <button type="submit">Request Ride</button>\n    </form>\n    <div id="responseMessage"></div>\n    <script>\n        document.getElementById('rideRequestForm').addEventListener('submit', function(event) {\n            event.preventDefault();\n            const formData = new FormData(this);\n            fetch('https://harvey-taxi-backend.onrender.com/ride/request', {\n                method: 'POST',\n                body: formData\n            })\n            .then(response => response.json())\n            .then(data => {\n                const messageDiv = document.getElementById('responseMessage');\n                messageDiv.textContent = data.success ? 'Ride requested successfully!' : 'Error: ' + data.error;\n            })\n            .catch(error => {\n                document.getElementById('responseMessage').textContent = 'Error: ' + error.message;\n            });\n        });\n    <\/script>\n</body>\n</html>
+<!DOCTYPE html>
+<html>
+<head>
+<title>Request a Ride - Harvey Taxi</title>
+<style>
+body {
+    font-family: Arial;
+    background:#111;
+    color:white;
+    text-align:center;
+}
+
+.container{
+    margin-top:50px;
+}
+
+input{
+    display:block;
+    margin:10px auto;
+    padding:10px;
+    width:250px;
+}
+
+button{
+    padding:12px 25px;
+    background:#1e90ff;
+    border:none;
+    color:white;
+    font-size:16px;
+    border-radius:6px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>🚕 Request a Ride</h1>
+
+<input id="name" placeholder="Name">
+
+<input id="phone" placeholder="Phone">
+
+<input id="pickup" placeholder="Pickup Location">
+
+<input id="dropoff" placeholder="Dropoff Location">
+
+<button onclick="requestRide()">Request Ride</button>
+
+</div>
+
+<script>
+
+async function requestRide(){
+
+const ride = {
+name: document.getElementById("name").value,
+phone: document.getElementById("phone").value,
+pickup: document.getElementById("pickup").value,
+dropoff: document.getElementById("dropoff").value
+};
+
+await fetch("/request-ride",{
+method:"POST",
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify(ride)
+});
+
+alert("Ride Requested!");
+
+}
+
+</script>
+
+</body>
+</html>
