@@ -1,183 +1,87 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Driver App</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #0d0d0d;
-      color: white;
-      padding: 20px;
-    }
-    .wrap {
-      max-width: 700px;
-      margin: 0 auto;
-    }
-    .card {
-      background: #151515;
-      border-radius: 18px;
-      padding: 24px;
-      margin-bottom: 18px;
-    }
-    h1 {
-      margin-top: 0;
-      color: #ffd400;
-      text-align: center;
-    }
-    label {
-      display: block;
-      margin-top: 12px;
-      margin-bottom: 6px;
-      font-weight: bold;
-    }
-    input {
-      width: 100%;
-      padding: 14px;
-      border-radius: 10px;
-      border: 1px solid #333;
-      box-sizing: border-box;
-    }
-    button {
-      width: 100%;
-      margin-top: 18px;
-      padding: 14px;
-      border: none;
-      border-radius: 10px;
-      font-size: 18px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-    .loginBtn {
-      background: #ffd400;
-      color: black;
-    }
-    .logoutBtn {
-      background: #d64545;
-      color: white;
-    }
-    .message {
-      margin-top: 14px;
-      color: #d9d9d9;
-      text-align: center;
-    }
-    .hidden {
-      display: none;
-    }
-    .status {
-      display: inline-block;
-      padding: 6px 12px;
-      border-radius: 999px;
-      background: rgba(46, 191, 79, 0.15);
-      color: #72f195;
-      font-weight: bold;
-      margin-top: 10px;
-    }
-    a.back {
-      color: #ffd400;
-      text-decoration: none;
-      display: inline-block;
-      margin-bottom: 14px;
-    }
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <a class="back" href="index.html">← Back to Home</a>
+<script>
 
-    <div id="loginCard" class="card">
-      <h1>Driver Login</h1>
+let driver = null;
+let trackingInterval = null;
 
-      <label>Email</label>
-      <input id="email" type="email" />
+function startTracking() {
 
-      <label>Password</label>
-      <input id="password" type="password" />
+  if (!navigator.geolocation) {
+    alert("Geolocation not supported");
+    return;
+  }
 
-      <button class="loginBtn" onclick="driverLogin()">Login to Driver App</button>
-      <div id="loginMessage" class="message"></div>
-    </div>
+  trackingInterval = setInterval(() => {
 
-    <div id="driverPanel" class="card hidden">
-      <h1>Welcome Driver</h1>
-      <div id="driverInfo"></div>
-      <button class="logoutBtn" onclick="logoutDriver()">Logout</button>
-    </div>
-  </div>
+    navigator.geolocation.getCurrentPosition(async (position) => {
 
-  <script>
-    const loginCard = document.getElementById("loginCard");
-    const driverPanel = document.getElementById("driverPanel");
-    const loginMessage = document.getElementById("loginMessage");
-    const driverInfo = document.getElementById("driverInfo");
-
-    function saveDriver(driver) {
-      localStorage.setItem("harveyDriver", JSON.stringify(driver));
-    }
-
-    function getDriver() {
-      const raw = localStorage.getItem("harveyDriver");
-      return raw ? JSON.parse(raw) : null;
-    }
-
-    function logoutDriver() {
-      localStorage.removeItem("harveyDriver");
-      loginCard.classList.remove("hidden");
-      driverPanel.classList.add("hidden");
-      loginMessage.textContent = "";
-      document.getElementById("email").value = "";
-      document.getElementById("password").value = "";
-    }
-
-    function renderDriver(driver) {
-      driverInfo.innerHTML = `
-        <p><strong>Name:</strong> ${driver.fullName}</p>
-        <p><strong>Email:</strong> ${driver.email}</p>
-        <p><strong>Phone:</strong> ${driver.phone}</p>
-        <p><strong>City:</strong> ${driver.city}</p>
-        <p><strong>Vehicle:</strong> ${driver.vehicleYear || ""} ${driver.vehicleMake || ""} ${driver.vehicleModel || ""}</p>
-        <p><strong>Plate:</strong> ${driver.licensePlate || ""}</p>
-        <div class="status">APPROVED DRIVER</div>
-      `;
-      loginCard.classList.add("hidden");
-      driverPanel.classList.remove("hidden");
-    }
-
-    async function driverLogin() {
-      loginMessage.textContent = "Logging in...";
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
 
       try {
-        const response = await fetch("/api/driver-login", {
+
+        await fetch("/api/driver-location", {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
+            "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            email: document.getElementById("email").value.trim(),
-            password: document.getElementById("password").value.trim(),
-          }),
+            driverId: driver.id,
+            lat,
+            lng
+          })
         });
 
-        const data = await response.json();
+        console.log("Location updated:", lat, lng);
 
-        if (!response.ok) {
-          throw new Error(data.error || "Login failed.");
-        }
-
-        saveDriver(data.driver);
-        renderDriver(data.driver);
-        loginMessage.textContent = "";
-      } catch (error) {
-        loginMessage.textContent = error.message;
+      } catch (err) {
+        console.error("Location error", err);
       }
-    }
 
-    const savedDriver = getDriver();
-    if (savedDriver) {
-      renderDriver(savedDriver);
-    }
-  </script>
-</body>
-</html>
+    });
+
+  }, 5000); // every 5 seconds
+
+}
+
+async function goOnline() {
+
+  const response = await fetch("/api/driver-status", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      driverId: driver.id,
+      online: true
+    })
+  });
+
+  const data = await response.json();
+
+  if (data.success) {
+    startTracking(); // 🔥 START GPS
+    alert("You are now ONLINE");
+  }
+
+}
+
+async function goOffline() {
+
+  clearInterval(trackingInterval);
+
+  await fetch("/api/driver-status", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      driverId: driver.id,
+      online: false
+    })
+  });
+
+  alert("You are now OFFLINE");
+
+}
+
+</script>
