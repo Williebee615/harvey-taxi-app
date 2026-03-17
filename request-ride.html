@@ -1,169 +1,225 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Harvey Taxi - Request Ride</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Harvey Taxi - Request Ride</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
-<style>
+  <style>
+    body{
+      font-family:Arial,sans-serif;
+      background:#111;
+      color:white;
+      padding:20px;
+      margin:0;
+    }
 
-body{
-font-family:Arial;
-background:#111;
-color:white;
-padding:20px;
-}
+    h1{
+      color:#ffd700;
+      font-size:40px;
+      margin-bottom:10px;
+      text-align:center;
+    }
 
-h1{
-color:#ffd700;
-}
+    p{
+      text-align:center;
+      color:#ccc;
+      margin-bottom:20px;
+    }
 
-input,button{
-width:100%;
-padding:14px;
-margin:10px 0;
-border-radius:10px;
-border:none;
-font-size:16px;
-}
+    .card{
+      background:#1f1f1f;
+      border-radius:16px;
+      padding:18px;
+      max-width:520px;
+      margin:0 auto 20px auto;
+    }
 
-button{
-background:#1e90ff;
-color:white;
-font-weight:bold;
-}
+    input,button{
+      width:100%;
+      box-sizing:border-box;
+      padding:14px;
+      margin:10px 0;
+      border-radius:12px;
+      border:none;
+      font-size:16px;
+    }
 
-#fare{
-margin-top:10px;
-font-size:18px;
-color:#ffd700;
-}
+    button{
+      background:#1e90ff;
+      color:white;
+      font-weight:bold;
+      cursor:pointer;
+    }
 
-#map{
-height:350px;
-margin-top:20px;
-border-radius:10px;
-}
+    #fare{
+      margin-top:10px;
+      font-size:18px;
+      color:#ffd700;
+      font-weight:bold;
+      text-align:center;
+      background:#222;
+      border-radius:12px;
+      padding:14px;
+    }
 
-.success{
-margin-top:15px;
-color:#00ff99;
-}
+    #map{
+      height:350px;
+      margin-top:20px;
+      border-radius:10px;
+      overflow:hidden;
+    }
 
-</style>
+    .success{
+      margin-top:15px;
+      color:#00ff99;
+      text-align:center;
+      min-height:20px;
+    }
+
+    .secondary{
+      background:#ffd700;
+      color:black;
+    }
+  </style>
 </head>
-
 <body>
 
-<h1>🚕 Request a Ride</h1>
+  <h1>🚕 Request a Ride</h1>
+  <p>Request a ride in seconds.</p>
 
-<input id="name" placeholder="Your Name">
-<input id="phone" placeholder="Phone Number">
-<input id="pickup" placeholder="Pickup Location">
-<input id="dropoff" placeholder="Dropoff Location">
+  <div class="card">
+    <input id="name" placeholder="Your Name">
+    <input id="phone" placeholder="Phone Number">
+    <input id="pickup" placeholder="Pickup Location">
+    <input id="dropoff" placeholder="Dropoff Location">
 
-<button onclick="useCurrentLocation()">Use My Current Location</button>
+    <button class="secondary" onclick="useCurrentLocation()">Use My Current Location</button>
 
-<div id="fare">Estimated Fare: --</div>
+    <div id="fare">Estimated Fare: --</div>
 
-<button onclick="requestRide()">Request Ride</button>
+    <button onclick="requestRide()">Request Ride</button>
 
-<div class="success" id="success"></div>
+    <div class="success" id="success"></div>
 
-<div id="map"></div>
+    <div id="map"></div>
+  </div>
 
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-<script>
+  <script>
+    const map = L.map("map").setView([36.1627, -86.7816], 12);
 
-const map = L.map("map").setView([36.1627,-86.7816],12)
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "© OpenStreetMap"
+    }).addTo(map);
 
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
-attribution:"© OpenStreetMap"
-}).addTo(map)
+    let driverMarker = null;
+    let pickupMarker = null;
+    let currentRideAssignedDriver = null;
 
-let driverMarker = null
-let pickupMarker = null
+    function updateFare() {
+      const pickup = document.getElementById("pickup").value.trim();
+      const dropoff = document.getElementById("dropoff").value.trim();
 
-async function useCurrentLocation(){
+      if (!pickup || !dropoff) {
+        document.getElementById("fare").innerText = "Estimated Fare: --";
+        return;
+      }
 
-navigator.geolocation.getCurrentPosition(function(pos){
+      const distanceHint = Math.max(1, Math.ceil((pickup.length + dropoff.length) / 20));
+      const fare = (5 + distanceHint * 2).toFixed(2);
+      document.getElementById("fare").innerText = "Estimated Fare: $" + fare;
+    }
 
-const lat = pos.coords.latitude
-const lng = pos.coords.longitude
+    document.getElementById("pickup").addEventListener("input", updateFare);
+    document.getElementById("dropoff").addEventListener("input", updateFare);
 
-document.getElementById("pickup").value = lat + "," + lng
+    async function useCurrentLocation() {
+      navigator.geolocation.getCurrentPosition(function(pos) {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
 
-map.setView([lat,lng],14)
+        document.getElementById("pickup").value = lat + "," + lng;
+        updateFare();
 
-if(pickupMarker){
-map.removeLayer(pickupMarker)
-}
+        map.setView([lat, lng], 14);
 
-pickupMarker = L.marker([lat,lng]).addTo(map)
-.bindPopup("Pickup Location")
-.openPopup()
+        if (pickupMarker) {
+          map.removeLayer(pickupMarker);
+        }
 
-})
+        pickupMarker = L.marker([lat, lng]).addTo(map)
+          .bindPopup("Pickup Location")
+          .openPopup();
+      });
+    }
 
-}
+    async function requestRide() {
+      const name = document.getElementById("name").value.trim();
+      const phone = document.getElementById("phone").value.trim();
+      const pickup = document.getElementById("pickup").value.trim();
+      const dropoff = document.getElementById("dropoff").value.trim();
 
-async function requestRide(){
+      const res = await fetch("/request-ride", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, phone, pickup, dropoff })
+      });
 
-const name = document.getElementById("name").value
-const phone = document.getElementById("phone").value
-const pickup = document.getElementById("pickup").value
-const dropoff = document.getElementById("dropoff").value
+      const data = await res.json();
 
-const res = await fetch("/request-ride",{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({
-name,
-phone,
-pickup,
-dropoff
-})
-})
+      if (!data.success) {
+        document.getElementById("success").innerText = "Ride request failed.";
+        return;
+      }
 
-document.getElementById("success").innerText="Ride request sent successfully!"
+      if (data.autoAssigned && data.assignedDriver) {
+        currentRideAssignedDriver = data.assignedDriver;
+        document.getElementById("success").innerText =
+          "Ride sent successfully! Driver assigned: " + data.assignedDriver;
+      } else {
+        currentRideAssignedDriver = null;
+        document.getElementById("success").innerText =
+          "Ride request sent successfully! Waiting for driver assignment.";
+      }
 
-trackDriver()
+      trackDriver();
+    }
 
-}
+    async function trackDriver() {
+      setInterval(async () => {
+        const res = await fetch("/driver-locations");
+        const drivers = await res.json();
 
-async function trackDriver(){
+        if (!drivers.length) return;
 
-setInterval(async ()=>{
+        let targetDriver = null;
 
-const res = await fetch("/driver-locations")
-const drivers = await res.json()
+        if (currentRideAssignedDriver) {
+          targetDriver = drivers.find((d) => d.name === currentRideAssignedDriver);
+        }
 
-if(drivers.length>0){
+        if (!targetDriver) {
+          targetDriver = drivers[0];
+        }
 
-const d = drivers[0]
+        if (!targetDriver) return;
 
-const lat = d.lat
-const lng = d.lng
+        const lat = targetDriver.lat;
+        const lng = targetDriver.lng;
 
-if(driverMarker){
-driverMarker.setLatLng([lat,lng])
-}
-else{
-
-driverMarker = L.marker([lat,lng]).addTo(map)
-.bindPopup("🚕 Your Driver")
-
-}
-
-}
-
-},3000)
-
-}
-
-</script>
+        if (driverMarker) {
+          driverMarker.setLatLng([lat, lng]);
+          driverMarker.setPopupContent("🚕 Your Driver: " + targetDriver.name);
+        } else {
+          driverMarker = L.marker([lat, lng]).addTo(map)
+            .bindPopup("🚕 Your Driver: " + targetDriver.name);
+        }
+      }, 3000);
+    }
+  </script>
 
 </body>
 </html>
