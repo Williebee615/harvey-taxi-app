@@ -1,44 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Driver App</title>
+
+<style>
+body {
+  font-family: Arial;
+  padding: 16px;
+  background: #111;
+  color: white;
+}
+
+h1 {
+  margin-top: 0;
+}
+
+button {
+  padding: 14px;
+  font-size: 18px;
+  background: gold;
+  color: black;
+  border: none;
+  border-radius: 10px;
+  margin-top: 10px;
+}
+
+#status {
+  margin-top: 15px;
+  font-size: 16px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>🚕 Driver App</h1>
+
+<button id="startBtn">Start Tracking</button>
+
+<p id="status">Driver not active</p>
+
 <script>
-const statusEl = document.getElementById("status");
+let tracking = false;document.getElementById("startBtn").onclick = function(){
 
-let tracking = false;
-
-function startTracking() {
-  if (!navigator.geolocation) {
-    statusEl.innerText = "Geolocation not supported";
+  if(!navigator.geolocation){
+    document.getElementById("status").innerText = "Geolocation not supported";
     return;
   }
 
   tracking = true;
-  track();
-}async function track() {
-  if (!tracking) return;
+  document.getElementById("status").innerText = "Tracking started...";
 
-  navigator.geolocation.getCurrentPosition(async (pos) => {
+  navigator.geolocation.watchPosition(async function(pos){
+
+    if(!tracking) return;
+
     const lat = pos.coords.latitude;
     const lng = pos.coords.longitude;
 
-    statusEl.innerText = `Tracking: ${lat}, ${lng}`;
+    document.getElementById("status").innerText =
+      "Sending location: " + lat + ", " + lng;
 
-    try {
-      await fetch("/api/driver/location", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+    try{
+      await fetch("/api/driver/update",{
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
         body: JSON.stringify({
-          id: "driver1",   // 🔥 THIS IS THE FIX
+          driverId: "driver1",
           lat,
           lng
         })
       });
-    } catch (err) {
-      console.error(err);
+    } catch(e){
+      document.getElementById("status").innerText = "Error sending location";
     }
 
-    setTimeout(track, 2000);
   });
-}
 
-document.querySelector("button").addEventListener("click", startTracking);
+};
 </script>
+
+</body>
+</html>
