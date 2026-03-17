@@ -1,225 +1,159 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Harvey Taxi - Request Ride</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <meta charset="UTF-8" />
+  <title>Request a Ride</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <style>
-    body{
-      font-family:Arial,sans-serif;
-      background:#111;
-      color:white;
-      padding:20px;
-      margin:0;
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0d0d0d;
+      color: white;
+      padding: 20px;
     }
 
-    h1{
-      color:#ffd700;
-      font-size:40px;
-      margin-bottom:10px;
-      text-align:center;
+    .wrap {
+      max-width: 700px;
+      margin: 0 auto;
     }
 
-    p{
-      text-align:center;
-      color:#ccc;
-      margin-bottom:20px;
+    .card {
+      background: #151515;
+      border-radius: 18px;
+      padding: 24px;
     }
 
-    .card{
-      background:#1f1f1f;
-      border-radius:16px;
-      padding:18px;
-      max-width:520px;
-      margin:0 auto 20px auto;
+    h1 {
+      color: #2d8cff;
+      text-align: center;
+      margin-top: 0;
     }
 
-    input,button{
-      width:100%;
-      box-sizing:border-box;
-      padding:14px;
-      margin:10px 0;
-      border-radius:12px;
-      border:none;
-      font-size:16px;
+    label {
+      display: block;
+      margin-top: 14px;
+      margin-bottom: 6px;
+      font-weight: bold;
     }
 
-    button{
-      background:#1e90ff;
-      color:white;
-      font-weight:bold;
-      cursor:pointer;
+    input {
+      width: 100%;
+      padding: 14px;
+      border-radius: 10px;
+      border: 1px solid #333;
+      box-sizing: border-box;
     }
 
-    #fare{
-      margin-top:10px;
-      font-size:18px;
-      color:#ffd700;
-      font-weight:bold;
-      text-align:center;
-      background:#222;
-      border-radius:12px;
-      padding:14px;
+    button {
+      width: 100%;
+      margin-top: 18px;
+      padding: 14px;
+      border: none;
+      border-radius: 10px;
+      font-size: 18px;
+      font-weight: bold;
+      background: #2d8cff;
+      color: white;
+      cursor: pointer;
     }
 
-    #map{
-      height:350px;
-      margin-top:20px;
-      border-radius:10px;
-      overflow:hidden;
+    .message {
+      margin-top: 16px;
+      color: #dcdcdc;
+      text-align: center;
     }
 
-    .success{
-      margin-top:15px;
-      color:#00ff99;
-      text-align:center;
-      min-height:20px;
-    }
-
-    .secondary{
-      background:#ffd700;
-      color:black;
+    a.back {
+      color: #ffd400;
+      text-decoration: none;
+      display: inline-block;
+      margin-bottom: 14px;
     }
   </style>
 </head>
+
 <body>
 
-  <h1>🚕 Request a Ride</h1>
-  <p>Request a ride in seconds.</p>
+<div class="wrap">
+
+  <a class="back" href="index.html">← Back to Home</a>
 
   <div class="card">
-    <input id="name" placeholder="Your Name">
-    <input id="phone" placeholder="Phone Number">
-    <input id="pickup" placeholder="Pickup Location">
-    <input id="dropoff" placeholder="Dropoff Location">
 
-    <button class="secondary" onclick="useCurrentLocation()">Use My Current Location</button>
+    <h1>Request a Ride</h1>
 
-    <div id="fare">Estimated Fare: --</div>
+    <label>Pickup Location</label>
+    <input id="pickup" type="text" placeholder="Enter pickup address" />
+
+    <label>Dropoff Location</label>
+    <input id="dropoff" type="text" placeholder="Enter destination" />
+
+    <label>Your Name</label>
+    <input id="name" type="text" placeholder="Enter your name" />
+
+    <label>Phone Number</label>
+    <input id="phone" type="text" placeholder="Enter your phone number" />
 
     <button onclick="requestRide()">Request Ride</button>
 
-    <div class="success" id="success"></div>
+    <div id="message" class="message"></div>
 
-    <div id="map"></div>
   </div>
 
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+</div>
 
-  <script>
-    const map = L.map("map").setView([36.1627, -86.7816], 12);
+<script>
 
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "© OpenStreetMap"
-    }).addTo(map);
+async function requestRide(){
 
-    let driverMarker = null;
-    let pickupMarker = null;
-    let currentRideAssignedDriver = null;
+  const pickup = document.getElementById("pickup").value.trim();
+  const dropoff = document.getElementById("dropoff").value.trim();
+  const name = document.getElementById("name").value.trim();
+  const phone = document.getElementById("phone").value.trim();
 
-    function updateFare() {
-      const pickup = document.getElementById("pickup").value.trim();
-      const dropoff = document.getElementById("dropoff").value.trim();
+  const message = document.getElementById("message");
 
-      if (!pickup || !dropoff) {
-        document.getElementById("fare").innerText = "Estimated Fare: --";
-        return;
-      }
+  if(!pickup || !dropoff || !name || !phone){
+    message.textContent = "Please fill in all fields.";
+    return;
+  }
 
-      const distanceHint = Math.max(1, Math.ceil((pickup.length + dropoff.length) / 20));
-      const fare = (5 + distanceHint * 2).toFixed(2);
-      document.getElementById("fare").innerText = "Estimated Fare: $" + fare;
+  message.textContent = "Requesting ride...";
+
+  try{
+
+    const response = await fetch("/api/request-ride",{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json"
+      },
+      body: JSON.stringify({
+        pickup,
+        dropoff,
+        name,
+        phone
+      })
+    });
+
+    const data = await response.json();
+
+    if(!response.ok){
+      throw new Error(data.error || "Failed to request ride.");
     }
 
-    document.getElementById("pickup").addEventListener("input", updateFare);
-    document.getElementById("dropoff").addEventListener("input", updateFare);
+    message.textContent = "Ride requested successfully. Waiting for driver...";
 
-    async function useCurrentLocation() {
-      navigator.geolocation.getCurrentPosition(function(pos) {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
+  }catch(error){
 
-        document.getElementById("pickup").value = lat + "," + lng;
-        updateFare();
+    message.textContent = error.message;
 
-        map.setView([lat, lng], 14);
+  }
 
-        if (pickupMarker) {
-          map.removeLayer(pickupMarker);
-        }
+}
 
-        pickupMarker = L.marker([lat, lng]).addTo(map)
-          .bindPopup("Pickup Location")
-          .openPopup();
-      });
-    }
-
-    async function requestRide() {
-      const name = document.getElementById("name").value.trim();
-      const phone = document.getElementById("phone").value.trim();
-      const pickup = document.getElementById("pickup").value.trim();
-      const dropoff = document.getElementById("dropoff").value.trim();
-
-      const res = await fetch("/request-ride", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, phone, pickup, dropoff })
-      });
-
-      const data = await res.json();
-
-      if (!data.success) {
-        document.getElementById("success").innerText = "Ride request failed.";
-        return;
-      }
-
-      if (data.autoAssigned && data.assignedDriver) {
-        currentRideAssignedDriver = data.assignedDriver;
-        document.getElementById("success").innerText =
-          "Ride sent successfully! Driver assigned: " + data.assignedDriver;
-      } else {
-        currentRideAssignedDriver = null;
-        document.getElementById("success").innerText =
-          "Ride request sent successfully! Waiting for driver assignment.";
-      }
-
-      trackDriver();
-    }
-
-    async function trackDriver() {
-      setInterval(async () => {
-        const res = await fetch("/driver-locations");
-        const drivers = await res.json();
-
-        if (!drivers.length) return;
-
-        let targetDriver = null;
-
-        if (currentRideAssignedDriver) {
-          targetDriver = drivers.find((d) => d.name === currentRideAssignedDriver);
-        }
-
-        if (!targetDriver) {
-          targetDriver = drivers[0];
-        }
-
-        if (!targetDriver) return;
-
-        const lat = targetDriver.lat;
-        const lng = targetDriver.lng;
-
-        if (driverMarker) {
-          driverMarker.setLatLng([lat, lng]);
-          driverMarker.setPopupContent("🚕 Your Driver: " + targetDriver.name);
-        } else {
-          driverMarker = L.marker([lat, lng]).addTo(map)
-            .bindPopup("🚕 Your Driver: " + targetDriver.name);
-        }
-      }, 3000);
-    }
-  </script>
+</script>
 
 </body>
 </html>
