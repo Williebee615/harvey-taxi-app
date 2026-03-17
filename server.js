@@ -71,6 +71,68 @@ function estimateFare(pickup, dropoff) {
   return Number((baseFare + distanceHint * 2).toFixed(2));
 }
 
+function distanceMiles(lat1, lon1, lat2, lon2) {
+  const toRad = (value) => (value * Math.PI) / 180;
+  const R = 3958.8;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+function parseLatLng(pickup) {
+  if (!pickup || typeof pickup !== "string") return null;
+
+  const parts = pickup.split(",");
+  if (parts.length < 2) return null;
+
+  const lat = Number(parts[0].trim());
+  const lng = Number(parts[1].trim());
+
+  if (Number.isNaN(lat) || Number.isNaN(lng)) return null;
+
+  return { lat, lng };
+}
+
+function findClosestApprovedDriver(pickupText, approvedDrivers) {
+  const pickupCoords = parseLatLng(pickupText);
+  if (!pickupCoords) return null;
+
+  const onlineApprovedDrivers = approvedDrivers.filter((driver) =>
+    driverLocations.some((loc) => loc.name === driver.name)
+  );
+
+  if (!onlineApprovedDrivers.length) return null;
+
+  let closest = null;
+  let closestDistance = Infinity;
+
+  onlineApprovedDrivers.forEach((driver) => {
+    const loc = driverLocations.find((d) => d.name === driver.name);
+    if (!loc) return;
+
+    const miles = distanceMiles(pickupCoords.lat, pickupCoords.lng, loc.lat, loc.lng);
+
+    if (miles < closestDistance) {
+      closestDistance = miles;
+      closest = {
+        name: driver.name,
+        distanceMiles: Number(miles.toFixed(2))
+      };
+    }
+  });
+
+  return closest;
+}
+
 /* RIDES */
 
 app.post("/request-ride", (req, res) => {
@@ -82,13 +144,34 @@ app.post("/request-ride", (req, res) => {
 
   const fare = estimateFare(pickup, dropoff);
 
-  db.run(
-    `INSERT INTO rides (name, phone, pickup, dropoff, status, acceptedBy, fare)
-     VALUES (?, ?, ?, ?, 'waiting', '', ?)`,
-    [name, phone, pickup, dropoff, fare],
-    function (err) {
-      if (err) return res.status(500).json({ success: false, error: err.message });
-      res.json({ success: true, rideId: this.lastID, fare });
+  db.all(
+    "SELECT * FROM drivers WHERE status = 'approved'",
+    [],
+    (driverErr, approvedDrivers) => {
+      if (driverErr) {
+        return res.status(500).json({ success: false, error: driverErr.message });
+      }
+
+      const closestDriver = findClosestApprovedDriver(pickup, approvedDrivers);
+      const assignedDriver = closestDriver ? closestDriver.name : "";
+      const assignedStatus = closestDriver ? "accepted" : "waiting";
+
+      db.run(
+        `INSERT INTO rides (name, phone, pickup, dropoff, status, acceptedBy, fare)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [name, phone, pickup, dropoff, assignedStatus, assignedDriver, fare],
+        function (err) {
+          if (err) return res.status(500).json({ success: false, error: err.message });
+
+          res.json({
+            success: true,
+            rideId: this.lastID,
+            fare,
+            autoAssigned: !!closestDriver,
+            assignedDriver: assignedDriver || null
+          });
+        }
+      );
     }
   );
 });
