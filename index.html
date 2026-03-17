@@ -1,86 +1,66 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Harvey Taxi Service LLC</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    body{
-      margin:0;
-      font-family:Arial,sans-serif;
-      background:#111;
-      color:white;
-      text-align:center;
-      padding:30px 20px;
-    }
+<meta charset="UTF-8">
+<title>Harvey Taxi</title>
 
-    .container{
-      max-width:700px;
-      margin:auto;
-    }
+<style>
+body{
+background:#0e0e0e;
+font-family:Arial;
+text-align:center;
+color:white;
+padding-top:40px;
+}
 
-    h1{
-      color:#ffd700;
-      font-size:48px;
-      margin-bottom:10px;
-    }
+h1{
+color:#ffd400;
+font-size:40px;
+}
 
-    p{
-      color:#ddd;
-      font-size:20px;
-      margin-bottom:30px;
-    }
+button{
+width:90%;
+max-width:420px;
+padding:20px;
+font-size:22px;
+border:none;
+border-radius:12px;
+margin:12px;
+cursor:pointer;
+}
 
-    .grid{
-      display:flex;
-      flex-direction:column;
-      gap:16px;
-    }
+.ride{background:#2d8cff;color:white;}
+.driver{background:#ffd400;color:black;}
+.signup{background:#2ebf4f;color:white;}
 
-    a{
-      display:block;
-      text-decoration:none;
-      background:#1f1f1f;
-      color:white;
-      padding:20px;
-      border-radius:14px;
-      font-size:22px;
-      font-weight:bold;
-      border:1px solid #333;
-    }
-
-    a:hover{
-      background:#2a2a2a;
-    }
-
-    .blue{ background:#1e90ff; }
-    .gold{ background:#ffd700; color:black; }
-    .green{ background:#28a745; }
-    .purple{ background:#6f42c1; }
-
-    .footer{
-      margin-top:40px;
-      color:#aaa;
-      font-size:16px;
-    }
-  </style>
+button:hover{
+opacity:.9;
+}
+</style>
 </head>
+
 <body>
-  <div class="container">
-    <h1>🚕 Harvey Taxi</h1>
-    <p>Transportation platform for riders, drivers, and dispatch.</p>
 
-    <div class="grid">
-      <a class="blue" href="/request-ride.html">Request a Ride</a>
-      <a class="gold" href="/driver.html">Driver App</a>
-      <a class="green" href="/driver-signup.html">Drive With Harvey</a>
-      <a class="purple" href="/dashboard.html">Dispatch Dashboard</a>
-      <a href="/admin.html">Admin Panel</a>
-    </div>
+<h1>🚕 Harvey Taxi</h1>
+<p>Transportation platform for riders, drivers, and dispatch.</p>
 
-    <div class="footer">
-      Harvey Taxi Service LLC<br>
-      Nashville first. Nationwide next.
-    </div>
-  </div>
+<br>
+
+<a href="request-ride.html">
+<button class="ride">Request a Ride</button>
+</a>
+
+<br>
+
+<a href="driver.html">
+<button class="driver">Driver App</button>
+</a>
+
+<br>
+
+<a href="driver-signup.html">
+<button class="signup">Drive With Harvey</button>
+</a>
+
 </body>
 </html>
