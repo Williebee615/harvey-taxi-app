@@ -1,99 +1,228 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Harvey Taxi - Request a Ride</title>
+  <title>Harvey Taxi Passenger App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #111;
-      color: white;
-      margin: 0;
-      padding: 40px 20px;
-      text-align: center;
+    body{
+      margin:0;
+      font-family:Arial,sans-serif;
+      background:#111;
+      color:white;
+      padding:20px;
     }
 
-    h1 {
-      color: #fff;
-      margin-bottom: 24px;
+    h1{
+      color:#ffd700;
+      font-size:40px;
+      margin-bottom:10px;
+      text-align:center;
     }
 
-    .container {
-      max-width: 420px;
-      margin: 0 auto;
+    p{
+      text-align:center;
+      color:#ccc;
+      margin-bottom:20px;
     }
 
-    input {
-      width: 100%;
-      box-sizing: border-box;
-      padding: 12px;
-      margin: 10px 0;
-      border: none;
-      border-radius: 8px;
-      font-size: 16px;
+    .card{
+      background:#1f1f1f;
+      border-radius:16px;
+      padding:18px;
+      max-width:520px;
+      margin:0 auto 20px auto;
     }
 
-    button {
-      background: #1e90ff;
-      color: white;
-      border: none;
-      padding: 12px 20px;
-      border-radius: 8px;
-      font-size: 16px;
-      font-weight: bold;
-      cursor: pointer;
-      margin-top: 10px;
+    input{
+      width:100%;
+      box-sizing:border-box;
+      padding:14px;
+      margin:10px 0;
+      border:none;
+      border-radius:12px;
+      font-size:16px;
     }
 
-    .message {
-      margin-top: 18px;
-      color: #FFD700;
-      font-weight: bold;
+    button{
+      width:100%;
+      border:none;
+      border-radius:12px;
+      padding:14px;
+      font-size:18px;
+      font-weight:bold;
+      cursor:pointer;
+      margin-top:10px;
+    }
+
+    .primary{
+      background:#1e90ff;
+      color:white;
+    }
+
+    .secondary{
+      background:#ffd700;
+      color:black;
+    }
+
+    .message{
+      margin-top:15px;
+      padding:12px;
+      border-radius:12px;
+      text-align:center;
+      background:#222;
+      color:#ffd700;
+      min-height:20px;
+    }
+
+    .muted{
+      color:#aaa;
+      font-size:14px;
+      text-align:center;
+      margin-top:8px;
+    }
+
+    .fare{
+      background:#222;
+      border-radius:12px;
+      padding:14px;
+      margin-top:12px;
+      text-align:center;
+      font-size:18px;
+      color:#ffd700;
+      font-weight:bold;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>🚕 Request a Ride</h1>
 
+  <h1>🚕 Harvey Taxi</h1>
+  <p>Request a ride in seconds.</p>
+
+  <div class="card">
     <form id="rideForm">
-      <input type="text" id="name" placeholder="Name" required />
-      <input type="text" id="phone" placeholder="Phone" required />
+      <input type="text" id="name" placeholder="Your Name" required />
+      <input type="text" id="phone" placeholder="Phone Number" required />
       <input type="text" id="pickup" placeholder="Pickup Location" required />
       <input type="text" id="dropoff" placeholder="Dropoff Location" required />
-      <button type="submit">Request Ride</button>
+
+      <button type="button" class="secondary" onclick="useMyLocation()">Use My Current Location</button>
+
+      <div id="fareBox" class="fare">Estimated Fare: --</div>
+
+      <button type="submit" class="primary">Request Ride</button>
     </form>
 
     <div id="message" class="message"></div>
+    <div class="muted">After booking, dispatch and drivers will see your request instantly.</div>
   </div>
 
   <script>
+    function estimateFare() {
+      const pickup = document.getElementById("pickup").value.trim();
+      const dropoff = document.getElementById("dropoff").value.trim();
+
+      if (!pickup || !dropoff) {
+        document.getElementById("fareBox").innerText = "Estimated Fare: --";
+        return;
+      }
+
+      const distanceHint = Math.max(1, Math.ceil((pickup.length + dropoff.length) / 20));
+      const fare = (5 + distanceHint * 2).toFixed(2);
+
+      document.getElementById("fareBox").innerText = "Estimated Fare: $" + fare;
+    }
+
+    async function useMyLocation() {
+      const message = document.getElementById("message");
+
+      if (!navigator.geolocation) {
+        message.innerText = "Location is not supported on this device.";
+        return;
+      }
+
+      message.innerText = "Getting your current location...";
+
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+
+          try {
+            const res = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`,
+              {
+                headers: {
+                  "Accept": "application/json"
+                }
+              }
+            );
+
+            const data = await res.json();
+
+            if (data && data.display_name) {
+              document.getElementById("pickup").value = data.display_name;
+              estimateFare();
+              message.innerText = "Pickup location updated.";
+            } else {
+              message.innerText = "Could not determine your address.";
+            }
+          } catch (error) {
+            message.innerText = "Unable to get address from location.";
+          }
+        },
+        (error) => {
+          message.innerText = "Location error: " + error.message;
+        },
+        { enableHighAccuracy: true }
+      );
+    }
+
+    document.getElementById("pickup").addEventListener("input", estimateFare);
+    document.getElementById("dropoff").addEventListener("input", estimateFare);
+
     document.getElementById("rideForm").addEventListener("submit", async function (e) {
       e.preventDefault();
 
+      const message = document.getElementById("message");
+
       const ride = {
-        name: document.getElementById("name").value,
-        phone: document.getElementById("phone").value,
-        pickup: document.getElementById("pickup").value,
-        dropoff: document.getElementById("dropoff").value
+        name: document.getElementById("name").value.trim(),
+        phone: document.getElementById("phone").value.trim(),
+        pickup: document.getElementById("pickup").value.trim(),
+        dropoff: document.getElementById("dropoff").value.trim()
       };
 
-      const res = await fetch("/request-ride", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(ride)
-      });
+      if (!ride.name || !ride.phone || !ride.pickup || !ride.dropoff) {
+        message.innerText = "Please fill in all fields.";
+        return;
+      }
 
-      const data = await res.json();
+      message.innerText = "Sending ride request...";
 
-      if (data.success) {
-        document.getElementById("message").textContent = "Ride request sent successfully!";
-        document.getElementById("rideForm").reset();
-      } else {
-        document.getElementById("message").textContent = "Something went wrong. Please try again.";
+      try {
+        const res = await fetch("/request-ride", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(ride)
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          message.innerText = "Ride request sent successfully!";
+          document.getElementById("rideForm").reset();
+          document.getElementById("fareBox").innerText = "Estimated Fare: --";
+        } else {
+          message.innerText = "There was a problem sending your ride request.";
+        }
+      } catch (error) {
+        message.innerText = "Server error. Please try again.";
       }
     });
   </script>
+
 </body>
 </html>
