@@ -1,168 +1,147 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>Drive With Harvey Taxi</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Driver Signup - Harvey Taxi</title>
 
-<style>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: black;
+      color: white;
+      text-align: center;
+    }
 
-body{
-font-family:Arial;
-background:#111;
-color:white;
-padding:20px;
-text-align:center;
-}
+    .container {
+      max-width: 500px;
+      margin: auto;
+      padding: 30px 20px;
+    }
 
-.container{
-max-width:500px;
-margin:auto;
-}
+    h1 {
+      color: gold;
+      font-size: 2.2rem;
+    }
 
-h1{
-color:#ffd700;
-}
+    p {
+      margin-bottom: 25px;
+      color: #ccc;
+    }
 
-input,select{
-width:100%;
-padding:14px;
-margin:10px 0;
-border:none;
-border-radius:10px;
-font-size:16px;
-}
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
 
-button{
-width:100%;
-background:#1e90ff;
-color:white;
-border:none;
-padding:15px;
-font-size:18px;
-border-radius:10px;
-margin-top:10px;
-}
+    input, select, button {
+      padding: 16px;
+      border-radius: 12px;
+      border: none;
+      font-size: 1rem;
+    }
 
-.success{
-margin-top:20px;
-color:#ffd700;
-font-weight:bold;
-}
+    input, select {
+      background: #f2f2f2;
+      color: black;
+    }
 
-</style>
+    button {
+      background: #1e88ff;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    #message {
+      margin-top: 15px;
+      font-weight: bold;
+    }
+
+    .success { color: #4caf50; }
+    .error { color: #ff4d4d; }
+  </style>
 </head>
 
 <body>
+  <div class="container">
+    <h1>🚕 Drive With Harvey Taxi</h1>
+    <p>Join our growing transportation network.</p>
 
-<div class="container">
+    <form id="driverForm">
+      <input type="text" id="fullName" placeholder="Full Name" required />
+      <input type="tel" id="phone" placeholder="Phone Number" required />
+      <input type="email" id="email" placeholder="Email" required />
+      <input type="text" id="city" placeholder="City" required />
+      <input type="text" id="state" placeholder="State" required />
 
-<h1>🚕 Drive With Harvey Taxi</h1>
+      <select id="vehicleType" required>
+        <option value="">Select Vehicle</option>
+        <option>Car</option>
+        <option>SUV</option>
+        <option>Van</option>
+      </select>
 
-<p>Join our growing transportation network.</p>
+      <select id="driverType" required>
+        <option value="">Driver Type</option>
+        <option>Independent Driver</option>
+        <option>Fleet Driver</option>
+      </select>
 
-<form id="driverForm">
+      <button type="submit">Apply Now</button>
+    </form>
 
-<input type="text" id="name" placeholder="Full Name" required>
+    <div id="message"></div>
+  </div>
 
-<input type="text" id="phone" placeholder="Phone Number" required>
+  <script>
+    const form = document.getElementById("driverForm");
+    const message = document.getElementById("message");
 
-<input type="email" id="email" placeholder="Email Address" required>
+    form.addEventListener("submit", async function(e) {
+      e.preventDefault();
 
-<input type="text" id="city" placeholder="City" required>
+      message.textContent = "Submitting...";
+      message.className = "";
 
-<input type="text" id="state" placeholder="State" required>
+      const data = {
+        fullName: document.getElementById("fullName").value,
+        phone: document.getElementById("phone").value,
+        email: document.getElementById("email").value,
+        city: document.getElementById("city").value,
+        state: document.getElementById("state").value,
+        vehicleType: document.getElementById("vehicleType").value,
+        driverType: document.getElementById("driverType").value
+      };
 
-<select id="vehicle">
+      try {
+        const res = await fetch("https://harvey-taxi-api2.onrender.com/api/driver/apply", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(data)
+        });
 
-<option value="">Vehicle Type</option>
+        const result = await res.json();
 
-<option>Sedan</option>
+        if (result.success) {
+          message.textContent = "Application submitted successfully 🚕";
+          message.className = "success";
+          form.reset();
+        } else {
+          message.textContent = result.message;
+          message.className = "error";
+        }
 
-<option>SUV</option>
-
-<option>Van</option>
-
-<option>Taxi Cab</option>
-
-<option>Luxury Vehicle</option>
-
-</select>
-
-<select id="type">
-
-<option value="">Driver Type</option>
-
-<option>Harvey Taxi Driver</option>
-
-<option>Independent Driver</option>
-
-<option>Fleet Driver</option>
-
-</select>
-
-<button type="submit">Apply Now</button>
-
-</form>
-
-<div id="message" class="success"></div>
-
-</div>
-
-<script>
-
-document.getElementById("driverForm").addEventListener("submit",async function(e){
-
-e.preventDefault();
-
-const driver={
-
-name:document.getElementById("name").value,
-
-phone:document.getElementById("phone").value,
-
-email:document.getElementById("email").value,
-
-city:document.getElementById("city").value,
-
-state:document.getElementById("state").value,
-
-vehicle:document.getElementById("vehicle").value,
-
-type:document.getElementById("type").value
-
-};
-
-const res=await fetch("/driver-signup",{
-
-method:"POST",
-
-headers:{
-
-"Content-Type":"application/json"
-
-},
-
-body:JSON.stringify(driver)
-
-});
-
-const data=await res.json();
-
-if(data.success){
-
-document.getElementById("message").innerText="Application submitted successfully";
-
-document.getElementById("driverForm").reset();
-
-}else{
-
-document.getElementById("message").innerText="Submission failed";
-
-}
-
-});
-
-</script>
-
+      } catch (err) {
+        console.error(err);
+        message.textContent = "Submission failed";
+        message.className = "error";
+      }
+    });
+  </script>
 </body>
 </html>
