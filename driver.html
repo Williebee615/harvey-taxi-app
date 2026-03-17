@@ -1,87 +1,23 @@
-<script>
+const driverId = "driver_" + Date.now();
 
-let driver = null;
-let trackingInterval = null;
+navigator.geolocation.watchPosition(async (pos) => {
+  const lat = pos.coords.latitude;
+  const lng = pos.coords.longitude;
 
-function startTracking() {
-
-  if (!navigator.geolocation) {
-    alert("Geolocation not supported");
-    return;
-  }
-
-  trackingInterval = setInterval(() => {
-
-    navigator.geolocation.getCurrentPosition(async (position) => {
-
-      const lat = position.coords.latitude;
-      const lng = position.coords.longitude;
-
-      try {
-
-        await fetch("/api/driver-location", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            driverId: driver.id,
-            lat,
-            lng
-          })
-        });
-
-        console.log("Location updated:", lat, lng);
-
-      } catch (err) {
-        console.error("Location error", err);
-      }
-
-    });
-
-  }, 5000); // every 5 seconds
-
-}
-
-async function goOnline() {
-
-  const response = await fetch("/api/driver-status", {
+  await fetch("/api/driver/location", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      driverId: driver.id,
-      online: true
+      id: driverId,
+      name: "Driver",
+      lat,
+      lng,
+      available: true
     })
   });
 
-  const data = await response.json();
-
-  if (data.success) {
-    startTracking(); // 🔥 START GPS
-    alert("You are now ONLINE");
-  }
-
-}
-
-async function goOffline() {
-
-  clearInterval(trackingInterval);
-
-  await fetch("/api/driver-status", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      driverId: driver.id,
-      online: false
-    })
-  });
-
-  alert("You are now OFFLINE");
-
-}
-
-</script>
+  document.getElementById("status").innerText =
+    "Tracking: " + lat + ", " + lng;
+});
