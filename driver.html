@@ -1,42 +1,68 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Driver Tracking</title>
 </head>
 <body>
+  <h1>Driver Tracking</h1>
+  <button id="startBtn" type="button">Start Tracking</button>
+  <p id="status">Not tracking</p>
 
-<h1>Driver Tracking</h1>
-<button onclick="startTracking()">Start Tracking</button>
+  <script>
+    const statusEl = document.getElementById("status");
+    const startBtn = document.getElementById("startBtn");
+    const driverId = "driver_" + Date.now();
 
-<p id="status">Not tracking</p>
-
-<script>
-const driverId = "driver_" + Date.now();
-
-function startTracking() {
-  navigator.geolocation.watchPosition(async (pos) => {
-    const lat = pos.coords.latitude;
-    const lng = pos.coords.longitude;
-
-    await fetch("/api/driver/location", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        id: driverId,
-        name: "Driver",
-        lat,
-        lng,
-        available: true
-      })
+    startBtn.addEventListener("click", () => {
+      startTracking();
     });
 
-    document.getElementById("status").innerText =
-      "Tracking: " + lat + ", " + lng;
-  });
-}
-</script>
+    function startTracking() {
+      if (!navigator.geolocation) {
+        statusEl.innerText = "Geolocation not supported on this device";
+        return;
+      }
 
+      statusEl.innerText = "Requesting location...";
+
+      navigator.geolocation.watchPosition(
+        async (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+
+          try {
+            const res = await fetch("/api/driver/location", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                id: driverId,
+                lat: lat,
+                lng: lng
+              })
+            });
+
+            const data = await res.json();
+            console.log("driver update:", data);
+            statusEl.innerText = "Tracking: " + lat + ", " + lng;
+          } catch (err) {
+            console.error(err);
+            statusEl.innerText = "Error sending location";
+          }
+        },
+        (err) => {
+          console.error(err);
+          statusEl.innerText = "Location error: " + err.message;
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 0,
+          timeout: 15000
+        }
+      );
+    }
+  </script>
 </body>
 </html>
