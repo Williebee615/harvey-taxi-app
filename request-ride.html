@@ -189,3 +189,78 @@
   </script>
 </body>
 </html>
+<script>
+let map;
+let userMarker;
+let driverMarker;
+let rideId = null;
+
+function initMap(lat, lng) {
+  map = L.map('map').setView([lat, lng], 14);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap'
+  }).addTo(map);
+
+  userMarker = L.marker([lat, lng]).addTo(map)
+    .bindPopup("You are here").openPopup();
+}
+
+navigator.geolocation.getCurrentPosition((pos) => {
+  initMap(pos.coords.latitude, pos.coords.longitude);
+});
+
+async function requestRide() {
+  document.getElementById("status").innerText = "Requesting ride...";
+
+  const pos = await new Promise(resolve =>
+    navigator.geolocation.getCurrentPosition(resolve)
+  );
+
+  const lat = pos.coords.latitude;
+  const lng = pos.coords.longitude;
+
+  const res = await fetch("/api/ride/request", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      riderId: "rider1",
+      pickup: { lat, lng }
+    })
+  });
+
+  const data = await res.json();
+
+  rideId = data.rideId;
+
+  document.getElementById("status").innerText =
+    "Driver assigned! Tracking live...";
+
+  startTracking();
+}
+
+async function startTracking() {
+  setInterval(async () => {
+    if (!rideId) return;
+
+    const res = await fetch(`/api/ride/${rideId}`);
+    const data = await res.json();
+
+    if (data.driver) {
+      const { lat, lng } = data.driver;
+
+      if (!driverMarker) {
+        driverMarker = L.marker([lat, lng]).addTo(map)
+          .bindPopup("Driver");
+      } else {
+        driverMarker.setLatLng([lat, lng]);
+      }
+
+      map.setView([lat, lng], 14);
+    }
+  }, 2000);
+}
+</script>
+
+</body>
+</html>
