@@ -4,7 +4,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Request Ride</title>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
 <style>
 body { font-family: Arial; padding:16px; }
@@ -16,26 +16,28 @@ button {
   border:none;
   border-radius:10px;
 }
-#map { height:400px; margin-top:20px; }
+#map { height:400px; margin-top:20px; background:#eee; }
 </style>
 </head>
 
 <body>
 
 <h1>Request a Ride</h1>
-<button onclick="requestRide()">Request Ride</button>
 
-<p id="status">Waiting...</p>
+<button id="btn">Request Ride</button>
+
+<p id="status">Loading map...</p>
 
 <div id="map"></div>
 
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-let map, userMarker, driverMarker;
-let rideId = null;
+let map;
+let userMarker;
+let driverMarker;
+let rideId = null;navigator.geolocation.getCurrentPosition(function(pos){
 
-navigator.geolocation.getCurrentPosition((pos)=>{
   const lat = pos.coords.latitude;
   const lng = pos.coords.longitude;
 
@@ -46,53 +48,63 @@ navigator.geolocation.getCurrentPosition((pos)=>{
 
   userMarker = L.marker([lat,lng]).addTo(map)
     .bindPopup("You are here").openPopup();
+
+  document.getElementById("status").innerText = "Ready";
+
+}, function(){
+  document.getElementById("status").innerText = "Location blocked";
 });
 
-function requestRide(){
-  document.getElementById("status").innerText = "Requesting ride...";navigator.geolocation.getCurrentPosition(async(pos)=>{
-  const lat = pos.coords.latitude;
-  const lng = pos.coords.longitude;
+document.getElementById("btn").onclick = function(){
 
-  const res = await fetch("/api/ride/request",{
-    method:"POST",
-    headers:{ "Content-Type":"application/json"},
-    body: JSON.stringify({
-      riderId:"rider1",
-      pickup:{lat,lng}
-    })
+  document.getElementById("status").innerText = "Requesting ride...";
+
+  navigator.geolocation.getCurrentPosition(async function(pos){
+
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
+
+    const res = await fetch("/api/ride/request",{
+      method:"POST",
+      headers:{ "Content-Type":"application/json"},
+      body: JSON.stringify({
+        riderId:"rider1",
+        pickup:{lat,lng}
+      })
+    });
+
+    const data = await res.json();
+    rideId = data.rideId;
+
+    setInterval(async function(){
+
+      if(!rideId) return;
+
+      const res = await fetch("/api/ride/"+rideId);
+      const data = await res.json();
+
+      if(data.driver){
+
+        document.getElementById("status").innerText = "Driver assigned";
+
+        const lat = data.driver.lat;
+        const lng = data.driver.lng;
+
+        if(!driverMarker){
+          driverMarker = L.marker([lat,lng]).addTo(map);
+        } else {
+          driverMarker.setLatLng([lat,lng]);
+        }
+
+      } else {
+        document.getElementById("status").innerText = "Waiting for driver...";
+      }
+
+    },2000);
+
   });
 
-  const data = await res.json();
-  rideId = data.rideId;
-
-  startTracking();
-});
-}
-
-function startTracking(){
-  setInterval(async()=>{
-    if(!rideId) return;
-
-    const res = await fetch("/api/ride/"+rideId);
-    const data = await res.json();
-
-    if(data.driver){
-      document.getElementById("status").innerText="Driver assigned!";
-
-      const {lat,lng} = data.driver;
-
-      if(!driverMarker){
-        driverMarker = L.marker([lat,lng]).addTo(map)
-          .bindPopup("Driver");
-      } else {
-        driverMarker.setLatLng([lat,lng]);
-      }
-    } else {
-      document.getElementById("status").innerText="Waiting for driver...";
-    }
-
-  },2000);
-}
+};
 </script>
 
 </body>
