@@ -11,20 +11,18 @@ app.use(express.static(path.join(__dirname, "public")));
 let applications = [];
 let rides = [];
 
-// HOME
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "admin.html"));
 });
 
-// HEALTH
-app.get("/health", (req, res) => {
-  res.json({
-    success: true,
-    message: "Harvey Taxi API is running"
-  });
+app.get("/admin.html", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "admin.html"));
 });
 
-// DRIVER APPLICATIONS
+app.get("/health", (req, res) => {
+  res.json({ success: true, message: "Harvey Taxi API is running" });
+});
+
 app.get("/api/driver-applications", (req, res) => {
   res.json(applications);
 });
@@ -50,8 +48,7 @@ app.post("/api/driver-applications", (req, res) => {
 });
 
 app.post("/api/driver-applications/:id/approve", (req, res) => {
-  const application = applications.find(appItem => appItem.id === req.params.id);
-
+  const application = applications.find(item => item.id === req.params.id);
   if (!application) {
     return res.status(404).json({ error: "Application not found" });
   }
@@ -59,16 +56,11 @@ app.post("/api/driver-applications/:id/approve", (req, res) => {
   application.status = "approved";
   application.updatedAt = new Date().toISOString();
 
-  res.json({
-    success: true,
-    message: "Driver approved successfully",
-    application
-  });
+  res.json({ success: true, application });
 });
 
 app.post("/api/driver-applications/:id/reject", (req, res) => {
-  const application = applications.find(appItem => appItem.id === req.params.id);
-
+  const application = applications.find(item => item.id === req.params.id);
   if (!application) {
     return res.status(404).json({ error: "Application not found" });
   }
@@ -76,27 +68,22 @@ app.post("/api/driver-applications/:id/reject", (req, res) => {
   application.status = "rejected";
   application.updatedAt = new Date().toISOString();
 
-  res.json({
-    success: true,
-    message: "Driver rejected successfully",
-    application
-  });
+  res.json({ success: true, application });
 });
 
-// APPROVED DRIVER LOCATIONS
 app.get("/api/drivers/approved-locations", (req, res) => {
-  const approvedDrivers = applications.filter(appItem =>
-    appItem.status === "approved" &&
-    appItem.latitude !== null &&
-    appItem.longitude !== null
+  const approvedDrivers = applications.filter(item =>
+    item.status === "approved" &&
+    item.latitude !== null &&
+    item.longitude !== null
   );
 
   res.json(approvedDrivers);
 });
 
 app.post("/api/drivers/:id/location", (req, res) => {
-  const driver = applications.find(appItem =>
-    appItem.id === req.params.id && appItem.status === "approved"
+  const driver = applications.find(item =>
+    item.id === req.params.id && item.status === "approved"
   );
 
   if (!driver) {
@@ -107,14 +94,9 @@ app.post("/api/drivers/:id/location", (req, res) => {
   driver.longitude = req.body.longitude !== undefined ? Number(req.body.longitude) : driver.longitude;
   driver.updatedAt = new Date().toISOString();
 
-  res.json({
-    success: true,
-    message: "Driver location updated",
-    driver
-  });
+  res.json({ success: true, driver });
 });
 
-// RIDES
 app.get("/api/rides", (req, res) => {
   res.json(rides);
 });
@@ -139,26 +121,12 @@ app.post("/api/rides", (req, res) => {
 
 app.patch("/api/rides/:id", (req, res) => {
   const ride = rides.find(item => item.id === req.params.id);
-
   if (!ride) {
     return res.status(404).json({ error: "Ride not found" });
   }
 
-  Object.assign(ride, req.body, {
-    updatedAt: new Date().toISOString()
-  });
-
+  Object.assign(ride, req.body, { updatedAt: new Date().toISOString() });
   res.json(ride);
-});
-
-// ADMIN PAGE
-app.get("/admin.html", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "admin.html"));
-});
-
-// FALLBACK
-app.use((req, res) => {
-  res.status(404).send("Route not found");
 });
 
 const PORT = process.env.PORT || 10000;
