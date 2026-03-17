@@ -3,14 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Harvey Taxi Admin Dashboard</title>
-
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    crossorigin=""
-  />
-
+  <title>Harvey Taxi Admin</title>
   <style>
     * {
       box-sizing: border-box;
@@ -18,602 +11,133 @@
 
     body {
       margin: 0;
-      font-family: Arial, Helvetica, sans-serif;
+      font-family: Arial, sans-serif;
       background: #000;
       color: #fff;
-    }
-
-    .container {
-      width: 100%;
-      max-width: 1100px;
-      margin: 0 auto;
       padding: 20px;
     }
 
-    .topbar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
-      margin-bottom: 24px;
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
     }
 
-    .title {
-      margin: 0;
-      color: #ffd400;
-      font-size: 2rem;
-      font-weight: 800;
-    }
-
-    .subtitle {
-      margin: 8px 0 0;
-      color: #cfcfcf;
-      font-size: 1rem;
-    }
-
-    .card {
-      background: #111;
-      border: 1px solid #222;
-      border-radius: 18px;
-      padding: 18px;
-      margin-bottom: 20px;
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
-    }
-
-    .card h2 {
-      margin: 0 0 8px;
-      color: #ffd400;
-      font-size: 1.8rem;
-    }
-
-    .card p {
-      margin: 0 0 14px;
-      color: #d4d4d4;
-    }
-
-    .toolbar {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 14px;
-    }
-
-    .btn {
-      border: none;
-      border-radius: 12px;
-      padding: 12px 16px;
-      font-size: 0.95rem;
-      font-weight: 700;
-      cursor: pointer;
-    }
-
-    .btn-primary {
-      background: #ffd400;
-      color: #000;
-    }
-
-    .btn-secondary {
-      background: #222;
-      color: #fff;
-      border: 1px solid #333;
-    }
-
-    .btn-approve {
-      background: #16a34a;
-      color: #fff;
-    }
-
-    .btn-reject {
-      background: #dc2626;
-      color: #fff;
-    }
-
-    .btn:hover {
-      opacity: 0.92;
-    }
-
-    #map {
-      width: 100%;
-      height: 420px;
-      border-radius: 16px;
-      overflow: hidden;
-      margin-top: 8px;
-    }
-
-    .list {
-      display: grid;
-      gap: 14px;
-    }
-
-    .item {
-      background: #181818;
-      border: 1px solid #2a2a2a;
-      border-radius: 14px;
-      padding: 14px;
-    }
-
-    .item-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
+    h1 {
+      color: gold;
+      font-size: 2.2rem;
       margin-bottom: 10px;
     }
 
-    .item-title {
-      font-size: 1.05rem;
-      font-weight: 700;
+    p {
+      color: #ddd;
+      margin-bottom: 20px;
+    }
+
+    button {
+      background: gold;
+      color: #000;
+      border: none;
+      padding: 14px 18px;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      margin-bottom: 20px;
+    }
+
+    .section {
+      background: #111;
+      border: 1px solid #222;
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .section h2 {
+      color: gold;
+      margin-top: 0;
+    }
+
+    .card {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 14px;
+      padding: 16px;
+      margin-top: 14px;
+    }
+
+    .card p {
+      margin: 8px 0;
       color: #fff;
     }
 
-    .meta {
-      display: grid;
-      gap: 6px;
-      color: #d7d7d7;
-      font-size: 0.95rem;
-      margin-bottom: 12px;
+    .empty {
+      color: #bbb;
+      margin-top: 10px;
     }
 
-    .actions {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
+    .error {
+      color: #ff5c5c;
+      white-space: pre-wrap;
     }
 
-    .badge {
-      display: inline-block;
-      padding: 6px 10px;
-      border-radius: 999px;
-      font-size: 0.8rem;
-      font-weight: 700;
-    }
-
-    .pending {
-      background: rgba(255, 212, 0, 0.15);
-      color: #ffd400;
-      border: 1px solid rgba(255, 212, 0, 0.35);
-    }
-
-    .approved {
-      background: rgba(22, 163, 74, 0.15);
-      color: #4ade80;
-      border: 1px solid rgba(22, 163, 74, 0.35);
-    }
-
-    .rejected {
-      background: rgba(220, 38, 38, 0.15);
-      color: #f87171;
-      border: 1px solid rgba(220, 38, 38, 0.35);
-    }
-
-    .completed {
-      background: rgba(22, 163, 74, 0.15);
-      color: #4ade80;
-      border: 1px solid rgba(22, 163, 74, 0.35);
-    }
-
-    .active {
-      background: rgba(59, 130, 246, 0.15);
-      color: #60a5fa;
-      border: 1px solid rgba(59, 130, 246, 0.35);
-    }
-
-    .status-line {
-      margin-top: 12px;
-      color: #bbbbbb;
-      font-size: 0.92rem;
-    }
-
-    .empty-state {
-      padding: 16px;
-      border: 1px dashed #333;
-      border-radius: 14px;
-      background: #181818;
-      color: #aaaaaa;
-      text-align: center;
-    }
-
-    .small {
-      font-size: 0.85rem;
-      color: #999;
-    }
-
-    @media (max-width: 768px) {
-      .title {
-        font-size: 1.6rem;
-      }
-
-      .card h2 {
-        font-size: 1.45rem;
-      }
-
-      #map {
-        height: 340px;
-      }
-
-      .btn {
-        width: 100%;
-      }
-
-      .actions .btn {
-        width: auto;
-        flex: 1;
-      }
+    .success {
+      color: #42d26b;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="topbar">
-      <div>
-        <h1 class="title">Harvey Taxi Admin Dashboard</h1>
-        <p class="subtitle">Review driver applications, monitor approved drivers, and track ride activity.</p>
-      </div>
-      <button class="btn btn-primary" id="refreshAllBtn">Refresh Dashboard</button>
+    <h1>Harvey Taxi Admin Dashboard</h1>
+    <p>Review driver applications and monitor your system.</p>
+
+    <button onclick="loadApplications()">Refresh Applications</button>
+
+    <div class="section">
+      <h2>Pending Driver Applications</h2>
+      <div id="applicationsList" class="empty">Loading applications...</div>
     </div>
-
-    <section class="card">
-      <div class="toolbar">
-        <div>
-          <h2>Pending Driver Applications</h2>
-          <p>Approve or reject new driver applications.</p>
-        </div>
-        <button class="btn btn-secondary" id="refreshApplicationsBtn">Refresh Applications</button>
-      </div>
-
-      <div id="applicationsList" class="list"></div>
-      <div id="applicationsStatus" class="status-line">Loading applications...</div>
-    </section>
-
-    <section class="card">
-      <div class="toolbar">
-        <div>
-          <h2>Live Driver Map</h2>
-          <p>Approved drivers sharing location will appear below.</p>
-        </div>
-        <button class="btn btn-secondary" id="refreshDriversBtn">Refresh Drivers</button>
-      </div>
-
-      <div id="map"></div>
-      <div id="driversStatus" class="status-line">Loading approved drivers...</div>
-    </section>
-
-    <section class="card">
-      <div class="toolbar">
-        <div>
-          <h2>Ride Activity</h2>
-          <p>Recent and active rides will appear here.</p>
-        </div>
-        <button class="btn btn-secondary" id="refreshRidesBtn">Refresh Rides</button>
-      </div>
-
-      <div id="ridesList" class="list"></div>
-      <div id="ridesStatus" class="status-line">Loading rides...</div>
-    </section>
   </div>
 
-  <script
-    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    crossorigin=""
-  ></script>
-
   <script>
-    const API_BASE = "https://harvey-taxi-api2.onrender.com";
-
-    const applicationsList = document.getElementById("applicationsList");
-    const applicationsStatus = document.getElementById("applicationsStatus");
-    const ridesList = document.getElementById("ridesList");
-    const ridesStatus = document.getElementById("ridesStatus");
-    const driversStatus = document.getElementById("driversStatus");
-
-    const refreshAllBtn = document.getElementById("refreshAllBtn");
-    const refreshApplicationsBtn = document.getElementById("refreshApplicationsBtn");
-    const refreshDriversBtn = document.getElementById("refreshDriversBtn");
-    const refreshRidesBtn = document.getElementById("refreshRidesBtn");
-
-    let map;
-    let markers = [];
-
-    function initMap() {
-      map = L.map("map").setView([36.1627, -86.7816], 10);
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "&copy; OpenStreetMap contributors"
-      }).addTo(map);
-    }
-
-    function clearMarkers() {
-      markers.forEach(marker => map.removeLayer(marker));
-      markers = [];
-    }
-
-    function escapeHtml(value) {
-      if (value === null || value === undefined) return "";
-      return String(value)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-    }
-
-    function formatDate(value) {
-      if (!value) return "N/A";
-      const date = new Date(value);
-      if (Number.isNaN(date.getTime())) return value;
-      return date.toLocaleString();
-    }
-
-    function normalizeStatus(status) {
-      if (!status) return "pending";
-      return String(status).toLowerCase();
-    }
-
-    async function fetchJson(url, options = {}) {
-      const response = await fetch(url, {
-        headers: {
-          "Content-Type": "application/json"
-        },
-        ...options
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || `Request failed: ${response.status}`);
-      }
-
-      return response.json();
-    }
-
     async function loadApplications() {
-      applicationsStatus.textContent = "Loading applications...";
-      applicationsList.innerHTML = "";
+      const list = document.getElementById("applicationsList");
+      list.innerHTML = "Loading applications...";
 
       try {
-        const data = await fetchJson(`${API_BASE}/api/driver-applications`);
-        const applications = Array.isArray(data) ? data : (data.applications || []);
+        const response = await fetch("https://harvey-taxi-api2.onrender.com/api/driver/applications");
+        const data = await response.json();
 
-        if (!applications.length) {
-          applicationsList.innerHTML = `
-            <div class="empty-state">
-              No driver applications found.
-            </div>
-          `;
-          applicationsStatus.textContent = "Applications loaded.";
+        if (!response.ok || !data.success) {
+          list.innerHTML = '<div class="error">Applications failed to load.</div>';
           return;
         }
 
-        applicationsList.innerHTML = applications.map(app => {
-          const id = app._id || app.id || "";
-          const status = normalizeStatus(app.status);
-          const name = app.fullName || app.name || "Unnamed Driver";
+        if (!data.applications || data.applications.length === 0) {
+          list.innerHTML = '<div class="empty">No driver applications yet.</div>';
+          return;
+        }
 
-          return `
-            <div class="item">
-              <div class="item-header">
-                <div class="item-title">${escapeHtml(name)}</div>
-                <span class="badge ${escapeHtml(status)}">${escapeHtml(status)}</span>
-              </div>
-
-              <div class="meta">
-                <div><strong>Email:</strong> ${escapeHtml(app.email || "N/A")}</div>
-                <div><strong>Phone:</strong> ${escapeHtml(app.phone || "N/A")}</div>
-                <div><strong>Vehicle:</strong> ${escapeHtml(app.vehicleType || app.vehicle || "N/A")}</div>
-                <div><strong>License:</strong> ${escapeHtml(app.licenseNumber || "N/A")}</div>
-                <div><strong>Submitted:</strong> ${escapeHtml(formatDate(app.createdAt || app.submittedAt))}</div>
-              </div>
-
-              <div class="actions">
-                <button class="btn btn-approve" onclick="approveApplication('${escapeHtml(id)}')">Approve</button>
-                <button class="btn btn-reject" onclick="rejectApplication('${escapeHtml(id)}')">Reject</button>
-              </div>
-            </div>
-          `;
-        }).join("");
-
-        applicationsStatus.textContent = `${applications.length} application(s) loaded.`;
-      } catch (error) {
-        applicationsList.innerHTML = `
-          <div class="empty-state">
-            Could not load applications.
-            <div class="small">${escapeHtml(error.message)}</div>
+        list.innerHTML = data.applications.map(app => `
+          <div class="card">
+            <p><strong>Name:</strong> ${app.fullName}</p>
+            <p><strong>Phone:</strong> ${app.phone}</p>
+            <p><strong>Email:</strong> ${app.email}</p>
+            <p><strong>City:</strong> ${app.city}</p>
+            <p><strong>State:</strong> ${app.state}</p>
+            <p><strong>Vehicle:</strong> ${app.vehicleType}</p>
+            <p><strong>Driver Type:</strong> ${app.driverType}</p>
+            <p><strong>Status:</strong> <span class="success">${app.status}</span></p>
+            <p><strong>Submitted:</strong> ${app.createdAt || "N/A"}</p>
           </div>
-        `;
-        applicationsStatus.textContent = "Applications failed to load.";
-      }
-    }
-
-    async function approveApplication(id) {
-      if (!id) {
-        alert("Missing application ID.");
-        return;
-      }
-
-      if (!confirm("Approve this driver?")) return;
-
-      try {
-        await fetchJson(`${API_BASE}/api/driver-applications/${id}/approve`, {
-          method: "POST"
-        });
-
-        alert("Driver approved.");
-        await loadApplications();
-        await loadApprovedDrivers();
+        `).join("");
       } catch (error) {
-        alert("Approve failed: " + error.message);
+        console.error(error);
+        list.innerHTML = `<div class="error">Could not load applications.</div>`;
       }
     }
 
-    async function rejectApplication(id) {
-      if (!id) {
-        alert("Missing application ID.");
-        return;
-      }
-
-      if (!confirm("Reject this driver?")) return;
-
-      try {
-        await fetchJson(`${API_BASE}/api/driver-applications/${id}/reject`, {
-          method: "POST"
-        });
-
-        alert("Driver rejected.");
-        await loadApplications();
-      } catch (error) {
-        alert("Reject failed: " + error.message);
-      }
-    }
-
-    async function loadApprovedDrivers() {
-      driversStatus.textContent = "Loading approved drivers...";
-      clearMarkers();
-
-      try {
-        const data = await fetchJson(`${API_BASE}/api/drivers/approved-locations`);
-        const drivers = Array.isArray(data) ? data : (data.drivers || []);
-
-        if (!drivers.length) {
-          driversStatus.textContent = "No approved drivers are sharing location right now.";
-          return;
-        }
-
-        const bounds = [];
-
-        drivers.forEach(driver => {
-          const lat = Number(driver.latitude ?? driver.lat);
-          const lng = Number(driver.longitude ?? driver.lng);
-
-          if (Number.isNaN(lat) || Number.isNaN(lng)) return;
-
-          const marker = L.marker([lat, lng]).addTo(map);
-          marker.bindPopup(`
-            <strong>${escapeHtml(driver.fullName || driver.name || "Driver")}</strong><br>
-            Vehicle: ${escapeHtml(driver.vehicleType || driver.vehicle || "N/A")}<br>
-            Updated: ${escapeHtml(formatDate(driver.updatedAt))}
-          `);
-
-          markers.push(marker);
-          bounds.push([lat, lng]);
-        });
-
-        if (bounds.length) {
-          map.fitBounds(bounds, { padding: [30, 30] });
-        }
-
-        driversStatus.textContent = `${drivers.length} approved driver(s) loaded.`;
-      } catch (error) {
-        driversStatus.textContent = `Could not load approved drivers: ${error.message}`;
-      }
-    }
-
-    async function loadRides() {
-      ridesStatus.textContent = "Loading rides...";
-      ridesList.innerHTML = "";
-
-      try {
-        const data = await fetchJson(`${API_BASE}/api/rides`);
-        const rides = Array.isArray(data) ? data : (data.rides || []);
-
-        if (!rides.length) {
-          ridesList.innerHTML = `
-            <div class="empty-state">
-              No rides found.
-            </div>
-          `;
-          ridesStatus.textContent = "Rides loaded.";
-          return;
-        }
-
-        ridesList.innerHTML = rides.map(ride => {
-          const status = normalizeStatus(ride.status);
-          return `
-            <div class="item">
-              <div class="item-header">
-                <div class="item-title">${escapeHtml(ride.riderName || "Unnamed Rider")}</div>
-                <span class="badge ${escapeHtml(status)}">${escapeHtml(status)}</span>
-              </div>
-
-              <div class="meta">
-                <div><strong>Pickup:</strong> ${escapeHtml(ride.pickup || ride.pickupLocation || "N/A")}</div>
-                <div><strong>Dropoff:</strong> ${escapeHtml(ride.dropoff || ride.dropoffLocation || "N/A")}</div>
-                <div><strong>Driver:</strong> ${escapeHtml(ride.driverName || "Unassigned")}</div>
-                <div><strong>Requested:</strong> ${escapeHtml(formatDate(ride.createdAt || ride.requestedAt))}</div>
-              </div>
-            </div>
-          `;
-        }).join("");
-
-        ridesStatus.textContent = `${rides.length} ride(s) loaded.`;
-      } catch (error) {
-        ridesList.innerHTML = `
-          <div class="empty-state">
-            Could not load rides.
-            <div class="small">${escapeHtml(error.message)}</div>
-          </div>
-        `;
-        ridesStatus.textContent = "Rides failed to load.";
-      }
-    }
-
-    async function refreshAll() {
-      await Promise.all([
-        loadApplications(),
-        loadApprovedDrivers(),
-        loadRides()
-      ]);
-    }
-
-    refreshAllBtn.addEventListener("click", refreshAll);
-    refreshApplicationsBtn.addEventListener("click", loadApplications);
-    refreshDriversBtn.addEventListener("click", loadApprovedDrivers);
-    refreshRidesBtn.addEventListener("click", loadRides);
-
-    initMap();
-    refreshAll();
-
-    setInterval(() => {
-      loadApprovedDrivers();
-      loadRides();
-    }, 20000);
+    loadApplications();
   </script>
 </body>
-</html>app.get("/api/driver-applications", async (req, res) => {
-  const applications = await DriverApplication.find().sort({ createdAt: -1 });
-  res.json(applications);
-});
-
-app.post("/api/driver-applications/:id/approve", async (req, res) => {
-  const updated = await DriverApplication.findByIdAndUpdate(
-    req.params.id,
-    { status: "approved" },
-    { new: true }
-  );
-  res.json({ success: true, application: updated });
-});
-
-app.post("/api/driver-applications/:id/reject", async (req, res) => {
-  const updated = await DriverApplication.findByIdAndUpdate(
-    req.params.id,
-    { status: "rejected" },
-    { new: true }
-  );
-  res.json({ success: true, application: updated });
-});
-
-app.get("/api/drivers/approved-locations", async (req, res) => {
-  const drivers = await DriverApplication.find({
-    status: "approved",
-    latitude: { $ne: null },
-    longitude: { $ne: null }
-  }).sort({ updatedAt: -1 });
-
-  res.json(drivers);
-});
-
-app.get("/api/rides", async (req, res) => {
-  const rides = await Ride.find().sort({ createdAt: -1 }).limit(20);
-  res.json(rides);
-});
+</html>
