@@ -1,12 +1,13 @@
 {
   "name": "harvey-taxi-app",
   "version": "1.0.0",
-  "description": "Taxi app",
+  "description": "Harvey Taxi app",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
+    "cors": "^2.8.5",
     "express": "^4.18.2"
   }
 }
