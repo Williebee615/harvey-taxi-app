@@ -4,15 +4,12 @@ const path = require("path");
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// Serve all static files from the project folder
 app.use(express.static(__dirname));
 
-// Homepage
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
-// Route pages
 app.get("/driver.html", (req, res) => {
   res.sendFile(path.join(__dirname, "driver.html"));
 });
