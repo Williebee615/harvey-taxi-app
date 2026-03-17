@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Driver Panel</title>
+</head>
+<body style="background:black;color:white;font-family:Arial;padding:20px;">
+
+<h1 style="color:gold;">Driver Dashboard</h1>
+
+<button onclick="load()">Refresh</button>
+
+<div id="list"></div>
+
+<script>
+const API = "https://harvey-taxi-api2.onrender.com";
+
+async function load() {
+  const res = await fetch(API + "/api/driver-applications");
+  const data = await res.json();
+
+  let html = "";
+
+  data.forEach(d => {
+    if (d.status === "approved") {
+      html += `
+        <div style="border:1px solid green;margin:10px;padding:10px;">
+          ${d.name} - READY FOR RIDES
+        </div>
+      `;
+    }
+  });
+
+  if (!html) {
+    html = "No approved drivers yet";
+  }
+
+  document.getElementById("list").innerHTML = html;
+}
+
+load();
+</script>
+
+</body>
+</html>
