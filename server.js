@@ -11,12 +11,12 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(__dirname));
 
 // In-memory storage
+let driverApplications = [];
 let drivers = {};
 let rides = {};
 let rideRequests = [];
-let driverApplications = [];
 
-// Pages
+// Routes for pages
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
@@ -33,66 +33,69 @@ app.get("/request-ride", (req, res) => {
   res.sendFile(path.join(__dirname, "request-ride.html"));
 });
 
-app.get("/admin", (req, res) => {
-  res.sendFile(path.join(__dirname, "admin.html"));
-});
-
-app.get("/dashboard", (req, res) => {
-  res.sendFile(path.join(__dirname, "dashboard.html"));
-});
-
-// Driver signup route
+// ✅ DRIVER SIGNUP ROUTE (IMPORTANT)
 app.post("/api/driver/apply", (req, res) => {
-  console.log("Driver application received:", req.body);
+  console.log("=== DRIVER APPLICATION RECEIVED ===");
+  console.log(req.body);
 
-  const {
-    fullName,
-    phone,
-    email,
-    city,
-    state,
-    vehicleType,
-    driverType
-  } = req.body;
+  try {
+    const {
+      fullName,
+      phone,
+      email,
+      city,
+      state,
+      vehicleType,
+      driverType
+    } = req.body;
 
-  if (
-    !fullName ||
-    !phone ||
-    !email ||
-    !city ||
-    !state ||
-    !vehicleType ||
-    !driverType
-  ) {
-    return res.status(400).json({
+    if (
+      !fullName ||
+      !phone ||
+      !email ||
+      !city ||
+      !state ||
+      !vehicleType ||
+      !driverType
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "All fields are required"
+      });
+    }
+
+    const application = {
+      id: Date.now(),
+      fullName,
+      phone,
+      email,
+      city,
+      state,
+      vehicleType,
+      driverType,
+      status: "pending",
+      createdAt: new Date().toISOString()
+    };
+
+    driverApplications.push(application);
+
+    res.json({
+      success: true,
+      message: "Application submitted successfully",
+      application
+    });
+
+  } catch (error) {
+    console.error("SERVER ERROR:", error);
+
+    res.status(500).json({
       success: false,
-      message: "All fields are required"
+      message: "Server error"
     });
   }
-
-  const application = {
-    id: Date.now(),
-    fullName,
-    phone,
-    email,
-    city,
-    state,
-    vehicleType,
-    driverType,
-    status: "pending",
-    createdAt: new Date().toISOString()
-  };
-
-  driverApplications.push(application);
-
-  return res.json({
-    success: true,
-    message: "Application submitted successfully",
-    application
-  });
 });
 
-// View submitted applications
+// View applications (for admin later)
 app.get("/api/driver/applications", (req, res) => {
   res.json({
     success: true,
@@ -102,34 +105,19 @@ app.get("/api/driver/applications", (req, res) => {
 
 // Driver GPS update
 app.post("/api/driver/update", (req, res) => {
-  const { driverId, lat, lng, name } = req.body;
+  const { driverId, lat, lng } = req.body;
 
   if (!driverId || lat == null || lng == null) {
     return res.status(400).json({
       success: false,
-      message: "driverId, lat, and lng are required"
+      message: "Missing driver data"
     });
   }
 
-  drivers[driverId] = {
-    driverId,
-    name: name || "Driver",
-    lat,
-    lng,
-    updatedAt: new Date().toISOString()
-  };
+  drivers[driverId] = { driverId, lat, lng };
 
   res.json({
-    success: true,
-    driver: drivers[driverId]
-  });
-});
-
-// Get drivers
-app.get("/api/drivers", (req, res) => {
-  res.json({
-    success: true,
-    drivers: Object.values(drivers)
+    success: true
   });
 });
 
@@ -139,25 +127,18 @@ app.post("/request-ride", (req, res) => {
 
   if (lat == null || lng == null) {
     return res.status(400).json({
-      success: false,
-      message: "lat and lng are required"
+      success: false
     });
   }
-
-  const driverList = Object.values(drivers);
-  const latestDriver = driverList.length > 0 ? driverList[driverList.length - 1] : null;
 
   const newRide = {
     id: Date.now(),
     lat,
     lng,
-    status: latestDriver ? "assigned" : "waiting",
-    driver: latestDriver || null,
-    createdAt: new Date().toISOString()
+    status: "waiting"
   };
 
   rideRequests.push(newRide);
-  rides[newRide.id] = newRide;
 
   res.json({
     success: true,
@@ -168,13 +149,6 @@ app.post("/request-ride", (req, res) => {
 // Get rides
 app.get("/rides", (req, res) => {
   res.json(rideRequests);
-});
-
-app.get("/api/rides", (req, res) => {
-  res.json({
-    success: true,
-    rides: Object.values(rides)
-  });
 });
 
 app.listen(PORT, () => {
