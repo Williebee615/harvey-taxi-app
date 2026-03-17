@@ -1,18 +1,181 @@
-<script>
-  let userLocation = { lat: null, lng: null };
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Request a Ride</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        userLocation.lat = pos.coords.latitude;
-        userLocation.lng = pos.coords.longitude;
-        console.log("User location captured:", userLocation);
-      },
-      (error) => {
-        console.log("Location permission denied or unavailable.", error);
-      }
-    );
-  } else {
-    console.log("Geolocation is not supported by this browser.");
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0d0d0d;
+      color: white;
+      padding: 20px;
+    }
+
+    .wrap {
+      max-width: 700px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: #151515;
+      border-radius: 18px;
+      padding: 24px;
+    }
+
+    h1 {
+      color: #2d8cff;
+      text-align: center;
+      margin-top: 0;
+    }
+
+    label {
+      display: block;
+      margin-top: 14px;
+      margin-bottom: 6px;
+      font-weight: bold;
+    }
+
+    input {
+      width: 100%;
+      padding: 14px;
+      border-radius: 10px;
+      border: 1px solid #333;
+      box-sizing: border-box;
+    }
+
+    button {
+      width: 100%;
+      margin-top: 18px;
+      padding: 14px;
+      border: none;
+      border-radius: 10px;
+      font-size: 18px;
+      font-weight: bold;
+      background: #2d8cff;
+      color: white;
+      cursor: pointer;
+    }
+
+    .message {
+      margin-top: 16px;
+      color: #dcdcdc;
+      text-align: center;
+    }
+
+    a.back {
+      color: #ffd400;
+      text-decoration: none;
+      display: inline-block;
+      margin-bottom: 14px;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="wrap">
+
+  <a class="back" href="index.html">← Back to Home</a>
+
+  <div class="card">
+
+    <h1>Request a Ride</h1>
+
+    <label>Pickup Location</label>
+    <input id="pickup" type="text" placeholder="Enter pickup address" />
+
+    <label>Dropoff Location</label>
+    <input id="dropoff" type="text" placeholder="Enter destination" />
+
+    <label>Your Name</label>
+    <input id="name" type="text" placeholder="Enter your name" />
+
+    <label>Phone Number</label>
+    <input id="phone" type="text" placeholder="Enter your phone number" />
+
+    <button onclick="requestRide()">Request Ride</button>
+
+    <div id="message" class="message"></div>
+
+  </div>
+
+</div>
+
+<script>
+
+// 📍 USER GPS LOCATION
+let userLocation = { lat: null, lng: null };
+
+if (navigator.geolocation) {
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      userLocation.lat = pos.coords.latitude;
+      userLocation.lng = pos.coords.longitude;
+      console.log("User location:", userLocation);
+    },
+    (error) => {
+      console.log("Location permission denied or unavailable.", error);
+    }
+  );
+} else {
+  console.log("Geolocation not supported.");
+}
+
+
+// 🚕 REQUEST RIDE FUNCTION
+async function requestRide(){
+
+  const pickup = document.getElementById("pickup").value.trim();
+  const dropoff = document.getElementById("dropoff").value.trim();
+  const name = document.getElementById("name").value.trim();
+  const phone = document.getElementById("phone").value.trim();
+
+  const message = document.getElementById("message");
+
+  if(!pickup || !dropoff || !name || !phone){
+    message.textContent = "Please fill in all fields.";
+    return;
   }
+
+  message.textContent = "Requesting ride...";
+
+  try{
+
+    const response = await fetch("/api/request-ride", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        pickup,
+        dropoff,
+        name,
+        phone,
+        pickupLat: userLocation.lat,
+        pickupLng: userLocation.lng
+      })
+    });
+
+    const data = await response.json();
+
+    if(!response.ok){
+      throw new Error(data.error || "Failed to request ride.");
+    }
+
+    message.textContent = data.message;
+
+  }catch(error){
+
+    message.textContent = error.message;
+
+  }
+
+}
+
 </script>
+
+</body>
+</html>
