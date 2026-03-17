@@ -1,17 +1,22 @@
 const express = require("express");
 const path = require("path");
+const cors = require("cors");
 
 const app = express();
 const PORT = process.env.PORT || 10000;
 
+app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(express.static(__dirname));
 
+// In-memory storage
 let drivers = {};
 let rides = {};
 let rideRequests = [];
+let driverApplications = [];
 
-// Home + pages
+// Pages
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
@@ -20,23 +25,98 @@ app.get("/driver", (req, res) => {
   res.sendFile(path.join(__dirname, "driver.html"));
 });
 
+app.get("/driver-signup", (req, res) => {
+  res.sendFile(path.join(__dirname, "driver-signup.html"));
+});
+
 app.get("/request-ride", (req, res) => {
   res.sendFile(path.join(__dirname, "request-ride.html"));
 });
 
+app.get("/admin", (req, res) => {
+  res.sendFile(path.join(__dirname, "admin.html"));
+});
+
+app.get("/dashboard", (req, res) => {
+  res.sendFile(path.join(__dirname, "dashboard.html"));
+});
+
+// Driver signup route
+app.post("/api/driver/apply", (req, res) => {
+  console.log("Driver application received:", req.body);
+
+  const {
+    fullName,
+    phone,
+    email,
+    city,
+    state,
+    vehicleType,
+    driverType
+  } = req.body;
+
+  if (
+    !fullName ||
+    !phone ||
+    !email ||
+    !city ||
+    !state ||
+    !vehicleType ||
+    !driverType
+  ) {
+    return res.status(400).json({
+      success: false,
+      message: "All fields are required"
+    });
+  }
+
+  const application = {
+    id: Date.now(),
+    fullName,
+    phone,
+    email,
+    city,
+    state,
+    vehicleType,
+    driverType,
+    status: "pending",
+    createdAt: new Date().toISOString()
+  };
+
+  driverApplications.push(application);
+
+  return res.json({
+    success: true,
+    message: "Application submitted successfully",
+    application
+  });
+});
+
+// View submitted applications
+app.get("/api/driver/applications", (req, res) => {
+  res.json({
+    success: true,
+    applications: driverApplications
+  });
+});
+
 // Driver GPS update
 app.post("/api/driver/update", (req, res) => {
-  const { driverId, lat, lng } = req.body;
+  const { driverId, lat, lng, name } = req.body;
 
   if (!driverId || lat == null || lng == null) {
-    return res.status(400).json({ error: "Missing driver location data" });
+    return res.status(400).json({
+      success: false,
+      message: "driverId, lat, and lng are required"
+    });
   }
 
   drivers[driverId] = {
     driverId,
+    name: name || "Driver",
     lat,
     lng,
-    updatedAt: Date.now()
+    updatedAt: new Date().toISOString()
   };
 
   res.json({
@@ -45,125 +125,58 @@ app.post("/api/driver/update", (req, res) => {
   });
 });
 
-// Optional compatibility route
-app.post("/api/driver/location", (req, res) => {
-  const { id, lat, lng } = req.body;
-
-  if (!id || lat == null || lng == null) {
-    return res.status(400).json({ error: "Missing driver location data" });
-  }
-
-  drivers[id] = {
-    driverId: id,
-    lat,
-    lng,
-    updatedAt: Date.now()
-  };
-
+// Get drivers
+app.get("/api/drivers", (req, res) => {
   res.json({
     success: true,
-    driver: drivers[id]
+    drivers: Object.values(drivers)
   });
 });
 
-function getDistance(a, b) {
-  const dx = a.lat - b.lat;
-  const dy = a.lng - b.lng;
-  return Math.sqrt(dx * dx + dy * dy);
-}// Rider creates ride request
-app.post("/api/ride/request", (req, res) => {
-  const { riderId, pickup } = req.body;
-
-  if (!pickup || pickup.lat == null || pickup.lng == null) {
-    return res.status(400).json({ error: "Missing pickup location" });
-  }
-
-  let nearestDriver = null;
-  let minDistance = Infinity;
-
-  for (const key in drivers) {
-    const driver = drivers[key];
-    const dist = getDistance(pickup, driver);
-
-    if (dist < minDistance) {
-      minDistance = dist;
-      nearestDriver = driver;
-    }
-  }
-
-  const rideId = "ride_" + Date.now();
-
-  rides[rideId] = {
-    id: rideId,
-    riderId: riderId || "rider1",
-    pickup,
-    status: nearestDriver ? "assigned" : "waiting",
-    driver: nearestDriver || null,
-    createdAt: Date.now()
-  };
-
-  if (nearestDriver) {
-    rideRequests.push({
-      id: rideId,
-      riderId: riderId || "rider1",
-      pickup,
-      driver: nearestDriver,
-      status: "assigned"
-    });
-  }
-
-  res.json({
-    success: true,
-    rideId,
-    status: rides[rideId].status
-  });
-});
-
-// Rider checks ride
-app.get("/api/ride/:id", (req, res) => {
-  const ride = rides[req.params.id];
-
-  if (!ride) {
-    return res.status(404).json({ error: "Ride not found" });
-  }
-
-  let latestDriver = ride.driver;
-
-  if (ride.driver && ride.driver.driverId && drivers[ride.driver.driverId]) {
-    latestDriver = drivers[ride.driver.driverId];
-  }
-
-  res.json({
-    id: ride.id,
-    status: latestDriver ? "assigned" : ride.status,
-    driver: latestDriver || null
-  });
-});
-
-// Simple ride request list
+// Ride request
 app.post("/request-ride", (req, res) => {
   const { lat, lng } = req.body;
 
   if (lat == null || lng == null) {
-    return res.status(400).json({ error: "Missing location" });
+    return res.status(400).json({
+      success: false,
+      message: "lat and lng are required"
+    });
   }
+
+  const driverList = Object.values(drivers);
+  const latestDriver = driverList.length > 0 ? driverList[driverList.length - 1] : null;
 
   const newRide = {
     id: Date.now(),
     lat,
     lng,
-    status: "waiting"
+    status: latestDriver ? "assigned" : "waiting",
+    driver: latestDriver || null,
+    createdAt: new Date().toISOString()
   };
 
   rideRequests.push(newRide);
+  rides[newRide.id] = newRide;
 
-  res.json({ success: true, ride: newRide });
+  res.json({
+    success: true,
+    ride: newRide
+  });
 });
 
+// Get rides
 app.get("/rides", (req, res) => {
   res.json(rideRequests);
 });
 
+app.get("/api/rides", (req, res) => {
+  res.json({
+    success: true,
+    rides: Object.values(rides)
+  });
+});
+
 app.listen(PORT, () => {
-  console.log("Server running on port " + PORT);
+  console.log(`Server running on port ${PORT}`);
 });
