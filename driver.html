@@ -1,23 +1,107 @@
-const driverId = "driver_" + Date.now();
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Driver Tracker - Harvey Taxi</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #111;
+      color: white;
+      text-align: center;
+      padding: 40px 20px;
+    }
 
-navigator.geolocation.watchPosition(async (pos) => {
-  const lat = pos.coords.latitude;
-  const lng = pos.coords.longitude;
+    h1 {
+      color: gold;
+    }
 
-  await fetch("/api/driver/location", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      id: driverId,
-      name: "Driver",
-      lat,
-      lng,
-      available: true
-    })
-  });
+    .box {
+      max-width: 500px;
+      margin: 0 auto;
+      background: #1c1c1c;
+      padding: 30px;
+      border-radius: 16px;
+    }
 
-  document.getElementById("status").innerText =
-    "Tracking: " + lat + ", " + lng;
-});
+    #status {
+      margin-top: 20px;
+      font-size: 18px;
+      word-break: break-word;
+    }
+
+    button {
+      background: gold;
+      color: black;
+      border: none;
+      padding: 14px 24px;
+      font-size: 18px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: bold;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>Driver Live Tracking</h1>
+    <p>Tap start to begin sending your live location.</p>
+    <button onclick="startTracking()">Start Tracking</button>
+    <div id="status">Tracking not started</div>
+  </div>
+
+  <script>
+    const driverId = "driver_" + Date.now();
+
+    function startTracking() {
+      if (!navigator.geolocation) {
+        document.getElementById("status").innerText =
+          "Geolocation is not supported on this device.";
+        return;
+      }
+
+      navigator.geolocation.watchPosition(
+        async (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+
+          try {
+            await fetch("/api/driver/location", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                id: driverId,
+                name: "Driver",
+                lat,
+                lng,
+                available: true
+              })
+            });
+
+            document.getElementById("status").innerText =
+              "Tracking: " + lat + ", " + lng;
+          } catch (err) {
+            document.getElementById("status").innerText =
+              "Error sending location.";
+            console.error(err);
+          }
+        },
+        (error) => {
+          document.getElementById("status").innerText =
+            "Location access denied or unavailable.";
+          console.error(error);
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 5000,
+          timeout: 10000
+        }
+      );
+    }
+  </script>
+</body>
+</html>
