@@ -1,225 +1,79 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Harvey Taxi Admin</title>
-  <style>
-    * {
-      box-sizing: border-box;
-    }
+app.get("/admin", async (req, res) => {
+  const applications = await db.collection("drivers").find().toArray();
 
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #000;
-      color: #fff;
-      padding: 20px;
-    }
-
-    .container {
-      max-width: 950px;
-      margin: 0 auto;
-    }
-
-    h1 {
-      color: gold;
-      font-size: 2.3rem;
-      margin-bottom: 10px;
-    }
-
-    p {
-      color: #ddd;
-      margin-bottom: 20px;
-      line-height: 1.5;
-    }
-
-    button {
-      border: none;
-      border-radius: 12px;
-      padding: 12px 18px;
-      font-size: 1rem;
-      font-weight: bold;
-      cursor: pointer;
-    }
-
-    .refresh-btn {
-      background: gold;
-      color: #000;
-      margin-bottom: 20px;
-    }
-
-    .approve-btn {
-      background: #2ecc71;
-      color: #fff;
-      margin-right: 10px;
-    }
-
-    .reject-btn {
-      background: #e74c3c;
-      color: #fff;
-    }
-
-    .section {
-      background: #111;
-      border: 1px solid #222;
-      border-radius: 16px;
-      padding: 20px;
-      margin-bottom: 20px;
-    }
-
-    .section h2 {
-      color: gold;
-      margin-top: 0;
-      margin-bottom: 16px;
-    }
-
-    .card {
-      background: #1a1a1a;
-      border: 1px solid #333;
-      border-radius: 14px;
-      padding: 16px;
-      margin-top: 14px;
-    }
-
-    .card p {
-      margin: 8px 0;
-      color: #fff;
-    }
-
-    .status-pending {
-      color: #f1c40f;
-      font-weight: bold;
-    }
-
-    .status-approved {
-      color: #2ecc71;
-      font-weight: bold;
-    }
-
-    .status-rejected {
-      color: #e74c3c;
-      font-weight: bold;
-    }
-
-    .actions {
-      margin-top: 14px;
-    }
-
-    .empty {
-      color: #bbb;
-      margin-top: 10px;
-    }
-
-    .error {
-      color: #ff5c5c;
-      white-space: pre-wrap;
-    }
-
-    .success-msg {
-      color: #42d26b;
-      margin-bottom: 16px;
-      font-weight: bold;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h1>Harvey Taxi Admin Dashboard</h1>
-    <p>Review driver applications, approve or reject drivers, and monitor your system.</p>
-
-    <button class="refresh-btn" onclick="loadApplications()">Refresh Applications</button>
-    <div id="message"></div>
-
-    <div class="section">
-      <h2>Driver Applications</h2>
-      <div id="applicationsList" class="empty">Loading applications...</div>
-    </div>
-  </div>
-
-  <script>
-    function formatDate(dateString) {
-      if (!dateString) return "N/A";
-      return new Date(dateString).toLocaleString();
-    }
-
-    function statusClass(status) {
-      if (status === "approved") return "status-approved";
-      if (status === "rejected") return "status-rejected";
-      return "status-pending";
-    }
-
-    async function updateApplicationStatus(id, action) {
-      const message = document.getElementById("message");
-      message.innerHTML = "";
-
-      try {
-        const response = await fetch(`/api/driver/applications/${id}/${action}`, {
-          method: "POST"
-        });
-
-        const data = await response.json();
-
-        if (!response.ok || !data.success) {
-          message.innerHTML = `<div class="error">${data.message || "Action failed."}</div>`;
-          return;
+  let html = `
+    <html>
+    <head>
+      <title>Admin Panel</title>
+      <style>
+        body { background: #000; color: #fff; font-family: Arial; padding: 20px; }
+        h1 { color: gold; }
+        .card {
+          background: #111;
+          padding: 15px;
+          margin: 10px 0;
+          border-radius: 10px;
         }
-
-        message.innerHTML = `<div class="success-msg">${data.message}</div>`;
-        loadApplications();
-      } catch (error) {
-        console.error(error);
-        message.innerHTML = `<div class="error">Could not update application.</div>`;
-      }
-    }
-
-    async function loadApplications() {
-      const list = document.getElementById("applicationsList");
-      const message = document.getElementById("message");
-      message.innerHTML = "";
-      list.innerHTML = "Loading applications...";
-
-      try {
-        const response = await fetch("/api/driver/applications");
-        const data = await response.json();
-
-        if (!response.ok || !data.success) {
-          list.innerHTML = '<div class="error">Applications failed to load.</div>';
-          return;
+        button {
+          padding: 10px;
+          margin-top: 10px;
+          border: none;
+          border-radius: 5px;
+          cursor: pointer;
         }
+        .approve { background: green; color: white; }
+        .reject { background: red; color: white; }
+      </style>
+    </head>
+    <body>
+      <h1>Pending Driver Applications</h1>
+  `;
 
-        if (!data.applications || data.applications.length === 0) {
-          list.innerHTML = '<div class="empty">No driver applications yet.</div>';
-          return;
-        }
+  applications.forEach(app => {
+    html += `
+      <div class="card">
+        <p><b>Name:</b> ${app.name}</p>
+        <p><b>Phone:</b> ${app.phone}</p>
+        <p><b>Email:</b> ${app.email}</p>
+        <p><b>City:</b> ${app.city}</p>
+        <p><b>State:</b> ${app.state}</p>
+        <p><b>Vehicle:</b> ${app.vehicle}</p>
+        <p><b>Driver Type:</b> ${app.driverType}</p>
+        <p><b>Status:</b> ${app.status}</p>
 
-        list.innerHTML = data.applications.map(app => `
-          <div class="card">
-            <p><strong>Name:</strong> ${app.fullName}</p>
-            <p><strong>Phone:</strong> ${app.phone}</p>
-            <p><strong>Email:</strong> ${app.email}</p>
-            <p><strong>City:</strong> ${app.city}</p>
-            <p><strong>State:</strong> ${app.state}</p>
-            <p><strong>Vehicle:</strong> ${app.vehicleType}</p>
-            <p><strong>Driver Type:</strong> ${app.driverType}</p>
-            <p><strong>Status:</strong> <span class="${statusClass(app.status)}">${app.status}</span></p>
-            <p><strong>Submitted:</strong> ${formatDate(app.createdAt)}</p>
+        <form method="POST" action="/approve-driver/${app._id}">
+          <button class="approve">Approve</button>
+        </form>
 
-            ${app.status === "pending" ? `
-              <div class="actions">
-                <button class="approve-btn" onclick="updateApplicationStatus('${app._id}', 'approve')">Approve</button>
-                <button class="reject-btn" onclick="updateApplicationStatus('${app._id}', 'reject')">Reject</button>
-              </div>
-            ` : ""}
-          </div>
-        `).join("");
-      } catch (error) {
-        console.error(error);
-        list.innerHTML = `<div class="error">Could not load applications.</div>`;
-      }
-    }
+        <form method="POST" action="/reject-driver/${app._id}">
+          <button class="reject">Reject</button>
+        </form>
+      </div>
+    `;
+  });
 
-    loadApplications();
-  </script>
-</body>
-</html>
+  html += `</body></html>`;
+  res.send(html);
+});const { ObjectId } = require("mongodb");
+
+app.post("/approve-driver/:id", async (req, res) => {
+  const id = req.params.id;
+
+  await db.collection("drivers").updateOne(
+    { _id: new ObjectId(id) },
+    { $set: { status: "approved" } }
+  );
+
+  res.redirect("/admin");
+});
+
+app.post("/reject-driver/:id", async (req, res) => {
+  const id = req.params.id;
+
+  await db.collection("drivers").updateOne(
+    { _id: new ObjectId(id) },
+    { $set: { status: "rejected" } }
+  );
+
+  res.redirect("/admin");
+});
