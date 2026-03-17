@@ -1,22 +1,49 @@
-const express = require("express");
-const path = require("path");
+let rideRequests = [];
 
-const app = express();
-const PORT = process.env.PORT || 10000;
+// CREATE RIDE REQUEST
+app.post("/request-ride", express.json(), (req, res) => {
+  const { lat, lng } = req.body;
 
-// Serve all static files
-app.use(express.static(__dirname));app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "index.html"));
+  if (!lat || !lng) {
+    return res.status(400).json({ error: "Missing location" });
+  }
+
+  const newRide = {
+    id: Date.now(),
+    lat,
+    lng,
+    status: "waiting"
+  };
+
+  rideRequests.push(newRide);
+
+  res.json({ success: true, ride: newRide });
 });
 
-app.get("/driver", (req, res) => {
-  res.sendFile(path.join(__dirname, "driver.html"));
-});
+// GET ALL RIDES
+app.get("/rides", (req, res) => {
+  res.json(rideRequests);
+});<script>
+async function requestRide(lat, lng) {
+  try {
+    const res = await fetch("/request-ride", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ lat, lng })
+    });
 
-app.get("/request-ride", (req, res) => {
-  res.sendFile(path.join(__dirname, "request-ride.html"));
-});
+    const data = await res.json();
 
-app.listen(PORT, () => {
-  console.log("Server running on port " + PORT);
-});
+    if (data.success) {
+      document.body.innerHTML += "<p>✅ Ride requested!</p>";
+    } else {
+      document.body.innerHTML += "<p>❌ Failed</p>";
+    }
+
+  } catch (err) {
+    document.body.innerHTML += "<p>❌ Error requesting ride</p>";
+  }
+}
+</script>
