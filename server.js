@@ -11,6 +11,7 @@ app.use(express.static(__dirname));
 const db = new sqlite3.Database("taxi.db");
 
 let driverLocations = [];
+let driverNotifications = [];
 
 db.serialize(() => {
   db.run(`
@@ -23,6 +24,7 @@ db.serialize(() => {
       status TEXT DEFAULT 'waiting',
       acceptedBy TEXT DEFAULT '',
       fare REAL DEFAULT 0,
+      paymentMethod TEXT DEFAULT 'cash',
       createdAt TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `);
@@ -58,6 +60,7 @@ db.serialize(() => {
   `);
 
   db.run(`ALTER TABLE rides ADD COLUMN fare REAL DEFAULT 0`, () => {});
+  db.run(`ALTER TABLE rides ADD COLUMN paymentMethod TEXT DEFAULT 'cash'`, () => {});
   db.run(`ALTER TABLE rides ADD COLUMN createdAt TEXT DEFAULT CURRENT_TIMESTAMP`, () => {});
   db.run(`ALTER TABLE drivers ADD COLUMN status TEXT DEFAULT 'pending'`, () => {});
   db.run(`ALTER TABLE drivers ADD COLUMN earnings REAL DEFAULT 0`, () => {});
@@ -71,8 +74,11 @@ function estimateFare(pickup, dropoff) {
   return Number((baseFare + distanceHint * 2).toFixed(2));
 }
 
+function toRad(value) {
+  return (value * Math.PI) / 180;
+}
+
 function distanceMiles(lat1, lon1, lat2, lon2) {
-  const toRad = (value) => (value * Math.PI) / 180;
   const R = 3958.8;
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
@@ -88,61 +94,78 @@ function distanceMiles(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-function parseLatLng(pickup) {
-  if (!pickup || typeof pickup !== "string") return null;
-
-  const parts = pickup.split(",");
+function parseLatLng(text) {
+  if (!text || typeof text !== "string") return null;
+  const parts = text.split(",");
   if (parts.length < 2) return null;
 
   const lat = Number(parts[0].trim());
   const lng = Number(parts[1].trim());
 
   if (Number.isNaN(lat) || Number.isNaN(lng)) return null;
-
   return { lat, lng };
+}
+
+function estimateEtaMinutes(miles) {
+  const avgCitySpeedMph = 20;
+  return Math.max(2, Math.round((miles / avgCitySpeedMph) * 60));
 }
 
 function findClosestApprovedDriver(pickupText, approvedDrivers) {
   const pickupCoords = parseLatLng(pickupText);
   if (!pickupCoords) return null;
 
-  const onlineApprovedDrivers = approvedDrivers.filter((driver) =>
-    driverLocations.some((loc) => loc.name === driver.name)
-  );
+  const onlineApprovedDrivers = approvedDrivers
+    .map((driver) => {
+      const loc = driverLocations.find((d) => d.name === driver.name);
+      if (!loc) return null;
+
+      const miles = distanceMiles(
+        pickupCoords.lat,
+        pickupCoords.lng,
+        loc.lat,
+        loc.lng
+      );
+
+      return {
+        name: driver.name,
+        lat: loc.lat,
+        lng: loc.lng,
+        distanceMiles: Number(miles.toFixed(2)),
+        etaMinutes: estimateEtaMinutes(miles)
+      };
+    })
+    .filter(Boolean);
 
   if (!onlineApprovedDrivers.length) return null;
 
-  let closest = null;
-  let closestDistance = Infinity;
+  onlineApprovedDrivers.sort((a, b) => a.distanceMiles - b.distanceMiles);
+  return onlineApprovedDrivers[0];
+}
 
-  onlineApprovedDrivers.forEach((driver) => {
-    const loc = driverLocations.find((d) => d.name === driver.name);
-    if (!loc) return;
-
-    const miles = distanceMiles(pickupCoords.lat, pickupCoords.lng, loc.lat, loc.lng);
-
-    if (miles < closestDistance) {
-      closestDistance = miles;
-      closest = {
-        name: driver.name,
-        distanceMiles: Number(miles.toFixed(2))
-      };
-    }
+function addDriverNotification(driverName, message, rideId) {
+  driverNotifications.push({
+    id: Date.now() + Math.random(),
+    driverName,
+    message,
+    rideId,
+    createdAt: Date.now()
   });
 
-  return closest;
+  driverNotifications = driverNotifications.slice(-100);
 }
 
 /* RIDES */
 
 app.post("/request-ride", (req, res) => {
-  const { name, phone, pickup, dropoff } = req.body;
+  const { name, phone, pickup, dropoff, paymentMethod } = req.body;
 
   if (!name || !phone || !pickup || !dropoff) {
     return res.status(400).json({ success: false, error: "Missing ride fields" });
   }
 
   const fare = estimateFare(pickup, dropoff);
+  const safePaymentMethod = paymentMethod || "cash";
 
   db.all(
     "SELECT * FROM drivers WHERE status = 'approved'",
@@ -157,18 +180,29 @@ app.post("/request-ride", (req, res) => {
       const assignedStatus = closestDriver ? "accepted" : "waiting";
 
       db.run(
-        `INSERT INTO rides (name, phone, pickup, dropoff, status, acceptedBy, fare)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [name, phone, pickup, dropoff, assignedStatus, assignedDriver, fare],
+        `INSERT INTO rides (name, phone, pickup, dropoff, status, acceptedBy, fare, paymentMethod)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [name, phone, pickup, dropoff, assignedStatus, assignedDriver, fare, safePaymentMethod],
         function (err) {
           if (err) return res.status(500).json({ success: false, error: err.message });
+
+          if (closestDriver) {
+            addDriverNotification(
+              closestDriver.name,
+              `New auto-assigned ride for ${name}`,
+              this.lastID
+            );
+          }
 
           res.json({
             success: true,
             rideId: this.lastID,
             fare,
             autoAssigned: !!closestDriver,
-            assignedDriver: assignedDriver || null
+            assignedDriver: assignedDriver || null,
+            etaMinutes: closestDriver ? closestDriver.etaMinutes : null,
+            paymentReady: false,
+            paymentNote: "Card processing requires Stripe keys later. Cash and manual payments work now."
           });
         }
       );
@@ -183,6 +217,48 @@ app.get("/rides", (req, res) => {
   });
 });
 
+app.get("/ride-status/:id", (req, res) => {
+  const rideId = req.params.id;
+
+  db.get("SELECT * FROM rides WHERE id = ?", [rideId], (err, ride) => {
+    if (err || !ride) {
+      return res.status(404).json({ success: false, error: "Ride not found" });
+    }
+
+    let etaMinutes = null;
+    let driverLat = null;
+    let driverLng = null;
+
+    if (ride.acceptedBy) {
+      const driverLoc = driverLocations.find((d) => d.name === ride.acceptedBy);
+      const pickupCoords = parseLatLng(ride.pickup);
+
+      if (driverLoc) {
+        driverLat = driverLoc.lat;
+        driverLng = driverLoc.lng;
+      }
+
+      if (driverLoc && pickupCoords) {
+        const miles = distanceMiles(
+          driverLoc.lat,
+          driverLoc.lng,
+          pickupCoords.lat,
+          pickupCoords.lng
+        );
+        etaMinutes = estimateEtaMinutes(miles);
+      }
+    }
+
+    res.json({
+      success: true,
+      ride,
+      etaMinutes,
+      driverLat,
+      driverLng
+    });
+  });
+});
+
 app.post("/accept-ride/:id", (req, res) => {
   const rideId = req.params.id;
   const { driverName } = req.body;
@@ -194,8 +270,8 @@ app.post("/accept-ride/:id", (req, res) => {
   db.run(
     `UPDATE rides
      SET status = 'accepted', acceptedBy = ?
-     WHERE id = ? AND status = 'waiting'`,
-    [driverName, rideId],
+     WHERE id = ? AND (status = 'waiting' OR acceptedBy = ?)`,
+    [driverName, rideId, driverName],
     function (err) {
       if (err) return res.status(500).json({ success: false, error: err.message });
       res.json({ success: this.changes > 0 });
@@ -222,6 +298,11 @@ app.post("/complete-ride/:id", (req, res) => {
             "UPDATE drivers SET earnings = earnings + ? WHERE name = ?",
             [Number((ride.fare || 0) * 0.8), ride.acceptedBy],
             () => {
+              addDriverNotification(
+                ride.acceptedBy,
+                `Ride #${ride.id} completed. Earnings added.`,
+                ride.id
+              );
               res.json({ success: true });
             }
           );
@@ -277,103 +358,4 @@ app.get("/drivers", (req, res) => {
   });
 });
 
-app.post("/approve-driver/:id", (req, res) => {
-  db.run(
-    "UPDATE drivers SET status = 'approved' WHERE id = ?",
-    [req.params.id],
-    function (err) {
-      if (err) return res.status(500).json({ success: false, error: err.message });
-      res.json({ success: this.changes > 0 });
-    }
-  );
-});
-
-app.post("/reject-driver/:id", (req, res) => {
-  db.run(
-    "UPDATE drivers SET status = 'rejected' WHERE id = ?",
-    [req.params.id],
-    function (err) {
-      if (err) return res.status(500).json({ success: false, error: err.message });
-      res.json({ success: this.changes > 0 });
-    }
-  );
-});
-
-/* DRIVER LOCATIONS */
-
-app.post("/driver-location", (req, res) => {
-  const { name, lat, lng } = req.body;
-
-  if (!name || lat === undefined || lng === undefined) {
-    return res.status(400).json({ success: false, error: "Missing location data" });
-  }
-
-  const parsedLat = Number(lat);
-  const parsedLng = Number(lng);
-
-  if (Number.isNaN(parsedLat) || Number.isNaN(parsedLng)) {
-    return res.status(400).json({ success: false, error: "Invalid coordinates" });
-  }
-
-  const existing = driverLocations.find((d) => d.name === name);
-
-  if (existing) {
-    existing.lat = parsedLat;
-    existing.lng = parsedLng;
-    existing.updatedAt = Date.now();
-  } else {
-    driverLocations.push({
-      name,
-      lat: parsedLat,
-      lng: parsedLng,
-      updatedAt: Date.now()
-    });
-  }
-
-  res.json({ success: true });
-});
-
-app.get("/driver-locations", (req, res) => {
-  const now = Date.now();
-  driverLocations = driverLocations.filter((d) => now - d.updatedAt < 60000);
-  res.json(driverLocations);
-});
-
-/* ANALYTICS */
-
-app.get("/analytics", (req, res) => {
-  db.get(
-    `SELECT
-      COUNT(*) AS totalRides,
-      SUM(CASE WHEN status='waiting' THEN 1 ELSE 0 END) AS waitingRides,
-      SUM(CASE WHEN status='accepted' THEN 1 ELSE 0 END) AS acceptedRides,
-      SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) AS completedRides,
-      COALESCE(SUM(fare),0) AS grossRevenue
-     FROM rides`,
-    [],
-    (err, rideStats) => {
-      if (err) return res.status(500).json({ success: false, error: err.message });
-
-      db.get(
-        `SELECT
-          COUNT(*) AS totalDrivers,
-          SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) AS pendingDrivers,
-          SUM(CASE WHEN status='approved' THEN 1 ELSE 0 END) AS approvedDrivers
-         FROM drivers`,
-        [],
-        (driverErr, driverStats) => {
-          if (driverErr) return res.status(500).json({ success: false, error: driverErr.message });
-
-          res.json({
-            ...rideStats,
-            ...driverStats
-          });
-        }
-      );
-    }
-  );
-});
-
-app.listen(PORT, () => {
-  console.log("Harvey Taxi running on port " + PORT);
-});
+app.post("/approve-driver/:id", (req, res
