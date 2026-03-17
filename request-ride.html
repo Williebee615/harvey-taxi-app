@@ -1,3 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Request Ride</title>
+</head>
+<body>
+
+<h1>Request a Ride</h1>
+
+<button onclick="requestRide()">Request Ride</button>
+
+<p id="status">Waiting...</p>
+<p id="driver"></p>
+
+<script>
 let currentRideId = null;
 
 async function requestRide() {
@@ -5,40 +20,41 @@ async function requestRide() {
     const lat = pos.coords.latitude;
     const lng = pos.coords.longitude;
 
-    const res = await fetch("/api/ride/request", {
+    const res = await fetch('/api/ride/request', {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         riderId: "rider1",
-        pickup: { lat, lng },
-        dropoff: { lat: lat + 0.01, lng: lng + 0.01 }
+        pickup: { lat, lng }
       })
     });
 
     const data = await res.json();
-
-    currentRideId = data.ride.id;
+    currentRideId = data.rideId;
 
     document.getElementById("status").innerText =
-      "Ride status: " + data.ride.status;
+      "Ride requested. Waiting for driver...";
+
+    trackRide();
   });
 }
 
 async function trackRide() {
   if (!currentRideId) return;
 
-  const res = await fetch("/api/ride/" + currentRideId);
+  const res = await fetch('/api/ride/' + currentRideId);
   const data = await res.json();
 
-  document.getElementById("status").innerText =
-    "Status: " + data.ride.status;
-
-  if (data.driver) {
+  if (data.status && data.driver) {
+    document.getElementById("status").innerText =
+      "Driver assigned!";
     document.getElementById("driver").innerText =
       "Driver at: " + data.driver.lat + ", " + data.driver.lng;
   }
-}
 
-setInterval(trackRide, 3000);
+  setTimeout(trackRide, 3000);
+}
+</script>
+
+</body>
+</html>
