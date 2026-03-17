@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Request Ride</title>
+</head>
+<body style="background:black;color:white;font-family:Arial;padding:20px;">
+
+<h1 style="color:gold;">Request a Ride</h1>
+
+<input id="name" placeholder="Your Name" style="padding:10px;margin:10px;"><br>
+<button onclick="requestRide()">Request Ride</button>
+
+<p id="status"></p>
+
+<script>
+const API = "https://harvey-taxi-api2.onrender.com";
+
+async function requestRide() {
+  const name = document.getElementById("name").value;
+
+  await fetch(API + "/api/driver-applications", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ name })
+  });
+
+  document.getElementById("status").innerText = "Ride Requested!";
+}
+</script>
+
+</body>
+</html>
