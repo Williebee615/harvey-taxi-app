@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Harvey Taxi Admin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial;
+      background: #000;
+      color: #fff;
+      padding: 20px;
+    }
+
+    h1 {
+      color: gold;
+    }
+
+    button {
+      padding: 12px;
+      margin: 5px 0;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .approve { background: green; color: white; }
+    .reject { background: red; color: white; }
+    .refresh { background: gold; }
+
+    .card {
+      background: #111;
+      padding: 15px;
+      margin-top: 10px;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+
+<body>
+
+<h1>Harvey Taxi Admin Dashboard</h1>
+
+<button class="refresh" onclick="loadApplications()">Refresh Applications</button>
+
+<div id="applications"></div>
+
+<hr>
+
+<h2>Test Create Driver</h2>
+
+<button onclick="createTest()">Add Test Driver</button>
+
+<script>
+const API = "https://harvey-taxi-api2.onrender.com";
+
+async function loadApplications() {
+  const container = document.getElementById("applications");
+  container.innerHTML = "Loading...";
+
+  try {
+    const res = await fetch(API + "/api/driver-applications");
+    const data = await res.json();
+
+    if (!data.length) {
+      container.innerHTML = "No applications yet";
+      return;
+    }
+
+    container.innerHTML = data.map(app => `
+      <div class="card">
+        <b>${app.fullName || "No Name"}</b><br>
+        ${app.email || ""}<br>
+        Status: ${app.status}<br><br>
+
+        <button class="approve" onclick="approve('${app.id}')">Approve</button>
+        <button class="reject" onclick="reject('${app.id}')">Reject</button>
+      </div>
+    `).join("");
+
+  } catch (err) {
+    container.innerHTML = "Error loading applications";
+  }
+}
+
+async function approve(id) {
+  await fetch(API + "/api/driver-applications/" + id + "/approve", {
+    method: "POST"
+  });
+  loadApplications();
+}
+
+async function reject(id) {
+  await fetch(API + "/api/driver-applications/" + id + "/reject", {
+    method: "POST"
+  });
+  loadApplications();
+}
+
+async function createTest() {
+  await fetch(API + "/api/driver-applications", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      fullName: "Test Driver",
+      email: "test@email.com"
+    })
+  });
+
+  loadApplications();
+}
+
+loadApplications();
+</script>
+
+</body>
+</html>
