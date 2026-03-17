@@ -1,111 +1,191 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Request Ride</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Request Ride</title>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
-<style>
-body { font-family: Arial; padding:16px; }
-button {
-  padding:12px;
-  font-size:18px;
-  background:black;
-  color:gold;
-  border:none;
-  border-radius:10px;
-}
-#map { height:400px; margin-top:20px; background:#eee; }
-</style>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      padding: 16px;
+    }
+
+    h1 {
+      margin-top: 0;
+    }
+
+    button {
+      padding: 12px 18px;
+      font-size: 16px;
+      border: none;
+      border-radius: 10px;
+      background: black;
+      color: gold;
+      font-weight: bold;
+      cursor: pointer;
+      margin-bottom: 12px;
+    }
+
+    #status, #driver {
+      margin: 10px 0;
+      font-size: 16px;
+    }
+
+    #map {
+      width: 100%;
+      height: 400px;
+      margin-top: 20px;
+      border: 1px solid #ccc;
+      border-radius: 12px;
+    }
+  </style>
 </head>
-
 <body>
+  <h1>Request a Ride</h1>
 
-<h1>Request a Ride</h1>
+  <button id="rideBtn" type="button">Request Ride</button>
 
-<button id="btn">Request Ride</button>
+  <p id="status">Waiting...</p>
+  <p id="driver"></p>
 
-<p id="status">Loading map...</p>
+  <div id="map"></div>
 
-<div id="map"></div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const rideBtn = document.getElementById("rideBtn");
+    const statusEl = document.getElementById("status");
+    const driverEl = document.getElementById("driver");
 
-<script>
-let map;
-let userMarker;
-let driverMarker;
-let rideId = null;navigator.geolocation.getCurrentPosition(function(pos){
+    let currentRideId = null;
+    let map = null;
+    let riderMarker = null;
+    let driverMarker = null;
+    let riderLatLng = null;
 
-  const lat = pos.coords.latitude;
-  const lng = pos.coords.longitude;
+    function initMap(lat, lng) {
+      if (!map) {
+        map = L.map("map").setView([lat, lng], 15);
 
-  map = L.map('map').setView([lat,lng],14);
-
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')
-    .addTo(map);
-
-  userMarker = L.marker([lat,lng]).addTo(map)
-    .bindPopup("You are here").openPopup();
-
-  document.getElementById("status").innerText = "Ready";
-
-}, function(){
-  document.getElementById("status").innerText = "Location blocked";
-});
-
-document.getElementById("btn").onclick = function(){
-
-  document.getElementById("status").innerText = "Requesting ride...";
-
-  navigator.geolocation.getCurrentPosition(async function(pos){
-
-    const lat = pos.coords.latitude;
-    const lng = pos.coords.longitude;
-
-    const res = await fetch("/api/ride/request",{
-      method:"POST",
-      headers:{ "Content-Type":"application/json"},
-      body: JSON.stringify({
-        riderId:"rider1",
-        pickup:{lat,lng}
-      })
-    });
-
-    const data = await res.json();
-    rideId = data.rideId;
-
-    setInterval(async function(){
-
-      if(!rideId) return;
-
-      const res = await fetch("/api/ride/"+rideId);
-      const data = await res.json();
-
-      if(data.driver){
-
-        document.getElementById("status").innerText = "Driver assigned";
-
-        const lat = data.driver.lat;
-        const lng = data.driver.lng;
-
-        if(!driverMarker){
-          driverMarker = L.marker([lat,lng]).addTo(map);
-        } else {
-          driverMarker.setLatLng([lat,lng]);
-        }
-
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          maxZoom: 19,
+          attribution: "&copy; OpenStreetMap"
+        }).addTo(map);
       } else {
-        document.getElementById("status").innerText = "Waiting for driver...";
+        map.setView([lat, lng], 15);
+      }
+    }
+
+    function setRiderMarker(lat, lng) {
+      riderLatLng = [lat, lng];
+
+      if (!riderMarker) {
+        riderMarker = L.marker([lat, lng]).addTo(map)
+          .bindPopup("You are here")
+          .openPopup();
+      } else {
+        riderMarker.setLatLng([lat, lng]);
+      }
+    }
+
+    function setDriverMarker(lat, lng) {
+      if (!driverMarker) {
+        driverMarker = L.marker([lat, lng]).addTo(map)
+          .bindPopup("Driver");
+      } else {
+        driverMarker.setLatLng([lat, lng]);
+      }
+    }    function fitMapToMarkers(driverLat, driverLng) {
+      if (!map || !riderLatLng) return;
+
+      const bounds = L.latLngBounds([
+        riderLatLng,
+        [driverLat, driverLng]
+      ]);
+
+      map.fitBounds(bounds, { padding: [40, 40] });
+    }
+
+    rideBtn.addEventListener("click", requestRide);
+
+    function requestRide() {
+      if (!navigator.geolocation) {
+        statusEl.innerText = "Geolocation not supported";
+        return;
       }
 
-    },2000);
+      statusEl.innerText = "Requesting your location...";
 
-  });
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
 
-};
-</script>
+          initMap(lat, lng);
+          setRiderMarker(lat, lng);
 
+          try {
+            const res = await fetch("/api/ride/request", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                riderId: "rider1",
+                pickup: { lat, lng }
+              })
+            });
+
+            const data = await res.json();
+            currentRideId = data.rideId;
+
+            statusEl.innerText = "Ride requested. Checking for driver...";
+            trackRide();
+          } catch (err) {
+            console.error(err);
+            statusEl.innerText = "Error requesting ride";
+          }
+        },
+        (err) => {
+          console.error(err);
+          statusEl.innerText = "Location error: " + err.message;
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 0,
+          timeout: 15000
+        }
+      );
+    }
+
+    async function trackRide() {
+      if (!currentRideId) return;
+
+      try {
+        const res = await fetch("/api/ride/" + currentRideId);
+        const data = await res.json();
+
+        if (data.status === "assigned" && data.driver) {
+          statusEl.innerText = "Driver assigned!";
+          driverEl.innerText =
+            "Driver at: " + data.driver.lat + ", " + data.driver.lng;
+
+          setDriverMarker(data.driver.lat, data.driver.lng);
+          fitMapToMarkers(data.driver.lat, data.driver.lng);
+        } else {
+          statusEl.innerText = "Waiting for available driver...";
+        }
+
+        setTimeout(trackRide, 2000);
+      } catch (err) {
+        console.error(err);
+        statusEl.innerText = "Error checking ride status";
+        setTimeout(trackRide, 3000);
+      }
+    }
+  </script>
 </body>
 </html>
