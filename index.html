@@ -2,64 +2,60 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Harvey Taxi</title>
 
 <style>
 body{
-background:#0e0e0e;
-font-family:Arial;
-text-align:center;
-color:white;
-padding-top:40px;
+  background:#0e0e0e;
+  font-family:Arial;
+  text-align:center;
+  color:white;
+  padding-top:60px;
 }
 
 h1{
-color:#ffd400;
-font-size:40px;
+  color:#ffd400;
+  font-size:42px;
 }
 
-button{
-width:90%;
-max-width:420px;
-padding:20px;
-font-size:22px;
-border:none;
-border-radius:12px;
-margin:12px;
-cursor:pointer;
+p{
+  color:#ccc;
+  margin-bottom:30px;
 }
 
-.ride{background:#2d8cff;color:white;}
-.driver{background:#ffd400;color:black;}
-.signup{background:#2ebf4f;color:white;}
-
-button:hover{
-opacity:.9;
+.btn{
+  display:block;
+  width:90%;
+  max-width:420px;
+  margin:12px auto;
+  padding:18px;
+  font-size:20px;
+  border:none;
+  border-radius:12px;
+  font-weight:bold;
+  text-decoration:none;
 }
+
+.blue{ background:#3b82f6; color:white; }
+.yellow{ background:#ffd400; color:black; }
+.green{ background:#22c55e; color:white; }
 </style>
 </head>
 
 <body>
 
 <h1>🚕 Harvey Taxi</h1>
-<p>Transportation platform for riders, drivers, and dispatch.</p>
-
-<br>
-
-<a href="request-ride.html">
-<button class="ride">Request a Ride</button>
+<p>Transportation platform for riders, drivers, and dispatch.</p><a href="/request-ride.html" class="btn blue">
+  Request a Ride
 </a>
 
-<br>
-
-<a href="driver.html">
-<button class="driver">Driver App</button>
+<a href="/driver.html" class="btn yellow">
+  Driver App
 </a>
 
-<br>
-
-<a href="driver-signup.html">
-<button class="signup">Drive With Harvey</button>
+<a href="/driver-signup.html" class="btn green">
+  Drive With Harvey
 </a>
 
 </body>
