@@ -1,50 +1,198 @@
-app.get("/admin", async (req, res) => {
-  const applications = await db.collection("drivers").find().toArray();
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Harvey Taxi Admin</title>
+  <style>
+    * { box-sizing: border-box; }
 
-  let html = `
-    <h1>Pending Driver Applications</h1>
-  `;
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #000;
+      color: #fff;
+      padding: 20px;
+    }
 
-  applications.forEach(app => {
-    html += `
-      <div style="border:1px solid #ccc; padding:10px; margin:10px;">
-        <p><b>Name:</b> ${app.name}</p>
-        <p><b>Phone:</b> ${app.phone}</p>
-        <p><b>Email:</b> ${app.email}</p>
-        <p><b>City:</b> ${app.city}</p>
-        <p><b>State:</b> ${app.state}</p>
-        <p><b>Vehicle:</b> ${app.vehicle}</p>
-        <p><b>Driver Type:</b> ${app.driverType}</p>
-        <p><b>Status:</b> ${app.status}</p>
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
 
-        <form method="POST" action="/approve-driver/${app._id}">
-          <button style="background:green;color:white;">Approve</button>
-        </form>
+    h1 {
+      color: gold;
+      font-size: 2.2rem;
+      margin-bottom: 10px;
+    }
 
-        <form method="POST" action="/reject-driver/${app._id}">
-          <button style="background:red;color:white;">Reject</button>
-        </form>
-      </div>
-    `;
-  });
+    p {
+      color: #ddd;
+      line-height: 1.5;
+    }
 
-  res.send(html);
-});const { ObjectId } = require("mongodb");
+    .top-btn {
+      background: gold;
+      color: #000;
+      border: none;
+      padding: 14px 18px;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      margin: 20px 0;
+    }
 
-app.post("/approve-driver/:id", async (req, res) => {
-  const id = req.params.id;
-  await db.collection("drivers").updateOne(
-    { _id: new ObjectId(id) },
-    { $set: { status: "approved" } }
-  );
-  res.redirect("/admin");
-});
+    .card {
+      background: #111;
+      border: 1px solid #333;
+      border-radius: 16px;
+      padding: 18px;
+      margin-bottom: 16px;
+    }
 
-app.post("/reject-driver/:id", async (req, res) => {
-  const id = req.params.id;
-  await db.collection("drivers").updateOne(
-    { _id: new ObjectId(id) },
-    { $set: { status: "rejected" } }
-  );
-  res.redirect("/admin");
-});
+    .card p {
+      margin: 8px 0;
+      color: #fff;
+    }
+
+    .approve-btn, .reject-btn {
+      border: none;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-right: 10px;
+      margin-top: 10px;
+    }
+
+    .approve-btn {
+      background: green;
+      color: white;
+    }
+
+    .reject-btn {
+      background: red;
+      color: white;
+    }
+
+    .pending { color: #f1c40f; font-weight: bold; }
+    .approved { color: #2ecc71; font-weight: bold; }
+    .rejected { color: #e74c3c; font-weight: bold; }
+
+    .empty {
+      color: #bbb;
+      margin-top: 20px;
+    }
+
+    .message {
+      font-weight: bold;
+      margin-bottom: 15px;
+    }
+
+    .error {
+      color: #ff5c5c;
+    }
+
+    .success {
+      color: #42d26b;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Harvey Taxi Admin Dashboard</h1>
+    <p>Review driver applications and approve or reject drivers.</p>
+
+    <button class="top-btn" onclick="loadApplications()">Refresh Applications</button>
+    <div id="message" class="message"></div>
+    <div id="applicationsList" class="empty">Loading applications...</div>
+  </div>
+
+  <script>
+    function formatDate(dateString) {
+      if (!dateString) return "N/A";
+      return new Date(dateString).toLocaleString();
+    }
+
+    function getStatusClass(status) {
+      if (status === "approved") return "approved";
+      if (status === "rejected") return "rejected";
+      return "pending";
+    }
+
+    async function loadApplications() {
+      const list = document.getElementById("applicationsList");
+      const message = document.getElementById("message");
+      message.textContent = "";
+      list.innerHTML = "Loading applications...";
+
+      try {
+        const res = await fetch("/api/driver/applications");
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+          list.innerHTML = `<div class="error">Failed to load applications.</div>`;
+          return;
+        }
+
+        if (!data.applications || data.applications.length === 0) {
+          list.innerHTML = `<div class="empty">No driver applications yet.</div>`;
+          return;
+        }
+
+        list.innerHTML = data.applications.map(app => `
+          <div class="card">
+            <p><strong>Name:</strong> ${app.fullName}</p>
+            <p><strong>Phone:</strong> ${app.phone}</p>
+            <p><strong>Email:</strong> ${app.email}</p>
+            <p><strong>City:</strong> ${app.city}</p>
+            <p><strong>State:</strong> ${app.state}</p>
+            <p><strong>Vehicle:</strong> ${app.vehicleType}</p>
+            <p><strong>Driver Type:</strong> ${app.driverType}</p>
+            <p><strong>Status:</strong> <span class="${getStatusClass(app.status)}">${app.status}</span></p>
+            <p><strong>Submitted:</strong> ${formatDate(app.createdAt)}</p>
+
+            ${app.status === "pending" ? `
+              <button class="approve-btn" onclick="updateStatus('${app._id}', 'approve')">Approve</button>
+              <button class="reject-btn" onclick="updateStatus('${app._id}', 'reject')">Reject</button>
+            ` : ""}
+          </div>
+        `).join("");
+      } catch (err) {
+        console.error(err);
+        list.innerHTML = `<div class="error">Could not load applications.</div>`;
+      }
+    }
+
+    async function updateStatus(id, action) {
+      const message = document.getElementById("message");
+      message.textContent = "";
+
+      try {
+        const res = await fetch(`/api/driver/applications/${id}/${action}`, {
+          method: "POST"
+        });
+
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+          message.textContent = data.message || "Action failed.";
+          message.className = "message error";
+          return;
+        }
+
+        message.textContent = data.message;
+        message.className = "message success";
+        loadApplications();
+      } catch (err) {
+        console.error(err);
+        message.textContent = "Could not update driver status.";
+        message.className = "message error";
+      }
+    }
+
+    loadApplications();
+  </script>
+</body>
+</html>
