@@ -1,60 +1,94 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Request Ride</title>
 </head>
 <body>
+  <h1>Request a Ride</h1>
+  <button id="rideBtn" type="button">Request Ride</button>
+  <p id="status">Waiting...</p>
+  <p id="driver"></p>
 
-<h1>Request a Ride</h1>
+  <script>
+    const rideBtn = document.getElementById("rideBtn");
+    const statusEl = document.getElementById("status");
+    const driverEl = document.getElementById("driver");
+    let currentRideId = null;
 
-<button onclick="requestRide()">Request Ride</button>
+    rideBtn.addEventListener("click", requestRide);
 
-<p id="status">Waiting...</p>
-<p id="driver"></p>
+    function requestRide() {
+      if (!navigator.geolocation) {
+        statusEl.innerText = "Geolocation not supported";
+        return;
+      }
 
-<script>
-let currentRideId = null;
+      statusEl.innerText = "Requesting your location...";
 
-async function requestRide() {
-  navigator.geolocation.getCurrentPosition(async (pos) => {
-    const lat = pos.coords.latitude;
-    const lng = pos.coords.longitude;
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
 
-    const res = await fetch('/api/ride/request', {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        riderId: "rider1",
-        pickup: { lat, lng }
-      })
-    });
+          try {
+            const res = await fetch("/api/ride/request", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                riderId: "rider1",
+                pickup: { lat, lng }
+              })
+            });
 
-    const data = await res.json();
-    currentRideId = data.rideId;
+            const data = await res.json();
+            console.log("ride request:", data);
 
-    document.getElementById("status").innerText =
-      "Ride requested. Waiting for driver...";
+            currentRideId = data.rideId;
+            statusEl.innerText = "Ride requested. Checking for driver...";
+            trackRide();
+          } catch (err) {
+            console.error(err);
+            statusEl.innerText = "Error requesting ride";
+          }
+        },
+        (err) => {
+          console.error(err);
+          statusEl.innerText = "Location error: " + err.message;
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 0,
+          timeout: 15000
+        }
+      );
+    }
 
-    trackRide();
-  });
-}
+    async function trackRide() {
+      if (!currentRideId) return;
 
-async function trackRide() {
-  if (!currentRideId) return;
+      try {
+        const res = await fetch("/api/ride/" + currentRideId);
+        const data = await res.json();
+        console.log("ride status:", data);
 
-  const res = await fetch('/api/ride/' + currentRideId);
-  const data = await res.json();
+        if (data.status === "assigned" && data.driver) {
+          statusEl.innerText = "Driver assigned!";
+          driverEl.innerText =
+            "Driver at: " + data.driver.lat + ", " + data.driver.lng;
+        } else {
+          statusEl.innerText = "Waiting for available driver...";
+        }
 
-  if (data.status && data.driver) {
-    document.getElementById("status").innerText =
-      "Driver assigned!";
-    document.getElementById("driver").innerText =
-      "Driver at: " + data.driver.lat + ", " + data.driver.lng;
-  }
-
-  setTimeout(trackRide, 3000);
-}
-</script>
-
+        setTimeout(trackRide, 2000);
+      } catch (err) {
+        console.error(err);
+        statusEl.innerText = "Error checking ride status";
+        setTimeout(trackRide, 3000);
+      }
+    }
+  </script>
 </body>
 </html>
