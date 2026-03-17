@@ -53,6 +53,7 @@
     .approve{ background:#28a745; color:white; }
     .reject{ background:#dc3545; color:white; }
     .refresh{ background:#ffd700; color:black; }
+    .save{ background:#1e90ff; color:white; }
 
     .badge{
       display:inline-block;
@@ -88,6 +89,36 @@
       margin-bottom:8px;
       font-size:14px;
     }
+
+    .checks{
+      margin-top:12px;
+      background:#1a1a1a;
+      border-radius:12px;
+      padding:12px;
+    }
+
+    .checks label{
+      display:block;
+      margin-bottom:8px;
+    }
+
+    textarea{
+      width:100%;
+      box-sizing:border-box;
+      border:none;
+      border-radius:10px;
+      padding:12px;
+      margin-top:8px;
+      font-size:15px;
+      min-height:80px;
+      resize:vertical;
+    }
+
+    .warn{
+      color:#ffcc00;
+      margin-top:8px;
+      font-size:14px;
+    }
   </style>
 </head>
 <body>
@@ -105,7 +136,7 @@
   </div>
 
   <div class="section">
-    <h2>Driver Applications</h2>
+    <h2>Driver Verification Dashboard</h2>
     <div id="drivers"></div>
   </div>
 
@@ -173,6 +204,16 @@
       `;
     }
 
+    function verificationComplete(driver) {
+      return (
+        Number(driver.idVerified) === 1 &&
+        Number(driver.licenseVerified) === 1 &&
+        Number(driver.insuranceVerified) === 1 &&
+        Number(driver.registrationVerified) === 1 &&
+        Number(driver.selfieVerified) === 1
+      );
+    }
+
     async function loadDrivers() {
       const [driversRes, locationsRes] = await Promise.all([
         fetch("/drivers"),
@@ -192,9 +233,13 @@
           const div = document.createElement("div");
           div.className = "card";
 
-          let buttons = "";
+          const canApprove = verificationComplete(driver);
+          let actionButtons = `
+            <button class="save" onclick="saveVerification(${driver.id})">Save Verification</button>
+          `;
+
           if (driver.status === "pending") {
-            buttons = `
+            actionButtons += `
               <button class="approve" onclick="approveDriver(${driver.id})">Approve</button>
               <button class="reject" onclick="rejectDriver(${driver.id})">Reject</button>
             `;
@@ -208,8 +253,21 @@
             Vehicle: ${driver.vehicle}<br>
             Type: ${driver.type}<br>
             Earnings: $${Number(driver.earnings || 0).toFixed(2)}<br>
-            <div class="badge ${driver.status}">${driver.status}</div><br>
-            ${buttons}
+            <div class="badge ${driver.status}">${driver.status}</div>
+
+            <div class="checks">
+              <label><input type="checkbox" id="idVerified-${driver.id}" ${Number(driver.idVerified) === 1 ? "checked" : ""}> Government ID received</label>
+              <label><input type="checkbox" id="licenseVerified-${driver.id}" ${Number(driver.licenseVerified) === 1 ? "checked" : ""}> Driver license verified</label>
+              <label><input type="checkbox" id="insuranceVerified-${driver.id}" ${Number(driver.insuranceVerified) === 1 ? "checked" : ""}> Insurance verified</label>
+              <label><input type="checkbox" id="registrationVerified-${driver.id}" ${Number(driver.registrationVerified) === 1 ? "checked" : ""}> Registration verified</label>
+              <label><input type="checkbox" id="selfieVerified-${driver.id}" ${Number(driver.selfieVerified) === 1 ? "checked" : ""}> Selfie with ID verified</label>
+
+              <textarea id="verificationNotes-${driver.id}" placeholder="Verification notes...">${driver.verificationNotes || ""}</textarea>
+
+              ${actionButtons}
+
+              ${canApprove ? "" : `<div class="warn">Complete all verification checks before approval.</div>`}
+            </div>
           `;
 
           container.appendChild(div);
@@ -272,6 +330,7 @@
           Dropoff: ${ride.dropoff}<br>
           Accepted By: ${ride.acceptedBy || "-"}<br>
           Fare: $${Number(ride.fare || 0).toFixed(2)}<br>
+          Payment: ${ride.paymentMethod || "cash"}<br>
           <div class="badge ${ride.status}">${ride.status}</div>
         `;
         container.appendChild(div);
@@ -295,8 +354,35 @@
       }
     }
 
+    async function saveVerification(id) {
+      const payload = {
+        idVerified: document.getElementById(`idVerified-${id}`).checked,
+        licenseVerified: document.getElementById(`licenseVerified-${id}`).checked,
+        insuranceVerified: document.getElementById(`insuranceVerified-${id}`).checked,
+        registrationVerified: document.getElementById(`registrationVerified-${id}`).checked,
+        selfieVerified: document.getElementById(`selfieVerified-${id}`).checked,
+        verificationNotes: document.getElementById(`verificationNotes-${id}`).value
+      };
+
+      await fetch("/verify-driver/" + id, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      loadEverything();
+    }
+
     async function approveDriver(id) {
-      await fetch("/approve-driver/" + id, { method: "POST" });
+      const res = await fetch("/approve-driver/" + id, { method: "POST" });
+      const data = await res.json();
+
+      if (!data.success) {
+        alert(data.error || "Unable to approve driver");
+      }
+
       loadEverything();
     }
 
