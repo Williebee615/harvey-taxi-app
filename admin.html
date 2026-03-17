@@ -4,6 +4,8 @@
   <title>Harvey Taxi Admin Panel</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
   <style>
     body{
       font-family:Arial,sans-serif;
@@ -15,6 +17,7 @@
 
     h1,h2{
       color:#ffd700;
+      margin-top:0;
     }
 
     .stats{
@@ -60,15 +63,30 @@
       font-weight:bold;
     }
 
-    .pending{ background:#6c757d; }
-    .approved{ background:#28a745; }
-    .rejected{ background:#dc3545; }
-    .waiting{ background:#444; }
-    .accepted{ background:#1e90ff; }
-    .completed{ background:#28a745; }
+    .pending{ background:#6c757d; color:white; }
+    .approved{ background:#28a745; color:white; }
+    .rejected{ background:#dc3545; color:white; }
+    .waiting{ background:#444; color:white; }
+    .accepted{ background:#1e90ff; color:white; }
+    .completed{ background:#28a745; color:white; }
 
     .section{
       margin-top:24px;
+    }
+
+    #map{
+      height:420px;
+      border-radius:14px;
+      overflow:hidden;
+      margin-top:12px;
+      margin-bottom:18px;
+    }
+
+    .map-note{
+      color:#bbb;
+      margin-top:8px;
+      margin-bottom:8px;
+      font-size:14px;
     }
   </style>
 </head>
@@ -81,6 +99,12 @@
   <div class="stats" id="stats"></div>
 
   <div class="section">
+    <h2>Live Driver Map</h2>
+    <div class="map-note">Approved drivers sharing location will appear below and update automatically.</div>
+    <div id="map"></div>
+  </div>
+
+  <div class="section">
     <h2>Driver Applications</h2>
     <div id="drivers"></div>
   </div>
@@ -90,7 +114,51 @@
     <div id="rides"></div>
   </div>
 
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
   <script>
+    const map = L.map("map").setView([36.1627, -86.7816], 11);
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "&copy; OpenStreetMap contributors"
+    }).addTo(map);
+
+    const driverIcon = L.icon({
+      iconUrl: "https://cdn-icons-png.flaticon.com/512/61/61168.png",
+      iconSize: [32, 32],
+      iconAnchor: [16, 32],
+      popupAnchor: [0, -28]
+    });
+
+    let driverMarkers = {};
+    let rideMarkers = [];
+
+    async function geocodeLocation(locationText) {
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locationText)}`;
+        const res = await fetch(url, {
+          headers: { "Accept": "application/json" }
+        });
+        const data = await res.json();
+
+        if (data && data.length > 0) {
+          return {
+            lat: parseFloat(data[0].lat),
+            lon: parseFloat(data[0].lon)
+          };
+        }
+      } catch (err) {
+        console.error("Geocode error:", err);
+      }
+
+      return null;
+    }
+
+    function clearRideMarkers() {
+      rideMarkers.forEach(marker => map.removeLayer(marker));
+      rideMarkers = [];
+    }
+
     async function loadAnalytics() {
       const res = await fetch("/analytics");
       const data = await res.json();
@@ -106,42 +174,77 @@
     }
 
     async function loadDrivers() {
-      const res = await fetch("/drivers");
-      const drivers = await res.json();
+      const [driversRes, locationsRes] = await Promise.all([
+        fetch("/drivers"),
+        fetch("/driver-locations")
+      ]);
+
+      const drivers = await driversRes.json();
+      const locations = await locationsRes.json();
 
       const container = document.getElementById("drivers");
       container.innerHTML = "";
 
       if (!drivers.length) {
         container.innerHTML = "<div class='card'>No driver applications yet.</div>";
-        return;
+      } else {
+        drivers.forEach(driver => {
+          const div = document.createElement("div");
+          div.className = "card";
+
+          let buttons = "";
+          if (driver.status === "pending") {
+            buttons = `
+              <button class="approve" onclick="approveDriver(${driver.id})">Approve</button>
+              <button class="reject" onclick="rejectDriver(${driver.id})">Reject</button>
+            `;
+          }
+
+          div.innerHTML = `
+            <b>${driver.name}</b><br>
+            Phone: ${driver.phone}<br>
+            Email: ${driver.email}<br>
+            City: ${driver.city}, ${driver.state}<br>
+            Vehicle: ${driver.vehicle}<br>
+            Type: ${driver.type}<br>
+            Earnings: $${Number(driver.earnings || 0).toFixed(2)}<br>
+            <div class="badge ${driver.status}">${driver.status}</div><br>
+            ${buttons}
+          `;
+
+          container.appendChild(div);
+        });
       }
 
-      drivers.forEach(driver => {
-        const div = document.createElement("div");
-        div.className = "card";
+      const approvedNames = new Set(
+        drivers.filter(driver => driver.status === "approved").map(driver => driver.name)
+      );
 
-        let buttons = "";
-        if (driver.status === "pending") {
-          buttons = `
-            <button class="approve" onclick="approveDriver(${driver.id})">Approve</button>
-            <button class="reject" onclick="rejectDriver(${driver.id})">Reject</button>
-          `;
+      const activeLocations = locations.filter(loc => approvedNames.has(loc.name));
+      const seenNames = new Set();
+
+      activeLocations.forEach(loc => {
+        seenNames.add(loc.name);
+
+        if (driverMarkers[loc.name]) {
+          driverMarkers[loc.name].setLatLng([loc.lat, loc.lng]);
+          driverMarkers[loc.name].setPopupContent(
+            `<b>${loc.name}</b><br>Live location active`
+          );
+        } else {
+          driverMarkers[loc.name] = L.marker([loc.lat, loc.lng], {
+            icon: driverIcon
+          })
+            .addTo(map)
+            .bindPopup(`<b>${loc.name}</b><br>Live location active`);
         }
+      });
 
-        div.innerHTML = `
-          <b>${driver.name}</b><br>
-          Phone: ${driver.phone}<br>
-          Email: ${driver.email}<br>
-          City: ${driver.city}, ${driver.state}<br>
-          Vehicle: ${driver.vehicle}<br>
-          Type: ${driver.type}<br>
-          Earnings: $${Number(driver.earnings || 0).toFixed(2)}<br>
-          <div class="badge ${driver.status}">${driver.status}</div><br>
-          ${buttons}
-        `;
-
-        container.appendChild(div);
+      Object.keys(driverMarkers).forEach(name => {
+        if (!seenNames.has(name)) {
+          map.removeLayer(driverMarkers[name]);
+          delete driverMarkers[name];
+        }
       });
     }
 
@@ -152,12 +255,14 @@
       const container = document.getElementById("rides");
       container.innerHTML = "";
 
+      clearRideMarkers();
+
       if (!rides.length) {
         container.innerHTML = "<div class='card'>No rides yet.</div>";
         return;
       }
 
-      rides.forEach(ride => {
+      for (const ride of rides) {
         const div = document.createElement("div");
         div.className = "card";
         div.innerHTML = `
@@ -170,7 +275,24 @@
           <div class="badge ${ride.status}">${ride.status}</div>
         `;
         container.appendChild(div);
-      });
+
+        if (ride.pickup) {
+          const coords = await geocodeLocation(ride.pickup + ", Nashville, TN");
+          if (coords) {
+            const marker = L.marker([coords.lat, coords.lon])
+              .addTo(map)
+              .bindPopup(
+                `<b>${ride.name}</b><br>` +
+                `Pickup: ${ride.pickup}<br>` +
+                `Dropoff: ${ride.dropoff}<br>` +
+                `Status: ${ride.status}<br>` +
+                `Accepted By: ${ride.acceptedBy || "-"}`
+              );
+
+            rideMarkers.push(marker);
+          }
+        }
+      }
     }
 
     async function approveDriver(id) {
@@ -183,14 +305,14 @@
       loadEverything();
     }
 
-    function loadEverything() {
-      loadAnalytics();
-      loadDrivers();
-      loadRides();
+    async function loadEverything() {
+      await loadAnalytics();
+      await loadDrivers();
+      await loadRides();
     }
 
     loadEverything();
-    setInterval(loadEverything, 10000);
+    setInterval(loadEverything, 5000);
   </script>
 
 </body>
