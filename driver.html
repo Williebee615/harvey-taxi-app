@@ -1,245 +1,183 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Harvey Taxi Driver App</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-
+  <meta charset="UTF-8" />
+  <title>Driver App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
-    body{
-      font-family:Arial,sans-serif;
-      background:#111;
-      color:white;
-      padding:20px;
-      margin:0;
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0d0d0d;
+      color: white;
+      padding: 20px;
     }
-
-    h1{
-      color:#ffd700;
-      font-size:42px;
-      margin-bottom:20px;
+    .wrap {
+      max-width: 700px;
+      margin: 0 auto;
     }
-
-    input{
-      width:100%;
-      max-width:420px;
-      padding:16px;
-      border:none;
-      border-radius:12px;
-      font-size:18px;
-      margin-bottom:12px;
-      box-sizing:border-box;
+    .card {
+      background: #151515;
+      border-radius: 18px;
+      padding: 24px;
+      margin-bottom: 18px;
     }
-
-    button{
-      background:#ffd700;
-      color:#0b57d0;
-      border:none;
-      padding:14px 22px;
-      border-radius:12px;
-      font-weight:bold;
-      font-size:18px;
-      cursor:pointer;
-      margin-bottom:14px;
-      margin-right:8px;
+    h1 {
+      margin-top: 0;
+      color: #ffd400;
+      text-align: center;
     }
-
-    .ride{
-      background:#222;
-      padding:16px;
-      border-radius:12px;
-      margin:12px 0;
+    label {
+      display: block;
+      margin-top: 12px;
+      margin-bottom: 6px;
+      font-weight: bold;
     }
-
-    .accept{
-      background:#28a745;
-      color:white;
+    input {
+      width: 100%;
+      padding: 14px;
+      border-radius: 10px;
+      border: 1px solid #333;
+      box-sizing: border-box;
     }
-
-    .complete{
-      background:#1e90ff;
-      color:white;
+    button {
+      width: 100%;
+      margin-top: 18px;
+      padding: 14px;
+      border: none;
+      border-radius: 10px;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
     }
-
-    .muted{
-      color:#bbb;
-      margin:8px 0 16px;
+    .loginBtn {
+      background: #ffd400;
+      color: black;
     }
-
-    .status{
-      display:inline-block;
-      margin-top:10px;
-      padding:8px 12px;
-      border-radius:10px;
-      background:#444;
-      font-weight:bold;
+    .logoutBtn {
+      background: #d64545;
+      color: white;
     }
-
-    .loginBox{
-      background:#1c1c1c;
-      padding:16px;
-      border-radius:12px;
-      margin-bottom:18px;
+    .message {
+      margin-top: 14px;
+      color: #d9d9d9;
+      text-align: center;
+    }
+    .hidden {
+      display: none;
+    }
+    .status {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(46, 191, 79, 0.15);
+      color: #72f195;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+    a.back {
+      color: #ffd400;
+      text-decoration: none;
+      display: inline-block;
+      margin-bottom: 14px;
     }
   </style>
 </head>
 <body>
+  <div class="wrap">
+    <a class="back" href="index.html">← Back to Home</a>
 
-  <h1>🚕 Harvey Taxi Driver App</h1>
+    <div id="loginCard" class="card">
+      <h1>Driver Login</h1>
 
-  <div class="loginBox">
-    <input id="driverPhone" placeholder="Driver phone" />
-    <input id="driverPassword" placeholder="Password" type="password" />
-    <button onclick="loginDriver()">Driver Login</button>
-    <div id="loginStatus" class="muted">Please log in.</div>
+      <label>Email</label>
+      <input id="email" type="email" />
+
+      <label>Password</label>
+      <input id="password" type="password" />
+
+      <button class="loginBtn" onclick="driverLogin()">Login to Driver App</button>
+      <div id="loginMessage" class="message"></div>
+    </div>
+
+    <div id="driverPanel" class="card hidden">
+      <h1>Welcome Driver</h1>
+      <div id="driverInfo"></div>
+      <button class="logoutBtn" onclick="logoutDriver()">Logout</button>
+    </div>
   </div>
 
-  <input id="driverName" placeholder="Approved driver name" readonly />
-
-  <button onclick="loadRides()">Refresh Rides</button>
-
-  <div id="locationStatus" class="muted">Location tracking not started.</div>
-
-  <div id="rides"></div>
-
   <script>
-    let loggedInDriver = null;
+    const loginCard = document.getElementById("loginCard");
+    const driverPanel = document.getElementById("driverPanel");
+    const loginMessage = document.getElementById("loginMessage");
+    const driverInfo = document.getElementById("driverInfo");
 
-    async function loginDriver() {
-      const phone = document.getElementById("driverPhone").value.trim();
-      const password = document.getElementById("driverPassword").value.trim();
-
-      const res = await fetch("/driver-login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, password })
-      });
-
-      const data = await res.json();
-
-      if (!data.success) {
-        document.getElementById("loginStatus").innerText = data.error || "Login failed";
-        return;
-      }
-
-      loggedInDriver = data.driver;
-      document.getElementById("driverName").value = data.driver.name;
-      document.getElementById("loginStatus").innerText = "Logged in as " + data.driver.name;
-      loadRides();
+    function saveDriver(driver) {
+      localStorage.setItem("harveyDriver", JSON.stringify(driver));
     }
 
-    function getDriverName() {
-      return document.getElementById("driverName").value.trim();
+    function getDriver() {
+      const raw = localStorage.getItem("harveyDriver");
+      return raw ? JSON.parse(raw) : null;
     }
 
-    async function loadRides() {
-      const res = await fetch("/rides");
-      const rides = await res.json();
+    function logoutDriver() {
+      localStorage.removeItem("harveyDriver");
+      loginCard.classList.remove("hidden");
+      driverPanel.classList.add("hidden");
+      loginMessage.textContent = "";
+      document.getElementById("email").value = "";
+      document.getElementById("password").value = "";
+    }
 
-      const container = document.getElementById("rides");
-      container.innerHTML = "";
+    function renderDriver(driver) {
+      driverInfo.innerHTML = `
+        <p><strong>Name:</strong> ${driver.fullName}</p>
+        <p><strong>Email:</strong> ${driver.email}</p>
+        <p><strong>Phone:</strong> ${driver.phone}</p>
+        <p><strong>City:</strong> ${driver.city}</p>
+        <p><strong>Vehicle:</strong> ${driver.vehicleYear || ""} ${driver.vehicleMake || ""} ${driver.vehicleModel || ""}</p>
+        <p><strong>Plate:</strong> ${driver.licensePlate || ""}</p>
+        <div class="status">APPROVED DRIVER</div>
+      `;
+      loginCard.classList.add("hidden");
+      driverPanel.classList.remove("hidden");
+    }
 
-      if (!rides.length) {
-        container.innerHTML = "<p class='muted'>No rides yet.</p>";
-        return;
-      }
+    async function driverLogin() {
+      loginMessage.textContent = "Logging in...";
 
-      rides.forEach((ride) => {
-        const div = document.createElement("div");
-        div.className = "ride";
+      try {
+        const response = await fetch("/api/driver-login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: document.getElementById("email").value.trim(),
+            password: document.getElementById("password").value.trim(),
+          }),
+        });
 
-        let buttons = "";
+        const data = await response.json();
 
-        if (ride.status === "waiting" && loggedInDriver) {
-          buttons += `<button class="accept" onclick="acceptRide(${ride.id})">Accept Ride</button>`;
+        if (!response.ok) {
+          throw new Error(data.error || "Login failed.");
         }
 
-        if (ride.status === "accepted" && ride.acceptedBy === getDriverName()) {
-          buttons += `<button class="complete" onclick="completeRide(${ride.id})">Complete Ride</button>`;
-        }
-
-        div.innerHTML = `
-          <b>Name:</b> ${ride.name}<br>
-          <b>Phone:</b> ${ride.phone}<br>
-          <b>Pickup:</b> ${ride.pickup}<br>
-          <b>Dropoff:</b> ${ride.dropoff}<br>
-          <b>Fare:</b> $${Number(ride.fare || 0).toFixed(2)}<br>
-          <b>Accepted By:</b> ${ride.acceptedBy || "-"}<br>
-          <div class="status">Status: ${ride.status}</div><br>
-          ${buttons}
-        `;
-
-        container.appendChild(div);
-      });
-    }
-
-    async function acceptRide(id) {
-      const driverName = getDriverName();
-
-      if (!driverName) {
-        alert("Log in first");
-        return;
+        saveDriver(data.driver);
+        renderDriver(data.driver);
+        loginMessage.textContent = "";
+      } catch (error) {
+        loginMessage.textContent = error.message;
       }
-
-      await fetch("/accept-ride/" + id, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ driverName })
-      });
-
-      loadRides();
     }
 
-    async function completeRide(id) {
-      await fetch("/complete-ride/" + id, {
-        method: "POST"
-      });
-
-      loadRides();
+    const savedDriver = getDriver();
+    if (savedDriver) {
+      renderDriver(savedDriver);
     }
-
-    function sendLocation() {
-      const name = getDriverName();
-
-      if (!name) {
-        document.getElementById("locationStatus").innerText = "Log in to start location tracking.";
-        return;
-      }
-
-      if (!navigator.geolocation) {
-        document.getElementById("locationStatus").innerText = "Geolocation is not supported on this device.";
-        return;
-      }
-
-      navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-          await fetch("/driver-location", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              name,
-              lat: pos.coords.latitude,
-              lng: pos.coords.longitude
-            })
-          });
-
-          document.getElementById("locationStatus").innerText =
-            "Location shared: " +
-            pos.coords.latitude.toFixed(5) +
-            ", " +
-            pos.coords.longitude.toFixed(5);
-        },
-        (err) => {
-          document.getElementById("locationStatus").innerText = "Location error: " + err.message;
-        },
-        { enableHighAccuracy: true }
-      );
-    }
-
-    setInterval(sendLocation, 5000);
-    setInterval(loadRides, 8000);
-
-    loadRides();
   </script>
-
 </body>
 </html>
