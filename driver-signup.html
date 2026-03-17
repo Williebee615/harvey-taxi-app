@@ -2,69 +2,89 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Driver Signup - Harvey Taxi</title>
-
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
       font-family: Arial, sans-serif;
-      background: black;
-      color: white;
+      background: #000;
+      color: #fff;
       text-align: center;
     }
 
     .container {
-      max-width: 500px;
-      margin: auto;
-      padding: 30px 20px;
+      max-width: 540px;
+      margin: 0 auto;
+      padding: 30px 20px 50px;
     }
 
     h1 {
-      color: gold;
-      font-size: 2.2rem;
+      color: #f4c400;
+      font-size: 2.4rem;
+      line-height: 1.2;
+      margin-bottom: 10px;
     }
 
     p {
-      margin-bottom: 25px;
-      color: #ccc;
+      color: #e5e5e5;
+      margin-bottom: 28px;
+      font-size: 1.1rem;
     }
 
     form {
       display: flex;
       flex-direction: column;
-      gap: 15px;
+      gap: 16px;
     }
 
-    input, select, button {
-      padding: 16px;
-      border-radius: 12px;
+    input,
+    select,
+    button {
+      width: 100%;
+      padding: 18px;
+      font-size: 1.1rem;
       border: none;
-      font-size: 1rem;
+      border-radius: 16px;
     }
 
-    input, select {
-      background: #f2f2f2;
-      color: black;
+    input,
+    select {
+      background: #f1f1f1;
+      color: #000;
     }
 
     button {
-      background: #1e88ff;
-      color: white;
+      background: #248cff;
+      color: #fff;
       font-weight: bold;
       cursor: pointer;
     }
 
+    button:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+
     #message {
-      margin-top: 15px;
+      margin-top: 18px;
+      min-height: 24px;
       font-weight: bold;
     }
 
-    .success { color: #4caf50; }
-    .error { color: #ff4d4d; }
+    .success {
+      color: #42d26b;
+    }
+
+    .error {
+      color: #ff5c5c;
+    }
   </style>
 </head>
-
 <body>
   <div class="container">
     <h1>🚕 Drive With Harvey Taxi</h1>
@@ -73,24 +93,25 @@
     <form id="driverForm">
       <input type="text" id="fullName" placeholder="Full Name" required />
       <input type="tel" id="phone" placeholder="Phone Number" required />
-      <input type="email" id="email" placeholder="Email" required />
+      <input type="email" id="email" placeholder="Email Address" required />
       <input type="text" id="city" placeholder="City" required />
       <input type="text" id="state" placeholder="State" required />
 
       <select id="vehicleType" required>
-        <option value="">Select Vehicle</option>
-        <option>Car</option>
-        <option>SUV</option>
-        <option>Van</option>
+        <option value="">Select Vehicle Type</option>
+        <option value="Car">Car</option>
+        <option value="SUV">SUV</option>
+        <option value="Van">Van</option>
+        <option value="Truck">Truck</option>
       </select>
 
       <select id="driverType" required>
-        <option value="">Driver Type</option>
-        <option>Independent Driver</option>
-        <option>Fleet Driver</option>
+        <option value="">Select Driver Type</option>
+        <option value="Independent Driver">Independent Driver</option>
+        <option value="Fleet Driver">Fleet Driver</option>
       </select>
 
-      <button type="submit">Apply Now</button>
+      <button type="submit" id="submitBtn">Apply Now</button>
     </form>
 
     <div id="message"></div>
@@ -99,25 +120,28 @@
   <script>
     const form = document.getElementById("driverForm");
     const message = document.getElementById("message");
+    const submitBtn = document.getElementById("submitBtn");
 
-    form.addEventListener("submit", async function(e) {
+    form.addEventListener("submit", async function (e) {
       e.preventDefault();
 
-      message.textContent = "Submitting...";
+      message.textContent = "Submitting application...";
       message.className = "";
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Submitting...";
 
       const data = {
-        fullName: document.getElementById("fullName").value,
-        phone: document.getElementById("phone").value,
-        email: document.getElementById("email").value,
-        city: document.getElementById("city").value,
-        state: document.getElementById("state").value,
+        fullName: document.getElementById("fullName").value.trim(),
+        phone: document.getElementById("phone").value.trim(),
+        email: document.getElementById("email").value.trim(),
+        city: document.getElementById("city").value.trim(),
+        state: document.getElementById("state").value.trim(),
         vehicleType: document.getElementById("vehicleType").value,
         driverType: document.getElementById("driverType").value
       };
 
       try {
-        const res = await fetch("https://harvey-taxi-api2.onrender.com/api/driver/apply", {
+        const response = await fetch("/api/driver/apply", {
           method: "POST",
           headers: {
             "Content-Type": "application/json"
@@ -125,21 +149,23 @@
           body: JSON.stringify(data)
         });
 
-        const result = await res.json();
+        const result = await response.json();
 
         if (result.success) {
           message.textContent = "Application submitted successfully 🚕";
           message.className = "success";
           form.reset();
         } else {
-          message.textContent = result.message;
+          message.textContent = result.message || "Something went wrong.";
           message.className = "error";
         }
-
-      } catch (err) {
-        console.error(err);
-        message.textContent = "Submission failed";
+      } catch (error) {
+        console.error("Submission error:", error);
+        message.textContent = "Submission failed. Please try again.";
         message.className = "error";
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Apply Now";
       }
     });
   </script>
