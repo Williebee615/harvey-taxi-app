@@ -1,228 +1,169 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Harvey Taxi Passenger App</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Harvey Taxi - Request Ride</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <style>
-    body{
-      margin:0;
-      font-family:Arial,sans-serif;
-      background:#111;
-      color:white;
-      padding:20px;
-    }
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
-    h1{
-      color:#ffd700;
-      font-size:40px;
-      margin-bottom:10px;
-      text-align:center;
-    }
+<style>
 
-    p{
-      text-align:center;
-      color:#ccc;
-      margin-bottom:20px;
-    }
+body{
+font-family:Arial;
+background:#111;
+color:white;
+padding:20px;
+}
 
-    .card{
-      background:#1f1f1f;
-      border-radius:16px;
-      padding:18px;
-      max-width:520px;
-      margin:0 auto 20px auto;
-    }
+h1{
+color:#ffd700;
+}
 
-    input{
-      width:100%;
-      box-sizing:border-box;
-      padding:14px;
-      margin:10px 0;
-      border:none;
-      border-radius:12px;
-      font-size:16px;
-    }
+input,button{
+width:100%;
+padding:14px;
+margin:10px 0;
+border-radius:10px;
+border:none;
+font-size:16px;
+}
 
-    button{
-      width:100%;
-      border:none;
-      border-radius:12px;
-      padding:14px;
-      font-size:18px;
-      font-weight:bold;
-      cursor:pointer;
-      margin-top:10px;
-    }
+button{
+background:#1e90ff;
+color:white;
+font-weight:bold;
+}
 
-    .primary{
-      background:#1e90ff;
-      color:white;
-    }
+#fare{
+margin-top:10px;
+font-size:18px;
+color:#ffd700;
+}
 
-    .secondary{
-      background:#ffd700;
-      color:black;
-    }
+#map{
+height:350px;
+margin-top:20px;
+border-radius:10px;
+}
 
-    .message{
-      margin-top:15px;
-      padding:12px;
-      border-radius:12px;
-      text-align:center;
-      background:#222;
-      color:#ffd700;
-      min-height:20px;
-    }
+.success{
+margin-top:15px;
+color:#00ff99;
+}
 
-    .muted{
-      color:#aaa;
-      font-size:14px;
-      text-align:center;
-      margin-top:8px;
-    }
-
-    .fare{
-      background:#222;
-      border-radius:12px;
-      padding:14px;
-      margin-top:12px;
-      text-align:center;
-      font-size:18px;
-      color:#ffd700;
-      font-weight:bold;
-    }
-  </style>
+</style>
 </head>
+
 <body>
 
-  <h1>🚕 Harvey Taxi</h1>
-  <p>Request a ride in seconds.</p>
+<h1>🚕 Request a Ride</h1>
 
-  <div class="card">
-    <form id="rideForm">
-      <input type="text" id="name" placeholder="Your Name" required />
-      <input type="text" id="phone" placeholder="Phone Number" required />
-      <input type="text" id="pickup" placeholder="Pickup Location" required />
-      <input type="text" id="dropoff" placeholder="Dropoff Location" required />
+<input id="name" placeholder="Your Name">
+<input id="phone" placeholder="Phone Number">
+<input id="pickup" placeholder="Pickup Location">
+<input id="dropoff" placeholder="Dropoff Location">
 
-      <button type="button" class="secondary" onclick="useMyLocation()">Use My Current Location</button>
+<button onclick="useCurrentLocation()">Use My Current Location</button>
 
-      <div id="fareBox" class="fare">Estimated Fare: --</div>
+<div id="fare">Estimated Fare: --</div>
 
-      <button type="submit" class="primary">Request Ride</button>
-    </form>
+<button onclick="requestRide()">Request Ride</button>
 
-    <div id="message" class="message"></div>
-    <div class="muted">After booking, dispatch and drivers will see your request instantly.</div>
-  </div>
+<div class="success" id="success"></div>
 
-  <script>
-    function estimateFare() {
-      const pickup = document.getElementById("pickup").value.trim();
-      const dropoff = document.getElementById("dropoff").value.trim();
+<div id="map"></div>
 
-      if (!pickup || !dropoff) {
-        document.getElementById("fareBox").innerText = "Estimated Fare: --";
-        return;
-      }
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-      const distanceHint = Math.max(1, Math.ceil((pickup.length + dropoff.length) / 20));
-      const fare = (5 + distanceHint * 2).toFixed(2);
+<script>
 
-      document.getElementById("fareBox").innerText = "Estimated Fare: $" + fare;
-    }
+const map = L.map("map").setView([36.1627,-86.7816],12)
 
-    async function useMyLocation() {
-      const message = document.getElementById("message");
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
+attribution:"© OpenStreetMap"
+}).addTo(map)
 
-      if (!navigator.geolocation) {
-        message.innerText = "Location is not supported on this device.";
-        return;
-      }
+let driverMarker = null
+let pickupMarker = null
 
-      message.innerText = "Getting your current location...";
+async function useCurrentLocation(){
 
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const lat = position.coords.latitude;
-          const lng = position.coords.longitude;
+navigator.geolocation.getCurrentPosition(function(pos){
 
-          try {
-            const res = await fetch(
-              `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`,
-              {
-                headers: {
-                  "Accept": "application/json"
-                }
-              }
-            );
+const lat = pos.coords.latitude
+const lng = pos.coords.longitude
 
-            const data = await res.json();
+document.getElementById("pickup").value = lat + "," + lng
 
-            if (data && data.display_name) {
-              document.getElementById("pickup").value = data.display_name;
-              estimateFare();
-              message.innerText = "Pickup location updated.";
-            } else {
-              message.innerText = "Could not determine your address.";
-            }
-          } catch (error) {
-            message.innerText = "Unable to get address from location.";
-          }
-        },
-        (error) => {
-          message.innerText = "Location error: " + error.message;
-        },
-        { enableHighAccuracy: true }
-      );
-    }
+map.setView([lat,lng],14)
 
-    document.getElementById("pickup").addEventListener("input", estimateFare);
-    document.getElementById("dropoff").addEventListener("input", estimateFare);
+if(pickupMarker){
+map.removeLayer(pickupMarker)
+}
 
-    document.getElementById("rideForm").addEventListener("submit", async function (e) {
-      e.preventDefault();
+pickupMarker = L.marker([lat,lng]).addTo(map)
+.bindPopup("Pickup Location")
+.openPopup()
 
-      const message = document.getElementById("message");
+})
 
-      const ride = {
-        name: document.getElementById("name").value.trim(),
-        phone: document.getElementById("phone").value.trim(),
-        pickup: document.getElementById("pickup").value.trim(),
-        dropoff: document.getElementById("dropoff").value.trim()
-      };
+}
 
-      if (!ride.name || !ride.phone || !ride.pickup || !ride.dropoff) {
-        message.innerText = "Please fill in all fields.";
-        return;
-      }
+async function requestRide(){
 
-      message.innerText = "Sending ride request...";
+const name = document.getElementById("name").value
+const phone = document.getElementById("phone").value
+const pickup = document.getElementById("pickup").value
+const dropoff = document.getElementById("dropoff").value
 
-      try {
-        const res = await fetch("/request-ride", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(ride)
-        });
+const res = await fetch("/request-ride",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+name,
+phone,
+pickup,
+dropoff
+})
+})
 
-        const data = await res.json();
+document.getElementById("success").innerText="Ride request sent successfully!"
 
-        if (data.success) {
-          message.innerText = "Ride request sent successfully!";
-          document.getElementById("rideForm").reset();
-          document.getElementById("fareBox").innerText = "Estimated Fare: --";
-        } else {
-          message.innerText = "There was a problem sending your ride request.";
-        }
-      } catch (error) {
-        message.innerText = "Server error. Please try again.";
-      }
-    });
-  </script>
+trackDriver()
+
+}
+
+async function trackDriver(){
+
+setInterval(async ()=>{
+
+const res = await fetch("/driver-locations")
+const drivers = await res.json()
+
+if(drivers.length>0){
+
+const d = drivers[0]
+
+const lat = d.lat
+const lng = d.lng
+
+if(driverMarker){
+driverMarker.setLatLng([lat,lng])
+}
+else{
+
+driverMarker = L.marker([lat,lng]).addTo(map)
+.bindPopup("🚕 Your Driver")
+
+}
+
+}
+
+},3000)
+
+}
+
+</script>
 
 </body>
 </html>
