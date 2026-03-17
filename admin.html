@@ -1,405 +1,619 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Harvey Taxi Admin Panel</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Harvey Taxi Admin Dashboard</title>
 
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    crossorigin=""
+  />
 
   <style>
-    body{
-      font-family:Arial,sans-serif;
-      background:#111;
-      color:white;
-      margin:0;
-      padding:20px;
+    * {
+      box-sizing: border-box;
     }
 
-    h1,h2{
-      color:#ffd700;
-      margin-top:0;
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #000;
+      color: #fff;
     }
 
-    .stats{
-      display:grid;
-      grid-template-columns:repeat(2,minmax(0,1fr));
-      gap:12px;
-      margin-bottom:20px;
+    .container {
+      width: 100%;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 20px;
     }
 
-    .card{
-      background:#222;
-      padding:14px;
-      border-radius:12px;
-      margin-bottom:12px;
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
     }
 
-    .stat{
-      background:#1b1b1b;
-      padding:14px;
-      border-radius:12px;
+    .title {
+      margin: 0;
+      color: #ffd400;
+      font-size: 2rem;
+      font-weight: 800;
     }
 
-    button{
-      border:none;
-      padding:10px 14px;
-      border-radius:10px;
-      font-weight:bold;
-      cursor:pointer;
-      margin-right:8px;
-      margin-top:10px;
+    .subtitle {
+      margin: 8px 0 0;
+      color: #cfcfcf;
+      font-size: 1rem;
     }
 
-    .approve{ background:#28a745; color:white; }
-    .reject{ background:#dc3545; color:white; }
-    .refresh{ background:#ffd700; color:black; }
-    .save{ background:#1e90ff; color:white; }
-
-    .badge{
-      display:inline-block;
-      margin-top:8px;
-      padding:6px 10px;
-      border-radius:8px;
-      font-size:13px;
-      font-weight:bold;
+    .card {
+      background: #111;
+      border: 1px solid #222;
+      border-radius: 18px;
+      padding: 18px;
+      margin-bottom: 20px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
     }
 
-    .pending{ background:#6c757d; color:white; }
-    .approved{ background:#28a745; color:white; }
-    .rejected{ background:#dc3545; color:white; }
-    .waiting{ background:#444; color:white; }
-    .accepted{ background:#1e90ff; color:white; }
-    .completed{ background:#28a745; color:white; }
-
-    .section{
-      margin-top:24px;
+    .card h2 {
+      margin: 0 0 8px;
+      color: #ffd400;
+      font-size: 1.8rem;
     }
 
-    #map{
-      height:420px;
-      border-radius:14px;
-      overflow:hidden;
-      margin-top:12px;
-      margin-bottom:18px;
+    .card p {
+      margin: 0 0 14px;
+      color: #d4d4d4;
     }
 
-    .map-note{
-      color:#bbb;
-      margin-top:8px;
-      margin-bottom:8px;
-      font-size:14px;
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
     }
 
-    .checks{
-      margin-top:12px;
-      background:#1a1a1a;
-      border-radius:12px;
-      padding:12px;
+    .btn {
+      border: none;
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
     }
 
-    .checks label{
-      display:block;
-      margin-bottom:8px;
+    .btn-primary {
+      background: #ffd400;
+      color: #000;
     }
 
-    textarea{
-      width:100%;
-      box-sizing:border-box;
-      border:none;
-      border-radius:10px;
-      padding:12px;
-      margin-top:8px;
-      font-size:15px;
-      min-height:80px;
-      resize:vertical;
+    .btn-secondary {
+      background: #222;
+      color: #fff;
+      border: 1px solid #333;
     }
 
-    .warn{
-      color:#ffcc00;
-      margin-top:8px;
-      font-size:14px;
+    .btn-approve {
+      background: #16a34a;
+      color: #fff;
+    }
+
+    .btn-reject {
+      background: #dc2626;
+      color: #fff;
+    }
+
+    .btn:hover {
+      opacity: 0.92;
+    }
+
+    #map {
+      width: 100%;
+      height: 420px;
+      border-radius: 16px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+
+    .list {
+      display: grid;
+      gap: 14px;
+    }
+
+    .item {
+      background: #181818;
+      border: 1px solid #2a2a2a;
+      border-radius: 14px;
+      padding: 14px;
+    }
+
+    .item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+
+    .item-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .meta {
+      display: grid;
+      gap: 6px;
+      color: #d7d7d7;
+      font-size: 0.95rem;
+      margin-bottom: 12px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+
+    .pending {
+      background: rgba(255, 212, 0, 0.15);
+      color: #ffd400;
+      border: 1px solid rgba(255, 212, 0, 0.35);
+    }
+
+    .approved {
+      background: rgba(22, 163, 74, 0.15);
+      color: #4ade80;
+      border: 1px solid rgba(22, 163, 74, 0.35);
+    }
+
+    .rejected {
+      background: rgba(220, 38, 38, 0.15);
+      color: #f87171;
+      border: 1px solid rgba(220, 38, 38, 0.35);
+    }
+
+    .completed {
+      background: rgba(22, 163, 74, 0.15);
+      color: #4ade80;
+      border: 1px solid rgba(22, 163, 74, 0.35);
+    }
+
+    .active {
+      background: rgba(59, 130, 246, 0.15);
+      color: #60a5fa;
+      border: 1px solid rgba(59, 130, 246, 0.35);
+    }
+
+    .status-line {
+      margin-top: 12px;
+      color: #bbbbbb;
+      font-size: 0.92rem;
+    }
+
+    .empty-state {
+      padding: 16px;
+      border: 1px dashed #333;
+      border-radius: 14px;
+      background: #181818;
+      color: #aaaaaa;
+      text-align: center;
+    }
+
+    .small {
+      font-size: 0.85rem;
+      color: #999;
+    }
+
+    @media (max-width: 768px) {
+      .title {
+        font-size: 1.6rem;
+      }
+
+      .card h2 {
+        font-size: 1.45rem;
+      }
+
+      #map {
+        height: 340px;
+      }
+
+      .btn {
+        width: 100%;
+      }
+
+      .actions .btn {
+        width: auto;
+        flex: 1;
+      }
     }
   </style>
 </head>
 <body>
+  <div class="container">
+    <div class="topbar">
+      <div>
+        <h1 class="title">Harvey Taxi Admin Dashboard</h1>
+        <p class="subtitle">Review driver applications, monitor approved drivers, and track ride activity.</p>
+      </div>
+      <button class="btn btn-primary" id="refreshAllBtn">Refresh Dashboard</button>
+    </div>
 
-  <h1>🚕 Harvey Taxi Admin Panel</h1>
+    <section class="card">
+      <div class="toolbar">
+        <div>
+          <h2>Pending Driver Applications</h2>
+          <p>Approve or reject new driver applications.</p>
+        </div>
+        <button class="btn btn-secondary" id="refreshApplicationsBtn">Refresh Applications</button>
+      </div>
 
-  <button class="refresh" onclick="loadEverything()">Refresh Everything</button>
+      <div id="applicationsList" class="list"></div>
+      <div id="applicationsStatus" class="status-line">Loading applications...</div>
+    </section>
 
-  <div class="stats" id="stats"></div>
+    <section class="card">
+      <div class="toolbar">
+        <div>
+          <h2>Live Driver Map</h2>
+          <p>Approved drivers sharing location will appear below.</p>
+        </div>
+        <button class="btn btn-secondary" id="refreshDriversBtn">Refresh Drivers</button>
+      </div>
 
-  <div class="section">
-    <h2>Live Driver Map</h2>
-    <div class="map-note">Approved drivers sharing location will appear below and update automatically.</div>
-    <div id="map"></div>
+      <div id="map"></div>
+      <div id="driversStatus" class="status-line">Loading approved drivers...</div>
+    </section>
+
+    <section class="card">
+      <div class="toolbar">
+        <div>
+          <h2>Ride Activity</h2>
+          <p>Recent and active rides will appear here.</p>
+        </div>
+        <button class="btn btn-secondary" id="refreshRidesBtn">Refresh Rides</button>
+      </div>
+
+      <div id="ridesList" class="list"></div>
+      <div id="ridesStatus" class="status-line">Loading rides...</div>
+    </section>
   </div>
 
-  <div class="section">
-    <h2>Driver Verification Dashboard</h2>
-    <div id="drivers"></div>
-  </div>
-
-  <div class="section">
-    <h2>Ride Activity</h2>
-    <div id="rides"></div>
-  </div>
-
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    crossorigin=""
+  ></script>
 
   <script>
-    const map = L.map("map").setView([36.1627, -86.7816], 11);
+    const API_BASE = "https://harvey-taxi-api2.onrender.com";
 
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "&copy; OpenStreetMap contributors"
-    }).addTo(map);
+    const applicationsList = document.getElementById("applicationsList");
+    const applicationsStatus = document.getElementById("applicationsStatus");
+    const ridesList = document.getElementById("ridesList");
+    const ridesStatus = document.getElementById("ridesStatus");
+    const driversStatus = document.getElementById("driversStatus");
 
-    const driverIcon = L.icon({
-      iconUrl: "https://cdn-icons-png.flaticon.com/512/61/61168.png",
-      iconSize: [32, 32],
-      iconAnchor: [16, 32],
-      popupAnchor: [0, -28]
-    });
+    const refreshAllBtn = document.getElementById("refreshAllBtn");
+    const refreshApplicationsBtn = document.getElementById("refreshApplicationsBtn");
+    const refreshDriversBtn = document.getElementById("refreshDriversBtn");
+    const refreshRidesBtn = document.getElementById("refreshRidesBtn");
 
-    let driverMarkers = {};
-    let rideMarkers = [];
+    let map;
+    let markers = [];
 
-    async function geocodeLocation(locationText) {
-      try {
-        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locationText)}`;
-        const res = await fetch(url, {
-          headers: { "Accept": "application/json" }
-        });
-        const data = await res.json();
-
-        if (data && data.length > 0) {
-          return {
-            lat: parseFloat(data[0].lat),
-            lon: parseFloat(data[0].lon)
-          };
-        }
-      } catch (err) {
-        console.error("Geocode error:", err);
-      }
-
-      return null;
+    function initMap() {
+      map = L.map("map").setView([36.1627, -86.7816], 10);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "&copy; OpenStreetMap contributors"
+      }).addTo(map);
     }
 
-    function clearRideMarkers() {
-      rideMarkers.forEach(marker => map.removeLayer(marker));
-      rideMarkers = [];
+    function clearMarkers() {
+      markers.forEach(marker => map.removeLayer(marker));
+      markers = [];
     }
 
-    async function loadAnalytics() {
-      const res = await fetch("/analytics");
-      const data = await res.json();
-
-      document.getElementById("stats").innerHTML = `
-        <div class="stat"><b>Total Rides:</b><br>${data.totalRides || 0}</div>
-        <div class="stat"><b>Completed Rides:</b><br>${data.completedRides || 0}</div>
-        <div class="stat"><b>Total Drivers:</b><br>${data.totalDrivers || 0}</div>
-        <div class="stat"><b>Approved Drivers:</b><br>${data.approvedDrivers || 0}</div>
-        <div class="stat"><b>Waiting Rides:</b><br>${data.waitingRides || 0}</div>
-        <div class="stat"><b>Gross Revenue:</b><br>$${Number(data.grossRevenue || 0).toFixed(2)}</div>
-      `;
+    function escapeHtml(value) {
+      if (value === null || value === undefined) return "";
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
     }
 
-    function verificationComplete(driver) {
-      return (
-        Number(driver.idVerified) === 1 &&
-        Number(driver.licenseVerified) === 1 &&
-        Number(driver.insuranceVerified) === 1 &&
-        Number(driver.registrationVerified) === 1 &&
-        Number(driver.selfieVerified) === 1
-      );
+    function formatDate(value) {
+      if (!value) return "N/A";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return value;
+      return date.toLocaleString();
     }
 
-    async function loadDrivers() {
-      const [driversRes, locationsRes] = await Promise.all([
-        fetch("/drivers"),
-        fetch("/driver-locations")
-      ]);
-
-      const drivers = await driversRes.json();
-      const locations = await locationsRes.json();
-
-      const container = document.getElementById("drivers");
-      container.innerHTML = "";
-
-      if (!drivers.length) {
-        container.innerHTML = "<div class='card'>No driver applications yet.</div>";
-      } else {
-        drivers.forEach(driver => {
-          const div = document.createElement("div");
-          div.className = "card";
-
-          const canApprove = verificationComplete(driver);
-          let actionButtons = `
-            <button class="save" onclick="saveVerification(${driver.id})">Save Verification</button>
-          `;
-
-          if (driver.status === "pending") {
-            actionButtons += `
-              <button class="approve" onclick="approveDriver(${driver.id})">Approve</button>
-              <button class="reject" onclick="rejectDriver(${driver.id})">Reject</button>
-            `;
-          }
-
-          div.innerHTML = `
-            <b>${driver.name}</b><br>
-            Phone: ${driver.phone}<br>
-            Email: ${driver.email}<br>
-            City: ${driver.city}, ${driver.state}<br>
-            Vehicle: ${driver.vehicle}<br>
-            Type: ${driver.type}<br>
-            Earnings: $${Number(driver.earnings || 0).toFixed(2)}<br>
-            <div class="badge ${driver.status}">${driver.status}</div>
-
-            <div class="checks">
-              <label><input type="checkbox" id="idVerified-${driver.id}" ${Number(driver.idVerified) === 1 ? "checked" : ""}> Government ID received</label>
-              <label><input type="checkbox" id="licenseVerified-${driver.id}" ${Number(driver.licenseVerified) === 1 ? "checked" : ""}> Driver license verified</label>
-              <label><input type="checkbox" id="insuranceVerified-${driver.id}" ${Number(driver.insuranceVerified) === 1 ? "checked" : ""}> Insurance verified</label>
-              <label><input type="checkbox" id="registrationVerified-${driver.id}" ${Number(driver.registrationVerified) === 1 ? "checked" : ""}> Registration verified</label>
-              <label><input type="checkbox" id="selfieVerified-${driver.id}" ${Number(driver.selfieVerified) === 1 ? "checked" : ""}> Selfie with ID verified</label>
-
-              <textarea id="verificationNotes-${driver.id}" placeholder="Verification notes...">${driver.verificationNotes || ""}</textarea>
-
-              ${actionButtons}
-
-              ${canApprove ? "" : `<div class="warn">Complete all verification checks before approval.</div>`}
-            </div>
-          `;
-
-          container.appendChild(div);
-        });
-      }
-
-      const approvedNames = new Set(
-        drivers.filter(driver => driver.status === "approved").map(driver => driver.name)
-      );
-
-      const activeLocations = locations.filter(loc => approvedNames.has(loc.name));
-      const seenNames = new Set();
-
-      activeLocations.forEach(loc => {
-        seenNames.add(loc.name);
-
-        if (driverMarkers[loc.name]) {
-          driverMarkers[loc.name].setLatLng([loc.lat, loc.lng]);
-          driverMarkers[loc.name].setPopupContent(
-            `<b>${loc.name}</b><br>Live location active`
-          );
-        } else {
-          driverMarkers[loc.name] = L.marker([loc.lat, loc.lng], {
-            icon: driverIcon
-          })
-            .addTo(map)
-            .bindPopup(`<b>${loc.name}</b><br>Live location active`);
-        }
-      });
-
-      Object.keys(driverMarkers).forEach(name => {
-        if (!seenNames.has(name)) {
-          map.removeLayer(driverMarkers[name]);
-          delete driverMarkers[name];
-        }
-      });
+    function normalizeStatus(status) {
+      if (!status) return "pending";
+      return String(status).toLowerCase();
     }
 
-    async function loadRides() {
-      const res = await fetch("/rides");
-      const rides = await res.json();
-
-      const container = document.getElementById("rides");
-      container.innerHTML = "";
-
-      clearRideMarkers();
-
-      if (!rides.length) {
-        container.innerHTML = "<div class='card'>No rides yet.</div>";
-        return;
-      }
-
-      for (const ride of rides) {
-        const div = document.createElement("div");
-        div.className = "card";
-        div.innerHTML = `
-          <b>${ride.name}</b><br>
-          Phone: ${ride.phone}<br>
-          Pickup: ${ride.pickup}<br>
-          Dropoff: ${ride.dropoff}<br>
-          Accepted By: ${ride.acceptedBy || "-"}<br>
-          Fare: $${Number(ride.fare || 0).toFixed(2)}<br>
-          Payment: ${ride.paymentMethod || "cash"}<br>
-          <div class="badge ${ride.status}">${ride.status}</div>
-        `;
-        container.appendChild(div);
-
-        if (ride.pickup) {
-          const coords = await geocodeLocation(ride.pickup + ", Nashville, TN");
-          if (coords) {
-            const marker = L.marker([coords.lat, coords.lon])
-              .addTo(map)
-              .bindPopup(
-                `<b>${ride.name}</b><br>` +
-                `Pickup: ${ride.pickup}<br>` +
-                `Dropoff: ${ride.dropoff}<br>` +
-                `Status: ${ride.status}<br>` +
-                `Accepted By: ${ride.acceptedBy || "-"}`
-              );
-
-            rideMarkers.push(marker);
-          }
-        }
-      }
-    }
-
-    async function saveVerification(id) {
-      const payload = {
-        idVerified: document.getElementById(`idVerified-${id}`).checked,
-        licenseVerified: document.getElementById(`licenseVerified-${id}`).checked,
-        insuranceVerified: document.getElementById(`insuranceVerified-${id}`).checked,
-        registrationVerified: document.getElementById(`registrationVerified-${id}`).checked,
-        selfieVerified: document.getElementById(`selfieVerified-${id}`).checked,
-        verificationNotes: document.getElementById(`verificationNotes-${id}`).value
-      };
-
-      await fetch("/verify-driver/" + id, {
-        method: "POST",
+    async function fetchJson(url, options = {}) {
+      const response = await fetch(url, {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify(payload)
+        ...options
       });
 
-      loadEverything();
-    }
-
-    async function approveDriver(id) {
-      const res = await fetch("/approve-driver/" + id, { method: "POST" });
-      const data = await res.json();
-
-      if (!data.success) {
-        alert(data.error || "Unable to approve driver");
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `Request failed: ${response.status}`);
       }
 
-      loadEverything();
+      return response.json();
     }
 
-    async function rejectDriver(id) {
-      await fetch("/reject-driver/" + id, { method: "POST" });
-      loadEverything();
+    async function loadApplications() {
+      applicationsStatus.textContent = "Loading applications...";
+      applicationsList.innerHTML = "";
+
+      try {
+        const data = await fetchJson(`${API_BASE}/api/driver-applications`);
+        const applications = Array.isArray(data) ? data : (data.applications || []);
+
+        if (!applications.length) {
+          applicationsList.innerHTML = `
+            <div class="empty-state">
+              No driver applications found.
+            </div>
+          `;
+          applicationsStatus.textContent = "Applications loaded.";
+          return;
+        }
+
+        applicationsList.innerHTML = applications.map(app => {
+          const id = app._id || app.id || "";
+          const status = normalizeStatus(app.status);
+          const name = app.fullName || app.name || "Unnamed Driver";
+
+          return `
+            <div class="item">
+              <div class="item-header">
+                <div class="item-title">${escapeHtml(name)}</div>
+                <span class="badge ${escapeHtml(status)}">${escapeHtml(status)}</span>
+              </div>
+
+              <div class="meta">
+                <div><strong>Email:</strong> ${escapeHtml(app.email || "N/A")}</div>
+                <div><strong>Phone:</strong> ${escapeHtml(app.phone || "N/A")}</div>
+                <div><strong>Vehicle:</strong> ${escapeHtml(app.vehicleType || app.vehicle || "N/A")}</div>
+                <div><strong>License:</strong> ${escapeHtml(app.licenseNumber || "N/A")}</div>
+                <div><strong>Submitted:</strong> ${escapeHtml(formatDate(app.createdAt || app.submittedAt))}</div>
+              </div>
+
+              <div class="actions">
+                <button class="btn btn-approve" onclick="approveApplication('${escapeHtml(id)}')">Approve</button>
+                <button class="btn btn-reject" onclick="rejectApplication('${escapeHtml(id)}')">Reject</button>
+              </div>
+            </div>
+          `;
+        }).join("");
+
+        applicationsStatus.textContent = `${applications.length} application(s) loaded.`;
+      } catch (error) {
+        applicationsList.innerHTML = `
+          <div class="empty-state">
+            Could not load applications.
+            <div class="small">${escapeHtml(error.message)}</div>
+          </div>
+        `;
+        applicationsStatus.textContent = "Applications failed to load.";
+      }
     }
 
-    async function loadEverything() {
-      await loadAnalytics();
-      await loadDrivers();
-      await loadRides();
+    async function approveApplication(id) {
+      if (!id) {
+        alert("Missing application ID.");
+        return;
+      }
+
+      if (!confirm("Approve this driver?")) return;
+
+      try {
+        await fetchJson(`${API_BASE}/api/driver-applications/${id}/approve`, {
+          method: "POST"
+        });
+
+        alert("Driver approved.");
+        await loadApplications();
+        await loadApprovedDrivers();
+      } catch (error) {
+        alert("Approve failed: " + error.message);
+      }
     }
 
-    loadEverything();
-    setInterval(loadEverything, 5000);
+    async function rejectApplication(id) {
+      if (!id) {
+        alert("Missing application ID.");
+        return;
+      }
+
+      if (!confirm("Reject this driver?")) return;
+
+      try {
+        await fetchJson(`${API_BASE}/api/driver-applications/${id}/reject`, {
+          method: "POST"
+        });
+
+        alert("Driver rejected.");
+        await loadApplications();
+      } catch (error) {
+        alert("Reject failed: " + error.message);
+      }
+    }
+
+    async function loadApprovedDrivers() {
+      driversStatus.textContent = "Loading approved drivers...";
+      clearMarkers();
+
+      try {
+        const data = await fetchJson(`${API_BASE}/api/drivers/approved-locations`);
+        const drivers = Array.isArray(data) ? data : (data.drivers || []);
+
+        if (!drivers.length) {
+          driversStatus.textContent = "No approved drivers are sharing location right now.";
+          return;
+        }
+
+        const bounds = [];
+
+        drivers.forEach(driver => {
+          const lat = Number(driver.latitude ?? driver.lat);
+          const lng = Number(driver.longitude ?? driver.lng);
+
+          if (Number.isNaN(lat) || Number.isNaN(lng)) return;
+
+          const marker = L.marker([lat, lng]).addTo(map);
+          marker.bindPopup(`
+            <strong>${escapeHtml(driver.fullName || driver.name || "Driver")}</strong><br>
+            Vehicle: ${escapeHtml(driver.vehicleType || driver.vehicle || "N/A")}<br>
+            Updated: ${escapeHtml(formatDate(driver.updatedAt))}
+          `);
+
+          markers.push(marker);
+          bounds.push([lat, lng]);
+        });
+
+        if (bounds.length) {
+          map.fitBounds(bounds, { padding: [30, 30] });
+        }
+
+        driversStatus.textContent = `${drivers.length} approved driver(s) loaded.`;
+      } catch (error) {
+        driversStatus.textContent = `Could not load approved drivers: ${error.message}`;
+      }
+    }
+
+    async function loadRides() {
+      ridesStatus.textContent = "Loading rides...";
+      ridesList.innerHTML = "";
+
+      try {
+        const data = await fetchJson(`${API_BASE}/api/rides`);
+        const rides = Array.isArray(data) ? data : (data.rides || []);
+
+        if (!rides.length) {
+          ridesList.innerHTML = `
+            <div class="empty-state">
+              No rides found.
+            </div>
+          `;
+          ridesStatus.textContent = "Rides loaded.";
+          return;
+        }
+
+        ridesList.innerHTML = rides.map(ride => {
+          const status = normalizeStatus(ride.status);
+          return `
+            <div class="item">
+              <div class="item-header">
+                <div class="item-title">${escapeHtml(ride.riderName || "Unnamed Rider")}</div>
+                <span class="badge ${escapeHtml(status)}">${escapeHtml(status)}</span>
+              </div>
+
+              <div class="meta">
+                <div><strong>Pickup:</strong> ${escapeHtml(ride.pickup || ride.pickupLocation || "N/A")}</div>
+                <div><strong>Dropoff:</strong> ${escapeHtml(ride.dropoff || ride.dropoffLocation || "N/A")}</div>
+                <div><strong>Driver:</strong> ${escapeHtml(ride.driverName || "Unassigned")}</div>
+                <div><strong>Requested:</strong> ${escapeHtml(formatDate(ride.createdAt || ride.requestedAt))}</div>
+              </div>
+            </div>
+          `;
+        }).join("");
+
+        ridesStatus.textContent = `${rides.length} ride(s) loaded.`;
+      } catch (error) {
+        ridesList.innerHTML = `
+          <div class="empty-state">
+            Could not load rides.
+            <div class="small">${escapeHtml(error.message)}</div>
+          </div>
+        `;
+        ridesStatus.textContent = "Rides failed to load.";
+      }
+    }
+
+    async function refreshAll() {
+      await Promise.all([
+        loadApplications(),
+        loadApprovedDrivers(),
+        loadRides()
+      ]);
+    }
+
+    refreshAllBtn.addEventListener("click", refreshAll);
+    refreshApplicationsBtn.addEventListener("click", loadApplications);
+    refreshDriversBtn.addEventListener("click", loadApprovedDrivers);
+    refreshRidesBtn.addEventListener("click", loadRides);
+
+    initMap();
+    refreshAll();
+
+    setInterval(() => {
+      loadApprovedDrivers();
+      loadRides();
+    }, 20000);
   </script>
-
 </body>
-</html>
+</html>app.get("/api/driver-applications", async (req, res) => {
+  const applications = await DriverApplication.find().sort({ createdAt: -1 });
+  res.json(applications);
+});
+
+app.post("/api/driver-applications/:id/approve", async (req, res) => {
+  const updated = await DriverApplication.findByIdAndUpdate(
+    req.params.id,
+    { status: "approved" },
+    { new: true }
+  );
+  res.json({ success: true, application: updated });
+});
+
+app.post("/api/driver-applications/:id/reject", async (req, res) => {
+  const updated = await DriverApplication.findByIdAndUpdate(
+    req.params.id,
+    { status: "rejected" },
+    { new: true }
+  );
+  res.json({ success: true, application: updated });
+});
+
+app.get("/api/drivers/approved-locations", async (req, res) => {
+  const drivers = await DriverApplication.find({
+    status: "approved",
+    latitude: { $ne: null },
+    longitude: { $ne: null }
+  }).sort({ updatedAt: -1 });
+
+  res.json(drivers);
+});
+
+app.get("/api/rides", async (req, res) => {
+  const rides = await Ride.find().sort({ createdAt: -1 }).limit(20);
+  res.json(rides);
+});
