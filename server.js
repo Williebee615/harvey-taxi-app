@@ -1,53 +1,168 @@
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use(express.static(path.join(__dirname, "public")));
 
-// TEST ROUTE
+let applications = [];
+let rides = [];
+
+// HOME
 app.get("/", (req, res) => {
-  res.send("Harvey Taxi API is running ✅");
+  res.sendFile(path.join(__dirname, "public", "admin.html"));
 });
 
-// DRIVER APPLICATION ROUTE (NO DATABASE YET)
-let applications = [];
+// HEALTH
+app.get("/health", (req, res) => {
+  res.json({
+    success: true,
+    message: "Harvey Taxi API is running"
+  });
+});
 
+// DRIVER APPLICATIONS
 app.get("/api/driver-applications", (req, res) => {
   res.json(applications);
 });
 
 app.post("/api/driver-applications", (req, res) => {
-  const newApp = {
+  const newApplication = {
     id: Date.now().toString(),
-    fullName: req.body.fullName || "",
+    fullName: req.body.fullName || req.body.name || "",
     email: req.body.email || "",
     phone: req.body.phone || "",
-    vehicleType: req.body.vehicleType || "",
+    vehicleType: req.body.vehicleType || req.body.vehicle || "",
+    vehicle: req.body.vehicle || req.body.vehicleType || "",
     licenseNumber: req.body.licenseNumber || "",
-    status: "pending"
+    latitude: req.body.latitude !== undefined ? Number(req.body.latitude) : null,
+    longitude: req.body.longitude !== undefined ? Number(req.body.longitude) : null,
+    status: "pending",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   };
 
-  applications.push(newApp);
-  res.json(newApp);
+  applications.unshift(newApplication);
+  res.status(201).json(newApplication);
 });
 
 app.post("/api/driver-applications/:id/approve", (req, res) => {
-  const appItem = applications.find(a => a.id === req.params.id);
-  if (appItem) appItem.status = "approved";
-  res.json(appItem);
+  const application = applications.find(appItem => appItem.id === req.params.id);
+
+  if (!application) {
+    return res.status(404).json({ error: "Application not found" });
+  }
+
+  application.status = "approved";
+  application.updatedAt = new Date().toISOString();
+
+  res.json({
+    success: true,
+    message: "Driver approved successfully",
+    application
+  });
 });
 
 app.post("/api/driver-applications/:id/reject", (req, res) => {
-  const appItem = applications.find(a => a.id === req.params.id);
-  if (appItem) appItem.status = "rejected";
-  res.json(appItem);
+  const application = applications.find(appItem => appItem.id === req.params.id);
+
+  if (!application) {
+    return res.status(404).json({ error: "Application not found" });
+  }
+
+  application.status = "rejected";
+  application.updatedAt = new Date().toISOString();
+
+  res.json({
+    success: true,
+    message: "Driver rejected successfully",
+    application
+  });
 });
 
-// PORT
+// APPROVED DRIVER LOCATIONS
+app.get("/api/drivers/approved-locations", (req, res) => {
+  const approvedDrivers = applications.filter(appItem =>
+    appItem.status === "approved" &&
+    appItem.latitude !== null &&
+    appItem.longitude !== null
+  );
+
+  res.json(approvedDrivers);
+});
+
+app.post("/api/drivers/:id/location", (req, res) => {
+  const driver = applications.find(appItem =>
+    appItem.id === req.params.id && appItem.status === "approved"
+  );
+
+  if (!driver) {
+    return res.status(404).json({ error: "Approved driver not found" });
+  }
+
+  driver.latitude = req.body.latitude !== undefined ? Number(req.body.latitude) : driver.latitude;
+  driver.longitude = req.body.longitude !== undefined ? Number(req.body.longitude) : driver.longitude;
+  driver.updatedAt = new Date().toISOString();
+
+  res.json({
+    success: true,
+    message: "Driver location updated",
+    driver
+  });
+});
+
+// RIDES
+app.get("/api/rides", (req, res) => {
+  res.json(rides);
+});
+
+app.post("/api/rides", (req, res) => {
+  const newRide = {
+    id: Date.now().toString(),
+    riderName: req.body.riderName || "",
+    pickup: req.body.pickup || req.body.pickupLocation || "",
+    pickupLocation: req.body.pickupLocation || req.body.pickup || "",
+    dropoff: req.body.dropoff || req.body.dropoffLocation || "",
+    dropoffLocation: req.body.dropoffLocation || req.body.dropoff || "",
+    driverName: req.body.driverName || "",
+    status: req.body.status || "pending",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  rides.unshift(newRide);
+  res.status(201).json(newRide);
+});
+
+app.patch("/api/rides/:id", (req, res) => {
+  const ride = rides.find(item => item.id === req.params.id);
+
+  if (!ride) {
+    return res.status(404).json({ error: "Ride not found" });
+  }
+
+  Object.assign(ride, req.body, {
+    updatedAt: new Date().toISOString()
+  });
+
+  res.json(ride);
+});
+
+// ADMIN PAGE
+app.get("/admin.html", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "admin.html"));
+});
+
+// FALLBACK
+app.use((req, res) => {
+  res.status(404).send("Route not found");
+});
+
 const PORT = process.env.PORT || 10000;
 
 app.listen(PORT, () => {
-  console.log("Server running on port " + PORT);
+  console.log(`Server running on port ${PORT}`);
 });
