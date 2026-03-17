@@ -353,7 +353,9 @@ app.post("/driver-login", (req, res) => {
 
 app.get("/drivers", (req, res) => {
   db.all("SELECT * FROM drivers ORDER BY id DESC", [], (err, rows) => {
-    if (err) return res.status(500).json({ success: false, error: err.message });
+    if (err) return res.status(500).json({ success: false, error: err.message });app.listen(PORT, () => {
+  console.log("Harvey Taxi running on port " + PORT);
+});
     res.json(rows);
   });
 });
