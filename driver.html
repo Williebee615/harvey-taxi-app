@@ -14,13 +14,11 @@
     const startBtn = document.getElementById("startBtn");
     const driverId = "driver_" + Date.now();
 
-    startBtn.addEventListener("click", () => {
-      startTracking();
-    });
+    startBtn.addEventListener("click", startTracking);
 
     function startTracking() {
       if (!navigator.geolocation) {
-        statusEl.innerText = "Geolocation not supported on this device";
+        statusEl.innerText = "Geolocation not supported";
         return;
       }
 
@@ -39,13 +37,14 @@
               },
               body: JSON.stringify({
                 id: driverId,
-                lat: lat,
-                lng: lng
+                lat,
+                lng
               })
             });
 
             const data = await res.json();
             console.log("driver update:", data);
+
             statusEl.innerText = "Tracking: " + lat + ", " + lng;
           } catch (err) {
             console.error(err);
