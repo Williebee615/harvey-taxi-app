@@ -1,67 +1,44 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Driver Tracking</title>
-</head>
-<body>
-  <h1>Driver Tracking</h1>
-  <button id="startBtn" type="button">Start Tracking</button>
-  <p id="status">Not tracking</p>
+<script>
+const statusEl = document.getElementById("status");
 
-  <script>
-    const statusEl = document.getElementById("status");
-    const startBtn = document.getElementById("startBtn");
-    const driverId = "driver_" + Date.now();
+let tracking = false;
 
-    startBtn.addEventListener("click", startTracking);
+function startTracking() {
+  if (!navigator.geolocation) {
+    statusEl.innerText = "Geolocation not supported";
+    return;
+  }
 
-    function startTracking() {
-      if (!navigator.geolocation) {
-        statusEl.innerText = "Geolocation not supported";
-        return;
-      }
+  tracking = true;
+  track();
+}async function track() {
+  if (!tracking) return;
 
-      statusEl.innerText = "Requesting location...";
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
 
-      navigator.geolocation.watchPosition(
-        async (pos) => {
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
+    statusEl.innerText = `Tracking: ${lat}, ${lng}`;
 
-          try {
-            const res = await fetch("/api/driver/location", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json"
-              },
-              body: JSON.stringify({
-                id: driverId,
-                lat,
-                lng
-              })
-            });
-
-            const data = await res.json();
-            console.log("driver update:", data);
-
-            statusEl.innerText = "Tracking: " + lat + ", " + lng;
-          } catch (err) {
-            console.error(err);
-            statusEl.innerText = "Error sending location";
-          }
+    try {
+      await fetch("/api/driver/location", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
         },
-        (err) => {
-          console.error(err);
-          statusEl.innerText = "Location error: " + err.message;
-        },
-        {
-          enableHighAccuracy: true,
-          maximumAge: 0,
-          timeout: 15000
-        }
-      );
+        body: JSON.stringify({
+          id: "driver1",   // 🔥 THIS IS THE FIX
+          lat,
+          lng
+        })
+      });
+    } catch (err) {
+      console.error(err);
     }
-  </script>
-</body>
-</html>
+
+    setTimeout(track, 2000);
+  });
+}
+
+document.querySelector("button").addEventListener("click", startTracking);
+</script>
