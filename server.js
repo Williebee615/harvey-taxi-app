@@ -1,55 +1,19 @@
-const express = require("express");
-const path = require("path");
+function getDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
 
-const app = express();
-const PORT = process.env.PORT || 10000;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) *
+    Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2);
 
-// Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
-// Serve static files
-app.use(express.static(__dirname));
-
-// In-memory storage
-let rideRequests = [];
-let driverLocations = [];
-
-// Page routes
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "index.html"));
-});
-
-app.get("/request-ride", (req, res) => {
-  res.sendFile(path.join(__dirname, "request-ride.html"));
-});
-
-app.get("/driver", (req, res) => {
-  res.sendFile(path.join(__dirname, "driver.html"));
-});
-
-app.get("/admin", (req, res) => {
-  res.sendFile(path.join(__dirname, "admin.html"));
-});
-
-app.get("/dashboard", (req, res) => {
-  res.sendFile(path.join(__dirname, "dashboard.html"));
-});
-
-app.get("/driver-signup", (req, res) => {
-  res.sendFile(path.join(__dirname, "driver-signup.html"));
-});
-
-// Health check
-app.get("/api/health", (req, res) => {
-  res.json({
-    success: true,
-    message: "Harvey Taxi API is running"
-  });
-});
-
-// Create ride request
-app.post("/api/request-ride", (req, res) => {
+  return R * c;
+}app.post("/api/request-ride", (req, res) => {
   const {
     name,
     phone,
@@ -72,127 +36,42 @@ app.post("/api/request-ride", (req, res) => {
     longitude: longitude || null,
     status: "pending",
     assignedDriver: null,
+    assignedDriverId: null,
     createdAt: new Date().toISOString()
   };
 
+  if (driverLocations.length > 0 && ride.latitude && ride.longitude) {
+    let closestDriver = null;
+    let shortestDistance = Infinity;
+
+    driverLocations.forEach((driver) => {
+      const distance = getDistance(
+        Number(ride.latitude),
+        Number(ride.longitude),
+        Number(driver.latitude),
+        Number(driver.longitude)
+      );
+
+      if (distance < shortestDistance) {
+        shortestDistance = distance;
+        closestDriver = driver;
+      }
+    });
+
+    if (closestDriver) {
+      ride.status = "assigned";
+      ride.assignedDriver = closestDriver.driverName || "Driver";
+      ride.assignedDriverId = closestDriver.driverId;
+    }
+  }
+
   rideRequests.push(ride);
 
-  console.log("NEW RIDE REQUEST:", ride);
+  console.log("AUTO ASSIGNED RIDE:", ride);
 
   res.json({
     success: true,
-    message: "Ride request received successfully",
+    message: "Ride request processed successfully",
     ride
   });
-});
-
-// Get all rides
-app.get("/api/rides", (req, res) => {
-  res.json({
-    success: true,
-    rides: rideRequests
-  });
-});// Accept ride
-app.post("/api/rides/:id/accept", (req, res) => {
-  const rideId = parseInt(req.params.id, 10);
-  const { driverName } = req.body;
-
-  const ride = rideRequests.find(r => r.id === rideId);
-
-  if (!ride) {
-    return res.status(404).json({
-      success: false,
-      message: "Ride not found"
-    });
-  }
-
-  ride.status = "accepted";
-  ride.assignedDriver = driverName || "Driver";
-  ride.acceptedAt = new Date().toISOString();
-
-  console.log("RIDE ACCEPTED:", ride);
-
-  res.json({
-    success: true,
-    message: "Ride accepted successfully",
-    ride
-  });
-});
-
-// Complete ride
-app.post("/api/rides/:id/complete", (req, res) => {
-  const rideId = parseInt(req.params.id, 10);
-
-  const ride = rideRequests.find(r => r.id === rideId);
-
-  if (!ride) {
-    return res.status(404).json({
-      success: false,
-      message: "Ride not found"
-    });
-  }
-
-  ride.status = "completed";
-  ride.completedAt = new Date().toISOString();
-
-  console.log("RIDE COMPLETED:", ride);
-
-  res.json({
-    success: true,
-    message: "Ride completed successfully",
-    ride
-  });
-});
-
-// Update driver location
-app.post("/api/driver-location", (req, res) => {
-  const { driverId, driverName, latitude, longitude } = req.body;
-
-  if (!driverId || latitude === undefined || longitude === undefined) {
-    return res.status(400).json({
-      success: false,
-      message: "Missing required driver location data"
-    });
-  }
-
-  const existingDriver = driverLocations.find(
-    d => String(d.driverId) === String(driverId)
-  );
-
-  if (existingDriver) {
-    existingDriver.driverName = driverName || existingDriver.driverName;
-    existingDriver.latitude = latitude;
-    existingDriver.longitude = longitude;
-    existingDriver.updatedAt = new Date().toISOString();
-  } else {
-    driverLocations.push({
-      driverId,
-      driverName: driverName || "Driver",
-      latitude,
-      longitude,
-      updatedAt: new Date().toISOString()
-    });
-  }
-
-  res.json({
-    success: true,
-    message: "Driver location updated successfully"
-  });
-});
-
-// Get driver locations
-app.get("/api/driver-locations", (req, res) => {
-  res.json({
-    success: true,
-    drivers: driverLocations
-  });
-});
-
-// 404 handler
-app.use((req, res) => {
-  res.status(404).send("Page not found");
-});
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
 });
