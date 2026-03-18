@@ -1,449 +1,220 @@
-// app/(tabs)/rider/home.jsx
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Request a Ride - Harvey Taxi</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #ffffff;
+      color: #111;
+    }
 
-import React, { useMemo, useState } from 'react'
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-} from 'react-native'
-import { useRouter } from 'expo-router'
+    .container {
+      max-width: 420px;
+      margin: auto;
+      padding: 20px;
+      padding-bottom: 40px;
+    }
 
-const SERVICES = [
-  { key: 'taxi', label: 'Taxi', emoji: '🚕' },
-  { key: 'delivery', label: 'Delivery', emoji: '📦' },
-  { key: 'courier', label: 'Courier', emoji: '📬' },
-  { key: 'group', label: 'Group Ride', emoji: '👥' },
-]
+    .header {
+      font-size: 28px;
+      font-weight: 800;
+      margin-bottom: 10px;
+    }
 
-const RECENT_PLACES = [
-  {
-    id: '1',
-    title: 'Kroger',
-    address: '143 McGavock Pike, Nashville, TN',
-  },
-  {
-    id: '2',
-    title: '2301 Vanderbilt Pl',
-    address: 'Nashville, TN',
-  },
-]
+    .subtext {
+      color: #666;
+      margin-bottom: 20px;
+      font-size: 15px;
+    }
 
-const PROMO_CARDS = [
-  { id: '1', title: 'Food', badge: 'Promo', emoji: '🥗' },
-  { id: '2', title: 'Ride', badge: '5%', emoji: '🚕' },
-  { id: '3', title: 'Grocery', badge: '40%', emoji: '🛒' },
-  { id: '4', title: 'Group Ride', badge: '', emoji: '👥' },
-]
+    .field {
+      margin-bottom: 16px;
+    }
 
-const FEATURED_RIDES = [
-  {
-    id: '1',
-    title: 'Harvey Standard',
-    subtitle: 'Affordable everyday taxi rides',
-    eta: '4 min away',
-    emoji: '🚕',
-  },
-  {
-    id: '2',
-    title: 'Harvey XL',
-    subtitle: 'More space for passengers and bags',
-    eta: '6 min away',
-    emoji: '🚐',
-  },
-  {
-    id: '3',
-    title: 'Airport Ride',
-    subtitle: 'Easy rides to and from BNA',
-    eta: '5 min away',
-    emoji: '✈️',
-  },
-]
+    .label {
+      display: block;
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
 
-function StatusPill({ verified }) {
-  return (
-    <View style={[styles.statusPill, verified ? styles.statusVerified : styles.statusPending]}>
-      <Text style={[styles.statusText, verified ? styles.statusTextVerified : styles.statusTextPending]}>
-        {verified ? 'Verified Rider' : 'Verification Needed'}
-      </Text>
-    </View>
-  )
-}
+    .input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 14px;
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      font-size: 16px;
+      background: #fafafa;
+    }
 
-export default function RiderHomeScreen() {
-  const router = useRouter()
-  const [activeService, setActiveService] = useState('taxi')
-  const [destination, setDestination] = useState('')
-  const [isVerified] = useState(false)
+    .ride-options {
+      margin-top: 20px;
+      margin-bottom: 20px;
+    }
 
-  const activeServiceLabel = useMemo(() => {
-    return SERVICES.find((item) => item.key === activeService)?.label || 'Taxi'
-  }, [activeService])
+    .ride-card {
+      background: #f8f8f8;
+      border: 1px solid #e8e8e8;
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+    }
 
-  return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.serviceTabsRow}>
-        {SERVICES.map((service) => {
-          const active = service.key === activeService
-          return (
-            <TouchableOpacity
-              key={service.key}
-              style={styles.serviceTab}
-              onPress={() => setActiveService(service.key)}
-            >
-              <Text style={styles.serviceEmoji}>{service.emoji}</Text>
-              <Text style={[styles.serviceLabel, active && styles.serviceLabelActive]}>
-                {service.label}
-              </Text>
-              {active ? <View style={styles.serviceUnderline} /> : null}
-            </TouchableOpacity>
-          )
-        })}
-      </View>
+    .ride-card.active {
+      border: 2px solid #111;
+      background: #f1f1f1;
+    }
 
-      <View style={styles.topRow}>
-        <Text style={styles.headerTitle}>Harvey Taxi</Text>
-        <StatusPill verified={isVerified} />
-      </View>
+    .ride-title {
+      font-weight: 700;
+      font-size: 16px;
+      margin-bottom: 4px;
+    }
 
-      <TouchableOpacity
-        style={styles.verificationBanner}
-        onPress={() => router.push('/(tabs)/rider/verify')}
-      >
-        <View style={{ flex: 1 }}>
-          <Text style={styles.verificationBannerTitle}>Complete passenger verification</Text>
-          <Text style={styles.verificationBannerText}>
-            Upload your ID and selfie for safer rides and full booking access.
-          </Text>
-        </View>
-        <Text style={styles.bannerArrow}>›</Text>
-      </TouchableOpacity>
+    .ride-sub {
+      font-size: 13px;
+      color: #666;
+    }
 
-      <View style={styles.searchCard}>
-        <View style={styles.searchBox}>
-          <Text style={styles.searchIcon}>🔍</Text>
-          <TextInput
-            value={destination}
-            onChangeText={setDestination}
-            placeholder={`Where to? (${activeServiceLabel})`}
-            placeholderTextColor="#6B7280"
-            style={styles.searchInput}
-          />
-          <TouchableOpacity style={styles.laterButton}>
-            <Text style={styles.laterButtonText}>Later</Text>
-          </TouchableOpacity>
-        </View>
+    .price {
+      font-weight: 800;
+      font-size: 18px;
+    }
 
-        {RECENT_PLACES.map((place) => (
-          <TouchableOpacity key={place.id} style={styles.recentPlaceRow}>
-            <View style={styles.clockBox}>
-              <Text style={styles.clockIcon}>🕘</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.recentPlaceTitle}>{place.title}</Text>
-              <Text style={styles.recentPlaceAddress}>{place.address}</Text>
-            </View>
-          </TouchableOpacity>
-        ))}
-      </View>
+    .button {
+      width: 100%;
+      border: none;
+      border-radius: 14px;
+      padding: 16px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 10px;
+    }
 
-      <View style={styles.sectionHeaderRow}>
-        <Text style={styles.sectionTitle}>For you</Text>
-        <TouchableOpacity>
-          <Text style={styles.arrowButton}>→</Text>
-        </TouchableOpacity>
-      </View>
+    .primary {
+      background: #111;
+      color: #fff;
+    }
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalList}>
-        {PROMO_CARDS.map((item) => (
-          <TouchableOpacity key={item.id} style={styles.promoCard}>
-            {item.badge ? (
-              <View style={styles.redBadge}>
-                <Text style={styles.redBadgeText}>{item.badge}</Text>
-              </View>
-            ) : null}
-            <Text style={styles.promoEmoji}>{item.emoji}</Text>
-            <Text style={styles.promoTitle}>{item.title}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+    .secondary {
+      background: #f3f3f3;
+      color: #111;
+    }
 
-      <View style={styles.sectionHeaderRow}>
-        <Text style={styles.sectionTitle}>Popular rides</Text>
-        <TouchableOpacity>
-          <Text style={styles.arrowButton}>→</Text>
-        </TouchableOpacity>
-      </View>
+    .result {
+      margin-top: 20px;
+      padding: 14px;
+      border-radius: 12px;
+      background: #f5f5f5;
+      display: none;
+      font-size: 14px;
+      line-height: 1.5;
+    }
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        {FEATURED_RIDES.map((ride) => (
-          <TouchableOpacity key={ride.id} style={styles.featuredCard}>
-            <View style={styles.featuredImagePlaceholder}>
-              <Text style={styles.featuredEmoji}>{ride.emoji}</Text>
-            </View>
-            <Text style={styles.featuredTitle}>{ride.title}</Text>
-            <Text style={styles.featuredSubtitle}>{ride.subtitle}</Text>
-            <Text style={styles.featuredEta}>{ride.eta}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-    </ScrollView>
-  )
-}
+    a.back-link {
+      display: inline-block;
+      margin-bottom: 18px;
+      color: #111;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a class="back-link" href="/">← Back to Home</a>
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  content: {
-    paddingBottom: 30,
-  },
-  serviceTabsRow: {
-    flexDirection: 'row',
-    paddingTop: 18,
-    paddingHorizontal: 10,
-    backgroundColor: '#FFFFFF',
-  },
-  serviceTab: {
-    alignItems: 'center',
-    marginRight: 20,
-    paddingBottom: 12,
-    minWidth: 74,
-  },
-  serviceEmoji: {
-    fontSize: 26,
-    marginBottom: 6,
-  },
-  serviceLabel: {
-    fontSize: 16,
-    color: '#6B7280',
-    fontWeight: '600',
-  },
-  serviceLabelActive: {
-    color: '#111111',
-    fontWeight: '800',
-  },
-  serviceUnderline: {
-    marginTop: 10,
-    height: 4,
-    width: 64,
-    backgroundColor: '#111111',
-    borderRadius: 999,
-  },
-  topRow: {
-    paddingHorizontal: 18,
-    paddingTop: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 30,
-    fontWeight: '800',
-    color: '#111111',
-  },
-  statusPill: {
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  statusVerified: {
-    backgroundColor: '#DCFCE7',
-  },
-  statusPending: {
-    backgroundColor: '#FEF3C7',
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  statusTextVerified: {
-    color: '#166534',
-  },
-  statusTextPending: {
-    color: '#92400E',
-  },
-  verificationBanner: {
-    marginHorizontal: 18,
-    marginTop: 14,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 22,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  verificationBannerTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#111111',
-    marginBottom: 4,
-  },
-  verificationBannerText: {
-    fontSize: 14,
-    color: '#4B5563',
-    lineHeight: 20,
-  },
-  bannerArrow: {
-    fontSize: 30,
-    color: '#111111',
-    marginLeft: 10,
-  },
-  searchCard: {
-    marginHorizontal: 18,
-    marginTop: 18,
-  },
-  searchBox: {
-    borderWidth: 2,
-    borderColor: '#E5E7EB',
-    borderRadius: 999,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingLeft: 16,
-    paddingRight: 8,
-    paddingVertical: 10,
-  },
-  searchIcon: {
-    fontSize: 20,
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 18,
-    color: '#111111',
-    fontWeight: '600',
-  },
-  laterButton: {
-    backgroundColor: '#F3F4F6',
-    borderRadius: 999,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-  },
-  laterButtonText: {
-    color: '#111111',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  recentPlaceRow: {
-    marginTop: 14,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-    borderRadius: 20,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-  },
-  clockBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
-  },
-  clockIcon: {
-    fontSize: 18,
-  },
-  recentPlaceTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#111111',
-    marginBottom: 3,
-  },
-  recentPlaceAddress: {
-    fontSize: 15,
-    color: '#6B7280',
-  },
-  sectionHeaderRow: {
-    marginTop: 24,
-    marginBottom: 14,
-    paddingHorizontal: 18,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#111111',
-  },
-  arrowButton: {
-    fontSize: 28,
-    color: '#111111',
-    fontWeight: '700',
-  },
-  horizontalList: {
-    paddingLeft: 18,
-  },
-  promoCard: {
-    width: 118,
-    height: 150,
-    borderRadius: 24,
-    backgroundColor: '#F3F4F6',
-    marginRight: 14,
-    padding: 12,
-    justifyContent: 'space-between',
-  },
-  redBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#EF4444',
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  redBadgeText: {
-    color: '#FFFFFF',
-    fontWeight: '800',
-    fontSize: 12,
-  },
-  promoEmoji: {
-    fontSize: 34,
-    textAlign: 'center',
-    marginTop: 8,
-  },
-  promoTitle: {
-    fontSize: 16,
-    color: '#111111',
-    fontWeight: '700',
-    textAlign: 'center',
-    marginBottom: 6,
-  },
-  featuredCard: {
-    width: 250,
-    marginLeft: 18,
-    marginRight: 2,
-    backgroundColor: '#FFFFFF',
-  },
-  featuredImagePlaceholder: {
-    height: 150,
-    borderRadius: 22,
-    backgroundColor: '#E5E7EB',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 10,
-  },
-  featuredEmoji: {
-    fontSize: 46,
-  },
-  featuredTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#111111',
-    marginBottom: 4,
-  },
-  featuredSubtitle: {
-    fontSize: 16,
-    color: '#059669',
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  featuredEta: {
-    fontSize: 14,
-    color: '#4B5563',
-    marginBottom: 20,
-  },
-})
+    <div class="header">Request a Ride</div>
+    <div class="subtext">Enter your trip details and choose your ride type.</div>
+
+    <div class="field">
+      <label class="label" for="pickup">Pickup location</label>
+      <input class="input" id="pickup" type="text" placeholder="Enter pickup address" />
+    </div>
+
+    <div class="field">
+      <label class="label" for="destination">Destination</label>
+      <input class="input" id="destination" type="text" placeholder="Enter destination" />
+    </div>
+
+    <div class="field">
+      <label class="label" for="name">Passenger name</label>
+      <input class="input" id="name" type="text" placeholder="Your full name" />
+    </div>
+
+    <div class="ride-options">
+      <div class="ride-card active" onclick="selectRide('Harvey Standard', this)">
+        <div>
+          <div class="ride-title">🚕 Harvey Standard</div>
+          <div class="ride-sub">Affordable everyday ride</div>
+        </div>
+        <div class="price">$12</div>
+      </div>
+
+      <div class="ride-card" onclick="selectRide('Harvey XL', this)">
+        <div>
+          <div class="ride-title">🚐 Harvey XL</div>
+          <div class="ride-sub">More room for passengers</div>
+        </div>
+        <div class="price">$18</div>
+      </div>
+
+      <div class="ride-card" onclick="selectRide('Airport Ride', this)">
+        <div>
+          <div class="ride-title">✈️ Airport Ride</div>
+          <div class="ride-sub">Quick trip to or from BNA</div>
+        </div>
+        <div class="price">$25</div>
+      </div>
+    </div>
+
+    <button class="button primary" onclick="requestRide()">Request Ride</button>
+    <button class="button secondary" onclick="window.location.href='/'">Cancel</button>
+
+    <div class="result" id="resultBox"></div>
+  </div>
+
+  <script>
+    let selectedRide = 'Harvey Standard';
+
+    function selectRide(rideName, element) {
+      selectedRide = rideName;
+      const cards = document.querySelectorAll('.ride-card');
+      cards.forEach(card => card.classList.remove('active'));
+      element.classList.add('active');
+    }
+
+    function requestRide() {
+      const pickup = document.getElementById('pickup').value.trim();
+      const destination = document.getElementById('destination').value.trim();
+      const name = document.getElementById('name').value.trim();
+      const resultBox = document.getElementById('resultBox');
+
+      if (!pickup || !destination || !name) {
+        resultBox.style.display = 'block';
+        resultBox.innerHTML = 'Please fill in pickup location, destination, and passenger name.';
+        return;
+      }
+
+      resultBox.style.display = 'block';
+      resultBox.innerHTML =
+        '<strong>Ride requested successfully.</strong><br><br>' +
+        'Passenger: ' + name + '<br>' +
+        'Pickup: ' + pickup + '<br>' +
+        'Destination: ' + destination + '<br>' +
+        'Ride Type: ' + selectedRide;
+    }
+  </script>
+</body>
+</html>
