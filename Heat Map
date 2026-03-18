@@ -1,0 +1,609 @@
+// app/driver/heatmap.jsx
+
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+} from 'react-native'
+import MapView, { Circle, Marker } from 'react-native-maps'
+import * as Location from 'expo-location'
+import { supabase } from '../../lib/supabase'
+
+const NASHVILLE_REGION = {
+  latitude: 36.1627,
+  longitude: -86.7816,
+  latitudeDelta: 0.18,
+  longitudeDelta: 0.18,
+}
+
+function getZoneFromCoordinates(lat, lng) {
+  if (lat == null || lng == null) return null
+
+  if (lat > 36.11 && lat < 36.14 && lng > -86.70 && lng < -86.65) {
+    return {
+      name: 'BNA Airport',
+      latitude: 36.1263,
+      longitude: -86.6774,
+    }
+  }
+
+  if (lat > 36.15 && lat < 36.18 && lng > -86.80 && lng < -86.76) {
+    return {
+      name: 'Downtown Nashville',
+      latitude: 36.1627,
+      longitude: -86.7816,
+    }
+  }
+
+  if (lat > 36.35 && lat < 36.42 && lng > -86.50 && lng < -86.40) {
+    return {
+      name: 'Gallatin',
+      latitude: 36.3884,
+      longitude: -86.4467,
+    }
+  }
+
+  if (lat > 36.17 && lat < 36.22 && lng > -86.75 && lng < -86.70) {
+    return {
+      name: 'East Nashville',
+      latitude: 36.1770,
+      longitude: -86.7340,
+    }
+  }
+
+  if (lat > 36.23 && lat < 36.29 && lng > -86.74 && lng < -86.67) {
+    return {
+      name: 'Madison',
+      latitude: 36.2562,
+      longitude: -86.7147,
+    }
+  }
+
+  if (lat > 36.18 && lat < 36.23 && lng > -86.82 && lng < -86.76) {
+    return {
+      name: 'North Nashville',
+      latitude: 36.1950,
+      longitude: -86.7900,
+    }
+  }
+
+  return {
+    name: 'Other',
+    latitude: lat,
+    longitude: lng,
+  }
+}
+
+function buildHeatZones(rides) {
+  const grouped = {}
+
+  for (const ride of rides) {
+    if (ride?.pickup_lat == null || ride?.pickup_lng == null) continue
+
+    const zone = getZoneFromCoordinates(ride.pickup_lat, ride.pickup_lng)
+    if (!zone) continue
+
+    if (!grouped[zone.name]) {
+      grouped[zone.name] = {
+        name: zone.name,
+        latitude: zone.latitude,
+        longitude: zone.longitude,
+        count: 0,
+      }
+    }
+
+    grouped[zone.name].count += 1
+  }
+
+  return Object.values(grouped).sort((a, b) => b.count - a.count)
+}
+
+function getCircleStyle(count, maxCount) {
+  const safeMax = Math.max(maxCount, 1)
+  const intensity = count / safeMax
+
+  if (intensity >= 0.8) {
+    return {
+      radius: 1800,
+      fillColor: 'rgba(239, 68, 68, 0.30)',
+      strokeColor: 'rgba(239, 68, 68, 0.9)',
+    }
+  }
+
+  if (intensity >= 0.5) {
+    return {
+      radius: 1400,
+      fillColor: 'rgba(245, 158, 11, 0.28)',
+      strokeColor: 'rgba(245, 158, 11, 0.9)',
+    }
+  }
+
+  return {
+    radius: 1000,
+    fillColor: 'rgba(59, 130, 246, 0.22)',
+    strokeColor: 'rgba(59, 130, 246, 0.9)',
+  }
+}
+
+function getRecommendation(zones) {
+  if (!zones.length) {
+    return 'No strong hotspots yet. Stay online and watch for incoming demand.'
+  }
+
+  const top = zones[0]
+
+  if (top.name === 'BNA Airport') {
+    return 'Airport looks strongest right now. Consider heading toward BNA.'
+  }
+
+  if (top.name === 'Downtown Nashville') {
+    return 'Downtown is leading demand right now.'
+  }
+
+  return `${top.name} is the strongest area right now.`
+}
+
+export default function DriverHeatmapScreen() {
+  const mapRef = useRef(null)
+
+  const [loading, setLoading] = useState(true)
+  const [driverId, setDriverId] = useState(null)
+  const [driverName, setDriverName] = useState('Driver')
+  const [driverOnline, setDriverOnline] = useState(false)
+  const [driverLocation, setDriverLocation] = useState(null)
+  const [rides, setRides] = useState([])
+
+  const getLoggedInDriver = useCallback(async () => {
+    const { data, error } = await supabase.auth.getUser()
+
+    if (error) {
+      console.error('Error getting user:', error.message)
+      return null
+    }
+
+    const id = data?.user?.id || null
+    setDriverId(id)
+    return id
+  }, [])
+
+  const requestLocation = useCallback(async () => {
+    const { status } = await Location.requestForegroundPermissionsAsync()
+
+    if (status !== 'granted') {
+      Alert.alert('Location needed', 'Please allow location access for driver tracking.')
+      return null
+    }
+
+    const current = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.High,
+    })
+
+    const coords = {
+      latitude: current.coords.latitude,
+      longitude: current.coords.longitude,
+    }
+
+    setDriverLocation(coords)
+    return coords
+  }, [])
+
+  const updateDriverLocationInDb = useCallback(async (activeDriverId, coords) => {
+    if (!activeDriverId || !coords) return
+
+    const { error } = await supabase
+      .from('drivers')
+      .update({
+        current_lat: coords.latitude,
+        current_lng: coords.longitude,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', activeDriverId)
+
+    if (error) {
+      console.error('Error updating driver location:', error.message)
+    }
+  }, [])
+
+  const loadHeatmap = useCallback(async (passedDriverId = null) => {
+    try {
+      const activeDriverId = passedDriverId || driverId
+      if (!activeDriverId) return
+
+      const start = new Date()
+      start.setHours(0, 0, 0, 0)
+
+      const { data: ridesData, error: ridesError } = await supabase
+        .from('rides')
+        .select(`
+          id,
+          pickup_address,
+          pickup_lat,
+          pickup_lng,
+          created_at,
+          status,
+          driver_id
+        `)
+        .gte('created_at', start.toISOString())
+        .in('status', ['requested', 'accepted', 'completed'])
+
+      if (ridesError) throw ridesError
+
+      const { data: driverData, error: driverError } = await supabase
+        .from('drivers')
+        .select('id, full_name, is_online, current_lat, current_lng')
+        .eq('id', activeDriverId)
+        .single()
+
+      if (driverError && driverError.code !== 'PGRST116') {
+        throw driverError
+      }
+
+      setRides(ridesData || [])
+      setDriverName(driverData?.full_name || 'Driver')
+      setDriverOnline(driverData?.is_online || false)
+
+      if (driverData?.current_lat && driverData?.current_lng) {
+        setDriverLocation({
+          latitude: driverData.current_lat,
+          longitude: driverData.current_lng,
+        })
+      }
+    } catch (err) {
+      console.error('Error loading heatmap:', err.message)
+      Alert.alert('Error', 'Could not load heat map data.')
+    } finally {
+      setLoading(false)
+    }
+  }, [driverId])
+
+  useEffect(() => {
+    let active = true
+
+    async function init() {
+      try {
+        const id = await getLoggedInDriver()
+        if (!active || !id) {
+          setLoading(false)
+          return
+        }
+
+        const coords = await requestLocation()
+        if (coords) {
+          await updateDriverLocationInDb(id, coords)
+        }
+
+        await loadHeatmap(id)
+      } catch (err) {
+        console.error('Init heatmap error:', err.message)
+        setLoading(false)
+      }
+    }
+
+    init()
+
+    return () => {
+      active = false
+    }
+  }, [getLoggedInDriver, requestLocation, updateDriverLocationInDb, loadHeatmap])
+
+  useEffect(() => {
+    if (!driverId) return
+
+    const interval = setInterval(async () => {
+      try {
+        const current = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        })
+
+        const coords = {
+          latitude: current.coords.latitude,
+          longitude: current.coords.longitude,
+        }
+
+        setDriverLocation(coords)
+        await updateDriverLocationInDb(driverId, coords)
+      } catch (err) {
+        console.error('Location refresh error:', err.message)
+      }
+    }, 15000)
+
+    return () => clearInterval(interval)
+  }, [driverId, updateDriverLocationInDb])
+
+  useEffect(() => {
+    if (!driverId) return
+
+    const channel = supabase
+      .channel('driver-heatmap-live')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'rides' },
+        async () => {
+          await loadHeatmap(driverId)
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'drivers' },
+        async (payload) => {
+          if (payload?.new?.id === driverId || payload?.old?.id === driverId) {
+            await loadHeatmap(driverId)
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [driverId, loadHeatmap])
+
+  const heatZones = useMemo(() => buildHeatZones(rides), [rides])
+  const maxCount = useMemo(
+    () => Math.max(...heatZones.map((z) => z.count), 1),
+    [heatZones]
+  )
+  const recommendation = useMemo(() => getRecommendation(heatZones), [heatZones])
+
+  const toggleOnline = useCallback(async () => {
+    if (!driverId) return
+
+    const nextStatus = !driverOnline
+    try {
+      setDriverOnline(nextStatus)
+
+      const { error } = await supabase
+        .from('drivers')
+        .update({
+          is_online: nextStatus,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', driverId)
+
+      if (error) throw error
+    } catch (err) {
+      console.error('Error toggling online status:', err.message)
+      setDriverOnline(!nextStatus)
+      Alert.alert('Error', 'Could not update online status.')
+    }
+  }, [driverId, driverOnline])
+
+  const recenterMap = useCallback(() => {
+    if (!mapRef.current) return
+
+    const region = driverLocation
+      ? {
+          latitude: driverLocation.latitude,
+          longitude: driverLocation.longitude,
+          latitudeDelta: 0.12,
+          longitudeDelta: 0.12,
+        }
+      : NASHVILLE_REGION
+
+    mapRef.current.animateToRegion(region, 800)
+  }, [driverLocation])
+
+  if (loading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color="#3B82F6" />
+        <Text style={styles.loadingText}>Loading heat map...</Text>
+      </View>
+    )
+  }
+
+  return (
+    <View style={styles.container}>
+      <MapView
+        ref={mapRef}
+        style={styles.map}
+        initialRegion={driverLocation ? {
+          latitude: driverLocation.latitude,
+          longitude: driverLocation.longitude,
+          latitudeDelta: 0.12,
+          longitudeDelta: 0.12,
+        } : NASHVILLE_REGION}
+        showsUserLocation
+        showsMyLocationButton={false}
+      >
+        {heatZones.map((zone) => {
+          const style = getCircleStyle(zone.count, maxCount)
+
+          return (
+            <Circle
+              key={`circle-${zone.name}`}
+              center={{
+                latitude: zone.latitude,
+                longitude: zone.longitude,
+              }}
+              radius={style.radius}
+              fillColor={style.fillColor}
+              strokeColor={style.strokeColor}
+              strokeWidth={2}
+            />
+          )
+        })}
+
+        {heatZones.map((zone) => (
+          <Marker
+            key={`marker-${zone.name}`}
+            coordinate={{
+              latitude: zone.latitude,
+              longitude: zone.longitude,
+            }}
+            title={zone.name}
+            description={`${zone.count} ride requests today`}
+          />
+        ))}
+
+        {driverLocation && (
+          <Marker
+            coordinate={driverLocation}
+            title="You"
+            description={driverOnline ? 'Currently online' : 'Currently offline'}
+            pinColor="blue"
+          />
+        )}
+      </MapView>
+
+      <View style={styles.topCard}>
+        <Text style={styles.topTitle}>Heat Map</Text>
+        <Text style={styles.topName}>Welcome back, {driverName}</Text>
+        <Text style={styles.topSubtitle}>{recommendation}</Text>
+      </View>
+
+      <View style={styles.bottomPanel}>
+        <Text style={styles.panelTitle}>Top Hotspots Today</Text>
+
+        {heatZones.length === 0 ? (
+          <Text style={styles.emptyText}>No hotspot data yet today.</Text>
+        ) : (
+          heatZones.slice(0, 4).map((zone, index) => (
+            <View key={zone.name} style={styles.zoneRow}>
+              <Text style={styles.zoneName}>
+                #{index + 1} {zone.name}
+              </Text>
+              <Text style={styles.zoneCount}>{zone.count}</Text>
+            </View>
+          ))
+        )}
+
+        <View style={styles.buttonRow}>
+          <TouchableOpacity style={styles.secondaryButton} onPress={recenterMap}>
+            <Text style={styles.secondaryButtonText}>Center Map</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.primaryButton, driverOnline && styles.offlineButton]}
+            onPress={toggleOnline}
+          >
+            <Text style={styles.primaryButtonText}>
+              {driverOnline ? 'Go Offline' : 'Go Online'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  )
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#0B0B0F',
+  },
+  map: {
+    flex: 1,
+  },
+  centered: {
+    flex: 1,
+    backgroundColor: '#0B0B0F',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    color: '#FFFFFF',
+    marginTop: 12,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  topCard: {
+    position: 'absolute',
+    top: 55,
+    left: 16,
+    right: 16,
+    backgroundColor: 'rgba(17, 24, 39, 0.95)',
+    borderRadius: 18,
+    padding: 16,
+  },
+  topTitle: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  topName: {
+    color: '#E5E7EB',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  topSubtitle: {
+    color: '#CBD5E1',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  bottomPanel: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 24,
+    backgroundColor: 'rgba(21, 22, 27, 0.97)',
+    borderRadius: 22,
+    padding: 16,
+  },
+  panelTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+    marginBottom: 12,
+  },
+  emptyText: {
+    color: '#C5C8D4',
+    fontSize: 15,
+    marginBottom: 12,
+  },
+  zoneRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 9,
+    borderBottomWidth: 1,
+    borderBottomColor: '#242731',
+  },
+  zoneName: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  zoneCount: {
+    color: '#F4D08B',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    marginTop: 16,
+    gap: 10,
+  },
+  secondaryButton: {
+    flex: 1,
+    backgroundColor: '#1F2937',
+    borderRadius: 999,
+    paddingVertical: 15,
+    alignItems: 'center',
+  },
+  secondaryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  primaryButton: {
+    flex: 1,
+    backgroundColor: '#2563EB',
+    borderRadius: 999,
+    paddingVertical: 15,
+    alignItems: 'center',
+  },
+  offlineButton: {
+    backgroundColor: '#374151',
+  },
+  primaryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+})
