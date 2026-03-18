@@ -1,198 +1,142 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Harvey Taxi Admin</title>
+  <title>Admin Dashboard</title>
   <style>
-    * { box-sizing: border-box; }
-
     body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #000;
-      color: #fff;
+      background: black;
+      color: white;
+      font-family: Arial;
       padding: 20px;
     }
 
-    .container {
-      max-width: 900px;
-      margin: 0 auto;
-    }
-
     h1 {
-      color: gold;
-      font-size: 2.2rem;
-      margin-bottom: 10px;
+      color: #ffd600;
+      font-size: 36px;
     }
 
-    p {
-      color: #ddd;
-      line-height: 1.5;
+    .subtitle {
+      color: #aaa;
+      margin-bottom: 20px;
     }
 
-    .top-btn {
-      background: gold;
-      color: #000;
+    button {
+      background: #ffd600;
+      color: black;
       border: none;
-      padding: 14px 18px;
-      border-radius: 12px;
-      font-size: 1rem;
-      font-weight: bold;
-      cursor: pointer;
-      margin: 20px 0;
-    }
-
-    .card {
-      background: #111;
-      border: 1px solid #333;
-      border-radius: 16px;
-      padding: 18px;
-      margin-bottom: 16px;
-    }
-
-    .card p {
-      margin: 8px 0;
-      color: #fff;
-    }
-
-    .approve-btn, .reject-btn {
-      border: none;
-      padding: 10px 14px;
+      padding: 14px 20px;
       border-radius: 10px;
       font-weight: bold;
       cursor: pointer;
-      margin-right: 10px;
-      margin-top: 10px;
+      margin-bottom: 20px;
     }
 
-    .approve-btn {
-      background: green;
-      color: white;
-    }
-
-    .reject-btn {
-      background: red;
-      color: white;
-    }
-
-    .pending { color: #f1c40f; font-weight: bold; }
-    .approved { color: #2ecc71; font-weight: bold; }
-    .rejected { color: #e74c3c; font-weight: bold; }
-
-    .empty {
-      color: #bbb;
-      margin-top: 20px;
-    }
-
-    .message {
-      font-weight: bold;
+    .card {
+      background: #151518;
+      padding: 15px;
+      border-radius: 15px;
       margin-bottom: 15px;
     }
 
-    .error {
-      color: #ff5c5c;
+    .name {
+      font-size: 18px;
+      font-weight: bold;
     }
 
-    .success {
-      color: #42d26b;
+    .actions {
+      margin-top: 10px;
+    }
+
+    .approve {
+      background: green;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 8px;
+      margin-right: 10px;
+      cursor: pointer;
+    }
+
+    .reject {
+      background: red;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .error {
+      color: red;
+      margin-top: 20px;
     }
   </style>
 </head>
+
 <body>
-  <div class="container">
-    <h1>Harvey Taxi Admin Dashboard</h1>
-    <p>Review driver applications and approve or reject drivers.</p>
 
-    <button class="top-btn" onclick="loadApplications()">Refresh Applications</button>
-    <div id="message" class="message"></div>
-    <div id="applicationsList" class="empty">Loading applications...</div>
-  </div>
+<h1>Harvey Taxi Admin Dashboard</h1>
+<p class="subtitle">Review driver applications</p>
 
-  <script>
-    function formatDate(dateString) {
-      if (!dateString) return "N/A";
-      return new Date(dateString).toLocaleString();
+<button onclick="loadApplications()">Refresh Applications</button>
+
+<div id="applications"></div>
+<div id="error" class="error"></div><script>
+const API = "https://harvey-taxi-api2.onrender.com";
+
+async function loadApplications() {
+  document.getElementById("error").innerText = "";
+  document.getElementById("applications").innerHTML = "Loading...";
+
+  try {
+    const res = await fetch(API + "/api/admin/applications");
+
+    if (!res.ok) throw new Error("API failed");
+
+    const data = await res.json();
+
+    if (!data.length) {
+      document.getElementById("applications").innerHTML = "No applications found.";
+      return;
     }
 
-    function getStatusClass(status) {
-      if (status === "approved") return "approved";
-      if (status === "rejected") return "rejected";
-      return "pending";
-    }
+    let html = "";
 
-    async function loadApplications() {
-      const list = document.getElementById("applicationsList");
-      const message = document.getElementById("message");
-      message.textContent = "";
-      list.innerHTML = "Loading applications...";
+    data.forEach(app => {
+      html += `
+        <div class="card">
+          <div class="name">${app.name}</div>
+          <div>Phone: ${app.phone}</div>
+          <div>Email: ${app.email}</div>
+          <div>Vehicle: ${app.vehicleType}</div>
 
-      try {
-        const res = await fetch("/api/driver/applications");
-        const data = await res.json();
-
-        if (!res.ok || !data.success) {
-          list.innerHTML = `<div class="error">Failed to load applications.</div>`;
-          return;
-        }
-
-        if (!data.applications || data.applications.length === 0) {
-          list.innerHTML = `<div class="empty">No driver applications yet.</div>`;
-          return;
-        }
-
-        list.innerHTML = data.applications.map(app => `
-          <div class="card">
-            <p><strong>Name:</strong> ${app.fullName}</p>
-            <p><strong>Phone:</strong> ${app.phone}</p>
-            <p><strong>Email:</strong> ${app.email}</p>
-            <p><strong>City:</strong> ${app.city}</p>
-            <p><strong>State:</strong> ${app.state}</p>
-            <p><strong>Vehicle:</strong> ${app.vehicleType}</p>
-            <p><strong>Driver Type:</strong> ${app.driverType}</p>
-            <p><strong>Status:</strong> <span class="${getStatusClass(app.status)}">${app.status}</span></p>
-            <p><strong>Submitted:</strong> ${formatDate(app.createdAt)}</p>
-
-            ${app.status === "pending" ? `
-              <button class="approve-btn" onclick="updateStatus('${app._id}', 'approve')">Approve</button>
-              <button class="reject-btn" onclick="updateStatus('${app._id}', 'reject')">Reject</button>
-            ` : ""}
+          <div class="actions">
+            <button class="approve" onclick="approve('${app.id}')">Approve</button>
+            <button class="reject" onclick="reject('${app.id}')">Reject</button>
           </div>
-        `).join("");
-      } catch (err) {
-        console.error(err);
-        list.innerHTML = `<div class="error">Could not load applications.</div>`;
-      }
-    }
+        </div>
+      `;
+    });
 
-    async function updateStatus(id, action) {
-      const message = document.getElementById("message");
-      message.textContent = "";
+    document.getElementById("applications").innerHTML = html;
 
-      try {
-        const res = await fetch(`/api/driver/applications/${id}/${action}`, {
-          method: "POST"
-        });
+  } catch (err) {
+    document.getElementById("applications").innerHTML = "";
+    document.getElementById("error").innerText = "Could not load applications.";
+    console.error(err);
+  }
+}
 
-        const data = await res.json();
+async function approve(id) {
+  await fetch(API + "/api/admin/approve/" + id, { method: "POST" });
+  loadApplications();
+}
 
-        if (!res.ok || !data.success) {
-          message.textContent = data.message || "Action failed.";
-          message.className = "message error";
-          return;
-        }
+async function reject(id) {
+  await fetch(API + "/api/admin/reject/" + id, { method: "POST" });
+  loadApplications();
+}
 
-        message.textContent = data.message;
-        message.className = "message success";
-        loadApplications();
-      } catch (err) {
-        console.error(err);
-        message.textContent = "Could not update driver status.";
-        message.className = "message error";
-      }
-    }
+loadApplications();
+</script>
 
-    loadApplications();
-  </script>
 </body>
 </html>
