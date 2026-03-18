@@ -1,10 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Driver Verification</title>
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     body {
       background: #0b0b0d;
@@ -12,162 +10,58 @@
       font-family: Arial;
       padding: 20px;
     }
-
-    .card {
-      background: #151518;
-      border-radius: 20px;
-      padding: 20px;
-      margin-bottom: 15px;
-      border: 1px solid #2a2a31;
-    }
-
     h1 {
-      font-size: 32px;
+      font-size: 38px;
       margin-bottom: 10px;
     }
-
-    .subtitle {
+    p {
       color: #aaa;
       margin-bottom: 20px;
     }
-
-    .step {
+    .card {
+      background: #151518;
+      border: 1px solid #2a2a31;
+      border-radius: 20px;
+      padding: 20px;
+      margin-bottom: 14px;
       display: flex;
-      gap: 15px;
+      gap: 14px;
       align-items: center;
     }
-
     .icon {
-      width: 50px;
-      height: 50px;
+      width: 52px;
+      height: 52px;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 22px;
+      font-weight: bold;
     }
-
-    .done {
-      background: #0b5b34;
-      color: #92f2b1;
-    }
-
-    .pending {
-      background: #14345d;
-      color: #8cbcff;
-    }
-
-    .review {
-      background: #5a4510;
-      color: #ffd978;
-    }
-
+    .done { background: #0b5b34; color: #92f2b1; }
+    .pending { background: #14345d; color: #8cbcff; }
+    .review { background: #5a4510; color: #ffd978; }
     .title {
       font-size: 18px;
       font-weight: bold;
+      margin-bottom: 6px;
     }
-
     .desc {
       color: #aaa;
       font-size: 14px;
     }
-
-    .btn {
-      margin-top: 10px;
-      padding: 10px;
-      background: #2979ff;
-      border-radius: 10px;
-      color: white;
-      border: none;
-      cursor: pointer;
-    }
   </style>
 </head>
-
 <body>
+  <h1>Verification</h1>
+  <p>Complete your setup to go live</p>
 
-<h1>Verification</h1>
-<p class="subtitle">Complete your setup to go live</p>
-
-<div class="card">
-  <div class="step">
-    <div class="icon done">✓</div>
-    <div>
-      <div class="title">Vehicle preference</div>
-      <div class="desc">Use your own car or rental</div>
-    </div>
-  </div>
-</div>
-
-<div class="card">
-  <div class="step">
-    <div class="icon done">✓</div>
-    <div>
-      <div class="title">Social Security number</div>
-      <div class="desc">Used for background check</div>
-    </div>
-  </div>
-</div>
-
-<div class="card">
-  <div class="step">
-    <div class="icon done">✓</div>
-    <div>
-      <div class="title">Driver's license</div>
-      <div class="desc">Confirm your identity</div>
-    </div>
-  </div>
-</div><div class="card">
-  <div class="step">
-    <div class="icon done">✓</div>
-    <div>
-      <div class="title">Profile photo</div>
-      <div class="desc">Help riders find you</div>
-    </div>
-  </div>
-</div>
-
-<div class="card">
-  <div class="step">
-    <div class="icon done">✓</div>
-    <div>
-      <div class="title">Background consent</div>
-      <div class="desc">Authorization required</div>
-    </div>
-  </div>
-</div>
-
-<div class="card">
-  <div class="step">
-    <div class="icon review">⏳</div>
-    <div>
-      <div class="title">Background check</div>
-      <div class="desc">Currently in review</div>
-    </div>
-  </div>
-</div>
-
-<div class="card">
-  <div class="step">
-    <div class="icon pending">↑</div>
-    <div>
-      <div class="title">Insurance document</div>
-      <div class="desc">Upload your insurance</div>
-      <button class="btn">Upload</button>
-    </div>
-  </div>
-</div>
-
-<div class="card">
-  <div class="step">
-    <div class="icon pending">↑</div>
-    <div>
-      <div class="title">Vehicle inspection</div>
-      <div class="desc">Complete inspection</div>
-      <button class="btn">Continue</button>
-    </div>
-  </div>
-</div>
-
+  <div class="card"><div class="icon done">✓</div><div><div class="title">Vehicle preference</div><div class="desc">Use your own car or rental</div></div></div>
+  <div class="card"><div class="icon done">✓</div><div><div class="title">Social Security number</div><div class="desc">Used for background check</div></div></div>
+  <div class="card"><div class="icon done">✓</div><div><div class="title">Driver's license</div><div class="desc">Confirm your identity</div></div></div>
+  <div class="card"><div class="icon done">✓</div><div><div class="title">Profile photo</div><div class="desc">Help riders find you</div></div></div>
+  <div class="card"><div class="icon done">✓</div><div><div class="title">Background consent</div><div class="desc">Authorization required</div></div></div>
+  <div class="card"><div class="icon review">⏳</div><div><div class="title">Background check</div><div class="desc">Currently in review</div></div></div>
+  <div class="card"><div class="icon pending">↑</div><div><div class="title">Insurance document</div><div class="desc">Upload your insurance</div></div></div>
 </body>
 </html>
