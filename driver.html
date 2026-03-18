@@ -1,184 +1,149 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Driver Profile</title>
-  <style>
-    body {
-      background: #0f0f10;
-      color: white;
-      font-family: Arial, sans-serif;
-      padding: 20px;
-      margin: 0;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Driver App</title>
 
-    .card {
-      background: #151518;
-      padding: 20px;
-      border-radius: 20px;
-      margin-bottom: 15px;
-      border: 1px solid #2a2a31;
-    }
+<style>
+body {
+  background: #0b0b0d;
+  color: white;
+  font-family: Arial;
+  padding: 10px;
+}
 
-    h1 {
-      font-size: 40px;
-      margin-bottom: 20px;
-    }
+/* SCREENS */
+.screen { display: none; }
+.active { display: block; }
 
-    h2 {
-      margin: 0 0 10px 0;
-    }
+/* MAP */
+.map {
+  height: 300px;
+  border-radius: 20px;
+  background: #222;
+  margin-bottom: 20px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
 
-    .big {
-      font-size: 40px;
-      font-weight: bold;
-    }
+/* BUTTON */
+.go-btn {
+  width: 100%;
+  background: #3f69c9;
+  padding: 20px;
+  border-radius: 30px;
+  font-size: 24px;
+  font-weight: bold;
+  border: none;
+  margin-top: 20px;
+}
 
-    .stats-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 15px;
-    }
+/* MENU */
+.profile {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:20px;
+}
 
-    button {
-      padding: 12px 16px;
-      margin: 5px 5px 0 0;
-      border: none;
-      border-radius: 10px;
-      background: #2979ff;
-      color: white;
-      cursor: pointer;
-      font-size: 16px;
-      font-weight: bold;
-    }
+.profile img {
+  width:60px;
+  height:60px;
+  border-radius:50%;
+}
 
-    button:hover {
-      opacity: 0.9;
-    }
+.menu-item {
+  font-size: 28px;
+  margin: 20px 0;
+}
 
-    .small-text {
-      color: #aaa;
-      font-size: 14px;
-      margin-top: 6px;
-    }
+/* NAV */
+.nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #111;
+  display: flex;
+  justify-content: space-around;
+  padding: 10px;
+}
 
-    @media (max-width: 700px) {
-      .stats-grid {
-        grid-template-columns: 1fr;
-      }
-
-      h1 {
-        font-size: 32px;
-      }
-
-      .big {
-        font-size: 30px;
-      }
-    }
-  </style>
+.nav button {
+  background:none;
+  border:none;
+  color:white;
+  font-size:16px;
+}
+</style>
 </head>
 
 <body>
-  <h1>Driver Profile</h1>
 
-  <div class="card">
-    <h2 id="name">Loading...</h2>
-    <p id="tier">Tier: Starter</p>
-    <p class="small-text">Live stats from your Harvey Taxi platform</p>
-  </div>
+<!-- HOME -->
+<div id="home" class="screen active">
+  <div class="map">Map Area</div>
 
-  <div class="stats-grid">
-    <div class="card">
-      <div>Acceptance Rate</div>
-      <div class="big"><span id="acceptance">0</span>%</div>
-    </div>
+  <h2>Opportunities</h2>
+  <p>Peak hours at airport</p>
 
-    <div class="card">
-      <div>Cancellation Rate</div>
-      <div class="big"><span id="cancel">0</span>%</div>
-    </div>
+  <button class="go-btn" onclick="goOnline()">Go Online</button>
+</div>
 
-    <div class="card">
-      <div>Completion Rate</div>
-      <div class="big"><span id="completion">0</span>%</div>
-    </div>
+<!-- EARNINGS -->
+<div id="earnings" class="screen">
+  <h2>Earnings</h2>
+  <p>$0 Today</p>
+  <p>Rides: 0</p>
+  <p>Deliveries: 0</p>
+</div>
 
-    <div class="card">
-      <div>Ride Rating</div>
-      <div class="big"><span id="rating">5.00</span></div>
-    </div>
+<!-- INBOX -->
+<div id="inbox" class="screen">
+  <h2>Inbox</h2>
+  <p>No messages</p>
+</div>
 
-    <div class="card">
-      <div>Delivery Satisfaction</div>
-      <div class="big"><span id="delivery">100</span>%</div>
-    </div>
-
-    <div class="card">
-      <div>Total Earnings</div>
-      <div class="big">$<span id="earnings">0.00</span></div>
+<!-- MENU -->
+<div id="menu" class="screen">
+  <div class="profile">
+    <img src="https://via.placeholder.com/60">
+    <div>
+      <h3>Willie</h3>
+      <p>⭐ 4.96</p>
     </div>
   </div>
 
-  <div class="card">
-    <div>Rides Completed: <strong id="rides">0</strong></div>
-    <div style="margin-top:10px;">Deliveries Completed: <strong id="deliveries">0</strong></div>
-  </div>
+  <div class="menu-item">Refer Friends</div>
+  <div class="menu-item">Opportunities</div>
+  <div class="menu-item">Harvey Pro</div>
+  <div class="menu-item">Wallet</div>
+  <div class="menu-item">Account</div>
 
-  <div class="card">
-    <button onclick="completeRide()">Test Ride</button>
-    <button onclick="completeDelivery()">Test Delivery</button>
-  </div>  <script>
-    async function loadStats() {
-      try {
-        const res = await fetch('/api/driver/stats');
-        const data = await res.json();
+  <hr>
 
-        document.getElementById("name").innerText = data.name;
-        document.getElementById("tier").innerText = "Tier: " + data.tier;
+  <div class="menu-item">Help</div>
+  <div class="menu-item">Learning Center</div>
+</div><!-- NAV -->
+<div class="nav">
+  <button onclick="show('home')">Home</button>
+  <button onclick="show('earnings')">Earnings</button>
+  <button onclick="show('inbox')">Inbox</button>
+  <button onclick="show('menu')">Menu</button>
+</div>
 
-        document.getElementById("acceptance").innerText = data.acceptanceRate;
-        document.getElementById("cancel").innerText = data.cancellationRate;
-        document.getElementById("completion").innerText = data.completionRate;
-        document.getElementById("rating").innerText = data.rideRating;
-        document.getElementById("delivery").innerText = data.deliverySatisfaction;
-        document.getElementById("rides").innerText = data.ridesCompleted;
-        document.getElementById("deliveries").innerText = data.deliveriesCompleted;
-        document.getElementById("earnings").innerText = data.totalEarnings;
-      } catch (error) {
-        console.error("Failed to load stats:", error);
-      }
-    }
+<script>
+function show(screen) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(screen).classList.add('active');
+}
 
-    async function completeRide() {
-      try {
-        await fetch('/api/driver/complete-ride', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        });
-        loadStats();
-      } catch (error) {
-        console.error("Failed to complete ride:", error);
-      }
-    }
+function goOnline() {
+  alert("You are now online!");
+}
+</script>
 
-    async function completeDelivery() {
-      try {
-        await fetch('/api/driver/complete-delivery', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        });
-        loadStats();
-      } catch (error) {
-        console.error("Failed to complete delivery:", error);
-      }
-    }
-
-    loadStats();
-  </script>
 </body>
 </html>
