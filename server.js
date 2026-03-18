@@ -1,69 +1,98 @@
-// ===== PART 1: SETUP =====
 const express = require("express");
 const cors = require("cors");
-
-const app = express();
-const PORT = process.env.PORT || 10000;
-
-// Middleware
-app.use(cors());
-app.use(express.json());
-
-// Test route (VERY IMPORTANT for Render)
-app.get("/", (req, res) => {
-  res.send("Harvey Taxi API is running 🚖");
-});const express = require("express");
 const path = require("path");
 
 const app = express();
 const PORT = process.env.PORT || 10000;
 
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Temporary storage
+let drivers = [];
+
+// Home route
+app.get("/", (req, res) => {
+  res.send("Harvey Taxi API is running 🚖");
+});
+
+// Serve frontend files
 app.use(express.static(__dirname));
 
-let rideRequests = [];
-let driverLocations = [];// ROUTES
+// Driver signup route
+app.post("/api/drivers/signup", (req, res) => {
+  try {
+    const {
+      name,
+      phone,
+      email,
+      city,
+      state,
+      vehicleType,
+      driverType,
+    } = req.body;
 
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "index.html"));
+    if (!name || !phone || !email || !city || !state || !vehicleType || !driverType) {
+      return res.status(400).json({
+        success: false,
+        message: "All fields are required.",
+      });
+    }
+
+    const newDriver = {
+      id: Date.now(),
+      name: String(name).trim(),
+      phone: String(phone).trim(),
+      email: String(email).trim().toLowerCase(),
+      city: String(city).trim(),
+      state: String(state).trim(),
+      vehicleType: String(vehicleType).trim(),
+      driverType: String(driverType).trim(),
+      status: "pending",
+      createdAt: new Date().toISOString(),
+    };
+
+    drivers.push(newDriver);
+
+    console.log("New driver application:", newDriver);
+
+    return res.status(201).json({
+      success: true,
+      message: "Driver application submitted successfully.",
+      driver: newDriver,
+    });
+  } catch (error) {
+    console.error("Signup route error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error. Please try again.",
+    });
+  }
 });
 
-app.get("/request-ride", (req, res) => {
-  res.sendFile(path.join(__dirname, "request-ride.html"));
+// Optional: see all drivers
+app.get("/api/drivers", (req, res) => {
+  res.json({
+    success: true,
+    count: drivers.length,
+    drivers,
+  });
 });
 
-app.get("/driver", (req, res) => {
-  res.sendFile(path.join(__dirname, "driver.html"));
+// Direct route to signup page
+app.get("/driver-signup", (req, res) => {
+  res.sendFile(path.join(__dirname, "driver-signup.html"));
 });
 
-// CREATE RIDE (SAFE VERSION - NO CRASH)
-app.post("/api/request-ride", (req, res) => {
-  const ride = {
-    id: Date.now(),
-    ...req.body,
-    status: "pending"
-  };
-
-  rideRequests.push(ride);
-
-  console.log("Ride created:", ride);
-
-  res.json({ success: true, ride });
+// 404 fallback
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: "Route not found.",
+  });
 });
 
-// GET RIDES
-app.get("/api/rides", (req, res) => {
-  res.json({ success: true, rides: rideRequests });
-});
-
-// DRIVER LOCATION
-app.post("/api/driver-location", (req, res) => {
-  driverLocations.push(req.body);
-  res.json({ success: true });
-});
-
-// START SERVER
 app.listen(PORT, () => {
-  console.log("Server running on port", PORT);
+  console.log(`Server running on port ${PORT}`);
 });
