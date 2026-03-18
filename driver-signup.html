@@ -1,169 +1,99 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
+  <title>Driver Signup</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Harvey Taxi Driver Signup</title>
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: Arial, sans-serif;
-    }
-
     body {
       background: #000;
-      color: #fff;
-      min-height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-      padding: 30px 15px;
+      color: white;
+      font-family: Arial;
+      padding: 20px;
     }
-
-    .container {
-      width: 100%;
-      max-width: 420px;
-    }
-
     h1 {
-      text-align: center;
-      color: #ffd700;
-      font-size: 2.2rem;
-      font-weight: bold;
-      margin-bottom: 30px;
-      line-height: 1.2;
+      font-size: 42px;
+      margin-bottom: 20px;
     }
-
     form {
       display: flex;
       flex-direction: column;
-      gap: 18px;
+      gap: 14px;
     }
-
-    input,
-    select,
-    button {
-      width: 100%;
-      padding: 18px;
-      border-radius: 18px;
+    input, select {
+      padding: 16px;
+      border-radius: 12px;
       border: none;
-      font-size: 1rem;
+      font-size: 16px;
     }
-
-    input,
-    select {
-      background: #dfe5ef;
-      color: #000;
-    }
-
     button {
-      background: #1e88ff;
-      color: #fff;
-      font-weight: bold;
-      cursor: pointer;
-      font-size: 1.1rem;
-    }
-
-    button:hover {
-      opacity: 0.95;
-    }
-
-    #message {
-      text-align: center;
-      margin-top: 20px;
-      font-size: 1.1rem;
+      background: #2ac65a;
+      color: white;
+      border: none;
+      padding: 18px;
+      border-radius: 14px;
+      font-size: 20px;
       font-weight: bold;
     }
-
-    @media (max-width: 480px) {
-      h1 {
-        font-size: 2rem;
-      }
-
-      input,
-      select,
-      button {
-        padding: 16px;
-      }
+    #status {
+      margin-top: 18px;
+      color: #ffd400;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>🚕 Harvey Taxi Driver Signup</h1>
+  <h1>Drive With Harvey</h1>
 
-    <form id="driverSignupForm">
-      <input id="name" type="text" placeholder="Full Name" required />
-      <input id="phone" type="text" placeholder="Phone Number" required />
-      <input id="email" type="email" placeholder="Email Address" required />
-      <input id="city" type="text" placeholder="City" required />
-      <input id="state" type="text" placeholder="State" required />
+  <form id="driverForm">
+    <input id="name" placeholder="Full Name" required />
+    <input id="phone" placeholder="Phone Number" required />
+    <input id="email" placeholder="Email Address" required />
+    <input id="city" placeholder="City" required />
+    <input id="state" placeholder="State" required />
 
-      <select id="vehicleType" required>
-        <option value="">Select Vehicle Type</option>
-        <option value="Sedan">Sedan</option>
-        <option value="SUV">SUV</option>
-        <option value="Van">Van</option>
-        <option value="Truck">Truck</option>
-      </select>
+    <select id="vehicleType" required>
+      <option value="">Select Vehicle Type</option>
+      <option>Sedan</option>
+      <option>SUV</option>
+      <option>Van</option>
+      <option>Truck</option>
+    </select>
 
-      <select id="driverType" required>
-        <option value="">Select Driver Type</option>
-        <option value="Independent Driver">Independent Driver</option>
-        <option value="Fleet Driver">Fleet Driver</option>
-      </select>
+    <select id="driverType" required>
+      <option value="">Select Driver Type</option>
+      <option>Independent Driver</option>
+      <option>Fleet Driver</option>
+    </select>
 
-      <button type="submit">Apply Now</button>
-    </form>
+    <button type="submit">Apply Now</button>
+  </form>
 
-    <p id="message"></p>    <script>
-      const form = document.getElementById("driverSignupForm");
-      const messageBox = document.getElementById("message");
+  <div id="status"></div>
 
-      form.addEventListener("submit", async function (e) {
-        e.preventDefault();
+  <script>
+    document.getElementById("driverForm").addEventListener("submit", async function(e) {
+      e.preventDefault();
 
-        messageBox.textContent = "Submitting application...";
-        messageBox.style.color = "#fff";
+      const payload = {
+        name: document.getElementById("name").value,
+        phone: document.getElementById("phone").value,
+        email: document.getElementById("email").value,
+        city: document.getElementById("city").value,
+        state: document.getElementById("state").value,
+        vehicleType: document.getElementById("vehicleType").value,
+        driverType: document.getElementById("driverType").value
+      };
 
-        const payload = {
-          name: document.getElementById("name").value.trim(),
-          phone: document.getElementById("phone").value.trim(),
-          email: document.getElementById("email").value.trim(),
-          city: document.getElementById("city").value.trim(),
-          state: document.getElementById("state").value.trim(),
-          vehicleType: document.getElementById("vehicleType").value,
-          driverType: document.getElementById("driverType").value
-        };
-
-        try {
-          const response = await fetch("/api/drivers/signup", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify(payload)
-          });
-
-          const data = await response.json();
-
-          if (response.ok) {
-            messageBox.textContent = data.message || "Application submitted successfully.";
-            messageBox.style.color = "lime";
-            form.reset();
-          } else {
-            messageBox.textContent = data.message || "Submission failed.";
-            messageBox.style.color = "red";
-          }
-        } catch (error) {
-          console.error("Submit error:", error);
-          messageBox.textContent = "Server not responding. Try again.";
-          messageBox.style.color = "red";
-        }
+      const res = await fetch("/apply-driver", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
       });
-    </script>
-  </div>
+
+      const data = await res.json();
+      document.getElementById("status").innerText = data.success
+        ? "Application submitted successfully."
+        : "Something went wrong.";
+    });
+  </script>
 </body>
 </html>
