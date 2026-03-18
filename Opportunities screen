@@ -26,8 +26,7 @@ function groupRidesByHour(rides) {
   for (const ride of rides) {
     if (!ride?.created_at) continue
     const date = new Date(ride.created_at)
-    const hour = date.getHours()
-    counts[hour] += 1
+    counts[date.getHours()] += 1
   }
 
   return counts
@@ -39,55 +38,20 @@ function getZoneFromRide(ride) {
   const lng = ride?.pickup_lng
 
   if (lat && lng) {
-    // BNA Airport
-    if (lat > 36.11 && lat < 36.14 && lng > -86.70 && lng < -86.65) {
-      return 'BNA Airport'
-    }
-
-    // Downtown Nashville
-    if (lat > 36.15 && lat < 36.18 && lng > -86.80 && lng < -86.76) {
-      return 'Downtown Nashville'
-    }
-
-    // Gallatin
-    if (lat > 36.35 && lat < 36.42 && lng > -86.50 && lng < -86.40) {
-      return 'Gallatin'
-    }
-
-    // East Nashville
-    if (lat > 36.17 && lat < 36.22 && lng > -86.75 && lng < -86.70) {
-      return 'East Nashville'
-    }
-
-    // Madison
-    if (lat > 36.23 && lat < 36.29 && lng > -86.74 && lng < -86.67) {
-      return 'Madison'
-    }
-
-    // North Nashville
-    if (lat > 36.18 && lat < 36.23 && lng > -86.82 && lng < -86.76) {
-      return 'North Nashville'
-    }
+    if (lat > 36.11 && lat < 36.14 && lng > -86.70 && lng < -86.65) return 'BNA Airport'
+    if (lat > 36.15 && lat < 36.18 && lng > -86.80 && lng < -86.76) return 'Downtown Nashville'
+    if (lat > 36.35 && lat < 36.42 && lng > -86.50 && lng < -86.40) return 'Gallatin'
+    if (lat > 36.17 && lat < 36.22 && lng > -86.75 && lng < -86.70) return 'East Nashville'
+    if (lat > 36.23 && lat < 36.29 && lng > -86.74 && lng < -86.67) return 'Madison'
+    if (lat > 36.18 && lat < 36.23 && lng > -86.82 && lng < -86.76) return 'North Nashville'
   }
 
-  if (address.includes('airport') || address.includes('bna')) {
-    return 'BNA Airport'
-  }
-  if (address.includes('downtown') || address.includes('broadway')) {
-    return 'Downtown Nashville'
-  }
-  if (address.includes('gallatin')) {
-    return 'Gallatin'
-  }
-  if (address.includes('east nashville')) {
-    return 'East Nashville'
-  }
-  if (address.includes('madison')) {
-    return 'Madison'
-  }
-  if (address.includes('north nashville')) {
-    return 'North Nashville'
-  }
+  if (address.includes('airport') || address.includes('bna')) return 'BNA Airport'
+  if (address.includes('downtown') || address.includes('broadway')) return 'Downtown Nashville'
+  if (address.includes('gallatin')) return 'Gallatin'
+  if (address.includes('east nashville')) return 'East Nashville'
+  if (address.includes('madison')) return 'Madison'
+  if (address.includes('north nashville')) return 'North Nashville'
 
   return 'Other'
 }
@@ -105,42 +69,6 @@ function groupHotspots(rides) {
     .sort((a, b) => b.count - a.count)
 }
 
-function getAirportPeakMessage(hourlyCounts) {
-  const airportWindow = [
-    { hour: 15, label: '3 PM' },
-    { hour: 16, label: '4 PM' },
-    { hour: 17, label: '5 PM' },
-    { hour: 18, label: '6 PM' },
-    { hour: 19, label: '7 PM' },
-    { hour: 20, label: '8 PM' },
-    { hour: 21, label: '9 PM' },
-    { hour: 22, label: '10 PM' },
-  ]
-
-  let best = airportWindow[0]
-  let bestValue = hourlyCounts[best.hour] || 0
-
-  for (const item of airportWindow) {
-    const value = hourlyCounts[item.hour] || 0
-    if (value > bestValue) {
-      best = item
-      bestValue = value
-    }
-  }
-
-  const next = airportWindow.find((x) => x.hour === best.hour + 1)
-
-  if (bestValue === 0) {
-    return 'No strong airport demand yet today. Watch late afternoon and evening.'
-  }
-
-  if (next) {
-    return `Most flights and ride demand appear around ${best.label} - ${next.label}.`
-  }
-
-  return `Most flights and ride demand appear around ${best.label}.`
-}
-
 function getBestHours(hourlyCounts) {
   return hourlyCounts
     .map((count, hour) => ({ hour, count }))
@@ -148,22 +76,34 @@ function getBestHours(hourlyCounts) {
     .slice(0, 3)
 }
 
+function getAirportPeakMessage(hourlyCounts) {
+  const airportHours = [15, 16, 17, 18, 19, 20, 21, 22]
+  let bestHour = 15
+  let bestCount = 0
+
+  for (const hour of airportHours) {
+    const count = hourlyCounts[hour] || 0
+    if (count > bestCount) {
+      bestCount = count
+      bestHour = hour
+    }
+  }
+
+  if (bestCount === 0) {
+    return 'No strong airport demand yet today. Watch late afternoon and evening.'
+  }
+
+  const nextHour = bestHour === 23 ? 23 : bestHour + 1
+  return `Most flights and ride demand appear around ${HOURS[bestHour]} - ${HOURS[nextHour]}.`
+}
+
 function getDriverMessage(hotspots, bestHours) {
   const topSpot = hotspots?.[0]
   const topHour = bestHours?.[0]
 
-  if (!topSpot && !topHour) {
-    return 'No major opportunities yet. Stay ready for new ride activity.'
-  }
-
-  if (topSpot && topHour) {
-    return `Best current area: ${topSpot.name}. Best driving time: ${HOURS[topHour.hour]}.`
-  }
-
-  if (topSpot) {
-    return `Best current area: ${topSpot.name}.`
-  }
-
+  if (!topSpot && !topHour) return 'No major opportunities yet. Stay ready for new ride activity.'
+  if (topSpot && topHour) return `Best current area: ${topSpot.name}. Best driving time: ${HOURS[topHour.hour]}.`
+  if (topSpot) return `Best current area: ${topSpot.name}.`
   return `Best driving time right now looks like ${HOURS[topHour.hour]}.`
 }
 
@@ -180,14 +120,8 @@ function DemandBars({ data }) {
 
           return (
             <View key={index} style={styles.barItem}>
-              <View
-                style={[
-                  styles.bar,
-                  { height },
-                  isLive ? styles.liveBar : null,
-                ]}
-              />
-              <Text style={[styles.barLabel, isLive ? styles.liveText : null]}>
+              <View style={[styles.bar, { height }, isLive && styles.liveBar]} />
+              <Text style={[styles.barLabel, isLive && styles.liveText]}>
                 {isLive ? 'Live' : HOURS[index]}
               </Text>
             </View>
@@ -208,11 +142,7 @@ export default function DriverOpportunitiesScreen() {
 
   const getLoggedInDriver = useCallback(async () => {
     const { data, error } = await supabase.auth.getUser()
-
-    if (error) {
-      console.error('Error getting logged in user:', error.message)
-      return null
-    }
+    if (error) return null
 
     const user = data?.user
     if (!user?.id) return null
@@ -224,7 +154,6 @@ export default function DriverOpportunitiesScreen() {
   const loadDashboard = useCallback(async (passedDriverId = null) => {
     try {
       const activeDriverId = passedDriverId || driverId
-
       if (!activeDriverId) return
 
       const start = new Date()
@@ -232,15 +161,7 @@ export default function DriverOpportunitiesScreen() {
 
       const { data: ridesData, error: ridesError } = await supabase
         .from('rides')
-        .select(`
-          id,
-          pickup_address,
-          pickup_lat,
-          pickup_lng,
-          created_at,
-          status,
-          driver_id
-        `)
+        .select('id, pickup_address, pickup_lat, pickup_lng, created_at, status, driver_id')
         .gte('created_at', start.toISOString())
         .in('status', ['requested', 'accepted', 'completed'])
         .order('created_at', { ascending: true })
@@ -253,16 +174,13 @@ export default function DriverOpportunitiesScreen() {
         .eq('id', activeDriverId)
         .single()
 
-      if (driverError && driverError.code !== 'PGRST116') {
-        throw driverError
-      }
+      if (driverError && driverError.code !== 'PGRST116') throw driverError
 
       setRides(ridesData || [])
       setDriverOnline(driverData?.is_online || false)
       setDriverName(driverData?.full_name || 'Driver')
     } catch (err) {
-      console.error('Error loading dashboard:', err.message)
-      Alert.alert('Error', 'Could not load driver opportunities.')
+      Alert.alert('Error', err.message || 'Could not load driver opportunities.')
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -273,26 +191,20 @@ export default function DriverOpportunitiesScreen() {
     let mounted = true
 
     async function init() {
-      try {
-        const id = await getLoggedInDriver()
+      const id = await getLoggedInDriver()
 
-        if (!mounted) return
+      if (!mounted) return
 
-        if (!id) {
-          setLoading(false)
-          Alert.alert('Login Required', 'No driver account is currently signed in.')
-          return
-        }
-
-        await loadDashboard(id)
-      } catch (err) {
-        console.error('Init error:', err.message)
+      if (!id) {
         setLoading(false)
+        Alert.alert('Login Required', 'No driver account is currently signed in.')
+        return
       }
+
+      await loadDashboard(id)
     }
 
     init()
-
     return () => {
       mounted = false
     }
@@ -303,30 +215,14 @@ export default function DriverOpportunitiesScreen() {
 
     const channel = supabase
       .channel('driver-opportunities-live')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'rides',
-        },
-        async () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rides' }, async () => {
+        await loadDashboard(driverId)
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'drivers' }, async (payload) => {
+        if (payload?.new?.id === driverId || payload?.old?.id === driverId) {
           await loadDashboard(driverId)
         }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'drivers',
-        },
-        async (payload) => {
-          if (payload?.new?.id === driverId || payload?.old?.id === driverId) {
-            await loadDashboard(driverId)
-          }
-        }
-      )
+      })
       .subscribe()
 
     return () => {
@@ -357,9 +253,8 @@ export default function DriverOpportunitiesScreen() {
 
       if (error) throw error
     } catch (err) {
-      console.error('Error updating driver status:', err.message)
       setDriverOnline(!nextStatus)
-      Alert.alert('Error', 'Could not update online status.')
+      Alert.alert('Error', err.message || 'Could not update online status.')
     }
   }, [driverId, driverOnline])
 
@@ -382,9 +277,7 @@ export default function DriverOpportunitiesScreen() {
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFFFFF" />
-      }
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFFFFF" />}
     >
       <Text style={styles.header}>Opportunities</Text>
 
@@ -396,10 +289,7 @@ export default function DriverOpportunitiesScreen() {
       <View style={styles.card}>
         <Text style={styles.cardEyebrow}>Earnings</Text>
         <Text style={styles.cardTitle}>Earnings Trends for today</Text>
-        <Text style={styles.cardSubtitle}>
-          Explore the best times and places to drive today.
-        </Text>
-
+        <Text style={styles.cardSubtitle}>Explore the best times and places to drive today.</Text>
         <DemandBars data={hourlyDemand} />
 
         <View style={styles.sectionBlock}>
@@ -416,58 +306,6 @@ export default function DriverOpportunitiesScreen() {
         <Text style={styles.cardEyebrow}>Opportunity</Text>
         <Text style={styles.cardTitle}>Peak flight hours at BNA</Text>
         <Text style={styles.cardSubtitle}>{airportMessage}</Text>
-
-        <View style={styles.bnaHoursRow}>
-          {[
-            { label: '3 PM', hour: 15 },
-            { label: '4 PM', hour: 16 },
-            { label: '5 PM', hour: 17 },
-            { label: '6 PM', hour: 18 },
-            { label: '7 PM', hour: 19 },
-            { label: '8 PM', hour: 20 },
-            { label: '9 PM', hour: 21 },
-            { label: '10 PM', hour: 22 },
-          ].map((item) => {
-            const max = Math.max(
-              hourlyDemand[15] || 0,
-              hourlyDemand[16] || 0,
-              hourlyDemand[17] || 0,
-              hourlyDemand[18] || 0,
-              hourlyDemand[19] || 0,
-              hourlyDemand[20] || 0,
-              hourlyDemand[21] || 0,
-              hourlyDemand[22] || 0,
-              1
-            )
-
-            const height = Math.max(((hourlyDemand[item.hour] || 0) / max) * 90, 12)
-            const isPeak =
-              (hourlyDemand[item.hour] || 0) ===
-              Math.max(
-                hourlyDemand[15] || 0,
-                hourlyDemand[16] || 0,
-                hourlyDemand[17] || 0,
-                hourlyDemand[18] || 0,
-                hourlyDemand[19] || 0,
-                hourlyDemand[20] || 0,
-                hourlyDemand[21] || 0,
-                hourlyDemand[22] || 0
-              )
-
-            return (
-              <View key={item.label} style={styles.bnaBarItem}>
-                <View
-                  style={[
-                    styles.bnaBar,
-                    { height },
-                    isPeak ? styles.bnaBarPeak : null,
-                  ]}
-                />
-                <Text style={styles.bnaLabel}>{item.label}</Text>
-              </View>
-            )
-          })}
-        </View>
       </View>
 
       <View style={styles.card}>
@@ -479,9 +317,7 @@ export default function DriverOpportunitiesScreen() {
         ) : (
           hotspots.slice(0, 5).map((spot, index) => (
             <View key={spot.name} style={styles.hotspotRow}>
-              <Text style={styles.hotspotName}>
-                #{index + 1} {spot.name}
-              </Text>
+              <Text style={styles.hotspotName}>#{index + 1} {spot.name}</Text>
               <Text style={styles.hotspotCount}>{spot.count}</Text>
             </View>
           ))
@@ -489,183 +325,19 @@ export default function DriverOpportunitiesScreen() {
       </View>
 
       <TouchableOpacity
-        style={[styles.goButton, driverOnline ? styles.goButtonOffline : null]}
+        style={[styles.goButton, driverOnline && styles.goButtonOffline]}
         onPress={toggleOnline}
       >
-        <Text style={styles.goButtonText}>
-          {driverOnline ? 'Go Offline' : 'Go Online'}
-        </Text>
+        <Text style={styles.goButtonText}>{driverOnline ? 'Go Offline' : 'Go Online'}</Text>
       </TouchableOpacity>
     </ScrollView>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0B0B0F',
-  },
-  content: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#0B0B0F',
-  },
-  loadingText: {
-    marginTop: 12,
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  header: {
-    fontSize: 34,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    marginBottom: 18,
-  },
-  welcomeCard: {
-    backgroundColor: '#111827',
-    borderRadius: 20,
-    padding: 18,
-    marginBottom: 18,
-    borderWidth: 1,
-    borderColor: '#1F2937',
-  },
-  welcomeText: {
-    color: '#FFFFFF',
-    fontSize: 22,
-    fontWeight: '800',
-    marginBottom: 8,
-  },
-  welcomeSubtext: {
-    color: '#CBD5E1',
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  card: {
-    backgroundColor: '#15161B',
-    borderRadius: 20,
-    padding: 18,
-    marginBottom: 18,
-  },
-  cardEyebrow: {
-    color: '#B5B8C5',
-    fontSize: 14,
-    marginBottom: 8,
-    fontWeight: '600',
-  },
-  cardTitle: {
-    color: '#FFFFFF',
-    fontSize: 28,
-    fontWeight: '800',
-    marginBottom: 10,
-  },
-  cardSubtitle: {
-    color: '#C5C8D4',
-    fontSize: 16,
-    lineHeight: 23,
-    marginBottom: 14,
-  },
-  sectionBlock: {
-    marginTop: 14,
-  },
-  barRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    paddingVertical: 8,
-    gap: 10,
-  },
-  barItem: {
-    alignItems: 'center',
-    width: 36,
-  },
-  bar: {
-    width: 26,
-    borderRadius: 8,
-    backgroundColor: '#6B7280',
-  },
-  liveBar: {
-    backgroundColor: '#F4D08B',
-  },
-  barLabel: {
-    color: '#BFC3D1',
-    fontSize: 10,
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  liveText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  infoTitle: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 6,
-  },
-  infoText: {
-    color: '#C5C8D4',
-    fontSize: 15,
-    marginBottom: 4,
-  },
-  bnaHoursRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    marginTop: 6,
-  },
-  bnaBarItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  bnaBar: {
-    width: 28,
-    borderRadius: 6,
-    backgroundColor: '#3F3F46',
-  },
-  bnaBarPeak: {
-    backgroundColor: '#D1D5DB',
-  },
-  bnaLabel: {
-    color: '#BFC3D1',
-    fontSize: 11,
-    marginTop: 8,
-  },
-  hotspotRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#242731',
-  },
-  hotspotName: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  hotspotCount: {
-    color: '#F4D08B',
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  goButton: {
-    backgroundColor: '#3B82F6',
-    borderRadius: 999,
-    paddingVertical: 18,
-    alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 20,
-  },
-  goButtonOffline: {
-    backgroundColor: '#374151',
-  },
-  goButtonText: {
-    color: '#FFFFFF',
-    fontSize: 22,
-    fontWeight: '800',
-  },
-})
+  container: { flex: 1, backgroundColor: '#0B0B0F' },
+  content: { padding: 20, paddingBottom: 40 },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0B0B0F' },
+  loadingText: { marginTop: 12, color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
+  header: { fontSize: 34, fontWeight: '800', color: '#FFFFFF', marginBottom: 18 },
+ 
