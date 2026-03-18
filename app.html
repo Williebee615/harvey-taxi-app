@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Harvey Taxi App</title>
+
+<style>
+body {
+  margin:0;
+  font-family:Arial;
+  background:#0b0b0d;
+  color:white;
+}
+
+/* SCREENS */
+.screen { display:none; padding:15px; }
+.active { display:block; }
+
+/* BUTTONS */
+.btn {
+  width:100%;
+  padding:20px;
+  border:none;
+  border-radius:20px;
+  font-size:20px;
+  font-weight:bold;
+  margin-top:15px;
+}
+
+.blue { background:#4a72c8; color:white; }
+.yellow { background:#ffd600; color:black; }
+.green { background:#2ac65a; color:white; }
+
+/* MAP */
+.map {
+  height:250px;
+  background:#222;
+  border-radius:20px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  margin-bottom:20px;
+}
+
+/* CARD */
+.card {
+  background:#121214;
+  border-radius:20px;
+  padding:15px;
+  margin-bottom:15px;
+}
+
+/* PROFILE */
+.profile {
+  display:flex;
+  gap:10px;
+  align-items:center;
+}
+
+.profile img {
+  width:60px;
+  height:60px;
+  border-radius:50%;
+}
+
+/* NAV */
+.nav {
+  position:fixed;
+  bottom:0;
+  left:0;
+  right:0;
+  background:#111;
+  display:flex;
+  justify-content:space-around;
+  padding:10px;
+}
+
+.nav button {
+  background:none;
+  border:none;
+  color:white;
+  font-size:14px;
+}
+</style>
+</head>
+
+<body>
+
+<!-- HOME -->
+<div id="home" class="screen active">
+  <h1>🚕 Harvey Taxi</h1>
+
+  <button class="btn blue" onclick="show('ride')">Request Ride</button>
+  <button class="btn yellow" onclick="show('driver')">Driver App</button>
+  <button class="btn green" onclick="show('signup')">Drive With Harvey</button>
+  <button class="btn" onclick="show('admin')">Admin</button>
+</div>
+
+<!-- RIDE -->
+<div id="ride" class="screen">
+  <h2>Request Ride</h2>
+  <button class="btn yellow">Request Ride</button>
+  <div class="map">Map Here</div>
+</div>
+
+<!-- DRIVER -->
+<div id="driver" class="screen">
+  <div class="map">Driver Map</div>
+
+  <div class="card">
+    <h2>Opportunities</h2>
+    <p>Airport busy hours</p>
+  </div>
+
+  <button class="btn blue" onclick="goOnline()">Go Online</button>
+
+  <div class="card">
+    <h3>Earnings</h3>
+    <p>$<span id="earnings">0</span></p>
+    <p>Rides: <span id="rides">0</span></p>
+  </div>
+</div>
+
+<!-- SIGNUP -->
+<div id="signup" class="screen">
+  <h2>Driver Signup</h2>
+
+  <input id="name" placeholder="Name"><br><br>
+  <input id="phone" placeholder="Phone"><br><br>
+  <input id="email" placeholder="Email"><br><br>
+
+  <button class="btn green" onclick="applyDriver()">Apply</button>
+
+  <p id="signupStatus"></p>
+</div>
+
+<!-- VERIFICATION -->
+<div id="verification" class="screen">
+  <h2>Verification</h2>
+
+  <div class="card">✔ License</div>
+  <div class="card">✔ Photo</div>
+  <div class="card">⏳ Background Check</div>
+</div>
+
+<!-- ADMIN -->
+<div id="admin" class="screen">
+  <h2>Admin Dashboard</h2>
+
+  <button class="btn yellow" onclick="loadApps()">Refresh</button>
+
+  <div id="apps"></div>
+</div><!-- NAVIGATION -->
+<div class="nav">
+  <button onclick="show('home')">Home</button>
+  <button onclick="show('driver')">Driver</button>
+  <button onclick="show('ride')">Ride</button>
+  <button onclick="show('admin')">Admin</button>
+</div>
+
+<script>
+const API = "";
+
+// SWITCH SCREENS
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// GO ONLINE
+function goOnline() {
+  alert("Driver is now online");
+}
+
+// APPLY DRIVER
+async function applyDriver() {
+  const res = await fetch("/apply-driver", {
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({
+      name: document.getElementById("name").value,
+      phone: document.getElementById("phone").value,
+      email: document.getElementById("email").value
+    })
+  });
+
+  const data = await res.json();
+  document.getElementById("signupStatus").innerText =
+    data.success ? "Application submitted" : "Error";
+}
+
+// LOAD ADMIN APPS
+async function loadApps() {
+  const res = await fetch("/applications");
+  const data = await res.json();
+
+  let html = "";
+
+  data.forEach(app => {
+    html += `
+      <div class="card">
+        <b>${app.name}</b><br>
+        ${app.email}<br>
+        Status: ${app.status}
+      </div>
+    `;
+  });
+
+  document.getElementById("apps").innerHTML =
+    html || "No applications";
+}
+
+// LOAD DRIVER DATA
+async function loadDriver() {
+  try {
+    const res = await fetch("/driver-stats");
+    const data = await res.json();
+
+    document.getElementById("earnings").innerText = data.earnings;
+    document.getElementById("rides").innerText = data.rides;
+  } catch {}
+}
+
+loadDriver();
+</script>
+
+</body>
+</html>
