@@ -4,8 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Harvey Taxi</title>
-
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
       font-family: Arial, sans-serif;
@@ -13,170 +16,470 @@
       color: #111;
     }
 
-    .container {
+    .app-shell {
       max-width: 420px;
-      margin: auto;
-      padding: 20px;
-      padding-bottom: 100px;
+      margin: 0 auto;
+      min-height: 100vh;
+      background: #fff;
+      position: relative;
+      padding-bottom: 90px;
     }
 
-    .header {
+    .top {
+      padding: 22px 18px 10px;
+    }
+
+    .brand {
       font-size: 30px;
       font-weight: 800;
-      margin-bottom: 5px;
+      margin: 0 0 8px;
     }
 
-    .subheader {
-      font-size: 22px;
-      color: #555;
-      margin-bottom: 20px;
-    }
-
-    .search-box {
-      background: #f1f1f1;
-      border-radius: 14px;
-      padding: 15px;
-      font-size: 16px;
-      margin-bottom: 20px;
-    }
-
-    .services {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 25px;
-    }
-
-    .service {
-      flex: 1;
-      margin: 0 5px;
-      background: #f8f8f8;
-      border-radius: 12px;
-      padding: 15px;
-      text-align: center;
-      cursor: pointer;
-    }
-
-    .service span {
-      display: block;
-      font-size: 22px;
-      margin-bottom: 5px;
-    }
-
-    .section {
-      font-size: 20px;
+    .headline {
+      font-size: 28px;
       font-weight: 700;
-      margin-bottom: 10px;
+      margin: 0 0 18px;
     }
 
-    .ride-card {
-      background: #f8f8f8;
-      border-radius: 12px;
-      padding: 15px;
-      margin-bottom: 12px;
+    .status-pill {
+      display: inline-block;
+      background: #f3f4f6;
+      color: #111;
+      border-radius: 999px;
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+
+    .verify-banner {
+      background: #f4f6fb;
+      border-radius: 20px;
+      padding: 16px;
+      margin-bottom: 18px;
       display: flex;
       justify-content: space-between;
+      gap: 12px;
       align-items: center;
     }
 
-    .ride-title {
+    .verify-title {
+      font-size: 17px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+
+    .verify-text {
+      font-size: 14px;
+      color: #4b5563;
+      line-height: 1.4;
+    }
+
+    .verify-arrow {
+      font-size: 24px;
+      color: #111;
+      text-decoration: none;
       font-weight: 700;
     }
 
-    .ride-sub {
-      font-size: 14px;
-      color: #666;
+    .search-card {
+      margin-top: 6px;
+      background: #fff;
+      border-radius: 999px;
+      border: 2px solid #e5e7eb;
+      padding: 10px 10px 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 18px;
     }
 
-    .price {
+    .search-icon {
+      font-size: 20px;
+    }
+
+    .search-input {
+      flex: 1;
+      border: none;
+      outline: none;
+      font-size: 16px;
+      font-weight: 600;
+      color: #111;
+      background: transparent;
+    }
+
+    .later-btn {
+      border: none;
+      background: #f3f4f6;
+      border-radius: 999px;
+      padding: 10px 16px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .section {
+      padding: 0 18px;
+      margin-bottom: 22px;
+    }
+
+    .section-title {
+      font-size: 21px;
       font-weight: 800;
+      margin: 0 0 12px;
+    }
+
+    .services-row {
+      display: flex;
+      gap: 14px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .services-row::-webkit-scrollbar {
+      display: none;
+    }
+
+    .service-tab {
+      min-width: 84px;
+      text-align: center;
+      text-decoration: none;
+      color: #6b7280;
+      font-weight: 600;
+      padding-bottom: 8px;
+      border-bottom: 4px solid transparent;
+      flex-shrink: 0;
+    }
+
+    .service-tab.active {
+      color: #111;
+      border-bottom-color: #111;
+      font-weight: 800;
+    }
+
+    .service-emoji {
+      display: block;
+      font-size: 26px;
+      margin-bottom: 8px;
+    }
+
+    .card-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .place-card,
+    .promo-card,
+    .ride-card {
+      background: #fff;
+      border-radius: 18px;
+      border: 1px solid #f1f5f9;
+      padding: 16px;
+      text-decoration: none;
+      color: #111;
+    }
+
+    .place-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .place-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 999px;
+      background: #f3f4f6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .place-title {
+      font-weight: 800;
+      font-size: 16px;
+      margin-bottom: 3px;
+    }
+
+    .place-address {
+      color: #6b7280;
+      font-size: 14px;
+    }
+
+    .promo-scroll {
+      display: flex;
+      gap: 12px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .promo-scroll::-webkit-scrollbar {
+      display: none;
+    }
+
+    .promo-card {
+      min-width: 145px;
+      background: #f9fafb;
+      flex-shrink: 0;
+    }
+
+    .promo-badge {
+      display: inline-block;
+      background: #111;
+      color: #fff;
+      padding: 4px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+      margin-bottom: 10px;
+    }
+
+    .promo-emoji {
+      font-size: 28px;
+      margin-bottom: 10px;
+    }
+
+    .promo-title {
+      font-size: 17px;
+      font-weight: 800;
+    }
+
+    .ride-card {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .ride-main {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .ride-emoji {
+      font-size: 30px;
+      flex-shrink: 0;
+    }
+
+    .ride-title {
+      font-size: 17px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+
+    .ride-subtitle {
+      font-size: 14px;
+      color: #6b7280;
+      margin-bottom: 3px;
+    }
+
+    .ride-eta {
+      font-size: 13px;
+      color: #111;
+      font-weight: 700;
     }
 
     .bottom-nav {
       position: fixed;
+      left: 50%;
       bottom: 0;
+      transform: translateX(-50%);
       width: 100%;
       max-width: 420px;
       background: #fff;
-      border-top: 1px solid #ddd;
+      border-top: 1px solid #e5e7eb;
       display: flex;
       justify-content: space-around;
-      padding: 15px 0;
+      padding: 14px 8px 18px;
     }
 
-    .nav-item {
+    .nav-link {
+      color: #6b7280;
+      text-decoration: none;
       font-size: 14px;
-      color: #777;
+      font-weight: 700;
+      text-align: center;
     }
 
-    .nav-item.active {
-      color: #000;
-      font-weight: 700;
+    .nav-link.active {
+      color: #111;
+    }
+
+    .nav-icon {
+      display: block;
+      font-size: 20px;
+      margin-bottom: 4px;
+    }
+
+    @media (max-width: 480px) {
+      .brand {
+        font-size: 28px;
+      }
+
+      .headline {
+        font-size: 26px;
+      }
     }
   </style>
 </head>
-
 <body>
+  <div class="app-shell">
+    <div class="top">
+      <h1 class="brand">🚕 Harvey Taxi</h1>
+      <h2 class="headline">Where to?</h2>
 
-  <div class="container">
+      <div class="status-pill">Verification Needed</div>
 
-    <div class="header">🚕 Harvey Taxi</div>
-    <div class="subheader">Where to?</div>
+      <div class="verify-banner">
+        <div>
+          <div class="verify-title">Complete passenger verification</div>
+          <div class="verify-text">
+            Upload your ID and selfie for safer rides and full booking access.
+          </div>
+        </div>
+        <a class="verify-arrow" href="/verification">→</a>
+      </div>
 
-    <div class="search-box">
-      Enter pickup or destination
+      <div class="search-card">
+        <span class="search-icon">🔎</span>
+        <input
+          class="search-input"
+          type="text"
+          placeholder="Where are you going?"
+        />
+        <button class="later-btn" onclick="window.location.href='/request-ride'">
+          Later
+        </button>
+      </div>
     </div>
 
-    <div class="services">
-      <div class="service">
-        <span>🚕</span>
-        Ride
-      </div>
-
-      <div class="service">
-        <span>📦</span>
-        Delivery
-      </div>
-
-      <div class="service">
-        <span>🪪</span>
-        Verify
+    <div class="section">
+      <h3 class="section-title">Services</h3>
+      <div class="services-row">
+        <a class="service-tab active" href="/request-ride">
+          <span class="service-emoji">🚕</span>
+          Taxi
+        </a>
+        <a class="service-tab" href="/request-ride">
+          <span class="service-emoji">📦</span>
+          Delivery
+        </a>
+        <a class="service-tab" href="/request-ride">
+          <span class="service-emoji">🛒</span>
+          Courier
+        </a>
+        <a class="service-tab" href="/request-ride">
+          <span class="service-emoji">👥</span>
+          Group Ride
+        </a>
       </div>
     </div>
 
-    <div class="section">Popular rides</div>
+    <div class="section">
+      <h3 class="section-title">Recent places</h3>
+      <div class="card-list">
+        <a class="place-card" href="/request-ride">
+          <div class="place-icon">🕘</div>
+          <div>
+            <div class="place-title">Kroger</div>
+            <div class="place-address">143 McGavock Pike, Nashville, TN</div>
+          </div>
+        </a>
 
-    <div class="ride-card">
-      <div>
-        <div class="ride-title">Harvey Standard</div>
-        <div class="ride-sub">Affordable everyday ride</div>
+        <a class="place-card" href="/request-ride">
+          <div class="place-icon">🕘</div>
+          <div>
+            <div class="place-title">2301 Vanderbilt Pl</div>
+            <div class="place-address">Nashville, TN</div>
+          </div>
+        </a>
       </div>
-      <div class="price">$12</div>
     </div>
 
-    <div class="ride-card">
-      <div>
-        <div class="ride-title">Harvey XL</div>
-        <div class="ride-sub">More space for passengers</div>
+    <div class="section">
+      <h3 class="section-title">For you</h3>
+      <div class="promo-scroll">
+        <a class="promo-card" href="/request-ride">
+          <div class="promo-badge">Promo</div>
+          <div class="promo-emoji">🥗</div>
+          <div class="promo-title">Food</div>
+        </a>
+
+        <a class="promo-card" href="/request-ride">
+          <div class="promo-badge">5% Off</div>
+          <div class="promo-emoji">🚕</div>
+          <div class="promo-title">Ride</div>
+        </a>
+
+        <a class="promo-card" href="/request-ride">
+          <div class="promo-badge">40% Off</div>
+          <div class="promo-emoji">🛒</div>
+          <div class="promo-title">Grocery</div>
+        </a>
+
+        <a class="promo-card" href="/request-ride">
+          <div class="promo-badge">Special</div>
+          <div class="promo-emoji">👥</div>
+          <div class="promo-title">Group Ride</div>
+        </a>
       </div>
-      <div class="price">$18</div>
     </div>
 
-    <div class="ride-card">
-      <div>
-        <div class="ride-title">Airport Ride</div>
-        <div class="ride-sub">Easy rides to BNA</div>
+    <div class="section">
+      <h3 class="section-title">Popular rides</h3>
+      <div class="card-list">
+        <a class="ride-card" href="/request-ride">
+          <div class="ride-main">
+            <div class="ride-emoji">🚕</div>
+            <div>
+              <div class="ride-title">Harvey Standard</div>
+              <div class="ride-subtitle">Affordable everyday taxi rides</div>
+              <div class="ride-eta">4 min away</div>
+            </div>
+          </div>
+        </a>
+
+        <a class="ride-card" href="/request-ride">
+          <div class="ride-main">
+            <div class="ride-emoji">🚐</div>
+            <div>
+              <div class="ride-title">Harvey XL</div>
+              <div class="ride-subtitle">More space for passengers and bags</div>
+              <div class="ride-eta">6 min away</div>
+            </div>
+          </div>
+        </a>
+
+        <a class="ride-card" href="/request-ride">
+          <div class="ride-main">
+            <div class="ride-emoji">✈️</div>
+            <div>
+              <div class="ride-title">Airport Ride</div>
+              <div class="ride-subtitle">Easy rides to and from BNA</div>
+              <div class="ride-eta">5 min away</div>
+            </div>
+          </div>
+        </a>
       </div>
-      <div class="price">$25</div>
     </div>
 
+    <div class="bottom-nav">
+      <a class="nav-link active" href="/">
+        <span class="nav-icon">🏠</span>
+        Home
+      </a>
+      <a class="nav-link" href="/request-ride">
+        <span class="nav-icon">🧾</span>
+        Activity
+      </a>
+      <a class="nav-link" href="/verification">
+        <span class="nav-icon">👤</span>
+        Account
+      </a>
+    </div>
   </div>
-
-  <div class="bottom-nav">
-    <div class="nav-item active">Home</div>
-    <div class="nav-item">Activity</div>
-    <div class="nav-item">Account</div>
-  </div>
-
 </body>
 </html>
