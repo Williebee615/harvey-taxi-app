@@ -2,6 +2,7 @@
 <html>
 <head>
   <title>Admin Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     body {
       background: black;
@@ -9,134 +10,92 @@
       font-family: Arial;
       padding: 20px;
     }
-
     h1 {
       color: #ffd600;
       font-size: 36px;
+      margin-bottom: 10px;
     }
-
-    .subtitle {
+    p {
       color: #aaa;
       margin-bottom: 20px;
     }
-
     button {
       background: #ffd600;
       color: black;
       border: none;
-      padding: 14px 20px;
+      padding: 14px 18px;
       border-radius: 10px;
       font-weight: bold;
       cursor: pointer;
       margin-bottom: 20px;
     }
-
     .card {
       background: #151518;
-      padding: 15px;
-      border-radius: 15px;
-      margin-bottom: 15px;
+      padding: 16px;
+      border-radius: 16px;
+      margin-bottom: 14px;
     }
-
     .name {
-      font-size: 18px;
+      font-size: 20px;
       font-weight: bold;
+      margin-bottom: 6px;
     }
-
-    .actions {
-      margin-top: 10px;
+    .row-btn {
+      margin-right: 8px;
+      margin-top: 12px;
     }
-
-    .approve {
-      background: green;
-      color: white;
-      padding: 8px 12px;
-      border-radius: 8px;
-      margin-right: 10px;
-      cursor: pointer;
-    }
-
-    .reject {
-      background: red;
-      color: white;
-      padding: 8px 12px;
-      border-radius: 8px;
-      cursor: pointer;
-    }
-
-    .error {
-      color: red;
-      margin-top: 20px;
-    }
+    .approve { background: green; color: white; }
+    .reject { background: red; color: white; }
   </style>
 </head>
-
 <body>
+  <h1>Harvey Taxi Admin Dashboard</h1>
+  <p>Review driver applications</p>
 
-<h1>Harvey Taxi Admin Dashboard</h1>
-<p class="subtitle">Review driver applications</p>
+  <button onclick="loadApplications()">Refresh Applications</button>
 
-<button onclick="loadApplications()">Refresh Applications</button>
+  <div id="applications">Loading...</div>
 
-<div id="applications"></div>
-<div id="error" class="error"></div><script>
-const API = "https://harvey-taxi-api2.onrender.com";
+  <script>
+    async function loadApplications() {
+      const res = await fetch("/applications");
+      const data = await res.json();
 
-async function loadApplications() {
-  document.getElementById("error").innerText = "";
-  document.getElementById("applications").innerHTML = "Loading...";
+      if (!data.length) {
+        document.getElementById("applications").innerHTML = "No applications found.";
+        return;
+      }
 
-  try {
-    const res = await fetch(API + "/api/admin/applications");
+      let html = "";
 
-    if (!res.ok) throw new Error("API failed");
+      data.forEach(app => {
+        html += `
+          <div class="card">
+            <div class="name">${app.name}</div>
+            <div>${app.email}</div>
+            <div>${app.phone}</div>
+            <div>${app.vehicleType}</div>
+            <div>Status: ${app.status}</div>
+            <button class="row-btn approve" onclick="approve('${app.id}')">Approve</button>
+            <button class="row-btn reject" onclick="reject('${app.id}')">Reject</button>
+          </div>
+        `;
+      });
 
-    const data = await res.json();
-
-    if (!data.length) {
-      document.getElementById("applications").innerHTML = "No applications found.";
-      return;
+      document.getElementById("applications").innerHTML = html;
     }
 
-    let html = "";
+    async function approve(id) {
+      await fetch("/approve/" + id, { method: "POST" });
+      loadApplications();
+    }
 
-    data.forEach(app => {
-      html += `
-        <div class="card">
-          <div class="name">${app.name}</div>
-          <div>Phone: ${app.phone}</div>
-          <div>Email: ${app.email}</div>
-          <div>Vehicle: ${app.vehicleType}</div>
+    async function reject(id) {
+      await fetch("/reject/" + id, { method: "POST" });
+      loadApplications();
+    }
 
-          <div class="actions">
-            <button class="approve" onclick="approve('${app.id}')">Approve</button>
-            <button class="reject" onclick="reject('${app.id}')">Reject</button>
-          </div>
-        </div>
-      `;
-    });
-
-    document.getElementById("applications").innerHTML = html;
-
-  } catch (err) {
-    document.getElementById("applications").innerHTML = "";
-    document.getElementById("error").innerText = "Could not load applications.";
-    console.error(err);
-  }
-}
-
-async function approve(id) {
-  await fetch(API + "/api/admin/approve/" + id, { method: "POST" });
-  loadApplications();
-}
-
-async function reject(id) {
-  await fetch(API + "/api/admin/reject/" + id, { method: "POST" });
-  loadApplications();
-}
-
-loadApplications();
-</script>
-
+    loadApplications();
+  </script>
 </body>
 </html>
