@@ -1,108 +1,46 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Driver Profile</title>
-  <style>
-    body {
-      background: #0f0f10;
-      color: white;
-      font-family: Arial;
-      padding: 20px;
-    }
-
-    .card {
-      background: #151518;
-      padding: 20px;
-      border-radius: 20px;
-      margin-bottom: 15px;
-    }
-
-    h1 {
-      font-size: 40px;
-    }
-
-    .big {
-      font-size: 40px;
-      font-weight: bold;
-    }
-
-    button {
-      padding: 10px;
-      margin: 5px;
-      border: none;
-      border-radius: 10px;
-      background: #2979ff;
-      color: white;
-      cursor: pointer;
-    }
-  </style>
-</head>
-
-<body>
-
-<h1>Driver Profile</h1>
-
-<div class="card">
-  <h2 id="name"></h2>
-  <p id="tier"></p>
-</div>
-
-<div class="card">
-  <div>Acceptance Rate: <span class="big" id="acceptance"></span>%</div>
-  <div>Cancellation Rate: <span class="big" id="cancel"></span>%</div>
-  <div>Completion Rate: <span class="big" id="completion"></span>%</div>
-</div>
-
-<div class="card">
-  <div>Ride Rating: <span class="big" id="rating"></span></div>
-  <div>Delivery Satisfaction: <span class="big" id="delivery"></span>%</div>
-</div>
-
-<div class="card">
-  <div>Rides: <span id="rides"></span></div>
-  <div>Deliveries: <span id="deliveries"></span></div>
-  <div>Earnings: $<span id="earnings"></span></div>
-</div>
-
-<div class="card">
-  <h3>Test Buttons</h3>
-  <button onclick="completeRide()">Complete Ride</button>
-  <button onclick="completeDelivery()">Complete Delivery</button>
-</div>
-
 <script>
-async function loadStats() {
-  const res = await fetch('/api/driver/stats');
-  const data = await res.json();
+let driverStats = {};
 
-  document.getElementById("name").innerText = data.name;
-  document.getElementById("tier").innerText = "Tier: " + data.tier;
+/* LOAD DRIVER DATA FROM BACKEND */
+async function loadDriverStats() {
+  try {
+    const res = await fetch('/api/driver/stats');
+    const data = await res.json();
 
-  document.getElementById("acceptance").innerText = data.acceptanceRate;
-  document.getElementById("cancel").innerText = data.cancellationRate;
-  document.getElementById("completion").innerText = data.completionRate;
+    driverStats = data;
 
-  document.getElementById("rating").innerText = data.rideRating;
-  document.getElementById("delivery").innerText = data.deliverySatisfaction;
+    // UPDATE UI
+    document.getElementById("driverName").innerText = data.name;
+    document.getElementById("driverTier").innerText = data.tier;
 
-  document.getElementById("rides").innerText = data.ridesCompleted;
-  document.getElementById("deliveries").innerText = data.deliveriesCompleted;
-  document.getElementById("earnings").innerText = data.totalEarnings;
+    document.getElementById("acceptanceRate").innerText = data.acceptanceRate + "%";
+    document.getElementById("cancellationRate").innerText = data.cancellationRate + "%";
+
+    document.getElementById("rideRating").innerText = data.rideRating + "★";
+    document.getElementById("deliverySatisfaction").innerText = data.deliverySatisfaction + "%";
+
+    document.getElementById("ridesCompleted").innerText = data.ridesCompleted;
+    document.getElementById("deliveriesCompleted").innerText = data.deliveriesCompleted;
+
+    document.getElementById("totalEarnings").innerText = "$" + data.totalEarnings;
+    document.getElementById("completionRate").innerText = data.completionRate + "%";
+
+  } catch (err) {
+    console.error("Error loading stats:", err);
+  }
 }
 
-/* TEST ACTIONS */
+/* ACTIONS */
 async function completeRide() {
   await fetch('/api/driver/complete-ride', { method: 'POST' });
-  loadStats();
+  loadDriverStats();
 }
 
 async function completeDelivery() {
   await fetch('/api/driver/complete-delivery', { method: 'POST' });
-  loadStats();
+  loadDriverStats();
 }
 
-loadStats();
+/* LOAD ON PAGE START */
+loadDriverStats();
 </script>
-
-</body>
-</html>
