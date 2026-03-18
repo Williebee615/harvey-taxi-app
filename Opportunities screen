@@ -1,6 +1,6 @@
-// app/driver/opportunities.jsx
+// app/driver/opportunities-feed.jsx
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   View,
   Text,
@@ -8,336 +8,163 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  RefreshControl,
-  Alert,
 } from 'react-native'
 import { supabase } from '../../lib/supabase'
 
-const HOURS = [
-  '12 AM', '1 AM', '2 AM', '3 AM', '4 AM', '5 AM',
-  '6 AM', '7 AM', '8 AM', '9 AM', '10 AM', '11 AM',
-  '12 PM', '1 PM', '2 PM', '3 PM', '4 PM', '5 PM',
-  '6 PM', '7 PM', '8 PM', '9 PM', '10 PM', '11 PM',
-]
+function groupByDate(events) {
+  const grouped = {}
 
-function groupRidesByHour(rides) {
-  const counts = new Array(24).fill(0)
+  events.forEach((event) => {
+    const date = event.event_date
+    if (!grouped[date]) grouped[date] = []
+    grouped[date].push(event)
+  })
 
-  for (const ride of rides) {
-    if (!ride?.created_at) continue
-    const date = new Date(ride.created_at)
-    counts[date.getHours()] += 1
-  }
-
-  return counts
+  return grouped
 }
 
-function getZoneFromRide(ride) {
-  const address = (ride?.pickup_address || '').toLowerCase()
-  const lat = ride?.pickup_lat
-  const lng = ride?.pickup_lng
-
-  if (lat && lng) {
-    if (lat > 36.11 && lat < 36.14 && lng > -86.70 && lng < -86.65) return 'BNA Airport'
-    if (lat > 36.15 && lat < 36.18 && lng > -86.80 && lng < -86.76) return 'Downtown Nashville'
-    if (lat > 36.35 && lat < 36.42 && lng > -86.50 && lng < -86.40) return 'Gallatin'
-    if (lat > 36.17 && lat < 36.22 && lng > -86.75 && lng < -86.70) return 'East Nashville'
-    if (lat > 36.23 && lat < 36.29 && lng > -86.74 && lng < -86.67) return 'Madison'
-    if (lat > 36.18 && lat < 36.23 && lng > -86.82 && lng < -86.76) return 'North Nashville'
-  }
-
-  if (address.includes('airport') || address.includes('bna')) return 'BNA Airport'
-  if (address.includes('downtown') || address.includes('broadway')) return 'Downtown Nashville'
-  if (address.includes('gallatin')) return 'Gallatin'
-  if (address.includes('east nashville')) return 'East Nashville'
-  if (address.includes('madison')) return 'Madison'
-  if (address.includes('north nashville')) return 'North Nashville'
-
-  return 'Other'
+function formatDate(dateString) {
+  const date = new Date(dateString)
+  return date.toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+  })
 }
 
-function groupHotspots(rides) {
-  const zones = {}
-
-  for (const ride of rides) {
-    const zone = getZoneFromRide(ride)
-    zones[zone] = (zones[zone] || 0) + 1
-  }
-
-  return Object.entries(zones)
-    .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => b.count - a.count)
-}
-
-function getBestHours(hourlyCounts) {
-  return hourlyCounts
-    .map((count, hour) => ({ hour, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 3)
-}
-
-function getAirportPeakMessage(hourlyCounts) {
-  const airportHours = [15, 16, 17, 18, 19, 20, 21, 22]
-  let bestHour = 15
-  let bestCount = 0
-
-  for (const hour of airportHours) {
-    const count = hourlyCounts[hour] || 0
-    if (count > bestCount) {
-      bestCount = count
-      bestHour = hour
-    }
-  }
-
-  if (bestCount === 0) {
-    return 'No strong airport demand yet today. Watch late afternoon and evening.'
-  }
-
-  const nextHour = bestHour === 23 ? 23 : bestHour + 1
-  return `Most flights and ride demand appear around ${HOURS[bestHour]} - ${HOURS[nextHour]}.`
-}
-
-function getDriverMessage(hotspots, bestHours) {
-  const topSpot = hotspots?.[0]
-  const topHour = bestHours?.[0]
-
-  if (!topSpot && !topHour) return 'No major opportunities yet. Stay ready for new ride activity.'
-  if (topSpot && topHour) return `Best current area: ${topSpot.name}. Best driving time: ${HOURS[topHour.hour]}.`
-  if (topSpot) return `Best current area: ${topSpot.name}.`
-  return `Best driving time right now looks like ${HOURS[topHour.hour]}.`
-}
-
-function DemandBars({ data }) {
-  const max = Math.max(...data, 1)
-  const currentHour = new Date().getHours()
-
-  return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-      <View style={styles.barRow}>
-        {data.map((value, index) => {
-          const height = Math.max((value / max) * 120, 12)
-          const isLive = index === currentHour
-
-          return (
-            <View key={index} style={styles.barItem}>
-              <View style={[styles.bar, { height }, isLive && styles.liveBar]} />
-              <Text style={[styles.barLabel, isLive && styles.liveText]}>
-                {isLive ? 'Live' : HOURS[index]}
-              </Text>
-            </View>
-          )
-        })}
-      </View>
-    </ScrollView>
-  )
-}
-
-export default function DriverOpportunitiesScreen() {
+export default function OpportunitiesFeed() {
   const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
-  const [driverId, setDriverId] = useState(null)
-  const [driverOnline, setDriverOnline] = useState(false)
-  const [rides, setRides] = useState([])
-  const [driverName, setDriverName] = useState('Driver')
+  const [events, setEvents] = useState([])
 
-  const getLoggedInDriver = useCallback(async () => {
-    const { data, error } = await supabase.auth.getUser()
-    if (error) return null
-
-    const user = data?.user
-    if (!user?.id) return null
-
-    setDriverId(user.id)
-    return user.id
+  useEffect(() => {
+    loadEvents()
   }, [])
 
-  const loadDashboard = useCallback(async (passedDriverId = null) => {
-    try {
-      const activeDriverId = passedDriverId || driverId
-      if (!activeDriverId) return
+  async function loadEvents() {
+    const { data, error } = await supabase
+      .from('events')
+      .select('*')
+      .order('event_date', { ascending: true })
 
-      const start = new Date()
-      start.setHours(0, 0, 0, 0)
-
-      const { data: ridesData, error: ridesError } = await supabase
-        .from('rides')
-        .select('id, pickup_address, pickup_lat, pickup_lng, created_at, status, driver_id')
-        .gte('created_at', start.toISOString())
-        .in('status', ['requested', 'accepted', 'completed'])
-        .order('created_at', { ascending: true })
-
-      if (ridesError) throw ridesError
-
-      const { data: driverData, error: driverError } = await supabase
-        .from('drivers')
-        .select('id, is_online, full_name')
-        .eq('id', activeDriverId)
-        .single()
-
-      if (driverError && driverError.code !== 'PGRST116') throw driverError
-
-      setRides(ridesData || [])
-      setDriverOnline(driverData?.is_online || false)
-      setDriverName(driverData?.full_name || 'Driver')
-    } catch (err) {
-      Alert.alert('Error', err.message || 'Could not load driver opportunities.')
-    } finally {
-      setLoading(false)
-      setRefreshing(false)
-    }
-  }, [driverId])
-
-  useEffect(() => {
-    let mounted = true
-
-    async function init() {
-      const id = await getLoggedInDriver()
-
-      if (!mounted) return
-
-      if (!id) {
-        setLoading(false)
-        Alert.alert('Login Required', 'No driver account is currently signed in.')
-        return
-      }
-
-      await loadDashboard(id)
+    if (!error) {
+      setEvents(data)
     }
 
-    init()
-    return () => {
-      mounted = false
-    }
-  }, [getLoggedInDriver, loadDashboard])
+    setLoading(false)
+  }
 
-  useEffect(() => {
-    if (!driverId) return
-
-    const channel = supabase
-      .channel('driver-opportunities-live')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'rides' }, async () => {
-        await loadDashboard(driverId)
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'drivers' }, async (payload) => {
-        if (payload?.new?.id === driverId || payload?.old?.id === driverId) {
-          await loadDashboard(driverId)
-        }
-      })
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [driverId, loadDashboard])
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await loadDashboard(driverId)
-  }, [driverId, loadDashboard])
-
-  const toggleOnline = useCallback(async () => {
-    if (!driverId) return
-
-    const nextStatus = !driverOnline
-
-    try {
-      setDriverOnline(nextStatus)
-
-      const { error } = await supabase
-        .from('drivers')
-        .update({
-          is_online: nextStatus,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', driverId)
-
-      if (error) throw error
-    } catch (err) {
-      setDriverOnline(!nextStatus)
-      Alert.alert('Error', err.message || 'Could not update online status.')
-    }
-  }, [driverId, driverOnline])
-
-  const hourlyDemand = useMemo(() => groupRidesByHour(rides), [rides])
-  const hotspots = useMemo(() => groupHotspots(rides), [rides])
-  const bestHours = useMemo(() => getBestHours(hourlyDemand), [hourlyDemand])
-  const airportMessage = useMemo(() => getAirportPeakMessage(hourlyDemand), [hourlyDemand])
-  const smartMessage = useMemo(() => getDriverMessage(hotspots, bestHours), [hotspots, bestHours])
+  const grouped = groupByDate(events)
 
   if (loading) {
     return (
-      <View style={styles.centered}>
+      <View style={styles.center}>
         <ActivityIndicator size="large" color="#3B82F6" />
-        <Text style={styles.loadingText}>Loading opportunities...</Text>
       </View>
     )
   }
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFFFFF" />}
-    >
+    <ScrollView style={styles.container}>
       <Text style={styles.header}>Opportunities</Text>
 
-      <View style={styles.welcomeCard}>
-        <Text style={styles.welcomeText}>Welcome back, {driverName}</Text>
-        <Text style={styles.welcomeSubtext}>{smartMessage}</Text>
-      </View>
+      {Object.keys(grouped).map((date) => (
+        <View key={date}>
+          <Text style={styles.dateHeader}>
+            {formatDate(date)}
+          </Text>
 
-      <View style={styles.card}>
-        <Text style={styles.cardEyebrow}>Earnings</Text>
-        <Text style={styles.cardTitle}>Earnings Trends for today</Text>
-        <Text style={styles.cardSubtitle}>Explore the best times and places to drive today.</Text>
-        <DemandBars data={hourlyDemand} />
+          {grouped[date].map((event) => (
+            <View key={event.id} style={styles.card}>
+              <Text style={styles.time}>
+                {event.start_time} - {event.end_time}
+              </Text>
 
-        <View style={styles.sectionBlock}>
-          <Text style={styles.infoTitle}>Best hours</Text>
-          {bestHours.map((item) => (
-            <Text key={item.hour} style={styles.infoText}>
-              {HOURS[item.hour]} — {item.count} ride{item.count === 1 ? '' : 's'}
-            </Text>
+              <Text style={styles.title}>
+                {event.title}
+              </Text>
+
+              <Text style={styles.location}>
+                {event.location}
+              </Text>
+
+              <View style={styles.tag}>
+                <Text style={styles.tagText}>
+                  {event.category}
+                </Text>
+              </View>
+
+              <TouchableOpacity style={styles.saveBtn}>
+                <Text style={styles.saveText}>Save</Text>
+              </TouchableOpacity>
+            </View>
           ))}
         </View>
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.cardEyebrow}>Opportunity</Text>
-        <Text style={styles.cardTitle}>Peak flight hours at BNA</Text>
-        <Text style={styles.cardSubtitle}>{airportMessage}</Text>
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.cardEyebrow}>Hotspots</Text>
-        <Text style={styles.cardTitle}>Best pickup zones</Text>
-
-        {hotspots.length === 0 ? (
-          <Text style={styles.cardSubtitle}>No hotspot data yet today.</Text>
-        ) : (
-          hotspots.slice(0, 5).map((spot, index) => (
-            <View key={spot.name} style={styles.hotspotRow}>
-              <Text style={styles.hotspotName}>#{index + 1} {spot.name}</Text>
-              <Text style={styles.hotspotCount}>{spot.count}</Text>
-            </View>
-          ))
-        )}
-      </View>
-
-      <TouchableOpacity
-        style={[styles.goButton, driverOnline && styles.goButtonOffline]}
-        onPress={toggleOnline}
-      >
-        <Text style={styles.goButtonText}>{driverOnline ? 'Go Offline' : 'Go Online'}</Text>
-      </TouchableOpacity>
+      ))}
     </ScrollView>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0B0B0F' },
-  content: { padding: 20, paddingBottom: 40 },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0B0B0F' },
-  loadingText: { marginTop: 12, color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
-  header: { fontSize: 34, fontWeight: '800', color: '#FFFFFF', marginBottom: 18 },
- 
+  container: {
+    flex: 1,
+    backgroundColor: '#0B0B0F',
+    padding: 16,
+  },
+  header: {
+    color: '#FFF',
+    fontSize: 28,
+    fontWeight: '800',
+    marginBottom: 16,
+  },
+  dateHeader: {
+    color: '#A1A1AA',
+    fontSize: 18,
+    marginVertical: 12,
+    fontWeight: '700',
+  },
+  card: {
+    backgroundColor: '#15161B',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+  },
+  time: {
+    color: '#9CA3AF',
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  title: {
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: '800',
+    marginBottom: 6,
+  },
+  location: {
+    color: '#C5C8D4',
+    marginBottom: 8,
+  },
+  tag: {
+    backgroundColor: '#1F2937',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    marginBottom: 10,
+  },
+  tagText: {
+    color: '#FFF',
+    fontSize: 12,
+  },
+  saveBtn: {
+    marginTop: 6,
+  },
+  saveText: {
+    color: '#3B82F6',
+    fontWeight: '700',
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+})
