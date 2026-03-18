@@ -1,98 +1,350 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Admin Dashboard</title>
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Harvey Taxi Admin Dashboard</title>
   <style>
     body {
-      background: black;
+      background: #000;
       color: white;
-      font-family: Arial;
+      font-family: Arial, sans-serif;
       padding: 20px;
+      margin: 0;
     }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
     h1 {
       color: #ffd600;
-      font-size: 36px;
-      margin-bottom: 10px;
+      font-size: 42px;
+      line-height: 1.1;
+      margin-bottom: 12px;
     }
-    p {
-      color: #aaa;
+
+    .subtitle {
+      color: #cfcfcf;
+      font-size: 18px;
+      margin-bottom: 24px;
+    }
+
+    .top-actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
       margin-bottom: 20px;
     }
+
     button {
-      background: #ffd600;
-      color: black;
       border: none;
-      padding: 14px 18px;
-      border-radius: 10px;
+      border-radius: 14px;
+      padding: 14px 20px;
+      font-size: 16px;
       font-weight: bold;
       cursor: pointer;
-      margin-bottom: 20px;
     }
-    .card {
-      background: #151518;
-      padding: 16px;
-      border-radius: 16px;
-      margin-bottom: 14px;
+
+    .btn-main {
+      background: #ffd600;
+      color: #000;
     }
-    .name {
-      font-size: 20px;
+
+    .status-box {
+      min-height: 28px;
+      margin-bottom: 18px;
       font-weight: bold;
+      color: #aaa;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: #121214;
+      border: 1px solid #26262b;
+      border-radius: 18px;
+      padding: 16px;
+    }
+
+    .stat-number {
+      font-size: 30px;
+      font-weight: 800;
       margin-bottom: 6px;
     }
-    .row-btn {
-      margin-right: 8px;
-      margin-top: 12px;
+
+    .stat-label {
+      color: #aaa;
+      font-size: 14px;
     }
-    .approve { background: green; color: white; }
-    .reject { background: red; color: white; }
+
+    .section-title {
+      font-size: 24px;
+      font-weight: 800;
+      margin-bottom: 16px;
+    }
+
+    .list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .card {
+      background: #121214;
+      border: 1px solid #26262b;
+      border-radius: 20px;
+      padding: 18px;
+    }
+
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .name {
+      font-size: 22px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+
+    .meta {
+      color: #bcbcc5;
+      line-height: 1.5;
+      font-size: 15px;
+    }
+
+    .badge {
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: bold;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .pending {
+      background: #4b3900;
+      color: #ffd978;
+    }
+
+    .approved {
+      background: #103321;
+      color: #83efaa;
+    }
+
+    .rejected {
+      background: #3a1118;
+      color: #ff92a0;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .info {
+      background: #19191d;
+      border: 1px solid #27272d;
+      border-radius: 14px;
+      padding: 12px;
+    }
+
+    .info-label {
+      color: #9fa0ab;
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+
+    .info-value {
+      font-size: 16px;
+      font-weight: 700;
+      word-break: break-word;
+    }
+
+    .row-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .approve-btn {
+      background: #16b45d;
+      color: white;
+    }
+
+    .reject-btn {
+      background: #c83246;
+      color: white;
+    }
+
+    .empty {
+      background: #121214;
+      border: 1px solid #26262b;
+      border-radius: 20px;
+      padding: 24px;
+      color: #bbb;
+      text-align: center;
+      font-size: 17px;
+    }
+
+    @media (max-width: 700px) {
+      .stats,
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      h1 {
+        font-size: 34px;
+      }
+    }
   </style>
 </head>
 <body>
-  <h1>Harvey Taxi Admin Dashboard</h1>
-  <p>Review driver applications</p>
+  <div class="container">
+    <h1>Harvey Taxi Admin Dashboard</h1>
+    <div class="subtitle">Review driver applications and manage approvals.</div>
 
-  <button onclick="loadApplications()">Refresh Applications</button>
+    <div class="top-actions">
+      <button class="btn-main" onclick="loadApplications()">Refresh Applications</button>
+    </div>
 
-  <div id="applications">Loading...</div>
+    <div id="statusBox" class="status-box">Loading applications...</div>
 
-  <script>
+    <div class="stats">
+      <div class="stat-card">
+        <div class="stat-number" id="totalCount">0</div>
+        <div class="stat-label">Total Applications</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-number" id="pendingCount">0</div>
+        <div class="stat-label">Pending</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-number" id="approvedCount">0</div>
+        <div class="stat-label">Approved</div>
+      </div>
+    </div>
+
+    <div class="section-title">Applications</div>
+    <div id="applicationList" class="list"></div>
+  </div>  <script>
     async function loadApplications() {
-      const res = await fetch("/applications");
-      const data = await res.json();
+      const statusBox = document.getElementById("statusBox");
+      const list = document.getElementById("applicationList");
 
-      if (!data.length) {
-        document.getElementById("applications").innerHTML = "No applications found.";
-        return;
+      statusBox.textContent = "Loading applications...";
+      list.innerHTML = "";
+
+      try {
+        const res = await fetch("/applications");
+        const applications = await res.json();
+
+        const total = applications.length;
+        const pending = applications.filter(app => app.status === "pending").length;
+        const approved = applications.filter(app => app.status === "approved").length;
+
+        document.getElementById("totalCount").textContent = total;
+        document.getElementById("pendingCount").textContent = pending;
+        document.getElementById("approvedCount").textContent = approved;
+
+        if (!applications.length) {
+          statusBox.textContent = "No applications found.";
+          list.innerHTML = `<div class="empty">No driver applications found yet.</div>`;
+          return;
+        }
+
+        statusBox.textContent = `${applications.length} application(s) loaded.`;
+
+        applications.forEach(app => {
+          const badgeClass =
+            app.status === "approved"
+              ? "approved"
+              : app.status === "rejected"
+              ? "rejected"
+              : "pending";
+
+          const card = document.createElement("div");
+          card.className = "card";
+
+          card.innerHTML = `
+            <div class="card-top">
+              <div>
+                <div class="name">${app.name || "Unnamed Applicant"}</div>
+                <div class="meta">
+                  ${app.email || "No email"}<br>
+                  ${app.phone || "No phone"}
+                </div>
+              </div>
+              <div class="badge ${badgeClass}">${app.status || "pending"}</div>
+            </div>
+
+            <div class="grid">
+              <div class="info">
+                <div class="info-label">City</div>
+                <div class="info-value">${app.city || "-"}</div>
+              </div>
+
+              <div class="info">
+                <div class="info-label">State</div>
+                <div class="info-value">${app.state || "-"}</div>
+              </div>
+
+              <div class="info">
+                <div class="info-label">Vehicle Type</div>
+                <div class="info-value">${app.vehicleType || "-"}</div>
+              </div>
+
+              <div class="info">
+                <div class="info-label">Driver Type</div>
+                <div class="info-value">${app.driverType || "-"}</div>
+              </div>
+            </div>
+
+            <div class="row-actions">
+              <button class="approve-btn" onclick="approveApplication('${app.id}')">Approve</button>
+              <button class="reject-btn" onclick="rejectApplication('${app.id}')">Reject</button>
+            </div>
+          `;
+
+          list.appendChild(card);
+        });
+      } catch (error) {
+        console.error(error);
+        statusBox.textContent = "Could not load applications.";
+        list.innerHTML = `<div class="empty">There was a problem loading driver applications.</div>`;
       }
-
-      let html = "";
-
-      data.forEach(app => {
-        html += `
-          <div class="card">
-            <div class="name">${app.name}</div>
-            <div>${app.email}</div>
-            <div>${app.phone}</div>
-            <div>${app.vehicleType}</div>
-            <div>Status: ${app.status}</div>
-            <button class="row-btn approve" onclick="approve('${app.id}')">Approve</button>
-            <button class="row-btn reject" onclick="reject('${app.id}')">Reject</button>
-          </div>
-        `;
-      });
-
-      document.getElementById("applications").innerHTML = html;
     }
 
-    async function approve(id) {
-      await fetch("/approve/" + id, { method: "POST" });
-      loadApplications();
+    async function approveApplication(id) {
+      try {
+        await fetch("/approve/" + id, { method: "POST" });
+        loadApplications();
+      } catch (error) {
+        console.error(error);
+      }
     }
 
-    async function reject(id) {
-      await fetch("/reject/" + id, { method: "POST" });
-      loadApplications();
+    async function rejectApplication(id) {
+      try {
+        await fetch("/reject/" + id, { method: "POST" });
+        loadApplications();
+      } catch (error) {
+        console.error(error);
+      }
     }
 
     loadApplications();
