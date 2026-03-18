@@ -1,98 +1,156 @@
 const express = require("express");
-const cors = require("cors");
 const path = require("path");
 
 const app = express();
-const PORT = process.env.PORT || 10000;
+const PORT = 3000;
 
-app.use(cors());
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// Temporary storage
-let drivers = [];
-
-// Home route
-app.get("/", (req, res) => {
-  res.send("Harvey Taxi API is running 🚖");
-});
-
-// Serve frontend files
 app.use(express.static(__dirname));
 
-// Driver signup route
-app.post("/api/drivers/signup", (req, res) => {
-  try {
-    const {
-      name,
-      phone,
-      email,
-      city,
-      state,
-      vehicleType,
-      driverType,
-    } = req.body;
+/* ===============================
+   DRIVER DATABASE (TEMP STORAGE)
+================================ */
+const drivers = {
+  "driver_1": {
+    id: "driver_1",
+    name: "WILLIE",
+    photo: "https://via.placeholder.com/110",
 
-    if (!name || !phone || !email || !city || !state || !vehicleType || !driverType) {
-      return res.status(400).json({
-        success: false,
-        message: "All fields are required.",
-      });
-    }
+    acceptedJobs: 0,
+    cancelledJobs: 0,
+    completedJobs: 0,
 
-    const newDriver = {
-      id: Date.now(),
-      name: String(name).trim(),
-      phone: String(phone).trim(),
-      email: String(email).trim().toLowerCase(),
-      city: String(city).trim(),
-      state: String(state).trim(),
-      vehicleType: String(vehicleType).trim(),
-      driverType: String(driverType).trim(),
-      status: "pending",
-      createdAt: new Date().toISOString(),
-    };
+    ridesCompleted: 0,
+    deliveriesCompleted: 0,
 
-    drivers.push(newDriver);
+    rideRatingTotal: 0,
+    rideRatingCount: 0,
 
-    console.log("New driver application:", newDriver);
+    deliveryPositiveCount: 0,
+    deliveryRatingCount: 0,
 
-    return res.status(201).json({
-      success: true,
-      message: "Driver application submitted successfully.",
-      driver: newDriver,
-    });
-  } catch (error) {
-    console.error("Signup route error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Server error. Please try again.",
-    });
+    totalEarnings: 0
   }
+};
+
+/* ===============================
+   CALCULATIONS
+================================ */
+function acceptanceRate(d) {
+  const total = d.acceptedJobs + d.cancelledJobs;
+  if (total === 0) return 100;
+  return Math.round((d.acceptedJobs / total) * 100);
+}
+
+function cancellationRate(d) {
+  const total = d.acceptedJobs + d.cancelledJobs;
+  if (total === 0) return 0;
+  return Math.round((d.cancelledJobs / total) * 100);
+}
+
+function completionRate(d) {
+  if (d.acceptedJobs === 0) return 0;
+  return Math.round((d.completedJobs / d.acceptedJobs) * 100);
+}
+
+function rideRating(d) {
+  if (d.rideRatingCount === 0) return 5.0;
+  return (d.rideRatingTotal / d.rideRatingCount).toFixed(2);
+}
+
+function deliverySatisfaction(d) {
+  if (d.deliveryRatingCount === 0) return 100;
+  return Math.round((d.deliveryPositiveCount / d.deliveryRatingCount) * 100);
+}
+
+function tier(d) {
+  const totalJobs = d.ridesCompleted + d.deliveriesCompleted;
+
+  if (totalJobs >= 1000) return "Diamond";
+  if (totalJobs >= 500) return "Gold";
+  if (totalJobs >= 200) return "Blue";
+  return "Starter";
+}
+
+function buildStats(d) {
+  return {
+    id: d.id,
+    name: d.name,
+    photo: d.photo,
+    tier: tier(d),
+
+    acceptanceRate: acceptanceRate(d),
+    cancellationRate: cancellationRate(d),
+    completionRate: completionRate(d),
+
+    rideRating: rideRating(d),
+    deliverySatisfaction: deliverySatisfaction(d),
+
+    ridesCompleted: d.ridesCompleted,
+    deliveriesCompleted: d.deliveriesCompleted,
+    totalEarnings: d.totalEarnings.toFixed(2)
+  };
+}
+
+/* ===============================
+   API ROUTES
+================================ */
+
+/* GET DRIVER STATS */
+app.get("/api/driver/stats", (req, res) => {
+  const driver = drivers["driver_1"];
+  res.json(buildStats(driver));
 });
 
-// Optional: see all drivers
-app.get("/api/drivers", (req, res) => {
-  res.json({
-    success: true,
-    count: drivers.length,
-    drivers,
-  });
+/* ACCEPT JOB */
+app.post("/api/driver/accept", (req, res) => {
+  const d = drivers["driver_1"];
+  d.acceptedJobs += 1;
+  res.json(buildStats(d));
 });
 
-// Direct route to signup page
-app.get("/driver-signup", (req, res) => {
-  res.sendFile(path.join(__dirname, "driver-signup.html"));
+/* CANCEL JOB */
+app.post("/api/driver/cancel", (req, res) => {
+  const d = drivers["driver_1"];
+  d.cancelledJobs += 1;
+  res.json(buildStats(d));
 });
 
-// 404 fallback
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: "Route not found.",
-  });
+/* COMPLETE RIDE */
+app.post("/api/driver/complete-ride", (req, res) => {
+  const d = drivers["driver_1"];
+
+  d.completedJobs += 1;
+  d.ridesCompleted += 1;
+  d.acceptedJobs += 1;
+
+  d.rideRatingTotal += 5;
+  d.rideRatingCount += 1;
+
+  d.totalEarnings += 15;
+
+  res.json(buildStats(d));
 });
 
+/* COMPLETE DELIVERY */
+app.post("/api/driver/complete-delivery", (req, res) => {
+  const d = drivers["driver_1"];
+
+  d.completedJobs += 1;
+  d.deliveriesCompleted += 1;
+  d.acceptedJobs += 1;
+
+  d.deliveryPositiveCount += 1;
+  d.deliveryRatingCount += 1;
+
+  d.totalEarnings += 10;
+
+  res.json(buildStats(d));
+});
+
+/* ===============================
+   START SERVER
+================================ */
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Server running on http://localhost:${PORT}`);
 });
