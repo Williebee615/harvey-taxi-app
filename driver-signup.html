@@ -1,200 +1,72 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Driver Signup</title>
+<!-- ===== PART 1: DRIVER SIGNUP FORM ===== -->
+<form id="driverSignupForm">
+  <input id="name" type="text" placeholder="Full Name" required />
+  <input id="phone" type="text" placeholder="Phone Number" required />
+  <input id="email" type="email" placeholder="Email Address" required />
+  <input id="city" type="text" placeholder="City" required />
+  <input id="state" type="text" placeholder="State" required />
 
-<style>
-body {
-  margin: 0;
-  font-family: Arial;
-  background: black;
-  color: white;
-  text-align: center;
-}
+  <select id="vehicleType" required>
+    <option value="">Select Vehicle Type</option>
+    <option value="Sedan">Sedan</option>
+    <option value="SUV">SUV</option>
+    <option value="Van">Van</option>
+    <option value="Truck">Truck</option>
+  </select>
 
-.container {
-  max-width: 500px;
-  margin: auto;
-  padding: 30px 20px;
-}
+  <select id="driverType" required>
+    <option value="">Select Driver Type</option>
+    <option value="Independent Driver">Independent Driver</option>
+    <option value="Fleet Driver">Fleet Driver</option>
+  </select>
 
-h1 {
-  color: gold;
-}
+  <button type="submit">Apply Now</button>
+</form>
 
-form {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-}
-
-input, select, button {
-  padding: 15px;
-  border-radius: 12px;
-  border: none;
-}
-
-input, select {
-  background: #eee;
-}
-
-button {
-  background: #1e88ff;
-  color: white;
-  font-weight: bold;
-}
-
-#message {
-  margin-top: 15px;
-  font-weight: bold;
-}
-
-.success { color: lime; }
-.error { color: red; }
-</style>
-</head>
-
-<body>
-
-<div class="container">
-  <h1>🚕 Harvey Taxi Driver Signup</h1>
-
-  <form id="driverForm">
-    <input id="fullName" placeholder="Full Name" required>
-    <input id="phone" placeholder="Phone" required>
-    <input id="email" placeholder="Email" required>
-    <input id="city" placeholder="City" required>
-    <input id="state" placeholder="State" required>
-
-    <select id="vehicleType">
-      <option value="">Vehicle</option>
-      <option>Car</option>
-      <option>SUV</option>
-      <option>Van</option>
-    </select>
-
-    <select id="driverType">
-      <option value="">Driver Type</option>
-      <option>Independent Driver</option>
-      <option>Fleet Driver</option>
-    </select>
-
-    <button type="submit">Apply Now</button>
-  </form>
-
-  <div id="message"></div>
-</div>
-
+<p id="message"></p><!-- ===== PART 2: FORM SUBMIT SCRIPT ===== -->
 <script>
-const form = document.getElementById("driverForm");
-const message = document.getElementById("message");
+  const form = document.getElementById("driverSignupForm");
+  const messageBox = document.getElementById("message");
 
-form.addEventListener("submit", async (e) => {
-  e.preventDefault();
+  form.addEventListener("submit", async function (e) {
+    e.preventDefault();
 
-  message.textContent = "Submitting...";
+    messageBox.textContent = "Submitting application...";
+    messageBox.style.color = "white";
 
-  const data = {
-    fullName: fullName.value,
-    phone: phone.value,
-    email: email.value,
-    city: city.value,
-    state: state.value,
-    vehicleType: vehicleType.value,
-    driverType: driverType.value
-  };
-
-  try {
-    const res = await fetch("https://harvey-taxi-api2.onrender.com/api/driver/apply", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(data)
-    });
-
-    const result = await res.json();
-
-    if (result.success) {
-      message.textContent = "Application submitted successfully 🚕";
-      message.className = "success";
-      form.reset();
-    } else {
-      message.textContent = result.message;
-      message.className = "error";
-    }
-
-  } catch (err) {
-    console.error(err);
-    message.textContent = "Server not responding. Try again.";
-    message.className = "error";
-  }
-});
-</script>
-
-</body>
-</html>// ===== PART 2: DRIVER SIGNUP ROUTE =====
-
-// Temporary in-memory storage (we'll upgrade to DB later)
-let drivers = [];
-
-// Driver signup route
-app.post("/api/drivers/signup", (req, res) => {
-  try {
-    const {
-      name,
-      phone,
-      email,
-      city,
-      state,
-      vehicleType,
-      driverType,
-    } = req.body;
-
-    // Basic validation
-    if (!name || !phone || !email) {
-      return res.status(400).json({
-        error: "Missing required fields",
-      });
-    }
-
-    const newDriver = {
-      id: Date.now(),
-      name,
-      phone,
-      email,
-      city,
-      state,
-      vehicleType,
-      driverType,
-      status: "pending",
-      createdAt: new Date(),
+    const payload = {
+      name: document.getElementById("name").value.trim(),
+      phone: document.getElementById("phone").value.trim(),
+      email: document.getElementById("email").value.trim(),
+      city: document.getElementById("city").value.trim(),
+      state: document.getElementById("state").value.trim(),
+      vehicleType: document.getElementById("vehicleType").value,
+      driverType: document.getElementById("driverType").value,
     };
 
-    drivers.push(newDriver);
+    try {
+      const response = await fetch("/api/drivers/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
 
-    console.log("New Driver Signup:", newDriver);
+      const data = await response.json();
 
-    res.status(200).json({
-      message: "Driver application submitted successfully",
-      driver: newDriver,
-    });
-  } catch (error) {
-    console.error("Signup Error:", error);
-    res.status(500).json({
-      error: "Server error",
-    });
-  }
-});
-
-// OPTIONAL: View all drivers (for testing)
-app.get("/api/drivers", (req, res) => {
-  res.json(drivers);
-});
-
-// Start server
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+      if (response.ok) {
+        messageBox.textContent = data.message || "Application submitted successfully.";
+        messageBox.style.color = "lime";
+        form.reset();
+      } else {
+        messageBox.textContent = data.message || "Submission failed.";
+        messageBox.style.color = "red";
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      messageBox.textContent = "Server not responding. Try again.";
+      messageBox.style.color = "red";
+    }
+  });
+</script>
