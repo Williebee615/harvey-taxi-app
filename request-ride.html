@@ -3,32 +3,45 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Request a Ride - Harvey Taxi</title>
+  <title>Request Ride - Harvey Taxi</title>
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
       font-family: Arial, sans-serif;
-      background: #ffffff;
+      background: #fff;
       color: #111;
     }
 
     .container {
       max-width: 420px;
-      margin: auto;
-      padding: 20px;
-      padding-bottom: 40px;
+      margin: 0 auto;
+      padding: 22px 18px 40px;
     }
 
-    .header {
+    .back-link {
+      display: inline-block;
+      margin-bottom: 18px;
+      text-decoration: none;
+      color: #111;
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .title {
       font-size: 28px;
       font-weight: 800;
-      margin-bottom: 10px;
+      margin: 0 0 8px;
     }
 
     .subtext {
-      color: #666;
-      margin-bottom: 20px;
+      color: #6b7280;
       font-size: 15px;
+      margin-bottom: 20px;
+      line-height: 1.5;
     }
 
     .field {
@@ -38,105 +51,110 @@
     .label {
       display: block;
       font-size: 14px;
-      font-weight: 700;
+      font-weight: 800;
       margin-bottom: 8px;
     }
 
     .input {
       width: 100%;
-      box-sizing: border-box;
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
       padding: 14px;
-      border: 1px solid #ddd;
-      border-radius: 12px;
       font-size: 16px;
       background: #fafafa;
+      outline: none;
     }
 
-    .ride-options {
-      margin-top: 20px;
-      margin-bottom: 20px;
+    .section-title {
+      font-size: 20px;
+      font-weight: 800;
+      margin: 20px 0 12px;
     }
 
     .ride-card {
-      background: #f8f8f8;
-      border: 1px solid #e8e8e8;
-      border-radius: 14px;
-      padding: 14px;
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 15px;
       margin-bottom: 12px;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      gap: 12px;
       cursor: pointer;
     }
 
     .ride-card.active {
       border: 2px solid #111;
-      background: #f1f1f1;
+      background: #f3f4f6;
+    }
+
+    .ride-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .ride-emoji {
+      font-size: 28px;
     }
 
     .ride-title {
-      font-weight: 700;
       font-size: 16px;
+      font-weight: 800;
       margin-bottom: 4px;
     }
 
     .ride-sub {
       font-size: 13px;
-      color: #666;
+      color: #6b7280;
     }
 
-    .price {
-      font-weight: 800;
+    .ride-price {
       font-size: 18px;
+      font-weight: 800;
     }
 
-    .button {
+    .btn {
       width: 100%;
       border: none;
       border-radius: 14px;
       padding: 16px;
       font-size: 16px;
-      font-weight: 700;
+      font-weight: 800;
       cursor: pointer;
       margin-top: 10px;
     }
 
-    .primary {
+    .btn-primary {
       background: #111;
       color: #fff;
     }
 
-    .secondary {
-      background: #f3f3f3;
+    .btn-secondary {
+      background: #f3f4f6;
       color: #111;
     }
 
     .result {
-      margin-top: 20px;
-      padding: 14px;
-      border-radius: 12px;
-      background: #f5f5f5;
       display: none;
-      font-size: 14px;
+      margin-top: 18px;
+      background: #f9fafb;
+      border-radius: 14px;
+      padding: 14px;
       line-height: 1.5;
-    }
-
-    a.back-link {
-      display: inline-block;
-      margin-bottom: 18px;
-      color: #111;
-      text-decoration: none;
       font-size: 14px;
-      font-weight: 700;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <a class="back-link" href="/">← Back to Home</a>
+    <a class="back-link" href="/">← Back</a>
 
-    <div class="header">Request a Ride</div>
-    <div class="subtext">Enter your trip details and choose your ride type.</div>
+    <h1 class="title">Request a Ride</h1>
+    <div class="subtext">
+      Enter your ride details below and choose the service you want.
+    </div>
 
     <div class="field">
       <label class="label" for="pickup">Pickup location</label>
@@ -150,37 +168,46 @@
 
     <div class="field">
       <label class="label" for="name">Passenger name</label>
-      <input class="input" id="name" type="text" placeholder="Your full name" />
+      <input class="input" id="name" type="text" placeholder="Enter your full name" />
     </div>
 
-    <div class="ride-options">
-      <div class="ride-card active" onclick="selectRide('Harvey Standard', this)">
+    <div class="section-title">Choose ride type</div>
+
+    <div class="ride-card active" onclick="selectRide('Harvey Standard', this)">
+      <div class="ride-left">
+        <div class="ride-emoji">🚕</div>
         <div>
-          <div class="ride-title">🚕 Harvey Standard</div>
+          <div class="ride-title">Harvey Standard</div>
           <div class="ride-sub">Affordable everyday ride</div>
         </div>
-        <div class="price">$12</div>
       </div>
-
-      <div class="ride-card" onclick="selectRide('Harvey XL', this)">
-        <div>
-          <div class="ride-title">🚐 Harvey XL</div>
-          <div class="ride-sub">More room for passengers</div>
-        </div>
-        <div class="price">$18</div>
-      </div>
-
-      <div class="ride-card" onclick="selectRide('Airport Ride', this)">
-        <div>
-          <div class="ride-title">✈️ Airport Ride</div>
-          <div class="ride-sub">Quick trip to or from BNA</div>
-        </div>
-        <div class="price">$25</div>
-      </div>
+      <div class="ride-price">$12</div>
     </div>
 
-    <button class="button primary" onclick="requestRide()">Request Ride</button>
-    <button class="button secondary" onclick="window.location.href='/'">Cancel</button>
+    <div class="ride-card" onclick="selectRide('Harvey XL', this)">
+      <div class="ride-left">
+        <div class="ride-emoji">🚐</div>
+        <div>
+          <div class="ride-title">Harvey XL</div>
+          <div class="ride-sub">More room for passengers and bags</div>
+        </div>
+      </div>
+      <div class="ride-price">$18</div>
+    </div>
+
+    <div class="ride-card" onclick="selectRide('Airport Ride', this)">
+      <div class="ride-left">
+        <div class="ride-emoji">✈️</div>
+        <div>
+          <div class="ride-title">Airport Ride</div>
+          <div class="ride-sub">Easy rides to and from BNA</div>
+        </div>
+      </div>
+      <div class="ride-price">$25</div>
+    </div>
+
+    <button class="btn btn-primary" onclick="requestRide()">Request Ride</button>
+    <button class="btn btn-secondary" onclick="window.location.href='/'">Cancel</button>
 
     <div class="result" id="resultBox"></div>
   </div>
@@ -190,8 +217,9 @@
 
     function selectRide(rideName, element) {
       selectedRide = rideName;
-      const cards = document.querySelectorAll('.ride-card');
-      cards.forEach(card => card.classList.remove('active'));
+      document.querySelectorAll('.ride-card').forEach(card => {
+        card.classList.remove('active');
+      });
       element.classList.add('active');
     }
 
@@ -203,7 +231,7 @@
 
       if (!pickup || !destination || !name) {
         resultBox.style.display = 'block';
-        resultBox.innerHTML = 'Please fill in pickup location, destination, and passenger name.';
+        resultBox.innerHTML = 'Please complete pickup, destination, and passenger name.';
         return;
       }
 
