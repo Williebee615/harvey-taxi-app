@@ -1,18 +1,23 @@
 const express = require('express');
 const path = require('path');
+const cors = require('cors');
 
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// Serve static files from current folder
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Serve all static files from the project folder
 app.use(express.static(__dirname));
 
-// Home route
+// Main rider app screen
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'app.html'));
 });
 
-// Optional extra routes if you want other pages later
+// Other pages
 app.get('/driver', (req, res) => {
   res.sendFile(path.join(__dirname, 'driver.html'));
 });
@@ -29,6 +34,11 @@ app.get('/verification', (req, res) => {
   res.sendFile(path.join(__dirname, 'verification.html'));
 });
 
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ ok: true, app: 'Harvey Taxi' });
+});
+
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Harvey Taxi server running on port ${PORT}`);
 });
