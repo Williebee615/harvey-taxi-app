@@ -1,0 +1,325 @@
+// app/rider/verify.jsx
+
+import React, { useEffect, useState } from 'react'
+import {
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+  ActivityIndicator,
+} from 'react-native'
+import { supabase } from '../../lib/supabase'
+
+export default function RiderVerificationScreen() {
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+
+  const [riderId, setRiderId] = useState(null)
+  const [fullName, setFullName] = useState('')
+  const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
+  const [idDocumentUrl, setIdDocumentUrl] = useState('')
+  const [selfieUrl, setSelfieUrl] = useState('')
+  const [verificationStatus, setVerificationStatus] = useState('pending')
+  const [isVerified, setIsVerified] = useState(false)
+
+  useEffect(() => {
+    loadRider()
+  }, [])
+
+  async function loadRider() {
+    try {
+      const { data: authData, error: authError } = await supabase.auth.getUser()
+
+      if (authError) throw authError
+
+      const user = authData?.user
+      if (!user?.id) {
+        Alert.alert('Login Required', 'Please sign in first.')
+        setLoading(false)
+        return
+      }
+
+      setRiderId(user.id)
+
+      const { data: riderData, error: riderError } = await supabase
+        .from('riders')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      if (riderError) throw riderError
+
+      if (riderData) {
+        setFullName(riderData.full_name || '')
+        setEmail(riderData.email || user.email || '')
+        setPhone(riderData.phone || '')
+        setIdDocumentUrl(riderData.id_document_url || '')
+        setSelfieUrl(riderData.selfie_url || '')
+        setVerificationStatus(riderData.verification_status || 'pending')
+        setIsVerified(!!riderData.is_verified)
+      } else {
+        setEmail(user.email || '')
+      }
+    } catch (err) {
+      Alert.alert('Error', err.message || 'Could not load rider profile.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function saveVerification() {
+    if (!riderId) {
+      Alert.alert('Error', 'No rider account found.')
+      return
+    }
+
+    if (!fullName || !email || !phone || !idDocumentUrl || !selfieUrl) {
+      Alert.alert('Missing info', 'Please complete all fields before submitting.')
+      return
+    }
+
+    try {
+      setSaving(true)
+
+      const payload = {
+        id: riderId,
+        full_name: fullName,
+        email,
+        phone,
+        id_document_url: idDocumentUrl,
+        selfie_url: selfieUrl,
+        verification_status: 'pending',
+        is_verified: false,
+        updated_at: new Date().toISOString(),
+      }
+
+      const { error } = await supabase.from('riders').upsert(payload)
+
+      if (error) throw error
+
+      setVerificationStatus('pending')
+      setIsVerified(false)
+
+      Alert.alert(
+        'Submitted',
+        'Your passenger verification has been submitted and is now pending review.'
+      )
+    } catch (err) {
+      Alert.alert('Error', err.message || 'Could not save verification.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function getStatusColor() {
+    if (verificationStatus === 'verified') return '#166534'
+    if (verificationStatus === 'rejected') return '#B91C1C'
+    if (verificationStatus === 'needs_review') return '#92400E'
+    return '#92400E'
+  }
+
+  function getStatusBackground() {
+    if (verificationStatus === 'verified') return '#DCFCE7'
+    if (verificationStatus === 'rejected') return '#FEE2E2'
+    if (verificationStatus === 'needs_review') return '#FEF3C7'
+    return '#FEF3C7'
+  }
+
+  if (loading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color="#111111" />
+        <Text style={styles.loadingText}>Loading verification...</Text>
+      </View>
+    )
+  }
+
+  return (
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <Text style={styles.title}>Passenger Verification</Text>
+      <Text style={styles.subtitle}>
+        Verify every rider account for safer trips and a stronger platform.
+      </Text>
+
+      <View style={[styles.statusBox, { backgroundColor: getStatusBackground() }]}>
+        <Text style={[styles.statusLabel, { color: getStatusColor() }]}>
+          Status: {isVerified ? 'verified' : verificationStatus}
+        </Text>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.label}>Full legal name</Text>
+        <TextInput
+          value={fullName}
+          onChangeText={setFullName}
+          placeholder="Enter full legal name"
+          placeholderTextColor="#9CA3AF"
+          style={styles.input}
+        />
+
+        <Text style={styles.label}>Email</Text>
+        <TextInput
+          value={email}
+          onChangeText={setEmail}
+          placeholder="Enter email"
+          placeholderTextColor="#9CA3AF"
+          style={styles.input}
+          autoCapitalize="none"
+        />
+
+        <Text style={styles.label}>Phone</Text>
+        <TextInput
+          value={phone}
+          onChangeText={setPhone}
+          placeholder="Enter phone number"
+          placeholderTextColor="#9CA3AF"
+          style={styles.input}
+          keyboardType="phone-pad"
+        />
+
+        <Text style={styles.label}>Government ID upload URL</Text>
+        <TextInput
+          value={idDocumentUrl}
+          onChangeText={setIdDocumentUrl}
+          placeholder="Paste uploaded ID document URL"
+          placeholderTextColor="#9CA3AF"
+          style={styles.input}
+          autoCapitalize="none"
+        />
+
+        <Text style={styles.label}>Selfie upload URL</Text>
+        <TextInput
+          value={selfieUrl}
+          onChangeText={setSelfieUrl}
+          placeholder="Paste uploaded selfie URL"
+          placeholderTextColor="#9CA3AF"
+          style={styles.input}
+          autoCapitalize="none"
+        />
+
+        <TouchableOpacity
+          style={[styles.submitButton, saving && styles.submitButtonDisabled]}
+          onPress={saveVerification}
+          disabled={saving}
+        >
+          <Text style={styles.submitButtonText}>
+            {saving ? 'Submitting...' : 'Submit Verification'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.infoCard}>
+        <Text style={styles.infoTitle}>Recommended next upgrade</Text>
+        <Text style={styles.infoText}>
+          Connect this screen to Persona, Stripe Identity, or Onfido so rider verification
+          is automated instead of manual.
+        </Text>
+      </View>
+    </ScrollView>
+  )
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  content: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+  centered: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    color: '#111111',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  title: {
+    fontSize: 30,
+    color: '#111111',
+    fontWeight: '800',
+    marginBottom: 8,
+  },
+  subtitle: {
+    color: '#4B5563',
+    fontSize: 16,
+    lineHeight: 22,
+    marginBottom: 18,
+  },
+  statusBox: {
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 18,
+  },
+  statusLabel: {
+    fontSize: 14,
+    fontWeight: '800',
+    textTransform: 'capitalize',
+  },
+  card: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 22,
+    padding: 18,
+    marginBottom: 18,
+  },
+  label: {
+    color: '#111111',
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 8,
+    marginTop: 10,
+  },
+  input: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    color: '#111111',
+    fontSize: 15,
+  },
+  submitButton: {
+    backgroundColor: '#111111',
+    borderRadius: 16,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: 18,
+  },
+  submitButtonDisabled: {
+    opacity: 0.7,
+  },
+  submitButtonText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  infoCard: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 20,
+    padding: 16,
+  },
+  infoTitle: {
+    fontSize: 18,
+    color: '#111111',
+    fontWeight: '800',
+    marginBottom: 6,
+  },
+  infoText: {
+    color: '#4B5563',
+    fontSize: 15,
+    lineHeight: 22,
+  },
+})
