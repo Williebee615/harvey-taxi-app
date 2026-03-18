@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Harvey Taxi</title>
 
   <style>
@@ -32,8 +32,8 @@
 
     #map {
       width: 100%;
-      height: 400px; /* 🔥 THIS FIXES BLANK MAP */
-      margin-top: 20px;
+      height: 400px; /* 🔥 REQUIRED */
+      background: #ddd;
     }
   </style>
 </head>
@@ -47,47 +47,39 @@
   <div id="map"></div>
 
   <script>
-    let map;
-
-    function initMap() {
-      map = new google.maps.Map(document.getElementById("map"), {
-        center: { lat: 36.1627, lng: -86.7816 }, // Nashville
-        zoom: 12,
-      });
-
-      // Try to get user location
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            const userLocation = {
-              lat: position.coords.latitude,
-              lng: position.coords.longitude,
-            };
-
-            map.setCenter(userLocation);
-
-            new google.maps.Marker({
-              position: userLocation,
-              map: map,
-              title: "You are here",
-            });
-          },
-          () => {
-            alert("Location access denied");
-          }
-        );
-      } else {
-        alert("Geolocation not supported");
-      }
-    }
-
     function requestRide() {
       alert("Ride requested! 🚖");
     }
+
+    function initMap() {
+      console.log("Map loading...");
+
+      const map = new google.maps.Map(document.getElementById("map"), {
+        center: { lat: 36.1627, lng: -86.7816 },
+        zoom: 12,
+      });
+
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition((position) => {
+          const userLocation = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          };
+
+          map.setCenter(userLocation);
+
+          new google.maps.Marker({
+            position: userLocation,
+            map: map,
+            title: "You are here",
+          });
+        });
+      }
+    }
   </script>
 
-  <!-- 🔥 THIS IS THE ONLY PLACE YOUR KEY GOES -->
-  <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_REAL_KEY&libraries=places&callback=initMap" async defer></script>
+  <!-- 🔥 PUT YOUR REAL KEY HERE -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_REAL_KEY_HERE&callback=initMap" async defer></script>
 
 </body>
 </html>
