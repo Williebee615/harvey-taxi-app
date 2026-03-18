@@ -8,11 +8,18 @@ const PORT = process.env.PORT || 10000;
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// Serve static files from the project root
 app.use(express.static(__dirname));
 
-// Main rider home screen
+// Fast root response so Render detects the port immediately
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    ok: true,
+    app: 'Harvey Taxi',
+    port: PORT,
+  });
+});
+
+// Main rider app screen
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'app.html'));
 });
@@ -34,16 +41,11 @@ app.get('/verification', (req, res) => {
   res.sendFile(path.join(__dirname, 'verification.html'));
 });
 
-// Health check route
-app.get('/health', (req, res) => {
-  res.json({
-    ok: true,
-    app: 'Harvey Taxi',
-    port: PORT,
-  });
+// Fallback for unknown routes
+app.use((req, res) => {
+  res.status(404).send('Page not found');
 });
 
-// Start server using Render's required port
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
 });
