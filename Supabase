@@ -1,4 +1,17 @@
-// lib/supabase.js
+create extension if not exists pgcrypto;
+
+create table if not exists public.riders (
+  id uuid primary key,
+  full_name text,
+  email text,
+  phone text,
+  is_verified boolean default false,
+  verification_status text default 'pending',
+  id_document_url text,
+  selfie_url text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);// lib/supabase.js
 
 import 'react-native-url-polyfill/auto'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -14,98 +27,5 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
-  },
-})// app/test-supabase.jsx
-
-import React, { useEffect, useState } from 'react'
-import {
-  View,
-  Text,
-  StyleSheet,
-  ActivityIndicator,
-  ScrollView,
-} from 'react-native'
-import { supabase } from '../lib/supabase'
-
-export default function TestSupabaseScreen() {
-  const [loading, setLoading] = useState(true)
-  const [result, setResult] = useState(null)
-  const [errorText, setErrorText] = useState('')
-
-  useEffect(() => {
-    async function testConnection() {
-      try {
-        const { data, error } = await supabase.from('rides').select('*')
-
-        if (error) {
-          setErrorText(JSON.stringify(error, null, 2))
-        } else {
-          setResult(data)
-        }
-      } catch (err) {
-        setErrorText(err.message || 'Unknown error')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    testConnection()
-  }, [])
-
-  return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Supabase Connection Test</Text>
-
-      {loading ? (
-        <ActivityIndicator size="large" color="#2563EB" />
-      ) : errorText ? (
-        <>
-          <Text style={styles.label}>Error:</Text>
-          <Text style={styles.error}>{errorText}</Text>
-        </>
-      ) : (
-        <>
-          <Text style={styles.label}>Success:</Text>
-          <Text style={styles.success}>Connected to Supabase</Text>
-          <Text style={styles.label}>Data:</Text>
-          <Text style={styles.code}>{JSON.stringify(result, null, 2)}</Text>
-        </>
-      )}
-    </ScrollView>
-  )
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    padding: 24,
-    justifyContent: 'center',
-    backgroundColor: '#0B0B0F',
-  },
-  title: {
-    color: '#FFFFFF',
-    fontSize: 28,
-    fontWeight: '800',
-    marginBottom: 20,
-  },
-  label: {
-    color: '#CBD5E1',
-    fontSize: 16,
-    fontWeight: '700',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  success: {
-    color: '#22C55E',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  error: {
-    color: '#EF4444',
-    fontSize: 14,
-  },
-  code: {
-    color: '#E5E7EB',
-    fontSize: 13,
   },
 })
