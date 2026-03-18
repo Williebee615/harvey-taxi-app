@@ -4,210 +4,179 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Harvey Taxi</title>
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: Arial, sans-serif;
-    }
 
+  <style>
     body {
+      margin: 0;
+      font-family: Arial, sans-serif;
       background: #ffffff;
       color: #111;
     }
 
-    .app {
+    .container {
       max-width: 420px;
-      margin: 0 auto;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      background: #fff;
-    }
-
-    .content {
-      flex: 1;
-      padding: 24px 20px 100px;
+      margin: auto;
+      padding: 20px;
+      padding-bottom: 100px;
     }
 
     .header {
       font-size: 30px;
       font-weight: 800;
-      margin-bottom: 8px;
+      margin-bottom: 5px;
     }
 
     .subheader {
-      font-size: 28px;
-      font-weight: 700;
+      font-size: 22px;
+      color: #555;
       margin-bottom: 20px;
     }
 
     .search-box {
       background: #f1f1f1;
-      border-radius: 16px;
-      padding: 18px 16px;
-      color: #666;
+      border-radius: 14px;
+      padding: 15px;
       font-size: 16px;
-      margin-bottom: 24px;
+      margin-bottom: 20px;
     }
 
-    .services-row {
+    .services {
       display: flex;
       justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 28px;
+      margin-bottom: 25px;
     }
 
-    .service-card {
+    .service {
       flex: 1;
+      margin: 0 5px;
       background: #f8f8f8;
-      border-radius: 16px;
-      padding: 18px 10px;
+      border-radius: 12px;
+      padding: 15px;
       text-align: center;
       cursor: pointer;
-      border: none;
     }
 
-    .service-emoji {
-      font-size: 28px;
-      margin-bottom: 8px;
-    }
-
-    .service-title {
-      font-size: 15px;
-      font-weight: 600;
-    }
-
-    .section-title {
+    .service span {
+      display: block;
       font-size: 22px;
+      margin-bottom: 5px;
+    }
+
+    .section {
+      font-size: 20px;
       font-weight: 700;
-      margin-bottom: 14px;
+      margin-bottom: 10px;
     }
 
     .ride-card {
       background: #f8f8f8;
-      border-radius: 16px;
-      padding: 18px;
-      margin-bottom: 14px;
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 12px;
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
 
     .ride-title {
-      font-size: 18px;
       font-weight: 700;
-      margin-bottom: 4px;
     }
 
-    .ride-text {
+    .ride-sub {
       font-size: 14px;
       color: #666;
     }
 
     .price {
-      font-size: 20px;
       font-weight: 800;
+      font-size: 18px;
     }
 
-    .bottom-tabs {
+    .bottom-nav {
       position: fixed;
       bottom: 0;
-      left: 50%;
-      transform: translateX(-50%);
       width: 100%;
       max-width: 420px;
       background: #fff;
-      border-top: 1px solid #e5e5e5;
+      border-top: 1px solid #ddd;
       display: flex;
       justify-content: space-around;
-      padding: 16px 0;
+      padding: 15px 0;
     }
 
-    .tab {
-      font-size: 15px;
+    .nav-item {
+      font-size: 14px;
       color: #777;
-      font-weight: 600;
     }
 
-    .tab.active {
-      color: #111;
-      font-weight: 800;
-    }
-
-    @media (max-width: 480px) {
-      .content {
-        padding: 20px 16px 100px;
-      }
-
-      .header {
-        font-size: 28px;
-      }
-
-      .subheader {
-        font-size: 24px;
-      }
+    .nav-item.active {
+      color: #000;
+      font-weight: 700;
     }
   </style>
 </head>
+
 <body>
-  <div class="app">
-    <div class="content">
-      <div class="header">🚕 Harvey Taxi</div>
-      <div class="subheader">Where to?</div>
 
-      <div class="search-box">Enter pickup or destination</div>
+  <div class="container">
 
-      <div class="services-row">
-        <button class="service-card">
-          <div class="service-emoji">🚕</div>
-          <div class="service-title">Ride</div>
-        </button>
+    <div class="header">🚕 Harvey Taxi</div>
+    <div class="subheader">Where to?</div>
 
-        <button class="service-card">
-          <div class="service-emoji">📦</div>
-          <div class="service-title">Delivery</div>
-        </button>
+    <div class="search-box">
+      Enter pickup or destination
+    </div>
 
-        <button class="service-card">
-          <div class="service-emoji">🪪</div>
-          <div class="service-title">Verify</div>
-        </button>
+    <div class="services">
+      <div class="service">
+        <span>🚕</span>
+        Ride
       </div>
 
-      <div class="section-title">Suggested rides</div>
-
-      <div class="ride-card">
-        <div>
-          <div class="ride-title">Harvey Standard</div>
-          <div class="ride-text">Affordable everyday ride</div>
-        </div>
-        <div class="price">$12</div>
+      <div class="service">
+        <span>📦</span>
+        Delivery
       </div>
 
-      <div class="ride-card">
-        <div>
-          <div class="ride-title">Harvey XL</div>
-          <div class="ride-text">More room for passengers</div>
-        </div>
-        <div class="price">$18</div>
-      </div>
-
-      <div class="ride-card">
-        <div>
-          <div class="ride-title">Priority Pickup</div>
-          <div class="ride-text">Get picked up faster</div>
-        </div>
-        <div class="price">$22</div>
+      <div class="service">
+        <span>🪪</span>
+        Verify
       </div>
     </div>
 
-    <div class="bottom-tabs">
-      <div class="tab active">Home</div>
-      <div class="tab">Activity</div>
-      <div class="tab">Account</div>
+    <div class="section">Popular rides</div>
+
+    <div class="ride-card">
+      <div>
+        <div class="ride-title">Harvey Standard</div>
+        <div class="ride-sub">Affordable everyday ride</div>
+      </div>
+      <div class="price">$12</div>
     </div>
+
+    <div class="ride-card">
+      <div>
+        <div class="ride-title">Harvey XL</div>
+        <div class="ride-sub">More space for passengers</div>
+      </div>
+      <div class="price">$18</div>
+    </div>
+
+    <div class="ride-card">
+      <div>
+        <div class="ride-title">Airport Ride</div>
+        <div class="ride-sub">Easy rides to BNA</div>
+      </div>
+      <div class="price">$25</div>
+    </div>
+
   </div>
+
+  <div class="bottom-nav">
+    <div class="nav-item active">Home</div>
+    <div class="nav-item">Activity</div>
+    <div class="nav-item">Account</div>
+  </div>
+
 </body>
 </html>
