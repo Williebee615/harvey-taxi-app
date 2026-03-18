@@ -141,3 +141,44 @@ app.get("*", (req, res) => {
 app.listen(PORT, () => {
   console.log("Server running on port " + PORT);
 });
+/* ===============================
+   DRIVER STATS
+================================ */
+
+app.get("/driver-stats", (req, res) => {
+  res.json(driverStats);
+});
+
+app.post("/complete-ride", (req, res) => {
+  driverStats.rides += 1;
+  driverStats.earnings += 15;
+  driverStats.acceptanceRate = 100;
+  driverStats.completionRate = 100;
+
+  res.json({ success: true, stats: driverStats });
+});
+
+app.post("/complete-delivery", (req, res) => {
+  driverStats.deliveries += 1;
+  driverStats.earnings += 10;
+  driverStats.acceptanceRate = 100;
+  driverStats.completionRate = 100;
+
+  res.json({ success: true, stats: driverStats });
+});
+
+/* ===============================
+   FALLBACK FIX (VERY IMPORTANT)
+================================ */
+
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "index.html"));
+});
+
+/* ===============================
+   START SERVER
+================================ */
+
+app.listen(PORT, () => {
+  console.log("Server running on port " + PORT);
+});
