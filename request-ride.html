@@ -1,54 +1,450 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Request a Ride</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <style>
-    body {
-      background: #e9e9e9;
-      font-family: Arial;
-      text-align: center;
-      padding: 20px;
-      color: #111;
-    }
-    h1 {
-      font-size: 62px;
-      margin-top: 70px;
-      margin-bottom: 30px;
-    }
-    button {
-      background: black;
-      color: #ffd400;
-      border: none;
-      border-radius: 24px;
-      padding: 24px 42px;
-      font-size: 34px;
-      font-weight: bold;
-      margin-bottom: 40px;
-    }
-    p {
-      font-size: 24px;
-      font-weight: bold;
-      line-height: 1.4;
-      margin-bottom: 40px;
-    }
-    .map-box {
-      background: #d8d8d8;
-      height: 700px;
-      border-radius: 28px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #777;
-      font-size: 30px;
-      font-weight: bold;
-    }
-  </style>
-</head>
-<body>
-  <h1>Request a Ride</h1>
-  <button>Request Ride</button>
-  <p>Tap “Request Ride” to detect your pickup location.</p>
-  <div class="map-box">Map will appear here</div>
-</body>
-</html>
+// app/rider/home.jsx
+
+import React, { useMemo, useState } from 'react'
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  Image,
+} from 'react-native'
+import { useRouter } from 'expo-router'
+
+const SERVICES = [
+  { key: 'taxi', label: 'Taxi', emoji: '🚕' },
+  { key: 'delivery', label: 'Delivery', emoji: '📦' },
+  { key: 'courier', label: 'Courier', emoji: '📬' },
+  { key: 'group', label: 'Group Ride', emoji: '👥' },
+]
+
+const RECENT_PLACES = [
+  {
+    id: '1',
+    title: 'Kroger',
+    address: '143 McGavock Pike, Nashville, TN',
+  },
+  {
+    id: '2',
+    title: '2301 Vanderbilt Pl',
+    address: 'Nashville, TN',
+  },
+]
+
+const PROMO_CARDS = [
+  { id: '1', title: 'Airport Ride', badge: 'Promo', emoji: '✈️' },
+  { id: '2', title: 'Taxi Ride', badge: '5%', emoji: '🚕' },
+  { id: '3', title: 'Grocery', badge: '40%', emoji: '🛒' },
+  { id: '4', title: 'Group Ride', badge: '', emoji: '👥' },
+]
+
+const FEATURED_RIDES = [
+  {
+    id: '1',
+    title: 'Harvey Standard',
+    subtitle: 'Affordable everyday taxi rides',
+    eta: '4 min away',
+    emoji: '🚕',
+  },
+  {
+    id: '2',
+    title: 'Harvey XL',
+    subtitle: 'More space for passengers and bags',
+    eta: '6 min away',
+    emoji: '🚐',
+  },
+  {
+    id: '3',
+    title: 'Airport Ride',
+    subtitle: 'Easy rides to and from BNA',
+    eta: '5 min away',
+    emoji: '✈️',
+  },
+]
+
+function StatusPill({ verified }) {
+  return (
+    <View style={[styles.statusPill, verified ? styles.statusVerified : styles.statusPending]}>
+      <Text style={[styles.statusText, verified ? styles.statusTextVerified : styles.statusTextPending]}>
+        {verified ? 'Verified Rider' : 'Verification Needed'}
+      </Text>
+    </View>
+  )
+}
+
+export default function RiderHomeScreen() {
+  const router = useRouter()
+  const [activeService, setActiveService] = useState('taxi')
+  const [destination, setDestination] = useState('')
+  const [isVerified] = useState(false)
+
+  const activeServiceLabel = useMemo(() => {
+    return SERVICES.find((item) => item.key === activeService)?.label || 'Taxi'
+  }, [activeService])
+
+  return (
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <View style={styles.serviceTabsRow}>
+        {SERVICES.map((service) => {
+          const active = service.key === activeService
+          return (
+            <TouchableOpacity
+              key={service.key}
+              style={styles.serviceTab}
+              onPress={() => setActiveService(service.key)}
+            >
+              <Text style={styles.serviceEmoji}>{service.emoji}</Text>
+              <Text style={[styles.serviceLabel, active && styles.serviceLabelActive]}>
+                {service.label}
+              </Text>
+              {active ? <View style={styles.serviceUnderline} /> : null}
+            </TouchableOpacity>
+          )
+        })}
+      </View>
+
+      <View style={styles.topRow}>
+        <Text style={styles.headerTitle}>Harvey Taxi</Text>
+        <StatusPill verified={isVerified} />
+      </View>
+
+      <TouchableOpacity
+        style={styles.verificationBanner}
+        onPress={() => router.push('/rider/verify')}
+      >
+        <View style={{ flex: 1 }}>
+          <Text style={styles.verificationBannerTitle}>Complete passenger verification</Text>
+          <Text style={styles.verificationBannerText}>
+            Upload your ID and selfie for safer rides and full booking access.
+          </Text>
+        </View>
+        <Text style={styles.bannerArrow}>›</Text>
+      </TouchableOpacity>
+
+      <View style={styles.searchCard}>
+        <View style={styles.searchBox}>
+          <Text style={styles.searchIcon}>🔍</Text>
+          <TextInput
+            value={destination}
+            onChangeText={setDestination}
+            placeholder={`Where to? (${activeServiceLabel})`}
+            placeholderTextColor="#6B7280"
+            style={styles.searchInput}
+          />
+          <TouchableOpacity style={styles.laterButton}>
+            <Text style={styles.laterButtonText}>Later</Text>
+          </TouchableOpacity>
+        </View>
+
+        {RECENT_PLACES.map((place) => (
+          <TouchableOpacity key={place.id} style={styles.recentPlaceRow}>
+            <View style={styles.clockBox}>
+              <Text style={styles.clockIcon}>🕘</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.recentPlaceTitle}>{place.title}</Text>
+              <Text style={styles.recentPlaceAddress}>{place.address}</Text>
+            </View>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <View style={styles.sectionHeaderRow}>
+        <Text style={styles.sectionTitle}>For you</Text>
+        <TouchableOpacity>
+          <Text style={styles.arrowButton}>→</Text>
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalList}>
+        {PROMO_CARDS.map((item) => (
+          <TouchableOpacity key={item.id} style={styles.promoCard}>
+            {item.badge ? (
+              <View style={styles.redBadge}>
+                <Text style={styles.redBadgeText}>{item.badge}</Text>
+              </View>
+            ) : null}
+            <Text style={styles.promoEmoji}>{item.emoji}</Text>
+            <Text style={styles.promoTitle}>{item.title}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      <View style={styles.sectionHeaderRow}>
+        <Text style={styles.sectionTitle}>Popular rides</Text>
+        <TouchableOpacity>
+          <Text style={styles.arrowButton}>→</Text>
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        {FEATURED_RIDES.map((ride) => (
+          <TouchableOpacity key={ride.id} style={styles.featuredCard}>
+            <View style={styles.featuredImagePlaceholder}>
+              <Text style={styles.featuredEmoji}>{ride.emoji}</Text>
+            </View>
+            <Text style={styles.featuredTitle}>{ride.title}</Text>
+            <Text style={styles.featuredSubtitle}>{ride.subtitle}</Text>
+            <Text style={styles.featuredEta}>{ride.eta}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </ScrollView>
+  )
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  content: {
+    paddingBottom: 30,
+  },
+  serviceTabsRow: {
+    flexDirection: 'row',
+    paddingTop: 18,
+    paddingHorizontal: 10,
+    backgroundColor: '#FFFFFF',
+  },
+  serviceTab: {
+    alignItems: 'center',
+    marginRight: 20,
+    paddingBottom: 12,
+    minWidth: 74,
+  },
+  serviceEmoji: {
+    fontSize: 26,
+    marginBottom: 6,
+  },
+  serviceLabel: {
+    fontSize: 16,
+    color: '#6B7280',
+    fontWeight: '600',
+  },
+  serviceLabelActive: {
+    color: '#111111',
+    fontWeight: '800',
+  },
+  serviceUnderline: {
+    marginTop: 10,
+    height: 4,
+    width: 64,
+    backgroundColor: '#111111',
+    borderRadius: 999,
+  },
+  topRow: {
+    paddingHorizontal: 18,
+    paddingTop: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 30,
+    fontWeight: '800',
+    color: '#111111',
+  },
+  statusPill: {
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  statusVerified: {
+    backgroundColor: '#DCFCE7',
+  },
+  statusPending: {
+    backgroundColor: '#FEF3C7',
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  statusTextVerified: {
+    color: '#166534',
+  },
+  statusTextPending: {
+    color: '#92400E',
+  },
+  verificationBanner: {
+    marginHorizontal: 18,
+    marginTop: 14,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 22,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  verificationBannerTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#111111',
+    marginBottom: 4,
+  },
+  verificationBannerText: {
+    fontSize: 14,
+    color: '#4B5563',
+    lineHeight: 20,
+  },
+  bannerArrow: {
+    fontSize: 30,
+    color: '#111111',
+    marginLeft: 10,
+  },
+  searchCard: {
+    marginHorizontal: 18,
+    marginTop: 18,
+  },
+  searchBox: {
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    borderRadius: 999,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 16,
+    paddingRight: 8,
+    paddingVertical: 10,
+  },
+  searchIcon: {
+    fontSize: 20,
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 18,
+    color: '#111111',
+    fontWeight: '600',
+  },
+  laterButton: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 999,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+  },
+  laterButtonText: {
+    color: '#111111',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  recentPlaceRow: {
+    marginTop: 14,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    borderRadius: 20,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  clockBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  clockIcon: {
+    fontSize: 18,
+  },
+  recentPlaceTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#111111',
+    marginBottom: 3,
+  },
+  recentPlaceAddress: {
+    fontSize: 15,
+    color: '#6B7280',
+  },
+  sectionHeaderRow: {
+    marginTop: 24,
+    marginBottom: 14,
+    paddingHorizontal: 18,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#111111',
+  },
+  arrowButton: {
+    fontSize: 28,
+    color: '#111111',
+    fontWeight: '700',
+  },
+  horizontalList: {
+    paddingLeft: 18,
+  },
+  promoCard: {
+    width: 118,
+    height: 150,
+    borderRadius: 24,
+    backgroundColor: '#F3F4F6',
+    marginRight: 14,
+    padding: 12,
+    justifyContent: 'space-between',
+  },
+  redBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#EF4444',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  redBadgeText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 12,
+  },
+  promoEmoji: {
+    fontSize: 34,
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  promoTitle: {
+    fontSize: 16,
+    color: '#111111',
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  featuredCard: {
+    width: 250,
+    marginLeft: 18,
+    marginRight: 2,
+    backgroundColor: '#FFFFFF',
+  },
+  featuredImagePlaceholder: {
+    height: 150,
+    borderRadius: 22,
+    backgroundColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  featuredEmoji: {
+    fontSize: 46,
+  },
+  featuredTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#111111',
+    marginBottom: 4,
+  },
+  featuredSubtitle: {
+    fontSize: 16,
+    color: '#059669',
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  featuredEta: {
+    fontSize: 14,
+    color: '#4B5563',
+    marginBottom: 20,
+  },
+})
