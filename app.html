@@ -1,169 +1,213 @@
-import React from 'react'
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  SafeAreaView,
-} from 'react-native'
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Harvey Taxi</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+    }
 
-export default function App() {
-  return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.container}>
-        <ScrollView showsVerticalScrollIndicator={false}>
-          
-          <Text style={styles.header}>🚕 Harvey Taxi</Text>
-          <Text style={styles.subheader}>Where to?</Text>
+    body {
+      background: #ffffff;
+      color: #111;
+    }
 
-          <TouchableOpacity style={styles.searchBox}>
-            <Text style={styles.searchText}>
-              Enter pickup or destination
-            </Text>
-          </TouchableOpacity>
+    .app {
+      max-width: 420px;
+      margin: 0 auto;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: #fff;
+    }
 
-          <View style={styles.servicesRow}>
-            <TouchableOpacity style={styles.serviceCard}>
-              <Text style={styles.serviceEmoji}>🚕</Text>
-              <Text style={styles.serviceTitle}>Ride</Text>
-            </TouchableOpacity>
+    .content {
+      flex: 1;
+      padding: 24px 20px 100px;
+    }
 
-            <TouchableOpacity style={styles.serviceCard}>
-              <Text style={styles.serviceEmoji}>📦</Text>
-              <Text style={styles.serviceTitle}>Delivery</Text>
-            </TouchableOpacity>
+    .header {
+      font-size: 30px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
 
-            <TouchableOpacity style={styles.serviceCard}>
-              <Text style={styles.serviceEmoji}>🪪</Text>
-              <Text style={styles.serviceTitle}>Verify</Text>
-            </TouchableOpacity>
-          </View>
+    .subheader {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 20px;
+    }
 
-          <Text style={styles.sectionTitle}>Suggested rides</Text>
+    .search-box {
+      background: #f1f1f1;
+      border-radius: 16px;
+      padding: 18px 16px;
+      color: #666;
+      font-size: 16px;
+      margin-bottom: 24px;
+    }
 
-          <TouchableOpacity style={styles.rideCard}>
-            <View>
-              <Text style={styles.rideTitle}>Harvey Standard</Text>
-              <Text style={styles.rideText}>
-                Affordable everyday ride
-              </Text>
-            </View>
-            <Text style={styles.price}>$12</Text>
-          </TouchableOpacity>
+    .services-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
 
-          <TouchableOpacity style={styles.rideCard}>
-            <View>
-              <Text style={styles.rideTitle}>Harvey XL</Text>
-              <Text style={styles.rideText}>
-                More room for passengers
-              </Text>
-            </View>
-            <Text style={styles.price}>$18</Text>
-          </TouchableOpacity>
+    .service-card {
+      flex: 1;
+      background: #f8f8f8;
+      border-radius: 16px;
+      padding: 18px 10px;
+      text-align: center;
+      cursor: pointer;
+      border: none;
+    }
 
-          <TouchableOpacity style={styles.rideCard}>
-            <View>
-              <Text style={styles.rideTitle}>Priority Pickup</Text>
-              <Text style={styles.rideText}>
-                Get picked up faster
-              </Text>
-            </View>
-            <Text style={styles.price}>$22</Text>
-          </TouchableOpacity>
+    .service-emoji {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
 
-        </ScrollView>
+    .service-title {
+      font-size: 15px;
+      font-weight: 600;
+    }
 
-        <View style={styles.bottomTabs}>
-          <Text style={styles.activeTab}>Home</Text>
-          <Text style={styles.tab}>Activity</Text>
-          <Text style={styles.tab}>Account</Text>
-        </View>
+    .section-title {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 14px;
+    }
 
-      </View>
-    </SafeAreaView>
-  )
-}
+    .ride-card {
+      background: #f8f8f8;
+      border-radius: 16px;
+      padding: 18px;
+      margin-bottom: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
 
-const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  container: {
-    flex: 1,
-    padding: 20,
-  },
-  header: {
-    fontSize: 28,
-    fontWeight: '800',
-  },
-  subheader: {
-    fontSize: 26,
-    fontWeight: '700',
-    marginVertical: 10,
-  },
-  searchBox: {
-    backgroundColor: '#f1f1f1',
-    padding: 16,
-    borderRadius: 14,
-    marginBottom: 20,
-  },
-  searchText: {
-    color: '#666',
-  },
-  servicesRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 25,
-  },
-  serviceCard: {
-    width: '30%',
-    backgroundColor: '#f8f8f8',
-    padding: 15,
-    borderRadius: 14,
-    alignItems: 'center',
-  },
-  serviceEmoji: {
-    fontSize: 24,
-  },
-  serviceTitle: {
-    marginTop: 5,
-    fontWeight: '600',
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 10,
-  },
-  rideCard: {
-    backgroundColor: '#f8f8f8',
-    padding: 16,
-    borderRadius: 14,
-    marginBottom: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  rideTitle: {
-    fontWeight: '700',
-  },
-  rideText: {
-    color: '#666',
-  },
-  price: {
-    fontWeight: '800',
-  },
-  bottomTabs: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 15,
-    borderTopWidth: 1,
-    borderColor: '#eee',
-  },
-  activeTab: {
-    fontWeight: '800',
-  },
-  tab: {
-    color: '#777',
-  },
-})
+    .ride-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .ride-text {
+      font-size: 14px;
+      color: #666;
+    }
+
+    .price {
+      font-size: 20px;
+      font-weight: 800;
+    }
+
+    .bottom-tabs {
+      position: fixed;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 420px;
+      background: #fff;
+      border-top: 1px solid #e5e5e5;
+      display: flex;
+      justify-content: space-around;
+      padding: 16px 0;
+    }
+
+    .tab {
+      font-size: 15px;
+      color: #777;
+      font-weight: 600;
+    }
+
+    .tab.active {
+      color: #111;
+      font-weight: 800;
+    }
+
+    @media (max-width: 480px) {
+      .content {
+        padding: 20px 16px 100px;
+      }
+
+      .header {
+        font-size: 28px;
+      }
+
+      .subheader {
+        font-size: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="content">
+      <div class="header">🚕 Harvey Taxi</div>
+      <div class="subheader">Where to?</div>
+
+      <div class="search-box">Enter pickup or destination</div>
+
+      <div class="services-row">
+        <button class="service-card">
+          <div class="service-emoji">🚕</div>
+          <div class="service-title">Ride</div>
+        </button>
+
+        <button class="service-card">
+          <div class="service-emoji">📦</div>
+          <div class="service-title">Delivery</div>
+        </button>
+
+        <button class="service-card">
+          <div class="service-emoji">🪪</div>
+          <div class="service-title">Verify</div>
+        </button>
+      </div>
+
+      <div class="section-title">Suggested rides</div>
+
+      <div class="ride-card">
+        <div>
+          <div class="ride-title">Harvey Standard</div>
+          <div class="ride-text">Affordable everyday ride</div>
+        </div>
+        <div class="price">$12</div>
+      </div>
+
+      <div class="ride-card">
+        <div>
+          <div class="ride-title">Harvey XL</div>
+          <div class="ride-text">More room for passengers</div>
+        </div>
+        <div class="price">$18</div>
+      </div>
+
+      <div class="ride-card">
+        <div>
+          <div class="ride-title">Priority Pickup</div>
+          <div class="ride-text">Get picked up faster</div>
+        </div>
+        <div class="price">$22</div>
+      </div>
+    </div>
+
+    <div class="bottom-tabs">
+      <div class="tab active">Home</div>
+      <div class="tab">Activity</div>
+      <div class="tab">Account</div>
+    </div>
+  </div>
+</body>
+</html>
