@@ -3,218 +3,283 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Request Ride</title>
-
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-
+  <title>Request a Ride - Harvey Taxi</title>
   <style>
     body {
-      margin: 0;
-      padding: 16px;
       font-family: Arial, sans-serif;
-      background: #f5f5f5;
-      color: black;
+      background: #f4f4f4;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
     }
 
     h1 {
-      margin-top: 0;
-      font-size: 42px;
+      font-size: 48px;
+      margin-bottom: 20px;
+      color: #111;
     }
 
-    button {
-      padding: 16px 28px;
-      font-size: 20px;
-      font-weight: bold;
-      background: black;
-      color: gold;
+    .btn {
+      background: #000;
+      color: #ffd700;
       border: none;
-      border-radius: 14px;
+      padding: 18px 32px;
+      font-size: 28px;
+      font-weight: bold;
+      border-radius: 18px;
       cursor: pointer;
-      margin-bottom: 16px;
+      margin-bottom: 20px;
     }
 
-    #status,
-    #driver {
+    .btn:hover {
+      opacity: 0.9;
+    }
+
+    #status {
+      font-size: 20px;
+      margin: 20px auto;
+      max-width: 700px;
+      color: #222;
+      font-weight: bold;
+    }
+
+    .warning {
+      background: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffeeba;
+      padding: 15px;
+      border-radius: 12px;
+      margin: 15px auto;
+      max-width: 700px;
+      text-align: left;
+      display: none;
+    }
+
+    .manual-box {
+      background: #fff;
+      padding: 20px;
+      border-radius: 16px;
+      max-width: 700px;
+      margin: 20px auto;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+      text-align: left;
+    }
+
+    .manual-box h3 {
+      margin-top: 0;
+      color: #111;
+    }
+
+    .manual-box input,
+    .manual-box textarea {
+      width: 100%;
+      padding: 14px;
+      margin-top: 10px;
+      margin-bottom: 15px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      font-size: 16px;
+      box-sizing: border-box;
+    }
+
+    .manual-box button {
+      background: #000;
+      color: #ffd700;
+      border: none;
+      padding: 14px 22px;
+      border-radius: 10px;
       font-size: 18px;
-      margin: 10px 0;
-      word-break: break-word;
+      cursor: pointer;
+      font-weight: bold;
     }
 
     #map {
       width: 100%;
-      height: 420px;
-      margin-top: 20px;
-      border-radius: 16px;
+      max-width: 700px;
+      height: 450px;
+      margin: 20px auto;
+      border-radius: 20px;
       overflow: hidden;
-      border: 1px solid #ccc;
       background: #ddd;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #666;
+      font-size: 20px;
+      font-weight: bold;
+    }
+
+    .small {
+      font-size: 15px;
+      color: #666;
+      margin-top: 10px;
     }
   </style>
 </head>
 <body>
+
   <h1>Request a Ride</h1>
 
-  <button id="requestBtn" type="button">Request Ride</button>
+  <button class="btn" onclick="requestRide()">Request Ride</button>
 
-  <p id="status">Waiting...</p>
-  <p id="driver"></p>
+  <div id="status">Tap “Request Ride” to detect your pickup location.</div>
 
-  <div id="map"></div>
+  <div id="browserWarning" class="warning">
+    <strong>Location may not work inside Facebook or Instagram browser.</strong><br><br>
+    For best results, tap the menu and open this page in <strong>Safari</strong> or <strong>Chrome</strong>.
+  </div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <div id="map">Map will appear here</div>
+
+  <div class="manual-box">
+    <h3>Manual Pickup Backup</h3>
+    <input type="text" id="manualPickup" placeholder="Enter pickup address manually" />
+    <textarea id="rideNotes" rows="4" placeholder="Optional notes for driver"></textarea>
+    <button onclick="submitManualRide()">Submit Manual Ride</button>
+    <div class="small">Use this if GPS is blocked or unavailable.</div>
+  </div>
+
   <script>
-    const requestBtn = document.getElementById("requestBtn");
-    const statusEl = document.getElementById("status");
-    const driverEl = document.getElementById("driver");
+    let currentLat = null;
+    let currentLng = null;
 
-    let map = null;
-    let riderMarker = null;
-    let driverMarker = null;
-    let currentRideId = null;
-    let riderLatLng = null;
-    let polling = false;
+    function detectInAppBrowser() {
+      const ua = navigator.userAgent || navigator.vendor || window.opera;
+      const isFacebook = /FBAN|FBAV/i.test(ua);
+      const isInstagram = /Instagram/i.test(ua);
 
-    function initMap(lat, lng) {
-      if (!map) {
-        map = L.map("map").setView([lat, lng], 15);
-
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          maxZoom: 19,
-          attribution: "&copy; OpenStreetMap"
-        }).addTo(map);
-      } else {
-        map.setView([lat, lng], 15);
+      if (isFacebook || isInstagram) {
+        document.getElementById("browserWarning").style.display = "block";
       }
-    }
-
-    function setRiderMarker(lat, lng) {
-      riderLatLng = [lat, lng];
-
-      if (!riderMarker) {
-        riderMarker = L.marker([lat, lng]).addTo(map)
-          .bindPopup("You are here")
-          .openPopup();
-      } else {
-        riderMarker.setLatLng([lat, lng]);
-      }
-    }
-
-    function setDriverMarker(lat, lng) {
-      if (!driverMarker) {
-        driverMarker = L.marker([lat, lng]).addTo(map)
-          .bindPopup("Driver");
-      } else {
-        driverMarker.setLatLng([lat, lng]);
-      }
-    }    function fitMapToMarkers(driverLat, driverLng) {
-      if (!map || !riderLatLng) return;
-
-      const bounds = L.latLngBounds([
-        riderLatLng,
-        [driverLat, driverLng]
-      ]);
-
-      map.fitBounds(bounds, { padding: [40, 40] });
     }
 
     function requestRide() {
+      const status = document.getElementById("status");
+      const map = document.getElementById("map");
+
+      status.innerText = "Detecting your location...";
+      map.innerHTML = "Loading map...";
+
       if (!navigator.geolocation) {
-        statusEl.innerText = "Geolocation not supported";
+        status.innerText = "This device does not support location services.";
+        map.innerHTML = "Location services not supported.";
         return;
       }
 
-      statusEl.innerText = "Getting your location...";
-
       navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
+        function(position) {
+          currentLat = position.coords.latitude;
+          currentLng = position.coords.longitude;
 
-          initMap(lat, lng);
-          setRiderMarker(lat, lng);
+          status.innerText = `Pickup location found: ${currentLat.toFixed(6)}, ${currentLng.toFixed(6)}`;
 
-          try {
-            const res = await fetch("/api/ride/request", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json"
-              },
-              body: JSON.stringify({
-                riderId: "rider1",
-                pickup: { lat, lng }
-              })
-            });
+          map.innerHTML = `
+            <iframe
+              width="100%"
+              height="100%"
+              frameborder="0"
+              style="border:0"
+              referrerpolicy="no-referrer-when-downgrade"
+              src="https://maps.google.com/maps?q=${currentLat},${currentLng}&z=15&output=embed"
+              allowfullscreen>
+            </iframe>
+          `;
 
-            const data = await res.json();
-
-            if (!data.success && !data.rideId) {
-              statusEl.innerText = "Ride request failed";
-              return;
-            }
-
-            currentRideId = data.rideId;
-            statusEl.innerText = "Ride requested. Checking for driver...";
-
-            if (!polling) {
-              polling = true;
-              trackRide();
-            }
-          } catch (err) {
-            console.error(err);
-            statusEl.innerText = "Error requesting ride";
-          }
+          submitRideRequest(currentLat, currentLng);
         },
-        (err) => {
-          console.error(err);
-          statusEl.innerText = "Location error: " + err.message;
+        function(error) {
+          let message = "Location error.";
+
+          if (error.code === 1) {
+            message = "Permission denied. Please allow location access.";
+          } else if (error.code === 2) {
+            message = "Location unavailable.";
+          } else if (error.code === 3) {
+            message = "Location request timed out.";
+          }
+
+          status.innerText = message + " You can open this page in Safari/Chrome or enter your pickup manually.";
+          map.innerHTML = "Location unavailable. Please use manual pickup entry below.";
         },
         {
           enableHighAccuracy: true,
-          maximumAge: 0,
-          timeout: 15000
+          timeout: 15000,
+          maximumAge: 0
         }
       );
     }
 
-    async function trackRide() {
-      if (!currentRideId) return;
-
+    async function submitRideRequest(lat, lng) {
       try {
-        const res = await fetch("/api/ride/" + currentRideId);
-        const data = await res.json();
+        const response = await fetch("/api/request-ride", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            pickup: {
+              lat: lat,
+              lng: lng
+            },
+            notes: ""
+          })
+        });
 
-        if (data.driver) {
-          statusEl.innerText = "Driver assigned!";
-          driverEl.innerText =
-            "Driver at: " + data.driver.lat + ", " + data.driver.lng;
+        const data = await response.json();
 
-          setDriverMarker(data.driver.lat, data.driver.lng);
-          fitMapToMarkers(data.driver.lat, data.driver.lng);
+        if (data.success) {
+          document.getElementById("status").innerText =
+            "Ride request sent successfully. Driver search started.";
         } else {
-          statusEl.innerText = "Waiting for available driver...";
+          document.getElementById("status").innerText =
+            "Location found, but ride request could not be submitted.";
         }
       } catch (err) {
-        console.error(err);
-        statusEl.innerText = "Error checking ride";
+        document.getElementById("status").innerText =
+          "Location found, but server connection failed.";
       }
-
-      setTimeout(trackRide, 2000);
     }
 
-    requestBtn.onclick = function () {
-      requestRide();
-    };
+    async function submitManualRide() {
+      const pickup = document.getElementById("manualPickup").value.trim();
+      const notes = document.getElementById("rideNotes").value.trim();
+      const status = document.getElementById("status");
 
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        initMap(pos.coords.latitude, pos.coords.longitude);
-        setRiderMarker(pos.coords.latitude, pos.coords.longitude);
-        statusEl.innerText = "Ready to request ride";
-      },
-      () => {
-        statusEl.innerText = "Allow location to request a ride";
+      if (!pickup) {
+        status.innerText = "Please enter a manual pickup address.";
+        return;
       }
-    );
+
+      status.innerText = "Submitting manual ride request...";
+
+      try {
+        const response = await fetch("/api/request-ride", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            manualPickup: pickup,
+            notes: notes
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          status.innerText = "Manual ride request submitted successfully.";
+          document.getElementById("map").innerHTML =
+            `Manual pickup entered:<br><br><strong>${pickup}</strong>`;
+        } else {
+          status.innerText = "Manual ride request failed.";
+        }
+      } catch (err) {
+        status.innerText = "Server connection failed while sending manual request.";
+      }
+    }
+
+    detectInAppBrowser();
   </script>
+
 </body>
 </html>
