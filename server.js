@@ -2,16 +2,13 @@ const express = require("express");
 const path = require("path");
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 app.use(express.static(__dirname));
 
-/* ===============================
-   DRIVER DATABASE (TEMP STORAGE)
-================================ */
 const drivers = {
-  "driver_1": {
+  driver_1: {
     id: "driver_1",
     name: "WILLIE",
     photo: "https://via.placeholder.com/110",
@@ -33,38 +30,37 @@ const drivers = {
   }
 };
 
-/* ===============================
-   CALCULATIONS
-================================ */
-function acceptanceRate(d) {
-  const total = d.acceptedJobs + d.cancelledJobs;
+function acceptanceRate(driver) {
+  const total = driver.acceptedJobs + driver.cancelledJobs;
   if (total === 0) return 100;
-  return Math.round((d.acceptedJobs / total) * 100);
+  return Math.round((driver.acceptedJobs / total) * 100);
 }
 
-function cancellationRate(d) {
-  const total = d.acceptedJobs + d.cancelledJobs;
+function cancellationRate(driver) {
+  const total = driver.acceptedJobs + driver.cancelledJobs;
   if (total === 0) return 0;
-  return Math.round((d.cancelledJobs / total) * 100);
+  return Math.round((driver.cancelledJobs / total) * 100);
 }
 
-function completionRate(d) {
-  if (d.acceptedJobs === 0) return 0;
-  return Math.round((d.completedJobs / d.acceptedJobs) * 100);
+function completionRate(driver) {
+  if (driver.acceptedJobs === 0) return 0;
+  return Math.round((driver.completedJobs / driver.acceptedJobs) * 100);
 }
 
-function rideRating(d) {
-  if (d.rideRatingCount === 0) return 5.0;
-  return (d.rideRatingTotal / d.rideRatingCount).toFixed(2);
+function rideRating(driver) {
+  if (driver.rideRatingCount === 0) return "5.00";
+  return (driver.rideRatingTotal / driver.rideRatingCount).toFixed(2);
 }
 
-function deliverySatisfaction(d) {
-  if (d.deliveryRatingCount === 0) return 100;
-  return Math.round((d.deliveryPositiveCount / d.deliveryRatingCount) * 100);
+function deliverySatisfaction(driver) {
+  if (driver.deliveryRatingCount === 0) return 100;
+  return Math.round(
+    (driver.deliveryPositiveCount / driver.deliveryRatingCount) * 100
+  );
 }
 
-function tier(d) {
-  const totalJobs = d.ridesCompleted + d.deliveriesCompleted;
+function tier(driver) {
+  const totalJobs = driver.ridesCompleted + driver.deliveriesCompleted;
 
   if (totalJobs >= 1000) return "Diamond";
   if (totalJobs >= 500) return "Gold";
@@ -72,85 +68,74 @@ function tier(d) {
   return "Starter";
 }
 
-function buildStats(d) {
+function buildStats(driver) {
   return {
-    id: d.id,
-    name: d.name,
-    photo: d.photo,
-    tier: tier(d),
-
-    acceptanceRate: acceptanceRate(d),
-    cancellationRate: cancellationRate(d),
-    completionRate: completionRate(d),
-
-    rideRating: rideRating(d),
-    deliverySatisfaction: deliverySatisfaction(d),
-
-    ridesCompleted: d.ridesCompleted,
-    deliveriesCompleted: d.deliveriesCompleted,
-    totalEarnings: d.totalEarnings.toFixed(2)
+    id: driver.id,
+    name: driver.name,
+    photo: driver.photo,
+    tier: tier(driver),
+    acceptanceRate: acceptanceRate(driver),
+    cancellationRate: cancellationRate(driver),
+    completionRate: completionRate(driver),
+    rideRating: rideRating(driver),
+    deliverySatisfaction: deliverySatisfaction(driver),
+    ridesCompleted: driver.ridesCompleted,
+    deliveriesCompleted: driver.deliveriesCompleted,
+    totalEarnings: driver.totalEarnings.toFixed(2)
   };
 }
 
-/* ===============================
-   API ROUTES
-================================ */
-
-/* GET DRIVER STATS */
 app.get("/api/driver/stats", (req, res) => {
-  const driver = drivers["driver_1"];
+  const driver = drivers.driver_1;
   res.json(buildStats(driver));
 });
 
-/* ACCEPT JOB */
 app.post("/api/driver/accept", (req, res) => {
-  const d = drivers["driver_1"];
-  d.acceptedJobs += 1;
-  res.json(buildStats(d));
+  const driver = drivers.driver_1;
+  driver.acceptedJobs += 1;
+  res.json(buildStats(driver));
 });
 
-/* CANCEL JOB */
 app.post("/api/driver/cancel", (req, res) => {
-  const d = drivers["driver_1"];
-  d.cancelledJobs += 1;
-  res.json(buildStats(d));
+  const driver = drivers.driver_1;
+  driver.cancelledJobs += 1;
+  res.json(buildStats(driver));
 });
 
-/* COMPLETE RIDE */
 app.post("/api/driver/complete-ride", (req, res) => {
-  const d = drivers["driver_1"];
+  const driver = drivers.driver_1;
 
-  d.completedJobs += 1;
-  d.ridesCompleted += 1;
-  d.acceptedJobs += 1;
+  driver.acceptedJobs += 1;
+  driver.completedJobs += 1;
+  driver.ridesCompleted += 1;
 
-  d.rideRatingTotal += 5;
-  d.rideRatingCount += 1;
+  driver.rideRatingTotal += 5;
+  driver.rideRatingCount += 1;
 
-  d.totalEarnings += 15;
+  driver.totalEarnings += 15;
 
-  res.json(buildStats(d));
+  res.json(buildStats(driver));
 });
 
-/* COMPLETE DELIVERY */
 app.post("/api/driver/complete-delivery", (req, res) => {
-  const d = drivers["driver_1"];
+  const driver = drivers.driver_1;
 
-  d.completedJobs += 1;
-  d.deliveriesCompleted += 1;
-  d.acceptedJobs += 1;
+  driver.acceptedJobs += 1;
+  driver.completedJobs += 1;
+  driver.deliveriesCompleted += 1;
 
-  d.deliveryPositiveCount += 1;
-  d.deliveryRatingCount += 1;
+  driver.deliveryPositiveCount += 1;
+  driver.deliveryRatingCount += 1;
 
-  d.totalEarnings += 10;
+  driver.totalEarnings += 10;
 
-  res.json(buildStats(d));
+  res.json(buildStats(driver));
 });
 
-/* ===============================
-   START SERVER
-================================ */
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "index.html"));
+});
+
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
