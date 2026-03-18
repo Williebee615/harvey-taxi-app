@@ -135,4 +135,66 @@ form.addEventListener("submit", async (e) => {
 </script>
 
 </body>
-</html>
+</html>// ===== PART 2: DRIVER SIGNUP ROUTE =====
+
+// Temporary in-memory storage (we'll upgrade to DB later)
+let drivers = [];
+
+// Driver signup route
+app.post("/api/drivers/signup", (req, res) => {
+  try {
+    const {
+      name,
+      phone,
+      email,
+      city,
+      state,
+      vehicleType,
+      driverType,
+    } = req.body;
+
+    // Basic validation
+    if (!name || !phone || !email) {
+      return res.status(400).json({
+        error: "Missing required fields",
+      });
+    }
+
+    const newDriver = {
+      id: Date.now(),
+      name,
+      phone,
+      email,
+      city,
+      state,
+      vehicleType,
+      driverType,
+      status: "pending",
+      createdAt: new Date(),
+    };
+
+    drivers.push(newDriver);
+
+    console.log("New Driver Signup:", newDriver);
+
+    res.status(200).json({
+      message: "Driver application submitted successfully",
+      driver: newDriver,
+    });
+  } catch (error) {
+    console.error("Signup Error:", error);
+    res.status(500).json({
+      error: "Server error",
+    });
+  }
+});
+
+// OPTIONAL: View all drivers (for testing)
+app.get("/api/drivers", (req, res) => {
+  res.json(drivers);
+});
+
+// Start server
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
