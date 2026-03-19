@@ -1,51 +1,28 @@
-const express = require('express');
-const path = require('path');
-const cors = require('cors');
+const express = require('express')
+const cors = require('cors')
 
-const app = express();
-const PORT = process.env.PORT || 10000;
+const app = express()
 
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static(__dirname));
+app.use(cors())
+app.use(express.json())
 
-// Fast root response so Render detects the port immediately
-app.get('/health', (req, res) => {
-  res.status(200).json({
-    ok: true,
-    app: 'Harvey Taxi',
-    port: PORT,
-  });
-});
-
-// Main rider app screen
+// Test route (VERY IMPORTANT)
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'app.html'));
-});
+  res.send('Harvey Taxi API is running 🚕')
+})
 
-// Other pages
-app.get('/driver', (req, res) => {
-  res.sendFile(path.join(__dirname, 'driver.html'));
-});
+// Your ride request route
+app.post('/request-ride', (req, res) => {
+  console.log('Incoming ride:', req.body)
 
-app.get('/dashboard', (req, res) => {
-  res.sendFile(path.join(__dirname, 'dashboard.html'));
-});
+  res.json({
+    success: true,
+    message: 'Ride received successfully',
+  })
+})
 
-app.get('/request-ride', (req, res) => {
-  res.sendFile(path.join(__dirname, 'request-ride.html'));
-});
+const PORT = process.env.PORT || 10000
 
-app.get('/verification', (req, res) => {
-  res.sendFile(path.join(__dirname, 'verification.html'));
-});
-
-// Fallback for unknown routes
-app.use((req, res) => {
-  res.status(404).send('Page not found');
-});
-
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT}`);
-});
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`)
+})
