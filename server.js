@@ -7,11 +7,8 @@ const PORT = process.env.PORT || 10000
 
 app.use(cors())
 app.use(express.json())
-
-// Serve files from /public
 app.use(express.static(path.join(__dirname, 'public')))
 
-// Temporary in-memory storage
 let drivers = []
 let rideRequests = []
 
@@ -52,7 +49,7 @@ app.post('/api/driver/location', (req, res) => {
     existingDriver.lat = lat
     existingDriver.lng = lng
   } else {
-    drivers.push({ driverId, lat, lng })
+    drivers.push({ driverId, lat, lng, available: true })
   }
 
   res.json({
@@ -63,7 +60,7 @@ app.post('/api/driver/location', (req, res) => {
 })
 
 app.post('/api/request-ride', (req, res) => {
-  const { riderId, pickup, dropoff } = req.body
+  const { riderId, pickup, dropoff, rideType } = req.body
 
   if (!pickup || pickup.lat === undefined || pickup.lng === undefined) {
     return res.status(400).json({ error: 'Pickup location required' })
@@ -72,28 +69,32 @@ app.post('/api/request-ride', (req, res) => {
   let nearestDriver = null
   let minDistance = Infinity
 
-  drivers.forEach(driver => {
-    const distance = getDistance(
-      pickup.lat,
-      pickup.lng,
-      driver.lat,
-      driver.lng
-    )
+  drivers
+    .filter(driver => driver.available !== false)
+    .forEach(driver => {
+      const distance = getDistance(
+        pickup.lat,
+        pickup.lng,
+        driver.lat,
+        driver.lng
+      )
 
-    if (distance < minDistance) {
-      minDistance = distance
-      nearestDriver = driver
-    }
-  })
+      if (distance < minDistance) {
+        minDistance = distance
+        nearestDriver = driver
+      }
+    })
 
   const newRide = {
     id: Date.now(),
     riderId: riderId || 'unknown',
     pickup,
     dropoff: dropoff || null,
+    rideType: rideType || 'Standard',
     status: nearestDriver ? 'matched' : 'waiting',
-    driver: nearestDriver || null,
-    distance: nearestDriver ? Number(minDistance.toFixed(2)) : null
+    driver: nearestDriver ? { driverId: nearestDriver.driverId } : null,
+    distance: nearestDriver ? Number(minDistance.toFixed(2)) : null,
+    acceptedBy: null
   }
 
   rideRequests.push(newRide)
@@ -101,6 +102,40 @@ app.post('/api/request-ride', (req, res) => {
   res.json({
     success: true,
     ride: newRide
+  })
+})
+
+app.post('/api/rides/:id/accept', (req, res) => {
+  const rideId = Number(req.params.id)
+  const { driverId } = req.body
+
+  const ride = rideRequests.find(r => r.id === rideId)
+
+  if (!ride) {
+    return res.status(404).json({ error: 'Ride not found' })
+  }
+
+  if (!driverId) {
+    return res.status(400).json({ error: 'driverId is required' })
+  }
+
+  if (ride.status === 'accepted') {
+    return res.status(400).json({ error: 'Ride already accepted' })
+  }
+
+  ride.status = 'accepted'
+  ride.acceptedBy = driverId
+  ride.driver = { driverId }
+
+  const driver = drivers.find(d => d.driverId === driverId)
+  if (driver) {
+    driver.available = false
+  }
+
+  res.json({
+    success: true,
+    message: 'Ride accepted successfully',
+    ride
   })
 })
 
