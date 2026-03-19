@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Harvey Taxi</title>
+</head>
+<body>
+
+<h1>🚖 Harvey Taxi</h1>
+<p>Request your ride below</p>
+
+<input id="name" placeholder="Your Name"><br><br>
+<input id="pickup" placeholder="Pickup Location"><br><br>
+<input id="destination" placeholder="Destination"><br><br>
+<input id="rideType" placeholder="Ride Type"><br><br>
+
+<button onclick="requestRide()">Request Ride</button>
+
+<p id="result"></p>
+
+<script>
+async function requestRide() {
+  const name = document.getElementById('name').value;
+  const pickup = document.getElementById('pickup').value;
+  const destination = document.getElementById('destination').value;
+  const rideType = document.getElementById('rideType').value;
+
+  const res = await fetch('/request-ride', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      passengerName: name,
+      pickup,
+      destination,
+      rideType
+    })
+  });
+
+  const data = await res.json();
+  document.getElementById('result').innerText = JSON.stringify(data);
+}
+</script>
+
+</body>
+</html>
