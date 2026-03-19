@@ -65,7 +65,8 @@
       background: #fff;
     }
 
-    .request-btn, .driver-btn {
+    .request-btn,
+    .driver-btn {
       width: 100%;
       border: none;
       border-radius: 28px;
@@ -174,6 +175,11 @@
         })
 
         const data = await res.json()
+
+        if (!res.ok) {
+          errorBox.textContent = data.error || 'Failed to add test driver.'
+          return
+        }
 
         resultBox.style.display = 'block'
         resultBox.innerHTML = `
