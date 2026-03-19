@@ -1,248 +1,335 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Request Ride - Harvey Taxi</title>
-  <style>
-    * {
-      box-sizing: border-box;
+import React, { useState } from 'react'
+
+export default function RequestRide() {
+  const [pickup, setPickup] = useState('')
+  const [destination, setDestination] = useState('')
+  const [passengerName, setPassengerName] = useState('')
+  const [rideType, setRideType] = useState('Harvey Standard')
+  const [sameGender, setSameGender] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState('')
+
+  const rideOptions = [
+    {
+      name: 'Harvey Standard',
+      price: 12,
+      icon: '🚕',
+      description: 'Affordable everyday ride',
+    },
+    {
+      name: 'Harvey XL',
+      price: 18,
+      icon: '🚐',
+      description: 'More room for passengers and bags',
+    },
+    {
+      name: 'Airport Ride',
+      price: 25,
+      icon: '✈️',
+      description: 'Easy rides to and from BNA',
+    },
+  ]
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setMessage('')
+
+    if (!pickup || !destination || !passengerName || !rideType) {
+      setMessage('Please fill out all fields.')
+      return
     }
 
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #fff;
-      color: #111;
-    }
+    try {
+      setLoading(true)
 
-    .container {
-      max-width: 420px;
-      margin: 0 auto;
-      padding: 22px 18px 40px;
-    }
+      const res = await fetch('https://harvey-taxi-api2.onrender.com/request-ride', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          pickup,
+          destination,
+          passengerName,
+          rideType,
+          sameGender,
+        }),
+      })
 
-    .back-link {
-      display: inline-block;
-      margin-bottom: 18px;
-      text-decoration: none;
-      color: #111;
-      font-weight: 700;
-      font-size: 14px;
-    }
+      const data = await res.json().catch(() => ({}))
 
-    .title {
-      font-size: 28px;
-      font-weight: 800;
-      margin: 0 0 8px;
-    }
-
-    .subtext {
-      color: #6b7280;
-      font-size: 15px;
-      margin-bottom: 20px;
-      line-height: 1.5;
-    }
-
-    .field {
-      margin-bottom: 16px;
-    }
-
-    .label {
-      display: block;
-      font-size: 14px;
-      font-weight: 800;
-      margin-bottom: 8px;
-    }
-
-    .input {
-      width: 100%;
-      border: 1px solid #e5e7eb;
-      border-radius: 14px;
-      padding: 14px;
-      font-size: 16px;
-      background: #fafafa;
-      outline: none;
-    }
-
-    .section-title {
-      font-size: 20px;
-      font-weight: 800;
-      margin: 20px 0 12px;
-    }
-
-    .ride-card {
-      background: #f9fafb;
-      border: 1px solid #e5e7eb;
-      border-radius: 16px;
-      padding: 15px;
-      margin-bottom: 12px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      cursor: pointer;
-    }
-
-    .ride-card.active {
-      border: 2px solid #111;
-      background: #f3f4f6;
-    }
-
-    .ride-left {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .ride-emoji {
-      font-size: 28px;
-    }
-
-    .ride-title {
-      font-size: 16px;
-      font-weight: 800;
-      margin-bottom: 4px;
-    }
-
-    .ride-sub {
-      font-size: 13px;
-      color: #6b7280;
-    }
-
-    .ride-price {
-      font-size: 18px;
-      font-weight: 800;
-    }
-
-    .btn {
-      width: 100%;
-      border: none;
-      border-radius: 14px;
-      padding: 16px;
-      font-size: 16px;
-      font-weight: 800;
-      cursor: pointer;
-      margin-top: 10px;
-    }
-
-    .btn-primary {
-      background: #111;
-      color: #fff;
-    }
-
-    .btn-secondary {
-      background: #f3f4f6;
-      color: #111;
-    }
-
-    .result {
-      display: none;
-      margin-top: 18px;
-      background: #f9fafb;
-      border-radius: 14px;
-      padding: 14px;
-      line-height: 1.5;
-      font-size: 14px;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <a class="back-link" href="/">← Back</a>
-
-    <h1 class="title">Request a Ride</h1>
-    <div class="subtext">
-      Enter your ride details below and choose the service you want.
-    </div>
-
-    <div class="field">
-      <label class="label" for="pickup">Pickup location</label>
-      <input class="input" id="pickup" type="text" placeholder="Enter pickup address" />
-    </div>
-
-    <div class="field">
-      <label class="label" for="destination">Destination</label>
-      <input class="input" id="destination" type="text" placeholder="Enter destination" />
-    </div>
-
-    <div class="field">
-      <label class="label" for="name">Passenger name</label>
-      <input class="input" id="name" type="text" placeholder="Enter your full name" />
-    </div>
-
-    <div class="section-title">Choose ride type</div>
-
-    <div class="ride-card active" onclick="selectRide('Harvey Standard', this)">
-      <div class="ride-left">
-        <div class="ride-emoji">🚕</div>
-        <div>
-          <div class="ride-title">Harvey Standard</div>
-          <div class="ride-sub">Affordable everyday ride</div>
-        </div>
-      </div>
-      <div class="ride-price">$12</div>
-    </div>
-
-    <div class="ride-card" onclick="selectRide('Harvey XL', this)">
-      <div class="ride-left">
-        <div class="ride-emoji">🚐</div>
-        <div>
-          <div class="ride-title">Harvey XL</div>
-          <div class="ride-sub">More room for passengers and bags</div>
-        </div>
-      </div>
-      <div class="ride-price">$18</div>
-    </div>
-
-    <div class="ride-card" onclick="selectRide('Airport Ride', this)">
-      <div class="ride-left">
-        <div class="ride-emoji">✈️</div>
-        <div>
-          <div class="ride-title">Airport Ride</div>
-          <div class="ride-sub">Easy rides to and from BNA</div>
-        </div>
-      </div>
-      <div class="ride-price">$25</div>
-    </div>
-
-    <button class="btn btn-primary" onclick="requestRide()">Request Ride</button>
-    <button class="btn btn-secondary" onclick="window.location.href='/'">Cancel</button>
-
-    <div class="result" id="resultBox"></div>
-  </div>
-
-  <script>
-    let selectedRide = 'Harvey Standard';
-
-    function selectRide(rideName, element) {
-      selectedRide = rideName;
-      document.querySelectorAll('.ride-card').forEach(card => {
-        card.classList.remove('active');
-      });
-      element.classList.add('active');
-    }
-
-    function requestRide() {
-      const pickup = document.getElementById('pickup').value.trim();
-      const destination = document.getElementById('destination').value.trim();
-      const name = document.getElementById('name').value.trim();
-      const resultBox = document.getElementById('resultBox');
-
-      if (!pickup || !destination || !name) {
-        resultBox.style.display = 'block';
-        resultBox.innerHTML = 'Please complete pickup, destination, and passenger name.';
-        return;
+      if (!res.ok) {
+        throw new Error(data?.message || 'Failed to request ride')
       }
 
-      resultBox.style.display = 'block';
-      resultBox.innerHTML =
-        '<strong>Ride requested successfully.</strong><br><br>' +
-        'Passenger: ' + name + '<br>' +
-        'Pickup: ' + pickup + '<br>' +
-        'Destination: ' + destination + '<br>' +
-        'Ride Type: ' + selectedRide;
+      setMessage('Ride requested successfully!')
+      setPickup('')
+      setDestination('')
+      setPassengerName('')
+      setRideType('Harvey Standard')
+      setSameGender(false)
+    } catch (error) {
+      setMessage(error.message || 'Something went wrong.')
+    } finally {
+      setLoading(false)
     }
-  </script>
-</body>
-</html>
+  }
+
+  return (
+    <div style={styles.page}>
+      <div style={styles.container}>
+        <button
+          type="button"
+          onClick={() => window.history.back()}
+          style={styles.backButton}
+        >
+          ← Back
+        </button>
+
+        <h1 style={styles.title}>Request a Ride</h1>
+        <p style={styles.subtitle}>
+          Enter your ride details below and choose the service you want.
+        </p>
+
+        <form onSubmit={handleSubmit}>
+          <div style={styles.fieldGroup}>
+            <label style={styles.label}>Pickup location</label>
+            <input
+              type="text"
+              placeholder="Enter pickup address"
+              value={pickup}
+              onChange={(e) => setPickup(e.target.value)}
+              style={styles.input}
+            />
+          </div>
+
+          <div style={styles.fieldGroup}>
+            <label style={styles.label}>Destination</label>
+            <input
+              type="text"
+              placeholder="Enter destination"
+              value={destination}
+              onChange={(e) => setDestination(e.target.value)}
+              style={styles.input}
+            />
+          </div>
+
+          <div style={styles.fieldGroup}>
+            <label style={styles.label}>Passenger name</label>
+            <input
+              type="text"
+              placeholder="Enter your full name"
+              value={passengerName}
+              onChange={(e) => setPassengerName(e.target.value)}
+              style={styles.input}
+            />
+          </div>
+
+          <div style={styles.fieldGroup}>
+            <label style={styles.label}>Ride Preference</label>
+            <div style={styles.preferenceBox}>
+              <label style={styles.checkboxRow}>
+                <input
+                  type="checkbox"
+                  checked={sameGender}
+                  onChange={() => setSameGender(!sameGender)}
+                  style={styles.checkbox}
+                />
+                <span>Match with same gender driver</span>
+              </label>
+              <p style={styles.preferenceText}>
+                Extra safety option for riders who prefer a same gender match.
+              </p>
+            </div>
+          </div>
+
+          <h2 style={styles.sectionTitle}>Choose ride type</h2>
+
+          <div style={styles.rideList}>
+            {rideOptions.map((ride) => {
+              const isSelected = rideType === ride.name
+
+              return (
+                <button
+                  key={ride.name}
+                  type="button"
+                  onClick={() => setRideType(ride.name)}
+                  style={{
+                    ...styles.rideCard,
+                    ...(isSelected ? styles.rideCardSelected : {}),
+                  }}
+                >
+                  <div style={styles.rideLeft}>
+                    <div style={styles.rideIcon}>{ride.icon}</div>
+                    <div>
+                      <div style={styles.rideName}>{ride.name}</div>
+                      <div style={styles.rideDescription}>{ride.description}</div>
+                    </div>
+                  </div>
+                  <div style={styles.ridePrice}>${ride.price}</div>
+                </button>
+              )
+            })}
+          </div>
+
+          <button type="submit" style={styles.submitButton} disabled={loading}>
+            {loading ? 'Requesting...' : 'Request Ride'}
+          </button>
+
+          {message ? <p style={styles.message}>{message}</p> : null}
+        </form>
+      </div>
+    </div>
+  )
+}
+
+const styles = {
+  page: {
+    minHeight: '100vh',
+    backgroundColor: '#ffffff',
+    display: 'flex',
+    justifyContent: 'center',
+    padding: '30px 16px',
+    fontFamily: 'Arial, sans-serif',
+  },
+  container: {
+    width: '100%',
+    maxWidth: '620px',
+  },
+  backButton: {
+    background: 'none',
+    border: 'none',
+    fontSize: '28px',
+    cursor: 'pointer',
+    padding: 0,
+    marginBottom: '20px',
+    color: '#111827',
+  },
+  title: {
+    fontSize: '54px',
+    fontWeight: 800,
+    margin: '0 0 12px 0',
+    color: '#111827',
+    lineHeight: 1.05,
+  },
+  subtitle: {
+    fontSize: '18px',
+    color: '#6b7280',
+    marginBottom: '30px',
+    lineHeight: 1.5,
+  },
+  fieldGroup: {
+    marginBottom: '24px',
+  },
+  label: {
+    display: 'block',
+    fontSize: '18px',
+    fontWeight: 700,
+    marginBottom: '10px',
+    color: '#111827',
+  },
+  input: {
+    width: '100%',
+    padding: '20px 22px',
+    borderRadius: '20px',
+    border: '1px solid #e5e7eb',
+    fontSize: '18px',
+    outline: 'none',
+    boxSizing: 'border-box',
+    color: '#111827',
+  },
+  preferenceBox: {
+    border: '1px solid #e5e7eb',
+    borderRadius: '18px',
+    padding: '16px',
+    backgroundColor: '#fafafa',
+  },
+  checkboxRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    fontSize: '17px',
+    fontWeight: 600,
+    color: '#111827',
+  },
+  checkbox: {
+    width: '18px',
+    height: '18px',
+    cursor: 'pointer',
+  },
+  preferenceText: {
+    margin: '10px 0 0 28px',
+    fontSize: '14px',
+    color: '#6b7280',
+    lineHeight: 1.5,
+  },
+  sectionTitle: {
+    fontSize: '28px',
+    fontWeight: 800,
+    margin: '34px 0 20px 0',
+    color: '#111827',
+  },
+  rideList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '18px',
+    marginBottom: '26px',
+  },
+  rideCard: {
+    width: '100%',
+    backgroundColor: '#f9fafb',
+    border: '2px solid #e5e7eb',
+    borderRadius: '24px',
+    padding: '22px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    cursor: 'pointer',
+    boxSizing: 'border-box',
+  },
+  rideCardSelected: {
+    border: '3px solid #111111',
+    backgroundColor: '#ffffff',
+  },
+  rideLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+    textAlign: 'left',
+  },
+  rideIcon: {
+    fontSize: '34px',
+  },
+  rideName: {
+    fontSize: '20px',
+    fontWeight: 800,
+    color: '#111827',
+    marginBottom: '4px',
+  },
+  rideDescription: {
+    fontSize: '16px',
+    color: '#6b7280',
+  },
+  ridePrice: {
+    fontSize: '22px',
+    fontWeight: 800,
+    color: '#111827',
+  },
+  submitButton: {
+    width: '100%',
+    backgroundColor: '#000000',
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '22px',
+    padding: '22px',
+    fontSize: '20px',
+    fontWeight: 800,
+    cursor: 'pointer',
+  },
+  message: {
+    marginTop: '16px',
+    fontSize: '16px',
+    fontWeight: 600,
+    color: '#111827',
+  },
+}
