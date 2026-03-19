@@ -48,6 +48,7 @@ app.post('/api/driver/location', (req, res) => {
   if (existingDriver) {
     existingDriver.lat = lat
     existingDriver.lng = lng
+    existingDriver.available = true
   } else {
     drivers.push({ driverId, lat, lng, available: true })
   }
@@ -119,8 +120,8 @@ app.post('/api/rides/:id/accept', (req, res) => {
     return res.status(400).json({ error: 'driverId is required' })
   }
 
-  if (ride.status === 'accepted') {
-    return res.status(400).json({ error: 'Ride already accepted' })
+  if (ride.status === 'accepted' || ride.status === 'en_route' || ride.status === 'arrived' || ride.status === 'completed') {
+    return res.status(400).json({ error: 'Ride already accepted or completed' })
   }
 
   ride.status = 'accepted'
@@ -135,6 +136,37 @@ app.post('/api/rides/:id/accept', (req, res) => {
   res.json({
     success: true,
     message: 'Ride accepted successfully',
+    ride
+  })
+})
+
+app.post('/api/rides/:id/status', (req, res) => {
+  const rideId = Number(req.params.id)
+  const { status } = req.body
+
+  const ride = rideRequests.find(r => r.id === rideId)
+
+  if (!ride) {
+    return res.status(404).json({ error: 'Ride not found' })
+  }
+
+  const validStatuses = ['en_route', 'arrived', 'completed']
+
+  if (!validStatuses.includes(status)) {
+    return res.status(400).json({ error: 'Invalid status' })
+  }
+
+  ride.status = status
+
+  if (status === 'completed' && ride.driver?.driverId) {
+    const driver = drivers.find(d => d.driverId === ride.driver.driverId)
+    if (driver) {
+      driver.available = true
+    }
+  }
+
+  res.json({
+    success: true,
     ride
   })
 })
