@@ -1,4 +1,5 @@
-const express = require('express')
+const path = require('path')
+app.use(express.static(path.join(__dirname, 'public')))const express = require('express')
 const cors = require('cors')
 
 const app = express()
@@ -116,4 +117,7 @@ app.get('/api/rides', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`🚖 Server running on port ${PORT}`)
+})
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'))
 })
