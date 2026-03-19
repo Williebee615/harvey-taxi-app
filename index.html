@@ -5,64 +5,125 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Harvey Taxi</title>
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
       font-family: Arial, sans-serif;
-      background: #000;
+      background: #0b0b0b;
       color: white;
-      text-align: center;
     }
 
-    .container {
-      padding: 60px 20px;
+    .page {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 28px 20px;
+      max-width: 430px;
+      margin: 0 auto;
     }
 
-    h1 {
-      font-size: 36px;
+    .logo {
+      font-size: 52px;
       margin-bottom: 10px;
     }
 
-    p {
-      color: #ccc;
-      margin-bottom: 40px;
+    h1 {
+      font-size: 42px;
+      line-height: 1.05;
+      margin: 0 0 14px;
+      font-weight: 800;
+    }
+
+    .subtitle {
+      font-size: 17px;
+      color: #bdbdbd;
+      line-height: 1.5;
+      margin-bottom: 34px;
+    }
+
+    .card {
+      background: #151515;
+      border: 1px solid #2a2a2a;
+      border-radius: 24px;
+      padding: 22px;
+      margin-bottom: 18px;
+    }
+
+    .card-title {
+      font-size: 22px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .card-text {
+      color: #bdbdbd;
+      font-size: 15px;
+      line-height: 1.5;
+      margin-bottom: 20px;
     }
 
     .btn {
-      display: block;
       width: 100%;
-      max-width: 300px;
-      margin: 10px auto;
-      padding: 18px;
-      border-radius: 14px;
-      font-size: 18px;
-      font-weight: bold;
       border: none;
+      border-radius: 18px;
+      padding: 18px;
+      font-size: 18px;
+      font-weight: 800;
       cursor: pointer;
     }
 
-    .primary {
+    .btn-primary {
       background: white;
       color: black;
     }
 
-    .secondary {
-      background: #222;
+    .btn-secondary {
+      background: #232323;
       color: white;
+      border: 1px solid #333;
+    }
+
+    .footer-note {
+      margin-top: 16px;
+      font-size: 14px;
+      color: #8e8e8e;
+      text-align: center;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>🚖 Harvey Taxi</h1>
-    <p>Fast, reliable rides in Nashville</p>
+  <div class="page">
+    <div class="logo">🚖</div>
+    <h1>Harvey Taxi</h1>
+    <p class="subtitle">
+      Fast, reliable rides in Nashville with simple booking and clean service.
+    </p>
 
-    <button class="btn primary" onclick="window.location.href='/request-ride'">
-      Request a Ride
-    </button>
+    <div class="card">
+      <div class="card-title">Need a ride?</div>
+      <div class="card-text">
+        Book your trip in seconds and choose the ride type that fits your needs.
+      </div>
+      <button class="btn btn-primary" onclick="window.location.href='/request-ride'">
+        Request a Ride
+      </button>
+    </div>
 
-    <button class="btn secondary">
-      Driver Dashboard
-    </button>
+    <div class="card">
+      <div class="card-title">Driver side</div>
+      <div class="card-text">
+        Driver dashboard can be connected next after rider booking is fully working.
+      </div>
+      <button class="btn btn-secondary" type="button">
+        Driver Dashboard
+      </button>
+    </div>
+
+    <div class="footer-note">Harvey Taxi Service LLC</div>
   </div>
 </body>
 </html>
