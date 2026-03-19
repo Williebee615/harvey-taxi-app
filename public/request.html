@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rider App</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f3f3f3;
+      color: #000;
+    }
+
+    .page {
+      max-width: 430px;
+      margin: 0 auto;
+      padding: 24px 20px 40px;
+    }
+
+    h1, h2 {
+      font-weight: 800;
+    }
+
+    h1 {
+      font-size: 38px;
+      margin: 0 0 22px;
+    }
+
+    h2 {
+      font-size: 26px;
+      margin: 28px 0 14px;
+    }
+
+    .card {
+      background: white;
+      border: 2px solid #d8d8d8;
+      border-radius: 18px;
+      padding: 16px;
+      margin-bottom: 18px;
+    }
+
+    input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 16px;
+      margin-bottom: 12px;
+      border: 2px solid #d8d8d8;
+      border-radius: 14px;
+      font-size: 16px;
+      background: #fff;
+    }
+
+    button {
+      width: 100%;
+      border: none;
+      border-radius: 18px;
+      padding: 18px;
+      font-size: 20px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    .black-btn {
+      background: #000;
+      color: #fff;
+    }
+
+    .gray-btn {
+      background: #2e2e2e;
+      color: #fff;
+    }
+
+    .ride-option {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 22px 18px;
+      margin-bottom: 12px;
+      border: 2px solid #d8d8d8;
+      border-radius: 20px;
+      font-size: 18px;
+      background: #f8f8f8;
+      cursor: pointer;
+    }
+
+    .ride-option.selected {
+      border: 4px solid #000;
+      background: #fff;
+    }
+
+    .result-box {
+      margin-top: 20px;
+      padding: 16px;
+      border-radius: 18px;
+      background: #fff;
+      border: 2px solid #d8d8d8;
+      display: none;
+    }
+
+    .success {
+      color: green;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .error {
+      color: red;
+      font-weight: 700;
+      margin-top: 12px;
+    }
+
+    .status-pill {
+      display: inline-block;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: #efefef;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    #map {
+      display: none;
+      height: 300px;
+      margin-top: 22px;
+      border-radius: 18px;
+      overflow: hidden;
+      border: 2px solid #d8d8d8;
+    }
+
+    .muted {
+      color: #666;
+      font-size: 14px;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h1>🚖 Rider App</h1>
+
+    <div class="card">
+      <h2>Rider Sign Up</h2>
+      <input id="signupName" type="text" placeholder="Full name" />
+      <input id="signupEmail" type="email" placeholder="Email" />
+      <input id="signupPassword" type="password" placeholder="Password" />
+      <button class="black-btn" onclick="riderSignup()">Create Rider Account</button>
+    </div>
+
+    <div class="card">
+      <h2>Rider Login</h2>
+      <input id="loginEmail" type="email" placeholder="Email" />
+      <input id="loginPassword" type="password" placeholder="Password" />
+      <button class="gray-btn" onclick="riderLogin()">Login as Rider</button>
+      <div id="authStatus" class="muted"></div>
+    </div>
+
+    <div class="card">
+      <h2>Request a Ride</h2>
+      <input id="pickup" type="text" placeholder="Pickup location" />
+      <input id="destination" type="text" placeholder="Destination" />
+
+      <div class="ride-option selected" data-ride="Harvey Standard - $12">
+        🚕 Harvey Standard - $12
+      </div>
+
+      <div class="ride-option" data-ride="Harvey XL - $18">
+        🚐 Harvey XL - $18
+      </div>
+
+      <div class="ride-option" data-ride="Airport Ride - $25">
+        ✈️ Airport Ride - $25
+      </div>
+
+      <button class="black-btn" onclick="requestRide()">Request Ride</button>
+    </div>
+
+    <div id="result" class="result-box"></div>
+    <div id="error" class="error"></div>
+    <div id="map"></div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    let selectedRide = 'Harvey Standard - $12'
+    let currentRideId = null
+    let trackingInterval = null
+    let currentRider = null
+
+    let map = null
+    let pickupMarker = null
+    let dropoffMarker = null
+    let driverMarker = null
+    let routeLine = null
+
+    document.querySelectorAll('.ride-option').forEach(option => {
+      option.addEventListener('click', () => {
+        document.querySelectorAll('.ride-option').forEach(el => el.classList.remove('selected'))
+        option.classList.add('selected')
+        selectedRide = option.dataset.ride
+      })
+    })
+
+    function getRideCoordinates(rideType) {
+      if (rideType === 'Airport Ride - $25') {
+        return {
+          pickup: { lat: 36.1600, lng: -86.7800 },
+          dropoff: { lat: 36.1263, lng: -86.6774 }
+        }
+      }
+
+      if (rideType === 'Harvey XL - $18') {
+        return {
+          pickup: { lat: 36.1600, lng: -86.7800 },
+          dropoff: { lat: 36.1745, lng: -86.7679 }
+        }
+      }
+
+      return {
+        pickup: { lat: 36.1600, lng: -86.7800 },
+        dropoff: { lat: 36.1700, lng: -86.7900 }
+      }
+    }
+
+    async function riderSignup() {
+      const name = document.getElementById('signupName').value.trim()
+      const email = document.getElementById('signupEmail').value.trim()
+      const password = document.getElementById('signupPassword').value.trim()
+      const errorBox = document.getElementById('error')
+      const authStatus = document.getElementById('authStatus')
+
+      errorBox.textContent = ''
+      authStatus.textContent = ''
+
+      try {
+        const res = await fetch('/api/rider/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, password })
+        })
+
+        const data = await res.json()
+
+        if (!res.ok) {
+          errorBox.textContent = data.error || 'Signup failed'
+          return
+        }
+
+        authStatus.textContent = `Signed up as ${data.rider.name}. You can log in now.`
+      } catch (err) {
+        errorBox.textContent = 'Signup failed'
+      }
+    }
+
+    async function riderLogin() {
+      const email = document.getElementById('loginEmail').value.trim()
+      const password = document.getElementById('loginPassword').value.trim()
+      const errorBox = document.getElementById('error')
+      const authStatus = document.getElementById('authStatus')
+
+      errorBox.textContent = ''
+      authStatus.textContent = ''
+
+      try {
+        const res = await fetch('/api/rider/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        })
+
+        const data = await res.json()
+
+        if (!res.ok) {
+          errorBox.textContent = data.error || 'Login failed'
+          return
+        }
+
+        currentRider = data.rider
+        authStatus.textContent = `Logged in as ${data.rider.name}`
+      } catch (err) {
+        errorBox.textContent = 'Login failed'
+      }
+    }
+
+    function initMapIfNeeded() {
+      const mapBox = document.getElementById('map')
+      mapBox.style.display = 'block'
+
+      if (!map) {
+        map = L.map('map')
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+          attribution: '&copy; OpenStreetMap'
+        }).addTo(map)
+      }
+
+      setTimeout(() => map.invalidateSize(), 200)
+    }
+
+    function drawMap(ride) {
+      initMapIfNeeded()
+
+      const pickupLatLng = [ride.pickup.lat, ride.pickup.lng]
+      const dropoffLatLng = [ride.dropoff.lat, ride.dropoff.lng]
+
+      if (pickupMarker) map.removeLayer(pickupMarker)
+      if (dropoffMarker) map.removeLayer(dropoffMarker)
+      if (driverMarker) map.removeLayer(driverMarker)
+      if (routeLine) map.removeLayer(routeLine)
+
+      pickupMarker = L.marker(pickupLatLng).addTo(map).bindPopup('Pickup')
+      dropoffMarker = L.marker(dropoffLatLng).addTo(map).bindPopup('Dropoff')
+      routeLine = L.polyline([pickupLatLng, dropoffLatLng], { weight: 4 }).addTo(map)
+
+      const boundsPoints = [pickupLatLng, dropoffLatLng]
+
+      if (ride.driver && ride.driver.lat !== undefined && ride.driver.lng !== undefined) {
+        driverMarker = L.marker([ride.driver.lat, ride.driver.lng]).addTo(map).bindPopup('Driver')
+        boundsPoints.push([ride.driver.lat, ride.driver.lng])
+      }
+
+      map.fitBounds(boundsPoints, { padding: [30, 30] })
+    }
+
+    async function requestRide() {
+      const pickup = document.getElementById('pickup').value.trim()
+      const destination = document.getElementById('destination').value.trim()
+      const errorBox = document.getElementById('error')
+      const resultBox = document.getElementById('result')
+
+      errorBox.textContent = ''
+      resultBox.style.display = 'none'
+
+      if (!currentRider) {
+        errorBox.textContent = 'Please sign up or log in as a rider first.'
+        return
+      }
+
+      if (!pickup || !destination) {
+        errorBox.textContent = 'Please fill in pickup and destination.'
+        return
+      }
+
+      const coords = getRideCoordinates(selectedRide)
+
+      try {
+        const res = await fetch('/api/request-ride', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            riderId: currentRider.name,
+            pickup: {
+              name: pickup,
+              lat: coords.pickup.lat,
+              lng: coords.pickup.lng
+            },
+            dropoff: {
+              name: destination,
+              lat: coords.dropoff.lat,
+              lng: coords.dropoff.lng
+            },
+            rideType: selectedRide
+          })
+        })
+
+        const data = await res.json()
+
+        if (!res.ok) {
+          errorBox.textContent = data.error || 'Failed to request ride.'
+          return
+        }
+
+        currentRideId = data.ride.id
+        updateRideUI(data.ride)
+
+        if (trackingInterval) clearInterval(trackingInterval)
+        trackingInterval = setInterval(trackRide, 2000)
+      } catch (err) {
+        errorBox.textContent = 'Failed to request ride.'
+      }
+    }
+
+    async function trackRide() {
+      if (!currentRideId) return
+
+      try {
+        const res = await fetch(`/api/rides/${currentRideId}`)
+        const ride = await res.json()
+
+        if (!res.ok) return
+
+        updateRideUI(ride)
+
+        if (ride.status === 'completed' && trackingInterval) {
+          clearInterval(trackingInterval)
+          trackingInterval = null
+        }
+      } catch (err) {}
+    }
+
+    function updateRideUI(ride) {
+      const resultBox = document.getElementById('result')
+      resultBox.style.display = 'block'
+
+      let statusText = ride.status
+      if (statusText === 'en_route') statusText = 'en route'
+
+      resultBox.innerHTML = `
+        <div class="status-pill">Status: ${statusText}</div>
+        <div class="success">${ride.status === 'completed' ? 'Ride completed ✅' : 'Ride live update active 🚖'}</div>
+        <div><strong>Passenger:</strong> ${ride.riderId}</div>
+        <div><strong>Pickup:</strong> ${ride.pickup.name}</div>
+        <div><strong>Destination:</strong> ${ride.dropoff.name}</div>
+        <div><strong>Ride Type:</strong> ${ride.rideType}</div>
+        <div><strong>Ride ID:</strong> ${ride.id}</div>
+        <div><strong>Driver ID:</strong> ${ride.driver?.driverId || 'Waiting...'}</div>
+        <div><strong>Distance:</strong> ${ride.distance ?? '--'} km away</div>
+      `
+
+      drawMap(ride)
+    }
+  </script>
+</body>
+</html>
