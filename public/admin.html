@@ -135,4 +135,218 @@
     <h1>🛠️ Harvey Taxi Admin Panel</h1>
     <div class="muted"><a href="/">← Back to home</a></div>
 
-    <div class="card" id="loginCard
+    <div class="card" id="loginCard">
+      <h2>Admin Login</h2>
+      <input id="adminEmail" type="email" placeholder="Admin email" value="admin@harveytaxi.com" />
+      <input id="adminPassword" type="password" placeholder="Admin password" value="admin123" />
+      <button onclick="adminLogin()">Login as Admin</button>
+      <div id="loginMessage"></div>
+    </div>
+
+    <div id="dashboard" class="hidden">
+      <div class="card">
+        <h2>Dashboard Overview</h2>
+        <div id="adminWelcome" class="muted"></div>
+        <div class="stats" id="stats"></div>
+        <button onclick="loadDashboard()">Refresh Dashboard</button>
+      </div>
+
+      <div class="card">
+        <h2>Rider Profiles</h2>
+        <div id="ridersList"></div>
+      </div>
+
+      <div class="card">
+        <h2>Driver Profiles</h2>
+        <div id="driversList"></div>
+      </div>
+
+      <div class="card">
+        <h2>Ride Activity</h2>
+        <div id="ridesList"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentAdmin = null
+
+    async function adminLogin() {
+      const email = document.getElementById('adminEmail').value.trim()
+      const password = document.getElementById('adminPassword').value.trim()
+      const loginMessage = document.getElementById('loginMessage')
+
+      loginMessage.className = ''
+      loginMessage.textContent = ''
+
+      try {
+        const res = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        })
+
+        const data = await res.json()
+
+        if (!res.ok) {
+          loginMessage.className = 'error'
+          loginMessage.textContent = data.error || 'Admin login failed'
+          return
+        }
+
+        currentAdmin = data.admin
+        document.getElementById('loginCard').classList.add('hidden')
+        document.getElementById('dashboard').classList.remove('hidden')
+        document.getElementById('adminWelcome').textContent =
+          `Logged in as ${currentAdmin.name} (${currentAdmin.email})`
+
+        loadDashboard()
+      } catch (err) {
+        loginMessage.className = 'error'
+        loginMessage.textContent = 'Admin login failed'
+      }
+    }
+
+    async function loadDashboard() {
+      const res = await fetch('/api/admin/dashboard')
+      const data = await res.json()
+
+      renderStats(data.counts)
+      renderRiders(data.riders)
+      renderDrivers(data.drivers)
+      renderRides(data.rides)
+    }
+
+    function renderStats(counts) {
+      const stats = document.getElementById('stats')
+      stats.innerHTML = `
+        <div class="stat-box">
+          <div>Total Riders</div>
+          <div class="stat-value">${counts.riders}</div>
+        </div>
+        <div class="stat-box">
+          <div>Total Drivers</div>
+          <div class="stat-value">${counts.drivers}</div>
+        </div>
+        <div class="stat-box">
+          <div>Total Rides</div>
+          <div class="stat-value">${counts.rides}</div>
+        </div>
+        <div class="stat-box">
+          <div>Pending Drivers</div>
+          <div class="stat-value">${counts.pendingDrivers}</div>
+        </div>
+        <div class="stat-box">
+          <div>Active Drivers</div>
+          <div class="stat-value">${counts.activeDrivers}</div>
+        </div>
+      `
+    }
+
+    function renderRiders(riders) {
+      const ridersList = document.getElementById('ridersList')
+
+      if (!riders.length) {
+        ridersList.innerHTML = '<div class="muted">No rider accounts yet.</div>'
+        return
+      }
+
+      ridersList.innerHTML = riders.map(rider => `
+        <div class="item">
+          <div><strong>Name:</strong> ${rider.name}</div>
+          <div><strong>Email:</strong> ${rider.email}</div>
+          <div><strong>ID:</strong> ${rider.id}</div>
+          <div class="pill">Status: ${rider.status}</div>
+          <div>
+            ${
+              rider.status === 'active'
+                ? `<button class="small-btn" onclick="suspendRider('${rider.id}')">Suspend Rider</button>`
+                : `<button class="small-btn" onclick="activateRider('${rider.id}')">Activate Rider</button>`
+            }
+          </div>
+        </div>
+      `).join('')
+    }
+
+    function renderDrivers(drivers) {
+      const driversList = document.getElementById('driversList')
+
+      if (!drivers.length) {
+        driversList.innerHTML = '<div class="muted">No driver accounts yet.</div>'
+        return
+      }
+
+      driversList.innerHTML = drivers.map(driver => `
+        <div class="item">
+          <div><strong>Name:</strong> ${driver.name}</div>
+          <div><strong>Email:</strong> ${driver.email}</div>
+          <div><strong>ID:</strong> ${driver.id}</div>
+          <div><strong>Car Type:</strong> ${driver.carType}</div>
+          <div class="pill">Status: ${driver.status}</div>
+          <div class="pill">Approved: ${driver.approved ? 'yes' : 'no'}</div>
+          <div>
+            ${
+              !driver.approved
+                ? `<button class="small-btn" onclick="approveDriver('${driver.id}')">Approve Driver</button>`
+                : ''
+            }
+            ${
+              driver.status === 'active'
+                ? `<button class="small-btn" onclick="suspendDriver('${driver.id}')">Suspend Driver</button>`
+                : `<button class="small-btn" onclick="activateDriver('${driver.id}')">Activate Driver</button>`
+            }
+          </div>
+        </div>
+      `).join('')
+    }
+
+    function renderRides(rides) {
+      const ridesList = document.getElementById('ridesList')
+
+      if (!rides.length) {
+        ridesList.innerHTML = '<div class="muted">No ride activity yet.</div>'
+        return
+      }
+
+      ridesList.innerHTML = rides.map(ride => `
+        <div class="item">
+          <div><strong>Ride ID:</strong> ${ride.id}</div>
+          <div><strong>Rider:</strong> ${ride.riderId}</div>
+          <div><strong>Pickup:</strong> ${ride.pickup?.name || ''}</div>
+          <div><strong>Dropoff:</strong> ${ride.dropoff?.name || ''}</div>
+          <div><strong>Ride Type:</strong> ${ride.rideType || ''}</div>
+          <div><strong>Status:</strong> ${ride.status}</div>
+          <div><strong>Accepted By:</strong> ${ride.acceptedBy || 'Not yet'}</div>
+          <div><strong>Distance:</strong> ${ride.distance ?? '--'} km</div>
+          <div><strong>Created:</strong> ${ride.createdAt ? new Date(ride.createdAt).toLocaleString() : 'N/A'}</div>
+        </div>
+      `).join('')
+    }
+
+    async function approveDriver(id) {
+      await fetch(`/api/admin/driver/${id}/approve`, { method: 'POST' })
+      loadDashboard()
+    }
+
+    async function suspendDriver(id) {
+      await fetch(`/api/admin/driver/${id}/suspend`, { method: 'POST' })
+      loadDashboard()
+    }
+
+    async function activateDriver(id) {
+      await fetch(`/api/admin/driver/${id}/activate`, { method: 'POST' })
+      loadDashboard()
+    }
+
+    async function suspendRider(id) {
+      await fetch(`/api/admin/rider/${id}/suspend`, { method: 'POST' })
+      loadDashboard()
+    }
+
+    async function activateRider(id) {
+      await fetch(`/api/admin/rider/${id}/activate`, { method: 'POST' })
+      loadDashboard()
+    }
+  </script>
+</body>
+</html>
