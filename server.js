@@ -10,7 +10,7 @@ app.use(express.json())
 app.use(express.static(path.join(__dirname, 'public')))
 
 let drivers = []
-let rideRequests = []
+let serviceRequests = []
 
 let users = {
   riders: [],
@@ -68,39 +68,64 @@ function sanitizeDriver(driver) {
     email: driver.email,
     carType: driver.carType || 'Standard',
     status: driver.status || 'active',
-    approved: driver.approved === undefined ? false : driver.approved
+    approved: driver.approved === undefined ? false : driver.approved,
+    services: driver.services || ['ride']
   }
+}
+
+function normalizeServices(services) {
+  const valid = ['ride', 'food_delivery', 'grocery_delivery', 'package_delivery']
+  if (!Array.isArray(services) || !services.length) return ['ride']
+  return [...new Set(services.filter(service => valid.includes(service)))]
+}
+
+function serviceLabel(serviceType) {
+  const map = {
+    ride: 'Ride',
+    food_delivery: 'Food Delivery',
+    grocery_delivery: 'Grocery Delivery',
+    package_delivery: 'Package Delivery'
+  }
+  return map[serviceType] || serviceType
+}
+
+function servicePrice(serviceType) {
+  const map = {
+    ride: 12,
+    food_delivery: 8,
+    grocery_delivery: 14,
+    package_delivery: 10
+  }
+  return map[serviceType] || 12
 }
 
 // auto movement
 setInterval(() => {
-  rideRequests.forEach(ride => {
-    if (!ride.driver || !ride.driver.driverId) return
+  serviceRequests.forEach(request => {
+    if (!request.driver || !request.driver.driverId) return
 
-    const driver = drivers.find(d => d.driverId === ride.driver.driverId)
+    const driver = drivers.find(d => d.driverId === request.driver.driverId)
     if (!driver) return
 
-    if (ride.status === 'en_route') {
-      const next = moveTowards(driver, ride.pickup)
+    if (request.status === 'en_route_pickup') {
+      const next = moveTowards(driver, request.pickup)
       driver.lat = next.lat
       driver.lng = next.lng
 
       if (
-        getDistance(driver.lat, driver.lng, ride.pickup.lat, ride.pickup.lng) <
-        0.05
+        getDistance(driver.lat, driver.lng, request.pickup.lat, request.pickup.lng) < 0.05
       ) {
-        ride.status = 'arrived'
+        request.status = 'picked_up'
       }
-    } else if (ride.status === 'arrived') {
-      const next = moveTowards(driver, ride.dropoff)
+    } else if (request.status === 'picked_up') {
+      const next = moveTowards(driver, request.dropoff)
       driver.lat = next.lat
       driver.lng = next.lng
 
       if (
-        getDistance(driver.lat, driver.lng, ride.dropoff.lat, ride.dropoff.lng) <
-        0.05
+        getDistance(driver.lat, driver.lng, request.dropoff.lat, request.dropoff.lng) < 0.05
       ) {
-        ride.status = 'completed'
+        request.status = 'completed'
         driver.available = true
       }
     }
@@ -121,9 +146,7 @@ app.post('/api/rider/signup', (req, res) => {
   const { name, email, password } = req.body
 
   if (!name || !email || !password) {
-    return res
-      .status(400)
-      .json({ error: 'Name, email, and password are required' })
+    return res.status(400).json({ error: 'Name, email, and password are required' })
   }
 
   const exists = users.riders.find(user => user.email === email)
@@ -172,12 +195,10 @@ app.post('/api/rider/login', (req, res) => {
 
 // driver auth
 app.post('/api/driver/signup', (req, res) => {
-  const { name, email, password, carType } = req.body
+  const { name, email, password, carType, services } = req.body
 
   if (!name || !email || !password) {
-    return res
-      .status(400)
-      .json({ error: 'Name, email, and password are required' })
+    return res.status(400).json({ error: 'Name, email, and password are required' })
   }
 
   const exists = users.drivers.find(user => user.email === email)
@@ -192,7 +213,8 @@ app.post('/api/driver/signup', (req, res) => {
     password,
     carType: carType || 'Standard',
     status: 'active',
-    approved: false
+    approved: false,
+    services: normalizeServices(services)
   }
 
   users.drivers.push(newDriver)
@@ -220,9 +242,7 @@ app.post('/api/driver/login', (req, res) => {
   }
 
   if (!driver.approved) {
-    return res
-      .status(403)
-      .json({ error: 'Driver account is pending admin approval' })
+    return res.status(403).json({ error: 'Driver account is pending admin approval' })
   }
 
   res.json({
@@ -260,9 +280,7 @@ app.post('/api/driver/location', (req, res) => {
   const { driverId, lat, lng } = req.body
 
   if (!driverId || lat === undefined || lng === undefined) {
-    return res
-      .status(400)
-      .json({ error: 'driverId, lat, and lng are required' })
+    return res.status(400).json({ error: 'driverId, lat, and lng are required' })
   }
 
   const driverProfile = users.drivers.find(d => d.id === driverId)
@@ -283,14 +301,19 @@ app.post('/api/driver/location', (req, res) => {
   res.json({ success: true })
 })
 
-// request ride
-app.post('/api/request-ride', (req, res) => {
-  const { riderId, pickup, dropoff, rideType } = req.body
+// create service request
+app.post('/api/request-service', (req, res) => {
+  const { riderId, serviceType, pickup, dropoff, details } = req.body
 
-  if (!riderId || !pickup || !dropoff) {
-    return res
-      .status(400)
-      .json({ error: 'riderId, pickup, and dropoff are required' })
+  if (!riderId || !serviceType || !pickup || !dropoff) {
+    return res.status(400).json({
+      error: 'riderId, serviceType, pickup, and dropoff are required'
+    })
+  }
+
+  const validServiceTypes = ['ride', 'food_delivery', 'grocery_delivery', 'package_delivery']
+  if (!validServiceTypes.includes(serviceType)) {
+    return res.status(400).json({ error: 'Invalid service type' })
   }
 
   const riderProfile = users.riders.find(r => r.name === riderId || r.id === riderId)
@@ -309,6 +332,10 @@ app.post('/api/request-ride', (req, res) => {
       return
     }
 
+    if (!driverProfile.services || !driverProfile.services.includes(serviceType)) {
+      return
+    }
+
     const dist = getDistance(pickup.lat, pickup.lng, d.lat, d.lng)
     if (dist < min) {
       min = dist
@@ -316,12 +343,15 @@ app.post('/api/request-ride', (req, res) => {
     }
   })
 
-  const ride = {
+  const request = {
     id: Date.now(),
     riderId,
+    serviceType,
+    serviceLabel: serviceLabel(serviceType),
     pickup,
     dropoff,
-    rideType,
+    details: details || {},
+    price: servicePrice(serviceType),
     status: nearest ? 'matched' : 'waiting',
     driver: nearest ? { driverId: nearest.driverId } : null,
     distance: nearest ? Number(min.toFixed(2)) : null,
@@ -329,19 +359,19 @@ app.post('/api/request-ride', (req, res) => {
     createdAt: new Date().toISOString()
   }
 
-  rideRequests.push(ride)
+  serviceRequests.push(request)
 
-  res.json({ success: true, ride })
+  res.json({ success: true, request })
 })
 
-// accept ride
-app.post('/api/rides/:id/accept', (req, res) => {
-  const ride = rideRequests.find(r => r.id == req.params.id)
+// accept request
+app.post('/api/requests/:id/accept', (req, res) => {
+  const request = serviceRequests.find(r => r.id == req.params.id)
   const driver = drivers.find(d => d.driverId === req.body.driverId)
   const driverProfile = users.drivers.find(d => d.id === req.body.driverId)
 
-  if (!ride) {
-    return res.status(404).json({ error: 'Ride not found' })
+  if (!request) {
+    return res.status(404).json({ error: 'Request not found' })
   }
 
   if (!driver) {
@@ -349,15 +379,19 @@ app.post('/api/rides/:id/accept', (req, res) => {
   }
 
   if (!driverProfile || !driverProfile.approved || driverProfile.status === 'suspended') {
-    return res.status(403).json({ error: 'Driver is not authorized to accept rides' })
+    return res.status(403).json({ error: 'Driver is not authorized' })
   }
 
-  ride.status = 'en_route'
-  ride.acceptedBy = driver.driverId
-  ride.driver = { driverId: driver.driverId }
+  if (!driverProfile.services || !driverProfile.services.includes(request.serviceType)) {
+    return res.status(403).json({ error: 'Driver is not approved for this service type' })
+  }
+
+  request.status = 'en_route_pickup'
+  request.acceptedBy = driver.driverId
+  request.driver = { driverId: driver.driverId }
   driver.available = false
 
-  res.json({ success: true, message: 'Ride accepted', ride })
+  res.json({ success: true, message: 'Request accepted', request })
 })
 
 // admin dashboard
@@ -365,11 +399,11 @@ app.get('/api/admin/dashboard', (req, res) => {
   res.json({
     riders: users.riders.map(sanitizeRider),
     drivers: users.drivers.map(sanitizeDriver),
-    rides: rideRequests,
+    requests: serviceRequests,
     counts: {
       riders: users.riders.length,
       drivers: users.drivers.length,
-      rides: rideRequests.length,
+      requests: serviceRequests.length,
       pendingDrivers: users.drivers.filter(d => !d.approved).length,
       activeDrivers: users.drivers.filter(d => d.status !== 'suspended').length
     }
@@ -457,24 +491,39 @@ app.post('/api/admin/rider/:id/activate', (req, res) => {
   })
 })
 
-// general data
-app.get('/api/rides/:id', (req, res) => {
-  const ride = rideRequests.find(r => r.id == req.params.id)
-
-  if (!ride) {
-    return res.status(404).json({ error: 'Ride not found' })
+app.post('/api/admin/driver/:id/services', (req, res) => {
+  const driver = users.drivers.find(d => d.id === req.params.id)
+  if (!driver) {
+    return res.status(404).json({ error: 'Driver not found' })
   }
 
-  const driver = drivers.find(d => d.driverId === ride.driver?.driverId)
+  driver.services = normalizeServices(req.body.services)
 
   res.json({
-    ...ride,
+    success: true,
+    message: 'Driver services updated',
+    driver: sanitizeDriver(driver)
+  })
+})
+
+// general data
+app.get('/api/requests/:id', (req, res) => {
+  const request = serviceRequests.find(r => r.id == req.params.id)
+
+  if (!request) {
+    return res.status(404).json({ error: 'Request not found' })
+  }
+
+  const driver = drivers.find(d => d.driverId === request.driver?.driverId)
+
+  res.json({
+    ...request,
     driver
   })
 })
 
-app.get('/api/rides', (req, res) => {
-  res.json(rideRequests)
+app.get('/api/requests', (req, res) => {
+  res.json(serviceRequests)
 })
 
 app.get('/api/drivers', (req, res) => {
