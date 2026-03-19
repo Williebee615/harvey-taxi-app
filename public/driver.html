@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Driver Dashboard</title>
+  <style>
+    body {
+      font-family: Arial;
+      padding: 20px;
+      background: #f4f4f4;
+    }
+    .card {
+      background: white;
+      padding: 15px;
+      margin-top: 10px;
+      border-radius: 10px;
+    }
+    button {
+      padding: 10px;
+      margin-top: 10px;
+      background: black;
+      color: white;
+      border: none;
+      border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>🚖 Driver Dashboard</h1>
+
+<button onclick="loadRides()">Refresh Ride Requests</button>
+
+<div id="rides"></div>
+
+<script>
+async function loadRides() {
+  const res = await fetch('/api/rides')
+  const rides = await res.json()
+
+  const container = document.getElementById('rides')
+  container.innerHTML = ''
+
+  rides.forEach(ride => {
+    const div = document.createElement('div')
+    div.className = 'card'
+
+    div.innerHTML = `
+      <strong>Ride ID:</strong> ${ride.id}<br>
+      <strong>Status:</strong> ${ride.status}<br>
+      <strong>Pickup:</strong> ${ride.pickup.lat}, ${ride.pickup.lng}<br>
+      <strong>Driver:</strong> ${ride.driver ? ride.driver.driverId : 'None'}<br>
+    `
+
+    container.appendChild(div)
+  })
+}
+</script>
+
+</body>
+</html>
