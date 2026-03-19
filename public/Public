@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Request a Ride - Harvey Taxi</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: Arial, Helvetica, sans-serif;
+        background: #f5f5f5;
+        color: #111;
+      }
+
+      .page {
+        max-width: 430px;
+        margin: 0 auto;
+        min-height: 100vh;
+        padding: 28px 20px 40px;
+      }
+
+      .back-link {
+        display: inline-block;
+        margin-bottom: 28px;
+        font-size: 16px;
+        font-weight: 700;
+        color: #111;
+        text-decoration: none;
+      }
+
+      h1 {
+        font-size: 52px;
+        line-height: 1;
+        margin-bottom: 18px;
+        font-weight: 800;
+        letter-spacing: -1px;
+      }
+
+      .subtitle {
+        font-size: 18px;
+        line-height: 1.5;
+        color: #6b7280;
+        margin-bottom: 28px;
+      }
+
+      .field {
+        margin-bottom: 22px;
+      }
+
+      .field label {
+        display: block;
+        font-size: 16px;
+        font-weight: 800;
+        margin-bottom: 10px;
+        color: #111;
+      }
+
+      .field input {
+        width: 100%;
+        height: 64px;
+        border-radius: 18px;
+        border: 1.5px solid #dddddd;
+        padding: 0 20px;
+        font-size: 18px;
+        background: #fff;
+        outline: none;
+      }
+
+      .field input::placeholder {
+        color: #b0b0b0;
+      }
+
+      .field input:focus {
+        border-color: #111;
+      }
+
+      .section-title {
+        font-size: 28px;
+        font-weight: 800;
+        margin: 14px 0 18px;
+      }
+
+      .ride-option {
+        width: 100%;
+        border: 2px solid #e5e7eb;
+        border-radius: 22px;
+        background: #fff;
+        padding: 18px 18px;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+        transition: 0.2s ease;
+      }
+
+      .ride-option.selected {
+        border-color: #111;
+      }
+
+      .ride-left {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+
+      .ride-emoji {
+        font-size: 34px;
+      }
+
+      .ride-name {
+        font-size: 18px;
+        font-weight: 800;
+        margin-bottom: 4px;
+      }
+
+      .ride-desc {
+        font-size: 15px;
+        color: #6b7280;
+      }
+
+      .ride-price {
+        font-size: 20px;
+        font-weight: 800;
+        color: #111;
+      }
+
+      .submit-btn {
+        width: 100%;
+        height: 64px;
+        border: none;
+        border-radius: 18px;
+        background: #111;
+        color: #fff;
+        font-size: 20px;
+        font-weight: 800;
+        cursor: pointer;
+        margin-top: 12px;
+      }
+
+      .submit-btn:hover {
+        opacity: 0.95;
+      }
+
+      .message {
+        margin-top: 16px;
+        font-size: 15px;
+        text-align: center;
+        color: #16a34a;
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <a class="back-link" href="/">← Back</a>
+
+      <h1>Request a Ride</h1>
+      <p class="subtitle">
+        Enter your ride details below and choose the service you want.
+      </p>
+
+      <form id="rideForm">
+        <div class="field">
+          <label for="pickup">Pickup location</label>
+          <input
+            id="pickup"
+            name="pickup"
+            type="text"
+            placeholder="Enter pickup address"
+            required
+          />
+        </div>
+
+        <div class="field">
+          <label for="destination">Destination</label>
+          <input
+            id="destination"
+            name="destination"
+            type="text"
+            placeholder="Enter destination"
+            required
+          />
+        </div>
+
+        <div class="field">
+          <label for="passengerName">Passenger name</label>
+          <input
+            id="passengerName"
+            name="passengerName"
+            type="text"
+            placeholder="Enter your full name"
+            required
+          />
+        </div>
+
+        <div class="section-title">Choose ride type</div>
+
+        <div class="ride-option selected" data-ride="Harvey Standard" data-price="$12">
+          <div class="ride-left">
+            <div class="ride-emoji">🚕</div>
+            <div>
+              <div class="ride-name">Harvey Standard</div>
+              <div class="ride-desc">Affordable everyday ride</div>
+            </div>
+          </div>
+          <div class="ride-price">$12</div>
+        </div>
+
+        <div class="ride-option" data-ride="Harvey XL" data-price="$18">
+          <div class="ride-left">
+            <div class="ride-emoji">🚐</div>
+            <div>
+              <div class="ride-name">Harvey XL</div>
+              <div class="ride-desc">More room for passengers and bags</div>
+            </div>
+          </div>
+          <div class="ride-price">$18</div>
+        </div>
+
+        <div class="ride-option" data-ride="Airport Ride" data-price="$25">
+          <div class="ride-left">
+            <div class="ride-emoji">✈️</div>
+            <div>
+              <div class="ride-name">Airport Ride</div>
+              <div class="ride-desc">Easy rides to and from BNA</div>
+            </div>
+          </div>
+          <div class="ride-price">$25</div>
+        </div>
+
+        <input type="hidden" id="rideType" name="rideType" value="Harvey Standard" />
+        <input type="hidden" id="ridePrice" name="ridePrice" value="$12" />
+
+        <button type="submit" class="submit-btn">Request Ride</button>
+        <div id="message" class="message"></div>
+      </form>
+    </div>
+
+    <script>
+      const options = document.querySelectorAll('.ride-option');
+      const rideTypeInput = document.getElementById('rideType');
+      const ridePriceInput = document.getElementById('ridePrice');
+      const form = document.getElementById('rideForm');
+      const message = document.getElementById('message');
+
+      options.forEach((option) => {
+        option.addEventListener('click', () => {
+          options.forEach((item) => item.classList.remove('selected'));
+          option.classList.add('selected');
+          rideTypeInput.value = option.dataset.ride;
+          ridePriceInput.value = option.dataset.price;
+        });
+      });
+
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        const rideData = {
+          pickup: document.getElementById('pickup').value,
+          destination: document.getElementById('destination').value,
+          passengerName: document.getElementById('passengerName').value,
+          rideType: rideTypeInput.value,
+          ridePrice: ridePriceInput.value
+        };
+
+        localStorage.setItem('harveyRideRequest', JSON.stringify(rideData));
+        message.textContent = 'Ride request saved successfully.';
+      });
+    </script>
+  </body>
+</html>
