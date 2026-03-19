@@ -2,15 +2,19 @@
 <html>
 <head>
   <title>Driver Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     body {
       font-family: Arial, sans-serif;
       padding: 20px;
       background: #f4f4f4;
+      margin: 0;
     }
+
     h1 {
       margin-bottom: 10px;
     }
+
     button {
       padding: 12px 16px;
       margin-top: 10px;
@@ -19,7 +23,9 @@
       border: none;
       border-radius: 8px;
       cursor: pointer;
+      font-size: 16px;
     }
+
     .card {
       background: white;
       padding: 15px;
@@ -27,13 +33,26 @@
       border-radius: 10px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
+
     .empty {
       margin-top: 20px;
       color: #666;
     }
+
     .accepted {
       color: green;
       font-weight: bold;
+      margin-top: 8px;
+    }
+
+    .status {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: bold;
+      background: #eee;
+      margin-top: 6px;
     }
   </style>
 </head>
@@ -69,6 +88,47 @@ async function acceptRide(rideId) {
   }
 }
 
+async function updateStatus(rideId, status) {
+  try {
+    const res = await fetch(`/api/rides/${rideId}/status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status })
+    })
+
+    const data = await res.json()
+
+    if (!res.ok) {
+      alert(data.error || 'Failed to update status')
+      return
+    }
+
+    loadRides()
+  } catch (err) {
+    alert('Error updating ride')
+  }
+}
+
+function renderActionButtons(ride) {
+  if (ride.status === 'matched') {
+    return `<button onclick="acceptRide(${ride.id})">Accept Ride</button>`
+  }
+
+  if (ride.status === 'accepted') {
+    return `<button onclick="updateStatus(${ride.id}, 'en_route')">Start Trip</button>`
+  }
+
+  if (ride.status === 'en_route') {
+    return `<button onclick="updateStatus(${ride.id}, 'arrived')">Arrived</button>`
+  }
+
+  if (ride.status === 'arrived') {
+    return `<button onclick="updateStatus(${ride.id}, 'completed')">Complete Ride</button>`
+  }
+
+  return `<div class="accepted">Ride Completed ✅</div>`
+}
+
 async function loadRides() {
   const container = document.getElementById('rides')
   container.innerHTML = '<p>Loading rides...</p>'
@@ -91,17 +151,14 @@ async function loadRides() {
       div.innerHTML = `
         <div><strong>Ride ID:</strong> ${ride.id}</div>
         <div><strong>Rider ID:</strong> ${ride.riderId}</div>
-        <div><strong>Status:</strong> ${ride.status}</div>
         <div><strong>Pickup:</strong> ${ride.pickup?.name || ''} ${ride.pickup?.lat}, ${ride.pickup?.lng}</div>
         <div><strong>Dropoff:</strong> ${ride.dropoff?.name || ''} ${ride.dropoff?.lat}, ${ride.dropoff?.lng}</div>
         <div><strong>Ride Type:</strong> ${ride.rideType || 'Standard'}</div>
         <div><strong>Matched Driver:</strong> ${ride.driver ? ride.driver.driverId : 'None yet'}</div>
         <div><strong>Distance:</strong> ${ride.distance !== null ? ride.distance + ' km' : 'N/A'}</div>
-        ${
-          ride.status !== 'accepted'
-            ? `<button onclick="acceptRide(${ride.id})">Accept Ride</button>`
-            : `<div class="accepted">Accepted by ${ride.acceptedBy || ride.driver?.driverId}</div>`
-        }
+        <div class="status">Status: ${ride.status}</div>
+        ${ride.acceptedBy ? `<div><strong>Accepted By:</strong> ${ride.acceptedBy}</div>` : ''}
+        ${renderActionButtons(ride)}
       `
 
       container.appendChild(div)
@@ -110,6 +167,8 @@ async function loadRides() {
     container.innerHTML = '<p class="empty">Failed to load rides.</p>'
   }
 }
+
+loadRides()
 </script>
 
 </body>
