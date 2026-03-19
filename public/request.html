@@ -1,99 +1,264 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Request Ride</title>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Request a Ride</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f3f3f3;
+      color: #000;
+    }
 
-    <style>
-      body {
-        font-family: Arial;
-        background: #f5f5f5;
-        padding: 20px;
-      }
+    .page {
+      max-width: 430px;
+      margin: 0 auto;
+      padding: 24px 20px 40px;
+    }
 
-      h1 {
-        font-size: 40px;
-      }
+    .back-link {
+      display: inline-block;
+      margin-bottom: 28px;
+      font-size: 18px;
+      color: #5a2ca0;
+    }
 
-      input {
-        width: 100%;
-        padding: 15px;
-        margin-bottom: 15px;
-        border-radius: 10px;
-        border: 1px solid #ccc;
-      }
+    h1 {
+      font-size: 44px;
+      margin: 0 0 28px;
+      font-weight: 800;
+    }
 
-      .ride {
-        padding: 15px;
-        border: 2px solid #ddd;
-        border-radius: 15px;
-        margin-bottom: 10px;
-        cursor: pointer;
-      }
+    input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 22px 18px;
+      margin-bottom: 18px;
+      border: 2px solid #d8d8d8;
+      border-radius: 20px;
+      font-size: 18px;
+      background: #fff;
+    }
 
-      .selected {
-        border-color: black;
-      }
+    h2 {
+      font-size: 30px;
+      margin: 22px 0 18px;
+      font-weight: 800;
+    }
 
-      button {
-        width: 100%;
-        padding: 20px;
-        background: black;
-        color: white;
-        border: none;
-        border-radius: 15px;
-        font-size: 18px;
-      }
-    </style>
-  </head>
+    .ride-option {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 26px 20px;
+      margin-bottom: 18px;
+      border: 2px solid #d8d8d8;
+      border-radius: 26px;
+      font-size: 18px;
+      background: #f8f8f8;
+      cursor: pointer;
+    }
 
-  <body>
-    <a href="/">← Back</a>
+    .ride-option.selected {
+      border: 4px solid #000;
+      background: #fff;
+    }
+
+    .request-btn, .driver-btn {
+      width: 100%;
+      border: none;
+      border-radius: 28px;
+      padding: 26px 20px;
+      font-size: 22px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    .request-btn {
+      background: #000;
+      color: #fff;
+    }
+
+    .driver-btn {
+      background: #222;
+      color: #fff;
+    }
+
+    .result-box {
+      margin-top: 22px;
+      padding: 18px;
+      border-radius: 18px;
+      background: #fff;
+      border: 2px solid #d8d8d8;
+      display: none;
+    }
+
+    .success {
+      color: green;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .waiting {
+      color: #a06a00;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .error {
+      color: red;
+      font-weight: 700;
+      margin-top: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <a class="back-link" href="/">← Back</a>
 
     <h1>Request a Ride</h1>
 
-    <input id="pickup" placeholder="Pickup location" />
-    <input id="destination" placeholder="Destination" />
-    <input id="name" placeholder="Passenger name" />
+    <input id="pickup" type="text" placeholder="Pickup location" />
+    <input id="destination" type="text" placeholder="Destination" />
+    <input id="passenger" type="text" placeholder="Passenger name" />
 
     <h2>Choose ride</h2>
 
-    <div class="ride selected" data-type="Standard">
+    <div class="ride-option selected" data-ride="Harvey Standard - $12">
       🚕 Harvey Standard - $12
     </div>
 
-    <div class="ride" data-type="XL">
+    <div class="ride-option" data-ride="Harvey XL - $18">
       🚐 Harvey XL - $18
     </div>
 
-    <div class="ride" data-type="Airport">
+    <div class="ride-option" data-ride="Airport Ride - $25">
       ✈️ Airport Ride - $25
     </div>
 
-    <button onclick="submitRide()">Request Ride</button>
+    <button class="request-btn" onclick="requestRide()">Request Ride</button>
+    <button class="driver-btn" onclick="addTestDriver()">Add Test Driver First</button>
 
-    <script>
-      let selectedRide = "Standard";
+    <div id="result" class="result-box"></div>
+    <div id="error" class="error"></div>
+  </div>
 
-      document.querySelectorAll(".ride").forEach((r) => {
-        r.onclick = () => {
-          document.querySelectorAll(".ride").forEach((x) => x.classList.remove("selected"));
-          r.classList.add("selected");
-          selectedRide = r.dataset.type;
-        };
-      });
+  <script>
+    let selectedRide = 'Harvey Standard - $12'
 
-      function submitRide() {
-        const data = {
-          pickup: document.getElementById("pickup").value,
-          destination: document.getElementById("destination").value,
-          name: document.getElementById("name").value,
-          ride: selectedRide,
-        };
+    document.querySelectorAll('.ride-option').forEach(option => {
+      option.addEventListener('click', () => {
+        document.querySelectorAll('.ride-option').forEach(el => el.classList.remove('selected'))
+        option.classList.add('selected')
+        selectedRide = option.dataset.ride
+      })
+    })
 
-        alert("Ride Requested 🚕");
-        console.log(data);
+    async function addTestDriver() {
+      const errorBox = document.getElementById('error')
+      const resultBox = document.getElementById('result')
+      errorBox.textContent = ''
+      resultBox.style.display = 'none'
+
+      try {
+        const res = await fetch('/api/driver/location', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            driverId: 'driver1',
+            lat: 36.1627,
+            lng: -86.7816
+          })
+        })
+
+        const data = await res.json()
+
+        resultBox.style.display = 'block'
+        resultBox.innerHTML = `
+          <div class="success">Test driver added successfully</div>
+          <div><strong>Driver ID:</strong> driver1</div>
+          <div><strong>Status:</strong> ready for matching</div>
+        `
+      } catch (err) {
+        errorBox.textContent = 'Failed to add test driver.'
       }
-    </script>
-  </body>
+    }
+
+    async function requestRide() {
+      const pickup = document.getElementById('pickup').value.trim()
+      const destination = document.getElementById('destination').value.trim()
+      const passenger = document.getElementById('passenger').value.trim()
+
+      const errorBox = document.getElementById('error')
+      const resultBox = document.getElementById('result')
+
+      errorBox.textContent = ''
+      resultBox.style.display = 'none'
+
+      if (!pickup || !destination || !passenger) {
+        errorBox.textContent = 'Please fill in pickup location, destination, and passenger name.'
+        return
+      }
+
+      try {
+        const res = await fetch('/api/request-ride', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            riderId: passenger,
+            pickup: {
+              name: pickup,
+              lat: 36.1600,
+              lng: -86.7800
+            },
+            dropoff: {
+              name: destination,
+              lat: 36.1700,
+              lng: -86.7900
+            },
+            rideType: selectedRide
+          })
+        })
+
+        const data = await res.json()
+
+        if (!res.ok) {
+          errorBox.textContent = data.error || 'Failed to request ride.'
+          return
+        }
+
+        const ride = data.ride
+        resultBox.style.display = 'block'
+
+        if (ride.status === 'matched') {
+          resultBox.innerHTML = `
+            <div class="success">Ride matched successfully ✅</div>
+            <div><strong>Passenger:</strong> ${passenger}</div>
+            <div><strong>Pickup:</strong> ${pickup}</div>
+            <div><strong>Destination:</strong> ${destination}</div>
+            <div><strong>Ride Type:</strong> ${selectedRide}</div>
+            <div><strong>Ride ID:</strong> ${ride.id}</div>
+            <div><strong>Status:</strong> ${ride.status}</div>
+            <div><strong>Driver ID:</strong> ${ride.driver.driverId}</div>
+            <div><strong>Distance:</strong> ${ride.distance} km away</div>
+          `
+        } else {
+          resultBox.innerHTML = `
+            <div class="waiting">Ride created, waiting for driver ⏳</div>
+            <div><strong>Passenger:</strong> ${passenger}</div>
+            <div><strong>Pickup:</strong> ${pickup}</div>
+            <div><strong>Destination:</strong> ${destination}</div>
+            <div><strong>Ride Type:</strong> ${selectedRide}</div>
+            <div><strong>Ride ID:</strong> ${ride.id}</div>
+            <div><strong>Status:</strong> ${ride.status}</div>
+          `
+        }
+      } catch (err) {
+        errorBox.textContent = 'Failed to request ride.'
+      }
+    }
+  </script>
+</body>
 </html>
