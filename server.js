@@ -7,23 +7,22 @@ const PORT = process.env.PORT || 10000
 
 app.use(cors())
 app.use(express.json())
+
+// Serve files from /public
 app.use(express.static(path.join(__dirname, 'public')))
 
 // Temporary in-memory storage
 let drivers = []
 let rideRequests = []
 
-// Home route
 app.get('/', (req, res) => {
   res.send('🚖 Harvey Taxi API is running...')
 })
 
-// Test route
 app.get('/api/test', (req, res) => {
   res.json({ message: 'API working perfectly' })
 })
 
-// Distance calculator
 function getDistance(lat1, lng1, lat2, lng2) {
   const R = 6371
   const dLat = (lat2 - lat1) * Math.PI / 180
@@ -40,7 +39,6 @@ function getDistance(lat1, lng1, lat2, lng2) {
   return R * c
 }
 
-// Driver location update
 app.post('/api/driver/location', (req, res) => {
   const { driverId, lat, lng } = req.body
 
@@ -64,7 +62,6 @@ app.post('/api/driver/location', (req, res) => {
   })
 })
 
-// Ride request with nearest-driver matching
 app.post('/api/request-ride', (req, res) => {
   const { riderId, pickup, dropoff } = req.body
 
@@ -107,19 +104,12 @@ app.post('/api/request-ride', (req, res) => {
   })
 })
 
-// Get all drivers
 app.get('/api/drivers', (req, res) => {
   res.json(drivers)
 })
 
-// Get all rides
 app.get('/api/rides', (req, res) => {
   res.json(rideRequests)
-})
-
-// Serve request page directly
-app.get('/request.html', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'request.html'))
 })
 
 app.listen(PORT, () => {
