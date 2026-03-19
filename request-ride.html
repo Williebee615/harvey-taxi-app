@@ -1,273 +1,346 @@
-import React, { useState } from 'react'
-
-export default function RequestRide() {
-  const [pickup, setPickup] = useState('')
-  const [destination, setDestination] = useState('')
-  const [passengerName, setPassengerName] = useState('')
-  const [rideType, setRideType] = useState('Harvey Standard')
-  const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState('')
-
-  const rideOptions = [
-    {
-      name: 'Harvey Standard',
-      price: 12,
-      icon: '🚕',
-      description: 'Affordable everyday ride',
-    },
-    {
-      name: 'Harvey XL',
-      price: 18,
-      icon: '🚐',
-      description: 'More room for passengers and bags',
-    },
-    {
-      name: 'Airport Ride',
-      price: 25,
-      icon: '✈️',
-      description: 'Easy rides to and from BNA',
-    },
-  ]
-
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    setMessage('')
-
-    if (!pickup || !destination || !passengerName || !rideType) {
-      setMessage('Please fill out all fields.')
-      return
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Request a Ride</title>
+  <style>
+    * {
+      box-sizing: border-box;
     }
 
-    try {
-      setLoading(true)
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #ffffff;
+      color: #111827;
+    }
 
-      const res = await fetch('https://harvey-taxi-api2.onrender.com/request-ride', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          pickup,
-          destination,
-          passengerName,
-          rideType,
-        }),
-      })
+    .page {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 30px 16px;
+    }
 
-      const data = await res.json().catch(() => ({}))
+    .container {
+      width: 100%;
+      max-width: 620px;
+    }
 
-      if (!res.ok) {
-        throw new Error(data?.message || 'Failed to request ride')
+    .back-button {
+      display: inline-block;
+      margin-bottom: 20px;
+      color: #111827;
+      text-decoration: none;
+      font-size: 28px;
+      font-weight: 500;
+    }
+
+    .title {
+      font-size: 54px;
+      font-weight: 800;
+      margin: 0 0 12px 0;
+      line-height: 1.05;
+      color: #111827;
+    }
+
+    .subtitle {
+      font-size: 18px;
+      color: #6b7280;
+      margin-bottom: 30px;
+      line-height: 1.5;
+    }
+
+    .field-group {
+      margin-bottom: 24px;
+    }
+
+    .label {
+      display: block;
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      color: #111827;
+    }
+
+    .input {
+      width: 100%;
+      padding: 20px;
+      border-radius: 20px;
+      border: 1px solid #e5e7eb;
+      font-size: 18px;
+      color: #111827;
+      outline: none;
+      background: #fff;
+    }
+
+    .section-title {
+      font-size: 28px;
+      font-weight: 800;
+      margin: 30px 0 20px 0;
+      color: #111827;
+    }
+
+    .ride-list {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      margin-bottom: 20px;
+    }
+
+    .ride-card {
+      width: 100%;
+      background-color: #f9fafb;
+      border: 2px solid #e5e7eb;
+      border-radius: 24px;
+      padding: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      transition: 0.2s ease;
+    }
+
+    .ride-card.selected {
+      border: 3px solid #000000;
+      background-color: #ffffff;
+    }
+
+    .ride-left {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+    }
+
+    .ride-icon {
+      font-size: 28px;
+      line-height: 1;
+    }
+
+    .ride-name {
+      font-size: 18px;
+      font-weight: 800;
+      color: #111827;
+      margin-bottom: 4px;
+    }
+
+    .ride-description {
+      font-size: 14px;
+      color: #6b7280;
+    }
+
+    .ride-price {
+      font-size: 18px;
+      font-weight: 800;
+      color: #111827;
+      white-space: nowrap;
+    }
+
+    .submit-button {
+      width: 100%;
+      background-color: #000000;
+      color: #ffffff;
+      padding: 18px;
+      border-radius: 20px;
+      font-size: 18px;
+      font-weight: 800;
+      border: none;
+      cursor: pointer;
+    }
+
+    .submit-button:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+
+    .message {
+      margin-top: 15px;
+      font-weight: 600;
+      font-size: 16px;
+    }
+
+    @media (max-width: 640px) {
+      .title {
+        font-size: 38px;
       }
 
-      setMessage('Ride requested successfully!')
-      setPickup('')
-      setDestination('')
-      setPassengerName('')
-      setRideType('Harvey Standard')
-    } catch (error) {
-      setMessage(error.message || 'Something went wrong.')
-    } finally {
-      setLoading(false)
-    }
-  }
+      .subtitle,
+      .label,
+      .input {
+        font-size: 16px;
+      }
 
-  return (
-    <div style={styles.page}>
-      <div style={styles.container}>
-        <button
-          type="button"
-          onClick={() => window.history.back()}
-          style={styles.backButton}
-        >
-          ← Back
+      .section-title {
+        font-size: 24px;
+      }
+
+      .ride-card {
+        padding: 18px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="container">
+      <a href="javascript:history.back()" class="back-button">← Back</a>
+
+      <h1 class="title">Request a Ride</h1>
+      <p class="subtitle">
+        Enter your ride details below and choose the service you want.
+      </p>
+
+      <form id="rideForm">
+        <div class="field-group">
+          <label class="label" for="pickup">Pickup location</label>
+          <input
+            class="input"
+            type="text"
+            id="pickup"
+            name="pickup"
+            placeholder="Enter pickup address"
+          />
+        </div>
+
+        <div class="field-group">
+          <label class="label" for="destination">Destination</label>
+          <input
+            class="input"
+            type="text"
+            id="destination"
+            name="destination"
+            placeholder="Enter destination"
+          />
+        </div>
+
+        <div class="field-group">
+          <label class="label" for="passengerName">Passenger name</label>
+          <input
+            class="input"
+            type="text"
+            id="passengerName"
+            name="passengerName"
+            placeholder="Enter your full name"
+          />
+        </div>
+
+        <h2 class="section-title">Choose ride type</h2>
+
+        <div class="ride-list">
+          <div class="ride-card selected" data-ride="Harvey Standard">
+            <div class="ride-left">
+              <div class="ride-icon">🚕</div>
+              <div>
+                <div class="ride-name">Harvey Standard</div>
+                <div class="ride-description">Affordable everyday ride</div>
+              </div>
+            </div>
+            <div class="ride-price">$12</div>
+          </div>
+
+          <div class="ride-card" data-ride="Harvey XL">
+            <div class="ride-left">
+              <div class="ride-icon">🚐</div>
+              <div>
+                <div class="ride-name">Harvey XL</div>
+                <div class="ride-description">More room for passengers and bags</div>
+              </div>
+            </div>
+            <div class="ride-price">$18</div>
+          </div>
+
+          <div class="ride-card" data-ride="Airport Ride">
+            <div class="ride-left">
+              <div class="ride-icon">✈️</div>
+              <div>
+                <div class="ride-name">Airport Ride</div>
+                <div class="ride-description">Easy rides to and from BNA</div>
+              </div>
+            </div>
+            <div class="ride-price">$25</div>
+          </div>
+        </div>
+
+        <input type="hidden" id="rideType" name="rideType" value="Harvey Standard" />
+
+        <button type="submit" class="submit-button" id="submitButton">
+          Request Ride
         </button>
 
-        <h1 style={styles.title}>Request a Ride</h1>
-        <p style={styles.subtitle}>
-          Enter your ride details below and choose the service you want.
-        </p>
-
-        <form onSubmit={handleSubmit}>
-          <div style={styles.fieldGroup}>
-            <label style={styles.label}>Pickup location</label>
-            <input
-              type="text"
-              placeholder="Enter pickup address"
-              value={pickup}
-              onChange={(e) => setPickup(e.target.value)}
-              style={styles.input}
-            />
-          </div>
-
-          <div style={styles.fieldGroup}>
-            <label style={styles.label}>Destination</label>
-            <input
-              type="text"
-              placeholder="Enter destination"
-              value={destination}
-              onChange={(e) => setDestination(e.target.value)}
-              style={styles.input}
-            />
-          </div>
-
-          <div style={styles.fieldGroup}>
-            <label style={styles.label}>Passenger name</label>
-            <input
-              type="text"
-              placeholder="Enter your full name"
-              value={passengerName}
-              onChange={(e) => setPassengerName(e.target.value)}
-              style={styles.input}
-            />
-          </div>
-
-          <h2 style={styles.sectionTitle}>Choose ride type</h2>
-
-          <div style={styles.rideList}>
-            {rideOptions.map((ride) => {
-              const isSelected = rideType === ride.name
-
-              return (
-                <button
-                  key={ride.name}
-                  type="button"
-                  onClick={() => setRideType(ride.name)}
-                  style={{
-                    ...styles.rideCard,
-                    ...(isSelected ? styles.rideCardSelected : {}),
-                  }}
-                >
-                  <div style={styles.rideLeft}>
-                    <div style={styles.rideIcon}>{ride.icon}</div>
-                    <div>
-                      <div style={styles.rideName}>{ride.name}</div>
-                      <div style={styles.rideDescription}>{ride.description}</div>
-                    </div>
-                  </div>
-                  <div style={styles.ridePrice}>${ride.price}</div>
-                </button>
-              )
-            })}
-          </div>
-
-          <button type="submit" style={styles.submitButton} disabled={loading}>
-            {loading ? 'Requesting...' : 'Request Ride'}
-          </button>
-
-          {message ? <p style={styles.message}>{message}</p> : null}
-        </form>
-      </div>
+        <div class="message" id="message"></div>
+      </form>
     </div>
-  )
-}
+  </div>
 
-const styles = {
-  page: {
-    minHeight: '100vh',
-    backgroundColor: '#ffffff',
-    display: 'flex',
-    justifyContent: 'center',
-    padding: '30px 16px',
-    fontFamily: 'Arial, sans-serif',
-  },
-  container: {
-    width: '100%',
-    maxWidth: '620px',
-  },
-  backButton: {
-    background: 'none',
-    border: 'none',
-    fontSize: '28px',
-    cursor: 'pointer',
-    padding: 0,
-    marginBottom: '20px',
-    color: '#111827',
-  },
-  title: {
-    fontSize: '54px',
-    fontWeight: 800,
-    margin: '0 0 12px 0',
-    color: '#111827',
-    lineHeight: 1.05,
-  },
-  subtitle: {
-    fontSize: '18px',
-    color: '#6b7280',
-    marginBottom: '30px',
-  },
-  fieldGroup: {
-    marginBottom: '24px',
-  },
-  label: {
-    display: 'block',
-    fontSize: '18px',
-    fontWeight: 700,
-    marginBottom: '10px',
-  },
-  input: {
-    width: '100%',
-    padding: '20px',
-    borderRadius: '20px',
-    border: '1px solid #e5e7eb',
-    fontSize: '18px',
-  },
-  sectionTitle: {
-    fontSize: '28px',
-    fontWeight: 800,
-    margin: '30px 0 20px 0',
-  },
-  rideList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '18px',
-    marginBottom: '20px',
-  },
-  rideCard: {
-    width: '100%',
-    backgroundColor: '#f9fafb',
-    border: '2px solid #e5e7eb',
-    borderRadius: '24px',
-    padding: '20px',
-    display: 'flex',
-    justifyContent: 'space-between',
-    cursor: 'pointer',
-  },
-  rideCardSelected: {
-    border: '3px solid black',
-    backgroundColor: '#ffffff',
-  },
-  rideLeft: {
-    display: 'flex',
-    gap: '14px',
-  },
-  rideIcon: {
-    fontSize: '28px',
-  },
-  rideName: {
-    fontSize: '18px',
-    fontWeight: 800,
-  },
-  rideDescription: {
-    fontSize: '14px',
-    color: '#6b7280',
-  },
-  ridePrice: {
-    fontSize: '18px',
-    fontWeight: 800,
-  },
-  submitButton: {
-    width: '100%',
-    backgroundColor: '#000',
-    color: '#fff',
-    padding: '18px',
-    borderRadius: '20px',
-    fontSize: '18px',
-    fontWeight: 800,
-    border: 'none',
-  },
-  message: {
-    marginTop: '15px',
-    fontWeight: '600',
-  },
-}
+  <script>
+    const rideCards = document.querySelectorAll('.ride-card');
+    const rideTypeInput = document.getElementById('rideType');
+    const form = document.getElementById('rideForm');
+    const message = document.getElementById('message');
+    const submitButton = document.getElementById('submitButton');
+
+    rideCards.forEach((card) => {
+      card.addEventListener('click', () => {
+        rideCards.forEach((c) => c.classList.remove('selected'));
+        card.classList.add('selected');
+        rideTypeInput.value = card.dataset.ride;
+      });
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const pickup = document.getElementById('pickup').value.trim();
+      const destination = document.getElementById('destination').value.trim();
+      const passengerName = document.getElementById('passengerName').value.trim();
+      const rideType = rideTypeInput.value;
+
+      message.textContent = '';
+
+      if (!pickup || !destination || !passengerName || !rideType) {
+        message.textContent = 'Please fill out all fields.';
+        return;
+      }
+
+      try {
+        submitButton.disabled = true;
+        submitButton.textContent = 'Requesting...';
+
+        const res = await fetch('https://harvey-taxi-api2.onrender.com/request-ride', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            pickup,
+            destination,
+            passengerName,
+            rideType,
+          }),
+        });
+
+        let data = {};
+        try {
+          data = await res.json();
+        } catch (err) {}
+
+        if (!res.ok) {
+          throw new Error(data.message || 'Failed to request ride');
+        }
+
+        message.textContent = 'Ride requested successfully!';
+        form.reset();
+        rideTypeInput.value = 'Harvey Standard';
+        rideCards.forEach((c) => c.classList.remove('selected'));
+        document.querySelector('.ride-card[data-ride="Harvey Standard"]').classList.add('selected');
+      } catch (error) {
+        message.textContent = error.message || 'Something went wrong.';
+      } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = 'Request Ride';
+      }
+    });
+  </script>
+</body>
+</html>
