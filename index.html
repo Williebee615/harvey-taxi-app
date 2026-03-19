@@ -1,129 +1,124 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Harvey Taxi</title>
-  <style>
-    * {
-      box-sizing: border-box;
-    }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Harvey Taxi</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
 
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #0b0b0b;
-      color: white;
-    }
+      body {
+        font-family: Arial, Helvetica, sans-serif;
+        background: #000;
+        color: #fff;
+      }
 
-    .page {
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      padding: 28px 20px;
-      max-width: 430px;
-      margin: 0 auto;
-    }
+      .page {
+        max-width: 430px;
+        margin: 0 auto;
+        min-height: 100vh;
+        padding: 36px 20px 40px;
+      }
 
-    .logo {
-      font-size: 52px;
-      margin-bottom: 10px;
-    }
+      .hero-icon {
+        font-size: 56px;
+        margin-bottom: 20px;
+      }
 
-    h1 {
-      font-size: 42px;
-      line-height: 1.05;
-      margin: 0 0 14px;
-      font-weight: 800;
-    }
+      h1 {
+        font-size: 64px;
+        font-weight: 800;
+        line-height: 0.95;
+        margin-bottom: 24px;
+        letter-spacing: -2px;
+      }
 
-    .subtitle {
-      font-size: 17px;
-      color: #bdbdbd;
-      line-height: 1.5;
-      margin-bottom: 34px;
-    }
+      .subtitle {
+        font-size: 18px;
+        line-height: 1.6;
+        color: #b3b3b3;
+        margin-bottom: 34px;
+      }
 
-    .card {
-      background: #151515;
-      border: 1px solid #2a2a2a;
-      border-radius: 24px;
-      padding: 22px;
-      margin-bottom: 18px;
-    }
+      .card {
+        background: #0f0f10;
+        border: 1px solid #242428;
+        border-radius: 32px;
+        padding: 28px 24px;
+        margin-bottom: 24px;
+      }
 
-    .card-title {
-      font-size: 22px;
-      font-weight: 800;
-      margin-bottom: 8px;
-    }
+      .card h2 {
+        font-size: 34px;
+        font-weight: 800;
+        margin-bottom: 18px;
+      }
 
-    .card-text {
-      color: #bdbdbd;
-      font-size: 15px;
-      line-height: 1.5;
-      margin-bottom: 20px;
-    }
+      .card p {
+        font-size: 18px;
+        line-height: 1.6;
+        color: #b3b3b3;
+        margin-bottom: 24px;
+      }
 
-    .btn {
-      width: 100%;
-      border: none;
-      border-radius: 18px;
-      padding: 18px;
-      font-size: 18px;
-      font-weight: 800;
-      cursor: pointer;
-    }
+      .button {
+        display: block;
+        width: 100%;
+        border: none;
+        border-radius: 24px;
+        padding: 22px 20px;
+        font-size: 18px;
+        font-weight: 800;
+        text-align: center;
+        text-decoration: none;
+        cursor: pointer;
+      }
 
-    .btn-primary {
-      background: white;
-      color: black;
-    }
+      .button-light {
+        background: #fff;
+        color: #000;
+      }
 
-    .btn-secondary {
-      background: #232323;
-      color: white;
-      border: 1px solid #333;
-    }
+      .button-dark {
+        background: #1c1c1f;
+        color: #fff;
+        border: 1px solid #2c2c31;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="hero-icon">🚕</div>
 
-    .footer-note {
-      margin-top: 16px;
-      font-size: 14px;
-      color: #8e8e8e;
-      text-align: center;
-    }
-  </style>
-</head>
-<body>
-  <div class="page">
-    <div class="logo">🚖</div>
-    <h1>Harvey Taxi</h1>
-    <p class="subtitle">
-      Fast, reliable rides in Nashville with simple booking and clean service.
-    </p>
+      <h1>Harvey Taxi</h1>
 
-    <div class="card">
-      <div class="card-title">Need a ride?</div>
-      <div class="card-text">
-        Book your trip in seconds and choose the ride type that fits your needs.
+      <p class="subtitle">
+        Fast, reliable rides in Nashville with simple booking and clean service.
+      </p>
+
+      <div class="card">
+        <h2>Need a ride?</h2>
+        <p>
+          Book your trip in seconds and choose the ride type that fits your
+          needs.
+        </p>
+
+        <a class="button button-light" href="/request.html">Request a Ride</a>
       </div>
-      <button class="btn btn-primary" onclick="window.location.href='/request-ride'">
-        Request a Ride
-      </button>
-    </div>
 
-    <div class="card">
-      <div class="card-title">Driver side</div>
-      <div class="card-text">
-        Driver dashboard can be connected next after rider booking is fully working.
+      <div class="card">
+        <h2>Driver side</h2>
+        <p>
+          Driver dashboard can be connected next after rider booking is fully
+          working.
+        </p>
+
+        <a class="button button-dark" href="/driver.html">Driver Dashboard</a>
       </div>
-      <button class="btn btn-secondary" type="button">
-        Driver Dashboard
-      </button>
     </div>
-
-    <div class="footer-note">Harvey Taxi Service LLC</div>
-  </div>
-</body>
+  </body>
 </html>
