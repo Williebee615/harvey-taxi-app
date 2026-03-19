@@ -1,110 +1,80 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Harvey Taxi</title>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #000;
+      color: white;
+      text-align: center;
+    }
+
+    .container {
+      padding: 60px 20px;
+    }
+
+    h1 {
+      font-size: 36px;
+      margin-bottom: 10px;
+    }
+
+    p {
+      color: #ccc;
+      margin-bottom: 40px;
+    }
+
+    .btn {
+      display: block;
+      width: 100%;
+      max-width: 300px;
+      margin: 10px auto;
+      padding: 18px;
+      border-radius: 14px;
+      font-size: 18px;
+      font-weight: bold;
+      border: none;
+      cursor: pointer;
+    }
+
+    .primary {
+      background: white;
+      color: black;
+    }
+
+    .secondary {
+      background: #222;
+      color: white;
+    }
+  </style>
 </head>
+
 <body>
+  <div class="container">
+    <h1>🚖 Harvey Taxi</h1>
+    <p>Fast, reliable rides in Nashville</p>
 
-<h1>🚖 Harvey Taxi</h1>
-<p>Request your ride below</p>
+    <button class="btn primary" onclick="goToRide()">
+      Request a Ride
+    </button>
 
-<input id="name" placeholder="Your Name"><br><br>
-<input id="pickup" placeholder="Pickup Location"><br><br>
-<input id="destination" placeholder="Destination"><br><br>
-<input id="rideType" placeholder="Ride Type"><br><br>
-
-<button onclick="requestRide()">Request Ride</button>
-
-<p id="result"></p>
-
-<script>
-async function requestRide() {
-  const name = document.getElementById('name').value;
-  const pickup = document.getElementById('pickup').value;
-  const destination = document.getElementById('destination').value;
-  const rideType = document.getElementById('rideType').value;
-
-  const res = await fetch('/request-ride', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      passengerName: name,
-      pickup,
-      destination,
-      rideType
-    })
-  });
-
-  const data = await res.json();
-  document.getElementById('result').innerText = JSON.stringify(data);
-}
-</script>
-
-</body>
-</html>
+    <button class="btn secondary" onclick="goToDriver()">
+      Driver Dashboard
+    </button>
   </div>
 
   <script>
-    let selectedRide = "Standard";
-
-    function selectRide(type, element) {
-      selectedRide = type;
-
-      document.querySelectorAll('.ride-option').forEach(el => {
-        el.classList.remove('active');
-      });
-
-      element.classList.add('active');
+    function goToRide() {
+      window.location.href = "/request-ride.html";
     }
 
-    async function requestRide() {
-      const pickup = document.getElementById('pickup').value;
-      const destination = document.getElementById('destination').value;
-      const name = document.getElementById('name').value;
-      const messageBox = document.getElementById('message');
-
-      if (!pickup || !destination || !name) {
-        messageBox.className = "message error";
-        messageBox.style.display = "block";
-        messageBox.innerText = "Please fill all fields";
-        return;
-      }
-
-      try {
-        const res = await fetch('/request-ride', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            pickup,
-            destination,
-            passengerName: name,
-            rideType: selectedRide
-          })
-        });
-
-        const data = await res.json();
-
-        if (data.success) {
-          messageBox.className = "message success";
-          messageBox.style.display = "block";
-          messageBox.innerText = "Ride requested successfully 🚖";
-        } else {
-          messageBox.className = "message error";
-          messageBox.style.display = "block";
-          messageBox.innerText = data.message;
-        }
-
-      } catch (err) {
-        messageBox.className = "message error";
-        messageBox.style.display = "block";
-        messageBox.innerText = "Server error";
-      }
+    function goToDriver() {
+      window.location.href = "/driver.html";
     }
   </script>
-
 </body>
 </html>
