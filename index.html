@@ -44,3 +44,67 @@ async function requestRide() {
 
 </body>
 </html>
+  </div>
+
+  <script>
+    let selectedRide = "Standard";
+
+    function selectRide(type, element) {
+      selectedRide = type;
+
+      document.querySelectorAll('.ride-option').forEach(el => {
+        el.classList.remove('active');
+      });
+
+      element.classList.add('active');
+    }
+
+    async function requestRide() {
+      const pickup = document.getElementById('pickup').value;
+      const destination = document.getElementById('destination').value;
+      const name = document.getElementById('name').value;
+      const messageBox = document.getElementById('message');
+
+      if (!pickup || !destination || !name) {
+        messageBox.className = "message error";
+        messageBox.style.display = "block";
+        messageBox.innerText = "Please fill all fields";
+        return;
+      }
+
+      try {
+        const res = await fetch('/request-ride', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            pickup,
+            destination,
+            passengerName: name,
+            rideType: selectedRide
+          })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          messageBox.className = "message success";
+          messageBox.style.display = "block";
+          messageBox.innerText = "Ride requested successfully 🚖";
+        } else {
+          messageBox.className = "message error";
+          messageBox.style.display = "block";
+          messageBox.innerText = data.message;
+        }
+
+      } catch (err) {
+        messageBox.className = "message error";
+        messageBox.style.display = "block";
+        messageBox.innerText = "Server error";
+      }
+    }
+  </script>
+
+</body>
+</html>
