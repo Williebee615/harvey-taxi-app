@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Harvey Taxi</title>
-
   <style>
     body {
       margin: 0;
@@ -52,29 +51,18 @@
     }
   </style>
 </head>
-
 <body>
   <div class="container">
     <h1>🚖 Harvey Taxi</h1>
     <p>Fast, reliable rides in Nashville</p>
 
-    <button class="btn primary" onclick="goToRide()">
+    <button class="btn primary" onclick="window.location.href='/request-ride'">
       Request a Ride
     </button>
 
-    <button class="btn secondary" onclick="goToDriver()">
+    <button class="btn secondary">
       Driver Dashboard
     </button>
   </div>
-
-  <script>
-    function goToRide() {
-      window.location.href = "/request-ride.html";
-    }
-
-    function goToDriver() {
-      window.location.href = "/driver.html";
-    }
-  </script>
 </body>
 </html>
