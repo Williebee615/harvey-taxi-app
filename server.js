@@ -1,12 +1,13 @@
-const path = require('path')
-app.use(express.static(path.join(__dirname, 'public')))const express = require('express')
+const express = require('express')
 const cors = require('cors')
+const path = require('path')
 
 const app = express()
 const PORT = process.env.PORT || 10000
 
 app.use(cors())
 app.use(express.json())
+app.use(express.static(path.join(__dirname, 'public')))
 
 // Temporary in-memory storage
 let drivers = []
@@ -58,6 +59,7 @@ app.post('/api/driver/location', (req, res) => {
 
   res.json({
     success: true,
+    message: 'Driver location updated',
     drivers
   })
 })
@@ -94,7 +96,7 @@ app.post('/api/request-ride', (req, res) => {
     dropoff: dropoff || null,
     status: nearestDriver ? 'matched' : 'waiting',
     driver: nearestDriver || null,
-    distance: nearestDriver ? minDistance : null
+    distance: nearestDriver ? Number(minDistance.toFixed(2)) : null
   }
 
   rideRequests.push(newRide)
@@ -115,9 +117,11 @@ app.get('/api/rides', (req, res) => {
   res.json(rideRequests)
 })
 
+// Serve request page directly
+app.get('/request.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'request.html'))
+})
+
 app.listen(PORT, () => {
   console.log(`🚖 Server running on port ${PORT}`)
-})
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'))
 })
