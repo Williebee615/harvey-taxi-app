@@ -3,9 +3,10 @@
 <head>
   <title>Driver Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
   <style>
     body {
-      font-family: Arial, sans-serif;
+      font-family: Arial;
       padding: 20px;
       background: #f4f4f4;
       margin: 0;
@@ -16,14 +17,14 @@
     }
 
     button {
-      padding: 12px 16px;
+      padding: 14px;
       margin-top: 10px;
       background: black;
       color: white;
       border: none;
-      border-radius: 8px;
-      cursor: pointer;
+      border-radius: 10px;
       font-size: 16px;
+      cursor: pointer;
     }
 
     .card {
@@ -31,28 +32,21 @@
       padding: 15px;
       margin-top: 12px;
       border-radius: 10px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    }
-
-    .empty {
-      margin-top: 20px;
-      color: #666;
-    }
-
-    .accepted {
-      color: green;
-      font-weight: bold;
-      margin-top: 8px;
     }
 
     .status {
-      display: inline-block;
-      padding: 4px 10px;
-      border-radius: 999px;
-      font-size: 14px;
-      font-weight: bold;
+      margin-top: 8px;
+      padding: 6px 12px;
       background: #eee;
-      margin-top: 6px;
+      border-radius: 20px;
+      display: inline-block;
+      font-weight: bold;
+    }
+
+    .done {
+      color: green;
+      font-weight: bold;
+      margin-top: 8px;
     }
   </style>
 </head>
@@ -64,108 +58,55 @@
 <div id="rides"></div>
 
 <script>
-const DRIVER_ID = 'driver1'
+const DRIVER_ID = "driver1"
 
-async function acceptRide(rideId) {
-  try {
-    const res = await fetch(`/api/rides/${rideId}/accept`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ driverId: DRIVER_ID })
-    })
+async function acceptRide(id) {
+  await fetch(`/api/rides/${id}/accept`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ driverId: DRIVER_ID })
+  })
 
-    const data = await res.json()
-
-    if (!res.ok) {
-      alert(data.error || 'Failed to accept ride')
-      return
-    }
-
-    alert(`Ride ${rideId} accepted`)
-    loadRides()
-  } catch (err) {
-    alert('Failed to accept ride')
-  }
-}
-
-async function updateStatus(rideId, status) {
-  try {
-    const res = await fetch(`/api/rides/${rideId}/status`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status })
-    })
-
-    const data = await res.json()
-
-    if (!res.ok) {
-      alert(data.error || 'Failed to update status')
-      return
-    }
-
-    loadRides()
-  } catch (err) {
-    alert('Error updating ride')
-  }
-}
-
-function renderActionButtons(ride) {
-  if (ride.status === 'matched') {
-    return `<button onclick="acceptRide(${ride.id})">Accept Ride</button>`
-  }
-
-  if (ride.status === 'accepted') {
-    return `<button onclick="updateStatus(${ride.id}, 'en_route')">Start Trip</button>`
-  }
-
-  if (ride.status === 'en_route') {
-    return `<button onclick="updateStatus(${ride.id}, 'arrived')">Arrived</button>`
-  }
-
-  if (ride.status === 'arrived') {
-    return `<button onclick="updateStatus(${ride.id}, 'completed')">Complete Ride</button>`
-  }
-
-  return `<div class="accepted">Ride Completed ✅</div>`
+  alert("Ride accepted 🚖")
+  loadRides()
 }
 
 async function loadRides() {
-  const container = document.getElementById('rides')
-  container.innerHTML = '<p>Loading rides...</p>'
+  const container = document.getElementById("rides")
+  container.innerHTML = "Loading..."
 
-  try {
-    const res = await fetch('/api/rides')
-    const rides = await res.json()
+  const res = await fetch("/api/rides")
+  const rides = await res.json()
 
-    if (!rides.length) {
-      container.innerHTML = '<p class="empty">No ride requests yet.</p>'
-      return
-    }
+  container.innerHTML = ""
 
-    container.innerHTML = ''
+  rides.forEach(ride => {
+    const div = document.createElement("div")
+    div.className = "card"
 
-    rides.forEach(ride => {
-      const div = document.createElement('div')
-      div.className = 'card'
+    div.innerHTML = `
+      <div><strong>Ride ID:</strong> ${ride.id}</div>
+      <div><strong>Rider:</strong> ${ride.riderId}</div>
+      <div><strong>Pickup:</strong> ${ride.pickup.name}</div>
+      <div><strong>Dropoff:</strong> ${ride.dropoff.name}</div>
+      <div><strong>Status:</strong> ${ride.status}</div>
+      <div class="status">${ride.status}</div>
 
-      div.innerHTML = `
-        <div><strong>Ride ID:</strong> ${ride.id}</div>
-        <div><strong>Rider ID:</strong> ${ride.riderId}</div>
-        <div><strong>Pickup:</strong> ${ride.pickup?.name || ''} ${ride.pickup?.lat}, ${ride.pickup?.lng}</div>
-        <div><strong>Dropoff:</strong> ${ride.dropoff?.name || ''} ${ride.dropoff?.lat}, ${ride.dropoff?.lng}</div>
-        <div><strong>Ride Type:</strong> ${ride.rideType || 'Standard'}</div>
-        <div><strong>Matched Driver:</strong> ${ride.driver ? ride.driver.driverId : 'None yet'}</div>
-        <div><strong>Distance:</strong> ${ride.distance !== null ? ride.distance + ' km' : 'N/A'}</div>
-        <div class="status">Status: ${ride.status}</div>
-        ${ride.acceptedBy ? `<div><strong>Accepted By:</strong> ${ride.acceptedBy}</div>` : ''}
-        ${renderActionButtons(ride)}
-      `
+      ${
+        ride.status === "matched"
+          ? `<button onclick="acceptRide(${ride.id})">Accept Ride</button>`
+          : ""
+      }
 
-      container.appendChild(div)
-    })
-  } catch (err) {
-    container.innerHTML = '<p class="empty">Failed to load rides.</p>'
-  }
+      ${
+        ride.status === "completed"
+          ? `<div class="done">Ride Completed ✅</div>`
+          : ""
+      }
+    `
+
+    container.appendChild(div)
+  })
 }
 
 loadRides()
