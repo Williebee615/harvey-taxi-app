@@ -93,7 +93,13 @@ app.post('/api/request-ride', (req, res) => {
     dropoff: dropoff || null,
     rideType: rideType || 'Standard',
     status: nearestDriver ? 'matched' : 'waiting',
-    driver: nearestDriver ? { driverId: nearestDriver.driverId } : null,
+    driver: nearestDriver
+      ? {
+          driverId: nearestDriver.driverId,
+          lat: nearestDriver.lat,
+          lng: nearestDriver.lng
+        }
+      : null,
     distance: nearestDriver ? Number(minDistance.toFixed(2)) : null,
     acceptedBy: null
   }
@@ -120,15 +126,23 @@ app.post('/api/rides/:id/accept', (req, res) => {
     return res.status(400).json({ error: 'driverId is required' })
   }
 
-  if (ride.status === 'accepted' || ride.status === 'en_route' || ride.status === 'arrived' || ride.status === 'completed') {
+  if (
+    ride.status === 'accepted' ||
+    ride.status === 'en_route' ||
+    ride.status === 'arrived' ||
+    ride.status === 'completed'
+  ) {
     return res.status(400).json({ error: 'Ride already accepted or completed' })
   }
 
+  const driver = drivers.find(d => d.driverId === driverId)
+
   ride.status = 'accepted'
   ride.acceptedBy = driverId
-  ride.driver = { driverId }
+  ride.driver = driver
+    ? { driverId: driver.driverId, lat: driver.lat, lng: driver.lng }
+    : { driverId }
 
-  const driver = drivers.find(d => d.driverId === driverId)
   if (driver) {
     driver.available = false
   }
@@ -177,6 +191,31 @@ app.get('/api/drivers', (req, res) => {
 
 app.get('/api/rides', (req, res) => {
   res.json(rideRequests)
+})
+
+app.get('/api/rides/:id', (req, res) => {
+  const rideId = Number(req.params.id)
+  const ride = rideRequests.find(r => r.id === rideId)
+
+  if (!ride) {
+    return res.status(404).json({ error: 'Ride not found' })
+  }
+
+  const liveDriver = ride.driver?.driverId
+    ? drivers.find(d => d.driverId === ride.driver.driverId) || null
+    : null
+
+  res.json({
+    ...ride,
+    driver: liveDriver
+      ? {
+          driverId: liveDriver.driverId,
+          lat: liveDriver.lat,
+          lng: liveDriver.lng,
+          available: liveDriver.available
+        }
+      : ride.driver
+  })
 })
 
 app.listen(PORT, () => {
