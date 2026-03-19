@@ -25,14 +25,6 @@ let users = {
   ]
 }
 
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'))
-})
-
-app.get('/api/test', (req, res) => {
-  res.json({ message: 'API working perfectly' })
-})
-
 function getDistance(lat1, lng1, lat2, lng2) {
   const R = 6371
   const dLat = (lat2 - lat1) * Math.PI / 180
@@ -41,8 +33,8 @@ function getDistance(lat1, lng1, lat2, lng2) {
   const a =
     Math.sin(dLat / 2) ** 2 +
     Math.cos(lat1 * Math.PI / 180) *
-    Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLng / 2) ** 2
+      Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLng / 2) ** 2
 
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
@@ -80,7 +72,7 @@ function sanitizeDriver(driver) {
   }
 }
 
-// AUTO DRIVER MOVEMENT
+// auto movement
 setInterval(() => {
   rideRequests.forEach(ride => {
     if (!ride.driver || !ride.driver.driverId) return
@@ -93,7 +85,10 @@ setInterval(() => {
       driver.lat = next.lat
       driver.lng = next.lng
 
-      if (getDistance(driver.lat, driver.lng, ride.pickup.lat, ride.pickup.lng) < 0.05) {
+      if (
+        getDistance(driver.lat, driver.lng, ride.pickup.lat, ride.pickup.lng) <
+        0.05
+      ) {
         ride.status = 'arrived'
       }
     } else if (ride.status === 'arrived') {
@@ -101,7 +96,10 @@ setInterval(() => {
       driver.lat = next.lat
       driver.lng = next.lng
 
-      if (getDistance(driver.lat, driver.lng, ride.dropoff.lat, ride.dropoff.lng) < 0.05) {
+      if (
+        getDistance(driver.lat, driver.lng, ride.dropoff.lat, ride.dropoff.lng) <
+        0.05
+      ) {
         ride.status = 'completed'
         driver.available = true
       }
@@ -109,12 +107,23 @@ setInterval(() => {
   })
 }, 2000)
 
-// RIDER AUTH
+// home
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'))
+})
+
+app.get('/api/test', (req, res) => {
+  res.json({ message: 'API working perfectly' })
+})
+
+// rider auth
 app.post('/api/rider/signup', (req, res) => {
   const { name, email, password } = req.body
 
   if (!name || !email || !password) {
-    return res.status(400).json({ error: 'Name, email, and password are required' })
+    return res
+      .status(400)
+      .json({ error: 'Name, email, and password are required' })
   }
 
   const exists = users.riders.find(user => user.email === email)
@@ -142,7 +151,10 @@ app.post('/api/rider/signup', (req, res) => {
 app.post('/api/rider/login', (req, res) => {
   const { email, password } = req.body
 
-  const rider = users.riders.find(user => user.email === email && user.password === password)
+  const rider = users.riders.find(
+    user => user.email === email && user.password === password
+  )
+
   if (!rider) {
     return res.status(401).json({ error: 'Invalid rider login' })
   }
@@ -158,12 +170,14 @@ app.post('/api/rider/login', (req, res) => {
   })
 })
 
-// DRIVER AUTH
+// driver auth
 app.post('/api/driver/signup', (req, res) => {
   const { name, email, password, carType } = req.body
 
   if (!name || !email || !password) {
-    return res.status(400).json({ error: 'Name, email, and password are required' })
+    return res
+      .status(400)
+      .json({ error: 'Name, email, and password are required' })
   }
 
   const exists = users.drivers.find(user => user.email === email)
@@ -193,7 +207,10 @@ app.post('/api/driver/signup', (req, res) => {
 app.post('/api/driver/login', (req, res) => {
   const { email, password } = req.body
 
-  const driver = users.drivers.find(user => user.email === email && user.password === password)
+  const driver = users.drivers.find(
+    user => user.email === email && user.password === password
+  )
+
   if (!driver) {
     return res.status(401).json({ error: 'Invalid driver login' })
   }
@@ -203,7 +220,9 @@ app.post('/api/driver/login', (req, res) => {
   }
 
   if (!driver.approved) {
-    return res.status(403).json({ error: 'Driver account is pending admin approval' })
+    return res
+      .status(403)
+      .json({ error: 'Driver account is pending admin approval' })
   }
 
   res.json({
@@ -213,11 +232,14 @@ app.post('/api/driver/login', (req, res) => {
   })
 })
 
-// ADMIN AUTH
+// admin auth
 app.post('/api/admin/login', (req, res) => {
   const { email, password } = req.body
 
-  const admin = users.admins.find(user => user.email === email && user.password === password)
+  const admin = users.admins.find(
+    user => user.email === email && user.password === password
+  )
+
   if (!admin) {
     return res.status(401).json({ error: 'Invalid admin login' })
   }
@@ -233,12 +255,14 @@ app.post('/api/admin/login', (req, res) => {
   })
 })
 
-// DRIVER LOCATION
+// driver location
 app.post('/api/driver/location', (req, res) => {
   const { driverId, lat, lng } = req.body
 
   if (!driverId || lat === undefined || lng === undefined) {
-    return res.status(400).json({ error: 'driverId, lat, and lng are required' })
+    return res
+      .status(400)
+      .json({ error: 'driverId, lat, and lng are required' })
   }
 
   const driverProfile = users.drivers.find(d => d.id === driverId)
@@ -259,12 +283,14 @@ app.post('/api/driver/location', (req, res) => {
   res.json({ success: true })
 })
 
-// REQUEST RIDE
+// request ride
 app.post('/api/request-ride', (req, res) => {
   const { riderId, pickup, dropoff, rideType } = req.body
 
   if (!riderId || !pickup || !dropoff) {
-    return res.status(400).json({ error: 'riderId, pickup, and dropoff are required' })
+    return res
+      .status(400)
+      .json({ error: 'riderId, pickup, and dropoff are required' })
   }
 
   const riderProfile = users.riders.find(r => r.name === riderId || r.id === riderId)
@@ -279,7 +305,9 @@ app.post('/api/request-ride', (req, res) => {
     if (!d.available) return
 
     const driverProfile = users.drivers.find(profile => profile.id === d.driverId)
-    if (!driverProfile || !driverProfile.approved || driverProfile.status === 'suspended') return
+    if (!driverProfile || !driverProfile.approved || driverProfile.status === 'suspended') {
+      return
+    }
 
     const dist = getDistance(pickup.lat, pickup.lng, d.lat, d.lng)
     if (dist < min) {
@@ -306,7 +334,7 @@ app.post('/api/request-ride', (req, res) => {
   res.json({ success: true, ride })
 })
 
-// ACCEPT RIDE
+// accept ride
 app.post('/api/rides/:id/accept', (req, res) => {
   const ride = rideRequests.find(r => r.id == req.params.id)
   const driver = drivers.find(d => d.driverId === req.body.driverId)
@@ -332,7 +360,7 @@ app.post('/api/rides/:id/accept', (req, res) => {
   res.json({ success: true, message: 'Ride accepted', ride })
 })
 
-// ADMIN PANEL DATA
+// admin dashboard
 app.get('/api/admin/dashboard', (req, res) => {
   res.json({
     riders: users.riders.map(sanitizeRider),
@@ -348,10 +376,9 @@ app.get('/api/admin/dashboard', (req, res) => {
   })
 })
 
-// ADMIN ACTIONS
+// admin actions
 app.post('/api/admin/driver/:id/approve', (req, res) => {
   const driver = users.drivers.find(d => d.id === req.params.id)
-
   if (!driver) {
     return res.status(404).json({ error: 'Driver not found' })
   }
@@ -367,7 +394,6 @@ app.post('/api/admin/driver/:id/approve', (req, res) => {
 
 app.post('/api/admin/driver/:id/suspend', (req, res) => {
   const driver = users.drivers.find(d => d.id === req.params.id)
-
   if (!driver) {
     return res.status(404).json({ error: 'Driver not found' })
   }
@@ -388,7 +414,6 @@ app.post('/api/admin/driver/:id/suspend', (req, res) => {
 
 app.post('/api/admin/driver/:id/activate', (req, res) => {
   const driver = users.drivers.find(d => d.id === req.params.id)
-
   if (!driver) {
     return res.status(404).json({ error: 'Driver not found' })
   }
@@ -404,7 +429,6 @@ app.post('/api/admin/driver/:id/activate', (req, res) => {
 
 app.post('/api/admin/rider/:id/suspend', (req, res) => {
   const rider = users.riders.find(r => r.id === req.params.id)
-
   if (!rider) {
     return res.status(404).json({ error: 'Rider not found' })
   }
@@ -420,7 +444,6 @@ app.post('/api/admin/rider/:id/suspend', (req, res) => {
 
 app.post('/api/admin/rider/:id/activate', (req, res) => {
   const rider = users.riders.find(r => r.id === req.params.id)
-
   if (!rider) {
     return res.status(404).json({ error: 'Rider not found' })
   }
@@ -434,7 +457,7 @@ app.post('/api/admin/rider/:id/activate', (req, res) => {
   })
 })
 
-// GENERAL DATA
+// general data
 app.get('/api/rides/:id', (req, res) => {
   const ride = rideRequests.find(r => r.id == req.params.id)
 
@@ -471,5 +494,5 @@ app.get('/api/users', (req, res) => {
 })
 
 app.listen(PORT, () => {
-  console.log('Server running 🚖')
+  console.log(`🚖 Server running on port ${PORT}`)
 })
