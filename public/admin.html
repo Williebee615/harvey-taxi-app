@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Panel</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      color: #111;
+    }
+
+    .page {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px 16px 40px;
+    }
+
+    h1 {
+      margin: 0 0 18px;
+      font-size: 36px;
+    }
+
+    h2 {
+      margin: 0 0 12px;
+      font-size: 24px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 18px;
+      padding: 18px;
+      margin-bottom: 18px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+    }
+
+    input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 14px;
+      margin-bottom: 12px;
+      border: 2px solid #ddd;
+      border-radius: 12px;
+      font-size: 16px;
+    }
+
+    button {
+      border: none;
+      border-radius: 12px;
+      padding: 12px 16px;
+      background: black;
+      color: white;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 700;
+      margin-right: 8px;
+      margin-top: 8px;
+    }
+
+    .small-btn {
+      padding: 10px 12px;
+      font-size: 14px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+    }
+
+    .stat-box {
+      background: #fafafa;
+      border: 2px solid #eee;
+      border-radius: 14px;
+      padding: 14px;
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: 800;
+      margin-top: 6px;
+    }
+
+    .item {
+      border: 2px solid #eee;
+      border-radius: 14px;
+      padding: 14px;
+      margin-top: 12px;
+      background: #fcfcfc;
+    }
+
+    .pill {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: #eee;
+      font-size: 13px;
+      font-weight: 700;
+      margin-top: 6px;
+      margin-right: 6px;
+    }
+
+    .success {
+      color: green;
+      font-weight: 700;
+      margin-top: 10px;
+    }
+
+    .error {
+      color: red;
+      font-weight: 700;
+      margin-top: 10px;
+    }
+
+    .muted {
+      color: #666;
+      font-size: 14px;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    a {
+      color: #5a2ca0;
+      text-decoration: none;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h1>🛠️ Harvey Taxi Admin Panel</h1>
+    <div class="muted"><a href="/">← Back to home</a></div>
+
+    <div class="card" id="loginCard
