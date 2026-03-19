@@ -1,46 +1,103 @@
-const express = require('express');
-const cors = require('cors');
-const path = require('path');
+// server.js
 
-const app = express();
-const PORT = process.env.PORT || 10000;
+const express = require('express')
+const cors = require('cors')
 
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static(__dirname));
+const app = express()
+const PORT = process.env.PORT || 10000
 
+// Middleware
+app.use(cors())
+app.use(express.json())
+
+// Health check route (VERY IMPORTANT for Render)
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
+  res.send('🚖 Harvey Taxi API is running...')
+})
 
-app.get('/request-ride', (req, res) => {
-  res.sendFile(path.join(__dirname, 'request-ride.html'));
-});
+// Test route
+app.get('/api/test', (req, res) => {
+  res.json({ message: 'API working perfectly' })
+})
 
-app.post('/request-ride', (req, res) => {
-  const { pickup, destination, passengerName, rideType } = req.body;
+/*
+========================================
+🚖 DRIVER + RIDER MEMORY (TEMP DATABASE)
+========================================
+*/
 
-  if (!pickup || !destination || !passengerName || !rideType) {
-    return res.status(400).json({
-      success: false,
-      message: 'Missing required fields'
-    });
+let drivers = []
+let rideRequests = []
+
+/*
+========================================
+📍 DRIVER LOCATION UPDATE
+========================================
+*/
+
+app.post('/api/driver/location', (req, res) => {
+  const { driverId, lat, lng } = req.body
+
+  let existingDriver = drivers.find(d => d.driverId === driverId)
+
+  if (existingDriver) {
+    existingDriver.lat = lat
+    existingDriver.lng = lng
+  } else {
+    drivers.push({ driverId, lat, lng })
   }
 
-  return res.status(200).json({
-    success: true,
-    message: 'Ride received successfully',
-    ride: {
-      pickup,
-      destination,
-      passengerName,
-      rideType,
-      status: 'pending'
-    }
-  });
-});
+  res.json({ success: true, drivers })
+})
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT}`);
-});
+/*
+========================================
+🚖 REQUEST A RIDE
+========================================
+*/
+
+app.post('/api/request-ride', (req, res) => {
+  const { riderId, pickup, dropoff } = req.body
+
+  const newRide = {
+    id: Date.now(),
+    riderId,
+    pickup,
+    dropoff,
+    status: 'waiting'
+  }
+
+  rideRequests.push(newRide)
+
+  res.json({ success: true, ride: newRide })
+})
+
+/*
+========================================
+📡 GET ALL DRIVERS (for rider app)
+========================================
+*/
+
+app.get('/api/drivers', (req, res) => {
+  res.json(drivers)
+})
+
+/*
+========================================
+📦 GET ALL RIDE REQUESTS (for driver app)
+========================================
+*/
+
+app.get('/api/rides', (req, res) => {
+  res.json(rideRequests)
+})
+
+/*
+========================================
+🚀 START SERVER
+========================================
+*/
+
+app.listen(PORT, () => {
+  console.log(`🚖 Server running on port ${PORT}`)
+})
