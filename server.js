@@ -1,4 +1,170 @@
-const express = require('express')
+app.post(
+  '/api/drivers/verification',
+  upload.fields([
+    { name: 'licenseFront', maxCount: 1 },
+    { name: 'licenseBack', maxCount: 1 },
+    { name: 'selfie', maxCount: 1 },
+    { name: 'insurance', maxCount: 1 },
+    { name: 'registration', maxCount: 1 }
+  ]),
+  (req, res) => {
+    try {
+      const { driverId, fullName, email, phone, vehicleMake, vehicleModel, vehicleYear, licenseNumber } = req.body
+
+      if (!driverId || !fullName || !email) {
+        return res.status(400).json({
+          success: false,
+          message: 'driverId, fullName, and email are required'
+        })
+      }
+
+      const existingIndex = driverVerifications.findIndex(v => v.driverId === driverId)
+
+      const verificationRecord = {
+        id: `ver_${Date.now()}`,
+        driverId,
+        fullName,
+        email,
+        phone: phone || '',
+        vehicleMake: vehicleMake || '',
+        vehicleModel: vehicleModel || '',
+        vehicleYear: vehicleYear || '',
+        licenseNumber: licenseNumber || '',
+        licenseFront: req.files?.licenseFront?.[0]
+          ? `/uploads/verification/${req.files.licenseFront[0].filename}`
+          : '',
+        licenseBack: req.files?.licenseBack?.[0]
+          ? `/uploads/verification/${req.files.licenseBack[0].filename}`
+          : '',
+        selfie: req.files?.selfie?.[0]
+          ? `/uploads/verification/${req.files.selfie[0].filename}`
+          : '',
+        insurance: req.files?.insurance?.[0]
+          ? `/uploads/verification/${req.files.insurance[0].filename}`
+          : '',
+        registration: req.files?.registration?.[0]
+          ? `/uploads/verification/${req.files.registration[0].filename}`
+          : '',
+        status: 'pending',
+        notes: '',
+        submittedAt: new Date().toISOString(),
+        reviewedAt: '',
+        reviewedBy: ''
+      }
+
+      if (existingIndex >= 0) {
+        driverVerifications[existingIndex] = {
+          ...driverVerifications[existingIndex],
+          ...verificationRecord,
+          id: driverVerifications[existingIndex].id,
+          status: 'pending',
+          notes: '',
+          reviewedAt: '',
+          reviewedBy: ''
+        }
+
+        return res.json({
+          success: true,
+          message: 'Verification resubmitted successfully',
+          verification: driverVerifications[existingIndex]
+        })
+      }
+
+      driverVerifications.push(verificationRecord)
+
+      res.json({
+        success: true,
+        message: 'Verification submitted successfully',
+        verification: verificationRecord
+      })
+    } catch (error) {
+      console.error('Verification upload error:', error)
+      res.status(500).json({
+        success: false,
+        message: 'Failed to submit verification'
+      })
+    }
+  }
+)
+
+app.get('/api/drivers/verification/:driverId', (req, res) => {
+  const verification = driverVerifications.find(v => v.driverId === req.params.driverId)
+
+  if (!verification) {
+    return res.status(404).json({
+      success: false,
+      message: 'No verification found'
+    })
+  }
+
+  res.json({
+    success: true,
+    verification
+  })
+})
+
+app.get('/api/admin/verifications', (req, res) => {
+  res.json({
+    success: true,
+    verifications: driverVerifications.sort(
+      (a, b) => new Date(b.submittedAt) - new Date(a.submittedAt)
+    )
+  })
+})
+
+app.post('/api/admin/verifications/:id/review', (req, res) => {
+  const { status, notes, reviewedBy } = req.body
+
+  if (!['approved', 'rejected', 'pending'].includes(status)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid status'
+    })
+  }
+
+  const verification = driverVerifications.find(v => v.id === req.params.id)
+
+  if (!verification) {
+    return res.status(404).json({
+      success: false,
+      message: 'Verification not found'
+    })
+  }
+
+  verification.status = status
+  verification.notes = notes || ''
+  verification.reviewedBy = reviewedBy || 'Admin'
+  verification.reviewedAt = new Date().toISOString()
+
+  const driver = users.drivers.find(d => d.id === verification.driverId)
+  if (driver) {
+    driver.verificationStatus = status
+    driver.verificationNotes = verification.notes
+  }
+
+  res.json({
+    success: true,
+    message: `Driver verification ${status}`,
+    verification
+  })
+})const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, verificationDir)
+  },
+  filename: function (req, file, cb) {
+    const safeName = file.originalname.replace(/\s+/g, '-')
+    cb(null, `${Date.now()}-${safeName}`)
+  }
+})
+
+const upload = multer({ storage })let driverVerifications = []const uploadsDir = path.join(__dirname, 'uploads')
+const verificationDir = path.join(uploadsDir, 'verification')
+
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir)
+if (!fs.existsSync(verificationDir)) fs.mkdirSync(verificationDir, { recursive: true })
+
+app.use('/uploads', express.static(uploadsDir))const fs = require('fs')
+const multer = require('multer')const express = require('express')
 const cors = require('cors')
 const path = require('path')
 
