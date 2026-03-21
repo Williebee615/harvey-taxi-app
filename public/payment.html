@@ -1,170 +1,70 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Harvey Taxi Payment</title>
   <script src="https://js.stripe.com/v3/"></script>
   <style>
     body {
-      margin: 0;
-      font-family: Arial, sans-serif;
+      font-family: Arial;
       background: #f3f4f6;
       padding: 20px;
+      text-align: center;
     }
 
     .card {
-      max-width: 420px;
-      margin: auto;
       background: white;
-      padding: 20px;
-      border-radius: 15px;
-      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-    }
-
-    h2 {
-      margin-bottom: 10px;
-    }
-
-    p {
-      color: #6b7280;
-    }
-
-    input, button {
-      width: 100%;
-      padding: 14px;
-      margin-top: 10px;
-      border-radius: 10px;
-      border: 1px solid #ccc;
-      font-size: 16px;
-      box-sizing: border-box;
+      padding: 30px;
+      border-radius: 20px;
+      max-width: 400px;
+      margin: auto;
     }
 
     button {
+      padding: 15px;
+      font-size: 18px;
+      border-radius: 10px;
+      border: none;
       background: black;
       color: white;
-      font-weight: bold;
-      border: none;
       cursor: pointer;
-    }
-
-    #payment-element {
-      margin-top: 15px;
-    }
-
-    #message {
-      margin-top: 12px;
-      font-weight: bold;
-    }
-
-    .success {
-      color: green;
-    }
-
-    .error {
-      color: red;
+      width: 100%;
     }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h2>💳 Pay for Ride</h2>
-    <p>Enter the ride request ID and load the payment form.</p>
 
-    <input id="requestId" placeholder="Ride request ID" />
-    <input id="riderName" placeholder="Rider name" />
-    <input id="riderEmail" placeholder="Rider email" />
-    <input id="serviceType" placeholder="Service type: ride, xl, or delivery" />
+<div class="card">
+  <h2>Complete Payment</h2>
+  <p id="service"></p>
+  <button onclick="pay()">Pay Now</button>
+</div>
 
-    <button onclick="startPayment()">Load Payment</button>
+<script>
+  const stripe = Stripe("REPLACE_WITH_YOUR_PUBLISHABLE_KEY")
 
-    <form id="form" style="display:none;">
-      <div id="payment-element"></div>
-      <button type="submit">Pay Now</button>
-    </form>
+  const urlParams = new URLSearchParams(window.location.search)
+  const type = urlParams.get("type")
 
-    <div id="message"></div>
-  </div>
+  let amount = 1200 // cents
 
-  <script>
-    let stripe
-    let elements
+  if (type === "xl") amount = 1800
+  if (type === "delivery") amount = 1500
+  if (type === "food") amount = 2000
 
-    async function startPayment() {
-      const requestId = document.getElementById('requestId').value.trim()
-      const riderName = document.getElementById('riderName').value.trim()
-      const riderEmail = document.getElementById('riderEmail').value.trim()
-      const serviceType = document.getElementById('serviceType').value.trim()
+  document.getElementById("service").innerText = "Service: " + type
 
-      if (!requestId) {
-        document.getElementById('message').innerText = 'Ride request ID is required.'
-        document.getElementById('message').className = 'error'
-        return
-      }
-
-      try {
-        document.getElementById('message').innerText = 'Loading payment form...'
-        document.getElementById('message').className = ''
-
-        const configRes = await fetch('/api/payments/config')
-        const configData = await configRes.json()
-
-        if (!configRes.ok) {
-          document.getElementById('message').innerText = configData.error || 'Stripe config failed.'
-          document.getElementById('message').className = 'error'
-          return
-        }
-
-        const res = await fetch('/api/payments/create-intent', {
-          method: 'POST',
-          headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({
-            requestId,
-            riderName,
-            riderEmail,
-            serviceType
-          })
-        })
-
-        const data = await res.json()
-
-        if (!res.ok) {
-          document.getElementById('message').innerText = data.error || 'Payment intent failed.'
-          document.getElementById('message').className = 'error'
-          return
-        }
-
-        stripe = Stripe(configData.publishableKey)
-        elements = stripe.elements({ clientSecret: data.clientSecret })
-
-        const paymentElement = elements.create('payment')
-        document.getElementById('payment-element').innerHTML = ''
-        paymentElement.mount('#payment-element')
-
-        document.getElementById('form').style.display = 'block'
-        document.getElementById('message').innerText = `Ready to pay $${(data.amount / 100).toFixed(2)}`
-        document.getElementById('message').className = 'success'
-      } catch (error) {
-        document.getElementById('message').innerText = 'Something went wrong loading payment.'
-        document.getElementById('message').className = 'error'
-      }
-    }
-
-    document.getElementById('form').addEventListener('submit', async (e) => {
-      e.preventDefault()
-
-      const { error } = await stripe.confirmPayment({
-        elements,
-        confirmParams: {
-          return_url: window.location.origin + '/payment'
-        }
-      })
-
-      if (error) {
-        document.getElementById('message').innerText = error.message
-        document.getElementById('message').className = 'error'
-      }
+  async function pay() {
+    const res = await fetch("/create-checkout-session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ amount })
     })
-  </script>
+
+    const data = await res.json()
+
+    stripe.redirectToCheckout({ sessionId: data.id })
+  }
+</script>
+
 </body>
 </html>
