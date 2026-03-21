@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Driver Verification Review</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f3f4f6;
+      margin: 0;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      color: #111827;
+    }
+
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 18px;
+      margin-bottom: 18px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    .files a {
+      display: inline-block;
+      margin: 6px 10px 6px 0;
+      text-decoration: none;
+      color: #2563eb;
+      font-weight: bold;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    button, textarea, input, select {
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid #d1d5db;
+      font-size: 14px;
+    }
+
+    button {
+      cursor: pointer;
+      border: none;
+      color: white;
+    }
+
+    .approve { background: #15803d; }
+    .reject { background: #b91c1c; }
+    .pending { background: #b45309; }
+
+    textarea {
+      width: 100%;
+      min-height: 80px;
+      margin-top: 10px;
+      box-sizing: border-box;
+    }
+
+    .status {
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Admin Verification Review</h1>
+    <div id="verificationList"></div>
+  </div>
+
+  <script>
+    async function loadVerifications() {
+      const res = await fetch('/api/admin/verifications')
+      const data = await res.json()
+      const list = document.getElementById('verificationList')
+
+      if (!data.success || !data.verifications.length) {
+        list.innerHTML = '<div class="card">No driver verification submissions yet.</div>'
+        return
+      }
+
+      list.innerHTML = data.verifications.map(v => `
+        <div class="card">
+          <div class="grid">
+            <div><strong>Name:</strong> ${v.fullName}</div>
+            <div><strong>Email:</strong> ${v.email}</div>
+            <div><strong>Driver ID:</strong> ${v.driverId}</div>
+            <div><strong>Status:</strong> <span class="status">${v.status}</span></div>
+            <div><strong>Phone:</strong> ${v.phone || '-'}</div>
+            <div><strong>Submitted:</strong> ${new Date(v.submittedAt).toLocaleString()}</div>
+            <div><strong>Vehicle:</strong> ${v.vehicleYear || ''} ${v.vehicleMake || ''} ${v.vehicleModel || ''}</div>
+            <div><strong>License #:</strong> ${v.licenseNumber || '-'}</div>
+          </div>
+
+          <div class="files" style="margin-top:12px;">
+            ${v.licenseFront ? `<a href="${v.licenseFront}" target="_blank">License Front</a>` : ''}
+            ${v.licenseBack ? `<a href="${v.licenseBack}" target="_blank">License Back</a>` : ''}
+            ${v.selfie ? `<a href="${v.selfie}" target="_blank">Selfie</a>` : ''}
+            ${v.insurance ? `<a href="${v.insurance}" target="_blank">Insurance</a>` : ''}
+            ${v.registration ? `<a href="${v.registration}" target="_blank">Registration</a>` : ''}
+          </div>
+
+          <textarea id="notes-${v.id}" placeholder="Admin notes...">${v.notes || ''}</textarea>
+
+          <div class="actions">
+            <button class="approve" onclick="reviewVerification('${v.id}', 'approved')">Approve</button>
+            <button class="reject" onclick="reviewVerification('${v.id}', 'rejected')">Reject</button>
+            <button class="pending" onclick="reviewVerification('${v.id}', 'pending')">Mark Pending</button>
+          </div>
+        </div>
+      `).join('')
+    }
+
+    async function reviewVerification(id, status) {
+      const notes = document.getElementById(`notes-${id}`).value
+
+      const res = await fetch(`/api/admin/verifications/${id}/review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status,
+          notes,
+          reviewedBy: 'Harvey Admin'
+        })
+      })
+
+      const data = await res.json()
+
+      if (data.success) {
+        alert(`Verification ${status}`)
+        loadVerifications()
+      } else {
+        alert(data.message || 'Failed to update review')
+      }
+    }
+
+    loadVerifications()
+  </script>
+</body>
+</html>
