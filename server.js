@@ -1,6 +1,7 @@
 const express = require('express')
 const cors = require('cors')
 const path = require('path')
+const fs = require('fs')
 
 const app = express()
 const PORT = process.env.PORT || 10000
@@ -8,6 +9,9 @@ const PORT = process.env.PORT || 10000
 app.use(cors())
 app.use(express.json())
 app.use(express.static(path.join(__dirname, 'public')))
+
+const DATA_DIR = path.join(__dirname, 'data')
+const DATA_FILE = path.join(DATA_DIR, 'store.json')
 
 let drivers = []
 let serviceRequests = []
@@ -21,9 +25,82 @@ let users = {
       name: 'Harvey Admin',
       email: 'admin@harveytaxi.com',
       password: 'admin123',
-      role: 'admin'
+      phone: '',
+      role: 'admin',
+      approved: true
     }
   ]
+}
+
+function ensureDataFile() {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true })
+  }
+
+  if (!fs.existsSync(DATA_FILE)) {
+    fs.writeFileSync(
+      DATA_FILE,
+      JSON.stringify(
+        {
+          drivers: [],
+          serviceRequests: [],
+          users
+        },
+        null,
+        2
+      )
+    )
+  }
+}
+
+function loadData() {
+  try {
+    ensureDataFile()
+    const raw = fs.readFileSync(DATA_FILE, 'utf8')
+    const parsed = JSON.parse(raw)
+
+    drivers = Array.isArray(parsed.drivers) ? parsed.drivers : []
+    serviceRequests = Array.isArray(parsed.serviceRequests) ? parsed.serviceRequests : []
+    users = parsed.users || users
+
+    if (!Array.isArray(users.riders)) users.riders = []
+    if (!Array.isArray(users.drivers)) users.drivers = []
+    if (!Array.isArray(users.admins) || !users.admins.length) {
+      users.admins = [
+        {
+          id: 'admin_1',
+          name: 'Harvey Admin',
+          email: 'admin@harveytaxi.com',
+          password: 'admin123',
+          phone: '',
+          role: 'admin',
+          approved: true
+        }
+      ]
+    }
+  } catch (error) {
+    console.error('Failed to load data:', error.message)
+  }
+}
+
+function saveData() {
+  try {
+    ensureDataFile()
+    fs.writeFileSync(
+      DATA_FILE,
+      JSON.stringify(
+        {
+          drivers,
+          serviceRequests,
+          users
+        },
+        null,
+        2
+      )
+    )
+  } catch (error) {
+    console.error('Failed to save data:', error.message)
+  }
 }
 
 function createId(prefix) {
@@ -32,6 +109,23 @@ function createId(prefix) {
 
 function normalizeEmail(email = '') {
   return String(email).trim().toLowerCase()
+}
+
+function sanitizeUser(user) {
+  if (!user) return null
+
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    phone: user.phone || '',
+    role: user.role || '',
+    vehicleType: user.vehicleType || '',
+    carModel: user.carModel || '',
+    carColor: user.carColor || '',
+    plateNumber: user.plateNumber || '',
+    approved: user.approved !== false
+  }
 }
 
 function getDistance(lat1, lng1, lat2, lng2) {
@@ -53,7 +147,9 @@ function moveTowards(current, target, step = 0.003) {
   const lngDiff = target.lng - current.lng
   const distance = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff)
 
-  if (distance <= step) return { lat: target.lat, lng: target.lng }
+  if (distance <= step) {
+    return { lat: target.lat, lng: target.lng }
+  }
 
   return {
     lat: current.lat + (latDiff / distance) * step,
@@ -61,28 +157,13 @@ function moveTowards(current, target, step = 0.003) {
   }
 }
 
-function sanitizeUser(user) {
-  if (!user) return null
-  return {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    phone: user.phone || '',
-    role: user.role,
-    vehicleType: user.vehicleType || '',
-    carModel: user.carModel || '',
-    carColor: user.carColor || '',
-    plateNumber: user.plateNumber || '',
-    approved: user.approved !== false
-  }
-}
-
 function findUserByEmail(email) {
   const clean = normalizeEmail(email)
+
   return (
-    users.riders.find(user => normalizeEmail(user.email) === clean) ||
-    users.drivers.find(user => normalizeEmail(user.email) === clean) ||
-    users.admins.find(user => normalizeEmail(user.email) === clean)
+    users.riders.find(item => normalizeEmail(item.email) === clean) ||
+    users.drivers.find(item => normalizeEmail(item.email) === clean) ||
+    users.admins.find(item => normalizeEmail(item.email) === clean)
   )
 }
 
@@ -90,12 +171,21 @@ function getAvailableDrivers() {
   return drivers.filter(driver => driver.isOnline && driver.isAvailable)
 }
 
+function syncRequestDriverLocation(driver) {
+  if (!driver || !driver.currentRequestId) return
+
+  const request = serviceRequests.find(item => item.id === driver.currentRequestId)
+  if (!request) return
+
+  request.driverLat = driver.lat
+  request.driverLng = driver.lng
+  request.updatedAt = new Date().toISOString()
+}
+
 function assignNearestDriver(request) {
   const availableDrivers = getAvailableDrivers()
 
-  if (!availableDrivers.length) {
-    return null
-  }
+  if (!availableDrivers.length) return null
 
   let nearestDriver = null
   let shortestDistance = Infinity
@@ -123,9 +213,7 @@ function assignNearestDriver(request) {
     }
   }
 
-  if (!nearestDriver) {
-    return null
-  }
+  if (!nearestDriver) return null
 
   nearestDriver.isAvailable = false
   nearestDriver.currentRequestId = request.id
@@ -143,18 +231,209 @@ function assignNearestDriver(request) {
   request.status = 'matched'
   request.updatedAt = new Date().toISOString()
 
+  saveData()
   return nearestDriver
 }
 
-function syncRequestDriverLocation(driver) {
-  if (!driver || !driver.currentRequestId) return
-
-  const request = serviceRequests.find(item => item.id === driver.currentRequestId)
-  if (!request) return
-
-  request.driverLat = driver.lat
-  request.driverLng = driver.lng
+function updateRequestStatus(request, status) {
+  request.status = status
   request.updatedAt = new Date().toISOString()
+  saveData()
+}
+
+function releaseDriverFromRequest(request) {
+  if (!request || !request.driverId) return
+
+  const driver = drivers.find(item => item.id === request.driverId)
+  if (!driver) return
+
+  driver.currentRequestId = null
+  driver.isAvailable = !!driver.isOnline
+  saveData()
+}
+
+function createDemoDrivers() {
+  if (drivers.length) {
+    return { message: 'Drivers already loaded.', totalDrivers: drivers.length }
+  }
+
+  const demoDrivers = [
+    {
+      id: 'driver_demo_1',
+      name: 'Marcus',
+      email: 'marcus@harveytaxi.com',
+      phone: '615-555-1001',
+      vehicleType: 'Taxi',
+      carModel: 'Toyota Camry',
+      carColor: 'Black',
+      plateNumber: 'HT-101',
+      lat: 36.1627,
+      lng: -86.7816,
+      isOnline: true,
+      isAvailable: true,
+      currentRequestId: null,
+      rating: 4.9
+    },
+    {
+      id: 'driver_demo_2',
+      name: 'Tanya',
+      email: 'tanya@harveytaxi.com',
+      phone: '615-555-1002',
+      vehicleType: 'SUV',
+      carModel: 'Chevy Tahoe',
+      carColor: 'White',
+      plateNumber: 'HT-102',
+      lat: 36.155,
+      lng: -86.775,
+      isOnline: true,
+      isAvailable: true,
+      currentRequestId: null,
+      rating: 5.0
+    },
+    {
+      id: 'driver_demo_3',
+      name: 'James',
+      email: 'james@harveytaxi.com',
+      phone: '615-555-1003',
+      vehicleType: 'Delivery',
+      carModel: 'Honda Accord',
+      carColor: 'Blue',
+      plateNumber: 'HT-103',
+      lat: 36.169,
+      lng: -86.79,
+      isOnline: true,
+      isAvailable: true,
+      currentRequestId: null,
+      rating: 4.8
+    }
+  ]
+
+  const demoDriverUsers = [
+    {
+      id: 'driver_demo_1',
+      name: 'Marcus',
+      email: 'marcus@harveytaxi.com',
+      password: 'driver123',
+      phone: '615-555-1001',
+      role: 'driver',
+      vehicleType: 'Taxi',
+      carModel: 'Toyota Camry',
+      carColor: 'Black',
+      plateNumber: 'HT-101',
+      approved: true
+    },
+    {
+      id: 'driver_demo_2',
+      name: 'Tanya',
+      email: 'tanya@harveytaxi.com',
+      password: 'driver123',
+      phone: '615-555-1002',
+      role: 'driver',
+      vehicleType: 'SUV',
+      carModel: 'Chevy Tahoe',
+      carColor: 'White',
+      plateNumber: 'HT-102',
+      approved: true
+    },
+    {
+      id: 'driver_demo_3',
+      name: 'James',
+      email: 'james@harveytaxi.com',
+      password: 'driver123',
+      phone: '615-555-1003',
+      role: 'driver',
+      vehicleType: 'Delivery',
+      carModel: 'Honda Accord',
+      carColor: 'Blue',
+      plateNumber: 'HT-103',
+      approved: true
+    }
+  ]
+
+  drivers.push(...demoDrivers)
+
+  demoDriverUsers.forEach(driverUser => {
+    const exists = users.drivers.find(item => item.id === driverUser.id)
+    if (!exists) users.drivers.push(driverUser)
+  })
+
+  saveData()
+
+  return {
+    message: 'Demo drivers loaded.',
+    totalDrivers: drivers.length
+  }
+}
+
+function autoAdvanceMatchedRides() {
+  const now = Date.now()
+
+  serviceRequests.forEach(request => {
+    if (!request.driverId) return
+
+    const createdAtMs = new Date(request.createdAt).getTime()
+    const updatedAtMs = new Date(request.updatedAt).getTime()
+    const ageMs = now - createdAtMs
+    const sinceUpdateMs = now - updatedAtMs
+
+    if (request.status === 'matched' && sinceUpdateMs > 10000) {
+      updateRequestStatus(request, 'accepted')
+      return
+    }
+
+    if (request.status === 'accepted' && ageMs > 25000) {
+      updateRequestStatus(request, 'in_progress')
+      return
+    }
+
+    if (request.status === 'in_progress' && ageMs > 50000) {
+      updateRequestStatus(request, 'completed')
+      releaseDriverFromRequest(request)
+    }
+  })
+}
+
+function moveActiveDrivers() {
+  const activeRequests = serviceRequests.filter(item =>
+    ['matched', 'accepted', 'in_progress'].includes(item.status)
+  )
+
+  activeRequests.forEach(request => {
+    const driver = drivers.find(item => item.id === request.driverId)
+    if (!driver) return
+
+    let target = null
+
+    if (request.status === 'matched' || request.status === 'accepted') {
+      target = {
+        lat: request.pickupLat,
+        lng: request.pickupLng
+      }
+    }
+
+    if (request.status === 'in_progress') {
+      target = {
+        lat: request.destinationLat,
+        lng: request.destinationLng
+      }
+    }
+
+    if (!target) return
+
+    const nextPosition = moveTowards(
+      { lat: driver.lat, lng: driver.lng },
+      target,
+      0.0025
+    )
+
+    driver.lat = nextPosition.lat
+    driver.lng = nextPosition.lng
+    request.driverLat = driver.lat
+    request.driverLng = driver.lng
+    request.updatedAt = new Date().toISOString()
+  })
+
+  saveData()
 }
 
 app.get('/api/health', (req, res) => {
@@ -163,7 +442,9 @@ app.get('/api/health', (req, res) => {
     message: 'Harvey Taxi API is live',
     timestamp: new Date().toISOString(),
     driversOnline: drivers.filter(driver => driver.isOnline).length,
-    activeRequests: serviceRequests.filter(req => !['completed', 'cancelled'].includes(req.status)).length
+    activeRequests: serviceRequests.filter(item =>
+      ['searching', 'matched', 'accepted', 'in_progress'].includes(item.status)
+    ).length
   })
 })
 
@@ -232,6 +513,8 @@ app.post('/api/auth/signup', (req, res) => {
     users.riders.push(newUser)
   }
 
+  saveData()
+
   res.json({
     message: `${role} account created successfully.`,
     user: sanitizeUser(newUser)
@@ -259,7 +542,6 @@ app.get('/api/drivers', (req, res) => {
 
 app.post('/api/drivers/status', (req, res) => {
   const { driverId, isOnline } = req.body
-
   const driver = drivers.find(item => item.id === driverId)
 
   if (!driver) {
@@ -268,6 +550,7 @@ app.post('/api/drivers/status', (req, res) => {
 
   driver.isOnline = !!isOnline
   driver.isAvailable = !!isOnline && !driver.currentRequestId
+  saveData()
 
   res.json({
     message: `Driver is now ${driver.isOnline ? 'online' : 'offline'}.`,
@@ -277,7 +560,6 @@ app.post('/api/drivers/status', (req, res) => {
 
 app.post('/api/drivers/location', (req, res) => {
   const { driverId, lat, lng } = req.body
-
   const driver = drivers.find(item => item.id === driverId)
 
   if (!driver) {
@@ -291,6 +573,7 @@ app.post('/api/drivers/location', (req, res) => {
   driver.lat = lat
   driver.lng = lng
   syncRequestDriverLocation(driver)
+  saveData()
 
   res.json({
     message: 'Driver location updated.',
@@ -347,10 +630,23 @@ app.post('/api/requests', (req, res) => {
 
   serviceRequests.unshift(request)
 
+  if (!drivers.length) {
+    createDemoDrivers()
+  }
+
   const matchedDriver = assignNearestDriver(request)
 
+  if (!matchedDriver) {
+    request.status = 'searching'
+    request.updatedAt = new Date().toISOString()
+  }
+
+  saveData()
+
   res.json({
-    message: matchedDriver ? 'Driver matched successfully.' : 'Request created. No driver available yet.',
+    message: matchedDriver
+      ? 'Driver matched successfully.'
+      : 'Request created. No driver available yet.',
     request
   })
 })
@@ -383,7 +679,6 @@ app.post('/api/requests/:id/accept', (req, res) => {
     return res.status(404).json({ error: 'Driver not found.' })
   }
 
-  request.status = 'accepted'
   request.driverId = driver.id
   request.driverName = driver.name
   request.driverPhone = driver.phone || ''
@@ -393,11 +688,12 @@ app.post('/api/requests/:id/accept', (req, res) => {
   request.driverPlateNumber = driver.plateNumber || ''
   request.driverLat = driver.lat
   request.driverLng = driver.lng
-  request.updatedAt = new Date().toISOString()
 
   driver.currentRequestId = request.id
   driver.isOnline = true
   driver.isAvailable = false
+
+  updateRequestStatus(request, 'accepted')
 
   res.json({
     message: 'Ride accepted.',
@@ -413,8 +709,7 @@ app.post('/api/requests/:id/start', (req, res) => {
     return res.status(404).json({ error: 'Request not found.' })
   }
 
-  request.status = 'in_progress'
-  request.updatedAt = new Date().toISOString()
+  updateRequestStatus(request, 'in_progress')
 
   res.json({
     message: 'Ride started.',
@@ -429,14 +724,8 @@ app.post('/api/requests/:id/complete', (req, res) => {
     return res.status(404).json({ error: 'Request not found.' })
   }
 
-  request.status = 'completed'
-  request.updatedAt = new Date().toISOString()
-
-  const driver = drivers.find(item => item.id === request.driverId)
-  if (driver) {
-    driver.currentRequestId = null
-    driver.isAvailable = driver.isOnline
-  }
+  updateRequestStatus(request, 'completed')
+  releaseDriverFromRequest(request)
 
   res.json({
     message: 'Ride completed.',
@@ -451,14 +740,8 @@ app.post('/api/requests/:id/cancel', (req, res) => {
     return res.status(404).json({ error: 'Request not found.' })
   }
 
-  request.status = 'cancelled'
-  request.updatedAt = new Date().toISOString()
-
-  const driver = drivers.find(item => item.id === request.driverId)
-  if (driver) {
-    driver.currentRequestId = null
-    driver.isAvailable = driver.isOnline
-  }
+  updateRequestStatus(request, 'cancelled')
+  releaseDriverFromRequest(request)
 
   res.json({
     message: 'Ride cancelled.',
@@ -467,18 +750,12 @@ app.post('/api/requests/:id/cancel', (req, res) => {
 })
 
 app.get('/api/riders/:riderId/requests', (req, res) => {
-  const riderRequests = serviceRequests.filter(
-    item => item.riderId === req.params.riderId
-  )
-
+  const riderRequests = serviceRequests.filter(item => item.riderId === req.params.riderId)
   res.json(riderRequests)
 })
 
 app.get('/api/drivers/:driverId/requests', (req, res) => {
-  const driverRequests = serviceRequests.filter(
-    item => item.driverId === req.params.driverId
-  )
-
+  const driverRequests = serviceRequests.filter(item => item.driverId === req.params.driverId)
   res.json(driverRequests)
 })
 
@@ -506,148 +783,21 @@ app.get('/api/admin/users', (req, res) => {
 })
 
 app.post('/api/seed-demo', (req, res) => {
-  if (!drivers.length) {
-    const demoDrivers = [
-      {
-        id: 'driver_demo_1',
-        name: 'Marcus',
-        email: 'marcus@harveytaxi.com',
-        phone: '615-555-1001',
-        vehicleType: 'Taxi',
-        carModel: 'Toyota Camry',
-        carColor: 'Black',
-        plateNumber: 'HT-101',
-        lat: 36.1627,
-        lng: -86.7816,
-        isOnline: true,
-        isAvailable: true,
-        currentRequestId: null,
-        rating: 4.9
-      },
-      {
-        id: 'driver_demo_2',
-        name: 'Tanya',
-        email: 'tanya@harveytaxi.com',
-        phone: '615-555-1002',
-        vehicleType: 'SUV',
-        carModel: 'Chevy Tahoe',
-        carColor: 'White',
-        plateNumber: 'HT-102',
-        lat: 36.155,
-        lng: -86.775,
-        isOnline: true,
-        isAvailable: true,
-        currentRequestId: null,
-        rating: 5.0
-      },
-      {
-        id: 'driver_demo_3',
-        name: 'James',
-        email: 'james@harveytaxi.com',
-        phone: '615-555-1003',
-        vehicleType: 'Delivery',
-        carModel: 'Honda Accord',
-        carColor: 'Blue',
-        plateNumber: 'HT-103',
-        lat: 36.169,
-        lng: -86.79,
-        isOnline: true,
-        isAvailable: true,
-        currentRequestId: null,
-        rating: 4.8
-      }
-    ]
-
-    drivers.push(...demoDrivers)
-
-    users.drivers.push(
-      {
-        id: 'driver_demo_1',
-        name: 'Marcus',
-        email: 'marcus@harveytaxi.com',
-        password: 'driver123',
-        phone: '615-555-1001',
-        role: 'driver',
-        vehicleType: 'Taxi',
-        carModel: 'Toyota Camry',
-        carColor: 'Black',
-        plateNumber: 'HT-101',
-        approved: true
-      },
-      {
-        id: 'driver_demo_2',
-        name: 'Tanya',
-        email: 'tanya@harveytaxi.com',
-        password: 'driver123',
-        phone: '615-555-1002',
-        role: 'driver',
-        vehicleType: 'SUV',
-        carModel: 'Chevy Tahoe',
-        carColor: 'White',
-        plateNumber: 'HT-102',
-        approved: true
-      },
-      {
-        id: 'driver_demo_3',
-        name: 'James',
-        email: 'james@harveytaxi.com',
-        password: 'driver123',
-        phone: '615-555-1003',
-        role: 'driver',
-        vehicleType: 'Delivery',
-        carModel: 'Honda Accord',
-        carColor: 'Blue',
-        plateNumber: 'HT-103',
-        approved: true
-      }
-    )
-  }
-
-  res.json({
-    message: 'Demo drivers loaded.',
-    totalDrivers: drivers.length
-  })
+  const result = createDemoDrivers()
+  res.json(result)
 })
 
-setInterval(() => {
-  const activeRequests = serviceRequests.filter(item =>
-    ['matched', 'accepted', 'in_progress'].includes(item.status)
-  )
-
-  activeRequests.forEach(request => {
-    const driver = drivers.find(item => item.id === request.driverId)
-    if (!driver) return
-
-    let target = null
-
-    if (request.status === 'matched' || request.status === 'accepted') {
-      target = {
-        lat: request.pickupLat,
-        lng: request.pickupLng
-      }
-    } else if (request.status === 'in_progress') {
-      target = {
-        lat: request.destinationLat,
-        lng: request.destinationLng
-      }
-    }
-
-    if (!target) return
-
-    const nextPosition = moveTowards(
-      { lat: driver.lat, lng: driver.lng },
-      target,
-      0.0025
-    )
-
-    driver.lat = nextPosition.lat
-    driver.lng = nextPosition.lng
-
-    request.driverLat = driver.lat
-    request.driverLng = driver.lng
-    request.updatedAt = new Date().toISOString()
+app.get('/api/debug/store', (req, res) => {
+  res.json({
+    users: {
+      riders: users.riders.map(sanitizeUser),
+      drivers: users.drivers.map(sanitizeUser),
+      admins: users.admins.map(sanitizeUser)
+    },
+    drivers,
+    serviceRequests
   })
-}, 5000)
+})
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'))
@@ -660,6 +810,13 @@ app.get('/request', (req, res) => {
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'))
 })
+
+loadData()
+
+setInterval(() => {
+  autoAdvanceMatchedRides()
+  moveActiveDrivers()
+}, 5000)
 
 app.listen(PORT, () => {
   console.log(`Harvey Taxi API running on port ${PORT}`)
