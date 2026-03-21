@@ -1,24 +1,29 @@
 const express = require('express')
 const cors = require('cors')
 const path = require('path')
+const Stripe = require('stripe')
 
 const app = express()
 const PORT = process.env.PORT || 10000
+
+if (!process.env.STRIPE_SECRET_KEY) {
+  console.warn('Missing STRIPE_SECRET_KEY')
+}
+if (!process.env.STRIPE_PUBLISHABLE_KEY) {
+  console.warn('Missing STRIPE_PUBLISHABLE_KEY')
+}
+
+const stripe = process.env.STRIPE_SECRET_KEY
+  ? new Stripe(process.env.STRIPE_SECRET_KEY)
+  : null
 
 app.use(cors())
 app.use(express.json())
 app.use(express.static(path.join(__dirname, 'public')))
 
-/* =========================
-   MEMORY DATABASE (TEMP)
-========================= */
-
 let drivers = []
 let requests = []
 
-/* =========================
-   HELPER: DISTANCE
-========================= */
 function getDistance(lat1, lon1, lat2, lon2) {
   const R = 6371
   const dLat = (lat2 - lat1) * Math.PI / 180
@@ -33,9 +38,50 @@ function getDistance(lat1, lon1, lat2, lon2) {
   return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)))
 }
 
-/* =========================
-   DRIVER LOCATION UPDATE
-========================= */
+function getServiceAmount(type) {
+  if (type === 'xl') return 1800
+  if (type === 'delivery') return 1500
+  if (type === 'food') return 2000
+  return 1200
+}
+
+app.get('/api/payments/config', (req, res) => {
+  if (!process.env.STRIPE_PUBLISHABLE_KEY) {
+    return res.status(500).json({ error: 'Missing publishable key' })
+  }
+
+  res.json({
+    publishableKey: process.env.STRIPE_PUBLISHABLE_KEY
+  })
+})
+
+app.post('/create-payment-intent', async (req, res) => {
+  try {
+    if (!stripe) {
+      return res.status(500).json({ error: 'Stripe is not configured' })
+    }
+
+    const { amount } = req.body
+
+    if (!amount || Number(amount) < 50) {
+      return res.status(400).json({ error: 'Invalid amount' })
+    }
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Number(amount),
+      currency: 'usd',
+      automatic_payment_methods: { enabled: true }
+    })
+
+    res.json({
+      clientSecret: paymentIntent.client_secret
+    })
+  } catch (err) {
+    console.error('create-payment-intent error:', err.message)
+    res.status(500).json({ error: err.message })
+  }
+})
+
 app.post('/api/driver/location', (req, res) => {
   const { driverId, lat, lng, type } = req.body
 
@@ -46,7 +92,7 @@ app.post('/api/driver/location', (req, res) => {
       id: driverId,
       lat,
       lng,
-      type: type || 'ride', // ride OR delivery
+      type: type || 'ride',
       available: true
     }
     drivers.push(driver)
@@ -60,11 +106,10 @@ app.post('/api/driver/location', (req, res) => {
   res.json({ success: true })
 })
 
-/* =========================
-   GET NEARBY DRIVERS
-========================= */
 app.get('/api/drivers/nearby', (req, res) => {
-  const { lat, lng, type } = req.query
+  const lat = Number(req.query.lat)
+  const lng = Number(req.query.lng)
+  const type = req.query.type
 
   const nearby = drivers
     .filter(d => d.available && (!type || d.type === type))
@@ -77,16 +122,17 @@ app.get('/api/drivers/nearby', (req, res) => {
   res.json(nearby.slice(0, 5))
 })
 
-/* =========================
-   CREATE REQUEST (RIDE OR DELIVERY)
-========================= */
 app.post('/api/request', (req, res) => {
   const {
     pickup,
     destination,
-    type, // ride OR delivery
+    type,
     notes
   } = req.body
+
+  if (!pickup || !destination || !pickup.lat || !pickup.lng || !destination.lat || !destination.lng) {
+    return res.status(400).json({ error: 'Pickup and destination coordinates are required' })
+  }
 
   const requestId = 'req_' + Date.now()
 
@@ -94,17 +140,18 @@ app.post('/api/request', (req, res) => {
     id: requestId,
     pickup,
     destination,
-    type,
-    notes,
+    type: type || 'ride',
+    notes: notes || '',
+    amount: getServiceAmount(type || 'ride'),
     status: 'searching',
+    paymentStatus: 'unpaid',
     driver: null
   }
 
   requests.push(newRequest)
 
-  // FIND NEAREST DRIVER
   const availableDrivers = drivers
-    .filter(d => d.available && d.type === type)
+    .filter(d => d.available && d.type === (type || 'ride'))
     .map(d => ({
       ...d,
       distance: getDistance(
@@ -118,25 +165,23 @@ app.post('/api/request', (req, res) => {
 
   if (availableDrivers.length > 0) {
     const chosen = availableDrivers[0]
-
     newRequest.driver = chosen.id
     newRequest.status = 'assigned'
 
-    chosen.available = false
+    const driverIndex = drivers.findIndex(d => d.id === chosen.id)
+    if (driverIndex !== -1) {
+      drivers[driverIndex].available = false
+    }
   }
 
   res.json(newRequest)
 })
 
-/* =========================
-   DRIVER ACCEPT JOB
-========================= */
 app.post('/api/driver/accept', (req, res) => {
   const { driverId, requestId } = req.body
 
   const request = requests.find(r => r.id === requestId)
-
-  if (!request) return res.status(404).json({ error: 'Not found' })
+  if (!request) return res.status(404).json({ error: 'Request not found' })
 
   request.status = 'in_progress'
   request.driver = driverId
@@ -144,15 +189,11 @@ app.post('/api/driver/accept', (req, res) => {
   res.json({ success: true })
 })
 
-/* =========================
-   DRIVER COMPLETE JOB
-========================= */
 app.post('/api/driver/complete', (req, res) => {
   const { requestId } = req.body
 
   const request = requests.find(r => r.id === requestId)
-
-  if (!request) return res.status(404).json({ error: 'Not found' })
+  if (!request) return res.status(404).json({ error: 'Request not found' })
 
   request.status = 'completed'
 
@@ -162,13 +203,9 @@ app.post('/api/driver/complete', (req, res) => {
   res.json({ success: true })
 })
 
-/* =========================
-   TRACK REQUEST
-========================= */
 app.get('/api/request/:id', (req, res) => {
   const request = requests.find(r => r.id === req.params.id)
-
-  if (!request) return res.status(404).json({ error: 'Not found' })
+  if (!request) return res.status(404).json({ error: 'Request not found' })
 
   const driver = drivers.find(d => d.id === request.driver)
 
@@ -180,9 +217,22 @@ app.get('/api/request/:id', (req, res) => {
   })
 })
 
-/* =========================
-   START SERVER
-========================= */
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'))
+})
+
+app.get('/request', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'request.html'))
+})
+
+app.get('/payment', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'payment.html'))
+})
+
+app.get('/driver', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'driver.html'))
+})
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`)
 })
