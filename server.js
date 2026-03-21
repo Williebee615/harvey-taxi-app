@@ -2,6 +2,7 @@ const express = require('express')
 const cors = require('cors')
 const path = require('path')
 const multer = require('multer')
+const fs = require('fs')
 
 const app = express()
 const PORT = process.env.PORT || 10000
@@ -10,83 +11,108 @@ app.use(cors())
 app.use(express.json())
 app.use(express.static(path.join(__dirname, 'public')))
 
+
+// Ensure uploads folder exists
+const uploadDir = path.join(__dirname, 'public/uploads')
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true })
+}
+
+
+// Multer storage
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, 'public/uploads/')
+    cb(null, 'public/uploads')
   },
   filename: function (req, file, cb) {
-    cb(null, Date.now() + '-' + file.originalname)
+    const unique = Date.now() + '-' + Math.round(Math.random() * 1E9)
+    cb(null, unique + '-' + file.originalname)
   }
 })
 
 const upload = multer({ storage })
 
-let driverVerifications = []
 
-app.post('/api/driver/verify',
-  upload.fields([
-    { name: 'licenseFront' },
-    { name: 'licenseBack' },
-    { name: 'selfie' },
-    { name: 'insurance' },
-    { name: 'registration' }
-  ]),
-  (req, res) => {
 
-    const data = {
-      id: Date.now().toString(),
-      fullName: req.body.fullName,
-      email: req.body.email,
-      phone: req.body.phone,
-      vehicleMake: req.body.vehicleMake,
-      vehicleModel: req.body.vehicleModel,
-      vehicleYear: req.body.vehicleYear,
-      licenseNumber: req.body.licenseNumber,
-      status: 'pending',
-      submittedAt: new Date(),
-      licenseFront: req.files.licenseFront?.[0]?.path,
-      licenseBack: req.files.licenseBack?.[0]?.path,
-      selfie: req.files.selfie?.[0]?.path,
-      insurance: req.files.insurance?.[0]?.path,
-      registration: req.files.registration?.[0]?.path
-    }
+let drivers = []
+let verificationQueue = []
 
-    driverVerifications.push(data)
 
-    res.json({
-      success: true,
-      message: 'Verification submitted'
-    })
-})
 
-app.get('/api/admin/verifications', (req, res) => {
+// Driver verification upload
+app.post('/api/driver/verify', upload.fields([
+  { name: 'license', maxCount: 1 },
+  { name: 'selfie', maxCount: 1 },
+  { name: 'vehicle', maxCount: 1 }
+]), (req, res) => {
+
+  const { name, email, phone } = req.body
+
+  const verification = {
+    id: Date.now(),
+    name,
+    email,
+    phone,
+    license: req.files.license?.[0]?.filename,
+    selfie: req.files.selfie?.[0]?.filename,
+    vehicle: req.files.vehicle?.[0]?.filename,
+    status: 'pending'
+  }
+
+  verificationQueue.push(verification)
+
   res.json({
     success: true,
-    verifications: driverVerifications
+    message: 'Verification submitted',
+    verification
   })
 })
 
-app.post('/api/admin/verifications/:id/review', (req, res) => {
-  const { id } = req.params
-  const { status, notes } = req.body
 
-  const verification = driverVerifications.find(v => v.id === id)
 
-  if (!verification) {
-    return res.json({ success: false })
+// Admin get verifications
+app.get('/api/admin/verifications', (req, res) => {
+  res.json(verificationQueue)
+})
+
+
+
+// Approve driver
+app.post('/api/admin/approve/:id', (req, res) => {
+  const id = parseInt(req.params.id)
+
+  const driver = verificationQueue.find(v => v.id === id)
+
+  if (!driver) {
+    return res.status(404).json({ error: 'Not found' })
   }
 
-  verification.status = status
-  verification.notes = notes
-  verification.reviewedAt = new Date()
+  driver.status = 'approved'
+
+  drivers.push(driver)
 
   res.json({ success: true })
 })
 
-app.get('/', (req, res) => {
-  res.send('Harvey Taxi API Running')
+
+
+// Reject driver
+app.post('/api/admin/reject/:id', (req, res) => {
+  const id = parseInt(req.params.id)
+
+  const driver = verificationQueue.find(v => v.id === id)
+
+  if (!driver) {
+    return res.status(404).json({ error: 'Not found' })
+  }
+
+  driver.status = 'rejected'
+
+  res.json({ success: true })
 })
 
+
+
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`)
+  console.log('Server running on port', PORT)
 })
