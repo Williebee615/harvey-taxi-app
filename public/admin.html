@@ -3,648 +3,325 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Harvey Taxi Driver Dashboard</title>
+  <title>Harvey Taxi Admin</title>
   <style>
     * {
       box-sizing: border-box;
+      font-family: Arial, sans-serif;
     }
 
     body {
       margin: 0;
-      font-family: Arial, sans-serif;
-      background: #0f172a;
-      color: #fff;
+      background: #f3f4f6;
+      color: #111827;
     }
 
-    .app {
-      max-width: 1200px;
+    .wrap {
+      max-width: 1100px;
       margin: 0 auto;
-      padding: 24px 16px 40px;
+      padding: 20px;
     }
 
-    .header {
+    .card {
+      background: white;
+      border-radius: 18px;
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
       margin-bottom: 20px;
     }
 
-    .header h1 {
-      margin: 0;
-      font-size: 34px;
-    }
-
-    .header p {
-      margin: 8px 0 0;
-      color: #94a3b8;
-    }
-
-    .toolbar {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-      margin-bottom: 20px;
-    }
-
-    button {
-      border: none;
-      border-radius: 14px;
-      padding: 12px 16px;
-      font-size: 14px;
-      font-weight: 700;
-      cursor: pointer;
-    }
-
-    .primary {
-      background: #22c55e;
-      color: #fff;
-    }
-
-    .secondary {
-      background: #1e293b;
-      color: #fff;
-      border: 1px solid #334155;
-    }
-
-    .danger {
-      background: #dc2626;
-      color: #fff;
-    }
-
-    .blue {
-      background: #2563eb;
-      color: #fff;
-    }
-
-    .amber {
-      background: #d97706;
-      color: #fff;
+    h1, h2, h3 {
+      margin-top: 0;
     }
 
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-      gap: 14px;
-      margin-bottom: 22px;
+      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     }
 
     .stat {
-      background: #111827;
-      border: 1px solid #1f2937;
-      border-radius: 20px;
       padding: 18px;
-    }
-
-    .stat .label {
-      color: #94a3b8;
-      font-size: 14px;
-      margin-bottom: 8px;
-    }
-
-    .stat .value {
-      font-size: 28px;
-      font-weight: 800;
-    }
-
-    .layout {
-      display: grid;
-      grid-template-columns: 1.05fr 1.25fr;
-      gap: 18px;
-    }
-
-    @media (max-width: 900px) {
-      .layout {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    .section {
+      border-radius: 16px;
       background: #111827;
-      border: 1px solid #1f2937;
-      border-radius: 22px;
-      padding: 18px;
-      margin-bottom: 18px;
+      color: white;
     }
 
-    .section h2 {
-      margin: 0 0 14px;
-      font-size: 22px;
+    .input, .button {
+      width: 100%;
+      padding: 14px 16px;
+      border-radius: 12px;
+      border: 1px solid #d1d5db;
+      margin-bottom: 12px;
+      font-size: 16px;
     }
 
-    .list {
-      display: grid;
-      gap: 12px;
+    .button {
+      background: #111827;
+      color: white;
+      border: none;
+      font-weight: bold;
+      cursor: pointer;
     }
 
-    .card {
-      background: #0b1220;
-      border: 1px solid #1e293b;
-      border-radius: 18px;
-      padding: 14px;
+    .button.light {
+      background: #e5e7eb;
+      color: #111827;
     }
 
-    .card-title {
-      font-size: 18px;
-      font-weight: 800;
-      margin-bottom: 8px;
+    .hidden {
+      display: none;
+    }
+
+    .row {
+      padding: 12px 0;
+      border-bottom: 1px solid #e5e7eb;
     }
 
     .muted {
-      color: #94a3b8;
+      color: #6b7280;
     }
 
     .pill {
       display: inline-block;
       padding: 6px 10px;
       border-radius: 999px;
-      font-size: 12px;
-      font-weight: 800;
+      background: #f3f4f6;
+      margin-right: 8px;
       margin-top: 8px;
-      margin-right: 6px;
-    }
-
-    .pill-green {
-      background: #14532d;
-      color: #bbf7d0;
-    }
-
-    .pill-blue {
-      background: #1e3a8a;
-      color: #bfdbfe;
-    }
-
-    .pill-yellow {
-      background: #713f12;
-      color: #fde68a;
-    }
-
-    .pill-red {
-      background: #7f1d1d;
-      color: #fecaca;
-    }
-
-    .actions {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-top: 12px;
-    }
-
-    select {
-      width: 100%;
-      border-radius: 14px;
-      border: 1px solid #334155;
-      background: #0b1220;
-      color: white;
-      padding: 14px;
-      font-size: 15px;
-      margin-bottom: 14px;
-      outline: none;
-    }
-
-    .empty {
-      color: #94a3b8;
-      font-style: italic;
-    }
-
-    .mini {
       font-size: 13px;
-      color: #94a3b8;
     }
 
-    .status-banner {
-      margin-bottom: 16px;
-      padding: 14px 16px;
-      border-radius: 16px;
-      background: #0b1220;
-      border: 1px solid #1e293b;
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    #message {
+      font-weight: bold;
+      margin-top: 10px;
+    }
+
+    .danger {
+      color: #b91c1c;
+    }
+
+    .success {
+      color: #065f46;
     }
   </style>
 </head>
 <body>
-  <div class="app">
-    <div class="header">
-      <h1>Harvey Taxi Operations</h1>
-      <p>Admin and driver dashboard with live ride controls</p>
+  <div class="wrap">
+    <div id="loginCard" class="card">
+      <h1>🔐 Harvey Taxi Admin Login</h1>
+      <p class="muted">Private access only.</p>
+      <input id="adminEmail" class="input" type="email" placeholder="Admin email" />
+      <input id="adminPassword" class="input" type="password" placeholder="Password" />
+      <button class="button" onclick="loginAdmin()">Enter Admin Dashboard</button>
+      <div id="message"></div>
     </div>
 
-    <div class="toolbar">
-      <button class="primary" onclick="loadDashboard()">Refresh Dashboard</button>
-      <button class="secondary" onclick="seedDemoDrivers()">Load Demo Drivers</button>
-    </div>
-
-    <div class="grid">
-      <div class="stat"><div class="label">Total Riders</div><div class="value" id="totalRiders">0</div></div>
-      <div class="stat"><div class="label">Total Drivers</div><div class="value" id="totalDrivers">0</div></div>
-      <div class="stat"><div class="label">Online Drivers</div><div class="value" id="onlineDrivers">0</div></div>
-      <div class="stat"><div class="label">Available Drivers</div><div class="value" id="availableDrivers">0</div></div>
-      <div class="stat"><div class="label">Total Requests</div><div class="value" id="totalRequests">0</div></div>
-      <div class="stat"><div class="label">Active Requests</div><div class="value" id="activeRequests">0</div></div>
-    </div>
-
-    <div class="layout">
-      <div>
-        <div class="section">
-          <h2>Driver Control Center</h2>
-          <div class="status-banner" id="driverBanner">
-            Select a driver to manage online status and trip actions.
+    <div id="dashboard" class="hidden">
+      <div class="card">
+        <div class="topbar">
+          <div>
+            <h1>🚕 Harvey Taxi Admin Dashboard</h1>
+            <p class="muted">Admin-only control center</p>
           </div>
-
-          <select id="driverSelector" onchange="handleDriverSelection()">
-            <option value="">Select a driver...</option>
-          </select>
-
-          <div id="selectedDriverCard" class="card" style="display:none;"></div>
-        </div>
-
-        <div class="section">
-          <h2>All Drivers</h2>
-          <div id="driversList" class="list"></div>
-        </div>
-
-        <div class="section">
-          <h2>Riders</h2>
-          <div id="ridersList" class="list"></div>
+          <button class="button light" onclick="logoutAdmin()">Logout</button>
         </div>
       </div>
 
-      <div>
-        <div class="section">
-          <h2>Live Request Board</h2>
-          <div id="requestsList" class="list"></div>
+      <div class="grid">
+        <div class="stat">
+          <h3>Riders</h3>
+          <div id="statRiders">0</div>
         </div>
+        <div class="stat">
+          <h3>Drivers</h3>
+          <div id="statDrivers">0</div>
+        </div>
+        <div class="stat">
+          <h3>Requests</h3>
+          <div id="statRequests">0</div>
+        </div>
+        <div class="stat">
+          <h3>Active Drivers</h3>
+          <div id="statActiveDrivers">0</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Admins</h2>
+        <div id="adminsList"></div>
+      </div>
+
+      <div class="card">
+        <h2>Riders</h2>
+        <div id="ridersList"></div>
+      </div>
+
+      <div class="card">
+        <h2>Drivers</h2>
+        <div id="driversList"></div>
+      </div>
+
+      <div class="card">
+        <h2>Service Requests</h2>
+        <div id="requestsList"></div>
       </div>
     </div>
   </div>
 
   <script>
-    let allDrivers = []
-    let allRequests = []
-    let selectedDriverId = ''
+    const ADMIN_SESSION_KEY = 'harvey_admin_logged_in'
+
+    function showMessage(text, ok = false) {
+      const el = document.getElementById('message')
+      el.textContent = text
+      el.className = ok ? 'success' : 'danger'
+    }
+
+    async function loginAdmin() {
+      const email = document.getElementById('adminEmail').value.trim()
+      const password = document.getElementById('adminPassword').value.trim()
+
+      if (!email || !password) {
+        showMessage('Enter admin email and password')
+        return
+      }
+
+      try {
+        const res = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        })
+
+        const data = await res.json()
+
+        if (!res.ok || !data.success) {
+          showMessage(data.message || 'Login failed')
+          return
+        }
+
+        localStorage.setItem(ADMIN_SESSION_KEY, 'true')
+        document.getElementById('loginCard').classList.add('hidden')
+        document.getElementById('dashboard').classList.remove('hidden')
+        await loadDashboard()
+      } catch (err) {
+        showMessage('Server error while logging in')
+      }
+    }
+
+    function logoutAdmin() {
+      localStorage.removeItem(ADMIN_SESSION_KEY)
+      document.getElementById('dashboard').classList.add('hidden')
+      document.getElementById('loginCard').classList.remove('hidden')
+      showMessage('')
+      document.getElementById('adminPassword').value = ''
+    }
 
     async function loadDashboard() {
-      await Promise.all([
-        loadStats(),
-        loadUsers(),
-        loadDrivers(),
-        loadRequests()
-      ])
-
-      refreshSelectedDriverCard()
-    }
-
-    async function loadStats() {
       try {
-        const res = await fetch('/api/admin/stats')
-        const data = await res.json()
+        const statsRes = await fetch('/api/admin/stats')
+        const stats = await statsRes.json()
 
-        document.getElementById('totalRiders').textContent = data.totalRiders || 0
-        document.getElementById('totalDrivers').textContent = data.totalDrivers || 0
-        document.getElementById('onlineDrivers').textContent = data.onlineDrivers || 0
-        document.getElementById('availableDrivers').textContent = data.availableDrivers || 0
-        document.getElementById('totalRequests').textContent = data.totalRequests || 0
-        document.getElementById('activeRequests').textContent = data.activeRequests || 0
-      } catch (error) {
-        console.error('Stats load failed', error)
+        document.getElementById('statRiders').textContent = stats.riders || 0
+        document.getElementById('statDrivers').textContent = stats.drivers || 0
+        document.getElementById('statRequests').textContent = stats.requests || 0
+        document.getElementById('statActiveDrivers').textContent = stats.activeDrivers || 0
+
+        const usersRes = await fetch('/api/admin/users')
+        const users = await usersRes.json()
+
+        renderAdmins(users.admins || [])
+        renderRiders(users.riders || [])
+        renderDrivers(users.drivers || [])
+
+        const requestsRes = await fetch('/api/admin/requests')
+        const requests = await requestsRes.json()
+        renderRequests(requests || [])
+      } catch (err) {
+        console.error(err)
       }
     }
 
-    async function loadUsers() {
-      try {
-        const res = await fetch('/api/admin/users')
-        const data = await res.json()
-
-        const ridersList = document.getElementById('ridersList')
-        ridersList.innerHTML = ''
-
-        if (!data.riders || !data.riders.length) {
-          ridersList.innerHTML = '<div class="empty">No riders yet.</div>'
-        } else {
-          data.riders.forEach(rider => {
-            const card = document.createElement('div')
-            card.className = 'card'
-            card.innerHTML = `
-              <div class="card-title">${rider.name}</div>
-              <div>${rider.email}</div>
-              <div class="muted">${rider.phone || 'No phone added'}</div>
-              <span class="pill pill-blue">${rider.role || 'rider'}</span>
-            `
-            ridersList.appendChild(card)
-          })
-        }
-      } catch (error) {
-        console.error('Users load failed', error)
-      }
-    }
-
-    async function loadDrivers() {
-      try {
-        const res = await fetch('/api/drivers')
-        const drivers = await res.json()
-        allDrivers = Array.isArray(drivers) ? drivers : []
-
-        const driversList = document.getElementById('driversList')
-        const selector = document.getElementById('driverSelector')
-
-        driversList.innerHTML = ''
-        selector.innerHTML = '<option value="">Select a driver...</option>'
-
-        if (!allDrivers.length) {
-          driversList.innerHTML = '<div class="empty">No drivers loaded yet.</div>'
-          return
-        }
-
-        allDrivers.forEach(driver => {
-          const option = document.createElement('option')
-          option.value = driver.id
-          option.textContent = `${driver.name} • ${driver.vehicleType || 'Taxi'}`
-          selector.appendChild(option)
-
-          const onlineClass = driver.isOnline ? 'pill-green' : 'pill-red'
-          const availableClass = driver.isAvailable ? 'pill-blue' : 'pill-yellow'
-
-          const card = document.createElement('div')
-          card.className = 'card'
-          card.innerHTML = `
-            <div class="card-title">${driver.name}</div>
-            <div>${driver.email || 'No email'}</div>
-            <div class="muted">${driver.vehicleType || 'Taxi'} · ${driver.carColor || ''} ${driver.carModel || ''}</div>
-            <div class="muted">Plate: ${driver.plateNumber || 'N/A'}</div>
-            <div class="mini">Location: ${driver.lat}, ${driver.lng}</div>
-            <span class="pill ${onlineClass}">${driver.isOnline ? 'Online' : 'Offline'}</span>
-            <span class="pill ${availableClass}">${driver.isAvailable ? 'Available' : 'Busy'}</span>
-          `
-          driversList.appendChild(card)
-        })
-
-        if (selectedDriverId) {
-          selector.value = selectedDriverId
-        }
-      } catch (error) {
-        console.error('Drivers load failed', error)
-      }
-    }
-
-    async function loadRequests() {
-      try {
-        const res = await fetch('/api/requests')
-        const requests = await res.json()
-        allRequests = Array.isArray(requests) ? requests : []
-
-        const requestsList = document.getElementById('requestsList')
-        requestsList.innerHTML = ''
-
-        if (!allRequests.length) {
-          requestsList.innerHTML = '<div class="empty">No service requests yet.</div>'
-          return
-        }
-
-        allRequests.forEach(request => {
-          let statusClass = 'pill-blue'
-          if (request.status === 'completed') statusClass = 'pill-green'
-          if (request.status === 'cancelled') statusClass = 'pill-red'
-          if (request.status === 'searching') statusClass = 'pill-yellow'
-
-          const card = document.createElement('div')
-          card.className = 'card'
-
-          const matchingDriver = selectedDriverId && request.driverId === selectedDriverId
-          const activeRequestForSelected = selectedDriverId && request.driverId === selectedDriverId &&
-            ['matched', 'accepted', 'in_progress'].includes(request.status)
-
-          card.innerHTML = `
-            <div class="card-title">${request.riderName || 'Unknown rider'}</div>
-            <div><strong>Pickup:</strong> ${request.pickup}</div>
-            <div><strong>Destination:</strong> ${request.destination}</div>
-            <div><strong>Service:</strong> ${request.serviceType || 'ride'}</div>
-            <div><strong>Driver:</strong> ${request.driverName || 'Not assigned yet'}</div>
-            <div class="mini">Created: ${request.createdAt || 'N/A'}</div>
-            <span class="pill ${statusClass}">${request.status || 'unknown'}</span>
-            ${matchingDriver ? '<span class="pill pill-blue">Selected driver trip</span>' : ''}
-          `
-
-          const actionWrap = document.createElement('div')
-          actionWrap.className = 'actions'
-
-          if (selectedDriverId && !request.driverId && request.status === 'searching') {
-            const acceptBtn = document.createElement('button')
-            acceptBtn.className = 'blue'
-            acceptBtn.textContent = 'Assign Selected Driver'
-            acceptBtn.onclick = () => acceptRide(request.id)
-            actionWrap.appendChild(acceptBtn)
-          }
-
-          if (activeRequestForSelected && request.status === 'matched') {
-            const acceptMatchedBtn = document.createElement('button')
-            acceptMatchedBtn.className = 'blue'
-            acceptMatchedBtn.textContent = 'Accept Ride'
-            acceptMatchedBtn.onclick = () => acceptRide(request.id)
-            actionWrap.appendChild(acceptMatchedBtn)
-          }
-
-          if (activeRequestForSelected && request.status === 'accepted') {
-            const startBtn = document.createElement('button')
-            startBtn.className = 'amber'
-            startBtn.textContent = 'Start Ride'
-            startBtn.onclick = () => startRide(request.id)
-            actionWrap.appendChild(startBtn)
-          }
-
-          if (activeRequestForSelected && request.status === 'in_progress') {
-            const completeBtn = document.createElement('button')
-            completeBtn.className = 'primary'
-            completeBtn.textContent = 'Complete Ride'
-            completeBtn.onclick = () => completeRide(request.id)
-            actionWrap.appendChild(completeBtn)
-          }
-
-          if (activeRequestForSelected && !['completed', 'cancelled'].includes(request.status)) {
-            const cancelBtn = document.createElement('button')
-            cancelBtn.className = 'danger'
-            cancelBtn.textContent = 'Cancel Ride'
-            cancelBtn.onclick = () => cancelRide(request.id)
-            actionWrap.appendChild(cancelBtn)
-          }
-
-          if (actionWrap.children.length) {
-            card.appendChild(actionWrap)
-          }
-
-          requestsList.appendChild(card)
-        })
-      } catch (error) {
-        console.error('Requests load failed', error)
-      }
-    }
-
-    function handleDriverSelection() {
-      selectedDriverId = document.getElementById('driverSelector').value
-      refreshSelectedDriverCard()
-      loadRequests()
-    }
-
-    function refreshSelectedDriverCard() {
-      const card = document.getElementById('selectedDriverCard')
-      const banner = document.getElementById('driverBanner')
-
-      if (!selectedDriverId) {
-        card.style.display = 'none'
-        card.innerHTML = ''
-        banner.textContent = 'Select a driver to manage online status and trip actions.'
+    function renderAdmins(admins) {
+      const wrap = document.getElementById('adminsList')
+      if (!admins.length) {
+        wrap.innerHTML = '<p class="muted">No admins found</p>'
         return
       }
 
-      const driver = allDrivers.find(item => item.id === selectedDriverId)
-      if (!driver) {
-        card.style.display = 'none'
-        banner.textContent = 'Selected driver not found.'
-        return
-      }
-
-      const assignedRequest = allRequests.find(item =>
-        item.driverId === driver.id &&
-        ['matched', 'accepted', 'in_progress'].includes(item.status)
-      )
-
-      banner.textContent = assignedRequest
-        ? `${driver.name} currently has an active trip.`
-        : `${driver.name} is ready for status updates.`
-
-      card.style.display = 'block'
-      card.innerHTML = `
-        <div class="card-title">${driver.name}</div>
-        <div>${driver.email || 'No email'}</div>
-        <div class="muted">${driver.vehicleType || 'Taxi'} · ${driver.carColor || ''} ${driver.carModel || ''}</div>
-        <div class="muted">Plate: ${driver.plateNumber || 'N/A'}</div>
-        <div class="mini">Current request: ${driver.currentRequestId || 'None'}</div>
-        <span class="pill ${driver.isOnline ? 'pill-green' : 'pill-red'}">${driver.isOnline ? 'Online' : 'Offline'}</span>
-        <span class="pill ${driver.isAvailable ? 'pill-blue' : 'pill-yellow'}">${driver.isAvailable ? 'Available' : 'Busy'}</span>
-        <div class="actions">
-          <button class="primary" onclick="setDriverStatus(true)">Go Online</button>
-          <button class="secondary" onclick="setDriverStatus(false)">Go Offline</button>
+      wrap.innerHTML = admins.map(admin => `
+        <div class="row">
+          <strong>${admin.name || 'Admin'}</strong><br />
+          <span class="muted">${admin.email || ''}</span>
         </div>
-      `
+      `).join('')
     }
 
-    async function setDriverStatus(isOnline) {
-      if (!selectedDriverId) {
-        alert('Select a driver first.')
+    function renderRiders(riders) {
+      const wrap = document.getElementById('ridersList')
+      if (!riders.length) {
+        wrap.innerHTML = '<p class="muted">No riders yet</p>'
         return
       }
 
-      try {
-        const res = await fetch('/api/drivers/status', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            driverId: selectedDriverId,
-            isOnline
-          })
-        })
-
-        const data = await res.json()
-        if (!res.ok) {
-          alert(data.error || 'Could not update driver status.')
-          return
-        }
-
-        await loadDashboard()
-      } catch (error) {
-        alert('Could not connect to server.')
-      }
+      wrap.innerHTML = riders.map(rider => `
+        <div class="row">
+          <strong>${rider.name || 'Rider'}</strong><br />
+          <span class="muted">${rider.email || ''}</span>
+        </div>
+      `).join('')
     }
 
-    async function acceptRide(requestId) {
-      if (!selectedDriverId) {
-        alert('Select a driver first.')
+    function renderDrivers(drivers) {
+      const wrap = document.getElementById('driversList')
+      if (!drivers.length) {
+        wrap.innerHTML = '<p class="muted">No drivers yet</p>'
         return
       }
 
-      try {
-        const res = await fetch(`/api/requests/${requestId}/accept`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            driverId: selectedDriverId
-          })
-        })
-
-        const data = await res.json()
-        if (!res.ok) {
-          alert(data.error || 'Could not accept ride.')
-          return
-        }
-
-        await loadDashboard()
-      } catch (error) {
-        alert('Could not connect to server.')
-      }
+      wrap.innerHTML = drivers.map(driver => `
+        <div class="row">
+          <strong>${driver.name || 'Driver'}</strong><br />
+          <span class="muted">${driver.email || ''}</span><br />
+          <span class="pill">${driver.vehicle || 'No vehicle listed'}</span>
+        </div>
+      `).join('')
     }
 
-    async function startRide(requestId) {
-      try {
-        const res = await fetch(`/api/requests/${requestId}/start`, {
-          method: 'POST'
-        })
-
-        const data = await res.json()
-        if (!res.ok) {
-          alert(data.error || 'Could not start ride.')
-          return
-        }
-
-        await loadDashboard()
-      } catch (error) {
-        alert('Could not connect to server.')
+    function renderRequests(requests) {
+      const wrap = document.getElementById('requestsList')
+      if (!requests.length) {
+        wrap.innerHTML = '<p class="muted">No requests yet</p>'
+        return
       }
+
+      wrap.innerHTML = requests.map(req => `
+        <div class="row">
+          <strong>${req.serviceType || 'Service Request'}</strong><br />
+          <span class="muted">Pickup:</span> ${req.pickup || 'N/A'}<br />
+          <span class="muted">Drop-off:</span> ${req.destination || 'N/A'}<br />
+          <span class="muted">Created:</span> ${req.createdAt || 'N/A'}
+        </div>
+      `).join('')
     }
 
-    async function completeRide(requestId) {
-      try {
-        const res = await fetch(`/api/requests/${requestId}/complete`, {
-          method: 'POST'
-        })
-
-        const data = await res.json()
-        if (!res.ok) {
-          alert(data.error || 'Could not complete ride.')
-          return
-        }
-
+    window.addEventListener('load', async () => {
+      const isLoggedIn = localStorage.getItem(ADMIN_SESSION_KEY) === 'true'
+      if (isLoggedIn) {
+        document.getElementById('loginCard').classList.add('hidden')
+        document.getElementById('dashboard').classList.remove('hidden')
         await loadDashboard()
-      } catch (error) {
-        alert('Could not connect to server.')
       }
-    }
-
-    async function cancelRide(requestId) {
-      try {
-        const res = await fetch(`/api/requests/${requestId}/cancel`, {
-          method: 'POST'
-        })
-
-        const data = await res.json()
-        if (!res.ok) {
-          alert(data.error || 'Could not cancel ride.')
-          return
-        }
-
-        await loadDashboard()
-      } catch (error) {
-        alert('Could not connect to server.')
-      }
-    }
-
-    async function seedDemoDrivers() {
-      try {
-        const res = await fetch('/api/seed-demo', { method: 'POST' })
-        const data = await res.json()
-        alert(data.message || 'Demo drivers loaded.')
-        await loadDashboard()
-      } catch (error) {
-        alert('Could not load demo drivers.')
-      }
-    }
-
-    loadDashboard()
-    setInterval(loadDashboard, 8000)
+    })
   </script>
 </body>
 </html>
