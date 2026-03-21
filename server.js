@@ -78,7 +78,7 @@ function getLabel(serviceType) {
   return 'Harvey Standard'
 }
 
-function findNearestDriver(pickup, serviceType) {
+function findNearestDriver(pickup) {
   const availableDrivers = drivers.filter(d => d.available)
 
   if (!availableDrivers.length) return null
@@ -91,6 +91,31 @@ function findNearestDriver(pickup, serviceType) {
     .sort((a, b) => a.distance - b.distance)
 
   return sorted[0] || null
+}
+
+function simulateTrip(requestId) {
+  setTimeout(() => {
+    const request = requests.find(r => r.id === requestId)
+    if (!request || request.status === 'cancelled') return
+    request.status = 'on_the_way'
+  }, 5000)
+
+  setTimeout(() => {
+    const request = requests.find(r => r.id === requestId)
+    if (!request || request.status === 'cancelled') return
+    request.status = 'arrived'
+  }, 10000)
+
+  setTimeout(() => {
+    const request = requests.find(r => r.id === requestId)
+    if (!request || request.status === 'cancelled') return
+    request.status = 'completed'
+
+    if (request.driverId) {
+      const driver = drivers.find(d => d.id === request.driverId)
+      if (driver) driver.available = true
+    }
+  }, 15000)
 }
 
 app.get('/api/health', (req, res) => {
@@ -137,7 +162,7 @@ app.post('/api/request', (req, res) => {
     lng: typeof destinationLng === 'number' ? destinationLng : -86.7679
   }
 
-  const driver = findNearestDriver(pickup, serviceType || 'ride')
+  const driver = findNearestDriver(pickup)
 
   const newRequest = {
     id: createId('req'),
@@ -156,12 +181,14 @@ app.post('/api/request', (req, res) => {
     driverVehicle: driver ? driver.vehicleType : '',
     driverLat: driver ? driver.lat : null,
     driverLng: driver ? driver.lng : null,
+    paid: false,
     createdAt: new Date().toISOString()
   }
 
   if (driver) {
     const driverRef = drivers.find(d => d.id === driver.id)
     if (driverRef) driverRef.available = false
+    simulateTrip(newRequest.id)
   }
 
   requests.unshift(newRequest)
