@@ -1,14 +1,14 @@
 {
-  "name": "harvey-taxi-app",
+  "name": "harvey-taxi",
   "version": "1.0.0",
-  "description": "Harvey Taxi live app",
+  "description": "Harvey Taxi App",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
+    "express": "^4.18.2",
     "cors": "^2.8.5",
-    "express": "^4.19.2",
-    "stripe": "^14.25.0"
+    "stripe": "^14.0.0"
   }
 }
