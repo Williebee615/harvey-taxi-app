@@ -1,151 +1,210 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Harvey Taxi Payment</title>
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Harvey Taxi Payment</title>
   <script src="https://js.stripe.com/v3/"></script>
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
+      margin: 0;
       font-family: Arial, sans-serif;
       background: #f3f4f6;
-      padding: 20px;
-      text-align: center;
-      margin: 0;
+      color: #111827;
+      padding: 24px 16px;
     }
 
     .card {
-      background: white;
-      padding: 30px;
-      border-radius: 20px;
-      max-width: 430px;
-      margin: 30px auto;
-      box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+      max-width: 460px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 22px;
+      padding: 22px;
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
     }
 
-    h2 {
+    h1 {
       margin-top: 0;
+      margin-bottom: 8px;
     }
 
-    input, button {
-      padding: 15px;
-      font-size: 16px;
-      border-radius: 10px;
+    p {
+      color: #4b5563;
+    }
+
+    .summary {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 14px;
+      margin: 14px 0;
+    }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+      font-size: 15px;
+    }
+
+    .row:last-child {
+      margin-bottom: 0;
+      font-weight: 800;
+    }
+
+    .field {
       width: 100%;
-      box-sizing: border-box;
-      margin-top: 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 14px;
+      padding: 14px;
+      font-size: 16px;
+      margin-bottom: 12px;
+      outline: none;
+      background: #fff;
     }
 
-    input {
-      border: 1px solid #ccc;
-    }
-
-    button {
+    .btn {
+      width: 100%;
       border: none;
-      background: black;
-      color: white;
+      border-radius: 14px;
+      padding: 16px 14px;
+      font-size: 18px;
+      font-weight: 800;
+      background: #000;
+      color: #fff;
       cursor: pointer;
-      font-weight: bold;
+      margin-top: 12px;
     }
 
     #payment-element {
-      margin-top: 16px;
-      text-align: left;
+      margin-top: 10px;
+      margin-bottom: 14px;
     }
 
-    #msg {
+    #message {
       margin-top: 14px;
-      font-weight: bold;
+      font-weight: 700;
     }
   </style>
 </head>
 <body>
   <div class="card">
-    <h2>Complete Payment</h2>
-    <p id="service">Service: Ride</p>
+    <h1>Complete Payment</h1>
+    <p>Securely pay for your Harvey Taxi service.</p>
 
-    <input id="requestId" placeholder="Request ID" />
-    <button type="button" onclick="startPayment()">Load Payment Form</button>
+    <input id="requestId" class="field" placeholder="Request ID" />
+    <div class="summary">
+      <div class="row"><span>Service</span><span id="serviceName">Ride</span></div>
+      <div class="row"><span>Total</span><span id="serviceAmount">$12.00</span></div>
+    </div>
 
-    <form id="form" style="display:none;">
+    <button id="loadBtn" class="btn" type="button" onclick="loadPaymentForm()">Load Payment Form</button>
+
+    <form id="payment-form" style="display:none;">
       <div id="payment-element"></div>
-      <button type="submit">Pay Now</button>
+      <button id="submitBtn" class="btn" type="submit">Pay Now</button>
     </form>
 
-    <div id="msg"></div>
+    <div id="message"></div>
   </div>
 
   <script>
-    let stripe
-    let elements
-    let amount = 1200
+    let stripe = null
+    let elements = null
+    let currentAmount = 1200
 
-    const urlParams = new URLSearchParams(window.location.search)
-    const type = urlParams.get('type') || 'ride'
-    const requestIdParam = urlParams.get('requestId') || ''
+    const params = new URLSearchParams(window.location.search)
+    const requestIdParam = params.get('requestId') || ''
+    const type = params.get('type') || 'ride'
 
-    if (type === 'xl') amount = 1800
-    if (type === 'delivery') amount = 1500
-    if (type === 'food') amount = 2000
-
-    document.getElementById('service').innerText = 'Service: ' + type
     document.getElementById('requestId').value = requestIdParam
 
-    async function startPayment() {
-      try {
-        document.getElementById('msg').innerText = 'Loading payment form...'
-
-        const configRes = await fetch('/api/payments/config')
-        const configData = await configRes.json()
-
-        if (!configRes.ok) {
-          document.getElementById('msg').innerText = configData.error || 'Stripe config failed'
-          return
-        }
-
-        const res = await fetch('/create-payment-intent', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ amount })
-        })
-
-        const data = await res.json()
-
-        if (!res.ok) {
-          document.getElementById('msg').innerText = data.error || 'Could not create payment'
-          return
-        }
-
-        stripe = Stripe(configData.publishableKey)
-        elements = stripe.elements({ clientSecret: data.clientSecret })
-
-        document.getElementById('payment-element').innerHTML = ''
-        const paymentElement = elements.create('payment')
-        paymentElement.mount('#payment-element')
-
-        document.getElementById('form').style.display = 'block'
-        document.getElementById('msg').innerText = 'Payment form ready'
-      } catch (err) {
-        document.getElementById('msg').innerText = 'Error loading payment form'
-      }
+    function getAmount(serviceType) {
+      if (serviceType === 'xl') return 1800
+      if (serviceType === 'delivery') return 1500
+      if (serviceType === 'food') return 2000
+      return 1200
     }
 
-    document.getElementById('form').addEventListener('submit', async function (e) {
+    function getLabel(serviceType) {
+      if (serviceType === 'xl') return 'Harvey XL'
+      if (serviceType === 'delivery') return 'Package Delivery'
+      if (serviceType === 'food') return 'Food Delivery'
+      return 'Harvey Standard'
+    }
+
+    currentAmount = getAmount(type)
+    document.getElementById('serviceName').innerText = getLabel(type)
+    document.getElementById('serviceAmount').innerText = `$${(currentAmount / 100).toFixed(2)}`
+
+    async function loadPaymentForm() {
+      const requestId = document.getElementById('requestId').value.trim()
+
+      if (!requestId) {
+        document.getElementById('message').innerText = 'Request ID is required.'
+        return
+      }
+
+      document.getElementById('message').innerText = 'Loading payment form...'
+
+      const configRes = await fetch('/api/payments/config')
+      const config = await configRes.json()
+
+      if (!configRes.ok) {
+        document.getElementById('message').innerText = config.error || 'Stripe config error.'
+        return
+      }
+
+      const intentRes = await fetch('/create-payment-intent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: currentAmount,
+          requestId
+        })
+      })
+
+      const intentData = await intentRes.json()
+
+      if (!intentRes.ok) {
+        document.getElementById('message').innerText = intentData.error || 'Payment setup failed.'
+        return
+      }
+
+      stripe = Stripe(config.publishableKey)
+      elements = stripe.elements({ clientSecret: intentData.clientSecret })
+
+      const paymentElement = elements.create('payment')
+      document.getElementById('payment-element').innerHTML = ''
+      paymentElement.mount('#payment-element')
+
+      document.getElementById('payment-form').style.display = 'block'
+      document.getElementById('loadBtn').style.display = 'none'
+      document.getElementById('message').innerText = 'Payment form ready.'
+    }
+
+    document.getElementById('payment-form').addEventListener('submit', async function (e) {
       e.preventDefault()
 
       if (!stripe || !elements) {
-        document.getElementById('msg').innerText = 'Load the payment form first'
+        document.getElementById('message').innerText = 'Load payment form first.'
         return
       }
 
       const result = await stripe.confirmPayment({
         elements,
         confirmParams: {
-          return_url: window.location.origin + '/request?requestId=' + encodeURIComponent(document.getElementById('requestId').value)
+          return_url: `${window.location.origin}/?paid=1`
         }
       })
 
       if (result.error) {
-        document.getElementById('msg').innerText = result.error.message
+        document.getElementById('message').innerText = result.error.message
       }
     })
   </script>
