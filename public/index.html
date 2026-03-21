@@ -1,150 +1,528 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Harvey Taxi</title>
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Harvey Taxi</title>
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
-      font-family: Arial;
       margin: 0;
-      background: #0f172a;
-      color: white;
+      font-family: Arial, sans-serif;
+      background: #f3f4f6;
+      color: #111827;
     }
 
-    header {
-      background: #111827;
-      padding: 15px;
+    .app {
+      max-width: 460px;
+      margin: 0 auto;
+      min-height: 100vh;
+      padding: 20px 16px 40px;
+    }
+
+    .brand {
       text-align: center;
-      font-size: 20px;
-      font-weight: bold;
+      margin: 10px 0 18px;
     }
 
-    .container {
-      padding: 15px;
+    .brand h1 {
+      margin: 0;
+      font-size: 34px;
+      font-weight: 800;
     }
 
-    input, select, button {
-      width: 100%;
-      padding: 12px;
-      margin-top: 10px;
-      border-radius: 8px;
-      border: none;
-    }
-
-    button {
-      background: #22c55e;
-      color: white;
-      font-weight: bold;
-      cursor: pointer;
+    .brand p {
+      margin: 8px 0 0;
+      color: #6b7280;
+      font-size: 14px;
     }
 
     .card {
-      background: #1f2937;
-      padding: 15px;
-      border-radius: 10px;
-      margin-top: 15px;
+      background: #ffffff;
+      border: 1px solid #d1d5db;
+      border-radius: 28px;
+      padding: 20px;
+      margin-bottom: 18px;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
     }
 
-    .status {
-      margin-top: 10px;
-      font-weight: bold;
+    .card h2 {
+      margin: 0 0 16px;
+      font-size: 24px;
     }
 
-    .driver {
-      background: #374151;
-      padding: 10px;
-      border-radius: 8px;
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .tab-btn {
+      flex: 1;
+      border: none;
+      border-radius: 16px;
+      padding: 14px;
+      font-size: 15px;
+      font-weight: 700;
+      background: #e5e7eb;
+      color: #111827;
+      cursor: pointer;
+    }
+
+    .tab-btn.active {
+      background: #111827;
+      color: white;
+    }
+
+    .section {
+      display: none;
+    }
+
+    .section.active {
+      display: block;
+    }
+
+    input,
+    select,
+    button,
+    textarea {
+      width: 100%;
+      border-radius: 20px;
+      border: 1px solid #d1d5db;
+      background: #f9fafb;
+      padding: 18px 16px;
+      font-size: 16px;
+      margin-bottom: 14px;
+      outline: none;
+    }
+
+    textarea {
+      min-height: 90px;
+      resize: vertical;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: #60a5fa;
+      box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.15);
+    }
+
+    button.primary {
+      border: none;
+      background: #242424;
+      color: white;
+      font-size: 18px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    button.secondary {
+      border: none;
+      background: #16a34a;
+      color: white;
+      font-size: 17px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .ride-option {
+      border: 1px solid #d1d5db;
+      border-radius: 22px;
+      padding: 18px 16px;
+      margin-bottom: 12px;
+      cursor: pointer;
+      background: #fff;
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .ride-option.active {
+      border: 2px solid #111827;
+      background: #f3f4f6;
+    }
+
+    .status-box {
+      display: none;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 22px;
+      padding: 16px;
       margin-top: 10px;
+    }
+
+    .driver-box {
+      display: none;
+      background: #ecfdf5;
+      border: 1px solid #86efac;
+      border-radius: 22px;
+      padding: 16px;
+      margin-top: 12px;
+    }
+
+    .muted {
+      color: #6b7280;
+      font-size: 14px;
+    }
+
+    .success {
+      color: #166534;
+      font-weight: 700;
+    }
+
+    .error {
+      color: #b91c1c;
+      font-weight: 700;
+    }
+
+    .user-pill {
+      display: none;
+      margin-bottom: 16px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: #111827;
+      color: white;
+      font-weight: 700;
+    }
+
+    .small-btn {
+      margin-top: 8px;
+      background: #ef4444;
+      color: white;
+      border: none;
+      border-radius: 14px;
+      padding: 12px;
+      font-weight: 700;
+      cursor: pointer;
     }
   </style>
 </head>
-
 <body>
+  <div class="app">
+    <div class="brand">
+      <h1>Harvey Taxi</h1>
+      <p>Ride, food, and delivery in one app</p>
+    </div>
 
-<header>🚖 Harvey Taxi</header>
+    <div id="userPill" class="user-pill"></div>
 
-<div class="container">
+    <div class="card">
+      <div class="tabs">
+        <button id="loginTab" class="tab-btn active" onclick="showAuthTab('login')">Login</button>
+        <button id="signupTab" class="tab-btn" onclick="showAuthTab('signup')">Sign Up</button>
+      </div>
 
-  <input id="name" placeholder="Your Name" />
-  <input id="pickup" placeholder="Pickup Location" />
-  <input id="destination" placeholder="Destination" />
+      <div id="loginSection" class="section active">
+        <h2>Rider Login</h2>
+        <input id="loginEmail" type="email" placeholder="Email address" />
+        <input id="loginPassword" type="password" placeholder="Password" />
+        <button class="primary" onclick="loginRider()">Login as Rider</button>
+      </div>
 
-  <select id="serviceType">
-    <option value="ride">Ride</option>
-    <option value="delivery">Delivery</option>
-    <option value="food">Food</option>
-  </select>
+      <div id="signupSection" class="section">
+        <h2>Create Rider Account</h2>
+        <input id="signupName" type="text" placeholder="Full name" />
+        <input id="signupEmail" type="email" placeholder="Email address" />
+        <input id="signupPhone" type="text" placeholder="Phone number" />
+        <input id="signupPassword" type="password" placeholder="Create password" />
+        <button class="primary" onclick="signupRider()">Create Rider Account</button>
+      </div>
 
-  <button onclick="requestRide()">Request Service</button>
+      <div id="authMessage" class="muted"></div>
+    </div>
 
-  <div id="status" class="status"></div>
+    <div class="card">
+      <h2>Request a Ride</h2>
+      <input id="pickup" type="text" placeholder="Pickup location" />
+      <input id="destination" type="text" placeholder="Destination" />
 
-  <div id="driverCard" class="card" style="display:none;">
-    <h3>Driver Assigned</h3>
-    <div id="driverInfo"></div>
+      <div id="rideStandard" class="ride-option active" onclick="selectService('ride', 'Harvey Standard - $12', 'rideStandard')">
+        🚕 Harvey Standard - $12
+      </div>
+
+      <div id="rideXL" class="ride-option" onclick="selectService('xl', 'Harvey XL - $18', 'rideXL')">
+        🚐 Harvey XL - $18
+      </div>
+
+      <div id="rideDelivery" class="ride-option" onclick="selectService('delivery', 'Delivery Service', 'rideDelivery')">
+        📦 Delivery Service
+      </div>
+
+      <textarea id="rideNotes" placeholder="Driver notes (gate code, food pickup details, etc.)"></textarea>
+
+      <button class="secondary" onclick="requestRide()">Request Service</button>
+
+      <div id="rideStatus" class="status-box"></div>
+      <div id="driverBox" class="driver-box"></div>
+    </div>
   </div>
 
-</div>
+  <script>
+    let currentUser = null
+    let currentRequestId = null
+    let selectedServiceType = 'ride'
+    let selectedServiceLabel = 'Harvey Standard - $12'
 
-<script>
+    function showAuthTab(tab) {
+      document.getElementById('loginTab').classList.remove('active')
+      document.getElementById('signupTab').classList.remove('active')
+      document.getElementById('loginSection').classList.remove('active')
+      document.getElementById('signupSection').classList.remove('active')
 
-let currentRequestId = null
+      if (tab === 'login') {
+        document.getElementById('loginTab').classList.add('active')
+        document.getElementById('loginSection').classList.add('active')
+      } else {
+        document.getElementById('signupTab').classList.add('active')
+        document.getElementById('signupSection').classList.add('active')
+      }
 
-async function requestRide() {
-  const name = document.getElementById('name').value
-  const pickup = document.getElementById('pickup').value
-  const destination = document.getElementById('destination').value
-  const serviceType = document.getElementById('serviceType').value
+      setAuthMessage('', '')
+    }
 
-  const res = await fetch('/api/requests', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      riderName: name,
-      pickup,
-      destination,
-      serviceType
-    })
-  })
+    function setAuthMessage(message, type) {
+      const box = document.getElementById('authMessage')
+      box.className = 'muted'
+      if (type === 'success') box.className = 'success'
+      if (type === 'error') box.className = 'error'
+      box.textContent = message
+    }
 
-  const data = await res.json()
+    function setRideStatus(message) {
+      const box = document.getElementById('rideStatus')
+      box.style.display = 'block'
+      box.innerHTML = message
+    }
 
-  currentRequestId = data.request.id
+    function setDriverBox(html) {
+      const box = document.getElementById('driverBox')
+      box.style.display = 'block'
+      box.innerHTML = html
+    }
 
-  document.getElementById('status').innerText = "🔍 Searching for driver..."
+    function hideDriverBox() {
+      document.getElementById('driverBox').style.display = 'none'
+      document.getElementById('driverBox').innerHTML = ''
+    }
 
-  trackRide()
-}
+    function updateUserPill() {
+      const pill = document.getElementById('userPill')
 
-async function trackRide() {
-  if (!currentRequestId) return
+      if (!currentUser) {
+        pill.style.display = 'none'
+        pill.innerHTML = ''
+        return
+      }
 
-  const res = await fetch('/api/requests/' + currentRequestId)
-  const ride = await res.json()
+      pill.style.display = 'block'
+      pill.innerHTML = `
+        Logged in as ${currentUser.name} (${currentUser.email})
+        <button class="small-btn" onclick="logoutUser()">Logout</button>
+      `
+    }
 
-  if (ride.status === 'matched' || ride.status === 'accepted') {
-    document.getElementById('status').innerText = "🚗 Driver found!"
+    function logoutUser() {
+      currentUser = null
+      updateUserPill()
+      setAuthMessage('Logged out successfully.', 'success')
+    }
 
-    document.getElementById('driverCard').style.display = 'block'
-    document.getElementById('driverInfo').innerHTML = `
-      👤 ${ride.driverName} <br>
-      🚘 ${ride.driverVehicle} <br>
-      📍 Distance: ${ride.estimatedDistanceKm} km
-    `
-  }
+    function selectService(type, label, elementId) {
+      selectedServiceType = type
+      selectedServiceLabel = label
 
-  if (ride.status === 'in_progress') {
-    document.getElementById('status').innerText = "🛣️ Ride in progress"
-  }
+      document.getElementById('rideStandard').classList.remove('active')
+      document.getElementById('rideXL').classList.remove('active')
+      document.getElementById('rideDelivery').classList.remove('active')
+      document.getElementById(elementId).classList.add('active')
+    }
 
-  if (ride.status === 'completed') {
-    document.getElementById('status').innerText = "✅ Ride completed"
-  }
+    async function signupRider() {
+      const name = document.getElementById('signupName').value.trim()
+      const email = document.getElementById('signupEmail').value.trim()
+      const phone = document.getElementById('signupPhone').value.trim()
+      const password = document.getElementById('signupPassword').value.trim()
 
-  setTimeout(trackRide, 3000)
-}
+      if (!name || !email || !password) {
+        setAuthMessage('Name, email, and password are required.', 'error')
+        return
+      }
 
-</script>
+      try {
+        const res = await fetch('/api/auth/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name,
+            email,
+            phone,
+            password,
+            role: 'rider'
+          })
+        })
 
+        const data = await res.json()
+
+        if (!res.ok) {
+          setAuthMessage(data.error || 'Signup failed.', 'error')
+          return
+        }
+
+        currentUser = data.user
+        updateUserPill()
+        setAuthMessage('Rider account created and logged in.', 'success')
+        showAuthTab('login')
+
+        document.getElementById('loginEmail').value = email
+        document.getElementById('loginPassword').value = password
+      } catch (error) {
+        setAuthMessage('Could not connect to server.', 'error')
+      }
+    }
+
+    async function loginRider() {
+      const email = document.getElementById('loginEmail').value.trim()
+      const password = document.getElementById('loginPassword').value.trim()
+
+      if (!email || !password) {
+        setAuthMessage('Email and password are required.', 'error')
+        return
+      }
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        })
+
+        const data = await res.json()
+
+        if (!res.ok) {
+          setAuthMessage(data.error || 'Login failed.', 'error')
+          return
+        }
+
+        if (data.user.role !== 'rider') {
+          setAuthMessage('Please use a rider account on this screen.', 'error')
+          return
+        }
+
+        currentUser = data.user
+        updateUserPill()
+        setAuthMessage('Logged in successfully.', 'success')
+      } catch (error) {
+        setAuthMessage('Could not connect to server.', 'error')
+      }
+    }
+
+    async function requestRide() {
+      if (!currentUser) {
+        setRideStatus('Please create an account or log in first.')
+        return
+      }
+
+      const pickup = document.getElementById('pickup').value.trim()
+      const destination = document.getElementById('destination').value.trim()
+      const notes = document.getElementById('rideNotes').value.trim()
+
+      if (!pickup || !destination) {
+        setRideStatus('Pickup and destination are required.')
+        return
+      }
+
+      hideDriverBox()
+      setRideStatus('Sending your request...')
+
+      try {
+        const res = await fetch('/api/requests', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            riderId: currentUser.id,
+            riderName: currentUser.name,
+            riderPhone: currentUser.phone || '',
+            pickup,
+            destination,
+            serviceType: selectedServiceType,
+            notes: `${selectedServiceLabel}${notes ? ' | ' + notes : ''}`
+          })
+        })
+
+        const data = await res.json()
+
+        if (!res.ok) {
+          setRideStatus(data.error || 'Request failed.')
+          return
+        }
+
+        currentRequestId = data.request.id
+        setRideStatus(`Request created. Status: ${data.request.status}`)
+        trackRide()
+      } catch (error) {
+        setRideStatus('Could not connect to server.')
+      }
+    }
+
+    async function trackRide() {
+      if (!currentRequestId) return
+
+      try {
+        const res = await fetch('/api/requests/' + currentRequestId)
+        const ride = await res.json()
+
+        if (!res.ok) {
+          setRideStatus('Could not load ride status.')
+          return
+        }
+
+        if (ride.status === 'searching') {
+          setRideStatus('🔍 Searching for a nearby driver...')
+        }
+
+        if (ride.status === 'matched') {
+          setRideStatus('🚗 Driver matched and heading your way.')
+          setDriverBox(`
+            <strong>Driver:</strong> ${ride.driverName || 'Assigned'}<br>
+            <strong>Vehicle:</strong> ${ride.driverVehicle || 'Taxi'}<br>
+            <strong>Car:</strong> ${ride.driverCarColor || ''} ${ride.driverCarModel || ''}<br>
+            <strong>Plate:</strong> ${ride.driverPlateNumber || 'Pending'}<br>
+            <strong>Distance:</strong> ${ride.estimatedDistanceKm || '--'} km
+          `)
+        }
+
+        if (ride.status === 'accepted') {
+          setRideStatus('✅ Driver accepted your ride.')
+          setDriverBox(`
+            <strong>Driver:</strong> ${ride.driverName}<br>
+            <strong>Phone:</strong> ${ride.driverPhone || 'Pending'}<br>
+            <strong>Vehicle:</strong> ${ride.driverVehicle || 'Taxi'}<br>
+            <strong>Distance:</strong> ${ride.estimatedDistanceKm || '--'} km
+          `)
+        }
+
+        if (ride.status === 'in_progress') {
+          setRideStatus('🛣️ Your trip is in progress.')
+        }
+
+        if (ride.status === 'completed') {
+          setRideStatus('✅ Your trip is complete.')
+          return
+        }
+
+        if (ride.status === 'cancelled') {
+          setRideStatus('❌ This trip was cancelled.')
+          return
+        }
+
+        setTimeout(trackRide, 3000)
+      } catch (error) {
+        setRideStatus('Lost connection while tracking ride.')
+      }
+    }
+  </script>
 </body>
 </html>
