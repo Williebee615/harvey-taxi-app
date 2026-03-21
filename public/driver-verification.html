@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Driver Verification - Harvey Taxi</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f7fb;
+      margin: 0;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 18px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+    }
+
+    h1 {
+      margin-top: 0;
+      color: #111827;
+    }
+
+    p {
+      color: #4b5563;
+    }
+
+    .section-title {
+      margin-top: 24px;
+      font-size: 18px;
+      font-weight: bold;
+      color: #111827;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .full {
+      grid-column: 1 / -1;
+    }
+
+    input, button, select, textarea {
+      width: 100%;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid #d1d5db;
+      box-sizing: border-box;
+      font-size: 15px;
+    }
+
+    textarea {
+      min-height: 90px;
+      resize: vertical;
+    }
+
+    button {
+      background: #111827;
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    button:hover {
+      opacity: 0.95;
+    }
+
+    .status-box {
+      margin-top: 20px;
+      padding: 14px;
+      border-radius: 14px;
+      background: #f3f4f6;
+    }
+
+    .pending { color: #b45309; }
+    .approved { color: #15803d; }
+    .rejected { color: #b91c1c; }
+
+    .note {
+      font-size: 13px;
+      color: #6b7280;
+      margin-top: 6px;
+    }
+
+    @media (max-width: 700px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Driver Verification</h1>
+    <p>Upload your license, selfie, insurance, and vehicle registration so Harvey Taxi can review your account.</p>
+
+    <div class="status-box" id="statusBox">
+      <strong>Status:</strong> <span id="statusText">Not submitted yet</span>
+      <div id="statusNotes" class="note"></div>
+    </div>
+
+    <form id="verificationForm">
+      <div class="section-title">Driver Info</div>
+      <div class="grid">
+        <input type="text" name="driverId" placeholder="Driver ID (example: driver_1)" required />
+        <input type="text" name="fullName" placeholder="Full name" required />
+        <input type="email" name="email" placeholder="Email address" required />
+        <input type="text" name="phone" placeholder="Phone number" />
+        <input type="text" name="licenseNumber" placeholder="Driver license number" />
+      </div>
+
+      <div class="section-title">Vehicle Info</div>
+      <div class="grid">
+        <input type="text" name="vehicleMake" placeholder="Vehicle make" />
+        <input type="text" name="vehicleModel" placeholder="Vehicle model" />
+        <input type="text" name="vehicleYear" placeholder="Vehicle year" />
+      </div>
+
+      <div class="section-title">Required Uploads</div>
+      <div class="grid">
+        <div>
+          <label>License Front</label>
+          <input type="file" name="licenseFront" accept="image/*,.pdf" required />
+        </div>
+
+        <div>
+          <label>License Back</label>
+          <input type="file" name="licenseBack" accept="image/*,.pdf" required />
+        </div>
+
+        <div>
+          <label>Selfie</label>
+          <input type="file" name="selfie" accept="image/*" required />
+        </div>
+
+        <div>
+          <label>Insurance</label>
+          <input type="file" name="insurance" accept="image/*,.pdf" required />
+        </div>
+
+        <div class="full">
+          <label>Vehicle Registration</label>
+          <input type="file" name="registration" accept="image/*,.pdf" required />
+        </div>
+      </div>
+
+      <div style="margin-top: 20px;">
+        <button type="submit">Submit Verification</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    const form = document.getElementById('verificationForm')
+    const statusText = document.getElementById('statusText')
+    const statusNotes = document.getElementById('statusNotes')
+
+    async function loadStatus(driverId) {
+      if (!driverId) return
+
+      try {
+        const res = await fetch(`/api/drivers/verification/${driverId}`)
+        const data = await res.json()
+
+        if (data.success) {
+          const status = data.verification.status
+          statusText.textContent = status.toUpperCase()
+          statusText.className = status
+          statusNotes.textContent = data.verification.notes
+            ? `Admin note: ${data.verification.notes}`
+            : 'No admin notes yet.'
+        }
+      } catch (err) {
+        console.log('No existing status yet')
+      }
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault()
+
+      const formData = new FormData(form)
+      const driverId = formData.get('driverId')
+
+      try {
+        const res = await fetch('/api/drivers/verification', {
+          method: 'POST',
+          body: formData
+        })
+
+        const data = await res.json()
+
+        if (data.success) {
+          alert('Verification submitted successfully')
+          loadStatus(driverId)
+        } else {
+          alert(data.message || 'Submission failed')
+        }
+      } catch (error) {
+        alert('Something went wrong while submitting verification.')
+      }
+    })
+
+    form.querySelector('input[name="driverId"]').addEventListener('blur', (e) => {
+      loadStatus(e.target.value)
+    })
+  </script>
+</body>
+</html>
