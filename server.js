@@ -1,51 +1,51 @@
-const express = require('express')
-const cors = require('cors')
-const path = require('path')
+const express = require("express");
+const cors = require("cors");
+const path = require("path");
 
-const app = express()
-const PORT = process.env.PORT || 10000
+const app = express();
+const PORT = process.env.PORT || 10000;
 
-app.use(cors())
-app.use(express.json())
-app.use(express.urlencoded({ extended: true }))
-app.use(express.static(path.join(__dirname, 'public')))
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, "public")));
 
 
-// ===============================
+// ==============================
 // ADMIN CONFIG
-// ===============================
-const ADMIN_EMAIL = "admin@harveytaxi.com"
-const ADMIN_PASSWORD = "admin123"
-const ADMIN_SECRET_PATH = "control-center-879"
+// ==============================
+const ADMIN_EMAIL = "admin@harveytaxi.com";
+const ADMIN_PASSWORD = "admin123";
+const ADMIN_SECRET_PATH = "control-center-879";
 
 
-// ===============================
-// MEMORY STORAGE
-// ===============================
-let drivers = []
-let rides = []
-let deliveries = []
+// ==============================
+// MEMORY
+// ==============================
+let drivers = [];
+let rides = [];
+let deliveries = [];
 
 
-// ===============================
+// ==============================
 // HEALTH
-// ===============================
-app.get('/health', (req, res) => {
-  res.json({ status: 'Harvey Taxi Running' })
-})
+// ==============================
+app.get("/health", (req, res) => {
+  res.json({ status: "Harvey Taxi running" });
+});
 
 
-// ===============================
+// ==============================
 // ADMIN LOGIN PAGE
-// ===============================
-app.get('/admin', (req, res) => {
+// ==============================
+app.get("/admin", (req, res) => {
   res.send(`
   <html>
   <head>
-  <title>Admin Login</title>
+  <title>Harvey Taxi Admin</title>
   <style>
   body{font-family:Arial;background:#f4f6fb;padding:40px}
-  .box{max-width:400px;margin:auto;background:white;padding:20px;border-radius:12px}
+  .box{max-width:420px;margin:auto;background:white;padding:20px;border-radius:12px}
   input{width:100%;padding:12px;margin-top:10px}
   button{width:100%;padding:12px;margin-top:10px;background:#111;color:white;border:none;border-radius:8px}
   </style>
@@ -79,51 +79,37 @@ app.get('/admin', (req, res) => {
     }
   }
   </script>
+
   </body>
   </html>
-  `)
-})
+  `);
+});
 
 
-// ===============================
+// ==============================
 // ADMIN LOGIN API
-// ===============================
-app.post('/admin/login', (req, res) => {
-  try {
-    const { email, password } = req.body
+// ==============================
+app.post("/admin/login", (req, res) => {
+  const { email, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: "Missing email or password"
-      })
-    }
-
-    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-      return res.json({
-        success: true,
-        redirect: "/" + ADMIN_SECRET_PATH
-      })
-    }
-
-    return res.status(401).json({
-      success: false,
-      message: "Invalid admin login"
-    })
-
-  } catch (err) {
-    return res.status(500).json({
-      success: false,
-      message: "Server error while logging in"
-    })
+  if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+    return res.json({
+      success: true,
+      redirect: "/" + ADMIN_SECRET_PATH,
+    });
   }
-})
+
+  res.status(401).json({
+    success: false,
+    message: "Invalid login",
+  });
+});
 
 
-// ===============================
+// ==============================
 // ADMIN DASHBOARD
-// ===============================
-app.get('/' + ADMIN_SECRET_PATH, (req, res) => {
+// ==============================
+app.get("/" + ADMIN_SECRET_PATH, (req, res) => {
   res.send(`
   <html>
   <head>
@@ -131,7 +117,6 @@ app.get('/' + ADMIN_SECRET_PATH, (req, res) => {
   <style>
   body{font-family:Arial;background:#0f172a;color:white;padding:20px}
   .card{background:#111827;padding:20px;margin:10px;border-radius:12px}
-  button{padding:8px 12px;margin-top:5px}
   </style>
   </head>
   <body>
@@ -140,103 +125,47 @@ app.get('/' + ADMIN_SECRET_PATH, (req, res) => {
 
   <div class="card">
   <h2>Drivers (${drivers.length})</h2>
-  ${drivers.map(d=>`
-    <div>
-      ${d.name || d.id} - ${d.online?'Online':'Offline'}
-    </div>
-  `).join('')}
+  ${drivers.map(d=>`<div>${d.id}</div>`).join("")}
   </div>
 
   <div class="card">
   <h2>Rides (${rides.length})</h2>
-  ${rides.map(r=>`
-    <div>
-      ${r.pickup} → ${r.dropoff} (${r.status})
-    </div>
-  `).join('')}
+  ${rides.map(r=>`<div>${r.pickup} → ${r.dropoff}</div>`).join("")}
   </div>
 
   <div class="card">
   <h2>Deliveries (${deliveries.length})</h2>
-  ${deliveries.map(d=>`
-    <div>
-      ${d.item} (${d.status})
-    </div>
-  `).join('')}
+  ${deliveries.map(d=>`<div>${d.item}</div>`).join("")}
   </div>
 
   </body>
   </html>
-  `)
-})
+  `);
+});
 
 
-// ===============================
+// ==============================
 // DRIVER UPDATE
-// ===============================
-app.post('/driver/update', (req, res) => {
-  const { id, lat, lng, name } = req.body
+// ==============================
+app.post("/driver/update", (req, res) => {
+  const { id, lat, lng } = req.body;
 
-  let driver = drivers.find(d => d.id === id)
+  let driver = drivers.find(d => d.id === id);
 
   if (driver) {
-    driver.lat = lat
-    driver.lng = lng
-    driver.online = true
+    driver.lat = lat;
+    driver.lng = lng;
   } else {
-    drivers.push({
-      id,
-      name,
-      lat,
-      lng,
-      online: true
-    })
+    drivers.push({ id, lat, lng });
   }
 
-  res.json({ success: true })
-})
+  res.json({ success: true });
+});
 
 
-// ===============================
+// ==============================
 // REQUEST RIDE
-// ===============================
-app.post('/request-ride', (req, res) => {
+// ==============================
+app.post("/request-ride", (req, res) => {
   const ride = {
-    id: Date.now(),
-    pickup: req.body.pickup,
-    dropoff: req.body.dropoff,
-    status: "requested"
-  }
-
-  rides.push(ride)
-
-  res.json({
-    success: true,
-    ride
-  })
-})
-
-
-// ===============================
-// REQUEST DELIVERY
-// ===============================
-app.post('/request-delivery', (req, res) => {
-  const delivery = {
-    id: Date.now(),
-    item: req.body.item,
-    status: "pending"
-  }
-
-  deliveries.push(delivery)
-
-  res.json({
-    success: true,
-    delivery
-  })
-})
-
-
-// ===============================
-app.listen(PORT, () => {
-  console.log("Harvey Taxi running on port " + PORT)
-})
+    id:
