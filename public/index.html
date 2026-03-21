@@ -1,528 +1,224 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Harvey Taxi</title>
-  <style>
-    * {
-      box-sizing: border-box;
-    }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Harvey Taxi</title>
 
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #f3f4f6;
-      color: #111827;
-    }
+<style>
+* {
+  box-sizing: border-box;
+}
 
-    .app {
-      max-width: 460px;
-      margin: 0 auto;
-      min-height: 100vh;
-      padding: 20px 16px 40px;
-    }
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f3f4f6;
+  color: #111827;
+}
 
-    .brand {
-      text-align: center;
-      margin: 10px 0 18px;
-    }
+.app {
+  max-width: 470px;
+  margin: auto;
+  padding: 20px;
+}
 
-    .brand h1 {
-      margin: 0;
-      font-size: 34px;
-      font-weight: 800;
-    }
+.brand {
+  text-align: center;
+  margin-bottom: 20px;
+}
 
-    .brand p {
-      margin: 8px 0 0;
-      color: #6b7280;
-      font-size: 14px;
-    }
+.brand h1 {
+  margin: 0;
+}
 
-    .card {
-      background: #ffffff;
-      border: 1px solid #d1d5db;
-      border-radius: 28px;
-      padding: 20px;
-      margin-bottom: 18px;
-      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
-    }
+.card {
+  background: white;
+  padding: 16px;
+  border-radius: 14px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+}
 
-    .card h2 {
-      margin: 0 0 16px;
-      font-size: 24px;
-    }
+.tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+}
 
-    .tabs {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 16px;
-    }
+.tab {
+  flex: 1;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  font-weight: bold;
+  cursor: pointer;
+  background: #e5e7eb;
+}
 
-    .tab-btn {
-      flex: 1;
-      border: none;
-      border-radius: 16px;
-      padding: 14px;
-      font-size: 15px;
-      font-weight: 700;
-      background: #e5e7eb;
-      color: #111827;
-      cursor: pointer;
-    }
+.tab.active {
+  background: black;
+  color: white;
+}
 
-    .tab-btn.active {
-      background: #111827;
-      color: white;
-    }
+input {
+  width: 100%;
+  padding: 14px;
+  margin-top: 10px;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+}
 
-    .section {
-      display: none;
-    }
+.option {
+  padding: 14px;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  margin-top: 10px;
+  cursor: pointer;
+}
 
-    .section.active {
-      display: block;
-    }
+.option.selected {
+  border-color: black;
+}
 
-    input,
-    select,
-    button,
-    textarea {
-      width: 100%;
-      border-radius: 20px;
-      border: 1px solid #d1d5db;
-      background: #f9fafb;
-      padding: 18px 16px;
-      font-size: 16px;
-      margin-bottom: 14px;
-      outline: none;
-    }
+button {
+  width: 100%;
+  padding: 14px;
+  margin-top: 15px;
+  border-radius: 12px;
+  border: none;
+  background: black;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+}
 
-    textarea {
-      min-height: 90px;
-      resize: vertical;
-    }
-
-    input:focus,
-    select:focus,
-    textarea:focus {
-      border-color: #60a5fa;
-      box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.15);
-    }
-
-    button.primary {
-      border: none;
-      background: #242424;
-      color: white;
-      font-size: 18px;
-      font-weight: 800;
-      cursor: pointer;
-    }
-
-    button.secondary {
-      border: none;
-      background: #16a34a;
-      color: white;
-      font-size: 17px;
-      font-weight: 800;
-      cursor: pointer;
-    }
-
-    .ride-option {
-      border: 1px solid #d1d5db;
-      border-radius: 22px;
-      padding: 18px 16px;
-      margin-bottom: 12px;
-      cursor: pointer;
-      background: #fff;
-      font-size: 16px;
-      font-weight: 600;
-    }
-
-    .ride-option.active {
-      border: 2px solid #111827;
-      background: #f3f4f6;
-    }
-
-    .status-box {
-      display: none;
-      background: #eff6ff;
-      border: 1px solid #bfdbfe;
-      border-radius: 22px;
-      padding: 16px;
-      margin-top: 10px;
-    }
-
-    .driver-box {
-      display: none;
-      background: #ecfdf5;
-      border: 1px solid #86efac;
-      border-radius: 22px;
-      padding: 16px;
-      margin-top: 12px;
-    }
-
-    .muted {
-      color: #6b7280;
-      font-size: 14px;
-    }
-
-    .success {
-      color: #166534;
-      font-weight: 700;
-    }
-
-    .error {
-      color: #b91c1c;
-      font-weight: 700;
-    }
-
-    .user-pill {
-      display: none;
-      margin-bottom: 16px;
-      padding: 14px 16px;
-      border-radius: 18px;
-      background: #111827;
-      color: white;
-      font-weight: 700;
-    }
-
-    .small-btn {
-      margin-top: 8px;
-      background: #ef4444;
-      color: white;
-      border: none;
-      border-radius: 14px;
-      padding: 12px;
-      font-weight: 700;
-      cursor: pointer;
-    }
-  </style>
+</style>
 </head>
+
 <body>
-  <div class="app">
-    <div class="brand">
-      <h1>Harvey Taxi</h1>
-      <p>Ride, food, and delivery in one app</p>
+
+<div class="app">
+
+  <div class="brand">
+    <h1>🚕 Harvey Taxi</h1>
+    <p>Ride • Food • Delivery</p>
+  </div>
+
+  <!-- LOGIN -->
+  <div class="card">
+    <div class="tabs">
+      <button class="tab active">Login</button>
+      <button class="tab">Sign Up</button>
     </div>
 
-    <div id="userPill" class="user-pill"></div>
+    <input id="email" placeholder="Email"/>
+    <input id="password" type="password" placeholder="Password"/>
+    <button onclick="login()">Login as Rider</button>
+  </div>
 
-    <div class="card">
-      <div class="tabs">
-        <button id="loginTab" class="tab-btn active" onclick="showAuthTab('login')">Login</button>
-        <button id="signupTab" class="tab-btn" onclick="showAuthTab('signup')">Sign Up</button>
-      </div>
+  <!-- SERVICE -->
+  <div class="card">
 
-      <div id="loginSection" class="section active">
-        <h2>Rider Login</h2>
-        <input id="loginEmail" type="email" placeholder="Email address" />
-        <input id="loginPassword" type="password" placeholder="Password" />
-        <button class="primary" onclick="loginRider()">Login as Rider</button>
-      </div>
+    <h3>Choose Service</h3>
 
-      <div id="signupSection" class="section">
-        <h2>Create Rider Account</h2>
-        <input id="signupName" type="text" placeholder="Full name" />
-        <input id="signupEmail" type="email" placeholder="Email address" />
-        <input id="signupPhone" type="text" placeholder="Phone number" />
-        <input id="signupPassword" type="password" placeholder="Create password" />
-        <button class="primary" onclick="signupRider()">Create Rider Account</button>
-      </div>
-
-      <div id="authMessage" class="muted"></div>
+    <div class="tabs">
+      <button class="tab active" onclick="setService('ride')">🚕 Ride</button>
+      <button class="tab" onclick="setService('delivery')">📦 Delivery</button>
+      <button class="tab" onclick="setService('food')">🍔 Food</button>
     </div>
 
-    <div class="card">
-      <h2>Request a Ride</h2>
-      <input id="pickup" type="text" placeholder="Pickup location" />
-      <input id="destination" type="text" placeholder="Destination" />
+    <input id="pickup" placeholder="Pickup location"/>
+    <input id="destination" placeholder="Destination / Drop-off"/>
 
-      <div id="rideStandard" class="ride-option active" onclick="selectService('ride', 'Harvey Standard - $12', 'rideStandard')">
+    <!-- DELIVERY EXTRA -->
+    <div id="deliveryBox" style="display:none;">
+      <input id="item" placeholder="What are you sending?"/>
+    </div>
+
+    <!-- OPTIONS -->
+    <div id="rideOptions">
+      <div class="option selected" onclick="selectOption(this,'ride')">
         🚕 Harvey Standard - $12
       </div>
 
-      <div id="rideXL" class="ride-option" onclick="selectService('xl', 'Harvey XL - $18', 'rideXL')">
+      <div class="option" onclick="selectOption(this,'xl')">
         🚐 Harvey XL - $18
       </div>
+    </div>
 
-      <div id="rideDelivery" class="ride-option" onclick="selectService('delivery', 'Delivery Service', 'rideDelivery')">
-        📦 Delivery Service
+    <div id="deliveryOptions" style="display:none;">
+      <div class="option selected" onclick="selectOption(this,'delivery')">
+        📦 Package Delivery - $15
       </div>
 
-      <textarea id="rideNotes" placeholder="Driver notes (gate code, food pickup details, etc.)"></textarea>
-
-      <button class="secondary" onclick="requestRide()">Request Service</button>
-
-      <div id="rideStatus" class="status-box"></div>
-      <div id="driverBox" class="driver-box"></div>
+      <div class="option" onclick="selectOption(this,'food')">
+        🍔 Food Delivery - $20
+      </div>
     </div>
+
+    <button onclick="requestService()">Request Service</button>
+
   </div>
 
-  <script>
-    let currentUser = null
-    let currentRequestId = null
-    let selectedServiceType = 'ride'
-    let selectedServiceLabel = 'Harvey Standard - $12'
+</div>
 
-    function showAuthTab(tab) {
-      document.getElementById('loginTab').classList.remove('active')
-      document.getElementById('signupTab').classList.remove('active')
-      document.getElementById('loginSection').classList.remove('active')
-      document.getElementById('signupSection').classList.remove('active')
+<script>
+let currentService = "ride"
+let selectedType = "ride"
 
-      if (tab === 'login') {
-        document.getElementById('loginTab').classList.add('active')
-        document.getElementById('loginSection').classList.add('active')
-      } else {
-        document.getElementById('signupTab').classList.add('active')
-        document.getElementById('signupSection').classList.add('active')
-      }
+function setService(type) {
+  currentService = type
 
-      setAuthMessage('', '')
-    }
+  document.querySelectorAll('.tab').forEach(btn => btn.classList.remove('active'))
 
-    function setAuthMessage(message, type) {
-      const box = document.getElementById('authMessage')
-      box.className = 'muted'
-      if (type === 'success') box.className = 'success'
-      if (type === 'error') box.className = 'error'
-      box.textContent = message
-    }
+  event.target.classList.add('active')
 
-    function setRideStatus(message) {
-      const box = document.getElementById('rideStatus')
-      box.style.display = 'block'
-      box.innerHTML = message
-    }
+  document.getElementById('rideOptions').style.display = (type === 'ride') ? 'block' : 'none'
+  document.getElementById('deliveryOptions').style.display = (type !== 'ride') ? 'block' : 'none'
+  document.getElementById('deliveryBox').style.display = (type !== 'ride') ? 'block' : 'none'
+}
 
-    function setDriverBox(html) {
-      const box = document.getElementById('driverBox')
-      box.style.display = 'block'
-      box.innerHTML = html
-    }
+function selectOption(el, type) {
+  selectedType = type
 
-    function hideDriverBox() {
-      document.getElementById('driverBox').style.display = 'none'
-      document.getElementById('driverBox').innerHTML = ''
-    }
+  document.querySelectorAll('.option').forEach(o => o.classList.remove('selected'))
+  el.classList.add('selected')
+}
 
-    function updateUserPill() {
-      const pill = document.getElementById('userPill')
+async function requestService() {
 
-      if (!currentUser) {
-        pill.style.display = 'none'
-        pill.innerHTML = ''
-        return
-      }
+  const pickup = document.getElementById('pickup').value
+  const destination = document.getElementById('destination').value
+  const item = document.getElementById('item').value
 
-      pill.style.display = 'block'
-      pill.innerHTML = `
-        Logged in as ${currentUser.name} (${currentUser.email})
-        <button class="small-btn" onclick="logoutUser()">Logout</button>
-      `
-    }
+  const res = await fetch('/api/requests', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      riderName: "App User",
+      pickup,
+      destination,
+      serviceType: selectedType,
+      notes: item
+    })
+  })
 
-    function logoutUser() {
-      currentUser = null
-      updateUserPill()
-      setAuthMessage('Logged out successfully.', 'success')
-    }
+  const data = await res.json()
 
-    function selectService(type, label, elementId) {
-      selectedServiceType = type
-      selectedServiceLabel = label
+  if(data.request){
+    alert("Request created! Redirecting to payment...")
 
-      document.getElementById('rideStandard').classList.remove('active')
-      document.getElementById('rideXL').classList.remove('active')
-      document.getElementById('rideDelivery').classList.remove('active')
-      document.getElementById(elementId).classList.add('active')
-    }
+    window.location.href = `/payment.html?requestId=${data.request.id}`
+  } else {
+    alert("Error creating request")
+  }
+}
 
-    async function signupRider() {
-      const name = document.getElementById('signupName').value.trim()
-      const email = document.getElementById('signupEmail').value.trim()
-      const phone = document.getElementById('signupPhone').value.trim()
-      const password = document.getElementById('signupPassword').value.trim()
+function login(){
+  alert("Login system connected (next upgrade will make it real)")
+}
+</script>
 
-      if (!name || !email || !password) {
-        setAuthMessage('Name, email, and password are required.', 'error')
-        return
-      }
-
-      try {
-        const res = await fetch('/api/auth/signup', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name,
-            email,
-            phone,
-            password,
-            role: 'rider'
-          })
-        })
-
-        const data = await res.json()
-
-        if (!res.ok) {
-          setAuthMessage(data.error || 'Signup failed.', 'error')
-          return
-        }
-
-        currentUser = data.user
-        updateUserPill()
-        setAuthMessage('Rider account created and logged in.', 'success')
-        showAuthTab('login')
-
-        document.getElementById('loginEmail').value = email
-        document.getElementById('loginPassword').value = password
-      } catch (error) {
-        setAuthMessage('Could not connect to server.', 'error')
-      }
-    }
-
-    async function loginRider() {
-      const email = document.getElementById('loginEmail').value.trim()
-      const password = document.getElementById('loginPassword').value.trim()
-
-      if (!email || !password) {
-        setAuthMessage('Email and password are required.', 'error')
-        return
-      }
-
-      try {
-        const res = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
-        })
-
-        const data = await res.json()
-
-        if (!res.ok) {
-          setAuthMessage(data.error || 'Login failed.', 'error')
-          return
-        }
-
-        if (data.user.role !== 'rider') {
-          setAuthMessage('Please use a rider account on this screen.', 'error')
-          return
-        }
-
-        currentUser = data.user
-        updateUserPill()
-        setAuthMessage('Logged in successfully.', 'success')
-      } catch (error) {
-        setAuthMessage('Could not connect to server.', 'error')
-      }
-    }
-
-    async function requestRide() {
-      if (!currentUser) {
-        setRideStatus('Please create an account or log in first.')
-        return
-      }
-
-      const pickup = document.getElementById('pickup').value.trim()
-      const destination = document.getElementById('destination').value.trim()
-      const notes = document.getElementById('rideNotes').value.trim()
-
-      if (!pickup || !destination) {
-        setRideStatus('Pickup and destination are required.')
-        return
-      }
-
-      hideDriverBox()
-      setRideStatus('Sending your request...')
-
-      try {
-        const res = await fetch('/api/requests', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            riderId: currentUser.id,
-            riderName: currentUser.name,
-            riderPhone: currentUser.phone || '',
-            pickup,
-            destination,
-            serviceType: selectedServiceType,
-            notes: `${selectedServiceLabel}${notes ? ' | ' + notes : ''}`
-          })
-        })
-
-        const data = await res.json()
-
-        if (!res.ok) {
-          setRideStatus(data.error || 'Request failed.')
-          return
-        }
-
-        currentRequestId = data.request.id
-        setRideStatus(`Request created. Status: ${data.request.status}`)
-        trackRide()
-      } catch (error) {
-        setRideStatus('Could not connect to server.')
-      }
-    }
-
-    async function trackRide() {
-      if (!currentRequestId) return
-
-      try {
-        const res = await fetch('/api/requests/' + currentRequestId)
-        const ride = await res.json()
-
-        if (!res.ok) {
-          setRideStatus('Could not load ride status.')
-          return
-        }
-
-        if (ride.status === 'searching') {
-          setRideStatus('🔍 Searching for a nearby driver...')
-        }
-
-        if (ride.status === 'matched') {
-          setRideStatus('🚗 Driver matched and heading your way.')
-          setDriverBox(`
-            <strong>Driver:</strong> ${ride.driverName || 'Assigned'}<br>
-            <strong>Vehicle:</strong> ${ride.driverVehicle || 'Taxi'}<br>
-            <strong>Car:</strong> ${ride.driverCarColor || ''} ${ride.driverCarModel || ''}<br>
-            <strong>Plate:</strong> ${ride.driverPlateNumber || 'Pending'}<br>
-            <strong>Distance:</strong> ${ride.estimatedDistanceKm || '--'} km
-          `)
-        }
-
-        if (ride.status === 'accepted') {
-          setRideStatus('✅ Driver accepted your ride.')
-          setDriverBox(`
-            <strong>Driver:</strong> ${ride.driverName}<br>
-            <strong>Phone:</strong> ${ride.driverPhone || 'Pending'}<br>
-            <strong>Vehicle:</strong> ${ride.driverVehicle || 'Taxi'}<br>
-            <strong>Distance:</strong> ${ride.estimatedDistanceKm || '--'} km
-          `)
-        }
-
-        if (ride.status === 'in_progress') {
-          setRideStatus('🛣️ Your trip is in progress.')
-        }
-
-        if (ride.status === 'completed') {
-          setRideStatus('✅ Your trip is complete.')
-          return
-        }
-
-        if (ride.status === 'cancelled') {
-          setRideStatus('❌ This trip was cancelled.')
-          return
-        }
-
-        setTimeout(trackRide, 3000)
-      } catch (error) {
-        setRideStatus('Lost connection while tracking ride.')
-      }
-    }
-  </script>
 </body>
 </html>
