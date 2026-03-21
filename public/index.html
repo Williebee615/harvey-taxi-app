@@ -1,57 +1,103 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Harvey Taxi</title>
-<style>
-body{
-  font-family:Arial,sans-serif;
-  margin:0;
-  background:#f4f6fb;
-  text-align:center;
-  padding:60px 20px;
-}
-h1{
-  font-size:36px;
-  color:#081633;
-  margin-bottom:24px;
-}
-.button{
-  display:block;
-  width:280px;
-  max-width:100%;
-  margin:12px auto;
-  padding:16px;
-  background:#081633;
-  color:white;
-  border-radius:14px;
-  text-decoration:none;
-  font-weight:700;
-}
-.admin-btn{
-  position:fixed;
-  bottom:20px;
-  right:20px;
-  background:#000;
-  color:#fff;
-  padding:14px 18px;
-  border-radius:14px;
-  font-weight:700;
-  text-decoration:none;
-  box-shadow:0 8px 20px rgba(0,0,0,.3);
-}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Harvey Taxi</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f3f4f6;
+      color: #111827;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 30px 20px;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 54px;
+      margin-bottom: 10px;
+    }
+
+    p {
+      font-size: 18px;
+      color: #6b7280;
+      margin-bottom: 30px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 24px;
+      padding: 28px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.08);
+    }
+
+    .button-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 20px;
+    }
+
+    .button {
+      display: block;
+      text-decoration: none;
+      padding: 18px;
+      border-radius: 16px;
+      font-size: 22px;
+      font-weight: bold;
+      border: none;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    .primary {
+      background: #0f172a;
+      color: white;
+    }
+
+    .secondary {
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    .admin-btn {
+      background: #111827;
+      color: white;
+      margin-top: 16px;
+    }
+
+    @media (max-width: 700px) {
+      h1 {
+        font-size: 42px;
+      }
+
+      .button-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
 </head>
 <body>
+  <div class="container">
+    <h1>Harvey Taxi</h1>
+    <p>Ride, package delivery, and food delivery with live driver tracking</p>
 
-<h1>🚖 Harvey Taxi</h1>
+    <div class="card">
+      <div class="button-grid">
+        <a class="button primary" href="/request.html">Request Service</a>
+        <a class="button secondary" href="/driver.html">Driver Dashboard</a>
+        <a class="button secondary" href="/driver-verification.html">Driver Verification</a>
+        <a class="button secondary" href="/payment.html">Payment</a>
+      </div>
 
-<a class="button" href="/request.html">Request Ride</a>
-<a class="button" href="/driver.html">Driver Dashboard</a>
-<a class="button" href="/payment.html">Payments</a>
-
-<a class="admin-btn" href="/admin">🔐 Admin</a>
-
+      <a class="button admin-btn" href="/admin">Admin Access</a>
+    </div>
+  </div>
 </body>
 </html>
