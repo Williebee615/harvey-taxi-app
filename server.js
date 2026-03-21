@@ -10,184 +10,329 @@ app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 app.use(express.static(path.join(__dirname, 'public')))
 
-// ===============================
-// ADMIN CONFIG
-// ===============================
 const ADMIN_EMAIL = 'admin@harveytaxi.com'
 const ADMIN_PASSWORD = 'admin123'
 const ADMIN_SECRET_PATH = 'control-center-879'
 
-// Demo memory
 let drivers = []
 let rides = []
-let deliveries = []const express = require("express");
-const cors = require("cors");
-const path = require("path");
+let deliveries = []
 
-const app = express();
-const PORT = process.env.PORT || 10000;
+app.get('/health', (req, res) => {
+  res.json({ success: true, status: 'Harvey Taxi running' })
+})
 
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, "public")));
-
-
-// ==============================
-// ADMIN CONFIG
-// ==============================
-const ADMIN_EMAIL = "admin@harveytaxi.com";
-const ADMIN_PASSWORD = "admin123";
-const ADMIN_SECRET_PATH = "control-center-879";
-
-
-// ==============================
-// MEMORY
-// ==============================
-let drivers = [];
-let rides = [];
-let deliveries = [];
-
-
-// ==============================
-// HEALTH
-// ==============================
-app.get("/health", (req, res) => {
-  res.json({ status: "Harvey Taxi running" });
-});
-
-
-// ==============================
-// ADMIN LOGIN PAGE
-// ==============================
-app.get("/admin", (req, res) => {
+app.get('/admin', (req, res) => {
   res.send(`
-  <html>
-  <head>
-  <title>Harvey Taxi Admin</title>
-  <style>
-  body{font-family:Arial;background:#f4f6fb;padding:40px}
-  .box{max-width:420px;margin:auto;background:white;padding:20px;border-radius:12px}
-  input{width:100%;padding:12px;margin-top:10px}
-  button{width:100%;padding:12px;margin-top:10px;background:#111;color:white;border:none;border-radius:8px}
-  </style>
-  </head>
-  <body>
-  <div class="box">
-  <h2>🔐 Harvey Taxi Admin Login</h2>
-  <input id="email" placeholder="Admin Email"/>
-  <input id="password" type="password" placeholder="Password"/>
-  <button onclick="login()">Enter Admin Dashboard</button>
-  <p id="msg" style="color:red"></p>
-  </div>
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Harvey Taxi Admin Login</title>
+      <style>
+        body {
+          margin: 0;
+          font-family: Arial, sans-serif;
+          background: #eef1f6;
+          padding: 30px 16px;
+        }
+        .box {
+          max-width: 420px;
+          margin: 40px auto;
+          background: white;
+          padding: 24px;
+          border-radius: 20px;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+        }
+        h1 {
+          margin: 0 0 10px;
+          font-size: 30px;
+          color: #081633;
+        }
+        p {
+          color: #666;
+          margin-bottom: 18px;
+        }
+        input {
+          width: 100%;
+          box-sizing: border-box;
+          padding: 16px;
+          margin-bottom: 12px;
+          border-radius: 14px;
+          border: 2px solid #ddd;
+          font-size: 16px;
+        }
+        button {
+          width: 100%;
+          padding: 16px;
+          border: none;
+          border-radius: 14px;
+          background: #081633;
+          color: white;
+          font-size: 18px;
+          font-weight: 700;
+          cursor: pointer;
+        }
+        #msg {
+          margin-top: 12px;
+          color: #b91c1c;
+          font-weight: 700;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="box">
+        <h1>🔐 Harvey Taxi Admin Login</h1>
+        <p>Private access only.</p>
 
-  <script>
-  async function login(){
-    const res = await fetch('/admin/login',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        email:document.getElementById('email').value,
-        password:document.getElementById('password').value
+        <input id="email" type="email" placeholder="Admin email" />
+        <input id="password" type="password" placeholder="Password" />
+
+        <button onclick="login()">Enter Admin Dashboard</button>
+
+        <div id="msg"></div>
+      </div>
+
+      <script>
+        async function login() {
+          const msg = document.getElementById('msg')
+          msg.innerText = ''
+
+          try {
+            const res = await fetch('/admin/login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                email: document.getElementById('email').value,
+                password: document.getElementById('password').value
+              })
+            })
+
+            const data = await res.json()
+
+            if (data.success) {
+              window.location.href = data.redirect
+            } else {
+              msg.innerText = data.message || 'Login failed'
+            }
+          } catch (error) {
+            msg.innerText = 'Server error while logging in'
+          }
+        }
+      </script>
+    </body>
+    </html>
+  `)
+})
+
+app.post('/admin/login', (req, res) => {
+  try {
+    const { email, password } = req.body
+
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing email or password'
       })
-    })
-
-    const data = await res.json()
-
-    if(data.success){
-      window.location = data.redirect
-    }else{
-      document.getElementById('msg').innerText = data.message
     }
+
+    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+      return res.json({
+        success: true,
+        redirect: '/' + ADMIN_SECRET_PATH
+      })
+    }
+
+    return res.status(401).json({
+      success: false,
+      message: 'Invalid admin login'
+    })
+  } catch (error) {
+    console.error('ADMIN LOGIN ERROR:', error)
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while logging in'
+    })
   }
-  </script>
+})
 
-  </body>
-  </html>
-  `);
-});
+app.get('/' + ADMIN_SECRET_PATH, (req, res) => {
+  const driverItems = drivers.length
+    ? drivers.map((d) => `
+        <div class="item">
+          ${d.name || d.id || 'Driver'} - ${d.online ? 'Online' : 'Offline'}
+        </div>
+      `).join('')
+    : '<div class="item">No drivers yet</div>'
 
+  const rideItems = rides.length
+    ? rides.map((r) => `
+        <div class="item">
+          ${(r.pickup || 'Pickup')} → ${(r.dropoff || 'Dropoff')} (${r.status || 'requested'})
+        </div>
+      `).join('')
+    : '<div class="item">No rides yet</div>'
 
-// ==============================
-// ADMIN LOGIN API
-// ==============================
-app.post("/admin/login", (req, res) => {
-  const { email, password } = req.body;
+  const deliveryItems = deliveries.length
+    ? deliveries.map((d) => `
+        <div class="item">
+          ${(d.item || 'Delivery item')} (${d.status || 'pending'})
+        </div>
+      `).join('')
+    : '<div class="item">No deliveries yet</div>'
 
-  if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-    return res.json({
-      success: true,
-      redirect: "/" + ADMIN_SECRET_PATH,
-    });
-  }
-
-  res.status(401).json({
-    success: false,
-    message: "Invalid login",
-  });
-});
-
-
-// ==============================
-// ADMIN DASHBOARD
-// ==============================
-app.get("/" + ADMIN_SECRET_PATH, (req, res) => {
   res.send(`
-  <html>
-  <head>
-  <title>Admin Dashboard</title>
-  <style>
-  body{font-family:Arial;background:#0f172a;color:white;padding:20px}
-  .card{background:#111827;padding:20px;margin:10px;border-radius:12px}
-  </style>
-  </head>
-  <body>
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Harvey Taxi Admin Dashboard</title>
+      <style>
+        body {
+          margin: 0;
+          font-family: Arial, sans-serif;
+          background: #0f172a;
+          color: white;
+          padding: 20px;
+        }
+        h1 {
+          margin-top: 0;
+          font-size: 32px;
+        }
+        .grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+          gap: 16px;
+          margin: 20px 0;
+        }
+        .card {
+          background: #111827;
+          border-radius: 18px;
+          padding: 20px;
+        }
+        .big {
+          font-size: 32px;
+          font-weight: 800;
+          margin-top: 8px;
+        }
+        .section {
+          background: #111827;
+          border-radius: 18px;
+          padding: 20px;
+          margin-top: 18px;
+        }
+        .item {
+          padding: 10px 0;
+          border-bottom: 1px solid #243041;
+        }
+      </style>
+    </head>
+    <body>
+      <h1>Harvey Taxi Admin Dashboard</h1>
 
-  <h1>Harvey Taxi Admin Dashboard</h1>
+      <div class="grid">
+        <div class="card">
+          <div>Total Drivers</div>
+          <div class="big">${drivers.length}</div>
+        </div>
+        <div class="card">
+          <div>Total Rides</div>
+          <div class="big">${rides.length}</div>
+        </div>
+        <div class="card">
+          <div>Total Deliveries</div>
+          <div class="big">${deliveries.length}</div>
+        </div>
+      </div>
 
-  <div class="card">
-  <h2>Drivers (${drivers.length})</h2>
-  ${drivers.map(d=>`<div>${d.id}</div>`).join("")}
-  </div>
+      <div class="section">
+        <h2>Drivers</h2>
+        ${driverItems}
+      </div>
 
-  <div class="card">
-  <h2>Rides (${rides.length})</h2>
-  ${rides.map(r=>`<div>${r.pickup} → ${r.dropoff}</div>`).join("")}
-  </div>
+      <div class="section">
+        <h2>Rides</h2>
+        ${rideItems}
+      </div>
 
-  <div class="card">
-  <h2>Deliveries (${deliveries.length})</h2>
-  ${deliveries.map(d=>`<div>${d.item}</div>`).join("")}
-  </div>
+      <div class="section">
+        <h2>Deliveries</h2>
+        ${deliveryItems}
+      </div>
+    </body>
+    </html>
+  `)
+})
 
-  </body>
-  </html>
-  `);
-});
+app.post('/driver/update', (req, res) => {
+  const { id, lat, lng, name } = req.body
 
+  if (!id) {
+    return res.status(400).json({
+      success: false,
+      message: 'Driver id is required'
+    })
+  }
 
-// ==============================
-// DRIVER UPDATE
-// ==============================
-app.post("/driver/update", (req, res) => {
-  const { id, lat, lng } = req.body;
-
-  let driver = drivers.find(d => d.id === id);
+  let driver = drivers.find((d) => d.id === id)
 
   if (driver) {
-    driver.lat = lat;
-    driver.lng = lng;
+    driver.lat = lat
+    driver.lng = lng
+    driver.name = name || driver.name
+    driver.online = true
   } else {
-    drivers.push({ id, lat, lng });
+    drivers.push({
+      id,
+      name: name || id,
+      lat: lat || 0,
+      lng: lng || 0,
+      online: true
+    })
   }
 
-  res.json({ success: true });
-});
+  return res.json({ success: true })
+})
 
-
-// ==============================
-// REQUEST RIDE
-// ==============================
-app.post("/request-ride", (req, res) => {
+app.post('/request-ride', (req, res) => {
   const ride = {
-    id:
+    id: 'ride_' + Date.now(),
+    pickup: req.body.pickup || 'Pickup',
+    dropoff: req.body.dropoff || 'Dropoff',
+    status: 'requested'
+  }
+
+  rides.push(ride)
+
+  return res.json({
+    success: true,
+    ride
+  })
+})
+
+app.post('/request-delivery', (req, res) => {
+  const delivery = {
+    id: 'delivery_' + Date.now(),
+    item: req.body.item || 'Package',
+    status: 'pending'
+  }
+
+  deliveries.push(delivery)
+
+  return res.json({
+    success: true,
+    delivery
+  })
+})
+
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'))
+})
+
+app.listen(PORT, () => {
+  console.log('Harvey Taxi running on port ' + PORT)
+  console.log('Admin route: /admin')
+  console.log('Secret dashboard route: /' + ADMIN_SECRET_PATH)
+})
