@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Admin Driver Verification Review</title>
+  <title>Admin Verification Review</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -19,6 +19,7 @@
 
     h1 {
       color: #111827;
+      margin-top: 0;
     }
 
     .card {
@@ -50,109 +51,189 @@
       margin-top: 14px;
     }
 
-    button, textarea, input, select {
+    button, textarea, input {
       padding: 10px 12px;
       border-radius: 10px;
       border: 1px solid #d1d5db;
       font-size: 14px;
+      box-sizing: border-box;
+    }
+
+    input, textarea {
+      width: 100%;
     }
 
     button {
       cursor: pointer;
       border: none;
       color: white;
+      font-weight: bold;
     }
 
     .approve { background: #15803d; }
     .reject { background: #b91c1c; }
-    .pending { background: #b45309; }
+    .secondary {
+      background: #111827;
+      color: white;
+    }
 
     textarea {
-      width: 100%;
       min-height: 80px;
       margin-top: 10px;
-      box-sizing: border-box;
     }
 
     .status {
       font-weight: bold;
       text-transform: uppercase;
     }
+
+    .hidden {
+      display: none;
+    }
+
+    .gate-box {
+      max-width: 520px;
+      margin: 80px auto;
+      background: white;
+      border-radius: 18px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+    }
+
+    .message {
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 12px;
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      color: #374151;
+    }
+
+    @media (max-width: 700px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
-  <div class="container">
+  <div id="gateScreen" class="gate-box">
+    <h1>Admin Access</h1>
+    <p>Enter your approved admin email to continue.</p>
+    <input type="email" id="adminEmail" placeholder="Admin email" />
+    <button class="secondary" style="width:100%; margin-top:12px;" onclick="checkAdminAccess()">Enter Admin</button>
+    <div id="gateMessage" class="message hidden"></div>
+  </div>
+
+  <div id="adminApp" class="container hidden">
     <h1>Admin Verification Review</h1>
     <div id="verificationList"></div>
   </div>
 
   <script>
+    const gateScreen = document.getElementById('gateScreen')
+    const adminApp = document.getElementById('adminApp')
+    const gateMessage = document.getElementById('gateMessage')
+    const adminEmailInput = document.getElementById('adminEmail')
+
+    function showGateMessage(text) {
+      gateMessage.classList.remove('hidden')
+      gateMessage.textContent = text
+    }
+
+    async function checkAdminAccess() {
+      const email = adminEmailInput.value.trim()
+
+      if (!email) {
+        showGateMessage('Please enter your admin email.')
+        return
+      }
+
+      try {
+        const res = await fetch('/api/admin/access?email=' + encodeURIComponent(email))
+        const data = await res.json()
+
+        if (data.success && data.allowed) {
+          localStorage.setItem('harvey_admin_email', email)
+          gateScreen.classList.add('hidden')
+          adminApp.classList.remove('hidden')
+          loadVerifications()
+        } else {
+          showGateMessage('Access denied. This email is not approved for admin access.')
+        }
+      } catch (error) {
+        showGateMessage('Could not verify admin access.')
+      }
+    }
+
     async function loadVerifications() {
       const res = await fetch('/api/admin/verifications')
       const data = await res.json()
       const list = document.getElementById('verificationList')
 
-      if (!data.success || !data.verifications.length) {
+      if (!Array.isArray(data) || !data.length) {
         list.innerHTML = '<div class="card">No driver verification submissions yet.</div>'
         return
       }
 
-      list.innerHTML = data.verifications.map(v => `
+      list.innerHTML = data.map(v => `
         <div class="card">
           <div class="grid">
-            <div><strong>Name:</strong> ${v.fullName}</div>
-            <div><strong>Email:</strong> ${v.email}</div>
-            <div><strong>Driver ID:</strong> ${v.driverId}</div>
-            <div><strong>Status:</strong> <span class="status">${v.status}</span></div>
+            <div><strong>Name:</strong> ${v.name || '-'}</div>
+            <div><strong>Email:</strong> ${v.email || '-'}</div>
             <div><strong>Phone:</strong> ${v.phone || '-'}</div>
-            <div><strong>Submitted:</strong> ${new Date(v.submittedAt).toLocaleString()}</div>
-            <div><strong>Vehicle:</strong> ${v.vehicleYear || ''} ${v.vehicleMake || ''} ${v.vehicleModel || ''}</div>
-            <div><strong>License #:</strong> ${v.licenseNumber || '-'}</div>
+            <div><strong>Status:</strong> <span class="status">${v.status || 'pending'}</span></div>
+            <div><strong>Submitted:</strong> ${v.submittedAt ? new Date(v.submittedAt).toLocaleString() : '-'}</div>
+            <div><strong>Reviewed:</strong> ${v.reviewedAt ? new Date(v.reviewedAt).toLocaleString() : '-'}</div>
           </div>
 
           <div class="files" style="margin-top:12px;">
-            ${v.licenseFront ? `<a href="${v.licenseFront}" target="_blank">License Front</a>` : ''}
-            ${v.licenseBack ? `<a href="${v.licenseBack}" target="_blank">License Back</a>` : ''}
-            ${v.selfie ? `<a href="${v.selfie}" target="_blank">Selfie</a>` : ''}
-            ${v.insurance ? `<a href="${v.insurance}" target="_blank">Insurance</a>` : ''}
-            ${v.registration ? `<a href="${v.registration}" target="_blank">Registration</a>` : ''}
+            ${v.license ? `<a href="/uploads/${v.license}" target="_blank">License</a>` : ''}
+            ${v.selfie ? `<a href="/uploads/${v.selfie}" target="_blank">Selfie</a>` : ''}
+            ${v.vehicle ? `<a href="/uploads/${v.vehicle}" target="_blank">Vehicle</a>` : ''}
           </div>
 
-          <textarea id="notes-${v.id}" placeholder="Admin notes...">${v.notes || ''}</textarea>
-
           <div class="actions">
-            <button class="approve" onclick="reviewVerification('${v.id}', 'approved')">Approve</button>
-            <button class="reject" onclick="reviewVerification('${v.id}', 'rejected')">Reject</button>
-            <button class="pending" onclick="reviewVerification('${v.id}', 'pending')">Mark Pending</button>
+            <button class="approve" onclick="approveDriver('${v.id}')">Approve</button>
+            <button class="reject" onclick="rejectDriver('${v.id}')">Reject</button>
           </div>
         </div>
       `).join('')
     }
 
-    async function reviewVerification(id, status) {
-      const notes = document.getElementById(`notes-${id}`).value
-
-      const res = await fetch(`/api/admin/verifications/${id}/review`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          status,
-          notes,
-          reviewedBy: 'Harvey Admin'
-        })
-      })
-
+    async function approveDriver(id) {
+      const res = await fetch('/api/admin/approve/' + id, { method: 'POST' })
       const data = await res.json()
 
       if (data.success) {
-        alert(`Verification ${status}`)
+        alert('Driver approved')
         loadVerifications()
       } else {
-        alert(data.message || 'Failed to update review')
+        alert('Could not approve driver')
       }
     }
 
-    loadVerifications()
+    async function rejectDriver(id) {
+      const res = await fetch('/api/admin/reject/' + id, { method: 'POST' })
+      const data = await res.json()
+
+      if (data.success) {
+        alert('Driver rejected')
+        loadVerifications()
+      } else {
+        alert('Could not reject driver')
+      }
+    }
+
+    async function autoAdminLogin() {
+      const saved = localStorage.getItem('harvey_admin_email')
+      if (!saved) return
+
+      adminEmailInput.value = saved
+      await checkAdminAccess()
+    }
+
+    autoAdminLogin()
   </script>
 </body>
 </html>
