@@ -48,6 +48,20 @@ let drivers = [
     isOnline: true,
     isAvailable: true,
     currentRequestId: null
+  },
+  {
+    id: 'driver_3',
+    name: 'James Carter',
+    phone: '(615) 555-1003',
+    vehicleType: 'Delivery',
+    carModel: 'Honda Accord',
+    carColor: 'Blue',
+    plateNumber: 'HTX-103',
+    lat: 36.1575,
+    lng: -86.7732,
+    isOnline: true,
+    isAvailable: true,
+    currentRequestId: null
   }
 ]
 
@@ -79,10 +93,37 @@ function getServiceAmount(serviceType) {
       return 1800
     case 'delivery':
       return 1500
+    case 'package':
+      return 1600
+    case 'food':
+      return 1400
+    case 'grocery':
+      return 2000
     case 'ride':
     default:
       return 1200
   }
+}
+
+function getDriverCompatibilityScore(driver, request) {
+  let score = 0
+
+  if (request.serviceType === 'ride') {
+    if (driver.vehicleType.includes('Standard')) score += 5
+    if (driver.vehicleType.includes('XL')) score += 3
+  }
+
+  if (request.serviceType === 'xl') {
+    if (driver.vehicleType.includes('XL')) score += 10
+  }
+
+  if (['delivery', 'food', 'package', 'grocery'].includes(request.serviceType)) {
+    if (driver.vehicleType.includes('Delivery')) score += 10
+    if (driver.vehicleType.includes('Standard')) score += 4
+    if (driver.vehicleType.includes('XL')) score += 3
+  }
+
+  return score
 }
 
 function findNearestDriver(request) {
@@ -90,8 +131,8 @@ function findNearestDriver(request) {
 
   if (!availableDrivers.length) return null
 
-  let nearest = null
-  let shortest = Infinity
+  let bestDriver = null
+  let bestScore = -Infinity
 
   for (const driver of availableDrivers) {
     const distance = getDistance(
@@ -101,31 +142,41 @@ function findNearestDriver(request) {
       request.pickupLng
     )
 
-    if (distance < shortest) {
-      shortest = distance
-      nearest = driver
+    const compatibility = getDriverCompatibilityScore(driver, request)
+    const score = compatibility - distance
+
+    if (score > bestScore) {
+      bestScore = score
+      bestDriver = driver
     }
   }
 
-  if (!nearest) return null
+  if (!bestDriver) return null
 
-  nearest.isAvailable = false
-  nearest.currentRequestId = request.id
+  const shortest = getDistance(
+    bestDriver.lat,
+    bestDriver.lng,
+    request.pickupLat,
+    request.pickupLng
+  )
 
-  request.driverId = nearest.id
-  request.driverName = nearest.name
-  request.driverPhone = nearest.phone
-  request.driverVehicle = nearest.vehicleType
-  request.driverCarModel = nearest.carModel
-  request.driverCarColor = nearest.carColor
-  request.driverPlateNumber = nearest.plateNumber
-  request.driverLat = nearest.lat
-  request.driverLng = nearest.lng
+  bestDriver.isAvailable = false
+  bestDriver.currentRequestId = request.id
+
+  request.driverId = bestDriver.id
+  request.driverName = bestDriver.name
+  request.driverPhone = bestDriver.phone
+  request.driverVehicle = bestDriver.vehicleType
+  request.driverCarModel = bestDriver.carModel
+  request.driverCarColor = bestDriver.carColor
+  request.driverPlateNumber = bestDriver.plateNumber
+  request.driverLat = bestDriver.lat
+  request.driverLng = bestDriver.lng
   request.estimatedDistanceKm = Number(shortest.toFixed(2))
   request.status = 'matched'
   request.updatedAt = new Date().toISOString()
 
-  return nearest
+  return bestDriver
 }
 
 function releaseDriver(request) {
@@ -136,6 +187,89 @@ function releaseDriver(request) {
 
   driver.isAvailable = true
   driver.currentRequestId = null
+}
+
+function moveTowards(current, target, step = 0.0025) {
+  const latDiff = target.lat - current.lat
+  const lngDiff = target.lng - current.lng
+  const distance = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff)
+
+  if (distance <= step) {
+    return { lat: target.lat, lng: target.lng }
+  }
+
+  return {
+    lat: current.lat + (latDiff / distance) * step,
+    lng: current.lng + (lngDiff / distance) * step
+  }
+}
+
+function autoAdvanceRequests() {
+  const now = Date.now()
+
+  serviceRequests.forEach(request => {
+    if (!request.driverId) return
+
+    const createdAtMs = new Date(request.createdAt).getTime()
+    const ageMs = now - createdAtMs
+
+    if (request.status === 'matched' && ageMs > 10000) {
+      request.status = 'accepted'
+      request.updatedAt = new Date().toISOString()
+      return
+    }
+
+    if (request.status === 'accepted' && ageMs > 25000) {
+      request.status = 'in_progress'
+      request.updatedAt = new Date().toISOString()
+      return
+    }
+
+    if (request.status === 'in_progress' && ageMs > 50000) {
+      request.status = 'completed'
+      request.updatedAt = new Date().toISOString()
+      releaseDriver(request)
+    }
+  })
+}
+
+function moveDriversOnActiveTrips() {
+  serviceRequests.forEach(request => {
+    if (!request.driverId) return
+    if (!['matched', 'accepted', 'in_progress'].includes(request.status)) return
+
+    const driver = drivers.find(item => item.id === request.driverId)
+    if (!driver) return
+
+    let target = null
+
+    if (request.status === 'matched' || request.status === 'accepted') {
+      target = {
+        lat: request.pickupLat,
+        lng: request.pickupLng
+      }
+    }
+
+    if (request.status === 'in_progress') {
+      target = {
+        lat: request.destinationLat,
+        lng: request.destinationLng
+      }
+    }
+
+    if (!target) return
+
+    const nextPosition = moveTowards(
+      { lat: driver.lat, lng: driver.lng },
+      target
+    )
+
+    driver.lat = nextPosition.lat
+    driver.lng = nextPosition.lng
+    request.driverLat = driver.lat
+    request.driverLng = driver.lng
+    request.updatedAt = new Date().toISOString()
+  })
 }
 
 app.get('/api/health', (req, res) => {
@@ -214,6 +348,25 @@ app.get('/api/drivers', (req, res) => {
   res.json(drivers)
 })
 
+app.post('/api/drivers/status', (req, res) => {
+  const { driverId, isOnline } = req.body
+  const driver = drivers.find(item => item.id === driverId)
+
+  if (!driver) {
+    return res.status(404).json({ error: 'Driver not found.' })
+  }
+
+  driver.isOnline = !!isOnline
+  if (!driver.currentRequestId) {
+    driver.isAvailable = !!isOnline
+  }
+
+  res.json({
+    message: `Driver is now ${driver.isOnline ? 'online' : 'offline'}.`,
+    driver
+  })
+})
+
 app.post('/api/seed-demo', (req, res) => {
   res.json({
     message: 'Demo drivers already loaded.',
@@ -229,7 +382,11 @@ app.post('/api/requests', (req, res) => {
     pickup,
     destination,
     serviceType,
-    notes
+    notes,
+    itemList,
+    merchantName,
+    dropoffContact,
+    deliveryInstructions
   } = req.body
 
   if (!riderName || !pickup || !destination) {
@@ -245,6 +402,10 @@ app.post('/api/requests', (req, res) => {
     destination,
     serviceType: serviceType || 'ride',
     notes: notes || '',
+    itemList: itemList || '',
+    merchantName: merchantName || '',
+    dropoffContact: dropoffContact || '',
+    deliveryInstructions: deliveryInstructions || '',
     pickupLat: 36.1627,
     pickupLng: -86.7816,
     destinationLat: 36.1745,
@@ -271,7 +432,7 @@ app.post('/api/requests', (req, res) => {
   findNearestDriver(request)
 
   res.json({
-    message: 'Ride request created.',
+    message: 'Service request created.',
     request
   })
 })
@@ -301,7 +462,7 @@ app.post('/api/requests/:id/accept', (req, res) => {
   request.updatedAt = new Date().toISOString()
 
   res.json({
-    message: 'Ride accepted.',
+    message: 'Request accepted.',
     request
   })
 })
@@ -317,7 +478,7 @@ app.post('/api/requests/:id/start', (req, res) => {
   request.updatedAt = new Date().toISOString()
 
   res.json({
-    message: 'Ride started.',
+    message: 'Request started.',
     request
   })
 })
@@ -334,7 +495,7 @@ app.post('/api/requests/:id/complete', (req, res) => {
   releaseDriver(request)
 
   res.json({
-    message: 'Ride completed.',
+    message: 'Request completed.',
     request
   })
 })
@@ -351,7 +512,7 @@ app.post('/api/requests/:id/cancel', (req, res) => {
   releaseDriver(request)
 
   res.json({
-    message: 'Ride cancelled.',
+    message: 'Request cancelled.',
     request
   })
 })
@@ -491,6 +652,11 @@ app.get('/admin', (req, res) => {
 app.get('/driver', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'driver.html'))
 })
+
+setInterval(() => {
+  autoAdvanceRequests()
+  moveDriversOnActiveTrips()
+}, 5000)
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`)
