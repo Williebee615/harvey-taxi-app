@@ -23,8 +23,8 @@ let users = {
     {
       id: 'admin_1',
       name: 'Harvey Admin',
-      email: ADMIN_EMAIL,
-      password: ADMIN_PASSWORD
+      email: Williebee@harveytaxiservice.com,
+      password: Jakurean870$
     }
   ]
 }
