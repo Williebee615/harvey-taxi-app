@@ -1,4 +1,26 @@
-const express = require("express");
+const express = require('express')
+const cors = require('cors')
+const path = require('path')
+
+const app = express()
+const PORT = process.env.PORT || 10000
+
+app.use(cors())
+app.use(express.json())
+app.use(express.urlencoded({ extended: true }))
+app.use(express.static(path.join(__dirname, 'public')))
+
+// ===============================
+// ADMIN CONFIG
+// ===============================
+const ADMIN_EMAIL = 'admin@harveytaxi.com'
+const ADMIN_PASSWORD = 'admin123'
+const ADMIN_SECRET_PATH = 'control-center-879'
+
+// Demo memory
+let drivers = []
+let rides = []
+let deliveries = []const express = require("express");
 const cors = require("cors");
 const path = require("path");
 
