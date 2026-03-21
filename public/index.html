@@ -1,102 +1,150 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Harvey Taxi</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
-    * { box-sizing: border-box; }
-
     body {
+      font-family: Arial;
       margin: 0;
-      font-family: Arial, sans-serif;
-      background: #f4f4f4;
-      color: #111;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 24px;
+      background: #0f172a;
+      color: white;
     }
 
-    .wrap {
+    header {
+      background: #111827;
+      padding: 15px;
+      text-align: center;
+      font-size: 20px;
+      font-weight: bold;
+    }
+
+    .container {
+      padding: 15px;
+    }
+
+    input, select, button {
       width: 100%;
-      max-width: 430px;
+      padding: 12px;
+      margin-top: 10px;
+      border-radius: 8px;
+      border: none;
+    }
+
+    button {
+      background: #22c55e;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
     }
 
     .card {
-      background: white;
-      border-radius: 24px;
-      padding: 28px 22px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-      text-align: center;
+      background: #1f2937;
+      padding: 15px;
+      border-radius: 10px;
+      margin-top: 15px;
     }
 
-    .logo {
-      font-size: 56px;
-      margin-bottom: 10px;
+    .status {
+      margin-top: 10px;
+      font-weight: bold;
     }
 
-    h1 {
-      margin: 0;
-      font-size: 40px;
-      font-weight: 800;
-    }
-
-    p {
-      margin: 12px 0 28px;
-      color: #666;
-      font-size: 16px;
-      line-height: 1.5;
-    }
-
-    .btn {
-      display: block;
-      width: 100%;
-      text-decoration: none;
-      text-align: center;
-      padding: 18px 20px;
-      border-radius: 18px;
-      font-size: 18px;
-      font-weight: 700;
-      margin-bottom: 14px;
-    }
-
-    .btn-rider {
-      background: #000;
-      color: #fff;
-    }
-
-    .btn-driver {
-      background: #222;
-      color: #fff;
-    }
-
-    .btn-admin {
-      background: #5a2ca0;
-      color: #fff;
-    }
-
-    .footer {
-      margin-top: 14px;
-      font-size: 13px;
-      color: #777;
+    .driver {
+      background: #374151;
+      padding: 10px;
+      border-radius: 8px;
+      margin-top: 10px;
     }
   </style>
 </head>
+
 <body>
-  <div class="wrap">
-    <div class="card">
-      <div class="logo">🚖</div>
-      <h1>Harvey Taxi</h1>
-      <p>Select how you want to enter the platform.</p>
 
-      <a class="btn btn-rider" href="/request.html">Rider App</a>
-      <a class="btn btn-driver" href="/driver.html">Driver App</a>
-      <a class="btn btn-admin" href="/admin.html">Admin Panel</a>
+<header>🚖 Harvey Taxi</header>
 
-      <div class="footer">Nashville transportation platform</div>
-    </div>
+<div class="container">
+
+  <input id="name" placeholder="Your Name" />
+  <input id="pickup" placeholder="Pickup Location" />
+  <input id="destination" placeholder="Destination" />
+
+  <select id="serviceType">
+    <option value="ride">Ride</option>
+    <option value="delivery">Delivery</option>
+    <option value="food">Food</option>
+  </select>
+
+  <button onclick="requestRide()">Request Service</button>
+
+  <div id="status" class="status"></div>
+
+  <div id="driverCard" class="card" style="display:none;">
+    <h3>Driver Assigned</h3>
+    <div id="driverInfo"></div>
   </div>
+
+</div>
+
+<script>
+
+let currentRequestId = null
+
+async function requestRide() {
+  const name = document.getElementById('name').value
+  const pickup = document.getElementById('pickup').value
+  const destination = document.getElementById('destination').value
+  const serviceType = document.getElementById('serviceType').value
+
+  const res = await fetch('/api/requests', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      riderName: name,
+      pickup,
+      destination,
+      serviceType
+    })
+  })
+
+  const data = await res.json()
+
+  currentRequestId = data.request.id
+
+  document.getElementById('status').innerText = "🔍 Searching for driver..."
+
+  trackRide()
+}
+
+async function trackRide() {
+  if (!currentRequestId) return
+
+  const res = await fetch('/api/requests/' + currentRequestId)
+  const ride = await res.json()
+
+  if (ride.status === 'matched' || ride.status === 'accepted') {
+    document.getElementById('status').innerText = "🚗 Driver found!"
+
+    document.getElementById('driverCard').style.display = 'block'
+    document.getElementById('driverInfo').innerHTML = `
+      👤 ${ride.driverName} <br>
+      🚘 ${ride.driverVehicle} <br>
+      📍 Distance: ${ride.estimatedDistanceKm} km
+    `
+  }
+
+  if (ride.status === 'in_progress') {
+    document.getElementById('status').innerText = "🛣️ Ride in progress"
+  }
+
+  if (ride.status === 'completed') {
+    document.getElementById('status').innerText = "✅ Ride completed"
+  }
+
+  setTimeout(trackRide, 3000)
+}
+
+</script>
+
 </body>
 </html>
