@@ -25,6 +25,64 @@ app.post('/api/admin/reject/:id', (req, res) => {
   driver.notes = 'Approved by admin'
   driver.reviewedAt = new Date().toISOString()
 
+  const alreadyExists = drivers.find(d => d.id === driver.id)
+  if (!alreadyExists) {
+    drivers.push(driver)
+  }
+
+  res.json({ success: true })
+})app.get('/api/driver/access', (req, res) => {
+  const email = (req.query.email || '').trim().toLowerCase()
+
+  if (!email) {
+    return res.status(400).json({
+      success: false,
+      message: 'Email is required'
+    })
+  }
+
+  const driver = [...verificationQueue]
+    .reverse()
+    .find(v => (v.email || '').toLowerCase() === email)
+
+  if (!driver) {
+    return res.json({
+      success: false,
+      message: 'No verification found for this email'
+    })
+  }
+
+  return res.json({
+    success: true,
+    driver
+  })
+})app.post('/api/admin/reject/:id', (req, res) => {
+  const id = parseInt(req.params.id)
+
+  const driver = verificationQueue.find(v => v.id === id)
+
+  if (!driver) {
+    return res.status(404).json({ error: 'Not found' })
+  }
+
+  driver.status = 'rejected'
+  driver.notes = 'Rejected by admin'
+  driver.reviewedAt = new Date().toISOString()
+
+  res.json({ success: true })
+})app.post('/api/admin/approve/:id', (req, res) => {
+  const id = parseInt(req.params.id)
+
+  const driver = verificationQueue.find(v => v.id === id)
+
+  if (!driver) {
+    return res.status(404).json({ error: 'Not found' })
+  }
+
+  driver.status = 'approved'
+  driver.notes = 'Approved by admin'
+  driver.reviewedAt = new Date().toISOString()
+
   drivers.push(driver)
 
   res.json({ success: true })
