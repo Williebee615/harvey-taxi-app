@@ -1,294 +1,61 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Harvey Taxi</title>
-  <style>
-    * {
-      box-sizing: border-box;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Harvey Taxi</title>
 
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #f3f4f6;
-      color: #111827;
-    }
+<style>
+body{
+font-family:Arial;
+margin:0;
+background:#f4f6fb;
+text-align:center;
+padding-top:60px;
+}
 
-    .app {
-      max-width: 470px;
-      margin: 0 auto;
-      padding: 24px 16px 40px;
-      min-height: 100vh;
-    }
+h1{
+font-size:32px;
+}
 
-    .brand {
-      text-align: center;
-      margin-bottom: 22px;
-    }
+.button{
+display:block;
+width:260px;
+margin:12px auto;
+padding:16px;
+background:#081633;
+color:white;
+border-radius:14px;
+text-decoration:none;
+font-weight:700;
+}
 
-    .brand h1 {
-      margin: 0;
-      font-size: 28px;
-      font-weight: 800;
-    }
-
-    .brand p {
-      margin: 10px 0 0;
-      color: #4b5563;
-      font-size: 14px;
-    }
-
-    .card {
-      background: #fff;
-      border-radius: 22px;
-      padding: 18px;
-      margin-bottom: 22px;
-      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
-    }
-
-    .tabs,
-    .service-tabs {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 16px;
-    }
-
-    .tab,
-    .service-tab {
-      flex: 1;
-      border: none;
-      border-radius: 12px;
-      padding: 14px 10px;
-      font-size: 15px;
-      font-weight: 700;
-      cursor: pointer;
-      background: #e5e7eb;
-      color: #111827;
-    }
-
-    .tab.active,
-    .service-tab.active {
-      background: #000;
-      color: #fff;
-    }
-
-    input,
-    textarea {
-      width: 100%;
-      border: 1px solid #d1d5db;
-      border-radius: 14px;
-      padding: 16px 14px;
-      font-size: 16px;
-      margin-bottom: 12px;
-      background: #fff;
-      outline: none;
-    }
-
-    textarea {
-      min-height: 90px;
-      resize: vertical;
-    }
-
-    .option {
-      border: 2px solid #e5e7eb;
-      border-radius: 16px;
-      padding: 18px 14px;
-      margin-bottom: 12px;
-      font-size: 16px;
-      cursor: pointer;
-      background: #fff;
-    }
-
-    .option.active {
-      border-color: #111827;
-    }
-
-    .btn {
-      width: 100%;
-      border: none;
-      border-radius: 14px;
-      padding: 16px 14px;
-      font-size: 18px;
-      font-weight: 800;
-      background: #000;
-      color: #fff;
-      cursor: pointer;
-    }
-
-    .hidden {
-      display: none;
-    }
-
-    #status {
-      margin-top: 12px;
-      font-weight: 700;
-      color: #111827;
-      white-space: pre-line;
-    }
-  </style>
+/* Einstein Admin Button */
+.admin-btn{
+position:fixed;
+bottom:20px;
+right:20px;
+background:black;
+color:white;
+padding:14px 18px;
+border-radius:14px;
+font-weight:700;
+text-decoration:none;
+box-shadow:0 8px 20px rgba(0,0,0,.3);
+}
+</style>
 </head>
+
 <body>
-  <div class="app">
-    <div class="brand">
-      <h1>🚕 Harvey Taxi</h1>
-      <p>Ride • Food • Delivery</p>
-    </div>
 
-    <div class="card">
-      <div class="tabs">
-        <button class="tab active" type="button">Login</button>
-        <button class="tab" type="button">Sign Up</button>
-      </div>
+<h1>🚖 Harvey Taxi</h1>
 
-      <input type="email" placeholder="Email" />
-      <input type="password" placeholder="Password" />
-      <button class="btn" type="button">Login as Rider</button>
-    </div>
+<a class="button" href="/request.html">Request Ride</a>
+<a class="button" href="/driver.html">Driver Dashboard</a>
+<a class="button" href="/payment.html">Payments</a>
 
-    <div class="card">
-      <h2 style="margin-top:0;">Choose Service</h2>
+<!-- Einstein Admin Button -->
+<a class="admin-btn" href="/admin.html">🔐 Admin</a>
 
-      <div class="service-tabs">
-        <button id="rideTab" class="service-tab active" type="button" onclick="setMode('ride')">🚕 Ride</button>
-        <button id="deliveryTab" class="service-tab" type="button" onclick="setMode('delivery')">📦 Delivery</button>
-        <button id="foodTab" class="service-tab" type="button" onclick="setMode('food')">🍔 Food</button>
-      </div>
-
-      <input id="pickup" type="text" placeholder="Pickup location" />
-      <input id="destination" type="text" placeholder="Destination / Drop-off" />
-      <input id="riderName" type="text" placeholder="Your name (optional)" />
-      <input id="riderPhone" type="text" placeholder="Phone (optional)" />
-
-      <div id="deliveryExtra" class="hidden">
-        <input id="deliveryItem" type="text" placeholder="What are you sending?" />
-      </div>
-
-      <div id="rideOptions">
-        <div id="rideStandard" class="option active" onclick="selectService('ride', this)">🚕 Harvey Standard - $12</div>
-        <div id="rideXL" class="option" onclick="selectService('xl', this)">🚐 Harvey XL - $18</div>
-      </div>
-
-      <div id="deliveryOptions" class="hidden">
-        <div id="packageOption" class="option active" onclick="selectService('delivery', this)">📦 Package Delivery - $15</div>
-        <div id="foodOption" class="option" onclick="selectService('food', this)">🍔 Food Delivery - $20</div>
-      </div>
-
-      <textarea id="notes" placeholder="Driver notes"></textarea>
-
-      <button class="btn" type="button" onclick="requestService()">Request Service</button>
-      <div id="status"></div>
-    </div>
-  </div>
-
-  <script>
-    let currentMode = 'ride'
-    let selectedServiceType = 'ride'
-    let currentRequestId = null
-    let trackingStarted = false
-
-    function setMode(mode) {
-      currentMode = mode
-
-      document.getElementById('rideTab').classList.remove('active')
-      document.getElementById('deliveryTab').classList.remove('active')
-      document.getElementById('foodTab').classList.remove('active')
-
-      if (mode === 'ride') document.getElementById('rideTab').classList.add('active')
-      if (mode === 'delivery') document.getElementById('deliveryTab').classList.add('active')
-      if (mode === 'food') document.getElementById('foodTab').classList.add('active')
-
-      document.getElementById('rideOptions').classList.toggle('hidden', mode !== 'ride')
-      document.getElementById('deliveryOptions').classList.toggle('hidden', mode === 'ride')
-      document.getElementById('deliveryExtra').classList.toggle('hidden', mode === 'ride')
-
-      document.querySelectorAll('.option').forEach(el => el.classList.remove('active'))
-
-      if (mode === 'ride') {
-        selectedServiceType = 'ride'
-        document.getElementById('rideStandard').classList.add('active')
-      } else if (mode === 'delivery') {
-        selectedServiceType = 'delivery'
-        document.getElementById('packageOption').classList.add('active')
-      } else {
-        selectedServiceType = 'food'
-        document.getElementById('foodOption').classList.add('active')
-      }
-    }
-
-    function selectService(type, element) {
-      selectedServiceType = type
-      document.querySelectorAll('.option').forEach(el => el.classList.remove('active'))
-      element.classList.add('active')
-    }
-
-    async function requestService() {
-      const pickup = document.getElementById('pickup').value.trim()
-      const destination = document.getElementById('destination').value.trim()
-      const riderName = document.getElementById('riderName').value.trim()
-      const riderPhone = document.getElementById('riderPhone').value.trim()
-      const notes = document.getElementById('notes').value.trim()
-      const deliveryItem = document.getElementById('deliveryItem').value.trim()
-
-      if (!pickup || !destination) {
-        document.getElementById('status').innerText = 'Enter pickup and destination.'
-        return
-      }
-
-      document.getElementById('status').innerText = 'Creating request...'
-
-      const res = await fetch('/api/request', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          riderName,
-          riderPhone,
-          pickupText: pickup,
-          destinationText: destination,
-          pickupLat: 36.1627,
-          pickupLng: -86.7816,
-          destinationLat: 36.1745,
-          destinationLng: -86.7679,
-          serviceType: selectedServiceType,
-          notes: [notes, deliveryItem].filter(Boolean).join(' | ')
-        })
-      })
-
-      const data = await res.json()
-
-      if (!res.ok) {
-        document.getElementById('status').innerText = data.error || 'Could not create request.'
-        return
-      }
-
-      currentRequestId = data.id
-      document.getElementById('status').innerText =
-        `Driver assigned: ${data.driverName || 'Searching...'}\nStatus: ${data.status}`
-
-      if (!trackingStarted) {
-        trackingStarted = true
-        startTracking()
-      }
-
-      setTimeout(() => {
-        window.location.href = `/payment?requestId=${encodeURIComponent(data.id)}&type=${encodeURIComponent(selectedServiceType)}`
-      }, 1200)
-    }
-
-    function startTracking() {
-      setInterval(async () => {
-        if (!currentRequestId) return
-
-        const res = await fetch(`/api/request/${currentRequestId}`)
-        const data = await res.json()
-
-        if (!res.ok) return
-
-        document.getElementById('status').innerText =
-          `Driver: ${data.driverName || 'Searching...'}\nStatus: ${data.status}`
-      }, 3000)
-    }
-  </script>
 </body>
 </html>
