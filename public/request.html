@@ -3,422 +3,408 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Rider App</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <title>Harvey Taxi Request</title>
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
       font-family: Arial, sans-serif;
-      background: #f3f3f3;
-      color: #000;
+      background: #f3f4f6;
+      color: #111827;
     }
 
-    .page {
-      max-width: 430px;
+    .app {
+      max-width: 520px;
       margin: 0 auto;
-      padding: 24px 20px 40px;
+      min-height: 100vh;
+      padding: 20px 16px 40px;
     }
 
-    h1, h2 {
+    .header {
+      text-align: center;
+      margin: 10px 0 20px;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 34px;
       font-weight: 800;
     }
 
-    h1 {
-      font-size: 38px;
-      margin: 0 0 22px;
-    }
-
-    h2 {
-      font-size: 26px;
-      margin: 28px 0 14px;
+    .header p {
+      margin: 8px 0 0;
+      color: #6b7280;
+      font-size: 14px;
     }
 
     .card {
-      background: white;
-      border: 2px solid #d8d8d8;
-      border-radius: 18px;
-      padding: 16px;
+      background: #ffffff;
+      border: 1px solid #d1d5db;
+      border-radius: 28px;
+      padding: 20px;
       margin-bottom: 18px;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
     }
 
-    input {
+    .card h2 {
+      margin: 0 0 16px;
+      font-size: 28px;
+    }
+
+    input,
+    textarea,
+    button {
       width: 100%;
-      box-sizing: border-box;
-      padding: 16px;
-      margin-bottom: 12px;
-      border: 2px solid #d8d8d8;
-      border-radius: 14px;
+      border-radius: 20px;
+      border: 1px solid #d1d5db;
+      background: #f9fafb;
+      padding: 18px 16px;
       font-size: 16px;
-      background: #fff;
+      margin-bottom: 14px;
+      outline: none;
+    }
+
+    textarea {
+      min-height: 90px;
+      resize: vertical;
+    }
+
+    input:focus,
+    textarea:focus {
+      border-color: #60a5fa;
+      box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.15);
     }
 
     button {
-      width: 100%;
       border: none;
-      border-radius: 18px;
-      padding: 18px;
-      font-size: 20px;
-      font-weight: 700;
-      cursor: pointer;
-      margin-top: 10px;
-    }
-
-    .black-btn {
-      background: #000;
-      color: #fff;
-    }
-
-    .gray-btn {
-      background: #2e2e2e;
-      color: #fff;
-    }
-
-    .ride-option {
-      width: 100%;
-      box-sizing: border-box;
-      padding: 22px 18px;
-      margin-bottom: 12px;
-      border: 2px solid #d8d8d8;
-      border-radius: 20px;
+      background: #16a34a;
+      color: white;
       font-size: 18px;
-      background: #f8f8f8;
+      font-weight: 800;
       cursor: pointer;
     }
 
-    .ride-option.selected {
-      border: 4px solid #000;
+    .service-option {
+      border: 1px solid #d1d5db;
+      border-radius: 22px;
+      padding: 18px 16px;
+      margin-bottom: 12px;
+      cursor: pointer;
       background: #fff;
+      font-size: 16px;
+      font-weight: 700;
     }
 
-    .result-box {
-      margin-top: 20px;
-      padding: 16px;
-      border-radius: 18px;
-      background: #fff;
-      border: 2px solid #d8d8d8;
+    .service-option.active {
+      border: 2px solid #111827;
+      background: #f3f4f6;
+    }
+
+    .status-box,
+    .driver-box,
+    .map-box {
       display: none;
-    }
-
-    .success {
-      color: green;
-      font-weight: 700;
-      margin-bottom: 8px;
-    }
-
-    .error {
-      color: red;
-      font-weight: 700;
+      border-radius: 22px;
+      padding: 16px;
       margin-top: 12px;
     }
 
-    .status-pill {
-      display: inline-block;
-      padding: 8px 12px;
-      border-radius: 999px;
-      background: #efefef;
-      font-weight: 700;
-      margin-bottom: 10px;
+    .status-box {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
     }
 
-    #map {
-      display: none;
-      height: 300px;
-      margin-top: 22px;
-      border-radius: 18px;
+    .driver-box {
+      background: #ecfdf5;
+      border: 1px solid #86efac;
+    }
+
+    .map-box {
+      background: #111827;
+      color: white;
+      border: 1px solid #1f2937;
+    }
+
+    .map-grid {
+      position: relative;
+      height: 240px;
+      border-radius: 20px;
+      background:
+        linear-gradient(to right, rgba(255,255,255,0.06) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255,255,255,0.06) 1px, transparent 1px),
+        #0b1220;
+      background-size: 32px 32px;
       overflow: hidden;
-      border: 2px solid #d8d8d8;
+      margin-top: 12px;
+    }
+
+    .pin {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      font-size: 24px;
+    }
+
+    .pickup-pin { left: 18%; top: 72%; }
+    .driver-pin { left: 18%; top: 72%; transition: all 1.2s ease; }
+    .dropoff-pin { left: 78%; top: 28%; }
+
+    .route-line {
+      position: absolute;
+      left: 18%;
+      top: 72%;
+      width: 60%;
+      height: 3px;
+      background: linear-gradient(90deg, #22c55e, #60a5fa);
+      transform: rotate(-28deg);
+      transform-origin: left center;
+      opacity: 0.8;
+    }
+
+    .top-link {
+      display: inline-block;
+      margin-bottom: 14px;
+      color: #111827;
+      text-decoration: none;
+      font-weight: 700;
     }
 
     .muted {
-      color: #666;
+      color: #6b7280;
       font-size: 14px;
-      margin-top: 8px;
+    }
+
+    .row {
+      margin-bottom: 8px;
     }
   </style>
 </head>
 <body>
-  <div class="page">
-    <h1>🚖 Rider App</h1>
-
-    <div class="card">
-      <h2>Rider Sign Up</h2>
-      <input id="signupName" type="text" placeholder="Full name" />
-      <input id="signupEmail" type="email" placeholder="Email" />
-      <input id="signupPassword" type="password" placeholder="Password" />
-      <button class="black-btn" onclick="riderSignup()">Create Rider Account</button>
+  <div class="app">
+    <div class="header">
+      <h1>Harvey Taxi</h1>
+      <p>Track your ride request in real time</p>
     </div>
 
     <div class="card">
-      <h2>Rider Login</h2>
-      <input id="loginEmail" type="email" placeholder="Email" />
-      <input id="loginPassword" type="password" placeholder="Password" />
-      <button class="gray-btn" onclick="riderLogin()">Login as Rider</button>
-      <div id="authStatus" class="muted"></div>
-    </div>
+      <a class="top-link" href="/">← Back to Home</a>
+      <h2>Request Service</h2>
 
-    <div class="card">
-      <h2>Request a Ride</h2>
+      <input id="riderName" type="text" placeholder="Your name" />
+      <input id="riderPhone" type="text" placeholder="Phone number" />
       <input id="pickup" type="text" placeholder="Pickup location" />
       <input id="destination" type="text" placeholder="Destination" />
 
-      <div class="ride-option selected" data-ride="Harvey Standard - $12">
+      <div id="standardOption" class="service-option active" onclick="selectService('ride', 'Harvey Standard - $12', 'standardOption')">
         🚕 Harvey Standard - $12
       </div>
 
-      <div class="ride-option" data-ride="Harvey XL - $18">
+      <div id="xlOption" class="service-option" onclick="selectService('xl', 'Harvey XL - $18', 'xlOption')">
         🚐 Harvey XL - $18
       </div>
 
-      <div class="ride-option" data-ride="Airport Ride - $25">
-        ✈️ Airport Ride - $25
+      <div id="deliveryOption" class="service-option" onclick="selectService('delivery', 'Delivery Service', 'deliveryOption')">
+        📦 Delivery Service
       </div>
 
-      <button class="black-btn" onclick="requestRide()">Request Ride</button>
-    </div>
+      <textarea id="notes" placeholder="Driver notes (gate code, store name, food order, etc.)"></textarea>
 
-    <div id="result" class="result-box"></div>
-    <div id="error" class="error"></div>
-    <div id="map"></div>
+      <button onclick="submitRequest()">Request Service</button>
+
+      <div id="statusBox" class="status-box"></div>
+      <div id="driverBox" class="driver-box"></div>
+
+      <div id="mapBox" class="map-box">
+        <div><strong>Live trip view</strong></div>
+        <div class="muted">Pickup → driver → destination</div>
+
+        <div class="map-grid">
+          <div class="route-line"></div>
+          <div class="pin pickup-pin">📍</div>
+          <div id="driverPin" class="pin driver-pin">🚗</div>
+          <div class="pin dropoff-pin">🏁</div>
+        </div>
+
+        <div id="mapLegend" style="margin-top: 12px;" class="muted">
+          Driver is waiting for assignment.
+        </div>
+      </div>
+    </div>
   </div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    let selectedRide = 'Harvey Standard - $12'
-    let currentRideId = null
-    let trackingInterval = null
-    let currentRider = null
+    let currentRequestId = null
+    let selectedServiceType = 'ride'
+    let selectedServiceLabel = 'Harvey Standard - $12'
+    let trackingTimer = null
+    let animationStep = 0
 
-    let map = null
-    let pickupMarker = null
-    let dropoffMarker = null
-    let driverMarker = null
-    let routeLine = null
+    function selectService(type, label, elementId) {
+      selectedServiceType = type
+      selectedServiceLabel = label
 
-    document.querySelectorAll('.ride-option').forEach(option => {
-      option.addEventListener('click', () => {
-        document.querySelectorAll('.ride-option').forEach(el => el.classList.remove('selected'))
-        option.classList.add('selected')
-        selectedRide = option.dataset.ride
-      })
-    })
-
-    function getRideCoordinates(rideType) {
-      if (rideType === 'Airport Ride - $25') {
-        return {
-          pickup: { lat: 36.1600, lng: -86.7800 },
-          dropoff: { lat: 36.1263, lng: -86.6774 }
-        }
-      }
-
-      if (rideType === 'Harvey XL - $18') {
-        return {
-          pickup: { lat: 36.1600, lng: -86.7800 },
-          dropoff: { lat: 36.1745, lng: -86.7679 }
-        }
-      }
-
-      return {
-        pickup: { lat: 36.1600, lng: -86.7800 },
-        dropoff: { lat: 36.1700, lng: -86.7900 }
-      }
+      document.getElementById('standardOption').classList.remove('active')
+      document.getElementById('xlOption').classList.remove('active')
+      document.getElementById('deliveryOption').classList.remove('active')
+      document.getElementById(elementId).classList.add('active')
     }
 
-    async function riderSignup() {
-      const name = document.getElementById('signupName').value.trim()
-      const email = document.getElementById('signupEmail').value.trim()
-      const password = document.getElementById('signupPassword').value.trim()
-      const errorBox = document.getElementById('error')
-      const authStatus = document.getElementById('authStatus')
+    function setStatus(message) {
+      const box = document.getElementById('statusBox')
+      box.style.display = 'block'
+      box.innerHTML = message
+    }
 
-      errorBox.textContent = ''
-      authStatus.textContent = ''
+    function setDriver(html) {
+      const box = document.getElementById('driverBox')
+      box.style.display = 'block'
+      box.innerHTML = html
+    }
 
+    function showMap(message) {
+      document.getElementById('mapBox').style.display = 'block'
+      document.getElementById('mapLegend').textContent = message
+    }
+
+    function moveDriverPin(percentX, percentY) {
+      const pin = document.getElementById('driverPin')
+      pin.style.left = percentX + '%'
+      pin.style.top = percentY + '%'
+    }
+
+    async function seedDriversIfNeeded() {
       try {
-        const res = await fetch('/api/rider/signup', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, email, password })
-        })
-
-        const data = await res.json()
-
-        if (!res.ok) {
-          errorBox.textContent = data.error || 'Signup failed'
-          return
-        }
-
-        authStatus.textContent = `Signed up as ${data.rider.name}. You can log in now.`
-      } catch (err) {
-        errorBox.textContent = 'Signup failed'
+        await fetch('/api/seed-demo', { method: 'POST' })
+      } catch (error) {
+        console.log('Seed skipped')
       }
     }
 
-    async function riderLogin() {
-      const email = document.getElementById('loginEmail').value.trim()
-      const password = document.getElementById('loginPassword').value.trim()
-      const errorBox = document.getElementById('error')
-      const authStatus = document.getElementById('authStatus')
-
-      errorBox.textContent = ''
-      authStatus.textContent = ''
-
-      try {
-        const res = await fetch('/api/rider/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
-        })
-
-        const data = await res.json()
-
-        if (!res.ok) {
-          errorBox.textContent = data.error || 'Login failed'
-          return
-        }
-
-        currentRider = data.rider
-        authStatus.textContent = `Logged in as ${data.rider.name}`
-      } catch (err) {
-        errorBox.textContent = 'Login failed'
-      }
-    }
-
-    function initMapIfNeeded() {
-      const mapBox = document.getElementById('map')
-      mapBox.style.display = 'block'
-
-      if (!map) {
-        map = L.map('map')
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          maxZoom: 19,
-          attribution: '&copy; OpenStreetMap'
-        }).addTo(map)
-      }
-
-      setTimeout(() => map.invalidateSize(), 200)
-    }
-
-    function drawMap(ride) {
-      initMapIfNeeded()
-
-      const pickupLatLng = [ride.pickup.lat, ride.pickup.lng]
-      const dropoffLatLng = [ride.dropoff.lat, ride.dropoff.lng]
-
-      if (pickupMarker) map.removeLayer(pickupMarker)
-      if (dropoffMarker) map.removeLayer(dropoffMarker)
-      if (driverMarker) map.removeLayer(driverMarker)
-      if (routeLine) map.removeLayer(routeLine)
-
-      pickupMarker = L.marker(pickupLatLng).addTo(map).bindPopup('Pickup')
-      dropoffMarker = L.marker(dropoffLatLng).addTo(map).bindPopup('Dropoff')
-      routeLine = L.polyline([pickupLatLng, dropoffLatLng], { weight: 4 }).addTo(map)
-
-      const boundsPoints = [pickupLatLng, dropoffLatLng]
-
-      if (ride.driver && ride.driver.lat !== undefined && ride.driver.lng !== undefined) {
-        driverMarker = L.marker([ride.driver.lat, ride.driver.lng]).addTo(map).bindPopup('Driver')
-        boundsPoints.push([ride.driver.lat, ride.driver.lng])
-      }
-
-      map.fitBounds(boundsPoints, { padding: [30, 30] })
-    }
-
-    async function requestRide() {
+    async function submitRequest() {
+      const riderName = document.getElementById('riderName').value.trim()
+      const riderPhone = document.getElementById('riderPhone').value.trim()
       const pickup = document.getElementById('pickup').value.trim()
       const destination = document.getElementById('destination').value.trim()
-      const errorBox = document.getElementById('error')
-      const resultBox = document.getElementById('result')
+      const notes = document.getElementById('notes').value.trim()
 
-      errorBox.textContent = ''
-      resultBox.style.display = 'none'
-
-      if (!currentRider) {
-        errorBox.textContent = 'Please sign up or log in as a rider first.'
+      if (!riderName || !pickup || !destination) {
+        setStatus('Please enter your name, pickup, and destination.')
         return
       }
 
-      if (!pickup || !destination) {
-        errorBox.textContent = 'Please fill in pickup and destination.'
-        return
-      }
+      await seedDriversIfNeeded()
 
-      const coords = getRideCoordinates(selectedRide)
+      setStatus('Sending request...')
+      document.getElementById('driverBox').style.display = 'none'
+      document.getElementById('mapBox').style.display = 'none'
 
       try {
-        const res = await fetch('/api/request-ride', {
+        const res = await fetch('/api/requests', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            riderId: currentRider.name,
-            pickup: {
-              name: pickup,
-              lat: coords.pickup.lat,
-              lng: coords.pickup.lng
-            },
-            dropoff: {
-              name: destination,
-              lat: coords.dropoff.lat,
-              lng: coords.dropoff.lng
-            },
-            rideType: selectedRide
+            riderName,
+            riderPhone,
+            pickup,
+            destination,
+            serviceType: selectedServiceType,
+            notes: `${selectedServiceLabel}${notes ? ' | ' + notes : ''}`
           })
         })
 
         const data = await res.json()
 
         if (!res.ok) {
-          errorBox.textContent = data.error || 'Failed to request ride.'
+          setStatus(data.error || 'Request failed.')
           return
         }
 
-        currentRideId = data.ride.id
-        updateRideUI(data.ride)
-
-        if (trackingInterval) clearInterval(trackingInterval)
-        trackingInterval = setInterval(trackRide, 2000)
-      } catch (err) {
-        errorBox.textContent = 'Failed to request ride.'
+        currentRequestId = data.request.id
+        animationStep = 0
+        setStatus(`✅ Request created. Status: ${data.request.status}`)
+        showMap('Looking for the nearest driver...')
+        startTracking()
+      } catch (error) {
+        setStatus('Could not connect to the server.')
       }
     }
 
-    async function trackRide() {
-      if (!currentRideId) return
-
-      try {
-        const res = await fetch(`/api/rides/${currentRideId}`)
-        const ride = await res.json()
-
-        if (!res.ok) return
-
-        updateRideUI(ride)
-
-        if (ride.status === 'completed' && trackingInterval) {
-          clearInterval(trackingInterval)
-          trackingInterval = null
-        }
-      } catch (err) {}
+    function startTracking() {
+      if (trackingTimer) clearTimeout(trackingTimer)
+      trackRequest()
     }
 
-    function updateRideUI(ride) {
-      const resultBox = document.getElementById('result')
-      resultBox.style.display = 'block'
+    async function trackRequest() {
+      if (!currentRequestId) return
 
-      let statusText = ride.status
-      if (statusText === 'en_route') statusText = 'en route'
+      try {
+        const res = await fetch('/api/requests/' + currentRequestId)
+        const ride = await res.json()
 
-      resultBox.innerHTML = `
-        <div class="status-pill">Status: ${statusText}</div>
-        <div class="success">${ride.status === 'completed' ? 'Ride completed ✅' : 'Ride live update active 🚖'}</div>
-        <div><strong>Passenger:</strong> ${ride.riderId}</div>
-        <div><strong>Pickup:</strong> ${ride.pickup.name}</div>
-        <div><strong>Destination:</strong> ${ride.dropoff.name}</div>
-        <div><strong>Ride Type:</strong> ${ride.rideType}</div>
-        <div><strong>Ride ID:</strong> ${ride.id}</div>
-        <div><strong>Driver ID:</strong> ${ride.driver?.driverId || 'Waiting...'}</div>
-        <div><strong>Distance:</strong> ${ride.distance ?? '--'} km away</div>
-      `
+        if (!res.ok) {
+          setStatus('Could not load request status.')
+          return
+        }
 
-      drawMap(ride)
+        if (ride.status === 'searching') {
+          setStatus('🔍 Searching for a nearby driver...')
+          showMap('Dispatch is finding the nearest available driver.')
+          moveDriverPin(18, 72)
+        }
+
+        if (ride.status === 'matched') {
+          setStatus('🚗 Driver matched and on the way to pickup.')
+          setDriver(`
+            <div class="row"><strong>Driver:</strong> ${ride.driverName || 'Assigned'}</div>
+            <div class="row"><strong>Vehicle:</strong> ${ride.driverVehicle || 'Taxi'}</div>
+            <div class="row"><strong>Car:</strong> ${ride.driverCarColor || ''} ${ride.driverCarModel || ''}</div>
+            <div class="row"><strong>Plate:</strong> ${ride.driverPlateNumber || 'Pending'}</div>
+            <div class="row"><strong>Distance:</strong> ${ride.estimatedDistanceKm || '--'} km</div>
+          `)
+          showMap('Driver is heading to your pickup point.')
+          animationStep = Math.min(animationStep + 1, 6)
+          moveDriverPin(18 + animationStep * 5, 72 - animationStep * 4)
+        }
+
+        if (ride.status === 'accepted') {
+          setStatus('✅ Driver accepted your ride.')
+          setDriver(`
+            <div class="row"><strong>Driver:</strong> ${ride.driverName}</div>
+            <div class="row"><strong>Phone:</strong> ${ride.driverPhone || 'Pending'}</div>
+            <div class="row"><strong>Vehicle:</strong> ${ride.driverVehicle || 'Taxi'}</div>
+            <div class="row"><strong>Distance:</strong> ${ride.estimatedDistanceKm || '--'} km</div>
+          `)
+          showMap('Driver is almost at pickup.')
+          animationStep = Math.min(animationStep + 1, 10)
+          moveDriverPin(18 + animationStep * 4, 72 - animationStep * 4.2)
+        }
+
+        if (ride.status === 'in_progress') {
+          setStatus('🛣️ Trip in progress.')
+          showMap('You are on the way to your destination.')
+          animationStep = Math.min(animationStep + 1, 15)
+          moveDriverPin(18 + animationStep * 4, 72 - animationStep * 3)
+        }
+
+        if (ride.status === 'completed') {
+          setStatus('✅ Trip completed.')
+          showMap('Ride finished successfully.')
+          moveDriverPin(78, 28)
+          return
+        }
+
+        if (ride.status === 'cancelled') {
+          setStatus('❌ Trip cancelled.')
+          showMap('This trip was cancelled.')
+          return
+        }
+
+        trackingTimer = setTimeout(trackRequest, 3000)
+      } catch (error) {
+        setStatus('Lost connection while checking ride status.')
+      }
     }
   </script>
 </body>
