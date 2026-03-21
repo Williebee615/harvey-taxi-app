@@ -6,23 +6,49 @@ const Stripe = require('stripe')
 const app = express()
 const PORT = process.env.PORT || 10000
 
-if (!process.env.STRIPE_SECRET_KEY) {
-  console.warn('Missing STRIPE_SECRET_KEY')
-}
-if (!process.env.STRIPE_PUBLISHABLE_KEY) {
-  console.warn('Missing STRIPE_PUBLISHABLE_KEY')
-}
+app.use(cors())
+app.use(express.json())
+app.use(express.static(path.join(__dirname, 'public')))
 
 const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY)
   : null
 
-app.use(cors())
-app.use(express.json())
-app.use(express.static(path.join(__dirname, 'public')))
+let drivers = [
+  {
+    id: 'driver_1',
+    name: 'Marcus Johnson',
+    phone: '(615) 555-1001',
+    vehicleType: 'Harvey Standard',
+    lat: 36.1627,
+    lng: -86.7816,
+    available: true
+  },
+  {
+    id: 'driver_2',
+    name: 'Tanya Brooks',
+    phone: '(615) 555-1002',
+    vehicleType: 'Harvey XL',
+    lat: 36.1699,
+    lng: -86.7844,
+    available: true
+  },
+  {
+    id: 'driver_3',
+    name: 'Derrick Stone',
+    phone: '(615) 555-1003',
+    vehicleType: 'Delivery',
+    lat: 36.1575,
+    lng: -86.7732,
+    available: true
+  }
+]
 
-let drivers = []
 let requests = []
+
+function createId(prefix) {
+  return `${prefix}_${Date.now()}_${Math.floor(Math.random() * 100000)}`
+}
 
 function getDistance(lat1, lon1, lat2, lon2) {
   const R = 6371
@@ -38,16 +64,42 @@ function getDistance(lat1, lon1, lat2, lon2) {
   return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)))
 }
 
-function getServiceAmount(type) {
-  if (type === 'xl') return 1800
-  if (type === 'delivery') return 1500
-  if (type === 'food') return 2000
+function getAmount(serviceType) {
+  if (serviceType === 'xl') return 1800
+  if (serviceType === 'delivery') return 1500
+  if (serviceType === 'food') return 2000
   return 1200
 }
 
+function getLabel(serviceType) {
+  if (serviceType === 'xl') return 'Harvey XL'
+  if (serviceType === 'delivery') return 'Package Delivery'
+  if (serviceType === 'food') return 'Food Delivery'
+  return 'Harvey Standard'
+}
+
+function findNearestDriver(pickup, serviceType) {
+  const availableDrivers = drivers.filter(d => d.available)
+
+  if (!availableDrivers.length) return null
+
+  const sorted = availableDrivers
+    .map(driver => ({
+      ...driver,
+      distance: getDistance(pickup.lat, pickup.lng, driver.lat, driver.lng)
+    }))
+    .sort((a, b) => a.distance - b.distance)
+
+  return sorted[0] || null
+}
+
+app.get('/api/health', (req, res) => {
+  res.json({ ok: true })
+})
+
 app.get('/api/payments/config', (req, res) => {
   if (!process.env.STRIPE_PUBLISHABLE_KEY) {
-    return res.status(500).json({ error: 'Missing publishable key' })
+    return res.status(500).json({ error: 'Missing STRIPE_PUBLISHABLE_KEY' })
   }
 
   res.json({
@@ -55,182 +107,112 @@ app.get('/api/payments/config', (req, res) => {
   })
 })
 
+app.post('/api/request', (req, res) => {
+  const {
+    riderName,
+    riderPhone,
+    pickupText,
+    destinationText,
+    pickupLat,
+    pickupLng,
+    destinationLat,
+    destinationLng,
+    serviceType,
+    notes
+  } = req.body
+
+  if (!pickupText || !destinationText) {
+    return res.status(400).json({ error: 'Pickup and destination are required.' })
+  }
+
+  const pickup = {
+    text: pickupText,
+    lat: typeof pickupLat === 'number' ? pickupLat : 36.1627,
+    lng: typeof pickupLng === 'number' ? pickupLng : -86.7816
+  }
+
+  const destination = {
+    text: destinationText,
+    lat: typeof destinationLat === 'number' ? destinationLat : 36.1745,
+    lng: typeof destinationLng === 'number' ? destinationLng : -86.7679
+  }
+
+  const driver = findNearestDriver(pickup, serviceType || 'ride')
+
+  const newRequest = {
+    id: createId('req'),
+    riderName: riderName || 'App User',
+    riderPhone: riderPhone || '',
+    pickup,
+    destination,
+    serviceType: serviceType || 'ride',
+    serviceLabel: getLabel(serviceType || 'ride'),
+    notes: notes || '',
+    amount: getAmount(serviceType || 'ride'),
+    status: driver ? 'assigned' : 'searching',
+    driverId: driver ? driver.id : null,
+    driverName: driver ? driver.name : '',
+    driverPhone: driver ? driver.phone : '',
+    driverVehicle: driver ? driver.vehicleType : '',
+    driverLat: driver ? driver.lat : null,
+    driverLng: driver ? driver.lng : null,
+    createdAt: new Date().toISOString()
+  }
+
+  if (driver) {
+    const driverRef = drivers.find(d => d.id === driver.id)
+    if (driverRef) driverRef.available = false
+  }
+
+  requests.unshift(newRequest)
+  res.json(newRequest)
+})
+
+app.get('/api/request/:id', (req, res) => {
+  const request = requests.find(r => r.id === req.params.id)
+  if (!request) {
+    return res.status(404).json({ error: 'Request not found.' })
+  }
+
+  res.json(request)
+})
+
 app.post('/create-payment-intent', async (req, res) => {
   try {
     if (!stripe) {
-      return res.status(500).json({ error: 'Stripe is not configured' })
+      return res.status(500).json({ error: 'Stripe is not configured.' })
     }
 
-    const { amount } = req.body
+    const { amount, requestId } = req.body
 
     if (!amount || Number(amount) < 50) {
-      return res.status(400).json({ error: 'Invalid amount' })
+      return res.status(400).json({ error: 'Invalid amount.' })
     }
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Number(amount),
       currency: 'usd',
-      automatic_payment_methods: { enabled: true }
+      automatic_payment_methods: { enabled: true },
+      metadata: {
+        requestId: requestId || ''
+      }
     })
 
     res.json({
       clientSecret: paymentIntent.client_secret
     })
-  } catch (err) {
-    console.error('create-payment-intent error:', err.message)
-    res.status(500).json({ error: err.message })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ error: error.message })
   }
-})
-
-app.post('/api/driver/location', (req, res) => {
-  const { driverId, lat, lng, type } = req.body
-
-  let driver = drivers.find(d => d.id === driverId)
-
-  if (!driver) {
-    driver = {
-      id: driverId,
-      lat,
-      lng,
-      type: type || 'ride',
-      available: true
-    }
-    drivers.push(driver)
-  } else {
-    driver.lat = lat
-    driver.lng = lng
-    driver.available = true
-    driver.type = type || driver.type
-  }
-
-  res.json({ success: true })
-})
-
-app.get('/api/drivers/nearby', (req, res) => {
-  const lat = Number(req.query.lat)
-  const lng = Number(req.query.lng)
-  const type = req.query.type
-
-  const nearby = drivers
-    .filter(d => d.available && (!type || d.type === type))
-    .map(d => ({
-      ...d,
-      distance: getDistance(lat, lng, d.lat, d.lng)
-    }))
-    .sort((a, b) => a.distance - b.distance)
-
-  res.json(nearby.slice(0, 5))
-})
-
-app.post('/api/request', (req, res) => {
-  const {
-    pickup,
-    destination,
-    type,
-    notes
-  } = req.body
-
-  if (!pickup || !destination || !pickup.lat || !pickup.lng || !destination.lat || !destination.lng) {
-    return res.status(400).json({ error: 'Pickup and destination coordinates are required' })
-  }
-
-  const requestId = 'req_' + Date.now()
-
-  const newRequest = {
-    id: requestId,
-    pickup,
-    destination,
-    type: type || 'ride',
-    notes: notes || '',
-    amount: getServiceAmount(type || 'ride'),
-    status: 'searching',
-    paymentStatus: 'unpaid',
-    driver: null
-  }
-
-  requests.push(newRequest)
-
-  const availableDrivers = drivers
-    .filter(d => d.available && d.type === (type || 'ride'))
-    .map(d => ({
-      ...d,
-      distance: getDistance(
-        pickup.lat,
-        pickup.lng,
-        d.lat,
-        d.lng
-      )
-    }))
-    .sort((a, b) => a.distance - b.distance)
-
-  if (availableDrivers.length > 0) {
-    const chosen = availableDrivers[0]
-    newRequest.driver = chosen.id
-    newRequest.status = 'assigned'
-
-    const driverIndex = drivers.findIndex(d => d.id === chosen.id)
-    if (driverIndex !== -1) {
-      drivers[driverIndex].available = false
-    }
-  }
-
-  res.json(newRequest)
-})
-
-app.post('/api/driver/accept', (req, res) => {
-  const { driverId, requestId } = req.body
-
-  const request = requests.find(r => r.id === requestId)
-  if (!request) return res.status(404).json({ error: 'Request not found' })
-
-  request.status = 'in_progress'
-  request.driver = driverId
-
-  res.json({ success: true })
-})
-
-app.post('/api/driver/complete', (req, res) => {
-  const { requestId } = req.body
-
-  const request = requests.find(r => r.id === requestId)
-  if (!request) return res.status(404).json({ error: 'Request not found' })
-
-  request.status = 'completed'
-
-  const driver = drivers.find(d => d.id === request.driver)
-  if (driver) driver.available = true
-
-  res.json({ success: true })
-})
-
-app.get('/api/request/:id', (req, res) => {
-  const request = requests.find(r => r.id === req.params.id)
-  if (!request) return res.status(404).json({ error: 'Request not found' })
-
-  const driver = drivers.find(d => d.id === request.driver)
-
-  res.json({
-    ...request,
-    driverLocation: driver
-      ? { lat: driver.lat, lng: driver.lng }
-      : null
-  })
 })
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'))
 })
 
-app.get('/request', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'request.html'))
-})
-
 app.get('/payment', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'payment.html'))
-})
-
-app.get('/driver', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'driver.html'))
 })
 
 app.listen(PORT, () => {
