@@ -11,86 +11,121 @@ app.use(cors())
 app.use(express.json())
 app.use(express.static(path.join(__dirname, 'public')))
 
+const publicDir = path.join(__dirname, 'public')
+const uploadDir = path.join(publicDir, 'uploads')
+const dataDir = path.join(__dirname, 'data')
+const verificationFile = path.join(dataDir, 'verificationQueue.json')
+const approvedFile = path.join(dataDir, 'approvedDrivers.json')
 
-// Ensure uploads folder exists
-const uploadDir = path.join(__dirname, 'public/uploads')
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true })
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true })
+if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true })
+if (!fs.existsSync(verificationFile)) fs.writeFileSync(verificationFile, '[]')
+if (!fs.existsSync(approvedFile)) fs.writeFileSync(approvedFile, '[]')
+
+function readJson(filePath) {
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'))
+  } catch (error) {
+    return []
+  }
 }
 
+function writeJson(filePath, data) {
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2))
+}
 
-// Multer storage
+function getVerificationQueue() {
+  return readJson(verificationFile)
+}
+
+function saveVerificationQueue(data) {
+  writeJson(verificationFile, data)
+}
+
+function getApprovedDrivers() {
+  return readJson(approvedFile)
+}
+
+function saveApprovedDrivers(data) {
+  writeJson(approvedFile, data)
+}
+
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, 'public/uploads')
+    cb(null, uploadDir)
   },
   filename: function (req, file, cb) {
-    const unique = Date.now() + '-' + Math.round(Math.random() * 1E9)
-    cb(null, unique + '-' + file.originalname)
+    const safeOriginal = file.originalname.replace(/\s+/g, '-')
+    cb(null, `${Date.now()}-${safeOriginal}`)
   }
 })
 
 const upload = multer({ storage })
 
+app.get('/', (req, res) => {
+  res.send('Harvey Taxi API Running')
+})
 
-
-let drivers = []
-let verificationQueue = []
-
-
-
-/* ===============================
-   DRIVER VERIFICATION SUBMIT
-================================ */
-app.post('/api/driver/verify',
+app.post(
+  '/api/driver/verify',
   upload.fields([
     { name: 'license', maxCount: 1 },
     { name: 'selfie', maxCount: 1 },
     { name: 'vehicle', maxCount: 1 }
   ]),
   (req, res) => {
+    try {
+      const { name, email, phone } = req.body
 
-    const { name, email, phone } = req.body
+      if (!name || !email) {
+        return res.status(400).json({
+          success: false,
+          message: 'Name and email are required'
+        })
+      }
 
-    const verification = {
-      id: Date.now(),
-      name,
-      email,
-      phone,
-      license: req.files.license?.[0]?.filename,
-      selfie: req.files.selfie?.[0]?.filename,
-      vehicle: req.files.vehicle?.[0]?.filename,
-      status: 'pending',
-      notes: '',
-      submittedAt: new Date().toISOString()
+      const verificationQueue = getVerificationQueue()
+
+      const verification = {
+        id: Date.now(),
+        name,
+        email,
+        phone: phone || '',
+        license: req.files?.license?.[0]?.filename || '',
+        selfie: req.files?.selfie?.[0]?.filename || '',
+        vehicle: req.files?.vehicle?.[0]?.filename || '',
+        status: 'pending',
+        notes: '',
+        submittedAt: new Date().toISOString(),
+        reviewedAt: ''
+      }
+
+      verificationQueue.push(verification)
+      saveVerificationQueue(verificationQueue)
+
+      res.json({
+        success: true,
+        message: 'Verification submitted successfully',
+        verification
+      })
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Verification submission failed'
+      })
     }
-
-    verificationQueue.push(verification)
-
-    res.json({
-      success: true,
-      message: 'Verification submitted',
-      verification
-    })
   }
 )
 
-
-
-/* ===============================
-   ADMIN GET VERIFICATIONS
-================================ */
 app.get('/api/admin/verifications', (req, res) => {
+  const verificationQueue = getVerificationQueue()
   res.json(verificationQueue)
 })
 
-
-
-/* ===============================
-   ADMIN APPROVE DRIVER
-================================ */
 app.post('/api/admin/approve/:id', (req, res) => {
-  const id = parseInt(req.params.id)
+  const id = parseInt(req.params.id, 10)
+  const verificationQueue = getVerificationQueue()
+  const approvedDrivers = getApprovedDrivers()
 
   const driver = verificationQueue.find(v => v.id === id)
 
@@ -102,22 +137,23 @@ app.post('/api/admin/approve/:id', (req, res) => {
   driver.notes = 'Approved by admin'
   driver.reviewedAt = new Date().toISOString()
 
-  const alreadyExists = drivers.find(d => d.id === driver.id)
-
-  if (!alreadyExists) {
-    drivers.push(driver)
+  const alreadyApproved = approvedDrivers.find(d => d.id === driver.id)
+  if (!alreadyApproved) {
+    approvedDrivers.push(driver)
+  } else {
+    const idx = approvedDrivers.findIndex(d => d.id === driver.id)
+    approvedDrivers[idx] = driver
   }
+
+  saveVerificationQueue(verificationQueue)
+  saveApprovedDrivers(approvedDrivers)
 
   res.json({ success: true })
 })
 
-
-
-/* ===============================
-   ADMIN REJECT DRIVER
-================================ */
 app.post('/api/admin/reject/:id', (req, res) => {
-  const id = parseInt(req.params.id)
+  const id = parseInt(req.params.id, 10)
+  const verificationQueue = getVerificationQueue()
 
   const driver = verificationQueue.find(v => v.id === id)
 
@@ -129,16 +165,21 @@ app.post('/api/admin/reject/:id', (req, res) => {
   driver.notes = 'Rejected by admin'
   driver.reviewedAt = new Date().toISOString()
 
+  saveVerificationQueue(verificationQueue)
+
   res.json({ success: true })
 })
 
-
-
-/* ===============================
-   DRIVER STATUS CHECK
-================================ */
 app.get('/api/driver/verification-status', (req, res) => {
   const email = (req.query.email || '').trim().toLowerCase()
+  const verificationQueue = getVerificationQueue()
+
+  if (!email) {
+    return res.status(400).json({
+      success: false,
+      message: 'Email is required'
+    })
+  }
 
   const verification = [...verificationQueue]
     .reverse()
@@ -157,13 +198,9 @@ app.get('/api/driver/verification-status', (req, res) => {
   })
 })
 
-
-
-/* ===============================
-   DRIVER ACCESS (APPROVED ONLY)
-================================ */
 app.get('/api/driver/access', (req, res) => {
   const email = (req.query.email || '').trim().toLowerCase()
+  const verificationQueue = getVerificationQueue()
 
   if (!email) {
     return res.status(400).json({
@@ -189,21 +226,11 @@ app.get('/api/driver/access', (req, res) => {
   })
 })
 
-
-
-/* ===============================
-   GET APPROVED DRIVERS
-================================ */
-app.get('/api/drivers', (req, res) => {
-  const approved = verificationQueue.filter(
-    d => d.status === 'approved'
-  )
-
-  res.json(approved)
+app.get('/api/drivers/approved', (req, res) => {
+  const approvedDrivers = getApprovedDrivers()
+  res.json(approvedDrivers)
 })
 
-
-
 app.listen(PORT, () => {
-  console.log('Server running on port', PORT)
+  console.log(`Server running on port ${PORT}`)
 })
