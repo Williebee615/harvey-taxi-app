@@ -1,7 +1,6 @@
 const express = require('express')
 const cors = require('cors')
 const path = require('path')
-const Stripe = require('stripe')
 
 const app = express()
 const PORT = process.env.PORT || 10000
@@ -10,238 +9,271 @@ app.use(cors())
 app.use(express.json())
 app.use(express.static(path.join(__dirname, 'public')))
 
-const stripe = process.env.STRIPE_SECRET_KEY
-  ? new Stripe(process.env.STRIPE_SECRET_KEY)
-  : null
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@harveytaxi.com'
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'change-me'
+const ADMIN_SECRET_PATH = process.env.ADMIN_SECRET_PATH || 'control-center-879'
 
-let drivers = [
-  {
-    id: 'driver_1',
-    name: 'Marcus Johnson',
-    phone: '(615) 555-1001',
-    vehicleType: 'Harvey Standard',
-    lat: 36.1627,
-    lng: -86.7816,
-    available: true
-  },
-  {
-    id: 'driver_2',
-    name: 'Tanya Brooks',
-    phone: '(615) 555-1002',
-    vehicleType: 'Harvey XL',
-    lat: 36.1699,
-    lng: -86.7844,
-    available: true
-  },
-  {
-    id: 'driver_3',
-    name: 'Derrick Stone',
-    phone: '(615) 555-1003',
-    vehicleType: 'Delivery',
-    lat: 36.1575,
-    lng: -86.7732,
-    available: true
-  }
-]
+let drivers = []
+let serviceRequests = []
 
-let requests = []
-
-function createId(prefix) {
-  return `${prefix}_${Date.now()}_${Math.floor(Math.random() * 100000)}`
+let users = {
+  riders: [],
+  drivers: [],
+  admins: [
+    {
+      id: 'admin_1',
+      name: 'Harvey Admin',
+      email: ADMIN_EMAIL,
+      password: ADMIN_PASSWORD
+    }
+  ]
 }
 
-function getDistance(lat1, lon1, lat2, lon2) {
+function getDistance(lat1, lng1, lat2, lng2) {
   const R = 6371
   const dLat = (lat2 - lat1) * Math.PI / 180
-  const dLon = (lon2 - lon1) * Math.PI / 180
+  const dLng = (lng2 - lng1) * Math.PI / 180
 
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(lat1 * Math.PI / 180) *
-    Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2)
+      Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2)
 
-  return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)))
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return R * c
 }
 
-function getAmount(serviceType) {
-  if (serviceType === 'xl') return 1800
-  if (serviceType === 'delivery') return 1500
-  if (serviceType === 'food') return 2000
-  return 1200
-}
-
-function getLabel(serviceType) {
-  if (serviceType === 'xl') return 'Harvey XL'
-  if (serviceType === 'delivery') return 'Package Delivery'
-  if (serviceType === 'food') return 'Food Delivery'
-  return 'Harvey Standard'
-}
-
-function findNearestDriver(pickup) {
-  const availableDrivers = drivers.filter(d => d.available)
-
-  if (!availableDrivers.length) return null
-
-  const sorted = availableDrivers
-    .map(driver => ({
-      ...driver,
-      distance: getDistance(pickup.lat, pickup.lng, driver.lat, driver.lng)
-    }))
-    .sort((a, b) => a.distance - b.distance)
-
-  return sorted[0] || null
-}
-
-function simulateTrip(requestId) {
-  setTimeout(() => {
-    const request = requests.find(r => r.id === requestId)
-    if (!request || request.status === 'cancelled') return
-    request.status = 'on_the_way'
-  }, 5000)
-
-  setTimeout(() => {
-    const request = requests.find(r => r.id === requestId)
-    if (!request || request.status === 'cancelled') return
-    request.status = 'arrived'
-  }, 10000)
-
-  setTimeout(() => {
-    const request = requests.find(r => r.id === requestId)
-    if (!request || request.status === 'cancelled') return
-    request.status = 'completed'
-
-    if (request.driverId) {
-      const driver = drivers.find(d => d.id === request.driverId)
-      if (driver) driver.available = true
-    }
-  }, 15000)
-}
-
-app.get('/api/health', (req, res) => {
-  res.json({ ok: true })
-})
-
-app.get('/api/payments/config', (req, res) => {
-  if (!process.env.STRIPE_PUBLISHABLE_KEY) {
-    return res.status(500).json({ error: 'Missing STRIPE_PUBLISHABLE_KEY' })
-  }
-
+app.get('/api/config', (req, res) => {
   res.json({
-    publishableKey: process.env.STRIPE_PUBLISHABLE_KEY
+    adminPath: `/${ADMIN_SECRET_PATH}`
   })
 })
 
-app.post('/api/request', (req, res) => {
-  const {
-    riderName,
-    riderPhone,
-    pickupText,
-    destinationText,
-    pickupLat,
-    pickupLng,
-    destinationLat,
-    destinationLng,
-    serviceType,
-    notes
-  } = req.body
+app.post('/api/admin/login', (req, res) => {
+  const { email, password } = req.body
 
-  if (!pickupText || !destinationText) {
-    return res.status(400).json({ error: 'Pickup and destination are required.' })
+  if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+    return res.json({
+      success: true,
+      message: 'Admin login successful',
+      redirect: `/${ADMIN_SECRET_PATH}`
+    })
   }
 
-  const pickup = {
-    text: pickupText,
-    lat: typeof pickupLat === 'number' ? pickupLat : 36.1627,
-    lng: typeof pickupLng === 'number' ? pickupLng : -86.7816
+  return res.status(401).json({
+    success: false,
+    message: 'Invalid admin credentials'
+  })
+})
+
+app.get(`/${ADMIN_SECRET_PATH}`, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/admin.html'))
+})
+
+app.get('/api/admin/stats', (req, res) => {
+  res.json({
+    riders: users.riders.length,
+    drivers: users.drivers.length,
+    admins: users.admins.length,
+    requests: serviceRequests.length,
+    activeDrivers: drivers.length
+  })
+})
+
+app.get('/api/admin/users', (req, res) => {
+  res.json({
+    riders: users.riders,
+    drivers: users.drivers,
+    admins: users.admins.map(admin => ({
+      id: admin.id,
+      name: admin.name,
+      email: admin.email
+    }))
+  })
+})
+
+app.get('/api/admin/requests', (req, res) => {
+  res.json(serviceRequests)
+})
+
+app.post('/api/signup/rider', (req, res) => {
+  const { name, email, password } = req.body
+
+  if (!name || !email || !password) {
+    return res.status(400).json({ success: false, message: 'Missing fields' })
   }
 
-  const destination = {
-    text: destinationText,
-    lat: typeof destinationLat === 'number' ? destinationLat : 36.1745,
-    lng: typeof destinationLng === 'number' ? destinationLng : -86.7679
+  const existing = users.riders.find(user => user.email === email)
+  if (existing) {
+    return res.status(400).json({ success: false, message: 'Rider already exists' })
   }
 
-  const driver = findNearestDriver(pickup)
+  const rider = {
+    id: `rider_${Date.now()}`,
+    name,
+    email,
+    password
+  }
 
-  const newRequest = {
-    id: createId('req'),
-    riderName: riderName || 'App User',
-    riderPhone: riderPhone || '',
-    pickup,
-    destination,
-    serviceType: serviceType || 'ride',
-    serviceLabel: getLabel(serviceType || 'ride'),
-    notes: notes || '',
-    amount: getAmount(serviceType || 'ride'),
-    status: driver ? 'assigned' : 'searching',
-    driverId: driver ? driver.id : null,
-    driverName: driver ? driver.name : '',
-    driverPhone: driver ? driver.phone : '',
-    driverVehicle: driver ? driver.vehicleType : '',
-    driverLat: driver ? driver.lat : null,
-    driverLng: driver ? driver.lng : null,
-    paid: false,
+  users.riders.push(rider)
+
+  res.json({
+    success: true,
+    message: 'Rider signup successful',
+    user: {
+      id: rider.id,
+      name: rider.name,
+      email: rider.email
+    }
+  })
+})
+
+app.post('/api/signup/driver', (req, res) => {
+  const { name, email, password, vehicle } = req.body
+
+  if (!name || !email || !password) {
+    return res.status(400).json({ success: false, message: 'Missing fields' })
+  }
+
+  const existing = users.drivers.find(user => user.email === email)
+  if (existing) {
+    return res.status(400).json({ success: false, message: 'Driver already exists' })
+  }
+
+  const driver = {
+    id: `driver_${Date.now()}`,
+    name,
+    email,
+    password,
+    vehicle: vehicle || 'Not provided'
+  }
+
+  users.drivers.push(driver)
+
+  res.json({
+    success: true,
+    message: 'Driver signup successful',
+    user: {
+      id: driver.id,
+      name: driver.name,
+      email: driver.email,
+      vehicle: driver.vehicle
+    }
+  })
+})
+
+app.post('/api/login/rider', (req, res) => {
+  const { email, password } = req.body
+  const rider = users.riders.find(user => user.email === email && user.password === password)
+
+  if (!rider) {
+    return res.status(401).json({ success: false, message: 'Invalid rider login' })
+  }
+
+  res.json({
+    success: true,
+    message: 'Rider login successful',
+    user: {
+      id: rider.id,
+      name: rider.name,
+      email: rider.email
+    }
+  })
+})
+
+app.post('/api/login/driver', (req, res) => {
+  const { email, password } = req.body
+  const driver = users.drivers.find(user => user.email === email && user.password === password)
+
+  if (!driver) {
+    return res.status(401).json({ success: false, message: 'Invalid driver login' })
+  }
+
+  res.json({
+    success: true,
+    message: 'Driver login successful',
+    user: {
+      id: driver.id,
+      name: driver.name,
+      email: driver.email,
+      vehicle: driver.vehicle
+    }
+  })
+})
+
+app.post('/api/request-service', (req, res) => {
+  const request = {
+    id: `request_${Date.now()}`,
+    ...req.body,
     createdAt: new Date().toISOString()
   }
 
-  if (driver) {
-    const driverRef = drivers.find(d => d.id === driver.id)
-    if (driverRef) driverRef.available = false
-    simulateTrip(newRequest.id)
-  }
-
-  requests.unshift(newRequest)
-  res.json(newRequest)
+  serviceRequests.push(request)
+  res.json({ success: true, request })
 })
 
-app.get('/api/request/:id', (req, res) => {
-  const request = requests.find(r => r.id === req.params.id)
-  if (!request) {
-    return res.status(404).json({ error: 'Request not found.' })
+app.post('/api/driver-location', (req, res) => {
+  const { driverId, name, lat, lng, vehicle } = req.body
+
+  if (!driverId || lat == null || lng == null) {
+    return res.status(400).json({ success: false, message: 'Missing location fields' })
   }
 
-  res.json(request)
+  const existingIndex = drivers.findIndex(driver => driver.driverId === driverId)
+
+  const driverData = {
+    driverId,
+    name: name || 'Driver',
+    lat,
+    lng,
+    vehicle: vehicle || 'Vehicle',
+    updatedAt: new Date().toISOString()
+  }
+
+  if (existingIndex >= 0) {
+    drivers[existingIndex] = driverData
+  } else {
+    drivers.push(driverData)
+  }
+
+  res.json({ success: true, driver: driverData })
 })
 
-app.post('/create-payment-intent', async (req, res) => {
-  try {
-    if (!stripe) {
-      return res.status(500).json({ error: 'Stripe is not configured.' })
+app.get('/api/drivers', (req, res) => {
+  res.json(drivers)
+})
+
+app.get('/api/nearest-driver', (req, res) => {
+  const { lat, lng } = req.query
+
+  if (!lat || !lng) {
+    return res.status(400).json({ success: false, message: 'Missing coordinates' })
+  }
+
+  if (!drivers.length) {
+    return res.json({ success: false, message: 'No drivers available' })
+  }
+
+  let nearest = null
+  let nearestDistance = Infinity
+
+  drivers.forEach(driver => {
+    const distance = getDistance(Number(lat), Number(lng), Number(driver.lat), Number(driver.lng))
+    if (distance < nearestDistance) {
+      nearestDistance = distance
+      nearest = { ...driver, distanceKm: distance.toFixed(2) }
     }
+  })
 
-    const { amount, requestId } = req.body
-
-    if (!amount || Number(amount) < 50) {
-      return res.status(400).json({ error: 'Invalid amount.' })
-    }
-
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Number(amount),
-      currency: 'usd',
-      automatic_payment_methods: { enabled: true },
-      metadata: {
-        requestId: requestId || ''
-      }
-    })
-
-    res.json({
-      clientSecret: paymentIntent.client_secret
-    })
-  } catch (error) {
-    console.error(error)
-    res.status(500).json({ error: error.message })
-  }
+  res.json({ success: true, driver: nearest })
 })
 
-app.get('/', (req, res) => {
+app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'))
 })
 
-app.get('/payment', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'payment.html'))
-})
-
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`)
+  console.log(`Harvey Taxi server running on port ${PORT}`)
 })
