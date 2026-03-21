@@ -10,18 +10,27 @@ app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 app.use(express.static(path.join(__dirname, 'public')))
 
+// ADMIN CONFIG
 const ADMIN_EMAIL = 'admin@harveytaxi.com'
 const ADMIN_PASSWORD = 'admin123'
 const ADMIN_SECRET_PATH = 'control-center-879'
 
+// MEMORY
 let drivers = []
 let rides = []
 let deliveries = []
 
+// HOME
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'))
+})
+
+// HEALTH
 app.get('/health', (req, res) => {
   res.json({ success: true, status: 'Harvey Taxi running' })
 })
 
+// ADMIN LOGIN PAGE
 app.get('/admin', (req, res) => {
   res.send(`
     <!DOCTYPE html>
@@ -29,7 +38,7 @@ app.get('/admin', (req, res) => {
     <head>
       <meta charset="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <title>Harvey Taxi Admin Login</title>
+      <title>Harvey Taxi Admin</title>
       <style>
         body {
           margin: 0;
@@ -126,6 +135,7 @@ app.get('/admin', (req, res) => {
   `)
 })
 
+// ADMIN LOGIN API
 app.post('/admin/login', (req, res) => {
   try {
     const { email, password } = req.body
@@ -157,6 +167,7 @@ app.post('/admin/login', (req, res) => {
   }
 })
 
+// ADMIN DASHBOARD
 app.get('/' + ADMIN_SECRET_PATH, (req, res) => {
   const driverItems = drivers.length
     ? drivers.map((d) => `
@@ -266,6 +277,7 @@ app.get('/' + ADMIN_SECRET_PATH, (req, res) => {
   `)
 })
 
+// DRIVER UPDATE
 app.post('/driver/update', (req, res) => {
   const { id, lat, lng, name } = req.body
 
@@ -296,6 +308,7 @@ app.post('/driver/update', (req, res) => {
   return res.json({ success: true })
 })
 
+// REQUEST RIDE
 app.post('/request-ride', (req, res) => {
   const ride = {
     id: 'ride_' + Date.now(),
@@ -312,6 +325,7 @@ app.post('/request-ride', (req, res) => {
   })
 })
 
+// REQUEST DELIVERY
 app.post('/request-delivery', (req, res) => {
   const delivery = {
     id: 'delivery_' + Date.now(),
@@ -325,10 +339,6 @@ app.post('/request-delivery', (req, res) => {
     success: true,
     delivery
   })
-})
-
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'))
 })
 
 app.listen(PORT, () => {
