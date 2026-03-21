@@ -1,4 +1,70 @@
-const express = require('express')
+app.post('/api/admin/reject/:id', (req, res) => {
+  const id = parseInt(req.params.id)
+
+  const driver = verificationQueue.find(v => v.id === id)
+
+  if (!driver) {
+    return res.status(404).json({ error: 'Not found' })
+  }
+
+  driver.status = 'rejected'
+  driver.notes = 'Rejected by admin'
+  driver.reviewedAt = new Date().toISOString()
+
+  res.json({ success: true })
+})app.post('/api/admin/approve/:id', (req, res) => {
+  const id = parseInt(req.params.id)
+
+  const driver = verificationQueue.find(v => v.id === id)
+
+  if (!driver) {
+    return res.status(404).json({ error: 'Not found' })
+  }
+
+  driver.status = 'approved'
+  driver.notes = 'Approved by admin'
+  driver.reviewedAt = new Date().toISOString()
+
+  drivers.push(driver)
+
+  res.json({ success: true })
+})const verification = {
+  id: Date.now(),
+  name,
+  email,
+  phone,
+  license: req.files.license?.[0]?.filename,
+  selfie: req.files.selfie?.[0]?.filename,
+  vehicle: req.files.vehicle?.[0]?.filename,
+  status: 'pending',
+  notes: '',
+  submittedAt: new Date().toISOString()
+}app.get('/api/driver/verification-status', (req, res) => {
+  const email = (req.query.email || '').trim().toLowerCase()
+
+  if (!email) {
+    return res.status(400).json({
+      success: false,
+      message: 'Email is required'
+    })
+  }
+
+  const verification = [...verificationQueue]
+    .reverse()
+    .find(v => (v.email || '').toLowerCase() === email)
+
+  if (!verification) {
+    return res.json({
+      success: true,
+      verification: null
+    })
+  }
+
+  res.json({
+    success: true,
+    verification
+  })
+})const express = require('express')
 const cors = require('cors')
 const path = require('path')
 const multer = require('multer')
