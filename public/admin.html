@@ -1,4 +1,41 @@
-<!DOCTYPE html>
+// ===============================
+// ADMIN LOGIN API (FIXED)
+// ===============================
+app.post('/admin/login', (req, res) => {
+  try {
+    const { email, password } = req.body
+
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing email or password'
+      })
+    }
+
+    if (
+      email === ADMIN_EMAIL &&
+      password === ADMIN_PASSWORD
+    ) {
+      return res.json({
+        success: true,
+        redirect: `/${ADMIN_SECRET_PATH}`
+      })
+    }
+
+    return res.status(401).json({
+      success: false,
+      message: 'Invalid admin login'
+    })
+
+  } catch (error) {
+    console.error('ADMIN LOGIN ERROR:', error)
+
+    res.status(500).json({
+      success: false,
+      message: 'Server error while logging in'
+    })
+  }
+})<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
