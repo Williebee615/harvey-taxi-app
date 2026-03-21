@@ -1,21 +1,25 @@
+const express = require("express")
+const cors = require("cors")
+const path = require("path")
+
+const app = express()
+const PORT = process.env.PORT || 10000
+
+app.use(cors())
+app.use(express.json())
+app.use(express.urlencoded({ extended: true }))
+app.use(express.static(path.join(__dirname, "public")))
+
 /* =========================
    ADMIN EMAIL ACCESS
 ========================= */
 
 const ADMIN_EMAILS = [
-  'willieharvey813@gmail.com'
+  "willieharvey813@gmail.com"
 ]
 
-app.get('/api/admin/access', (req, res) => {
-  const email = String(req.query.email || '').trim().toLowerCase()
-
-  if (!email) {
-    return res.json({
-      success: false,
-      allowed: false,
-      message: 'Email is required'
-    })
-  }
+app.get("/api/admin/access", (req, res) => {
+  const email = String(req.query.email || "").toLowerCase()
 
   const allowed = ADMIN_EMAILS.includes(email)
 
@@ -29,74 +33,40 @@ app.get('/api/admin/access', (req, res) => {
    ADMIN SHORT LINK
 ========================= */
 
-app.get('/admin', (req, res) => {
-  res.redirect('/admin-verification.html')
-})const express = require("express")
-const cors = require("cors")
-const path = require("path")
-const multer = require("multer")
-
-const app = express()
-const PORT = process.env.PORT || 10000
-
-app.use(cors())
-app.use(express.json())
-app.use(express.static("public"))
+app.get("/admin", (req, res) => {
+  res.sendFile(path.join(__dirname, "public/admin-verification.html"))
+})
 
 /* =========================
-   PERSISTENT MEMORY
+   MEMORY
 ========================= */
 
 global.driverSubmissions = global.driverSubmissions || []
 global.approvedDrivers = global.approvedDrivers || []
-global.onlineDrivers = global.onlineDrivers || []
 
 /* =========================
-   FILE UPLOAD
+   DRIVER VERIFY
 ========================= */
 
-const storage = multer.memoryStorage()
-const upload = multer({ storage: storage })
-
-/* =========================
-   DRIVER VERIFICATION SUBMIT
-========================= */
-
-app.post(
-  "/api/driver/verify",
-  upload.fields([
-    { name: "license" },
-    { name: "selfie" },
-    { name: "vehicle" },
-  ]),
-  (req, res) => {
-    const { name, email, phone } = req.body
-
-    const submission = {
-      id: Date.now(),
-      name,
-      email,
-      phone,
-      license: req.files.license?.[0]?.originalname,
-      selfie: req.files.selfie?.[0]?.originalname,
-      vehicle: req.files.vehicle?.[0]?.originalname,
-      status: "pending",
-    }
-
-    global.driverSubmissions.push(submission)
-
-    res.json({
-      success: true,
-      message: "Verification submitted",
-    })
+app.post("/api/driver/verify", (req, res) => {
+  const submission = {
+    id: Date.now().toString(),
+    name: req.body.name,
+    email: req.body.email,
+    phone: req.body.phone,
+    status: "pending"
   }
-)
+
+  global.driverSubmissions.push(submission)
+
+  res.json({ success: true })
+})
 
 /* =========================
-   ADMIN GET SUBMISSIONS
+   ADMIN GET
 ========================= */
 
-app.get("/api/admin/submissions", (req, res) => {
+app.get("/api/admin/verifications", (req, res) => {
   res.json(global.driverSubmissions)
 })
 
@@ -105,12 +75,12 @@ app.get("/api/admin/submissions", (req, res) => {
 ========================= */
 
 app.post("/api/admin/approve/:id", (req, res) => {
-  const id = Number(req.params.id)
-
-  const driver = global.driverSubmissions.find(d => d.id === id)
+  const driver = global.driverSubmissions.find(
+    d => d.id === req.params.id
+  )
 
   if (!driver) {
-    return res.status(404).json({ error: "Not found" })
+    return res.json({ success: false })
   }
 
   driver.status = "approved"
@@ -120,51 +90,17 @@ app.post("/api/admin/approve/:id", (req, res) => {
 })
 
 /* =========================
-   DRIVER ACCESS CHECK
+   DRIVER CHECK
 ========================= */
 
 app.post("/api/driver/check", (req, res) => {
-  const { email } = req.body
-
   const driver = global.approvedDrivers.find(
-    d => d.email.toLowerCase() === email.toLowerCase()
+    d => d.email === req.body.email
   )
 
-  if (!driver) {
-    return res.json({
-      approved: false,
-    })
-  }
-
   res.json({
-    approved: true,
-    driver,
+    approved: !!driver
   })
-})
-
-/* =========================
-   DRIVER GO ONLINE
-========================= */
-
-app.post("/api/driver/online", (req, res) => {
-  const { email } = req.body
-
-  const driver = global.approvedDrivers.find(d => d.email === email)
-
-  if (!driver) return res.json({ success: false })
-
-  driver.online = true
-  global.onlineDrivers.push(driver)
-
-  res.json({ success: true })
-})
-
-/* =========================
-   GET ONLINE DRIVERS
-========================= */
-
-app.get("/api/drivers/online", (req, res) => {
-  res.json(global.onlineDrivers)
 })
 
 /* =========================
@@ -172,5 +108,5 @@ app.get("/api/drivers/online", (req, res) => {
 ========================= */
 
 app.listen(PORT, () => {
-  console.log("Server running on port", PORT)
+  console.log("Harvey Taxi running on port " + PORT)
 })
