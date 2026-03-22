@@ -4,6 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Harvey Taxi</title>
+
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
+
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{
@@ -13,7 +19,7 @@
       min-height:100vh;
       padding:20px;
     }
-    .app{max-width:700px;margin:0 auto}
+    .app{max-width:760px;margin:0 auto}
     .title{
       font-size:34px;
       font-weight:bold;
@@ -69,19 +75,6 @@
       text-align:center;
       font-size:16px;
     }
-    .map{
-      height:220px;
-      background:#0d0d0d;
-      border-radius:22px;
-      margin-top:16px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      color:#666;
-      font-size:14px;
-      text-align:center;
-      padding:20px;
-    }
     .status{
       background:#101010;
       border-radius:18px;
@@ -123,6 +116,20 @@
       gap:12px;
       margin-top:12px;
     }
+    #map{
+      height:320px;
+      border-radius:22px;
+      margin-top:16px;
+      overflow:hidden;
+    }
+    .map-note{
+      color:#9ca3af;
+      font-size:13px;
+      margin-top:10px;
+    }
+    .leaflet-container{
+      background:#111;
+    }
   </style>
 </head>
 <body>
@@ -161,10 +168,8 @@
         <div id="driverInfo"></div>
       </div>
 
-      <div class="map">
-        Dispatch + trip status tracking active.<br />
-        Next step after this is live moving map.
-      </div>
+      <div id="map"></div>
+      <div class="map-note">Live moving map active.</div>
     </div>
 
     <div class="card">
@@ -176,9 +181,18 @@
     </div>
   </div>
 
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
     let activeRideId = null
     let ridePoller = null
+    let map
+    let pickupMarker = null
+    let dropoffMarker = null
+    let driverMarker = null
+    let routeLine = null
+
+    const defaultPickup = { lat: 36.1627, lng: -86.7816 }
+    const defaultDropoff = { lat: 36.1699, lng: -86.7944 }
 
     function prettyStatus(status) {
       if (status === 'assigned') return 'Assigned'
@@ -188,6 +202,69 @@
       if (status === 'in_progress') return 'In Progress'
       if (status === 'completed') return 'Completed'
       return status
+    }
+
+    function initMap() {
+      map = L.map('map').setView([defaultPickup.lat, defaultPickup.lng], 13)
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap'
+      }).addTo(map)
+    }
+
+    function drawRideMap(ride) {
+      if (!map) return
+
+      const pickup = [ride.pickupLat, ride.pickupLng]
+      const dropoff = [ride.dropoffLat, ride.dropoffLng]
+      const driverLocation = ride.driverLocation
+        ? [ride.driverLocation.lat, ride.driverLocation.lng]
+        : pickup
+
+      if (pickupMarker) map.removeLayer(pickupMarker)
+      if (dropoffMarker) map.removeLayer(dropoffMarker)
+      if (driverMarker) map.removeLayer(driverMarker)
+      if (routeLine) map.removeLayer(routeLine)
+
+      pickupMarker = L.marker(pickup).addTo(map).bindPopup('Pickup')
+      dropoffMarker = L.marker(dropoff).addTo(map).bindPopup('Dropoff')
+      driverMarker = L.marker(driverLocation).addTo(map).bindPopup('Driver')
+
+      const routePoints =
+        ride.status === 'in_progress' || ride.status === 'completed'
+          ? [driverLocation, dropoff]
+          : [driverLocation, pickup]
+
+      routeLine = L.polyline(routePoints).addTo(map)
+
+      const group = L.featureGroup([pickupMarker, dropoffMarker, driverMarker, routeLine])
+      map.fitBounds(group.getBounds().pad(0.25))
+    }
+
+    function renderRide(ride) {
+      const driverInfo = document.getElementById('driverInfo')
+      const status = document.getElementById('status')
+
+      driverInfo.innerHTML = `
+        <div><strong>Name:</strong> ${ride.driverName}</div>
+        <div class="small"><strong>Car:</strong> ${ride.car}</div>
+        <div class="small"><strong>Plate:</strong> ${ride.plate}</div>
+        <div class="small"><strong>Pickup:</strong> ${ride.pickup}</div>
+        <div class="small"><strong>Dropoff:</strong> ${ride.dropoff}</div>
+        <div class="small"><strong>Ride Type:</strong> ${ride.rideType}</div>
+        <div class="pill">Status: ${prettyStatus(ride.status)}</div>
+        <div class="small"><strong>Update:</strong> ${ride.etaLabel}</div>
+      `
+
+      if (ride.status === 'completed') {
+        status.innerHTML = 'Trip completed successfully.'
+        stopRidePolling()
+      } else {
+        status.innerHTML = `${ride.driverName} • ${prettyStatus(ride.status)} • ${ride.etaLabel}`
+      }
+
+      drawRideMap(ride)
     }
 
     async function requestRide() {
@@ -215,7 +292,9 @@
             dropoff,
             rideType,
             pickupLat: 36.1627,
-            pickupLng: -86.7816
+            pickupLng: -86.7816,
+            dropoffLat: 36.1699,
+            dropoffLng: -86.7944
           })
         })
 
@@ -227,35 +306,11 @@
         }
 
         activeRideId = data.ride.id
-        status.innerHTML = `Driver assigned. ${data.ride.driverName} is ${data.ride.etaLabel}.`
         document.getElementById('driverBox').style.display = 'block'
-        renderRide(data.ride)
         startRidePolling()
+        await pollRide()
       } catch (error) {
         status.innerHTML = 'Dispatch error. Please try again.'
-      }
-    }
-
-    function renderRide(ride) {
-      const driverInfo = document.getElementById('driverInfo')
-      const status = document.getElementById('status')
-
-      driverInfo.innerHTML = `
-        <div><strong>Name:</strong> ${ride.driverName}</div>
-        <div class="small"><strong>Car:</strong> ${ride.car}</div>
-        <div class="small"><strong>Plate:</strong> ${ride.plate}</div>
-        <div class="small"><strong>Pickup:</strong> ${ride.pickup}</div>
-        <div class="small"><strong>Dropoff:</strong> ${ride.dropoff}</div>
-        <div class="small"><strong>Ride Type:</strong> ${ride.rideType}</div>
-        <div class="pill">Status: ${prettyStatus(ride.status)}</div>
-        <div class="small"><strong>Update:</strong> ${ride.etaLabel}</div>
-      `
-
-      if (ride.status === 'completed') {
-        status.innerHTML = 'Trip completed successfully.'
-        stopRidePolling()
-      } else {
-        status.innerHTML = `${ride.driverName} • ${prettyStatus(ride.status)} • ${ride.etaLabel}`
       }
     }
 
@@ -283,6 +338,8 @@
         ridePoller = null
       }
     }
+
+    initMap()
   </script>
 </body>
 </html>
