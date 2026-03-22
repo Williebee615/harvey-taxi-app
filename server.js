@@ -46,7 +46,7 @@ const fareSettings = {
 }
 
 function toMoney(value) {
-  return Number(value).toFixed(2)
+  return Number(Number(value).toFixed(2)).toFixed(2)
 }
 
 function estimateTrip(pickupAddress, dropoffAddress) {
@@ -132,6 +132,10 @@ function findNearestDriver(pickupAddress) {
   return availableDrivers[0] || null
 }
 
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'))
+})
+
 app.get('/api/health', (req, res) => {
   res.json({
     success: true,
@@ -144,75 +148,6 @@ app.get('/api/drivers', (req, res) => {
     success: true,
     drivers
   })
-})
-
-app.post('/api/drivers/register', (req, res) => {
-  try {
-    const { name, phone, vehicle, plate } = req.body
-
-    if (!name || !phone || !vehicle || !plate) {
-      return res.status(400).json({
-        success: false,
-        message: 'Name, phone, vehicle, and plate are required.'
-      })
-    }
-
-    const newDriver = {
-      id: `driver_${Date.now()}`,
-      name,
-      phone,
-      vehicle,
-      plate,
-      approved: false,
-      online: false,
-      lat: 36.1627,
-      lng: -86.7816
-    }
-
-    drivers.push(newDriver)
-
-    return res.json({
-      success: true,
-      message: 'Driver registered successfully.',
-      driver: newDriver
-    })
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: 'Could not register driver.'
-    })
-  }
-})
-
-app.post('/api/drivers/update-status', (req, res) => {
-  try {
-    const { driverId, approved, online, lat, lng } = req.body
-
-    const driver = drivers.find((d) => d.id === driverId)
-
-    if (!driver) {
-      return res.status(404).json({
-        success: false,
-        message: 'Driver not found.'
-      })
-    }
-
-    if (typeof approved === 'boolean') driver.approved = approved
-    if (typeof online === 'boolean') driver.online = online
-    if (typeof lat === 'number') driver.lat = lat
-    if (typeof lng === 'number') driver.lng = lng
-
-    return res.json({
-      success: true,
-      message: 'Driver updated successfully.',
-      driver
-    })
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: 'Could not update driver.'
-    })
-  }
 })
 
 app.post('/api/fare/estimate', (req, res) => {
@@ -232,7 +167,7 @@ app.post('/api/fare/estimate', (req, res) => {
 
     return res.json({
       success: true,
-      message: 'Fare estimate ready.',
+      message: 'Estimate ready.',
       trip: {
         pickupAddress,
         dropoffAddress,
@@ -252,7 +187,8 @@ app.post('/api/fare/estimate', (req, res) => {
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: 'Could not estimate fare.'
+      message: 'Could not estimate fare.',
+      error: error.message
     })
   }
 })
@@ -277,7 +213,12 @@ app.post('/api/rides/request', (req, res) => {
       pickupAddress,
       dropoffAddress,
       serviceType: serviceType || 'Standard Ride',
-      trip,
+      trip: {
+        pickupAddress,
+        dropoffAddress,
+        distanceMiles: trip.distanceMiles,
+        durationMinutes: trip.durationMinutes
+      },
       fare,
       status: matchedDriver ? 'driver_assigned' : 'searching',
       assignedDriver: matchedDriver
@@ -305,7 +246,8 @@ app.post('/api/rides/request', (req, res) => {
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: 'Could not request ride.'
+      message: 'Could not request ride.',
+      error: error.message
     })
   }
 })
@@ -372,7 +314,8 @@ app.post('/api/rides/:rideId/status', (req, res) => {
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: 'Could not update ride status.'
+      message: 'Could not update ride status.',
+      error: error.message
     })
   }
 })
