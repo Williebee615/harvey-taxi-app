@@ -27,13 +27,45 @@ function getDistance(lat1, lng1, lat2, lng2) {
   return R * c
 }
 
-function calculatePrice(type, distanceKm = 3) {
-  if (type === 'ride') return (5 + distanceKm * 2).toFixed(2)
-  if (type === 'food') return (4 + distanceKm * 1.5).toFixed(2)
-  if (type === 'grocery') return (6 + distanceKm * 2).toFixed(2)
-  if (type === 'package') return (7 + distanceKm * 2.5).toFixed(2)
-  return '0.00'
+function getServiceBase(type) {
+  if (type === 'ride') return 5
+  if (type === 'food') return 4
+  if (type === 'grocery') return 6
+  if (type === 'package') return 7
+  return 5
 }
+
+function getServiceRate(type) {
+  if (type === 'ride') return 2
+  if (type === 'food') return 1.5
+  if (type === 'grocery') return 2.25
+  if (type === 'package') return 2.75
+  return 2
+}
+
+function calculatePrice(type, distanceKm) {
+  const price = getServiceBase(type) + getServiceRate(type) * distanceKm
+  return Number(price).toFixed(2)
+}
+
+app.get('/estimate', (req, res) => {
+  const { type, pickupLat, pickupLng, dropoffLat, dropoffLng } = req.query
+
+  const distanceKm = getDistance(
+    Number(pickupLat),
+    Number(pickupLng),
+    Number(dropoffLat),
+    Number(dropoffLng)
+  )
+
+  const estimatedPrice = calculatePrice(type, distanceKm)
+
+  res.json({
+    type,
+    distanceKm: Number(distanceKm).toFixed(2),
+    estimatedPrice
+  })
+})
 
 app.post('/driver/update', (req, res) => {
   const driver = req.body
@@ -47,8 +79,8 @@ app.post('/driver/update', (req, res) => {
       name: driver.name || 'Harvey Driver',
       available: !!driver.available,
       services: driver.services || ['ride', 'food', 'grocery', 'package'],
-      lat: driver.lat,
-      lng: driver.lng,
+      lat: driver.lat || 0,
+      lng: driver.lng || 0,
       earnings: 0,
       completedJobs: 0,
       activeJobId: null
@@ -59,17 +91,39 @@ app.post('/driver/update', (req, res) => {
 })
 
 app.post('/request', (req, res) => {
-  const request = req.body
+  const {
+    type,
+    riderName,
+    pickupLat,
+    pickupLng,
+    dropoffLat,
+    dropoffLng,
+    pickupAddress,
+    dropoffAddress
+  } = req.body
+
+  const distanceKm = getDistance(
+    Number(pickupLat),
+    Number(pickupLng),
+    Number(dropoffLat),
+    Number(dropoffLng)
+  )
 
   const newRequest = {
     id: String(Date.now()),
-    type: request.type,
-    lat: request.lat,
-    lng: request.lng,
+    type,
+    riderName: riderName || 'Rider',
+    pickupLat: Number(pickupLat),
+    pickupLng: Number(pickupLng),
+    dropoffLat: Number(dropoffLat),
+    dropoffLng: Number(dropoffLng),
+    pickupAddress: pickupAddress || 'Pickup not entered',
+    dropoffAddress: dropoffAddress || 'Dropoff not entered',
+    distanceKm: Number(distanceKm).toFixed(2),
+    estimatedPrice: calculatePrice(type, distanceKm),
     status: 'searching',
     createdAt: new Date().toISOString(),
-    driver: null,
-    estimatedPrice: calculatePrice(request.type, 3)
+    driver: null
   }
 
   requests.push(newRequest)
@@ -81,11 +135,11 @@ app.post('/request', (req, res) => {
     if (
       driver.available &&
       !driver.activeJobId &&
-      driver.services.includes(newRequest.type)
+      driver.services.includes(type)
     ) {
       const dist = getDistance(
-        newRequest.lat,
-        newRequest.lng,
+        newRequest.pickupLat,
+        newRequest.pickupLng,
         driver.lat,
         driver.lng
       )
@@ -118,6 +172,10 @@ app.get('/request/:id', (req, res) => {
   res.json(request)
 })
 
+app.get('/rider/history', (req, res) => {
+  res.json(requests.slice().reverse())
+})
+
 app.get('/driver/jobs/:id', (req, res) => {
   const jobs = requests.filter(r =>
     r.driver &&
@@ -145,12 +203,10 @@ app.post('/driver/job/:jobId/accept', (req, res) => {
 })
 
 app.post('/driver/job/:jobId/start', (req, res) => {
-  const { driverId } = req.body
-  const driver = drivers.find(d => d.id === driverId)
   const job = requests.find(r => r.id === req.params.jobId)
 
-  if (!driver || !job) {
-    return res.status(404).json({ error: 'Driver or job not found' })
+  if (!job) {
+    return res.status(404).json({ error: 'Job not found' })
   }
 
   job.status = 'in_progress'
@@ -170,25 +226,17 @@ app.post('/driver/job/:jobId/complete', (req, res) => {
   driver.available = true
   driver.activeJobId = null
   driver.completedJobs = (driver.completedJobs || 0) + 1
-  driver.earnings = Number((driver.earnings || 0)) + Number(job.estimatedPrice || 0)
+  driver.earnings = Number(driver.earnings || 0) + Number(job.estimatedPrice || 0)
 
-  res.json({
-    success: true,
-    job,
-    driver: {
-      earnings: driver.earnings,
-      completedJobs: driver.completedJobs
-    }
-  })
+  res.json({ success: true, job })
 })
 
 app.post('/driver/job/:jobId/decline', (req, res) => {
   const { driverId } = req.body
-  const driver = drivers.find(d => d.id === driverId)
   const job = requests.find(r => r.id === req.params.jobId)
 
-  if (!driver || !job) {
-    return res.status(404).json({ error: 'Driver or job not found' })
+  if (!job) {
+    return res.status(404).json({ error: 'Job not found' })
   }
 
   job.status = 'searching'
@@ -204,7 +252,7 @@ app.post('/driver/job/:jobId/decline', (req, res) => {
       !d.activeJobId &&
       d.services.includes(job.type)
     ) {
-      const dist = getDistance(job.lat, job.lng, d.lat, d.lng)
+      const dist = getDistance(job.pickupLat, job.pickupLng, d.lat, d.lng)
       if (dist < minDistance) {
         minDistance = dist
         nearest = d
@@ -228,7 +276,7 @@ app.get('/driver/stats/:id', (req, res) => {
 
   if (!driver) {
     return res.json({
-      earnings: 0,
+      earnings: '0.00',
       completedJobs: 0,
       activeJobId: null
     })
@@ -241,8 +289,11 @@ app.get('/driver/stats/:id', (req, res) => {
   })
 })
 
-app.get('/requests', (req, res) => {
-  res.json(requests)
+app.get('/admin/overview', (req, res) => {
+  res.json({
+    drivers,
+    requests: requests.slice().reverse()
+  })
 })
 
 app.listen(PORT, () => {
