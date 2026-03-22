@@ -1,211 +1,102 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Harvey Taxi Super App</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Harvey Super App</title>
 
 <style>
 body{
-  margin:0;
-  font-family:Arial, Helvetica, sans-serif;
-  background:#020817;
-  color:white;
-}
-
-.container{
-  max-width:760px;
-  margin:0 auto;
-  padding:20px;
-}
-
-.hero{
-  background:linear-gradient(135deg,#0b1220,#111827);
-  border:1px solid #1f2937;
-  border-radius:22px;
-  padding:26px;
-  margin-bottom:18px;
-}
-
-.hero h1{
-  margin:0;
-  font-size:38px;
-  line-height:1.05;
-}
-
-.hero p{
-  color:#cbd5e1;
-  margin-top:12px;
-  line-height:1.6;
-  font-size:17px;
-}
-
-.live{
-  display:inline-block;
-  background:#16a34a;
-  color:white;
-  padding:7px 14px;
-  border-radius:999px;
-  font-size:13px;
-  font-weight:bold;
-  margin-top:14px;
-}
-
-.section-title{
-  font-size:18px;
-  font-weight:bold;
-  margin:20px 0 12px;
-  color:#e2e8f0;
+background:#0b0b0b;
+color:white;
+font-family:Arial;
+padding:20px;
 }
 
 .card{
-  display:block;
-  text-decoration:none;
-  color:white;
-  background:#0b1220;
-  border:1px solid #1f2937;
-  border-radius:18px;
-  padding:22px;
-  margin-bottom:14px;
+background:#111;
+padding:20px;
+margin-bottom:15px;
+border-radius:12px;
 }
 
-.card:hover{
-  background:#111827;
+button{
+width:100%;
+padding:15px;
+border:none;
+border-radius:10px;
+background:#1db954;
+color:white;
+font-size:16px;
+margin-top:10px;
 }
 
-.card-title{
-  font-size:24px;
-  font-weight:bold;
-  margin-bottom:8px;
-}
-
-.card-text{
-  color:#cbd5e1;
-  line-height:1.5;
-}
-
-.grid{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:14px;
-}
-
-.small-card{
-  display:block;
-  text-decoration:none;
-  color:white;
-  background:#0f172a;
-  border:1px solid #1f2937;
-  border-radius:18px;
-  padding:18px;
-}
-
-.small-card:hover{
-  background:#111827;
-}
-
-.small-card strong{
-  display:block;
-  font-size:18px;
-  margin-bottom:8px;
-}
-
-.small-card span{
-  color:#cbd5e1;
-  font-size:14px;
-  line-height:1.5;
-}
-
-.footer{
-  color:#94a3b8;
-  font-size:13px;
-  text-align:center;
-  margin:24px 0 10px;
-}
-
-@media (max-width: 700px){
-  .grid{
-    grid-template-columns:1fr;
-  }
-
-  .hero h1{
-    font-size:32px;
-  }
+.title{
+font-size:22px;
+font-weight:bold;
+margin-bottom:20px;
 }
 </style>
 </head>
+
 <body>
 
-<div class="container">
-
-  <div class="hero">
-    <h1>Harvey Taxi Super App</h1>
-    <p>
-      Book rides, order food, request groceries, verify riders and drivers,
-      and manage approvals from one live platform.
-    </p>
-    <div class="live">LIVE</div>
-  </div>
-
-  <div class="section-title">Request a Service</div>
-
-  <a class="card" href="/request.html?type=ride">
-    <div class="card-title">🚕 Request Ride</div>
-    <div class="card-text">
-      Book a ride with the nearest approved and available driver.
-    </div>
-  </a>
-
-  <a class="card" href="/request.html?type=food">
-    <div class="card-title">🍔 Food Delivery</div>
-    <div class="card-text">
-      Request local restaurant pickup and delivery.
-    </div>
-  </a>
-
-  <a class="card" href="/request.html?type=groceries">
-    <div class="card-title">🛒 Grocery Delivery</div>
-    <div class="card-text">
-      Order groceries with Harvey Taxi delivery support.
-    </div>
-  </a>
-
-  <a class="card" href="/request.html?type=package">
-    <div class="card-title">📦 Package Delivery</div>
-    <div class="card-text">
-      Send packages with the same dispatch network.
-    </div>
-  </a>
-
-  <div class="section-title">Accounts & Operations</div>
-
-  <div class="grid">
-    <a class="small-card" href="/driver.html">
-      <strong>🚗 Driver Dashboard</strong>
-      <span>Driver access, live status, trips, and service tools.</span>
-    </a>
-
-    <a class="small-card" href="/driver-verification.html">
-      <strong>🪪 Driver Verification</strong>
-      <span>Submit license, vehicle, and identity verification.</span>
-    </a>
-
-    <a class="small-card" href="/rider-verification.html">
-      <strong>👤 Rider Verification</strong>
-      <span>Passenger ID verification before service requests.</span>
-    </a>
-
-    <a class="small-card" href="/admin-verification.html">
-      <strong>⚙️ Admin Panel</strong>
-      <span>Approve riders, approve drivers, and review verification.</span>
-    </a>
-  </div>
-
-  <div class="footer">
-    Harvey Taxi • Ride • Food • Groceries • Package Delivery
-  </div>
-
+<div class="title">
+Harvey Super App
 </div>
+
+<div class="card">
+🚕 Ride
+<button onclick="request('ride')">
+Request Ride
+</button>
+</div>
+
+<div class="card">
+🍔 Food Delivery
+<button onclick="request('food')">
+Order Food
+</button>
+</div>
+
+<div class="card">
+🛒 Grocery Delivery
+<button onclick="request('grocery')">
+Order Groceries
+</button>
+</div>
+
+<div class="card">
+📦 Package Delivery
+<button onclick="request('package')">
+Send Package
+</button>
+</div>
+
+<script>
+function request(type){
+
+navigator.geolocation.getCurrentPosition(pos=>{
+
+fetch('/request',{
+method:"POST",
+headers:{
+'Content-Type':'application/json'
+},
+body:JSON.stringify({
+type:type,
+lat:pos.coords.latitude,
+lng:pos.coords.longitude
+})
+})
+.then(r=>r.json())
+.then(data=>{
+alert("Searching for driver...")
+})
+
+})
+
+}
+</script>
 
 </body>
 </html>
