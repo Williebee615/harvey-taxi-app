@@ -4,342 +4,337 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Harvey Taxi</title>
-
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-  />
-
   <style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{
-      background:#000;
-      color:#fff;
-      font-family:Arial, sans-serif;
-      min-height:100vh;
-      padding:20px;
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: Arial, Helvetica, sans-serif;
     }
-    .app{max-width:760px;margin:0 auto}
-    .title{
-      font-size:34px;
-      font-weight:bold;
-      margin:18px 0 24px;
+
+    body {
+      background: #000;
+      color: #fff;
+      min-height: 100vh;
+      padding: 24px 18px 40px;
     }
-    .card{
-      background:#070707;
-      border-radius:28px;
-      padding:20px;
-      margin-bottom:18px;
+
+    .app {
+      width: 100%;
+      max-width: 760px;
+      margin: 0 auto;
     }
-    .service-title{
-      font-size:18px;
-      margin-bottom:14px;
+
+    .logo {
+      font-size: 60px;
+      font-weight: 800;
+      letter-spacing: -2px;
+      margin: 10px 0 28px;
     }
-    input, select{
-      width:100%;
-      padding:16px;
-      margin-top:12px;
-      border:none;
-      border-radius:18px;
-      background:#111;
-      color:#fff;
-      font-size:16px;
+
+    .card {
+      background: #050505;
+      border-radius: 34px;
+      padding: 24px 20px;
+      margin-bottom: 26px;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.03);
     }
-    button{
-      width:100%;
-      padding:16px;
-      border:none;
-      border-radius:18px;
-      background:#22c55e;
-      color:#fff;
-      font-size:18px;
-      font-weight:700;
-      margin-top:14px;
-      cursor:pointer;
+
+    .section-title {
+      font-size: 28px;
+      font-weight: 500;
+      margin-bottom: 22px;
     }
-    button.secondary{
-      background:#161616;
-      border:1px solid #232323;
+
+    .service-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
     }
-    .grid{
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:14px;
-      margin-top:12px;
+
+    .service-card {
+      border: none;
+      border-radius: 28px;
+      background: #0a0b10;
+      color: #fff;
+      min-height: 140px;
+      font-size: 24px;
+      cursor: pointer;
+      box-shadow: inset 0 0 0 2px rgba(255,255,255,0.05);
+      transition: 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 18px;
     }
-    .service-btn{
-      background:#101010;
-      border:1px solid #202020;
-      border-radius:22px;
-      padding:24px 18px;
-      text-align:center;
-      font-size:16px;
+
+    .service-card.active {
+      box-shadow: inset 0 0 0 2px #2ecc71;
+      transform: translateY(-1px);
     }
-    .status{
-      background:#101010;
-      border-radius:18px;
-      padding:16px;
-      margin-top:16px;
-      color:#d1d5db;
-      line-height:1.5;
-      min-height:70px;
+
+    .field {
+      width: 100%;
+      border: none;
+      outline: none;
+      background: #0a0b10;
+      color: #fff;
+      border-radius: 24px;
+      padding: 24px 22px;
+      font-size: 22px;
+      margin-bottom: 18px;
+      box-shadow: inset 0 0 0 2px rgba(255,255,255,0.04);
     }
-    .driver-box{
-      margin-top:16px;
-      background:#111;
-      border-radius:18px;
-      padding:16px;
-      border:1px solid #202020;
-      display:none;
+
+    .field::placeholder {
+      color: #9b9b9b;
     }
-    .driver-box h3{
-      margin-bottom:10px;
-      font-size:18px;
+
+    .select-field {
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: linear-gradient(45deg, transparent 50%, #999 50%),
+                        linear-gradient(135deg, #999 50%, transparent 50%);
+      background-position: calc(100% - 25px) calc(50% - 4px),
+                           calc(100% - 16px) calc(50% - 4px);
+      background-size: 10px 10px, 10px 10px;
+      background-repeat: no-repeat;
     }
-    .small{
-      color:#9ca3af;
-      font-size:14px;
-      margin-top:6px;
+
+    .button {
+      width: 100%;
+      border: none;
+      border-radius: 26px;
+      padding: 24px 20px;
+      font-size: 24px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: 0.2s ease;
     }
-    .pill{
-      display:inline-block;
-      padding:8px 12px;
-      border-radius:999px;
-      background:#1a1a1a;
-      border:1px solid #2a2a2a;
-      margin-top:10px;
-      font-size:13px;
+
+    .button:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
     }
-    .row{
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:12px;
-      margin-top:12px;
+
+    .button-secondary {
+      background: #111317;
+      color: #fff;
+      margin-bottom: 14px;
     }
-    #map{
-      height:320px;
-      border-radius:22px;
-      margin-top:16px;
-      overflow:hidden;
+
+    .button-primary {
+      background: #2ecc71;
+      color: #fff;
+      margin-bottom: 18px;
     }
-    .map-note{
-      color:#9ca3af;
-      font-size:13px;
-      margin-top:10px;
+
+    .status-box {
+      background: #0a0b10;
+      border-radius: 24px;
+      padding: 22px;
+      font-size: 18px;
+      line-height: 1.5;
+      color: #d8d8d8;
+      min-height: 92px;
+      display: flex;
+      align-items: center;
+      margin-bottom: 18px;
+      box-shadow: inset 0 0 0 2px rgba(255,255,255,0.04);
     }
-    .leaflet-container{
-      background:#111;
+
+    .fare-box {
+      display: none;
+      background: #0a0b10;
+      border-radius: 24px;
+      padding: 20px;
+      box-shadow: inset 0 0 0 2px rgba(255,255,255,0.04);
+    }
+
+    .fare-title {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+
+    .fare-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      font-size: 17px;
+      padding: 9px 0;
+      color: #ddd;
+    }
+
+    .fare-row strong {
+      color: #fff;
+    }
+
+    .fare-total {
+      margin-top: 10px;
+      padding-top: 14px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      font-size: 22px;
+      font-weight: 800;
+    }
+
+    .mini-note {
+      font-size: 14px;
+      color: #9a9a9a;
+      margin-top: 14px;
+      line-height: 1.5;
+    }
+
+    .map-card {
+      background: linear-gradient(180deg, #111 0%, #090909 100%);
+      border-radius: 28px;
+      min-height: 240px;
+      margin-top: 24px;
+      overflow: hidden;
+      position: relative;
+      box-shadow: inset 0 0 0 2px rgba(255,255,255,0.04);
+    }
+
+    .map-image {
+      position: absolute;
+      inset: 0;
+      background-image: url("https://tile.openstreetmap.org/12/1051/1532.png");
+      background-size: cover;
+      background-position: center;
+      opacity: 0.28;
+      filter: contrast(1.1);
+    }
+
+    .map-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.12), rgba(0,0,0,0.58));
+    }
+
+    .map-pin {
+      position: absolute;
+      font-size: 38px;
+      filter: drop-shadow(0 4px 12px rgba(0,0,0,0.45));
+    }
+
+    .pin-a {
+      top: 32%;
+      left: 30%;
+    }
+
+    .pin-b {
+      top: 52%;
+      right: 24%;
+    }
+
+    .map-label {
+      position: absolute;
+      left: 18px;
+      bottom: 16px;
+      right: 18px;
+      background: rgba(0,0,0,0.52);
+      border-radius: 18px;
+      padding: 14px 16px;
+      font-size: 16px;
+      line-height: 1.4;
+    }
+
+    @media (max-width: 600px) {
+      .logo {
+        font-size: 46px;
+      }
+
+      .section-title {
+        font-size: 24px;
+      }
+
+      .service-card {
+        min-height: 118px;
+        font-size: 20px;
+      }
+
+      .field,
+      .button {
+        font-size: 18px;
+      }
     }
   </style>
 </head>
 <body>
   <div class="app">
-    <div class="title">Harvey Taxi</div>
+    <div class="logo">Harvey Taxi</div>
 
     <div class="card">
-      <div class="service-title">Choose Service</div>
-      <div class="grid">
-        <div class="service-btn">🚕 Ride</div>
-        <div class="service-btn">🍔 Food</div>
-        <div class="service-btn">🛒 Grocery</div>
-        <div class="service-btn">📦 Delivery</div>
+      <div class="section-title">Choose Service</div>
+
+      <div class="service-grid">
+        <button class="service-card active" data-service="Ride">🚕 Ride</button>
+        <button class="service-card" data-service="Food">🍔 Food</button>
+        <button class="service-card" data-service="Grocery">🛒 Grocery</button>
+        <button class="service-card" data-service="Delivery">📦 Delivery</button>
       </div>
     </div>
 
     <div class="card">
-      <div class="service-title">Request Pickup</div>
+      <div class="section-title">Request Pickup</div>
 
-      <input id="pickup" placeholder="Pickup location" />
-      <input id="dropoff" placeholder="Dropoff location" />
+      <input id="pickup" class="field" type="text" placeholder="Pickup location" />
+      <input id="dropoff" class="field" type="text" placeholder="Dropoff location" />
 
-      <select id="rideType">
+      <select id="rideType" class="field select-field">
         <option>Standard Ride</option>
         <option>XL Ride</option>
-        <option>Luxury Ride</option>
-        <option>Female Driver</option>
+        <option>Priority Ride</option>
       </select>
 
-      <button onclick="requestRide()">Request Ride</button>
+      <button id="estimateBtn" class="button button-secondary">Estimate Fare</button>
+      <button id="requestRideBtn" class="button button-primary">Request Ride</button>
 
-      <div class="status" id="status">Ready to request a ride.</div>
+      <div id="statusBox" class="status-box">Ready to request a ride.</div>
 
-      <div class="driver-box" id="driverBox">
-        <h3>Live Trip Status</h3>
-        <div id="driverInfo"></div>
-      </div>
+      <div id="fareBox" class="fare-box"></div>
 
-      <div id="map"></div>
-      <div class="map-note">Live moving map active.</div>
-    </div>
-
-    <div class="card">
-      <div class="service-title">Quick Access</div>
-      <div class="row">
-        <button class="secondary" onclick="window.location.href='/driver.html'">Driver Panel</button>
-        <button class="secondary" onclick="window.location.href='/admin.html'">Admin Panel</button>
+      <div class="map-card">
+        <div class="map-image"></div>
+        <div class="map-overlay"></div>
+        <div class="map-pin pin-a">📍</div>
+        <div class="map-pin pin-b">🏁</div>
+        <div class="map-label">
+          Pickup and dropoff preview area.<br />
+          Next upgrade: real map + autocomplete + live driver tracking.
+        </div>
       </div>
     </div>
   </div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    let activeRideId = null
-    let ridePoller = null
-    let map
-    let pickupMarker = null
-    let dropoffMarker = null
-    let driverMarker = null
-    let routeLine = null
+    const serviceButtons = document.querySelectorAll('.service-card')
+    const pickupInput = document.getElementById('pickup')
+    const dropoffInput = document.getElementById('dropoff')
+    const rideTypeSelect = document.getElementById('rideType')
+    const estimateBtn = document.getElementById('estimateBtn')
+    const requestRideBtn = document.getElementById('requestRideBtn')
+    const statusBox = document.getElementById('statusBox')
+    const fareBox = document.getElementById('fareBox')
 
-    const defaultPickup = { lat: 36.1627, lng: -86.7816 }
-    const defaultDropoff = { lat: 36.1699, lng: -86.7944 }
+    let selectedService = 'Ride'
 
-    function prettyStatus(status) {
-      if (status === 'assigned') return 'Assigned'
-      if (status === 'accepted') return 'Accepted'
-      if (status === 'arriving') return 'Arriving'
-      if (status === 'arrived') return 'Arrived'
-      if (status === 'in_progress') return 'In Progress'
-      if (status === 'completed') return 'Completed'
-      return status
-    }
+    serviceButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        serviceButtons.forEach((btn) => btn.classList.remove('active'))
+        button.classList.add('active')
+        selectedService = button.dataset.service || 'Ride'
 
-    function initMap() {
-      map = L.map('map').setView([defaultPickup.lat, defaultPickup.lng], 13)
-
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; OpenStreetMap'
-      }).addTo(map)
-    }
-
-    function drawRideMap(ride) {
-      if (!map) return
-
-      const pickup = [ride.pickupLat, ride.pickupLng]
-      const dropoff = [ride.dropoffLat, ride.dropoffLng]
-      const driverLocation = ride.driverLocation
-        ? [ride.driverLocation.lat, ride.driverLocation.lng]
-        : pickup
-
-      if (pickupMarker) map.removeLayer(pickupMarker)
-      if (dropoffMarker) map.removeLayer(dropoffMarker)
-      if (driverMarker) map.removeLayer(driverMarker)
-      if (routeLine) map.removeLayer(routeLine)
-
-      pickupMarker = L.marker(pickup).addTo(map).bindPopup('Pickup')
-      dropoffMarker = L.marker(dropoff).addTo(map).bindPopup('Dropoff')
-      driverMarker = L.marker(driverLocation).addTo(map).bindPopup('Driver')
-
-      const routePoints =
-        ride.status === 'in_progress' || ride.status === 'completed'
-          ? [driverLocation, dropoff]
-          : [driverLocation, pickup]
-
-      routeLine = L.polyline(routePoints).addTo(map)
-
-      const group = L.featureGroup([pickupMarker, dropoffMarker, driverMarker, routeLine])
-      map.fitBounds(group.getBounds().pad(0.25))
-    }
-
-    function renderRide(ride) {
-      const driverInfo = document.getElementById('driverInfo')
-      const status = document.getElementById('status')
-
-      driverInfo.innerHTML = `
-        <div><strong>Name:</strong> ${ride.driverName}</div>
-        <div class="small"><strong>Car:</strong> ${ride.car}</div>
-        <div class="small"><strong>Plate:</strong> ${ride.plate}</div>
-        <div class="small"><strong>Pickup:</strong> ${ride.pickup}</div>
-        <div class="small"><strong>Dropoff:</strong> ${ride.dropoff}</div>
-        <div class="small"><strong>Ride Type:</strong> ${ride.rideType}</div>
-        <div class="pill">Status: ${prettyStatus(ride.status)}</div>
-        <div class="small"><strong>Update:</strong> ${ride.etaLabel}</div>
-      `
-
-      if (ride.status === 'completed') {
-        status.innerHTML = 'Trip completed successfully.'
-        stopRidePolling()
-      } else {
-        status.innerHTML = `${ride.driverName} • ${prettyStatus(ride.status)} • ${ride.etaLabel}`
-      }
-
-      drawRideMap(ride)
-    }
-
-    async function requestRide() {
-      const pickup = document.getElementById('pickup').value.trim()
-      const dropoff = document.getElementById('dropoff').value.trim()
-      const rideType = document.getElementById('rideType').value
-      const status = document.getElementById('status')
-      const driverBox = document.getElementById('driverBox')
-
-      if (!pickup || !dropoff) {
-        status.innerHTML = 'Please enter pickup and dropoff locations.'
-        driverBox.style.display = 'none'
-        return
-      }
-
-      status.innerHTML = 'Searching for nearest available driver...'
-      driverBox.style.display = 'none'
-
-      try {
-        const response = await fetch('/api/request-ride', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            pickup,
-            dropoff,
-            rideType,
-            pickupLat: 36.1627,
-            pickupLng: -86.7816,
-            dropoffLat: 36.1699,
-            dropoffLng: -86.7944
-          })
-        })
-
-        const data = await response.json()
-
-        if (!response.ok || !data.success) {
-          status.innerHTML = data.message || data.error || 'Could not find a driver.'
-          return
+        if (selectedService === 'Ride') {
+          rideTypeSelect.style.display = 'block'
+        } else {
+          rideTypeSelect.style.display = 'none'
         }
 
-        activeRideId = data.ride.id
-        document.getElementById('driverBox').style.display = 'block'
-        startRidePolling()
-        await pollRide()
-      } catch (error) {
-        status.innerHTML = 'Dispatch error. Please try again.'
-      }
-    }
+        setStatus(`${selectedService} service selected.`)
+      })
+    })
 
-    async function pollRide() {
-      if (!activeRideId) return
-
-      try {
-        const response = await fetch(`/api/rides/${activeRideId}`)
-        const ride = await response.json()
-
-        if (!response.ok) return
-
-        renderRide(ride)
-      } catch (error) {}
-    }
-
-    function startRidePolling() {
-      stopRidePolling()
-      ridePoller = setInterval(pollRide, 2500)
-    }
-
-    function stopRidePolling() {
-      if (ridePoller) {
-        clearInterval(ridePoller)
-        ridePoller = null
-      }
-    }
-
-    initMap()
-  </script>
-</body>
-</html>
+    function setStatus
