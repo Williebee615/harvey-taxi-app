@@ -1,340 +1,186 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Harvey Taxi</title>
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: Arial, Helvetica, sans-serif;
-    }
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Harvey Taxi</title>
 
-    body {
-      background: #000;
-      color: #fff;
-      min-height: 100vh;
-      padding: 24px 18px 40px;
-    }
+<style>
 
-    .app {
-      width: 100%;
-      max-width: 760px;
-      margin: 0 auto;
-    }
+body{
+background:#000;
+color:white;
+font-family:Arial;
+padding:20px;
+}
 
-    .logo {
-      font-size: 60px;
-      font-weight: 800;
-      letter-spacing: -2px;
-      margin: 10px 0 28px;
-    }
+.card{
+background:#080808;
+padding:20px;
+border-radius:20px;
+margin-bottom:20px;
+}
 
-    .card {
-      background: #050505;
-      border-radius: 34px;
-      padding: 24px 20px;
-      margin-bottom: 26px;
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.03);
-    }
+input,select{
+width:100%;
+padding:18px;
+margin-bottom:15px;
+border-radius:15px;
+border:none;
+background:#111;
+color:white;
+font-size:16px;
+}
 
-    .section-title {
-      font-size: 28px;
-      font-weight: 500;
-      margin-bottom: 22px;
-    }
+button{
+width:100%;
+padding:20px;
+border:none;
+border-radius:15px;
+font-size:18px;
+font-weight:bold;
+cursor:pointer;
+}
 
-    .service-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 18px;
-    }
+.green{
+background:#2ecc71;
+color:white;
+}
 
-    .service-card {
-      border: none;
-      border-radius: 28px;
-      background: #0a0b10;
-      color: #fff;
-      min-height: 140px;
-      font-size: 24px;
-      cursor: pointer;
-      box-shadow: inset 0 0 0 2px rgba(255,255,255,0.05);
-      transition: 0.2s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 18px;
-    }
+.gray{
+background:#222;
+color:white;
+margin-bottom:10px;
+}
 
-    .service-card.active {
-      box-shadow: inset 0 0 0 2px #2ecc71;
-      transform: translateY(-1px);
-    }
+#fareBox{
+margin-top:15px;
+background:#111;
+padding:15px;
+border-radius:15px;
+}
 
-    .field {
-      width: 100%;
-      border: none;
-      outline: none;
-      background: #0a0b10;
-      color: #fff;
-      border-radius: 24px;
-      padding: 24px 22px;
-      font-size: 22px;
-      margin-bottom: 18px;
-      box-shadow: inset 0 0 0 2px rgba(255,255,255,0.04);
-    }
+</style>
 
-    .field::placeholder {
-      color: #9b9b9b;
-    }
-
-    .select-field {
-      appearance: none;
-      -webkit-appearance: none;
-      background-image: linear-gradient(45deg, transparent 50%, #999 50%),
-                        linear-gradient(135deg, #999 50%, transparent 50%);
-      background-position: calc(100% - 25px) calc(50% - 4px),
-                           calc(100% - 16px) calc(50% - 4px);
-      background-size: 10px 10px, 10px 10px;
-      background-repeat: no-repeat;
-    }
-
-    .button {
-      width: 100%;
-      border: none;
-      border-radius: 26px;
-      padding: 24px 20px;
-      font-size: 24px;
-      font-weight: 800;
-      cursor: pointer;
-      transition: 0.2s ease;
-    }
-
-    .button:disabled {
-      opacity: 0.7;
-      cursor: not-allowed;
-    }
-
-    .button-secondary {
-      background: #111317;
-      color: #fff;
-      margin-bottom: 14px;
-    }
-
-    .button-primary {
-      background: #2ecc71;
-      color: #fff;
-      margin-bottom: 18px;
-    }
-
-    .status-box {
-      background: #0a0b10;
-      border-radius: 24px;
-      padding: 22px;
-      font-size: 18px;
-      line-height: 1.5;
-      color: #d8d8d8;
-      min-height: 92px;
-      display: flex;
-      align-items: center;
-      margin-bottom: 18px;
-      box-shadow: inset 0 0 0 2px rgba(255,255,255,0.04);
-    }
-
-    .fare-box {
-      display: none;
-      background: #0a0b10;
-      border-radius: 24px;
-      padding: 20px;
-      box-shadow: inset 0 0 0 2px rgba(255,255,255,0.04);
-    }
-
-    .fare-title {
-      font-size: 22px;
-      font-weight: 700;
-      margin-bottom: 16px;
-    }
-
-    .fare-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 16px;
-      font-size: 17px;
-      padding: 9px 0;
-      color: #ddd;
-    }
-
-    .fare-row strong {
-      color: #fff;
-    }
-
-    .fare-total {
-      margin-top: 10px;
-      padding-top: 14px;
-      border-top: 1px solid rgba(255,255,255,0.1);
-      font-size: 22px;
-      font-weight: 800;
-    }
-
-    .mini-note {
-      font-size: 14px;
-      color: #9a9a9a;
-      margin-top: 14px;
-      line-height: 1.5;
-    }
-
-    .map-card {
-      background: linear-gradient(180deg, #111 0%, #090909 100%);
-      border-radius: 28px;
-      min-height: 240px;
-      margin-top: 24px;
-      overflow: hidden;
-      position: relative;
-      box-shadow: inset 0 0 0 2px rgba(255,255,255,0.04);
-    }
-
-    .map-image {
-      position: absolute;
-      inset: 0;
-      background-image: url("https://tile.openstreetmap.org/12/1051/1532.png");
-      background-size: cover;
-      background-position: center;
-      opacity: 0.28;
-      filter: contrast(1.1);
-    }
-
-    .map-overlay {
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(to bottom, rgba(0,0,0,0.12), rgba(0,0,0,0.58));
-    }
-
-    .map-pin {
-      position: absolute;
-      font-size: 38px;
-      filter: drop-shadow(0 4px 12px rgba(0,0,0,0.45));
-    }
-
-    .pin-a {
-      top: 32%;
-      left: 30%;
-    }
-
-    .pin-b {
-      top: 52%;
-      right: 24%;
-    }
-
-    .map-label {
-      position: absolute;
-      left: 18px;
-      bottom: 16px;
-      right: 18px;
-      background: rgba(0,0,0,0.52);
-      border-radius: 18px;
-      padding: 14px 16px;
-      font-size: 16px;
-      line-height: 1.4;
-    }
-
-    @media (max-width: 600px) {
-      .logo {
-        font-size: 46px;
-      }
-
-      .section-title {
-        font-size: 24px;
-      }
-
-      .service-card {
-        min-height: 118px;
-        font-size: 20px;
-      }
-
-      .field,
-      .button {
-        font-size: 18px;
-      }
-    }
-  </style>
 </head>
 <body>
-  <div class="app">
-    <div class="logo">Harvey Taxi</div>
 
-    <div class="card">
-      <div class="section-title">Choose Service</div>
+<h1>Harvey Taxi</h1>
 
-      <div class="service-grid">
-        <button class="service-card active" data-service="Ride">🚕 Ride</button>
-        <button class="service-card" data-service="Food">🍔 Food</button>
-        <button class="service-card" data-service="Grocery">🛒 Grocery</button>
-        <button class="service-card" data-service="Delivery">📦 Delivery</button>
-      </div>
-    </div>
+<div class="card">
 
-    <div class="card">
-      <div class="section-title">Request Pickup</div>
+<h2>Request Pickup</h2>
 
-      <input id="pickup" class="field" type="text" placeholder="Pickup location" />
-      <input id="dropoff" class="field" type="text" placeholder="Dropoff location" />
+<input id="pickup" placeholder="Pickup location">
 
-      <select id="rideType" class="field select-field">
-        <option>Standard Ride</option>
-        <option>XL Ride</option>
-        <option>Priority Ride</option>
-      </select>
+<input id="dropoff" placeholder="Dropoff location">
 
-      <button id="estimateBtn" class="button button-secondary">Estimate Fare</button>
-      <button id="requestRideBtn" class="button button-primary">Request Ride</button>
+<select id="rideType">
+<option>Standard Ride</option>
+<option>XL Ride</option>
+<option>Priority Ride</option>
+</select>
 
-      <div id="statusBox" class="status-box">Ready to request a ride.</div>
+<button class="gray" id="estimateBtn">
+Estimate Fare
+</button>
 
-      <div id="fareBox" class="fare-box"></div>
+<button class="green" id="requestBtn">
+Request Ride
+</button>
 
-      <div class="map-card">
-        <div class="map-image"></div>
-        <div class="map-overlay"></div>
-        <div class="map-pin pin-a">📍</div>
-        <div class="map-pin pin-b">🏁</div>
-        <div class="map-label">
-          Pickup and dropoff preview area.<br />
-          Next upgrade: real map + autocomplete + live driver tracking.
-        </div>
-      </div>
-    </div>
-  </div>
+<div id="status">
+Ready
+</div>
 
-  <script>
-    const serviceButtons = document.querySelectorAll('.service-card')
-    const pickupInput = document.getElementById('pickup')
-    const dropoffInput = document.getElementById('dropoff')
-    const rideTypeSelect = document.getElementById('rideType')
-    const estimateBtn = document.getElementById('estimateBtn')
-    const requestRideBtn = document.getElementById('requestRideBtn')
-    const statusBox = document.getElementById('statusBox')
-    const fareBox = document.getElementById('fareBox')
+<div id="fareBox"></div>
 
-    let selectedService = 'Ride'
+</div>
 
-    serviceButtons.forEach((button) => {
-      button.addEventListener('click', () => {
-        serviceButtons.forEach((btn) => btn.classList.remove('active'))
-        button.classList.add('active')
-        selectedService = button.dataset.service || 'Ride'
+<script>
 
-        if (selectedService === 'Ride') {
-          rideTypeSelect.style.display = 'block'
-        } else {
-          rideTypeSelect.style.display = 'none'
-        }
+const pickup =
+document.getElementById("pickup")
 
-        setStatus(`${selectedService} service selected.`)
-      })
-    })
+const dropoff =
+document.getElementById("dropoff")
 
-    function setStatus
+const estimateBtn =
+document.getElementById("estimateBtn")
+
+const requestBtn =
+document.getElementById("requestBtn")
+
+const status =
+document.getElementById("status")
+
+const fareBox =
+document.getElementById("fareBox")
+
+function showFare(data){
+
+fareBox.innerHTML = `
+Distance: ${data.trip.distanceMiles} miles <br>
+ETA: ${data.trip.durationMinutes} min <br><br>
+
+Base: $${data.fare.baseFare}<br>
+Distance: $${data.fare.distanceFare}<br>
+Time: $${data.fare.timeFare}<br>
+Booking: $${data.fare.bookingFee}<br>
+Service: $${data.fare.serviceFee}<br><br>
+
+<b>Total: $${data.fare.totalFare}</b>
+`
+
+}
+
+estimateBtn.onclick = async ()=>{
+
+status.innerHTML="Calculating..."
+
+const res = await fetch("/api/fare/estimate",{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+pickupAddress:pickup.value,
+dropoffAddress:dropoff.value
+})
+})
+
+const data = await res.json()
+
+showFare(data)
+
+status.innerHTML="Estimate ready"
+
+}
+
+requestBtn.onclick = async ()=>{
+
+status.innerHTML="Requesting ride..."
+
+const res = await fetch("/api/rides/request",{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+pickupAddress:pickup.value,
+dropoffAddress:dropoff.value,
+serviceType:"Ride"
+})
+})
+
+const data = await res.json()
+
+showFare(data.ride)
+
+status.innerHTML="Driver search started"
+
+}
+
+</script>
+
+</body>
+</html>
