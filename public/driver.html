@@ -3,318 +3,119 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Driver Dashboard</title>
+  <title>Harvey Taxi Driver</title>
   <style>
-    *{
-      box-sizing:border-box;
-      margin:0;
-      padding:0;
-    }
-
     body{
       background:#000;
       color:#fff;
       font-family:Arial, sans-serif;
-      min-height:100vh;
       padding:20px;
+      margin:0;
     }
-
     .app{
       max-width:700px;
       margin:0 auto;
     }
-
-    h1{
+    .title{
       font-size:34px;
-      margin:10px 0 20px;
+      font-weight:bold;
+      margin:18px 0 24px;
     }
-
     .card{
-      background:#0d0d0d;
-      border:1px solid #191919;
-      border-radius:22px;
-      padding:18px;
+      background:#0a0a0a;
+      border-radius:24px;
+      padding:20px;
       margin-bottom:18px;
     }
-
-    .input{
+    select, button{
       width:100%;
-      background:#171717;
-      color:#fff;
-      border:none;
-      outline:none;
-      border-radius:14px;
-      padding:15px;
-      font-size:16px;
-      margin-top:10px;
-    }
-
-    .btn{
-      width:100%;
-      border:none;
-      border-radius:16px;
       padding:16px;
-      font-size:17px;
-      font-weight:700;
-      cursor:pointer;
       margin-top:12px;
-    }
-
-    .btn-primary{
-      background:#1db954;
-      color:#fff;
-    }
-
-    .btn-secondary{
-      background:#202020;
-      color:#fff;
-    }
-
-    .stats{
-      font-size:16px;
-      color:#d5d5d5;
-      margin-top:8px;
-    }
-
-    .money{
-      font-size:30px;
-      font-weight:800;
-      margin-top:10px;
-    }
-
-    .job{
-      background:#171717;
+      border:none;
       border-radius:18px;
-      padding:16px;
-      margin-top:12px;
+      font-size:16px;
     }
-
-    .job-title{
-      font-size:20px;
-      font-weight:700;
-      margin-bottom:8px;
+    select{
+      background:#111;
+      color:#fff;
     }
-
-    .small{
-      color:#bdbdbd;
-      font-size:14px;
-      margin-top:5px;
+    button{
+      background:#22c55e;
+      color:#fff;
+      font-weight:bold;
     }
-
-    .empty{
-      color:#9b9b9b;
-      font-size:14px;
+    button.off{
+      background:#1f1f1f;
+      border:1px solid #333;
+    }
+    .status{
+      margin-top:14px;
+      padding:14px;
+      background:#111;
+      border-radius:16px;
+      color:#d1d5db;
     }
   </style>
 </head>
 <body>
   <div class="app">
-    <h1>Driver Dashboard</h1>
+    <div class="title">Driver Panel</div>
 
     <div class="card">
-      <input id="driverName" class="input" placeholder="Driver name" />
-      <button class="btn btn-primary" onclick="goOnline()">Go Online</button>
+      <h2>Select Driver</h2>
+      <select id="driverId"></select>
+      <button onclick="goOnline()">Go Online</button>
+      <button class="off" onclick="goOffline()">Go Offline</button>
+      <div class="status" id="driverStatus">Driver system ready.</div>
     </div>
 
     <div class="card">
-      <div class="stats">Today's Earnings</div>
-      <div class="money" id="earnings">$0.00</div>
-      <div class="stats">Completed Jobs: <span id="completedJobs">0</span></div>
-      <div class="stats">Current Status: <span id="driverStatus">Offline</span></div>
-    </div>
-
-    <div class="card">
-      <div class="job-title">Active / Available Jobs</div>
-      <div id="jobsWrap" class="empty">No jobs right now.</div>
+      <button class="off" onclick="window.location.href='/'">Back to Rider App</button>
     </div>
   </div>
 
   <script>
-    let savedDriverId = localStorage.getItem('harvey_driver_id')
-    let savedDriverName = localStorage.getItem('harvey_driver_name') || ''
+    async function loadDrivers() {
+      const res = await fetch('/api/drivers')
+      const drivers = await res.json()
+      const select = document.getElementById('driverId')
 
-    let driver = {
-      id: savedDriverId || Math.random().toString(36).slice(2, 11),
-      name: savedDriverName || 'Harvey Driver',
-      available: false,
-      services: ['ride', 'food', 'grocery', 'package']
+      select.innerHTML = drivers.map(driver => `
+        <option value="${driver.id}">
+          ${driver.name} - ${driver.car} (${driver.online ? 'Online' : 'Offline'}${driver.busy ? ', Busy' : ''})
+        </option>
+      `).join('')
     }
 
-    if (!savedDriverId) {
-      localStorage.setItem('harvey_driver_id', driver.id)
-    }
-
-    document.getElementById('driverName').value = savedDriverName
-
-    let watchId = null
-    let refreshStarted = false
-
-    function goOnline() {
-      const enteredName = document.getElementById('driverName').value.trim()
-      driver.name = enteredName || 'Harvey Driver'
-      driver.available = true
-
-      localStorage.setItem('harvey_driver_name', driver.name)
-      document.getElementById('driverStatus').textContent = 'Online'
-
-      if (!navigator.geolocation) {
-        alert('Location not supported.')
-        return
-      }
-
-      if (watchId !== null) return
-
-      watchId = navigator.geolocation.watchPosition(
-        async (pos) => {
-          driver.lat = pos.coords.latitude
-          driver.lng = pos.coords.longitude
-
-          await fetch('/driver/update', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(driver)
-          })
-
-          loadJobs()
-          loadStats()
-        },
-        () => {
-          alert('Please allow location access for driver tracking.')
-        }
-      )
-
-      if (!refreshStarted) {
-        refreshStarted = true
-        setInterval(() => {
-          loadJobs()
-          loadStats()
-        }, 3000)
-      }
-    }
-
-    async function loadJobs() {
-      try {
-        const res = await fetch('/driver/jobs/' + driver.id)
-        const jobs = await res.json()
-        const jobsWrap = document.getElementById('jobsWrap')
-
-        if (!Array.isArray(jobs) || jobs.length === 0) {
-          jobsWrap.innerHTML = `<div class="empty">No jobs right now.</div>`
-          return
-        }
-
-        jobsWrap.innerHTML = jobs.map(job => `
-          <div class="job">
-            <div class="job-title">${formatType(job.type)}</div>
-            <div class="small"><strong>Status:</strong> ${formatStatus(job.status)}</div>
-            <div class="small"><strong>Rider:</strong> ${job.riderName || 'Rider'}</div>
-            <div class="small"><strong>Pickup:</strong> ${job.pickupAddress || 'N/A'}</div>
-            <div class="small"><strong>Dropoff:</strong> ${job.dropoffAddress || 'N/A'}</div>
-            <div class="small"><strong>Distance:</strong> ${job.distanceKm || '0.00'} km</div>
-            <div class="small"><strong>Payout:</strong> $${job.estimatedPrice || '0.00'}</div>
-
-            ${job.status === 'assigned' ? `
-              <button class="btn btn-primary" onclick="acceptJob('${job.id}')">Accept Job</button>
-              <button class="btn btn-secondary" onclick="declineJob('${job.id}')">Decline Job</button>
-            ` : ''}
-
-            ${job.status === 'accepted' ? `
-              <button class="btn btn-primary" onclick="startJob('${job.id}')">Start Trip</button>
-            ` : ''}
-
-            ${job.status === 'in_progress' ? `
-              <button class="btn btn-primary" onclick="completeJob('${job.id}')">Complete Job</button>
-            ` : ''}
-          </div>
-        `).join('')
-      } catch (error) {
-        document.getElementById('jobsWrap').innerHTML = `<div class="empty">Could not load jobs.</div>`
-      }
-    }
-
-    async function acceptJob(jobId) {
-      await fetch('/driver/job/' + jobId + '/accept', {
+    async function goOnline() {
+      const id = document.getElementById('driverId').value
+      const res = await fetch('/api/drivers/go-online', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ driverId: driver.id })
+        body: JSON.stringify({
+          id,
+          lat: 36.1627 + Math.random() * 0.02,
+          lng: -86.7816 + Math.random() * 0.02
+        })
       })
-
-      driver.available = false
-      await loadJobs()
-      await loadStats()
+      const data = await res.json()
+      document.getElementById('driverStatus').innerHTML = data.message || 'Driver online.'
+      loadDrivers()
     }
 
-    async function declineJob(jobId) {
-      await fetch('/driver/job/' + jobId + '/decline', {
+    async function goOffline() {
+      const id = document.getElementById('driverId').value
+      const res = await fetch('/api/drivers/go-offline', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ driverId: driver.id })
+        body: JSON.stringify({ id })
       })
-
-      await loadJobs()
-      await loadStats()
+      const data = await res.json()
+      document.getElementById('driverStatus').innerHTML = data.message || 'Driver offline.'
+      loadDrivers()
     }
 
-    async function startJob(jobId) {
-      await fetch('/driver/job/' + jobId + '/start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ driverId: driver.id })
-      })
-
-      await loadJobs()
-    }
-
-    async function completeJob(jobId) {
-      await fetch('/driver/job/' + jobId + '/complete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ driverId: driver.id })
-      })
-
-      driver.available = true
-
-      await fetch('/driver/update', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(driver)
-      })
-
-      await loadJobs()
-      await loadStats()
-    }
-
-    async function loadStats() {
-      try {
-        const res = await fetch('/driver/stats/' + driver.id)
-        const stats = await res.json()
-
-        document.getElementById('earnings').textContent = '$' + (stats.earnings || '0.00')
-        document.getElementById('completedJobs').textContent = stats.completedJobs || 0
-      } catch (error) {
-        console.log('Could not load stats')
-      }
-    }
-
-    function formatType(type) {
-      if (type === 'ride') return '🚕 Ride Request'
-      if (type === 'food') return '🍔 Food Delivery'
-      if (type === 'grocery') return '🛒 Grocery Delivery'
-      if (type === 'package') return '📦 Package Delivery'
-      return type || 'Job'
-    }
-
-    function formatStatus(status) {
-      if (status === 'assigned') return 'Assigned'
-      if (status === 'accepted') return 'Accepted'
-      if (status === 'in_progress') return 'In Progress'
-      if (status === 'completed') return 'Completed'
-      if (status === 'searching') return 'Searching'
-      return status || 'Pending'
-    }
-
-    loadStats()
-    loadJobs()
+    loadDrivers()
   </script>
 </body>
 </html>
