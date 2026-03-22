@@ -1,176 +1,159 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Harvey Taxi Request Service</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f3f4f6;
-      margin: 0;
-      padding: 20px;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Request Service</title>
 
-    .container {
-      max-width: 900px;
-      margin: 0 auto;
-    }
+<style>
+body{
+font-family:Arial;
+background:#0b0f1a;
+color:white;
+margin:0;
+}
 
-    .card {
-      background: white;
-      border-radius: 18px;
-      padding: 22px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-      margin-bottom: 20px;
-    }
+.container{
+padding:20px;
+}
 
-    h1, h2 {
-      margin-top: 0;
-      color: #111827;
-    }
+input,select,textarea{
+width:100%;
+padding:14px;
+margin-top:10px;
+margin-bottom:15px;
+border-radius:8px;
+border:none;
+background:#111827;
+color:white;
+}
 
-    input, select, button {
-      width: 100%;
-      padding: 12px;
-      border-radius: 12px;
-      border: 1px solid #d1d5db;
-      box-sizing: border-box;
-      font-size: 15px;
-      margin-top: 10px;
-    }
+button{
+width:100%;
+padding:16px;
+background:#2563eb;
+border:none;
+border-radius:10px;
+color:white;
+font-weight:bold;
+}
 
-    button {
-      background: #111827;
-      color: white;
-      border: none;
-      cursor: pointer;
-      font-weight: bold;
-    }
+.service{
+font-size:22px;
+margin-bottom:10px;
+}
 
-    .status-box {
-      padding: 14px;
-      border-radius: 14px;
-      background: #f9fafb;
-      border: 1px solid #e5e7eb;
-      margin-top: 14px;
-      color: #374151;
-    }
-  </style>
+</style>
+
 </head>
+
 <body>
-  <div class="container">
-    <div class="card">
-      <h1>Request Service</h1>
 
-      <input type="text" id="riderName" placeholder="Your name" />
-      <input type="text" id="riderPhone" placeholder="Phone number" />
-      <input type="text" id="pickup" placeholder="Pickup location" />
-      <input type="text" id="dropoff" placeholder="Destination / Drop-off" />
+<div class="container">
 
-      <select id="serviceType">
-        <option value="Ride">Ride</option>
-        <option value="Delivery">Delivery</option>
-        <option value="Food">Food</option>
-      </select>
+<div class="service" id="serviceTitle">
+Request Service
+</div>
 
-      <button onclick="submitRequest()">Request Driver</button>
+<input id="name" placeholder="Full name">
 
-      <div id="requestResult" class="status-box" style="display:none;"></div>
-    </div>
+<input id="email" placeholder="Email">
 
-    <div class="card" id="statusCard" style="display:none;">
-      <h2>Request Status</h2>
-      <div id="statusOutput" class="status-box"></div>
-      <button onclick="refreshStatus()">Refresh Status</button>
-    </div>
-  </div>
+<input id="phone" placeholder="Phone">
 
-  <script>
-    let currentRequestId = null
+<input id="pickup" placeholder="Pickup address">
 
-    function getRandomRiderLocation() {
-      const baseLat = 36.1627
-      const baseLng = -86.7816
-      return {
-        lat: baseLat + ((Math.random() - 0.5) * 0.03),
-        lng: baseLng + ((Math.random() - 0.5) * 0.03)
-      }
-    }
+<input id="dropoff" placeholder="Dropoff address (optional)">
 
-    async function submitRequest() {
-      const name = document.getElementById('riderName').value.trim()
-      const phone = document.getElementById('riderPhone').value.trim()
-      const pickup = document.getElementById('pickup').value.trim()
-      const dropoff = document.getElementById('dropoff').value.trim()
-      const serviceType = document.getElementById('serviceType').value
-      const result = document.getElementById('requestResult')
-      const statusCard = document.getElementById('statusCard')
+<textarea id="notes" placeholder="Notes (restaurant, items, groceries etc)"></textarea>
 
-      if (!name || !phone || !pickup) {
-        alert('Please fill name, phone, and pickup.')
-        return
-      }
+<button onclick="request()">Request</button>
 
-      const loc = getRandomRiderLocation()
+</div>
 
-      const res = await fetch('/api/request-service', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name,
-          phone,
-          pickup,
-          dropoff,
-          serviceType,
-          riderLat: loc.lat,
-          riderLng: loc.lng
-        })
-      })
+<script>
 
-      const data = await res.json()
-      result.style.display = 'block'
+const urlParams = new URLSearchParams(window.location.search)
+const service = urlParams.get('service') || "ride"
 
-      if (!data.success) {
-        result.innerHTML = data.message || 'No approved drivers online right now.'
-        statusCard.style.display = 'none'
-        return
-      }
+document.getElementById("serviceTitle").innerText =
+service === "ride" ? "🚕 Request Ride" :
+service === "food" ? "🍔 Food Delivery" :
+"🛒 Grocery Delivery"
 
-      currentRequestId = data.request.id
-      result.innerHTML = `
-        <strong>Driver Assigned</strong><br>
-        Request ID: ${data.request.id}<br>
-        Driver: ${data.request.assignedDriverName}<br>
-        Distance: ${data.request.estimatedDistanceKm} km<br>
-        Status: ${data.request.status}
-      `
-      statusCard.style.display = 'block'
-      refreshStatus()
-    }
+let lat = null
+let lng = null
 
-    async function refreshStatus() {
-      if (!currentRequestId) return
+navigator.geolocation.getCurrentPosition(pos=>{
+lat = pos.coords.latitude
+lng = pos.coords.longitude
+})
 
-      const res = await fetch('/api/request-status/' + currentRequestId)
-      const data = await res.json()
-      const statusOutput = document.getElementById('statusOutput')
+async function request(){
 
-      if (!data.success) {
-        statusOutput.innerHTML = 'Could not load request status.'
-        return
-      }
+const name = document.getElementById("name").value
+const email = document.getElementById("email").value
+const phone = document.getElementById("phone").value
+const pickup = document.getElementById("pickup").value
+const dropoff = document.getElementById("dropoff").value
+const notes = document.getElementById("notes").value
 
-      const req = data.request
-      statusOutput.innerHTML = `
-        <strong>Request ID:</strong> ${req.id}<br>
-        <strong>Status:</strong> ${req.status}<br>
-        <strong>Driver:</strong> ${req.assignedDriverName}<br>
-        <strong>Pickup:</strong> ${req.pickup}<br>
-        <strong>Dropoff:</strong> ${req.dropoff || '-'}<br>
-        <strong>Service:</strong> ${req.serviceType}
-      `
-    }
-  </script>
+const res = await fetch("/api/auth/register-rider",{
+method:"POST",
+headers:{ "Content-Type":"application/json" },
+body:JSON.stringify({
+name,email,password:"123456",phone
+})
+})
+
+let rider
+
+try{
+const data = await res.json()
+rider = data.user
+}catch{
+alert("Registering rider...")
+}
+
+const login = await fetch("/api/auth/login",{
+method:"POST",
+headers:{ "Content-Type":"application/json" },
+body:JSON.stringify({
+email,
+password:"123456"
+})
+})
+
+const loginData = await login.json()
+
+if(!loginData.user){
+alert("Login failed")
+return
+}
+
+const riderId = loginData.user.id
+
+const req = await fetch("/api/requests/create",{
+method:"POST",
+headers:{ "Content-Type":"application/json" },
+body:JSON.stringify({
+riderId,
+serviceType:service,
+pickupAddress:pickup,
+dropoffAddress:dropoff,
+pickupLat:lat,
+pickupLng:lng,
+notes
+})
+})
+
+const result = await req.json()
+
+alert(result.message)
+
+}
+
+</script>
+
 </body>
 </html>
