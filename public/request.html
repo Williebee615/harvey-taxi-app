@@ -2,35 +2,29 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Harvey Taxi</title>
+<title>Request Ride</title>
 
 <style>
 body{
-background:#000;
+background:black;
 color:white;
 font-family:Arial;
 padding:20px;
 }
 
-.title{
-font-size:32px;
-font-weight:bold;
-margin-bottom:20px;
-}
-
-.input{
+.card{
 background:#0b0f1c;
 padding:20px;
-border-radius:16px;
+border-radius:18px;
 margin-bottom:15px;
 }
 
 button{
 width:100%;
-padding:20px;
+padding:18px;
 border:none;
-border-radius:16px;
-font-size:20px;
+border-radius:18px;
+font-size:18px;
 margin-top:10px;
 }
 
@@ -45,23 +39,27 @@ color:white;
 font-weight:bold;
 }
 
-.card{
+input,select{
+width:100%;
+padding:18px;
+border-radius:18px;
+border:none;
 background:#0b0f1c;
-padding:20px;
-border-radius:16px;
-margin-top:20px;
+color:white;
+margin-bottom:15px;
 }
+
 </style>
 </head>
 
 <body>
 
-<div class="title">Request Pickup</div>
+<h1>Request Pickup</h1>
 
-<input id="pickup" class="input" placeholder="Downtown">
-<input id="dropoff" class="input" placeholder="Airport">
+<input id="pickup" placeholder="Pickup address">
+<input id="dropoff" placeholder="Dropoff address">
 
-<select id="rideType" class="input">
+<select id="rideType">
 <option>Standard</option>
 <option>XL</option>
 <option>Luxury</option>
@@ -93,6 +91,7 @@ rideType
 })
 
 const data = await res.json()
+
 lastFare = data
 
 document.getElementById('result').innerHTML = `
@@ -145,7 +144,8 @@ Driver matched successfully<br><br>
 <b>${d.name}</b><br>
 ${d.vehicle}<br>
 Plate: ${d.plate}<br>
-ETA: ${d.etaMinutes} min<br><br>
+ETA: ${d.etaMinutes} min<br>
+${d.distanceAway} miles away<br><br>
 
 Total: $${data.ride.fare.total}
 `
