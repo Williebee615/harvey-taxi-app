@@ -5,12 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Harvey Taxi</title>
   <style>
-    *{
-      box-sizing:border-box;
-      margin:0;
-      padding:0;
-    }
-
+    *{box-sizing:border-box;margin:0;padding:0}
     body{
       background:#000;
       color:#fff;
@@ -18,30 +13,22 @@
       min-height:100vh;
       padding:20px;
     }
-
-    .app{
-      max-width:700px;
-      margin:0 auto;
-    }
-
+    .app{max-width:700px;margin:0 auto}
     .title{
       font-size:34px;
       font-weight:bold;
       margin:18px 0 24px;
     }
-
     .card{
       background:#070707;
       border-radius:28px;
       padding:20px;
       margin-bottom:18px;
     }
-
     .service-title{
       font-size:18px;
       margin-bottom:14px;
     }
-
     input, select{
       width:100%;
       padding:16px;
@@ -52,7 +39,6 @@
       color:#fff;
       font-size:16px;
     }
-
     button{
       width:100%;
       padding:16px;
@@ -65,19 +51,16 @@
       margin-top:14px;
       cursor:pointer;
     }
-
     button.secondary{
       background:#161616;
       border:1px solid #232323;
     }
-
     .grid{
       display:grid;
       grid-template-columns:1fr 1fr;
       gap:14px;
       margin-top:12px;
     }
-
     .service-btn{
       background:#101010;
       border:1px solid #202020;
@@ -86,7 +69,6 @@
       text-align:center;
       font-size:16px;
     }
-
     .map{
       height:220px;
       background:#0d0d0d;
@@ -100,7 +82,6 @@
       text-align:center;
       padding:20px;
     }
-
     .status{
       background:#101010;
       border-radius:18px;
@@ -110,7 +91,6 @@
       line-height:1.5;
       min-height:70px;
     }
-
     .driver-box{
       margin-top:16px;
       background:#111;
@@ -119,18 +99,24 @@
       border:1px solid #202020;
       display:none;
     }
-
     .driver-box h3{
       margin-bottom:10px;
       font-size:18px;
     }
-
     .small{
       color:#9ca3af;
       font-size:14px;
       margin-top:6px;
     }
-
+    .pill{
+      display:inline-block;
+      padding:8px 12px;
+      border-radius:999px;
+      background:#1a1a1a;
+      border:1px solid #2a2a2a;
+      margin-top:10px;
+      font-size:13px;
+    }
     .row{
       display:grid;
       grid-template-columns:1fr 1fr;
@@ -168,19 +154,16 @@
 
       <button onclick="requestRide()">Request Ride</button>
 
-      <div class="status" id="status">
-        Ready to request a ride.
-      </div>
+      <div class="status" id="status">Ready to request a ride.</div>
 
       <div class="driver-box" id="driverBox">
-        <h3>Driver Assigned</h3>
+        <h3>Live Trip Status</h3>
         <div id="driverInfo"></div>
-        <button class="secondary" onclick="completeRide()">Complete Ride</button>
       </div>
 
       <div class="map">
-        Live dispatch active.<br />
-        Nearest driver will be assigned automatically.
+        Dispatch + trip status tracking active.<br />
+        Next step after this is live moving map.
       </div>
     </div>
 
@@ -195,6 +178,17 @@
 
   <script>
     let activeRideId = null
+    let ridePoller = null
+
+    function prettyStatus(status) {
+      if (status === 'assigned') return 'Assigned'
+      if (status === 'accepted') return 'Accepted'
+      if (status === 'arriving') return 'Arriving'
+      if (status === 'arrived') return 'Arrived'
+      if (status === 'in_progress') return 'In Progress'
+      if (status === 'completed') return 'Completed'
+      return status
+    }
 
     async function requestRide() {
       const pickup = document.getElementById('pickup').value.trim()
@@ -202,7 +196,6 @@
       const rideType = document.getElementById('rideType').value
       const status = document.getElementById('status')
       const driverBox = document.getElementById('driverBox')
-      const driverInfo = document.getElementById('driverInfo')
 
       if (!pickup || !dropoff) {
         status.innerHTML = 'Please enter pickup and dropoff locations.'
@@ -216,9 +209,7 @@
       try {
         const response = await fetch('/api/request-ride', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             pickup,
             dropoff,
@@ -232,59 +223,64 @@
 
         if (!response.ok || !data.success) {
           status.innerHTML = data.message || data.error || 'Could not find a driver.'
-          driverBox.style.display = 'none'
           return
         }
 
         activeRideId = data.ride.id
-
-        status.innerHTML = `Driver found. ${data.ride.driverName} is heading to your pickup. ETA ${data.ride.etaMinutes} min.`
-
-        driverInfo.innerHTML = `
-          <div><strong>Name:</strong> ${data.ride.driverName}</div>
-          <div class="small"><strong>Car:</strong> ${data.ride.car}</div>
-          <div class="small"><strong>Plate:</strong> ${data.ride.plate}</div>
-          <div class="small"><strong>Pickup:</strong> ${data.ride.pickup}</div>
-          <div class="small"><strong>Dropoff:</strong> ${data.ride.dropoff}</div>
-          <div class="small"><strong>Ride Type:</strong> ${data.ride.rideType}</div>
-        `
-        driverBox.style.display = 'block'
+        status.innerHTML = `Driver assigned. ${data.ride.driverName} is ${data.ride.etaLabel}.`
+        document.getElementById('driverBox').style.display = 'block'
+        renderRide(data.ride)
+        startRidePolling()
       } catch (error) {
         status.innerHTML = 'Dispatch error. Please try again.'
-        driverBox.style.display = 'none'
       }
     }
 
-    async function completeRide() {
+    function renderRide(ride) {
+      const driverInfo = document.getElementById('driverInfo')
       const status = document.getElementById('status')
-      const driverBox = document.getElementById('driverBox')
 
-      if (!activeRideId) {
-        status.innerHTML = 'No active ride found.'
-        return
+      driverInfo.innerHTML = `
+        <div><strong>Name:</strong> ${ride.driverName}</div>
+        <div class="small"><strong>Car:</strong> ${ride.car}</div>
+        <div class="small"><strong>Plate:</strong> ${ride.plate}</div>
+        <div class="small"><strong>Pickup:</strong> ${ride.pickup}</div>
+        <div class="small"><strong>Dropoff:</strong> ${ride.dropoff}</div>
+        <div class="small"><strong>Ride Type:</strong> ${ride.rideType}</div>
+        <div class="pill">Status: ${prettyStatus(ride.status)}</div>
+        <div class="small"><strong>Update:</strong> ${ride.etaLabel}</div>
+      `
+
+      if (ride.status === 'completed') {
+        status.innerHTML = 'Trip completed successfully.'
+        stopRidePolling()
+      } else {
+        status.innerHTML = `${ride.driverName} • ${prettyStatus(ride.status)} • ${ride.etaLabel}`
       }
+    }
+
+    async function pollRide() {
+      if (!activeRideId) return
 
       try {
-        const response = await fetch('/api/complete-ride', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ rideId: activeRideId })
-        })
+        const response = await fetch(`/api/rides/${activeRideId}`)
+        const ride = await response.json()
 
-        const data = await response.json()
+        if (!response.ok) return
 
-        if (!response.ok || !data.success) {
-          status.innerHTML = data.error || 'Could not complete ride.'
-          return
-        }
+        renderRide(ride)
+      } catch (error) {}
+    }
 
-        status.innerHTML = 'Ride completed successfully. Driver is available again.'
-        driverBox.style.display = 'none'
-        activeRideId = null
-      } catch (error) {
-        status.innerHTML = 'Error completing ride.'
+    function startRidePolling() {
+      stopRidePolling()
+      ridePoller = setInterval(pollRide, 2500)
+    }
+
+    function stopRidePolling() {
+      if (ridePoller) {
+        clearInterval(ridePoller)
+        ridePoller = null
       }
     }
   </script>
