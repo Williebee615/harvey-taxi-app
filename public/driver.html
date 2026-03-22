@@ -12,10 +12,7 @@
       padding:20px;
       margin:0;
     }
-    .app{
-      max-width:700px;
-      margin:0 auto;
-    }
+    .app{max-width:700px;margin:0 auto}
     .title{
       font-size:34px;
       font-weight:bold;
@@ -55,6 +52,18 @@
       border-radius:16px;
       color:#d1d5db;
     }
+    .ride-box{
+      margin-top:16px;
+      padding:16px;
+      background:#111;
+      border-radius:16px;
+      border:1px solid #222;
+    }
+    .small{
+      color:#aaa;
+      margin-top:6px;
+      font-size:14px;
+    }
   </style>
 </head>
 <body>
@@ -70,11 +79,19 @@
     </div>
 
     <div class="card">
+      <h2>Current Ride</h2>
+      <button class="off" onclick="loadCurrentRide()">Refresh Current Ride</button>
+      <div id="rideArea" class="status">No active ride loaded.</div>
+    </div>
+
+    <div class="card">
       <button class="off" onclick="window.location.href='/'">Back to Rider App</button>
     </div>
   </div>
 
   <script>
+    let currentRide = null
+
     async function loadDrivers() {
       const res = await fetch('/api/drivers')
       const drivers = await res.json()
@@ -99,8 +116,9 @@
         })
       })
       const data = await res.json()
-      document.getElementById('driverStatus').innerHTML = data.message || 'Driver online.'
+      document.getElementById('driverStatus').innerHTML = data.message || data.error || 'Driver online.'
       loadDrivers()
+      loadCurrentRide()
     }
 
     async function goOffline() {
@@ -111,11 +129,68 @@
         body: JSON.stringify({ id })
       })
       const data = await res.json()
-      document.getElementById('driverStatus').innerHTML = data.message || 'Driver offline.'
+      document.getElementById('driverStatus').innerHTML = data.message || data.error || 'Driver offline.'
       loadDrivers()
+      loadCurrentRide()
     }
 
-    loadDrivers()
+    function renderRide(ride) {
+      const rideArea = document.getElementById('rideArea')
+
+      if (!ride) {
+        currentRide = null
+        rideArea.innerHTML = 'No active ride for this driver.'
+        return
+      }
+
+      currentRide = ride
+
+      rideArea.innerHTML = `
+        <div class="ride-box">
+          <div><strong>Ride ID:</strong> ${ride.id}</div>
+          <div class="small"><strong>Pickup:</strong> ${ride.pickup}</div>
+          <div class="small"><strong>Dropoff:</strong> ${ride.dropoff}</div>
+          <div class="small"><strong>Type:</strong> ${ride.rideType}</div>
+          <div class="small"><strong>Status:</strong> ${ride.status}</div>
+          <div class="small"><strong>ETA:</strong> ${ride.etaLabel}</div>
+          <button onclick="updateRideStatus('accepted')">Accept Ride</button>
+          <button onclick="updateRideStatus('arriving')">Mark Arriving</button>
+          <button onclick="updateRideStatus('arrived')">Mark Arrived</button>
+          <button onclick="updateRideStatus('in_progress')">Start Trip</button>
+          <button onclick="updateRideStatus('completed')">Complete Trip</button>
+        </div>
+      `
+    }
+
+    async function loadCurrentRide() {
+      const driverId = document.getElementById('driverId').value
+      if (!driverId) return
+
+      const res = await fetch(`/api/drivers/${driverId}/current-ride`)
+      const data = await res.json()
+      renderRide(data.ride)
+    }
+
+    async function updateRideStatus(status) {
+      if (!currentRide) return
+
+      const res = await fetch(`/api/rides/${currentRide.id}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      })
+
+      const data = await res.json()
+      document.getElementById('driverStatus').innerHTML = data.message || data.error || 'Ride updated.'
+      loadDrivers()
+      loadCurrentRide()
+    }
+
+    document.getElementById('driverId').addEventListener('change', loadCurrentRide)
+
+    loadDrivers().then(() => {
+      setTimeout(loadCurrentRide, 300)
+    })
   </script>
 </body>
 </html>
