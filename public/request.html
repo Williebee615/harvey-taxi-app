@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Harvey Taxi Request</title>
+
+<style>
+body{
+  margin:0;
+  font-family:Arial, Helvetica, sans-serif;
+  background:#020817;
+  color:white;
+}
+
+.container{
+  max-width:760px;
+  margin:0 auto;
+  padding:20px;
+}
+
+.card{
+  background:#0b1220;
+  border:1px solid #1f2937;
+  border-radius:20px;
+  padding:22px;
+  margin-bottom:16px;
+}
+
+h1{
+  margin:0 0 10px;
+  font-size:34px;
+}
+
+p{
+  color:#cbd5e1;
+  line-height:1.6;
+}
+
+input, textarea, select{
+  width:100%;
+  box-sizing:border-box;
+  padding:15px;
+  margin-top:10px;
+  margin-bottom:14px;
+  border-radius:12px;
+  border:1px solid #1f2937;
+  background:#020617;
+  color:white;
+  font-size:16px;
+}
+
+textarea{
+  min-height:110px;
+  resize:vertical;
+}
+
+button{
+  width:100%;
+  padding:16px;
+  border:none;
+  border-radius:12px;
+  background:#2563eb;
+  color:white;
+  font-size:16px;
+  font-weight:bold;
+  cursor:pointer;
+  margin-top:8px;
+}
+
+.secondary{
+  background:#334155;
+}
+
+.badge{
+  display:inline-block;
+  padding:7px 14px;
+  border-radius:999px;
+  font-size:13px;
+  font-weight:bold;
+  margin-top:8px;
+  background:#16a34a;
+}
+
+.status{
+  color:#cbd5e1;
+  margin-top:10px;
+  line-height:1.6;
+}
+
+.small{
+  color:#94a3b8;
+  font-size:13px;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <div class="card">
+    <h1 id="pageTitle">🚕 Request Ride</h1>
+    <p id="pageSubtitle">Create a new Harvey Taxi request.</p>
+    <div class="badge" id="serviceBadge">RIDE</div>
+  </div>
+
+  <div class="card">
+    <input id="email" placeholder="Rider email" />
+    <input id="password" type="password" placeholder="Rider password" />
+    <input id="pickupAddress" placeholder="Pickup address" />
+    <input id="pickupLat" placeholder="Pickup latitude (example 36.1627)" />
+    <input id="pickupLng" placeholder="Pickup longitude (example -86.7816)" />
+    <input id="dropoffAddress" placeholder="Dropoff address" />
+    <input id="dropoffLat" placeholder="Dropoff latitude (optional)" />
+    <input id="dropoffLng" placeholder="Dropoff longitude (optional)" />
+    <textarea id="notes" placeholder="Notes, restaurant order, grocery list, package info, gate code, etc."></textarea>
+
+    <button onclick="submitRequest()">Submit Request</button>
+    <button class="secondary" onclick="goHome()">Back Home</button>
+
+    <div class="small">
+      Rider account must already exist and be approved by admin before service can be requested.
+    </div>
+  </div>
+
+  <div class="card">
+    <strong>Request Status</strong>
+    <div class="status" id="statusBox">Waiting to submit.</div>
+  </div>
+
+</div>
+
+<script>
+const params = new URLSearchParams(window.location.search)
+const typeParam = (params.get('type') || 'ride').toLowerCase()
+
+let serviceType = 'ride'
+if (typeParam === 'food') serviceType = 'food'
+if (typeParam === 'groceries' || typeParam === 'grocery') serviceType = 'groceries'
+if (typeParam === 'package') serviceType = 'package'
+
+const titleMap = {
+  ride: '🚕 Request Ride',
+  food: '🍔 Food Delivery',
+  groceries: '🛒 Grocery Delivery',
+  package: '📦 Package Delivery'
+}
+
+const subtitleMap = {
+  ride: 'Book a ride with an approved Harvey Taxi driver.',
+  food: 'Request restaurant pickup and delivery.',
+  groceries: 'Request grocery pickup and delivery.',
+  package: 'Request local package delivery.'
+}
+
+const badgeMap = {
+  ride: 'RIDE',
+  food: 'FOOD',
+  groceries: 'GROCERIES',
+  package: 'PACKAGE'
+}
+
+document.getElementById('pageTitle').textContent = titleMap[serviceType]
+document.getElementById('pageSubtitle').textContent = subtitleMap[serviceType]
+document.getElementById('serviceBadge').textContent = badgeMap[serviceType]
+
+function goHome(){
+  window.location.href = '/'
+}
+
+function setStatus(message){
+  document.getElementById('statusBox').textContent = message
+}
+
+async function submitRequest(){
+  const email = document.getElementById('email').value.trim()
+  const password = document.getElementById('password').value.trim()
+  const pickupAddress = document.getElementById('pickupAddress').value.trim()
+  const pickupLat = document.getElementById('pickupLat').value.trim()
+  const pickupLng = document.getElementById('pickupLng').value.trim()
+  const dropoffAddress = document.getElementById('dropoffAddress').value.trim()
+  const dropoffLat = document.getElementById('dropoffLat').value.trim()
+  const dropoffLng = document.getElementById('dropoffLng').value.trim()
+  const notes = document.getElementById('notes').value.trim()
+
+  if (!email || !password || !pickupAddress || !pickupLat || !pickupLng) {
+    alert('Please fill in email, password, pickup address, pickup latitude, and pickup longitude.')
+    return
+  }
+
+  try {
+    setStatus('Logging rider in...')
+
+    const loginRes = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    })
+
+    const loginData = await loginRes.json()
+
+    if (!loginRes.ok || !loginData.user) {
+      alert(loginData.error || 'Login failed.')
+      setStatus('Login failed.')
+      return
+    }
+
+    if (loginData.user.role !== 'rider') {
+      alert('This account is not a rider account.')
+      setStatus('This account is not a rider account.')
+      return
+    }
+
+    setStatus('Submitting request...')
+
+    const reqRes = await fetch('/api/requests/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        riderId: loginData.user.id,
+        serviceType,
+        pickupAddress,
+        pickupLat,
+        pickupLng,
+        dropoffAddress,
+        dropoffLat,
+        dropoffLng,
+        notes
+      })
+    })
+
+    const reqData = await reqRes.json()
+
+    if (!reqRes.ok) {
+      alert(reqData.error || 'Request failed.')
+      setStatus(reqData.error || 'Request failed.')
+      return
+    }
+
+    alert(reqData.message || 'Request submitted.')
+    setStatus(reqData.message || 'Request submitted.')
+  } catch (error) {
+    alert('Something went wrong while creating request.')
+    setStatus('Server error while creating request.')
+  }
+}
+</script>
+
+</body>
+</html>
