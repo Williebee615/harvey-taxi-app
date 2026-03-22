@@ -19,6 +19,25 @@ border-radius:10px;
 border:none;
 background:#1db954;
 color:white;
+font-weight:bold;
+}
+
+.job{
+background:#111;
+padding:15px;
+border-radius:12px;
+margin-top:15px;
+}
+
+.type{
+font-size:18px;
+font-weight:bold;
+}
+
+.small{
+opacity:.7;
+font-size:14px;
+margin-top:5px;
 }
 </style>
 </head>
@@ -68,11 +87,47 @@ fetch('/driver/jobs/'+driver.id)
 .then(r=>r.json())
 .then(data=>{
 
-document.getElementById('jobs').innerHTML =
-JSON.stringify(data,null,2)
+let html = ""
+
+data.forEach(job=>{
+
+html += `
+<div class="job">
+
+<div class="type">
+${getType(job.type)}
+</div>
+
+<div class="small">
+Pickup Incoming
+</div>
+
+<button onclick="accept('${job.id}')">
+Accept Job
+</button>
+
+</div>
+`
 
 })
 
+document.getElementById('jobs').innerHTML = html
+
+})
+
+}
+
+function getType(type){
+
+if(type=="ride") return "🚕 Ride Request"
+if(type=="food") return "🍔 Food Delivery"
+if(type=="grocery") return "🛒 Grocery Delivery"
+if(type=="package") return "📦 Package Delivery"
+
+}
+
+function accept(id){
+alert("Job Accepted")
 }
 
 </script>
