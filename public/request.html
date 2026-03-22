@@ -1,58 +1,164 @@
-<script>
-async function requestRide() {
-  const pickup = document.getElementById("pickup").value.trim()
-  const dropoff = document.getElementById("dropoff").value.trim()
-  const rideType = document.getElementById("rideType").value
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Request Ride</title>
 
-  if (!pickup || !dropoff) {
-    document.getElementById("status").innerHTML = "Enter pickup and dropoff first."
-    return
-  }
-
-  document.getElementById("status").innerHTML = "Matching driver..."
-
-  try {
-    const res = await fetch("/api/rides/request", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        pickupAddress: pickup,
-        dropoffAddress: dropoff,
-        serviceType: rideType
-      })
-    })
-
-    const data = await res.json()
-
-    if (!data.success) {
-      document.getElementById("status").innerHTML =
-        data.message || "Could not request ride."
-      return
-    }
-
-    if (data.ride && data.ride.assignedDriver) {
-      document.getElementById("driverBox").innerHTML = `
-        Driver Assigned<br><br>
-        Name: ${data.ride.assignedDriver.name}<br>
-        Vehicle: ${data.ride.assignedDriver.vehicle}<br>
-        Plate: ${data.ride.assignedDriver.plate}<br>
-        Distance: ${data.ride.assignedDriver.milesAway} miles<br><br>
-        Status: ${data.ride.status}
-      `
-    } else {
-      document.getElementById("driverBox").innerHTML = `
-        No driver assigned yet.<br><br>
-        Status: searching
-      `
-    }
-
-    document.getElementById("status").innerHTML =
-      data.message || "Ride requested."
-  } catch (error) {
-    document.getElementById("status").innerHTML =
-      "Server error while requesting ride."
-  }
+<style>
+body{
+background:#000;
+color:white;
+font-family:Arial;
+padding:20px;
 }
+
+.card{
+background:#111;
+padding:20px;
+border-radius:14px;
+margin-bottom:15px;
+}
+
+button{
+width:100%;
+padding:18px;
+border:none;
+border-radius:14px;
+font-size:18px;
+margin-top:10px;
+}
+
+.green{
+background:#35c46b;
+color:white;
+}
+
+.gray{
+background:#333;
+color:white;
+}
+
+input,select{
+width:100%;
+padding:16px;
+border-radius:12px;
+border:none;
+background:#111;
+color:white;
+margin-bottom:10px;
+}
+
+.driver{
+background:#0b1d13;
+padding:15px;
+border-radius:12px;
+margin-top:15px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+<input id="pickup" placeholder="Pickup address"/>
+<input id="dropoff" placeholder="Dropoff address"/>
+
+<select id="rideType">
+<option>Standard</option>
+<option>XL</option>
+<option>Luxury</option>
+</select>
+
+<button class="gray" onclick="estimate()">Estimate Fare</button>
+<button class="green" onclick="requestRide()">Request Ride</button>
+</div>
+
+<div id="result"></div>
+
+<script>
+
+let lastEstimate = null
+
+async function estimate(){
+
+const res = await fetch('/estimate-fare',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({
+distance:7.6,
+duration:19,
+rideType:document.getElementById('rideType').value
+})
+})
+
+const data = await res.json()
+lastEstimate = data
+
+document.getElementById('result').innerHTML = `
+<div class="card">
+Distance: ${data.distance} miles<br>
+ETA: ${data.duration} min<br><br>
+
+Base: $${data.fare.base}<br>
+Distance: $${data.fare.distanceCharge}<br>
+Time: $${data.fare.timeCharge}<br>
+Booking: $${data.fare.booking}<br>
+Service: $${data.fare.service}<br><br>
+
+<b>Total: $${data.fare.total}</b>
+</div>
+`
+}
+
+async function requestRide(){
+
+const pickup = document.getElementById('pickup').value
+const dropoff = document.getElementById('dropoff').value
+
+const res = await fetch('/request-ride',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({
+pickup,
+dropoff,
+pickupLat:36.1627,
+pickupLng:-86.7816,
+distance:lastEstimate?.distance || 7.6,
+duration:lastEstimate?.duration || 19,
+rideType:document.getElementById('rideType').value,
+fare:lastEstimate?.fare
+})
+})
+
+const data = await res.json()
+
+if(!data.success){
+document.getElementById('result').innerHTML =
+`<div class="card">${data.message}</div>`
+return
+}
+
+const d = data.ride.driver
+
+document.getElementById('result').innerHTML = `
+<div class="card">
+Driver matched successfully
+</div>
+
+<div class="driver">
+<b>${d.name}</b><br>
+${d.vehicle} • ${d.plate}<br>
+ETA: ${d.etaMinutes} min<br>
+${d.distanceAway} miles away
+</div>
+
+<div class="card">
+Total: $${data.ride.fare.total}
+</div>
+`
+}
+
 </script>
+
+</body>
+</html>
