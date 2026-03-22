@@ -1,34 +1,155 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin Panel</title>
   <style>
-    body{
+    *{
+      box-sizing:border-box;
       margin:0;
-      font-family:Arial, Helvetica, sans-serif;
-      background:#0b0f1a;
-      color:white;
+      padding:0;
     }
 
-    .container{
+    body{
+      background:#000;
+      color:#fff;
+      font-family:Arial, sans-serif;
+      min-height:100vh;
       padding:20px;
-      max-width:1100px;
+    }
+
+    .app{
+      max-width:800px;
       margin:0 auto;
     }
 
+    h1{
+      font-size:34px;
+      margin:10px 0 20px;
+    }
+
     .card{
-      background:#111827;
-      border:1px solid #1f2937;
-      border-radius:14px;
+      background:#0d0d0d;
+      border:1px solid #191919;
+      border-radius:22px;
       padding:18px;
-      margin-bottom:16px;
+      margin-bottom:18px;
     }
 
-    h1,h2,h3{
-      margin-top:0;
+    .section-title{
+      font-size:22px;
+      font-weight:700;
+      margin-bottom:14px;
     }
 
-    input{
-     
+    .item{
+      background:#171717;
+      border-radius:16px;
+      padding:14px;
+      margin-top:12px;
+    }
+
+    .small{
+      color:#bdbdbd;
+      font-size:14px;
+      margin-top:5px;
+    }
+
+    .btn{
+      width:100%;
+      border:none;
+      border-radius:16px;
+      padding:16px;
+      font-size:17px;
+      font-weight:700;
+      cursor:pointer;
+      margin-bottom:18px;
+      background:#1db954;
+      color:#fff;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>Admin Panel</h1>
+
+    <button class="btn" onclick="loadOverview()">Refresh Overview</button>
+
+    <div class="card">
+      <div class="section-title">Drivers</div>
+      <div id="driversList"></div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Requests</div>
+      <div id="requestsList"></div>
+    </div>
+  </div>
+
+  <script>
+    async function loadOverview() {
+      try {
+        const res = await fetch('/admin/overview')
+        const data = await res.json()
+
+        const driversList = document.getElementById('driversList')
+        const requestsList = document.getElementById('requestsList')
+
+        if (!Array.isArray(data.drivers) || data.drivers.length === 0) {
+          driversList.innerHTML = `<div class="small">No drivers yet.</div>`
+        } else {
+          driversList.innerHTML = data.drivers.map(driver => `
+            <div class="item">
+              <div><strong>${driver.name || 'Harvey Driver'}</strong></div>
+              <div class="small">ID: ${driver.id}</div>
+              <div class="small">Available: ${driver.available ? 'Yes' : 'No'}</div>
+              <div class="small">Completed Jobs: ${driver.completedJobs || 0}</div>
+              <div class="small">Earnings: $${Number(driver.earnings || 0).toFixed(2)}</div>
+            </div>
+          `).join('')
+        }
+
+        if (!Array.isArray(data.requests) || data.requests.length === 0) {
+          requestsList.innerHTML = `<div class="small">No requests yet.</div>`
+        } else {
+          requestsList.innerHTML = data.requests.map(request => `
+            <div class="item">
+              <div><strong>${formatType(request.type)}</strong></div>
+              <div class="small">Rider: ${request.riderName || 'Rider'}</div>
+              <div class="small">Status: ${formatStatus(request.status)}</div>
+              <div class="small">Pickup: ${request.pickupAddress || 'N/A'}</div>
+              <div class="small">Dropoff: ${request.dropoffAddress || 'N/A'}</div>
+              <div class="small">Driver: ${request.driver ? request.driver.name : 'Unassigned'}</div>
+              <div class="small">Price: $${request.estimatedPrice || '0.00'}</div>
+            </div>
+          `).join('')
+        }
+      } catch (error) {
+        document.getElementById('driversList').innerHTML = `<div class="small">Could not load drivers.</div>`
+        document.getElementById('requestsList').innerHTML = `<div class="small">Could not load requests.</div>`
+      }
+    }
+
+    function formatType(type) {
+      if (type === 'ride') return '🚕 Ride'
+      if (type === 'food') return '🍔 Food Delivery'
+      if (type === 'grocery') return '🛒 Grocery Delivery'
+      if (type === 'package') return '📦 Package Delivery'
+      return type || 'Request'
+    }
+
+    function formatStatus(status) {
+      if (status === 'searching') return 'Searching'
+      if (status === 'assigned') return 'Assigned'
+      if (status === 'accepted') return 'Accepted'
+      if (status === 'in_progress') return 'In Progress'
+      if (status === 'completed') return 'Completed'
+      return status || 'Pending'
+    }
+
+    loadOverview()
+    setInterval(loadOverview, 4000)
+  </script>
+</body>
+</html>
