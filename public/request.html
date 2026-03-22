@@ -1,262 +1,123 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Request Ride</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Request Ride</title>
 
-  <style>
-    * {
-      box-sizing: border-box;
-    }
+<style>
+body{
+background:#000;
+color:#fff;
+font-family:Arial;
+padding:20px;
+}
 
-    body {
-      margin: 0;
-      background: #000;
-      color: #fff;
-      font-family: Arial, sans-serif;
-      padding: 20px;
-    }
+h1{
+font-size:32px;
+margin-bottom:20px;
+}
 
-    .screen {
-      max-width: 420px;
-      margin: 0 auto;
-      padding: 24px 20px 32px;
-      background: #050505;
-      border-radius: 28px;
-      min-height: calc(100vh - 40px);
-    }
+.input{
+width:100%;
+padding:20px;
+border-radius:20px;
+border:none;
+background:#0b0f1c;
+color:white;
+margin-bottom:15px;
+font-size:18px;
+}
 
-    h1 {
-      margin: 10px 0 28px;
-      font-size: 34px;
-      font-weight: 800;
-      line-height: 1.05;
-    }
+button{
+width:100%;
+padding:20px;
+border-radius:20px;
+border:none;
+font-size:18px;
+margin-top:10px;
+}
 
-    .field {
-      width: 100%;
-      padding: 24px 20px;
-      margin-bottom: 18px;
-      border: none;
-      border-radius: 22px;
-      background: #090d1a;
-      color: #fff;
-      font-size: 20px;
-      outline: none;
-    }
+.estimate{
+background:#333;
+color:white;
+}
 
-    .field::placeholder {
-      color: #d8d8d8;
-      opacity: 1;
-    }
+.request{
+background:#39d27d;
+color:white;
+font-weight:bold;
+}
 
-    button {
-      width: 100%;
-      padding: 24px 20px;
-      border: none;
-      border-radius: 22px;
-      font-size: 20px;
-      font-weight: 800;
-      cursor: pointer;
-      margin-bottom: 18px;
-    }
+.card{
+background:#0b0f1c;
+padding:20px;
+border-radius:20px;
+margin-top:20px;
+line-height:1.6;
+}
+</style>
 
-    .estimate-btn {
-      background: #2a2d37;
-      color: #fff;
-    }
-
-    .request-btn {
-      background: #39d273;
-      color: #fff;
-    }
-
-    .result-card {
-      margin-top: 8px;
-      background: #090d1a;
-      border-radius: 22px;
-      padding: 22px 20px;
-      font-size: 18px;
-      line-height: 1.6;
-      min-height: 170px;
-    }
-
-    .status-message {
-      font-size: 18px;
-      margin: 4px 0 18px;
-    }
-
-    .success {
-      color: #ffffff;
-    }
-
-    .error {
-      color: #ffffff;
-    }
-
-    .driver-card {
-      margin-top: 14px;
-      background: #102016;
-      border-radius: 18px;
-      padding: 18px;
-      line-height: 1.6;
-    }
-
-    .muted {
-      color: #d8d8d8;
-    }
-
-    .total {
-      font-size: 22px;
-      font-weight: 800;
-      margin-top: 14px;
-    }
-  </style>
 </head>
 <body>
-  <div class="screen">
-    <h1>Request Pickup</h1>
 
-    <input
-      id="pickup"
-      class="field"
-      type="text"
-      placeholder="1617 Lebanon pike Nashville tn"
-    />
+<h1>Request Pickup</h1>
 
-    <input
-      id="dropoff"
-      class="field"
-      type="text"
-      placeholder="4509 red tail trail Smyrna tn"
-    />
+<input id="pickup" class="input" placeholder="Pickup address">
+<input id="dropoff" class="input" placeholder="Dropoff address">
 
-    <select id="rideType" class="field">
-      <option value="Standard">Standard Ride</option>
-      <option value="XL">XL Ride</option>
-      <option value="Luxury">Luxury Ride</option>
-    </select>
+<select id="rideType" class="input">
+<option value="Standard">Standard Ride</option>
+<option value="XL">XL Ride</option>
+<option value="Luxury">Luxury Ride</option>
+</select>
 
-    <button class="estimate-btn" onclick="estimateFare()">Estimate Fare</button>
-    <button class="request-btn" onclick="requestRide()">Request Ride</button>
+<button class="estimate" onclick="estimateFare()">Estimate Fare</button>
+<button class="request" onclick="requestRide()">Request Ride</button>
 
-    <div id="status" class="status-message"></div>
+<div id="result" class="card">
+Fare details will appear here.
+</div>
 
-    <div id="result" class="result-card">
-      Fare details will appear here.
-    </div>
-  </div>
+<script>
 
-  <script>
-    let lastFare = null
+let lastFare = null
 
-    function setStatus(message, type = '') {
-      const status = document.getElementById('status')
-      status.className = 'status-message ' + type
-      status.textContent = message || ''
-    }
+async function estimateFare(){
 
-    async function estimateFare() {
-      try {
-        setStatus('')
+const rideType = document.getElementById('rideType').value
 
-        const rideType = document.getElementById('rideType').value
+const res = await fetch('/estimate-fare',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({
+distance:10,
+duration:20,
+rideType
+})
+})
 
-        const res = await fetch('/estimate-fare', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            distance: 10,
-            duration: 20,
-            rideType: rideType
-          })
-        })
+const data = await res.json()
 
-        const data = await res.json()
+lastFare = data
 
-        if (!data.success) {
-          setStatus(data.message || 'Could not estimate fare.', 'error')
-          return
-        }
+document.getElementById('result').innerHTML = `
+Distance: ${data.distance} miles<br>
+ETA: ${data.duration} min<br><br>
 
-        lastFare = data
+Base: $${data.fare.base}<br>
+Distance: $${data.fare.distanceCharge}<br>
+Time: $${data.fare.timeCharge}<br>
+Booking: $${data.fare.booking}<br>
+Service: $${data.fare.service}<br><br>
 
-        document.getElementById('result').innerHTML = `
-          <div><span class="muted">Distance:</span> ${data.distance} miles</div>
-          <div><span class="muted">ETA:</span> ${data.duration} min</div>
-          <br>
-          <div><span class="muted">Base:</span> $${data.fare.base}</div>
-          <div><span class="muted">Distance:</span> $${data.fare.distanceCharge}</div>
-          <div><span class="muted">Time:</span> $${data.fare.timeCharge}</div>
-          <div><span class="muted">Booking:</span> $${data.fare.booking}</div>
-          <div><span class="muted">Service:</span> $${data.fare.service}</div>
-          <div class="total">Total: $${data.fare.total}</div>
-        `
-      } catch (error) {
-        setStatus('Estimate fare failed.', 'error')
-      }
-    }
+<b>Total: $${data.fare.total}</b>
+`
+}
 
-    async function requestRide() {
-      try {
-        setStatus('')
+async function requestRide(){
 
-        const pickup = document.getElementById('pickup').value.trim()
-        const dropoff = document.getElementById('dropoff').value.trim()
-        const rideType = document.getElementById('rideType').value
+const pickup = document.getElementById('pickup').value
+const dropoff = document.getElementById('dropoff').value
+const rideType = document.getElementById('rideType').value
 
-        const res = await fetch('/request-ride', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            pickup: pickup || 'Current location',
-            dropoff: dropoff || 'Destination',
-            pickupLat: 36.1627,
-            pickupLng: -86.7816,
-            distance: lastFare?.distance || 10,
-            duration: lastFare?.duration || 20,
-            rideType: rideType,
-            fare: lastFare?.fare || null
-          })
-        })
-
-        const data = await res.json()
-
-        if (!data.success) {
-          setStatus(data.message || 'Request failed.', 'error')
-          document.getElementById('result').innerHTML = 'Fare details will appear here.'
-          return
-        }
-
-        const d = data.ride.driver
-
-        setStatus('Driver matched successfully.', 'success')
-
-        document.getElementById('result').innerHTML = `
-          <div class="driver-card">
-            <div><strong>${d.name}</strong></div>
-            <div>${d.vehicle}</div>
-            <div>Plate: ${d.plate}</div>
-            <div>ETA: ${d.etaMinutes} min</div>
-            <div>${d.distanceAway} miles away</div>
-          </div>
-
-          <br>
-
-          <div><span class="muted">Pickup:</span> ${data.ride.pickup}</div>
-          <div><span class="muted">Dropoff:</span> ${data.ride.dropoff}</div>
-          <div><span class="muted">Ride Type:</span> ${data.ride.rideType}</div>
-          <div class="total">Total: $${data.ride.fare.total}</div>
-        `
-      } catch (error) {
-        setStatus('Server error while requesting ride.', 'error')
-      }
-    }
-  </script>
-</body>
-</html>
+const res = await
