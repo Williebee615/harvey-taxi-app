@@ -1,407 +1,81 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Harvey Taxi Driver Dashboard</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f5f7fb;
-      margin: 0;
-      padding: 20px;
-    }
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    .container {
-      max-width: 900px;
-      margin: 0 auto;
-    }
+<style>
+body{
+background:#000;
+color:white;
+font-family:Arial;
+padding:20px;
+}
 
-    .card {
-      background: white;
-      border-radius: 18px;
-      padding: 22px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-      margin-bottom: 20px;
-    }
-
-    h1, h2, h3 {
-      margin-top: 0;
-      color: #111827;
-    }
-
-    p {
-      color: #4b5563;
-    }
-
-    input, button {
-      width: 100%;
-      padding: 12px;
-      border-radius: 12px;
-      border: 1px solid #d1d5db;
-      box-sizing: border-box;
-      font-size: 15px;
-      margin-top: 10px;
-    }
-
-    button {
-      background: #111827;
-      color: white;
-      border: none;
-      cursor: pointer;
-      font-weight: bold;
-    }
-
-    .secondary {
-      background: white;
-      color: #111827;
-      border: 1px solid #d1d5db;
-    }
-
-    .approve-badge {
-      display: inline-block;
-      padding: 8px 14px;
-      border-radius: 999px;
-      font-size: 14px;
-      font-weight: bold;
-      margin-top: 8px;
-      background: #dcfce7;
-      color: #166534;
-      border: 1px solid #22c55e;
-    }
-
-    .warning-badge {
-      display: inline-block;
-      padding: 8px 14px;
-      border-radius: 999px;
-      font-size: 14px;
-      font-weight: bold;
-      margin-top: 8px;
-      background: #fef3c7;
-      color: #92400e;
-      border: 1px solid #f59e0b;
-    }
-
-    .danger-badge {
-      display: inline-block;
-      padding: 8px 14px;
-      border-radius: 999px;
-      font-size: 14px;
-      font-weight: bold;
-      margin-top: 8px;
-      background: #fee2e2;
-      color: #991b1b;
-      border: 1px solid #ef4444;
-    }
-
-    .hidden {
-      display: none;
-    }
-
-    .stat-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 14px;
-      margin-top: 16px;
-    }
-
-    .stat-box {
-      background: #f9fafb;
-      border: 1px solid #e5e7eb;
-      border-radius: 14px;
-      padding: 14px;
-    }
-
-    .big {
-      font-size: 22px;
-      font-weight: bold;
-      color: #111827;
-    }
-
-    .label {
-      font-size: 13px;
-      color: #6b7280;
-      margin-top: 4px;
-    }
-
-    .success-box {
-      margin-top: 14px;
-      padding: 14px;
-      border-radius: 14px;
-      border: 1px solid #22c55e;
-      background: #dcfce7;
-      color: #166534;
-    }
-
-    .danger-box {
-      margin-top: 14px;
-      padding: 14px;
-      border-radius: 14px;
-      border: 1px solid #ef4444;
-      background: #fee2e2;
-      color: #991b1b;
-    }
-
-    .request-card {
-      margin-top: 14px;
-      padding: 16px;
-      border: 1px solid #e5e7eb;
-      border-radius: 14px;
-      background: #f9fafb;
-    }
-
-    .request-card strong {
-      color: #111827;
-    }
-
-    .row {
-      margin-top: 8px;
-      color: #374151;
-    }
-
-    .btn-row {
-      display: flex;
-      gap: 10px;
-      margin-top: 14px;
-    }
-
-    .accept-btn {
-      background: #15803d;
-    }
-
-    .decline-btn {
-      background: #b91c1c;
-    }
-
-    @media (max-width: 700px) {
-      .stat-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .btn-row {
-        flex-direction: column;
-      }
-    }
-  </style>
+button{
+width:100%;
+padding:15px;
+margin-top:10px;
+border-radius:10px;
+border:none;
+background:#1db954;
+color:white;
+}
+</style>
 </head>
+
 <body>
-  <div class="container">
 
-    <div class="card" id="accessCard">
-      <h1>Driver Dashboard Access</h1>
-      <p>Enter your email to check if your Harvey Taxi driver account has been approved.</p>
+<h2>Driver Dashboard</h2>
 
-      <input type="email" id="driverEmail" placeholder="Driver email" />
-      <button onclick="checkDriverAccess()">Check Access</button>
+<button onclick="goOnline()">Go Online</button>
 
-      <div id="accessMessage" class="hidden"></div>
-    </div>
+<div id="jobs"></div>
 
-    <div class="card hidden" id="dashboardCard">
-      <h2>Driver Dashboard</h2>
-      <p>Approved drivers can go online and receive dispatch requests.</p>
+<script>
 
-      <div class="approve-badge">APPROVED DRIVER</div>
+let driver = {
+id: Math.random().toString(36).substr(2,9),
+available:false,
+services:["ride","food","grocery","package"]
+}
 
-      <div class="stat-grid">
-        <div class="stat-box">
-          <div class="big" id="driverStatusText">Offline</div>
-          <div class="label">Driver status</div>
-        </div>
-        <div class="stat-box">
-          <div class="big" id="tripCount">0</div>
-          <div class="label">Assigned trips</div>
-        </div>
-        <div class="stat-box">
-          <div class="big" id="driverNameBox">Ready</div>
-          <div class="label">Account</div>
-        </div>
-      </div>
+function goOnline(){
 
-      <button id="goOnlineBtn" style="margin-top:18px;" onclick="goOnline()">Go Online</button>
-      <button id="goOfflineBtn" class="secondary hidden" onclick="goOffline()">Go Offline</button>
-      <button class="secondary" onclick="loadRequests()">Refresh Requests</button>
-      <button class="secondary" onclick="logoutDriver()">Logout</button>
-    </div>
+driver.available = true
 
-    <div class="card hidden" id="requestsCard">
-      <h3>Assigned Requests</h3>
-      <div id="requestsList">No requests yet.</div>
-    </div>
+navigator.geolocation.watchPosition(pos=>{
 
-  </div>
+driver.lat = pos.coords.latitude
+driver.lng = pos.coords.longitude
 
-  <script>
-    const accessCard = document.getElementById('accessCard')
-    const dashboardCard = document.getElementById('dashboardCard')
-    const requestsCard = document.getElementById('requestsCard')
-    const driverEmail = document.getElementById('driverEmail')
-    const accessMessage = document.getElementById('accessMessage')
-    const goOnlineBtn = document.getElementById('goOnlineBtn')
-    const goOfflineBtn = document.getElementById('goOfflineBtn')
-    const driverStatusText = document.getElementById('driverStatusText')
-    const tripCount = document.getElementById('tripCount')
-    const driverNameBox = document.getElementById('driverNameBox')
-    const requestsList = document.getElementById('requestsList')
+fetch('/driver/update',{
+method:"POST",
+headers:{
+'Content-Type':'application/json'
+},
+body:JSON.stringify(driver)
+})
 
-    let currentDriver = null
+loadJobs()
 
-    function setAccessMessage(type, text) {
-      accessMessage.classList.remove('hidden')
-      accessMessage.className = ''
+})
 
-      if (type === 'approved') {
-        accessMessage.className = 'success-box'
-      } else {
-        accessMessage.className = 'danger-box'
-      }
+}
 
-      accessMessage.textContent = text
-    }
+function loadJobs(){
 
-    async function checkDriverAccess() {
-      const email = driverEmail.value.trim()
+fetch('/driver/jobs/'+driver.id)
+.then(r=>r.json())
+.then(data=>{
 
-      if (!email) {
-        alert('Please enter your email.')
-        return
-      }
+document.getElementById('jobs').innerHTML =
+JSON.stringify(data,null,2)
 
-      const res = await fetch('/api/driver/access?email=' + encodeURIComponent(email))
-      const data = await res.json()
+})
 
-      if (!data.success || !data.driver || data.driver.status !== 'approved') {
-        dashboardCard.classList.add('hidden')
-        requestsCard.classList.add('hidden')
-        setAccessMessage('blocked', 'Driver dashboard is locked until approval.')
-        return
-      }
+}
 
-      currentDriver = data.driver
-      localStorage.setItem('harvey_driver_email', email)
+</script>
 
-      driverNameBox.textContent = currentDriver.name || 'Approved'
-      dashboardCard.classList.remove('hidden')
-      requestsCard.classList.remove('hidden')
-      setAccessMessage('approved', 'Access granted. Your approved driver dashboard is enabled.')
-      loadRequests()
-    }
-
-    function getRandomNearNashville() {
-      const baseLat = 36.1627
-      const baseLng = -86.7816
-      const lat = baseLat + ((Math.random() - 0.5) * 0.04)
-      const lng = baseLng + ((Math.random() - 0.5) * 0.04)
-      return { lat, lng }
-    }
-
-    async function goOnline() {
-      if (!currentDriver) return
-
-      const loc = getRandomNearNashville()
-
-      const res = await fetch('/api/driver/go-online', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: currentDriver.email,
-          lat: loc.lat,
-          lng: loc.lng
-        })
-      })
-
-      const data = await res.json()
-
-      if (data.success) {
-        driverStatusText.textContent = 'Online'
-        goOnlineBtn.classList.add('hidden')
-        goOfflineBtn.classList.remove('hidden')
-        alert('You are now online and dispatch-ready.')
-      } else {
-        alert(data.message || 'Could not go online.')
-      }
-    }
-
-    async function goOffline() {
-      if (!currentDriver) return
-
-      await fetch('/api/driver/go-offline', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: currentDriver.email
-        })
-      })
-
-      driverStatusText.textContent = 'Offline'
-      goOnlineBtn.classList.remove('hidden')
-      goOfflineBtn.classList.add('hidden')
-      alert('You are now offline.')
-    }
-
-    async function loadRequests() {
-      if (!currentDriver) return
-
-      const res = await fetch('/api/driver/requests?email=' + encodeURIComponent(currentDriver.email))
-      const data = await res.json()
-
-      if (!data.success || !data.requests.length) {
-        tripCount.textContent = '0'
-        requestsList.innerHTML = 'No requests yet.'
-        return
-      }
-
-      tripCount.textContent = String(data.requests.length)
-
-      requestsList.innerHTML = data.requests.map(req => `
-        <div class="request-card">
-          <div class="row"><strong>Request ID:</strong> ${req.id}</div>
-          <div class="row"><strong>Rider:</strong> ${req.riderName}</div>
-          <div class="row"><strong>Phone:</strong> ${req.riderPhone}</div>
-          <div class="row"><strong>Service:</strong> ${req.serviceType}</div>
-          <div class="row"><strong>Pickup:</strong> ${req.pickup}</div>
-          <div class="row"><strong>Dropoff:</strong> ${req.dropoff || '-'}</div>
-          <div class="row"><strong>Status:</strong> ${req.status}</div>
-          <div class="row"><strong>Distance:</strong> ${req.estimatedDistanceKm || 0} km</div>
-          <div class="btn-row">
-            <button class="accept-btn" onclick="acceptRequest('${req.id}')">Accept</button>
-            <button class="decline-btn" onclick="declineRequest('${req.id}')">Decline</button>
-          </div>
-        </div>
-      `).join('')
-    }
-
-    async function acceptRequest(id) {
-      await fetch('/api/driver/requests/' + id + '/accept', { method: 'POST' })
-      alert('Request accepted')
-      loadRequests()
-    }
-
-    async function declineRequest(id) {
-      await fetch('/api/driver/requests/' + id + '/decline', { method: 'POST' })
-      alert('Request declined')
-      loadRequests()
-    }
-
-    function logoutDriver() {
-      localStorage.removeItem('harvey_driver_email')
-      currentDriver = null
-      dashboardCard.classList.add('hidden')
-      requestsCard.classList.add('hidden')
-      accessMessage.classList.add('hidden')
-      driverStatusText.textContent = 'Offline'
-      goOnlineBtn.classList.remove('hidden')
-      goOfflineBtn.classList.add('hidden')
-    }
-
-    async function autoRestoreAccess() {
-      const savedEmail = localStorage.getItem('harvey_driver_email')
-      if (!savedEmail) return
-      driverEmail.value = savedEmail
-      await checkDriverAccess()
-    }
-
-    autoRestoreAccess()
-  </script>
 </body>
 </html>
