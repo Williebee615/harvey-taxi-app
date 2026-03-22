@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Request Ride</title>
 
 <style>
@@ -116,8 +116,64 @@ Service: $${data.fare.service}<br><br>
 
 async function requestRide(){
 
+try{
+
 const pickup = document.getElementById('pickup').value
 const dropoff = document.getElementById('dropoff').value
 const rideType = document.getElementById('rideType').value
 
-const res = await
+const res = await fetch('/request-ride',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({
+pickup,
+dropoff,
+pickupLat:36.1627,
+pickupLng:-86.7816,
+distance:lastFare?.distance || 10,
+duration:lastFare?.duration || 20,
+rideType
+})
+})
+
+const data = await res.json()
+
+if(!data || !data.success){
+document.getElementById('result').innerHTML =
+data?.message || "No drivers available"
+return
+}
+
+const driver = data?.ride?.driver
+
+if(!driver){
+document.getElementById('result').innerHTML =
+"Driver assigned. Loading..."
+return
+}
+
+document.getElementById('result').innerHTML = `
+<b>Driver matched successfully</b><br><br>
+
+${driver.name}<br>
+${driver.vehicle}<br>
+Plate: ${driver.plate}<br>
+ETA: ${driver.etaMinutes} min<br>
+${driver.distanceAway} miles away<br><br>
+
+<b>Total: $${data.ride.fare.total}</b>
+`
+
+}catch(e){
+
+document.getElementById('result').innerHTML =
+"Server error while requesting ride."
+
+}
+
+}
+
+</script>
+
+</body>
+</html>
