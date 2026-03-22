@@ -1,164 +1,186 @@
-#fareBox {
-  margin-top: 16px;
-  padding: 16px;
-  border-radius: 20px;
-  background: #0b0b0f;
-  color: white;
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Harvey Taxi</title>
+
+<style>
+
+body{
+background:#000;
+color:white;
+font-family:Arial;
+padding:20px;
 }
 
-.fare-row {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 10px;
-  font-size: 16px;
+.card{
+background:#080808;
+padding:20px;
+border-radius:20px;
+margin-bottom:20px;
 }
 
-.fare-row.total {
-  margin-top: 14px;
-  padding-top: 14px;
-  border-top: 1px solid rgba(255,255,255,0.12);
-  font-size: 20px;
-  font-weight: 700;
+input,select{
+width:100%;
+padding:18px;
+margin-bottom:15px;
+border-radius:15px;
+border:none;
+background:#111;
+color:white;
+font-size:16px;
 }
 
-.service-card.active {
-  border: 2px solid #2ecc71;
-}<input id="pickup" type="text" placeholder="Pickup location" />
-<input id="dropoff" type="text" placeholder="Dropoff location" />
+button{
+width:100%;
+padding:20px;
+border:none;
+border-radius:15px;
+font-size:18px;
+font-weight:bold;
+cursor:pointer;
+}
+
+.green{
+background:#2ecc71;
+color:white;
+}
+
+.gray{
+background:#222;
+color:white;
+margin-bottom:10px;
+}
+
+#fareBox{
+margin-top:15px;
+background:#111;
+padding:15px;
+border-radius:15px;
+}
+
+</style>
+
+</head>
+<body>
+
+<h1>Harvey Taxi</h1>
+
+<div class="card">
+
+<h2>Request Pickup</h2>
+
+<input id="pickup" placeholder="Pickup location">
+
+<input id="dropoff" placeholder="Dropoff location">
+
 <select id="rideType">
-  <option>Standard Ride</option>
-  <option>XL Ride</option>
-  <option>Priority Ride</option>
+<option>Standard Ride</option>
+<option>XL Ride</option>
+<option>Priority Ride</option>
 </select>
 
-<button id="estimateBtn">Estimate Fare</button>
-<button id="requestRideBtn">Request Ride</button>
+<button class="gray" id="estimateBtn">
+Estimate Fare
+</button>
 
-<div id="statusBox">Ready to request a ride.</div>
-<div id="fareBox"></div><script>
-  const serviceButtons = document.querySelectorAll('.service-card')
-  const pickupInput = document.getElementById('pickup')
-  const dropoffInput = document.getElementById('dropoff')
-  const rideTypeSelect = document.getElementById('rideType')
-  const requestBtn = document.getElementById('requestRideBtn')
-  const estimateBtn = document.getElementById('estimateBtn')
-  const statusBox = document.getElementById('statusBox')
-  const fareBox = document.getElementById('fareBox')
+<button class="green" id="requestBtn">
+Request Ride
+</button>
 
-  let selectedService = 'Ride'
+<div id="status">
+Ready to request a ride
+</div>
 
-  serviceButtons.forEach((button) => {
-    button.addEventListener('click', () => {
-      serviceButtons.forEach((btn) => btn.classList.remove('active'))
-      button.classList.add('active')
-      selectedService = button.dataset.service || 'Ride'
-    })
-  })
+<div id="fareBox"></div>
 
-  function setStatus(message, isError = false) {
-    if (!statusBox) return
-    statusBox.textContent = message
-    statusBox.style.color = isError ? '#ff6b6b' : '#ffffff'
-  }
+</div>
 
-  function renderFare(data) {
-    if (!fareBox) return
+<script>
 
-    fareBox.innerHTML = `
-      <div class="fare-row"><span>Distance</span><strong>${data.trip.distanceMiles} mi</strong></div>
-      <div class="fare-row"><span>ETA</span><strong>${data.trip.durationMinutes} min</strong></div>
-      <div class="fare-row"><span>Base Fare</span><strong>$${data.fare.baseFare}</strong></div>
-      <div class="fare-row"><span>Distance Fare</span><strong>$${data.fare.distanceFare}</strong></div>
-      <div class="fare-row"><span>Time Fare</span><strong>$${data.fare.timeFare}</strong></div>
-      <div class="fare-row"><span>Booking Fee</span><strong>$${data.fare.bookingFee}</strong></div>
-      <div class="fare-row"><span>Service Fee</span><strong>$${data.fare.serviceFee}</strong></div>
-      <div class="fare-row total"><span>Total</span><strong>$${data.fare.totalFare}</strong></div>
-    `
-  }
+const pickup =
+document.getElementById("pickup")
 
-  async function estimateFare() {
-    const pickupAddress = pickupInput.value.trim()
-    const dropoffAddress = dropoffInput.value.trim()
+const dropoff =
+document.getElementById("dropoff")
 
-    if (!pickupAddress || !dropoffAddress) {
-      setStatus('Please enter pickup and dropoff locations.', true)
-      return
-    }
+const estimateBtn =
+document.getElementById("estimateBtn")
 
-    setStatus('Calculating fare...')
+const requestBtn =
+document.getElementById("requestBtn")
 
-    try {
-      const response = await fetch('/api/fare/estimate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          pickupAddress,
-          dropoffAddress
-        })
-      })
+const status =
+document.getElementById("status")
 
-      const data = await response.json()
+const fareBox =
+document.getElementById("fareBox")
 
-      if (!data.success) {
-        setStatus(data.message || 'Could not estimate fare.', true)
-        return
-      }
+function showFare(data){
 
-      renderFare(data)
-      setStatus('Fare estimate ready.')
-    } catch (error) {
-      setStatus('Server error while estimating fare.', true)
-    }
-  }
+fareBox.innerHTML = `
+Distance: ${data.trip.distanceMiles} miles <br>
+ETA: ${data.trip.durationMinutes} min <br><br>
 
-  async function requestRide() {
-    const pickupAddress = pickupInput.value.trim()
-    const dropoffAddress = dropoffInput.value.trim()
-    const rideType = rideTypeSelect ? rideTypeSelect.value : 'Standard Ride'
+Base: $${data.fare.baseFare}<br>
+Distance: $${data.fare.distanceFare}<br>
+Time: $${data.fare.timeFare}<br>
+Booking: $${data.fare.bookingFee}<br>
+Service: $${data.fare.serviceFee}<br><br>
 
-    if (!pickupAddress || !dropoffAddress) {
-      setStatus('Please enter pickup and dropoff locations.', true)
-      return
-    }
+<b>Total: $${data.fare.totalFare}</b>
+`
 
-    setStatus('Requesting ride...')
+}
 
-    try {
-      const response = await fetch('/api/rides/request', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          riderName: 'Guest Rider',
-          riderPhone: '',
-          pickupAddress,
-          dropoffAddress,
-          serviceType: `${selectedService} - ${rideType}`
-        })
-      })
+estimateBtn.onclick = async ()=>{
 
-      const data = await response.json()
+status.innerHTML="Calculating..."
 
-      if (!data.success) {
-        setStatus(data.message || 'Could not request ride.', true)
-        return
-      }
+const res = await fetch("/api/fare/estimate",{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+pickupAddress:pickup.value,
+dropoffAddress:dropoff.value
+})
+})
 
-      renderFare(data)
-      setStatus(data.message || 'Ride requested successfully.')
-    } catch (error) {
-      setStatus('Server error while requesting ride.', true)
-    }
-  }
+const data = await res.json()
 
-  if (estimateBtn) {
-    estimateBtn.addEventListener('click', estimateFare)
-  }
+showFare(data)
 
-  if (requestBtn) {
-    requestBtn.addEventListener('click', requestRide)
-  }
+status.innerHTML="Estimate ready"
+
+}
+
+requestBtn.onclick = async ()=>{
+
+status.innerHTML="Requesting ride..."
+
+const res = await fetch("/api/rides/request",{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+pickupAddress:pickup.value,
+dropoffAddress:dropoff.value,
+serviceType:"Ride"
+})
+})
+
+const data = await res.json()
+
+showFare(data.ride)
+
+status.innerHTML="Driver search started"
+
+}
+
 </script>
+
+</body>
+</html>
