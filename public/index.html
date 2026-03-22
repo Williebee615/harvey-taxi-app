@@ -41,10 +41,12 @@ border-radius:18px;
 margin-bottom:16px;
 font-size:20px;
 cursor:pointer;
+transition:.2s;
 }
 
 .card:hover{
 background:#111827;
+transform:scale(1.01);
 }
 </style>
 </head>
@@ -57,31 +59,31 @@ background:#111827;
 Harvey Taxi <span class="live">LIVE</span>
 </div>
 
-<div class="card" onclick="go('request.html')">
+<div class="card" onclick="go('/request.html')">
 🚕 Request Ride
 </div>
 
-<div class="card" onclick="go('request.html?type=food')">
+<div class="card" onclick="go('/request.html?type=food')">
 🍔 Food Delivery
 </div>
 
-<div class="card" onclick="go('request.html?type=grocery')">
+<div class="card" onclick="go('/request.html?type=grocery')">
 🛒 Grocery Delivery
 </div>
 
-<div class="card" onclick="go('driver.html')">
+<div class="card" onclick="go('/driver.html')">
 🚗 Driver Dashboard
 </div>
 
-<div class="card" onclick="go('driver-verification.html')">
+<div class="card" onclick="go('/driver-verification.html')">
 🪪 Driver Verification
 </div>
 
-<div class="card" onclick="go('rider-verification.html')">
+<div class="card" onclick="go('/rider-verification.html')">
 👤 Rider Verification
 </div>
 
-<div class="card" onclick="go('admin.html')">
+<div class="card" onclick="go('/admin-verification.html')">
 ⚙️ Admin Panel
 </div>
 
