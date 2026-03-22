@@ -1,50 +1,48 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Harvey Taxi</title>
 
 <style>
 body{
 margin:0;
 font-family:Arial, Helvetica, sans-serif;
-background:#020617;
+background:#020817;
 color:white;
 }
 
 .container{
 max-width:700px;
-margin:0 auto;
+margin:auto;
 padding:20px;
 }
 
-.title{
-font-size:28px;
-font-weight:bold;
+.card{
+display:block;
+background:#0b1220;
+border:1px solid #1f2937;
+padding:22px;
+border-radius:16px;
+margin-bottom:16px;
+text-decoration:none;
+color:white;
+font-size:20px;
+}
+
+.header{
+font-size:32px;
+font-weight:700;
 margin-bottom:20px;
 }
 
 .live{
-background:#16a34a;
+background:#22c55e;
 padding:6px 12px;
 border-radius:20px;
-font-size:12px;
+font-size:14px;
 margin-left:10px;
-}
-
-.card{
-background:#0f172a;
-border:1px solid #1f2937;
-padding:22px;
-border-radius:18px;
-margin-bottom:16px;
-font-size:20px;
-cursor:pointer;
-}
-
-.card:hover{
-background:#111827;
 }
 </style>
 </head>
@@ -53,45 +51,39 @@ background:#111827;
 
 <div class="container">
 
-<div class="title">
+<div class="header">
 Harvey Taxi <span class="live">LIVE</span>
 </div>
 
-<div class="card" onclick="go('/request.html')">
+<a class="card" href="/request.html">
 🚕 Request Ride
-</div>
+</a>
 
-<div class="card" onclick="go('/food.html')">
+<a class="card" href="/food.html">
 🍔 Food Delivery
-</div>
+</a>
 
-<div class="card" onclick="go('/grocery.html')">
+<a class="card" href="/grocery.html">
 🛒 Grocery Delivery
-</div>
+</a>
 
-<div class="card" onclick="go('/driver.html')">
+<a class="card" href="/driver.html">
 🚗 Driver Dashboard
-</div>
+</a>
 
-<div class="card" onclick="go('/driver-verification.html')">
+<a class="card" href="/driver-verification.html">
 🪪 Driver Verification
-</div>
+</a>
 
-<div class="card" onclick="go('/rider-verification.html')">
+<a class="card" href="/rider-verification.html">
 👤 Rider Verification
-</div>
+</a>
 
-<div class="card" onclick="go('/admin-verification.html')">
+<a class="card" href="/admin.html">
 ⚙️ Admin Panel
-</div>
+</a>
 
 </div>
-
-<script>
-function go(page){
-window.location.href = page
-}
-</script>
 
 </body>
 </html>
