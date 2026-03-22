@@ -8,7 +8,8 @@
         "name": "Harvey Admin",
         "email": "admin@harveytaxi.com",
         "password": "admin123",
-        "role": "admin"
+        "role": "admin",
+        "createdAt": "2026-03-21T00:00:00.000Z"
       }
     ]
   },
