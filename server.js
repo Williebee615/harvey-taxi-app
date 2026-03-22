@@ -1,126 +1,103 @@
 const express = require('express')
 const cors = require('cors')
 const path = require('path')
-const fs = require('fs')
 
 const app = express()
 const PORT = process.env.PORT || 10000
-const DATA_FILE = path.join(__dirname, 'data.json')
 
 app.use(cors())
-app.use(express.json({ limit: '15mb' }))
-app.use(express.urlencoded({ extended: true }))
+app.use(express.json())
 app.use(express.static(path.join(__dirname, 'public')))
 
-/* ------------------ DATA ------------------ */
+let drivers = []
+let requests = []
 
-function loadData() {
-if (!fs.existsSync(DATA_FILE)) {
-const seed = {
-users:{
-riders:[],
-drivers:[],
-admins:[]
-},
-requests:[]
-}
-fs.writeFileSync(DATA_FILE, JSON.stringify(seed,null,2))
-return seed
-}
+// Distance calculator
+function getDistance(lat1, lng1, lat2, lng2) {
+  const R = 6371
+  const dLat = (lat2-lat1) * Math.PI/180
+  const dLng = (lng2-lng1) * Math.PI/180
 
-return JSON.parse(fs.readFileSync(DATA_FILE))
-}
+  const a =
+    Math.sin(dLat/2)*Math.sin(dLat/2) +
+    Math.cos(lat1*Math.PI/180) *
+    Math.cos(lat2*Math.PI/180) *
+    Math.sin(dLng/2)*Math.sin(dLng/2)
 
-function saveData(){
-fs.writeFileSync(DATA_FILE, JSON.stringify(db,null,2))
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+  return R * c
 }
 
-let db = loadData()
+app.post('/driver/update', (req,res)=>{
+  const driver = req.body
 
-/* ------------------ AUTH ------------------ */
+  const index = drivers.findIndex(d=>d.id===driver.id)
 
-app.post('/api/auth/login',(req,res)=>{
-const {email,password} = req.body
+  if(index >= 0){
+    drivers[index] = driver
+  } else {
+    drivers.push(driver)
+  }
 
-const user = [
-...db.users.riders,
-...db.users.drivers
-].find(u=>u.email===email && u.password===password)
-
-if(!user){
-return res.status(401).json({error:"Invalid login"})
-}
-
-res.json({user})
+  res.json({success:true})
 })
 
-/* ------------------ CREATE REQUEST ------------------ */
+app.post('/request', (req,res)=>{
+  const request = req.body
 
-app.post('/api/requests/create',(req,res)=>{
+  request.id = Date.now()
+  request.status = "searching"
 
-const {
-riderId,
-serviceType,
-pickupAddress,
-pickupLat,
-pickupLng,
-dropoffAddress,
-notes
-} = req.body
+  requests.push(request)
 
-const rider = db.users.riders.find(r=>r.id===riderId)
+  let nearest = null
+  let minDistance = Infinity
 
-if(!rider){
-return res.status(404).json({error:"Rider not found"})
-}
+  drivers.forEach(driver=>{
+    if(driver.available){
 
-const request = {
-id:"req_"+Date.now(),
-riderId,
-serviceType,
-pickupAddress,
-pickupLat,
-pickupLng,
-dropoffAddress,
-notes,
-status:"searching",
-created:new Date()
-}
+      // service match
+      if(driver.services.includes(request.type)){
 
-db.requests.push(request)
-saveData()
+        const dist = getDistance(
+          request.lat,
+          request.lng,
+          driver.lat,
+          driver.lng
+        )
 
-res.json({
-message:"Driver search started",
-request
+        if(dist < minDistance){
+          minDistance = dist
+          nearest = driver
+        }
+
+      }
+
+    }
+  })
+
+  if(nearest){
+    request.status = "assigned"
+    request.driver = nearest
+
+    nearest.available = false
+  }
+
+  res.json(request)
 })
 
+app.get('/driver/jobs/:id',(req,res)=>{
+  const jobs = requests.filter(
+    r=>r.driver && r.driver.id === req.params.id
+  )
+
+  res.json(jobs)
 })
 
-/* ------------------ GET REQUESTS FOR DRIVER ------------------ */
-
-app.get('/api/driver/requests',(req,res)=>{
-res.json(db.requests)
+app.get('/requests',(req,res)=>{
+  res.json(requests)
 })
 
-/* ------------------ ROOT ------------------ */
-
-app.get('/', (req,res)=>{
-res.sendFile(path.join(__dirname,'public/index.html'))
-})
-
-/* ------------------ FALLBACK ------------------ */
-
-app.get('/:page', (req,res)=>{
-const file = path.join(__dirname,'public',req.params.page)
-
-if(fs.existsSync(file)){
-res.sendFile(file)
-}else{
-res.sendFile(path.join(__dirname,'public/index.html'))
-}
-})
-
-app.listen(PORT, ()=>{
-console.log("Server running on port " + PORT)
+app.listen(PORT,()=>{
+  console.log("SUPER APP LIVE " + PORT)
 })
