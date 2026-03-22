@@ -68,22 +68,26 @@ const fareSettings = {
 function normalizeRideType(type) {
   const value = String(type || '').trim().toLowerCase()
 
-  if (value === 'standard ride' || value === 'standard') return 'Standard'
-  if (value === 'xl ride' || value === 'xl') return 'XL'
-  if (value === 'luxury ride' || value === 'luxury') return 'Luxury'
+  if (value === 'standard' || value === 'standard ride') return 'Standard'
+  if (value === 'xl' || value === 'xl ride') return 'XL'
+  if (value === 'luxury' || value === 'luxury ride') return 'Luxury'
 
   return 'Standard'
 }
 
+function toRadians(value) {
+  return (value * Math.PI) / 180
+}
+
 function getDistance(lat1, lng1, lat2, lng2) {
   const R = 3958.8
-  const dLat = ((lat2 - lat1) * Math.PI) / 180
-  const dLng = ((lng2 - lng1) * Math.PI) / 180
+  const dLat = toRadians(lat2 - lat1)
+  const dLng = toRadians(lng2 - lng1)
 
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
+    Math.cos(toRadians(lat1)) *
+      Math.cos(toRadians(lat2)) *
       Math.sin(dLng / 2) *
       Math.sin(dLng / 2)
 
@@ -91,17 +95,24 @@ function getDistance(lat1, lng1, lat2, lng2) {
   return R * c
 }
 
+function moveToward(currentLat, currentLng, targetLat, targetLng, fraction) {
+  return {
+    lat: currentLat + (targetLat - currentLat) * fraction,
+    lng: currentLng + (targetLng - currentLng) * fraction
+  }
+}
+
 function calculateFare(miles, minutes, type) {
   const rideType = normalizeRideType(type)
-  const s = fareSettings[rideType] || fareSettings.Standard
+  const settings = fareSettings[rideType] || fareSettings.Standard
 
   const safeMiles = Number(miles) || 8
   const safeMinutes = Number(minutes) || 18
 
-  const base = s.base
-  const distanceCharge = safeMiles * s.mile
-  const timeCharge = safeMinutes * s.minute
-  const booking = s.booking
+  const base = settings.base
+  const distanceCharge = safeMiles * settings.mile
+  const timeCharge = safeMinutes * settings.minute
+  const booking = settings.booking
   const service = 0
   const total = base + distanceCharge + timeCharge + booking + service
 
@@ -116,21 +127,14 @@ function calculateFare(miles, minutes, type) {
   }
 }
 
-function stepToward(currentLat, currentLng, targetLat, targetLng, fraction = 0.22) {
-  return {
-    lat: currentLat + (targetLat - currentLat) * fraction,
-    lng: currentLng + (targetLng - currentLng) * fraction
-  }
-}
-
-function getRideStatusLabel(status) {
+function getStatusLabel(status) {
   switch (status) {
     case 'matched':
       return 'Driver matched'
     case 'accepted':
       return 'Driver accepted'
     case 'en_route':
-      return 'Driver en route'
+      return 'Driver on the way'
     case 'arrived':
       return 'Driver arrived'
     case 'in_progress':
@@ -140,22 +144,43 @@ function getRideStatusLabel(status) {
     case 'cancelled':
       return 'Ride cancelled'
     default:
-      return 'Pending'
+      return 'Ride update'
   }
 }
 
+function getEtaMinutes(miles, speedMph) {
+  if (miles <= 0) return 1
+  return Math.max(1, Math.round((miles / speedMph) * 60))
+}
+
 function buildRideResponse(ride) {
-  const driverDistanceToPickup = getDistance(
+  const driverToPickupMiles = getDistance(
     ride.driver.lat,
     ride.driver.lng,
     ride.pickupLat,
     ride.pickupLng
   )
 
-  const tripRemaining =
-    ride.status === 'in_progress'
-      ? getDistance(ride.driver.lat, ride.driver.lng, ride.dropoffLat, ride.dropoffLng)
-      : getDistance(ride.pickupLat, ride.pickupLng, ride.dropoffLat, ride.dropoffLng)
+  const driverToDropoffMiles = getDistance(
+    ride.driver.lat,
+    ride.driver.lng,
+    ride.dropoffLat,
+    ride.dropoffLng
+  )
+
+  let etaMinutes = 1
+  let remainingMiles = 0
+
+  if (ride.status === 'matched' || ride.status === 'accepted' || ride.status === 'en_route') {
+    etaMinutes = getEtaMinutes(driverToPickupMiles, 22)
+    remainingMiles = driverToPickupMiles
+  } else if (ride.status === 'arrived') {
+    etaMinutes = 1
+    remainingMiles = 0
+  } else if (ride.status === 'in_progress') {
+    etaMinutes = getEtaMinutes(driverToDropoffMiles, 28)
+    remainingMiles = driverToDropoffMiles
+  }
 
   return {
     id: ride.id,
@@ -170,7 +195,7 @@ function buildRideResponse(ride) {
     rideType: ride.rideType,
     fare: ride.fare,
     status: ride.status,
-    statusLabel: getRideStatusLabel(ride.status),
+    statusLabel: getStatusLabel(ride.status),
     createdAt: ride.createdAt,
     acceptedAt: ride.acceptedAt || null,
     arrivedAt: ride.arrivedAt || null,
@@ -185,17 +210,18 @@ function buildRideResponse(ride) {
       phone: ride.driver.phone,
       lat: Number(ride.driver.lat.toFixed(6)),
       lng: Number(ride.driver.lng.toFixed(6)),
-      distanceAway: Number(driverDistanceToPickup.toFixed(1)),
-      etaMinutes: Math.max(1, Math.round(driverDistanceToPickup / 0.4) + 1)
+      distanceAway: Number(driverToPickupMiles.toFixed(1)),
+      etaMinutes
     },
     trip: {
-      remainingMiles: Number(tripRemaining.toFixed(1))
+      remainingMiles: Number(remainingMiles.toFixed(1))
     }
   }
 }
 
-function advanceRideState(ride) {
-  if (!ride || ride.status === 'completed' || ride.status === 'cancelled') return
+function advanceRide(ride) {
+  if (!ride) return
+  if (ride.status === 'completed' || ride.status === 'cancelled') return
 
   if (ride.status === 'matched') {
     ride.status = 'accepted'
@@ -205,63 +231,61 @@ function advanceRideState(ride) {
 
   if (ride.status === 'accepted') {
     ride.status = 'en_route'
-    return
   }
 
   if (ride.status === 'en_route') {
-    const moved = stepToward(
-      ride.driver.lat,
-      ride.driver.lng,
-      ride.pickupLat,
-      ride.pickupLng,
-      0.35
-    )
-
-    ride.driver.lat = moved.lat
-    ride.driver.lng = moved.lng
-
-    const remaining = getDistance(
+    const remainingToPickup = getDistance(
       ride.driver.lat,
       ride.driver.lng,
       ride.pickupLat,
       ride.pickupLng
     )
 
-    if (remaining <= 0.2) {
+    if (remainingToPickup <= 0.12) {
       ride.driver.lat = ride.pickupLat
       ride.driver.lng = ride.pickupLng
       ride.status = 'arrived'
       ride.arrivedAt = new Date().toISOString()
+      return
     }
-    return
-  }
 
-  if (ride.status === 'arrived') {
-    ride.status = 'in_progress'
-    ride.startedAt = new Date().toISOString()
-    return
-  }
-
-  if (ride.status === 'in_progress') {
-    const moved = stepToward(
+    const moved = moveToward(
       ride.driver.lat,
       ride.driver.lng,
-      ride.dropoffLat,
-      ride.dropoffLng,
-      0.3
+      ride.pickupLat,
+      ride.pickupLng,
+      0.32
     )
 
     ride.driver.lat = moved.lat
     ride.driver.lng = moved.lng
+    return
+  }
 
-    const remaining = getDistance(
+  if (ride.status === 'arrived') {
+    if (!ride.arrivedTickCount) {
+      ride.arrivedTickCount = 1
+      return
+    }
+
+    ride.arrivedTickCount += 1
+
+    if (ride.arrivedTickCount >= 2) {
+      ride.status = 'in_progress'
+      ride.startedAt = new Date().toISOString()
+    }
+    return
+  }
+
+  if (ride.status === 'in_progress') {
+    const remainingToDropoff = getDistance(
       ride.driver.lat,
       ride.driver.lng,
       ride.dropoffLat,
       ride.dropoffLng
     )
 
-    if (remaining <= 0.25) {
+    if (remainingToDropoff <= 0.15) {
       ride.driver.lat = ride.dropoffLat
       ride.driver.lng = ride.dropoffLng
       ride.status = 'completed'
@@ -273,7 +297,19 @@ function advanceRideState(ride) {
         driver.lat = ride.dropoffLat
         driver.lng = ride.dropoffLng
       }
+      return
     }
+
+    const moved = moveToward(
+      ride.driver.lat,
+      ride.driver.lng,
+      ride.dropoffLat,
+      ride.dropoffLng,
+      0.28
+    )
+
+    ride.driver.lat = moved.lat
+    ride.driver.lng = moved.lng
   }
 }
 
@@ -294,13 +330,6 @@ app.get('/drivers', (req, res) => {
 app.post('/driver/update', (req, res) => {
   try {
     const { id, lat, lng, online } = req.body
-
-    if (!id) {
-      return res.json({
-        success: false,
-        message: 'Driver id required'
-      })
-    }
 
     const driver = drivers.find(d => d.id === id)
 
@@ -330,15 +359,15 @@ app.post('/driver/update', (req, res) => {
 
 app.post('/estimate-fare', (req, res) => {
   try {
-    const miles = Number(req.body.distance) || 8
-    const minutes = Number(req.body.duration) || 18
+    const distance = Number(req.body.distance) || 8
+    const duration = Number(req.body.duration) || 18
     const rideType = normalizeRideType(req.body.rideType)
 
     res.json({
       success: true,
-      distance: miles,
-      duration: minutes,
-      fare: calculateFare(miles, minutes, rideType)
+      distance,
+      duration,
+      fare: calculateFare(distance, duration, rideType)
     })
   } catch (error) {
     console.log(error)
@@ -351,29 +380,39 @@ app.post('/estimate-fare', (req, res) => {
 
 app.post('/request-ride', (req, res) => {
   try {
-    const pickup = req.body.pickup || 'Pickup'
-    const dropoff = req.body.dropoff || 'Dropoff'
+    const pickup = String(req.body.pickup || 'Pickup')
+    const dropoff = String(req.body.dropoff || 'Dropoff')
 
-    const pickupLat = Number(req.body.pickupLat) || 36.1627
-    const pickupLng = Number(req.body.pickupLng) || -86.7816
+    const pickupLat = Number(req.body.pickupLat)
+    const pickupLng = Number(req.body.pickupLng)
+
+    if (!Number.isFinite(pickupLat) || !Number.isFinite(pickupLng)) {
+      return res.json({
+        success: false,
+        message: 'Pickup GPS location is required'
+      })
+    }
+
     const dropoffLat = Number(req.body.dropoffLat) || 36.1245
     const dropoffLng = Number(req.body.dropoffLng) || -86.7093
 
-    const distance = Number(req.body.distance) || Number(getDistance(pickupLat, pickupLng, dropoffLat, dropoffLng).toFixed(1))
-    const duration = Number(req.body.duration) || Math.max(10, Math.round(distance * 2.2))
     const rideType = normalizeRideType(req.body.rideType)
+    const distance =
+      Number(req.body.distance) ||
+      Number(getDistance(pickupLat, pickupLng, dropoffLat, dropoffLng).toFixed(1))
+    const duration = Number(req.body.duration) || Math.max(10, Math.round(distance * 2.2))
     const fare = calculateFare(distance, duration, rideType)
 
     let closestDriver = null
-    let closestDistance = Infinity
+    let closestMiles = Infinity
 
     drivers.forEach(driver => {
       if (!driver.online) return
 
       const milesAway = getDistance(pickupLat, pickupLng, driver.lat, driver.lng)
 
-      if (milesAway < closestDistance) {
-        closestDistance = milesAway
+      if (milesAway < closestMiles) {
+        closestMiles = milesAway
         closestDriver = driver
       }
     })
@@ -462,7 +501,7 @@ app.get('/rides/:id/live', (req, res) => {
       })
     }
 
-    advanceRideState(ride)
+    advanceRide(ride)
 
     res.json({
       success: true,
@@ -472,7 +511,7 @@ app.get('/rides/:id/live', (req, res) => {
     console.log(error)
     res.json({
       success: false,
-      message: 'Live tracking failed'
+      message: 'Live ride update failed'
     })
   }
 })
@@ -508,12 +547,10 @@ app.post('/rides/:id/arrive', (req, res) => {
     })
   }
 
-  if (ride.status === 'accepted' || ride.status === 'en_route') {
-    ride.status = 'arrived'
-    ride.arrivedAt = new Date().toISOString()
-    ride.driver.lat = ride.pickupLat
-    ride.driver.lng = ride.pickupLng
-  }
+  ride.driver.lat = ride.pickupLat
+  ride.driver.lng = ride.pickupLng
+  ride.status = 'arrived'
+  ride.arrivedAt = new Date().toISOString()
 
   res.json({
     success: true,
@@ -531,10 +568,8 @@ app.post('/rides/:id/start', (req, res) => {
     })
   }
 
-  if (ride.status === 'arrived') {
-    ride.status = 'in_progress'
-    ride.startedAt = new Date().toISOString()
-  }
+  ride.status = 'in_progress'
+  ride.startedAt = new Date().toISOString()
 
   res.json({
     success: true,
@@ -552,10 +587,10 @@ app.post('/rides/:id/complete', (req, res) => {
     })
   }
 
-  ride.status = 'completed'
-  ride.completedAt = new Date().toISOString()
   ride.driver.lat = ride.dropoffLat
   ride.driver.lng = ride.dropoffLng
+  ride.status = 'completed'
+  ride.completedAt = new Date().toISOString()
 
   const driver = drivers.find(d => d.id === ride.driver.id)
   if (driver) {
@@ -597,5 +632,5 @@ app.post('/rides/:id/cancel', (req, res) => {
 })
 
 app.listen(PORT, () => {
-  console.log('Harvey Taxi live tracking server running on port ' + PORT)
+  console.log('Harvey Taxi live movement server running on port ' + PORT)
 })
