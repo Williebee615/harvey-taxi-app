@@ -56,6 +56,11 @@
       color: white;
     }
 
+    .gps {
+      background: #1f3b73;
+      color: white;
+    }
+
     .cancel {
       background: #8b1e1e;
       color: white;
@@ -79,6 +84,14 @@
       color: #cfcfcf;
       font-size: 15px;
     }
+
+    .success {
+      color: #7df0a6;
+    }
+
+    .warning {
+      color: #ffd166;
+    }
   </style>
 </head>
 <body>
@@ -94,6 +107,7 @@
       <option value="Luxury">Luxury Ride</option>
     </select>
 
+    <button class="gps" onclick="useMyLocation()">Use My Current Location</button>
     <button class="estimate" onclick="estimateFare()">Estimate Fare</button>
     <button class="request" onclick="requestRide()">Request Ride</button>
     <button id="cancelBtn" class="cancel" onclick="cancelRide()" style="display:none;">Cancel Ride</button>
@@ -105,6 +119,58 @@
     let lastFare = null
     let currentRideId = null
     let liveTimer = null
+
+    let pickupLat = null
+    let pickupLng = null
+    let gpsReady = false
+
+    function setResult(message) {
+      document.getElementById('result').innerHTML = message
+    }
+
+    async function useMyLocation() {
+      if (!navigator.geolocation) {
+        setResult('GPS is not supported on this device.')
+        return
+      }
+
+      setResult('Getting your current location...')
+
+      navigator.geolocation.getCurrentPosition(
+        position => {
+          pickupLat = position.coords.latitude
+          pickupLng = position.coords.longitude
+          gpsReady = true
+
+          const pickupInput = document.getElementById('pickup')
+          if (!pickupInput.value.trim()) {
+            pickupInput.value = 'Current Location'
+          }
+
+          setResult(`
+            <div class="status success">GPS Ready</div>
+            <div>Pickup coordinates captured successfully.</div>
+            <div class="muted">Lat: ${pickupLat.toFixed(6)}</div>
+            <div class="muted">Lng: ${pickupLng.toFixed(6)}</div>
+          `)
+        },
+        error => {
+          gpsReady = false
+
+          let message = 'Could not get your location.'
+          if (error.code === 1) message = 'Location permission was denied.'
+          if (error.code === 2) message = 'Location unavailable right now.'
+          if (error.code === 3) message = 'Location request timed out.'
+
+          setResult(message)
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        }
+      )
+    }
 
     async function estimateFare() {
       try {
@@ -123,13 +189,13 @@
         const data = await res.json()
 
         if (!data.success) {
-          document.getElementById('result').innerHTML = data.message || 'Could not estimate fare.'
+          setResult(data.message || 'Could not estimate fare.')
           return
         }
 
         lastFare = data
 
-        document.getElementById('result').innerHTML = `
+        setResult(`
           <div>Distance: ${data.distance} miles</div>
           <div>ETA: ${data.duration} min</div>
           <br>
@@ -140,9 +206,9 @@
           <div>Service: $${data.fare.service}</div>
           <br>
           <b>Total: $${data.fare.total}</b>
-        `
+        `)
       } catch (e) {
-        document.getElementById('result').innerHTML = 'Estimate fare failed.'
+        setResult('Estimate fare failed.')
       }
     }
 
@@ -155,7 +221,12 @@
         const rideType = document.getElementById('rideType').value
 
         if (!pickup || !dropoff) {
-          document.getElementById('result').innerHTML = 'Please enter both pickup and dropoff locations.'
+          setResult('Please enter both pickup and dropoff locations.')
+          return
+        }
+
+        if (!gpsReady || pickupLat === null || pickupLng === null) {
+          setResult('Please tap "Use My Current Location" first.')
           return
         }
 
@@ -165,8 +236,8 @@
           body: JSON.stringify({
             pickup: pickup,
             dropoff: dropoff,
-            pickupLat: 36.1627,
-            pickupLng: -86.7816,
+            pickupLat: pickupLat,
+            pickupLng: pickupLng,
             dropoffLat: 36.1245,
             dropoffLng: -86.7093,
             distance: lastFare?.distance || 10,
@@ -178,7 +249,7 @@
         const data = await res.json()
 
         if (!data.success) {
-          document.getElementById('result').innerHTML = data.message || 'Request failed.'
+          setResult(data.message || 'Request failed.')
           document.getElementById('cancelBtn').style.display = 'none'
           return
         }
@@ -189,7 +260,7 @@
         renderRide(data.ride)
         startLivePolling()
       } catch (e) {
-        document.getElementById('result').innerHTML = 'Server error while requesting ride.'
+        setResult('Server error while requesting ride.')
       }
     }
 
@@ -198,7 +269,7 @@
       const fare = ride.fare || {}
       const trip = ride.trip || {}
 
-      document.getElementById('result').innerHTML = `
+      setResult(`
         <div class="status">${ride.statusLabel || ride.status || 'Ride update'}</div>
 
         <div><b>${driver.name || 'Driver assigned'}</b></div>
@@ -219,7 +290,7 @@
         <br>
 
         <b>Total: $${fare.total || '0.00'}</b>
-      `
+      `)
 
       if (ride.status === 'completed' || ride.status === 'cancelled') {
         stopLivePolling()
@@ -270,10 +341,10 @@
         if (data.success) {
           renderRide(data.ride)
         } else {
-          document.getElementById('result').innerHTML = data.message || 'Could not cancel ride.'
+          setResult(data.message || 'Could not cancel ride.')
         }
       } catch (e) {
-        document.getElementById('result').innerHTML = 'Could not cancel ride.'
+        setResult('Could not cancel ride.')
       }
     }
   </script>
