@@ -1,62 +1,78 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Request Ride</title>
 
 <style>
 body{
-background:#000;
-color:#fff;
-font-family:Arial;
-padding:20px;
+  background:#000;
+  color:#fff;
+  font-family:Arial;
+  padding:20px;
 }
 
 h1{
-font-size:32px;
-margin-bottom:20px;
+  font-size:32px;
+  margin-bottom:20px;
 }
 
 .input{
-width:100%;
-padding:20px;
-border-radius:20px;
-border:none;
-background:#0b0f1c;
-color:white;
-margin-bottom:15px;
-font-size:18px;
+  width:100%;
+  padding:20px;
+  border-radius:20px;
+  border:none;
+  background:#0b0f1c;
+  color:white;
+  margin-bottom:15px;
+  font-size:18px;
 }
 
 button{
-width:100%;
-padding:20px;
-border-radius:20px;
-border:none;
-font-size:18px;
-margin-top:10px;
+  width:100%;
+  padding:20px;
+  border-radius:20px;
+  border:none;
+  font-size:18px;
+  margin-top:10px;
 }
 
 .estimate{
-background:#333;
-color:white;
+  background:#333;
+  color:white;
 }
 
 .request{
-background:#39d27d;
-color:white;
-font-weight:bold;
+  background:#39d27d;
+  color:white;
+  font-weight:bold;
+}
+
+.cancel{
+  background:#8b1e1e;
+  color:white;
+  font-weight:bold;
 }
 
 .card{
-background:#0b0f1c;
-padding:20px;
-border-radius:20px;
-margin-top:20px;
-line-height:1.6;
+  background:#0b0f1c;
+  padding:20px;
+  border-radius:20px;
+  margin-top:20px;
+  line-height:1.6;
+}
+
+.status{
+  font-size:20px;
+  font-weight:bold;
+  margin-bottom:10px;
+}
+
+.small{
+  color:#cfcfcf;
+  font-size:16px;
 }
 </style>
-
 </head>
 <body>
 
@@ -66,114 +82,142 @@ line-height:1.6;
 <input id="dropoff" class="input" placeholder="Dropoff address">
 
 <select id="rideType" class="input">
-<option value="Standard">Standard Ride</option>
-<option value="XL">XL Ride</option>
-<option value="Luxury">Luxury Ride</option>
+  <option value="Standard">Standard Ride</option>
+  <option value="XL">XL Ride</option>
+  <option value="Luxury">Luxury Ride</option>
 </select>
 
 <button class="estimate" onclick="estimateFare()">Estimate Fare</button>
 <button class="request" onclick="requestRide()">Request Ride</button>
+<button id="cancelBtn" class="cancel" onclick="cancelRide()" style="display:none;">Cancel Ride</button>
 
 <div id="result" class="card">
-Fare details will appear here.
+  Fare details will appear here.
 </div>
 
 <script>
-
 let lastFare = null
+let currentRideId = null
+let liveTimer = null
 
 async function estimateFare(){
+  const rideType = document.getElementById('rideType').value
 
-const rideType = document.getElementById('rideType').value
+  const res = await fetch('/estimate-fare',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      distance:10,
+      duration:20,
+      rideType
+    })
+  })
 
-const res = await fetch('/estimate-fare',{
-method:'POST',
-headers:{'Content-Type':'application/json'},
-body:JSON.stringify({
-distance:10,
-duration:20,
-rideType
-})
-})
+  const data = await res.json()
 
-const data = await res.json()
+  if(!data.success){
+    document.getElementById('result').innerHTML = data.message || 'Could not estimate fare.'
+    return
+  }
 
-lastFare = data
+  lastFare = data
 
-document.getElementById('result').innerHTML = `
-Distance: ${data.distance} miles<br>
-ETA: ${data.duration} min<br><br>
-
-Base: $${data.fare.base}<br>
-Distance: $${data.fare.distanceCharge}<br>
-Time: $${data.fare.timeCharge}<br>
-Booking: $${data.fare.booking}<br>
-Service: $${data.fare.service}<br><br>
-
-<b>Total: $${data.fare.total}</b>
-`
+  document.getElementById('result').innerHTML = `
+    <div>Distance: ${data.distance} miles</div>
+    <div>ETA: ${data.duration} min</div>
+    <br>
+    <div>Base: $${data.fare.base}</div>
+    <div>Distance: $${data.fare.distanceCharge}</div>
+    <div>Time: $${data.fare.timeCharge}</div>
+    <div>Booking: $${data.fare.booking}</div>
+    <div>Service: $${data.fare.service}</div>
+    <br>
+    <b>Total: $${data.fare.total}</b>
+  `
 }
 
 async function requestRide(){
+  try{
+    stopLivePolling()
 
-try{
+    const pickup = document.getElementById('pickup').value
+    const dropoff = document.getElementById('dropoff').value
+    const rideType = document.getElementById('rideType').value
 
-const pickup = document.getElementById('pickup').value
-const dropoff = document.getElementById('dropoff').value
-const rideType = document.getElementById('rideType').value
+    const res = await fetch('/request-ride',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        pickup,
+        dropoff,
+        pickupLat:36.1627,
+        pickupLng:-86.7816,
+        dropoffLat:36.1245,
+        dropoffLng:-86.7093,
+        distance:lastFare?.distance || 10,
+        duration:lastFare?.duration || 20,
+        rideType
+      })
+    })
 
-const res = await fetch('/request-ride',{
-method:'POST',
-headers:{'Content-Type':'application/json'},
-body:JSON.stringify({
-pickup,
-dropoff,
-pickupLat:36.1627,
-pickupLng:-86.7816,
-distance:lastFare?.distance || 10,
-duration:lastFare?.duration || 20,
-rideType
-})
-})
+    const data = await res.json()
 
-const data = await res.json()
+    if(!data.success){
+      document.getElementById('result').innerHTML = data.message || 'Request failed.'
+      document.getElementById('cancelBtn').style.display = 'none'
+      return
+    }
 
-if(!data || !data.success){
-document.getElementById('result').innerHTML =
-data?.message || "No drivers available"
-return
+    currentRideId = data.ride.id
+    document.getElementById('cancelBtn').style.display = 'block'
+
+    renderRide(data.ride)
+    startLivePolling()
+  }catch(e){
+    document.getElementById('result').innerHTML = 'Server error while requesting ride.'
+    document.getElementById('cancelBtn').style.display = 'none'
+  }
 }
 
-const driver = data?.ride?.driver
+function renderRide(ride){
+  const driver = ride.driver || {}
+  const fare = ride.fare || {}
 
-if(!driver){
-document.getElementById('result').innerHTML =
-"Driver assigned. Loading..."
-return
+  document.getElementById('result').innerHTML = `
+    <div class="status">${ride.statusLabel || ride.status || 'Ride update'}</div>
+
+    <div><b>${driver.name || 'Driver assigned'}</b></div>
+    <div>${driver.vehicle || ''}</div>
+    <div>Plate: ${driver.plate || ''}</div>
+    <div>Phone: ${driver.phone || ''}</div>
+    <div>ETA: ${driver.etaMinutes ?? '--'} min</div>
+    <div>${driver.distanceAway ?? '--'} miles away</div>
+    <br>
+
+    <div>Pickup: ${ride.pickup || ''}</div>
+    <div>Dropoff: ${ride.dropoff || ''}</div>
+    <div>Ride Type: ${ride.rideType || ''}</div>
+    <div>Remaining Miles: ${ride.trip?.remainingMiles ?? '--'}</div>
+    <br>
+
+    <div class="small">Driver Location: ${driver.lat ?? '--'}, ${driver.lng ?? '--'}</div>
+    <br>
+
+    <b>Total: $${fare.total || '0.00'}</b>
+  `
+
+  if(ride.status === 'completed' || ride.status === 'cancelled'){
+    stopLivePolling()
+    document.getElementById('cancelBtn').style.display = 'none'
+  }
 }
 
-document.getElementById('result').innerHTML = `
-<b>Driver matched successfully</b><br><br>
+async function pollRide(){
+  if(!currentRideId) return
 
-${driver.name}<br>
-${driver.vehicle}<br>
-Plate: ${driver.plate}<br>
-ETA: ${driver.etaMinutes} min<br>
-${driver.distanceAway} miles away<br><br>
+  try{
+    const res = await fetch(`/rides/${currentRideId}/live`)
+    const data = await res.json()
 
-<b>Total: $${data.ride.fare.total}</b>
-`
-
-}catch(e){
-
-document.getElementById('result').innerHTML =
-"Server error while requesting ride."
-
-}
-
-}
-
-</script>
-
-</body>
-</html>
+    if(!data.success){
+      stopLive
