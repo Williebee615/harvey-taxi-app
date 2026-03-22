@@ -1,4 +1,41 @@
-<script>
+#fareBox {
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 20px;
+  background: #0b0b0f;
+  color: white;
+}
+
+.fare-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-size: 16px;
+}
+
+.fare-row.total {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255,255,255,0.12);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.service-card.active {
+  border: 2px solid #2ecc71;
+}<input id="pickup" type="text" placeholder="Pickup location" />
+<input id="dropoff" type="text" placeholder="Dropoff location" />
+<select id="rideType">
+  <option>Standard Ride</option>
+  <option>XL Ride</option>
+  <option>Priority Ride</option>
+</select>
+
+<button id="estimateBtn">Estimate Fare</button>
+<button id="requestRideBtn">Request Ride</button>
+
+<div id="statusBox">Ready to request a ride.</div>
+<div id="fareBox"></div><script>
   const serviceButtons = document.querySelectorAll('.service-card')
   const pickupInput = document.getElementById('pickup')
   const dropoffInput = document.getElementById('dropoff')
