@@ -10,54 +10,74 @@ app.use(cors())
 app.use(express.json())
 app.use(express.static(path.join(__dirname, 'public')))
 
-let drivers = [
-  {
-    id: 'driver_1',
-    name: 'Marcus Johnson',
-    car: 'Toyota Camry',
-    plate: 'HTX-101',
-    lat: 36.1627,
-    lng: -86.7816,
-    online: true,
-    busy: false,
-    currentRideId: null
-  },
-  {
-    id: 'driver_2',
-    name: 'Alicia Brown',
-    car: 'Honda Accord',
-    plate: 'HTX-202',
-    lat: 36.1745,
-    lng: -86.7679,
-    online: true,
-    busy: false,
-    currentRideId: null
-  },
-  {
-    id: 'driver_3',
-    name: 'David Smith',
-    car: 'Nissan Altima',
-    plate: 'HTX-303',
-    lat: 36.1570,
-    lng: -86.8040,
-    online: true,
-    busy: false,
-    currentRideId: null
+// --------------------
+// SIMPLE DATA STORAGE
+// --------------------
+const DATA_DIR = path.join(__dirname, 'data')
+const RIDES_FILE = path.join(DATA_DIR, 'rides.json')
+const DRIVERS_FILE = path.join(DATA_DIR, 'drivers.json')
+
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR)
+}
+
+if (!fs.existsSync(RIDES_FILE)) {
+  fs.writeFileSync(RIDES_FILE, JSON.stringify([]))
+}
+
+if (!fs.existsSync(DRIVERS_FILE)) {
+  fs.writeFileSync(DRIVERS_FILE, JSON.stringify([]))
+}
+
+function readJson(filePath) {
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'))
+  } catch (error) {
+    return []
   }
-]
+}
 
-let rideRequests = []
+function writeJson(filePath, data) {
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2))
+}
 
-function getDistance(lat1, lng1, lat2, lng2) {
-  const toRad = (value) => (value * Math.PI) / 180
-  const R = 6371
-  const dLat = toRad(lat2 - lat1)
-  const dLng = toRad(lng2 - lng1)
+let rides = readJson(RIDES_FILE)
+let drivers = readJson(DRIVERS_FILE)
+
+// --------------------
+// HARVEY TAXI SETTINGS
+// --------------------
+const fareSettings = {
+  baseFare: 3.5,
+  perMile: 1.85,
+  perMinute: 0.32,
+  minimumFare: 8,
+  bookingFee: 2.25,
+  serviceFeeRate: 0.08, // 8%
+  cancelFee: 5,
+  driverPayoutRate: 0.8 // driver gets 80% of trip subtotal before booking/service platform fees
+}
+
+// --------------------
+// HELPERS
+// --------------------
+function generateId(prefix = 'id') {
+  return `${prefix}_${Date.now()}_${Math.floor(Math.random() * 100000)}`
+}
+
+function toMoney(value) {
+  return Number(Number(value).toFixed(2))
+}
+
+function getDistanceMiles(lat1, lng1, lat2, lng2) {
+  const R = 3958.8
+  const dLat = ((lat2 - lat1) * Math.PI) / 180
+  const dLng = ((lng2 - lng1) * Math.PI) / 180
 
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
       Math.sin(dLng / 2) *
       Math.sin(dLng / 2)
 
@@ -65,301 +85,409 @@ function getDistance(lat1, lng1, lat2, lng2) {
   return R * c
 }
 
-function movePointTowards(currentLat, currentLng, targetLat, targetLng, step = 0.22) {
-  const latDiff = targetLat - currentLat
-  const lngDiff = targetLng - currentLng
+function calculateDemandMultiplier() {
+  const activeRideRequests = rides.filter(
+    (ride) =>
+      ride.status === 'requested' ||
+      ride.status === 'accepted' ||
+      ride.status === 'arriving' ||
+      ride.status === 'in_progress'
+  ).length
+
+  const onlineDrivers = drivers.filter(
+    (driver) => driver.isOnline && driver.isApproved
+  ).length
+
+  if (onlineDrivers === 0 && activeRideRequests > 0) return 2.2
+  if (activeRideRequests <= 3) return 1
+  if (activeRideRequests > onlineDrivers * 2) return 2
+  if (activeRideRequests > onlineDrivers) return 1.5
+  if (activeRideRequests > 6) return 1.3
+
+  return 1
+}
+
+function calculateFare({ distanceMiles, durationMinutes, surgeMultiplier = 1 }) {
+  const rawBase = fareSettings.baseFare
+  const rawDistance = distanceMiles * fareSettings.perMile
+  const rawTime = durationMinutes * fareSettings.perMinute
+
+  const subtotalBeforeSurge = rawBase + rawDistance + rawTime
+  const surgedSubtotal = subtotalBeforeSurge * surgeMultiplier
+  const serviceFee = surgedSubtotal * fareSettings.serviceFeeRate
+  let total = surgedSubtotal + fareSettings.bookingFee + serviceFee
+
+  if (total < fareSettings.minimumFare) {
+    total = fareSettings.minimumFare
+  }
+
+  const driverPayout = Math.max(
+    fareSettings.minimumFare * 0.55,
+    surgedSubtotal * fareSettings.driverPayoutRate
+  )
 
   return {
-    lat: currentLat + latDiff * step,
-    lng: currentLng + lngDiff * step
+    baseFare: toMoney(rawBase),
+    distanceFare: toMoney(rawDistance),
+    timeFare: toMoney(rawTime),
+    subtotalBeforeSurge: toMoney(subtotalBeforeSurge),
+    surgeMultiplier: toMoney(surgeMultiplier),
+    surgedSubtotal: toMoney(surgedSubtotal),
+    bookingFee: toMoney(fareSettings.bookingFee),
+    serviceFee: toMoney(serviceFee),
+    minimumFare: toMoney(fareSettings.minimumFare),
+    totalFare: toMoney(total),
+    driverPayout: toMoney(driverPayout),
+    platformRevenue: toMoney(total - driverPayout)
   }
+}
+
+function estimateDurationMinutes(distanceMiles) {
+  const averageCitySpeedMph = 22
+  const hours = distanceMiles / averageCitySpeedMph
+  const minutes = hours * 60
+  return Math.max(4, Math.round(minutes))
 }
 
 function findNearestDriver(pickupLat, pickupLng) {
-  const availableDrivers = drivers.filter(driver => driver.online && !driver.busy)
+  const onlineApprovedDrivers = drivers
+    .filter((driver) => driver.isOnline && driver.isApproved && driver.lat && driver.lng)
+    .map((driver) => {
+      const distanceAway = getDistanceMiles(
+        pickupLat,
+        pickupLng,
+        Number(driver.lat),
+        Number(driver.lng)
+      )
 
-  if (!availableDrivers.length) return null
+      return {
+        ...driver,
+        distanceAway
+      }
+    })
+    .sort((a, b) => a.distanceAway - b.distanceAway)
 
-  let nearestDriver = null
-  let shortestDistance = Infinity
-
-  for (const driver of availableDrivers) {
-    const distance = getDistance(pickupLat, pickupLng, driver.lat, driver.lng)
-    if (distance < shortestDistance) {
-      shortestDistance = distance
-      nearestDriver = driver
-    }
-  }
-
-  return nearestDriver
+  return onlineApprovedDrivers[0] || null
 }
 
-function getEtaLabel(driver, targetLat, targetLng, rideStatus) {
-  if (rideStatus === 'arrived') return 'Driver has arrived'
-  if (rideStatus === 'in_progress') return 'On the trip now'
-  if (rideStatus === 'completed') return 'Trip completed'
+// --------------------
+// ROUTES
+// --------------------
 
-  const km = getDistance(driver.lat, driver.lng, targetLat, targetLng)
-  const minutes = Math.max(1, Math.round(km * 2.4))
-  return `${minutes} min away`
-}
-
+// Root
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public/index.html'))
+  res.sendFile(path.join(__dirname, 'public', 'index.html'))
 })
 
-app.get('/driver', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public/driver.html'))
+// Health check
+app.get('/api/health', (req, res) => {
+  res.json({
+    success: true,
+    app: 'Harvey Taxi API',
+    status: 'running'
+  })
 })
 
-app.get('/admin', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public/admin.html'))
+// Get fare settings
+app.get('/api/fare/settings', (req, res) => {
+  res.json({
+    success: true,
+    settings: fareSettings
+  })
 })
 
-app.get('/:page', (req, res) => {
-  const file = path.join(__dirname, 'public', req.params.page)
-  if (fs.existsSync(file)) {
-    res.sendFile(file)
-  } else {
-    res.sendFile(path.join(__dirname, 'public/index.html'))
-  }
-})
+// Estimate fare by coordinates
+app.post('/api/fare/estimate', (req, res) => {
+  try {
+    const {
+      pickupLat,
+      pickupLng,
+      dropoffLat,
+      dropoffLng
+    } = req.body
 
-app.get('/api/drivers', (req, res) => {
-  res.json(drivers)
-})
+    if (
+      pickupLat === undefined ||
+      pickupLng === undefined ||
+      dropoffLat === undefined ||
+      dropoffLng === undefined
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'Pickup and dropoff coordinates are required.'
+      })
+    }
 
-app.post('/api/drivers/go-online', (req, res) => {
-  const { id, lat, lng } = req.body
-  const driver = drivers.find(d => d.id === id)
+    const distanceMiles = getDistanceMiles(
+      Number(pickupLat),
+      Number(pickupLng),
+      Number(dropoffLat),
+      Number(dropoffLng)
+    )
 
-  if (!driver) {
-    return res.status(404).json({ error: 'Driver not found' })
-  }
+    const durationMinutes = estimateDurationMinutes(distanceMiles)
+    const surgeMultiplier = calculateDemandMultiplier()
 
-  driver.online = true
-  if (!driver.currentRideId) driver.busy = false
-  if (typeof lat === 'number') driver.lat = lat
-  if (typeof lng === 'number') driver.lng = lng
+    const fare = calculateFare({
+      distanceMiles,
+      durationMinutes,
+      surgeMultiplier
+    })
 
-  res.json({ success: true, message: `${driver.name} is now online`, driver })
-})
-
-app.post('/api/drivers/go-offline', (req, res) => {
-  const { id } = req.body
-  const driver = drivers.find(d => d.id === id)
-
-  if (!driver) {
-    return res.status(404).json({ error: 'Driver not found' })
-  }
-
-  if (driver.currentRideId) {
-    return res.status(400).json({ error: 'Driver cannot go offline during active ride' })
-  }
-
-  driver.online = false
-  driver.busy = false
-
-  res.json({ success: true, message: `${driver.name} is now offline`, driver })
-})
-
-app.post('/api/request-ride', (req, res) => {
-  const {
-    pickup,
-    dropoff,
-    rideType,
-    pickupLat,
-    pickupLng,
-    dropoffLat,
-    dropoffLng
-  } = req.body
-
-  if (!pickup || !dropoff || !rideType) {
-    return res.status(400).json({ error: 'Missing required fields' })
-  }
-
-  const requestLat = typeof pickupLat === 'number' ? pickupLat : 36.1627
-  const requestLng = typeof pickupLng === 'number' ? pickupLng : -86.7816
-  const endLat = typeof dropoffLat === 'number' ? dropoffLat : 36.1699
-  const endLng = typeof dropoffLng === 'number' ? dropoffLng : -86.7944
-
-  const nearestDriver = findNearestDriver(requestLat, requestLng)
-
-  if (!nearestDriver) {
-    return res.status(404).json({
+    return res.json({
+      success: true,
+      trip: {
+        distanceMiles: toMoney(distanceMiles),
+        durationMinutes
+      },
+      fare
+    })
+  } catch (error) {
+    return res.status(500).json({
       success: false,
-      message: 'No available drivers found right now'
+      message: 'Failed to calculate fare.',
+      error: error.message
     })
   }
-
-  nearestDriver.busy = true
-
-  const ride = {
-    id: `ride_${Date.now()}`,
-    pickup,
-    dropoff,
-    rideType,
-    pickupLat: requestLat,
-    pickupLng: requestLng,
-    dropoffLat: endLat,
-    dropoffLng: endLng,
-    status: 'assigned',
-    driverId: nearestDriver.id,
-    driverName: nearestDriver.name,
-    car: nearestDriver.car,
-    plate: nearestDriver.plate,
-    createdAt: new Date().toISOString()
-  }
-
-  nearestDriver.currentRideId = ride.id
-  ride.etaLabel = getEtaLabel(nearestDriver, ride.pickupLat, ride.pickupLng, ride.status)
-  rideRequests.unshift(ride)
-
-  res.json({
-    success: true,
-    message: 'Driver assigned successfully',
-    ride
-  })
 })
 
-app.get('/api/rides', (req, res) => {
-  res.json(rideRequests)
-})
+// Register driver
+app.post('/api/drivers/register', (req, res) => {
+  try {
+    const { name, email, phone, vehicleType, vehicleMake, vehicleModel, plate } = req.body
 
-app.get('/api/rides/:rideId', (req, res) => {
-  const ride = rideRequests.find(r => r.id === req.params.rideId)
-
-  if (!ride) {
-    return res.status(404).json({ error: 'Ride not found' })
-  }
-
-  const driver = drivers.find(d => d.id === ride.driverId)
-
-  if (driver) {
-    const target =
-      ride.status === 'in_progress'
-        ? { lat: ride.dropoffLat, lng: ride.dropoffLng }
-        : { lat: ride.pickupLat, lng: ride.pickupLng }
-
-    ride.etaLabel = getEtaLabel(driver, target.lat, target.lng, ride.status)
-  }
-
-  res.json({
-    ...ride,
-    driverLocation: driver
-      ? {
-          lat: driver.lat,
-          lng: driver.lng
-        }
-      : null
-  })
-})
-
-app.post('/api/rides/:rideId/status', (req, res) => {
-  const { status } = req.body
-  const allowedStatuses = ['accepted', 'arriving', 'arrived', 'in_progress', 'completed']
-
-  if (!allowedStatuses.includes(status)) {
-    return res.status(400).json({ error: 'Invalid ride status' })
-  }
-
-  const ride = rideRequests.find(r => r.id === req.params.rideId)
-  if (!ride) {
-    return res.status(404).json({ error: 'Ride not found' })
-  }
-
-  ride.status = status
-  ride.updatedAt = new Date().toISOString()
-
-  const driver = drivers.find(d => d.id === ride.driverId)
-
-  if (driver) {
-    const target =
-      ride.status === 'in_progress'
-        ? { lat: ride.dropoffLat, lng: ride.dropoffLng }
-        : { lat: ride.pickupLat, lng: ride.pickupLng }
-
-    ride.etaLabel = getEtaLabel(driver, target.lat, target.lng, ride.status)
-  }
-
-  if (status === 'completed' && driver) {
-    driver.busy = false
-    driver.currentRideId = null
-  }
-
-  res.json({
-    success: true,
-    message: `Ride updated to ${status}`,
-    ride
-  })
-})
-
-app.get('/api/drivers/:driverId/current-ride', (req, res) => {
-  const driver = drivers.find(d => d.id === req.params.driverId)
-
-  if (!driver) {
-    return res.status(404).json({ error: 'Driver not found' })
-  }
-
-  if (!driver.currentRideId) {
-    return res.json({ ride: null })
-  }
-
-  const ride = rideRequests.find(r => r.id === driver.currentRideId)
-
-  res.json({
-    ride: ride || null
-  })
-})
-
-app.post('/api/drivers/:driverId/move', (req, res) => {
-  const driver = drivers.find(d => d.id === req.params.driverId)
-
-  if (!driver) {
-    return res.status(404).json({ error: 'Driver not found' })
-  }
-
-  let targetLat = driver.lat
-  let targetLng = driver.lng
-
-  if (driver.currentRideId) {
-    const ride = rideRequests.find(r => r.id === driver.currentRideId)
-
-    if (ride) {
-      if (ride.status === 'assigned' || ride.status === 'accepted' || ride.status === 'arriving') {
-        targetLat = ride.pickupLat
-        targetLng = ride.pickupLng
-      } else if (ride.status === 'in_progress') {
-        targetLat = ride.dropoffLat
-        targetLng = ride.dropoffLng
-      }
-
-      const moved = movePointTowards(driver.lat, driver.lng, targetLat, targetLng, 0.25)
-      driver.lat = moved.lat
-      driver.lng = moved.lng
-
-      const remainingKm = getDistance(driver.lat, driver.lng, targetLat, targetLng)
-
-      if ((ride.status === 'assigned' || ride.status === 'accepted' || ride.status === 'arriving') && remainingKm < 0.08) {
-        ride.status = 'arrived'
-      }
-
-      if (ride.status === 'in_progress' && remainingKm < 0.08) {
-        ride.status = 'completed'
-        driver.busy = false
-        driver.currentRideId = null
-      }
-
-      ride.etaLabel = getEtaLabel(driver, targetLat, targetLng, ride.status)
+    if (!name || !email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name and email are required.'
+      })
     }
-  }
 
+    const newDriver = {
+      id: generateId('driver'),
+      name,
+      email,
+      phone: phone || '',
+      vehicleType: vehicleType || 'Standard',
+      vehicleMake: vehicleMake || '',
+      vehicleModel: vehicleModel || '',
+      plate: plate || '',
+      isApproved: false,
+      isOnline: false,
+      lat: null,
+      lng: null,
+      createdAt: new Date().toISOString()
+    }
+
+    drivers.push(newDriver)
+    writeJson(DRIVERS_FILE, drivers)
+
+    return res.json({
+      success: true,
+      message: 'Driver registered successfully.',
+      driver: newDriver
+    })
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to register driver.',
+      error: error.message
+    })
+  }
+})
+
+// Update driver status/location
+app.post('/api/drivers/update-status', (req, res) => {
+  try {
+    const { driverId, isOnline, lat, lng, isApproved } = req.body
+
+    const driver = drivers.find((d) => d.id === driverId)
+
+    if (!driver) {
+      return res.status(404).json({
+        success: false,
+        message: 'Driver not found.'
+      })
+    }
+
+    if (typeof isOnline === 'boolean') driver.isOnline = isOnline
+    if (typeof isApproved === 'boolean') driver.isApproved = isApproved
+    if (lat !== undefined) driver.lat = Number(lat)
+    if (lng !== undefined) driver.lng = Number(lng)
+
+    driver.updatedAt = new Date().toISOString()
+    writeJson(DRIVERS_FILE, drivers)
+
+    return res.json({
+      success: true,
+      message: 'Driver updated successfully.',
+      driver
+    })
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to update driver.',
+      error: error.message
+    })
+  }
+})
+
+// Request a ride with fare engine
+app.post('/api/rides/request', (req, res) => {
+  try {
+    const {
+      riderName,
+      riderPhone,
+      pickupAddress,
+      dropoffAddress,
+      pickupLat,
+      pickupLng,
+      dropoffLat,
+      dropoffLng,
+      serviceType
+    } = req.body
+
+    if (
+      !pickupAddress ||
+      !dropoffAddress ||
+      pickupLat === undefined ||
+      pickupLng === undefined ||
+      dropoffLat === undefined ||
+      dropoffLng === undefined
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'Pickup/dropoff addresses and coordinates are required.'
+      })
+    }
+
+    const distanceMiles = getDistanceMiles(
+      Number(pickupLat),
+      Number(pickupLng),
+      Number(dropoffLat),
+      Number(dropoffLng)
+    )
+
+    const durationMinutes = estimateDurationMinutes(distanceMiles)
+    const surgeMultiplier = calculateDemandMultiplier()
+
+    const fare = calculateFare({
+      distanceMiles,
+      durationMinutes,
+      surgeMultiplier
+    })
+
+    const nearestDriver = findNearestDriver(Number(pickupLat), Number(pickupLng))
+
+    const newRide = {
+      id: generateId('ride'),
+      riderName: riderName || 'Guest Rider',
+      riderPhone: riderPhone || '',
+      pickupAddress,
+      dropoffAddress,
+      pickupLat: Number(pickupLat),
+      pickupLng: Number(pickupLng),
+      dropoffLat: Number(dropoffLat),
+      dropoffLng: Number(dropoffLng),
+      serviceType: serviceType || 'Ride',
+      status: nearestDriver ? 'accepted' : 'requested',
+      assignedDriverId: nearestDriver ? nearestDriver.id : null,
+      assignedDriverName: nearestDriver ? nearestDriver.name : null,
+      assignedVehicle: nearestDriver
+        ? `${nearestDriver.vehicleMake} ${nearestDriver.vehicleModel}`.trim()
+        : null,
+      driverDistanceAway: nearestDriver ? toMoney(nearestDriver.distanceAway) : null,
+      trip: {
+        distanceMiles: toMoney(distanceMiles),
+        durationMinutes
+      },
+      fare,
+      createdAt: new Date().toISOString()
+    }
+
+    rides.push(newRide)
+    writeJson(RIDES_FILE, rides)
+
+    return res.json({
+      success: true,
+      message: nearestDriver
+        ? 'Ride requested and matched with nearest driver.'
+        : 'Ride requested. Waiting for a driver.',
+      ride: newRide
+    })
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to request ride.',
+      error: error.message
+    })
+  }
+})
+
+// Get all rides
+app.get('/api/rides', (req, res) => {
   res.json({
     success: true,
-    driver
+    rides
   })
+})
+
+// Get all drivers
+app.get('/api/drivers', (req, res) => {
+  res.json({
+    success: true,
+    drivers
+  })
+})
+
+// Admin fare update
+app.post('/api/admin/fare-settings', (req, res) => {
+  try {
+    const {
+      baseFare,
+      perMile,
+      perMinute,
+      minimumFare,
+      bookingFee,
+      serviceFeeRate,
+      cancelFee,
+      driverPayoutRate
+    } = req.body
+
+    if (baseFare !== undefined) fareSettings.baseFare = Number(baseFare)
+    if (perMile !== undefined) fareSettings.perMile = Number(perMile)
+    if (perMinute !== undefined) fareSettings.perMinute = Number(perMinute)
+    if (minimumFare !== undefined) fareSettings.minimumFare = Number(minimumFare)
+    if (bookingFee !== undefined) fareSettings.bookingFee = Number(bookingFee)
+    if (serviceFeeRate !== undefined) fareSettings.serviceFeeRate = Number(serviceFeeRate)
+    if (cancelFee !== undefined) fareSettings.cancelFee = Number(cancelFee)
+    if (driverPayoutRate !== undefined) fareSettings.driverPayoutRate = Number(driverPayoutRate)
+
+    return res.json({
+      success: true,
+      message: 'Fare settings updated.',
+      settings: fareSettings
+    })
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to update fare settings.',
+      error: error.message
+    })
+  }
+})
+
+// Fallback for direct page access
+app.get('/:page', (req, res) => {
+  const filePath = path.join(__dirname, 'public', req.params.page)
+
+  if (fs.existsSync(filePath)) {
+    res.sendFile(filePath)
+  } else {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'))
+  }
 })
 
 app.listen(PORT, () => {
-  console.log(`Harvey Taxi running on port ${PORT}`)
+  console.log(`Harvey Taxi server running on port ${PORT}`)
 })
