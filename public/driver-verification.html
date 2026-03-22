@@ -1,363 +1,225 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Driver Verification - Harvey Taxi</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f5f7fb;
-      margin: 0;
-      padding: 20px;
-    }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Driver Verification</title>
 
-    .container {
-      max-width: 760px;
-      margin: 0 auto;
-      background: #fff;
-      border-radius: 18px;
-      padding: 24px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-    }
+<style>
+body{
+margin:0;
+font-family:Arial, Helvetica, sans-serif;
+background:#0b0f1a;
+color:white;
+}
 
-    h1 {
-      margin-top: 0;
-      color: #111827;
-    }
+.container{
+max-width:720px;
+margin:0 auto;
+padding:20px;
+}
 
-    p {
-      color: #4b5563;
-    }
+.card{
+background:#111827;
+border:1px solid #1f2937;
+border-radius:14px;
+padding:20px;
+margin-bottom:16px;
+}
 
-    .section-title {
-      margin-top: 24px;
-      font-size: 18px;
-      font-weight: bold;
-      color: #111827;
-    }
+h1{
+margin:0 0 10px;
+font-size:28px;
+}
 
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 14px;
-    }
+p{
+color:#cbd5e1;
+line-height:1.5;
+}
 
-    .full {
-      grid-column: 1 / -1;
-    }
+input{
+width:100%;
+padding:14px;
+border:none;
+border-radius:10px;
+background:#020617;
+color:white;
+margin-top:10px;
+margin-bottom:14px;
+box-sizing:border-box;
+}
 
-    input, button {
-      width: 100%;
-      padding: 12px;
-      border-radius: 12px;
-      border: 1px solid #d1d5db;
-      box-sizing: border-box;
-      font-size: 15px;
-    }
+button{
+width:100%;
+padding:16px;
+border:none;
+border-radius:10px;
+background:#2563eb;
+color:white;
+font-size:16px;
+font-weight:bold;
+cursor:pointer;
+margin-top:8px;
+}
 
-    button {
-      background: #111827;
-      color: white;
-      border: none;
-      cursor: pointer;
-      font-weight: bold;
-    }
+.secondary{
+background:#1f2937;
+}
 
-    button:hover {
-      opacity: 0.95;
-    }
+.badge{
+display:inline-block;
+padding:6px 12px;
+border-radius:20px;
+font-size:12px;
+font-weight:bold;
+margin-top:6px;
+}
 
-    .status-box {
-      margin-top: 20px;
-      padding: 18px;
-      border-radius: 16px;
-      background: #f3f4f6;
-      border: 1px solid #e5e7eb;
-    }
+.pending{ background:#f59e0b; color:#111827; }
+.approved{ background:#16a34a; }
+.rejected{ background:#dc2626; }
+.neutral{ background:#334155; }
 
-    .badge-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin-top: 10px;
-    }
-
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 8px 14px;
-      border-radius: 999px;
-      font-size: 14px;
-      font-weight: bold;
-      border: 2px solid transparent;
-      min-width: 120px;
-    }
-
-    .badge.not-submitted {
-      background: #e5e7eb;
-      color: #374151;
-      border-color: #d1d5db;
-    }
-
-    .badge.pending {
-      background: #fef3c7;
-      color: #92400e;
-      border-color: #f59e0b;
-    }
-
-    .badge.approved {
-      background: #dcfce7;
-      color: #166534;
-      border-color: #22c55e;
-    }
-
-    .badge.rejected {
-      background: #fee2e2;
-      color: #991b1b;
-      border-color: #ef4444;
-    }
-
-    .status-note {
-      margin-top: 10px;
-      font-size: 14px;
-      color: #6b7280;
-    }
-
-    .status-meta {
-      margin-top: 6px;
-      font-size: 13px;
-      color: #6b7280;
-    }
-
-    .helper-box {
-      margin-top: 12px;
-      padding: 12px;
-      border-radius: 12px;
-      background: #f9fafb;
-      border: 1px solid #e5e7eb;
-      font-size: 14px;
-      color: #374151;
-    }
-
-    label {
-      display: block;
-      margin-bottom: 6px;
-      font-weight: bold;
-      color: #111827;
-      font-size: 14px;
-    }
-
-    .top-actions {
-      margin-top: 12px;
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    .secondary-btn {
-      background: #fff;
-      color: #111827;
-      border: 1px solid #d1d5db;
-    }
-
-    @media (max-width: 700px) {
-      .grid {
-        grid-template-columns: 1fr;
-      }
-    }
-  </style>
+.small{
+font-size:13px;
+color:#94a3b8;
+margin-top:8px;
+}
+</style>
 </head>
+
 <body>
-  <div class="container">
-    <h1>Driver Verification</h1>
-    <p>Upload your license, selfie, and vehicle document so Harvey Taxi can review your account.</p>
 
-    <div class="status-box">
-      <strong>Verification Status</strong>
+<div class="container">
 
-      <div class="badge-row">
-        <span id="statusBadge" class="badge not-submitted">NOT SUBMITTED</span>
-      </div>
+<div class="card">
+<h1>🚗 Driver Verification</h1>
+<p>
+Drivers must submit verification before going online.
+Admin must approve before receiving rides, food, or grocery deliveries.
+</p>
+</div>
 
-      <div id="statusNote" class="status-note">
-        You have not submitted verification yet.
-      </div>
+<div class="card">
 
-      <div id="statusMeta" class="status-meta"></div>
+<input id="name" placeholder="Full legal name" />
+<input id="email" placeholder="Driver email" />
+<input id="phone" placeholder="Phone number" />
+<input id="licenseNumber" placeholder="Driver license number" />
+<input id="vehicleInfo" placeholder="Vehicle info (year, make, model)" />
+<input id="selfie" placeholder="Selfie image URL or note" />
+<input id="licenseImage" placeholder="License image URL or note" />
+<input id="vehicleDocument" placeholder="Insurance / registration URL or note" />
 
-      <div id="approvedBox" class="helper-box" style="display:none;">
-        ✅ Your account is approved. You are ready for driver activation and ride access.
-      </div>
+<button onclick="submitVerification()">Submit Driver Verification</button>
+<button class="secondary" onclick="checkStatus()">Check My Status</button>
 
-      <div id="pendingBox" class="helper-box" style="display:none;">
-        ⏳ Your verification is under review. Please wait for admin approval.
-      </div>
+<div class="small">
+Use same email used for driver account
+</div>
 
-      <div id="rejectedBox" class="helper-box" style="display:none;">
-        ❌ Your verification was rejected. Please review your documents and resubmit.
-      </div>
-    </div>
+</div>
 
-    <div class="top-actions">
-      <button type="button" class="secondary-btn" onclick="checkMyStatus()">Check My Status</button>
-    </div>
+<div class="card">
+<div><strong>Status:</strong></div>
+<div id="statusBadge" class="badge neutral">Not checked</div>
+<div id="statusText" class="small">
+Submit verification then admin can approve.
+</div>
+</div>
 
-    <form id="verificationForm">
-      <div class="section-title">Driver Info</div>
-      <div class="grid">
-        <div>
-          <label>Full Name</label>
-          <input type="text" name="name" id="nameInput" placeholder="Full name" required />
-        </div>
+</div>
 
-        <div>
-          <label>Email</label>
-          <input type="email" name="email" id="emailInput" placeholder="Email address" required />
-        </div>
+<script>
 
-        <div class="full">
-          <label>Phone</label>
-          <input type="text" name="phone" id="phoneInput" placeholder="Phone number" />
-        </div>
-      </div>
+function setStatus(status, text){
 
-      <div class="section-title">Required Uploads</div>
-      <div class="grid">
-        <div>
-          <label>Driver License</label>
-          <input type="file" name="license" accept="image/*,.pdf" required />
-        </div>
+const badge = document.getElementById('statusBadge')
+const label = String(status || '').toLowerCase()
 
-        <div>
-          <label>Selfie</label>
-          <input type="file" name="selfie" accept="image/*" required />
-        </div>
+badge.className = 'badge neutral'
 
-        <div class="full">
-          <label>Vehicle Document / Photo</label>
-          <input type="file" name="vehicle" accept="image/*,.pdf" required />
-        </div>
-      </div>
+if(label.includes('approved')) badge.className='badge approved'
+else if(label.includes('pending')) badge.className='badge pending'
+else if(label.includes('rejected')) badge.className='badge rejected'
 
-      <div style="margin-top: 20px;">
-        <button type="submit">Submit Verification</button>
-      </div>
-    </form>
-  </div>
+badge.textContent = status || 'unknown'
+document.getElementById('statusText').textContent = text || ''
 
-  <script>
-    const form = document.getElementById('verificationForm')
-    const nameInput = document.getElementById('nameInput')
-    const emailInput = document.getElementById('emailInput')
-    const phoneInput = document.getElementById('phoneInput')
+}
 
-    const statusBadge = document.getElementById('statusBadge')
-    const statusNote = document.getElementById('statusNote')
-    const statusMeta = document.getElementById('statusMeta')
+async function submitVerification(){
 
-    const approvedBox = document.getElementById('approvedBox')
-    const pendingBox = document.getElementById('pendingBox')
-    const rejectedBox = document.getElementById('rejectedBox')
+const payload = {
+name:document.getElementById('name').value,
+email:document.getElementById('email').value,
+phone:document.getElementById('phone').value,
+licenseNumber:document.getElementById('licenseNumber').value,
+vehicleInfo:document.getElementById('vehicleInfo').value,
+selfie:document.getElementById('selfie').value,
+licenseImage:document.getElementById('licenseImage').value,
+vehicleDocument:document.getElementById('vehicleDocument').value
+}
 
-    function resetBoxes() {
-      approvedBox.style.display = 'none'
-      pendingBox.style.display = 'none'
-      rejectedBox.style.display = 'none'
-    }
+if(!payload.email){
+alert("Enter driver email")
+return
+}
 
-    function setBadge(status, verification) {
-      resetBoxes()
+try{
 
-      statusBadge.className = 'badge'
+const res = await fetch('/api/driver/verification',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify(payload)
+})
 
-      if (status === 'approved') {
-        statusBadge.classList.add('approved')
-        statusBadge.textContent = 'APPROVED'
-        statusNote.textContent = 'Your verification has been approved.'
-        approvedBox.style.display = 'block'
-      } else if (status === 'pending') {
-        statusBadge.classList.add('pending')
-        statusBadge.textContent = 'PENDING'
-        statusNote.textContent = 'Your verification is waiting for admin review.'
-        pendingBox.style.display = 'block'
-      } else if (status === 'rejected') {
-        statusBadge.classList.add('rejected')
-        statusBadge.textContent = 'REJECTED'
-        statusNote.textContent = 'Your verification was rejected. Please update and resubmit.'
-        rejectedBox.style.display = 'block'
-      } else {
-        statusBadge.classList.add('not-submitted')
-        statusBadge.textContent = 'NOT SUBMITTED'
-        statusNote.textContent = 'You have not submitted verification yet.'
-      }
+const data = await res.json()
 
-      if (verification) {
-        const submitted = verification.submittedAt
-          ? new Date(verification.submittedAt).toLocaleString()
-          : 'N/A'
+if(!res.ok){
+alert(data.error || "Verification failed")
+return
+}
 
-        statusMeta.textContent = `Submitted: ${submitted}${verification.notes ? ' | Note: ' + verification.notes : ''}`
-      } else {
-        statusMeta.textContent = ''
-      }
-    }
+setStatus(
+data.status || "pending",
+"Verification submitted. Waiting for admin approval."
+)
 
-    async function checkMyStatus() {
-      const email = emailInput.value.trim()
+alert("Driver verification submitted")
 
-      if (!email) {
-        alert('Enter your email first so we can check your status.')
-        return
-      }
+}catch(e){
+alert("Server error submitting verification")
+}
 
-      try {
-        const res = await fetch('/api/driver/verification-status?email=' + encodeURIComponent(email))
-        const data = await res.json()
+}
 
-        if (data.success && data.verification) {
-          setBadge(data.verification.status, data.verification)
-        } else {
-          setBadge('not-submitted')
-        }
-      } catch (error) {
-        alert('Could not load verification status.')
-      }
-    }
+async function checkStatus(){
 
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault()
+const email = document.getElementById('email').value
 
-      const formData = new FormData(form)
+if(!email){
+alert("Enter your email first")
+return
+}
 
-      try {
-        const res = await fetch('/api/driver/verify', {
-          method: 'POST',
-          body: formData
-        })
+try{
 
-        const data = await res.json()
+const res = await fetch('/api/driver/verification-status?email='+email)
+const data = await res.json()
 
-        if (data.success) {
-          alert('Verification submitted successfully')
-          setBadge('pending', data.verification)
-        } else {
-          alert(data.message || 'Submission failed')
-        }
-      } catch (error) {
-        alert('Something went wrong while submitting verification.')
-      }
-    })
+setStatus(
+data.status || "pending",
+data.message || "Waiting for admin approval"
+)
 
-    emailInput.addEventListener('blur', () => {
-      if (emailInput.value.trim()) {
-        checkMyStatus()
-      }
-    })
+}catch(e){
+alert("Unable to check status")
+}
 
-    setBadge('not-submitted')
-  </script>
+}
+
+</script>
+
 </body>
 </html>
