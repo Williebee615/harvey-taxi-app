@@ -1,102 +1,157 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Harvey Super App</title>
-
-<style>
-body{
-background:#0b0b0b;
-color:white;
-font-family:Arial;
-padding:20px;
-}
-
-.card{
-background:#111;
-padding:20px;
-margin-bottom:15px;
-border-radius:12px;
-}
-
-button{
-width:100%;
-padding:15px;
-border:none;
-border-radius:10px;
-background:#1db954;
-color:white;
-font-size:16px;
-margin-top:10px;
-}
-
-.title{
-font-size:22px;
-font-weight:bold;
-margin-bottom:20px;
-}
-</style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Harvey Super App</title>
+  <style>
+    body{
+      background:#000;
+      color:#fff;
+      font-family:Arial, sans-serif;
+      padding:20px;
+      margin:0;
+    }
+    .title{
+      font-size:32px;
+      font-weight:bold;
+      margin:20px 0 30px;
+    }
+    .card{
+      background:#0b0b0b;
+      border-radius:24px;
+      padding:22px;
+      margin-bottom:22px;
+    }
+    .service-title{
+      font-size:18px;
+      margin-bottom:18px;
+    }
+    button{
+      width:100%;
+      padding:18px;
+      border:none;
+      border-radius:18px;
+      background:#20c157;
+      color:white;
+      font-size:18px;
+      font-weight:bold;
+    }
+    .status-card{
+      background:#111;
+      border-radius:20px;
+      padding:18px;
+      margin-top:25px;
+      display:none;
+    }
+    .small{
+      opacity:.8;
+      margin-top:8px;
+      font-size:14px;
+    }
+  </style>
 </head>
-
 <body>
 
-<div class="title">
-Harvey Super App
-</div>
+  <div class="title">Harvey Super App</div>
 
-<div class="card">
-🚕 Ride
-<button onclick="request('ride')">
-Request Ride
-</button>
-</div>
+  <div class="card">
+    <div class="service-title">🚕 Ride</div>
+    <button onclick="requestService('ride')">Request Ride</button>
+  </div>
 
-<div class="card">
-🍔 Food Delivery
-<button onclick="request('food')">
-Order Food
-</button>
-</div>
+  <div class="card">
+    <div class="service-title">🍔 Food Delivery</div>
+    <button onclick="requestService('food')">Order Food</button>
+  </div>
 
-<div class="card">
-🛒 Grocery Delivery
-<button onclick="request('grocery')">
-Order Groceries
-</button>
-</div>
+  <div class="card">
+    <div class="service-title">🛒 Grocery Delivery</div>
+    <button onclick="requestService('grocery')">Order Groceries</button>
+  </div>
 
-<div class="card">
-📦 Package Delivery
-<button onclick="request('package')">
-Send Package
-</button>
-</div>
+  <div class="card">
+    <div class="service-title">📦 Package Delivery</div>
+    <button onclick="requestService('package')">Send Package</button>
+  </div>
 
-<script>
-function request(type){
+  <div id="statusCard" class="status-card"></div>
 
-navigator.geolocation.getCurrentPosition(pos=>{
+  <script>
+    let currentRequestId = null
+    let polling = null
 
-fetch('/request',{
-method:"POST",
-headers:{
-'Content-Type':'application/json'
-},
-body:JSON.stringify({
-type:type,
-lat:pos.coords.latitude,
-lng:pos.coords.longitude
-})
-})
-.then(r=>r.json())
-.then(data=>{
-alert("Searching for driver...")
-})
+    function requestService(type){
+      if (!navigator.geolocation) {
+        alert('Location not supported on this device.')
+        return
+      }
 
-})
+      navigator.geolocation.getCurrentPosition(async pos => {
+        const res = await fetch('/request', {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json' },
+          body: JSON.stringify({
+            type,
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude
+          })
+        })
 
-}
-</script>
+        const data = await res.json()
+        currentRequestId = data.id
+        renderStatus(data)
+
+        if (polling) clearInterval(polling)
+        polling = setInterval(checkRequestStatus, 3000)
+      }, () => {
+        alert('Please allow location access.')
+      })
+    }
+
+    async function checkRequestStatus(){
+      if (!currentRequestId) return
+
+      const res = await fetch('/request/' + currentRequestId)
+      const data = await res.json()
+      renderStatus(data)
+
+      if (data.status === 'completed') {
+        clearInterval(polling)
+      }
+    }
+
+    function renderStatus(data){
+      const card = document.getElementById('statusCard')
+      card.style.display = 'block'
+
+      let driverName = data.driver ? data.driver.name : 'Finding nearby driver...'
+
+      card.innerHTML = `
+        <h3 style="margin-top:0;">Request Status</h3>
+        <div><strong>Service:</strong> ${formatType(data.type)}</div>
+        <div class="small"><strong>Status:</strong> ${formatStatus(data.status)}</div>
+        <div class="small"><strong>Driver:</strong> ${driverName}</div>
+        <div class="small"><strong>Estimated Price:</strong> $${data.estimatedPrice || '0.00'}</div>
+      `
+    }
+
+    function formatType(type){
+      if(type === 'ride') return 'Ride'
+      if(type === 'food') return 'Food Delivery'
+      if(type === 'grocery') return 'Grocery Delivery'
+      if(type === 'package') return 'Package Delivery'
+      return type
+    }
+
+    function formatStatus(status){
+      if(status === 'searching') return 'Searching for driver'
+      if(status === 'assigned') return 'Driver assigned'
+      if(status === 'accepted') return 'Driver accepted'
+      if(status === 'in_progress') return 'In progress'
+      if(status === 'completed') return 'Completed'
+      return status
+    }
+  </script>
 
 </body>
 </html>
