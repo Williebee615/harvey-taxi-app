@@ -1,136 +1,245 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<style>
-body{
-background:#000;
-color:white;
-font-family:Arial;
-padding:20px;
-}
-
-button{
-width:100%;
-padding:15px;
-margin-top:10px;
-border-radius:10px;
-border:none;
-background:#1db954;
-color:white;
-font-weight:bold;
-}
-
-.job{
-background:#111;
-padding:15px;
-border-radius:12px;
-margin-top:15px;
-}
-
-.type{
-font-size:18px;
-font-weight:bold;
-}
-
-.small{
-opacity:.7;
-font-size:14px;
-margin-top:5px;
-}
-</style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Driver Dashboard</title>
+  <style>
+    body{
+      background:#000;
+      color:#fff;
+      font-family:Arial, sans-serif;
+      padding:20px;
+      margin:0;
+    }
+    h1{
+      margin-top:20px;
+      margin-bottom:25px;
+      font-size:34px;
+    }
+    button{
+      width:100%;
+      padding:16px;
+      border:none;
+      border-radius:16px;
+      background:#20c157;
+      color:#fff;
+      font-size:18px;
+      font-weight:bold;
+      margin-top:10px;
+    }
+    .card{
+      background:#0e0e0e;
+      border-radius:20px;
+      padding:18px;
+      margin-top:18px;
+    }
+    .small{
+      opacity:.8;
+      font-size:14px;
+      margin-top:8px;
+    }
+    .earnings{
+      font-size:26px;
+      font-weight:bold;
+      margin-top:8px;
+    }
+    .job-title{
+      font-size:20px;
+      font-weight:bold;
+      margin-bottom:10px;
+    }
+    .secondary{
+      background:#222;
+    }
+  </style>
 </head>
-
 <body>
 
-<h2>Driver Dashboard</h2>
+  <h1>Driver Dashboard</h1>
 
-<button onclick="goOnline()">Go Online</button>
+  <button onclick="goOnline()">Go Online</button>
 
-<div id="jobs"></div>
+  <div class="card">
+    <div class="small">Today's Earnings</div>
+    <div class="earnings" id="earnings">$0.00</div>
+    <div class="small">Completed Jobs: <span id="completedJobs">0</span></div>
+  </div>
 
-<script>
+  <div id="activeJob"></div>
+  <div id="jobs"></div>
 
-let driver = {
-id: Math.random().toString(36).substr(2,9),
-available:false,
-services:["ride","food","grocery","package"]
-}
+  <script>
+    let savedDriverId = localStorage.getItem('harvey_driver_id')
 
-function goOnline(){
+    let driver = {
+      id: savedDriverId || Math.random().toString(36).slice(2, 11),
+      name: 'Harvey Driver',
+      available: false,
+      services: ['ride','food','grocery','package']
+    }
 
-driver.available = true
+    if (!savedDriverId) {
+      localStorage.setItem('harvey_driver_id', driver.id)
+    }
 
-navigator.geolocation.watchPosition(pos=>{
+    let watchId = null
 
-driver.lat = pos.coords.latitude
-driver.lng = pos.coords.longitude
+    function goOnline(){
+      driver.available = true
 
-fetch('/driver/update',{
-method:"POST",
-headers:{
-'Content-Type':'application/json'
-},
-body:JSON.stringify(driver)
-})
+      if (!navigator.geolocation) {
+        alert('Location not supported.')
+        return
+      }
 
-loadJobs()
+      if (watchId !== null) return
 
-})
+      watchId = navigator.geolocation.watchPosition(async pos => {
+        driver.lat = pos.coords.latitude
+        driver.lng = pos.coords.longitude
 
-}
+        await fetch('/driver/update', {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json' },
+          body: JSON.stringify(driver)
+        })
 
-function loadJobs(){
+        loadJobs()
+        loadStats()
+      }, () => {
+        alert('Please allow location access for driver tracking.')
+      })
 
-fetch('/driver/jobs/'+driver.id)
-.then(r=>r.json())
-.then(data=>{
+      setInterval(() => {
+        loadJobs()
+        loadStats()
+      }, 3000)
+    }
 
-let html = ""
+    async function loadJobs(){
+      const res = await fetch('/driver/jobs/' + driver.id)
+      const data = await res.json()
 
-data.forEach(job=>{
+      const activeWrap = document.getElementById('activeJob')
+      const jobsWrap = document.getElementById('jobs')
 
-html += `
-<div class="job">
+      activeWrap.innerHTML = ''
+      jobsWrap.innerHTML = ''
 
-<div class="type">
-${getType(job.type)}
-</div>
+      if (!data.length) {
+        jobsWrap.innerHTML = `
+          <div class="card">
+            <div class="job-title">No jobs right now</div>
+            <div class="small">Stay online to receive ride, food, grocery, and package jobs.</div>
+          </div>
+        `
+        return
+      }
 
-<div class="small">
-Pickup Incoming
-</div>
+      data.forEach(job => {
+        const html = `
+          <div class="card">
+            <div class="job-title">${getType(job.type)}</div>
+            <div class="small">Status: ${formatStatus(job.status)}</div>
+            <div class="small">Job ID: ${job.id}</div>
+            <div class="small">Estimated Payout: $${job.estimatedPrice || '0.00'}</div>
+            ${job.status === 'assigned' ? `
+              <button onclick="acceptJob('${job.id}')">Accept Job</button>
+              <button class="secondary" onclick="declineJob('${job.id}')">Decline Job</button>
+            ` : ''}
+            ${job.status === 'accepted' ? `
+              <button onclick="startJob('${job.id}')">Start Trip</button>
+            ` : ''}
+            ${job.status === 'in_progress' ? `
+              <button onclick="completeJob('${job.id}')">Complete Job</button>
+            ` : ''}
+          </div>
+        `
 
-<button onclick="accept('${job.id}')">
-Accept Job
-</button>
+        if (job.status === 'accepted' || job.status === 'in_progress') {
+          activeWrap.innerHTML += html
+        } else {
+          jobsWrap.innerHTML += html
+        }
+      })
+    }
 
-</div>
-`
+    async function acceptJob(jobId){
+      await fetch('/driver/job/' + jobId + '/accept', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ driverId: driver.id })
+      })
 
-})
+      driver.available = false
+      await loadJobs()
+      await loadStats()
+    }
 
-document.getElementById('jobs').innerHTML = html
+    async function declineJob(jobId){
+      await fetch('/driver/job/' + jobId + '/decline', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ driverId: driver.id })
+      })
 
-})
+      await loadJobs()
+      await loadStats()
+    }
 
-}
+    async function startJob(jobId){
+      await fetch('/driver/job/' + jobId + '/start', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ driverId: driver.id })
+      })
 
-function getType(type){
+      await loadJobs()
+    }
 
-if(type=="ride") return "🚕 Ride Request"
-if(type=="food") return "🍔 Food Delivery"
-if(type=="grocery") return "🛒 Grocery Delivery"
-if(type=="package") return "📦 Package Delivery"
+    async function completeJob(jobId){
+      await fetch('/driver/job/' + jobId + '/complete', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ driverId: driver.id })
+      })
 
-}
+      driver.available = true
 
-function accept(id){
-alert("Job Accepted")
-}
+      await fetch('/driver/update', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify(driver)
+      })
 
-</script>
+      await loadJobs()
+      await loadStats()
+    }
+
+    async function loadStats(){
+      const res = await fetch('/driver/stats/' + driver.id)
+      const stats = await res.json()
+
+      document.getElementById('earnings').textContent = '$' + (stats.earnings || '0.00')
+      document.getElementById('completedJobs').textContent = stats.completedJobs || 0
+    }
+
+    function getType(type){
+      if(type === 'ride') return '🚕 Ride Request'
+      if(type === 'food') return '🍔 Food Delivery'
+      if(type === 'grocery') return '🛒 Grocery Delivery'
+      if(type === 'package') return '📦 Package Delivery'
+      return type
+    }
+
+    function formatStatus(status){
+      if(status === 'assigned') return 'Assigned'
+      if(status === 'accepted') return 'Accepted'
+      if(status === 'in_progress') return 'In Progress'
+      if(status === 'completed') return 'Completed'
+      return status
+    }
+  </script>
 
 </body>
 </html>
