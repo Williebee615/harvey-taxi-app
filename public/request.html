@@ -1,365 +1,186 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Harvey Taxi</title>
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: Arial, Helvetica, sans-serif;
-    }
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Harvey Taxi</title>
 
-    body {
-      background: #000;
-      color: #fff;
-      min-height: 100vh;
-      padding: 24px 16px 40px;
-    }
+<style>
+body{
+background:#000;
+color:white;
+font-family:Arial;
+padding:20px;
+}
 
-    .container {
-      width: 100%;
-      max-width: 760px;
-      margin: 0 auto;
-    }
+.card{
+background:#080808;
+padding:20px;
+border-radius:20px;
+margin-bottom:20px;
+}
 
-    .title {
-      font-size: 56px;
-      font-weight: 800;
-      letter-spacing: -2px;
-      margin: 8px 0 28px;
-    }
+input,select{
+width:100%;
+padding:18px;
+margin-bottom:15px;
+border-radius:15px;
+border:none;
+background:#111;
+color:white;
+font-size:16px;
+}
 
-    .card {
-      background: #050505;
-      border-radius: 30px;
-      padding: 24px 18px;
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
-    }
+button{
+width:100%;
+padding:20px;
+border:none;
+border-radius:15px;
+font-size:18px;
+font-weight:bold;
+cursor:pointer;
+}
 
-    .section-title {
-      font-size: 26px;
-      font-weight: 700;
-      margin-bottom: 22px;
-    }
+.green{
+background:#2ecc71;
+color:white;
+}
 
-    .field {
-      width: 100%;
-      border: none;
-      outline: none;
-      background: #0b0c10;
-      color: #fff;
-      border-radius: 22px;
-      padding: 22px 18px;
-      font-size: 20px;
-      margin-bottom: 16px;
-      box-shadow: inset 0 0 0 2px rgba(255,255,255,0.04);
-    }
+.gray{
+background:#222;
+color:white;
+margin-bottom:10px;
+}
 
-    .field::placeholder {
-      color: #9a9a9a;
-    }
+#fareBox{
+margin-top:15px;
+background:#111;
+padding:15px;
+border-radius:15px;
+}
 
-    .btn {
-      width: 100%;
-      border: none;
-      border-radius: 24px;
-      padding: 22px 18px;
-      font-size: 20px;
-      font-weight: 800;
-      cursor: pointer;
-      margin-bottom: 14px;
-    }
+</style>
 
-    .btn-estimate {
-      background: #22242a;
-      color: #fff;
-    }
-
-    .btn-request {
-      background: #2ecc71;
-      color: #fff;
-    }
-
-    .btn:disabled {
-      opacity: 0.7;
-      cursor: not-allowed;
-    }
-
-    .status-box {
-      background: #0b0c10;
-      border-radius: 22px;
-      padding: 18px;
-      font-size: 18px;
-      color: #e0e0e0;
-      line-height: 1.5;
-      min-height: 84px;
-      display: flex;
-      align-items: center;
-      margin-bottom: 16px;
-      box-shadow: inset 0 0 0 2px rgba(255,255,255,0.04);
-    }
-
-    .fare-box {
-      background: #0b0c10;
-      border-radius: 22px;
-      padding: 18px;
-      min-height: 120px;
-      box-shadow: inset 0 0 0 2px rgba(255,255,255,0.04);
-    }
-
-    .placeholder-text {
-      color: #8f8f8f;
-      font-size: 17px;
-      line-height: 1.6;
-    }
-
-    .fare-title {
-      font-size: 21px;
-      font-weight: 700;
-      margin-bottom: 14px;
-    }
-
-    .fare-row {
-      display: flex;
-      justify-content: space-between;
-      gap: 16px;
-      padding: 8px 0;
-      font-size: 17px;
-      color: #d8d8d8;
-    }
-
-    .fare-row strong {
-      color: #fff;
-    }
-
-    .fare-total {
-      margin-top: 10px;
-      padding-top: 12px;
-      border-top: 1px solid rgba(255,255,255,0.1);
-      font-size: 21px;
-      font-weight: 800;
-    }
-
-    .address-note {
-      margin-top: 12px;
-      font-size: 14px;
-      color: #9c9c9c;
-      line-height: 1.5;
-    }
-
-    @media (max-width: 600px) {
-      .title {
-        font-size: 46px;
-      }
-
-      .field,
-      .btn {
-        font-size: 18px;
-      }
-
-      .section-title {
-        font-size: 24px;
-      }
-    }
-  </style>
 </head>
 <body>
-  <div class="container">
-    <div class="title">Harvey Taxi</div>
 
-    <div class="card">
-      <div class="section-title">Request Pickup</div>
+<h1>Harvey Taxi</h1>
 
-      <input id="pickup" class="field" type="text" placeholder="Pickup location" />
-      <input id="dropoff" class="field" type="text" placeholder="Dropoff location" />
+<div class="card">
 
-      <select id="rideType" class="field">
-        <option>Standard Ride</option>
-        <option>XL Ride</option>
-        <option>Priority Ride</option>
-      </select>
+<h2>Request Pickup</h2>
 
-      <button id="estimateBtn" class="btn btn-estimate">Estimate Fare</button>
-      <button id="requestBtn" class="btn btn-request">Request Ride</button>
+<input id="pickup" placeholder="Pickup location">
 
-      <div id="status" class="status-box">
-        Enter both addresses, then tap Estimate Fare to preview the trip cost.
-      </div>
+<input id="dropoff" placeholder="Dropoff location">
 
-      <div id="fareBox" class="fare-box">
-        <div class="placeholder-text">
-          Fare details will appear here after you estimate your trip.
-        </div>
-      </div>
-    </div>
-  </div>
+<select id="rideType">
+<option>Standard Ride</option>
+<option>XL Ride</option>
+<option>Priority Ride</option>
+</select>
 
-  <script>
-    const pickupInput = document.getElementById('pickup')
-    const dropoffInput = document.getElementById('dropoff')
-    const rideTypeSelect = document.getElementById('rideType')
-    const estimateBtn = document.getElementById('estimateBtn')
-    const requestBtn = document.getElementById('requestBtn')
-    const statusBox = document.getElementById('status')
-    const fareBox = document.getElementById('fareBox')
+<button class="gray" onclick="estimateFare()">
+Estimate Fare
+</button>
 
-    function setStatus(message, isError = false) {
-      statusBox.textContent = message
-      statusBox.style.color = isError ? '#ff7b7b' : '#e0e0e0'
-    }
+<button class="green" onclick="requestRide()">
+Request Ride
+</button>
 
-    function showPlaceholder(message) {
-      fareBox.innerHTML = `<div class="placeholder-text">${message}</div>`
-    }
+<div id="status">
+Ready
+</div>
 
-    function renderFare(data, showRideMessage = false) {
-      fareBox.innerHTML = `
-        <div class="fare-title">${showRideMessage ? 'Ride Details' : 'Fare Estimate'}</div>
+<div id="fareBox">
+Fare details will appear here
+</div>
 
-        <div class="fare-row">
-          <span>Distance</span>
-          <strong>${data.trip.distanceMiles} miles</strong>
-        </div>
+</div>
 
-        <div class="fare-row">
-          <span>ETA</span>
-          <strong>${data.trip.durationMinutes} min</strong>
-        </div>
+<script>
 
-        <div class="fare-row">
-          <span>Base Fare</span>
-          <strong>$${data.fare.baseFare}</strong>
-        </div>
+async function estimateFare(){
 
-        <div class="fare-row">
-          <span>Distance Fare</span>
-          <strong>$${data.fare.distanceFare}</strong>
-        </div>
+const pickup =
+document.getElementById("pickup").value
 
-        <div class="fare-row">
-          <span>Time Fare</span>
-          <strong>$${data.fare.timeFare}</strong>
-        </div>
+const dropoff =
+document.getElementById("dropoff").value
 
-        <div class="fare-row">
-          <span>Booking Fee</span>
-          <strong>$${data.fare.bookingFee}</strong>
-        </div>
+if(!pickup || !dropoff){
+document.getElementById("status").innerHTML =
+"Enter pickup and dropoff"
+return
+}
 
-        <div class="fare-row">
-          <span>Service Fee</span>
-          <strong>$${data.fare.serviceFee}</strong>
-        </div>
+document.getElementById("status").innerHTML =
+"Calculating..."
 
-        <div class="fare-row fare-total">
-          <span>Total</span>
-          <strong>$${data.fare.totalFare}</strong>
-        </div>
+const res = await fetch("/api/fare/estimate",{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+pickupAddress:pickup,
+dropoffAddress:dropoff
+})
+})
 
-        <div class="address-note">
-          Pickup: ${data.trip.pickupAddress || pickupInput.value.trim()}<br>
-          Dropoff: ${data.trip.dropoffAddress || dropoffInput.value.trim()}
-        </div>
-      `
-    }
+const data = await res.json()
 
-    async function estimateFare() {
-      const pickupAddress = pickupInput.value.trim()
-      const dropoffAddress = dropoffInput.value.trim()
+document.getElementById("fareBox").innerHTML = `
+Distance: ${data.trip.distanceMiles} miles <br>
+ETA: ${data.trip.durationMinutes} min <br><br>
 
-      if (!pickupAddress || !dropoffAddress) {
-        setStatus('Please enter both pickup and dropoff addresses.', true)
-        showPlaceholder('Fare details will appear here after you enter both addresses and estimate the trip.')
-        return
-      }
+Base: $${data.fare.baseFare}<br>
+Distance: $${data.fare.distanceFare}<br>
+Time: $${data.fare.timeFare}<br>
+Booking: $${data.fare.bookingFee}<br>
+Service: $${data.fare.serviceFee}<br><br>
 
-      estimateBtn.disabled = true
-      requestBtn.disabled = true
-      setStatus('Calculating your fare estimate...')
+<b>Total: $${data.fare.totalFare}</b>
+`
 
-      try {
-        const response = await fetch('/api/fare/estimate', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            pickupAddress,
-            dropoffAddress
-          })
-        })
+document.getElementById("status").innerHTML =
+"Estimate ready"
 
-        const data = await response.json()
+}
 
-        if (!response.ok || !data.success) {
-          setStatus(data.message || 'Could not estimate fare.', true)
-          showPlaceholder('We could not calculate the fare right now.')
-          return
-        }
+async function requestRide(){
 
-        renderFare(data, false)
-        setStatus(data.message || 'Fare estimate ready.')
-      } catch (error) {
-        setStatus('Server error while estimating fare.', true)
-        showPlaceholder('Server error. Please try again.')
-      } finally {
-        estimateBtn.disabled = false
-        requestBtn.disabled = false
-      }
-    }
+const pickup =
+document.getElementById("pickup").value
 
-    async function requestRide() {
-      const pickupAddress = pickupInput.value.trim()
-      const dropoffAddress = dropoffInput.value.trim()
-      const rideType = rideTypeSelect.value
+const dropoff =
+document.getElementById("dropoff").value
 
-      if (!pickupAddress || !dropoffAddress) {
-        setStatus('Please enter both pickup and dropoff addresses.', true)
-        showPlaceholder('Fare details will appear here after you enter both addresses.')
-        return
-      }
+const rideType =
+document.getElementById("rideType").value
 
-      estimateBtn.disabled = true
-      requestBtn.disabled = true
-      setStatus('Submitting your ride request...')
+document.getElementById("status").innerHTML =
+"Requesting ride..."
 
-      try {
-        const response = await fetch('/api/rides/request', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            pickupAddress,
-            dropoffAddress,
-            serviceType: rideType
-          })
-        })
+const res = await fetch("/api/rides/request",{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+pickupAddress:pickup,
+dropoffAddress:dropoff,
+serviceType:rideType
+})
+})
 
-        const data = await response.json()
+const data = await res.json()
 
-        if (!response.ok || !data.success) {
-          setStatus(data.message || 'Could not request ride.', true)
-          showPlaceholder('Ride request failed. Please try again.')
-          return
-        }
+document.getElementById("status").innerHTML =
+"Driver search started"
 
-        renderFare(data.ride, true)
-        setStatus(data.message || 'Ride requested successfully.')
-      } catch (error) {
-        setStatus('Server error while requesting ride.', true)
-        showPlaceholder('Server error. Please try again.')
-      } finally {
-        estimateBtn.disabled = false
-        requestBtn.disabled = false
-      }
-    }
+}
 
-    estimateBtn.addEventListener('click', estimateFare)
-    requestBtn.addEventListener('click', requestRide)
-  </script>
+</script>
+
 </body>
 </html>
