@@ -38,8 +38,8 @@ let drivers = [
     name: 'David Smith',
     car: 'Nissan Altima',
     plate: 'HTX-303',
-    lat: 36.157,
-    lng: -86.804,
+    lat: 36.1570,
+    lng: -86.8040,
     online: true,
     busy: false,
     currentRideId: null
@@ -65,6 +65,16 @@ function getDistance(lat1, lng1, lat2, lng2) {
   return R * c
 }
 
+function movePointTowards(currentLat, currentLng, targetLat, targetLng, step = 0.22) {
+  const latDiff = targetLat - currentLat
+  const lngDiff = targetLng - currentLng
+
+  return {
+    lat: currentLat + latDiff * step,
+    lng: currentLng + lngDiff * step
+  }
+}
+
 function findNearestDriver(pickupLat, pickupLng) {
   const availableDrivers = drivers.filter(driver => driver.online && !driver.busy)
 
@@ -84,14 +94,14 @@ function findNearestDriver(pickupLat, pickupLng) {
   return nearestDriver
 }
 
-function getEtaByStatus(status, baseEta) {
-  if (status === 'assigned') return `${baseEta} min away`
-  if (status === 'accepted') return `${Math.max(baseEta - 1, 1)} min away`
-  if (status === 'arriving') return `Almost there`
-  if (status === 'arrived') return `Driver has arrived`
-  if (status === 'in_progress') return `Trip in progress`
-  if (status === 'completed') return `Trip completed`
-  return `Pending`
+function getEtaLabel(driver, targetLat, targetLng, rideStatus) {
+  if (rideStatus === 'arrived') return 'Driver has arrived'
+  if (rideStatus === 'in_progress') return 'On the trip now'
+  if (rideStatus === 'completed') return 'Trip completed'
+
+  const km = getDistance(driver.lat, driver.lng, targetLat, targetLng)
+  const minutes = Math.max(1, Math.round(km * 2.4))
+  return `${minutes} min away`
 }
 
 app.get('/', (req, res) => {
@@ -159,7 +169,9 @@ app.post('/api/request-ride', (req, res) => {
     dropoff,
     rideType,
     pickupLat,
-    pickupLng
+    pickupLng,
+    dropoffLat,
+    dropoffLng
   } = req.body
 
   if (!pickup || !dropoff || !rideType) {
@@ -168,6 +180,8 @@ app.post('/api/request-ride', (req, res) => {
 
   const requestLat = typeof pickupLat === 'number' ? pickupLat : 36.1627
   const requestLng = typeof pickupLng === 'number' ? pickupLng : -86.7816
+  const endLat = typeof dropoffLat === 'number' ? dropoffLat : 36.1699
+  const endLng = typeof dropoffLng === 'number' ? dropoffLng : -86.7944
 
   const nearestDriver = findNearestDriver(requestLat, requestLng)
 
@@ -180,8 +194,6 @@ app.post('/api/request-ride', (req, res) => {
 
   nearestDriver.busy = true
 
-  const etaMinutes = Math.floor(Math.random() * 5) + 3
-
   const ride = {
     id: `ride_${Date.now()}`,
     pickup,
@@ -189,17 +201,18 @@ app.post('/api/request-ride', (req, res) => {
     rideType,
     pickupLat: requestLat,
     pickupLng: requestLng,
+    dropoffLat: endLat,
+    dropoffLng: endLng,
     status: 'assigned',
     driverId: nearestDriver.id,
     driverName: nearestDriver.name,
     car: nearestDriver.car,
     plate: nearestDriver.plate,
-    etaMinutes,
-    etaLabel: getEtaByStatus('assigned', etaMinutes),
     createdAt: new Date().toISOString()
   }
 
   nearestDriver.currentRideId = ride.id
+  ride.etaLabel = getEtaLabel(nearestDriver, ride.pickupLat, ride.pickupLng, ride.status)
   rideRequests.unshift(ride)
 
   res.json({
@@ -220,7 +233,26 @@ app.get('/api/rides/:rideId', (req, res) => {
     return res.status(404).json({ error: 'Ride not found' })
   }
 
-  res.json(ride)
+  const driver = drivers.find(d => d.id === ride.driverId)
+
+  if (driver) {
+    const target =
+      ride.status === 'in_progress'
+        ? { lat: ride.dropoffLat, lng: ride.dropoffLng }
+        : { lat: ride.pickupLat, lng: ride.pickupLng }
+
+    ride.etaLabel = getEtaLabel(driver, target.lat, target.lng, ride.status)
+  }
+
+  res.json({
+    ...ride,
+    driverLocation: driver
+      ? {
+          lat: driver.lat,
+          lng: driver.lng
+        }
+      : null
+  })
 })
 
 app.post('/api/rides/:rideId/status', (req, res) => {
@@ -237,10 +269,18 @@ app.post('/api/rides/:rideId/status', (req, res) => {
   }
 
   ride.status = status
-  ride.etaLabel = getEtaByStatus(status, ride.etaMinutes)
   ride.updatedAt = new Date().toISOString()
 
   const driver = drivers.find(d => d.id === ride.driverId)
+
+  if (driver) {
+    const target =
+      ride.status === 'in_progress'
+        ? { lat: ride.dropoffLat, lng: ride.dropoffLng }
+        : { lat: ride.pickupLat, lng: ride.pickupLng }
+
+    ride.etaLabel = getEtaLabel(driver, target.lat, target.lng, ride.status)
+  }
 
   if (status === 'completed' && driver) {
     driver.busy = false
@@ -266,7 +306,58 @@ app.get('/api/drivers/:driverId/current-ride', (req, res) => {
   }
 
   const ride = rideRequests.find(r => r.id === driver.currentRideId)
-  res.json({ ride: ride || null })
+
+  res.json({
+    ride: ride || null
+  })
+})
+
+app.post('/api/drivers/:driverId/move', (req, res) => {
+  const driver = drivers.find(d => d.id === req.params.driverId)
+
+  if (!driver) {
+    return res.status(404).json({ error: 'Driver not found' })
+  }
+
+  let targetLat = driver.lat
+  let targetLng = driver.lng
+
+  if (driver.currentRideId) {
+    const ride = rideRequests.find(r => r.id === driver.currentRideId)
+
+    if (ride) {
+      if (ride.status === 'assigned' || ride.status === 'accepted' || ride.status === 'arriving') {
+        targetLat = ride.pickupLat
+        targetLng = ride.pickupLng
+      } else if (ride.status === 'in_progress') {
+        targetLat = ride.dropoffLat
+        targetLng = ride.dropoffLng
+      }
+
+      const moved = movePointTowards(driver.lat, driver.lng, targetLat, targetLng, 0.25)
+      driver.lat = moved.lat
+      driver.lng = moved.lng
+
+      const remainingKm = getDistance(driver.lat, driver.lng, targetLat, targetLng)
+
+      if ((ride.status === 'assigned' || ride.status === 'accepted' || ride.status === 'arriving') && remainingKm < 0.08) {
+        ride.status = 'arrived'
+      }
+
+      if (ride.status === 'in_progress' && remainingKm < 0.08) {
+        ride.status = 'completed'
+        driver.busy = false
+        driver.currentRideId = null
+      }
+
+      ride.etaLabel = getEtaLabel(driver, targetLat, targetLng, ride.status)
+    }
+  }
+
+  res.json({
+    success: true,
+    driver
+  })
 })
 
 app.listen(PORT, () => {
