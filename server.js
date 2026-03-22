@@ -19,7 +19,8 @@ let drivers = [
     lat: 36.1627,
     lng: -86.7816,
     online: true,
-    busy: false
+    busy: false,
+    currentRideId: null
   },
   {
     id: 'driver_2',
@@ -29,17 +30,19 @@ let drivers = [
     lat: 36.1745,
     lng: -86.7679,
     online: true,
-    busy: false
+    busy: false,
+    currentRideId: null
   },
   {
     id: 'driver_3',
     name: 'David Smith',
     car: 'Nissan Altima',
     plate: 'HTX-303',
-    lat: 36.1570,
-    lng: -86.8040,
+    lat: 36.157,
+    lng: -86.804,
     online: true,
-    busy: false
+    busy: false,
+    currentRideId: null
   }
 ]
 
@@ -48,7 +51,6 @@ let rideRequests = []
 function getDistance(lat1, lng1, lat2, lng2) {
   const toRad = (value) => (value * Math.PI) / 180
   const R = 6371
-
   const dLat = toRad(lat2 - lat1)
   const dLng = toRad(lng2 - lng1)
 
@@ -66,7 +68,7 @@ function getDistance(lat1, lng1, lat2, lng2) {
 function findNearestDriver(pickupLat, pickupLng) {
   const availableDrivers = drivers.filter(driver => driver.online && !driver.busy)
 
-  if (availableDrivers.length === 0) return null
+  if (!availableDrivers.length) return null
 
   let nearestDriver = null
   let shortestDistance = Infinity
@@ -80,6 +82,16 @@ function findNearestDriver(pickupLat, pickupLng) {
   }
 
   return nearestDriver
+}
+
+function getEtaByStatus(status, baseEta) {
+  if (status === 'assigned') return `${baseEta} min away`
+  if (status === 'accepted') return `${Math.max(baseEta - 1, 1)} min away`
+  if (status === 'arriving') return `Almost there`
+  if (status === 'arrived') return `Driver has arrived`
+  if (status === 'in_progress') return `Trip in progress`
+  if (status === 'completed') return `Trip completed`
+  return `Pending`
 }
 
 app.get('/', (req, res) => {
@@ -109,40 +121,36 @@ app.get('/api/drivers', (req, res) => {
 
 app.post('/api/drivers/go-online', (req, res) => {
   const { id, lat, lng } = req.body
-
   const driver = drivers.find(d => d.id === id)
+
   if (!driver) {
     return res.status(404).json({ error: 'Driver not found' })
   }
 
   driver.online = true
-  driver.busy = false
+  if (!driver.currentRideId) driver.busy = false
   if (typeof lat === 'number') driver.lat = lat
   if (typeof lng === 'number') driver.lng = lng
 
-  res.json({
-    success: true,
-    message: `${driver.name} is now online`,
-    driver
-  })
+  res.json({ success: true, message: `${driver.name} is now online`, driver })
 })
 
 app.post('/api/drivers/go-offline', (req, res) => {
   const { id } = req.body
-
   const driver = drivers.find(d => d.id === id)
+
   if (!driver) {
     return res.status(404).json({ error: 'Driver not found' })
+  }
+
+  if (driver.currentRideId) {
+    return res.status(400).json({ error: 'Driver cannot go offline during active ride' })
   }
 
   driver.online = false
   driver.busy = false
 
-  res.json({
-    success: true,
-    message: `${driver.name} is now offline`,
-    driver
-  })
+  res.json({ success: true, message: `${driver.name} is now offline`, driver })
 })
 
 app.post('/api/request-ride', (req, res) => {
@@ -172,6 +180,8 @@ app.post('/api/request-ride', (req, res) => {
 
   nearestDriver.busy = true
 
+  const etaMinutes = Math.floor(Math.random() * 5) + 3
+
   const ride = {
     id: `ride_${Date.now()}`,
     pickup,
@@ -184,10 +194,12 @@ app.post('/api/request-ride', (req, res) => {
     driverName: nearestDriver.name,
     car: nearestDriver.car,
     plate: nearestDriver.plate,
-    etaMinutes: Math.floor(Math.random() * 5) + 3,
+    etaMinutes,
+    etaLabel: getEtaByStatus('assigned', etaMinutes),
     createdAt: new Date().toISOString()
   }
 
+  nearestDriver.currentRideId = ride.id
   rideRequests.unshift(ride)
 
   res.json({
@@ -201,26 +213,60 @@ app.get('/api/rides', (req, res) => {
   res.json(rideRequests)
 })
 
-app.post('/api/complete-ride', (req, res) => {
-  const { rideId } = req.body
+app.get('/api/rides/:rideId', (req, res) => {
+  const ride = rideRequests.find(r => r.id === req.params.rideId)
 
-  const ride = rideRequests.find(r => r.id === rideId)
   if (!ride) {
     return res.status(404).json({ error: 'Ride not found' })
   }
 
-  ride.status = 'completed'
+  res.json(ride)
+})
+
+app.post('/api/rides/:rideId/status', (req, res) => {
+  const { status } = req.body
+  const allowedStatuses = ['accepted', 'arriving', 'arrived', 'in_progress', 'completed']
+
+  if (!allowedStatuses.includes(status)) {
+    return res.status(400).json({ error: 'Invalid ride status' })
+  }
+
+  const ride = rideRequests.find(r => r.id === req.params.rideId)
+  if (!ride) {
+    return res.status(404).json({ error: 'Ride not found' })
+  }
+
+  ride.status = status
+  ride.etaLabel = getEtaByStatus(status, ride.etaMinutes)
+  ride.updatedAt = new Date().toISOString()
 
   const driver = drivers.find(d => d.id === ride.driverId)
-  if (driver) {
+
+  if (status === 'completed' && driver) {
     driver.busy = false
+    driver.currentRideId = null
   }
 
   res.json({
     success: true,
-    message: 'Ride completed',
+    message: `Ride updated to ${status}`,
     ride
   })
+})
+
+app.get('/api/drivers/:driverId/current-ride', (req, res) => {
+  const driver = drivers.find(d => d.id === req.params.driverId)
+
+  if (!driver) {
+    return res.status(404).json({ error: 'Driver not found' })
+  }
+
+  if (!driver.currentRideId) {
+    return res.json({ ride: null })
+  }
+
+  const ride = rideRequests.find(r => r.id === driver.currentRideId)
+  res.json({ ride: ride || null })
 })
 
 app.listen(PORT, () => {
