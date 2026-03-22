@@ -1,250 +1,127 @@
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Harvey Taxi Request</title>
-
-<style>
-body{
-  margin:0;
-  font-family:Arial, Helvetica, sans-serif;
-  background:#020817;
-  color:white;
-}
-
-.container{
-  max-width:760px;
-  margin:0 auto;
-  padding:20px;
-}
-
-.card{
-  background:#0b1220;
-  border:1px solid #1f2937;
-  border-radius:20px;
-  padding:22px;
-  margin-bottom:16px;
-}
-
-h1{
-  margin:0 0 10px;
-  font-size:34px;
-}
-
-p{
-  color:#cbd5e1;
-  line-height:1.6;
-}
-
-input, textarea, select{
-  width:100%;
-  box-sizing:border-box;
-  padding:15px;
-  margin-top:10px;
-  margin-bottom:14px;
-  border-radius:12px;
-  border:1px solid #1f2937;
-  background:#020617;
-  color:white;
-  font-size:16px;
-}
-
-textarea{
-  min-height:110px;
-  resize:vertical;
-}
-
-button{
-  width:100%;
-  padding:16px;
-  border:none;
-  border-radius:12px;
-  background:#2563eb;
-  color:white;
-  font-size:16px;
-  font-weight:bold;
-  cursor:pointer;
-  margin-top:8px;
-}
-
-.secondary{
-  background:#334155;
-}
-
-.badge{
-  display:inline-block;
-  padding:7px 14px;
-  border-radius:999px;
-  font-size:13px;
-  font-weight:bold;
-  margin-top:8px;
-  background:#16a34a;
-}
-
-.status{
-  color:#cbd5e1;
-  margin-top:10px;
-  line-height:1.6;
-}
-
-.small{
-  color:#94a3b8;
-  font-size:13px;
-}
-</style>
-</head>
-<body>
-
-<div class="container">
-
-  <div class="card">
-    <h1 id="pageTitle">🚕 Request Ride</h1>
-    <p id="pageSubtitle">Create a new Harvey Taxi request.</p>
-    <div class="badge" id="serviceBadge">RIDE</div>
-  </div>
-
-  <div class="card">
-    <input id="email" placeholder="Rider email" />
-    <input id="password" type="password" placeholder="Rider password" />
-    <input id="pickupAddress" placeholder="Pickup address" />
-    <input id="pickupLat" placeholder="Pickup latitude (example 36.1627)" />
-    <input id="pickupLng" placeholder="Pickup longitude (example -86.7816)" />
-    <input id="dropoffAddress" placeholder="Dropoff address" />
-    <input id="dropoffLat" placeholder="Dropoff latitude (optional)" />
-    <input id="dropoffLng" placeholder="Dropoff longitude (optional)" />
-    <textarea id="notes" placeholder="Notes, restaurant order, grocery list, package info, gate code, etc."></textarea>
-
-    <button onclick="submitRequest()">Submit Request</button>
-    <button class="secondary" onclick="goHome()">Back Home</button>
-
-    <div class="small">
-      Rider account must already exist and be approved by admin before service can be requested.
-    </div>
-  </div>
-
-  <div class="card">
-    <strong>Request Status</strong>
-    <div class="status" id="statusBox">Waiting to submit.</div>
-  </div>
-
-</div>
-
 <script>
-const params = new URLSearchParams(window.location.search)
-const typeParam = (params.get('type') || 'ride').toLowerCase()
+  const serviceButtons = document.querySelectorAll('.service-card')
+  const pickupInput = document.getElementById('pickup')
+  const dropoffInput = document.getElementById('dropoff')
+  const rideTypeSelect = document.getElementById('rideType')
+  const requestBtn = document.getElementById('requestRideBtn')
+  const estimateBtn = document.getElementById('estimateBtn')
+  const statusBox = document.getElementById('statusBox')
+  const fareBox = document.getElementById('fareBox')
 
-let serviceType = 'ride'
-if (typeParam === 'food') serviceType = 'food'
-if (typeParam === 'groceries' || typeParam === 'grocery') serviceType = 'groceries'
-if (typeParam === 'package') serviceType = 'package'
+  let selectedService = 'Ride'
 
-const titleMap = {
-  ride: '🚕 Request Ride',
-  food: '🍔 Food Delivery',
-  groceries: '🛒 Grocery Delivery',
-  package: '📦 Package Delivery'
-}
+  serviceButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      serviceButtons.forEach((btn) => btn.classList.remove('active'))
+      button.classList.add('active')
+      selectedService = button.dataset.service || 'Ride'
+    })
+  })
 
-const subtitleMap = {
-  ride: 'Book a ride with an approved Harvey Taxi driver.',
-  food: 'Request restaurant pickup and delivery.',
-  groceries: 'Request grocery pickup and delivery.',
-  package: 'Request local package delivery.'
-}
-
-const badgeMap = {
-  ride: 'RIDE',
-  food: 'FOOD',
-  groceries: 'GROCERIES',
-  package: 'PACKAGE'
-}
-
-document.getElementById('pageTitle').textContent = titleMap[serviceType]
-document.getElementById('pageSubtitle').textContent = subtitleMap[serviceType]
-document.getElementById('serviceBadge').textContent = badgeMap[serviceType]
-
-function goHome(){
-  window.location.href = '/'
-}
-
-function setStatus(message){
-  document.getElementById('statusBox').textContent = message
-}
-
-async function submitRequest(){
-  const email = document.getElementById('email').value.trim()
-  const password = document.getElementById('password').value.trim()
-  const pickupAddress = document.getElementById('pickupAddress').value.trim()
-  const pickupLat = document.getElementById('pickupLat').value.trim()
-  const pickupLng = document.getElementById('pickupLng').value.trim()
-  const dropoffAddress = document.getElementById('dropoffAddress').value.trim()
-  const dropoffLat = document.getElementById('dropoffLat').value.trim()
-  const dropoffLng = document.getElementById('dropoffLng').value.trim()
-  const notes = document.getElementById('notes').value.trim()
-
-  if (!email || !password || !pickupAddress || !pickupLat || !pickupLng) {
-    alert('Please fill in email, password, pickup address, pickup latitude, and pickup longitude.')
-    return
+  function setStatus(message, isError = false) {
+    if (!statusBox) return
+    statusBox.textContent = message
+    statusBox.style.color = isError ? '#ff6b6b' : '#ffffff'
   }
 
-  try {
-    setStatus('Logging rider in...')
+  function renderFare(data) {
+    if (!fareBox) return
 
-    const loginRes = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    })
+    fareBox.innerHTML = `
+      <div class="fare-row"><span>Distance</span><strong>${data.trip.distanceMiles} mi</strong></div>
+      <div class="fare-row"><span>ETA</span><strong>${data.trip.durationMinutes} min</strong></div>
+      <div class="fare-row"><span>Base Fare</span><strong>$${data.fare.baseFare}</strong></div>
+      <div class="fare-row"><span>Distance Fare</span><strong>$${data.fare.distanceFare}</strong></div>
+      <div class="fare-row"><span>Time Fare</span><strong>$${data.fare.timeFare}</strong></div>
+      <div class="fare-row"><span>Booking Fee</span><strong>$${data.fare.bookingFee}</strong></div>
+      <div class="fare-row"><span>Service Fee</span><strong>$${data.fare.serviceFee}</strong></div>
+      <div class="fare-row total"><span>Total</span><strong>$${data.fare.totalFare}</strong></div>
+    `
+  }
 
-    const loginData = await loginRes.json()
+  async function estimateFare() {
+    const pickupAddress = pickupInput.value.trim()
+    const dropoffAddress = dropoffInput.value.trim()
 
-    if (!loginRes.ok || !loginData.user) {
-      alert(loginData.error || 'Login failed.')
-      setStatus('Login failed.')
+    if (!pickupAddress || !dropoffAddress) {
+      setStatus('Please enter pickup and dropoff locations.', true)
       return
     }
 
-    if (loginData.user.role !== 'rider') {
-      alert('This account is not a rider account.')
-      setStatus('This account is not a rider account.')
-      return
-    }
+    setStatus('Calculating fare...')
 
-    setStatus('Submitting request...')
-
-    const reqRes = await fetch('/api/requests/create', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        riderId: loginData.user.id,
-        serviceType,
-        pickupAddress,
-        pickupLat,
-        pickupLng,
-        dropoffAddress,
-        dropoffLat,
-        dropoffLng,
-        notes
+    try {
+      const response = await fetch('/api/fare/estimate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          pickupAddress,
+          dropoffAddress
+        })
       })
-    })
 
-    const reqData = await reqRes.json()
+      const data = await response.json()
 
-    if (!reqRes.ok) {
-      alert(reqData.error || 'Request failed.')
-      setStatus(reqData.error || 'Request failed.')
+      if (!data.success) {
+        setStatus(data.message || 'Could not estimate fare.', true)
+        return
+      }
+
+      renderFare(data)
+      setStatus('Fare estimate ready.')
+    } catch (error) {
+      setStatus('Server error while estimating fare.', true)
+    }
+  }
+
+  async function requestRide() {
+    const pickupAddress = pickupInput.value.trim()
+    const dropoffAddress = dropoffInput.value.trim()
+    const rideType = rideTypeSelect ? rideTypeSelect.value : 'Standard Ride'
+
+    if (!pickupAddress || !dropoffAddress) {
+      setStatus('Please enter pickup and dropoff locations.', true)
       return
     }
 
-    alert(reqData.message || 'Request submitted.')
-    setStatus(reqData.message || 'Request submitted.')
-  } catch (error) {
-    alert('Something went wrong while creating request.')
-    setStatus('Server error while creating request.')
-  }
-}
-</script>
+    setStatus('Requesting ride...')
 
-</body>
-</html>
+    try {
+      const response = await fetch('/api/rides/request', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          riderName: 'Guest Rider',
+          riderPhone: '',
+          pickupAddress,
+          dropoffAddress,
+          serviceType: `${selectedService} - ${rideType}`
+        })
+      })
+
+      const data = await response.json()
+
+      if (!data.success) {
+        setStatus(data.message || 'Could not request ride.', true)
+        return
+      }
+
+      renderFare(data)
+      setStatus(data.message || 'Ride requested successfully.')
+    } catch (error) {
+      setStatus('Server error while requesting ride.', true)
+    }
+  }
+
+  if (estimateBtn) {
+    estimateBtn.addEventListener('click', estimateFare)
+  }
+
+  if (requestBtn) {
+    requestBtn.addEventListener('click', requestRide)
+  }
+</script>
