@@ -85,8 +85,8 @@
   <div class="container">
     <h1>Request Pickup</h1>
 
-    <input id="pickup" class="input" placeholder="1617 Lebanon pike Nashville Tennessee">
-    <input id="dropoff" class="input" placeholder="4509 red tail trail Smyrna Tennessee">
+    <input id="pickup" class="input" placeholder="Enter pickup location">
+    <input id="dropoff" class="input" placeholder="Enter dropoff location">
 
     <select id="rideType" class="input">
       <option value="Standard">Standard Ride</option>
@@ -154,12 +154,17 @@
         const dropoff = document.getElementById('dropoff').value.trim()
         const rideType = document.getElementById('rideType').value
 
+        if (!pickup || !dropoff) {
+          document.getElementById('result').innerHTML = 'Please enter both pickup and dropoff locations.'
+          return
+        }
+
         const res = await fetch('/request-ride', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            pickup: pickup || 'Pickup',
-            dropoff: dropoff || 'Dropoff',
+            pickup: pickup,
+            dropoff: dropoff,
             pickupLat: 36.1627,
             pickupLng: -86.7816,
             dropoffLat: 36.1245,
