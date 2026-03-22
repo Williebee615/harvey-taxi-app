@@ -1,460 +1,194 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Harvey Super App</title>
-  <style>
-    *{
-      box-sizing:border-box;
-      margin:0;
-      padding:0;
-    }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Harvey Taxi</title>
 
-    body{
-      background:#000;
-      color:#fff;
-      font-family:Arial, sans-serif;
-      min-height:100vh;
-      padding:20px;
-    }
+<style>
+*{
+box-sizing:border-box;
+margin:0;
+padding:0;
+}
 
-    .app{
-      max-width:700px;
-      margin:0 auto;
-    }
+body{
+background:#000;
+color:#fff;
+font-family:Arial, sans-serif;
+min-height:100vh;
+padding:20px;
+}
 
-    .title{
-      font-size:36px;
-      font-weight:800;
-      margin:10px 0 8px;
-    }
+.app{
+max-width:700px;
+margin:0 auto;
+}
 
-    .subtitle{
-      color:#bdbdbd;
-      margin-bottom:22px;
-      font-size:15px;
-    }
+.title{
+font-size:34px;
+font-weight:bold;
+margin:18px 0 24px;
+}
 
-    .grid{
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:12px;
-      margin-bottom:18px;
-    }
+.card{
+background:#0d0d0d;
+border-radius:22px;
+padding:20px;
+margin-bottom:18px;
+}
 
-    .service{
-      background:#0f0f0f;
-      border:1px solid #1d1d1d;
-      border-radius:18px;
-      padding:18px 14px;
-      text-align:center;
-      cursor:pointer;
-      transition:.2s ease;
-    }
+.service-title{
+font-size:18px;
+margin-bottom:14px;
+}
 
-    .service.active{
-      background:#1db954;
-      color:#fff;
-      border-color:#1db954;
-    }
+input, select{
+width:100%;
+box-sizing:border-box;
+padding:14px;
+margin-top:10px;
+border:none;
+border-radius:14px;
+background:#171717;
+color:white;
+font-size:16px;
+}
 
-    .service-icon{
-      font-size:28px;
-      margin-bottom:8px;
-    }
+button{
+width:100%;
+padding:14px;
+border:none;
+border-radius:14px;
+background:#1db954;
+color:white;
+font-size:16px;
+font-weight:bold;
+margin-top:12px;
+}
 
-    .service-label{
-      font-weight:700;
-      font-size:16px;
-    }
+button.secondary{
+background:#222;
+}
 
-    .card{
-      background:#0d0d0d;
-      border:1px solid #191919;
-      border-radius:22px;
-      padding:18px;
-      margin-bottom:18px;
-    }
+.grid{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:12px;
+margin-top:12px;
+}
 
-    .card-title{
-      font-size:20px;
-      font-weight:700;
-      margin-bottom:14px;
-    }
+.service-btn{
+background:#141414;
+border-radius:16px;
+padding:18px;
+text-align:center;
+font-size:15px;
+border:1px solid #222;
+}
 
-    .input{
-      width:100%;
-      background:#171717;
-      color:#fff;
-      border:none;
-      outline:none;
-      border-radius:14px;
-      padding:15px;
-      font-size:16px;
-      margin-top:10px;
-    }
+.map{
+height:200px;
+background:#111;
+border-radius:16px;
+margin-top:12px;
+display:flex;
+align-items:center;
+justify-content:center;
+color:#666;
+font-size:14px;
+}
 
-    .btn{
-      width:100%;
-      border:none;
-      border-radius:16px;
-      padding:16px;
-      font-size:17px;
-      font-weight:700;
-      cursor:pointer;
-      margin-top:12px;
-    }
+.status{
+background:#111;
+padding:14px;
+border-radius:14px;
+margin-top:12px;
+font-size:14px;
+color:#aaa;
+}
 
-    .btn-primary{
-      background:#1db954;
-      color:#fff;
-    }
-
-    .btn-secondary{
-      background:#202020;
-      color:#fff;
-    }
-
-    .status-card{
-      display:none;
-      background:#111;
-      border-radius:20px;
-      padding:18px;
-      margin-bottom:18px;
-      border:1px solid #1c1c1c;
-    }
-
-    .status-title{
-      font-size:20px;
-      font-weight:700;
-      margin-bottom:10px;
-    }
-
-    .line{
-      margin-top:8px;
-      color:#d7d7d7;
-      font-size:15px;
-    }
-
-    .line strong{
-      color:#fff;
-    }
-
-    .pill{
-      display:inline-block;
-      margin-top:10px;
-      padding:8px 12px;
-      border-radius:999px;
-      background:#1db95422;
-      color:#7dffab;
-      font-size:13px;
-      font-weight:700;
-    }
-
-    .history-item{
-      background:#171717;
-      border-radius:16px;
-      padding:14px;
-      margin-top:12px;
-    }
-
-    .history-title{
-      font-weight:700;
-      margin-bottom:6px;
-    }
-
-    .small{
-      color:#bdbdbd;
-      font-size:14px;
-      margin-top:4px;
-    }
-
-    .footer-note{
-      text-align:center;
-      color:#8f8f8f;
-      font-size:13px;
-      margin-top:14px;
-    }
-
-    @media (max-width: 520px){
-      .title{
-        font-size:30px;
-      }
-    }
-  </style>
+</style>
 </head>
+
 <body>
-  <div class="app">
-    <div class="title">Harvey Super App</div>
-    <div class="subtitle">Rides, food, groceries, and packages in one place.</div>
 
-    <div class="grid">
-      <div class="service active" onclick="setService('ride', this)">
-        <div class="service-icon">🚕</div>
-        <div class="service-label">Ride</div>
-      </div>
+<div class="app">
 
-      <div class="service" onclick="setService('food', this)">
-        <div class="service-icon">🍔</div>
-        <div class="service-label">Food</div>
-      </div>
+<div class="title">Harvey Taxi</div>
 
-      <div class="service" onclick="setService('grocery', this)">
-        <div class="service-icon">🛒</div>
-        <div class="service-label">Grocery</div>
-      </div>
+<div class="card">
+<div class="service-title">Choose Service</div>
 
-      <div class="service" onclick="setService('package', this)">
-        <div class="service-icon">📦</div>
-        <div class="service-label">Package</div>
-      </div>
-    </div>
+<div class="grid">
+<div class="service-btn">🚕 Ride</div>
+<div class="service-btn">🍔 Food</div>
+<div class="service-btn">🛒 Grocery</div>
+<div class="service-btn">📦 Delivery</div>
+</div>
 
-    <div class="card">
-      <div class="card-title">Request Service</div>
+</div>
 
-      <input id="riderName" class="input" placeholder="Your name" />
-      <input id="pickupAddress" class="input" placeholder="Pickup address" />
-      <input id="dropoffAddress" class="input" placeholder="Dropoff address" />
+<div class="card">
+<div class="service-title">Request Pickup</div>
 
-      <input id="pickupLat" class="input" placeholder="Pickup latitude" />
-      <input id="pickupLng" class="input" placeholder="Pickup longitude" />
-      <input id="dropoffLat" class="input" placeholder="Dropoff latitude" />
-      <input id="dropoffLng" class="input" placeholder="Dropoff longitude" />
+<input placeholder="Pickup location" id="pickup"/>
+<input placeholder="Dropoff location" id="dropoff"/>
 
-      <button class="btn btn-secondary" onclick="useCurrentLocation()">
-        Use My Current Location
-      </button>
+<select id="rideType">
+<option>Standard Ride</option>
+<option>XL Ride</option>
+<option>Luxury Ride</option>
+<option>Female Driver</option>
+</select>
 
-      <button class="btn btn-secondary" onclick="getEstimate()">
-        Get Fare Estimate
-      </button>
+<button onclick="requestRide()">Request Ride</button>
 
-      <button class="btn btn-primary" onclick="requestNow()">
-        Request Now
-      </button>
-    </div>
+<div class="map">
+Live Map (Uber Style Coming)
+</div>
 
-    <div id="estimateCard" class="status-card"></div>
-    <div id="statusCard" class="status-card"></div>
+<div class="status" id="status">
+Waiting for request...
+</div>
 
-    <div class="card">
-      <div class="card-title">Recent Requests</div>
-      <div id="historyList">
-        <div class="small">No requests yet.</div>
-      </div>
-    </div>
+</div>
 
-    <div class="footer-note">
-      Harvey Taxi Super App MVP
-    </div>
-  </div>
+<div class="card">
+<div class="service-title">Driver Dashboard</div>
 
-  <script>
-    let selectedService = 'ride'
-    let currentRequestId = null
-    let statusPoller = null
+<button class="secondary" onclick="goDriver()">
+Go Online as Driver
+</button>
 
-    function setService(type, element) {
-      selectedService = type
-      document.querySelectorAll('.service').forEach(item => {
-        item.classList.remove('active')
-      })
-      element.classList.add('active')
-    }
+<button class="secondary" onclick="openAdmin()">
+Admin Panel
+</button>
 
-    function useCurrentLocation() {
-      if (!navigator.geolocation) {
-        alert('Location is not supported on this device.')
-        return
-      }
+</div>
 
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const lat = pos.coords.latitude
-          const lng = pos.coords.longitude
+</div>
 
-          document.getElementById('pickupLat').value = lat
-          document.getElementById('pickupLng').value = lng
+<script>
 
-          if (!document.getElementById('pickupAddress').value.trim()) {
-            document.getElementById('pickupAddress').value = 'My Current Location'
-          }
-        },
-        () => {
-          alert('Please allow location access.')
-        }
-      )
-    }
+function requestRide(){
+document.getElementById("status").innerHTML =
+"Searching for nearby driver...";
+setTimeout(()=>{
+document.getElementById("status").innerHTML =
+"Driver found • ETA 4 min";
+},2000)
+}
 
-    async function getEstimate() {
-      const pickupLat = document.getElementById('pickupLat').value.trim()
-      const pickupLng = document.getElementById('pickupLng').value.trim()
-      const dropoffLat = document.getElementById('dropoffLat').value.trim()
-      const dropoffLng = document.getElementById('dropoffLng').value.trim()
+function goDriver(){
+window.location.href="/driver.html"
+}
 
-      if (!pickupLat || !pickupLng || !dropoffLat || !dropoffLng) {
-        alert('Please enter pickup and dropoff coordinates first.')
-        return
-      }
+function openAdmin(){
+window.location.href="/admin.html"
+}
 
-      try {
-        const res = await fetch(
-          `/estimate?type=${encodeURIComponent(selectedService)}&pickupLat=${encodeURIComponent(pickupLat)}&pickupLng=${encodeURIComponent(pickupLng)}&dropoffLat=${encodeURIComponent(dropoffLat)}&dropoffLng=${encodeURIComponent(dropoffLng)}`
-        )
+</script>
 
-        const data = await res.json()
-
-        if (!res.ok || data.error) {
-          alert(data.error || 'Unable to get estimate.')
-          return
-        }
-
-        const card = document.getElementById('estimateCard')
-        card.style.display = 'block'
-        card.innerHTML = `
-          <div class="status-title">Fare Estimate</div>
-          <div class="line"><strong>Service:</strong> ${formatType(data.type)}</div>
-          <div class="line"><strong>Distance:</strong> ${data.distanceKm} km</div>
-          <div class="line"><strong>Estimated Price:</strong> $${data.estimatedPrice}</div>
-          <div class="pill">Estimate Ready</div>
-        `
-      } catch (error) {
-        alert('Something went wrong getting the estimate.')
-      }
-    }
-
-    async function requestNow() {
-      const payload = {
-        type: selectedService,
-        riderName: document.getElementById('riderName').value.trim() || 'Rider',
-        pickupAddress: document.getElementById('pickupAddress').value.trim() || 'Pickup address',
-        dropoffAddress: document.getElementById('dropoffAddress').value.trim() || 'Dropoff address',
-        pickupLat: document.getElementById('pickupLat').value.trim(),
-        pickupLng: document.getElementById('pickupLng').value.trim(),
-        dropoffLat: document.getElementById('dropoffLat').value.trim(),
-        dropoffLng: document.getElementById('dropoffLng').value.trim()
-      }
-
-      if (!payload.pickupLat || !payload.pickupLng || !payload.dropoffLat || !payload.dropoffLng) {
-        alert('Please complete pickup and dropoff coordinates.')
-        return
-      }
-
-      try {
-        const res = await fetch('/request', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(payload)
-        })
-
-        const data = await res.json()
-
-        if (!res.ok || data.error) {
-          alert(data.error || 'Unable to create request.')
-          return
-        }
-
-        currentRequestId = data.id
-        renderStatus(data)
-        loadHistory()
-
-        if (statusPoller) {
-          clearInterval(statusPoller)
-        }
-
-        statusPoller = setInterval(checkRequestStatus, 3000)
-      } catch (error) {
-        alert('Something went wrong sending the request.')
-      }
-    }
-
-    async function checkRequestStatus() {
-      if (!currentRequestId) return
-
-      try {
-        const res = await fetch('/request/' + currentRequestId)
-        const data = await res.json()
-
-        if (!res.ok || data.error) return
-
-        renderStatus(data)
-        loadHistory()
-
-        if (data.status === 'completed') {
-          clearInterval(statusPoller)
-        }
-      } catch (error) {
-        console.log('Status polling failed')
-      }
-    }
-
-    function renderStatus(data) {
-      const card = document.getElementById('statusCard')
-      card.style.display = 'block'
-
-      card.innerHTML = `
-        <div class="status-title">Live Request Status</div>
-        <div class="line"><strong>Service:</strong> ${formatType(data.type)}</div>
-        <div class="line"><strong>Status:</strong> ${formatStatus(data.status)}</div>
-        <div class="line"><strong>Driver:</strong> ${data.driver ? data.driver.name : 'Finding nearby driver...'}</div>
-        <div class="line"><strong>Pickup:</strong> ${data.pickupAddress || 'N/A'}</div>
-        <div class="line"><strong>Dropoff:</strong> ${data.dropoffAddress || 'N/A'}</div>
-        <div class="line"><strong>Distance:</strong> ${data.distanceKm || '0.00'} km</div>
-        <div class="line"><strong>Estimated Price:</strong> $${data.estimatedPrice || '0.00'}</div>
-        <div class="pill">${formatStatus(data.status)}</div>
-      `
-    }
-
-    async function loadHistory() {
-      try {
-        const res = await fetch('/rider/history')
-        const data = await res.json()
-
-        const historyList = document.getElementById('historyList')
-
-        if (!Array.isArray(data) || data.length === 0) {
-          historyList.innerHTML = `<div class="small">No requests yet.</div>`
-          return
-        }
-
-        historyList.innerHTML = data.slice(0, 6).map(item => `
-          <div class="history-item">
-            <div class="history-title">${formatType(item.type)}</div>
-            <div class="small"><strong>Status:</strong> ${formatStatus(item.status)}</div>
-            <div class="small"><strong>Rider:</strong> ${item.riderName || 'Rider'}</div>
-            <div class="small"><strong>Pickup:</strong> ${item.pickupAddress || 'N/A'}</div>
-            <div class="small"><strong>Dropoff:</strong> ${item.dropoffAddress || 'N/A'}</div>
-            <div class="small"><strong>Price:</strong> $${item.estimatedPrice || '0.00'}</div>
-            <div class="small"><strong>Driver:</strong> ${item.driver ? item.driver.name : 'Not assigned yet'}</div>
-          </div>
-        `).join('')
-      } catch (error) {
-        document.getElementById('historyList').innerHTML = `<div class="small">Unable to load history.</div>`
-      }
-    }
-
-    function formatType(type) {
-      if (type === 'ride') return '🚕 Ride'
-      if (type === 'food') return '🍔 Food Delivery'
-      if (type === 'grocery') return '🛒 Grocery Delivery'
-      if (type === 'package') return '📦 Package Delivery'
-      return type || 'Service'
-    }
-
-    function formatStatus(status) {
-      if (status === 'searching') return 'Searching for driver'
-      if (status === 'assigned') return 'Driver assigned'
-      if (status === 'accepted') return 'Driver accepted'
-      if (status === 'in_progress') return 'In progress'
-      if (status === 'completed') return 'Completed'
-      return status || 'Pending'
-    }
-
-    loadHistory()
-  </script>
 </body>
 </html>
