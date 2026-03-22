@@ -3,153 +3,96 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Admin Panel</title>
+  <title>Harvey Taxi Admin</title>
   <style>
-    *{
-      box-sizing:border-box;
-      margin:0;
-      padding:0;
-    }
-
     body{
       background:#000;
       color:#fff;
       font-family:Arial, sans-serif;
-      min-height:100vh;
       padding:20px;
+      margin:0;
     }
-
     .app{
-      max-width:800px;
+      max-width:900px;
       margin:0 auto;
     }
-
-    h1{
+    .title{
       font-size:34px;
-      margin:10px 0 20px;
+      font-weight:bold;
+      margin:18px 0 24px;
     }
-
     .card{
-      background:#0d0d0d;
-      border:1px solid #191919;
-      border-radius:22px;
-      padding:18px;
+      background:#0a0a0a;
+      border-radius:24px;
+      padding:20px;
       margin-bottom:18px;
     }
-
-    .section-title{
-      font-size:22px;
-      font-weight:700;
-      margin-bottom:14px;
-    }
-
-    .item{
-      background:#171717;
-      border-radius:16px;
-      padding:14px;
-      margin-top:12px;
-    }
-
-    .small{
-      color:#bdbdbd;
-      font-size:14px;
-      margin-top:5px;
-    }
-
-    .btn{
-      width:100%;
-      border:none;
+    .ride{
+      background:#111;
+      border:1px solid #222;
       border-radius:16px;
       padding:16px;
-      font-size:17px;
-      font-weight:700;
-      cursor:pointer;
-      margin-bottom:18px;
-      background:#1db954;
+      margin-top:12px;
+    }
+    button{
+      width:100%;
+      padding:16px;
+      border:none;
+      border-radius:18px;
+      background:#22c55e;
       color:#fff;
+      font-size:16px;
+      font-weight:bold;
+      margin-top:12px;
+    }
+    .muted{
+      color:#9ca3af;
+      font-size:14px;
+      margin-top:6px;
     }
   </style>
 </head>
 <body>
   <div class="app">
-    <h1>Admin Panel</h1>
-
-    <button class="btn" onclick="loadOverview()">Refresh Overview</button>
+    <div class="title">Admin Panel</div>
 
     <div class="card">
-      <div class="section-title">Drivers</div>
-      <div id="driversList"></div>
+      <h2>Recent Rides</h2>
+      <button onclick="loadRides()">Refresh Rides</button>
+      <div id="ridesList" class="muted">Loading rides...</div>
     </div>
 
     <div class="card">
-      <div class="section-title">Requests</div>
-      <div id="requestsList"></div>
+      <button onclick="window.location.href='/'">Back to Rider App</button>
     </div>
   </div>
 
   <script>
-    async function loadOverview() {
-      try {
-        const res = await fetch('/admin/overview')
-        const data = await res.json()
+    async function loadRides() {
+      const res = await fetch('/api/rides')
+      const rides = await res.json()
+      const container = document.getElementById('ridesList')
 
-        const driversList = document.getElementById('driversList')
-        const requestsList = document.getElementById('requestsList')
-
-        if (!Array.isArray(data.drivers) || data.drivers.length === 0) {
-          driversList.innerHTML = `<div class="small">No drivers yet.</div>`
-        } else {
-          driversList.innerHTML = data.drivers.map(driver => `
-            <div class="item">
-              <div><strong>${driver.name || 'Harvey Driver'}</strong></div>
-              <div class="small">ID: ${driver.id}</div>
-              <div class="small">Available: ${driver.available ? 'Yes' : 'No'}</div>
-              <div class="small">Completed Jobs: ${driver.completedJobs || 0}</div>
-              <div class="small">Earnings: $${Number(driver.earnings || 0).toFixed(2)}</div>
-            </div>
-          `).join('')
-        }
-
-        if (!Array.isArray(data.requests) || data.requests.length === 0) {
-          requestsList.innerHTML = `<div class="small">No requests yet.</div>`
-        } else {
-          requestsList.innerHTML = data.requests.map(request => `
-            <div class="item">
-              <div><strong>${formatType(request.type)}</strong></div>
-              <div class="small">Rider: ${request.riderName || 'Rider'}</div>
-              <div class="small">Status: ${formatStatus(request.status)}</div>
-              <div class="small">Pickup: ${request.pickupAddress || 'N/A'}</div>
-              <div class="small">Dropoff: ${request.dropoffAddress || 'N/A'}</div>
-              <div class="small">Driver: ${request.driver ? request.driver.name : 'Unassigned'}</div>
-              <div class="small">Price: $${request.estimatedPrice || '0.00'}</div>
-            </div>
-          `).join('')
-        }
-      } catch (error) {
-        document.getElementById('driversList').innerHTML = `<div class="small">Could not load drivers.</div>`
-        document.getElementById('requestsList').innerHTML = `<div class="small">Could not load requests.</div>`
+      if (!rides.length) {
+        container.innerHTML = 'No rides yet.'
+        return
       }
+
+      container.innerHTML = rides.map(ride => `
+        <div class="ride">
+          <div><strong>Ride ID:</strong> ${ride.id}</div>
+          <div class="muted"><strong>Pickup:</strong> ${ride.pickup}</div>
+          <div class="muted"><strong>Dropoff:</strong> ${ride.dropoff}</div>
+          <div class="muted"><strong>Type:</strong> ${ride.rideType}</div>
+          <div class="muted"><strong>Driver:</strong> ${ride.driverName}</div>
+          <div class="muted"><strong>Car:</strong> ${ride.car}</div>
+          <div class="muted"><strong>Status:</strong> ${ride.status}</div>
+          <div class="muted"><strong>ETA:</strong> ${ride.etaMinutes} min</div>
+        </div>
+      `).join('')
     }
 
-    function formatType(type) {
-      if (type === 'ride') return '🚕 Ride'
-      if (type === 'food') return '🍔 Food Delivery'
-      if (type === 'grocery') return '🛒 Grocery Delivery'
-      if (type === 'package') return '📦 Package Delivery'
-      return type || 'Request'
-    }
-
-    function formatStatus(status) {
-      if (status === 'searching') return 'Searching'
-      if (status === 'assigned') return 'Assigned'
-      if (status === 'accepted') return 'Accepted'
-      if (status === 'in_progress') return 'In Progress'
-      if (status === 'completed') return 'Completed'
-      return status || 'Pending'
-    }
-
-    loadOverview()
-    setInterval(loadOverview, 4000)
+    loadRides()
   </script>
 </body>
 </html>
