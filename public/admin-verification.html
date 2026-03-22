@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Admin Panel</title>
+  <title>Admin Verification Review</title>
   <style>
     body{
       margin:0;
@@ -13,9 +13,9 @@
     }
 
     .container{
-      padding:20px;
       max-width:1100px;
       margin:0 auto;
+      padding:20px;
     }
 
     .card{
@@ -30,5 +30,298 @@
       margin-top:0;
     }
 
+    p{
+      color:#cbd5e1;
+      line-height:1.5;
+    }
+
     input{
-     
+      width:100%;
+      padding:13px;
+      border:none;
+      border-radius:10px;
+      background:#020617;
+      color:white;
+      margin-top:10px;
+      margin-bottom:12px;
+      box-sizing:border-box;
+    }
+
+    button{
+      padding:12px 16px;
+      border:none;
+      border-radius:10px;
+      color:white;
+      font-weight:bold;
+      cursor:pointer;
+      margin-right:8px;
+      margin-top:8px;
+    }
+
+    .blue{ background:#2563eb; }
+    .green{ background:#16a34a; }
+    .red{ background:#dc2626; }
+    .gray{ background:#334155; }
+
+    .grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:16px;
+    }
+
+    .item{
+      background:#0f172a;
+      border:1px solid #1e293b;
+      border-radius:12px;
+      padding:14px;
+      margin-top:12px;
+    }
+
+    .badge{
+      display:inline-block;
+      padding:6px 12px;
+      border-radius:20px;
+      font-size:12px;
+      font-weight:bold;
+      margin-top:8px;
+      margin-right:8px;
+    }
+
+    .pending{ background:#f59e0b; color:#111827; }
+    .approved{ background:#16a34a; }
+    .rejected{ background:#dc2626; }
+    .neutral{ background:#475569; }
+
+    .muted{
+      color:#94a3b8;
+      font-size:14px;
+      margin-top:6px;
+    }
+
+    @media (max-width: 800px){
+      .grid{
+        grid-template-columns:1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>⚙️ Admin Verification Review</h1>
+      <p>Review rider and driver verification status, then approve or reject accounts.</p>
+
+      <input id="adminEmail" value="admin@harveytaxi.com" placeholder="Admin email" />
+      <input id="adminPassword" value="admin123" type="password" placeholder="Admin password" />
+
+      <button class="blue" onclick="adminLogin()">Login Admin</button>
+      <button class="gray" onclick="loadEverything()">Refresh All</button>
+
+      <div id="adminStatus" class="muted">Not logged in yet.</div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>👤 Rider Verifications</h2>
+        <div id="ridersList">No rider data loaded yet.</div>
+      </div>
+
+      <div class="card">
+        <h2>🚗 Driver Verifications</h2>
+        <div id="driversList">No driver data loaded yet.</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let adminLoggedIn = false
+
+    function badgeClass(status){
+      const s = String(status || '').toLowerCase()
+      if (s.includes('approved')) return 'approved'
+      if (s.includes('rejected')) return 'rejected'
+      if (s.includes('pending')) return 'pending'
+      return 'neutral'
+    }
+
+    async function adminLogin() {
+      const email = document.getElementById('adminEmail').value.trim()
+      const password = document.getElementById('adminPassword').value.trim()
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        })
+
+        const data = await res.json()
+
+        if (!res.ok || !data.user || data.user.role !== 'admin') {
+          alert(data.error || 'Admin login failed.')
+          return
+        }
+
+        adminLoggedIn = true
+        document.getElementById('adminStatus').textContent = `Logged in as ${data.user.name}`
+        loadEverything()
+      } catch (error) {
+        alert('Could not log in admin.')
+      }
+    }
+
+    async function loadEverything() {
+      if (!adminLoggedIn) {
+        document.getElementById('adminStatus').textContent = 'Log in as admin first.'
+        return
+      }
+
+      loadRiders()
+      loadDrivers()
+    }
+
+    async function loadRiders() {
+      try {
+        const res = await fetch('/api/admin/riders')
+        const riders = await res.json()
+
+        if (!res.ok) {
+          document.getElementById('ridersList').innerHTML = 'Failed to load riders.'
+          return
+        }
+
+        if (!riders.length) {
+          document.getElementById('ridersList').innerHTML = '<div class="muted">No riders found.</div>'
+          return
+        }
+
+        document.getElementById('ridersList').innerHTML = riders.map(rider => {
+          const status = rider?.verification?.status || (rider.isVerified ? 'approved' : 'not_submitted')
+
+          return `
+            <div class="item">
+              <strong>${rider.name || 'Unnamed rider'}</strong>
+              <div class="muted">${rider.email || ''}</div>
+              <div class="muted">Phone: ${rider.phone || 'Not added'}</div>
+              <span class="badge ${badgeClass(status)}">${status.replaceAll('_', ' ')}</span>
+              <span class="badge ${rider.isVerified ? 'approved' : 'neutral'}">${rider.isVerified ? 'verified' : 'not verified'}</span>
+              <div>
+                <button class="green" onclick="approveRider('${rider.id}')">Approve Rider</button>
+                <button class="red" onclick="rejectRider('${rider.id}')">Reject Rider</button>
+              </div>
+            </div>
+          `
+        }).join('')
+      } catch (error) {
+        document.getElementById('ridersList').innerHTML = 'Error loading riders.'
+      }
+    }
+
+    async function loadDrivers() {
+      try {
+        const res = await fetch('/api/admin/drivers')
+        const drivers = await res.json()
+
+        if (!res.ok) {
+          document.getElementById('driversList').innerHTML = 'Failed to load drivers.'
+          return
+        }
+
+        if (!drivers.length) {
+          document.getElementById('driversList').innerHTML = '<div class="muted">No drivers found.</div>'
+          return
+        }
+
+        document.getElementById('driversList').innerHTML = drivers.map(driver => {
+          const status = driver?.verification?.status || (driver.isApproved ? 'approved' : 'not_submitted')
+
+          return `
+            <div class="item">
+              <strong>${driver.name || 'Unnamed driver'}</strong>
+              <div class="muted">${driver.email || ''}</div>
+              <div class="muted">Phone: ${driver.phone || 'Not added'}</div>
+              <div class="muted">Vehicle: ${driver.vehicle || 'Not added'}</div>
+              <span class="badge ${badgeClass(status)}">${status.replaceAll('_', ' ')}</span>
+              <span class="badge ${driver.isApproved ? 'approved' : 'neutral'}">${driver.isApproved ? 'approved' : 'not approved'}</span>
+              <div>
+                <button class="green" onclick="approveDriver('${driver.id}')">Approve Driver</button>
+                <button class="red" onclick="rejectDriver('${driver.id}')">Reject Driver</button>
+              </div>
+            </div>
+          `
+        }).join('')
+      } catch (error) {
+        document.getElementById('driversList').innerHTML = 'Error loading drivers.'
+      }
+    }
+
+    async function approveRider(riderId) {
+      try {
+        const res = await fetch(`/api/admin/approve-rider/${riderId}`, {
+          method: 'POST'
+        })
+        const data = await res.json()
+        if (!res.ok) {
+          alert(data.error || 'Failed to approve rider.')
+          return
+        }
+        alert(data.message || 'Rider approved.')
+        loadRiders()
+      } catch (error) {
+        alert('Could not approve rider.')
+      }
+    }
+
+    async function rejectRider(riderId) {
+      try {
+        const res = await fetch(`/api/admin/reject-rider/${riderId}`, {
+          method: 'POST'
+        })
+        const data = await res.json()
+        if (!res.ok) {
+          alert(data.error || 'Failed to reject rider.')
+          return
+        }
+        alert(data.message || 'Rider rejected.')
+        loadRiders()
+      } catch (error) {
+        alert('Could not reject rider.')
+      }
+    }
+
+    async function approveDriver(driverId) {
+      try {
+        const res = await fetch(`/api/admin/approve-driver/${driverId}`, {
+          method: 'POST'
+        })
+        const data = await res.json()
+        if (!res.ok) {
+          alert(data.error || 'Failed to approve driver.')
+          return
+        }
+        alert(data.message || 'Driver approved.')
+        loadDrivers()
+      } catch (error) {
+        alert('Could not approve driver.')
+      }
+    }
+
+    async function rejectDriver(driverId) {
+      try {
+        const res = await fetch(`/api/admin/reject-driver/${driverId}`, {
+          method: 'POST'
+        })
+        const data = await res.json()
+        if (!res.ok) {
+          alert(data.error || 'Failed to reject driver.')
+          return
+        }
+        alert(data.message || 'Driver rejected.')
+        loadDrivers()
+      } catch (error) {
+        alert('Could not reject driver.')
+      }
+    }
+  </script>
+</body>
+</html>
