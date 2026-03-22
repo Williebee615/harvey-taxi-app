@@ -7,74 +7,65 @@
 
 <style>
 body{
-font-family:Arial;
-background:#0b0f1a;
-color:white;
 margin:0;
-}
-
-.header{
-padding:20px;
-font-size:22px;
-font-weight:bold;
+font-family:Arial, Helvetica, sans-serif;
+background:#020617;
+color:white;
 }
 
 .container{
+max-width:700px;
+margin:0 auto;
 padding:20px;
 }
 
-.card{
-background:#111827;
-padding:20px;
-border-radius:12px;
-margin-bottom:15px;
-cursor:pointer;
-border:1px solid #1f2937;
-}
-
-.card:hover{
-background:#1f2937;
-}
-
-.button{
-background:#2563eb;
-padding:15px;
-border-radius:10px;
-text-align:center;
-margin-top:10px;
+.title{
+font-size:28px;
 font-weight:bold;
-cursor:pointer;
+margin-bottom:20px;
 }
 
-.badge{
+.live{
 background:#16a34a;
-padding:4px 10px;
+padding:6px 12px;
 border-radius:20px;
 font-size:12px;
 margin-left:10px;
 }
 
+.card{
+background:#0f172a;
+border:1px solid #1f2937;
+padding:22px;
+border-radius:18px;
+margin-bottom:16px;
+font-size:20px;
+cursor:pointer;
+}
+
+.card:hover{
+background:#111827;
+}
 </style>
 </head>
 
 <body>
 
-<div class="header">
-Harvey Taxi
-<span class="badge">LIVE</span>
-</div>
-
 <div class="container">
 
-<div class="card" onclick="go('request.html?service=ride')">
+<div class="title">
+Harvey Taxi <span class="live">LIVE</span>
+</div>
+
+<div class="card" onclick="go('request.html')">
 🚕 Request Ride
 </div>
 
-<div class="card" onclick="go('request.html?service=food')">
+<div class="card" onclick="go('request.html?type=food')">
 🍔 Food Delivery
 </div>
 
-<div class="card" onclick="go('request.html?service=groceries')">
+<div class="card" onclick="go('request.html?type=grocery')">
 🛒 Grocery Delivery
 </div>
 
