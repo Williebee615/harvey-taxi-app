@@ -12,10 +12,7 @@
       padding:20px;
       margin:0;
     }
-    .app{
-      max-width:900px;
-      margin:0 auto;
-    }
+    .app{max-width:900px;margin:0 auto}
     .title{
       font-size:34px;
       font-weight:bold;
@@ -86,13 +83,15 @@
           <div class="muted"><strong>Type:</strong> ${ride.rideType}</div>
           <div class="muted"><strong>Driver:</strong> ${ride.driverName}</div>
           <div class="muted"><strong>Car:</strong> ${ride.car}</div>
+          <div class="muted"><strong>Plate:</strong> ${ride.plate}</div>
           <div class="muted"><strong>Status:</strong> ${ride.status}</div>
-          <div class="muted"><strong>ETA:</strong> ${ride.etaMinutes} min</div>
+          <div class="muted"><strong>ETA:</strong> ${ride.etaLabel}</div>
         </div>
       `).join('')
     }
 
     loadRides()
+    setInterval(loadRides, 3000)
   </script>
 </body>
 </html>
