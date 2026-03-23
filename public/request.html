@@ -1,350 +1,647 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Request Ride</title>
-
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Harvey Taxi</title>
   <style>
-    body {
-      background: #000;
-      color: #fff;
-      font-family: Arial, sans-serif;
-      padding: 20px;
-      margin: 0;
-    }
-
-    .container {
-      max-width: 420px;
-      margin: 0 auto;
-    }
-
-    h1 {
-      font-size: 32px;
-      margin: 10px 0 20px;
-    }
-
-    .input {
-      width: 100%;
-      padding: 20px;
-      border-radius: 20px;
-      border: none;
-      background: #0b0f1c;
-      color: white;
-      margin-bottom: 15px;
-      font-size: 18px;
+    * {
       box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      background:
+        radial-gradient(circle at top left, rgba(52, 211, 153, 0.12), transparent 28%),
+        radial-gradient(circle at top right, rgba(59, 130, 246, 0.10), transparent 26%),
+        linear-gradient(180deg, #050505 0%, #0b0b0f 45%, #111117 100%);
+      color: #ffffff;
+      min-height: 100vh;
+    }
+
+    .app-shell {
+      max-width: 460px;
+      margin: 0 auto;
+      min-height: 100vh;
+      padding: 24px 18px 120px;
+      position: relative;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 26px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-badge {
+      width: 48px;
+      height: 48px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #22c55e, #06b6d4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 14px 35px rgba(34, 197, 94, 0.25);
+    }
+
+    .brand-text h1 {
+      font-size: 1.4rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+
+    .brand-text p {
+      color: #9ca3af;
+      font-size: 0.88rem;
+      margin-top: 2px;
+    }
+
+    .profile-btn {
+      width: 44px;
+      height: 44px;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      background: rgba(255,255,255,0.04);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      backdrop-filter: blur(8px);
+    }
+
+    .hero {
+      border-radius: 28px;
+      padding: 24px;
+      background:
+        linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03)),
+        linear-gradient(135deg, rgba(34,197,94,0.18), rgba(6,182,212,0.08));
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 0 20px 50px rgba(0,0,0,0.35);
+      margin-bottom: 18px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      right: -40px;
+      top: -40px;
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.06);
+      filter: blur(10px);
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: #d1fae5;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      margin-bottom: 14px;
+    }
+
+    .hero h2 {
+      font-size: 2rem;
+      line-height: 1.05;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      margin-bottom: 10px;
+      max-width: 280px;
+    }
+
+    .hero p {
+      color: #d1d5db;
+      line-height: 1.55;
+      font-size: 0.96rem;
+      max-width: 320px;
+      margin-bottom: 18px;
+    }
+
+    .hero-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .hero-stat {
+      background: rgba(0,0,0,0.22);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 18px;
+      padding: 12px;
+    }
+
+    .hero-stat strong {
+      display: block;
+      font-size: 1rem;
+      margin-bottom: 4px;
+    }
+
+    .hero-stat span {
+      color: #9ca3af;
+      font-size: 0.78rem;
+    }
+
+    .quick-services {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .service-chip {
+      background: rgba(255,255,255,0.045);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 20px;
+      padding: 14px 8px;
+      text-align: center;
+      backdrop-filter: blur(10px);
+    }
+
+    .service-chip .icon {
+      font-size: 20px;
+      margin-bottom: 8px;
+    }
+
+    .service-chip div:last-child {
+      font-size: 0.78rem;
+      color: #e5e7eb;
+      line-height: 1.2;
+    }
+
+    .ride-card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.025));
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 30px;
+      padding: 20px;
+      box-shadow: 0 18px 45px rgba(0,0,0,0.35);
+      backdrop-filter: blur(12px);
+      margin-bottom: 18px;
+    }
+
+    .ride-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .ride-card-header h3 {
+      font-size: 1.4rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+
+    .live-dot {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      color: #86efac;
+      font-size: 0.82rem;
+    }
+
+    .live-dot::before {
+      content: "";
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #22c55e;
+      box-shadow: 0 0 14px #22c55e;
+    }
+
+    .input-group {
+      margin-bottom: 12px;
+    }
+
+    .input-label {
+      display: block;
+      color: #9ca3af;
+      font-size: 0.82rem;
+      margin-bottom: 8px;
+      padding-left: 4px;
+    }
+
+    .input-wrap {
+      position: relative;
+    }
+
+    .input-wrap span {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 16px;
+      opacity: 0.9;
+    }
+
+    input, select {
+      width: 100%;
+      border: 1px solid rgba(255,255,255,0.06);
+      background: rgba(10,12,22,0.92);
+      color: white;
+      border-radius: 18px;
+      padding: 16px 16px 16px 42px;
+      font-size: 1rem;
+      outline: none;
+    }
+
+    input::placeholder {
+      color: #6b7280;
+    }
+
+    select {
+      appearance: none;
+      cursor: pointer;
+    }
+
+    .button-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 16px;
+      margin-bottom: 14px;
     }
 
     button {
-      width: 100%;
-      padding: 20px;
-      border-radius: 20px;
       border: none;
-      font-size: 18px;
-      font-weight: bold;
-      margin-top: 10px;
-      box-sizing: border-box;
+      border-radius: 18px;
+      padding: 16px;
+      font-size: 1rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: 0.2s ease;
     }
 
-    .estimate {
-      background: #333;
+    button:active {
+      transform: scale(0.98);
+    }
+
+    .secondary-btn {
+      background: rgba(255,255,255,0.08);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .primary-btn {
+      background: linear-gradient(135deg, #22c55e, #16a34a);
       color: white;
+      box-shadow: 0 14px 30px rgba(34, 197, 94, 0.25);
     }
 
-    .request {
-      background: #39d27d;
-      color: white;
+    .status-text {
+      color: #d1d5db;
+      font-size: 0.95rem;
+      margin: 6px 4px 14px;
+      line-height: 1.4;
     }
 
-    .gps {
-      background: #1f3b73;
-      color: white;
+    .fare-box {
+      background: rgba(9, 13, 27, 0.92);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 22px;
+      padding: 16px;
     }
 
-    .cancel {
-      background: #8b1e1e;
-      color: white;
+    .fare-box h4 {
+      font-size: 0.95rem;
+      color: #9ca3af;
+      margin-bottom: 12px;
+      font-weight: 600;
     }
 
-    .card {
-      background: #0b0f1c;
-      padding: 20px;
-      border-radius: 20px;
-      margin-top: 20px;
-      line-height: 1.6;
+    .fare-placeholder {
+      color: #6b7280;
+      font-size: 0.95rem;
+      line-height: 1.5;
     }
 
-    .status {
+    .bottom-cards {
+      display: grid;
+      gap: 14px;
+    }
+
+    .mini-card {
+      border-radius: 24px;
+      background: rgba(255,255,255,0.045);
+      border: 1px solid rgba(255,255,255,0.06);
+      padding: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .mini-card-left h4 {
+      font-size: 1rem;
+      margin-bottom: 6px;
+    }
+
+    .mini-card-left p {
+      color: #9ca3af;
+      font-size: 0.87rem;
+      line-height: 1.45;
+    }
+
+    .mini-card-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 16px;
+      background: rgba(34,197,94,0.12);
+      display: flex;
+      align-items: center;
+      justify-content: center;
       font-size: 22px;
-      font-weight: bold;
-      margin-bottom: 10px;
     }
 
-    .muted {
-      color: #cfcfcf;
-      font-size: 15px;
+    .bottom-nav {
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: 16px;
+      width: calc(100% - 26px);
+      max-width: 430px;
+      padding: 12px 10px;
+      border-radius: 24px;
+      background: rgba(10, 10, 14, 0.9);
+      border: 1px solid rgba(255,255,255,0.08);
+      backdrop-filter: blur(14px);
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      z-index: 100;
     }
 
-    .success {
-      color: #7df0a6;
+    .nav-item {
+      text-align: center;
+      color: #9ca3af;
+      font-size: 0.78rem;
+      text-decoration: none;
+      padding: 8px 4px;
+      border-radius: 16px;
     }
 
-    .warning {
-      color: #ffd166;
+    .nav-item.active {
+      background: rgba(34,197,94,0.14);
+      color: #dcfce7;
+    }
+
+    .nav-item div:first-child {
+      font-size: 18px;
+      margin-bottom: 5px;
+    }
+
+    @media (max-width: 420px) {
+      .hero h2 {
+        font-size: 1.8rem;
+      }
+
+      .quick-services {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .hero-stats {
+        grid-template-columns: 1fr;
+      }
+
+      .button-row {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>Request Pickup</h1>
+  <div class="app-shell">
+    <div class="topbar">
+      <div class="brand">
+        <div class="brand-badge">🚕</div>
+        <div class="brand-text">
+          <h1>Harvey Taxi</h1>
+          <p>Fast rides, local delivery, premium service</p>
+        </div>
+      </div>
+      <button class="profile-btn">☰</button>
+    </div>
 
-    <input id="pickup" class="input" placeholder="Enter pickup location">
-    <input id="dropoff" class="input" placeholder="Enter dropoff location">
+    <section class="hero">
+      <div class="hero-badge">⚡ Live drivers available nearby</div>
+      <h2>Ride smarter around your city</h2>
+      <p>
+        Book local rides, deliveries, groceries, and more with a premium dark-mode experience built for Harvey Taxi.
+      </p>
 
-    <select id="rideType" class="input">
-      <option value="Standard">Standard Ride</option>
-      <option value="XL">XL Ride</option>
-      <option value="Luxury">Luxury Ride</option>
-    </select>
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <strong>24/7</strong>
+          <span>Service ready</span>
+        </div>
+        <div class="hero-stat">
+          <strong>Fast</strong>
+          <span>Driver matching</span>
+        </div>
+        <div class="hero-stat">
+          <strong>Safe</strong>
+          <span>Verified platform</span>
+        </div>
+      </div>
+    </section>
 
-    <button class="gps" onclick="useMyLocation()">Use My Current Location</button>
-    <button class="estimate" onclick="estimateFare()">Estimate Fare</button>
-    <button class="request" onclick="requestRide()">Request Ride</button>
-    <button id="cancelBtn" class="cancel" onclick="cancelRide()" style="display:none;">Cancel Ride</button>
+    <section class="quick-services">
+      <div class="service-chip">
+        <div class="icon">🚕</div>
+        <div>Taxi Ride</div>
+      </div>
+      <div class="service-chip">
+        <div class="icon">🍔</div>
+        <div>Food</div>
+      </div>
+      <div class="service-chip">
+        <div class="icon">🛒</div>
+        <div>Groceries</div>
+      </div>
+      <div class="service-chip">
+        <div class="icon">📦</div>
+        <div>Delivery</div>
+      </div>
+    </section>
 
-    <div id="result" class="card">Fare details will appear here.</div>
+    <section class="ride-card">
+      <div class="ride-card-header">
+        <h3>Request Pickup</h3>
+        <div class="live-dot">Live</div>
+      </div>
+
+      <div class="input-group">
+        <label class="input-label">Pickup location</label>
+        <div class="input-wrap">
+          <span>📍</span>
+          <input id="pickup" type="text" placeholder="Enter pickup address" />
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label class="input-label">Dropoff location</label>
+        <div class="input-wrap">
+          <span>🏁</span>
+          <input id="dropoff" type="text" placeholder="Enter destination address" />
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label class="input-label">Ride type</label>
+        <div class="input-wrap">
+          <span>🚘</span>
+          <select id="rideType">
+            <option value="standard">Standard Ride</option>
+            <option value="comfort">Comfort Ride</option>
+            <option value="xl">XL Ride</option>
+            <option value="priority">Priority Ride</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="button-row">
+        <button class="secondary-btn" onclick="estimateFare()">Estimate Fare</button>
+        <button class="primary-btn" onclick="requestRide()">Request Ride</button>
+      </div>
+
+      <div id="statusText" class="status-text">
+        Enter your trip details to see an estimated fare and request your ride.
+      </div>
+
+      <div class="fare-box">
+        <h4>Trip details</h4>
+        <div id="fareOutput" class="fare-placeholder">
+          Fare details will appear here.
+        </div>
+      </div>
+    </section>
+
+    <section class="bottom-cards">
+      <div class="mini-card">
+        <div class="mini-card-left">
+          <h4>Safety first</h4>
+          <p>Verified drivers, secure trips, and platform upgrades ready for the next level.</p>
+        </div>
+        <div class="mini-card-icon">🛡️</div>
+      </div>
+
+      <div class="mini-card">
+        <div class="mini-card-left">
+          <h4>Grow into a super app</h4>
+          <p>Rides today. Food, grocery, and local delivery next.</p>
+        </div>
+        <div class="mini-card-icon">⚙️</div>
+      </div>
+    </section>
   </div>
 
+  <nav class="bottom-nav">
+    <a href="/" class="nav-item active">
+      <div>🏠</div>
+      <div>Home</div>
+    </a>
+    <a href="/driver.html" class="nav-item">
+      <div>🚖</div>
+      <div>Driver</div>
+    </a>
+    <a href="/admin.html" class="nav-item">
+      <div>🛠️</div>
+      <div>Admin</div>
+    </a>
+    <a href="/account.html" class="nav-item">
+      <div>👤</div>
+      <div>Account</div>
+    </a>
+  </nav>
+
   <script>
-    let lastFare = null
-    let currentRideId = null
-    let liveTimer = null
+    function estimateFare() {
+      const pickup = document.getElementById('pickup').value.trim()
+      const dropoff = document.getElementById('dropoff').value.trim()
+      const rideType = document.getElementById('rideType').value
+      const fareOutput = document.getElementById('fareOutput')
+      const statusText = document.getElementById('statusText')
 
-    let pickupLat = null
-    let pickupLng = null
-    let gpsReady = false
-
-    function setResult(message) {
-      document.getElementById('result').innerHTML = message
-    }
-
-    async function useMyLocation() {
-      if (!navigator.geolocation) {
-        setResult('GPS is not supported on this device.')
+      if (!pickup || !dropoff) {
+        statusText.textContent = 'Please enter both pickup and dropoff locations.'
+        fareOutput.innerHTML = 'Waiting for valid trip details.'
         return
       }
 
-      setResult('Getting your current location...')
+      let baseFare = 12
+      if (rideType === 'comfort') baseFare = 18
+      if (rideType === 'xl') baseFare = 24
+      if (rideType === 'priority') baseFare = 28
 
-      navigator.geolocation.getCurrentPosition(
-        position => {
-          pickupLat = position.coords.latitude
-          pickupLng = position.coords.longitude
-          gpsReady = true
+      const estimatedMiles = Math.floor(Math.random() * 9) + 3
+      const estimatedMinutes = estimatedMiles * 4
+      const totalFare = (baseFare + estimatedMiles * 2.25).toFixed(2)
 
-          const pickupInput = document.getElementById('pickup')
-          if (!pickupInput.value.trim()) {
-            pickupInput.value = 'Current Location'
-          }
-
-          setResult(`
-            <div class="status success">GPS Ready</div>
-            <div>Pickup coordinates captured successfully.</div>
-            <div class="muted">Lat: ${pickupLat.toFixed(6)}</div>
-            <div class="muted">Lng: ${pickupLng.toFixed(6)}</div>
-          `)
-        },
-        error => {
-          gpsReady = false
-
-          let message = 'Could not get your location.'
-          if (error.code === 1) message = 'Location permission was denied.'
-          if (error.code === 2) message = 'Location unavailable right now.'
-          if (error.code === 3) message = 'Location request timed out.'
-
-          setResult(message)
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0
-        }
-      )
-    }
-
-    async function estimateFare() {
-      try {
-        const rideType = document.getElementById('rideType').value
-
-        const res = await fetch('/estimate-fare', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            distance: 10,
-            duration: 20,
-            rideType: rideType
-          })
-        })
-
-        const data = await res.json()
-
-        if (!data.success) {
-          setResult(data.message || 'Could not estimate fare.')
-          return
-        }
-
-        lastFare = data
-
-        setResult(`
-          <div>Distance: ${data.distance} miles</div>
-          <div>ETA: ${data.duration} min</div>
-          <br>
-          <div>Base: $${data.fare.base}</div>
-          <div>Distance: $${data.fare.distanceCharge}</div>
-          <div>Time: $${data.fare.timeCharge}</div>
-          <div>Booking: $${data.fare.booking}</div>
-          <div>Service: $${data.fare.service}</div>
-          <br>
-          <b>Total: $${data.fare.total}</b>
-        `)
-      } catch (e) {
-        setResult('Estimate fare failed.')
-      }
+      statusText.textContent = 'Estimated fare ready. Review trip details below.'
+      fareOutput.innerHTML = `
+        <div style="display:grid; gap:10px;">
+          <div><strong>Pickup:</strong> ${pickup}</div>
+          <div><strong>Dropoff:</strong> ${dropoff}</div>
+          <div><strong>Ride Type:</strong> ${rideType.charAt(0).toUpperCase() + rideType.slice(1)}</div>
+          <div><strong>Estimated Distance:</strong> ${estimatedMiles} miles</div>
+          <div><strong>Estimated Time:</strong> ${estimatedMinutes} mins</div>
+          <div style="font-size:1.15rem; color:#4ade80;"><strong>Estimated Fare: $${totalFare}</strong></div>
+        </div>
+      `
     }
 
     async function requestRide() {
+      const pickup = document.getElementById('pickup').value.trim()
+      const dropoff = document.getElementById('dropoff').value.trim()
+      const rideType = document.getElementById('rideType').value
+      const statusText = document.getElementById('statusText')
+
+      if (!pickup || !dropoff) {
+        statusText.textContent = 'Please enter both pickup and dropoff locations before requesting.'
+        return
+      }
+
+      statusText.textContent = 'Submitting your ride request...'
+
       try {
-        stopLivePolling()
-
-        const pickup = document.getElementById('pickup').value.trim()
-        const dropoff = document.getElementById('dropoff').value.trim()
-        const rideType = document.getElementById('rideType').value
-
-        if (!pickup || !dropoff) {
-          setResult('Please enter both pickup and dropoff locations.')
-          return
-        }
-
-        if (!gpsReady || pickupLat === null || pickupLng === null) {
-          setResult('Please tap "Use My Current Location" first.')
-          return
-        }
-
-        const res = await fetch('/request-ride', {
+        const response = await fetch('/api/request-ride', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json'
+          },
           body: JSON.stringify({
-            pickup: pickup,
-            dropoff: dropoff,
-            pickupLat: pickupLat,
-            pickupLng: pickupLng,
-            dropoffLat: 36.1245,
-            dropoffLng: -86.7093,
-            distance: lastFare?.distance || 10,
-            duration: lastFare?.duration || 20,
-            rideType: rideType
+            pickup,
+            dropoff,
+            rideType
           })
         })
 
-        const data = await res.json()
+        const data = await response.json()
 
-        if (!data.success) {
-          setResult(data.message || 'Request failed.')
-          document.getElementById('cancelBtn').style.display = 'none'
-          return
-        }
-
-        currentRideId = data.ride.id
-        document.getElementById('cancelBtn').style.display = 'block'
-
-        renderRide(data.ride)
-        startLivePolling()
-      } catch (e) {
-        setResult('Server error while requesting ride.')
-      }
-    }
-
-    function renderRide(ride) {
-      const driver = ride.driver || {}
-      const fare = ride.fare || {}
-      const trip = ride.trip || {}
-
-      setResult(`
-        <div class="status">${ride.statusLabel || ride.status || 'Ride update'}</div>
-
-        <div><b>${driver.name || 'Driver assigned'}</b></div>
-        <div>${driver.vehicle || ''}</div>
-        <div>Plate: ${driver.plate || ''}</div>
-        <div>Phone: ${driver.phone || ''}</div>
-        <div>ETA: ${driver.etaMinutes ?? '--'} min</div>
-        <div>${driver.distanceAway ?? '--'} miles away</div>
-        <br>
-
-        <div>Pickup: ${ride.pickup || ''}</div>
-        <div>Dropoff: ${ride.dropoff || ''}</div>
-        <div>Ride Type: ${ride.rideType || ''}</div>
-        <div>Remaining Miles: ${trip.remainingMiles ?? '--'}</div>
-        <br>
-
-        <div class="muted">Driver Location: ${driver.lat ?? '--'}, ${driver.lng ?? '--'}</div>
-        <br>
-
-        <b>Total: $${fare.total || '0.00'}</b>
-      `)
-
-      if (ride.status === 'completed' || ride.status === 'cancelled') {
-        stopLivePolling()
-        document.getElementById('cancelBtn').style.display = 'none'
-      }
-    }
-
-    async function pollRide() {
-      if (!currentRideId) return
-
-      try {
-        const res = await fetch(`/rides/${currentRideId}/live`)
-        const data = await res.json()
-
-        if (!data.success) {
-          stopLivePolling()
-          return
-        }
-
-        renderRide(data.ride)
-      } catch (e) {
-        stopLivePolling()
-      }
-    }
-
-    function startLivePolling() {
-      stopLivePolling()
-      liveTimer = setInterval(pollRide, 3000)
-    }
-
-    function stopLivePolling() {
-      if (liveTimer) {
-        clearInterval(liveTimer)
-        liveTimer = null
-      }
-    }
-
-    async function cancelRide() {
-      if (!currentRideId) return
-
-      try {
-        const res = await fetch(`/rides/${currentRideId}/cancel`, {
-          method: 'POST'
-        })
-
-        const data = await res.json()
-
-        if (data.success) {
-          renderRide(data.ride)
+        if (response.ok) {
+          statusText.textContent = data.message || 'Ride requested successfully. Searching for nearby drivers now.'
         } else {
-          setResult(data.message || 'Could not cancel ride.')
+          statusText.textContent = data.error || 'Unable to request ride right now.'
         }
-      } catch (e) {
-        setResult('Could not cancel ride.')
+      } catch (error) {
+        statusText.textContent = 'Server error. Please try again in a moment.'
       }
     }
   </script>
