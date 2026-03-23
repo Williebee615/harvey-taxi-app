@@ -13,7 +13,7 @@ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto;
 }
 
 body{
-background:linear-gradient(180deg,#000000,#050505);
+background:#000;
 color:white;
 }
 
@@ -23,57 +23,12 @@ margin:auto;
 padding:20px;
 }
 
-/* HEADER */
-
-.header{
-margin-bottom:20px;
-}
-
 .logo{
 font-size:42px;
 font-weight:800;
 line-height:1.1;
+margin-bottom:20px;
 }
-
-/* HERO */
-
-.hero{
-background:#020617;
-padding:18px;
-border-radius:20px;
-margin-bottom:14px;
-border:1px solid #111827;
-}
-
-.hero h2{
-font-size:20px;
-margin-bottom:5px;
-}
-
-.hero p{
-color:#9ca3af;
-font-size:14px;
-}
-
-/* SERVICES */
-
-.services{
-display:grid;
-grid-template-columns:repeat(4,1fr);
-gap:10px;
-margin-bottom:14px;
-}
-
-.service{
-background:#020617;
-border-radius:14px;
-padding:12px;
-text-align:center;
-font-size:12px;
-border:1px solid #111827;
-}
-
-/* CARD */
 
 .card{
 background:#020617;
@@ -86,8 +41,6 @@ border:1px solid #111827;
 margin-bottom:12px;
 font-size:22px;
 }
-
-/* INPUT */
 
 .input{
 margin-bottom:10px;
@@ -102,8 +55,6 @@ border:1px solid #111827;
 background:#020617;
 color:white;
 }
-
-/* BUTTON */
 
 .btn{
 width:100%;
@@ -124,15 +75,11 @@ background:#22c55e;
 color:white;
 }
 
-/* STATUS */
-
 .status{
 margin-top:10px;
 font-size:14px;
 color:#9ca3af;
 }
-
-/* FARE */
 
 .fare{
 margin-top:10px;
@@ -141,127 +88,91 @@ padding:12px;
 border-radius:14px;
 border:1px solid #111827;
 }
-
 </style>
-</head>
-<body>
-<div class="container">
-<div class="header">
-<div class="logo">
-Harvey<br>
-Taxi
-</div>
-<div class="header">
-<div class="logo">
-Harvey<br>
-Taxi
-</div>
-</div>
-<div class="hero">
-<h2>Ride smarter</h2>
-<p>Fast rides, deliveries, groceries and more.</p>
-</div>
-<div class="services">
-<div class="service">🚕 Ride</div>
-<div class="service">🍔 Food</div>
-<div class="service">🛒 Grocery</div>
-<div class="service">📦 Delivery</div>
-</div>
-<div class="card">
-<h3>Request Pickup</h3>
-<div class="input">
-<input id="pickup" placeholder="Pickup location">
-</div>
-<div class="input">
-<input id="dropoff" placeholder="Dropoff location">
-</div>
-<div class="input">
-<select id="rideType">
-<option value="standard">Standard Ride</option>
-<option value="comfort">Comfort Ride</option>
-<option value="xl">XL Ride</option>
-<option value="priority">Priority Ride</option>
-</select>
-</div>
-<button class="btn estimate" onclick="estimateFare()">
-Estimate Fare
-</button>
-<button class="btn request" onclick="requestRide()">
-Request Ride
-</button>
-<div id="status" class="status">
-Enter pickup and dropoff to begin.
-</div>
-<div id="fare" class="fare">
-Fare details will appear here.
-</div>
-</div>
-</div>
-<script>
-
-function estimateFare(){
-
-const pickup=document.getElementById("pickup").value
-const dropoff=document.getElementById("dropoff").value
-const rideType=document.getElementById("rideType").value
-
-if(!pickup||!dropoff){
-document.getElementById("status").innerText="Enter pickup and dropoff"
-return
+<style>
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto;
 }
 
-let base=10
-
-if(rideType==="comfort") base=15
-if(rideType==="xl") base=20
-if(rideType==="priority") base=25
-
-let miles=Math.floor(Math.random()*8)+2
-let total=(base+miles*2.5).toFixed(2)
-
-document.getElementById("fare").innerHTML=
-"Estimated distance: "+miles+" miles<br>"+
-"Ride type: "+rideType+"<br>"+
-"<strong>Estimated fare: $"+total+"</strong>"
-
-document.getElementById("status").innerText="Fare estimated"
-
+body{
+background:#000;
+color:white;
 }
 
-async function requestRide(){
-
-const pickup=document.getElementById("pickup").value
-const dropoff=document.getElementById("dropoff").value
-const rideType=document.getElementById("rideType").value
-
-document.getElementById("status").innerText="Searching drivers..."
-
-try{
-
-const res=await fetch("/api/request-ride",{
-method:"POST",
-headers:{
-"Content-Type":"application/json"
-},
-body:JSON.stringify({
-pickup,
-dropoff,
-rideType
-})
-})
-
-const data=await res.json()
-
-document.getElementById("status").innerText=data.message||"Ride requested"
-
-}catch(e){
-
-document.getElementById("status").innerText="Server error"
-
+.container{
+max-width:420px;
+margin:auto;
+padding:20px;
 }
 
+.logo{
+font-size:42px;
+font-weight:800;
+line-height:1.1;
+margin-bottom:20px;
 }
 
-</script>
+.card{
+background:#020617;
+padding:20px;
+border-radius:24px;
+border:1px solid #111827;
+}
+
+.card h3{
+margin-bottom:12px;
+font-size:22px;
+}
+
+.input{
+margin-bottom:10px;
+}
+
+.input input,
+.input select{
+width:100%;
+padding:15px;
+border-radius:14px;
+border:1px solid #111827;
+background:#020617;
+color:white;
+}
+
+.btn{
+width:100%;
+padding:16px;
+border-radius:14px;
+border:none;
+font-weight:600;
+margin-top:8px;
+}
+
+.estimate{
+background:#1f2937;
+color:white;
+}
+
+.request{
+background:#22c55e;
+color:white;
+}
+
+.status{
+margin-top:10px;
+font-size:14px;
+color:#9ca3af;
+}
+
+.fare{
+margin-top:10px;
+background:#020617;
+padding:12px;
+border-radius:14px;
+border:1px solid #111827;
+}
+</style>
 </body>
 </html>
