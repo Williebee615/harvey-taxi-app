@@ -143,3 +143,125 @@ border:1px solid #111827;
 }
 
 </style>
+</head>
+<body>
+<div class="container">
+<div class="header">
+<div class="logo">
+Harvey<br>
+Taxi
+</div>
+<div class="header">
+<div class="logo">
+Harvey<br>
+Taxi
+</div>
+</div>
+<div class="hero">
+<h2>Ride smarter</h2>
+<p>Fast rides, deliveries, groceries and more.</p>
+</div>
+<div class="services">
+<div class="service">🚕 Ride</div>
+<div class="service">🍔 Food</div>
+<div class="service">🛒 Grocery</div>
+<div class="service">📦 Delivery</div>
+</div>
+<div class="card">
+<h3>Request Pickup</h3>
+<div class="input">
+<input id="pickup" placeholder="Pickup location">
+</div>
+<div class="input">
+<input id="dropoff" placeholder="Dropoff location">
+</div>
+<div class="input">
+<select id="rideType">
+<option value="standard">Standard Ride</option>
+<option value="comfort">Comfort Ride</option>
+<option value="xl">XL Ride</option>
+<option value="priority">Priority Ride</option>
+</select>
+</div>
+<button class="btn estimate" onclick="estimateFare()">
+Estimate Fare
+</button>
+<button class="btn request" onclick="requestRide()">
+Request Ride
+</button>
+<div id="status" class="status">
+Enter pickup and dropoff to begin.
+</div>
+<div id="fare" class="fare">
+Fare details will appear here.
+</div>
+</div>
+</div>
+<script>
+
+function estimateFare(){
+
+const pickup=document.getElementById("pickup").value
+const dropoff=document.getElementById("dropoff").value
+const rideType=document.getElementById("rideType").value
+
+if(!pickup||!dropoff){
+document.getElementById("status").innerText="Enter pickup and dropoff"
+return
+}
+
+let base=10
+
+if(rideType==="comfort") base=15
+if(rideType==="xl") base=20
+if(rideType==="priority") base=25
+
+let miles=Math.floor(Math.random()*8)+2
+let total=(base+miles*2.5).toFixed(2)
+
+document.getElementById("fare").innerHTML=
+"Estimated distance: "+miles+" miles<br>"+
+"Ride type: "+rideType+"<br>"+
+"<strong>Estimated fare: $"+total+"</strong>"
+
+document.getElementById("status").innerText="Fare estimated"
+
+}
+
+async function requestRide(){
+
+const pickup=document.getElementById("pickup").value
+const dropoff=document.getElementById("dropoff").value
+const rideType=document.getElementById("rideType").value
+
+document.getElementById("status").innerText="Searching drivers..."
+
+try{
+
+const res=await fetch("/api/request-ride",{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+pickup,
+dropoff,
+rideType
+})
+})
+
+const data=await res.json()
+
+document.getElementById("status").innerText=data.message||"Ride requested"
+
+}catch(e){
+
+document.getElementById("status").innerText="Server error"
+
+}
+
+}
+
+</script>
+</body>
+</html>
