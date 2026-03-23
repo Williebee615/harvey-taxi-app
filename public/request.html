@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Harvey Taxi</title>
+  <title>Harvey Taxi - Request Ride</title>
   <style>
     * {
       box-sizing: border-box;
@@ -13,19 +13,20 @@
     }
 
     body {
-      background:
-        radial-gradient(circle at top left, rgba(52, 211, 153, 0.12), transparent 28%),
-        radial-gradient(circle at top right, rgba(59, 130, 246, 0.10), transparent 26%),
-        linear-gradient(180deg, #050505 0%, #0b0b0f 45%, #111117 100%);
-      color: #ffffff;
       min-height: 100vh;
+      background:
+        radial-gradient(circle at top left, rgba(34, 197, 94, 0.12), transparent 28%),
+        radial-gradient(circle at top right, rgba(59, 130, 246, 0.10), transparent 24%),
+        linear-gradient(180deg, #030303 0%, #09090d 45%, #111118 100%);
+      color: white;
     }
 
     .app-shell {
+      width: 100%;
       max-width: 460px;
       margin: 0 auto;
       min-height: 100vh;
-      padding: 24px 18px 120px;
+      padding: 22px 18px 120px;
       position: relative;
     }
 
@@ -33,7 +34,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 26px;
+      margin-bottom: 22px;
     }
 
     .brand {
@@ -42,65 +43,66 @@
       gap: 12px;
     }
 
-    .brand-badge {
-      width: 48px;
-      height: 48px;
-      border-radius: 16px;
-      background: linear-gradient(135deg, #22c55e, #06b6d4);
+    .brand-logo {
+      width: 52px;
+      height: 52px;
+      border-radius: 18px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 22px;
-      box-shadow: 0 14px 35px rgba(34, 197, 94, 0.25);
+      background: linear-gradient(135deg, #22c55e, #06b6d4);
+      box-shadow: 0 16px 40px rgba(34, 197, 94, 0.3);
+      font-size: 24px;
     }
 
     .brand-text h1 {
-      font-size: 1.4rem;
+      font-size: 1.5rem;
       font-weight: 800;
-      letter-spacing: -0.03em;
+      letter-spacing: -0.04em;
+      line-height: 1;
     }
 
     .brand-text p {
-      color: #9ca3af;
-      font-size: 0.88rem;
-      margin-top: 2px;
+      margin-top: 5px;
+      font-size: 0.87rem;
+      color: #a1a1aa;
     }
 
-    .profile-btn {
-      width: 44px;
-      height: 44px;
+    .menu-btn {
+      width: 46px;
+      height: 46px;
       border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 14px;
-      background: rgba(255,255,255,0.04);
+      border-radius: 15px;
+      background: rgba(255,255,255,0.05);
       color: white;
+      font-size: 18px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 18px;
-      backdrop-filter: blur(8px);
+      backdrop-filter: blur(10px);
     }
 
-    .hero {
-      border-radius: 28px;
-      padding: 24px;
-      background:
-        linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03)),
-        linear-gradient(135deg, rgba(34,197,94,0.18), rgba(6,182,212,0.08));
-      border: 1px solid rgba(255,255,255,0.08);
-      box-shadow: 0 20px 50px rgba(0,0,0,0.35);
-      margin-bottom: 18px;
+    .hero-card {
       position: relative;
       overflow: hidden;
+      border-radius: 28px;
+      padding: 24px;
+      margin-bottom: 18px;
+      background:
+        linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03)),
+        linear-gradient(135deg, rgba(34,197,94,0.18), rgba(6,182,212,0.10));
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 0 22px 55px rgba(0,0,0,0.36);
     }
 
-    .hero::after {
+    .hero-card::after {
       content: "";
       position: absolute;
-      right: -40px;
-      top: -40px;
-      width: 140px;
-      height: 140px;
+      width: 180px;
+      height: 180px;
       border-radius: 50%;
+      right: -60px;
+      top: -60px;
       background: rgba(255,255,255,0.06);
       filter: blur(10px);
     }
@@ -109,29 +111,29 @@
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      background: rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.10);
       border: 1px solid rgba(255,255,255,0.08);
-      color: #d1fae5;
+      color: #dcfce7;
       padding: 8px 12px;
       border-radius: 999px;
       font-size: 0.82rem;
       margin-bottom: 14px;
     }
 
-    .hero h2 {
+    .hero-title {
       font-size: 2rem;
-      line-height: 1.05;
+      line-height: 1.04;
       font-weight: 800;
-      letter-spacing: -0.04em;
-      margin-bottom: 10px;
+      letter-spacing: -0.05em;
       max-width: 280px;
+      margin-bottom: 10px;
     }
 
-    .hero p {
-      color: #d1d5db;
+    .hero-subtitle {
+      color: #d4d4d8;
+      font-size: 0.95rem;
       line-height: 1.55;
-      font-size: 0.96rem;
-      max-width: 320px;
+      max-width: 330px;
       margin-bottom: 18px;
     }
 
@@ -142,10 +144,10 @@
     }
 
     .hero-stat {
+      padding: 12px;
+      border-radius: 18px;
       background: rgba(0,0,0,0.22);
       border: 1px solid rgba(255,255,255,0.06);
-      border-radius: 18px;
-      padding: 12px;
     }
 
     .hero-stat strong {
@@ -155,45 +157,45 @@
     }
 
     .hero-stat span {
-      color: #9ca3af;
       font-size: 0.78rem;
+      color: #a1a1aa;
     }
 
-    .quick-services {
+    .service-row {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: 10px;
       margin-bottom: 18px;
     }
 
-    .service-chip {
+    .service-card {
+      padding: 14px 8px;
+      border-radius: 20px;
+      text-align: center;
       background: rgba(255,255,255,0.045);
       border: 1px solid rgba(255,255,255,0.06);
-      border-radius: 20px;
-      padding: 14px 8px;
-      text-align: center;
       backdrop-filter: blur(10px);
     }
 
-    .service-chip .icon {
-      font-size: 20px;
+    .service-card .icon {
+      font-size: 21px;
       margin-bottom: 8px;
     }
 
-    .service-chip div:last-child {
+    .service-card .label {
+      color: #f4f4f5;
       font-size: 0.78rem;
-      color: #e5e7eb;
       line-height: 1.2;
     }
 
     .ride-card {
-      background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.025));
-      border: 1px solid rgba(255,255,255,0.08);
       border-radius: 30px;
       padding: 20px;
-      box-shadow: 0 18px 45px rgba(0,0,0,0.35);
-      backdrop-filter: blur(12px);
       margin-bottom: 18px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.03));
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 0 18px 45px rgba(0,0,0,0.34);
+      backdrop-filter: blur(12px);
     }
 
     .ride-card-header {
@@ -203,27 +205,28 @@
       margin-bottom: 16px;
     }
 
-    .ride-card-header h3 {
-      font-size: 1.4rem;
+    .ride-card-header h2 {
+      font-size: 1.45rem;
       font-weight: 800;
       letter-spacing: -0.03em;
     }
 
-    .live-dot {
+    .live-indicator {
       display: inline-flex;
       align-items: center;
       gap: 7px;
       color: #86efac;
       font-size: 0.82rem;
+      font-weight: 600;
     }
 
-    .live-dot::before {
+    .live-indicator::before {
       content: "";
       width: 9px;
       height: 9px;
       border-radius: 50%;
       background: #22c55e;
-      box-shadow: 0 0 14px #22c55e;
+      box-shadow: 0 0 12px #22c55e;
     }
 
     .input-group {
@@ -232,38 +235,39 @@
 
     .input-label {
       display: block;
-      color: #9ca3af;
-      font-size: 0.82rem;
       margin-bottom: 8px;
       padding-left: 4px;
+      font-size: 0.82rem;
+      color: #a1a1aa;
     }
 
     .input-wrap {
       position: relative;
     }
 
-    .input-wrap span {
+    .input-icon {
       position: absolute;
-      left: 14px;
       top: 50%;
+      left: 14px;
       transform: translateY(-50%);
       font-size: 16px;
-      opacity: 0.9;
+      opacity: 0.95;
     }
 
-    input, select {
+    input,
+    select {
       width: 100%;
       border: 1px solid rgba(255,255,255,0.06);
-      background: rgba(10,12,22,0.92);
+      background: rgba(8, 10, 20, 0.95);
       color: white;
       border-radius: 18px;
       padding: 16px 16px 16px 42px;
-      font-size: 1rem;
       outline: none;
+      font-size: 1rem;
     }
 
     input::placeholder {
-      color: #6b7280;
+      color: #71717a;
     }
 
     select {
@@ -271,7 +275,7 @@
       cursor: pointer;
     }
 
-    .button-row {
+    .btn-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 12px;
@@ -286,115 +290,116 @@
       font-size: 1rem;
       font-weight: 800;
       cursor: pointer;
-      transition: 0.2s ease;
+      transition: transform 0.15s ease, opacity 0.15s ease;
     }
 
     button:active {
       transform: scale(0.98);
     }
 
-    .secondary-btn {
+    .btn-secondary {
       background: rgba(255,255,255,0.08);
-      color: #fff;
+      color: white;
       border: 1px solid rgba(255,255,255,0.06);
     }
 
-    .primary-btn {
+    .btn-primary {
       background: linear-gradient(135deg, #22c55e, #16a34a);
       color: white;
-      box-shadow: 0 14px 30px rgba(34, 197, 94, 0.25);
+      box-shadow: 0 14px 30px rgba(34, 197, 94, 0.28);
     }
 
-    .status-text {
-      color: #d1d5db;
+    .status-box {
+      margin: 8px 2px 14px;
+      color: #d4d4d8;
       font-size: 0.95rem;
-      margin: 6px 4px 14px;
-      line-height: 1.4;
+      line-height: 1.45;
     }
 
     .fare-box {
-      background: rgba(9, 13, 27, 0.92);
-      border: 1px solid rgba(255,255,255,0.06);
+      background: rgba(8, 12, 24, 0.92);
       border-radius: 22px;
+      border: 1px solid rgba(255,255,255,0.06);
       padding: 16px;
     }
 
-    .fare-box h4 {
+    .fare-box h3 {
       font-size: 0.95rem;
-      color: #9ca3af;
+      color: #a1a1aa;
       margin-bottom: 12px;
       font-weight: 600;
     }
 
     .fare-placeholder {
-      color: #6b7280;
+      color: #71717a;
       font-size: 0.95rem;
       line-height: 1.5;
     }
 
-    .bottom-cards {
+    .info-stack {
       display: grid;
       gap: 14px;
     }
 
-    .mini-card {
+    .info-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
       border-radius: 24px;
+      padding: 16px;
       background: rgba(255,255,255,0.045);
       border: 1px solid rgba(255,255,255,0.06);
-      padding: 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
     }
 
-    .mini-card-left h4 {
+    .info-card h4 {
       font-size: 1rem;
       margin-bottom: 6px;
     }
 
-    .mini-card-left p {
-      color: #9ca3af;
+    .info-card p {
+      color: #a1a1aa;
       font-size: 0.87rem;
       line-height: 1.45;
     }
 
-    .mini-card-icon {
+    .info-icon {
+      min-width: 48px;
       width: 48px;
       height: 48px;
       border-radius: 16px;
-      background: rgba(34,197,94,0.12);
       display: flex;
       align-items: center;
       justify-content: center;
+      background: rgba(34,197,94,0.12);
       font-size: 22px;
     }
 
     .bottom-nav {
       position: fixed;
       left: 50%;
-      transform: translateX(-50%);
       bottom: 16px;
+      transform: translateX(-50%);
       width: calc(100% - 26px);
       max-width: 430px;
       padding: 12px 10px;
       border-radius: 24px;
-      background: rgba(10, 10, 14, 0.9);
+      background: rgba(9, 9, 14, 0.92);
       border: 1px solid rgba(255,255,255,0.08);
       backdrop-filter: blur(14px);
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: 8px;
-      z-index: 100;
+      z-index: 10;
     }
 
     .nav-item {
-      text-align: center;
-      color: #9ca3af;
-      font-size: 0.78rem;
       text-decoration: none;
+      color: #a1a1aa;
+      text-align: center;
       padding: 8px 4px;
       border-radius: 16px;
+      font-size: 0.78rem;
     }
 
     .nav-item.active {
@@ -402,25 +407,25 @@
       color: #dcfce7;
     }
 
-    .nav-item div:first-child {
+    .nav-item .icon {
       font-size: 18px;
       margin-bottom: 5px;
     }
 
     @media (max-width: 420px) {
-      .hero h2 {
+      .hero-title {
         font-size: 1.8rem;
-      }
-
-      .quick-services {
-        grid-template-columns: repeat(2, 1fr);
       }
 
       .hero-stats {
         grid-template-columns: 1fr;
       }
 
-      .button-row {
+      .service-row {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .btn-row {
         grid-template-columns: 1fr;
       }
     }
@@ -430,220 +435,16 @@
   <div class="app-shell">
     <div class="topbar">
       <div class="brand">
-        <div class="brand-badge">🚕</div>
+        <div class="brand-logo">🚕</div>
         <div class="brand-text">
           <h1>Harvey Taxi</h1>
-          <p>Fast rides, local delivery, premium service</p>
+          <p>Fast rides. Local delivery. Real growth.</p>
         </div>
       </div>
-      <button class="profile-btn">☰</button>
+      <button class="menu-btn" type="button">☰</button>
     </div>
 
-    <section class="hero">
-      <div class="hero-badge">⚡ Live drivers available nearby</div>
-      <h2>Ride smarter around your city</h2>
-      <p>
-        Book local rides, deliveries, groceries, and more with a premium dark-mode experience built for Harvey Taxi.
-      </p>
-
-      <div class="hero-stats">
-        <div class="hero-stat">
-          <strong>24/7</strong>
-          <span>Service ready</span>
-        </div>
-        <div class="hero-stat">
-          <strong>Fast</strong>
-          <span>Driver matching</span>
-        </div>
-        <div class="hero-stat">
-          <strong>Safe</strong>
-          <span>Verified platform</span>
-        </div>
-      </div>
-    </section>
-
-    <section class="quick-services">
-      <div class="service-chip">
-        <div class="icon">🚕</div>
-        <div>Taxi Ride</div>
-      </div>
-      <div class="service-chip">
-        <div class="icon">🍔</div>
-        <div>Food</div>
-      </div>
-      <div class="service-chip">
-        <div class="icon">🛒</div>
-        <div>Groceries</div>
-      </div>
-      <div class="service-chip">
-        <div class="icon">📦</div>
-        <div>Delivery</div>
-      </div>
-    </section>
-
-    <section class="ride-card">
-      <div class="ride-card-header">
-        <h3>Request Pickup</h3>
-        <div class="live-dot">Live</div>
-      </div>
-
-      <div class="input-group">
-        <label class="input-label">Pickup location</label>
-        <div class="input-wrap">
-          <span>📍</span>
-          <input id="pickup" type="text" placeholder="Enter pickup address" />
-        </div>
-      </div>
-
-      <div class="input-group">
-        <label class="input-label">Dropoff location</label>
-        <div class="input-wrap">
-          <span>🏁</span>
-          <input id="dropoff" type="text" placeholder="Enter destination address" />
-        </div>
-      </div>
-
-      <div class="input-group">
-        <label class="input-label">Ride type</label>
-        <div class="input-wrap">
-          <span>🚘</span>
-          <select id="rideType">
-            <option value="standard">Standard Ride</option>
-            <option value="comfort">Comfort Ride</option>
-            <option value="xl">XL Ride</option>
-            <option value="priority">Priority Ride</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="button-row">
-        <button class="secondary-btn" onclick="estimateFare()">Estimate Fare</button>
-        <button class="primary-btn" onclick="requestRide()">Request Ride</button>
-      </div>
-
-      <div id="statusText" class="status-text">
-        Enter your trip details to see an estimated fare and request your ride.
-      </div>
-
-      <div class="fare-box">
-        <h4>Trip details</h4>
-        <div id="fareOutput" class="fare-placeholder">
-          Fare details will appear here.
-        </div>
-      </div>
-    </section>
-
-    <section class="bottom-cards">
-      <div class="mini-card">
-        <div class="mini-card-left">
-          <h4>Safety first</h4>
-          <p>Verified drivers, secure trips, and platform upgrades ready for the next level.</p>
-        </div>
-        <div class="mini-card-icon">🛡️</div>
-      </div>
-
-      <div class="mini-card">
-        <div class="mini-card-left">
-          <h4>Grow into a super app</h4>
-          <p>Rides today. Food, grocery, and local delivery next.</p>
-        </div>
-        <div class="mini-card-icon">⚙️</div>
-      </div>
-    </section>
-  </div>
-
-  <nav class="bottom-nav">
-    <a href="/" class="nav-item active">
-      <div>🏠</div>
-      <div>Home</div>
-    </a>
-    <a href="/driver.html" class="nav-item">
-      <div>🚖</div>
-      <div>Driver</div>
-    </a>
-    <a href="/admin.html" class="nav-item">
-      <div>🛠️</div>
-      <div>Admin</div>
-    </a>
-    <a href="/account.html" class="nav-item">
-      <div>👤</div>
-      <div>Account</div>
-    </a>
-  </nav>
-
-  <script>
-    function estimateFare() {
-      const pickup = document.getElementById('pickup').value.trim()
-      const dropoff = document.getElementById('dropoff').value.trim()
-      const rideType = document.getElementById('rideType').value
-      const fareOutput = document.getElementById('fareOutput')
-      const statusText = document.getElementById('statusText')
-
-      if (!pickup || !dropoff) {
-        statusText.textContent = 'Please enter both pickup and dropoff locations.'
-        fareOutput.innerHTML = 'Waiting for valid trip details.'
-        return
-      }
-
-      let baseFare = 12
-      if (rideType === 'comfort') baseFare = 18
-      if (rideType === 'xl') baseFare = 24
-      if (rideType === 'priority') baseFare = 28
-
-      const estimatedMiles = Math.floor(Math.random() * 9) + 3
-      const estimatedMinutes = estimatedMiles * 4
-      const totalFare = (baseFare + estimatedMiles * 2.25).toFixed(2)
-
-      statusText.textContent = 'Estimated fare ready. Review trip details below.'
-      fareOutput.innerHTML = `
-        <div style="display:grid; gap:10px;">
-          <div><strong>Pickup:</strong> ${pickup}</div>
-          <div><strong>Dropoff:</strong> ${dropoff}</div>
-          <div><strong>Ride Type:</strong> ${rideType.charAt(0).toUpperCase() + rideType.slice(1)}</div>
-          <div><strong>Estimated Distance:</strong> ${estimatedMiles} miles</div>
-          <div><strong>Estimated Time:</strong> ${estimatedMinutes} mins</div>
-          <div style="font-size:1.15rem; color:#4ade80;"><strong>Estimated Fare: $${totalFare}</strong></div>
-        </div>
-      `
-    }
-
-    async function requestRide() {
-      const pickup = document.getElementById('pickup').value.trim()
-      const dropoff = document.getElementById('dropoff').value.trim()
-      const rideType = document.getElementById('rideType').value
-      const statusText = document.getElementById('statusText')
-
-      if (!pickup || !dropoff) {
-        statusText.textContent = 'Please enter both pickup and dropoff locations before requesting.'
-        return
-      }
-
-      statusText.textContent = 'Submitting your ride request...'
-
-      try {
-        const response = await fetch('/api/request-ride', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            pickup,
-            dropoff,
-            rideType
-          })
-        })
-
-        const data = await response.json()
-
-        if (response.ok) {
-          statusText.textContent = data.message || 'Ride requested successfully. Searching for nearby drivers now.'
-        } else {
-          statusText.textContent = data.error || 'Unable to request ride right now.'
-        }
-      } catch (error) {
-        statusText.textContent = 'Server error. Please try again in a moment.'
-      }
-    }
-  </script>
-</body>
-</html>
+    <section class="hero-card">
+      <div class="hero-badge">⚡ Drivers nearby and ready</div>
+      <div class="hero-title">Move smarter with Harvey Taxi</div>
+      <div class="
