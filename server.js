@@ -9,6 +9,8 @@ app.use(cors())
 app.use(express.json())
 app.use(express.static(path.join(__dirname, 'public')))
 
+/* DATA */
+
 let rides = []
 
 let drivers = [
@@ -44,27 +46,12 @@ lng: -86.804
 }
 ]
 
+/* FARE */
+
 const fareSettings = {
 base: 8,
 perMile: 2.25,
 booking: 2.50
-}
-
-function getDistance(lat1, lng1, lat2, lng2) {
-const R = 6371
-const dLat = (lat2-lat1) * Math.PI/180
-const dLng = (lng2-lng1) * Math.PI/180
-
-const a =
-Math.sin(dLat/2) * Math.sin(dLat/2) +
-Math.cos(lat1*Math.PI/180) *
-Math.cos(lat2*Math.PI/180) *
-Math.sin(dLng/2) *
-Math.sin(dLng/2)
-
-const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
-
-return R * c
 }
 
 /* REQUEST RIDE */
@@ -113,7 +100,7 @@ res.json(rides)
 /* ROOT */
 
 app.get('/', (req, res) => {
-res.sendFile(path.join(__dirname, 'public/index.html'))
+res.sendFile(path.join(__dirname, 'public', 'index.html'))
 })
 
 /* START SERVER */
