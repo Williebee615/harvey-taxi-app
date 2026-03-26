@@ -2,17 +2,9 @@
   "users": {
     "riders": [],
     "drivers": [],
-    "admins": [
-      {
-        "id": "admin_1",
-        "name": "Harvey Admin",
-        "email": "admin@harveytaxi.com",
-        "password": "admin123",
-        "role": "admin",
-        "createdAt": "2026-03-21T00:00:00.000Z"
-      }
-    ]
+    "admins": []
   },
+  "driversLive": [],
   "serviceRequests": [],
   "notifications": []
 }
