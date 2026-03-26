@@ -1,77 +1,334 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Request</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Harvey Taxi - Request Ride</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+    }
 
-<style>
-body{
-margin:0;
-background:#0b1220;
-color:white;
-font-family:Arial;
-}
+    body {
+      background: #0b1020;
+      color: #ffffff;
+      padding: 20px;
+    }
 
-.wrap{
-padding:20px;
-}
+    .container {
+      max-width: 760px;
+      margin: 0 auto;
+    }
 
-input{
-width:100%;
-padding:15px;
-margin-top:10px;
-border-radius:10px;
-border:none;
-}
+    .card {
+      background: #151c33;
+      border: 1px solid #253154;
+      border-radius: 18px;
+      padding: 20px;
+      margin-bottom: 18px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+    }
 
-button{
-width:100%;
-padding:15px;
-margin-top:15px;
-background:#2a6df4;
-color:white;
-border:none;
-border-radius:10px;
-font-size:16px;
-}
-</style>
+    h1, h2 {
+      margin-bottom: 14px;
+    }
+
+    p {
+      color: #c9d4ff;
+      margin-bottom: 10px;
+      line-height: 1.5;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    @media (max-width: 700px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    input, button, textarea {
+      width: 100%;
+      padding: 14px;
+      border-radius: 12px;
+      border: 1px solid #334471;
+      outline: none;
+      font-size: 16px;
+    }
+
+    input, textarea {
+      background: #0d1427;
+      color: white;
+      margin-bottom: 12px;
+    }
+
+    button {
+      border: none;
+      cursor: pointer;
+      font-weight: 700;
+      margin-top: 6px;
+    }
+
+    .btn-primary {
+      background: #2f7cff;
+      color: white;
+    }
+
+    .btn-secondary {
+      background: #1d2745;
+      color: white;
+    }
+
+    .btn-success {
+      background: #18a957;
+      color: white;
+    }
+
+    .btn-warning {
+      background: #c47b00;
+      color: white;
+    }
+
+    .btn-danger {
+      background: #d61f3b;
+      color: white;
+    }
+
+    .status {
+      padding: 14px;
+      border-radius: 12px;
+      background: #0d1427;
+      border: 1px solid #334471;
+      margin-top: 12px;
+      color: #c9d4ff;
+      line-height: 1.6;
+      white-space: pre-line;
+    }
+
+    .trip-box {
+      background: #0d1427;
+      border: 1px solid #334471;
+      border-radius: 14px;
+      padding: 16px;
+      margin-top: 14px;
+    }
+
+    .emergency-wrap {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 9999;
+    }
+
+    .emergency-btn {
+      background: #ff1d3d;
+      color: #fff;
+      border: none;
+      padding: 18px 22px;
+      border-radius: 999px;
+      box-shadow: 0 10px 22px rgba(255, 29, 61, 0.35);
+      font-size: 16px;
+      font-weight: 800;
+    }
+
+    .small {
+      font-size: 13px;
+      color: #96a7d8;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    a.link-btn {
+      display: inline-block;
+      padding: 12px 16px;
+      border-radius: 10px;
+      background: #1d2745;
+      color: white;
+      text-decoration: none;
+      margin-top: 10px;
+      font-weight: 700;
+    }
+  </style>
 </head>
-
 <body>
+  <div class="container">
+    <div class="card">
+      <h1>Harvey Taxi</h1>
+      <p>Request a ride, get matched to the nearest driver, and use the emergency button during active trips.</p>
+      <a class="link-btn" href="/admin">Open Admin Dashboard</a>
+    </div>
 
-<div class="wrap">
+    <div class="card">
+      <h2>Request a Ride</h2>
 
-<h2 id="title">Request Ride</h2>
+      <input id="riderName" placeholder="Rider name" />
+      <input id="riderPhone" placeholder="Phone number" />
+      <input id="pickupAddress" placeholder="Pickup address" value="Downtown Nashville" />
+      <input id="destinationAddress" placeholder="Destination address" value="Nashville Airport" />
 
-<input placeholder="Pickup Location"/>
-<input placeholder="Dropoff Location"/>
+      <div class="grid">
+        <input id="pickupLat" type="number" step="any" placeholder="Pickup latitude" value="36.1627" />
+        <input id="pickupLng" type="number" step="any" placeholder="Pickup longitude" value="-86.7816" />
+        <input id="destinationLat" type="number" step="any" placeholder="Destination latitude" value="36.1263" />
+        <input id="destinationLng" type="number" step="any" placeholder="Destination longitude" value="-86.6774" />
+      </div>
 
-<button onclick="requestRide()">
-Find Driver
-</button>
+      <button class="btn-primary" onclick="requestRide()">Request Ride</button>
 
-</div>
+      <div id="requestStatus" class="status">No ride requested yet.</div>
+    </div>
 
-<script>
-const params = new URLSearchParams(window.location.search)
-const type = params.get("type")
+    <div class="card">
+      <h2>Active Trip</h2>
+      <div id="tripDetails" class="trip-box">
+        No active trip yet.
+      </div>
 
-if(type === "food"){
-document.getElementById("title").innerText="Fast Food Delivery"
-}
+      <div class="grid" style="margin-top: 12px;">
+        <button class="btn-success" onclick="updateRideStatus('picked_up')">Mark Picked Up</button>
+        <button class="btn-warning" onclick="updateRideStatus('completed')">Complete Ride</button>
+      </div>
 
-if(type === "grocery"){
-document.getElementById("title").innerText="Grocery Delivery"
-}
+      <div class="small" style="margin-top: 12px;">
+        The emergency button below calls 911 and also sends an emergency alert into your Harvey Taxi admin dashboard.
+      </div>
+    </div>
+  </div>
 
-if(type === "delivery"){
-document.getElementById("title").innerText="Package Delivery"
-}
+  <div class="emergency-wrap">
+    <button id="emergencyButton" class="emergency-btn hidden" onclick="triggerEmergency()">
+      🚨 911 EMERGENCY
+    </button>
+  </div>
 
-function requestRide(){
-alert("Driver search started")
-}
-</script>
+  <script>
+    let activeRide = null
 
+    function formatTrip(ride) {
+      return `
+        <strong>Trip ID:</strong> ${ride.id}<br><br>
+        <strong>Rider:</strong> ${ride.riderName}<br>
+        <strong>Driver:</strong> ${ride.driverName}<br>
+        <strong>Car:</strong> ${ride.car}<br>
+        <strong>Plate:</strong> ${ride.plate}<br>
+        <strong>Pickup:</strong> ${ride.pickupAddress}<br>
+        <strong>Destination:</strong> ${ride.destinationAddress}<br>
+        <strong>Fare:</strong> $${ride.fare}<br>
+        <strong>Status:</strong> ${ride.status}<br>
+        <strong>Driver Distance:</strong> ${ride.driverDistanceMiles} miles away
+      `
+    }
+
+    async function requestRide() {
+      const payload = {
+        riderName: document.getElementById('riderName').value.trim(),
+        riderPhone: document.getElementById('riderPhone').value.trim(),
+        pickupAddress: document.getElementById('pickupAddress').value.trim(),
+        destinationAddress: document.getElementById('destinationAddress').value.trim(),
+        pickupLat: Number(document.getElementById('pickupLat').value),
+        pickupLng: Number(document.getElementById('pickupLng').value),
+        destinationLat: Number(document.getElementById('destinationLat').value),
+        destinationLng: Number(document.getElementById('destinationLng').value)
+      }
+
+      const statusEl = document.getElementById('requestStatus')
+
+      statusEl.textContent = 'Requesting ride...'
+
+      try {
+        const res = await fetch('/api/request-ride', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+
+        const data = await res.json()
+
+        if (!res.ok) {
+          statusEl.textContent = data.error || 'Ride request failed.'
+          return
+        }
+
+        activeRide = data.ride
+        document.getElementById('tripDetails').innerHTML = formatTrip(activeRide)
+        document.getElementById('emergencyButton').classList.remove('hidden')
+
+        statusEl.textContent =
+          `Ride assigned successfully.\nDriver: ${data.ride.driverName}\nCar: ${data.ride.car}\nPlate: ${data.ride.plate}\nFare: $${data.ride.fare}`
+      } catch (err) {
+        statusEl.textContent = 'Server error. Please try again.'
+      }
+    }
+
+    async function updateRideStatus(newStatus) {
+      if (!activeRide) {
+        alert('No active ride yet.')
+        return
+      }
+
+      try {
+        const res = await fetch(`/api/rides/${activeRide.id}/status`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: newStatus })
+        })
+
+        const data = await res.json()
+
+        if (!res.ok) {
+          alert(data.error || 'Could not update ride.')
+          return
+        }
+
+        activeRide = data.ride
+        document.getElementById('tripDetails').innerHTML = formatTrip(activeRide)
+
+        if (newStatus === 'completed' || newStatus === 'cancelled') {
+          document.getElementById('emergencyButton').classList.add('hidden')
+        }
+      } catch (err) {
+        alert('Server error.')
+      }
+    }
+
+    async function triggerEmergency() {
+      if (!activeRide) {
+        alert('No active trip found.')
+        return
+      }
+
+      const go = confirm('Call 911 and send an emergency alert to Harvey Taxi admin?')
+      if (!go) return
+
+      try {
+        await fetch('/api/emergency', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            rideId: activeRide.id,
+            riderName: activeRide.riderName,
+            driverName: activeRide.driverName,
+            car: activeRide.car,
+            plate: activeRide.plate,
+            lat: activeRide.pickupLat,
+            lng: activeRide.pickupLng,
+            note: 'Passenger triggered 911 emergency button'
+          })
+        })
+      } catch (err) {
+      }
+
+      window.location.href = 'tel:911'
+    }
+  </script>
 </body>
 </html>
