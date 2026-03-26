@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Driver Dashboard</title>
+
+<style>
+body{
+margin:0;
+background:#07152b;
+color:white;
+font-family:Arial;
+}
+
+.wrap{
+padding:20px;
+}
+
+.card{
+background:#111f3d;
+padding:20px;
+border-radius:20px;
+margin-bottom:15px;
+}
+
+button{
+width:100%;
+padding:15px;
+margin-top:10px;
+background:#2a6df4;
+border:none;
+border-radius:10px;
+color:white;
+font-size:16px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="wrap">
+
+<h2>Driver Dashboard</h2>
+
+<div class="card">
+Driver Status: <b id="status">Offline</b>
+
+<button onclick="goOnline()">Go Online</button>
+<button onclick="goOffline()">Go Offline</button>
+</div>
+
+<div class="card">
+<h3>Incoming Requests</h3>
+<div id="requests">
+Waiting for ride requests...
+</div>
+</div>
+
+</div>
+
+<script>
+
+function goOnline(){
+document.getElementById("status").innerText="Online"
+}
+
+function goOffline(){
+document.getElementById("status").innerText="Offline"
+}
+
+</script>
+
+</body>
+</html>
