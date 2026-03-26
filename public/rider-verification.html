@@ -3,130 +3,152 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Driver Sign Up</title>
+  <title>Harvey Taxi Rider Sign Up</title>
   <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
     body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #07152b;
+      background: #031735;
       color: white;
+      min-height: 100vh;
+      padding: 24px;
     }
-
-    .wrap {
+    .container {
       max-width: 760px;
       margin: 0 auto;
-      padding: 24px;
     }
-
+    .back {
+      color: white;
+      text-decoration: none;
+      display: inline-block;
+      margin-bottom: 18px;
+      opacity: 0.9;
+    }
     .card {
-      background: #111f3d;
-      border: 1px solid #223a72;
+      background: #102552;
+      border: 1px solid #28458f;
       border-radius: 24px;
-      padding: 24px;
+      padding: 26px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
     }
-
     h1 {
-      margin-top: 0;
+      font-size: 42px;
+      margin-bottom: 10px;
     }
-
-    label {
-      display: block;
-      margin-top: 16px;
-      margin-bottom: 8px;
-      font-weight: bold;
+    p {
+      color: #d7e1ff;
+      margin-bottom: 22px;
+      line-height: 1.5;
     }
-
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
     input {
       width: 100%;
-      padding: 14px;
-      border-radius: 12px;
-      border: none;
+      padding: 15px;
+      border-radius: 14px;
+      border: 1px solid #3257af;
+      background: #091a3e;
+      color: white;
       font-size: 16px;
+      margin-bottom: 14px;
+      outline: none;
     }
-
     button {
       width: 100%;
-      margin-top: 20px;
       padding: 16px;
       border: none;
       border-radius: 14px;
-      background: #2a6df4;
+      background: #356ee8;
       color: white;
       font-size: 18px;
-      font-weight: bold;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 6px;
     }
-
     .status {
       margin-top: 18px;
-      padding: 14px;
-      border-radius: 12px;
-      background: #0d1831;
-      white-space: pre-wrap;
+      background: #091a3e;
+      border: 1px solid #3257af;
+      border-radius: 14px;
+      padding: 16px;
+      white-space: pre-line;
+      line-height: 1.5;
+      color: #d7e1ff;
+    }
+    @media (max-width: 700px) {
+      .grid { grid-template-columns: 1fr; }
+      h1 { font-size: 34px; }
     }
   </style>
 </head>
 <body>
-  <div class="wrap">
+  <div class="container">
+    <a class="back" href="/">← Back</a>
+
     <div class="card">
-      <h1>Driver Sign Up</h1>
+      <h1>Rider Sign Up</h1>
+      <p>Create your Harvey Taxi rider account and add your emergency contact for safer trips.</p>
 
-      <label>Full Name</label>
-      <input id="fullName" placeholder="Enter full name" />
+      <div class="grid">
+        <input id="firstName" placeholder="First name" />
+        <input id="lastName" placeholder="Last name" />
+      </div>
 
-      <label>Phone</label>
-      <input id="phone" placeholder="Enter phone number" />
-
-      <label>Email</label>
-      <input id="email" placeholder="Enter email" />
-
-      <label>Password</label>
+      <input id="email" placeholder="Email address" />
+      <input id="phone" placeholder="Phone number" />
       <input id="password" type="password" placeholder="Create password" />
 
-      <label>Car Make</label>
-      <input id="carMake" placeholder="Toyota" />
+      <div class="grid">
+        <input id="emergencyContactName" placeholder="Emergency contact name" />
+        <input id="emergencyContactPhone" placeholder="Emergency contact phone" />
+      </div>
 
-      <label>Car Model</label>
-      <input id="carModel" placeholder="Camry" />
+      <button onclick="signupRider()">Create Rider Account</button>
 
-      <label>Car Color</label>
-      <input id="carColor" placeholder="Black" />
-
-      <label>Plate Number</label>
-      <input id="plateNumber" placeholder="ABC-1234" />
-
-      <button onclick="signupDriver()">Create Driver Account</button>
-
-      <div class="status" id="statusBox">Fill out the form to create a driver account.</div>
+      <div id="status" class="status">Your rider account has not been created yet.</div>
     </div>
   </div>
 
   <script>
-    async function signupDriver() {
+    async function signupRider() {
       const payload = {
-        fullName: document.getElementById('fullName').value.trim(),
-        phone: document.getElementById('phone').value.trim(),
+        firstName: document.getElementById('firstName').value.trim(),
+        lastName: document.getElementById('lastName').value.trim(),
         email: document.getElementById('email').value.trim(),
+        phone: document.getElementById('phone').value.trim(),
         password: document.getElementById('password').value.trim(),
-        carMake: document.getElementById('carMake').value.trim(),
-        carModel: document.getElementById('carModel').value.trim(),
-        carColor: document.getElementById('carColor').value.trim(),
-        plateNumber: document.getElementById('plateNumber').value.trim()
+        emergencyContactName: document.getElementById('emergencyContactName').value.trim(),
+        emergencyContactPhone: document.getElementById('emergencyContactPhone').value.trim()
       }
 
-      const statusBox = document.getElementById('statusBox')
-      statusBox.innerText = 'Creating driver account...'
+      const status = document.getElementById('status')
+      status.textContent = 'Creating rider account...'
 
       try {
-        const res = await fetch('/api/driver/signup', {
+        const res = await fetch('/api/signup/rider', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         })
 
         const data = await res.json()
-        statusBox.innerText = data.message || 'Done.'
+
+        if (!res.ok) {
+          status.textContent = data.error || 'Rider signup failed.'
+          return
+        }
+
+        status.textContent =
+`Rider account created successfully.
+
+Name: ${data.rider.name}
+Email: ${data.rider.email}
+Phone: ${data.rider.phone}
+Verification: ${data.rider.verificationStatus}`
       } catch (err) {
-        statusBox.innerText = 'Server error. Please try again.'
+        status.textContent = 'Server error. Please try again.'
       }
     }
   </script>
