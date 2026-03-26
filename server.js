@@ -36,16 +36,25 @@ function defaultData() {
         currentLat: 36.1627,
         currentLng: -86.7816,
         activeRideId: null,
-        totalTrips: 0
+        totalTrips: 0,
+        createdAt: new Date().toISOString()
       }
     ],
     riders: [],
     rides: [],
-    fastFoodOrders: [],
-    groceryOrders: [],
     notifications: [],
     emergencies: []
   }
+}
+
+function ensureDataShape(data) {
+  if (!data.admins) data.admins = []
+  if (!data.drivers) data.drivers = []
+  if (!data.riders) data.riders = []
+  if (!data.rides) data.rides = []
+  if (!data.notifications) data.notifications = []
+  if (!data.emergencies) data.emergencies = []
+  return data
 }
 
 function loadData() {
@@ -58,17 +67,7 @@ function loadData() {
   try {
     const raw = fs.readFileSync(DATA_FILE, 'utf8')
     const parsed = JSON.parse(raw)
-
-    if (!parsed.admins) parsed.admins = []
-    if (!parsed.drivers) parsed.drivers = []
-    if (!parsed.riders) parsed.riders = []
-    if (!parsed.rides) parsed.rides = []
-    if (!parsed.fastFoodOrders) parsed.fastFoodOrders = []
-    if (!parsed.groceryOrders) parsed.groceryOrders = []
-    if (!parsed.notifications) parsed.notifications = []
-    if (!parsed.emergencies) parsed.emergencies = []
-
-    return parsed
+    return ensureDataShape(parsed)
   } catch (err) {
     const starter = defaultData()
     fs.writeFileSync(DATA_FILE, JSON.stringify(starter, null, 2))
@@ -117,6 +116,20 @@ function estimateFare(distanceMiles, durationMinutes = 10) {
   return Number(Math.max(total, minimumFare).toFixed(2))
 }
 
+function createNotification(userType, userId, message) {
+  db.notifications.unshift({
+    id: makeId('note'),
+    userType,
+    userId,
+    message,
+    createdAt: new Date().toISOString()
+  })
+}
+
+function findRideById(rideId) {
+  return db.rides.find(r => r.id === rideId)
+}
+
 function getNearestAvailableDriver(lat, lng) {
   const availableDrivers = db.drivers
     .filter(driver => driver.approved && driver.online && !driver.activeRideId)
@@ -134,50 +147,21 @@ function getNearestAvailableDriver(lat, lng) {
   return availableDrivers.length ? availableDrivers[0] : null
 }
 
-function createNotification(userType, userId, message) {
-  db.notifications.unshift({
-    id: makeId('note'),
-    userType,
-    userId,
-    message,
-    createdAt: new Date().toISOString()
-  })
-}
-
-function findRideById(rideId) {
-  return db.rides.find(r => r.id === rideId)
-}
-
+// page aliases
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'))
 })
 
-app.get('/ride', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'ride.html'))
-})
-
-app.get('/fast-food', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'fast-food.html'))
-})
-
-app.get('/grocery', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'grocery.html'))
+app.get('/request-ride', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'request.html'))
 })
 
 app.get('/rider-signup', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'rider-signup.html'))
+  res.sendFile(path.join(__dirname, 'public', 'rider-verification.html'))
 })
 
 app.get('/driver-signup', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'driver-signup.html'))
-})
-
-app.get('/driver-dashboard', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'driver-dashboard.html'))
-})
-
-app.get('/admin', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'admin.html'))
+  res.sendFile(path.join(__dirname, 'public', 'driver.html'))
 })
 
 app.get('/api/health', (req, res) => {
@@ -185,122 +169,142 @@ app.get('/api/health', (req, res) => {
     ok: true,
     message: 'Harvey Taxi API running',
     totals: {
-      drivers: db.drivers.length,
       riders: db.riders.length,
-      rides: db.rides.length,
-      fastFoodOrders: db.fastFoodOrders.length,
-      groceryOrders: db.groceryOrders.length,
-      emergencies: db.emergencies.length
+      drivers: db.drivers.length,
+      rides: db.rides.length
     }
   })
 })
 
 app.post('/api/signup/rider', (req, res) => {
-  const { name, email, password, phone } = req.body
+  const {
+    firstName,
+    lastName,
+    email,
+    password,
+    phone,
+    emergencyContactName,
+    emergencyContactPhone
+  } = req.body
 
-  if (!name || !email || !password) {
-    return res.status(400).json({ error: 'Name, email, and password are required.' })
+  if (!firstName || !lastName || !email || !password || !phone) {
+    return res.status(400).json({ error: 'First name, last name, email, password, and phone are required.' })
   }
 
   const existing = db.riders.find(r => r.email.toLowerCase() === email.toLowerCase())
   if (existing) {
-    return res.status(400).json({ error: 'Rider already exists.' })
+    return res.status(400).json({ error: 'A rider account with this email already exists.' })
   }
 
   const rider = {
     id: makeId('rider'),
-    name,
+    firstName,
+    lastName,
+    name: `${firstName} ${lastName}`.trim(),
     email,
     password,
-    phone: phone || '',
-    verified: false,
+    phone,
+    emergencyContactName: emergencyContactName || '',
+    emergencyContactPhone: emergencyContactPhone || '',
+    verificationStatus: 'pending',
     createdAt: new Date().toISOString()
   }
 
   db.riders.push(rider)
+  createNotification('admin', 'all', `New rider signup: ${rider.name}`)
   saveData()
 
   res.json({
     success: true,
-    rider
+    message: 'Rider account created successfully.',
+    rider: {
+      id: rider.id,
+      name: rider.name,
+      email: rider.email,
+      phone: rider.phone,
+      verificationStatus: rider.verificationStatus
+    }
   })
 })
 
 app.post('/api/signup/driver', (req, res) => {
-  const { name, email, password, phone, car, plate } = req.body
+  const {
+    firstName,
+    lastName,
+    email,
+    password,
+    phone,
+    car,
+    plate,
+    city,
+    vehicleColor
+  } = req.body
 
-  if (!name || !email || !password || !car) {
-    return res.status(400).json({ error: 'Name, email, password, and car are required.' })
+  if (!firstName || !lastName || !email || !password || !phone || !car || !plate) {
+    return res.status(400).json({ error: 'First name, last name, email, password, phone, vehicle, and plate are required.' })
   }
 
   const existing = db.drivers.find(d => d.email.toLowerCase() === email.toLowerCase())
   if (existing) {
-    return res.status(400).json({ error: 'Driver already exists.' })
+    return res.status(400).json({ error: 'A driver account with this email already exists.' })
   }
 
   const driver = {
     id: makeId('driver'),
-    name,
+    firstName,
+    lastName,
+    name: `${firstName} ${lastName}`.trim(),
     email,
     password,
-    phone: phone || '',
+    phone,
     car,
-    plate: plate || '',
+    plate,
+    city: city || '',
+    vehicleColor: vehicleColor || '',
     approved: false,
     online: false,
     currentLat: 36.1627,
     currentLng: -86.7816,
     activeRideId: null,
     totalTrips: 0,
+    verificationStatus: 'pending',
     createdAt: new Date().toISOString()
   }
 
   db.drivers.push(driver)
+  createNotification('admin', 'all', `New driver signup: ${driver.name}`)
   saveData()
 
   res.json({
     success: true,
     message: 'Driver account created. Waiting for admin approval.',
-    driver
+    driver: {
+      id: driver.id,
+      name: driver.name,
+      email: driver.email,
+      approved: driver.approved,
+      verificationStatus: driver.verificationStatus
+    }
   })
 })
 
 app.get('/api/drivers', (req, res) => {
-  const safeDrivers = db.drivers.map(driver => ({
+  const drivers = db.drivers.map(driver => ({
     id: driver.id,
     name: driver.name,
     email: driver.email,
     phone: driver.phone,
     car: driver.car,
     plate: driver.plate,
+    city: driver.city || '',
+    vehicleColor: driver.vehicleColor || '',
     approved: driver.approved,
     online: driver.online,
-    currentLat: driver.currentLat,
-    currentLng: driver.currentLng,
     activeRideId: driver.activeRideId,
     totalTrips: driver.totalTrips
   }))
 
-  res.json(safeDrivers)
-})
-
-app.put('/api/drivers/:driverId/location', (req, res) => {
-  const { driverId } = req.params
-  const { lat, lng } = req.body
-
-  const driver = db.drivers.find(d => d.id === driverId)
-  if (!driver) {
-    return res.status(404).json({ error: 'Driver not found.' })
-  }
-
-  driver.currentLat = Number(lat)
-  driver.currentLng = Number(lng)
-  saveData()
-
-  res.json({
-    success: true,
-    driver
-  })
+  res.json(drivers)
 })
 
 app.put('/api/drivers/:driverId/status', (req, res) => {
@@ -348,11 +352,14 @@ app.post('/api/request-ride', (req, res) => {
     pickupLat,
     pickupLng,
     destinationLat,
-    destinationLng
+    destinationLng,
+    rideType,
+    notes
   } = req.body
 
   if (
     !riderName ||
+    !riderPhone ||
     !pickupAddress ||
     !destinationAddress ||
     pickupLat === undefined ||
@@ -360,13 +367,13 @@ app.post('/api/request-ride', (req, res) => {
     destinationLat === undefined ||
     destinationLng === undefined
   ) {
-    return res.status(400).json({ error: 'Missing required ride request fields.' })
+    return res.status(400).json({ error: 'Please complete all required ride request fields.' })
   }
 
   const nearestDriver = getNearestAvailableDriver(pickupLat, pickupLng)
 
   if (!nearestDriver) {
-    return res.status(400).json({ error: 'No available drivers right now.' })
+    return res.status(400).json({ error: 'No available drivers right now. Please try again shortly.' })
   }
 
   const tripDistance = getDistanceMiles(
@@ -388,13 +395,15 @@ app.post('/api/request-ride', (req, res) => {
   const ride = {
     id: makeId('ride'),
     riderName,
-    riderPhone: riderPhone || '',
+    riderPhone,
     pickupAddress,
     destinationAddress,
     pickupLat: Number(pickupLat),
     pickupLng: Number(pickupLng),
     destinationLat: Number(destinationLat),
     destinationLng: Number(destinationLng),
+    rideType: rideType || 'Standard',
+    notes: notes || '',
     driverId: nearestDriver.id,
     driverName: nearestDriver.name,
     driverPhone: nearestDriver.phone,
@@ -421,6 +430,7 @@ app.post('/api/request-ride', (req, res) => {
 
   res.json({
     success: true,
+    message: 'Ride requested successfully.',
     ride
   })
 })
@@ -463,77 +473,12 @@ app.put('/api/rides/:rideId/status', (req, res) => {
     }
   }
 
-  createNotification('admin', 'all', `Ride ${ride.id} status changed to ${status}`)
   saveData()
 
   res.json({
     success: true,
     ride
   })
-})
-
-app.post('/api/fast-food-order', (req, res) => {
-  const { customerName, phone, restaurant, items, deliveryAddress } = req.body
-
-  if (!customerName || !restaurant || !deliveryAddress) {
-    return res.status(400).json({ error: 'Missing required fast food order fields.' })
-  }
-
-  const order = {
-    id: makeId('food'),
-    customerName,
-    phone: phone || '',
-    restaurant,
-    items: items || '',
-    deliveryAddress,
-    status: 'pending',
-    createdAt: new Date().toISOString()
-  }
-
-  db.fastFoodOrders.unshift(order)
-  createNotification('admin', 'all', `Fast food order placed: ${restaurant}`)
-  saveData()
-
-  res.json({
-    success: true,
-    order
-  })
-})
-
-app.get('/api/fast-food-orders', (req, res) => {
-  res.json(db.fastFoodOrders)
-})
-
-app.post('/api/grocery-order', (req, res) => {
-  const { customerName, phone, store, items, deliveryAddress } = req.body
-
-  if (!customerName || !store || !deliveryAddress) {
-    return res.status(400).json({ error: 'Missing required grocery order fields.' })
-  }
-
-  const order = {
-    id: makeId('grocery'),
-    customerName,
-    phone: phone || '',
-    store,
-    items: items || '',
-    deliveryAddress,
-    status: 'pending',
-    createdAt: new Date().toISOString()
-  }
-
-  db.groceryOrders.unshift(order)
-  createNotification('admin', 'all', `Grocery order placed: ${store}`)
-  saveData()
-
-  res.json({
-    success: true,
-    order
-  })
-})
-
-app.get('/api/grocery-orders', (req, res) => {
-  res.json(db.groceryOrders)
 })
 
 app.post('/api/emergency', (req, res) => {
@@ -568,7 +513,6 @@ app.post('/api/emergency', (req, res) => {
 
   if (ride) {
     ride.emergencyActive = true
-    ride.emergencyId = emergency.id
   }
 
   createNotification('admin', 'all', `EMERGENCY ALERT on ride ${rideId || 'unknown'}`)
@@ -578,37 +522,6 @@ app.post('/api/emergency', (req, res) => {
     success: true,
     emergency
   })
-})
-
-app.get('/api/emergencies', (req, res) => {
-  res.json(db.emergencies)
-})
-
-app.put('/api/emergencies/:emergencyId/resolve', (req, res) => {
-  const emergency = db.emergencies.find(e => e.id === req.params.emergencyId)
-
-  if (!emergency) {
-    return res.status(404).json({ error: 'Emergency not found.' })
-  }
-
-  emergency.status = 'resolved'
-  emergency.resolvedAt = new Date().toISOString()
-
-  const ride = emergency.rideId ? findRideById(emergency.rideId) : null
-  if (ride) {
-    ride.emergencyActive = false
-  }
-
-  saveData()
-
-  res.json({
-    success: true,
-    emergency
-  })
-})
-
-app.get('/api/notifications', (req, res) => {
-  res.json(db.notifications)
 })
 
 app.listen(PORT, () => {
