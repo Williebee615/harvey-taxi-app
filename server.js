@@ -45,10 +45,6 @@ function loadData() {
   }
 }
 
-function saveData(data) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2))
-}
-
 let db = loadData()
 
 app.get('/', (req, res) => {
@@ -69,19 +65,6 @@ app.get('/request-ride', (req, res) => {
 
 app.get('/api/health', (req, res) => {
   res.json({ success: true, message: 'Harvey Taxi API running' })
-})
-
-app.get('/api/debug', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Server is running',
-    counts: {
-      riders: db.users.riders.length,
-      drivers: db.users.drivers.length,
-      admins: db.users.admins.length,
-      trips: db.serviceRequests.length
-    }
-  })
 })
 
 app.listen(PORT, () => {
