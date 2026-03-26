@@ -1,221 +1,134 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Rider Verification</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Driver Sign Up</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #07152b;
+      color: white;
+    }
 
-<style>
-body{
-margin:0;
-font-family:Arial, Helvetica, sans-serif;
-background:#0b0f1a;
-color:white;
-}
+    .wrap {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 24px;
+    }
 
-.container{
-max-width:700px;
-margin:0 auto;
-padding:20px;
-}
+    .card {
+      background: #111f3d;
+      border: 1px solid #223a72;
+      border-radius: 24px;
+      padding: 24px;
+    }
 
-.card{
-background:#111827;
-border:1px solid #1f2937;
-border-radius:14px;
-padding:20px;
-margin-bottom:16px;
-}
+    h1 {
+      margin-top: 0;
+    }
 
-h1{
-margin:0 0 10px;
-font-size:28px;
-}
+    label {
+      display: block;
+      margin-top: 16px;
+      margin-bottom: 8px;
+      font-weight: bold;
+    }
 
-p{
-color:#cbd5e1;
-line-height:1.5;
-}
+    input {
+      width: 100%;
+      padding: 14px;
+      border-radius: 12px;
+      border: none;
+      font-size: 16px;
+    }
 
-input{
-width:100%;
-padding:14px;
-border:none;
-border-radius:10px;
-background:#020617;
-color:white;
-margin-top:10px;
-margin-bottom:14px;
-box-sizing:border-box;
-}
+    button {
+      width: 100%;
+      margin-top: 20px;
+      padding: 16px;
+      border: none;
+      border-radius: 14px;
+      background: #2a6df4;
+      color: white;
+      font-size: 18px;
+      font-weight: bold;
+    }
 
-button{
-width:100%;
-padding:16px;
-border:none;
-border-radius:10px;
-background:#2563eb;
-color:white;
-font-size:16px;
-font-weight:bold;
-cursor:pointer;
-margin-top:8px;
-}
-
-.secondary{
-background:#1f2937;
-}
-
-.badge{
-display:inline-block;
-padding:6px 12px;
-border-radius:20px;
-font-size:12px;
-font-weight:bold;
-margin-top:6px;
-}
-
-.pending{ background:#f59e0b; color:#111827; }
-.approved{ background:#16a34a; }
-.rejected{ background:#dc2626; }
-.neutral{ background:#334155; }
-
-.small{
-font-size:13px;
-color:#94a3b8;
-margin-top:8px;
-}
-</style>
+    .status {
+      margin-top: 18px;
+      padding: 14px;
+      border-radius: 12px;
+      background: #0d1831;
+      white-space: pre-wrap;
+    }
+  </style>
 </head>
-
 <body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Driver Sign Up</h1>
 
-<div class="container">
+      <label>Full Name</label>
+      <input id="fullName" placeholder="Enter full name" />
 
-<div class="card">
-<h1>🪪 Passenger ID Verification</h1>
-<p>
-All passengers must complete ID verification before requesting rides,
-food delivery, or grocery delivery.
-</p>
-</div>
+      <label>Phone</label>
+      <input id="phone" placeholder="Enter phone number" />
 
-<div class="card">
+      <label>Email</label>
+      <input id="email" placeholder="Enter email" />
 
-<input id="name" placeholder="Full legal name" />
-<input id="email" placeholder="Account email" />
-<input id="phone" placeholder="Phone number" />
-<input id="idNumber" placeholder="Government ID number" />
-<input id="selfie" placeholder="Selfie image URL or note" />
-<input id="idImage" placeholder="ID image URL or note" />
+      <label>Password</label>
+      <input id="password" type="password" placeholder="Create password" />
 
-<button onclick="submitVerification()">Submit Verification</button>
-<button class="secondary" onclick="checkStatus()">Check My Status</button>
+      <label>Car Make</label>
+      <input id="carMake" placeholder="Toyota" />
 
-<div class="small">
-Use same email used for rider account
-</div>
+      <label>Car Model</label>
+      <input id="carModel" placeholder="Camry" />
 
-</div>
+      <label>Car Color</label>
+      <input id="carColor" placeholder="Black" />
 
-<div class="card">
-<div><strong>Status:</strong></div>
-<div id="statusBadge" class="badge neutral">Not checked</div>
-<div id="statusText" class="small">
-Submit verification then admin must approve
-</div>
-</div>
+      <label>Plate Number</label>
+      <input id="plateNumber" placeholder="ABC-1234" />
 
-</div>
+      <button onclick="signupDriver()">Create Driver Account</button>
 
-<script>
+      <div class="status" id="statusBox">Fill out the form to create a driver account.</div>
+    </div>
+  </div>
 
-function setStatus(status,text){
+  <script>
+    async function signupDriver() {
+      const payload = {
+        fullName: document.getElementById('fullName').value.trim(),
+        phone: document.getElementById('phone').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        password: document.getElementById('password').value.trim(),
+        carMake: document.getElementById('carMake').value.trim(),
+        carModel: document.getElementById('carModel').value.trim(),
+        carColor: document.getElementById('carColor').value.trim(),
+        plateNumber: document.getElementById('plateNumber').value.trim()
+      }
 
-const badge=document.getElementById('statusBadge')
-const label=String(status||'').toLowerCase()
+      const statusBox = document.getElementById('statusBox')
+      statusBox.innerText = 'Creating driver account...'
 
-badge.className='badge neutral'
+      try {
+        const res = await fetch('/api/driver/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
 
-if(label.includes('approved')) badge.className='badge approved'
-else if(label.includes('pending')) badge.className='badge pending'
-else if(label.includes('rejected')) badge.className='badge rejected'
-
-badge.textContent=status||'unknown'
-document.getElementById('statusText').textContent=text||''
-
-}
-
-async function submitVerification(){
-
-const payload={
-name:document.getElementById('name').value,
-email:document.getElementById('email').value,
-phone:document.getElementById('phone').value,
-idNumber:document.getElementById('idNumber').value,
-selfie:document.getElementById('selfie').value,
-idImage:document.getElementById('idImage').value
-}
-
-if(!payload.email){
-alert("Enter your email")
-return
-}
-
-try{
-
-const res=await fetch('/api/rider/verification',{
-method:'POST',
-headers:{'Content-Type':'application/json'},
-body:JSON.stringify(payload)
-})
-
-const data=await res.json()
-
-if(!res.ok){
-alert(data.error||"Verification failed")
-return
-}
-
-setStatus(
-data.status||"pending",
-"Verification submitted. Waiting for admin approval."
-)
-
-alert("Verification submitted")
-
-}catch(e){
-alert("Server error")
-}
-
-}
-
-async function checkStatus(){
-
-const email=document.getElementById('email').value
-
-if(!email){
-alert("Enter your email first")
-return
-}
-
-try{
-
-const res=await fetch('/api/rider/verification-status?email='+email)
-const data=await res.json()
-
-setStatus(
-data.status||"pending",
-data.message||"Waiting for approval"
-)
-
-}catch(e){
-alert("Unable to check status")
-}
-
-}
-
-</script>
-
+        const data = await res.json()
+        statusBox.innerText = data.message || 'Done.'
+      } catch (err) {
+        statusBox.innerText = 'Server error. Please try again.'
+      }
+    }
+  </script>
 </body>
 </html>
