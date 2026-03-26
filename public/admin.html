@@ -5,93 +5,233 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Harvey Taxi Admin</title>
   <style>
-    body{
-      background:#000;
-      color:#fff;
-      font-family:Arial, sans-serif;
-      padding:20px;
-      margin:0;
+    * {
+      box-sizing: border-box;
+      font-family: Arial, sans-serif;
     }
-    .app{max-width:900px;margin:0 auto}
-    .title{
-      font-size:34px;
-      font-weight:bold;
-      margin:18px 0 24px;
+
+    body {
+      margin: 0;
+      background: #0b1020;
+      color: #fff;
+      padding: 20px;
     }
-    .card{
-      background:#0a0a0a;
-      border-radius:24px;
-      padding:20px;
-      margin-bottom:18px;
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
     }
-    .ride{
-      background:#111;
-      border:1px solid #222;
-      border-radius:16px;
-      padding:16px;
-      margin-top:12px;
+
+    .card {
+      background: #151c33;
+      border: 1px solid #253154;
+      border-radius: 18px;
+      padding: 20px;
+      margin-bottom: 18px;
     }
-    button{
-      width:100%;
-      padding:16px;
-      border:none;
-      border-radius:18px;
-      background:#22c55e;
-      color:#fff;
-      font-size:16px;
-      font-weight:bold;
-      margin-top:12px;
+
+    h1, h2 {
+      margin-top: 0;
     }
-    .muted{
-      color:#9ca3af;
-      font-size:14px;
-      margin-top:6px;
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+
+    @media (max-width: 900px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .item {
+      background: #0d1427;
+      border: 1px solid #334471;
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 12px;
+      line-height: 1.6;
+    }
+
+    .danger {
+      border-color: #ff3154;
+      box-shadow: 0 0 0 1px rgba(255, 49, 84, 0.25);
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      color: white;
+      font-weight: 700;
+      margin-top: 10px;
+    }
+
+    .btn-primary {
+      background: #2f7cff;
+    }
+
+    .btn-success {
+      background: #16a34a;
+    }
+
+    .btn-danger {
+      background: #d61f3b;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    a {
+      color: #9cc0ff;
+      text-decoration: none;
+    }
+
+    .muted {
+      color: #9fb0dc;
     }
   </style>
 </head>
 <body>
-  <div class="app">
-    <div class="title">Admin Panel</div>
-
+  <div class="container">
     <div class="card">
-      <h2>Recent Rides</h2>
-      <button onclick="loadRides()">Refresh Rides</button>
-      <div id="ridesList" class="muted">Loading rides...</div>
+      <div class="topbar">
+        <div>
+          <h1>Harvey Taxi Admin Dashboard</h1>
+          <div class="muted">Driver approvals, rides, and live emergency alerts</div>
+        </div>
+        <div>
+          <a href="/">Back to Rider Page</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>Driver Approvals</h2>
+        <div id="driversList">Loading drivers...</div>
+      </div>
+
+      <div class="card">
+        <h2>Emergency Alerts</h2>
+        <div id="emergencyList">Loading emergencies...</div>
+      </div>
     </div>
 
     <div class="card">
-      <button onclick="window.location.href='/'">Back to Rider App</button>
+      <h2>All Rides</h2>
+      <div id="ridesList">Loading rides...</div>
     </div>
   </div>
 
   <script>
-    async function loadRides() {
-      const res = await fetch('/api/rides')
-      const rides = await res.json()
-      const container = document.getElementById('ridesList')
+    async function loadDrivers() {
+      const res = await fetch('/api/drivers')
+      const drivers = await res.json()
 
-      if (!rides.length) {
-        container.innerHTML = 'No rides yet.'
+      const wrap = document.getElementById('driversList')
+
+      if (!drivers.length) {
+        wrap.innerHTML = 'No drivers found.'
         return
       }
 
-      container.innerHTML = rides.map(ride => `
-        <div class="ride">
-          <div><strong>Ride ID:</strong> ${ride.id}</div>
-          <div class="muted"><strong>Pickup:</strong> ${ride.pickup}</div>
-          <div class="muted"><strong>Dropoff:</strong> ${ride.dropoff}</div>
-          <div class="muted"><strong>Type:</strong> ${ride.rideType}</div>
-          <div class="muted"><strong>Driver:</strong> ${ride.driverName}</div>
-          <div class="muted"><strong>Car:</strong> ${ride.car}</div>
-          <div class="muted"><strong>Plate:</strong> ${ride.plate}</div>
-          <div class="muted"><strong>Status:</strong> ${ride.status}</div>
-          <div class="muted"><strong>ETA:</strong> ${ride.etaLabel}</div>
+      wrap.innerHTML = drivers.map(driver => `
+        <div class="item">
+          <strong>${driver.name}</strong><br>
+          Car: ${driver.car}<br>
+          Plate: ${driver.plate || 'N/A'}<br>
+          Approved: ${driver.approved ? 'Yes' : 'No'}<br>
+          Online: ${driver.online ? 'Yes' : 'No'}<br>
+          Active Ride: ${driver.activeRideId || 'None'}
+          ${driver.approved ? '' : `<button class="btn-success" onclick="approveDriver('${driver.id}')">Approve Driver</button>`}
         </div>
       `).join('')
     }
 
-    loadRides()
-    setInterval(loadRides, 3000)
+    async function approveDriver(driverId) {
+      await fetch(`/api/admin/drivers/${driverId}/approve`, {
+        method: 'PUT'
+      })
+      loadDrivers()
+    }
+
+    async function loadRides() {
+      const res = await fetch('/api/rides')
+      const rides = await res.json()
+
+      const wrap = document.getElementById('ridesList')
+
+      if (!rides.length) {
+        wrap.innerHTML = 'No rides yet.'
+        return
+      }
+
+      wrap.innerHTML = rides.map(ride => `
+        <div class="item ${ride.emergencyActive ? 'danger' : ''}">
+          <strong>${ride.id}</strong><br>
+          Rider: ${ride.riderName}<br>
+          Driver: ${ride.driverName}<br>
+          Pickup: ${ride.pickupAddress}<br>
+          Destination: ${ride.destinationAddress}<br>
+          Fare: $${ride.fare}<br>
+          Status: ${ride.status}<br>
+          Emergency: ${ride.emergencyActive ? 'ACTIVE' : 'No'}
+        </div>
+      `).join('')
+    }
+
+    async function loadEmergencies() {
+      const res = await fetch('/api/emergencies')
+      const emergencies = await res.json()
+
+      const wrap = document.getElementById('emergencyList')
+
+      if (!emergencies.length) {
+        wrap.innerHTML = 'No emergency alerts.'
+        return
+      }
+
+      wrap.innerHTML = emergencies.map(item => `
+        <div class="item danger">
+          <strong>${item.status === 'resolved' ? 'Resolved Alert' : 'ACTIVE EMERGENCY'}</strong><br>
+          Emergency ID: ${item.id}<br>
+          Ride ID: ${item.rideId || 'N/A'}<br>
+          Rider: ${item.riderName}<br>
+          Driver: ${item.driverName}<br>
+          Car: ${item.car}<br>
+          Plate: ${item.plate}<br>
+          Location: ${item.lat}, ${item.lng}<br>
+          Note: ${item.note}<br>
+          Time: ${new Date(item.createdAt).toLocaleString()}
+          ${item.status === 'active' ? `<button class="btn-danger" onclick="resolveEmergency('${item.id}')">Mark Resolved</button>` : ''}
+        </div>
+      `).join('')
+    }
+
+    async function resolveEmergency(emergencyId) {
+      await fetch(`/api/emergencies/${emergencyId}/resolve`, {
+        method: 'PUT'
+      })
+      loadEmergencies()
+      loadRides()
+    }
+
+    async function refreshAll() {
+      await Promise.all([loadDrivers(), loadRides(), loadEmergencies()])
+    }
+
+    refreshAll()
+    setInterval(refreshAll, 5000)
   </script>
 </body>
 </html>
