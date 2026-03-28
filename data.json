@@ -1,10 +1,22 @@
 {
-  "users": {
-    "riders": [],
-    "drivers": [],
-    "admins": []
-  },
-  "driversLive": [],
-  "serviceRequests": [],
-  "notifications": []
+  "riders": [],
+  "drivers": [],
+  "admins": [
+    {
+      "id": "admin_1",
+      "name": "Harvey Admin",
+      "email": "admin@harveytaxi.com",
+      "password": "admin123",
+      "role": "admin"
+    }
+  ],
+  "rideRequests": [],
+  "trips": [],
+  "settings": {
+    "baseFare": 5,
+    "perMile": 1.75,
+    "perMinute": 0.35,
+    "bookingFee": 2.5,
+    "minimumFare": 8
+  }
 }
