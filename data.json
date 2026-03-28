@@ -1,22 +1,13 @@
 {
-  "riders": [],
-  "drivers": [],
-  "admins": [
-    {
-      "id": "admin_1",
-      "name": "Harvey Admin",
-      "email": "admin@harveytaxi.com",
-      "password": "admin123",
-      "role": "admin"
-    }
-  ],
-  "rideRequests": [],
-  "trips": [],
-  "settings": {
-    "baseFare": 5,
-    "perMile": 1.75,
-    "perMinute": 0.35,
-    "bookingFee": 2.5,
-    "minimumFare": 8
+  "name": "harvey-taxi",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "stripe": "^14.0.0"
   }
 }
