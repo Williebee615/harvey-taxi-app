@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Harvey Taxi | Pay Now</title>
+  <style>
+    * { box-sizing: border-box; font-family: Arial, sans-serif; }
+
+    body {
+      margin: 0;
+      background: #0b1020;
+      color: white;
+      padding: 20px;
+    }
+
+    .wrap {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+
+    .title {
+      font-size: 30px;
+      font-weight: 700;
+    }
+
+    .brand {
+      color: #f5c451;
+    }
+
+    .top-links {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .top-links a,
+    .top-links button {
+      background: #151c34;
+      color: #f5c451;
+      border: 1px solid rgba(255,255,255,0.12);
+      text-decoration: none;
+      padding: 10px 14px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .panel {
+      background: #151c34;
+      border-radius: 18px;
+      padding: 20px;
+      border: 1px solid rgba(255,255,255,0.08);
+      margin-bottom: 20px;
+    }
+
+    .panel h2 {
+      margin: 0 0 12px;
+      font-size: 22px;
+    }
+
+    .muted {
+      color: #b7c2ff;
+      line-height: 1.5;
+      font-size: 14px;
+      margin-bottom: 16px;
+    }
+
+    .field {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+      color: #dbe2ff;
+    }
+
+    input,
+    select {
+      width: 100%;
+      padding: 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: #0f1529;
+      color: white;
+      font-size: 16px;
+      outline: none;
+    }
+
+    input:focus,
+    select:focus {
+      border-color: #f5c451;
+      box-shadow: 0 0 0 3px rgba(245,196,81,0.15);
+    }
+
+    .btn {
+      border: none;
+      border-radius: 12px;
+      padding: 14px 16px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    .btn-primary {
+      background: #f5c451;
+      color: #111;
+    }
+
+    .btn-secondary {
+      background: #0f1529;
+      color: white;
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+
+    .message {
+      display: none;
+      margin-top: 16px;
+      padding: 14px;
+      border-radius: 12px;
+      line-height: 1.5;
+    }
+
+    .success {
+      background: rgba(34, 197, 94, 0.15);
+      color: #a7f3d0;
+      border: 1px solid rgba(34, 197, 94, 0.35);
+    }
+
+    .error {
+      background: rgba(239, 68, 68, 0.14);
+      color: #fecaca;
+      border: 1px solid rgba(239, 68, 68, 0.35);
+    }
+
+    .card {
+      background: #0f1529;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      padding: 16px;
+      margin-top: 12px;
+    }
+
+    .card-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .kv {
+      color: #dbe2ff;
+      line-height: 1.7;
+      font-size: 14px;
+    }
+
+    .paid {
+      color: #86efac;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="title"><span class="brand">Harvey Taxi</span> Pay Now</div>
+      <div class="top-links">
+        <a href="/">Home</a>
+        <a href="/request.html">Rider Dashboard</a>
+        <button onclick="loadRide()">Refresh</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Ride Payment</h2>
+      <div class="muted">
+        Pay for your completed ride or cancellation charge.
+      </div>
+
+      <div id="rideBox" class="card">
+        <div class="kv">Loading ride...</div>
+      </div>
+
+      <div class="field">
+        <label for="paymentMethod">Payment Method</label>
+        <select id="paymentMethod" onchange="togglePaymentFields()">
+          <option value="card">Card</option>
+          <option value="cash">Cash</option>
+        </select>
+      </div>
+
+      <div id="cardFields">
+        <div class="field">
+          <label for="cardLast4">Card Last 4</label>
+          <input id="cardLast4" type="text" maxlength="4" placeholder="4242" />
+        </div>
+      </div>
+
+      <div id="cashFields" style="display:none;">
+        <div class="field">
+          <label for="cashReceived">Cash Received</label>
+          <input id="cashReceived" type="number" step="0.01" placeholder="Enter amount received" />
+        </div>
+      </div>
+
+      <button class="btn btn-primary" onclick="payNow()">Submit Payment</button>
+      <button class="btn btn-secondary" onclick="goBack()">Back to Rider Dashboard</button>
+
+      <div id="messageBox" class="message"></div>
+    </div>
+  </div>
+
+  <script>
+    const rideBox = document.getElementById('rideBox')
+    const messageBox = document.getElementById('messageBox')
+    const params = new URLSearchParams(window.location.search)
+    let rideId = params.get('rideId') || localStorage.getItem('harveyTaxiCurrentRideId')
+    let currentRide = null
+
+    function showMessage(text, type) {
+      messageBox.className = `message ${type}`
+      messageBox.style.display = 'block'
+      messageBox.textContent = text
+    }
+
+    function goBack() {
+      window.location = '/request.html'
+    }
+
+    function togglePaymentFields() {
+      const method = document.getElementById('paymentMethod').value
+      document.getElementById('cardFields').style.display = method === 'card' ? 'block' : 'none'
+      document.getElementById('cashFields').style.display = method === 'cash' ? 'block' : 'none'
+    }
+
+    async function fetchJSON(url, options = {}) {
+      const response = await fetch(url, options)
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.message || 'Request failed')
+      return data
+    }
+
+    function formatMoney(amount) {
+      return `$${Number(amount || 0).toFixed(2)}`
+    }
+
+    function getAmountDue(ride) {
+      if (!ride) return 0
+      if (ride.paymentStatus === 'cancellation_due') return Number(ride.cancellationFee || 0)
+      return Number(ride.estimatedFare || 0)
+    }
+
+    function renderRide(ride) {
+      currentRide = ride
+      const amountDue = getAmountDue(ride)
+
+      rideBox.innerHTML = `
+        <div class="card-title">${(ride.serviceType || 'ride').toUpperCase()} • ${ride.status}</div>
+        <div class="kv">
+          <strong>Pickup:</strong> ${ride.pickupAddress || 'N/A'}<br>
+          <strong>Dropoff:</strong> ${ride.dropoffAddress || 'N/A'}<br>
+          <strong>Driver:</strong> ${ride.assignedDriverName || 'N/A'}<br>
+          <strong>Payment Status:</strong> ${ride.paymentStatus === 'paid' ? '<span class="paid">paid</span>' : (ride.paymentStatus || 'unpaid')}<br>
+          <strong>Amount Due:</strong> ${formatMoney(amountDue)}<br>
+          <strong>Payment Method:</strong> ${ride.paymentMethod || 'Not paid yet'}<br>
+          ${ride.amountPaid ? `<strong>Amount Paid:</strong> ${formatMoney(ride.amountPaid)}<br>` : ''}
+          ${ride.cardLast4 ? `<strong>Card Last 4:</strong> ${ride.cardLast4}<br>` : ''}
+          ${ride.cashReceived ? `<strong>Cash Received:</strong> ${formatMoney(ride.cashReceived)}<br>` : ''}
+          ${ride.paidAt ? `<strong>Paid At:</strong> ${new Date(ride.paidAt).toLocaleString()}<br>` : ''}
+        </div>
+      `
+    }
+
+    async function loadRide() {
+      if (!rideId) {
+        rideBox.innerHTML
