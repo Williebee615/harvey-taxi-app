@@ -1,457 +1,534 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Driver Dashboard</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Harvey Taxi | Driver Dashboard</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: Arial, sans-serif;
+    }
 
-<style>
-body{
-  background:#000;
-  color:#fff;
-  font-family:Arial,sans-serif;
-  padding:20px;
-  margin:0;
-}
+    body {
+      margin: 0;
+      background: #0b1020;
+      color: white;
+      padding: 20px;
+    }
 
-.container{
-  max-width:420px;
-  margin:0 auto;
-}
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
 
-h1{
-  font-size:32px;
-  margin:10px 0 20px;
-}
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
 
-.card{
-  background:#0b0f1c;
-  border-radius:20px;
-  padding:20px;
-  margin-bottom:16px;
-  line-height:1.6;
-}
+    .title {
+      font-size: 30px;
+      font-weight: 700;
+    }
 
-.status-pill{
-  display:inline-block;
-  padding:8px 14px;
-  border-radius:999px;
-  background:#1f2937;
-  font-size:14px;
-  font-weight:bold;
-  margin-top:8px;
-}
+    .brand {
+      color: #f5c451;
+    }
 
-.online{
-  background:#123b24;
-  color:#7df0a6;
-}
+    .top-links {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
 
-.offline{
-  background:#3a1616;
-  color:#ff9b9b;
-}
+    .top-links a,
+    .top-links button {
+      background: #151c34;
+      color: #f5c451;
+      border: 1px solid rgba(255,255,255,0.12);
+      text-decoration: none;
+      padding: 10px 14px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 14px;
+    }
 
-button{
-  width:100%;
-  padding:18px;
-  border:none;
-  border-radius:18px;
-  font-size:18px;
-  font-weight:bold;
-  margin-top:12px;
-}
+    .grid {
+      display: grid;
+      grid-template-columns: 0.95fr 1.05fr;
+      gap: 20px;
+    }
 
-.primary{
-  background:#39d273;
-  color:#fff;
-}
+    .panel {
+      background: #151c34;
+      border-radius: 18px;
+      padding: 20px;
+      border: 1px solid rgba(255,255,255,0.08);
+      margin-bottom: 20px;
+    }
 
-.secondary{
-  background:#2b313f;
-  color:#fff;
-}
+    .panel h2 {
+      margin: 0 0 14px;
+      font-size: 22px;
+    }
 
-.warning{
-  background:#8b5e10;
-  color:#fff;
-}
+    .muted {
+      color: #b7c2ff;
+      line-height: 1.5;
+      font-size: 14px;
+    }
 
-.danger{
-  background:#8b1e1e;
-  color:#fff;
-}
+    .field {
+      margin-bottom: 16px;
+    }
 
-.muted{
-  color:#cfcfcf;
-  font-size:15px;
-}
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+      color: #dbe2ff;
+    }
 
-.label{
-  color:#9ca3af;
-}
+    input {
+      width: 100%;
+      padding: 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: #0f1529;
+      color: white;
+      font-size: 16px;
+      outline: none;
+    }
 
-.big{
-  font-size:22px;
-  font-weight:bold;
-}
+    input:focus {
+      border-color: #f5c451;
+      box-shadow: 0 0 0 3px rgba(245,196,81,0.15);
+    }
 
-.hidden{
-  display:none;
-}
-</style>
+    .btn {
+      border: none;
+      border-radius: 12px;
+      padding: 14px 16px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      background: #f5c451;
+      color: #111;
+    }
+
+    .btn-secondary {
+      background: #0f1529;
+      color: white;
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+
+    .btn-success {
+      background: #22c55e;
+      color: white;
+    }
+
+    .btn-danger {
+      background: #ef4444;
+      color: white;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    .message {
+      display: none;
+      margin-bottom: 18px;
+      padding: 14px;
+      border-radius: 12px;
+      line-height: 1.5;
+    }
+
+    .success {
+      background: rgba(34, 197, 94, 0.15);
+      color: #a7f3d0;
+      border: 1px solid rgba(34, 197, 94, 0.35);
+    }
+
+    .error {
+      background: rgba(239, 68, 68, 0.14);
+      color: #fecaca;
+      border: 1px solid rgba(239, 68, 68, 0.35);
+    }
+
+    .status-pill {
+      display: inline-block;
+      padding: 7px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      margin-top: 10px;
+    }
+
+    .online {
+      background: rgba(34, 197, 94, 0.15);
+      color: #86efac;
+      border: 1px solid rgba(34, 197, 94, 0.35);
+    }
+
+    .offline {
+      background: rgba(239, 68, 68, 0.14);
+      color: #fecaca;
+      border: 1px solid rgba(239, 68, 68, 0.35);
+    }
+
+    .pending {
+      background: rgba(245, 196, 81, 0.12);
+      color: #f5c451;
+      border: 1px solid rgba(245, 196, 81, 0.3);
+    }
+
+    .card {
+      background: #0f1529;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      padding: 16px;
+      margin-top: 14px;
+    }
+
+    .ride-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .kv {
+      margin-top: 8px;
+      font-size: 14px;
+      line-height: 1.7;
+      color: #dbe2ff;
+    }
+
+    .empty {
+      color: #b7c2ff;
+      font-size: 14px;
+      padding: 10px 0;
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .stat {
+      background: #0f1529;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      padding: 16px;
+    }
+
+    .stat-label {
+      color: #b7c2ff;
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+
+    .stat-value {
+      font-size: 24px;
+      font-weight: 700;
+      color: #f5c451;
+    }
+
+    .small {
+      font-size: 13px;
+      color: #aeb8df;
+      margin-top: 14px;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 860px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
 </head>
 <body>
-<div class="container">
-  <h1>Driver Dashboard</h1>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="title"><span class="brand">Harvey Taxi</span> Driver Dashboard</div>
+      <div class="top-links">
+        <a href="/">Home</a>
+        <a href="/login.html">Login</a>
+        <button onclick="loadDashboard()">Refresh</button>
+        <button onclick="logout()">Logout</button>
+      </div>
+    </div>
 
-  <div class="card">
-    <div class="big" id="driverName">Marcus Johnson</div>
-    <div id="driverVehicle">Toyota Camry • HTX-101</div>
-    <div class="muted" id="driverPhone">615-555-0101</div>
-    <div id="onlineBadge" class="status-pill online">Online</div>
+    <div id="messageBox" class="message"></div>
 
-    <button id="toggleOnlineBtn" class="secondary" onclick="toggleOnlineStatus()">Go Offline</button>
+    <div class="grid">
+      <div>
+        <div class="panel">
+          <h2>Driver Profile</h2>
+          <div class="muted">
+            Manage your online status and update your live location so Harvey Taxi can dispatch nearby rides to you.
+          </div>
+
+          <div id="driverProfile"></div>
+
+          <div class="stat-grid">
+            <div class="stat">
+              <div class="stat-label">Approval Status</div>
+              <div class="stat-value" id="approvalStatusText">--</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Verification</div>
+              <div class="stat-value" id="verificationStatusText">--</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>Location & Availability</h2>
+
+          <div class="field">
+            <label for="lat">Current Latitude</label>
+            <input id="lat" type="number" step="any" placeholder="36.1627" />
+          </div>
+
+          <div class="field">
+            <label for="lng">Current Longitude</label>
+            <input id="lng" type="number" step="any" placeholder="-86.7816" />
+          </div>
+
+          <div class="btn-row">
+            <button class="btn btn-primary" onclick="updateLocation(true)">Go Online</button>
+            <button class="btn btn-danger" onclick="updateLocation(false)">Go Offline</button>
+            <button class="btn btn-secondary" onclick="useNashvilleDriverDemo()">Use Nashville Demo</button>
+          </div>
+
+          <div class="small">
+            Driver must be approved and online with location coordinates to receive automatic ride assignments.
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="panel">
+          <h2>Assigned Rides</h2>
+          <div class="muted">
+            These are rides currently assigned to your account through Harvey Taxi dispatch.
+          </div>
+
+          <div id="assignedRides"></div>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <div class="card">
-    <div class="big">Driver Live Status</div>
-    <div><span class="label">Current status:</span> <span id="driverStatus">Waiting for ride</span></div>
-    <div><span class="label">Current location:</span> <span id="driverLocation">36.162700, -86.781600</span></div>
-    <div><span class="label">Assigned ride:</span> <span id="assignedRide">None</span></div>
-  </div>
+  <script>
+    const storedUser = localStorage.getItem('harveyTaxiUser')
+    const storedRole = localStorage.getItem('harveyTaxiRole')
+    const messageBox = document.getElementById('messageBox')
 
-  <div class="card">
-    <div class="big">Assigned Ride</div>
-    <div id="rideDetails" class="muted">No active ride yet.</div>
+    let currentUser = null
+    let allRides = []
 
-    <button id="acceptBtn" class="primary hidden" onclick="acceptRide()">Accept Ride</button>
-    <button id="arriveBtn" class="warning hidden" onclick="arriveRide()">Arrived</button>
-    <button id="startBtn" class="secondary hidden" onclick="startTrip()">Start Trip</button>
-    <button id="completeBtn" class="primary hidden" onclick="completeTrip()">Complete Trip</button>
-    <button id="refreshBtn" class="secondary" onclick="loadAssignedRide()">Refresh Ride</button>
-  </div>
-
-  <div class="card">
-    <div class="big">System Message</div>
-    <div id="messageBox" class="muted">Driver panel ready.</div>
-  </div>
-</div>
-
-<script>
-const DRIVER_ID = 'driver_1'
-let currentRide = null
-let pollTimer = null
-let driverOnline = true
-
-async function loadDriver(){
-  try{
-    const res = await fetch('/drivers')
-    const data = await res.json()
-
-    if(!data.success || !Array.isArray(data.drivers)) return
-
-    const driver = data.drivers.find(d => d.id === DRIVER_ID)
-    if(!driver) return
-
-    document.getElementById('driverName').textContent = driver.name || 'Driver'
-    document.getElementById('driverVehicle').textContent = `${driver.vehicle || 'Vehicle'} • ${driver.plate || ''}`
-    document.getElementById('driverPhone').textContent = driver.phone || ''
-    document.getElementById('driverLocation').textContent = `${Number(driver.lat).toFixed(6)}, ${Number(driver.lng).toFixed(6)}`
-
-    driverOnline = !!driver.online
-    updateOnlineUi()
-  }catch(e){
-    setMessage('Could not load driver profile.')
-  }
-}
-
-function updateOnlineUi(){
-  const badge = document.getElementById('onlineBadge')
-  const btn = document.getElementById('toggleOnlineBtn')
-
-  if(driverOnline){
-    badge.textContent = 'Online'
-    badge.className = 'status-pill online'
-    btn.textContent = 'Go Offline'
-  }else{
-    badge.textContent = 'Offline'
-    badge.className = 'status-pill offline'
-    btn.textContent = 'Go Online'
-  }
-}
-
-async function toggleOnlineStatus(){
-  try{
-    const res = await fetch('/driver/update',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        id: DRIVER_ID,
-        online: !driverOnline
-      })
-    })
-
-    const data = await res.json()
-
-    if(!data.success){
-      setMessage(data.message || 'Could not update online status.')
-      return
+    if (!storedUser || storedRole !== 'driver') {
+      window.location = '/login.html'
+    } else {
+      currentUser = JSON.parse(storedUser)
     }
 
-    driverOnline = !!data.driver.online
-    updateOnlineUi()
-    setMessage(driverOnline ? 'Driver is now online.' : 'Driver is now offline.')
-
-    if(!driverOnline){
-      currentRide = null
-      renderRide()
+    function showMessage(text, type) {
+      messageBox.className = `message ${type}`
+      messageBox.style.display = 'block'
+      messageBox.textContent = text
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
 
-    loadDriver()
-  }catch(e){
-    setMessage('Failed to change online status.')
-  }
-}
-
-async function loadAssignedRide(){
-  try{
-    const res = await fetch('/rides')
-    const data = await res.json()
-
-    if(!data.success || !Array.isArray(data.rides)){
-      setMessage('Could not load rides.')
-      return
+    function logout() {
+      localStorage.removeItem('harveyTaxiUser')
+      localStorage.removeItem('harveyTaxiRole')
+      localStorage.removeItem('harveyTaxiCurrentRideId')
+      window.location = '/login.html'
     }
 
-    const ride = data.rides.find(r =>
-      r.driver &&
-      r.driver.id === DRIVER_ID &&
-      r.status !== 'completed' &&
-      r.status !== 'cancelled'
-    )
-
-    currentRide = ride || null
-    renderRide()
-  }catch(e){
-    setMessage('Failed to load assigned ride.')
-  }
-}
-
-function renderRide(){
-  const rideDetails = document.getElementById('rideDetails')
-  const assignedRide = document.getElementById('assignedRide')
-  const driverStatus = document.getElementById('driverStatus')
-
-  hideActionButtons()
-
-  if(!currentRide){
-    rideDetails.innerHTML = 'No active ride yet.'
-    assignedRide.textContent = 'None'
-    driverStatus.textContent = driverOnline ? 'Waiting for ride' : 'Offline'
-    return
-  }
-
-  assignedRide.textContent = currentRide.id
-  driverStatus.textContent = currentRide.statusLabel || currentRide.status || 'Active ride'
-
-  rideDetails.innerHTML = `
-    <div><span class="label">Ride ID:</span> ${currentRide.id}</div>
-    <div><span class="label">Status:</span> ${currentRide.statusLabel || currentRide.status}</div>
-    <div><span class="label">Pickup:</span> ${currentRide.pickup || ''}</div>
-    <div><span class="label">Dropoff:</span> ${currentRide.dropoff || ''}</div>
-    <div><span class="label">Ride Type:</span> ${currentRide.rideType || ''}</div>
-    <div><span class="label">Total Fare:</span> $${currentRide.fare?.total || '0.00'}</div>
-    <div><span class="label">Remaining Miles:</span> ${currentRide.trip?.remainingMiles ?? '--'}</div>
-    <div><span class="label">Passenger ETA View:</span> ${currentRide.driver?.etaMinutes ?? '--'} min</div>
-  `
-
-  if(currentRide.status === 'matched'){
-    document.getElementById('acceptBtn').classList.remove('hidden')
-  }
-
-  if(currentRide.status === 'accepted' || currentRide.status === 'en_route'){
-    document.getElementById('arriveBtn').classList.remove('hidden')
-  }
-
-  if(currentRide.status === 'arrived'){
-    document.getElementById('startBtn').classList.remove('hidden')
-  }
-
-  if(currentRide.status === 'in_progress'){
-    document.getElementById('completeBtn').classList.remove('hidden')
-  }
-}
-
-function hideActionButtons(){
-  document.getElementById('acceptBtn').classList.add('hidden')
-  document.getElementById('arriveBtn').classList.add('hidden')
-  document.getElementById('startBtn').classList.add('hidden')
-  document.getElementById('completeBtn').classList.add('hidden')
-}
-
-function setMessage(message){
-  document.getElementById('messageBox').textContent = message
-}
-
-async function acceptRide(){
-  if(!currentRide) return
-
-  try{
-    const res = await fetch(`/rides/${currentRide.id}/accept`, {
-      method:'POST'
-    })
-    const data = await res.json()
-
-    if(!data.success){
-      setMessage(data.message || 'Could not accept ride.')
-      return
+    function useNashvilleDriverDemo() {
+      document.getElementById('lat').value = '36.1627'
+      document.getElementById('lng').value = '-86.7816'
     }
 
-    currentRide = data.ride
-    renderRide()
-    setMessage('Ride accepted.')
-  }catch(e){
-    setMessage('Failed to accept ride.')
-  }
-}
-
-async function arriveRide(){
-  if(!currentRide) return
-
-  try{
-    const res = await fetch(`/rides/${currentRide.id}/arrive`, {
-      method:'POST'
-    })
-    const data = await res.json()
-
-    if(!data.success){
-      setMessage(data.message || 'Could not mark arrival.')
-      return
+    async function fetchJSON(url, options = {}) {
+      const response = await fetch(url, options)
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.message || 'Request failed')
+      }
+      return data
     }
 
-    currentRide = data.ride
-    renderRide()
-    setMessage('Driver marked as arrived.')
-    await loadDriver()
-  }catch(e){
-    setMessage('Failed to mark arrival.')
-  }
-}
+    function renderDriverProfile(user) {
+      const profile = document.getElementById('driverProfile')
 
-async function startTrip(){
-  if(!currentRide) return
+      profile.innerHTML = `
+        <div class="card">
+          <div class="ride-title">${user.fullName || 'Driver'}</div>
+          <div class="kv">
+            <strong>Email:</strong> ${user.email || 'N/A'}<br>
+            <strong>Phone:</strong> ${user.phone || 'N/A'}<br>
+            <strong>Vehicle:</strong> ${user.vehicle ? `${user.vehicle.color} ${user.vehicle.year} ${user.vehicle.make} ${user.vehicle.model}` : 'N/A'}<br>
+            <strong>Plate:</strong> ${user.vehicle?.plate || 'N/A'}<br>
+            <strong>Online:</strong> ${user.isOnline ? 'Yes' : 'No'}
+          </div>
+          <span class="status-pill ${user.isOnline ? 'online' : 'offline'}">
+            ${user.isOnline ? 'ONLINE' : 'OFFLINE'}
+          </span>
+          <span class="status-pill ${user.verificationStatus === 'approved' ? 'online' : 'pending'}">
+            ${user.verificationStatus || 'pending'}
+          </span>
+        </div>
+      `
 
-  try{
-    const res = await fetch(`/rides/${currentRide.id}/start`, {
-      method:'POST'
-    })
-    const data = await res.json()
-
-    if(!data.success){
-      setMessage(data.message || 'Could not start trip.')
-      return
+      document.getElementById('approvalStatusText').textContent = user.isApproved ? 'YES' : 'NO'
+      document.getElementById('verificationStatusText').textContent = (user.verificationStatus || 'pending').toUpperCase()
     }
 
-    currentRide = data.ride
-    renderRide()
-    setMessage('Trip started.')
-  }catch(e){
-    setMessage('Failed to start trip.')
-  }
-}
+    function renderAssignedRides(rides) {
+      const container = document.getElementById('assignedRides')
 
-async function completeTrip(){
-  if(!currentRide) return
+      if (!rides.length) {
+        container.innerHTML = '<div class="empty">No rides assigned yet.</div>'
+        return
+      }
 
-  try{
-    const res = await fetch(`/rides/${currentRide.id}/complete`, {
-      method:'POST'
-    })
-    const data = await res.json()
+      container.innerHTML = rides.map(ride => `
+        <div class="card">
+          <div class="ride-title">${(ride.serviceType || 'ride').toUpperCase()} • ${ride.status || 'unknown'}</div>
+          <div class="kv">
+            <strong>Rider:</strong> ${ride.riderName || ride.riderId || 'N/A'}<br>
+            <strong>Pickup:</strong> ${ride.pickupAddress || 'N/A'}<br>
+            <strong>Dropoff:</strong> ${ride.dropoffAddress || 'N/A'}<br>
+            <strong>Estimated Fare:</strong> $${ride.estimatedFare || '0.00'}<br>
+            <strong>Estimated Distance:</strong> ${ride.estimatedDistance || 0} miles<br>
+            <strong>Estimated Duration:</strong> ${ride.estimatedDuration || 0} min
+          </div>
 
-    if(!data.success){
-      setMessage(data.message || 'Could not complete trip.')
-      return
+          <div class="btn-row">
+            ${ride.status === 'driver_assigned' ? `<button class="btn btn-success" onclick="acceptRide('${ride.id}')">Accept Ride</button>` : ''}
+            ${ride.status === 'accepted' ? `<button class="btn btn-primary" onclick="startRide('${ride.id}')">Start Ride</button>` : ''}
+            ${ride.status === 'in_progress' ? `<button class="btn btn-success" onclick="completeRide('${ride.id}')">Complete Ride</button>` : ''}
+          </div>
+        </div>
+      `).join('')
     }
 
-    currentRide = data.ride
-    renderRide()
-    setMessage('Trip completed.')
-    await loadDriver()
-    await loadAssignedRide()
-  }catch(e){
-    setMessage('Failed to complete trip.')
-  }
-}
+    async function updateLocation(isOnline) {
+      try {
+        const latValue = document.getElementById('lat').value.trim()
+        const lngValue = document.getElementById('lng').value.trim()
 
-async function pollRide(){
-  if(!currentRide || !currentRide.id) return
+        const payload = { isOnline }
 
-  try{
-    const res = await fetch(`/rides/${currentRide.id}`)
-    const data = await res.json()
+        if (latValue !== '') payload.lat = Number(latValue)
+        if (lngValue !== '') payload.lng = Number(lngValue)
 
-    if(!data.success){
-      return
+        const data = await fetchJSON(`/api/drivers/${currentUser.id}/location`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        })
+
+        currentUser = data.driver
+        localStorage.setItem('harveyTaxiUser', JSON.stringify(currentUser))
+
+        renderDriverProfile(currentUser)
+        showMessage(data.message || 'Driver status updated.', 'success')
+        loadDashboard()
+      } catch (error) {
+        showMessage(error.message || 'Could not update location.', 'error')
+      }
     }
 
-    currentRide = data.ride
-    renderRide()
-  }catch(e){}
-}
+    async function acceptRide(rideId) {
+      try {
+        const data = await fetchJSON(`/api/rides/${rideId}/accept`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ driverId: currentUser.id })
+        })
 
-async function checkIncomingRide(){
-  try{
-    if(!driverOnline) return
-    if(currentRide) return
-
-    const res = await fetch('/rides')
-    const data = await res.json()
-
-    if(!data.success || !Array.isArray(data.rides)) return
-
-    const ride = data.rides.find(r =>
-      r.status === 'matched'
-    )
-
-    if(ride){
-      currentRide = ride
-      renderRide()
-      document.getElementById('acceptBtn').classList.remove('hidden')
-      setMessage('New ride request received')
+        showMessage(data.message || 'Ride accepted.', 'success')
+        loadDashboard()
+      } catch (error) {
+        showMessage(error.message || 'Could not accept ride.', 'error')
+      }
     }
-  }catch(e){}
-}
 
-function startPolling(){
-  stopPolling()
+    async function startRide(rideId) {
+      try {
+        const data = await fetchJSON(`/api/rides/${rideId}/start`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        })
 
-  pollTimer = setInterval(async () => {
-    await loadDriver()
-    await loadAssignedRide()
-
-    if(currentRide){
-      await pollRide()
-    }else{
-      await checkIncomingRide()
+        showMessage(data.message || 'Ride started.', 'success')
+        loadDashboard()
+      } catch (error) {
+        showMessage(error.message || 'Could not start ride.', 'error')
+      }
     }
-  }, 2000)
-}
 
-function stopPolling(){
-  if(pollTimer){
-    clearInterval(pollTimer)
-    pollTimer = null
-  }
-}
+    async function completeRide(rideId) {
+      try {
+        const data = await fetchJSON(`/api/rides/${rideId}/complete`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        })
 
-async function init(){
-  await loadDriver()
-  await loadAssignedRide()
-  startPolling()
-}
+        showMessage(data.message || 'Ride completed.', 'success')
+        loadDashboard()
+      } catch (error) {
+        showMessage(error.message || 'Could not complete ride.', 'error')
+      }
+    }
 
-init()
-</script>
+    async function loadDashboard() {
+      try {
+        const ridesData = await fetchJSON('/api/rides')
+        allRides = ridesData.rides || []
+
+        const assignedToDriver = allRides
+          .filter(ride => ride.assignedDriverId === currentUser.id)
+          .slice()
+          .reverse()
+
+        renderDriverProfile(currentUser)
+        renderAssignedRides(assignedToDriver)
+      } catch (error) {
+        showMessage(error.message || 'Could not load driver dashboard.', 'error')
+      }
+    }
+
+    loadDashboard()
+    setInterval(loadDashboard, 10000)
+  </script>
 </body>
 </html>
