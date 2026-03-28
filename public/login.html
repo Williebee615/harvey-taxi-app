@@ -1,4 +1,140 @@
-<!DOCTYPE html>
+<!DOCTYPE html><!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Harvey Taxi Login</title>
+
+<style>
+body{
+background:#0b1020;
+color:white;
+font-family:Arial;
+padding:20px;
+}
+
+.card{
+background:#151c34;
+padding:25px;
+border-radius:15px;
+max-width:400px;
+margin:auto;
+}
+
+.title{
+font-size:26px;
+margin-bottom:5px;
+}
+
+.subtitle{
+color:#b7c2ff;
+margin-bottom:20px;
+}
+
+input{
+width:100%;
+padding:12px;
+margin-top:10px;
+margin-bottom:15px;
+border-radius:10px;
+border:none;
+background:#0f1529;
+color:white;
+}
+
+button{
+width:100%;
+padding:14px;
+border:none;
+border-radius:10px;
+background:#f5c451;
+font-weight:bold;
+cursor:pointer;
+}
+
+a{
+color:#f5c451;
+display:block;
+margin-top:15px;
+text-decoration:none;
+}
+
+#status{
+margin-top:15px;
+color:#f87171;
+}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+
+<div class="title">Harvey Taxi Login</div>
+<div class="subtitle">Riders • Drivers • Admin</div>
+
+<input id="email" placeholder="Email"/>
+<input id="password" type="password" placeholder="Password"/>
+
+<button onclick="login()">Login</button>
+
+<a href="/rider-signup.html">Create Rider Account</a>
+<a href="/driver-signup.html">Create Driver Account</a>
+<a href="/">Back Home</a>
+
+<div id="status"></div>
+
+</div>
+
+<script>
+
+async function login(){
+
+const email = document.getElementById('email').value
+const password = document.getElementById('password').value
+
+const res = await fetch('/api/login',{
+method:'POST',
+headers:{
+'Content-Type':'application/json'
+},
+body:JSON.stringify({
+email,
+password
+})
+})
+
+const data = await res.json()
+
+if(data.role === "rider"){
+localStorage.setItem("harveyTaxiUser",JSON.stringify(data.user))
+localStorage.setItem("harveyTaxiRole","rider")
+window.location="/request.html"
+return
+}
+
+if(data.role === "driver"){
+localStorage.setItem("harveyTaxiUser",JSON.stringify(data.user))
+localStorage.setItem("harveyTaxiRole","driver")
+window.location="/driver.html"
+return
+}
+
+if(data.role === "admin"){
+localStorage.setItem("harveyTaxiRole","admin")
+window.location="/admin.html"
+return
+}
+
+document.getElementById("status").innerHTML =
+data.message || "Login failed"
+
+}
+
+</script>
+
+</body>
+</html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
