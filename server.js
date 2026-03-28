@@ -76,7 +76,6 @@ function toRadians(value) {
 
 function getDistanceMiles(lat1, lng1, lat2, lng2) {
   const earthRadiusMiles = 3958.8
-
   const dLat = toRadians(lat2 - lat1)
   const dLng = toRadians(lng2 - lng1)
 
@@ -107,6 +106,16 @@ function calculateDriverPayout(totalFare) {
 
 function calculatePlatformFee(totalFare, driverPayout) {
   return Number((totalFare - driverPayout).toFixed(2))
+}
+
+function findRideAnywhere(data, rideId) {
+  const activeRide = data.rideRequests.find(r => r.id === rideId)
+  if (activeRide) return { ride: activeRide, collection: 'rideRequests' }
+
+  const trip = data.trips.find(t => t.id === rideId)
+  if (trip) return { ride: trip, collection: 'trips' }
+
+  return null
 }
 
 app.get('/', (req, res) => {
@@ -373,191 +382,4 @@ app.get('/api/drivers/available', (req, res) => {
   })
 })
 
-app.get('/api/drivers/:driverId/history', (req, res) => {
-  const data = readData()
-  const driverId = req.params.driverId
-
-  const trips = data.trips
-    .filter(trip => trip.assignedDriverId === driverId)
-    .slice()
-    .reverse()
-
-  const completedTrips = trips.filter(trip => trip.status === 'completed')
-  const totalEarnings = completedTrips.reduce(
-    (sum, trip) => sum + Number(trip.driverPayout || 0),
-    0
-  )
-
-  res.json({
-    success: true,
-    trips,
-    summary: {
-      totalTrips: trips.length,
-      completedTrips: completedTrips.length,
-      totalEarnings: Number(totalEarnings.toFixed(2))
-    }
-  })
-})
-
-/* =========================
-   ADMIN
-========================= */
-
-app.get('/api/admin/drivers/pending', (req, res) => {
-  const data = readData()
-
-  const pendingDrivers = data.drivers.filter(
-    driver => !driver.isApproved || driver.verificationStatus === 'pending'
-  )
-
-  res.json({
-    success: true,
-    drivers: pendingDrivers.map(sanitizeUser)
-  })
-})
-
-app.post('/api/admin/drivers/:driverId/approve', (req, res) => {
-  const { driverId } = req.params
-  const data = readData()
-
-  const driver = data.drivers.find(d => d.id === driverId)
-
-  if (!driver) {
-    return res.status(404).json({
-      success: false,
-      message: 'Driver not found.'
-    })
-  }
-
-  driver.isApproved = true
-  driver.verificationStatus = 'approved'
-  driver.backgroundCheckStatus = 'ready_for_check'
-
-  saveData(data)
-
-  res.json({
-    success: true,
-    message: 'Driver approved successfully.',
-    driver: sanitizeUser(driver)
-  })
-})
-
-app.post('/api/admin/drivers/:driverId/reject', (req, res) => {
-  const { driverId } = req.params
-  const { reason } = req.body
-  const data = readData()
-
-  const driver = data.drivers.find(d => d.id === driverId)
-
-  if (!driver) {
-    return res.status(404).json({
-      success: false,
-      message: 'Driver not found.'
-    })
-  }
-
-  driver.isApproved = false
-  driver.verificationStatus = 'rejected'
-  driver.rejectionReason = reason || 'Not specified'
-
-  saveData(data)
-
-  res.json({
-    success: true,
-    message: 'Driver rejected.',
-    driver: sanitizeUser(driver)
-  })
-})
-
-/* =========================
-   RIDES / DISPATCH
-========================= */
-
-app.post('/api/rides/request', (req, res) => {
-  const {
-    riderId,
-    pickupAddress,
-    dropoffAddress,
-    pickupLat,
-    pickupLng,
-    dropoffLat,
-    dropoffLng,
-    serviceType
-  } = req.body
-
-  if (
-    !riderId ||
-    !pickupAddress ||
-    !dropoffAddress ||
-    typeof pickupLat !== 'number' ||
-    typeof pickupLng !== 'number'
-  ) {
-    return res.status(400).json({
-      success: false,
-      message: 'Missing ride request details.'
-    })
-  }
-
-  const data = readData()
-
-  const rider = data.riders.find(r => r.id === riderId)
-  if (!rider) {
-    return res.status(404).json({
-      success: false,
-      message: 'Rider not found.'
-    })
-  }
-
-  const availableDrivers = data.drivers
-    .filter(
-      driver =>
-        driver.isApproved &&
-        driver.isOnline &&
-        typeof driver.currentLat === 'number' &&
-        typeof driver.currentLng === 'number'
-    )
-    .map(driver => {
-      const distanceAway = getDistanceMiles(
-        pickupLat,
-        pickupLng,
-        driver.currentLat,
-        driver.currentLng
-      )
-
-      return { ...driver, distanceAway }
-    })
-    .sort((a, b) => a.distanceAway - b.distanceAway)
-
-  const assignedDriver = availableDrivers.length ? availableDrivers[0] : null
-
-  const estimatedDistance =
-    typeof dropoffLat === 'number' && typeof dropoffLng === 'number'
-      ? getDistanceMiles(pickupLat, pickupLng, dropoffLat, dropoffLng)
-      : 5
-
-  const estimatedDuration = Math.max(Math.round(estimatedDistance * 3), 10)
-  const estimatedFare = estimateFare(
-    estimatedDistance,
-    estimatedDuration,
-    data.settings
-  )
-  const driverPayout = assignedDriver ? calculateDriverPayout(estimatedFare) : 0
-  const platformFee = assignedDriver
-    ? calculatePlatformFee(estimatedFare, driverPayout)
-    : 0
-
-  const rideRequest = {
-    id: generateId('ride'),
-    riderId,
-    riderName: rider.fullName,
-    pickupAddress,
-    dropoffAddress,
-    pickupLat,
-    pickupLng,
-    dropoffLat: typeof dropoffLat === 'number' ? dropoffLat : null,
-    dropoffLng: typeof dropoffLng === 'number' ? dropoffLng : null,
-    serviceType: serviceType || 'ride',
-    status: assignedDriver ? 'driver_assigned' : 'searching',
-    assignedDriverId: assignedDriver ? assignedDriver.id : null,
-    assignedDriverName: assignedDriver ? assignedDriver.fullName : null,
-    assignedVehicle:
+app.get('/api/drivers/:driverId/history
