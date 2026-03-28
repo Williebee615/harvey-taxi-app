@@ -3,48 +3,84 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Harvey Taxi | Rider Signup</title>
+  <title>Harvey Taxi | Request Ride</title>
   <style>
     * {
       box-sizing: border-box;
-      margin: 0;
-      padding: 0;
       font-family: Arial, sans-serif;
     }
 
     body {
+      margin: 0;
       background: #0b1020;
       color: white;
-      min-height: 100vh;
-      padding: 24px;
+      padding: 20px;
     }
 
-    .container {
-      max-width: 560px;
+    .wrap {
+      max-width: 920px;
       margin: 0 auto;
     }
 
-    .card {
-      background: #151c34;
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 18px;
-      padding: 24px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
     }
 
-    h1 {
-      font-size: 32px;
-      margin-bottom: 8px;
-    }
-
-    .subtitle {
-      color: #b7c2ff;
-      margin-bottom: 24px;
-      line-height: 1.5;
+    .title {
+      font-size: 30px;
+      font-weight: 700;
     }
 
     .brand {
       color: #f5c451;
+    }
+
+    .top-links {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .top-links a,
+    .top-links button {
+      background: #151c34;
+      color: #f5c451;
+      border: 1px solid rgba(255,255,255,0.12);
+      text-decoration: none;
+      padding: 10px 14px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 20px;
+    }
+
+    .panel {
+      background: #151c34;
+      border-radius: 18px;
+      padding: 20px;
+      border: 1px solid rgba(255,255,255,0.08);
+      margin-bottom: 20px;
+    }
+
+    .panel h2 {
+      margin: 0 0 14px;
+      font-size: 22px;
+    }
+
+    .muted {
+      color: #b7c2ff;
+      line-height: 1.5;
+      font-size: 14px;
     }
 
     .field {
@@ -58,9 +94,10 @@
       color: #dbe2ff;
     }
 
-    input {
+    input,
+    select {
       width: 100%;
-      padding: 14px 14px;
+      padding: 14px;
       border-radius: 12px;
       border: 1px solid rgba(255,255,255,0.12);
       background: #0f1529;
@@ -69,42 +106,40 @@
       outline: none;
     }
 
-    input:focus {
+    input:focus,
+    select:focus {
       border-color: #f5c451;
       box-shadow: 0 0 0 3px rgba(245,196,81,0.15);
     }
 
-    .button {
-      width: 100%;
+    .btn {
       border: none;
       border-radius: 12px;
-      padding: 15px;
+      padding: 14px 16px;
       font-size: 16px;
       font-weight: 700;
       cursor: pointer;
-      margin-top: 8px;
     }
 
-    .primary {
+    .btn-primary {
       background: #f5c451;
       color: #111;
+      width: 100%;
     }
 
-    .secondary {
-      background: transparent;
+    .btn-secondary {
+      background: #0f1529;
       color: white;
-      border: 1px solid rgba(255,255,255,0.15);
-      text-decoration: none;
-      display: inline-block;
-      text-align: center;
-      margin-top: 12px;
+      border: 1px solid rgba(255,255,255,0.12);
+      width: 100%;
+      margin-top: 10px;
     }
 
     .message {
-      margin-top: 18px;
+      display: none;
+      margin-top: 16px;
       padding: 14px;
       border-radius: 12px;
-      display: none;
       line-height: 1.5;
     }
 
@@ -120,88 +155,197 @@
       border: 1px solid rgba(239, 68, 68, 0.35);
     }
 
-    .top-links {
-      display: flex;
-      gap: 12px;
-      margin-bottom: 18px;
-      flex-wrap: wrap;
+    .ride-card {
+      background: #0f1529;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      padding: 16px;
+      margin-top: 14px;
     }
 
-    .top-links a {
+    .status-pill {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      background: rgba(245, 196, 81, 0.12);
       color: #f5c451;
-      text-decoration: none;
+      border: 1px solid rgba(245, 196, 81, 0.3);
+    }
+
+    .kv {
+      margin-top: 10px;
       font-size: 14px;
+      line-height: 1.7;
+      color: #dbe2ff;
+    }
+
+    .hero {
+      min-height: 260px;
+      border-radius: 18px;
+      background:
+        linear-gradient(145deg, rgba(245,196,81,0.12), rgba(245,196,81,0.03)),
+        #0f1529;
+      border: 1px solid rgba(255,255,255,0.08);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .hero h3 {
+      margin: 0 0 10px;
+      font-size: 24px;
+    }
+
+    .map-placeholder {
+      margin-top: 16px;
+      min-height: 170px;
+      border-radius: 16px;
+      border: 1px dashed rgba(245,196,81,0.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #b7c2ff;
+      text-align: center;
+      padding: 20px;
+      line-height: 1.5;
+      background: rgba(255,255,255,0.02);
     }
 
     .small {
       font-size: 13px;
       color: #aeb8df;
-      margin-top: 18px;
+      margin-top: 14px;
       line-height: 1.5;
+    }
+
+    @media (max-width: 860px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="top-links">
-      <a href="/">← Home</a>
-      <a href="/login.html">Login</a>
-      <a href="/driver-signup.html">Driver Signup</a>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="title"><span class="brand">Harvey Taxi</span> Request Ride</div>
+      <div class="top-links">
+        <a href="/">Home</a>
+        <a href="/login.html">Login</a>
+        <button onclick="refreshRide()">Refresh Ride</button>
+        <button onclick="logout()">Logout</button>
+      </div>
     </div>
 
-    <div class="card">
-      <h1><span class="brand">Harvey Taxi</span> Rider Signup</h1>
-      <p class="subtitle">
-        Create your rider account to request rides, save trip info, and prepare for upgraded passenger verification.
-      </p>
+    <div class="grid">
+      <div>
+        <div class="panel">
+          <h2>Book Your Ride</h2>
+          <div class="muted">
+            Request a Harvey Taxi ride and the system will search for the nearest approved online driver.
+          </div>
 
-      <form id="riderSignupForm">
-        <div class="field">
-          <label for="fullName">Full Name</label>
-          <input type="text" id="fullName" required />
+          <form id="rideForm">
+            <div class="field">
+              <label for="serviceType">Service Type</label>
+              <select id="serviceType">
+                <option value="ride">Standard Ride</option>
+                <option value="airport">Airport Ride</option>
+                <option value="premium">Premium Ride</option>
+                <option value="delivery">Delivery</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="pickupAddress">Pickup Address</label>
+              <input id="pickupAddress" type="text" placeholder="Enter pickup address" required />
+            </div>
+
+            <div class="field">
+              <label for="dropoffAddress">Dropoff Address</label>
+              <input id="dropoffAddress" type="text" placeholder="Enter dropoff address" required />
+            </div>
+
+            <div class="field">
+              <label for="pickupLat">Pickup Latitude</label>
+              <input id="pickupLat" type="number" step="any" placeholder="36.1627" required />
+            </div>
+
+            <div class="field">
+              <label for="pickupLng">Pickup Longitude</label>
+              <input id="pickupLng" type="number" step="any" placeholder="-86.7816" required />
+            </div>
+
+            <div class="field">
+              <label for="dropoffLat">Dropoff Latitude</label>
+              <input id="dropoffLat" type="number" step="any" placeholder="Optional but recommended" />
+            </div>
+
+            <div class="field">
+              <label for="dropoffLng">Dropoff Longitude</label>
+              <input id="dropoffLng" type="number" step="any" placeholder="Optional but recommended" />
+            </div>
+
+            <button class="btn btn-primary" type="submit">Request Harvey Ride</button>
+            <button class="btn btn-secondary" type="button" onclick="fillNashvilleDemo()">Use Nashville Demo</button>
+          </form>
+
+          <div id="messageBox" class="message"></div>
+
+          <div class="small">
+            For now, this version uses manual coordinates. Next upgrade can add Google Maps autocomplete and live Uber-style routing.
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="hero">
+          <div>
+            <h3>Ride Dispatch</h3>
+            <div class="muted">
+              Harvey Taxi is now set up to assign the nearest available approved driver based on location.
+            </div>
+          </div>
+
+          <div class="map-placeholder">
+            Uber-style live map goes here next.<br>
+            This page is already ready for your map upgrade.
+          </div>
         </div>
 
-        <div class="field">
-          <label for="email">Email</label>
-          <input type="email" id="email" required />
+        <div class="panel">
+          <h2>Your Current Ride</h2>
+          <div class="muted">
+            After you request a ride, your trip details and assigned driver will appear here.
+          </div>
+
+          <div id="rideDetails">
+            <div class="small">No ride requested yet.</div>
+          </div>
         </div>
-
-        <div class="field">
-          <label for="phone">Phone Number</label>
-          <input type="tel" id="phone" required />
-        </div>
-
-        <div class="field">
-          <label for="password">Password</label>
-          <input type="password" id="password" required />
-        </div>
-
-        <div class="field">
-          <label for="emergencyContactName">Emergency Contact Name</label>
-          <input type="text" id="emergencyContactName" />
-        </div>
-
-        <div class="field">
-          <label for="emergencyContactPhone">Emergency Contact Phone</label>
-          <input type="tel" id="emergencyContactPhone" />
-        </div>
-
-        <button class="button primary" type="submit">Create Rider Account</button>
-      </form>
-
-      <a class="button secondary" href="/login.html">Already have an account? Login</a>
-
-      <div id="messageBox" class="message"></div>
-
-      <p class="small">
-        Next upgrades can connect this page to rider ID verification, saved payment methods, ride history, and emergency button protection.
-      </p>
+      </div>
     </div>
   </div>
 
   <script>
-    const form = document.getElementById('riderSignupForm')
+    const storedUser = localStorage.getItem('harveyTaxiUser')
+    const storedRole = localStorage.getItem('harveyTaxiRole')
+    const rideForm = document.getElementById('rideForm')
     const messageBox = document.getElementById('messageBox')
+    const rideDetails = document.getElementById('rideDetails')
+
+    let currentUser = null
+    let currentRideId = localStorage.getItem('harveyTaxiCurrentRideId') || null
+
+    if (!storedUser || storedRole !== 'rider') {
+      window.location = '/login.html'
+    } else {
+      currentUser = JSON.parse(storedUser)
+    }
 
     function showMessage(text, type) {
       messageBox.className = `message ${type}`
@@ -209,20 +353,76 @@
       messageBox.textContent = text
     }
 
-    form.addEventListener('submit', async (e) => {
+    function logout() {
+      localStorage.removeItem('harveyTaxiUser')
+      localStorage.removeItem('harveyTaxiRole')
+      localStorage.removeItem('harveyTaxiCurrentRideId')
+      window.location = '/login.html'
+    }
+
+    function fillNashvilleDemo() {
+      document.getElementById('pickupAddress').value = 'Downtown Nashville, TN'
+      document.getElementById('dropoffAddress').value = 'Nashville International Airport'
+      document.getElementById('pickupLat').value = '36.1627'
+      document.getElementById('pickupLng').value = '-86.7816'
+      document.getElementById('dropoffLat').value = '36.1263'
+      document.getElementById('dropoffLng').value = '-86.6774'
+    }
+
+    function renderRide(ride) {
+      if (!ride) {
+        rideDetails.innerHTML = '<div class="small">No ride requested yet.</div>'
+        return
+      }
+
+      rideDetails.innerHTML = `
+        <div class="ride-card">
+          <div><strong>Service:</strong> ${(ride.serviceType || 'ride').toUpperCase()}</div>
+          <span class="status-pill">${ride.status || 'unknown'}</span>
+
+          <div class="kv">
+            <strong>Pickup:</strong> ${ride.pickupAddress || 'N/A'}<br>
+            <strong>Dropoff:</strong> ${ride.dropoffAddress || 'N/A'}<br>
+            <strong>Estimated Fare:</strong> $${ride.estimatedFare || '0.00'}<br>
+            <strong>Estimated Distance:</strong> ${ride.estimatedDistance || 0} miles<br>
+            <strong>Estimated Duration:</strong> ${ride.estimatedDuration || 0} min<br>
+            <strong>Assigned Driver:</strong> ${ride.assignedDriverName || 'Searching...'}<br>
+            <strong>Vehicle:</strong> ${ride.assignedVehicle || 'Waiting for assignment'}<br>
+            <strong>Driver Distance Away:</strong> ${ride.driverDistanceAway != null ? ride.driverDistanceAway + ' miles' : 'N/A'}
+          </div>
+        </div>
+      `
+    }
+
+    async function fetchJSON(url, options = {}) {
+      const response = await fetch(url, options)
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.message || 'Request failed')
+      }
+      return data
+    }
+
+    rideForm.addEventListener('submit', async (e) => {
       e.preventDefault()
 
       const payload = {
-        fullName: document.getElementById('fullName').value.trim(),
-        email: document.getElementById('email').value.trim(),
-        phone: document.getElementById('phone').value.trim(),
-        password: document.getElementById('password').value.trim(),
-        emergencyContactName: document.getElementById('emergencyContactName').value.trim(),
-        emergencyContactPhone: document.getElementById('emergencyContactPhone').value.trim()
+        riderId: currentUser.id,
+        pickupAddress: document.getElementById('pickupAddress').value.trim(),
+        dropoffAddress: document.getElementById('dropoffAddress').value.trim(),
+        pickupLat: Number(document.getElementById('pickupLat').value),
+        pickupLng: Number(document.getElementById('pickupLng').value),
+        serviceType: document.getElementById('serviceType').value
       }
 
+      const dropoffLatRaw = document.getElementById('dropoffLat').value.trim()
+      const dropoffLngRaw = document.getElementById('dropoffLng').value.trim()
+
+      if (dropoffLatRaw !== '') payload.dropoffLat = Number(dropoffLatRaw)
+      if (dropoffLngRaw !== '') payload.dropoffLng = Number(dropoffLngRaw)
+
       try {
-        const response = await fetch('/api/riders/signup', {
+        const data = await fetchJSON('/api/rides/request', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -230,22 +430,37 @@
           body: JSON.stringify(payload)
         })
 
-        const data = await response.json()
+        currentRideId = data.ride.id
+        localStorage.setItem('harveyTaxiCurrentRideId', currentRideId)
 
-        if (!response.ok || !data.success) {
-          showMessage(data.message || 'Signup failed.', 'error')
-          return
-        }
-
-        localStorage.setItem('harveyTaxiUser', JSON.stringify(data.rider))
-        localStorage.setItem('harveyTaxiRole', 'rider')
-
-        showMessage('Rider account created successfully. You can now log in and request rides.', 'success')
-        form.reset()
+        showMessage(data.message || 'Ride requested successfully.', 'success')
+        renderRide(data.ride)
       } catch (error) {
-        showMessage('Server connection failed. Make sure your Harvey Taxi server is running.', 'error')
+        showMessage(error.message || 'Ride request failed.', 'error')
       }
     })
+
+    async function refreshRide() {
+      if (!currentRideId) {
+        showMessage('No active ride to refresh yet.', 'error')
+        return
+      }
+
+      try {
+        const data = await fetchJSON(`/api/rides/${currentRideId}`)
+        renderRide(data.ride)
+        showMessage('Ride refreshed.', 'success')
+      } catch (error) {
+        showMessage(error.message || 'Could not refresh ride.', 'error')
+      }
+    }
+
+    if (currentRideId) {
+      refreshRide()
+      setInterval(() => {
+        refreshRide().catch(() => {})
+      }, 10000)
+    }
   </script>
 </body>
 </html>
