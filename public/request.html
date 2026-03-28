@@ -3,219 +3,249 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ride Request</title>
+  <title>Harvey Taxi | Rider Signup</title>
   <style>
-    * { box-sizing: border-box; font-family: Arial, sans-serif; }
-    body { margin: 0; background: #09142d; color: white; padding: 20px; }
-    .wrap { max-width: 760px; margin: 0 auto; }
-    .card {
-      background: #132754;
-      border: 1px solid #23458e;
-      border-radius: 18px;
-      padding: 20px;
-      margin-bottom: 18px;
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
     }
-    input, button {
-      width: 100%;
-      padding: 14px;
-      border-radius: 12px;
-      margin-bottom: 12px;
-      border: 1px solid #2b4f99;
-      font-size: 16px;
-    }
-    input { background: #0b1b3d; color: white; }
-    button { border: none; font-weight: bold; cursor: pointer; }
-    .primary { background: #2f7cff; color: white; }
-    .success { background: #16a34a; color: white; }
-    .warning { background: #d97706; color: white; }
-    .danger { background: #dc2626; color: white; }
-    .status {
-      background: #0b1b3d;
-      border: 1px solid #2b4f99;
-      border-radius: 12px;
-      padding: 14px;
-      white-space: pre-line;
-      line-height: 1.6;
-    }
-    .row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-    .back {
-      display: inline-block;
+
+    body {
+      background: #0b1020;
       color: white;
-      text-decoration: none;
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    .container {
+      max-width: 560px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: #151c34;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 18px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    }
+
+    h1 {
+      font-size: 32px;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      color: #b7c2ff;
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+
+    .brand {
+      color: #f5c451;
+    }
+
+    .field {
       margin-bottom: 16px;
     }
-    .hidden { display: none; }
-    .emergency-wrap {
-      position: fixed;
-      right: 18px;
-      bottom: 18px;
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+      color: #dbe2ff;
     }
-    .emergency-btn {
-      background: #ff1d3d;
+
+    input {
+      width: 100%;
+      padding: 14px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: #0f1529;
       color: white;
+      font-size: 16px;
+      outline: none;
+    }
+
+    input:focus {
+      border-color: #f5c451;
+      box-shadow: 0 0 0 3px rgba(245,196,81,0.15);
+    }
+
+    .button {
+      width: 100%;
       border: none;
-      border-radius: 999px;
-      padding: 18px 22px;
-      font-weight: 800;
-      box-shadow: 0 10px 22px rgba(255, 29, 61, 0.35);
+      border-radius: 12px;
+      padding: 15px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+
+    .primary {
+      background: #f5c451;
+      color: #111;
+    }
+
+    .secondary {
+      background: transparent;
+      color: white;
+      border: 1px solid rgba(255,255,255,0.15);
+      text-decoration: none;
+      display: inline-block;
+      text-align: center;
+      margin-top: 12px;
+    }
+
+    .message {
+      margin-top: 18px;
+      padding: 14px;
+      border-radius: 12px;
+      display: none;
+      line-height: 1.5;
+    }
+
+    .success {
+      background: rgba(34, 197, 94, 0.15);
+      color: #a7f3d0;
+      border: 1px solid rgba(34, 197, 94, 0.35);
+    }
+
+    .error {
+      background: rgba(239, 68, 68, 0.14);
+      color: #fecaca;
+      border: 1px solid rgba(239, 68, 68, 0.35);
+    }
+
+    .top-links {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+
+    .top-links a {
+      color: #f5c451;
+      text-decoration: none;
+      font-size: 14px;
+    }
+
+    .small {
+      font-size: 13px;
+      color: #aeb8df;
+      margin-top: 18px;
+      line-height: 1.5;
     }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <a class="back" href="/">← Back</a>
-
-    <div class="card">
-      <h1>Request a Ride</h1>
-      <input id="riderName" placeholder="Rider name" />
-      <input id="riderPhone" placeholder="Phone number" />
-      <input id="pickupAddress" placeholder="Pickup address" value="Downtown Nashville" />
-      <input id="destinationAddress" placeholder="Destination address" value="Nashville Airport" />
-
-      <div class="row">
-        <input id="pickupLat" type="number" step="any" value="36.1627" placeholder="Pickup latitude" />
-        <input id="pickupLng" type="number" step="any" value="-86.7816" placeholder="Pickup longitude" />
-      </div>
-
-      <div class="row">
-        <input id="destinationLat" type="number" step="any" value="36.1263" placeholder="Destination latitude" />
-        <input id="destinationLng" type="number" step="any" value="-86.6774" placeholder="Destination longitude" />
-      </div>
-
-      <button class="primary" onclick="requestRide()">Request Ride</button>
-      <div id="status" class="status">No ride requested yet.</div>
+  <div class="container">
+    <div class="top-links">
+      <a href="/">← Home</a>
+      <a href="/login.html">Login</a>
+      <a href="/driver-signup.html">Driver Signup</a>
     </div>
 
     <div class="card">
-      <h2>Active Trip</h2>
-      <div id="tripBox" class="status">No active trip yet.</div>
-      <button class="success" onclick="updateRideStatus('picked_up')">Mark Picked Up</button>
-      <button class="warning" onclick="updateRideStatus('completed')">Complete Ride</button>
-    </div>
-  </div>
+      <h1><span class="brand">Harvey Taxi</span> Rider Signup</h1>
+      <p class="subtitle">
+        Create your rider account to request rides, save trip info, and prepare for upgraded passenger verification.
+      </p>
 
-  <div class="emergency-wrap">
-    <button id="emergencyButton" class="emergency-btn hidden" onclick="triggerEmergency()">🚨 911 EMERGENCY</button>
+      <form id="riderSignupForm">
+        <div class="field">
+          <label for="fullName">Full Name</label>
+          <input type="text" id="fullName" required />
+        </div>
+
+        <div class="field">
+          <label for="email">Email</label>
+          <input type="email" id="email" required />
+        </div>
+
+        <div class="field">
+          <label for="phone">Phone Number</label>
+          <input type="tel" id="phone" required />
+        </div>
+
+        <div class="field">
+          <label for="password">Password</label>
+          <input type="password" id="password" required />
+        </div>
+
+        <div class="field">
+          <label for="emergencyContactName">Emergency Contact Name</label>
+          <input type="text" id="emergencyContactName" />
+        </div>
+
+        <div class="field">
+          <label for="emergencyContactPhone">Emergency Contact Phone</label>
+          <input type="tel" id="emergencyContactPhone" />
+        </div>
+
+        <button class="button primary" type="submit">Create Rider Account</button>
+      </form>
+
+      <a class="button secondary" href="/login.html">Already have an account? Login</a>
+
+      <div id="messageBox" class="message"></div>
+
+      <p class="small">
+        Next upgrades can connect this page to rider ID verification, saved payment methods, ride history, and emergency button protection.
+      </p>
+    </div>
   </div>
 
   <script>
-    let activeRide = null
+    const form = document.getElementById('riderSignupForm')
+    const messageBox = document.getElementById('messageBox')
 
-    function formatTrip(ride) {
-      return `Trip ID: ${ride.id}
-Rider: ${ride.riderName}
-Driver: ${ride.driverName}
-Car: ${ride.car}
-Plate: ${ride.plate}
-Pickup: ${ride.pickupAddress}
-Destination: ${ride.destinationAddress}
-Fare: $${ride.fare}
-Status: ${ride.status}
-Driver Distance: ${ride.driverDistanceMiles} miles away`
+    function showMessage(text, type) {
+      messageBox.className = `message ${type}`
+      messageBox.style.display = 'block'
+      messageBox.textContent = text
     }
 
-    async function requestRide() {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault()
+
       const payload = {
-        riderName: document.getElementById('riderName').value.trim(),
-        riderPhone: document.getElementById('riderPhone').value.trim(),
-        pickupAddress: document.getElementById('pickupAddress').value.trim(),
-        destinationAddress: document.getElementById('destinationAddress').value.trim(),
-        pickupLat: Number(document.getElementById('pickupLat').value),
-        pickupLng: Number(document.getElementById('pickupLng').value),
-        destinationLat: Number(document.getElementById('destinationLat').value),
-        destinationLng: Number(document.getElementById('destinationLng').value)
+        fullName: document.getElementById('fullName').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        phone: document.getElementById('phone').value.trim(),
+        password: document.getElementById('password').value.trim(),
+        emergencyContactName: document.getElementById('emergencyContactName').value.trim(),
+        emergencyContactPhone: document.getElementById('emergencyContactPhone').value.trim()
       }
 
-      const status = document.getElementById('status')
-      status.textContent = 'Requesting ride...'
-
       try {
-        const res = await fetch('/api/request-ride', {
+        const response = await fetch('/api/riders/signup', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json'
+          },
           body: JSON.stringify(payload)
         })
 
-        const data = await res.json()
+        const data = await response.json()
 
-        if (!res.ok) {
-          status.textContent = data.error || 'Ride request failed.'
+        if (!response.ok || !data.success) {
+          showMessage(data.message || 'Signup failed.', 'error')
           return
         }
 
-        activeRide = data.ride
-        status.textContent = `Ride assigned successfully.
-Driver: ${data.ride.driverName}
-Car: ${data.ride.car}
-Plate: ${data.ride.plate}
-Fare: $${data.ride.fare}`
+        localStorage.setItem('harveyTaxiUser', JSON.stringify(data.rider))
+        localStorage.setItem('harveyTaxiRole', 'rider')
 
-        document.getElementById('tripBox').textContent = formatTrip(activeRide)
-        document.getElementById('emergencyButton').classList.remove('hidden')
-      } catch (err) {
-        status.textContent = 'Server error. Please try again.'
+        showMessage('Rider account created successfully. You can now log in and request rides.', 'success')
+        form.reset()
+      } catch (error) {
+        showMessage('Server connection failed. Make sure your Harvey Taxi server is running.', 'error')
       }
-    }
-
-    async function updateRideStatus(newStatus) {
-      if (!activeRide) {
-        alert('No active ride yet.')
-        return
-      }
-
-      const res = await fetch(`/api/rides/${activeRide.id}/status`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus })
-      })
-
-      const data = await res.json()
-
-      if (!res.ok) {
-        alert(data.error || 'Could not update ride.')
-        return
-      }
-
-      activeRide = data.ride
-      document.getElementById('tripBox').textContent = formatTrip(activeRide)
-
-      if (newStatus === 'completed' || newStatus === 'cancelled') {
-        document.getElementById('emergencyButton').classList.add('hidden')
-      }
-    }
-
-    async function triggerEmergency() {
-      if (!activeRide) {
-        alert('No active trip found.')
-        return
-      }
-
-      const ok = confirm('Call 911 and alert Harvey Taxi admin?')
-      if (!ok) return
-
-      try {
-        await fetch('/api/emergency', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            rideId: activeRide.id,
-            riderName: activeRide.riderName,
-            driverName: activeRide.driverName,
-            car: activeRide.car,
-            plate: activeRide.plate,
-            lat: activeRide.pickupLat,
-            lng: activeRide.pickupLng,
-            note: 'Passenger triggered 911 emergency button'
-          })
-        })
-      } catch (err) {}
-
-      window.location.href = 'tel:911'
-    }
+    })
   </script>
 </body>
 </html>
