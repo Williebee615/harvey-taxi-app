@@ -18,7 +18,7 @@
     }
 
     .wrap {
-      max-width: 1100px;
+      max-width: 1200px;
       margin: 0 auto;
     }
 
@@ -60,7 +60,7 @@
 
     .grid {
       display: grid;
-      grid-template-columns: 0.95fr 1.05fr;
+      grid-template-columns: 420px 1fr;
       gap: 20px;
     }
 
@@ -117,6 +117,8 @@
       font-size: 15px;
       font-weight: 700;
       cursor: pointer;
+      width: 100%;
+      margin-top: 10px;
     }
 
     .btn-primary {
@@ -141,10 +143,15 @@
     }
 
     .btn-row {
-      display: flex;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
       gap: 10px;
-      flex-wrap: wrap;
-      margin-top: 10px;
+    }
+
+    .btn-row-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
     }
 
     .message {
@@ -165,33 +172,6 @@
       background: rgba(239, 68, 68, 0.14);
       color: #fecaca;
       border: 1px solid rgba(239, 68, 68, 0.35);
-    }
-
-    .status-pill {
-      display: inline-block;
-      padding: 7px 10px;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: 700;
-      margin-top: 10px;
-    }
-
-    .online {
-      background: rgba(34, 197, 94, 0.15);
-      color: #86efac;
-      border: 1px solid rgba(34, 197, 94, 0.35);
-    }
-
-    .offline {
-      background: rgba(239, 68, 68, 0.14);
-      color: #fecaca;
-      border: 1px solid rgba(239, 68, 68, 0.35);
-    }
-
-    .pending {
-      background: rgba(245, 196, 81, 0.12);
-      color: #f5c451;
-      border: 1px solid rgba(245, 196, 81, 0.3);
     }
 
     .card {
@@ -215,36 +195,38 @@
       color: #dbe2ff;
     }
 
+    .status-pill {
+      display: inline-block;
+      padding: 7px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      margin-top: 10px;
+      margin-right: 8px;
+    }
+
+    .online {
+      background: rgba(34, 197, 94, 0.15);
+      color: #86efac;
+      border: 1px solid rgba(34, 197, 94, 0.35);
+    }
+
+    .offline {
+      background: rgba(239, 68, 68, 0.14);
+      color: #fecaca;
+      border: 1px solid rgba(239, 68, 68, 0.35);
+    }
+
+    .pending {
+      background: rgba(245, 196, 81, 0.12);
+      color: #f5c451;
+      border: 1px solid rgba(245, 196, 81, 0.3);
+    }
+
     .empty {
       color: #b7c2ff;
       font-size: 14px;
       padding: 10px 0;
-    }
-
-    .stat-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-top: 16px;
-    }
-
-    .stat {
-      background: #0f1529;
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 14px;
-      padding: 16px;
-    }
-
-    .stat-label {
-      color: #b7c2ff;
-      font-size: 13px;
-      margin-bottom: 6px;
-    }
-
-    .stat-value {
-      font-size: 24px;
-      font-weight: 700;
-      color: #f5c451;
     }
 
     .small {
@@ -254,8 +236,34 @@
       line-height: 1.5;
     }
 
-    @media (max-width: 860px) {
+    #map {
+      width: 100%;
+      min-height: 720px;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,0.08);
+      overflow: hidden;
+    }
+
+    .map-note {
+      margin-top: 12px;
+      color: #b7c2ff;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 980px) {
       .grid {
+        grid-template-columns: 1fr;
+      }
+
+      #map {
+        min-height: 420px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .btn-row,
+      .btn-row-3 {
         grid-template-columns: 1fr;
       }
     }
@@ -280,21 +288,10 @@
         <div class="panel">
           <h2>Driver Profile</h2>
           <div class="muted">
-            Manage your online status and update your live location so Harvey Taxi can dispatch nearby rides to you.
+            Manage your live location and availability so Harvey Taxi can assign you nearby rides.
           </div>
 
           <div id="driverProfile"></div>
-
-          <div class="stat-grid">
-            <div class="stat">
-              <div class="stat-label">Approval Status</div>
-              <div class="stat-value" id="approvalStatusText">--</div>
-            </div>
-            <div class="stat">
-              <div class="stat-label">Verification</div>
-              <div class="stat-value" id="verificationStatusText">--</div>
-            </div>
-          </div>
         </div>
 
         <div class="panel">
@@ -311,25 +308,36 @@
           </div>
 
           <div class="btn-row">
-            <button class="btn btn-primary" onclick="updateLocation(true)">Go Online</button>
-            <button class="btn btn-danger" onclick="updateLocation(false)">Go Offline</button>
-            <button class="btn btn-secondary" onclick="useNashvilleDriverDemo()">Use Nashville Demo</button>
+            <button class="btn btn-secondary" type="button" onclick="useCurrentLocation()">Use My Location</button>
+            <button class="btn btn-secondary" type="button" onclick="useNashvilleDriverDemo()">Use Nashville Demo</button>
           </div>
 
-          <div class="small">
-            Driver must be approved and online with location coordinates to receive automatic ride assignments.
+          <div class="btn-row">
+            <button class="btn btn-success" type="button" onclick="updateLocation(true)">Go Online</button>
+            <button class="btn btn-danger" type="button" onclick="updateLocation(false)">Go Offline</button>
           </div>
+
+          <button class="btn btn-primary" type="button" onclick="centerMapOnDriver()">Center Map On Me</button>
+
+          <div class="small">
+            Driver must be approved, online, and have coordinates saved to receive nearest-driver dispatches.
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>Assigned Rides</h2>
+          <div class="muted">
+            These are rides currently assigned to this driver account.
+          </div>
+
+          <div id="assignedRides"></div>
         </div>
       </div>
 
       <div>
-        <div class="panel">
-          <h2>Assigned Rides</h2>
-          <div class="muted">
-            These are rides currently assigned to your account through Harvey Taxi dispatch.
-          </div>
-
-          <div id="assignedRides"></div>
+        <div id="map"></div>
+        <div class="map-note">
+          If the map stays blank, add your Google Maps API key at the bottom of this file where it says <strong>YOUR_GOOGLE_MAPS_API_KEY</strong>.
         </div>
       </div>
     </div>
@@ -342,6 +350,13 @@
 
     let currentUser = null
     let allRides = []
+
+    let map
+    let driverMarker = null
+    let pickupMarker = null
+    let dropoffMarker = null
+    let directionsService = null
+    let directionsRenderer = null
 
     if (!storedUser || storedRole !== 'driver') {
       window.location = '/login.html'
@@ -366,15 +381,8 @@
     function useNashvilleDriverDemo() {
       document.getElementById('lat').value = '36.1627'
       document.getElementById('lng').value = '-86.7816'
-    }
-
-    async function fetchJSON(url, options = {}) {
-      const response = await fetch(url, options)
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.message || 'Request failed')
-      }
-      return data
+      updateDriverMarker(36.1627, -86.7816)
+      centerMapOnDriver()
     }
 
     function renderDriverProfile(user) {
@@ -388,19 +396,14 @@
             <strong>Phone:</strong> ${user.phone || 'N/A'}<br>
             <strong>Vehicle:</strong> ${user.vehicle ? `${user.vehicle.color} ${user.vehicle.year} ${user.vehicle.make} ${user.vehicle.model}` : 'N/A'}<br>
             <strong>Plate:</strong> ${user.vehicle?.plate || 'N/A'}<br>
-            <strong>Online:</strong> ${user.isOnline ? 'Yes' : 'No'}
+            <strong>Online:</strong> ${user.isOnline ? 'Yes' : 'No'}<br>
+            <strong>Approved:</strong> ${user.isApproved ? 'Yes' : 'No'}<br>
+            <strong>Verification:</strong> ${user.verificationStatus || 'pending'}
           </div>
-          <span class="status-pill ${user.isOnline ? 'online' : 'offline'}">
-            ${user.isOnline ? 'ONLINE' : 'OFFLINE'}
-          </span>
-          <span class="status-pill ${user.verificationStatus === 'approved' ? 'online' : 'pending'}">
-            ${user.verificationStatus || 'pending'}
-          </span>
+          <span class="status-pill ${user.isOnline ? 'online' : 'offline'}">${user.isOnline ? 'ONLINE' : 'OFFLINE'}</span>
+          <span class="status-pill ${user.verificationStatus === 'approved' ? 'online' : 'pending'}">${(user.verificationStatus || 'pending').toUpperCase()}</span>
         </div>
       `
-
-      document.getElementById('approvalStatusText').textContent = user.isApproved ? 'YES' : 'NO'
-      document.getElementById('verificationStatusText').textContent = (user.verificationStatus || 'pending').toUpperCase()
     }
 
     function renderAssignedRides(rides) {
@@ -408,6 +411,8 @@
 
       if (!rides.length) {
         container.innerHTML = '<div class="empty">No rides assigned yet.</div>'
+        clearRideMarkers()
+        clearRoute()
         return
       }
 
@@ -423,13 +428,134 @@
             <strong>Estimated Duration:</strong> ${ride.estimatedDuration || 0} min
           </div>
 
-          <div class="btn-row">
-            ${ride.status === 'driver_assigned' ? `<button class="btn btn-success" onclick="acceptRide('${ride.id}')">Accept Ride</button>` : ''}
-            ${ride.status === 'accepted' ? `<button class="btn btn-primary" onclick="startRide('${ride.id}')">Start Ride</button>` : ''}
-            ${ride.status === 'in_progress' ? `<button class="btn btn-success" onclick="completeRide('${ride.id}')">Complete Ride</button>` : ''}
+          <div class="btn-row-3">
+            ${ride.status === 'driver_assigned' ? `<button class="btn btn-success" onclick="acceptRide('${ride.id}')">Accept</button>` : ''}
+            ${ride.status === 'accepted' ? `<button class="btn btn-primary" onclick="startRide('${ride.id}')">Start</button>` : ''}
+            ${ride.status === 'in_progress' ? `<button class="btn btn-success" onclick="completeRide('${ride.id}')">Complete</button>` : ''}
+            <button class="btn btn-secondary" onclick="focusRideOnMap('${ride.id}')">Show Map</button>
           </div>
         </div>
       `).join('')
+    }
+
+    async function fetchJSON(url, options = {}) {
+      const response = await fetch(url, options)
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.message || 'Request failed')
+      }
+      return data
+    }
+
+    function updateDriverMarker(lat, lng) {
+      if (!map || !window.google) return
+
+      const position = { lat, lng }
+
+      if (driverMarker) {
+        driverMarker.setPosition(position)
+      } else {
+        driverMarker = new google.maps.Marker({
+          position,
+          map,
+          title: 'Driver Location',
+          label: 'D'
+        })
+      }
+    }
+
+    function setRideMarkers(ride) {
+      if (!map || !window.google || !ride) return
+
+      clearRideMarkers()
+
+      if (Number.isFinite(ride.pickupLat) && Number.isFinite(ride.pickupLng)) {
+        pickupMarker = new google.maps.Marker({
+          position: { lat: ride.pickupLat, lng: ride.pickupLng },
+          map,
+          title: 'Pickup',
+          label: 'P'
+        })
+      }
+
+      if (Number.isFinite(ride.dropoffLat) && Number.isFinite(ride.dropoffLng)) {
+        dropoffMarker = new google.maps.Marker({
+          position: { lat: ride.dropoffLat, lng: ride.dropoffLng },
+          map,
+          title: 'Dropoff',
+          label: 'R'
+        })
+      }
+    }
+
+    function clearRideMarkers() {
+      if (pickupMarker) pickupMarker.setMap(null)
+      if (dropoffMarker) dropoffMarker.setMap(null)
+      pickupMarker = null
+      dropoffMarker = null
+    }
+
+    function drawRoute(origin, destination) {
+      if (!directionsService || !directionsRenderer) return
+
+      directionsService.route(
+        {
+          origin,
+          destination,
+          travelMode: google.maps.TravelMode.DRIVING
+        },
+        (result, status) => {
+          if (status === 'OK') {
+            directionsRenderer.setDirections(result)
+          } else {
+            clearRoute()
+          }
+        }
+      )
+    }
+
+    function clearRoute() {
+      if (directionsRenderer) {
+        directionsRenderer.setDirections({ routes: [] })
+      }
+    }
+
+    function centerMapOnDriver() {
+      const lat = Number(document.getElementById('lat').value)
+      const lng = Number(document.getElementById('lng').value)
+
+      if (!Number.isFinite(lat) || !Number.isFinite(lng) || !map) {
+        showMessage('Set a valid driver location first.', 'error')
+        return
+      }
+
+      updateDriverMarker(lat, lng)
+      map.setCenter({ lat, lng })
+      map.setZoom(14)
+    }
+
+    function useCurrentLocation() {
+      if (!navigator.geolocation) {
+        showMessage('Geolocation is not supported on this device.', 'error')
+        return
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude
+          const lng = position.coords.longitude
+          document.getElementById('lat').value = lat.toFixed(6)
+          document.getElementById('lng').value = lng.toFixed(6)
+          updateDriverMarker(lat, lng)
+          map.setCenter({ lat, lng })
+          map.setZoom(15)
+          showMessage('Current location loaded.', 'success')
+        },
+        () => {
+          showMessage('Could not get your current location.', 'error')
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      )
     }
 
     async function updateLocation(isOnline) {
@@ -453,8 +579,14 @@
         currentUser = data.driver
         localStorage.setItem('harveyTaxiUser', JSON.stringify(currentUser))
 
+        if (Number.isFinite(currentUser.currentLat) && Number.isFinite(currentUser.currentLng)) {
+          document.getElementById('lat').value = currentUser.currentLat
+          document.getElementById('lng').value = currentUser.currentLng
+          updateDriverMarker(currentUser.currentLat, currentUser.currentLng)
+        }
+
         renderDriverProfile(currentUser)
-        showMessage(data.message || 'Driver status updated.', 'success')
+        showMessage(data.message || 'Driver location updated.', 'success')
         loadDashboard()
       } catch (error) {
         showMessage(error.message || 'Could not update location.', 'error')
@@ -463,72 +595,4 @@
 
     async function acceptRide(rideId) {
       try {
-        const data = await fetchJSON(`/api/rides/${rideId}/accept`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ driverId: currentUser.id })
-        })
-
-        showMessage(data.message || 'Ride accepted.', 'success')
-        loadDashboard()
-      } catch (error) {
-        showMessage(error.message || 'Could not accept ride.', 'error')
-      }
-    }
-
-    async function startRide(rideId) {
-      try {
-        const data = await fetchJSON(`/api/rides/${rideId}/start`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        })
-
-        showMessage(data.message || 'Ride started.', 'success')
-        loadDashboard()
-      } catch (error) {
-        showMessage(error.message || 'Could not start ride.', 'error')
-      }
-    }
-
-    async function completeRide(rideId) {
-      try {
-        const data = await fetchJSON(`/api/rides/${rideId}/complete`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        })
-
-        showMessage(data.message || 'Ride completed.', 'success')
-        loadDashboard()
-      } catch (error) {
-        showMessage(error.message || 'Could not complete ride.', 'error')
-      }
-    }
-
-    async function loadDashboard() {
-      try {
-        const ridesData = await fetchJSON('/api/rides')
-        allRides = ridesData.rides || []
-
-        const assignedToDriver = allRides
-          .filter(ride => ride.assignedDriverId === currentUser.id)
-          .slice()
-          .reverse()
-
-        renderDriverProfile(currentUser)
-        renderAssignedRides(assignedToDriver)
-      } catch (error) {
-        showMessage(error.message || 'Could not load driver dashboard.', 'error')
-      }
-    }
-
-    loadDashboard()
-    setInterval(loadDashboard, 10000)
-  </script>
-</body>
-</html>
+        const data
