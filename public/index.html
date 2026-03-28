@@ -1,136 +1,151 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Harvey Taxi</title>
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: Arial, sans-serif;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Harvey Taxi</title>
 
-    body {
-      background: #02163a;
-      color: white;
-      min-height: 100vh;
-      padding: 40px 20px;
-      display: flex;
-      justify-content: center;
-    }
+<style>
 
-    .container {
-      width: 100%;
-      max-width: 760px;
-    }
+body{
+margin:0;
+font-family:Arial;
+background:#0b1020;
+color:white;
+}
 
-    h1 {
-      text-align: center;
-      font-size: 58px;
-      margin-bottom: 36px;
-      font-weight: 700;
-    }
+.header{
+padding:20px;
+font-size:28px;
+font-weight:bold;
+}
 
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 22px;
-    }
+.brand{
+color:#f5c451;
+}
 
-    .tile {
-      background: #152754;
-      border: 1px solid #294694;
-      border-radius: 26px;
-      min-height: 210px;
-      text-decoration: none;
-      color: white;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 20px;
-      transition: 0.2s ease;
-    }
+.container{
+padding:20px;
+}
 
-    .tile:hover {
-      transform: translateY(-2px);
-    }
+.grid{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:15px;
+}
 
-    .icon {
-      font-size: 42px;
-      margin-bottom: 14px;
-      line-height: 1;
-    }
+.card{
+background:#151c34;
+padding:20px;
+border-radius:15px;
+cursor:pointer;
+transition:.2s;
+}
 
-    .label {
-      font-size: 24px;
-      font-weight: 500;
-      line-height: 1.2;
-    }
+.card:hover{
+transform:translateY(-3px);
+}
 
-    @media (max-width: 700px) {
-      h1 {
-        font-size: 44px;
-      }
+.card-title{
+font-size:18px;
+font-weight:bold;
+margin-bottom:5px;
+}
 
-      .grid {
-        gap: 18px;
-      }
+.card-desc{
+color:#b7c2ff;
+font-size:14px;
+}
 
-      .tile {
-        min-height: 180px;
-        border-radius: 22px;
-      }
+.big{
+grid-column:1/-1;
+}
 
-      .icon {
-        font-size: 34px;
-        margin-bottom: 12px;
-      }
+.button{
+background:#f5c451;
+color:black;
+padding:14px;
+border-radius:10px;
+margin-top:10px;
+display:inline-block;
+text-decoration:none;
+font-weight:bold;
+}
 
-      .label {
-        font-size: 19px;
-      }
-    }
-  </style>
+.status{
+margin-top:20px;
+background:#151c34;
+padding:15px;
+border-radius:12px;
+}
+
+</style>
 </head>
+
 <body>
-  <div class="container">
-    <h1>Harvey Taxi</h1>
 
-    <div class="grid">
-      <a class="tile" href="/request.html">
-        <div class="icon">🚗</div>
-        <div class="label">Ride</div>
-      </a>
+<div class="header">
+<span class="brand">Harvey Taxi</span> Platform
+</div>
 
-      <a class="tile" href="/food.html">
-        <div class="icon">🍔</div>
-        <div class="label">Fast Food</div>
-      </a>
+<div class="container">
 
-      <a class="tile" href="/grocery.html">
-        <div class="icon">🛒</div>
-        <div class="label">Grocery</div>
-      </a>
+<div class="grid">
 
-      <a class="tile" href="/rider-verification.html">
-        <div class="icon">🧍</div>
-        <div class="label">Rider Sign Up</div>
-      </a>
+<div class="card" onclick="location.href='/rider-signup.html'">
+<div class="card-title">Rider Signup</div>
+<div class="card-desc">Create passenger account</div>
+</div>
 
-      <a class="tile" href="/driver.html">
-        <div class="icon">🚕</div>
-        <div class="label">Driver Sign Up</div>
-      </a>
+<div class="card" onclick="location.href='/driver-signup.html'">
+<div class="card-title">Driver Signup</div>
+<div class="card-desc">Join as Harvey driver</div>
+</div>
 
-      <a class="tile" href="/driver-dashboard.html">
-        <div class="icon">📍</div>
-        <div class="label">Driver Dashboard</div>
-      </a>
-    </div>
-  </div>
+<div class="card" onclick="location.href='/login.html'">
+<div class="card-title">Login</div>
+<div class="card-desc">Rider • Driver • Admin</div>
+</div>
+
+<div class="card" onclick="location.href='/request.html'">
+<div class="card-title">Request Ride</div>
+<div class="card-desc">Book Harvey Taxi</div>
+</div>
+
+<div class="card" onclick="location.href='/driver.html'">
+<div class="card-title">Driver Dashboard</div>
+<div class="card-desc">Driver online & trips</div>
+</div>
+
+<div class="card" onclick="location.href='/admin.html'">
+<div class="card-title">Admin Panel</div>
+<div class="card-desc">Approve drivers & dispatch</div>
+</div>
+
+<div class="card big" onclick="location.href='/services.html'">
+<div class="card-title">Services (Coming)</div>
+<div class="card-desc">
+Taxi • Food Delivery • Grocery • Courier • Airport Rides
+</div>
+</div>
+
+</div>
+
+<div class="status">
+Harvey Taxi System Ready  
+<br><br>
+• Rider accounts enabled  
+<br>
+• Driver approval system enabled  
+<br>
+• Admin dispatch panel enabled  
+<br>
+• Ride request system ready  
+<br>
+• Live tracking ready  
+</div>
+
+</div>
+
 </body>
 </html>
