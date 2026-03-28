@@ -18,7 +18,7 @@
     }
 
     .wrap {
-      max-width: 920px;
+      max-width: 1180px;
       margin: 0 auto;
     }
 
@@ -60,7 +60,7 @@
 
     .grid {
       display: grid;
-      grid-template-columns: 1.1fr 0.9fr;
+      grid-template-columns: 420px 1fr;
       gap: 20px;
     }
 
@@ -116,23 +116,28 @@
       border: none;
       border-radius: 12px;
       padding: 14px 16px;
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 700;
       cursor: pointer;
+      width: 100%;
+      margin-top: 10px;
     }
 
     .btn-primary {
       background: #f5c451;
       color: #111;
-      width: 100%;
     }
 
     .btn-secondary {
       background: #0f1529;
       color: white;
       border: 1px solid rgba(255,255,255,0.12);
-      width: 100%;
-      margin-top: 10px;
+    }
+
+    .btn-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
     }
 
     .message {
@@ -153,6 +158,14 @@
       background: rgba(239, 68, 68, 0.14);
       color: #fecaca;
       border: 1px solid rgba(239, 68, 68, 0.35);
+    }
+
+    #map {
+      width: 100%;
+      min-height: 640px;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,0.08);
+      overflow: hidden;
     }
 
     .ride-card {
@@ -182,39 +195,6 @@
       color: #dbe2ff;
     }
 
-    .hero {
-      min-height: 260px;
-      border-radius: 18px;
-      background:
-        linear-gradient(145deg, rgba(245,196,81,0.12), rgba(245,196,81,0.03)),
-        #0f1529;
-      border: 1px solid rgba(255,255,255,0.08);
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-    }
-
-    .hero h3 {
-      margin: 0 0 10px;
-      font-size: 24px;
-    }
-
-    .map-placeholder {
-      margin-top: 16px;
-      min-height: 170px;
-      border-radius: 16px;
-      border: 1px dashed rgba(245,196,81,0.35);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #b7c2ff;
-      text-align: center;
-      padding: 20px;
-      line-height: 1.5;
-      background: rgba(255,255,255,0.02);
-    }
-
     .small {
       font-size: 13px;
       color: #aeb8df;
@@ -222,9 +202,20 @@
       line-height: 1.5;
     }
 
-    @media (max-width: 860px) {
+    .map-note {
+      margin-top: 12px;
+      color: #b7c2ff;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 980px) {
       .grid {
         grid-template-columns: 1fr;
+      }
+
+      #map {
+        min-height: 420px;
       }
     }
   </style>
@@ -246,7 +237,7 @@
         <div class="panel">
           <h2>Book Your Ride</h2>
           <div class="muted">
-            Request a Harvey Taxi ride and the system will search for the nearest approved online driver.
+            Set your pickup and dropoff, preview the route, and request the nearest Harvey Taxi driver.
           </div>
 
           <form id="rideForm">
@@ -282,185 +273,18 @@
 
             <div class="field">
               <label for="dropoffLat">Dropoff Latitude</label>
-              <input id="dropoffLat" type="number" step="any" placeholder="Optional but recommended" />
+              <input id="dropoffLat" type="number" step="any" placeholder="36.1263" />
             </div>
 
             <div class="field">
               <label for="dropoffLng">Dropoff Longitude</label>
-              <input id="dropoffLng" type="number" step="any" placeholder="Optional but recommended" />
+              <input id="dropoffLng" type="number" step="any" placeholder="-86.6774" />
             </div>
 
-            <button class="btn btn-primary" type="submit">Request Harvey Ride</button>
-            <button class="btn btn-secondary" type="button" onclick="fillNashvilleDemo()">Use Nashville Demo</button>
-          </form>
-
-          <div id="messageBox" class="message"></div>
-
-          <div class="small">
-            For now, this version uses manual coordinates. Next upgrade can add Google Maps autocomplete and live Uber-style routing.
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <div class="hero">
-          <div>
-            <h3>Ride Dispatch</h3>
-            <div class="muted">
-              Harvey Taxi is now set up to assign the nearest available approved driver based on location.
+            <div class="btn-row">
+              <button class="btn btn-secondary" type="button" onclick="useCurrentLocation()">Use My Location</button>
+              <button class="btn btn-secondary" type="button" onclick="fillNashvilleDemo()">Use Nashville Demo</button>
             </div>
-          </div>
 
-          <div class="map-placeholder">
-            Uber-style live map goes here next.<br>
-            This page is already ready for your map upgrade.
-          </div>
-        </div>
-
-        <div class="panel">
-          <h2>Your Current Ride</h2>
-          <div class="muted">
-            After you request a ride, your trip details and assigned driver will appear here.
-          </div>
-
-          <div id="rideDetails">
-            <div class="small">No ride requested yet.</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    const storedUser = localStorage.getItem('harveyTaxiUser')
-    const storedRole = localStorage.getItem('harveyTaxiRole')
-    const rideForm = document.getElementById('rideForm')
-    const messageBox = document.getElementById('messageBox')
-    const rideDetails = document.getElementById('rideDetails')
-
-    let currentUser = null
-    let currentRideId = localStorage.getItem('harveyTaxiCurrentRideId') || null
-
-    if (!storedUser || storedRole !== 'rider') {
-      window.location = '/login.html'
-    } else {
-      currentUser = JSON.parse(storedUser)
-    }
-
-    function showMessage(text, type) {
-      messageBox.className = `message ${type}`
-      messageBox.style.display = 'block'
-      messageBox.textContent = text
-    }
-
-    function logout() {
-      localStorage.removeItem('harveyTaxiUser')
-      localStorage.removeItem('harveyTaxiRole')
-      localStorage.removeItem('harveyTaxiCurrentRideId')
-      window.location = '/login.html'
-    }
-
-    function fillNashvilleDemo() {
-      document.getElementById('pickupAddress').value = 'Downtown Nashville, TN'
-      document.getElementById('dropoffAddress').value = 'Nashville International Airport'
-      document.getElementById('pickupLat').value = '36.1627'
-      document.getElementById('pickupLng').value = '-86.7816'
-      document.getElementById('dropoffLat').value = '36.1263'
-      document.getElementById('dropoffLng').value = '-86.6774'
-    }
-
-    function renderRide(ride) {
-      if (!ride) {
-        rideDetails.innerHTML = '<div class="small">No ride requested yet.</div>'
-        return
-      }
-
-      rideDetails.innerHTML = `
-        <div class="ride-card">
-          <div><strong>Service:</strong> ${(ride.serviceType || 'ride').toUpperCase()}</div>
-          <span class="status-pill">${ride.status || 'unknown'}</span>
-
-          <div class="kv">
-            <strong>Pickup:</strong> ${ride.pickupAddress || 'N/A'}<br>
-            <strong>Dropoff:</strong> ${ride.dropoffAddress || 'N/A'}<br>
-            <strong>Estimated Fare:</strong> $${ride.estimatedFare || '0.00'}<br>
-            <strong>Estimated Distance:</strong> ${ride.estimatedDistance || 0} miles<br>
-            <strong>Estimated Duration:</strong> ${ride.estimatedDuration || 0} min<br>
-            <strong>Assigned Driver:</strong> ${ride.assignedDriverName || 'Searching...'}<br>
-            <strong>Vehicle:</strong> ${ride.assignedVehicle || 'Waiting for assignment'}<br>
-            <strong>Driver Distance Away:</strong> ${ride.driverDistanceAway != null ? ride.driverDistanceAway + ' miles' : 'N/A'}
-          </div>
-        </div>
-      `
-    }
-
-    async function fetchJSON(url, options = {}) {
-      const response = await fetch(url, options)
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.message || 'Request failed')
-      }
-      return data
-    }
-
-    rideForm.addEventListener('submit', async (e) => {
-      e.preventDefault()
-
-      const payload = {
-        riderId: currentUser.id,
-        pickupAddress: document.getElementById('pickupAddress').value.trim(),
-        dropoffAddress: document.getElementById('dropoffAddress').value.trim(),
-        pickupLat: Number(document.getElementById('pickupLat').value),
-        pickupLng: Number(document.getElementById('pickupLng').value),
-        serviceType: document.getElementById('serviceType').value
-      }
-
-      const dropoffLatRaw = document.getElementById('dropoffLat').value.trim()
-      const dropoffLngRaw = document.getElementById('dropoffLng').value.trim()
-
-      if (dropoffLatRaw !== '') payload.dropoffLat = Number(dropoffLatRaw)
-      if (dropoffLngRaw !== '') payload.dropoffLng = Number(dropoffLngRaw)
-
-      try {
-        const data = await fetchJSON('/api/rides/request', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(payload)
-        })
-
-        currentRideId = data.ride.id
-        localStorage.setItem('harveyTaxiCurrentRideId', currentRideId)
-
-        showMessage(data.message || 'Ride requested successfully.', 'success')
-        renderRide(data.ride)
-      } catch (error) {
-        showMessage(error.message || 'Ride request failed.', 'error')
-      }
-    })
-
-    async function refreshRide() {
-      if (!currentRideId) {
-        showMessage('No active ride to refresh yet.', 'error')
-        return
-      }
-
-      try {
-        const data = await fetchJSON(`/api/rides/${currentRideId}`)
-        renderRide(data.ride)
-        showMessage('Ride refreshed.', 'success')
-      } catch (error) {
-        showMessage(error.message || 'Could not refresh ride.', 'error')
-      }
-    }
-
-    if (currentRideId) {
-      refreshRide()
-      setInterval(() => {
-        refreshRide().catch(() => {})
-      }, 10000)
-    }
-  </script>
-</body>
-</html>
+            <button class="btn btn-secondary" type="button" onclick="updateMapFromInputs()">Preview Route</button>
+            <button class="btn btn-primary" type
