@@ -18,7 +18,7 @@
     }
 
     .wrap {
-      max-width: 1180px;
+      max-width: 1200px;
       margin: 0 auto;
     }
 
@@ -95,7 +95,8 @@
     }
 
     input,
-    select {
+    select,
+    textarea {
       width: 100%;
       padding: 14px;
       border-radius: 12px;
@@ -107,7 +108,8 @@
     }
 
     input:focus,
-    select:focus {
+    select:focus,
+    textarea:focus {
       border-color: #f5c451;
       box-shadow: 0 0 0 3px rgba(245,196,81,0.15);
     }
@@ -134,9 +136,30 @@
       border: 1px solid rgba(255,255,255,0.12);
     }
 
+    .btn-danger {
+      background: #ef4444;
+      color: white;
+    }
+
+    .btn-success {
+      background: #22c55e;
+      color: white;
+    }
+
+    .btn-warning {
+      background: #f59e0b;
+      color: #111;
+    }
+
     .btn-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .btn-row-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
       gap: 10px;
     }
 
@@ -160,20 +183,19 @@
       border: 1px solid rgba(239, 68, 68, 0.35);
     }
 
-    #map {
-      width: 100%;
-      min-height: 640px;
-      border-radius: 18px;
-      border: 1px solid rgba(255,255,255,0.08);
-      overflow: hidden;
-    }
-
-    .ride-card {
+    .ride-card,
+    .history-card {
       background: #0f1529;
       border: 1px solid rgba(255,255,255,0.08);
       border-radius: 14px;
       padding: 16px;
       margin-top: 14px;
+    }
+
+    .card-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 8px;
     }
 
     .status-pill {
@@ -183,9 +205,28 @@
       border-radius: 999px;
       font-size: 12px;
       font-weight: 700;
+      border: 1px solid transparent;
+    }
+
+    .status-searching,
+    .status-driver_assigned,
+    .status-accepted {
       background: rgba(245, 196, 81, 0.12);
       color: #f5c451;
-      border: 1px solid rgba(245, 196, 81, 0.3);
+      border-color: rgba(245, 196, 81, 0.3);
+    }
+
+    .status-in_progress,
+    .status-completed {
+      background: rgba(34, 197, 94, 0.15);
+      color: #86efac;
+      border-color: rgba(34, 197, 94, 0.35);
+    }
+
+    .status-cancelled {
+      background: rgba(239, 68, 68, 0.14);
+      color: #fecaca;
+      border-color: rgba(239, 68, 68, 0.35);
     }
 
     .kv {
@@ -202,26 +243,28 @@
       line-height: 1.5;
     }
 
-    .map-note {
-      margin-top: 12px;
+    .empty {
       color: #b7c2ff;
-      font-size: 13px;
-      line-height: 1.5;
+      font-size: 14px;
+      padding: 10px 0;
     }
 
-    .hidden-coords {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
+    .section-divider {
+      height: 1px;
+      background: rgba(255,255,255,0.08);
+      margin: 18px 0;
     }
 
     @media (max-width: 980px) {
       .grid {
         grid-template-columns: 1fr;
       }
+    }
 
-      #map {
-        min-height: 420px;
+    @media (max-width: 640px) {
+      .btn-row,
+      .btn-row-3 {
+        grid-template-columns: 1fr;
       }
     }
   </style>
@@ -229,11 +272,12 @@
 <body>
   <div class="wrap">
     <div class="topbar">
-      <div class="title"><span class="brand">Harvey Taxi</span> Request Ride</div>
+      <div class="title"><span class="brand">Harvey Taxi</span> Rider Dashboard</div>
       <div class="top-links">
         <a href="/">Home</a>
         <a href="/login.html">Login</a>
-        <button onclick="refreshRide()">Refresh Ride</button>
+        <button onclick="refreshCurrentRide()">Refresh Ride</button>
+        <button onclick="loadHistory()">Refresh History</button>
         <button onclick="logout()">Logout</button>
       </div>
     </div>
@@ -241,9 +285,9 @@
     <div class="grid">
       <div>
         <div class="panel">
-          <h2>Book Your Ride</h2>
+          <h2>Request a Ride</h2>
           <div class="muted">
-            Search real pickup and dropoff addresses, preview the route, and request the nearest Harvey Taxi driver.
+            Request a Harvey Taxi ride, airport run, premium trip, or delivery.
           </div>
 
           <form id="rideForm">
@@ -259,12 +303,36 @@
 
             <div class="field">
               <label for="pickupAddress">Pickup Address</label>
-              <input id="pickupAddress" type="text" placeholder="Start typing pickup location" required />
+              <input id="pickupAddress" type="text" placeholder="Enter pickup address" required />
             </div>
 
             <div class="field">
               <label for="dropoffAddress">Dropoff Address</label>
-              <input id="dropoffAddress" type="text" placeholder="Start typing dropoff location" required />
+              <input id="dropoffAddress" type="text" placeholder="Enter dropoff address" required />
             </div>
 
-            <div class="hidden-coords
+            <div class="btn-row">
+              <div class="field">
+                <label for="pickupLat">Pickup Lat</label>
+                <input id="pickupLat" type="number" step="any" placeholder="36.1627" required />
+              </div>
+
+              <div class="field">
+                <label for="pickupLng">Pickup Lng</label>
+                <input id="pickupLng" type="number" step="any" placeholder="-86.7816" required />
+              </div>
+            </div>
+
+            <div class="btn-row">
+              <div class="field">
+                <label for="dropoffLat">Dropoff Lat</label>
+                <input id="dropoffLat" type="number" step="any" placeholder="36.1263" />
+              </div>
+
+              <div class="field">
+                <label for="dropoffLng">Dropoff Lng</label>
+                <input id="dropoffLng" type="number" step="any" placeholder="-86.6774" />
+              </div>
+            </div>
+
+            <button class="btn btn-secondary" type="button" onclick="fillNashvilleDemo()">Use Nashville Demo
