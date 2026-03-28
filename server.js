@@ -5,525 +5,303 @@ const fs = require('fs')
 
 const app = express()
 const PORT = process.env.PORT || 10000
-
-app.use(cors())
-app.use(express.json())
-app.use(express.static(path.join(__dirname, 'public')))
-
 const DATA_FILE = path.join(__dirname, 'data.json')
 
-function defaultData() {
+app.use(cors())
+app.use(express.json({ limit: '10mb' }))
+app.use(express.urlencoded({ extended: true }))
+app.use(express.static(path.join(__dirname, 'public')))
+
+function createDefaultData() {
   return {
+    riders: [],
+    drivers: [],
     admins: [
       {
         id: 'admin_1',
         name: 'Harvey Admin',
         email: 'admin@harveytaxi.com',
-        password: 'admin123'
+        password: 'admin123',
+        role: 'admin'
       }
     ],
-    drivers: [
-      {
-        id: 'driver_1',
-        name: 'Marcus Driver',
-        email: 'driver1@harveytaxi.com',
-        password: '123456',
-        phone: '615-555-1001',
-        car: 'Toyota Camry',
-        plate: 'HTX-101',
-        approved: true,
-        online: true,
-        currentLat: 36.1627,
-        currentLng: -86.7816,
-        activeRideId: null,
-        totalTrips: 0,
-        createdAt: new Date().toISOString()
-      }
-    ],
-    riders: [],
-    rides: [],
-    notifications: [],
-    emergencies: []
+    rideRequests: [],
+    trips: [],
+    settings: {
+      baseFare: 5,
+      perMile: 1.75,
+      perMinute: 0.35,
+      bookingFee: 2.5,
+      minimumFare: 8
+    }
   }
 }
 
-function ensureDataShape(data) {
-  if (!data.admins) data.admins = []
-  if (!data.drivers) data.drivers = []
-  if (!data.riders) data.riders = []
-  if (!data.rides) data.rides = []
-  if (!data.notifications) data.notifications = []
-  if (!data.emergencies) data.emergencies = []
-  return data
-}
-
-function loadData() {
+function ensureDataFile() {
   if (!fs.existsSync(DATA_FILE)) {
-    const starter = defaultData()
-    fs.writeFileSync(DATA_FILE, JSON.stringify(starter, null, 2))
-    return starter
+    fs.writeFileSync(DATA_FILE, JSON.stringify(createDefaultData(), null, 2))
   }
+}
 
+function readData() {
+  ensureDataFile()
   try {
     const raw = fs.readFileSync(DATA_FILE, 'utf8')
-    const parsed = JSON.parse(raw)
-    return ensureDataShape(parsed)
-  } catch (err) {
-    const starter = defaultData()
-    fs.writeFileSync(DATA_FILE, JSON.stringify(starter, null, 2))
-    return starter
+    return JSON.parse(raw)
+  } catch (error) {
+    console.error('Error reading data.json:', error)
+    return createDefaultData()
   }
 }
 
-let db = loadData()
-
-function saveData() {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(db, null, 2))
+function saveData(data) {
+  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2))
 }
 
-function makeId(prefix) {
+function generateId(prefix) {
   return `${prefix}_${Date.now()}_${Math.floor(Math.random() * 100000)}`
 }
 
-function toRad(value) {
+function toRadians(value) {
   return (value * Math.PI) / 180
 }
 
 function getDistanceMiles(lat1, lng1, lat2, lng2) {
-  const R = 3958.8
-  const dLat = toRad(lat2 - lat1)
-  const dLng = toRad(lng2 - lng1)
+  const earthRadiusMiles = 3958.8
+
+  const dLat = toRadians(lat2 - lat1)
+  const dLng = toRadians(lng2 - lng1)
 
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
+    Math.cos(toRadians(lat1)) *
+      Math.cos(toRadians(lat2)) *
       Math.sin(dLng / 2) *
       Math.sin(dLng / 2)
 
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-  return R * c
+  return earthRadiusMiles * c
 }
 
-function estimateFare(distanceMiles, durationMinutes = 10) {
-  const baseFare = 3.5
-  const perMile = 2.2
-  const perMinute = 0.35
-  const bookingFee = 1.75
-  const minimumFare = 8.5
+function estimateFare(distanceMiles, durationMinutes, settings) {
+  const rawFare =
+    settings.baseFare +
+    settings.bookingFee +
+    distanceMiles * settings.perMile +
+    durationMinutes * settings.perMinute
 
-  const total = baseFare + distanceMiles * perMile + durationMinutes * perMinute + bookingFee
-  return Number(Math.max(total, minimumFare).toFixed(2))
+  return Math.max(rawFare, settings.minimumFare).toFixed(2)
 }
 
-function createNotification(userType, userId, message) {
-  db.notifications.unshift({
-    id: makeId('note'),
-    userType,
-    userId,
-    message,
-    createdAt: new Date().toISOString()
-  })
+function sanitizeUser(user) {
+  if (!user) return null
+  const copy = { ...user }
+  delete copy.password
+  return copy
 }
 
-function findRideById(rideId) {
-  return db.rides.find(r => r.id === rideId)
-}
-
-function getNearestAvailableDriver(lat, lng) {
-  const availableDrivers = db.drivers
-    .filter(driver => driver.approved && driver.online && !driver.activeRideId)
-    .map(driver => {
-      const distanceAway = getDistanceMiles(
-        Number(lat),
-        Number(lng),
-        Number(driver.currentLat),
-        Number(driver.currentLng)
-      )
-      return { ...driver, distanceAway }
-    })
-    .sort((a, b) => a.distanceAway - b.distanceAway)
-
-  return availableDrivers.length ? availableDrivers[0] : null
-}
-
-// page aliases
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'))
 })
 
-app.get('/request-ride', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'request.html'))
+app.get('/health', (req, res) => {
+  res.json({ success: true, message: 'Harvey Taxi API is running' })
 })
 
-app.get('/rider-signup', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'rider-verification.html'))
-})
+/* =========================
+   AUTH / SIGNUP
+========================= */
 
-app.get('/driver-signup', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'driver.html'))
-})
-
-app.get('/api/health', (req, res) => {
-  res.json({
-    ok: true,
-    message: 'Harvey Taxi API running',
-    totals: {
-      riders: db.riders.length,
-      drivers: db.drivers.length,
-      rides: db.rides.length
-    }
-  })
-})
-
-app.post('/api/signup/rider', (req, res) => {
+app.post('/api/riders/signup', (req, res) => {
   const {
-    firstName,
-    lastName,
+    fullName,
     email,
-    password,
     phone,
+    password,
     emergencyContactName,
     emergencyContactPhone
   } = req.body
 
-  if (!firstName || !lastName || !email || !password || !phone) {
-    return res.status(400).json({ error: 'First name, last name, email, password, and phone are required.' })
+  if (!fullName || !email || !phone || !password) {
+    return res.status(400).json({
+      success: false,
+      message: 'Full name, email, phone, and password are required.'
+    })
   }
 
-  const existing = db.riders.find(r => r.email.toLowerCase() === email.toLowerCase())
-  if (existing) {
-    return res.status(400).json({ error: 'A rider account with this email already exists.' })
+  const data = readData()
+
+  const existingRider = data.riders.find(
+    rider => rider.email.toLowerCase() === email.toLowerCase()
+  )
+
+  if (existingRider) {
+    return res.status(400).json({
+      success: false,
+      message: 'A rider with this email already exists.'
+    })
   }
 
   const rider = {
-    id: makeId('rider'),
-    firstName,
-    lastName,
-    name: `${firstName} ${lastName}`.trim(),
+    id: generateId('rider'),
+    fullName,
     email,
-    password,
     phone,
+    password,
     emergencyContactName: emergencyContactName || '',
     emergencyContactPhone: emergencyContactPhone || '',
-    verificationStatus: 'pending',
+    role: 'rider',
+    idVerificationStatus: 'pending',
+    accountStatus: 'active',
     createdAt: new Date().toISOString()
   }
 
-  db.riders.push(rider)
-  createNotification('admin', 'all', `New rider signup: ${rider.name}`)
-  saveData()
+  data.riders.push(rider)
+  saveData(data)
 
   res.json({
     success: true,
     message: 'Rider account created successfully.',
-    rider: {
-      id: rider.id,
-      name: rider.name,
-      email: rider.email,
-      phone: rider.phone,
-      verificationStatus: rider.verificationStatus
-    }
+    rider: sanitizeUser(rider)
   })
 })
 
-app.post('/api/signup/driver', (req, res) => {
+app.post('/api/drivers/signup', (req, res) => {
   const {
-    firstName,
-    lastName,
+    fullName,
     email,
-    password,
     phone,
-    car,
-    plate,
-    city,
-    vehicleColor
-  } = req.body
-
-  if (!firstName || !lastName || !email || !password || !phone || !car || !plate) {
-    return res.status(400).json({ error: 'First name, last name, email, password, phone, vehicle, and plate are required.' })
-  }
-
-  const existing = db.drivers.find(d => d.email.toLowerCase() === email.toLowerCase())
-  if (existing) {
-    return res.status(400).json({ error: 'A driver account with this email already exists.' })
-  }
-
-  const driver = {
-    id: makeId('driver'),
-    firstName,
-    lastName,
-    name: `${firstName} ${lastName}`.trim(),
-    email,
     password,
-    phone,
-    car,
-    plate,
-    city: city || '',
-    vehicleColor: vehicleColor || '',
-    approved: false,
-    online: false,
-    currentLat: 36.1627,
-    currentLng: -86.7816,
-    activeRideId: null,
-    totalTrips: 0,
-    verificationStatus: 'pending',
-    createdAt: new Date().toISOString()
-  }
-
-  db.drivers.push(driver)
-  createNotification('admin', 'all', `New driver signup: ${driver.name}`)
-  saveData()
-
-  res.json({
-    success: true,
-    message: 'Driver account created. Waiting for admin approval.',
-    driver: {
-      id: driver.id,
-      name: driver.name,
-      email: driver.email,
-      approved: driver.approved,
-      verificationStatus: driver.verificationStatus
-    }
-  })
-})
-
-app.get('/api/drivers', (req, res) => {
-  const drivers = db.drivers.map(driver => ({
-    id: driver.id,
-    name: driver.name,
-    email: driver.email,
-    phone: driver.phone,
-    car: driver.car,
-    plate: driver.plate,
-    city: driver.city || '',
-    vehicleColor: driver.vehicleColor || '',
-    approved: driver.approved,
-    online: driver.online,
-    activeRideId: driver.activeRideId,
-    totalTrips: driver.totalTrips
-  }))
-
-  res.json(drivers)
-})
-
-app.put('/api/drivers/:driverId/status', (req, res) => {
-  const { driverId } = req.params
-  const { online } = req.body
-
-  const driver = db.drivers.find(d => d.id === driverId)
-  if (!driver) {
-    return res.status(404).json({ error: 'Driver not found.' })
-  }
-
-  driver.online = !!online
-  saveData()
-
-  res.json({
-    success: true,
-    driver
-  })
-})
-
-app.put('/api/admin/drivers/:driverId/approve', (req, res) => {
-  const { driverId } = req.params
-  const driver = db.drivers.find(d => d.id === driverId)
-
-  if (!driver) {
-    return res.status(404).json({ error: 'Driver not found.' })
-  }
-
-  driver.approved = true
-  createNotification('driver', driver.id, 'Your account has been approved by admin.')
-  saveData()
-
-  res.json({
-    success: true,
-    driver
-  })
-})
-
-app.post('/api/request-ride', (req, res) => {
-  const {
-    riderName,
-    riderPhone,
-    pickupAddress,
-    destinationAddress,
-    pickupLat,
-    pickupLng,
-    destinationLat,
-    destinationLng,
-    rideType,
-    notes
+    vehicleMake,
+    vehicleModel,
+    vehicleYear,
+    vehicleColor,
+    licensePlate,
+    driversLicenseNumber,
+    insurancePolicyNumber,
+    selfiePhoto,
+    licensePhoto,
+    vehicleRegistrationPhoto,
+    insurancePhoto
   } = req.body
 
   if (
-    !riderName ||
-    !riderPhone ||
-    !pickupAddress ||
-    !destinationAddress ||
-    pickupLat === undefined ||
-    pickupLng === undefined ||
-    destinationLat === undefined ||
-    destinationLng === undefined
+    !fullName ||
+    !email ||
+    !phone ||
+    !password ||
+    !vehicleMake ||
+    !vehicleModel ||
+    !vehicleYear ||
+    !vehicleColor ||
+    !licensePlate
   ) {
-    return res.status(400).json({ error: 'Please complete all required ride request fields.' })
+    return res.status(400).json({
+      success: false,
+      message: 'Driver, vehicle, and login details are required.'
+    })
   }
 
-  const nearestDriver = getNearestAvailableDriver(pickupLat, pickupLng)
+  const data = readData()
 
-  if (!nearestDriver) {
-    return res.status(400).json({ error: 'No available drivers right now. Please try again shortly.' })
+  const existingDriver = data.drivers.find(
+    driver => driver.email.toLowerCase() === email.toLowerCase()
+  )
+
+  if (existingDriver) {
+    return res.status(400).json({
+      success: false,
+      message: 'A driver with this email already exists.'
+    })
   }
 
-  const tripDistance = getDistanceMiles(
-    Number(pickupLat),
-    Number(pickupLng),
-    Number(destinationLat),
-    Number(destinationLng)
-  )
-
-  const driverToPickupDistance = getDistanceMiles(
-    Number(pickupLat),
-    Number(pickupLng),
-    Number(nearestDriver.currentLat),
-    Number(nearestDriver.currentLng)
-  )
-
-  const fare = estimateFare(tripDistance, Math.max(10, Math.round(tripDistance * 3)))
-
-  const ride = {
-    id: makeId('ride'),
-    riderName,
-    riderPhone,
-    pickupAddress,
-    destinationAddress,
-    pickupLat: Number(pickupLat),
-    pickupLng: Number(pickupLng),
-    destinationLat: Number(destinationLat),
-    destinationLng: Number(destinationLng),
-    rideType: rideType || 'Standard',
-    notes: notes || '',
-    driverId: nearestDriver.id,
-    driverName: nearestDriver.name,
-    driverPhone: nearestDriver.phone,
-    car: nearestDriver.car,
-    plate: nearestDriver.plate,
-    fare,
-    tripDistanceMiles: Number(tripDistance.toFixed(2)),
-    driverDistanceMiles: Number(driverToPickupDistance.toFixed(2)),
-    status: 'assigned',
-    emergencyActive: false,
+  const driver = {
+    id: generateId('driver'),
+    fullName,
+    email,
+    phone,
+    password,
+    role: 'driver',
+    isOnline: false,
+    isApproved: false,
+    verificationStatus: 'pending',
+    backgroundCheckStatus: 'pending',
+    currentLat: null,
+    currentLng: null,
+    vehicle: {
+      make: vehicleMake,
+      model: vehicleModel,
+      year: vehicleYear,
+      color: vehicleColor,
+      plate: licensePlate
+    },
+    documents: {
+      driversLicenseNumber: driversLicenseNumber || '',
+      insurancePolicyNumber: insurancePolicyNumber || '',
+      selfiePhoto: selfiePhoto || '',
+      licensePhoto: licensePhoto || '',
+      vehicleRegistrationPhoto: vehicleRegistrationPhoto || '',
+      insurancePhoto: insurancePhoto || ''
+    },
     createdAt: new Date().toISOString()
   }
 
-  db.rides.unshift(ride)
-
-  const actualDriver = db.drivers.find(d => d.id === nearestDriver.id)
-  if (actualDriver) {
-    actualDriver.activeRideId = ride.id
-  }
-
-  createNotification('driver', nearestDriver.id, `New ride assigned: ${pickupAddress} → ${destinationAddress}`)
-  createNotification('admin', 'all', `Ride created: ${ride.id} assigned to ${nearestDriver.name}`)
-  saveData()
+  data.drivers.push(driver)
+  saveData(data)
 
   res.json({
     success: true,
-    message: 'Ride requested successfully.',
-    ride
+    message: 'Driver account created and submitted for admin approval.',
+    driver: sanitizeUser(driver)
   })
 })
 
-app.get('/api/rides', (req, res) => {
-  res.json(db.rides)
-})
+app.post('/api/login', (req, res) => {
+  const { email, password } = req.body
 
-app.get('/api/rides/:rideId', (req, res) => {
-  const ride = findRideById(req.params.rideId)
-
-  if (!ride) {
-    return res.status(404).json({ error: 'Ride not found.' })
+  if (!email || !password) {
+    return res.status(400).json({
+      success: false,
+      message: 'Email and password are required.'
+    })
   }
 
-  res.json(ride)
-})
+  const data = readData()
 
-app.put('/api/rides/:rideId/status', (req, res) => {
-  const { rideId } = req.params
-  const { status } = req.body
+  const rider = data.riders.find(
+    user =>
+      user.email.toLowerCase() === email.toLowerCase() &&
+      user.password === password
+  )
 
-  const ride = findRideById(rideId)
-
-  if (!ride) {
-    return res.status(404).json({ error: 'Ride not found.' })
+  if (rider) {
+    return res.json({
+      success: true,
+      role: 'rider',
+      user: sanitizeUser(rider)
+    })
   }
 
-  ride.status = status
+  const driver = data.drivers.find(
+    user =>
+      user.email.toLowerCase() === email.toLowerCase() &&
+      user.password === password
+  )
 
-  if (status === 'completed' || status === 'cancelled') {
-    const driver = db.drivers.find(d => d.id === ride.driverId)
-    if (driver) {
-      driver.activeRideId = null
-      if (status === 'completed') {
-        driver.totalTrips += 1
-        driver.currentLat = ride.destinationLat
-        driver.currentLng = ride.destinationLng
-      }
-    }
+  if (driver) {
+    return res.json({
+      success: true,
+      role: 'driver',
+      user: sanitizeUser(driver)
+    })
   }
 
-  saveData()
+  const admin = data.admins.find(
+    user =>
+      user.email.toLowerCase() === email.toLowerCase() &&
+      user.password === password
+  )
 
-  res.json({
-    success: true,
-    ride
-  })
-})
-
-app.post('/api/emergency', (req, res) => {
-  const {
-    rideId,
-    riderName,
-    driverName,
-    car,
-    plate,
-    lat,
-    lng,
-    note
-  } = req.body
-
-  const ride = rideId ? findRideById(rideId) : null
-
-  const emergency = {
-    id: makeId('emergency'),
-    rideId: rideId || null,
-    riderName: riderName || (ride ? ride.riderName : 'Unknown Rider'),
-    driverName: driverName || (ride ? ride.driverName : 'Unknown Driver'),
-    car: car || (ride ? ride.car : ''),
-    plate: plate || (ride ? ride.plate : ''),
-    lat: lat !== undefined ? Number(lat) : ride ? Number(ride.pickupLat) : null,
-    lng: lng !== undefined ? Number(lng) : ride ? Number(ride.pickupLng) : null,
-    note: note || 'Emergency button activated',
-    status: 'active',
-    createdAt: new Date().toISOString()
-  }
-
-  db.emergencies.unshift(emergency)
-
-  if (ride) {
-    ride.emergencyActive = true
-  }
-
-  createNotification('admin', 'all', `EMERGENCY ALERT on ride ${rideId || 'unknown'}`)
-  saveData()
-
-  res.json({
-    success: true,
-    emergency
-  })
-})
-
-app.listen(PORT, () => {
-  console.log(`Harvey Taxi running on port ${PORT}`)
-})
+  if (admin) {
+    return res.json({
+      success:
