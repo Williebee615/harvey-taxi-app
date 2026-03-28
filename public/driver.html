@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Harvey Taxi | Driver Dashboard</title>
+  <title>Harvey Taxi | Request Ride</title>
   <style>
     * {
       box-sizing: border-box;
@@ -94,7 +94,9 @@
       color: #dbe2ff;
     }
 
-    input {
+    input,
+    select,
+    textarea {
       width: 100%;
       padding: 14px;
       border-radius: 12px;
@@ -105,7 +107,9 @@
       outline: none;
     }
 
-    input:focus {
+    input:focus,
+    select:focus,
+    textarea:focus {
       border-color: #f5c451;
       box-shadow: 0 0 0 3px rgba(245,196,81,0.15);
     }
@@ -132,14 +136,19 @@
       border: 1px solid rgba(255,255,255,0.12);
     }
 
+    .btn-danger {
+      background: #ef4444;
+      color: white;
+    }
+
     .btn-success {
       background: #22c55e;
       color: white;
     }
 
-    .btn-danger {
-      background: #ef4444;
-      color: white;
+    .btn-warning {
+      background: #f59e0b;
+      color: #111;
     }
 
     .btn-row {
@@ -156,7 +165,7 @@
 
     .message {
       display: none;
-      margin-bottom: 18px;
+      margin-top: 16px;
       padding: 14px;
       border-radius: 12px;
       line-height: 1.5;
@@ -174,7 +183,8 @@
       border: 1px solid rgba(239, 68, 68, 0.35);
     }
 
-    .card {
+    .ride-card,
+    .history-card {
       background: #0f1529;
       border: 1px solid rgba(255,255,255,0.08);
       border-radius: 14px;
@@ -182,51 +192,48 @@
       margin-top: 14px;
     }
 
-    .ride-title {
+    .card-title {
       font-size: 18px;
       font-weight: 700;
       margin-bottom: 8px;
     }
 
-    .kv {
-      margin-top: 8px;
-      font-size: 14px;
-      line-height: 1.7;
-      color: #dbe2ff;
-    }
-
     .status-pill {
       display: inline-block;
+      margin-top: 10px;
       padding: 7px 10px;
       border-radius: 999px;
       font-size: 12px;
       font-weight: 700;
-      margin-top: 10px;
-      margin-right: 8px;
+      border: 1px solid transparent;
     }
 
-    .online {
-      background: rgba(34, 197, 94, 0.15);
-      color: #86efac;
-      border: 1px solid rgba(34, 197, 94, 0.35);
-    }
-
-    .offline {
-      background: rgba(239, 68, 68, 0.14);
-      color: #fecaca;
-      border: 1px solid rgba(239, 68, 68, 0.35);
-    }
-
-    .pending {
+    .status-searching,
+    .status-driver_assigned,
+    .status-accepted {
       background: rgba(245, 196, 81, 0.12);
       color: #f5c451;
-      border: 1px solid rgba(245, 196, 81, 0.3);
+      border-color: rgba(245, 196, 81, 0.3);
     }
 
-    .empty {
-      color: #b7c2ff;
+    .status-in_progress,
+    .status-completed {
+      background: rgba(34, 197, 94, 0.15);
+      color: #86efac;
+      border-color: rgba(34, 197, 94, 0.35);
+    }
+
+    .status-cancelled {
+      background: rgba(239, 68, 68, 0.14);
+      color: #fecaca;
+      border-color: rgba(239, 68, 68, 0.35);
+    }
+
+    .kv {
+      margin-top: 10px;
       font-size: 14px;
-      padding: 10px 0;
+      line-height: 1.7;
+      color: #dbe2ff;
     }
 
     .small {
@@ -236,28 +243,21 @@
       line-height: 1.5;
     }
 
-    #map {
-      width: 100%;
-      min-height: 720px;
-      border-radius: 18px;
-      border: 1px solid rgba(255,255,255,0.08);
-      overflow: hidden;
+    .empty {
+      color: #b7c2ff;
+      font-size: 14px;
+      padding: 10px 0;
     }
 
-    .map-note {
-      margin-top: 12px;
-      color: #b7c2ff;
-      font-size: 13px;
-      line-height: 1.5;
+    .section-divider {
+      height: 1px;
+      background: rgba(255,255,255,0.08);
+      margin: 18px 0;
     }
 
     @media (max-width: 980px) {
       .grid {
         grid-template-columns: 1fr;
-      }
-
-      #map {
-        min-height: 420px;
       }
     }
 
@@ -272,327 +272,67 @@
 <body>
   <div class="wrap">
     <div class="topbar">
-      <div class="title"><span class="brand">Harvey Taxi</span> Driver Dashboard</div>
+      <div class="title"><span class="brand">Harvey Taxi</span> Rider Dashboard</div>
       <div class="top-links">
         <a href="/">Home</a>
         <a href="/login.html">Login</a>
-        <button onclick="loadDashboard()">Refresh</button>
+        <button onclick="refreshCurrentRide()">Refresh Ride</button>
+        <button onclick="loadHistory()">Refresh History</button>
         <button onclick="logout()">Logout</button>
       </div>
     </div>
 
-    <div id="messageBox" class="message"></div>
-
     <div class="grid">
       <div>
         <div class="panel">
-          <h2>Driver Profile</h2>
+          <h2>Request a Ride</h2>
           <div class="muted">
-            Manage your live location and availability so Harvey Taxi can assign you nearby rides.
+            Request a Harvey Taxi ride, airport run, premium trip, or delivery.
           </div>
 
-          <div id="driverProfile"></div>
-        </div>
+          <form id="rideForm">
+            <div class="field">
+              <label for="serviceType">Service Type</label>
+              <select id="serviceType">
+                <option value="ride">Standard Ride</option>
+                <option value="airport">Airport Ride</option>
+                <option value="premium">Premium Ride</option>
+                <option value="delivery">Delivery</option>
+              </select>
+            </div>
 
-        <div class="panel">
-          <h2>Location & Availability</h2>
+            <div class="field">
+              <label for="pickupAddress">Pickup Address</label>
+              <input id="pickupAddress" type="text" placeholder="Enter pickup address" required />
+            </div>
 
-          <div class="field">
-            <label for="lat">Current Latitude</label>
-            <input id="lat" type="number" step="any" placeholder="36.1627" />
-          </div>
+            <div class="field">
+              <label for="dropoffAddress">Dropoff Address</label>
+              <input id="dropoffAddress" type="text" placeholder="Enter dropoff address" required />
+            </div>
 
-          <div class="field">
-            <label for="lng">Current Longitude</label>
-            <input id="lng" type="number" step="any" placeholder="-86.7816" />
-          </div>
+            <div class="btn-row">
+              <div class="field">
+                <label for="pickupLat">Pickup Lat</label>
+                <input id="pickupLat" type="number" step="any" placeholder="36.1627" required />
+              </div>
 
-          <div class="btn-row">
-            <button class="btn btn-secondary" type="button" onclick="useCurrentLocation()">Use My Location</button>
-            <button class="btn btn-secondary" type="button" onclick="useNashvilleDriverDemo()">Use Nashville Demo</button>
-          </div>
+              <div class="field">
+                <label for="pickupLng">Pickup Lng</label>
+                <input id="pickupLng" type="number" step="any" placeholder="-86.7816" required />
+              </div>
+            </div>
 
-          <div class="btn-row">
-            <button class="btn btn-success" type="button" onclick="updateLocation(true)">Go Online</button>
-            <button class="btn btn-danger" type="button" onclick="updateLocation(false)">Go Offline</button>
-          </div>
+            <div class="btn-row">
+              <div class="field">
+                <label for="dropoffLat">Dropoff Lat</label>
+                <input id="dropoffLat" type="number" step="any" placeholder="36.1263" />
+              </div>
 
-          <button class="btn btn-primary" type="button" onclick="centerMapOnDriver()">Center Map On Me</button>
+              <div class="field">
+                <label for="dropoffLng">Dropoff Lng</label>
+                <input id="dropoffLng" type="number" step="any" placeholder="-86.6774" />
+              </div>
+            </div>
 
-          <div class="small">
-            Driver must be approved, online, and have coordinates saved to receive nearest-driver dispatches.
-          </div>
-        </div>
-
-        <div class="panel">
-          <h2>Assigned Rides</h2>
-          <div class="muted">
-            These are rides currently assigned to this driver account.
-          </div>
-
-          <div id="assignedRides"></div>
-        </div>
-      </div>
-
-      <div>
-        <div id="map"></div>
-        <div class="map-note">
-          If the map stays blank, add your Google Maps API key at the bottom of this file where it says <strong>YOUR_GOOGLE_MAPS_API_KEY</strong>.
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    const storedUser = localStorage.getItem('harveyTaxiUser')
-    const storedRole = localStorage.getItem('harveyTaxiRole')
-    const messageBox = document.getElementById('messageBox')
-
-    let currentUser = null
-    let allRides = []
-
-    let map
-    let driverMarker = null
-    let pickupMarker = null
-    let dropoffMarker = null
-    let directionsService = null
-    let directionsRenderer = null
-
-    if (!storedUser || storedRole !== 'driver') {
-      window.location = '/login.html'
-    } else {
-      currentUser = JSON.parse(storedUser)
-    }
-
-    function showMessage(text, type) {
-      messageBox.className = `message ${type}`
-      messageBox.style.display = 'block'
-      messageBox.textContent = text
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-    }
-
-    function logout() {
-      localStorage.removeItem('harveyTaxiUser')
-      localStorage.removeItem('harveyTaxiRole')
-      localStorage.removeItem('harveyTaxiCurrentRideId')
-      window.location = '/login.html'
-    }
-
-    function useNashvilleDriverDemo() {
-      document.getElementById('lat').value = '36.1627'
-      document.getElementById('lng').value = '-86.7816'
-      updateDriverMarker(36.1627, -86.7816)
-      centerMapOnDriver()
-    }
-
-    function renderDriverProfile(user) {
-      const profile = document.getElementById('driverProfile')
-
-      profile.innerHTML = `
-        <div class="card">
-          <div class="ride-title">${user.fullName || 'Driver'}</div>
-          <div class="kv">
-            <strong>Email:</strong> ${user.email || 'N/A'}<br>
-            <strong>Phone:</strong> ${user.phone || 'N/A'}<br>
-            <strong>Vehicle:</strong> ${user.vehicle ? `${user.vehicle.color} ${user.vehicle.year} ${user.vehicle.make} ${user.vehicle.model}` : 'N/A'}<br>
-            <strong>Plate:</strong> ${user.vehicle?.plate || 'N/A'}<br>
-            <strong>Online:</strong> ${user.isOnline ? 'Yes' : 'No'}<br>
-            <strong>Approved:</strong> ${user.isApproved ? 'Yes' : 'No'}<br>
-            <strong>Verification:</strong> ${user.verificationStatus || 'pending'}
-          </div>
-          <span class="status-pill ${user.isOnline ? 'online' : 'offline'}">${user.isOnline ? 'ONLINE' : 'OFFLINE'}</span>
-          <span class="status-pill ${user.verificationStatus === 'approved' ? 'online' : 'pending'}">${(user.verificationStatus || 'pending').toUpperCase()}</span>
-        </div>
-      `
-    }
-
-    function renderAssignedRides(rides) {
-      const container = document.getElementById('assignedRides')
-
-      if (!rides.length) {
-        container.innerHTML = '<div class="empty">No rides assigned yet.</div>'
-        clearRideMarkers()
-        clearRoute()
-        return
-      }
-
-      container.innerHTML = rides.map(ride => `
-        <div class="card">
-          <div class="ride-title">${(ride.serviceType || 'ride').toUpperCase()} • ${ride.status || 'unknown'}</div>
-          <div class="kv">
-            <strong>Rider:</strong> ${ride.riderName || ride.riderId || 'N/A'}<br>
-            <strong>Pickup:</strong> ${ride.pickupAddress || 'N/A'}<br>
-            <strong>Dropoff:</strong> ${ride.dropoffAddress || 'N/A'}<br>
-            <strong>Estimated Fare:</strong> $${ride.estimatedFare || '0.00'}<br>
-            <strong>Estimated Distance:</strong> ${ride.estimatedDistance || 0} miles<br>
-            <strong>Estimated Duration:</strong> ${ride.estimatedDuration || 0} min
-          </div>
-
-          <div class="btn-row-3">
-            ${ride.status === 'driver_assigned' ? `<button class="btn btn-success" onclick="acceptRide('${ride.id}')">Accept</button>` : ''}
-            ${ride.status === 'accepted' ? `<button class="btn btn-primary" onclick="startRide('${ride.id}')">Start</button>` : ''}
-            ${ride.status === 'in_progress' ? `<button class="btn btn-success" onclick="completeRide('${ride.id}')">Complete</button>` : ''}
-            <button class="btn btn-secondary" onclick="focusRideOnMap('${ride.id}')">Show Map</button>
-          </div>
-        </div>
-      `).join('')
-    }
-
-    async function fetchJSON(url, options = {}) {
-      const response = await fetch(url, options)
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.message || 'Request failed')
-      }
-      return data
-    }
-
-    function updateDriverMarker(lat, lng) {
-      if (!map || !window.google) return
-
-      const position = { lat, lng }
-
-      if (driverMarker) {
-        driverMarker.setPosition(position)
-      } else {
-        driverMarker = new google.maps.Marker({
-          position,
-          map,
-          title: 'Driver Location',
-          label: 'D'
-        })
-      }
-    }
-
-    function setRideMarkers(ride) {
-      if (!map || !window.google || !ride) return
-
-      clearRideMarkers()
-
-      if (Number.isFinite(ride.pickupLat) && Number.isFinite(ride.pickupLng)) {
-        pickupMarker = new google.maps.Marker({
-          position: { lat: ride.pickupLat, lng: ride.pickupLng },
-          map,
-          title: 'Pickup',
-          label: 'P'
-        })
-      }
-
-      if (Number.isFinite(ride.dropoffLat) && Number.isFinite(ride.dropoffLng)) {
-        dropoffMarker = new google.maps.Marker({
-          position: { lat: ride.dropoffLat, lng: ride.dropoffLng },
-          map,
-          title: 'Dropoff',
-          label: 'R'
-        })
-      }
-    }
-
-    function clearRideMarkers() {
-      if (pickupMarker) pickupMarker.setMap(null)
-      if (dropoffMarker) dropoffMarker.setMap(null)
-      pickupMarker = null
-      dropoffMarker = null
-    }
-
-    function drawRoute(origin, destination) {
-      if (!directionsService || !directionsRenderer) return
-
-      directionsService.route(
-        {
-          origin,
-          destination,
-          travelMode: google.maps.TravelMode.DRIVING
-        },
-        (result, status) => {
-          if (status === 'OK') {
-            directionsRenderer.setDirections(result)
-          } else {
-            clearRoute()
-          }
-        }
-      )
-    }
-
-    function clearRoute() {
-      if (directionsRenderer) {
-        directionsRenderer.setDirections({ routes: [] })
-      }
-    }
-
-    function centerMapOnDriver() {
-      const lat = Number(document.getElementById('lat').value)
-      const lng = Number(document.getElementById('lng').value)
-
-      if (!Number.isFinite(lat) || !Number.isFinite(lng) || !map) {
-        showMessage('Set a valid driver location first.', 'error')
-        return
-      }
-
-      updateDriverMarker(lat, lng)
-      map.setCenter({ lat, lng })
-      map.setZoom(14)
-    }
-
-    function useCurrentLocation() {
-      if (!navigator.geolocation) {
-        showMessage('Geolocation is not supported on this device.', 'error')
-        return
-      }
-
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const lat = position.coords.latitude
-          const lng = position.coords.longitude
-          document.getElementById('lat').value = lat.toFixed(6)
-          document.getElementById('lng').value = lng.toFixed(6)
-          updateDriverMarker(lat, lng)
-          map.setCenter({ lat, lng })
-          map.setZoom(15)
-          showMessage('Current location loaded.', 'success')
-        },
-        () => {
-          showMessage('Could not get your current location.', 'error')
-        },
-        { enableHighAccuracy: true, timeout: 10000 }
-      )
-    }
-
-    async function updateLocation(isOnline) {
-      try {
-        const latValue = document.getElementById('lat').value.trim()
-        const lngValue = document.getElementById('lng').value.trim()
-
-        const payload = { isOnline }
-
-        if (latValue !== '') payload.lat = Number(latValue)
-        if (lngValue !== '') payload.lng = Number(lngValue)
-
-        const data = await fetchJSON(`/api/drivers/${currentUser.id}/location`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(payload)
-        })
-
-        currentUser = data.driver
-        localStorage.setItem('harveyTaxiUser', JSON.stringify(currentUser))
-
-        if (Number.isFinite(currentUser.currentLat) && Number.isFinite(currentUser.currentLng)) {
-          document.getElementById('lat').value = currentUser.currentLat
-          document.getElementById('lng').value = currentUser.currentLng
-          updateDriverMarker(currentUser.currentLat, currentUser.currentLng)
-        }
-
-        renderDriverProfile(currentUser)
-        showMessage(data.message || 'Driver location updated.', 'success')
-        loadDashboard()
-      } catch (error) {
-        showMessage(error.message || 'Could not update location.', 'error')
-      }
-    }
-
-    async function acceptRide(rideId) {
-      try {
-        const data
+            <button class="btn btn-secondary" type="button" onclick="fillNashvilleDemo()">Use Nashville Demo
