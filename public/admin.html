@@ -18,7 +18,7 @@
     }
 
     .wrap {
-      max-width: 1200px;
+      max-width: 1300px;
       margin: 0 auto;
     }
 
@@ -60,8 +60,8 @@
 
     .stats {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 16px;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 14px;
       margin-bottom: 20px;
     }
 
@@ -74,19 +74,19 @@
 
     .stat-label {
       color: #b7c2ff;
-      font-size: 14px;
+      font-size: 13px;
       margin-bottom: 8px;
     }
 
     .stat-value {
-      font-size: 28px;
+      font-size: 26px;
       font-weight: 700;
       color: #f5c451;
     }
 
-    .grid {
+    .layout {
       display: grid;
-      grid-template-columns: 1.2fr 1fr;
+      grid-template-columns: 1.1fr 0.9fr;
       gap: 20px;
     }
 
@@ -99,15 +99,15 @@
     }
 
     .panel h2 {
-      margin: 0 0 14px;
+      margin: 0 0 12px;
       font-size: 22px;
     }
 
     .panel-subtitle {
       color: #b7c2ff;
-      margin-bottom: 16px;
       line-height: 1.5;
       font-size: 14px;
+      margin-bottom: 16px;
     }
 
     .card {
@@ -115,54 +115,27 @@
       border: 1px solid rgba(255,255,255,0.08);
       border-radius: 14px;
       padding: 16px;
-      margin-bottom: 14px;
+      margin-top: 12px;
+    }
+
+    .card-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .kv {
+      color: #dbe2ff;
+      line-height: 1.7;
+      font-size: 14px;
     }
 
     .row {
       display: flex;
       justify-content: space-between;
-      gap: 14px;
+      gap: 12px;
       align-items: flex-start;
       flex-wrap: wrap;
-    }
-
-    .name {
-      font-size: 18px;
-      font-weight: 700;
-      margin-bottom: 6px;
-    }
-
-    .muted {
-      color: #b7c2ff;
-      font-size: 14px;
-      line-height: 1.6;
-    }
-
-    .status {
-      display: inline-block;
-      margin-top: 10px;
-      padding: 6px 10px;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: 700;
-    }
-
-    .pending {
-      background: rgba(245, 196, 81, 0.12);
-      color: #f5c451;
-      border: 1px solid rgba(245, 196, 81, 0.3);
-    }
-
-    .approved {
-      background: rgba(34, 197, 94, 0.12);
-      color: #86efac;
-      border: 1px solid rgba(34, 197, 94, 0.3);
-    }
-
-    .rejected {
-      background: rgba(239, 68, 68, 0.12);
-      color: #fca5a5;
-      border: 1px solid rgba(239, 68, 68, 0.3);
     }
 
     .actions {
@@ -190,19 +163,38 @@
       color: white;
     }
 
-    .btn-refresh {
-      background: #f5c451;
-      color: #111;
+    .pill {
+      display: inline-block;
+      padding: 7px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      margin-top: 10px;
+      border: 1px solid transparent;
     }
 
-    .ride-card {
-      border-left: 4px solid #f5c451;
+    .pending {
+      background: rgba(245, 196, 81, 0.12);
+      color: #f5c451;
+      border-color: rgba(245, 196, 81, 0.3);
     }
 
-    .empty {
-      color: #b7c2ff;
-      font-size: 14px;
-      padding: 12px 0;
+    .approved {
+      background: rgba(34, 197, 94, 0.15);
+      color: #86efac;
+      border-color: rgba(34, 197, 94, 0.35);
+    }
+
+    .rejected {
+      background: rgba(239, 68, 68, 0.14);
+      color: #fecaca;
+      border-color: rgba(239, 68, 68, 0.35);
+    }
+
+    .danger {
+      background: rgba(239, 68, 68, 0.14);
+      color: #fecaca;
+      border-color: rgba(239, 68, 68, 0.35);
     }
 
     .message {
@@ -225,23 +217,33 @@
       border: 1px solid rgba(239, 68, 68, 0.35);
     }
 
-    @media (max-width: 900px) {
-      .stats {
-        grid-template-columns: repeat(2, 1fr);
-      }
+    .empty {
+      color: #b7c2ff;
+      font-size: 14px;
+      padding: 10px 0;
+    }
 
-      .grid {
+    @media (max-width: 1200px) {
+      .stats {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    @media (max-width: 920px) {
+      .layout {
         grid-template-columns: 1fr;
       }
     }
 
-    @media (max-width: 560px) {
+    @media (max-width: 700px) {
+      .stats {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 520px) {
       .stats {
         grid-template-columns: 1fr;
-      }
-
-      .title {
-        font-size: 24px;
       }
     }
   </style>
@@ -270,282 +272,66 @@
         <div class="stat-value" id="approvedCount">0</div>
       </div>
       <div class="stat">
-        <div class="stat-label">Total Rides</div>
-        <div class="stat-value" id="rideCount">0</div>
+        <div class="stat-label">Active Rides</div>
+        <div class="stat-value" id="activeRideCount">0</div>
       </div>
       <div class="stat">
-        <div class="stat-label">Searching Rides</div>
-        <div class="stat-value" id="searchingCount">0</div>
+        <div class="stat-label">Completed Trips</div>
+        <div class="stat-value" id="completedTripCount">0</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Gross Revenue</div>
+        <div class="stat-value" id="grossRevenue">$0</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Platform Fees</div>
+        <div class="stat-value" id="platformRevenue">$0</div>
       </div>
     </div>
 
-    <div class="grid">
+    <div class="layout">
       <div>
         <div class="panel">
           <h2>Pending Driver Approvals</h2>
           <div class="panel-subtitle">
-            Review new Harvey Taxi drivers, confirm their details, and approve or reject them for the platform.
+            Review driver applications and approve or reject them before they can go live.
           </div>
           <div id="pendingDriversList"></div>
         </div>
 
         <div class="panel">
-          <h2>Ride Activity</h2>
+          <h2>Live Ride Activity</h2>
           <div class="panel-subtitle">
-            Live view of ride requests and assignment status from the dispatch system.
+            Current ride activity across the platform.
           </div>
           <div id="ridesList"></div>
+        </div>
+
+        <div class="panel">
+          <h2>Completed Trips</h2>
+          <div class="panel-subtitle">
+            Recent completed trips with fare and payout details.
+          </div>
+          <div id="completedTripsList"></div>
         </div>
       </div>
 
       <div>
         <div class="panel">
-          <h2>All Drivers</h2>
+          <h2>SOS Emergency Alerts</h2>
           <div class="panel-subtitle">
-            Quick status board for driver approval, online availability, and verification progress.
+            Emergency events triggered during rides.
+          </div>
+          <div id="sosList"></div>
+        </div>
+
+        <div class="panel">
+          <h2>Driver Overview</h2>
+          <div class="panel-subtitle">
+            Snapshot of driver approval and availability.
           </div>
           <div id="allDriversList"></div>
         </div>
       </div>
     </div>
-  </div>
-
-  <script>
-    const messageBox = document.getElementById('messageBox')
-
-    function showMessage(text, type) {
-      messageBox.className = `message ${type}`
-      messageBox.style.display = 'block'
-      messageBox.textContent = text
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-    }
-
-    function logout() {
-      localStorage.removeItem('harveyTaxiUser')
-      localStorage.removeItem('harveyTaxiRole')
-      localStorage.removeItem('user')
-      localStorage.removeItem('driver')
-      window.location = '/login.html'
-    }
-
-    function formatStatusClass(status) {
-      if (status === 'approved') return 'approved'
-      if (status === 'rejected') return 'rejected'
-      return 'pending'
-    }
-
-    async function fetchJSON(url, options = {}) {
-      const response = await fetch(url, options)
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.message || 'Request failed')
-      }
-      return data
-    }
-
-    async function approveDriver(driverId) {
-      try {
-        const data = await fetchJSON(`/api/admin/drivers/${driverId}/approve`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        })
-
-        showMessage(data.message || 'Driver approved successfully.', 'success')
-        loadDashboard()
-      } catch (error) {
-        showMessage(error.message || 'Failed to approve driver.', 'error')
-      }
-    }
-
-    async function rejectDriver(driverId) {
-      const reason = prompt('Enter rejection reason for this driver:', 'Incomplete verification')
-      if (reason === null) return
-
-      try {
-        const data = await fetchJSON(`/api/admin/drivers/${driverId}/reject`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ reason })
-        })
-
-        showMessage(data.message || 'Driver rejected.', 'success')
-        loadDashboard()
-      } catch (error) {
-        showMessage(error.message || 'Failed to reject driver.', 'error')
-      }
-    }
-
-    function renderPendingDrivers(drivers) {
-      const container = document.getElementById('pendingDriversList')
-
-      if (!drivers.length) {
-        container.innerHTML = '<div class="empty">No pending drivers right now.</div>'
-        return
-      }
-
-      container.innerHTML = drivers.map(driver => `
-        <div class="card">
-          <div class="row">
-            <div>
-              <div class="name">${driver.fullName || 'Unnamed Driver'}</div>
-              <div class="muted">
-                Email: ${driver.email || 'N/A'}<br>
-                Phone: ${driver.phone || 'N/A'}<br>
-                Vehicle: ${driver.vehicle ? `${driver.vehicle.color} ${driver.vehicle.year} ${driver.vehicle.make} ${driver.vehicle.model}` : 'N/A'}<br>
-                Plate: ${driver.vehicle?.plate || 'N/A'}<br>
-                License #: ${driver.documents?.driversLicenseNumber || 'Not provided'}<br>
-                Insurance #: ${driver.documents?.insurancePolicyNumber || 'Not provided'}
-              </div>
-              <span class="status ${formatStatusClass(driver.verificationStatus)}">
-                ${driver.verificationStatus || 'pending'}
-              </span>
-            </div>
-          </div>
-          <div class="actions">
-            <button class="btn btn-approve" onclick="approveDriver('${driver.id}')">Approve</button>
-            <button class="btn btn-reject" onclick="rejectDriver('${driver.id}')">Reject</button>
-          </div>
-        </div>
-      `).join('')
-    }
-
-    function renderAllDrivers(drivers) {
-      const container = document.getElementById('allDriversList')
-
-      if (!drivers.length) {
-        container.innerHTML = '<div class="empty">No drivers created yet.</div>'
-        return
-      }
-
-      container.innerHTML = drivers.map(driver => `
-        <div class="card">
-          <div class="name">${driver.fullName || 'Unnamed Driver'}</div>
-          <div class="muted">
-            Email: ${driver.email || 'N/A'}<br>
-            Phone: ${driver.phone || 'N/A'}<br>
-            Online: ${driver.isOnline ? 'Yes' : 'No'}<br>
-            Approved: ${driver.isApproved ? 'Yes' : 'No'}<br>
-            Background Check: ${driver.backgroundCheckStatus || 'pending'}
-          </div>
-          <span class="status ${formatStatusClass(driver.verificationStatus)}">
-            ${driver.verificationStatus || 'pending'}
-          </span>
-        </div>
-      `).join('')
-    }
-
-    function renderRides(rides) {
-      const container = document.getElementById('ridesList')
-
-      if (!rides.length) {
-        container.innerHTML = '<div class="empty">No rides yet.</div>'
-        return
-      }
-
-      container.innerHTML = rides.slice().reverse().map(ride => `
-        <div class="card ride-card">
-          <div class="name">${ride.serviceType ? ride.serviceType.toUpperCase() : 'RIDE'} • ${ride.status || 'unknown'}</div>
-          <div class="muted">
-            Rider: ${ride.riderName || ride.riderId || 'N/A'}<br>
-            Pickup: ${ride.pickupAddress || 'N/A'}<br>
-            Dropoff: ${ride.dropoffAddress || 'N/A'}<br>
-            Driver: ${ride.assignedDriverName || 'Not assigned'}<br>
-            Vehicle: ${ride.assignedVehicle || 'N/A'}<br>
-            Fare: $${ride.estimatedFare || '0.00'}<br>
-            Distance: ${ride.estimatedDistance || 0} miles<br>
-            Duration: ${ride.estimatedDuration || 0} min
-          </div>
-          <span class="status ${ride.status === 'completed' || ride.status === 'accepted' || ride.status === 'in_progress' || ride.status === 'driver_assigned' ? 'approved' : 'pending'}">
-            ${ride.status || 'unknown'}
-          </span>
-        </div>
-      `).join('')
-    }
-
-    async function loadDashboard() {
-      try {
-        const [pendingData, ridesData, allDriversData] = await Promise.all([
-          fetchJSON('/api/admin/drivers/pending'),
-          fetchJSON('/api/rides'),
-          fetchJSON('/api/drivers/available').catch(() => ({ drivers: [] }))
-        ])
-
-        let fullDriverList = []
-        try {
-          const pendingDrivers = pendingData.drivers || []
-          const availableDrivers = allDriversData.drivers || []
-
-          const byId = {}
-
-          pendingDrivers.forEach(driver => {
-            byId[driver.id] = driver
-          })
-
-          availableDrivers.forEach(driver => {
-            byId[driver.id] = driver
-          })
-
-          fullDriverList = Object.values(byId)
-
-          if (!fullDriverList.length) {
-            const rides = ridesData.rides || []
-            rides.forEach(ride => {
-              if (ride.assignedDriverId && !byId[ride.assignedDriverId]) {
-                byId[ride.assignedDriverId] = {
-                  id: ride.assignedDriverId,
-                  fullName: ride.assignedDriverName || 'Assigned Driver',
-                  email: '',
-                  phone: '',
-                  isOnline: true,
-                  isApproved: true,
-                  verificationStatus: 'approved',
-                  backgroundCheckStatus: 'ready_for_check'
-                }
-              }
-            })
-            fullDriverList = Object.values(byId)
-          }
-        } catch (error) {
-          fullDriverList = pendingData.drivers || []
-        }
-
-        const pendingDrivers = pendingData.drivers || []
-        const rides = ridesData.rides || []
-
-        const approvedDriversCount = fullDriverList.filter(driver => driver.isApproved).length
-        const searchingRidesCount = rides.filter(ride => ride.status === 'searching').length
-
-        document.getElementById('pendingCount').textContent = pendingDrivers.length
-        document.getElementById('approvedCount').textContent = approvedDriversCount
-        document.getElementById('rideCount').textContent = rides.length
-        document.getElementById('searchingCount').textContent = searchingRidesCount
-
-        renderPendingDrivers(pendingDrivers)
-        renderAllDrivers(fullDriverList)
-        renderRides(rides)
-      } catch (error) {
-        showMessage(error.message || 'Failed to load admin dashboard.', 'error')
-      }
-    }
-
-    const role = localStorage.getItem('harveyTaxiRole')
-    const legacyUser = localStorage.getItem('user')
-    const storedUser = localStorage.getItem('harveyTaxiUser')
-
-    if (role && role !== 'admin') {
-      window.location = '/login.html'
-    }
-
-    if (!role && !legacyUser && !storedUser) {
-      window.location = '/login.html'
-    }
-
-    loadDashboard()
-    setInterval(loadDashboard, 10000)
-  </script>
-</body>
-</html>
+  </div
