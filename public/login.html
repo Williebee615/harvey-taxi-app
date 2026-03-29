@@ -1,67 +1,63 @@
-<!DOCTYPE html><!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html>
+<html>
 <head>
-<meta charset="UTF-8">
+<title>Harvey Admin Login</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Harvey Taxi Login</title>
 
 <style>
 body{
-background:#0b1020;
+font-family: Arial;
+background:#0b0f1a;
 color:white;
-font-family:Arial;
-padding:20px;
+display:flex;
+justify-content:center;
+align-items:center;
+height:100vh;
+margin:0;
 }
 
 .card{
-background:#151c34;
-padding:25px;
-border-radius:15px;
-max-width:400px;
-margin:auto;
+background:#111827;
+padding:30px;
+border-radius:12px;
+width:320px;
+box-shadow:0 0 20px rgba(0,0,0,0.5);
 }
 
-.title{
-font-size:26px;
-margin-bottom:5px;
-}
-
-.subtitle{
-color:#b7c2ff;
+h2{
+text-align:center;
 margin-bottom:20px;
 }
 
 input{
 width:100%;
 padding:12px;
-margin-top:10px;
-margin-bottom:15px;
-border-radius:10px;
+margin:8px 0;
 border:none;
-background:#0f1529;
+border-radius:8px;
+background:#1f2937;
 color:white;
 }
 
 button{
 width:100%;
-padding:14px;
+padding:12px;
+background:#7c3aed;
 border:none;
-border-radius:10px;
-background:#f5c451;
+border-radius:8px;
+color:white;
 font-weight:bold;
 cursor:pointer;
 }
 
-a{
-color:#f5c451;
-display:block;
-margin-top:15px;
-text-decoration:none;
+button:hover{
+background:#6d28d9;
 }
 
-#status{
-margin-top:15px;
-color:#f87171;
+.logo{
+text-align:center;
+font-size:20px;
+margin-bottom:10px;
 }
 </style>
 </head>
@@ -70,192 +66,41 @@ color:#f87171;
 
 <div class="card">
 
-<div class="title">Harvey Taxi Login</div>
-<div class="subtitle">Riders • Drivers • Admin</div>
+<div class="logo">
+Harvey Admin
+</div>
 
-<input id="email" placeholder="Email"/>
-<input id="password" type="password" placeholder="Password"/>
+<h2>Login</h2>
+
+<input id="email" placeholder="Admin Email" />
+<input id="password" type="password" placeholder="Password" />
 
 <button onclick="login()">Login</button>
-
-<a href="/rider-signup.html">Create Rider Account</a>
-<a href="/driver-signup.html">Create Driver Account</a>
-<a href="/">Back Home</a>
-
-<div id="status"></div>
 
 </div>
 
 <script>
-
 async function login(){
 
 const email = document.getElementById('email').value
 const password = document.getElementById('password').value
 
-const res = await fetch('/api/login',{
+const res = await fetch('/api/admin-login',{
 method:'POST',
-headers:{
-'Content-Type':'application/json'
-},
-body:JSON.stringify({
-email,
-password
-})
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({email,password})
 })
 
 const data = await res.json()
 
-if(data.role === "rider"){
-localStorage.setItem("harveyTaxiUser",JSON.stringify(data.user))
-localStorage.setItem("harveyTaxiRole","rider")
-window.location="/request.html"
-return
-}
-
-if(data.role === "driver"){
-localStorage.setItem("harveyTaxiUser",JSON.stringify(data.user))
-localStorage.setItem("harveyTaxiRole","driver")
-window.location="/driver.html"
-return
-}
-
-if(data.role === "admin"){
-localStorage.setItem("harveyTaxiRole","admin")
-window.location="/admin.html"
-return
-}
-
-document.getElementById("status").innerHTML =
-data.message || "Login failed"
-
-}
-
-</script>
-
-</body>
-</html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Harvey Taxi Login</title>
-
-<style>
-body{
-background:#0b1020;
-color:white;
-font-family:Arial;
-padding:20px;
-}
-
-.card{
-background:#151c34;
-padding:25px;
-border-radius:15px;
-max-width:400px;
-margin:auto;
-}
-
-input{
-width:100%;
-padding:12px;
-margin-top:10px;
-margin-bottom:15px;
-border-radius:10px;
-border:none;
-background:#0f1529;
-color:white;
-}
-
-button{
-width:100%;
-padding:14px;
-border:none;
-border-radius:10px;
-background:#f5c451;
-font-weight:bold;
-cursor:pointer;
-}
-
-a{
-color:#f5c451;
-display:block;
-margin-top:15px;
-text-decoration:none;
-}
-
-.title{
-font-size:26px;
-margin-bottom:5px;
-}
-
-.subtitle{
-color:#b7c2ff;
-margin-bottom:20px;
-}
-</style>
-</head>
-
-<body>
-
-<div class="card">
-
-<div class="title">Harvey Taxi Login</div>
-<div class="subtitle">Riders • Drivers • Admin</div>
-
-<input id="email" placeholder="Email"/>
-<input id="password" type="password" placeholder="Password"/>
-
-<button onclick="login()">Login</button>
-
-<a href="/rider-signup.html">Create Rider Account</a>
-<a href="/driver-signup.html">Create Driver Account</a>
-
-<div id="status"></div>
-
-</div>
-
-<script>
-
-async function login(){
-
-const email = document.getElementById('email').value
-const password = document.getElementById('password').value
-
-const res = await fetch('/api/login',{
-method:'POST',
-headers:{
-'Content-Type':'application/json'
-},
-body:JSON.stringify({
-email,
-password
-})
-})
-
-const data = await res.json()
-
-if(data.type === "rider"){
-localStorage.setItem("user",JSON.stringify(data.user))
-window.location="/request.html"
-}
-
-if(data.type === "driver"){
-localStorage.setItem("driver",JSON.stringify(data.user))
-window.location="/driver.html"
-}
-
-if(data.type === "admin"){
-window.location="/admin.html"
-}
-
-if(data.error){
-document.getElementById("status").innerHTML=data.error
+if(data.success){
+localStorage.setItem('admin',true)
+window.location.href='/admin.html'
+}else{
+alert('Invalid login')
 }
 
 }
-
 </script>
 
 </body>
