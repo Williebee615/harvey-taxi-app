@@ -1,31 +1,26 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Harvey Taxi</title>
+
+<title>Harvey Taxi Platform</title>
 
 <style>
-
 body{
-margin:0;
-font-family:Arial;
-background:#0b1020;
+font-family: Arial, sans-serif;
+background:#020617;
 color:white;
-}
-
-.header{
 padding:20px;
-font-size:28px;
-font-weight:bold;
 }
 
-.brand{
-color:#f5c451;
+h1{
+font-size:32px;
+margin-bottom:30px;
 }
 
-.container{
-padding:20px;
+.gold{
+color:#fbbf24;
 }
 
 .grid{
@@ -35,116 +30,92 @@ gap:15px;
 }
 
 .card{
-background:#151c34;
+background:#0f172a;
 padding:20px;
-border-radius:15px;
+border-radius:14px;
 cursor:pointer;
-transition:.2s;
+border:1px solid #1e293b;
 }
 
 .card:hover{
-transform:translateY(-3px);
+background:#111827;
 }
 
-.card-title{
-font-size:18px;
-font-weight:bold;
-margin-bottom:5px;
+.card h3{
+margin:0;
+margin-bottom:8px;
 }
 
-.card-desc{
-color:#b7c2ff;
+.card p{
+margin:0;
+color:#94a3b8;
 font-size:14px;
 }
 
-.big{
-grid-column:1/-1;
+.full{
+grid-column:1/3;
 }
 
-.button{
-background:#f5c451;
-color:black;
-padding:14px;
-border-radius:10px;
-margin-top:10px;
-display:inline-block;
-text-decoration:none;
-font-weight:bold;
+.section{
+margin-top:25px;
+background:#0f172a;
+padding:20px;
+border-radius:14px;
 }
-
-.status{
-margin-top:20px;
-background:#151c34;
-padding:15px;
-border-radius:12px;
-}
-
 </style>
 </head>
 
 <body>
 
-<div class="header">
-<span class="brand">Harvey Taxi</span> Platform
-</div>
-
-<div class="container">
+<h1><span class="gold">Harvey Taxi</span> Platform</h1>
 
 <div class="grid">
 
-<div class="card" onclick="location.href='/rider-signup.html'">
-<div class="card-title">Rider Signup</div>
-<div class="card-desc">Create passenger account</div>
-</div>
-
-<div class="card" onclick="location.href='/driver-signup.html'">
-<div class="card-title">Driver Signup</div>
-<div class="card-desc">Join as Harvey driver</div>
-</div>
-
-<div class="card" onclick="location.href='/login.html'">
-<div class="card-title">Login</div>
-<div class="card-desc">Rider • Driver • Admin</div>
-</div>
-
-<div class="card" onclick="location.href='/request.html'">
-<div class="card-title">Request Ride</div>
-<div class="card-desc">Book Harvey Taxi</div>
+<div class="card" onclick="location.href='/rider-verification.html'">
+<h3>Rider Signup</h3>
+<p>Create passenger account</p>
 </div>
 
 <div class="card" onclick="location.href='/driver.html'">
-<div class="card-title">Driver Dashboard</div>
-<div class="card-desc">Driver online & trips</div>
+<h3>Driver Signup</h3>
+<p>Join as Harvey driver</p>
+</div>
+
+<div class="card" onclick="location.href='/login.html'">
+<h3>Login</h3>
+<p>Rider • Driver • Admin</p>
+</div>
+
+<div class="card" onclick="location.href='/request.html'">
+<h3>Request Ride</h3>
+<p>Book Harvey Taxi</p>
+</div>
+
+<div class="card" onclick="location.href='/driver-dashboard.html'">
+<h3>Driver Dashboard</h3>
+<p>Driver online & trips</p>
 </div>
 
 <div class="card" onclick="location.href='/admin.html'">
-<div class="card-title">Admin Panel</div>
-<div class="card-desc">Approve drivers & dispatch</div>
+<h3>Admin Panel</h3>
+<p>Approve drivers & dispatch</p>
 </div>
 
-<div class="card big" onclick="location.href='/services.html'">
-<div class="card-title">Services (Coming)</div>
-<div class="card-desc">
-Taxi • Food Delivery • Grocery • Courier • Airport Rides
-</div>
+<div class="card full">
+<h3>Services (Coming)</h3>
+<p>Taxi • Food Delivery • Grocery • Courier • Airport Rides</p>
 </div>
 
 </div>
 
-<div class="status">
-Harvey Taxi System Ready  
-<br><br>
-• Rider accounts enabled  
-<br>
-• Driver approval system enabled  
-<br>
-• Admin dispatch panel enabled  
-<br>
-• Ride request system ready  
-<br>
-• Live tracking ready  
-</div>
-
+<div class="section">
+<h3>Harvey Taxi System Ready</h3>
+<ul>
+<li>Rider accounts enabled</li>
+<li>Driver approval system enabled</li>
+<li>Admin dispatch panel enabled</li>
+<li>Ride request system ready</li>
+</ul>
 </div>
 
 </body>
