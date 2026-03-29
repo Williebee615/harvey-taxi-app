@@ -1,4 +1,17 @@
-const express = require('express')
+app.post('/api/admin-login',(req,res)=>{
+
+const {email,password} = req.body
+
+if(
+email === 'admin@harvey.com' &&
+password === 'HarveyAdmin123'
+){
+res.json({success:true})
+}else{
+res.json({success:false})
+}
+
+})const express = require('express')
 const cors = require('cors')
 const path = require('path')
 const fs = require('fs')
