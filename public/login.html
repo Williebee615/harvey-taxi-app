@@ -1,91 +1,21 @@
-<!DOCTYPE html>
-<html>
-<head>
-<title>Harvey Admin Login</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<style>
-body{
-font-family: Arial;
-background:#0b0f1a;
-color:white;
-display:flex;
-justify-content:center;
-align-items:center;
-height:100vh;
-margin:0;
-}
-
-.card{
-background:#111827;
-padding:30px;
-border-radius:12px;
-width:320px;
-box-shadow:0 0 20px rgba(0,0,0,0.5);
-}
-
-h2{
-text-align:center;
-margin-bottom:20px;
-}
-
-input{
-width:100%;
-padding:12px;
-margin:8px 0;
-border:none;
-border-radius:8px;
-background:#1f2937;
-color:white;
-}
-
-button{
-width:100%;
-padding:12px;
-background:#7c3aed;
-border:none;
-border-radius:8px;
-color:white;
-font-weight:bold;
-cursor:pointer;
-}
-
-button:hover{
-background:#6d28d9;
-}
-
-.logo{
-text-align:center;
-font-size:20px;
-margin-bottom:10px;
-}
-</style>
-</head>
-
-<body>
-
-<div class="card">
-
-<div class="logo">
-Harvey Admin
-</div>
-
-<h2>Login</h2>
-
-<input id="email" placeholder="Admin Email" />
-<input id="password" type="password" placeholder="Password" />
-
-<button onclick="login()">Login</button>
-
-</div>
-
 <script>
 async function login(){
 
 const email = document.getElementById('email').value
 const password = document.getElementById('password').value
 
-const res = await fetch('/api/admin-login',{
+// ADMIN LOGIN
+if(
+email === "admin@harvey.com" &&
+password === "HarveyAdmin123"
+){
+localStorage.setItem("admin", "true")
+window.location.href = "/admin.html"
+return
+}
+
+// DRIVER LOGIN
+const res = await fetch('/api/driver/login',{
 method:'POST',
 headers:{'Content-Type':'application/json'},
 body:JSON.stringify({email,password})
@@ -93,15 +23,12 @@ body:JSON.stringify({email,password})
 
 const data = await res.json()
 
-if(data.success){
-localStorage.setItem('admin',true)
-window.location.href='/admin.html'
+if(data.driver){
+localStorage.setItem("driverId", data.driver.id)
+window.location.href="/driver-dashboard.html"
 }else{
-alert('Invalid login')
+alert("Invalid login")
 }
 
 }
 </script>
-
-</body>
-</html>
