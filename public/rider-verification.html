@@ -1,251 +1,75 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Harvey Taxi | Rider Signup</title>
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: Arial, sans-serif;
-    }
+<title>Rider Signup</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    body {
-      background: #0b1020;
-      color: white;
-      min-height: 100vh;
-      padding: 24px;
-    }
+<style>
+body{
+background:#020b2d;
+color:white;
+font-family:Arial;
+padding:20px;
+}
 
-    .container {
-      max-width: 560px;
-      margin: 0 auto;
-    }
+.card{
+background:#07143a;
+padding:20px;
+border-radius:20px;
+}
 
-    .card {
-      background: #151c34;
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 18px;
-      padding: 24px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
-    }
+input{
+width:100%;
+padding:16px;
+margin-top:10px;
+margin-bottom:15px;
+border-radius:12px;
+border:none;
+font-size:16px;
+}
 
-    h1 {
-      font-size: 32px;
-      margin-bottom: 8px;
-    }
-
-    .subtitle {
-      color: #b7c2ff;
-      margin-bottom: 24px;
-      line-height: 1.5;
-    }
-
-    .brand {
-      color: #f5c451;
-    }
-
-    .field {
-      margin-bottom: 16px;
-    }
-
-    label {
-      display: block;
-      margin-bottom: 8px;
-      font-size: 14px;
-      color: #dbe2ff;
-    }
-
-    input {
-      width: 100%;
-      padding: 14px 14px;
-      border-radius: 12px;
-      border: 1px solid rgba(255,255,255,0.12);
-      background: #0f1529;
-      color: white;
-      font-size: 16px;
-      outline: none;
-    }
-
-    input:focus {
-      border-color: #f5c451;
-      box-shadow: 0 0 0 3px rgba(245,196,81,0.15);
-    }
-
-    .button {
-      width: 100%;
-      border: none;
-      border-radius: 12px;
-      padding: 15px;
-      font-size: 16px;
-      font-weight: 700;
-      cursor: pointer;
-      margin-top: 8px;
-    }
-
-    .primary {
-      background: #f5c451;
-      color: #111;
-    }
-
-    .secondary {
-      background: transparent;
-      color: white;
-      border: 1px solid rgba(255,255,255,0.15);
-      text-decoration: none;
-      display: inline-block;
-      text-align: center;
-      margin-top: 12px;
-    }
-
-    .message {
-      margin-top: 18px;
-      padding: 14px;
-      border-radius: 12px;
-      display: none;
-      line-height: 1.5;
-    }
-
-    .success {
-      background: rgba(34, 197, 94, 0.15);
-      color: #a7f3d0;
-      border: 1px solid rgba(34, 197, 94, 0.35);
-    }
-
-    .error {
-      background: rgba(239, 68, 68, 0.14);
-      color: #fecaca;
-      border: 1px solid rgba(239, 68, 68, 0.35);
-    }
-
-    .top-links {
-      display: flex;
-      gap: 12px;
-      margin-bottom: 18px;
-      flex-wrap: wrap;
-    }
-
-    .top-links a {
-      color: #f5c451;
-      text-decoration: none;
-      font-size: 14px;
-    }
-
-    .small {
-      font-size: 13px;
-      color: #aeb8df;
-      margin-top: 18px;
-      line-height: 1.5;
-    }
-  </style>
+button{
+width:100%;
+padding:18px;
+background:#55abd0;
+color:white;
+border:none;
+border-radius:14px;
+font-size:18px;
+font-weight:bold;
+}
+</style>
 </head>
+
 <body>
-  <div class="container">
-    <div class="top-links">
-      <a href="/">← Home</a>
-      <a href="/login.html">Login</a>
-      <a href="/driver-signup.html">Driver Signup</a>
-    </div>
 
-    <div class="card">
-      <h1><span class="brand">Harvey Taxi</span> Rider Signup</h1>
-      <p class="subtitle">
-        Create your rider account to request rides, save trip info, and prepare for upgraded passenger verification.
-      </p>
+<h2>Rider Signup</h2>
 
-      <form id="riderSignupForm">
-        <div class="field">
-          <label for="fullName">Full Name</label>
-          <input type="text" id="fullName" required />
-        </div>
+<div class="card">
 
-        <div class="field">
-          <label for="email">Email</label>
-          <input type="email" id="email" required />
-        </div>
+<input id="name" placeholder="Full Name">
+<input id="phone" placeholder="Phone Number">
+<input id="email" placeholder="Email">
 
-        <div class="field">
-          <label for="phone">Phone Number</label>
-          <input type="tel" id="phone" required />
-        </div>
+<button onclick="signup()">Create Rider Account</button>
 
-        <div class="field">
-          <label for="password">Password</label>
-          <input type="password" id="password" required />
-        </div>
+</div>
 
-        <div class="field">
-          <label for="emergencyContactName">Emergency Contact Name</label>
-          <input type="text" id="emergencyContactName" />
-        </div>
+<script>
+function signup(){
+fetch('/signup-rider',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({
+name:document.getElementById('name').value,
+phone:document.getElementById('phone').value,
+email:document.getElementById('email').value
+})
+})
 
-        <div class="field">
-          <label for="emergencyContactPhone">Emergency Contact Phone</label>
-          <input type="tel" id="emergencyContactPhone" />
-        </div>
+alert("Rider account created")
+}
+</script>
 
-        <button class="button primary" type="submit">Create Rider Account</button>
-      </form>
-
-      <a class="button secondary" href="/login.html">Already have an account? Login</a>
-
-      <div id="messageBox" class="message"></div>
-
-      <p class="small">
-        Next upgrades can connect this page to rider ID verification, saved payment methods, ride history, and emergency button protection.
-      </p>
-    </div>
-  </div>
-
-  <script>
-    const form = document.getElementById('riderSignupForm')
-    const messageBox = document.getElementById('messageBox')
-
-    function showMessage(text, type) {
-      messageBox.className = `message ${type}`
-      messageBox.style.display = 'block'
-      messageBox.textContent = text
-    }
-
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault()
-
-      const payload = {
-        fullName: document.getElementById('fullName').value.trim(),
-        email: document.getElementById('email').value.trim(),
-        phone: document.getElementById('phone').value.trim(),
-        password: document.getElementById('password').value.trim(),
-        emergencyContactName: document.getElementById('emergencyContactName').value.trim(),
-        emergencyContactPhone: document.getElementById('emergencyContactPhone').value.trim()
-      }
-
-      try {
-        const response = await fetch('/api/riders/signup', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(payload)
-        })
-
-        const data = await response.json()
-
-        if (!response.ok || !data.success) {
-          showMessage(data.message || 'Signup failed.', 'error')
-          return
-        }
-
-        localStorage.setItem('harveyTaxiUser', JSON.stringify(data.rider))
-        localStorage.setItem('harveyTaxiRole', 'rider')
-
-        showMessage('Rider account created successfully. You can now log in and request rides.', 'success')
-        form.reset()
-      } catch (error) {
-        showMessage('Server connection failed. Make sure your Harvey Taxi server is running.', 'error')
-      }
-    })
-  </script>
 </body>
 </html>
