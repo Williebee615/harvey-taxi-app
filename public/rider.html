@@ -26,15 +26,12 @@
           phone: document.getElementById('phone').value,
           pickup: document.getElementById('pickup').value,
           dropoff: document.getElementById('dropoff').value,
-          fare: document.getElementById('fare').value,
-          driverId: 'driver_1',
-          driverName: 'Test Driver'
+          fare: document.getElementById('fare').value
         })
       })
 
       const data = await res.json()
-      document.getElementById('result').innerText =
-        JSON.stringify(data, null, 2)
+      document.getElementById('result').innerText = JSON.stringify(data, null, 2)
     }
   </script>
 </body>
