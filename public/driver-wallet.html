@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Driver Wallet</title>
+</head>
+
+<body>
+
+<h2>Driver Wallet</h2>
+
+<div>
+Balance: $<span id="balance">0</span>
+</div>
+
+<button onclick="cashout()">
+Instant Cash Out
+</button>
+
+<script>
+async function cashout() {
+
+const res = await fetch('/api/driver/payout', {
+method: 'POST',
+headers: {
+'Content-Type': 'application/json'
+},
+body: JSON.stringify({
+driverStripeId: localStorage.driverStripeId,
+amount: 500
+})
+})
+
+alert('Payout sent!')
+}
+</script>
+
+</body>
+</html>
