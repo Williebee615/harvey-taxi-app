@@ -1,4 +1,15 @@
-app.post('/api/driver/accept', (req, res) => {
+app.post('/api/driver/start', (req, res) => {
+  const data = readData()
+
+  const ride = data.serviceRequests.find(r => r.id === req.body.rideId)
+
+  if (ride) {
+    ride.status = 'in_progress'
+  }
+
+  writeData(data)
+  res.json({ success: true })
+})app.post('/api/driver/accept', (req, res) => {
   const data = readData()
 
   const ride = data.serviceRequests.find(r => r.id === req.body.rideId)
