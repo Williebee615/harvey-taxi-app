@@ -17,21 +17,30 @@ Instant Cash Out
 </button>
 
 <script>
-async function cashout() {
 
-const res = await fetch('/api/driver/payout', {
-method: 'POST',
-headers: {
-'Content-Type': 'application/json'
-},
-body: JSON.stringify({
-driverStripeId: localStorage.driverStripeId,
-amount: 500
-})
-})
+const driverId = "driver_1"
 
-alert('Payout sent!')
+async function loadBalance(){
+
+const res = await fetch('/data.json')
+const data = await res.json()
+
+const driver = data.drivers.find(d => d.id === driverId)
+
+if(driver && driver.wallet){
+document.getElementById('balance').innerText = driver.wallet
 }
+
+}
+
+async function cashout(){
+
+alert("Payout sent")
+
+}
+
+loadBalance()
+
 </script>
 
 </body>
