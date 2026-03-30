@@ -35,15 +35,14 @@ function loadData() {
 
     const parsed = JSON.parse(raw)
 
+    if (!parsed.drivers) parsed.drivers = []
+    if (!parsed.rides) parsed.rides = []
     if (!parsed.company) {
       parsed.company = {
         totalRevenue: 0,
         totalCompletedRides: 0
       }
     }
-
-    if (!parsed.drivers) parsed.drivers = []
-    if (!parsed.rides) parsed.rides = []
 
     return parsed
   } catch (error) {
@@ -74,6 +73,10 @@ function getOrCreateDriver(data, driverId, driverName = 'Auto Driver') {
   return driver
 }
 
+function findRide(data, rideId) {
+  return data.rides.find(r => r.id === rideId)
+}
+
 app.get('/health', (req, res) => {
   res.json({
     success: true,
@@ -86,6 +89,18 @@ app.get('/api/rides', (req, res) => {
   res.json({
     success: true,
     rides: data.rides
+  })
+})
+
+app.get('/api/rides/open', (req, res) => {
+  const data = loadData()
+  const openRides = data.rides.filter(
+    r => r.status !== 'completed' && r.status !== 'cancelled'
+  )
+
+  res.json({
+    success: true,
+    rides: openRides
   })
 })
 
@@ -157,9 +172,7 @@ app.post('/api/rides/create', (req, res) => {
       phone,
       pickup,
       dropoff,
-      fare,
-      driverId,
-      driverName
+      fare
     } = req.body
 
     if (!pickup || !dropoff || fare === undefined) {
@@ -180,9 +193,6 @@ app.post('/api/rides/create', (req, res) => {
 
     const data = loadData()
 
-    const assignedDriverId = driverId || 'driver_1'
-    getOrCreateDriver(data, assignedDriverId, driverName || 'Auto Driver')
-
     const ride = {
       id: 'ride_' + Date.now(),
       riderName: riderName || 'Rider',
@@ -190,9 +200,12 @@ app.post('/api/rides/create', (req, res) => {
       pickup,
       dropoff,
       fare: numericFare,
-      driverId: assignedDriverId,
-      status: 'assigned',
+      driverId: null,
+      status: 'pending',
       createdAt: new Date().toISOString(),
+      acceptedAt: null,
+      arrivedAt: null,
+      pickedUpAt: null,
       completedAt: null,
       platformFee: 0,
       driverPay: 0
@@ -214,6 +227,158 @@ app.post('/api/rides/create', (req, res) => {
   }
 })
 
+app.post('/api/rides/accept', (req, res) => {
+  try {
+    const { rideId, driverId, driverName } = req.body
+
+    if (!rideId || !driverId) {
+      return res.status(400).json({
+        success: false,
+        message: 'rideId and driverId are required'
+      })
+    }
+
+    const data = loadData()
+    const ride = findRide(data, rideId)
+
+    if (!ride) {
+      return res.status(404).json({
+        success: false,
+        message: 'Ride not found'
+      })
+    }
+
+    if (ride.status === 'completed') {
+      return res.status(400).json({
+        success: false,
+        message: 'Ride already completed'
+      })
+    }
+
+    const driver = getOrCreateDriver(data, driverId, driverName || 'Auto Driver')
+
+    ride.driverId = driver.id
+    ride.status = 'assigned'
+    ride.acceptedAt = new Date().toISOString()
+
+    saveData(data)
+
+    res.json({
+      success: true,
+      ride
+    })
+  } catch (error) {
+    console.error('accept ride error:', error.message)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to accept ride'
+    })
+  }
+})
+
+app.post('/api/rides/decline', (req, res) => {
+  try {
+    const { rideId } = req.body
+
+    if (!rideId) {
+      return res.status(400).json({
+        success: false,
+        message: 'rideId is required'
+      })
+    }
+
+    const data = loadData()
+    const ride = findRide(data, rideId)
+
+    if (!ride) {
+      return res.status(404).json({
+        success: false,
+        message: 'Ride not found'
+      })
+    }
+
+    ride.driverId = null
+    ride.status = 'pending'
+
+    saveData(data)
+
+    res.json({
+      success: true,
+      ride
+    })
+  } catch (error) {
+    console.error('decline ride error:', error.message)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to decline ride'
+    })
+  }
+})
+
+app.post('/api/rides/arrived', (req, res) => {
+  try {
+    const { rideId } = req.body
+
+    const data = loadData()
+    const ride = findRide(data, rideId)
+
+    if (!ride) {
+      return res.status(404).json({
+        success: false,
+        message: 'Ride not found'
+      })
+    }
+
+    ride.status = 'arrived'
+    ride.arrivedAt = new Date().toISOString()
+
+    saveData(data)
+
+    res.json({
+      success: true,
+      ride
+    })
+  } catch (error) {
+    console.error('arrived error:', error.message)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update ride'
+    })
+  }
+})
+
+app.post('/api/rides/pickup', (req, res) => {
+  try {
+    const { rideId } = req.body
+
+    const data = loadData()
+    const ride = findRide(data, rideId)
+
+    if (!ride) {
+      return res.status(404).json({
+        success: false,
+        message: 'Ride not found'
+      })
+    }
+
+    ride.status = 'in_progress'
+    ride.pickedUpAt = new Date().toISOString()
+
+    saveData(data)
+
+    res.json({
+      success: true,
+      ride
+    })
+  } catch (error) {
+    console.error('pickup error:', error.message)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update ride'
+    })
+  }
+})
+
 app.post('/api/rides/complete', (req, res) => {
   try {
     const { rideId } = req.body
@@ -226,12 +391,19 @@ app.post('/api/rides/complete', (req, res) => {
     }
 
     const data = loadData()
-    const ride = data.rides.find(r => r.id === rideId)
+    const ride = findRide(data, rideId)
 
     if (!ride) {
       return res.status(404).json({
         success: false,
         message: 'Ride not found'
+      })
+    }
+
+    if (!ride.driverId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ride has no assigned driver'
       })
     }
 
