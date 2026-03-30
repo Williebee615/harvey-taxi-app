@@ -5,11 +5,12 @@ const path = require('path')
 
 const app = express()
 const PORT = process.env.PORT || 10000
-const DATA_FILE = path.join(__dirname, 'data.json')
 
 app.use(cors())
 app.use(express.json())
 app.use(express.static(path.join(__dirname, 'public')))
+
+const DATA_FILE = path.join(__dirname, 'data.json')
 
 function loadData() {
   try {
@@ -17,14 +18,8 @@ function loadData() {
       return { drivers: [], rides: [] }
     }
 
-    const raw = fs.readFileSync(DATA_FILE, 'utf8')
-    if (!raw.trim()) {
-      return { drivers: [], rides: [] }
-    }
-
-    return JSON.parse(raw)
-  } catch (error) {
-    console.error('loadData error:', error.message)
+    return JSON.parse(fs.readFileSync(DATA_FILE))
+  } catch {
     return { drivers: [], rides: [] }
   }
 }
@@ -33,84 +28,85 @@ function saveData(data) {
   fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2))
 }
 
-function getOrCreateDriver(data, driverId, driverName = 'Auto Driver') {
-  let driver = data.drivers.find(d => d.id === driverId)
+function getDriver(data, id) {
+  let driver = data.drivers.find(d => d.id === id)
 
   if (!driver) {
     driver = {
-      id: driverId,
-      name: driverName,
+      id,
+      name: "Auto Driver",
       wallet: 0,
-      totalEarnings: 0,
-      totalTrips: 0
+      totalTrips: 0,
+      totalEarnings: 0
     }
+
     data.drivers.push(driver)
   }
 
   return driver
 }
 
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'))
+/* CREATE RIDE */
+app.post('/api/rides/create', (req, res) => {
+  const data = loadData()
+
+  const { fare, driverId } = req.body
+
+  const driver = getDriver(data, driverId)
+
+  const ride = {
+    id: 'ride_' + Date.now(),
+    driverId,
+    fare,
+    status: "assigned"
+  }
+
+  data.rides.push(ride)
+  saveData(data)
+
+  res.json({ success: true, ride })
 })
 
-app.get('/health', (req, res) => {
+/* COMPLETE RIDE AUTO */
+app.post('/api/rides/complete', (req, res) => {
+  const data = loadData()
+
+  const { rideId } = req.body
+
+  const ride = data.rides.find(r => r.id === rideId)
+
+  if (!ride) {
+    return res.json({ success: false })
+  }
+
+  const driver = getDriver(data, ride.driverId)
+
+  const platformFee = ride.fare * 0.20
+  const driverPay = ride.fare - platformFee
+
+  driver.wallet += driverPay
+  driver.totalTrips += 1
+  driver.totalEarnings += driverPay
+
+  ride.status = "completed"
+
+  saveData(data)
+
   res.json({
     success: true,
-    message: 'Harvey Taxi autonomous server is running'
+    driverWallet: driver.wallet
   })
 })
 
-app.post('/api/rides/create', (req, res) => {
-  try {
-    const { riderName, pickup, dropoff, fare, driverId, driverName } = req.body
+/* WALLET */
+app.get('/api/driver/wallet/:id', (req, res) => {
+  const data = loadData()
 
-    if (!driverId || fare === undefined) {
-      return res.status(400).json({
-        success: false,
-        message: 'driverId and fare are required'
-      })
-    }
+  const driver = getDriver(data, req.params.id)
 
-    const numericFare = Number(fare)
-    if (Number.isNaN(numericFare) || numericFare < 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'fare must be a valid number'
-      })
-    }
-
-    const data = loadData()
-    getOrCreateDriver(data, driverId, driverName || 'Auto Driver')
-
-    const ride = {
-      id: `ride_${Date.now()}`,
-      riderName: riderName || 'Rider',
-      pickup: pickup || '',
-      dropoff: dropoff || '',
-      fare: numericFare,
-      driverId,
-      status: 'assigned',
-      createdAt: new Date().toISOString(),
-      completedAt: null
-    }
-
-    data.rides.push(ride)
-    saveData(data)
-
-    res.json({
-      success: true,
-      ride
-    })
-  } catch (error) {
-    console.error('create ride error:', error.message)
-    res.status(500).json({
-      success: false,
-      message: 'Failed to create ride'
-    })
-  }
+  res.json(driver)
 })
 
-app.post('/api/rides/complete', (req, res) => {
-  try {
-    const { rideId } = req
+app.listen(PORT, () => {
+  console.log("Harvey Taxi Autonomous Server Running")
+})
