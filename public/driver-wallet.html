@@ -4,32 +4,24 @@
   <title>Driver Wallet</title>
 </head>
 <body>
-  <h2>Driver Wallet</h2>
 
-  <div>
-    Balance: $<span id="balance">0</span>
-  </div>
+<h2>Driver Wallet</h2>
 
-  <button onclick="loadBalance()">Refresh Balance</button>
+<h3>Balance: $<span id="balance">0</span></h3>
 
-  <p id="status"></p>
+<button onclick="loadWallet()">Refresh Balance</button>
 
-  <script>
-    async function loadBalance() {
-      try {
-        const res = await fetch('/api/driver/wallet/driver_1')
-        const data = await res.json()
+<script>
+async function loadWallet() {
+  const res = await fetch('/api/driver/wallet/driver_1')
+  const data = await res.json()
 
-        document.getElementById('balance').innerText = data.wallet || 0
-        document.getElementById('status').innerText =
-          'Wallet loaded successfully'
-      } catch (error) {
-        document.getElementById('status').innerText =
-          'Failed to load wallet'
-      }
-    }
+  document.getElementById('balance').innerText = data.wallet || 0
+}
 
-    loadBalance()
-  </script>
+// auto load
+loadWallet()
+</script>
+
 </body>
 </html>
