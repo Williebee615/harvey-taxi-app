@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Request a Ride</title>
+</head>
+<body>
+  <h2>Request a Ride</h2>
+
+  <input id="riderName" placeholder="Rider Name"><br><br>
+  <input id="phone" placeholder="Phone"><br><br>
+  <input id="pickup" placeholder="Pickup Address"><br><br>
+  <input id="dropoff" placeholder="Dropoff Address"><br><br>
+  <input id="fare" placeholder="Fare"><br><br>
+
+  <button onclick="requestRide()">Submit Ride Request</button>
+
+  <pre id="result"></pre>
+
+  <script>
+    async function requestRide() {
+      const res = await fetch('/api/rides/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          riderName: document.getElementById('riderName').value,
+          phone: document.getElementById('phone').value,
+          pickup: document.getElementById('pickup').value,
+          dropoff: document.getElementById('dropoff').value,
+          fare: document.getElementById('fare').value,
+          driverId: 'driver_1',
+          driverName: 'Test Driver'
+        })
+      })
+
+      const data = await res.json()
+      document.getElementById('result').innerText =
+        JSON.stringify(data, null, 2)
+    }
+  </script>
+</body>
+</html>
