@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Admin Dashboard</title>
+</head>
+<body>
+  <h2>Admin Dashboard</h2>
+
+  <p>Total Company Revenue: $<span id="revenue">0</span></p>
+  <p>Total Completed Rides: <span id="completed">0</span></p>
+  <p>Total Drivers: <span id="drivers">0</span></p>
+  <p>Total Ride Records: <span id="ridesCount">0</span></p>
+
+  <button onclick="loadStats()">Refresh Stats</button>
+
+  <h3>Ride History</h3>
+  <pre id="history"></pre>
+
+  <script>
+    async function loadStats() {
+      const statsRes = await fetch('/api/company/stats')
+      const stats = await statsRes.json()
+
+      document.getElementById('revenue').innerText = stats.totalRevenue || 0
+      document.getElementById('completed').innerText = stats.totalCompletedRides || 0
+      document.getElementById('drivers').innerText = stats.totalDrivers || 0
+      document.getElementById('ridesCount').innerText = stats.totalRides || 0
+
+      const ridesRes = await fetch('/api/rides')
+      const ridesData = await ridesRes.json()
+
+      document.getElementById('history').innerText =
+        JSON.stringify(ridesData.rides || [], null, 2)
+    }
+
+    loadStats()
+  </script>
+</body>
+</html>
