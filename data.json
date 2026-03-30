@@ -1,4 +1,8 @@
 {
   "drivers": [],
-  "rides": []
+  "rides": [],
+  "company": {
+    "totalRevenue": 0,
+    "totalCompletedRides": 0
+  }
 }
