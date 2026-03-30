@@ -25,22 +25,10 @@
           Dropoff: ${ride.dropoff}<br>
           Fare: $${ride.fare}<br>
           Status: ${ride.status}<br>
-          Driver: ${ride.driverId || 'Unassigned'}<br><br>
-          ${ride.status !== 'completed'
-            ? `<button onclick="completeRide('${ride.id}')">Complete Ride</button>`
-            : '<em>Completed</em>'}
+          Driver: ${ride.driverId || 'Unassigned'}<br>
+          Created: ${ride.createdAt || ''}<br>
         </div>
       `).join('')
-    }
-
-    async function completeRide(rideId) {
-      await fetch('/api/rides/complete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rideId })
-      })
-
-      loadRides()
     }
 
     loadRides()
