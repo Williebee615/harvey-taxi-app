@@ -5,147 +5,285 @@ const path = require('path')
 
 const app = express()
 const PORT = process.env.PORT || 10000
+const DATA_FILE = path.join(__dirname, 'data.json')
+const PUBLIC_DIR = path.join(__dirname, 'public')
 
 app.use(cors())
-app.use(express.json())
-app.use(express.static(path.join(__dirname, 'public')))
+app.use(express.json({ limit: '10mb' }))
+app.use(express.static(PUBLIC_DIR))
 
-const DATA_FILE = 'data.json'
+function getDefaultData() {
+  return {
+    drivers: [],
+    riders: [],
+    rides: []
+  }
+}
 
 function loadData() {
-if (!fs.existsSync(DATA_FILE)) {
-fs.writeFileSync(DATA_FILE, JSON.stringify({
-drivers: [],
-riders: [],
-rides: []
-}))
-}
-return JSON.parse(fs.readFileSync(DATA_FILE))
+  try {
+    if (!fs.existsSync(DATA_FILE)) {
+      const starter = getDefaultData()
+      fs.writeFileSync(DATA_FILE, JSON.stringify(starter, null, 2))
+      return starter
+    }
+
+    const raw = fs.readFileSync(DATA_FILE, 'utf8')
+    const parsed = JSON.parse(raw)
+
+    return {
+      drivers: Array.isArray(parsed.drivers) ? parsed.drivers : [],
+      riders: Array.isArray(parsed.riders) ? parsed.riders : [],
+      rides: Array.isArray(parsed.rides) ? parsed.rides : []
+    }
+  } catch (error) {
+    console.error('Error loading data.json:', error)
+    return getDefaultData()
+  }
 }
 
 function saveData(data) {
-fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2))
+  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2))
 }
 
 function makeId(prefix) {
-return prefix + '_' + Math.random().toString(36).substring(2, 9)
+  return `${prefix}_${Math.random().toString(36).slice(2, 10)}_${Date.now()}`
 }
 
-/* DRIVER SIGNUP */
+app.get('/', (req, res) => {
+  res.sendFile(path.join(PUBLIC_DIR, 'index.html'))
+})
+
 app.post('/signup-driver', (req, res) => {
-const data = loadData()
-const { name, phone, email, vehicle, city } = req.body
+  const data = loadData()
+  const { name, phone, email, vehicle, city } = req.body
 
-const driver = {
-id: makeId('driver'),
-name,
-phone,
-email,
-vehicle,
-city,
-status: "pending",
-verified: false,
-approved: false
-}
+  if (!name || !phone || !vehicle) {
+    return res.status(400).json({
+      success: false,
+      error: 'Name, phone, and vehicle are required.'
+    })
+  }
 
-data.drivers.push(driver)
-saveData(data)
+  const driver = {
+    id: makeId('driver'),
+    name,
+    phone,
+    email: email || '',
+    vehicle,
+    city: city || '',
+    status: 'pending',
+    verified: false,
+    approved: false,
+    createdAt: new Date().toISOString()
+  }
 
-res.json({ success: true })
+  data.drivers.push(driver)
+  saveData(data)
+
+  res.json({
+    success: true,
+    message: 'Driver application submitted successfully.',
+    driver
+  })
 })
 
-/* RIDER SIGNUP */
 app.post('/signup-rider', (req, res) => {
-const data = loadData()
-const { name, phone, email } = req.body
+  const data = loadData()
+  const { name, phone, email } = req.body
 
-const rider = {
-id: makeId('rider'),
-name,
-phone,
-email
-}
+  if (!name || !phone) {
+    return res.status(400).json({
+      success: false,
+      error: 'Name and phone are required.'
+    })
+  }
 
-data.riders.push(rider)
-saveData(data)
+  const rider = {
+    id: makeId('rider'),
+    name,
+    phone,
+    email: email || '',
+    verified: false,
+    status: 'active',
+    createdAt: new Date().toISOString()
+  }
 
-res.json({ success: true })
+  data.riders.push(rider)
+  saveData(data)
+
+  res.json({
+    success: true,
+    message: 'Rider account created successfully.',
+    rider
+  })
 })
 
-/* REQUEST RIDE */
 app.post('/request-ride', (req, res) => {
-const data = loadData()
-const { pickup, dropoff, service } = req.body
+  const data = loadData()
+  const { pickup, dropoff, service } = req.body
 
-const ride = {
-id: makeId('ride'),
-pickup,
-dropoff,
-service,
-status: "waiting"
-}
+  if (!pickup || !dropoff) {
+    return res.status(400).json({
+      success: false,
+      error: 'Pickup and dropoff are required.'
+    })
+  }
 
-data.rides.push(ride)
-saveData(data)
+  const ride = {
+    id: makeId('ride'),
+    pickup,
+    dropoff,
+    service: service || 'Standard Ride',
+    status: 'waiting',
+    createdAt: new Date().toISOString()
+  }
 
-res.json({ success: true })
+  data.rides.push(ride)
+  saveData(data)
+
+  res.json({
+    success: true,
+    message: 'Ride request created.',
+    ride
+  })
 })
 
-/* GET DRIVERS */
-app.get('/drivers', (req,res)=>{
-const data = loadData()
-res.json(data.drivers)
+app.get('/rides', (req, res) => {
+  const data = loadData()
+  res.json(data.rides)
 })
 
-/* GET RIDERS */
-app.get('/riders', (req,res)=>{
-const data = loadData()
-res.json(data.riders)
+app.get('/drivers', (req, res) => {
+  const data = loadData()
+  res.json(data.drivers)
 })
 
-/* GET RIDES */
-app.get('/rides', (req,res)=>{
-const data = loadData()
-res.json(data.rides)
+app.get('/riders', (req, res) => {
+  const data = loadData()
+  res.json(data.riders)
 })
 
-/* APPROVE DRIVER */
-app.post('/approve-driver', (req,res)=>{
-const data = loadData()
-const { id } = req.body
-
-const driver = data.drivers.find(d=>d.id===id)
-
-if(driver){
-driver.approved = true
-driver.status = "approved"
-}
-
-saveData(data)
-res.json({success:true})
+app.get('/api/admin/drivers', (req, res) => {
+  const data = loadData()
+  res.json(data.drivers)
 })
 
-/* REJECT DRIVER */
-app.post('/reject-driver', (req,res)=>{
-const data = loadData()
-const { id } = req.body
-
-const driver = data.drivers.find(d=>d.id===id)
-
-if(driver){
-driver.approved = false
-driver.status = "rejected"
-}
-
-saveData(data)
-res.json({success:true})
+app.get('/api/admin/riders', (req, res) => {
+  const data = loadData()
+  res.json(data.riders)
 })
 
-/* FALLBACK */
-app.get('*', (req,res)=>{
-res.sendFile(path.join(__dirname,'public/index.html'))
+app.post('/api/admin/approve-driver', (req, res) => {
+  const data = loadData()
+  const { id } = req.body
+
+  if (!id) {
+    return res.status(400).json({
+      success: false,
+      error: 'Driver id is required.'
+    })
+  }
+
+  const driver = data.drivers.find((d) => d.id === id)
+
+  if (!driver) {
+    return res.status(404).json({
+      success: false,
+      error: 'Driver not found.'
+    })
+  }
+
+  driver.approved = true
+  driver.status = 'approved'
+  saveData(data)
+
+  res.json({
+    success: true,
+    message: 'Driver approved successfully.',
+    driver
+  })
 })
 
-app.listen(PORT, ()=>{
-console.log("Server running on port " + PORT)
+app.post('/api/admin/reject-driver', (req, res) => {
+  const data = loadData()
+  const { id } = req.body
+
+  if (!id) {
+    return res.status(400).json({
+      success: false,
+      error: 'Driver id is required.'
+    })
+  }
+
+  const driver = data.drivers.find((d) => d.id === id)
+
+  if (!driver) {
+    return res.status(404).json({
+      success: false,
+      error: 'Driver not found.'
+    })
+  }
+
+  driver.approved = false
+  driver.status = 'rejected'
+  saveData(data)
+
+  res.json({
+    success: true,
+    message: 'Driver rejected.',
+    driver
+  })
+})
+
+app.post('/approve-driver', (req, res) => {
+  const data = loadData()
+  const { id } = req.body
+  const driver = data.drivers.find((d) => d.id === id)
+
+  if (!driver) {
+    return res.status(404).json({
+      success: false,
+      error: 'Driver not found.'
+    })
+  }
+
+  driver.approved = true
+  driver.status = 'approved'
+  saveData(data)
+
+  res.json({ success: true, driver })
+})
+
+app.post('/reject-driver', (req, res) => {
+  const data = loadData()
+  const { id } = req.body
+  const driver = data.drivers.find((d) => d.id === id)
+
+  if (!driver) {
+    return res.status(404).json({
+      success: false,
+      error: 'Driver not found.'
+    })
+  }
+
+  driver.approved = false
+  driver.status = 'rejected'
+  saveData(data)
+
+  res.json({ success: true, driver })
+})
+
+app.get('*', (req, res) => {
+  const requestedPath = path.join(PUBLIC_DIR, req.path)
+
+  if (fs.existsSync(requestedPath) && fs.statSync(requestedPath).isFile()) {
+    return res.sendFile(requestedPath)
+  }
+
+  res.sendFile(path.join(PUBLIC_DIR, 'index.html'))
+})
+
+app.listen(PORT, () => {
+  console.log(`Harvey Taxi server running on port ${PORT}`)
 })
