@@ -1,29 +1,31 @@
 <!DOCTYPE html>
 <html>
+<head>
+  <title>Driver Wallet</title>
+</head>
 <body>
+  <h2>Driver Wallet</h2>
 
-<h2>Test Add Earnings</h2>
+  <div>
+    Balance: $<span id="balance">0</span>
+  </div>
 
-<button onclick="add()">Add $25</button>
+  <button onclick="loadBalance()">Refresh Balance</button>
 
-<script>
-async function add(){
+  <script>
+    const driverId = 'driver_1'
 
-await fetch('/api/driver/add-earnings',{
-method:'POST',
-headers:{
-'Content-Type':'application/json'
-},
-body:JSON.stringify({
-driverId:"driver_1",
-amount:25
-})
-})
+    async function loadBalance() {
+      try {
+        const res = await fetch('/api/driver/wallet/' + driverId)
+        const data = await res.json()
+        document.getElementById('balance').innerText = data.wallet || 0
+      } catch (err) {
+        alert('Failed to load wallet')
+      }
+    }
 
-alert("Added $25")
-
-}
-</script>
-
+    loadBalance()
+  </script>
 </body>
 </html>
