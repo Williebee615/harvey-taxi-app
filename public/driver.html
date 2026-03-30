@@ -2,34 +2,36 @@
 <html>
 <head>
 <title>Driver Dashboard</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
 body{
-background:#0f172a;
-color:white;
 font-family:Arial;
+background:#02123d;
+color:white;
 padding:20px;
 }
 
-.ride{
-background:#020617;
+.card{
+background:#0c1f5c;
 padding:15px;
-margin-top:10px;
 border-radius:10px;
+margin-bottom:15px;
 }
 
 button{
-margin-top:10px;
 padding:10px;
+margin:5px;
 border:none;
-background:#22c55e;
-color:white;
-border-radius:8px;
+border-radius:6px;
+font-weight:bold;
 }
-</style>
-</head>
 
+.accept{background:#00cc66;}
+.start{background:#3399ff;}
+.complete{background:#ffaa00;}
+</style>
+
+</head>
 <body>
 
 <h2>Driver Dashboard</h2>
@@ -38,48 +40,79 @@ border-radius:8px;
 
 <script>
 
-function loadRides(){
+const driverId = localStorage.getItem("driverId")
 
-fetch('/rides')
-.then(res=>res.json())
-.then(data=>{
+async function loadRides(){
+const res = await fetch("/api/service-requests")
+const data = await res.json()
 
-document.getElementById('rides').innerHTML=''
+const pending = data.requests.filter(r =>
+!r.driverId || r.driverId === driverId
+)
 
-data.forEach(ride=>{
+document.getElementById("rides").innerHTML =
+pending.map(r=>`
 
-if(ride.status === 'waiting'){
+<div class="card">
 
-document.getElementById('rides').innerHTML += `
-<div class="ride">
-Pickup: ${ride.pickup} <br>
-Dropoff: ${ride.dropoff} <br>
+<b>${r.pickup}</b><br>
+To: ${r.dropoff}<br>
+Status: ${r.status}
 
-<button onclick="acceptRide(${ride.id})">
-Accept Ride
+<br><br>
+
+<button class="accept"
+onclick="accept('${r.id}')">
+Accept
 </button>
+
+<button class="start"
+onclick="start('${r.id}')">
+Start
+</button>
+
+<button class="complete"
+onclick="complete('${r.id}')">
+Complete
+</button>
+
 </div>
-`
 
+`).join("")
 }
 
-})
-
-})
-
-}
-
-function acceptRide(id){
-
-fetch('/accept-ride',{
-method:'POST',
+async function accept(id){
+await fetch("/api/driver/accept",{
+method:"POST",
 headers:{'Content-Type':'application/json'},
-body:JSON.stringify({id})
+body:JSON.stringify({
+rideId:id,
+driverId:driverId
 })
-
+})
+loadRides()
 }
 
-setInterval(loadRides,2000)
+async function start(id){
+await fetch("/api/driver/start",{
+method:"POST",
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({rideId:id})
+})
+loadRides()
+}
+
+async function complete(id){
+await fetch("/api/driver/complete",{
+method:"POST",
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({rideId:id})
+})
+loadRides()
+}
+
+loadRides()
+setInterval(loadRides,3000)
 
 </script>
 
