@@ -1,109 +1,21 @@
-<!DOCTYPE html>
-<html>
-<head>
-<title>Request Ride</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<style>
-body{
-background:#0f172a;
-color:white;
-font-family:Arial;
-padding:20px;
-}
-
-h2{
-margin-bottom:20px;
-}
-
-input, select{
-width:100%;
-padding:16px;
-margin-top:10px;
-margin-bottom:15px;
-border-radius:12px;
-border:none;
-background:#020617;
-color:white;
-font-size:16px;
-}
-
-.request-btn{
-width:100%;
-padding:18px;
-border:none;
-border-radius:12px;
-background:#22c55e;
-color:white;
-font-size:18px;
-font-weight:bold;
-margin-top:10px;
-}
-
-.pay-btn{
-width:100%;
-padding:18px;
-border:none;
-border-radius:12px;
-background:#facc15;
-color:black;
-font-size:18px;
-font-weight:bold;
-margin-top:15px;
-display:none;
-}
-</style>
-</head>
-
-<body>
-
-<h2>🚖 Request Ride</h2>
-
-<select id="service">
-<option>Standard Ride</option>
-<option>XL Ride</option>
-<option>Airport Ride</option>
-</select>
-
-<input id="pickup" placeholder="Pickup address">
-
-<input id="dropoff" placeholder="Dropoff address">
-
-<button class="request-btn" onclick="estimateRide()">
-Get Fare
-</button>
-
-<div id="fare" style="margin-top:15px;font-size:20px;"></div>
-
-<button id="payBtn"
-class="pay-btn"
-onclick="payRide()">
-Pay for Ride
-</button>
-
-<script>
-
 function estimateRide(){
 
-const fare = Math.floor(Math.random()*15)+10
+const pickup = document.getElementById('pickup').value
+const dropoff = document.getElementById('dropoff').value
+const service = document.getElementById('service').value
+
+fetch('/request-ride',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({
+pickup,
+dropoff,
+service
+})
+})
 
 document.getElementById('fare').innerHTML =
-"Estimated Fare: $" + fare
+"Driver is being notified..."
 
 document.getElementById('payBtn').style.display = "block"
-
 }
-
-function payRide(){
-
-window.open(
-"https://buy.stripe.com/fZufZigi8g5V4k9gdi0Fi00",
-"_blank"
-)
-
-}
-
-</script>
-
-</body>
-</html>
