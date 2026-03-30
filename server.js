@@ -12,23 +12,27 @@ app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true }))
 app.use(express.static(path.join(__dirname, 'public')))
 
+function defaultData() {
+  return {
+    riders: [],
+    drivers: [],
+    admins: [
+      {
+        id: 'admin_1',
+        name: 'Harvey Admin',
+        email: 'admin@harveytaxi.com',
+        password: 'admin123'
+      }
+    ],
+    serviceRequests: []
+  }
+}
+
 function readData() {
   if (!fs.existsSync(DATA_FILE)) {
-    const starterData = {
-      riders: [],
-      drivers: [],
-      admins: [
-        {
-          id: 'admin_1',
-          name: 'Harvey Admin',
-          email: 'admin@harveytaxi.com',
-          password: 'admin123'
-        }
-      ],
-      serviceRequests: []
-    }
-    fs.writeFileSync(DATA_FILE, JSON.stringify(starterData, null, 2))
-    return starterData
+    const data = defaultData()
+    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2))
+    return data
   }
 
   try {
@@ -36,12 +40,7 @@ function readData() {
     return JSON.parse(raw)
   } catch (error) {
     console.error('Error reading data file:', error)
-    return {
-      riders: [],
-      drivers: [],
-      admins: [],
-      serviceRequests: []
-    }
+    return defaultData()
   }
 }
 
@@ -101,8 +100,65 @@ function sanitizeDriver(driver) {
   }
 }
 
-function sanitizeRequest(request) {
-  return request
+function ensureLifecycle(requestRecord) {
+  if (!requestRecord.lifecycle) {
+    requestRecord.lifecycle = {
+      stage: 'request_intake',
+      requestIntakeAt: requestRecord.createdAt || new Date().toISOString(),
+      validatedAt: null,
+      driverAssignedAt: null,
+      riderConfirmed24hAt: null,
+      driverConfirmed24hAt: null,
+      riderConfirmed2hAt: null,
+      driverConfirmed2hAt: null,
+      enRouteAt: null,
+      riderPickedUpAt: null,
+      dropoffCompleteAt: null,
+      postRideClosedAt: null
+    }
+  }
+
+  if (!requestRecord.payment) {
+    requestRecord.payment = {
+      fareQuoted: 0,
+      fareCharged: 0,
+      driverPay: 0,
+      grossMargin: 0,
+      paymentMethod: '',
+      paymentStatus: 'unpaid'
+    }
+  }
+
+  if (!requestRecord.flightInfo) {
+    requestRecord.flightInfo = {
+      airline: '',
+      flightNumber: '',
+      arrivalTerminal: '',
+      flightStatus: ''
+    }
+  }
+
+  if (!requestRecord.feedback) {
+    requestRecord.feedback = {
+      riderRating: '',
+      riderComment: '',
+      followUpSentAt: null
+    }
+  }
+
+  if (!requestRecord.operations) {
+    requestRecord.operations = {
+      dispatcherNotes: '',
+      referralSource: '',
+      routeType: '',
+      passengerCount: '',
+      luggageCount: '',
+      backupDriverId: null,
+      backupDriverName: null
+    }
+  }
+
+  return requestRecord
 }
 
 function findNearestAvailableDriver(drivers, pickupLat, pickupLng) {
@@ -129,6 +185,12 @@ function findNearestAvailableDriver(drivers, pickupLat, pickupLng) {
   return eligibleDrivers.length ? eligibleDrivers[0] : null
 }
 
+function calculateMargin(requestRecord) {
+  const fareCharged = Number(requestRecord.payment?.fareCharged || 0)
+  const driverPay = Number(requestRecord.payment?.driverPay || 0)
+  requestRecord.payment.grossMargin = Number((fareCharged - driverPay).toFixed(2))
+}
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'))
 })
@@ -137,12 +199,8 @@ app.get('/admin-dispatch', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin-dispatch.html'))
 })
 
-/*
-  DRIVER SIGNUP
-*/
 app.post('/api/driver-signup', (req, res) => {
   const data = readData()
-
   const {
     name,
     email,
@@ -198,12 +256,8 @@ app.post('/api/driver-signup', (req, res) => {
   })
 })
 
-/*
-  RIDER SIGNUP
-*/
 app.post('/api/rider-signup', (req, res) => {
   const data = readData()
-
   const { name, email, password, phone } = req.body
 
   if (!name || !email || !password) {
@@ -243,9 +297,6 @@ app.post('/api/rider-signup', (req, res) => {
   })
 })
 
-/*
-  DRIVER LOGIN
-*/
 app.post('/api/driver-login', (req, res) => {
   const data = readData()
   const { email, password } = req.body
@@ -270,9 +321,6 @@ app.post('/api/driver-login', (req, res) => {
   })
 })
 
-/*
-  ADMIN LOGIN
-*/
 app.post('/api/admin-login', (req, res) => {
   const data = readData()
   const { email, password } = req.body
@@ -301,9 +349,6 @@ app.post('/api/admin-login', (req, res) => {
   })
 })
 
-/*
-  DRIVER APPROVAL
-*/
 app.post('/api/admin/approve-driver/:driverId', (req, res) => {
   const data = readData()
   const driver = data.drivers.find(item => item.id === req.params.driverId)
@@ -327,9 +372,6 @@ app.post('/api/admin/approve-driver/:driverId', (req, res) => {
   })
 })
 
-/*
-  DRIVER STATUS / LOCATION UPDATE
-*/
 app.post('/api/driver/update-status', (req, res) => {
   const data = readData()
   const { driverId, available, status, currentLat, currentLng } = req.body
@@ -368,9 +410,6 @@ app.post('/api/driver/update-status', (req, res) => {
   })
 })
 
-/*
-  CREATE RIDE REQUEST
-*/
 app.post('/api/request-ride', (req, res) => {
   const data = readData()
 
@@ -384,7 +423,15 @@ app.post('/api/request-ride', (req, res) => {
     dropoffLat,
     dropoffLng,
     scheduledTime,
-    notes
+    notes,
+    passengerCount,
+    luggageCount,
+    routeType,
+    referralSource,
+    fareQuoted,
+    airline,
+    flightNumber,
+    arrivalTerminal
   } = req.body
 
   if (!riderName || !riderPhone || !pickup || !dropoff) {
@@ -394,7 +441,7 @@ app.post('/api/request-ride', (req, res) => {
     })
   }
 
-  const requestRecord = {
+  const requestRecord = ensureLifecycle({
     id: generateId('ride'),
     riderName,
     riderPhone,
@@ -405,254 +452,58 @@ app.post('/api/request-ride', (req, res) => {
     dropoffLat: typeof dropoffLat === 'number' ? dropoffLat : null,
     dropoffLng: typeof dropoffLng === 'number' ? dropoffLng : null,
     scheduledTime: scheduledTime || '',
-    notes: notes || '',
     status: 'pending',
     assignedDriverId: null,
     assignedDriverName: null,
     assignedAt: null,
     startedAt: null,
     completedAt: null,
-    createdAt: new Date().toISOString()
-  }
+    cancelledAt: null,
+    createdAt: new Date().toISOString(),
+    operations: {
+      dispatcherNotes: notes || '',
+      referralSource: referralSource || '',
+      routeType: routeType || '',
+      passengerCount: passengerCount || '',
+      luggageCount: luggageCount || '',
+      backupDriverId: null,
+      backupDriverName: null
+    },
+    flightInfo: {
+      airline: airline || '',
+      flightNumber: flightNumber || '',
+      arrivalTerminal: arrivalTerminal || '',
+      flightStatus: ''
+    },
+    payment: {
+      fareQuoted: Number(fareQuoted || 0),
+      fareCharged: 0,
+      driverPay: 0,
+      grossMargin: 0,
+      paymentMethod: '',
+      paymentStatus: 'unpaid'
+    },
+    feedback: {
+      riderRating: '',
+      riderComment: '',
+      followUpSentAt: null
+    },
+    lifecycle: {
+      stage: 'request_intake',
+      requestIntakeAt: new Date().toISOString(),
+      validatedAt: null,
+      driverAssignedAt: null,
+      riderConfirmed24hAt: null,
+      driverConfirmed24hAt: null,
+      riderConfirmed2hAt: null,
+      driverConfirmed2hAt: null,
+      enRouteAt: null,
+      riderPickedUpAt: null,
+      dropoffCompleteAt: null,
+      postRideClosedAt: null
+    }
+  })
 
   if (
     typeof requestRecord.pickupLat === 'number' &&
-    typeof requestRecord.pickupLng === 'number'
-  ) {
-    const nearestDriver = findNearestAvailableDriver(
-      data.drivers,
-      requestRecord.pickupLat,
-      requestRecord.pickupLng
-    )
-
-    if (nearestDriver) {
-      requestRecord.assignedDriverId = nearestDriver.id
-      requestRecord.assignedDriverName = nearestDriver.name
-      requestRecord.assignedAt = new Date().toISOString()
-      requestRecord.status = 'assigned'
-
-      const driverToUpdate = data.drivers.find(d => d.id === nearestDriver.id)
-      if (driverToUpdate) {
-        driverToUpdate.available = false
-        driverToUpdate.status = 'assigned'
-      }
-    }
-  }
-
-  data.serviceRequests.unshift(requestRecord)
-  writeData(data)
-
-  res.json({
-    success: true,
-    message:
-      requestRecord.status === 'assigned'
-        ? 'Ride request created and driver assigned.'
-        : 'Ride request created. Awaiting dispatch.',
-    request: sanitizeRequest(requestRecord)
-  })
-})
-
-/*
-  GET ALL REQUESTS
-*/
-app.get('/api/service-requests', (req, res) => {
-  const data = readData()
-  res.json({
-    success: true,
-    requests: data.serviceRequests
-  })
-})
-
-/*
-  GET ALL DRIVERS
-*/
-app.get('/api/drivers', (req, res) => {
-  const data = readData()
-  res.json({
-    success: true,
-    drivers: data.drivers.map(sanitizeDriver)
-  })
-})
-
-/*
-  MANUAL ASSIGN DRIVER
-*/
-app.post('/api/admin/assign-driver', (req, res) => {
-  const data = readData()
-  const { requestId, driverId } = req.body
-
-  const requestRecord = data.serviceRequests.find(item => item.id === requestId)
-  const driver = data.drivers.find(item => item.id === driverId)
-
-  if (!requestRecord) {
-    return res.status(404).json({
-      success: false,
-      message: 'Ride request not found.'
-    })
-  }
-
-  if (!driver) {
-    return res.status(404).json({
-      success: false,
-      message: 'Driver not found.'
-    })
-  }
-
-  if (!driver.approved) {
-    return res.status(400).json({
-      success: false,
-      message: 'Driver is not approved yet.'
-    })
-  }
-
-  requestRecord.assignedDriverId = driver.id
-  requestRecord.assignedDriverName = driver.name
-  requestRecord.assignedAt = new Date().toISOString()
-  requestRecord.status = 'assigned'
-
-  driver.available = false
-  driver.status = 'assigned'
-
-  writeData(data)
-
-  res.json({
-    success: true,
-    message: 'Driver assigned successfully.',
-    request: requestRecord
-  })
-})
-
-/*
-  START RIDE
-*/
-app.post('/api/admin/start-ride/:requestId', (req, res) => {
-  const data = readData()
-  const requestRecord = data.serviceRequests.find(item => item.id === req.params.requestId)
-
-  if (!requestRecord) {
-    return res.status(404).json({
-      success: false,
-      message: 'Ride request not found.'
-    })
-  }
-
-  requestRecord.status = 'in_progress'
-  requestRecord.startedAt = new Date().toISOString()
-
-  const driver = data.drivers.find(item => item.id === requestRecord.assignedDriverId)
-  if (driver) {
-    driver.status = 'busy'
-    driver.available = false
-  }
-
-  writeData(data)
-
-  res.json({
-    success: true,
-    message: 'Ride started.',
-    request: requestRecord
-  })
-})
-
-/*
-  COMPLETE RIDE
-*/
-app.post('/api/admin/complete-ride/:requestId', (req, res) => {
-  const data = readData()
-  const requestRecord = data.serviceRequests.find(item => item.id === req.params.requestId)
-
-  if (!requestRecord) {
-    return res.status(404).json({
-      success: false,
-      message: 'Ride request not found.'
-    })
-  }
-
-  requestRecord.status = 'completed'
-  requestRecord.completedAt = new Date().toISOString()
-
-  const driver = data.drivers.find(item => item.id === requestRecord.assignedDriverId)
-  if (driver) {
-    driver.status = 'available'
-    driver.available = true
-  }
-
-  writeData(data)
-
-  res.json({
-    success: true,
-    message: 'Ride completed successfully.',
-    request: requestRecord
-  })
-})
-
-/*
-  CANCEL RIDE
-*/
-app.post('/api/admin/cancel-ride/:requestId', (req, res) => {
-  const data = readData()
-  const requestRecord = data.serviceRequests.find(item => item.id === req.params.requestId)
-
-  if (!requestRecord) {
-    return res.status(404).json({
-      success: false,
-      message: 'Ride request not found.'
-    })
-  }
-
-  requestRecord.status = 'cancelled'
-
-  const driver = data.drivers.find(item => item.id === requestRecord.assignedDriverId)
-  if (driver) {
-    driver.status = 'available'
-    driver.available = true
-  }
-
-  writeData(data)
-
-  res.json({
-    success: true,
-    message: 'Ride cancelled.',
-    request: requestRecord
-  })
-})
-
-/*
-  SIMPLE STATS
-*/
-app.get('/api/admin/stats', (req, res) => {
-  const data = readData()
-
-  const stats = {
-    totalDrivers: data.drivers.length,
-    approvedDrivers: data.drivers.filter(driver => driver.approved).length,
-    availableDrivers: data.drivers.filter(driver => driver.available).length,
-    totalRequests: data.serviceRequests.length,
-    pendingRequests: data.serviceRequests.filter(r => r.status === 'pending').length,
-    assignedRequests: data.serviceRequests.filter(r => r.status === 'assigned').length,
-    inProgressRequests: data.serviceRequests.filter(r => r.status === 'in_progress').length,
-    completedRequests: data.serviceRequests.filter(r => r.status === 'completed').length
-  }
-
-  res.json({
-    success: true,
-    stats
-  })
-})
-
-/*
-  FALLBACK ROUTE
-*/
-app.get('*', (req, res) => {
-  const requestedFile = path.join(__dirname, 'public', req.path)
-
-  if (fs.existsSync(requestedFile) && fs.statSync(requestedFile).isFile()) {
-    return res.sendFile(requestedFile)
-  }
-
-  res.sendFile(path.join(__dirname, 'public', 'index.html'))
-})
-
-app.listen(PORT, () => {
-  console.log(`Harvey Taxi server running on port ${PORT}`)
-})
+    typeof requestRecord.pickupLng === '
