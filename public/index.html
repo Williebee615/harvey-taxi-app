@@ -1,122 +1,43 @@
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<div class="payment-section">
+  <h2>Harvey Transportation</h2>
 
-<title>Harvey Taxi Platform</title>
+  <a class="pay-btn taxi"
+     href="https://buy.stripe.com/fZufZigi8g5V4k9gdi0Fi00"
+     target="_blank">
+     🚖 Pay for Ride
+  </a>
+
+  <a class="pay-btn nonprofit"
+     href="https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00"
+     target="_blank">
+     ❤️ Donate a Ride
+  </a>
+</div>
 
 <style>
-body{
-font-family: Arial, sans-serif;
-background:#020617;
-color:white;
+.payment-section{
 padding:20px;
+margin-top:20px;
 }
 
-h1{
-font-size:32px;
-margin-bottom:30px;
+.pay-btn{
+display:block;
+padding:18px;
+margin-bottom:15px;
+border-radius:12px;
+text-align:center;
+font-weight:bold;
+text-decoration:none;
+font-size:18px;
 }
 
-.gold{
-color:#fbbf24;
+.pay-btn.taxi{
+background:#f7c948;
+color:#000;
 }
 
-.grid{
-display:grid;
-grid-template-columns:1fr 1fr;
-gap:15px;
-}
-
-.card{
-background:#0f172a;
-padding:20px;
-border-radius:14px;
-cursor:pointer;
-border:1px solid #1e293b;
-}
-
-.card:hover{
-background:#111827;
-}
-
-.card h3{
-margin:0;
-margin-bottom:8px;
-}
-
-.card p{
-margin:0;
-color:#94a3b8;
-font-size:14px;
-}
-
-.full{
-grid-column:1/3;
-}
-
-.section{
-margin-top:25px;
-background:#0f172a;
-padding:20px;
-border-radius:14px;
+.pay-btn.nonprofit{
+background:#0b5ed7;
+color:#fff;
 }
 </style>
-</head>
-
-<body>
-
-<h1><span class="gold">Harvey Taxi</span> Platform</h1>
-
-<div class="grid">
-
-<div class="card" onclick="location.href='/rider-verification.html'">
-<h3>Rider Signup</h3>
-<p>Create passenger account</p>
-</div>
-
-<div class="card" onclick="location.href='/driver.html'">
-<h3>Driver Signup</h3>
-<p>Join as Harvey driver</p>
-</div>
-
-<div class="card" onclick="location.href='/login.html'">
-<h3>Login</h3>
-<p>Rider • Driver • Admin</p>
-</div>
-
-<div class="card" onclick="location.href='/request.html'">
-<h3>Request Ride</h3>
-<p>Book Harvey Taxi</p>
-</div>
-
-<div class="card" onclick="location.href='/driver-dashboard.html'">
-<h3>Driver Dashboard</h3>
-<p>Driver online & trips</p>
-</div>
-
-<div class="card" onclick="location.href='/admin.html'">
-<h3>Admin Panel</h3>
-<p>Approve drivers & dispatch</p>
-</div>
-
-<div class="card full">
-<h3>Services (Coming)</h3>
-<p>Taxi • Food Delivery • Grocery • Courier • Airport Rides</p>
-</div>
-
-</div>
-
-<div class="section">
-<h3>Harvey Taxi System Ready</h3>
-<ul>
-<li>Rider accounts enabled</li>
-<li>Driver approval system enabled</li>
-<li>Admin dispatch panel enabled</li>
-<li>Ride request system ready</li>
-</ul>
-</div>
-
-</body>
-</html>
