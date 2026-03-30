@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Driver Signup</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background: #020b2d;
+      color: white;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 700px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .card {
+      background: #0b173f;
+      border-radius: 22px;
+      padding: 20px;
+    }
+
+    input {
+      width: 100%;
+      padding: 16px;
+      margin-top: 10px;
+      margin-bottom: 15px;
+      border-radius: 14px;
+      border: none;
+      font-size: 16px;
+    }
+
+    button {
+      width: 100%;
+      padding: 18px;
+      background: #6f76f5;
+      color: white;
+      border: none;
+      border-radius: 14px;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .message {
+      margin-top: 16px;
+      padding: 14px;
+      border-radius: 14px;
+      display: none;
+      background: #122457;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🚗 Driver Signup</h1>
+
+    <div class="card">
+      <input id="name" placeholder="Full Name">
+      <input id="phone" placeholder="Phone Number">
+      <input id="email" placeholder="Email Address">
+      <input id="vehicle" placeholder="Vehicle Type">
+      <input id="city" placeholder="City">
+
+      <button onclick="signupDriver()">Apply as Driver</button>
+
+      <div id="message" class="message"></div>
+    </div>
+  </div>
+
+  <script>
+    async function signupDriver() {
+      const name = document.getElementById('name').value.trim()
+      const phone = document.getElementById('phone').value.trim()
+      const email = document.getElementById('email').value.trim()
+      const vehicle = document.getElementById('vehicle').value.trim()
+      const city = document.getElementById('city').value.trim()
+      const message = document.getElementById('message')
+
+      const response = await fetch('/signup-driver', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, phone, email, vehicle, city })
+      })
+
+      const result = await response.json()
+      message.style.display = 'block'
+
+      if (!response.ok) {
+        message.innerText = result.error || 'Could not submit driver application.'
+        return
+      }
+
+      message.innerText = 'Driver application submitted. Waiting for admin approval.'
+      document.getElementById('name').value = ''
+      document.getElementById('phone').value = ''
+      document.getElementById('email').value = ''
+      document.getElementById('vehicle').value = ''
+      document.getElementById('city').value = ''
+    }
+  </script>
+</body>
+</html>
