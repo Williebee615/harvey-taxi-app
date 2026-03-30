@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Harvey Taxi Admin Dispatch</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background: #02123d;
+      color: white;
+      padding: 20px;
+    }
+
+    h1, h2 {
+      margin-top: 0;
+    }
+
+    .topbar {
+      max-width: 1200px;
+      margin: 0 auto 20px auto;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 18px;
+      padding: 20px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+    }
+
+    .stat-box {
+      background: rgba(255,255,255,0.1);
+      border-radius: 14px;
+      padding: 14px;
+      text-align: center;
+    }
+
+    .stat-box strong {
+      display: block;
+      font-size: 24px;
+      margin-top: 8px;
+    }
+
+    .request, .driver {
+      background: rgba(255,255,255,0.06);
+      border-radius: 14px;
+      padding: 15px;
+      margin-bottom: 12px;
+    }
+
+    .request:last-child, .driver:last-child {
+      margin-bottom: 0;
+    }
+
+    button, select {
+      border: none;
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin: 6px 6px 0 0;
+      font-weight: bold;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .btn-green { background: #5ed36f; color: #08220d; }
+    .btn-blue { background: #63b3ed; color: #061727; }
+    .btn-yellow { background: #f6d64a; color: #2d2400; }
+    .btn-red { background: #ff6b6b; color: white; }
+
+    .muted {
+      color: #d2d7e6;
+      font-size: 14px;
+    }
+
+    .status {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: bold;
+      margin-top: 8px;
+      background: rgba(255,255,255,0.12);
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+
+    @media (min-width: 900px) {
+      .row {
+        grid-template-columns: 1.4fr 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <h1>🚕 Harvey Taxi Admin Dispatch</h1>
+    <p class="muted">Dispatch workflow dashboard for requests, drivers, and ride completion.</p>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Live Stats</h2>
+      <div id="stats" class="stats"></div>
+    </div>
+
+    <div class="row">
+      <div class="card">
+        <h2>Ride Requests</h2>
+        <div id="requestsList">Loading requests...</div>
+      </div>
+
+      <div class="card">
+        <h2>Drivers</h2>
+        <div id="driversList">Loading drivers...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let drivers = []
+    let requests = []
+
+    async function fetchStats() {
+      const res = await fetch('/api/admin/stats')
+      const data = await res.json()
+
+      const stats = data.stats || {}
+      document.getElementById('stats').innerHTML = `
+        <div class="stat-box">Drivers<strong>${stats.totalDrivers || 0}</strong></div>
+        <div class="stat-box">Approved<strong>${stats.approvedDrivers || 0}</strong></div>
+        <div class="stat-box">Available<strong>${stats.availableDrivers || 0}</strong></div>
+        <div class="stat-box">Requests<strong>${stats.totalRequests || 0}</strong></div>
+        <div class="stat-box">Pending<strong>${stats.pendingRequests || 0}</strong></div>
+        <div class="stat-box">Assigned<strong>${stats.assignedRequests || 0}</strong></div>
+        <div class="stat-box">In Progress<strong>${stats.inProgressRequests || 0}</strong></div>
+        <div class="stat-box">Completed<strong>${stats.completedRequests || 0}</strong></div>
+      `
+    }
+
+    async function fetchDrivers() {
+      const res = await fetch('/api/drivers')
+      const data = await res.json()
+      drivers = data.drivers || []
+
+      const driversList = document.getElementById('driversList')
+
+      if (!drivers.length) {
+        driversList.innerHTML = '<p>No drivers yet.</p>'
+        return
+      }
+
+      driversList.innerHTML = drivers.map(driver => `
+        <div class="driver">
+          <strong>${driver.name}</strong>
+          <div class="muted">${driver.email}</div>
+          <div class="muted">Phone: ${driver.phone || 'N/A'}</div>
+          <div class="muted">Vehicle: ${driver.vehicleType || 'N/A'} ${driver.carModel || ''}</div>
+          <div class="muted">Plate: ${driver.licensePlate || 'N/A'}</div>
+          <div class="status">Status: ${driver.status || 'offline'}</div>
+          <div class="status">Approved: ${driver.approved ? 'Yes' : 'No'}</div>
+          <div class="status">Available: ${driver.available ? 'Yes' : 'No'}</div>
+          ${
+            !driver.approved
+              ? `<div><button class="btn-green" onclick="approveDriver('${driver.id}')">Approve Driver</button></div>`
+              : ''
+          }
+        </div>
+      `).join('')
+    }
+
+    function getDriverOptions(selectedDriverId = '') {
+      const approvedDrivers = drivers.filter(driver => driver.approved)
+      if (!approvedDrivers.length) {
+        return '<option value="">No approved drivers</option>'
+      }
+
+      return approvedDrivers.map(driver => `
+        <option value="${driver.id}" ${selectedDriverId === driver.id ? 'selected' : ''}>
+          ${driver.name} (${driver.status})
+        </option>
+      `).join('')
+    }
+
+    async function fetchRequests() {
+      const res = await fetch('/api/service-requests')
+      const data = await res.json()
+      requests = data.requests || []
+
+      const requestsList = document.getElementById('requestsList')
+
+      if (!requests.length) {
+        requestsList.innerHTML = '<p>No ride requests yet.</p>'
+        return
+      }
+
+      requestsList.innerHTML = requests.map(request => `
+        <div class="request">
+          <strong>${request.riderName}</strong>
+          <div class="muted">Phone: ${request.riderPhone}</div>
+          <div class="muted">Pickup: ${request.pickup}</div>
+          <div class="muted">Dropoff: ${request.dropoff}</div>
+          <div class="muted">Scheduled: ${request.scheduledTime || 'ASAP'}</div>
+          <div class="muted">Assigned Driver: ${request.assignedDriverName || 'None yet'}</div>
+          <div class="status">Status: ${request.status}</div>
+
+          <div style="margin-top:10px;">
+            <select id="driver_${request.id}">
+              <option value="">Select driver</option>
+              ${getDriverOptions(request.assignedDriverId || '')}
+            </select>
+            <button class="btn-blue" onclick="assignDriver('${request.id}')">Assign</button>
+          </div>
+
+          <div>
+            <button class="btn-yellow" onclick="startRide('${request.id}')">Start Ride</button>
+            <button class="btn-green" onclick="completeRide('${request.id}')">Complete Ride</button>
+            <button class="btn-red" onclick="cancelRide('${request.id}')">Cancel Ride</button>
+          </div>
+        </div>
+      `).join('')
+    }
+
+    async function approveDriver(driverId) {
+      await fetch(`/api/admin/approve-driver/${driverId}`, { method: 'POST' })
+      await refreshAll()
+    }
+
+    async function assignDriver(requestId) {
+      const driverId = document.getElementById(`driver_${requestId}`).value
+
+      if (!driverId) {
+        alert('Please choose a driver first.')
+        return
+      }
+
+      await fetch('/api/admin/assign-driver', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestId, driverId })
+      })
+
+      await refreshAll()
+    }
+
+    async function startRide(requestId) {
+      await fetch(`/api/admin/start-ride/${requestId}`, { method: 'POST' })
+      await refreshAll()
+    }
+
+    async function completeRide(requestId) {
+      await fetch(`/api/admin/complete-ride/${requestId}`, { method: 'POST' })
+      await refreshAll()
+    }
+
+    async function cancelRide(requestId) {
+      await fetch(`/api/admin/cancel-ride/${requestId}`, { method: 'POST' })
+      await refreshAll()
+    }
+
+    async function refreshAll() {
+      await fetchDrivers()
+      await fetchRequests()
+      await fetchStats()
+    }
+
+    refreshAll()
+    setInterval(refreshAll, 8000)
+  </script>
+</body>
+</html>
