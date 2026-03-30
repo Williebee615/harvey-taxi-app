@@ -12,18 +12,23 @@ font-family:Arial;
 padding:20px;
 }
 
+h2{
+margin-bottom:20px;
+}
+
 input, select{
 width:100%;
 padding:16px;
 margin-top:10px;
 margin-bottom:15px;
-border-radius:10px;
+border-radius:12px;
 border:none;
 background:#020617;
 color:white;
+font-size:16px;
 }
 
-button{
+.request-btn{
 width:100%;
 padding:18px;
 border:none;
@@ -32,50 +37,72 @@ background:#22c55e;
 color:white;
 font-size:18px;
 font-weight:bold;
+margin-top:10px;
+}
+
+.pay-btn{
+width:100%;
+padding:18px;
+border:none;
+border-radius:12px;
+background:#facc15;
+color:black;
+font-size:18px;
+font-weight:bold;
+margin-top:15px;
+display:none;
 }
 </style>
 </head>
 
 <body>
 
-<h2>Request a Ride</h2>
+<h2>🚖 Request Ride</h2>
 
-<label>Service Type</label>
 <select id="service">
 <option>Standard Ride</option>
 <option>XL Ride</option>
 <option>Airport Ride</option>
 </select>
 
-<label>Pickup Address</label>
-<input id="pickup" placeholder="Enter pickup address">
+<input id="pickup" placeholder="Pickup address">
 
-<label>Dropoff Address</label>
-<input id="dropoff" placeholder="Enter dropoff address">
+<input id="dropoff" placeholder="Dropoff address">
 
-<button onclick="requestRide()">Request Driver</button>
+<button class="request-btn" onclick="estimateRide()">
+Get Fare
+</button>
+
+<div id="fare" style="margin-top:15px;font-size:20px;"></div>
+
+<button id="payBtn"
+class="pay-btn"
+onclick="payRide()">
+Pay for Ride
+</button>
 
 <script>
-function requestRide(){
 
-const pickup = document.getElementById('pickup').value
-const dropoff = document.getElementById('dropoff').value
-const service = document.getElementById('service').value
+function estimateRide(){
 
-fetch('/request-ride',{
-method:'POST',
-headers:{
-'Content-Type':'application/json'
-},
-body:JSON.stringify({
-pickup,
-dropoff,
-service
-})
-})
+const fare = Math.floor(Math.random()*15)+10
 
-alert('Searching for driver...')
+document.getElementById('fare').innerHTML =
+"Estimated Fare: $" + fare
+
+document.getElementById('payBtn').style.display = "block"
+
 }
+
+function payRide(){
+
+window.open(
+"https://buy.stripe.com/fZufZigi8g5V4k9gdi0Fi00",
+"_blank"
+)
+
+}
+
 </script>
 
 </body>
