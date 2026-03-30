@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<h2>Test Add Earnings</h2>
+
+<button onclick="add()">Add $25</button>
+
+<script>
+async function add(){
+
+await fetch('/api/driver/add-earnings',{
+method:'POST',
+headers:{
+'Content-Type':'application/json'
+},
+body:JSON.stringify({
+driverId:"driver_1",
+amount:25
+})
+})
+
+alert("Added $25")
+
+}
+</script>
+
+</body>
+</html>
