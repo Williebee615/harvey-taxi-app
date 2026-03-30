@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Autonomous Ride Test</title>
+</head>
+<body>
+
+<h2>Autonomous Ride Test</h2>
+
+<button onclick="run()">Create + Complete Ride</button>
+
+<p id="result"></p>
+
+<script>
+async function run() {
+
+const create = await fetch('/api/rides/create', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({
+riderName: "Test Rider",
+pickup: "Downtown",
+dropoff: "Airport",
+fare: 25,
+driverId: "driver_1"
+})
+})
+
+const createData = await create.json()
+
+const complete = await fetch('/api/rides/complete', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({
+rideId: createData.ride.id
+})
+})
+
+const completeData = await complete.json()
+
+document.getElementById('result').innerText =
+JSON.stringify(completeData, null, 2)
+
+}
+</script>
+
+</body>
+</html>
