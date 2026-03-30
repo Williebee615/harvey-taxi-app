@@ -11,21 +11,18 @@
   <p>Total Trips: <span id="trips">0</span></p>
 
   <button onclick="loadWallet()">Refresh Balance</button>
+
   <p id="status"></p>
 
   <script>
     async function loadWallet() {
-      try {
-        const res = await fetch('/api/driver/wallet/driver_1')
-        const data = await res.json()
+      const res = await fetch('/api/driver/wallet/driver_1')
+      const data = await res.json()
 
-        document.getElementById('balance').innerText = data.wallet || 0
-        document.getElementById('earnings').innerText = data.totalEarnings || 0
-        document.getElementById('trips').innerText = data.totalTrips || 0
-        document.getElementById('status').innerText = 'Wallet loaded successfully'
-      } catch (error) {
-        document.getElementById('status').innerText = 'Failed to load wallet'
-      }
+      document.getElementById('balance').innerText = data.wallet || 0
+      document.getElementById('earnings').innerText = data.totalEarnings || 0
+      document.getElementById('trips').innerText = data.totalTrips || 0
+      document.getElementById('status').innerText = 'Wallet loaded successfully'
     }
 
     loadWallet()
