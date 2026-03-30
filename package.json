@@ -1,16 +1,17 @@
 {
-  "name": "harvey-taxi",
+  "name": "harvey-taxi-app",
   "version": "1.0.0",
+  "description": "Harvey Taxi full platform with Persona and Checkr verification",
   "main": "server.js",
-  "type": "commonjs",
   "scripts": {
     "start": "node server.js"
   },
   "engines": {
-    "node": "20.x"
+    "node": ">=18.0.0"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "cors": "^2.8.5"
+    "axios": "^1.6.7",
+    "cors": "^2.8.5",
+    "express": "^4.18.2"
   }
 }
