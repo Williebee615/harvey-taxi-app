@@ -1,13 +1,9 @@
-<script>
-if(!localStorage.getItem('admin')){
-window.location.href='/admin-login.html'
-}
-</script><!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html>
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Harvey Taxi Admin Panel</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <style>
     * {
       box-sizing: border-box;
@@ -16,326 +12,188 @@ window.location.href='/admin-login.html'
 
     body {
       margin: 0;
-      background: #0b1020;
+      background: #020b2d;
       color: white;
       padding: 20px;
     }
 
-    .wrap {
-      max-width: 1300px;
+    .container {
+      max-width: 900px;
       margin: 0 auto;
     }
 
-    .topbar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
+    h1 {
+      font-size: 32px;
       margin-bottom: 20px;
     }
 
-    .title {
-      font-size: 30px;
-      font-weight: 700;
-    }
-
-    .brand {
-      color: #f5c451;
-    }
-
-    .top-links {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-
-    .top-links a,
-    .top-links button {
-      background: #151c34;
-      color: #f5c451;
-      border: 1px solid rgba(255,255,255,0.12);
-      text-decoration: none;
-      padding: 10px 14px;
-      border-radius: 10px;
-      cursor: pointer;
-      font-size: 14px;
-    }
-
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(6, 1fr);
-      gap: 14px;
-      margin-bottom: 20px;
-    }
-
-    .stat {
-      background: #151c34;
-      border-radius: 16px;
-      padding: 18px;
-      border: 1px solid rgba(255,255,255,0.08);
-    }
-
-    .stat-label {
-      color: #b7c2ff;
-      font-size: 13px;
-      margin-bottom: 8px;
-    }
-
-    .stat-value {
-      font-size: 26px;
-      font-weight: 700;
-      color: #f5c451;
-    }
-
-    .layout {
-      display: grid;
-      grid-template-columns: 1.1fr 0.9fr;
-      gap: 20px;
-    }
-
-    .panel {
-      background: #151c34;
-      border-radius: 18px;
-      padding: 20px;
-      border: 1px solid rgba(255,255,255,0.08);
-      margin-bottom: 20px;
-    }
-
-    .panel h2 {
-      margin: 0 0 12px;
-      font-size: 22px;
-    }
-
-    .panel-subtitle {
-      color: #b7c2ff;
-      line-height: 1.5;
-      font-size: 14px;
-      margin-bottom: 16px;
+    h2 {
+      margin-top: 28px;
+      margin-bottom: 14px;
+      font-size: 24px;
     }
 
     .card {
-      background: #0f1529;
+      background: #0b173f;
       border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 14px;
+      border-radius: 20px;
       padding: 16px;
-      margin-top: 12px;
+      margin-bottom: 14px;
     }
 
-    .card-title {
-      font-size: 18px;
-      font-weight: 700;
-      margin-bottom: 8px;
+    .line {
+      margin: 6px 0;
+      color: #d8e2ff;
     }
 
-    .kv {
-      color: #dbe2ff;
-      line-height: 1.7;
+    .status {
+      display: inline-block;
+      padding: 8px 12px;
+      border-radius: 999px;
       font-size: 14px;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+
+    .pending {
+      background: #facc15;
+      color: black;
+    }
+
+    .approved {
+      background: #22c55e;
+      color: white;
+    }
+
+    .rejected {
+      background: #ef4444;
+      color: white;
     }
 
     .row {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      align-items: flex-start;
-      flex-wrap: wrap;
-    }
-
-    .actions {
       display: flex;
       gap: 10px;
       flex-wrap: wrap;
       margin-top: 14px;
     }
 
-    .btn {
+    button {
       border: none;
-      border-radius: 10px;
-      padding: 10px 14px;
-      font-weight: 700;
+      border-radius: 14px;
+      padding: 14px 18px;
+      font-size: 16px;
+      font-weight: bold;
       cursor: pointer;
     }
 
-    .btn-approve {
+    .approve-btn {
       background: #22c55e;
       color: white;
     }
 
-    .btn-reject {
+    .reject-btn {
       background: #ef4444;
       color: white;
     }
 
-    .pill {
-      display: inline-block;
-      padding: 7px 10px;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: 700;
-      margin-top: 10px;
-      border: 1px solid transparent;
-    }
-
-    .pending {
-      background: rgba(245, 196, 81, 0.12);
-      color: #f5c451;
-      border-color: rgba(245, 196, 81, 0.3);
-    }
-
-    .approved {
-      background: rgba(34, 197, 94, 0.15);
-      color: #86efac;
-      border-color: rgba(34, 197, 94, 0.35);
-    }
-
-    .rejected {
-      background: rgba(239, 68, 68, 0.14);
-      color: #fecaca;
-      border-color: rgba(239, 68, 68, 0.35);
-    }
-
-    .danger {
-      background: rgba(239, 68, 68, 0.14);
-      color: #fecaca;
-      border-color: rgba(239, 68, 68, 0.35);
-    }
-
-    .message {
-      display: none;
-      margin-bottom: 18px;
-      padding: 14px;
-      border-radius: 12px;
-      line-height: 1.5;
-    }
-
-    .success {
-      background: rgba(34, 197, 94, 0.15);
-      color: #a7f3d0;
-      border: 1px solid rgba(34, 197, 94, 0.35);
-    }
-
-    .error {
-      background: rgba(239, 68, 68, 0.14);
-      color: #fecaca;
-      border: 1px solid rgba(239, 68, 68, 0.35);
-    }
-
     .empty {
-      color: #b7c2ff;
-      font-size: 14px;
-      padding: 10px 0;
-    }
-
-    @media (max-width: 1200px) {
-      .stats {
-        grid-template-columns: repeat(3, 1fr);
-      }
-    }
-
-    @media (max-width: 920px) {
-      .layout {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    @media (max-width: 700px) {
-      .stats {
-        grid-template-columns: repeat(2, 1fr);
-      }
-    }
-
-    @media (max-width: 520px) {
-      .stats {
-        grid-template-columns: 1fr;
-      }
+      background: #0b173f;
+      border-radius: 18px;
+      padding: 16px;
+      color: #c9d5ff;
     }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="topbar">
-      <div class="title"><span class="brand">Harvey Taxi</span> Admin Panel</div>
-      <div class="top-links">
-        <a href="/">Home</a>
-        <a href="/login.html">Login</a>
-        <button onclick="loadDashboard()">Refresh</button>
-        <button onclick="logout()">Logout</button>
-      </div>
-    </div>
+  <div class="container">
+    <h1>🛠️ Harvey Taxi Admin Panel</h1>
 
-    <div id="messageBox" class="message"></div>
+    <h2>Driver Applications</h2>
+    <div id="driversList" class="empty">Loading drivers...</div>
 
-    <div class="stats">
-      <div class="stat">
-        <div class="stat-label">Pending Drivers</div>
-        <div class="stat-value" id="pendingCount">0</div>
-      </div>
-      <div class="stat">
-        <div class="stat-label">Approved Drivers</div>
-        <div class="stat-value" id="approvedCount">0</div>
-      </div>
-      <div class="stat">
-        <div class="stat-label">Active Rides</div>
-        <div class="stat-value" id="activeRideCount">0</div>
-      </div>
-      <div class="stat">
-        <div class="stat-label">Completed Trips</div>
-        <div class="stat-value" id="completedTripCount">0</div>
-      </div>
-      <div class="stat">
-        <div class="stat-label">Gross Revenue</div>
-        <div class="stat-value" id="grossRevenue">$0</div>
-      </div>
-      <div class="stat">
-        <div class="stat-label">Platform Fees</div>
-        <div class="stat-value" id="platformRevenue">$0</div>
-      </div>
-    </div>
+    <h2>Rider Accounts</h2>
+    <div id="ridersList" class="empty">Loading riders...</div>
+  </div>
 
-    <div class="layout">
-      <div>
-        <div class="panel">
-          <h2>Pending Driver Approvals</h2>
-          <div class="panel-subtitle">
-            Review driver applications and approve or reject them before they can go live.
+  <script>
+    async function loadDrivers() {
+      const response = await fetch('/api/admin/drivers')
+      const drivers = await response.json()
+      const el = document.getElementById('driversList')
+
+      if (!drivers.length) {
+        el.className = 'empty'
+        el.innerHTML = 'No driver applications yet.'
+        return
+      }
+
+      el.className = ''
+      el.innerHTML = drivers.map(driver => `
+        <div class="card">
+          <div class="line"><strong>Name:</strong> ${driver.name}</div>
+          <div class="line"><strong>Phone:</strong> ${driver.phone}</div>
+          <div class="line"><strong>Vehicle:</strong> ${driver.vehicle}</div>
+          <div class="line"><strong>City:</strong> ${driver.city || 'Not provided'}</div>
+          <div class="line"><strong>ID:</strong> ${driver.id}</div>
+
+          <div class="status ${driver.status}">
+            ${driver.status.toUpperCase()}
           </div>
-          <div id="pendingDriversList"></div>
-        </div>
 
-        <div class="panel">
-          <h2>Live Ride Activity</h2>
-          <div class="panel-subtitle">
-            Current ride activity across the platform.
+          <div class="row">
+            <button class="approve-btn" onclick="approveDriver('${driver.id}')">
+              Approve Driver
+            </button>
+            <button class="reject-btn" onclick="rejectDriver('${driver.id}')">
+              Reject Driver
+            </button>
           </div>
-          <div id="ridesList"></div>
         </div>
+      `).join('')
+    }
 
-        <div class="panel">
-          <h2>Completed Trips</h2>
-          <div class="panel-subtitle">
-            Recent completed trips with fare and payout details.
-          </div>
-          <div id="completedTripsList"></div>
-        </div>
-      </div>
+    async function loadRiders() {
+      const response = await fetch('/api/admin/riders')
+      const riders = await response.json()
+      const el = document.getElementById('ridersList')
 
-      <div>
-        <div class="panel">
-          <h2>SOS Emergency Alerts</h2>
-          <div class="panel-subtitle">
-            Emergency events triggered during rides.
-          </div>
-          <div id="sosList"></div>
-        </div>
+      if (!riders.length) {
+        el.className = 'empty'
+        el.innerHTML = 'No rider accounts yet.'
+        return
+      }
 
-        <div class="panel">
-          <h2>Driver Overview</h2>
-          <div class="panel-subtitle">
-            Snapshot of driver approval and availability.
-          </div>
-          <div id="allDriversList"></div>
+      el.className = ''
+      el.innerHTML = riders.map(rider => `
+        <div class="card">
+          <div class="line"><strong>Name:</strong> ${rider.name}</div>
+          <div class="line"><strong>Phone:</strong> ${rider.phone}</div>
+          <div class="line"><strong>Email:</strong> ${rider.email || 'Not provided'}</div>
+          <div class="line"><strong>ID:</strong> ${rider.id}</div>
         </div>
-      </div>
-    </div>
-  </div
+      `).join('')
+    }
+
+    async function approveDriver(id) {
+      await fetch('/api/admin/approve-driver', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      })
+      loadDrivers()
+    }
+
+    async function rejectDriver(id) {
+      await fetch('/api/admin/reject-driver', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      })
+      loadDrivers()
+    }
+
+    loadDrivers()
+    loadRiders()
+  </script>
+</body>
+</html>
