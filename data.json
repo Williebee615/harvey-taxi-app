@@ -1,13 +1,3 @@
 {
-  "riders": [],
-  "drivers": [],
-  "admins": [
-    {
-      "id": "admin_1",
-      "name": "Harvey Admin",
-      "email": "admin@harveytaxi.com",
-      "password": "admin123"
-    }
-  ],
-  "serviceRequests": []
+  "drivers": []
 }
