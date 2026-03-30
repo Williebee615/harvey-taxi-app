@@ -1,4 +1,21 @@
-app.get('/driver', (req, res) => {
+app.post('/api/driver/accept', (req, res) => {
+  const data = readData()
+
+  const ride = data.serviceRequests.find(r => r.id === req.body.rideId)
+  const driver = data.drivers.find(d => d.id === req.body.driverId)
+
+  if (ride && driver) {
+    ride.status = 'assigned'
+    ride.assignedDriver = driver.name
+    ride.driverId = driver.id
+
+    driver.available = false
+    driver.status = 'assigned'
+  }
+
+  writeData(data)
+  res.json({ success: true })
+})app.get('/driver', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/driver.html'))
 })const express = require('express')
 const cors = require('cors')
