@@ -1,4 +1,6 @@
-const express = require('express')
+app.get('/driver', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/driver.html'))
+})const express = require('express')
 const cors = require('cors')
 const path = require('path')
 const fs = require('fs')
