@@ -432,3 +432,26 @@ app.post('/api/rides/create', (req, res) => {
 app.listen(PORT, () => {
   console.log(`Harvey Taxi server running on port ${PORT}`)
 })
+// =============================
+// DRIVER INSTANT PAYOUT
+// =============================
+app.post('/api/driver/payout', async (req, res) => {
+try {
+
+const { driverStripeId, amount } = req.body
+
+const payout = await stripe.transfers.create({
+amount: amount,
+currency: 'usd',
+destination: driverStripeId,
+})
+
+res.send({
+success: true,
+payout
+})
+
+} catch (err) {
+res.status(500).send(err.message)
+}
+})
