@@ -1,81 +1,202 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Rider Signup</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Harvey Taxi Rider Signup</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<style>
-body{
-background:#020b2d;
-color:white;
-font-family:Arial;
-padding:20px;
-}
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: Arial, sans-serif;
+    }
 
-.card{
-background:#0b173f;
-padding:20px;
-border-radius:20px;
-max-width:600px;
-margin:auto;
-}
+    body {
+      margin: 0;
+      background: #020b2d;
+      color: white;
+      padding: 20px;
+    }
 
-input{
-width:100%;
-padding:15px;
-margin-top:10px;
-margin-bottom:15px;
-border-radius:10px;
-border:none;
-background:#06112f;
-color:white;
-}
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+    }
 
-button{
-width:100%;
-padding:15px;
-border:none;
-border-radius:12px;
-background:#6c6cf4;
-color:white;
-font-weight:bold;
-font-size:16px;
-}
-</style>
+    .back {
+      display: inline-block;
+      margin-bottom: 18px;
+      color: white;
+      text-decoration: none;
+      font-weight: bold;
+      opacity: 0.9;
+    }
 
+    h1 {
+      text-align: center;
+      font-size: 34px;
+      margin-bottom: 24px;
+    }
+
+    .card {
+      background: #0b173f;
+      border-radius: 24px;
+      padding: 22px;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+    }
+
+    .section-title {
+      font-size: 22px;
+      font-weight: 700;
+      margin: 0 0 16px;
+    }
+
+    label {
+      display: block;
+      margin: 12px 0 8px;
+      color: #dce4ff;
+      font-size: 15px;
+    }
+
+    input {
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: 14px;
+      font-size: 16px;
+      margin-bottom: 14px;
+      background: #06112f;
+      color: white;
+    }
+
+    .submit-btn {
+      width: 100%;
+      padding: 18px;
+      background: linear-gradient(90deg, #6967f0, #6f76f5);
+      color: white;
+      border: none;
+      border-radius: 16px;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 6px;
+    }
+
+    .verify-box {
+      margin-top: 22px;
+      background: #081433;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 20px;
+      padding: 18px;
+    }
+
+    .verify-box p {
+      margin: 8px 0 16px;
+      color: #cfd9ff;
+      line-height: 1.5;
+    }
+
+    .verify-rider-btn {
+      display: block;
+      width: 100%;
+      text-align: center;
+      text-decoration: none;
+      padding: 16px;
+      border-radius: 16px;
+      background: #55abd0;
+      color: white;
+      font-weight: 800;
+      font-size: 17px;
+    }
+
+    .message {
+      margin-top: 16px;
+      padding: 14px;
+      border-radius: 14px;
+      display: none;
+      background: #122457;
+      color: white;
+      line-height: 1.5;
+    }
+
+    .note {
+      margin-top: 16px;
+      color: #aebcff;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+  </style>
 </head>
 <body>
+  <div class="container">
+    <a class="back" href="/index.html">← Back</a>
 
-<div class="card">
+    <h1>👤 Rider Signup</h1>
 
-<h2>Rider Signup</h2>
+    <div class="card">
+      <div class="section-title">Create Rider Account</div>
 
-<input id="name" placeholder="Full Name">
-<input id="phone" placeholder="Phone">
-<input id="email" placeholder="Email">
+      <label for="name">Full Name</label>
+      <input id="name" placeholder="Enter full name">
 
-<button onclick="signup()">Create Rider Account</button>
+      <label for="phone">Phone Number</label>
+      <input id="phone" placeholder="Enter phone number">
 
-<p id="msg"></p>
+      <label for="email">Email Address</label>
+      <input id="email" placeholder="Enter email address">
 
-</div>
+      <button class="submit-btn" onclick="signupRider()">Create Rider Account</button>
 
-<script>
-async function signup(){
+      <div id="message" class="message"></div>
 
-const name=document.getElementById('name').value
-const phone=document.getElementById('phone').value
-const email=document.getElementById('email').value
+      <div class="verify-box">
+        <div class="section-title">Rider Identity Verification</div>
+        <p>
+          Riders can verify their identity for added safety and faster approval on the platform.
+        </p>
 
-await fetch('/signup-rider',{
-method:'POST',
-headers:{'Content-Type':'application/json'},
-body:JSON.stringify({name,phone,email})
-})
+        <a
+          href="https://withpersona.com/verify?inquiry-template-id=vtmpl_TWF8h4uyH9VmXFaD3ptVWbo6PLtx"
+          target="_blank"
+          class="verify-rider-btn"
+        >
+          Start Rider Verification
+        </a>
 
-document.getElementById('msg').innerText="Rider account created"
-}
-</script>
+        <div class="note">
+          After creating your rider account, complete Persona verification to help keep Harvey Taxi safe and trusted.
+        </div>
+      </div>
+    </div>
+  </div>
 
+  <script>
+    async function signupRider() {
+      const name = document.getElementById('name').value.trim()
+      const phone = document.getElementById('phone').value.trim()
+      const email = document.getElementById('email').value.trim()
+      const message = document.getElementById('message')
+
+      const response = await fetch('/signup-rider', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, phone, email })
+      })
+
+      const result = await response.json()
+      message.style.display = 'block'
+
+      if (!response.ok) {
+        message.innerText = result.error || 'Could not create rider account.'
+        return
+      }
+
+      message.innerText =
+        'Rider account created successfully. Next, tap "Start Rider Verification" to verify your identity.'
+
+      document.getElementById('name').value = ''
+      document.getElementById('phone').value = ''
+      document.getElementById('email').value = ''
+    }
+  </script>
 </body>
 </html>
