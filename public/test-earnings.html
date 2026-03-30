@@ -1,31 +1,50 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Driver Wallet</title>
+  <title>Test Add Earnings</title>
 </head>
 <body>
-  <h2>Driver Wallet</h2>
+  <h2>Test Add Earnings</h2>
 
-  <div>
-    Balance: $<span id="balance">0</span>
-  </div>
+  <button onclick="registerDriver()">Register driver_1</button>
+  <button onclick="add25()">Add $25</button>
 
-  <button onclick="loadBalance()">Refresh Balance</button>
+  <p id="result"></p>
 
   <script>
-    const driverId = 'driver_1'
+    async function registerDriver() {
+      const res = await fetch('/api/drivers/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          id: 'driver_1',
+          name: 'Test Driver'
+        })
+      })
 
-    async function loadBalance() {
-      try {
-        const res = await fetch('/api/driver/wallet/' + driverId)
-        const data = await res.json()
-        document.getElementById('balance').innerText = data.wallet || 0
-      } catch (err) {
-        alert('Failed to load wallet')
-      }
+      const data = await res.json()
+      document.getElementById('result').innerText =
+        'Register: ' + JSON.stringify(data)
     }
 
-    loadBalance()
+    async function add25() {
+      const res = await fetch('/api/driver/add-earnings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          driverId: 'driver_1',
+          amount: 25
+        })
+      })
+
+      const data = await res.json()
+      document.getElementById('result').innerText =
+        'Add Earnings: ' + JSON.stringify(data)
+    }
   </script>
 </body>
 </html>
