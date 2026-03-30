@@ -1,4 +1,24 @@
-require('dotenv').config()
+app.post('/api/driver/add-earnings', (req, res) => {
+try {
+
+const { driverId, amount } = req.body
+
+const data = loadData()
+
+const driver = data.drivers.find(d => d.id === driverId)
+
+if (!driver.wallet) driver.wallet = 0
+
+driver.wallet += amount
+
+saveData(data)
+
+res.send({ success: true })
+
+} catch (err) {
+res.status(500).send(err.message)
+}
+})require('dotenv').config()
 
 const express = require('express')
 const cors = require('cors')
