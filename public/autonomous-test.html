@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Autonomous Test</title>
+</head>
+<body>
+  <h2>Autonomous Ride Test</h2>
+
+  <button onclick="runAutonomousTrip()">Create + Complete Ride</button>
+
+  <pre id="result"></pre>
+
+  <script>
+    async function runAutonomousTrip() {
+      try {
+        const createRes = await fetch('/api/rides/create', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            riderName: 'Test Rider',
+            pickup: 'Downtown Nashville',
+            dropoff: 'Airport',
+            fare: 25,
+            driverId: 'driver_1',
+            driverName: 'Test Driver'
+          })
+        })
+
+        const createData = await createRes.json()
+
+        if (!createData.success) {
+          document.getElementById('result').innerText =
+            'Create failed:\n' + JSON.stringify(createData, null, 2)
+          return
+        }
+
+        const completeRes = await fetch('/api/rides/complete', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            rideId: createData.ride.id
+          })
+        })
+
+        const completeData = await completeRes.json()
+
+        document.getElementById('result').innerText =
+          'Trip completed:\n' + JSON.stringify(completeData, null, 2)
+      } catch (error) {
+        document.getElementById('result').innerText =
+          'Error:\n' + error.message
+      }
+    }
+  </script>
+</body>
+</html>
