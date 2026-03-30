@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Dispatch Board</title>
+</head>
+<body>
+  <h2>Dispatch Board</h2>
+
+  <button onclick="loadRides()">Refresh</button>
+
+  <div id="rides"></div>
+
+  <script>
+    async function loadRides() {
+      const res = await fetch('/api/rides')
+      const data = await res.json()
+
+      const rides = data.rides || []
+
+      document.getElementById('rides').innerHTML = rides.map(ride => `
+        <div style="border:1px solid #ccc;padding:12px;margin:12px 0">
+          <strong>${ride.id}</strong><br>
+          Rider: ${ride.riderName}<br>
+          Pickup: ${ride.pickup}<br>
+          Dropoff: ${ride.dropoff}<br>
+          Fare: $${ride.fare}<br>
+          Status: ${ride.status}<br>
+          Driver: ${ride.driverId || 'Unassigned'}<br><br>
+          ${ride.status !== 'completed'
+            ? `<button onclick="completeRide('${ride.id}')">Complete Ride</button>`
+            : '<em>Completed</em>'}
+        </div>
+      `).join('')
+    }
+
+    async function completeRide(rideId) {
+      await fetch('/api/rides/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rideId })
+      })
+
+      loadRides()
+    }
+
+    loadRides()
+  </script>
+</body>
+</html>
