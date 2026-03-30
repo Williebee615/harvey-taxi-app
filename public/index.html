@@ -1,43 +1,96 @@
-<div class="payment-section">
-  <h2>Harvey Transportation</h2>
-
-  <a class="pay-btn taxi"
-     href="https://buy.stripe.com/fZufZigi8g5V4k9gdi0Fi00"
-     target="_blank">
-     🚖 Pay for Ride
-  </a>
-
-  <a class="pay-btn nonprofit"
-     href="https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00"
-     target="_blank">
-     ❤️ Donate a Ride
-  </a>
-</div>
+<!DOCTYPE html>
+<html>
+<head>
+<title>Harvey Taxi</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-.payment-section{
+body{
+font-family: Arial;
+background:#0b0f1a;
+color:white;
 padding:20px;
-margin-top:20px;
 }
 
-.pay-btn{
+h1{
+text-align:center;
+}
+
+.button{
 display:block;
 padding:18px;
-margin-bottom:15px;
+margin-top:15px;
 border-radius:12px;
-text-align:center;
-font-weight:bold;
 text-decoration:none;
+font-weight:bold;
+text-align:center;
 font-size:18px;
 }
 
-.pay-btn.taxi{
-background:#f7c948;
-color:#000;
+.request{
+background:#22c55e;
+color:white;
 }
 
-.pay-btn.nonprofit{
-background:#0b5ed7;
-color:#fff;
+.driver{
+background:#6366f1;
+color:white;
+}
+
+.rider{
+background:#06b6d4;
+color:white;
+}
+
+.pay{
+background:#facc15;
+color:black;
+}
+
+.donate{
+background:#2563eb;
+color:white;
+}
+
+.admin{
+background:#111827;
+border:1px solid #374151;
+color:white;
 }
 </style>
+</head>
+
+<body>
+
+<h1>🚖 Harvey Taxi</h1>
+
+<a class="button request" href="/request.html">
+Request Ride
+</a>
+
+<a class="button rider" href="/rider-signup.html">
+Rider Signup
+</a>
+
+<a class="button driver" href="/driver-signup.html">
+Driver Signup
+</a>
+
+<a class="button pay"
+href="https://buy.stripe.com/fZufZigi8g5V4k9gdi0Fi00"
+target="_blank">
+Pay for Ride
+</a>
+
+<a class="button donate"
+href="https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00"
+target="_blank">
+Donate a Ride
+</a>
+
+<a class="button admin" href="/admin.html">
+Admin Panel
+</a>
+
+</body>
+</html>
