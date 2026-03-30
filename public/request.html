@@ -1,338 +1,82 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Harvey Taxi | Request Ride</title>
-  <style>
-    * {
-      box-sizing: border-box;
-      font-family: Arial, sans-serif;
-    }
+<title>Request Ride</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    body {
-      margin: 0;
-      background: #0b1020;
-      color: white;
-      padding: 20px;
-    }
+<style>
+body{
+background:#0f172a;
+color:white;
+font-family:Arial;
+padding:20px;
+}
 
-    .wrap {
-      max-width: 1200px;
-      margin: 0 auto;
-    }
+input, select{
+width:100%;
+padding:16px;
+margin-top:10px;
+margin-bottom:15px;
+border-radius:10px;
+border:none;
+background:#020617;
+color:white;
+}
 
-    .topbar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
-      margin-bottom: 20px;
-    }
-
-    .title {
-      font-size: 30px;
-      font-weight: 700;
-    }
-
-    .brand {
-      color: #f5c451;
-    }
-
-    .top-links {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-
-    .top-links a,
-    .top-links button {
-      background: #151c34;
-      color: #f5c451;
-      border: 1px solid rgba(255,255,255,0.12);
-      text-decoration: none;
-      padding: 10px 14px;
-      border-radius: 10px;
-      cursor: pointer;
-      font-size: 14px;
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: 420px 1fr;
-      gap: 20px;
-    }
-
-    .panel {
-      background: #151c34;
-      border-radius: 18px;
-      padding: 20px;
-      border: 1px solid rgba(255,255,255,0.08);
-      margin-bottom: 20px;
-    }
-
-    .panel h2 {
-      margin: 0 0 14px;
-      font-size: 22px;
-    }
-
-    .muted {
-      color: #b7c2ff;
-      line-height: 1.5;
-      font-size: 14px;
-    }
-
-    .field {
-      margin-bottom: 16px;
-    }
-
-    label {
-      display: block;
-      margin-bottom: 8px;
-      font-size: 14px;
-      color: #dbe2ff;
-    }
-
-    input,
-    select,
-    textarea {
-      width: 100%;
-      padding: 14px;
-      border-radius: 12px;
-      border: 1px solid rgba(255,255,255,0.12);
-      background: #0f1529;
-      color: white;
-      font-size: 16px;
-      outline: none;
-    }
-
-    input:focus,
-    select:focus,
-    textarea:focus {
-      border-color: #f5c451;
-      box-shadow: 0 0 0 3px rgba(245,196,81,0.15);
-    }
-
-    .btn {
-      border: none;
-      border-radius: 12px;
-      padding: 14px 16px;
-      font-size: 15px;
-      font-weight: 700;
-      cursor: pointer;
-      width: 100%;
-      margin-top: 10px;
-    }
-
-    .btn-primary {
-      background: #f5c451;
-      color: #111;
-    }
-
-    .btn-secondary {
-      background: #0f1529;
-      color: white;
-      border: 1px solid rgba(255,255,255,0.12);
-    }
-
-    .btn-danger {
-      background: #ef4444;
-      color: white;
-    }
-
-    .btn-success {
-      background: #22c55e;
-      color: white;
-    }
-
-    .btn-warning {
-      background: #f59e0b;
-      color: #111;
-    }
-
-    .btn-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-
-    .btn-row-3 {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 10px;
-    }
-
-    .message {
-      display: none;
-      margin-top: 16px;
-      padding: 14px;
-      border-radius: 12px;
-      line-height: 1.5;
-    }
-
-    .success {
-      background: rgba(34, 197, 94, 0.15);
-      color: #a7f3d0;
-      border: 1px solid rgba(34, 197, 94, 0.35);
-    }
-
-    .error {
-      background: rgba(239, 68, 68, 0.14);
-      color: #fecaca;
-      border: 1px solid rgba(239, 68, 68, 0.35);
-    }
-
-    .ride-card,
-    .history-card {
-      background: #0f1529;
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 14px;
-      padding: 16px;
-      margin-top: 14px;
-    }
-
-    .card-title {
-      font-size: 18px;
-      font-weight: 700;
-      margin-bottom: 8px;
-    }
-
-    .status-pill {
-      display: inline-block;
-      margin-top: 10px;
-      padding: 7px 10px;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: 700;
-      border: 1px solid transparent;
-    }
-
-    .status-searching,
-    .status-driver_assigned,
-    .status-accepted {
-      background: rgba(245, 196, 81, 0.12);
-      color: #f5c451;
-      border-color: rgba(245, 196, 81, 0.3);
-    }
-
-    .status-in_progress,
-    .status-completed {
-      background: rgba(34, 197, 94, 0.15);
-      color: #86efac;
-      border-color: rgba(34, 197, 94, 0.35);
-    }
-
-    .status-cancelled {
-      background: rgba(239, 68, 68, 0.14);
-      color: #fecaca;
-      border-color: rgba(239, 68, 68, 0.35);
-    }
-
-    .kv {
-      margin-top: 10px;
-      font-size: 14px;
-      line-height: 1.7;
-      color: #dbe2ff;
-    }
-
-    .small {
-      font-size: 13px;
-      color: #aeb8df;
-      margin-top: 14px;
-      line-height: 1.5;
-    }
-
-    .empty {
-      color: #b7c2ff;
-      font-size: 14px;
-      padding: 10px 0;
-    }
-
-    .section-divider {
-      height: 1px;
-      background: rgba(255,255,255,0.08);
-      margin: 18px 0;
-    }
-
-    @media (max-width: 980px) {
-      .grid {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    @media (max-width: 640px) {
-      .btn-row,
-      .btn-row-3 {
-        grid-template-columns: 1fr;
-      }
-    }
-  </style>
+button{
+width:100%;
+padding:18px;
+border:none;
+border-radius:12px;
+background:#22c55e;
+color:white;
+font-size:18px;
+font-weight:bold;
+}
+</style>
 </head>
+
 <body>
-  <div class="wrap">
-    <div class="topbar">
-      <div class="title"><span class="brand">Harvey Taxi</span> Rider Dashboard</div>
-      <div class="top-links">
-        <a href="/">Home</a>
-        <a href="/login.html">Login</a>
-        <button onclick="refreshCurrentRide()">Refresh Ride</button>
-        <button onclick="loadHistory()">Refresh History</button>
-        <button onclick="logout()">Logout</button>
-      </div>
-    </div>
 
-    <div class="grid">
-      <div>
-        <div class="panel">
-          <h2>Request a Ride</h2>
-          <div class="muted">
-            Request a Harvey Taxi ride, airport run, premium trip, or delivery.
-          </div>
+<h2>Request a Ride</h2>
 
-          <form id="rideForm">
-            <div class="field">
-              <label for="serviceType">Service Type</label>
-              <select id="serviceType">
-                <option value="ride">Standard Ride</option>
-                <option value="airport">Airport Ride</option>
-                <option value="premium">Premium Ride</option>
-                <option value="delivery">Delivery</option>
-              </select>
-            </div>
+<label>Service Type</label>
+<select id="service">
+<option>Standard Ride</option>
+<option>XL Ride</option>
+<option>Airport Ride</option>
+</select>
 
-            <div class="field">
-              <label for="pickupAddress">Pickup Address</label>
-              <input id="pickupAddress" type="text" placeholder="Enter pickup address" required />
-            </div>
+<label>Pickup Address</label>
+<input id="pickup" placeholder="Enter pickup address">
 
-            <div class="field">
-              <label for="dropoffAddress">Dropoff Address</label>
-              <input id="dropoffAddress" type="text" placeholder="Enter dropoff address" required />
-            </div>
+<label>Dropoff Address</label>
+<input id="dropoff" placeholder="Enter dropoff address">
 
-            <div class="btn-row">
-              <div class="field">
-                <label for="pickupLat">Pickup Lat</label>
-                <input id="pickupLat" type="number" step="any" placeholder="36.1627" required />
-              </div>
+<button onclick="requestRide()">Request Driver</button>
 
-              <div class="field">
-                <label for="pickupLng">Pickup Lng</label>
-                <input id="pickupLng" type="number" step="any" placeholder="-86.7816" required />
-              </div>
-            </div>
+<script>
+function requestRide(){
 
-            <div class="btn-row">
-              <div class="field">
-                <label for="dropoffLat">Dropoff Lat</label>
-                <input id="dropoffLat" type="number" step="any" placeholder="36.1263" />
-              </div>
+const pickup = document.getElementById('pickup').value
+const dropoff = document.getElementById('dropoff').value
+const service = document.getElementById('service').value
 
-              <div class="field">
-                <label for="dropoffLng">Dropoff Lng</label>
-                <input id="dropoffLng" type="number" step="any" placeholder="-86.6774" />
-              </div>
-            </div>
+fetch('/request-ride',{
+method:'POST',
+headers:{
+'Content-Type':'application/json'
+},
+body:JSON.stringify({
+pickup,
+dropoff,
+service
+})
+})
 
-            <button class="btn btn-secondary" type="button" onclick="fillNashvilleDemo()">Use Nashville Demo
+alert('Searching for driver...')
+}
+</script>
+
+</body>
+</html>
