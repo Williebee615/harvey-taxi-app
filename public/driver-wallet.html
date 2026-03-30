@@ -1,47 +1,35 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Driver Wallet</title>
+  <title>Driver Wallet</title>
 </head>
-
 <body>
+  <h2>Driver Wallet</h2>
 
-<h2>Driver Wallet</h2>
+  <div>
+    Balance: $<span id="balance">0</span>
+  </div>
 
-<div>
-Balance: $<span id="balance">0</span>
-</div>
+  <button onclick="loadBalance()">Refresh Balance</button>
 
-<button onclick="cashout()">
-Instant Cash Out
-</button>
+  <p id="status"></p>
 
-<script>
+  <script>
+    async function loadBalance() {
+      try {
+        const res = await fetch('/api/driver/wallet/driver_1')
+        const data = await res.json()
 
-const driverId = "driver_1"
+        document.getElementById('balance').innerText = data.wallet || 0
+        document.getElementById('status').innerText =
+          'Wallet loaded successfully'
+      } catch (error) {
+        document.getElementById('status').innerText =
+          'Failed to load wallet'
+      }
+    }
 
-async function loadBalance(){
-
-const res = await fetch('/data.json')
-const data = await res.json()
-
-const driver = data.drivers.find(d => d.id === driverId)
-
-if(driver && driver.wallet){
-document.getElementById('balance').innerText = driver.wallet
-}
-
-}
-
-async function cashout(){
-
-alert("Payout sent")
-
-}
-
-loadBalance()
-
-</script>
-
+    loadBalance()
+  </script>
 </body>
 </html>
