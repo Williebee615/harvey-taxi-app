@@ -1,53 +1,17 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Driver Signup</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="stylesheet" href="/style.css" />
-</head>
-<body>
-  <div class="container">
-    <div class="app-header">
-      <div class="app-title">Driver Signup</div>
-      <div class="app-subtitle">Persona first, then Checkr background check</div>
-    </div>
+<script>
+async function submitDriver() {
 
-    <div class="card">
-      <input class="input" id="name" placeholder="Full Name" />
-      <input class="input" id="phone" placeholder="Phone Number" />
-      <input class="input" id="email" placeholder="Email" />
-      <input class="input" id="password" placeholder="Password" type="password" />
-      <input class="input" id="vehicle" placeholder="Vehicle" />
-      <input class="input" id="plate" placeholder="License Plate" />
-      <button class="button" onclick="signup()">Submit Driver Application</button>
-      <pre id="result"></pre>
-      <div id="verify"></div>
-    </div>
-  </div>
+const name = document.getElementById('name').value
+const email = document.getElementById('email').value
 
-  <script>
-    async function signup() {
-      const res = await fetch('/api/driver/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: document.getElementById('name').value,
-          phone: document.getElementById('phone').value,
-          email: document.getElementById('email').value,
-          password: document.getElementById('password').value,
-          vehicle: document.getElementById('vehicle').value,
-          plate: document.getElementById('plate').value
-        })
-      })
+const res = await fetch('/api/persona/driver', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ name, email })
+})
 
-      const data = await res.json()
-      document.getElementById('result').innerText = JSON.stringify(data, null, 2)
+const data = await res.json()
 
-      if (data.success && data.user?.personaInquiryUrl) {
-        document.getElementById('verify').innerHTML =
-          `<a class="nav-link" href="${data.user.personaInquiryUrl}" target="_blank">Start Persona Verification</a>`
-      }
-    }
-  </script>
-</body>
-</html>
+window.location.href = data.url
+}
+</script>
