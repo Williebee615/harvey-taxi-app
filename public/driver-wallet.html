@@ -2,17 +2,36 @@
 <html>
 <head>
   <title>Driver Wallet</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
-  <h2>Driver Wallet</h2>
+  <div class="container">
+    <div class="app-header">
+      <div class="app-title">Driver Wallet</div>
+      <div class="app-subtitle">Track earnings and completed trips</div>
+    </div>
 
-  <h3>Balance: $<span id="balance">0</span></h3>
-  <p>Total Earnings: $<span id="earnings">0</span></p>
-  <p>Total Trips: <span id="trips">0</span></p>
+    <div class="card">
+      <div class="stat-label">Balance</div>
+      <div class="stat">$<span id="balance">0</span></div>
+    </div>
 
-  <button onclick="loadWallet()">Refresh Balance</button>
+    <div class="card">
+      <div class="stat-label">Total Earnings</div>
+      <div class="stat">$<span id="earnings">0</span></div>
+    </div>
 
-  <p id="status"></p>
+    <div class="card">
+      <div class="stat-label">Total Trips</div>
+      <div class="stat"><span id="trips">0</span></div>
+    </div>
+
+    <div class="card">
+      <button class="button" onclick="loadWallet()">Refresh Balance</button>
+      <p class="top-space" id="status"></p>
+    </div>
+  </div>
 
   <script>
     async function loadWallet() {
