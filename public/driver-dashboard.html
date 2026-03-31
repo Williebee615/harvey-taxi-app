@@ -146,7 +146,7 @@ margin-top:10px;
 
 <h1>🚖 Driver Dashboard</h1>
 <p class="sub">
-Load your driver profile, share your live location, and use route navigation for pickup and dropoff.
+Load your driver profile, share your live location, and use one-tap navigation for pickup and dropoff.
 </p>
 
 <div class="card">
@@ -173,8 +173,7 @@ Load your driver profile, share your live location, and use route navigation for
 <div id="map"></div>
 <div class="map-note" id="locationStatus">Location sharing not started.</div>
 <div class="small-note">
-For the best route line and navigation buttons, use pickup and dropoff as coordinates like:
-<b>36.1627,-86.7816</b>
+Pickup and dropoff stay as normal addresses for users. Map routing uses hidden geocoded locations when available.
 </div>
 </div>
 
@@ -202,22 +201,6 @@ document.getElementById('locationStatus').innerText = text
 function statusBadge(status){
 if(!status) status = 'requested'
 return `<span class="badge ${status}">${status.replace('_',' ')}</span>`
-}
-
-function isLatLngString(value){
-if(!value || typeof value !== 'string') return false
-const parts = value.split(',').map(p => p.trim())
-if(parts.length !== 2) return false
-return !isNaN(Number(parts[0])) && !isNaN(Number(parts[1]))
-}
-
-function parseLatLng(value){
-const parts = value.split(',').map(p => Number(p.trim()))
-return { lat: parts[0], lng: parts[1] }
-}
-
-function googleNavUrl(destination){
-return `https://www.google.com/maps/dir/?api=1&destination=${destination.lat},${destination.lng}&travelmode=driving`
 }
 
 function initMap(){
@@ -289,9 +272,13 @@ driverCard.innerHTML = `
 <div class="trip-line"><b>Vehicle:</b> ${driver.vehicle || 'Unknown'}</div>
 <div class="trip-line"><b>Status:</b> ${driver.status || 'pending'}</div>
 <div class="trip-line"><b>Online:</b> ${driver.online ? 'Yes' : 'No'}</div>
-<div class="trip-line"><b>Current Ride ID:</b> ${driver.currentRideId || 'None'}</div>
+<div class="trip-line"><b>Current Ride ID:</b> ${driver.currentRide || 'None'}</div>
 <div class="trip-line"><b>Driver ID:</b> ${driver.id || 'Unknown'}</div>
 `
+}
+
+function openGoogleDirections(lat, lng){
+window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`, '_blank')
 }
 
 function renderTrip(trip){
@@ -318,14 +305,12 @@ if(trip.status === 'in_progress'){
 actionButtons += `<button class="complete" onclick="completeTrip()">Complete Trip</button>`
 }
 
-if(isLatLngString(trip.pickup)){
-const pickup = parseLatLng(trip.pickup)
-actionButtons += `<button class="nav" onclick="openPickupNavigation(${pickup.lat}, ${pickup.lng})">Navigate to Pickup</button>`
+if(trip.pickupGeo && typeof trip.pickupGeo.lat === 'number' && typeof trip.pickupGeo.lng === 'number'){
+actionButtons += `<button class="nav" onclick="openPickupNavigation()">Navigate to Pickup</button>`
 }
 
-if(isLatLngString(trip.dropoff)){
-const dropoff = parseLatLng(trip.dropoff)
-actionButtons += `<button class="nav" onclick="openDropoffNavigation(${dropoff.lat}, ${dropoff.lng})">Navigate to Dropoff</button>`
+if(trip.dropoffGeo && typeof trip.dropoffGeo.lat === 'number' && typeof trip.dropoffGeo.lng === 'number'){
+actionButtons += `<button class="nav" onclick="openDropoffNavigation()">Navigate to Dropoff</button>`
 }
 
 tripCard.innerHTML = `
@@ -335,17 +320,20 @@ tripCard.innerHTML = `
 <div class="trip-line"><b>Pickup:</b> ${trip.pickup || 'Not provided'}</div>
 <div class="trip-line"><b>Dropoff:</b> ${trip.dropoff || 'Not provided'}</div>
 <div class="trip-line"><b>Status:</b> ${statusBadge(trip.status)}</div>
+<div class="trip-line"><b>Estimated Fare:</b> $${trip.fare?.total?.toFixed ? trip.fare.total.toFixed(2) : '0.00'}</div>
 <div class="trip-line"><b>Created:</b> ${trip.created || trip.createdAt || 'Not available'}</div>
 ${actionButtons}
 `
 }
 
-function openPickupNavigation(lat, lng){
-window.open(googleNavUrl({ lat, lng }), '_blank')
+function openPickupNavigation(){
+if(!currentTrip || !currentTrip.pickupGeo) return
+openGoogleDirections(currentTrip.pickupGeo.lat, currentTrip.pickupGeo.lng)
 }
 
-function openDropoffNavigation(lat, lng){
-window.open(googleNavUrl({ lat, lng }), '_blank')
+function openDropoffNavigation(){
+if(!currentTrip || !currentTrip.dropoffGeo) return
+openGoogleDirections(currentTrip.dropoffGeo.lat, currentTrip.dropoffGeo.lng)
 }
 
 async function loadDriverByEmail(){
@@ -421,6 +409,201 @@ mapPoints.push([driverLat, driverLng])
 }
 }
 
-if(trip && trip.pickup && isLatLngString(trip.pickup)){
-const pickup = parseLatLng(trip.pickup)
-pickup
+if(trip && trip.pickupGeo && typeof trip.pickupGeo.lat === 'number' && typeof trip.pickupGeo.lng === 'number'){
+pickupMarker = L.marker([trip.pickupGeo.lat, trip.pickupGeo.lng]).addTo(map).bindPopup(`Pickup: ${trip.pickup || 'Pickup'}`)
+mapPoints.push([trip.pickupGeo.lat, trip.pickupGeo.lng])
+}
+
+if(trip && trip.dropoffGeo && typeof trip.dropoffGeo.lat === 'number' && typeof trip.dropoffGeo.lng === 'number'){
+dropoffMarker = L.marker([trip.dropoffGeo.lat, trip.dropoffGeo.lng]).addTo(map).bindPopup(`Dropoff: ${trip.dropoff || 'Dropoff'}`)
+mapPoints.push([trip.dropoffGeo.lat, trip.dropoffGeo.lng])
+}
+
+if(mapPoints.length >= 2){
+drawRouteLine(mapPoints)
+setLocationStatus('Navigation route loaded.')
+} else if(mapPoints.length === 1){
+map.setView(mapPoints[0], 15)
+setLocationStatus('Live location updated.')
+} else {
+setLocationStatus('Map is waiting for live location or geocoded trip points.')
+}
+}
+
+async function acceptTrip(){
+if(!currentTrip){
+setMessage('No trip loaded.')
+return
+}
+
+try{
+await fetch('/api/driver-accept',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({ rideId: currentTrip.id, driverId: currentDriver.id })
+})
+
+setMessage('Trip accepted.')
+await refreshDashboard()
+}catch(err){
+setMessage('Could not accept trip.')
+}
+}
+
+async function startTrip(){
+if(!currentTrip){
+setMessage('No trip loaded.')
+return
+}
+
+try{
+await fetch('/api/start-trip',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({ rideId: currentTrip.id })
+})
+
+setMessage('Trip started.')
+await refreshDashboard()
+}catch(err){
+setMessage('Could not start trip.')
+}
+}
+
+async function completeTrip(){
+if(!currentTrip){
+setMessage('No trip loaded.')
+return
+}
+
+try{
+await fetch('/api/driver-complete',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({ rideId: currentTrip.id })
+})
+
+setMessage('Trip completed.')
+await refreshDashboard()
+}catch(err){
+setMessage('Could not complete trip.')
+}
+}
+
+async function sendDriverLocation(lat, lng){
+if(!currentDriver) return
+
+try{
+await fetch('/api/driver-location',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({
+driverId: currentDriver.id,
+lat,
+lng
+})
+})
+
+currentDriver.location = { lat, lng, updatedAt: new Date().toISOString() }
+updateTripMap(currentTrip)
+setLocationStatus(`Location shared at ${new Date().toLocaleTimeString()}`)
+}catch(err){
+setLocationStatus('Could not send live location.')
+}
+}
+
+function startLocationSharing(){
+if(!currentDriver){
+setMessage('Load driver dashboard first.')
+return
+}
+
+if(!navigator.geolocation){
+setLocationStatus('Geolocation is not supported on this device.')
+return
+}
+
+if(watchId){
+setLocationStatus('Location sharing is already active.')
+return
+}
+
+setLocationStatus('Starting live location sharing...')
+
+watchId = navigator.geolocation.watchPosition(
+(position) => {
+const lat = position.coords.latitude
+const lng = position.coords.longitude
+sendDriverLocation(lat, lng)
+},
+(error) => {
+setLocationStatus('Location permission denied or unavailable.')
+},
+{
+enableHighAccuracy: true,
+maximumAge: 5000,
+timeout: 10000
+}
+)
+}
+
+async function refreshDashboard(){
+if(!currentDriver || !currentDriver.email){
+return
+}
+
+document.getElementById('driverEmail').value = currentDriver.email
+
+try{
+const res = await fetch('/api/drivers')
+const drivers = await res.json()
+const updatedDriver = drivers.find(d => String(d.id) === String(currentDriver.id))
+
+if(updatedDriver){
+currentDriver = updatedDriver
+renderDriver(updatedDriver)
+await loadTripForCurrentDriver()
+}
+}catch(err){
+setMessage('Could not refresh dashboard.')
+}
+}
+
+function logoutDriver(){
+localStorage.removeItem('harveyDriverEmail')
+
+if(watchId){
+navigator.geolocation.clearWatch(watchId)
+watchId = null
+}
+
+currentDriver = null
+currentTrip = null
+document.getElementById('driverEmail').value = ''
+renderDriver(null)
+renderTrip(null)
+initMap()
+clearMapLayers()
+setMessage('Logged out.')
+setLocationStatus('Location sharing stopped.')
+}
+
+window.addEventListener('load', async () => {
+initMap()
+
+const savedEmail = localStorage.getItem('harveyDriverEmail')
+if(savedEmail){
+document.getElementById('driverEmail').value = savedEmail
+await loadDriverByEmail()
+}
+})
+
+setInterval(() => {
+if(currentDriver){
+refreshDashboard()
+}
+}, 5000)
+</script>
+
+</body>
+</html>
