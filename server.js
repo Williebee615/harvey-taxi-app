@@ -43,10 +43,12 @@ ensureFile(driversFile)
 ensureFile(ridersFile)
 ensureFile(ridesFile)
 
+// HOME
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'))
 })
 
+// ADMIN LOGIN
 app.post('/api/admin-login', (req, res) => {
   const { email, password } = req.body || {}
 
@@ -63,6 +65,7 @@ app.post('/api/admin-login', (req, res) => {
   })
 })
 
+// DRIVER SIGNUP
 app.post('/api/driver-signup', (req, res) => {
   try {
     const body = req.body || {}
@@ -100,6 +103,7 @@ app.post('/api/driver-signup', (req, res) => {
   }
 })
 
+// RIDER SIGNUP
 app.post('/api/rider-signup', (req, res) => {
   try {
     const body = req.body || {}
@@ -130,6 +134,7 @@ app.post('/api/rider-signup', (req, res) => {
   }
 })
 
+// REQUEST RIDE
 app.post('/api/request-ride', (req, res) => {
   try {
     const body = req.body || {}
@@ -167,6 +172,7 @@ app.post('/api/request-ride', (req, res) => {
   }
 })
 
+// GET DATA
 app.get('/api/drivers', (req, res) => {
   return res.json(readJson(driversFile))
 })
@@ -179,6 +185,7 @@ app.get('/api/rides', (req, res) => {
   return res.json(readJson(ridesFile))
 })
 
+// APPROVE DRIVER
 app.post('/api/approve-driver', (req, res) => {
   try {
     const { id } = req.body || {}
@@ -208,6 +215,7 @@ app.post('/api/approve-driver', (req, res) => {
   }
 })
 
+// REJECT DRIVER
 app.post('/api/reject-driver', (req, res) => {
   try {
     const { id } = req.body || {}
@@ -237,6 +245,7 @@ app.post('/api/reject-driver', (req, res) => {
   }
 })
 
+// ASSIGN DRIVER
 app.post('/api/assign-driver', (req, res) => {
   try {
     const { rideId, driverId } = req.body || {}
@@ -306,6 +315,7 @@ app.post('/api/assign-driver', (req, res) => {
   }
 })
 
+// COMPLETE TRIP
 app.post('/api/complete-trip', (req, res) => {
   try {
     const { rideId } = req.body || {}
@@ -320,4 +330,62 @@ app.post('/api/complete-trip', (req, res) => {
     const rides = readJson(ridesFile)
     const drivers = readJson(driversFile)
 
-    const targetRide = rides.find
+    const targetRide = rides.find((ride) => String(ride.id) === String(rideId))
+
+    if (!targetRide) {
+      return res.status(404).json({
+        success: false,
+        message: 'Ride not found'
+      })
+    }
+
+    const updatedRides = rides.map((ride) => {
+      if (String(ride.id) === String(rideId)) {
+        return {
+          ...ride,
+          status: 'completed',
+          completedAt: new Date().toISOString()
+        }
+      }
+      return ride
+    })
+
+    const updatedDrivers = drivers.map((driver) => {
+      if (String(driver.id) === String(targetRide.assignedDriverId)) {
+        return {
+          ...driver,
+          currentRideId: ''
+        }
+      }
+      return driver
+    })
+
+    writeJson(ridesFile, updatedRides)
+    writeJson(driversFile, updatedDrivers)
+
+    return res.json({
+      success: true,
+      message: 'Trip completed successfully'
+    })
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      message: 'Could not complete trip'
+    })
+  }
+})
+
+// HTML FALLBACK
+app.get('/:page', (req, res) => {
+  const filePath = path.join(__dirname, 'public', req.params.page)
+
+  if (fs.existsSync(filePath)) {
+    return res.sendFile(filePath)
+  }
+
+  return res.sendFile(path.join(__dirname, 'public', 'index.html'))
+})
+
+app.listen(PORT, () => {
+  console.log(`Harvey Taxi running on port ${PORT}`)
+})
