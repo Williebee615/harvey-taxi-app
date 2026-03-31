@@ -1,296 +1,86 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Harvey Taxi</title>
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: Arial, Helvetica, sans-serif;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Harvey Taxi</title>
 
-    body {
-      background: linear-gradient(180deg, #031033 0%, #06173f 45%, #08204f 100%);
-      color: #ffffff;
-      min-height: 100vh;
-    }
+<style>
+body{
+font-family:Arial;
+background:#021433;
+color:white;
+text-align:center;
+padding:40px 20px;
+}
 
-    .container {
-      width: 100%;
-      max-width: 900px;
-      margin: 0 auto;
-      padding: 28px 18px 60px;
-    }
+h1{
+font-size:32px;
+margin-bottom:10px;
+}
 
-    .hero {
-      padding-top: 12px;
-      margin-bottom: 26px;
-    }
+.subtitle{
+opacity:.8;
+margin-bottom:30px;
+}
 
-    .brand {
-      font-size: 54px;
-      font-weight: 800;
-      color: #ffffff;
-      letter-spacing: -1px;
-      margin-bottom: 14px;
-      text-shadow: 0 2px 10px rgba(0,0,0,0.2);
-    }
+.main-btn{
+display:block;
+width:100%;
+max-width:320px;
+margin:12px auto;
+padding:16px;
+border:none;
+border-radius:12px;
+font-size:16px;
+font-weight:bold;
+background:#3b82f6;
+color:white;
+cursor:pointer;
+}
 
-    .tagline {
-      font-size: 21px;
-      color: #d7e2ff;
-      line-height: 1.55;
-      margin-bottom: 30px;
-      max-width: 780px;
-    }
+.driver{ background:#10b981; }
+.admin{ background:#f59e0b; }
+.track{ background:#6366f1; }
 
-    .hero-card {
-      background: rgba(20, 34, 72, 0.96);
-      border: 1px solid rgba(128, 157, 255, 0.24);
-      border-radius: 28px;
-      padding: 24px;
-      box-shadow: 0 24px 48px rgba(0, 0, 0, 0.35);
-      margin-bottom: 34px;
-    }
-
-    .button-grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 18px;
-    }
-
-    .main-btn {
-      width: 100%;
-      min-height: 92px;
-      border: none;
-      border-radius: 22px;
-      color: #ffffff;
-      font-size: 22px;
-      font-weight: 800;
-      cursor: pointer;
-      background: linear-gradient(90deg, #2d67ff 0%, #8d31ff 100%);
-      box-shadow: 0 14px 28px rgba(71, 100, 255, 0.35);
-      transition: transform 0.18s ease, opacity 0.18s ease;
-    }
-
-    .main-btn:hover,
-    .main-btn:active {
-      transform: translateY(-1px);
-      opacity: 0.98;
-    }
-
-    .request-btn {
-      background: linear-gradient(90deg, #14b85c 0%, #2ae77f 100%);
-      box-shadow: 0 14px 28px rgba(42, 231, 127, 0.24);
-    }
-
-    .donate-btn {
-      background: linear-gradient(90deg, #ff4d8d 0%, #ff2c61 100%);
-      box-shadow: 0 14px 28px rgba(255, 77, 141, 0.24);
-    }
-
-    .section-title {
-      font-size: 30px;
-      font-weight: 800;
-      color: #ffffff;
-      margin-bottom: 18px;
-    }
-
-    .services-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 16px;
-      margin-bottom: 28px;
-    }
-
-    .service-card {
-      background: rgba(18, 30, 58, 0.96);
-      border: 1px solid rgba(126, 155, 255, 0.16);
-      border-radius: 20px;
-      padding: 20px;
-      box-shadow: 0 16px 32px rgba(0, 0, 0, 0.22);
-    }
-
-    .service-card h3 {
-      font-size: 20px;
-      color: #ffffff;
-      margin-bottom: 10px;
-    }
-
-    .service-card p {
-      color: #d2ddfb;
-      line-height: 1.6;
-      font-size: 15px;
-    }
-
-    .info-strip {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 16px;
-      margin-bottom: 26px;
-    }
-
-    .info-box {
-      background: rgba(12, 24, 51, 0.96);
-      border: 1px solid rgba(120, 148, 255, 0.16);
-      border-radius: 18px;
-      padding: 18px;
-    }
-
-    .info-box h4 {
-      font-size: 17px;
-      color: #ffffff;
-      margin-bottom: 8px;
-    }
-
-    .info-box p {
-      color: #d2ddfb;
-      font-size: 14px;
-      line-height: 1.55;
-    }
-
-    .footer-note {
-      text-align: center;
-      color: #d7e2ff;
-      font-size: 14px;
-      line-height: 1.6;
-      margin-top: 8px;
-    }
-
-    .highlight {
-      color: #ffffff;
-      font-weight: 700;
-    }
-
-    @media (max-width: 768px) {
-      .brand {
-        font-size: 42px;
-      }
-
-      .tagline {
-        font-size: 18px;
-      }
-
-      .services-grid,
-      .info-strip {
-        grid-template-columns: 1fr;
-      }
-
-      .main-btn {
-        min-height: 84px;
-        font-size: 20px;
-      }
-    }
-
-    @media (max-width: 480px) {
-      .container {
-        padding: 20px 14px 45px;
-      }
-
-      .brand {
-        font-size: 34px;
-      }
-
-      .tagline {
-        font-size: 16px;
-      }
-
-      .section-title {
-        font-size: 24px;
-      }
-
-      .main-btn {
-        min-height: 78px;
-        font-size: 18px;
-        border-radius: 18px;
-      }
-
-      .hero-card {
-        padding: 18px;
-      }
-    }
-  </style>
+.footer{
+margin-top:40px;
+opacity:.6;
+font-size:12px;
+}
+</style>
 </head>
+
 <body>
-  <div class="container">
-    <section class="hero">
-      <h1 class="brand">Harvey Taxi</h1>
-      <p class="tagline">
-        Reliable transportation platform for riders, drivers, airport trips, medical rides,
-        local travel, and future delivery services.
-      </p>
 
-      <div class="hero-card">
-        <div class="button-grid">
-          <button class="main-btn request-btn" onclick="window.location.href='/request-ride.html'">Request Ride</button>
-          <button class="main-btn" onclick="window.location.href='/rider-signup.html'">Rider Signup</button>
-          <button class="main-btn" onclick="window.location.href='/driver-signup.html'">Driver Signup</button>
-          <button class="main-btn" onclick="window.location.href='/login.html'">Login</button>
-          <button class="main-btn donate-btn" onclick="window.open('https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00','_blank')">Donate to Nonprofit</button>
-          <button class="main-btn" onclick="window.location.href='/admin-login.html'">Admin Dashboard</button>
-        </div>
-      </div>
-    </section>
+<h1>🚕 Harvey Taxi</h1>
+<div class="subtitle">
+Ride • Dispatch • Driver Platform
+</div>
 
-    <section>
-      <h2 class="section-title">What Harvey Taxi Is Building</h2>
-      <div class="services-grid">
-        <div class="service-card">
-          <h3>Rider Platform</h3>
-          <p>
-            Riders can create accounts, request trips, and use a cleaner mobile-first transportation experience.
-          </p>
-        </div>
+<button class="main-btn"
+onclick="location.href='/request-ride.html'">
+Request Ride
+</button>
 
-        <div class="service-card">
-          <h3>Driver Platform</h3>
-          <p>
-            Drivers can apply, submit details, and move into admin review and approval workflows.
-          </p>
-        </div>
+<button class="main-btn track"
+onclick="location.href='/rider-trip.html'">
+Track My Ride
+</button>
 
-        <div class="service-card">
-          <h3>Dispatch System</h3>
-          <p>
-            Harvey Taxi is being built toward live dispatch, ride acceptance, and stronger platform control.
-          </p>
-        </div>
+<button class="main-btn driver"
+onclick="location.href='/driver-dashboard.html'">
+Driver Dashboard
+</button>
 
-        <div class="service-card">
-          <h3>Community Support</h3>
-          <p>
-            The platform also supports nonprofit transportation assistance through direct donations.
-          </p>
-        </div>
-      </div>
-    </section>
+<button class="main-btn admin"
+onclick="location.href='/admin.html'">
+Admin Panel
+</button>
 
-    <section>
-      <div class="info-strip">
-        <div class="info-box">
-          <h4>Live Vision</h4>
-          <p>Built to grow from a web app into a scalable transportation ecosystem.</p>
-        </div>
+<div class="footer">
+Harvey Taxi Platform
+</div>
 
-        <div class="info-box">
-          <h4>Admin Control</h4>
-          <p>Review drivers, manage approvals, monitor users, and guide platform growth.</p>
-        </div>
-
-        <div class="info-box">
-          <h4>Mobile Ready</h4>
-          <p>Designed with a dark premium layout so it already feels closer to a real app.</p>
-        </div>
-      </div>
-    </section>
-
-    <p class="footer-note">
-      <span class="highlight">Harvey Taxi Service LLC</span> — Building a modern transportation,
-      dispatch, and mobility platform.
-    </p>
-  </div>
 </body>
 </html>
