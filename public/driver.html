@@ -1,120 +1,112 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Driver Dashboard</title>
-
-<style>
-body{
-font-family:Arial;
-background:#02123d;
-color:white;
-padding:20px;
-}
-
-.card{
-background:#0c1f5c;
-padding:15px;
-border-radius:10px;
-margin-bottom:15px;
-}
-
-button{
-padding:10px;
-margin:5px;
-border:none;
-border-radius:6px;
-font-weight:bold;
-}
-
-.accept{background:#00cc66;}
-.start{background:#3399ff;}
-.complete{background:#ffaa00;}
-</style>
-
+  <title>Driver Console</title>
 </head>
 <body>
+  <h2>Driver Console</h2>
 
-<h2>Driver Dashboard</h2>
+  <button onclick="loadRides()">Refresh</button>
 
-<div id="rides"></div>
+  <div id="rides"></div>
 
-<script>
+  <script>
+    const DRIVER_ID = 'driver_1'
+    const DRIVER_NAME = 'Test Driver'
 
-const driverId = localStorage.getItem("driverId")
+    async function loadRides() {
+      const res = await fetch('/api/rides/open')
+      const data = await res.json()
+      const rides = data.rides || []
 
-async function loadRides(){
-const res = await fetch("/api/service-requests")
-const data = await res.json()
+      document.getElementById('rides').innerHTML = rides.map(ride => `
+        <div style="border:1px solid #ccc;padding:12px;margin:12px 0">
+          <strong>${ride.id}</strong><br>
+          Rider: ${ride.riderName}<br>
+          Pickup: ${ride.pickup}<br>
+          Dropoff: ${ride.dropoff}<br>
+          Fare: $${ride.fare}<br>
+          Status: ${ride.status}<br>
+          Driver: ${ride.driverId || 'Unassigned'}<br><br>
 
-const pending = data.requests.filter(r =>
-!r.driverId || r.driverId === driverId
-)
+          ${ride.status === 'pending'
+            ? `<button onclick="acceptRide('${ride.id}')">Accept Ride</button>`
+            : ''}
 
-document.getElementById("rides").innerHTML =
-pending.map(r=>`
+          ${ride.status === 'assigned' && ride.driverId === DRIVER_ID
+            ? `<button onclick="markArrived('${ride.id}')">Mark Arrived</button>`
+            : ''}
 
-<div class="card">
+          ${ride.status === 'arrived' && ride.driverId === DRIVER_ID
+            ? `<button onclick="markPickedUp('${ride.id}')">Picked Up</button>`
+            : ''}
 
-<b>${r.pickup}</b><br>
-To: ${r.dropoff}<br>
-Status: ${r.status}
+          ${ride.status === 'in_progress' && ride.driverId === DRIVER_ID
+            ? `<button onclick="completeRide('${ride.id}')">Complete Ride</button>`
+            : ''}
 
-<br><br>
+          ${(ride.status === 'assigned' || ride.status === 'arrived' || ride.status === 'in_progress') && ride.driverId === DRIVER_ID
+            ? `<button onclick="declineRide('${ride.id}')">Release Ride</button>`
+            : ''}
+        </div>
+      `).join('')
+    }
 
-<button class="accept"
-onclick="accept('${r.id}')">
-Accept
-</button>
+    async function acceptRide(rideId) {
+      await fetch('/api/rides/accept', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rideId,
+          driverId: DRIVER_ID,
+          driverName: DRIVER_NAME
+        })
+      })
 
-<button class="start"
-onclick="start('${r.id}')">
-Start
-</button>
+      loadRides()
+    }
 
-<button class="complete"
-onclick="complete('${r.id}')">
-Complete
-</button>
+    async function declineRide(rideId) {
+      await fetch('/api/rides/decline', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rideId })
+      })
 
-</div>
+      loadRides()
+    }
 
-`).join("")
-}
+    async function markArrived(rideId) {
+      await fetch('/api/rides/arrived', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rideId })
+      })
 
-async function accept(id){
-await fetch("/api/driver/accept",{
-method:"POST",
-headers:{'Content-Type':'application/json'},
-body:JSON.stringify({
-rideId:id,
-driverId:driverId
-})
-})
-loadRides()
-}
+      loadRides()
+    }
 
-async function start(id){
-await fetch("/api/driver/start",{
-method:"POST",
-headers:{'Content-Type':'application/json'},
-body:JSON.stringify({rideId:id})
-})
-loadRides()
-}
+    async function markPickedUp(rideId) {
+      await fetch('/api/rides/pickup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rideId })
+      })
 
-async function complete(id){
-await fetch("/api/driver/complete",{
-method:"POST",
-headers:{'Content-Type':'application/json'},
-body:JSON.stringify({rideId:id})
-})
-loadRides()
-}
+      loadRides()
+    }
 
-loadRides()
-setInterval(loadRides,3000)
+    async function completeRide(rideId) {
+      await fetch('/api/rides/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rideId })
+      })
 
-</script>
+      loadRides()
+    }
 
+    loadRides()
+  </script>
 </body>
 </html>
