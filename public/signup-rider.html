@@ -9,7 +9,7 @@
   <div class="container">
     <div class="app-header">
       <div class="app-title">Rider Signup</div>
-      <div class="app-subtitle">Create your rider account</div>
+      <div class="app-subtitle">Create your account and verify with Persona</div>
     </div>
 
     <div class="card">
@@ -17,9 +17,9 @@
       <input class="input" id="phone" placeholder="Phone Number" />
       <input class="input" id="email" placeholder="Email" />
       <input class="input" id="password" placeholder="Password" type="password" />
-
       <button class="button" onclick="signup()">Create Rider Account</button>
       <pre id="result"></pre>
+      <div id="verify"></div>
     </div>
   </div>
 
@@ -38,6 +38,11 @@
 
       const data = await res.json()
       document.getElementById('result').innerText = JSON.stringify(data, null, 2)
+
+      if (data.success && data.user?.personaInquiryUrl) {
+        document.getElementById('verify').innerHTML =
+          `<a class="nav-link" href="${data.user.personaInquiryUrl}" target="_blank">Complete Persona Verification</a>`
+      }
     }
   </script>
 </body>
