@@ -45,6 +45,21 @@ margin-bottom:16px;
 box-shadow:0 0 10px rgba(0,0,0,0.35);
 }
 
+.alert-card{
+background:linear-gradient(90deg,#b91c1c,#ef4444);
+padding:18px;
+border-radius:14px;
+margin-bottom:16px;
+box-shadow:0 0 18px rgba(239,68,68,0.45);
+display:none;
+animation:pulse 1s infinite alternate;
+}
+
+@keyframes pulse{
+from{ transform:scale(1); }
+to{ transform:scale(1.01); }
+}
+
 label{
 display:block;
 margin-bottom:8px;
@@ -74,14 +89,15 @@ cursor:pointer;
 
 .load{ background:#3b82f6; color:white; }
 .accept{ background:#10b981; color:white; }
-.start{ background:#f59e0b; color:white; }
 .complete{ background:#ef4444; color:white; }
 .logout{ background:#475569; color:white; }
+.dismiss{ background:#0f172a; color:white; }
 
 .status{
 margin-top:10px;
 font-size:14px;
-opacity:0.85;
+opacity:0.9;
+line-height:1.5;
 }
 
 .trip-line{
@@ -109,6 +125,11 @@ text-transform:capitalize;
 opacity:0.8;
 line-height:1.5;
 }
+
+.highlight{
+outline:2px solid #facc15;
+box-shadow:0 0 20px rgba(250,204,21,0.35);
+}
 </style>
 </head>
 
@@ -120,15 +141,23 @@ line-height:1.5;
 
 <h1>🚖 Driver Dashboard</h1>
 <p class="sub">
-Log in with your driver email to load your active trip automatically.
+Load your driver account, receive ride alerts, and manage assigned trips.
 </p>
 
-<div class="card">
-<label for="driverEmail">Driver Email</label>
-<input id="driverEmail" type="email" placeholder="Enter driver email">
+<div class="alert-card" id="tripAlert">
+  <h3 style="margin-bottom:8px;">🚨 New Trip Assigned</h3>
+  <p id="tripAlertText" style="line-height:1.6;">
+    A new ride has been assigned to you.
+  </p>
+  <button class="dismiss" onclick="dismissAlert()">Dismiss Alert</button>
+</div>
 
-<button class="load" onclick="loadDriverByEmail()">Load My Dashboard</button>
-<button class="logout" onclick="logoutDriver()">Logout</button>
+<div class="card">
+<label for="driverId">Driver ID</label>
+<input id="driverId" placeholder="Enter your driver ID">
+
+<button class="load" onclick="loadDriverTrips()">Load Dashboard</button>
+<button class="logout" onclick="logoutDriver()">Clear</button>
 
 <div class="status" id="message"></div>
 </div>
@@ -144,8 +173,12 @@ Log in with your driver email to load your active trip automatically.
 </div>
 
 <script>
-let currentTrip = null
 let currentDriver = null
+let currentTrip = null
+let lastTripId = null
+let lastTripStatus = null
+let alertDismissedForTrip = null
+let audioContext = null
 
 function setMessage(text){
 document.getElementById('message').innerText = text
@@ -154,6 +187,58 @@ document.getElementById('message').innerText = text
 function statusBadge(status){
 if(!status) status = 'requested'
 return `<span class="badge ${status}">${status.replace('_',' ')}</span>`
+}
+
+function playAlertSound(){
+try{
+if(!audioContext){
+audioContext = new (window.AudioContext || window.webkitAudioContext)()
+}
+const ctx = audioContext
+const osc = ctx.createOscillator()
+const gain = ctx.createGain()
+
+osc.type = 'sine'
+osc.frequency.setValueAtTime(880, ctx.currentTime)
+gain.gain.setValueAtTime(0.0001, ctx.currentTime)
+gain.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + 0.02)
+gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.5)
+
+osc.connect(gain)
+gain.connect(ctx.destination)
+osc.start()
+osc.stop(ctx.currentTime + 0.5)
+}catch(e){}
+}
+
+function vibrateAlert(){
+if(navigator.vibrate){
+navigator.vibrate([300, 150, 300, 150, 400])
+}
+}
+
+function showTripAlert(trip){
+const alertBox = document.getElementById('tripAlert')
+const alertText = document.getElementById('tripAlertText')
+
+alertText.innerHTML = `
+Pickup: <b>${trip.pickup || 'Not provided'}</b><br>
+Dropoff: <b>${trip.dropoff || 'Not provided'}</b><br>
+Ride ID: <b>${trip.id}</b>
+`
+
+alertBox.style.display = 'block'
+playAlertSound()
+vibrateAlert()
+}
+
+function dismissAlert(){
+const alertBox = document.getElementById('tripAlert')
+alertBox.style.display = 'none'
+
+if(currentTrip){
+alertDismissedForTrip = currentTrip.id
+}
 }
 
 function renderDriver(driver){
@@ -165,13 +250,13 @@ return
 }
 
 driverCard.innerHTML = `
+<div class="trip-line"><b>Driver ID:</b> ${driver.id}</div>
 <div class="trip-line"><b>Name:</b> ${driver.name || 'Unknown Driver'}</div>
-<div class="trip-line"><b>Email:</b> ${driver.email || 'Unknown'}</div>
 <div class="trip-line"><b>Phone:</b> ${driver.phone || 'Unknown'}</div>
 <div class="trip-line"><b>Vehicle:</b> ${driver.vehicle || 'Unknown'}</div>
-<div class="trip-line"><b>Status:</b> ${driver.status || 'pending'}</div>
+<div class="trip-line"><b>Approved:</b> ${driver.approved ? 'Yes' : 'No'}</div>
 <div class="trip-line"><b>Online:</b> ${driver.online ? 'Yes' : 'No'}</div>
-<div class="trip-line"><b>Current Ride ID:</b> ${driver.currentRideId || 'None'}</div>
+<div class="trip-line"><b>Current Ride:</b> ${driver.currentRide || 'None'}</div>
 `
 }
 
@@ -179,28 +264,23 @@ function renderTrip(trip){
 const tripCard = document.getElementById('tripCard')
 
 if(!trip){
-tripCard.innerHTML = `<div class="empty">No assigned trip right now.</div>`
+tripCard.className = 'card'
+tripCard.innerHTML = `<div class="empty">No active trip assigned right now.</div>`
 return
 }
 
 currentTrip = trip
 
-let actionButtons = ''
+let buttons = ''
 
 if(trip.status === 'assigned'){
-actionButtons += `<button class="accept" onclick="acceptTrip()">Accept Trip</button>`
-}
-
-if(trip.status === 'enroute'){
-actionButtons += `<button class="start" onclick="startTrip()">Start Trip</button>`
-}
-
-if(trip.status === 'in_progress'){
-actionButtons += `<button class="complete" onclick="completeTrip()">Complete Trip</button>`
-}
-
-if(trip.status === 'completed'){
-actionButtons += `<div class="status">This trip is completed.</div>`
+buttons += `<button class="accept" onclick="acceptTrip()">Accept Trip</button>`
+tripCard.className = 'card highlight'
+} else if(trip.status === 'enroute' || trip.status === 'in_progress'){
+buttons += `<button class="complete" onclick="completeTrip()">Complete Trip</button>`
+tripCard.className = 'card'
+} else {
+tripCard.className = 'card'
 }
 
 tripCard.innerHTML = `
@@ -210,70 +290,79 @@ tripCard.innerHTML = `
 <div class="trip-line"><b>Pickup:</b> ${trip.pickup || 'Not provided'}</div>
 <div class="trip-line"><b>Dropoff:</b> ${trip.dropoff || 'Not provided'}</div>
 <div class="trip-line"><b>Status:</b> ${statusBadge(trip.status)}</div>
-<div class="trip-line"><b>Created:</b> ${trip.created || trip.createdAt || 'Not available'}</div>
-${actionButtons}
+<div class="trip-line"><b>Assigned Driver:</b> ${trip.assignedDriverName || trip.driverId || 'Not assigned'}</div>
+<div class="trip-line"><b>Created:</b> ${trip.created || 'Not available'}</div>
+${buttons}
 `
 }
 
-async function loadDriverByEmail(){
-const email = document.getElementById('driverEmail').value.trim().toLowerCase()
+function shouldAlertForTrip(trip){
+if(!trip) return false
+if(trip.status !== 'assigned') return false
+if(alertDismissedForTrip === trip.id) return false
 
-if(!email){
-setMessage('Enter your driver email first.')
+const newTripAssigned = lastTripId !== trip.id
+const statusChangedToAssigned = lastTripId === trip.id && lastTripStatus !== 'assigned'
+
+return newTripAssigned || statusChangedToAssigned
+}
+
+async function loadDriverTrips(){
+const driverId = document.getElementById('driverId').value.trim()
+
+if(!driverId){
+setMessage('Please enter your driver ID first.')
 return
 }
 
-setMessage('Loading driver dashboard...')
+localStorage.setItem('harveyDriverId', driverId)
+setMessage('Loading dashboard...')
 
 try{
-const res = await fetch('/api/drivers')
-const drivers = await res.json()
+const [driversRes, ridesRes] = await Promise.all([
+fetch('/api/drivers'),
+fetch('/api/rides')
+])
 
-const driver = drivers.find(d => (d.email || '').toLowerCase() === email)
+const drivers = await driversRes.json()
+const rides = await ridesRes.json()
+
+const driver = drivers.find(d => String(d.id) === String(driverId))
 
 if(!driver){
 currentDriver = null
 currentTrip = null
 renderDriver(null)
 renderTrip(null)
-setMessage('No driver found for that email.')
+setMessage('No driver found with that ID.')
 return
 }
 
 currentDriver = driver
-localStorage.setItem('harveyDriverEmail', email)
-localStorage.setItem('harveyDriverId', driver.id || '')
 renderDriver(driver)
-await loadTripForCurrentDriver()
-setMessage('Driver dashboard loaded.')
-}catch(err){
-setMessage('Could not load driver dashboard.')
-}
-}
 
-async function loadTripForCurrentDriver(){
-if(!currentDriver){
-renderTrip(null)
-return
-}
-
-try{
-const res = await fetch('/api/rides')
-const rides = await res.json()
-
-const trip = rides.find(r =>
-String(r.driverId) === String(currentDriver.id || '') &&
+const activeTrip = rides.find(r =>
+String(r.driverId) === String(driverId) &&
 r.status !== 'completed'
 ) || null
 
-renderTrip(trip)
+if(shouldAlertForTrip(activeTrip)){
+showTripAlert(activeTrip)
+}
+
+renderTrip(activeTrip)
+
+lastTripId = activeTrip ? activeTrip.id : null
+lastTripStatus = activeTrip ? activeTrip.status : null
+
+setMessage(activeTrip ? 'Trip loaded.' : 'No active trip assigned.')
 }catch(err){
-setMessage('Could not load trip.')
+setMessage('Could not load dashboard.')
 }
 }
 
 async function acceptTrip(){
-if(!currentTrip){
+if(!currentTrip || !currentDriver){
 setMessage('No trip loaded.')
 return
 }
@@ -282,33 +371,17 @@ try{
 await fetch('/api/driver-accept',{
 method:'POST',
 headers:{'Content-Type':'application/json'},
-body:JSON.stringify({ rideId: currentTrip.id })
+body:JSON.stringify({
+rideId: currentTrip.id,
+driverId: currentDriver.id
+})
 })
 
+dismissAlert()
 setMessage('Trip accepted.')
-await refreshDashboard()
+await loadDriverTrips()
 }catch(err){
 setMessage('Could not accept trip.')
-}
-}
-
-async function startTrip(){
-if(!currentTrip){
-setMessage('No trip loaded.')
-return
-}
-
-try{
-await fetch('/api/start-trip',{
-method:'POST',
-headers:{'Content-Type':'application/json'},
-body:JSON.stringify({ rideId: currentTrip.id })
-})
-
-setMessage('Trip started.')
-await refreshDashboard()
-}catch(err){
-setMessage('Could not start trip.')
 }
 }
 
@@ -319,63 +392,49 @@ return
 }
 
 try{
-await fetch('/api/complete-trip',{
+await fetch('/api/driver-complete',{
 method:'POST',
 headers:{'Content-Type':'application/json'},
-body:JSON.stringify({ rideId: currentTrip.id })
+body:JSON.stringify({
+rideId: currentTrip.id
+})
 })
 
+dismissAlert()
+currentTrip = null
 setMessage('Trip completed.')
-await refreshDashboard()
+await loadDriverTrips()
 }catch(err){
 setMessage('Could not complete trip.')
 }
 }
 
-async function refreshDashboard(){
-if(!currentDriver || !currentDriver.email){
-return
-}
-
-document.getElementById('driverEmail').value = currentDriver.email
-
-try{
-const res = await fetch('/api/drivers')
-const drivers = await res.json()
-const updatedDriver = drivers.find(d => String(d.id) === String(currentDriver.id))
-
-if(updatedDriver){
-currentDriver = updatedDriver
-renderDriver(updatedDriver)
-await loadTripForCurrentDriver()
-}
-}catch(err){
-setMessage('Could not refresh dashboard.')
-}
-}
-
 function logoutDriver(){
-localStorage.removeItem('harveyDriverEmail')
 localStorage.removeItem('harveyDriverId')
 currentDriver = null
 currentTrip = null
-document.getElementById('driverEmail').value = ''
+lastTripId = null
+lastTripStatus = null
+alertDismissedForTrip = null
+document.getElementById('driverId').value = ''
+document.getElementById('tripAlert').style.display = 'none'
 renderDriver(null)
 renderTrip(null)
-setMessage('Logged out.')
+setMessage('Cleared.')
 }
 
 window.addEventListener('load', async () => {
-const savedEmail = localStorage.getItem('harveyDriverEmail')
-if(savedEmail){
-document.getElementById('driverEmail').value = savedEmail
-await loadDriverByEmail()
+const savedDriverId = localStorage.getItem('harveyDriverId')
+if(savedDriverId){
+document.getElementById('driverId').value = savedDriverId
+await loadDriverTrips()
 }
 })
 
 setInterval(() => {
-if(currentDriver){
-refreshDashboard()
+const savedDriverId = document.getElementById('driverId').value.trim()
+if(savedDriverId){
+loadDriverTrips()
 }
 }, 5000)
 </script>
