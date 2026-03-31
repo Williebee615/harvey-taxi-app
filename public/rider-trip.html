@@ -189,7 +189,7 @@ margin-top:10px;
 
 <h1>📍 Track My Ride</h1>
 <p class="sub">
-Enter your ride ID to track your trip, view driver status, and see live driver ETA when location sharing is active.
+Enter your ride ID to track your trip, view fare, and see live driver updates.
 </p>
 
 <div class="card">
@@ -223,7 +223,7 @@ Enter your ride ID to track your trip, view driver status, and see live driver E
 
 <div class="map-note" id="mapStatus">Driver location will appear here after a driver is assigned and location sharing is enabled.</div>
 <div class="note">
-For best ETA accuracy, use pickup coordinates like: <b>36.1627,-86.7816</b>
+Addresses stay as normal addresses. Coordinates are handled in the background.
 </div>
 </div>
 
@@ -268,7 +268,6 @@ const steps = [
 ]
 
 let activeIndex = 0
-
 if(status === 'requested') activeIndex = 0
 if(status === 'assigned') activeIndex = 1
 if(status === 'enroute') activeIndex = 2
@@ -304,18 +303,6 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 maxZoom: 19,
 attribution: '&copy; OpenStreetMap'
 }).addTo(map)
-}
-
-function isLatLngString(value){
-if(!value || typeof value !== 'string') return false
-const parts = value.split(',').map(p => p.trim())
-if(parts.length !== 2) return false
-return !isNaN(Number(parts[0])) && !isNaN(Number(parts[1]))
-}
-
-function parseLatLng(value){
-const parts = value.split(',').map(p => Number(p.trim()))
-return { lat: parts[0], lng: parts[1] }
 }
 
 function clearMapMarkers(){
@@ -386,8 +373,9 @@ rideCard.innerHTML = `
 <div class="trip-line"><b>Pickup:</b> ${ride.pickup || 'Not provided'}</div>
 <div class="trip-line"><b>Dropoff:</b> ${ride.dropoff || 'Not provided'}</div>
 <div class="trip-line"><b>Status:</b> ${statusBadge(ride.status)}</div>
-<div class="trip-line"><b>Assigned Driver:</b> ${ride.assignedDriverName || ride.driverId || 'Not assigned yet'}</div>
-<div class="trip-line"><b>Created:</b> ${ride.created || ride.createdAt || 'Not available'}</div>
+<div class="trip-line"><b>Assigned Driver:</b> ${ride.assignedDriverName || 'Not assigned yet'}</div>
+<div class="trip-line"><b>Estimated Fare:</b> $${ride.fare?.total?.toFixed ? ride.fare.total.toFixed(2) : '0.00'}</div>
+<div class="trip-line"><b>Distance:</b> ${ride.fare?.distanceMiles ?? 0} miles</div>
 <div class="trip-line"><b>Update:</b> ${riderStatusMessage(ride.status)}</div>
 ${progressHtml(ride.status)}
 `
@@ -406,7 +394,6 @@ setMessage('Loading ride status...')
 try{
 const res = await fetch('/api/rides')
 const rides = await res.json()
-
 const ride = rides.find(r => String(r.id) === String(rideId))
 
 if(!ride){
@@ -436,16 +423,14 @@ initMap()
 clearMapMarkers()
 resetEtaDisplay()
 
-let pickupCoords = null
-let dropoffCoords = null
+let pickupCoords = ride.pickupGeo || null
+let dropoffCoords = ride.dropoffGeo || null
 
-if(ride.pickup && isLatLngString(ride.pickup)){
-pickupCoords = parseLatLng(ride.pickup)
+if(pickupCoords){
 pickupMarker = L.marker([pickupCoords.lat, pickupCoords.lng]).addTo(map).bindPopup('Pickup')
 }
 
-if(ride.dropoff && isLatLngString(ride.dropoff)){
-dropoffCoords = parseLatLng(ride.dropoff)
+if(dropoffCoords){
 dropoffMarker = L.marker([dropoffCoords.lat, dropoffCoords.lng]).addTo(map).bindPopup('Dropoff')
 }
 
@@ -479,7 +464,7 @@ if(pickupCoords){
 updateEtaDisplay(lat, lng, pickupCoords.lat, pickupCoords.lng)
 setMapStatus(`Driver location updated: ${new Date(data.location.updatedAt).toLocaleTimeString()}`)
 } else {
-setMapStatus('Driver live location loaded. ETA needs pickup coordinates for distance estimate.')
+setMapStatus('Driver live location loaded.')
 }
 
 }catch(err){
@@ -502,7 +487,6 @@ setMapStatus('Driver location will appear here after a driver is assigned and lo
 
 window.addEventListener('load', async () => {
 initMap()
-
 const savedRideId = localStorage.getItem('harveyRideId')
 if(savedRideId){
 document.getElementById('rideId').value = savedRideId
