@@ -1,4 +1,23 @@
-const express = require('express')
+app.get('/api/rider-trip/:rideId', (req, res) => {
+  const { rideId } = req.params
+  const data = readData()
+
+  const ride = data.rides.find(r => String(r.id) === String(rideId))
+
+  if (!ride) {
+    return res.json({ success: true, ride: null })
+  }
+
+  const driver = data.drivers.find(
+    d => String(d.id) === String(ride.driverId)
+  )
+
+  return res.json({
+    success: true,
+    ride,
+    driver: driver || null
+  })
+})const express = require('express')
 const cors = require('cors')
 const path = require('path')
 const fs = require('fs')
@@ -114,6 +133,19 @@ app.get('/api/rides', (req, res) => {
   return res.json(data.rides)
 })
 
+app.get('/api/rides/:rideId', (req, res) => {
+  const { rideId } = req.params
+  const data = readData()
+
+  const ride = data.rides.find(r => String(r.id) === String(rideId))
+
+  if (!ride) {
+    return res.status(404).json({ success: false, message: 'Ride not found' })
+  }
+
+  return res.json({ success: true, ride })
+})
+
 app.get('/api/drivers', (req, res) => {
   const data = readData()
   return res.json(data.drivers)
@@ -201,95 +233,3 @@ app.get('/api/driver-trip/:driverId', (req, res) => {
   const driver = data.drivers.find(d => String(d.id) === String(driverId))
 
   if (!driver) {
-    return res.status(404).json({ success: false, message: 'Driver not found' })
-  }
-
-  const ride = data.rides.find(
-    r => String(r.driverId) === String(driverId) && r.status !== 'completed'
-  )
-
-  if (!ride) {
-    return res.json({ success: true, ride: null })
-  }
-
-  return res.json({ success: true, ride })
-})
-
-app.post('/api/driver-accept', (req, res) => {
-  const { rideId, driverId } = req.body || {}
-  const data = readData()
-
-  const ride = data.rides.find(r => String(r.id) === String(rideId))
-  const driver = data.drivers.find(d => String(d.id) === String(driverId))
-
-  if (!ride) {
-    return res.status(404).json({ success: false, message: 'Ride not found' })
-  }
-
-  if (!driver) {
-    return res.status(404).json({ success: false, message: 'Driver not found' })
-  }
-
-  ride.status = 'accepted'
-  ride.acceptedAt = new Date().toISOString()
-
-  driver.currentRide = ride.id
-  driver.online = false
-
-  writeData(data)
-
-  return res.json({ success: true, ride })
-})
-
-app.post('/api/start-trip', (req, res) => {
-  const { rideId, driverId } = req.body || {}
-  const data = readData()
-
-  const ride = data.rides.find(r => String(r.id) === String(rideId))
-  const driver = data.drivers.find(d => String(d.id) === String(driverId))
-
-  if (!ride) {
-    return res.status(404).json({ success: false, message: 'Ride not found' })
-  }
-
-  if (!driver) {
-    return res.status(404).json({ success: false, message: 'Driver not found' })
-  }
-
-  ride.status = 'enroute'
-  ride.startedAt = new Date().toISOString()
-
-  writeData(data)
-
-  return res.json({ success: true, ride })
-})
-
-app.post('/api/complete-trip', (req, res) => {
-  const { rideId, driverId } = req.body || {}
-  const data = readData()
-
-  const ride = data.rides.find(r => String(r.id) === String(rideId))
-  const driver = data.drivers.find(d => String(d.id) === String(driverId))
-
-  if (!ride) {
-    return res.status(404).json({ success: false, message: 'Ride not found' })
-  }
-
-  if (!driver) {
-    return res.status(404).json({ success: false, message: 'Driver not found' })
-  }
-
-  ride.status = 'completed'
-  ride.completedAt = new Date().toISOString()
-
-  driver.currentRide = null
-  driver.online = true
-
-  writeData(data)
-
-  return res.json({ success: true, ride, driver })
-})
-
-app.listen(PORT, () => {
-  console.log('Server running on port', PORT)
-})
