@@ -81,6 +81,7 @@ cursor:pointer;
 .logout{ background:#475569; color:white; }
 .location{ background:#06b6d4; color:white; }
 .nav{ background:#7c3aed; color:white; }
+.seen{ background:#334155; color:white; }
 
 .status{
 margin-top:10px;
@@ -105,7 +106,9 @@ text-transform:capitalize;
 }
 
 .requested{ background:#334155; }
+.validated{ background:#0ea5e9; }
 .assigned{ background:#2563eb; }
+.confirmed{ background:#16a34a; }
 .enroute{ background:#d97706; }
 .in_progress{ background:#7c3aed; }
 .completed{ background:#16a34a; }
@@ -135,6 +138,54 @@ opacity:0.75;
 line-height:1.5;
 margin-top:10px;
 }
+
+.alert-popup{
+position:fixed;
+left:16px;
+right:16px;
+bottom:16px;
+background:#081735;
+border:2px solid #38e17c;
+border-radius:18px;
+padding:18px;
+z-index:9999;
+box-shadow:0 20px 50px rgba(0,0,0,0.45);
+display:none;
+}
+
+.alert-title{
+font-size:22px;
+font-weight:800;
+margin-bottom:8px;
+}
+
+.alert-text{
+line-height:1.6;
+opacity:0.95;
+}
+
+.alert-stage{
+display:inline-block;
+margin-top:10px;
+padding:6px 10px;
+border-radius:999px;
+background:#10295c;
+font-size:12px;
+font-weight:bold;
+text-transform:uppercase;
+}
+
+.alert-buttons{
+display:flex;
+flex-wrap:wrap;
+gap:10px;
+margin-top:16px;
+}
+
+@media (max-width: 700px){
+  h1{ font-size:28px; }
+  .alert-title{ font-size:20px; }
+}
 </style>
 </head>
 
@@ -146,7 +197,7 @@ margin-top:10px;
 
 <h1>🚖 Driver Dashboard</h1>
 <p class="sub">
-Load your driver profile, share your live location, and use one-tap navigation for pickup and dropoff.
+Load your driver profile, share live location, navigate scheduled rides, and receive ride alerts automatically.
 </p>
 
 <div class="card">
@@ -173,437 +224,35 @@ Load your driver profile, share your live location, and use one-tap navigation f
 <div id="map"></div>
 <div class="map-note" id="locationStatus">Location sharing not started.</div>
 <div class="small-note">
-Pickup and dropoff stay as normal addresses for users. Map routing uses hidden geocoded locations when available.
+Scheduled ride alerts will appear automatically when a trip is assigned or nearing pickup time.
 </div>
 </div>
 
+</div>
+
+<div class="alert-popup" id="alertPopup">
+  <div class="alert-title" id="alertTitle">Driver Alert</div>
+  <div class="alert-text" id="alertText"></div>
+  <div class="alert-stage" id="alertStageLabel">assigned</div>
+
+  <div class="alert-buttons">
+    <button class="accept" id="alertAcceptBtn" onclick="acceptAlertRide()">Accept Ride</button>
+    <button class="seen" onclick="markAlertSeen()">Mark Seen</button>
+  </div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 let currentTrip = null
 let currentDriver = null
+let currentAlert = null
 let map = null
 let driverMarker = null
 let pickupMarker = null
 let dropoffMarker = null
 let routeLine = null
 let watchId = null
+let audioContextUnlocked = false
 
 function setMessage(text){
-document.getElementById('message').innerText = text
-}
-
-function setLocationStatus(text){
-document.getElementById('locationStatus').innerText = text
-}
-
-function statusBadge(status){
-if(!status) status = 'requested'
-return `<span class="badge ${status}">${status.replace('_',' ')}</span>`
-}
-
-function initMap(){
-if(map) return
-
-map = L.map('map').setView([36.1627, -86.7816], 12)
-
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-maxZoom: 19,
-attribution: '&copy; OpenStreetMap'
-}).addTo(map)
-}
-
-function clearMapLayers(){
-if(driverMarker){
-map.removeLayer(driverMarker)
-driverMarker = null
-}
-if(pickupMarker){
-map.removeLayer(pickupMarker)
-pickupMarker = null
-}
-if(dropoffMarker){
-map.removeLayer(dropoffMarker)
-dropoffMarker = null
-}
-if(routeLine){
-map.removeLayer(routeLine)
-routeLine = null
-}
-}
-
-function updateDriverMarker(lat, lng){
-initMap()
-
-if(driverMarker){
-driverMarker.setLatLng([lat, lng])
-} else {
-driverMarker = L.marker([lat, lng]).addTo(map).bindPopup('Your live location')
-}
-}
-
-function drawRouteLine(points){
-if(routeLine){
-map.removeLayer(routeLine)
-}
-
-routeLine = L.polyline(points, {
-color: '#7c3aed',
-weight: 5,
-opacity: 0.85
-}).addTo(map)
-
-map.fitBounds(routeLine.getBounds(), { padding: [30, 30] })
-}
-
-function renderDriver(driver){
-const driverCard = document.getElementById('driverCard')
-
-if(!driver){
-driverCard.innerHTML = `<div class="empty">No driver loaded yet.</div>`
-return
-}
-
-driverCard.innerHTML = `
-<div class="trip-line"><b>Name:</b> ${driver.name || 'Unknown Driver'}</div>
-<div class="trip-line"><b>Email:</b> ${driver.email || 'Unknown'}</div>
-<div class="trip-line"><b>Phone:</b> ${driver.phone || 'Unknown'}</div>
-<div class="trip-line"><b>Vehicle:</b> ${driver.vehicle || 'Unknown'}</div>
-<div class="trip-line"><b>Status:</b> ${driver.status || 'pending'}</div>
-<div class="trip-line"><b>Online:</b> ${driver.online ? 'Yes' : 'No'}</div>
-<div class="trip-line"><b>Current Ride ID:</b> ${driver.currentRide || 'None'}</div>
-<div class="trip-line"><b>Driver ID:</b> ${driver.id || 'Unknown'}</div>
-`
-}
-
-function openGoogleDirections(lat, lng){
-window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`, '_blank')
-}
-
-function renderTrip(trip){
-const tripCard = document.getElementById('tripCard')
-
-if(!trip){
-tripCard.innerHTML = `<div class="empty">No assigned trip right now.</div>`
-return
-}
-
-currentTrip = trip
-
-let actionButtons = ''
-
-if(trip.status === 'assigned'){
-actionButtons += `<button class="accept" onclick="acceptTrip()">Accept Trip</button>`
-}
-
-if(trip.status === 'enroute'){
-actionButtons += `<button class="start" onclick="startTrip()">Start Trip</button>`
-}
-
-if(trip.status === 'in_progress'){
-actionButtons += `<button class="complete" onclick="completeTrip()">Complete Trip</button>`
-}
-
-if(trip.pickupGeo && typeof trip.pickupGeo.lat === 'number' && typeof trip.pickupGeo.lng === 'number'){
-actionButtons += `<button class="nav" onclick="openPickupNavigation()">Navigate to Pickup</button>`
-}
-
-if(trip.dropoffGeo && typeof trip.dropoffGeo.lat === 'number' && typeof trip.dropoffGeo.lng === 'number'){
-actionButtons += `<button class="nav" onclick="openDropoffNavigation()">Navigate to Dropoff</button>`
-}
-
-tripCard.innerHTML = `
-<div class="trip-line"><b>Ride ID:</b> ${trip.id}</div>
-<div class="trip-line"><b>Rider:</b> ${trip.rider || trip.name || 'Not provided'}</div>
-<div class="trip-line"><b>Phone:</b> ${trip.phone || 'Not provided'}</div>
-<div class="trip-line"><b>Pickup:</b> ${trip.pickup || 'Not provided'}</div>
-<div class="trip-line"><b>Dropoff:</b> ${trip.dropoff || 'Not provided'}</div>
-<div class="trip-line"><b>Status:</b> ${statusBadge(trip.status)}</div>
-<div class="trip-line"><b>Estimated Fare:</b> $${trip.fare?.total?.toFixed ? trip.fare.total.toFixed(2) : '0.00'}</div>
-<div class="trip-line"><b>Created:</b> ${trip.created || trip.createdAt || 'Not available'}</div>
-${actionButtons}
-`
-}
-
-function openPickupNavigation(){
-if(!currentTrip || !currentTrip.pickupGeo) return
-openGoogleDirections(currentTrip.pickupGeo.lat, currentTrip.pickupGeo.lng)
-}
-
-function openDropoffNavigation(){
-if(!currentTrip || !currentTrip.dropoffGeo) return
-openGoogleDirections(currentTrip.dropoffGeo.lat, currentTrip.dropoffGeo.lng)
-}
-
-async function loadDriverByEmail(){
-const email = document.getElementById('driverEmail').value.trim().toLowerCase()
-
-if(!email){
-setMessage('Enter your driver email first.')
-return
-}
-
-setMessage('Loading driver dashboard...')
-
-try{
-const res = await fetch('/api/drivers')
-const drivers = await res.json()
-
-const driver = drivers.find(d => (d.email || '').toLowerCase() === email)
-
-if(!driver){
-currentDriver = null
-currentTrip = null
-renderDriver(null)
-renderTrip(null)
-setMessage('No driver found for that email.')
-return
-}
-
-currentDriver = driver
-localStorage.setItem('harveyDriverEmail', email)
-renderDriver(driver)
-await loadTripForCurrentDriver()
-setMessage('Driver dashboard loaded.')
-}catch(err){
-setMessage('Could not load driver dashboard.')
-}
-}
-
-async function loadTripForCurrentDriver(){
-if(!currentDriver){
-renderTrip(null)
-return
-}
-
-try{
-const res = await fetch('/api/rides')
-const rides = await res.json()
-
-const trip = rides.find(r =>
-String(r.driverId) === String(currentDriver.id || '') &&
-r.status !== 'completed'
-) || null
-
-renderTrip(trip)
-updateTripMap(trip)
-}catch(err){
-setMessage('Could not load trip.')
-}
-}
-
-function updateTripMap(trip){
-initMap()
-clearMapLayers()
-
-let mapPoints = []
-
-if(currentDriver && currentDriver.location){
-const driverLat = Number(currentDriver.location.lat)
-const driverLng = Number(currentDriver.location.lng)
-
-if(!isNaN(driverLat) && !isNaN(driverLng)){
-updateDriverMarker(driverLat, driverLng)
-mapPoints.push([driverLat, driverLng])
-}
-}
-
-if(trip && trip.pickupGeo && typeof trip.pickupGeo.lat === 'number' && typeof trip.pickupGeo.lng === 'number'){
-pickupMarker = L.marker([trip.pickupGeo.lat, trip.pickupGeo.lng]).addTo(map).bindPopup(`Pickup: ${trip.pickup || 'Pickup'}`)
-mapPoints.push([trip.pickupGeo.lat, trip.pickupGeo.lng])
-}
-
-if(trip && trip.dropoffGeo && typeof trip.dropoffGeo.lat === 'number' && typeof trip.dropoffGeo.lng === 'number'){
-dropoffMarker = L.marker([trip.dropoffGeo.lat, trip.dropoffGeo.lng]).addTo(map).bindPopup(`Dropoff: ${trip.dropoff || 'Dropoff'}`)
-mapPoints.push([trip.dropoffGeo.lat, trip.dropoffGeo.lng])
-}
-
-if(mapPoints.length >= 2){
-drawRouteLine(mapPoints)
-setLocationStatus('Navigation route loaded.')
-} else if(mapPoints.length === 1){
-map.setView(mapPoints[0], 15)
-setLocationStatus('Live location updated.')
-} else {
-setLocationStatus('Map is waiting for live location or geocoded trip points.')
-}
-}
-
-async function acceptTrip(){
-if(!currentTrip){
-setMessage('No trip loaded.')
-return
-}
-
-try{
-await fetch('/api/driver-accept',{
-method:'POST',
-headers:{'Content-Type':'application/json'},
-body:JSON.stringify({ rideId: currentTrip.id, driverId: currentDriver.id })
-})
-
-setMessage('Trip accepted.')
-await refreshDashboard()
-}catch(err){
-setMessage('Could not accept trip.')
-}
-}
-
-async function startTrip(){
-if(!currentTrip){
-setMessage('No trip loaded.')
-return
-}
-
-try{
-await fetch('/api/start-trip',{
-method:'POST',
-headers:{'Content-Type':'application/json'},
-body:JSON.stringify({ rideId: currentTrip.id })
-})
-
-setMessage('Trip started.')
-await refreshDashboard()
-}catch(err){
-setMessage('Could not start trip.')
-}
-}
-
-async function completeTrip(){
-if(!currentTrip){
-setMessage('No trip loaded.')
-return
-}
-
-try{
-await fetch('/api/driver-complete',{
-method:'POST',
-headers:{'Content-Type':'application/json'},
-body:JSON.stringify({ rideId: currentTrip.id })
-})
-
-setMessage('Trip completed.')
-await refreshDashboard()
-}catch(err){
-setMessage('Could not complete trip.')
-}
-}
-
-async function sendDriverLocation(lat, lng){
-if(!currentDriver) return
-
-try{
-await fetch('/api/driver-location',{
-method:'POST',
-headers:{'Content-Type':'application/json'},
-body:JSON.stringify({
-driverId: currentDriver.id,
-lat,
-lng
-})
-})
-
-currentDriver.location = { lat, lng, updatedAt: new Date().toISOString() }
-updateTripMap(currentTrip)
-setLocationStatus(`Location shared at ${new Date().toLocaleTimeString()}`)
-}catch(err){
-setLocationStatus('Could not send live location.')
-}
-}
-
-function startLocationSharing(){
-if(!currentDriver){
-setMessage('Load driver dashboard first.')
-return
-}
-
-if(!navigator.geolocation){
-setLocationStatus('Geolocation is not supported on this device.')
-return
-}
-
-if(watchId){
-setLocationStatus('Location sharing is already active.')
-return
-}
-
-setLocationStatus('Starting live location sharing...')
-
-watchId = navigator.geolocation.watchPosition(
-(position) => {
-const lat = position.coords.latitude
-const lng = position.coords.longitude
-sendDriverLocation(lat, lng)
-},
-(error) => {
-setLocationStatus('Location permission denied or unavailable.')
-},
-{
-enableHighAccuracy: true,
-maximumAge: 5000,
-timeout: 10000
-}
-)
-}
-
-async function refreshDashboard(){
-if(!currentDriver || !currentDriver.email){
-return
-}
-
-document.getElementById('driverEmail').value = currentDriver.email
-
-try{
-const res = await fetch('/api/drivers')
-const drivers = await res.json()
-const updatedDriver = drivers.find(d => String(d.id) === String(currentDriver.id))
-
-if(updatedDriver){
-currentDriver = updatedDriver
-renderDriver(updatedDriver)
-await loadTripForCurrentDriver()
-}
-}catch(err){
-setMessage('Could not refresh dashboard.')
-}
-}
-
-function logoutDriver(){
-localStorage.removeItem('harveyDriverEmail')
-
-if(watchId){
-navigator.geolocation.clearWatch(watchId)
-watchId = null
-}
-
-currentDriver = null
-currentTrip = null
-document.getElementById('driverEmail').value = ''
-renderDriver(null)
-renderTrip(null)
-initMap()
-clearMapLayers()
-setMessage('Logged out.')
-setLocationStatus('Location sharing stopped.')
-}
-
-window.addEventListener('load', async () => {
-initMap()
-
-const savedEmail = localStorage.getItem('harveyDriverEmail')
-if(savedEmail){
-document.getElementById('driverEmail').value = savedEmail
-await loadDriverByEmail()
-}
-})
-
-setInterval(() => {
-if(currentDriver){
-refreshDashboard()
-}
-}, 5000)
-</script>
-
-</body>
-</html>
+document.getElementById('message
