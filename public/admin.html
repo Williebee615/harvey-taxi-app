@@ -1,119 +1,178 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Harvey Taxi Admin Panel</title>
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: Arial, Helvetica, sans-serif;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    body {
-      background: linear-gradient(180deg, #06112d 0%, #081735 45%, #091a3f 100%);
-      color: white;
-      min-height: 100vh;
-    }
+<title>Harvey Taxi Admin</title>
 
-    .topbar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      padding: 16px 18px;
-      background: rgba(8, 23, 53, 0.95);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-      position: sticky;
-      top: 0;
-      z-index: 20;
-    }
+<style>
+body{
+font-family:Arial;
+background:#021433;
+color:white;
+padding:20px;
+}
 
-    .topbar-left h1 {
-      font-size: 20px;
-      font-weight: 800;
-    }
+h1{
+margin-bottom:20px;
+}
 
-    .topbar-left p {
-      color: #b7c3df;
-      font-size: 13px;
-      margin-top: 4px;
-    }
+.card{
+background:#0b1f4a;
+padding:15px;
+border-radius:12px;
+margin-bottom:15px;
+box-shadow:0 0 10px rgba(0,0,0,0.4);
+}
 
-    .logout-btn {
-      border: none;
-      color: white;
-      cursor: pointer;
-      font-weight: 700;
-      border-radius: 12px;
-      padding: 10px 16px;
-      background: linear-gradient(90deg, #2962ff 0%, #7b2cff 100%);
-      box-shadow: 0 10px 25px rgba(57, 93, 255, 0.28);
-    }
+button{
+padding:10px;
+border:none;
+border-radius:8px;
+margin-top:6px;
+margin-right:6px;
+font-weight:bold;
+}
 
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 24px 18px 60px;
-    }
+.assign{ background:#3b82f6; color:white }
+.accept{ background:#10b981; color:white }
+.start{ background:#f59e0b; color:white }
+.complete{ background:#ef4444; color:white }
 
-    .hero {
-      margin-bottom: 28px;
-    }
+.status{
+font-size:12px;
+opacity:0.8;
+margin-top:5px;
+}
 
-    .hero h2 {
-      font-size: 42px;
-      font-weight: 800;
-      line-height: 1.08;
-      margin-bottom: 12px;
-    }
+</style>
+</head>
 
-    .hero p {
-      font-size: 18px;
-      color: #aab7d8;
-      line-height: 1.6;
-      max-width: 760px;
-    }
+<body>
 
-    .summary-grid {
-      display: grid;
-      grid-template-columns: repeat(9, 1fr);
-      gap: 16px;
-      margin-bottom: 30px;
-    }
+<h1>🚕 Harvey Taxi Admin</h1>
 
-    .summary-card {
-      background: rgba(18, 30, 58, 0.94);
-      border: 1px solid rgba(126, 155, 255, 0.16);
-      border-radius: 20px;
-      padding: 18px;
-      box-shadow: 0 16px 32px rgba(0, 0, 0, 0.2);
-    }
+<div id="rides"></div>
 
-    .summary-card h3 {
-      font-size: 11px;
-      color: #9eb0d9;
-      margin-bottom: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-    }
+<script>
 
-    .summary-card .number {
-      font-size: 24px;
-      font-weight: 800;
-    }
+async function loadRides(){
+const res = await fetch('/api/rides')
+const rides = await res.json()
 
-    .grid {
-      display: grid;
-      grid-template-columns: 1.2fr 1fr;
-      gap: 20px;
-    }
+const container = document.getElementById('rides')
+container.innerHTML = ''
 
-    .panel {
-      background: rgba(18, 30, 58, 0.94);
-      border: 1px solid rgba(126, 155, 255, 0.16);
-      border-radius: 24px;
-      padding: 22px;
-      box-shadow: 0 18px 38px rgba
+rides.reverse().forEach(ride=>{
+
+const div = document.createElement('div')
+div.className = 'card'
+
+div.innerHTML = `
+<b>Ride ID:</b> ${ride.id}<br>
+<b>Pickup:</b> ${ride.pickup}<br>
+<b>Dropoff:</b> ${ride.dropoff}<br>
+
+<div class="status">
+Status: ${ride.status}
+</div>
+`
+
+/* assign */
+if(ride.status === 'requested'){
+const btn = document.createElement('button')
+btn.className = 'assign'
+btn.innerText = 'Assign Driver'
+btn.onclick = ()=>assignDriver(ride.id)
+div.appendChild(btn)
+}
+
+/* accept */
+if(ride.status === 'assigned'){
+const btn = document.createElement('button')
+btn.className = 'accept'
+btn.innerText = 'Driver Accept'
+btn.onclick = ()=>driverAccept(ride.id)
+div.appendChild(btn)
+}
+
+/* start */
+if(ride.status === 'enroute'){
+const btn = document.createElement('button')
+btn.className = 'start'
+btn.innerText = 'Start Trip'
+btn.onclick = ()=>startTrip(ride.id)
+div.appendChild(btn)
+}
+
+/* complete */
+if(ride.status === 'in_progress'){
+const btn = document.createElement('button')
+btn.className = 'complete'
+btn.innerText = 'Complete Trip'
+btn.onclick = ()=>completeTrip(ride.id)
+div.appendChild(btn)
+}
+
+container.appendChild(div)
+
+})
+}
+
+/* assign driver */
+async function assignDriver(id){
+await fetch('/api/assign-driver',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({
+rideId:id,
+driverId:'driver1'
+})
+})
+loadRides()
+}
+
+/* accept */
+async function driverAccept(id){
+await fetch('/api/driver-accept',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({
+rideId:id
+})
+})
+loadRides()
+}
+
+/* start trip */
+async function startTrip(id){
+await fetch('/api/start-trip',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({
+rideId:id
+})
+})
+loadRides()
+}
+
+/* complete */
+async function completeTrip(id){
+await fetch('/api/complete-trip',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({
+rideId:id
+})
+})
+loadRides()
+}
+
+loadRides()
+setInterval(loadRides,3000)
+
+</script>
+
+</body>
+</html>
