@@ -1,4 +1,38 @@
-const express = require('express')
+app.post('/api/persona/driver', async (req, res) => {
+try {
+
+const { name, email } = req.body
+
+const response = await axios.post(
+'https://api.withpersona.com/api/v1/inquiries',
+{
+data: {
+attributes: {
+template_id: process.env.PERSONA_TEMPLATE_ID_DRIVER,
+reference_id: email,
+name_first: name
+}
+}
+},
+{
+headers: {
+Authorization: `Bearer ${process.env.PERSONA_API_KEY}`,
+'Content-Type': 'application/json'
+}
+}
+)
+
+const inquiry = response.data.data
+
+res.json({
+url: inquiry.attributes.inquiry_url
+})
+
+} catch (err) {
+console.log(err.response?.data || err.message)
+res.status(500).json({ error: 'Persona launch failed' })
+}
+})const express = require('express')
 const cors = require('cors')
 const fs = require('fs')
 const path = require('path')
