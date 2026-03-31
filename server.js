@@ -13,6 +13,7 @@ app.use(express.static(path.join(__dirname, 'public')))
 
 function defaultData() {
   return {
+    users: [],
     drivers: [],
     rides: [],
     company: {
@@ -35,6 +36,7 @@ function loadData() {
 
     const parsed = JSON.parse(raw)
 
+    if (!parsed.users) parsed.users = []
     if (!parsed.drivers) parsed.drivers = []
     if (!parsed.rides) parsed.rides = []
     if (!parsed.company) {
@@ -112,6 +114,7 @@ app.get('/api/company/stats', (req, res) => {
     totalRevenue: data.company.totalRevenue,
     totalCompletedRides: data.company.totalCompletedRides,
     totalDrivers: data.drivers.length,
+    totalUsers: data.users.length,
     totalRides: data.rides.length
   })
 })
@@ -137,30 +140,242 @@ app.get('/api/driver/wallet/:driverId', (req, res) => {
   })
 })
 
-app.post('/api/drivers/register', (req, res) => {
-  try {
-    const { id, name } = req.body
+app.get('/api/admin/drivers', (req, res) => {
+  const data = loadData()
+  res.json({
+    success: true,
+    drivers: data.drivers
+  })
+})
 
-    if (!id) {
+app.post('/api/rider/signup', (req, res) => {
+  try {
+    const { name, phone, email, password } = req.body
+
+    if (!name || !email || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Driver id is required'
+        message: 'name, email, and password are required'
       })
     }
 
     const data = loadData()
-    const driver = getOrCreateDriver(data, id, name || 'Auto Driver')
+
+    const existing = data.users.find(
+      u => u.email.toLowerCase() === email.toLowerCase()
+    )
+
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email already exists'
+      })
+    }
+
+    const user = {
+      id: 'rider_' + Date.now(),
+      name,
+      phone: phone || '',
+      email,
+      password,
+      role: 'rider',
+      createdAt: new Date().toISOString()
+    }
+
+    data.users.push(user)
     saveData(data)
 
     res.json({
       success: true,
+      user
+    })
+  } catch (error) {
+    console.error('rider signup error:', error.message)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create rider account'
+    })
+  }
+})
+
+app.post('/api/driver/signup', (req, res) => {
+  try {
+    const { name, phone, email, password, vehicle, plate } = req.body
+
+    if (!name || !email || !password || !vehicle) {
+      return res.status(400).json({
+        success: false,
+        message: 'name, email, password, and vehicle are required'
+      })
+    }
+
+    const data = loadData()
+
+    const existing = data.users.find(
+      u => u.email.toLowerCase() === email.toLowerCase()
+    )
+
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email already exists'
+      })
+    }
+
+    const userId = 'driver_' + Date.now()
+
+    const user = {
+      id: userId,
+      name,
+      phone: phone || '',
+      email,
+      password,
+      role: 'driver',
+      approvalStatus: 'pending',
+      createdAt: new Date().toISOString()
+    }
+
+    const driver = {
+      id: userId,
+      name,
+      phone: phone || '',
+      email,
+      vehicle,
+      plate: plate || '',
+      wallet: 0,
+      totalTrips: 0,
+      totalEarnings: 0,
+      status: 'pending'
+    }
+
+    data.users.push(user)
+    data.drivers.push(driver)
+    saveData(data)
+
+    res.json({
+      success: true,
+      message: 'Driver signup submitted. Waiting for admin approval.',
+      user,
       driver
     })
   } catch (error) {
-    console.error('register driver error:', error.message)
+    console.error('driver signup error:', error.message)
     res.status(500).json({
       success: false,
-      message: 'Failed to register driver'
+      message: 'Failed to create driver account'
+    })
+  }
+})
+
+app.post('/api/login', (req, res) => {
+  try {
+    const { email, password } = req.body
+    const data = loadData()
+
+    const user = data.users.find(
+      u =>
+        u.email.toLowerCase() === String(email).toLowerCase() &&
+        u.password === password
+    )
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password'
+      })
+    }
+
+    if (user.role === 'driver' && user.approvalStatus !== 'approved') {
+      return res.status(403).json({
+        success: false,
+        message: 'Driver account is pending approval'
+      })
+    }
+
+    res.json({
+      success: true,
+      user
+    })
+  } catch (error) {
+    console.error('login error:', error.message)
+    res.status(500).json({
+      success: false,
+      message: 'Login failed'
+    })
+  }
+})
+
+app.post('/api/admin/create', (req, res) => {
+  try {
+    const { name, email, password } = req.body
+    const data = loadData()
+
+    const existing = data.users.find(
+      u => u.email.toLowerCase() === String(email).toLowerCase()
+    )
+
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        message: 'Admin already exists'
+      })
+    }
+
+    const admin = {
+      id: 'admin_' + Date.now(),
+      name: name || 'Admin',
+      email,
+      password,
+      role: 'admin',
+      createdAt: new Date().toISOString()
+    }
+
+    data.users.push(admin)
+    saveData(data)
+
+    res.json({
+      success: true,
+      admin
+    })
+  } catch (error) {
+    console.error('admin create error:', error.message)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create admin'
+    })
+  }
+})
+
+app.post('/api/admin/approve-driver', (req, res) => {
+  try {
+    const { driverId } = req.body
+    const data = loadData()
+
+    const driver = data.drivers.find(d => d.id === driverId)
+    const user = data.users.find(u => u.id === driverId && u.role === 'driver')
+
+    if (!driver || !user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Driver not found'
+      })
+    }
+
+    driver.status = 'active'
+    user.approvalStatus = 'approved'
+
+    saveData(data)
+
+    res.json({
+      success: true,
+      message: 'Driver approved successfully',
+      driver
+    })
+  } catch (error) {
+    console.error('approve driver error:', error.message)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to approve driver'
     })
   }
 })
