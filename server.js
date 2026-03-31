@@ -72,16 +72,33 @@ function canAutoDispatchDriver(driver) {
   )
 }
 
-function calculateFare(distance) {
+function getSurgeMultiplier(data) {
+  const activeTrips = data.rides.filter(ride =>
+    ride.status === 'requested' ||
+    ride.status === 'assigned' ||
+    ride.status === 'enroute' ||
+    ride.status === 'in_progress'
+  ).length
+
+  if (activeTrips >= 5) return 1.5
+  if (activeTrips >= 3) return 1.25
+  return 1.0
+}
+
+function calculateFare(distance, surgeMultiplier = 1) {
   const rawSubtotal = FARE_CONFIG.baseFare + distance * FARE_CONFIG.perMile
-  const subtotal = Math.max(rawSubtotal, FARE_CONFIG.minimumFare)
-  const total = subtotal + FARE_CONFIG.bookingFee
+  const minimumAdjustedSubtotal = Math.max(rawSubtotal, FARE_CONFIG.minimumFare)
+  const surgedSubtotal = minimumAdjustedSubtotal * surgeMultiplier
+  const total = surgedSubtotal + FARE_CONFIG.bookingFee
 
   return {
     baseFare: Number(FARE_CONFIG.baseFare.toFixed(2)),
     perMile: Number(FARE_CONFIG.perMile.toFixed(2)),
     distanceMiles: Number(distance.toFixed(2)),
-    subtotal: Number(subtotal.toFixed(2)),
+    subtotalBeforeSurge: Number(minimumAdjustedSubtotal.toFixed(2)),
+    surgeMultiplier: Number(surgeMultiplier.toFixed(2)),
+    surgeAmount: Number((surgedSubtotal - minimumAdjustedSubtotal).toFixed(2)),
+    subtotal: Number(surgedSubtotal.toFixed(2)),
     bookingFee: Number(FARE_CONFIG.bookingFee.toFixed(2)),
     total: Number(total.toFixed(2)),
     minimumFareApplied: rawSubtotal < FARE_CONFIG.minimumFare
@@ -245,7 +262,7 @@ app.post('/api/request-ride', async (req, res) => {
     const dropoffGeo = await geocodeAddress(dropoffInput)
 
     let tripDistance = 0
-    let fare = calculateFare(0)
+    const surgeMultiplier = getSurgeMultiplier(data)
 
     if (pickupGeo && dropoffGeo) {
       tripDistance = distanceMiles(
@@ -254,8 +271,9 @@ app.post('/api/request-ride', async (req, res) => {
         dropoffGeo.lat,
         dropoffGeo.lng
       )
-      fare = calculateFare(tripDistance)
     }
+
+    const fare = calculateFare(tripDistance, surgeMultiplier)
 
     const ride = {
       id: Date.now().toString(),
@@ -329,140 +347,4 @@ app.get('/api/rides', (req, res) => {
 app.get('/api/drivers', (req, res) => {
   const data = readData()
   res.json(data.drivers)
-})
-
-app.get('/api/riders', (req, res) => {
-  const data = readData()
-  res.json(data.riders)
-})
-
-app.post('/api/approve-driver', (req, res) => {
-  const { id } = req.body || {}
-  const data = readData()
-
-  const driver = data.drivers.find(d => String(d.id) === String(id))
-
-  if (!driver) {
-    return res.status(404).json({ error: 'Driver not found' })
-  }
-
-  driver.approved = true
-  driver.status = 'approved'
-
-  writeData(data)
-  res.json({ success: true, driver })
-})
-
-app.post('/api/reject-driver', (req, res) => {
-  const { id } = req.body || {}
-  const data = readData()
-
-  const driver = data.drivers.find(d => String(d.id) === String(id))
-
-  if (!driver) {
-    return res.status(404).json({ error: 'Driver not found' })
-  }
-
-  driver.approved = false
-  driver.status = 'rejected'
-  driver.online = false
-
-  writeData(data)
-  res.json({ success: true, driver })
-})
-
-app.post('/api/toggle-driver-online', (req, res) => {
-  const { driverId } = req.body || {}
-  const data = readData()
-
-  const driver = data.drivers.find(d => String(d.id) === String(driverId))
-
-  if (!driver) {
-    return res.status(404).json({ error: 'Driver not found' })
-  }
-
-  if (!driver.approved && driver.status !== 'approved') {
-    return res.status(400).json({ error: 'Driver must be approved first' })
-  }
-
-  driver.online = !driver.online
-
-  writeData(data)
-  res.json({ success: true, driver })
-})
-
-app.post('/api/assign-driver', (req, res) => {
-  const { rideId, driverId } = req.body || {}
-  const data = readData()
-
-  const ride = data.rides.find(r => String(r.id) === String(rideId))
-  const driver = data.drivers.find(d => String(d.id) === String(driverId))
-
-  if (!ride) return res.status(404).json({ error: 'Ride not found' })
-  if (!driver) return res.status(404).json({ error: 'Driver not found' })
-
-  ride.driverId = driverId
-  ride.assignedDriverName = driver.name || 'Driver'
-  ride.status = 'assigned'
-
-  driver.currentRide = rideId
-  driver.online = false
-
-  writeData(data)
-  res.json({ success: true, ride })
-})
-
-app.post('/api/driver-accept', (req, res) => {
-  const { rideId } = req.body || {}
-  const data = readData()
-
-  const ride = data.rides.find(r => String(r.id) === String(rideId))
-
-  if (!ride) return res.status(404).json({ error: 'Ride not found' })
-
-  ride.status = 'enroute'
-  ride.acceptedAt = new Date().toISOString()
-
-  writeData(data)
-  res.json({ success: true, ride })
-})
-
-app.post('/api/start-trip', (req, res) => {
-  const { rideId } = req.body || {}
-  const data = readData()
-
-  const ride = data.rides.find(r => String(r.id) === String(rideId))
-
-  if (!ride) return res.status(404).json({ error: 'Ride not found' })
-
-  ride.status = 'in_progress'
-  ride.startedAt = new Date().toISOString()
-
-  writeData(data)
-  res.json({ success: true, ride })
-})
-
-app.post('/api/driver-complete', (req, res) => {
-  const { rideId } = req.body || {}
-  const data = readData()
-
-  const ride = data.rides.find(r => String(r.id) === String(rideId))
-
-  if (!ride) return res.status(404).json({ error: 'Ride not found' })
-
-  ride.status = 'completed'
-  ride.completedAt = new Date().toISOString()
-
-  const driver = data.drivers.find(d => String(d.id) === String(ride.driverId))
-  if (driver) {
-    driver.currentRide = null
-    driver.online = true
-  }
-
-  writeData(data)
-  res.json({ success: true, ride })
-})
-
-app.listen(PORT, () => {
-  console.log('Server running on port', PORT)
 })
