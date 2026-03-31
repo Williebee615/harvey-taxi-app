@@ -1,362 +1,258 @@
-require('dotenv').config()
-
 const express = require('express')
 const cors = require('cors')
-const fs = require('fs')
 const path = require('path')
+const fs = require('fs')
 const axios = require('axios')
 
 const app = express()
 const PORT = process.env.PORT || 10000
-const DATA_FILE = path.join(__dirname, 'data.json')
-const PUBLIC_DIR = path.join(__dirname, 'public')
 
 app.use(cors())
-app.use(express.json({ limit: '2mb' }))
-app.use(express.urlencoded({ extended: true }))
-app.use(express.static(PUBLIC_DIR))
+app.use(express.json())
+app.use(express.static(path.join(__dirname, 'public')))
 
-function defaultData() {
-  return {
-    users: [],
-    drivers: [],
-    rides: [],
-    company: {
-      totalRevenue: 0,
-      totalCompletedRides: 0
-    }
-  }
+const DATA_FILE = path.join(__dirname, 'data.json')
+
+function readData() {
+if (!fs.existsSync(DATA_FILE)) {
+fs.writeFileSync(DATA_FILE, JSON.stringify({
+drivers: [],
+riders: [],
+rides: []
+}, null, 2))
+}
+return JSON.parse(fs.readFileSync(DATA_FILE))
 }
 
-function loadData() {
-  try {
-    if (!fs.existsSync(DATA_FILE)) {
-      const fresh = defaultData()
-      fs.writeFileSync(DATA_FILE, JSON.stringify(fresh, null, 2))
-      return fresh
-    }
-
-    const raw = fs.readFileSync(DATA_FILE, 'utf8')
-    if (!raw.trim()) return defaultData()
-
-    const parsed = JSON.parse(raw)
-
-    if (!Array.isArray(parsed.users)) parsed.users = []
-    if (!Array.isArray(parsed.drivers)) parsed.drivers = []
-    if (!Array.isArray(parsed.rides)) parsed.rides = []
-    if (!parsed.company) {
-      parsed.company = {
-        totalRevenue: 0,
-        totalCompletedRides: 0
-      }
-    }
-
-    return parsed
-  } catch (error) {
-    console.error('loadData error:', error.message)
-    return defaultData()
-  }
+function writeData(data) {
+fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2))
 }
 
-function saveData(data) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2))
-}
-
-function normalizeEmail(email) {
-  return String(email || '').trim().toLowerCase()
-}
-
-function generateId(prefix = 'id') {
-  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-}
-
-function sanitizeUser(user) {
-  if (!user) return null
-  const clean = { ...user }
-  delete clean.password
-  return clean
-}
-
-function findUserByEmail(data, email) {
-  return data.users.find(u => normalizeEmail(u.email) === normalizeEmail(email))
-}
-
-function findUserById(data, id) {
-  return data.users.find(u => u.id === id)
-}
-
-function findDriverById(data, id) {
-  return data.drivers.find(d => d.id === id)
-}
-
-function getBaseUrl() {
-  return process.env.BASE_URL || `http://localhost:${PORT}`
-}
-
-async function createPersonaInquiry({ templateId, referenceId }) {
-  const response = await axios.post(
-    'https://withpersona.com/api/v1/inquiries',
-    {
-      data: {
-        type: 'inquiry',
-        attributes: {
-          inquiry_template_id: templateId,
-          reference_id: referenceId,
-          redirect_uri: `${getBaseUrl()}/login.html`
-        }
-      }
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${process.env.PERSONA_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      timeout: 30000
-    }
-  )
-
-  const inquiry = response.data?.data
-  return {
-    inquiryId: inquiry?.id || '',
-    inquiryUrl:
-      inquiry?.attributes?.inquiry_link ||
-      inquiry?.attributes?.expired_inquiry_link ||
-      ''
-  }
-}
-
-function ensureAdmin(data) {
-  let admin = data.users.find(u => u.role === 'admin')
-
-  if (!admin) {
-    admin = {
-      id: 'admin_1',
-      name: 'Admin',
-      email: process.env.ADMIN_EMAIL || 'admin@harveytaxiservice.com',
-      password: process.env.ADMIN_PASSWORD || '123456',
-      role: 'admin',
-      createdAt: new Date().toISOString()
-    }
-    data.users.push(admin)
-    saveData(data)
-  }
-
-  return admin
-}
-
-app.get('/health', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Harvey Taxi server is running'
-  })
+app.get('/', (req, res) => {
+res.sendFile(path.join(__dirname, 'public/index.html'))
 })
 
-app.post('/api/setup-admin', (req, res) => {
-  try {
-    const data = loadData()
-    const admin = ensureAdmin(data)
-
-    res.json({
-      success: true,
-      admin: sanitizeUser(admin)
-    })
-  } catch (error) {
-    console.error('setup-admin error:', error.message)
-    res.status(500).json({
-      success: false,
-      message: 'Failed to set up admin'
-    })
-  }
-})
-
-app.post('/api/rider/signup', async (req, res) => {
-  try {
-    const { name, phone, email, password } = req.body
-
-    if (!name || !email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'name, email, and password are required'
-      })
-    }
-
-    const data = loadData()
-
-    if (findUserByEmail(data, email)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email already exists'
-      })
-    }
-
-    const userId = generateId('rider')
-
-    const user = {
-      id: userId,
-      name,
-      phone: phone || '',
-      email,
-      password,
-      role: 'rider',
-      verificationStatus: 'persona_pending',
-      personaInquiryId: '',
-      personaInquiryUrl: '',
-      createdAt: new Date().toISOString()
-    }
-
-    data.users.push(user)
-    saveData(data)
-
-    try {
-      const persona = await createPersonaInquiry({
-        templateId: process.env.PERSONA_TEMPLATE_ID_RIDER,
-        referenceId: userId
-      })
-
-      user.personaInquiryId = persona.inquiryId
-      user.personaInquiryUrl = persona.inquiryUrl
-      saveData(data)
-    } catch (personaError) {
-      console.error('rider persona error:', personaError.response?.data || personaError.message)
-    }
-
-    res.json({
-      success: true,
-      message: 'Rider account created',
-      user: sanitizeUser(user)
-    })
-  } catch (error) {
-    console.error('rider signup error:', error.message)
-    res.status(500).json({
-      success: false,
-      message: 'Failed to create rider account'
-    })
-  }
-})
+/* ===============================
+DRIVER SIGNUP
+=============================== */
 
 app.post('/api/driver/signup', async (req, res) => {
-  try {
-    const { name, phone, email, password, vehicle, plate } = req.body
+try {
 
-    if (!name || !email || !password || !vehicle) {
-      return res.status(400).json({
-        success: false,
-        message: 'name, email, password, and vehicle are required'
-      })
-    }
+const data = readData()
 
-    const data = loadData()
+const driver = {
+id: Date.now().toString(),
+name: req.body.name,
+email: req.body.email,
+phone: req.body.phone,
+vehicle: req.body.vehicle,
+status: "pending",
+persona_status: "pending",
+checkr_status: "pending"
+}
 
-    if (findUserByEmail(data, email)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email already exists'
-      })
-    }
+data.drivers.push(driver)
+writeData(data)
 
-    const userId = generateId('driver')
+const inquiry = await axios.post(
+'https://api.withpersona.com/api/v1/inquiries',
+{
+data: {
+attributes: {
+inquiry_template_id: process.env.PERSONA_TEMPLATE_ID_DRIVER,
+reference_id: driver.id
+}
+}
+},
+{
+headers: {
+Authorization: `Bearer ${process.env.PERSONA_API_KEY}`,
+'Content-Type': 'application/json'
+}
+}
+)
 
-    const user = {
-      id: userId,
-      name,
-      phone: phone || '',
-      email,
-      password,
-      role: 'driver',
-      approvalStatus: 'pending',
-      personaStatus: 'pending',
-      checkrStatus: 'pending',
-      personaInquiryId: '',
-      personaInquiryUrl: '',
-      checkrInvitationUrl: '',
-      createdAt: new Date().toISOString()
-    }
-
-    const driver = {
-      id: userId,
-      name,
-      phone: phone || '',
-      email,
-      vehicle,
-      plate: plate || '',
-      wallet: 0,
-      totalTrips: 0,
-      totalEarnings: 0,
-      status: 'pending'
-    }
-
-    data.users.push(user)
-    data.drivers.push(driver)
-    saveData(data)
-
-    try {
-      const persona = await createPersonaInquiry({
-        templateId: process.env.PERSONA_TEMPLATE_ID_DRIVER,
-        referenceId: userId
-      })
-
-      user.personaInquiryId = persona.inquiryId
-      user.personaInquiryUrl = persona.inquiryUrl
-      saveData(data)
-    } catch (personaError) {
-      console.error('driver persona error:', personaError.response?.data || personaError.message)
-    }
-
-    res.json({
-      success: true,
-      message: 'Driver application submitted',
-      user: sanitizeUser(user)
-    })
-  } catch (error) {
-    console.error('driver signup error:', error.message)
-    res.status(500).json({
-      success: false,
-      message: 'Failed to create driver account'
-    })
-  }
+res.json({
+success: true,
+driver,
+persona_url: inquiry.data.data.attributes.inquiry_url
 })
 
-app.post('/api/login', (req, res) => {
-  try {
-    const { email, password } = req.body
-    const data = loadData()
+} catch (err) {
+console.log(err)
+res.status(500).json({ error: 'Driver signup failed' })
+}
+})
 
-    ensureAdmin(data)
+/* ===============================
+RIDER SIGNUP
+=============================== */
 
-    const user = data.users.find(
-      u => normalizeEmail(u.email) === normalizeEmail(email) && u.password === password
-    )
+app.post('/api/rider/signup', async (req, res) => {
+try {
 
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid email or password'
-      })
-    }
+const data = readData()
 
-    if (user.role === 'rider' && user.verificationStatus !== 'persona_passed') {
-      return res.status(403).json({
-        success: false,
-        message: 'Rider must complete Persona verification first'
-      })
-    }
+const rider = {
+id: Date.now().toString(),
+name: req.body.name,
+email: req.body.email,
+phone: req.body.phone,
+status: "active"
+}
 
-    if (user.role === 'driver') {
-      if (user.personaStatus !== 'passed') {
-        return res.status(403).json({
-          success: false,
-          message: 'Driver must complete Persona verification first'
-        })
-      }
+data.riders.push(rider)
+writeData(data)
 
-      if (user.checkrStatus !== 'clear') {
-        return res.status(403).json({
-          success: false,
-          message: 'Driver background check has not cleared yet'
-        })
-      }
+const inquiry = await axios.post(
+'https://api.withpersona.com/api/v1/inquiries',
+{
+data: {
+attributes: {
+inquiry_template_id: process.env.PERSONA_TEMPLATE_ID_RIDER,
+reference_id: rider.id
+}
+}
+},
+{
+headers: {
+Authorization: `Bearer ${process.env.PERSONA_API_KEY}`,
+'Content-Type': 'application/json'
+}
+}
+)
 
-      if (user.approvalStatus !== 'approved') {
-        return res.status(403).json({
-          success: false,
-          message: 'Driver
+res.json({
+success: true,
+rider,
+persona_url: inquiry.data.data.attributes.inquiry_url
+})
+
+} catch (err) {
+console.log(err)
+res.status(500).json({ error: 'Rider signup failed' })
+}
+})
+
+/* ===============================
+PERSONA WEBHOOK
+=============================== */
+
+app.post('/webhook/persona', (req, res) => {
+
+const event = req.body
+const data = readData()
+
+if (event.data?.attributes?.status === "completed") {
+
+const reference = event.data.attributes.reference_id
+
+const driver = data.drivers.find(d => d.id === reference)
+
+if (driver) {
+driver.persona_status = "approved"
+driver.status = "approved"
+}
+
+writeData(data)
+}
+
+res.sendStatus(200)
+})
+
+/* ===============================
+CHECKR WEBHOOK
+=============================== */
+
+app.post('/webhook/checkr', (req, res) => {
+
+const event = req.body
+const data = readData()
+
+if (event.type === "report.completed") {
+
+const candidateId = event.data.object.candidate_id
+
+const driver = data.drivers.find(d => d.checkr_candidate_id === candidateId)
+
+if (driver) {
+driver.checkr_status = "approved"
+driver.status = "approved"
+}
+
+writeData(data)
+}
+
+res.sendStatus(200)
+})
+
+/* ===============================
+GET DRIVERS
+=============================== */
+
+app.get('/api/drivers', (req, res) => {
+const data = readData()
+res.json(data.drivers)
+})
+
+/* ===============================
+GET RIDERS
+=============================== */
+
+app.get('/api/riders', (req, res) => {
+const data = readData()
+res.json(data.riders)
+})
+
+/* ===============================
+REQUEST RIDE
+=============================== */
+
+app.post('/api/request-ride', (req, res) => {
+
+const data = readData()
+
+const ride = {
+id: Date.now().toString(),
+pickup: req.body.pickup,
+dropoff: req.body.dropoff,
+rider: req.body.rider,
+status: "searching",
+created: new Date()
+}
+
+data.rides.push(ride)
+writeData(data)
+
+res.json({ success: true, ride })
+})
+
+/* ===============================
+GET RIDES
+=============================== */
+
+app.get('/api/rides', (req, res) => {
+const data = readData()
+res.json(data.rides)
+})
+
+/* ===============================
+STATIC FALLBACK
+=============================== */
+
+app.get('/:page', (req, res) => {
+
+const file = path.join(__dirname, 'public', req.params.page)
+
+if (fs.existsSync(file)) {
+res.sendFile(file)
+} else {
+res.sendFile(path.join(__dirname, 'public/index.html'))
+}
+
+})
+
+app.listen(PORT, () => {
+console.log("Harvey Taxi Autonomous Server Running")
+})
