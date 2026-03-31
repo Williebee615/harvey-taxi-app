@@ -1,39 +1,341 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin Dashboard</title>
-</head>
-<body>
-  <h2>Admin Dashboard</h2>
-
-  <p>Total Company Revenue: $<span id="revenue">0</span></p>
-  <p>Total Completed Rides: <span id="completed">0</span></p>
-  <p>Total Drivers: <span id="drivers">0</span></p>
-  <p>Total Ride Records: <span id="ridesCount">0</span></p>
-
-  <button onclick="loadStats()">Refresh Stats</button>
-
-  <h3>Ride History</h3>
-  <pre id="history"></pre>
-
-  <script>
-    async function loadStats() {
-      const statsRes = await fetch('/api/company/stats')
-      const stats = await statsRes.json()
-
-      document.getElementById('revenue').innerText = stats.totalRevenue || 0
-      document.getElementById('completed').innerText = stats.totalCompletedRides || 0
-      document.getElementById('drivers').innerText = stats.totalDrivers || 0
-      document.getElementById('ridesCount').innerText = stats.totalRides || 0
-
-      const ridesRes = await fetch('/api/rides')
-      const ridesData = await ridesRes.json()
-
-      document.getElementById('history').innerText =
-        JSON.stringify(ridesData.rides || [], null, 2)
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #03163a;
+      color: white;
+      margin: 0;
+      padding: 20px;
     }
 
-    loadStats()
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: #0a1f4f;
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 18px;
+      box-shadow: 0 0 18px rgba(0,0,0,0.28);
+    }
+
+    h1, h2 {
+      margin-top: 0;
+    }
+
+    .sub {
+      color: #c8d3f2;
+      line-height: 1.6;
+      margin-bottom: 18px;
+    }
+
+    button, select {
+      border: none;
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    button {
+      cursor: pointer;
+      color: white;
+      margin-right: 8px;
+      margin-top: 8px;
+    }
+
+    .refresh { background: #3b82f6; }
+    .assign { background: #22c55e; }
+    .auto { background: #a855f7; }
+    .logout { background: #64748b; }
+
+    .status-text {
+      margin-top: 10px;
+      color: #c8d3f2;
+      line-height: 1.6;
+    }
+
+    .ride-card, .driver-card {
+      background: #10295c;
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+
+    .line {
+      margin-bottom: 8px;
+      line-height: 1.6;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+
+    .requested { background: #475569; }
+    .assigned { background: #2563eb; }
+    .accepted { background: #7c3aed; }
+    .enroute { background: #f59e0b; color: #111827; }
+    .completed { background: #22c55e; color: #052e16; }
+
+    .online { background: #22c55e; color: #052e16; }
+    .offline { background: #64748b; }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1.3fr 1fr;
+      gap: 18px;
+    }
+
+    .top-link {
+      display: inline-block;
+      color: #c8d3f2;
+      text-decoration: none;
+      margin-bottom: 14px;
+    }
+
+    .empty {
+      color: #c8d3f2;
+      line-height: 1.6;
+    }
+
+    .assign-row {
+      margin-top: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .assign-row select {
+      background: white;
+      color: #111827;
+      min-width: 220px;
+    }
+
+    @media (max-width: 900px) {
+      .row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a class="top-link" href="/">← Back to Home</a>
+
+    <div class="card">
+      <h1>Admin Dispatch Dashboard</h1>
+      <div class="sub">
+        View open rides, view drivers, assign drivers manually, or auto-dispatch a ride to the first online driver.
+      </div>
+
+      <button class="refresh" onclick="refreshAll()">Refresh Dashboard</button>
+      <button class="logout" onclick="logoutAdmin()">Logout</button>
+      <div id="message" class="status-text"></div>
+    </div>
+
+    <div class="row">
+      <div class="card">
+        <h2>Open Rides</h2>
+        <div id="ridesList" class="empty">Loading rides...</div>
+      </div>
+
+      <div class="card">
+        <h2>Drivers</h2>
+        <div id="driversList" class="empty">Loading drivers...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let rides = []
+    let drivers = []
+
+    function setMessage(text) {
+      document.getElementById('message').innerText = text
+    }
+
+    function statusBadge(status) {
+      const safe = status || 'requested'
+      return `<span class="badge ${safe}">${safe}</span>`
+    }
+
+    function onlineBadge(online) {
+      return online
+        ? `<span class="badge online">online</span>`
+        : `<span class="badge offline">offline</span>`
+    }
+
+    function logoutAdmin() {
+      localStorage.removeItem('harveyAdminEmail')
+      localStorage.removeItem('harveyAdminLoggedIn')
+      window.location.href = '/admin.html'
+    }
+
+    async function loadRides() {
+      const res = await fetch('/api/rides')
+      rides = await res.json()
+      renderRides()
+    }
+
+    async function loadDrivers() {
+      const res = await fetch('/api/drivers')
+      drivers = await res.json()
+      renderDrivers()
+    }
+
+    function availableDrivers() {
+      return drivers.filter(d => d.online === true)
+    }
+
+    function renderDrivers() {
+      const box = document.getElementById('driversList')
+
+      if (!drivers.length) {
+        box.innerHTML = '<div class="empty">No drivers yet.</div>'
+        return
+      }
+
+      box.innerHTML = drivers.map(driver => `
+        <div class="driver-card">
+          <div class="line"><b>Name:</b> ${driver.name || 'N/A'}</div>
+          <div class="line"><b>Email:</b> ${driver.email || 'N/A'}</div>
+          <div class="line"><b>Phone:</b> ${driver.phone || 'N/A'}</div>
+          <div class="line"><b>Vehicle:</b> ${driver.vehicle || 'N/A'}</div>
+          <div class="line"><b>Status:</b> ${onlineBadge(driver.online)}</div>
+          <div class="line"><b>Current Ride:</b> ${driver.currentRide || 'None'}</div>
+        </div>
+      `).join('')
+    }
+
+    function driverSelectOptions(selectedDriverId = '') {
+      const options = availableDrivers()
+
+      if (!options.length) {
+        return `<option value="">No online drivers</option>`
+      }
+
+      return `
+        <option value="">Choose driver</option>
+        ${options.map(driver => `
+          <option value="${driver.id}" ${String(driver.id) === String(selectedDriverId) ? 'selected' : ''}>
+            ${driver.name || 'Unnamed Driver'}${driver.vehicle ? ' - ' + driver.vehicle : ''}
+          </option>
+        `).join('')}
+      `
+    }
+
+    function renderRides() {
+      const box = document.getElementById('ridesList')
+      const openRides = rides.filter(r => r.status !== 'completed')
+
+      if (!openRides.length) {
+        box.innerHTML = '<div class="empty">No open rides right now.</div>'
+        return
+      }
+
+      box.innerHTML = openRides.map(ride => `
+        <div class="ride-card">
+          <div class="line"><b>Ride ID:</b> ${ride.id}</div>
+          <div class="line"><b>Rider:</b> ${ride.name || ride.rider || 'N/A'}</div>
+          <div class="line"><b>Phone:</b> ${ride.phone || 'N/A'}</div>
+          <div class="line"><b>Pickup:</b> ${ride.pickup || 'N/A'}</div>
+          <div class="line"><b>Dropoff:</b> ${ride.dropoff || 'N/A'}</div>
+          <div class="line"><b>Status:</b> ${statusBadge(ride.status)}</div>
+          <div class="line"><b>Assigned Driver:</b> ${ride.driverName || 'None'}</div>
+
+          <div class="assign-row">
+            <select id="driver-select-${ride.id}">
+              ${driverSelectOptions(ride.driverId)}
+            </select>
+
+            <button class="assign" onclick="assignDriver('${ride.id}')">Assign Driver</button>
+            <button class="auto" onclick="autoDispatch('${ride.id}')">Auto Dispatch</button>
+          </div>
+        </div>
+      `).join('')
+    }
+
+    async function assignDriver(rideId) {
+      const select = document.getElementById(`driver-select-${rideId}`)
+      const driverId = select.value
+
+      if (!driverId) {
+        setMessage('Choose a driver first.')
+        return
+      }
+
+      try {
+        const res = await fetch('/api/assign-driver', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rideId, driverId })
+        })
+
+        const data = await res.json()
+
+        if (data.success) {
+          setMessage('Driver assigned successfully.')
+          await refreshAll()
+        } else {
+          setMessage(data.message || 'Could not assign driver.')
+        }
+      } catch (err) {
+        setMessage('Server error assigning driver.')
+      }
+    }
+
+    async function autoDispatch(rideId) {
+      try {
+        const res = await fetch('/api/auto-dispatch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rideId })
+        })
+
+        const data = await res.json()
+
+        if (data.matched) {
+          setMessage('Ride auto-dispatched.')
+          await refreshAll()
+        } else {
+          setMessage(data.message || 'No online driver available.')
+        }
+      } catch (err) {
+        setMessage('Server error auto-dispatching ride.')
+      }
+    }
+
+    async function refreshAll() {
+      try {
+        setMessage('Refreshing dashboard...')
+        await loadDrivers()
+        await loadRides()
+        setMessage('Dashboard updated.')
+      } catch (err) {
+        setMessage('Could not refresh dashboard.')
+      }
+    }
+
+    window.addEventListener('load', async () => {
+      await refreshAll()
+    })
+
+    setInterval(async () => {
+      await refreshAll()
+    }, 5000)
   </script>
 </body>
 </html>
