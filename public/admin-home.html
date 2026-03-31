@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Admin Home</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="app-header">
+      <div class="app-title">Admin Home</div>
+      <div class="app-subtitle">Approve drivers after Persona and Checkr clear</div>
+    </div>
+
+    <div class="card">
+      <button class="button secondary" onclick="loadDrivers()">Refresh Drivers</button>
+      <div id="drivers" class="top-space"></div>
+    </div>
+  </div>
+
+  <script>
+    async function loadDrivers() {
+      const res = await fetch('/api/admin/drivers')
+      const data = await res.json()
+
+      document.getElementById('drivers').innerHTML = (data.drivers || []).map(driver => `
+        <div class="ride-card">
+          <div class="ride-line"><strong>${driver.name}</strong></div>
+          <div class="ride-line">${driver.email || ''}</div>
+          <div class="ride-line">Vehicle: ${driver.vehicle || ''}</div>
+          <div class="ride-line">Plate: ${driver.plate || ''}</div>
+          <div class="ride-line">Status: ${driver.status || ''}</div>
+          <button class="button small" onclick="approveDriver('${driver.id}')">Approve Driver</button>
+        </div>
+      `).join('')
+    }
+
+    async function approveDriver(driverId) {
+      const res = await fetch('/api/admin/approve-driver', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ driverId })
+      })
+
+      const data = await res.json()
+      alert(data.message || 'Done')
+      loadDrivers()
+    }
+
+    loadDrivers()
+  </script>
+</body>
+</html>
