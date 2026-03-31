@@ -70,7 +70,7 @@
     .online { background: #10b981; }
     .offline { background: #64748b; }
     .accept { background: #22c55e; }
-    .start { background: #f59e0b; }
+    .start { background: #f59e0b; color: #111827; }
     .complete { background: #ef4444; }
 
     .status-text {
@@ -99,6 +99,9 @@
     .enroute { background: #f59e0b; color: #111827; }
     .completed { background: #22c55e; color: #052e16; }
 
+    .online-badge { background: #22c55e; color: #052e16; }
+    .offline-badge { background: #64748b; }
+
     .empty {
       color: #c8d3f2;
       line-height: 1.6;
@@ -119,7 +122,7 @@
     <div class="card">
       <h1>Driver Dashboard</h1>
       <div class="sub">
-        Load your driver account, go online, accept assigned rides, start trips, and complete rides.
+        Load your driver account, go online, accept rides, start trips, and complete trips.
       </div>
 
       <label for="driverEmail">Driver Email</label>
@@ -152,6 +155,12 @@
     function statusBadge(status) {
       const safe = status || 'requested'
       return `<span class="badge ${safe}">${safe}</span>`
+    }
+
+    function onlineBadge(online) {
+      return online
+        ? `<span class="badge online-badge">online</span>`
+        : `<span class="badge offline-badge">offline</span>`
     }
 
     async function loadDriver() {
@@ -197,7 +206,7 @@
         <div class="trip-line"><b>Email:</b> ${driver.email || 'N/A'}</div>
         <div class="trip-line"><b>Phone:</b> ${driver.phone || 'N/A'}</div>
         <div class="trip-line"><b>Vehicle:</b> ${driver.vehicle || 'N/A'}</div>
-        <div class="trip-line"><b>Status:</b> ${driver.online ? '<span class="badge completed">online</span>' : '<span class="badge requested">offline</span>'}</div>
+        <div class="trip-line"><b>Status:</b> ${onlineBadge(driver.online)}</div>
         <div class="trip-line"><b>Current Ride:</b> ${driver.currentRide || 'None'}</div>
       `
     }
