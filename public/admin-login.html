@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Harvey Taxi Admin Login</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      background: linear-gradient(180deg, #06112d 0%, #081735 45%, #091a3f 100%);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    a {
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .wrapper {
+      width: 100%;
+      max-width: 520px;
+    }
+
+    .card {
+      background: rgba(19, 31, 59, 0.95);
+      border: 1px solid rgba(126, 155, 255, 0.18);
+      border-radius: 26px;
+      padding: 28px;
+      box-shadow: 0 25px 55px rgba(0, 0, 0, 0.35);
+    }
+
+    .top-link {
+      display: inline-block;
+      margin-bottom: 18px;
+      color: #b8c7ea;
+      font-size: 14px;
+    }
+
+    h1 {
+      font-size: 34px;
+      margin-bottom: 10px;
+      font-weight: 800;
+    }
+
+    .subtitle {
+      color: #aebddd;
+      font-size: 16px;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+
+    .field {
+      margin-bottom: 18px;
+    }
+
+    .field label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #dbe5ff;
+    }
+
+    .field input {
+      width: 100%;
+      padding: 16px 15px;
+      border-radius: 16px;
+      border: 1px solid rgba(125, 150, 255, 0.18);
+      background: rgba(8, 17, 42, 0.95);
+      color: white;
+      font-size: 16px;
+      outline: none;
+    }
+
+    .field input:focus {
+      border-color: #6f8cff;
+      box-shadow: 0 0 0 3px rgba(80, 113, 255, 0.18);
+    }
+
+    .login-btn {
+      width: 100%;
+      border: none;
+      border-radius: 18px;
+      min-height: 58px;
+      font-size: 18px;
+      font-weight: 800;
+      color: white;
+      cursor: pointer;
+      background: linear-gradient(90deg, #2962ff 0%, #7b2cff 100%);
+      box-shadow: 0 12px 25px rgba(57, 93, 255, 0.35);
+      transition: transform 0.18s ease, opacity 0.18s ease;
+    }
+
+    .login-btn:hover {
+      transform: translateY(-1px);
+      opacity: 0.98;
+    }
+
+    .message {
+      margin-top: 16px;
+      font-size: 14px;
+      min-height: 20px;
+      color: #ffb7b7;
+    }
+
+    .help-box {
+      margin-top: 24px;
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(8, 17, 42, 0.85);
+      border: 1px solid rgba(125, 150, 255, 0.12);
+    }
+
+    .help-box h3 {
+      font-size: 16px;
+      margin-bottom: 8px;
+    }
+
+    .help-box p {
+      color: #b7c3df;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    @media (max-width: 520px) {
+      .card {
+        padding: 22px 18px;
+        border-radius: 22px;
+      }
+
+      h1 {
+        font-size: 28px;
+      }
+
+      .subtitle {
+        font-size: 15px;
+      }
+
+      .field input {
+        padding: 14px 13px;
+        font-size: 15px;
+      }
+
+      .login-btn {
+        min-height: 54px;
+        font-size: 17px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="card">
+      <a class="top-link" href="/">← Back to Home</a>
+
+      <h1>Admin Login</h1>
+      <p class="subtitle">
+        Secure access for Harvey Taxi platform administration, driver approval, dispatch control,
+        and account oversight.
+      </p>
+
+      <form id="adminLoginForm">
+        <div class="field">
+          <label for="email">Admin Email</label>
+          <input type="email" id="email" placeholder="Enter admin email" required />
+        </div>
+
+        <div class="field">
+          <label for="password">Admin Password</label>
+          <input type="password" id="password" placeholder="Enter admin password" required />
+        </div>
+
+        <button type="submit" class="login-btn">Login to Admin Dashboard</button>
+        <div class="message" id="message"></div>
+      </form>
+
+      <div class="help-box">
+        <h3>Admin Access</h3>
+        <p>
+          This page is for Harvey Taxi administrators only. Approved login sends you into the
+          admin dashboard where drivers, riders, dispatch, and platform activity can be managed.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('adminLoginForm')
+    const message = document.getElementById('message')
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault()
+      message.textContent = 'Checking admin access...'
+
+      const email = document.getElementById('email').value.trim()
+      const password = document.getElementById('password').value.trim()
+
+      try {
+        const res = await fetch('/api/admin-login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ email, password })
+        })
+
+        const data = await res.json()
+
+        if (data.success) {
+          localStorage.setItem('harveyAdminLoggedIn', 'true')
+          localStorage.setItem('harveyAdminEmail', email)
+          window.location.href = '/admin.html'
+        } else {
+          message.textContent = data.message || 'Invalid admin login.'
+        }
+      } catch (err) {
+        message.textContent = 'Server error. Please try again.'
+      }
+    })
+  </script>
+</body>
+</html>
