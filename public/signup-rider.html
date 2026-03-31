@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Rider Signup</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="app-header">
+      <div class="app-title">Rider Signup</div>
+      <div class="app-subtitle">Create your rider account</div>
+    </div>
+
+    <div class="card">
+      <input class="input" id="name" placeholder="Full Name" />
+      <input class="input" id="phone" placeholder="Phone Number" />
+      <input class="input" id="email" placeholder="Email" />
+      <input class="input" id="password" placeholder="Password" type="password" />
+
+      <button class="button" onclick="signup()">Create Rider Account</button>
+      <pre id="result"></pre>
+    </div>
+  </div>
+
+  <script>
+    async function signup() {
+      const res = await fetch('/api/rider/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: document.getElementById('name').value,
+          phone: document.getElementById('phone').value,
+          email: document.getElementById('email').value,
+          password: document.getElementById('password').value
+        })
+      })
+
+      const data = await res.json()
+      document.getElementById('result').innerText = JSON.stringify(data, null, 2)
+    }
+  </script>
+</body>
+</html>
