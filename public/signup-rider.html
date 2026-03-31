@@ -1,49 +1,123 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Rider Signup</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="stylesheet" href="/style.css" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Harvey Taxi Rider Signup</title>
+
+<style>
+body{
+background:#06112d;
+color:white;
+font-family:Arial;
+padding:20px;
+}
+
+.container{
+max-width:600px;
+margin:auto;
+}
+
+.card{
+background:#0c1a3d;
+padding:25px;
+border-radius:16px;
+}
+
+input{
+width:100%;
+padding:14px;
+margin-bottom:15px;
+border-radius:10px;
+border:none;
+background:#081735;
+color:white;
+}
+
+button{
+width:100%;
+padding:16px;
+border:none;
+border-radius:12px;
+font-weight:bold;
+background:linear-gradient(90deg,#2962ff,#7b2cff);
+color:white;
+}
+
+.message{
+margin-top:15px;
+}
+</style>
 </head>
+
 <body>
-  <div class="container">
-    <div class="app-header">
-      <div class="app-title">Rider Signup</div>
-      <div class="app-subtitle">Create your account and verify with Persona</div>
-    </div>
 
-    <div class="card">
-      <input class="input" id="name" placeholder="Full Name" />
-      <input class="input" id="phone" placeholder="Phone Number" />
-      <input class="input" id="email" placeholder="Email" />
-      <input class="input" id="password" placeholder="Password" type="password" />
-      <button class="button" onclick="signup()">Create Rider Account</button>
-      <pre id="result"></pre>
-      <div id="verify"></div>
-    </div>
-  </div>
+<div class="container">
+<div class="card">
 
-  <script>
-    async function signup() {
-      const res = await fetch('/api/rider/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: document.getElementById('name').value,
-          phone: document.getElementById('phone').value,
-          email: document.getElementById('email').value,
-          password: document.getElementById('password').value
-        })
-      })
+<h1>Rider Signup</h1>
+<p>Create your rider account</p>
 
-      const data = await res.json()
-      document.getElementById('result').innerText = JSON.stringify(data, null, 2)
+<form id="riderForm">
 
-      if (data.success && data.user?.personaInquiryUrl) {
-        document.getElementById('verify').innerHTML =
-          `<a class="nav-link" href="${data.user.personaInquiryUrl}" target="_blank">Complete Persona Verification</a>`
-      }
-    }
-  </script>
+<input id="name" placeholder="Full Name" required>
+<input id="email" placeholder="Email" required>
+<input id="phone" placeholder="Phone" required>
+<input id="city" placeholder="City" required>
+
+<button type="submit">
+Create Rider Account
+</button>
+
+<div id="msg" class="message"></div>
+
+</form>
+
+</div>
+</div>
+
+<script>
+
+const form = document.getElementById('riderForm')
+const msg = document.getElementById('msg')
+
+form.addEventListener('submit', async (e)=>{
+e.preventDefault()
+
+msg.innerText = "Creating account..."
+
+const payload = {
+id: Date.now().toString(),
+name: document.getElementById('name').value,
+email: document.getElementById('email').value,
+phone: document.getElementById('phone').value,
+city: document.getElementById('city').value
+}
+
+try{
+
+const res = await fetch('/api/rider-signup',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify(payload)
+})
+
+const data = await res.json()
+
+if(data.success){
+msg.innerText = "Rider account created"
+form.reset()
+}else{
+msg.innerText = "Error creating rider"
+}
+
+}catch{
+msg.innerText = "Server error"
+}
+
+})
+
+</script>
+
 </body>
 </html>
