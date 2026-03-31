@@ -1,123 +1,267 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Request Ride</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Request Ride</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: Arial, Helvetica, sans-serif;
+    }
 
-<style>
-body{
-background:#06112d;
-color:white;
-font-family:Arial;
-padding:20px;
-}
+    body {
+      background: linear-gradient(180deg, #031033 0%, #06173f 45%, #08204f 100%);
+      color: white;
+      min-height: 100vh;
+      padding: 20px;
+    }
 
-.container{
-max-width:600px;
-margin:auto;
-}
+    .container {
+      max-width: 760px;
+      margin: 0 auto;
+    }
 
-.card{
-background:#0c1a3d;
-padding:25px;
-border-radius:16px;
-}
+    .top-link {
+      display: inline-block;
+      color: #d7e2ff;
+      text-decoration: none;
+      margin-bottom: 20px;
+      font-size: 15px;
+    }
 
-input,select{
-width:100%;
-padding:14px;
-margin-bottom:15px;
-border-radius:10px;
-border:none;
-background:#081735;
-color:white;
-}
+    .card {
+      background: rgba(20, 34, 72, 0.96);
+      border: 1px solid rgba(128, 157, 255, 0.24);
+      border-radius: 24px;
+      padding: 24px;
+      box-shadow: 0 24px 48px rgba(0, 0, 0, 0.35);
+    }
 
-button{
-width:100%;
-padding:16px;
-border:none;
-border-radius:12px;
-font-weight:bold;
-background:linear-gradient(90deg,#2962ff,#7b2cff);
-color:white;
-}
+    h1 {
+      font-size: 38px;
+      font-weight: 800;
+      margin-bottom: 10px;
+    }
 
-.message{
-margin-top:15px;
-}
-</style>
+    .subtitle {
+      color: #d7e2ff;
+      line-height: 1.6;
+      margin-bottom: 22px;
+      font-size: 16px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .field {
+      margin-bottom: 16px;
+    }
+
+    .field.full {
+      grid-column: 1 / -1;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 15px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(125, 150, 255, 0.18);
+      background: rgba(8, 17, 42, 0.96);
+      color: white;
+      font-size: 15px;
+      outline: none;
+    }
+
+    textarea {
+      min-height: 110px;
+      resize: vertical;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      border-color: #6f8cff;
+      box-shadow: 0 0 0 3px rgba(80, 113, 255, 0.18);
+    }
+
+    .submit-btn {
+      width: 100%;
+      margin-top: 8px;
+      border: none;
+      border-radius: 18px;
+      min-height: 60px;
+      font-size: 19px;
+      font-weight: 800;
+      color: white;
+      cursor: pointer;
+      background: linear-gradient(90deg, #14b85c 0%, #2ae77f 100%);
+      box-shadow: 0 12px 25px rgba(42, 231, 127, 0.28);
+    }
+
+    .message {
+      margin-top: 16px;
+      font-size: 15px;
+      line-height: 1.5;
+      min-height: 22px;
+      color: #d7e2ff;
+    }
+
+    .info-box {
+      margin-top: 24px;
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(8, 17, 42, 0.85);
+      border: 1px solid rgba(125, 150, 255, 0.12);
+    }
+
+    .info-box h3 {
+      font-size: 16px;
+      margin-bottom: 8px;
+    }
+
+    .info-box p {
+      color: #b7c3df;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    @media (max-width: 700px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .field.full {
+        grid-column: auto;
+      }
+
+      h1 {
+        font-size: 31px;
+      }
+    }
+  </style>
 </head>
-
 <body>
+  <div class="container">
+    <a class="top-link" href="/">← Back to Home</a>
 
-<div class="container">
-<div class="card">
+    <div class="card">
+      <h1>Request Ride</h1>
+      <p class="subtitle">
+        Submit your trip request and send it into the Harvey Taxi system for dispatch.
+      </p>
 
-<h1>Request Ride</h1>
+      <form id="rideForm">
+        <div class="grid">
+          <div class="field">
+            <label for="name">Full Name</label>
+            <input type="text" id="name" placeholder="Enter your full name" required />
+          </div>
 
-<form id="rideForm">
+          <div class="field">
+            <label for="phone">Phone Number</label>
+            <input type="text" id="phone" placeholder="Enter phone number" required />
+          </div>
 
-<input id="name" placeholder="Your Name" required>
-<input id="pickup" placeholder="Pickup Location" required>
-<input id="dropoff" placeholder="Dropoff Location" required>
+          <div class="field full">
+            <label for="pickup">Pickup Location</label>
+            <input type="text" id="pickup" placeholder="Enter pickup address" required />
+          </div>
 
-<select id="service">
-<option value="standard">Standard Ride</option>
-<option value="xl">XL Ride</option>
-<option value="premium">Premium Ride</option>
-</select>
+          <div class="field full">
+            <label for="dropoff">Dropoff Location</label>
+            <input type="text" id="dropoff" placeholder="Enter dropoff address" required />
+          </div>
 
-<button type="submit">
-Request Ride
-</button>
+          <div class="field">
+            <label for="service">Service Type</label>
+            <select id="service" required>
+              <option value="Standard Ride">Standard Ride</option>
+              <option value="Airport Ride">Airport Ride</option>
+              <option value="Medical Ride">Medical Ride</option>
+              <option value="Scheduled Ride">Scheduled Ride</option>
+            </select>
+          </div>
 
-<div id="msg" class="message"></div>
+          <div class="field">
+            <label for="pickupTime">Pickup Time</label>
+            <input type="text" id="pickupTime" placeholder="ASAP or scheduled time" required />
+          </div>
 
-</form>
+          <div class="field full">
+            <label for="notes">Trip Notes</label>
+            <textarea id="notes" placeholder="Apartment number, gate code, special instructions, etc."></textarea>
+          </div>
+        </div>
 
-</div>
-</div>
+        <button type="submit" class="submit-btn">Submit Ride Request</button>
+        <div class="message" id="message"></div>
+      </form>
 
-<script>
+      <div class="info-box">
+        <h3>Dispatch Status</h3>
+        <p>
+          Your ride request will be saved with pending status and prepared for the next dispatch upgrade.
+        </p>
+      </div>
+    </div>
+  </div>
 
-const form = document.getElementById('rideForm')
-const msg = document.getElementById('msg')
+  <script>
+    const form = document.getElementById('rideForm')
+    const message = document.getElementById('message')
 
-form.addEventListener('submit', async (e)=>{
-e.preventDefault()
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault()
 
-msg.innerText = "Requesting ride..."
+      message.textContent = 'Submitting ride request...'
 
-const payload = {
-id: Date.now().toString(),
-name: document.getElementById('name').value,
-pickup: document.getElementById('pickup').value,
-dropoff: document.getElementById('dropoff').value,
-service: document.getElementById('service').value,
-status:'pending'
-}
+      const payload = {
+        id: Date.now().toString(),
+        name: document.getElementById('name').value.trim(),
+        phone: document.getElementById('phone').value.trim(),
+        pickup: document.getElementById('pickup').value.trim(),
+        dropoff: document.getElementById('dropoff').value.trim(),
+        service: document.getElementById('service').value,
+        pickupTime: document.getElementById('pickupTime').value.trim(),
+        notes: document.getElementById('notes').value.trim(),
+        status: 'pending',
+        assignedDriverId: '',
+        createdAt: new Date().toISOString()
+      }
 
-try{
+      try {
+        const res = await fetch('/api/request-ride', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        })
 
-await fetch('/api/request-ride',{
-method:'POST',
-headers:{'Content-Type':'application/json'},
-body:JSON.stringify(payload)
-})
+        const data = await res.json()
 
-msg.innerText = "Ride requested. Waiting for driver..."
-
-form.reset()
-
-}catch{
-msg.innerText = "Server error"
-}
-
-})
-
-</script>
-
+        if (data.success) {
+          message.textContent = 'Ride request submitted successfully.'
+          form.reset()
+        } else {
+          message.textContent = data.message || 'Could not submit ride request.'
+        }
+      } catch (err) {
+        message.textContent = 'Server error. Please try again.'
+      }
+    })
+  </script>
 </body>
 </html>
