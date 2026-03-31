@@ -15,6 +15,7 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'HarveyAdmin123!'
 
 const driversFile = path.join(__dirname, 'drivers.json')
 const ridersFile = path.join(__dirname, 'riders.json')
+const ridesFile = path.join(__dirname, 'rides.json')
 
 function ensureFile(filePath) {
   if (!fs.existsSync(filePath)) {
@@ -40,13 +41,12 @@ function writeJson(filePath, data) {
 
 ensureFile(driversFile)
 ensureFile(ridersFile)
+ensureFile(ridesFile)
 
-// home
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'))
 })
 
-// admin login
 app.post('/api/admin-login', (req, res) => {
   const { email, password } = req.body || {}
 
@@ -63,7 +63,6 @@ app.post('/api/admin-login', (req, res) => {
   })
 })
 
-// driver signup
 app.post('/api/driver-signup', (req, res) => {
   try {
     const body = req.body || {}
@@ -99,7 +98,6 @@ app.post('/api/driver-signup', (req, res) => {
   }
 })
 
-// rider signup
 app.post('/api/rider-signup', (req, res) => {
   try {
     const body = req.body || {}
@@ -130,17 +128,53 @@ app.post('/api/rider-signup', (req, res) => {
   }
 })
 
-// get drivers
+app.post('/api/request-ride', (req, res) => {
+  try {
+    const body = req.body || {}
+
+    const newRide = {
+      id: body.id || Date.now().toString(),
+      name: body.name || '',
+      phone: body.phone || '',
+      pickup: body.pickup || '',
+      dropoff: body.dropoff || '',
+      service: body.service || 'Standard Ride',
+      pickupTime: body.pickupTime || 'ASAP',
+      notes: body.notes || '',
+      status: body.status || 'pending',
+      assignedDriverId: body.assignedDriverId || '',
+      createdAt: body.createdAt || new Date().toISOString()
+    }
+
+    const rides = readJson(ridesFile)
+    rides.push(newRide)
+    writeJson(ridesFile, rides)
+
+    return res.json({
+      success: true,
+      message: 'Ride request submitted',
+      ride: newRide
+    })
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      message: 'Could not save ride request'
+    })
+  }
+})
+
 app.get('/api/drivers', (req, res) => {
   return res.json(readJson(driversFile))
 })
 
-// get riders
 app.get('/api/riders', (req, res) => {
   return res.json(readJson(ridersFile))
 })
 
-// approve driver
+app.get('/api/rides', (req, res) => {
+  return res.json(readJson(ridesFile))
+})
+
 app.post('/api/approve-driver', (req, res) => {
   try {
     const { id } = req.body || {}
@@ -170,7 +204,6 @@ app.post('/api/approve-driver', (req, res) => {
   }
 })
 
-// reject driver
 app.post('/api/reject-driver', (req, res) => {
   try {
     const { id } = req.body || {}
@@ -200,7 +233,6 @@ app.post('/api/reject-driver', (req, res) => {
   }
 })
 
-// html fallback
 app.get('/:page', (req, res) => {
   const filePath = path.join(__dirname, 'public', req.params.page)
 
