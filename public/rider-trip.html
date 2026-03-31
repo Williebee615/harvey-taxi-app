@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Track My Ride</title>
 
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
 <style>
 body{
 font-family:Arial;
@@ -79,6 +81,7 @@ cursor:pointer;
 margin-top:10px;
 font-size:14px;
 opacity:0.9;
+line-height:1.5;
 }
 
 .trip-line{
@@ -104,27 +107,42 @@ text-transform:capitalize;
 
 .progress{
 display:grid;
-grid-template-columns:repeat(4,1fr);
-gap:10px;
-margin-top:16px;
+grid-template-columns:repeat(5,1fr);
+gap:8px;
+margin-top:15px;
 }
 
 .step{
 background:#10295c;
-padding:12px;
-border-radius:12px;
+padding:10px;
+border-radius:10px;
 text-align:center;
-font-size:13px;
-opacity:0.55;
+opacity:.5;
+font-size:12px;
+line-height:1.3;
 }
 
-.step.active{
+.active{
 opacity:1;
-outline:2px solid rgba(255,255,255,0.2);
+outline:2px solid rgba(255,255,255,0.3);
 }
 
 .empty{
 opacity:0.8;
+line-height:1.5;
+}
+
+#map{
+height:320px;
+border-radius:12px;
+overflow:hidden;
+margin-top:14px;
+}
+
+.map-note{
+margin-top:10px;
+opacity:0.8;
+font-size:14px;
 line-height:1.5;
 }
 </style>
@@ -138,7 +156,7 @@ line-height:1.5;
 
 <h1>📍 Track My Ride</h1>
 <p class="sub">
-Enter your ride ID to check your trip status and see where your ride is in the Harvey Taxi flow.
+Enter your ride ID to track your trip and see your driver live on the map when location sharing is active.
 </p>
 
 <div class="card">
@@ -155,13 +173,28 @@ Enter your ride ID to check your trip status and see where your ride is in the H
 <div class="empty">No ride loaded yet.</div>
 </div>
 
+<div class="card">
+<h3 style="margin-bottom:12px;">Driver Live Map</h3>
+<div id="map"></div>
+<div class="map-note" id="mapStatus">Driver location will appear here after a driver is assigned and location sharing is enabled.</div>
 </div>
 
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 let currentRide = null
+let map = null
+let driverMarker = null
+let pickupMarker = null
+let dropoffMarker = null
 
 function setMessage(text){
 document.getElementById('message').innerText = text
+}
+
+function setMapStatus(text){
+document.getElementById('mapStatus').innerText = text
 }
 
 function statusBadge(status){
@@ -174,34 +207,74 @@ const steps = [
   { key:'requested', label:'Requested' },
   { key:'assigned', label:'Assigned' },
   { key:'enroute', label:'Driver Enroute' },
-  { key:'in_progress', label:'Trip Started' }
+  { key:'in_progress', label:'Trip Started' },
+  { key:'completed', label:'Completed' }
 ]
 
- let activeIndex = 0
+let activeIndex = 0
 
- if(status === 'requested') activeIndex = 0
- if(status === 'assigned') activeIndex = 1
- if(status === 'enroute') activeIndex = 2
- if(status === 'in_progress' || status === 'completed') activeIndex = 3
+if(status === 'requested') activeIndex = 0
+if(status === 'assigned') activeIndex = 1
+if(status === 'enroute') activeIndex = 2
+if(status === 'in_progress') activeIndex = 3
+if(status === 'completed') activeIndex = 4
 
- return `
-   <div class="progress">
-     ${steps.map((step, index) => `
-       <div class="step ${index <= activeIndex ? 'active' : ''}">
-         ${step.label}
-       </div>
-     `).join('')}
-   </div>
- `
+return `
+<div class="progress">
+  ${steps.map((step, index) => `
+    <div class="step ${index <= activeIndex ? 'active' : ''}">
+      ${step.label}
+    </div>
+  `).join('')}
+</div>
+`
 }
 
 function riderStatusMessage(status){
 if(status === 'requested') return 'Your request was received. Waiting for a driver assignment.'
 if(status === 'assigned') return 'A driver has been assigned to your trip.'
 if(status === 'enroute') return 'Your driver accepted the trip and is on the way.'
-if(status === 'in_progress') return 'Your trip is currently in progress.'
+if(status === 'in_progress') return 'Your ride is currently in progress.'
 if(status === 'completed') return 'Your trip has been completed.'
 return 'Status not available.'
+}
+
+function initMap(){
+if(map) return
+
+map = L.map('map').setView([36.1627, -86.7816], 12)
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+maxZoom: 19,
+attribution: '&copy; OpenStreetMap'
+}).addTo(map)
+}
+
+function isLatLngString(value){
+if(!value || typeof value !== 'string') return false
+const parts = value.split(',').map(p => p.trim())
+if(parts.length !== 2) return false
+return !isNaN(Number(parts[0])) && !isNaN(Number(parts[1]))
+}
+
+function parseLatLng(value){
+const parts = value.split(',').map(p => Number(p.trim()))
+return { lat: parts[0], lng: parts[1] }
+}
+
+function clearMapMarkers(){
+if(driverMarker){
+map.removeLayer(driverMarker)
+driverMarker = null
+}
+if(pickupMarker){
+map.removeLayer(pickupMarker)
+pickupMarker = null
+}
+if(dropoffMarker){
+map.removeLayer(dropoffMarker)
+dropoffMarker = null
+}
 }
 
 function renderRide(ride){
@@ -245,16 +318,68 @@ const rides = await res.json()
 const ride = rides.find(r => String(r.id) === String(rideId))
 
 if(!ride){
+currentRide = null
 renderRide(null)
+clearMapMarkers()
 setMessage('No ride found with that ID.')
+setMapStatus('No ride loaded.')
 return
 }
 
 localStorage.setItem('harveyRideId', rideId)
 renderRide(ride)
 setMessage('Ride loaded.')
+
+await updateDriverMap(ride)
 }catch(err){
 setMessage('Could not load ride status.')
+setMapStatus('Could not load map data.')
+}
+}
+
+async function updateDriverMap(ride){
+initMap()
+clearMapMarkers()
+
+if(ride.pickup && isLatLngString(ride.pickup)){
+const pickupCoords = parseLatLng(ride.pickup)
+pickupMarker = L.marker([pickupCoords.lat, pickupCoords.lng]).addTo(map).bindPopup('Pickup')
+}
+
+if(ride.dropoff && isLatLngString(ride.dropoff)){
+const dropoffCoords = parseLatLng(ride.dropoff)
+dropoffMarker = L.marker([dropoffCoords.lat, dropoffCoords.lng]).addTo(map).bindPopup('Dropoff')
+}
+
+if(!ride.driverId){
+if(pickupMarker){
+map.setView(pickupMarker.getLatLng(), 13)
+}
+setMapStatus('No driver assigned yet.')
+return
+}
+
+try{
+const res = await fetch(`/api/driver-location/${ride.driverId}`)
+const data = await res.json()
+
+if(!data.success || !data.location){
+if(pickupMarker){
+map.setView(pickupMarker.getLatLng(), 13)
+}
+setMapStatus('Driver assigned, but live location is not available yet.')
+return
+}
+
+const lat = Number(data.location.lat)
+const lng = Number(data.location.lng)
+
+driverMarker = L.marker([lat, lng]).addTo(map).bindPopup('Driver Live Location')
+map.setView([lat, lng], 15)
+
+setMapStatus(`Driver location updated: ${new Date(data.location.updatedAt).toLocaleTimeString()}`)
+}catch(err){
+setMapStatus('Could not load driver live location.')
 }
 }
 
@@ -264,9 +389,14 @@ document.getElementById('rideId').value = ''
 currentRide = null
 document.getElementById('rideCard').innerHTML = `<div class="empty">No ride loaded yet.</div>`
 setMessage('Cleared.')
+initMap()
+clearMapMarkers()
+setMapStatus('Driver location will appear here after a driver is assigned and location sharing is enabled.')
 }
 
 window.addEventListener('load', async () => {
+initMap()
+
 const savedRideId = localStorage.getItem('harveyRideId')
 if(savedRideId){
 document.getElementById('rideId').value = savedRideId
