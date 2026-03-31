@@ -204,7 +204,9 @@ app.get('/api/driver-trip/:driverId', (req, res) => {
     return res.status(404).json({ success: false, message: 'Driver not found' })
   }
 
-  const ride = data.rides.find(r => String(r.driverId) === String(driverId) && r.status !== 'completed')
+  const ride = data.rides.find(
+    r => String(r.driverId) === String(driverId) && r.status !== 'completed'
+  )
 
   if (!ride) {
     return res.json({ success: true, ride: null })
