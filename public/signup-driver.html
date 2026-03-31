@@ -1,17 +1,83 @@
-<script>
-async function submitDriver() {
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Driver Signup</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="hero">
+      <h1>Driver Signup</h1>
+      <p>Persona first, then Checkr background check</p>
+    </div>
 
-const name = document.getElementById('name').value
-const email = document.getElementById('email').value
+    <div class="card">
+      <input id="name" class="input" type="text" placeholder="Full Name" />
+      <input id="phone" class="input" type="text" placeholder="Phone Number" />
+      <input id="email" class="input" type="email" placeholder="Email" />
+      <input id="password" class="input" type="password" placeholder="Password" />
+      <input id="vehicle" class="input" type="text" placeholder="Vehicle" />
+      <input id="plate" class="input" type="text" placeholder="License Plate" />
 
-const res = await fetch('/api/persona/driver', {
-method: 'POST',
-headers: { 'Content-Type': 'application/json' },
-body: JSON.stringify({ name, email })
-})
+      <button class="button" onclick="signupDriver()">Submit Driver Application</button>
 
-const data = await res.json()
+      <div id="message" class="message"></div>
+      <div id="verifyLink"></div>
+    </div>
+  </div>
 
-window.location.href = data.url
-}
-</script>
+  <script>
+    async function signupDriver() {
+      const payload = {
+        name: document.getElementById('name').value.trim(),
+        phone: document.getElementById('phone').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        password: document.getElementById('password').value,
+        vehicle: document.getElementById('vehicle').value.trim(),
+        plate: document.getElementById('plate').value.trim()
+      }
+
+      const message = document.getElementById('message')
+      const verifyLink = document.getElementById('verifyLink')
+
+      message.innerText = ''
+      verifyLink.innerHTML = ''
+
+      try {
+        const res = await fetch('/api/driver/signup', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        })
+
+        const data = await res.json()
+
+        if (!res.ok || !data.success) {
+          message.innerText = data.message || 'Driver signup failed'
+          return
+        }
+
+        message.innerText = data.message || 'Driver application submitted successfully'
+
+        if (data.user && data.user.personaInquiryUrl) {
+          verifyLink.innerHTML = `
+            <a class="button" href="${data.user.personaInquiryUrl}">
+              Continue to Persona Verification
+            </a>
+          `
+        } else {
+          verifyLink.innerHTML = `
+            <p style="margin-top:12px;">Account created, but Persona link was not returned yet.</p>
+          `
+        }
+      } catch (err) {
+        message.innerText = 'Something went wrong loading driver signup'
+      }
+    }
+  </script>
+</body>
+</html>
