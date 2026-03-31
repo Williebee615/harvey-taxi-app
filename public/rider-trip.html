@@ -145,6 +145,39 @@ opacity:0.8;
 font-size:14px;
 line-height:1.5;
 }
+
+.eta-box{
+margin-top:14px;
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:12px;
+}
+
+.eta-card{
+background:#10295c;
+padding:14px;
+border-radius:12px;
+}
+
+.eta-label{
+font-size:12px;
+opacity:0.75;
+margin-bottom:6px;
+text-transform:uppercase;
+letter-spacing:.6px;
+}
+
+.eta-value{
+font-size:20px;
+font-weight:bold;
+}
+
+.note{
+font-size:13px;
+opacity:.75;
+line-height:1.5;
+margin-top:10px;
+}
 </style>
 </head>
 
@@ -156,7 +189,7 @@ line-height:1.5;
 
 <h1>📍 Track My Ride</h1>
 <p class="sub">
-Enter your ride ID to track your trip and see your driver live on the map when location sharing is active.
+Enter your ride ID to track your trip, view driver status, and see live driver ETA when location sharing is active.
 </p>
 
 <div class="card">
@@ -176,7 +209,22 @@ Enter your ride ID to track your trip and see your driver live on the map when l
 <div class="card">
 <h3 style="margin-bottom:12px;">Driver Live Map</h3>
 <div id="map"></div>
+
+<div class="eta-box">
+  <div class="eta-card">
+    <div class="eta-label">Driver Distance</div>
+    <div class="eta-value" id="distanceEstimate">Not available</div>
+  </div>
+  <div class="eta-card">
+    <div class="eta-label">ETA</div>
+    <div class="eta-value" id="etaEstimate">Not available</div>
+  </div>
+</div>
+
 <div class="map-note" id="mapStatus">Driver location will appear here after a driver is assigned and location sharing is enabled.</div>
+<div class="note">
+For best ETA accuracy, use pickup coordinates like: <b>36.1627,-86.7816</b>
+</div>
 </div>
 
 </div>
@@ -195,6 +243,14 @@ document.getElementById('message').innerText = text
 
 function setMapStatus(text){
 document.getElementById('mapStatus').innerText = text
+}
+
+function setDistanceEstimate(text){
+document.getElementById('distanceEstimate').innerText = text
+}
+
+function setEtaEstimate(text){
+document.getElementById('etaEstimate').innerText = text
 }
 
 function statusBadge(status){
@@ -277,6 +333,42 @@ dropoffMarker = null
 }
 }
 
+function haversineMiles(lat1, lon1, lat2, lon2){
+const toRad = deg => deg * Math.PI / 180
+const R = 3958.8
+
+const dLat = toRad(lat2 - lat1)
+const dLon = toRad(lon2 - lon1)
+
+const a =
+Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+Math.sin(dLon / 2) * Math.sin(dLon / 2)
+
+const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+return R * c
+}
+
+function estimateEtaMinutes(distanceMiles){
+const assumedCitySpeedMph = 22
+const hours = distanceMiles / assumedCitySpeedMph
+const minutes = Math.round(hours * 60)
+return Math.max(minutes, 1)
+}
+
+function updateEtaDisplay(driverLat, driverLng, pickupLat, pickupLng){
+const miles = haversineMiles(driverLat, driverLng, pickupLat, pickupLng)
+const eta = estimateEtaMinutes(miles)
+
+setDistanceEstimate(`${miles.toFixed(1)} mi`)
+setEtaEstimate(`${eta} min`)
+}
+
+function resetEtaDisplay(){
+setDistanceEstimate('Not available')
+setEtaEstimate('Not available')
+}
+
 function renderRide(ride){
 const rideCard = document.getElementById('rideCard')
 
@@ -321,6 +413,7 @@ if(!ride){
 currentRide = null
 renderRide(null)
 clearMapMarkers()
+resetEtaDisplay()
 setMessage('No ride found with that ID.')
 setMapStatus('No ride loaded.')
 return
@@ -334,20 +427,25 @@ await updateDriverMap(ride)
 }catch(err){
 setMessage('Could not load ride status.')
 setMapStatus('Could not load map data.')
+resetEtaDisplay()
 }
 }
 
 async function updateDriverMap(ride){
 initMap()
 clearMapMarkers()
+resetEtaDisplay()
+
+let pickupCoords = null
+let dropoffCoords = null
 
 if(ride.pickup && isLatLngString(ride.pickup)){
-const pickupCoords = parseLatLng(ride.pickup)
+pickupCoords = parseLatLng(ride.pickup)
 pickupMarker = L.marker([pickupCoords.lat, pickupCoords.lng]).addTo(map).bindPopup('Pickup')
 }
 
 if(ride.dropoff && isLatLngString(ride.dropoff)){
-const dropoffCoords = parseLatLng(ride.dropoff)
+dropoffCoords = parseLatLng(ride.dropoff)
 dropoffMarker = L.marker([dropoffCoords.lat, dropoffCoords.lng]).addTo(map).bindPopup('Dropoff')
 }
 
@@ -377,9 +475,16 @@ const lng = Number(data.location.lng)
 driverMarker = L.marker([lat, lng]).addTo(map).bindPopup('Driver Live Location')
 map.setView([lat, lng], 15)
 
+if(pickupCoords){
+updateEtaDisplay(lat, lng, pickupCoords.lat, pickupCoords.lng)
 setMapStatus(`Driver location updated: ${new Date(data.location.updatedAt).toLocaleTimeString()}`)
+} else {
+setMapStatus('Driver live location loaded. ETA needs pickup coordinates for distance estimate.')
+}
+
 }catch(err){
 setMapStatus('Could not load driver live location.')
+resetEtaDisplay()
 }
 }
 
@@ -391,6 +496,7 @@ document.getElementById('rideCard').innerHTML = `<div class="empty">No ride load
 setMessage('Cleared.')
 initMap()
 clearMapMarkers()
+resetEtaDisplay()
 setMapStatus('Driver location will appear here after a driver is assigned and location sharing is enabled.')
 }
 
