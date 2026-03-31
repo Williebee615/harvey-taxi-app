@@ -2,19 +2,28 @@
 <html>
 <head>
   <title>Request a Ride</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
-  <h2>Request a Ride</h2>
+  <div class="container">
+    <div class="app-header">
+      <div class="app-title">Request a Ride</div>
+      <div class="app-subtitle">Book a ride in seconds</div>
+    </div>
 
-  <input id="riderName" placeholder="Rider Name"><br><br>
-  <input id="phone" placeholder="Phone"><br><br>
-  <input id="pickup" placeholder="Pickup Address"><br><br>
-  <input id="dropoff" placeholder="Dropoff Address"><br><br>
-  <input id="fare" placeholder="Fare"><br><br>
+    <div class="card">
+      <input class="input" id="riderName" placeholder="Rider Name" />
+      <input class="input" id="phone" placeholder="Phone Number" />
+      <input class="input" id="pickup" placeholder="Pickup Address" />
+      <input class="input" id="dropoff" placeholder="Dropoff Address" />
+      <input class="input" id="fare" placeholder="Fare" />
 
-  <button onclick="requestRide()">Submit Ride Request</button>
+      <button class="button" onclick="requestRide()">Submit Ride Request</button>
 
-  <pre id="result"></pre>
+      <pre id="result"></pre>
+    </div>
+  </div>
 
   <script>
     async function requestRide() {
@@ -31,7 +40,8 @@
       })
 
       const data = await res.json()
-      document.getElementById('result').innerText = JSON.stringify(data, null, 2)
+      document.getElementById('result').innerText =
+        JSON.stringify(data, null, 2)
     }
   </script>
 </body>
