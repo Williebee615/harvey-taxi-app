@@ -78,12 +78,25 @@
       background: linear-gradient(90deg, #2962ff 0%, #7b2cff 100%);
       box-shadow: 0 10px 25px rgba(57, 93, 255, 0.35);
       transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+      border: none;
+      cursor: pointer;
+      width: 100%;
     }
 
     .main-btn:hover {
       transform: translateY(-2px);
       box-shadow: 0 14px 28px rgba(57, 93, 255, 0.45);
       opacity: 0.97;
+    }
+
+    .request-btn {
+      background: linear-gradient(90deg, #11b85c 0%, #27e07d 100%);
+      box-shadow: 0 10px 25px rgba(39, 224, 125, 0.28);
+    }
+
+    .donate-btn {
+      background: linear-gradient(90deg, #ff4d8d 0%, #ff2f55 100%);
+      box-shadow: 0 10px 25px rgba(255, 77, 141, 0.28);
     }
 
     .section-title {
@@ -167,130 +180,4 @@
       }
 
       .services-grid,
-      .info-strip {
-        grid-template-columns: 1fr;
-      }
-
-      .main-btn {
-        min-height: 84px;
-        font-size: 20px;
-      }
-
-      .hero-card {
-        padding: 18px;
-      }
-    }
-
-    @media (max-width: 480px) {
-      .container {
-        padding: 18px 14px 45px;
-      }
-
-      .brand {
-        font-size: 34px;
-      }
-
-      .tagline {
-        font-size: 16px;
-      }
-
-      .section-title {
-        font-size: 24px;
-      }
-
-      .main-btn {
-        font-size: 18px;
-        min-height: 78px;
-        border-radius: 18px;
-      }
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <section class="hero">
-      <h1 class="brand">Harvey Taxi</h1>
-      <p class="tagline">
-        Reliable transportation platform for riders, drivers, airport trips, medical rides,
-        local travel, and future delivery services.
-      </p>
-
-      <div class="hero-card">
-        <div class="button-grid">
-          <a class="main-btn" href="/rider-signup.html">Rider Signup</a>
-          <a class="main-btn" href="/driver-signup.html">Driver Signup</a>
-          <a class="main-btn" href="/login.html">Login</a>
-          <a class="main-btn" href="/admin-login.html">Admin Dashboard</a>
-        </div>
-      </div>
-    </section>
-
-    <section>
-      <h2 class="section-title">What Harvey Taxi Is Building</h2>
-      <div class="services-grid">
-        <div class="service-card">
-          <h3>Rider Platform</h3>
-          <p>
-            Riders can create accounts, request trips, track ride activity, and access a cleaner
-            mobile-first experience built for real-world transportation needs.
-          </p>
-        </div>
-
-        <div class="service-card">
-          <h3>Driver Platform</h3>
-          <p>
-            Drivers can apply, upload documents, get reviewed by admin, and eventually receive
-            live dispatch opportunities based on trip demand and location.
-          </p>
-        </div>
-
-        <div class="service-card">
-          <h3>Dispatch System</h3>
-          <p>
-            Harvey Taxi is being built toward real dispatch flow with nearest-driver matching,
-            trip acceptance, ride status updates, and better admin oversight.
-          </p>
-        </div>
-
-        <div class="service-card">
-          <h3>Future Expansion</h3>
-          <p>
-            The platform is designed to grow into airport transportation, medical transport,
-            grocery and restaurant delivery, and a larger multi-service marketplace.
-          </p>
-        </div>
-      </div>
-    </section>
-
-    <section>
-      <div class="info-strip">
-        <div class="info-box">
-          <h4>Live Vision</h4>
-          <p>
-            Built to move from a simple web app into a scalable transportation ecosystem.
-          </p>
-        </div>
-
-        <div class="info-box">
-          <h4>Admin Control</h4>
-          <p>
-            Review drivers, manage approvals, monitor users, and control platform growth.
-          </p>
-        </div>
-
-        <div class="info-box">
-          <h4>Mobile Ready</h4>
-          <p>
-            Designed with a dark theme and mobile layout so it already feels closer to an app.
-          </p>
-        </div>
-      </div>
-    </section>
-
-    <p class="footer-note">
-      <span class="highlight">Harvey Taxi Service LLC</span> — Building a modern transportation,
-      dispatch, and mobility platform.
-    </p>
-  </div>
-</body>
-</html>
+      .
