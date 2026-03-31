@@ -2,31 +2,37 @@
 <html>
 <head>
   <title>Dispatch Board</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
-  <h2>Dispatch Board</h2>
+  <div class="container">
+    <div class="app-header">
+      <div class="app-title">Dispatch Board</div>
+      <div class="app-subtitle">View all open and completed ride activity</div>
+    </div>
 
-  <button onclick="loadRides()">Refresh</button>
-
-  <div id="rides"></div>
+    <div class="card">
+      <button class="button secondary" onclick="loadRides()">Refresh</button>
+      <div id="rides" class="top-space"></div>
+    </div>
+  </div>
 
   <script>
     async function loadRides() {
       const res = await fetch('/api/rides')
       const data = await res.json()
-
       const rides = data.rides || []
 
       document.getElementById('rides').innerHTML = rides.map(ride => `
-        <div style="border:1px solid #ccc;padding:12px;margin:12px 0">
-          <strong>${ride.id}</strong><br>
-          Rider: ${ride.riderName}<br>
-          Pickup: ${ride.pickup}<br>
-          Dropoff: ${ride.dropoff}<br>
-          Fare: $${ride.fare}<br>
-          Status: ${ride.status}<br>
-          Driver: ${ride.driverId || 'Unassigned'}<br>
-          Created: ${ride.createdAt || ''}<br>
+        <div class="ride-card">
+          <div class="ride-line"><strong>${ride.id}</strong></div>
+          <div class="ride-line">Rider: ${ride.riderName}</div>
+          <div class="ride-line">Pickup: ${ride.pickup}</div>
+          <div class="ride-line">Dropoff: ${ride.dropoff}</div>
+          <div class="ride-line">Fare: $${ride.fare}</div>
+          <div class="ride-line">Driver: ${ride.driverId || 'Unassigned'}</div>
+          <div class="ride-line"><span class="status ${ride.status}">${ride.status}</span></div>
         </div>
       `).join('')
     }
