@@ -43,12 +43,10 @@ ensureFile(driversFile)
 ensureFile(ridersFile)
 ensureFile(ridesFile)
 
-// HOME
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'))
 })
 
-// ADMIN LOGIN
 app.post('/api/admin-login', (req, res) => {
   const { email, password } = req.body || {}
 
@@ -65,7 +63,6 @@ app.post('/api/admin-login', (req, res) => {
   })
 })
 
-// DRIVER SIGNUP
 app.post('/api/driver-signup', (req, res) => {
   try {
     const body = req.body || {}
@@ -103,7 +100,6 @@ app.post('/api/driver-signup', (req, res) => {
   }
 })
 
-// RIDER SIGNUP
 app.post('/api/rider-signup', (req, res) => {
   try {
     const body = req.body || {}
@@ -134,7 +130,6 @@ app.post('/api/rider-signup', (req, res) => {
   }
 })
 
-// REQUEST RIDE
 app.post('/api/request-ride', (req, res) => {
   try {
     const body = req.body || {}
@@ -172,7 +167,6 @@ app.post('/api/request-ride', (req, res) => {
   }
 })
 
-// GET DATA
 app.get('/api/drivers', (req, res) => {
   return res.json(readJson(driversFile))
 })
@@ -185,7 +179,6 @@ app.get('/api/rides', (req, res) => {
   return res.json(readJson(ridesFile))
 })
 
-// APPROVE DRIVER
 app.post('/api/approve-driver', (req, res) => {
   try {
     const { id } = req.body || {}
@@ -215,7 +208,6 @@ app.post('/api/approve-driver', (req, res) => {
   }
 })
 
-// REJECT DRIVER
 app.post('/api/reject-driver', (req, res) => {
   try {
     const { id } = req.body || {}
@@ -225,7 +217,8 @@ app.post('/api/reject-driver', (req, res) => {
         return {
           ...driver,
           approved: false,
-          status: 'rejected'
+          status: 'rejected',
+          online: false
         }
       }
       return driver
@@ -245,7 +238,68 @@ app.post('/api/reject-driver', (req, res) => {
   }
 })
 
-// ASSIGN DRIVER
+app.post('/api/toggle-driver-online', (req, res) => {
+  try {
+    const { driverId } = req.body || {}
+
+    if (!driverId) {
+      return res.status(400).json({
+        success: false,
+        message: 'driverId is required'
+      })
+    }
+
+    const drivers = readJson(driversFile)
+
+    const targetDriver = drivers.find(
+      (driver) => String(driver.id) === String(driverId)
+    )
+
+    if (!targetDriver) {
+      return res.status(404).json({
+        success: false,
+        message: 'Driver not found'
+      })
+    }
+
+    if (!(targetDriver.approved === true || targetDriver.status === 'approved')) {
+      return res.status(400).json({
+        success: false,
+        message: 'Only approved drivers can go online'
+      })
+    }
+
+    if (targetDriver.status === 'rejected') {
+      return res.status(400).json({
+        success: false,
+        message: 'Rejected drivers cannot go online'
+      })
+    }
+
+    const updatedDrivers = drivers.map((driver) => {
+      if (String(driver.id) === String(driverId)) {
+        return {
+          ...driver,
+          online: !driver.online
+        }
+      }
+      return driver
+    })
+
+    writeJson(driversFile, updatedDrivers)
+
+    return res.json({
+      success: true,
+      message: 'Driver online status updated'
+    })
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      message: 'Could not update driver online status'
+    })
+  }
+})
+
 app.post('/api/assign-driver', (req, res) => {
   try {
     const { rideId, driverId } = req.body || {}
@@ -278,6 +332,13 @@ app.post('/api/assign-driver', (req, res) => {
       })
     }
 
+    if (!selectedDriver.online) {
+      return res.status(400).json({
+        success: false,
+        message: 'Driver must be online before assignment'
+      })
+    }
+
     const updatedRides = rides.map((ride) => {
       if (String(ride.id) === String(rideId)) {
         return {
@@ -294,7 +355,8 @@ app.post('/api/assign-driver', (req, res) => {
       if (String(driver.id) === String(driverId)) {
         return {
           ...driver,
-          currentRideId: rideId
+          currentRideId: rideId,
+          online: false
         }
       }
       return driver
@@ -315,7 +377,6 @@ app.post('/api/assign-driver', (req, res) => {
   }
 })
 
-// COMPLETE TRIP
 app.post('/api/complete-trip', (req, res) => {
   try {
     const { rideId } = req.body || {}
@@ -354,7 +415,8 @@ app.post('/api/complete-trip', (req, res) => {
       if (String(driver.id) === String(targetRide.assignedDriverId)) {
         return {
           ...driver,
-          currentRideId: ''
+          currentRideId: '',
+          online: true
         }
       }
       return driver
@@ -375,7 +437,6 @@ app.post('/api/complete-trip', (req, res) => {
   }
 })
 
-// HTML FALLBACK
 app.get('/:page', (req, res) => {
   const filePath = path.join(__dirname, 'public', req.params.page)
 
