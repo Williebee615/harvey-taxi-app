@@ -78,6 +78,8 @@ app.post('/api/driver-signup', (req, res) => {
       notes: body.notes || '',
       approved: false,
       status: 'pending',
+      online: false,
+      currentRideId: '',
       createdAt: new Date().toISOString()
     }
 
@@ -142,7 +144,8 @@ app.post('/api/request-ride', (req, res) => {
       pickupTime: body.pickupTime || 'ASAP',
       notes: body.notes || '',
       status: body.status || 'pending',
-      assignedDriverId: body.assignedDriverId || '',
+      assignedDriverId: '',
+      assignedDriverName: '',
       createdAt: body.createdAt || new Date().toISOString()
     }
 
@@ -229,6 +232,75 @@ app.post('/api/reject-driver', (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Could not reject driver'
+    })
+  }
+})
+
+app.post('/api/assign-driver', (req, res) => {
+  try {
+    const { rideId, driverId } = req.body || {}
+
+    if (!rideId || !driverId) {
+      return res.status(400).json({
+        success: false,
+        message: 'rideId and driverId are required'
+      })
+    }
+
+    const drivers = readJson(driversFile)
+    const rides = readJson(ridesFile)
+
+    const selectedDriver = drivers.find(
+      (driver) => String(driver.id) === String(driverId)
+    )
+
+    if (!selectedDriver) {
+      return res.status(404).json({
+        success: false,
+        message: 'Driver not found'
+      })
+    }
+
+    if (!(selectedDriver.approved === true || selectedDriver.status === 'approved')) {
+      return res.status(400).json({
+        success: false,
+        message: 'Driver must be approved before assignment'
+      })
+    }
+
+    const updatedRides = rides.map((ride) => {
+      if (String(ride.id) === String(rideId)) {
+        return {
+          ...ride,
+          status: 'assigned',
+          assignedDriverId: selectedDriver.id,
+          assignedDriverName: selectedDriver.name || 'Assigned Driver'
+        }
+      }
+      return ride
+    })
+
+    const updatedDrivers = drivers.map((driver) => {
+      if (String(driver.id) === String(driverId)) {
+        return {
+          ...driver,
+          currentRideId: rideId
+        }
+      }
+      return driver
+    })
+
+    writeJson(ridesFile, updatedRides)
+    writeJson(driversFile, updatedDrivers)
+
+    return res.json({
+      success: true,
+      message: 'Driver assigned successfully'
+    })
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      message: 'Could not assign driver'
     })
   }
 })
