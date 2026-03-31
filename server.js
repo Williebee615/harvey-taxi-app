@@ -146,6 +146,7 @@ app.post('/api/request-ride', (req, res) => {
       status: body.status || 'pending',
       assignedDriverId: '',
       assignedDriverName: '',
+      completedAt: '',
       createdAt: body.createdAt || new Date().toISOString()
     }
 
@@ -305,16 +306,18 @@ app.post('/api/assign-driver', (req, res) => {
   }
 })
 
-app.get('/:page', (req, res) => {
-  const filePath = path.join(__dirname, 'public', req.params.page)
+app.post('/api/complete-trip', (req, res) => {
+  try {
+    const { rideId } = req.body || {}
 
-  if (fs.existsSync(filePath)) {
-    return res.sendFile(filePath)
-  }
+    if (!rideId) {
+      return res.status(400).json({
+        success: false,
+        message: 'rideId is required'
+      })
+    }
 
-  return res.sendFile(path.join(__dirname, 'public', 'index.html'))
-})
+    const rides = readJson(ridesFile)
+    const drivers = readJson(driversFile)
 
-app.listen(PORT, () => {
-  console.log(`Harvey Taxi running on port ${PORT}`)
-})
+    const targetRide = rides.find
