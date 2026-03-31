@@ -1,40 +1,130 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Request Ride</title>
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: Arial, Helvetica, sans-serif;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Request Ride</title>
 
-    body {
-      background: linear-gradient(180deg, #031033 0%, #06173f 45%, #08204f 100%);
-      color: white;
-      min-height: 100vh;
-      padding: 20px;
-    }
+<style>
+body{
+font-family:Arial;
+background:#021433;
+color:white;
+padding:20px;
+}
 
-    .container {
-      max-width: 760px;
-      margin: 0 auto;
-    }
+.card{
+background:#0b1f4a;
+padding:20px;
+border-radius:14px;
+max-width:600px;
+margin:auto;
+}
 
-    .top-link {
-      display: inline-block;
-      color: #d7e2ff;
-      text-decoration: none;
-      margin-bottom: 20px;
-      font-size: 15px;
-    }
+input{
+width:100%;
+padding:14px;
+margin-bottom:12px;
+border:none;
+border-radius:10px;
+background:#10295c;
+color:white;
+}
 
-    .card {
-      background: rgba(20, 34, 72, 0.96);
-      border: 1px solid rgba(128, 157, 255, 0.24);
-      border-radius: 24px;
-      padding: 24px;
-      box-shadow: 0 24px 48px rgba(0, 
+button{
+width:100%;
+padding:16px;
+border:none;
+border-radius:12px;
+font-weight:bold;
+background:#3b82f6;
+color:white;
+}
+
+#message{
+margin-top:20px;
+line-height:1.5;
+}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+
+<h2>Request a Ride</h2>
+
+<input id="name" placeholder="Your name">
+<input id="phone" placeholder="Phone number">
+<input id="pickup" placeholder="Pickup location">
+<input id="dropoff" placeholder="Dropoff location">
+
+<button onclick="requestRide()">Request Ride</button>
+
+<div id="message"></div>
+
+</div>
+
+<script>
+
+async function requestRide(){
+
+const name = document.getElementById('name').value
+const phone = document.getElementById('phone').value
+const pickup = document.getElementById('pickup').value
+const dropoff = document.getElementById('dropoff').value
+
+const message = document.getElementById('message')
+
+message.innerHTML = "Submitting ride..."
+
+try{
+
+const res = await fetch('/api/request-ride',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({
+name,
+phone,
+pickup,
+dropoff
+})
+})
+
+const data = await res.json()
+
+if(data.success){
+
+localStorage.setItem('harveyRideId', data.ride.id)
+
+message.innerHTML = `
+Ride requested successfully 🚕<br><br>
+
+Ride ID:<br>
+<b>${data.ride.id}</b>
+
+<br><br>
+
+<a href="/rider-trip.html" style="color:#7dd3fc">
+Track your ride
+</a>
+`
+
+document.getElementById('name').value=''
+document.getElementById('phone').value=''
+document.getElementById('pickup').value=''
+document.getElementById('dropoff').value=''
+
+}else{
+message.innerHTML = "Error requesting ride"
+}
+
+}catch(e){
+message.innerHTML = "Server error"
+}
+
+}
+</script>
+
+</body>
+</html>
