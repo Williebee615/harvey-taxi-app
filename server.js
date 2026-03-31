@@ -1,60 +1,72 @@
 const express = require('express')
 const cors = require('cors')
-const path = require('path')
 const fs = require('fs')
+const path = require('path')
 
 const app = express()
 const PORT = process.env.PORT || 10000
 
 app.use(cors())
 app.use(express.json())
+app.use(express.static('public'))
 
-// serve public folder
-app.use(express.static(path.join(__dirname, 'public')))
+// create files if missing
+if (!fs.existsSync('drivers.json')) {
+fs.writeFileSync('drivers.json', '[]')
+}
 
-// admin credentials
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@harveytaxi.com'
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'HarveyAdmin123!'
+if (!fs.existsSync('riders.json')) {
+fs.writeFileSync('riders.json', '[]')
+}
 
-// root
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public/index.html'))
+// GET drivers
+app.get('/api/drivers', (req, res) => {
+const drivers = JSON.parse(fs.readFileSync('drivers.json'))
+res.json(drivers)
 })
 
-// dynamic fallback for pages
-app.get('/:page', (req, res) => {
-  const file = path.join(__dirname, 'public', req.params.page)
-
-  if (fs.existsSync(file)) {
-    res.sendFile(file)
-  } else {
-    res.sendFile(path.join(__dirname, 'public/index.html'))
-  }
+// GET riders
+app.get('/api/riders', (req, res) => {
+const riders = JSON.parse(fs.readFileSync('riders.json'))
+res.json(riders)
 })
 
-/* ===============================
-   ADMIN LOGIN
-================================= */
+// approve driver
+app.post('/api/approve-driver', (req, res) => {
+const { id } = req.body
 
-app.post('/api/admin-login', (req, res) => {
-  const { email, password } = req.body || {}
+let drivers = JSON.parse(fs.readFileSync('drivers.json'))
 
-  if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-    return res.json({
-      success: true
-    })
-  }
-
-  res.status(401).json({
-    success: false,
-    message: 'Invalid admin login'
-  })
+drivers = drivers.map(d => {
+if (d.id === id) {
+d.status = 'approved'
+}
+return d
 })
 
-/* ===============================
-   START SERVER
-================================= */
+fs.writeFileSync('drivers.json', JSON.stringify(drivers,null,2))
+
+res.json({success:true})
+})
+
+// reject driver
+app.post('/api/reject-driver', (req, res) => {
+const { id } = req.body
+
+let drivers = JSON.parse(fs.readFileSync('drivers.json'))
+
+drivers = drivers.map(d => {
+if (d.id === id) {
+d.status = 'rejected'
+}
+return d
+})
+
+fs.writeFileSync('drivers.json', JSON.stringify(drivers,null,2))
+
+res.json({success:true})
+})
 
 app.listen(PORT, () => {
-  console.log(`Harvey Taxi running on port ${PORT}`)
+console.log('Harvey Taxi Server Running')
 })
