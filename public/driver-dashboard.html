@@ -15,8 +15,15 @@ margin:0;
 }
 
 .container{
-max-width:700px;
+max-width:760px;
 margin:auto;
+}
+
+.top-link{
+display:inline-block;
+margin-bottom:18px;
+color:#c7d7ff;
+text-decoration:none;
 }
 
 h1{
@@ -69,6 +76,7 @@ cursor:pointer;
 .accept{ background:#10b981; color:white; }
 .start{ background:#f59e0b; color:white; }
 .complete{ background:#ef4444; color:white; }
+.logout{ background:#475569; color:white; }
 
 .status{
 margin-top:10px;
@@ -88,6 +96,7 @@ border-radius:999px;
 font-size:12px;
 font-weight:bold;
 margin-top:8px;
+text-transform:capitalize;
 }
 
 .requested{ background:#334155; }
@@ -100,13 +109,6 @@ margin-top:8px;
 opacity:0.8;
 line-height:1.5;
 }
-
-.top-link{
-display:inline-block;
-margin-bottom:18px;
-color:#c7d7ff;
-text-decoration:none;
-}
 </style>
 </head>
 
@@ -118,14 +120,21 @@ text-decoration:none;
 
 <h1>🚖 Driver Dashboard</h1>
 <p class="sub">
-Enter your driver ID to load your current assigned trip and manage the ride flow.
+Log in with your driver email to load your active trip automatically.
 </p>
 
 <div class="card">
-<label for="driverId">Driver ID</label>
-<input id="driverId" placeholder="Enter driver ID">
-<button class="load" onclick="loadTrip()">Load My Trip</button>
+<label for="driverEmail">Driver Email</label>
+<input id="driverEmail" type="email" placeholder="Enter driver email">
+
+<button class="load" onclick="loadDriverByEmail()">Load My Dashboard</button>
+<button class="logout" onclick="logoutDriver()">Logout</button>
+
 <div class="status" id="message"></div>
+</div>
+
+<div class="card" id="driverCard">
+<div class="empty">No driver loaded yet.</div>
 </div>
 
 <div class="card" id="tripCard">
@@ -136,7 +145,7 @@ Enter your driver ID to load your current assigned trip and manage the ride flow
 
 <script>
 let currentTrip = null
-let currentDriverId = ''
+let currentDriver = null
 
 function setMessage(text){
 document.getElementById('message').innerText = text
@@ -145,6 +154,25 @@ document.getElementById('message').innerText = text
 function statusBadge(status){
 if(!status) status = 'requested'
 return `<span class="badge ${status}">${status.replace('_',' ')}</span>`
+}
+
+function renderDriver(driver){
+const driverCard = document.getElementById('driverCard')
+
+if(!driver){
+driverCard.innerHTML = `<div class="empty">No driver loaded yet.</div>`
+return
+}
+
+driverCard.innerHTML = `
+<div class="trip-line"><b>Name:</b> ${driver.name || 'Unknown Driver'}</div>
+<div class="trip-line"><b>Email:</b> ${driver.email || 'Unknown'}</div>
+<div class="trip-line"><b>Phone:</b> ${driver.phone || 'Unknown'}</div>
+<div class="trip-line"><b>Vehicle:</b> ${driver.vehicle || 'Unknown'}</div>
+<div class="trip-line"><b>Status:</b> ${driver.status || 'pending'}</div>
+<div class="trip-line"><b>Online:</b> ${driver.online ? 'Yes' : 'No'}</div>
+<div class="trip-line"><b>Current Ride ID:</b> ${driver.currentRideId || 'None'}</div>
+`
 }
 
 function renderTrip(trip){
@@ -187,31 +215,58 @@ ${actionButtons}
 `
 }
 
-async function loadTrip(){
-const driverId = document.getElementById('driverId').value.trim()
+async function loadDriverByEmail(){
+const email = document.getElementById('driverEmail').value.trim().toLowerCase()
 
-if(!driverId){
-setMessage('Enter your driver ID first.')
+if(!email){
+setMessage('Enter your driver email first.')
 return
 }
 
-currentDriverId = driverId
-setMessage('Loading your trip...')
+setMessage('Loading driver dashboard...')
+
+try{
+const res = await fetch('/api/drivers')
+const drivers = await res.json()
+
+const driver = drivers.find(d => (d.email || '').toLowerCase() === email)
+
+if(!driver){
+currentDriver = null
+currentTrip = null
+renderDriver(null)
+renderTrip(null)
+setMessage('No driver found for that email.')
+return
+}
+
+currentDriver = driver
+localStorage.setItem('harveyDriverEmail', email)
+localStorage.setItem('harveyDriverId', driver.id || '')
+renderDriver(driver)
+await loadTripForCurrentDriver()
+setMessage('Driver dashboard loaded.')
+}catch(err){
+setMessage('Could not load driver dashboard.')
+}
+}
+
+async function loadTripForCurrentDriver(){
+if(!currentDriver){
+renderTrip(null)
+return
+}
 
 try{
 const res = await fetch('/api/rides')
 const rides = await res.json()
 
-const trip = rides.find(r => String(r.driverId) === String(driverId) && r.status !== 'completed')
-
-if(!trip){
-renderTrip(null)
-setMessage('No active trip assigned to this driver.')
-return
-}
+const trip = rides.find(r =>
+String(r.driverId) === String(currentDriver.id || '') &&
+r.status !== 'completed'
+) || null
 
 renderTrip(trip)
-setMessage('Trip loaded.')
 }catch(err){
 setMessage('Could not load trip.')
 }
@@ -231,7 +286,7 @@ body:JSON.stringify({ rideId: currentTrip.id })
 })
 
 setMessage('Trip accepted.')
-await loadTrip()
+await refreshDashboard()
 }catch(err){
 setMessage('Could not accept trip.')
 }
@@ -251,7 +306,7 @@ body:JSON.stringify({ rideId: currentTrip.id })
 })
 
 setMessage('Trip started.')
-await loadTrip()
+await refreshDashboard()
 }catch(err){
 setMessage('Could not start trip.')
 }
@@ -271,16 +326,56 @@ body:JSON.stringify({ rideId: currentTrip.id })
 })
 
 setMessage('Trip completed.')
-currentTrip = null
-await loadTrip()
+await refreshDashboard()
 }catch(err){
 setMessage('Could not complete trip.')
 }
 }
 
+async function refreshDashboard(){
+if(!currentDriver || !currentDriver.email){
+return
+}
+
+document.getElementById('driverEmail').value = currentDriver.email
+
+try{
+const res = await fetch('/api/drivers')
+const drivers = await res.json()
+const updatedDriver = drivers.find(d => String(d.id) === String(currentDriver.id))
+
+if(updatedDriver){
+currentDriver = updatedDriver
+renderDriver(updatedDriver)
+await loadTripForCurrentDriver()
+}
+}catch(err){
+setMessage('Could not refresh dashboard.')
+}
+}
+
+function logoutDriver(){
+localStorage.removeItem('harveyDriverEmail')
+localStorage.removeItem('harveyDriverId')
+currentDriver = null
+currentTrip = null
+document.getElementById('driverEmail').value = ''
+renderDriver(null)
+renderTrip(null)
+setMessage('Logged out.')
+}
+
+window.addEventListener('load', async () => {
+const savedEmail = localStorage.getItem('harveyDriverEmail')
+if(savedEmail){
+document.getElementById('driverEmail').value = savedEmail
+await loadDriverByEmail()
+}
+})
+
 setInterval(() => {
-if(currentDriverId){
-loadTrip()
+if(currentDriver){
+refreshDashboard()
 }
 }, 5000)
 </script>
