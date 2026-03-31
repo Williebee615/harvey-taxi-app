@@ -1,48 +1,115 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Request a Ride</title>
+  <title>Driver Console</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
   <div class="container">
     <div class="app-header">
-      <div class="app-title">Request a Ride</div>
-      <div class="app-subtitle">Book a ride in seconds</div>
+      <div class="app-title">Driver Console</div>
+      <div class="app-subtitle">Manage open rides and trip status</div>
     </div>
 
     <div class="card">
-      <input class="input" id="riderName" placeholder="Rider Name" />
-      <input class="input" id="phone" placeholder="Phone Number" />
-      <input class="input" id="pickup" placeholder="Pickup Address" />
-      <input class="input" id="dropoff" placeholder="Dropoff Address" />
-      <input class="input" id="fare" placeholder="Fare" />
-
-      <button class="button" onclick="requestRide()">Submit Ride Request</button>
-
-      <pre id="result"></pre>
+      <button class="button secondary" onclick="loadRides()">Refresh</button>
+      <div id="rides" class="top-space"></div>
     </div>
   </div>
 
   <script>
-    async function requestRide() {
-      const res = await fetch('/api/rides/create', {
+    const DRIVER_ID = 'driver_1'
+    const DRIVER_NAME = 'Test Driver'
+
+    async function loadRides() {
+      const res = await fetch('/api/rides/open')
+      const data = await res.json()
+      const rides = data.rides || []
+
+      document.getElementById('rides').innerHTML = rides.map(ride => `
+        <div class="ride-card">
+          <div class="ride-line"><strong>${ride.id}</strong></div>
+          <div class="ride-line">Rider: ${ride.riderName}</div>
+          <div class="ride-line">Pickup: ${ride.pickup}</div>
+          <div class="ride-line">Dropoff: ${ride.dropoff}</div>
+          <div class="ride-line">Fare: $${ride.fare}</div>
+          <div class="ride-line">Driver: ${ride.driverId || 'Unassigned'}</div>
+          <div class="ride-line"><span class="status ${ride.status}">${ride.status}</span></div>
+
+          ${ride.status === 'pending'
+            ? `<button class="button small" onclick="acceptRide('${ride.id}')">Accept Ride</button>`
+            : ''}
+
+          ${ride.status === 'assigned' && ride.driverId === DRIVER_ID
+            ? `<button class="button small" onclick="markArrived('${ride.id}')">Mark Arrived</button>`
+            : ''}
+
+          ${ride.status === 'arrived' && ride.driverId === DRIVER_ID
+            ? `<button class="button small" onclick="markPickedUp('${ride.id}')">Picked Up</button>`
+            : ''}
+
+          ${ride.status === 'in_progress' && ride.driverId === DRIVER_ID
+            ? `<button class="button small" onclick="completeRide('${ride.id}')">Complete Ride</button>`
+            : ''}
+
+          ${(ride.status === 'assigned' || ride.status === 'arrived' || ride.status === 'in_progress') && ride.driverId === DRIVER_ID
+            ? `<button class="button small secondary" onclick="declineRide('${ride.id}')">Release Ride</button>`
+            : ''}
+        </div>
+      `).join('')
+    }
+
+    async function acceptRide(rideId) {
+      await fetch('/api/rides/accept', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          riderName: document.getElementById('riderName').value,
-          phone: document.getElementById('phone').value,
-          pickup: document.getElementById('pickup').value,
-          dropoff: document.getElementById('dropoff').value,
-          fare: document.getElementById('fare').value
+          rideId,
+          driverId: DRIVER_ID,
+          driverName: DRIVER_NAME
         })
       })
-
-      const data = await res.json()
-      document.getElementById('result').innerText =
-        JSON.stringify(data, null, 2)
+      loadRides()
     }
+
+    async function declineRide(rideId) {
+      await fetch('/api/rides/decline', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rideId })
+      })
+      loadRides()
+    }
+
+    async function markArrived(rideId) {
+      await fetch('/api/rides/arrived', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rideId })
+      })
+      loadRides()
+    }
+
+    async function markPickedUp(rideId) {
+      await fetch('/api/rides/pickup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rideId })
+      })
+      loadRides()
+    }
+
+    async function completeRide(rideId) {
+      await fetch('/api/rides/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rideId })
+      })
+      loadRides()
+    }
+
+    loadRides()
   </script>
 </body>
 </html>
