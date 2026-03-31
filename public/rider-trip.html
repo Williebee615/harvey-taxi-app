@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Track My Ride</title>
+
+<style>
+body{
+font-family:Arial;
+background:#021433;
+color:white;
+padding:20px;
+margin:0;
+}
+
+.container{
+max-width:760px;
+margin:auto;
+}
+
+.top-link{
+display:inline-block;
+margin-bottom:18px;
+color:#c7d7ff;
+text-decoration:none;
+}
+
+h1{
+margin-bottom:10px;
+font-size:32px;
+}
+
+.sub{
+opacity:0.85;
+margin-bottom:20px;
+line-height:1.5;
+}
+
+.card{
+background:#0b1f4a;
+padding:18px;
+border-radius:14px;
+margin-bottom:16px;
+box-shadow:0 0 10px rgba(0,0,0,0.35);
+}
+
+label{
+display:block;
+margin-bottom:8px;
+font-weight:bold;
+}
+
+input{
+width:100%;
+padding:14px;
+border:none;
+border-radius:10px;
+margin-bottom:12px;
+background:#10295c;
+color:white;
+font-size:16px;
+}
+
+button{
+padding:12px 16px;
+border:none;
+border-radius:10px;
+font-weight:bold;
+margin-right:8px;
+margin-top:8px;
+cursor:pointer;
+}
+
+.load{ background:#3b82f6; color:white; }
+.clear{ background:#475569; color:white; }
+
+.status{
+margin-top:10px;
+font-size:14px;
+opacity:0.9;
+}
+
+.trip-line{
+margin-bottom:10px;
+line-height:1.5;
+}
+
+.badge{
+display:inline-block;
+padding:6px 10px;
+border-radius:999px;
+font-size:12px;
+font-weight:bold;
+margin-top:8px;
+text-transform:capitalize;
+}
+
+.requested{ background:#334155; }
+.assigned{ background:#2563eb; }
+.enroute{ background:#d97706; }
+.in_progress{ background:#7c3aed; }
+.completed{ background:#16a34a; }
+
+.progress{
+display:grid;
+grid-template-columns:repeat(4,1fr);
+gap:10px;
+margin-top:16px;
+}
+
+.step{
+background:#10295c;
+padding:12px;
+border-radius:12px;
+text-align:center;
+font-size:13px;
+opacity:0.55;
+}
+
+.step.active{
+opacity:1;
+outline:2px solid rgba(255,255,255,0.2);
+}
+
+.empty{
+opacity:0.8;
+line-height:1.5;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<a class="top-link" href="/">← Back to Home</a>
+
+<h1>📍 Track My Ride</h1>
+<p class="sub">
+Enter your ride ID to check your trip status and see where your ride is in the Harvey Taxi flow.
+</p>
+
+<div class="card">
+<label for="rideId">Ride ID</label>
+<input id="rideId" placeholder="Enter your ride ID">
+
+<button class="load" onclick="loadRide()">Track Ride</button>
+<button class="clear" onclick="clearRide()">Clear</button>
+
+<div class="status" id="message"></div>
+</div>
+
+<div class="card" id="rideCard">
+<div class="empty">No ride loaded yet.</div>
+</div>
+
+</div>
+
+<script>
+let currentRide = null
+
+function setMessage(text){
+document.getElementById('message').innerText = text
+}
+
+function statusBadge(status){
+if(!status) status = 'requested'
+return `<span class="badge ${status}">${status.replace('_',' ')}</span>`
+}
+
+function progressHtml(status){
+const steps = [
+  { key:'requested', label:'Requested' },
+  { key:'assigned', label:'Assigned' },
+  { key:'enroute', label:'Driver Enroute' },
+  { key:'in_progress', label:'Trip Started' }
+]
+
+ let activeIndex = 0
+
+ if(status === 'requested') activeIndex = 0
+ if(status === 'assigned') activeIndex = 1
+ if(status === 'enroute') activeIndex = 2
+ if(status === 'in_progress' || status === 'completed') activeIndex = 3
+
+ return `
+   <div class="progress">
+     ${steps.map((step, index) => `
+       <div class="step ${index <= activeIndex ? 'active' : ''}">
+         ${step.label}
+       </div>
+     `).join('')}
+   </div>
+ `
+}
+
+function riderStatusMessage(status){
+if(status === 'requested') return 'Your request was received. Waiting for a driver assignment.'
+if(status === 'assigned') return 'A driver has been assigned to your trip.'
+if(status === 'enroute') return 'Your driver accepted the trip and is on the way.'
+if(status === 'in_progress') return 'Your trip is currently in progress.'
+if(status === 'completed') return 'Your trip has been completed.'
+return 'Status not available.'
+}
+
+function renderRide(ride){
+const rideCard = document.getElementById('rideCard')
+
+if(!ride){
+rideCard.innerHTML = `<div class="empty">No ride found.</div>`
+return
+}
+
+currentRide = ride
+
+rideCard.innerHTML = `
+<div class="trip-line"><b>Ride ID:</b> ${ride.id}</div>
+<div class="trip-line"><b>Rider:</b> ${ride.rider || ride.name || 'Not provided'}</div>
+<div class="trip-line"><b>Phone:</b> ${ride.phone || 'Not provided'}</div>
+<div class="trip-line"><b>Pickup:</b> ${ride.pickup || 'Not provided'}</div>
+<div class="trip-line"><b>Dropoff:</b> ${ride.dropoff || 'Not provided'}</div>
+<div class="trip-line"><b>Status:</b> ${statusBadge(ride.status)}</div>
+<div class="trip-line"><b>Assigned Driver:</b> ${ride.assignedDriverName || ride.driverId || 'Not assigned yet'}</div>
+<div class="trip-line"><b>Created:</b> ${ride.created || ride.createdAt || 'Not available'}</div>
+<div class="trip-line"><b>Update:</b> ${riderStatusMessage(ride.status)}</div>
+${progressHtml(ride.status)}
+`
+}
+
+async function loadRide(){
+const rideId = document.getElementById('rideId').value.trim()
+
+if(!rideId){
+setMessage('Please enter your ride ID.')
+return
+}
+
+setMessage('Loading ride status...')
+
+try{
+const res = await fetch('/api/rides')
+const rides = await res.json()
+
+const ride = rides.find(r => String(r.id) === String(rideId))
+
+if(!ride){
+renderRide(null)
+setMessage('No ride found with that ID.')
+return
+}
+
+localStorage.setItem('harveyRideId', rideId)
+renderRide(ride)
+setMessage('Ride loaded.')
+}catch(err){
+setMessage('Could not load ride status.')
+}
+}
+
+function clearRide(){
+localStorage.removeItem('harveyRideId')
+document.getElementById('rideId').value = ''
+currentRide = null
+document.getElementById('rideCard').innerHTML = `<div class="empty">No ride loaded yet.</div>`
+setMessage('Cleared.')
+}
+
+window.addEventListener('load', async () => {
+const savedRideId = localStorage.getItem('harveyRideId')
+if(savedRideId){
+document.getElementById('rideId').value = savedRideId
+await loadRide()
+}
+})
+
+setInterval(() => {
+if(currentRide){
+loadRide()
+}
+}, 5000)
+</script>
+
+</body>
+</html>
