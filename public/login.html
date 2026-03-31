@@ -1,34 +1,223 @@
-<script>
-async function login(){
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Harvey Taxi Login</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: Arial, Helvetica, sans-serif;
+    }
 
-const email = document.getElementById('email').value
-const password = document.getElementById('password').value
+    body {
+      background: linear-gradient(180deg, #031033 0%, #06173f 45%, #08204f 100%);
+      color: white;
+      min-height: 100vh;
+      padding: 20px;
+    }
 
-// ADMIN LOGIN
-if(
-email === "admin@harvey.com" &&
-password === "HarveyAdmin123"
-){
-localStorage.setItem("admin", "true")
-window.location.href = "/admin.html"
-return
-}
+    .container {
+      max-width: 620px;
+      margin: 0 auto;
+    }
 
-// DRIVER LOGIN
-const res = await fetch('/api/driver/login',{
-method:'POST',
-headers:{'Content-Type':'application/json'},
-body:JSON.stringify({email,password})
-})
+    .top-link {
+      display: inline-block;
+      color: #d7e2ff;
+      text-decoration: none;
+      margin-bottom: 20px;
+      font-size: 15px;
+    }
 
-const data = await res.json()
+    .card {
+      background: rgba(20, 34, 72, 0.96);
+      border: 1px solid rgba(128, 157, 255, 0.24);
+      border-radius: 24px;
+      padding: 24px;
+      box-shadow: 0 24px 48px rgba(0, 0, 0, 0.35);
+    }
 
-if(data.driver){
-localStorage.setItem("driverId", data.driver.id)
-window.location.href="/driver-dashboard.html"
-}else{
-alert("Invalid login")
-}
+    h1 {
+      font-size: 38px;
+      font-weight: 800;
+      margin-bottom: 10px;
+    }
 
-}
-</script>
+    .subtitle {
+      color: #d7e2ff;
+      line-height: 1.6;
+      margin-bottom: 22px;
+      font-size: 16px;
+    }
+
+    .field {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 15px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(125, 150, 255, 0.18);
+      background: rgba(8, 17, 42, 0.96);
+      color: white;
+      font-size: 15px;
+      outline: none;
+    }
+
+    input:focus, select:focus {
+      border-color: #6f8cff;
+      box-shadow: 0 0 0 3px rgba(80, 113, 255, 0.18);
+    }
+
+    .login-btn {
+      width: 100%;
+      margin-top: 8px;
+      border: none;
+      border-radius: 18px;
+      min-height: 60px;
+      font-size: 19px;
+      font-weight: 800;
+      color: white;
+      cursor: pointer;
+      background: linear-gradient(90deg, #2962ff 0%, #7b2cff 100%);
+      box-shadow: 0 12px 25px rgba(57, 93, 255, 0.35);
+    }
+
+    .message {
+      margin-top: 16px;
+      font-size: 15px;
+      line-height: 1.5;
+      min-height: 22px;
+      color: #d7e2ff;
+    }
+
+    .quick-links {
+      margin-top: 24px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .quick-link {
+      display: block;
+      text-decoration: none;
+      background: rgba(8, 17, 42, 0.85);
+      border: 1px solid rgba(125, 150, 255, 0.12);
+      border-radius: 16px;
+      padding: 14px 16px;
+      color: #ffffff;
+      font-weight: 700;
+    }
+
+    .quick-link small {
+      display: block;
+      margin-top: 5px;
+      color: #c8d6fb;
+      font-weight: 400;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 640px) {
+      h1 {
+        font-size: 31px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a class="top-link" href="/">← Back to Home</a>
+
+    <div class="card">
+      <h1>Login</h1>
+      <p class="subtitle">
+        Select the account type you want to access. Admin login remains protected separately.
+      </p>
+
+      <form id="loginForm">
+        <div class="field">
+          <label for="accountType">Account Type</label>
+          <select id="accountType" required>
+            <option value="">Choose account type</option>
+            <option value="rider">Rider</option>
+            <option value="driver">Driver</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="email">Email</label>
+          <input type="email" id="email" placeholder="Enter your email" required />
+        </div>
+
+        <div class="field">
+          <label for="password">Password</label>
+          <input type="password" id="password" placeholder="Enter your password" required />
+        </div>
+
+        <button type="submit" class="login-btn">Continue</button>
+        <div class="message" id="message"></div>
+      </form>
+
+      <div class="quick-links">
+        <a class="quick-link" href="/rider-signup.html">
+          Need a rider account?
+          <small>Create a rider profile to request trips.</small>
+        </a>
+
+        <a class="quick-link" href="/driver-signup.html">
+          Want to drive?
+          <small>Submit a driver application for admin review.</small>
+        </a>
+
+        <a class="quick-link" href="/admin-login.html">
+          Admin access
+          <small>Use the dedicated admin login page.</small>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('loginForm')
+    const message = document.getElementById('message')
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault()
+
+      const accountType = document.getElementById('accountType').value
+      const email = document.getElementById('email').value.trim()
+
+      if (!accountType) {
+        message.textContent = 'Please choose an account type.'
+        return
+      }
+
+      if (accountType === 'admin') {
+        window.location.href = '/admin-login.html'
+        return
+      }
+
+      if (accountType === 'rider') {
+        message.textContent = `Rider login system is the next upgrade. Account found for: ${email || 'your email'}`
+        return
+      }
+
+      if (accountType === 'driver') {
+        message.textContent = `Driver login system is the next upgrade. Account found for: ${email || 'your email'}`
+      }
+    })
+  </script>
+</body>
+</html>
