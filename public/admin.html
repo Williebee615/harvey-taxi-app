@@ -1,33 +1,16 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Harvey Taxi Admin</title>
 
 <style>
 body{
 background:#06112d;
 color:white;
-font-family:Arial, Helvetica, sans-serif;
-margin:0;
+font-family:Arial;
 padding:20px;
-}
-
-.header{
-display:flex;
-justify-content:space-between;
-align-items:center;
-margin-bottom:20px;
-}
-
-.logout{
-background:linear-gradient(90deg,#2962ff,#7b2cff);
-border:none;
-padding:8px 14px;
-border-radius:8px;
-color:white;
-font-weight:bold;
 }
 
 .card{
@@ -45,58 +28,52 @@ margin-top:10px;
 }
 
 button{
-margin-top:10px;
-margin-right:10px;
 padding:8px 12px;
 border:none;
 border-radius:8px;
+margin-right:10px;
+margin-top:10px;
 font-weight:bold;
 }
 
-.approve{
-background:#00c853;
-color:white;
-}
+.approve{background:#00c853;color:white;}
+.reject{background:#ff1744;color:white;}
 
-.reject{
-background:#ff1744;
-color:white;
+.error{
+color:#ff5252;
+margin-top:10px;
 }
 </style>
 </head>
 
 <body>
 
-<script>
-const isAdmin = localStorage.getItem('harveyAdminLoggedIn')
-if(!isAdmin){
-window.location.href='/admin-login.html'
-}
-</script>
-
-<div class="header">
 <h1>🛠 Harvey Taxi Admin Panel</h1>
-<button class="logout" onclick="logout()">Logout</button>
-</div>
 
 <div class="card">
 <h2>Driver Applications</h2>
 <div id="drivers">Loading drivers...</div>
+<div id="driverError" class="error"></div>
 </div>
 
 <div class="card">
 <h2>Rider Accounts</h2>
 <div id="riders">Loading riders...</div>
+<div id="riderError" class="error"></div>
 </div>
 
 <script>
-function logout(){
-localStorage.removeItem('harveyAdminLoggedIn')
-window.location.href='/admin-login.html'
-}
 
 async function loadDrivers(){
+
+try{
+
 const res = await fetch('/api/drivers')
+
+if(!res.ok){
+throw new Error('API not responding')
+}
+
 const drivers = await res.json()
 
 const container = document.getElementById('drivers')
@@ -109,13 +86,14 @@ return
 container.innerHTML=''
 
 drivers.forEach(d=>{
+
 const div=document.createElement('div')
 div.className='driver'
 
 div.innerHTML=`
-<b>${d.name || 'Unnamed Driver'}</b><br/>
-${d.email || ''}<br/>
-Status: ${d.status || 'pending'}<br/>
+<b>${d.name || 'Unnamed Driver'}</b><br>
+${d.email || ''}<br>
+Status: ${d.status || 'pending'}<br>
 
 <button class="approve" onclick="approve('${d.id}')">
 Approve
@@ -127,11 +105,29 @@ Reject
 `
 
 container.appendChild(div)
+
 })
+
+}catch(e){
+
+document.getElementById('drivers').innerHTML=''
+document.getElementById('driverError').innerText =
+'Could not load drivers. Server not responding.'
+
+}
+
 }
 
 async function loadRiders(){
+
+try{
+
 const res = await fetch('/api/riders')
+
+if(!res.ok){
+throw new Error('API not responding')
+}
+
 const riders = await res.json()
 
 const container = document.getElementById('riders')
@@ -144,19 +140,31 @@ return
 container.innerHTML=''
 
 riders.forEach(r=>{
+
 const div=document.createElement('div')
 div.className='driver'
 
 div.innerHTML=`
-<b>${r.name || 'Unnamed Rider'}</b><br/>
+<b>${r.name || 'Unnamed Rider'}</b><br>
 ${r.email || ''}
 `
 
 container.appendChild(div)
+
 })
+
+}catch(e){
+
+document.getElementById('riders').innerHTML=''
+document.getElementById('riderError').innerText =
+'Could not load riders. Server not responding.'
+
+}
+
 }
 
 async function approve(id){
+
 await fetch('/api/approve-driver',{
 method:'POST',
 headers:{'Content-Type':'application/json'},
@@ -164,9 +172,11 @@ body:JSON.stringify({id})
 })
 
 loadDrivers()
+
 }
 
 async function reject(id){
+
 await fetch('/api/reject-driver',{
 method:'POST',
 headers:{'Content-Type':'application/json'},
@@ -174,10 +184,12 @@ body:JSON.stringify({id})
 })
 
 loadDrivers()
+
 }
 
 loadDrivers()
 loadRiders()
+
 </script>
 
 </body>
