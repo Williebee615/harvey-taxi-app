@@ -1,209 +1,289 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Harvey Taxi Driver Dashboard</title>
-  <style>
-    * {
-      box-sizing: border-box;
-      font-family: Arial, sans-serif;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Harvey Taxi Driver Dashboard</title>
 
-    body {
-      margin: 0;
-      background: #02123d;
-      color: white;
-      padding: 20px;
-    }
+<style>
+body{
+font-family:Arial;
+background:#021433;
+color:white;
+padding:20px;
+margin:0;
+}
 
-    .wrap {
-      max-width: 1000px;
-      margin: 0 auto;
-    }
+.container{
+max-width:700px;
+margin:auto;
+}
 
-    .card {
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.15);
-      border-radius: 18px;
-      padding: 20px;
-      margin-bottom: 20px;
-    }
+h1{
+margin-bottom:10px;
+font-size:32px;
+}
 
-    h1, h2 {
-      margin-top: 0;
-    }
+.sub{
+opacity:0.85;
+margin-bottom:20px;
+line-height:1.5;
+}
 
-    input {
-      width: 100%;
-      border: none;
-      border-radius: 10px;
-      padding: 12px;
-      margin-bottom: 12px;
-    }
+.card{
+background:#0b1f4a;
+padding:18px;
+border-radius:14px;
+margin-bottom:16px;
+box-shadow:0 0 10px rgba(0,0,0,0.35);
+}
 
-    button {
-      border: none;
-      border-radius: 10px;
-      padding: 10px 14px;
-      font-weight: bold;
-      cursor: pointer;
-      margin: 6px 6px 0 0;
-    }
+label{
+display:block;
+margin-bottom:8px;
+font-weight:bold;
+}
 
-    .btn-blue { background: #63b3ed; color: #061727; }
-    .btn-green { background: #5ed36f; color: #08220d; }
-    .btn-yellow { background: #f6d64a; color: #2d2400; }
-    .btn-red { background: #ff6b6b; color: white; }
-    .btn-white { background: white; color: #02123d; }
+input{
+width:100%;
+padding:14px;
+border:none;
+border-radius:10px;
+margin-bottom:12px;
+background:#10295c;
+color:white;
+font-size:16px;
+}
 
-    .ride {
-      background: rgba(255,255,255,0.06);
-      border-radius: 14px;
-      padding: 16px;
-      margin-bottom: 14px;
-    }
+button{
+padding:12px 16px;
+border:none;
+border-radius:10px;
+font-weight:bold;
+margin-right:8px;
+margin-top:8px;
+cursor:pointer;
+}
 
-    .muted {
-      color: #d2d7e6;
-      font-size: 14px;
-      line-height: 1.45;
-    }
+.load{ background:#3b82f6; color:white; }
+.accept{ background:#10b981; color:white; }
+.start{ background:#f59e0b; color:white; }
+.complete{ background:#ef4444; color:white; }
 
-    .status {
-      display: inline-block;
-      padding: 6px 10px;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: bold;
-      margin: 8px 8px 0 0;
-      background: rgba(255,255,255,0.12);
-    }
+.status{
+margin-top:10px;
+font-size:14px;
+opacity:0.85;
+}
 
-    .hidden {
-      display: none;
-    }
-  </style>
+.trip-line{
+margin-bottom:10px;
+line-height:1.5;
+}
+
+.badge{
+display:inline-block;
+padding:6px 10px;
+border-radius:999px;
+font-size:12px;
+font-weight:bold;
+margin-top:8px;
+}
+
+.requested{ background:#334155; }
+.assigned{ background:#2563eb; }
+.enroute{ background:#d97706; }
+.in_progress{ background:#7c3aed; }
+.completed{ background:#16a34a; }
+
+.empty{
+opacity:0.8;
+line-height:1.5;
+}
+
+.top-link{
+display:inline-block;
+margin-bottom:18px;
+color:#c7d7ff;
+text-decoration:none;
+}
+</style>
 </head>
+
 <body>
-  <div class="wrap">
-    <div class="card" id="loginCard">
-      <h1>🚕 Driver Dashboard</h1>
-      <p class="muted">Log in to view and manage assigned rides.</p>
-      <input id="email" type="email" placeholder="Driver email" />
-      <input id="password" type="password" placeholder="Password" />
-      <button class="btn-blue" onclick="login()">Login</button>
-      <div id="loginMessage" class="muted" style="margin-top:12px;"></div>
-    </div>
 
-    <div class="card hidden" id="driverCard">
-      <h2 id="driverName">Driver</h2>
-      <div id="driverMeta" class="muted"></div>
-      <button class="btn-white" onclick="setAvailable()">Set Available</button>
-      <button class="btn-yellow" onclick="setOffline()">Set Offline</button>
-    </div>
+<div class="container">
 
-    <div class="card hidden" id="ridesCard">
-      <h2>Assigned Rides</h2>
-      <div id="ridesList">No rides yet.</div>
-    </div>
-  </div>
+<a class="top-link" href="/">← Back to Home</a>
 
-  <script>
-    let currentDriver = null
+<h1>🚖 Driver Dashboard</h1>
+<p class="sub">
+Enter your driver ID to load your current assigned trip and manage the ride flow.
+</p>
 
-    async function login() {
-      const email = document.getElementById('email').value
-      const password = document.getElementById('password').value
+<div class="card">
+<label for="driverId">Driver ID</label>
+<input id="driverId" placeholder="Enter driver ID">
+<button class="load" onclick="loadTrip()">Load My Trip</button>
+<div class="status" id="message"></div>
+</div>
 
-      const res = await fetch('/api/driver-login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      })
+<div class="card" id="tripCard">
+<div class="empty">No trip loaded yet.</div>
+</div>
 
-      const data = await res.json()
+</div>
 
-      if (!data.success) {
-        document.getElementById('loginMessage').textContent = data.message || 'Login failed.'
-        return
-      }
+<script>
+let currentTrip = null
+let currentDriverId = ''
 
-      currentDriver = data.driver
+function setMessage(text){
+document.getElementById('message').innerText = text
+}
 
-      document.getElementById('loginCard').classList.add('hidden')
-      document.getElementById('driverCard').classList.remove('hidden')
-      document.getElementById('ridesCard').classList.remove('hidden')
+function statusBadge(status){
+if(!status) status = 'requested'
+return `<span class="badge ${status}">${status.replace('_',' ')}</span>`
+}
 
-      document.getElementById('driverName').textContent = currentDriver.name
-      document.getElementById('driverMeta').textContent =
-        `${currentDriver.email} • ${currentDriver.vehicleType || 'Vehicle not set'} ${currentDriver.carModel || ''}`
+function renderTrip(trip){
+const tripCard = document.getElementById('tripCard')
 
-      await loadRides()
-    }
+if(!trip){
+tripCard.innerHTML = `<div class="empty">No assigned trip right now.</div>`
+return
+}
 
-    async function setAvailable() {
-      if (!currentDriver) return
+currentTrip = trip
 
-      await fetch('/api/driver/update-status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          driverId: currentDriver.id,
-          status: 'available',
-          available: true
-        })
-      })
+let actionButtons = ''
 
-      await loadRides()
-    }
+if(trip.status === 'assigned'){
+actionButtons += `<button class="accept" onclick="acceptTrip()">Accept Trip</button>`
+}
 
-    async function setOffline() {
-      if (!currentDriver) return
+if(trip.status === 'enroute'){
+actionButtons += `<button class="start" onclick="startTrip()">Start Trip</button>`
+}
 
-      await fetch('/api/driver/update-status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          driverId: currentDriver.id,
-          status: 'offline',
-          available: false
-        })
-      })
+if(trip.status === 'in_progress'){
+actionButtons += `<button class="complete" onclick="completeTrip()">Complete Trip</button>`
+}
 
-      await loadRides()
-    }
+if(trip.status === 'completed'){
+actionButtons += `<div class="status">This trip is completed.</div>`
+}
 
-    async function loadRides() {
-      if (!currentDriver) return
+tripCard.innerHTML = `
+<div class="trip-line"><b>Ride ID:</b> ${trip.id}</div>
+<div class="trip-line"><b>Rider:</b> ${trip.rider || trip.name || 'Not provided'}</div>
+<div class="trip-line"><b>Phone:</b> ${trip.phone || 'Not provided'}</div>
+<div class="trip-line"><b>Pickup:</b> ${trip.pickup || 'Not provided'}</div>
+<div class="trip-line"><b>Dropoff:</b> ${trip.dropoff || 'Not provided'}</div>
+<div class="trip-line"><b>Status:</b> ${statusBadge(trip.status)}</div>
+<div class="trip-line"><b>Created:</b> ${trip.created || trip.createdAt || 'Not available'}</div>
+${actionButtons}
+`
+}
 
-      const res = await fetch(`/api/driver-rides/${currentDriver.id}`)
-      const data = await res.json()
-      const rides = data.rides || []
+async function loadTrip(){
+const driverId = document.getElementById('driverId').value.trim()
 
-      const ridesList = document.getElementById('ridesList')
+if(!driverId){
+setMessage('Enter your driver ID first.')
+return
+}
 
-      if (!rides.length) {
-        ridesList.innerHTML = '<p class="muted">No rides assigned yet.</p>'
-        return
-      }
+currentDriverId = driverId
+setMessage('Loading your trip...')
 
-      ridesList.innerHTML = rides.map(ride => `
-        <div class="ride">
-          <strong>${ride.riderName}</strong>
-          <div class="muted">Phone: ${ride.riderPhone}</div>
-          <div class="muted">Pickup: ${ride.pickup}</div>
-          <div class="muted">Dropoff: ${ride.dropoff}</div>
-          <div class="muted">Scheduled: ${ride.scheduledTime || 'ASAP'}</div>
-          <div class="muted">Passengers: ${ride.operations?.passengerCount || 'N/A'} | Luggage: ${ride.operations?.luggageCount || 'N/A'}</div>
+try{
+const res = await fetch('/api/rides')
+const rides = await res.json()
 
-          <div class="status">Status: ${ride.status}</div>
-          <div class="status">Response: ${ride.driverResponse || 'waiting'}</div>
-          <div class="status">Stage: ${ride.lifecycle?.stage || 'request_intake'}</div>
+const trip = rides.find(r => String(r.driverId) === String(driverId) && r.status !== 'completed')
 
-          <div style="margin-top:10px;">
-            ${ride.status === 'assigned' ? `<button class="btn-green" onclick="acceptRide('${ride.id}')">Accept</button>` : ''}
-            ${ride.status === 'assigned' ? `<button class="btn-red" onclick="declineRide('${ride.id}')">Decline</button>` : ''}
-            ${(ride.status === 'accepted' || ride.status === 'assigned') ? `<button class="btn-blue" onclick="markEnRoute('${ride.id}')">En Route</button>` : ''}
-            ${ride.status === 'en_route' ? `<button class="btn-yellow" onclick="markPickedUp('${ride.id}')">Picked Up</button>` : ''}
-            ${(ride
+if(!trip){
+renderTrip(null)
+setMessage('No active trip assigned to this driver.')
+return
+}
+
+renderTrip(trip)
+setMessage('Trip loaded.')
+}catch(err){
+setMessage('Could not load trip.')
+}
+}
+
+async function acceptTrip(){
+if(!currentTrip){
+setMessage('No trip loaded.')
+return
+}
+
+try{
+await fetch('/api/driver-accept',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({ rideId: currentTrip.id })
+})
+
+setMessage('Trip accepted.')
+await loadTrip()
+}catch(err){
+setMessage('Could not accept trip.')
+}
+}
+
+async function startTrip(){
+if(!currentTrip){
+setMessage('No trip loaded.')
+return
+}
+
+try{
+await fetch('/api/start-trip',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({ rideId: currentTrip.id })
+})
+
+setMessage('Trip started.')
+await loadTrip()
+}catch(err){
+setMessage('Could not start trip.')
+}
+}
+
+async function completeTrip(){
+if(!currentTrip){
+setMessage('No trip loaded.')
+return
+}
+
+try{
+await fetch('/api/complete-trip',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({ rideId: currentTrip.id })
+})
+
+setMessage('Trip completed.')
+currentTrip = null
+await loadTrip()
+}catch(err){
+setMessage('Could not complete trip.')
+}
+}
+
+setInterval(() => {
+if(currentDriverId){
+loadTrip()
+}
+}, 5000)
+</script>
+
+</body>
+</html>
