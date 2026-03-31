@@ -82,7 +82,9 @@ function canAutoDispatchDriver(driver) {
 function getSurgeMultiplier(data) {
   const activeTrips = data.rides.filter((ride) =>
     ride.status === 'requested' ||
+    ride.status === 'validated' ||
     ride.status === 'assigned' ||
+    ride.status === 'confirmed' ||
     ride.status === 'enroute' ||
     ride.status === 'in_progress'
   ).length
@@ -172,6 +174,19 @@ function findNearestDriver(drivers, pickupCoords) {
     driver: nearestDriver,
     distanceMiles: nearestDistance === Infinity ? null : nearestDistance
   }
+}
+
+function isScheduledRide(body) {
+  return !!(body.scheduledDate || body.scheduledTime)
+}
+
+function getRideDateTime(ride) {
+  if (!ride.scheduledDate || !ride.scheduledTime) return null
+
+  const dt = new Date(`${ride.scheduledDate}T${ride.scheduledTime}:00`)
+  if (isNaN(dt.getTime())) return null
+
+  return dt
 }
 
 app.get('/', (req, res) => {
@@ -324,9 +339,11 @@ app.post('/api/request-ride', async (req, res) => {
 
     const surgeMultiplier = getSurgeMultiplier(data)
     const fare = calculateFare(tripDistance, surgeMultiplier)
+    const scheduled = isScheduledRide(req.body)
 
     const ride = {
       id: Date.now().toString(),
+      rideType: req.body.rideType || 'scheduled_local',
       pickup: pickupInput,
       dropoff: dropoffInput,
       pickupGeo,
@@ -334,11 +351,28 @@ app.post('/api/request-ride', async (req, res) => {
       rider: req.body.rider || req.body.name || '',
       name: req.body.name || '',
       phone: req.body.phone || '',
-      status: 'requested',
+      passengerCount: Number(req.body.passengerCount || 1),
+      luggageCount: Number(req.body.luggageCount || 0),
+      airline: req.body.airline || '',
+      flightNumber: req.body.flightNumber || '',
+      scheduledDate: req.body.scheduledDate || '',
+      scheduledTime: req.body.scheduledTime || '',
+      scheduled,
+      bookingLeadStatus: scheduled ? 'scheduled' : 'asap',
+      status: scheduled ? 'validated' : 'requested',
+      lifecycleStage: scheduled ? 'validation' : 'request_intake',
       driverId: null,
       assignedDriverName: '',
+      backupDriverName: '',
       autoAssigned: false,
       autoAssignedDistanceMiles: null,
+      driverConfirmed24h: false,
+      riderConfirmed24h: false,
+      driverConfirmed2h: false,
+      riderConfirmed2h: false,
+      driverAlertSeen: false,
+      driver24hAlertSent: false,
+      driver2hAlertSent: false,
       fare,
       created: new Date().toISOString(),
       acceptedAt: '',
@@ -346,13 +380,14 @@ app.post('/api/request-ride', async (req, res) => {
       completedAt: ''
     }
 
-    if (pickupGeo) {
+    if (!scheduled && pickupGeo) {
       const result = findNearestDriver(data.drivers, pickupGeo)
 
       if (result.driver) {
         ride.driverId = result.driver.id
         ride.assignedDriverName = result.driver.name || 'Driver'
         ride.status = 'assigned'
+        ride.lifecycleStage = 'driver_assignment'
         ride.autoAssigned = true
         ride.autoAssignedDistanceMiles = Number(result.distanceMiles.toFixed(2))
 
@@ -495,6 +530,10 @@ app.post('/api/assign-driver', (req, res) => {
   ride.driverId = driverId
   ride.assignedDriverName = driver.name || 'Driver'
   ride.status = 'assigned'
+  ride.lifecycleStage = 'driver_assignment'
+  ride.driverAlertSeen = false
+  ride.driver24hAlertSent = false
+  ride.driver2hAlertSent = false
 
   driver.currentRide = rideId
   driver.online = false
@@ -508,65 +547,39 @@ app.post('/api/assign-driver', (req, res) => {
 })
 
 /* =========================
-   TRIP FLOW
+   UPDATE CONFIRMATIONS
 ========================= */
-app.post('/api/driver-accept', (req, res) => {
-  const { rideId } = req.body || {}
-  const data = readData()
+app.post('/api/update-confirmation-status', (req, res) => {
+  const {
+    rideId,
+    driverConfirmed24h,
+    riderConfirmed24h,
+    driverConfirmed2h,
+    riderConfirmed2h,
+    backupDriverName
+  } = req.body || {}
 
+  const data = readData()
   const ride = data.rides.find((r) => String(r.id) === String(rideId))
 
   if (!ride) {
     return res.status(404).json({ error: 'Ride not found' })
   }
 
-  ride.status = 'enroute'
-  ride.acceptedAt = new Date().toISOString()
-  writeData(data)
+  if (typeof driverConfirmed24h === 'boolean') ride.driverConfirmed24h = driverConfirmed24h
+  if (typeof riderConfirmed24h === 'boolean') ride.riderConfirmed24h = riderConfirmed24h
+  if (typeof driverConfirmed2h === 'boolean') ride.driverConfirmed2h = driverConfirmed2h
+  if (typeof riderConfirmed2h === 'boolean') ride.riderConfirmed2h = riderConfirmed2h
+  if (typeof backupDriverName === 'string') ride.backupDriverName = backupDriverName
 
-  return res.json({
-    success: true,
-    ride
-  })
-})
-
-app.post('/api/start-trip', (req, res) => {
-  const { rideId } = req.body || {}
-  const data = readData()
-
-  const ride = data.rides.find((r) => String(r.id) === String(rideId))
-
-  if (!ride) {
-    return res.status(404).json({ error: 'Ride not found' })
-  }
-
-  ride.status = 'in_progress'
-  ride.startedAt = new Date().toISOString()
-  writeData(data)
-
-  return res.json({
-    success: true,
-    ride
-  })
-})
-
-app.post('/api/driver-complete', (req, res) => {
-  const { rideId } = req.body || {}
-  const data = readData()
-
-  const ride = data.rides.find((r) => String(r.id) === String(rideId))
-
-  if (!ride) {
-    return res.status(404).json({ error: 'Ride not found' })
-  }
-
-  ride.status = 'completed'
-  ride.completedAt = new Date().toISOString()
-
-  const driver = data.drivers.find((d) => String(d.id) === String(ride.driverId))
-  if (driver) {
-    driver.currentRide = null
-    driver.online = true
+  if (
+    ride.driverConfirmed24h &&
+    ride.riderConfirmed24h &&
+    ride.driverConfirmed2h &&
+    ride.riderConfirmed2h
+  ) {
+    ride.status = 'confirmed'
+    ride.lifecycleStage = 'pre_ride_confirmation'
   }
 
   writeData(data)
@@ -577,6 +590,41 @@ app.post('/api/driver-complete', (req, res) => {
   })
 })
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`)
-})
+/* =========================
+   DRIVER ALERTS
+========================= */
+app.get('/api/driver-alerts/:driverId', (req, res) => {
+  const { driverId } = req.params
+  const data = readData()
+  const now = new Date()
+
+  const alerts = []
+
+  data.rides.forEach((ride) => {
+    if (String(ride.driverId) !== String(driverId)) return
+    if (ride.status === 'completed') return
+
+    const rideTime = getRideDateTime(ride)
+
+    if (ride.status === 'assigned' && !ride.driverAlertSeen) {
+      alerts.push({
+        rideId: ride.id,
+        stage: 'assigned',
+        title: 'New Ride Assigned',
+        message: `Pickup: ${ride.pickup || 'N/A'} | Dropoff: ${ride.dropoff || 'N/A'}`,
+        ride
+      })
+    }
+
+    if (rideTime) {
+      const minutesUntil = Math.round((rideTime.getTime() - now.getTime()) / 60000)
+
+      if (
+        minutesUntil <= 1440 &&
+        minutesUntil > 120 &&
+        !ride.driver24hAlertSent
+      ) {
+        alerts.push({
+          rideId: ride.id,
+          stage: '24h',
+          title
