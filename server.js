@@ -82,7 +82,9 @@ function canAutoDispatchDriver(driver) {
 function getSurgeMultiplier(data) {
   const activeTrips = data.rides.filter((ride) =>
     ride.status === 'requested' ||
+    ride.status === 'validated' ||
     ride.status === 'assigned' ||
+    ride.status === 'confirmed' ||
     ride.status === 'enroute' ||
     ride.status === 'in_progress'
   ).length
@@ -174,13 +176,14 @@ function findNearestDriver(drivers, pickupCoords) {
   }
 }
 
+function isScheduledRide(reqBody) {
+  return !!(reqBody.scheduledDate || reqBody.scheduledTime)
+}
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'))
 })
 
-/* =========================
-   ADMIN LOGIN
-========================= */
 app.post('/api/admin-login', (req, res) => {
   const { email, password } = req.body || {}
 
@@ -197,9 +200,6 @@ app.post('/api/admin-login', (req, res) => {
   })
 })
 
-/* =========================
-   DRIVER LOCATION
-========================= */
 app.post('/api/driver-location', (req, res) => {
   const { driverId, lat, lng } = req.body || {}
   const data = readData()
@@ -245,9 +245,6 @@ app.get('/api/driver-location/:id', (req, res) => {
   })
 })
 
-/* =========================
-   DRIVER SIGNUP
-========================= */
 app.post('/api/driver-signup', (req, res) => {
   const data = readData()
 
@@ -276,9 +273,6 @@ app.post('/api/driver-signup', (req, res) => {
   })
 })
 
-/* =========================
-   RIDER SIGNUP
-========================= */
 app.post('/api/rider-signup', (req, res) => {
   const data = readData()
 
@@ -299,9 +293,6 @@ app.post('/api/rider-signup', (req, res) => {
   })
 })
 
-/* =========================
-   REQUEST RIDE
-========================= */
 app.post('/api/request-ride', async (req, res) => {
   try {
     const data = readData()
@@ -324,9 +315,11 @@ app.post('/api/request-ride', async (req, res) => {
 
     const surgeMultiplier = getSurgeMultiplier(data)
     const fare = calculateFare(tripDistance, surgeMultiplier)
+    const scheduled = isScheduledRide(req.body)
 
     const ride = {
       id: Date.now().toString(),
+      rideType: req.body.rideType || 'scheduled_local',
       pickup: pickupInput,
       dropoff: dropoffInput,
       pickupGeo,
@@ -334,249 +327,4 @@ app.post('/api/request-ride', async (req, res) => {
       rider: req.body.rider || req.body.name || '',
       name: req.body.name || '',
       phone: req.body.phone || '',
-      status: 'requested',
-      driverId: null,
-      assignedDriverName: '',
-      autoAssigned: false,
-      autoAssignedDistanceMiles: null,
-      fare,
-      created: new Date().toISOString(),
-      acceptedAt: '',
-      startedAt: '',
-      completedAt: ''
-    }
-
-    if (pickupGeo) {
-      const result = findNearestDriver(data.drivers, pickupGeo)
-
-      if (result.driver) {
-        ride.driverId = result.driver.id
-        ride.assignedDriverName = result.driver.name || 'Driver'
-        ride.status = 'assigned'
-        ride.autoAssigned = true
-        ride.autoAssignedDistanceMiles = Number(result.distanceMiles.toFixed(2))
-
-        const matchedDriver = data.drivers.find(
-          (d) => String(d.id) === String(result.driver.id)
-        )
-
-        if (matchedDriver) {
-          matchedDriver.currentRide = ride.id
-          matchedDriver.online = false
-        }
-      }
-    }
-
-    data.rides.push(ride)
-    writeData(data)
-
-    return res.json({
-      success: true,
-      ride,
-      autoDispatch: {
-        matched: !!ride.driverId,
-        driverId: ride.driverId,
-        driverName: ride.assignedDriverName || null,
-        distanceMiles: ride.autoAssignedDistanceMiles
-      }
-    })
-  } catch (err) {
-    return res.status(500).json({
-      success: false,
-      message: 'Could not request ride',
-      error: err.message
-    })
-  }
-})
-
-/* =========================
-   GET LISTS
-========================= */
-app.get('/api/rides', (req, res) => {
-  const data = readData()
-  return res.json(data.rides)
-})
-
-app.get('/api/drivers', (req, res) => {
-  const data = readData()
-  return res.json(data.drivers)
-})
-
-app.get('/api/riders', (req, res) => {
-  const data = readData()
-  return res.json(data.riders)
-})
-
-/* =========================
-   DRIVER ADMIN ACTIONS
-========================= */
-app.post('/api/approve-driver', (req, res) => {
-  const { id } = req.body || {}
-  const data = readData()
-
-  const driver = data.drivers.find((d) => String(d.id) === String(id))
-
-  if (!driver) {
-    return res.status(404).json({ error: 'Driver not found' })
-  }
-
-  driver.approved = true
-  driver.status = 'approved'
-  writeData(data)
-
-  return res.json({
-    success: true,
-    driver
-  })
-})
-
-app.post('/api/reject-driver', (req, res) => {
-  const { id } = req.body || {}
-  const data = readData()
-
-  const driver = data.drivers.find((d) => String(d.id) === String(id))
-
-  if (!driver) {
-    return res.status(404).json({ error: 'Driver not found' })
-  }
-
-  driver.approved = false
-  driver.status = 'rejected'
-  driver.online = false
-  writeData(data)
-
-  return res.json({
-    success: true,
-    driver
-  })
-})
-
-app.post('/api/toggle-driver-online', (req, res) => {
-  const { driverId } = req.body || {}
-  const data = readData()
-
-  const driver = data.drivers.find((d) => String(d.id) === String(driverId))
-
-  if (!driver) {
-    return res.status(404).json({ error: 'Driver not found' })
-  }
-
-  if (!driver.approved && driver.status !== 'approved') {
-    return res.status(400).json({ error: 'Driver must be approved first' })
-  }
-
-  driver.online = !driver.online
-  writeData(data)
-
-  return res.json({
-    success: true,
-    driver
-  })
-})
-
-/* =========================
-   MANUAL ASSIGN
-========================= */
-app.post('/api/assign-driver', (req, res) => {
-  const { rideId, driverId } = req.body || {}
-  const data = readData()
-
-  const ride = data.rides.find((r) => String(r.id) === String(rideId))
-  const driver = data.drivers.find((d) => String(d.id) === String(driverId))
-
-  if (!ride) {
-    return res.status(404).json({ error: 'Ride not found' })
-  }
-
-  if (!driver) {
-    return res.status(404).json({ error: 'Driver not found' })
-  }
-
-  ride.driverId = driverId
-  ride.assignedDriverName = driver.name || 'Driver'
-  ride.status = 'assigned'
-
-  driver.currentRide = rideId
-  driver.online = false
-
-  writeData(data)
-
-  return res.json({
-    success: true,
-    ride
-  })
-})
-
-/* =========================
-   TRIP FLOW
-========================= */
-app.post('/api/driver-accept', (req, res) => {
-  const { rideId } = req.body || {}
-  const data = readData()
-
-  const ride = data.rides.find((r) => String(r.id) === String(rideId))
-
-  if (!ride) {
-    return res.status(404).json({ error: 'Ride not found' })
-  }
-
-  ride.status = 'enroute'
-  ride.acceptedAt = new Date().toISOString()
-  writeData(data)
-
-  return res.json({
-    success: true,
-    ride
-  })
-})
-
-app.post('/api/start-trip', (req, res) => {
-  const { rideId } = req.body || {}
-  const data = readData()
-
-  const ride = data.rides.find((r) => String(r.id) === String(rideId))
-
-  if (!ride) {
-    return res.status(404).json({ error: 'Ride not found' })
-  }
-
-  ride.status = 'in_progress'
-  ride.startedAt = new Date().toISOString()
-  writeData(data)
-
-  return res.json({
-    success: true,
-    ride
-  })
-})
-
-app.post('/api/driver-complete', (req, res) => {
-  const { rideId } = req.body || {}
-  const data = readData()
-
-  const ride = data.rides.find((r) => String(r.id) === String(rideId))
-
-  if (!ride) {
-    return res.status(404).json({ error: 'Ride not found' })
-  }
-
-  ride.status = 'completed'
-  ride.completedAt = new Date().toISOString()
-
-  const driver = data.drivers.find((d) => String(d.id) === String(ride.driverId))
-  if (driver) {
-    driver.currentRide = null
-    driver.online = true
-  }
-
-  writeData(data)
-
-  return res.json({
-    success: true,
-    ride
-  })
-})
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`)
-})
+      passenger
