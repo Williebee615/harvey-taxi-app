@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rider Signup</title>
+  <style>
+    body{background:#06112d;color:white;font-family:Arial;padding:20px}
+    .container{max-width:650px;margin:auto}
+    .card{background:#0c1a3d;padding:25px;border-radius:16px}
+    input{width:100%;padding:14px;margin-bottom:15px;border-radius:10px;border:none;background:#081735;color:white}
+    button{width:100%;padding:16px;border:none;border-radius:12px;font-weight:bold;background:linear-gradient(90deg,#2962ff,#7b2cff);color:white}
+    .message{margin-top:15px}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>Rider Signup</h1>
+      <form id="riderForm">
+        <input id="name" placeholder="Full Name" required />
+        <input id="email" placeholder="Email" required />
+        <input id="phone" placeholder="Phone" required />
+        <input id="city" placeholder="City" required />
+        <button type="submit">Create Rider Account</button>
+        <div id="msg" class="message"></div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('riderForm')
+    const msg = document.get
