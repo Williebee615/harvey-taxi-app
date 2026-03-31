@@ -76,7 +76,7 @@ const dropoff = document.getElementById('dropoff').value
 
 const message = document.getElementById('message')
 
-message.innerHTML = "Submitting ride..."
+message.innerHTML = "Requesting ride..."
 
 try{
 
@@ -97,23 +97,11 @@ if(data.success){
 
 localStorage.setItem('harveyRideId', data.ride.id)
 
-message.innerHTML = `
-Ride requested successfully 🚕<br><br>
+message.innerHTML = "Ride requested… redirecting to tracking..."
 
-Ride ID:<br>
-<b>${data.ride.id}</b>
-
-<br><br>
-
-<a href="/rider-trip.html" style="color:#7dd3fc">
-Track your ride
-</a>
-`
-
-document.getElementById('name').value=''
-document.getElementById('phone').value=''
-document.getElementById('pickup').value=''
-document.getElementById('dropoff').value=''
+setTimeout(()=>{
+window.location.href="/rider-trip.html"
+},1200)
 
 }else{
 message.innerHTML = "Error requesting ride"
@@ -124,6 +112,7 @@ message.innerHTML = "Server error"
 }
 
 }
+
 </script>
 
 </body>
