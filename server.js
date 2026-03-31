@@ -27,11 +27,7 @@ function readJson(filePath) {
 
   try {
     const raw = fs.readFileSync(filePath, 'utf8').trim()
-
-    if (!raw) {
-      return []
-    }
-
+    if (!raw) return []
     return JSON.parse(raw)
   } catch (err) {
     return []
@@ -45,12 +41,12 @@ function writeJson(filePath, data) {
 ensureFile(driversFile)
 ensureFile(ridersFile)
 
-// HOME
+// home
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'))
 })
 
-// ADMIN LOGIN
+// admin login
 app.post('/api/admin-login', (req, res) => {
   const { email, password } = req.body || {}
 
@@ -67,47 +63,89 @@ app.post('/api/admin-login', (req, res) => {
   })
 })
 
-// GET DRIVERS
-app.get('/api/drivers', (req, res) => {
+// driver signup
+app.post('/api/driver-signup', (req, res) => {
   try {
+    const body = req.body || {}
+
+    const newDriver = {
+      id: body.id || Date.now().toString(),
+      name: body.name || '',
+      email: body.email || '',
+      phone: body.phone || '',
+      city: body.city || '',
+      vehicle: body.vehicle || '',
+      license: body.license || '',
+      notes: body.notes || '',
+      approved: false,
+      status: 'pending',
+      createdAt: new Date().toISOString()
+    }
+
     const drivers = readJson(driversFile)
-    return res.json(drivers)
+    drivers.push(newDriver)
+    writeJson(driversFile, drivers)
+
+    return res.json({
+      success: true,
+      message: 'Driver application submitted',
+      driver: newDriver
+    })
   } catch (err) {
     return res.status(500).json({
       success: false,
-      message: 'Could not load drivers'
+      message: 'Could not save driver signup'
     })
   }
 })
 
-// GET RIDERS
-app.get('/api/riders', (req, res) => {
+// rider signup
+app.post('/api/rider-signup', (req, res) => {
   try {
+    const body = req.body || {}
+
+    const newRider = {
+      id: body.id || Date.now().toString(),
+      name: body.name || '',
+      email: body.email || '',
+      phone: body.phone || '',
+      city: body.city || '',
+      createdAt: new Date().toISOString()
+    }
+
     const riders = readJson(ridersFile)
-    return res.json(riders)
+    riders.push(newRider)
+    writeJson(ridersFile, riders)
+
+    return res.json({
+      success: true,
+      message: 'Rider account created',
+      rider: newRider
+    })
   } catch (err) {
     return res.status(500).json({
       success: false,
-      message: 'Could not load riders'
+      message: 'Could not save rider signup'
     })
   }
 })
 
-// APPROVE DRIVER
+// get drivers
+app.get('/api/drivers', (req, res) => {
+  return res.json(readJson(driversFile))
+})
+
+// get riders
+app.get('/api/riders', (req, res) => {
+  return res.json(readJson(ridersFile))
+})
+
+// approve driver
 app.post('/api/approve-driver', (req, res) => {
   try {
     const { id } = req.body || {}
 
-    if (!id) {
-      return res.status(400).json({
-        success: false,
-        message: 'Driver id is required'
-      })
-    }
-
-    const drivers = readJson(driversFile)
-
-    const updatedDrivers = drivers.map((driver) => {
+    const drivers = readJson(driversFile).map((driver) => {
       if (String(driver.id) === String(id)) {
         return {
           ...driver,
@@ -115,11 +153,10 @@ app.post('/api/approve-driver', (req, res) => {
           status: 'approved'
         }
       }
-
       return driver
     })
 
-    writeJson(driversFile, updatedDrivers)
+    writeJson(driversFile, drivers)
 
     return res.json({
       success: true,
@@ -133,21 +170,12 @@ app.post('/api/approve-driver', (req, res) => {
   }
 })
 
-// REJECT DRIVER
+// reject driver
 app.post('/api/reject-driver', (req, res) => {
   try {
     const { id } = req.body || {}
 
-    if (!id) {
-      return res.status(400).json({
-        success: false,
-        message: 'Driver id is required'
-      })
-    }
-
-    const drivers = readJson(driversFile)
-
-    const updatedDrivers = drivers.map((driver) => {
+    const drivers = readJson(driversFile).map((driver) => {
       if (String(driver.id) === String(id)) {
         return {
           ...driver,
@@ -155,11 +183,10 @@ app.post('/api/reject-driver', (req, res) => {
           status: 'rejected'
         }
       }
-
       return driver
     })
 
-    writeJson(driversFile, updatedDrivers)
+    writeJson(driversFile, drivers)
 
     return res.json({
       success: true,
@@ -173,75 +200,7 @@ app.post('/api/reject-driver', (req, res) => {
   }
 })
 
-// OPTIONAL: SAVE DRIVER SIGNUP
-app.post('/api/driver-signup', (req, res) => {
-  try {
-    const driver = req.body || {}
-
-    const drivers = readJson(driversFile)
-
-    const newDriver = {
-      id: driver.id || Date.now().toString(),
-      name: driver.name || driver.fullName || '',
-      email: driver.email || '',
-      phone: driver.phone || '',
-      vehicle: driver.vehicle || driver.car || driver.vehicleType || '',
-      license: driver.license || driver.licenseNumber || '',
-      city: driver.city || driver.location || '',
-      approved: false,
-      status: 'pending',
-      createdAt: new Date().toISOString()
-    }
-
-    drivers.push(newDriver)
-    writeJson(driversFile, drivers)
-
-    return res.json({
-      success: true,
-      message: 'Driver signup saved',
-      driver: newDriver
-    })
-  } catch (err) {
-    return res.status(500).json({
-      success: false,
-      message: 'Could not save driver signup'
-    })
-  }
-})
-
-// OPTIONAL: SAVE RIDER SIGNUP
-app.post('/api/rider-signup', (req, res) => {
-  try {
-    const rider = req.body || {}
-
-    const riders = readJson(ridersFile)
-
-    const newRider = {
-      id: rider.id || Date.now().toString(),
-      name: rider.name || rider.fullName || '',
-      email: rider.email || '',
-      phone: rider.phone || '',
-      city: rider.city || rider.location || '',
-      createdAt: new Date().toISOString()
-    }
-
-    riders.push(newRider)
-    writeJson(ridersFile, riders)
-
-    return res.json({
-      success: true,
-      message: 'Rider signup saved',
-      rider: newRider
-    })
-  } catch (err) {
-    return res.status(500).json({
-      success: false,
-      message: 'Could not save rider signup'
-    })
-  }
-})
-
-// FALLBACK FOR HTML PAGES
+// html fallback
 app.get('/:page', (req, res) => {
   const filePath = path.join(__dirname, 'public', req.params.page)
 
