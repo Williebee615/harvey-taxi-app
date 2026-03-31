@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Track Ride</title>
+
+<style>
+body{
+font-family:Arial;
+background:#03163a;
+color:white;
+padding:20px;
+}
+
+.card{
+background:#0a1f4f;
+padding:20px;
+border-radius:16px;
+margin-bottom:15px;
+}
+
+button{
+padding:14px;
+border:none;
+border-radius:10px;
+font-weight:bold;
+margin-top:10px;
+cursor:pointer;
+}
+
+.track{background:#3b82f6;color:white;}
+.emergency{background:#ef4444;color:white;width:100%}
+
+.badge{
+padding:6px 10px;
+border-radius:999px;
+font-size:12px;
+font-weight:bold;
+}
+
+.requested{background:#475569}
+.assigned{background:#2563eb}
+.accepted{background:#7c3aed}
+.enroute{background:#f59e0b;color:black}
+.completed{background:#22c55e;color:black}
+
+.line{margin-bottom:8px}
+</style>
+
+</head>
+<body>
+
+<div class="card">
+<h2>Track Your Ride</h2>
+
+<input id="rideId" placeholder="Enter Ride ID"
+style="width:100%;padding:14px;border-radius:10px;border:none;margin-bottom:10px"/>
+
+<button class="track" onclick="loadRide()">Track Ride</button>
+
+<div id="message"></div>
+</div>
+
+<div class="card" id="statusCard">
+Waiting for ride...
+</div>
+
+<div class="card">
+<h3>Emergency</h3>
+<button class="emergency" onclick="call911()">CALL 911</button>
+</div>
+
+<script>
+
+let currentRide = null
+
+function badge(status){
+return `<span class="badge ${status}">${status}</span>`
+}
+
+function call911(){
+window.location.href="tel:911"
+}
+
+async function loadRide(){
+
+const id=document.getElementById('rideId').value
+
+if(!id)return
+
+localStorage.setItem('rideId',id)
+
+fetchRide(id)
+
+}
+
+async function fetchRide(id){
+
+const res=await fetch('/api/rider-trip/'+id)
+const data=await res.json()
+
+if(!data.ride){
+document.getElementById('statusCard').innerHTML="Ride not found"
+return
+}
+
+currentRide=data.ride
+
+document.getElementById('statusCard').innerHTML=`
+
+<div class="line"><b>Status:</b> ${badge(data.ride.status)}</div>
+<div class="line"><b>Driver:</b> ${data.driver?.name||"Waiting for driver"}</div>
+<div class="line"><b>Vehicle:</b> ${data.driver?.vehicle||""}</div>
+<div class="line"><b>Phone:</b> ${data.driver?.phone||""}</div>
+
+<div class="line"><b>Pickup:</b> ${data.ride.pickup}</div>
+<div class="line"><b>Dropoff:</b> ${data.ride.dropoff}</div>
+
+`
+
+}
+
+setInterval(()=>{
+
+const saved=localStorage.getItem('rideId')
+
+if(saved){
+fetchRide(saved)
+}
+
+},4000)
+
+</script>
+
+</body>
+</html>
