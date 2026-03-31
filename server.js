@@ -1,4 +1,21 @@
-const express = require('express')
+// ADMIN LOGIN
+app.post('/api/admin-login', (req, res) => {
+const { email, password } = req.body
+
+if (
+email === 'admin@harveytaxi.com' &&
+password === 'HarveyAdmin123!'
+) {
+return res.json({
+success: true
+})
+}
+
+res.status(401).json({
+success:false,
+message:'Invalid login'
+})
+})const express = require('express')
 const cors = require('cors')
 const fs = require('fs')
 const path = require('path')
