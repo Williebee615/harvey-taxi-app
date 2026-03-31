@@ -9,7 +9,7 @@
   <div class="container">
     <div class="app-header">
       <div class="app-title">Driver Signup</div>
-      <div class="app-subtitle">Apply to drive with Harvey Taxi</div>
+      <div class="app-subtitle">Persona first, then Checkr background check</div>
     </div>
 
     <div class="card">
@@ -19,9 +19,9 @@
       <input class="input" id="password" placeholder="Password" type="password" />
       <input class="input" id="vehicle" placeholder="Vehicle" />
       <input class="input" id="plate" placeholder="License Plate" />
-
       <button class="button" onclick="signup()">Submit Driver Application</button>
       <pre id="result"></pre>
+      <div id="verify"></div>
     </div>
   </div>
 
@@ -42,6 +42,11 @@
 
       const data = await res.json()
       document.getElementById('result').innerText = JSON.stringify(data, null, 2)
+
+      if (data.success && data.user?.personaInquiryUrl) {
+        document.getElementById('verify').innerHTML =
+          `<a class="nav-link" href="${data.user.personaInquiryUrl}" target="_blank">Start Persona Verification</a>`
+      }
     }
   </script>
 </body>
