@@ -1,8 +1,11 @@
 <!DOCTYPE html>
 <html>
 <head>
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Driver Dashboard</title>
+<title>Harvey Taxi Driver Dashboard</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
 <style>
 body{
@@ -10,167 +13,414 @@ font-family:Arial;
 background:#021433;
 color:white;
 padding:20px;
+margin:0;
+}
+
+.container{
+max-width:780px;
+margin:auto;
+}
+
+.top-link{
+display:inline-block;
+margin-bottom:18px;
+color:#c7d7ff;
+text-decoration:none;
+}
+
+h1{
+margin-bottom:10px;
+font-size:32px;
+}
+
+.sub{
+opacity:0.85;
+margin-bottom:20px;
+line-height:1.5;
 }
 
 .card{
 background:#0b1f4a;
-padding:16px;
-border-radius:12px;
+padding:18px;
+border-radius:14px;
+margin-bottom:16px;
+box-shadow:0 0 10px rgba(0,0,0,0.35);
+}
+
+label{
+display:block;
+margin-bottom:8px;
+font-weight:bold;
+}
+
+input{
+width:100%;
+padding:14px;
+border:none;
+border-radius:10px;
 margin-bottom:12px;
+background:#10295c;
+color:white;
+font-size:16px;
 }
 
 button{
-padding:10px 14px;
+padding:12px 16px;
 border:none;
-border-radius:8px;
+border-radius:10px;
+font-weight:bold;
+margin-right:8px;
 margin-top:8px;
 cursor:pointer;
 }
 
-.accept{
-background:#16a34a;
-color:white;
-}
+.load{ background:#3b82f6; color:white; }
+.accept{ background:#10b981; color:white; }
+.start{ background:#f59e0b; color:white; }
+.complete{ background:#ef4444; color:white; }
+.logout{ background:#475569; color:white; }
+.location{ background:#06b6d4; color:white; }
+.nav{ background:#7c3aed; color:white; }
 
-.decline{
-background:#dc2626;
-color:white;
-}
-
-.alert{
-position:fixed;
-bottom:20px;
-left:20px;
-right:20px;
-background:#020f2e;
-border:2px solid #22c55e;
-padding:20px;
-border-radius:16px;
-display:none;
-z-index:999;
-}
-
-.timer{
-font-size:22px;
-font-weight:bold;
+.status{
 margin-top:10px;
-color:#22c55e;
+font-size:14px;
+opacity:0.85;
+line-height:1.5;
+}
+
+.trip-line{
+margin-bottom:10px;
+line-height:1.5;
+}
+
+.badge{
+display:inline-block;
+padding:6px 10px;
+border-radius:999px;
+font-size:12px;
+font-weight:bold;
+margin-top:8px;
+text-transform:capitalize;
+}
+
+.requested{ background:#334155; }
+.assigned{ background:#2563eb; }
+.enroute{ background:#d97706; }
+.in_progress{ background:#7c3aed; }
+.completed{ background:#16a34a; }
+
+.empty{
+opacity:0.8;
+line-height:1.5;
+}
+
+#map{
+height:340px;
+border-radius:12px;
+overflow:hidden;
+margin-top:14px;
+}
+
+.map-note{
+margin-top:10px;
+opacity:0.85;
+font-size:14px;
+line-height:1.5;
+}
+
+.small-note{
+font-size:13px;
+opacity:0.75;
+line-height:1.5;
+margin-top:10px;
 }
 </style>
 </head>
 
 <body>
 
-<h2>Driver Dashboard</h2>
+<div class="container">
 
-<div id="rides"></div>
+<a class="top-link" href="/">← Back to Home</a>
 
-<div id="alert" class="alert">
-<h3>New Ride Request</h3>
-<div id="alertInfo"></div>
+<h1>🚖 Driver Dashboard</h1>
+<p class="sub">
+Load your driver profile, share your live location, and use route navigation for pickup and dropoff.
+</p>
 
-<div class="timer" id="timer">20</div>
+<div class="card">
+<label for="driverEmail">Driver Email</label>
+<input id="driverEmail" type="email" placeholder="Enter driver email">
 
-<button class="accept" onclick="acceptRide()">Accept</button>
-<button class="decline" onclick="declineRide()">Decline</button>
+<button class="load" onclick="loadDriverByEmail()">Load My Dashboard</button>
+<button class="location" onclick="startLocationSharing()">Share My Location</button>
+<button class="logout" onclick="logoutDriver()">Logout</button>
+
+<div class="status" id="message"></div>
 </div>
 
-<audio id="alertSound">
-<source src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg">
-</audio>
+<div class="card" id="driverCard">
+<div class="empty">No driver loaded yet.</div>
+</div>
 
+<div class="card" id="tripCard">
+<div class="empty">No trip loaded yet.</div>
+</div>
+
+<div class="card">
+<h3 style="margin-bottom:12px;">Driver Navigation Map</h3>
+<div id="map"></div>
+<div class="map-note" id="locationStatus">Location sharing not started.</div>
+<div class="small-note">
+For the best route line and navigation buttons, use pickup and dropoff as coordinates like:
+<b>36.1627,-86.7816</b>
+</div>
+</div>
+
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+let currentTrip = null
+let currentDriver = null
+let map = null
+let driverMarker = null
+let pickupMarker = null
+let dropoffMarker = null
+let routeLine = null
+let watchId = null
 
-let driverId = localStorage.getItem("driverId")
-let currentRide = null
-let countdown = null
-let timeLeft = 20
+function setMessage(text){
+document.getElementById('message').innerText = text
+}
 
-async function loadRides(){
+function setLocationStatus(text){
+document.getElementById('locationStatus').innerText = text
+}
+
+function statusBadge(status){
+if(!status) status = 'requested'
+return `<span class="badge ${status}">${status.replace('_',' ')}</span>`
+}
+
+function isLatLngString(value){
+if(!value || typeof value !== 'string') return false
+const parts = value.split(',').map(p => p.trim())
+if(parts.length !== 2) return false
+return !isNaN(Number(parts[0])) && !isNaN(Number(parts[1]))
+}
+
+function parseLatLng(value){
+const parts = value.split(',').map(p => Number(p.trim()))
+return { lat: parts[0], lng: parts[1] }
+}
+
+function googleNavUrl(destination){
+return `https://www.google.com/maps/dir/?api=1&destination=${destination.lat},${destination.lng}&travelmode=driving`
+}
+
+function initMap(){
+if(map) return
+
+map = L.map('map').setView([36.1627, -86.7816], 12)
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+maxZoom: 19,
+attribution: '&copy; OpenStreetMap'
+}).addTo(map)
+}
+
+function clearMapLayers(){
+if(driverMarker){
+map.removeLayer(driverMarker)
+driverMarker = null
+}
+if(pickupMarker){
+map.removeLayer(pickupMarker)
+pickupMarker = null
+}
+if(dropoffMarker){
+map.removeLayer(dropoffMarker)
+dropoffMarker = null
+}
+if(routeLine){
+map.removeLayer(routeLine)
+routeLine = null
+}
+}
+
+function updateDriverMarker(lat, lng){
+initMap()
+
+if(driverMarker){
+driverMarker.setLatLng([lat, lng])
+} else {
+driverMarker = L.marker([lat, lng]).addTo(map).bindPopup('Your live location')
+}
+}
+
+function drawRouteLine(points){
+if(routeLine){
+map.removeLayer(routeLine)
+}
+
+routeLine = L.polyline(points, {
+color: '#7c3aed',
+weight: 5,
+opacity: 0.85
+}).addTo(map)
+
+map.fitBounds(routeLine.getBounds(), { padding: [30, 30] })
+}
+
+function renderDriver(driver){
+const driverCard = document.getElementById('driverCard')
+
+if(!driver){
+driverCard.innerHTML = `<div class="empty">No driver loaded yet.</div>`
+return
+}
+
+driverCard.innerHTML = `
+<div class="trip-line"><b>Name:</b> ${driver.name || 'Unknown Driver'}</div>
+<div class="trip-line"><b>Email:</b> ${driver.email || 'Unknown'}</div>
+<div class="trip-line"><b>Phone:</b> ${driver.phone || 'Unknown'}</div>
+<div class="trip-line"><b>Vehicle:</b> ${driver.vehicle || 'Unknown'}</div>
+<div class="trip-line"><b>Status:</b> ${driver.status || 'pending'}</div>
+<div class="trip-line"><b>Online:</b> ${driver.online ? 'Yes' : 'No'}</div>
+<div class="trip-line"><b>Current Ride ID:</b> ${driver.currentRideId || 'None'}</div>
+<div class="trip-line"><b>Driver ID:</b> ${driver.id || 'Unknown'}</div>
+`
+}
+
+function renderTrip(trip){
+const tripCard = document.getElementById('tripCard')
+
+if(!trip){
+tripCard.innerHTML = `<div class="empty">No assigned trip right now.</div>`
+return
+}
+
+currentTrip = trip
+
+let actionButtons = ''
+
+if(trip.status === 'assigned'){
+actionButtons += `<button class="accept" onclick="acceptTrip()">Accept Trip</button>`
+}
+
+if(trip.status === 'enroute'){
+actionButtons += `<button class="start" onclick="startTrip()">Start Trip</button>`
+}
+
+if(trip.status === 'in_progress'){
+actionButtons += `<button class="complete" onclick="completeTrip()">Complete Trip</button>`
+}
+
+if(isLatLngString(trip.pickup)){
+const pickup = parseLatLng(trip.pickup)
+actionButtons += `<button class="nav" onclick="openPickupNavigation(${pickup.lat}, ${pickup.lng})">Navigate to Pickup</button>`
+}
+
+if(isLatLngString(trip.dropoff)){
+const dropoff = parseLatLng(trip.dropoff)
+actionButtons += `<button class="nav" onclick="openDropoffNavigation(${dropoff.lat}, ${dropoff.lng})">Navigate to Dropoff</button>`
+}
+
+tripCard.innerHTML = `
+<div class="trip-line"><b>Ride ID:</b> ${trip.id}</div>
+<div class="trip-line"><b>Rider:</b> ${trip.rider || trip.name || 'Not provided'}</div>
+<div class="trip-line"><b>Phone:</b> ${trip.phone || 'Not provided'}</div>
+<div class="trip-line"><b>Pickup:</b> ${trip.pickup || 'Not provided'}</div>
+<div class="trip-line"><b>Dropoff:</b> ${trip.dropoff || 'Not provided'}</div>
+<div class="trip-line"><b>Status:</b> ${statusBadge(trip.status)}</div>
+<div class="trip-line"><b>Created:</b> ${trip.created || trip.createdAt || 'Not available'}</div>
+${actionButtons}
+`
+}
+
+function openPickupNavigation(lat, lng){
+window.open(googleNavUrl({ lat, lng }), '_blank')
+}
+
+function openDropoffNavigation(lat, lng){
+window.open(googleNavUrl({ lat, lng }), '_blank')
+}
+
+async function loadDriverByEmail(){
+const email = document.getElementById('driverEmail').value.trim().toLowerCase()
+
+if(!email){
+setMessage('Enter your driver email first.')
+return
+}
+
+setMessage('Loading driver dashboard...')
+
+try{
+const res = await fetch('/api/drivers')
+const drivers = await res.json()
+
+const driver = drivers.find(d => (d.email || '').toLowerCase() === email)
+
+if(!driver){
+currentDriver = null
+currentTrip = null
+renderDriver(null)
+renderTrip(null)
+setMessage('No driver found for that email.')
+return
+}
+
+currentDriver = driver
+localStorage.setItem('harveyDriverEmail', email)
+renderDriver(driver)
+await loadTripForCurrentDriver()
+setMessage('Driver dashboard loaded.')
+}catch(err){
+setMessage('Could not load driver dashboard.')
+}
+}
+
+async function loadTripForCurrentDriver(){
+if(!currentDriver){
+renderTrip(null)
+return
+}
+
+try{
 const res = await fetch('/api/rides')
 const rides = await res.json()
 
-const container = document.getElementById("rides")
-container.innerHTML = ""
+const trip = rides.find(r =>
+String(r.driverId) === String(currentDriver.id || '') &&
+r.status !== 'completed'
+) || null
 
-rides.forEach(ride=>{
-
-if(ride.driverId === driverId && ride.status === "assigned"){
-showAlert(ride)
+renderTrip(trip)
+updateTripMap(trip)
+}catch(err){
+setMessage('Could not load trip.')
+}
 }
 
-const div = document.createElement("div")
-div.className = "card"
+function updateTripMap(trip){
+initMap()
+clearMapLayers()
 
-div.innerHTML = `
-Ride: ${ride.id}<br>
-Pickup: ${ride.pickup}<br>
-Dropoff: ${ride.dropoff}<br>
-Status: ${ride.status}
-`
+let mapPoints = []
 
-container.appendChild(div)
+if(currentDriver && currentDriver.location){
+const driverLat = Number(currentDriver.location.lat)
+const driverLng = Number(currentDriver.location.lng)
 
-})
-
+if(!isNaN(driverLat) && !isNaN(driverLng)){
+updateDriverMarker(driverLat, driverLng)
+mapPoints.push([driverLat, driverLng])
+}
 }
 
-function showAlert(ride){
-currentRide = ride
-
-document.getElementById("alert").style.display="block"
-document.getElementById("alertInfo").innerHTML=
-`
-Pickup: ${ride.pickup}<br>
-Dropoff: ${ride.dropoff}
-`
-
-document.getElementById("alertSound").play()
-
-startTimer()
-}
-
-function startTimer(){
-timeLeft = 20
-document.getElementById("timer").innerText=timeLeft
-
-countdown = setInterval(()=>{
-timeLeft--
-document.getElementById("timer").innerText=timeLeft
-
-if(timeLeft<=0){
-clearInterval(countdown)
-declineRide()
-}
-
-},1000)
-}
-
-async function acceptRide(){
-
-clearInterval(countdown)
-
-await fetch('/api/driver-accept',{
-method:'POST',
-headers:{'Content-Type':'application/json'},
-body:JSON.stringify({
-rideId:currentRide.id,
-driverId
-})
-})
-
-document.getElementById("alert").style.display="none"
-
-loadRides()
-}
-
-function declineRide(){
-document.getElementById("alert").style.display="none"
-}
-
-setInterval(loadRides,2000)
-
-</script>
-
-</body>
-</html>
+if(trip && trip.pickup && isLatLngString(trip.pickup)){
+const pickup = parseLatLng(trip.pickup)
+pickup
