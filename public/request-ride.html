@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Request Ride</title>
+
+<style>
+body{
+background:#06112d;
+color:white;
+font-family:Arial;
+padding:20px;
+}
+
+.container{
+max-width:600px;
+margin:auto;
+}
+
+.card{
+background:#0c1a3d;
+padding:25px;
+border-radius:16px;
+}
+
+input,select{
+width:100%;
+padding:14px;
+margin-bottom:15px;
+border-radius:10px;
+border:none;
+background:#081735;
+color:white;
+}
+
+button{
+width:100%;
+padding:16px;
+border:none;
+border-radius:12px;
+font-weight:bold;
+background:linear-gradient(90deg,#2962ff,#7b2cff);
+color:white;
+}
+
+.message{
+margin-top:15px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+<div class="card">
+
+<h1>Request Ride</h1>
+
+<form id="rideForm">
+
+<input id="name" placeholder="Your Name" required>
+<input id="pickup" placeholder="Pickup Location" required>
+<input id="dropoff" placeholder="Dropoff Location" required>
+
+<select id="service">
+<option value="standard">Standard Ride</option>
+<option value="xl">XL Ride</option>
+<option value="premium">Premium Ride</option>
+</select>
+
+<button type="submit">
+Request Ride
+</button>
+
+<div id="msg" class="message"></div>
+
+</form>
+
+</div>
+</div>
+
+<script>
+
+const form = document.getElementById('rideForm')
+const msg = document.getElementById('msg')
+
+form.addEventListener('submit', async (e)=>{
+e.preventDefault()
+
+msg.innerText = "Requesting ride..."
+
+const payload = {
+id: Date.now().toString(),
+name: document.getElementById('name').value,
+pickup: document.getElementById('pickup').value,
+dropoff: document.getElementById('dropoff').value,
+service: document.getElementById('service').value,
+status:'pending'
+}
+
+try{
+
+await fetch('/api/request-ride',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify(payload)
+})
+
+msg.innerText = "Ride requested. Waiting for driver..."
+
+form.reset()
+
+}catch{
+msg.innerText = "Server error"
+}
+
+})
+
+</script>
+
+</body>
+</html>
