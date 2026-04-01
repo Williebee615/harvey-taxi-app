@@ -1,12 +1,7 @@
-{
-  "name": "harvey-taxi-mobile",
-  "version": "1.0.0",
-  "main": "node_modules/expo/AppEntry.js",
-  "private": true,
-  "dependencies": {
-    "expo": "~51.0.0",
-    "react": "18.2.0",
-    "react-native": "0.74.5",
-    "react-native-webview": "13.10.4"
-  }
+"dependencies": {
+  "expo": "~51.0.0",
+  "react": "18.2.0",
+  "react-native": "0.74.5",
+  "react-native-webview": "13.10.4",
+  "babel-preset-expo": "^11.0.0"
 }
