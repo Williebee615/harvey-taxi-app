@@ -5,11 +5,22 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#050816"
+    },
     "ios": {
+      "supportsTablet": true,
       "bundleIdentifier": "com.harveytaxi.app"
     },
     "android": {
-      "package": "com.harveytaxi.app"
+      "package": "com.harveytaxi.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#050816"
+      }
     }
   }
 }
