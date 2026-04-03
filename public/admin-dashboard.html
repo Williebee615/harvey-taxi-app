@@ -2,6 +2,7 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Dispatch Dashboard</title>
 
 <style>
 body{
@@ -9,11 +10,17 @@ background:#020c2b;
 color:white;
 font-family:Arial;
 padding:20px;
+margin:0;
+}
+
+.back{
+margin-bottom:20px;
 }
 
 .back a{
 color:white;
 text-decoration:none;
+font-size:18px;
 }
 
 .card{
@@ -21,6 +28,19 @@ background:#081a44;
 padding:20px;
 border-radius:18px;
 margin-top:20px;
+white-space:pre-wrap;
+}
+
+.links{
+margin-top:20px;
+}
+
+.links a{
+display:inline-block;
+margin-right:12px;
+margin-top:10px;
+color:#9cc3ff;
+text-decoration:none;
 }
 </style>
 </head>
@@ -33,38 +53,39 @@ margin-top:20px;
 
 <h1>Admin Dispatch Dashboard</h1>
 
+<div class="links">
+  <a href="/admin-support.html">Open Admin Support Console</a>
+</div>
+
 <div class="card">
 <h2>Open Rides</h2>
 <div id="rides">Loading...</div>
 </div>
 
 <div class="card">
-<h2>Vehicles</h2>
-<div id="vehicles">Loading...</div>
+<h2>Drivers</h2>
+<div id="drivers">Loading...</div>
 </div>
 
 <script>
-
 async function load(){
+  const rides = await fetch('/api/rides')
+    .then(r=>r.json())
+    .catch(()=>[])
 
-const rides = await fetch('/api/rides')
-.then(r=>r.json())
-.catch(()=>[])
+  const drivers = await fetch('/api/drivers')
+    .then(r=>r.json())
+    .catch(()=>[])
 
-const vehicles = await fetch('/api/vehicles')
-.then(r=>r.json())
-.catch(()=>[])
+  document.getElementById("rides").innerText =
+    rides.length ? JSON.stringify(rides,null,2) : "No rides"
 
-document.getElementById("rides").innerText =
-rides.length ? JSON.stringify(rides,null,2) : "No rides"
-
-document.getElementById("vehicles").innerText =
-vehicles.length ? JSON.stringify(vehicles,null,2) : "No vehicles"
-
+  document.getElementById("drivers").innerText =
+    drivers.length ? JSON.stringify(drivers,null,2) : "No drivers"
 }
 
 load()
-
+setInterval(load,3000)
 </script>
 
 </body>
