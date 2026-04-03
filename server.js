@@ -1,4 +1,126 @@
-const COMMANDS = './commands.json'const express = require('express')
+app.post('/api/vehicle/:id/resume',(req,res)=>{
+
+const vehicles = read(VEHICLES)
+
+const vehicle = vehicles.find(
+v => v.id === req.params.id
+)
+
+if(!vehicle) return res.json({success:false})
+
+vehicle.remoteAssist = false
+vehicle.status = "online"
+
+write(VEHICLES,vehicles)
+
+res.json({success:true})
+
+})app.post('/api/vehicle/:id/remote-assist',(req,res)=>{
+
+const vehicles = read(VEHICLES)
+
+const vehicle = vehicles.find(
+v => v.id === req.params.id
+)
+
+if(!vehicle) return res.json({success:false})
+
+vehicle.remoteAssist = true
+
+write(VEHICLES,vehicles)
+
+res.json({success:true})
+
+})app.post('/api/vehicle/:id/return-base',(req,res)=>{
+
+const vehicles = read(VEHICLES)
+
+const vehicle = vehicles.find(
+v => v.id === req.params.id
+)
+
+if(!vehicle) return res.json({success:false})
+
+vehicle.status = "returning"
+
+write(VEHICLES,vehicles)
+
+res.json({success:true})
+
+})app.post('/api/vehicle/:id/emergency-stop',(req,res)=>{
+
+const vehicles = read(VEHICLES)
+
+const vehicle = vehicles.find(
+v => v.id === req.params.id
+)
+
+if(!vehicle) return res.json({success:false})
+
+vehicle.status = "emergency_stop"
+vehicle.available = false
+
+write(VEHICLES,vehicles)
+
+res.json({success:true})
+
+})app.post('/api/command/:id/status',(req,res)=>{
+
+const commands = read(COMMANDS)
+
+const command = commands.find(
+c => c.id === req.params.id
+)
+
+if(!command) return res.json({success:false})
+
+command.status = req.body.status
+
+write(COMMANDS,commands)
+
+res.json({success:true})
+
+})app.get('/api/vehicle/:id/commands',(req,res)=>{
+
+const commands = read(COMMANDS)
+
+const filtered = commands.filter(
+c => c.vehicleId === req.params.id
+)
+
+res.json(filtered)
+
+})/* ===============================
+SEND VEHICLE COMMAND
+=============================== */
+
+app.post('/api/vehicle/:id/command',(req,res)=>{
+
+const commands = read(COMMANDS)
+
+const command = {
+
+id:uid(),
+
+vehicleId:req.params.id,
+
+type:req.body.type,
+
+data:req.body.data || {},
+
+status:"queued",
+
+created:new Date()
+
+}
+
+commands.push(command)
+
+write(COMMANDS,commands)
+
+res.json({success:true,command})
+
+})const COMMANDS = './commands.json'const express = require('express')
 const cors = require('cors')
 const fs = require('fs')
 const path = require('path')
