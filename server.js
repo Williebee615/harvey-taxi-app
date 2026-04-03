@@ -14,60 +14,45 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/index.html'))
 })
 
-function readJson(file) {
+function read(file) {
   try {
     return JSON.parse(fs.readFileSync(file, 'utf8'))
-  } catch (error) {
+  } catch {
     return []
   }
 }
 
-function writeJson(file, data) {
+function write(file, data) {
   fs.writeFileSync(file, JSON.stringify(data, null, 2))
 }
 
+/* -------------------------
+   STATUS
+--------------------------*/
 app.get('/api/status', (req, res) => {
   res.json({
-    status: 'Harvey Taxi Dispatch Running',
+    status: 'Harvey Taxi Running',
     time: new Date()
   })
 })
 
-app.post('/api/request-ride', (req, res) => {
-  const rides = readJson('rides.json')
+/* -------------------------
+   RIDER SIGNUP
+--------------------------*/
+app.post('/api/rider-signup', (req, res) => {
+  const riders = read('riders.json')
 
-  const ride = {
+  const rider = {
     id: Date.now(),
-    pickup: req.body.pickup || '',
-    dropoff: req.body.dropoff || '',
-    rider: req.body.rider || '',
+    name: req.body.name || '',
     phone: req.body.phone || '',
-    status: 'waiting',
-    driverId: null,
-    driverName: null,
-    acceptedAt: null,
-    assignedAt: null,
+    email: req.body.email || '',
+    city: req.body.city || '',
     created: new Date()
   }
 
-  rides.push(ride)
-  writeJson('rides.json', rides)
+  riders.push(rider)
+  write('riders.json', riders)
 
   res.json({
-    success: true,
-    ride
-  })
-})
-
-app.get('/api/rides', (req, res) => {
-  res.json(readJson('rides.json'))
-})
-
-app.get('/api/available-rides', (req, res) => {
-  const rides = readJson('rides.json')
-  const available = rides.filter(ride => ride.status === 'waiting')
-  res.json(available)
-})
-
-app.post('/api/rides/:id/accept', (req, res) => {
- 
+    success: true
