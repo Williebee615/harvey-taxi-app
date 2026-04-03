@@ -10,240 +10,294 @@ app.use(cors())
 app.use(express.json())
 app.use(express.static(path.join(__dirname, 'public')))
 
-function read(file) {
-  try {
-    return JSON.parse(fs.readFileSync(file, 'utf8'))
-  } catch (error) {
-    return []
-  }
+const RIDES = './rides.json'
+const VEHICLES = './vehicles.json'
+const RIDERS = './riders.json'
+const MESSAGES = './messages.json'
+
+function read(file){
+try{
+return JSON.parse(fs.readFileSync(file,'utf8'))
+}catch{
+return []
+}
 }
 
-function write(file, data) {
-  fs.writeFileSync(file, JSON.stringify(data, null, 2))
+function write(file,data){
+fs.writeFileSync(file, JSON.stringify(data,null,2))
 }
 
-function uid() {
-  return Math.random().toString(36).slice(2, 10)
+function uid(){
+return Math.random().toString(36).substring(2,9)
 }
 
-/* HOME */
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'))
+/* ================================
+   STATUS
+================================ */
+
+app.get('/api/status',(req,res)=>{
+res.json({
+success:true,
+system:'Harvey Taxi AV Ready',
+dispatch:'auto',
+time:new Date()
+})
 })
 
-/* PAGE ROUTES */
-app.get('/:page', (req, res, next) => {
-  if (req.params.page.startsWith('api')) return next()
+/* ================================
+   RIDER SIGNUP
+================================ */
 
-  const filePath = path.join(__dirname, 'public', req.params.page)
+app.post('/api/rider-signup',(req,res)=>{
 
-  if (fs.existsSync(filePath)) {
-    return res.sendFile(filePath)
-  }
+const riders = read(RIDERS)
 
-  if (fs.existsSync(filePath + '.html')) {
-    return res.sendFile(filePath + '.html')
-  }
+const rider = {
+id: uid(),
+name:req.body.name,
+phone:req.body.phone,
+email:req.body.email,
+created:new Date()
+}
 
-  return res.sendFile(path.join(__dirname, 'public', 'index.html'))
+riders.push(rider)
+write(RIDERS,riders)
+
+res.json({success:true,rider})
+
 })
 
-/* STATUS */
-app.get('/api/status', (req, res) => {
-  res.json({
-    success: true,
-    status: 'Harvey Taxi Running'
-  })
+/* ================================
+   VEHICLE REGISTER (Driver or AV)
+================================ */
+
+app.post('/api/vehicle/register',(req,res)=>{
+
+const vehicles = read(VEHICLES)
+
+const vehicle = {
+
+id: uid(),
+
+type: req.body.type || "human", // human or autonomous
+
+name:req.body.name || "vehicle",
+
+vehicle:req.body.vehicle || "",
+
+plate:req.body.plate || "",
+
+status:"online",
+
+available:true,
+
+created:new Date()
+
+}
+
+vehicles.push(vehicle)
+write(VEHICLES,vehicles)
+
+res.json({success:true,vehicle})
+
 })
 
-/* ADMIN LOGIN */
-app.post('/api/admin-login', (req, res) => {
-  const email = req.body.email || ''
-  const password = req.body.password || ''
+/* ================================
+   GET VEHICLES
+================================ */
 
-  if (email === 'admin@harveytaxi.com' && password === 'admin123') {
-    return res.json({
-      success: true,
-      user: {
-        email: 'admin@harveytaxi.com',
-        role: 'admin'
-      }
-    })
-  }
-
-  return res.status(401).json({
-    success: false,
-    message: 'Invalid login'
-  })
+app.get('/api/vehicles',(req,res)=>{
+res.json(read(VEHICLES))
 })
 
-/* RIDER SIGNUP */
-app.post('/api/rider-signup', (req, res) => {
-  const riders = read('riders.json')
+/* ================================
+   REQUEST RIDE
+================================ */
 
-  const rider = {
-    id: Date.now(),
-    name: req.body.name || '',
-    email: req.body.email || '',
-    phone: req.body.phone || '',
-    city: req.body.city || '',
-    createdAt: new Date()
-  }
+app.post('/api/request-ride',(req,res)=>{
 
-  riders.push(rider)
-  write('riders.json', riders)
+const rides = read(RIDES)
 
-  res.json({
-    success: true,
-    rider
-  })
+const ride = {
+
+id: uid(),
+
+rider:req.body.name,
+
+phone:req.body.phone,
+
+pickup:req.body.pickup,
+
+dropoff:req.body.dropoff,
+
+status:"searching",
+
+vehicle:null,
+
+created:new Date()
+
+}
+
+rides.push(ride)
+
+write(RIDES,rides)
+
+/* AUTO DISPATCH */
+autoDispatch()
+
+res.json({
+success:true,
+ride
 })
 
-/* DRIVER SIGNUP */
-app.post('/api/driver-signup', (req, res) => {
-  const drivers = read('drivers.json')
-
-  const driver = {
-    id: Date.now(),
-    name: req.body.name || '',
-    email: req.body.email || '',
-    phone: req.body.phone || '',
-    city: req.body.city || '',
-    vehicle: req.body.vehicle || '',
-    license: req.body.license || '',
-    notes: req.body.notes || '',
-    status: 'active',
-    online: true,
-    createdAt: new Date()
-  }
-
-  drivers.push(driver)
-  write('drivers.json', drivers)
-
-  res.json({
-    success: true,
-    driver
-  })
 })
 
-/* REQUEST RIDE */
-app.post('/api/request-ride', (req, res) => {
-  const rides = read('rides.json')
+/* ================================
+   AUTO DISPATCH ENGINE
+================================ */
 
-  const ride = {
-    id: Date.now(),
-    rider: req.body.name || req.body.rider || '',
-    riderPhone: req.body.phone || req.body.riderPhone || '',
-    pickup: req.body.pickup || '',
-    dropoff: req.body.dropoff || '',
-    status: 'waiting',
-    driverId: null,
-    driverName: null,
-    acceptedAt: null,
-    createdAt: new Date()
-  }
+function autoDispatch(){
 
-  rides.push(ride)
-  write('rides.json', rides)
+const rides = read(RIDES)
+const vehicles = read(VEHICLES)
 
-  res.json({
-    success: true,
-    ride
-  })
+const waitingRide = rides.find(r=>r.status==="searching")
+
+if(!waitingRide) return
+
+const vehicle = vehicles.find(v=>v.available === true)
+
+if(!vehicle) return
+
+waitingRide.status = "assigned"
+waitingRide.vehicle = vehicle.id
+
+vehicle.available = false
+
+write(RIDES,rides)
+write(VEHICLES,vehicles)
+
+}
+
+/* ================================
+   GET RIDES
+================================ */
+
+app.get('/api/rides',(req,res)=>{
+res.json(read(RIDES))
 })
 
-/* GET ALL RIDES */
-app.get('/api/rides', (req, res) => {
-  res.json(read('rides.json'))
+/* ================================
+   UPDATE RIDE STATUS
+================================ */
+
+app.post('/api/rides/:id/status',(req,res)=>{
+
+const rides = read(RIDES)
+const vehicles = read(VEHICLES)
+
+const ride = rides.find(r=>r.id === req.params.id)
+
+if(!ride) return res.json({success:false})
+
+ride.status = req.body.status
+
+/* release vehicle when completed */
+
+if(req.body.status === "completed"){
+
+const vehicle = vehicles.find(v=>v.id === ride.vehicle)
+
+if(vehicle){
+vehicle.available = true
+}
+
+}
+
+write(RIDES,rides)
+write(VEHICLES,vehicles)
+
+res.json({success:true})
+
 })
 
-/* GET DRIVERS */
-app.get('/api/drivers', (req, res) => {
-  res.json(read('drivers.json'))
+/* ================================
+   MESSAGING SYSTEM
+================================ */
+
+app.post('/api/send-message',(req,res)=>{
+
+const messages = read(MESSAGES)
+
+const message = {
+
+id:uid(),
+
+rideId:req.body.rideId || "support",
+
+from:req.body.from,
+
+to:req.body.to,
+
+text:req.body.text,
+
+time:new Date()
+
+}
+
+messages.push(message)
+
+write(MESSAGES,messages)
+
+res.json({success:true})
+
 })
 
-/* GET AVAILABLE RIDES */
-app.get('/api/available-rides', (req, res) => {
-  const rides = read('rides.json')
-  const available = rides.filter(ride => ride.status === 'waiting')
-  res.json(available)
+app.get('/api/messages/:rideId',(req,res)=>{
+
+const messages = read(MESSAGES)
+
+const filtered = messages.filter(
+m => m.rideId === req.params.rideId
+)
+
+res.json(filtered)
+
 })
 
-/* ACCEPT RIDE */
-app.post('/api/rides/:id/accept', (req, res) => {
-  const rides = read('rides.json')
-  const ride = rides.find(r => String(r.id) === String(req.params.id))
+/* ================================
+   ADMIN LOGIN
+================================ */
 
-  if (!ride) {
-    return res.status(404).json({
-      success: false,
-      error: 'Ride not found'
-    })
-  }
+app.post('/api/admin-login',(req,res)=>{
 
-  ride.status = 'accepted'
-  ride.driverId = req.body.driverId || null
-  ride.driverName = req.body.driverName || ''
-  ride.acceptedAt = new Date()
+if(
+req.body.email === "admin@harvey.com" &&
+req.body.password === "admin123"
+){
+return res.json({success:true})
+}
 
-  write('rides.json', rides)
+res.json({success:false})
 
-  return res.json({
-    success: true,
-    ride
-  })
 })
 
-/* UPDATE RIDE STATUS */
-app.post('/api/rides/:id/status', (req, res) => {
-  const rides = read('rides.json')
-  const ride = rides.find(r => String(r.id) === String(req.params.id))
+/* ================================
+   PAGE ROUTING
+================================ */
 
-  if (!ride) {
-    return res.status(404).json({
-      success: false,
-      error: 'Ride not found'
-    })
-  }
+app.get('/:page',(req,res)=>{
 
-  ride.status = req.body.status || ride.status
-  write('rides.json', rides)
+const file = path.join(__dirname,'public',req.params.page)
 
-  return res.json({
-    success: true,
-    ride
-  })
+if(fs.existsSync(file)){
+res.sendFile(file)
+}else{
+res.sendFile(path.join(__dirname,'public/index.html'))
+}
+
 })
 
-/* SEND MESSAGE */
-app.post('/api/send-message', (req, res) => {
-  const messages = read('messages.json')
-
-  const message = {
-    id: uid(),
-    rideId: req.body.rideId || 'support',
-    from: req.body.from || 'user',
-    to: req.body.to || 'admin',
-    text: req.body.text || '',
-    time: Date.now()
-  }
-
-  messages.push(message)
-  write('messages.json', messages)
-
-  res.json({
-    success: true,
-    message
-  })
-})
-
-/* GET MESSAGES BY RIDE OR SUPPORT THREAD */
-app.get('/api/messages/:rideId', (req, res) => {
-  const messages = read('messages.json')
-  const filtered = messages.filter(m => String(m.rideId) === String(req.params.rideId))
-  res.json(filtered)
-})
-
-app.listen(PORT, () => {
-  console.log('Harvey Taxi UI + Messaging running on port ' + PORT)
+app.listen(PORT,()=>{
+console.log("Harvey Taxi AV System Running")
 })
