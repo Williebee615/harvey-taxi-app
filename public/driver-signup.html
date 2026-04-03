@@ -5,70 +5,117 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Driver Signup</title>
   <style>
-    body{background:#06112d;color:white;font-family:Arial;padding:20px}
-    .container{max-width:650px;margin:auto}
-    .card{background:#0c1a3d;padding:25px;border-radius:16px}
-    input,textarea{width:100%;padding:14px;margin-bottom:15px;border-radius:10px;border:none;background:#081735;color:white}
-    button{width:100%;padding:16px;border:none;border-radius:12px;font-weight:bold;background:linear-gradient(90deg,#2962ff,#7b2cff);color:white}
-    .message{margin-top:15px}
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #020c2b;
+      color: white;
+      padding: 20px;
+    }
+
+    .top-nav {
+      margin-bottom: 20px;
+    }
+
+    .back-home {
+      color: #c8d5ff;
+      text-decoration: none;
+      font-size: 18px;
+    }
+
+    .box {
+      max-width: 760px;
+      margin: auto;
+      background: #081a44;
+      border-radius: 26px;
+      padding: 28px 20px;
+    }
+
+    h1 {
+      font-size: 3rem;
+      margin-bottom: 20px;
+    }
+
+    input, textarea {
+      width: 100%;
+      padding: 18px;
+      margin-top: 14px;
+      border: none;
+      border-radius: 16px;
+      background: #04133a;
+      color: white;
+      font-size: 18px;
+      box-sizing: border-box;
+    }
+
+    textarea {
+      min-height: 110px;
+      resize: vertical;
+    }
+
+    button {
+      width: 100%;
+      margin-top: 22px;
+      padding: 18px;
+      border: none;
+      border-radius: 18px;
+      background: linear-gradient(90deg, #2d6cff, #8a2eff);
+      color: white;
+      font-weight: bold;
+      font-size: 20px;
+    }
+
+    #message {
+      margin-top: 18px;
+      color: #9de1a8;
+      font-size: 18px;
+    }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="card">
-      <h1>Driver Signup</h1>
-      <form id="driverForm">
-        <input id="name" placeholder="Full Name" required />
-        <input id="email" placeholder="Email" required />
-        <input id="phone" placeholder="Phone" required />
-        <input id="city" placeholder="City" required />
-        <input id="vehicle" placeholder="Vehicle Type" required />
-        <input id="license" placeholder="License Number" required />
-        <textarea id="notes" placeholder="Extra Notes"></textarea>
-        <button type="submit">Submit Driver Application</button>
-        <div id="msg" class="message"></div>
-      </form>
-    </div>
+
+  <div class="top-nav">
+    <a href="/" class="back-home">← Back to Home</a>
+  </div>
+
+  <div class="box">
+    <h1>Driver Signup</h1>
+
+    <input id="name" placeholder="Full Name" />
+    <input id="email" placeholder="Email" />
+    <input id="phone" placeholder="Phone" />
+    <input id="city" placeholder="City" />
+    <input id="vehicle" placeholder="Vehicle Type" />
+    <input id="license" placeholder="License Number" />
+    <textarea id="notes" placeholder="Extra Notes"></textarea>
+
+    <button onclick="signup()">Submit Driver Application</button>
+    <div id="message"></div>
   </div>
 
   <script>
-    const form = document.getElementById('driverForm')
-    const msg = document.getElementById('msg')
-
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault()
-      msg.textContent = 'Submitting application...'
-
+    async function signup() {
       const payload = {
-        id: Date.now().toString(),
-        name: document.getElementById('name').value.trim(),
-        email: document.getElementById('email').value.trim(),
-        phone: document.getElementById('phone').value.trim(),
-        city: document.getElementById('city').value.trim(),
-        vehicle: document.getElementById('vehicle').value.trim(),
-        license: document.getElementById('license').value.trim(),
-        notes: document.getElementById('notes').value.trim()
+        name: document.getElementById('name').value,
+        email: document.getElementById('email').value,
+        phone: document.getElementById('phone').value,
+        city: document.getElementById('city').value,
+        vehicle: document.getElementById('vehicle').value,
+        license: document.getElementById('license').value,
+        notes: document.getElementById('notes').value
       }
 
-      try {
-        const res = await fetch('/api/driver-signup', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        })
+      const res = await fetch('/api/driver-signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
 
-        const data = await res.json()
-
-        if (data.success) {
-          msg.textContent = 'Driver application submitted successfully.'
-          form.reset()
-        } else {
-          msg.textContent = data.message || 'Could not submit driver application.'
-        }
-      } catch (err) {
-        msg.textContent = 'Server error. Please try again.'
-      }
-    })
+      const data = await res.json()
+      document.getElementById('message').innerText = data.success
+        ? 'Driver application submitted.'
+        : 'Something went wrong.'
+    }
   </script>
 </body>
 </html>
