@@ -1,172 +1,149 @@
 const express = require('express')
 const cors = require('cors')
 const fs = require('fs')
+const path = require('path')
 
 const app = express()
 const PORT = process.env.PORT || 10000
 
 app.use(cors())
 app.use(express.json())
+app.use(express.static(path.join(__dirname, 'public')))
 
 function read(file){
-try{
-return JSON.parse(fs.readFileSync(file,'utf8'))
-}catch{
-return []
-}
+  try{
+    return JSON.parse(fs.readFileSync(file,'utf8'))
+  }catch{
+    return []
+  }
 }
 
 function write(file,data){
-fs.writeFileSync(file,JSON.stringify(data,null,2))
-}
-
-function distance(lat1,lng1,lat2,lng2){
-const R = 3958.8
-const dLat = (lat2-lat1) * Math.PI/180
-const dLng = (lng2-lng1) * Math.PI/180
-
-const a =
-Math.sin(dLat/2)*Math.sin(dLat/2) +
-Math.cos(lat1*Math.PI/180) *
-Math.cos(lat2*Math.PI/180) *
-Math.sin(dLng/2)*Math.sin(dLng/2)
-
-const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
-
-return R*c
+  fs.writeFileSync(file,JSON.stringify(data,null,2))
 }
 
 app.get('/',(req,res)=>{
-res.send('Harvey Taxi Running')
+  res.sendFile(path.join(__dirname,'public','index.html'))
 })
 
 app.get('/api/status',(req,res)=>{
-res.json({status:'ok'})
+  res.json({status:'ok'})
 })
 
-/* DRIVER SIGNUP */
+app.post('/api/rider-signup',(req,res)=>{
+  const riders = read('riders.json')
+
+  const rider = {
+    id:Date.now(),
+    name:req.body.name || '',
+    phone:req.body.phone || '',
+    email:req.body.email || '',
+    city:req.body.city || '',
+    created:new Date()
+  }
+
+  riders.push(rider)
+  write('riders.json',riders)
+
+  res.json({success:true,rider})
+})
+
 app.post('/api/driver-signup',(req,res)=>{
+  const drivers = read('drivers.json')
 
-const drivers = read('drivers.json')
+  const driver = {
+    id:Date.now(),
+    name:req.body.name || '',
+    phone:req.body.phone || '',
+    email:req.body.email || '',
+    city:req.body.city || '',
+    vehicle:req.body.vehicle || '',
+    status:'active',
+    online:true,
+    created:new Date()
+  }
 
-const driver = {
-id:Date.now(),
-name:req.body.name,
-phone:req.body.phone,
-vehicle:req.body.vehicle,
-online:true,
-lat:null,
-lng:null
-}
+  drivers.push(driver)
+  write('drivers.json',drivers)
 
-drivers.push(driver)
-
-write('drivers.json',drivers)
-
-res.json(driver)
-
+  res.json({success:true,driver})
 })
 
-/* DRIVER LOCATION (hidden) */
-app.post('/api/driver-location',(req,res)=>{
-
-const drivers = read('drivers.json')
-
-const driver = drivers.find(d=>d.id==req.body.driverId)
-
-if(!driver) return res.json({success:false})
-
-driver.lat = req.body.lat
-driver.lng = req.body.lng
-
-write('drivers.json',drivers)
-
-res.json({success:true})
-
-})
-
-/* REQUEST RIDE */
 app.post('/api/request-ride',(req,res)=>{
+  const rides = read('rides.json')
 
-const rides = read('rides.json')
+  const ride = {
+    id:Date.now(),
+    rider:req.body.rider || '',
+    riderPhone:req.body.riderPhone || '',
+    pickup:req.body.pickup || '',
+    dropoff:req.body.dropoff || '',
+    status:'waiting',
+    driverId:null,
+    driverName:null,
+    created:new Date()
+  }
 
-const ride = {
-id:Date.now(),
-pickup:req.body.pickup,
-dropoff:req.body.dropoff,
-pickupLat:req.body.pickupLat,
-pickupLng:req.body.pickupLng,
-status:'waiting',
-driverId:null,
-driverName:null
-}
+  rides.push(ride)
+  write('rides.json',rides)
 
-rides.push(ride)
-
-write('rides.json',rides)
-
-res.json(ride)
-
+  res.json({success:true,ride})
+})app.get('/api/rides',(req,res)=>{
+  res.json(read('rides.json'))
 })
 
-/* AUTO ASSIGN */
-app.post('/api/auto-assign/:id',(req,res)=>{
-
-const rides = read('rides.json')
-const drivers = read('drivers.json')
-
-const ride = rides.find(r=>r.id==req.params.id)
-
-const online = drivers.filter(d=>d.online && d.lat)
-
-if(!online.length) return res.json({success:false})
-
-let closest = null
-let min = 999
-
-online.forEach(d=>{
-
-const dist = distance(
-ride.pickupLat,
-ride.pickupLng,
-d.lat,
-d.lng
-)
-
-if(dist < min){
-min = dist
-closest = d
-}
-
+app.get('/api/drivers',(req,res)=>{
+  res.json(read('drivers.json'))
 })
 
-ride.driverId = closest.id
-ride.driverName = closest.name
-ride.status = "assigned"
-
-write('rides.json',rides)
-
-res.json(closest)
-
+app.get('/api/available-rides',(req,res)=>{
+  const rides = read('rides.json')
+  const available = rides.filter(r=>r.status === 'waiting')
+  res.json(available)
 })
 
-/* GET RIDES (no GPS shown) */
-app.get('/api/rides',(req,res)=>{
+app.post('/api/rides/:id/accept',(req,res)=>{
+  const rides = read('rides.json')
+  const ride = rides.find(r=>String(r.id) === String(req.params.id))
 
-const rides = read('rides.json')
+  if(!ride){
+    return res.status(404).json({success:false,error:'Ride not found'})
+  }
 
-const safe = rides.map(r=>({
-id:r.id,
-pickup:r.pickup,
-dropoff:r.dropoff,
-driverName:r.driverName,
-status:r.status
-}))
+  ride.status = 'accepted'
+  ride.driverId = req.body.driverId || null
+  ride.driverName = req.body.driverName || ''
+  ride.acceptedAt = new Date()
 
-res.json(safe)
+  write('rides.json',rides)
 
+  res.json({success:true,ride})
+})
+
+app.post('/api/rides/:id/status',(req,res)=>{
+  const rides = read('rides.json')
+  const ride = rides.find(r=>String(r.id) === String(req.params.id))
+
+  if(!ride){
+    return res.status(404).json({success:false,error:'Ride not found'})
+  }
+
+  ride.status = req.body.status || ride.status
+  write('rides.json',rides)
+
+  res.json({success:true,ride})
+})
+
+app.get('/:page',(req,res)=>{
+  const filePath = path.join(__dirname,'public',req.params.page)
+
+  if(fs.existsSync(filePath)){
+    res.sendFile(filePath)
+  }else{
+    res.sendFile(path.join(__dirname,'public','index.html'))
+  }
 })
 
 app.listen(PORT,()=>{
-console.log('HARVEY TAXI LIVE')
+  console.log('Harvey Taxi UI + API running on port ' + PORT)
 })
