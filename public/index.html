@@ -19,28 +19,20 @@
       padding: 20px;
     }
 
-    .topbar {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-top: 10px;
-      margin-bottom: 25px;
-    }
-
     .logo {
       text-align: center;
+      margin-top: 10px;
+      margin-bottom: 25px;
     }
 
     .logo h1 {
       font-size: 2.5rem;
       font-weight: 800;
-      letter-spacing: 1px;
     }
 
     .logo p {
       color: #a8b7e3;
       margin-top: 8px;
-      font-size: 1rem;
     }
 
     .hero {
@@ -63,6 +55,16 @@
       font-size: 1rem;
     }
 
+    .badge {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #2d6cff, #8a2eff);
+      font-size: 0.9rem;
+      font-weight: bold;
+    }
+
     .grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -81,12 +83,6 @@
       flex-direction: column;
       justify-content: space-between;
       box-shadow: 0 8px 20px rgba(0,0,0,0.22);
-      transition: transform 0.15s ease, opacity 0.15s ease;
-    }
-
-    .card:active {
-      transform: scale(0.98);
-      opacity: 0.92;
     }
 
     .icon {
@@ -96,7 +92,6 @@
 
     .card h3 {
       font-size: 1.15rem;
-      line-height: 1.2;
       margin-bottom: 8px;
     }
 
@@ -128,16 +123,6 @@
       line-height: 1.6;
     }
 
-    .badge {
-      display: inline-block;
-      margin-top: 12px;
-      padding: 8px 12px;
-      border-radius: 999px;
-      background: linear-gradient(90deg, #2d6cff, #8a2eff);
-      font-size: 0.9rem;
-      font-weight: bold;
-    }
-
     @media (max-width: 700px) {
       .grid {
         grid-template-columns: 1fr;
@@ -159,18 +144,16 @@
 </head>
 <body>
 
-  <div class="topbar">
-    <div class="logo">
-      <h1>Harvey Taxi</h1>
-      <p>Ride • Dispatch • Fleet • AV Ready</p>
-    </div>
+  <div class="logo">
+    <h1>Harvey Taxi</h1>
+    <p>Ride • Dispatch • Fleet • AV Ready</p>
   </div>
 
   <div class="hero">
     <h2>Your Taxi Platform, Upgraded</h2>
     <p>
-      Harvey Taxi now supports rider booking, driver onboarding, admin dispatch,
-      and an autonomous-vehicle-compatible foundation for future robotaxi fleet operations.
+      Harvey Taxi supports rider booking, driver onboarding, admin dispatch,
+      and an autonomous-vehicle-compatible foundation for future fleet operations.
     </p>
     <div class="badge">AV-Compatible Next Mission</div>
   </div>
@@ -196,7 +179,7 @@
       <div class="icon">📍</div>
       <div>
         <h3>Request Ride</h3>
-        <p>Book a ride quickly with pickup and dropoff details.</p>
+        <p>Book a ride with pickup and dropoff details.</p>
       </div>
     </a>
 
@@ -220,7 +203,7 @@
       <div class="icon">📊</div>
       <div>
         <h3>Dispatch Dashboard</h3>
-        <p>Monitor rides, vehicles, and dispatch activity.</p>
+        <p>Monitor rides, drivers, and dispatch activity.</p>
       </div>
     </a>
 
@@ -228,7 +211,7 @@
       <div class="icon">💳</div>
       <div>
         <h3>Harvey Taxi Payment Link</h3>
-        <p>Use your Stripe payment link here. Replace this URL with your real live Harvey Taxi payment link.</p>
+        <p>Replace this URL with your real Harvey Taxi payment link.</p>
       </div>
     </a>
 
@@ -236,7 +219,7 @@
       <div class="icon">❤️</div>
       <div>
         <h3>Nonprofit Donation Link</h3>
-        <p>Keep your nonprofit support button on the home screen. Replace this with your real donation link.</p>
+        <p>Replace this URL with your real nonprofit donation link.</p>
       </div>
     </a>
   </div>
@@ -244,7 +227,7 @@
   <div class="footer-box">
     <h3>Fleet Status</h3>
     <p>
-      Human-driver dispatch is live today. Autonomous-vehicle support is the next system mission,
+      Human-driver dispatch is live today. Autonomous-vehicle support is your next mission,
       including fleet vehicles, missions, hidden GPS, remote assist, and mixed-fleet dispatch.
     </p>
   </div>
