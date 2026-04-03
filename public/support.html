@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Live Support</title>
+
+<style>
+body{
+background:#020c2b;
+color:white;
+font-family:Arial;
+padding:20px;
+margin:0;
+}
+
+.back{
+margin-bottom:20px;
+}
+
+.back a{
+color:white;
+text-decoration:none;
+font-size:18px;
+}
+
+h1{
+margin-bottom:20px;
+}
+
+.chat{
+background:#081a44;
+padding:20px;
+border-radius:20px;
+height:360px;
+overflow:auto;
+margin-bottom:15px;
+}
+
+.msg{
+padding:12px;
+margin-bottom:10px;
+border-radius:14px;
+background:#10265e;
+}
+
+.msg b{
+color:#8fc2ff;
+}
+
+input{
+width:100%;
+padding:14px;
+border:none;
+border-radius:12px;
+font-size:16px;
+box-sizing:border-box;
+}
+
+button{
+margin-top:10px;
+padding:14px;
+width:100%;
+background:#2d6cff;
+color:white;
+border:none;
+border-radius:12px;
+font-weight:bold;
+font-size:16px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="back">
+<a href="/">← Back to Home</a>
+</div>
+
+<h1>Live Support</h1>
+
+<div id="chat" class="chat">Loading...</div>
+
+<input id="msg" placeholder="Type your message">
+<button onclick="send()">Send Message</button>
+
+<script>
+async function load(){
+  const messages = await fetch('/api/messages/support')
+    .then(r=>r.json())
+    .catch(()=>[])
+
+  document.getElementById('chat').innerHTML =
+    messages.length
+      ? messages.map(m=>`
+        <div class="msg"><b>${m.from}:</b> ${m.text}</div>
+      `).join('')
+      : 'No messages yet'
+}
+
+async function send(){
+  const text = document.getElementById('msg').value
+  if(!text) return
+
+  await fetch('/api/send-message',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      rideId:'support',
+      from:'user',
+      to:'admin',
+      text:text
+    })
+  })
+
+  document.getElementById('msg').value=''
+  load()
+}
+
+load()
+setInterval(load,2000)
+</script>
+
+</body>
+</html>
