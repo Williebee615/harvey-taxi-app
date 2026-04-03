@@ -2,6 +2,7 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Driver Dashboard</title>
 
 <style>
 body{
@@ -9,11 +10,17 @@ background:#020c2b;
 color:white;
 font-family:Arial;
 padding:20px;
+margin:0;
+}
+
+.back{
+margin-bottom:20px;
 }
 
 .back a{
 color:white;
 text-decoration:none;
+font-size:18px;
 }
 
 .card{
@@ -21,6 +28,20 @@ background:#081a44;
 padding:20px;
 border-radius:18px;
 margin-top:20px;
+white-space:pre-wrap;
+}
+
+.support-button{
+position:fixed;
+bottom:20px;
+right:20px;
+background:#2d6cff;
+color:white;
+padding:14px 16px;
+border-radius:20px;
+text-decoration:none;
+font-size:20px;
+box-shadow:0 8px 20px rgba(0,0,0,.3);
 }
 </style>
 </head>
@@ -38,21 +59,20 @@ margin-top:20px;
 <div id="rides">Loading...</div>
 </div>
 
+<a href="/support.html" class="support-button">💬</a>
+
 <script>
-
 async function load(){
+  const rides = await fetch('/api/rides')
+    .then(r=>r.json())
+    .catch(()=>[])
 
-const rides = await fetch('/api/rides')
-.then(r=>r.json())
-.catch(()=>[])
-
-document.getElementById("rides").innerText =
-rides.length ? JSON.stringify(rides,null,2) : "No rides"
-
+  document.getElementById("rides").innerText =
+    rides.length ? JSON.stringify(rides,null,2) : "No rides"
 }
 
 load()
-
+setInterval(load,3000)
 </script>
 
 </body>
