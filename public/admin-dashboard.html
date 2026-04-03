@@ -1,341 +1,71 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Admin Dashboard</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #03163a;
-      color: white;
-      margin: 0;
-      padding: 20px;
-    }
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    .container {
-      max-width: 1100px;
-      margin: 0 auto;
-    }
+<style>
+body{
+background:#020c2b;
+color:white;
+font-family:Arial;
+padding:20px;
+}
 
-    .card {
-      background: #0a1f4f;
-      border-radius: 16px;
-      padding: 20px;
-      margin-bottom: 18px;
-      box-shadow: 0 0 18px rgba(0,0,0,0.28);
-    }
+.back a{
+color:white;
+text-decoration:none;
+}
 
-    h1, h2 {
-      margin-top: 0;
-    }
-
-    .sub {
-      color: #c8d3f2;
-      line-height: 1.6;
-      margin-bottom: 18px;
-    }
-
-    button, select {
-      border: none;
-      border-radius: 10px;
-      padding: 12px 14px;
-      font-weight: bold;
-      font-size: 14px;
-    }
-
-    button {
-      cursor: pointer;
-      color: white;
-      margin-right: 8px;
-      margin-top: 8px;
-    }
-
-    .refresh { background: #3b82f6; }
-    .assign { background: #22c55e; }
-    .auto { background: #a855f7; }
-    .logout { background: #64748b; }
-
-    .status-text {
-      margin-top: 10px;
-      color: #c8d3f2;
-      line-height: 1.6;
-    }
-
-    .ride-card, .driver-card {
-      background: #10295c;
-      border-radius: 14px;
-      padding: 16px;
-      margin-bottom: 14px;
-    }
-
-    .line {
-      margin-bottom: 8px;
-      line-height: 1.6;
-    }
-
-    .badge {
-      display: inline-block;
-      padding: 6px 10px;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: bold;
-      text-transform: uppercase;
-    }
-
-    .requested { background: #475569; }
-    .assigned { background: #2563eb; }
-    .accepted { background: #7c3aed; }
-    .enroute { background: #f59e0b; color: #111827; }
-    .completed { background: #22c55e; color: #052e16; }
-
-    .online { background: #22c55e; color: #052e16; }
-    .offline { background: #64748b; }
-
-    .row {
-      display: grid;
-      grid-template-columns: 1.3fr 1fr;
-      gap: 18px;
-    }
-
-    .top-link {
-      display: inline-block;
-      color: #c8d3f2;
-      text-decoration: none;
-      margin-bottom: 14px;
-    }
-
-    .empty {
-      color: #c8d3f2;
-      line-height: 1.6;
-    }
-
-    .assign-row {
-      margin-top: 12px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      align-items: center;
-    }
-
-    .assign-row select {
-      background: white;
-      color: #111827;
-      min-width: 220px;
-    }
-
-    @media (max-width: 900px) {
-      .row {
-        grid-template-columns: 1fr;
-      }
-    }
-  </style>
+.card{
+background:#081a44;
+padding:20px;
+border-radius:18px;
+margin-top:20px;
+}
+</style>
 </head>
+
 <body>
-  <div class="container">
-    <a class="top-link" href="/">← Back to Home</a>
 
-    <div class="card">
-      <h1>Admin Dispatch Dashboard</h1>
-      <div class="sub">
-        View open rides, view drivers, assign drivers manually, or auto-dispatch a ride to the first online driver.
-      </div>
+<div class="back">
+<a href="/">← Back to Home</a>
+</div>
 
-      <button class="refresh" onclick="refreshAll()">Refresh Dashboard</button>
-      <button class="logout" onclick="logoutAdmin()">Logout</button>
-      <div id="message" class="status-text"></div>
-    </div>
+<h1>Admin Dispatch Dashboard</h1>
 
-    <div class="row">
-      <div class="card">
-        <h2>Open Rides</h2>
-        <div id="ridesList" class="empty">Loading rides...</div>
-      </div>
+<div class="card">
+<h2>Open Rides</h2>
+<div id="rides">Loading...</div>
+</div>
 
-      <div class="card">
-        <h2>Drivers</h2>
-        <div id="driversList" class="empty">Loading drivers...</div>
-      </div>
-    </div>
-  </div>
+<div class="card">
+<h2>Vehicles</h2>
+<div id="vehicles">Loading...</div>
+</div>
 
-  <script>
-    let rides = []
-    let drivers = []
+<script>
 
-    function setMessage(text) {
-      document.getElementById('message').innerText = text
-    }
+async function load(){
 
-    function statusBadge(status) {
-      const safe = status || 'requested'
-      return `<span class="badge ${safe}">${safe}</span>`
-    }
+const rides = await fetch('/api/rides')
+.then(r=>r.json())
+.catch(()=>[])
 
-    function onlineBadge(online) {
-      return online
-        ? `<span class="badge online">online</span>`
-        : `<span class="badge offline">offline</span>`
-    }
+const vehicles = await fetch('/api/vehicles')
+.then(r=>r.json())
+.catch(()=>[])
 
-    function logoutAdmin() {
-      localStorage.removeItem('harveyAdminEmail')
-      localStorage.removeItem('harveyAdminLoggedIn')
-      window.location.href = '/admin.html'
-    }
+document.getElementById("rides").innerText =
+rides.length ? JSON.stringify(rides,null,2) : "No rides"
 
-    async function loadRides() {
-      const res = await fetch('/api/rides')
-      rides = await res.json()
-      renderRides()
-    }
+document.getElementById("vehicles").innerText =
+vehicles.length ? JSON.stringify(vehicles,null,2) : "No vehicles"
 
-    async function loadDrivers() {
-      const res = await fetch('/api/drivers')
-      drivers = await res.json()
-      renderDrivers()
-    }
+}
 
-    function availableDrivers() {
-      return drivers.filter(d => d.online === true)
-    }
+load()
 
-    function renderDrivers() {
-      const box = document.getElementById('driversList')
+</script>
 
-      if (!drivers.length) {
-        box.innerHTML = '<div class="empty">No drivers yet.</div>'
-        return
-      }
-
-      box.innerHTML = drivers.map(driver => `
-        <div class="driver-card">
-          <div class="line"><b>Name:</b> ${driver.name || 'N/A'}</div>
-          <div class="line"><b>Email:</b> ${driver.email || 'N/A'}</div>
-          <div class="line"><b>Phone:</b> ${driver.phone || 'N/A'}</div>
-          <div class="line"><b>Vehicle:</b> ${driver.vehicle || 'N/A'}</div>
-          <div class="line"><b>Status:</b> ${onlineBadge(driver.online)}</div>
-          <div class="line"><b>Current Ride:</b> ${driver.currentRide || 'None'}</div>
-        </div>
-      `).join('')
-    }
-
-    function driverSelectOptions(selectedDriverId = '') {
-      const options = availableDrivers()
-
-      if (!options.length) {
-        return `<option value="">No online drivers</option>`
-      }
-
-      return `
-        <option value="">Choose driver</option>
-        ${options.map(driver => `
-          <option value="${driver.id}" ${String(driver.id) === String(selectedDriverId) ? 'selected' : ''}>
-            ${driver.name || 'Unnamed Driver'}${driver.vehicle ? ' - ' + driver.vehicle : ''}
-          </option>
-        `).join('')}
-      `
-    }
-
-    function renderRides() {
-      const box = document.getElementById('ridesList')
-      const openRides = rides.filter(r => r.status !== 'completed')
-
-      if (!openRides.length) {
-        box.innerHTML = '<div class="empty">No open rides right now.</div>'
-        return
-      }
-
-      box.innerHTML = openRides.map(ride => `
-        <div class="ride-card">
-          <div class="line"><b>Ride ID:</b> ${ride.id}</div>
-          <div class="line"><b>Rider:</b> ${ride.name || ride.rider || 'N/A'}</div>
-          <div class="line"><b>Phone:</b> ${ride.phone || 'N/A'}</div>
-          <div class="line"><b>Pickup:</b> ${ride.pickup || 'N/A'}</div>
-          <div class="line"><b>Dropoff:</b> ${ride.dropoff || 'N/A'}</div>
-          <div class="line"><b>Status:</b> ${statusBadge(ride.status)}</div>
-          <div class="line"><b>Assigned Driver:</b> ${ride.driverName || 'None'}</div>
-
-          <div class="assign-row">
-            <select id="driver-select-${ride.id}">
-              ${driverSelectOptions(ride.driverId)}
-            </select>
-
-            <button class="assign" onclick="assignDriver('${ride.id}')">Assign Driver</button>
-            <button class="auto" onclick="autoDispatch('${ride.id}')">Auto Dispatch</button>
-          </div>
-        </div>
-      `).join('')
-    }
-
-    async function assignDriver(rideId) {
-      const select = document.getElementById(`driver-select-${rideId}`)
-      const driverId = select.value
-
-      if (!driverId) {
-        setMessage('Choose a driver first.')
-        return
-      }
-
-      try {
-        const res = await fetch('/api/assign-driver', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rideId, driverId })
-        })
-
-        const data = await res.json()
-
-        if (data.success) {
-          setMessage('Driver assigned successfully.')
-          await refreshAll()
-        } else {
-          setMessage(data.message || 'Could not assign driver.')
-        }
-      } catch (err) {
-        setMessage('Server error assigning driver.')
-      }
-    }
-
-    async function autoDispatch(rideId) {
-      try {
-        const res = await fetch('/api/auto-dispatch', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rideId })
-        })
-
-        const data = await res.json()
-
-        if (data.matched) {
-          setMessage('Ride auto-dispatched.')
-          await refreshAll()
-        } else {
-          setMessage(data.message || 'No online driver available.')
-        }
-      } catch (err) {
-        setMessage('Server error auto-dispatching ride.')
-      }
-    }
-
-    async function refreshAll() {
-      try {
-        setMessage('Refreshing dashboard...')
-        await loadDrivers()
-        await loadRides()
-        setMessage('Dashboard updated.')
-      } catch (err) {
-        setMessage('Could not refresh dashboard.')
-      }
-    }
-
-    window.addEventListener('load', async () => {
-      await refreshAll()
-    })
-
-    setInterval(async () => {
-      await refreshAll()
-    }, 5000)
-  </script>
 </body>
 </html>
