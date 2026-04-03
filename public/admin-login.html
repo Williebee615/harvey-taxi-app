@@ -5,91 +5,93 @@
 <title>Admin Login</title>
 
 <style>
-body {
-font-family: Arial;
+body{
 background:#020c2b;
+font-family:Arial;
 color:white;
-display:flex;
-justify-content:center;
-align-items:center;
-height:100vh;
-margin:0;
+padding:20px;
 }
 
-.card {
+.back{
+margin-bottom:20px;
+}
+
+.back a{
+color:white;
+text-decoration:none;
+font-size:18px;
+}
+
+.box{
 background:#081a44;
-padding:30px;
+padding:25px;
 border-radius:20px;
-width:90%;
-max-width:400px;
+max-width:500px;
+margin:auto;
 }
 
-input {
+input{
 width:100%;
 padding:15px;
-margin-top:15px;
+margin-top:10px;
 border-radius:12px;
 border:none;
-background:#06153a;
-color:white;
+background:#e6e6a8;
+font-size:16px;
 }
 
-button {
+button{
 width:100%;
-padding:15px;
+padding:16px;
 margin-top:20px;
 border:none;
 border-radius:14px;
-background:linear-gradient(90deg,#3a6bff,#7b3cff);
+background:linear-gradient(90deg,#2d6cff,#8a2eff);
 color:white;
 font-weight:bold;
+font-size:16px;
 }
 
-.error {
+#error{
 color:red;
-margin-top:15px;
+margin-top:10px;
 }
 </style>
 </head>
 
 <body>
 
-<div class="card">
-<h1>Admin Login</h1>
-<p>Harvey Taxi Admin Access</p>
+<div class="back">
+<a href="/">← Back to Home</a>
+</div>
 
-<input id="email" placeholder="Admin Email">
+<div class="box">
+<h1>Admin Login</h1>
+
+<input id="email" placeholder="Email">
 <input id="password" type="password" placeholder="Password">
 
 <button onclick="login()">Login to Admin Dashboard</button>
 
-<div id="error" class="error"></div>
+<div id="error"></div>
+
 </div>
 
 <script>
-async function login(){
-const email=document.getElementById('email').value
-const password=document.getElementById('password').value
 
-try{
-const res=await fetch('/api/admin-login',{
-method:'POST',
-headers:{'Content-Type':'application/json'},
-body:JSON.stringify({email,password})
-})
+function login(){
 
-const data=await res.json()
+const email = document.getElementById("email").value
+const password = document.getElementById("password").value
 
-if(data.success){
-window.location.href='/admin-dashboard.html'
+if(email === "admin@harveytaxi.com" && password === "admin123"){
+window.location.href="/admin-dashboard.html"
 }else{
-document.getElementById('error').innerText='Invalid login'
+document.getElementById("error").innerText="Invalid login"
 }
 
-}catch(e){
-document.getElementById('error').innerText='Server error'
 }
-}
+
 </script>
 
 </body>
