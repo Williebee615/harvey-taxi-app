@@ -10,215 +10,310 @@ app.use(cors())
 app.use(express.json())
 app.use(express.static(path.join(__dirname, 'public')))
 
-function read(file) {
-  try {
-    return JSON.parse(fs.readFileSync(file, 'utf8'))
-  } catch (error) {
-    return []
-  }
+const RIDES = './rides.json'
+const VEHICLES = './vehicles.json'
+const RIDERS = './riders.json'
+
+function read(file){
+try{
+return JSON.parse(fs.readFileSync(file))
+}catch{
+return []
+}
 }
 
-function write(file, data) {
-  fs.writeFileSync(file, JSON.stringify(data, null, 2))
+function write(file,data){
+fs.writeFileSync(file, JSON.stringify(data,null,2))
 }
 
-/* HOME */
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'))
+function uid(){
+return Math.random().toString(36).substring(2,9)
+}
+
+function distance(a,b,c,d){
+const R = 3958.8
+const dLat = (c-a) * Math.PI/180
+const dLon = (d-b) * Math.PI/180
+
+const lat1 = a * Math.PI/180
+const lat2 = c * Math.PI/180
+
+const x =
+Math.sin(dLat/2) * Math.sin(dLat/2) +
+Math.sin(dLon/2) * Math.sin(dLon/2) *
+Math.cos(lat1) * Math.cos(lat2)
+
+return R * (2 * Math.atan2(Math.sqrt(x),Math.sqrt(1-x)))
+}
+
+/* ---------------------------
+CREATE VEHICLE
+----------------------------*/
+
+app.post('/api/vehicle/register',(req,res)=>{
+
+const vehicles = read(VEHICLES)
+
+const vehicle = {
+id: uid(),
+type: req.body.type || "human",
+name: req.body.name,
+vehicleName: req.body.vehicleName,
+online: false,
+status:"idle",
+
+lat:0,
+lng:0,
+
+battery:100,
+autonomous: req.body.type === "autonomous",
+
+created: Date.now()
+}
+
+vehicles.push(vehicle)
+write(VEHICLES,vehicles)
+
+res.json(vehicle)
+
 })
 
-/* PAGE ROUTES */
-app.get('/:page', (req, res, next) => {
-  if (req.params.page.startsWith('api')) return next()
+/* ---------------------------
+VEHICLE ONLINE
+----------------------------*/
 
-  const filePath = path.join(__dirname, 'public', req.params.page)
+app.post('/api/vehicle/online',(req,res)=>{
 
-  if (fs.existsSync(filePath)) {
-    return res.sendFile(filePath)
-  }
+const vehicles = read(VEHICLES)
 
-  if (fs.existsSync(filePath + '.html')) {
-    return res.sendFile(filePath + '.html')
-  }
+const v = vehicles.find(x=>x.id===req.body.id)
 
-  return res.sendFile(path.join(__dirname, 'public', 'index.html'))
+if(!v) return res.sendStatus(404)
+
+v.online = true
+v.status = "idle"
+
+write(VEHICLES,vehicles)
+
+res.json(v)
+
 })
 
-/* STATUS */
-app.get('/api/status', (req, res) => {
-  res.json({
-    success: true,
-    status: 'Harvey Taxi Running',
-    time: new Date()
-  })
+/* ---------------------------
+VEHICLE LOCATION (HIDDEN)
+----------------------------*/
+
+app.post('/api/vehicle/location',(req,res)=>{
+
+const vehicles = read(VEHICLES)
+
+const v = vehicles.find(x=>x.id===req.body.id)
+
+if(!v) return res.sendStatus(404)
+
+v.lat = req.body.lat
+v.lng = req.body.lng
+
+write(VEHICLES,vehicles)
+
+res.json({success:true})
+
 })
 
-/* ADMIN LOGIN */
-app.post('/api/admin-login', (req, res) => {
-  try {
-    const email = req.body.email || ''
-    const password = req.body.password || ''
+/* ---------------------------
+REQUEST RIDE
+----------------------------*/
 
-    if (email === 'admin@harveytaxi.com' && password === 'harvey123') {
-      return res.json({
-        success: true,
-        user: {
-          email: 'admin@harveytaxi.com',
-          role: 'admin'
-        }
-      })
-    }
+app.post('/api/request-ride',(req,res)=>{
 
-    return res.status(401).json({
-      success: false,
-      message: 'Invalid login'
-    })
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: 'Server error'
-    })
-  }
+const rides = read(RIDES)
+
+const ride = {
+id: uid(),
+
+riderName:req.body.name,
+pickup:req.body.pickup,
+dropoff:req.body.dropoff,
+
+pickupLat:req.body.pickupLat,
+pickupLng:req.body.pickupLng,
+
+status:"searching",
+vehicleId:null,
+vehicleName:null,
+
+created: Date.now()
+}
+
+rides.push(ride)
+write(RIDES,rides)
+
+autoDispatch(ride.id)
+
+res.json(ride)
+
 })
 
-/* RIDER SIGNUP */
-app.post('/api/rider-signup', (req, res) => {
-  const riders = read('riders.json')
+/* ---------------------------
+AUTO DISPATCH
+----------------------------*/
 
-  const rider = {
-    id: Date.now(),
-    name: req.body.name || '',
-    email: req.body.email || '',
-    phone: req.body.phone || '',
-    city: req.body.city || '',
-    createdAt: new Date()
-  }
+function autoDispatch(rideId){
 
-  riders.push(rider)
-  write('riders.json', riders)
+const rides = read(RIDES)
+const vehicles = read(VEHICLES)
 
-  res.json({
-    success: true,
-    rider
-  })
+const ride = rides.find(r=>r.id===rideId)
+if(!ride) return
+
+const available = vehicles.filter(v=>v.online && v.status==="idle")
+
+if(!available.length) return
+
+let best = null
+let bestDist = 999999
+
+available.forEach(v=>{
+
+const d = distance(
+ride.pickupLat,
+ride.pickupLng,
+v.lat,
+v.lng
+)
+
+if(d < bestDist){
+bestDist = d
+best = v
+}
+
 })
 
-/* DRIVER SIGNUP */
-app.post('/api/driver-signup', (req, res) => {
-  const drivers = read('drivers.json')
+if(!best) return
 
-  const driver = {
-    id: Date.now(),
-    name: req.body.name || '',
-    email: req.body.email || '',
-    phone: req.body.phone || '',
-    city: req.body.city || '',
-    vehicle: req.body.vehicle || '',
-    license: req.body.license || '',
-    notes: req.body.notes || '',
-    status: 'active',
-    online: true,
-    createdAt: new Date()
-  }
+ride.vehicleId = best.id
+ride.vehicleName = best.vehicleName || best.name
+ride.status = "assigned"
 
-  drivers.push(driver)
-  write('drivers.json', drivers)
+best.status = "enroute"
 
-  res.json({
-    success: true,
-    driver
-  })
+write(RIDES,rides)
+write(VEHICLES,vehicles)
+
+}/* ---------------------------
+VEHICLE ARRIVED
+----------------------------*/
+
+app.post('/api/vehicle/arrived',(req,res)=>{
+
+const rides = read(RIDES)
+
+const ride = rides.find(r=>r.vehicleId===req.body.id)
+
+if(!ride) return res.sendStatus(404)
+
+ride.status = "arrived"
+
+write(RIDES,rides)
+
+res.json(ride)
+
 })
 
-/* REQUEST RIDE */
-app.post('/api/request-ride', (req, res) => {
-  const rides = read('rides.json')
+/* ---------------------------
+START TRIP
+----------------------------*/
 
-  const ride = {
-    id: Date.now(),
-    rider: req.body.rider || '',
-    riderPhone: req.body.riderPhone || '',
-    pickup: req.body.pickup || '',
-    dropoff: req.body.dropoff || '',
-    status: 'waiting',
-    driverId: null,
-    driverName: null,
-    acceptedAt: null,
-    createdAt: new Date()
-  }
+app.post('/api/trip/start',(req,res)=>{
 
-  rides.push(ride)
-  write('rides.json', rides)
+const rides = read(RIDES)
 
-  res.json({
-    success: true,
-    ride
-  })
+const ride = rides.find(r=>r.vehicleId===req.body.id)
+
+if(!ride) return res.sendStatus(404)
+
+ride.status = "in_progress"
+
+write(RIDES,rides)
+
+res.json(ride)
+
 })
 
-/* GET ALL RIDES */
-app.get('/api/rides', (req, res) => {
-  res.json(read('rides.json'))
+/* ---------------------------
+COMPLETE TRIP
+----------------------------*/
+
+app.post('/api/trip/complete',(req,res)=>{
+
+const rides = read(RIDES)
+const vehicles = read(VEHICLES)
+
+const ride = rides.find(r=>r.vehicleId===req.body.id)
+const vehicle = vehicles.find(v=>v.id===req.body.id)
+
+if(!ride) return res.sendStatus(404)
+
+ride.status = "completed"
+
+if(vehicle){
+vehicle.status = "idle"
+}
+
+write(RIDES,rides)
+write(VEHICLES,vehicles)
+
+res.json({success:true})
+
 })
 
-/* GET AVAILABLE RIDES */
-app.get('/api/available-rides', (req, res) => {
-  const rides = read('rides.json')
-  const available = rides.filter(ride => ride.status === 'waiting')
-  res.json(available)
+/* ---------------------------
+ADMIN RIDES (NO GPS)
+----------------------------*/
+
+app.get('/api/rides',(req,res)=>{
+
+const rides = read(RIDES)
+
+const safe = rides.map(r=>({
+
+id:r.id,
+riderName:r.riderName,
+pickup:r.pickup,
+dropoff:r.dropoff,
+status:r.status,
+vehicleName:r.vehicleName
+
+}))
+
+res.json(safe)
+
 })
 
-/* ACCEPT RIDE */
-app.post('/api/rides/:id/accept', (req, res) => {
-  const rides = read('rides.json')
-  const ride = rides.find(r => String(r.id) === String(req.params.id))
+/* ---------------------------
+ADMIN VEHICLES (NO GPS)
+----------------------------*/
 
-  if (!ride) {
-    return res.status(404).json({
-      success: false,
-      error: 'Ride not found'
-    })
-  }
+app.get('/api/vehicles',(req,res)=>{
 
-  ride.status = 'accepted'
-  ride.driverId = req.body.driverId || null
-  ride.driverName = req.body.driverName || ''
-  ride.acceptedAt = new Date()
+const vehicles = read(VEHICLES)
 
-  write('rides.json', rides)
+const safe = vehicles.map(v=>({
 
-  return res.json({
-    success: true,
-    ride
-  })
+id:v.id,
+name:v.name,
+vehicleName:v.vehicleName,
+type:v.type,
+status:v.status,
+online:v.online,
+battery:v.battery
+
+}))
+
+res.json(safe)
+
 })
 
-/* UPDATE RIDE STATUS */
-app.post('/api/rides/:id/status', (req, res) => {
-  const rides = read('rides.json')
-  const ride = rides.find(r => String(r.id) === String(req.params.id))
-
-  if (!ride) {
-    return res.status(404).json({
-      success: false,
-      error: 'Ride not found'
-    })
-  }
-
-  ride.status = req.body.status || ride.status
-  write('rides.json', rides)
-
-  return res.json({
-    success: true,
-    ride
-  })
-})
-
-/* GET DRIVERS */
-app.get('/api/drivers', (req, res) => {
-  res.json(read('drivers.json'))
-})
-
-app.listen(PORT, () => {
-  console.log('Harvey Taxi UI + API running on port ' + PORT)
+app.listen(PORT,()=>{
+console.log("AV SYSTEM LIVE")
 })
