@@ -316,4 +316,36 @@ res.json(safe)
 
 app.listen(PORT,()=>{
 console.log("AV SYSTEM LIVE")
+})const MESSAGES = './messages.json'
+
+app.post('/api/send-message', (req,res)=>{
+
+const messages = read(MESSAGES)
+
+const message = {
+id: uid(),
+rideId: req.body.rideId,
+from: req.body.from,
+to: req.body.to,
+text: req.body.text,
+time: Date.now()
+}
+
+messages.push(message)
+write(MESSAGES,messages)
+
+res.json({success:true})
+
+})
+
+app.get('/api/messages/:rideId',(req,res)=>{
+
+const messages = read(MESSAGES)
+
+const filtered = messages.filter(
+m => m.rideId === req.params.rideId
+)
+
+res.json(filtered)
+
 })
