@@ -1,4 +1,4 @@
-const express = require("express");
+fconst express = require("express");
 const cors = require("cors");
 const fs = require("fs");
 const path = require("path");
@@ -107,3 +107,33 @@ app.get("/api/rides", (req, res) => {
 app.listen(PORT, () => {
   console.log("Harvey Taxi UI Server Running on " + PORT);
 });
+/* ADMIN LOGIN */
+app.post('/api/admin-login', (req, res) => {
+  try {
+    const { email, password } = req.body
+
+    if (
+      email === 'admin@harveytaxi.com' &&
+      password === 'harvey123'
+    ) {
+      return res.json({
+        success: true,
+        user: {
+          email: 'admin@harveytaxi.com',
+          role: 'admin'
+        }
+      })
+    }
+
+    res.status(401).json({
+      success: false,
+      message: 'Invalid login'
+    })
+
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    })
+  }
+})
