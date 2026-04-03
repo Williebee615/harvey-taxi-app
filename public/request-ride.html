@@ -1,120 +1,83 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
- <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Request Ride</title>
 
 <style>
 body{
-font-family:Arial;
-background:#021433;
+background:#020c2b;
 color:white;
+font-family:Arial;
 padding:20px;
 }
 
-.card{
-background:#0b1f4a;
+.back a{
+color:white;
+text-decoration:none;
+}
+
+.box{
+background:#081a44;
 padding:20px;
-border-radius:14px;
-max-width:650px;
-margin:auto;
+border-radius:18px;
+margin-top:20px;
 }
 
 input{
 width:100%;
 padding:14px;
-margin-bottom:12px;
+margin-top:10px;
+border-radius:12px;
 border:none;
-border-radius:10px;
-background:#10295c;
-color:white;
-font-size:16px;
 }
 
 button{
+margin-top:15px;
+padding:14px;
 width:100%;
-padding:16px;
 border:none;
 border-radius:12px;
-font-weight:bold;
-background:#3b82f6;
+background:#2d6cff;
 color:white;
-cursor:pointer;
-}
-
-#message{
-margin-top:20px;
-line-height:1.6;
 }
 </style>
 </head>
 
 <body>
 
-<div class="card">
-  <h2>Request a Ride</h2>
+<div class="back">
+<a href="/">← Back to Home</a>
+</div>
 
-  <input id="name" placeholder="Your name">
-  <input id="phone" placeholder="Phone number">
-  <input id="pickup" placeholder="Pickup address">
-  <input id="dropoff" placeholder="Dropoff address">
+<div class="box">
+<h1>Request Ride</h1>
 
-  <button onclick="requestRide()">Request Ride</button>
+<input id="name" placeholder="Name">
+<input id="pickup" placeholder="Pickup">
+<input id="dropoff" placeholder="Dropoff">
 
-  <div id="message"></div>
+<button onclick="ride()">Request Ride</button>
+
 </div>
 
 <script>
-async function requestRide() {
-  const name = document.getElementById('name').value.trim()
-  const phone = document.getElementById('phone').value.trim()
-  const pickup = document.getElementById('pickup').value.trim()
-  const dropoff = document.getElementById('dropoff').value.trim()
-  const message = document.getElementById('message')
 
-  message.innerHTML = 'Requesting ride...'
+async function ride(){
 
-  try {
-    const res = await fetch('/api/request-ride', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, phone, pickup, dropoff })
-    })
+await fetch('/api/request-ride',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({
+name:document.getElementById("name").value,
+pickup:document.getElementById("pickup").value,
+dropoff:document.getElementById("dropoff").value
+})
+})
 
-    const data = await res.json()
+alert("Ride requested")
 
-    if (data.success) {
-      localStorage.setItem('harveyRideId', data.ride.id)
-
-      message.innerHTML = `
-        Ride requested successfully 🚕<br><br>
-        Ride ID:<br>
-        <b>${data.ride.id}</b><br><br>
-        Estimated Fare:<br>
-        <b>$${data.ride.fare.total.toFixed(2)}</b><br><br>
-        ${data.autoDispatch && data.autoDispatch.matched
-          ? `Driver auto-assigned: <b>${data.autoDispatch.driverName}</b><br><br>`
-          : 'No driver auto-assigned yet.<br><br>'}
-        <a href="/rider-trip.html" style="color:#7dd3fc">Track your ride</a>
-      `
-
-      document.getElementById('name').value = ''
-      document.getElementById('phone').value = ''
-      document.getElementById('pickup').value = ''
-      document.getElementById('dropoff').value = ''
-    } else {
-      message.innerHTML = data.message || 'Error requesting ride'
-    }
-  } catch (e) {
-    message.innerHTML = 'Server error'
-  }
 }
+
 </script>
 
 </body>
