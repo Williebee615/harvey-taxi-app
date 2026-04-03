@@ -8,12 +8,13 @@ const PORT = process.env.PORT || 10000
 
 app.use(cors())
 app.use(express.json())
-app.use(express.static(path.join(__dirname, 'public')))
+app.use(express.static(path.join(__dirname,'public')))
 
 const RIDES = './rides.json'
 const VEHICLES = './vehicles.json'
 const RIDERS = './riders.json'
 const MESSAGES = './messages.json'
+const MISSIONS = './missions.json'
 
 function read(file){
 try{
@@ -24,36 +25,36 @@ return []
 }
 
 function write(file,data){
-fs.writeFileSync(file, JSON.stringify(data,null,2))
+fs.writeFileSync(file,JSON.stringify(data,null,2))
 }
 
 function uid(){
 return Math.random().toString(36).substring(2,9)
 }
 
-/* ================================
-   STATUS
-================================ */
+/* ===============================
+STATUS
+=============================== */
 
 app.get('/api/status',(req,res)=>{
 res.json({
-success:true,
-system:'Harvey Taxi AV Ready',
-dispatch:'auto',
+system:"Harvey Taxi Fleet Intelligence",
+autonomous:true,
+dispatch:"smart",
 time:new Date()
 })
 })
 
-/* ================================
-   RIDER SIGNUP
-================================ */
+/* ===============================
+RIDER SIGNUP
+=============================== */
 
 app.post('/api/rider-signup',(req,res)=>{
 
 const riders = read(RIDERS)
 
 const rider = {
-id: uid(),
+id:uid(),
 name:req.body.name,
 phone:req.body.phone,
 email:req.body.email,
@@ -67,9 +68,9 @@ res.json({success:true,rider})
 
 })
 
-/* ================================
-   VEHICLE REGISTER (Driver or AV)
-================================ */
+/* ===============================
+VEHICLE REGISTER
+=============================== */
 
 app.post('/api/vehicle/register',(req,res)=>{
 
@@ -77,9 +78,9 @@ const vehicles = read(VEHICLES)
 
 const vehicle = {
 
-id: uid(),
+id:uid(),
 
-type: req.body.type || "human", // human or autonomous
+type:req.body.type || "human",
 
 name:req.body.name || "vehicle",
 
@@ -87,9 +88,15 @@ vehicle:req.body.vehicle || "",
 
 plate:req.body.plate || "",
 
+zone:req.body.zone || "default",
+
+battery:req.body.battery || 100,
+
 status:"online",
 
 available:true,
+
+remoteAssist:false,
 
 created:new Date()
 
@@ -102,17 +109,57 @@ res.json({success:true,vehicle})
 
 })
 
-/* ================================
-   GET VEHICLES
-================================ */
+/* ===============================
+GET VEHICLES
+=============================== */
 
 app.get('/api/vehicles',(req,res)=>{
 res.json(read(VEHICLES))
 })
 
-/* ================================
-   REQUEST RIDE
-================================ */
+/* ===============================
+UPDATE VEHICLE STATUS
+=============================== */
+
+app.post('/api/vehicle/:id/status',(req,res)=>{
+
+const vehicles = read(VEHICLES)
+
+const vehicle = vehicles.find(v=>v.id === req.params.id)
+
+if(!vehicle) return res.json({success:false})
+
+vehicle.status = req.body.status
+
+write(VEHICLES,vehicles)
+
+res.json({success:true})
+
+})
+
+/* ===============================
+UPDATE BATTERY
+=============================== */
+
+app.post('/api/vehicle/:id/battery',(req,res)=>{
+
+const vehicles = read(VEHICLES)
+
+const vehicle = vehicles.find(v=>v.id === req.params.id)
+
+if(!vehicle) return res.json({success:false})
+
+vehicle.battery = req.body.battery
+
+write(VEHICLES,vehicles)
+
+res.json({success:true})
+
+})
+
+/* ===============================
+REQUEST RIDE
+=============================== */
 
 app.post('/api/request-ride',(req,res)=>{
 
@@ -120,7 +167,7 @@ const rides = read(RIDES)
 
 const ride = {
 
-id: uid(),
+id:uid(),
 
 rider:req.body.name,
 
@@ -130,9 +177,13 @@ pickup:req.body.pickup,
 
 dropoff:req.body.dropoff,
 
+zone:req.body.zone || "default",
+
 status:"searching",
 
 vehicle:null,
+
+mission:null,
 
 created:new Date()
 
@@ -142,8 +193,7 @@ rides.push(ride)
 
 write(RIDES,rides)
 
-/* AUTO DISPATCH */
-autoDispatch()
+smartDispatch()
 
 res.json({
 success:true,
@@ -152,46 +202,103 @@ ride
 
 })
 
-/* ================================
-   AUTO DISPATCH ENGINE
-================================ */
+/* ===============================
+SMART DISPATCH ENGINE
+=============================== */
 
-function autoDispatch(){
+function smartDispatch(){
 
 const rides = read(RIDES)
 const vehicles = read(VEHICLES)
+const missions = read(MISSIONS)
 
-const waitingRide = rides.find(r=>r.status==="searching")
+const ride = rides.find(r=>r.status === "searching")
 
-if(!waitingRide) return
+if(!ride) return
 
-const vehicle = vehicles.find(v=>v.available === true)
+/* priority:
+1 same zone
+2 available
+3 online
+4 battery > 25
+*/
+
+const vehicle = vehicles.find(v =>
+v.available === true &&
+v.status === "online" &&
+v.zone === ride.zone &&
+v.battery > 25
+)
 
 if(!vehicle) return
 
-waitingRide.status = "assigned"
-waitingRide.vehicle = vehicle.id
-
 vehicle.available = false
+
+ride.vehicle = vehicle.id
+ride.status = "assigned"
+
+/* create mission */
+
+const mission = {
+id:uid(),
+rideId:ride.id,
+vehicleId:vehicle.id,
+status:"queued",
+pickup:ride.pickup,
+dropoff:ride.dropoff,
+created:new Date()
+}
+
+missions.push(mission)
+
+ride.mission = mission.id
 
 write(RIDES,rides)
 write(VEHICLES,vehicles)
+write(MISSIONS,missions)
 
 }
 
-/* ================================
-   GET RIDES
-================================ */
+/* ===============================
+GET RIDES
+=============================== */
 
 app.get('/api/rides',(req,res)=>{
 res.json(read(RIDES))
 })
 
-/* ================================
-   UPDATE RIDE STATUS
-================================ */
+/* ===============================
+GET MISSIONS
+=============================== */
 
-app.post('/api/rides/:id/status',(req,res)=>{
+app.get('/api/missions',(req,res)=>{
+res.json(read(MISSIONS))
+})
+
+/* ===============================
+MISSION STATUS
+=============================== */
+
+app.post('/api/mission/:id/status',(req,res)=>{
+
+const missions = read(MISSIONS)
+const mission = missions.find(m=>m.id === req.params.id)
+
+if(!mission) return res.json({success:false})
+
+mission.status = req.body.status
+
+write(MISSIONS,missions)
+
+res.json({success:true})
+
+})
+
+/* ===============================
+COMPLETE RIDE
+=============================== */
+
+app.post('/api/rides/:id/complete',(req,res)=>{
 
 const rides = read(RIDES)
 const vehicles = read(VEHICLES)
@@ -200,18 +307,12 @@ const ride = rides.find(r=>r.id === req.params.id)
 
 if(!ride) return res.json({success:false})
 
-ride.status = req.body.status
-
-/* release vehicle when completed */
-
-if(req.body.status === "completed"){
+ride.status = "completed"
 
 const vehicle = vehicles.find(v=>v.id === ride.vehicle)
 
 if(vehicle){
 vehicle.available = true
-}
-
 }
 
 write(RIDES,rides)
@@ -221,9 +322,9 @@ res.json({success:true})
 
 })
 
-/* ================================
-   MESSAGING SYSTEM
-================================ */
+/* ===============================
+MESSAGING
+=============================== */
 
 app.post('/api/send-message',(req,res)=>{
 
@@ -265,9 +366,9 @@ res.json(filtered)
 
 })
 
-/* ================================
-   ADMIN LOGIN
-================================ */
+/* ===============================
+ADMIN LOGIN
+=============================== */
 
 app.post('/api/admin-login',(req,res)=>{
 
@@ -282,9 +383,9 @@ res.json({success:false})
 
 })
 
-/* ================================
-   PAGE ROUTING
-================================ */
+/* ===============================
+PAGE ROUTER
+=============================== */
 
 app.get('/:page',(req,res)=>{
 
@@ -299,5 +400,5 @@ res.sendFile(path.join(__dirname,'public/index.html'))
 })
 
 app.listen(PORT,()=>{
-console.log("Harvey Taxi AV System Running")
+console.log("Harvey Taxi Fleet Intelligence Running")
 })
