@@ -2,6 +2,7 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Request Ride</title>
 
 <style>
 body{
@@ -9,11 +10,17 @@ background:#020c2b;
 color:white;
 font-family:Arial;
 padding:20px;
+margin:0;
+}
+
+.back{
+margin-bottom:20px;
 }
 
 .back a{
 color:white;
 text-decoration:none;
+font-size:18px;
 }
 
 .box{
@@ -29,6 +36,7 @@ padding:14px;
 margin-top:10px;
 border-radius:12px;
 border:none;
+box-sizing:border-box;
 }
 
 button{
@@ -39,6 +47,20 @@ border:none;
 border-radius:12px;
 background:#2d6cff;
 color:white;
+font-weight:bold;
+}
+
+.support-button{
+position:fixed;
+bottom:20px;
+right:20px;
+background:#2d6cff;
+color:white;
+padding:14px 16px;
+border-radius:20px;
+text-decoration:none;
+font-size:20px;
+box-shadow:0 8px 20px rgba(0,0,0,.3);
 }
 </style>
 </head>
@@ -53,31 +75,30 @@ color:white;
 <h1>Request Ride</h1>
 
 <input id="name" placeholder="Name">
+<input id="phone" placeholder="Phone">
 <input id="pickup" placeholder="Pickup">
 <input id="dropoff" placeholder="Dropoff">
 
 <button onclick="ride()">Request Ride</button>
-
 </div>
 
+<a href="/support.html" class="support-button">💬</a>
+
 <script>
-
 async function ride(){
+  await fetch('/api/request-ride',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      name:document.getElementById("name").value,
+      phone:document.getElementById("phone").value,
+      pickup:document.getElementById("pickup").value,
+      dropoff:document.getElementById("dropoff").value
+    })
+  })
 
-await fetch('/api/request-ride',{
-method:'POST',
-headers:{'Content-Type':'application/json'},
-body:JSON.stringify({
-name:document.getElementById("name").value,
-pickup:document.getElementById("pickup").value,
-dropoff:document.getElementById("dropoff").value
-})
-})
-
-alert("Ride requested")
-
+  alert("Ride requested")
 }
-
 </script>
 
 </body>
