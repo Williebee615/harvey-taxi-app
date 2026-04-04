@@ -291,9 +291,7 @@ function autoAssignNearestDriver(ride, drivers) {
   ) {
     const ranked = eligible
       .filter(
-        d =>
-          typeof d.last_lat === "number" &&
-          typeof d.last_lng === "number"
+        d => typeof d.last_lat === "number" && typeof d.last_lng === "number"
       )
       .map(driver => ({
         driver,
@@ -758,9 +756,11 @@ app.get("/api/ride/:rideId/live-status", async (req, res) => {
       etaMinutes: live.etaMinutes,
       liveLabel: live.liveLabel,
       dispatchDistanceMiles: ride.dispatch_distance_miles || null,
-      driverLat: null,
-      driverLng: null,
-      lastGpsUpdate: driver?.last_gps_at || null
+      driverLat: typeof driver?.last_lat === "number" ? driver.last_lat : null,
+      driverLng: typeof driver?.last_lng === "number" ? driver.last_lng : null,
+      lastGpsUpdate: driver?.last_gps_at || null,
+      pickupLat: typeof ride.pickup_lat === "number" ? ride.pickup_lat : null,
+      pickupLng: typeof ride.pickup_lng === "number" ? ride.pickup_lng : null
     })
   } catch (error) {
     res.status(500).json({ error: error.message })
