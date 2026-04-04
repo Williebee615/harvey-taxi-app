@@ -894,4 +894,305 @@ app.get("/", (req, res) => {
 
 app.listen(PORT, () => {
   console.log("Harvey Taxi GPS-Safe Server Running")
+})  if (issue.category === "safety") {
+    return {
+      reply:
+        "Your message has been flagged as a safety issue. Please contact emergency services immediately if anyone is in danger. I have escalated this to Harvey Taxi support for urgent review.",
+      escalate: true,
+      status: "escalated",
+      category: "safety"
+    }
+  }
+
+  if (issue.category === "billing") {
+    return {
+      reply:
+        "I’m sorry about the billing issue. I’ve flagged this ticket for support review. Please send the trip details, ride date, and what charge looks incorrect so the team can review it faster.",
+      escalate: true,
+      status: "escalated",
+      category: "billing"
+    }
+  }
+
+  if (issue.category === "no_show") {
+    return {
+      reply:
+        "I’m sorry your driver did not arrive as expected. Please refresh your ride status and confirm your pickup location. If the issue continues, this ticket will remain open for support review.",
+      escalate: false,
+      status: "open",
+      category: "no_show"
+    }
+  }
+
+  if (issue.category === "account" && senderRole === "rider") {
+    return {
+      reply:
+        "I can help with rider account access. If you are still signing up, complete the Persona verification flow first. If you are already verified and still blocked, reply with the email or phone number tied to your account.",
+      escalate: false,
+      status: "open",
+      category: "account"
+    }
+  }
+
+  if (issue.category === "account" && senderRole === "driver") {
+    return {
+      reply:
+        "I can help with driver onboarding. Drivers must complete Persona verification first, then Checkr background screening. If one of those steps is stuck, reply with your email and I’ll keep this ticket open for review.",
+      escalate: false,
+      status: "open",
+      category: "account"
+    }
+  }
+
+  if (issue.category === "driver_ops") {
+    return {
+      reply:
+        "I can help with driver operations. Please share whether the issue is with earnings, trip status, vehicle setup, or onboarding so support can respond more accurately.",
+      escalate: false,
+      status: "open",
+      category: "driver_ops"
+    }
+  }
+
+  return {
+    reply:
+      "Thanks for contacting Harvey Taxi support. I’ve received your message and opened a support ticket. Please reply with any extra details so I can help or escalate this if needed.",
+    escalate: false,
+    status: "open",
+    category: "general"
+  }
+}
+
+async function dbInsert(table, row) {
+  const { data, error } = await supabase.from(table).insert([row]).select()
+  if (error) throw error
+  return data[0]
+}
+
+async function dbUpdate(table, values, match) {
+  const { data, error } = await supabase
+    .from(table)
+    .update(values)
+    .match(match)
+    .select()
+  if (error) throw error
+  return data
+}
+
+async function dbSelect(table, query = "*") {
+  const { data, error } = await supabase.from(table).select(query)
+  if (error) throw error
+  return data
+}
+
+async function dbSingleBy(table, column, value) {
+  const { data, error } = await supabase
+    .from(table)
+    .select("*")
+    .eq(column, value)
+    .maybeSingle()
+  if (error) throw error
+  return data
+}
+
+/* ----------------------------------
+   PERSONA
+---------------------------------- */
+
+async function createPersona(templateId, ref) {
+  const res = await axios.post(
+    `${PERSONA_BASE_URL}/inquiries`,
+    {
+      data: {
+        attributes: {
+          inquiry_template_id: templateId,
+          reference_id: ref
+        }
+      }
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${PERSONA_API_KEY}`,
+        "Persona-Version": "2023-01-05",
+        "Content-Type": "application/json"
+      }
+    }
+  )
+
+  return res.data.data
+}
+
+/* ----------------------------------
+   CHECKR
+---------------------------------- */
+
+async function createCheckr(driver) {
+  const name = splitName(
+    `${driver.first_name || ""} ${driver.last_name || ""}`.trim()
+  )
+
+  const candidate = await axios.post(
+    `${CHECKR_BASE_URL}/candidates`,
+    {
+      first_name: name.firstName,
+      last_name: name.lastName,
+      email: driver.email
+    },
+    {
+      auth: { username: CHECKR_API_KEY, password: "" }
+    }
+  )
+
+  const invite = await axios.post(
+    `${CHECKR_BASE_URL}/invitations`,
+    {
+      candidate_id: candidate.data.id,
+      package: CHECKR_PACKAGE,
+      work_locations: [
+        {
+          country: CHECKR_WORK_COUNTRY,
+          state: CHECKR_WORK_STATE,
+          city: CHECKR_WORK_CITY
+        }
+      ]
+    },
+    {
+      auth: { username: CHECKR_API_KEY, password: "" }
+    }
+  )
+
+  return {
+    candidate: candidate.data,
+    invitation: invite.data
+  }
+}
+
+function getApprovedAvailableDrivers(drivers) {
+  return drivers.filter(d => d.approved === true && d.available === true)
+}
+
+function getGpsForDriver(gps, driverId) {
+  return gps.find(g => String(g.driver_id) === String(driverId))
+}
+
+function autoAssignNearestDriver(ride, drivers, gps) {
+  const availableDrivers = getApprovedAvailableDrivers(drivers)
+  if (!availableDrivers.length) return null
+
+  if (
+    typeof ride.pickup_lat === "number" &&
+    typeof ride.pickup_lng === "number"
+  ) {
+    const ranked = availableDrivers
+      .map(driver => {
+        const point = getGpsForDriver(gps, driver.id)
+        if (!point) return null
+
+        return {
+          driver,
+          gps: point,
+          distanceMiles: haversineMiles(
+            point.lat,
+            point.lng,
+            ride.pickup_lat,
+            ride.pickup_lng
+          )
+        }
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.distanceMiles - b.distanceMiles)
+
+    if (ranked.length) {
+      return ranked[0]
+    }
+  }
+
+  return {
+    driver: availableDrivers[0],
+    gps: getGpsForDriver(gps, availableDrivers[0].id) || null,
+    distanceMiles: null
+  }
+}
+
+/* ----------------------------------
+   STATUS
+---------------------------------- */
+
+app.get("/api/status", async (req, res) => {
+  res.json({
+    success: true,
+    system: "Harvey Taxi Phase 1 Supabase Backend",
+    time: nowIso(),
+    supabase: !!SUPABASE_URL && !!SUPABASE_KEY
+  })
+})
+
+/* ----------------------------------
+   RIDER SIGNUP
+---------------------------------- */
+
+app.post("/api/rider/signup", async (req, res) => {
+  try {
+    let rider = {
+      id: uid("rider"),
+      name: req.body.name || "",
+      email: req.body.email || "",
+      phone: req.body.phone || "",
+      persona_status: "pending",
+      created_at: nowIso()
+    }
+
+    if (PERSONA_API_KEY && PERSONA_RIDER_TEMPLATE_ID) {
+      const inquiry = await createPersona(PERSONA_RIDER_TEMPLATE_ID, rider.id)
+      rider.persona_id = inquiry.id
+      rider.persona_url =
+        inquiry.attributes?.inquiry_url ||
+        inquiry.attributes?.inquiry_link ||
+        null
+    }
+
+    const saved = await dbInsert("riders", rider)
+    res.json(saved)
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+/* ----------------------------------
+   DRIVER SIGNUP
+---------------------------------- */
+
+app.post("/api/driver/signup", async (req, res) => {
+  try {
+    let driver = {
+      id: uid("driver"),
+      first_name: req.body.firstName || "",
+      last_name: req.body.lastName || "",
+      name:
+        req.body.name ||
+        `${req.body.firstName || ""} ${req.body.lastName || ""}`.trim(),
+      email: req.body.email || "",
+      phone: req.body.phone || "",
+      vehicle: req.body.vehicle || "",
+      plate: req.body.plate || "",
+      status: "persona_pending",
+      approved: false,
+      available: false,
+      created_at: nowIso()
+    }
+
+    if (PERSONA_API_KEY && PERSONA_DRIVER_TEMPLATE_ID) {
+      const inquiry = await createPersona(PERSONA_DRIVER_TEMPLATE_ID, driver.id)
+      driver.persona_id = inquiry.id
+      driver.persona_url =
+        inquiry.attributes?.inquiry_url ||
+        inquiry.attributes?.inquiry_link ||
+        null
+    }
+
+    const saved = await dbInsert("drivers", driver)
+    res.json(saved)
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
 })
