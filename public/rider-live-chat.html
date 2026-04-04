@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+<title>Harvey Taxi • Ride Chat</title>
+
+<style>
+*{
+box-sizing:border-box;
+font-family:Arial,Helvetica,sans-serif
+}
+
+body{
+margin:0;
+min-height:100vh;
+background:linear-gradient(180deg,#020817 0%,#03163d 100%);
+color:white;
+padding:20px
+}
+
+.back{
+display:inline-block;
+margin-bottom:18px;
+color:#d6e2ff;
+text-decoration:none;
+font-size:18px
+}
+
+.title{
+font-size:2.2rem;
+font-weight:800;
+margin-bottom:6px
+}
+
+.sub{
+color:#9fb7ff;
+margin-bottom:18px
+}
+
+.card{
+background:rgba(8,24,68,.95);
+border-radius:22px;
+padding:18px;
+margin-bottom:16px;
+border:1px solid rgba(255,255,255,.06);
+box-shadow:0 12px 28px rgba(0,0,0,.28)
+}
+
+.meta{
+color:#c7d8ff;
+line-height:1.6
+}
+
+.chat-box{
+background:#04112f;
+border-radius:16px;
+min-height:420px;
+max-height:520px;
+overflow-y:auto;
+padding:14px;
+margin-bottom:14px
+}
+
+.bubble{
+padding:12px 14px;
+border-radius:16px;
+margin-bottom:10px;
+max-width:80%;
+word-wrap:break-word
+}
+
+.bubble.rider{
+background:#2459d4;
+margin-left:auto
+}
+
+.bubble.driver{
+background:#7b3cff;
+margin-right:auto
+}
+
+.bubble.ai_support,
+.bubble.admin,
+.bubble.system{
+background:#2a3e68
+}
+
+.bubble small{
+display:block;
+margin-top:6px;
+opacity:.7;
+font-size:12px
+}
+
+.quick-grid{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:8px;
+margin-bottom:12px
+}
+
+.quick-btn{
+border:none;
+border-radius:12px;
+padding:10px;
+background:#304e8a;
+color:white;
+font-weight:600
+}
+
+textarea{
+width:100%;
+border:none;
+border-radius:14px;
+padding:14px;
+background:#051335;
+color:white;
+min-height:110px;
+margin-bottom:10px
+}
+
+.send{
+width:100%;
+border:none;
+border-radius:14px;
+padding:14px;
+background:linear-gradient(90deg,#2d6cff,#8a2eff);
+color:white;
+font-weight:800
+}
+
+@media(max-width:640px){
+.quick-grid{
+grid-template-columns:1fr
+}
+}
+</style>
+</head>
+
+<body>
+
+<a href="/" class="back">← Return Home</a>
+
+<div class="title">Ride Chat</div>
+<div class="sub">Chat with your driver in real-time</div>
+
+<div class="card">
+<div id="rideMeta" class="meta">Loading ride...</div>
+</div>
+
+<div class="card">
+
+<div class="quick-grid">
+<button class="quick-btn" onclick="quick('I am at the pickup spot now')">I'm here</button>
+<button class="quick-btn" onclick="quick('I am at the other entrance')">Other entrance</button>
+<button class="quick-btn" onclick="quick('What is your ETA?')">ETA?</button>
+<button class="quick-btn" onclick="quick('I am wearing a red shirt')">What I'm wearing</button>
+</div>
+
+<div id="chatBox" class="chat-box">
+No messages yet
+</div>
+
+<textarea id="msg" placeholder="Type message..."></textarea>
+
+<button class="send" onclick="send()">Send Message</button>
+
+</div>
+
+<script>
+
+function rideId(){
+return localStorage.getItem("activeRideId") || ""
+}
+
+async function api(url,options={}){
+const res=await fetch(url,options)
+return res.json()
+}
+
+function time(t){
+return new Date(t).toLocaleString()
+}
+
+async function loadRide(){
+
+const rides=await api("/api/rides")
+
+const ride=rides.find(r=>String(r.id)===rideId())
+
+if(!ride){
+document.getElementById("rideMeta").innerHTML="No active ride"
+return
+}
+
+document.getElementById("rideMeta").innerHTML=`
+<b>Ride:</b> ${ride.id}<br>
+<b>Pickup:</b> ${ride.pickup}<br>
+<b>Dropoff:</b> ${ride.dropoff}<br>
+<b>Status:</b> ${ride.status}
+`
+}
+
+async function loadMessages(){
+
+const id=rideId()
+
+if(!id) return
+
+const msgs=await api("/api/messages/"+id)
+
+if(!msgs.length){
+document.getElementById("chatBox").innerHTML="No messages yet"
+return
+}
+
+document.getElementById("chatBox").innerHTML=
+
+msgs.map(m=>`
+<div class="bubble ${m.from}">
+<b>${m.from}</b><br>
+${m.text}
+<small>${time(m.time)}</small>
+</div>
+`).join("")
+
+document.getElementById("chatBox").scrollTop=999999
+
+}
+
+async function send(){
+
+const text=document.getElementById("msg").value.trim()
+
+if(!text) return
+
+await api("/api/send-message",{
+method:"POST",
+headers:{ "Content-Type":"application/json" },
+body:JSON.stringify({
+rideId:rideId(),
+from:"rider",
+to:"driver",
+text
+})
+})
+
+document.getElementById("msg").value=""
+
+loadMessages()
+}
+
+function quick(t){
+document.getElementById("msg").value=t
+send()
+}
+
+loadRide()
+loadMessages()
+
+setInterval(loadRide,5000)
+setInterval(loadMessages,2000)
+
+</script>
+
+</body>
+</html>
