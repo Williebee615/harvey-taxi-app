@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Harvey Taxi • Admin Live Dispatch Map</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(180deg, #020817 0%, #03163d 100%);
+      color: white;
+      padding: 20px;
+    }
+
+    .back {
+      display: inline-block;
+      margin-bottom: 18px;
+      color: #d6e2ff;
+      text-decoration: none;
+      font-size: 18px;
+    }
+
+    .title {
+      font-size: 2.2rem;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .sub {
+      color: #abc0f4;
+      line-height: 1.6;
+      margin-bottom: 18px;
+    }
+
+    .top-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .stat-card {
+      background: rgba(8, 24, 68, 0.95);
+      border-radius: 20px;
+      padding: 16px;
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 0 12px 28px rgba(0,0,0,0.28);
+    }
+
+    .stat-label {
+      color: #9eb6ef;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      font-size: 1.9rem;
+      font-weight: 800;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 360px 1fr 360px;
+      gap: 16px;
+    }
+
+    .card {
+      background: rgba(8, 24, 68, 0.95);
+      border-radius: 24px;
+      padding: 18px;
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 0 12px 28px rgba(0,0,0,0.28);
+    }
+
+    .card h2 {
+      margin-top: 0;
+      margin-bottom: 14px;
+      font-size: 1.25rem;
+    }
+
+    .search {
+      width: 100%;
+      border: none;
+      border-radius: 14px;
+      padding: 14px;
+      font-size: 16px;
+      margin-bottom: 14px;
+      background: #051335;
+      color: white;
+    }
+
+    .scroll-list {
+      max-height: 72vh;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .item {
+      background: #0b2156;
+      border-radius: 16px;
+      padding: 14px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.05);
+      transition: 0.2s ease;
+    }
+
+    .item:hover {
+      transform: translateY(-1px);
+      border-color: rgba(124,164,255,0.35);
+    }
+
+    .item.active {
+      border-color: rgba(124,164,255,0.7);
+      box-shadow: 0 0 18px rgba(68,115,255,0.18);
+    }
+
+    .item-title {
+      font-size: 1rem;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+
+    .item-meta {
+      color: #c7d8ff;
+      line-height: 1.55;
+      font-size: 14px;
+    }
+
+    .map-box {
+      width: 100%;
+      height: 440px;
+      border-radius: 22px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: #07122f;
+      margin-bottom: 16px;
+      position: relative;
+    }
+
+    .map-box iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    .map-empty {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #bdd1ff;
+      font-weight: 700;
+      padding: 20px;
+      text-align: center;
+      line-height: 1.6;
+      background: radial-gradient(circle at center, rgba(53,100,255,0.18), rgba(4,12,34,0.94));
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .mini-card {
+      background: #091a48;
+      border-radius: 18px;
+      padding: 14px;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .label {
+      color: #9db7ff;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin-bottom: 6px;
+    }
+
+    .value {
+      font-size: 1rem;
+      font-weight: 700;
+      line-height: 1.4;
+      word-break: break-word;
+    }
+
+    .badge {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 800;
+      margin-top: 6px;
+      background: #143379;
+      color: #dbe7ff;
+    }
+
+    .empty-note {
+      color: #9fb2df;
+      line-height: 1.6;
+      font-size: 14px;
+    }
+
+    @media (max-width: 1100px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .top-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .scroll-list {
+        max-height: 320px;
+      }
+    }
+
+    @media (max-width: 700px) {
+      .top-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .info-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .title {
+        font-size: 1.9rem;
+      }
+
+      .map-box {
+        height: 320px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a class="back" href="/">← Back to Home</a>
+
+  <div class="title">Admin Live Dispatch Map</div>
+  <div class="sub">
+    Monitor live drivers, dispatch status, ride assignments, and fleet activity across Harvey Taxi.
+  </div>
+
+  <div class="top-grid">
+    <div class="stat-card">
+      <div class="stat-label">Total Drivers</div>
+      <div class="stat-value" id="totalDrivers">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Online Drivers</div>
+      <div class="stat-value" id="onlineDrivers">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Available Drivers</div>
+      <div class="stat-value" id="availableDrivers">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Active Rides</div>
+      <div class="stat-value" id="activeRides">0</div>
+    </div>
+  </div>
+
+  <div class="layout">
+    <div class="card">
+      <h2>Live Drivers</h2>
+      <input id="driverSearch" class="search" placeholder="Search driver name, status, vehicle..." oninput="renderDrivers()" />
+      <div class="scroll-list" id="driverList"></div>
+    </div>
+
+    <div class="card">
+      <h2>Dispatch Map</h2>
+      <div class="map-box">
+        <div class="map-empty" id="mapEmpty">Select a driver or active ride to load the live dispatch map.</div>
+        <iframe id="mapFrame" style="display:none;" loading="lazy"></iframe>
+      </div>
+
+      <div class="info-grid">
+        <div class="mini-card">
+          <div class="label">Selected Driver</div>
+          <div class="value" id="selectedDriverName">—</div>
+          <div class="badge" id="selectedDriverStatus">No driver selected</div>
+        </div>
+
+        <div class="mini-card">
+          <div class="label">Selected Ride</div>
+          <div class="value" id="selectedRideId">—</div>
+          <div class="badge" id="selectedRideStatus">No ride selected</div>
+        </div>
+
+        <div class="mini-card">
+          <div class="label">Driver Coordinates</div>
+          <div class="value" id="selectedDriverCoords">—</div>
+        </div>
+
+        <div class="mini-card">
+          <div class="label">Pickup</div>
+          <div class="value" id="selectedPickup">—</div>
+        </div>
+
+        <div class="mini-card">
+          <div class="label">Dropoff</div>
+          <div class="value" id="selectedDropoff">—</div>
+        </div>
+
+        <div class="mini-card">
+          <div class="label">Last GPS Update</div>
+          <div class="value" id="selectedGpsTime">—</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Active Dispatch Queue</h2>
+      <input id="rideSearch" class="search" placeholder="Search ride, rider, status..." oninput="renderRides()" />
+      <div class="scroll-list" id="rideList"></div>
+      <div class="empty-note" style="margin-top:10px;">
+        Refreshes every 5 seconds. Select a ride to center the map on that dispatch.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let allDrivers = []
+    let allRides = []
+    let selectedDriverId = null
+    let selectedRideId = null
+    let refreshTimer = null
+
+    function formatTime(value) {
+      if (!value) return "—"
+      const d = new Date(value)
+      if (isNaN(d.getTime())) return value
+      return d.toLocaleString()
+    }
+
+    function safeNum(v) {
+      return typeof v === "number" ? v : null
+    }
+
+    function getActiveRides(rides) {
+      return rides.filter(r =>
+        ["searching", "assigned", "on_trip"].includes(String(r.status || "").toLowerCase())
+      )
+    }
+
+    function updateStats() {
+      const online = allDrivers.filter(d => d.online === true).length
+      const available = allDrivers.filter(d => d.available === true).length
+      const active = getActiveRides(allRides).length
+
+      document.getElementById("totalDrivers").textContent = allDrivers.length
+      document.getElementById("onlineDrivers").textContent = online
+      document.getElementById("availableDrivers").textContent = available
+      document.getElementById("activeRides").textContent = active
+    }
+
+    function renderDrivers() {
+      const q = document.getElementById("driverSearch").value.trim().toLowerCase()
+      const list = document.getElementById("driverList")
+
+      const filtered = allDrivers.filter(d => {
+        const hay = [
+          d.name,
+          d.status,
+          d.vehicle,
+          d.phone,
+          d.email
+        ].join(" ").toLowerCase()
+        return hay.includes(q)
+      })
+
+      list.innerHTML = ""
+
+      if (!filtered.length) {
+        list.innerHTML = `<div class="empty-note">No drivers found.</div>`
+        return
+      }
+
+      filtered.forEach(driver => {
+        const hasGps = typeof driver.last_lat === "number" && typeof driver.last_lng === "number"
+        const div = document.createElement("div")
+        div.className = "item" + (selectedDriverId === driver.id ? " active" : "")
+        div.innerHTML = `
+          <div class="item-title">${driver.name || "Unnamed Driver"}</div>
+          <div class="item-meta">
+            Status: ${driver.status || "—"}<br>
+            Online: ${driver.online ? "Yes" : "No"}<br>
+            Available: ${driver.available ? "Yes" : "No"}<br>
+            Vehicle: ${driver.vehicle || "—"}<br>
+            GPS: ${hasGps ? `${driver.last_lat}, ${driver.last_lng}` : "No live GPS"}
+          </div>
+        `
+        div.onclick = () => {
+          selectedDriverId = driver.id
+          selectedRideId = null
+          renderDrivers()
+          renderRides()
+          updateSelectionPanel(driver, null)
+          updateMap(driver, null)
+        }
+        list.appendChild(div)
+      })
+    }
+
+    function renderRides() {
+      const q = document.getElementById("rideSearch").value.trim().toLowerCase()
+      const list = document.getElementById("rideList")
+
+      const filtered = getActiveRides(allRides).filter(r => {
+        const hay = [
+          r.id,
+          r.rider_name,
+          r.status,
+          r.pickup,
+          r.dropoff,
+          r.driver_id
+        ].join(" ").toLowerCase()
+        return hay.includes(q)
+      })
+
+      list.innerHTML = ""
+
+      if (!filtered.length) {
+        list.innerHTML = `<div class="empty-note">No active rides found.</div>`
+        return
+      }
+
+      filtered.forEach(ride => {
+        const div = document.createElement("div")
+        div.className = "item" + (selectedRideId === ride.id ? " active" : "")
+        div.innerHTML = `
+          <div class="item-title">${ride.id}</div>
+          <div class="item-meta">
+            Rider: ${ride.rider_name || "—"}<br>
+            Status: ${ride.status || "—"}<br>
+            Pickup: ${ride.pickup || "—"}<br>
+            Dropoff: ${ride.dropoff || "—"}<br>
+            Driver: ${ride.driver_id || "Unassigned"}
+          </div>
+        `
+        div.onclick = () => {
+          selectedRideId = ride.id
+          selectedDriverId = ride.driver_id || null
+          const driver = allDrivers.find(d => d.id === ride.driver_id) || null
+          renderDrivers()
+          renderRides()
+          updateSelectionPanel(driver, ride)
+          updateMap(driver, ride)
+        }
+        list.appendChild(div)
+      })
+    }
+
+    function updateSelectionPanel(driver, ride) {
+      document.getElementById("selectedDriverName").textContent = driver?.name || "—"
+      document.getElementById("selectedDriverStatus").textContent = driver?.status || "No driver selected"
+      document.getElementById("selectedRideId").textContent = ride?.id || "—"
+      document.getElementById("selectedRideStatus").textContent = ride?.status || "No ride selected"
+
+      const coords =
+        typeof driver?.last_lat === "number" && typeof driver?.last_lng === "number"
+          ? `${driver.last_lat}, ${driver.last_lng}`
+          : "No live GPS"
+
+      document.getElementById("selectedDriverCoords").textContent = coords
+      document.getElementById("selectedPickup").textContent = ride?.pickup || "—"
+      document.getElementById("selectedDropoff").textContent = ride?.dropoff || "—"
+      document.getElementById("selectedGpsTime").textContent = formatTime(driver?.last_gps_at)
+    }
+
+    function updateMap(driver, ride) {
+      const frame = document.getElementById("mapFrame")
+      const empty = document.getElementById("mapEmpty")
+
+      const driverLat = safeNum(driver?.last_lat)
+      const driverLng = safeNum(driver?.last_lng)
+      const pickupLat = safeNum(ride?.pickup_lat)
+      const pickupLng = safeNum(ride?.pickup_lng)
+
+      if (driverLat === null || driverLng === null) {
+        frame.style.display = "none"
+        empty.style.display = "flex"
+        empty.textContent = "Selected driver has no live GPS coordinates yet."
+        return
+      }
+
+      let minLon = driverLng
+      let maxLon = driverLng
+      let minLat = driverLat
+      let maxLat = driverLat
+
+      if (pickupLat !== null && pickupLng !== null) {
+        minLon = Math.min(minLon, pickupLng)
+        maxLon = Math.max(maxLon, pickupLng)
+        minLat = Math.min(minLat, pickupLat)
+        maxLat = Math.max(maxLat, pickupLat)
+      }
+
+      const pad = 0.01
+      const bbox = `${minLon - pad},${minLat - pad},${maxLon + pad},${maxLat + pad}`
+      const src = `https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(bbox)}&layer=mapnik&marker=${encodeURIComponent(`${driverLat},${driverLng}`)}`
+
+      frame.src = src
+      frame.style.display = "block"
+      empty.style.display = "none"
+    }
+
+    async function loadDrivers() {
+      const res = await fetch("/api/drivers")
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Unable to load drivers")
+      return data
+    }
+
+    async function loadRides() {
+      const res = await fetch("/api/rides")
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Unable to load rides")
+      return data
+    }
+
+    async function refreshData() {
+      try {
+        const [drivers, rides] = await Promise.all([loadDrivers(), loadRides()])
+        allDrivers = Array.isArray(drivers) ? drivers : []
+        allRides = Array.isArray(rides) ? rides : []
+
+        updateStats()
+        renderDrivers()
+        renderRides()
+
+        const selectedDriver =
+          (selectedDriverId && allDrivers.find(d => d.id === selectedDriverId)) || null
+        const selectedRide =
+          (selectedRideId && allRides.find(r => r.id === selectedRideId)) || null
+
+        if (selectedDriver || selectedRide) {
+          updateSelectionPanel(selectedDriver, selectedRide)
+          updateMap(selectedDriver, selectedRide)
+        }
+      } catch (err) {
+        console.error(err)
+      }
+    }
+
+    function startAutoRefresh() {
+      if (refreshTimer) clearInterval(refreshTimer)
+      refreshTimer = setInterval(refreshData, 5000)
+    }
+
+    refreshData()
+    startAutoRefresh()
+  </script>
+</body>
+</html>
