@@ -1,124 +1,563 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Live Support</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Harvey Taxi Support</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: Arial, Helvetica, sans-serif;
+    }
 
-<style>
-body{
-background:#020c2b;
-color:white;
-font-family:Arial;
-padding:20px;
-margin:0;
-}
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(180deg, #020817 0%, #03163d 100%);
+      color: white;
+      padding: 20px;
+    }
 
-.back{
-margin-bottom:20px;
-}
+    .back-link {
+      display: inline-block;
+      margin-bottom: 18px;
+      color: #c9d8ff;
+      text-decoration: none;
+      font-size: 18px;
+    }
 
-.back a{
-color:white;
-text-decoration:none;
-font-size:18px;
-}
+    .page-title {
+      font-size: 2.4rem;
+      font-weight: 800;
+      margin-bottom: 10px;
+    }
 
-h1{
-margin-bottom:20px;
-}
+    .page-subtitle {
+      color: #b8c9f5;
+      margin-bottom: 22px;
+      line-height: 1.6;
+    }
 
-.chat{
-background:#081a44;
-padding:20px;
-border-radius:20px;
-height:360px;
-overflow:auto;
-margin-bottom:15px;
-}
+    .layout {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 18px;
+    }
 
-.msg{
-padding:12px;
-margin-bottom:10px;
-border-radius:14px;
-background:#10265e;
-}
+    .card {
+      background: rgba(8, 24, 68, 0.94);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 24px;
+      padding: 20px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
+    }
 
-.msg b{
-color:#8fc2ff;
-}
+    .card h2 {
+      margin-top: 0;
+      margin-bottom: 14px;
+      font-size: 1.3rem;
+    }
 
-input{
-width:100%;
-padding:14px;
-border:none;
-border-radius:12px;
-font-size:16px;
-box-sizing:border-box;
-}
+    label {
+      display: block;
+      margin-top: 12px;
+      margin-bottom: 7px;
+      color: #d9e4ff;
+      font-weight: 600;
+    }
 
-button{
-margin-top:10px;
-padding:14px;
-width:100%;
-background:#2d6cff;
-color:white;
-border:none;
-border-radius:12px;
-font-weight:bold;
-font-size:16px;
-}
-</style>
+    input,
+    select,
+    textarea,
+    button {
+      width: 100%;
+      border-radius: 14px;
+      border: none;
+      padding: 14px;
+      font-size: 16px;
+    }
+
+    input,
+    select,
+    textarea {
+      background: #051335;
+      color: white;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 120px;
+    }
+
+    button {
+      background: linear-gradient(90deg, #2d6cff, #8a2eff);
+      color: white;
+      font-weight: 700;
+      margin-top: 14px;
+      cursor: pointer;
+    }
+
+    .secondary-btn {
+      background: #38527d;
+    }
+
+    .ticket-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 420px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .ticket-item {
+      background: #0b2156;
+      border-radius: 16px;
+      padding: 14px;
+      cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .ticket-item strong {
+      display: block;
+      margin-bottom: 5px;
+      color: white;
+    }
+
+    .ticket-meta {
+      color: #bbcdf7;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .status-pill {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      background: rgba(255,255,255,0.08);
+      color: #dce6ff;
+    }
+
+    .chat-box {
+      background: #04112f;
+      border-radius: 18px;
+      min-height: 420px;
+      max-height: 520px;
+      overflow-y: auto;
+      padding: 16px;
+      margin-bottom: 14px;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .bubble {
+      max-width: 82%;
+      padding: 12px 14px;
+      border-radius: 16px;
+      margin-bottom: 12px;
+      line-height: 1.5;
+      word-wrap: break-word;
+    }
+
+    .bubble.user,
+    .bubble.rider,
+    .bubble.driver {
+      background: #2152b8;
+      margin-left: auto;
+    }
+
+    .bubble.ai_support {
+      background: #6b35d8;
+      margin-right: auto;
+    }
+
+    .bubble.admin,
+    .bubble.admin_support,
+    .bubble.system {
+      background: #2a3e68;
+      margin-right: auto;
+    }
+
+    .bubble small {
+      display: block;
+      opacity: 0.8;
+      margin-top: 6px;
+      font-size: 12px;
+    }
+
+    .chat-controls {
+      display: grid;
+      grid-template-columns: 1fr 160px;
+      gap: 10px;
+    }
+
+    .muted {
+      color: #aebfe9;
+      line-height: 1.6;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .info-pill {
+      background: #0c2053;
+      border-radius: 16px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .info-pill .label {
+      color: #abc0f7;
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+
+    .info-pill .value {
+      font-weight: 800;
+      font-size: 15px;
+    }
+
+    #ticketDetails {
+      margin-bottom: 14px;
+      color: #cadeff;
+      line-height: 1.6;
+    }
+
+    .empty-state {
+      color: #b7c7ef;
+      line-height: 1.7;
+    }
+
+    @media (max-width: 960px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .info-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (max-width: 620px) {
+      .chat-controls {
+        grid-template-columns: 1fr;
+      }
+
+      .info-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .page-title {
+        font-size: 2rem;
+      }
+    }
+  </style>
 </head>
-
 <body>
 
-<div class="back">
-<a href="/">← Back to Home</a>
-</div>
+  <a href="/" class="back-link">← Back to Home</a>
 
-<h1>Live Support</h1>
+  <div class="page-title">AI Support Center</div>
+  <div class="page-subtitle">
+    Rider and driver support tickets now run through your Harvey Taxi AI support responder.
+    Open tickets, send messages, trigger AI replies, and escalate serious issues.
+  </div>
 
-<div id="chat" class="chat">Loading...</div>
+  <div class="layout">
+    <div class="card">
+      <h2>Create Support Ticket</h2>
 
-<input id="msg" placeholder="Type your message">
-<button onclick="send()">Send Message</button>
+      <label for="requesterType">Requester Type</label>
+      <select id="requesterType">
+        <option value="rider">Rider</option>
+        <option value="driver">Driver</option>
+        <option value="user">User</option>
+      </select>
 
-<script>
-async function load(){
-  const messages = await fetch('/api/messages/support')
-    .then(r=>r.json())
-    .catch(()=>[])
+      <label for="requesterId">Requester ID</label>
+      <input id="requesterId" placeholder="rider_123 or driver_123" />
 
-  document.getElementById('chat').innerHTML =
-    messages.length
-      ? messages.map(m=>`
-        <div class="msg"><b>${m.from}:</b> ${m.text}</div>
-      `).join('')
-      : 'No messages yet'
-}
+      <label for="rideId">Ride ID (optional)</label>
+      <input id="rideId" placeholder="ride_123" />
 
-async function send(){
-  const text = document.getElementById('msg').value
-  if(!text) return
+      <label for="subject">Subject</label>
+      <input id="subject" placeholder="Trip issue, account issue, billing issue..." />
 
-  await fetch('/api/send-message',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({
-      rideId:'support',
-      from:'user',
-      to:'admin',
-      text:text
-    })
-  })
+      <label for="firstMessage">First Message</label>
+      <textarea id="firstMessage" placeholder="Describe the support issue here..."></textarea>
 
-  document.getElementById('msg').value=''
-  load()
-}
+      <button onclick="createTicketAndSendMessage()">Create Ticket + Send Message</button>
+      <button class="secondary-btn" onclick="loadTickets()">Refresh Tickets</button>
 
-load()
-setInterval(load,2000)
-</script>
+      <h2 style="margin-top:22px;">Open Tickets</h2>
+      <div id="ticketList" class="ticket-list">
+        <div class="empty-state">No tickets loaded yet.</div>
+      </div>
+    </div>
 
+    <div class="card">
+      <div class="info-grid">
+        <div class="info-pill">
+          <div class="label">Active Ticket</div>
+          <div class="value" id="activeTicketId">None</div>
+        </div>
+        <div class="info-pill">
+          <div class="label">Status</div>
+          <div class="value" id="activeTicketStatus">—</div>
+        </div>
+        <div class="info-pill">
+          <div class="label">Category</div>
+          <div class="value" id="activeTicketCategory">—</div>
+        </div>
+        <div class="info-pill">
+          <div class="label">Escalated</div>
+          <div class="value" id="activeTicketEscalated">No</div>
+        </div>
+      </div>
+
+      <div id="ticketDetails" class="muted">
+        Select a support ticket to view the conversation.
+      </div>
+
+      <div id="chatBox" class="chat-box">
+        <div class="empty-state">Messages will appear here.</div>
+      </div>
+
+      <div class="chat-controls">
+        <textarea id="replyText" placeholder="Type a reply or customer follow-up..."></textarea>
+        <div>
+          <button onclick="sendReply()">Send Message</button>
+          <button class="secondary-btn" onclick="triggerAiReply()">Trigger AI Reply</button>
+          <button class="secondary-btn" onclick="escalateTicket()">Escalate Ticket</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentTicket = null
+
+    async function api(url, options = {}) {
+      const res = await fetch(url, options)
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(data.error || data.message || "Request failed")
+      }
+      return data
+    }
+
+    function formatTime(value) {
+      if (!value) return ""
+      const d = new Date(value)
+      return d.toLocaleString()
+    }
+
+    function renderTicketList(tickets) {
+      const el = document.getElementById("ticketList")
+
+      if (!tickets.length) {
+        el.innerHTML = '<div class="empty-state">No support tickets yet.</div>'
+        return
+      }
+
+      el.innerHTML = tickets
+        .slice()
+        .reverse()
+        .map(ticket => `
+          <div class="ticket-item" onclick="openTicket('${ticket.id}')">
+            <strong>${ticket.subject || "Support Request"}</strong>
+            <div class="ticket-meta">
+              ID: ${ticket.id}<br>
+              Requester: ${ticket.requesterType || "user"}<br>
+              Ride: ${ticket.rideId || "None"}<br>
+              Updated: ${formatTime(ticket.lastUpdatedAt || ticket.createdAt)}
+            </div>
+            <span class="status-pill">${ticket.status || "open"}</span>
+          </div>
+        `)
+        .join("")
+    }
+
+    function renderMessages(messages) {
+      const box = document.getElementById("chatBox")
+
+      if (!messages.length) {
+        box.innerHTML = '<div class="empty-state">No messages in this ticket yet.</div>'
+        return
+      }
+
+      box.innerHTML = messages.map(msg => `
+        <div class="bubble ${msg.from || "system"}">
+          <strong>${msg.from || "system"}</strong><br>
+          ${msg.text || ""}
+          <small>${formatTime(msg.time)} • ${msg.senderType || "human"}</small>
+        </div>
+      `).join("")
+
+      box.scrollTop = box.scrollHeight
+    }
+
+    function renderTicketDetails(ticket) {
+      document.getElementById("activeTicketId").innerText = ticket ? ticket.id : "None"
+      document.getElementById("activeTicketStatus").innerText = ticket?.status || "—"
+      document.getElementById("activeTicketCategory").innerText = ticket?.category || "—"
+      document.getElementById("activeTicketEscalated").innerText = ticket?.escalated ? "Yes" : "No"
+
+      document.getElementById("ticketDetails").innerHTML = ticket
+        ? `
+          <strong>${ticket.subject || "Support Request"}</strong><br>
+          Requester Type: ${ticket.requesterType || "user"}<br>
+          Requester ID: ${ticket.requesterId || "None"}<br>
+          Ride ID: ${ticket.rideId || "None"}<br>
+          Created: ${formatTime(ticket.createdAt)}<br>
+          Last Updated: ${formatTime(ticket.lastUpdatedAt)}
+        `
+        : "Select a support ticket to view the conversation."
+    }
+
+    async function loadTickets() {
+      try {
+        const tickets = await api("/api/support/tickets")
+        renderTicketList(tickets)
+      } catch (error) {
+        alert(error.message)
+      }
+    }
+
+    async function openTicket(ticketId) {
+      try {
+        const result = await api(`/api/support/ticket/${ticketId}`)
+        currentTicket = result.ticket
+        renderTicketDetails(result.ticket)
+        renderMessages(result.messages || [])
+      } catch (error) {
+        alert(error.message)
+      }
+    }
+
+    async function createTicketAndSendMessage() {
+      const requesterType = document.getElementById("requesterType").value
+      const requesterId = document.getElementById("requesterId").value.trim()
+      const rideId = document.getElementById("rideId").value.trim()
+      const subject = document.getElementById("subject").value.trim()
+      const text = document.getElementById("firstMessage").value.trim()
+
+      if (!text) {
+        return alert("Enter a support message first.")
+      }
+
+      try {
+        const result = await api("/api/support/send-message", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            requesterType,
+            requesterId,
+            rideId: rideId || null,
+            subject: subject || "Support Request",
+            from: requesterType,
+            to: "support",
+            text,
+            senderType: "human"
+          })
+        })
+
+        document.getElementById("firstMessage").value = ""
+        document.getElementById("subject").value = ""
+        currentTicket = result.ticket
+
+        await loadTickets()
+        await openTicket(result.ticket.id)
+      } catch (error) {
+        alert(error.message)
+      }
+    }
+
+    async function sendReply() {
+      if (!currentTicket) {
+        return alert("Open a ticket first.")
+      }
+
+      const text = document.getElementById("replyText").value.trim()
+      if (!text) {
+        return alert("Enter a message.")
+      }
+
+      try {
+        await api("/api/support/send-message", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ticketId: currentTicket.id,
+            rideId: currentTicket.rideId,
+            requesterType: currentTicket.requesterType,
+            requesterId: currentTicket.requesterId,
+            from: currentTicket.requesterType || "user",
+            to: "support",
+            text,
+            senderType: "human"
+          })
+        })
+
+        document.getElementById("replyText").value = ""
+        await loadTickets()
+        await openTicket(currentTicket.id)
+      } catch (error) {
+        alert(error.message)
+      }
+    }
+
+    async function triggerAiReply() {
+      if (!currentTicket) {
+        return alert("Open a ticket first.")
+      }
+
+      try {
+        await api("/api/support/ai-reply", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ticketId: currentTicket.id
+          })
+        })
+
+        await loadTickets()
+        await openTicket(currentTicket.id)
+      } catch (error) {
+        alert(error.message)
+      }
+    }
+
+    async function escalateTicket() {
+      if (!currentTicket) {
+        return alert("Open a ticket first.")
+      }
+
+      try {
+        await api("/api/support/escalate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ticketId: currentTicket.id,
+            note: "Ticket escalated from support dashboard."
+          })
+        })
+
+        await loadTickets()
+        await openTicket(currentTicket.id)
+      } catch (error) {
+        alert(error.message)
+      }
+    }
+
+    loadTickets()
+  </script>
 </body>
 </html>
