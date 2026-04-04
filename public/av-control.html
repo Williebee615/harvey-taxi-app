@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AV Control System</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background: linear-gradient(180deg, #020c2b, #041a46);
+      color: white;
+      padding: 20px;
+    }
+
+    .back {
+      margin-bottom: 18px;
+    }
+
+    .back a {
+      color: white;
+      text-decoration: none;
+      font-size: 18px;
+    }
+
+    .page-title {
+      font-size: 2.3rem;
+      font-weight: 800;
+      margin-bottom: 18px;
+    }
+
+    .card {
+      background: #081a44;
+      border-radius: 22px;
+      padding: 20px;
+      margin-bottom: 18px;
+      box-shadow: 0 10px 24px rgba(0,0,0,0.22);
+    }
+
+    .card h2 {
+      margin-top: 0;
+      margin-bottom: 14px;
+      font-size: 1.3rem;
+    }
+
+    .card p {
+      color: #bfd0f5;
+      line-height: 1.5;
+    }
+
+    input,
+    select,
+    button,
+    textarea {
+      width: 100%;
+      padding: 14px;
+      margin-top: 10px;
+      border: none;
+      border-radius: 14px;
+      box-sizing: border-box;
+      font-size: 16px;
+    }
+
+    input,
+    select,
+    textarea {
+      background: #04133a;
+      color: white;
+    }
+
+    textarea {
+      min-height: 110px;
+      resize: vertical;
+    }
+
+    button {
+      background: linear-gradient(90deg, #2d6cff, #8a2eff);
+      color: white;
+      font-weight: 700;
+    }
+
+    .secondary-btn {
+      background: #36527f;
+    }
+
+    .danger-btn {
+      background: linear-gradient(90deg, #d62828, #ff5a5a);
+    }
+
+    .success-btn {
+      background: linear-gradient(90deg, #198754, #30b566);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+
+    .feed {
+      background: #04133a;
+      border-radius: 16px;
+      padding: 14px;
+      min-height: 180px;
+      max-height: 420px;
+      overflow: auto;
+      white-space: pre-wrap;
+    }
+
+    .item {
+      background: #10265e;
+      border-radius: 14px;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+
+    .item strong {
+      color: #9cc3ff;
+    }
+
+    .muted {
+      color: #b7c7ef;
+      font-size: 13px;
+      margin-top: 6px;
+      line-height: 1.5;
+    }
+
+    .status-bar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .status-pill {
+      background: #081a44;
+      border-radius: 18px;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .status-pill .label {
+      color: #b7c7ef;
+      font-size: 0.9rem;
+      margin-bottom: 8px;
+    }
+
+    .status-pill .value {
+      font-size: 1.15rem;
+      font-weight: 800;
+    }
+
+    @media (max-width: 900px) {
+      .grid,
+      .status-bar {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="back">
+    <a href="/">← Back to Home</a>
+  </div>
+
+  <div class="page-title">AV Control System</div>
+
+  <div class="status-bar">
+    <div class="status-pill">
+      <div class="label">Control Layer</div>
+      <div class="value">Live</div>
+    </div>
+    <div class="status-pill">
+      <div class="label">Mission Queue</div>
+      <div class="value" id="missionCount">0</div>
+    </div>
+    <div class="status-pill">
+      <div class="label">Vehicles</div>
+      <div class="value" id="vehicleCount">0</div>
+    </div>
+    <div class="status-pill">
+      <div class="label">System Mode</div>
+      <div class="value">AV Ready</div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Mission Feed</h2>
+      <p>Monitor mission queue, timeline, status changes, remote assist, and takeover state.</p>
+      <div id="missions" class="feed">Loading missions...</div>
+      <button class="secondary-btn" onclick="loadDashboard()">Refresh Mission Feed</button>
+    </div>
+
+    <div class="card">
+      <h2>Vehicle Feed</h2>
+      <p>See fleet availability, vehicle type, zone, battery, and safety state.</p>
+      <div id="vehicles" class="feed">Loading vehicles...</div>
+      <button class="secondary-btn" onclick="loadDashboard()">Refresh Vehicle Feed</button>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Mission Status Control</h2>
+      <input id="missionId" placeholder="Mission ID" />
+      <select id="missionStatus">
+        <option value="queued">Queued</option>
+        <option value="sent">Sent</option>
+        <option value="accepted">Accepted</option>
+        <option value="active">Active</option>
+        <option value="arrived">Arrived</option>
+        <option value="completed">Completed</option>
+        <option value="cancelled">Cancelled</option>
+        <option value="remote_assist">Remote Assist</option>
+      </select>
+      <button onclick="updateMissionStatus()">Update Mission Status</button>
+    </div>
+
+    <div class="card">
+      <h2>Remote Assist Control</h2>
+      <input id="assistMissionId" placeholder="Mission ID" />
+      <input id="assistOperatorId" placeholder="Remote Operator ID" />
+      <button onclick="requestRemoteAssist()">Request Remote Assist</button>
+      <button class="secondary-btn" onclick="clearRemoteAssist()">Clear Remote Assist</button>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Takeover Control</h2>
+      <input id="takeoverMissionId" placeholder="Mission ID" />
+      <input id="takeoverOperatorId" placeholder="Remote Operator ID" />
+      <button onclick="enableTakeover()">Enable Manual Takeover</button>
+      <button class="secondary-btn" onclick="disableTakeover()">Release Manual Takeover</button>
+    </div>
+
+    <div class="card">
+      <h2>Vehicle Status Control</h2>
+      <input id="vehicleStatusId" placeholder="Vehicle ID" />
+      <select id="vehicleStatus">
+        <option value="online">Online</option>
+        <option value="offline">Offline</option>
+        <option value="charging">Charging</option>
+        <option value="maintenance">Maintenance</option>
+        <option value="emergency_stop">Emergency Stop</option>
+        <option value="returning">Returning</option>
+      </select>
+      <select id="vehicleAvailable">
+        <option value="true">Available</option>
+        <option value="false">Unavailable</option>
+      </select>
+      <button onclick="updateVehicleStatus()">Update Vehicle Status</button>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Battery + Zone Control</h2>
+      <input id="batteryVehicleId" placeholder="Vehicle ID" />
+      <input id="batteryValue" type="number" placeholder="Battery %" />
+      <input id="zoneValue" placeholder="Zone" />
+      <button onclick="updateBattery()">Update Battery</button>
+      <button class="secondary-btn" onclick="updateVehicleZone()">Update Zone</button>
+    </div>
+
+    <div class="card">
+      <h2>Vehicle Command Queue</h2>
+      <input id="commandVehicleId" placeholder="Vehicle ID" />
+      <select id="commandType">
+        <option value="start_mission">Start Mission</option>
+        <option value="pause">Pause</option>
+        <option value="resume">Resume</option>
+        <option value="reroute">Reroute</option>
+        <option value="pickup">Pickup</option>
+        <option value="dropoff">Dropoff</option>
+        <option value="return_base">Return Base</option>
+        <option value="emergency_stop">Emergency Stop</option>
+        <option value="remote_assist">Remote Assist</option>
+        <option value="resume_autonomous">Resume Autonomous</option>
+      </select>
+      <textarea id="commandData" placeholder='Optional JSON data. Example: {"pickup":"Airport Terminal B"}'></textarea>
+      <button onclick="sendVehicleCommand()">Send Vehicle Command</button>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Emergency + Return Controls</h2>
+      <input id="controlVehicleId" placeholder="Vehicle ID" />
+      <button class="danger-btn" onclick="emergencyStop()">Emergency Stop</button>
+      <button class="secondary-btn" onclick="returnToBase()">Return To Base</button>
+      <button class="success-btn" onclick="resumeVehicle()">Resume Autonomous</button>
+    </div>
+
+    <div class="card">
+      <h2>Vehicle Command Feed</h2>
+      <input id="commandFeedVehicleId" placeholder="Vehicle ID to load commands" />
+      <button onclick="loadVehicleCommands()">Load Vehicle Commands</button>
+      <div id="commands" class="feed">No commands loaded yet.</div>
+    </div>
+  </div>
+
+  <script>
+    async function loadDashboard() {
+      const [missions, vehicles] = await Promise.all([
+        fetch('/api/missions').then(r => r.json()).catch(() => []),
+        fetch('/api/vehicles').then(r => r.json()).catch(() => [])
+      ])
+
+      document.getElementById('missionCount').innerText = missions.length
+      document.getElementById('vehicleCount').innerText = vehicles.length
+
+      document.getElementById('missions').innerHTML = missions.length
+        ? missions.map(m => `
+          <div class="item">
+            <div><strong>Mission:</strong> ${m.id}</div>
+            <div><strong>Ride:</strong> ${m.rideId}</div>
+            <div><strong>Vehicle:</strong> ${m.vehicleId}</div>
+            <div><strong>Type:</strong> ${m.vehicleType || ''}</div>
+            <div><strong>Status:</strong> ${m.status}</div>
+            <div><strong>Remote Assist:</strong> ${m.remoteAssistRequired ? 'Yes' : 'No'}</div>
+            <div><strong>Takeover:</strong> ${m.takeoverMode ? 'Enabled' : 'Off'}</div>
+            <div class="muted">
+              ${(m.timeline || []).map(t => `${t.time} • ${t.event} • ${t.note || ''}`).join('<br>')}
+            </div>
+          </div>
+        `).join('')
+        : 'No missions found.'
+
+      document.getElementById('vehicles').innerHTML = vehicles.length
+        ? vehicles.map(v => `
+          <div class="item">
+            <div><strong>Vehicle:</strong> ${v.id}</div>
+            <div><strong>Name:</strong> ${v.name}</div>
+            <div><strong>Type:</strong> ${v.type}</div>
+            <div><strong>Status:</strong> ${v.status}</div>
+            <div><strong>Available:</strong> ${v.available}</div>
+            <div><strong>Battery:</strong> ${v.battery}</div>
+            <div><strong>Zone:</strong> ${v.zone}</div>
+            <div><strong>Remote Assist:</strong> ${v.remoteAssist}</div>
+            <div><strong>Takeover:</strong> ${v.takeoverMode}</div>
+            <div><strong>Safety:</strong> ${v.safetyState}</div>
+          </div>
+        `).join('')
+        : 'No vehicles found.'
+    }
+
+    async function updateMissionStatus() {
+      const missionId = document.getElementById('missionId').value
+      const status = document.getElementById('missionStatus').value
+      if (!missionId) return alert('Enter Mission ID')
+
+      await fetch('/api/mission/' + missionId + '/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      })
+
+      loadDashboard()
+    }
+
+    async function requestRemoteAssist() {
+      const missionId = document.getElementById('assistMissionId').value
+      const remoteOperatorId = document.getElementById('assistOperatorId').value
+      if (!missionId) return alert('Enter Mission ID')
+
+      await fetch('/api/mission/' + missionId + '/remote-assist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          remoteAssistRequired: true,
+          remoteOperatorId
+        })
+      })
+
+      loadDashboard()
+    }
+
+    async function clearRemoteAssist() {
+      const missionId = document.getElementById('assistMissionId').value
+      if (!missionId) return alert('Enter Mission ID')
+
+      await fetch('/api/mission/' + missionId + '/remote-assist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          remoteAssistRequired: false,
+          remoteOperatorId: null
+        })
+      })
+
+      loadDashboard()
+    }
+
+    async function enableTakeover() {
+      const missionId = document.getElementById('takeoverMissionId').value
+      const remoteOperatorId = document.getElementById('takeoverOperatorId').value
+      if (!missionId) return alert('Enter Mission ID')
+
+      await fetch('/api/mission/' + missionId + '/takeover', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          takeoverMode: true,
+          remoteOperatorId
+        })
+      })
+
+      loadDashboard()
+    }
+
+    async function disableTakeover() {
+      const missionId = document.getElementById('takeoverMissionId').value
+      if (!missionId) return alert('Enter Mission ID')
+
+      await fetch('/api/mission/' + missionId + '/takeover', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          takeoverMode: false,
+          remoteOperatorId: null
+        })
+      })
+
+      loadDashboard()
+    }
+
+    async function updateVehicleStatus() {
+      const vehicleId = document.getElementById('vehicleStatusId').value
+      const status = document.getElementById('vehicleStatus').value
+      const available = document.getElementById('vehicleAvailable').value === 'true'
+      if (!vehicleId) return alert('Enter Vehicle ID')
+
+      await fetch('/api/vehicle/' + vehicleId + '/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, available })
+      })
+
+      loadDashboard()
+    }
+
+    async function updateBattery() {
+      const vehicleId = document.getElementById('batteryVehicleId').value
+      const battery = Number(document.getElementById('batteryValue').value)
+      if (!vehicleId) return alert('Enter Vehicle ID')
+
+      await fetch('/api/vehicle/' + vehicleId + '/battery', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ battery })
+      })
+
+      loadDashboard()
+    }
+
+    async function updateVehicleZone() {
+      const vehicleId = document.getElementById('batteryVehicleId').value
+      const zone = document.getElementById('zoneValue').value
+      if (!vehicleId) return alert('Enter Vehicle ID')
+
+      await fetch('/api/vehicle/' + vehicleId + '/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ zone })
+      })
+
+      loadDashboard()
+    }
+
+    async function sendVehicleCommand() {
+      const vehicleId = document.getElementById('commandVehicleId').value
+      const type = document.getElementById('commandType').value
+      const raw = document.getElementById('commandData').value
+
+      if (!vehicleId) return alert('Enter Vehicle ID')
+
+      let data = {}
+      if (raw.trim()) {
+        try {
+          data = JSON.parse(raw)
+        } catch (e) {
+          return alert('Command data must be valid JSON')
+        }
+      }
+
+      await fetch('/api/vehicle/' + vehicleId + '/command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, data })
+      })
+
+      alert('Command sent')
+      loadVehicleCommands()
+    }
+
+    async function emergencyStop() {
+      const vehicleId = document.getElementById('controlVehicleId').value
+      if (!vehicleId) return alert('Enter Vehicle ID')
+
+      await fetch('/api/vehicle/' + vehicleId + '/emergency-stop', {
+        method: 'POST'
+      })
+
+      loadDashboard()
+    }
+
+    async function returnToBase() {
+      const vehicleId = document.getElementById('controlVehicleId').value
+      if (!vehicleId) return alert('Enter Vehicle ID')
+
+      await fetch('/api/vehicle/' + vehicleId + '/return-base', {
+        method: 'POST'
+      })
+
+      loadDashboard()
+    }
+
+    async function resumeVehicle() {
+      const vehicleId = document.getElementById('controlVehicleId').value
+      if (!vehicleId) return alert('Enter Vehicle ID')
+
+      await fetch('/api/vehicle/' + vehicleId + '/resume', {
+        method: 'POST'
+      })
+
+      loadDashboard()
+    }
+
+    async function loadVehicleCommands() {
+      const vehicleId = document.getElementById('commandFeedVehicleId').value || document.getElementById('commandVehicleId').value
+      if (!vehicleId) return
+
+      const commands = await fetch('/api/vehicle/' + vehicleId + '/commands')
+        .then(r => r.json())
+        .catch(() => [])
+
+      document.getElementById('commands').innerHTML = commands.length
+        ? commands.map(c => `
+          <div class="item">
+            <div><strong>Command:</strong> ${c.id}</div>
+            <div><strong>Vehicle:</strong> ${c.vehicleId}</div>
+            <div><strong>Type:</strong> ${c.type}</div>
+            <div><strong>Status:</strong> ${c.status}</div>
+            <div class="muted">${c.createdAt}</div>
+            <div class="muted">${JSON.stringify(c.data || {})}</div>
+          </div>
+        `).join('')
+        : 'No commands found for this vehicle.'
+    }
+
+    loadDashboard()
+    setInterval(loadDashboard, 3000)
+  </script>
+
+</body>
+</html>
