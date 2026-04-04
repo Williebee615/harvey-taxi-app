@@ -1,885 +1,844 @@
-const { createClient } = require("@supabase/supabase-js")
-const express = require("express")
-const cors = require("cors")
-const path = require("path")
+const express = require('express')
+const cors = require('cors')
+const path = require('path')
+const fs = require('fs')
 
 const app = express()
 const PORT = process.env.PORT || 10000
 
 app.use(cors())
 app.use(express.json())
-app.use(express.static(path.join(__dirname, "public")))
+app.use(express.static(path.join(__dirname, 'public')))
 
-/* ----------------------------------
-   SUPABASE
----------------------------------- */
+const DATA_DIR = __dirname
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY
-)
-
-/* ----------------------------------
-   HELPERS
----------------------------------- */
-
-function uid(prefix = "id") {
-  return `${prefix}_${Math.random().toString(36).slice(2, 10)}`
+const FILES = {
+  rides: path.join(DATA_DIR, 'rides.json'),
+  gps: path.join(DATA_DIR, 'gps-locations.json'),
+  vehicles: path.join(DATA_DIR, 'vehicles.json'),
+  riders: path.join(DATA_DIR, 'riders.json'),
+  messages: path.join(DATA_DIR, 'messages.json'),
+  commands: path.join(DATA_DIR, 'commands.json'),
+  missions: path.join(DATA_DIR, 'missions.json'),
+  dispatches: path.join(DATA_DIR, 'dispatches.json')
 }
 
-function nowIso() {
-  return new Date().toISOString()
+const DISPATCH_TIMEOUT_MS = 20000
+
+function ensureFile(filePath, defaultValue) {
+  if (!fs.existsSync(filePath)) {
+    fs.writeFileSync(filePath, JSON.stringify(defaultValue, null, 2))
+  }
 }
 
-function clamp(n, min, max) {
-  return Math.max(min, Math.min(max, n))
+function readJson(filePath, defaultValue = []) {
+  ensureFile(filePath, defaultValue)
+  try {
+    const raw = fs.readFileSync(filePath, 'utf8')
+    return raw ? JSON.parse(raw) : defaultValue
+  } catch (err) {
+    console.error(`Failed reading ${filePath}:`, err.message)
+    return defaultValue
+  }
 }
 
-function haversineMiles(lat1, lon1, lat2, lon2) {
-  const toRad = deg => (deg * Math.PI) / 180
+function writeJson(filePath, data) {
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2))
+}
+
+function uid(prefix = 'id') {
+  return `${prefix}_${Date.now()}_${Math.floor(Math.random() * 100000)}`
+}
+
+function toRad(value) {
+  return (value * Math.PI) / 180
+}
+
+function distanceMiles(lat1, lng1, lat2, lng2) {
   const R = 3958.8
-
   const dLat = toRad(lat2 - lat1)
-  const dLon = toRad(lon2 - lon1)
+  const dLng = toRad(lng2 - lng1)
 
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(toRad(lat1)) *
       Math.cos(toRad(lat2)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2)
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2)
 
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
   return R * c
 }
 
-function etaMinutesFromDistance(distanceMiles) {
-  const avgCityMph = 22
-  const minutes = (distanceMiles / avgCityMph) * 60
-  return clamp(Math.round(minutes), 1, 45)
+function getGpsMap() {
+  const gpsRows = readJson(FILES.gps, [])
+  const map = {}
+  for (const row of gpsRows) {
+    map[row.entityId] = row
+  }
+  return map
 }
 
-function progressFromDistance(distanceMiles) {
-  if (distanceMiles <= 0.15) return 92
-  if (distanceMiles <= 0.4) return 82
-  if (distanceMiles <= 0.8) return 70
-  if (distanceMiles <= 1.5) return 58
-  if (distanceMiles <= 3) return 45
-  if (distanceMiles <= 5) return 32
-  return 20
+function getAllVehicles() {
+  return readJson(FILES.vehicles, [])
 }
 
-function classifySupportIssue(text) {
-  const msg = String(text || "").toLowerCase()
-
-  const severeWords = [
-    "emergency",
-    "911",
-    "unsafe",
-    "assault",
-    "harassment",
-    "threat",
-    "police",
-    "crash",
-    "accident",
-    "injury",
-    "fraud",
-    "scam",
-    "stolen"
-  ]
-
-  const refundWords = [
-    "refund",
-    "charged",
-    "double charged",
-    "charged twice",
-    "billing",
-    "payment issue",
-    "overcharged"
-  ]
-
-  const noShowWords = [
-    "no show",
-    "never showed",
-    "didn't show",
-    "driver never came",
-    "driver not here",
-    "where is my driver"
-  ]
-
-  if (severeWords.some(word => msg.includes(word))) {
-    return { category: "safety", escalate: true }
-  }
-
-  if (refundWords.some(word => msg.includes(word))) {
-    return { category: "billing", escalate: true }
-  }
-
-  if (noShowWords.some(word => msg.includes(word))) {
-    return { category: "no_show", escalate: false }
-  }
-
-  return { category: "general", escalate: false }
+function getAllRides() {
+  return readJson(FILES.rides, [])
 }
 
-function generateAiSupportReply(ticketText, requesterType = "user") {
-  const issue = classifySupportIssue(ticketText)
+function getAllDispatches() {
+  return readJson(FILES.dispatches, [])
+}
 
-  if (issue.category === "safety") {
-    return {
-      reply:
-        "Your message has been flagged as a safety issue. Please contact emergency services immediately if anyone is in danger. Harvey Taxi support should review this urgently.",
-      escalated: true,
-      category: "safety"
-    }
-  }
-
-  if (issue.category === "billing") {
-    return {
-      reply:
-        "I’m sorry about the billing issue. Please reply with the ride details and what charge looks wrong so support can review it faster.",
-      escalated: true,
-      category: "billing"
-    }
-  }
-
-  if (issue.category === "no_show") {
-    return {
-      reply:
-        "I’m sorry your driver did not arrive as expected. Please confirm your pickup location and check your ride status again.",
-      escalated: false,
-      category: "no_show"
-    }
-  }
-
-  if (requesterType === "driver") {
-    return {
-      reply:
-        "Thanks for contacting Harvey Taxi driver support. Please share whether your issue is onboarding, ride status, vehicle setup, or earnings.",
-      escalated: false,
-      category: "general"
-    }
-  }
-
+function getVehicleLocation(vehicle, gpsMap) {
+  const gps = gpsMap[vehicle.id] || gpsMap[vehicle.driverId]
   return {
-    reply:
-      "Thanks for contacting Harvey Taxi support. Your message was received. Please reply with any extra details if needed.",
-    escalated: false,
-    category: "general"
+    lat: Number(gps?.lat ?? vehicle.lat ?? 0),
+    lng: Number(gps?.lng ?? vehicle.lng ?? 0)
   }
 }
 
-function buildLiveStage(ride) {
-  if (!ride) {
-    return {
-      stage: "searching",
-      progress: 15,
-      etaMinutes: null,
-      liveLabel: "Searching for vehicle"
-    }
+function isVehicleEligible(vehicle) {
+  if (!vehicle) return false
+  if (vehicle.type === 'human') {
+    return (
+      vehicle.isApproved === true &&
+      vehicle.isOnline === true &&
+      vehicle.status !== 'busy' &&
+      vehicle.status !== 'offline'
+    )
   }
 
-  if (ride.status === "completed") {
-    return {
-      stage: "completed",
-      progress: 100,
-      etaMinutes: 0,
-      liveLabel: "Ride completed"
-    }
+  if (vehicle.type === 'av') {
+    return (
+      vehicle.isOnline === true &&
+      vehicle.status !== 'busy' &&
+      vehicle.status !== 'maintenance'
+    )
   }
 
-  if (ride.status === "on_trip") {
-    return {
-      stage: "on_trip",
-      progress: 78,
-      etaMinutes: null,
-      liveLabel: "Ride in progress"
-    }
-  }
+  return false
+}
 
-  if (ride.status === "assigned") {
-    if (
-      typeof ride.dispatch_distance_miles === "number" &&
-      ride.dispatch_distance_miles >= 0
-    ) {
+function rankCandidatesForRide(ride) {
+  const vehicles = getAllVehicles()
+  const gpsMap = getGpsMap()
+
+  const pickupLat = Number(ride.pickupLat)
+  const pickupLng = Number(ride.pickupLng)
+
+  const candidates = vehicles
+    .filter(isVehicleEligible)
+    .map(vehicle => {
+      const loc = getVehicleLocation(vehicle, gpsMap)
+      const milesAway = distanceMiles(pickupLat, pickupLng, loc.lat, loc.lng)
+
+      let typePriority = 2
+      if (vehicle.type === 'human') typePriority = 1
+      if (vehicle.type === 'av') typePriority = 2
+
       return {
-        stage: "assigned",
-        progress: progressFromDistance(ride.dispatch_distance_miles),
-        etaMinutes: etaMinutesFromDistance(ride.dispatch_distance_miles),
-        liveLabel: "Driver approaching pickup"
+        ...vehicle,
+        milesAway,
+        currentLat: loc.lat,
+        currentLng: loc.lng,
+        typePriority
       }
-    }
+    })
+    .sort((a, b) => {
+      if (a.typePriority !== b.typePriority) {
+        return a.typePriority - b.typePriority
+      }
+      return a.milesAway - b.milesAway
+    })
+
+  return candidates
+}
+
+function updateVehicle(vehicleId, updater) {
+  const vehicles = getAllVehicles()
+  const index = vehicles.findIndex(v => v.id === vehicleId)
+  if (index === -1) return null
+  vehicles[index] = updater(vehicles[index])
+  writeJson(FILES.vehicles, vehicles)
+  return vehicles[index]
+}
+
+function updateRide(rideId, updater) {
+  const rides = getAllRides()
+  const index = rides.findIndex(r => r.id === rideId)
+  if (index === -1) return null
+  rides[index] = updater(rides[index])
+  writeJson(FILES.rides, rides)
+  return rides[index]
+}
+
+function updateDispatch(dispatchId, updater) {
+  const dispatches = getAllDispatches()
+  const index = dispatches.findIndex(d => d.id === dispatchId)
+  if (index === -1) return null
+  dispatches[index] = updater(dispatches[index])
+  writeJson(FILES.dispatches, dispatches)
+  return dispatches[index]
+}
+
+function addMessage(message) {
+  const messages = readJson(FILES.messages, [])
+  messages.push(message)
+  writeJson(FILES.messages, messages)
+}
+
+function addMission(mission) {
+  const missions = readJson(FILES.missions, [])
+  missions.push(mission)
+  writeJson(FILES.missions, missions)
+}
+
+function addCommand(command) {
+  const commands = readJson(FILES.commands, [])
+  commands.push(command)
+  writeJson(FILES.commands, commands)
+}
+
+function createDispatchOffer(ride, vehicle, attemptNumber) {
+  const dispatches = getAllDispatches()
+
+  const dispatch = {
+    id: uid('dispatch'),
+    rideId: ride.id,
+    riderId: ride.riderId || null,
+    vehicleId: vehicle.id,
+    driverId: vehicle.driverId || null,
+    fleetType: vehicle.type,
+    status: vehicle.type === 'av' ? 'accepted' : 'offered',
+    attemptNumber,
+    createdAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + DISPATCH_TIMEOUT_MS).toISOString(),
+    pickup: {
+      address: ride.pickup,
+      lat: Number(ride.pickupLat),
+      lng: Number(ride.pickupLng)
+    },
+    dropoff: {
+      address: ride.dropoff,
+      lat: Number(ride.dropoffLat),
+      lng: Number(ride.dropoffLng)
+    },
+    milesAway: vehicle.milesAway
+  }
+
+  dispatches.push(dispatch)
+  writeJson(FILES.dispatches, dispatches)
+
+  if (vehicle.type === 'av') {
+    updateVehicle(vehicle.id, v => ({
+      ...v,
+      status: 'busy',
+      activeRideId: ride.id,
+      currentDispatchId: dispatch.id
+    }))
+
+    updateRide(ride.id, r => ({
+      ...r,
+      status: 'assigned',
+      assignedVehicleId: vehicle.id,
+      assignedDriverId: null,
+      fleetType: 'av',
+      dispatchId: dispatch.id,
+      assignedAt: new Date().toISOString()
+    }))
+
+    addMission({
+      id: uid('mission'),
+      vehicleId: vehicle.id,
+      rideId: ride.id,
+      missionType: 'pickup_and_dropoff',
+      status: 'queued',
+      pickup: dispatch.pickup,
+      dropoff: dispatch.dropoff,
+      createdAt: new Date().toISOString()
+    })
+
+    addCommand({
+      id: uid('command'),
+      vehicleId: vehicle.id,
+      type: 'GO_TO_PICKUP',
+      payload: {
+        rideId: ride.id,
+        pickup: dispatch.pickup,
+        dropoff: dispatch.dropoff
+      },
+      createdAt: new Date().toISOString(),
+      status: 'queued'
+    })
+
+    addMessage({
+      id: uid('msg'),
+      rideId: ride.id,
+      sender: 'system',
+      text: 'Autonomous vehicle assigned to this ride.',
+      createdAt: new Date().toISOString()
+    })
+
+    updateDispatch(dispatch.id, d => ({
+      ...d,
+      status: 'accepted',
+      acceptedAt: new Date().toISOString()
+    }))
 
     return {
-      stage: "assigned",
-      progress: 45,
-      etaMinutes: null,
-      liveLabel: "Vehicle assigned"
+      success: true,
+      dispatch,
+      autoAccepted: true
     }
   }
 
-  if (ride.status === "searching") {
-    return {
-      stage: "searching",
-      progress: 15,
-      etaMinutes: null,
-      liveLabel: "Searching for vehicle"
-    }
-  }
+  updateVehicle(vehicle.id, v => ({
+    ...v,
+    status: 'offered',
+    pendingRideId: ride.id,
+    currentDispatchId: dispatch.id
+  }))
+
+  updateRide(ride.id, r => ({
+    ...r,
+    status: 'dispatching',
+    assignedVehicleId: vehicle.id,
+    assignedDriverId: vehicle.driverId || null,
+    fleetType: 'human',
+    dispatchId: dispatch.id,
+    dispatchOfferedAt: new Date().toISOString()
+  }))
+
+  addMessage({
+    id: uid('msg'),
+    rideId: ride.id,
+    sender: 'system',
+    text: `Dispatch offer sent to driver ${vehicle.driverId || vehicle.id}.`,
+    createdAt: new Date().toISOString()
+  })
 
   return {
-    stage: ride.status || "searching",
-    progress: 20,
-    etaMinutes: null,
-    liveLabel: "Ride updating"
+    success: true,
+    dispatch,
+    autoAccepted: false
   }
 }
 
-/* ----------------------------------
-   DB HELPERS
----------------------------------- */
+function startDispatchFlow(rideId) {
+  const rides = getAllRides()
+  const ride = rides.find(r => r.id === rideId)
+  if (!ride) {
+    return { success: false, error: 'Ride not found.' }
+  }
 
-async function dbInsert(table, row) {
-  const { data, error } = await supabase.from(table).insert([row]).select()
-  if (error) throw error
-  return data[0]
-}
+  const dispatches = getAllDispatches().filter(d => d.rideId === rideId)
+  const excludedVehicleIds = dispatches.map(d => d.vehicleId)
 
-async function dbSelect(table) {
-  const { data, error } = await supabase.from(table).select("*")
-  if (error) throw error
-  return data || []
-}
-
-async function dbSingleBy(table, column, value) {
-  const { data, error } = await supabase
-    .from(table)
-    .select("*")
-    .eq(column, value)
-    .maybeSingle()
-  if (error) throw error
-  return data
-}
-
-async function dbUpdate(table, values, match) {
-  const { data, error } = await supabase
-    .from(table)
-    .update(values)
-    .match(match)
-    .select()
-  if (error) throw error
-  return data
-}
-
-/* ----------------------------------
-   DISPATCH HELPERS
----------------------------------- */
-
-function getDispatchEligibleDrivers(drivers) {
-  return drivers.filter(
-    d => d.approved === true && d.available === true && d.online === true
+  const candidates = rankCandidatesForRide(ride).filter(
+    c => !excludedVehicleIds.includes(c.id)
   )
-}
 
-function autoAssignNearestDriver(ride, drivers) {
-  const eligible = getDispatchEligibleDrivers(drivers)
-  if (!eligible.length) return null
+  if (candidates.length === 0) {
+    updateRide(ride.id, r => ({
+      ...r,
+      status: 'unassigned',
+      dispatchId: null,
+      assignedVehicleId: null,
+      assignedDriverId: null,
+      fleetType: null,
+      unassignedReason: 'No available human or AV vehicle found.',
+      updatedAt: new Date().toISOString()
+    }))
 
-  if (
-    typeof ride.pickup_lat === "number" &&
-    typeof ride.pickup_lng === "number"
-  ) {
-    const ranked = eligible
-      .filter(
-        d => typeof d.last_lat === "number" && typeof d.last_lng === "number"
-      )
-      .map(driver => ({
-        driver,
-        distanceMiles: haversineMiles(
-          driver.last_lat,
-          driver.last_lng,
-          ride.pickup_lat,
-          ride.pickup_lng
-        )
-      }))
-      .sort((a, b) => a.distanceMiles - b.distanceMiles)
-
-    if (ranked.length) return ranked[0]
+    return {
+      success: false,
+      error: 'No available vehicles found.'
+    }
   }
 
-  return {
-    driver: eligible[0],
-    distanceMiles: null
-  }
+  const nextVehicle = candidates[0]
+  return createDispatchOffer(ride, nextVehicle, dispatches.length + 1)
 }
 
-/* ----------------------------------
-   STATUS
----------------------------------- */
+function failAndFallback(dispatchId, reason = 'timeout') {
+  const dispatches = getAllDispatches()
+  const dispatch = dispatches.find(d => d.id === dispatchId)
+  if (!dispatch) return
 
-app.get("/api/status", (req, res) => {
+  if (dispatch.status !== 'offered') return
+
+  updateDispatch(dispatch.id, d => ({
+    ...d,
+    status: 'expired',
+    expiredAt: new Date().toISOString(),
+    failureReason: reason
+  }))
+
+  updateVehicle(dispatch.vehicleId, v => ({
+    ...v,
+    status: 'online',
+    pendingRideId: null,
+    currentDispatchId: null
+  }))
+
+  updateRide(dispatch.rideId, r => ({
+    ...r,
+    status: 'searching',
+    dispatchId: null,
+    assignedVehicleId: null,
+    assignedDriverId: null,
+    fleetType: null,
+    updatedAt: new Date().toISOString()
+  }))
+
+  addMessage({
+    id: uid('msg'),
+    rideId: dispatch.rideId,
+    sender: 'system',
+    text: `Dispatch ${dispatch.id} failed due to ${reason}. Trying next vehicle.`,
+    createdAt: new Date().toISOString()
+  })
+
+  startDispatchFlow(dispatch.rideId)
+}
+
+setInterval(() => {
+  const dispatches = getAllDispatches()
+  const now = Date.now()
+
+  dispatches.forEach(dispatch => {
+    if (
+      dispatch.status === 'offered' &&
+      dispatch.expiresAt &&
+      new Date(dispatch.expiresAt).getTime() < now
+    ) {
+      failAndFallback(dispatch.id, 'timeout')
+    }
+  })
+}, 5000)
+
+/* ---------- ROOT ---------- */
+
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/index.html'))
+})
+
+app.get('/:page', (req, res, next) => {
+  const filePath = path.join(__dirname, 'public', req.params.page)
+  if (fs.existsSync(filePath)) {
+    return res.sendFile(filePath)
+  }
+  next()
+})
+
+/* ---------- GPS ---------- */
+
+app.post('/api/gps/update', (req, res) => {
+  const { entityId, lat, lng, speed, heading } = req.body
+
+  if (!entityId || lat === undefined || lng === undefined) {
+    return res.status(400).json({ error: 'entityId, lat, and lng are required.' })
+  }
+
+  const gpsRows = readJson(FILES.gps, [])
+  const index = gpsRows.findIndex(g => g.entityId === entityId)
+
+  const record = {
+    entityId,
+    lat: Number(lat),
+    lng: Number(lng),
+    speed: Number(speed || 0),
+    heading: Number(heading || 0),
+    updatedAt: new Date().toISOString()
+  }
+
+  if (index === -1) {
+    gpsRows.push(record)
+  } else {
+    gpsRows[index] = { ...gpsRows[index], ...record }
+  }
+
+  writeJson(FILES.gps, gpsRows)
+
   res.json({
     success: true,
-    system: "Harvey Taxi Phase 2 Dispatch Backend",
-    time: nowIso()
+    gps: record
   })
 })
 
-/* ----------------------------------
-   RIDER SIGNUP
----------------------------------- */
-
-app.post("/api/rider/signup", async (req, res) => {
-  try {
-    const rider = {
-      id: uid("rider"),
-      name: req.body.name || "",
-      email: req.body.email || "",
-      phone: req.body.phone || "",
-      created_at: nowIso()
-    }
-
-    const saved = await dbInsert("riders", rider)
-    res.json(saved)
-  } catch (error) {
-    res.status(500).json({ error: error.message })
-  }
+app.get('/api/gps/all', (req, res) => {
+  const gpsRows = readJson(FILES.gps, [])
+  res.json(gpsRows)
 })
 
-/* ----------------------------------
-   DRIVER SIGNUP
----------------------------------- */
+/* ---------- DRIVER / VEHICLE STATUS ---------- */
 
-app.post("/api/driver/signup", async (req, res) => {
-  try {
-    const driver = {
-      id: uid("driver"),
-      name: req.body.name || "",
-      email: req.body.email || "",
-      phone: req.body.phone || "",
-      vehicle: req.body.vehicle || "",
-      plate: req.body.plate || "",
-      status: "offline",
-      approved: false,
-      available: false,
-      online: false,
-      created_at: nowIso()
-    }
+app.post('/api/vehicle/status', (req, res) => {
+  const { vehicleId, isOnline, status } = req.body
 
-    const saved = await dbInsert("drivers", driver)
-    res.json(saved)
-  } catch (error) {
-    res.status(500).json({ error: error.message })
+  if (!vehicleId) {
+    return res.status(400).json({ error: 'vehicleId is required.' })
   }
+
+  const updated = updateVehicle(vehicleId, v => ({
+    ...v,
+    isOnline: typeof isOnline === 'boolean' ? isOnline : v.isOnline,
+    status: status || v.status,
+    updatedAt: new Date().toISOString()
+  }))
+
+  if (!updated) {
+    return res.status(404).json({ error: 'Vehicle not found.' })
+  }
+
+  res.json({ success: true, vehicle: updated })
 })
 
-/* ----------------------------------
-   DRIVER GO ONLINE / OFFLINE
----------------------------------- */
+app.get('/api/driver/offers/:driverId', (req, res) => {
+  const { driverId } = req.params
+  const dispatches = getAllDispatches()
 
-app.post("/api/driver/go-online", async (req, res) => {
-  try {
-    const { driverId, lat, lng } = req.body
+  const offer = dispatches
+    .filter(d => d.driverId === driverId && d.status === 'offered')
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0]
 
-    if (!driverId) {
-      return res.status(400).json({ error: "driverId required" })
-    }
-
-    const update = {
-      online: true,
-      available: true,
-      status: "online"
-    }
-
-    if (typeof lat === "number") update.last_lat = lat
-    if (typeof lng === "number") update.last_lng = lng
-    if (typeof lat === "number" && typeof lng === "number") {
-      update.last_gps_at = nowIso()
-    }
-
-    const rows = await dbUpdate("drivers", update, { id: driverId })
-    res.json({ success: true, driver: rows[0] || null })
-  } catch (error) {
-    res.status(500).json({ error: error.message })
+  if (!offer) {
+    return res.json({ success: true, offer: null })
   }
+
+  const rides = getAllRides()
+  const ride = rides.find(r => r.id === offer.rideId) || null
+
+  res.json({
+    success: true,
+    offer: {
+      ...offer,
+      ride
+    }
+  })
 })
 
-app.post("/api/driver/go-offline", async (req, res) => {
-  try {
-    const { driverId } = req.body
+app.post('/api/dispatch/respond', (req, res) => {
+  const { dispatchId, driverId, action } = req.body
 
-    if (!driverId) {
-      return res.status(400).json({ error: "driverId required" })
-    }
-
-    const rows = await dbUpdate(
-      "drivers",
-      {
-        online: false,
-        available: false,
-        status: "offline"
-      },
-      { id: driverId }
-    )
-
-    res.json({ success: true, driver: rows[0] || null })
-  } catch (error) {
-    res.status(500).json({ error: error.message })
+  if (!dispatchId || !driverId || !action) {
+    return res.status(400).json({
+      error: 'dispatchId, driverId, and action are required.'
+    })
   }
-})
 
-/* ----------------------------------
-   DRIVER LOCATION
----------------------------------- */
+  const dispatches = getAllDispatches()
+  const dispatch = dispatches.find(d => d.id === dispatchId)
 
-app.post("/api/driver/location", async (req, res) => {
-  try {
-    const { driverId, lat, lng } = req.body
-
-    if (!driverId) {
-      return res.status(400).json({ error: "driverId required" })
-    }
-
-    if (typeof lat !== "number" || typeof lng !== "number") {
-      return res.status(400).json({ error: "lat and lng must be numbers" })
-    }
-
-    const rows = await dbUpdate(
-      "drivers",
-      {
-        last_lat: lat,
-        last_lng: lng,
-        last_gps_at: nowIso()
-      },
-      { id: driverId }
-    )
-
-    res.json({ success: true, driver: rows[0] || null })
-  } catch (error) {
-    res.status(500).json({ error: error.message })
+  if (!dispatch) {
+    return res.status(404).json({ error: 'Dispatch not found.' })
   }
-})
 
-/* ----------------------------------
-   REQUEST RIDE + AUTO DISPATCH
----------------------------------- */
+  if (dispatch.driverId !== driverId) {
+    return res.status(403).json({ error: 'This dispatch does not belong to this driver.' })
+  }
 
-app.post("/api/request-ride", async (req, res) => {
-  try {
-    let ride = {
-      id: uid("ride"),
-      rider_name: req.body.name || "",
-      phone: req.body.phone || "",
-      pickup: req.body.pickup || "",
-      dropoff: req.body.dropoff || "",
-      pickup_lat:
-        typeof req.body.pickupLat === "number" ? req.body.pickupLat : null,
-      pickup_lng:
-        typeof req.body.pickupLng === "number" ? req.body.pickupLng : null,
-      dropoff_lat:
-        typeof req.body.dropoffLat === "number" ? req.body.dropoffLat : null,
-      dropoff_lng:
-        typeof req.body.dropoffLng === "number" ? req.body.dropoffLng : null,
-      status: "searching",
-      created_at: nowIso(),
-      updated_at: nowIso()
-    }
+  if (dispatch.status !== 'offered') {
+    return res.status(400).json({ error: 'Dispatch is no longer active.' })
+  }
 
-    const drivers = await dbSelect("drivers")
-    const match = autoAssignNearestDriver(ride, drivers)
+  if (action === 'decline') {
+    updateDispatch(dispatch.id, d => ({
+      ...d,
+      status: 'declined',
+      declinedAt: new Date().toISOString()
+    }))
 
-    if (match) {
-      const driver = match.driver
-      ride.driver_id = driver.id
-      ride.status = "assigned"
-      ride.dispatch_distance_miles =
-        typeof match.distanceMiles === "number"
-          ? Number(match.distanceMiles.toFixed(2))
-          : null
-      ride.assigned_at = nowIso()
-      ride.updated_at = nowIso()
+    updateVehicle(dispatch.vehicleId, v => ({
+      ...v,
+      status: 'online',
+      pendingRideId: null,
+      currentDispatchId: null
+    }))
 
-      await dbUpdate(
-        "drivers",
-        {
-          available: false,
-          status: "assigned"
-        },
-        { id: driver.id }
-      )
-    }
+    updateRide(dispatch.rideId, r => ({
+      ...r,
+      status: 'searching',
+      dispatchId: null,
+      assignedVehicleId: null,
+      assignedDriverId: null,
+      fleetType: null,
+      updatedAt: new Date().toISOString()
+    }))
 
-    const saved = await dbInsert("rides", ride)
+    addMessage({
+      id: uid('msg'),
+      rideId: dispatch.rideId,
+      sender: 'system',
+      text: `Driver ${driverId} declined dispatch.`,
+      createdAt: new Date().toISOString()
+    })
 
-    res.json({
+    const fallback = startDispatchFlow(dispatch.rideId)
+
+    return res.json({
       success: true,
-      ride: saved,
-      dispatchMode: match ? "auto_dispatch" : "searching"
+      message: 'Dispatch declined.',
+      fallback
     })
-  } catch (error) {
-    res.status(500).json({ error: error.message })
   }
-})
 
-/* ----------------------------------
-   AUTO ASSIGN EXISTING RIDE
----------------------------------- */
+  if (action === 'accept') {
+    updateDispatch(dispatch.id, d => ({
+      ...d,
+      status: 'accepted',
+      acceptedAt: new Date().toISOString()
+    }))
 
-app.post("/api/dispatch/auto-assign", async (req, res) => {
-  try {
-    const { rideId } = req.body
+    updateVehicle(dispatch.vehicleId, v => ({
+      ...v,
+      status: 'busy',
+      pendingRideId: null,
+      activeRideId: dispatch.rideId,
+      currentDispatchId: dispatch.id
+    }))
 
-    if (!rideId) {
-      return res.status(400).json({ error: "rideId required" })
-    }
+    const updatedRide = updateRide(dispatch.rideId, r => ({
+      ...r,
+      status: 'assigned',
+      dispatchId: dispatch.id,
+      assignedVehicleId: dispatch.vehicleId,
+      assignedDriverId: driverId,
+      fleetType: 'human',
+      acceptedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }))
 
-    const ride = await dbSingleBy("rides", "id", rideId)
-    if (!ride) {
-      return res.status(404).json({ error: "Ride not found" })
-    }
+    addMessage({
+      id: uid('msg'),
+      rideId: dispatch.rideId,
+      sender: 'system',
+      text: `Driver ${driverId} accepted the ride.`,
+      createdAt: new Date().toISOString()
+    })
 
-    if (ride.driver_id) {
-      return res.json({ success: true, ride, message: "Ride already assigned" })
-    }
-
-    const drivers = await dbSelect("drivers")
-    const match = autoAssignNearestDriver(ride, drivers)
-
-    if (!match) {
-      return res.json({
-        success: true,
-        ride,
-        dispatchMode: "searching",
-        message: "No eligible drivers online"
-      })
-    }
-
-    await dbUpdate(
-      "rides",
-      {
-        driver_id: match.driver.id,
-        status: "assigned",
-        dispatch_distance_miles:
-          typeof match.distanceMiles === "number"
-            ? Number(match.distanceMiles.toFixed(2))
-            : null,
-        assigned_at: nowIso(),
-        updated_at: nowIso()
-      },
-      { id: rideId }
-    )
-
-    await dbUpdate(
-      "drivers",
-      {
-        available: false,
-        status: "assigned"
-      },
-      { id: match.driver.id }
-    )
-
-    const updatedRide = await dbSingleBy("rides", "id", rideId)
-
-    res.json({
+    return res.json({
       success: true,
-      ride: updatedRide,
-      driver: match.driver
+      message: 'Dispatch accepted.',
+      ride: updatedRide
     })
-  } catch (error) {
-    res.status(500).json({ error: error.message })
   }
+
+  return res.status(400).json({ error: 'action must be accept or decline.' })
 })
 
-/* ----------------------------------
-   AVAILABLE DRIVERS
----------------------------------- */
+/* ---------- RIDE REQUEST + AUTO DISPATCH ---------- */
 
-app.get("/api/dispatch/available-drivers", async (req, res) => {
-  try {
-    const drivers = await dbSelect("drivers")
-    const eligible = getDispatchEligibleDrivers(drivers)
-    res.json(eligible)
-  } catch (error) {
-    res.status(500).json({ error: error.message })
-  }
-})
+app.post('/api/request-ride', (req, res) => {
+  const {
+    riderId,
+    riderName,
+    pickup,
+    dropoff,
+    pickupLat,
+    pickupLng,
+    dropoffLat,
+    dropoffLng,
+    rideType
+  } = req.body
 
-/* ----------------------------------
-   DRIVER ACCEPT RIDE
----------------------------------- */
-
-app.post("/api/driver/accept", async (req, res) => {
-  try {
-    const { rideId, driverId } = req.body
-
-    if (!rideId || !driverId) {
-      return res.status(400).json({ error: "rideId and driverId required" })
-    }
-
-    const rideRows = await dbUpdate(
-      "rides",
-      {
-        driver_id: driverId,
-        status: "assigned",
-        assigned_at: nowIso(),
-        updated_at: nowIso()
-      },
-      { id: rideId }
-    )
-
-    await dbUpdate(
-      "drivers",
-      {
-        available: false,
-        status: "assigned"
-      },
-      { id: driverId }
-    )
-
-    res.json(rideRows[0] || null)
-  } catch (error) {
-    res.status(500).json({ error: error.message })
-  }
-})
-
-/* ----------------------------------
-   DRIVER UPDATE RIDE STATUS
----------------------------------- */
-
-app.post("/api/driver/status", async (req, res) => {
-  try {
-    const { rideId, driverId, status } = req.body
-
-    const allowed = ["assigned", "on_trip", "completed", "cancelled"]
-    if (!allowed.includes(status)) {
-      return res.status(400).json({ error: "Invalid status" })
-    }
-
-    const rideRows = await dbUpdate(
-      "rides",
-      {
-        status,
-        updated_at: nowIso()
-      },
-      { id: rideId }
-    )
-
-    if (driverId) {
-      if (status === "assigned") {
-        await dbUpdate(
-          "drivers",
-          { status: "assigned", available: false },
-          { id: driverId }
-        )
-      }
-
-      if (status === "on_trip") {
-        await dbUpdate(
-          "drivers",
-          { status: "on_trip", available: false },
-          { id: driverId }
-        )
-      }
-
-      if (status === "completed" || status === "cancelled") {
-        await dbUpdate(
-          "drivers",
-          { status: "online", available: true },
-          { id: driverId }
-        )
-      }
-    }
-
-    res.json(rideRows[0] || null)
-  } catch (error) {
-    res.status(500).json({ error: error.message })
-  }
-})
-
-/* ----------------------------------
-   GPS UPDATE
----------------------------------- */
-
-app.post("/api/gps", async (req, res) => {
-  try {
-    const { driverId, lat, lng } = req.body
-
-    if (!driverId) {
-      return res.status(400).json({ error: "driverId required" })
-    }
-
-    if (typeof lat !== "number" || typeof lng !== "number") {
-      return res.status(400).json({ error: "lat and lng must be numbers" })
-    }
-
-    await dbUpdate(
-      "drivers",
-      {
-        last_lat: lat,
-        last_lng: lng,
-        last_gps_at: nowIso()
-      },
-      { id: driverId }
-    )
-
-    res.json({ success: true })
-  } catch (error) {
-    res.status(500).json({ error: error.message })
-  }
-})
-
-/* ----------------------------------
-   LIVE RIDE STATUS
----------------------------------- */
-
-app.get("/api/ride/:rideId/live-status", async (req, res) => {
-  try {
-    const ride = await dbSingleBy("rides", "id", req.params.rideId)
-    if (!ride) {
-      return res.status(404).json({ error: "Ride not found" })
-    }
-
-    let driver = null
-    if (ride.driver_id) {
-      driver = await dbSingleBy("drivers", "id", ride.driver_id)
-    }
-
-    const live = buildLiveStage(ride)
-
-    res.json({
-      rideId: ride.id,
-      status: ride.status,
-      driverId: ride.driver_id || null,
-      driverName: driver?.name || null,
-      stage: live.stage,
-      progress: live.progress,
-      etaMinutes: live.etaMinutes,
-      liveLabel: live.liveLabel,
-      dispatchDistanceMiles: ride.dispatch_distance_miles || null,
-      driverLat: typeof driver?.last_lat === "number" ? driver.last_lat : null,
-      driverLng: typeof driver?.last_lng === "number" ? driver.last_lng : null,
-      lastGpsUpdate: driver?.last_gps_at || null,
-      pickupLat: typeof ride.pickup_lat === "number" ? ride.pickup_lat : null,
-      pickupLng: typeof ride.pickup_lng === "number" ? ride.pickup_lng : null
+  if (
+    !pickup ||
+    !dropoff ||
+    pickupLat === undefined ||
+    pickupLng === undefined ||
+    dropoffLat === undefined ||
+    dropoffLng === undefined
+  ) {
+    return res.status(400).json({
+      error: 'pickup, dropoff, pickupLat, pickupLng, dropoffLat, and dropoffLng are required.'
     })
-  } catch (error) {
-    res.status(500).json({ error: error.message })
   }
+
+  const ride = {
+    id: uid('ride'),
+    riderId: riderId || null,
+    riderName: riderName || 'Unknown Rider',
+    pickup,
+    dropoff,
+    pickupLat: Number(pickupLat),
+    pickupLng: Number(pickupLng),
+    dropoffLat: Number(dropoffLat),
+    dropoffLng: Number(dropoffLng),
+    rideType: rideType || 'standard',
+    status: 'searching',
+    assignedVehicleId: null,
+    assignedDriverId: null,
+    fleetType: null,
+    createdAt: new Date().toISOString()
+  }
+
+  const rides = getAllRides()
+  rides.push(ride)
+  writeJson(FILES.rides, rides)
+
+  addMessage({
+    id: uid('msg'),
+    rideId: ride.id,
+    sender: 'system',
+    text: 'Ride created. Starting dispatch search.',
+    createdAt: new Date().toISOString()
+  })
+
+  const dispatchResult = startDispatchFlow(ride.id)
+
+  const refreshedRide = getAllRides().find(r => r.id === ride.id)
+
+  res.json({
+    success: true,
+    ride: refreshedRide,
+    dispatchResult
+  })
 })
 
-/* ----------------------------------
-   RIDES / DRIVERS / RIDERS
----------------------------------- */
-
-app.get("/api/rides", async (req, res) => {
-  try {
-    const rides = await dbSelect("rides")
-    res.json(rides)
-  } catch (error) {
-    res.status(500).json({ error: error.message })
-  }
+app.get('/api/rides', (req, res) => {
+  const rides = getAllRides().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+  res.json(rides)
 })
 
-app.get("/api/drivers", async (req, res) => {
-  try {
-    const drivers = await dbSelect("drivers")
-    res.json(drivers)
-  } catch (error) {
-    res.status(500).json({ error: error.message })
+app.get('/api/rides/:rideId', (req, res) => {
+  const ride = getAllRides().find(r => r.id === req.params.rideId)
+  if (!ride) {
+    return res.status(404).json({ error: 'Ride not found.' })
   }
+  res.json(ride)
 })
 
-app.get("/api/riders", async (req, res) => {
-  try {
-    const riders = await dbSelect("riders")
-    res.json(riders)
-  } catch (error) {
-    res.status(500).json({ error: error.message })
+app.post('/api/rides/:rideId/status', (req, res) => {
+  const { status } = req.body
+  const { rideId } = req.params
+
+  if (!status) {
+    return res.status(400).json({ error: 'status is required.' })
   }
-})
 
-/* ----------------------------------
-   CHAT
----------------------------------- */
+  const updatedRide = updateRide(rideId, r => ({
+    ...r,
+    status,
+    updatedAt: new Date().toISOString()
+  }))
 
-app.post("/api/chat/send", async (req, res) => {
-  try {
-    const msg = {
-      id: uid("msg"),
-      ride_id: req.body.rideId || null,
-      sender: req.body.from || "user",
-      recipient: req.body.to || "user",
-      message: req.body.text || "",
-      created_at: nowIso()
+  if (!updatedRide) {
+    return res.status(404).json({ error: 'Ride not found.' })
+  }
+
+  if (status === 'completed' || status === 'cancelled') {
+    if (updatedRide.assignedVehicleId) {
+      updateVehicle(updatedRide.assignedVehicleId, v => ({
+        ...v,
+        status: 'online',
+        activeRideId: null,
+        currentDispatchId: null
+      }))
     }
-
-    const saved = await dbInsert("messages", msg)
-    res.json(saved)
-  } catch (error) {
-    res.status(500).json({ error: error.message })
   }
+
+  res.json({
+    success: true,
+    ride: updatedRide
+  })
 })
 
-app.get("/api/chat/:rideId", async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from("messages")
-      .select("*")
-      .eq("ride_id", req.params.rideId)
-      .order("created_at", { ascending: true })
+/* ---------- ADMIN ---------- */
 
-    if (error) throw error
-    res.json(data || [])
-  } catch (error) {
-    res.status(500).json({ error: error.message })
+app.get('/api/admin/dispatches', (req, res) => {
+  const dispatches = getAllDispatches().sort(
+    (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+  )
+  res.json(dispatches)
+})
+
+app.get('/api/admin/active-dispatches', (req, res) => {
+  const dispatches = getAllDispatches().filter(d =>
+    ['offered', 'accepted'].includes(d.status)
+  )
+  res.json(dispatches)
+})
+
+app.post('/api/admin/manual-dispatch', (req, res) => {
+  const { rideId, vehicleId } = req.body
+
+  if (!rideId || !vehicleId) {
+    return res.status(400).json({ error: 'rideId and vehicleId are required.' })
   }
-})
 
-/* ----------------------------------
-   SUPPORT
----------------------------------- */
+  const ride = getAllRides().find(r => r.id === rideId)
+  const vehicle = getAllVehicles().find(v => v.id === vehicleId)
 
-app.post("/api/support", async (req, res) => {
-  try {
-    const ticketText = req.body.text || req.body.message || ""
-    const requesterType = req.body.requesterType || "user"
-    const ai = generateAiSupportReply(ticketText, requesterType)
-
-    const ticket = {
-      id: uid("support"),
-      requester_type: requesterType,
-      user_id: req.body.userId || null,
-      text: ticketText,
-      status: ai.escalated ? "escalated" : "open",
-      category: ai.category,
-      escalated: ai.escalated,
-      created_at: nowIso()
-    }
-
-    await dbInsert("support", ticket)
-
-    res.json({
-      reply: ai.reply,
-      escalated: ai.escalated,
-      category: ai.category
-    })
-  } catch (error) {
-    res.status(500).json({ error: error.message })
+  if (!ride) {
+    return res.status(404).json({ error: 'Ride not found.' })
   }
+
+  if (!vehicle) {
+    return res.status(404).json({ error: 'Vehicle not found.' })
+  }
+
+  if (!isVehicleEligible(vehicle)) {
+    return res.status(400).json({ error: 'Vehicle is not eligible right now.' })
+  }
+
+  const oldDispatchId = ride.dispatchId
+  if (oldDispatchId) {
+    updateDispatch(oldDispatchId, d => ({
+      ...d,
+      status: 'replaced_by_admin',
+      replacedAt: new Date().toISOString()
+    }))
+  }
+
+  updateRide(ride.id, r => ({
+    ...r,
+    status: 'searching',
+    dispatchId: null,
+    assignedVehicleId: null,
+    assignedDriverId: null,
+    fleetType: null,
+    updatedAt: new Date().toISOString()
+  }))
+
+  const rankedVehicle = {
+    ...vehicle,
+    milesAway: 0
+  }
+
+  const result = createDispatchOffer(ride, rankedVehicle, 999)
+
+  res.json({
+    success: true,
+    result
+  })
 })
 
-/* ----------------------------------
-   ROOT
----------------------------------- */
+/* ---------- HEALTH ---------- */
 
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public/index.html"))
+app.get('/api/health', (req, res) => {
+  res.json({
+    success: true,
+    service: 'Harvey Taxi Dispatch Brain',
+    time: new Date().toISOString()
+  })
 })
 
-/* ----------------------------------
-   START SERVER
----------------------------------- */
+/* ---------- FILE INIT ---------- */
+
+ensureFile(FILES.rides, [])
+ensureFile(FILES.gps, [])
+ensureFile(FILES.vehicles, [])
+ensureFile(FILES.riders, [])
+ensureFile(FILES.messages, [])
+ensureFile(FILES.commands, [])
+ensureFile(FILES.missions, [])
+ensureFile(FILES.dispatches, [])
+
+/* ---------- START ---------- */
 
 app.listen(PORT, () => {
-  console.log("Harvey Taxi Phase 2 running on port " + PORT)
+  console.log(`Harvey Taxi server running on port ${PORT}`)
 })
