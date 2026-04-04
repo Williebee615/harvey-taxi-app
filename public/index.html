@@ -4,483 +4,1400 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Harvey Taxi</title>
+  <meta name="description" content="Harvey Taxi connects riders, drivers, and merchants through one intelligent mobility platform." />
   <style>
-    * {
-      box-sizing: border-box;
-      font-family: Arial, Helvetica, sans-serif;
+    :root {
+      --bg-1: #050816;
+      --bg-2: #0a1024;
+      --bg-3: #101935;
+      --card: rgba(15, 23, 52, 0.62);
+      --card-2: rgba(10, 17, 38, 0.82);
+      --line: rgba(122, 162, 255, 0.18);
+      --text: #f4f7ff;
+      --muted: #aab8de;
+      --blue: #5ea0ff;
+      --cyan: #5ef2ff;
+      --green: #54f0b5;
+      --purple: #9d7cff;
+      --pink: #ff7fd1;
+      --gold: #ffcf70;
+      --danger: #ff7183;
+      --shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+      --radius-xl: 28px;
+      --radius-lg: 22px;
+      --radius-md: 16px;
+      --blur: blur(18px);
+      --max: 1220px;
     }
 
-    :root {
-      --bg-1: #020817;
-      --bg-2: #071a4d;
-      --bg-3: #0a235f;
-      --panel: rgba(8, 24, 68, 0.9);
-      --panel-2: rgba(12, 33, 86, 0.94);
-      --text: #ffffff;
-      --muted: #b8cbff;
-      --line: rgba(255,255,255,0.08);
-      --glow-a: rgba(45,108,255,0.22);
-      --glow-b: rgba(138,46,255,0.18);
-      --btn-a: #2d6cff;
-      --btn-b: #8a2eff;
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
     }
 
     body {
       margin: 0;
-      min-height: 100vh;
+      font-family: Inter, Arial, Helvetica, sans-serif;
       color: var(--text);
       background:
-        radial-gradient(circle at top left, var(--glow-a), transparent 28%),
-        radial-gradient(circle at top right, var(--glow-b), transparent 30%),
-        linear-gradient(180deg, #020817 0%, #03163d 52%, #020b22 100%);
+        radial-gradient(circle at 15% 20%, rgba(94, 160, 255, 0.16), transparent 26%),
+        radial-gradient(circle at 85% 18%, rgba(94, 242, 255, 0.12), transparent 24%),
+        radial-gradient(circle at 50% 78%, rgba(157, 124, 255, 0.10), transparent 28%),
+        linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 52%, #050814 100%);
+      min-height: 100vh;
       overflow-x: hidden;
     }
 
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.028) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.028) 1px, transparent 1px);
+      background-size: 32px 32px;
+      mask-image: linear-gradient(to bottom, rgba(0,0,0,.65), transparent 82%);
+      z-index: 0;
+    }
+
+    .glow-orb {
+      position: fixed;
+      border-radius: 999px;
+      filter: blur(70px);
+      opacity: .22;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .orb-a {
+      width: 260px;
+      height: 260px;
+      left: -80px;
+      top: 80px;
+      background: var(--blue);
+      animation: driftA 14s ease-in-out infinite;
+    }
+
+    .orb-b {
+      width: 260px;
+      height: 260px;
+      right: -80px;
+      top: 180px;
+      background: var(--cyan);
+      animation: driftB 18s ease-in-out infinite;
+    }
+
+    .orb-c {
+      width: 300px;
+      height: 300px;
+      left: 35%;
+      bottom: -100px;
+      background: var(--purple);
+      animation: driftC 16s ease-in-out infinite;
+    }
+
+    @keyframes driftA {
+      0%,100% { transform: translate(0,0); }
+      50% { transform: translate(30px, 40px); }
+    }
+
+    @keyframes driftB {
+      0%,100% { transform: translate(0,0); }
+      50% { transform: translate(-40px, 25px); }
+    }
+
+    @keyframes driftC {
+      0%,100% { transform: translate(0,0); }
+      50% { transform: translate(10px, -35px); }
+    }
+
     .page {
-      max-width: 1280px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .wrap {
+      width: min(var(--max), calc(100% - 28px));
       margin: 0 auto;
-      padding: 20px;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      backdrop-filter: var(--blur);
+      background: rgba(5, 10, 24, 0.55);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .nav {
+      min-height: 78px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      text-decoration: none;
+      color: var(--text);
+    }
+
+    .brand-mark {
+      width: 48px;
+      height: 48px;
+      border-radius: 16px;
+      position: relative;
+      background:
+        linear-gradient(135deg, rgba(94,160,255,0.95), rgba(94,242,255,0.95));
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,.16) inset,
+        0 10px 28px rgba(94,160,255,.36);
+      overflow: hidden;
+    }
+
+    .brand-mark::before,
+    .brand-mark::after {
+      content: "";
+      position: absolute;
+      background: rgba(255,255,255,.9);
+      border-radius: 999px;
+    }
+
+    .brand-mark::before {
+      width: 11px;
+      height: 11px;
+      left: 10px;
+      bottom: 9px;
+      box-shadow: 18px 0 0 rgba(255,255,255,.9);
+    }
+
+    .brand-mark::after {
+      width: 24px;
+      height: 9px;
+      left: 12px;
+      top: 15px;
+    }
+
+    .brand-text strong {
+      display: block;
+      font-size: 17px;
+      letter-spacing: .4px;
+    }
+
+    .brand-text span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 2px;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .nav-links a {
+      color: var(--muted);
+      text-decoration: none;
+      padding: 10px 14px;
+      border-radius: 999px;
+      transition: .25s ease;
+      font-size: 14px;
+      border: 1px solid transparent;
+    }
+
+    .nav-links a:hover {
+      color: white;
+      background: rgba(255,255,255,0.05);
+      border-color: rgba(255,255,255,0.08);
+    }
+
+    .cta-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      appearance: none;
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      min-height: 52px;
+      padding: 0 20px;
+      border-radius: 16px;
+      font-weight: 700;
+      letter-spacing: .2px;
+      transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease, background .22s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+    }
+
+    .btn-primary {
+      color: #06111c;
+      background: linear-gradient(135deg, var(--cyan), var(--green));
+      box-shadow: 0 12px 30px rgba(84,240,181,.28);
+    }
+
+    .btn-secondary {
+      color: white;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: var(--blur);
+    }
+
+    .btn-secondary:hover {
+      border-color: rgba(94,242,255,0.32);
+      box-shadow: 0 0 0 1px rgba(94,242,255,.12) inset;
+    }
+
+    .btn-ghost {
+      color: var(--muted);
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.03);
     }
 
     .hero {
+      padding: 34px 0 24px;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.18fr .82fr;
+      gap: 24px;
+      align-items: stretch;
+    }
+
+    .glass {
+      background: linear-gradient(180deg, rgba(17, 27, 58, 0.75), rgba(9, 15, 34, 0.82));
+      border: 1px solid rgba(255,255,255,0.08);
+      backdrop-filter: var(--blur);
+      box-shadow: var(--shadow);
+    }
+
+    .hero-panel {
+      border-radius: 30px;
+      padding: 28px;
       position: relative;
       overflow: hidden;
-      border-radius: 34px;
-      padding: 28px 22px 24px;
+    }
+
+    .hero-panel::before {
+      content: "";
+      position: absolute;
+      inset: 0;
       background:
-        linear-gradient(135deg, rgba(10,24,68,0.96), rgba(7,17,47,0.96));
-      border: 1px solid var(--line);
-      box-shadow: 0 24px 50px rgba(0,0,0,0.35);
-      margin-bottom: 18px;
-    }
-
-    .hero::before {
-      content: "";
-      position: absolute;
-      width: 320px;
-      height: 320px;
-      right: -90px;
-      top: -90px;
-      background: radial-gradient(circle, rgba(138,46,255,0.24), transparent 65%);
+        radial-gradient(circle at top right, rgba(94,242,255,.11), transparent 26%),
+        radial-gradient(circle at bottom left, rgba(94,160,255,.12), transparent 28%);
       pointer-events: none;
     }
 
-    .hero::after {
-      content: "";
-      position: absolute;
-      width: 260px;
-      height: 260px;
-      left: -60px;
-      bottom: -70px;
-      background: radial-gradient(circle, rgba(45,108,255,0.22), transparent 65%);
-      pointer-events: none;
-    }
-
-    .top-pill {
+    .eyebrow {
       display: inline-flex;
       align-items: center;
       gap: 10px;
-      padding: 8px 14px;
+      margin-bottom: 18px;
+      padding: 10px 14px;
       border-radius: 999px;
-      background: rgba(21, 40, 95, 0.85);
-      border: 1px solid rgba(255,255,255,0.08);
-      color: #dce7ff;
-      font-weight: 700;
-      margin-bottom: 14px;
-      position: relative;
-      z-index: 1;
-    }
-
-    .hero-title {
-      font-size: 2.8rem;
-      font-weight: 900;
-      line-height: 1.06;
-      margin: 0 0 10px;
-      position: relative;
-      z-index: 1;
-    }
-
-    .hero-sub {
-      max-width: 780px;
-      color: var(--muted);
-      font-size: 1.04rem;
-      line-height: 1.7;
-      margin-bottom: 20px;
-      position: relative;
-      z-index: 1;
-    }
-
-    .hero-buttons {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      position: relative;
-      z-index: 1;
-    }
-
-    .hero-btn {
-      text-decoration: none;
-      color: white;
-      font-weight: 800;
-      padding: 14px 18px;
-      border-radius: 16px;
-      border: 1px solid rgba(255,255,255,0.08);
-      background: linear-gradient(90deg, var(--btn-a), var(--btn-b));
-      box-shadow: 0 10px 24px rgba(0,0,0,0.22);
-    }
-
-    .hero-btn.secondary {
-      background: rgba(10, 27, 72, 0.92);
-      color: #dbe6ff;
-    }
-
-    .hero-stats {
-      margin-top: 22px;
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 12px;
-      position: relative;
-      z-index: 1;
-    }
-
-    .stat {
-      background: rgba(9, 23, 61, 0.82);
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      padding: 14px;
-      backdrop-filter: blur(10px);
-    }
-
-    .stat-label {
-      color: #98b3f2;
+      color: #d7ebff;
       font-size: 12px;
+      letter-spacing: 1.15px;
       text-transform: uppercase;
-      letter-spacing: 0.08em;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .eyebrow-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--green);
+      box-shadow: 0 0 12px var(--green);
+    }
+
+    .hero h1 {
+      margin: 0 0 14px;
+      font-size: clamp(2.5rem, 6vw, 5rem);
+      line-height: .95;
+      letter-spacing: -1.8px;
+      max-width: 760px;
+    }
+
+    .hero h1 .accent {
+      color: #d6f9ff;
+      text-shadow: 0 0 24px rgba(94,242,255,.18);
+    }
+
+    .hero p.lead {
+      margin: 0;
+      max-width: 680px;
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 17px;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-top: 26px;
+    }
+
+    .mini-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-top: 26px;
+    }
+
+    .mini-stat {
+      padding: 16px;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.07);
+    }
+
+    .mini-stat strong {
+      display: block;
+      font-size: 24px;
       margin-bottom: 6px;
     }
 
-    .stat-value {
-      font-size: 1.12rem;
-      font-weight: 800;
+    .mini-stat span {
+      color: var(--muted);
+      font-size: 13px;
     }
 
-    .main-grid {
+    .hero-side {
       display: grid;
-      grid-template-columns: 1.2fr 0.8fr;
+      grid-template-rows: auto auto 1fr;
       gap: 18px;
-      margin-bottom: 18px;
     }
 
-    .panel {
-      background: var(--panel);
-      border: 1px solid var(--line);
+    .system-card,
+    .status-card,
+    .scan-card {
       border-radius: 28px;
       padding: 22px;
-      box-shadow: 0 18px 38px rgba(0,0,0,0.28);
+      position: relative;
+      overflow: hidden;
     }
 
-    .panel h2 {
-      margin: 0 0 8px;
-      font-size: 1.45rem;
+    .card-title {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 1.05px;
+      color: #c9d8ff;
+      margin-bottom: 14px;
     }
 
-    .panel p {
-      margin: 0;
-      color: var(--muted);
-      line-height: 1.6;
-    }
-
-    .action-grid {
-      margin-top: 18px;
+    .signal-row {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      gap: 14px;
+      gap: 12px;
     }
 
-    .action-card {
+    .signal-box {
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .signal-box strong {
       display: block;
-      text-decoration: none;
-      color: white;
-      padding: 18px;
-      min-height: 138px;
-      border-radius: 22px;
-      background: linear-gradient(180deg, rgba(14,34,86,0.98), rgba(9,20,52,0.98));
-      border: 1px solid rgba(255,255,255,0.07);
-      box-shadow: 0 10px 26px rgba(0,0,0,0.22);
-      transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
-    }
-
-    .action-card:hover {
-      transform: translateY(-2px);
-      border-color: rgba(120,164,255,0.4);
-      box-shadow: 0 16px 30px rgba(0,0,0,0.28);
-    }
-
-    .action-icon {
-      font-size: 1.9rem;
-      margin-bottom: 10px;
-    }
-
-    .action-title {
-      font-size: 1.08rem;
-      font-weight: 800;
+      font-size: 22px;
       margin-bottom: 6px;
     }
 
-    .action-text {
-      font-size: 14px;
-      color: #c8d9ff;
-      line-height: 1.5;
+    .signal-box span {
+      color: var(--muted);
+      font-size: 13px;
     }
 
-    .stack {
+    .status-feed {
       display: grid;
-      gap: 14px;
-      margin-top: 18px;
+      gap: 12px;
     }
 
-    .stack-link {
+    .feed-item {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 14px;
-      text-decoration: none;
-      color: white;
-      background: var(--panel-2);
-      border: 1px solid var(--line);
+      padding: 14px 16px;
       border-radius: 18px;
-      padding: 15px 16px;
-      transition: transform .18s ease, border-color .18s ease;
-    }
-
-    .stack-link:hover {
-      transform: translateY(-1px);
-      border-color: rgba(120,164,255,0.35);
-    }
-
-    .stack-link strong {
-      display: block;
-      margin-bottom: 4px;
-      font-size: 15px;
-    }
-
-    .stack-link span {
-      color: #c1d2ff;
-      font-size: 13px;
-    }
-
-    .ops-panel {
-      margin-top: 18px;
-      background: linear-gradient(180deg, rgba(52,19,103,0.96), rgba(18,9,41,0.98));
-      border: 1px solid rgba(193,154,255,0.16);
-      border-radius: 26px;
-      padding: 20px;
-      box-shadow: 0 16px 34px rgba(0,0,0,0.26);
-    }
-
-    .ops-panel h3 {
-      margin: 0 0 8px;
-      font-size: 1.3rem;
-    }
-
-    .ops-panel p {
-      margin: 0 0 14px;
-      color: #e0d3ff;
-      line-height: 1.6;
-    }
-
-    .ops-buttons {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-
-    .ops-btn {
-      text-decoration: none;
-      text-align: center;
-      color: white;
-      font-weight: 800;
-      padding: 14px;
-      border-radius: 16px;
-      background: linear-gradient(90deg, #5d2dff, #2d6cff);
+      background: rgba(255,255,255,0.04);
       border: 1px solid rgba(255,255,255,0.08);
     }
 
-    .footer {
+    .feed-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .feed-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      font-size: 18px;
+      background: rgba(94,160,255,0.15);
+      border: 1px solid rgba(94,160,255,0.22);
+      flex-shrink: 0;
+    }
+
+    .feed-text {
+      min-width: 0;
+    }
+
+    .feed-text strong {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 2px;
+    }
+
+    .feed-text span {
+      color: var(--muted);
+      font-size: 12px;
+      display: block;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .pill {
+      font-size: 11px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      white-space: nowrap;
+      font-weight: 700;
+    }
+
+    .pill-green {
+      color: #09110f;
+      background: linear-gradient(135deg, #69ffcb, #54f0b5);
+    }
+
+    .pill-blue {
+      color: white;
+      background: rgba(94,160,255,0.18);
+      border: 1px solid rgba(94,160,255,0.25);
+    }
+
+    .scan-ring {
+      width: 180px;
+      height: 180px;
+      border-radius: 999px;
+      margin: 16px auto 18px;
+      position: relative;
+      border: 1px solid rgba(94,242,255,0.25);
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at center, rgba(94,242,255,0.12), transparent 58%);
+      box-shadow:
+        inset 0 0 0 12px rgba(255,255,255,0.015),
+        0 0 36px rgba(94,242,255,.12);
+    }
+
+    .scan-ring::before {
+      content: "";
+      position: absolute;
+      inset: 14px;
+      border-radius: inherit;
+      border: 1px dashed rgba(255,255,255,.14);
+      animation: rotateRing 12s linear infinite;
+    }
+
+    .scan-ring::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: conic-gradient(from 0deg, rgba(94,242,255,.0), rgba(94,242,255,.42), rgba(94,242,255,.0) 30%);
+      animation: rotateRing 4s linear infinite;
+      mask: radial-gradient(circle, transparent 55%, black 56%);
+    }
+
+    @keyframes rotateRing {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .scan-ring strong {
+      position: relative;
+      z-index: 1;
+      font-size: 18px;
+      letter-spacing: 1px;
+    }
+
+    .scan-copy {
       text-align: center;
-      padding: 8px 0 24px;
-      color: #90a6d9;
+      color: var(--muted);
+      line-height: 1.65;
       font-size: 14px;
     }
 
-    @media (max-width: 980px) {
-      .main-grid {
+    section {
+      padding: 18px 0 12px;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+
+    .section-head h2 {
+      margin: 0;
+      font-size: clamp(1.8rem, 3vw, 2.8rem);
+      letter-spacing: -1px;
+    }
+
+    .section-head p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      max-width: 680px;
+      line-height: 1.7;
+    }
+
+    .audience-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+    }
+
+    .audience-card {
+      padding: 24px;
+      border-radius: 26px;
+      position: relative;
+      overflow: hidden;
+      min-height: 350px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .audience-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      opacity: .9;
+      background:
+        radial-gradient(circle at top right, rgba(255,255,255,.08), transparent 30%);
+    }
+
+    .audience-icon {
+      width: 62px;
+      height: 62px;
+      border-radius: 20px;
+      display: grid;
+      place-items: center;
+      font-size: 28px;
+      margin-bottom: 18px;
+      border: 1px solid rgba(255,255,255,0.10);
+    }
+
+    .audience-card h3 {
+      margin: 0 0 12px;
+      font-size: 30px;
+      letter-spacing: -.8px;
+    }
+
+    .audience-card p {
+      margin: 0 0 18px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .feature-list {
+      display: grid;
+      gap: 10px;
+      margin: 0 0 22px;
+    }
+
+    .feature-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #deebff;
+      font-size: 14px;
+    }
+
+    .tick {
+      width: 20px;
+      height: 20px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+      background: rgba(84,240,181,0.14);
+      border: 1px solid rgba(84,240,181,0.22);
+      color: #7ff4c7;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .rider-theme {
+      background:
+        linear-gradient(180deg, rgba(11, 19, 43, 0.82), rgba(8, 15, 34, 0.93)),
+        linear-gradient(135deg, rgba(94,242,255,.12), transparent 40%);
+    }
+
+    .driver-theme {
+      background:
+        linear-gradient(180deg, rgba(16, 18, 48, 0.82), rgba(8, 12, 34, 0.93)),
+        linear-gradient(135deg, rgba(157,124,255,.12), transparent 40%);
+    }
+
+    .merchant-theme {
+      background:
+        linear-gradient(180deg, rgba(20, 16, 40, 0.82), rgba(10, 11, 29, 0.93)),
+        linear-gradient(135deg, rgba(255,207,112,.12), transparent 40%);
+    }
+
+    .audience-footer {
+      margin-top: auto;
+    }
+
+    .audience-card .btn {
+      width: 100%;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-top: 8px;
+    }
+
+    .stat-card {
+      padding: 20px;
+      border-radius: 24px;
+      text-align: left;
+    }
+
+    .stat-card strong {
+      display: block;
+      font-size: 30px;
+      margin-bottom: 8px;
+    }
+
+    .stat-card span {
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 14px;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+    }
+
+    .feature-card {
+      padding: 22px;
+      border-radius: 24px;
+      min-height: 210px;
+    }
+
+    .feature-icon {
+      width: 54px;
+      height: 54px;
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+      font-size: 24px;
+      margin-bottom: 16px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .feature-card h3 {
+      margin: 0 0 10px;
+      font-size: 21px;
+      letter-spacing: -.4px;
+    }
+
+    .feature-card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 14px;
+    }
+
+    .market-grid {
+      display: grid;
+      grid-template-columns: 1.05fr .95fr;
+      gap: 18px;
+    }
+
+    .market-panel,
+    .trust-panel,
+    .action-panel {
+      padding: 24px;
+      border-radius: 28px;
+    }
+
+    .market-tiles {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .market-tile {
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.08);
+    }
+
+    .market-tile strong {
+      display: block;
+      font-size: 16px;
+      margin-bottom: 6px;
+    }
+
+    .market-tile span {
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 13px;
+    }
+
+    .trust-list {
+      display: grid;
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .trust-item {
+      display: flex;
+      align-items: start;
+      gap: 12px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.08);
+    }
+
+    .trust-item strong {
+      display: block;
+      font-size: 15px;
+      margin-bottom: 3px;
+    }
+
+    .trust-item span {
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 13px;
+    }
+
+    .action-panel {
+      margin-top: 18px;
+      text-align: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .action-panel::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 50% 0%, rgba(94,242,255,.14), transparent 28%),
+        radial-gradient(circle at 50% 100%, rgba(157,124,255,.10), transparent 30%);
+      pointer-events: none;
+    }
+
+    .action-panel h2 {
+      margin: 0 0 10px;
+      font-size: clamp(2rem, 4vw, 3.4rem);
+      letter-spacing: -1.2px;
+    }
+
+    .action-panel p {
+      max-width: 760px;
+      margin: 0 auto 24px;
+      color: var(--muted);
+      line-height: 1.75;
+    }
+
+    footer {
+      padding: 26px 0 36px;
+      color: var(--muted);
+    }
+
+    .footer-card {
+      padding: 18px 20px;
+      border-radius: 22px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .footer-links a {
+      color: var(--muted);
+      text-decoration: none;
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.03);
+    }
+
+    .footer-links a:hover {
+      color: white;
+    }
+
+    @media (max-width: 1100px) {
+      .hero-grid,
+      .market-grid,
+      .audience-grid,
+      .feature-grid,
+      .stats-grid {
         grid-template-columns: 1fr;
       }
 
-      .hero-stats {
+      .hero-side {
+        grid-template-rows: auto;
+      }
+
+      .mini-stats,
+      .signal-row,
+      .market-tiles {
         grid-template-columns: 1fr 1fr;
       }
     }
 
-    @media (max-width: 700px) {
-      .hero-title {
-        font-size: 2.15rem;
+    @media (max-width: 720px) {
+      .nav {
+        align-items: flex-start;
+        padding: 14px 0;
+        flex-direction: column;
       }
 
-      .action-grid,
-      .ops-buttons,
-      .hero-stats {
+      .nav-links {
+        width: 100%;
+        justify-content: flex-start;
+      }
+
+      .hero-panel,
+      .system-card,
+      .status-card,
+      .scan-card,
+      .audience-card,
+      .market-panel,
+      .trust-panel,
+      .action-panel,
+      .feature-card,
+      .stat-card {
+        border-radius: 22px;
+      }
+
+      .mini-stats,
+      .signal-row,
+      .market-tiles {
         grid-template-columns: 1fr;
       }
 
-      .hero-buttons {
+      .hero h1 {
+        font-size: clamp(2.4rem, 12vw, 4.4rem);
+      }
+
+      .cta-row,
+      .hero-actions {
         flex-direction: column;
+      }
+
+      .btn {
+        width: 100%;
+      }
+
+      .brand-text span {
+        max-width: 220px;
       }
     }
   </style>
 </head>
 <body>
+  <div class="glow-orb orb-a"></div>
+  <div class="glow-orb orb-b"></div>
+  <div class="glow-orb orb-c"></div>
+
   <div class="page">
-    <section class="hero">
-      <div class="top-pill">🚕 Harvey Taxi</div>
-      <h1 class="hero-title">Ride request, dispatch, payments, and live tracking in one platform.</h1>
-      <div class="hero-sub">
-        Harvey Taxi brings together rider access, driver onboarding, dispatch visibility, live vehicle updates,
-        internal operations tools, and payment links into one premium experience.
-      </div>
+    <header class="topbar">
+      <div class="wrap nav">
+        <a href="/" class="brand">
+          <div class="brand-mark"></div>
+          <div class="brand-text">
+            <strong>Harvey Taxi</strong>
+            <span>Ride • Drive • Deliver • Grow</span>
+          </div>
+        </a>
 
-      <div class="hero-buttons">
-        <a class="hero-btn" href="/request-ride.html">Request a Ride</a>
-        <a class="hero-btn secondary" href="/rider-live-vehicle.html">Track Live Vehicle</a>
-        <a class="hero-btn secondary" href="/admin-live-dispatch.html">Open Dispatch Map</a>
-      </div>
+        <nav class="nav-links">
+          <a href="#ride">Ride</a>
+          <a href="#drive">Drive</a>
+          <a href="#merchants">Merchants</a>
+          <a href="/support.html">Support</a>
+          <a href="/privacy.html">Privacy</a>
+        </nav>
 
-      <div class="hero-stats">
-        <div class="stat">
-          <div class="stat-label">Dispatch</div>
-          <div class="stat-value">Live</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Driver Status</div>
-          <div class="stat-value">Online + GPS</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Backend</div>
-          <div class="stat-value">Supabase</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Operations</div>
-          <div class="stat-value">Admin Active</div>
+        <div class="cta-row">
+          <a class="btn btn-secondary" href="/driver-signup.html">Driver Signup</a>
+          <a class="btn btn-primary" href="/request-ride.html">Request Ride</a>
         </div>
       </div>
-    </section>
+    </header>
 
-    <section class="main-grid">
-      <div class="panel">
-        <h2>Main Access</h2>
-        <p>
-          Launch rider and driver flows, request rides, and open live tracking from the main platform entry points.
-        </p>
+    <main>
+      <section class="hero">
+        <div class="wrap hero-grid">
+          <div class="hero-panel glass">
+            <div class="eyebrow">
+              <span class="eyebrow-dot"></span>
+              Smart Mobility Platform
+            </div>
 
-        <div class="action-grid">
-          <a class="action-card" href="/rider-signup.html">
-            <div class="action-icon">👤</div>
-            <div class="action-title">Rider Sign Up</div>
-            <div class="action-text">Create rider accounts and route users into the ride request system.</div>
-          </a>
+            <h1>
+              One platform for
+              <span class="accent">riders, drivers, and merchants.</span>
+            </h1>
 
-          <a class="action-card" href="/driver-signup.html">
-            <div class="action-icon">🚘</div>
-            <div class="action-title">Driver Sign Up</div>
-            <div class="action-text">Register new drivers and expand fleet operations.</div>
-          </a>
+            <p class="lead">
+              Harvey Taxi brings premium local transportation, delivery access, and growth opportunities together in one connected system built for speed, trust, and modern mobility.
+            </p>
 
-          <a class="action-card" href="/request-ride.html">
-            <div class="action-icon">📍</div>
-            <div class="action-title">Request Ride</div>
-            <div class="action-text">Create a new live ride request and push it into dispatch.</div>
-          </a>
+            <div class="hero-actions">
+              <a class="btn btn-primary" href="/request-ride.html">Book a Ride</a>
+              <a class="btn btn-secondary" href="/driver-signup.html">Drive with Harvey</a>
+              <a class="btn btn-ghost" href="/grocery.html">Merchant Access</a>
+            </div>
 
-          <a class="action-card" href="/rider-live-vehicle.html">
-            <div class="action-icon">🗺️</div>
-            <div class="action-title">Live Vehicle</div>
-            <div class="action-text">Track ride progress, ETA, and assigned driver movement.</div>
-          </a>
+            <div class="mini-stats">
+              <div class="mini-stat">
+                <strong>Verified</strong>
+                <span>Rider and driver identity flow built for trust and safety.</span>
+              </div>
+              <div class="mini-stat">
+                <strong>Connected</strong>
+                <span>Live dispatch architecture for rides, drivers, and expanding merchant services.</span>
+              </div>
+              <div class="mini-stat">
+                <strong>Ready</strong>
+                <span>Built to scale from local service into a larger mobility network.</span>
+              </div>
+            </div>
+          </div>
 
-          <a class="action-card" href="/admin-live-dispatch.html">
-            <div class="action-icon">🧭</div>
-            <div class="action-title">Dispatch Map</div>
-            <div class="action-text">View live ride movement, fleet positions, and active ride assignments.</div>
-          </a>
+          <div class="hero-side">
+            <div class="system-card glass">
+              <div class="card-title">Live Platform Pulse</div>
+              <div class="signal-row">
+                <div class="signal-box">
+                  <strong id="statRides">128</strong>
+                  <span>Ride requests flowing through the system</span>
+                </div>
+                <div class="signal-box">
+                  <strong id="statDrivers">42</strong>
+                  <span>Drivers ready for opportunity</span>
+                </div>
+                <div class="signal-box">
+                  <strong id="statMerchants">18</strong>
+                  <span>Merchant expansion channels</span>
+                </div>
+                <div class="signal-box">
+                  <strong id="statFleet">24/7</strong>
+                  <span>Platform availability and dispatch readiness</span>
+                </div>
+              </div>
+            </div>
 
-          <a class="action-card" href="/admin-dispatch-console.html">
-            <div class="action-icon">🎛️</div>
-            <div class="action-title">Dispatch Console</div>
-            <div class="action-text">Assign drivers, reassign rides, cancel trips, and control ride status.</div>
-          </a>
+            <div class="status-card glass">
+              <div class="card-title">Network Activity</div>
+              <div class="status-feed">
+                <div class="feed-item">
+                  <div class="feed-left">
+                    <div class="feed-icon">🚕</div>
+                    <div class="feed-text">
+                      <strong>Ride access open</strong>
+                      <span>Fast booking path available for passengers</span>
+                    </div>
+                  </div>
+                  <span class="pill pill-green">Active</span>
+                </div>
+
+                <div class="feed-item">
+                  <div class="feed-left">
+                    <div class="feed-icon">💼</div>
+                    <div class="feed-text">
+                      <strong>Driver earnings path</strong>
+                      <span>Signup and trip flow designed for flexible work</span>
+                    </div>
+                  </div>
+                  <span class="pill pill-blue">Open</span>
+                </div>
+
+                <div class="feed-item">
+                  <div class="feed-left">
+                    <div class="feed-icon">🛍️</div>
+                    <div class="feed-text">
+                      <strong>Merchant growth channel</strong>
+                      <span>Delivery and local visibility expansion in progress</span>
+                    </div>
+                  </div>
+                  <span class="pill pill-blue">Growing</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="scan-card glass">
+              <div class="card-title">Mobility Signal</div>
+              <div class="scan-ring">
+                <strong>HARVEY</strong>
+              </div>
+              <div class="scan-copy">
+                Built to connect real transportation demand, real earning power, and real local business growth in one elevated experience.
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
 
-      <div class="panel">
-        <h2>Payments & Access</h2>
-        <p>
-          Quick links for payments, donations, support, and internal dispatch visibility.
-        </p>
-
-        <div class="stack">
-          <a class="stack-link" href="https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00" target="_blank">
+      <section id="ride">
+        <div class="wrap">
+          <div class="section-head">
             <div>
-              <strong>Harvey Taxi Payment Link</strong>
-              <span>Accept direct platform payments</span>
+              <h2>Built for the people moving through the city.</h2>
+              <p>
+                Whether someone needs a fast pickup, a flexible income stream, or a smarter way to reach customers, Harvey Taxi creates a cleaner entry point with stronger trust and clearer action.
+              </p>
             </div>
-            <div>→</div>
-          </a>
+          </div>
 
-          <a class="stack-link" href="https://buy.stripe.com/fZufZigi8g5V4k9gdi0Fi00" target="_blank">
-            <div>
-              <strong>Foundation Donation Link</strong>
-              <span>Support transportation assistance initiatives</span>
-            </div>
-            <div>→</div>
-          </a>
+          <div class="audience-grid">
+            <article class="audience-card glass rider-theme">
+              <div>
+                <div class="audience-icon">🚖</div>
+                <h3>Passengers</h3>
+                <p>
+                  Easy ride requests, safer onboarding, and clear trip visibility designed to make booking feel quick, premium, and reliable.
+                </p>
 
-          <a class="stack-link" href="/support.html">
-            <div>
-              <strong>Support Center</strong>
-              <span>Open support and AI assistance</span>
-            </div>
-            <div>→</div>
-          </a>
+                <div class="feature-list">
+                  <div class="feature-item"><span class="tick">✓</span> Fast local ride access</div>
+                  <div class="feature-item"><span class="tick">✓</span> Verified trip environment</div>
+                  <div class="feature-item"><span class="tick">✓</span> Cleaner booking flow</div>
+                  <div class="feature-item"><span class="tick">✓</span> Live vehicle experience</div>
+                </div>
+              </div>
 
-          <a class="stack-link" href="/admin-gps.html">
-            <div>
-              <strong>Admin GPS Tracker</strong>
-              <span>View internal fleet location monitoring</span>
-            </div>
-            <div>→</div>
-          </a>
+              <div class="audience-footer">
+                <a class="btn btn-primary" href="/request-ride.html">Request a Ride</a>
+              </div>
+            </article>
+
+            <article id="drive" class="audience-card glass driver-theme">
+              <div>
+                <div class="audience-icon">🧑🏾‍✈️</div>
+                <h3>Drivers</h3>
+                <p>
+                  Join a platform built around opportunity, dispatch visibility, and a stronger long-term earning path with modern tools behind the scenes.
+                </p>
+
+                <div class="feature-list">
+                  <div class="feature-item"><span class="tick">✓</span> Driver onboarding flow</div>
+                  <div class="feature-item"><span class="tick">✓</span> Smart dispatch structure</div>
+                  <div class="feature-item"><span class="tick">✓</span> Wallet and ride management</div>
+                  <div class="feature-item"><span class="tick">✓</span> Platform built to scale</div>
+                </div>
+              </div>
+
+              <div class="audience-footer">
+                <a class="btn btn-secondary" href="/driver-signup.html">Start Driving</a>
+              </div>
+            </article>
+
+            <article id="merchants" class="audience-card glass merchant-theme">
+              <div>
+                <div class="audience-icon">🏪</div>
+                <h3>Merchants</h3>
+                <p>
+                  Restaurants, grocery stores, and local businesses can plug into a delivery-driven growth path that helps expand reach and customer access.
+                </p>
+
+                <div class="feature-list">
+                  <div class="feature-item"><span class="tick">✓</span> Merchant delivery channel</div>
+                  <div class="feature-item"><span class="tick">✓</span> Local customer access</div>
+                  <div class="feature-item"><span class="tick">✓</span> Marketplace expansion</div>
+                  <div class="feature-item"><span class="tick">✓</span> Growth-ready positioning</div>
+                </div>
+              </div>
+
+              <div class="audience-footer">
+                <a class="btn btn-secondary" href="/food.html">Join as Merchant</a>
+              </div>
+            </article>
+          </div>
         </div>
+      </section>
 
-        <div class="ops-panel">
-          <h3>Operations</h3>
-          <p>
-            Access internal controls for dispatch, live ride oversight, and platform management.
-          </p>
+      <section>
+        <div class="wrap">
+          <div class="section-head">
+            <div>
+              <h2>Why Harvey stands out.</h2>
+              <p>
+                The platform is built to feel stronger than a basic taxi site. It brings together identity, dispatch, tracking, and expansion into one premium operating layer.
+              </p>
+            </div>
+          </div>
 
-          <div class="ops-buttons">
-            <a class="ops-btn" href="/admin-login.html">Admin Login</a>
-            <a class="ops-btn" href="/admin-live-dispatch.html">Dispatch Dashboard</a>
-            <a class="ops-btn" href="/admin-dispatch-console.html">Dispatch Console</a>
-            <a class="ops-btn" href="/admin-gps.html">Fleet GPS</a>
+          <div class="feature-grid">
+            <div class="feature-card glass">
+              <div class="feature-icon">🛡️</div>
+              <h3>Identity First</h3>
+              <p>
+                A verified ride environment helps create trust from signup to trip flow for both passengers and drivers.
+              </p>
+            </div>
+
+            <div class="feature-card glass">
+              <div class="feature-icon">⚡</div>
+              <h3>Smart Dispatch</h3>
+              <p>
+                The platform is being built around cleaner ride assignment, live status updates, and scalable fleet logic.
+              </p>
+            </div>
+
+            <div class="feature-card glass">
+              <div class="feature-icon">📍</div>
+              <h3>Clear Ride Visibility</h3>
+              <p>
+                Riders, drivers, and admins get stronger visibility into activity without cluttering the experience.
+              </p>
+            </div>
+
+            <div class="feature-card glass">
+              <div class="feature-icon">💬</div>
+              <h3>Connected Support</h3>
+              <p>
+                Communication and support pathways are positioned to create a more responsive service experience.
+              </p>
+            </div>
+
+            <div class="feature-card glass">
+              <div class="feature-icon">🚘</div>
+              <h3>Future Fleet Ready</h3>
+              <p>
+                The architecture is being shaped for a mixed-fleet future with room to expand how transportation is delivered.
+              </p>
+            </div>
+
+            <div class="feature-card glass">
+              <div class="feature-icon">📈</div>
+              <h3>Business Expansion</h3>
+              <p>
+                Harvey Taxi is designed to move beyond basic rides and open up larger opportunities across local mobility and merchant services.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="wrap">
+          <div class="stats-grid">
+            <div class="stat-card glass">
+              <strong>3-in-1</strong>
+              <span>Passenger, driver, and merchant growth paths on one branded platform.</span>
+            </div>
+            <div class="stat-card glass">
+              <strong>24/7</strong>
+              <span>Always-on digital access point for ride requests and business visibility.</span>
+            </div>
+            <div class="stat-card glass">
+              <strong>Local+</strong>
+              <span>Built for local strength first with room for broader service expansion.</span>
+            </div>
+            <div class="stat-card glass">
+              <strong>Next</strong>
+              <span>Positioned as a modern mobility experience instead of a basic taxi page.</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="wrap market-grid">
+          <div class="market-panel glass">
+            <div class="section-head" style="margin-bottom: 0;">
+              <div>
+                <h2>More than rides.</h2>
+                <p>
+                  Harvey Taxi can become a larger neighborhood engine for transportation and commerce by connecting local demand to local supply.
+                </p>
+              </div>
+            </div>
+
+            <div class="market-tiles">
+              <div class="market-tile">
+                <strong>Restaurant Delivery</strong>
+                <span>Give local food businesses another lane to reach customers and grow repeat demand.</span>
+              </div>
+              <div class="market-tile">
+                <strong>Grocery Access</strong>
+                <span>Support convenience-driven ordering and local fulfillment through an expanding platform model.</span>
+              </div>
+              <div class="market-tile">
+                <strong>Business Visibility</strong>
+                <span>Help merchants appear inside a stronger transportation and delivery ecosystem.</span>
+              </div>
+              <div class="market-tile">
+                <strong>Local Reach</strong>
+                <span>Build a city-facing brand that keeps movement, access, and opportunity connected.</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="trust-panel glass">
+            <div class="section-head" style="margin-bottom: 0;">
+              <div>
+                <h2>Trust and control matter.</h2>
+                <p>
+                  The strongest platforms feel modern, but they also feel safe, organized, and real.
+                </p>
+              </div>
+            </div>
+
+            <div class="trust-list">
+              <div class="trust-item">
+                <div class="tick">✓</div>
+                <div>
+                  <strong>Verified onboarding path</strong>
+                  <span>Cleaner identity and approval flow for a stronger service standard.</span>
+                </div>
+              </div>
+              <div class="trust-item">
+                <div class="tick">✓</div>
+                <div>
+                  <strong>Operational visibility</strong>
+                  <span>Dispatch and admin layers create more control than a simple booking page.</span>
+                </div>
+              </div>
+              <div class="trust-item">
+                <div class="tick">✓</div>
+                <div>
+                  <strong>Growth-ready structure</strong>
+                  <span>The system supports a larger long-term vision for local transportation and delivery.</span>
+                </div>
+              </div>
+              <div class="trust-item">
+                <div class="tick">✓</div>
+                <div>
+                  <strong>Premium digital presence</strong>
+                  <span>The experience is meant to feel elevated from the first touchpoint.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="wrap">
+          <div class="action-panel glass">
+            <h2>Move with Harvey.</h2>
+            <p>
+              Whether you want a ride, want to earn, or want to grow your business, Harvey Taxi creates one sharp, connected entry point designed to keep people moving forward.
+            </p>
+
+            <div class="hero-actions" style="justify-content:center;">
+              <a class="btn btn-primary" href="/request-ride.html">Request Ride</a>
+              <a class="btn btn-secondary" href="/driver-signup.html">Become a Driver</a>
+              <a class="btn btn-secondary" href="/food.html">Merchant Access</a>
+              <a class="btn btn-ghost" href="/pay.html">Payment Link</a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        <div class="footer-card glass">
+          <div>
+            <strong style="display:block; color:white; margin-bottom:6px;">Harvey Taxi</strong>
+            <span>Premium mobility, delivery access, and local growth in one connected platform.</span>
+          </div>
+
+          <div class="footer-links">
+            <a href="/request-ride.html">Ride</a>
+            <a href="/driver-signup.html">Drive</a>
+            <a href="/food.html">Merchants</a>
+            <a href="/support.html">Support</a>
+            <a href="/privacy.html">Privacy</a>
+            <a href="/admin-login.html">Admin</a>
           </div>
         </div>
       </div>
-    </section>
-
-    <div class="footer">
-      Harvey Taxi Platform
-    </div>
+    </footer>
   </div>
+
+  <script>
+    const counters = [
+      { id: 'statRides', target: 128, suffix: '' },
+      { id: 'statDrivers', target: 42, suffix: '' },
+      { id: 'statMerchants', target: 18, suffix: '' }
+    ]
+
+    counters.forEach(counter => {
+      const el = document.getElementById(counter.id)
+      let current = 0
+      const step = Math.max(1, Math.ceil(counter.target / 40))
+
+      const timer = setInterval(() => {
+        current += step
+        if (current >= counter.target) {
+          current = counter.target
+          clearInterval(timer)
+        }
+        el.textContent = current + counter.suffix
+      }, 35)
+    })
+  </script>
 </body>
 </html>
