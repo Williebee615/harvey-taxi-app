@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
 <title>Harvey Taxi • Ride Chat</title>
 
 <style>
@@ -50,17 +49,115 @@ box-shadow:0 12px 28px rgba(0,0,0,.28)
 
 .meta{
 color:#c7d8ff;
-line-height:1.6
+line-height:1.7
+}
+
+.indicator-wrap{
+display:grid;
+grid-template-columns:1fr;
+gap:14px
+}
+
+.indicator-top{
+display:flex;
+justify-content:space-between;
+align-items:center;
+gap:12px;
+flex-wrap:wrap
+}
+
+.live-pill{
+display:inline-flex;
+align-items:center;
+gap:8px;
+padding:10px 14px;
+border-radius:999px;
+background:rgba(255,255,255,.08);
+color:#dce6ff;
+font-weight:700;
+font-size:14px
+}
+
+.live-dot{
+width:10px;
+height:10px;
+border-radius:50%;
+background:#2cff88;
+box-shadow:0 0 12px #2cff88
+}
+
+.vehicle-badge{
+padding:10px 14px;
+border-radius:999px;
+background:linear-gradient(90deg,#2d6cff,#8a2eff);
+font-weight:700;
+font-size:14px
+}
+
+.progress-panel{
+background:#04112f;
+border-radius:18px;
+padding:16px;
+border:1px solid rgba(255,255,255,.06)
+}
+
+.stage-row{
+display:grid;
+grid-template-columns:repeat(4,1fr);
+gap:10px;
+margin-bottom:12px
+}
+
+.stage{
+background:#0b2156;
+border-radius:14px;
+padding:10px;
+text-align:center;
+font-size:13px;
+color:#9fb7ff;
+border:1px solid transparent
+}
+
+.stage.active{
+color:white;
+border-color:rgba(120,170,255,.5);
+box-shadow:0 0 18px rgba(77,107,255,.18)
+}
+
+.bar{
+width:100%;
+height:12px;
+border-radius:999px;
+background:#0a1b48;
+overflow:hidden;
+margin-bottom:10px
+}
+
+.fill{
+height:100%;
+width:0%;
+background:linear-gradient(90deg,#2d6cff,#8a2eff);
+transition:width .4s ease
+}
+
+.status-line{
+display:flex;
+justify-content:space-between;
+gap:10px;
+flex-wrap:wrap;
+font-size:14px;
+color:#c8d8ff
 }
 
 .chat-box{
 background:#04112f;
-border-radius:16px;
+border-radius:18px;
 min-height:420px;
 max-height:520px;
 overflow-y:auto;
 padding:14px;
-margin-bottom:14px
+margin-bottom:14px;
+border:1px solid rgba(255,255,255,.06)
 }
 
 .bubble{
@@ -68,7 +165,8 @@ padding:12px 14px;
 border-radius:16px;
 margin-bottom:10px;
 max-width:80%;
-word-wrap:break-word
+word-wrap:break-word;
+line-height:1.5
 }
 
 .bubble.rider{
@@ -90,7 +188,7 @@ background:#2a3e68
 .bubble small{
 display:block;
 margin-top:6px;
-opacity:.7;
+opacity:.72;
 font-size:12px
 }
 
@@ -118,7 +216,8 @@ padding:14px;
 background:#051335;
 color:white;
 min-height:110px;
-margin-bottom:10px
+margin-bottom:10px;
+resize:vertical
 }
 
 .send{
@@ -131,8 +230,23 @@ color:white;
 font-weight:800
 }
 
+.note{
+font-size:13px;
+color:#9fb7ff;
+margin-top:6px
+}
+
+@media(max-width:760px){
+.stage-row{
+grid-template-columns:1fr 1fr
+}
+}
+
 @media(max-width:640px){
 .quick-grid{
+grid-template-columns:1fr
+}
+.stage-row{
 grid-template-columns:1fr
 }
 }
@@ -144,125 +258,233 @@ grid-template-columns:1fr
 <a href="/" class="back">← Return Home</a>
 
 <div class="title">Ride Chat</div>
-<div class="sub">Chat with your driver in real-time</div>
+<div class="sub">Chat with your driver and watch your ride progress live.</div>
 
 <div class="card">
-<div id="rideMeta" class="meta">Loading ride...</div>
+  <div class="indicator-wrap">
+    <div class="indicator-top">
+      <div class="live-pill">
+        <span class="live-dot"></span>
+        <span id="liveState">Live ride monitoring</span>
+      </div>
+      <div class="vehicle-badge" id="vehicleBadge">Vehicle Pending</div>
+    </div>
+
+    <div class="progress-panel">
+      <div class="stage-row">
+        <div class="stage" id="stage-searching">Searching</div>
+        <div class="stage" id="stage-assigned">Assigned</div>
+        <div class="stage" id="stage-on_trip">On Trip</div>
+        <div class="stage" id="stage-completed">Completed</div>
+      </div>
+
+      <div class="bar">
+        <div class="fill" id="progressFill"></div>
+      </div>
+
+      <div class="status-line">
+        <div><b>Status:</b> <span id="rideStatus">Loading...</span></div>
+        <div><b>Vehicle:</b> <span id="rideVehicle">Pending</span></div>
+        <div><b>Availability:</b> <span id="rideAvailability">Checking...</span></div>
+      </div>
+
+      <div class="note" id="rideStatusNote">Waiting for ride data...</div>
+    </div>
+  </div>
 </div>
 
 <div class="card">
-
-<div class="quick-grid">
-<button class="quick-btn" onclick="quick('I am at the pickup spot now')">I'm here</button>
-<button class="quick-btn" onclick="quick('I am at the other entrance')">Other entrance</button>
-<button class="quick-btn" onclick="quick('What is your ETA?')">ETA?</button>
-<button class="quick-btn" onclick="quick('I am wearing a red shirt')">What I'm wearing</button>
+  <div class="meta" id="rideMeta">Loading ride...</div>
 </div>
 
-<div id="chatBox" class="chat-box">
-No messages yet
-</div>
+<div class="card">
+  <div class="quick-grid">
+    <button class="quick-btn" onclick="quick('I am at the pickup spot now')">I'm here</button>
+    <button class="quick-btn" onclick="quick('I am at the other entrance')">Other entrance</button>
+    <button class="quick-btn" onclick="quick('What is your ETA?')">ETA?</button>
+    <button class="quick-btn" onclick="quick('I am wearing a red shirt')">What I'm wearing</button>
+  </div>
 
-<textarea id="msg" placeholder="Type message..."></textarea>
+  <div id="chatBox" class="chat-box">No messages yet</div>
 
-<button class="send" onclick="send()">Send Message</button>
-
+  <textarea id="msg" placeholder="Type message..."></textarea>
+  <button class="send" onclick="send()">Send Message</button>
 </div>
 
 <script>
-
 function rideId(){
-return localStorage.getItem("activeRideId") || ""
+  return localStorage.getItem("activeRideId") || ""
 }
 
 async function api(url,options={}){
-const res=await fetch(url,options)
-return res.json()
+  const res = await fetch(url,options)
+  const data = await res.json().catch(()=>({}))
+  if(!res.ok) throw new Error(data.error || data.message || "Request failed")
+  return data
 }
 
 function time(t){
-return new Date(t).toLocaleString()
+  return new Date(t).toLocaleString()
+}
+
+function clearStages(){
+  ["searching","assigned","on_trip","completed"].forEach(id=>{
+    const el = document.getElementById("stage-" + id)
+    if(el) el.classList.remove("active")
+  })
+}
+
+function updateProgress(status, vehicleObj){
+  const fill = document.getElementById("progressFill")
+  const state = document.getElementById("liveState")
+  const vehicleBadge = document.getElementById("vehicleBadge")
+  const rideStatus = document.getElementById("rideStatus")
+  const rideVehicle = document.getElementById("rideVehicle")
+  const rideAvailability = document.getElementById("rideAvailability")
+  const rideStatusNote = document.getElementById("rideStatusNote")
+
+  clearStages()
+
+  let width = "0%"
+  let note = "Looking for an available vehicle."
+  let activeStage = "searching"
+
+  if(status === "searching"){
+    width = "15%"
+    note = "Harvey Taxi is searching for an available vehicle."
+    activeStage = "searching"
+  } else if(status === "assigned"){
+    width = "45%"
+    note = "Your vehicle has been assigned and is preparing for pickup."
+    activeStage = "assigned"
+  } else if(status === "on_trip" || status === "in_progress"){
+    width = "75%"
+    note = "Your ride is currently in progress."
+    activeStage = "on_trip"
+  } else if(status === "completed"){
+    width = "100%"
+    note = "This ride has been completed."
+    activeStage = "completed"
+  } else {
+    width = "25%"
+    note = "Ride status is updating."
+    activeStage = "assigned"
+  }
+
+  document.getElementById("stage-" + activeStage).classList.add("active")
+  fill.style.width = width
+  state.innerText = "Live ride monitoring"
+  rideStatus.innerText = status || "Pending"
+  rideVehicle.innerText =
+    vehicleObj?.name ||
+    vehicleObj?.vehicle ||
+    vehicleObj?.id ||
+    "Pending"
+
+  rideAvailability.innerText =
+    vehicleObj
+      ? (vehicleObj.available ? "Available" : "Busy")
+      : "Pending"
+
+  vehicleBadge.innerText =
+    vehicleObj?.name ||
+    vehicleObj?.vehicle ||
+    "Vehicle Pending"
+
+  rideStatusNote.innerText = note
 }
 
 async function loadRide(){
+  const id = rideId()
+  if(!id){
+    document.getElementById("rideMeta").innerHTML = "No active ride"
+    return
+  }
 
-const rides=await api("/api/rides")
+  const rides = await api("/api/rides")
+  const vehicles = await api("/api/vehicles")
+  const ride = rides.find(r=>String(r.id) === String(id))
 
-const ride=rides.find(r=>String(r.id)===rideId())
+  if(!ride){
+    document.getElementById("rideMeta").innerHTML = "No active ride found."
+    return
+  }
 
-if(!ride){
-document.getElementById("rideMeta").innerHTML="No active ride"
-return
-}
+  const vehicleObj =
+    vehicles.find(v=>String(v.id) === String(ride.vehicleId)) ||
+    vehicles.find(v=>String(v.id) === String(ride.vehicle)) ||
+    null
 
-document.getElementById("rideMeta").innerHTML=`
-<b>Ride:</b> ${ride.id}<br>
-<b>Pickup:</b> ${ride.pickup}<br>
-<b>Dropoff:</b> ${ride.dropoff}<br>
-<b>Status:</b> ${ride.status}
-`
+  document.getElementById("rideMeta").innerHTML = `
+    <b>Ride:</b> ${ride.id}<br>
+    <b>Pickup:</b> ${ride.pickup || ""}<br>
+    <b>Dropoff:</b> ${ride.dropoff || ""}<br>
+    <b>Status:</b> ${ride.status || ""}<br>
+    <b>Driver/Vehicle:</b> ${
+      vehicleObj?.name ||
+      vehicleObj?.vehicle ||
+      ride.driverName ||
+      ride.vehicleId ||
+      ride.vehicle ||
+      "Pending"
+    }
+  `
+
+  updateProgress(ride.status, vehicleObj)
 }
 
 async function loadMessages(){
+  const id = rideId()
+  if(!id) return
 
-const id=rideId()
+  const msgs = await api("/api/messages/" + id)
 
-if(!id) return
+  if(!msgs.length){
+    document.getElementById("chatBox").innerHTML = "No messages yet"
+    return
+  }
 
-const msgs=await api("/api/messages/"+id)
+  document.getElementById("chatBox").innerHTML =
+    msgs.map(m=>`
+      <div class="bubble ${m.from || "system"}">
+        <b>${m.from || "system"}</b><br>
+        ${m.text || ""}
+        <small>${time(m.time)}</small>
+      </div>
+    `).join("")
 
-if(!msgs.length){
-document.getElementById("chatBox").innerHTML="No messages yet"
-return
-}
-
-document.getElementById("chatBox").innerHTML=
-
-msgs.map(m=>`
-<div class="bubble ${m.from}">
-<b>${m.from}</b><br>
-${m.text}
-<small>${time(m.time)}</small>
-</div>
-`).join("")
-
-document.getElementById("chatBox").scrollTop=999999
-
+  document.getElementById("chatBox").scrollTop = 999999
 }
 
 async function send(){
+  const text = document.getElementById("msg").value.trim()
+  if(!text) return
 
-const text=document.getElementById("msg").value.trim()
+  await api("/api/send-message",{
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body:JSON.stringify({
+      rideId: rideId(),
+      from: "rider",
+      to: "driver",
+      text
+    })
+  })
 
-if(!text) return
-
-await api("/api/send-message",{
-method:"POST",
-headers:{ "Content-Type":"application/json" },
-body:JSON.stringify({
-rideId:rideId(),
-from:"rider",
-to:"driver",
-text
-})
-})
-
-document.getElementById("msg").value=""
-
-loadMessages()
+  document.getElementById("msg").value = ""
+  loadMessages()
 }
 
 function quick(t){
-document.getElementById("msg").value=t
-send()
+  document.getElementById("msg").value = t
+  send()
 }
 
 loadRide()
 loadMessages()
 
-setInterval(loadRide,5000)
-setInterval(loadMessages,2000)
-
+setInterval(loadRide, 4000)
+setInterval(loadMessages, 2000)
 </script>
 
 </body>
