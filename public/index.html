@@ -1,384 +1,181 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Harvey Taxi</title>
-  <style>
-    * {
-      box-sizing: border-box;
-      font-family: Arial, Helvetica, sans-serif;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Harvey Taxi</title>
 
-    body {
-      margin: 0;
-      min-height: 100vh;
-      background:
-        radial-gradient(circle at top, rgba(67, 97, 255, 0.18), transparent 35%),
-        linear-gradient(180deg, #020817 0%, #03163d 100%);
-      color: white;
-      padding: 20px;
-    }
+<style>
+body{
+margin:0;
+font-family:Arial, Helvetica, sans-serif;
+background:#020817;
+color:white;
+}
 
-    .wrap {
-      max-width: 1200px;
-      margin: 0 auto;
-    }
+.container{
+padding:20px;
+max-width:1000px;
+margin:auto;
+}
 
-    .hero {
-      background: rgba(8, 24, 68, 0.92);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 30px;
-      padding: 28px 22px;
-      box-shadow: 0 18px 40px rgba(0,0,0,0.28);
-      margin-bottom: 18px;
-      overflow: hidden;
-      position: relative;
-    }
+.header{
+font-size:28px;
+font-weight:800;
+margin-bottom:10px;
+}
 
-    .hero::after {
-      content: "";
-      position: absolute;
-      right: -60px;
-      top: -60px;
-      width: 220px;
-      height: 220px;
-      background: radial-gradient(circle, rgba(129, 77, 255, 0.22), transparent 65%);
-      pointer-events: none;
-    }
+.sub{
+color:#a8c1ff;
+margin-bottom:25px;
+line-height:1.5;
+}
 
-    .brand {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      padding: 8px 14px;
-      border-radius: 999px;
-      background: rgba(27, 49, 111, 0.85);
-      color: #d8e5ff;
-      font-weight: 700;
-      margin-bottom: 14px;
-    }
+.grid{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:15px;
+}
 
-    .title {
-      font-size: 2.5rem;
-      font-weight: 900;
-      line-height: 1.1;
-      margin-bottom: 10px;
-    }
+.card{
+background:#071a4d;
+padding:20px;
+border-radius:18px;
+text-decoration:none;
+color:white;
+display:block;
+}
 
-    .subtitle {
-      font-size: 1.05rem;
-      color: #c5d6ff;
-      line-height: 1.7;
-      max-width: 760px;
-      margin-bottom: 18px;
-    }
+.card:hover{
+background:#0b256b;
+}
 
-    .hero-stats {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 12px;
-      margin-top: 10px;
-    }
+.icon{
+font-size:28px;
+margin-bottom:10px;
+}
 
-    .stat {
-      background: rgba(10, 28, 73, 0.95);
-      border: 1px solid rgba(255,255,255,0.06);
-      border-radius: 18px;
-      padding: 14px;
-    }
+.title{
+font-size:18px;
+font-weight:700;
+margin-bottom:5px;
+}
 
-    .stat-label {
-      color: #95b0ef;
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: .08em;
-      margin-bottom: 6px;
-    }
+.desc{
+color:#a8c1ff;
+font-size:14px;
+}
 
-    .stat-value {
-      font-size: 1.15rem;
-      font-weight: 800;
-    }
+.admin{
+margin-top:25px;
+background:#140a33;
+padding:20px;
+border-radius:18px;
+}
 
-    .grid {
-      display: grid;
-      grid-template-columns: 1.1fr .9fr;
-      gap: 18px;
-      margin-bottom: 18px;
-    }
+.adminTitle{
+font-size:18px;
+font-weight:700;
+margin-bottom:10px;
+}
 
-    .card {
-      background: rgba(8, 24, 68, 0.95);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 26px;
-      padding: 20px;
-      box-shadow: 0 14px 32px rgba(0,0,0,0.24);
-    }
+.btn{
+display:block;
+background:#2d6cff;
+padding:12px;
+border-radius:10px;
+text-align:center;
+margin-top:10px;
+text-decoration:none;
+color:white;
+font-weight:600;
+}
 
-    .card h2 {
-      margin: 0 0 8px;
-      font-size: 1.4rem;
-    }
+.footer{
+margin-top:25px;
+color:#6c8ed9;
+font-size:13px;
+text-align:center;
+}
 
-    .card p {
-      margin: 0;
-      color: #c2d4ff;
-      line-height: 1.6;
-    }
-
-    .action-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 14px;
-      margin-top: 18px;
-    }
-
-    .action {
-      display: block;
-      text-decoration: none;
-      color: white;
-      background: linear-gradient(180deg, rgba(20,42,98,1) 0%, rgba(10,23,61,1) 100%);
-      border: 1px solid rgba(255,255,255,0.07);
-      border-radius: 22px;
-      padding: 18px;
-      min-height: 128px;
-      transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
-      box-shadow: 0 10px 24px rgba(0,0,0,0.2);
-    }
-
-    .action:hover {
-      transform: translateY(-2px);
-      border-color: rgba(120, 164, 255, 0.45);
-      box-shadow: 0 16px 32px rgba(0,0,0,0.28);
-    }
-
-    .action-icon {
-      font-size: 1.9rem;
-      margin-bottom: 10px;
-    }
-
-    .action-title {
-      font-size: 1.08rem;
-      font-weight: 800;
-      margin-bottom: 6px;
-    }
-
-    .action-text {
-      color: #c6d8ff;
-      line-height: 1.5;
-      font-size: 14px;
-    }
-
-    .quick-panel {
-      margin-top: 18px;
-      display: grid;
-      gap: 12px;
-    }
-
-    .quick-link {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      text-decoration: none;
-      color: white;
-      background: #091a48;
-      border: 1px solid rgba(255,255,255,0.06);
-      border-radius: 18px;
-      padding: 14px 16px;
-    }
-
-    .quick-link span {
-      color: #c8d8ff;
-      font-size: 14px;
-    }
-
-    .admin-card {
-      margin-top: 18px;
-      background: linear-gradient(180deg, rgba(52,19,103,0.95) 0%, rgba(21,10,46,0.96) 100%);
-      border: 1px solid rgba(202, 160, 255, 0.18);
-      border-radius: 24px;
-      padding: 20px;
-    }
-
-    .admin-card h3 {
-      margin: 0 0 8px;
-      font-size: 1.25rem;
-    }
-
-    .admin-card p {
-      margin: 0 0 14px;
-      color: #dfd1ff;
-      line-height: 1.6;
-    }
-
-    .admin-actions {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-
-    .admin-btn {
-      display: block;
-      text-decoration: none;
-      text-align: center;
-      color: white;
-      font-weight: 800;
-      padding: 14px;
-      border-radius: 16px;
-      background: linear-gradient(90deg, #5d2dff, #2d6cff);
-      border: 1px solid rgba(255,255,255,0.08);
-    }
-
-    .footer {
-      text-align: center;
-      color: #91a8db;
-      font-size: 14px;
-      padding: 8px 0 20px;
-    }
-
-    @media (max-width: 900px) {
-      .grid {
-        grid-template-columns: 1fr;
-      }
-
-      .hero-stats {
-        grid-template-columns: 1fr 1fr;
-      }
-    }
-
-    @media (max-width: 640px) {
-      .title {
-        font-size: 2rem;
-      }
-
-      .hero-stats,
-      .action-grid,
-      .admin-actions {
-        grid-template-columns: 1fr;
-      }
-
-      .action {
-        min-height: auto;
-      }
-    }
-  </style>
+@media(max-width:700px){
+.grid{
+grid-template-columns:1fr;
+}
+}
+</style>
 </head>
+
 <body>
-  <div class="wrap">
-    <section class="hero">
-      <div class="brand">🚕 Harvey Taxi</div>
-      <div class="title">Your AV-ready ride platform is live.</div>
-      <div class="subtitle">
-        Harvey Taxi combines rider onboarding, driver onboarding, request-ride flow,
-        live dispatch architecture, support tools, and real-time vehicle tracking into one growing mobility platform.
-      </div>
 
-      <div class="hero-stats">
-        <div class="stat">
-          <div class="stat-label">Platform Mode</div>
-          <div class="stat-value">Phase 2 Dispatch</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Driver System</div>
-          <div class="stat-value">Online + GPS</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Rider Tracking</div>
-          <div class="stat-value">Live Vehicle</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Backend</div>
-          <div class="stat-value">Supabase Live</div>
-        </div>
-      </div>
-    </section>
+<div class="container">
 
-    <section class="grid">
-      <div class="card">
-        <h2>Core Rider & Driver Actions</h2>
-        <p>
-          Use these links to onboard users, request rides, track vehicles, and route traffic into your live Harvey Taxi system.
-        </p>
+<div class="header">
+Harvey Taxi
+</div>
 
-        <div class="action-grid">
-          <a class="action" href="/rider-signup.html">
-            <div class="action-icon">🧍</div>
-            <div class="action-title">Rider Sign Up</div>
-            <div class="action-text">Register riders and prepare them to request live Harvey Taxi trips.</div>
-          </a>
+<div class="sub">
+Ride request, driver dispatch, and live vehicle tracking platform.
+</div>
 
-          <a class="action" href="/driver-signup.html">
-            <div class="action-icon">🛞</div>
-            <div class="action-title">Driver Sign Up</div>
-            <div class="action-text">Create new driver accounts and expand your active fleet pipeline.</div>
-          </a>
+<div class="grid">
 
-          <a class="action" href="/request-ride.html">
-            <div class="action-icon">📍</div>
-            <div class="action-title">Request Ride</div>
-            <div class="action-text">Launch a new ride request into your live dispatch system.</div>
-          </a>
+<a href="/rider-signup.html" class="card">
+<div class="icon">👤</div>
+<div class="title">Rider Sign Up</div>
+<div class="desc">Create rider accounts</div>
+</a>
 
-          <a class="action" href="/rider-live-vehicle.html">
-            <div class="action-icon">🗺️</div>
-            <div class="action-title">Live Vehicle Map</div>
-            <div class="action-text">Track active rides, ETA, assignment status, and real-time driver movement.</div>
-          </a>
-        </div>
-      </div>
+<a href="/driver-signup.html" class="card">
+<div class="icon">🚗</div>
+<div class="title">Driver Sign Up</div>
+<div class="desc">Register drivers to fleet</div>
+</a>
 
-      <div class="card">
-        <h2>Quick Access</h2>
-        <p>
-          Jump into live operations, dispatch visibility, admin monitoring, payments, and community support links.
-        </p>
+<a href="/request-ride.html" class="card">
+<div class="icon">📍</div>
+<div class="title">Request Ride</div>
+<div class="desc">Create a new ride request</div>
+</a>
 
-        <div class="quick-panel">
-          <a class="quick-link" href="/admin-live-dispatch.html">
-            <strong>Admin Live Dispatch</strong>
-            <span>Monitor drivers and rides →</span>
-          </a>
+<a href="/rider-live-vehicle.html" class="card">
+<div class="icon">🗺️</div>
+<div class="title">Live Vehicle</div>
+<div class="desc">Track assigned driver</div>
+</a>
 
-          <a class="quick-link" href="/admin-gps.html">
-            <strong>Admin GPS Tracker</strong>
-            <span>View raw fleet locations →</span>
-          </a>
+<a href="/admin-live-dispatch.html" class="card">
+<div class="icon">🧭</div>
+<div class="title">Dispatch Map</div>
+<div class="desc">Live driver dispatch view</div>
+</a>
 
-          <a class="quick-link" href="/support.html">
-            <strong>Support Center</strong>
-            <span>Open support and AI help →</span>
-          </a>
+<a href="/support.html" class="card">
+<div class="icon">💬</div>
+<div class="title">Support</div>
+<div class="desc">Help and assistance</div>
+</a>
 
-          <a class="quick-link" href="https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00" target="_blank">
-            <strong>Harvey Taxi Payment Link</strong>
-            <span>Accept direct payments →</span>
-          </a>
+</div>
 
-          <a class="quick-link" href="https://buy.stripe.com/fZufZigi8g5V4k9gdi0Fi00" target="_blank">
-            <strong>Foundation Donation Link</strong>
-            <span>Support the nonprofit mission →</span>
-          </a>
-        </div>
+<div class="admin">
+<div class="adminTitle">Admin</div>
 
-        <div class="admin-card">
-          <h3>Operations Command</h3>
-          <p>
-            Launch your dispatch and fleet side here. This area is designed for internal Harvey Taxi operations and platform growth.
-          </p>
+<a class="btn" href="/admin-login.html">
+Admin Login
+</a>
 
-          <div class="admin-actions">
-            <a class="admin-btn" href="/admin-login.html">Admin Login</a>
-            <a class="admin-btn" href="/admin-live-dispatch.html">Open Dispatch Map</a>
-          </div>
-        </div>
-      </div>
-    </section>
+<a class="btn" href="/admin-live-dispatch.html">
+Open Dispatch Dashboard
+</a>
 
-    <div class="footer">
-      Harvey Taxi • Phase 2 Dispatch • Nashville-first mobility platform
-    </div>
-  </div>
+</div>
+
+<div class="footer">
+Harvey Taxi Platform
+</div>
+
+</div>
+
 </body>
 </html>
