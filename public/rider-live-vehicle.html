@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Harvey Taxi • Live Vehicle</title>
+  <title>Harvey Taxi • Live Vehicle Map</title>
   <style>
     * {
       box-sizing: border-box;
@@ -56,9 +56,10 @@
     }
 
     .value {
-      font-size: 1.05rem;
+      font-size: 1.02rem;
       font-weight: 700;
       margin-bottom: 10px;
+      word-break: break-word;
     }
 
     .big-status {
@@ -103,28 +104,35 @@
       border: 1px solid rgba(255,255,255,0.06);
     }
 
-    .car-box {
+    .map-box {
+      width: 100%;
+      height: 360px;
+      border-radius: 22px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: #07122f;
+      margin-bottom: 16px;
+      position: relative;
+    }
+
+    .map-box iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    .map-empty {
+      position: absolute;
+      inset: 0;
       display: flex;
       align-items: center;
       justify-content: center;
-      min-height: 180px;
-      border-radius: 22px;
-      background: radial-gradient(circle at center, rgba(53,100,255,0.25), rgba(4,12,34,0.9));
-      border: 1px solid rgba(255,255,255,0.06);
-      margin-bottom: 16px;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .car-icon {
-      font-size: 4rem;
-      animation: floatCar 1.8s ease-in-out infinite;
-    }
-
-    @keyframes floatCar {
-      0% { transform: translateY(0px); }
-      50% { transform: translateY(-6px); }
-      100% { transform: translateY(0px); }
+      color: #bdd1ff;
+      font-weight: 700;
+      padding: 20px;
+      text-align: center;
+      line-height: 1.6;
+      background: radial-gradient(circle at center, rgba(53,100,255,0.18), rgba(4,12,34,0.94));
     }
 
     .pill {
@@ -197,16 +205,20 @@
       .big-status {
         font-size: 1.5rem;
       }
+
+      .map-box {
+        height: 300px;
+      }
     }
   </style>
 </head>
 <body>
   <a class="back" href="/">← Back to Home</a>
 
-  <div class="title">Live Vehicle Status</div>
+  <div class="title">Live Vehicle Map</div>
   <div class="sub">
-    Track your Harvey Taxi ride status in real time. Enter your ride ID to view driver progress,
-    ETA, and assignment updates.
+    Track your Harvey Taxi ride in real time. Enter your ride ID to view live assignment,
+    ETA, driver progress, and map position.
   </div>
 
   <div class="card">
@@ -215,19 +227,22 @@
       <input id="rideIdInput" type="text" placeholder="Example: ride_ab12cd34" />
       <button onclick="loadRideStatus()">Track Ride</button>
       <div id="formMessage" class="muted" style="margin-top:10px;">
-        You can paste the ride ID returned after requesting a ride.
+        Paste the ride ID returned after requesting your ride.
       </div>
     </div>
   </div>
 
   <div class="card">
-    <div class="car-box">
-      <div class="car-icon">🚕</div>
+    <div class="map-box" id="mapBox">
+      <div class="map-empty" id="mapEmpty">
+        No live vehicle coordinates loaded yet.
+      </div>
+      <iframe id="mapFrame" style="display:none;" loading="lazy"></iframe>
     </div>
 
     <div class="big-status" id="bigStatus">Waiting for ride lookup</div>
     <div class="status-text" id="statusText">
-      Enter your ride ID above to load your live vehicle status.
+      Enter your ride ID above to load your live ride status.
     </div>
 
     <div class="progress-wrap">
@@ -271,13 +286,6 @@
     </div>
   </div>
 
-  <div class="card">
-    <div class="label">Auto Refresh</div>
-    <div class="muted">
-      This page refreshes automatically every 5 seconds after a ride is loaded.
-    </div>
-  </div>
-
   <script>
     let activeRideId = null
     let refreshTimer = null
@@ -306,6 +314,47 @@
       return d.toLocaleString()
     }
 
+    function updateMap(data) {
+      const mapFrame = document.getElementById("mapFrame")
+      const mapEmpty = document.getElementById("mapEmpty")
+
+      const hasDriver =
+        typeof data.driverLat === "number" &&
+        typeof data.driverLng === "number"
+
+      const hasPickup =
+        typeof data.pickupLat === "number" &&
+        typeof data.pickupLng === "number"
+
+      if (!hasDriver) {
+        mapFrame.style.display = "none"
+        mapEmpty.style.display = "flex"
+        mapEmpty.textContent = "Driver map will appear once live vehicle coordinates are available."
+        return
+      }
+
+      let minLon = data.driverLng
+      let maxLon = data.driverLng
+      let minLat = data.driverLat
+      let maxLat = data.driverLat
+
+      if (hasPickup) {
+        minLon = Math.min(minLon, data.pickupLng)
+        maxLon = Math.max(maxLon, data.pickupLng)
+        minLat = Math.min(minLat, data.pickupLat)
+        maxLat = Math.max(maxLat, data.pickupLat)
+      }
+
+      const pad = 0.01
+      const bbox = `${minLon - pad},${minLat - pad},${maxLon + pad},${maxLat + pad}`
+
+      let src = `https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(bbox)}&layer=mapnik&marker=${encodeURIComponent(`${data.driverLat},${data.driverLng}`)}`
+
+      mapFrame.src = src
+      mapFrame.style.display = "block"
+      mapEmpty.style.display = "none"
+    }
+
     function updateUi(data) {
       document.getElementById("rideIdValue").textContent = data.rideId || "—"
       document.getElementById("rideStatusValue").textContent = data.status || "—"
@@ -319,11 +368,13 @@
       document.getElementById("bigStatus").textContent = data.liveLabel || "Ride updating"
       document.getElementById("statusText").textContent =
         data.driverName
-          ? `Your driver is ${data.driverName}. Current ride status: ${data.status || "updating"}.`
+          ? `Your driver is ${data.driverName}. Ride status: ${data.status || "updating"}.`
           : `Your ride is currently ${data.status || "updating"}.`
 
       document.getElementById("statusPill").textContent = data.status || "updating"
       document.getElementById("progressBar").style.width = `${data.progress ?? 0}%`
+
+      updateMap(data)
     }
 
     async function fetchRideStatus(rideId) {
@@ -346,11 +397,11 @@
       }
 
       try {
-        setMessage("Loading ride status...", "muted")
+        setMessage("Loading live map...", "muted")
         const data = await fetchRideStatus(rideId)
         activeRideId = rideId
         updateUi(data)
-        setMessage("Ride status loaded successfully.", "success")
+        setMessage("Ride loaded successfully.", "success")
         startAutoRefresh()
       } catch (err) {
         setMessage(err.message, "error")
@@ -369,16 +420,13 @@
     }
 
     function startAutoRefresh() {
-      if (refreshTimer) {
-        clearInterval(refreshTimer)
-      }
+      if (refreshTimer) clearInterval(refreshTimer)
 
       refreshTimer = setInterval(() => {
         refreshActiveRide()
       }, 5000)
     }
 
-    // Optional: auto-load ride ID from URL like ?rideId=ride_123
     const params = new URLSearchParams(window.location.search)
     const urlRideId = params.get("rideId")
     if (urlRideId) {
