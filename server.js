@@ -284,7 +284,787 @@ function generateAiSupportReply(ticket, latestMessage) {
   return {
     reply: "Thanks for contacting Harvey Taxi support. I’ve received your message and opened a support ticket. Please reply with any extra details so I can help or escalate this if needed.",
     escalate: false,
-    status:    status: "open",
+    status: "open",
+    category: "general"
+  }
+}
+
+function createSupportMessage({ ticketId, rideId, from, to, text, senderType }) {
+  return {
+    id: uid("msg"),
+    ticketId: ticketId || null,
+    rideId: rideId || null,
+    from: from || "system",
+    to: to || "user",
+    text: text || "",
+    time: nowIso(),
+    senderType: senderType || "human"
+  }
+}
+
+function saveMessage(message) {
+  const messages = readJson(MESSAGES_FILE)
+  messages.push(message)
+  writeJson(MESSAGES_FILE, messages)
+  return message
+}
+
+function getTicketMessages(ticketId) {
+  const messages = readJson(MESSAGES_FILE)
+  return messages.filter(m => String(m.ticketId) === String(ticketId))
+}
+
+function maybeCreateAiReply(ticket, latestMessage) {
+  const tickets = readJson(SUPPORT_TICKETS_FILE)
+  const savedTicket = tickets.find(t => t.id === ticket.id)
+  if (!savedTicket) return null
+
+  const aiResult = generateAiSupportReply(savedTicket, latestMessage)
+
+  savedTicket.category = aiResult.category
+  savedTicket.status = aiResult.status
+  savedTicket.escalated = aiResult.escalate
+  savedTicket.lastUpdatedAt = nowIso()
+
+  if (aiResult.escalate) {
+    savedTicket.escalatedAt = nowIso()
+  }
+
+  writeJson(SUPPORT_TICKETS_FILE, tickets)
+
+  const aiMessage = createSupportMessage({
+    ticketId: savedTicket.id,
+    rideId: savedTicket.rideId,
+    from: "ai_support",
+    to: savedTicket.requesterType || "user",
+    text: aiResult.reply,
+    senderType: "ai"
+  })
+
+  saveMessage(aiMessage)
+  return aiMessage
+}
+
+/* ----------------------------------
+   ROOT + STATUS
+---------------------------------- */
+
+app.get("/", (req, res) => {
+  const indexPath = path.join(__dirname, "public", "index.html")
+
+  if (fs.existsSync(indexPath)) {
+    return res.sendFile(indexPath)
+  }
+
+  res.send("Harvey Taxi API running")
+})
+
+app.get("/api/status", (req, res) => {
+  res.json({
+    success: true,
+    system: "Harvey Taxi Persona + Checkr + AI Support + Driver Status",
+    time: nowIso()
+  })
+})
+
+/* ----------------------------------
+   ADMIN LOGIN
+---------------------------------- */
+
+app.post("/api/admin-login", (req, res) => {
+  const email = req.body.email || ""
+  const password = req.body.password || ""
+
+  if (email === "admin@harveytaxi.com" && password === "admin123") {
+    return res.json({
+      success: true,
+      user: {
+        email,
+        role: "admin"
+      }
+    })
+  }
+
+  return res.status(401).json({
+    success: false,
+    message: "Invalid login"
+  })
+})
+
+/* ----------------------------------
+   RIDER SIGNUP -> PERSONA
+---------------------------------- */
+
+app.post("/api/rider-signup", async (req, res) => {
+  const riders = readJson(RIDERS_FILE)
+
+  const rider = {
+    id: uid("rider"),
+    name: req.body.name || "",
+    email: req.body.email || "",
+    phone: req.body.phone || "",
+    city: req.body.city || "",
+    personaInquiryId: null,
+    personaLink: null,
+    personaStatus: "pending",
+    approved: false,
+    createdAt: nowIso()
+  }
+
+  riders.push(rider)
+  writeJson(RIDERS_FILE, riders)
+
+  try {
+    if (!PERSONA_API_KEY || !PERSONA_RIDER_TEMPLATE_ID) {
+      return res.json({
+        success: true,
+        rider,
+        message: "Rider saved, but Persona rider template/key is missing."
+      })
+    }
+
+    const inquiry = await createPersonaInquiry(PERSONA_RIDER_TEMPLATE_ID, rider.id)
+
+    rider.personaInquiryId = inquiry.id
+    rider.personaLink = inquiry.attributes?.inquiry_url || null
+    writeJson(RIDERS_FILE, riders)
+
+    res.json({
+      success: true,
+      rider,
+      verifyUrl: rider.personaLink
+    })
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.response?.data || error.message
+    })
+  }
+})
+
+/* ----------------------------------
+   DRIVER SIGNUP -> PERSONA
+---------------------------------- */
+
+app.post("/api/driver-signup", async (req, res) => {
+  const vehicles = readJson(VEHICLES_FILE)
+
+  const driver = {
+    id: uid("driver"),
+    firstName: req.body.firstName || "",
+    lastName: req.body.lastName || "",
+    name: req.body.name || `${req.body.firstName || ""} ${req.body.lastName || ""}`.trim(),
+    email: req.body.email || "",
+    phone: req.body.phone || "",
+    vehicle: req.body.vehicle || "",
+    plate: req.body.plate || "",
+    city: req.body.city || "",
+    type: req.body.type || "human",
+    personaInquiryId: null,
+    personaLink: null,
+    personaStatus: "pending",
+    checkrCandidateId: null,
+    checkrInvitationId: null,
+    checkrInvitationUrl: null,
+    checkrStatus: "pending",
+    approved: false,
+    available: false,
+    status: "pending_verification",
+    battery: 100,
+    zone: "default",
+    remoteAssist: false,
+    takeoverMode: false,
+    safetyState: "normal",
+    createdAt: nowIso()
+  }
+
+  vehicles.push(driver)
+  writeJson(VEHICLES_FILE, vehicles)
+
+  try {
+    if (!PERSONA_API_KEY || !PERSONA_DRIVER_TEMPLATE_ID) {
+      return res.json({
+        success: true,
+        driver,
+        message: "Driver saved, but Persona driver template/key is missing."
+      })
+    }
+
+    const inquiry = await createPersonaInquiry(PERSONA_DRIVER_TEMPLATE_ID, driver.id)
+
+    driver.personaInquiryId = inquiry.id
+    driver.personaLink = inquiry.attributes?.inquiry_url || null
+    writeJson(VEHICLES_FILE, vehicles)
+
+    res.json({
+      success: true,
+      driver,
+      verifyUrl: driver.personaLink
+    })
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.response?.data || error.message
+    })
+  }
+})
+
+/* ----------------------------------
+   PERSONA WEBHOOK
+---------------------------------- */
+
+app.post("/webhook/persona", async (req, res) => {
+  try {
+    const rawBody = req.body.toString("utf8")
+    const payload = JSON.parse(rawBody)
+
+    const eventName = payload.data?.attributes?.name || payload.type || ""
+    const inquiry = payload.data?.attributes?.payload?.data || payload.data?.attributes?.payload || payload.data || {}
+    const inquiryAttributes = inquiry.attributes || {}
+    const referenceId = inquiryAttributes.reference_id
+
+    if (!referenceId) {
+      return res.sendStatus(200)
+    }
+
+    const riders = readJson(RIDERS_FILE)
+    const rider = riders.find(r => r.id === referenceId)
+
+    if (rider) {
+      if (eventName.includes("completed")) {
+        rider.personaStatus = "completed"
+        rider.approved = true
+      } else if (eventName.includes("failed")) {
+        rider.personaStatus = "failed"
+        rider.approved = false
+      } else if (eventName.includes("created")) {
+        rider.personaStatus = "created"
+      }
+
+      writeJson(RIDERS_FILE, riders)
+      return res.sendStatus(200)
+    }
+
+    const vehicles = readJson(VEHICLES_FILE)
+    const driver = vehicles.find(v => v.id === referenceId)
+
+    if (driver) {
+      if (eventName.includes("created")) {
+        driver.personaStatus = "created"
+      }
+
+      if (eventName.includes("failed")) {
+        driver.personaStatus = "failed"
+        driver.status = "persona_failed"
+        driver.available = false
+      }
+
+      if (eventName.includes("completed")) {
+        driver.personaStatus = "completed"
+        driver.status = "persona_verified"
+
+        if (CHECKR_API_KEY) {
+          try {
+            const checkrData = await createCheckrCandidateAndInvitation(driver)
+
+            driver.checkrCandidateId = checkrData.candidate.id
+            driver.checkrInvitationId = checkrData.invitation.id
+            driver.checkrInvitationUrl = checkrData.invitation.invitation_url || null
+            driver.checkrStatus = checkrData.invitation.status || "created"
+            driver.status = "checkr_started"
+          } catch (checkrError) {
+            driver.checkrStatus = "error"
+            driver.status = "checkr_error"
+          }
+        }
+      }
+
+      writeJson(VEHICLES_FILE, vehicles)
+      return res.sendStatus(200)
+    }
+
+    return res.sendStatus(200)
+  } catch (error) {
+    return res.sendStatus(200)
+  }
+})
+
+/* ----------------------------------
+   CHECKR WEBHOOK
+---------------------------------- */
+
+app.post("/webhook/checkr", (req, res) => {
+  try {
+    const rawBody = req.body.toString("utf8")
+    const payload = JSON.parse(rawBody)
+
+    const vehicles = readJson(VEHICLES_FILE)
+    const data = payload.data || {}
+    const attributes = data.attributes || {}
+    const objectId = data.id || null
+    const eventType = payload.type || ""
+
+    let driver = vehicles.find(v =>
+      v.checkrInvitationId === objectId ||
+      v.checkrCandidateId === objectId
+    )
+
+    if (!driver && attributes.candidate_id) {
+      driver = vehicles.find(v => v.checkrCandidateId === attributes.candidate_id)
+    }
+
+    if (!driver) {
+      return res.sendStatus(200)
+    }
+
+    if (eventType.includes("invitation.created")) {
+      driver.checkrStatus = "invitation_created"
+      if (attributes.invitation_url) {
+        driver.checkrInvitationUrl = attributes.invitation_url
+      }
+    }
+
+    if (eventType.includes("invitation.completed")) {
+      driver.checkrStatus = "invitation_completed"
+      driver.status = "checkr_processing"
+    }
+
+    if (eventType.includes("report.created")) {
+      driver.checkrStatus = "report_created"
+      driver.status = "checkr_processing"
+    }
+
+    if (eventType.includes("report.completed")) {
+      driver.checkrStatus = "clear"
+      driver.approved = true
+      driver.available = true
+      driver.status = "online"
+    }
+
+    writeJson(VEHICLES_FILE, vehicles)
+    return res.sendStatus(200)
+  } catch (error) {
+    return res.sendStatus(200)
+  }
+})
+
+/* ----------------------------------
+   GET DATA
+---------------------------------- */
+
+app.get("/api/riders", (req, res) => {
+  res.json(readJson(RIDERS_FILE))
+})
+
+app.get("/api/drivers", (req, res) => {
+  res.json(readJson(VEHICLES_FILE))
+})
+
+app.get("/api/vehicles", (req, res) => {
+  res.json(readJson(VEHICLES_FILE))
+})
+
+app.get("/api/rides", (req, res) => {
+  res.json(readJson(RIDES_FILE))
+})
+
+/* ----------------------------------
+   REQUEST RIDE
+---------------------------------- */
+
+app.post("/api/request-ride", (req, res) => {
+  const rides = readJson(RIDES_FILE)
+  const vehicles = readJson(VEHICLES_FILE)
+
+  const availableVehicle = vehicles.find(v => v.approved === true && v.available === true)
+
+  const ride = {
+    id: uid("ride"),
+    rider: req.body.name || "",
+    phone: req.body.phone || "",
+    pickup: req.body.pickup || "",
+    dropoff: req.body.dropoff || "",
+    vehicleId: availableVehicle ? availableVehicle.id : null,
+    driverName: availableVehicle ? (availableVehicle.name || availableVehicle.vehicle || "Assigned Driver") : null,
+    status: availableVehicle ? "assigned" : "searching",
+    createdAt: nowIso()
+  }
+
+  if (availableVehicle) {
+    availableVehicle.available = false
+    availableVehicle.status = "assigned"
+    writeJson(VEHICLES_FILE, vehicles)
+  }
+
+  rides.push(ride)
+  writeJson(RIDES_FILE, rides)
+
+  res.json({
+    success: true,
+    ride
+  })
+})
+
+/* ----------------------------------
+   DRIVER LIVE STATUS CONTROLS
+---------------------------------- */
+
+app.post("/api/driver/update-ride-status", (req, res) => {
+  const { rideId, driverId, status } = req.body
+
+  const allowed = ["assigned", "on_trip", "completed", "cancelled"]
+  if (!allowed.includes(status)) {
+    return res.status(400).json({
+      success: false,
+      error: "Invalid status"
+    })
+  }
+
+  const rides = readJson(RIDES_FILE)
+  const vehicles = readJson(VEHICLES_FILE)
+
+  const ride = rides.find(r => String(r.id) === String(rideId))
+  if (!ride) {
+    return res.status(404).json({
+      success: false,
+      error: "Ride not found"
+    })
+  }
+
+  const vehicle = vehicles.find(v => String(v.id) === String(driverId || ride.vehicleId))
+  if (!vehicle) {
+    return res.status(404).json({
+      success: false,
+      error: "Driver vehicle not found"
+    })
+  }
+
+  ride.status = status
+  ride.updatedAt = nowIso()
+
+  if (status === "assigned") {
+    ride.vehicleId = vehicle.id
+    ride.driverName = vehicle.name || vehicle.vehicle || "Assigned Driver"
+    vehicle.status = "assigned"
+    vehicle.available = false
+  }
+
+  if (status === "on_trip") {
+    ride.vehicleId = vehicle.id
+    ride.driverName = vehicle.name || vehicle.vehicle || "Assigned Driver"
+    vehicle.status = "on_trip"
+    vehicle.available = false
+  }
+
+  if (status === "completed") {
+    vehicle.status = "online"
+    vehicle.available = true
+    ride.completedAt = nowIso()
+  }
+
+  if (status === "cancelled") {
+    vehicle.status = "online"
+    vehicle.available = true
+  }
+
+  writeJson(RIDES_FILE, rides)
+  writeJson(VEHICLES_FILE, vehicles)
+
+  res.json({
+    success: true,
+    ride,
+    vehicle
+  })
+})
+
+app.get("/api/driver/:id/assigned-rides", (req, res) => {
+  const rides = readJson(RIDES_FILE)
+  const driverId = req.params.id
+
+  const assigned = rides.filter(r =>
+    String(r.vehicleId) === String(driverId) &&
+    ["assigned", "on_trip"].includes(String(r.status))
+  )
+
+  res.json(assigned)
+})
+
+app.post("/api/driver/claim-ride", (req, res) => {
+  const { rideId, driverId } = req.body
+
+  const rides = readJson(RIDES_FILE)
+  const vehicles = readJson(VEHICLES_FILE)
+
+  const ride = rides.find(r => String(r.id) === String(rideId))
+  if (!ride) {
+    return res.status(404).json({ success: false, error: "Ride not found" })
+  }
+
+  const vehicle = vehicles.find(v => String(v.id) === String(driverId))
+  if (!vehicle) {
+    return res.status(404).json({ success: false, error: "Driver vehicle not found" })
+  }
+
+  ride.vehicleId = vehicle.id
+  ride.driverName = vehicle.name || vehicle.vehicle || "Assigned Driver"
+  ride.status = "assigned"
+  ride.updatedAt = nowIso()
+
+  vehicle.available = false
+  vehicle.status = "assigned"
+
+  writeJson(RIDES_FILE, rides)
+  writeJson(VEHICLES_FILE, vehicles)
+
+  res.json({
+    success: true,
+    ride,
+    vehicle
+  })
+})
+
+/* ----------------------------------
+   AI SUPPORT TICKETS
+---------------------------------- */
+
+app.post("/api/support/create-ticket", (req, res) => {
+  const tickets = readJson(SUPPORT_TICKETS_FILE)
+
+  const ticket = {
+    id: uid("ticket"),
+    rideId: req.body.rideId || null,
+    requesterId: req.body.requesterId || null,
+    requesterType: req.body.requesterType || "user",
+    subject: req.body.subject || "Support Request",
+    category: "general",
+    status: "open",
+    escalated: false,
+    createdAt: nowIso(),
+    lastUpdatedAt: nowIso()
+  }
+
+  tickets.push(ticket)
+  writeJson(SUPPORT_TICKETS_FILE, tickets)
+
+  res.json({
+    success: true,
+    ticket
+  })
+})
+
+app.get("/api/support/tickets", (req, res) => {
+  res.json(readJson(SUPPORT_TICKETS_FILE))
+})
+
+app.get("/api/support/ticket/:id", (req, res) => {
+  const tickets = readJson(SUPPORT_TICKETS_FILE)
+  const ticket = tickets.find(t => t.id === req.params.id)
+
+  if (!ticket) {
+    return res.status(404).json({ success: false, error: "Ticket not found" })
+  }
+
+  const messages = getTicketMessages(ticket.id)
+
+  res.json({
+    success: true,
+    ticket,
+    messages
+  })
+})
+
+app.post("/api/support/send-message", (req, res) => {
+  const tickets = readJson(SUPPORT_TICKETS_FILE)
+  let ticket = null
+
+  if (req.body.ticketId) {
+    ticket = tickets.find(t => t.id === req.body.ticketId)
+  }
+
+  if (!ticket) {
+    ticket = {
+      id: uid("ticket"),
+      rideId: req.body.rideId || null,
+      requesterId: req.body.requesterId || null,
+      requesterType: req.body.requesterType || "user",
+      subject: req.body.subject || "Support Request",
+      category: "general",
+      status: "open",
+      escalated: false,
+      createdAt: nowIso(),
+      lastUpdatedAt: nowIso()
+    }
+    tickets.push(ticket)
+    writeJson(SUPPORT_TICKETS_FILE, tickets)
+  }
+
+  const message = createSupportMessage({
+    ticketId: ticket.id,
+    rideId: req.body.rideId || ticket.rideId,
+    from: req.body.from || ticket.requesterType || "user",
+    to: req.body.to || "support",
+    text: req.body.text || "",
+    senderType: req.body.senderType || "human"
+  })
+
+  saveMessage(message)
+
+  ticket.lastUpdatedAt = nowIso()
+  writeJson(SUPPORT_TICKETS_FILE, tickets)
+
+  const aiMessage = maybeCreateAiReply(ticket, message)
+
+  res.json({
+    success: true,
+    ticket,
+    message,
+    aiReply: aiMessage
+  })
+})
+
+app.post("/api/support/ai-reply", (req, res) => {
+  const tickets = readJson(SUPPORT_TICKETS_FILE)
+  const ticket = tickets.find(t => t.id === req.body.ticketId)
+
+  if (!ticket) {
+    return res.status(404).json({ success: false, error: "Ticket not found" })
+  }
+
+  const messages = getTicketMessages(ticket.id)
+  const latestMessage = messages[messages.length - 1]
+
+  if (!latestMessage) {
+    return res.status(400).json({ success: false, error: "No messages found for ticket" })
+  }
+
+  const aiReply = maybeCreateAiReply(ticket, latestMessage)
+
+  res.json({
+    success: true,
+    ticket,
+    aiReply
+  })
+})
+
+app.post("/api/support/escalate", (req, res) => {
+  const tickets = readJson(SUPPORT_TICKETS_FILE)
+  const ticket = tickets.find(t => t.id === req.body.ticketId)
+
+  if (!ticket) {
+    return res.status(404).json({ success: false, error: "Ticket not found" })
+  }
+
+  ticket.escalated = true
+  ticket.status = "escalated"
+  ticket.lastUpdatedAt = nowIso()
+  ticket.escalatedAt = nowIso()
+  writeJson(SUPPORT_TICKETS_FILE, tickets)
+
+  const msg = createSupportMessage({
+    ticketId: ticket.id,
+    rideId: ticket.rideId,
+    from: "system",
+    to: "admin_support",
+    text: req.body.note || "Ticket escalated for manual review.",
+    senderType: "system"
+  })
+
+  saveMessage(msg)
+
+  res.json({
+    success: true,
+    ticket,
+    message: msg
+  })
+})
+
+/* ----------------------------------
+   CHAT MESSAGES
+---------------------------------- */
+
+app.post("/api/send-message", (req, res) => {
+  const message = createSupportMessage({
+    ticketId: req.body.ticketId || null,
+    rideId: req.body.rideId || "support",
+    from: req.body.from || "user",
+    to: req.body.to || "admin",
+    text: req.body.text || "",
+    senderType: req.body.senderType || "human"
+  })
+
+  saveMessage(message)
+
+  res.json({
+    success: true,
+    message
+  })
+})
+
+app.get("/api/messages/:rideId", (req, res) => {
+  const messages = readJson(MESSAGES_FILE)
+  const filtered = messages.filter(m => String(m.rideId) === String(req.params.rideId))
+  res.json(filtered)
+})
+
+/* ----------------------------------
+   AV / COMMANDS / MISSIONS
+---------------------------------- */
+
+app.get("/api/missions", (req, res) => {
+  res.json(readJson(MISSIONS_FILE))
+})
+
+app.get("/api/vehicle/:id/commands", (req, res) => {
+  const commands = readJson(COMMANDS_FILE)
+  res.json(commands.filter(c => c.vehicleId === req.params.id))
+})
+
+app.post("/api/vehicle/:id/command", (req, res) => {
+  const commands = readJson(COMMANDS_FILE)
+
+  const command = {
+    id: uid("cmd"),
+    vehicleId: req.params.id,
+    type: req.body.type || "",
+    data: req.body.data || {},
+    status: "queued",
+    createdAt: nowIso()
+  }
+
+  commands.push(command)
+  writeJson(COMMANDS_FILE, commands)
+
+  res.json({
+    success: true,
+    command
+  })
+})
+
+/* ----------------------------------
+   FALLBACK PAGE ROUTER
+---------------------------------- */
+
+app.get("/:page", (req, res) => {
+  const file = path.join(__dirname, "public", req.params.page)
+
+  if (fs.existsSync(file)) {
+    return res.sendFile(file)
+  }
+
+  if (fs.existsSync(file + ".html")) {
+    return res.sendFile(file + ".html")
+  }
+
+  return res.sendFile(path.join(__dirname, "public", "index.html"))
+})
+
+/* ----------------------------------
+   START
+---------------------------------- */
+
+app.listen(PORT, () => {
+  console.log(`Harvey Taxi server running on port ${PORT}`)
+})    status: "open",
     category: "general"
   }
 }
