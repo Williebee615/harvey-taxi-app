@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Harvey Taxi • Live Vehicle</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(180deg, #020817 0%, #03163d 100%);
+      color: white;
+      padding: 20px;
+    }
+
+    .back {
+      display: inline-block;
+      margin-bottom: 18px;
+      color: #d6e2ff;
+      text-decoration: none;
+      font-size: 18px;
+    }
+
+    .title {
+      font-size: 2.2rem;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .sub {
+      color: #a9bff5;
+      line-height: 1.6;
+      margin-bottom: 18px;
+    }
+
+    .card {
+      background: rgba(8, 24, 68, 0.95);
+      border-radius: 24px;
+      padding: 18px;
+      margin-bottom: 16px;
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 0 12px 28px rgba(0,0,0,0.28);
+    }
+
+    .label {
+      color: #9db7ff;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 6px;
+    }
+
+    .value {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .big-status {
+      font-size: 1.8rem;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .status-text {
+      color: #d8e5ff;
+      line-height: 1.5;
+      margin-bottom: 14px;
+    }
+
+    .progress-wrap {
+      width: 100%;
+      height: 16px;
+      background: #0b1c49;
+      border-radius: 999px;
+      overflow: hidden;
+      margin-bottom: 10px;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #2d6cff, #8a2eff);
+      transition: width 0.4s ease;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .mini-card {
+      background: #091a48;
+      border-radius: 18px;
+      padding: 14px;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .car-box {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 180px;
+      border-radius: 22px;
+      background: radial-gradient(circle at center, rgba(53,100,255,0.25), rgba(4,12,34,0.9));
+      border: 1px solid rgba(255,255,255,0.06);
+      margin-bottom: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .car-icon {
+      font-size: 4rem;
+      animation: floatCar 1.8s ease-in-out infinite;
+    }
+
+    @keyframes floatCar {
+      0% { transform: translateY(0px); }
+      50% { transform: translateY(-6px); }
+      100% { transform: translateY(0px); }
+    }
+
+    .pill {
+      display: inline-block;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: #132c70;
+      color: #dce7ff;
+      font-weight: 700;
+      font-size: 14px;
+      margin-top: 6px;
+    }
+
+    .ride-id-box {
+      background: #07122f;
+      border-radius: 16px;
+      padding: 14px;
+      margin-bottom: 16px;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    input, button {
+      width: 100%;
+      border: none;
+      border-radius: 14px;
+      padding: 14px;
+      font-size: 16px;
+    }
+
+    input {
+      background: #051335;
+      color: white;
+      margin-bottom: 10px;
+    }
+
+    button {
+      background: linear-gradient(90deg, #2d6cff, #8a2eff);
+      color: white;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .muted {
+      color: #9fb2df;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .error {
+      color: #ffb4b4;
+      margin-top: 10px;
+      font-weight: 700;
+    }
+
+    .success {
+      color: #9ff7be;
+      margin-top: 10px;
+      font-weight: 700;
+    }
+
+    @media (max-width: 700px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .title {
+        font-size: 1.9rem;
+      }
+
+      .big-status {
+        font-size: 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a class="back" href="/">← Back to Home</a>
+
+  <div class="title">Live Vehicle Status</div>
+  <div class="sub">
+    Track your Harvey Taxi ride status in real time. Enter your ride ID to view driver progress,
+    ETA, and assignment updates.
+  </div>
+
+  <div class="card">
+    <div class="ride-id-box">
+      <div class="label">Enter Ride ID</div>
+      <input id="rideIdInput" type="text" placeholder="Example: ride_ab12cd34" />
+      <button onclick="loadRideStatus()">Track Ride</button>
+      <div id="formMessage" class="muted" style="margin-top:10px;">
+        You can paste the ride ID returned after requesting a ride.
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="car-box">
+      <div class="car-icon">🚕</div>
+    </div>
+
+    <div class="big-status" id="bigStatus">Waiting for ride lookup</div>
+    <div class="status-text" id="statusText">
+      Enter your ride ID above to load your live vehicle status.
+    </div>
+
+    <div class="progress-wrap">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+
+    <div class="pill" id="statusPill">No ride loaded</div>
+  </div>
+
+  <div class="grid">
+    <div class="mini-card">
+      <div class="label">Ride ID</div>
+      <div class="value" id="rideIdValue">—</div>
+
+      <div class="label">Ride Status</div>
+      <div class="value" id="rideStatusValue">—</div>
+    </div>
+
+    <div class="mini-card">
+      <div class="label">Driver</div>
+      <div class="value" id="driverNameValue">—</div>
+
+      <div class="label">ETA</div>
+      <div class="value" id="etaValue">—</div>
+    </div>
+
+    <div class="mini-card">
+      <div class="label">Dispatch Distance</div>
+      <div class="value" id="distanceValue">—</div>
+
+      <div class="label">Progress</div>
+      <div class="value" id="progressValue">0%</div>
+    </div>
+
+    <div class="mini-card">
+      <div class="label">Last GPS Update</div>
+      <div class="value" id="gpsValue">—</div>
+
+      <div class="label">Live Stage</div>
+      <div class="value" id="stageValue">—</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="label">Auto Refresh</div>
+    <div class="muted">
+      This page refreshes automatically every 5 seconds after a ride is loaded.
+    </div>
+  </div>
+
+  <script>
+    let activeRideId = null
+    let refreshTimer = null
+
+    function setMessage(text, type = "muted") {
+      const el = document.getElementById("formMessage")
+      el.className = type
+      el.textContent = text
+    }
+
+    function formatEta(eta) {
+      if (eta === null || eta === undefined) return "Calculating..."
+      if (eta === 0) return "Arrived / Complete"
+      return `${eta} min`
+    }
+
+    function formatDistance(distance) {
+      if (distance === null || distance === undefined) return "—"
+      return `${Number(distance).toFixed(2)} mi`
+    }
+
+    function formatTime(value) {
+      if (!value) return "—"
+      const d = new Date(value)
+      if (isNaN(d.getTime())) return value
+      return d.toLocaleString()
+    }
+
+    function updateUi(data) {
+      document.getElementById("rideIdValue").textContent = data.rideId || "—"
+      document.getElementById("rideStatusValue").textContent = data.status || "—"
+      document.getElementById("driverNameValue").textContent = data.driverName || "Pending"
+      document.getElementById("etaValue").textContent = formatEta(data.etaMinutes)
+      document.getElementById("distanceValue").textContent = formatDistance(data.dispatchDistanceMiles)
+      document.getElementById("progressValue").textContent = `${data.progress ?? 0}%`
+      document.getElementById("gpsValue").textContent = formatTime(data.lastGpsUpdate)
+      document.getElementById("stageValue").textContent = data.stage || "—"
+
+      document.getElementById("bigStatus").textContent = data.liveLabel || "Ride updating"
+      document.getElementById("statusText").textContent =
+        data.driverName
+          ? `Your driver is ${data.driverName}. Current ride status: ${data.status || "updating"}.`
+          : `Your ride is currently ${data.status || "updating"}.`
+
+      document.getElementById("statusPill").textContent = data.status || "updating"
+      document.getElementById("progressBar").style.width = `${data.progress ?? 0}%`
+    }
+
+    async function fetchRideStatus(rideId) {
+      const res = await fetch(`/api/ride/${encodeURIComponent(rideId)}/live-status`)
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || "Unable to load ride status")
+      }
+
+      return data
+    }
+
+    async function loadRideStatus() {
+      const rideId = document.getElementById("rideIdInput").value.trim()
+
+      if (!rideId) {
+        setMessage("Please enter a ride ID first.", "error")
+        return
+      }
+
+      try {
+        setMessage("Loading ride status...", "muted")
+        const data = await fetchRideStatus(rideId)
+        activeRideId = rideId
+        updateUi(data)
+        setMessage("Ride status loaded successfully.", "success")
+        startAutoRefresh()
+      } catch (err) {
+        setMessage(err.message, "error")
+      }
+    }
+
+    async function refreshActiveRide() {
+      if (!activeRideId) return
+
+      try {
+        const data = await fetchRideStatus(activeRideId)
+        updateUi(data)
+      } catch (err) {
+        setMessage(err.message, "error")
+      }
+    }
+
+    function startAutoRefresh() {
+      if (refreshTimer) {
+        clearInterval(refreshTimer)
+      }
+
+      refreshTimer = setInterval(() => {
+        refreshActiveRide()
+      }, 5000)
+    }
+
+    // Optional: auto-load ride ID from URL like ?rideId=ride_123
+    const params = new URLSearchParams(window.location.search)
+    const urlRideId = params.get("rideId")
+    if (urlRideId) {
+      document.getElementById("rideIdInput").value = urlRideId
+      loadRideStatus()
+    }
+  </script>
+</body>
+</html>
