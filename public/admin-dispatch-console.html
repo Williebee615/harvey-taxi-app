@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Harvey Taxi • Admin Dispatch Console</title>
+  <style>
+    * { box-sizing: border-box; font-family: Arial, Helvetica, sans-serif; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(180deg, #020817 0%, #03163d 100%);
+      color: white;
+      padding: 20px;
+    }
+    .back {
+      display: inline-block;
+      margin-bottom: 18px;
+      color: #d6e2ff;
+      text-decoration: none;
+      font-size: 18px;
+    }
+    .title {
+      font-size: 2.2rem;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+    .sub {
+      color: #abc0f4;
+      line-height: 1.6;
+      margin-bottom: 18px;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .card {
+      background: rgba(8, 24, 68, 0.95);
+      border-radius: 24px;
+      padding: 18px;
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 0 12px 28px rgba(0,0,0,0.28);
+    }
+    .card h2 {
+      margin-top: 0;
+      margin-bottom: 14px;
+    }
+    .scroll {
+      max-height: 60vh;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    .item {
+      background: #0b2156;
+      border-radius: 16px;
+      padding: 14px;
+      margin-bottom: 10px;
+      border: 1px solid rgba(255,255,255,0.05);
+      cursor: pointer;
+    }
+    .item.active {
+      border-color: rgba(124,164,255,0.75);
+      box-shadow: 0 0 18px rgba(68,115,255,0.18);
+    }
+    .item-title {
+      font-size: 1rem;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+    .item-meta {
+      color: #c7d8ff;
+      line-height: 1.55;
+      font-size: 14px;
+    }
+    .panel {
+      margin-top: 18px;
+      background: #091a48;
+      border-radius: 18px;
+      padding: 16px;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .label {
+      color: #9db7ff;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin-bottom: 6px;
+    }
+    .value {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+      word-break: break-word;
+    }
+    .btn-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    button {
+      border: none;
+      border-radius: 14px;
+      padding: 12px;
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+      background: linear-gradient(90deg, #2d6cff, #8a2eff);
+      color: white;
+    }
+    .status-btns {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 1fr;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .message {
+      margin-top: 14px;
+      color: #9ff7be;
+      font-weight: 700;
+      min-height: 20px;
+    }
+    .error {
+      color: #ffb4b4;
+    }
+    @media (max-width: 950px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+      .status-btns {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a class="back" href="/">← Back to Home</a>
+
+  <div class="title">Admin Dispatch Console</div>
+  <div class="sub">
+    Manually assign drivers, reassign rides, cancel trips, and control dispatch state.
+  </div>
+
+  <div class="layout">
+    <div class="card">
+      <h2>Rides</h2>
+      <div class="scroll" id="rideList"></div>
+    </div>
+
+    <div class="card">
+      <h2>Drivers</h2>
+      <div class="scroll" id="driverList"></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <h2>Dispatch Actions</h2>
+
+    <div class="panel">
+      <div class="label">Selected Ride</div>
+      <div class="value" id="selectedRideValue">None</div>
+
+      <div class="label">Selected Driver</div>
+      <div class="value" id="selectedDriverValue">None</div>
+
+      <div class="btn-grid">
+        <button onclick="assignDriver()">Assign Driver</button>
+        <button onclick="reassignDriver()">Reassign Driver</button>
+        <button onclick="cancelRide()">Cancel Ride</button>
+        <button onclick="setDriverOnlineAvailable()">Driver Available</button>
+      </div>
+
+      <div class="status-btns">
+        <button onclick="setRideStatus('searching')">Searching</button>
+        <button onclick="setRideStatus('assigned')">Assigned</button>
+        <button onclick="setRideStatus('on_trip')">On Trip</button>
+        <button onclick="setRideStatus('completed')">Completed</button>
+      </div>
+
+      <div class="message" id="messageBox"></div>
+    </div>
+  </div>
+
+  <script>
+    let rides = []
+    let drivers = []
+    let selectedRideId = null
+    let selectedDriverId = null
+
+    function setMessage(text, isError = false) {
+      const box = document.getElementById("messageBox")
+      box.textContent = text
+      box.className = isError ? "message error" : "message"
+    }
+
+    async function loadRides() {
+      const res = await fetch("/api/rides")
+      rides = await res.json()
+      renderRides()
+    }
+
+    async function loadDrivers() {
+      const res = await fetch("/api/drivers")
+      drivers = await res.json()
+      renderDrivers()
+    }
+
+    function renderRides() {
+      const list = document.getElementById("rideList")
+      list.innerHTML = ""
+
+      rides.forEach(ride => {
+        const div = document.createElement("div")
+        div.className = "item" + (selectedRideId === ride.id ? " active" : "")
+        div.innerHTML = `
+          <div class="item-title">${ride.id}</div>
+          <div class="item-meta">
+            Rider: ${ride.rider_name || "—"}<br>
+            Status: ${ride.status || "—"}<br>
+            Pickup: ${ride.pickup || "—"}<br>
+            Dropoff: ${ride.dropoff || "—"}<br>
+            Driver: ${ride.driver_id || "Unassigned"}
+          </div>
+        `
+        div.onclick = () => {
+          selectedRideId = ride.id
+          updateSelections()
+          renderRides()
+        }
+        list.appendChild(div)
+      })
+    }
+
+    function renderDrivers() {
+      const list = document.getElementById("driverList")
+      list.innerHTML = ""
+
+      drivers.forEach(driver => {
+        const div = document.createElement("div")
+        div.className = "item" + (selectedDriverId === driver.id ? " active" : "")
+        div.innerHTML = `
+          <div class="item-title">${driver.name || "Driver"}</div>
+          <div class="item-meta">
+            Status: ${driver.status || "—"}<br>
+            Online: ${driver.online ? "Yes" : "No"}<br>
+            Available: ${driver.available ? "Yes" : "No"}<br>
+            Vehicle: ${driver.vehicle || "—"}
+          </div>
+        `
+        div.onclick = () => {
+          selectedDriverId = driver.id
+          updateSelections()
+          renderDrivers()
+        }
+        list.appendChild(div)
+      })
+    }
+
+    function updateSelections() {
+      document.getElementById("selectedRideValue").textContent = selectedRideId || "None"
+      document.getElementById("selectedDriverValue").textContent = selectedDriverId || "None"
+    }
+
+    async function postJson(url, body) {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Request failed")
+      return data
+    }
+
+    async function assignDriver() {
+      try {
+        if (!selectedRideId || !selectedDriverId) {
+          return setMessage("Select both a ride and a driver first.", true)
+        }
+        await postJson("/api/admin/assign-driver", {
+          rideId: selectedRideId,
+          driverId: selectedDriverId
+        })
+        setMessage("Driver assigned successfully.")
+        await refreshAll()
+      } catch (err) {
+        setMessage(err.message, true)
+      }
+    }
+
+    async function reassignDriver() {
+      try {
+        if (!selectedRideId || !selectedDriverId) {
+          return setMessage("Select both a ride and a new driver first.", true)
+        }
+        await postJson("/api/admin/reassign-driver", {
+          rideId: selectedRideId,
+          newDriverId: selectedDriverId
+        })
+        setMessage("Ride reassigned successfully.")
+        await refreshAll()
+      } catch (err) {
+        setMessage(err.message, true)
+      }
+    }
+
+    async function cancelRide() {
+      try {
+        if (!selectedRideId) {
+          return setMessage("Select a ride first.", true)
+        }
+        await postJson("/api/admin/cancel-ride", {
+          rideId: selectedRideId
+        })
+        setMessage("Ride cancelled.")
+        await refreshAll()
+      } catch (err) {
+        setMessage(err.message, true)
+      }
+    }
+
+    async function setDriverOnlineAvailable() {
+      try {
+        if (!selectedDriverId) {
+          return setMessage("Select a driver first.", true)
+        }
+        await postJson("/api/admin/set-driver-availability", {
+          driverId: selectedDriverId,
+          available: true,
+          online: true,
+          status: "online"
+        })
+        setMessage("Driver marked available.")
+        await refreshAll()
+      } catch (err) {
+        setMessage(err.message, true)
+      }
+    }
+
+    async function setRideStatus(status) {
+      try {
+        if (!selectedRideId) {
+          return setMessage("Select a ride first.", true)
+        }
+        await postJson("/api/admin/set-ride-status", {
+          rideId: selectedRideId,
+          status
+        })
+        setMessage(`Ride set to ${status}.`)
+        await refreshAll()
+      } catch (err) {
+        setMessage(err.message, true)
+      }
+    }
+
+    async function refreshAll() {
+      await Promise.all([loadRides(), loadDrivers()])
+      updateSelections()
+    }
+
+    refreshAll()
+    setInterval(refreshAll, 5000)
+  </script>
+</body>
+</html>
