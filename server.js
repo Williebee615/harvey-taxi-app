@@ -1,4 +1,9 @@
-const express = require("express")
+const { createClient } = require("@supabase/supabase-js")
+
+const supabase = createClient(
+process.env.SUPABASE_URL,
+process.env.SUPABASE_ANON_KEY
+)const express = require("express")
 const cors = require("cors")
 const fs = require("fs")
 const path = require("path")
