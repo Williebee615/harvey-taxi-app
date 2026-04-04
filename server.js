@@ -70,6 +70,47 @@ function distanceMiles(lat1, lng1, lat2, lng2) {
   return R * c
 }
 
+/**
+ * Sanitizers
+ * These ensure frontend only sees addresses, never coordinates.
+ */
+function hideRideCoordinates(ride) {
+  if (!ride) return null
+  const copy = { ...ride }
+  delete copy.pickupLat
+  delete copy.pickupLng
+  delete copy.dropoffLat
+  delete copy.dropoffLng
+  return copy
+}
+
+function hideDispatchCoordinates(dispatch) {
+  if (!dispatch) return null
+  const copy = { ...dispatch }
+
+  if (copy.pickup) {
+    copy.pickup = {
+      address: copy.pickup.address
+    }
+  }
+
+  if (copy.dropoff) {
+    copy.dropoff = {
+      address: copy.dropoff.address
+    }
+  }
+
+  return copy
+}
+
+function sanitizeGpsRowsForFrontend(gpsRows) {
+  return gpsRows.map(row => ({
+    entityId: row.entityId,
+    updatedAt: row.updatedAt,
+    status: row.status || 'active'
+  }))
+}
+
 function getGpsMap() {
   const gpsRows = readJson(FILES.gps, [])
   const map = {}
@@ -101,6 +142,7 @@ function getVehicleLocation(vehicle, gpsMap) {
 
 function isVehicleEligible(vehicle) {
   if (!vehicle) return false
+
   if (vehicle.type === 'human') {
     return (
       vehicle.isApproved === true &&
@@ -246,7 +288,8 @@ function createDispatchOffer(ride, vehicle, attemptNumber) {
       assignedDriverId: null,
       fleetType: 'av',
       dispatchId: dispatch.id,
-      assignedAt: new Date().toISOString()
+      assignedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     }))
 
     addMission({
@@ -289,7 +332,7 @@ function createDispatchOffer(ride, vehicle, attemptNumber) {
 
     return {
       success: true,
-      dispatch,
+      dispatch: hideDispatchCoordinates(dispatch),
       autoAccepted: true
     }
   }
@@ -308,7 +351,8 @@ function createDispatchOffer(ride, vehicle, attemptNumber) {
     assignedDriverId: vehicle.driverId || null,
     fleetType: 'human',
     dispatchId: dispatch.id,
-    dispatchOfferedAt: new Date().toISOString()
+    dispatchOfferedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   }))
 
   addMessage({
@@ -321,7 +365,7 @@ function createDispatchOffer(ride, vehicle, attemptNumber) {
 
   return {
     success: true,
-    dispatch,
+    dispatch: hideDispatchCoordinates(dispatch),
     autoAccepted: false
   }
 }
@@ -329,15 +373,16 @@ function createDispatchOffer(ride, vehicle, attemptNumber) {
 function startDispatchFlow(rideId) {
   const rides = getAllRides()
   const ride = rides.find(r => r.id === rideId)
+
   if (!ride) {
     return { success: false, error: 'Ride not found.' }
   }
 
-  const dispatches = getAllDispatches().filter(d => d.rideId === rideId)
-  const excludedVehicleIds = dispatches.map(d => d.vehicleId)
+  const previousDispatches = getAllDispatches().filter(d => d.rideId === rideId)
+  const excludedVehicleIds = previousDispatches.map(d => d.vehicleId)
 
   const candidates = rankCandidatesForRide(ride).filter(
-    c => !excludedVehicleIds.includes(c.id)
+    candidate => !excludedVehicleIds.includes(candidate.id)
   )
 
   if (candidates.length === 0) {
@@ -359,14 +404,14 @@ function startDispatchFlow(rideId) {
   }
 
   const nextVehicle = candidates[0]
-  return createDispatchOffer(ride, nextVehicle, dispatches.length + 1)
+  return createDispatchOffer(ride, nextVehicle, previousDispatches.length + 1)
 }
 
 function failAndFallback(dispatchId, reason = 'timeout') {
   const dispatches = getAllDispatches()
   const dispatch = dispatches.find(d => d.id === dispatchId)
-  if (!dispatch) return
 
+  if (!dispatch) return
   if (dispatch.status !== 'offered') return
 
   updateDispatch(dispatch.id, d => ({
@@ -419,7 +464,9 @@ setInterval(() => {
   })
 }, 5000)
 
-/* ---------- ROOT ---------- */
+/**
+ * Routes
+ */
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/index.html'))
@@ -433,17 +480,22 @@ app.get('/:page', (req, res, next) => {
   next()
 })
 
-/* ---------- GPS ---------- */
-
+/**
+ * GPS routes
+ * Note: frontend gets sanitized GPS records only.
+ * Full coordinates remain internal on disk for dispatch logic.
+ */
 app.post('/api/gps/update', (req, res) => {
-  const { entityId, lat, lng, speed, heading } = req.body
+  const { entityId, lat, lng, speed, heading, status } = req.body
 
   if (!entityId || lat === undefined || lng === undefined) {
-    return res.status(400).json({ error: 'entityId, lat, and lng are required.' })
+    return res.status(400).json({
+      error: 'entityId, lat, and lng are required.'
+    })
   }
 
   const gpsRows = readJson(FILES.gps, [])
-  const index = gpsRows.findIndex(g => g.entityId === entityId)
+  const index = gpsRows.findIndex(row => row.entityId === entityId)
 
   const record = {
     entityId,
@@ -451,6 +503,7 @@ app.post('/api/gps/update', (req, res) => {
     lng: Number(lng),
     speed: Number(speed || 0),
     heading: Number(heading || 0),
+    status: status || 'active',
     updatedAt: new Date().toISOString()
   }
 
@@ -464,17 +517,22 @@ app.post('/api/gps/update', (req, res) => {
 
   res.json({
     success: true,
-    gps: record
+    gps: {
+      entityId: record.entityId,
+      updatedAt: record.updatedAt,
+      status: record.status
+    }
   })
 })
 
 app.get('/api/gps/all', (req, res) => {
   const gpsRows = readJson(FILES.gps, [])
-  res.json(gpsRows)
+  res.json(sanitizeGpsRowsForFrontend(gpsRows))
 })
 
-/* ---------- DRIVER / VEHICLE STATUS ---------- */
-
+/**
+ * Vehicle status
+ */
 app.post('/api/vehicle/status', (req, res) => {
   const { vehicleId, isOnline, status } = req.body
 
@@ -493,9 +551,25 @@ app.post('/api/vehicle/status', (req, res) => {
     return res.status(404).json({ error: 'Vehicle not found.' })
   }
 
-  res.json({ success: true, vehicle: updated })
+  res.json({
+    success: true,
+    vehicle: {
+      id: updated.id,
+      type: updated.type,
+      driverId: updated.driverId || null,
+      name: updated.name || '',
+      isApproved: updated.isApproved === true,
+      isOnline: updated.isOnline === true,
+      status: updated.status,
+      updatedAt: updated.updatedAt
+    }
+  })
 })
 
+/**
+ * Driver offers
+ * Only returns address-based details.
+ */
 app.get('/api/driver/offers/:driverId', (req, res) => {
   const { driverId } = req.params
   const dispatches = getAllDispatches()
@@ -505,7 +579,10 @@ app.get('/api/driver/offers/:driverId', (req, res) => {
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0]
 
   if (!offer) {
-    return res.json({ success: true, offer: null })
+    return res.json({
+      success: true,
+      offer: null
+    })
   }
 
   const rides = getAllRides()
@@ -514,8 +591,8 @@ app.get('/api/driver/offers/:driverId', (req, res) => {
   res.json({
     success: true,
     offer: {
-      ...offer,
-      ride
+      ...hideDispatchCoordinates(offer),
+      ride: ride ? hideRideCoordinates(ride) : null
     }
   })
 })
@@ -537,11 +614,15 @@ app.post('/api/dispatch/respond', (req, res) => {
   }
 
   if (dispatch.driverId !== driverId) {
-    return res.status(403).json({ error: 'This dispatch does not belong to this driver.' })
+    return res.status(403).json({
+      error: 'This dispatch does not belong to this driver.'
+    })
   }
 
   if (dispatch.status !== 'offered') {
-    return res.status(400).json({ error: 'Dispatch is no longer active.' })
+    return res.status(400).json({
+      error: 'Dispatch is no longer active.'
+    })
   }
 
   if (action === 'decline') {
@@ -622,15 +703,21 @@ app.post('/api/dispatch/respond', (req, res) => {
     return res.json({
       success: true,
       message: 'Dispatch accepted.',
-      ride: updatedRide
+      ride: hideRideCoordinates(updatedRide)
     })
   }
 
-  return res.status(400).json({ error: 'action must be accept or decline.' })
+  return res.status(400).json({
+    error: 'action must be accept or decline.'
+  })
 })
 
-/* ---------- RIDE REQUEST + AUTO DISPATCH ---------- */
-
+/**
+ * Ride request
+ * Frontend should send addresses.
+ * Coordinates may be included in hidden fields or geocoded later.
+ * Response is always sanitized.
+ */
 app.post('/api/request-ride', (req, res) => {
   const {
     riderId,
@@ -644,16 +731,20 @@ app.post('/api/request-ride', (req, res) => {
     rideType
   } = req.body
 
+  if (!pickup || !dropoff) {
+    return res.status(400).json({
+      error: 'pickup and dropoff are required.'
+    })
+  }
+
   if (
-    !pickup ||
-    !dropoff ||
     pickupLat === undefined ||
     pickupLng === undefined ||
     dropoffLat === undefined ||
     dropoffLng === undefined
   ) {
     return res.status(400).json({
-      error: 'pickup, dropoff, pickupLat, pickupLng, dropoffLat, and dropoffLng are required.'
+      error: 'Backend dispatch still requires hidden pickup/dropoff coordinates.'
     })
   }
 
@@ -672,7 +763,8 @@ app.post('/api/request-ride', (req, res) => {
     assignedVehicleId: null,
     assignedDriverId: null,
     fleetType: null,
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   }
 
   const rides = getAllRides()
@@ -688,32 +780,38 @@ app.post('/api/request-ride', (req, res) => {
   })
 
   const dispatchResult = startDispatchFlow(ride.id)
-
   const refreshedRide = getAllRides().find(r => r.id === ride.id)
 
   res.json({
     success: true,
-    ride: refreshedRide,
-    dispatchResult
+    ride: hideRideCoordinates(refreshedRide),
+    dispatchResult: dispatchResult.dispatch
+      ? { ...dispatchResult, dispatch: hideDispatchCoordinates(dispatchResult.dispatch) }
+      : dispatchResult
   })
 })
 
 app.get('/api/rides', (req, res) => {
-  const rides = getAllRides().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+  const rides = getAllRides()
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .map(hideRideCoordinates)
+
   res.json(rides)
 })
 
 app.get('/api/rides/:rideId', (req, res) => {
   const ride = getAllRides().find(r => r.id === req.params.rideId)
+
   if (!ride) {
     return res.status(404).json({ error: 'Ride not found.' })
   }
-  res.json(ride)
+
+  res.json(hideRideCoordinates(ride))
 })
 
 app.post('/api/rides/:rideId/status', (req, res) => {
-  const { status } = req.body
   const { rideId } = req.params
+  const { status } = req.body
 
   if (!status) {
     return res.status(400).json({ error: 'status is required.' })
@@ -742,23 +840,27 @@ app.post('/api/rides/:rideId/status', (req, res) => {
 
   res.json({
     success: true,
-    ride: updatedRide
+    ride: hideRideCoordinates(updatedRide)
   })
 })
 
-/* ---------- ADMIN ---------- */
-
+/**
+ * Admin routes
+ * Admin sees addresses only in these endpoints.
+ */
 app.get('/api/admin/dispatches', (req, res) => {
-  const dispatches = getAllDispatches().sort(
-    (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-  )
+  const dispatches = getAllDispatches()
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .map(hideDispatchCoordinates)
+
   res.json(dispatches)
 })
 
 app.get('/api/admin/active-dispatches', (req, res) => {
-  const dispatches = getAllDispatches().filter(d =>
-    ['offered', 'accepted'].includes(d.status)
-  )
+  const dispatches = getAllDispatches()
+    .filter(d => ['offered', 'accepted'].includes(d.status))
+    .map(hideDispatchCoordinates)
+
   res.json(dispatches)
 })
 
@@ -766,7 +868,9 @@ app.post('/api/admin/manual-dispatch', (req, res) => {
   const { rideId, vehicleId } = req.body
 
   if (!rideId || !vehicleId) {
-    return res.status(400).json({ error: 'rideId and vehicleId are required.' })
+    return res.status(400).json({
+      error: 'rideId and vehicleId are required.'
+    })
   }
 
   const ride = getAllRides().find(r => r.id === rideId)
@@ -781,12 +885,13 @@ app.post('/api/admin/manual-dispatch', (req, res) => {
   }
 
   if (!isVehicleEligible(vehicle)) {
-    return res.status(400).json({ error: 'Vehicle is not eligible right now.' })
+    return res.status(400).json({
+      error: 'Vehicle is not eligible right now.'
+    })
   }
 
-  const oldDispatchId = ride.dispatchId
-  if (oldDispatchId) {
-    updateDispatch(oldDispatchId, d => ({
+  if (ride.dispatchId) {
+    updateDispatch(ride.dispatchId, d => ({
       ...d,
       status: 'replaced_by_admin',
       replacedAt: new Date().toISOString()
@@ -812,21 +917,20 @@ app.post('/api/admin/manual-dispatch', (req, res) => {
 
   res.json({
     success: true,
-    result
+    result: result.dispatch
+      ? { ...result, dispatch: hideDispatchCoordinates(result.dispatch) }
+      : result
   })
 })
-
-/* ---------- HEALTH ---------- */
 
 app.get('/api/health', (req, res) => {
   res.json({
     success: true,
     service: 'Harvey Taxi Dispatch Brain',
+    mode: 'address_only_frontend',
     time: new Date().toISOString()
   })
 })
-
-/* ---------- FILE INIT ---------- */
 
 ensureFile(FILES.rides, [])
 ensureFile(FILES.gps, [])
@@ -836,8 +940,6 @@ ensureFile(FILES.messages, [])
 ensureFile(FILES.commands, [])
 ensureFile(FILES.missions, [])
 ensureFile(FILES.dispatches, [])
-
-/* ---------- START ---------- */
 
 app.listen(PORT, () => {
   console.log(`Harvey Taxi server running on port ${PORT}`)
