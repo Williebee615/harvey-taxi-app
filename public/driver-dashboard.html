@@ -1,79 +1,321 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Driver Dashboard</title>
-
-<style>
-body{
-background:#020c2b;
-color:white;
-font-family:Arial;
-padding:20px;
-margin:0;
-}
-
-.back{
-margin-bottom:20px;
-}
-
-.back a{
-color:white;
-text-decoration:none;
-font-size:18px;
-}
-
-.card{
-background:#081a44;
-padding:20px;
-border-radius:18px;
-margin-top:20px;
-white-space:pre-wrap;
-}
-
-.support-button{
-position:fixed;
-bottom:20px;
-right:20px;
-background:#2d6cff;
-color:white;
-padding:14px 16px;
-border-radius:20px;
-text-decoration:none;
-font-size:20px;
-box-shadow:0 8px 20px rgba(0,0,0,.3);
-}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Driver Dashboard</title>
+  <style>
+    * { box-sizing: border-box; font-family: Arial, Helvetica, sans-serif; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(180deg, #020817 0%, #03163d 100%);
+      color: white;
+      padding: 20px;
+    }
+    a.back {
+      display: inline-block;
+      margin-bottom: 18px;
+      color: #d6e2ff;
+      text-decoration: none;
+      font-size: 18px;
+    }
+    .title {
+      font-size: 2.2rem;
+      font-weight: 800;
+      margin-bottom: 12px;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+    .card {
+      background: rgba(8, 24, 68, 0.95);
+      border-radius: 24px;
+      padding: 18px;
+      box-shadow: 0 12px 28px rgba(0,0,0,.28);
+      border: 1px solid rgba(255,255,255,.08);
+    }
+    .card h2 {
+      margin-top: 0;
+      margin-bottom: 14px;
+    }
+    input, textarea, select, button {
+      width: 100%;
+      border: none;
+      border-radius: 14px;
+      padding: 14px;
+      font-size: 16px;
+      margin-top: 10px;
+    }
+    input, textarea, select {
+      background: #051335;
+      color: white;
+    }
+    button {
+      background: linear-gradient(90deg, #2d6cff, #8a2eff);
+      color: white;
+      font-weight: 800;
+    }
+    .secondary {
+      background: #36527f;
+    }
+    .ride-item, .msg-item {
+      background: #0b2156;
+      border-radius: 16px;
+      padding: 14px;
+      margin-bottom: 10px;
+      line-height: 1.55;
+    }
+    .chat-box {
+      background: #04112f;
+      border-radius: 18px;
+      min-height: 320px;
+      max-height: 420px;
+      overflow-y: auto;
+      padding: 14px;
+      margin-top: 12px;
+      border: 1px solid rgba(255,255,255,.06);
+    }
+    .bubble {
+      max-width: 84%;
+      padding: 12px 14px;
+      border-radius: 16px;
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+    .bubble.driver {
+      background: #6a35d9;
+      margin-left: auto;
+    }
+    .bubble.rider {
+      background: #2354ba;
+      margin-right: auto;
+    }
+    .bubble small {
+      display: block;
+      opacity: .8;
+      margin-top: 6px;
+      font-size: 12px;
+    }
+    .status-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .pill {
+      background: #10295d;
+      border-radius: 14px;
+      padding: 12px;
+      text-align: center;
+      font-weight: 700;
+      color: #d9e6ff;
+    }
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 600px) {
+      .status-grid { grid-template-columns: 1fr; }
+    }
+  </style>
 </head>
-
 <body>
+  <a href="/" class="back">← Back to Home</a>
 
-<div class="back">
-<a href="/">← Back to Home</a>
-</div>
+  <div class="title">Driver Dashboard</div>
 
-<h1>Driver Dashboard</h1>
+  <div class="layout">
+    <div class="card">
+      <h2>Driver Profile</h2>
+      <input id="driverId" placeholder="Driver ID" />
+      <input id="driverName" placeholder="Driver Name" />
+      <button onclick="saveDriverProfile()">Save Driver Profile</button>
 
-<div class="card">
-<h2>Available Rides</h2>
-<div id="rides">Loading...</div>
-</div>
+      <div class="status-grid">
+        <div class="pill">Driver: <span id="savedDriverName">None</span></div>
+        <div class="pill">Ride: <span id="activeRideLabel">None</span></div>
+      </div>
 
-<a href="/support.html" class="support-button">💬</a>
+      <h2 style="margin-top:20px;">Assigned Rides</h2>
+      <div id="ridesList">Loading rides...</div>
+    </div>
 
-<script>
-async function load(){
-  const rides = await fetch('/api/rides')
-    .then(r=>r.json())
-    .catch(()=>[])
+    <div class="card">
+      <h2>Live Ride Controls</h2>
+      <input id="activeRideId" placeholder="Ride ID" />
+      <select id="rideStatusSelect">
+        <option value="assigned">Assigned</option>
+        <option value="on_trip">On Trip</option>
+        <option value="completed">Completed</option>
+        <option value="cancelled">Cancelled</option>
+      </select>
+      <button onclick="updateRideStatus()">Update Ride Status</button>
+      <button class="secondary" onclick="loadAssignedRides()">Refresh Assigned Rides</button>
 
-  document.getElementById("rides").innerText =
-    rides.length ? JSON.stringify(rides,null,2) : "No rides"
-}
+      <h2 style="margin-top:20px;">Ride Chat</h2>
+      <div id="chatBox" class="chat-box">No ride selected.</div>
+      <textarea id="messageText" placeholder="Type a message to the rider..."></textarea>
+      <button onclick="sendMessage()">Send Message</button>
+    </div>
+  </div>
 
-load()
-setInterval(load,3000)
-</script>
+  <script>
+    function getDriverId() {
+      return localStorage.getItem("driverId") || ""
+    }
 
+    function getDriverName() {
+      return localStorage.getItem("driverName") || ""
+    }
+
+    async function api(url, options = {}) {
+      const res = await fetch(url, options)
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || data.message || "Request failed")
+      return data
+    }
+
+    function formatTime(value) {
+      if (!value) return ""
+      return new Date(value).toLocaleString()
+    }
+
+    function saveDriverProfile() {
+      const driverId = document.getElementById("driverId").value.trim()
+      const driverName = document.getElementById("driverName").value.trim()
+
+      if (!driverId) return alert("Enter driver ID")
+
+      localStorage.setItem("driverId", driverId)
+      localStorage.setItem("driverName", driverName || "Driver")
+
+      renderDriverProfile()
+      loadAssignedRides()
+      alert("Driver profile saved")
+    }
+
+    function renderDriverProfile() {
+      document.getElementById("savedDriverName").innerText = getDriverName() || "None"
+    }
+
+    async function loadAssignedRides() {
+      const driverId = getDriverId()
+      if (!driverId) {
+        document.getElementById("ridesList").innerHTML = "Save driver profile first."
+        return
+      }
+
+      const rides = await api(`/api/driver/${driverId}/assigned-rides`)
+      const el = document.getElementById("ridesList")
+
+      if (!rides.length) {
+        el.innerHTML = "No assigned rides."
+        return
+      }
+
+      el.innerHTML = rides.map(ride => `
+        <div class="ride-item">
+          <strong>Ride:</strong> ${ride.id}<br>
+          <strong>Rider:</strong> ${ride.rider || ""}<br>
+          <strong>Pickup:</strong> ${ride.pickup || ""}<br>
+          <strong>Dropoff:</strong> ${ride.dropoff || ""}<br>
+          <strong>Status:</strong> ${ride.status || ""}<br>
+          <button onclick="openRide('${ride.id}')">Open Ride</button>
+        </div>
+      `).join("")
+    }
+
+    function openRide(rideId) {
+      document.getElementById("activeRideId").value = rideId
+      document.getElementById("activeRideLabel").innerText = rideId
+      loadMessages()
+    }
+
+    async function updateRideStatus() {
+      const rideId = document.getElementById("activeRideId").value.trim()
+      const status = document.getElementById("rideStatusSelect").value
+      const driverId = getDriverId()
+
+      if (!rideId) return alert("Enter or open a ride first.")
+      if (!driverId) return alert("Save driver profile first.")
+
+      await api("/api/driver/update-ride-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rideId,
+          driverId,
+          status
+        })
+      })
+
+      loadAssignedRides()
+      loadMessages()
+
+      if (status === "completed" || status === "cancelled") {
+        document.getElementById("activeRideLabel").innerText = "None"
+      }
+    }
+
+    function renderMessages(messages) {
+      const box = document.getElementById("chatBox")
+
+      if (!messages.length) {
+        box.innerHTML = "No messages for this ride yet."
+        return
+      }
+
+      box.innerHTML = messages.map(msg => `
+        <div class="bubble ${msg.from || "system"}">
+          <strong>${msg.from || "system"}</strong><br>
+          ${msg.text || ""}
+          <small>${formatTime(msg.time)}</small>
+        </div>
+      `).join("")
+
+      box.scrollTop = box.scrollHeight
+    }
+
+    async function loadMessages() {
+      const rideId = document.getElementById("activeRideId").value.trim()
+      if (!rideId) {
+        document.getElementById("chatBox").innerHTML = "No ride selected."
+        return
+      }
+
+      const messages = await api("/api/messages/" + rideId)
+      renderMessages(messages)
+    }
+
+    async function sendMessage() {
+      const rideId = document.getElementById("activeRideId").value.trim()
+      const text = document.getElementById("messageText").value.trim()
+
+      if (!rideId) return alert("Select a ride first.")
+      if (!text) return
+
+      await api("/api/send-message", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rideId,
+          from: "driver",
+          to: "rider",
+          text,
+          senderType: "human"
+        })
+      })
+
+      document.getElementById("messageText").value = ""
+      loadMessages()
+    }
+
+    renderDriverProfile()
+    loadAssignedRides()
+    setInterval(loadAssignedRides, 5000)
+    setInterval(loadMessages, 2000)
+  </script>
 </body>
 </html>
