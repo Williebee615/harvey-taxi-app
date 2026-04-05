@@ -10,24 +10,25 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 /*
-  Harvey Taxi Demo Backend
+  Harvey Taxi Dispatch Brain Backend
   ---------------------------------
-  This version supports:
+  Supports:
   - rider verification gate
-  - payment secured before trip
-  - ride request creation
-  - driver go online/offline
+  - payment secured before dispatch
+  - smart dispatch brain
+  - approved online driver matching
   - driver mission offers
   - driver accept / decline
+  - re-dispatch when a mission is declined
   - active trip lookup
-  - driver arriving / start / complete
-  - tip during trip
-  - tip after trip
+  - arriving / start / complete
+  - tip during and after trip
   - admin dispatch board
   - admin approval dashboard
 
-  Next production step:
-  move all arrays below into Supabase/PostgreSQL.
+  NOTE:
+  This is still demo-memory storage.
+  Next production step is moving all arrays into Supabase/PostgreSQL.
 */
 
 /* -----------------------------
@@ -56,7 +57,12 @@ const drivers = [
     verification_status: "APPROVED",
     background_status: "APPROVED",
     is_online: false,
-    current_address: "Downtown Nashville, TN"
+    is_busy: false,
+    current_address: "Downtown Nashville, TN",
+    zone: "DOWNTOWN",
+    vehicle_type: "STANDARD",
+    completed_missions: 18,
+    acceptance_score: 92
   },
   {
     driver_id: "driver_2002",
@@ -64,7 +70,25 @@ const drivers = [
     verification_status: "PENDING",
     background_status: "PENDING",
     is_online: false,
-    current_address: "North Nashville, TN"
+    is_busy: false,
+    current_address: "North Nashville, TN",
+    zone: "NORTH",
+    vehicle_type: "STANDARD",
+    completed_missions: 6,
+    acceptance_score: 83
+  },
+  {
+    driver_id: "driver_2003",
+    first_name: "Jordan",
+    verification_status: "APPROVED",
+    background_status: "APPROVED",
+    is_online: false,
+    is_busy: false,
+    current_address: "Airport District, Nashville, TN",
+    zone: "AIRPORT",
+    vehicle_type: "STANDARD",
+    completed_missions: 31,
+    acceptance_score: 96
   }
 ];
 
@@ -89,6 +113,10 @@ function getRiderById(riderId) {
 
 function getDriverById(driverId) {
   return drivers.find((d) => d.driver_id === driverId);
+}
+
+function getRideById(rideId) {
+  return rides.find((r) => r.ride_id === rideId);
 }
 
 function estimateDistanceMiles(pickup, dropoff) {
@@ -153,17 +181,119 @@ function hasAuthorizedPayment(riderId, estimatedFare) {
   });
 }
 
-function findBestDriverForRide() {
-  const availableDrivers = drivers.filter(
-    (driver) =>
-      driver.is_online &&
-      driver.verification_status === "APPROVED" &&
-      driver.background_status === "APPROVED"
+function getPickupZone(address = "") {
+  const a = address.toLowerCase();
+
+  if (a.includes("airport") || a.includes("bna")) return "AIRPORT";
+  if (a.includes("north")) return "NORTH";
+  if (a.includes("downtown")) return "DOWNTOWN";
+  if (a.includes("west")) return "WEST";
+  if (a.includes("east")) return "EAST";
+  if (a.includes("south")) return "SOUTH";
+
+  return "GENERAL";
+}
+
+function getDriverEtaMinutes(driver, ride) {
+  const pickupZone = getPickupZone(ride.pickup_address);
+  const sameZone = driver.zone === pickupZone;
+
+  if (sameZone) return 4;
+
+  if (pickupZone === "AIRPORT" && driver.zone === "DOWNTOWN") return 9;
+  if (pickupZone === "DOWNTOWN" && driver.zone === "AIRPORT") return 9;
+
+  return 7 + Math.floor((driver.completed_missions % 3));
+}
+
+function driverEligibleForRide(driver, ride) {
+  if (!driver) return false;
+  if (!driver.is_online) return false;
+  if (driver.is_busy) return false;
+  if (driver.verification_status !== "APPROVED") return false;
+  if (driver.background_status !== "APPROVED") return false;
+  if (
+    ride.payment_status !== "AUTHORIZED" &&
+    ride.payment_status !== "SPONSORED"
+  ) return false;
+  if (ride.rider_verification_status !== "APPROVED") return false;
+
+  return true;
+}
+
+function scoreDriverForRide(driver, ride) {
+  const eta = getDriverEtaMinutes(driver, ride);
+  const payout = Number(ride.estimated_driver_payout || 0);
+  const rideTypeBonus = ride.ride_type === "AIRPORT" && driver.zone === "AIRPORT" ? 8 : 0;
+  const onlineBonus = driver.is_online ? 5 : 0;
+  const reliabilityBonus = Number(driver.acceptance_score || 0) / 10;
+  const experienceBonus = Math.min(Number(driver.completed_missions || 0), 40) / 8;
+
+  const score =
+    100
+    - eta * 7
+    + onlineBonus
+    + rideTypeBonus
+    + reliabilityBonus
+    + experienceBonus
+    + payout * 0.15;
+
+  return {
+    score: round2(score),
+    eta_to_pickup_minutes: eta
+  };
+}
+
+function findBestDriverForRide(ride) {
+  const eligibleDrivers = drivers.filter((driver) =>
+    driverEligibleForRide(driver, ride)
   );
 
-  if (!availableDrivers.length) return null;
+  if (!eligibleDrivers.length) return null;
 
-  return availableDrivers[0];
+  const ranked = eligibleDrivers
+    .map((driver) => {
+      const scoring = scoreDriverForRide(driver, ride);
+      return {
+        driver,
+        ...scoring
+      };
+    })
+    .sort((a, b) => b.score - a.score);
+
+  return ranked[0];
+}
+
+function assignDriverToRide(ride) {
+  const bestMatch = findBestDriverForRide(ride);
+
+  if (!bestMatch) {
+    ride.assigned_driver_id = null;
+    ride.eta_to_pickup_minutes = null;
+    ride.dispatch_score = null;
+    ride.ride_status = "DISPATCHING";
+    ride.mission_status = "WAITING_FOR_DRIVER";
+    ride.updated_at = new Date().toISOString();
+
+    return {
+      assigned: false,
+      driver: null
+    };
+  }
+
+  ride.assigned_driver_id = bestMatch.driver.driver_id;
+  ride.eta_to_pickup_minutes = bestMatch.eta_to_pickup_minutes;
+  ride.dispatch_score = bestMatch.score;
+  ride.ride_status = "READY_FOR_DRIVER";
+  ride.mission_status = "OFFERED_TO_DRIVER";
+  ride.updated_at = new Date().toISOString();
+
+  return {
+    assigned: true,
+    driver: bestMatch.driver,
+    eta_to_pickup_minutes: bestMatch.eta_to_pickup_minutes,
+    dispatch_score: bestMatch.score
+  };
 }
 
 function buildDriverMission(ride, driverId) {
@@ -181,8 +311,9 @@ function buildDriverMission(ride, driverId) {
     estimated_duration_minutes: ride.estimated_duration_minutes,
     estimated_fare: ride.estimated_fare,
     estimated_driver_payout: ride.estimated_driver_payout,
-    eta_to_pickup_minutes: 6,
-    payment_status: ride.payment_status
+    eta_to_pickup_minutes: ride.eta_to_pickup_minutes || 6,
+    payment_status: ride.payment_status,
+    dispatch_score: ride.dispatch_score || null
   };
 }
 
@@ -216,6 +347,17 @@ function getDashboardSummary() {
       (r) => r.ride_status === "COMPLETED"
     ).length
   };
+}
+
+function redispatchRide(ride) {
+  if (!ride) return { assigned: false };
+
+  ride.assigned_driver_id = null;
+  ride.ride_status = "DISPATCHING";
+  ride.mission_status = "REDISPATCHING";
+  ride.updated_at = new Date().toISOString();
+
+  return assignDriverToRide(ride);
 }
 
 /* -----------------------------
@@ -339,7 +481,7 @@ app.post("/api/payments/authorize", (req, res) => {
 });
 
 /* -----------------------------
-   REQUEST RIDE
+   REQUEST RIDE + DISPATCH BRAIN
 ----------------------------- */
 
 app.post("/api/request-ride", (req, res) => {
@@ -398,12 +540,10 @@ app.post("/api/request-ride", (req, res) => {
     });
   }
 
-  const driver = findBestDriverForRide();
-
   const ride = {
     ride_id: generateId("ride"),
     rider_id,
-    assigned_driver_id: driver ? driver.driver_id : null,
+    assigned_driver_id: null,
 
     passenger_first_name,
     passenger_phone,
@@ -429,8 +569,11 @@ app.post("/api/request-ride", (req, res) => {
     payment_status: ride_type === "NONPROFIT" ? "SPONSORED" : "AUTHORIZED",
     tip_status: "NO_TIP",
 
-    ride_status: driver ? "READY_FOR_DRIVER" : "DISPATCHING",
-    mission_status: driver ? "OFFERED_TO_DRIVER" : "WAITING_FOR_DRIVER",
+    eta_to_pickup_minutes: null,
+    dispatch_score: null,
+
+    ride_status: "DISPATCHING",
+    mission_status: "RUNNING_DISPATCH_BRAIN",
 
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
@@ -438,9 +581,20 @@ app.post("/api/request-ride", (req, res) => {
 
   rides.push(ride);
 
+  const dispatchResult = assignDriverToRide(ride);
+
   return res.json({
     success: true,
-    message: "Ride created and sent into mission dispatch flow.",
+    message: dispatchResult.assigned
+      ? "Ride created and dispatched to the best available driver."
+      : "Ride created. Dispatch brain is waiting for an approved online driver.",
+    dispatch: {
+      assigned: dispatchResult.assigned,
+      driver_id: dispatchResult.driver ? dispatchResult.driver.driver_id : null,
+      driver_name: dispatchResult.driver ? dispatchResult.driver.first_name : null,
+      eta_to_pickup_minutes: dispatchResult.eta_to_pickup_minutes || null,
+      dispatch_score: dispatchResult.dispatch_score || null
+    },
     ride: hydrateRide(ride)
   });
 });
@@ -492,23 +646,13 @@ app.get("/api/driver-missions/:driverId", (req, res) => {
 
   const missions = rides
     .filter((ride) => {
+      const assignedToDriver = ride.assigned_driver_id === driver.driver_id;
+      const openMission = ride.ride_status === "READY_FOR_DRIVER";
       const paymentReady =
         ride.payment_status === "AUTHORIZED" ||
         ride.payment_status === "SPONSORED";
 
-      const rideAvailable =
-        ride.ride_status === "READY_FOR_DRIVER" ||
-        ride.ride_status === "DISPATCHING";
-
-      const assignedOkay =
-        !ride.assigned_driver_id || ride.assigned_driver_id === driver.driver_id;
-
-      return (
-        assignedOkay &&
-        rideAvailable &&
-        paymentReady &&
-        ride.rider_verification_status === "APPROVED"
-      );
+      return assignedToDriver && openMission && paymentReady;
     })
     .map((ride) => buildDriverMission(ride, driver.driver_id));
 
@@ -539,11 +683,18 @@ app.post("/api/driver-missions/accept", (req, res) => {
     });
   }
 
-  const ride = rides.find((r) => r.ride_id === ride_id);
+  const ride = getRideById(ride_id);
   if (!ride) {
     return res.status(404).json({
       success: false,
       message: "Ride not found."
+    });
+  }
+
+  if (ride.assigned_driver_id !== driver_id) {
+    return res.status(403).json({
+      success: false,
+      message: "This mission is not assigned to this driver."
     });
   }
 
@@ -562,6 +713,8 @@ app.post("/api/driver-missions/accept", (req, res) => {
   ride.mission_status = "ACCEPTED";
   ride.updated_at = new Date().toISOString();
 
+  driver.is_busy = true;
+
   return res.json({
     success: true,
     message: "Mission accepted successfully.",
@@ -572,7 +725,7 @@ app.post("/api/driver-missions/accept", (req, res) => {
 app.post("/api/driver-missions/decline", (req, res) => {
   const { driver_id, ride_id } = req.body;
 
-  const ride = rides.find((r) => r.ride_id === ride_id);
+  const ride = getRideById(ride_id);
   if (!ride) {
     return res.status(404).json({
       success: false,
@@ -580,16 +733,24 @@ app.post("/api/driver-missions/decline", (req, res) => {
     });
   }
 
-  if (ride.assigned_driver_id === driver_id) {
-    ride.assigned_driver_id = null;
+  const driver = getDriverById(driver_id);
+  if (driver) {
+    driver.acceptance_score = Math.max(50, Number(driver.acceptance_score || 90) - 2);
   }
 
-  ride.mission_status = "DECLINED_BY_DRIVER";
-  ride.updated_at = new Date().toISOString();
+  const redispatchResult = redispatchRide(ride);
 
   return res.json({
     success: true,
-    message: "Mission declined."
+    message: redispatchResult.assigned
+      ? "Mission declined. Dispatch brain reassigned the ride."
+      : "Mission declined. Dispatch brain is waiting for another approved online driver.",
+    dispatch: {
+      assigned: redispatchResult.assigned,
+      driver_id: redispatchResult.driver ? redispatchResult.driver.driver_id : null,
+      driver_name: redispatchResult.driver ? redispatchResult.driver.first_name : null
+    },
+    ride: hydrateRide(ride)
   });
 });
 
@@ -598,7 +759,7 @@ app.post("/api/driver-missions/decline", (req, res) => {
 ----------------------------- */
 
 app.get("/api/rides/:rideId", (req, res) => {
-  const ride = rides.find((r) => r.ride_id === req.params.rideId);
+  const ride = getRideById(req.params.rideId);
 
   if (!ride) {
     return res.status(404).json({
@@ -618,7 +779,7 @@ app.get("/api/rides/:rideId", (req, res) => {
 ----------------------------- */
 
 app.post("/api/rides/:rideId/arriving", (req, res) => {
-  const ride = rides.find((r) => r.ride_id === req.params.rideId);
+  const ride = getRideById(req.params.rideId);
 
   if (!ride) {
     return res.status(404).json({
@@ -639,7 +800,7 @@ app.post("/api/rides/:rideId/arriving", (req, res) => {
 });
 
 app.post("/api/rides/:rideId/start", (req, res) => {
-  const ride = rides.find((r) => r.ride_id === req.params.rideId);
+  const ride = getRideById(req.params.rideId);
 
   if (!ride) {
     return res.status(404).json({
@@ -660,7 +821,7 @@ app.post("/api/rides/:rideId/start", (req, res) => {
 });
 
 app.post("/api/rides/:rideId/complete", (req, res) => {
-  const ride = rides.find((r) => r.ride_id === req.params.rideId);
+  const ride = getRideById(req.params.rideId);
 
   if (!ride) {
     return res.status(404).json({
@@ -676,6 +837,13 @@ app.post("/api/rides/:rideId/complete", (req, res) => {
   ride.total_amount = round2((ride.fare_amount || 0) + (ride.tip_amount || 0));
   ride.updated_at = new Date().toISOString();
 
+  const driver = ride.assigned_driver_id ? getDriverById(ride.assigned_driver_id) : null;
+  if (driver) {
+    driver.is_busy = false;
+    driver.completed_missions = Number(driver.completed_missions || 0) + 1;
+    driver.acceptance_score = Math.min(99, Number(driver.acceptance_score || 90) + 1);
+  }
+
   return res.json({
     success: true,
     message: "Trip completed and payment settled.",
@@ -688,7 +856,7 @@ app.post("/api/rides/:rideId/complete", (req, res) => {
 ----------------------------- */
 
 app.post("/api/rides/:rideId/tip-during", (req, res) => {
-  const ride = rides.find((r) => r.ride_id === req.params.rideId);
+  const ride = getRideById(req.params.rideId);
 
   if (!ride) {
     return res.status(404).json({
@@ -725,7 +893,7 @@ app.post("/api/rides/:rideId/tip-during", (req, res) => {
 });
 
 app.post("/api/rides/:rideId/tip-after", (req, res) => {
-  const ride = rides.find((r) => r.ride_id === req.params.rideId);
+  const ride = getRideById(req.params.rideId);
 
   if (!ride) {
     return res.status(404).json({
@@ -895,6 +1063,61 @@ app.post("/api/admin/reject-driver", (req, res) => {
   return res.json({
     success: true,
     driver
+  });
+});
+
+/* -----------------------------
+   DISPATCH BRAIN TOOLS
+----------------------------- */
+
+app.post("/api/admin/run-dispatch/:rideId", (req, res) => {
+  const ride = getRideById(req.params.rideId);
+
+  if (!ride) {
+    return res.status(404).json({
+      success: false,
+      message: "Ride not found."
+    });
+  }
+
+  const result = assignDriverToRide(ride);
+
+  return res.json({
+    success: true,
+    message: result.assigned
+      ? "Dispatch brain assigned the best available driver."
+      : "No approved online driver available right now.",
+    dispatch: result,
+    ride: hydrateRide(ride)
+  });
+});
+
+app.get("/api/admin/dispatch-insights/:rideId", (req, res) => {
+  const ride = getRideById(req.params.rideId);
+
+  if (!ride) {
+    return res.status(404).json({
+      success: false,
+      message: "Ride not found."
+    });
+  }
+
+  const ranked = drivers
+    .filter((driver) => driverEligibleForRide(driver, ride))
+    .map((driver) => ({
+      driver_id: driver.driver_id,
+      driver_name: driver.first_name,
+      zone: driver.zone,
+      is_online: driver.is_online,
+      is_busy: driver.is_busy,
+      ...scoreDriverForRide(driver, ride)
+    }))
+    .sort((a, b) => b.score - a.score);
+
+  return res.json({
+    success: true,
+    ride: hydrateRide(ride),
+    candidates: ranked
   });
 });
 
