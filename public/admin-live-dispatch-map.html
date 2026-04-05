@@ -1,105 +1,582 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>Harvey Dispatch Control</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Harvey Taxi | Live Dispatch Map</title>
 
-<style>
-body {
-background:#05070d;
-color:white;
-font-family:Arial;
-margin:0;
-}
+  <style>
+    * {
+      box-sizing: border-box;
+    }
 
-.header{
-padding:20px;
-font-size:22px;
-font-weight:bold;
-background:black;
-border-bottom:1px solid #111;
-}
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(59,130,246,0.16), transparent 28%),
+        radial-gradient(circle at top right, rgba(16,185,129,0.12), transparent 22%),
+        linear-gradient(180deg, #020617 0%, #031133 100%);
+      color: white;
+      padding: 18px 16px 40px;
+    }
 
-.map{
-height:60vh;
-background:#000;
-display:flex;
-align-items:center;
-justify-content:center;
-}
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
 
-.panel{
-padding:20px;
-}
+    .top-link {
+      display: inline-block;
+      color: #cbd5e1;
+      text-decoration: none;
+      margin-bottom: 18px;
+      font-size: 18px;
+    }
 
-.card{
-background:#0c101c;
-padding:15px;
-margin-bottom:10px;
-border-radius:10px;
-}
+    .hero,
+    .panel,
+    .queue-card,
+    .fleet-card {
+      background: rgba(15, 23, 42, 0.94);
+      border: 1px solid rgba(59, 130, 246, 0.14);
+      border-radius: 28px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+    }
 
-.button{
-background:#00ffa3;
-color:black;
-padding:10px;
-border-radius:8px;
-cursor:pointer;
-margin-top:10px;
-display:inline-block;
-}
-</style>
+    .hero {
+      padding: 22px 18px;
+      margin-bottom: 16px;
+    }
+
+    .eyebrow {
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      font-size: 12px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 40px;
+      line-height: 1;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+    }
+
+    .subtext {
+      margin-top: 12px;
+      color: #cbd5e1;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .stat {
+      background: #020b28;
+      border: 1px solid rgba(148,163,184,0.14);
+      border-radius: 18px;
+      padding: 14px;
+    }
+
+    .stat-label {
+      color: #94a3b8;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-weight: 800;
+      margin-bottom: 7px;
+    }
+
+    .stat-value {
+      color: #f8fafc;
+      font-size: 28px;
+      font-weight: 800;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1.25fr 0.9fr;
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .panel {
+      padding: 18px;
+    }
+
+    #map {
+      width: 100%;
+      height: 560px;
+      border-radius: 22px;
+      overflow: hidden;
+      background: #020b28;
+      border: 1px solid rgba(59,130,246,0.18);
+    }
+
+    .side-stack {
+      display: grid;
+      gap: 16px;
+      align-content: start;
+    }
+
+    .queue-card,
+    .fleet-card {
+      padding: 16px;
+    }
+
+    .section-title {
+      margin: 0 0 12px;
+      font-size: 20px;
+      font-weight: 800;
+    }
+
+    .section-sub {
+      color: #94a3b8;
+      font-size: 14px;
+      line-height: 1.5;
+      margin-bottom: 12px;
+    }
+
+    .list {
+      display: grid;
+      gap: 12px;
+      max-height: 420px;
+      overflow: auto;
+      padding-right: 2px;
+    }
+
+    .item {
+      background: #020b28;
+      border: 1px solid rgba(148,163,184,0.14);
+      border-radius: 18px;
+      padding: 14px;
+    }
+
+    .item-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .item-title {
+      font-size: 17px;
+      font-weight: 800;
+      color: #f8fafc;
+    }
+
+    .badge {
+      font-size: 12px;
+      font-weight: 800;
+      padding: 8px 10px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      white-space: nowrap;
+    }
+
+    .badge.green {
+      background: rgba(16,185,129,0.12);
+      border: 1px solid rgba(16,185,129,0.26);
+      color: #d1fae5;
+    }
+
+    .badge.blue {
+      background: rgba(59,130,246,0.12);
+      border: 1px solid rgba(59,130,246,0.26);
+      color: #dbeafe;
+    }
+
+    .badge.gray {
+      background: rgba(148,163,184,0.12);
+      border: 1px solid rgba(148,163,184,0.18);
+      color: #e2e8f0;
+    }
+
+    .item-text {
+      color: #cbd5e1;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .actions {
+      display: grid;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 13px 14px;
+      border: none;
+      border-radius: 14px;
+      font-size: 15px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .btn.primary {
+      background: #25c59a;
+      color: #03121d;
+    }
+
+    .btn.secondary {
+      background: rgba(59,130,246,0.16);
+      border: 1px solid rgba(59,130,246,0.24);
+      color: #dbeafe;
+    }
+
+    .btn.danger {
+      background: rgba(239,68,68,0.16);
+      border: 1px solid rgba(239,68,68,0.24);
+      color: #fecaca;
+    }
+
+    .muted {
+      color: #94a3b8;
+      font-size: 13px;
+      margin-top: 8px;
+    }
+
+    .empty {
+      color: #cbd5e1;
+      text-align: center;
+      padding: 18px 10px;
+    }
+
+    @media (max-width: 980px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .stats {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      #map {
+        height: 420px;
+      }
+    }
+  </style>
 </head>
-
 <body>
+  <div class="wrap">
+    <a class="top-link" href="/index.html">← Back to Home</a>
 
-<div class="header">
-Live Dispatch Command Center
-</div>
+    <div class="hero">
+      <div class="eyebrow">Mixed Fleet Dispatch Brain</div>
+      <h1>Admin Live Dispatch Map</h1>
+      <div class="subtext">
+        View live rides, active fleet units, dispatch assignment status, and admin override actions
+        across your Harvey Taxi human + AV network.
+      </div>
 
-<div class="map" id="map">
-Loading fleet map...
-</div>
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-label">Open Rides</div>
+          <div class="stat-value" id="statOpen">0</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Assigned</div>
+          <div class="stat-value" id="statAssigned">0</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Available Fleet</div>
+          <div class="stat-value" id="statAvailable">0</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">AV Units</div>
+          <div class="stat-value" id="statAV">0</div>
+        </div>
+      </div>
+    </div>
 
-<div class="panel">
+    <div class="layout">
+      <div class="panel">
+        <div class="eyebrow">Real-Time Dispatch Map</div>
+        <div id="map"></div>
+      </div>
 
-<div class="card">
-Active Dispatches: <span id="active">0</span>
-</div>
+      <div class="side-stack">
+        <div class="queue-card">
+          <h2 class="section-title">Ride Queue</h2>
+          <div class="section-sub">
+            Live ride requests, active assignments, and override actions.
+          </div>
+          <div id="rideList" class="list">
+            <div class="empty">Loading rides...</div>
+          </div>
+        </div>
 
-<div class="card">
-Available Drivers: <span id="drivers">0</span>
-</div>
+        <div class="fleet-card">
+          <h2 class="section-title">Fleet Monitor</h2>
+          <div class="section-sub">
+            Human drivers and autonomous units available to dispatch.
+          </div>
+          <div id="fleetList" class="list">
+            <div class="empty">Loading fleet...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
-<div class="card">
-Autonomous Vehicles: <span id="avs">0</span>
-</div>
+  <script>
+    const GOOGLE_MAPS_KEY = 'AIzaSyDXXRPHFCh1-hKyUdh4wBFp9gjEgz_55QE'
 
-<div class="button" onclick="refresh()">
-Refresh Fleet
-</div>
+    let map
+    let rideMarkers = []
+    let driverMarkers = []
+    let mapReady = false
 
-</div>
+    let liveRides = []
+    let liveFleet = []
 
-<script>
+    function badgeClass(status) {
+      if (['assigned', 'accepted', 'arriving', 'in_progress', 'driver_assigned'].includes(status)) return 'green'
+      if (['requested', 'available', 'online'].includes(status)) return 'blue'
+      return 'gray'
+    }
 
-async function refresh(){
+    function humanizeStatus(status) {
+      if (!status) return 'Unknown'
+      return status.replace(/_/g, ' ')
+    }
 
-const res = await fetch('/api/admin/fleet')
-const data = await res.json()
+    function setStats() {
+      const openRides = liveRides.filter(r => !['completed', 'cancelled'].includes(r.status)).length
+      const assigned = liveRides.filter(r => ['assigned', 'accepted', 'arriving', 'in_progress', 'driver_assigned'].includes(r.status)).length
+      const available = liveFleet.filter(f => ['available', 'online'].includes(f.status)).length
+      const avs = liveFleet.filter(f => f.type === 'av').length
 
-document.getElementById('active').innerText = data.active
-document.getElementById('drivers').innerText = data.drivers
-document.getElementById('avs').innerText = data.avs
+      document.getElementById('statOpen').textContent = openRides
+      document.getElementById('statAssigned').textContent = assigned
+      document.getElementById('statAvailable').textContent = available
+      document.getElementById('statAV').textContent = avs
+    }
 
-document.getElementById('map').innerHTML =
-"Live Fleet Tracking Active"
-}
+    function getRideCoords(ride, index) {
+      if (typeof ride.pickup_lat === 'number' && typeof ride.pickup_lng === 'number') {
+        return { lat: ride.pickup_lat, lng: ride.pickup_lng }
+      }
 
-refresh()
-setInterval(refresh,4000)
+      const baseLat = 36.1627
+      const baseLng = -86.7816
+      return {
+        lat: baseLat + (index * 0.006),
+        lng: baseLng + (index * 0.004)
+      }
+    }
 
-</script>
+    function clearMarkers(list) {
+      list.forEach(marker => marker.setMap(null))
+      return []
+    }
 
+    function renderMap() {
+      if (!mapReady || !window.google || !window.google.maps) return
+
+      rideMarkers = clearMarkers(rideMarkers)
+      driverMarkers = clearMarkers(driverMarkers)
+
+      const bounds = new google.maps.LatLngBounds()
+      let addedAny = false
+
+      liveRides.forEach((ride, index) => {
+        const pos = getRideCoords(ride, index)
+        const marker = new google.maps.Marker({
+          position: pos,
+          map,
+          title: `${ride.rider_name || 'Ride'} - ${ride.pickup_address || ''}`,
+          label: 'R'
+        })
+        rideMarkers.push(marker)
+        bounds.extend(pos)
+        addedAny = true
+      })
+
+      liveFleet.forEach((unit, index) => {
+        if (typeof unit.lat !== 'number' || typeof unit.lng !== 'number') return
+
+        const marker = new google.maps.Marker({
+          position: { lat: unit.lat, lng: unit.lng },
+          map,
+          title: `${unit.name || 'Fleet Unit'} - ${unit.status || ''}`,
+          label: unit.type === 'av' ? 'A' : 'D'
+        })
+        driverMarkers.push(marker)
+        bounds.extend({ lat: unit.lat, lng: unit.lng })
+        addedAny = true
+      })
+
+      if (addedAny) {
+        map.fitBounds(bounds, 80)
+      } else {
+        map.setCenter({ lat: 36.1627, lng: -86.7816 })
+        map.setZoom(11)
+      }
+    }
+
+    async function loadRides() {
+      const res = await fetch('/api/rides')
+      if (!res.ok) throw new Error('Failed to load rides')
+      liveRides = await res.json()
+    }
+
+    async function loadFleet() {
+      const res = await fetch('/api/admin/fleet')
+      if (!res.ok) throw new Error('Failed to load fleet')
+      const data = await res.json()
+      liveFleet = data.fleet || []
+    }
+
+    async function refreshDispatch() {
+      try {
+        await Promise.all([loadRides(), loadFleet()])
+        renderRideList()
+        renderFleetList()
+        setStats()
+        renderMap()
+      } catch (error) {
+        console.error(error)
+      }
+    }
+
+    function renderRideList() {
+      const box = document.getElementById('rideList')
+
+      if (!liveRides.length) {
+        box.innerHTML = '<div class="empty">No active rides yet.</div>'
+        return
+      }
+
+      box.innerHTML = liveRides.map((ride, index) => {
+        const assignedOptions = liveFleet
+          .filter(unit => ['available', 'online', 'assigned', 'busy'].includes(unit.status))
+          .map(unit => `
+            <button class="btn secondary" onclick="assignRide('${ride.id}','${unit.id}')">
+              Assign ${unit.name} (${unit.type})
+            </button>
+          `)
+          .join('')
+
+        return `
+          <div class="item">
+            <div class="item-top">
+              <div class="item-title">${ride.rider_name || 'Ride #' + (index + 1)}</div>
+              <div class="badge ${badgeClass(ride.status)}">${humanizeStatus(ride.status)}</div>
+            </div>
+            <div class="item-text">
+              <strong>Pickup:</strong> ${ride.pickup_address || '--'}<br>
+              <strong>Dropoff:</strong> ${ride.dropoff_address || '--'}<br>
+              <strong>Driver:</strong> ${ride.driver_name || 'Waiting'}<br>
+              <strong>Fare:</strong> $${ride.estimated_fare || '0.00'}
+            </div>
+
+            <div class="actions">
+              ${assignedOptions}
+              <button class="btn danger" onclick="cancelRide('${ride.id}')">Cancel Ride</button>
+            </div>
+          </div>
+        `
+      }).join('')
+    }
+
+    function renderFleetList() {
+      const box = document.getElementById('fleetList')
+
+      if (!liveFleet.length) {
+        box.innerHTML = '<div class="empty">No fleet units loaded.</div>'
+        return
+      }
+
+      box.innerHTML = liveFleet.map(unit => `
+        <div class="item">
+          <div class="item-top">
+            <div class="item-title">${unit.name || 'Fleet Unit'}</div>
+            <div class="badge ${badgeClass(unit.status)}">${humanizeStatus(unit.status)}</div>
+          </div>
+          <div class="item-text">
+            <strong>Type:</strong> ${unit.type || '--'}<br>
+            <strong>Vehicle:</strong> ${unit.vehicle_type || '--'}<br>
+            <strong>Address:</strong> ${unit.current_address || 'Live location pending'}
+          </div>
+          <div class="muted">ID: ${unit.id}</div>
+        </div>
+      `).join('')
+    }
+
+    async function assignRide(rideId, driverId) {
+      try {
+        const res = await fetch('/api/admin/reassign-ride', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ride_id: rideId,
+            driver_id: driverId
+          })
+        })
+
+        const data = await res.json()
+        if (!res.ok) {
+          alert(data.error || 'Failed to assign ride')
+          return
+        }
+
+        await refreshDispatch()
+      } catch (error) {
+        alert('Network error while assigning ride')
+      }
+    }
+
+    async function cancelRide(rideId) {
+      try {
+        const res = await fetch('/api/admin/cancel-ride', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ride_id: rideId
+          })
+        })
+
+        const data = await res.json()
+        if (!res.ok) {
+          alert(data.error || 'Failed to cancel ride')
+          return
+        }
+
+        await refreshDispatch()
+      } catch (error) {
+        alert('Network error while cancelling ride')
+      }
+    }
+
+    function initMap() {
+      map = new google.maps.Map(document.getElementById('map'), {
+        center: { lat: 36.1627, lng: -86.7816 },
+        zoom: 11,
+        streetViewControl: false,
+        mapTypeControl: false,
+        fullscreenControl: false
+      })
+
+      mapReady = true
+      refreshDispatch()
+      setInterval(refreshDispatch, 5000)
+    }
+  </script>
+
+  <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDXXRPHFCh1-hKyUdh4wBFp9gjEgz_55QE&callback=initMap"></script>
 </body>
 </html>
