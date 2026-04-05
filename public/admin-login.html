@@ -1,98 +1,229 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Admin Login</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Harvey Taxi | Admin Login</title>
+  <meta name="description" content="Secure Harvey Taxi admin login for platform operations, dispatch visibility, and management access." />
+  <style>
+    :root {
+      --bg-1: #040814;
+      --bg-2: #091126;
+      --bg-3: #101a36;
+      --panel: rgba(10, 18, 42, 0.92);
+      --line: rgba(111, 170, 255, 0.2);
+      --line-strong: rgba(111, 170, 255, 0.38);
+      --text: #f4f8ff;
+      --muted: #b9c7e8;
+      --blue: #68a8ff;
+      --cyan: #62f5ff;
+      --danger: #ff7e90;
+      --shadow: 0 20px 60px rgba(0,0,0,0.35);
+    }
 
-<style>
-body{
-background:#020c2b;
-font-family:Arial;
-color:white;
-padding:20px;
-}
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      font-family: Inter, Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(98,245,255,0.12), transparent 28%),
+        radial-gradient(circle at top right, rgba(104,168,255,0.12), transparent 24%),
+        linear-gradient(160deg, var(--bg-1), var(--bg-2) 45%, var(--bg-3));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+    }
 
-.back{
-margin-bottom:20px;
-}
+    a { text-decoration: none; color: inherit; }
 
-.back a{
-color:white;
-text-decoration:none;
-font-size:18px;
-}
+    .shell {
+      width: min(100%, 980px);
+      display: grid;
+      grid-template-columns: 1fr 0.9fr;
+      gap: 18px;
+    }
 
-.box{
-background:#081a44;
-padding:25px;
-border-radius:20px;
-max-width:500px;
-margin:auto;
-}
+    .hero, .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(16px);
+    }
 
-input{
-width:100%;
-padding:15px;
-margin-top:10px;
-border-radius:12px;
-border:none;
-background:#e6e6a8;
-font-size:16px;
-}
+    .hero { padding: 30px; }
+    .eyebrow {
+      display: inline-flex; align-items: center; gap: 10px;
+      border: 1px solid var(--line-strong); padding: 9px 14px; border-radius: 999px;
+      color: var(--cyan); font-weight: 700; font-size: 0.88rem;
+      background: rgba(98,245,255,0.06); margin-bottom: 18px;
+    }
+    .hero h2 {
+      font-size: clamp(2rem, 4vw, 3.3rem);
+      line-height: 1.03; font-weight: 900; letter-spacing: -0.03em;
+    }
+    .hero h2 span {
+      background: linear-gradient(90deg, #ffffff, #89c0ff, #72fff0);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .hero p {
+      margin-top: 14px; color: var(--muted); line-height: 1.7;
+    }
 
-button{
-width:100%;
-padding:16px;
-margin-top:20px;
-border:none;
-border-radius:14px;
-background:linear-gradient(90deg,#2d6cff,#8a2eff);
-color:white;
-font-weight:bold;
-font-size:16px;
-}
+    .ops {
+      display: grid; gap: 12px; margin-top: 22px;
+    }
+    .ops-box {
+      padding: 14px 15px; border-radius: 16px;
+      background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);
+    }
+    .ops-box strong { display: block; margin-bottom: 6px; }
+    .ops-box span { color: var(--muted); line-height: 1.55; font-size: 0.92rem; }
 
-#error{
-color:red;
-margin-top:10px;
-}
-</style>
+    .panel { padding: 24px; display: flex; flex-direction: column; justify-content: center; }
+    .panel h3 { font-size: 1.24rem; margin-bottom: 8px; }
+    .panel-sub { color: var(--muted); line-height: 1.65; margin-bottom: 18px; }
+
+    .notice {
+      padding: 14px 16px; border-radius: 16px; margin-bottom: 18px;
+      background: rgba(255,126,144,0.10); border: 1px solid rgba(255,126,144,0.18);
+      color: var(--muted); line-height: 1.6; font-size: 0.92rem;
+    }
+
+    .field { display: grid; gap: 8px; margin-bottom: 16px; }
+    .field label { font-weight: 800; font-size: 0.96rem; }
+
+    input {
+      width: 100%; padding: 16px 18px; border-radius: 18px;
+      border: 1px solid rgba(34,81,182,0.5); background: rgba(0,12,52,0.88);
+      color: var(--text); font-size: 1rem; outline: none; transition: 0.25s ease;
+    }
+    input:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(104,168,255,0.16);
+    }
+
+    .btn, .return-home {
+      display: inline-block; text-align: center; font-weight: 800; font-family: inherit;
+    }
+    .btn {
+      width: 100%; padding: 18px 20px; border: none; border-radius: 18px; cursor: pointer;
+      font-size: 1rem; color: #08111f; background: linear-gradient(135deg, var(--cyan), var(--blue), #9dbeff);
+    }
+
+    .status {
+      display: none; margin-top: 16px; padding: 15px 16px; border-radius: 16px; line-height: 1.6;
+    }
+    .status.show { display: block; }
+    .status.error {
+      background: rgba(255,126,144,0.12); border: 1px solid rgba(255,126,144,0.22);
+    }
+
+    .return-home {
+      position: fixed; right: 16px; bottom: 16px; z-index: 60;
+      padding: 15px 20px; border-radius: 999px;
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      color: #08111f; box-shadow: var(--shadow);
+    }
+
+    @media (max-width: 860px) {
+      .shell { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 640px) {
+      .return-home { left: 12px; right: 12px; }
+    }
+  </style>
 </head>
-
 <body>
+  <main class="shell">
+    <section class="hero">
+      <div class="eyebrow">Secure platform control</div>
+      <h2>Admin <span>access</span></h2>
+      <p>
+        Use the Harvey Taxi admin portal to control approvals, operations, dispatch visibility,
+        and future platform management tools.
+      </p>
 
-<div class="back">
-<a href="/">← Back to Home</a>
-</div>
+      <div class="ops">
+        <div class="ops-box">
+          <strong>Approval oversight</strong>
+          <span>Review rider and driver access states across the platform.</span>
+        </div>
+        <div class="ops-box">
+          <strong>Dispatch visibility</strong>
+          <span>Connect this login into ride management, fleet tracking, and live operations.</span>
+        </div>
+        <div class="ops-box">
+          <strong>Growth control</strong>
+          <span>Manage payments, support tools, and future mixed-fleet workflows from one system.</span>
+        </div>
+      </div>
+    </section>
 
-<div class="box">
-<h1>Admin Login</h1>
+    <section class="panel">
+      <h3>Admin Login</h3>
+      <p class="panel-sub">
+        Enter secure credentials to access Harvey Taxi administrative tools.
+      </p>
 
-<input id="email" placeholder="Email">
-<input id="password" type="password" placeholder="Password">
+      <div class="notice">
+        This area is intended for authorized platform administrators only.
+      </div>
 
-<button onclick="login()">Login to Admin Dashboard</button>
+      <form id="adminLoginForm">
+        <div class="field">
+          <label for="email">Admin Email</label>
+          <input type="email" id="email" name="email" placeholder="Enter admin email" required />
+        </div>
 
-<div id="error"></div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" placeholder="Enter password" required />
+        </div>
 
-</div>
+        <button type="submit" class="btn">Login to Admin Dashboard</button>
+        <div id="statusMessage" class="status"></div>
+      </form>
+    </section>
+  </main>
 
-<script>
+  <a href="index.html" class="return-home">Return Home</a>
 
-function login(){
+  <script>
+    const adminForm = document.getElementById("adminLoginForm");
+    const adminStatus = document.getElementById("statusMessage");
 
-const email = document.getElementById("email").value
-const password = document.getElementById("password").value
+    adminForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
 
-if(email === "admin@harveytaxi.com" && password === "admin123"){
-window.location.href="/admin-dashboard.html"
-}else{
-document.getElementById("error").innerText="Invalid login"
-}
+      const payload = {
+        email: document.getElementById("email").value.trim(),
+        password: document.getElementById("password").value
+      };
 
-}
+      try {
+        const res = await fetch("/api/admin-login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
 
-</script>
+        const data = await res.json();
 
+        if (data.redirectUrl) {
+          window.location.href = data.redirectUrl;
+          return;
+        }
+
+        adminStatus.className = "status show error";
+        adminStatus.textContent = data.message || "Login response received, but no redirect destination was provided.";
+      } catch (error) {
+        adminStatus.className = "status show error";
+        adminStatus.textContent = "Unable to log in right now. Please try again.";
+      }
+    });
+  </script>
 </body>
 </html>
