@@ -3,293 +3,512 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Harvey Taxi Admin Dispatch</title>
+  <title>Harvey Taxi — Admin Dispatch</title>
   <style>
-    * {
-      box-sizing: border-box;
-      font-family: Arial, sans-serif;
+    :root{
+      --bg1:#050816;
+      --bg2:#0b1228;
+      --panel:rgba(11,18,38,.92);
+      --panel2:rgba(255,255,255,.04);
+      --line:rgba(122,162,255,.16);
+      --text:#f4f7ff;
+      --muted:#aab8de;
+      --blue:#5ea0ff;
+      --cyan:#63f5ff;
+      --green:#6dffb3;
+      --danger:#ff7e97;
+      --gold:#ffd76a;
+      --shadow:0 18px 60px rgba(0,0,0,.35);
     }
 
-    body {
-      margin: 0;
-      background: #02123d;
-      color: white;
-      padding: 20px;
+    *{box-sizing:border-box;margin:0;padding:0}
+
+    body{
+      font-family:Inter,Arial,sans-serif;
+      color:var(--text);
+      min-height:100vh;
+      background:
+        radial-gradient(circle at top left, rgba(99,245,255,.10), transparent 25%),
+        linear-gradient(160deg,var(--bg1),var(--bg2));
     }
 
-    h1, h2 {
-      margin-top: 0;
+    .shell{
+      max-width:1200px;
+      margin:auto;
+      padding:20px 16px 48px;
     }
 
-    .topbar {
-      max-width: 1200px;
-      margin: 0 auto 20px auto;
+    .topbar{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      margin-bottom:18px;
+      flex-wrap:wrap;
     }
 
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 20px;
-      max-width: 1200px;
-      margin: 0 auto;
+    .brand{
+      font-size:1.3rem;
+      font-weight:800;
+      letter-spacing:.3px;
     }
 
-    .card {
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.15);
-      border-radius: 18px;
-      padding: 20px;
+    .brand span{color:var(--cyan)}
+
+    .home-btn{
+      text-decoration:none;
+      color:var(--text);
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.04);
+      padding:10px 14px;
+      border-radius:999px;
+      font-weight:700;
     }
 
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      gap: 12px;
+    .hero,
+    .card,
+    .stat{
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:24px;
+      padding:20px;
+      box-shadow:var(--shadow);
     }
 
-    .stat-box {
-      background: rgba(255,255,255,0.1);
-      border-radius: 14px;
-      padding: 14px;
-      text-align: center;
+    .hero{
+      margin-bottom:16px;
     }
 
-    .stat-box strong {
-      display: block;
-      font-size: 24px;
-      margin-top: 8px;
+    .hero h1{
+      font-size:1.55rem;
+      margin-bottom:8px;
     }
 
-    .request, .driver {
-      background: rgba(255,255,255,0.06);
-      border-radius: 14px;
-      padding: 15px;
-      margin-bottom: 12px;
+    .hero p{
+      color:var(--muted);
+      line-height:1.55;
     }
 
-    .request:last-child, .driver:last-child {
-      margin-bottom: 0;
+    .stats{
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:12px;
+      margin-bottom:16px;
     }
 
-    button, select {
-      border: none;
-      border-radius: 10px;
-      padding: 10px 12px;
-      margin: 6px 6px 0 0;
-      font-weight: bold;
+    .k{
+      color:var(--muted);
+      font-size:.82rem;
+      margin-bottom:6px;
     }
 
-    button {
-      cursor: pointer;
+    .v{
+      font-size:1.12rem;
+      font-weight:800;
     }
 
-    .btn-green { background: #5ed36f; color: #08220d; }
-    .btn-blue { background: #63b3ed; color: #061727; }
-    .btn-yellow { background: #f6d64a; color: #2d2400; }
-    .btn-red { background: #ff6b6b; color: white; }
-
-    .muted {
-      color: #d2d7e6;
-      font-size: 14px;
+    .grid{
+      display:grid;
+      grid-template-columns:1.35fr .85fr;
+      gap:16px;
     }
 
-    .status {
-      display: inline-block;
-      padding: 6px 10px;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: bold;
-      margin-top: 8px;
-      background: rgba(255,255,255,0.12);
+    .card-header{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      margin-bottom:14px;
+      flex-wrap:wrap;
     }
 
-    .row {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 20px;
+    .card-title{
+      font-size:1.05rem;
+      font-weight:800;
     }
 
-    @media (min-width: 900px) {
-      .row {
-        grid-template-columns: 1.4fr 1fr;
+    .sub{
+      color:var(--muted);
+      line-height:1.5;
+      font-size:.94rem;
+    }
+
+    .rides,
+    .drivers{
+      display:grid;
+      gap:12px;
+    }
+
+    .ride-card,
+    .driver-card{
+      background:rgba(255,255,255,.03);
+      border:1px solid var(--line);
+      border-radius:18px;
+      padding:14px;
+    }
+
+    .ride-top,
+    .driver-top{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      margin-bottom:10px;
+      flex-wrap:wrap;
+    }
+
+    .ride-title,
+    .driver-title{
+      font-weight:800;
+      margin-bottom:4px;
+    }
+
+    .ride-sub,
+    .driver-sub{
+      color:var(--muted);
+      font-size:.92rem;
+      line-height:1.45;
+    }
+
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      padding:8px 12px;
+      border-radius:999px;
+      font-size:.78rem;
+      font-weight:800;
+      border:1px solid transparent;
+      white-space:nowrap;
+    }
+
+    .ok{
+      background:rgba(109,255,179,.12);
+      color:var(--green);
+      border-color:rgba(109,255,179,.18);
+    }
+
+    .warn{
+      background:rgba(255,215,106,.12);
+      color:var(--gold);
+      border-color:rgba(255,215,106,.18);
+    }
+
+    .bad{
+      background:rgba(255,126,151,.12);
+      color:var(--danger);
+      border-color:rgba(255,126,151,.18);
+    }
+
+    .ride-grid,
+    .driver-grid{
+      display:grid;
+      grid-template-columns:repeat(2,1fr);
+      gap:10px;
+      margin-bottom:10px;
+    }
+
+    .box{
+      background:rgba(255,255,255,.03);
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:10px 12px;
+    }
+
+    .box .v{
+      font-size:.97rem;
+      line-height:1.4;
+    }
+
+    .notes{
+      margin-top:4px;
+      margin-bottom:10px;
+      padding:12px;
+      border-radius:14px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.03);
+      color:var(--text);
+      line-height:1.55;
+    }
+
+    .actions{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      margin-top:8px;
+    }
+
+    button{
+      border:none;
+      cursor:pointer;
+      border-radius:14px;
+      padding:11px 14px;
+      font-size:.95rem;
+      font-weight:800;
+    }
+
+    .primary{
+      background:linear-gradient(90deg,var(--blue),var(--cyan));
+      color:#061325;
+    }
+
+    .success{
+      background:linear-gradient(90deg,#63f5ff,#6dffb3);
+      color:#05241e;
+    }
+
+    .neutral{
+      background:rgba(255,255,255,.05);
+      color:var(--text);
+      border:1px solid var(--line);
+    }
+
+    .empty{
+      padding:18px;
+      text-align:center;
+      color:var(--muted);
+      border:1px dashed var(--line);
+      border-radius:18px;
+      background:rgba(255,255,255,.02);
+    }
+
+    @media (max-width: 980px){
+      .stats,
+      .grid,
+      .ride-grid,
+      .driver-grid{
+        grid-template-columns:1fr;
       }
     }
   </style>
 </head>
 <body>
-  <div class="topbar">
-    <h1>🚕 Harvey Taxi Admin Dispatch</h1>
-    <p class="muted">Dispatch workflow dashboard for requests, drivers, and ride completion.</p>
-  </div>
-
-  <div class="grid">
-    <div class="card">
-      <h2>Live Stats</h2>
-      <div id="stats" class="stats"></div>
+  <div class="shell">
+    <div class="topbar">
+      <div class="brand">Harvey <span>Taxi</span> Admin Dispatch</div>
+      <a class="home-btn" href="/">← Return Home</a>
     </div>
 
-    <div class="row">
+    <div class="hero">
+      <h1>Command Dispatch Board</h1>
+      <p>
+        Monitor all missions, payment-cleared rides, driver assignment, live trip progression,
+        and completed rides from one control center.
+      </p>
+    </div>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="k">Total Rides</div>
+        <div class="v" id="totalRides">0</div>
+      </div>
+      <div class="stat">
+        <div class="k">Waiting for Driver</div>
+        <div class="v" id="waitingRides">0</div>
+      </div>
+      <div class="stat">
+        <div class="k">Active Trips</div>
+        <div class="v" id="activeRides">0</div>
+      </div>
+      <div class="stat">
+        <div class="k">Completed Trips</div>
+        <div class="v" id="completedRides">0</div>
+      </div>
+    </div>
+
+    <div class="grid">
       <div class="card">
-        <h2>Ride Requests</h2>
-        <div id="requestsList">Loading requests...</div>
+        <div class="card-header">
+          <div>
+            <div class="card-title">Live Ride Feed</div>
+            <div class="sub">Advance rides through arrival, start, and completion.</div>
+          </div>
+          <button class="primary" id="refreshBtn">Refresh Board</button>
+        </div>
+        <div class="rides" id="ridesContainer">
+          <div class="empty">Loading rides...</div>
+        </div>
       </div>
 
       <div class="card">
-        <h2>Drivers</h2>
-        <div id="driversList">Loading drivers...</div>
+        <div class="card-header">
+          <div>
+            <div class="card-title">Driver Board</div>
+            <div class="sub">Monitor online status and approval state.</div>
+          </div>
+        </div>
+        <div class="drivers" id="driversContainer">
+          <div class="empty">Loading drivers...</div>
+        </div>
       </div>
     </div>
   </div>
 
   <script>
-    let drivers = []
-    let requests = []
-
-    async function fetchStats() {
-      const res = await fetch('/api/admin/stats')
-      const data = await res.json()
-
-      const stats = data.stats || {}
-      document.getElementById('stats').innerHTML = `
-        <div class="stat-box">Drivers<strong>${stats.totalDrivers || 0}</strong></div>
-        <div class="stat-box">Approved<strong>${stats.approvedDrivers || 0}</strong></div>
-        <div class="stat-box">Available<strong>${stats.availableDrivers || 0}</strong></div>
-        <div class="stat-box">Requests<strong>${stats.totalRequests || 0}</strong></div>
-        <div class="stat-box">Pending<strong>${stats.pendingRequests || 0}</strong></div>
-        <div class="stat-box">Assigned<strong>${stats.assignedRequests || 0}</strong></div>
-        <div class="stat-box">In Progress<strong>${stats.inProgressRequests || 0}</strong></div>
-        <div class="stat-box">Completed<strong>${stats.completedRequests || 0}</strong></div>
-      `
+    function money(value){
+      return `$${Number(value || 0).toFixed(2)}`;
     }
 
-    async function fetchDrivers() {
-      const res = await fetch('/api/drivers')
-      const data = await res.json()
-      drivers = data.drivers || []
+    function badgeClass(value){
+      const okValues = [
+        "AUTHORIZED","SETTLED","SPONSORED","APPROVED",
+        "COMPLETED","IN_PROGRESS","DRIVER_ACCEPTED","DRIVER_ARRIVING",
+        "ACCEPTED","TRIP_ACTIVE","TRIP_CLOSED","ONLINE"
+      ];
 
-      const driversList = document.getElementById('driversList')
+      const warnValues = [
+        "DISPATCHING","READY_FOR_DRIVER","WAITING_FOR_DRIVER",
+        "OFFERED_TO_DRIVER","PENDING","DRIVER_EN_ROUTE_TO_PICKUP"
+      ];
 
-      if (!drivers.length) {
-        driversList.innerHTML = '<p>No drivers yet.</p>'
-        return
-      }
-
-      driversList.innerHTML = drivers.map(driver => `
-        <div class="driver">
-          <strong>${driver.name}</strong>
-          <div class="muted">${driver.email}</div>
-          <div class="muted">Phone: ${driver.phone || 'N/A'}</div>
-          <div class="muted">Vehicle: ${driver.vehicleType || 'N/A'} ${driver.carModel || ''}</div>
-          <div class="muted">Plate: ${driver.licensePlate || 'N/A'}</div>
-          <div class="status">Status: ${driver.status || 'offline'}</div>
-          <div class="status">Approved: ${driver.approved ? 'Yes' : 'No'}</div>
-          <div class="status">Available: ${driver.available ? 'Yes' : 'No'}</div>
-          ${
-            !driver.approved
-              ? `<div><button class="btn-green" onclick="approveDriver('${driver.id}')">Approve Driver</button></div>`
-              : ''
-          }
-        </div>
-      `).join('')
+      if(okValues.includes(value)) return "ok";
+      if(warnValues.includes(value)) return "warn";
+      return "bad";
     }
 
-    function getDriverOptions(selectedDriverId = '') {
-      const approvedDrivers = drivers.filter(driver => driver.approved)
-      if (!approvedDrivers.length) {
-        return '<option value="">No approved drivers</option>'
-      }
+    async function loadDispatchBoard(){
+      try{
+        const res = await fetch("/api/admin/dispatch-board");
+        const data = await res.json();
 
-      return approvedDrivers.map(driver => `
-        <option value="${driver.id}" ${selectedDriverId === driver.id ? 'selected' : ''}>
-          ${driver.name} (${driver.status})
-        </option>
-      `).join('')
+        if(!data.success){
+          return;
+        }
+
+        document.getElementById("totalRides").textContent = data.summary.total_rides || 0;
+        document.getElementById("waitingRides").textContent = data.summary.waiting_for_driver || 0;
+        document.getElementById("activeRides").textContent = data.summary.active_trips || 0;
+        document.getElementById("completedRides").textContent = data.summary.completed_trips || 0;
+
+        renderRides(data.rides || []);
+        renderDrivers(data.drivers || []);
+      }catch(err){
+        document.getElementById("ridesContainer").innerHTML =
+          `<div class="empty">Unable to load dispatch board.</div>`;
+        document.getElementById("driversContainer").innerHTML =
+          `<div class="empty">Unable to load drivers.</div>`;
+      }
     }
 
-    async function fetchRequests() {
-      const res = await fetch('/api/service-requests')
-      const data = await res.json()
-      requests = data.requests || []
+    function renderRides(rides){
+      const container = document.getElementById("ridesContainer");
 
-      const requestsList = document.getElementById('requestsList')
-
-      if (!requests.length) {
-        requestsList.innerHTML = '<p>No ride requests yet.</p>'
-        return
+      if(!rides.length){
+        container.innerHTML = `<div class="empty">No rides available yet.</div>`;
+        return;
       }
 
-      requestsList.innerHTML = requests.map(request => `
-        <div class="request">
-          <strong>${request.riderName}</strong>
-          <div class="muted">Phone: ${request.riderPhone}</div>
-          <div class="muted">Pickup: ${request.pickup}</div>
-          <div class="muted">Dropoff: ${request.dropoff}</div>
-          <div class="muted">Scheduled: ${request.scheduledTime || 'ASAP'}</div>
-          <div class="muted">Assigned Driver: ${request.assignedDriverName || 'None yet'}</div>
-          <div class="status">Status: ${request.status}</div>
-
-          <div style="margin-top:10px;">
-            <select id="driver_${request.id}">
-              <option value="">Select driver</option>
-              ${getDriverOptions(request.assignedDriverId || '')}
-            </select>
-            <button class="btn-blue" onclick="assignDriver('${request.id}')">Assign</button>
+      container.innerHTML = rides.map(ride => `
+        <div class="ride-card">
+          <div class="ride-top">
+            <div>
+              <div class="ride-title">${(ride.ride_type || "STANDARD").replaceAll("_"," ")} • ${ride.ride_id}</div>
+              <div class="ride-sub">
+                ${ride.pickup_address || "--"}<br>
+                to ${ride.dropoff_address || "--"}
+              </div>
+            </div>
+            <div class="badge ${badgeClass(ride.ride_status)}">${ride.ride_status || "UNKNOWN"}</div>
           </div>
 
-          <div>
-            <button class="btn-yellow" onclick="startRide('${request.id}')">Start Ride</button>
-            <button class="btn-green" onclick="completeRide('${request.id}')">Complete Ride</button>
-            <button class="btn-red" onclick="cancelRide('${request.id}')">Cancel Ride</button>
+          <div class="ride-grid">
+            <div class="box">
+              <div class="k">Passenger</div>
+              <div class="v">${ride.passenger_first_name || "--"}</div>
+            </div>
+            <div class="box">
+              <div class="k">Driver</div>
+              <div class="v">${ride.driver_name || "Unassigned"}</div>
+            </div>
+            <div class="box">
+              <div class="k">Payment</div>
+              <div class="v">${ride.payment_status || "--"}</div>
+            </div>
+            <div class="box">
+              <div class="k">Mission</div>
+              <div class="v">${ride.mission_status || "--"}</div>
+            </div>
+            <div class="box">
+              <div class="k">Fare</div>
+              <div class="v">${money(ride.fare_amount)}</div>
+            </div>
+            <div class="box">
+              <div class="k">Total</div>
+              <div class="v">${money(ride.total_amount)}</div>
+            </div>
+          </div>
+
+          <div class="notes">
+            <strong>Notes:</strong><br>
+            ${ride.special_notes && ride.special_notes.trim()
+              ? ride.special_notes
+              : "No special notes provided."}
+          </div>
+
+          <div class="actions">
+            <button class="neutral" onclick="advanceRide('${ride.ride_id}','arriving')">Driver Arriving</button>
+            <button class="success" onclick="advanceRide('${ride.ride_id}','start')">Start Trip</button>
+            <button class="primary" onclick="advanceRide('${ride.ride_id}','complete')">Complete Trip</button>
           </div>
         </div>
-      `).join('')
+      `).join("");
     }
 
-    async function approveDriver(driverId) {
-      await fetch(`/api/admin/approve-driver/${driverId}`, { method: 'POST' })
-      await refreshAll()
-    }
+    function renderDrivers(drivers){
+      const container = document.getElementById("driversContainer");
 
-    async function assignDriver(requestId) {
-      const driverId = document.getElementById(`driver_${requestId}`).value
-
-      if (!driverId) {
-        alert('Please choose a driver first.')
-        return
+      if(!drivers.length){
+        container.innerHTML = `<div class="empty">No drivers loaded.</div>`;
+        return;
       }
 
-      await fetch('/api/admin/assign-driver', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ requestId, driverId })
-      })
+      container.innerHTML = drivers.map(driver => `
+        <div class="driver-card">
+          <div class="driver-top">
+            <div>
+              <div class="driver-title">${driver.first_name || "Driver"} • ${driver.driver_id}</div>
+              <div class="driver-sub">${driver.current_address || "No current address available"}</div>
+            </div>
+            <div class="badge ${driver.is_online ? "ok" : "bad"}">${driver.is_online ? "ONLINE" : "OFFLINE"}</div>
+          </div>
 
-      await refreshAll()
+          <div class="driver-grid">
+            <div class="box">
+              <div class="k">Verification</div>
+              <div class="v">${driver.verification_status || "--"}</div>
+            </div>
+            <div class="box">
+              <div class="k">Background</div>
+              <div class="v">${driver.background_status || "--"}</div>
+            </div>
+          </div>
+        </div>
+      `).join("");
     }
 
-    async function startRide(requestId) {
-      await fetch(`/api/admin/start-ride/${requestId}`, { method: 'POST' })
-      await refreshAll()
+    async function advanceRide(rideId, action){
+      const endpointMap = {
+        arriving: `/api/rides/${rideId}/arriving`,
+        start: `/api/rides/${rideId}/start`,
+        complete: `/api/rides/${rideId}/complete`
+      };
+
+      try{
+        const res = await fetch(endpointMap[action], {
+          method: "POST",
+          headers: {"Content-Type":"application/json"}
+        });
+
+        const data = await res.json();
+        alert(data.message || "Ride updated.");
+        loadDispatchBoard();
+      }catch(err){
+        alert("Unable to update ride.");
+      }
     }
 
-    async function completeRide(requestId) {
-      await fetch(`/api/admin/complete-ride/${requestId}`, { method: 'POST' })
-      await refreshAll()
-    }
+    document.getElementById("refreshBtn").addEventListener("click", loadDispatchBoard);
 
-    async function cancelRide(requestId) {
-      await fetch(`/api/admin/cancel-ride/${requestId}`, { method: 'POST' })
-      await refreshAll()
-    }
-
-    async function refreshAll() {
-      await fetchDrivers()
-      await fetchRequests()
-      await fetchStats()
-    }
-
-    refreshAll()
-    setInterval(refreshAll, 8000)
+    loadDispatchBoard();
+    setInterval(loadDispatchBoard, 5000);
   </script>
 </body>
 </html>
