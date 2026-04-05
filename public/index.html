@@ -1093,3 +1093,259 @@
   </script>
 </body>
 </html>
+            and future control tools.
+          </p>
+          <div class="card-actions">
+            <a class="link-btn primary" href="admin-login.html">Open Admin Login</a>
+            <button class="link-btn" type="button" onclick="openModal('adminModal')">Return Home Info</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="mission">
+      <div class="mission">
+        <div>
+          <h3>Harvey Transportation Assistance Foundation Mission</h3>
+          <p>
+            Our mission is to help remove transportation barriers for individuals and families
+            in need by supporting access to essential rides, dependable mobility solutions,
+            and future community transportation programs. Through this work, we aim to expand
+            transportation support locally and internationally while building a lasting bridge
+            between mobility, opportunity, and community care.
+          </p>
+        </div>
+
+        <div class="mission-points">
+          <div class="point">
+            <strong>Medical & Essential Access</strong>
+            <span>Support transportation for appointments, treatment, and urgent travel needs.</span>
+          </div>
+          <div class="point">
+            <strong>School & Work Mobility</strong>
+            <span>Help individuals reach school, work, and opportunity with greater consistency.</span>
+          </div>
+          <div class="point">
+            <strong>Community Growth</strong>
+            <span>Build long-term programs that expand transportation support where it is needed most.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="operations">
+      <div class="ops">
+        <div class="section-head">
+          <div>
+            <h3>Operations Layer</h3>
+            <p>
+              The home experience connects the public-facing platform to the internal systems
+              that support dispatch, verification, payments, and growth.
+            </p>
+          </div>
+        </div>
+
+        <div class="ops-grid">
+          <div class="ops-box">
+            <strong>Verification Ready</strong>
+            <span>Supports structured onboarding and approval flow for platform access.</span>
+          </div>
+          <div class="ops-box">
+            <strong>Dispatch Ready</strong>
+            <span>Designed to connect ride intake with live operations and fleet coordination.</span>
+          </div>
+          <div class="ops-box">
+            <strong>Payment Access</strong>
+            <span>Separates taxi service payments from donation support while keeping both visible.</span>
+          </div>
+          <div class="ops-box">
+            <strong>Return Home Flow</strong>
+            <span>Every major area can guide users back to the main platform experience.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="review">
+      <div class="legal-card">
+        <div class="section-head" style="margin-bottom: 0;">
+          <div>
+            <h3>Support, Privacy, and Review Readiness</h3>
+            <p>
+              These links strengthen platform legitimacy, improve user trust, and help support app review readiness.
+            </p>
+          </div>
+        </div>
+
+        <div class="legal-links">
+          <a class="link-btn primary" href="privacy-policy.html">Privacy Policy</a>
+          <a class="link-btn" href="terms.html">Terms of Service</a>
+          <a class="link-btn" href="support.html">Support</a>
+          <a class="link-btn" href="app-review.html">App Review Info</a>
+        </div>
+      </div>
+    </section>
+
+    <div class="footer-card">
+      <div>
+        <h3 style="margin-bottom:8px;">Harvey Taxi</h3>
+        <p>
+          Transportation, platform growth, and community support working together through one connected system.
+        </p>
+      </div>
+
+      <div style="display:flex; flex-wrap:wrap; gap:10px;">
+        <a class="link-btn primary" href="#top">Return Home</a>
+        <a class="link-btn" href="rider-signup.html">Rider Sign Up</a>
+        <a class="link-btn" href="driver-signup.html">Driver Sign Up</a>
+      </div>
+    </div>
+  </div>
+
+  <a class="home-anchor" href="#top">Return Home</a>
+
+  <!-- About Modal -->
+  <div class="modal" id="aboutModal">
+    <div class="modal-card">
+      <button class="close-x" type="button" onclick="closeModal('aboutModal')">✕</button>
+      <h3>About Harvey Taxi</h3>
+      <p>
+        Harvey Taxi is being built as a connected transportation platform that supports rider access,
+        driver onboarding, operational growth, direct payments, and mission-based transportation support.
+      </p>
+      <ul>
+        <li>Rider and driver entry points</li>
+        <li>Ride request access flow</li>
+        <li>Administrative platform control</li>
+        <li>Community mission visibility and donation support</li>
+      </ul>
+      <div class="modal-actions">
+        <a class="link-btn primary" href="#top" onclick="closeModal('aboutModal')">Return Home</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="riderModal">
+    <div class="modal-card">
+      <button class="close-x" type="button" onclick="closeModal('riderModal')">✕</button>
+      <h3>Rider Access</h3>
+      <p>
+        Riders enter through signup, complete the required steps, and move into the approved access flow
+        before using ride request features.
+      </p>
+      <div class="modal-actions">
+        <a class="link-btn primary" href="rider-signup.html">Go to Rider Sign Up</a>
+        <a class="link-btn" href="#top" onclick="closeModal('riderModal')">Return Home</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="driverModal">
+    <div class="modal-card">
+      <button class="close-x" type="button" onclick="closeModal('driverModal')">✕</button>
+      <h3>Driver Access</h3>
+      <p>
+        Drivers use the onboarding path to begin approval, identity review, and platform participation.
+      </p>
+      <div class="modal-actions">
+        <a class="link-btn primary" href="driver-signup.html">Go to Driver Sign Up</a>
+        <a class="link-btn" href="#top" onclick="closeModal('driverModal')">Return Home</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="requestModal">
+    <div class="modal-card">
+      <button class="close-x" type="button" onclick="closeModal('requestModal')">✕</button>
+      <h3>Ride Requests</h3>
+      <p>
+        Approved riders can move into the request flow and submit ride details for dispatch review
+        and trip coordination.
+      </p>
+      <div class="modal-actions">
+        <a class="link-btn primary" href="request-ride.html">Go to Request Ride</a>
+        <a class="link-btn" href="#top" onclick="closeModal('requestModal')">Return Home</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="paymentModal">
+    <div class="modal-card">
+      <button class="close-x" type="button" onclick="closeModal('paymentModal')">✕</button>
+      <h3>Harvey Taxi Payments</h3>
+      <p>
+        Use the Harvey Taxi payment area for transportation-related payments connected to the platform.
+      </p>
+      <div class="modal-actions">
+        <a class="link-btn primary" href="payment.html">Go to Payment</a>
+        <a class="link-btn" href="#top" onclick="closeModal('paymentModal')">Return Home</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="donationModal">
+    <div class="modal-card">
+      <button class="close-x" type="button" onclick="closeModal('donationModal')">✕</button>
+      <h3>Support the Mission</h3>
+      <p>
+        Donations help support transportation assistance, future outreach programs, and mobility support
+        for individuals and families facing transportation barriers.
+      </p>
+      <div class="modal-actions">
+        <a
+          class="link-btn primary"
+          href="https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Open Donation Link
+        </a>
+        <a class="link-btn" href="#top" onclick="closeModal('donationModal')">Return Home</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="adminModal">
+    <div class="modal-card">
+      <button class="close-x" type="button" onclick="closeModal('adminModal')">✕</button>
+      <h3>Admin Access</h3>
+      <p>
+        Admin access supports approvals, oversight, dispatch visibility, and future operational controls
+        across the Harvey Taxi platform.
+      </p>
+      <div class="modal-actions">
+        <a class="link-btn primary" href="admin-login.html">Go to Admin Login</a>
+        <a class="link-btn" href="#top" onclick="closeModal('adminModal')">Return Home</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function openModal(id) {
+      const modal = document.getElementById(id);
+      if (modal) modal.classList.add("active");
+    }
+
+    function closeModal(id) {
+      const modal = document.getElementById(id);
+      if (modal) modal.classList.remove("active");
+    }
+
+    window.addEventListener("click", function (e) {
+      document.querySelectorAll(".modal").forEach((modal) => {
+        if (e.target === modal) {
+          modal.classList.remove("active");
+        }
+      });
+    });
+
+    window.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") {
+        document.querySelectorAll(".modal.active").forEach((modal) => {
+          modal.classList.remove("active");
+        });
+      }
+    });
+  </script>
+</body>
+</html>
