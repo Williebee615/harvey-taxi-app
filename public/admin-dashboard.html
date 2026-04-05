@@ -33,7 +33,7 @@
     }
 
     .shell{
-      max-width:1320px;
+      max-width:1360px;
       margin:auto;
       padding:20px 16px 48px;
     }
@@ -106,7 +106,7 @@
 
     .grid{
       display:grid;
-      grid-template-columns:1fr 1fr;
+      grid-template-columns:1fr 1.2fr;
       gap:16px;
     }
 
@@ -260,6 +260,11 @@
       border:1px solid var(--line);
     }
 
+    .gold{
+      background:linear-gradient(90deg,#ffd76a,#ffefac);
+      color:#3a2a00;
+    }
+
     .empty{
       padding:18px;
       text-align:center;
@@ -269,10 +274,64 @@
       background:rgba(255,255,255,.02);
     }
 
-    @media (max-width: 1050px){
+    .insight-card{
+      background:rgba(255,255,255,.03);
+      border:1px solid var(--line);
+      border-radius:18px;
+      padding:14px;
+    }
+
+    .insight-title{
+      font-weight:800;
+      margin-bottom:10px;
+    }
+
+    .candidate{
+      display:grid;
+      grid-template-columns:1.2fr .8fr .8fr .8fr;
+      gap:10px;
+      padding:10px 0;
+      border-top:1px solid rgba(255,255,255,.06);
+      align-items:center;
+    }
+
+    .candidate:first-of-type{
+      border-top:none;
+      padding-top:0;
+    }
+
+    .mini{
+      font-size:.88rem;
+      color:var(--muted);
+    }
+
+    .result{
+      display:none;
+      margin-bottom:14px;
+      padding:14px;
+      border-radius:18px;
+      border:1px solid rgba(109,255,179,.2);
+      background:rgba(109,255,179,.08);
+      color:#dffff0;
+      line-height:1.55;
+    }
+
+    .error{
+      display:none;
+      margin-bottom:14px;
+      padding:14px;
+      border-radius:18px;
+      border:1px solid rgba(255,126,151,.2);
+      background:rgba(255,126,151,.08);
+      color:#ffd9e1;
+      line-height:1.55;
+    }
+
+    @media (max-width: 1120px){
       .stats,
       .grid,
-      .item-grid{
+      .item-grid,
+      .candidate{
         grid-template-columns:1fr;
       }
     }
@@ -286,12 +345,15 @@
     </div>
 
     <div class="hero">
-      <h1>Operations Command Center</h1>
+      <h1>Operations + Dispatch Brain Command Center</h1>
       <p>
-        Approve riders and drivers, monitor dispatch flow, review payment status,
-        and control live trip progression from one dashboard.
+        Approve riders and drivers, monitor dispatch flow, run the dispatch brain,
+        inspect candidate scoring, and control live trip progression from one dashboard.
       </p>
     </div>
+
+    <div class="result" id="resultBox"></div>
+    <div class="error" id="errorBox"></div>
 
     <div class="stats">
       <div class="stat">
@@ -322,7 +384,7 @@
           <div class="card-header">
             <div>
               <div class="card-title">Pending Rider Approvals</div>
-              <div class="sub">Approve rider verification before they can request trips.</div>
+              <div class="sub">Approve rider verification before ride requests are allowed.</div>
             </div>
             <button class="primary" onclick="loadDashboard()">Refresh</button>
           </div>
@@ -335,11 +397,23 @@
           <div class="card-header">
             <div>
               <div class="card-title">Pending Driver Approvals</div>
-              <div class="sub">Approve only drivers who are ready for missions.</div>
+              <div class="sub">Approve only drivers that are ready to receive missions.</div>
             </div>
           </div>
           <div class="list" id="pendingDriversList">
             <div class="empty">Loading drivers...</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Dispatch Brain Insights</div>
+              <div class="sub">Tap an insight button on a ride to view scoring candidates.</div>
+            </div>
+          </div>
+          <div id="dispatchInsightsPanel">
+            <div class="empty">No ride selected for insights yet.</div>
           </div>
         </div>
       </div>
@@ -365,6 +439,22 @@
       return `$${Number(value || 0).toFixed(2)}`;
     }
 
+    function showResult(message){
+      const resultBox = document.getElementById("resultBox");
+      const errorBox = document.getElementById("errorBox");
+      resultBox.style.display = "block";
+      resultBox.innerHTML = message;
+      errorBox.style.display = "none";
+    }
+
+    function showError(message){
+      const resultBox = document.getElementById("resultBox");
+      const errorBox = document.getElementById("errorBox");
+      errorBox.style.display = "block";
+      errorBox.innerHTML = message;
+      resultBox.style.display = "none";
+    }
+
     function badgeClass(value){
       const okValues = [
         "APPROVED","AUTHORIZED","SPONSORED","SETTLED","COMPLETED",
@@ -372,19 +462,30 @@
       ];
       const warnValues = [
         "PENDING","READY_FOR_DRIVER","DISPATCHING","WAITING_FOR_DRIVER",
-        "OFFERED_TO_DRIVER","DRIVER_EN_ROUTE_TO_PICKUP"
+        "OFFERED_TO_DRIVER","DRIVER_EN_ROUTE_TO_PICKUP","RUNNING_DISPATCH_BRAIN","REDISPATCHING"
       ];
       if(okValues.includes(value)) return "ok";
       if(warnValues.includes(value)) return "warn";
       return "bad";
     }
 
+    async function safeJson(res){
+      try{
+        return await res.json();
+      }catch{
+        return { success:false, message:"Invalid server response." };
+      }
+    }
+
     async function loadDashboard(){
       try{
         const res = await fetch("/api/admin/dashboard-data");
-        const data = await res.json();
+        const data = await safeJson(res);
 
-        if(!data.success) return;
+        if(!data.success){
+          showError(data.message || "Unable to load dashboard.");
+          return;
+        }
 
         document.getElementById("pendingRidersCount").textContent = data.pending_riders.length;
         document.getElementById("pendingDriversCount").textContent = data.pending_drivers.length;
@@ -396,6 +497,7 @@
         renderPendingDrivers(data.pending_drivers);
         renderRides(data.rides);
       }catch(err){
+        showError("Unable to load dashboard.");
         document.getElementById("pendingRidersList").innerHTML = `<div class="empty">Unable to load riders.</div>`;
         document.getElementById("pendingDriversList").innerHTML = `<div class="empty">Unable to load drivers.</div>`;
         document.getElementById("ridesList").innerHTML = `<div class="empty">Unable to load rides.</div>`;
@@ -511,6 +613,14 @@
               <div class="k">Total</div>
               <div class="v">${money(ride.total_amount)}</div>
             </div>
+            <div class="box">
+              <div class="k">ETA to Pickup</div>
+              <div class="v">${ride.eta_to_pickup_minutes ? ride.eta_to_pickup_minutes + " min" : "--"}</div>
+            </div>
+            <div class="box">
+              <div class="k">Dispatch Score</div>
+              <div class="v">${ride.dispatch_score || "--"}</div>
+            </div>
           </div>
 
           <div class="notes">
@@ -519,6 +629,8 @@
           </div>
 
           <div class="actions">
+            <button class="gold" onclick="runDispatchBrain('${ride.ride_id}')">Run Dispatch Brain</button>
+            <button class="neutral" onclick="showDispatchInsights('${ride.ride_id}')">Dispatch Insights</button>
             <button class="neutral" onclick="markArriving('${ride.ride_id}')">Driver Arriving</button>
             <button class="success" onclick="startTrip('${ride.ride_id}')">Start Trip</button>
             <button class="primary" onclick="completeTrip('${ride.ride_id}')">Complete Trip</button>
@@ -528,53 +640,157 @@
     }
 
     async function approveRider(riderId){
-      await fetch("/api/admin/approve-rider", {
+      const res = await fetch("/api/admin/approve-rider", {
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({ rider_id:riderId })
       });
+      const data = await safeJson(res);
+      if(!data.success) return showError(data.message || "Unable to approve rider.");
+      showResult(`Rider approved: <strong>${data.rider.first_name}</strong>`);
       loadDashboard();
     }
 
     async function rejectRider(riderId){
-      await fetch("/api/admin/reject-rider", {
+      const res = await fetch("/api/admin/reject-rider", {
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({ rider_id:riderId })
       });
+      const data = await safeJson(res);
+      if(!data.success) return showError(data.message || "Unable to reject rider.");
+      showResult(`Rider rejected: <strong>${data.rider.first_name}</strong>`);
       loadDashboard();
     }
 
     async function approveDriver(driverId){
-      await fetch("/api/admin/approve-driver", {
+      const res = await fetch("/api/admin/approve-driver", {
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({ driver_id:driverId })
       });
+      const data = await safeJson(res);
+      if(!data.success) return showError(data.message || "Unable to approve driver.");
+      showResult(`Driver approved: <strong>${data.driver.first_name}</strong>`);
       loadDashboard();
     }
 
     async function rejectDriver(driverId){
-      await fetch("/api/admin/reject-driver", {
+      const res = await fetch("/api/admin/reject-driver", {
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({ driver_id:driverId })
       });
+      const data = await safeJson(res);
+      if(!data.success) return showError(data.message || "Unable to reject driver.");
+      showResult(`Driver rejected: <strong>${data.driver.first_name}</strong>`);
       loadDashboard();
     }
 
+    async function runDispatchBrain(rideId){
+      const res = await fetch(`/api/admin/run-dispatch/${rideId}`, {
+        method:"POST",
+        headers:{"Content-Type":"application/json"}
+      });
+      const data = await safeJson(res);
+
+      if(!data.success){
+        showError(data.message || "Unable to run dispatch brain.");
+        return;
+      }
+
+      if(data.dispatch && data.dispatch.assigned){
+        showResult(`
+          <strong>Dispatch brain assigned a driver.</strong><br><br>
+          Ride ID: ${data.ride.ride_id}<br>
+          Driver: ${data.dispatch.driver ? data.dispatch.driver.first_name : (data.dispatch.driver_name || "--")}<br>
+          ETA to Pickup: ${data.dispatch.eta_to_pickup_minutes || "--"} min<br>
+          Dispatch Score: ${data.dispatch.dispatch_score || "--"}
+        `);
+      }else{
+        showResult(`
+          <strong>Dispatch brain ran successfully.</strong><br><br>
+          No approved online driver is available right now for ride <strong>${data.ride.ride_id}</strong>.
+        `);
+      }
+
+      loadDashboard();
+    }
+
+    async function showDispatchInsights(rideId){
+      const panel = document.getElementById("dispatchInsightsPanel");
+      panel.innerHTML = `<div class="empty">Loading dispatch insights...</div>`;
+
+      const res = await fetch(`/api/admin/dispatch-insights/${rideId}`);
+      const data = await safeJson(res);
+
+      if(!data.success){
+        panel.innerHTML = `<div class="empty">${data.message || "Unable to load insights."}</div>`;
+        return;
+      }
+
+      if(!data.candidates || !data.candidates.length){
+        panel.innerHTML = `
+          <div class="insight-card">
+            <div class="insight-title">Ride ${data.ride.ride_id}</div>
+            <div class="empty">No eligible driver candidates right now.</div>
+          </div>
+        `;
+        return;
+      }
+
+      panel.innerHTML = `
+        <div class="insight-card">
+          <div class="insight-title">Dispatch Insights • ${data.ride.ride_id}</div>
+          <div class="mini" style="margin-bottom:12px;">
+            Pickup: ${data.ride.pickup_address}<br>
+            Dropoff: ${data.ride.dropoff_address}
+          </div>
+          ${data.candidates.map((candidate, index) => `
+            <div class="candidate">
+              <div>
+                <strong>#${index + 1} ${candidate.driver_name}</strong><br>
+                <span class="mini">${candidate.driver_id} • Zone: ${candidate.zone}</span>
+              </div>
+              <div>
+                <strong>${candidate.score}</strong><br>
+                <span class="mini">Score</span>
+              </div>
+              <div>
+                <strong>${candidate.eta_to_pickup_minutes} min</strong><br>
+                <span class="mini">ETA</span>
+              </div>
+              <div>
+                <strong>${candidate.is_busy ? "Busy" : "Ready"}</strong><br>
+                <span class="mini">Availability</span>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      `;
+    }
+
     async function markArriving(rideId){
-      await fetch(`/api/rides/${rideId}/arriving`, { method:"POST" });
+      const res = await fetch(`/api/rides/${rideId}/arriving`, { method:"POST" });
+      const data = await safeJson(res);
+      if(!data.success) return showError(data.message || "Unable to update ride.");
+      showResult(`Ride marked as <strong>driver arriving</strong>.`);
       loadDashboard();
     }
 
     async function startTrip(rideId){
-      await fetch(`/api/rides/${rideId}/start`, { method:"POST" });
+      const res = await fetch(`/api/rides/${rideId}/start`, { method:"POST" });
+      const data = await safeJson(res);
+      if(!data.success) return showError(data.message || "Unable to start trip.");
+      showResult(`Trip started for ride <strong>${rideId}</strong>.`);
       loadDashboard();
     }
 
     async function completeTrip(rideId){
-      await fetch(`/api/rides/${rideId}/complete`, { method:"POST" });
+      const res = await fetch(`/api/rides/${rideId}/complete`, { method:"POST" });
+      const data = await safeJson(res);
+      if(!data.success) return showError(data.message || "Unable to complete trip.");
+      showResult(`Trip completed for ride <strong>${rideId}</strong>.`);
       loadDashboard();
     }
 
