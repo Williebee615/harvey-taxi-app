@@ -1,99 +1,19 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
-
-/*
-  Harvey Taxi Dispatch Brain Backend
-  ---------------------------------
-  Supports:
-  - rider verification gate
-  - payment secured before dispatch
-  - smart dispatch brain
-  - approved online driver matching
-  - driver mission offers
-  - driver accept / decline
-  - re-dispatch when a mission is declined
-  - active trip lookup
-  - arriving / start / complete
-  - tip during and after trip
-  - admin dispatch board
-  - admin approval dashboard
-
-  NOTE:
-  This is still demo-memory storage.
-  Next production step is moving all arrays into Supabase/PostgreSQL.
-*/
-
-/* -----------------------------
-   DEMO DATA
------------------------------ */
-
-const riders = [
-  {
-    rider_id: "rider_1001",
-    first_name: "Willie",
-    phone: "(555) 111-1111",
-    verification_status: "APPROVED"
-  },
-  {
-    rider_id: "rider_1002",
-    first_name: "Pending Rider",
-    phone: "(555) 222-2222",
-    verification_status: "PENDING"
-  }
-];
-
-const drivers = [
-  {
-    driver_id: "driver_2001",
-    first_name: "Marcus",
-    verification_status: "APPROVED",
-    background_status: "APPROVED",
-    is_online: false,
-    is_busy: false,
-    current_address: "Downtown Nashville, TN",
-    zone: "DOWNTOWN",
-    vehicle_type: "STANDARD",
-    completed_missions: 18,
-    acceptance_score: 92
-  },
-  {
-    driver_id: "driver_2002",
-    first_name: "Avery",
-    verification_status: "PENDING",
-    background_status: "PENDING",
-    is_online: false,
-    is_busy: false,
-    current_address: "North Nashville, TN",
-    zone: "NORTH",
-    vehicle_type: "STANDARD",
-    completed_missions: 6,
-    acceptance_score: 83
-  },
-  {
-    driver_id: "driver_2003",
-    first_name: "Jordan",
-    verification_status: "APPROVED",
-    background_status: "APPROVED",
-    is_online: false,
-    is_busy: false,
-    current_address: "Airport District, Nashville, TN",
-    zone: "AIRPORT",
-    vehicle_type: "STANDARD",
-    completed_missions: 31,
-    acceptance_score: 96
-  }
-];
-
-const rides = [];
-const paymentAuthorizations = [];
 
 /* -----------------------------
    HELPERS
@@ -105,18 +25,6 @@ function generateId(prefix) {
 
 function round2(num) {
   return Math.round(Number(num) * 100) / 100;
-}
-
-function getRiderById(riderId) {
-  return riders.find((r) => r.rider_id === riderId);
-}
-
-function getDriverById(driverId) {
-  return drivers.find((d) => d.driver_id === driverId);
-}
-
-function getRideById(rideId) {
-  return rides.find((r) => r.ride_id === rideId);
 }
 
 function estimateDistanceMiles(pickup, dropoff) {
@@ -145,9 +53,9 @@ function buildFareEstimate({ pickup_address, dropoff_address, ride_type }) {
 
   let surgeMultiplier = 1.0;
   if (ride_type === "AIRPORT") surgeMultiplier = 1.15;
-  if (ride_type === "SCHEDULED") surgeMultiplier = 1.1;
+  if (ride_type === "SCHEDULED") surgeMultiplier = 1.10;
   if (ride_type === "MEDICAL") surgeMultiplier = 1.05;
-  if (ride_type === "NONPROFIT") surgeMultiplier = 1.0;
+  if (ride_type === "NONPROFIT") surgeMultiplier = 1.00;
 
   const rawFare =
     (baseFare + distance * perMile + duration * perMinute) * surgeMultiplier +
@@ -168,29 +76,14 @@ function buildFareEstimate({ pickup_address, dropoff_address, ride_type }) {
   };
 }
 
-function hasAuthorizedPayment(riderId, estimatedFare) {
-  return paymentAuthorizations.some((auth) => {
-    const validStatus =
-      auth.status === "AUTHORIZED" || auth.status === "SPONSORED";
-
-    return (
-      auth.rider_id === riderId &&
-      validStatus &&
-      Number(auth.authorized_amount) >= Number(estimatedFare)
-    );
-  });
-}
-
 function getPickupZone(address = "") {
   const a = address.toLowerCase();
-
   if (a.includes("airport") || a.includes("bna")) return "AIRPORT";
   if (a.includes("north")) return "NORTH";
   if (a.includes("downtown")) return "DOWNTOWN";
   if (a.includes("west")) return "WEST";
   if (a.includes("east")) return "EAST";
   if (a.includes("south")) return "SOUTH";
-
   return "GENERAL";
 }
 
@@ -199,11 +92,84 @@ function getDriverEtaMinutes(driver, ride) {
   const sameZone = driver.zone === pickupZone;
 
   if (sameZone) return 4;
-
   if (pickupZone === "AIRPORT" && driver.zone === "DOWNTOWN") return 9;
   if (pickupZone === "DOWNTOWN" && driver.zone === "AIRPORT") return 9;
 
-  return 7 + Math.floor((driver.completed_missions % 3));
+  return 7 + Math.floor((Number(driver.completed_missions || 0) % 3));
+}
+
+/* -----------------------------
+   DB HELPERS
+----------------------------- */
+
+async function getRiderById(riderId) {
+  const { data, error } = await supabase
+    .from("riders")
+    .select("*")
+    .eq("rider_id", riderId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+async function getDriverById(driverId) {
+  const { data, error } = await supabase
+    .from("drivers")
+    .select("*")
+    .eq("driver_id", driverId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+async function getRideById(rideId) {
+  const { data, error } = await supabase
+    .from("rides")
+    .select("*")
+    .eq("ride_id", rideId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+async function hasAuthorizedPayment(riderId, estimatedFare) {
+  const { data, error } = await supabase
+    .from("payment_authorizations")
+    .select("*")
+    .eq("rider_id", riderId)
+    .in("status", ["AUTHORIZED", "SPONSORED"]);
+
+  if (error) throw error;
+
+  return (data || []).some(
+    (auth) => Number(auth.authorized_amount) >= Number(estimatedFare)
+  );
+}
+
+async function hydrateRide(ride) {
+  if (!ride) return null;
+
+  let driverName = null;
+  if (ride.assigned_driver_id) {
+    const driver = await getDriverById(ride.assigned_driver_id);
+    driverName = driver ? driver.first_name : null;
+  }
+
+  return {
+    ...ride,
+    driver_name: driverName
+  };
+}
+
+async function hydrateRides(rides) {
+  const result = [];
+  for (const ride of rides) {
+    result.push(await hydrateRide(ride));
+  }
+  return result;
 }
 
 function driverEligibleForRide(driver, ride) {
@@ -244,56 +210,92 @@ function scoreDriverForRide(driver, ride) {
   };
 }
 
-function findBestDriverForRide(ride) {
-  const eligibleDrivers = drivers.filter((driver) =>
+async function findBestDriverForRide(ride) {
+  const { data: drivers, error } = await supabase
+    .from("drivers")
+    .select("*");
+
+  if (error) throw error;
+
+  const eligibleDrivers = (drivers || []).filter((driver) =>
     driverEligibleForRide(driver, ride)
   );
 
   if (!eligibleDrivers.length) return null;
 
   const ranked = eligibleDrivers
-    .map((driver) => {
-      const scoring = scoreDriverForRide(driver, ride);
-      return {
-        driver,
-        ...scoring
-      };
-    })
+    .map((driver) => ({
+      driver,
+      ...scoreDriverForRide(driver, ride)
+    }))
     .sort((a, b) => b.score - a.score);
 
   return ranked[0];
 }
 
-function assignDriverToRide(ride) {
-  const bestMatch = findBestDriverForRide(ride);
+async function assignDriverToRide(ride) {
+  const bestMatch = await findBestDriverForRide(ride);
 
   if (!bestMatch) {
-    ride.assigned_driver_id = null;
-    ride.eta_to_pickup_minutes = null;
-    ride.dispatch_score = null;
-    ride.ride_status = "DISPATCHING";
-    ride.mission_status = "WAITING_FOR_DRIVER";
-    ride.updated_at = new Date().toISOString();
+    const { data, error } = await supabase
+      .from("rides")
+      .update({
+        assigned_driver_id: null,
+        eta_to_pickup_minutes: null,
+        dispatch_score: null,
+        ride_status: "DISPATCHING",
+        mission_status: "WAITING_FOR_DRIVER",
+        updated_at: new Date().toISOString()
+      })
+      .eq("ride_id", ride.ride_id)
+      .select()
+      .single();
 
-    return {
-      assigned: false,
-      driver: null
-    };
+    if (error) throw error;
+
+    return { assigned: false, ride: data };
   }
 
-  ride.assigned_driver_id = bestMatch.driver.driver_id;
-  ride.eta_to_pickup_minutes = bestMatch.eta_to_pickup_minutes;
-  ride.dispatch_score = bestMatch.score;
-  ride.ride_status = "READY_FOR_DRIVER";
-  ride.mission_status = "OFFERED_TO_DRIVER";
-  ride.updated_at = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("rides")
+    .update({
+      assigned_driver_id: bestMatch.driver.driver_id,
+      eta_to_pickup_minutes: bestMatch.eta_to_pickup_minutes,
+      dispatch_score: bestMatch.score,
+      ride_status: "READY_FOR_DRIVER",
+      mission_status: "OFFERED_TO_DRIVER",
+      updated_at: new Date().toISOString()
+    })
+    .eq("ride_id", ride.ride_id)
+    .select()
+    .single();
+
+  if (error) throw error;
 
   return {
     assigned: true,
     driver: bestMatch.driver,
     eta_to_pickup_minutes: bestMatch.eta_to_pickup_minutes,
-    dispatch_score: bestMatch.score
+    dispatch_score: bestMatch.score,
+    ride: data
   };
+}
+
+async function redispatchRide(ride) {
+  const { error } = await supabase
+    .from("rides")
+    .update({
+      assigned_driver_id: null,
+      ride_status: "DISPATCHING",
+      mission_status: "REDISPATCHING",
+      updated_at: new Date().toISOString()
+    })
+    .eq("ride_id", ride.ride_id);
+
+  if (error) throw error;
+
+  const freshRide = await getRideById(ride.ride_id);
+  return assignDriverToRide(freshRide);
 }
 
 function buildDriverMission(ride, driverId) {
@@ -317,47 +319,24 @@ function buildDriverMission(ride, driverId) {
   };
 }
 
-function hydrateRide(ride) {
-  const driver = ride.assigned_driver_id
-    ? getDriverById(ride.assigned_driver_id)
-    : null;
+async function getDashboardSummary() {
+  const { data: rides, error } = await supabase.from("rides").select("*");
+  if (error) throw error;
 
   return {
-    ...ride,
-    driver_name: driver ? driver.first_name : null
-  };
-}
-
-function getDashboardSummary() {
-  const hydratedRides = rides.map(hydrateRide);
-
-  return {
-    waiting_rides: hydratedRides.filter(
-      (r) =>
-        r.ride_status === "DISPATCHING" ||
-        r.ride_status === "READY_FOR_DRIVER"
+    waiting_rides: (rides || []).filter(
+      (r) => r.ride_status === "DISPATCHING" || r.ride_status === "READY_FOR_DRIVER"
     ).length,
-    active_trips: hydratedRides.filter(
+    active_trips: (rides || []).filter(
       (r) =>
         r.ride_status === "DRIVER_ACCEPTED" ||
         r.ride_status === "DRIVER_ARRIVING" ||
         r.ride_status === "IN_PROGRESS"
     ).length,
-    completed_trips: hydratedRides.filter(
+    completed_trips: (rides || []).filter(
       (r) => r.ride_status === "COMPLETED"
     ).length
   };
-}
-
-function redispatchRide(ride) {
-  if (!ride) return { assigned: false };
-
-  ride.assigned_driver_id = null;
-  ride.ride_status = "DISPATCHING";
-  ride.mission_status = "REDISPATCHING";
-  ride.updated_at = new Date().toISOString();
-
-  return assignDriverToRide(ride);
 }
 
 /* -----------------------------
@@ -392,747 +371,863 @@ app.get("/admin-dashboard", (req, res) => {
    RIDER / VERIFICATION
 ----------------------------- */
 
-app.get("/api/rider-status/:riderId", (req, res) => {
-  const rider = getRiderById(req.params.riderId);
+app.get("/api/rider-status/:riderId", async (req, res) => {
+  try {
+    const rider = await getRiderById(req.params.riderId);
 
-  if (!rider) {
-    return res.status(404).json({
-      success: false,
-      message: "Rider not found."
-    });
+    if (!rider) {
+      return res.status(404).json({
+        success: false,
+        message: "Rider not found."
+      });
+    }
+
+    return res.json({ success: true, rider });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
   }
-
-  return res.json({
-    success: true,
-    rider
-  });
 });
 
 /* -----------------------------
    FARE ESTIMATE
 ----------------------------- */
 
-app.post("/api/fare-estimate", (req, res) => {
-  const { pickup_address, dropoff_address, ride_type } = req.body;
+app.post("/api/fare-estimate", async (req, res) => {
+  try {
+    const { pickup_address, dropoff_address, ride_type } = req.body;
 
-  if (!pickup_address || !dropoff_address) {
-    return res.status(400).json({
-      success: false,
-      message: "Pickup and dropoff addresses are required."
+    if (!pickup_address || !dropoff_address) {
+      return res.status(400).json({
+        success: false,
+        message: "Pickup and dropoff addresses are required."
+      });
+    }
+
+    const estimate = buildFareEstimate({
+      pickup_address,
+      dropoff_address,
+      ride_type: ride_type || "STANDARD"
     });
+
+    return res.json({ success: true, estimate });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
   }
-
-  const estimate = buildFareEstimate({
-    pickup_address,
-    dropoff_address,
-    ride_type: ride_type || "STANDARD"
-  });
-
-  return res.json({
-    success: true,
-    estimate
-  });
 });
 
 /* -----------------------------
    PAYMENT AUTHORIZATION
 ----------------------------- */
 
-app.post("/api/payments/authorize", (req, res) => {
-  const { rider_id, payment_method, estimated_fare, ride_type } = req.body;
+app.post("/api/payments/authorize", async (req, res) => {
+  try {
+    const { rider_id, payment_method, estimated_fare, ride_type } = req.body;
 
-  if (!rider_id || !payment_method || !estimated_fare) {
-    return res.status(400).json({
-      success: false,
-      message: "Rider, payment method, and estimated fare are required."
-    });
+    if (!rider_id || !payment_method || !estimated_fare) {
+      return res.status(400).json({
+        success: false,
+        message: "Rider, payment method, and estimated fare are required."
+      });
+    }
+
+    const rider = await getRiderById(rider_id);
+    if (!rider) {
+      return res.status(404).json({
+        success: false,
+        message: "Rider not found."
+      });
+    }
+
+    if (ride_type !== "NONPROFIT" && payment_method === "CASH") {
+      return res.status(400).json({
+        success: false,
+        message: "Cash is not eligible for secured pre-dispatch authorization."
+      });
+    }
+
+    const authorization = {
+      authorization_id: generateId("auth"),
+      rider_id,
+      payment_method,
+      authorized_amount: round2(estimated_fare),
+      status: ride_type === "NONPROFIT" ? "SPONSORED" : "AUTHORIZED"
+    };
+
+    const { data, error } = await supabase
+      .from("payment_authorizations")
+      .insert([authorization])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return res.json({ success: true, authorization: data });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
   }
-
-  const rider = getRiderById(rider_id);
-  if (!rider) {
-    return res.status(404).json({
-      success: false,
-      message: "Rider not found."
-    });
-  }
-
-  if (ride_type !== "NONPROFIT" && payment_method === "CASH") {
-    return res.status(400).json({
-      success: false,
-      message: "Cash is not eligible for secured pre-dispatch authorization."
-    });
-  }
-
-  const authorization = {
-    authorization_id: generateId("auth"),
-    rider_id,
-    payment_method,
-    authorized_amount: round2(estimated_fare),
-    status: ride_type === "NONPROFIT" ? "SPONSORED" : "AUTHORIZED",
-    created_at: new Date().toISOString()
-  };
-
-  paymentAuthorizations.push(authorization);
-
-  return res.json({
-    success: true,
-    authorization
-  });
 });
 
 /* -----------------------------
    REQUEST RIDE + DISPATCH BRAIN
 ----------------------------- */
 
-app.post("/api/request-ride", (req, res) => {
-  const {
-    rider_id,
-    passenger_first_name,
-    passenger_phone,
-    pickup_address,
-    dropoff_address,
-    ride_type,
-    scheduled_time,
-    special_notes,
-    payment_method,
-    estimate
-  } = req.body;
+app.post("/api/request-ride", async (req, res) => {
+  try {
+    const {
+      rider_id,
+      passenger_first_name,
+      passenger_phone,
+      pickup_address,
+      dropoff_address,
+      ride_type,
+      scheduled_time,
+      special_notes,
+      payment_method,
+      estimate
+    } = req.body;
 
-  if (
-    !rider_id ||
-    !passenger_first_name ||
-    !passenger_phone ||
-    !pickup_address ||
-    !dropoff_address
-  ) {
-    return res.status(400).json({
-      success: false,
-      message: "Missing required ride request fields."
+    if (
+      !rider_id ||
+      !passenger_first_name ||
+      !passenger_phone ||
+      !pickup_address ||
+      !dropoff_address
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required ride request fields."
+      });
+    }
+
+    const rider = await getRiderById(rider_id);
+    if (!rider) {
+      return res.status(404).json({
+        success: false,
+        message: "Rider not found."
+      });
+    }
+
+    if (rider.verification_status !== "APPROVED") {
+      return res.status(403).json({
+        success: false,
+        message: "Ride blocked. Rider verification must be approved."
+      });
+    }
+
+    const estimatedFare = Number(estimate?.estimated_fare || 0);
+    const paymentSecured =
+      ride_type === "NONPROFIT"
+        ? true
+        : await hasAuthorizedPayment(rider_id, estimatedFare);
+
+    if (!paymentSecured) {
+      return res.status(403).json({
+        success: false,
+        message: "Ride blocked. Payment must be secured before dispatch."
+      });
+    }
+
+    const ride = {
+      ride_id: generateId("ride"),
+      rider_id,
+      assigned_driver_id: null,
+      passenger_first_name,
+      passenger_phone,
+      pickup_address,
+      dropoff_address,
+      ride_type: ride_type || "STANDARD",
+      scheduled_time: scheduled_time || "",
+      special_notes: special_notes || "",
+      rider_verification_status: rider.verification_status,
+      estimated_distance_miles: Number(estimate?.distance_miles || 0),
+      estimated_duration_minutes: Number(estimate?.duration_minutes || 0),
+      estimated_fare: round2(estimate?.estimated_fare || 0),
+      estimated_driver_payout: round2(estimate?.estimated_driver_payout || 0),
+      fare_amount: round2(estimate?.estimated_fare || 0),
+      tip_amount: 0,
+      total_amount: round2(estimate?.estimated_fare || 0),
+      payment_method: payment_method || "CARD",
+      payment_status: ride_type === "NONPROFIT" ? "SPONSORED" : "AUTHORIZED",
+      tip_status: "NO_TIP",
+      eta_to_pickup_minutes: null,
+      dispatch_score: null,
+      ride_status: "DISPATCHING",
+      mission_status: "RUNNING_DISPATCH_BRAIN"
+    };
+
+    const { data: insertedRide, error } = await supabase
+      .from("rides")
+      .insert([ride])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    const dispatchResult = await assignDriverToRide(insertedRide);
+    const hydratedRide = await hydrateRide(dispatchResult.ride);
+
+    return res.json({
+      success: true,
+      message: dispatchResult.assigned
+        ? "Ride created and dispatched to the best available driver."
+        : "Ride created. Dispatch brain is waiting for an approved online driver.",
+      dispatch: {
+        assigned: dispatchResult.assigned,
+        driver_id: dispatchResult.driver ? dispatchResult.driver.driver_id : null,
+        driver_name: dispatchResult.driver ? dispatchResult.driver.first_name : null,
+        eta_to_pickup_minutes: dispatchResult.eta_to_pickup_minutes || null,
+        dispatch_score: dispatchResult.dispatch_score || null
+      },
+      ride: hydratedRide
     });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
   }
-
-  const rider = getRiderById(rider_id);
-
-  if (!rider) {
-    return res.status(404).json({
-      success: false,
-      message: "Rider not found."
-    });
-  }
-
-  if (rider.verification_status !== "APPROVED") {
-    return res.status(403).json({
-      success: false,
-      message: "Ride blocked. Rider verification must be approved."
-    });
-  }
-
-  const estimatedFare = Number(estimate?.estimated_fare || 0);
-  const paymentSecured =
-    ride_type === "NONPROFIT"
-      ? true
-      : hasAuthorizedPayment(rider_id, estimatedFare);
-
-  if (!paymentSecured) {
-    return res.status(403).json({
-      success: false,
-      message: "Ride blocked. Payment must be secured before dispatch."
-    });
-  }
-
-  const ride = {
-    ride_id: generateId("ride"),
-    rider_id,
-    assigned_driver_id: null,
-
-    passenger_first_name,
-    passenger_phone,
-
-    pickup_address,
-    dropoff_address,
-    ride_type: ride_type || "STANDARD",
-    scheduled_time: scheduled_time || "",
-    special_notes: special_notes || "",
-
-    rider_verification_status: rider.verification_status,
-
-    estimated_distance_miles: Number(estimate?.distance_miles || 0),
-    estimated_duration_minutes: Number(estimate?.duration_minutes || 0),
-    estimated_fare: round2(estimate?.estimated_fare || 0),
-    estimated_driver_payout: round2(estimate?.estimated_driver_payout || 0),
-
-    fare_amount: round2(estimate?.estimated_fare || 0),
-    tip_amount: 0,
-    total_amount: round2(estimate?.estimated_fare || 0),
-
-    payment_method: payment_method || "CARD",
-    payment_status: ride_type === "NONPROFIT" ? "SPONSORED" : "AUTHORIZED",
-    tip_status: "NO_TIP",
-
-    eta_to_pickup_minutes: null,
-    dispatch_score: null,
-
-    ride_status: "DISPATCHING",
-    mission_status: "RUNNING_DISPATCH_BRAIN",
-
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  };
-
-  rides.push(ride);
-
-  const dispatchResult = assignDriverToRide(ride);
-
-  return res.json({
-    success: true,
-    message: dispatchResult.assigned
-      ? "Ride created and dispatched to the best available driver."
-      : "Ride created. Dispatch brain is waiting for an approved online driver.",
-    dispatch: {
-      assigned: dispatchResult.assigned,
-      driver_id: dispatchResult.driver ? dispatchResult.driver.driver_id : null,
-      driver_name: dispatchResult.driver ? dispatchResult.driver.first_name : null,
-      eta_to_pickup_minutes: dispatchResult.eta_to_pickup_minutes || null,
-      dispatch_score: dispatchResult.dispatch_score || null
-    },
-    ride: hydrateRide(ride)
-  });
 });
 
 /* -----------------------------
    DRIVER ONLINE / OFFLINE
 ----------------------------- */
 
-app.post("/api/driver/go-online", (req, res) => {
-  const { driver_id, is_online } = req.body;
+app.post("/api/driver/go-online", async (req, res) => {
+  try {
+    const { driver_id, is_online } = req.body;
 
-  const driver = getDriverById(driver_id);
+    const driver = await getDriverById(driver_id);
+    if (!driver) {
+      return res.status(404).json({
+        success: false,
+        message: "Driver not found."
+      });
+    }
 
-  if (!driver) {
-    return res.status(404).json({
-      success: false,
-      message: "Driver not found."
-    });
+    const { data, error } = await supabase
+      .from("drivers")
+      .update({ is_online: Boolean(is_online) })
+      .eq("driver_id", driver_id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return res.json({ success: true, driver: data });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
   }
-
-  driver.is_online = Boolean(is_online);
-
-  return res.json({
-    success: true,
-    driver
-  });
 });
 
 /* -----------------------------
    DRIVER MISSIONS
 ----------------------------- */
 
-app.get("/api/driver-missions/:driverId", (req, res) => {
-  const driver = getDriverById(req.params.driverId);
+app.get("/api/driver-missions/:driverId", async (req, res) => {
+  try {
+    const driver = await getDriverById(req.params.driverId);
 
-  if (!driver) {
-    return res.status(404).json({
-      success: false,
-      message: "Driver not found."
-    });
+    if (!driver) {
+      return res.status(404).json({
+        success: false,
+        message: "Driver not found."
+      });
+    }
+
+    if (!driver.is_online) {
+      return res.json({ success: true, missions: [] });
+    }
+
+    const { data: rides, error } = await supabase
+      .from("rides")
+      .select("*")
+      .eq("assigned_driver_id", driver.driver_id)
+      .eq("ride_status", "READY_FOR_DRIVER");
+
+    if (error) throw error;
+
+    const missions = (rides || []).map((ride) =>
+      buildDriverMission(ride, driver.driver_id)
+    );
+
+    return res.json({ success: true, missions });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
   }
+});
 
-  if (!driver.is_online) {
+app.post("/api/driver-missions/accept", async (req, res) => {
+  try {
+    const { driver_id, ride_id } = req.body;
+
+    const driver = await getDriverById(driver_id);
+    if (!driver) {
+      return res.status(404).json({ success: false, message: "Driver not found." });
+    }
+
+    if (
+      driver.verification_status !== "APPROVED" ||
+      driver.background_status !== "APPROVED"
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Driver is not approved for missions."
+      });
+    }
+
+    const ride = await getRideById(ride_id);
+    if (!ride) {
+      return res.status(404).json({ success: false, message: "Ride not found." });
+    }
+
+    if (ride.assigned_driver_id !== driver_id) {
+      return res.status(403).json({
+        success: false,
+        message: "This mission is not assigned to this driver."
+      });
+    }
+
+    const { data: updatedRide, error: rideError } = await supabase
+      .from("rides")
+      .update({
+        ride_status: "DRIVER_ACCEPTED",
+        mission_status: "ACCEPTED",
+        updated_at: new Date().toISOString()
+      })
+      .eq("ride_id", ride_id)
+      .select()
+      .single();
+
+    if (rideError) throw rideError;
+
+    const { error: driverError } = await supabase
+      .from("drivers")
+      .update({ is_busy: true })
+      .eq("driver_id", driver_id);
+
+    if (driverError) throw driverError;
+
     return res.json({
       success: true,
-      missions: []
+      message: "Mission accepted successfully.",
+      ride: await hydrateRide(updatedRide)
     });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
   }
-
-  const missions = rides
-    .filter((ride) => {
-      const assignedToDriver = ride.assigned_driver_id === driver.driver_id;
-      const openMission = ride.ride_status === "READY_FOR_DRIVER";
-      const paymentReady =
-        ride.payment_status === "AUTHORIZED" ||
-        ride.payment_status === "SPONSORED";
-
-      return assignedToDriver && openMission && paymentReady;
-    })
-    .map((ride) => buildDriverMission(ride, driver.driver_id));
-
-  return res.json({
-    success: true,
-    missions
-  });
 });
 
-app.post("/api/driver-missions/accept", (req, res) => {
-  const { driver_id, ride_id } = req.body;
+app.post("/api/driver-missions/decline", async (req, res) => {
+  try {
+    const { driver_id, ride_id } = req.body;
 
-  const driver = getDriverById(driver_id);
-  if (!driver) {
-    return res.status(404).json({
-      success: false,
-      message: "Driver not found."
+    const ride = await getRideById(ride_id);
+    if (!ride) {
+      return res.status(404).json({ success: false, message: "Ride not found." });
+    }
+
+    const driver = await getDriverById(driver_id);
+    if (driver) {
+      await supabase
+        .from("drivers")
+        .update({
+          acceptance_score: Math.max(50, Number(driver.acceptance_score || 90) - 2)
+        })
+        .eq("driver_id", driver_id);
+    }
+
+    const redispatchResult = await redispatchRide(ride);
+
+    return res.json({
+      success: true,
+      message: redispatchResult.assigned
+        ? "Mission declined. Dispatch brain reassigned the ride."
+        : "Mission declined. Dispatch brain is waiting for another approved online driver.",
+      dispatch: {
+        assigned: redispatchResult.assigned,
+        driver_id: redispatchResult.driver ? redispatchResult.driver.driver_id : null,
+        driver_name: redispatchResult.driver ? redispatchResult.driver.first_name : null
+      },
+      ride: await hydrateRide(redispatchResult.ride)
     });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
   }
-
-  if (
-    driver.verification_status !== "APPROVED" ||
-    driver.background_status !== "APPROVED"
-  ) {
-    return res.status(403).json({
-      success: false,
-      message: "Driver is not approved for missions."
-    });
-  }
-
-  const ride = getRideById(ride_id);
-  if (!ride) {
-    return res.status(404).json({
-      success: false,
-      message: "Ride not found."
-    });
-  }
-
-  if (ride.assigned_driver_id !== driver_id) {
-    return res.status(403).json({
-      success: false,
-      message: "This mission is not assigned to this driver."
-    });
-  }
-
-  if (
-    ride.payment_status !== "AUTHORIZED" &&
-    ride.payment_status !== "SPONSORED"
-  ) {
-    return res.status(403).json({
-      success: false,
-      message: "Mission blocked. Payment is not secured."
-    });
-  }
-
-  ride.assigned_driver_id = driver_id;
-  ride.ride_status = "DRIVER_ACCEPTED";
-  ride.mission_status = "ACCEPTED";
-  ride.updated_at = new Date().toISOString();
-
-  driver.is_busy = true;
-
-  return res.json({
-    success: true,
-    message: "Mission accepted successfully.",
-    ride: hydrateRide(ride)
-  });
-});
-
-app.post("/api/driver-missions/decline", (req, res) => {
-  const { driver_id, ride_id } = req.body;
-
-  const ride = getRideById(ride_id);
-  if (!ride) {
-    return res.status(404).json({
-      success: false,
-      message: "Ride not found."
-    });
-  }
-
-  const driver = getDriverById(driver_id);
-  if (driver) {
-    driver.acceptance_score = Math.max(50, Number(driver.acceptance_score || 90) - 2);
-  }
-
-  const redispatchResult = redispatchRide(ride);
-
-  return res.json({
-    success: true,
-    message: redispatchResult.assigned
-      ? "Mission declined. Dispatch brain reassigned the ride."
-      : "Mission declined. Dispatch brain is waiting for another approved online driver.",
-    dispatch: {
-      assigned: redispatchResult.assigned,
-      driver_id: redispatchResult.driver ? redispatchResult.driver.driver_id : null,
-      driver_name: redispatchResult.driver ? redispatchResult.driver.first_name : null
-    },
-    ride: hydrateRide(ride)
-  });
 });
 
 /* -----------------------------
    ACTIVE TRIP LOOKUP
 ----------------------------- */
 
-app.get("/api/rides/:rideId", (req, res) => {
-  const ride = getRideById(req.params.rideId);
+app.get("/api/rides/:rideId", async (req, res) => {
+  try {
+    const ride = await getRideById(req.params.rideId);
 
-  if (!ride) {
-    return res.status(404).json({
-      success: false,
-      message: "Ride not found."
-    });
-  }
+    if (!ride) {
+      return res.status(404).json({
+        success: false,
+        message: "Ride not found."
+      });
+    }
 
-  return res.json({
-    success: true,
-    ride: hydrateRide(ride)
-  });
-});
-
-/* -----------------------------
-   TRIP STATUS UPDATES
------------------------------ */
-
-app.post("/api/rides/:rideId/arriving", (req, res) => {
-  const ride = getRideById(req.params.rideId);
-
-  if (!ride) {
-    return res.status(404).json({
-      success: false,
-      message: "Ride not found."
-    });
-  }
-
-  ride.ride_status = "DRIVER_ARRIVING";
-  ride.mission_status = "DRIVER_EN_ROUTE_TO_PICKUP";
-  ride.updated_at = new Date().toISOString();
-
-  return res.json({
-    success: true,
-    message: "Driver marked as arriving.",
-    ride: hydrateRide(ride)
-  });
-});
-
-app.post("/api/rides/:rideId/start", (req, res) => {
-  const ride = getRideById(req.params.rideId);
-
-  if (!ride) {
-    return res.status(404).json({
-      success: false,
-      message: "Ride not found."
-    });
-  }
-
-  ride.ride_status = "IN_PROGRESS";
-  ride.mission_status = "TRIP_ACTIVE";
-  ride.updated_at = new Date().toISOString();
-
-  return res.json({
-    success: true,
-    message: "Trip started.",
-    ride: hydrateRide(ride)
-  });
-});
-
-app.post("/api/rides/:rideId/complete", (req, res) => {
-  const ride = getRideById(req.params.rideId);
-
-  if (!ride) {
-    return res.status(404).json({
-      success: false,
-      message: "Ride not found."
-    });
-  }
-
-  ride.ride_status = "COMPLETED";
-  ride.mission_status = "TRIP_CLOSED";
-  ride.payment_status =
-    ride.payment_status === "SPONSORED" ? "SPONSORED" : "SETTLED";
-  ride.total_amount = round2((ride.fare_amount || 0) + (ride.tip_amount || 0));
-  ride.updated_at = new Date().toISOString();
-
-  const driver = ride.assigned_driver_id ? getDriverById(ride.assigned_driver_id) : null;
-  if (driver) {
-    driver.is_busy = false;
-    driver.completed_missions = Number(driver.completed_missions || 0) + 1;
-    driver.acceptance_score = Math.min(99, Number(driver.acceptance_score || 90) + 1);
-  }
-
-  return res.json({
-    success: true,
-    message: "Trip completed and payment settled.",
-    ride: hydrateRide(ride)
-  });
-});
-
-/* -----------------------------
-   TIPPING
------------------------------ */
-
-app.post("/api/rides/:rideId/tip-during", (req, res) => {
-  const ride = getRideById(req.params.rideId);
-
-  if (!ride) {
-    return res.status(404).json({
-      success: false,
-      message: "Ride not found"
-    });
-  }
-
-  if (ride.ride_status !== "IN_PROGRESS") {
     return res.json({
-      success: false,
-      message: "Tips during trip only allowed while trip is active"
+      success: true,
+      ride: await hydrateRide(ride)
     });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
   }
-
-  const amount = Number(req.body.amount || 0);
-
-  if (amount <= 0) {
-    return res.json({
-      success: false,
-      message: "Invalid tip amount"
-    });
-  }
-
-  ride.tip_amount = round2((ride.tip_amount || 0) + amount);
-  ride.total_amount = round2((ride.fare_amount || 0) + ride.tip_amount);
-  ride.tip_status = "IN_TRIP_TIPPED";
-  ride.updated_at = new Date().toISOString();
-
-  return res.json({
-    success: true,
-    ride: hydrateRide(ride)
-  });
-});
-
-app.post("/api/rides/:rideId/tip-after", (req, res) => {
-  const ride = getRideById(req.params.rideId);
-
-  if (!ride) {
-    return res.status(404).json({
-      success: false,
-      message: "Ride not found"
-    });
-  }
-
-  if (ride.ride_status !== "COMPLETED") {
-    return res.json({
-      success: false,
-      message: "Post-trip tips only allowed after completion"
-    });
-  }
-
-  const amount = Number(req.body.amount || 0);
-
-  if (amount <= 0) {
-    return res.json({
-      success: false,
-      message: "Invalid tip amount"
-    });
-  }
-
-  ride.tip_amount = round2((ride.tip_amount || 0) + amount);
-  ride.total_amount = round2((ride.fare_amount || 0) + ride.tip_amount);
-  ride.tip_status = "POST_TRIP_TIPPED";
-  ride.updated_at = new Date().toISOString();
-
-  return res.json({
-    success: true,
-    ride: hydrateRide(ride)
-  });
 });
 
 /* -----------------------------
-   ADMIN DISPATCH BOARD
+   TRIP STATUS
 ----------------------------- */
 
-app.get("/api/admin/dispatch-board", (req, res) => {
-  const hydratedRides = rides.map(hydrateRide);
+app.post("/api/rides/:rideId/arriving", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("rides")
+      .update({
+        ride_status: "DRIVER_ARRIVING",
+        mission_status: "DRIVER_EN_ROUTE_TO_PICKUP",
+        updated_at: new Date().toISOString()
+      })
+      .eq("ride_id", req.params.rideId)
+      .select()
+      .single();
 
-  const summary = {
-    total_rides: hydratedRides.length,
-    waiting_for_driver: hydratedRides.filter(
-      (r) =>
-        r.ride_status === "DISPATCHING" ||
-        r.ride_status === "READY_FOR_DRIVER"
-    ).length,
-    active_trips: hydratedRides.filter(
-      (r) =>
-        r.ride_status === "DRIVER_ACCEPTED" ||
-        r.ride_status === "DRIVER_ARRIVING" ||
-        r.ride_status === "IN_PROGRESS"
-    ).length,
-    completed_trips: hydratedRides.filter(
-      (r) => r.ride_status === "COMPLETED"
-    ).length
-  };
+    if (error || !data) {
+      return res.status(404).json({ success: false, message: "Ride not found." });
+    }
 
-  return res.json({
-    success: true,
-    summary,
-    rides: hydratedRides.sort(
-      (a, b) => new Date(b.created_at) - new Date(a.created_at)
-    ),
-    drivers
-  });
+    return res.json({
+      success: true,
+      message: "Driver marked as arriving.",
+      ride: await hydrateRide(data)
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.post("/api/rides/:rideId/start", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("rides")
+      .update({
+        ride_status: "IN_PROGRESS",
+        mission_status: "TRIP_ACTIVE",
+        updated_at: new Date().toISOString()
+      })
+      .eq("ride_id", req.params.rideId)
+      .select()
+      .single();
+
+    if (error || !data) {
+      return res.status(404).json({ success: false, message: "Ride not found." });
+    }
+
+    return res.json({
+      success: true,
+      message: "Trip started.",
+      ride: await hydrateRide(data)
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.post("/api/rides/:rideId/complete", async (req, res) => {
+  try {
+    const ride = await getRideById(req.params.rideId);
+    if (!ride) {
+      return res.status(404).json({ success: false, message: "Ride not found." });
+    }
+
+    const totalAmount = round2((ride.fare_amount || 0) + (ride.tip_amount || 0));
+
+    const { data: updatedRide, error } = await supabase
+      .from("rides")
+      .update({
+        ride_status: "COMPLETED",
+        mission_status: "TRIP_CLOSED",
+        payment_status: ride.payment_status === "SPONSORED" ? "SPONSORED" : "SETTLED",
+        total_amount: totalAmount,
+        updated_at: new Date().toISOString()
+      })
+      .eq("ride_id", req.params.rideId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    if (ride.assigned_driver_id) {
+      const driver = await getDriverById(ride.assigned_driver_id);
+      if (driver) {
+        await supabase
+          .from("drivers")
+          .update({
+            is_busy: false,
+            completed_missions: Number(driver.completed_missions || 0) + 1,
+            acceptance_score: Math.min(99, Number(driver.acceptance_score || 90) + 1)
+          })
+          .eq("driver_id", ride.assigned_driver_id);
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: "Trip completed and payment settled.",
+      ride: await hydrateRide(updatedRide)
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
 });
 
 /* -----------------------------
-   ADMIN APPROVAL DASHBOARD
+   TIPS
 ----------------------------- */
 
-app.get("/api/admin/dashboard-data", (req, res) => {
-  const pendingRiders = riders.filter((r) => r.verification_status === "PENDING");
-  const pendingDrivers = drivers.filter(
-    (d) =>
-      d.verification_status === "PENDING" ||
-      d.background_status === "PENDING"
-  );
+app.post("/api/rides/:rideId/tip-during", async (req, res) => {
+  try {
+    const ride = await getRideById(req.params.rideId);
 
-  const hydratedRides = rides
-    .map(hydrateRide)
-    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    if (!ride) {
+      return res.status(404).json({ success: false, message: "Ride not found" });
+    }
 
-  return res.json({
-    success: true,
-    pending_riders: pendingRiders,
-    pending_drivers: pendingDrivers,
-    rides: hydratedRides,
-    summary: getDashboardSummary()
-  });
+    if (ride.ride_status !== "IN_PROGRESS") {
+      return res.json({
+        success: false,
+        message: "Tips during trip only allowed while trip is active"
+      });
+    }
+
+    const amount = Number(req.body.amount || 0);
+    if (amount <= 0) {
+      return res.json({ success: false, message: "Invalid tip amount" });
+    }
+
+    const tipAmount = round2((ride.tip_amount || 0) + amount);
+    const totalAmount = round2((ride.fare_amount || 0) + tipAmount);
+
+    const { data, error } = await supabase
+      .from("rides")
+      .update({
+        tip_amount: tipAmount,
+        total_amount: totalAmount,
+        tip_status: "IN_TRIP_TIPPED",
+        updated_at: new Date().toISOString()
+      })
+      .eq("ride_id", ride.ride_id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return res.json({ success: true, ride: await hydrateRide(data) });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
 });
 
-app.post("/api/admin/approve-rider", (req, res) => {
-  const { rider_id } = req.body;
-  const rider = riders.find((r) => r.rider_id === rider_id);
+app.post("/api/rides/:rideId/tip-after", async (req, res) => {
+  try {
+    const ride = await getRideById(req.params.rideId);
 
-  if (!rider) {
-    return res.status(404).json({
-      success: false,
-      message: "Rider not found."
-    });
+    if (!ride) {
+      return res.status(404).json({ success: false, message: "Ride not found" });
+    }
+
+    if (ride.ride_status !== "COMPLETED") {
+      return res.json({
+        success: false,
+        message: "Post-trip tips only allowed after completion"
+      });
+    }
+
+    const amount = Number(req.body.amount || 0);
+    if (amount <= 0) {
+      return res.json({ success: false, message: "Invalid tip amount" });
+    }
+
+    const tipAmount = round2((ride.tip_amount || 0) + amount);
+    const totalAmount = round2((ride.fare_amount || 0) + tipAmount);
+
+    const { data, error } = await supabase
+      .from("rides")
+      .update({
+        tip_amount: tipAmount,
+        total_amount: totalAmount,
+        tip_status: "POST_TRIP_TIPPED",
+        updated_at: new Date().toISOString()
+      })
+      .eq("ride_id", ride.ride_id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return res.json({ success: true, ride: await hydrateRide(data) });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
   }
-
-  rider.verification_status = "APPROVED";
-
-  return res.json({
-    success: true,
-    rider
-  });
-});
-
-app.post("/api/admin/reject-rider", (req, res) => {
-  const { rider_id } = req.body;
-  const rider = riders.find((r) => r.rider_id === rider_id);
-
-  if (!rider) {
-    return res.status(404).json({
-      success: false,
-      message: "Rider not found."
-    });
-  }
-
-  rider.verification_status = "REJECTED";
-
-  return res.json({
-    success: true,
-    rider
-  });
-});
-
-app.post("/api/admin/approve-driver", (req, res) => {
-  const { driver_id } = req.body;
-  const driver = drivers.find((d) => d.driver_id === driver_id);
-
-  if (!driver) {
-    return res.status(404).json({
-      success: false,
-      message: "Driver not found."
-    });
-  }
-
-  driver.verification_status = "APPROVED";
-  driver.background_status = "APPROVED";
-
-  return res.json({
-    success: true,
-    driver
-  });
-});
-
-app.post("/api/admin/reject-driver", (req, res) => {
-  const { driver_id } = req.body;
-  const driver = drivers.find((d) => d.driver_id === driver_id);
-
-  if (!driver) {
-    return res.status(404).json({
-      success: false,
-      message: "Driver not found."
-    });
-  }
-
-  driver.verification_status = "REJECTED";
-
-  return res.json({
-    success: true,
-    driver
-  });
 });
 
 /* -----------------------------
-   DISPATCH BRAIN TOOLS
+   ADMIN
 ----------------------------- */
 
-app.post("/api/admin/run-dispatch/:rideId", (req, res) => {
-  const ride = getRideById(req.params.rideId);
+app.get("/api/admin/dispatch-board", async (req, res) => {
+  try {
+    const { data: rides, error: ridesError } = await supabase
+      .from("rides")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-  if (!ride) {
-    return res.status(404).json({
-      success: false,
-      message: "Ride not found."
+    if (ridesError) throw ridesError;
+
+    const { data: drivers, error: driversError } = await supabase
+      .from("drivers")
+      .select("*");
+
+    if (driversError) throw driversError;
+
+    const hydrated = await hydrateRides(rides || []);
+
+    const summary = {
+      total_rides: hydrated.length,
+      waiting_for_driver: hydrated.filter(
+        (r) => r.ride_status === "DISPATCHING" || r.ride_status === "READY_FOR_DRIVER"
+      ).length,
+      active_trips: hydrated.filter(
+        (r) =>
+          r.ride_status === "DRIVER_ACCEPTED" ||
+          r.ride_status === "DRIVER_ARRIVING" ||
+          r.ride_status === "IN_PROGRESS"
+      ).length,
+      completed_trips: hydrated.filter((r) => r.ride_status === "COMPLETED").length
+    };
+
+    return res.json({
+      success: true,
+      summary,
+      rides: hydrated,
+      drivers: drivers || []
     });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
   }
-
-  const result = assignDriverToRide(ride);
-
-  return res.json({
-    success: true,
-    message: result.assigned
-      ? "Dispatch brain assigned the best available driver."
-      : "No approved online driver available right now.",
-    dispatch: result,
-    ride: hydrateRide(ride)
-  });
 });
 
-app.get("/api/admin/dispatch-insights/:rideId", (req, res) => {
-  const ride = getRideById(req.params.rideId);
+app.get("/api/admin/dashboard-data", async (req, res) => {
+  try {
+    const { data: pendingRiders, error: ridersError } = await supabase
+      .from("riders")
+      .select("*")
+      .eq("verification_status", "PENDING");
 
-  if (!ride) {
-    return res.status(404).json({
-      success: false,
-      message: "Ride not found."
+    if (ridersError) throw ridersError;
+
+    const { data: drivers, error: driversError } = await supabase
+      .from("drivers")
+      .select("*");
+
+    if (driversError) throw driversError;
+
+    const pendingDrivers = (drivers || []).filter(
+      (d) => d.verification_status === "PENDING" || d.background_status === "PENDING"
+    );
+
+    const { data: rides, error: ridesError } = await supabase
+      .from("rides")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (ridesError) throw ridesError;
+
+    return res.json({
+      success: true,
+      pending_riders: pendingRiders || [],
+      pending_drivers: pendingDrivers,
+      rides: await hydrateRides(rides || []),
+      summary: await getDashboardSummary()
     });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
   }
+});
 
-  const ranked = drivers
-    .filter((driver) => driverEligibleForRide(driver, ride))
-    .map((driver) => ({
-      driver_id: driver.driver_id,
-      driver_name: driver.first_name,
-      zone: driver.zone,
-      is_online: driver.is_online,
-      is_busy: driver.is_busy,
-      ...scoreDriverForRide(driver, ride)
-    }))
-    .sort((a, b) => b.score - a.score);
+app.post("/api/admin/approve-rider", async (req, res) => {
+  try {
+    const { rider_id } = req.body;
 
-  return res.json({
-    success: true,
-    ride: hydrateRide(ride),
-    candidates: ranked
-  });
+    const { data, error } = await supabase
+      .from("riders")
+      .update({ verification_status: "APPROVED" })
+      .eq("rider_id", rider_id)
+      .select()
+      .single();
+
+    if (error || !data) {
+      return res.status(404).json({ success: false, message: "Rider not found." });
+    }
+
+    return res.json({ success: true, rider: data });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.post("/api/admin/reject-rider", async (req, res) => {
+  try {
+    const { rider_id } = req.body;
+
+    const { data, error } = await supabase
+      .from("riders")
+      .update({ verification_status: "REJECTED" })
+      .eq("rider_id", rider_id)
+      .select()
+      .single();
+
+    if (error || !data) {
+      return res.status(404).json({ success: false, message: "Rider not found." });
+    }
+
+    return res.json({ success: true, rider: data });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.post("/api/admin/approve-driver", async (req, res) => {
+  try {
+    const { driver_id } = req.body;
+
+    const { data, error } = await supabase
+      .from("drivers")
+      .update({
+        verification_status: "APPROVED",
+        background_status: "APPROVED"
+      })
+      .eq("driver_id", driver_id)
+      .select()
+      .single();
+
+    if (error || !data) {
+      return res.status(404).json({ success: false, message: "Driver not found." });
+    }
+
+    return res.json({ success: true, driver: data });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.post("/api/admin/reject-driver", async (req, res) => {
+  try {
+    const { driver_id } = req.body;
+
+    const { data, error } = await supabase
+      .from("drivers")
+      .update({ verification_status: "REJECTED" })
+      .eq("driver_id", driver_id)
+      .select()
+      .single();
+
+    if (error || !data) {
+      return res.status(404).json({ success: false, message: "Driver not found." });
+    }
+
+    return res.json({ success: true, driver: data });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.post("/api/admin/run-dispatch/:rideId", async (req, res) => {
+  try {
+    const ride = await getRideById(req.params.rideId);
+
+    if (!ride) {
+      return res.status(404).json({
+        success: false,
+        message: "Ride not found."
+      });
+    }
+
+    const result = await assignDriverToRide(ride);
+
+    return res.json({
+      success: true,
+      message: result.assigned
+        ? "Dispatch brain assigned the best available driver."
+        : "No approved online driver available right now.",
+      dispatch: result,
+      ride: await hydrateRide(result.ride)
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.get("/api/admin/dispatch-insights/:rideId", async (req, res) => {
+  try {
+    const ride = await getRideById(req.params.rideId);
+
+    if (!ride) {
+      return res.status(404).json({
+        success: false,
+        message: "Ride not found."
+      });
+    }
+
+    const { data: drivers, error } = await supabase.from("drivers").select("*");
+    if (error) throw error;
+
+    const ranked = (drivers || [])
+      .filter((driver) => driverEligibleForRide(driver, ride))
+      .map((driver) => ({
+        driver_id: driver.driver_id,
+        driver_name: driver.first_name,
+        zone: driver.zone,
+        is_online: driver.is_online,
+        is_busy: driver.is_busy,
+        ...scoreDriverForRide(driver, ride)
+      }))
+      .sort((a, b) => b.score - a.score);
+
+    return res.json({
+      success: true,
+      ride: await hydrateRide(ride),
+      candidates: ranked
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
 });
 
 /* -----------------------------
    DEBUG
 ----------------------------- */
 
-app.get("/api/debug/all-rides", (req, res) => {
-  return res.json({
-    success: true,
-    rides: rides.map(hydrateRide),
-    riders,
-    drivers,
-    paymentAuthorizations
-  });
+app.get("/api/debug/all-rides", async (req, res) => {
+  try {
+    const { data: rides } = await supabase.from("rides").select("*");
+    const { data: riders } = await supabase.from("riders").select("*");
+    const { data: drivers } = await supabase.from("drivers").select("*");
+    const { data: paymentAuthorizations } = await supabase
+      .from("payment_authorizations")
+      .select("*");
+
+    return res.json({
+      success: true,
+      rides: await hydrateRides(rides || []),
+      riders: riders || [],
+      drivers: drivers || [],
+      paymentAuthorizations: paymentAuthorizations || []
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
 });
 
 /* -----------------------------
