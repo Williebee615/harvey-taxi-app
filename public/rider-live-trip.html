@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Live Trip</title>
+
+<style>
+body{
+margin:0;
+font-family:-apple-system, BlinkMacSystemFont, sans-serif;
+background:linear-gradient(180deg,#020617,#031133);
+color:white;
+padding:20px;
+}
+
+.card{
+background:#0f172a;
+padding:20px;
+border-radius:20px;
+margin-bottom:15px;
+}
+
+.title{
+font-size:32px;
+font-weight:800;
+margin-bottom:10px;
+}
+
+.map{
+height:240px;
+background:#020b28;
+border-radius:20px;
+position:relative;
+overflow:hidden;
+}
+
+.car{
+position:absolute;
+top:50%;
+left:10%;
+transform:translate(-50%,-50%);
+font-size:30px;
+transition:1s;
+}
+
+.pin{
+position:absolute;
+top:50%;
+transform:translateY(-50%);
+font-size:22px;
+}
+
+.pickup{ left:10px }
+.dropoff{ right:10px }
+
+.status{
+padding:15px;
+border-radius:15px;
+background:#022c22;
+margin-top:10px;
+font-weight:700;
+}
+
+.grid{
+display:grid;
+gap:12px;
+}
+
+.box{
+background:#020b28;
+padding:15px;
+border-radius:15px;
+}
+
+.label{
+font-size:12px;
+color:#94a3b8;
+margin-bottom:5px;
+}
+
+.value{
+font-size:20px;
+font-weight:700;
+}
+
+.btn{
+width:100%;
+padding:18px;
+border-radius:16px;
+border:none;
+background:#25c59a;
+font-size:18px;
+font-weight:700;
+margin-top:15px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+<div class="title">Live Trip</div>
+<div id="status" class="status">Connecting...</div>
+</div>
+
+<div class="card">
+<div class="map">
+<div class="pin pickup">📍</div>
+<div class="pin dropoff">🏁</div>
+<div id="car" class="car">🚕</div>
+</div>
+</div>
+
+<div id="trip"></div>
+
+<script>
+const params=new URLSearchParams(window.location.search)
+const rideId=params.get("ride_id")
+
+let step=0
+
+async function loadRide(){
+
+const res=await fetch("/api/rides")
+const rides=await res.json()
+
+const ride=rides.find(r=>r.id===rideId)
+
+if(!ride) return
+
+document.getElementById("status").innerText=ride.status
+
+document.getElementById("trip").innerHTML=`
+<div class="grid">
+
+<div class="box">
+<div class="label">Driver</div>
+<div class="value">${ride.driver_id || "searching"}</div>
+</div>
+
+<div class="box">
+<div class="label">Pickup</div>
+<div class="value">${ride.pickup_address}</div>
+</div>
+
+<div class="box">
+<div class="label">Dropoff</div>
+<div class="value">${ride.dropoff_address}</div>
+</div>
+
+<div class="box">
+<div class="label">Fare</div>
+<div class="value">$${ride.estimated_fare}</div>
+</div>
+
+</div>
+`
+
+simulate()
+}
+
+function simulate(){
+
+const car=document.getElementById("car")
+
+if(step===0){
+car.style.left="20%"
+document.getElementById("status").innerText="Driver assigned"
+}
+
+if(step===1){
+car.style.left="40%"
+document.getElementById("status").innerText="Driver arriving"
+}
+
+if(step===2){
+car.style.left="60%"
+document.getElementById("status").innerText="Trip started"
+}
+
+if(step===3){
+car.style.left="80%"
+document.getElementById("status").innerText="Arriving destination"
+}
+
+if(step===4){
+car.style.left="90%"
+document.getElementById("status").innerText="Trip completed"
+}
+
+step++
+if(step<5){
+setTimeout(simulate,2500)
+}
+}
+
+loadRide()
+</script>
+
+</body>
+</html>
