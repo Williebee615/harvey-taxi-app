@@ -43,7 +43,6 @@ font-weight:600;
 color:#10b981;
 margin-top:5px;
 }
-
 </style>
 </head>
 
@@ -71,7 +70,7 @@ let riderMarker
 
 function initMap(){
 
-const pickup = { lat:36.1627, lng:-86.7816 }   // Nashville test
+const pickup = { lat:36.1627, lng:-86.7816 }
 const driver = { lat:36.1727, lng:-86.7916 }
 
 map = new google.maps.Map(document.getElementById("map"),{
@@ -97,7 +96,6 @@ label:"D",
 })
 
 drawRoute(pickup,driver)
-
 simulateDriver()
 }
 
@@ -142,10 +140,29 @@ drawRoute(riderMarker.getPosition(),{lat,lng})
 
 },4000)
 }
-</script>
 
-<script async defer
-src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDXXRPHFCh1-hKyUdh4wBFp9gjEgz_55QE&callback=initMap">
+
+/* SECURE GOOGLE MAPS LOADER */
+async function loadGoogleMaps(){
+try{
+const res = await fetch("/api/maps-key")
+const data = await res.json()
+
+const script = document.createElement("script")
+script.src =
+`https://maps.googleapis.com/maps/api/js?key=${data.key}&callback=initMap`
+script.async = true
+script.defer = true
+
+document.body.appendChild(script)
+
+}catch(err){
+console.error("Maps failed to load",err)
+}
+}
+
+loadGoogleMaps()
+
 </script>
 
 </body>
