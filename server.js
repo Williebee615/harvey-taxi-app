@@ -79,7 +79,7 @@ function buildFareEstimate({ pickup_address, dropoff_address, ride_type }) {
 }
 
 function getPickupZone(address = "") {
-  const a = address.toLowerCase();
+  const a = String(address || "").toLowerCase();
   if (a.includes("airport") || a.includes("bna")) return "AIRPORT";
   if (a.includes("north")) return "NORTH";
   if (a.includes("downtown")) return "DOWNTOWN";
@@ -98,6 +98,41 @@ function getDriverEtaMinutes(driver, ride) {
   if (pickupZone === "DOWNTOWN" && driver.zone === "AIRPORT") return 9;
 
   return 7 + Math.floor((Number(driver.completed_missions || 0) % 3));
+}
+
+function driverEligibleForRide(driver, ride) {
+  if (!driver) return false;
+  if (!driver.is_online) return false;
+  if (driver.is_busy) return false;
+  if (driver.verification_status !== "APPROVED") return false;
+  if (driver.background_status !== "APPROVED") return false;
+  if (!["AUTHORIZED", "SPONSORED"].includes(ride.payment_status)) return false;
+  if (ride.rider_verification_status !== "APPROVED") return false;
+  return true;
+}
+
+function scoreDriverForRide(driver, ride) {
+  const eta = getDriverEtaMinutes(driver, ride);
+  const payout = Number(ride.estimated_driver_payout || 0);
+  const rideTypeBonus =
+    ride.ride_type === "AIRPORT" && driver.zone === "AIRPORT" ? 8 : 0;
+  const onlineBonus = driver.is_online ? 5 : 0;
+  const reliabilityBonus = Number(driver.acceptance_score || 0) / 10;
+  const experienceBonus = Math.min(Number(driver.completed_missions || 0), 40) / 8;
+
+  const score =
+    100 -
+    eta * 7 +
+    onlineBonus +
+    rideTypeBonus +
+    reliabilityBonus +
+    experienceBonus +
+    payout * 0.15;
+
+  return {
+    score: round2(score),
+    eta_to_pickup_minutes: eta
+  };
 }
 
 /* ===============================
@@ -173,43 +208,11 @@ async function hydrateRides(rides) {
   return result;
 }
 
-function driverEligibleForRide(driver, ride) {
-  if (!driver) return false;
-  if (!driver.is_online) return false;
-  if (driver.is_busy) return false;
-  if (driver.verification_status !== "APPROVED") return false;
-  if (driver.background_status !== "APPROVED") return false;
-  if (!["AUTHORIZED", "SPONSORED"].includes(ride.payment_status)) return false;
-  if (ride.rider_verification_status !== "APPROVED") return false;
-  return true;
-}
-
-function scoreDriverForRide(driver, ride) {
-  const eta = getDriverEtaMinutes(driver, ride);
-  const payout = Number(ride.estimated_driver_payout || 0);
-  const rideTypeBonus =
-    ride.ride_type === "AIRPORT" && driver.zone === "AIRPORT" ? 8 : 0;
-  const onlineBonus = driver.is_online ? 5 : 0;
-  const reliabilityBonus = Number(driver.acceptance_score || 0) / 10;
-  const experienceBonus = Math.min(Number(driver.completed_missions || 0), 40) / 8;
-
-  const score =
-    100 -
-    eta * 7 +
-    onlineBonus +
-    rideTypeBonus +
-    reliabilityBonus +
-    experienceBonus +
-    payout * 0.15;
-
-  return {
-    score: round2(score),
-    eta_to_pickup_minutes: eta
-  };
-}
-
 async function findBestDriverForRide(ride) {
-  const { data: drivers, error } = await supabase.from("drivers").select("*");
+  const { data: drivers, error } = await supabase
+    .from("drivers")
+    .select("*");
+
   if (error) throw error;
 
   const eligibleDrivers = (drivers || []).filter((driver) =>
@@ -363,17 +366,38 @@ app.get("/admin-dashboard", (req, res) => {
 ================================ */
 app.post("/api/rider/signup", async (req, res) => {
   try {
-    const {
-      full_name,
-      phone,
-      email,
-      city
-    } = req.body;
+    const fullName =
+      req.body.full_name ||
+      req.body.fullName ||
+      req.body.name ||
+      req.body.fullname ||
+      "";
 
-    if (!full_name || !phone) {
+    const phone =
+      req.body.phone ||
+      req.body.phone_number ||
+      req.body.phoneNumber ||
+      "";
+
+    const email =
+      req.body.email ||
+      req.body.email_address ||
+      req.body.emailAddress ||
+      "";
+
+    const city =
+      req.body.city ||
+      req.body.operating_city ||
+      req.body.operatingCity ||
+      req.body.operating_area ||
+      req.body.operatingArea ||
+      "";
+
+    if (!fullName || !phone) {
       return res.status(400).json({
         success: false,
-        message: "Full name and phone are required."
+        message: "Full name and phone are required.",
+        received: req.body
       });
     }
 
@@ -384,7 +408,7 @@ app.post("/api/rider/signup", async (req, res) => {
       .insert([
         {
           rider_id: riderId,
-          first_name: full_name,
+          first_name: fullName,
           phone,
           verification_status: "PENDING"
         }
@@ -392,19 +416,33 @@ app.post("/api/rider/signup", async (req, res) => {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.log("Rider insert error:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Database insert failed.",
+        error: error.message
+      });
+    }
 
     return res.json({
       success: true,
       rider_id: data.rider_id,
       status: "PENDING_APPROVAL",
-      rider: data
+      rider: data,
+      submitted_profile: {
+        full_name: fullName,
+        phone,
+        email,
+        city
+      }
     });
   } catch (error) {
     console.log("Rider signup error:", error);
     return res.status(500).json({
       success: false,
-      message: "Unable to submit rider application right now."
+      message: "Unable to submit rider application right now.",
+      error: error.message
     });
   }
 });
@@ -414,59 +452,129 @@ app.post("/api/rider/signup", async (req, res) => {
 ================================ */
 app.post("/api/driver/signup", async (req, res) => {
   try {
-    const {
-      full_name,
-      phone,
-      email,
-      vehicle_type,
-      license,
-      city
-    } = req.body;
+    const fullName =
+      req.body.full_name ||
+      req.body.fullName ||
+      req.body.name ||
+      req.body.fullname ||
+      "";
 
-    if (!full_name || !phone || !vehicle_type || !city) {
+    const phone =
+      req.body.phone ||
+      req.body.phone_number ||
+      req.body.phoneNumber ||
+      "";
+
+    const email =
+      req.body.email ||
+      req.body.email_address ||
+      req.body.emailAddress ||
+      "";
+
+    const vehicleType =
+      req.body.vehicle_type ||
+      req.body.vehicleType ||
+      "STANDARD";
+
+    const licenseNumber =
+      req.body.license ||
+      req.body.license_number ||
+      req.body.licenseNumber ||
+      req.body.driver_license_number ||
+      req.body.driverLicenseNumber ||
+      "";
+
+    const city =
+      req.body.city ||
+      req.body.operating_city ||
+      req.body.operatingCity ||
+      req.body.operating_area ||
+      req.body.operatingArea ||
+      req.body.operating_city_area ||
+      req.body.operatingCityArea ||
+      "";
+
+    if (!fullName || !phone || !vehicleType || !city) {
       return res.status(400).json({
         success: false,
-        message: "Full name, phone, vehicle type, and city are required."
+        message: "Full name, phone, vehicle type, and city are required.",
+        received: req.body
       });
     }
 
     const driverId = generateId("driver");
 
+    const insertPayload = {
+      driver_id: driverId,
+      first_name: fullName,
+      verification_status: "PENDING",
+      background_status: "PENDING",
+      is_online: false,
+      is_busy: false,
+      current_address: city,
+      zone: getPickupZone(city),
+      vehicle_type: vehicleType,
+      completed_missions: 0,
+      acceptance_score: 90
+    };
+
     const { data, error } = await supabase
       .from("drivers")
-      .insert([
-        {
-          driver_id: driverId,
-          first_name: full_name,
-          verification_status: "PENDING",
-          background_status: "PENDING",
-          is_online: false,
-          is_busy: false,
-          current_address: city,
-          zone: getPickupZone(city),
-          vehicle_type: vehicle_type || "STANDARD",
-          completed_missions: 0,
-          acceptance_score: 90
-        }
-      ])
+      .insert([insertPayload])
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.log("Driver insert error:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Database insert failed.",
+        error: error.message
+      });
+    }
 
     return res.json({
       success: true,
+      message: "Driver application submitted successfully.",
       driver_id: data.driver_id,
       status: "PENDING_APPROVAL",
-      driver: data
+      driver: data,
+      submitted_profile: {
+        full_name: fullName,
+        phone,
+        email,
+        vehicle_type: vehicleType,
+        license_number: licenseNumber,
+        city
+      }
     });
   } catch (error) {
     console.log("Driver signup error:", error);
     return res.status(500).json({
       success: false,
-      message: "Unable to submit the driver application right now. Please try again."
+      message: "Unable to submit the driver application right now. Please try again.",
+      error: error.message
     });
   }
+});
+
+/* ===============================
+   TEMP DEBUG ROUTES
+================================ */
+app.post("/api/debug/driver-signup-test", (req, res) => {
+  console.log("Driver signup payload:", req.body);
+  res.json({
+    success: true,
+    received: req.body
+  });
+});
+
+app.post("/api/debug/rider-signup-test", (req, res) => {
+  console.log("Rider signup payload:", req.body);
+  res.json({
+    success: true,
+    received: req.body
+  });
 });
 
 /* ===============================
