@@ -1,4 +1,4 @@
-import fetch from 'node-fetch'const express = require('express')
+const express = require('express')
 const cors = require('cors')
 const path = require('path')
 const fs = require('fs')
@@ -13,53 +13,49 @@ app.use(cors())
 app.use(express.json())
 app.use(express.static(path.join(__dirname, 'public')))
 
+// -------------------------
+// ENV VALIDATION
+// -------------------------
+const REQUIRED_ENV_VARS = [
+  'SUPABASE_URL',
+  'SUPABASE_SERVICE_ROLE_KEY',
+  'GOOGLE_MAPS_API_KEY'
+]
+
+const missingEnv = REQUIRED_ENV_VARS.filter((key) => !process.env[key])
+
+if (missingEnv.length > 0) {
+  console.error('Missing required environment variables:', missingEnv.join(', '))
+  process.exit(1)
+}
+
+const DISPATCH_MODE = process.env.DISPATCH_MODE || 'mixed'
+const AV_ENABLED = String(process.env.AV_ENABLED || 'true') === 'true'
+const HUMAN_DRIVER_ENABLED = String(process.env.HUMAN_DRIVER_ENABLED || 'true') === 'true'
+const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY
+
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 )
 
-// ---------- ROOT + HTML FALLBACK ----------
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'))
-})
-
-app.get('/:page', (req, res, next) => {
-  const requested = req.params.page
-
-  if (!requested.endsWith('.html')) return next()
-
-  const filePath = path.join(__dirname, 'public', requested)
-  if (fs.existsSync(filePath)) {
-    return res.sendFile(filePath)
+// -------------------------
+// FETCH HELPER
+// -------------------------
+async function safeFetch(url, options = {}) {
+  if (typeof fetch !== 'undefined') {
+    return fetch(url, options)
   }
 
-  return res.status(404).send('Page not found')
-})
+  const nodeFetch = (...args) =>
+    import('node-fetch').then(({ default: f }) => f(...args))
 
-// ---------- HEALTH ----------
-app.get('/api/health', async (req, res) => {
-  try {
-    const { error } = await supabase.from('drivers').select('id').limit(1)
-    if (error) throw error
+  return nodeFetch(url, options)
+}
 
-    res.json({
-      ok: true,
-      service: 'Harvey Taxi Dispatch Brain',
-      mode: process.env.DISPATCH_MODE || 'mixed'
-    })
-  } catch (error) {
-    console.error('HEALTH ERROR:', error.message)
-    res.status(500).json({ ok: false, error: error.message })
-  }
-})
-
-// ---------- CONFIG ----------
-const DISPATCH_MODE = process.env.DISPATCH_MODE || 'mixed' // mixed | av_first | human_first
-const AV_ENABLED = String(process.env.AV_ENABLED || 'true') === 'true'
-const HUMAN_DRIVER_ENABLED = String(process.env.HUMAN_DRIVER_ENABLED || 'true') === 'true'
-const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY || ''
-
-// ---------- HELPERS ----------
+// -------------------------
+// HELPERS
+// -------------------------
 function normalizeText(value) {
   return String(value || '').trim()
 }
@@ -84,49 +80,6 @@ function haversineMiles(lat1, lng1, lat2, lng2) {
   return R * c
 }
 
-async function geocodeAddress(address) {
-  const safeAddress = normalizeText(address)
-  if (!safeAddress) {
-    throw new Error('Address is required for geocoding')
-  }
-
-  if (!GOOGLE_MAPS_API_KEY) {
-    throw new Error('Missing GOOGLE_MAPS_API_KEY in .env')
-  }
-
-  const url =
-    'https://maps.googleapis.com/maps/api/geocode/json?address=' +
-    encodeURIComponent(safeAddress) +
-    '&key=' +
-    encodeURIComponent(GOOGLE_MAPS_API_KEY)
-
-  const response = await fetch(url)
-  const data = await response.json()
-
-  if (data.status !== 'OK' || !data.results || !data.results.length) {
-    throw new Error(`Geocoding failed for address: ${safeAddress}`)
-  }
-
-  const result = data.results[0]
-  return {
-    formatted_address: result.formatted_address,
-    lat: result.geometry.location.lat,
-    lng: result.geometry.location.lng
-  }
-}
-
-function maskDriverForClient(driver, distanceMiles = null) {
-  return {
-    id: driver.id,
-    name: driver.name,
-    type: driver.type,
-    status: driver.status,
-    vehicle_type: driver.vehicle_type,
-    current_address: driver.current_address,
-    distance_miles: distanceMiles === null ? null : Number(distanceMiles.toFixed(2))
-  }
-}
-
 function sanitizeRide(ride) {
   return {
     id: ride.id,
@@ -143,6 +96,47 @@ function sanitizeRide(ride) {
     accepted_at: ride.accepted_at,
     started_at: ride.started_at,
     completed_at: ride.completed_at
+  }
+}
+
+function maskDriverForClient(driver, distanceMiles = null) {
+  return {
+    id: driver.id,
+    name: driver.name,
+    type: driver.type,
+    status: driver.status,
+    vehicle_type: driver.vehicle_type,
+    current_address: driver.current_address,
+    distance_miles: distanceMiles === null ? null : Number(distanceMiles.toFixed(2))
+  }
+}
+
+async function geocodeAddress(address) {
+  const safeAddress = normalizeText(address)
+
+  if (!safeAddress) {
+    throw new Error('Address is required')
+  }
+
+  const url =
+    'https://maps.googleapis.com/maps/api/geocode/json?address=' +
+    encodeURIComponent(safeAddress) +
+    '&key=' +
+    encodeURIComponent(GOOGLE_MAPS_API_KEY)
+
+  const response = await safeFetch(url)
+  const data = await response.json()
+
+  if (data.status !== 'OK' || !data.results || !data.results.length) {
+    throw new Error(`Geocoding failed for address: ${safeAddress}`)
+  }
+
+  const result = data.results[0]
+
+  return {
+    formatted_address: result.formatted_address,
+    lat: result.geometry.location.lat,
+    lng: result.geometry.location.lng
   }
 }
 
@@ -204,7 +198,7 @@ async function lockDriverAndCreateRide({
     .single()
 
   if (lockError || !lockedDriver) {
-    throw new Error('Driver lock failed. Unit may have been assigned already.')
+    throw new Error('Driver lock failed. Unit may already be assigned.')
   }
 
   const ridePayload = {
@@ -234,33 +228,86 @@ async function lockDriverAndCreateRide({
   if (rideError) {
     await supabase
       .from('drivers')
-      .update({ status: 'available', updated_at: new Date().toISOString() })
+      .update({
+        status: 'available',
+        updated_at: new Date().toISOString()
+      })
       .eq('id', lockedDriver.id)
 
     throw rideError
   }
 
-  const { error: queueError } = await supabase.from('dispatch_queue').insert([
-    {
-      ride_id: ride.id,
-      pickup_address,
-      dropoff_address,
-      assigned: true,
-      assigned_driver_id: lockedDriver.id,
-      fleet_type: lockedDriver.type,
-      status: 'assigned',
-      created_at: now
-    }
-  ])
+  const { error: queueError } = await supabase
+    .from('dispatch_queue')
+    .insert([
+      {
+        ride_id: ride.id,
+        pickup_address,
+        dropoff_address,
+        assigned: true,
+        assigned_driver_id: lockedDriver.id,
+        fleet_type: lockedDriver.type,
+        status: 'assigned',
+        created_at: now,
+        updated_at: now
+      }
+    ])
 
   if (queueError) {
-    console.error('QUEUE INSERT WARNING:', queueError.message)
+    console.error('Dispatch queue warning:', queueError.message)
   }
 
   return { ride, lockedDriver }
 }
 
-// ---------- DISPATCH BRAIN ----------
+// -------------------------
+// STATIC ROUTES
+// -------------------------
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'))
+})
+
+app.get('/:page', (req, res, next) => {
+  const requested = req.params.page
+
+  if (!requested.endsWith('.html')) return next()
+
+  const filePath = path.join(__dirname, 'public', requested)
+
+  if (fs.existsSync(filePath)) {
+    return res.sendFile(filePath)
+  }
+
+  return res.status(404).send('Page not found')
+})
+
+// -------------------------
+// HEALTH
+// -------------------------
+app.get('/api/health', async (req, res) => {
+  try {
+    const { error } = await supabase.from('drivers').select('id').limit(1)
+    if (error) throw error
+
+    res.json({
+      ok: true,
+      service: 'Harvey Taxi Dispatch Brain',
+      dispatch_mode: DISPATCH_MODE,
+      av_enabled: AV_ENABLED,
+      human_driver_enabled: HUMAN_DRIVER_ENABLED
+    })
+  } catch (error) {
+    console.error('HEALTH ERROR:', error.message)
+    res.status(500).json({
+      ok: false,
+      error: error.message
+    })
+  }
+})
+
+// -------------------------
+// REQUEST RIDE
+// -------------------------
 app.post('/api/request-ride', async (req, res) => {
   try {
     const rider_name = normalizeText(req.body.rider_name)
@@ -284,7 +331,7 @@ app.post('/api/request-ride', async (req, res) => {
         (unit) =>
           typeof unit.lat === 'number' &&
           typeof unit.lng === 'number' &&
-          unit.current_address
+          !!unit.current_address
       )
       .map((unit) => ({
         ...unit,
@@ -300,19 +347,23 @@ app.post('/api/request-ride', async (req, res) => {
     const selectedDriver = chooseCandidateByMode(candidates)
 
     if (!selectedDriver) {
-      const { error: queueError } = await supabase.from('dispatch_queue').insert([
-        {
-          pickup_address: pickupGeo.formatted_address,
-          dropoff_address: dropoffGeo.formatted_address,
-          assigned: false,
-          status: 'waiting',
-          fleet_type: 'unassigned',
-          created_at: new Date().toISOString()
-        }
-      ])
+      const { error: queueError } = await supabase
+        .from('dispatch_queue')
+        .insert([
+          {
+            pickup_address: pickupGeo.formatted_address,
+            dropoff_address: dropoffGeo.formatted_address,
+            assigned: false,
+            assigned_driver_id: null,
+            fleet_type: 'unassigned',
+            status: 'waiting',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }
+        ])
 
       if (queueError) {
-        console.error('QUEUE WAITING INSERT ERROR:', queueError.message)
+        console.error('Waiting queue insert error:', queueError.message)
       }
 
       return res.status(404).json({
@@ -340,7 +391,7 @@ app.post('/api/request-ride', async (req, res) => {
       lockedDriver.lng
     )
 
-    return res.json({
+    res.json({
       success: true,
       message: 'Ride dispatched successfully',
       dispatch_mode: DISPATCH_MODE,
@@ -349,11 +400,13 @@ app.post('/api/request-ride', async (req, res) => {
     })
   } catch (error) {
     console.error('REQUEST RIDE ERROR:', error.message)
-    return res.status(500).json({ error: error.message })
+    res.status(500).json({ error: error.message })
   }
 })
 
-// ---------- RIDES ----------
+// -------------------------
+// RIDES
+// -------------------------
 app.get('/api/rides', async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -395,7 +448,7 @@ app.post('/api/rides/:rideId/status', async (req, res) => {
     const { rideId } = req.params
     const nextStatus = normalizeText(req.body.status)
 
-    const allowed = [
+    const allowedStatuses = [
       'assigned',
       'accepted',
       'enroute',
@@ -405,13 +458,11 @@ app.post('/api/rides/:rideId/status', async (req, res) => {
       'cancelled'
     ]
 
-    if (!allowed.includes(nextStatus)) {
+    if (!allowedStatuses.includes(nextStatus)) {
       return res.status(400).json({ error: 'Invalid ride status' })
     }
 
-    const patch = {
-      status: nextStatus
-    }
+    const patch = { status: nextStatus }
 
     if (nextStatus === 'accepted') patch.accepted_at = new Date().toISOString()
     if (nextStatus === 'in_trip') patch.started_at = new Date().toISOString()
@@ -426,6 +477,14 @@ app.post('/api/rides/:rideId/status', async (req, res) => {
 
     if (rideError) throw rideError
 
+    await supabase
+      .from('dispatch_queue')
+      .update({
+        status: nextStatus,
+        updated_at: new Date().toISOString()
+      })
+      .eq('ride_id', rideId)
+
     if (nextStatus === 'completed' || nextStatus === 'cancelled') {
       await supabase
         .from('drivers')
@@ -434,22 +493,6 @@ app.post('/api/rides/:rideId/status', async (req, res) => {
           updated_at: new Date().toISOString()
         })
         .eq('id', ride.driver_id)
-
-      await supabase
-        .from('dispatch_queue')
-        .update({
-          status: nextStatus,
-          updated_at: new Date().toISOString()
-        })
-        .eq('ride_id', rideId)
-    } else {
-      await supabase
-        .from('dispatch_queue')
-        .update({
-          status: nextStatus,
-          updated_at: new Date().toISOString()
-        })
-        .eq('ride_id', rideId)
     }
 
     res.json({
@@ -462,7 +505,9 @@ app.post('/api/rides/:rideId/status', async (req, res) => {
   }
 })
 
-// ---------- DRIVER / AV FLEET ----------
+// -------------------------
+// FLEET
+// -------------------------
 app.get('/api/admin/fleet', async (req, res) => {
   try {
     const { data: drivers, error } = await supabase.from('drivers').select('*')
@@ -530,7 +575,9 @@ app.post('/api/fleet/update-location', async (req, res) => {
       updated_at: new Date().toISOString()
     }
 
-    if (status) updatePayload.status = status
+    if (status) {
+      updatePayload.status = status
+    }
 
     const { data, error } = await supabase
       .from('drivers')
@@ -551,7 +598,60 @@ app.post('/api/fleet/update-location', async (req, res) => {
   }
 })
 
-// ---------- ADMIN DISPATCH FEED ----------
+app.post('/api/admin/register-driver', async (req, res) => {
+  try {
+    const name = normalizeText(req.body.name)
+    const type = normalizeText(req.body.type || 'human')
+    const status = normalizeText(req.body.status || 'available')
+    const vehicle_type = normalizeText(req.body.vehicle_type || 'standard')
+    const current_address_input = normalizeText(req.body.current_address)
+
+    if (!name || !current_address_input) {
+      return res.status(400).json({
+        error: 'name and current_address are required'
+      })
+    }
+
+    if (!['human', 'av'].includes(type)) {
+      return res.status(400).json({
+        error: 'type must be human or av'
+      })
+    }
+
+    const geo = await geocodeAddress(current_address_input)
+
+    const { data, error } = await supabase
+      .from('drivers')
+      .insert([
+        {
+          name,
+          type,
+          status,
+          vehicle_type,
+          current_address: geo.formatted_address,
+          lat: geo.lat,
+          lng: geo.lng,
+          updated_at: new Date().toISOString()
+        }
+      ])
+      .select('*')
+      .single()
+
+    if (error) throw error
+
+    res.json({
+      success: true,
+      driver: maskDriverForClient(data)
+    })
+  } catch (error) {
+    console.error('REGISTER DRIVER ERROR:', error.message)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// -------------------------
+// DISPATCH FEED
+// -------------------------
 app.get('/api/admin/dispatch-feed', async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -569,7 +669,9 @@ app.get('/api/admin/dispatch-feed', async (req, res) => {
   }
 })
 
-// ---------- LIVE CHAT ----------
+// -------------------------
+// CHAT
+// -------------------------
 app.get('/api/chat', async (req, res) => {
   try {
     const rideId = normalizeText(req.query.ride_id)
@@ -629,57 +731,27 @@ app.post('/api/chat', async (req, res) => {
   }
 })
 
-// ---------- DRIVER SEED ROUTE ----------
-app.post('/api/admin/register-driver', async (req, res) => {
+// -------------------------
+// STARTUP TEST
+// -------------------------
+async function startServer() {
   try {
-    const name = normalizeText(req.body.name)
-    const type = normalizeText(req.body.type || 'human')
-    const status = normalizeText(req.body.status || 'available')
-    const vehicle_type = normalizeText(req.body.vehicle_type || 'standard')
-    const current_address_input = normalizeText(req.body.current_address)
+    const { error } = await supabase.from('drivers').select('id').limit(1)
 
-    if (!name || !current_address_input) {
-      return res.status(400).json({
-        error: 'name and current_address are required'
-      })
+    if (error && !String(error.message || '').includes('relation')) {
+      throw error
     }
 
-    if (!['human', 'av'].includes(type)) {
-      return res.status(400).json({ error: 'type must be human or av' })
-    }
-
-    const geo = await geocodeAddress(current_address_input)
-
-    const { data, error } = await supabase
-      .from('drivers')
-      .insert([
-        {
-          name,
-          type,
-          status,
-          vehicle_type,
-          current_address: geo.formatted_address,
-          lat: geo.lat,
-          lng: geo.lng,
-          updated_at: new Date().toISOString()
-        }
-      ])
-      .select('*')
-      .single()
-
-    if (error) throw error
-
-    res.json({
-      success: true,
-      driver: maskDriverForClient(data)
+    app.listen(PORT, () => {
+      console.log(`Harvey Taxi Dispatch Brain running on port ${PORT}`)
+      console.log(`Dispatch mode: ${DISPATCH_MODE}`)
+      console.log(`AV enabled: ${AV_ENABLED}`)
+      console.log(`Human drivers enabled: ${HUMAN_DRIVER_ENABLED}`)
     })
   } catch (error) {
-    console.error('REGISTER DRIVER ERROR:', error.message)
-    res.status(500).json({ error: error.message })
+    console.error('SERVER START ERROR:', error.message)
+    process.exit(1)
   }
-})
+}
 
-// ---------- START ----------
-app.listen(PORT, () => {
-  console.log(`Harvey Taxi Dispatch Brain running on port ${PORT}`)
-})
+startServer()
