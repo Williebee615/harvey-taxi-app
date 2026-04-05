@@ -1,202 +1,683 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Live Trip</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Harvey Taxi | Rider Live Trip</title>
 
-<style>
-body{
-margin:0;
-font-family:-apple-system, BlinkMacSystemFont, sans-serif;
-background:linear-gradient(180deg,#020617,#031133);
-color:white;
-padding:20px;
-}
+  <style>
+    * {
+      box-sizing: border-box;
+    }
 
-.card{
-background:#0f172a;
-padding:20px;
-border-radius:20px;
-margin-bottom:15px;
-}
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(59,130,246,0.16), transparent 28%),
+        radial-gradient(circle at top right, rgba(16,185,129,0.12), transparent 22%),
+        linear-gradient(180deg, #020617 0%, #031133 100%);
+      color: white;
+      padding: 20px 16px 40px;
+      min-height: 100vh;
+    }
 
-.title{
-font-size:32px;
-font-weight:800;
-margin-bottom:10px;
-}
+    .wrap {
+      max-width: 760px;
+      margin: 0 auto;
+    }
 
-.map{
-height:240px;
-background:#020b28;
-border-radius:20px;
-position:relative;
-overflow:hidden;
-}
+    .back-link {
+      display: inline-block;
+      margin-bottom: 18px;
+      color: #cbd5e1;
+      text-decoration: none;
+      font-size: 18px;
+    }
 
-.car{
-position:absolute;
-top:50%;
-left:10%;
-transform:translate(-50%,-50%);
-font-size:30px;
-transition:1s;
-}
+    .card {
+      background: rgba(15, 23, 42, 0.94);
+      border: 1px solid rgba(59, 130, 246, 0.14);
+      border-radius: 28px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+    }
 
-.pin{
-position:absolute;
-top:50%;
-transform:translateY(-50%);
-font-size:22px;
-}
+    .eyebrow {
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      font-size: 12px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
 
-.pickup{ left:10px }
-.dropoff{ right:10px }
+    h1 {
+      margin: 0;
+      font-size: 40px;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+    }
 
-.status{
-padding:15px;
-border-radius:15px;
-background:#022c22;
-margin-top:10px;
-font-weight:700;
-}
+    .subtext {
+      margin-top: 10px;
+      color: #cbd5e1;
+      font-size: 15px;
+      line-height: 1.6;
+    }
 
-.grid{
-display:grid;
-gap:12px;
-}
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 16px;
+      background: rgba(16,185,129,0.12);
+      border: 1px solid rgba(16,185,129,0.28);
+      color: #d1fae5;
+      padding: 12px 16px;
+      border-radius: 999px;
+      font-weight: 700;
+    }
 
-.box{
-background:#020b28;
-padding:15px;
-border-radius:15px;
-}
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: #34d399;
+      box-shadow: 0 0 12px rgba(52,211,153,0.9);
+    }
 
-.label{
-font-size:12px;
-color:#94a3b8;
-margin-bottom:5px;
-}
+    #map {
+      width: 100%;
+      height: 360px;
+      border-radius: 22px;
+      overflow: hidden;
+      background: #020b28;
+      border: 1px solid rgba(59,130,246,0.18);
+    }
 
-.value{
-font-size:20px;
-font-weight:700;
-}
+    .fallback-map {
+      width: 100%;
+      height: 360px;
+      border-radius: 22px;
+      background:
+        radial-gradient(circle at center, rgba(59,130,246,0.15), transparent 55%),
+        #08122f;
+      border: 1px solid rgba(59,130,246,0.18);
+      position: relative;
+      overflow: hidden;
+    }
 
-.btn{
-width:100%;
-padding:18px;
-border-radius:16px;
-border:none;
-background:#25c59a;
-font-size:18px;
-font-weight:700;
-margin-top:15px;
-}
-</style>
+    .fallback-road {
+      position: absolute;
+      left: 9%;
+      right: 9%;
+      top: 50%;
+      height: 5px;
+      background: rgba(255,255,255,0.18);
+      transform: translateY(-50%);
+      border-radius: 999px;
+    }
+
+    .fallback-road::before {
+      content: "";
+      position: absolute;
+      left: 8%;
+      right: 8%;
+      top: -7px;
+      height: 19px;
+      background:
+        repeating-linear-gradient(
+          90deg,
+          transparent 0 18px,
+          rgba(255,255,255,0.32) 18px 28px
+        );
+      opacity: 0.32;
+      border-radius: 999px;
+    }
+
+    .fallback-pin,
+    .fallback-car {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 56px;
+      height: 56px;
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+      font-size: 24px;
+      background: rgba(15,23,42,0.94);
+      border: 1px solid rgba(255,255,255,0.12);
+      box-shadow: 0 12px 30px rgba(0,0,0,0.28);
+    }
+
+    .fallback-pickup {
+      left: 18px;
+    }
+
+    .fallback-dropoff {
+      right: 18px;
+    }
+
+    .fallback-car {
+      left: 22%;
+      transition: left 1.1s ease;
+      z-index: 2;
+    }
+
+    .grid {
+      display: grid;
+      gap: 14px;
+    }
+
+    .info-box {
+      background: #020b28;
+      border: 1px solid rgba(148,163,184,0.14);
+      border-radius: 18px;
+      padding: 16px;
+    }
+
+    .label {
+      color: #94a3b8;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .value {
+      color: #f8fafc;
+      font-size: 24px;
+      font-weight: 800;
+      line-height: 1.35;
+    }
+
+    .small {
+      font-size: 16px;
+      font-weight: 600;
+      color: #cbd5e1;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .timeline-step {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(148,163,184,0.12);
+    }
+
+    .timeline-step:last-child {
+      border-bottom: none;
+    }
+
+    .timeline-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      background: rgba(59,130,246,0.14);
+      border: 1px solid rgba(59,130,246,0.24);
+      flex: 0 0 auto;
+    }
+
+    .timeline-text strong {
+      display: block;
+      font-size: 15px;
+      margin-bottom: 4px;
+    }
+
+    .timeline-text span {
+      color: #cbd5e1;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .actions {
+      display: grid;
+      gap: 12px;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 18px;
+      border-radius: 18px;
+      border: none;
+      font-size: 18px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .btn.secondary {
+      background: rgba(59,130,246,0.16);
+      border: 1px solid rgba(59,130,246,0.24);
+      color: #dbeafe;
+    }
+
+    .empty {
+      text-align: center;
+      color: #cbd5e1;
+      padding: 28px 10px;
+    }
+
+    @media (max-width: 700px) {
+      .two-col {
+        grid-template-columns: 1fr;
+      }
+
+      h1 {
+        font-size: 34px;
+      }
+
+      #map,
+      .fallback-map {
+        height: 300px;
+      }
+    }
+  </style>
 </head>
-
 <body>
+  <div class="wrap">
+    <a href="/index.html" class="back-link">← Back to Home</a>
 
-<div class="card">
-<div class="title">Live Trip</div>
-<div id="status" class="status">Connecting...</div>
-</div>
+    <div class="card">
+      <div class="eyebrow">Live Trip Intelligence</div>
+      <h1>Rider Live Trip</h1>
+      <div class="subtext">
+        View your assigned Harvey Taxi unit, route progress, ETA, and trip status in real time.
+      </div>
+      <div class="status-pill">
+        <span class="dot"></span>
+        <span id="statusText">Connecting to dispatch...</span>
+      </div>
+    </div>
 
-<div class="card">
-<div class="map">
-<div class="pin pickup">📍</div>
-<div class="pin dropoff">🏁</div>
-<div id="car" class="car">🚕</div>
-</div>
-</div>
+    <div class="card">
+      <div class="eyebrow">Real Map View</div>
+      <div id="mapContainer">
+        <div id="map"></div>
+      </div>
+    </div>
 
-<div id="trip"></div>
+    <div id="contentArea" class="grid">
+      <div class="card empty">Loading trip...</div>
+    </div>
+  </div>
 
-<script>
-const params=new URLSearchParams(window.location.search)
-const rideId=params.get("ride_id")
+  <script>
+    const params = new URLSearchParams(window.location.search)
+    const rideId = params.get('ride_id')
 
-let step=0
+    let currentRide = null
+    let currentDriver = null
+    let map = null
+    let pickupMarker = null
+    let dropoffMarker = null
+    let driverMarker = null
+    let directionsService = null
+    let directionsRenderer = null
+    let mapLoaded = false
+    let fallbackStep = 0
 
-async function loadRide(){
+    const statusLabelMap = {
+      requested: 'Searching for driver',
+      assigned: 'Driver assigned',
+      driver_assigned: 'Driver assigned',
+      accepted: 'Driver accepted trip',
+      arriving: 'Driver arriving',
+      in_progress: 'Trip in progress',
+      completed: 'Trip completed',
+      cancelled: 'Trip cancelled'
+    }
 
-const res=await fetch("/api/rides")
-const rides=await res.json()
+    function humanizeStatus(status) {
+      if (!status) return 'Unknown'
+      return statusLabelMap[status] || status.replace(/_/g, ' ')
+    }
 
-const ride=rides.find(r=>r.id===rideId)
+    function etaForStatus(status) {
+      if (status === 'assigned' || status === 'driver_assigned') return '6 min'
+      if (status === 'accepted') return '4 min'
+      if (status === 'arriving') return '2 min'
+      if (status === 'in_progress') return 'On trip'
+      if (status === 'completed') return 'Arrived'
+      if (status === 'cancelled') return 'Cancelled'
+      return 'Searching'
+    }
 
-if(!ride) return
+    function setStatusText(text) {
+      document.getElementById('statusText').textContent = text
+    }
 
-document.getElementById("status").innerText=ride.status
+    function getStatusProgress(status) {
+      if (status === 'assigned' || status === 'driver_assigned') return 28
+      if (status === 'accepted') return 42
+      if (status === 'arriving') return 58
+      if (status === 'in_progress') return 76
+      if (status === 'completed') return 90
+      return 22
+    }
 
-document.getElementById("trip").innerHTML=`
-<div class="grid">
+    function renderFallbackMap(status) {
+      const container = document.getElementById('mapContainer')
+      container.innerHTML = `
+        <div class="fallback-map">
+          <div class="fallback-road"></div>
+          <div class="fallback-pin fallback-pickup">📍</div>
+          <div class="fallback-pin fallback-dropoff">🏁</div>
+          <div class="fallback-car" id="fallbackCar">${currentDriver && currentDriver.type === 'av' ? '🤖' : '🚕'}</div>
+        </div>
+      `
+      const car = document.getElementById('fallbackCar')
+      car.style.left = getStatusProgress(status) + '%'
+    }
 
-<div class="box">
-<div class="label">Driver</div>
-<div class="value">${ride.driver_id || "searching"}</div>
-</div>
+    function timelineSteps(status) {
+      const active = status || 'assigned'
+      return [
+        {
+          icon: '📡',
+          title: 'Dispatch Brain Active',
+          text: active === 'requested'
+            ? 'Searching for the best unit'
+            : 'Best available fleet unit selected'
+        },
+        {
+          icon: '🚕',
+          title: 'Driver Assigned',
+          text: currentDriver
+            ? `${currentDriver.name || 'Driver'} is attached to this trip`
+            : 'Waiting for assignment'
+        },
+        {
+          icon: '📍',
+          title: 'En Route',
+          text: active === 'arriving' || active === 'in_progress' || active === 'completed'
+            ? 'Vehicle is moving through trip flow'
+            : 'Vehicle has not started moving yet'
+        },
+        {
+          icon: '🏁',
+          title: 'Destination',
+          text: active === 'completed'
+            ? 'Trip marked complete'
+            : 'Dropoff still ahead'
+        }
+      ]
+    }
 
-<div class="box">
-<div class="label">Pickup</div>
-<div class="value">${ride.pickup_address}</div>
-</div>
+    function renderContent() {
+      if (!currentRide) {
+        document.getElementById('contentArea').innerHTML =
+          '<div class="card empty">Trip not found.</div>'
+        return
+      }
 
-<div class="box">
-<div class="label">Dropoff</div>
-<div class="value">${ride.dropoff_address}</div>
-</div>
+      const status = currentRide.status || 'assigned'
+      const driverName = currentDriver?.name || currentRide.driver_name || 'Waiting for assignment'
+      const fleetType = currentDriver?.type || currentRide.fleet_type || '--'
+      const driverStatus = currentDriver?.status || status || '--'
+      const vehicleType = currentDriver?.vehicle_type || currentRide.vehicle_type || '--'
 
-<div class="box">
-<div class="label">Fare</div>
-<div class="value">$${ride.estimated_fare}</div>
-</div>
+      const timelineHtml = timelineSteps(status).map(step => `
+        <div class="timeline-step">
+          <div class="timeline-icon">${step.icon}</div>
+          <div class="timeline-text">
+            <strong>${step.title}</strong>
+            <span>${step.text}</span>
+          </div>
+        </div>
+      `).join('')
 
-</div>
-`
+      document.getElementById('contentArea').innerHTML = `
+        <div class="two-col">
+          <div class="info-box">
+            <div class="label">Ride Status</div>
+            <div class="value">${humanizeStatus(status)}</div>
+            <div class="small">ETA: ${etaForStatus(status)}</div>
+          </div>
 
-simulate()
-}
+          <div class="info-box">
+            <div class="label">Estimated Fare</div>
+            <div class="value">$${currentRide.estimated_fare || '0.00'}</div>
+            <div class="small">Ride ID: ${currentRide.id}</div>
+          </div>
+        </div>
 
-function simulate(){
+        <div class="info-box">
+          <div class="label">Assigned Driver</div>
+          <div class="value">${driverName}</div>
+          <div class="small">${fleetType} · ${vehicleType} · ${driverStatus}</div>
+        </div>
 
-const car=document.getElementById("car")
+        <div class="info-box">
+          <div class="label">Pickup</div>
+          <div class="value">${currentRide.pickup_address || '--'}</div>
+        </div>
 
-if(step===0){
-car.style.left="20%"
-document.getElementById("status").innerText="Driver assigned"
-}
+        <div class="info-box">
+          <div class="label">Dropoff</div>
+          <div class="value">${currentRide.dropoff_address || '--'}</div>
+        </div>
 
-if(step===1){
-car.style.left="40%"
-document.getElementById("status").innerText="Driver arriving"
-}
+        <div class="card">
+          <div class="eyebrow">Trip Timeline</div>
+          ${timelineHtml}
+        </div>
 
-if(step===2){
-car.style.left="60%"
-document.getElementById("status").innerText="Trip started"
-}
+        <div class="actions">
+          <button class="btn secondary" onclick="refreshTrip()">Refresh Live Trip</button>
+        </div>
+      `
+    }
 
-if(step===3){
-car.style.left="80%"
-document.getElementById("status").innerText="Arriving destination"
-}
+    function getCoordsFromRide() {
+      if (!currentRide) return null
 
-if(step===4){
-car.style.left="90%"
-document.getElementById("status").innerText="Trip completed"
-}
+      const pickup = currentRide.pickup_coords
+        ? { lat: currentRide.pickup_coords.lat, lng: currentRide.pickup_coords.lng }
+        : (
+          typeof currentRide.pickup_lat === 'number' && typeof currentRide.pickup_lng === 'number'
+            ? { lat: currentRide.pickup_lat, lng: currentRide.pickup_lng }
+            : null
+        )
 
-step++
-if(step<5){
-setTimeout(simulate,2500)
-}
-}
+      const dropoff = currentRide.dropoff_coords
+        ? { lat: currentRide.dropoff_coords.lat, lng: currentRide.dropoff_coords.lng }
+        : (
+          typeof currentRide.dropoff_lat === 'number' && typeof currentRide.dropoff_lng === 'number'
+            ? { lat: currentRide.dropoff_lat, lng: currentRide.dropoff_lng }
+            : null
+        )
 
-loadRide()
-</script>
+      let driver = null
 
+      if (currentDriver && typeof currentDriver.lat === 'number' && typeof currentDriver.lng === 'number') {
+        driver = { lat: currentDriver.lat, lng: currentDriver.lng }
+      }
+
+      if (!driver && pickup) {
+        const progress = getStatusProgress(currentRide.status) / 100
+        const end = dropoff || pickup
+        driver = {
+          lat: pickup.lat + ((end.lat - pickup.lat) * progress),
+          lng: pickup.lng + ((end.lng - pickup.lng) * progress)
+        }
+      }
+
+      return { pickup, dropoff, driver }
+    }
+
+    function renderGoogleMap() {
+      const coords = getCoordsFromRide()
+      if (!coords || !coords.pickup || !coords.dropoff || !window.google || !window.google.maps) {
+        renderFallbackMap(currentRide?.status)
+        return
+      }
+
+      if (!map) {
+        map = new google.maps.Map(document.getElementById('map'), {
+          center: coords.pickup,
+          zoom: 12,
+          disableDefaultUI: false,
+          streetViewControl: false,
+          mapTypeControl: false,
+          fullscreenControl: false
+        })
+
+        directionsService = new google.maps.DirectionsService()
+        directionsRenderer = new google.maps.DirectionsRenderer({
+          suppressMarkers: true,
+          polylineOptions: {
+            strokeColor: '#60a5fa',
+            strokeOpacity: 0.95,
+            strokeWeight: 5
+          }
+        })
+        directionsRenderer.setMap(map)
+      }
+
+      if (!pickupMarker) {
+        pickupMarker = new google.maps.Marker({
+          position: coords.pickup,
+          map,
+          title: 'Pickup',
+          label: 'P'
+        })
+      } else {
+        pickupMarker.setPosition(coords.pickup)
+      }
+
+      if (!dropoffMarker) {
+        dropoffMarker = new google.maps.Marker({
+          position: coords.dropoff,
+          map,
+          title: 'Dropoff',
+          label: 'D'
+        })
+      } else {
+        dropoffMarker.setPosition(coords.dropoff)
+      }
+
+      if (coords.driver) {
+        if (!driverMarker) {
+          driverMarker = new google.maps.Marker({
+            position: coords.driver,
+            map,
+            title: 'Driver',
+            label: currentDriver && currentDriver.type === 'av' ? 'A' : 'T'
+          })
+        } else {
+          driverMarker.setPosition(coords.driver)
+          driverMarker.setLabel(currentDriver && currentDriver.type === 'av' ? 'A' : 'T')
+        }
+      }
+
+      const bounds = new google.maps.LatLngBounds()
+      bounds.extend(coords.pickup)
+      bounds.extend(coords.dropoff)
+      if (coords.driver) bounds.extend(coords.driver)
+      map.fitBounds(bounds, 80)
+
+      directionsService.route(
+        {
+          origin: coords.pickup,
+          destination: coords.dropoff,
+          travelMode: google.maps.TravelMode.DRIVING
+        },
+        (result, status) => {
+          if (status === 'OK') {
+            directionsRenderer.setDirections(result)
+          }
+        }
+      )
+    }
+
+    function tryInitMap() {
+      if (window.google && window.google.maps) {
+        mapLoaded = true
+        renderGoogleMap()
+      } else {
+        renderFallbackMap(currentRide?.status)
+      }
+    }
+
+    function loadMapScript() {
+      if (window.google && window.google.maps) {
+        mapLoaded = true
+        return
+      }
+
+      const existing = document.getElementById('googleMapsScript')
+      if (existing) return
+
+      const script = document.createElement('script')
+      script.id = 'googleMapsScript'
+      script.src = 'https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY'
+      script.async = true
+      script.defer = true
+      script.onload = () => {
+        mapLoaded = true
+        renderGoogleMap()
+      }
+      script.onerror = () => {
+        renderFallbackMap(currentRide?.status)
+      }
+      document.body.appendChild(script)
+    }
+
+    async function fetchLiveTrip() {
+      if (!rideId) {
+        setStatusText('Missing ride ID')
+        document.getElementById('contentArea').innerHTML =
+          '<div class="card empty">No ride ID was provided.</div>'
+        renderFallbackMap('requested')
+        return
+      }
+
+      try {
+        const response = await fetch('/api/rider/live-trip/' + encodeURIComponent(rideId))
+        const data = await response.json()
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to load trip')
+        }
+
+        currentRide = data.ride
+        currentDriver = data.driver || null
+
+        setStatusText(humanizeStatus(currentRide.status))
+        renderContent()
+
+        if (mapLoaded) {
+          renderGoogleMap()
+        } else {
+          tryInitMap()
+        }
+      } catch (error) {
+        setStatusText('Unable to load trip')
+        document.getElementById('contentArea').innerHTML =
+          '<div class="card empty">Unable to load live trip data.</div>'
+        renderFallbackMap('requested')
+      }
+    }
+
+    async function refreshTrip() {
+      await fetchLiveTrip()
+    }
+
+    loadMapScript()
+    fetchLiveTrip()
+    setInterval(fetchLiveTrip, 5000)
+  </script>
 </body>
 </html>
