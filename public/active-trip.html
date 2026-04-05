@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Harvey Taxi — Active Trip</title>
+  <style>
+    :root{
+      --bg1:#040814;
+      --bg2:#091126;
+      --panel:rgba(10,17,38,.9);
+      --panel2:rgba(255,255,255,.04);
+      --line:rgba(122,162,255,.16);
+      --text:#f4f7ff;
+      --muted:#aab8de;
+      --blue:#5ea0ff;
+      --cyan:#63f5ff;
+      --green:#6dffb3;
+      --danger:#ff7e97;
+      --gold:#ffd76a;
+      --shadow:0 18px 60px rgba(0,0,0,.35);
+    }
+
+    *{box-sizing:border-box;margin:0;padding:0}
+
+    body{
+      font-family:Inter,Arial,sans-serif;
+      color:var(--text);
+      min-height:100vh;
+      background:
+        radial-gradient(circle at top left, rgba(99,245,255,.12), transparent 26%),
+        linear-gradient(160deg,var(--bg1),var(--bg2));
+    }
+
+    .shell{
+      max-width:900px;
+      margin:auto;
+      padding:20px 16px 48px;
+    }
+
+    .topbar{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      margin-bottom:18px;
+      gap:12px;
+    }
+
+    .brand{
+      font-size:1.25rem;
+      font-weight:800;
+    }
+
+    .brand span{color:var(--cyan)}
+
+    .home-btn{
+      text-decoration:none;
+      color:var(--text);
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.04);
+      padding:10px 14px;
+      border-radius:999px;
+      font-weight:700;
+    }
+
+    .hero,
+    .card{
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:24px;
+      padding:20px;
+      box-shadow:var(--shadow);
+      margin-bottom:16px;
+    }
+
+    .hero h1{
+      font-size:1.55rem;
+      margin-bottom:8px;
+    }
+
+    .hero p{
+      color:var(--muted);
+      line-height:1.55;
+    }
+
+    .row{
+      display:grid;
+      grid-template-columns:1.1fr .9fr;
+      gap:16px;
+    }
+
+    .section-title{
+      font-size:1.05rem;
+      font-weight:800;
+      margin-bottom:12px;
+    }
+
+    .sub{
+      color:var(--muted);
+      line-height:1.5;
+      margin-bottom:14px;
+      font-size:.95rem;
+    }
+
+    .field{
+      margin-bottom:12px;
+    }
+
+    .field label{
+      display:block;
+      margin-bottom:8px;
+      color:var(--muted);
+      font-size:.92rem;
+      font-weight:700;
+    }
+
+    .input{
+      width:100%;
+      background:var(--panel2);
+      border:1px solid rgba(255,255,255,.08);
+      color:var(--text);
+      border-radius:16px;
+      padding:14px;
+      outline:none;
+    }
+
+    .status-grid,
+    .summary-grid{
+      display:grid;
+      grid-template-columns:repeat(2,1fr);
+      gap:12px;
+    }
+
+    .box{
+      background:rgba(255,255,255,.035);
+      border:1px solid var(--line);
+      border-radius:18px;
+      padding:14px;
+    }
+
+    .k{
+      color:var(--muted);
+      font-size:.82rem;
+      margin-bottom:6px;
+    }
+
+    .v{
+      font-size:1rem;
+      font-weight:800;
+      line-height:1.45;
+    }
+
+    .timeline{
+      display:grid;
+      gap:10px;
+      margin-top:8px;
+    }
+
+    .step{
+      padding:12px 14px;
+      border-radius:16px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.03);
+      color:var(--muted);
+      font-weight:700;
+    }
+
+    .step.active{
+      background:rgba(99,245,255,.12);
+      color:#dffeff;
+      border-color:rgba(99,245,255,.26);
+    }
+
+    .step.done{
+      background:rgba(109,255,179,.10);
+      color:#dffff0;
+      border-color:rgba(109,255,179,.2);
+    }
+
+    .pill-row{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      margin-top:12px;
+    }
+
+    .tip-btn,
+    .action-btn{
+      border:none;
+      cursor:pointer;
+      border-radius:16px;
+      padding:13px 16px;
+      font-size:1rem;
+      font-weight:800;
+    }
+
+    .tip-btn{
+      background:rgba(255,255,255,.05);
+      color:var(--text);
+      border:1px solid var(--line);
+    }
+
+    .primary{
+      background:linear-gradient(90deg,var(--blue),var(--cyan));
+      color:#051325;
+      width:100%;
+    }
+
+    .success{
+      background:linear-gradient(90deg,#63f5ff,#6dffb3);
+      color:#05241e;
+      width:100%;
+    }
+
+    .warning{
+      background:rgba(255,255,255,.05);
+      color:var(--text);
+      border:1px solid var(--line);
+      width:100%;
+    }
+
+    .receipt{
+      margin-top:12px;
+      padding:14px;
+      border-radius:18px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.03);
+      line-height:1.65;
+    }
+
+    .result,
+    .error{
+      display:none;
+      margin-top:12px;
+      padding:14px;
+      border-radius:18px;
+      line-height:1.55;
+    }
+
+    .result{
+      border:1px solid rgba(109,255,179,.2);
+      background:rgba(109,255,179,.08);
+      color:#dffff0;
+    }
+
+    .error{
+      border:1px solid rgba(255,126,151,.2);
+      background:rgba(255,126,151,.08);
+      color:#ffd9e1;
+    }
+
+    @media (max-width: 760px){
+      .row,
+      .status-grid,
+      .summary-grid{
+        grid-template-columns:1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="topbar">
+      <div class="brand">Harvey <span>Taxi</span></div>
+      <a class="home-btn" href="/">← Return Home</a>
+    </div>
+
+    <div class="hero">
+      <h1>Active Trip Center</h1>
+      <p>
+        Track your trip mission in real time, see driver status, tip during the ride,
+        and review your receipt after completion.
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Load Your Trip</div>
+      <div class="sub">Enter your ride ID to load the live mission state.</div>
+
+      <div class="field">
+        <label for="rideId">Ride ID</label>
+        <input class="input" id="rideId" placeholder="Example: ride_174387..." />
+      </div>
+
+      <button class="action-btn primary" id="loadRideBtn">Load Trip</button>
+
+      <div class="result" id="resultBox"></div>
+      <div class="error" id="errorBox"></div>
+    </div>
+
+    <div class="row">
+      <div>
+        <div class="card">
+          <div class="section-title">Mission Status</div>
+          <div class="timeline" id="timeline"></div>
+        </div>
+
+        <div class="card">
+          <div class="section-title">Trip Details</div>
+          <div class="summary-grid">
+            <div class="box">
+              <div class="k">Pickup</div>
+              <div class="v" id="pickupValue">--</div>
+            </div>
+            <div class="box">
+              <div class="k">Dropoff</div>
+              <div class="v" id="dropoffValue">--</div>
+            </div>
+            <div class="box">
+              <div class="k">Ride Type</div>
+              <div class="v" id="rideTypeValue">--</div>
+            </div>
+            <div class="box">
+              <div class="k">Scheduled Time</div>
+              <div class="v" id="scheduledValue">--</div>
+            </div>
+            <div class="box">
+              <div class="k">Passenger</div>
+              <div class="v" id="passengerValue">--</div>
+            </div>
+            <div class="box">
+              <div class="k">Driver</div>
+              <div class="v" id="driverValue">--</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <div class="section-title">Live Summary</div>
+          <div class="status-grid">
+            <div class="box">
+              <div class="k">Ride Status</div>
+              <div class="v" id="rideStatusValue">--</div>
+            </div>
+            <div class="box">
+              <div class="k">Mission Status</div>
+              <div class="v" id="missionStatusValue">--</div>
+            </div>
+            <div class="box">
+              <div class="k">Payment Status</div>
+              <div class="v" id="paymentStatusValue">--</div>
+            </div>
+            <div class="box">
+              <div class="k">Tip Status</div>
+              <div class="v" id="tipStatusValue">--</div>
+            </div>
+            <div class="box">
+              <div class="k">Fare</div>
+              <div class="v" id="fareValue">--</div>
+            </div>
+            <div class="box">
+              <div class="k">Total</div>
+              <div class="v" id="totalValue">--</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="section-title">Tip Driver</div>
+          <div class="sub">
+            Riders can tip during the trip and after the trip.
+          </div>
+
+          <div class="pill-row">
+            <button class="tip-btn" onclick="submitTip(2)">$2</button>
+            <button class="tip-btn" onclick="submitTip(5)">$5</button>
+            <button class="tip-btn" onclick="submitTip(10)">$10</button>
+            <button class="tip-btn" onclick="submitTip(20)">$20</button>
+          </div>
+
+          <div class="field" style="margin-top:12px;">
+            <label for="customTip">Custom Tip</label>
+            <input class="input" id="customTip" type="number" min="1" step="0.01" placeholder="Enter custom tip amount" />
+          </div>
+
+          <button class="action-btn success" id="customTipBtn">Submit Custom Tip</button>
+        </div>
+
+        <div class="card">
+          <div class="section-title">Receipt</div>
+          <div class="receipt" id="receiptBox">
+            Load a trip to see your fare summary and receipt state.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentRide = null;
+    let poller = null;
+
+    const timelineSteps = [
+      "DISPATCHING",
+      "READY_FOR_DRIVER",
+      "DRIVER_ACCEPTED",
+      "DRIVER_ARRIVING",
+      "IN_PROGRESS",
+      "COMPLETED"
+    ];
+
+    function showError(message){
+      const errorBox = document.getElementById("errorBox");
+      const resultBox = document.getElementById("resultBox");
+      errorBox.style.display = "block";
+      errorBox.textContent = message;
+      resultBox.style.display = "none";
+    }
+
+    function showResult(message){
+      const errorBox = document.getElementById("errorBox");
+      const resultBox = document.getElementById("resultBox");
+      resultBox.style.display = "block";
+      resultBox.innerHTML = message;
+      errorBox.style.display = "none";
+    }
+
+    function money(value){
+      return `$${Number(value || 0).toFixed(2)}`;
+    }
+
+    function renderTimeline(status){
+      const currentIndex = timelineSteps.indexOf(status);
+      const html = timelineSteps.map((step, index) => {
+        let className = "step";
+        if(index < currentIndex) className += " done";
+        if(index === currentIndex) className += " active";
+        return `<div class="${className}">${step.replaceAll("_"," ")}</div>`;
+      }).join("");
+
+      document.getElementById("timeline").innerHTML = html;
+    }
+
+    function renderRide(ride){
+      currentRide = ride;
+
+      document.getElementById("pickupValue").textContent = ride.pickup_address || "--";
+      document.getElementById("dropoffValue").textContent = ride.dropoff_address || "--";
+      document.getElementById("rideTypeValue").textContent = (ride.ride_type || "--").replaceAll("_"," ");
+      document.getElementById("scheduledValue").textContent = ride.scheduled_time || "ASAP";
+      document.getElementById("passengerValue").textContent = ride.passenger_first_name || "--";
+      document.getElementById("driverValue").textContent = ride.driver_name || "Waiting for driver";
+
+      document.getElementById("rideStatusValue").textContent = ride.ride_status || "--";
+      document.getElementById("missionStatusValue").textContent = ride.mission_status || "--";
+      document.getElementById("paymentStatusValue").textContent = ride.payment_status || "--";
+      document.getElementById("tipStatusValue").textContent = ride.tip_status || "--";
+      document.getElementById("fareValue").textContent = money(ride.fare_amount);
+      document.getElementById("totalValue").textContent = money(ride.total_amount);
+
+      renderTimeline(ride.ride_status);
+
+      document.getElementById("receiptBox").innerHTML = `
+        <strong>Ride ID:</strong> ${ride.ride_id}<br>
+        <strong>Fare:</strong> ${money(ride.fare_amount)}<br>
+        <strong>Tip:</strong> ${money(ride.tip_amount)}<br>
+        <strong>Total:</strong> ${money(ride.total_amount)}<br>
+        <strong>Payment Status:</strong> ${ride.payment_status}<br>
+        <strong>Driver Payout:</strong> ${money(ride.estimated_driver_payout)}<br>
+        <strong>Updated:</strong> ${ride.updated_at || "--"}
+      `;
+    }
+
+    async function loadRide(){
+      const rideId = document.getElementById("rideId").value.trim();
+      if(!rideId){
+        showError("Enter your ride ID first.");
+        return;
+      }
+
+      try{
+        const res = await fetch(`/api/rides/${encodeURIComponent(rideId)}`);
+        const data = await res.json();
+
+        if(!data.success){
+          showError(data.message || "Ride not found.");
+          return;
+        }
+
+        renderRide(data.ride);
+        showResult("Trip loaded. Live status will refresh automatically.");
+
+        if(poller) clearInterval(poller);
+        poller = setInterval(refreshRideSilently, 5000);
+      }catch(err){
+        showError("Unable to load ride.");
+      }
+    }
+
+    async function refreshRideSilently(){
+      if(!currentRide?.ride_id) return;
+      try{
+        const res = await fetch(`/api/rides/${encodeURIComponent(currentRide.ride_id)}`);
+        const data = await res.json();
+        if(data.success){
+          renderRide(data.ride);
+        }
+      }catch(err){}
+    }
+
+    async function submitTip(amount){
+      if(!currentRide?.ride_id){
+        showError("Load your trip first.");
+        return;
+      }
+
+      const endpoint = currentRide.ride_status === "IN_PROGRESS"
+        ? `/api/rides/${currentRide.ride_id}/tip-during`
+        : currentRide.ride_status === "COMPLETED"
+          ? `/api/rides/${currentRide.ride_id}/tip-after`
+          : null;
+
+      if(!endpoint){
+        showError("Tips are available during the trip and after trip completion.");
+        return;
+      }
+
+      try{
+        const res = await fetch(endpoint, {
+          method: "POST",
+          headers: {"Content-Type":"application/json"},
+          body: JSON.stringify({ amount })
+        });
+
+        const data = await res.json();
+        if(!          showError(data.message || "Unable to submit tip.");
+          return;
+        }
+
+        renderRide(data.ride);
+        showResult(`Tip of ${money(amount)} added successfully.`);
+      }catch(err){
+        showError("Unable to submit tip right now.");
+      }
+    }
+
+    async function submitCustomTip(){
+      const amount = Number(document.getElementById("customTip").value);
+
+      if(!amount || amount <= 0){
+        showError("Enter a valid custom tip amount.");
+        return;
+      }
+
+      await submitTip(amount);
+      document.getElementById("customTip").value = "";
+    }
+
+    document.getElementById("loadRideBtn").addEventListener("click", loadRide);
+    document.getElementById("customTipBtn").addEventListener("click", submitCustomTip);
+
+    window.addEventListener("beforeunload", () => {
+      if(poller) clearInterval(poller);
+    });
+  </script>
+</body>
+</html>
