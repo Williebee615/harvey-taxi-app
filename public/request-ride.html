@@ -1,322 +1,395 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Harvey Taxi — Request Ride</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Harvey Taxi — Request Ride</title>
 
-<style>
-:root{
---bg1:#030712;
---bg2:#081226;
---panel:#0b1730;
---line:rgba(120,170,255,.18);
---text:#f4f8ff;
---muted:#a9b7d9;
---blue:#6aa8ff;
---cyan:#63f5ff;
---green:#6fffba;
---danger:#ff7d8f;
---radius:22px;
-}
+  <style>
+    :root{
+      --bg1:#030712;
+      --bg2:#081226;
+      --panel:#0b1730;
+      --line:rgba(120,170,255,.18);
+      --text:#f4f8ff;
+      --muted:#a9b7d9;
+      --blue:#6aa8ff;
+      --cyan:#63f5ff;
+      --green:#6fffba;
+      --danger:#ff7d8f;
+      --gold:#ffd76a;
+      --radius:22px;
+    }
 
-*{box-sizing:border-box;margin:0;padding:0}
+    *{box-sizing:border-box;margin:0;padding:0}
 
-body{
-font-family:Inter,Arial;
-color:var(--text);
-background:
-radial-gradient(circle at top left,rgba(99,245,255,.12),transparent 30%),
-linear-gradient(160deg,var(--bg1),var(--bg2));
-min-height:100vh;
-}
+    body{
+      font-family:Inter,Arial,sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(circle at top left,rgba(99,245,255,.12),transparent 30%),
+        linear-gradient(160deg,var(--bg1),var(--bg2));
+      min-height:100vh;
+    }
 
-.shell{
-max-width:720px;
-margin:auto;
-padding:18px;
-}
+    .shell{
+      max-width:720px;
+      margin:auto;
+      padding:18px 18px 34px;
+    }
 
-.top{
-display:flex;
-justify-content:space-between;
-align-items:center;
-padding:14px 16px;
-border:1px solid var(--line);
-border-radius:999px;
-background:rgba(8,16,36,.7);
-margin-bottom:18px;
-}
+    .top{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:14px;
+      padding:18px 20px;
+      border:1px solid var(--line);
+      border-radius:28px;
+      background:rgba(8,16,36,.7);
+      margin-bottom:18px;
+      box-shadow:0 20px 40px rgba(0,0,0,.22);
+    }
 
-.brand{
-font-weight:800;
-letter-spacing:.05em;
-}
+    .brand-wrap{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+    }
 
-.card{
-background:var(--panel);
-border:1px solid var(--line);
-border-radius:28px;
-padding:24px;
-}
+    .brand{
+      font-weight:800;
+      letter-spacing:.05em;
+      font-size:15px;
+    }
 
-h1{
-font-size:32px;
-margin-bottom:8px;
-}
+    .brand-sub{
+      color:var(--muted);
+      font-size:14px;
+    }
 
-.subtitle{
-color:var(--muted);
-margin-bottom:22px;
-line-height:1.6;
-}
+    .home-link{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      padding:12px 18px;
+      border-radius:999px;
+      text-decoration:none;
+      font-weight:800;
+      color:var(--text);
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.03);
+      white-space:nowrap;
+    }
 
-.status{
-padding:14px 16px;
-border-radius:16px;
-margin-bottom:18px;
-background:rgba(255,125,143,.12);
-border:1px solid rgba(255,125,143,.25);
-}
+    .card{
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:28px;
+      padding:24px;
+      box-shadow:0 20px 40px rgba(0,0,0,.22);
+    }
 
-.form-group{
-margin-bottom:20px;
-}
+    h1{
+      font-size:32px;
+      margin-bottom:8px;
+    }
 
-label{
-display:block;
-font-weight:700;
-margin-bottom:8px;
-}
+    .subtitle{
+      color:var(--muted);
+      margin-bottom:22px;
+      line-height:1.6;
+      font-size:17px;
+    }
 
-input{
-width:100%;
-padding:18px;
-border-radius:20px;
-border:1px solid rgba(90,140,255,.25);
-background:#03113f;
-color:white;
-font-size:16px;
-}
+    .status{
+      padding:14px 16px;
+      border-radius:16px;
+      margin-bottom:18px;
+      display:none;
+      line-height:1.5;
+    }
 
-input::placeholder{
-color:rgba(255,255,255,.55);
-}
+    .status.info{
+      background:rgba(106,168,255,.10);
+      border:1px solid rgba(106,168,255,.22);
+      color:#dbe8ff;
+    }
 
-input:focus{
-outline:none;
-border-color:var(--blue);
-box-shadow:0 0 0 3px rgba(106,168,255,.15);
-}
+    .status.locked{
+      background:rgba(255,215,106,.10);
+      border:1px solid rgba(255,215,106,.24);
+      color:#fff0bd;
+    }
 
-.address-block{
-padding:18px;
-border-radius:20px;
-border:1px solid var(--line);
-background:rgba(255,255,255,.02);
-margin-bottom:18px;
-}
+    .status.error-state{
+      background:rgba(255,125,143,.12);
+      border:1px solid rgba(255,125,143,.25);
+      color:#ffd9df;
+    }
 
-.address-title{
-font-weight:800;
-margin-bottom:6px;
-}
+    .form-group{
+      margin-bottom:20px;
+    }
 
-.address-sub{
-color:var(--muted);
-font-size:14px;
-margin-bottom:16px;
-}
+    label{
+      display:block;
+      font-weight:700;
+      margin-bottom:8px;
+      font-size:15px;
+    }
 
-button{
-width:100%;
-padding:22px;
-border:none;
-border-radius:24px;
-font-size:18px;
-font-weight:800;
-cursor:pointer;
-}
+    input{
+      width:100%;
+      padding:18px;
+      border-radius:20px;
+      border:1px solid rgba(90,140,255,.25);
+      background:#03113f;
+      color:white;
+      font-size:16px;
+    }
 
-.primary{
-background:linear-gradient(135deg,#63f5ff,#6aa8ff);
-color:#07121f;
-}
+    input::placeholder{
+      color:rgba(255,255,255,.55);
+    }
 
-.primary:disabled{
-opacity:.45;
-cursor:not-allowed;
-}
+    input:focus{
+      outline:none;
+      border-color:var(--blue);
+      box-shadow:0 0 0 3px rgba(106,168,255,.15);
+    }
 
-.message{
-margin-top:18px;
-padding:16px;
-border-radius:16px;
-display:none;
-}
+    .address-block{
+      padding:18px;
+      border-radius:20px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.02);
+      margin-bottom:18px;
+    }
 
-.error{
-background:rgba(255,125,143,.12);
-border:1px solid rgba(255,125,143,.25);
-}
+    .address-title{
+      font-weight:800;
+      margin-bottom:6px;
+      font-size:24px;
+    }
 
-.success{
-background:rgba(111,255,186,.12);
-border:1px solid rgba(111,255,186,.25);
-}
+    .address-sub{
+      color:var(--muted);
+      font-size:14px;
+      margin-bottom:16px;
+      line-height:1.5;
+    }
 
-.return-home{
-position:fixed;
-bottom:16px;
-right:16px;
-padding:16px 22px;
-border-radius:999px;
-background:linear-gradient(135deg,#63f5ff,#6aa8ff);
-color:#06111f;
-font-weight:800;
-text-decoration:none;
-box-shadow:0 15px 40px rgba(0,0,0,.35);
-}
+    button{
+      width:100%;
+      padding:22px;
+      border:none;
+      border-radius:24px;
+      font-size:18px;
+      font-weight:800;
+      cursor:pointer;
+      transition:.2s ease;
+    }
 
-@media(max-width:640px){
-.return-home{
-left:12px;
-right:12px;
-text-align:center;
-}
-}
-</style>
+    .primary{
+      background:linear-gradient(135deg,#63f5ff,#6aa8ff);
+      color:#07121f;
+      box-shadow:0 16px 40px rgba(36,127,255,.20);
+    }
+
+    .primary:disabled{
+      opacity:.45;
+      cursor:not-allowed;
+      box-shadow:none;
+    }
+
+    .message{
+      margin-top:18px;
+      padding:16px;
+      border-radius:16px;
+      display:none;
+      line-height:1.5;
+    }
+
+    .error{
+      background:rgba(255,125,143,.12);
+      border:1px solid rgba(255,125,143,.25);
+      color:#ffd9df;
+    }
+
+    .success{
+      background:rgba(111,255,186,.12);
+      border:1px solid rgba(111,255,186,.25);
+      color:#d8ffec;
+    }
+
+    @media(max-width:640px){
+      .top{
+        flex-direction:column;
+        align-items:flex-start;
+      }
+
+      .home-link{
+        width:100%;
+      }
+
+      h1{
+        font-size:28px;
+      }
+
+      .card{
+        padding:20px;
+      }
+    }
+  </style>
 </head>
 
 <body>
 
-<div class="shell">
+  <div class="shell">
 
-<div class="top">
-<div class="brand">HARVEY TAXI</div>
-</div>
+    <div class="top">
+      <div class="brand-wrap">
+        <div class="brand">HARVEY TAXI</div>
+        <div class="brand-sub">Ride booking and dispatch access</div>
+      </div>
+      <a href="index.html" class="home-link">Return Home</a>
+    </div>
 
-<div class="card">
+    <div class="card">
 
-<h1>Ride</h1>
-<div class="subtitle">
-Riders must be verification-approved before trip booking unlocks.
-</div>
+      <h1>Request Ride</h1>
+      <div class="subtitle">
+        Verified riders can request transportation by entering pickup and dropoff addresses for dispatch review.
+      </div>
 
-<div class="status" id="statusBox">
-No rider account found. Complete rider signup first.
-</div>
+      <div class="status info" id="statusBox">
+        Checking rider verification status...
+      </div>
 
-<form id="rideForm">
+      <form id="rideForm">
 
-<div class="form-group">
-<label>Rider Name</label>
-<input id="riderName" placeholder="Enter rider name" required>
-</div>
+        <div class="form-group">
+          <label for="riderName">Rider Name</label>
+          <input id="riderName" placeholder="Enter rider name" required />
+        </div>
 
-<div class="form-group">
-<label>Rider Phone</label>
-<input id="riderPhone" placeholder="Enter rider phone number" required>
-</div>
+        <div class="form-group">
+          <label for="riderPhone">Rider Phone</label>
+          <input id="riderPhone" placeholder="Enter rider phone number" required />
+        </div>
 
-<div class="address-block">
+        <div class="address-block">
+          <div class="address-title">Trip Addresses</div>
+          <div class="address-sub">
+            Enter full pickup and dropoff addresses for dispatch.
+          </div>
 
-<div class="address-title">Trip Addresses</div>
-<div class="address-sub">
-Enter full pickup and dropoff addresses for dispatch.
-</div>
+          <div class="form-group">
+            <label for="pickup">Pickup Address</label>
+            <input id="pickup" placeholder="Street address, city, state" required />
+          </div>
 
-<div class="form-group">
-<label>Pickup Address</label>
-<input id="pickup" placeholder="Street address, city, state" required>
-</div>
+          <div class="form-group">
+            <label for="dropoff">Dropoff Address</label>
+            <input id="dropoff" placeholder="Street address, city, state" required />
+          </div>
+        </div>
 
-<div class="form-group">
-<label>Dropoff Address</label>
-<input id="dropoff" placeholder="Street address, city, state" required>
-</div>
+        <button id="requestBtn" class="primary" disabled>
+          Request Ride
+        </button>
 
-</div>
+        <div id="message" class="message"></div>
+      </form>
 
-<button id="requestBtn" class="primary" disabled>
-Request Ride
-</button>
+    </div>
+  </div>
 
-<div id="message" class="message"></div>
+  <script>
+    const form = document.getElementById("rideForm");
+    const btn = document.getElementById("requestBtn");
+    const message = document.getElementById("message");
+    const statusBox = document.getElementById("statusBox");
 
-</form>
+    function showStatus(text, type = "info") {
+      statusBox.className = `status ${type}`;
+      statusBox.style.display = "block";
+      statusBox.innerText = text;
+    }
 
-</div>
-</div>
+    function hideStatus() {
+      statusBox.style.display = "none";
+    }
 
-<a href="index.html" class="return-home">Return Home</a>
+    async function checkRider() {
+      try {
+        const res = await fetch("/api/check-rider");
+        const data = await res.json();
 
-<script>
-const form = document.getElementById("rideForm")
-const btn = document.getElementById("requestBtn")
-const message = document.getElementById("message")
+        if (data.approved) {
+          btn.disabled = false;
+          hideStatus();
+        } else {
+          btn.disabled = true;
+          showStatus(
+            "Rider verification is required before ride booking becomes available.",
+            "locked"
+          );
+        }
+      } catch {
+        btn.disabled = true;
+        showStatus(
+          "We could not verify rider approval right now. Please try again shortly.",
+          "error-state"
+        );
+      }
+    }
 
-async function checkRider(){
+    checkRider();
 
-try{
-const res = await fetch("/api/check-rider")
-const data = await res.json()
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
 
-if(data.approved){
-btn.disabled=false
-document.getElementById("statusBox").style.display="none"
-}else{
-btn.disabled=true
-}
+      message.style.display = "none";
+      btn.disabled = true;
 
-}catch{
-btn.disabled=true
-}
+      const payload = {
+        name: document.getElementById("riderName").value.trim(),
+        phone: document.getElementById("riderPhone").value.trim(),
+        pickup: document.getElementById("pickup").value.trim(),
+        dropoff: document.getElementById("dropoff").value.trim()
+      };
 
-}
+      try {
+        const res = await fetch("/api/request-ride", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
 
-checkRider()
+        const data = await res.json();
 
-form.addEventListener("submit", async e=>{
-e.preventDefault()
+        if (!res.ok) {
+          throw new Error(data.message || "Request failed");
+        }
 
-btn.disabled=true
+        message.className = "message success";
+        message.style.display = "block";
+        message.innerText = "Ride request submitted. Dispatch is reviewing your trip.";
 
-const payload={
-name:document.getElementById("riderName").value,
-phone:document.getElementById("riderPhone").value,
-pickup:document.getElementById("pickup").value,
-dropoff:document.getElementById("dropoff").value
-}
+        form.reset();
 
-try{
-
-const res=await fetch("/api/request-ride",{
-method:"POST",
-headers:{ "Content-Type":"application/json" },
-body:JSON.stringify(payload)
-})
-
-const data=await res.json()
-
-message.className="message success"
-message.style.display="block"
-message.innerText="Ride request submitted. Dispatch reviewing."
-
-form.reset()
-
-}catch{
-
-message.className="message error"
-message.style.display="block"
-message.innerText="Unable to submit ride request."
-
-}
-
-btn.disabled=false
-
-})
-</script>
+        // Re-check status after successful request
+        await checkRider();
+      } catch (err) {
+        message.className = "message error";
+        message.style.display = "block";
+        message.innerText = err.message || "Unable to submit ride request.";
+        await checkRider();
+      }
+    });
+  </script>
 
 </body>
 </html>
