@@ -4,21 +4,22 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Harvey Taxi — Request Ride</title>
-
   <style>
     :root{
-      --bg1:#030712;
-      --bg2:#081226;
-      --panel:#0b1730;
-      --line:rgba(120,170,255,.18);
-      --text:#f4f8ff;
-      --muted:#a9b7d9;
-      --blue:#6aa8ff;
+      --bg1:#040814;
+      --bg2:#091126;
+      --panel:rgba(10,17,38,.88);
+      --panel2:rgba(15,23,52,.72);
+      --line:rgba(122,162,255,.16);
+      --text:#f4f7ff;
+      --muted:#aab8de;
+      --blue:#5ea0ff;
       --cyan:#63f5ff;
-      --green:#6fffba;
-      --danger:#ff7d8f;
+      --green:#6dffb3;
+      --danger:#ff7e97;
       --gold:#ffd76a;
       --radius:22px;
+      --shadow:0 20px 70px rgba(0,0,0,.35);
     }
 
     *{box-sizing:border-box;margin:0;padding:0}
@@ -27,369 +28,672 @@
       font-family:Inter,Arial,sans-serif;
       color:var(--text);
       background:
-        radial-gradient(circle at top left,rgba(99,245,255,.12),transparent 30%),
+        radial-gradient(circle at top left, rgba(99,245,255,.12), transparent 28%),
+        radial-gradient(circle at top right, rgba(94,160,255,.10), transparent 24%),
         linear-gradient(160deg,var(--bg1),var(--bg2));
       min-height:100vh;
     }
 
     .shell{
-      max-width:720px;
+      max-width:820px;
       margin:auto;
-      padding:18px 18px 34px;
+      padding:20px 16px 40px;
     }
 
-    .top{
+    .topbar{
       display:flex;
       justify-content:space-between;
       align-items:center;
-      gap:14px;
-      padding:18px 20px;
-      border:1px solid var(--line);
-      border-radius:28px;
-      background:rgba(8,16,36,.7);
-      margin-bottom:18px;
-      box-shadow:0 20px 40px rgba(0,0,0,.22);
-    }
-
-    .brand-wrap{
-      display:flex;
-      flex-direction:column;
-      gap:4px;
+      gap:12px;
+      margin-bottom:20px;
     }
 
     .brand{
+      font-size:1.25rem;
       font-weight:800;
-      letter-spacing:.05em;
-      font-size:15px;
+      letter-spacing:.4px;
     }
 
-    .brand-sub{
-      color:var(--muted);
-      font-size:14px;
-    }
+    .brand span{color:var(--cyan)}
 
-    .home-link{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      padding:12px 18px;
-      border-radius:999px;
+    .home-btn{
       text-decoration:none;
-      font-weight:800;
       color:var(--text);
       border:1px solid var(--line);
-      background:rgba(255,255,255,.03);
-      white-space:nowrap;
+      background:rgba(255,255,255,.04);
+      padding:10px 14px;
+      border-radius:999px;
+      font-weight:700;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+    }
+
+    .hero{
+      background:linear-gradient(180deg,rgba(17,31,66,.88),rgba(8,16,35,.92));
+      border:1px solid var(--line);
+      border-radius:28px;
+      padding:22px;
+      box-shadow:var(--shadow);
+      margin-bottom:18px;
+    }
+
+    .hero h1{
+      font-size:1.6rem;
+      margin-bottom:8px;
+    }
+
+    .hero p{
+      color:var(--muted);
+      line-height:1.55;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns:1fr;
+      gap:18px;
     }
 
     .card{
       background:var(--panel);
       border:1px solid var(--line);
-      border-radius:28px;
-      padding:24px;
-      box-shadow:0 20px 40px rgba(0,0,0,.22);
+      border-radius:24px;
+      padding:20px;
+      box-shadow:var(--shadow);
     }
 
-    h1{
-      font-size:32px;
-      margin-bottom:8px;
-    }
-
-    .subtitle{
-      color:var(--muted);
-      margin-bottom:22px;
-      line-height:1.6;
-      font-size:17px;
-    }
-
-    .status{
-      padding:14px 16px;
-      border-radius:16px;
-      margin-bottom:18px;
-      display:none;
-      line-height:1.5;
-    }
-
-    .status.info{
-      background:rgba(106,168,255,.10);
-      border:1px solid rgba(106,168,255,.22);
-      color:#dbe8ff;
-    }
-
-    .status.locked{
-      background:rgba(255,215,106,.10);
-      border:1px solid rgba(255,215,106,.24);
-      color:#fff0bd;
-    }
-
-    .status.error-state{
-      background:rgba(255,125,143,.12);
-      border:1px solid rgba(255,125,143,.25);
-      color:#ffd9df;
-    }
-
-    .form-group{
-      margin-bottom:20px;
-    }
-
-    label{
-      display:block;
-      font-weight:700;
-      margin-bottom:8px;
-      font-size:15px;
-    }
-
-    input{
-      width:100%;
-      padding:18px;
-      border-radius:20px;
-      border:1px solid rgba(90,140,255,.25);
-      background:#03113f;
-      color:white;
-      font-size:16px;
-    }
-
-    input::placeholder{
-      color:rgba(255,255,255,.55);
-    }
-
-    input:focus{
-      outline:none;
-      border-color:var(--blue);
-      box-shadow:0 0 0 3px rgba(106,168,255,.15);
-    }
-
-    .address-block{
-      padding:18px;
-      border-radius:20px;
-      border:1px solid var(--line);
-      background:rgba(255,255,255,.02);
-      margin-bottom:18px;
-    }
-
-    .address-title{
+    .section-title{
+      font-size:1.08rem;
       font-weight:800;
-      margin-bottom:6px;
-      font-size:24px;
+      margin-bottom:14px;
     }
 
-    .address-sub{
+    .sub{
       color:var(--muted);
-      font-size:14px;
+      font-size:.95rem;
       margin-bottom:16px;
       line-height:1.5;
     }
 
-    button{
+    .field{
+      margin-bottom:14px;
+    }
+
+    .field label{
+      display:block;
+      margin-bottom:8px;
+      color:var(--muted);
+      font-size:.92rem;
+      font-weight:700;
+    }
+
+    .input, select, textarea{
       width:100%;
-      padding:22px;
-      border:none;
-      border-radius:24px;
-      font-size:18px;
-      font-weight:800;
+      background:var(--panel2);
+      color:var(--text);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:16px;
+      padding:14px 14px;
+      outline:none;
+      font-size:1rem;
+    }
+
+    textarea{
+      resize:vertical;
+      min-height:94px;
+    }
+
+    .row{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:14px;
+    }
+
+    .pill-row{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      margin-top:8px;
+    }
+
+    .pill{
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.04);
+      color:var(--text);
+      padding:10px 14px;
+      border-radius:999px;
+      font-weight:700;
       cursor:pointer;
       transition:.2s ease;
     }
 
-    .primary{
-      background:linear-gradient(135deg,#63f5ff,#6aa8ff);
-      color:#07121f;
-      box-shadow:0 16px 40px rgba(36,127,255,.20);
+    .pill.active{
+      border-color:rgba(99,245,255,.5);
+      background:rgba(99,245,255,.12);
+      color:#dfffff;
     }
 
-    .primary:disabled{
-      opacity:.45;
-      cursor:not-allowed;
-      box-shadow:none;
+    .status-box{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:14px;
     }
 
-    .message{
-      margin-top:18px;
-      padding:16px;
+    .mini{
+      background:rgba(255,255,255,.035);
+      border:1px solid var(--line);
+      border-radius:18px;
+      padding:14px;
+    }
+
+    .mini h3{
+      font-size:.95rem;
+      margin-bottom:8px;
+    }
+
+    .tag{
+      display:inline-block;
+      margin-top:8px;
+      padding:7px 10px;
+      border-radius:999px;
+      font-size:.8rem;
+      font-weight:800;
+    }
+
+    .ok{background:rgba(109,255,179,.12);color:var(--green);border:1px solid rgba(109,255,179,.2)}
+    .warn{background:rgba(255,215,106,.12);color:var(--gold);border:1px solid rgba(255,215,106,.2)}
+    .bad{background:rgba(255,126,151,.12);color:var(--danger);border:1px solid rgba(255,126,151,.2)}
+
+    .estimate{
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:12px;
+    }
+
+    .metric{
+      background:rgba(255,255,255,.035);
+      border:1px solid var(--line);
+      border-radius:18px;
+      padding:14px;
+      text-align:center;
+    }
+
+    .metric .k{
+      color:var(--muted);
+      font-size:.8rem;
+      margin-bottom:6px;
+    }
+
+    .metric .v{
+      font-size:1.02rem;
+      font-weight:800;
+    }
+
+    .btn-row{
+      display:flex;
+      gap:12px;
+      flex-wrap:wrap;
+      margin-top:16px;
+    }
+
+    button{
+      border:none;
+      cursor:pointer;
       border-radius:16px;
+      padding:14px 18px;
+      font-size:1rem;
+      font-weight:800;
+      transition:.2s ease;
+    }
+
+    .primary{
+      background:linear-gradient(90deg,var(--blue),var(--cyan));
+      color:#041224;
+      flex:1;
+    }
+
+    .secondary{
+      background:rgba(255,255,255,.05);
+      color:var(--text);
+      border:1px solid var(--line);
+      flex:1;
+    }
+
+    .receipt{
+      margin-top:16px;
+      padding:16px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.035);
+      border-radius:18px;
+      line-height:1.65;
+    }
+
+    .result{
+      margin-top:16px;
       display:none;
-      line-height:1.5;
+      padding:16px;
+      border-radius:18px;
+      border:1px solid rgba(109,255,179,.18);
+      background:rgba(109,255,179,.08);
+      color:#dffff0;
+      line-height:1.6;
     }
 
     .error{
-      background:rgba(255,125,143,.12);
-      border:1px solid rgba(255,125,143,.25);
-      color:#ffd9df;
+      margin-top:16px;
+      display:none;
+      padding:16px;
+      border-radius:18px;
+      border:1px solid rgba(255,126,151,.2);
+      background:rgba(255,126,151,.08);
+      color:#ffd9e1;
+      line-height:1.6;
     }
 
-    .success{
-      background:rgba(111,255,186,.12);
-      border:1px solid rgba(111,255,186,.25);
-      color:#d8ffec;
-    }
-
-    @media(max-width:640px){
-      .top{
-        flex-direction:column;
-        align-items:flex-start;
-      }
-
-      .home-link{
-        width:100%;
-      }
-
-      h1{
-        font-size:28px;
-      }
-
-      .card{
-        padding:20px;
+    @media (max-width: 760px){
+      .row,
+      .status-box,
+      .estimate{
+        grid-template-columns:1fr;
       }
     }
   </style>
 </head>
-
 <body>
-
   <div class="shell">
-
-    <div class="top">
-      <div class="brand-wrap">
-        <div class="brand">HARVEY TAXI</div>
-        <div class="brand-sub">Ride booking and dispatch access</div>
-      </div>
-      <a href="index.html" class="home-link">Return Home</a>
+    <div class="topbar">
+      <div class="brand">Harvey <span>Taxi</span></div>
+      <a class="home-btn" href="/">← Return Home</a>
     </div>
 
-    <div class="card">
+    <div class="hero">
+      <h1>Request Your Ride</h1>
+      <p>
+        Harvey Taxi requires approved rider verification and secured payment before dispatch.
+        Once your ride is created, it is offered to drivers as a complete mission with route,
+        payout, and trip details before they accept.
+      </p>
+    </div>
 
-      <h1>Request Ride</h1>
-      <div class="subtitle">
-        Verified riders can request transportation by entering pickup and dropoff addresses for dispatch review.
+    <div class="grid">
+      <div class="card">
+        <div class="section-title">Rider Security Gate</div>
+        <div class="sub">You must pass both gates before your ride can be dispatched.</div>
+
+        <div class="status-box">
+          <div class="mini">
+            <h3>Verification Status</h3>
+            <div id="verificationText">Checking rider profile...</div>
+            <div id="verificationTag" class="tag warn">Pending</div>
+          </div>
+
+          <div class="mini">
+            <h3>Payment Status</h3>
+            <div id="paymentText">No payment authorized yet.</div>
+            <div id="paymentTag" class="tag warn">Not Secured</div>
+          </div>
+        </div>
       </div>
 
-      <div class="status info" id="statusBox">
-        Checking rider verification status...
+      <div class="card">
+        <div class="section-title">Trip Details</div>
+
+        <div class="field">
+          <label for="riderId">Rider ID</label>
+          <input class="input" id="riderId" placeholder="Example: rider_1001" />
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label for="firstName">Passenger First Name</label>
+            <input class="input" id="firstName" placeholder="Willie" />
+          </div>
+          <div class="field">
+            <label for="phone">Passenger Phone</label>
+            <input class="input" id="phone" placeholder="(555) 555-5555" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="pickup">Pickup Address</label>
+          <input class="input" id="pickup" placeholder="123 Main St, Nashville, TN" />
+        </div>
+
+        <div class="field">
+          <label for="dropoff">Dropoff Address</label>
+          <input class="input" id="dropoff" placeholder="BNA Airport, Nashville, TN" />
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label for="rideType">Ride Type</label>
+            <select id="rideType">
+              <option value="STANDARD">Standard Ride</option>
+              <option value="SCHEDULED">Scheduled Ride</option>
+              <option value="AIRPORT">Airport Ride</option>
+              <option value="MEDICAL">Medical Ride</option>
+              <option value="NONPROFIT">Nonprofit Assistance Ride</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="scheduledTime">Scheduled Time (optional)</label>
+            <input class="input" id="scheduledTime" placeholder="2026-04-05 2:30 PM" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="notes">Trip Notes</label>
+          <textarea id="notes" placeholder="Wheelchair assistance, luggage, gate number, medical note, etc."></textarea>
+        </div>
+
+        <div class="field">
+          <label>Payment Method</label>
+          <div class="pill-row">
+            <button type="button" class="pill active" data-payment="CARD">Card</button>
+            <button type="button" class="pill" data-payment="APPLE_PAY">Apple Pay</button>
+            <button type="button" class="pill" data-payment="CASH">Cash</button>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button class="secondary" id="estimateBtn">Get Fare Estimate</button>
+          <button class="secondary" id="authorizeBtn">Secure Payment</button>
+        </div>
       </div>
 
-      <form id="rideForm">
+      <div class="card">
+        <div class="section-title">Estimated Mission Summary</div>
+        <div class="sub">This is what gets packaged into the driver mission offer.</div>
 
-        <div class="form-group">
-          <label for="riderName">Rider Name</label>
-          <input id="riderName" placeholder="Enter rider name" required />
-        </div>
-
-        <div class="form-group">
-          <label for="riderPhone">Rider Phone</label>
-          <input id="riderPhone" placeholder="Enter rider phone number" required />
-        </div>
-
-        <div class="address-block">
-          <div class="address-title">Trip Addresses</div>
-          <div class="address-sub">
-            Enter full pickup and dropoff addresses for dispatch.
+        <div class="estimate">
+          <div class="metric">
+            <div class="k">Miles</div>
+            <div class="v" id="distanceValue">--</div>
           </div>
-
-          <div class="form-group">
-            <label for="pickup">Pickup Address</label>
-            <input id="pickup" placeholder="Street address, city, state" required />
+          <div class="metric">
+            <div class="k">Trip Time</div>
+            <div class="v" id="durationValue">--</div>
           </div>
-
-          <div class="form-group">
-            <label for="dropoff">Dropoff Address</label>
-            <input id="dropoff" placeholder="Street address, city, state" required />
+          <div class="metric">
+            <div class="k">Fare</div>
+            <div class="v" id="fareValue">--</div>
+          </div>
+          <div class="metric">
+            <div class="k">Driver Payout</div>
+            <div class="v" id="payoutValue">--</div>
           </div>
         </div>
 
-        <button id="requestBtn" class="primary" disabled>
-          Request Ride
-        </button>
+        <div class="receipt" id="estimateReceipt">
+          No estimate yet. Enter your trip details and tap <strong>Get Fare Estimate</strong>.
+        </div>
 
-        <div id="message" class="message"></div>
-      </form>
+        <div class="btn-row">
+          <button class="primary" id="requestRideBtn">Request Ride</button>
+        </div>
 
+        <div class="result" id="resultBox"></div>
+        <div class="error" id="errorBox"></div>
+      </div>
     </div>
   </div>
 
   <script>
-    const form = document.getElementById("rideForm");
-    const btn = document.getElementById("requestBtn");
-    const message = document.getElementById("message");
-    const statusBox = document.getElementById("statusBox");
+    let selectedPaymentMethod = "CARD";
+    let currentEstimate = null;
+    let paymentAuthorized = false;
+    let riderVerified = false;
 
-    function showStatus(text, type = "info") {
-      statusBox.className = `status ${type}`;
-      statusBox.style.display = "block";
-      statusBox.innerText = text;
+    const paymentPills = document.querySelectorAll(".pill");
+    const verificationText = document.getElementById("verificationText");
+    const verificationTag = document.getElementById("verificationTag");
+    const paymentText = document.getElementById("paymentText");
+    const paymentTag = document.getElementById("paymentTag");
+
+    const distanceValue = document.getElementById("distanceValue");
+    const durationValue = document.getElementById("durationValue");
+    const fareValue = document.getElementById("fareValue");
+    const payoutValue = document.getElementById("payoutValue");
+    const estimateReceipt = document.getElementById("estimateReceipt");
+
+    const resultBox = document.getElementById("resultBox");
+    const errorBox = document.getElementById("errorBox");
+
+    paymentPills.forEach(btn => {
+      btn.addEventListener("click", () => {
+        paymentPills.forEach(p => p.classList.remove("active"));
+        btn.classList.add("active");
+        selectedPaymentMethod = btn.dataset.payment;
+      });
+    });
+
+    function showError(message){
+      errorBox.style.display = "block";
+      errorBox.textContent = message;
+      resultBox.style.display = "none";
     }
 
-    function hideStatus() {
-      statusBox.style.display = "none";
+    function showResult(message){
+      resultBox.style.display = "block";
+      resultBox.innerHTML = message;
+      errorBox.style.display = "none";
     }
 
-    async function checkRider() {
-      try {
-        const res = await fetch("/api/check-rider");
+    function getFormData(){
+      return {
+        rider_id: document.getElementById("riderId").value.trim(),
+        passenger_first_name: document.getElementById("firstName").value.trim(),
+        passenger_phone: document.getElementById("phone").value.trim(),
+        pickup_address: document.getElementById("pickup").value.trim(),
+        dropoff_address: document.getElementById("dropoff").value.trim(),
+        ride_type: document.getElementById("rideType").value,
+        scheduled_time: document.getElementById("scheduledTime").value.trim(),
+        special_notes: document.getElementById("notes").value.trim(),
+        payment_method: selectedPaymentMethod
+      };
+    }
+
+    async function checkRiderStatus(){
+      const riderId = document.getElementById("riderId").value.trim();
+      if(!riderId){
+        verificationText.textContent = "Enter rider ID to check verification status.";
+        verificationTag.className = "tag warn";
+        verificationTag.textContent = "Pending";
+        riderVerified = false;
+        return;
+      }
+
+      try{
+        const res = await fetch(`/api/rider-status/${encodeURIComponent(riderId)}`);
         const data = await res.json();
 
-        if (data.approved) {
-          btn.disabled = false;
-          hideStatus();
-        } else {
-          btn.disabled = true;
-          showStatus(
-            "Rider verification is required before ride booking becomes available.",
-            "locked"
-          );
+        if(data.success && data.rider){
+          riderVerified = data.rider.verification_status === "APPROVED";
+          verificationText.textContent = `Rider: ${data.rider.first_name || "Unknown"} • Status: ${data.rider.verification_status}`;
+          verificationTag.className = `tag ${riderVerified ? "ok" : "bad"}`;
+          verificationTag.textContent = riderVerified ? "Approved" : data.rider.verification_status;
+        }else{
+          riderVerified = false;
+          verificationText.textContent = "Rider profile not found.";
+          verificationTag.className = "tag bad";
+          verificationTag.textContent = "Not Found";
         }
-      } catch {
-        btn.disabled = true;
-        showStatus(
-          "We could not verify rider approval right now. Please try again shortly.",
-          "error-state"
-        );
+      }catch(err){
+        riderVerified = false;
+        verificationText.textContent = "Unable to check rider verification.";
+        verificationTag.className = "tag bad";
+        verificationTag.textContent = "Error";
       }
     }
 
-    checkRider();
+    async function getEstimate(){
+      const payload = getFormData();
 
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
+      if(!payload.pickup_address || !payload.dropoff_address){
+        showError("Enter both pickup and dropoff addresses first.");
+        return;
+      }
 
-      message.style.display = "none";
-      btn.disabled = true;
-
-      const payload = {
-        name: document.getElementById("riderName").value.trim(),
-        phone: document.getElementById("riderPhone").value.trim(),
-        pickup: document.getElementById("pickup").value.trim(),
-        dropoff: document.getElementById("dropoff").value.trim()
-      };
-
-      try {
-        const res = await fetch("/api/request-ride", {
+      try{
+        const res = await fetch("/api/fare-estimate", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {"Content-Type":"application/json"},
           body: JSON.stringify(payload)
         });
 
         const data = await res.json();
 
-        if (!res.ok) {
-          throw new Error(data.message || "Request failed");
+        if(!data.success){
+          showError(data.message || "Unable to calculate estimate.");
+          return;
         }
 
-        message.className = "message success";
-        message.style.display = "block";
-        message.innerText = "Ride request submitted. Dispatch is reviewing your trip.";
+        currentEstimate = data.estimate;
 
-        form.reset();
+        distanceValue.textContent = `${data.estimate.distance_miles} mi`;
+        durationValue.textContent = `${data.estimate.duration_minutes} min`;
+        fareValue.textContent = `$${data.estimate.estimated_fare.toFixed(2)}`;
+        payoutValue.textContent = `$${data.estimate.estimated_driver_payout.toFixed(2)}`;
 
-        // Re-check status after successful request
-        await checkRider();
-      } catch (err) {
-        message.className = "message error";
-        message.style.display = "block";
-        message.innerText = err.message || "Unable to submit ride request.";
-        await checkRider();
+        estimateReceipt.innerHTML = `
+          <strong>Mission Preview</strong><br><br>
+          Pickup: ${payload.pickup_address}<br>
+          Dropoff: ${payload.dropoff_address}<br>
+          Ride Type: ${payload.ride_type}<br>
+          Estimated Distance: ${data.estimate.distance_miles} mi<br>
+          Estimated Duration: ${data.estimate.duration_minutes} min<br>
+          Estimated Fare: $${data.estimate.estimated_fare.toFixed(2)}<br>
+          Estimated Driver Payout: $${data.estimate.estimated_driver_payout.toFixed(2)}<br>
+          Platform Fee: $${data.estimate.platform_fee.toFixed(2)}<br>
+          Booking Fee: $${data.estimate.booking_fee.toFixed(2)}
+        `;
+
+        showResult("Fare estimate ready. Secure payment next.");
+      }catch(err){
+        showError("Unable to reach the estimate service.");
       }
-    });
-  </script>
+    }
 
+    async function authorizePayment(){
+      const payload = getFormData();
+
+      if(!currentEstimate){
+        showError("Get a fare estimate before securing payment.");
+        return;
+      }
+
+      if(payload.payment_method === "CASH" && payload.ride_type !== "NONPROFIT"){
+        showError("Cash can only be allowed later if admin approves it. Use card or Apple Pay for secured dispatch.");
+        return;
+      }
+
+      try{
+        const res = await fetch("/api/payments/authorize", {
+          method: "POST",
+          headers: {"Content-Type":"application/json"},
+          body: JSON.stringify({
+            rider_id: payload.rider_id,
+            payment_method: payload.payment_method,
+            estimated_fare: currentEstimate.estimated_fare,
+            ride_type: payload.ride_type
+          })
+        });
+
+        const data = await res.json();
+
+        if(!data.success){
+          paymentAuthorized = false;
+          paymentText.textContent = data.message || "Payment authorization failed.";
+          paymentTag.className = "tag bad";
+          paymentTag.textContent = "Failed";
+          showError(data.message || "Payment authorization failed.");
+          return;
+        }
+
+        paymentAuthorized = true;
+        paymentText.textContent = `Payment secured by ${payload.payment_method}. Hold: $${data.authorization.authorized_amount.toFixed(2)}`;
+        paymentTag.className = "tag ok";
+        paymentTag.textContent = data.authorization.status;
+        showResult("Payment secured. Your ride can now be dispatched once requested.");
+      }catch(err){
+        paymentAuthorized = false;
+        paymentText.textContent = "Payment service unavailable.";
+        paymentTag.className = "tag bad";
+        paymentTag.textContent = "Error";
+        showError("Payment service unavailable.");
+      }
+    }
+
+    async function requestRide(){
+      const payload = getFormData();
+
+      if(!payload.rider_id){
+        showError("Enter rider ID.");
+        return;
+      }
+
+      if(!payload.passenger_first_name || !payload.passenger_phone){
+        showError("Enter passenger first name and phone number.");
+        return;
+      }
+
+      if(!payload.pickup_address || !payload.dropoff_address){
+        showError("Enter pickup and dropoff addresses.");
+        return;
+      }
+
+      if(!currentEstimate){
+        showError("Get a fare estimate first.");
+        return;
+      }
+
+      await checkRiderStatus();
+
+      if(!riderVerified){
+        showError("Ride blocked. Rider verification must be approved before requesting a trip.");
+        return;
+      }
+
+      if(!paymentAuthorized && payload.ride_type !== "NONPROFIT"){
+        showError("Ride blocked. Payment must be secured before dispatch.");
+        return;
+      }
+
+      try{
+        const res = await fetch("/api/request-ride", {
+          method: "POST",
+          headers: {"Content-Type":"application/json"},
+          body: JSON.stringify({
+            ...payload,
+            estimate: currentEstimate
+          })
+        });
+
+        const data = await res.json();
+
+        if(!data.success){
+          showError(data.message || "Unable to request ride.");
+          return;
+        }
+
+        showResult(`
+          <strong>Ride Requested Successfully</strong><br><br>
+          Ride ID: ${data.ride.ride_id}<br>
+          Status: ${data.ride.ride_status}<br>
+          Payment Status: ${data.ride.payment_status}<br>
+          Mission Status: ${data.ride.mission_status}<br><br>
+          This ride is now available to approved drivers as a complete mission offer.
+        `);
+      }catch(err){
+        showError("Unable to submit ride request.");
+      }
+    }
+
+    document.getElementById("riderId").addEventListener("blur", checkRiderStatus);
+    document.getElementById("estimateBtn").addEventListener("click", getEstimate);
+    document.getElementById("authorizeBtn").addEventListener("click", authorizePayment);
+    document.getElementById("requestRideBtn").addEventListener("click", requestRide);
+  </script>
 </body>
 </html>
