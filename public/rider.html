@@ -1,115 +1,152 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Driver Console</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="stylesheet" href="/style.css" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Live Trip</title>
+
+<style>
+body{
+margin:0;
+font-family:Arial;
+background:#0b0f1a;
+color:white;
+}
+
+.header{
+padding:20px;
+font-size:22px;
+font-weight:600;
+}
+
+#map{
+height:60vh;
+width:100%;
+}
+
+.card{
+padding:20px;
+}
+
+.status{
+background:#111827;
+padding:15px;
+border-radius:12px;
+margin-top:10px;
+}
+
+.driver{
+font-size:18px;
+font-weight:600;
+}
+
+.eta{
+color:#10b981;
+margin-top:5px;
+}
+
+</style>
 </head>
+
 <body>
-  <div class="container">
-    <div class="app-header">
-      <div class="app-title">Driver Console</div>
-      <div class="app-subtitle">Manage open rides and trip status</div>
-    </div>
 
-    <div class="card">
-      <button class="button secondary" onclick="loadRides()">Refresh</button>
-      <div id="rides" class="top-space"></div>
-    </div>
-  </div>
+<div class="header">
+Live Trip
+</div>
 
-  <script>
-    const DRIVER_ID = 'driver_1'
-    const DRIVER_NAME = 'Test Driver'
+<div id="map"></div>
 
-    async function loadRides() {
-      const res = await fetch('/api/rides/open')
-      const data = await res.json()
-      const rides = data.rides || []
+<div class="card">
 
-      document.getElementById('rides').innerHTML = rides.map(ride => `
-        <div class="ride-card">
-          <div class="ride-line"><strong>${ride.id}</strong></div>
-          <div class="ride-line">Rider: ${ride.riderName}</div>
-          <div class="ride-line">Pickup: ${ride.pickup}</div>
-          <div class="ride-line">Dropoff: ${ride.dropoff}</div>
-          <div class="ride-line">Fare: $${ride.fare}</div>
-          <div class="ride-line">Driver: ${ride.driverId || 'Unassigned'}</div>
-          <div class="ride-line"><span class="status ${ride.status}">${ride.status}</span></div>
+<div class="status">
+<div class="driver">Driver en route</div>
+<div class="eta" id="eta">Calculating ETA...</div>
+</div>
 
-          ${ride.status === 'pending'
-            ? `<button class="button small" onclick="acceptRide('${ride.id}')">Accept Ride</button>`
-            : ''}
+</div>
 
-          ${ride.status === 'assigned' && ride.driverId === DRIVER_ID
-            ? `<button class="button small" onclick="markArrived('${ride.id}')">Mark Arrived</button>`
-            : ''}
+<script>
+let map
+let driverMarker
+let riderMarker
 
-          ${ride.status === 'arrived' && ride.driverId === DRIVER_ID
-            ? `<button class="button small" onclick="markPickedUp('${ride.id}')">Picked Up</button>`
-            : ''}
+function initMap(){
 
-          ${ride.status === 'in_progress' && ride.driverId === DRIVER_ID
-            ? `<button class="button small" onclick="completeRide('${ride.id}')">Complete Ride</button>`
-            : ''}
+const pickup = { lat:36.1627, lng:-86.7816 }   // Nashville test
+const driver = { lat:36.1727, lng:-86.7916 }
 
-          ${(ride.status === 'assigned' || ride.status === 'arrived' || ride.status === 'in_progress') && ride.driverId === DRIVER_ID
-            ? `<button class="button small secondary" onclick="declineRide('${ride.id}')">Release Ride</button>`
-            : ''}
-        </div>
-      `).join('')
-    }
+map = new google.maps.Map(document.getElementById("map"),{
+zoom:13,
+center:pickup,
+styles:[
+{elementType:"geometry",stylers:[{color:"#0b0f1a"}]},
+{elementType:"labels.text.stroke",stylers:[{color:"#0b0f1a"}]},
+{elementType:"labels.text.fill",stylers:[{color:"#8ec5ff"}]}
+]
+})
 
-    async function acceptRide(rideId) {
-      await fetch('/api/rides/accept', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          rideId,
-          driverId: DRIVER_ID,
-          driverName: DRIVER_NAME
-        })
-      })
-      loadRides()
-    }
+riderMarker = new google.maps.Marker({
+position:pickup,
+map,
+label:"R",
+})
 
-    async function declineRide(rideId) {
-      await fetch('/api/rides/decline', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rideId })
-      })
-      loadRides()
-    }
+driverMarker = new google.maps.Marker({
+position:driver,
+map,
+label:"D",
+})
 
-    async function markArrived(rideId) {
-      await fetch('/api/rides/arrived', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rideId })
-      })
-      loadRides()
-    }
+drawRoute(pickup,driver)
 
-    async function markPickedUp(rideId) {
-      await fetch('/api/rides/pickup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rideId })
-      })
-      loadRides()
-    }
+simulateDriver()
+}
 
-    async function completeRide(rideId) {
-      await fetch('/api/rides/complete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rideId })
-      })
-      loadRides()
-    }
+function drawRoute(origin,destination){
+const directionsService = new google.maps.DirectionsService()
 
-    loadRides()
-  </script>
+const directionsRenderer = new google.maps.DirectionsRenderer({
+suppressMarkers:true,
+polylineOptions:{
+strokeColor:"#10b981",
+strokeWeight:5
+}
+})
+
+directionsRenderer.setMap(map)
+
+directionsService.route({
+origin,
+destination,
+travelMode:"DRIVING"
+},(result,status)=>{
+if(status==="OK"){
+directionsRenderer.setDirections(result)
+
+const leg = result.routes[0].legs[0]
+document.getElementById("eta").innerText =
+"ETA: "+leg.duration.text
+}
+})
+}
+
+function simulateDriver(){
+setInterval(()=>{
+let pos = driverMarker.getPosition()
+
+let lat = pos.lat() - 0.001
+let lng = pos.lng() + 0.001
+
+driverMarker.setPosition({lat,lng})
+
+drawRoute(riderMarker.getPosition(),{lat,lng})
+
+},4000)
+}
+</script>
+
+<script async defer
+src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDXXRPHFCh1-hKyUdh4wBFp9gjEgz_55QE&callback=initMap">
+</script>
+
 </body>
 </html>
