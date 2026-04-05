@@ -1,320 +1,541 @@
-const express = require('express')
-const cors = require('cors')
-const path = require('path')
-const fs = require('fs')
+const express = require("express");
+const cors = require("cors");
+const fs = require("fs");
+const path = require("path");
 
-const app = express()
-const PORT = process.env.PORT || 10000
+const app = express();
+const PORT = process.env.PORT || 10000;
 
-app.use(cors())
-app.use(express.json())
-app.use(express.static(path.join(__dirname, 'public')))
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, "public")));
 
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'))
-})
+const dataDir = path.join(__dirname, "data");
+const ridersFile = path.join(dataDir, "riders.json");
+const driversFile = path.join(dataDir, "drivers.json");
+const ridesFile = path.join(dataDir, "rides.json");
+const paymentsFile = path.join(dataDir, "payments.json");
 
-app.get('/:page', (req, res) => {
-  const file = path.join(__dirname, 'public', req.params.page)
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+}
 
-  if (fs.existsSync(file)) {
-    res.sendFile(file)
-  } else {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'))
-  }
-})
-
-let riders = []
-let rides = []
-let drivers = [
-  {
-    id: 'driver_1',
-    name: 'Nearest Driver',
-    lat: 36.1627,
-    lng: -86.7816,
-    available: true,
-    type: 'human',
-    vehicle_type: 'sedan',
-    current_address: 'Downtown Nashville, TN',
-    verification_status: 'approved'
-  },
-  {
-    id: 'driver_2',
-    name: 'Autonomous Unit A1',
-    lat: 36.1744,
-    lng: -86.7679,
-    available: true,
-    type: 'av',
-    vehicle_type: 'autonomous',
-    current_address: 'Midtown Nashville, TN',
-    verification_status: 'approved'
-  }
-]
-
-function fallbackCoordinates(address) {
-  const baseLat = 36.1627
-  const baseLng = -86.7816
-
-  const hash = String(address || '')
-    .split('')
-    .reduce((acc, char) => acc + char.charCodeAt(0), 0)
-
-  return {
-    lat: baseLat + (hash % 100) * 0.0001,
-    lng: baseLng + (hash % 100) * 0.0001
+function ensureFile(filePath, defaultValue = []) {
+  if (!fs.existsSync(filePath)) {
+    fs.writeFileSync(filePath, JSON.stringify(defaultValue, null, 2));
   }
 }
 
-async function geocodeAddress(address) {
+ensureFile(ridersFile, []);
+ensureFile(driversFile, []);
+ensureFile(ridesFile, []);
+ensureFile(paymentsFile, []);
+
+function readJson(filePath) {
   try {
-    if (!process.env.GOOGLE_MAPS_KEY) {
-      return fallbackCoordinates(address)
-    }
-
-    const response = await fetch(
-      `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${process.env.GOOGLE_MAPS_KEY}`
-    )
-
-    const data = await response.json()
-
-    if (data.status === 'OK' && data.results && data.results.length) {
-      return {
-        lat: data.results[0].geometry.location.lat,
-        lng: data.results[0].geometry.location.lng
-      }
-    }
-
-    return fallbackCoordinates(address)
-  } catch (e) {
-    return fallbackCoordinates(address)
+    return JSON.parse(fs.readFileSync(filePath, "utf8"));
+  } catch (error) {
+    console.error(`Error reading ${filePath}:`, error.message);
+    return [];
   }
 }
 
-function distance(a, b) {
-  const dx = a.lat - b.lat
-  const dy = a.lng - b.lng
-  return Math.sqrt(dx * dx + dy * dy)
+function writeJson(filePath, data) {
+  try {
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+    return true;
+  } catch (error) {
+    console.error(`Error writing ${filePath}:`, error.message);
+    return false;
+  }
 }
 
-function findNearestDriver(pickupCoords) {
-  let best = null
-  let bestDistance = Infinity
-
-  drivers.forEach((driver) => {
-    if (!driver.available) return
-    if (driver.verification_status !== 'approved') return
-
-    const d = distance(pickupCoords, driver)
-    if (d < bestDistance) {
-      best = driver
-      bestDistance = d
-    }
-  })
-
-  return best
+function makeId(prefix) {
+  return `${prefix}_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
 }
 
-app.get('/api/health', (req, res) => {
+function normalizeText(value) {
+  return String(value || "").trim();
+}
+
+function normalizePhone(value) {
+  return String(value || "").replace(/\D/g, "");
+}
+
+/* -----------------------------
+   HEALTH CHECK
+----------------------------- */
+app.get("/api/health", (req, res) => {
   res.json({
-    ok: true,
-    service: 'Harvey Taxi Verification + Dispatch Brain'
-  })
-})
+    success: true,
+    message: "Harvey Taxi server is running"
+  });
+});
 
-app.post('/api/rider-signup', (req, res) => {
-  const { name, email, phone } = req.body
+/* -----------------------------
+   RIDER SIGNUP
+----------------------------- */
+app.post("/api/rider-signup", (req, res) => {
+  const fullName = normalizeText(req.body.fullName);
+  const phone = normalizePhone(req.body.phone);
+  const email = normalizeText(req.body.email).toLowerCase();
+  const address = normalizeText(req.body.address);
 
-  if (!name || !email) {
+  if (!fullName || !phone || !email || !address) {
     return res.status(400).json({
-      error: 'name and email are required'
-    })
+      success: false,
+      message: "All rider fields are required."
+    });
   }
 
-  const rider = {
-    id: 'rider_' + Date.now(),
-    name,
+  const riders = readJson(ridersFile);
+
+  const existingRiderIndex = riders.findIndex(
+    (r) => r.email === email || r.phone === phone
+  );
+
+  const riderRecord = {
+    id: existingRiderIndex >= 0 ? riders[existingRiderIndex].id : makeId("rider"),
+    fullName,
+    phone,
     email,
-    phone: phone || '',
-    verification_status: 'pending',
-    created_at: new Date().toISOString()
+    address,
+    verificationStatus:
+      existingRiderIndex >= 0
+        ? riders[existingRiderIndex].verificationStatus || "pending"
+        : "pending",
+    rideAccessApproved:
+      existingRiderIndex >= 0
+        ? Boolean(riders[existingRiderIndex].rideAccessApproved)
+        : false,
+    createdAt:
+      existingRiderIndex >= 0
+        ? riders[existingRiderIndex].createdAt
+        : new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  if (existingRiderIndex >= 0) {
+    riders[existingRiderIndex] = {
+      ...riders[existingRiderIndex],
+      ...riderRecord
+    };
+  } else {
+    riders.push(riderRecord);
   }
 
-  riders.push(rider)
+  const saved = writeJson(ridersFile, riders);
 
-  res.json({
+  if (!saved) {
+    return res.status(500).json({
+      success: false,
+      message: "Unable to save rider account."
+    });
+  }
+
+  return res.json({
     success: true,
-    message: 'Rider signup created. Verification required before requesting rides.',
-    rider
-  })
-})
+    message: "Rider account created successfully. Verification review has started.",
+    rider: riderRecord
+  });
+});
 
-app.get('/api/rider/:id', (req, res) => {
-  const rider = riders.find((r) => r.id === req.params.id)
+/* -----------------------------
+   DRIVER SIGNUP
+----------------------------- */
+app.post("/api/driver-signup", (req, res) => {
+  const fullName = normalizeText(req.body.fullName);
+  const phone = normalizePhone(req.body.phone);
+  const email = normalizeText(req.body.email).toLowerCase();
+  const vehicleType = normalizeText(req.body.vehicleType);
+  const licenseNumber = normalizeText(req.body.licenseNumber);
+  const city = normalizeText(req.body.city);
 
-  if (!rider) {
-    return res.status(404).json({
-      error: 'Rider not found'
-    })
-  }
-
-  res.json(rider)
-})
-
-app.post('/api/admin/approve-rider', (req, res) => {
-  const { rider_id } = req.body
-  const rider = riders.find((r) => r.id === rider_id)
-
-  if (!rider) {
-    return res.status(404).json({
-      error: 'Rider not found'
-    })
-  }
-
-  rider.verification_status = 'approved'
-  rider.approved_at = new Date().toISOString()
-
-  res.json({
-    success: true,
-    message: 'Rider approved',
-    rider
-  })
-})
-
-app.post('/api/admin/reject-rider', (req, res) => {
-  const { rider_id } = req.body
-  const rider = riders.find((r) => r.id === rider_id)
-
-  if (!rider) {
-    return res.status(404).json({
-      error: 'Rider not found'
-    })
-  }
-
-  rider.verification_status = 'rejected'
-  rider.rejected_at = new Date().toISOString()
-
-  res.json({
-    success: true,
-    message: 'Rider rejected',
-    rider
-  })
-})
-
-app.get('/api/riders', (req, res) => {
-  res.json(riders)
-})
-
-app.post('/api/request-ride', async (req, res) => {
-  const {
-    rider_id,
-    rider_name,
-    rider_phone,
-    pickup_address,
-    dropoff_address
-  } = req.body
-
-  if (!rider_id || !rider_name || !pickup_address || !dropoff_address) {
+  if (!fullName || !phone || !email || !vehicleType || !licenseNumber || !city) {
     return res.status(400).json({
-      error: 'rider_id, rider_name, pickup_address, and dropoff_address are required'
-    })
+      success: false,
+      message: "All driver fields are required."
+    });
   }
 
-  const rider = riders.find((r) => r.id === rider_id)
+  const drivers = readJson(driversFile);
+
+  const existingDriverIndex = drivers.findIndex(
+    (d) => d.email === email || d.phone === phone || d.licenseNumber === licenseNumber
+  );
+
+  const driverRecord = {
+    id: existingDriverIndex >= 0 ? drivers[existingDriverIndex].id : makeId("driver"),
+    fullName,
+    phone,
+    email,
+    vehicleType,
+    licenseNumber,
+    city,
+    personaStatus:
+      existingDriverIndex >= 0
+        ? drivers[existingDriverIndex].personaStatus || "pending"
+        : "pending",
+    checkrStatus:
+      existingDriverIndex >= 0
+        ? drivers[existingDriverIndex].checkrStatus || "pending"
+        : "pending",
+    approvalStatus:
+      existingDriverIndex >= 0
+        ? drivers[existingDriverIndex].approvalStatus || "pending"
+        : "pending",
+    isOnline:
+      existingDriverIndex >= 0
+        ? Boolean(drivers[existingDriverIndex].isOnline)
+        : false,
+    createdAt:
+      existingDriverIndex >= 0
+        ? drivers[existingDriverIndex].createdAt
+        : new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  if (existingDriverIndex >= 0) {
+    drivers[existingDriverIndex] = {
+      ...drivers[existingDriverIndex],
+      ...driverRecord
+    };
+  } else {
+    drivers.push(driverRecord);
+  }
+
+  const saved = writeJson(driversFile, drivers);
+
+  if (!saved) {
+    return res.status(500).json({
+      success: false,
+      message: "Unable to save driver application."
+    });
+  }
+
+  return res.json({
+    success: true,
+    message: "Driver application submitted successfully. Verification review has started.",
+    driver: driverRecord
+  });
+});
+
+/* -----------------------------
+   CHECK RIDER APPROVAL
+   Used by request-ride.html
+----------------------------- */
+app.get("/api/check-rider", (req, res) => {
+  const email = normalizeText(req.query.email).toLowerCase();
+  const phone = normalizePhone(req.query.phone);
+
+  const riders = readJson(ridersFile);
+
+  let rider = null;
+
+  if (email) {
+    rider = riders.find((r) => r.email === email);
+  }
+
+  if (!rider && phone) {
+    rider = riders.find((r) => r.phone === phone);
+  }
 
   if (!rider) {
-    return res.status(404).json({
-      error: 'Rider not found'
-    })
+    return res.json({
+      success: true,
+      approved: false,
+      message: "No rider account found."
+    });
   }
 
-  if (rider.verification_status !== 'approved') {
+  const approved =
+    rider.verificationStatus === "approved" || rider.rideAccessApproved === true;
+
+  return res.json({
+    success: true,
+    approved,
+    message: approved
+      ? "Rider is approved for ride requests."
+      : "Rider is not approved yet.",
+    rider: {
+      id: rider.id,
+      fullName: rider.fullName,
+      email: rider.email,
+      phone: rider.phone,
+      verificationStatus: rider.verificationStatus,
+      rideAccessApproved: Boolean(rider.rideAccessApproved)
+    }
+  });
+});
+
+/* -----------------------------
+   REQUEST RIDE
+   HARD GATE: approved riders only
+----------------------------- */
+app.post("/api/request-ride", (req, res) => {
+  const riderName = normalizeText(req.body.name || req.body.riderName);
+  const riderPhone = normalizePhone(req.body.phone || req.body.riderPhone);
+  const pickupAddress = normalizeText(req.body.pickup || req.body.pickupAddress);
+  const dropoffAddress = normalizeText(req.body.dropoff || req.body.dropoffAddress);
+  const rideNotes = normalizeText(req.body.rideNotes);
+
+  if (!riderName || !riderPhone || !pickupAddress || !dropoffAddress) {
+    return res.status(400).json({
+      success: false,
+      message: "Name, phone, pickup address, and dropoff address are required."
+    });
+  }
+
+  const riders = readJson(ridersFile);
+  const rider = riders.find((r) => r.phone === riderPhone);
+
+  if (!rider) {
     return res.status(403).json({
-      error: 'Your verification must be approved before requesting a ride.'
-    })
+      success: false,
+      message: "No rider account found. Please complete rider signup first."
+    });
   }
 
-  const pickupCoords = await geocodeAddress(pickup_address)
-  const dropoffCoords = await geocodeAddress(dropoff_address)
-  const driver = findNearestDriver(pickupCoords)
+  const approved =
+    rider.verificationStatus === "approved" || rider.rideAccessApproved === true;
 
-  const ride = {
-    id: 'ride_' + Date.now(),
-    rider_id,
-    rider_name,
-    rider_phone: rider_phone || rider.phone || '',
-    pickup_address,
-    dropoff_address,
-    pickup_coords: pickupCoords,
-    dropoff_coords: dropoffCoords,
-    status: driver ? 'driver_assigned' : 'searching',
-    driver_id: driver ? driver.id : null,
-    driver_name: driver ? driver.name : null,
-    fleet_type: driver ? driver.type : null,
-    vehicle_type: driver ? driver.vehicle_type : null,
-    estimated_fare: (8 + Math.random() * 12).toFixed(2),
-    created_at: new Date().toISOString()
+  if (!approved) {
+    return res.status(403).json({
+      success: false,
+      message: "Ride requests are locked until rider verification is approved."
+    });
   }
 
-  if (driver) {
-    driver.available = false
+  const rides = readJson(ridesFile);
+
+  const rideRecord = {
+    id: makeId("ride"),
+    riderId: rider.id,
+    riderName,
+    riderPhone,
+    pickupAddress,
+    dropoffAddress,
+    rideNotes,
+    status: "pending_dispatch",
+    assignedDriverId: null,
+    assignedDriverName: null,
+    fareEstimate: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  rides.push(rideRecord);
+
+  const saved = writeJson(ridesFile, rides);
+
+  if (!saved) {
+    return res.status(500).json({
+      success: false,
+      message: "Unable to create ride request."
+    });
   }
 
-  rides.push(ride)
-
-  res.json({
+  return res.json({
     success: true,
-    message: driver ? 'Driver assigned automatically' : 'Searching for nearest driver',
-    ride,
-    assigned_driver: driver || null
-  })
-})
+    message: "Ride request submitted successfully. Dispatch review has started.",
+    ride: rideRecord
+  });
+});
 
-app.get('/api/rides', (req, res) => {
-  res.json(rides)
-})
+/* -----------------------------
+   PAYMENT
+----------------------------- */
+app.post("/api/payment", (req, res) => {
+  const riderName = normalizeText(req.body.riderName);
+  const amount = Number(req.body.amount);
+  const paymentMethod = normalizeText(req.body.paymentMethod);
+  const cardLast4 = normalizeText(req.body.cardLast4);
+  const rideId = normalizeText(req.body.rideId);
 
-app.get('/api/rides/:id', (req, res) => {
-  const ride = rides.find((r) => r.id === req.params.id)
-
-  if (!ride) {
-    return res.status(404).json({
-      error: 'Ride not found'
-    })
+  if (!riderName || !amount || amount <= 0 || !paymentMethod || !rideId) {
+    return res.status(400).json({
+      success: false,
+      message: "Rider name, amount, payment method, and ride reference are required."
+    });
   }
 
-  res.json(ride)
-})
+  const payments = readJson(paymentsFile);
 
-app.post('/api/driver/update-status', (req, res) => {
-  const { driver_id, status, available } = req.body
-  const driver = drivers.find((d) => d.id === driver_id)
+  const paymentRecord = {
+    id: makeId("payment"),
+    riderName,
+    amount: Number(amount.toFixed(2)),
+    paymentMethod,
+    cardLast4,
+    rideId,
+    status: "paid",
+    createdAt: new Date().toISOString()
+  };
 
-  if (!driver) {
-    return res.status(404).json({
-      error: 'Driver not found'
-    })
+  payments.push(paymentRecord);
+
+  const saved = writeJson(paymentsFile, payments);
+
+  if (!saved) {
+    return res.status(500).json({
+      success: false,
+      message: "Unable to save payment."
+    });
   }
 
-  if (typeof status === 'string') {
-    driver.status = status
-  }
-
-  if (typeof available === 'boolean') {
-    driver.available = available
-  }
-
-  res.json({
+  return res.json({
     success: true,
-    driver
-  })
-})
+    message: "Payment submitted successfully.",
+    payment: paymentRecord
+  });
+});
 
-app.get('/api/drivers', (req, res) => {
-  res.json(drivers)
-})
+/* -----------------------------
+   ADMIN LOGIN
+----------------------------- */
+app.post("/api/admin-login", (req, res) => {
+  const email = normalizeText(req.body.email).toLowerCase();
+  const password = normalizeText(req.body.password);
+
+  const adminEmail = (process.env.ADMIN_EMAIL || "admin@harveytaxi.com").toLowerCase();
+  const adminPassword = process.env.ADMIN_PASSWORD || "Harvey123!";
+
+  if (!email || !password) {
+    return res.status(400).json({
+      success: false,
+      message: "Admin email and password are required."
+    });
+  }
+
+  if (email === adminEmail && password === adminPassword) {
+    return res.json({
+      success: true,
+      message: "Admin login successful.",
+      redirectUrl: "/admin-dashboard.html"
+    });
+  }
+
+  return res.status(401).json({
+    success: false,
+    message: "Invalid admin credentials."
+  });
+});
+
+/* -----------------------------
+   SIMPLE ADMIN DATA ROUTES
+----------------------------- */
+app.get("/api/admin/riders", (req, res) => {
+  const riders = readJson(ridersFile);
+  res.json({ success: true, riders });
+});
+
+app.get("/api/admin/drivers", (req, res) => {
+  const drivers = readJson(driversFile);
+  res.json({ success: true, drivers });
+});
+
+app.get("/api/admin/rides", (req, res) => {
+  const rides = readJson(ridesFile);
+  res.json({ success: true, rides });
+});
+
+app.get("/api/admin/payments", (req, res) => {
+  const payments = readJson(paymentsFile);
+  res.json({ success: true, payments });
+});
+
+/* -----------------------------
+   ADMIN: APPROVE RIDER
+   lets you unlock ride requests
+----------------------------- */
+app.post("/api/admin/approve-rider", (req, res) => {
+  const riderId = normalizeText(req.body.riderId);
+  const email = normalizeText(req.body.email).toLowerCase();
+  const phone = normalizePhone(req.body.phone);
+
+  const riders = readJson(ridersFile);
+
+  const riderIndex = riders.findIndex(
+    (r) => r.id === riderId || r.email === email || r.phone === phone
+  );
+
+  if (riderIndex === -1) {
+    return res.status(404).json({
+      success: false,
+      message: "Rider not found."
+    });
+  }
+
+  riders[riderIndex].verificationStatus = "approved";
+  riders[riderIndex].rideAccessApproved = true;
+  riders[riderIndex].updatedAt = new Date().toISOString();
+
+  const saved = writeJson(ridersFile, riders);
+
+  if (!saved) {
+    return res.status(500).json({
+      success: false,
+      message: "Unable to approve rider."
+    });
+  }
+
+  return res.json({
+    success: true,
+    message: "Rider approved successfully.",
+    rider: riders[riderIndex]
+  });
+});
+
+/* -----------------------------
+   ADMIN: APPROVE DRIVER
+----------------------------- */
+app.post("/api/admin/approve-driver", (req, res) => {
+  const driverId = normalizeText(req.body.driverId);
+  const email = normalizeText(req.body.email).toLowerCase();
+  const phone = normalizePhone(req.body.phone);
+
+  const drivers = readJson(driversFile);
+
+  const driverIndex = drivers.findIndex(
+    (d) => d.id === driverId || d.email === email || d.phone === phone
+  );
+
+  if (driverIndex === -1) {
+    return res.status(404).json({
+      success: false,
+      message: "Driver not found."
+    });
+  }
+
+  drivers[driverIndex].personaStatus = "approved";
+  drivers[driverIndex].checkrStatus = "approved";
+  drivers[driverIndex].approvalStatus = "approved";
+  drivers[driverIndex].updatedAt = new Date().toISOString();
+
+  const saved = writeJson(driversFile, drivers);
+
+  if (!saved) {
+    return res.status(500).json({
+      success: false,
+      message: "Unable to approve driver."
+    });
+  }
+
+  return res.json({
+    success: true,
+    message: "Driver approved successfully.",
+    driver: drivers[driverIndex]
+  });
+});
+
+/* -----------------------------
+   FALLBACK ROUTE
+----------------------------- */
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
 
 app.listen(PORT, () => {
-  console.log('====================================')
-  console.log('Harvey Taxi Verification Gate Running')
-  console.log('====================================')
-})
+  console.log(`Harvey Taxi server running on port ${PORT}`);
+});
