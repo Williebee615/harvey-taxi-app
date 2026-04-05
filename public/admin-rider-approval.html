@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Harvey Taxi | Admin Rider Approval</title>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(180deg, #020617, #031133);
+      color: white;
+      padding: 24px 16px 40px;
+    }
+
+    .wrap {
+      max-width: 760px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0 0 18px;
+      font-size: 42px;
+      font-weight: 800;
+    }
+
+    .card {
+      background: #0f172a;
+      border-radius: 24px;
+      padding: 18px;
+      border: 1px solid rgba(59,130,246,0.18);
+      margin-bottom: 14px;
+    }
+
+    .name {
+      font-size: 22px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .meta {
+      color: #cbd5e1;
+      line-height: 1.7;
+      margin-bottom: 12px;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    button {
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: 16px;
+      font-size: 16px;
+      font-weight: 800;
+    }
+
+    .approve {
+      background: #25c59a;
+      color: #03121d;
+    }
+
+    .reject {
+      background: rgba(239,68,68,0.18);
+      color: #fecaca;
+      border: 1px solid rgba(239,68,68,0.24);
+    }
+
+    .empty {
+      background: #0f172a;
+      border-radius: 24px;
+      padding: 22px;
+      color: #cbd5e1;
+      border: 1px solid rgba(59,130,246,0.18);
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Admin Rider Approval</h1>
+    <div id="list" class="empty">Loading riders...</div>
+  </div>
+
+  <script>
+    async function loadRiders() {
+      const list = document.getElementById('list')
+
+      try {
+        const res = await fetch('/api/riders')
+        const riders = await res.json()
+
+        if (!Array.isArray(riders) || !riders.length) {
+          list.className = 'empty'
+          list.textContent = 'No riders found.'
+          return
+        }
+
+        list.className = ''
+        list.innerHTML = riders.map(rider => `
+          <div class="card">
+            <div class="name">${rider.name}</div>
+            <div class="meta">
+              Rider ID: ${rider.id}<br>
+              Email: ${rider.email || ''}<br>
+              Phone: ${rider.phone || ''}<br>
+              Verification: ${rider.verification_status}
+            </div>
+            <div class="row">
+              <button class="approve" onclick="approveRider('${rider.id}')">Approve Rider</button>
+              <button class="reject" onclick="rejectRider('${rider.id}')">Reject Rider</button>
+            </div>
+          </div>
+        `).join('')
+      } catch (error) {
+        list.className = 'empty'
+        list.textContent = 'Unable to load riders.'
+      }
+    }
+
+    async function approveRider(rider_id) {
+      await fetch('/api/admin/approve-rider', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rider_id })
+      })
+      loadRiders()
+    }
+
+    async function rejectRider(rider_id) {
+      await fetch('/api/admin/reject-rider', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rider_id })
+      })
+      loadRiders()
+    }
+
+    loadRiders()
+  </script>
+</body>
+</html>
