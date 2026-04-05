@@ -1,117 +1,194 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Harvey Taxi Privacy Policy</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Harvey Taxi Privacy Policy</title>
+  <style>
+    :root {
+      --bg: #070b16;
+      --panel: #10182b;
+      --panel-2: #16223a;
+      --line: rgba(255,255,255,0.08);
+      --text: #f5f7ff;
+      --muted: #aeb9d6;
+      --blue: #63a4ff;
+      --green: #18c58f;
+    }
 
-<style>
-body {
-margin: 0;
-padding: 0;
-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial;
-background: #0b0f1a;
-color: white;
-line-height: 1.6;
-}
+    * { box-sizing: border-box; }
 
-.container {
-max-width: 900px;
-margin: auto;
-padding: 40px 20px;
-}
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: linear-gradient(180deg, #050814 0%, #0b1224 100%);
+      color: var(--text);
+      line-height: 1.6;
+    }
 
-h1 {
-color: #00e5ff;
-font-size: 32px;
-}
+    .wrap {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 24px 18px 80px;
+    }
 
-h2 {
-color: #00e5ff;
-margin-top: 30px;
-}
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
 
-p {
-opacity: .9;
-}
+    .brand {
+      font-size: 24px;
+      font-weight: 700;
+    }
 
-ul {
-opacity: .9;
-}
+    .home-btn {
+      text-decoration: none;
+      color: #fff;
+      background: linear-gradient(135deg, var(--blue), #2e6bff);
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-weight: 700;
+      display: inline-block;
+    }
 
-.footer {
-margin-top: 40px;
-opacity: .7;
-font-size: 14px;
-}
-</style>
+    .card {
+      background: rgba(16, 24, 43, 0.9);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 22px;
+      margin-bottom: 18px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.28);
+    }
+
+    h1, h2 {
+      margin-top: 0;
+    }
+
+    h1 {
+      font-size: 32px;
+      margin-bottom: 8px;
+    }
+
+    h2 {
+      color: #dce7ff;
+      font-size: 22px;
+      margin-bottom: 8px;
+    }
+
+    p, li {
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    ul {
+      padding-left: 18px;
+    }
+
+    .effective {
+      color: var(--green);
+      font-weight: 700;
+      margin-bottom: 18px;
+    }
+
+    .footer-note {
+      color: var(--muted);
+      font-size: 14px;
+      margin-top: 24px;
+    }
+  </style>
 </head>
-
 <body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand">Harvey Taxi</div>
+      <a class="home-btn" href="/">Return Home</a>
+    </div>
 
-<div class="container">
+    <div class="card">
+      <h1>Privacy Policy</h1>
+      <div class="effective">Effective Date: April 5, 2026</div>
+      <p>
+        Harvey Taxi respects your privacy. This Privacy Policy explains how Harvey Taxi Service LLC
+        collects, uses, stores, and protects information when riders, drivers, merchants, and visitors
+        use the Harvey Taxi platform.
+      </p>
+    </div>
 
-<h1>Harvey Taxi Privacy Policy</h1>
+    <div class="card">
+      <h2>Information We Collect</h2>
+      <ul>
+        <li>Name, email address, phone number, and account details you provide during signup.</li>
+        <li>Ride request details such as pickup address, dropoff address, ride status, and trip timing.</li>
+        <li>Driver onboarding information, which may include identity verification and background screening data handled through approved third-party providers.</li>
+        <li>Payment-related information used to process transactions through secure payment partners.</li>
+        <li>Device, browser, and usage information needed to improve performance, security, and support.</li>
+        <li>Location-related information when needed to support ride functionality, dispatch, ETA, navigation, and safety features.</li>
+      </ul>
+    </div>
 
-<p>Last Updated: 2026</p>
+    <div class="card">
+      <h2>How We Use Information</h2>
+      <ul>
+        <li>To create and manage rider, driver, and merchant accounts.</li>
+        <li>To process ride requests and help connect riders with available drivers or fleet services.</li>
+        <li>To support identity verification, safety review, fraud prevention, and platform security.</li>
+        <li>To communicate service updates, ride details, support responses, and important notices.</li>
+        <li>To improve dispatch, route coordination, user experience, and platform operations.</li>
+        <li>To comply with legal obligations and enforce our policies.</li>
+      </ul>
+    </div>
 
-<p>Harvey Taxi Service LLC ("Harvey Taxi", "we", "our", or "us") values your privacy. This Privacy Policy explains how we collect, use, and protect your information when you use the Harvey Taxi mobile application.</p>
+    <div class="card">
+      <h2>Sharing of Information</h2>
+      <p>
+        Harvey Taxi may share limited information with service providers and partners that help operate the platform,
+        including verification providers, background screening providers, mapping providers, hosting providers,
+        analytics tools, payment processors, and customer support tools. We may also share information when required
+        by law, to protect safety, or to investigate misuse of the platform.
+      </p>
+    </div>
 
-<h2>Information We Collect</h2>
+    <div class="card">
+      <h2>Data Security</h2>
+      <p>
+        Harvey Taxi uses reasonable administrative, technical, and operational safeguards to help protect user data.
+        However, no internet transmission or storage system can be guaranteed to be 100% secure.
+      </p>
+    </div>
 
-<ul>
-<li>Name</li>
-<li>Email address</li>
-<li>Phone number</li>
-<li>Pickup and drop-off address</li>
-<li>Driver and rider location during trips</li>
-<li>Device information</li>
-<li>Usage data</li>
-</ul>
+    <div class="card">
+      <h2>Your Choices</h2>
+      <ul>
+        <li>You may contact us to request account updates or corrections.</li>
+        <li>You may choose not to provide certain information, though some features may not function properly.</li>
+        <li>You may discontinue use of the platform at any time.</li>
+      </ul>
+    </div>
 
-<h2>How We Use Information</h2>
+    <div class="card">
+      <h2>Children’s Privacy</h2>
+      <p>
+        Harvey Taxi is not intended for children under 13. We do not knowingly collect personal information
+        from children under 13 through the platform.
+      </p>
+    </div>
 
-<ul>
-<li>Provide ride requests</li>
-<li>Match riders with drivers</li>
-<li>Enable trip tracking</li>
-<li>Improve dispatch performance</li>
-<li>Provide customer support</li>
-<li>Enhance platform safety</li>
-</ul>
+    <div class="card">
+      <h2>Contact</h2>
+      <p>
+        For privacy-related questions, contact Harvey Taxi Service LLC through the support information
+        provided on the platform or official business channels.
+      </p>
+    </div>
 
-<h2>Location Data</h2>
-
-<p>Harvey Taxi collects location data to enable ride requests, driver dispatch, and trip tracking. Location data is only collected while using the app.</p>
-
-<h2>Data Sharing</h2>
-
-<p>We do not sell your personal information. Information is shared only between riders and drivers to complete trips.</p>
-
-<h2>Data Security</h2>
-
-<p>We implement technical and organizational security measures to protect your information.</p>
-
-<h2>Third-Party Services</h2>
-
-<p>Harvey Taxi may use third-party services for identity verification, background checks, and payments.</p>
-
-<h2>Your Privacy Rights</h2>
-
-<p>You may request access, correction, or deletion of your personal data by contacting us.</p>
-
-<h2>Contact Us</h2>
-
-<p>
-Harvey Taxi Service LLC<br>
-Email: support@harveytaxiservice.com
-</p>
-
-<div class="footer">
-© 2026 Harvey Taxi Service LLC
-</div>
-
-</div>
-
+    <div class="footer-note">
+      This page is provided for general platform transparency and review readiness. You should later match this
+      policy exactly to your final production flows, providers, and legal business contact details.
+    </div>
+  </div>
 </body>
 </html>
