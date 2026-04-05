@@ -2,6 +2,9 @@ const express = require('express')
 const cors = require('cors')
 const path = require('path')
 const fs = require('fs')
+require('dotenv').config()
+
+const { createClient } = require('@supabase/supabase-js')
 
 const app = express()
 const PORT = process.env.PORT || 10000
@@ -10,59 +13,70 @@ app.use(cors())
 app.use(express.json())
 app.use(express.static(path.join(__dirname, 'public')))
 
-const DATA_DIR = __dirname
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+)
 
-const FILES = {
-  rides: path.join(DATA_DIR, 'rides.json'),
-  gps: path.join(DATA_DIR, 'gps-locations.json'),
-  vehicles: path.join(DATA_DIR, 'vehicles.json'),
-  riders: path.join(DATA_DIR, 'riders.json'),
-  messages: path.join(DATA_DIR, 'messages.json'),
-  commands: path.join(DATA_DIR, 'commands.json'),
-  missions: path.join(DATA_DIR, 'missions.json'),
-  dispatches: path.join(DATA_DIR, 'dispatches.json')
-}
+// ---------- ROOT + HTML FALLBACK ----------
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'))
+})
 
-const DISPATCH_TIMEOUT_MS = 20000
+app.get('/:page', (req, res, next) => {
+  const requested = req.params.page
 
-function ensureFile(filePath, defaultValue) {
-  if (!fs.existsSync(filePath)) {
-    fs.writeFileSync(filePath, JSON.stringify(defaultValue, null, 2))
+  if (!requested.endsWith('.html')) return next()
+
+  const filePath = path.join(__dirname, 'public', requested)
+  if (fs.existsSync(filePath)) {
+    return res.sendFile(filePath)
   }
-}
 
-function readJson(filePath, defaultValue = []) {
-  ensureFile(filePath, defaultValue)
+  return res.status(404).send('Page not found')
+})
+
+// ---------- HEALTH ----------
+app.get('/api/health', async (req, res) => {
   try {
-    const raw = fs.readFileSync(filePath, 'utf8')
-    return raw ? JSON.parse(raw) : defaultValue
-  } catch (err) {
-    console.error(`Failed reading ${filePath}:`, err.message)
-    return defaultValue
+    const { error } = await supabase.from('drivers').select('id').limit(1)
+    if (error) throw error
+
+    res.json({
+      ok: true,
+      service: 'Harvey Taxi Dispatch Brain',
+      mode: process.env.DISPATCH_MODE || 'mixed'
+    })
+  } catch (error) {
+    console.error('HEALTH ERROR:', error.message)
+    res.status(500).json({ ok: false, error: error.message })
   }
+})
+
+// ---------- CONFIG ----------
+const DISPATCH_MODE = process.env.DISPATCH_MODE || 'mixed' // mixed | av_first | human_first
+const AV_ENABLED = String(process.env.AV_ENABLED || 'true') === 'true'
+const HUMAN_DRIVER_ENABLED = String(process.env.HUMAN_DRIVER_ENABLED || 'true') === 'true'
+const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY || ''
+
+// ---------- HELPERS ----------
+function normalizeText(value) {
+  return String(value || '').trim()
 }
 
-function writeJson(filePath, data) {
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2))
+function toRadians(deg) {
+  return deg * (Math.PI / 180)
 }
 
-function uid(prefix = 'id') {
-  return `${prefix}_${Date.now()}_${Math.floor(Math.random() * 100000)}`
-}
-
-function toRad(value) {
-  return (value * Math.PI) / 180
-}
-
-function distanceMiles(lat1, lng1, lat2, lng2) {
+function haversineMiles(lat1, lng1, lat2, lng2) {
   const R = 3958.8
-  const dLat = toRad(lat2 - lat1)
-  const dLng = toRad(lng2 - lng1)
+  const dLat = toRadians(lat2 - lat1)
+  const dLng = toRadians(lng2 - lng1)
 
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
+    Math.cos(toRadians(lat1)) *
+      Math.cos(toRadians(lat2)) *
       Math.sin(dLng / 2) *
       Math.sin(dLng / 2)
 
@@ -70,877 +84,602 @@ function distanceMiles(lat1, lng1, lat2, lng2) {
   return R * c
 }
 
-/**
- * Sanitizers
- * These ensure frontend only sees addresses, never coordinates.
- */
-function hideRideCoordinates(ride) {
-  if (!ride) return null
-  const copy = { ...ride }
-  delete copy.pickupLat
-  delete copy.pickupLng
-  delete copy.dropoffLat
-  delete copy.dropoffLng
-  return copy
-}
-
-function hideDispatchCoordinates(dispatch) {
-  if (!dispatch) return null
-  const copy = { ...dispatch }
-
-  if (copy.pickup) {
-    copy.pickup = {
-      address: copy.pickup.address
-    }
+async function geocodeAddress(address) {
+  const safeAddress = normalizeText(address)
+  if (!safeAddress) {
+    throw new Error('Address is required for geocoding')
   }
 
-  if (copy.dropoff) {
-    copy.dropoff = {
-      address: copy.dropoff.address
-    }
+  if (!GOOGLE_MAPS_API_KEY) {
+    throw new Error('Missing GOOGLE_MAPS_API_KEY in .env')
   }
 
-  return copy
-}
+  const url =
+    'https://maps.googleapis.com/maps/api/geocode/json?address=' +
+    encodeURIComponent(safeAddress) +
+    '&key=' +
+    encodeURIComponent(GOOGLE_MAPS_API_KEY)
 
-function sanitizeGpsRowsForFrontend(gpsRows) {
-  return gpsRows.map(row => ({
-    entityId: row.entityId,
-    updatedAt: row.updatedAt,
-    status: row.status || 'active'
-  }))
-}
+  const response = await fetch(url)
+  const data = await response.json()
 
-function getGpsMap() {
-  const gpsRows = readJson(FILES.gps, [])
-  const map = {}
-  for (const row of gpsRows) {
-    map[row.entityId] = row
+  if (data.status !== 'OK' || !data.results || !data.results.length) {
+    throw new Error(`Geocoding failed for address: ${safeAddress}`)
   }
-  return map
-}
 
-function getAllVehicles() {
-  return readJson(FILES.vehicles, [])
-}
-
-function getAllRides() {
-  return readJson(FILES.rides, [])
-}
-
-function getAllDispatches() {
-  return readJson(FILES.dispatches, [])
-}
-
-function getVehicleLocation(vehicle, gpsMap) {
-  const gps = gpsMap[vehicle.id] || gpsMap[vehicle.driverId]
+  const result = data.results[0]
   return {
-    lat: Number(gps?.lat ?? vehicle.lat ?? 0),
-    lng: Number(gps?.lng ?? vehicle.lng ?? 0)
+    formatted_address: result.formatted_address,
+    lat: result.geometry.location.lat,
+    lng: result.geometry.location.lng
   }
 }
 
-function isVehicleEligible(vehicle) {
-  if (!vehicle) return false
-
-  if (vehicle.type === 'human') {
-    return (
-      vehicle.isApproved === true &&
-      vehicle.isOnline === true &&
-      vehicle.status !== 'busy' &&
-      vehicle.status !== 'offline'
-    )
-  }
-
-  if (vehicle.type === 'av') {
-    return (
-      vehicle.isOnline === true &&
-      vehicle.status !== 'busy' &&
-      vehicle.status !== 'maintenance'
-    )
-  }
-
-  return false
-}
-
-function rankCandidatesForRide(ride) {
-  const vehicles = getAllVehicles()
-  const gpsMap = getGpsMap()
-
-  const pickupLat = Number(ride.pickupLat)
-  const pickupLng = Number(ride.pickupLng)
-
-  const candidates = vehicles
-    .filter(isVehicleEligible)
-    .map(vehicle => {
-      const loc = getVehicleLocation(vehicle, gpsMap)
-      const milesAway = distanceMiles(pickupLat, pickupLng, loc.lat, loc.lng)
-
-      let typePriority = 2
-      if (vehicle.type === 'human') typePriority = 1
-      if (vehicle.type === 'av') typePriority = 2
-
-      return {
-        ...vehicle,
-        milesAway,
-        currentLat: loc.lat,
-        currentLng: loc.lng,
-        typePriority
-      }
-    })
-    .sort((a, b) => {
-      if (a.typePriority !== b.typePriority) {
-        return a.typePriority - b.typePriority
-      }
-      return a.milesAway - b.milesAway
-    })
-
-  return candidates
-}
-
-function updateVehicle(vehicleId, updater) {
-  const vehicles = getAllVehicles()
-  const index = vehicles.findIndex(v => v.id === vehicleId)
-  if (index === -1) return null
-  vehicles[index] = updater(vehicles[index])
-  writeJson(FILES.vehicles, vehicles)
-  return vehicles[index]
-}
-
-function updateRide(rideId, updater) {
-  const rides = getAllRides()
-  const index = rides.findIndex(r => r.id === rideId)
-  if (index === -1) return null
-  rides[index] = updater(rides[index])
-  writeJson(FILES.rides, rides)
-  return rides[index]
-}
-
-function updateDispatch(dispatchId, updater) {
-  const dispatches = getAllDispatches()
-  const index = dispatches.findIndex(d => d.id === dispatchId)
-  if (index === -1) return null
-  dispatches[index] = updater(dispatches[index])
-  writeJson(FILES.dispatches, dispatches)
-  return dispatches[index]
-}
-
-function addMessage(message) {
-  const messages = readJson(FILES.messages, [])
-  messages.push(message)
-  writeJson(FILES.messages, messages)
-}
-
-function addMission(mission) {
-  const missions = readJson(FILES.missions, [])
-  missions.push(mission)
-  writeJson(FILES.missions, missions)
-}
-
-function addCommand(command) {
-  const commands = readJson(FILES.commands, [])
-  commands.push(command)
-  writeJson(FILES.commands, commands)
-}
-
-function createDispatchOffer(ride, vehicle, attemptNumber) {
-  const dispatches = getAllDispatches()
-
-  const dispatch = {
-    id: uid('dispatch'),
-    rideId: ride.id,
-    riderId: ride.riderId || null,
-    vehicleId: vehicle.id,
-    driverId: vehicle.driverId || null,
-    fleetType: vehicle.type,
-    status: vehicle.type === 'av' ? 'accepted' : 'offered',
-    attemptNumber,
-    createdAt: new Date().toISOString(),
-    expiresAt: new Date(Date.now() + DISPATCH_TIMEOUT_MS).toISOString(),
-    pickup: {
-      address: ride.pickup,
-      lat: Number(ride.pickupLat),
-      lng: Number(ride.pickupLng)
-    },
-    dropoff: {
-      address: ride.dropoff,
-      lat: Number(ride.dropoffLat),
-      lng: Number(ride.dropoffLng)
-    },
-    milesAway: vehicle.milesAway
-  }
-
-  dispatches.push(dispatch)
-  writeJson(FILES.dispatches, dispatches)
-
-  if (vehicle.type === 'av') {
-    updateVehicle(vehicle.id, v => ({
-      ...v,
-      status: 'busy',
-      activeRideId: ride.id,
-      currentDispatchId: dispatch.id
-    }))
-
-    updateRide(ride.id, r => ({
-      ...r,
-      status: 'assigned',
-      assignedVehicleId: vehicle.id,
-      assignedDriverId: null,
-      fleetType: 'av',
-      dispatchId: dispatch.id,
-      assignedAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }))
-
-    addMission({
-      id: uid('mission'),
-      vehicleId: vehicle.id,
-      rideId: ride.id,
-      missionType: 'pickup_and_dropoff',
-      status: 'queued',
-      pickup: dispatch.pickup,
-      dropoff: dispatch.dropoff,
-      createdAt: new Date().toISOString()
-    })
-
-    addCommand({
-      id: uid('command'),
-      vehicleId: vehicle.id,
-      type: 'GO_TO_PICKUP',
-      payload: {
-        rideId: ride.id,
-        pickup: dispatch.pickup,
-        dropoff: dispatch.dropoff
-      },
-      createdAt: new Date().toISOString(),
-      status: 'queued'
-    })
-
-    addMessage({
-      id: uid('msg'),
-      rideId: ride.id,
-      sender: 'system',
-      text: 'Autonomous vehicle assigned to this ride.',
-      createdAt: new Date().toISOString()
-    })
-
-    updateDispatch(dispatch.id, d => ({
-      ...d,
-      status: 'accepted',
-      acceptedAt: new Date().toISOString()
-    }))
-
-    return {
-      success: true,
-      dispatch: hideDispatchCoordinates(dispatch),
-      autoAccepted: true
-    }
-  }
-
-  updateVehicle(vehicle.id, v => ({
-    ...v,
-    status: 'offered',
-    pendingRideId: ride.id,
-    currentDispatchId: dispatch.id
-  }))
-
-  updateRide(ride.id, r => ({
-    ...r,
-    status: 'dispatching',
-    assignedVehicleId: vehicle.id,
-    assignedDriverId: vehicle.driverId || null,
-    fleetType: 'human',
-    dispatchId: dispatch.id,
-    dispatchOfferedAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  }))
-
-  addMessage({
-    id: uid('msg'),
-    rideId: ride.id,
-    sender: 'system',
-    text: `Dispatch offer sent to driver ${vehicle.driverId || vehicle.id}.`,
-    createdAt: new Date().toISOString()
-  })
-
+function maskDriverForClient(driver, distanceMiles = null) {
   return {
-    success: true,
-    dispatch: hideDispatchCoordinates(dispatch),
-    autoAccepted: false
+    id: driver.id,
+    name: driver.name,
+    type: driver.type,
+    status: driver.status,
+    vehicle_type: driver.vehicle_type,
+    current_address: driver.current_address,
+    distance_miles: distanceMiles === null ? null : Number(distanceMiles.toFixed(2))
   }
 }
 
-function startDispatchFlow(rideId) {
-  const rides = getAllRides()
-  const ride = rides.find(r => r.id === rideId)
-
-  if (!ride) {
-    return { success: false, error: 'Ride not found.' }
+function sanitizeRide(ride) {
+  return {
+    id: ride.id,
+    rider_name: ride.rider_name,
+    rider_id: ride.rider_id,
+    pickup_address: ride.pickup_address,
+    dropoff_address: ride.dropoff_address,
+    driver_id: ride.driver_id,
+    vehicle_type: ride.vehicle_type,
+    fleet_type: ride.fleet_type,
+    status: ride.status,
+    dispatch_mode: ride.dispatch_mode,
+    created_at: ride.created_at,
+    accepted_at: ride.accepted_at,
+    started_at: ride.started_at,
+    completed_at: ride.completed_at
   }
-
-  const previousDispatches = getAllDispatches().filter(d => d.rideId === rideId)
-  const excludedVehicleIds = previousDispatches.map(d => d.vehicleId)
-
-  const candidates = rankCandidatesForRide(ride).filter(
-    candidate => !excludedVehicleIds.includes(candidate.id)
-  )
-
-  if (candidates.length === 0) {
-    updateRide(ride.id, r => ({
-      ...r,
-      status: 'unassigned',
-      dispatchId: null,
-      assignedVehicleId: null,
-      assignedDriverId: null,
-      fleetType: null,
-      unassignedReason: 'No available human or AV vehicle found.',
-      updatedAt: new Date().toISOString()
-    }))
-
-    return {
-      success: false,
-      error: 'No available vehicles found.'
-    }
-  }
-
-  const nextVehicle = candidates[0]
-  return createDispatchOffer(ride, nextVehicle, previousDispatches.length + 1)
 }
 
-function failAndFallback(dispatchId, reason = 'timeout') {
-  const dispatches = getAllDispatches()
-  const dispatch = dispatches.find(d => d.id === dispatchId)
+async function fetchAvailableFleet() {
+  const { data, error } = await supabase
+    .from('drivers')
+    .select('*')
+    .in('status', ['available', 'online'])
+    .order('updated_at', { ascending: false })
 
-  if (!dispatch) return
-  if (dispatch.status !== 'offered') return
+  if (error) throw error
 
-  updateDispatch(dispatch.id, d => ({
-    ...d,
-    status: 'expired',
-    expiredAt: new Date().toISOString(),
-    failureReason: reason
-  }))
-
-  updateVehicle(dispatch.vehicleId, v => ({
-    ...v,
-    status: 'online',
-    pendingRideId: null,
-    currentDispatchId: null
-  }))
-
-  updateRide(dispatch.rideId, r => ({
-    ...r,
-    status: 'searching',
-    dispatchId: null,
-    assignedVehicleId: null,
-    assignedDriverId: null,
-    fleetType: null,
-    updatedAt: new Date().toISOString()
-  }))
-
-  addMessage({
-    id: uid('msg'),
-    rideId: dispatch.rideId,
-    sender: 'system',
-    text: `Dispatch ${dispatch.id} failed due to ${reason}. Trying next vehicle.`,
-    createdAt: new Date().toISOString()
+  return (data || []).filter((unit) => {
+    if (unit.type === 'av' && !AV_ENABLED) return false
+    if (unit.type === 'human' && !HUMAN_DRIVER_ENABLED) return false
+    return true
   })
-
-  startDispatchFlow(dispatch.rideId)
 }
 
-setInterval(() => {
-  const dispatches = getAllDispatches()
-  const now = Date.now()
+function chooseCandidateByMode(candidates) {
+  if (!candidates.length) return null
 
-  dispatches.forEach(dispatch => {
-    if (
-      dispatch.status === 'offered' &&
-      dispatch.expiresAt &&
-      new Date(dispatch.expiresAt).getTime() < now
-    ) {
-      failAndFallback(dispatch.id, 'timeout')
-    }
-  })
-}, 5000)
+  const avCandidates = candidates.filter((c) => c.type === 'av')
+  const humanCandidates = candidates.filter((c) => c.type === 'human')
 
-/**
- * Routes
- */
-
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public/index.html'))
-})
-
-app.get('/:page', (req, res, next) => {
-  const filePath = path.join(__dirname, 'public', req.params.page)
-  if (fs.existsSync(filePath)) {
-    return res.sendFile(filePath)
-  }
-  next()
-})
-
-/**
- * GPS routes
- * Note: frontend gets sanitized GPS records only.
- * Full coordinates remain internal on disk for dispatch logic.
- */
-app.post('/api/gps/update', (req, res) => {
-  const { entityId, lat, lng, speed, heading, status } = req.body
-
-  if (!entityId || lat === undefined || lng === undefined) {
-    return res.status(400).json({
-      error: 'entityId, lat, and lng are required.'
-    })
+  if (DISPATCH_MODE === 'av_first') {
+    return avCandidates[0] || humanCandidates[0] || null
   }
 
-  const gpsRows = readJson(FILES.gps, [])
-  const index = gpsRows.findIndex(row => row.entityId === entityId)
-
-  const record = {
-    entityId,
-    lat: Number(lat),
-    lng: Number(lng),
-    speed: Number(speed || 0),
-    heading: Number(heading || 0),
-    status: status || 'active',
-    updatedAt: new Date().toISOString()
+  if (DISPATCH_MODE === 'human_first') {
+    return humanCandidates[0] || avCandidates[0] || null
   }
 
-  if (index === -1) {
-    gpsRows.push(record)
-  } else {
-    gpsRows[index] = { ...gpsRows[index], ...record }
-  }
+  return candidates[0] || null
+}
 
-  writeJson(FILES.gps, gpsRows)
+async function lockDriverAndCreateRide({
+  rider_name,
+  rider_id,
+  pickup_address,
+  pickup_lat,
+  pickup_lng,
+  dropoff_address,
+  dropoff_lat,
+  dropoff_lng,
+  selectedDriver
+}) {
+  const now = new Date().toISOString()
 
-  res.json({
-    success: true,
-    gps: {
-      entityId: record.entityId,
-      updatedAt: record.updatedAt,
-      status: record.status
-    }
-  })
-})
-
-app.get('/api/gps/all', (req, res) => {
-  const gpsRows = readJson(FILES.gps, [])
-  res.json(sanitizeGpsRowsForFrontend(gpsRows))
-})
-
-/**
- * Vehicle status
- */
-app.post('/api/vehicle/status', (req, res) => {
-  const { vehicleId, isOnline, status } = req.body
-
-  if (!vehicleId) {
-    return res.status(400).json({ error: 'vehicleId is required.' })
-  }
-
-  const updated = updateVehicle(vehicleId, v => ({
-    ...v,
-    isOnline: typeof isOnline === 'boolean' ? isOnline : v.isOnline,
-    status: status || v.status,
-    updatedAt: new Date().toISOString()
-  }))
-
-  if (!updated) {
-    return res.status(404).json({ error: 'Vehicle not found.' })
-  }
-
-  res.json({
-    success: true,
-    vehicle: {
-      id: updated.id,
-      type: updated.type,
-      driverId: updated.driverId || null,
-      name: updated.name || '',
-      isApproved: updated.isApproved === true,
-      isOnline: updated.isOnline === true,
-      status: updated.status,
-      updatedAt: updated.updatedAt
-    }
-  })
-})
-
-/**
- * Driver offers
- * Only returns address-based details.
- */
-app.get('/api/driver/offers/:driverId', (req, res) => {
-  const { driverId } = req.params
-  const dispatches = getAllDispatches()
-
-  const offer = dispatches
-    .filter(d => d.driverId === driverId && d.status === 'offered')
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0]
-
-  if (!offer) {
-    return res.json({
-      success: true,
-      offer: null
-    })
-  }
-
-  const rides = getAllRides()
-  const ride = rides.find(r => r.id === offer.rideId) || null
-
-  res.json({
-    success: true,
-    offer: {
-      ...hideDispatchCoordinates(offer),
-      ride: ride ? hideRideCoordinates(ride) : null
-    }
-  })
-})
-
-app.post('/api/dispatch/respond', (req, res) => {
-  const { dispatchId, driverId, action } = req.body
-
-  if (!dispatchId || !driverId || !action) {
-    return res.status(400).json({
-      error: 'dispatchId, driverId, and action are required.'
-    })
-  }
-
-  const dispatches = getAllDispatches()
-  const dispatch = dispatches.find(d => d.id === dispatchId)
-
-  if (!dispatch) {
-    return res.status(404).json({ error: 'Dispatch not found.' })
-  }
-
-  if (dispatch.driverId !== driverId) {
-    return res.status(403).json({
-      error: 'This dispatch does not belong to this driver.'
-    })
-  }
-
-  if (dispatch.status !== 'offered') {
-    return res.status(400).json({
-      error: 'Dispatch is no longer active.'
-    })
-  }
-
-  if (action === 'decline') {
-    updateDispatch(dispatch.id, d => ({
-      ...d,
-      status: 'declined',
-      declinedAt: new Date().toISOString()
-    }))
-
-    updateVehicle(dispatch.vehicleId, v => ({
-      ...v,
-      status: 'online',
-      pendingRideId: null,
-      currentDispatchId: null
-    }))
-
-    updateRide(dispatch.rideId, r => ({
-      ...r,
-      status: 'searching',
-      dispatchId: null,
-      assignedVehicleId: null,
-      assignedDriverId: null,
-      fleetType: null,
-      updatedAt: new Date().toISOString()
-    }))
-
-    addMessage({
-      id: uid('msg'),
-      rideId: dispatch.rideId,
-      sender: 'system',
-      text: `Driver ${driverId} declined dispatch.`,
-      createdAt: new Date().toISOString()
-    })
-
-    const fallback = startDispatchFlow(dispatch.rideId)
-
-    return res.json({
-      success: true,
-      message: 'Dispatch declined.',
-      fallback
-    })
-  }
-
-  if (action === 'accept') {
-    updateDispatch(dispatch.id, d => ({
-      ...d,
-      status: 'accepted',
-      acceptedAt: new Date().toISOString()
-    }))
-
-    updateVehicle(dispatch.vehicleId, v => ({
-      ...v,
-      status: 'busy',
-      pendingRideId: null,
-      activeRideId: dispatch.rideId,
-      currentDispatchId: dispatch.id
-    }))
-
-    const updatedRide = updateRide(dispatch.rideId, r => ({
-      ...r,
+  const { data: lockedDriver, error: lockError } = await supabase
+    .from('drivers')
+    .update({
       status: 'assigned',
-      dispatchId: dispatch.id,
-      assignedVehicleId: dispatch.vehicleId,
-      assignedDriverId: driverId,
-      fleetType: 'human',
-      acceptedAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }))
-
-    addMessage({
-      id: uid('msg'),
-      rideId: dispatch.rideId,
-      sender: 'system',
-      text: `Driver ${driverId} accepted the ride.`,
-      createdAt: new Date().toISOString()
+      updated_at: now
     })
+    .eq('id', selectedDriver.id)
+    .in('status', ['available', 'online'])
+    .select('*')
+    .single()
 
-    return res.json({
-      success: true,
-      message: 'Dispatch accepted.',
-      ride: hideRideCoordinates(updatedRide)
-    })
+  if (lockError || !lockedDriver) {
+    throw new Error('Driver lock failed. Unit may have been assigned already.')
   }
 
-  return res.status(400).json({
-    error: 'action must be accept or decline.'
-  })
-})
-
-/**
- * Ride request
- * Frontend should send addresses.
- * Coordinates may be included in hidden fields or geocoded later.
- * Response is always sanitized.
- */
-app.post('/api/request-ride', (req, res) => {
-  const {
-    riderId,
-    riderName,
-    pickup,
-    dropoff,
-    pickupLat,
-    pickupLng,
-    dropoffLat,
-    dropoffLng,
-    rideType
-  } = req.body
-
-  if (!pickup || !dropoff) {
-    return res.status(400).json({
-      error: 'pickup and dropoff are required.'
-    })
+  const ridePayload = {
+    rider_name,
+    rider_id: rider_id || null,
+    pickup_address,
+    pickup_lat,
+    pickup_lng,
+    dropoff_address,
+    dropoff_lat,
+    dropoff_lng,
+    driver_id: lockedDriver.id,
+    vehicle_type: lockedDriver.vehicle_type || null,
+    fleet_type: lockedDriver.type,
+    status: 'assigned',
+    dispatch_mode: DISPATCH_MODE,
+    created_at: now,
+    accepted_at: now
   }
 
-  if (
-    pickupLat === undefined ||
-    pickupLng === undefined ||
-    dropoffLat === undefined ||
-    dropoffLng === undefined
-  ) {
-    return res.status(400).json({
-      error: 'Backend dispatch still requires hidden pickup/dropoff coordinates.'
-    })
+  const { data: ride, error: rideError } = await supabase
+    .from('rides')
+    .insert([ridePayload])
+    .select('*')
+    .single()
+
+  if (rideError) {
+    await supabase
+      .from('drivers')
+      .update({ status: 'available', updated_at: new Date().toISOString() })
+      .eq('id', lockedDriver.id)
+
+    throw rideError
   }
 
-  const ride = {
-    id: uid('ride'),
-    riderId: riderId || null,
-    riderName: riderName || 'Unknown Rider',
-    pickup,
-    dropoff,
-    pickupLat: Number(pickupLat),
-    pickupLng: Number(pickupLng),
-    dropoffLat: Number(dropoffLat),
-    dropoffLng: Number(dropoffLng),
-    rideType: rideType || 'standard',
-    status: 'searching',
-    assignedVehicleId: null,
-    assignedDriverId: null,
-    fleetType: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+  const { error: queueError } = await supabase.from('dispatch_queue').insert([
+    {
+      ride_id: ride.id,
+      pickup_address,
+      dropoff_address,
+      assigned: true,
+      assigned_driver_id: lockedDriver.id,
+      fleet_type: lockedDriver.type,
+      status: 'assigned',
+      created_at: now
+    }
+  ])
+
+  if (queueError) {
+    console.error('QUEUE INSERT WARNING:', queueError.message)
   }
 
-  const rides = getAllRides()
-  rides.push(ride)
-  writeJson(FILES.rides, rides)
+  return { ride, lockedDriver }
+}
 
-  addMessage({
-    id: uid('msg'),
-    rideId: ride.id,
-    sender: 'system',
-    text: 'Ride created. Starting dispatch search.',
-    createdAt: new Date().toISOString()
-  })
+// ---------- DISPATCH BRAIN ----------
+app.post('/api/request-ride', async (req, res) => {
+  try {
+    const rider_name = normalizeText(req.body.rider_name)
+    const rider_id = normalizeText(req.body.rider_id)
+    const pickup_address_input = normalizeText(req.body.pickup_address)
+    const dropoff_address_input = normalizeText(req.body.dropoff_address)
 
-  const dispatchResult = startDispatchFlow(ride.id)
-  const refreshedRide = getAllRides().find(r => r.id === ride.id)
+    if (!rider_name || !pickup_address_input || !dropoff_address_input) {
+      return res.status(400).json({
+        error: 'rider_name, pickup_address, and dropoff_address are required'
+      })
+    }
 
-  res.json({
-    success: true,
-    ride: hideRideCoordinates(refreshedRide),
-    dispatchResult: dispatchResult.dispatch
-      ? { ...dispatchResult, dispatch: hideDispatchCoordinates(dispatchResult.dispatch) }
-      : dispatchResult
-  })
-})
+    const pickupGeo = await geocodeAddress(pickup_address_input)
+    const dropoffGeo = await geocodeAddress(dropoff_address_input)
 
-app.get('/api/rides', (req, res) => {
-  const rides = getAllRides()
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-    .map(hideRideCoordinates)
+    const availableFleet = await fetchAvailableFleet()
 
-  res.json(rides)
-})
-
-app.get('/api/rides/:rideId', (req, res) => {
-  const ride = getAllRides().find(r => r.id === req.params.rideId)
-
-  if (!ride) {
-    return res.status(404).json({ error: 'Ride not found.' })
-  }
-
-  res.json(hideRideCoordinates(ride))
-})
-
-app.post('/api/rides/:rideId/status', (req, res) => {
-  const { rideId } = req.params
-  const { status } = req.body
-
-  if (!status) {
-    return res.status(400).json({ error: 'status is required.' })
-  }
-
-  const updatedRide = updateRide(rideId, r => ({
-    ...r,
-    status,
-    updatedAt: new Date().toISOString()
-  }))
-
-  if (!updatedRide) {
-    return res.status(404).json({ error: 'Ride not found.' })
-  }
-
-  if (status === 'completed' || status === 'cancelled') {
-    if (updatedRide.assignedVehicleId) {
-      updateVehicle(updatedRide.assignedVehicleId, v => ({
-        ...v,
-        status: 'online',
-        activeRideId: null,
-        currentDispatchId: null
+    const candidates = availableFleet
+      .filter(
+        (unit) =>
+          typeof unit.lat === 'number' &&
+          typeof unit.lng === 'number' &&
+          unit.current_address
+      )
+      .map((unit) => ({
+        ...unit,
+        distanceMiles: haversineMiles(
+          pickupGeo.lat,
+          pickupGeo.lng,
+          unit.lat,
+          unit.lng
+        )
       }))
+      .sort((a, b) => a.distanceMiles - b.distanceMiles)
+
+    const selectedDriver = chooseCandidateByMode(candidates)
+
+    if (!selectedDriver) {
+      const { error: queueError } = await supabase.from('dispatch_queue').insert([
+        {
+          pickup_address: pickupGeo.formatted_address,
+          dropoff_address: dropoffGeo.formatted_address,
+          assigned: false,
+          status: 'waiting',
+          fleet_type: 'unassigned',
+          created_at: new Date().toISOString()
+        }
+      ])
+
+      if (queueError) {
+        console.error('QUEUE WAITING INSERT ERROR:', queueError.message)
+      }
+
+      return res.status(404).json({
+        error: 'No available driver or AV found',
+        dispatch_mode: DISPATCH_MODE
+      })
     }
-  }
 
-  res.json({
-    success: true,
-    ride: hideRideCoordinates(updatedRide)
-  })
-})
-
-/**
- * Admin routes
- * Admin sees addresses only in these endpoints.
- */
-app.get('/api/admin/dispatches', (req, res) => {
-  const dispatches = getAllDispatches()
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-    .map(hideDispatchCoordinates)
-
-  res.json(dispatches)
-})
-
-app.get('/api/admin/active-dispatches', (req, res) => {
-  const dispatches = getAllDispatches()
-    .filter(d => ['offered', 'accepted'].includes(d.status))
-    .map(hideDispatchCoordinates)
-
-  res.json(dispatches)
-})
-
-app.post('/api/admin/manual-dispatch', (req, res) => {
-  const { rideId, vehicleId } = req.body
-
-  if (!rideId || !vehicleId) {
-    return res.status(400).json({
-      error: 'rideId and vehicleId are required.'
+    const { ride, lockedDriver } = await lockDriverAndCreateRide({
+      rider_name,
+      rider_id,
+      pickup_address: pickupGeo.formatted_address,
+      pickup_lat: pickupGeo.lat,
+      pickup_lng: pickupGeo.lng,
+      dropoff_address: dropoffGeo.formatted_address,
+      dropoff_lat: dropoffGeo.lat,
+      dropoff_lng: dropoffGeo.lng,
+      selectedDriver
     })
-  }
 
-  const ride = getAllRides().find(r => r.id === rideId)
-  const vehicle = getAllVehicles().find(v => v.id === vehicleId)
+    const distanceMiles = haversineMiles(
+      pickupGeo.lat,
+      pickupGeo.lng,
+      lockedDriver.lat,
+      lockedDriver.lng
+    )
 
-  if (!ride) {
-    return res.status(404).json({ error: 'Ride not found.' })
-  }
-
-  if (!vehicle) {
-    return res.status(404).json({ error: 'Vehicle not found.' })
-  }
-
-  if (!isVehicleEligible(vehicle)) {
-    return res.status(400).json({
-      error: 'Vehicle is not eligible right now.'
+    return res.json({
+      success: true,
+      message: 'Ride dispatched successfully',
+      dispatch_mode: DISPATCH_MODE,
+      ride: sanitizeRide(ride),
+      assigned_unit: maskDriverForClient(lockedDriver, distanceMiles)
     })
+  } catch (error) {
+    console.error('REQUEST RIDE ERROR:', error.message)
+    return res.status(500).json({ error: error.message })
   }
-
-  if (ride.dispatchId) {
-    updateDispatch(ride.dispatchId, d => ({
-      ...d,
-      status: 'replaced_by_admin',
-      replacedAt: new Date().toISOString()
-    }))
-  }
-
-  updateRide(ride.id, r => ({
-    ...r,
-    status: 'searching',
-    dispatchId: null,
-    assignedVehicleId: null,
-    assignedDriverId: null,
-    fleetType: null,
-    updatedAt: new Date().toISOString()
-  }))
-
-  const rankedVehicle = {
-    ...vehicle,
-    milesAway: 0
-  }
-
-  const result = createDispatchOffer(ride, rankedVehicle, 999)
-
-  res.json({
-    success: true,
-    result: result.dispatch
-      ? { ...result, dispatch: hideDispatchCoordinates(result.dispatch) }
-      : result
-  })
 })
 
-app.get('/api/health', (req, res) => {
-  res.json({
-    success: true,
-    service: 'Harvey Taxi Dispatch Brain',
-    mode: 'address_only_frontend',
-    time: new Date().toISOString()
-  })
+// ---------- RIDES ----------
+app.get('/api/rides', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('rides')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(100)
+
+    if (error) throw error
+
+    res.json((data || []).map(sanitizeRide))
+  } catch (error) {
+    console.error('GET RIDES ERROR:', error.message)
+    res.status(500).json({ error: error.message })
+  }
 })
 
-ensureFile(FILES.rides, [])
-ensureFile(FILES.gps, [])
-ensureFile(FILES.vehicles, [])
-ensureFile(FILES.riders, [])
-ensureFile(FILES.messages, [])
-ensureFile(FILES.commands, [])
-ensureFile(FILES.missions, [])
-ensureFile(FILES.dispatches, [])
+app.get('/api/rides/:rideId', async (req, res) => {
+  try {
+    const { rideId } = req.params
 
+    const { data, error } = await supabase
+      .from('rides')
+      .select('*')
+      .eq('id', rideId)
+      .single()
+
+    if (error) throw error
+
+    res.json(sanitizeRide(data))
+  } catch (error) {
+    console.error('GET RIDE ERROR:', error.message)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+app.post('/api/rides/:rideId/status', async (req, res) => {
+  try {
+    const { rideId } = req.params
+    const nextStatus = normalizeText(req.body.status)
+
+    const allowed = [
+      'assigned',
+      'accepted',
+      'enroute',
+      'arrived',
+      'in_trip',
+      'completed',
+      'cancelled'
+    ]
+
+    if (!allowed.includes(nextStatus)) {
+      return res.status(400).json({ error: 'Invalid ride status' })
+    }
+
+    const patch = {
+      status: nextStatus
+    }
+
+    if (nextStatus === 'accepted') patch.accepted_at = new Date().toISOString()
+    if (nextStatus === 'in_trip') patch.started_at = new Date().toISOString()
+    if (nextStatus === 'completed') patch.completed_at = new Date().toISOString()
+
+    const { data: ride, error: rideError } = await supabase
+      .from('rides')
+      .update(patch)
+      .eq('id', rideId)
+      .select('*')
+      .single()
+
+    if (rideError) throw rideError
+
+    if (nextStatus === 'completed' || nextStatus === 'cancelled') {
+      await supabase
+        .from('drivers')
+        .update({
+          status: 'available',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', ride.driver_id)
+
+      await supabase
+        .from('dispatch_queue')
+        .update({
+          status: nextStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('ride_id', rideId)
+    } else {
+      await supabase
+        .from('dispatch_queue')
+        .update({
+          status: nextStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('ride_id', rideId)
+    }
+
+    res.json({
+      success: true,
+      ride: sanitizeRide(ride)
+    })
+  } catch (error) {
+    console.error('UPDATE RIDE STATUS ERROR:', error.message)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// ---------- DRIVER / AV FLEET ----------
+app.get('/api/admin/fleet', async (req, res) => {
+  try {
+    const { data: drivers, error } = await supabase.from('drivers').select('*')
+    if (error) throw error
+
+    const fleet = drivers || []
+
+    const active = fleet.filter((d) =>
+      ['assigned', 'enroute', 'arrived', 'in_trip', 'busy'].includes(d.status)
+    ).length
+
+    const humanDrivers = fleet.filter((d) => d.type === 'human').length
+    const avs = fleet.filter((d) => d.type === 'av').length
+    const available = fleet.filter((d) =>
+      ['available', 'online'].includes(d.status)
+    ).length
+
+    res.json({
+      active,
+      drivers: humanDrivers,
+      avs,
+      available,
+      dispatch_mode: DISPATCH_MODE
+    })
+  } catch (error) {
+    console.error('ADMIN FLEET ERROR:', error.message)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+app.get('/api/fleet/locations', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('drivers')
+      .select('id,name,type,status,vehicle_type,current_address,updated_at')
+      .order('updated_at', { ascending: false })
+
+    if (error) throw error
+
+    res.json(data || [])
+  } catch (error) {
+    console.error('FLEET LOCATIONS ERROR:', error.message)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+app.post('/api/fleet/update-location', async (req, res) => {
+  try {
+    const driverId = normalizeText(req.body.driver_id)
+    const currentAddressInput = normalizeText(req.body.current_address)
+    const status = normalizeText(req.body.status)
+
+    if (!driverId || !currentAddressInput) {
+      return res.status(400).json({
+        error: 'driver_id and current_address are required'
+      })
+    }
+
+    const geo = await geocodeAddress(currentAddressInput)
+
+    const updatePayload = {
+      current_address: geo.formatted_address,
+      lat: geo.lat,
+      lng: geo.lng,
+      updated_at: new Date().toISOString()
+    }
+
+    if (status) updatePayload.status = status
+
+    const { data, error } = await supabase
+      .from('drivers')
+      .update(updatePayload)
+      .eq('id', driverId)
+      .select('*')
+      .single()
+
+    if (error) throw error
+
+    res.json({
+      success: true,
+      driver: maskDriverForClient(data)
+    })
+  } catch (error) {
+    console.error('UPDATE LOCATION ERROR:', error.message)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// ---------- ADMIN DISPATCH FEED ----------
+app.get('/api/admin/dispatch-feed', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('dispatch_queue')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(50)
+
+    if (error) throw error
+
+    res.json(data || [])
+  } catch (error) {
+    console.error('DISPATCH FEED ERROR:', error.message)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// ---------- LIVE CHAT ----------
+app.get('/api/chat', async (req, res) => {
+  try {
+    const rideId = normalizeText(req.query.ride_id)
+
+    let query = supabase
+      .from('ride_chat')
+      .select('id,ride_id,sender_type,message,created_at')
+      .order('created_at', { ascending: true })
+      .limit(200)
+
+    if (rideId) {
+      query = query.eq('ride_id', rideId)
+    }
+
+    const { data, error } = await query
+    if (error) throw error
+
+    res.json(data || [])
+  } catch (error) {
+    console.error('GET CHAT ERROR:', error.message)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+app.post('/api/chat', async (req, res) => {
+  try {
+    const ride_id = normalizeText(req.body.ride_id)
+    const sender_type = normalizeText(req.body.sender_type || 'rider')
+    const message = normalizeText(req.body.message)
+
+    if (!message) {
+      return res.status(400).json({ error: 'message is required' })
+    }
+
+    const { data, error } = await supabase
+      .from('ride_chat')
+      .insert([
+        {
+          ride_id: ride_id || null,
+          sender_type,
+          message,
+          created_at: new Date().toISOString()
+        }
+      ])
+      .select('*')
+      .single()
+
+    if (error) throw error
+
+    res.json({
+      success: true,
+      chat: data
+    })
+  } catch (error) {
+    console.error('POST CHAT ERROR:', error.message)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// ---------- DRIVER SEED ROUTE ----------
+app.post('/api/admin/register-driver', async (req, res) => {
+  try {
+    const name = normalizeText(req.body.name)
+    const type = normalizeText(req.body.type || 'human')
+    const status = normalizeText(req.body.status || 'available')
+    const vehicle_type = normalizeText(req.body.vehicle_type || 'standard')
+    const current_address_input = normalizeText(req.body.current_address)
+
+    if (!name || !current_address_input) {
+      return res.status(400).json({
+        error: 'name and current_address are required'
+      })
+    }
+
+    if (!['human', 'av'].includes(type)) {
+      return res.status(400).json({ error: 'type must be human or av' })
+    }
+
+    const geo = await geocodeAddress(current_address_input)
+
+    const { data, error } = await supabase
+      .from('drivers')
+      .insert([
+        {
+          name,
+          type,
+          status,
+          vehicle_type,
+          current_address: geo.formatted_address,
+          lat: geo.lat,
+          lng: geo.lng,
+          updated_at: new Date().toISOString()
+        }
+      ])
+      .select('*')
+      .single()
+
+    if (error) throw error
+
+    res.json({
+      success: true,
+      driver: maskDriverForClient(data)
+    })
+  } catch (error) {
+    console.error('REGISTER DRIVER ERROR:', error.message)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// ---------- START ----------
 app.listen(PORT, () => {
-  console.log(`Harvey Taxi server running on port ${PORT}`)
+  console.log(`Harvey Taxi Dispatch Brain running on port ${PORT}`)
 })
