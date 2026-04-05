@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Harvey Taxi — Driver Missions</title>
+  <style>
+    :root{
+      --bg1:#050916;
+      --bg2:#0a1126;
+      --panel:rgba(11,18,38,.9);
+      --panel2:rgba(255,255,255,.04);
+      --line:rgba(122,162,255,.16);
+      --text:#f4f7ff;
+      --muted:#aab8de;
+      --blue:#5ea0ff;
+      --cyan:#63f5ff;
+      --green:#6dffb3;
+      --danger:#ff7e97;
+      --gold:#ffd76a;
+      --radius:24px;
+      --shadow:0 18px 60px rgba(0,0,0,.35);
+    }
+
+    *{box-sizing:border-box;margin:0;padding:0}
+
+    body{
+      font-family:Inter,Arial,sans-serif;
+      color:var(--text);
+      min-height:100vh;
+      background:
+        radial-gradient(circle at top left, rgba(99,245,255,.10), transparent 25%),
+        linear-gradient(160deg,var(--bg1),var(--bg2));
+    }
+
+    .shell{
+      max-width:1000px;
+      margin:auto;
+      padding:20px 16px 40px;
+    }
+
+    .topbar{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      margin-bottom:18px;
+      gap:12px;
+    }
+
+    .brand{
+      font-size:1.25rem;
+      font-weight:800;
+    }
+
+    .brand span{color:var(--cyan)}
+
+    .home-btn{
+      text-decoration:none;
+      color:var(--text);
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.04);
+      padding:10px 14px;
+      border-radius:999px;
+      font-weight:700;
+    }
+
+    .hero{
+      background:linear-gradient(180deg,rgba(18,31,66,.88),rgba(8,16,35,.94));
+      border:1px solid var(--line);
+      border-radius:28px;
+      padding:20px;
+      box-shadow:var(--shadow);
+      margin-bottom:18px;
+    }
+
+    .hero h1{
+      margin-bottom:8px;
+      font-size:1.55rem;
+    }
+
+    .hero p{
+      color:var(--muted);
+      line-height:1.55;
+    }
+
+    .controls{
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:24px;
+      padding:18px;
+      margin-bottom:18px;
+      box-shadow:var(--shadow);
+    }
+
+    .controls-grid{
+      display:grid;
+      grid-template-columns:1fr auto auto;
+      gap:12px;
+      align-items:end;
+    }
+
+    .input{
+      width:100%;
+      background:var(--panel2);
+      color:var(--text);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:16px;
+      padding:14px;
+      outline:none;
+    }
+
+    label{
+      display:block;
+      margin-bottom:8px;
+      color:var(--muted);
+      font-size:.92rem;
+      font-weight:700;
+    }
+
+    button{
+      border:none;
+      cursor:pointer;
+      border-radius:16px;
+      padding:14px 18px;
+      font-size:1rem;
+      font-weight:800;
+    }
+
+    .primary{
+      background:linear-gradient(90deg,var(--blue),var(--cyan));
+      color:#051325;
+    }
+
+    .secondary{
+      background:rgba(255,255,255,.05);
+      color:var(--text);
+      border:1px solid var(--line);
+    }
+
+    .missions{
+      display:grid;
+      gap:16px;
+    }
+
+    .mission-card{
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:24px;
+      padding:18px;
+      box-shadow:var(--shadow);
+    }
+
+    .mission-top{
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      align-items:flex-start;
+      margin-bottom:16px;
+      flex-wrap:wrap;
+    }
+
+    .mission-title{
+      font-size:1.08rem;
+      font-weight:800;
+      margin-bottom:6px;
+    }
+
+    .mission-sub{
+      color:var(--muted);
+      line-height:1.45;
+      font-size:.95rem;
+    }
+
+    .badge{
+      display:inline-flex;
+      padding:8px 12px;
+      border-radius:999px;
+      font-size:.8rem;
+      font-weight:800;
+      border:1px solid transparent;
+    }
+
+    .ok{background:rgba(109,255,179,.12);color:var(--green);border-color:rgba(109,255,179,.18)}
+    .warn{background:rgba(255,215,106,.12);color:var(--gold);border-color:rgba(255,215,106,.18)}
+    .bad{background:rgba(255,126,151,.12);color:var(--danger);border-color:rgba(255,126,151,.18)}
+
+    .mission-grid{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:12px;
+      margin-bottom:14px;
+    }
+
+    .box{
+      background:rgba(255,255,255,.035);
+      border:1px solid var(--line);
+      border-radius:18px;
+      padding:14px;
+    }
+
+    .box .k{
+      color:var(--muted);
+      font-size:.82rem;
+      margin-bottom:6px;
+    }
+
+    .box .v{
+      font-size:.98rem;
+      font-weight:800;
+      line-height:1.45;
+    }
+
+    .notes{
+      background:rgba(255,255,255,.03);
+      border:1px solid var(--line);
+      border-radius:18px;
+      padding:14px;
+      line-height:1.6;
+      color:var(--text);
+      margin-bottom:14px;
+    }
+
+    .actions{
+      display:flex;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+
+    .accept{
+      background:linear-gradient(90deg,#63f5ff,#6dffb3);
+      color:#06221b;
+      flex:1;
+    }
+
+    .decline{
+      background:rgba(255,255,255,.05);
+      color:var(--text);
+      border:1px solid var(--line);
+      flex:1;
+    }
+
+    .empty{
+      padding:24px;
+      text-align:center;
+      color:var(--muted);
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:24px;
+    }
+
+    @media (max-width: 820px){
+      .controls-grid,
+      .mission-grid{
+        grid-template-columns:1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="topbar">
+      <div class="brand">Harvey <span>Taxi</span></div>
+      <a class="home-btn" href="/">← Return Home</a>
+    </div>
+
+    <div class="hero">
+      <h1>Driver Mission Center</h1>
+      <p>
+        Drivers only receive missions that are financially cleared and fully packaged with route,
+        fare, payout, rider verification, and trip notes before acceptance.
+      </p>
+    </div>
+
+    <div class="controls">
+      <div class="controls-grid">
+        <div>
+          <label for="driverId">Driver ID</label>
+          <input class="input" id="driverId" placeholder="Example: driver_2001" />
+        </div>
+        <button class="secondary" id="refreshBtn">Refresh Missions</button>
+        <button class="primary" id="onlineBtn">Go Online</button>
+      </div>
+    </div>
+
+    <div class="missions" id="missionsContainer">
+      <div class="empty">Enter your driver ID, go online, and load available missions.</div>
+    </div>
+  </div>
+
+  <script>
+    const missionsContainer = document.getElementById("missionsContainer");
+    const driverIdInput = document.getElementById("driverId");
+    const onlineBtn = document.getElementById("onlineBtn");
+
+    let driverOnline = false;
+
+    function missionBadgeClass(value){
+      if(value === "AUTHORIZED" || value === "APPROVED" || value === "READY_FOR_DRIVER"){
+        return "ok";
+      }
+      if(value === "PENDING" || value === "DISPATCHING"){
+        return "warn";
+      }
+      return "bad";
+    }
+
+    async function setDriverOnlineStatus(){
+      const driverId = driverIdInput.value.trim();
+      if(!driverId){
+        alert("Enter driver ID first.");
+        return;
+      }
+
+      try{
+        const res = await fetch("/api/driver/go-online", {
+          method: "POST",
+          headers: {"Content-Type":"application/json"},
+          body: JSON.stringify({
+            driver_id: driverId,
+            is_online: !driverOnline
+          })
+        });
+
+        const data = await res.json();
+        if(data.success){
+          driverOnline = data.driver.is_online;
+          onlineBtn.textContent = driverOnline ? "Go Offline" : "Go Online";
+          loadMissions();
+        }else{
+          alert(data.message || "Unable to update driver status.");
+        }
+      }catch(err){
+        alert("Unable to update driver status.");
+      }
+    }
+
+    async function loadMissions(){
+      const driverId = driverIdInput.value.trim();
+      if(!driverId){
+        missionsContainer.innerHTML = `<div class="empty">Enter your driver ID to load missions.</div>`;
+        return;
+      }
+
+      try{
+        const res = await fetch(`/api/driver-missions/${encodeURIComponent(driverId)}`);
+        const data = await res.json();
+
+        if(!data.success){
+          missionsContainer.innerHTML = `<div class="empty">${data.message || "Unable to load missions."}</div>`;
+          return;
+        }
+
+        if(!data.missions || data.missions.length === 0){
+          missionsContainer.innerHTML = `<div class="empty">No mission offers available right now.</div>`;
+          return;
+        }
+
+        missionsContainer.innerHTML = data.missions.map(mission => `
+          <div class="mission-card">
+            <div class="mission-top">
+              <div>
+                <div class="mission-title">New Trip Mission • ${mission.ride_type.replaceAll("_"," ")}</div>
+                <div class="mission-sub">
+                  Passenger: ${mission.passenger_first_name}<br>
+                  Mission ID: ${mission.ride_id}
+                </div>
+              </div>
+              <div class="badge ${missionBadgeClass(mission.payment_status)}">
+                Payment ${mission.payment_status}
+              </div>
+            </div>
+
+            <div class="mission-grid">
+              <div class="box">
+                <div class="k">Pickup</div>
+                <div class="v">${mission.pickup_address}</div>
+              </div>
+              <div class="box">
+                <div class="k">Dropoff</div>
+                <div class="v">${mission.dropoff_address}</div>
+              </div>
+              <div class="box">
+                <div class="k">Rider Verification</div>
+                <div class="v">${mission.rider_verification_status}</div>
+              </div>
+
+              <div class="box">
+                <div class="k">Estimated Distance</div>
+                <div class="v">${mission.estimated_distance_miles} mi</div>
+              </div>
+              <div class="box">
+                <div class="k">Estimated Duration</div>
+                <div class="v">${mission.estimated_duration_minutes} min</div>
+              </div>
+              <div class="box">
+                <div class="k">ETA to Pickup</div>
+                <div class="v">${mission.eta_to_pickup_minutes} min</div>
+              </div>
+
+              <div class="box">
+                <div class="k">Estimated Fare</div>
+                <div class="v">$${Number(mission.estimated_fare).toFixed(2)}</div>
+              </div>
+              <div class="box">
+                <div class="k">Estimated Driver Payout</div>
+                <div class="v">$${Number(mission.estimated_driver_payout).toFixed(2)}</div>
+              </div>
+              <div class="box">
+                <div class="k">Scheduled Time</div>
+                <div class="v">${mission.scheduled_time || "ASAP"}</div>
+              </div>
+            </div>
+
+            <div class="notes">
+              <strong>Special Notes:</strong><br>
+              ${mission.special_notes || "No special notes provided."}
+            </div>
+
+            <div class="actions">
+              <button class="accept" onclick="acceptMission('${mission.ride_id}')">Accept Mission</button>
+              <button class="decline" onclick="declineMission('${mission.ride_id}')">Decline</button>
+            </div>
+          </div>
+        `).join("");
+      }catch(err){
+        missionsContainer.innerHTML = `<div class="empty">Unable to load missions right now.</div>`;
+      }
+    }
+
+    async function acceptMission(rideId){
+      const driverId = driverIdInput.value.trim();
+      if(!driverId){
+        alert("Enter driver ID first.");
+        return;
+      }
+
+      try{
+        const res = await fetch("/api/driver-missions/accept", {
+          method: "POST",
+          headers: {"Content-Type":"application/json"},
+          body: JSON.stringify({ driver_id: driverId, ride_id: rideId })
+        });
+
+        const data = await res.json();
+        alert(data.message || "Mission updated.");
+        loadMissions();
+      }catch(err){
+        alert("Unable to accept mission.");
+      }
+    }
+
+    async function declineMission(rideId){
+      const driverId = driverIdInput.value.trim();
+      if(!driverId){
+        alert("Enter driver ID first.");
+        return;
+      }
+
+      try{
+        const res = await fetch("/api/driver-missions/decline", {
+          method: "POST",
+          headers: {"Content-Type":"application/json"},
+          body: JSON.stringify({ driver_id: driverId, ride_id: rideId })
+        });
+
+        const data = await res.json();
+        alert(data.message || "Mission updated.");
+        loadMissions();
+      }catch(err){
+        alert("Unable to decline mission.");
+      }
+    }
+
+    document.getElementById("refreshBtn").addEventListener("click", loadMissions);
+    document.getElementById("onlineBtn").addEventListener("click", setDriverOnlineStatus);
+  </script>
+</body>
+</html>
