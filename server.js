@@ -4,21 +4,23 @@ const path = require("path");
 const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
-const PORT = process.env.PORT || 3000;
-
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+const PORT = process.env.PORT || 10000;
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-/* -----------------------------
-   HELPERS
------------------------------ */
+/* ===============================
+   SUPABASE
+================================ */
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
+/* ===============================
+   HELPERS
+================================ */
 function generateId(prefix) {
   return `${prefix}_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
 }
@@ -55,7 +57,7 @@ function buildFareEstimate({ pickup_address, dropoff_address, ride_type }) {
   if (ride_type === "AIRPORT") surgeMultiplier = 1.15;
   if (ride_type === "SCHEDULED") surgeMultiplier = 1.10;
   if (ride_type === "MEDICAL") surgeMultiplier = 1.05;
-  if (ride_type === "NONPROFIT") surgeMultiplier = 1.00;
+  if (ride_type === "NONPROFIT") surgeMultiplier = 1.0;
 
   const rawFare =
     (baseFare + distance * perMile + duration * perMinute) * surgeMultiplier +
@@ -98,10 +100,9 @@ function getDriverEtaMinutes(driver, ride) {
   return 7 + Math.floor((Number(driver.completed_missions || 0) % 3));
 }
 
-/* -----------------------------
+/* ===============================
    DB HELPERS
------------------------------ */
-
+================================ */
 async function getRiderById(riderId) {
   const { data, error } = await supabase
     .from("riders")
@@ -166,7 +167,7 @@ async function hydrateRide(ride) {
 
 async function hydrateRides(rides) {
   const result = [];
-  for (const ride of rides) {
+  for (const ride of rides || []) {
     result.push(await hydrateRide(ride));
   }
   return result;
@@ -178,31 +179,28 @@ function driverEligibleForRide(driver, ride) {
   if (driver.is_busy) return false;
   if (driver.verification_status !== "APPROVED") return false;
   if (driver.background_status !== "APPROVED") return false;
-  if (
-    ride.payment_status !== "AUTHORIZED" &&
-    ride.payment_status !== "SPONSORED"
-  ) return false;
+  if (!["AUTHORIZED", "SPONSORED"].includes(ride.payment_status)) return false;
   if (ride.rider_verification_status !== "APPROVED") return false;
-
   return true;
 }
 
 function scoreDriverForRide(driver, ride) {
   const eta = getDriverEtaMinutes(driver, ride);
   const payout = Number(ride.estimated_driver_payout || 0);
-  const rideTypeBonus = ride.ride_type === "AIRPORT" && driver.zone === "AIRPORT" ? 8 : 0;
+  const rideTypeBonus =
+    ride.ride_type === "AIRPORT" && driver.zone === "AIRPORT" ? 8 : 0;
   const onlineBonus = driver.is_online ? 5 : 0;
   const reliabilityBonus = Number(driver.acceptance_score || 0) / 10;
   const experienceBonus = Math.min(Number(driver.completed_missions || 0), 40) / 8;
 
   const score =
-    100
-    - eta * 7
-    + onlineBonus
-    + rideTypeBonus
-    + reliabilityBonus
-    + experienceBonus
-    + payout * 0.15;
+    100 -
+    eta * 7 +
+    onlineBonus +
+    rideTypeBonus +
+    reliabilityBonus +
+    experienceBonus +
+    payout * 0.15;
 
   return {
     score: round2(score),
@@ -211,10 +209,7 @@ function scoreDriverForRide(driver, ride) {
 }
 
 async function findBestDriverForRide(ride) {
-  const { data: drivers, error } = await supabase
-    .from("drivers")
-    .select("*");
-
+  const { data: drivers, error } = await supabase.from("drivers").select("*");
   if (error) throw error;
 
   const eligibleDrivers = (drivers || []).filter((driver) =>
@@ -252,7 +247,6 @@ async function assignDriverToRide(ride) {
       .single();
 
     if (error) throw error;
-
     return { assigned: false, ride: data };
   }
 
@@ -295,7 +289,7 @@ async function redispatchRide(ride) {
   if (error) throw error;
 
   const freshRide = await getRideById(ride.ride_id);
-  return assignDriverToRide(freshRide);
+  return await assignDriverToRide(freshRide);
 }
 
 function buildDriverMission(ride, driverId) {
@@ -333,16 +327,13 @@ async function getDashboardSummary() {
         r.ride_status === "DRIVER_ARRIVING" ||
         r.ride_status === "IN_PROGRESS"
     ).length,
-    completed_trips: (rides || []).filter(
-      (r) => r.ride_status === "COMPLETED"
-    ).length
+    completed_trips: (rides || []).filter((r) => r.ride_status === "COMPLETED").length
   };
 }
 
-/* -----------------------------
+/* ===============================
    STATIC PAGE ROUTES
------------------------------ */
-
+================================ */
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
@@ -367,10 +358,120 @@ app.get("/admin-dashboard", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "admin-dashboard.html"));
 });
 
-/* -----------------------------
-   RIDER / VERIFICATION
------------------------------ */
+/* ===============================
+   RIDER SIGNUP
+================================ */
+app.post("/api/rider/signup", async (req, res) => {
+  try {
+    const {
+      full_name,
+      phone,
+      email,
+      city
+    } = req.body;
 
+    if (!full_name || !phone) {
+      return res.status(400).json({
+        success: false,
+        message: "Full name and phone are required."
+      });
+    }
+
+    const riderId = generateId("rider");
+
+    const { data, error } = await supabase
+      .from("riders")
+      .insert([
+        {
+          rider_id: riderId,
+          first_name: full_name,
+          phone,
+          verification_status: "PENDING"
+        }
+      ])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return res.json({
+      success: true,
+      rider_id: data.rider_id,
+      status: "PENDING_APPROVAL",
+      rider: data
+    });
+  } catch (error) {
+    console.log("Rider signup error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Unable to submit rider application right now."
+    });
+  }
+});
+
+/* ===============================
+   DRIVER SIGNUP
+================================ */
+app.post("/api/driver/signup", async (req, res) => {
+  try {
+    const {
+      full_name,
+      phone,
+      email,
+      vehicle_type,
+      license,
+      city
+    } = req.body;
+
+    if (!full_name || !phone || !vehicle_type || !city) {
+      return res.status(400).json({
+        success: false,
+        message: "Full name, phone, vehicle type, and city are required."
+      });
+    }
+
+    const driverId = generateId("driver");
+
+    const { data, error } = await supabase
+      .from("drivers")
+      .insert([
+        {
+          driver_id: driverId,
+          first_name: full_name,
+          verification_status: "PENDING",
+          background_status: "PENDING",
+          is_online: false,
+          is_busy: false,
+          current_address: city,
+          zone: getPickupZone(city),
+          vehicle_type: vehicle_type || "STANDARD",
+          completed_missions: 0,
+          acceptance_score: 90
+        }
+      ])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return res.json({
+      success: true,
+      driver_id: data.driver_id,
+      status: "PENDING_APPROVAL",
+      driver: data
+    });
+  } catch (error) {
+    console.log("Driver signup error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Unable to submit the driver application right now. Please try again."
+    });
+  }
+});
+
+/* ===============================
+   RIDER STATUS
+================================ */
 app.get("/api/rider-status/:riderId", async (req, res) => {
   try {
     const rider = await getRiderById(req.params.riderId);
@@ -382,16 +483,18 @@ app.get("/api/rider-status/:riderId", async (req, res) => {
       });
     }
 
-    return res.json({ success: true, rider });
+    return res.json({
+      success: true,
+      rider
+    });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
 });
 
-/* -----------------------------
+/* ===============================
    FARE ESTIMATE
------------------------------ */
-
+================================ */
 app.post("/api/fare-estimate", async (req, res) => {
   try {
     const { pickup_address, dropoff_address, ride_type } = req.body;
@@ -409,16 +512,18 @@ app.post("/api/fare-estimate", async (req, res) => {
       ride_type: ride_type || "STANDARD"
     });
 
-    return res.json({ success: true, estimate });
+    return res.json({
+      success: true,
+      estimate
+    });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
 });
 
-/* -----------------------------
+/* ===============================
    PAYMENT AUTHORIZATION
------------------------------ */
-
+================================ */
 app.post("/api/payments/authorize", async (req, res) => {
   try {
     const { rider_id, payment_method, estimated_fare, ride_type } = req.body;
@@ -461,16 +566,18 @@ app.post("/api/payments/authorize", async (req, res) => {
 
     if (error) throw error;
 
-    return res.json({ success: true, authorization: data });
+    return res.json({
+      success: true,
+      authorization: data
+    });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
 });
 
-/* -----------------------------
+/* ===============================
    REQUEST RIDE + DISPATCH BRAIN
------------------------------ */
-
+================================ */
 app.post("/api/request-ride", async (req, res) => {
   try {
     const {
@@ -581,14 +688,14 @@ app.post("/api/request-ride", async (req, res) => {
       ride: hydratedRide
     });
   } catch (error) {
+    console.log("Request ride error:", error);
     return res.status(500).json({ success: false, message: error.message });
   }
 });
 
-/* -----------------------------
+/* ===============================
    DRIVER ONLINE / OFFLINE
------------------------------ */
-
+================================ */
 app.post("/api/driver/go-online", async (req, res) => {
   try {
     const { driver_id, is_online } = req.body;
@@ -610,16 +717,18 @@ app.post("/api/driver/go-online", async (req, res) => {
 
     if (error) throw error;
 
-    return res.json({ success: true, driver: data });
+    return res.json({
+      success: true,
+      driver: data
+    });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
 });
 
-/* -----------------------------
+/* ===============================
    DRIVER MISSIONS
------------------------------ */
-
+================================ */
 app.get("/api/driver-missions/:driverId", async (req, res) => {
   try {
     const driver = await getDriverById(req.params.driverId);
@@ -632,7 +741,10 @@ app.get("/api/driver-missions/:driverId", async (req, res) => {
     }
 
     if (!driver.is_online) {
-      return res.json({ success: true, missions: [] });
+      return res.json({
+        success: true,
+        missions: []
+      });
     }
 
     const { data: rides, error } = await supabase
@@ -647,7 +759,10 @@ app.get("/api/driver-missions/:driverId", async (req, res) => {
       buildDriverMission(ride, driver.driver_id)
     );
 
-    return res.json({ success: true, missions });
+    return res.json({
+      success: true,
+      missions
+    });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
@@ -752,10 +867,9 @@ app.post("/api/driver-missions/decline", async (req, res) => {
   }
 });
 
-/* -----------------------------
+/* ===============================
    ACTIVE TRIP LOOKUP
------------------------------ */
-
+================================ */
 app.get("/api/rides/:rideId", async (req, res) => {
   try {
     const ride = await getRideById(req.params.rideId);
@@ -776,10 +890,9 @@ app.get("/api/rides/:rideId", async (req, res) => {
   }
 });
 
-/* -----------------------------
+/* ===============================
    TRIP STATUS
------------------------------ */
-
+================================ */
 app.post("/api/rides/:rideId/arriving", async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -882,10 +995,9 @@ app.post("/api/rides/:rideId/complete", async (req, res) => {
   }
 });
 
-/* -----------------------------
+/* ===============================
    TIPS
------------------------------ */
-
+================================ */
 app.post("/api/rides/:rideId/tip-during", async (req, res) => {
   try {
     const ride = await getRideById(req.params.rideId);
@@ -923,7 +1035,10 @@ app.post("/api/rides/:rideId/tip-during", async (req, res) => {
 
     if (error) throw error;
 
-    return res.json({ success: true, ride: await hydrateRide(data) });
+    return res.json({
+      success: true,
+      ride: await hydrateRide(data)
+    });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
@@ -966,16 +1081,18 @@ app.post("/api/rides/:rideId/tip-after", async (req, res) => {
 
     if (error) throw error;
 
-    return res.json({ success: true, ride: await hydrateRide(data) });
+    return res.json({
+      success: true,
+      ride: await hydrateRide(data)
+    });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
 });
 
-/* -----------------------------
-   ADMIN
------------------------------ */
-
+/* ===============================
+   ADMIN DISPATCH BOARD
+================================ */
 app.get("/api/admin/dispatch-board", async (req, res) => {
   try {
     const { data: rides, error: ridesError } = await supabase
@@ -1018,6 +1135,9 @@ app.get("/api/admin/dispatch-board", async (req, res) => {
   }
 });
 
+/* ===============================
+   ADMIN APPROVAL DASHBOARD
+================================ */
 app.get("/api/admin/dashboard-data", async (req, res) => {
   try {
     const { data: pendingRiders, error: ridersError } = await supabase
@@ -1143,6 +1263,9 @@ app.post("/api/admin/reject-driver", async (req, res) => {
   }
 });
 
+/* ===============================
+   DISPATCH BRAIN TOOLS
+================================ */
 app.post("/api/admin/run-dispatch/:rideId", async (req, res) => {
   try {
     const ride = await getRideById(req.params.rideId);
@@ -1205,10 +1328,9 @@ app.get("/api/admin/dispatch-insights/:rideId", async (req, res) => {
   }
 });
 
-/* -----------------------------
+/* ===============================
    DEBUG
------------------------------ */
-
+================================ */
 app.get("/api/debug/all-rides", async (req, res) => {
   try {
     const { data: rides } = await supabase.from("rides").select("*");
@@ -1230,10 +1352,9 @@ app.get("/api/debug/all-rides", async (req, res) => {
   }
 });
 
-/* -----------------------------
+/* ===============================
    START SERVER
------------------------------ */
-
+================================ */
 app.listen(PORT, () => {
-  console.log(`Harvey Taxi server running on port ${PORT}`);
+  console.log(`HARVEY SERVER RUNNING ON PORT ${PORT}`);
 });
