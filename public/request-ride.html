@@ -1,212 +1,140 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Request Ride | Harvey Taxi</title>
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #0b1020;
-      color: white;
-      padding: 20px;
-    }
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Request Ride</title>
 
-    .container {
-      max-width: 520px;
-      margin: 0 auto;
-      background: #131a2e;
-      border-radius: 18px;
-      padding: 24px;
-      box-shadow: 0 12px 30px rgba(0,0,0,.35);
-    }
+<style>
+body {
+background: #020617;
+font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+color: white;
+padding: 20px;
+}
 
-    h1 {
-      margin-top: 0;
-      text-align: center;
-    }
+.card {
+background: #0f172a;
+padding: 20px;
+border-radius: 20px;
+max-width: 500px;
+margin: auto;
+}
 
-    label {
-      display: block;
-      margin-top: 16px;
-      margin-bottom: 8px;
-      font-weight: bold;
-    }
+h1 {
+text-align: center;
+}
 
-    input {
-      width: 100%;
-      padding: 14px;
-      border-radius: 12px;
-      border: 1px solid #2b3558;
-      background: #0e1528;
-      color: white;
-      box-sizing: border-box;
-    }
+label {
+display: block;
+margin-top: 15px;
+margin-bottom: 5px;
+}
 
-    button {
-      width: 100%;
-      margin-top: 22px;
-      padding: 14px;
-      border: none;
-      border-radius: 12px;
-      background: #20c997;
-      color: #081018;
-      font-weight: bold;
-      font-size: 16px;
-      cursor: pointer;
-    }
+input {
+width: 100%;
+padding: 15px;
+border-radius: 12px;
+border: 1px solid #1e293b;
+background: #020617;
+color: white;
+font-size: 16px;
+}
 
-    button:hover {
-      opacity: 0.95;
-    }
+button {
+width: 100%;
+padding: 16px;
+border-radius: 14px;
+border: none;
+font-size: 16px;
+margin-top: 15px;
+font-weight: 600;
+}
 
-    .note {
-      margin-top: 14px;
-      font-size: 14px;
-      color: #b7c3e0;
-      line-height: 1.5;
-    }
+.primary {
+background: #10b981;
+color: black;
+}
 
-    .status {
-      margin-top: 16px;
-      padding: 12px;
-      border-radius: 12px;
-      background: #0e1528;
-      color: #d7e2ff;
-      min-height: 24px;
-    }
+.secondary {
+background: #3b82f6;
+color: white;
+}
 
-    .small-btn {
-      margin-top: 12px;
-      background: #3a86ff;
-      color: white;
-    }
-
-    .hidden {
-      display: none;
-    }
-  </style>
+.result {
+margin-top: 20px;
+padding: 12px;
+background: #020617;
+border-radius: 10px;
+}
+</style>
 </head>
+
 <body>
-  <div class="container">
-    <h1>Request Ride</h1>
 
-    <label for="pickup">Pickup Address</label>
-    <input id="pickup" type="text" placeholder="Enter pickup address" />
+<div class="card">
+<h1>Request Ride</h1>
 
-    <label for="dropoff">Dropoff Address</label>
-    <input id="dropoff" type="text" placeholder="Enter dropoff address" />
+<label>Rider Name</label>
+<input id="rider_name" placeholder="Your name" />
 
-    <button class="small-btn" onclick="fillDemoCoordinates()">
-      Auto Fill Hidden Coordinates For Testing
-    </button>
+<label>Pickup Address</label>
+<input id="pickup" placeholder="Downtown Nashville" />
 
-    <button onclick="requestRide()">Request Ride</button>
+<label>Dropoff Address</label>
+<input id="dropoff" placeholder="Nashville Airport" />
 
-    <div class="note">
-      Addresses are visible to users. Coordinates stay hidden and are only used internally by dispatch.
-    </div>
+<button class="secondary" onclick="autofill()">
+Auto Fill Hidden Coordinates For Testing
+</button>
 
-    <div class="status" id="statusBox"></div>
+<button class="primary" onclick="requestRide()">
+Request Ride
+</button>
 
-    <input id="pickupLat" class="hidden" type="hidden" />
-    <input id="pickupLng" class="hidden" type="hidden" />
-    <input id="dropoffLat" class="hidden" type="hidden" />
-    <input id="dropoffLng" class="hidden" type="hidden" />
-  </div>
+<div id="result" class="result"></div>
+</div>
 
-  <script>
-    function setStatus(text) {
-      document.getElementById('statusBox').textContent = text
-    }
+<script>
+function autofill(){
+document.getElementById('rider_name').value = "Test Rider"
+document.getElementById('pickup').value = "Downtown Nashville"
+document.getElementById('dropoff').value = "Nashville International Airport"
+}
 
-    /**
-     * Demo/testing helper:
-     * Since your dispatch engine still needs coordinates,
-     * this fills hidden coords behind the scenes.
-     * Replace later with geocoding if needed.
-     */
-    function fillDemoCoordinates() {
-      const pickup = document.getElementById('pickup').value.trim()
-      const dropoff = document.getElementById('dropoff').value.trim()
+async function requestRide(){
 
-      if (!pickup || !dropoff) {
-        setStatus('Enter pickup and dropoff addresses first.')
-        return
-      }
+const rider_name = document.getElementById('rider_name').value
+const pickup = document.getElementById('pickup').value
+const dropoff = document.getElementById('dropoff').value
 
-      // Example Nashville test coordinates
-      document.getElementById('pickupLat').value = '36.1627'
-      document.getElementById('pickupLng').value = '-86.7816'
-      document.getElementById('dropoffLat').value = '36.1263'
-      document.getElementById('dropoffLng').value = '-86.6774'
+document.getElementById('result').innerText = "Requesting ride..."
 
-      setStatus('Hidden dispatch coordinates filled. Users still only see addresses.')
-    }
+try{
 
-    async function requestRide() {
-      const pickup = document.getElementById('pickup').value.trim()
-      const dropoff = document.getElementById('dropoff').value.trim()
-      const pickupLat = document.getElementById('pickupLat').value
-      const pickupLng = document.getElementById('pickupLng').value
-      const dropoffLat = document.getElementById('dropoffLat').value
-      const dropoffLng = document.getElementById('dropoffLng').value
+const res = await fetch('/api/request-ride',{
+method:'POST',
+headers:{
+'Content-Type':'application/json'
+},
+body: JSON.stringify({
+rider_name: rider_name,
+pickup_address: pickup,
+dropoff_address: dropoff
+})
+})
 
-      if (!pickup || !dropoff) {
-        setStatus('Pickup and dropoff addresses are required.')
-        return
-      }
+const data = await res.json()
 
-      if (!pickupLat || !pickupLng || !dropoffLat || !dropoffLng) {
-        setStatus('Hidden coordinates are missing. Tap the test button first or wire geocoding next.')
-        return
-      }
+document.getElementById('result').innerText =
+JSON.stringify(data,null,2)
 
-      setStatus('Creating ride and dispatching nearest vehicle...')
+}catch(err){
+document.getElementById('result').innerText =
+"Error requesting ride"
+}
 
-      try {
-        const payload = {
-          riderId: localStorage.getItem('riderId') || 'rider_1',
-          riderName: localStorage.getItem('riderName') || 'Harvey Rider',
-          pickup,
-          dropoff,
-          pickupLat: parseFloat(pickupLat),
-          pickupLng: parseFloat(pickupLng),
-          dropoffLat: parseFloat(dropoffLat),
-          dropoffLng: parseFloat(dropoffLng),
-          rideType: 'standard'
-        }
+}
+</script>
 
-        const res = await fetch('/api/request-ride', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(payload)
-        })
-
-        const data = await res.json()
-
-        if (!data.success) {
-          setStatus(data.error || 'Ride request failed.')
-          return
-        }
-
-        localStorage.setItem('activeRideId', data.ride.id)
-
-        setStatus(
-          `Ride created successfully. Pickup: ${data.ride.pickup} | Dropoff: ${data.ride.dropoff} | Status: ${data.ride.status}`
-        )
-
-        setTimeout(() => {
-          window.location.href = '/rider-live-vehicle.html'
-        }, 1500)
-      } catch (err) {
-        console.error(err)
-        setStatus('Something went wrong creating the ride.')
-      }
-    }
-  </script>
 </body>
 </html>
