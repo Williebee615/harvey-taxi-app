@@ -24,6 +24,7 @@ app.use(express.static(path.join(__dirname, "public")));
   - tip during trip
   - tip after trip
   - admin dispatch board
+  - admin approval dashboard
 
   Next production step:
   move all arrays below into Supabase/PostgreSQL.
@@ -42,7 +43,7 @@ const riders = [
   },
   {
     rider_id: "rider_1002",
-    first_name: "Pending",
+    first_name: "Pending Rider",
     phone: "(555) 222-2222",
     verification_status: "PENDING"
   }
@@ -60,8 +61,8 @@ const drivers = [
   {
     driver_id: "driver_2002",
     first_name: "Avery",
-    verification_status: "APPROVED",
-    background_status: "APPROVED",
+    verification_status: "PENDING",
+    background_status: "PENDING",
     is_online: false,
     current_address: "North Nashville, TN"
   }
@@ -143,6 +144,7 @@ function hasAuthorizedPayment(riderId, estimatedFare) {
   return paymentAuthorizations.some((auth) => {
     const validStatus =
       auth.status === "AUTHORIZED" || auth.status === "SPONSORED";
+
     return (
       auth.rider_id === riderId &&
       validStatus &&
@@ -195,6 +197,27 @@ function hydrateRide(ride) {
   };
 }
 
+function getDashboardSummary() {
+  const hydratedRides = rides.map(hydrateRide);
+
+  return {
+    waiting_rides: hydratedRides.filter(
+      (r) =>
+        r.ride_status === "DISPATCHING" ||
+        r.ride_status === "READY_FOR_DRIVER"
+    ).length,
+    active_trips: hydratedRides.filter(
+      (r) =>
+        r.ride_status === "DRIVER_ACCEPTED" ||
+        r.ride_status === "DRIVER_ARRIVING" ||
+        r.ride_status === "IN_PROGRESS"
+    ).length,
+    completed_trips: hydratedRides.filter(
+      (r) => r.ride_status === "COMPLETED"
+    ).length
+  };
+}
+
 /* -----------------------------
    STATIC PAGE ROUTES
 ----------------------------- */
@@ -217,6 +240,10 @@ app.get("/active-trip", (req, res) => {
 
 app.get("/admin-dispatch", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "admin-dispatch.html"));
+});
+
+app.get("/admin-dashboard", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "admin-dashboard.html"));
 });
 
 /* -----------------------------
@@ -466,7 +493,8 @@ app.get("/api/driver-missions/:driverId", (req, res) => {
   const missions = rides
     .filter((ride) => {
       const paymentReady =
-        ride.payment_status === "AUTHORIZED" || ride.payment_status === "SPONSORED";
+        ride.payment_status === "AUTHORIZED" ||
+        ride.payment_status === "SPONSORED";
 
       const rideAvailable =
         ride.ride_status === "READY_FOR_DRIVER" ||
@@ -498,6 +526,16 @@ app.post("/api/driver-missions/accept", (req, res) => {
     return res.status(404).json({
       success: false,
       message: "Driver not found."
+    });
+  }
+
+  if (
+    driver.verification_status !== "APPROVED" ||
+    driver.background_status !== "APPROVED"
+  ) {
+    return res.status(403).json({
+      success: false,
+      message: "Driver is not approved for missions."
     });
   }
 
@@ -755,6 +793,108 @@ app.get("/api/admin/dispatch-board", (req, res) => {
       (a, b) => new Date(b.created_at) - new Date(a.created_at)
     ),
     drivers
+  });
+});
+
+/* -----------------------------
+   ADMIN APPROVAL DASHBOARD
+----------------------------- */
+
+app.get("/api/admin/dashboard-data", (req, res) => {
+  const pendingRiders = riders.filter((r) => r.verification_status === "PENDING");
+  const pendingDrivers = drivers.filter(
+    (d) =>
+      d.verification_status === "PENDING" ||
+      d.background_status === "PENDING"
+  );
+
+  const hydratedRides = rides
+    .map(hydrateRide)
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+  return res.json({
+    success: true,
+    pending_riders: pendingRiders,
+    pending_drivers: pendingDrivers,
+    rides: hydratedRides,
+    summary: getDashboardSummary()
+  });
+});
+
+app.post("/api/admin/approve-rider", (req, res) => {
+  const { rider_id } = req.body;
+  const rider = riders.find((r) => r.rider_id === rider_id);
+
+  if (!rider) {
+    return res.status(404).json({
+      success: false,
+      message: "Rider not found."
+    });
+  }
+
+  rider.verification_status = "APPROVED";
+
+  return res.json({
+    success: true,
+    rider
+  });
+});
+
+app.post("/api/admin/reject-rider", (req, res) => {
+  const { rider_id } = req.body;
+  const rider = riders.find((r) => r.rider_id === rider_id);
+
+  if (!rider) {
+    return res.status(404).json({
+      success: false,
+      message: "Rider not found."
+    });
+  }
+
+  rider.verification_status = "REJECTED";
+
+  return res.json({
+    success: true,
+    rider
+  });
+});
+
+app.post("/api/admin/approve-driver", (req, res) => {
+  const { driver_id } = req.body;
+  const driver = drivers.find((d) => d.driver_id === driver_id);
+
+  if (!driver) {
+    return res.status(404).json({
+      success: false,
+      message: "Driver not found."
+    });
+  }
+
+  driver.verification_status = "APPROVED";
+  driver.background_status = "APPROVED";
+
+  return res.json({
+    success: true,
+    driver
+  });
+});
+
+app.post("/api/admin/reject-driver", (req, res) => {
+  const { driver_id } = req.body;
+  const driver = drivers.find((d) => d.driver_id === driver_id);
+
+  if (!driver) {
+    return res.status(404).json({
+      success: false,
+      message: "Driver not found."
+    });
+  }
+
+  driver.verification_status = "REJECTED";
+
+  return res.json({
+    success: true,
+    driver
   });
 });
 
