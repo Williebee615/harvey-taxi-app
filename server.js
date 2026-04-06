@@ -1848,4 +1848,1094 @@ initializeFiles()
   .catch((error) => {
     console.error("Failed to initialize files:", error);
     process.exit(1);
+  });      updated_at: nowIso()
+    })
+    .eq("id", rideId)
+    .select()
+    .single();
+
+  if (updateRideResult.error) {
+    throw new Error(mapDbError(updateRideResult.error));
+  }
+
+  await logTripEvent(rideId, "driver_offered", {
+    driverId: best.driver.id,
+    attemptNumber: currentAttempt,
+    score: best.score
   });
+
+  return {
+    message: "Driver offer created.",
+    ride: updateRideResult.data,
+    offeredDriver: best.driver,
+    score: best.score
+  };
+}
+
+/* =========================================================
+   RIDES / REQUEST RIDE
+========================================================= */
+app.post("/api/request-ride", async (req, res) => {
+  try {
+    const {
+      riderId,
+      pickupAddress,
+      dropoffAddress,
+      rideType = "standard",
+      notes = "",
+      paymentMethod = "card"
+    } = req.body;
+
+    if (!riderId || !pickupAddress || !dropoffAddress) {
+      return res.status(400).json({
+        error: "riderId, pickupAddress, and dropoffAddress are required."
+      });
+    }
+
+    const riderResult = await supabase
+      .from("riders")
+      .select("*")
+      .eq("id", riderId)
+      .maybeSingle();
+
+    if (riderResult.error) {
+      return res.status(500).json({ error: mapDbError(riderResult.error) });
+    }
+
+    if (!riderResult.data) {
+      return res.status(404).json({ error: "Rider not found." });
+    }
+
+    if (!isApprovedRider(riderResult.data)) {
+      return res.status(403).json({
+        error: "Rider verification must be approved before requesting a ride."
+      });
+    }
+
+    const onlineDrivers = await getApprovedOnlineDrivers();
+    const fare = calculateFare({
+      pickupAddress,
+      dropoffAddress,
+      rideType,
+      onlineDriversCount: onlineDrivers.length
+    });
+
+    const paymentResult = await supabase
+      .from("payments")
+      .select("*")
+      .eq("rider_id", riderId)
+      .eq("status", "authorized")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (paymentResult.error) {
+      return res.status(500).json({ error: mapDbError(paymentResult.error) });
+    }
+
+    if (!paymentAuthorized(paymentResult.data)) {
+      return res.status(403).json({
+        error: "Payment authorization is required before requesting a ride."
+      });
+    }
+
+    const rideId = generateId("ride");
+
+    const ridePayload = {
+      id: rideId,
+      rider_id: riderId,
+      driver_id: null,
+      status: "requested",
+      ride_type: rideType,
+      pickup_address: pickupAddress,
+      dropoff_address: dropoffAddress,
+      notes,
+      total_fare: fare.totalFare,
+      driver_payout: fare.driverPayout,
+      platform_revenue: fare.platformRevenue,
+      distance_miles: fare.distanceMiles,
+      duration_minutes: fare.durationMinutes,
+      surge_multiplier: fare.surgeMultiplier,
+      booking_fee: fare.bookingFee,
+      estimated_eta_minutes: fare.durationMinutes,
+      current_dispatch_attempt: 0,
+      dispatch_status: "queued",
+      payment_status: "authorized",
+      requested_at: nowIso(),
+      created_at: nowIso(),
+      updated_at: nowIso()
+    };
+
+    const insertRide = await supabase
+      .from("rides")
+      .insert([ridePayload])
+      .select()
+      .single();
+
+    if (insertRide.error) {
+      return res.status(500).json({ error: mapDbError(insertRide.error) });
+    }
+
+    await supabase
+      .from("payments")
+      .update({
+        ride_id: rideId,
+        method: paymentMethod,
+        updated_at: nowIso()
+      })
+      .eq("id", paymentResult.data.id);
+
+    await logTripEvent(rideId, "ride_requested", {
+      riderId,
+      pickupAddress,
+      dropoffAddress,
+      rideType
+    });
+
+    let dispatchResult = null;
+    try {
+      dispatchResult = await runAutonomousDispatch(rideId);
+    } catch (dispatchError) {
+      console.error("Autonomous dispatch failed:", dispatchError.message);
+    }
+
+    res.json({
+      success: true,
+      message: "Ride requested successfully.",
+      ride: insertRide.data,
+      dispatch: dispatchResult
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/api/rides", async (req, res) => {
+  const { status, riderId, driverId } = req.query;
+
+  let query = supabase
+    .from("rides")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (status) query = query.eq("status", status);
+  if (riderId) query = query.eq("rider_id", riderId);
+  if (driverId) query = query.eq("driver_id", driverId);
+
+  const { data, error } = await query;
+
+  if (error) return res.status(500).json({ error: mapDbError(error) });
+  res.json(data || []);
+});
+
+app.get("/api/rides/:id", async (req, res) => {
+  const { data, error } = await supabase
+    .from("rides")
+    .select("*")
+    .eq("id", req.params.id)
+    .maybeSingle();
+
+  if (error) return res.status(500).json({ error: mapDbError(error) });
+  if (!data) return res.status(404).json({ error: "Ride not found." });
+
+  res.json(data);
+});
+
+app.post("/api/rides/:id/dispatch/retry", async (req, res) => {
+  try {
+    const result = await runAutonomousDispatch(req.params.id);
+    res.json({
+      success: true,
+      ...result
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/* =========================================================
+   DRIVER MISSIONS / DISPATCH ACTIONS
+========================================================= */
+app.get("/api/drivers/:id/missions", async (req, res) => {
+  const { data, error } = await supabase
+    .from("missions")
+    .select("*")
+    .eq("driver_id", req.params.id)
+    .order("created_at", { ascending: false });
+
+  if (error) return res.status(500).json({ error: mapDbError(error) });
+  res.json(data || []);
+});
+
+app.get("/api/rides/:id/dispatches", async (req, res) => {
+  const { data, error } = await supabase
+    .from("dispatches")
+    .select("*")
+    .eq("ride_id", req.params.id)
+    .order("created_at", { ascending: false });
+
+  if (error) return res.status(500).json({ error: mapDbError(error) });
+  res.json(data || []);
+});
+
+app.post("/api/rides/:rideId/accept", async (req, res) => {
+  try {
+    const { driverId } = req.body;
+    const { rideId } = req.params;
+
+    if (!driverId) {
+      return res.status(400).json({ error: "driverId is required." });
+    }
+
+    const rideResult = await supabase
+      .from("rides")
+      .select("*")
+      .eq("id", rideId)
+      .maybeSingle();
+
+    if (rideResult.error) {
+      return res.status(500).json({ error: mapDbError(rideResult.error) });
+    }
+
+    if (!rideResult.data) {
+      return res.status(404).json({ error: "Ride not found." });
+    }
+
+    const ride = rideResult.data;
+
+    if (ride.driver_id && ride.driver_id !== driverId) {
+      return res.status(409).json({ error: "Ride already accepted by another driver." });
+    }
+
+    if (statusRank(ride.status) >= statusRank("accepted")) {
+      return res.status(409).json({ error: "Ride is no longer available for acceptance." });
+    }
+
+    const driverResult = await supabase
+      .from("drivers")
+      .select("*")
+      .eq("id", driverId)
+      .maybeSingle();
+
+    if (driverResult.error) {
+      return res.status(500).json({ error: mapDbError(driverResult.error) });
+    }
+
+    if (!driverResult.data) {
+      return res.status(404).json({ error: "Driver not found." });
+    }
+
+    if (!isApprovedDriver(driverResult.data)) {
+      return res.status(403).json({ error: "Driver is not approved." });
+    }
+
+    const rideUpdate = await supabase
+      .from("rides")
+      .update({
+        driver_id: driverId,
+        status: "accepted",
+        dispatch_status: "accepted",
+        accepted_at: nowIso(),
+        updated_at: nowIso()
+      })
+      .eq("id", rideId)
+      .select()
+      .single();
+
+    if (rideUpdate.error) {
+      return res.status(500).json({ error: mapDbError(rideUpdate.error) });
+    }
+
+    await supabase
+      .from("dispatches")
+      .update({
+        offer_status: "accepted",
+        updated_at: nowIso()
+      })
+      .eq("ride_id", rideId)
+      .eq("driver_id", driverId);
+
+    await supabase
+      .from("dispatches")
+      .update({
+        offer_status: "closed",
+        updated_at: nowIso()
+      })
+      .eq("ride_id", rideId)
+      .neq("driver_id", driverId);
+
+    await supabase
+      .from("missions")
+      .update({
+        mission_status: "accepted",
+        updated_at: nowIso()
+      })
+      .eq("ride_id", rideId)
+      .eq("driver_id", driverId);
+
+    await supabase
+      .from("missions")
+      .update({
+        mission_status: "closed",
+        updated_at: nowIso()
+      })
+      .eq("ride_id", rideId)
+      .neq("driver_id", driverId);
+
+    await logTripEvent(rideId, "ride_accepted", {
+      driverId
+    });
+
+    res.json({
+      success: true,
+      message: "Ride accepted successfully.",
+      ride: rideUpdate.data
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/rides/:rideId/decline", async (req, res) => {
+  try {
+    const { driverId, reason = "Driver declined mission." } = req.body;
+    const { rideId } = req.params;
+
+    if (!driverId) {
+      return res.status(400).json({ error: "driverId is required." });
+    }
+
+    await supabase
+      .from("dispatches")
+      .update({
+        offer_status: "declined",
+        reason,
+        updated_at: nowIso()
+      })
+      .eq("ride_id", rideId)
+      .eq("driver_id", driverId);
+
+    await supabase
+      .from("missions")
+      .update({
+        mission_status: "declined",
+        updated_at: nowIso()
+      })
+      .eq("ride_id", rideId)
+      .eq("driver_id", driverId);
+
+    await logTripEvent(rideId, "ride_declined", {
+      driverId,
+      reason
+    });
+
+    const retryResult = await runAutonomousDispatch(rideId);
+
+    res.json({
+      success: true,
+      message: "Ride declined. Dispatch retried.",
+      dispatch: retryResult
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/* =========================================================
+   TRIP LIFECYCLE
+========================================================= */
+app.patch("/api/rides/:rideId/status", async (req, res) => {
+  try {
+    const { status, driverId } = req.body;
+    const { rideId } = req.params;
+
+    const allowedStatuses = [
+      "arriving",
+      "driver_arrived",
+      "in_progress",
+      "completed",
+      "cancelled"
+    ];
+
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({ error: "Invalid ride status update." });
+    }
+
+    const rideResult = await supabase
+      .from("rides")
+      .select("*")
+      .eq("id", rideId)
+      .maybeSingle();
+
+    if (rideResult.error) {
+      return res.status(500).json({ error: mapDbError(rideResult.error) });
+    }
+
+    if (!rideResult.data) {
+      return res.status(404).json({ error: "Ride not found." });
+    }
+
+    const ride = rideResult.data;
+
+    if (driverId && ride.driver_id && ride.driver_id !== driverId) {
+      return res.status(403).json({ error: "Only the assigned driver can update this ride." });
+    }
+
+    const updatePayload = {
+      status,
+      updated_at: nowIso()
+    };
+
+    if (status === "in_progress") updatePayload.started_at = nowIso();
+    if (status === "completed") updatePayload.completed_at = nowIso();
+    if (status === "cancelled") updatePayload.cancelled_at = nowIso();
+
+    if (status === "completed") {
+      updatePayload.payment_status = "captured";
+    }
+
+    const rideUpdate = await supabase
+      .from("rides")
+      .update(updatePayload)
+      .eq("id", rideId)
+      .select()
+      .single();
+
+    if (rideUpdate.error) {
+      return res.status(500).json({ error: mapDbError(rideUpdate.error) });
+    }
+
+    if (status === "completed") {
+      await supabase
+        .from("payments")
+        .update({
+          status: "captured",
+          updated_at: nowIso()
+        })
+        .eq("ride_id", rideId);
+
+      if (ride.driver_id) {
+        const driverResult = await supabase
+          .from("drivers")
+          .select("*")
+          .eq("id", ride.driver_id)
+          .maybeSingle();
+
+        if (driverResult.data) {
+          const newWalletBalance =
+            round2(Number(driverResult.data.wallet_balance || 0) + Number(ride.driver_payout || 0));
+
+          await supabase
+            .from("drivers")
+            .update({
+              wallet_balance: newWalletBalance,
+              updated_at: nowIso()
+            })
+            .eq("id", ride.driver_id);
+        }
+      }
+
+      await supabase
+        .from("missions")
+        .update({
+          mission_status: "completed",
+          updated_at: nowIso()
+        })
+        .eq("ride_id", rideId);
+    }
+
+    if (status === "cancelled") {
+      await supabase
+        .from("missions")
+        .update({
+          mission_status: "cancelled",
+          updated_at: nowIso()
+        })
+        .eq("ride_id", rideId);
+
+      await supabase
+        .from("dispatches")
+        .update({
+          offer_status: "cancelled",
+          updated_at: nowIso()
+        })
+        .eq("ride_id", rideId);
+    }
+
+    await logTripEvent(rideId, `ride_${status}`, {
+      driverId: driverId || ride.driver_id || null
+    });
+
+    res.json({
+      success: true,
+      ride: rideUpdate.data
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/* =========================================================
+   TIPS
+========================================================= */
+app.post("/api/rides/:rideId/tip", async (req, res) => {
+  try {
+    const { riderId, driverId, amount, phase = "post_trip" } = req.body;
+    const { rideId } = req.params;
+
+    if (!riderId || !driverId || !amount) {
+      return res.status(400).json({
+        error: "riderId, driverId, and amount are required."
+      });
+    }
+
+    if (!["in_trip", "post_trip"].includes(phase)) {
+      return res.status(400).json({
+        error: "phase must be in_trip or post_trip."
+      });
+    }
+
+    const tipAmount = round2(amount);
+
+    const tipInsert = await supabase
+      .from("tips")
+      .insert([
+        {
+          id: generateId("tip"),
+          ride_id: rideId,
+          rider_id: riderId,
+          driver_id: driverId,
+          amount: tipAmount,
+          phase,
+          created_at: nowIso()
+        }
+      ])
+      .select()
+      .single();
+
+    if (tipInsert.error) {
+      return res.status(500).json({ error: mapDbError(tipInsert.error) });
+    }
+
+    const driverResult = await supabase
+      .from("drivers")
+      .select("*")
+      .eq("id", driverId)
+      .maybeSingle();
+
+    if (driverResult.data) {
+      const newWalletBalance =
+        round2(Number(driverResult.data.wallet_balance || 0) + tipAmount);
+
+      await supabase
+        .from("drivers")
+        .update({
+          wallet_balance: newWalletBalance,
+          updated_at: nowIso()
+        })
+        .eq("id", driverId);
+    }
+
+    await logTripEvent(rideId, "tip_added", {
+      riderId,
+      driverId,
+      amount: tipAmount,
+      phase
+    });
+
+    res.json({
+      success: true,
+      tip: tipInsert.data
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/api/rides/:rideId/tips", async (req, res) => {
+  const { data, error } = await supabase
+    .from("tips")
+    .select("*")
+    .eq("ride_id", req.params.rideId)
+    .order("created_at", { ascending: false });
+
+  if (error) return res.status(500).json({ error: mapDbError(error) });
+  res.json(data || []);
+});
+
+/* =========================================================
+   TRIP EVENTS
+========================================================= */
+app.get("/api/rides/:rideId/events", async (req, res) => {
+  const { data, error } = await supabase
+    .from("trip_events")
+    .select("*")
+    .eq("ride_id", req.params.rideId)
+    .order("created_at", { ascending: true });
+
+  if (error) return res.status(500).json({ error: mapDbError(error) });
+  res.json(data || []);
+});
+
+/* =========================================================
+   ADMIN / ANALYTICS
+========================================================= */
+app.get("/api/admin/analytics", async (req, res) => {
+  try {
+    const ridesResult = await supabase.from("rides").select("*");
+    const driversResult = await supabase.from("drivers").select("*");
+    const ridersResult = await supabase.from("riders").select("*");
+    const tipsResult = await supabase.from("tips").select("*");
+    const paymentsResult = await supabase.from("payments").select("*");
+
+    if (ridesResult.error) return res.status(500).json({ error: mapDbError(ridesResult.error) });
+    if (driversResult.error) return res.status(500).json({ error: mapDbError(driversResult.error) });
+    if (ridersResult.error) return res.status(500).json({ error: mapDbError(ridersResult.error) });
+    if (tipsResult.error) return res.status(500).json({ error: mapDbError(tipsResult.error) });
+    if (paymentsResult.error) return res.status(500).json({ error: mapDbError(paymentsResult.error) });
+
+    const rides = ridesResult.data || [];
+    const drivers = driversResult.data || [];
+    const riders = ridersResult.data || [];
+    const tips = tipsResult.data || [];
+    const payments = paymentsResult.data || [];
+
+    const completedRides = rides.filter(r => r.status === "completed");
+    const activeRides = rides.filter(r =>
+      ["requested", "dispatching", "offered", "accepted", "arriving", "driver_arrived", "in_progress"].includes(r.status)
+    );
+    const approvedDrivers = drivers.filter(isApprovedDriver);
+    const onlineDrivers = approvedDrivers.filter(d => d.is_online);
+    const approvedRiders = riders.filter(isApprovedRider);
+
+    const grossRevenue = round2(
+      completedRides.reduce((sum, r) => sum + Number(r.total_fare || 0), 0)
+    );
+
+    const driverPayouts = round2(
+      completedRides.reduce((sum, r) => sum + Number(r.driver_payout || 0), 0)
+    );
+
+    const platformRevenue = round2(
+      completedRides.reduce((sum, r) => sum + Number(r.platform_revenue || 0), 0)
+    );
+
+    const tipsTotal = round2(
+      tips.reduce((sum, t) => sum + Number(t.amount || 0), 0)
+    );
+
+    const authorizedPayments = payments.filter(p => p.status === "authorized").length;
+    const capturedPayments = payments.filter(p => p.status === "captured").length;
+
+    res.json({
+      success: true,
+      analytics: {
+        totalRides: rides.length,
+        activeRides: activeRides.length,
+        completedRides: completedRides.length,
+        totalDrivers: drivers.length,
+        approvedDrivers: approvedDrivers.length,
+        onlineDrivers: onlineDrivers.length,
+        totalRiders: riders.length,
+        approvedRiders: approvedRiders.length,
+        grossRevenue,
+        driverPayouts,
+        platformRevenue,
+        tipsTotal,
+        authorizedPayments,
+        capturedPayments
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/api/admin/live-board", async (req, res) => {
+  try {
+    const ridesResult = await supabase
+      .from("rides")
+      .select("*")
+      .in("status", ["requested", "dispatching", "offered", "accepted", "arriving", "driver_arrived", "in_progress"])
+      .order("created_at", { ascending: false });
+
+    const driversResult = await supabase
+      .from("drivers")
+      .select("*")
+      .order("updated_at", { ascending: false });
+
+    if (ridesResult.error) return res.status(500).json({ error: mapDbError(ridesResult.error) });
+    if (driversResult.error) return res.status(500).json({ error: mapDbError(driversResult.error) });
+
+    res.json({
+      success: true,
+      activeRides: ridesResult.data || [],
+      drivers: driversResult.data || []
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/* =========================================================
+   PERSONA / CHECKR WEBHOOK PLACEHOLDERS
+   Replace verification of signatures when you wire live services.
+========================================================= */
+app.post("/api/webhooks/persona", async (req, res) => {
+  try {
+    const payload = req.body || {};
+    const inquiryId =
+      payload?.data?.id ||
+      payload?.inquiryId ||
+      null;
+
+    const attributes =
+      payload?.data?.attributes ||
+      payload?.attributes ||
+      {};
+
+    const referenceId =
+      attributes.reference_id ||      attributes.reference_id ||
+      payload?.referenceId ||
+      payload?.reference_id ||
+      null;
+
+    const statusRaw =
+      attributes.status ||
+      payload?.status ||
+      payload?.data?.attributes?.status ||
+      "";
+
+    const status = String(statusRaw).toLowerCase();
+
+    if (!referenceId) {
+      return res.status(200).json({
+        success: true,
+        message: "Persona webhook received without referenceId."
+      });
+    }
+
+    const isApproved =
+      status.includes("approved") ||
+      status.includes("completed") ||
+      status.includes("passed");
+
+    const isRejected =
+      status.includes("failed") ||
+      status.includes("declined") ||
+      status.includes("rejected");
+
+    if (String(referenceId).startsWith("rider_")) {
+      const riderUpdate = await supabase
+        .from("riders")
+        .update({
+          verification_status: isApproved ? "approved" : isRejected ? "rejected" : "pending",
+          persona_inquiry_id: inquiryId,
+          updated_at: nowIso()
+        })
+        .eq("id", referenceId)
+        .select()
+        .single();
+
+      if (riderUpdate.error) {
+        return res.status(500).json({ error: mapDbError(riderUpdate.error) });
+      }
+
+      await logTripEvent(`rider_verification_${referenceId}`, "persona_rider_webhook", {
+        riderId: referenceId,
+        inquiryId,
+        status
+      });
+
+      return res.json({
+        success: true,
+        type: "rider",
+        rider: riderUpdate.data
+      });
+    }
+
+    if (String(referenceId).startsWith("driver_")) {
+      const driverUpdate = await supabase
+        .from("drivers")
+        .update({
+          verification_status: isApproved ? "approved" : isRejected ? "rejected" : "pending",
+          persona_inquiry_id: inquiryId,
+          updated_at: nowIso()
+        })
+        .eq("id", referenceId)
+        .select()
+        .single();
+
+      if (driverUpdate.error) {
+        return res.status(500).json({ error: mapDbError(driverUpdate.error) });
+      }
+
+      const shouldActivate =
+        driverUpdate.data.verification_status === "approved" &&
+        driverUpdate.data.background_check_status === "approved";
+
+      let finalDriver = driverUpdate.data;
+
+      if (shouldActivate && driverUpdate.data.is_active !== true) {
+        const activationUpdate = await supabase
+          .from("drivers")
+          .update({
+            is_active: true,
+            updated_at: nowIso()
+          })
+          .eq("id", referenceId)
+          .select()
+          .single();
+
+        if (!activationUpdate.error && activationUpdate.data) {
+          finalDriver = activationUpdate.data;
+        }
+      }
+
+      await logTripEvent(`driver_verification_${referenceId}`, "persona_driver_webhook", {
+        driverId: referenceId,
+        inquiryId,
+        status
+      });
+
+      return res.json({
+        success: true,
+        type: "driver",
+        driver: finalDriver
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Persona webhook received, but referenceId was not recognized."
+    });
+  } catch (error) {
+    console.error("Persona webhook error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/webhooks/checkr", async (req, res) => {
+  try {
+    const payload = req.body || {};
+
+    const candidateId =
+      payload?.data?.object?.candidate_id ||
+      payload?.candidate_id ||
+      payload?.candidateId ||
+      null;
+
+    const reportId =
+      payload?.data?.object?.id ||
+      payload?.report_id ||
+      payload?.reportId ||
+      null;
+
+    const statusRaw =
+      payload?.data?.object?.status ||
+      payload?.status ||
+      payload?.event ||
+      "";
+
+    const status = String(statusRaw).toLowerCase();
+
+    if (!candidateId) {
+      return res.status(200).json({
+        success: true,
+        message: "Checkr webhook received without candidateId."
+      });
+    }
+
+    const driverLookup = await supabase
+      .from("drivers")
+      .select("*")
+      .eq("checkr_candidate_id", candidateId)
+      .maybeSingle();
+
+    if (driverLookup.error) {
+      return res.status(500).json({ error: mapDbError(driverLookup.error) });
+    }
+
+    if (!driverLookup.data) {
+      return res.status(200).json({
+        success: true,
+        message: "No driver matched this Checkr candidate."
+      });
+    }
+
+    const driver = driverLookup.data;
+
+    const backgroundApproved =
+      status.includes("clear") ||
+      status.includes("complete") ||
+      status.includes("completed") ||
+      status.includes("approved") ||
+      status.includes("passed");
+
+    const backgroundRejected =
+      status.includes("consider") ||
+      status.includes("suspended") ||
+      status.includes("failed") ||
+      status.includes("rejected");
+
+    const backgroundStatus = backgroundApproved
+      ? "approved"
+      : backgroundRejected
+      ? "rejected"
+      : "pending";
+
+    const driverUpdate = await supabase
+      .from("drivers")
+      .update({
+        background_check_status: backgroundStatus,
+        updated_at: nowIso()
+      })
+      .eq("id", driver.id)
+      .select()
+      .single();
+
+    if (driverUpdate.error) {
+      return res.status(500).json({ error: mapDbError(driverUpdate.error) });
+    }
+
+    const shouldActivate =
+      driverUpdate.data.verification_status === "approved" &&
+      driverUpdate.data.background_check_status === "approved";
+
+    let finalDriver = driverUpdate.data;
+
+    if (shouldActivate && driverUpdate.data.is_active !== true) {
+      const activationUpdate = await supabase
+        .from("drivers")
+        .update({
+          is_active: true,
+          updated_at: nowIso()
+        })
+        .eq("id", driver.id)
+        .select()
+        .single();
+
+      if (!activationUpdate.error && activationUpdate.data) {
+        finalDriver = activationUpdate.data;
+      }
+    }
+
+    await logTripEvent(`driver_background_${driver.id}`, "checkr_webhook", {
+      driverId: driver.id,
+      candidateId,
+      reportId,
+      status
+    });
+
+    res.json({
+      success: true,
+      driver: finalDriver
+    });
+  } catch (error) {
+    console.error("Checkr webhook error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/* =========================================================
+   ADMIN / REVIEW TOOLS
+========================================================= */
+app.get("/api/admin/riders/pending", async (req, res) => {
+  const { data, error } = await supabase
+    .from("riders")
+    .select("*")
+    .eq("verification_status", "pending")
+    .order("created_at", { ascending: false });
+
+  if (error) return res.status(500).json({ error: mapDbError(error) });
+  res.json(data || []);
+});
+
+app.get("/api/admin/drivers/pending", async (req, res) => {
+  const { data, error } = await supabase
+    .from("drivers")
+    .select("*")
+    .or("verification_status.eq.pending,background_check_status.eq.pending")
+    .order("created_at", { ascending: false });
+
+  if (error) return res.status(500).json({ error: mapDbError(error) });
+  res.json(data || []);
+});
+
+app.post("/api/admin/riders/:id/approve", async (req, res) => {
+  const { data, error } = await supabase
+    .from("riders")
+    .update({
+      verification_status: "approved",
+      updated_at: nowIso()
+    })
+    .eq("id", req.params.id)
+    .select()
+    .single();
+
+  if (error) return res.status(500).json({ error: mapDbError(error) });
+  res.json({ success: true, rider: data });
+});
+
+app.post("/api/admin/drivers/:id/approve", async (req, res) => {
+  const driverResult = await supabase
+    .from("drivers")
+    .select("*")
+    .eq("id", req.params.id)
+    .maybeSingle();
+
+  if (driverResult.error) {
+    return res.status(500).json({ error: mapDbError(driverResult.error) });
+  }
+
+  if (!driverResult.data) {
+    return res.status(404).json({ error: "Driver not found." });
+  }
+
+  const updated = await supabase
+    .from("drivers")
+    .update({
+      verification_status: "approved",
+      background_check_status:
+        driverResult.data.background_check_status === "approved"
+          ? "approved"
+          : driverResult.data.background_check_status,
+      is_active:
+        driverResult.data.background_check_status === "approved" ? true : false,
+      updated_at: nowIso()
+    })
+    .eq("id", req.params.id)
+    .select()
+    .single();
+
+  if (updated.error) {
+    return res.status(500).json({ error: mapDbError(updated.error) });
+  }
+
+  res.json({ success: true, driver: updated.data });
+});
+
+/* =========================================================
+   ROOT + STATIC PAGES
+========================================================= */
+app.get("/admin", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "admin-dashboard.html"));
+});
+
+/* =========================================================
+   API 404
+========================================================= */
+app.use("/api/*", (req, res) => {
+  res.status(404).json({
+    success: false,
+    error: `Route not found: ${req.method} ${req.originalUrl}`
+  });
+});
+
+/* =========================================================
+   SERVER START
+========================================================= */
+app.listen(PORT, () => {
+  console.log(`Harvey Taxi server running on port ${PORT}`);
+});
+     
