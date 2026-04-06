@@ -18,7 +18,6 @@
       --green:#6dffb3;
       --danger:#ff7e97;
       --gold:#ffd76a;
-      --radius:22px;
       --shadow:0 20px 70px rgba(0,0,0,.35);
     }
 
@@ -138,6 +137,11 @@
       font-size:1rem;
     }
 
+    .input::placeholder,
+    textarea::placeholder{
+      color:rgba(244,247,255,.46);
+    }
+
     textarea{
       resize:vertical;
       min-height:94px;
@@ -206,7 +210,7 @@
 
     .estimate{
       display:grid;
-      grid-template-columns:repeat(4,1fr);
+      grid-template-columns:repeat(3,1fr);
       gap:12px;
     }
 
@@ -317,18 +321,18 @@
     <div class="grid">
       <div class="card">
         <div class="section-title">Rider Security Gate</div>
-        <div class="sub">You must pass both gates before your ride can be dispatched.</div>
+        <div class="sub">Verification approval and payment authorization are required before a ride can move forward.</div>
 
         <div class="status-box">
           <div class="mini">
             <h3>Verification Status</h3>
-            <div id="verificationText">Checking rider profile...</div>
+            <div id="verificationText">Enter your rider ID to check your account status.</div>
             <div id="verificationTag" class="tag warn">Pending</div>
           </div>
 
           <div class="mini">
             <h3>Payment Status</h3>
-            <div id="paymentText">No payment authorized yet.</div>
+            <div id="paymentText">No payment has been secured yet.</div>
             <div id="paymentTag" class="tag warn">Not Secured</div>
           </div>
         </div>
@@ -339,28 +343,28 @@
 
         <div class="field">
           <label for="riderId">Rider ID</label>
-          <input class="input" id="riderId" placeholder="Example: rider_1001" />
+          <input class="input" id="riderId" placeholder="Enter your rider ID" />
         </div>
 
         <div class="row">
           <div class="field">
             <label for="firstName">Passenger First Name</label>
-            <input class="input" id="firstName" placeholder="Willie" />
+            <input class="input" id="firstName" placeholder="Enter first name" />
           </div>
           <div class="field">
             <label for="phone">Passenger Phone</label>
-            <input class="input" id="phone" placeholder="(555) 555-5555" />
+            <input class="input" id="phone" placeholder="Enter phone number" />
           </div>
         </div>
 
         <div class="field">
           <label for="pickup">Pickup Address</label>
-          <input class="input" id="pickup" placeholder="123 Main St, Nashville, TN" />
+          <input class="input" id="pickup" placeholder="Enter pickup address" />
         </div>
 
         <div class="field">
           <label for="dropoff">Dropoff Address</label>
-          <input class="input" id="dropoff" placeholder="BNA Airport, Nashville, TN" />
+          <input class="input" id="dropoff" placeholder="Enter dropoff address" />
         </div>
 
         <div class="row">
@@ -377,13 +381,13 @@
 
           <div class="field">
             <label for="scheduledTime">Scheduled Time (optional)</label>
-            <input class="input" id="scheduledTime" placeholder="2026-04-05 2:30 PM" />
+            <input class="input" id="scheduledTime" placeholder="Enter scheduled time" />
           </div>
         </div>
 
         <div class="field">
           <label for="notes">Ride Notes</label>
-          <textarea id="notes" placeholder="Wheelchair assistance, luggage, gate number, medical note, or other helpful information"></textarea>
+          <textarea id="notes" placeholder="Add any helpful ride information"></textarea>
         </div>
 
         <div class="field">
@@ -403,7 +407,7 @@
 
       <div class="card">
         <div class="section-title">Ride Estimate</div>
-        <div class="sub">Review your current pricing preview before requesting dispatch.</div>
+        <div class="sub">Review your current fare estimate before submitting your ride request.</div>
 
         <div class="estimate">
           <div class="metric">
@@ -418,14 +422,10 @@
             <div class="k">Fare</div>
             <div class="v" id="fareValue">--</div>
           </div>
-          <div class="metric">
-            <div class="k">Driver Payout</div>
-            <div class="v" id="payoutValue">--</div>
-          </div>
         </div>
 
         <div class="receipt" id="estimateReceipt">
-          No estimate yet. Enter your ride details and tap <strong>Get Fare Estimate</strong>.
+          No estimate yet. Enter your ride information and tap <strong>Get Fare Estimate</strong>.
         </div>
 
         <div class="btn-row">
@@ -453,7 +453,6 @@
     const distanceValue = document.getElementById("distanceValue");
     const durationValue = document.getElementById("durationValue");
     const fareValue = document.getElementById("fareValue");
-    const payoutValue = document.getElementById("payoutValue");
     const estimateReceipt = document.getElementById("estimateReceipt");
 
     const resultBox = document.getElementById("resultBox");
@@ -496,7 +495,7 @@
     async function checkRiderStatus(){
       const riderId = document.getElementById("riderId").value.trim();
       if(!riderId){
-        verificationText.textContent = "Enter rider ID to check verification status.";
+        verificationText.textContent = "Enter your rider ID to check your account status.";
         verificationTag.className = "tag warn";
         verificationTag.textContent = "Pending";
         riderVerified = false;
@@ -509,18 +508,20 @@
 
         if(data.success && data.rider){
           riderVerified = data.rider.verification_status === "APPROVED";
-          verificationText.textContent = `Rider: ${data.rider.first_name || "Unknown"} • Status: ${data.rider.verification_status}`;
-          verificationTag.className = `tag ${riderVerified ? "ok" : "bad"}`;
-          verificationTag.textContent = riderVerified ? "Approved" : data.rider.verification_status;
+          verificationText.textContent = riderVerified
+            ? "Your rider account is approved."
+            : "Your rider account is still under review.";
+          verificationTag.className = `tag ${riderVerified ? "ok" : "warn"}`;
+          verificationTag.textContent = riderVerified ? "Approved" : "Pending";
         }else{
           riderVerified = false;
-          verificationText.textContent = "Rider profile not found.";
+          verificationText.textContent = "We could not find that rider account.";
           verificationTag.className = "tag bad";
           verificationTag.textContent = "Not Found";
         }
       }catch(err){
         riderVerified = false;
-        verificationText.textContent = "Unable to check rider verification.";
+        verificationText.textContent = "Unable to check rider verification right now.";
         verificationTag.className = "tag bad";
         verificationTag.textContent = "Error";
       }
@@ -553,7 +554,6 @@
         distanceValue.textContent = `${data.estimate.distance_miles} mi`;
         durationValue.textContent = `${data.estimate.duration_minutes} min`;
         fareValue.textContent = `$${data.estimate.estimated_fare.toFixed(2)}`;
-        payoutValue.textContent = `$${data.estimate.estimated_driver_payout.toFixed(2)}`;
 
         estimateReceipt.innerHTML = `
           <strong>Ride Preview</strong><br><br>
@@ -562,13 +562,10 @@
           Ride Type: ${payload.ride_type}<br>
           Estimated Distance: ${data.estimate.distance_miles} mi<br>
           Estimated Duration: ${data.estimate.duration_minutes} min<br>
-          Estimated Fare: $${data.estimate.estimated_fare.toFixed(2)}<br>
-          Estimated Driver Payout: $${data.estimate.estimated_driver_payout.toFixed(2)}<br>
-          Platform Fee: $${data.estimate.platform_fee.toFixed(2)}<br>
-          Booking Fee: $${data.estimate.booking_fee.toFixed(2)}
+          Estimated Fare: $${data.estimate.estimated_fare.toFixed(2)}
         `;
 
-        showResult("Fare estimate ready. Secure payment next.");
+        showResult("Fare estimate ready. Secure payment to continue.");
       }catch(err){
         showError("Unable to reach the estimate service.");
       }
@@ -583,7 +580,7 @@
       }
 
       if(payload.payment_method === "CASH" && payload.ride_type !== "NONPROFIT"){
-        showError("Cash can only be allowed later if admin approves it. Use card or Apple Pay for secured dispatch.");
+        showError("Cash payments are not currently available for this ride type.");
         return;
       }
 
@@ -611,10 +608,10 @@
         }
 
         paymentAuthorized = true;
-        paymentText.textContent = `Payment secured by ${payload.payment_method}. Hold: $${data.authorization.authorized_amount.toFixed(2)}`;
+        paymentText.textContent = `Payment secured by ${payload.payment_method}.`;
         paymentTag.className = "tag ok";
-        paymentTag.textContent = data.authorization.status;
-        showResult("Payment secured. Your ride can now continue through dispatch.");
+        paymentTag.textContent = "Secured";
+        showResult("Payment secured. Your ride request can now move forward.");
       }catch(err){
         paymentAuthorized = false;
         paymentText.textContent = "Payment service unavailable.";
@@ -628,7 +625,7 @@
       const payload = getFormData();
 
       if(!payload.rider_id){
-        showError("Enter rider ID.");
+        showError("Enter your rider ID.");
         return;
       }
 
@@ -650,12 +647,12 @@
       await checkRiderStatus();
 
       if(!riderVerified){
-        showError("Ride blocked. Rider verification must be approved before requesting a ride.");
+        showError("Your rider account must be approved before you can request a ride.");
         return;
       }
 
       if(!paymentAuthorized && payload.ride_type !== "NONPROFIT"){
-        showError("Ride blocked. Payment must be secured before dispatch.");
+        showError("Payment must be secured before your ride can be requested.");
         return;
       }
 
@@ -678,11 +675,7 @@
 
         showResult(`
           <strong>Ride Requested Successfully</strong><br><br>
-          Ride ID: ${data.ride.ride_id}<br>
-          Status: ${data.ride.ride_status}<br>
-          Payment Status: ${data.ride.payment_status}<br>
-          Dispatch Status: ${data.ride.mission_status}<br><br>
-          Your request has been submitted and is now moving through the Harvey Taxi system.
+          Your ride request has been submitted successfully and is now being processed.
         `);
       }catch(err){
         showError("Unable to submit ride request.");
