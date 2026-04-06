@@ -4,7 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Harvey Taxi | Rider Sign Up</title>
-  <meta name="description" content="Create your Harvey Taxi rider account and begin the verification process for platform access." />
+  <meta
+    name="description"
+    content="Create your Harvey Taxi rider account and get immediate rider access with optional verification support."
+  />
   <style>
     :root {
       --bg-1: #040814;
@@ -22,7 +25,11 @@
       --shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
     body {
       min-height: 100vh;
@@ -34,7 +41,10 @@
         linear-gradient(160deg, var(--bg-1), var(--bg-2) 45%, var(--bg-3));
     }
 
-    a { text-decoration: none; color: inherit; }
+    a {
+      text-decoration: none;
+      color: inherit;
+    }
 
     .shell {
       width: min(100%, 880px);
@@ -50,7 +60,7 @@
       padding: 16px 18px;
       border: 1px solid var(--line);
       border-radius: 999px;
-      background: rgba(7,14,31,0.62);
+      background: rgba(7, 14, 31, 0.62);
       backdrop-filter: blur(14px);
       box-shadow: var(--shadow);
       position: sticky;
@@ -86,7 +96,9 @@
       margin-top: 2px;
     }
 
-    .mini-btn, .btn {
+    .mini-btn,
+    .btn,
+    .secondary-btn {
       border: none;
       cursor: pointer;
       transition: 0.25s ease;
@@ -104,7 +116,8 @@
     }
 
     .mini-btn:hover,
-    .btn:hover {
+    .btn:hover,
+    .secondary-btn:hover {
       transform: translateY(-2px);
     }
 
@@ -115,7 +128,8 @@
       gap: 18px;
     }
 
-    .hero, .panel {
+    .hero,
+    .panel {
       background: var(--panel);
       border: 1px solid var(--line);
       border-radius: 28px;
@@ -123,7 +137,9 @@
       backdrop-filter: blur(16px);
     }
 
-    .hero { padding: 28px; }
+    .hero {
+      padding: 28px;
+    }
 
     .eyebrow {
       display: inline-flex;
@@ -183,7 +199,9 @@
       font-size: 0.92rem;
     }
 
-    .panel { padding: 24px; }
+    .panel {
+      padding: 24px;
+    }
 
     .panel h3 {
       font-size: 1.25rem;
@@ -255,7 +273,8 @@
       font-size: 0.92rem;
     }
 
-    .btn {
+    .btn,
+    .secondary-btn {
       width: 100%;
       padding: 18px 20px;
       border-radius: 18px;
@@ -265,6 +284,19 @@
     .btn-primary {
       color: #08111f;
       background: linear-gradient(135deg, var(--cyan), var(--blue), #9dbeff);
+    }
+
+    .secondary-btn {
+      display: none;
+      margin-top: 12px;
+      text-align: center;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--line);
+      color: var(--text);
+    }
+
+    .secondary-btn.show {
+      display: block;
     }
 
     .btn:disabled {
@@ -282,7 +314,9 @@
       font-size: 0.94rem;
     }
 
-    .status.show { display: block; }
+    .status.show {
+      display: block;
+    }
 
     .status.success {
       background: rgba(113,255,183,0.12);
@@ -349,22 +383,22 @@
         <div class="eyebrow">Secure rider onboarding</div>
         <h2>Create your <span>rider account</span></h2>
         <p>
-          Join Harvey Taxi with a cleaner, more secure rider experience built for protected access,
-          trusted account setup, and future platform growth.
+          Join Harvey Taxi through a cleaner rider onboarding experience designed for
+          immediate account access, safer platform usage, and future service expansion.
         </p>
 
         <div class="benefits">
           <div class="benefit">
-            <strong>Verified rider access</strong>
-            <span>Accounts move through approval before full platform access is enabled.</span>
+            <strong>Immediate rider access</strong>
+            <span>Your rider account can be created and activated right away so you can move faster.</span>
           </div>
           <div class="benefit">
-            <strong>Private account setup</strong>
-            <span>Your rider profile is created through a cleaner and more professional onboarding flow.</span>
+            <strong>Optional verification support</strong>
+            <span>Additional identity verification may be requested later to strengthen account security when needed.</span>
           </div>
           <div class="benefit">
             <strong>Platform-ready account</strong>
-            <span>Your rider account is built to connect with safety, support, and future Harvey Taxi services.</span>
+            <span>Your rider profile is built to connect with rides, safety tools, support, and future Harvey Taxi services.</span>
           </div>
         </div>
       </section>
@@ -372,11 +406,11 @@
       <section class="panel">
         <h3>Rider Sign Up</h3>
         <p class="panel-sub">
-          Enter your details to create your Harvey Taxi rider account and begin verification.
+          Enter your details to create your Harvey Taxi rider account and get rider access.
         </p>
 
         <div class="notice">
-          Rider accounts must be approved before platform access is fully enabled.
+          Rider accounts are created for immediate platform access. Additional verification may be requested later for safety or support purposes.
         </div>
 
         <form id="riderSignupForm">
@@ -399,12 +433,13 @@
             <div class="field full">
               <label for="address">Home Address</label>
               <input type="text" id="address" name="address" placeholder="Street address, city, state, ZIP" required />
-              <small>This helps support a more complete rider profile for your account.</small>
+              <small>This supports a more complete rider profile for your account and service access.</small>
             </div>
           </div>
 
           <button type="submit" class="btn btn-primary" id="submitBtn">Create Rider Account</button>
           <div id="statusMessage" class="status"></div>
+          <a id="continueBtn" class="secondary-btn" href="request-ride.html">Continue to Request Ride</a>
         </form>
       </section>
     </main>
@@ -416,6 +451,7 @@
     const riderForm = document.getElementById("riderSignupForm");
     const riderStatus = document.getElementById("statusMessage");
     const submitBtn = document.getElementById("submitBtn");
+    const continueBtn = document.getElementById("continueBtn");
 
     function showStatus(type, message) {
       riderStatus.className = `status show ${type}`;
@@ -424,6 +460,10 @@
 
     riderForm.addEventListener("submit", async (e) => {
       e.preventDefault();
+
+      riderStatus.className = "status";
+      riderStatus.textContent = "";
+      continueBtn.classList.remove("show");
 
       submitBtn.disabled = true;
       submitBtn.textContent = "Creating Rider Account...";
@@ -450,9 +490,10 @@
 
         showStatus(
           "success",
-          data.message || "Rider account created successfully. Verification review has started."
+          data.message || "Rider account created successfully. Your rider access is now active."
         );
 
+        continueBtn.classList.add("show");
         riderForm.reset();
       } catch (error) {
         showStatus(
