@@ -1,308 +1,893 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Harvey Taxi — Driver Missions</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Harvey Taxi — Driver Missions</title>
+  <style>
+    :root{
+      --bg1:#040814;
+      --bg2:#091126;
+      --panel:rgba(10,17,38,.90);
+      --panel2:rgba(16,28,58,.78);
+      --line:rgba(122,162,255,.16);
+      --line-strong:rgba(122,162,255,.28);
+      --text:#f4f7ff;
+      --muted:#aab8de;
+      --blue:#5ea0ff;
+      --cyan:#63f5ff;
+      --green:#6dffb3;
+      --danger:#ff7e97;
+      --gold:#ffd76a;
+      --shadow:0 20px 70px rgba(0,0,0,.35);
+      --radius:24px;
+    }
 
-<style>
-:root{
---bg1:#040814;
---bg2:#091126;
---panel:rgba(10,17,38,.92);
---line:rgba(122,162,255,.16);
---text:#f4f7ff;
---muted:#aab8de;
---blue:#5ea0ff;
---cyan:#63f5ff;
---green:#6dffb3;
---danger:#ff7e97;
-}
+    *{box-sizing:border-box;margin:0;padding:0}
 
-*{box-sizing:border-box;margin:0;padding:0}
+    body{
+      font-family:Inter,Arial,sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(99,245,255,.12), transparent 28%),
+        radial-gradient(circle at top right, rgba(94,160,255,.10), transparent 24%),
+        linear-gradient(160deg,var(--bg1),var(--bg2));
+      min-height:100vh;
+    }
 
-body{
-font-family:Inter,Arial;
-color:var(--text);
-min-height:100vh;
-background:
-radial-gradient(circle at top left, rgba(99,245,255,.12), transparent 26%),
-linear-gradient(160deg,var(--bg1),var(--bg2));
-}
+    a{text-decoration:none;color:inherit}
 
-.shell{
-max-width:900px;
-margin:auto;
-padding:20px;
-}
+    .shell{
+      max-width:1000px;
+      margin:auto;
+      padding:18px 16px 40px;
+    }
 
-.top{
-display:flex;
-justify-content:space-between;
-align-items:center;
-margin-bottom:20px;
-}
+    .topbar{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      margin-bottom:18px;
+      padding:14px 16px;
+      border:1px solid var(--line);
+      border-radius:999px;
+      background:rgba(7,14,31,.58);
+      backdrop-filter:blur(14px);
+      box-shadow:var(--shadow);
+      position:sticky;
+      top:12px;
+      z-index:30;
+    }
 
-.brand{
-font-weight:800;
-font-size:1.3rem;
-}
+    .brand-wrap{
+      display:flex;
+      align-items:center;
+      gap:12px;
+    }
 
-.home{
-text-decoration:none;
-color:white;
-border:1px solid var(--line);
-padding:8px 14px;
-border-radius:999px;
-}
+    .brand-mark{
+      width:42px;
+      height:42px;
+      border-radius:14px;
+      background:
+        radial-gradient(circle at 30% 30%, rgba(255,255,255,.95), rgba(255,255,255,.1) 18%, transparent 20%),
+        linear-gradient(145deg, rgba(104,168,255,.95), rgba(98,245,255,.45), rgba(113,255,183,.25));
+      box-shadow:0 0 18px rgba(98,245,255,.2), inset 0 0 18px rgba(255,255,255,.08);
+    }
 
-.card{
-background:var(--panel);
-border:1px solid var(--line);
-border-radius:20px;
-padding:18px;
-margin-bottom:16px;
-}
+    .brand h1{
+      font-size:1rem;
+      font-weight:800;
+      letter-spacing:.06em;
+    }
 
-.title{
-font-weight:800;
-margin-bottom:10px;
-}
+    .brand p{
+      color:var(--muted);
+      font-size:.82rem;
+      margin-top:2px;
+    }
 
-.input{
-width:100%;
-padding:12px;
-border-radius:12px;
-border:1px solid var(--line);
-background:rgba(255,255,255,.04);
-color:white;
-margin-bottom:10px;
-}
+    .mini-btn{
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.04);
+      color:var(--text);
+      padding:10px 14px;
+      border-radius:999px;
+      font-weight:800;
+      font-size:.88rem;
+      cursor:pointer;
+    }
 
-.btn{
-padding:12px;
-border-radius:12px;
-border:none;
-cursor:pointer;
-font-weight:800;
-}
+    .hero{
+      background:linear-gradient(180deg,rgba(17,31,66,.88),rgba(8,16,35,.92));
+      border:1px solid var(--line);
+      border-radius:28px;
+      padding:24px;
+      box-shadow:var(--shadow);
+      margin-bottom:18px;
+    }
 
-.primary{
-background:linear-gradient(90deg,var(--blue),var(--cyan));
-color:#04121f;
-width:100%;
-}
+    .hero .eyebrow{
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      border:1px solid var(--line-strong);
+      padding:8px 14px;
+      border-radius:999px;
+      color:var(--cyan);
+      font-weight:700;
+      font-size:.86rem;
+      background:rgba(98,245,255,.06);
+      margin-bottom:16px;
+    }
 
-.mission{
-background:rgba(255,255,255,.03);
-border:1px solid var(--line);
-border-radius:16px;
-padding:14px;
-margin-top:12px;
-}
+    .hero h2{
+      font-size:clamp(1.9rem,4vw,3rem);
+      line-height:1.04;
+      font-weight:900;
+      letter-spacing:-.03em;
+    }
 
-.grid{
-display:grid;
-grid-template-columns:1fr 1fr;
-gap:10px;
-margin-top:10px;
-}
+    .hero h2 span{
+      background:linear-gradient(90deg,#fff,#89c0ff,#72fff0);
+      -webkit-background-clip:text;
+      -webkit-text-fill-color:transparent;
+    }
 
-.box{
-background:rgba(255,255,255,.03);
-padding:10px;
-border-radius:12px;
-border:1px solid var(--line);
-}
+    .hero p{
+      margin-top:12px;
+      color:var(--muted);
+      line-height:1.65;
+      max-width:760px;
+    }
 
-.k{
-font-size:.75rem;
-color:var(--muted);
-}
+    .layout{
+      display:grid;
+      grid-template-columns:340px 1fr;
+      gap:18px;
+      align-items:start;
+    }
 
-.v{
-font-weight:700;
-margin-top:3px;
-}
+    .card{
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:24px;
+      padding:20px;
+      box-shadow:var(--shadow);
+      backdrop-filter:blur(16px);
+    }
 
-.actions{
-display:flex;
-gap:10px;
-margin-top:14px;
-}
+    .section-title{
+      font-size:1.06rem;
+      font-weight:800;
+      margin-bottom:12px;
+    }
 
-.accept{
-flex:1;
-background:linear-gradient(90deg,#63f5ff,#6dffb3);
-border:none;
-padding:12px;
-border-radius:12px;
-font-weight:800;
-cursor:pointer;
-}
+    .sub{
+      color:var(--muted);
+      line-height:1.55;
+      font-size:.94rem;
+      margin-bottom:16px;
+    }
 
-.decline{
-flex:1;
-background:rgba(255,255,255,.05);
-border:1px solid var(--line);
-padding:12px;
-border-radius:12px;
-font-weight:800;
-cursor:pointer;
-color:white;
-}
+    .field{
+      margin-bottom:14px;
+    }
 
-</style>
+    .field label{
+      display:block;
+      margin-bottom:8px;
+      font-size:.92rem;
+      font-weight:800;
+      color:var(--muted);
+    }
+
+    .input, textarea{
+      width:100%;
+      background:var(--panel2);
+      color:var(--text);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:16px;
+      padding:14px 14px;
+      outline:none;
+      font-size:1rem;
+      font-family:inherit;
+    }
+
+    .input:focus, textarea:focus{
+      border-color:var(--blue);
+      box-shadow:0 0 0 3px rgba(94,160,255,.14);
+    }
+
+    .input::placeholder,
+    textarea::placeholder{
+      color:rgba(244,247,255,.48);
+    }
+
+    .btn-row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top:8px;
+    }
+
+    button{
+      border:none;
+      cursor:pointer;
+      border-radius:16px;
+      padding:14px 16px;
+      font-size:.96rem;
+      font-weight:800;
+      transition:.2s ease;
+      font-family:inherit;
+    }
+
+    button:hover{transform:translateY(-2px)}
+
+    .primary{
+      background:linear-gradient(90deg,var(--blue),var(--cyan));
+      color:#041224;
+      flex:1;
+    }
+
+    .secondary{
+      background:rgba(255,255,255,.05);
+      color:var(--text);
+      border:1px solid var(--line);
+      flex:1;
+    }
+
+    .status{
+      display:none;
+      margin-top:14px;
+      padding:14px 15px;
+      border-radius:16px;
+      line-height:1.6;
+      font-size:.93rem;
+    }
+
+    .status.show{display:block}
+    .status.success{
+      background:rgba(109,255,179,.10);
+      border:1px solid rgba(109,255,179,.2);
+      color:#dcfff1;
+    }
+    .status.error{
+      background:rgba(255,126,151,.10);
+      border:1px solid rgba(255,126,151,.2);
+      color:#ffd9e1;
+    }
+
+    .summary-grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:12px;
+      margin-top:8px;
+    }
+
+    .mini{
+      background:rgba(255,255,255,.035);
+      border:1px solid var(--line);
+      border-radius:18px;
+      padding:14px;
+    }
+
+    .mini .k{
+      color:var(--muted);
+      font-size:.8rem;
+      margin-bottom:6px;
+    }
+
+    .mini .v{
+      font-weight:800;
+      line-height:1.45;
+    }
+
+    .mission-list{
+      display:grid;
+      gap:16px;
+    }
+
+    .mission{
+      background:rgba(255,255,255,.03);
+      border:1px solid var(--line);
+      border-radius:22px;
+      padding:18px;
+    }
+
+    .mission-top{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:12px;
+      margin-bottom:14px;
+    }
+
+    .mission-title{
+      font-size:1.02rem;
+      font-weight:800;
+      margin-bottom:4px;
+    }
+
+    .mission-sub{
+      color:var(--muted);
+      font-size:.9rem;
+      line-height:1.5;
+    }
+
+    .tag{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      padding:8px 12px;
+      border-radius:999px;
+      font-size:.8rem;
+      font-weight:800;
+      white-space:nowrap;
+    }
+
+    .tag-blue{
+      color:#dff7ff;
+      background:rgba(99,245,255,.12);
+      border:1px solid rgba(99,245,255,.22);
+    }
+
+    .tag-green{
+      color:#dfffee;
+      background:rgba(109,255,179,.12);
+      border:1px solid rgba(109,255,179,.22);
+    }
+
+    .tag-gold{
+      color:#fff2c4;
+      background:rgba(255,215,106,.12);
+      border:1px solid rgba(255,215,106,.22);
+    }
+
+    .tag-red{
+      color:#ffd9e1;
+      background:rgba(255,126,151,.12);
+      border:1px solid rgba(255,126,151,.22);
+    }
+
+    .mission-grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:12px;
+      margin:14px 0;
+    }
+
+    .detail{
+      background:rgba(255,255,255,.035);
+      border:1px solid var(--line);
+      border-radius:16px;
+      padding:12px 13px;
+    }
+
+    .detail .k{
+      color:var(--muted);
+      font-size:.78rem;
+      margin-bottom:5px;
+    }
+
+    .detail .v{
+      font-weight:700;
+      line-height:1.5;
+      word-break:break-word;
+    }
+
+    .notes{
+      margin-top:12px;
+      padding:13px 14px;
+      border:1px solid var(--line);
+      border-radius:16px;
+      background:rgba(255,255,255,.03);
+    }
+
+    .notes .k{
+      color:var(--muted);
+      font-size:.78rem;
+      margin-bottom:6px;
+    }
+
+    .notes .v{
+      line-height:1.6;
+    }
+
+    .mission-actions{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      margin-top:16px;
+    }
+
+    .mission-actions button{
+      flex:1 1 180px;
+    }
+
+    .accept-btn{
+      background:linear-gradient(90deg,var(--green),var(--cyan));
+      color:#041224;
+    }
+
+    .decline-btn{
+      background:rgba(255,255,255,.05);
+      color:var(--text);
+      border:1px solid rgba(255,126,151,.24);
+    }
+
+    .progress-btn{
+      background:linear-gradient(90deg,var(--blue),#8db6ff);
+      color:#041224;
+    }
+
+    .empty{
+      padding:22px;
+      border:1px dashed rgba(122,162,255,.2);
+      border-radius:20px;
+      color:var(--muted);
+      line-height:1.65;
+      text-align:center;
+      background:rgba(255,255,255,.02);
+    }
+
+    .return-home{
+      position:fixed;
+      right:16px;
+      bottom:16px;
+      z-index:60;
+      padding:15px 20px;
+      border-radius:999px;
+      background:linear-gradient(135deg,var(--cyan),var(--blue));
+      color:#08111f;
+      font-weight:800;
+      box-shadow:var(--shadow);
+    }
+
+    @media (max-width: 920px){
+      .layout{
+        grid-template-columns:1fr;
+      }
+    }
+
+    @media (max-width: 700px){
+      .mission-grid,
+      .summary-grid{
+        grid-template-columns:1fr;
+      }
+
+      .topbar{
+        flex-direction:column;
+        align-items:flex-start;
+        border-radius:24px;
+      }
+
+      .return-home{
+        left:12px;
+        right:12px;
+        text-align:center;
+      }
+    }
+  </style>
 </head>
 <body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand-wrap">
+        <div class="brand-mark"></div>
+        <div class="brand">
+          <h1>HARVEY TAXI</h1>
+          <p>Driver Missions Console</p>
+        </div>
+      </div>
+      <a class="mini-btn" href="index.html">Return Home</a>
+    </header>
 
-<div class="shell">
+    <section class="hero">
+      <div class="eyebrow">Driver mission flow</div>
+      <h2>Manage your <span>ride missions</span></h2>
+      <p>
+        Load your current Harvey Taxi mission feed, review ride opportunities, and move
+        accepted trips through each stage from acceptance to completion.
+      </p>
+    </section>
 
-<div class="top">
-<div class="brand">Driver Missions</div>
-<a class="home" href="/">Return Home</a>
-</div>
+    <main class="layout">
+      <section class="card">
+        <div class="section-title">Driver Session</div>
+        <p class="sub">
+          Enter your driver ID to load current missions assigned or offered to your account.
+        </p>
 
-<div class="card">
-<div class="title">Go Online</div>
+        <div class="field">
+          <label for="driverId">Driver ID</label>
+          <input class="input" id="driverId" placeholder="Enter your driver ID" />
+        </div>
 
-<input id="driverId" class="input" placeholder="Driver ID">
-<button class="btn primary" onclick="goOnline()">Go Online</button>
+        <div class="btn-row">
+          <button class="primary" id="loadMissionsBtn">Load Missions</button>
+          <button class="secondary" id="refreshBtn">Refresh</button>
+        </div>
 
-</div>
+        <div id="pageStatus" class="status"></div>
 
-<div id="missions"></div>
+        <div class="section-title" style="margin-top:20px;">Live Summary</div>
+        <div class="summary-grid">
+          <div class="mini">
+            <div class="k">Open Missions</div>
+            <div class="v" id="openMissionCount">0</div>
+          </div>
+          <div class="mini">
+            <div class="k">Accepted / Active</div>
+            <div class="v" id="activeMissionCount">0</div>
+          </div>
+        </div>
+      </section>
 
-</div>
+      <section class="card">
+        <div class="section-title">Mission Feed</div>
+        <p class="sub">
+          Current ride opportunities and active rides for this driver appear here.
+        </p>
 
-<script>
+        <div id="missionList" class="mission-list">
+          <div class="empty">
+            Enter your driver ID and tap <strong>Load Missions</strong> to view available mission offers.
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
 
-let currentDriver = null
+  <a href="index.html" class="return-home">Return Home</a>
 
-async function goOnline(){
+  <script>
+    const driverIdInput = document.getElementById("driverId");
+    const loadMissionsBtn = document.getElementById("loadMissionsBtn");
+    const refreshBtn = document.getElementById("refreshBtn");
+    const pageStatus = document.getElementById("pageStatus");
+    const missionList = document.getElementById("missionList");
+    const openMissionCount = document.getElementById("openMissionCount");
+    const activeMissionCount = document.getElementById("activeMissionCount");
 
-const driverId = document.getElementById("driverId").value
+    let currentDriverId = "";
 
-if(!driverId) return alert("Enter driver ID")
+    function showStatus(type, message) {
+      pageStatus.className = `status show ${type}`;
+      pageStatus.textContent = message;
+    }
 
-currentDriver = driverId
+    function clearStatus() {
+      pageStatus.className = "status";
+      pageStatus.textContent = "";
+    }
 
-await fetch("/api/driver/go-online",{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({
-driver_id:driverId,
-is_online:true
-})
-})
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
 
-loadMissions()
+    function formatMoney(value) {
+      const num = Number(value || 0);
+      return `$${num.toFixed(2)}`;
+    }
 
-setInterval(loadMissions,4000)
+    function getMissionTagClass(status) {
+      const normalized = String(status || "").toUpperCase();
 
-}
+      if (normalized === "OFFERED") return "tag tag-gold";
+      if (normalized === "ACCEPTED") return "tag tag-green";
+      if (normalized === "EN_ROUTE") return "tag tag-blue";
+      if (normalized === "ARRIVED") return "tag tag-blue";
+      if (normalized === "IN_PROGRESS") return "tag tag-blue";
+      if (normalized === "COMPLETED") return "tag tag-green";
+      if (normalized === "DECLINED") return "tag tag-red";
+      if (normalized === "EXPIRED") return "tag tag-red";
 
-async function loadMissions(){
+      return "tag tag-blue";
+    }
 
-if(!currentDriver) return
+    function renderMissionActions(mission) {
+      const status = String(mission.mission_status || "").toUpperCase();
 
-const res = await fetch(`/api/driver-missions/${currentDriver}`)
-const data = await res.json()
+      if (status === "OFFERED") {
+        return `
+          <div class="mission-actions">
+            <button class="accept-btn" data-action="accept" data-dispatch-id="${escapeHtml(mission.dispatch_id)}">Accept Mission</button>
+            <button class="decline-btn" data-action="decline" data-dispatch-id="${escapeHtml(mission.dispatch_id)}">Decline Mission</button>
+          </div>
+        `;
+      }
 
-const container = document.getElementById("missions")
+      if (status === "ACCEPTED") {
+        return `
+          <div class="mission-actions">
+            <button class="progress-btn" data-action="en-route" data-ride-id="${escapeHtml(mission.ride_id)}">Mark En Route</button>
+          </div>
+        `;
+      }
 
-container.innerHTML=""
+      if (status === "EN_ROUTE") {
+        return `
+          <div class="mission-actions">
+            <button class="progress-btn" data-action="arrived" data-ride-id="${escapeHtml(mission.ride_id)}">Mark Arrived</button>
+          </div>
+        `;
+      }
 
-data.missions.forEach(m => {
+      if (status === "ARRIVED") {
+        return `
+          <div class="mission-actions">
+            <button class="progress-btn" data-action="start-trip" data-ride-id="${escapeHtml(mission.ride_id)}">Start Trip</button>
+          </div>
+        `;
+      }
 
-const el = document.createElement("div")
-el.className="mission"
+      if (status === "IN_PROGRESS") {
+        return `
+          <div class="mission-actions">
+            <button class="progress-btn" data-action="complete-trip" data-ride-id="${escapeHtml(mission.ride_id)}">Complete Trip</button>
+          </div>
+        `;
+      }
 
-el.innerHTML = `
+      return "";
+    }
 
-<div class="title">New Trip Mission</div>
+    function renderMissions(missions) {
+      if (!missions.length) {
+        missionList.innerHTML = `
+          <div class="empty">
+            No current missions found for this driver right now.
+          </div>
+        `;
+        openMissionCount.textContent = "0";
+        activeMissionCount.textContent = "0";
+        return;
+      }
 
-<div><b>${m.pickup_address}</b></div>
-<div style="color:#aab8de">${m.dropoff_address}</div>
+      const openCount = missions.filter(
+        (m) => String(m.mission_status || "").toUpperCase() === "OFFERED"
+      ).length;
 
-<div class="grid">
+      const activeCount = missions.filter((m) =>
+        ["ACCEPTED", "EN_ROUTE", "ARRIVED", "IN_PROGRESS"].includes(
+          String(m.mission_status || "").toUpperCase()
+        )
+      ).length;
 
-<div class="box">
-<div class="k">Passenger</div>
-<div class="v">${m.passenger_first_name}</div>
-</div>
+      openMissionCount.textContent = String(openCount);
+      activeMissionCount.textContent = String(activeCount);
 
-<div class="box">
-<div class="k">Ride Type</div>
-<div class="v">${m.ride_type}</div>
-</div>
+      missionList.innerHTML = missions.map((mission) => {
+        const status = String(mission.mission_status || "OFFERED").toUpperCase();
+        const pickup = escapeHtml(mission.pickup_address || "Not provided");
+        const dropoff = escapeHtml(mission.dropoff_address || "Not provided");
+        const rideType = escapeHtml(mission.ride_type || "STANDARD");
+        const notes = escapeHtml(mission.special_notes || "No additional notes provided.");
+        const payout = formatMoney(mission.estimated_driver_payout || 0);
+        const fare = formatMoney(mission.estimated_fare || 0);
+        const distance = `${Number(mission.estimated_distance_miles || 0).toFixed(2)} mi`;
+        const duration = `${Number(mission.estimated_duration_minutes || 0)} min`;
 
-<div class="box">
-<div class="k">Distance</div>
-<div class="v">${m.estimated_distance_miles} mi</div>
-</div>
+        return `
+          <article class="mission">
+            <div class="mission-top">
+              <div>
+                <div class="mission-title">Ride Mission</div>
+                <div class="mission-sub">
+                  Ride ID: ${escapeHtml(mission.ride_id || "")}<br>
+                  Dispatch ID: ${escapeHtml(mission.dispatch_id || "")}
+                </div>
+              </div>
+              <div class="${getMissionTagClass(status)}">${escapeHtml(status)}</div>
+            </div>
 
-<div class="box">
-<div class="k">Duration</div>
-<div class="v">${m.estimated_duration_minutes} min</div>
-</div>
+            <div class="mission-grid">
+              <div class="detail">
+                <div class="k">Pickup</div>
+                <div class="v">${pickup}</div>
+              </div>
+              <div class="detail">
+                <div class="k">Dropoff</div>
+                <div class="v">${dropoff}</div>
+              </div>
+              <div class="detail">
+                <div class="k">Ride Type</div>
+                <div class="v">${rideType}</div>
+              </div>
+              <div class="detail">
+                <div class="k">Driver Payout</div>
+                <div class="v">${payout}</div>
+              </div>
+              <div class="detail">
+                <div class="k">Fare</div>
+                <div class="v">${fare}</div>
+              </div>
+              <div class="detail">
+                <div class="k">Estimated Route</div>
+                <div class="v">${distance} • ${duration}</div>
+              </div>
+            </div>
 
-<div class="box">
-<div class="k">Fare</div>
-<div class="v">$${m.estimated_fare}</div>
-</div>
+            <div class="notes">
+              <div class="k">Ride Notes</div>
+              <div class="v">${notes}</div>
+            </div>
 
-<div class="box">
-<div class="k">Your Payout</div>
-<div class="v">$${m.estimated_driver_payout}</div>
-</div>
+            ${renderMissionActions(mission)}
+          </article>
+        `;
+      }).join("");
+    }
 
-</div>
+    async function loadMissions(showSuccessMessage = false) {
+      const driverId = driverIdInput.value.trim();
 
-<div class="actions">
-<button class="accept" onclick="accept('${m.ride_id}')">Accept</button>
-<button class="decline" onclick="decline('${m.ride_id}')">Decline</button>
-</div>
+      if (!driverId) {
+        showStatus("error", "Enter your driver ID first.");
+        return;
+      }
 
-`
+      currentDriverId = driverId;
+      loadMissionsBtn.disabled = true;
+      refreshBtn.disabled = true;
+      loadMissionsBtn.textContent = "Loading...";
 
-container.appendChild(el)
+      try {
+        const res = await fetch(`/api/driver/${encodeURIComponent(driverId)}/missions`);
+        const data = await res.json().catch(() => ({}));
 
-})
+        if (!res.ok) {
+          throw new Error(data.message || "Unable to load driver missions.");
+        }
 
-}
+        renderMissions(Array.isArray(data.missions) ? data.missions : []);
 
-async function accept(rideId){
+        if (showSuccessMessage) {
+          showStatus("success", "Mission feed refreshed successfully.");
+        } else {
+          clearStatus();
+        }
+      } catch (error) {
+        renderMissions([]);
+        showStatus("error", error.message || "Unable to load driver missions.");
+      } finally {
+        loadMissionsBtn.disabled = false;
+        refreshBtn.disabled = false;
+        loadMissionsBtn.textContent = "Load Missions";
+      }
+    }
 
-await fetch("/api/driver-missions/accept",{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({
-driver_id:currentDriver,
-ride_id:rideId
-})
-})
+    async function postAction(url, payload, successMessage) {
+      try {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
 
-alert("Mission accepted")
+        const data = await res.json().catch(() => ({}));
 
-}
+        if (!res.ok) {
+          throw new Error(data.message || "Request failed.");
+        }
 
-async function decline(rideId){
+        showStatus("success", data.message || successMessage);
+        await loadMissions(false);
+      } catch (error) {
+        showStatus("error", error.message || "Unable to complete request.");
+      }
+    }
 
-await fetch("/api/driver-missions/decline",{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({
-driver_id:currentDriver,
-ride_id:rideId
-})
-})
+    async function handleMissionAction(action, element) {
+      if (!currentDriverId) {
+        showStatus("error", "Load your driver mission feed first.");
+        return;
+      }
 
-loadMissions()
+      element.disabled = true;
+      const originalText = element.textContent;
 
-}
+      try {
+        if (action === "accept") {
+          await postAction(
+            "/api/driver/accept-mission",
+            {
+              driver_id: currentDriverId,
+              dispatch_id: element.dataset.dispatchId
+            },
+            "Mission accepted successfully."
+          );
+        } else if (action === "decline") {
+          await postAction(
+            "/api/driver/decline-mission",
+            {
+              driver_id: currentDriverId,
+              dispatch_id: element.dataset.dispatchId
+            },
+            "Mission declined successfully."
+          );
+        } else if (action === "en-route") {
+          await postAction(
+            "/api/driver/mark-en-route",
+            {
+              driver_id: currentDriverId,
+              ride_id: element.dataset.rideId
+            },
+            "Driver marked en route."
+          );
+        } else if (action === "arrived") {
+          await postAction(
+            "/api/driver/mark-arrived",
+            {
+              driver_id: currentDriverId,
+              ride_id: element.dataset.rideId
+            },
+            "Driver marked arrived."
+          );
+        } else if (action === "start-trip") {
+          await postAction(
+            "/api/driver/start-trip",
+            {
+              driver_id: currentDriverId,
+              ride_id: element.dataset.rideId
+            },
+            "Trip started successfully."
+          );
+        } else if (action === "complete-trip") {
+          const finalFareInput = prompt("Enter final fare amount", "");
+          if (finalFareInput === null) {
+            element.disabled = false;
+            element.textContent = originalText;
+            return;
+          }
 
-</script>
+          const tipInput = prompt("Enter tip amount (use 0 if none)", "0");
+          if (tipInput === null) {
+            element.disabled = false;
+            element.textContent = originalText;
+            return;
+          }
 
+          await postAction(
+            "/api/driver/complete-trip",
+            {
+              driver_id: currentDriverId,
+              ride_id: element.dataset.rideId,
+              final_fare: Number(finalFareInput || 0),
+              tip_amount: Number(tipInput || 0)
+            },
+            "Trip completed successfully."
+          );
+        }
+      } finally {
+        element.disabled = false;
+        element.textContent = originalText;
+      }
+    }
+
+    loadMissionsBtn.addEventListener("click", () => loadMissions(false));
+    refreshBtn.addEventListener("click", () => loadMissions(true));
+
+    driverIdInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        loadMissions(false);
+      }
+    });
+
+    missionList.addEventListener("click", (e) => {
+      const target = e.target.closest("button[data-action]");
+      if (!target) return;
+
+      const action = target.dataset.action;
+      handleMissionAction(action, target);
+    });
+  </script>
 </body>
 </html>
