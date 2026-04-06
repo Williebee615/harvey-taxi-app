@@ -3,33 +3,64 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Harvey Taxi Privacy Policy</title>
+  <title>Harvey Taxi — Privacy Policy</title>
+  <meta
+    name="description"
+    content="Harvey Taxi Privacy Policy describing how account, ride, onboarding, support, payment, and service-related information may be collected, used, stored, and protected."
+  />
   <style>
     :root {
-      --bg: #070b16;
-      --panel: #10182b;
-      --panel-2: #16223a;
-      --line: rgba(255,255,255,0.08);
-      --text: #f5f7ff;
-      --muted: #aeb9d6;
-      --blue: #63a4ff;
-      --green: #18c58f;
+      --bg-1: #06101f;
+      --bg-2: #0a1830;
+      --bg-3: #0e2244;
+      --panel: rgba(10, 20, 40, 0.88);
+      --panel-2: rgba(12, 24, 48, 0.96);
+      --line: rgba(126, 174, 255, 0.16);
+      --line-strong: rgba(126, 174, 255, 0.30);
+      --text: #f5f8ff;
+      --muted: #b4c0df;
+      --blue: #6aa8ff;
+      --cyan: #68eeff;
+      --green: #74f5b2;
+      --gold: #ffd972;
+      --danger: #ff8aa0;
+      --shadow: 0 22px 50px rgba(0, 0, 0, 0.35);
+      --radius-xl: 24px;
+      --radius-lg: 18px;
+      --radius-md: 14px;
+      --max: 1100px;
     }
 
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
 
     body {
-      margin: 0;
+      min-height: 100vh;
       font-family: Arial, Helvetica, sans-serif;
-      background: linear-gradient(180deg, #050814 0%, #0b1224 100%);
       color: var(--text);
-      line-height: 1.6;
+      background:
+        radial-gradient(circle at top left, rgba(104,238,255,0.08), transparent 24%),
+        radial-gradient(circle at top right, rgba(106,168,255,0.09), transparent 22%),
+        radial-gradient(circle at bottom center, rgba(116,245,178,0.05), transparent 28%),
+        linear-gradient(180deg, var(--bg-1), var(--bg-2) 48%, var(--bg-3));
     }
 
-    .wrap {
-      max-width: 960px;
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .shell {
+      width: min(100%, var(--max));
       margin: 0 auto;
-      padding: 24px 18px 80px;
+      padding: 18px 18px 40px;
     }
 
     .topbar {
@@ -37,157 +68,499 @@
       justify-content: space-between;
       align-items: center;
       gap: 12px;
-      margin-bottom: 24px;
-    }
-
-    .brand {
-      font-size: 24px;
-      font-weight: 700;
-    }
-
-    .home-btn {
-      text-decoration: none;
-      color: #fff;
-      background: linear-gradient(135deg, var(--blue), #2e6bff);
-      padding: 12px 16px;
-      border-radius: 12px;
-      font-weight: 700;
-      display: inline-block;
-    }
-
-    .card {
-      background: rgba(16, 24, 43, 0.9);
+      padding: 14px 16px;
       border: 1px solid var(--line);
-      border-radius: 18px;
-      padding: 22px;
-      margin-bottom: 18px;
-      box-shadow: 0 12px 40px rgba(0,0,0,0.28);
+      background: rgba(7, 15, 31, 0.82);
+      backdrop-filter: blur(14px);
+      border-radius: 999px;
+      box-shadow: var(--shadow);
+      position: sticky;
+      top: 10px;
+      z-index: 20;
     }
 
-    h1, h2 {
-      margin-top: 0;
+    .brand-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
     }
 
-    h1 {
-      font-size: 32px;
-      margin-bottom: 8px;
+    .brand-mark {
+      width: 46px;
+      height: 46px;
+      border-radius: 14px;
+      position: relative;
+      background:
+        radial-gradient(circle at 30% 30%, rgba(255,255,255,0.96), rgba(255,255,255,0.06) 18%, transparent 20%),
+        linear-gradient(145deg, rgba(106,168,255,0.96), rgba(104,238,255,0.48), rgba(116,245,178,0.22));
+      box-shadow:
+        0 0 16px rgba(104,238,255,0.18),
+        inset 0 0 16px rgba(255,255,255,0.08);
     }
 
-    h2 {
-      color: #dce7ff;
-      font-size: 22px;
-      margin-bottom: 8px;
+    .brand-mark::after {
+      content: "";
+      position: absolute;
+      inset: 9px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.16);
     }
 
-    p, li {
+    .brand h1 {
+      font-size: 1.02rem;
+      letter-spacing: 0.08em;
+      font-weight: 800;
+    }
+
+    .brand p {
       color: var(--muted);
-      font-size: 15px;
+      font-size: 0.82rem;
+      margin-top: 3px;
     }
 
-    ul {
-      padding-left: 18px;
+    .top-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .mini-btn,
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      font-weight: 700;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: 0.22s ease;
+    }
+
+    .mini-btn {
+      padding: 10px 14px;
+      font-size: 0.88rem;
+    }
+
+    .btn {
+      padding: 13px 18px;
+      border-radius: 14px;
+      font-size: 0.95rem;
+    }
+
+    .btn.primary {
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      color: #07111d;
+      border: none;
+    }
+
+    .mini-btn:hover,
+    .btn:hover,
+    .policy-card:hover,
+    .summary-card:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 28px rgba(0,0,0,0.24);
+    }
+
+    .hero,
+    .section-card,
+    .footer-box {
+      margin-top: 18px;
+      padding: 24px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-xl);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--line-strong);
+      color: var(--cyan);
+      background: rgba(104,238,255,0.07);
+      font-size: 0.85rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+
+    .hero h1 {
+      font-size: clamp(2rem, 4vw, 3rem);
+      line-height: 1.04;
+      letter-spacing: -0.03em;
+      margin-bottom: 10px;
     }
 
     .effective {
       color: var(--green);
       font-weight: 700;
-      margin-bottom: 18px;
+      margin-bottom: 14px;
+      font-size: 0.96rem;
+    }
+
+    .hero p,
+    .section-intro,
+    .policy-card p,
+    .policy-card li,
+    .footer-note,
+    .contact-note {
+      color: var(--muted);
+      line-height: 1.72;
+      font-size: 0.95rem;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    .section {
+      margin-top: 18px;
+    }
+
+    .section-head {
+      margin-bottom: 16px;
+    }
+
+    .section-head h2 {
+      font-size: 1.16rem;
+      margin-bottom: 8px;
+    }
+
+    .section-head p {
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+
+    .summary-card,
+    .policy-card {
+      padding: 18px;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,0.07);
+      background: rgba(255,255,255,0.03);
+      transition: 0.22s ease;
+    }
+
+    .summary-card strong,
+    .policy-card h3 {
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    .summary-card strong {
+      font-size: 0.98rem;
+    }
+
+    .summary-card span {
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+
+    .policy-grid {
+      display: grid;
+      gap: 14px;
+    }
+
+    .policy-card h3 {
+      font-size: 1.04rem;
+      color: #e8f0ff;
+    }
+
+    .policy-card ul {
+      padding-left: 18px;
+      margin-top: 10px;
+    }
+
+    .policy-card li + li {
+      margin-top: 8px;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .footer-box {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .footer-box p {
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    .footer-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
     }
 
     .footer-note {
-      color: var(--muted);
-      font-size: 14px;
-      margin-top: 24px;
+      margin-top: 12px;
+    }
+
+    @media (max-width: 950px) {
+      .summary-grid,
+      .two-col {
+        grid-template-columns: 1fr;
+      }
+
+      .topbar {
+        flex-direction: column;
+        align-items: flex-start;
+        border-radius: 24px;
+      }
+    }
+
+    @media (max-width: 700px) {
+      .shell {
+        padding: 14px 14px 32px;
+      }
+
+      .hero,
+      .section-card,
+      .footer-box {
+        padding: 18px;
+      }
+
+      .hero-actions,
+      .top-actions,
+      .footer-actions {
+        width: 100%;
+      }
+
+      .mini-btn,
+      .btn {
+        width: 100%;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="topbar">
-      <div class="brand">Harvey Taxi</div>
-      <a class="home-btn" href="/">Return Home</a>
-    </div>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand-wrap">
+        <div class="brand-mark"></div>
+        <div class="brand">
+          <h1>HARVEY TAXI</h1>
+          <p>Privacy • Trust • Platform Transparency</p>
+        </div>
+      </div>
 
-    <div class="card">
-      <h1>Privacy Policy</h1>
+      <div class="top-actions">
+        <a class="mini-btn" href="/index.html">Home</a>
+        <a class="mini-btn" href="/support.html">Support</a>
+        <a class="mini-btn" href="/terms.html">Terms</a>
+        <a class="mini-btn" href="/app-review.html">Review Info</a>
+      </div>
+    </header>
+
+    <section class="hero">
+      <div class="eyebrow">Privacy policy</div>
+      <h1>Harvey Taxi Privacy Policy</h1>
       <div class="effective">Effective Date: April 5, 2026</div>
       <p>
         Harvey Taxi respects your privacy. This Privacy Policy explains how Harvey Taxi Service LLC
-        collects, uses, stores, and protects information when riders, drivers, merchants, and visitors
-        use the Harvey Taxi platform.
+        may collect, use, store, protect, and share information when riders, drivers, merchants,
+        and visitors use the Harvey Taxi platform, related pages, and connected services.
       </p>
-    </div>
 
-    <div class="card">
-      <h2>Information We Collect</h2>
-      <ul>
-        <li>Name, email address, phone number, and account details you provide during signup.</li>
-        <li>Ride request details such as pickup address, dropoff address, ride status, and trip timing.</li>
-        <li>Driver onboarding information, which may include identity verification and background screening data handled through approved third-party providers.</li>
-        <li>Payment-related information used to process transactions through secure payment partners.</li>
-        <li>Device, browser, and usage information needed to improve performance, security, and support.</li>
-        <li>Location-related information when needed to support ride functionality, dispatch, ETA, navigation, and safety features.</li>
-      </ul>
-    </div>
+      <div class="hero-actions">
+        <a class="btn primary" href="/index.html">Return Home</a>
+        <a class="btn" href="/support.html">Contact Support</a>
+      </div>
+    </section>
 
-    <div class="card">
-      <h2>How We Use Information</h2>
-      <ul>
-        <li>To create and manage rider, driver, and merchant accounts.</li>
-        <li>To process ride requests and help connect riders with available drivers or fleet services.</li>
-        <li>To support identity verification, safety review, fraud prevention, and platform security.</li>
-        <li>To communicate service updates, ride details, support responses, and important notices.</li>
-        <li>To improve dispatch, route coordination, user experience, and platform operations.</li>
-        <li>To comply with legal obligations and enforce our policies.</li>
-      </ul>
-    </div>
+    <section class="section">
+      <div class="section-card">
+        <div class="section-head">
+          <h2>Privacy at a Glance</h2>
+          <p class="section-intro">
+            This summary is intended to make the policy easier to review and understand.
+          </p>
+        </div>
 
-    <div class="card">
-      <h2>Sharing of Information</h2>
-      <p>
-        Harvey Taxi may share limited information with service providers and partners that help operate the platform,
-        including verification providers, background screening providers, mapping providers, hosting providers,
-        analytics tools, payment processors, and customer support tools. We may also share information when required
-        by law, to protect safety, or to investigate misuse of the platform.
-      </p>
-    </div>
+        <div class="summary-grid">
+          <div class="summary-card">
+            <strong>What We Collect</strong>
+            <span>Account details, ride information, onboarding information, payment-related details, support information, and service-related usage data.</span>
+          </div>
 
-    <div class="card">
-      <h2>Data Security</h2>
-      <p>
-        Harvey Taxi uses reasonable administrative, technical, and operational safeguards to help protect user data.
-        However, no internet transmission or storage system can be guaranteed to be 100% secure.
-      </p>
-    </div>
+          <div class="summary-card">
+            <strong>Why We Use It</strong>
+            <span>To operate the platform, support account access, process ride activity, improve safety, and help maintain service quality.</span>
+          </div>
 
-    <div class="card">
-      <h2>Your Choices</h2>
-      <ul>
-        <li>You may contact us to request account updates or corrections.</li>
-        <li>You may choose not to provide certain information, though some features may not function properly.</li>
-        <li>You may discontinue use of the platform at any time.</li>
-      </ul>
-    </div>
+          <div class="summary-card">
+            <strong>Who May Receive It</strong>
+            <span>Authorized service providers, platform partners, and others when needed for operations, safety, legal compliance, or service delivery.</span>
+          </div>
+        </div>
+      </div>
+    </section>
 
-    <div class="card">
-      <h2>Children’s Privacy</h2>
-      <p>
-        Harvey Taxi is not intended for children under 13. We do not knowingly collect personal information
-        from children under 13 through the platform.
-      </p>
-    </div>
+    <section class="section">
+      <div class="section-card">
+        <div class="section-head">
+          <h2>Full Privacy Policy</h2>
+          <p>
+            The following sections describe the current Harvey Taxi platform privacy framework in a more detailed format.
+          </p>
+        </div>
 
-    <div class="card">
-      <h2>Contact</h2>
-      <p>
-        For privacy-related questions, contact Harvey Taxi Service LLC through the support information
-        provided on the platform or official business channels.
-      </p>
-    </div>
+        <div class="policy-grid">
+          <div class="policy-card">
+            <h3>1. Information We Collect</h3>
+            <ul>
+              <li>Name, email address, phone number, and account details provided during signup or account activity.</li>
+              <li>Ride request information such as pickup address, dropoff address, trip status, trip timing, and related service activity.</li>
+              <li>Driver onboarding information, which may include identity verification and background screening information handled through approved third-party providers.</li>
+              <li>Payment-related information used to process transactions through secure payment providers and related service partners.</li>
+              <li>Device, browser, usage, and technical information used to improve platform performance, security, troubleshooting, and support.</li>
+              <li>Location-related information when needed to support ride functionality, dispatch, ETA, navigation, fraud prevention, and safety-related platform operations.</li>
+            </ul>
+          </div>
 
-    <div class="footer-note">
-      This page is provided for general platform transparency and review readiness. You should later match this
-      policy exactly to your final production flows, providers, and legal business contact details.
+          <div class="policy-card">
+            <h3>2. How We Use Information</h3>
+            <ul>
+              <li>To create, manage, and maintain rider, driver, merchant, and related platform accounts.</li>
+              <li>To process ride requests and help connect riders with available drivers, fleet resources, or related transportation services.</li>
+              <li>To support identity verification, safety screening, fraud prevention, abuse detection, and platform security review.</li>
+              <li>To communicate ride updates, support responses, onboarding status, payment notices, and important service messages.</li>
+              <li>To improve operations, dispatch logic, routing efficiency, service quality, user experience, and platform readiness.</li>
+              <li>To comply with legal obligations and enforce platform terms, rules, policies, and service standards.</li>
+            </ul>
+          </div>
+
+          <div class="policy-card">
+            <h3>3. Sharing of Information</h3>
+            <p>
+              Harvey Taxi may share limited information with service providers and partners that help operate the platform,
+              including identity verification providers, background screening providers, mapping and geolocation providers,
+              hosting providers, analytics services, customer support tools, and payment processors.
+            </p>
+            <p style="margin-top:12px;">
+              Information may also be shared when reasonably necessary to protect safety, investigate misuse,
+              respond to legal requests, comply with applicable law, or protect Harvey Taxi, its users,
+              business operations, or the public.
+            </p>
+          </div>
+
+          <div class="policy-card">
+            <h3>4. Payment Information</h3>
+            <p>
+              Harvey Taxi may use third-party payment providers and processors to support ride-related payments,
+              donations, or related transactions. Payment information may be processed by those providers under their own
+              terms, privacy practices, and security controls.
+            </p>
+          </div>
+
+          <div class="policy-card">
+            <h3>5. Data Security</h3>
+            <p>
+              Harvey Taxi uses reasonable administrative, technical, and operational safeguards intended to help protect user data.
+              However, no method of internet transmission, cloud storage, or electronic system can be guaranteed to be fully secure.
+            </p>
+          </div>
+
+          <div class="policy-card">
+            <h3>6. Data Retention</h3>
+            <p>
+              Harvey Taxi may retain information for as long as reasonably needed to operate the platform, maintain records,
+              support legal compliance, resolve disputes, enforce agreements, improve services, and protect business operations.
+            </p>
+          </div>
+
+          <div class="policy-card">
+            <h3>7. Your Choices</h3>
+            <ul>
+              <li>You may contact Harvey Taxi to request account updates or corrections where available.</li>
+              <li>You may choose not to provide certain information, although some features may not function properly without it.</li>
+              <li>You may discontinue use of the platform at any time.</li>
+            </ul>
+          </div>
+
+          <div class="policy-card">
+            <h3>8. Children’s Privacy</h3>
+            <p>
+              Harvey Taxi is not intended for children under 13. We do not knowingly collect personal information
+              from children under 13 through the platform.
+            </p>
+          </div>
+
+          <div class="policy-card">
+            <h3>9. Policy Updates</h3>
+            <p>
+              Harvey Taxi may update this Privacy Policy from time to time to reflect service changes, operational updates,
+              business needs, legal requirements, or platform improvements. Updated versions may be posted on this page with a revised effective date.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="two-col">
+        <div class="section-card">
+          <div class="section-head">
+            <h2>Contact</h2>
+            <p>
+              For privacy-related questions, account concerns, or general support matters, contact Harvey Taxi Service LLC
+              through the support information provided on the platform or official business channels.
+            </p>
+          </div>
+
+          <p class="contact-note">
+            If you later add a public support email, public mailing address, or dedicated privacy contact,
+            you should update this page so the policy matches your final production business details.
+          </p>
+        </div>
+
+        <div class="section-card">
+          <div class="section-head">
+            <h2>Important Note</h2>
+            <p>
+              This page is intended to support platform transparency and review readiness.
+            </p>
+          </div>
+
+          <p class="footer-note">
+            You should later match this policy exactly to your final live production flows, payment providers,
+            verification providers, background screening providers, contact channels, and legal business details.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <div class="footer-box">
+      <div>
+        <h2 style="font-size:1.05rem; margin-bottom:8px;">Harvey Taxi Privacy Page</h2>
+        <p>
+          Privacy information presented in a cleaner, more official format for users, reviewers, and platform transparency.
+        </p>
+      </div>
+
+      <div class="footer-actions">
+        <a class="btn primary" href="/index.html">Return Home</a>
+        <a class="btn" href="/support.html">Support</a>
+      </div>
     </div>
   </div>
 </body>
