@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "Harvey Taxi",
+    "slug": "harvey-taxi-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#040814"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.harveytaxi.mobile",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Harvey Taxi uses your location to help with ride requests, pickup coordination, and trip flow."
+      }
+    },
+    "android": {
+      "package": "com.harveytaxi.mobile",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
+    }
+  }
+}
