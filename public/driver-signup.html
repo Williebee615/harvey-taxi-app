@@ -4,7 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Harvey Taxi | Driver Sign Up</title>
-  <meta name="description" content="Apply to join Harvey Taxi as a driver and begin onboarding, identity review, and approval." />
+  <meta
+    name="description"
+    content="Apply to join Harvey Taxi as a driver and begin onboarding, identity review, and approval."
+  />
   <style>
     :root {
       --bg-1: #040814;
@@ -23,7 +26,12 @@
       --shadow: 0 20px 60px rgba(0,0,0,0.35);
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
     body {
       min-height: 100vh;
       font-family: Inter, Arial, sans-serif;
@@ -33,123 +41,298 @@
         radial-gradient(circle at top right, rgba(104,168,255,0.12), transparent 24%),
         linear-gradient(160deg, var(--bg-1), var(--bg-2) 45%, var(--bg-3));
     }
-    a { color: inherit; text-decoration: none; }
-    .shell { width: min(100%, 960px); margin: 0 auto; padding: 18px 16px 110px; }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .shell {
+      width: min(100%, 960px);
+      margin: 0 auto;
+      padding: 18px 16px 110px;
+    }
 
     .topbar {
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 16px 18px; border: 1px solid var(--line); border-radius: 999px;
-      background: rgba(7,14,31,0.62); backdrop-filter: blur(14px); box-shadow: var(--shadow);
-      position: sticky; top: 12px; z-index: 50;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 18px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(7, 14, 31, 0.62);
+      backdrop-filter: blur(14px);
+      box-shadow: var(--shadow);
+      position: sticky;
+      top: 12px;
+      z-index: 50;
     }
-    .brand-wrap { display: flex; align-items: center; gap: 12px; }
+
+    .brand-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
     .brand-mark {
-      width: 44px; height: 44px; border-radius: 14px;
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
       background:
         radial-gradient(circle at 30% 30%, rgba(255,255,255,0.95), rgba(255,255,255,0.1) 18%, transparent 20%),
         linear-gradient(145deg, rgba(104,168,255,0.95), rgba(98,245,255,0.45), rgba(113,255,183,0.25));
     }
-    .brand h1 { font-size: 1rem; font-weight: 800; letter-spacing: 0.06em; }
-    .brand p { color: var(--muted); font-size: 0.82rem; margin-top: 2px; }
-    .mini-btn, .btn {
-      border: none; cursor: pointer; transition: 0.25s ease; font-weight: 800; font-family: inherit;
+
+    .brand h1 {
+      font-size: 1rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
     }
+
+    .brand p {
+      color: var(--muted);
+      font-size: 0.82rem;
+      margin-top: 2px;
+    }
+
+    .mini-btn,
+    .btn {
+      border: none;
+      cursor: pointer;
+      transition: 0.25s ease;
+      font-weight: 800;
+      font-family: inherit;
+    }
+
     .mini-btn {
-      padding: 10px 14px; border-radius: 999px; background: rgba(255,255,255,0.04);
-      color: var(--text); border: 1px solid var(--line); font-size: 0.88rem;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      border: 1px solid var(--line);
+      font-size: 0.88rem;
     }
 
     .page {
-      margin-top: 22px; display: grid; grid-template-columns: 1fr 1.05fr; gap: 18px;
+      margin-top: 22px;
+      display: grid;
+      grid-template-columns: 1fr 1.05fr;
+      gap: 18px;
     }
 
-    .hero, .panel {
-      background: var(--panel); border: 1px solid var(--line); border-radius: 28px;
-      box-shadow: var(--shadow); backdrop-filter: blur(16px);
+    .hero,
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(16px);
     }
 
-    .hero { padding: 28px; }
+    .hero {
+      padding: 28px;
+    }
+
     .eyebrow {
-      display: inline-flex; align-items: center; gap: 10px;
-      border: 1px solid var(--line-strong); padding: 9px 14px; border-radius: 999px;
-      color: var(--gold); font-weight: 700; font-size: 0.88rem;
-      background: rgba(255,216,111,0.06); margin-bottom: 18px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      border: 1px solid var(--line-strong);
+      padding: 9px 14px;
+      border-radius: 999px;
+      color: var(--gold);
+      font-weight: 700;
+      font-size: 0.88rem;
+      background: rgba(255,216,111,0.06);
+      margin-bottom: 18px;
     }
+
     .hero h2 {
-      font-size: clamp(2rem, 4vw, 3.4rem); line-height: 1.03;
-      font-weight: 900; letter-spacing: -0.03em;
+      font-size: clamp(2rem, 4vw, 3.4rem);
+      line-height: 1.03;
+      font-weight: 900;
+      letter-spacing: -0.03em;
     }
+
     .hero h2 span {
       background: linear-gradient(90deg, #ffffff, #89c0ff, #72fff0);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
     }
+
     .hero p {
-      margin-top: 14px; color: var(--muted); line-height: 1.7;
+      margin-top: 14px;
+      color: var(--muted);
+      line-height: 1.7;
     }
 
-    .checklist { display: grid; gap: 12px; margin-top: 22px; }
+    .checklist {
+      display: grid;
+      gap: 12px;
+      margin-top: 22px;
+    }
+
     .item {
-      padding: 14px 15px; border-radius: 16px;
-      background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);
+      padding: 14px 15px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.07);
     }
-    .item strong { display: block; margin-bottom: 6px; }
-    .item span { color: var(--muted); line-height: 1.55; font-size: 0.92rem; }
 
-    .panel { padding: 24px; }
-    .panel h3 { font-size: 1.24rem; margin-bottom: 8px; }
-    .panel-sub { color: var(--muted); line-height: 1.65; margin-bottom: 18px; }
+    .item strong {
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .item span {
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 0.92rem;
+    }
+
+    .panel {
+      padding: 24px;
+    }
+
+    .panel h3 {
+      font-size: 1.24rem;
+      margin-bottom: 8px;
+    }
+
+    .panel-sub {
+      color: var(--muted);
+      line-height: 1.65;
+      margin-bottom: 18px;
+    }
 
     .notice {
-      padding: 14px 16px; border-radius: 16px; margin-bottom: 18px;
-      background: rgba(255,216,111,0.10); border: 1px solid rgba(255,216,111,0.18);
-      color: var(--muted); line-height: 1.6; font-size: 0.92rem;
+      padding: 14px 16px;
+      border-radius: 16px;
+      margin-bottom: 18px;
+      background: rgba(255,216,111,0.10);
+      border: 1px solid rgba(255,216,111,0.18);
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 0.92rem;
     }
 
-    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    .field { display: grid; gap: 8px; margin-bottom: 16px; }
-    .field.full { grid-column: 1 / -1; }
-    .field label { font-weight: 800; font-size: 0.96rem; }
-    .field small { color: var(--muted); font-size: 0.82rem; line-height: 1.5; }
-
-    input, select {
-      width: 100%; padding: 16px 18px; border-radius: 18px;
-      border: 1px solid rgba(34,81,182,0.5); background: rgba(0,12,52,0.88);
-      color: var(--text); font-size: 1rem; outline: none; transition: 0.25s ease;
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
     }
-    input:focus, select:focus {
+
+    .field {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .field.full {
+      grid-column: 1 / -1;
+    }
+
+    .field label {
+      font-weight: 800;
+      font-size: 0.96rem;
+    }
+
+    .field small {
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.5;
+    }
+
+    input,
+    select {
+      width: 100%;
+      padding: 16px 18px;
+      border-radius: 18px;
+      border: 1px solid rgba(34,81,182,0.5);
+      background: rgba(0,12,52,0.88);
+      color: var(--text);
+      font-size: 1rem;
+      outline: none;
+      transition: 0.25s ease;
+    }
+
+    input:focus,
+    select:focus {
       border-color: var(--blue);
       box-shadow: 0 0 0 3px rgba(104,168,255,0.16);
     }
 
     .btn {
-      width: 100%; padding: 18px 20px; border-radius: 18px; font-size: 1rem;
-      color: #08111f; background: linear-gradient(135deg, var(--cyan), var(--blue), #9dbeff);
+      width: 100%;
+      padding: 18px 20px;
+      border-radius: 18px;
+      font-size: 1rem;
+      color: #08111f;
+      background: linear-gradient(135deg, var(--cyan), var(--blue), #9dbeff);
+    }
+
+    .btn:disabled {
+      opacity: 0.72;
+      cursor: wait;
     }
 
     .status {
-      display: none; margin-top: 16px; padding: 15px 16px; border-radius: 16px; line-height: 1.6;
+      display: none;
+      margin-top: 16px;
+      padding: 15px 16px;
+      border-radius: 16px;
+      line-height: 1.6;
+      word-break: break-word;
     }
-    .status.show { display: block; }
+
+    .status.show {
+      display: block;
+    }
+
     .status.success {
-      background: rgba(113,255,183,0.12); border: 1px solid rgba(113,255,183,0.22);
+      background: rgba(113,255,183,0.12);
+      border: 1px solid rgba(113,255,183,0.22);
+      color: var(--text);
     }
+
     .status.error {
-      background: rgba(255,126,144,0.12); border: 1px solid rgba(255,126,144,0.22);
+      background: rgba(255,126,144,0.12);
+      border: 1px solid rgba(255,126,144,0.22);
+      color: var(--text);
     }
 
     .return-home {
-      position: fixed; right: 16px; bottom: 16px; z-index: 60;
-      padding: 15px 20px; border-radius: 999px;
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      z-index: 60;
+      padding: 15px 20px;
+      border-radius: 999px;
       background: linear-gradient(135deg, var(--cyan), var(--blue));
-      color: #08111f; font-weight: 800; box-shadow: var(--shadow);
+      color: #08111f;
+      font-weight: 800;
+      box-shadow: var(--shadow);
     }
 
     @media (max-width: 900px) {
-      .page, .form-grid { grid-template-columns: 1fr; }
+      .page,
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
     }
+
     @media (max-width: 640px) {
-      .topbar { flex-direction: column; align-items: flex-start; border-radius: 24px; }
-      .return-home { left: 12px; right: 12px; text-align: center; }
+      .topbar {
+        flex-direction: column;
+        align-items: flex-start;
+        border-radius: 24px;
+      }
+
+      .return-home {
+        left: 12px;
+        right: 12px;
+        text-align: center;
+      }
     }
   </style>
 </head>
@@ -222,11 +405,11 @@
               <label for="vehicleType">Vehicle Type</label>
               <select id="vehicleType" name="vehicleType" required>
                 <option value="">Select vehicle type</option>
-                <option>Sedan</option>
-                <option>SUV</option>
-                <option>Van</option>
-                <option>Luxury</option>
-                <option>Other</option>
+                <option value="Sedan">Sedan</option>
+                <option value="SUV">SUV</option>
+                <option value="Van">Van</option>
+                <option value="Luxury">Luxury</option>
+                <option value="Other">Other</option>
               </select>
             </div>
 
@@ -242,7 +425,7 @@
             </div>
           </div>
 
-          <button type="submit" class="btn">Submit Driver Application</button>
+          <button type="submit" class="btn" id="submitBtn">Submit Driver Application</button>
           <div id="statusMessage" class="status"></div>
         </form>
       </section>
@@ -254,9 +437,32 @@
   <script>
     const driverForm = document.getElementById("driverSignupForm");
     const driverStatus = document.getElementById("statusMessage");
+    const submitBtn = document.getElementById("submitBtn");
+
+    function showStatus(type, message) {
+      driverStatus.className = `status show ${type}`;
+      driverStatus.textContent = message;
+    }
+
+    async function readJsonSafe(response) {
+      const raw = await response.text();
+      try {
+        return raw ? JSON.parse(raw) : {};
+      } catch {
+        return {
+          success: false,
+          message: raw || "Server returned an invalid response."
+        };
+      }
+    }
 
     driverForm.addEventListener("submit", async (e) => {
       e.preventDefault();
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Submitting Application...";
+      driverStatus.className = "status";
+      driverStatus.textContent = "";
 
       const payload = {
         fullName: document.getElementById("fullName").value.trim(),
@@ -268,20 +474,40 @@
       };
 
       try {
-        const res = await fetch("/api/driver-signup", {
+        const response = await fetch("/api/driver/signup", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json"
+          },
           body: JSON.stringify(payload)
         });
 
-        const data = await res.json();
+        const data = await readJsonSafe(response);
 
-        driverStatus.className = "status show success";
-        driverStatus.textContent = data.message || "Driver application submitted successfully. Verification review has started.";
+        if (!response.ok || !data.success) {
+          showStatus(
+            "error",
+            data.message || "Unable to submit the driver application right now. Please try again."
+          );
+          return;
+        }
+
+        const successMessage = [
+          data.message || "Driver application submitted successfully.",
+          data.driver_id ? `Driver ID: ${data.driver_id}` : "",
+          "Your application is now pending approval."
+        ].filter(Boolean).join(" ");
+
+        showStatus("success", successMessage);
         driverForm.reset();
       } catch (error) {
-        driverStatus.className = "status show error";
-        driverStatus.textContent = "Unable to submit the driver application right now. Please try again.";
+        showStatus(
+          "error",
+          "Unable to submit the driver application right now. Please try again."
+        );
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Submit Driver Application";
       }
     });
   </script>
