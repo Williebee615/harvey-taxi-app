@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Harvey Taxi — Autonomous Analytics</title>
+  <style>
+    :root{
+      --bg1:#040814;
+      --bg2:#091126;
+      --panel:rgba(10,17,38,.9);
+      --panel2:rgba(15,23,52,.72);
+      --line:rgba(122,162,255,.16);
+      --line-strong:rgba(122,162,255,.28);
+      --text:#f4f7ff;
+      --muted:#aab8de;
+      --blue:#5ea0ff;
+      --cyan:#63f5ff;
+      --green:#6dffb3;
+      --danger:#ff7e97;
+      --gold:#ffd76a;
+      --shadow:0 20px 70px rgba(0,0,0,.35);
+    }
+
+    *{box-sizing:border-box;margin:0;padding:0}
+
+    body{
+      font-family:Inter,Arial,sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(99,245,255,.12), transparent 28%),
+        radial-gradient(circle at top right, rgba(94,160,255,.10), transparent 24%),
+        linear-gradient(160deg,var(--bg1),var(--bg2));
+      min-height:100vh;
+    }
+
+    a{text-decoration:none;color:inherit}
+
+    .shell{
+      max-width:1200px;
+      margin:auto;
+      padding:18px 16px 40px;
+    }
+
+    .topbar{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      margin-bottom:18px;
+      padding:14px 16px;
+      border:1px solid var(--line);
+      border-radius:999px;
+      background:rgba(7,14,31,.58);
+      backdrop-filter:blur(14px);
+      box-shadow:var(--shadow);
+      position:sticky;
+      top:12px;
+      z-index:30;
+    }
+
+    .brand-wrap{
+      display:flex;
+      align-items:center;
+      gap:12px;
+    }
+
+    .brand-mark{
+      width:42px;
+      height:42px;
+      border-radius:14px;
+      background:
+        radial-gradient(circle at 30% 30%, rgba(255,255,255,.95), rgba(255,255,255,.1) 18%, transparent 20%),
+        linear-gradient(145deg, rgba(104,168,255,.95), rgba(98,245,255,.45), rgba(113,255,183,.25));
+      box-shadow:0 0 18px rgba(98,245,255,.2), inset 0 0 18px rgba(255,255,255,.08);
+    }
+
+    .brand h1{
+      font-size:1rem;
+      font-weight:800;
+      letter-spacing:.06em;
+    }
+
+    .brand p{
+      color:var(--muted);
+      font-size:.82rem;
+      margin-top:2px;
+    }
+
+    .mini-btn{
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.04);
+      color:var(--text);
+      padding:10px 14px;
+      border-radius:999px;
+      font-weight:800;
+      font-size:.88rem;
+      cursor:pointer;
+    }
+
+    .hero{
+      background:linear-gradient(180deg,rgba(17,31,66,.88),rgba(8,16,35,.92));
+      border:1px solid var(--line);
+      border-radius:28px;
+      padding:24px;
+      box-shadow:var(--shadow);
+      margin-bottom:18px;
+    }
+
+    .eyebrow{
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      border:1px solid var(--line-strong);
+      padding:8px 14px;
+      border-radius:999px;
+      color:var(--cyan);
+      font-weight:700;
+      font-size:.86rem;
+      background:rgba(98,245,255,.06);
+      margin-bottom:16px;
+    }
+
+    .hero h2{
+      font-size:clamp(1.9rem,4vw,3rem);
+      line-height:1.04;
+      font-weight:900;
+      letter-spacing:-.03em;
+    }
+
+    .hero h2 span{
+      background:linear-gradient(90deg,#fff,#89c0ff,#72fff0);
+      -webkit-background-clip:text;
+      -webkit-text-fill-color:transparent;
+    }
+
+    .hero p{
+      margin-top:12px;
+      color:var(--muted);
+      line-height:1.65;
+      max-width:850px;
+    }
+
+    .status{
+      display:none;
+      margin:16px 0 0;
+      padding:14px 15px;
+      border-radius:16px;
+      line-height:1.6;
+      font-size:.93rem;
+    }
+
+    .status.show{display:block}
+    .status.success{
+      background:rgba(109,255,179,.10);
+      border:1px solid rgba(109,255,179,.2);
+      color:#dcfff1;
+    }
+    .status.error{
+      background:rgba(255,126,151,.10);
+      border:1px solid rgba(255,126,151,.2);
+      color:#ffd9e1;
+    }
+
+    .toolbar{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      margin-bottom:18px;
+      flex-wrap:wrap;
+    }
+
+    .toolbar-note{
+      color:var(--muted);
+      font-size:.92rem;
+    }
+
+    .toolbar button{
+      border:none;
+      cursor:pointer;
+      border-radius:16px;
+      padding:13px 16px;
+      font-size:.95rem;
+      font-weight:800;
+      font-family:inherit;
+      background:linear-gradient(90deg,var(--blue),var(--cyan));
+      color:#041224;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:14px;
+      margin-bottom:18px;
+    }
+
+    .card{
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:24px;
+      padding:18px;
+      box-shadow:var(--shadow);
+      backdrop-filter:blur(16px);
+    }
+
+    .metric .k{
+      color:var(--muted);
+      font-size:.82rem;
+      margin-bottom:8px;
+    }
+
+    .metric .v{
+      font-size:1.45rem;
+      font-weight:900;
+      letter-spacing:-.02em;
+    }
+
+    .metric .subv{
+      margin-top:8px;
+      color:var(--muted);
+      font-size:.88rem;
+      line-height:1.5;
+    }
+
+    .two-col{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:18px;
+      margin-bottom:18px;
+    }
+
+    .section-title{
+      font-size:1.05rem;
+      font-weight:800;
+      margin-bottom:10px;
+    }
+
+    .sub{
+      color:var(--muted);
+      font-size:.92rem;
+      line-height:1.55;
+      margin-bottom:14px;
+    }
+
+    .mini-grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:12px;
+    }
+
+    .mini{
+      background:rgba(255,255,255,.035);
+      border:1px solid var(--line);
+      border-radius:18px;
+      padding:14px;
+    }
+
+    .mini .k{
+      color:var(--muted);
+      font-size:.8rem;
+      margin-bottom:6px;
+    }
+
+    .mini .v{
+      font-weight:800;
+      font-size:1.06rem;
+      line-height:1.5;
+    }
+
+    .list{
+      display:grid;
+      gap:12px;
+    }
+
+    .list-item{
+      background:rgba(255,255,255,.03);
+      border:1px solid var(--line);
+      border-radius:18px;
+      padding:14px;
+    }
+
+    .list-item .top{
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      align-items:flex-start;
+      margin-bottom:8px;
+    }
+
+    .list-item .title{
+      font-weight:800;
+      line-height:1.45;
+    }
+
+    .list-item .meta{
+      color:var(--muted);
+      font-size:.85rem;
+      line-height:1.5;
+    }
+
+    .tag{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      padding:7px 10px;
+      border-radius:999px;
+      font-size:.78rem;
+      font-weight:800;
+      white-space:nowrap;
+    }
+
+    .tag-blue{
+      color:#dff7ff;
+      background:rgba(99,245,255,.12);
+      border:1px solid rgba(99,245,255,.22);
+    }
+
+    .tag-green{
+      color:#dfffee;
+      background:rgba(109,255,179,.12);
+      border:1px solid rgba(109,255,179,.22);
+    }
+
+    .tag-gold{
+      color:#fff2c4;
+      background:rgba(255,215,106,.12);
+      border:1px solid rgba(255,215,106,.22);
+    }
+
+    .tag-red{
+      color:#ffd9e1;
+      background:rgba(255,126,151,.12);
+      border:1px solid rgba(255,126,151,.22);
+    }
+
+    .empty{
+      padding:22px;
+      border:1px dashed rgba(122,162,255,.2);
+      border-radius:20px;
+      color:var(--muted);
+      line-height:1.65;
+      text-align:center;
+      background:rgba(255,255,255,.02);
+    }
+
+    .return-home{
+      position:fixed;
+      right:16px;
+      bottom:16px;
+      z-index:60;
+      padding:15px 20px;
+      border-radius:999px;
+      background:linear-gradient(135deg,var(--cyan),var(--blue));
+      color:#08111f;
+      font-weight:800;
+      box-shadow:var(--shadow);
+    }
+
+    @media (max-width: 1080px){
+      .grid{
+        grid-template-columns:repeat(2,1fr);
+      }
+
+      .two-col{
+        grid-template-columns:1fr;
+      }
+    }
+
+    @media (max-width: 700px){
+      .grid,
+      .mini-grid{
+        grid-template-columns:1fr;
+      }
+
+      .topbar{
+        flex-direction:column;
+        align-items:flex-start;
+        border-radius:24px;
+      }
+
+      .return-home{
+        left:12px;
+        right:12px;
+        text-align:center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand-wrap">
+        <div class="brand-mark"></div>
+        <div class="brand">
+          <h1>HARVEY TAXI</h1>
+          <p>Autonomous Analytics</p>
+        </div>
+      </div>
+      <a class="mini-btn" href="index.html">Return Home</a>
+    </header>
+
+    <section class="hero">
+      <div class="eyebrow">Autonomous system visibility</div>
+      <h2>View your <span>autonomous analytics</span></h2>
+      <p>
+        This dashboard automatically reads your Harvey Taxi ride, dispatch, and system event
+        data to show how your autonomous logic is performing in real time.
+      </p>
+      <div id="pageStatus" class="status"></div>
+    </section>
+
+    <div class="toolbar">
+      <div class="toolbar-note">Analytics load automatically when this page opens.</div>
+      <button id="refreshBtn">Refresh Analytics</button>
+    </div>
+
+    <section class="grid">
+      <div class="card metric">
+        <div class="k">Total Rides</div>
+        <div class="v" id="totalRides">0</div>
+        <div class="subv">All rides created in the system.</div>
+      </div>
+
+      <div class="card metric">
+        <div class="k">Active Rides</div>
+        <div class="v" id="activeRides">0</div>
+        <div class="subv">Accepted, en route, arrived, or in progress.</div>
+      </div>
+
+      <div class="card metric">
+        <div class="k">Completed Rides</div>
+        <div class="v" id="completedRides">0</div>
+        <div class="subv">Trips that fully completed.</div>
+      </div>
+
+      <div class="card metric">
+        <div class="k">Blocked / Failed Rides</div>
+        <div class="v" id="blockedRides">0</div>
+        <div class="subv">Verification, payment, or no-driver blocks.</div>
+      </div>
+
+      <div class="card metric">
+        <div class="k">Gross Revenue</div>
+        <div class="v" id="grossRevenue">$0.00</div>
+        <div class="subv">Final fare when available, otherwise estimate.</div>
+      </div>
+
+      <div class="card metric">
+        <div class="k">Driver Payout</div>
+        <div class="v" id="driverPayout">$0.00</div>
+        <div class="subv">Estimated or final driver earnings.</div>
+      </div>
+
+      <div class="card metric">
+        <div class="k">Tips Captured</div>
+        <div class="v" id="totalTips">$0.00</div>
+        <div class="subv">Tips added across completed or active rides.</div>
+      </div>
+
+      <div class="card metric">
+        <div class="k">Acceptance Rate</div>
+        <div class="v" id="acceptanceRate">0%</div>
+        <div class="subv">Accepted offers divided by total offers.</div>
+      </div>
+    </section>
+
+    <section class="two-col">
+      <div class="card">
+        <div class="section-title">Dispatch Performance</div>
+        <p class="sub">
+          How the dispatch brain is performing across offers, acceptances, declines, and expirations.
+        </p>
+
+        <div class="mini-grid">
+          <div class="mini">
+            <div class="k">Total Offers</div>
+            <div class="v" id="totalOffers">0</div>
+          </div>
+          <div class="mini">
+            <div class="k">Accepted Offers</div>
+            <div class="v" id="acceptedOffers">0</div>
+          </div>
+          <div class="mini">
+            <div class="k">Declined Offers</div>
+            <div class="v" id="declinedOffers">0</div>
+          </div>
+          <div class="mini">
+            <div class="k">Expired Offers</div>
+            <div class="v" id="expiredOffers">0</div>
+          </div>
+          <div class="mini">
+            <div class="k">No Driver Available</div>
+            <div class="v" id="noDriverAvailable">0</div>
+          </div>
+          <div class="mini">
+            <div class="k">Avg Dispatch Attempts</div>
+            <div class="v" id="avgDispatchAttempts">0.00</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Ride Status Breakdown</div>
+        <p class="sub">
+          Current lifecycle distribution across the autonomous ride pipeline.
+        </p>
+
+        <div class="mini-grid">
+          <div class="mini">
+            <div class="k">Requested</div>
+            <div class="v" id="statusRequested">0</div>
+          </div>
+          <div class="mini">
+            <div class="k">Dispatching</div>
+            <div class="v" id="statusDispatching">0</div>
+          </div>
+          <div class="mini">
+            <div class="k">Driver Offered</div>
+            <div class="v" id="statusOffered">0</div>
+          </div>
+          <div class="mini">
+            <div class="k">Driver Accepted</div>
+            <div class="v" id="statusAccepted">0</div>
+          </div>
+          <div class="mini">
+            <div class="k">En Route / Arrived</div>
+            <div class="v" id="statusEnRouteArrived">0</div>
+          </div>
+          <div class="mini">
+            <div class="k">In Progress</div>
+            <div class="v" id="statusInProgress">0</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="two-col">
+      <div class="card">
+        <div class="section-title">Recent Ride Activity</div>
+        <p class="sub">
+          Latest rides moving through the Harvey Taxi autonomous system.
+        </p>
+        <div id="recentRides" class="list"></div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Recent Autonomous Events</div>
+        <p class="sub">
+          Recent dispatch and ride event messages generated by the backend.
+        </p>
+        <div id="recentEvents" class="list"></div>
+      </div>
+    </section>
+  </div>
+
+  <a href="index.html" class="return-home">Return Home</a>
+
+  <script>
+    const ids = [
+      "totalRides","activeRides","completedRides","blockedRides",
+      "grossRevenue","driverPayout","totalTips","acceptanceRate",
+      "totalOffers","acceptedOffers","declinedOffers","expiredOffers",
+      "noDriverAvailable","avgDispatchAttempts",
+      "statusRequested","statusDispatching","statusOffered","statusAccepted",
+      "statusEnRouteArrived","statusInProgress"
+    ];
+
+    const elements = Object.fromEntries(ids.map(id => [id, document.getElementById(id)]));
+    const recentRides = document.getElementById("recentRides");
+    const recentEvents = document.getElementById("recentEvents");
+    const refreshBtn = document.getElementById("refreshBtn");
+    const pageStatus = document.getElementById("pageStatus");
+
+    function showStatus(type, message) {
+      pageStatus.className = `status show ${type}`;
+      pageStatus.textContent = message;
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function formatMoney(value) {
+      return `$${Number(value || 0).toFixed(2)}`;
+    }
+
+    function formatDate(value) {
+      if (!value) return "No timestamp";
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return "No timestamp";
+      return d.toLocaleString();
+    }
+
+    function normalized(value) {
+      return String(value || "").trim().toUpperCase();
+    }
+
+    function tagClass(status) {
+      const s = normalized(status);
+      if (["COMPLETED","ACCEPTED","SECURED","CAPTURED"].includes(s)) return "tag tag-green";
+      if (["OFFERED","DISPATCHING","PENDING","REQUESTED"].includes(s)) return "tag tag-gold";
+      if (["EN_ROUTE","ARRIVED","IN_PROGRESS","DRIVER_ACCEPTED","DRIVER_EN_ROUTE","DRIVER_ARRIVED"].includes(s)) return "tag tag-blue";
+      return "tag tag-red";
+    }
+
+    function sum(arr, selector) {
+      return arr.reduce((total, item) => total + Number(selector(item) || 0), 0);
+    }
+
+    function average(arr, selector) {
+      if (!arr.length) return 0;
+      return sum(arr, selector) / arr.length;
+    }
+
+    function renderEmpty(container, text) {
+      container.innerHTML = `<div class="empty">${escapeHtml(text)}</div>`;
+    }
+
+    function renderRecentRides(rides) {
+      if (!rides.length) {
+        renderEmpty(recentRides, "No recent rides found yet.");
+        return;
+      }
+
+      recentRides.innerHTML = rides.slice(0, 8).map((ride) => `
+        <div class="list-item">
+          <div class="top">
+            <div>
+              <div class="title">${escapeHtml(ride.pickup_address || "Pickup not available")}</div>
+              <div class="meta">
+                To ${escapeHtml(ride.dropoff_address || "Dropoff not available")}<br>
+                Ride ID: ${escapeHtml(ride.ride_id || "")}
+              </div>
+            </div>
+            <div class="${tagClass(ride.ride_status)}">${escapeHtml(ride.ride_status || "UNKNOWN")}</div>
+          </div>
+          <div class="meta">
+            Fare: ${formatMoney(ride.final_fare || ride.estimated_fare || 0)}<br>
+            Driver: ${escapeHtml(ride.driver_id || "Unassigned")}<br>
+            Created: ${escapeHtml(formatDate(ride.created_at))}
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function renderRecentEvents(messages) {
+      if (!messages.length) {
+        renderEmpty(recentEvents, "No autonomous events found yet.");
+        return;
+      }
+
+      recentEvents.innerHTML = messages.slice(0, 10).map((msg) => `
+        <div class="list-item">
+          <div class="top">
+            <div>
+              <div class="title">${escapeHtml(msg.event_type || msg.scope || "SYSTEM_EVENT")}</div>
+              <div class="meta">
+                Ride: ${escapeHtml(msg.ride_id || "N/A")}<br>
+                Driver: ${escapeHtml(msg.driver_id || "N/A")}
+              </div>
+            </div>
+            <div class="${tagClass(msg.event_type || msg.scope)}">${escapeHtml(msg.scope || "EVENT")}</div>
+          </div>
+          <div class="meta">
+            ${escapeHtml(formatDate(msg.created_at))}
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function applyAnalytics(rides, dispatches, messages) {
+      const totalRides = rides.length;
+      const activeRides = rides.filter(r =>
+        ["DRIVER_ACCEPTED","DRIVER_EN_ROUTE","DRIVER_ARRIVED","IN_PROGRESS"].includes(normalized(r.ride_status))
+      ).length;
+      const completedRides = rides.filter(r => normalized(r.ride_status) === "COMPLETED").length;
+      const blockedRides = rides.filter(r =>
+        ["VERIFICATION_BLOCKED","PAYMENT_BLOCKED","NO_DRIVER_AVAILABLE"].includes(normalized(r.ride_status))
+      ).length;
+
+      const grossRevenue = sum(rides, r => r.final_fare || r.estimated_fare || 0);
+      const driverPayout = sum(rides, r => r.final_driver_payout || r.estimated_driver_payout || 0);
+      const totalTips = sum(rides, r => r.tip_amount || 0);
+
+      const totalOffers = dispatches.length;
+      const acceptedOffers = dispatches.filter(d => normalized(d.offer_status) === "ACCEPTED").length;
+      const declinedOffers = dispatches.filter(d => normalized(d.offer_status) === "DECLINED").length;
+      const expiredOffers = dispatches.filter(d => normalized(d.offer_status) === "EXPIRED").length;
+      const acceptanceRate = totalOffers ? ((acceptedOffers / totalOffers) * 100).toFixed(1) : "0.0";
+
+      const noDriverAvailable = rides.filter(r => normalized(r.ride_status) === "NO_DRIVER_AVAILABLE").length;
+      const avgDispatchAttempts = average(rides, r => r.dispatch_attempt_count || 0).toFixed(2);
+
+      elements.totalRides.textContent = String(totalRides);
+      elements.activeRides.textContent = String(activeRides);
+      elements.completedRides.textContent = String(completedRides);
+      elements.blockedRides.textContent = String(blockedRides);
+      elements.grossRevenue.textContent = formatMoney(grossRevenue);
+      elements.driverPayout.textContent = formatMoney(driverPayout);
+      elements.totalTips.textContent = formatMoney(totalTips);
+      elements.acceptanceRate.textContent = `${acceptanceRate}%`;
+
+      elements.totalOffers.textContent = String(totalOffers);
+      elements.acceptedOffers.textContent = String(acceptedOffers);
+      elements.declinedOffers.textContent = String(declinedOffers);
+      elements.expiredOffers.textContent = String(expiredOffers);
+      elements.noDriverAvailable.textContent = String(noDriverAvailable);
+      elements.avgDispatchAttempts.textContent = String(avgDispatchAttempts);
+
+      elements.statusRequested.textContent = String(rides.filter(r => normalized(r.ride_status) === "REQUESTED").length);
+      elements.statusDispatching.textContent = String(rides.filter(r => normalized(r.ride_status) === "DISPATCHING").length);
+      elements.statusOffered.textContent = String(rides.filter(r => normalized(r.ride_status) === "DRIVER_OFFERED").length);
+      elements.statusAccepted.textContent = String(rides.filter(r => normalized(r.ride_status) === "DRIVER_ACCEPTED").length);
+      elements.statusEnRouteArrived.textContent = String(rides.filter(r =>
+        ["DRIVER_EN_ROUTE","DRIVER_ARRIVED"].includes(normalized(r.ride_status))
+      ).length);
+      elements.statusInProgress.textContent = String(rides.filter(r => normalized(r.ride_status) === "IN_PROGRESS").length);
+
+      const sortedRides = [...rides].sort((a, b) =>
+        new Date(b.created_at || 0) - new Date(a.created_at || 0)
+      );
+
+      const sortedMessages = [...messages].sort((a, b) =>
+        new Date(b.created_at || 0) - new Date(a.created_at || 0)
+      );
+
+      renderRecentRides(sortedRides);
+      renderRecentEvents(sortedMessages);
+    }
+
+    async function loadAnalytics() {
+      refreshBtn.disabled = true;
+      refreshBtn.textContent = "Refreshing...";
+
+      try {
+        const [ridesRes, dispatchesRes, messagesRes] = await Promise.all([
+          fetch("/api/admin/rides"),
+          fetch("/api/admin/dispatches"),
+          fetch("/api/admin/messages")
+        ]);
+
+        const ridesData = await ridesRes.json().catch(() => ({}));
+        const dispatchesData = await dispatchesRes.json().catch(() => ({}));
+        const messagesData = await messagesRes.json().catch(() => ({}));
+
+        if (!ridesRes.ok) throw new Error(ridesData.message || "Unable to load ride analytics.");
+        if (!dispatchesRes.ok) throw new Error(dispatchesData.message || "Unable to load dispatch analytics.");
+        if (!messagesRes.ok) throw new Error(messagesData.message || "Unable to load autonomous events.");
+
+        const rides = Array.isArray(ridesData.rides) ? ridesData.rides : [];
+        const dispatches = Array.isArray(dispatchesData.dispatches) ? dispatchesData.dispatches : [];
+        const messages = Array.isArray(messagesData.messages) ? messagesData.messages : [];
+
+        applyAnalytics(rides, dispatches, messages);
+        showStatus("success", "Autonomous analytics refreshed successfully.");
+      } catch (error) {
+        showStatus("error", error.message || "Unable to load autonomous analytics.");
+        renderEmpty(recentRides, "Analytics are not available right now.");
+        renderEmpty(recentEvents, "Event activity is not available right now.");
+      } finally {
+        refreshBtn.disabled = false;
+        refreshBtn.textContent = "Refresh Analytics";
+      }
+    }
+
+    refreshBtn.addEventListener("click", loadAnalytics);
+    loadAnalytics();
+  </script>
+</body>
+</html>
