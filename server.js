@@ -479,4 +479,732 @@ app.use("/api/*", (req, res) => {
 ================================ */
 app.listen(PORT, () => {
   console.log(`Harvey Taxi server running on port ${PORT}`);
+});  try {
+    const { driverId } = req.params;
+
+    const missions = await filterMany(
+      DATA_FILES.missions,
+      (mission) =>
+        mission.driver_id === driverId &&
+        ["OFFERED", "ACCEPTED", "EN_ROUTE", "ARRIVED", "IN_PROGRESS"].includes(
+          normalizeStatus(mission.mission_status)
+        ),
+      []
+    );
+
+    const sorted = missions.sort(
+      (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)
+    );
+
+    return res.json({
+      success: true,
+      missions: sorted
+    });
+  } catch (error) {
+    console.error("Driver missions error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Unable to load driver missions."
+    });
+  }
 });
+
+/* =========================================================
+   DRIVER ACCEPT MISSION
+========================================================= */
+app.post("/api/driver/accept-mission", async (req, res) => {
+  try {
+    const { driver_id, dispatch_id } = req.body;
+
+    if (!driver_id || !dispatch_id) {
+      return res.status(400).json({
+        success: false,
+        message: "driver_id and dispatch_id are required."
+      });
+    }
+
+    const dispatch = await findOne(
+      DATA_FILES.dispatches,
+      (d) => d.dispatch_id === dispatch_id && d.driver_id === driver_id,
+      []
+    );
+
+    if (!dispatch) {
+      return res.status(404).json({
+        success: false,
+        message: "Dispatch offer not found."
+      });
+    }
+
+    const currentStatus = normalizeStatus(dispatch.offer_status);
+    if (currentStatus === "EXPIRED") {
+      return res.status(409).json({
+        success: false,
+        message: "This dispatch offer has expired."
+      });
+    }
+
+    if (currentStatus === "DECLINED") {
+      return res.status(409).json({
+        success: false,
+        message: "This dispatch offer was already declined."
+      });
+    }
+
+    if (currentStatus === "ACCEPTED") {
+      return res.json({
+        success: true,
+        message: "Mission already accepted.",
+        dispatch
+      });
+    }
+
+    const ride = await findOne(DATA_FILES.rides, (r) => r.ride_id === dispatch.ride_id, []);
+    if (!ride) {
+      return res.status(404).json({
+        success: false,
+        message: "Ride not found."
+      });
+    }
+
+    const driver = await findOne(DATA_FILES.drivers, (d) => d.driver_id === driver_id, []);
+    if (!driver) {
+      return res.status(404).json({
+        success: false,
+        message: "Driver not found."
+      });
+    }
+
+    if (!driverIsApproved(driver)) {
+      return res.status(403).json({
+        success: false,
+        message: "Driver is not eligible to accept rides."
+      });
+    }
+
+    await assignDriverToRide(ride, driver, dispatch);
+
+    const allDispatches = await readJson(DATA_FILES.dispatches, []);
+    const competingDispatches = allDispatches.filter(
+      (item) =>
+        item.ride_id === ride.ride_id &&
+        item.dispatch_id !== dispatch_id &&
+        ["PENDING", "OFFERED"].includes(normalizeStatus(item.offer_status))
+    );
+
+    for (const item of competingDispatches) {
+      await expireDispatchOffer(item.dispatch_id, "ACCEPTED_BY_OTHER_DRIVER");
+    }
+
+    const updatedRide = await findOne(DATA_FILES.rides, (r) => r.ride_id === ride.ride_id, []);
+    const updatedDispatch = await findOne(
+      DATA_FILES.dispatches,
+      (d) => d.dispatch_id === dispatch_id,
+      []
+    );
+
+    return res.json({
+      success: true,
+      message: "Mission accepted successfully.",
+      ride: updatedRide,
+      dispatch: updatedDispatch
+    });
+  } catch (error) {
+    console.error("Driver accept mission error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Unable to accept mission."
+    });
+  }
+});
+
+/* =========================================================
+   DRIVER DECLINE MISSION
+========================================================= */
+app.post("/api/driver/decline-mission", async (req, res) => {
+  try {
+    const { driver_id, dispatch_id } = req.body;
+
+    if (!driver_id || !dispatch_id) {
+      return res.status(400).json({
+        success: false,
+        message: "driver_id and dispatch_id are required."
+      });
+    }
+
+    const dispatch = await findOne(
+      DATA_FILES.dispatches,
+      (d) => d.dispatch_id === dispatch_id && d.driver_id === driver_id,
+      []
+    );
+
+    if (!dispatch) {
+      return res.status(404).json({
+        success: false,
+        message: "Dispatch offer not found."
+      });
+    }
+
+    const currentStatus = normalizeStatus(dispatch.offer_status);
+    if (currentStatus === "ACCEPTED") {
+      return res.status(409).json({
+        success: false,
+        message: "Accepted mission cannot be declined from this route."
+      });
+    }
+
+    await updateDispatch(dispatch_id, (item) => ({
+      ...item,
+      offer_status: "DECLINED",
+      mission_status: "DECLINED",
+      declined_at: nowIso()
+    }));
+
+    await updateMissionByDispatch(dispatch_id, (mission) => ({
+      ...mission,
+      mission_status: "DECLINED",
+      declined_at: nowIso()
+    }));
+
+    if (activeOfferTimers.has(dispatch_id)) {
+      clearTimeout(activeOfferTimers.get(dispatch_id));
+      activeOfferTimers.delete(dispatch_id);
+    }
+
+    await logMessage({
+      scope: "DISPATCH",
+      ride_id: dispatch.ride_id,
+      rider_id: dispatch.rider_id,
+      driver_id,
+      event_type: "DRIVER_DECLINED",
+      details: {
+        dispatch_id
+      }
+    });
+
+    await runDispatchBrain(dispatch.ride_id);
+
+    return res.json({
+      success: true,
+      message: "Mission declined. Dispatch is moving to the next eligible driver."
+    });
+  } catch (error) {
+    console.error("Driver decline mission error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Unable to decline mission."
+    });
+  }
+});
+
+/* =========================================================
+   DRIVER TRIP PROGRESSION
+========================================================= */
+app.post("/api/driver/mark-en-route", async (req, res) => {
+  try {
+    const { driver_id, ride_id } = req.body;
+
+    if (!driver_id || !ride_id) {
+      return res.status(400).json({
+        success: false,
+        message: "driver_id and ride_id are required."
+      });
+    }
+
+    const ride = await findOne(
+      DATA_FILES.rides,
+      (r) => r.ride_id === ride_id && r.driver_id === driver_id,
+      []
+    );
+
+    if (!ride) {
+      return res.status(404).json({
+        success: false,
+        message: "Assigned ride not found."
+      });
+    }
+
+    const updatedRide = await updateRide(ride_id, (current) => ({
+      ...current,
+      ride_status: "DRIVER_EN_ROUTE",
+      mission_status: "DRIVER_EN_ROUTE",
+      dispatch_status: "DRIVER_EN_ROUTE",
+      updated_at: nowIso()
+    }));
+
+    await updateDriver(driver_id, (current) => ({
+      ...current,
+      trip_status: "EN_ROUTE",
+      updated_at: nowIso()
+    }));
+
+    await logRideEvent(updatedRide, "DRIVER_EN_ROUTE", { driver_id });
+
+    return res.json({
+      success: true,
+      message: "Driver marked en route.",
+      ride: updatedRide
+    });
+  } catch (error) {
+    console.error("Mark en route error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Unable to mark driver en route."
+    });
+  }
+});
+
+app.post("/api/driver/mark-arrived", async (req, res) => {
+  try {
+    const { driver_id, ride_id } = req.body;
+
+    if (!driver_id || !ride_id) {
+      return res.status(400).json({
+        success: false,
+        message: "driver_id and ride_id are required."
+      });
+    }
+
+    const ride = await findOne(
+      DATA_FILES.rides,
+      (r) => r.ride_id === ride_id && r.driver_id === driver_id,
+      []
+    );
+
+    if (!ride) {
+      return res.status(404).json({
+        success: false,
+        message: "Assigned ride not found."
+      });
+    }
+
+    const updatedRide = await updateRide(ride_id, (current) => ({
+      ...current,
+      ride_status: "DRIVER_ARRIVED",
+      mission_status: "DRIVER_ARRIVED",
+      dispatch_status: "DRIVER_ARRIVED",
+      arrived_at: nowIso(),
+      updated_at: nowIso()
+    }));
+
+    await updateDriver(driver_id, (current) => ({
+      ...current,
+      trip_status: "ARRIVED",
+      updated_at: nowIso()
+    }));
+
+    await logRideEvent(updatedRide, "DRIVER_ARRIVED", { driver_id });
+
+    return res.json({
+      success: true,
+      message: "Driver marked arrived.",
+      ride: updatedRide
+    });
+  } catch (error) {
+    console.error("Mark arrived error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Unable to mark driver arrived."
+    });
+  }
+});
+
+app.post("/api/driver/start-trip", async (req, res) => {
+  try {
+    const { driver_id, ride_id } = req.body;
+
+    if (!driver_id || !ride_id) {
+      return res.status(400).json({
+        success: false,
+        message: "driver_id and ride_id are required."
+      });
+    }
+
+    const ride = await findOne(
+      DATA_FILES.rides,
+      (r) => r.ride_id === ride_id && r.driver_id === driver_id,
+      []
+    );
+
+    if (!ride) {
+      return res.status(404).json({
+        success: false,
+        message: "Assigned ride not found."
+      });
+    }
+
+    const updatedRide = await updateRide(ride_id, (current) => ({
+      ...current,
+      ride_status: "IN_PROGRESS",
+      mission_status: "IN_PROGRESS",
+      dispatch_status: "IN_PROGRESS",
+      started_at: nowIso(),
+      updated_at: nowIso()
+    }));
+
+    await updateDriver(driver_id, (current) => ({
+      ...current,
+      trip_status: "IN_PROGRESS",
+      updated_at: nowIso()
+    }));
+
+    await logRideEvent(updatedRide, "TRIP_STARTED", { driver_id });
+
+    return res.json({
+      success: true,
+      message: "Trip started successfully.",
+      ride: updatedRide
+    });
+  } catch (error) {
+    console.error("Start trip error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Unable to start trip."
+    });
+  }
+});
+
+app.post("/api/driver/complete-trip", async (req, res) => {
+  try {
+    const { driver_id, ride_id, final_fare, tip_amount } = req.body;
+
+    if (!driver_id || !ride_id) {
+      return res.status(400).json({
+        success: false,
+        message: "driver_id and ride_id are required."
+      });
+    }
+
+    const ride = await findOne(
+      DATA_FILES.rides,
+      (r) => r.ride_id === ride_id && r.driver_id === driver_id,
+      []
+    );
+
+    if (!ride) {
+      return res.status(404).json({
+        success: false,
+        message: "Assigned ride not found."
+      });
+    }
+
+    const baseFare = final_fare != null ? Number(final_fare) : Number(ride.estimated_fare || 0);
+    const safeTip = tip_amount != null ? Number(tip_amount) : Number(ride.tip_amount || 0);
+    const totalFare = round2(baseFare);
+    const totalTip = round2(safeTip);
+    const driverPayout = round2(Number(ride.estimated_driver_payout || 0) + totalTip);
+
+    const updatedRide = await updateRide(ride_id, (current) => ({
+      ...current,
+      ride_status: "COMPLETED",
+      mission_status: "COMPLETED",
+      dispatch_status: "COMPLETED",
+      payout_status: "POSTED",
+      payment_status:
+        current.payment_status === "NOT_REQUIRED" ? "NOT_REQUIRED" : "CAPTURED",
+      final_fare: totalFare,
+      tip_amount: totalTip,
+      final_driver_payout: driverPayout,
+      completed_at: nowIso(),
+      updated_at: nowIso()
+    }));
+
+    await updateDriver(driver_id, (current) => ({
+      ...current,
+      current_ride_id: null,
+      current_dispatch_id: null,
+      trip_status: "AVAILABLE",
+      online_status: current.online_status || "ONLINE",
+      updated_at: nowIso()
+    }));
+
+    await logRideEvent(updatedRide, "TRIP_COMPLETED", {
+      driver_id,
+      final_fare: totalFare,
+      tip_amount: totalTip,
+      final_driver_payout: driverPayout
+    });
+
+    return res.json({
+      success: true,
+      message: "Trip completed successfully.",
+      ride: updatedRide
+    });
+  } catch (error) {
+    console.error("Complete trip error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Unable to complete trip."
+    });
+  }
+});
+
+/* =========================================================
+   RIDER TIP
+========================================================= */
+app.post("/api/rides/:rideId/tip", async (req, res) => {
+  try {
+    const { rideId } = req.params;
+    const { tip_amount } = req.body;
+
+    const ride = await findOne(DATA_FILES.rides, (r) => r.ride_id === rideId, []);
+    if (!ride) {
+      return res.status(404).json({
+        success: false,
+        message: "Ride not found."
+      });
+    }
+
+    const nextTip = round2(Number(tip_amount || 0));
+    if (nextTip < 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Tip amount cannot be negative."
+      });
+    }
+
+    const updatedRide = await updateRide(rideId, (current) => ({
+      ...current,
+      tip_amount: nextTip,
+      final_driver_payout: round2(
+        Number(current.final_driver_payout || current.estimated_driver_payout || 0) + nextTip
+      ),
+      updated_at: nowIso()
+    }));
+
+    await logRideEvent(updatedRide, "TIP_ADDED", {
+      ride_id: rideId,
+      tip_amount: nextTip
+    });
+
+    return res.json({
+      success: true,
+      message: "Tip added successfully.",
+      ride: updatedRide
+    });
+  } catch (error) {
+    console.error("Tip error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Unable to add tip."
+    });
+  }
+});
+
+/* =========================================================
+   ADMIN / DISPATCH VIEW
+========================================================= */
+app.get("/api/admin/rides", async (req, res) => {
+  try {
+    const rides = await readJson(DATA_FILES.rides, []);
+    const sorted = rides.sort(
+      (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)
+    );
+
+    return res.json({
+      success: true,
+      rides: sorted
+    });
+  } catch (error) {
+    console.error("Admin rides error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Unable to load rides."
+    });
+  }
+});
+
+app.get("/api/admin/dispatches", async (req, res) => {
+  try {
+    const dispatches = await readJson(DATA_FILES.dispatches, []);
+    const sorted = dispatches.sort(
+      (a, b) => new Date(b.offered_at || b.created_at || 0) - new Date(a.offered_at || a.created_at || 0)
+    );
+
+    return res.json({
+      success: true,
+      dispatches: sorted
+    });
+  } catch (error) {
+    console.error("Admin dispatches error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Unable to load dispatches."
+    });
+  }
+});
+
+app.get("/api/admin/messages", async (req, res) => {
+  try {
+    const messages = await readJson(DATA_FILES.messages, []);
+    const sorted = messages.sort(
+      (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)
+    );
+
+    return res.json({
+      success: true,
+      messages: sorted
+    });
+  } catch (error) {
+    console.error("Admin messages error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Unable to load messages."
+    });
+  }
+});
+
+/* =========================================================
+   MANUAL ADMIN RIDER APPROVAL
+========================================================= */
+app.post("/api/admin/approve-rider", async (req, res) => {
+  try {
+    const { rider_id } = req.body;
+
+    if (!rider_id) {
+      return res.status(400).json({
+        success: false,
+        message: "rider_id is required."
+      });
+    }
+
+    const rider = await updateJsonItem(
+      DATA_FILES.riders,
+      (item) => item.rider_id === rider_id,
+      (current) => ({
+        ...current,
+        verification_status: "APPROVED",
+        ride_access_enabled: true,
+        updated_at: nowIso()
+      }),
+      []
+    );
+
+    if (!rider) {
+      return res.status(404).json({
+        success: false,
+        message: "Rider not found."
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: "Rider approved successfully.",
+      rider
+    });
+  } catch (error) {
+    console.error("Approve rider error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Unable to approve rider."
+    });
+  }
+});
+
+/* =========================================================
+   DRIVER SIGNUP PLACEHOLDER COMPATIBILITY
+========================================================= */
+app.post("/api/driver-signup", async (req, res) => {
+  try {
+    const {
+      fullName,
+      phone,
+      email,
+      address,
+      vehicleMake,
+      vehicleModel,
+      vehicleYear,
+      licensePlate
+    } = req.body;
+
+    if (!fullName || !phone || !email) {
+      return res.status(400).json({
+        success: false,
+        message: "Full name, phone, and email are required."
+      });
+    }
+
+    const existingDrivers = await readJson(DATA_FILES.drivers, []);
+    const existing = existingDrivers.find(
+      (d) =>
+        String(d.email || "").toLowerCase() === String(email).toLowerCase() ||
+        String(d.phone || "") === String(phone)
+    );
+
+    if (existing) {
+      return res.status(409).json({
+        success: false,
+        message: "A driver account already exists with this email or phone number."
+      });
+    }
+
+    const driver = {
+      driver_id: generateId("driver"),
+      full_name: fullName,
+      first_name: String(fullName).trim().split(" ")[0] || fullName,
+      phone,
+      email,
+      address: address || "",
+      vehicle_make: vehicleMake || "",
+      vehicle_model: vehicleModel || "",
+      vehicle_year: vehicleYear || "",
+      license_plate: licensePlate || "",
+      approval_status: "PENDING",
+      background_check_status: "PENDING",
+      verification_status: "PENDING",
+      online_status: "OFFLINE",
+      service_status: "INACTIVE",
+      trip_status: "AVAILABLE",
+      current_ride_id: null,
+      acceptance_score: 0,
+      rating: 5,
+      created_at: nowIso(),
+      updated_at: nowIso()
+    };
+
+    await appendJson(DATA_FILES.drivers, driver, []);
+
+    return res.status(201).json({
+      success: true,
+      message: "Driver account created successfully. Verification review has started.",
+      driver
+    });
+  } catch (error) {
+    console.error("Driver signup error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Unable to create driver account."
+    });
+  }
+});
+
+/* =========================================================
+   STATIC PAGE FALLBACK
+========================================================= */
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+/* =========================================================
+   API 404
+========================================================= */
+app.use("/api/*", (req, res) => {
+  res.status(404).json({
+    success: false,
+    message: `Route not found: ${req.method} ${req.originalUrl}`
+  });
+});
+
+/* =========================================================
+   START
+========================================================= */
+initializeFiles()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`Harvey Taxi server running on port ${PORT}`);
+    });
+  })
+  .catch((error) => {
+    console.error("Failed to initialize files:", error);
+    process.exit(1);
+  });
