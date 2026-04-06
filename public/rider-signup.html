@@ -6,7 +6,7 @@
   <title>Harvey Taxi | Rider Sign Up</title>
   <meta
     name="description"
-    content="Create your Harvey Taxi rider account and get immediate rider access with optional verification support."
+    content="Create your Harvey Taxi rider account and complete rider onboarding."
   />
   <style>
     :root {
@@ -29,6 +29,11 @@
       box-sizing: border-box;
       margin: 0;
       padding: 0;
+    }
+
+    html,
+    body {
+      min-height: 100%;
     }
 
     body {
@@ -113,6 +118,9 @@
       color: var(--text);
       border: 1px solid var(--line);
       font-size: 0.88rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .mini-btn:hover,
@@ -279,6 +287,9 @@
       padding: 18px 20px;
       border-radius: 18px;
       font-size: 1rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .btn-primary {
@@ -296,7 +307,7 @@
     }
 
     .secondary-btn.show {
-      display: block;
+      display: inline-flex;
     }
 
     .btn:disabled {
@@ -312,6 +323,7 @@
       border-radius: 16px;
       line-height: 1.6;
       font-size: 0.94rem;
+      word-break: break-word;
     }
 
     .status.show {
@@ -384,20 +396,20 @@
         <h2>Create your <span>rider account</span></h2>
         <p>
           Join Harvey Taxi through a cleaner rider onboarding experience designed for
-          immediate account access, safer platform usage, and future service expansion.
+          secure platform access, safer account creation, and future service expansion.
         </p>
 
         <div class="benefits">
           <div class="benefit">
-            <strong>Immediate rider access</strong>
-            <span>Your rider account can be created and activated right away so you can move faster.</span>
+            <strong>Fast account setup</strong>
+            <span>Your rider profile is created quickly so you can move into the next onboarding step without delays.</span>
           </div>
           <div class="benefit">
-            <strong>Optional verification support</strong>
-            <span>Additional identity verification may be requested later to strengthen account security when needed.</span>
+            <strong>Verification-aware access</strong>
+            <span>Your rider account can be created now, but ride requests stay locked until rider verification is approved.</span>
           </div>
           <div class="benefit">
-            <strong>Platform-ready account</strong>
+            <strong>Platform-ready profile</strong>
             <span>Your rider profile is built to connect with rides, safety tools, support, and future Harvey Taxi services.</span>
           </div>
         </div>
@@ -406,11 +418,11 @@
       <section class="panel">
         <h3>Rider Sign Up</h3>
         <p class="panel-sub">
-          Enter your details to create your Harvey Taxi rider account and get rider access.
+          Enter your details to create your Harvey Taxi rider account.
         </p>
 
         <div class="notice">
-          Rider accounts are created for immediate platform access. Additional verification may be requested later for safety or support purposes.
+          Rider accounts are created now, but ride requests stay locked until rider verification is approved.
         </div>
 
         <form id="riderSignupForm">
@@ -431,8 +443,14 @@
             </div>
 
             <div class="field full">
-              <label for="address">Home Address</label>
-              <input type="text" id="address" name="address" placeholder="Street address, city, state, ZIP" required />
+              <label for="homeAddress">Home Address</label>
+              <input
+                type="text"
+                id="homeAddress"
+                name="homeAddress"
+                placeholder="Street address, city, state, ZIP"
+                required
+              />
               <small>This supports a more complete rider profile for your account and service access.</small>
             </div>
           </div>
@@ -472,11 +490,11 @@
         fullName: document.getElementById("fullName").value.trim(),
         phone: document.getElementById("phone").value.trim(),
         email: document.getElementById("email").value.trim(),
-        address: document.getElementById("address").value.trim()
+        homeAddress: document.getElementById("homeAddress").value.trim()
       };
 
       try {
-        const res = await fetch("/api/rider-signup", {
+        const res = await fetch("/api/rider/signup", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
@@ -485,13 +503,19 @@
         const data = await res.json().catch(() => ({}));
 
         if (!res.ok) {
-          throw new Error(data.message || "Unable to create rider account.");
+          throw new Error(data.error || data.message || "Unable to create rider account.");
         }
 
         showStatus(
           "success",
-          data.message || "Rider account created successfully. Your rider access is now active."
+          data.message || "Rider account created successfully."
         );
+
+        if (data.rider && data.rider.id) {
+          localStorage.setItem("harveyRiderId", data.rider.id);
+          localStorage.setItem("harveyRiderEmail", data.rider.email || "");
+          localStorage.setItem("harveyRiderName", data.rider.fullName || "");
+        }
 
         continueBtn.classList.add("show");
         riderForm.reset();
