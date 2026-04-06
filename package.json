@@ -1,19 +1,12 @@
 {
-  "name": "harvey-taxi-mobile",
+  "name": "harvey-taxi-app",
   "version": "1.0.0",
-  "private": true,
-  "main": "node_modules/expo/AppEntry.js",
+  "main": "server.js",
   "scripts": {
-    "start": "expo start",
-    "ios": "expo start --ios",
-    "android": "expo start --android",
-    "web": "expo start --web"
+    "start": "node server.js"
   },
   "dependencies": {
-    "expo": "~53.0.9",
-    "expo-location": "~18.1.6",
-    "expo-status-bar": "~2.2.3",
-    "react": "19.0.0",
-    "react-native": "0.79.2"
+    "cors": "^2.8.5",
+    "express": "^4.21.2"
   }
 }
