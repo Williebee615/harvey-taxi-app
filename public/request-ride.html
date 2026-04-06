@@ -310,8 +310,7 @@
       <h1>Request Your Ride</h1>
       <p>
         Harvey Taxi requires approved rider verification and secured payment before dispatch.
-        Once your ride is created, it is offered to drivers as a complete mission with route,
-        payout, and trip details before they accept.
+        Complete your request below to continue through the protected rider access flow.
       </p>
     </div>
 
@@ -336,7 +335,7 @@
       </div>
 
       <div class="card">
-        <div class="section-title">Trip Details</div>
+        <div class="section-title">Ride Request</div>
 
         <div class="field">
           <label for="riderId">Rider ID</label>
@@ -383,8 +382,8 @@
         </div>
 
         <div class="field">
-          <label for="notes">Trip Notes</label>
-          <textarea id="notes" placeholder="Wheelchair assistance, luggage, gate number, medical note, etc."></textarea>
+          <label for="notes">Ride Notes</label>
+          <textarea id="notes" placeholder="Wheelchair assistance, luggage, gate number, medical note, or other helpful information"></textarea>
         </div>
 
         <div class="field">
@@ -403,8 +402,8 @@
       </div>
 
       <div class="card">
-        <div class="section-title">Estimated Mission Summary</div>
-        <div class="sub">This is what gets packaged into the driver mission offer.</div>
+        <div class="section-title">Ride Estimate</div>
+        <div class="sub">Review your current pricing preview before requesting dispatch.</div>
 
         <div class="estimate">
           <div class="metric">
@@ -426,7 +425,7 @@
         </div>
 
         <div class="receipt" id="estimateReceipt">
-          No estimate yet. Enter your trip details and tap <strong>Get Fare Estimate</strong>.
+          No estimate yet. Enter your ride details and tap <strong>Get Fare Estimate</strong>.
         </div>
 
         <div class="btn-row">
@@ -557,7 +556,7 @@
         payoutValue.textContent = `$${data.estimate.estimated_driver_payout.toFixed(2)}`;
 
         estimateReceipt.innerHTML = `
-          <strong>Mission Preview</strong><br><br>
+          <strong>Ride Preview</strong><br><br>
           Pickup: ${payload.pickup_address}<br>
           Dropoff: ${payload.dropoff_address}<br>
           Ride Type: ${payload.ride_type}<br>
@@ -615,7 +614,7 @@
         paymentText.textContent = `Payment secured by ${payload.payment_method}. Hold: $${data.authorization.authorized_amount.toFixed(2)}`;
         paymentTag.className = "tag ok";
         paymentTag.textContent = data.authorization.status;
-        showResult("Payment secured. Your ride can now be dispatched once requested.");
+        showResult("Payment secured. Your ride can now continue through dispatch.");
       }catch(err){
         paymentAuthorized = false;
         paymentText.textContent = "Payment service unavailable.";
@@ -651,7 +650,7 @@
       await checkRiderStatus();
 
       if(!riderVerified){
-        showError("Ride blocked. Rider verification must be approved before requesting a trip.");
+        showError("Ride blocked. Rider verification must be approved before requesting a ride.");
         return;
       }
 
@@ -682,8 +681,8 @@
           Ride ID: ${data.ride.ride_id}<br>
           Status: ${data.ride.ride_status}<br>
           Payment Status: ${data.ride.payment_status}<br>
-          Mission Status: ${data.ride.mission_status}<br><br>
-          This ride is now available to approved drivers as a complete mission offer.
+          Dispatch Status: ${data.ride.mission_status}<br><br>
+          Your request has been submitted and is now moving through the Harvey Taxi system.
         `);
       }catch(err){
         showError("Unable to submit ride request.");
