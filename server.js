@@ -1,81 +1,210 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const crypto = require("crypto");
 const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
 const PORT = process.env.PORT || 10000;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "2mb" }));
+app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "public")));
 
-/* ===============================
-   SUPABASE
-================================ */
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+/* =========================================================
+   ENV
+========================================================= */
+const {
+  SUPABASE_URL,
+  SUPABASE_SERVICE_ROLE_KEY,
+  ADMIN_EMAIL,
+  ADMIN_PASSWORD,
+  PLATFORM_BOOKING_FEE = "2.25",
+  PLATFORM_BASE_FARE = "4.50",
+  PLATFORM_PER_MILE = "1.95",
+  PLATFORM_PER_MINUTE = "0.32",
+  PLATFORM_MINIMUM_FARE = "12.00",
+  PLATFORM_DRIVER_SHARE = "0.82",
+  PLATFORM_SURGE_MULTIPLIER = "1.00",
+  NODE_ENV = "development"
+} = process.env;
 
-/* ===============================
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+}
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+/* =========================================================
+   CONSTANTS
+========================================================= */
+const RIDE_STATUSES = {
+  REQUESTED: "requested",
+  SEARCHING_DRIVER: "searching_driver",
+  DRIVER_ASSIGNED: "driver_assigned",
+  DRIVER_ARRIVING: "driver_arriving",
+  TRIP_STARTED: "trip_started",
+  TRIP_IN_PROGRESS: "trip_in_progress",
+  TRIP_COMPLETED: "trip_completed",
+  PAYMENT_PROCESSED: "payment_processed",
+  CANCELLED: "cancelled"
+};
+
+const DRIVER_DECISIONS = {
+  ACCEPTED: "accepted",
+  DECLINED: "declined"
+};
+
+const DRIVER_STATUS = {
+  OFFLINE: "offline",
+  ONLINE: "online",
+  ON_TRIP: "on_trip"
+};
+
+const RIDER_ID_DOCUMENT_TYPES = {
+  DRIVER_LICENSE: "driver_license",
+  STATE_ID: "state_id",
+  PASSPORT: "passport"
+};
+
+const DRIVER_ID_DOCUMENT_TYPES = {
+  DRIVER_LICENSE: "driver_license"
+};
+
+/* =========================================================
    HELPERS
-================================ */
+========================================================= */
 function generateId(prefix) {
-  return `${prefix}_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+  return `${prefix}_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
 }
 
-function round2(num) {
-  return Math.round(Number(num) * 100) / 100;
+function round2(value) {
+  return Math.round(Number(value || 0) * 100) / 100;
 }
 
-function estimateDistanceMiles(pickup, dropoff) {
-  const a = String(pickup || "").length;
-  const b = String(dropoff || "").length;
-  const pseudoDistance = ((a + b) % 18) + 4;
-  return round2(pseudoDistance);
+function toNumber(value, fallback = 0) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
 }
 
-function estimateDurationMinutes(distanceMiles, rideType) {
-  let multiplier = 2.0;
-  if (rideType === "AIRPORT") multiplier = 2.4;
-  if (rideType === "MEDICAL") multiplier = 2.1;
-  if (rideType === "SCHEDULED") multiplier = 2.2;
-  return Math.max(8, Math.round(distanceMiles * multiplier));
+function ok(res, data = {}, code = 200) {
+  return res.status(code).json({ success: true, ...data });
 }
 
-function buildFareEstimate({ pickup_address, dropoff_address, ride_type }) {
-  const distance = estimateDistanceMiles(pickup_address, dropoff_address);
-  const duration = estimateDurationMinutes(distance, ride_type);
+function fail(res, message = "Request failed", code = 400, extra = {}) {
+  return res.status(code).json({ success: false, message, ...extra });
+}
 
-  const baseFare = 4.5;
-  const perMile = 1.95;
-  const perMinute = 0.32;
-  const bookingFee = 2.25;
+function requireFields(body, fields) {
+  const missing = fields.filter((field) => {
+    const value = body[field];
+    return value === undefined || value === null || value === "";
+  });
+  return missing;
+}
 
-  let surgeMultiplier = 1.0;
-  if (ride_type === "AIRPORT") surgeMultiplier = 1.15;
-  if (ride_type === "SCHEDULED") surgeMultiplier = 1.10;
-  if (ride_type === "MEDICAL") surgeMultiplier = 1.05;
-  if (ride_type === "NONPROFIT") surgeMultiplier = 1.0;
+function sanitizeRideForClient(ride) {
+  if (!ride) return ride;
+  const copy = { ...ride };
+  delete copy.pickup_lat;
+  delete copy.pickup_lng;
+  delete copy.dropoff_lat;
+  delete copy.dropoff_lng;
+  delete copy.driver_current_lat;
+  delete copy.driver_current_lng;
+  return copy;
+}
 
-  const rawFare =
-    (baseFare + distance * perMile + duration * perMinute) * surgeMultiplier +
-    bookingFee;
+function sanitizeDriverForClient(driver) {
+  if (!driver) return driver;
+  const copy = { ...driver };
+  delete copy.password;
+  delete copy.current_lat;
+  delete copy.current_lng;
+  delete copy.home_lat;
+  delete copy.home_lng;
+  delete copy.id_document_last4;
+  return copy;
+}
 
-  const estimatedFare = Math.max(12, round2(rawFare));
-  const platformFee = round2(estimatedFare * 0.18);
-  const driverPayout = round2(estimatedFare - platformFee);
+function sanitizeRiderForClient(rider) {
+  if (!rider) return rider;
+  const copy = { ...rider };
+  delete copy.password;
+  delete copy.id_document_last4;
+  return copy;
+}
 
-  return {
-    distance_miles: distance,
-    duration_minutes: duration,
-    estimated_fare: estimatedFare,
-    estimated_driver_payout: driverPayout,
-    platform_fee: platformFee,
-    booking_fee: bookingFee,
-    surge_multiplier: surgeMultiplier
+function normalizeRiderIdDocumentType(value) {
+  const raw = String(value || "").trim().toLowerCase();
+
+  if (
+    raw === "driver_license" ||
+    raw === "driver license" ||
+    raw === "drivers_license" ||
+    raw === "drivers license" ||
+    raw === "license"
+  ) {
+    return RIDER_ID_DOCUMENT_TYPES.DRIVER_LICENSE;
+  }
+
+  if (
+    raw === "state_id" ||
+    raw === "state id" ||
+    raw === "id card" ||
+    raw === "state identification"
+  ) {
+    return RIDER_ID_DOCUMENT_TYPES.STATE_ID;
+  }
+
+  if (raw === "passport") {
+    return RIDER_ID_DOCUMENT_TYPES.PASSPORT;
+  }
+
+  return null;
+}
+
+function normalizeDriverIdDocumentType(value) {
+  const raw = String(value || "").trim().toLowerCase();
+
+  if (
+    raw === "driver_license" ||
+    raw === "driver license" ||
+    raw === "drivers_license" ||
+    raw === "drivers license" ||
+    raw === "license"
+  ) {
+    return DRIVER_ID_DOCUMENT_TYPES.DRIVER_LICENSE;
+  }
+
+  return null;
+}
+
+function getLast4(value) {
+  const clean = String(value || "").trim();
+  if (!clean) return null;
+  return clean.slice(-4);
+}
+
+function assertStatusTransition(currentStatus, nextStatus) {
+  const allowed = {
+    [RIDE_STATUSES.REQUESTED]: [RIDE_STATUSES.SEARCHING_DRIVER, RIDE_STATUSES.CANCELLED],
+    [RIDE_STATUSES.SEARCHING_DRIVER]: [RIDE_STATUSES.DRIVER_ASSIGNED, RIDE_STATUSES.CANCELLED],
+    [RIDE_STATUSES.DRIVER_ASSIGNED]: [
+      RIDE_STATUSES.DRIVER_ARRIVING,
+      RIDE_STATUSES.SEARCHING_DRIVER,
+      RIDE_STATUSES.CANCELLED
+    ],
+    [RIDE_STATUSES.DRIVER_ARRIVING]: [RIDE_STATUSES.TRIP_STARTED, RIDE_STATUSES.CANCELLED],
+    [RIDE_STATUSES.TRIP_STARTED]: [RIDE_STATUSES.TRIP_IN_PROGRESS, RIDE_STATUSES.TRIP_COMPLETED],
+    [RIDE_STATUSES.TRIP_IN_PROGRESS]: [RIDE_STATUSES.TRIP_COMPLETED],
+    [RIDE_STATUSES.TRIP_COMPLETED]: [RIDE_STATUSES.PAYMENT_PROCESSED],
+    [RIDE_STATUSES.PAYMENT_PROCESSED]: [],
+    [RIDE_STATUSES.CANCELLED]: []
   };
+
+  return (allowed[currentStatus] || []).includes(nextStatus);
 }
 
 function getPickupZone(address = "") {
@@ -89,25 +218,88 @@ function getPickupZone(address = "") {
   return "GENERAL";
 }
 
+function estimateDistanceMiles(pickup, dropoff) {
+  const a = String(pickup || "").length;
+  const b = String(dropoff || "").length;
+  const pseudoDistance = ((a + b) % 18) + 4;
+  return round2(pseudoDistance);
+}
+
+function estimateDurationMinutes(distanceMiles, rideType) {
+  let multiplier = 2.0;
+  if (rideType === "airport") multiplier = 2.4;
+  if (rideType === "medical") multiplier = 2.1;
+  if (rideType === "scheduled") multiplier = 2.2;
+  return Math.max(8, Math.round(distanceMiles * multiplier));
+}
+
+function buildFareConfig() {
+  return {
+    booking_fee: toNumber(PLATFORM_BOOKING_FEE, 2.25),
+    base_fare: toNumber(PLATFORM_BASE_FARE, 4.5),
+    per_mile: toNumber(PLATFORM_PER_MILE, 1.95),
+    per_minute: toNumber(PLATFORM_PER_MINUTE, 0.32),
+    minimum_fare: toNumber(PLATFORM_MINIMUM_FARE, 12),
+    driver_share: toNumber(PLATFORM_DRIVER_SHARE, 0.82),
+    surge_multiplier: toNumber(PLATFORM_SURGE_MULTIPLIER, 1)
+  };
+}
+
+function calculateFare({ pickupAddress, dropoffAddress, rideType = "standard" }) {
+  const cfg = buildFareConfig();
+  const distanceMiles = estimateDistanceMiles(pickupAddress, dropoffAddress);
+  const durationMinutes = estimateDurationMinutes(distanceMiles, rideType);
+
+  let multiplier = cfg.surge_multiplier;
+  if (rideType === "xl") multiplier += 0.35;
+  if (rideType === "premium") multiplier += 0.75;
+  if (rideType === "airport") multiplier += 0.15;
+  if (rideType === "scheduled") multiplier += 0.10;
+  if (rideType === "medical") multiplier += 0.05;
+
+  const subtotal =
+    cfg.base_fare +
+    distanceMiles * cfg.per_mile +
+    durationMinutes * cfg.per_minute;
+
+  const fareBeforeBooking = Math.max(subtotal * multiplier, cfg.minimum_fare);
+  const totalFare = round2(fareBeforeBooking + cfg.booking_fee);
+  const driverPayout = round2(totalFare * cfg.driver_share);
+  const platformFee = round2(totalFare - driverPayout);
+
+  return {
+    distance_miles: distanceMiles,
+    duration_minutes: durationMinutes,
+    estimated_fare: totalFare,
+    estimated_driver_payout: driverPayout,
+    estimated_platform_fee: platformFee,
+    surge_multiplier: round2(multiplier),
+    fare_config: cfg
+  };
+}
+
 function getDriverEtaMinutes(driver, ride) {
   const pickupZone = getPickupZone(ride.pickup_address);
-  const sameZone = driver.zone === pickupZone;
+  const driverZone =
+    driver.current_address || driver.last_known_address || driver.home_address || "";
 
+  const sameZone = getPickupZone(driverZone) === pickupZone;
   if (sameZone) return 4;
-  if (pickupZone === "AIRPORT" && driver.zone === "DOWNTOWN") return 9;
-  if (pickupZone === "DOWNTOWN" && driver.zone === "AIRPORT") return 9;
+  if (pickupZone === "AIRPORT" && getPickupZone(driverZone) === "DOWNTOWN") return 9;
+  if (pickupZone === "DOWNTOWN" && getPickupZone(driverZone) === "AIRPORT") return 9;
 
   return 7 + Math.floor((Number(driver.completed_missions || 0) % 3));
 }
 
 function driverEligibleForRide(driver, ride) {
   if (!driver) return false;
-  if (!driver.is_online) return false;
-  if (driver.is_busy) return false;
-  if (driver.verification_status !== "APPROVED") return false;
-  if (driver.background_status !== "APPROVED") return false;
-  if (!["AUTHORIZED", "SPONSORED"].includes(ride.payment_status)) return false;
-  if (ride.rider_verification_status !== "APPROVED") return false;
+  if (!driver.online) return false;
+  if (!driver.available) return false;
+  if (!driver.verified) return false;
+  if (!driver.approved) return false;
+  if (driver.id_document_type !== DRIVER_ID_DOCUMENT_TYPES.DRIVER_LICENSE) return false;
+  if (String(driver.checkr_status || "").toLowerCase() !== "clear") return false;
+  if (!ride) return false;
   return true;
 }
 
@@ -115,9 +307,9 @@ function scoreDriverForRide(driver, ride) {
   const eta = getDriverEtaMinutes(driver, ride);
   const payout = Number(ride.estimated_driver_payout || 0);
   const rideTypeBonus =
-    ride.ride_type === "AIRPORT" && driver.zone === "AIRPORT" ? 8 : 0;
-  const onlineBonus = driver.is_online ? 5 : 0;
-  const reliabilityBonus = Number(driver.acceptance_score || 0) / 10;
+    ride.ride_type === "airport" && getPickupZone(driver.current_address) === "AIRPORT" ? 8 : 0;
+  const onlineBonus = driver.online ? 5 : 0;
+  const reliabilityBonus = Number(driver.acceptance_score || 90) / 10;
   const experienceBonus = Math.min(Number(driver.completed_missions || 0), 40) / 8;
 
   const score =
@@ -135,89 +327,184 @@ function scoreDriverForRide(driver, ride) {
   };
 }
 
-/* ===============================
-   DB HELPERS
-================================ */
-async function getRiderById(riderId) {
+/* =========================================================
+   DATABASE HELPERS
+========================================================= */
+async function findRiderById(riderId) {
   const { data, error } = await supabase
     .from("riders")
     .select("*")
-    .eq("rider_id", riderId)
-    .maybeSingle();
+    .eq("id", riderId)
+    .single();
 
   if (error) throw error;
   return data;
 }
 
-async function getDriverById(driverId) {
+async function findDriverById(driverId) {
   const { data, error } = await supabase
     .from("drivers")
+    .select("*")
+    .eq("id", driverId)
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+async function findRideById(rideId) {
+  const { data, error } = await supabase
+    .from("rides")
+    .select("*")
+    .eq("id", rideId)
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+async function insertEvent(type, payload) {
+  const { error } = await supabase.from("events").insert({
+    id: generateId("evt"),
+    type,
+    payload,
+    created_at: new Date().toISOString()
+  });
+
+  if (error) {
+    console.error("Event insert failed:", error.message);
+  }
+}
+
+async function ensureWallet(driverId) {
+  const { data: existing, error: selectError } = await supabase
+    .from("driver_wallets")
     .select("*")
     .eq("driver_id", driverId)
     .maybeSingle();
 
+  if (selectError) throw selectError;
+  if (existing) return existing;
+
+  const newWallet = {
+    id: generateId("wallet"),
+    driver_id: driverId,
+    balance: 0,
+    lifetime_earnings: 0,
+    updated_at: new Date().toISOString()
+  };
+
+  const { data, error } = await supabase
+    .from("driver_wallets")
+    .insert(newWallet)
+    .select()
+    .single();
+
   if (error) throw error;
   return data;
 }
 
-async function getRideById(rideId) {
+async function creditDriverWallet(driverId, amount) {
+  const wallet = await ensureWallet(driverId);
+  const nextBalance = round2(toNumber(wallet.balance) + toNumber(amount));
+  const nextLifetime = round2(toNumber(wallet.lifetime_earnings) + toNumber(amount));
+
+  const { data, error } = await supabase
+    .from("driver_wallets")
+    .update({
+      balance: nextBalance,
+      lifetime_earnings: nextLifetime,
+      updated_at: new Date().toISOString()
+    })
+    .eq("driver_id", driverId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+async function updateRideStatus(rideId, currentStatus, nextStatus, patch = {}) {
+  if (!assertStatusTransition(currentStatus, nextStatus)) {
+    throw new Error(`Invalid ride status transition: ${currentStatus} -> ${nextStatus}`);
+  }
+
   const { data, error } = await supabase
     .from("rides")
-    .select("*")
-    .eq("ride_id", rideId)
-    .maybeSingle();
+    .update({
+      status: nextStatus,
+      updated_at: new Date().toISOString(),
+      ...patch
+    })
+    .eq("id", rideId)
+    .select()
+    .single();
 
   if (error) throw error;
   return data;
 }
 
-async function hasAuthorizedPayment(riderId, estimatedFare) {
+async function setDriverAvailability(driverId, patch = {}) {
   const { data, error } = await supabase
-    .from("payment_authorizations")
-    .select("*")
-    .eq("rider_id", riderId)
-    .in("status", ["AUTHORIZED", "SPONSORED"]);
+    .from("drivers")
+    .update({
+      updated_at: new Date().toISOString(),
+      ...patch
+    })
+    .eq("id", driverId)
+    .select()
+    .single();
 
   if (error) throw error;
-
-  return (data || []).some(
-    (auth) => Number(auth.authorized_amount) >= Number(estimatedFare)
-  );
+  return data;
 }
 
 async function hydrateRide(ride) {
   if (!ride) return null;
+  if (!ride.driver_id) return ride;
 
-  let driverName = null;
-  if (ride.assigned_driver_id) {
-    const driver = await getDriverById(ride.assigned_driver_id);
-    driverName = driver ? driver.first_name : null;
+  try {
+    const driver = await findDriverById(ride.driver_id);
+    return {
+      ...ride,
+      driver_name: ride.driver_name || driver.full_name,
+      driver_phone: ride.driver_phone || driver.phone,
+      driver_vehicle:
+        ride.driver_vehicle ||
+        `${driver.vehicle_color || ""} ${driver.vehicle_make || ""} ${driver.vehicle_model || ""}`.trim()
+    };
+  } catch {
+    return ride;
   }
-
-  return {
-    ...ride,
-    driver_name: driverName
-  };
 }
 
 async function hydrateRides(rides) {
-  const result = [];
+  const results = [];
   for (const ride of rides || []) {
-    result.push(await hydrateRide(ride));
+    results.push(await hydrateRide(ride));
   }
-  return result;
+  return results;
+}
+
+/* =========================================================
+   DISPATCH BRAIN
+========================================================= */
+async function getEligibleDrivers() {
+  const { data, error } = await supabase
+    .from("drivers")
+    .select("*")
+    .eq("verified", true)
+    .eq("approved", true)
+    .eq("online", true)
+    .eq("available", true);
+
+  if (error) throw error;
+  return data || [];
 }
 
 async function findBestDriverForRide(ride) {
-  const { data: drivers, error } = await supabase
-    .from("drivers")
-    .select("*");
-
-  if (error) throw error;
-
-  const eligibleDrivers = (drivers || []).filter((driver) =>
-    driverEligibleForRide(driver, ride)
-  );
+  const drivers = await getEligibleDrivers();
+  const eligibleDrivers = drivers.filter((driver) => driverEligibleForRide(driver, ride));
 
   if (!eligibleDrivers.length) return null;
 
@@ -231,146 +518,134 @@ async function findBestDriverForRide(ride) {
   return ranked[0];
 }
 
-async function assignDriverToRide(ride) {
+async function assignNearestDriverToRide(ride) {
   const bestMatch = await findBestDriverForRide(ride);
 
   if (!bestMatch) {
-    const { data, error } = await supabase
+    await supabase
       .from("rides")
       .update({
-        assigned_driver_id: null,
-        eta_to_pickup_minutes: null,
+        driver_id: null,
+        driver_name: null,
+        driver_phone: null,
+        driver_vehicle: null,
+        driver_eta_to_pickup_minutes: null,
+        driver_eta_to_pickup_text: null,
+        driver_distance_to_pickup_miles: null,
+        driver_distance_to_pickup_text: null,
         dispatch_score: null,
-        ride_status: "DISPATCHING",
-        mission_status: "WAITING_FOR_DRIVER",
+        status: RIDE_STATUSES.SEARCHING_DRIVER,
         updated_at: new Date().toISOString()
       })
-      .eq("ride_id", ride.ride_id)
-      .select()
-      .single();
+      .eq("id", ride.id);
 
-    if (error) throw error;
-    return { assigned: false, ride: data };
+    return null;
   }
+
+  const driver = bestMatch.driver;
+  const driverVehicle =
+    `${driver.vehicle_color || ""} ${driver.vehicle_make || ""} ${driver.vehicle_model || ""}`.trim();
 
   const { data, error } = await supabase
     .from("rides")
     .update({
-      assigned_driver_id: bestMatch.driver.driver_id,
-      eta_to_pickup_minutes: bestMatch.eta_to_pickup_minutes,
+      driver_id: driver.id,
+      driver_name: driver.full_name,
+      driver_phone: driver.phone,
+      driver_vehicle: driverVehicle,
+      driver_eta_to_pickup_minutes: bestMatch.eta_to_pickup_minutes,
+      driver_eta_to_pickup_text: `${bestMatch.eta_to_pickup_minutes} min`,
+      driver_distance_to_pickup_miles: null,
+      driver_distance_to_pickup_text: null,
       dispatch_score: bestMatch.score,
-      ride_status: "READY_FOR_DRIVER",
-      mission_status: "OFFERED_TO_DRIVER",
+      mission_sent_at: new Date().toISOString(),
+      status: RIDE_STATUSES.DRIVER_ASSIGNED,
       updated_at: new Date().toISOString()
     })
-    .eq("ride_id", ride.ride_id)
+    .eq("id", ride.id)
     .select()
     .single();
 
   if (error) throw error;
 
-  return {
-    assigned: true,
-    driver: bestMatch.driver,
-    eta_to_pickup_minutes: bestMatch.eta_to_pickup_minutes,
-    dispatch_score: bestMatch.score,
-    ride: data
-  };
+  await insertEvent("ride.driver_assigned", {
+    ride_id: ride.id,
+    driver_id: driver.id,
+    dispatch_score: bestMatch.score
+  });
+
+  return data;
 }
 
-async function redispatchRide(ride) {
-  const { error } = await supabase
-    .from("rides")
-    .update({
-      assigned_driver_id: null,
-      ride_status: "DISPATCHING",
-      mission_status: "REDISPATCHING",
-      updated_at: new Date().toISOString()
-    })
-    .eq("ride_id", ride.ride_id);
-
-  if (error) throw error;
-
-  const freshRide = await getRideById(ride.ride_id);
-  return await assignDriverToRide(freshRide);
-}
-
-function buildDriverMission(ride, driverId) {
-  return {
-    ride_id: ride.ride_id,
-    driver_id: driverId,
-    passenger_first_name: ride.passenger_first_name,
-    rider_verification_status: ride.rider_verification_status,
-    pickup_address: ride.pickup_address,
-    dropoff_address: ride.dropoff_address,
-    ride_type: ride.ride_type,
-    scheduled_time: ride.scheduled_time || "",
-    special_notes: ride.special_notes || "",
-    estimated_distance_miles: ride.estimated_distance_miles,
-    estimated_duration_minutes: ride.estimated_duration_minutes,
-    estimated_fare: ride.estimated_fare,
-    estimated_driver_payout: ride.estimated_driver_payout,
-    eta_to_pickup_minutes: ride.eta_to_pickup_minutes || 6,
-    payment_status: ride.payment_status,
-    dispatch_score: ride.dispatch_score || null
-  };
-}
-
-async function getDashboardSummary() {
-  const { data: rides, error } = await supabase.from("rides").select("*");
-  if (error) throw error;
-
-  return {
-    waiting_rides: (rides || []).filter(
-      (r) => r.ride_status === "DISPATCHING" || r.ride_status === "READY_FOR_DRIVER"
-    ).length,
-    active_trips: (rides || []).filter(
-      (r) =>
-        r.ride_status === "DRIVER_ACCEPTED" ||
-        r.ride_status === "DRIVER_ARRIVING" ||
-        r.ride_status === "IN_PROGRESS"
-    ).length,
-    completed_trips: (rides || []).filter((r) => r.ride_status === "COMPLETED").length
-  };
-}
-
-/* ===============================
+/* =========================================================
    STATIC PAGE ROUTES
-================================ */
-app.get("/", (req, res) => {
+========================================================= */
+app.get("/", (_req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-app.get("/request-ride", (req, res) => {
+app.get("/request-ride", (_req, res) => {
   res.sendFile(path.join(__dirname, "public", "request-ride.html"));
 });
 
-app.get("/driver-missions", (req, res) => {
+app.get("/driver-missions", (_req, res) => {
   res.sendFile(path.join(__dirname, "public", "driver-missions.html"));
 });
 
-app.get("/active-trip", (req, res) => {
+app.get("/active-trip", (_req, res) => {
   res.sendFile(path.join(__dirname, "public", "active-trip.html"));
 });
 
-app.get("/admin-dispatch", (req, res) => {
+app.get("/admin-dispatch", (_req, res) => {
   res.sendFile(path.join(__dirname, "public", "admin-dispatch.html"));
 });
 
-app.get("/admin-dashboard", (req, res) => {
+app.get("/admin-dashboard", (_req, res) => {
   res.sendFile(path.join(__dirname, "public", "admin-dashboard.html"));
 });
 
-/* ===============================
-   RIDER SIGNUP
-================================ */
+/* =========================================================
+   HEALTH / ADMIN LOGIN
+========================================================= */
+app.get("/api/health", (_req, res) => {
+  return ok(res, {
+    message: "Harvey Taxi production server running",
+    environment: NODE_ENV,
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.post("/api/admin/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+      return fail(res, "Admin credentials not configured on server", 500);
+    }
+
+    if (email !== ADMIN_EMAIL || password !== ADMIN_PASSWORD) {
+      return fail(res, "Invalid admin credentials", 401);
+    }
+
+    return ok(res, {
+      message: "Admin login successful",
+      admin: { email }
+    });
+  } catch (error) {
+    console.error(error);
+    return fail(res, "Admin login failed", 500);
+  }
+});
+
+/* =========================================================
+   RIDER ROUTES
+========================================================= */
 app.post("/api/rider/signup", async (req, res) => {
   try {
     const fullName =
       req.body.full_name ||
       req.body.fullName ||
       req.body.name ||
-      req.body.fullname ||
       "";
 
     const phone =
@@ -385,78 +660,94 @@ app.post("/api/rider/signup", async (req, res) => {
       req.body.emailAddress ||
       "";
 
-    const city =
-      req.body.city ||
-      req.body.operating_city ||
-      req.body.operatingCity ||
-      req.body.operating_area ||
-      req.body.operatingArea ||
+    const riderIdDocumentType = normalizeRiderIdDocumentType(
+      req.body.id_document_type ||
+      req.body.idDocumentType ||
+      req.body.verification_document_type ||
+      req.body.verificationDocumentType ||
+      req.body.document_type ||
+      req.body.documentType
+    );
+
+    const riderIdDocumentNumber =
+      req.body.id_document_number ||
+      req.body.idDocumentNumber ||
+      req.body.document_number ||
+      req.body.documentNumber ||
       "";
 
-    if (!fullName || !phone) {
-      return res.status(400).json({
-        success: false,
-        message: "Full name and phone are required.",
-        received: req.body
-      });
+    if (!fullName || !phone || !email) {
+      return fail(res, "Full name, phone, and email are required.");
     }
 
-    const riderId = generateId("rider");
+    if (!riderIdDocumentType) {
+      return fail(
+        res,
+        "Rider ID document type is required. Use driver_license, state_id, or passport."
+      );
+    }
+
+    const rider = {
+      id: generateId("rider"),
+      full_name: fullName,
+      email: String(email).toLowerCase().trim(),
+      phone: String(phone).trim(),
+      verified: false,
+      approved: false,
+      persona_status: "pending",
+      id_document_type: riderIdDocumentType,
+      id_document_last4: getLast4(riderIdDocumentNumber),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
 
     const { data, error } = await supabase
       .from("riders")
-      .insert([
-        {
-          rider_id: riderId,
-          first_name: fullName,
-          phone,
-          verification_status: "PENDING"
-        }
-      ])
+      .insert(rider)
       .select()
       .single();
 
-    if (error) {
-      console.log("Rider insert error:", error);
-      return res.status(500).json({
-        success: false,
-        message: "Database insert failed.",
-        error: error.message
-      });
-    }
+    if (error) throw error;
 
-    return res.json({
-      success: true,
-      rider_id: data.rider_id,
-      status: "PENDING_APPROVAL",
-      rider: data,
-      submitted_profile: {
-        full_name: fullName,
-        phone,
-        email,
-        city
-      }
+    await insertEvent("rider.created", {
+      rider_id: data.id,
+      email: data.email,
+      id_document_type: data.id_document_type
     });
+
+    return ok(
+      res,
+      {
+        message: "Rider account created. Verification required before ride requests.",
+        rider: sanitizeRiderForClient(data)
+      },
+      201
+    );
   } catch (error) {
-    console.log("Rider signup error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Unable to submit rider application right now.",
-      error: error.message
-    });
+    console.error(error);
+    return fail(res, error.message || "Failed to create rider", 500);
   }
 });
 
-/* ===============================
-   DRIVER SIGNUP
-================================ */
+app.get("/api/riders/:riderId", async (req, res) => {
+  try {
+    const rider = await findRiderById(req.params.riderId);
+    return ok(res, { rider: sanitizeRiderForClient(rider) });
+  } catch (error) {
+    console.error(error);
+    return fail(res, "Rider not found", 404);
+  }
+});
+
+/* =========================================================
+   DRIVER ROUTES
+========================================================= */
 app.post("/api/driver/signup", async (req, res) => {
   try {
     const fullName =
       req.body.full_name ||
       req.body.fullName ||
       req.body.name ||
-      req.body.fullname ||
       "";
 
     const phone =
@@ -471,1001 +762,256 @@ app.post("/api/driver/signup", async (req, res) => {
       req.body.emailAddress ||
       "";
 
-    const vehicleType =
-      req.body.vehicle_type ||
-      req.body.vehicleType ||
-      "STANDARD";
-
-    const licenseNumber =
-      req.body.license ||
-      req.body.license_number ||
-      req.body.licenseNumber ||
-      req.body.driver_license_number ||
-      req.body.driverLicenseNumber ||
-      "";
-
-    const city =
+    const vehicleMake = req.body.vehicle_make || req.body.vehicleMake || "Unknown";
+    const vehicleModel = req.body.vehicle_model || req.body.vehicleModel || "Unknown";
+    const vehicleColor = req.body.vehicle_color || req.body.vehicleColor || "Unknown";
+    const vehiclePlate = req.body.vehicle_plate || req.body.vehiclePlate || "Unknown";
+    const currentAddress =
+      req.body.current_address ||
       req.body.city ||
       req.body.operating_city ||
-      req.body.operatingCity ||
-      req.body.operating_area ||
-      req.body.operatingArea ||
-      req.body.operating_city_area ||
-      req.body.operatingCityArea ||
       "";
 
-    if (!fullName || !phone || !vehicleType || !city) {
-      return res.status(400).json({
-        success: false,
-        message: "Full name, phone, vehicle type, and city are required.",
-        received: req.body
-      });
+    const driverIdDocumentType = normalizeDriverIdDocumentType(
+      req.body.id_document_type ||
+      req.body.idDocumentType ||
+      req.body.verification_document_type ||
+      req.body.verificationDocumentType ||
+      req.body.document_type ||
+      req.body.documentType
+    );
+
+    const driverIdDocumentNumber =
+      req.body.id_document_number ||
+      req.body.idDocumentNumber ||
+      req.body.document_number ||
+      req.body.documentNumber ||
+      "";
+
+    if (!fullName || !phone || !email) {
+      return fail(res, "Full name, phone, and email are required.");
     }
 
-    const driverId = generateId("driver");
+    if (!driverIdDocumentType) {
+      return fail(
+        res,
+        "Driver ID document type must be driver_license."
+      );
+    }
 
-    const insertPayload = {
-      driver_id: driverId,
-      first_name: fullName,
-      verification_status: "PENDING",
-      background_status: "PENDING",
-      is_online: false,
-      is_busy: false,
-      current_address: city,
-      zone: getPickupZone(city),
-      vehicle_type: vehicleType,
+    const driver = {
+      id: generateId("driver"),
+      full_name: fullName,
+      email: String(email).toLowerCase().trim(),
+      phone: String(phone).trim(),
+      vehicle_make: vehicleMake,
+      vehicle_model: vehicleModel,
+      vehicle_color: vehicleColor,
+      vehicle_plate: vehiclePlate,
+      verified: false,
+      approved: false,
+      persona_status: "pending",
+      checkr_status: "pending",
+      id_document_type: driverIdDocumentType,
+      id_document_last4: getLast4(driverIdDocumentNumber),
+      online: false,
+      available: false,
+      driver_status: DRIVER_STATUS.OFFLINE,
+      current_address: currentAddress || null,
+      last_known_address: currentAddress || null,
       completed_missions: 0,
-      acceptance_score: 90
+      acceptance_score: 90,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
 
     const { data, error } = await supabase
       .from("drivers")
-      .insert([insertPayload])
+      .insert(driver)
       .select()
       .single();
 
-    if (error) {
-      console.log("Driver insert error:", error);
-      return res.status(500).json({
-        success: false,
-        message: "Database insert failed.",
-        error: error.message
-      });
-    }
+    if (error) throw error;
 
-    return res.json({
-      success: true,
-      message: "Driver application submitted successfully.",
-      driver_id: data.driver_id,
-      status: "PENDING_APPROVAL",
-      driver: data,
-      submitted_profile: {
-        full_name: fullName,
-        phone,
-        email,
-        vehicle_type: vehicleType,
-        license_number: licenseNumber,
-        city
-      }
+    await ensureWallet(data.id);
+    await insertEvent("driver.created", {
+      driver_id: data.id,
+      email: data.email,
+      id_document_type: data.id_document_type,
+      checkr_status: data.checkr_status
     });
+
+    return ok(
+      res,
+      {
+        message: "Driver account created. Driver license verification and background check are required before going online.",
+        driver: sanitizeDriverForClient(data)
+      },
+      201
+    );
   } catch (error) {
-    console.log("Driver signup error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Unable to submit the driver application right now. Please try again.",
-      error: error.message
-    });
+    console.error(error);
+    return fail(res, error.message || "Failed to create driver", 500);
   }
 });
 
-/* ===============================
-   TEMP DEBUG ROUTES
-================================ */
-app.post("/api/debug/driver-signup-test", (req, res) => {
-  console.log("Driver signup payload:", req.body);
-  res.json({
-    success: true,
-    received: req.body
-  });
-});
-
-app.post("/api/debug/rider-signup-test", (req, res) => {
-  console.log("Rider signup payload:", req.body);
-  res.json({
-    success: true,
-    received: req.body
-  });
-});
-
-/* ===============================
-   RIDER STATUS
-================================ */
-app.get("/api/rider-status/:riderId", async (req, res) => {
+app.get("/api/drivers/:driverId", async (req, res) => {
   try {
-    const rider = await getRiderById(req.params.riderId);
-
-    if (!rider) {
-      return res.status(404).json({
-        success: false,
-        message: "Rider not found."
-      });
-    }
-
-    return res.json({
-      success: true,
-      rider
-    });
+    const driver = await findDriverById(req.params.driverId);
+    return ok(res, { driver: sanitizeDriverForClient(driver) });
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    console.error(error);
+    return fail(res, "Driver not found", 404);
   }
 });
 
-/* ===============================
+app.post("/api/drivers/:driverId/go-online", async (req, res) => {
+  try {
+    const driver = await findDriverById(req.params.driverId);
+
+    if (!driver.verified || !driver.approved) {
+      return fail(res, "Driver must be verified and approved before going online", 403);
+    }
+
+    if (driver.id_document_type !== DRIVER_ID_DOCUMENT_TYPES.DRIVER_LICENSE) {
+      return fail(res, "Driver must be verified with a driver license", 403);
+    }
+
+    if (String(driver.checkr_status || "").toLowerCase() !== "clear") {
+      return fail(res, "Driver background check must be clear before going online", 403);
+    }
+
+    const currentAddress = req.body.current_address || driver.current_address || driver.last_known_address;
+    if (!currentAddress) {
+      return fail(res, "Driver current address is required to go online");
+    }
+
+    const updatedDriver = await setDriverAvailability(driver.id, {
+      online: true,
+      available: true,
+      driver_status: DRIVER_STATUS.ONLINE,
+      current_address: currentAddress,
+      last_known_address: currentAddress
+    });
+
+    await insertEvent("driver.online", { driver_id: driver.id });
+
+    return ok(res, {
+      message: "Driver is now online and available",
+      driver: sanitizeDriverForClient(updatedDriver)
+    });
+  } catch (error) {
+    console.error(error);
+    return fail(res, "Failed to set driver online", 500);
+  }
+});
+
+app.post("/api/drivers/:driverId/go-offline", async (req, res) => {
+  try {
+    const updatedDriver = await setDriverAvailability(req.params.driverId, {
+      online: false,
+      available: false,
+      driver_status: DRIVER_STATUS.OFFLINE
+    });
+
+    await insertEvent("driver.offline", { driver_id: req.params.driverId });
+
+    return ok(res, {
+      message: "Driver is now offline",
+      driver: sanitizeDriverForClient(updatedDriver)
+    });
+  } catch (error) {
+    console.error(error);
+    return fail(res, "Failed to set driver offline", 500);
+  }
+});
+
+app.post("/api/drivers/:driverId/location", async (req, res) => {
+  try {
+    const { current_address } = req.body;
+    if (!current_address) {
+      return fail(res, "current_address is required");
+    }
+
+    const updatedDriver = await setDriverAvailability(req.params.driverId, {
+      current_address,
+      last_known_address: current_address
+    });
+
+    return ok(res, {
+      message: "Driver location updated",
+      driver: sanitizeDriverForClient(updatedDriver)
+    });
+  } catch (error) {
+    console.error(error);
+    return fail(res, "Failed to update driver location", 500);
+  }
+});
+
+/* =========================================================
    FARE ESTIMATE
-================================ */
+========================================================= */
 app.post("/api/fare-estimate", async (req, res) => {
   try {
-    const { pickup_address, dropoff_address, ride_type } = req.body;
+    const { pickup_address, dropoff_address, ride_type = "standard" } = req.body;
 
     if (!pickup_address || !dropoff_address) {
-      return res.status(400).json({
-        success: false,
-        message: "Pickup and dropoff addresses are required."
-      });
+      return fail(res, "Pickup and dropoff addresses are required.");
     }
 
-    const estimate = buildFareEstimate({
-      pickup_address,
-      dropoff_address,
-      ride_type: ride_type || "STANDARD"
+    const estimate = calculateFare({
+      pickupAddress: pickup_address,
+      dropoffAddress: dropoff_address,
+      rideType: String(ride_type).toLowerCase()
     });
 
-    return res.json({
-      success: true,
-      estimate
-    });
+    return ok(res, { estimate });
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    console.error(error);
+    return fail(res, "Failed to calculate fare estimate", 500);
   }
 });
 
-/* ===============================
-   PAYMENT AUTHORIZATION
-================================ */
-app.post("/api/payments/authorize", async (req, res) => {
-  try {
-    const { rider_id, payment_method, estimated_fare, ride_type } = req.body;
-
-    if (!rider_id || !payment_method || !estimated_fare) {
-      return res.status(400).json({
-        success: false,
-        message: "Rider, payment method, and estimated fare are required."
-      });
-    }
-
-    const rider = await getRiderById(rider_id);
-    if (!rider) {
-      return res.status(404).json({
-        success: false,
-        message: "Rider not found."
-      });
-    }
-
-    if (ride_type !== "NONPROFIT" && payment_method === "CASH") {
-      return res.status(400).json({
-        success: false,
-        message: "Cash is not eligible for secured pre-dispatch authorization."
-      });
-    }
-
-    const authorization = {
-      authorization_id: generateId("auth"),
-      rider_id,
-      payment_method,
-      authorized_amount: round2(estimated_fare),
-      status: ride_type === "NONPROFIT" ? "SPONSORED" : "AUTHORIZED"
-    };
-
-    const { data, error } = await supabase
-      .from("payment_authorizations")
-      .insert([authorization])
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    return res.json({
-      success: true,
-      authorization: data
-    });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-/* ===============================
-   REQUEST RIDE + DISPATCH BRAIN
-================================ */
+/* =========================================================
+   RIDE REQUEST + DISPATCH
+========================================================= */
 app.post("/api/request-ride", async (req, res) => {
   try {
-    const {
-      rider_id,
-      passenger_first_name,
-      passenger_phone,
-      pickup_address,
-      dropoff_address,
-      ride_type,
-      scheduled_time,
-      special_notes,
-      payment_method,
-      estimate
-    } = req.body;
-
-    if (
-      !rider_id ||
-      !passenger_first_name ||
-      !passenger_phone ||
-      !pickup_address ||
-      !dropoff_address
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "Missing required ride request fields."
-      });
+    const missing = requireFields(req.body, ["rider_id", "pickup_address", "dropoff_address"]);
+    if (missing.length) {
+      return fail(res, `Missing fields: ${missing.join(", ")}`);
     }
 
-    const rider = await getRiderById(rider_id);
-    if (!rider) {
-      return res.status(404).json({
-        success: false,
-        message: "Rider not found."
-      });
+    const rider = await findRiderById(req.body.rider_id);
+    if (!rider.verified || !rider.approved) {
+      return fail(res, "Rider must be verified and approved before requesting a ride", 403);
     }
 
-    if (rider.verification_status !== "APPROVED") {
-      return res.status(403).json({
-        success: false,
-        message: "Ride blocked. Rider verification must be approved."
-      });
-    }
+    const pickupAddress = String(req.body.pickup_address).trim();
+    const dropoffAddress = String(req.body.dropoff_address).trim();
+    const rideType = String(req.body.ride_type || "standard").toLowerCase();
+    const paymentMethod = req.body.payment_method || "card";
 
-    const estimatedFare = Number(estimate?.estimated_fare || 0);
-    const paymentSecured =
-      ride_type === "NONPROFIT"
-        ? true
-        : await hasAuthorizedPayment(rider_id, estimatedFare);
-
-    if (!paymentSecured) {
-      return res.status(403).json({
-        success: false,
-        message: "Ride blocked. Payment must be secured before dispatch."
-      });
-    }
-
-    const ride = {
-      ride_id: generateId("ride"),
-      rider_id,
-      assigned_driver_id: null,
-      passenger_first_name,
-      passenger_phone,
-      pickup_address,
-      dropoff_address,
-      ride_type: ride_type || "STANDARD",
-      scheduled_time: scheduled_time || "",
-      special_notes: special_notes || "",
-      rider_verification_status: rider.verification_status,
-      estimated_distance_miles: Number(estimate?.distance_miles || 0),
-      estimated_duration_minutes: Number(estimate?.duration_minutes || 0),
-      estimated_fare: round2(estimate?.estimated_fare || 0),
-      estimated_driver_payout: round2(estimate?.estimated_driver_payout || 0),
-      fare_amount: round2(estimate?.estimated_fare || 0),
-      tip_amount: 0,
-      total_amount: round2(estimate?.estimated_fare || 0),
-      payment_method: payment_method || "CARD",
-      payment_status: ride_type === "NONPROFIT" ? "SPONSORED" : "AUTHORIZED",
-      tip_status: "NO_TIP",
-      eta_to_pickup_minutes: null,
-      dispatch_score: null,
-      ride_status: "DISPATCHING",
-      mission_status: "RUNNING_DISPATCH_BRAIN"
-    };
-
-    const { data: insertedRide, error } = await supabase
-      .from("rides")
-      .insert([ride])
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    const dispatchResult = await assignDriverToRide(insertedRide);
-    const hydratedRide = await hydrateRide(dispatchResult.ride);
-
-    return res.json({
-      success: true,
-      message: dispatchResult.assigned
-        ? "Ride created and dispatched to the best available driver."
-        : "Ride created. Dispatch brain is waiting for an approved online driver.",
-      dispatch: {
-        assigned: dispatchResult.assigned,
-        driver_id: dispatchResult.driver ? dispatchResult.driver.driver_id : null,
-        driver_name: dispatchResult.driver ? dispatchResult.driver.first_name : null,
-        eta_to_pickup_minutes: dispatchResult.eta_to_pickup_minutes || null,
-        dispatch_score: dispatchResult.dispatch_score || null
-      },
-      ride: hydratedRide
+    const fare = calculateFare({
+      pickupAddress,
+      dropoffAddress,
+      rideType
     });
-  } catch (error) {
-    console.log("Request ride error:", error);
-    return res.status(500).json({ success: false, message: error.message });
-  }
-});
 
-/* ===============================
-   DRIVER ONLINE / OFFLINE
-================================ */
-app.post("/api/driver/go-online", async (req, res) => {
-  try {
-    const { driver_id, is_online } = req.body;
-
-    const driver = await getDriverById(driver_id);
-    if (!driver) {
-      return res.status(404).json({
-        success: false,
-        message: "Driver not found."
-      });
-    }
-
-    const { data, error } = await supabase
-      .from("drivers")
-      .update({ is_online: Boolean(is_online) })
-      .eq("driver_id", driver_id)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    return res.json({
-      success: true,
-      driver: data
-    });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-/* ===============================
-   DRIVER MISSIONS
-================================ */
-app.get("/api/driver-missions/:driverId", async (req, res) => {
-  try {
-    const driver = await getDriverById(req.params.driverId);
-
-    if (!driver) {
-      return res.status(404).json({
-        success: false,
-        message: "Driver not found."
-      });
-    }
-
-    if (!driver.is_online) {
-      return res.json({
-        success: true,
-        missions: []
-      });
-    }
-
-    const { data: rides, error } = await supabase
-      .from("rides")
-      .select("*")
-      .eq("assigned_driver_id", driver.driver_id)
-      .eq("ride_status", "READY_FOR_DRIVER");
-
-    if (error) throw error;
-
-    const missions = (rides || []).map((ride) =>
-      buildDriverMission(ride, driver.driver_id)
-    );
-
-    return res.json({
-      success: true,
-      missions
-    });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-app.post("/api/driver-missions/accept", async (req, res) => {
-  try {
-    const { driver_id, ride_id } = req.body;
-
-    const driver = await getDriverById(driver_id);
-    if (!driver) {
-      return res.status(404).json({ success: false, message: "Driver not found." });
-    }
-
-    if (
-      driver.verification_status !== "APPROVED" ||
-      driver.background_status !== "APPROVED"
-    ) {
-      return res.status(403).json({
-        success: false,
-        message: "Driver is not approved for missions."
-      });
-    }
-
-    const ride = await getRideById(ride_id);
-    if (!ride) {
-      return res.status(404).json({ success: false, message: "Ride not found." });
-    }
-
-    if (ride.assigned_driver_id !== driver_id) {
-      return res.status(403).json({
-        success: false,
-        message: "This mission is not assigned to this driver."
-      });
-    }
-
-    const { data: updatedRide, error: rideError } = await supabase
-      .from("rides")
-      .update({
-        ride_status: "DRIVER_ACCEPTED",
-        mission_status: "ACCEPTED",
-        updated_at: new Date().toISOString()
-      })
-      .eq("ride_id", ride_id)
-      .select()
-      .single();
-
-    if (rideError) throw rideError;
-
-    const { error: driverError } = await supabase
-      .from("drivers")
-      .update({ is_busy: true })
-      .eq("driver_id", driver_id);
-
-    if (driverError) throw driverError;
-
-    return res.json({
-      success: true,
-      message: "Mission accepted successfully.",
-      ride: await hydrateRide(updatedRide)
-    });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-app.post("/api/driver-missions/decline", async (req, res) => {
-  try {
-    const { driver_id, ride_id } = req.body;
-
-    const ride = await getRideById(ride_id);
-    if (!ride) {
-      return res.status(404).json({ success: false, message: "Ride not found." });
-    }
-
-    const driver = await getDriverById(driver_id);
-    if (driver) {
-      await supabase
-        .from("drivers")
-        .update({
-          acceptance_score: Math.max(50, Number(driver.acceptance_score || 90) - 2)
-        })
-        .eq("driver_id", driver_id);
-    }
-
-    const redispatchResult = await redispatchRide(ride);
-
-    return res.json({
-      success: true,
-      message: redispatchResult.assigned
-        ? "Mission declined. Dispatch brain reassigned the ride."
-        : "Mission declined. Dispatch brain is waiting for another approved online driver.",
-      dispatch: {
-        assigned: redispatchResult.assigned,
-        driver_id: redispatchResult.driver ? redispatchResult.driver.driver_id : null,
-        driver_name: redispatchResult.driver ? redispatchResult.driver.first_name : null
-      },
-      ride: await hydrateRide(redispatchResult.ride)
-    });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-/* ===============================
-   ACTIVE TRIP LOOKUP
-================================ */
-app.get("/api/rides/:rideId", async (req, res) => {
-  try {
-    const ride = await getRideById(req.params.rideId);
-
-    if (!ride) {
-      return res.status(404).json({
-        success: false,
-        message: "Ride not found."
-      });
-    }
-
-    return res.json({
-      success: true,
-      ride: await hydrateRide(ride)
-    });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-/* ===============================
-   TRIP STATUS
-================================ */
-app.post("/api/rides/:rideId/arriving", async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from("rides")
-      .update({
-        ride_status: "DRIVER_ARRIVING",
-        mission_status: "DRIVER_EN_ROUTE_TO_PICKUP",
-        updated_at: new Date().toISOString()
-      })
-      .eq("ride_id", req.params.rideId)
-      .select()
-      .single();
-
-    if (error || !data) {
-      return res.status(404).json({ success: false, message: "Ride not found." });
-    }
-
-    return res.json({
-      success: true,
-      message: "Driver marked as arriving.",
-      ride: await hydrateRide(data)
-    });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-app.post("/api/rides/:rideId/start", async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from("rides")
-      .update({
-        ride_status: "IN_PROGRESS",
-        mission_status: "TRIP_ACTIVE",
-        updated_at: new Date().toISOString()
-      })
-      .eq("ride_id", req.params.rideId)
-      .select()
-      .single();
-
-    if (error || !data) {
-      return res.status(404).json({ success: false, message: "Ride not found." });
-    }
-
-    return res.json({
-      success: true,
-      message: "Trip started.",
-      ride: await hydrateRide(data)
-    });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-app.post("/api/rides/:rideId/complete", async (req, res) => {
-  try {
-    const ride = await getRideById(req.params.rideId);
-    if (!ride) {
-      return res.status(404).json({ success: false, message: "Ride not found." });
-    }
-
-    const totalAmount = round2((ride.fare_amount || 0) + (ride.tip_amount || 0));
-
-    const { data: updatedRide, error } = await supabase
-      .from("rides")
-      .update({
-        ride_status: "COMPLETED",
-        mission_status: "TRIP_CLOSED",
-        payment_status: ride.payment_status === "SPONSORED" ? "SPONSORED" : "SETTLED",
-        total_amount: totalAmount,
-        updated_at: new Date().toISOString()
-      })
-      .eq("ride_id", req.params.rideId)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    if (ride.assigned_driver_id) {
-      const driver = await getDriverById(ride.assigned_driver_id);
-      if (driver) {
-        await supabase
-          .from("drivers")
-          .update({
-            is_busy: false,
-            completed_missions: Number(driver.completed_missions || 0) + 1,
-            acceptance_score: Math.min(99, Number(driver.acceptance_score || 90) + 1)
-          })
-          .eq("driver_id", ride.assigned_driver_id);
-      }
-    }
-
-    return res.json({
-      success: true,
-      message: "Trip completed and payment settled.",
-      ride: await hydrateRide(updatedRide)
-    });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-/* ===============================
-   TIPS
-================================ */
-app.post("/api/rides/:rideId/tip-during", async (req, res) => {
-  try {
-    const ride = await getRideById(req.params.rideId);
-
-    if (!ride) {
-      return res.status(404).json({ success: false, message: "Ride not found" });
-    }
-
-    if (ride.ride_status !== "IN_PROGRESS") {
-      return res.json({
-        success: false,
-        message: "Tips during trip only allowed while trip is active"
-      });
-    }
-
-    const amount = Number(req.body.amount || 0);
-    if (amount <= 0) {
-      return res.json({ success: false, message: "Invalid tip amount" });
-    }
-
-    const tipAmount = round2((ride.tip_amount || 0) + amount);
-    const totalAmount = round2((ride.fare_amount || 0) + tipAmount);
-
-    const { data, error } = await supabase
-      .from("rides")
-      .update({
-        tip_amount: tipAmount,
-        total_amount: totalAmount,
-        tip_status: "IN_TRIP_TIPPED",
-        updated_at: new Date().toISOString()
-      })
-      .eq("ride_id", ride.ride_id)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    return res.json({
-      success: true,
-      ride: await hydrateRide(data)
-    });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-app.post("/api/rides/:rideId/tip-after", async (req, res) => {
-  try {
-    const ride = await getRideById(req.params.rideId);
-
-    if (!ride) {
-      return res.status(404).json({ success: false, message: "Ride not found" });
-    }
-
-    if (ride.ride_status !== "COMPLETED") {
-      return res.json({
-        success: false,
-        message: "Post-trip tips only allowed after completion"
-      });
-    }
-
-    const amount = Number(req.body.amount || 0);
-    if (amount <= 0) {
-      return res.json({ success: false, message: "Invalid tip amount" });
-    }
-
-    const tipAmount = round2((ride.tip_amount || 0) + amount);
-    const totalAmount = round2((ride.fare_amount || 0) + tipAmount);
-
-    const { data, error } = await supabase
-      .from("rides")
-      .update({
-        tip_amount: tipAmount,
-        total_amount: totalAmount,
-        tip_status: "POST_TRIP_TIPPED",
-        updated_at: new Date().toISOString()
-      })
-      .eq("ride_id", ride.ride_id)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    return res.json({
-      success: true,
-      ride: await hydrateRide(data)
-    });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-/* ===============================
-   ADMIN DISPATCH BOARD
-================================ */
-app.get("/api/admin/dispatch-board", async (req, res) => {
-  try {
-    const { data: rides, error: ridesError } = await supabase
-      .from("rides")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (ridesError) throw ridesError;
-
-    const { data: drivers, error: driversError } = await supabase
-      .from("drivers")
-      .select("*");
-
-    if (driversError) throw driversError;
-
-    const hydrated = await hydrateRides(rides || []);
-
-    const summary = {
-      total_rides: hydrated.length,
-      waiting_for_driver: hydrated.filter(
-        (r) => r.ride_status === "DISPATCHING" || r.ride_status === "READY_FOR_DRIVER"
-      ).length,
-      active_trips: hydrated.filter(
-        (r) =>
-          r.ride_status === "DRIVER_ACCEPTED" ||
-          r.ride_status === "DRIVER_ARRIVING" ||
-          r.ride_status === "IN_PROGRESS"
-      ).length,
-      completed_trips: hydrated.filter((r) => r.ride_status === "COMPLETED").length
-    };
-
-    return res.json({
-      success: true,
-      summary,
-      rides: hydrated,
-      drivers: drivers || []
-    });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-/* ===============================
-   ADMIN APPROVAL DASHBOARD
-================================ */
-app.get("/api/admin/dashboard-data", async (req, res) => {
-  try {
-    const { data: pendingRiders, error: ridersError } = await supabase
-      .from("riders")
-      .select("*")
-      .eq("verification_status", "PENDING");
-
-    if (ridersError) throw ridersError;
-
-    const { data: drivers, error: driversError } = await supabase
-      .from("drivers")
-      .select("*");
-
-    if (driversError) throw driversError;
-
-    const pendingDrivers = (drivers || []).filter(
-      (d) => d.verification_status === "PENDING" || d.background_status === "PENDING"
-    );
-
-    const { data: rides, error: ridesError } = await supabase
-      .from("rides")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (ridesError) throw ridesError;
-
-    return res.json({
-      success: true,
-      pending_riders: pendingRiders || [],
-      pending_drivers: pendingDrivers,
-      rides: await hydrateRides(rides || []),
-      summary: await getDashboardSummary()
-    });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-app.post("/api/admin/approve-rider", async (req, res) => {
-  try {
-    const { rider_id } = req.body;
-
-    const { data, error } = await supabase
-      .from("riders")
-      .update({ verification_status: "APPROVED" })
-      .eq("rider_id", rider_id)
-      .select()
-      .single();
-
-    if (error || !data) {
-      return res.status(404).json({ success: false, message: "Rider not found." });
-    }
-
-    return res.json({ success: true, rider: data });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-app.post("/api/admin/reject-rider", async (req, res) => {
-  try {
-    const { rider_id } = req.body;
-
-    const { data, error } = await supabase
-      .from("riders")
-      .update({ verification_status: "REJECTED" })
-      .eq("rider_id", rider_id)
-      .select()
-      .single();
-
-    if (error || !data) {
-      return res.status(404).json({ success: false, message: "Rider not found." });
-    }
-
-    return res.json({ success: true, rider: data });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-app.post("/api/admin/approve-driver", async (req, res) => {
-  try {
-    const { driver_id } = req.body;
-
-    const { data, error } = await supabase
-      .from("drivers")
-      .update({
-        verification_status: "APPROVED",
-        background_status: "APPROVED"
-      })
-      .eq("driver_id", driver_id)
-      .select()
-      .single();
-
-    if (error || !data) {
-      return res.status(404).json({ success: false, message: "Driver not found." });
-    }
-
-    return res.json({ success: true, driver: data });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-app.post("/api/admin/reject-driver", async (req, res) => {
-  try {
-    const { driver_id } = req.body;
-
-    const { data, error } = await supabase
-      .from("drivers")
-      .update({ verification_status: "REJECTED" })
-      .eq("driver_id", driver_id)
-      .select()
-      .single();
-
-    if (error || !data) {
-      return res.status(404).json({ success: false, message: "Driver not found." });
-    }
-
-    return res.json({ success: true, driver: data });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-/* ===============================
-   DISPATCH BRAIN TOOLS
-================================ */
-app.post("/api/admin/run-dispatch/:rideId", async (req, res) => {
-  try {
-    const ride = await getRideById(req.params.rideId);
-
-    if (!ride) {
-      return res.status(404).json({
-        success: false,
-        message: "Ride not found."
-      });
-    }
-
-    const result = await assignDriverToRide(ride);
-
-    return res.json({
-      success: true,
-      message: result.assigned
-        ? "Dispatch brain assigned the best available driver."
-        : "No approved online driver available right now.",
-      dispatch: result,
-      ride: await hydrateRide(result.ride)
-    });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-app.get("/api/admin/dispatch-insights/:rideId", async (req, res) => {
-  try {
-    const ride = await getRideById(req.params.rideId);
-
-    if (!ride) {
-      return res.status(404).json({
-        success: false,
-        message: "Ride not found."
-      });
-    }
-
-    const { data: drivers, error } = await supabase.from("drivers").select("*");
-    if (error) throw error;
-
-    const ranked = (drivers || [])
-      .filter((driver) => driverEligibleForRide(driver, ride))
-      .map((driver) => ({
-        driver_id: driver.driver_id,
-        driver_name: driver.first_name,
-        zone: driver.zone,
-        is_online: driver.is_online,
-        is_busy: driver.is_busy,
-        ...scoreDriverForRide(driver, ride)
-      }))
-      .sort((a, b) => b.score - a.score);
-
-    return res.json({
-      success: true,
-      ride: await hydrateRide(ride),
-      candidates: ranked
-    });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-/* ===============================
-   DEBUG
-================================ */
-app.get("/api/debug/all-rides", async (req, res) => {
-  try {
-    const { data: rides } = await supabase.from("rides").select("*");
-    const { data: riders } = await supabase.from("riders").select("*");
-    const { data: drivers } = await supabase.from("drivers").select("*");
-    const { data: paymentAuthorizations } = await supabase
-      .from("payment_authorizations")
-      .select("*");
-
-    return res.json({
-      success: true,
-      rides: await hydrateRides(rides || []),
-      riders: riders || [],
-      drivers: drivers || [],
-      paymentAuthorizations: paymentAuthorizations || []
-    });
-  } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-/* ===============================
-   START SERVER
-================================ */
-app.listen(PORT, () => {
-  console.log(`HARVEY SERVER RUNNING ON PORT ${PORT}`);
-});
+    const rideRecord = {
+      id: generateId("ride"),
+      rider_id: rider.id,
+      rider_name: rider.full_name,
+      rider_phone: rider.phone,
+      pickup_address: pickupAddress,
+      dropoff_address: dropoffAddress,
+      ride_type: rideType,
+      payment_method: paymentMethod,
+      distance_miles: fare.distance_miles,
+      duration_minutes: fare.duration_minutes,
+      distance_text: `${fare.distance_miles} mi`,
+      duration_text: `${fare.duration_minutes} min`,
+      estimated_fare: fare.estimated_fare,
       estimated_driver_payout: fare.estimated_driver_payout,
       estimated_platform_fee: fare.estimated_platform_fee,
       surge_multiplier: fare.surge_multiplier,
@@ -1520,34 +1066,11 @@ app.listen(PORT, () => {
       );
     }
 
-    const assignedDriver = await findDriverById(assignedRide.driver_id);
-
-    const hydratedRide = {
-      ...assignedRide,
-      driver_name: assignedDriver.full_name,
-      driver_phone: assignedDriver.phone,
-      driver_vehicle: `${assignedDriver.vehicle_color} ${assignedDriver.vehicle_make} ${assignedDriver.vehicle_model}`.trim()
-    };
-
-    const { data: updatedAssignedRide, error: hydrateError } = await supabase
-      .from("rides")
-      .update({
-        driver_name: hydratedRide.driver_name,
-        driver_phone: hydratedRide.driver_phone,
-        driver_vehicle: hydratedRide.driver_vehicle,
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", hydratedRide.id)
-      .select()
-      .single();
-
-    if (hydrateError) throw hydrateError;
-
     return ok(
       res,
       {
         message: "Ride requested and driver assigned",
-        ride: sanitizeRideForClient(updatedAssignedRide)
+        ride: sanitizeRideForClient(assignedRide)
       },
       201
     );
@@ -1560,7 +1083,7 @@ app.listen(PORT, () => {
 app.get("/api/rides/:rideId", async (req, res) => {
   try {
     const ride = await findRideById(req.params.rideId);
-    return ok(res, { ride: sanitizeRideForClient(ride) });
+    return ok(res, { ride: sanitizeRideForClient(await hydrateRide(ride)) });
   } catch (error) {
     console.error(error);
     return fail(res, "Ride not found", 404);
@@ -1584,7 +1107,7 @@ app.get("/api/rides", async (req, res) => {
     if (error) throw error;
 
     return ok(res, {
-      rides: (data || []).map(sanitizeRideForClient)
+      rides: (await hydrateRides(data || [])).map(sanitizeRideForClient)
     });
   } catch (error) {
     console.error(error);
@@ -1637,7 +1160,7 @@ app.post("/api/rides/:rideId/cancel", async (req, res) => {
 });
 
 /* =========================================================
-   DRIVER MISSION + TRIP LIFECYCLE
+   DRIVER MISSIONS + TRIP LIFECYCLE
 ========================================================= */
 app.get("/api/drivers/:driverId/missions", async (req, res) => {
   try {
@@ -1656,7 +1179,7 @@ app.get("/api/drivers/:driverId/missions", async (req, res) => {
     if (error) throw error;
 
     return ok(res, {
-      missions: (data || []).map(sanitizeRideForClient)
+      missions: (await hydrateRides(data || [])).map(sanitizeRideForClient)
     });
   } catch (error) {
     console.error(error);
@@ -1717,22 +1240,20 @@ app.post("/api/rides/:rideId/driver-decision", async (req, res) => {
         driver_status: DRIVER_STATUS.ONLINE
       });
 
-      const clearedRidePayload = {
-        driver_id: null,
-        driver_name: null,
-        driver_phone: null,
-        driver_vehicle: null,
-        driver_eta_to_pickup_minutes: null,
-        driver_eta_to_pickup_text: null,
-        driver_distance_to_pickup_miles: null,
-        driver_distance_to_pickup_text: null,
-        mission_sent_at: null,
-        updated_at: new Date().toISOString()
-      };
-
       const { data: resetRide, error: resetError } = await supabase
         .from("rides")
-        .update(clearedRidePayload)
+        .update({
+          driver_id: null,
+          driver_name: null,
+          driver_phone: null,
+          driver_vehicle: null,
+          driver_eta_to_pickup_minutes: null,
+          driver_eta_to_pickup_text: null,
+          driver_distance_to_pickup_miles: null,
+          driver_distance_to_pickup_text: null,
+          mission_sent_at: null,
+          updated_at: new Date().toISOString()
+        })
         .eq("id", ride.id)
         .select()
         .single();
@@ -1756,25 +1277,9 @@ app.post("/api/rides/:rideId/driver-decision", async (req, res) => {
         });
       }
 
-      const newDriver = await findDriverById(reassignedRide.driver_id);
-
-      const { data: hydratedReassignedRide, error: hydratedReassignedRideError } = await supabase
-        .from("rides")
-        .update({
-          driver_name: newDriver.full_name,
-          driver_phone: newDriver.phone,
-          driver_vehicle: `${newDriver.vehicle_color} ${newDriver.vehicle_make} ${newDriver.vehicle_model}`.trim(),
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", reassignedRide.id)
-        .select()
-        .single();
-
-      if (hydratedReassignedRideError) throw hydratedReassignedRideError;
-
       return ok(res, {
         message: "Driver declined. Ride reassigned to another driver.",
-        ride: sanitizeRideForClient(hydratedReassignedRide)
+        ride: sanitizeRideForClient(reassignedRide)
       });
     }
 
@@ -1800,7 +1305,7 @@ app.post("/api/rides/:rideId/arrive", async (req, res) => {
       return fail(res, "Ride is not in driver arriving status", 400);
     }
 
-    const updatedRide = await supabase
+    const { data, error } = await supabase
       .from("rides")
       .update({
         driver_arrived_at: new Date().toISOString(),
@@ -1810,7 +1315,7 @@ app.post("/api/rides/:rideId/arrive", async (req, res) => {
       .select()
       .single();
 
-    if (updatedRide.error) throw updatedRide.error;
+    if (error) throw error;
 
     await insertEvent("ride.driver_arrived", {
       ride_id: ride.id,
@@ -1819,7 +1324,7 @@ app.post("/api/rides/:rideId/arrive", async (req, res) => {
 
     return ok(res, {
       message: "Driver arrival recorded",
-      ride: sanitizeRideForClient(updatedRide.data)
+      ride: sanitizeRideForClient(data)
     });
   } catch (error) {
     console.error(error);
@@ -2086,7 +1591,7 @@ app.get("/api/admin/dispatch", async (_req, res) => {
     return ok(res, {
       summary,
       drivers: (drivers || []).map(sanitizeDriverForClient),
-      rides: (rides || []).map(sanitizeRideForClient),
+      rides: (await hydrateRides(rides || [])).map(sanitizeRideForClient),
       wallets: wallets || []
     });
   } catch (error) {
@@ -2202,30 +1707,14 @@ app.post("/api/admin/rides/:rideId/reassign", async (req, res) => {
       });
     }
 
-    const newDriver = await findDriverById(reassignedRide.driver_id);
-
-    const { data: hydratedRide, error: hydrateError } = await supabase
-      .from("rides")
-      .update({
-        driver_name: newDriver.full_name,
-        driver_phone: newDriver.phone,
-        driver_vehicle: `${newDriver.vehicle_color} ${newDriver.vehicle_make} ${newDriver.vehicle_model}`.trim(),
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", reassignedRide.id)
-      .select()
-      .single();
-
-    if (hydrateError) throw hydrateError;
-
     await insertEvent("ride.reassigned", {
       ride_id: ride.id,
-      new_driver_id: hydratedRide.driver_id
+      new_driver_id: reassignedRide.driver_id
     });
 
     return ok(res, {
       message: "Ride reassigned successfully",
-      ride: sanitizeRideForClient(hydratedRide)
+      ride: sanitizeRideForClient(reassignedRide)
     });
   } catch (error) {
     console.error(error);
@@ -2234,7 +1723,7 @@ app.post("/api/admin/rides/:rideId/reassign", async (req, res) => {
 });
 
 /* =========================================================
-   EVENTS / WALLET / ROOT
+   EVENTS / WALLET
 ========================================================= */
 app.get("/api/events", async (_req, res) => {
   try {
@@ -2261,10 +1750,6 @@ app.get("/api/drivers/:driverId/wallet", async (req, res) => {
     console.error(error);
     return fail(res, "Failed to fetch driver wallet", 500);
   }
-});
-
-app.get("/", (_req, res) => {
-  return res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
 /* =========================================================
