@@ -30,9 +30,7 @@ const DATA_FILES = {
 };
 
 const DISPATCH_OFFER_TIMEOUT_MS = 20000;
-const MAX_DISPATCH_ATTEMPTS = 10;
-
-/* =========================================================
+const MAX_DISPATCH_ATTEMPTS = 10; /* =========================================================
    DEFAULT FILE CONTENT
 ========================================================= */
 const DEFAULT_DATA = {
@@ -84,9 +82,7 @@ function safeString(value) {
 
 function normalizeEmail(email) {
   return safeString(email).toLowerCase();
-}
-
-function estimateDistanceMiles(pickupAddress, dropoffAddress) {
+} function estimateDistanceMiles(pickupAddress, dropoffAddress) {
   const a = safeString(pickupAddress).length;
   const b = safeString(dropoffAddress).length;
   const pseudoDistance = ((a + b) % 18) + 4;
@@ -94,7 +90,9 @@ function estimateDistanceMiles(pickupAddress, dropoffAddress) {
 }
 
 function estimateDurationMinutes(distanceMiles, rideType = "standard") {
-  const multiplier = rideType === "premium" ? 1.18 : rideType === "xl" ? 1.28 : 1;
+  const multiplier =
+    rideType === "premium" ? 1.18 : rideType === "xl" ? 1.28 : 1;
+
   return Math.max(8, Math.round(Number(distanceMiles || 0) * 3.6 * multiplier));
 }
 
@@ -121,8 +119,15 @@ function estimateFare(
     distanceMiles * Number(fareSettings.perMile || 0) +
     durationMinutes * Number(fareSettings.perMinute || 0);
 
-  const adjusted = subtotal * getRideTypeMultiplier(rideType) * Number(surgeMultiplier || 1);
-  const total = Math.max(adjusted + Number(fareSettings.bookingFee || 0), Number(fareSettings.minimumFare || 0));
+  const adjusted =
+    subtotal *
+    getRideTypeMultiplier(rideType) *
+    Number(surgeMultiplier || 1);
+
+  const total = Math.max(
+    adjusted + Number(fareSettings.bookingFee || 0),
+    Number(fareSettings.minimumFare || 0)
+  );
 
   return {
     distanceMiles: round2(distanceMiles),
@@ -138,7 +143,7 @@ function sanitizeAddressOnlyLocation(address) {
     latitude: null,
     longitude: null
   };
-}async function ensureFile(filePath, fallbackData) {
+} async function ensureFile(filePath, fallbackData) {
   try {
     await fsp.access(filePath, fs.constants.F_OK);
   } catch {
@@ -173,9 +178,7 @@ async function appendJson(filePath, item, fallback = []) {
   data.push(item);
   await writeJson(filePath, data);
   return item;
-}
-
-async function getAllData() {
+} async function getAllData() {
   const [
     riders,
     drivers,
@@ -224,6 +227,7 @@ async function logAdmin(action, payload = {}) {
     payload,
     createdAt: nowIso()
   };
+
   await appendJson(DATA_FILES.adminLogs, entry, []);
   return entry;
 }
@@ -237,9 +241,7 @@ function findLatestPaymentAuthorization(payments, riderId) {
         p.status === "authorized"
     )
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
-}
-
-function chooseBestDriver(drivers, pickupAddress, excludedDriverIds = []) {
+} function chooseBestDriver(drivers, pickupAddress, excludedDriverIds = []) {
   const excluded = new Set(excludedDriverIds);
 
   const availableDrivers = drivers.filter(
@@ -256,13 +258,16 @@ function chooseBestDriver(drivers, pickupAddress, excludedDriverIds = []) {
     .map((driver) => ({
       ...driver,
       dispatchScore:
-        Math.abs(safeString(driver.currentZone).length - safeString(pickupAddress).length) +
-        Math.floor(Math.random() * 10)
+        Math.abs(
+          safeString(driver.currentZone).length - safeString(pickupAddress).length
+        ) + Math.floor(Math.random() * 10)
     }))
     .sort((a, b) => a.dispatchScore - b.dispatchScore);
 
   return ranked[0];
-}async function updateRecordById(filePath, id, updater, fallback = []) {
+}
+
+async function updateRecordById(filePath, id, updater, fallback = []) {
   const items = await readJson(filePath, fallback);
   const index = items.findIndex((item) => item.id === id);
 
@@ -271,6 +276,7 @@ function chooseBestDriver(drivers, pickupAddress, excludedDriverIds = []) {
   const current = items[index];
   const updated = updater(current);
   items[index] = updated;
+
   await writeJson(filePath, items);
   return updated;
 }
@@ -281,13 +287,14 @@ async function getRecordById(filePath, id, fallback = []) {
 }
 
 function requireFields(fields, body) {
-  const missing = fields.filter((field) => !safeString(body[field]));
-  return missing;
-}
-
-async function createDispatchAndMissionForRide(ride, excludedDriverIds = []) {
+  return fields.filter((field) => !safeString(body[field]));
+} async function createDispatchAndMissionForRide(ride, excludedDriverIds = []) {
   const drivers = await readJson(DATA_FILES.drivers, []);
-  const chosenDriver = chooseBestDriver(drivers, ride.pickup.address, excludedDriverIds);
+  const chosenDriver = chooseBestDriver(
+    drivers,
+    ride.pickup.address,
+    excludedDriverIds
+  );
 
   if (!chosenDriver) {
     await updateRecordById(
@@ -305,7 +312,13 @@ async function createDispatchAndMissionForRide(ride, excludedDriverIds = []) {
     );
 
     await logAdmin("ride_waiting_for_driver", { rideId: ride.id });
-    return { ride: await getRecordById(DATA_FILES.rides, ride.id, []), dispatch: null, mission: null };
+
+    return {
+      ride: await getRecordById(DATA_FILES.rides, ride.id, []),
+      dispatch: null,
+      mission: null,
+      driver: null
+    };
   }
 
   const dispatch = {
@@ -369,14 +382,16 @@ async function createDispatchAndMissionForRide(ride, excludedDriverIds = []) {
   return {
     ride: updatedRide,
     dispatch,
-    mission
+    mission,
+    driver: chosenDriver
   };
-}/* =========================================================
+} /* =========================================================
    HEALTH / BASIC ROUTES
 ========================================================= */
 app.get("/health", async (req, res) => {
   try {
     const data = await getAllData();
+
     res.json({
       ok: true,
       service: "Harvey Taxi Unified Server",
@@ -406,10 +421,7 @@ app.get("/admin", (req, res) => {
 ========================================================= */
 app.post("/api/rider/signup", async (req, res) => {
   try {
-    const missing = requireFields(
-      ["fullName", "email", "phone", "password"],
-      req.body
-    );
+    const missing = requireFields(["email", "phone"], req.body);
 
     if (missing.length) {
       return res.status(400).json({
@@ -431,10 +443,11 @@ app.post("/api/rider/signup", async (req, res) => {
 
     const rider = {
       id: generateId("rider"),
-      fullName: safeString(req.body.fullName),
+      fullName: safeString(req.body.fullName) || "Pending Name",
       email,
       phone: safeString(req.body.phone),
-      password: safeString(req.body.password),
+      password: safeString(req.body.password) || "",
+      homeAddress: safeString(req.body.homeAddress),
       verificationMethod: safeString(req.body.verificationMethod) || "state_id",
       verificationStatus: "pending",
       riderApproved: false,
@@ -444,14 +457,19 @@ app.post("/api/rider/signup", async (req, res) => {
     };
 
     await appendJson(DATA_FILES.riders, rider, []);
-    await logAdmin("rider_signup_created", { riderId: rider.id, email: rider.email });
+    await logAdmin("rider_signup_created", {
+      riderId: rider.id,
+      email: rider.email
+    });
 
     res.status(201).json({
       ok: true,
-      message: "Rider signup created. Verification approval is required before ride requests.",
+      message:
+        "Rider signup created. Verification approval is required before ride requests.",
       rider
     });
-  } catch {
+  } catch (error) {
+    console.error("Rider signup error:", error);
     res.status(500).json({ ok: false, error: "Failed to create rider." });
   }
 });
@@ -490,7 +508,7 @@ app.get("/api/riders", async (req, res) => {
   } catch {
     res.status(500).json({ ok: false, error: "Failed to load riders." });
   }
-});/* =========================================================
+}); /* =========================================================
    DRIVERS
 ========================================================= */
 app.post("/api/driver/signup", async (req, res) => {
@@ -543,11 +561,15 @@ app.post("/api/driver/signup", async (req, res) => {
     };
 
     await appendJson(DATA_FILES.drivers, driver, []);
-    await logAdmin("driver_signup_created", { driverId: driver.id, email: driver.email });
+    await logAdmin("driver_signup_created", {
+      driverId: driver.id,
+      email: driver.email
+    });
 
     res.status(201).json({
       ok: true,
-      message: "Driver signup created. Driver license verification and background approval required.",
+      message:
+        "Driver signup created. Driver license verification and background approval required.",
       driver
     });
   } catch {
@@ -631,12 +653,13 @@ app.patch("/api/driver/:driverId/availability", async (req, res) => {
   } catch {
     res.status(500).json({ ok: false, error: "Failed to update driver availability." });
   }
-});/* =========================================================
+}); /* =========================================================
    PAYMENT AUTHORIZATION + FARE ESTIMATE
 ========================================================= */
 app.post("/api/payments/authorize", async (req, res) => {
   try {
     const missing = requireFields(["riderId", "paymentMethod"], req.body);
+
     if (missing.length) {
       return res.status(400).json({
         ok: false,
@@ -689,6 +712,7 @@ app.get("/api/payments", async (req, res) => {
 app.post("/api/fare-estimate", async (req, res) => {
   try {
     const missing = requireFields(["pickupAddress", "dropoffAddress"], req.body);
+
     if (missing.length) {
       return res.status(400).json({
         ok: false,
@@ -697,12 +721,15 @@ app.post("/api/fare-estimate", async (req, res) => {
     }
 
     const settings = await readJson(DATA_FILES.settings, DEFAULT_DATA.settings);
+
     const fare = estimateFare(
       {
         pickupAddress: req.body.pickupAddress,
         dropoffAddress: req.body.dropoffAddress,
         rideType: req.body.rideType || "standard",
-        surgeMultiplier: Number(req.body.surgeMultiplier || settings.fare.surgeMultiplier || 1)
+        surgeMultiplier: Number(
+          req.body.surgeMultiplier || settings.fare.surgeMultiplier || 1
+        )
       },
       settings.fare
     );
@@ -716,14 +743,15 @@ app.post("/api/fare-estimate", async (req, res) => {
   } catch {
     res.status(500).json({ ok: false, error: "Failed to estimate fare." });
   }
-});
-
-/* =========================================================
-   REQUEST RIDE
+}); /* =========================================================
+   REQUEST RIDE + MISSIONS
 ========================================================= */
 app.post("/api/request-ride", async (req, res) => {
   try {
-    const missing = requireFields(["riderId", "pickupAddress", "dropoffAddress"], req.body);
+    const missing = requireFields(
+      ["riderId", "pickupAddress", "dropoffAddress"],
+      req.body
+    );
 
     if (missing.length) {
       return res.status(400).json({
@@ -795,10 +823,13 @@ app.post("/api/request-ride", async (req, res) => {
       dispatch: result.dispatch,
       mission: result.mission
     });
-  } catch {
+  } catch (error) {
+    console.error("Request ride error:", error);
     res.status(500).json({ ok: false, error: "Failed to request ride." });
   }
-});app.get("/api/rides", async (req, res) => {
+});
+
+app.get("/api/rides", async (req, res) => {
   try {
     const rides = await readJson(DATA_FILES.rides, []);
     res.json({ ok: true, rides });
@@ -813,15 +844,13 @@ app.get("/api/rides/:rideId", async (req, res) => {
     if (!ride) {
       return res.status(404).json({ ok: false, error: "Ride not found." });
     }
+
     res.json({ ok: true, ride });
   } catch {
     res.status(500).json({ ok: false, error: "Failed to load ride." });
   }
 });
 
-/* =========================================================
-   DRIVER MISSIONS
-========================================================= */
 app.get("/api/driver/:driverId/missions", async (req, res) => {
   try {
     const missions = await readJson(DATA_FILES.missions, []);
@@ -830,9 +859,7 @@ app.get("/api/driver/:driverId/missions", async (req, res) => {
   } catch {
     res.status(500).json({ ok: false, error: "Failed to load driver missions." });
   }
-});
-
-app.post("/api/missions/:missionId/accept", async (req, res) => {
+}); app.post("/api/missions/:missionId/accept", async (req, res) => {
   try {
     const missionId = req.params.missionId;
     const mission = await getRecordById(DATA_FILES.missions, missionId, []);
@@ -975,7 +1002,10 @@ app.post("/api/missions/:missionId/decline", async (req, res) => {
       []
     );
 
-    const redispatch = await createDispatchAndMissionForRide(refreshedRide, excludedDriverIds);
+    const redispatch = await createDispatchAndMissionForRide(
+      refreshedRide,
+      excludedDriverIds
+    );
 
     await logAdmin("mission_declined", {
       missionId,
@@ -996,9 +1026,8 @@ app.post("/api/missions/:missionId/decline", async (req, res) => {
   } catch {
     res.status(500).json({ ok: false, error: "Failed to decline mission." });
   }
-});/* =========================================================
-   RIDE LIFECYCLE
-========================================================= */
+});
+
 app.post("/api/rides/:rideId/arrive", async (req, res) => {
   try {
     const updated = await updateRecordById(
@@ -1017,7 +1046,11 @@ app.post("/api/rides/:rideId/arrive", async (req, res) => {
       return res.status(404).json({ ok: false, error: "Ride not found." });
     }
 
-    await logAdmin("ride_driver_arrived", { rideId: updated.id, driverId: updated.driverId });
+    await logAdmin("ride_driver_arrived", {
+      rideId: updated.id,
+      driverId: updated.driverId
+    });
+
     res.json({ ok: true, message: "Driver marked as arrived.", ride: updated });
   } catch {
     res.status(500).json({ ok: false, error: "Failed to update arrival status." });
@@ -1042,7 +1075,11 @@ app.post("/api/rides/:rideId/start", async (req, res) => {
       return res.status(404).json({ ok: false, error: "Ride not found." });
     }
 
-    await logAdmin("ride_started", { rideId: updated.id, driverId: updated.driverId });
+    await logAdmin("ride_started", {
+      rideId: updated.id,
+      driverId: updated.driverId
+    });
+
     res.json({ ok: true, message: "Ride started.", ride: updated });
   } catch {
     res.status(500).json({ ok: false, error: "Failed to start ride." });
@@ -1183,12 +1220,10 @@ app.post("/api/rides/:rideId/cancel", async (req, res) => {
   }
 });
 
-/* =========================================================
-   GPS / ADMIN / SETTINGS / SERVER START
-========================================================= */
 app.post("/api/gps/update", async (req, res) => {
   try {
     const missing = requireFields(["entityType", "entityId", "address"], req.body);
+
     if (missing.length) {
       return res.status(400).json({
         ok: false,
@@ -1207,6 +1242,7 @@ app.post("/api/gps/update", async (req, res) => {
     };
 
     await appendJson(DATA_FILES.gpsLocations, entry, []);
+
     res.status(201).json({
       ok: true,
       message: "Address-based location updated without exposing coordinates.",
@@ -1237,7 +1273,12 @@ app.post("/api/admin/riders/:riderId/approve", async (req, res) => {
     }
 
     await logAdmin("rider_approved", { riderId: updated.id });
-    res.json({ ok: true, message: "Rider approved successfully.", rider: updated });
+
+    res.json({
+      ok: true,
+      message: "Rider approved successfully.",
+      rider: updated
+    });
   } catch {
     res.status(500).json({ ok: false, error: "Failed to approve rider." });
   }
@@ -1264,7 +1305,12 @@ app.post("/api/admin/drivers/:driverId/approve", async (req, res) => {
     }
 
     await logAdmin("driver_approved", { driverId: updated.id });
-    res.json({ ok: true, message: "Driver approved successfully.", driver: updated });
+
+    res.json({
+      ok: true,
+      message: "Driver approved successfully.",
+      driver: updated
+    });
   } catch {
     res.status(500).json({ ok: false, error: "Failed to approve driver." });
   }
