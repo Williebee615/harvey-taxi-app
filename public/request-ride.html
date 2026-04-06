@@ -371,11 +371,11 @@
           <div class="field">
             <label for="rideType">Ride Type</label>
             <select id="rideType">
-              <option value="STANDARD">Standard Ride</option>
-              <option value="SCHEDULED">Scheduled Ride</option>
-              <option value="AIRPORT">Airport Ride</option>
-              <option value="MEDICAL">Medical Ride</option>
-              <option value="NONPROFIT">Nonprofit Assistance Ride</option>
+              <option value="standard">Standard Ride</option>
+              <option value="scheduled">Scheduled Ride</option>
+              <option value="airport">Airport Ride</option>
+              <option value="medical">Medical Ride</option>
+              <option value="nonprofit">Nonprofit Assistance Ride</option>
             </select>
           </div>
 
@@ -393,15 +393,14 @@
         <div class="field">
           <label>Payment Method</label>
           <div class="pill-row">
-            <button type="button" class="pill active" data-payment="CARD">Card</button>
-            <button type="button" class="pill" data-payment="APPLE_PAY">Apple Pay</button>
-            <button type="button" class="pill" data-payment="CASH">Cash</button>
+            <button type="button" class="pill active" data-payment="card">Card</button>
+            <button type="button" class="pill" data-payment="apple_pay">Apple Pay</button>
           </div>
         </div>
 
         <div class="btn-row">
-          <button class="secondary" id="estimateBtn">Get Fare Estimate</button>
-          <button class="secondary" id="authorizeBtn">Secure Payment</button>
+          <button class="secondary" id="estimateBtn" type="button">Get Fare Estimate</button>
+          <button class="secondary" id="authorizeBtn" type="button">Secure Payment</button>
         </div>
       </div>
 
@@ -429,7 +428,7 @@
         </div>
 
         <div class="btn-row">
-          <button class="primary" id="requestRideBtn">Request Ride</button>
+          <button class="primary" id="requestRideBtn" type="button">Request Ride</button>
         </div>
 
         <div class="result" id="resultBox"></div>
@@ -439,7 +438,7 @@
   </div>
 
   <script>
-    let selectedPaymentMethod = "CARD";
+    let selectedPaymentMethod = "card";
     let currentEstimate = null;
     let paymentAuthorized = false;
     let riderVerified = false;
@@ -478,59 +477,85 @@
       errorBox.style.display = "none";
     }
 
+    function clearMessages(){
+      resultBox.style.display = "none";
+      resultBox.innerHTML = "";
+      errorBox.style.display = "none";
+      errorBox.textContent = "";
+    }
+
     function getFormData(){
       return {
-        rider_id: document.getElementById("riderId").value.trim(),
-        passenger_first_name: document.getElementById("firstName").value.trim(),
-        passenger_phone: document.getElementById("phone").value.trim(),
-        pickup_address: document.getElementById("pickup").value.trim(),
-        dropoff_address: document.getElementById("dropoff").value.trim(),
-        ride_type: document.getElementById("rideType").value,
-        scheduled_time: document.getElementById("scheduledTime").value.trim(),
-        special_notes: document.getElementById("notes").value.trim(),
-        payment_method: selectedPaymentMethod
+        riderId: document.getElementById("riderId").value.trim(),
+        passengerFirstName: document.getElementById("firstName").value.trim(),
+        passengerPhone: document.getElementById("phone").value.trim(),
+        pickupAddress: document.getElementById("pickup").value.trim(),
+        dropoffAddress: document.getElementById("dropoff").value.trim(),
+        rideType: document.getElementById("rideType").value,
+        scheduledTime: document.getElementById("scheduledTime").value.trim(),
+        specialInstructions: document.getElementById("notes").value.trim(),
+        paymentMethod: selectedPaymentMethod
       };
     }
 
     async function checkRiderStatus(){
       const riderId = document.getElementById("riderId").value.trim();
+
       if(!riderId){
         verificationText.textContent = "Enter your rider ID to check your account status.";
         verificationTag.className = "tag warn";
         verificationTag.textContent = "Pending";
         riderVerified = false;
-        return;
+        return false;
       }
 
       try{
-        const res = await fetch(`/api/rider-status/${encodeURIComponent(riderId)}`);
+        const res = await fetch("/api/riders");
         const data = await res.json();
 
-        if(data.success && data.rider){
-          riderVerified = data.rider.verification_status === "APPROVED";
-          verificationText.textContent = riderVerified
-            ? "Your rider account is approved."
-            : "Your rider account is still under review.";
-          verificationTag.className = `tag ${riderVerified ? "ok" : "warn"}`;
-          verificationTag.textContent = riderVerified ? "Approved" : "Pending";
-        }else{
+        if(!res.ok || !data.ok || !Array.isArray(data.riders)){
+          riderVerified = false;
+          verificationText.textContent = "Unable to load rider account status.";
+          verificationTag.className = "tag bad";
+          verificationTag.textContent = "Error";
+          return false;
+        }
+
+        const rider = data.riders.find(r => r.id === riderId);
+
+        if(!rider){
           riderVerified = false;
           verificationText.textContent = "We could not find that rider account.";
           verificationTag.className = "tag bad";
           verificationTag.textContent = "Not Found";
+          return false;
         }
+
+        riderVerified = !!rider.riderApproved;
+
+        verificationText.textContent = riderVerified
+          ? "Your rider account is approved and ready for payment authorization."
+          : "Your rider account exists but is still waiting for approval.";
+
+        verificationTag.className = `tag ${riderVerified ? "ok" : "warn"}`;
+        verificationTag.textContent = riderVerified ? "Approved" : "Pending";
+
+        return riderVerified;
       }catch(err){
         riderVerified = false;
         verificationText.textContent = "Unable to check rider verification right now.";
         verificationTag.className = "tag bad";
         verificationTag.textContent = "Error";
+        return false;
       }
     }
 
     async function getEstimate(){
+      clearMessages();
+
       const payload = getFormData();
 
-      if(!payload.pickup_address || !payload.dropoff_address){
+      if(!payload.pickupAddress || !payload.dropoffAddress){
         showError("Enter both pickup and dropoff addresses first.");
         return;
       }
@@ -539,30 +564,34 @@
         const res = await fetch("/api/fare-estimate", {
           method: "POST",
           headers: {"Content-Type":"application/json"},
-          body: JSON.stringify(payload)
+          body: JSON.stringify({
+            pickupAddress: payload.pickupAddress,
+            dropoffAddress: payload.dropoffAddress,
+            rideType: payload.rideType
+          })
         });
 
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
 
-        if(!data.success){
-          showError(data.message || "Unable to calculate estimate.");
+        if(!res.ok || !data.ok || !data.fare){
+          showError(data.error || data.message || "Unable to calculate estimate.");
           return;
         }
 
-        currentEstimate = data.estimate;
+        currentEstimate = data.fare;
 
-        distanceValue.textContent = `${data.estimate.distance_miles} mi`;
-        durationValue.textContent = `${data.estimate.duration_minutes} min`;
-        fareValue.textContent = `$${data.estimate.estimated_fare.toFixed(2)}`;
+        distanceValue.textContent = `${data.fare.distanceMiles} mi`;
+        durationValue.textContent = `${data.fare.durationMinutes} min`;
+        fareValue.textContent = `$${Number(data.fare.estimatedFare || 0).toFixed(2)}`;
 
         estimateReceipt.innerHTML = `
           <strong>Ride Preview</strong><br><br>
-          Pickup: ${payload.pickup_address}<br>
-          Dropoff: ${payload.dropoff_address}<br>
-          Ride Type: ${payload.ride_type}<br>
-          Estimated Distance: ${data.estimate.distance_miles} mi<br>
-          Estimated Duration: ${data.estimate.duration_minutes} min<br>
-          Estimated Fare: $${data.estimate.estimated_fare.toFixed(2)}
+          Pickup: ${payload.pickupAddress}<br>
+          Dropoff: ${payload.dropoffAddress}<br>
+          Ride Type: ${payload.rideType}<br>
+          Estimated Distance: ${data.fare.distanceMiles} mi<br>
+          Estimated Duration: ${data.fare.durationMinutes} min<br>
+          Estimated Fare: $${Number(data.fare.estimatedFare || 0).toFixed(2)}
         `;
 
         showResult("Fare estimate ready. Secure payment to continue.");
@@ -572,15 +601,17 @@
     }
 
     async function authorizePayment(){
+      clearMessages();
+
       const payload = getFormData();
 
-      if(!currentEstimate){
-        showError("Get a fare estimate before securing payment.");
+      if(!payload.riderId){
+        showError("Enter your rider ID before securing payment.");
         return;
       }
 
-      if(payload.payment_method === "CASH" && payload.ride_type !== "NONPROFIT"){
-        showError("Cash payments are not currently available for this ride type.");
+      if(!currentEstimate){
+        showError("Get a fare estimate before securing payment.");
         return;
       }
 
@@ -589,26 +620,25 @@
           method: "POST",
           headers: {"Content-Type":"application/json"},
           body: JSON.stringify({
-            rider_id: payload.rider_id,
-            payment_method: payload.payment_method,
-            estimated_fare: currentEstimate.estimated_fare,
-            ride_type: payload.ride_type
+            riderId: payload.riderId,
+            paymentMethod: payload.paymentMethod,
+            amount: currentEstimate.estimatedFare
           })
         });
 
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
 
-        if(!data.success){
+        if(!res.ok || !data.ok){
           paymentAuthorized = false;
-          paymentText.textContent = data.message || "Payment authorization failed.";
+          paymentText.textContent = data.error || data.message || "Payment authorization failed.";
           paymentTag.className = "tag bad";
           paymentTag.textContent = "Failed";
-          showError(data.message || "Payment authorization failed.");
+          showError(data.error || data.message || "Payment authorization failed.");
           return;
         }
 
         paymentAuthorized = true;
-        paymentText.textContent = `Payment secured by ${payload.payment_method}.`;
+        paymentText.textContent = `Payment secured by ${payload.paymentMethod === "apple_pay" ? "Apple Pay" : "Card"}.`;
         paymentTag.className = "tag ok";
         paymentTag.textContent = "Secured";
         showResult("Payment secured. Your ride request can now move forward.");
@@ -622,19 +652,21 @@
     }
 
     async function requestRide(){
+      clearMessages();
+
       const payload = getFormData();
 
-      if(!payload.rider_id){
+      if(!payload.riderId){
         showError("Enter your rider ID.");
         return;
       }
 
-      if(!payload.passenger_first_name || !payload.passenger_phone){
+      if(!payload.passengerFirstName || !payload.passengerPhone){
         showError("Enter passenger first name and phone number.");
         return;
       }
 
-      if(!payload.pickup_address || !payload.dropoff_address){
+      if(!payload.pickupAddress || !payload.dropoffAddress){
         showError("Enter pickup and dropoff addresses.");
         return;
       }
@@ -651,7 +683,7 @@
         return;
       }
 
-      if(!paymentAuthorized && payload.ride_type !== "NONPROFIT"){
+      if(!paymentAuthorized){
         showError("Payment must be secured before your ride can be requested.");
         return;
       }
@@ -661,21 +693,33 @@
           method: "POST",
           headers: {"Content-Type":"application/json"},
           body: JSON.stringify({
-            ...payload,
-            estimate: currentEstimate
+            riderId: payload.riderId,
+            pickupAddress: payload.pickupAddress,
+            dropoffAddress: payload.dropoffAddress,
+            rideType: payload.rideType,
+            passengerCount: 1,
+            specialInstructions: [
+              payload.passengerFirstName ? `Passenger: ${payload.passengerFirstName}` : "",
+              payload.passengerPhone ? `Phone: ${payload.passengerPhone}` : "",
+              payload.scheduledTime ? `Scheduled Time: ${payload.scheduledTime}` : "",
+              payload.specialInstructions ? `Notes: ${payload.specialInstructions}` : "",
+              `Payment Method: ${payload.paymentMethod === "apple_pay" ? "Apple Pay" : "Card"}`
+            ].filter(Boolean).join(" | ")
           })
         });
 
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
 
-        if(!data.success){
-          showError(data.message || "Unable to request ride.");
+        if(!res.ok || !data.ok){
+          showError(data.error || data.message || "Unable to request ride.");
           return;
         }
 
         showResult(`
           <strong>Ride Requested Successfully</strong><br><br>
-          Your ride request has been submitted successfully and is now being processed.
+          Your ride request has been submitted successfully and is now being processed.<br><br>
+          <strong>Ride ID:</strong> ${data.ride?.id || "Created"}<br>
+          <strong>Status:</strong> ${data.ride?.status || "searching_driver"}
         `);
       }catch(err){
         showError("Unable to submit ride request.");
@@ -686,6 +730,12 @@
     document.getElementById("estimateBtn").addEventListener("click", getEstimate);
     document.getElementById("authorizeBtn").addEventListener("click", authorizePayment);
     document.getElementById("requestRideBtn").addEventListener("click", requestRide);
+
+    const savedRiderId = localStorage.getItem("harveyRiderId");
+    if(savedRiderId){
+      document.getElementById("riderId").value = savedRiderId;
+      checkRiderStatus();
+    }
   </script>
 </body>
 </html>
