@@ -1466,3 +1466,822 @@ app.get("/api/debug/all-rides", async (req, res) => {
 app.listen(PORT, () => {
   console.log(`HARVEY SERVER RUNNING ON PORT ${PORT}`);
 });
+      estimated_driver_payout: fare.estimated_driver_payout,
+      estimated_platform_fee: fare.estimated_platform_fee,
+      surge_multiplier: fare.surge_multiplier,
+      fare_config: fare.fare_config,
+      status: RIDE_STATUSES.REQUESTED,
+      driver_id: null,
+      driver_name: null,
+      driver_phone: null,
+      driver_vehicle: null,
+      requested_at: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    const { data: createdRide, error: createRideError } = await supabase
+      .from("rides")
+      .insert(rideRecord)
+      .select()
+      .single();
+
+    if (createRideError) throw createRideError;
+
+    await insertEvent("ride.requested", {
+      ride_id: createdRide.id,
+      rider_id: rider.id,
+      pickup_address: createdRide.pickup_address,
+      dropoff_address: createdRide.dropoff_address
+    });
+
+    const searchingRide = await updateRideStatus(
+      createdRide.id,
+      RIDE_STATUSES.REQUESTED,
+      RIDE_STATUSES.SEARCHING_DRIVER,
+      { search_started_at: new Date().toISOString() }
+    );
+
+    await insertEvent("ride.searching_driver", {
+      ride_id: searchingRide.id
+    });
+
+    const assignedRide = await assignNearestDriverToRide(searchingRide);
+
+    if (!assignedRide) {
+      return ok(
+        res,
+        {
+          message: "Ride created. No drivers available right now.",
+          ride: sanitizeRideForClient(searchingRide),
+          dispatch_status: "no_driver_available"
+        },
+        201
+      );
+    }
+
+    const assignedDriver = await findDriverById(assignedRide.driver_id);
+
+    const hydratedRide = {
+      ...assignedRide,
+      driver_name: assignedDriver.full_name,
+      driver_phone: assignedDriver.phone,
+      driver_vehicle: `${assignedDriver.vehicle_color} ${assignedDriver.vehicle_make} ${assignedDriver.vehicle_model}`.trim()
+    };
+
+    const { data: updatedAssignedRide, error: hydrateError } = await supabase
+      .from("rides")
+      .update({
+        driver_name: hydratedRide.driver_name,
+        driver_phone: hydratedRide.driver_phone,
+        driver_vehicle: hydratedRide.driver_vehicle,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", hydratedRide.id)
+      .select()
+      .single();
+
+    if (hydrateError) throw hydrateError;
+
+    return ok(
+      res,
+      {
+        message: "Ride requested and driver assigned",
+        ride: sanitizeRideForClient(updatedAssignedRide)
+      },
+      201
+    );
+  } catch (error) {
+    console.error(error);
+    return fail(res, error.message || "Failed to request ride", 500);
+  }
+});
+
+app.get("/api/rides/:rideId", async (req, res) => {
+  try {
+    const ride = await findRideById(req.params.rideId);
+    return ok(res, { ride: sanitizeRideForClient(ride) });
+  } catch (error) {
+    console.error(error);
+    return fail(res, "Ride not found", 404);
+  }
+});
+
+app.get("/api/rides", async (req, res) => {
+  try {
+    const { rider_id, driver_id, status } = req.query;
+
+    let query = supabase
+      .from("rides")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (rider_id) query = query.eq("rider_id", rider_id);
+    if (driver_id) query = query.eq("driver_id", driver_id);
+    if (status) query = query.eq("status", status);
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    return ok(res, {
+      rides: (data || []).map(sanitizeRideForClient)
+    });
+  } catch (error) {
+    console.error(error);
+    return fail(res, "Failed to fetch rides", 500);
+  }
+});
+
+app.post("/api/rides/:rideId/cancel", async (req, res) => {
+  try {
+    const ride = await findRideById(req.params.rideId);
+
+    if (
+      ride.status === RIDE_STATUSES.TRIP_COMPLETED ||
+      ride.status === RIDE_STATUSES.PAYMENT_PROCESSED ||
+      ride.status === RIDE_STATUSES.CANCELLED
+    ) {
+      return fail(res, "Ride can no longer be cancelled", 400);
+    }
+
+    const cancelledRide = await updateRideStatus(
+      ride.id,
+      ride.status,
+      RIDE_STATUSES.CANCELLED,
+      {
+        cancelled_at: new Date().toISOString(),
+        cancellation_reason: req.body.reason || "Cancelled by user"
+      }
+    );
+
+    if (ride.driver_id) {
+      await setDriverAvailability(ride.driver_id, {
+        available: true,
+        driver_status: DRIVER_STATUS.ONLINE
+      });
+    }
+
+    await insertEvent("ride.cancelled", {
+      ride_id: ride.id,
+      reason: req.body.reason || "Cancelled by user"
+    });
+
+    return ok(res, {
+      message: "Ride cancelled",
+      ride: sanitizeRideForClient(cancelledRide)
+    });
+  } catch (error) {
+    console.error(error);
+    return fail(res, error.message || "Failed to cancel ride", 500);
+  }
+});
+
+/* =========================================================
+   DRIVER MISSION + TRIP LIFECYCLE
+========================================================= */
+app.get("/api/drivers/:driverId/missions", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("rides")
+      .select("*")
+      .eq("driver_id", req.params.driverId)
+      .in("status", [
+        RIDE_STATUSES.DRIVER_ASSIGNED,
+        RIDE_STATUSES.DRIVER_ARRIVING,
+        RIDE_STATUSES.TRIP_STARTED,
+        RIDE_STATUSES.TRIP_IN_PROGRESS
+      ])
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    return ok(res, {
+      missions: (data || []).map(sanitizeRideForClient)
+    });
+  } catch (error) {
+    console.error(error);
+    return fail(res, "Failed to fetch driver missions", 500);
+  }
+});
+
+app.post("/api/rides/:rideId/driver-decision", async (req, res) => {
+  try {
+    const { driver_id, decision } = req.body;
+
+    if (!driver_id || !decision) {
+      return fail(res, "driver_id and decision are required");
+    }
+
+    const ride = await findRideById(req.params.rideId);
+
+    if (ride.driver_id !== driver_id) {
+      return fail(res, "This ride is not assigned to that driver", 403);
+    }
+
+    if (ride.status !== RIDE_STATUSES.DRIVER_ASSIGNED) {
+      return fail(res, "Ride is not awaiting driver decision", 400);
+    }
+
+    if (decision === DRIVER_DECISIONS.ACCEPTED) {
+      const acceptedRide = await updateRideStatus(
+        ride.id,
+        RIDE_STATUSES.DRIVER_ASSIGNED,
+        RIDE_STATUSES.DRIVER_ARRIVING,
+        { driver_accepted_at: new Date().toISOString() }
+      );
+
+      await setDriverAvailability(driver_id, {
+        available: false,
+        driver_status: DRIVER_STATUS.ON_TRIP
+      });
+
+      await insertEvent("ride.driver_accepted", {
+        ride_id: ride.id,
+        driver_id
+      });
+
+      return ok(res, {
+        message: "Ride accepted by driver",
+        ride: sanitizeRideForClient(acceptedRide)
+      });
+    }
+
+    if (decision === DRIVER_DECISIONS.DECLINED) {
+      await insertEvent("ride.driver_declined", {
+        ride_id: ride.id,
+        driver_id
+      });
+
+      await setDriverAvailability(driver_id, {
+        available: true,
+        driver_status: DRIVER_STATUS.ONLINE
+      });
+
+      const clearedRidePayload = {
+        driver_id: null,
+        driver_name: null,
+        driver_phone: null,
+        driver_vehicle: null,
+        driver_eta_to_pickup_minutes: null,
+        driver_eta_to_pickup_text: null,
+        driver_distance_to_pickup_miles: null,
+        driver_distance_to_pickup_text: null,
+        mission_sent_at: null,
+        updated_at: new Date().toISOString()
+      };
+
+      const { data: resetRide, error: resetError } = await supabase
+        .from("rides")
+        .update(clearedRidePayload)
+        .eq("id", ride.id)
+        .select()
+        .single();
+
+      if (resetError) throw resetError;
+
+      const searchingAgain = await updateRideStatus(
+        resetRide.id,
+        RIDE_STATUSES.DRIVER_ASSIGNED,
+        RIDE_STATUSES.SEARCHING_DRIVER,
+        { search_restarted_at: new Date().toISOString() }
+      );
+
+      const reassignedRide = await assignNearestDriverToRide(searchingAgain);
+
+      if (!reassignedRide) {
+        return ok(res, {
+          message: "Driver declined. Ride remains open with no available replacement yet.",
+          ride: sanitizeRideForClient(searchingAgain),
+          dispatch_status: "no_driver_available"
+        });
+      }
+
+      const newDriver = await findDriverById(reassignedRide.driver_id);
+
+      const { data: hydratedReassignedRide, error: hydratedReassignedRideError } = await supabase
+        .from("rides")
+        .update({
+          driver_name: newDriver.full_name,
+          driver_phone: newDriver.phone,
+          driver_vehicle: `${newDriver.vehicle_color} ${newDriver.vehicle_make} ${newDriver.vehicle_model}`.trim(),
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", reassignedRide.id)
+        .select()
+        .single();
+
+      if (hydratedReassignedRideError) throw hydratedReassignedRideError;
+
+      return ok(res, {
+        message: "Driver declined. Ride reassigned to another driver.",
+        ride: sanitizeRideForClient(hydratedReassignedRide)
+      });
+    }
+
+    return fail(res, "Invalid driver decision", 400);
+  } catch (error) {
+    console.error(error);
+    return fail(res, error.message || "Failed to process driver decision", 500);
+  }
+});
+
+app.post("/api/rides/:rideId/arrive", async (req, res) => {
+  try {
+    const { driver_id } = req.body;
+    if (!driver_id) return fail(res, "driver_id is required");
+
+    const ride = await findRideById(req.params.rideId);
+
+    if (ride.driver_id !== driver_id) {
+      return fail(res, "This ride is not assigned to that driver", 403);
+    }
+
+    if (ride.status !== RIDE_STATUSES.DRIVER_ARRIVING) {
+      return fail(res, "Ride is not in driver arriving status", 400);
+    }
+
+    const updatedRide = await supabase
+      .from("rides")
+      .update({
+        driver_arrived_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", ride.id)
+      .select()
+      .single();
+
+    if (updatedRide.error) throw updatedRide.error;
+
+    await insertEvent("ride.driver_arrived", {
+      ride_id: ride.id,
+      driver_id
+    });
+
+    return ok(res, {
+      message: "Driver arrival recorded",
+      ride: sanitizeRideForClient(updatedRide.data)
+    });
+  } catch (error) {
+    console.error(error);
+    return fail(res, error.message || "Failed to mark driver arrived", 500);
+  }
+});
+
+app.post("/api/rides/:rideId/start", async (req, res) => {
+  try {
+    const { driver_id } = req.body;
+    if (!driver_id) return fail(res, "driver_id is required");
+
+    const ride = await findRideById(req.params.rideId);
+
+    if (ride.driver_id !== driver_id) {
+      return fail(res, "This ride is not assigned to that driver", 403);
+    }
+
+    if (ride.status !== RIDE_STATUSES.DRIVER_ARRIVING) {
+      return fail(res, "Ride must be in driver arriving status before starting", 400);
+    }
+
+    const startedRide = await updateRideStatus(
+      ride.id,
+      RIDE_STATUSES.DRIVER_ARRIVING,
+      RIDE_STATUSES.TRIP_STARTED,
+      { trip_started_at: new Date().toISOString() }
+    );
+
+    await insertEvent("ride.trip_started", {
+      ride_id: ride.id,
+      driver_id
+    });
+
+    return ok(res, {
+      message: "Trip started",
+      ride: sanitizeRideForClient(startedRide)
+    });
+  } catch (error) {
+    console.error(error);
+    return fail(res, error.message || "Failed to start trip", 500);
+  }
+});
+
+app.post("/api/rides/:rideId/in-progress", async (req, res) => {
+  try {
+    const { driver_id } = req.body;
+    if (!driver_id) return fail(res, "driver_id is required");
+
+    const ride = await findRideById(req.params.rideId);
+
+    if (ride.driver_id !== driver_id) {
+      return fail(res, "This ride is not assigned to that driver", 403);
+    }
+
+    if (ride.status !== RIDE_STATUSES.TRIP_STARTED) {
+      return fail(res, "Ride must be trip_started before moving to in progress", 400);
+    }
+
+    const inProgressRide = await updateRideStatus(
+      ride.id,
+      RIDE_STATUSES.TRIP_STARTED,
+      RIDE_STATUSES.TRIP_IN_PROGRESS,
+      { trip_in_progress_at: new Date().toISOString() }
+    );
+
+    await insertEvent("ride.trip_in_progress", {
+      ride_id: ride.id,
+      driver_id
+    });
+
+    return ok(res, {
+      message: "Trip is now in progress",
+      ride: sanitizeRideForClient(inProgressRide)
+    });
+  } catch (error) {
+    console.error(error);
+    return fail(res, error.message || "Failed to move trip to in-progress", 500);
+  }
+});
+
+app.post("/api/rides/:rideId/complete", async (req, res) => {
+  try {
+    const { driver_id, final_tip = 0 } = req.body;
+    if (!driver_id) return fail(res, "driver_id is required");
+
+    const ride = await findRideById(req.params.rideId);
+
+    if (ride.driver_id !== driver_id) {
+      return fail(res, "This ride is not assigned to that driver", 403);
+    }
+
+    if (![RIDE_STATUSES.TRIP_STARTED, RIDE_STATUSES.TRIP_IN_PROGRESS].includes(ride.status)) {
+      return fail(res, "Ride must be active before completion", 400);
+    }
+
+    const tipAmount = round2(toNumber(final_tip, 0));
+    const finalFare = round2(toNumber(ride.estimated_fare, 0) + tipAmount);
+    const finalDriverPayout = round2(toNumber(ride.estimated_driver_payout, 0) + tipAmount);
+    const finalPlatformFee = round2(finalFare - finalDriverPayout);
+
+    const completedRide = await updateRideStatus(
+      ride.id,
+      ride.status,
+      RIDE_STATUSES.TRIP_COMPLETED,
+      {
+        trip_completed_at: new Date().toISOString(),
+        final_tip: tipAmount,
+        final_fare: finalFare,
+        final_driver_payout: finalDriverPayout,
+        final_platform_fee: finalPlatformFee
+      }
+    );
+
+    await creditDriverWallet(driver_id, finalDriverPayout);
+
+    await setDriverAvailability(driver_id, {
+      available: true,
+      driver_status: DRIVER_STATUS.ONLINE
+    });
+
+    const processedRide = await updateRideStatus(
+      completedRide.id,
+      RIDE_STATUSES.TRIP_COMPLETED,
+      RIDE_STATUSES.PAYMENT_PROCESSED,
+      { payment_processed_at: new Date().toISOString() }
+    );
+
+    await insertEvent("ride.completed", {
+      ride_id: ride.id,
+      driver_id,
+      final_fare: finalFare,
+      final_driver_payout: finalDriverPayout,
+      final_platform_fee: finalPlatformFee,
+      final_tip: tipAmount
+    });
+
+    return ok(res, {
+      message: "Trip completed and payment processed",
+      ride: sanitizeRideForClient(processedRide)
+    });
+  } catch (error) {
+    console.error(error);
+    return fail(res, error.message || "Failed to complete trip", 500);
+  }
+});
+
+app.post("/api/rides/:rideId/tip", async (req, res) => {
+  try {
+    const { amount } = req.body;
+    const ride = await findRideById(req.params.rideId);
+
+    if (!ride.driver_id) {
+      return fail(res, "Ride has no assigned driver", 400);
+    }
+
+    const tipAmount = round2(toNumber(amount, 0));
+    if (tipAmount <= 0) {
+      return fail(res, "Tip amount must be greater than zero", 400);
+    }
+
+    const existingTip = round2(toNumber(ride.final_tip, 0));
+    const nextTip = round2(existingTip + tipAmount);
+
+    const baseFare =
+      ride.final_fare != null
+        ? round2(toNumber(ride.final_fare) - existingTip)
+        : round2(toNumber(ride.estimated_fare, 0));
+
+    const nextFare = round2(baseFare + nextTip);
+    const baseDriverPayout =
+      ride.final_driver_payout != null
+        ? round2(toNumber(ride.final_driver_payout) - existingTip)
+        : round2(toNumber(ride.estimated_driver_payout, 0));
+
+    const nextDriverPayout = round2(baseDriverPayout + nextTip);
+    const nextPlatformFee = round2(nextFare - nextDriverPayout);
+
+    const { data, error } = await supabase
+      .from("rides")
+      .update({
+        final_tip: nextTip,
+        final_fare: nextFare,
+        final_driver_payout: nextDriverPayout,
+        final_platform_fee: nextPlatformFee,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", ride.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    await creditDriverWallet(ride.driver_id, tipAmount);
+
+    await insertEvent("ride.tip_added", {
+      ride_id: ride.id,
+      driver_id: ride.driver_id,
+      tip_amount: tipAmount,
+      total_tip: nextTip
+    });
+
+    return ok(res, {
+      message: "Tip added successfully",
+      ride: sanitizeRideForClient(data)
+    });
+  } catch (error) {
+    console.error(error);
+    return fail(res, error.message || "Failed to add tip", 500);
+  }
+});
+
+/* =========================================================
+   ADMIN / OPERATIONS
+========================================================= */
+app.get("/api/admin/dispatch", async (_req, res) => {
+  try {
+    const { data: drivers, error: driversError } = await supabase
+      .from("drivers")
+      .select("*")
+      .order("updated_at", { ascending: false });
+
+    const { data: rides, error: ridesError } = await supabase
+      .from("rides")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    const { data: wallets, error: walletsError } = await supabase
+      .from("driver_wallets")
+      .select("*")
+      .order("updated_at", { ascending: false });
+
+    if (driversError) throw driversError;
+    if (ridesError) throw ridesError;
+    if (walletsError) throw walletsError;
+
+    const activeStatuses = [
+      RIDE_STATUSES.SEARCHING_DRIVER,
+      RIDE_STATUSES.DRIVER_ASSIGNED,
+      RIDE_STATUSES.DRIVER_ARRIVING,
+      RIDE_STATUSES.TRIP_STARTED,
+      RIDE_STATUSES.TRIP_IN_PROGRESS
+    ];
+
+    const summary = {
+      total_drivers: (drivers || []).length,
+      online_drivers: (drivers || []).filter((d) => d.online).length,
+      available_drivers: (drivers || []).filter((d) => d.available).length,
+      total_rides: (rides || []).length,
+      active_rides: (rides || []).filter((r) => activeStatuses.includes(r.status)).length,
+      completed_rides: (rides || []).filter((r) => r.status === RIDE_STATUSES.PAYMENT_PROCESSED).length,
+      cancelled_rides: (rides || []).filter((r) => r.status === RIDE_STATUSES.CANCELLED).length,
+      total_driver_wallet_balance: round2(
+        (wallets || []).reduce((sum, wallet) => sum + toNumber(wallet.balance, 0), 0)
+      ),
+      total_driver_lifetime_earnings: round2(
+        (wallets || []).reduce((sum, wallet) => sum + toNumber(wallet.lifetime_earnings, 0), 0)
+      ),
+      platform_revenue: round2(
+        (rides || []).reduce((sum, ride) => sum + toNumber(ride.final_platform_fee || ride.estimated_platform_fee, 0), 0)
+      )
+    };
+
+    return ok(res, {
+      summary,
+      drivers: (drivers || []).map(sanitizeDriverForClient),
+      rides: (rides || []).map(sanitizeRideForClient),
+      wallets: wallets || []
+    });
+  } catch (error) {
+    console.error(error);
+    return fail(res, "Failed to load admin dispatch data", 500);
+  }
+});
+
+app.post("/api/admin/riders/:riderId/approve", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("riders")
+      .update({
+        verified: true,
+        approved: true,
+        persona_status: "approved",
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", req.params.riderId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    await insertEvent("rider.approved", { rider_id: req.params.riderId });
+
+    return ok(res, {
+      message: "Rider approved successfully",
+      rider: sanitizeRiderForClient(data)
+    });
+  } catch (error) {
+    console.error(error);
+    return fail(res, "Failed to approve rider", 500);
+  }
+});
+
+app.post("/api/admin/drivers/:driverId/approve", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("drivers")
+      .update({
+        verified: true,
+        approved: true,
+        persona_status: "approved",
+        checkr_status: "clear",
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", req.params.driverId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    await insertEvent("driver.approved", { driver_id: req.params.driverId });
+
+    return ok(res, {
+      message: "Driver approved successfully",
+      driver: sanitizeDriverForClient(data)
+    });
+  } catch (error) {
+    console.error(error);
+    return fail(res, "Failed to approve driver", 500);
+  }
+});
+
+app.post("/api/admin/rides/:rideId/reassign", async (req, res) => {
+  try {
+    const ride = await findRideById(req.params.rideId);
+
+    if (
+      ![
+        RIDE_STATUSES.SEARCHING_DRIVER,
+        RIDE_STATUSES.DRIVER_ASSIGNED,
+        RIDE_STATUSES.DRIVER_ARRIVING
+      ].includes(ride.status)
+    ) {
+      return fail(res, "Ride cannot be reassigned in its current status", 400);
+    }
+
+    if (ride.driver_id) {
+      await setDriverAvailability(ride.driver_id, {
+        available: true,
+        driver_status: DRIVER_STATUS.ONLINE
+      });
+    }
+
+    const { data: resetRide, error: resetError } = await supabase
+      .from("rides")
+      .update({
+        driver_id: null,
+        driver_name: null,
+        driver_phone: null,
+        driver_vehicle: null,
+        driver_eta_to_pickup_minutes: null,
+        driver_eta_to_pickup_text: null,
+        driver_distance_to_pickup_miles: null,
+        driver_distance_to_pickup_text: null,
+        status: RIDE_STATUSES.SEARCHING_DRIVER,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", ride.id)
+      .select()
+      .single();
+
+    if (resetError) throw resetError;
+
+    const reassignedRide = await assignNearestDriverToRide(resetRide);
+
+    if (!reassignedRide) {
+      return ok(res, {
+        message: "Ride reset to searching but no replacement driver is currently available",
+        ride: sanitizeRideForClient(resetRide)
+      });
+    }
+
+    const newDriver = await findDriverById(reassignedRide.driver_id);
+
+    const { data: hydratedRide, error: hydrateError } = await supabase
+      .from("rides")
+      .update({
+        driver_name: newDriver.full_name,
+        driver_phone: newDriver.phone,
+        driver_vehicle: `${newDriver.vehicle_color} ${newDriver.vehicle_make} ${newDriver.vehicle_model}`.trim(),
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", reassignedRide.id)
+      .select()
+      .single();
+
+    if (hydrateError) throw hydrateError;
+
+    await insertEvent("ride.reassigned", {
+      ride_id: ride.id,
+      new_driver_id: hydratedRide.driver_id
+    });
+
+    return ok(res, {
+      message: "Ride reassigned successfully",
+      ride: sanitizeRideForClient(hydratedRide)
+    });
+  } catch (error) {
+    console.error(error);
+    return fail(res, error.message || "Failed to reassign ride", 500);
+  }
+});
+
+/* =========================================================
+   EVENTS / WALLET / ROOT
+========================================================= */
+app.get("/api/events", async (_req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("events")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(250);
+
+    if (error) throw error;
+
+    return ok(res, { events: data || [] });
+  } catch (error) {
+    console.error(error);
+    return fail(res, "Failed to fetch events", 500);
+  }
+});
+
+app.get("/api/drivers/:driverId/wallet", async (req, res) => {
+  try {
+    const wallet = await ensureWallet(req.params.driverId);
+    return ok(res, { wallet });
+  } catch (error) {
+    console.error(error);
+    return fail(res, "Failed to fetch driver wallet", 500);
+  }
+});
+
+app.get("/", (_req, res) => {
+  return res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+/* =========================================================
+   404 + ERROR
+========================================================= */
+app.use((req, res) => {
+  return fail(res, `Route not found: ${req.method} ${req.originalUrl}`, 404);
+});
+
+app.use((error, _req, res, _next) => {
+  console.error("Unhandled server error:", error);
+  return fail(res, "Internal server error", 500);
+});
+
+/* =========================================================
+   START
+========================================================= */
+app.listen(PORT, () => {
+  console.log(`Harvey Taxi production server running on port ${PORT}`);
+});
