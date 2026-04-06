@@ -294,6 +294,60 @@
       line-height:1.6;
     }
 
+    .location-gate{
+      position:fixed;
+      inset:0;
+      z-index:9999;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:20px;
+      background:
+        radial-gradient(circle at top left, rgba(99,245,255,.14), transparent 28%),
+        radial-gradient(circle at top right, rgba(94,160,255,.12), transparent 24%),
+        linear-gradient(160deg,#040814,#091126);
+    }
+
+    .location-panel{
+      width:100%;
+      max-width:560px;
+      background:linear-gradient(180deg,rgba(17,31,66,.94),rgba(8,16,35,.96));
+      border:1px solid var(--line);
+      border-radius:28px;
+      padding:28px 24px;
+      box-shadow:var(--shadow);
+      text-align:center;
+    }
+
+    .location-panel h2{
+      font-size:1.6rem;
+      margin-bottom:10px;
+    }
+
+    .location-panel p{
+      color:var(--muted);
+      line-height:1.6;
+      margin-bottom:18px;
+    }
+
+    .location-status{
+      margin-top:14px;
+      font-size:.95rem;
+      color:var(--muted);
+      min-height:24px;
+    }
+
+    .location-note{
+      margin-top:16px;
+      padding:12px 14px;
+      border-radius:16px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.035);
+      color:var(--muted);
+      line-height:1.5;
+      font-size:.92rem;
+    }
+
     @media (max-width: 760px){
       .row,
       .status-box,
@@ -304,6 +358,28 @@
   </style>
 </head>
 <body>
+  <div id="locationGate" class="location-gate">
+    <div class="location-panel">
+      <h2>Enable Location Access</h2>
+      <p>
+        Harvey Taxi uses your device location to support ride requests, pickup coordination,
+        and a more secure transportation experience.
+      </p>
+
+      <div class="btn-row" style="margin-top:10px;">
+        <button class="primary" id="enableLocationBtn" type="button">Enable Location</button>
+      </div>
+
+      <div class="location-status" id="locationStatusText">
+        Location access is required before continuing.
+      </div>
+
+      <div class="location-note">
+        Your ride experience works best when location is enabled for pickup support and trip flow.
+      </div>
+    </div>
+  </div>
+
   <div class="shell">
     <div class="topbar">
       <div class="brand">Harvey <span>Taxi</span></div>
@@ -442,6 +518,8 @@
     let currentEstimate = null;
     let paymentAuthorized = false;
     let riderVerified = false;
+    let locationApproved = false;
+    let currentCoords = null;
 
     const paymentPills = document.querySelectorAll(".pill");
     const verificationText = document.getElementById("verificationText");
@@ -456,6 +534,10 @@
 
     const resultBox = document.getElementById("resultBox");
     const errorBox = document.getElementById("errorBox");
+
+    const locationGate = document.getElementById("locationGate");
+    const locationStatusText = document.getElementById("locationStatusText");
+    const enableLocationBtn = document.getElementById("enableLocationBtn");
 
     paymentPills.forEach(btn => {
       btn.addEventListener("click", () => {
@@ -484,6 +566,18 @@
       errorBox.textContent = "";
     }
 
+    function unlockLocationGate(){
+      locationApproved = true;
+      localStorage.setItem("harveyLocationApproved", "true");
+      locationGate.style.display = "none";
+    }
+
+    function setLocationDeniedState(message){
+      locationApproved = false;
+      localStorage.removeItem("harveyLocationApproved");
+      locationStatusText.textContent = message;
+    }
+
     function getFormData(){
       return {
         riderId: document.getElementById("riderId").value.trim(),
@@ -496,6 +590,48 @@
         specialInstructions: document.getElementById("notes").value.trim(),
         paymentMethod: selectedPaymentMethod
       };
+    }
+
+    function requestLocationAccess(){
+      if(!navigator.geolocation){
+        setLocationDeniedState("This device does not support location services.");
+        showError("This device does not support location services.");
+        return;
+      }
+
+      locationStatusText.textContent = "Requesting location access...";
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          currentCoords = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude
+          };
+
+          locationStatusText.textContent = "Location access enabled successfully.";
+          unlockLocationGate();
+          showResult("Location access enabled. You can now continue your ride request.");
+        },
+        (error) => {
+          let message = "Location access is required before continuing.";
+
+          if(error && error.code === 1){
+            message = "Location permission was denied. Please allow access and try again.";
+          }else if(error && error.code === 2){
+            message = "Your location could not be determined right now. Try again.";
+          }else if(error && error.code === 3){
+            message = "Location request timed out. Please try again.";
+          }
+
+          setLocationDeniedState(message);
+          showError(message);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 0
+        }
+      );
     }
 
     async function checkRiderStatus(){
@@ -553,6 +689,11 @@
     async function getEstimate(){
       clearMessages();
 
+      if(!locationApproved){
+        showError("Enable location access before getting a fare estimate.");
+        return;
+      }
+
       const payload = getFormData();
 
       if(!payload.pickupAddress || !payload.dropoffAddress){
@@ -602,6 +743,11 @@
 
     async function authorizePayment(){
       clearMessages();
+
+      if(!locationApproved){
+        showError("Enable location access before securing payment.");
+        return;
+      }
 
       const payload = getFormData();
 
@@ -654,6 +800,11 @@
     async function requestRide(){
       clearMessages();
 
+      if(!locationApproved){
+        showError("Enable location access before requesting a ride.");
+        return;
+      }
+
       const payload = getFormData();
 
       if(!payload.riderId){
@@ -698,12 +849,14 @@
             dropoffAddress: payload.dropoffAddress,
             rideType: payload.rideType,
             passengerCount: 1,
+            riderLocationApproved: true,
             specialInstructions: [
               payload.passengerFirstName ? `Passenger: ${payload.passengerFirstName}` : "",
               payload.passengerPhone ? `Phone: ${payload.passengerPhone}` : "",
               payload.scheduledTime ? `Scheduled Time: ${payload.scheduledTime}` : "",
               payload.specialInstructions ? `Notes: ${payload.specialInstructions}` : "",
-              `Payment Method: ${payload.paymentMethod === "apple_pay" ? "Apple Pay" : "Card"}`
+              `Payment Method: ${payload.paymentMethod === "apple_pay" ? "Apple Pay" : "Card"}`,
+              currentCoords ? "Location Access: Enabled" : "Location Access: Enabled"
             ].filter(Boolean).join(" | ")
           })
         });
@@ -726,15 +879,22 @@
       }
     }
 
+    enableLocationBtn.addEventListener("click", requestLocationAccess);
     document.getElementById("riderId").addEventListener("blur", checkRiderStatus);
     document.getElementById("estimateBtn").addEventListener("click", getEstimate);
     document.getElementById("authorizeBtn").addEventListener("click", authorizePayment);
     document.getElementById("requestRideBtn").addEventListener("click", requestRide);
 
     const savedRiderId = localStorage.getItem("harveyRiderId");
+    const savedLocationApproved = localStorage.getItem("harveyLocationApproved");
+
     if(savedRiderId){
       document.getElementById("riderId").value = savedRiderId;
       checkRiderStatus();
+    }
+
+    if(savedLocationApproved === "true"){
+      unlockLocationGate();
     }
   </script>
 </body>
