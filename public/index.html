@@ -6,29 +6,29 @@
   <title>Harvey Taxi</title>
   <meta
     name="description"
-    content="Harvey Taxi connects riders, drivers, merchants, and community transportation support through one intelligent mobility platform."
+    content="Harvey Taxi provides ride requests, rider onboarding, driver onboarding, payments, support, and community transportation assistance."
   />
   <style>
     :root {
-      --bg-1: #020617;
-      --bg-2: #071122;
-      --bg-3: #0d1a33;
-      --panel: rgba(9, 18, 38, 0.84);
-      --panel-2: rgba(12, 23, 46, 0.94);
-      --line: rgba(118, 170, 255, 0.18);
-      --line-strong: rgba(118, 170, 255, 0.34);
-      --text: #f4f8ff;
-      --muted: #aebadc;
-      --blue: #67a7ff;
-      --cyan: #62f5ff;
-      --green: #71ffb7;
-      --gold: #ffd96f;
-      --danger: #ff849b;
-      --shadow: 0 20px 50px rgba(0, 0, 0, 0.34);
+      --bg-1: #06101f;
+      --bg-2: #0a1830;
+      --bg-3: #0e2244;
+      --panel: rgba(10, 20, 40, 0.88);
+      --panel-2: rgba(12, 24, 48, 0.96);
+      --line: rgba(126, 174, 255, 0.16);
+      --line-strong: rgba(126, 174, 255, 0.32);
+      --text: #f5f8ff;
+      --muted: #b4c0df;
+      --blue: #6aa8ff;
+      --cyan: #68eeff;
+      --green: #74f5b2;
+      --gold: #ffd972;
+      --danger: #ff8aa0;
+      --shadow: 0 22px 50px rgba(0, 0, 0, 0.35);
       --radius-xl: 24px;
       --radius-lg: 18px;
       --radius-md: 14px;
-      --max: 1240px;
+      --max: 1180px;
     }
 
     * {
@@ -46,9 +46,9 @@
       font-family: Arial, Helvetica, sans-serif;
       color: var(--text);
       background:
-        radial-gradient(circle at top left, rgba(98,245,255,0.12), transparent 24%),
-        radial-gradient(circle at top right, rgba(103,167,255,0.10), transparent 22%),
-        radial-gradient(circle at bottom center, rgba(113,255,183,0.07), transparent 26%),
+        radial-gradient(circle at top left, rgba(104,238,255,0.10), transparent 24%),
+        radial-gradient(circle at top right, rgba(106,168,255,0.10), transparent 22%),
+        radial-gradient(circle at bottom center, rgba(116,245,178,0.06), transparent 28%),
         linear-gradient(180deg, var(--bg-1), var(--bg-2) 48%, var(--bg-3));
       overflow-x: hidden;
     }
@@ -65,7 +65,7 @@
     .shell {
       width: min(100%, var(--max));
       margin: 0 auto;
-      padding: 18px 18px 110px;
+      padding: 16px 16px 110px;
     }
 
     .topbar {
@@ -73,14 +73,14 @@
       justify-content: space-between;
       align-items: center;
       gap: 14px;
-      padding: 16px 18px;
+      padding: 14px 16px;
       border: 1px solid var(--line);
-      background: rgba(6, 14, 30, 0.7);
+      background: rgba(7, 15, 31, 0.78);
       backdrop-filter: blur(14px);
       border-radius: 999px;
       box-shadow: var(--shadow);
       position: sticky;
-      top: 12px;
+      top: 10px;
       z-index: 50;
     }
 
@@ -91,15 +91,15 @@
     }
 
     .brand-mark {
-      width: 46px;
-      height: 46px;
+      width: 48px;
+      height: 48px;
       border-radius: 14px;
       position: relative;
       background:
-        radial-gradient(circle at 30% 30%, rgba(255,255,255,0.96), rgba(255,255,255,0.08) 18%, transparent 20%),
-        linear-gradient(145deg, rgba(103,167,255,0.95), rgba(98,245,255,0.46), rgba(113,255,183,0.28));
+        radial-gradient(circle at 30% 30%, rgba(255,255,255,0.96), rgba(255,255,255,0.06) 18%, transparent 20%),
+        linear-gradient(145deg, rgba(106,168,255,0.96), rgba(104,238,255,0.48), rgba(116,245,178,0.22));
       box-shadow:
-        0 0 16px rgba(98,245,255,0.18),
+        0 0 16px rgba(104,238,255,0.18),
         inset 0 0 16px rgba(255,255,255,0.08);
     }
 
@@ -112,8 +112,8 @@
     }
 
     .brand h1 {
-      font-size: 1.02rem;
-      letter-spacing: 0.06em;
+      font-size: 1.04rem;
+      letter-spacing: 0.08em;
       font-weight: 800;
     }
 
@@ -161,14 +161,18 @@
     .mini-btn:hover,
     .btn:hover,
     .link-btn:hover,
-    .nav-btn:hover {
+    .nav-btn:hover,
+    .action-card:hover,
+    .trust-card:hover,
+    .feature-card:hover,
+    .tool-card:hover {
       transform: translateY(-1px);
-      box-shadow: 0 10px 24px rgba(0,0,0,0.24);
+      box-shadow: 0 12px 28px rgba(0,0,0,0.24);
     }
 
     .hero-grid {
       display: grid;
-      grid-template-columns: 1.15fr 0.85fr;
+      grid-template-columns: 1.12fr 0.88fr;
       gap: 18px;
       margin-top: 18px;
     }
@@ -194,12 +198,12 @@
     .hero-card::before {
       content: "";
       position: absolute;
-      width: 250px;
-      height: 250px;
-      top: -70px;
-      right: -70px;
+      width: 260px;
+      height: 260px;
+      top: -80px;
+      right: -80px;
       border-radius: 50%;
-      background: radial-gradient(circle, rgba(98,245,255,0.14), transparent 60%);
+      background: radial-gradient(circle, rgba(104,238,255,0.13), transparent 60%);
       pointer-events: none;
     }
 
@@ -211,23 +215,23 @@
       border-radius: 999px;
       border: 1px solid var(--line-strong);
       color: var(--cyan);
-      background: rgba(98,245,255,0.07);
-      font-size: 0.86rem;
+      background: rgba(104,238,255,0.07);
+      font-size: 0.85rem;
       font-weight: 700;
       margin-bottom: 16px;
     }
 
     .hero-card h2 {
-      font-size: clamp(2rem, 4vw, 3.6rem);
+      font-size: clamp(2rem, 4vw, 3.4rem);
       line-height: 1.02;
       letter-spacing: -0.03em;
       font-weight: 900;
-      margin-bottom: 12px;
+      margin-bottom: 14px;
       max-width: 760px;
     }
 
     .hero-card h2 span {
-      background: linear-gradient(90deg, #ffffff, #8ec5ff, #72fff0);
+      background: linear-gradient(90deg, #ffffff, #9ad0ff, #7dfaf0);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
@@ -236,210 +240,14 @@
       color: var(--muted);
       line-height: 1.72;
       max-width: 760px;
+      font-size: 0.98rem;
     }
 
-    .app-bar {
-      margin-top: 22px;
-      padding: 16px;
-      border-radius: 18px;
-      border: 1px solid rgba(255,255,255,0.07);
-      background: rgba(255,255,255,0.03);
-    }
-
-    .app-greeting {
-      color: var(--muted);
-      font-size: 0.9rem;
-      margin-bottom: 6px;
-    }
-
-    .app-location {
-      font-size: 1.16rem;
-      font-weight: 800;
-      margin-bottom: 14px;
-    }
-
-    .search-card {
-      display: block;
-      width: 100%;
-      padding: 16px 18px;
-      border-radius: 16px;
-      border: 1px solid var(--line);
-      background: rgba(255,255,255,0.04);
-      color: var(--text);
-      font-size: 1rem;
-      font-weight: 700;
-    }
-
-    .quick-actions {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 12px;
-      margin-top: 14px;
-    }
-
-    .quick-card {
-      padding: 16px;
-      border-radius: 16px;
-      border: 1px solid rgba(255,255,255,0.07);
-      background: rgba(255,255,255,0.03);
-      transition: 0.22s ease;
-    }
-
-    .quick-card:hover {
-      transform: translateY(-1px);
-      background: rgba(103,167,255,0.08);
-      border-color: var(--line-strong);
-    }
-
-    .quick-card.primary {
-      grid-column: 1 / -1;
-      background: linear-gradient(135deg, rgba(98,245,255,0.92), rgba(103,167,255,0.92));
-      color: #08111f;
-      border: none;
-    }
-
-    .quick-card strong {
-      display: block;
-      font-size: 1rem;
-      margin-bottom: 6px;
-    }
-
-    .quick-card span {
-      font-size: 0.88rem;
-      line-height: 1.55;
-      color: inherit;
-      opacity: 0.95;
-    }
-
-    .hero-side {
-      display: grid;
-      gap: 18px;
-    }
-
-    .side-card {
-      padding: 20px;
-    }
-
-    .side-card h3,
-    .section-head h3 {
-      font-size: 1.08rem;
-      margin-bottom: 10px;
-    }
-
-    .status-live {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 10px;
-      padding: 14px 16px;
-      border-radius: 16px;
-      border: 1px solid rgba(113,255,183,0.18);
-      background: rgba(113,255,183,0.06);
-      margin-bottom: 14px;
-    }
-
-    .status-left {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-weight: 700;
-    }
-
-    .dot {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      background: var(--green);
-      box-shadow: 0 0 16px rgba(113,255,183,0.6);
-      animation: pulse 1.6s infinite;
-    }
-
-    @keyframes pulse {
-      0% { transform: scale(1); opacity: 1; }
-      50% { transform: scale(1.22); opacity: 0.72; }
-      100% { transform: scale(1); opacity: 1; }
-    }
-
-    .status-grid,
-    .tools-grid,
-    .feature-grid {
-      display: grid;
-      gap: 12px;
-    }
-
-    .status-grid {
-      grid-template-columns: 1fr 1fr;
-    }
-
-    .status-box,
-    .tool-card,
-    .feature-card {
-      padding: 15px;
-      border-radius: 16px;
-      border: 1px solid rgba(255,255,255,0.07);
-      background: rgba(255,255,255,0.03);
-    }
-
-    .status-box strong,
-    .tool-card strong,
-    .feature-card strong {
-      display: block;
-      margin-bottom: 6px;
-      font-size: 0.95rem;
-    }
-
-    .status-box span,
-    .tool-card span,
-    .feature-card span {
-      color: var(--muted);
-      font-size: 0.87rem;
-      line-height: 1.55;
-    }
-
-    .section {
-      margin-top: 18px;
-    }
-
-    .section-card {
-      padding: 22px;
-    }
-
-    .section-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: end;
-      gap: 14px;
-      margin-bottom: 16px;
-      flex-wrap: wrap;
-    }
-
-    .section-head p {
-      color: var(--muted);
-      line-height: 1.65;
-      max-width: 760px;
-    }
-
-    .feature-grid {
-      grid-template-columns: repeat(3, 1fr);
-    }
-
-    .icon {
-      width: 52px;
-      height: 52px;
-      border-radius: 16px;
-      display: grid;
-      place-items: center;
-      font-size: 1.4rem;
-      margin-bottom: 14px;
-      border: 1px solid rgba(255,255,255,0.07);
-      background: rgba(255,255,255,0.04);
-    }
-
-    .card-actions {
+    .hero-actions {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 16px;
+      gap: 12px;
+      margin-top: 20px;
     }
 
     .btn {
@@ -468,6 +276,179 @@
       font-size: 0.88rem;
     }
 
+    .trust-strip {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    .trust-card {
+      padding: 14px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.07);
+      background: rgba(255,255,255,0.03);
+      transition: 0.22s ease;
+    }
+
+    .trust-card strong {
+      display: block;
+      font-size: 0.95rem;
+      margin-bottom: 6px;
+    }
+
+    .trust-card span {
+      color: var(--muted);
+      font-size: 0.86rem;
+      line-height: 1.5;
+    }
+
+    .hero-side {
+      display: grid;
+      gap: 18px;
+    }
+
+    .side-card {
+      padding: 20px;
+    }
+
+    .side-card h3,
+    .section-head h3 {
+      font-size: 1.08rem;
+      margin-bottom: 10px;
+    }
+
+    .status-live {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 16px;
+      border-radius: 16px;
+      border: 1px solid rgba(116,245,178,0.16);
+      background: rgba(116,245,178,0.06);
+      margin-bottom: 14px;
+    }
+
+    .status-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+    }
+
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 16px rgba(116,245,178,0.6);
+      animation: pulse 1.6s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.22); opacity: 0.74; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .status-grid,
+    .tools-grid,
+    .feature-grid,
+    .action-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .status-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .status-box,
+    .tool-card,
+    .feature-card,
+    .action-card {
+      padding: 15px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.07);
+      background: rgba(255,255,255,0.03);
+      transition: 0.22s ease;
+    }
+
+    .status-box strong,
+    .tool-card strong,
+    .feature-card strong,
+    .action-card strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 0.95rem;
+    }
+
+    .status-box span,
+    .tool-card span,
+    .feature-card span,
+    .action-card span {
+      color: var(--muted);
+      font-size: 0.87rem;
+      line-height: 1.55;
+    }
+
+    .section {
+      margin-top: 18px;
+    }
+
+    .section-card {
+      padding: 22px;
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 14px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .section-head p {
+      color: var(--muted);
+      line-height: 1.65;
+      max-width: 760px;
+    }
+
+    .action-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
+
+    .action-card.primary {
+      background: linear-gradient(135deg, rgba(104,238,255,0.92), rgba(106,168,255,0.92));
+      color: #07111d;
+      border: none;
+    }
+
+    .feature-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      font-size: 1.35rem;
+      margin-bottom: 14px;
+      border: 1px solid rgba(255,255,255,0.07);
+      background: rgba(255,255,255,0.04);
+    }
+
+    .card-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
     .mission-card {
       padding: 24px;
       display: grid;
@@ -476,7 +457,7 @@
     }
 
     .mission-card h3 {
-      font-size: 1.25rem;
+      font-size: 1.22rem;
       margin-bottom: 12px;
     }
 
@@ -529,7 +510,7 @@
       right: 0;
       bottom: 0;
       z-index: 70;
-      background: rgba(5, 10, 22, 0.94);
+      background: rgba(5, 10, 22, 0.95);
       border-top: 1px solid rgba(255,255,255,0.08);
       backdrop-filter: blur(14px);
       display: flex;
@@ -550,8 +531,8 @@
 
     .nav-btn.active {
       color: var(--text);
-      background: rgba(103,167,255,0.12);
-      border: 1px solid rgba(103,167,255,0.18);
+      background: rgba(106,168,255,0.12);
+      border: 1px solid rgba(106,168,255,0.18);
     }
 
     .modal {
@@ -580,7 +561,7 @@
     }
 
     .modal-card h3 {
-      font-size: 1.42rem;
+      font-size: 1.4rem;
       margin-bottom: 12px;
     }
 
@@ -620,10 +601,12 @@
     @media (max-width: 1080px) {
       .hero-grid,
       .feature-grid,
-      .mission-card {
+      .mission-card,
+      .action-grid {
         grid-template-columns: 1fr;
       }
 
+      .trust-strip,
       .status-grid {
         grid-template-columns: 1fr;
       }
@@ -654,22 +637,16 @@
         padding: 18px;
       }
 
-      .quick-actions {
-        grid-template-columns: 1fr;
-      }
-
-      .quick-card.primary {
-        grid-column: auto;
-      }
-
       .mini-btn,
       .btn,
       .link-btn {
         width: 100%;
       }
 
-      .bottom-nav {
-        padding-bottom: 14px;
+      .hero-actions,
+      .card-actions,
+      .modal-actions {
+        flex-direction: column;
       }
     }
   </style>
@@ -681,87 +658,79 @@
         <div class="brand-mark"></div>
         <div class="brand">
           <h1>HARVEY TAXI</h1>
-          <p>Mobility • Delivery • Community Support</p>
+          <p>Ride Access • Support • Payments</p>
         </div>
       </div>
 
       <div class="top-actions">
-        <a class="mini-btn" href="#appHome">App Home</a>
-        <a class="mini-btn" href="#platformTools">Tools</a>
+        <a class="mini-btn" href="#home">Home</a>
+        <a class="mini-btn" href="#services">Services</a>
         <a class="mini-btn" href="#mission">Mission</a>
-        <a class="mini-btn" href="admin-login.html">Admin Login</a>
+        <a class="mini-btn" href="support.html">Support</a>
       </div>
     </header>
 
-    <section class="hero-grid" id="appHome">
+    <section class="hero-grid" id="home">
       <div class="hero-card">
-        <div class="eyebrow">App-style rider experience</div>
+        <div class="eyebrow">Reliable transportation access</div>
         <h2>
-          Real transportation flow for
-          <span>riders, drivers, support, and platform access.</span>
+          A cleaner, more trusted way to
+          <span>request rides, manage access, and get support.</span>
         </h2>
         <p>
-          Harvey Taxi combines a faster rider home experience with access to driver onboarding,
-          trip requests, support tools, payments, and mission-based transportation assistance.
+          Harvey Taxi is built to give riders and drivers a simple mobile experience with clear
+          access to ride requests, onboarding, payments, support resources, and transportation assistance information.
         </p>
 
-        <div class="app-bar">
-          <div class="app-greeting">Good evening</div>
-          <div class="app-location">Nashville, Tennessee</div>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="request-ride.html">Request a Ride</a>
+          <a class="btn btn-secondary" href="rider-signup.html">Create Rider Account</a>
+          <a class="btn btn-secondary" href="driver-signup.html">Apply to Drive</a>
+        </div>
 
-          <a class="search-card" href="request-ride.html">Where are you going?</a>
-
-          <div class="quick-actions">
-            <a class="quick-card primary" href="request-ride.html">
-              <strong>Request Ride</strong>
-              <span>Start a ride request and move into dispatch review.</span>
-            </a>
-
-            <a class="quick-card" href="rider-signup.html">
-              <strong>Rider Sign Up</strong>
-              <span>Complete rider onboarding and gain ride access when approved.</span>
-            </a>
-
-            <a class="quick-card" href="driver-signup.html">
-              <strong>Driver Sign Up</strong>
-              <span>Join the Harvey Taxi network through driver onboarding.</span>
-            </a>
-
-            <a class="quick-card" href="support.html">
-              <strong>Safety & Support</strong>
-              <span>Get help, report issues, and access platform support resources.</span>
-            </a>
+        <div class="trust-strip">
+          <div class="trust-card">
+            <strong>Support Access</strong>
+            <span>Quick access to help, review information, and rider support resources.</span>
+          </div>
+          <div class="trust-card">
+            <strong>Account Review</strong>
+            <span>Rider and driver onboarding flows help keep platform access organized and secure.</span>
+          </div>
+          <div class="trust-card">
+            <strong>Clear Policies</strong>
+            <span>Privacy policy, terms, and support pages are available from the app.</span>
           </div>
         </div>
       </div>
 
       <div class="hero-side">
         <div class="side-card">
-          <h3>Platform Status</h3>
+          <h3>Service Status</h3>
           <div class="status-live">
             <div class="status-left">
               <div class="dot"></div>
-              <span>Harvey Taxi Network</span>
+              <span>Harvey Taxi Services</span>
             </div>
-            <strong style="color: var(--green);">Active</strong>
+            <strong style="color: var(--green);">Available</strong>
           </div>
 
           <div class="status-grid">
             <div class="status-box">
               <strong>Ride Requests</strong>
-              <span>Request flow available for approved riders and dispatch review.</span>
+              <span>Available for approved rider access and trip submission.</span>
             </div>
             <div class="status-box">
-              <strong>Driver Onboarding</strong>
-              <span>Driver entry and approval structure are available from the platform.</span>
+              <strong>Driver Enrollment</strong>
+              <span>Driver onboarding and review steps are available.</span>
             </div>
             <div class="status-box">
               <strong>Payments</strong>
-              <span>Taxi payments and mission donations are both accessible from the app.</span>
+              <span>Ride-related payments can be completed through the platform.</span>
             </div>
             <div class="status-box">
-              <strong>Support Readiness</strong>
-              <span>Privacy, terms, support, and review pages strengthen trust and compliance.</span>
+              <strong>Safety & Support</strong>
+              <span>Support pages and policy information remain visible and organized.</span>
             </div>
           </div>
         </div>
@@ -769,33 +738,68 @@
         <div class="side-card">
           <h3>Quick Access</h3>
           <div class="tools-grid">
+            <a class="tool-card" href="request-ride.html">
+              <strong>Book Transportation</strong>
+              <span>Start a ride request with pickup and destination details.</span>
+            </a>
+
             <a class="tool-card" href="payment.html">
-              <strong>Taxi Payment</strong>
+              <strong>Ride Payments</strong>
               <span>Open the Harvey Taxi payment page for transportation-related payments.</span>
             </a>
 
-            <a class="tool-card" href="https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00" target="_blank" rel="noopener noreferrer">
-              <strong>Mission Donation</strong>
-              <span>Support transportation assistance and mission-based outreach.</span>
-            </a>
-
-            <a class="tool-card" href="admin-live-dispatch-map.html">
-              <strong>Dispatch View</strong>
-              <span>Access the live dispatch command center and operational oversight pages.</span>
+            <a class="tool-card" href="support.html">
+              <strong>Help Center</strong>
+              <span>Open support resources, policy pages, and review information.</span>
             </a>
           </div>
         </div>
       </div>
     </section>
 
-    <section class="section" id="platformTools">
+    <section class="section" id="services">
       <div class="section-card">
         <div class="section-head">
           <div>
-            <h3>Platform Tools</h3>
+            <h3>Main Services</h3>
             <p>
-              Keep every major Harvey Taxi function visible while organizing them into a cleaner
-              app-style structure.
+              Present the most important customer-facing actions first so the app feels more official,
+              focused, and ready for review.
+            </p>
+          </div>
+        </div>
+
+        <div class="action-grid">
+          <a class="action-card primary" href="request-ride.html">
+            <strong>Request Ride</strong>
+            <span>Enter trip details and begin the transportation request flow.</span>
+          </a>
+
+          <a class="action-card" href="rider-signup.html">
+            <strong>Rider Sign Up</strong>
+            <span>Create your rider account and complete the rider access process.</span>
+          </a>
+
+          <a class="action-card" href="driver-signup.html">
+            <strong>Driver Sign Up</strong>
+            <span>Apply to join the Harvey Taxi driver network.</span>
+          </a>
+
+          <a class="action-card" href="support.html">
+            <strong>Support</strong>
+            <span>Get help, review policies, and access important support resources.</span>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-card">
+        <div class="section-head">
+          <div>
+            <h3>More From Harvey Taxi</h3>
+            <p>
+              Keep your additional pages available, but organized under a cleaner structure that feels less like internal tooling.
             </p>
           </div>
         </div>
@@ -804,62 +808,60 @@
           <div class="feature-card">
             <div class="icon">👤</div>
             <strong>Rider Access</strong>
-            <span>Join the platform, complete rider setup, and move toward approved ride access.</span>
+            <span>Account setup for riders before trip access becomes available.</span>
             <div class="card-actions">
-              <a class="link-btn primary" href="rider-signup.html">Open Rider Sign Up</a>
-              <button class="link-btn" type="button" onclick="openModal('riderModal')">More Info</button>
+              <a class="link-btn primary" href="rider-signup.html">Open</a>
+              <button class="link-btn" type="button" onclick="openModal('riderModal')">Learn More</button>
             </div>
           </div>
 
           <div class="feature-card">
             <div class="icon">🚖</div>
             <strong>Driver Access</strong>
-            <span>Start driver onboarding, review steps, and prepare for fleet participation.</span>
+            <span>Driver onboarding, review steps, and participation readiness.</span>
             <div class="card-actions">
-              <a class="link-btn primary" href="driver-signup.html">Open Driver Sign Up</a>
-              <button class="link-btn" type="button" onclick="openModal('driverModal')">More Info</button>
+              <a class="link-btn primary" href="driver-signup.html">Open</a>
+              <button class="link-btn" type="button" onclick="openModal('driverModal')">Learn More</button>
             </div>
           </div>
 
           <div class="feature-card">
             <div class="icon">📍</div>
             <strong>Ride Requests</strong>
-            <span>Submit ride details and connect transportation demand into dispatch workflow.</span>
+            <span>Trip request submission with pickup and destination flow.</span>
             <div class="card-actions">
-              <a class="link-btn primary" href="request-ride.html">Open Request Ride</a>
-              <button class="link-btn" type="button" onclick="openModal('requestModal')">More Info</button>
+              <a class="link-btn primary" href="request-ride.html">Open</a>
+              <button class="link-btn" type="button" onclick="openModal('requestModal')">Learn More</button>
             </div>
           </div>
 
           <div class="feature-card">
             <div class="icon">💳</div>
-            <strong>Taxi Payments</strong>
-            <span>Quick access to transportation payment options connected to Harvey Taxi services.</span>
+            <strong>Payments</strong>
+            <span>Transportation payment access connected to Harvey Taxi services.</span>
             <div class="card-actions">
-              <a class="link-btn primary" href="payment.html">Open Payment</a>
-              <button class="link-btn" type="button" onclick="openModal('paymentModal')">More Info</button>
+              <a class="link-btn primary" href="payment.html">Open</a>
+              <button class="link-btn" type="button" onclick="openModal('paymentModal')">Learn More</button>
             </div>
           </div>
 
           <div class="feature-card">
             <div class="icon">❤️</div>
-            <strong>Nonprofit Mission</strong>
-            <span>Support transportation assistance for individuals and families needing access to essential rides.</span>
+            <strong>Community Mission</strong>
+            <span>Support transportation assistance for people with essential mobility needs.</span>
             <div class="card-actions">
-              <a class="link-btn primary" href="https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00" target="_blank" rel="noopener noreferrer">
-                Open Donation Link
-              </a>
-              <button class="link-btn" type="button" onclick="openModal('donationModal')">More Info</button>
+              <a class="link-btn primary" href="https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00" target="_blank" rel="noopener noreferrer">Donate</a>
+              <button class="link-btn" type="button" onclick="openModal('donationModal')">Learn More</button>
             </div>
           </div>
 
           <div class="feature-card">
             <div class="icon">🛡️</div>
-            <strong>Platform Support</strong>
-            <span>Privacy, terms, support, review info, and admin access in one organized section.</span>
+            <strong>Policies & Help</strong>
+            <span>Privacy policy, terms, support information, and app review details.</span>
             <div class="card-actions">
-              <a class="link-btn primary" href="support.html">Open Support</a>
-              <button class="link-btn" type="button" onclick="openModal('supportModal')">More Info</button>
+              <a class="link-btn primary" href="support.html">Open</a>
+              <button class="link-btn" type="button" onclick="openModal('supportModal')">Learn More</button>
             </div>
           </div>
         </div>
@@ -868,7 +870,7 @@
           <a class="btn btn-secondary" href="privacy-policy.html">Privacy Policy</a>
           <a class="btn btn-secondary" href="terms.html">Terms of Service</a>
           <a class="btn btn-secondary" href="app-review.html">App Review Info</a>
-          <a class="btn btn-secondary" href="admin-login.html">Admin Login</a>
+          <a class="btn btn-secondary" href="payment.html">Payments</a>
         </div>
       </div>
     </section>
@@ -878,26 +880,25 @@
         <div>
           <h3>Harvey Transportation Assistance Foundation Mission</h3>
           <p>
-            Our mission is to help remove transportation barriers for individuals and families
-            in need by supporting access to essential rides, dependable mobility solutions,
-            and future community transportation programs. Through this work, we aim to expand
-            transportation support locally and internationally while building a lasting bridge
-            between mobility, opportunity, and community care.
+            Our mission is to help reduce transportation barriers for individuals and families in need
+            by supporting access to essential rides, dependable mobility solutions, and future community transportation programs.
+            We aim to expand transportation support locally and internationally while building a lasting connection between mobility,
+            opportunity, and community care.
           </p>
         </div>
 
         <div class="mission-points">
           <div class="point">
-            <strong>Medical & Essential Access</strong>
-            <span>Support transportation for appointments, treatment, and urgent travel needs.</span>
+            <strong>Medical Access</strong>
+            <span>Support transportation for appointments, treatment, and urgent mobility needs.</span>
           </div>
           <div class="point">
-            <strong>School & Work Mobility</strong>
-            <span>Help individuals reach school, work, and opportunity with greater consistency.</span>
+            <strong>School & Work</strong>
+            <span>Help people reach school, employment, and opportunity more consistently.</span>
           </div>
           <div class="point">
-            <strong>Community Growth</strong>
-            <span>Build long-term programs that expand transportation support where it is needed most.</span>
+            <strong>Community Mobility</strong>
+            <span>Grow transportation support programs where dependable access is needed most.</span>
           </div>
         </div>
       </div>
@@ -907,165 +908,126 @@
       <div>
         <h3 style="margin-bottom:8px;">Harvey Taxi</h3>
         <p>
-          Transportation, driver growth, payments, support, and community mobility working together through one connected system.
+          Ride access, support resources, payments, and community transportation assistance through one connected mobile experience.
         </p>
       </div>
 
       <div class="card-actions" style="margin-top:0;">
         <a class="link-btn primary" href="#top">Return Home</a>
         <a class="link-btn" href="request-ride.html">Request Ride</a>
-        <a class="link-btn" href="admin-live-dispatch-map.html">Dispatch</a>
+        <a class="link-btn" href="support.html">Support</a>
       </div>
     </div>
   </div>
 
   <nav class="bottom-nav">
-    <button class="nav-btn active" type="button" onclick="scrollToSection('appHome')">Home</button>
+    <button class="nav-btn active" type="button" onclick="scrollToSection('home')">Home</button>
     <button class="nav-btn" type="button" onclick="location.href='request-ride.html'">Trips</button>
     <button class="nav-btn" type="button" onclick="location.href='support.html'">Safety</button>
-    <button class="nav-btn" type="button" onclick="scrollToSection('platformTools')">Account</button>
+    <button class="nav-btn" type="button" onclick="scrollToSection('services')">Account</button>
   </nav>
 
   <div class="modal" id="riderModal">
     <div class="modal-card">
       <button class="close-x" type="button" onclick="closeModal('riderModal')">✕</button>
       <h3>Rider Access</h3>
-      <p>
-        Riders enter through signup, complete required steps, and move into the approved access flow
-        before using ride request features.
-      </p>
-      <div class="modal-actions">
-        <a class="link-btn primary" href="rider-signup.html">Go to Rider Sign Up</a>
-        <a class="link-btn" href="#top" onclick="close  <nav class="bottom-nav">
-    <button class="nav-btn active" type="button" onclick="scrollToSection('appHome')">Home</button>
-    <button class="nav-btn" type="button" onclick="location.href='request-ride.html'">Trips</button>
-    <button class="nav-btn" type="button" onclick="location.href='support.html'">Safety</button>
-    <button class="nav-btn" type="button" onclick="scrollToSection('platformTools')">Account</button>
-  </nav>
-
-  <!-- Rider Modal -->
-  <div class="modal" id="riderModal">
-    <div class="modal-card">
-      <button class="close-x" onclick="closeModal('riderModal')">✕</button>
-      <h3>Rider Access</h3>
-      <p>
-        Riders complete signup, verification, and approval before requesting rides.
-      </p>
+      <p>Riders complete signup, verification, and account approval before requesting rides.</p>
       <div class="modal-actions">
         <a class="link-btn primary" href="rider-signup.html">Open Rider Sign Up</a>
-        <a class="link-btn" href="#" onclick="closeModal('riderModal')">Return Home</a>
+        <button class="link-btn" type="button" onclick="closeModal('riderModal')">Close</button>
       </div>
     </div>
   </div>
 
-  <!-- Driver Modal -->
   <div class="modal" id="driverModal">
     <div class="modal-card">
-      <button class="close-x" onclick="closeModal('driverModal')">✕</button>
+      <button class="close-x" type="button" onclick="closeModal('driverModal')">✕</button>
       <h3>Driver Access</h3>
-      <p>
-        Drivers complete onboarding, identity verification, and approval before going live.
-      </p>
+      <p>Drivers complete onboarding, identity review, and approval before becoming active on the platform.</p>
       <div class="modal-actions">
         <a class="link-btn primary" href="driver-signup.html">Open Driver Sign Up</a>
-        <a class="link-btn" href="#" onclick="closeModal('driverModal')">Return Home</a>
+        <button class="link-btn" type="button" onclick="closeModal('driverModal')">Close</button>
       </div>
     </div>
   </div>
 
-  <!-- Request Modal -->
   <div class="modal" id="requestModal">
     <div class="modal-card">
-      <button class="close-x" onclick="closeModal('requestModal')">✕</button>
-      <h3>Request Ride</h3>
-      <p>
-        Submit pickup and dropoff details to dispatch and get matched with a driver.
-      </p>
+      <button class="close-x" type="button" onclick="closeModal('requestModal')">✕</button>
+      <h3>Ride Requests</h3>
+      <p>Submit pickup and destination details to begin the ride request flow.</p>
       <div class="modal-actions">
         <a class="link-btn primary" href="request-ride.html">Open Request Ride</a>
-        <a class="link-btn" href="#" onclick="closeModal('requestModal')">Return Home</a>
+        <button class="link-btn" type="button" onclick="closeModal('requestModal')">Close</button>
       </div>
     </div>
   </div>
 
-  <!-- Payment Modal -->
   <div class="modal" id="paymentModal">
     <div class="modal-card">
-      <button class="close-x" onclick="closeModal('paymentModal')">✕</button>
-      <h3>Taxi Payments</h3>
-      <p>
-        Use the Harvey Taxi payment link for ride-related payments and services.
-      </p>
+      <button class="close-x" type="button" onclick="closeModal('paymentModal')">✕</button>
+      <h3>Payments</h3>
+      <p>Use the Harvey Taxi payment page for transportation-related payments and related services.</p>
       <div class="modal-actions">
         <a class="link-btn primary" href="payment.html">Open Payment</a>
-        <a class="link-btn" href="#" onclick="closeModal('paymentModal')">Return Home</a>
+        <button class="link-btn" type="button" onclick="closeModal('paymentModal')">Close</button>
       </div>
     </div>
   </div>
 
-  <!-- Donation Modal -->
   <div class="modal" id="donationModal">
     <div class="modal-card">
-      <button class="close-x" onclick="closeModal('donationModal')">✕</button>
-      <h3>Support the Mission</h3>
-      <p>
-        Donations help provide transportation assistance to individuals and families in need.
-      </p>
+      <button class="close-x" type="button" onclick="closeModal('donationModal')">✕</button>
+      <h3>Community Mission</h3>
+      <p>Donations help support transportation assistance for individuals and families facing essential mobility needs.</p>
       <div class="modal-actions">
-        <a class="link-btn primary" href="https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00" target="_blank">
-          Donate
-        </a>
-        <a class="link-btn" href="#" onclick="closeModal('donationModal')">Return Home</a>
+        <a class="link-btn primary" href="https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00" target="_blank" rel="noopener noreferrer">Donate</a>
+        <button class="link-btn" type="button" onclick="closeModal('donationModal')">Close</button>
       </div>
     </div>
   </div>
 
-  <!-- Support Modal -->
   <div class="modal" id="supportModal">
     <div class="modal-card">
-      <button class="close-x" onclick="closeModal('supportModal')">✕</button>
+      <button class="close-x" type="button" onclick="closeModal('supportModal')">✕</button>
       <h3>Support</h3>
-      <p>
-        Access support, privacy policy, terms, and app review information.
-      </p>
+      <p>Access support, privacy policy, terms, and review information from one organized section.</p>
       <div class="modal-actions">
         <a class="link-btn primary" href="support.html">Open Support</a>
-        <a class="link-btn" href="#" onclick="closeModal('supportModal')">Return Home</a>
+        <button class="link-btn" type="button" onclick="closeModal('supportModal')">Close</button>
       </div>
     </div>
   </div>
 
-<script>
-function openModal(id){
-  document.getElementById(id).classList.add("active");
-}
-
-function closeModal(id){
-  document.getElementById(id).classList.remove("active");
-}
-
-function scrollToSection(id){
-  document.getElementById(id).scrollIntoView({
-    behavior:"smooth"
-  });
-}
-
-window.onclick = function(e){
-  document.querySelectorAll(".modal").forEach(modal=>{
-    if(e.target === modal){
-      modal.classList.remove("active");
+  <script>
+    function openModal(id) {
+      document.getElementById(id).classList.add("active");
     }
-  })
-}
 
-document.addEventListener("keydown",function(e){
-  if(e.key === "Escape"){
-    document.querySelectorAll(".modal").forEach(m=>{
-      m.classList.remove("active")
-    })
-  }
-});
-</script>
+    function closeModal(id) {
+      document.getElementById(id).classList.remove("active");
+    }
 
+    function scrollToSection(id) {
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth" });
+      }
+    }
+
+    window.addEventListener("click", function (e) {
+      document.querySelectorAll(".modal").forEach((modal) => {
+        if (e.target === modal) {
+          modal.classList.remove("active");
+        }
+      });
+    });
+
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") {
+        document.querySelectorAll(".modal").forEach((m) => m.classList.remove("active"));
+      }
+    });
+  </script>
 </body>
 </html>
