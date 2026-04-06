@@ -1,82 +1,89 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Harvey Taxi</title>
+
 <style>
 :root{
---bg-1:#06101f;
---bg-2:#0a1830;
---bg-3:#0e2244;
---panel:rgba(10,20,40,.88);
---line:rgba(126,174,255,.16);
---text:#f5f8ff;
---muted:#b4c0df;
---blue:#6aa8ff;
---cyan:#68eeff;
---green:#74f5b2;
---shadow:0 22px 50px rgba(0,0,0,.35);
+--bg1:#040814;
+--bg2:#091126;
+--panel:rgba(10,17,38,.88);
+--line:rgba(122,162,255,.16);
+--text:#f4f7ff;
+--muted:#aab8de;
+--blue:#5ea0ff;
+--cyan:#63f5ff;
+--green:#6dffb3;
+--shadow:0 20px 70px rgba(0,0,0,.35);
 --radius:22px;
---max:1180px;
+--max:1100px;
 }
 
 *{box-sizing:border-box;margin:0;padding:0}
 
 body{
-font-family:Arial,Helvetica,sans-serif;
+font-family:Inter,Arial,sans-serif;
 color:var(--text);
 background:
-radial-gradient(circle at top left,rgba(104,238,255,.1),transparent 24%),
-radial-gradient(circle at top right,rgba(106,168,255,.1),transparent 22%),
-linear-gradient(180deg,var(--bg-1),var(--bg-2) 48%,var(--bg-3));
+radial-gradient(circle at top left,rgba(99,245,255,.12),transparent 30%),
+linear-gradient(160deg,var(--bg1),var(--bg2));
+min-height:100vh;
 }
 
 .shell{
-width:min(100%,var(--max));
+max-width:var(--max);
 margin:auto;
-padding:16px 16px 110px;
+padding:18px 16px 120px;
 }
+
+/* top bar */
 
 .topbar{
 display:flex;
 justify-content:space-between;
 align-items:center;
-padding:14px 16px;
+padding:14px 18px;
 border:1px solid var(--line);
-background:rgba(7,15,31,.78);
 border-radius:999px;
+background:rgba(7,12,28,.75);
 margin-bottom:18px;
 }
 
 .brand{
 font-weight:800;
-letter-spacing:.06em;
+letter-spacing:.08em;
 }
+
+/* hero */
 
 .hero{
 background:var(--panel);
-padding:26px;
+padding:28px;
 border-radius:var(--radius);
 border:1px solid var(--line);
 margin-bottom:18px;
 }
 
 .hero h1{
-font-size:32px;
-margin-bottom:12px;
+font-size:34px;
+line-height:1.15;
+margin-bottom:14px;
 }
 
 .hero p{
 color:var(--muted);
-margin-bottom:18px;
 line-height:1.6;
+margin-bottom:20px;
 }
+
+/* buttons */
 
 .actions{
 display:flex;
-gap:12px;
 flex-wrap:wrap;
+gap:12px;
 }
 
 .btn{
@@ -84,16 +91,19 @@ padding:14px 18px;
 border-radius:14px;
 border:1px solid var(--line);
 background:rgba(255,255,255,.04);
-color:#fff;
+color:white;
 font-weight:700;
+cursor:pointer;
 text-decoration:none;
 }
 
 .btn.primary{
 background:linear-gradient(135deg,var(--cyan),var(--blue));
-color:#06101f;
+color:#07121f;
 border:none;
 }
+
+/* cards */
 
 .grid{
 display:grid;
@@ -119,6 +129,8 @@ color:var(--muted);
 font-size:14px;
 }
 
+/* section */
+
 .section{
 margin-top:18px;
 background:var(--panel);
@@ -131,6 +143,8 @@ border:1px solid var(--line);
 margin-bottom:14px;
 }
 
+/* footer */
+
 .footer{
 margin-top:18px;
 padding:18px;
@@ -142,6 +156,8 @@ justify-content:space-between;
 flex-wrap:wrap;
 gap:12px;
 }
+
+/* bottom nav */
 
 .bottom-nav{
 position:fixed;
@@ -163,90 +179,136 @@ font-size:13px;
 }
 
 .nav-btn.active{
-color:#fff;
+color:white;
 }
+
+/* mobile */
+
+@media(max-width:900px){
+.grid{
+grid-template-columns:1fr;
+}
+.hero h1{
+font-size:28px;
+}
+}
+
 </style>
 </head>
+
 <body>
+
 <div class="shell">
+
 <div class="topbar">
 <div class="brand">HARVEY TAXI</div>
 </div>
+
 <div class="hero">
 <h1>Request rides with a cleaner, more trusted experience.</h1>
+
 <p>
-Harvey Taxi provides simple access to ride requests, onboarding, payments,
-support resources, and community transportation assistance.
+Harvey Taxi provides simple access to ride requests, onboarding,
+payments, support resources, and community transportation assistance.
 </p>
+
 <div class="actions">
 <a class="btn primary" href="request-ride.html">Request Ride</a>
 <a class="btn" href="rider-signup.html">Rider Sign Up</a>
 <a class="btn" href="driver-signup.html">Driver Sign Up</a>
 </div>
+
 <div class="grid">
+
 <div class="card">
 <strong>Secure Access</strong>
 <span>Rider and driver onboarding helps keep platform access organized and protected.</span>
 </div>
+
 <div class="card">
 <strong>Support Access</strong>
 <span>Quick access to help, policies, and support resources.</span>
 </div>
+
 <div class="card">
 <strong>Clear Policies</strong>
 <span>Privacy policy, terms, and support pages available.</span>
 </div>
+
 </div>
 </div>
+
 <div class="section">
 <h2>Service Status</h2>
+
 <div class="grid">
+
 <div class="card">
 <strong>Ride Requests</strong>
 <span>Operational for approved rider access.</span>
 </div>
+
 <div class="card">
 <strong>Driver Onboarding</strong>
 <span>Driver signup and review available.</span>
 </div>
+
+<div class="card">
+<strong>Payments</strong>
+<span>Transportation payments available.</span>
+</div>
+
 </div>
 </div>
-<div class="section">
+
+<div class="section" id="services">
 <h2>Main Services</h2>
+
 <div class="grid">
+
 <a class="card" href="request-ride.html">
 <strong>Request Ride</strong>
 <span>Submit pickup and destination.</span>
 </a>
+
 <a class="card" href="rider-signup.html">
 <strong>Rider Account</strong>
 <span>Create rider access.</span>
 </a>
+
 <a class="card" href="driver-signup.html">
 <strong>Driver Apply</strong>
 <span>Apply to drive.</span>
 </a>
+
 </div>
 </div>
+
 <div class="footer">
+
 <div>
 <strong>Harvey Taxi</strong>
 <div style="color:var(--muted);font-size:14px;">
 Ride access, payments, and support.
 </div>
 </div>
+
 <div class="actions">
 <a class="btn" href="privacy-policy.html">Privacy</a>
 <a class="btn" href="terms.html">Terms</a>
 <a class="btn" href="support.html">Support</a>
 </div>
+
 </div>
+
 </div>
+
 <div class="bottom-nav">
 <button class="nav-btn active">Home</button>
 <button class="nav-btn" onclick="location.href='request-ride.html'">Trips</button>
 <button class="nav-btn" onclick="location.href='support.html'">Safety</button>
-<button class="nav-btn" onclick="location.href='index.html#services'">Services</button>
+<button class="nav-btn" onclick="location.href='#services'">Services</button>
 </div>
+
 </body>
 </html>
