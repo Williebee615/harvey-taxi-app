@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Harvey Taxi | Rider Sign Up</title>
-  <meta name="description" content="Create your Harvey Taxi rider account and begin the verification process for ride access." />
+  <meta name="description" content="Create your Harvey Taxi rider account and begin the verification process for platform access." />
   <style>
     :root {
       --bg-1: #040814;
@@ -23,6 +23,7 @@
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
       min-height: 100vh;
       font-family: Inter, Arial, sans-serif;
@@ -32,133 +33,301 @@
         radial-gradient(circle at top right, rgba(104,168,255,0.12), transparent 24%),
         linear-gradient(160deg, var(--bg-1), var(--bg-2) 45%, var(--bg-3));
     }
+
     a { text-decoration: none; color: inherit; }
-    .shell { width: min(100%, 880px); margin: 0 auto; padding: 18px 16px 110px; }
+
+    .shell {
+      width: min(100%, 880px);
+      margin: 0 auto;
+      padding: 18px 16px 110px;
+    }
 
     .topbar {
-      display: flex; justify-content: space-between; align-items: center; gap: 12px;
-      padding: 16px 18px; border: 1px solid var(--line); border-radius: 999px;
-      background: rgba(7,14,31,0.62); backdrop-filter: blur(14px); box-shadow: var(--shadow);
-      position: sticky; top: 12px; z-index: 50;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 18px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(7,14,31,0.62);
+      backdrop-filter: blur(14px);
+      box-shadow: var(--shadow);
+      position: sticky;
+      top: 12px;
+      z-index: 50;
     }
-    .brand-wrap { display: flex; align-items: center; gap: 12px; }
+
+    .brand-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
     .brand-mark {
-      width: 44px; height: 44px; border-radius: 14px;
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
       background:
         radial-gradient(circle at 30% 30%, rgba(255,255,255,0.95), rgba(255,255,255,0.1) 18%, transparent 20%),
         linear-gradient(145deg, rgba(104,168,255,0.95), rgba(98,245,255,0.45), rgba(113,255,183,0.25));
       box-shadow: 0 0 18px rgba(98,245,255,0.2), inset 0 0 18px rgba(255,255,255,0.08);
     }
-    .brand h1 { font-size: 1rem; font-weight: 800; letter-spacing: 0.06em; }
-    .brand p { color: var(--muted); font-size: 0.82rem; margin-top: 2px; }
+
+    .brand h1 {
+      font-size: 1rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+    }
+
+    .brand p {
+      color: var(--muted);
+      font-size: 0.82rem;
+      margin-top: 2px;
+    }
 
     .mini-btn, .btn {
-      border: none; cursor: pointer; transition: 0.25s ease; font-weight: 800;
+      border: none;
+      cursor: pointer;
+      transition: 0.25s ease;
+      font-weight: 800;
       font-family: inherit;
     }
+
     .mini-btn {
-      padding: 10px 14px; border-radius: 999px; background: rgba(255,255,255,0.04);
-      color: var(--text); border: 1px solid var(--line); font-size: 0.88rem;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      border: 1px solid var(--line);
+      font-size: 0.88rem;
     }
-    .mini-btn:hover, .btn:hover { transform: translateY(-2px); }
+
+    .mini-btn:hover,
+    .btn:hover {
+      transform: translateY(-2px);
+    }
 
     .page {
-      margin-top: 22px; display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 18px;
+      margin-top: 22px;
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 18px;
     }
 
     .hero, .panel {
-      background: var(--panel); border: 1px solid var(--line); border-radius: 28px;
-      box-shadow: var(--shadow); backdrop-filter: blur(16px);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(16px);
     }
 
     .hero { padding: 28px; }
+
     .eyebrow {
-      display: inline-flex; align-items: center; gap: 10px;
-      border: 1px solid var(--line-strong); padding: 9px 14px; border-radius: 999px;
-      color: var(--cyan); font-weight: 700; font-size: 0.88rem;
-      background: rgba(98,245,255,0.06); margin-bottom: 18px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      border: 1px solid var(--line-strong);
+      padding: 9px 14px;
+      border-radius: 999px;
+      color: var(--cyan);
+      font-weight: 700;
+      font-size: 0.88rem;
+      background: rgba(98,245,255,0.06);
+      margin-bottom: 18px;
     }
+
     .hero h2 {
-      font-size: clamp(2rem, 4vw, 3.5rem); line-height: 1.02;
-      font-weight: 900; letter-spacing: -0.03em;
+      font-size: clamp(2rem, 4vw, 3.5rem);
+      line-height: 1.02;
+      font-weight: 900;
+      letter-spacing: -0.03em;
     }
+
     .hero h2 span {
       background: linear-gradient(90deg, #ffffff, #89c0ff, #72fff0);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
     }
+
     .hero p {
-      margin-top: 14px; color: var(--muted); line-height: 1.7; font-size: 1rem;
+      margin-top: 14px;
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 1rem;
     }
 
     .benefits {
-      display: grid; gap: 12px; margin-top: 20px;
+      display: grid;
+      gap: 12px;
+      margin-top: 20px;
     }
+
     .benefit {
-      padding: 14px 15px; border-radius: 16px;
-      background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);
+      padding: 14px 15px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.07);
     }
-    .benefit strong { display: block; margin-bottom: 6px; }
-    .benefit span { color: var(--muted); line-height: 1.55; font-size: 0.92rem; }
+
+    .benefit strong {
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .benefit span {
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 0.92rem;
+    }
 
     .panel { padding: 24px; }
-    .panel h3 { font-size: 1.25rem; margin-bottom: 8px; }
-    .panel-sub { color: var(--muted); line-height: 1.65; margin-bottom: 18px; }
 
-    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    .field { display: grid; gap: 8px; margin-bottom: 16px; }
-    .field.full { grid-column: 1 / -1; }
-    .field label { font-weight: 800; font-size: 0.96rem; }
-    .field small { color: var(--muted); font-size: 0.82rem; line-height: 1.5; }
+    .panel h3 {
+      font-size: 1.25rem;
+      margin-bottom: 8px;
+    }
+
+    .panel-sub {
+      color: var(--muted);
+      line-height: 1.65;
+      margin-bottom: 18px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .field.full {
+      grid-column: 1 / -1;
+    }
+
+    .field label {
+      font-weight: 800;
+      font-size: 0.96rem;
+    }
+
+    .field small {
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.5;
+    }
 
     input {
-      width: 100%; padding: 16px 18px; border-radius: 18px;
-      border: 1px solid rgba(34,81,182,0.5); background: rgba(0,12,52,0.88);
-      color: var(--text); font-size: 1rem; outline: none; transition: 0.25s ease;
+      width: 100%;
+      padding: 16px 18px;
+      border-radius: 18px;
+      border: 1px solid rgba(34,81,182,0.5);
+      background: rgba(0,12,52,0.88);
+      color: var(--text);
+      font-size: 1rem;
+      outline: none;
+      transition: 0.25s ease;
     }
-    input::placeholder { color: rgba(244,248,255,0.62); }
+
+    input::placeholder {
+      color: rgba(244,248,255,0.62);
+    }
+
     input:focus {
       border-color: var(--blue);
       box-shadow: 0 0 0 3px rgba(104,168,255,0.16);
     }
 
     .notice {
-      padding: 14px 16px; border-radius: 16px; margin-bottom: 18px;
-      background: rgba(104,168,255,0.08); border: 1px solid rgba(104,168,255,0.16);
-      color: var(--muted); line-height: 1.6; font-size: 0.92rem;
+      padding: 14px 16px;
+      border-radius: 16px;
+      margin-bottom: 18px;
+      background: rgba(104,168,255,0.08);
+      border: 1px solid rgba(104,168,255,0.16);
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 0.92rem;
     }
 
     .btn {
-      width: 100%; padding: 18px 20px; border-radius: 18px; font-size: 1rem;
+      width: 100%;
+      padding: 18px 20px;
+      border-radius: 18px;
+      font-size: 1rem;
     }
+
     .btn-primary {
-      color: #08111f; background: linear-gradient(135deg, var(--cyan), var(--blue), #9dbeff);
+      color: #08111f;
+      background: linear-gradient(135deg, var(--cyan), var(--blue), #9dbeff);
+    }
+
+    .btn:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+      transform: none;
     }
 
     .status {
-      display: none; margin-top: 16px; padding: 15px 16px; border-radius: 16px;
-      line-height: 1.6; font-size: 0.94rem;
+      display: none;
+      margin-top: 16px;
+      padding: 15px 16px;
+      border-radius: 16px;
+      line-height: 1.6;
+      font-size: 0.94rem;
     }
+
     .status.show { display: block; }
+
     .status.success {
-      background: rgba(113,255,183,0.12); border: 1px solid rgba(113,255,183,0.22);
+      background: rgba(113,255,183,0.12);
+      border: 1px solid rgba(113,255,183,0.22);
+      color: #dbfff0;
     }
+
     .status.error {
-      background: rgba(255,126,144,0.12); border: 1px solid rgba(255,126,144,0.22);
+      background: rgba(255,126,144,0.12);
+      border: 1px solid rgba(255,126,144,0.22);
+      color: #ffd7df;
     }
 
     .return-home {
-      position: fixed; right: 16px; bottom: 16px; z-index: 60;
-      padding: 15px 20px; border-radius: 999px;
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      z-index: 60;
+      padding: 15px 20px;
+      border-radius: 999px;
       background: linear-gradient(135deg, var(--cyan), var(--blue));
-      color: #08111f; font-weight: 800; box-shadow: var(--shadow);
+      color: #08111f;
+      font-weight: 800;
+      box-shadow: var(--shadow);
     }
 
     @media (max-width: 860px) {
-      .page, .form-grid { grid-template-columns: 1fr; }
+      .page,
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
     }
+
     @media (max-width: 640px) {
-      .topbar { flex-direction: column; align-items: flex-start; border-radius: 24px; }
-      .return-home { left: 12px; right: 12px; text-align: center; }
+      .topbar {
+        flex-direction: column;
+        align-items: flex-start;
+        border-radius: 24px;
+      }
+
+      .return-home {
+        left: 12px;
+        right: 12px;
+        text-align: center;
+      }
     }
   </style>
 </head>
@@ -180,22 +349,22 @@
         <div class="eyebrow">Secure rider onboarding</div>
         <h2>Create your <span>rider account</span></h2>
         <p>
-          Join Harvey Taxi with a cleaner, more secure rider experience built for verified access,
-          dependable transportation, and future platform expansion.
+          Join Harvey Taxi with a cleaner, more secure rider experience built for protected access,
+          trusted account setup, and future platform growth.
         </p>
 
         <div class="benefits">
           <div class="benefit">
-            <strong>Verified booking access</strong>
-            <span>Ride requests unlock after rider approval is confirmed.</span>
+            <strong>Verified rider access</strong>
+            <span>Accounts move through approval before full platform access is enabled.</span>
           </div>
           <div class="benefit">
-            <strong>Address-only rider flow</strong>
-            <span>Pickup and dropoff are kept clean and professional without exposing coordinates.</span>
+            <strong>Private account setup</strong>
+            <span>Your rider profile is created through a cleaner and more professional onboarding flow.</span>
           </div>
           <div class="benefit">
             <strong>Platform-ready account</strong>
-            <span>Your rider account is designed to connect with dispatch, safety, and future support tools.</span>
+            <span>Your rider account is built to connect with safety, support, and future Harvey Taxi services.</span>
           </div>
         </div>
       </section>
@@ -207,7 +376,7 @@
         </p>
 
         <div class="notice">
-          Rider accounts must be approved before ride booking is enabled.
+          Rider accounts must be approved before platform access is fully enabled.
         </div>
 
         <form id="riderSignupForm">
@@ -234,7 +403,7 @@
             </div>
           </div>
 
-          <button type="submit" class="btn btn-primary">Create Rider Account</button>
+          <button type="submit" class="btn btn-primary" id="submitBtn">Create Rider Account</button>
           <div id="statusMessage" class="status"></div>
         </form>
       </section>
@@ -246,9 +415,18 @@
   <script>
     const riderForm = document.getElementById("riderSignupForm");
     const riderStatus = document.getElementById("statusMessage");
+    const submitBtn = document.getElementById("submitBtn");
+
+    function showStatus(type, message) {
+      riderStatus.className = `status show ${type}`;
+      riderStatus.textContent = message;
+    }
 
     riderForm.addEventListener("submit", async (e) => {
       e.preventDefault();
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Creating Rider Account...";
 
       const payload = {
         fullName: document.getElementById("fullName").value.trim(),
@@ -264,14 +442,27 @@
           body: JSON.stringify(payload)
         });
 
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
 
-        riderStatus.className = "status show success";
-        riderStatus.textContent = data.message || "Rider account created successfully. Verification review has started.";
+        if (!res.ok) {
+          throw new Error(data.message || "Unable to create rider account.");
+        }
+
+        showStatus(
+          "success",
+          data.message || "Rider account created successfully. Verification review has started."
+        );
+
         riderForm.reset();
       } catch (error) {
-        riderStatus.className = "status show error";
-        riderStatus.textContent = "Unable to create rider account right now. Please try again.";
+        showStatus(
+          "error",
+          error.message || "Unable to create rider account right now. Please try again."
+        );
+        console.error("Rider signup error:", error);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Create Rider Account";
       }
     });
   </script>
