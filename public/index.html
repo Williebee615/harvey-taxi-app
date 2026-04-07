@@ -1,35 +1,54 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Harvey Taxi</title>
+<meta
+  name="description"
+  content="Harvey Taxi Service LLC provides trusted ride access, driver onboarding, support resources, payment access, and community transportation assistance across Tennessee."
+/>
 
 <style>
 :root{
 --bg1:#040814;
 --bg2:#091126;
+--bg3:#101935;
 --panel:rgba(10,17,38,.88);
+--panel2:rgba(15,23,52,.72);
 --line:rgba(122,162,255,.16);
 --text:#f4f7ff;
 --muted:#aab8de;
 --blue:#5ea0ff;
 --cyan:#63f5ff;
 --green:#6dffb3;
+--gold:#ffd76a;
+--danger:#ff7e97;
 --shadow:0 20px 70px rgba(0,0,0,.35);
 --radius:22px;
---max:1100px;
+--radius-sm:16px;
+--max:1150px;
 }
 
 *{box-sizing:border-box;margin:0;padding:0}
+
+html{
+scroll-behavior:smooth;
+}
 
 body{
 font-family:Inter,Arial,sans-serif;
 color:var(--text);
 background:
 radial-gradient(circle at top left,rgba(99,245,255,.12),transparent 30%),
-linear-gradient(160deg,var(--bg1),var(--bg2));
+radial-gradient(circle at top right,rgba(94,160,255,.10),transparent 28%),
+linear-gradient(160deg,var(--bg1),var(--bg2) 50%,var(--bg3));
 min-height:100vh;
+}
+
+a{
+color:inherit;
+text-decoration:none;
 }
 
 .shell{
@@ -39,47 +58,140 @@ padding:18px 16px 120px;
 }
 
 /* top bar */
-
 .topbar{
 display:flex;
 justify-content:space-between;
 align-items:center;
+gap:14px;
 padding:14px 18px;
 border:1px solid var(--line);
 border-radius:999px;
-background:rgba(7,12,28,.75);
+background:rgba(7,12,28,.78);
+backdrop-filter:blur(12px);
 margin-bottom:18px;
+box-shadow:var(--shadow);
+}
+
+.brand-wrap{
+display:flex;
+align-items:center;
+gap:12px;
+}
+
+.logo-dot{
+width:12px;
+height:12px;
+border-radius:50%;
+background:linear-gradient(135deg,var(--cyan),var(--blue));
+box-shadow:0 0 18px rgba(99,245,255,.55);
 }
 
 .brand{
-font-weight:800;
-letter-spacing:.08em;
+font-weight:900;
+letter-spacing:.12em;
+font-size:14px;
+}
+
+.top-links{
+display:flex;
+gap:10px;
+flex-wrap:wrap;
+}
+
+.top-link{
+padding:10px 14px;
+border-radius:999px;
+border:1px solid rgba(255,255,255,.08);
+background:rgba(255,255,255,.03);
+color:var(--muted);
+font-size:13px;
+font-weight:700;
 }
 
 /* hero */
-
 .hero{
-background:var(--panel);
-padding:28px;
+position:relative;
+overflow:hidden;
+background:
+linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.015)),
+var(--panel);
+padding:32px;
 border-radius:var(--radius);
 border:1px solid var(--line);
 margin-bottom:18px;
+box-shadow:var(--shadow);
+}
+
+.hero::before{
+content:"";
+position:absolute;
+top:-60px;
+right:-60px;
+width:220px;
+height:220px;
+border-radius:50%;
+background:radial-gradient(circle,rgba(99,245,255,.18),transparent 65%);
+pointer-events:none;
+}
+
+.hero-badge{
+display:inline-flex;
+align-items:center;
+gap:10px;
+padding:10px 14px;
+border-radius:999px;
+border:1px solid rgba(255,255,255,.08);
+background:rgba(255,255,255,.04);
+margin-bottom:18px;
+color:var(--cyan);
+font-size:13px;
+font-weight:800;
+letter-spacing:.05em;
+text-transform:uppercase;
 }
 
 .hero h1{
-font-size:34px;
-line-height:1.15;
+font-size:42px;
+line-height:1.08;
 margin-bottom:14px;
+max-width:780px;
 }
 
 .hero p{
 color:var(--muted);
-line-height:1.6;
-margin-bottom:20px;
+line-height:1.7;
+margin-bottom:22px;
+max-width:760px;
+font-size:16px;
+}
+
+.mini-stats{
+display:grid;
+grid-template-columns:repeat(4,1fr);
+gap:12px;
+margin-top:20px;
+}
+
+.mini-stat{
+padding:16px;
+border-radius:16px;
+border:1px solid rgba(255,255,255,.07);
+background:rgba(255,255,255,.03);
+}
+
+.mini-stat strong{
+display:block;
+font-size:18px;
+margin-bottom:6px;
+}
+
+.mini-stat span{
+color:var(--muted);
+font-size:13px;
+line-height:1.5;
 }
 
 /* buttons */
-
 .actions{
 display:flex;
 flex-wrap:wrap;
@@ -92,9 +204,19 @@ border-radius:14px;
 border:1px solid var(--line);
 background:rgba(255,255,255,.04);
 color:white;
-font-weight:700;
+font-weight:800;
 cursor:pointer;
 text-decoration:none;
+transition:.18s ease;
+display:inline-flex;
+align-items:center;
+justify-content:center;
+gap:8px;
+}
+
+.btn:hover{
+transform:translateY(-1px);
+background:rgba(255,255,255,.06);
 }
 
 .btn.primary{
@@ -103,8 +225,17 @@ color:#07121f;
 border:none;
 }
 
-/* cards */
+.btn.success{
+background:linear-gradient(135deg,var(--green),#89ffd0);
+color:#062014;
+border:none;
+}
 
+.btn.ghost{
+background:transparent;
+}
+
+/* cards */
 .grid{
 display:grid;
 grid-template-columns:repeat(3,1fr);
@@ -113,62 +244,167 @@ margin-top:18px;
 }
 
 .card{
-padding:16px;
+padding:18px;
 border-radius:16px;
 border:1px solid rgba(255,255,255,.07);
 background:rgba(255,255,255,.03);
+display:block;
 }
 
 .card strong{
 display:block;
-margin-bottom:6px;
+margin-bottom:8px;
+font-size:16px;
 }
 
 .card span{
 color:var(--muted);
 font-size:14px;
+line-height:1.6;
 }
 
 /* section */
-
 .section{
 margin-top:18px;
 background:var(--panel);
-padding:22px;
+padding:24px;
 border-radius:var(--radius);
 border:1px solid var(--line);
+box-shadow:var(--shadow);
 }
 
-.section h2{
+.section-header{
+display:flex;
+justify-content:space-between;
+align-items:flex-end;
+gap:14px;
+flex-wrap:wrap;
 margin-bottom:14px;
 }
 
-/* footer */
+.section h2{
+font-size:26px;
+margin-bottom:4px;
+}
 
+.section p.lead{
+color:var(--muted);
+line-height:1.7;
+max-width:780px;
+}
+
+.list{
+display:grid;
+gap:12px;
+margin-top:14px;
+}
+
+.list-item{
+padding:16px 18px;
+border-radius:16px;
+border:1px solid rgba(255,255,255,.07);
+background:rgba(255,255,255,.03);
+}
+
+.list-item strong{
+display:block;
+margin-bottom:6px;
+}
+
+.list-item span{
+color:var(--muted);
+font-size:14px;
+line-height:1.6;
+}
+
+.info-grid{
+display:grid;
+grid-template-columns:1.2fr .8fr;
+gap:14px;
+margin-top:18px;
+}
+
+.highlight{
+padding:22px;
+border-radius:18px;
+background:
+linear-gradient(180deg,rgba(99,245,255,.05),rgba(94,160,255,.02)),
+rgba(255,255,255,.03);
+border:1px solid rgba(99,245,255,.14);
+}
+
+.highlight h3{
+margin-bottom:10px;
+font-size:22px;
+}
+
+.highlight p{
+color:var(--muted);
+line-height:1.7;
+}
+
+.pill-row{
+display:flex;
+flex-wrap:wrap;
+gap:10px;
+margin-top:16px;
+}
+
+.pill{
+padding:10px 14px;
+border-radius:999px;
+background:rgba(255,255,255,.05);
+border:1px solid rgba(255,255,255,.08);
+font-size:13px;
+font-weight:700;
+color:var(--muted);
+}
+
+.status-good{
+color:var(--green);
+font-weight:800;
+}
+
+.status-warn{
+color:var(--gold);
+font-weight:800;
+}
+
+/* footer */
 .footer{
 margin-top:18px;
-padding:18px;
+padding:20px;
 border-radius:var(--radius);
 border:1px solid var(--line);
 background:var(--panel);
 display:flex;
 justify-content:space-between;
+align-items:flex-start;
 flex-wrap:wrap;
-gap:12px;
+gap:16px;
+box-shadow:var(--shadow);
+}
+
+.footer p{
+color:var(--muted);
+font-size:14px;
+line-height:1.7;
+max-width:680px;
 }
 
 /* bottom nav */
-
 .bottom-nav{
 position:fixed;
 left:0;
 right:0;
 bottom:0;
-background:#060c1a;
+background:rgba(6,12,26,.96);
+backdrop-filter:blur(14px);
 border-top:1px solid rgba(255,255,255,.08);
 display:flex;
 justify-content:space-around;
 padding:12px 8px;
+z-index:1000;
 }
 
 .nav-btn{
@@ -176,6 +412,8 @@ color:var(--muted);
 background:none;
 border:none;
 font-size:13px;
+font-weight:700;
+cursor:pointer;
 }
 
 .nav-btn.active{
@@ -183,16 +421,54 @@ color:white;
 }
 
 /* mobile */
-
-@media(max-width:900px){
+@media(max-width:980px){
+.mini-stats{
+grid-template-columns:repeat(2,1fr);
+}
+.info-grid{
+grid-template-columns:1fr;
+}
 .grid{
 grid-template-columns:1fr;
 }
 .hero h1{
-font-size:28px;
+font-size:32px;
 }
 }
 
+@media(max-width:700px){
+.topbar{
+border-radius:24px;
+padding:14px;
+align-items:flex-start;
+flex-direction:column;
+}
+.top-links{
+width:100%;
+}
+.top-link{
+flex:1;
+text-align:center;
+}
+.hero{
+padding:24px 20px;
+}
+.hero h1{
+font-size:28px;
+}
+.section{
+padding:20px;
+}
+.actions{
+flex-direction:column;
+}
+.btn{
+width:100%;
+}
+.mini-stats{
+grid-template-columns:1fr;
+}
+}
 </style>
 </head>
 
@@ -200,114 +476,321 @@ font-size:28px;
 
 <div class="shell">
 
-<div class="topbar">
-<div class="brand">HARVEY TAXI</div>
-</div>
+  <div class="topbar">
+    <div class="brand-wrap">
+      <div class="logo-dot"></div>
+      <div class="brand">HARVEY TAXI</div>
+    </div>
 
-<div class="hero">
-<h1>Request rides with a cleaner, more trusted experience.</h1>
+    <div class="top-links">
+      <a class="top-link" href="#how-it-works">How It Works</a>
+      <a class="top-link" href="#safety">Safety</a>
+      <a class="top-link" href="#company">Company</a>
+      <a class="top-link" href="support.html">Support</a>
+    </div>
+  </div>
 
-<p>
-Harvey Taxi provides simple access to ride requests, onboarding,
-payments, support resources, and community transportation assistance.
-</p>
+  <div class="hero">
+    <div class="hero-badge">Trusted mobility platform • Tennessee service</div>
 
-<div class="actions">
-<a class="btn primary" href="request-ride.html">Request Ride</a>
-<a class="btn" href="rider-signup.html">Rider Sign Up</a>
-<a class="btn" href="driver-signup.html">Driver Sign Up</a>
-</div>
+    <h1>Trusted ride access with a cleaner, safer, more professional experience.</h1>
 
-<div class="grid">
+    <p>
+      Harvey Taxi Service LLC helps connect approved riders, qualified drivers, transportation support,
+      and community-focused mobility resources through one intelligent platform designed for safety,
+      accountability, and service clarity.
+    </p>
 
-<div class="card">
-<strong>Secure Access</strong>
-<span>Rider and driver onboarding helps keep platform access organized and protected.</span>
-</div>
+    <div class="actions">
+      <a class="btn primary" href="request-ride.html">Request Ride</a>
+      <a class="btn" href="rider-signup.html">Rider Sign Up</a>
+      <a class="btn" href="driver-signup.html">Driver Sign Up</a>
+      <a class="btn ghost" href="#how-it-works">How It Works</a>
+    </div>
 
-<div class="card">
-<strong>Support Access</strong>
-<span>Quick access to help, policies, and support resources.</span>
-</div>
+    <div class="mini-stats">
+      <div class="mini-stat">
+        <strong>Verified Access</strong>
+        <span>Rider approval and driver onboarding help protect platform use.</span>
+      </div>
+      <div class="mini-stat">
+        <strong>Service Area</strong>
+        <span>Tennessee-focused transportation support with expansion readiness.</span>
+      </div>
+      <div class="mini-stat">
+        <strong>Safety First</strong>
+        <span>Verification, background review, support access, and ride monitoring structure.</span>
+      </div>
+      <div class="mini-stat">
+        <strong>Business Ready</strong>
+        <span>Clear support, policy pages, payment flow, and company identity.</span>
+      </div>
+    </div>
+  </div>
 
-<div class="card">
-<strong>Clear Policies</strong>
-<span>Privacy policy, terms, and support pages available.</span>
-</div>
+  <div class="section">
+    <div class="section-header">
+      <div>
+        <h2>Platform Status</h2>
+        <p class="lead">Apple reviewers need to quickly understand what is live, what is functional, and how the platform is organized.</p>
+      </div>
+    </div>
 
-</div>
-</div>
+    <div class="grid">
+      <div class="card">
+        <strong>Ride Requests</strong>
+        <span><span class="status-good">Operational</span><br>Ride requests are available for approved rider access.</span>
+      </div>
 
-<div class="section">
-<h2>Service Status</h2>
+      <div class="card">
+        <strong>Driver Onboarding</strong>
+        <span><span class="status-good">Available</span><br>Driver signup, identity review, and qualification flow are supported.</span>
+      </div>
 
-<div class="grid">
+      <div class="card">
+        <strong>Payments</strong>
+        <span><span class="status-good">Enabled</span><br>Transportation payment flow and authorization structure are available.</span>
+      </div>
+    </div>
+  </div>
 
-<div class="card">
-<strong>Ride Requests</strong>
-<span>Operational for approved rider access.</span>
-</div>
+  <div class="section" id="how-it-works">
+    <div class="section-header">
+      <div>
+        <h2>How Harvey Taxi Works</h2>
+        <p class="lead">This section helps Apple review understand the user journey immediately.</p>
+      </div>
+    </div>
 
-<div class="card">
-<strong>Driver Onboarding</strong>
-<span>Driver signup and review available.</span>
-</div>
+    <div class="grid">
+      <div class="card">
+        <strong>1. Create Access</strong>
+        <span>Riders create access through rider signup. Drivers apply through a separate driver onboarding flow.</span>
+      </div>
 
-<div class="card">
-<strong>Payments</strong>
-<span>Transportation payments available.</span>
-</div>
+      <div class="card">
+        <strong>2. Request Transportation</strong>
+        <span>Approved riders submit trip details including pickup and destination information.</span>
+      </div>
 
-</div>
-</div>
+      <div class="card">
+        <strong>3. Dispatch & Mission Flow</strong>
+        <span>Qualified driver access and mission handling help organize ride fulfillment clearly.</span>
+      </div>
+    </div>
 
-<div class="section" id="services">
-<h2>Main Services</h2>
+    <div class="grid">
+      <div class="card">
+        <strong>4. Payment Support</strong>
+        <span>Transportation payment handling supports a cleaner trip workflow and operational control.</span>
+      </div>
 
-<div class="grid">
+      <div class="card">
+        <strong>5. Safety & Oversight</strong>
+        <span>Support resources, policies, onboarding controls, and admin review structure improve trust.</span>
+      </div>
 
-<a class="card" href="request-ride.html">
-<strong>Request Ride</strong>
-<span>Submit pickup and destination.</span>
-</a>
+      <div class="card">
+        <strong>6. Ongoing Expansion</strong>
+        <span>The platform is built to support broader transportation and community mobility services.</span>
+      </div>
+    </div>
+  </div>
 
-<a class="card" href="rider-signup.html">
-<strong>Rider Account</strong>
-<span>Create rider access.</span>
-</a>
+  <div class="section" id="safety">
+    <div class="section-header">
+      <div>
+        <h2>Safety & Trust</h2>
+        <p class="lead">A strong safety section helps your app feel legitimate and review-ready.</p>
+      </div>
+    </div>
 
-<a class="card" href="driver-signup.html">
-<strong>Driver Apply</strong>
-<span>Apply to drive.</span>
-</a>
+    <div class="grid">
+      <div class="card">
+        <strong>Rider Verification</strong>
+        <span>Rider access is organized through an approval-based onboarding structure before ride activity.</span>
+      </div>
 
-</div>
-</div>
+      <div class="card">
+        <strong>Driver Qualification</strong>
+        <span>Driver onboarding includes identity review and qualification steps before active platform participation.</span>
+      </div>
 
-<div class="footer">
+      <div class="card">
+        <strong>Support Access</strong>
+        <span>Users can access support resources, policy pages, and platform guidance from the app experience.</span>
+      </div>
+    </div>
 
-<div>
-<strong>Harvey Taxi</strong>
-<div style="color:var(--muted);font-size:14px;">
-Ride access, payments, and support.
-</div>
-</div>
+    <div class="info-grid">
+      <div class="highlight">
+        <h3>Why riders and drivers can trust Harvey Taxi</h3>
+        <p>
+          Harvey Taxi is designed around structured onboarding, safer access control, service clarity,
+          and a cleaner operational flow. The goal is to reduce confusion, improve trust, and present
+          a more accountable ride experience for riders, drivers, and support stakeholders.
+        </p>
 
-<div class="actions">
-<a class="btn" href="privacy-policy.html">Privacy</a>
-<a class="btn" href="terms.html">Terms</a>
-<a class="btn" href="support.html">Support</a>
-</div>
+        <div class="pill-row">
+          <div class="pill">Structured onboarding</div>
+          <div class="pill">Support resources</div>
+          <div class="pill">Policy transparency</div>
+          <div class="pill">Payment flow</div>
+          <div class="pill">Community assistance</div>
+        </div>
+      </div>
 
-</div>
+      <div class="list">
+        <div class="list-item">
+          <strong>Emergency support path</strong>
+          <span>Support and safety pages can be used to guide users toward assistance resources when needed.</span>
+        </div>
+        <div class="list-item">
+          <strong>Clear user roles</strong>
+          <span>Separate rider and driver experiences reduce confusion and improve flow quality.</span>
+        </div>
+        <div class="list-item">
+          <strong>Review-ready presentation</strong>
+          <span>Explains functionality clearly for users, business partners, and platform reviewers.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section" id="services">
+    <div class="section-header">
+      <div>
+        <h2>Main Services</h2>
+        <p class="lead">Core entry points for riders, drivers, and app reviewers.</p>
+      </div>
+    </div>
+
+    <div class="grid">
+      <a class="card" href="request-ride.html">
+        <strong>Request Ride</strong>
+        <span>Submit transportation details for pickup and destination support.</span>
+      </a>
+
+      <a class="card" href="rider-signup.html">
+        <strong>Rider Account</strong>
+        <span>Create rider access and begin the onboarding process.</span>
+      </a>
+
+      <a class="card" href="driver-signup.html">
+        <strong>Driver Apply</strong>
+        <span>Apply to drive and enter the qualification flow.</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <div>
+        <h2>Service Area</h2>
+        <p class="lead">This tells reviewers exactly who the app is for.</p>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <strong>Nashville</strong>
+        <span>Core ride access and transportation support focus.</span>
+      </div>
+
+      <div class="card">
+        <strong>Davidson County</strong>
+        <span>Regional service support and rider-driver activity base.</span>
+      </div>
+
+      <div class="card">
+        <strong>Tennessee Expansion</strong>
+        <span>Platform architecture is being positioned for statewide availability.</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="section" id="company">
+    <div class="section-header">
+      <div>
+        <h2>Company Information</h2>
+        <p class="lead">This is one of the most important trust sections for Apple review.</p>
+      </div>
+    </div>
+
+    <div class="info-grid">
+      <div class="highlight">
+        <h3>Harvey Taxi Service LLC</h3>
+        <p>
+          Harvey Taxi is a transportation platform focused on trusted ride access, driver onboarding,
+          payment support, and community-centered transportation assistance. The platform is designed
+          to support riders, drivers, and broader mobility services through a modern app experience.
+        </p>
+
+        <div class="pill-row">
+          <div class="pill">Transportation platform</div>
+          <div class="pill">Support resources</div>
+          <div class="pill">Rider onboarding</div>
+          <div class="pill">Driver onboarding</div>
+          <div class="pill">Payment support</div>
+        </div>
+      </div>
+
+      <div class="list">
+        <div class="list-item">
+          <strong>Support Email</strong>
+          <span>williebee@harveytaxiservice.com</span>
+        </div>
+        <div class="list-item">
+          <strong>Company Website</strong>
+          <span>Harvey Taxi Service LLC web platform and support experience.</span>
+        </div>
+        <div class="list-item">
+          <strong>Policy Access</strong>
+          <span>Privacy policy, terms, and support resources are available below.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <div>
+        <h2>Support & Policies</h2>
+        <p class="lead">These links help the app look complete, compliant, and professionally operated.</p>
+      </div>
+    </div>
+
+    <div class="actions">
+      <a class="btn" href="privacy-policy.html">Privacy Policy</a>
+      <a class="btn" href="terms.html">Terms of Service</a>
+      <a class="btn" href="support.html">Support Center</a>
+      <a class="btn success" href="request-ride.html">Open Rider Flow</a>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div>
+      <strong style="display:block;margin-bottom:8px;">Harvey Taxi Service LLC</strong>
+      <p>
+        Trusted ride access, rider onboarding, driver qualification, payment support,
+        and transportation assistance through one intelligent mobility platform.
+      </p>
+    </div>
+
+    <div class="actions">
+      <a class="btn" href="privacy-policy.html">Privacy</a>
+      <a class="btn" href="terms.html">Terms</a>
+      <a class="btn" href="support.html">Support</a>
+    </div>
+  </div>
 
 </div>
 
 <div class="bottom-nav">
-<button class="nav-btn active">Home</button>
-<button class="nav-btn" onclick="location.href='request-ride.html'">Trips</button>
-<button class="nav-btn" onclick="location.href='support.html'">Safety</button>
-<button class="nav-btn" onclick="location.href='#services'">Services</button>
+  <button class="nav-btn active" onclick="location.href='index.html'">Home</button>
+  <button class="nav-btn" onclick="location.href='request-ride.html'">Trips</button>
+  <button class="nav-btn" onclick="location.href='support.html'">Safety</button>
+  <button class="nav-btn" onclick="location.href='#services'">Services</button>
 </div>
 
 </body>
