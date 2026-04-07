@@ -40,6 +40,10 @@ export default function RequestRideScreen({ onNavigate }) {
 
   const [locationApproved, setLocationApproved] = useState(false);
   const [loadingLocation, setLoadingLocation] = useState(false);
+  const [locationText, setLocationText] = useState(
+    "Location access is recommended for pickup coordination. You can also continue by entering your pickup address manually."
+  );
+  const [currentCoords, setCurrentCoords] = useState(null);
 
   const [currentEstimate, setCurrentEstimate] = useState(null);
   const [paymentAuthorized, setPaymentAuthorized] = useState(false);
@@ -48,30 +52,89 @@ export default function RequestRideScreen({ onNavigate }) {
   const [loadingRide, setLoadingRide] = useState(false);
 
   useEffect(() => {
-    askForLocation();
+    checkExistingLocationPermission();
   }, []);
+
+  async function checkExistingLocationPermission() {
+    try {
+      setLoadingLocation(true);
+
+      const existing = await Location.getForegroundPermissionsAsync();
+
+      if (existing.status === "granted") {
+        setLocationApproved(true);
+        setLocationText("Location access is enabled. Harvey Taxi can use your device location for better pickup coordination.");
+        await getCurrentDeviceLocation();
+      } else {
+        setLocationApproved(false);
+        setLocationText(
+          "Location access is not enabled yet. You can enable it now or continue by entering your pickup address manually."
+        );
+      }
+    } catch (error) {
+      setLocationApproved(false);
+      setLocationText(
+        "Unable to confirm location status right now. You can still continue with manual pickup address entry."
+      );
+    } finally {
+      setLoadingLocation(false);
+    }
+  }
+
+  async function getCurrentDeviceLocation() {
+    try {
+      const position = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced
+      });
+
+      setCurrentCoords({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude
+      });
+
+      setLocationApproved(true);
+      setLocationText("Location enabled successfully. You can continue with ride details below.");
+    } catch (error) {
+      setLocationApproved(true);
+      setLocationText(
+        "Location permission is enabled, but we could not fetch your exact position right now. You can still continue by typing your pickup address."
+      );
+    }
+  }
 
   async function askForLocation() {
     try {
       setLoadingLocation(true);
+      setLocationText("Requesting location access...");
 
-      const { status } = await Location.requestForegroundPermissionsAsync();
+      const permission = await Location.requestForegroundPermissionsAsync();
 
-      if (status !== "granted") {
+      if (permission.status !== "granted") {
         setLocationApproved(false);
+        setCurrentCoords(null);
+        setLocationText(
+          "Location access was not granted. You can still continue by entering your pickup address manually."
+        );
         Alert.alert(
-          "Location Required",
-          "Harvey Taxi needs location access for pickup coordination and ride flow."
+          "Location Not Enabled",
+          "You can still use Harvey Taxi by entering your pickup address manually."
         );
         return;
       }
 
       setLocationApproved(true);
+      setLocationText("Location access granted. Getting your current location...");
+
+      await getCurrentDeviceLocation();
     } catch (error) {
       setLocationApproved(false);
+      setCurrentCoords(null);
+      setLocationText(
+        "Unable to request location access right now. You can still continue manually."
+      );
       Alert.alert(
         "Location Error",
-        "Unable to request location access right now."
+        "Unable to request location access right now. Please enter your pickup address manually."
       );
     } finally {
       setLoadingLocation(false);
@@ -120,14 +183,6 @@ export default function RequestRideScreen({ onNavigate }) {
   }
 
   async function handleEstimate() {
-    if (!locationApproved) {
-      Alert.alert(
-        "Location Required",
-        "Enable location access before getting a fare estimate."
-      );
-      return;
-    }
-
     if (!pickupAddress.trim() || !dropoffAddress.trim()) {
       Alert.alert(
         "Missing Info",
@@ -167,14 +222,6 @@ export default function RequestRideScreen({ onNavigate }) {
   }
 
   async function handleAuthorizePayment() {
-    if (!locationApproved) {
-      Alert.alert(
-        "Location Required",
-        "Enable location access before securing payment."
-      );
-      return;
-    }
-
     if (!riderId.trim()) {
       Alert.alert(
         "Missing Rider ID",
@@ -231,14 +278,6 @@ export default function RequestRideScreen({ onNavigate }) {
   }
 
   async function handleRequestRide() {
-    if (!locationApproved) {
-      Alert.alert(
-        "Location Required",
-        "Enable location access before requesting a ride."
-      );
-      return;
-    }
-
     if (!riderId.trim()) {
       Alert.alert("Missing Rider ID", "Enter your rider ID.");
       return;
@@ -292,7 +331,8 @@ export default function RequestRideScreen({ onNavigate }) {
         dropoffAddress: dropoffAddress.trim(),
         rideType,
         passengerCount: 1,
-        riderLocationApproved: true,
+        riderLocationApproved: locationApproved,
+        riderCoordinates: currentCoords || null,
         specialInstructions: [
           firstName ? `Passenger: ${firstName}` : "",
           phone ? `Phone: ${phone}` : "",
@@ -300,7 +340,10 @@ export default function RequestRideScreen({ onNavigate }) {
           notes ? `Notes: ${notes}` : "",
           `Payment Method: ${
             paymentMethod === "apple_pay" ? "Apple Pay" : "Card"
-          }`
+          }`,
+          locationApproved
+            ? "Location Permission: Enabled"
+            : "Location Permission: Manual Address Entry"
         ]
           .filter(Boolean)
           .join(" | ")
@@ -357,20 +400,46 @@ export default function RequestRideScreen({ onNavigate }) {
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Location Status</Text>
-        <Text style={styles.cardText}>
-          {locationApproved
-            ? "Location access is enabled."
-            : "Location access is required before continuing."}
-        </Text>
+        <Text style={styles.cardText}>{locationText}</Text>
+
+        <View style={styles.statusBox}>
+          <Text style={styles.statusLabel}>Location Permission</Text>
+          <Text style={styles.statusText}>
+            {locationApproved ? "Enabled" : "Manual entry mode available"}
+          </Text>
+          <Text
+            style={[
+              styles.statusValue,
+              !locationApproved && styles.statusValueWarning
+            ]}
+          >
+            {locationApproved ? "Ready" : "Optional"}
+          </Text>
+        </View>
+
+        {currentCoords && (
+          <View style={styles.statusBox}>
+            <Text style={styles.statusLabel}>Device Location</Text>
+            <Text style={styles.statusText}>
+              Current device coordinates captured successfully for pickup support.
+            </Text>
+            <Text style={styles.statusValue}>Connected</Text>
+          </View>
+        )}
 
         <TouchableOpacity
           style={styles.secondaryButton}
           onPress={askForLocation}
+          disabled={loadingLocation}
         >
           <Text style={styles.secondaryButtonText}>
             {loadingLocation ? "Requesting Location..." : "Enable Location"}
           </Text>
         </TouchableOpacity>
+
+        <Text style={styles.helperText}>
+          You can still continue by typing your pickup address manually.
+        </Text>
       </View>
 
       <View style={styles.card}>
@@ -379,13 +448,27 @@ export default function RequestRideScreen({ onNavigate }) {
         <View style={styles.statusBox}>
           <Text style={styles.statusLabel}>Verification Status</Text>
           <Text style={styles.statusText}>{verificationText}</Text>
-          <Text style={styles.statusValue}>{verificationStatus}</Text>
+          <Text
+            style={[
+              styles.statusValue,
+              verificationStatus !== "Approved" && styles.statusValueWarning
+            ]}
+          >
+            {verificationStatus}
+          </Text>
         </View>
 
         <View style={styles.statusBox}>
           <Text style={styles.statusLabel}>Payment Status</Text>
           <Text style={styles.statusText}>{paymentText}</Text>
-          <Text style={styles.statusValue}>{paymentStatus}</Text>
+          <Text
+            style={[
+              styles.statusValue,
+              paymentStatus !== "Secured" && styles.statusValueWarning
+            ]}
+          >
+            {paymentStatus}
+          </Text>
         </View>
       </View>
 
@@ -415,6 +498,7 @@ export default function RequestRideScreen({ onNavigate }) {
           placeholderTextColor="rgba(244,247,255,0.46)"
           value={phone}
           onChangeText={setPhone}
+          keyboardType="phone-pad"
         />
 
         <TextInput
@@ -496,6 +580,7 @@ export default function RequestRideScreen({ onNavigate }) {
         <TouchableOpacity
           style={styles.secondaryButton}
           onPress={handleEstimate}
+          disabled={loadingEstimate}
         >
           <Text style={styles.secondaryButtonText}>
             {loadingEstimate ? "Getting Estimate..." : "Get Fare Estimate"}
@@ -505,6 +590,7 @@ export default function RequestRideScreen({ onNavigate }) {
         <TouchableOpacity
           style={styles.secondaryButton}
           onPress={handleAuthorizePayment}
+          disabled={loadingPayment}
         >
           <Text style={styles.secondaryButtonText}>
             {loadingPayment ? "Securing Payment..." : "Secure Payment"}
@@ -543,13 +629,14 @@ export default function RequestRideScreen({ onNavigate }) {
         <TouchableOpacity
           style={styles.primaryButton}
           onPress={handleRequestRide}
+          disabled={loadingRide}
         >
           <Text style={styles.primaryButtonText}>
             {loadingRide ? "Requesting Ride..." : "Request Ride"}
           </Text>
         </TouchableOpacity>
 
-        {(loadingEstimate || loadingPayment || loadingRide) && (
+        {(loadingLocation || loadingEstimate || loadingPayment || loadingRide) && (
           <ActivityIndicator
             size="small"
             color="#63f5ff"
@@ -638,6 +725,15 @@ const styles = StyleSheet.create({
     color: "#6dffb3",
     fontSize: 15,
     fontWeight: "800"
+  },
+  statusValueWarning: {
+    color: "#ffd76a"
+  },
+  helperText: {
+    color: "#aab8de",
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 10
   },
   input: {
     backgroundColor: "rgba(15,23,52,0.72)",
