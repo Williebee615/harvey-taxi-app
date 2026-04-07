@@ -3,533 +3,581 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Harvey Taxi | Rider Sign Up</title>
-  <meta
-    name="description"
-    content="Create your Harvey Taxi rider account and complete rider onboarding."
-  />
+  <title>Harvey Taxi — Rider Sign Up</title>
   <style>
-    :root {
-      --bg-1: #040814;
-      --bg-2: #091126;
-      --bg-3: #101a36;
-      --panel: rgba(10, 18, 42, 0.92);
-      --line: rgba(111, 170, 255, 0.2);
-      --line-strong: rgba(111, 170, 255, 0.38);
-      --text: #f4f8ff;
-      --muted: #b9c7e8;
-      --blue: #68a8ff;
-      --cyan: #62f5ff;
-      --green: #71ffb7;
-      --danger: #ff7e90;
-      --shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+    :root{
+      --bg1:#040814;
+      --bg2:#091126;
+      --panel:rgba(10,17,38,.88);
+      --panel2:rgba(15,23,52,.72);
+      --line:rgba(122,162,255,.16);
+      --text:#f4f7ff;
+      --muted:#aab8de;
+      --blue:#5ea0ff;
+      --cyan:#63f5ff;
+      --green:#6dffb3;
+      --danger:#ff7e97;
+      --gold:#ffd76a;
+      --shadow:0 20px 70px rgba(0,0,0,.35);
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    *{box-sizing:border-box;margin:0;padding:0}
 
-    html,
-    body {
-      min-height: 100%;
-    }
-
-    body {
-      min-height: 100vh;
-      font-family: Inter, Arial, sans-serif;
-      color: var(--text);
+    body{
+      font-family:Inter,Arial,sans-serif;
+      color:var(--text);
       background:
-        radial-gradient(circle at top left, rgba(98,245,255,0.12), transparent 28%),
-        radial-gradient(circle at top right, rgba(104,168,255,0.12), transparent 24%),
-        linear-gradient(160deg, var(--bg-1), var(--bg-2) 45%, var(--bg-3));
+        radial-gradient(circle at top left, rgba(99,245,255,.12), transparent 28%),
+        radial-gradient(circle at top right, rgba(94,160,255,.10), transparent 24%),
+        linear-gradient(160deg,var(--bg1),var(--bg2));
+      min-height:100vh;
     }
 
-    a {
-      text-decoration: none;
-      color: inherit;
+    .shell{
+      max-width:860px;
+      margin:auto;
+      padding:20px 16px 40px;
     }
 
-    .shell {
-      width: min(100%, 880px);
-      margin: 0 auto;
-      padding: 18px 16px 110px;
+    .topbar{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      margin-bottom:20px;
     }
 
-    .topbar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      padding: 16px 18px;
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      background: rgba(7, 14, 31, 0.62);
-      backdrop-filter: blur(14px);
-      box-shadow: var(--shadow);
-      position: sticky;
-      top: 12px;
-      z-index: 50;
+    .brand{
+      font-size:1.25rem;
+      font-weight:800;
+      letter-spacing:.4px;
     }
 
-    .brand-wrap {
-      display: flex;
-      align-items: center;
-      gap: 12px;
+    .brand span{color:var(--cyan)}
+
+    .home-btn{
+      text-decoration:none;
+      color:var(--text);
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.04);
+      padding:10px 14px;
+      border-radius:999px;
+      font-weight:700;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
     }
 
-    .brand-mark {
-      width: 44px;
-      height: 44px;
-      border-radius: 14px;
-      background:
-        radial-gradient(circle at 30% 30%, rgba(255,255,255,0.95), rgba(255,255,255,0.1) 18%, transparent 20%),
-        linear-gradient(145deg, rgba(104,168,255,0.95), rgba(98,245,255,0.45), rgba(113,255,183,0.25));
-      box-shadow: 0 0 18px rgba(98,245,255,0.2), inset 0 0 18px rgba(255,255,255,0.08);
+    .hero{
+      background:linear-gradient(180deg,rgba(17,31,66,.88),rgba(8,16,35,.92));
+      border:1px solid var(--line);
+      border-radius:28px;
+      padding:22px;
+      box-shadow:var(--shadow);
+      margin-bottom:18px;
     }
 
-    .brand h1 {
-      font-size: 1rem;
-      font-weight: 800;
-      letter-spacing: 0.06em;
+    .hero h1{
+      font-size:1.6rem;
+      margin-bottom:8px;
     }
 
-    .brand p {
-      color: var(--muted);
-      font-size: 0.82rem;
-      margin-top: 2px;
+    .hero p{
+      color:var(--muted);
+      line-height:1.55;
     }
 
-    .mini-btn,
-    .btn,
-    .secondary-btn {
-      border: none;
-      cursor: pointer;
-      transition: 0.25s ease;
-      font-weight: 800;
-      font-family: inherit;
+    .grid{
+      display:grid;
+      grid-template-columns:1fr;
+      gap:18px;
     }
 
-    .mini-btn {
-      padding: 10px 14px;
-      border-radius: 999px;
-      background: rgba(255,255,255,0.04);
-      color: var(--text);
-      border: 1px solid var(--line);
-      font-size: 0.88rem;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
+    .card{
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:24px;
+      padding:20px;
+      box-shadow:var(--shadow);
     }
 
-    .mini-btn:hover,
-    .btn:hover,
-    .secondary-btn:hover {
-      transform: translateY(-2px);
+    .section-title{
+      font-size:1.08rem;
+      font-weight:800;
+      margin-bottom:14px;
     }
 
-    .page {
-      margin-top: 22px;
-      display: grid;
-      grid-template-columns: 1.1fr 0.9fr;
-      gap: 18px;
+    .sub{
+      color:var(--muted);
+      font-size:.95rem;
+      margin-bottom:16px;
+      line-height:1.5;
     }
 
-    .hero,
-    .panel {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 28px;
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(16px);
+    .field{
+      margin-bottom:14px;
     }
 
-    .hero {
-      padding: 28px;
+    .field label{
+      display:block;
+      margin-bottom:8px;
+      color:var(--muted);
+      font-size:.92rem;
+      font-weight:700;
     }
 
-    .eyebrow {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      border: 1px solid var(--line-strong);
-      padding: 9px 14px;
-      border-radius: 999px;
-      color: var(--cyan);
-      font-weight: 700;
-      font-size: 0.88rem;
-      background: rgba(98,245,255,0.06);
-      margin-bottom: 18px;
+    .input, select, textarea{
+      width:100%;
+      background:var(--panel2);
+      color:var(--text);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:16px;
+      padding:14px 14px;
+      outline:none;
+      font-size:1rem;
     }
 
-    .hero h2 {
-      font-size: clamp(2rem, 4vw, 3.5rem);
-      line-height: 1.02;
-      font-weight: 900;
-      letter-spacing: -0.03em;
+    .input::placeholder,
+    textarea::placeholder{
+      color:rgba(244,247,255,.46);
     }
 
-    .hero h2 span {
-      background: linear-gradient(90deg, #ffffff, #89c0ff, #72fff0);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+    .row{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:14px;
     }
 
-    .hero p {
-      margin-top: 14px;
-      color: var(--muted);
-      line-height: 1.7;
-      font-size: 1rem;
+    .doc-row{
+      display:grid;
+      grid-template-columns:1fr 1fr 1fr;
+      gap:10px;
+      margin-top:8px;
     }
 
-    .benefits {
-      display: grid;
-      gap: 12px;
-      margin-top: 20px;
+    .choice{
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.04);
+      color:var(--text);
+      padding:12px 14px;
+      border-radius:16px;
+      font-weight:700;
+      text-align:center;
+      cursor:pointer;
+      transition:.2s ease;
     }
 
-    .benefit {
-      padding: 14px 15px;
-      border-radius: 16px;
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(255,255,255,0.07);
+    .choice.active{
+      border-color:rgba(99,245,255,.5);
+      background:rgba(99,245,255,.12);
+      color:#dfffff;
     }
 
-    .benefit strong {
-      display: block;
-      margin-bottom: 6px;
+    .status-box{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:14px;
     }
 
-    .benefit span {
-      color: var(--muted);
-      line-height: 1.55;
-      font-size: 0.92rem;
+    .mini{
+      background:rgba(255,255,255,.035);
+      border:1px solid var(--line);
+      border-radius:18px;
+      padding:14px;
     }
 
-    .panel {
-      padding: 24px;
+    .mini h3{
+      font-size:.95rem;
+      margin-bottom:8px;
     }
 
-    .panel h3 {
-      font-size: 1.25rem;
-      margin-bottom: 8px;
+    .tag{
+      display:inline-block;
+      margin-top:8px;
+      padding:7px 10px;
+      border-radius:999px;
+      font-size:.8rem;
+      font-weight:800;
     }
 
-    .panel-sub {
-      color: var(--muted);
-      line-height: 1.65;
-      margin-bottom: 18px;
+    .ok{background:rgba(109,255,179,.12);color:var(--green);border:1px solid rgba(109,255,179,.2)}
+    .warn{background:rgba(255,215,106,.12);color:var(--gold);border:1px solid rgba(255,215,106,.2)}
+    .bad{background:rgba(255,126,151,.12);color:var(--danger);border:1px solid rgba(255,126,151,.2)}
+
+    .btn-row{
+      display:flex;
+      gap:12px;
+      flex-wrap:wrap;
+      margin-top:16px;
     }
 
-    .form-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
+    button{
+      border:none;
+      cursor:pointer;
+      border-radius:16px;
+      padding:14px 18px;
+      font-size:1rem;
+      font-weight:800;
+      transition:.2s ease;
     }
 
-    .field {
-      display: grid;
-      gap: 8px;
-      margin-bottom: 16px;
+    .primary{
+      background:linear-gradient(90deg,var(--blue),var(--cyan));
+      color:#041224;
+      flex:1;
     }
 
-    .field.full {
-      grid-column: 1 / -1;
+    .secondary{
+      background:rgba(255,255,255,.05);
+      color:var(--text);
+      border:1px solid var(--line);
+      flex:1;
     }
 
-    .field label {
-      font-weight: 800;
-      font-size: 0.96rem;
+    .result{
+      margin-top:16px;
+      display:none;
+      padding:16px;
+      border-radius:18px;
+      border:1px solid rgba(109,255,179,.18);
+      background:rgba(109,255,179,.08);
+      color:#dffff0;
+      line-height:1.6;
     }
 
-    .field small {
-      color: var(--muted);
-      font-size: 0.82rem;
-      line-height: 1.5;
+    .error{
+      margin-top:16px;
+      display:none;
+      padding:16px;
+      border-radius:18px;
+      border:1px solid rgba(255,126,151,.2);
+      background:rgba(255,126,151,.08);
+      color:#ffd9e1;
+      line-height:1.6;
     }
 
-    input {
-      width: 100%;
-      padding: 16px 18px;
-      border-radius: 18px;
-      border: 1px solid rgba(34,81,182,0.5);
-      background: rgba(0,12,52,0.88);
-      color: var(--text);
-      font-size: 1rem;
-      outline: none;
-      transition: 0.25s ease;
+    .note{
+      margin-top:12px;
+      padding:12px 14px;
+      border-radius:16px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.035);
+      color:var(--muted);
+      line-height:1.5;
+      font-size:.92rem;
     }
 
-    input::placeholder {
-      color: rgba(244,248,255,0.62);
-    }
-
-    input:focus {
-      border-color: var(--blue);
-      box-shadow: 0 0 0 3px rgba(104,168,255,0.16);
-    }
-
-    .notice {
-      padding: 14px 16px;
-      border-radius: 16px;
-      margin-bottom: 18px;
-      background: rgba(104,168,255,0.08);
-      border: 1px solid rgba(104,168,255,0.16);
-      color: var(--muted);
-      line-height: 1.6;
-      font-size: 0.92rem;
-    }
-
-    .btn,
-    .secondary-btn {
-      width: 100%;
-      padding: 18px 20px;
-      border-radius: 18px;
-      font-size: 1rem;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .btn-primary {
-      color: #08111f;
-      background: linear-gradient(135deg, var(--cyan), var(--blue), #9dbeff);
-    }
-
-    .secondary-btn {
-      display: none;
-      margin-top: 12px;
-      text-align: center;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid var(--line);
-      color: var(--text);
-    }
-
-    .secondary-btn.show {
-      display: inline-flex;
-    }
-
-    .btn:disabled {
-      opacity: 0.7;
-      cursor: not-allowed;
-      transform: none;
-    }
-
-    .status {
-      display: none;
-      margin-top: 16px;
-      padding: 15px 16px;
-      border-radius: 16px;
-      line-height: 1.6;
-      font-size: 0.94rem;
-      word-break: break-word;
-    }
-
-    .status.show {
-      display: block;
-    }
-
-    .status.success {
-      background: rgba(113,255,183,0.12);
-      border: 1px solid rgba(113,255,183,0.22);
-      color: #dbfff0;
-    }
-
-    .status.error {
-      background: rgba(255,126,144,0.12);
-      border: 1px solid rgba(255,126,144,0.22);
-      color: #ffd7df;
-    }
-
-    .return-home {
-      position: fixed;
-      right: 16px;
-      bottom: 16px;
-      z-index: 60;
-      padding: 15px 20px;
-      border-radius: 999px;
-      background: linear-gradient(135deg, var(--cyan), var(--blue));
-      color: #08111f;
-      font-weight: 800;
-      box-shadow: var(--shadow);
-    }
-
-    @media (max-width: 860px) {
-      .page,
-      .form-grid {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    @media (max-width: 640px) {
-      .topbar {
-        flex-direction: column;
-        align-items: flex-start;
-        border-radius: 24px;
-      }
-
-      .return-home {
-        left: 12px;
-        right: 12px;
-        text-align: center;
+    @media (max-width: 760px){
+      .row,
+      .status-box,
+      .doc-row{
+        grid-template-columns:1fr;
       }
     }
   </style>
 </head>
 <body>
   <div class="shell">
-    <header class="topbar">
-      <div class="brand-wrap">
-        <div class="brand-mark"></div>
-        <div class="brand">
-          <h1>HARVEY TAXI</h1>
-          <p>Rider Access Portal</p>
+    <div class="topbar">
+      <div class="brand">Harvey <span>Taxi</span></div>
+      <a class="home-btn" href="/">← Return Home</a>
+    </div>
+
+    <div class="hero">
+      <h1>Rider Sign Up</h1>
+      <p>
+        Create your Harvey Taxi rider account to begin the protected rider onboarding flow.
+        Rider approval is required before ride requests can be submitted.
+      </p>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="section-title">Rider Account Setup</div>
+        <div class="sub">
+          Enter your information below. Riders may verify using a driver license, state ID, or passport.
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label for="firstName">First Name</label>
+            <input class="input" id="firstName" placeholder="Enter first name" />
+          </div>
+          <div class="field">
+            <label for="lastName">Last Name</label>
+            <input class="input" id="lastName" placeholder="Enter last name" />
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label for="email">Email Address</label>
+            <input class="input" id="email" type="email" placeholder="Enter email address" />
+          </div>
+          <div class="field">
+            <label for="phone">Phone Number</label>
+            <input class="input" id="phone" placeholder="Enter phone number" />
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label for="city">City</label>
+            <input class="input" id="city" placeholder="Enter city" />
+          </div>
+          <div class="field">
+            <label for="state">State</label>
+            <input class="input" id="state" placeholder="Enter state" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="dateOfBirth">Date of Birth</label>
+          <input class="input" id="dateOfBirth" type="date" />
+        </div>
+
+        <div class="field">
+          <label>Rider Verification Document</label>
+          <div class="doc-row">
+            <button type="button" class="choice active" data-doc="driver_license">Driver License</button>
+            <button type="button" class="choice" data-doc="state_id">State ID</button>
+            <button type="button" class="choice" data-doc="passport">Passport</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="emergencyContact">Emergency Contact (optional)</label>
+          <input class="input" id="emergencyContact" placeholder="Enter emergency contact name and phone" />
+        </div>
+
+        <div class="field">
+          <label for="notes">Account Notes (optional)</label>
+          <textarea id="notes" placeholder="Add any helpful rider information"></textarea>
+        </div>
+
+        <div class="btn-row">
+          <button class="secondary" id="checkBtn" type="button">Check Rider Status</button>
+          <button class="primary" id="signupBtn" type="button">Create Rider Account</button>
+        </div>
+
+        <div class="result" id="resultBox"></div>
+        <div class="error" id="errorBox"></div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Rider Approval Status</div>
+        <div class="sub">
+          Harvey Taxi requires rider approval before a ride can be requested.
+        </div>
+
+        <div class="status-box">
+          <div class="mini">
+            <h3>Account Status</h3>
+            <div id="accountText">No rider account checked yet.</div>
+            <div id="accountTag" class="tag warn">Pending</div>
+          </div>
+
+          <div class="mini">
+            <h3>Verification Method</h3>
+            <div id="documentText">Driver License selected.</div>
+            <div id="documentTag" class="tag ok">Ready</div>
+          </div>
+        </div>
+
+        <div class="note">
+          After signup, your rider profile can be reviewed and approved before access to the ride request flow is granted.
         </div>
       </div>
-      <a class="mini-btn" href="index.html">Return Home</a>
-    </header>
-
-    <main class="page">
-      <section class="hero">
-        <div class="eyebrow">Secure rider onboarding</div>
-        <h2>Create your <span>rider account</span></h2>
-        <p>
-          Join Harvey Taxi through a cleaner rider onboarding experience designed for
-          secure platform access, safer account creation, and future service expansion.
-        </p>
-
-        <div class="benefits">
-          <div class="benefit">
-            <strong>Fast account setup</strong>
-            <span>Your rider profile is created quickly so you can move into the next onboarding step without delays.</span>
-          </div>
-          <div class="benefit">
-            <strong>Verification-aware access</strong>
-            <span>Your rider account can be created now, but ride requests stay locked until rider verification is approved.</span>
-          </div>
-          <div class="benefit">
-            <strong>Platform-ready profile</strong>
-            <span>Your rider profile is built to connect with rides, safety tools, support, and future Harvey Taxi services.</span>
-          </div>
-        </div>
-      </section>
-
-      <section class="panel">
-        <h3>Rider Sign Up</h3>
-        <p class="panel-sub">
-          Enter your details to create your Harvey Taxi rider account.
-        </p>
-
-        <div class="notice">
-          Rider accounts are created now, but ride requests stay locked until rider verification is approved.
-        </div>
-
-        <form id="riderSignupForm">
-          <div class="form-grid">
-            <div class="field">
-              <label for="fullName">Full Name</label>
-              <input type="text" id="fullName" name="fullName" placeholder="Enter your full name" required />
-            </div>
-
-            <div class="field">
-              <label for="phone">Phone Number</label>
-              <input type="tel" id="phone" name="phone" placeholder="Enter your phone number" required />
-            </div>
-
-            <div class="field full">
-              <label for="email">Email Address</label>
-              <input type="email" id="email" name="email" placeholder="Enter your email address" required />
-            </div>
-
-            <div class="field full">
-              <label for="homeAddress">Home Address</label>
-              <input
-                type="text"
-                id="homeAddress"
-                name="homeAddress"
-                placeholder="Street address, city, state, ZIP"
-                required
-              />
-              <small>This supports a more complete rider profile for your account and service access.</small>
-            </div>
-          </div>
-
-          <button type="submit" class="btn btn-primary" id="submitBtn">Create Rider Account</button>
-          <div id="statusMessage" class="status"></div>
-          <a id="continueBtn" class="secondary-btn" href="request-ride.html">Continue to Request Ride</a>
-        </form>
-      </section>
-    </main>
+    </div>
   </div>
 
-  <a href="index.html" class="return-home">Return Home</a>
-
   <script>
-    const riderForm = document.getElementById("riderSignupForm");
-    const riderStatus = document.getElementById("statusMessage");
-    const submitBtn = document.getElementById("submitBtn");
-    const continueBtn = document.getElementById("continueBtn");
+    let selectedDocumentType = "driver_license";
 
-    function showStatus(type, message) {
-      riderStatus.className = `status show ${type}`;
-      riderStatus.textContent = message;
+    const docButtons = document.querySelectorAll(".choice");
+    const resultBox = document.getElementById("resultBox");
+    const errorBox = document.getElementById("errorBox");
+    const accountText = document.getElementById("accountText");
+    const accountTag = document.getElementById("accountTag");
+    const documentText = document.getElementById("documentText");
+
+    docButtons.forEach(btn => {
+      btn.addEventListener("click", () => {
+        docButtons.forEach(item => item.classList.remove("active"));
+        btn.classList.add("active");
+        selectedDocumentType = btn.dataset.doc;
+
+        const labelMap = {
+          driver_license: "Driver License selected.",
+          state_id: "State ID selected.",
+          passport: "Passport selected."
+        };
+
+        documentText.textContent = labelMap[selectedDocumentType] || "Verification method selected.";
+      });
+    });
+
+    function showError(message){
+      errorBox.style.display = "block";
+      errorBox.textContent = message;
+      resultBox.style.display = "none";
+      resultBox.innerHTML = "";
     }
 
-    riderForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
+    function showResult(message){
+      resultBox.style.display = "block";
+      resultBox.innerHTML = message;
+      errorBox.style.display = "none";
+      errorBox.textContent = "";
+    }
 
-      riderStatus.className = "status";
-      riderStatus.textContent = "";
-      continueBtn.classList.remove("show");
+    function clearMessages(){
+      resultBox.style.display = "none";
+      resultBox.innerHTML = "";
+      errorBox.style.display = "none";
+      errorBox.textContent = "";
+    }
 
-      submitBtn.disabled = true;
-      submitBtn.textContent = "Creating Rider Account...";
-
-      const payload = {
-        fullName: document.getElementById("fullName").value.trim(),
-        phone: document.getElementById("phone").value.trim(),
+    function getFormData(){
+      return {
+        firstName: document.getElementById("firstName").value.trim(),
+        lastName: document.getElementById("lastName").value.trim(),
         email: document.getElementById("email").value.trim(),
-        homeAddress: document.getElementById("homeAddress").value.trim()
+        phone: document.getElementById("phone").value.trim(),
+        city: document.getElementById("city").value.trim(),
+        state: document.getElementById("state").value.trim(),
+        dateOfBirth: document.getElementById("dateOfBirth").value.trim(),
+        emergencyContact: document.getElementById("emergencyContact").value.trim(),
+        notes: document.getElementById("notes").value.trim(),
+        verificationDocumentType: selectedDocumentType
       };
+    }
 
-      try {
+    function validatePayload(payload){
+      if(!payload.firstName) return "First name is required.";
+      if(!payload.lastName) return "Last name is required.";
+      if(!payload.email) return "Email is required.";
+      if(!payload.phone) return "Phone number is required.";
+      if(!payload.city || !payload.state) return "City and state are required.";
+      if(!payload.dateOfBirth) return "Date of birth is required.";
+      return "";
+    }
+
+    async function createRiderAccount(){
+      clearMessages();
+
+      const payload = getFormData();
+      const validationError = validatePayload(payload);
+
+      if(validationError){
+        showError(validationError);
+        return;
+      }
+
+      try{
         const res = await fetch("/api/rider/signup", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
+          body: JSON.stringify({
+            firstName: payload.firstName,
+            lastName: payload.lastName,
+            email: payload.email,
+            phone: payload.phone,
+            city: payload.city,
+            state: payload.state,
+            dateOfBirth: payload.dateOfBirth,
+            emergencyContact: payload.emergencyContact,
+            notes: payload.notes,
+            verificationDocumentType: payload.verificationDocumentType
+          })
         });
 
         const data = await res.json().catch(() => ({}));
 
-        if (!res.ok) {
-          throw new Error(data.error || data.message || "Unable to create rider account.");
+        if(!res.ok || !data.ok){
+          showError(data.error || data.message || "Unable to create rider account.");
+          return;
         }
 
-        showStatus(
-          "success",
-          data.message || "Rider account created successfully."
-        );
-
-        if (data.rider && data.rider.id) {
-          localStorage.setItem("harveyRiderId", data.rider.id);
-          localStorage.setItem("harveyRiderEmail", data.rider.email || "");
-          localStorage.setItem("harveyRiderName", data.rider.fullName || "");
+        const riderId = data.rider?.id || data.id || "";
+        if(riderId){
+          localStorage.setItem("harveyRiderId", riderId);
         }
 
-        continueBtn.classList.add("show");
-        riderForm.reset();
-      } catch (error) {
-        showStatus(
-          "error",
-          error.message || "Unable to create rider account right now. Please try again."
-        );
-        console.error("Rider signup error:", error);
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = "Create Rider Account";
+        accountText.textContent = "Your rider account has been created and is waiting for approval.";
+        accountTag.className = "tag warn";
+        accountTag.textContent = "Pending";
+
+        showResult(`
+          <strong>Rider Account Created</strong><br><br>
+          Your Harvey Taxi rider account has been created successfully.<br><br>
+          <strong>Rider ID:</strong> ${riderId || "Created"}<br>
+          <strong>Status:</strong> Pending Approval<br>
+          <strong>Verification Type:</strong> ${payload.verificationDocumentType.replace("_", " ")}
+        `);
+      }catch(err){
+        showError("Unable to reach the rider signup service.");
       }
-    });
+    }
+
+    async function checkRiderStatus(){
+      clearMessages();
+
+      const storedRiderId = localStorage.getItem("harveyRiderId");
+
+      if(!storedRiderId){
+        showError("No saved rider account found yet. Create your rider account first.");
+        return;
+      }
+
+      try{
+        const res = await fetch("/api/riders");
+        const data = await res.json().catch(() => ({}));
+
+        if(!res.ok || !data.ok || !Array.isArray(data.riders)){
+          showError("Unable to load rider account status.");
+          return;
+        }
+
+        const rider = data.riders.find(item => item.id === storedRiderId);
+
+        if(!rider){
+          accountText.textContent = "Saved rider account could not be found.";
+          accountTag.className = "tag bad";
+          accountTag.textContent = "Not Found";
+          showError("Saved rider account could not be found.");
+          return;
+        }
+
+        const approved = !!rider.riderApproved;
+
+        accountText.textContent = approved
+          ? "Your rider account is approved and ready for ride access."
+          : "Your rider account exists and is still waiting for approval.";
+
+        accountTag.className = `tag ${approved ? "ok" : "warn"}`;
+        accountTag.textContent = approved ? "Approved" : "Pending";
+
+        showResult(`
+          <strong>Rider Status Checked</strong><br><br>
+          <strong>Rider ID:</strong> ${rider.id}<br>
+          <strong>Name:</strong> ${rider.firstName || ""} ${rider.lastName || ""}<br>
+          <strong>Status:</strong> ${approved ? "Approved" : "Pending Approval"}
+        `);
+      }catch(err){
+        showError("Unable to check rider status right now.");
+      }
+    }
+
+    document.getElementById("signupBtn").addEventListener("click", createRiderAccount);
+    document.getElementById("checkBtn").addEventListener("click", checkRiderStatus);
+
+    const savedRiderId = localStorage.getItem("harveyRiderId");
+    if(savedRiderId){
+      accountText.textContent = "Saved rider account found. You can check your status now.";
+      accountTag.className = "tag warn";
+      accountTag.textContent = "Saved";
+    }
   </script>
 </body>
 </html>
