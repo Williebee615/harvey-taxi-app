@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -433,20 +433,9 @@
           </div>
         </div>
 
-        <div class="row">
-          <div class="field">
-            <label for="city">City</label>
-            <input class="input" id="city" placeholder="Enter city" />
-          </div>
-          <div class="field">
-            <label for="state">State</label>
-            <input class="input" id="state" placeholder="Enter state" />
-          </div>
-        </div>
-
         <div class="field">
-          <label for="pickup">Pickup Location</label>
-          <input class="input" id="pickup" placeholder="Business name, landmark, or area" />
+          <label for="pickup">Pickup Address</label>
+          <input class="input" id="pickup" placeholder="Enter pickup address" />
         </div>
 
         <div class="field">
@@ -589,19 +578,11 @@
       locationStatusText.textContent = message;
     }
 
-    function buildPickupAddress(payload){
-      return [payload.pickupAddress, payload.city, payload.state]
-        .filter(Boolean)
-        .join(", ");
-    }
-
     function getFormData(){
       return {
         riderId: document.getElementById("riderId").value.trim(),
         passengerFirstName: document.getElementById("firstName").value.trim(),
         passengerPhone: document.getElementById("phone").value.trim(),
-        city: document.getElementById("city").value.trim(),
-        state: document.getElementById("state").value.trim(),
         pickupAddress: document.getElementById("pickup").value.trim(),
         dropoffAddress: document.getElementById("dropoff").value.trim(),
         rideType: document.getElementById("rideType").value,
@@ -714,15 +695,9 @@
       }
 
       const payload = getFormData();
-      const fullPickupAddress = buildPickupAddress(payload);
-
-      if(!payload.city || !payload.state){
-        showError("Enter both city and state first.");
-        return;
-      }
 
       if(!payload.pickupAddress || !payload.dropoffAddress){
-        showError("Enter both pickup location and dropoff address first.");
+        showError("Enter both pickup and dropoff addresses first.");
         return;
       }
 
@@ -731,7 +706,7 @@
           method: "POST",
           headers: {"Content-Type":"application/json"},
           body: JSON.stringify({
-            pickupAddress: fullPickupAddress,
+            pickupAddress: payload.pickupAddress,
             dropoffAddress: payload.dropoffAddress,
             rideType: payload.rideType
           })
@@ -752,7 +727,7 @@
 
         estimateReceipt.innerHTML = `
           <strong>Ride Preview</strong><br><br>
-          Pickup: ${fullPickupAddress}<br>
+          Pickup: ${payload.pickupAddress}<br>
           Dropoff: ${payload.dropoffAddress}<br>
           Ride Type: ${payload.rideType}<br>
           Estimated Distance: ${data.fare.distanceMiles} mi<br>
@@ -831,7 +806,6 @@
       }
 
       const payload = getFormData();
-      const fullPickupAddress = buildPickupAddress(payload);
 
       if(!payload.riderId){
         showError("Enter your rider ID.");
@@ -843,13 +817,8 @@
         return;
       }
 
-      if(!payload.city || !payload.state){
-        showError("Enter city and state.");
-        return;
-      }
-
       if(!payload.pickupAddress || !payload.dropoffAddress){
-        showError("Enter pickup location and dropoff address.");
+        showError("Enter pickup and dropoff addresses.");
         return;
       }
 
@@ -876,7 +845,7 @@
           headers: {"Content-Type":"application/json"},
           body: JSON.stringify({
             riderId: payload.riderId,
-            pickupAddress: fullPickupAddress,
+            pickupAddress: payload.pickupAddress,
             dropoffAddress: payload.dropoffAddress,
             rideType: payload.rideType,
             passengerCount: 1,
@@ -930,3 +899,4 @@
   </script>
 </body>
 </html>
+I’m 
