@@ -36,29 +36,18 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 ========================================================= */
 const DISPATCH_OFFER_TIMEOUT_MS = 20000;
 const MAX_DISPATCH_ATTEMPTS = 5;
+const BOOKING_FEE = 3.5;
+const MINIMUM_FARE = 10;
 
 /* =========================================================
    HELPERS
 ========================================================= */
-function generateId(prefix) {
-  return `${prefix}_${Math.random().toString(36).substring(2, 10)}`;
-}
-
-function now() {
+function nowIso() {
   return new Date().toISOString();
 }
 
-function requireFields(body, fields) {
-  for (const f of fields) {
-    if (
-      body[f] === undefined ||
-      body[f] === null ||
-      body[f] === ""
-    ) {
-      return `Missing field: ${f}`;
-    }
-  }
-  return null;
+function safeString(value = "") {
+  return String(value || "").trim();
 }
 
 function safeNumber(value, fallback = 0) {
@@ -66,233 +55,1304 @@ function safeNumber(value, fallback = 0) {
   return Number.isFinite(n) ? n : fallback;
 }
 
-function normalizeRideType(value = "") {
-  const type = String(value).trim().toLowerCase();
-  if (["standard", "scheduled", "airport", "medical", "nonprofit"].includes(type)) {
-    return type;
-  }
-  return "standard";
-}
-
-function normalizeRequestedMode(value = "") {
-  const mode = String(value).trim().toLowerCase();
-  if (mode === "autonomous") return "autonomous";
-  return "driver";
-}
-
-function normalizeAvailability(value = "") {
-  const availability = String(value).trim().toLowerCase();
-  if (["available", "offline", "busy"].includes(availability)) return availability;
-  return "offline";
-}
-
 function calculateFare({
-  distanceMiles = 5,
-  durationMinutes = 15,
-  rideType = "standard"
+  distanceMiles = 0,
+  durationMinutes = 0,
+  rideType = "standard",
+  requestedMode = "driver"
 }) {
-  const baseFare = 4.5;
-  const perMile = 2.25;
-  const perMinute = 0.45;
-  const bookingFee = 2.5;
+  const baseFare = requestedMode === "autonomous" ? 8 : 6;
+  const perMile = requestedMode === "autonomous" ? 2.75 : 2.25;
+  const perMinute = requestedMode === "autonomous" ? 0.45 : 0.35;
 
-  const typeMultiplierMap = {
-    standard: 1,
-    scheduled: 1.15,
-    airport: 1.25,
-    medical: 1.1,
-    nonprofit: 0.9
-  };
+  let rideTypeMultiplier = 1;
+  const normalizedRideType = safeString(rideType).toLowerCase();
 
-  const multiplier = typeMultiplierMap[rideType] || 1;
+  if (normalizedRideType === "airport") rideTypeMultiplier = 1.2;
+  if (normalizedRideType === "scheduled") rideTypeMultiplier = 1.15;
+  if (normalizedRideType === "medical") rideTypeMultiplier = 1.1;
+  if (normalizedRideType === "nonprofit") rideTypeMultiplier = 0.95;
 
-  let total =
-    (baseFare + distanceMiles * perMile + durationMinutes * perMinute + bookingFee) *
-    multiplier;
+  const subtotal =
+    (baseFare + distanceMiles * perMile + durationMinutes * perMinute) *
+    rideTypeMultiplier;
 
-  if (total < 10) total = 10;
-
-  const driverPayout = +(total * 0.72).toFixed(2);
+  const total = Math.max(MINIMUM_FARE, subtotal + BOOKING_FEE);
 
   return {
-    estimated_fare: +total.toFixed(2),
-    driver_payout: driverPayout,
-    breakdown: {
-      base_fare: baseFare,
-      per_mile: perMile,
-      per_minute: perMinute,
-      booking_fee: bookingFee,
-      ride_type_multiplier: multiplier,
-      distance_miles: +distanceMiles.toFixed(2),
-      duration_minutes: +durationMinutes.toFixed(2)
-    }
+    baseFare: Number(baseFare.toFixed(2)),
+    perMile: Number(perMile.toFixed(2)),
+    perMinute: Number(perMinute.toFixed(2)),
+    distanceMiles: Number(distanceMiles.toFixed(2)),
+    durationMinutes: Number(durationMinutes.toFixed(2)),
+    bookingFee: Number(BOOKING_FEE.toFixed(2)),
+    minimumFare: Number(MINIMUM_FARE.toFixed(2)),
+    rideTypeMultiplier: Number(rideTypeMultiplier.toFixed(2)),
+    estimatedTotal: Number(total.toFixed(2))
   };
 }
 
-function isExpiredAt(isoString) {
-  if (!isoString) return false;
-  return new Date(isoString).getTime() < Date.now();
+function toRadians(value) {
+  return (value * Math.PI) / 180;
 }
 
-/* =========================================================
-   ADMIN AUTH HELPER
-========================================================= */
-function requireAdmin(req, res, next) {
-  const email = req.headers["x-admin-email"];
-  const password = req.headers["x-admin-password"];
-
-  if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-    return next();
+function haversineMiles(lat1, lon1, lat2, lon2) {
+  if (
+    !Number.isFinite(lat1) ||
+    !Number.isFinite(lon1) ||
+    !Number.isFinite(lat2) ||
+    !Number.isFinite(lon2)
+  ) {
+    return Number.POSITIVE_INFINITY;
   }
 
-  return res.status(401).json({
-    ok: false,
-    error: "Unauthorized admin request"
-  });
+  const R = 3958.8;
+  const dLat = toRadians(lat2 - lat1);
+  const dLon = toRadians(lon2 - lon1);
+
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRadians(lat1)) *
+      Math.cos(toRadians(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
 }
 
-/* =========================================================
-   DB HELPERS
-========================================================= */
-async function getRiderById(riderId) {
-  const { data, error } = await supabase
-    .from("riders")
-    .select("*")
-    .eq("rider_id", riderId)
-    .maybeSingle();
+async function geocodeAddress(address) {
+  const cleanAddress = safeString(address);
+  if (!cleanAddress) {
+    return {
+      success: false,
+      message: "Address is required for geocoding."
+    };
+  }
 
-  if (error) return null;
-  return data || null;
+  if (!GOOGLE_MAPS_API_KEY) {
+    return {
+      success: false,
+      message: "GOOGLE_MAPS_API_KEY is missing."
+    };
+  }
+
+  const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
+    cleanAddress
+  )}&key=${GOOGLE_MAPS_API_KEY}`;
+
+  const response = await fetch(url);
+  const data = await response.json();
+
+  if (data.status !== "OK" || !data.results || !data.results.length) {
+    return {
+      success: false,
+      message: "Unable to geocode address."
+    };
+  }
+
+  const result = data.results[0];
+  const location = result.geometry?.location || {};
+
+  return {
+    success: true,
+    formattedAddress: result.formatted_address || cleanAddress,
+    latitude: safeNumber(location.lat, null),
+    longitude: safeNumber(location.lng, null)
+  };
 }
 
-async function getDriverById(driverId) {
-  const { data, error } = await supabase
-    .from("drivers")
-    .select("*")
-    .eq("driver_id", driverId)
-    .maybeSingle();
+async function getDistanceAndDuration(pickupAddress, dropoffAddress) {
+  const pickup = safeString(pickupAddress);
+  const dropoff = safeString(dropoffAddress);
 
-  if (error) return null;
-  return data || null;
+  if (!pickup || !dropoff) {
+    return {
+      success: false,
+      message: "Pickup and dropoff are required."
+    };
+  }
+
+  if (!GOOGLE_MAPS_API_KEY) {
+    return {
+      success: false,
+      message: "GOOGLE_MAPS_API_KEY is missing."
+    };
+  }
+
+  const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodeURIComponent(
+    pickup
+  )}&destinations=${encodeURIComponent(
+    dropoff
+  )}&units=imperial&key=${GOOGLE_MAPS_API_KEY}`;
+
+  const response = await fetch(url);
+  const data = await response.json();
+
+  if (
+    data.status !== "OK" ||
+    !data.rows ||
+    !data.rows[0] ||
+    !data.rows[0].elements ||
+    !data.rows[0].elements[0]
+  ) {
+    return {
+      success: false,
+      message: "Unable to calculate route."
+    };
+  }
+
+  const element = data.rows[0].elements[0];
+
+  if (element.status !== "OK") {
+    return {
+      success: false,
+      message: "Route not available for these addresses."
+    };
+  }
+
+  const distanceMeters = safeNumber(element.distance?.value, 0);
+  const durationSeconds = safeNumber(element.duration?.value, 0);
+
+  return {
+    success: true,
+    distanceMiles: distanceMeters / 1609.344,
+    durationMinutes: durationSeconds / 60,
+    pickupDisplay: data.origin_addresses?.[0] || pickup,
+    dropoffDisplay: data.destination_addresses?.[0] || dropoff
+  };
 }
 
 async function getRideById(rideId) {
   const { data, error } = await supabase
     .from("rides")
     .select("*")
-    .eq("ride_id", rideId)
-    .maybeSingle();
+    .eq("id", rideId)
+    .single();
 
-  if (error) return null;
-  return data || null;
+  if (error) throw error;
+  return data;
 }
 
-async function getMissionById(missionId) {
-  const { data, error } = await supabase
-    .from("missions")
-    .select("*")
-    .eq("mission_id", missionId)
-    .maybeSingle();
+async function createDispatchRecord(ride, driver, attemptNumber) {
+  const payload = {
+    ride_id: ride.id,
+    driver_id: driver.id,
+    attempt_number: attemptNumber,
+    status: "offered",
+    requested_mode: ride.requested_mode || "driver",
+    created_at: nowIso(),
+    expires_at: new Date(Date.now() + DISPATCH_OFFER_TIMEOUT_MS).toISOString()
+  };
 
-  if (error) return null;
-  return data || null;
-}
-
-async function getOpenDispatchByRideId(rideId) {
-  const { data, error } = await supabase
-    .from("dispatches")
-    .select("*")
-    .eq("ride_id", rideId)
-    .in("status", ["pending", "offered"])
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) return null;
-  return data || null;
-}
-
-async function getDispatchForDriverRide(driverId, rideId) {
   const { data, error } = await supabase
     .from("dispatches")
-    .select("*")
-    .eq("driver_id", driverId)
-    .eq("ride_id", rideId)
-    .in("status", ["pending", "offered"])
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .insert(payload)
+    .select()
+    .single();
 
-  if (error) return null;
-  return data || null;
+  if (error) throw error;
+  return data;
 }
 
-async function getDispatchAttemptsForRide(rideId) {
+async function assignRideToDriver(rideId, driverId, dispatchId, attemptNumber) {
   const { data, error } = await supabase
-    .from("dispatches")
-    .select("*")
-    .eq("ride_id", rideId)
-    .order("created_at", { ascending: true });
+    .from("rides")
+    .update({
+      driver_id: driverId,
+      dispatch_id: dispatchId,
+      dispatch_attempts: attemptNumber,
+      status: "awaiting_driver_acceptance",
+      assigned_at: nowIso(),
+      updated_at: nowIso()
+    })
+    .eq("id", rideId)
+    .select()
+    .single();
 
-  if (error) return [];
+  if (error) throw error;
+  return data;
+}
+
+async function getAvailableDrivers(requestedMode = "driver") {
+  let query = supabase
+    .from("drivers")
+    .select("*")
+    .eq("approved", true)
+    .eq("status", "available");
+
+  if (requestedMode === "autonomous") {
+    query = query.eq("driver_type", "autonomous");
+  } else {
+    query = query.neq("driver_type", "autonomous");
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+
   return data || [];
 }
 
-async function createAdminLog(action, payload = {}) {
+function rankDriversByProximity(drivers, pickupGeo) {
+  if (!pickupGeo || !pickupGeo.success) return drivers;
+
+  const pickupLat = safeNumber(pickupGeo.latitude, null);
+  const pickupLng = safeNumber(pickupGeo.longitude, null);
+
+  return [...drivers].sort((a, b) => {
+    const aLat = safeNumber(a.latitude, null);
+    const aLng = safeNumber(a.longitude, null);
+    const bLat = safeNumber(b.latitude, null);
+    const bLng = safeNumber(b.longitude, null);
+
+    const aDistance = haversineMiles(aLat, aLng, pickupLat, pickupLng);
+    const bDistance = haversineMiles(bLat, bLng, pickupLat, pickupLng);
+
+    return aDistance - bDistance;
+  });
+}
+
+async function dispatchRide(rideId) {
   try {
-    await supabase.from("admin_logs").insert([
-      {
-        log_id: generateId("log"),
-        action,
-        payload,
-        created_at: now()
-      }
-    ]);
+    const ride = await getRideById(rideId);
+
+    if (!ride) {
+      return { success: false, message: "Ride not found." };
+    }
+
+    if (ride.status === "cancelled" || ride.status === "completed") {
+      return { success: false, message: "Ride is not dispatchable." };
+    }
+
+    const currentAttempts = safeNumber(ride.dispatch_attempts, 0);
+
+    if (currentAttempts >= MAX_DISPATCH_ATTEMPTS) {
+      await supabase
+        .from("rides")
+        .update({
+          status: "no_driver_available",
+          updated_at: nowIso()
+        })
+        .eq("id", ride.id);
+
+      return {
+        success: false,
+        message: "Max dispatch attempts reached."
+      };
+    }
+
+    const pickupGeo = await geocodeAddress(ride.pickup_address);
+    const availableDrivers = await getAvailableDrivers(
+      ride.requested_mode || "driver"
+    );
+
+    if (!availableDrivers.length) {
+      await supabase
+        .from("rides")
+        .update({
+          status: "no_driver_available",
+          updated_at: nowIso()
+        })
+        .eq("id", ride.id);
+
+      return {
+        success: false,
+        message: "No drivers available."
+      };
+    }
+
+    const rankedDrivers = rankDriversByProximity(availableDrivers, pickupGeo);
+    const selectedDriver = rankedDrivers[0];
+    const attemptNumber = currentAttempts + 1;
+
+    const dispatch = await createDispatchRecord(ride, selectedDriver, attemptNumber);
+    const updatedRide = await assignRideToDriver(
+      ride.id,
+      selectedDriver.id,
+      dispatch.id,
+      attemptNumber
+    );
+
+    return {
+      success: true,
+      message: "Driver dispatch started.",
+      ride: updatedRide,
+      driver: {
+        id: selectedDriver.id,
+        first_name: selectedDriver.first_name || "",
+        last_name: selectedDriver.last_name || "",
+        vehicle_make: selectedDriver.vehicle_make || "",
+        vehicle_model: selectedDriver.vehicle_model || ""
+      },
+      dispatch
+    };
   } catch (error) {
-    console.error("Admin log error:", error.message);
+    console.error("❌ dispatchRide error:", error);
+    return {
+      success: false,
+      message: "Dispatch failed.",
+      error: error.message
+    };
   }
 }
 
-async function findRiderByEmail(email) {
-  const { data, error } = await supabase
-    .from("riders")
-    .select("*")
-    .eq("email", String(email).toLowerCase().trim())
-    .maybeSingle();
+async function recordMissionForRide(ride) {
+  try {
+    const missionPayload = {
+      ride_id: ride.id,
+      rider_id: ride.rider_id,
+      driver_id: ride.driver_id || null,
+      requested_mode: ride.requested_mode || "driver",
+      ride_type: ride.ride_type || "standard",
+      pickup_address: ride.pickup_address,
+      dropoff_address: ride.dropoff_address,
+      notes: ride.notes || "",
+      payout_estimate: ride.estimated_fare || 0,
+      mission_status: ride.status || "requested",
+      created_at: nowIso(),
+      updated_at: nowIso()
+    };
 
-  if (error) return null;
-  return data || null;
-}
-
-async function findDriverByEmail(email) {
-  const { data, error } = await supabase
-    .from("drivers")
-    .select("*")
-    .eq("email", String(email).toLowerCase().trim())
-    .maybeSingle();
-
-  if (error) return null;
-  return data || null;
+    await supabase.from("missions").insert(missionPayload);
+  } catch (error) {
+    console.error("⚠️ Mission insert skipped:", error.message);
+  }
 }
 
 /* =========================================================
-   HEALTH CHECK
+   HEALTH / ROOT
 ========================================================= */
-app.get("/api/health", (req, res) => {
-  res.json({
-    ok: true,
-    service: "Harvey Taxi API",
-    time: now()
-  });
+app.get("/api/health", async (req, res) => {
+  try {
+    const { error } = await supabase.from("riders").select("id").limit(1);
+    if (error) throw error;
+
+    res.json({
+      ok: true,
+      app: "Harvey Taxi",
+      database: "connected",
+      timestamp: nowIso()
+    });
+  } catch (error) {
+    res.status(500).json({
+      ok: false,
+      app: "Harvey Taxi",
+      database: "disconnected",
+      error: error.message
+    });
+  }
 });
 
-/* =========================================================
-   BASIC PAGES
-========================================================= */
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
+/* =========================================================
+   ADMIN
+========================================================= */
+app.post("/api/admin/login", async (req, res) => {
+  try {
+    const email = safeString(req.body.email).toLowerCase();
+    const password = safeString(req.body.password);
+
+    if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+      return res.status(500).json({
+        success: false,
+        message: "Admin credentials not configured."
+      });
+    }
+
+    if (
+      email === safeString(ADMIN_EMAIL).toLowerCase() &&
+      password === safeString(ADMIN_PASSWORD)
+    ) {
+      return res.json({
+        success: true,
+        message: "Admin login successful."
+      });
+    }
+
+    return res.status(401).json({
+      success: false,
+      message: "Invalid admin credentials."
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Admin login failed.",
+      error: error.message
+    });
+  }
+});
+
+/* =========================================================
+   RIDERS
+========================================================= */
+app.post("/api/rider/signup", async (req, res) => {
+  try {
+    const payload = {
+      first_name: safeString(req.body.first_name),
+      last_name: safeString(req.body.last_name),
+      email: safeString(req.body.email).toLowerCase(),
+      phone: safeString(req.body.phone),
+      city: safeString(req.body.city),
+      state: safeString(req.body.state),
+      verification_status: "pending",
+      approved: false,
+      created_at: nowIso(),
+      updated_at: nowIso()
+    };
+
+    if (!payload.first_name || !payload.email || !payload.phone) {
+      return res.status(400).json({
+        success: false,
+        message: "First name, email, and phone are required."
+      });
+    }
+
+    const { data, error } = await supabase
+      .from("riders")
+      .insert(payload)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      message: "Rider signup submitted.",
+      rider: data
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Rider signup failed.",
+      error: error.message
+    });
+  }
+});
+
+app.get("/api/riders", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("riders")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      riders: data || []
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to load riders.",
+      error: error.message
+    });
+  }
+});
+
+app.get("/api/riders/:riderId", async (req, res) => {
+  try {
+    const riderId = req.params.riderId;
+
+    const { data, error } = await supabase
+      .from("riders")
+      .select("*")
+      .eq("id", riderId)
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      rider: data
+    });
+  } catch (error) {
+    res.status(404).json({
+      success: false,
+      message: "Rider not found.",
+      error: error.message
+    });
+  }
+});
+
+/* =========================================================
+   DRIVERS
+========================================================= */
+app.post("/api/driver/signup", async (req, res) => {
+  try {
+    const payload = {
+      first_name: safeString(req.body.first_name),
+      last_name: safeString(req.body.last_name),
+      email: safeString(req.body.email).toLowerCase(),
+      phone: safeString(req.body.phone),
+      city: safeString(req.body.city),
+      state: safeString(req.body.state),
+      vehicle_make: safeString(req.body.vehicle_make),
+      vehicle_model: safeString(req.body.vehicle_model),
+      vehicle_year: safeString(req.body.vehicle_year),
+      vehicle_color: safeString(req.body.vehicle_color),
+      license_plate: safeString(req.body.license_plate),
+      verification_status: "pending",
+      background_check_status: "pending",
+      approved: false,
+      status: "offline",
+      driver_type: safeString(req.body.driver_type || "human").toLowerCase(),
+      latitude: null,
+      longitude: null,
+      created_at: nowIso(),
+      updated_at: nowIso()
+    };
+
+    if (!payload.first_name || !payload.email || !payload.phone) {
+      return res.status(400).json({
+        success: false,
+        message: "First name, email, and phone are required."
+      });
+    }
+
+    const { data, error } = await supabase
+      .from("drivers")
+      .insert(payload)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      message: "Driver signup submitted.",
+      driver: data
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Driver signup failed.",
+      error: error.message
+    });
+  }
+});
+
+app.get("/api/drivers", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("drivers")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      drivers: data || []
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to load drivers.",
+      error: error.message
+    });
+  }
+});
+
+app.get("/api/drivers/available", async (req, res) => {
+  try {
+    const requestedMode = safeString(req.query.requestedMode || "driver").toLowerCase();
+    const drivers = await getAvailableDrivers(requestedMode);
+
+    res.json({
+      success: true,
+      drivers
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to load available drivers.",
+      error: error.message
+    });
+  }
+});
+
+app.post("/api/driver/:driverId/availability", async (req, res) => {
+  try {
+    const driverId = req.params.driverId;
+    const status = safeString(req.body.status || "offline").toLowerCase();
+    const latitude = req.body.latitude == null ? null : safeNumber(req.body.latitude, null);
+    const longitude = req.body.longitude == null ? null : safeNumber(req.body.longitude, null);
+
+    const allowedStatuses = ["available", "busy", "offline"];
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid driver status."
+      });
+    }
+
+    const updatePayload = {
+      status,
+      updated_at: nowIso()
+    };
+
+    if (latitude !== null) updatePayload.latitude = latitude;
+    if (longitude !== null) updatePayload.longitude = longitude;
+
+    const { data, error } = await supabase
+      .from("drivers")
+      .update(updatePayload)
+      .eq("id", driverId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      message: "Driver availability updated.",
+      driver: data
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to update driver availability.",
+      error: error.message
+    });
+  }
+});
+
+/* =========================================================
+   PAYMENT
+========================================================= */
+app.post("/api/payments/authorize", async (req, res) => {
+  try {
+    const riderId = safeString(req.body.rider_id);
+    const amount = safeNumber(req.body.amount, 0);
+    const paymentMethod = safeString(req.body.payment_method || "card").toLowerCase();
+
+    if (!riderId || amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "rider_id and valid amount are required."
+      });
+    }
+
+    const paymentPayload = {
+      rider_id: riderId,
+      amount: Number(amount.toFixed(2)),
+      payment_method: paymentMethod,
+      status: "authorized",
+      authorized_at: nowIso(),
+      created_at: nowIso()
+    };
+
+    const { data, error } = await supabase
+      .from("payments")
+      .insert(paymentPayload)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      message: "Payment authorized.",
+      payment: data
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Payment authorization failed.",
+      error: error.message
+    });
+  }
+});
+
+/* =========================================================
+   FARE ESTIMATE
+========================================================= */
+app.post("/api/fare-estimate", async (req, res) => {
+  try {
+    const pickupAddress = safeString(req.body.pickup_address || req.body.pickupAddress);
+    const dropoffAddress = safeString(req.body.dropoff_address || req.body.dropoffAddress);
+    const rideType = safeString(req.body.ride_type || req.body.rideType || "standard");
+    const requestedMode = safeString(
+      req.body.requested_mode || req.body.requestedMode || "driver"
+    ).toLowerCase();
+
+    if (!pickupAddress || !dropoffAddress) {
+      return res.status(400).json({
+        success: false,
+        message: "Pickup and dropoff addresses are required."
+      });
+    }
+
+    const route = await getDistanceAndDuration(pickupAddress, dropoffAddress);
+
+    if (!route.success) {
+      return res.status(400).json(route);
+    }
+
+    const fare = calculateFare({
+      distanceMiles: route.distanceMiles,
+      durationMinutes: route.durationMinutes,
+      rideType,
+      requestedMode
+    });
+
+    res.json({
+      success: true,
+      pickup_address: route.pickupDisplay,
+      dropoff_address: route.dropoffDisplay,
+      distance_miles: fare.distanceMiles,
+      duration_minutes: fare.durationMinutes,
+      ride_type: rideType,
+      requested_mode: requestedMode,
+      fare
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Fare estimate failed.",
+      error: error.message
+    });
+  }
+});
+
+/* =========================================================
+   REQUEST RIDE
+========================================================= */
+app.post("/api/request-ride", async (req, res) => {
+  try {
+    const riderId = safeString(req.body.rider_id);
+    const pickupAddress = safeString(req.body.pickup_address);
+    const dropoffAddress = safeString(req.body.dropoff_address);
+    const rideType = safeString(req.body.ride_type || "standard").toLowerCase();
+    const requestedMode = safeString(req.body.requested_mode || "driver").toLowerCase();
+    const scheduledTime = req.body.scheduled_time || null;
+    const notes = safeString(req.body.notes);
+    const paymentMethod = safeString(req.body.payment_method || "card").toLowerCase();
+
+    if (!riderId || !pickupAddress || !dropoffAddress) {
+      return res.status(400).json({
+        success: false,
+        message: "rider_id, pickup_address, and dropoff_address are required."
+      });
+    }
+
+    const { data: rider, error: riderError } = await supabase
+      .from("riders")
+      .select("*")
+      .eq("id", riderId)
+      .single();
+
+    if (riderError || !rider) {
+      return res.status(404).json({
+        success: false,
+        message: "Rider not found."
+      });
+    }
+
+    const riderApproved =
+      rider.approved === true ||
+      safeString(rider.verification_status).toLowerCase() === "approved";
+
+    if (!riderApproved) {
+      return res.status(403).json({
+        success: false,
+        message: "Rider verification approval is required before requesting a ride."
+      });
+    }
+
+    const route = await getDistanceAndDuration(pickupAddress, dropoffAddress);
+    if (!route.success) {
+      return res.status(400).json(route);
+    }
+
+    const fare = calculateFare({
+      distanceMiles: route.distanceMiles,
+      durationMinutes: route.durationMinutes,
+      rideType,
+      requestedMode
+    });
+
+    const { data: payment, error: paymentError } = await supabase
+      .from("payments")
+      .select("*")
+      .eq("rider_id", riderId)
+      .eq("status", "authorized")
+      .order("authorized_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (paymentError) {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to verify payment authorization.",
+        error: paymentError.message
+      });
+    }
+
+    if (!payment) {
+      return res.status(403).json({
+        success: false,
+        message: "Payment authorization is required before dispatch."
+      });
+    }
+
+    const ridePayload = {
+      rider_id: riderId,
+      driver_id: null,
+      dispatch_id: null,
+      payment_id: payment.id,
+      ride_type: rideType,
+      requested_mode: requestedMode,
+      pickup_address: route.pickupDisplay,
+      dropoff_address: route.dropoffDisplay,
+      scheduled_time: scheduledTime,
+      notes,
+      estimated_fare: fare.estimatedTotal,
+      distance_miles: fare.distanceMiles,
+      duration_minutes: fare.durationMinutes,
+      status: "requested",
+      dispatch_attempts: 0,
+      payment_method: paymentMethod,
+      created_at: nowIso(),
+      updated_at: nowIso()
+    };
+
+    const { data: ride, error: rideError } = await supabase
+      .from("rides")
+      .insert(ridePayload)
+      .select()
+      .single();
+
+    if (rideError) throw rideError;
+
+    await recordMissionForRide(ride);
+    const dispatchResult = await dispatchRide(ride.id);
+    const refreshedRide = await getRideById(ride.id);
+
+    res.json({
+      success: true,
+      message: dispatchResult.success
+        ? "Ride created and dispatch started."
+        : "Ride created, but dispatch is pending.",
+      ride_id: refreshedRide.id,
+      ride: refreshedRide,
+      fare,
+      dispatch: dispatchResult
+    });
+  } catch (error) {
+    console.error("❌ /api/request-ride error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Ride request failed.",
+      error: error.message
+    });
+  }
+});
+
+app.get("/api/rides", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("rides")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      rides: data || []
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to load rides.",
+      error: error.message
+    });
+  }
+});
+
+app.get("/api/rides/:rideId", async (req, res) => {
+  try {
+    const ride = await getRideById(req.params.rideId);
+
+    res.json({
+      success: true,
+      ride
+    });
+  } catch (error) {
+    res.status(404).json({
+      success: false,
+      message: "Ride not found.",
+      error: error.message
+    });
+  }
+});
+
+/* =========================================================
+   DRIVER ACCEPT / REJECT / STATUS
+========================================================= */
+app.post("/api/driver/accept", async (req, res) => {
+  try {
+    const rideId = safeString(req.body.ride_id);
+    const driverId = safeString(req.body.driver_id);
+
+    if (!rideId || !driverId) {
+      return res.status(400).json({
+        success: false,
+        message: "ride_id and driver_id are required."
+      });
+    }
+
+    const { data: ride, error: rideError } = await supabase
+      .from("rides")
+      .select("*")
+      .eq("id", rideId)
+      .eq("driver_id", driverId)
+      .single();
+
+    if (rideError || !ride) {
+      return res.status(404).json({
+        success: false,
+        message: "Assigned ride not found."
+      });
+    }
+
+    const { data: updatedRide, error: updateRideError } = await supabase
+      .from("rides")
+      .update({
+        status: "driver_enroute",
+        accepted_at: nowIso(),
+        updated_at: nowIso()
+      })
+      .eq("id", rideId)
+      .eq("driver_id", driverId)
+      .select()
+      .single();
+
+    if (updateRideError) throw updateRideError;
+
+    await supabase
+      .from("drivers")
+      .update({
+        status: "busy",
+        updated_at: nowIso()
+      })
+      .eq("id", driverId);
+
+    if (ride.dispatch_id) {
+      await supabase
+        .from("dispatches")
+        .update({
+          status: "accepted",
+          responded_at: nowIso()
+        })
+        .eq("id", ride.dispatch_id);
+    }
+
+    await supabase
+      .from("missions")
+      .update({
+        driver_id: driverId,
+        mission_status: "driver_enroute",
+        updated_at: nowIso()
+      })
+      .eq("ride_id", rideId);
+
+    res.json({
+      success: true,
+      message: "Ride accepted.",
+      ride: updatedRide
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Driver accept failed.",
+      error: error.message
+    });
+  }
+});
+
+app.post("/api/driver/reject", async (req, res) => {
+  try {
+    const rideId = safeString(req.body.ride_id);
+    const driverId = safeString(req.body.driver_id);
+
+    if (!rideId || !driverId) {
+      return res.status(400).json({
+        success: false,
+        message: "ride_id and driver_id are required."
+      });
+    }
+
+    const ride = await getRideById(rideId);
+
+    if (!ride || safeString(ride.driver_id) !== driverId) {
+      return res.status(404).json({
+        success: false,
+        message: "Assigned ride not found."
+      });
+    }
+
+    if (ride.dispatch_id) {
+      await supabase
+        .from("dispatches")
+        .update({
+          status: "rejected",
+          responded_at: nowIso()
+        })
+        .eq("id", ride.dispatch_id);
+    }
+
+    await supabase
+      .from("rides")
+      .update({
+        driver_id: null,
+        dispatch_id: null,
+        status: "redispatching",
+        updated_at: nowIso()
+      })
+      .eq("id", rideId);
+
+    await supabase
+      .from("drivers")
+      .update({
+        status: "available",
+        updated_at: nowIso()
+      })
+      .eq("id", driverId);
+
+    const result = await dispatchRide(rideId);
+    const refreshedRide = await getRideById(rideId);
+
+    res.json({
+      success: true,
+      message: result.success ? "Ride redispatched." : "Redispatch pending.",
+      ride: refreshedRide,
+      dispatch: result
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Driver reject failed.",
+      error: error.message
+    });
+  }
+});
+
+app.post("/api/rides/:rideId/start", async (req, res) => {
+  try {
+    const rideId = req.params.rideId;
+
+    const { data: updatedRide, error } = await supabase
+      .from("rides")
+      .update({
+        status: "in_progress",
+        started_at: nowIso(),
+        updated_at: nowIso()
+      })
+      .eq("id", rideId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    await supabase
+      .from("missions")
+      .update({
+        mission_status: "in_progress",
+        updated_at: nowIso()
+      })
+      .eq("ride_id", rideId);
+
+    res.json({
+      success: true,
+      message: "Ride started.",
+      ride: updatedRide
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to start ride.",
+      error: error.message
+    });
+  }
+});
+
+app.post("/api/rides/:rideId/complete", async (req, res) => {
+  try {
+    const rideId = req.params.rideId;
+    const ride = await getRideById(rideId);
+
+    const { data: updatedRide, error } = await supabase
+      .from("rides")
+      .update({
+        status: "completed",
+        completed_at: nowIso(),
+        updated_at: nowIso()
+      })
+      .eq("id", rideId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    if (ride?.driver_id) {
+      await supabase
+        .from("drivers")
+        .update({
+          status: "available",
+          updated_at: nowIso()
+        })
+        .eq("id", ride.driver_id);
+    }
+
+    await supabase
+      .from("missions")
+      .update({
+        mission_status: "completed",
+        updated_at: nowIso()
+      })
+      .eq("ride_id", rideId);
+
+    res.json({
+      success: true,
+      message: "Ride completed.",
+      ride: updatedRide
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to complete ride.",
+      error: error.message
+    });
+  }
+});
+
+app.post("/api/rides/:rideId/cancel", async (req, res) => {
+  try {
+    const rideId = req.params.rideId;
+    const ride = await getRideById(rideId);
+
+    const { data: updatedRide, error } = await supabase
+      .from("rides")
+      .update({
+        status: "cancelled",
+        cancelled_at: nowIso(),
+        updated_at: nowIso()
+      })
+      .eq("id", rideId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    if (ride?.driver_id) {
+      await supabase
+        .from("drivers")
+        .update({
+          status: "available",
+          updated_at: nowIso()
+        })
+        .eq("id", ride.driver_id);
+    }
+
+    await supabase
+      .from("missions")
+      .update({
+        mission_status: "cancelled",
+        updated_at: nowIso()
+      })
+      .eq("ride_id", rideId);
+
+    res.json({
+      success: true,
+      message: "Ride cancelled.",
+      ride: updatedRide
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to cancel ride.",
+      error: error.message
+    });
+  }
+});
+
+/* =========================================================
+   ADMIN ANALYTICS
+========================================================= */
+app.get("/api/admin/analytics", async (req, res) => {
+  try {
+    const [ridesRes, ridersRes, driversRes, paymentsRes] = await Promise.all([
+      supabase.from("rides").select("*"),
+      supabase.from("riders").select("*"),
+      supabase.from("drivers").select("*"),
+      supabase.from("payments").select("*")
+    ]);
+
+    if (ridesRes.error) throw ridesRes.error;
+    if (ridersRes.error) throw ridersRes.error;
+    if (driversRes.error) throw driversRes.error;
+    if (paymentsRes.error) throw paymentsRes.error;
+
+    const rides = ridesRes.data || [];
+    const riders = ridersRes.data || [];
+    const drivers = driversRes.data || [];
+    const payments = paymentsRes.data || [];
+
+    const completedRides = rides.filter(
+      (ride) => safeString(ride.status).toLowerCase() === "completed"
+    );
+
+    const activeRides = rides.filter((ride) =>
+      ["requested", "awaiting_driver_acceptance", "driver_enroute", "in_progress", "redispatching"].includes(
+        safeString(ride.status).toLowerCase()
+      )
+    );
+
+    const availableDrivers = drivers.filter(
+      (driver) => safeString(driver.status).toLowerCase() === "available"
+    );
+
+    const totalRevenue = completedRides.reduce(
+      (sum, ride) => sum + safeNumber(ride.estimated_fare, 0),
+      0
+    );
+
+    const authorizedPayments = payments.filter(
+      (payment) => safeString(payment.status).toLowerCase() === "authorized"
+    );
+
+    res.json({
+      success: true,
+      analytics: {
+        total_rides: rides.length,
+        active_rides: activeRides.length,
+        completed_rides: completedRides.length,
+        total_riders: riders.length,
+        total_drivers: drivers.length,
+        available_drivers: availableDrivers.length,
+        authorized_payments: authorizedPayments.length,
+        total_revenue_estimate: Number(totalRevenue.toFixed(2))
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to load analytics.",
+      error: error.message
+    });
+  }
+});
+
+/* =========================================================
+   STATIC PAGES
+========================================================= */
 app.get("/request-ride", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "request-ride.html"));
 });
@@ -309,1504 +1369,17 @@ app.get("/admin-dashboard", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "admin-dashboard.html"));
 });
 
-/* =========================================================
-   ADMIN LOGIN
-========================================================= */
-app.post("/api/admin/login", async (req, res) => {
-  try {
-    const { email, password } = req.body;
+app.get("/admin-dispatch", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "admin-dispatch.html"));
+});
 
-    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-      await createAdminLog("admin_login_success", { email });
-      return res.json({ ok: true, message: "Admin login successful" });
-    }
-
-    await createAdminLog("admin_login_failed", { email });
-    return res.status(401).json({ ok: false, error: "Invalid admin credentials" });
-  } catch (error) {
-    return res.status(500).json({ ok: false, error: "Admin login failed" });
-  }
+app.get("/active-trip", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "active-trip.html"));
 });
 
 /* =========================================================
-   RIDER ROUTES
+   START
 ========================================================= */
-app.post("/api/rider/signup", async (req, res) => {
-  try {
-    const missing = requireFields(req.body, [
-      "firstName",
-      "lastName",
-      "email",
-      "phone",
-      "password"
-    ]);
-    if (missing) {
-      return res.status(400).json({ ok: false, error: missing });
-    }
-
-    const email = String(req.body.email).toLowerCase().trim();
-    const existingRider = await findRiderByEmail(email);
-    if (existingRider) {
-      return res.status(409).json({
-        ok: false,
-        error: "A rider account with this email already exists"
-      });
-    }
-
-    const riderId = generateId("rider");
-
-    const newRider = {
-      rider_id: riderId,
-      first_name: req.body.firstName,
-      last_name: req.body.lastName,
-      email,
-      phone: req.body.phone,
-      password: req.body.password,
-      verification_status: "pending",
-      is_approved: false,
-      payment_authorized: false,
-      created_at: now(),
-      updated_at: now()
-    };
-
-    const { data, error } = await supabase
-      .from("riders")
-      .insert([newRider])
-      .select()
-      .single();
-
-    if (error) {
-      return res.status(500).json({ ok: false, error: error.message });
-    }
-
-    await createAdminLog("rider_signup", { rider_id: riderId, email });
-
-    return res.json({
-      ok: true,
-      message: "Rider signup successful",
-      rider: data
-    });
-  } catch (error) {
-    return res.status(500).json({ ok: false, error: "Rider signup failed" });
-  }
-});
-
-app.post("/api/rider/login", async (req, res) => {
-  try {
-    const missing = requireFields(req.body, ["email", "password"]);
-    if (missing) {
-      return res.status(400).json({ ok: false, error: missing });
-    }
-
-    const email = String(req.body.email).toLowerCase().trim();
-    const password = req.body.password;
-
-    const { data, error } = await supabase
-      .from("riders")
-      .select("*")
-      .eq("email", email)
-      .eq("password", password)
-      .maybeSingle();
-
-    if (error || !data) {
-      return res.status(401).json({ ok: false, error: "Invalid rider credentials" });
-    }
-
-    return res.json({
-      ok: true,
-      message: "Rider login successful",
-      rider: data
-    });
-  } catch (error) {
-    return res.status(500).json({ ok: false, error: "Rider login failed" });
-  }
-});
-
-app.get("/api/riders", async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from("riders")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      return res.status(500).json({ ok: false, error: error.message });
-    }
-
-    return res.json({ ok: true, riders: data || [] });
-  } catch (error) {
-    return res.status(500).json({ ok: false, error: "Failed to fetch riders" });
-  }
-});
-
-app.get("/api/riders/:riderId", async (req, res) => {
-  try {
-    const rider = await getRiderById(req.params.riderId);
-
-    if (!rider) {
-      return res.status(404).json({ ok: false, error: "Rider not found" });
-    }
-
-    return res.json({ ok: true, rider });
-  } catch (error) {
-    return res.status(500).json({ ok: false, error: "Failed to fetch rider" });
-  }
-});
-
-app.post("/api/riders/:riderId/approve", requireAdmin, async (req, res) => {
-  try {
-    const riderId = req.params.riderId;
-    const rider = await getRiderById(riderId);
-
-    if (!rider) {
-      return res.status(404).json({ ok: false, error: "Rider not found" });
-    }
-
-    const { data, error } = await supabase
-      .from("riders")
-      .update({
-        verification_status: "approved",
-        is_approved: true,
-        updated_at: now()
-      })
-      .eq("rider_id", riderId)
-      .select()
-      .single();
-
-    if (error) {
-      return res.status(500).json({ ok: false, error: error.message });
-    }
-
-    await createAdminLog("rider_approved", { rider_id: riderId });
-
-    return res.json({
-      ok: true,
-      message: "Rider approved successfully",
-      rider: data
-    });
-  } catch (error) {
-    return res.status(500).json({ ok: false, error: "Failed to approve rider" });
-  }
-});
-
-app.post("/api/riders/:riderId/reject", requireAdmin, async (req, res) => {
-  try {
-    const riderId = req.params.riderId;
-    const rider = await getRiderById(riderId);
-
-    if (!rider) {
-      return res.status(404).json({ ok: false, error: "Rider not found" });
-    }
-
-    const { data, error } = await supabase
-      .from("riders")
-      .update({
-        verification_status: "rejected",
-        is_approved: false,
-        updated_at: now()
-      })
-      .eq("rider_id", riderId)
-      .select()
-      .single();
-
-    if (error) {
-      return res.status(500).json({ ok: false, error: error.message });
-    }
-
-    await createAdminLog("rider_rejected", {
-      rider_id: riderId,
-      reason: req.body.reason || null
-    });
-
-    return res.json({
-      ok: true,
-      message: "Rider rejected successfully",
-      rider: data
-    });
-  } catch (error) {
-    return res.status(500).json({ ok: false, error: "Failed to reject rider" });
-  }
-});
-
-/* =========================================================
-   DRIVER ROUTES
-========================================================= */
-app.post("/api/driver/signup", async (req, res) => {
-  try {
-    const missing = requireFields(req.body, [
-      "firstName",
-      "lastName",
-      "email",
-      "phone",
-      "password",
-      "vehicleMake",
-      "vehicleModel",
-      "vehicleColor",
-      "plateNumber"
-    ]);
-    if (missing) {
-      return res.status(400).json({ ok: false, error: missing });
-    }
-
-    const email = String(req.body.email).toLowerCase().trim();
-    const existingDriver = await findDriverByEmail(email);
-    if (existingDriver) {
-      return res.status(409).json({
-        ok: false,
-        error: "A driver account with this email already exists"
-      });
-    }
-
-    const driverId = generateId("driver");
-
-    const newDriver = {
-      driver_id: driverId,
-      first_name: req.body.firstName,
-      last_name: req.body.lastName,
-      email,
-      phone: req.body.phone,
-      password: req.body.password,
-      vehicle_make: req.body.vehicleMake,
-      vehicle_model: req.body.vehicleModel,
-      vehicle_color: req.body.vehicleColor,
-      plate_number: req.body.plateNumber,
-      verification_status: "pending",
-      background_check_status: "pending",
-      is_approved: false,
-      availability: "offline",
-      active_ride_id: null,
-      created_at: now(),
-      updated_at: now()
-    };
-
-    const { data, error } = await supabase
-      .from("drivers")
-      .insert([newDriver])
-      .select()
-      .single();
-
-    if (error) {
-      return res.status(500).json({ ok: false, error: error.message });
-    }
-
-    await createAdminLog("driver_signup", { driver_id: driverId, email });
-
-    return res.json({
-      ok: true,
-      message: "Driver signup successful",
-      driver: data
-    });
-  } catch (error) {
-    return res.status(500).json({ ok: false, error: "Driver signup failed" });
-  }
-});
-
-app.post("/api/driver/login", async (req, res) => {
-  try {
-    const missing = requireFields(req.body, ["email", "password"]);
-    if (missing) {
-      return res.status(400).json({ ok: false, error: missing });
-    }
-
-    const email = String(req.body.email).toLowerCase().trim();
-    const password = req.body.password;
-
-    const { data, error } = await supabase
-      .from("drivers")
-      .select("*")
-      .eq("email", email)
-      .eq("password", password)
-      .maybeSingle();
-
-    if (error || !data) {
-      return res.status(401).json({ ok: false, error: "Invalid driver credentials" });
-    }
-
-    return res.json({
-      ok: true,
-      message: "Driver login successful",
-      driver: data
-    });
-  } catch (error) {
-    return res.status(500).json({ ok: false, error: "Driver login failed" });
-  }
-});
-
-app.get("/api/drivers", async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from("drivers")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      return res.status(500).json({ ok: false, error: error.message });
-    }
-
-    return res.json({ ok: true, drivers: data || [] });
-  } catch (error) {
-    return res.status(500).json({ ok: false, error: "Failed to fetch drivers" });
-  }
-});
-
-app.get("/api/drivers/available", async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from("drivers")
-      .select("*")
-      .eq("is_approved", true)
-      .eq("availability", "available")
-      .is("active_ride_id", null)
-      .order("updated_at", { ascending: true });
-
-    if (error) {
-      return res.status(500).json({ ok: false, error: error.message });
-    }
-
-    return res.json({ ok: true, drivers: data || [] });
-  } catch (error) {
-    return res.status(500).json({ ok: false, error: "Failed to fetch available drivers" });
-  }
-});
-
-app.post("/api/drivers/:driverId/approve", requireAdmin, async (req, res) => {
-  try {
-    const driverId = req.params.driverId;
-    const driver = await getDriverById(driverId);
-
-    if (!driver) {
-      return res.status(404).json({ ok: false, error: "Driver not found" });
-    }
-
-    const { data, error } = await supabase
-      .from("drivers")
-      .update({
-        verification_status: "approved",
-        background_check_status: "approved",
-        is_approved: true,
-        updated_at: now()
-      })
-      .eq("driver_id", driverId)
-      .select()
-      .single();
-
-    if (error) {
-      return res.status(500).json({ ok: false, error: error.message });
-    }
-
-    await createAdminLog("driver_approved", { driver_id: driverId });
-
-    return res.json({
-      ok: true,
-      message: "Driver approved successfully",
-      driver: data
-    });
-  } catch (error) {
-    return res.status(500).json({ ok: false, error: "Failed to approve driver" });
-  }
-});
-
-app.post("/api/drivers/:driverId/reject", requireAdmin, async (req, res) => {
-  try {
-    const driverId = req.params.driverId;
-    const driver = await getDriverById(driverId);
-
-    if (!driver) {
-      return res.status(404).json({ ok: false, error: "Driver not found" });
-    }
-
-    const { data, error } = await supabase
-      .from("drivers")
-      .update({
-        verification_status: "rejected",
-        background_check_status: "rejected",
-        is_approved: false,
-        availability: "offline",
-        updated_at: now()
-      })
-      .eq("driver_id", driverId)
-      .select()
-      .single();
-
-    if (error) {
-      return res.status(500).json({ ok: false, error: error.message });
-    }
-
-    await createAdminLog("driver_rejected", {
-      driver_id: driverId,
-      reason: req.body.reason || null
-    });
-
-    return res.json({
-      ok: true,
-      message: "Driver rejected successfully",
-      driver: data
-    });
-  } catch (error) {
-    return res.status(500).json({ ok: false, error: "Failed to reject driver" });
-  }
-});
-
-app.post("/api/driver/:driverId/availability", async (req, res) => {
-  try {
-    const driverId = req.params.driverId;
-    const driver = await getDriverById(driverId);
-
-    if (!driver) {
-      return res.status(404).json({ ok: false, error: "Driver not found" });
-    }
-
-    if (!driver.is_approved) {
-      return res.status(403).json({
-        ok: false,
-        error: "Driver must be approved before changing availability"
-      });
-    }
-
-    if (driver.active_ride_id && req.body.availability === "available") {
-      return res.status(409).json({
-        ok: false,
-        error: "Driver cannot become available while assigned to an active ride"
-      });
-    }
-
-    const availability = normalizeAvailability(req.body.availability);
-
-    const { data, error } = await supabase
-      .from("drivers")
-      .update({
-        availability,
-        updated_at: now()
-      })
-      .eq("driver_id", driverId)
-      .select()
-      .single();
-
-    if (error) {
-      return res.status(500).json({ ok: false, error: error.message });
-    }
-
-    return res.json({
-      ok: true,
-      message: "Driver availability updated",
-      driver: data
-    });
-  } catch (error) {
-    return res.status(500).json({ ok: false, error: "Failed to update availability" });
-  }
-});
-
-/* =========================================================
-   MAP / ETA / PRICING HELPERS
-========================================================= */
-async function geocodeAddress(address) {
-  if (!GOOGLE_MAPS_API_KEY || !address) {
-    return {
-      formatted_address: address || "",
-      lat: null,
-      lng: null
-    };
-  }
-
-  try {
-    const url =
-      "https://maps.googleapis.com/maps/api/geocode/json?address=" +
-      encodeURIComponent(address) +
-      "&key=" +
-      GOOGLE_MAPS_API_KEY;
-
-    const response = await fetch(url);
-    const data = await response.json();
-
-    if (!data.results || !data.results.length) {
-      return {
-        formatted_address: address,
-        lat: null,
-        lng: null
-      };
-    }
-
-    const result = data.results[0];
-    return {
-      formatted_address: result.formatted_address || address,
-      lat: result.geometry?.location?.lat ?? null,
-      lng: result.geometry?.location?.lng ?? null
-    };
-  } catch (error) {
-    return {
-      formatted_address: address,
-      lat: null,
-      lng: null
-    };
-  }
-}
-
-async function getDistanceAndDuration(originAddress, destinationAddress) {
-  if (!GOOGLE_MAPS_API_KEY || !originAddress || !destinationAddress) {
-    return {
-      distance_miles: 5,
-      duration_minutes: 15
-    };
-  }
-
-  try {
-    const url =
-      "https://maps.googleapis.com/maps/api/distancematrix/json?origins=" +
-      encodeURIComponent(originAddress) +
-      "&destinations=" +
-      encodeURIComponent(destinationAddress) +
-      "&units=imperial&key=" +
-      GOOGLE_MAPS_API_KEY;
-
-    const response = await fetch(url);
-    const data = await response.json();
-
-    const element = data?.rows?.[0]?.elements?.[0];
-    if (!element || element.status !== "OK") {
-      return {
-        distance_miles: 5,
-        duration_minutes: 15
-      };
-    }
-
-    const meters = safeNumber(element.distance?.value, 8046.72);
-    const seconds = safeNumber(element.duration?.value, 900);
-
-    return {
-      distance_miles: +(meters / 1609.34).toFixed(2),
-      duration_minutes: +(seconds / 60).toFixed(2)
-    };
-  } catch (error) {
-    return {
-      distance_miles: 5,
-      duration_minutes: 15
-    };
-  }
-}
-
-/* =========================================================
-   PAYMENTS
-========================================================= */
-app.post("/api/payments/authorize", async (req, res) => {
-  try {
-    const missing = requireFields(req.body, ["riderId", "paymentMethod"]);
-    if (missing) {
-      return res.status(400).json({ ok: false, error: missing });
-    }
-
-    const rider = await getRiderById(req.body.riderId);
-    if (!rider) {
-      return res.status(404).json({ ok: false, error: "Rider not found" });
-    }
-
-    if (!rider.is_approved || rider.verification_status !== "approved") {
-      return res.status(403).json({
-        ok: false,
-        error: "Rider must be approved before payment authorization"
-      });
-    }
-
-    const paymentId = generateId("payment");
-
-    const paymentRecord = {
-      payment_id: paymentId,
-      rider_id: rider.rider_id,
-      payment_method: req.body.paymentMethod,
-      status: "authorized",
-      amount: safeNumber(req.body.amount, 0),
-      created_at: now()
-    };
-
-    const { error: paymentError } = await supabase
-      .from("payments")
-      .insert([paymentRecord]);
-
-    if (paymentError) {
-      return res.status(500).json({ ok: false, error: paymentError.message });
-    }
-
-    const { error: riderUpdateError } = await supabase
-      .from("riders")
-      .update({
-        payment_authorized: true,
-        updated_at: now()
-      })
-      .eq("rider_id", rider.rider_id);
-
-    if (riderUpdateError) {
-      return res.status(500).json({ ok: false, error: riderUpdateError.message });
-    }
-
-    await createAdminLog("payment_authorized", {
-      rider_id: rider.rider_id,
-      payment_id: paymentId
-    });
-
-    return res.json({
-      ok: true,
-      message: "Payment authorized successfully",
-      payment: paymentRecord
-    });
-  } catch (error) {
-    return res.status(500).json({ ok: false, error: "Payment authorization failed" });
-  }
-});
-
-/* =========================================================
-   FARE ESTIMATE
-========================================================= */
-app.post("/api/fare-estimate", async (req, res) => {
-  try {
-    const missing = requireFields(req.body, ["pickupAddress", "dropoffAddress"]);
-    if (missing) {
-      return res.status(400).json({ ok: false, error: missing });
-    }
-
-    const rideType = normalizeRideType(req.body.rideType);
-    const requestedMode = normalizeRequestedMode(req.body.requestedMode);
-
-    const metrics = await getDistanceAndDuration(
-      req.body.pickupAddress,
-      req.body.dropoffAddress
-    );
-
-    const fare = calculateFare({
-      distanceMiles: metrics.distance_miles,
-      durationMinutes: metrics.duration_minutes,
-      rideType
-    });
-
-    return res.json({
-      ok: true,
-      pickup_address: req.body.pickupAddress,
-      dropoff_address: req.body.dropoffAddress,
-      ride_type: rideType,
-      requested_mode: requestedMode,
-      ...fare
-    });
-  } catch (error) {
-    return res.status(500).json({ ok: false, error: "Failed to estimate fare" });
-  }
-});
-
-/* =========================================================
-   DISPATCH BRAIN
-========================================================= */
-async function getCandidateDrivers() {
-  const { data, error } = await supabase
-    .from("drivers")
-    .select("*")
-    .eq("is_approved", true)
-    .eq("availability", "available")
-    .is("active_ride_id", null)
-    .order("updated_at", { ascending: true });
-
-  if (error) return [];
-  return data || [];
-}
-
-async function buildMissionPackage(ride, driver) {
-  return {
-    mission_id: generateId("mission"),
-    ride_id: ride.ride_id,
-    driver_id: driver.driver_id,
-    rider_id: ride.rider_id,
-    mission_status: "offered",
-    trip_summary: {
-      pickup_address: ride.pickup_address,
-      dropoff_address: ride.dropoff_address,
-      ride_type: ride.ride_type,
-      requested_mode: ride.requested_mode || "driver",
-      scheduled_time: ride.scheduled_time,
-      notes: ride.notes || ""
-    },
-    payout: {
-      estimated_fare: ride.estimated_fare,
-      driver_payout: ride.driver_payout
-    },
-    route_highlights: {
-      estimated_distance_miles: ride.estimated_distance_miles,
-      estimated_duration_minutes: ride.estimated_duration_minutes
-    },
-    offered_at: now(),
-    expires_at: new Date(Date.now() + DISPATCH_OFFER_TIMEOUT_MS).toISOString(),
-    created_at: now()
-  };
-}
-
-async function expireDispatchIfNeeded(dispatch) {
-  if (!dispatch) return null;
-  if (!isExpiredAt(dispatch.expires_at)) return dispatch;
-
-  await supabase
-    .from("dispatches")
-    .update({
-      status: "expired",
-      updated_at: now()
-    })
-    .eq("dispatch_id", dispatch.dispatch_id);
-
-  if (dispatch.mission_id) {
-    await supabase
-      .from("missions")
-      .update({
-        mission_status: "expired"
-      })
-      .eq("mission_id", dispatch.mission_id);
-  }
-
-  return null;
-}
-
-async function dispatchRideToNextDriver(rideId) {
-  const ride = await getRideById(rideId);
-  if (!ride) {
-    return { ok: false, error: "Ride not found" };
-  }
-
-  if (ride.requested_mode === "autonomous") {
-    await supabase
-      .from("rides")
-      .update({
-        status: "autonomous_queue",
-        updated_at: now()
-      })
-      .eq("ride_id", rideId);
-
-    await createAdminLog("autonomous_ride_queued", { ride_id: rideId });
-
-    return {
-      ok: true,
-      message: "Autonomous pilot ride queued",
-      autonomous: true
-    };
-  }
-
-  const attempts = await getDispatchAttemptsForRide(rideId);
-  if (attempts.length >= MAX_DISPATCH_ATTEMPTS) {
-    await supabase
-      .from("rides")
-      .update({
-        status: "no_driver_found",
-        updated_at: now()
-      })
-      .eq("ride_id", rideId);
-
-    await createAdminLog("dispatch_max_attempts_reached", { ride_id: rideId });
-
-    return {
-      ok: false,
-      error: "Maximum dispatch attempts reached"
-    };
-  }
-
-  const previouslyTried = new Set(attempts.map((a) => a.driver_id));
-  const candidates = await getCandidateDrivers();
-  const nextDriver = candidates.find((d) => !previouslyTried.has(d.driver_id));
-
-  if (!nextDriver) {
-    await supabase
-      .from("rides")
-      .update({
-        status: "no_driver_found",
-        updated_at: now()
-      })
-      .eq("ride_id", rideId);
-
-    await createAdminLog("dispatch_no_driver_found", { ride_id: rideId });
-
-    return {
-      ok: false,
-      error: "No available drivers found"
-    };
-  }
-
-  const dispatchId = generateId("dispatch");
-  const mission = await buildMissionPackage(ride, nextDriver);
-
-  const { error: missionError } = await supabase
-    .from("missions")
-    .insert([mission]);
-
-  if (missionError) {
-    return { ok: false, error: missionError.message };
-  }
-
-  const { data: dispatch, error: dispatchError } = await supabase
-    .from("dispatches")
-    .insert([
-      {
-        dispatch_id: dispatchId,
-        ride_id: ride.ride_id,
-        driver_id: nextDriver.driver_id,
-        mission_id: mission.mission_id,
-        status: "offered",
-        attempt_number: attempts.length + 1,
-        created_at: now(),
-        updated_at: now(),
-        expires_at: mission.expires_at
-      }
-    ])
-    .select()
-    .single();
-
-  if (dispatchError) {
-    return { ok: false, error: dispatchError.message };
-  }
-
-  await supabase
-    .from("rides")
-    .update({
-      status: "driver_offered",
-      updated_at: now()
-    })
-    .eq("ride_id", ride.ride_id);
-
-  await createAdminLog("dispatch_offered", {
-    ride_id: ride.ride_id,
-    driver_id: nextDriver.driver_id,
-    dispatch_id: dispatchId
-  });
-
-  return {
-    ok: true,
-    message: "Ride offered to next driver",
-    dispatch,
-    mission
-  };
-}
-
-/* =========================================================
-   RIDE REQUEST
-========================================================= */
-app.post("/api/request-ride", async (req, res) => {
-  try {
-    const missing = requireFields(req.body, [
-      "riderId",
-      "pickupAddress",
-      "dropoffAddress"
-    ]);
-
-    if (missing) {
-      return res.status(400).json({ ok: false, error: missing });
-    }
-
-    const rider = await getRiderById(req.body.riderId);
-    if (!rider) {
-      return res.status(404).json({ ok: false, error: "Rider not found" });
-    }
-
-    if (!rider.is_approved || rider.verification_status !== "approved") {
-      return res.status(403).json({
-        ok: false,
-        error: "Rider must be verified and approved before requesting a ride"
-      });
-    }
-
-    if (!rider.payment_authorized) {
-      return res.status(403).json({
-        ok: false,
-        error: "Payment authorization is required before dispatch"
-      });
-    }
-
-    const rideType = normalizeRideType(req.body.rideType);
-    const requestedMode = normalizeRequestedMode(req.body.requestedMode);
-
-    const pickupGeo = await geocodeAddress(req.body.pickupAddress);
-    const dropoffGeo = await geocodeAddress(req.body.dropoffAddress);
-
-    const metrics = await getDistanceAndDuration(
-      pickupGeo.formatted_address,
-      dropoffGeo.formatted_address
-    );
-
-    const fare = calculateFare({
-      distanceMiles: metrics.distance_miles,
-      durationMinutes: metrics.duration_minutes,
-      rideType
-    });
-
-    const rideId = generateId("ride");
-
-    const ride = {
-      ride_id: rideId,
-      rider_id: rider.rider_id,
-      driver_id: null,
-      status: requestedMode === "autonomous" ? "autonomous_queue" : "searching_driver",
-      ride_type: rideType,
-      requested_mode: requestedMode,
-      pickup_address: pickupGeo.formatted_address,
-      dropoff_address: dropoffGeo.formatted_address,
-      scheduled_time: req.body.scheduledTime || null,
-      notes: req.body.notes || "",
-      payment_method: req.body.paymentMethod || "card",
-      estimated_fare: fare.estimated_fare,
-      driver_payout: fare.driver_payout,
-      estimated_distance_miles: metrics.distance_miles,
-      estimated_duration_minutes: metrics.duration_minutes,
-      created_at: now(),
-      updated_at: now()
-    };
-
-    const { data, error } = await supabase
-      .from("rides")
-      .insert([ride])
-      .select()
-      .single();
-
-    if (error) {
-      return res.status(500).json({ ok: false, error: error.message });
-    }
-
-    await createAdminLog("ride_requested", {
-      ride_id: rideId,
-      rider_id: rider.rider_id,
-      requested_mode: requestedMode
-    });
-
-    const dispatchResult = await dispatchRideToNextDriver(rideId);
-
-    return res.json({
-      ok: true,
-      message:
-        requestedMode === "autonomous"
-          ? "Autonomous pilot request submitted"
-          : "Ride request submitted",
-      ride: data,
-      dispatch: dispatchResult
-    });
-  } catch (error) {
-    return res.status(500).json({ ok: false, error: "Ride request failed" });
-  }
-});
-
-/* =========================================================
-   RIDES / TRIPS
-========================================================= */
-app.get("/api/rides", async (req, res) => {
-  try {
-    const { riderId, driverId, status, requestedMode } = req.query;
-
-    let query = supabase
-      .from("rides")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (riderId) query = query.eq("rider_id", riderId);
-    if (driverId) query = query.eq("driver_id", driverId);
-    if (status) query = query.eq("status", String(status).toLowerCase());
-    if (requestedMode) query = query.eq("requested_mode", normalizeRequestedMode(requestedMode));
-
-    const { data, error } = await query;
-
-    if (error) {
-      return res.status(500).json({ ok: false, error: error.message });
-    }
-
-    return res.json({ ok: true, rides: data || [] });
-  } catch (error) {
-    return res.status(500).json({ ok: false, error: "Failed to fetch rides" });
-  }
-});
-
-app.get("/api/rides/:rideId", async (req, res) => {
-  try {
-    const ride = await getRideById(req.params.rideId);
-
-    if (!ride) {
-      return res.status(404).json({ ok: false, error: "Ride not found" });
-    }
-
-    return res.json({ ok: true, ride });
-  } catch (error) {
-    return res.status(500).json({ ok: false, error: "Failed to fetch ride" });
-  }
-});
-
-app.post("/api/rides/:rideId/start", async (req, res) => {
-  try {
-    const rideId = req.params.rideId;
-    const ride = await getRideById(rideId);
-
-    if (!ride) {
-      return res.status(404).json({ ok: false, error: "Ride not found" });
-    }
-
-    if (!["driver_assigned", "autonomous_assigned"].includes(ride.status)) {
-      return res.status(409).json({
-        ok: false,
-        error: "Ride cannot be started from the current status"
-      });
-    }
-
-    const { data, error } = await supabase
-      .from("rides")
-      .update({
-        status: "in_progress",
-        started_at: now(),
-        updated_at: now()
-      })
-      .eq("ride_id", rideId)
-      .select()
-      .single();
-
-    if (error) {
-      return res.status(500).json({ ok: false, error: error.message });
-    }
-
-    await createAdminLog("ride_started", { ride_id: rideId });
-
-    return res.json({ ok: true, message: "Ride started", ride: data });
-  } catch (error) {
-    return res.status(500).json({ ok: false, error: "Failed to start ride" });
-  }
-});
-
-app.post("/api/rides/:rideId/complete", async (req, res) => {
-  try {
-    const rideId = req.params.rideId;
-    const ride = await getRideById(rideId);
-
-    if (!ride) {
-      return res.status(404).json({ ok: false, error: "Ride not found" });
-    }
-
-    const { data, error } = await supabase
-      .from("rides")
-      .update({
-        status: "completed",
-        completed_at: now(),
-        updated_at: now()
-      })
-      .eq("ride_id", rideId)
-      .select()
-      .single();
-
-    if (error) {
-      return res.status(500).json({ ok: false, error: error.message });
-    }
-
-    if (ride.driver_id) {
-      await supabase
-        .from("drivers")
-        .update({
-          availability: "available",
-          active_ride_id: null,
-          updated_at: now()
-        })
-        .eq("driver_id", ride.driver_id);
-    }
-
-    await createAdminLog("ride_completed", { ride_id: rideId });
-
-    return res.json({ ok: true, message: "Ride completed", ride: data });
-  } catch (error) {
-    return res.status(500).json({ ok: false, error: "Failed to complete ride" });
-  }
-});
-
-app.post("/api/rides/:rideId/cancel", async (req, res) => {
-  try {
-    const rideId = req.params.rideId;
-    const ride = await getRideById(rideId);
-
-    if (!ride) {
-      return res.status(404).json({ ok: false, error: "Ride not found" });
-    }
-
-    const { data, error } = await supabase
-      .from("rides")
-      .update({
-        status: "cancelled",
-        cancelled_at: now(),
-        cancel_reason: req.body.reason || null,
-        updated_at: now()
-      })
-      .eq("ride_id", rideId)
-      .select()
-      .single();
-
-    if (error) {
-      return res.status(500).json({ ok: false, error: error.message });
-    }
-
-    if (ride.driver_id) {
-      await supabase
-        .from("drivers")
-        .update({
-          availability: "available",
-          active_ride_id: null,
-          updated_at: now()
-        })
-        .eq("driver_id", ride.driver_id);
-    }
-
-    await supabase
-      .from("dispatches")
-      .update({
-        status: "cancelled",
-        updated_at: now()
-      })
-      .eq("ride_id", rideId)
-      .in("status", ["pending", "offered"]);
-
-    await supabase
-      .from("missions")
-      .update({
-        mission_status: "cancelled"
-      })
-      .eq("ride_id", rideId)
-      .in("mission_status", ["offered", "accepted"]);
-
-    await createAdminLog("ride_cancelled", {
-      ride_id: rideId,
-      reason: req.body.reason || null
-    });
-
-    return res.json({ ok: true, message: "Ride cancelled", ride: data });
-  } catch (error) {
-    return res.status(500).json({ ok: false, error: "Failed to cancel ride" });
-  }
-});
-
-/* =========================================================
-   DRIVER MISSIONS / ACCEPT / DECLINE
-========================================================= */
-app.get("/api/driver/:driverId/missions", async (req, res) => {
-  try {
-    const driverId = req.params.driverId;
-
-    const { data, error } = await supabase
-      .from("missions")
-      .select("*")
-      .eq("driver_id", driverId)
-      .in("mission_status", ["offered", "accepted"])
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      return res.status(500).json({ ok: false, error: error.message });
-    }
-
-    const filtered = [];
-    for (const mission of data || []) {
-      const dispatch = await getDispatchForDriverRide(driverId, mission.ride_id);
-      if (dispatch) {
-        const stillOpen = await expireDispatchIfNeeded(dispatch);
-        if (stillOpen) filtered.push(mission);
-      } else if (mission.mission_status === "accepted") {
-        filtered.push(mission);
-      }
-    }
-
-    return res.json({ ok: true, missions: filtered });
-  } catch (error) {
-    return res.status(500).json({ ok: false, error: "Failed to fetch missions" });
-  }
-});
-
-app.post("/api/driver/:driverId/accept-ride", async (req, res) => {
-  try {
-    const driverId = req.params.driverId;
-    const missing = requireFields(req.body, ["rideId"]);
-    if (missing) {
-      return res.status(400).json({ ok: false, error: missing });
-    }
-
-    const driver = await getDriverById(driverId);
-    if (!driver) {
-      return res.status(404).json({ ok: false, error: "Driver not found" });
-    }
-
-    if (!driver.is_approved) {
-      return res.status(403).json({ ok: false, error: "Driver is not approved" });
-    }
-
-    if (driver.active_ride_id) {
-      return res.status(409).json({
-        ok: false,
-        error: "Driver already has an active ride"
-      });
-    }
-
-    const ride = await getRideById(req.body.rideId);
-    if (!ride) {
-      return res.status(404).json({ ok: false, error: "Ride not found" });
-    }
-
-    if (ride.requested_mode !== "driver") {
-      return res.status(409).json({
-        ok: false,
-        error: "This ride is not a driver-dispatch mission"
-      });
-    }
-
-    if (ride.driver_id) {
-      return res.status(409).json({
-        ok: false,
-        error: "Ride has already been assigned"
-      });
-    }
-
-    const openDispatch = await getDispatchForDriverRide(driverId, ride.ride_id);
-    if (!openDispatch) {
-      return res.status(404).json({ ok: false, error: "No active dispatch found" });
-    }
-
-    const stillOpenDispatch = await expireDispatchIfNeeded(openDispatch);
-    if (!stillOpenDispatch) {
-      const nextDispatch = await dispatchRideToNextDriver(ride.ride_id);
-      return res.status(409).json({
-        ok: false,
-        error: "Dispatch offer expired",
-        next_dispatch: nextDispatch
-      });
-    }
-
-    const { error: rideUpdateError } = await supabase
-      .from("rides")
-      .update({
-        driver_id: driverId,
-        status: "driver_assigned",
-        accepted_at: now(),
-        updated_at: now()
-      })
-      .eq("ride_id", ride.ride_id)
-      .is("driver_id", null);
-
-    if (rideUpdateError) {
-      return res.status(500).json({ ok: false, error: rideUpdateError.message });
-    }
-
-    await supabase
-      .from("drivers")
-      .update({
-        availability: "busy",
-        active_ride_id: ride.ride_id,
-        updated_at: now()
-      })
-      .eq("driver_id", driverId);
-
-    await supabase
-      .from("dispatches")
-      .update({
-        status: "accepted",
-        updated_at: now()
-      })
-      .eq("dispatch_id", stillOpenDispatch.dispatch_id);
-
-    await supabase
-      .from("missions")
-      .update({
-        mission_status: "accepted"
-      })
-      .eq("mission_id", stillOpenDispatch.mission_id);
-
-    await supabase
-      .from("dispatches")
-      .update({
-        status: "closed",
-        updated_at: now()
-      })
-      .eq("ride_id", ride.ride_id)
-      .neq("dispatch_id", stillOpenDispatch.dispatch_id)
-      .in("status", ["pending", "offered"]);
-
-    await supabase
-      .from("missions")
-      .update({
-        mission_status: "closed"
-      })
-      .eq("ride_id", ride.ride_id)
-      .neq("mission_id", stillOpenDispatch.mission_id)
-      .in("mission_status", ["offered"]);
-
-    await createAdminLog("ride_accepted", {
-      ride_id: ride.ride_id,
-      driver_id: driverId
-    });
-
-    const updatedRide = await getRideById(ride.ride_id);
-
-    return res.json({
-      ok: true,
-      message: "Ride accepted successfully",
-      ride: updatedRide
-    });
-  } catch (error) {
-    return res.status(500).json({ ok: false, error: "Failed to accept ride" });
-  }
-});
-
-app.post("/api/driver/:driverId/decline-ride", async (req, res) => {
-  try {
-    const driverId = req.params.driverId;
-    const missing = requireFields(req.body, ["rideId"]);
-    if (missing) {
-      return res.status(400).json({ ok: false, error: missing });
-    }
-
-    const ride = await getRideById(req.body.rideId);
-    if (!ride) {
-      return res.status(404).json({ ok: false, error: "Ride not found" });
-    }
-
-    const openDispatch = await getDispatchForDriverRide(driverId, ride.ride_id);
-    if (!openDispatch) {
-      return res.status(404).json({
-        ok: false,
-        error: "Active dispatch not found for driver"
-      });
-    }
-
-    await supabase
-      .from("dispatches")
-      .update({
-        status: "declined",
-        updated_at: now()
-      })
-      .eq("dispatch_id", openDispatch.dispatch_id);
-
-    await supabase
-      .from("missions")
-      .update({
-        mission_status: "declined"
-      })
-      .eq("mission_id", openDispatch.mission_id);
-
-    await createAdminLog("ride_declined", {
-      ride_id: ride.ride_id,
-      driver_id: driverId
-    });
-
-    const nextDispatch = await dispatchRideToNextDriver(ride.ride_id);
-
-    return res.json({
-      ok: true,
-      message: "Ride declined, dispatch moved to next driver",
-      dispatch: nextDispatch
-    });
-  } catch (error) {
-    return res.status(500).json({ ok: false, error: "Failed to decline ride" });
-  }
-});
-
-/* =========================================================
-   AUTONOMOUS PILOT ADMIN ROUTES
-========================================================= */
-app.post("/api/admin/rides/:rideId/assign-autonomous", requireAdmin, async (req, res) => {
-  try {
-    const rideId = req.params.rideId;
-    const ride = await getRideById(rideId);
-
-    if (!ride) {
-      return res.status(404).json({ ok: false, error: "Ride not found" });
-    }
-
-    if (ride.requested_mode !== "autonomous") {
-      return res.status(409).json({
-        ok: false,
-        error: "Ride is not marked for autonomous mode"
-      });
-    }
-
-    const vehicleName = req.body.vehicleName || "Harvey AV Pilot Unit 1";
-
-    const { data, error } = await supabase
-      .from("rides")
-      .update({
-        status: "autonomous_assigned",
-        autonomous_vehicle_name: vehicleName,
-        accepted_at: now(),
-        updated_at: now()
-      })
-      .eq("ride_id", rideId)
-      .select()
-      .single();
-
-    if (error) {
-      return res.status(500).json({ ok: false, error: error.message });
-    }
-
-    await createAdminLog("autonomous_ride_assigned", {
-      ride_id: rideId,
-      autonomous_vehicle_name: vehicleName
-    });
-
-    return res.json({
-      ok: true,
-      message: "Autonomous pilot ride assigned",
-      ride: data
-    });
-  } catch (error) {
-    return res.status(500).json({ ok: false, error: "Failed to assign autonomous ride" });
-  }
-});
-
-/* =========================================================
-   ADMIN ANALYTICS
-========================================================= */
-app.get("/api/admin/analytics", requireAdmin, async (req, res) => {
-  try {
-    const [
-      { count: ridersCount },
-      { count: driversCount },
-      { count: ridesCount },
-      { count: autonomousCount },
-      { count: completedCount }
-    ] = await Promise.all([
-      supabase.from("riders").select("*", { count: "exact", head: true }),
-      supabase.from("drivers").select("*", { count: "exact", head: true }),
-      supabase.from("rides").select("*", { count: "exact", head: true }),
-      supabase
-        .from("rides")
-        .select("*", { count: "exact", head: true })
-        .eq("requested_mode", "autonomous"),
-      supabase
-        .from("rides")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "completed")
-    ]);
-
-    const { data: recentRides } = await supabase
-      .from("rides")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(10);
-
-    const { data: recentLogs } = await supabase
-      .from("admin_logs")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(20);
-
-    return res.json({
-      ok: true,
-      analytics: {
-        total_riders: ridersCount || 0,
-        total_drivers: driversCount || 0,
-        total_rides: ridesCount || 0,
-        total_autonomous_requests: autonomousCount || 0,
-        total_completed_rides: completedCount || 0,
-        recent_rides: recentRides || [],
-        recent_logs: recentLogs || []
-      }
-    });
-  } catch (error) {
-    return res.status(500).json({ ok: false, error: "Failed to load analytics" });
-  }
-});
-
-/* =========================================================
-   404 + SERVER START
-========================================================= */
-app.use((req, res) => {
-  res.status(404).json({
-    ok: false,
-    error: "Route not found"
-  });
-});
-
 app.listen(PORT, () => {
   console.log(`✅ Harvey Taxi server running on port ${PORT}`);
 });
