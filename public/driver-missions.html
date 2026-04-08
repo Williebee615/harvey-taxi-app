@@ -3,13 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Harvey Taxi — Driver Missions</title>
+  <title>Harvey Taxi — Driver Mission</title>
+  <meta
+    name="description"
+    content="Harvey Taxi driver mission console for accepting, rejecting, and managing live trip assignments."
+  />
+
   <style>
     :root{
       --bg1:#040814;
       --bg2:#091126;
+      --bg3:#101935;
       --panel:rgba(10,17,38,.90);
-      --panel2:rgba(16,28,58,.78);
+      --panel2:rgba(15,23,52,.74);
       --line:rgba(122,162,255,.16);
       --line-strong:rgba(122,162,255,.28);
       --text:#f4f7ff;
@@ -20,556 +26,936 @@
       --danger:#ff7e97;
       --gold:#ffd76a;
       --shadow:0 20px 70px rgba(0,0,0,.35);
-      --radius:24px;
+      --radius-xl:28px;
+      --radius-lg:22px;
+      --radius-md:16px;
+      --radius-sm:12px;
+      --max:1240px;
     }
 
     *{box-sizing:border-box;margin:0;padding:0}
 
     body{
+      min-height:100vh;
       font-family:Inter,Arial,sans-serif;
       color:var(--text);
       background:
-        radial-gradient(circle at top left, rgba(99,245,255,.12), transparent 28%),
-        radial-gradient(circle at top right, rgba(94,160,255,.10), transparent 24%),
-        linear-gradient(160deg,var(--bg1),var(--bg2));
-      min-height:100vh;
+        radial-gradient(circle at top left, rgba(99,245,255,.10), transparent 25%),
+        radial-gradient(circle at top right, rgba(94,160,255,.12), transparent 30%),
+        linear-gradient(160deg,var(--bg1),var(--bg2) 52%,var(--bg3));
     }
 
     a{text-decoration:none;color:inherit}
 
-    .shell{
-      max-width:1000px;
-      margin:auto;
-      padding:18px 16px 40px;
+    button,
+    input,
+    select{
+      font:inherit;
+    }
+
+    .container{
+      width:min(var(--max), calc(100% - 28px));
+      margin:0 auto;
     }
 
     .topbar{
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:12px;
-      margin-bottom:18px;
-      padding:14px 16px;
-      border:1px solid var(--line);
-      border-radius:999px;
-      background:rgba(7,14,31,.58);
-      backdrop-filter:blur(14px);
-      box-shadow:var(--shadow);
       position:sticky;
-      top:12px;
-      z-index:30;
+      top:0;
+      z-index:100;
+      backdrop-filter:blur(18px);
+      background:rgba(4,8,20,.74);
+      border-bottom:1px solid rgba(255,255,255,.06);
     }
 
-    .brand-wrap{
+    .topbar-inner{
+      width:min(var(--max), calc(100% - 28px));
+      margin:0 auto;
+      min-height:76px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:16px;
+      flex-wrap:wrap;
+      padding:10px 0;
+    }
+
+    .brand{
       display:flex;
       align-items:center;
       gap:12px;
+      font-weight:800;
+      letter-spacing:.2px;
     }
 
-    .brand-mark{
+    .brand-badge{
       width:42px;
       height:42px;
       border-radius:14px;
-      background:
-        radial-gradient(circle at 30% 30%, rgba(255,255,255,.95), rgba(255,255,255,.1) 18%, transparent 20%),
-        linear-gradient(145deg, rgba(104,168,255,.95), rgba(98,245,255,.45), rgba(113,255,183,.25));
-      box-shadow:0 0 18px rgba(98,245,255,.2), inset 0 0 18px rgba(255,255,255,.08);
+      display:grid;
+      place-items:center;
+      background:linear-gradient(135deg,var(--blue),var(--cyan));
+      color:#04111c;
+      box-shadow:0 10px 35px rgba(94,160,255,.35);
+      font-weight:900;
     }
 
-    .brand h1{
-      font-size:1rem;
-      font-weight:800;
-      letter-spacing:.06em;
+    .top-actions{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
     }
 
-    .brand p{
-      color:var(--muted);
-      font-size:.82rem;
-      margin-top:2px;
-    }
-
-    .mini-btn{
-      border:1px solid var(--line);
-      background:rgba(255,255,255,.04);
-      color:var(--text);
+    .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
       padding:10px 14px;
       border-radius:999px;
-      font-weight:800;
-      font-size:.88rem;
+      color:var(--muted);
+      background:rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.07);
+      font-size:14px;
+      font-weight:700;
+    }
+
+    .btn{
+      border:none;
       cursor:pointer;
+      border-radius:999px;
+      padding:14px 18px;
+      font-weight:800;
+      font-size:15px;
+      transition:transform .18s ease, box-shadow .18s ease, opacity .18s ease;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:10px;
+    }
+
+    .btn:hover{transform:translateY(-1px)}
+    .btn:disabled{opacity:.6;cursor:not-allowed;transform:none}
+
+    .btn-primary{
+      background:linear-gradient(135deg,var(--blue),var(--cyan));
+      color:#04111c;
+      box-shadow:0 14px 36px rgba(94,160,255,.25);
+    }
+
+    .btn-secondary{
+      background:rgba(255,255,255,.06);
+      color:var(--text);
+      border:1px solid rgba(255,255,255,.08);
+    }
+
+    .btn-success{
+      background:linear-gradient(135deg,#39d98a,var(--green));
+      color:#04160f;
+      box-shadow:0 14px 36px rgba(57,217,138,.22);
+    }
+
+    .btn-danger{
+      background:linear-gradient(135deg,#ff7e97,#ffad7e);
+      color:#25060e;
+      box-shadow:0 14px 36px rgba(255,126,151,.22);
     }
 
     .hero{
-      background:linear-gradient(180deg,rgba(17,31,66,.88),rgba(8,16,35,.92));
-      border:1px solid var(--line);
-      border-radius:28px;
-      padding:24px;
-      box-shadow:var(--shadow);
-      margin-bottom:18px;
+      padding:28px 0 18px;
     }
 
-    .hero .eyebrow{
+    .hero-card{
+      background:linear-gradient(180deg,var(--panel),var(--panel2));
+      border:1px solid var(--line);
+      border-radius:var(--radius-xl);
+      box-shadow:var(--shadow);
+      padding:26px;
+      overflow:hidden;
+      position:relative;
+    }
+
+    .hero-card::after{
+      content:"";
+      position:absolute;
+      right:-40px;
+      top:-50px;
+      width:200px;
+      height:200px;
+      border-radius:50%;
+      background:radial-gradient(circle, rgba(99,245,255,.18), transparent 65%);
+      pointer-events:none;
+    }
+
+    .eyebrow{
       display:inline-flex;
       align-items:center;
-      gap:10px;
-      border:1px solid var(--line-strong);
-      padding:8px 14px;
+      gap:8px;
+      padding:8px 12px;
       border-radius:999px;
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.08);
       color:var(--cyan);
-      font-weight:700;
-      font-size:.86rem;
-      background:rgba(98,245,255,.06);
-      margin-bottom:16px;
+      font-size:12px;
+      font-weight:800;
+      text-transform:uppercase;
+      letter-spacing:.12em;
+      margin-bottom:14px;
     }
 
-    .hero h2{
-      font-size:clamp(1.9rem,4vw,3rem);
-      line-height:1.04;
-      font-weight:900;
-      letter-spacing:-.03em;
-    }
-
-    .hero h2 span{
-      background:linear-gradient(90deg,#fff,#89c0ff,#72fff0);
-      -webkit-background-clip:text;
-      -webkit-text-fill-color:transparent;
+    h1{
+      font-size:clamp(28px,4vw,48px);
+      line-height:1.02;
+      margin-bottom:12px;
+      max-width:900px;
     }
 
     .hero p{
-      margin-top:12px;
       color:var(--muted);
+      font-size:16px;
       line-height:1.65;
-      max-width:760px;
+      max-width:900px;
     }
 
-    .layout{
+    .grid{
       display:grid;
-      grid-template-columns:340px 1fr;
-      gap:18px;
+      grid-template-columns:360px minmax(0,1fr);
+      gap:22px;
+      padding:8px 0 36px;
       align-items:start;
     }
 
     .card{
-      background:var(--panel);
+      background:linear-gradient(180deg,var(--panel),var(--panel2));
       border:1px solid var(--line);
-      border-radius:24px;
-      padding:20px;
+      border-radius:var(--radius-xl);
       box-shadow:var(--shadow);
-      backdrop-filter:blur(16px);
+      overflow:hidden;
     }
 
-    .section-title{
-      font-size:1.06rem;
-      font-weight:800;
-      margin-bottom:12px;
+    .card-head{
+      padding:20px 20px 14px;
+      border-bottom:1px solid rgba(255,255,255,.06);
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:14px;
     }
 
-    .sub{
+    .card-head h2{
+      font-size:20px;
+      line-height:1.15;
+      margin-bottom:6px;
+    }
+
+    .card-head p{
       color:var(--muted);
+      font-size:14px;
       line-height:1.55;
-      font-size:.94rem;
-      margin-bottom:16px;
+    }
+
+    .card-body{
+      padding:18px 20px 20px;
+    }
+
+    .stack{
+      display:grid;
+      gap:14px;
     }
 
     .field{
-      margin-bottom:14px;
+      display:grid;
+      gap:8px;
     }
 
     .field label{
-      display:block;
-      margin-bottom:8px;
-      font-size:.92rem;
+      font-size:13px;
       font-weight:800;
-      color:var(--muted);
+      color:#dce6ff;
+      letter-spacing:.02em;
     }
 
-    .input, textarea{
+    .input,
+    .select{
       width:100%;
-      background:var(--panel2);
-      color:var(--text);
-      border:1px solid rgba(255,255,255,.08);
-      border-radius:16px;
+      border-radius:14px;
       padding:14px 14px;
-      outline:none;
-      font-size:1rem;
-      font-family:inherit;
-    }
-
-    .input:focus, textarea:focus{
-      border-color:var(--blue);
-      box-shadow:0 0 0 3px rgba(94,160,255,.14);
-    }
-
-    .input::placeholder,
-    textarea::placeholder{
-      color:rgba(244,247,255,.48);
-    }
-
-    .btn-row{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      margin-top:8px;
-    }
-
-    button{
-      border:none;
-      cursor:pointer;
-      border-radius:16px;
-      padding:14px 16px;
-      font-size:.96rem;
-      font-weight:800;
-      transition:.2s ease;
-      font-family:inherit;
-    }
-
-    button:hover{transform:translateY(-2px)}
-
-    .primary{
-      background:linear-gradient(90deg,var(--blue),var(--cyan));
-      color:#041224;
-      flex:1;
-    }
-
-    .secondary{
+      border:1px solid rgba(255,255,255,.10);
       background:rgba(255,255,255,.05);
       color:var(--text);
-      border:1px solid var(--line);
-      flex:1;
+      outline:none;
+      transition:border-color .18s ease, box-shadow .18s ease, background .18s ease;
     }
 
-    .status{
-      display:none;
-      margin-top:14px;
-      padding:14px 15px;
-      border-radius:16px;
-      line-height:1.6;
-      font-size:.93rem;
+    .input::placeholder{color:#8ca0d2}
+    .input:focus,
+    .select:focus{
+      border-color:rgba(99,245,255,.45);
+      box-shadow:0 0 0 4px rgba(99,245,255,.08);
+      background:rgba(255,255,255,.06);
     }
 
-    .status.show{display:block}
-    .status.success{
-      background:rgba(109,255,179,.10);
-      border:1px solid rgba(109,255,179,.2);
-      color:#dcfff1;
-    }
-    .status.error{
-      background:rgba(255,126,151,.10);
-      border:1px solid rgba(255,126,151,.2);
-      color:#ffd9e1;
-    }
-
-    .summary-grid{
+    .inline{
       display:grid;
       grid-template-columns:1fr 1fr;
       gap:12px;
-      margin-top:8px;
     }
 
-    .mini{
-      background:rgba(255,255,255,.035);
-      border:1px solid var(--line);
+    .status-box{
       border-radius:18px;
-      padding:14px;
+      padding:16px;
+      border:1px solid rgba(255,255,255,.08);
+      background:rgba(255,255,255,.04);
+      display:grid;
+      gap:10px;
     }
 
-    .mini .k{
+    .status-line{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+
+    .badge{
+      padding:8px 12px;
+      border-radius:999px;
+      font-size:12px;
+      font-weight:900;
+      letter-spacing:.08em;
+      text-transform:uppercase;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      border:1px solid transparent;
+    }
+
+    .badge.blue{
+      color:#b8d6ff;
+      background:rgba(94,160,255,.12);
+      border-color:rgba(94,160,255,.25);
+    }
+
+    .badge.green{
+      color:#c9ffe5;
+      background:rgba(109,255,179,.11);
+      border-color:rgba(109,255,179,.24);
+    }
+
+    .badge.red{
+      color:#ffd0d8;
+      background:rgba(255,126,151,.11);
+      border-color:rgba(255,126,151,.24);
+    }
+
+    .badge.gold{
+      color:#ffe7a5;
+      background:rgba(255,215,106,.10);
+      border-color:rgba(255,215,106,.22);
+    }
+
+    .small{
       color:var(--muted);
-      font-size:.8rem;
-      margin-bottom:6px;
+      font-size:13px;
+      line-height:1.5;
     }
 
-    .mini .v{
-      font-weight:800;
+    .helper{
+      color:#9cb0dc;
+      font-size:12px;
       line-height:1.45;
     }
 
-    .mission-list{
+    .actions{
       display:grid;
-      gap:16px;
+      gap:10px;
     }
 
-    .mission{
-      background:rgba(255,255,255,.03);
-      border:1px solid var(--line);
-      border-radius:22px;
-      padding:18px;
-    }
-
-    .mission-top{
-      display:flex;
-      justify-content:space-between;
-      align-items:flex-start;
-      gap:12px;
-      margin-bottom:14px;
-    }
-
-    .mission-title{
-      font-size:1.02rem;
-      font-weight:800;
-      margin-bottom:4px;
-    }
-
-    .mission-sub{
-      color:var(--muted);
-      font-size:.9rem;
-      line-height:1.5;
-    }
-
-    .tag{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      padding:8px 12px;
-      border-radius:999px;
-      font-size:.8rem;
-      font-weight:800;
-      white-space:nowrap;
-    }
-
-    .tag-blue{
-      color:#dff7ff;
-      background:rgba(99,245,255,.12);
-      border:1px solid rgba(99,245,255,.22);
-    }
-
-    .tag-green{
-      color:#dfffee;
-      background:rgba(109,255,179,.12);
-      border:1px solid rgba(109,255,179,.22);
-    }
-
-    .tag-gold{
-      color:#fff2c4;
-      background:rgba(255,215,106,.12);
-      border:1px solid rgba(255,215,106,.22);
-    }
-
-    .tag-red{
-      color:#ffd9e1;
-      background:rgba(255,126,151,.12);
-      border:1px solid rgba(255,126,151,.22);
-    }
-
-    .mission-grid{
+    .actions-row{
       display:grid;
       grid-template-columns:1fr 1fr;
+      gap:10px;
+    }
+
+    .metrics{
+      display:grid;
+      grid-template-columns:repeat(4, minmax(0,1fr));
       gap:12px;
-      margin:14px 0;
+      margin-bottom:18px;
     }
 
-    .detail{
-      background:rgba(255,255,255,.035);
-      border:1px solid var(--line);
-      border-radius:16px;
-      padding:12px 13px;
+    .metric{
+      padding:16px;
+      border-radius:20px;
+      border:1px solid rgba(255,255,255,.08);
+      background:rgba(255,255,255,.04);
     }
 
-    .detail .k{
+    .metric-label{
       color:var(--muted);
-      font-size:.78rem;
-      margin-bottom:5px;
+      font-size:12px;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+      margin-bottom:8px;
+      font-weight:800;
     }
 
-    .detail .v{
-      font-weight:700;
-      line-height:1.5;
-      word-break:break-word;
-    }
-
-    .notes{
-      margin-top:12px;
-      padding:13px 14px;
-      border:1px solid var(--line);
-      border-radius:16px;
-      background:rgba(255,255,255,.03);
-    }
-
-    .notes .k{
-      color:var(--muted);
-      font-size:.78rem;
+    .metric-value{
+      font-size:26px;
+      font-weight:900;
+      line-height:1;
       margin-bottom:6px;
     }
 
-    .notes .v{
-      line-height:1.6;
+    .metric-note{
+      color:#b6c6ef;
+      font-size:12px;
+      line-height:1.5;
     }
 
-    .mission-actions{
-      display:flex;
-      flex-wrap:wrap;
-      gap:10px;
-      margin-top:16px;
+    .mission-layout{
+      display:grid;
+      grid-template-columns:1.2fr .8fr;
+      gap:16px;
     }
 
-    .mission-actions button{
-      flex:1 1 180px;
+    .panel{
+      padding:18px;
+      border-radius:22px;
+      border:1px solid rgba(255,255,255,.08);
+      background:rgba(255,255,255,.04);
+      display:grid;
+      gap:14px;
     }
 
-    .accept-btn{
-      background:linear-gradient(90deg,var(--green),var(--cyan));
-      color:#041224;
+    .panel h3{
+      font-size:18px;
+      line-height:1.15;
     }
 
-    .decline-btn{
-      background:rgba(255,255,255,.05);
-      color:var(--text);
-      border:1px solid rgba(255,126,151,.24);
-    }
-
-    .progress-btn{
-      background:linear-gradient(90deg,var(--blue),#8db6ff);
-      color:#041224;
-    }
-
-    .empty{
-      padding:22px;
-      border:1px dashed rgba(122,162,255,.2);
-      border-radius:20px;
-      color:var(--muted);
-      line-height:1.65;
-      text-align:center;
-      background:rgba(255,255,255,.02);
-    }
-
-    .return-home{
-      position:fixed;
-      right:16px;
-      bottom:16px;
-      z-index:60;
-      padding:15px 20px;
-      border-radius:999px;
-      background:linear-gradient(135deg,var(--cyan),var(--blue));
-      color:#08111f;
+    .mission-id{
+      color:var(--cyan);
       font-weight:800;
-      box-shadow:var(--shadow);
+      font-size:14px;
+      letter-spacing:.04em;
     }
 
-    @media (max-width: 920px){
-      .layout{
+    .route{
+      display:grid;
+      gap:14px;
+    }
+
+    .route-step{
+      display:grid;
+      grid-template-columns:20px 1fr;
+      gap:12px;
+      align-items:start;
+    }
+
+    .route-dot{
+      width:16px;
+      height:16px;
+      border-radius:50%;
+      margin-top:2px;
+      box-shadow:0 0 0 5px rgba(255,255,255,.03);
+    }
+
+    .route-dot.pickup{
+      background:linear-gradient(135deg,var(--green),#38d39f);
+    }
+
+    .route-dot.dropoff{
+      background:linear-gradient(135deg,var(--danger),#ffb17e);
+    }
+
+    .route-copy h4{
+      font-size:12px;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+      color:var(--muted);
+      margin-bottom:6px;
+    }
+
+    .route-copy p{
+      font-size:15px;
+      line-height:1.55;
+      color:var(--text);
+    }
+
+    .list{
+      display:grid;
+      gap:10px;
+    }
+
+    .list-row{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+      padding:12px 0;
+      border-bottom:1px solid rgba(255,255,255,.06);
+    }
+
+    .list-row:last-child{border-bottom:none;padding-bottom:0}
+    .list-row:first-child{padding-top:0}
+
+    .list-label{
+      color:var(--muted);
+      font-size:13px;
+      font-weight:700;
+    }
+
+    .list-value{
+      font-size:14px;
+      text-align:right;
+      max-width:55%;
+      line-height:1.45;
+      word-break:break-word;
+    }
+
+    .alert{
+      padding:14px 16px;
+      border-radius:16px;
+      font-size:14px;
+      line-height:1.55;
+      border:1px solid transparent;
+    }
+
+    .alert.info{
+      background:rgba(94,160,255,.10);
+      border-color:rgba(94,160,255,.24);
+      color:#d8e8ff;
+    }
+
+    .alert.success{
+      background:rgba(109,255,179,.10);
+      border-color:rgba(109,255,179,.22);
+      color:#d8ffeb;
+    }
+
+    .alert.error{
+      background:rgba(255,126,151,.10);
+      border-color:rgba(255,126,151,.22);
+      color:#ffe0e6;
+    }
+
+    .timeline{
+      display:grid;
+      gap:10px;
+    }
+
+    .timeline-item{
+      padding:14px 14px;
+      border-radius:16px;
+      background:rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.06);
+      display:grid;
+      gap:4px;
+    }
+
+    .timeline-item strong{
+      font-size:14px;
+    }
+
+    .timeline-item span{
+      color:var(--muted);
+      font-size:12px;
+    }
+
+    .empty-state{
+      padding:34px 18px;
+      text-align:center;
+      color:var(--muted);
+      border-radius:20px;
+      border:1px dashed rgba(255,255,255,.12);
+      background:rgba(255,255,255,.03);
+    }
+
+    .footer-gap{height:24px}
+
+    @media (max-width: 1080px){
+      .grid{
+        grid-template-columns:1fr;
+      }
+
+      .metrics{
+        grid-template-columns:repeat(2, minmax(0,1fr));
+      }
+
+      .mission-layout{
         grid-template-columns:1fr;
       }
     }
 
-    @media (max-width: 700px){
-      .mission-grid,
-      .summary-grid{
+    @media (max-width: 720px){
+      .inline,
+      .actions-row{
         grid-template-columns:1fr;
       }
 
-      .topbar{
+      .metrics{
+        grid-template-columns:1fr;
+      }
+
+      .card-head{
         flex-direction:column;
         align-items:flex-start;
-        border-radius:24px;
       }
 
-      .return-home{
-        left:12px;
-        right:12px;
-        text-align:center;
+      .hero-card,
+      .card-body,
+      .card-head{
+        padding-left:16px;
+        padding-right:16px;
+      }
+
+      .topbar-inner{
+        width:min(var(--max), calc(100% - 20px));
+      }
+
+      .container{
+        width:min(var(--max), calc(100% - 20px));
       }
     }
   </style>
 </head>
 <body>
-  <div class="shell">
-    <header class="topbar">
-      <div class="brand-wrap">
-        <div class="brand-mark"></div>
-        <div class="brand">
-          <h1>HARVEY TAXI</h1>
-          <p>Driver Missions Console</p>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="brand-badge">H</div>
+        <div>
+          <div>Harvey Taxi</div>
+          <div class="small">Driver Mission Console</div>
         </div>
       </div>
-      <a class="mini-btn" href="index.html">Return Home</a>
-    </header>
 
-    <section class="hero">
-      <div class="eyebrow">Driver mission flow</div>
-      <h2>Manage your <span>ride missions</span></h2>
-      <p>
-        Load your current Harvey Taxi mission feed, review ride opportunities, and move
-        accepted trips through each stage from acceptance to completion.
-      </p>
-    </section>
+      <div class="top-actions">
+        <a class="chip" href="/">Return Home</a>
+        <a class="chip" href="/admin-dashboard">Admin Dashboard</a>
+        <a class="chip" href="/request-ride">Request Ride</a>
+      </div>
+    </div>
+  </header>
 
-    <main class="layout">
-      <section class="card">
-        <div class="section-title">Driver Session</div>
-        <p class="sub">
-          Enter your driver ID to load current missions assigned or offered to your account.
+  <section class="hero">
+    <div class="container">
+      <div class="hero-card">
+        <div class="eyebrow">Live Driver Operations</div>
+        <h1>Review the complete mission before you accept the ride.</h1>
+        <p>
+          This driver console shows payout, route, mode, notes, and trip status before acceptance.
+          It supports the Harvey Taxi flow where drivers see the mission first, then accept, reject,
+          start, and complete the trip.
         </p>
+      </div>
+    </div>
+  </section>
 
-        <div class="field">
-          <label for="driverId">Driver ID</label>
-          <input class="input" id="driverId" placeholder="Enter your driver ID" />
-        </div>
-
-        <div class="btn-row">
-          <button class="primary" id="loadMissionsBtn">Load Missions</button>
-          <button class="secondary" id="refreshBtn">Refresh</button>
-        </div>
-
-        <div id="pageStatus" class="status"></div>
-
-        <div class="section-title" style="margin-top:20px;">Live Summary</div>
-        <div class="summary-grid">
-          <div class="mini">
-            <div class="k">Open Missions</div>
-            <div class="v" id="openMissionCount">0</div>
+  <main class="container">
+    <div class="grid">
+      <section class="card">
+        <div class="card-head">
+          <div>
+            <h2>Driver Control Panel</h2>
+            <p>Load your mission, update availability, and manage the ride lifecycle.</p>
           </div>
-          <div class="mini">
-            <div class="k">Accepted / Active</div>
-            <div class="v" id="activeMissionCount">0</div>
+          <span class="badge blue" id="driverStatusBadge">Offline</span>
+        </div>
+
+        <div class="card-body">
+          <div class="stack">
+            <div class="status-box">
+              <div class="status-line">
+                <strong>Driver Session</strong>
+                <span class="badge gold" id="connectionBadge">Ready</span>
+              </div>
+              <div class="small" id="sessionText">
+                Enter your driver ID to load assigned missions and keep your status in sync.
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="driverId">Driver ID</label>
+              <input
+                id="driverId"
+                class="input"
+                type="text"
+                placeholder="Enter your driver ID"
+              />
+            </div>
+
+            <div class="inline">
+              <div class="field">
+                <label for="availability">Availability</label>
+                <select id="availability" class="select">
+                  <option value="offline">Offline</option>
+                  <option value="available">Available</option>
+                  <option value="busy">Busy</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label for="missionRideId">Ride ID</label>
+                <input
+                  id="missionRideId"
+                  class="input"
+                  type="text"
+                  placeholder="Paste a ride ID"
+                />
+              </div>
+            </div>
+
+            <div class="inline">
+              <div class="field">
+                <label for="driverLat">Latitude</label>
+                <input
+                  id="driverLat"
+                  class="input"
+                  type="number"
+                  step="any"
+                  placeholder="Optional driver latitude"
+                />
+              </div>
+
+              <div class="field">
+                <label for="driverLng">Longitude</label>
+                <input
+                  id="driverLng"
+                  class="input"
+                  type="number"
+                  step="any"
+                  placeholder="Optional driver longitude"
+                />
+              </div>
+            </div>
+
+            <div class="actions">
+              <button class="btn btn-primary" id="loadMissionBtn">Load Mission</button>
+              <div class="actions-row">
+                <button class="btn btn-secondary" id="updateAvailabilityBtn">Update Availability</button>
+                <button class="btn btn-secondary" id="refreshMissionBtn">Refresh Mission</button>
+              </div>
+            </div>
+
+            <div class="helper">
+              Harvey Taxi keeps the rider flow gated before dispatch. This page is for approved
+              drivers to review and execute assigned missions after dispatch begins.
+            </div>
+
+            <div id="messageBox" class="alert info">
+              Waiting for driver input. Load a mission to begin.
+            </div>
           </div>
         </div>
       </section>
 
       <section class="card">
-        <div class="section-title">Mission Feed</div>
-        <p class="sub">
-          Current ride opportunities and active rides for this driver appear here.
-        </p>
+        <div class="card-head">
+          <div>
+            <h2>Live Mission Package</h2>
+            <p>Complete mission visibility before acceptance, including route, payout, notes, and mode.</p>
+          </div>
+          <span class="badge blue" id="rideStatusBadge">No Mission</span>
+        </div>
 
-        <div id="missionList" class="mission-list">
-          <div class="empty">
-            Enter your driver ID and tap <strong>Load Missions</strong> to view available mission offers.
+        <div class="card-body">
+          <div class="metrics">
+            <div class="metric">
+              <div class="metric-label">Estimated Fare</div>
+              <div class="metric-value" id="fareMetric">$0.00</div>
+              <div class="metric-note">Projected rider fare</div>
+            </div>
+
+            <div class="metric">
+              <div class="metric-label">Distance</div>
+              <div class="metric-value" id="distanceMetric">0 mi</div>
+              <div class="metric-note">Estimated route distance</div>
+            </div>
+
+            <div class="metric">
+              <div class="metric-label">Duration</div>
+              <div class="metric-value" id="durationMetric">0 min</div>
+              <div class="metric-note">Estimated trip time</div>
+            </div>
+
+            <div class="metric">
+              <div class="metric-label">Requested Mode</div>
+              <div class="metric-value" id="modeMetric">Driver</div>
+              <div class="metric-note">Human or autonomous pilot</div>
+            </div>
+          </div>
+
+          <div id="missionEmptyState" class="empty-state">
+            No ride loaded yet. Enter your driver ID and a ride ID, then load your mission.
+          </div>
+
+          <div id="missionContent" style="display:none">
+            <div class="mission-layout">
+              <div class="panel">
+                <div>
+                  <div class="mission-id" id="missionIdText">Ride ID</div>
+                  <h3 id="missionTitle">Mission Overview</h3>
+                </div>
+
+                <div class="route">
+                  <div class="route-step">
+                    <div class="route-dot pickup"></div>
+                    <div class="route-copy">
+                      <h4>Pickup</h4>
+                      <p id="pickupText">—</p>
+                    </div>
+                  </div>
+
+                  <div class="route-step">
+                    <div class="route-dot dropoff"></div>
+                    <div class="route-copy">
+                      <h4>Dropoff</h4>
+                      <p id="dropoffText">—</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="list">
+                  <div class="list-row">
+                    <div class="list-label">Ride Type</div>
+                    <div class="list-value" id="rideTypeText">—</div>
+                  </div>
+                  <div class="list-row">
+                    <div class="list-label">Payment Method</div>
+                    <div class="list-value" id="paymentMethodText">—</div>
+                  </div>
+                  <div class="list-row">
+                    <div class="list-label">Scheduled Time</div>
+                    <div class="list-value" id="scheduledTimeText">—</div>
+                  </div>
+                  <div class="list-row">
+                    <div class="list-label">Assigned Driver</div>
+                    <div class="list-value" id="assignedDriverText">—</div>
+                  </div>
+                  <div class="list-row">
+                    <div class="list-label">Mission Notes</div>
+                    <div class="list-value" id="notesText">No notes provided</div>
+                  </div>
+                </div>
+
+                <div class="actions">
+                  <div class="actions-row">
+                    <button class="btn btn-success" id="acceptBtn">Accept Ride</button>
+                    <button class="btn btn-danger" id="rejectBtn">Reject Ride</button>
+                  </div>
+                  <div class="actions-row">
+                    <button class="btn btn-primary" id="startBtn">Start Trip</button>
+                    <button class="btn btn-primary" id="completeBtn">Complete Trip</button>
+                  </div>
+                  <button class="btn btn-secondary" id="cancelBtn">Cancel Trip</button>
+                </div>
+              </div>
+
+              <div class="panel">
+                <h3>Mission Status Timeline</h3>
+
+                <div class="list">
+                  <div class="list-row">
+                    <div class="list-label">Current Status</div>
+                    <div class="list-value" id="currentStatusText">—</div>
+                  </div>
+                  <div class="list-row">
+                    <div class="list-label">Created</div>
+                    <div class="list-value" id="createdAtText">—</div>
+                  </div>
+                  <div class="list-row">
+                    <div class="list-label">Assigned</div>
+                    <div class="list-value" id="assignedAtText">—</div>
+                  </div>
+                  <div class="list-row">
+                    <div class="list-label">Accepted</div>
+                    <div class="list-value" id="acceptedAtText">—</div>
+                  </div>
+                  <div class="list-row">
+                    <div class="list-label">Started</div>
+                    <div class="list-value" id="startedAtText">—</div>
+                  </div>
+                  <div class="list-row">
+                    <div class="list-label">Completed</div>
+                    <div class="list-value" id="completedAtText">—</div>
+                  </div>
+                </div>
+
+                <h3>Recent Activity</h3>
+                <div class="timeline" id="timeline">
+                  <div class="timeline-item">
+                    <strong>Mission console ready</strong>
+                    <span>Load a ride to see mission updates here.</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
-    </main>
-  </div>
+    </div>
 
-  <a href="index.html" class="return-home">Return Home</a>
+    <div class="footer-gap"></div>
+  </main>
 
   <script>
     const driverIdInput = document.getElementById("driverId");
-    const loadMissionsBtn = document.getElementById("loadMissionsBtn");
-    const refreshBtn = document.getElementById("refreshBtn");
-    const pageStatus = document.getElementById("pageStatus");
-    const missionList = document.getElementById("missionList");
-    const openMissionCount = document.getElementById("openMissionCount");
-    const activeMissionCount = document.getElementById("activeMissionCount");
+    const availabilitySelect = document.getElementById("availability");
+    const missionRideIdInput = document.getElementById("missionRideId");
+    const driverLatInput = document.getElementById("driverLat");
+    const driverLngInput = document.getElementById("driverLng");
 
-    let currentDriverId = "";
+    const loadMissionBtn = document.getElementById("loadMissionBtn");
+    const updateAvailabilityBtn = document.getElementById("updateAvailabilityBtn");
+    const refreshMissionBtn = document.getElementById("refreshMissionBtn");
+    const acceptBtn = document.getElementById("acceptBtn");
+    const rejectBtn = document.getElementById("rejectBtn");
+    const startBtn = document.getElementById("startBtn");
+    const completeBtn = document.getElementById("completeBtn");
+    const cancelBtn = document.getElementById("cancelBtn");
 
-    function showStatus(type, message) {
-      pageStatus.className = `status show ${type}`;
-      pageStatus.textContent = message;
+    const messageBox = document.getElementById("messageBox");
+    const driverStatusBadge = document.getElementById("driverStatusBadge");
+    const connectionBadge = document.getElementById("connectionBadge");
+    const rideStatusBadge = document.getElementById("rideStatusBadge");
+    const sessionText = document.getElementById("sessionText");
+
+    const fareMetric = document.getElementById("fareMetric");
+    const distanceMetric = document.getElementById("distanceMetric");
+    const durationMetric = document.getElementById("durationMetric");
+    const modeMetric = document.getElementById("modeMetric");
+
+    const missionEmptyState = document.getElementById("missionEmptyState");
+    const missionContent = document.getElementById("missionContent");
+
+    const missionIdText = document.getElementById("missionIdText");
+    const missionTitle = document.getElementById("missionTitle");
+    const pickupText = document.getElementById("pickupText");
+    const dropoffText = document.getElementById("dropoffText");
+    const rideTypeText = document.getElementById("rideTypeText");
+    const paymentMethodText = document.getElementById("paymentMethodText");
+    const scheduledTimeText = document.getElementById("scheduledTimeText");
+    const assignedDriverText = document.getElementById("assignedDriverText");
+    const notesText = document.getElementById("notesText");
+    const currentStatusText = document.getElementById("currentStatusText");
+    const createdAtText = document.getElementById("createdAtText");
+    const assignedAtText = document.getElementById("assignedAtText");
+    const acceptedAtText = document.getElementById("acceptedAtText");
+    const startedAtText = document.getElementById("startedAtText");
+    const completedAtText = document.getElementById("completedAtText");
+    const timeline = document.getElementById("timeline");
+
+    let currentRide = null;
+
+    function setMessage(type, text) {
+      messageBox.className = `alert ${type}`;
+      messageBox.textContent = text;
     }
 
-    function clearStatus() {
-      pageStatus.className = "status";
-      pageStatus.textContent = "";
-    }
-
-    function escapeHtml(value) {
-      return String(value ?? "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#39;");
+    function setBadge(el, text, tone = "blue") {
+      el.className = `badge ${tone}`;
+      el.textContent = text;
     }
 
     function formatMoney(value) {
@@ -577,317 +963,367 @@
       return `$${num.toFixed(2)}`;
     }
 
-    function getMissionTagClass(status) {
-      const normalized = String(status || "").toUpperCase();
-
-      if (normalized === "OFFERED") return "tag tag-gold";
-      if (normalized === "ACCEPTED") return "tag tag-green";
-      if (normalized === "EN_ROUTE") return "tag tag-blue";
-      if (normalized === "ARRIVED") return "tag tag-blue";
-      if (normalized === "IN_PROGRESS") return "tag tag-blue";
-      if (normalized === "COMPLETED") return "tag tag-green";
-      if (normalized === "DECLINED") return "tag tag-red";
-      if (normalized === "EXPIRED") return "tag tag-red";
-
-      return "tag tag-blue";
+    function formatDistance(value) {
+      const num = Number(value || 0);
+      return `${num.toFixed(1)} mi`;
     }
 
-    function renderMissionActions(mission) {
-      const status = String(mission.mission_status || "").toUpperCase();
-
-      if (status === "OFFERED") {
-        return `
-          <div class="mission-actions">
-            <button class="accept-btn" data-action="accept" data-dispatch-id="${escapeHtml(mission.dispatch_id)}">Accept Mission</button>
-            <button class="decline-btn" data-action="decline" data-dispatch-id="${escapeHtml(mission.dispatch_id)}">Decline Mission</button>
-          </div>
-        `;
-      }
-
-      if (status === "ACCEPTED") {
-        return `
-          <div class="mission-actions">
-            <button class="progress-btn" data-action="en-route" data-ride-id="${escapeHtml(mission.ride_id)}">Mark En Route</button>
-          </div>
-        `;
-      }
-
-      if (status === "EN_ROUTE") {
-        return `
-          <div class="mission-actions">
-            <button class="progress-btn" data-action="arrived" data-ride-id="${escapeHtml(mission.ride_id)}">Mark Arrived</button>
-          </div>
-        `;
-      }
-
-      if (status === "ARRIVED") {
-        return `
-          <div class="mission-actions">
-            <button class="progress-btn" data-action="start-trip" data-ride-id="${escapeHtml(mission.ride_id)}">Start Trip</button>
-          </div>
-        `;
-      }
-
-      if (status === "IN_PROGRESS") {
-        return `
-          <div class="mission-actions">
-            <button class="progress-btn" data-action="complete-trip" data-ride-id="${escapeHtml(mission.ride_id)}">Complete Trip</button>
-          </div>
-        `;
-      }
-
-      return "";
+    function formatDuration(value) {
+      const num = Number(value || 0);
+      return `${Math.round(num)} min`;
     }
 
-    function renderMissions(missions) {
-      if (!missions.length) {
-        missionList.innerHTML = `
-          <div class="empty">
-            No current missions found for this driver right now.
-          </div>
-        `;
-        openMissionCount.textContent = "0";
-        activeMissionCount.textContent = "0";
+    function titleCase(value) {
+      return String(value || "")
+        .replace(/_/g, " ")
+        .split(" ")
+        .filter(Boolean)
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ");
+    }
+
+    function formatDateTime(value) {
+      if (!value) return "—";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return value;
+      return date.toLocaleString();
+    }
+
+    function addTimelineEntry(title, detail) {
+      const item = document.createElement("div");
+      item.className = "timeline-item";
+      item.innerHTML = `<strong>${title}</strong><span>${detail}</span>`;
+      timeline.prepend(item);
+    }
+
+    function updateDriverStatusVisual(status) {
+      const normalized = String(status || "offline").toLowerCase();
+      const tone =
+        normalized === "available" ? "green" :
+        normalized === "busy" ? "gold" :
+        "red";
+
+      setBadge(driverStatusBadge, titleCase(normalized), tone);
+    }
+
+    function updateRideStatusVisual(status) {
+      const normalized = String(status || "no mission").toLowerCase();
+      let tone = "blue";
+
+      if (["driver_enroute", "in_progress", "completed"].includes(normalized)) tone = "green";
+      if (["cancelled", "no_driver_available"].includes(normalized)) tone = "red";
+      if (["awaiting_driver_acceptance", "requested", "redispatching"].includes(normalized)) tone = "gold";
+
+      setBadge(rideStatusBadge, titleCase(normalized), tone);
+      currentStatusText.textContent = titleCase(normalized);
+    }
+
+    function syncButtons() {
+      const status = String(currentRide?.status || "").toLowerCase();
+      const driverMatches =
+        currentRide &&
+        String(currentRide.driver_id || "") === String(driverIdInput.value || "").trim();
+
+      acceptBtn.disabled = !(currentRide && driverMatches && status === "awaiting_driver_acceptance");
+      rejectBtn.disabled = !(currentRide && driverMatches && status === "awaiting_driver_acceptance");
+      startBtn.disabled = !(currentRide && driverMatches && status === "driver_enroute");
+      completeBtn.disabled = !(currentRide && driverMatches && status === "in_progress");
+      cancelBtn.disabled = !currentRide || ["completed", "cancelled"].includes(status);
+    }
+
+    function renderRide(ride) {
+      currentRide = ride;
+
+      if (!ride) {
+        missionContent.style.display = "none";
+        missionEmptyState.style.display = "block";
+        fareMetric.textContent = "$0.00";
+        distanceMetric.textContent = "0 mi";
+        durationMetric.textContent = "0 min";
+        modeMetric.textContent = "Driver";
+        updateRideStatusVisual("no mission");
+        syncButtons();
         return;
       }
 
-      const openCount = missions.filter(
-        (m) => String(m.mission_status || "").toUpperCase() === "OFFERED"
-      ).length;
+      missionEmptyState.style.display = "none";
+      missionContent.style.display = "block";
 
-      const activeCount = missions.filter((m) =>
-        ["ACCEPTED", "EN_ROUTE", "ARRIVED", "IN_PROGRESS"].includes(
-          String(m.mission_status || "").toUpperCase()
-        )
-      ).length;
+      const fare = Number(ride.estimated_fare || 0);
+      const distance = Number(ride.distance_miles || 0);
+      const duration = Number(ride.duration_minutes || 0);
+      const requestedMode = String(ride.requested_mode || "driver");
+      const rideType = String(ride.ride_type || "standard");
 
-      openMissionCount.textContent = String(openCount);
-      activeMissionCount.textContent = String(activeCount);
+      fareMetric.textContent = formatMoney(fare);
+      distanceMetric.textContent = formatDistance(distance);
+      durationMetric.textContent = formatDuration(duration);
+      modeMetric.textContent = titleCase(requestedMode);
 
-      missionList.innerHTML = missions.map((mission) => {
-        const status = String(mission.mission_status || "OFFERED").toUpperCase();
-        const pickup = escapeHtml(mission.pickup_address || "Not provided");
-        const dropoff = escapeHtml(mission.dropoff_address || "Not provided");
-        const rideType = escapeHtml(mission.ride_type || "STANDARD");
-        const notes = escapeHtml(mission.special_notes || "No additional notes provided.");
-        const payout = formatMoney(mission.estimated_driver_payout || 0);
-        const fare = formatMoney(mission.estimated_fare || 0);
-        const distance = `${Number(mission.estimated_distance_miles || 0).toFixed(2)} mi`;
-        const duration = `${Number(mission.estimated_duration_minutes || 0)} min`;
+      missionIdText.textContent = `Ride ID: ${ride.id || "—"}`;
+      missionTitle.textContent = `${titleCase(requestedMode)} Mission`;
+      pickupText.textContent = ride.pickup_address || "—";
+      dropoffText.textContent = ride.dropoff_address || "—";
+      rideTypeText.textContent = titleCase(rideType);
+      paymentMethodText.textContent = titleCase(ride.payment_method || "card");
+      scheduledTimeText.textContent = ride.scheduled_time ? formatDateTime(ride.scheduled_time) : "ASAP";
+      assignedDriverText.textContent = ride.driver_id || "Unassigned";
+      notesText.textContent = ride.notes || "No notes provided";
+      createdAtText.textContent = formatDateTime(ride.created_at);
+      assignedAtText.textContent = formatDateTime(ride.assigned_at);
+      acceptedAtText.textContent = formatDateTime(ride.accepted_at);
+      startedAtText.textContent = formatDateTime(ride.started_at);
+      completedAtText.textContent = formatDateTime(ride.completed_at);
 
-        return `
-          <article class="mission">
-            <div class="mission-top">
-              <div>
-                <div class="mission-title">Ride Mission</div>
-                <div class="mission-sub">
-                  Ride ID: ${escapeHtml(mission.ride_id || "")}<br>
-                  Dispatch ID: ${escapeHtml(mission.dispatch_id || "")}
-                </div>
-              </div>
-              <div class="${getMissionTagClass(status)}">${escapeHtml(status)}</div>
-            </div>
-
-            <div class="mission-grid">
-              <div class="detail">
-                <div class="k">Pickup</div>
-                <div class="v">${pickup}</div>
-              </div>
-              <div class="detail">
-                <div class="k">Dropoff</div>
-                <div class="v">${dropoff}</div>
-              </div>
-              <div class="detail">
-                <div class="k">Ride Type</div>
-                <div class="v">${rideType}</div>
-              </div>
-              <div class="detail">
-                <div class="k">Driver Payout</div>
-                <div class="v">${payout}</div>
-              </div>
-              <div class="detail">
-                <div class="k">Fare</div>
-                <div class="v">${fare}</div>
-              </div>
-              <div class="detail">
-                <div class="k">Estimated Route</div>
-                <div class="v">${distance} • ${duration}</div>
-              </div>
-            </div>
-
-            <div class="notes">
-              <div class="k">Ride Notes</div>
-              <div class="v">${notes}</div>
-            </div>
-
-            ${renderMissionActions(mission)}
-          </article>
-        `;
-      }).join("");
+      updateRideStatusVisual(ride.status);
+      syncButtons();
     }
 
-    async function loadMissions(showSuccessMessage = false) {
+    async function api(url, options = {}) {
+      const response = await fetch(url, {
+        headers: {
+          "Content-Type": "application/json"
+        },
+        ...options
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.message || "Request failed.");
+      }
+
+      return data;
+    }
+
+    async function updateAvailability() {
       const driverId = driverIdInput.value.trim();
+      const status = availabilitySelect.value;
+      const latitude = driverLatInput.value.trim();
+      const longitude = driverLngInput.value.trim();
 
       if (!driverId) {
-        showStatus("error", "Enter your driver ID first.");
+        setMessage("error", "Driver ID is required before updating availability.");
         return;
       }
 
-      currentDriverId = driverId;
-      loadMissionsBtn.disabled = true;
-      refreshBtn.disabled = true;
-      loadMissionsBtn.textContent = "Loading...";
+      connectionBadge.textContent = "Syncing";
 
       try {
-        const res = await fetch(`/api/driver/${encodeURIComponent(driverId)}/missions`);
-        const data = await res.json().catch(() => ({}));
+        const body = {
+          status
+        };
 
-        if (!res.ok) {
-          throw new Error(data.message || "Unable to load driver missions.");
-        }
+        if (latitude) body.latitude = Number(latitude);
+        if (longitude) body.longitude = Number(longitude);
 
-        renderMissions(Array.isArray(data.missions) ? data.missions : []);
-
-        if (showSuccessMessage) {
-          showStatus("success", "Mission feed refreshed successfully.");
-        } else {
-          clearStatus();
-        }
-      } catch (error) {
-        renderMissions([]);
-        showStatus("error", error.message || "Unable to load driver missions.");
-      } finally {
-        loadMissionsBtn.disabled = false;
-        refreshBtn.disabled = false;
-        loadMissionsBtn.textContent = "Load Missions";
-      }
-    }
-
-    async function postAction(url, payload, successMessage) {
-      try {
-        const res = await fetch(url, {
+        const data = await api(`/api/driver/${encodeURIComponent(driverId)}/availability`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
+          body: JSON.stringify(body)
         });
 
-        const data = await res.json().catch(() => ({}));
-
-        if (!res.ok) {
-          throw new Error(data.message || "Request failed.");
-        }
-
-        showStatus("success", data.message || successMessage);
-        await loadMissions(false);
+        updateDriverStatusVisual(data.driver?.status || status);
+        setBadge(connectionBadge, "Connected", "green");
+        sessionText.textContent = `Driver ${driverId} is now marked as ${titleCase(data.driver?.status || status)}.`;
+        setMessage("success", data.message || "Availability updated.");
+        addTimelineEntry("Availability Updated", `Driver status changed to ${titleCase(data.driver?.status || status)}.`);
       } catch (error) {
-        showStatus("error", error.message || "Unable to complete request.");
+        setBadge(connectionBadge, "Error", "red");
+        setMessage("error", error.message);
       }
     }
 
-    async function handleMissionAction(action, element) {
-      if (!currentDriverId) {
-        showStatus("error", "Load your driver mission feed first.");
+    async function loadRide() {
+      const rideId = missionRideIdInput.value.trim();
+      const driverId = driverIdInput.value.trim();
+
+      if (!rideId) {
+        setMessage("error", "Ride ID is required to load a mission.");
         return;
       }
 
-      element.disabled = true;
-      const originalText = element.textContent;
+      if (!driverId) {
+        setMessage("error", "Driver ID is required before loading a mission.");
+        return;
+      }
+
+      setMessage("info", "Loading mission...");
+      setBadge(connectionBadge, "Loading", "gold");
 
       try {
-        if (action === "accept") {
-          await postAction(
-            "/api/driver/accept-mission",
-            {
-              driver_id: currentDriverId,
-              dispatch_id: element.dataset.dispatchId
-            },
-            "Mission accepted successfully."
-          );
-        } else if (action === "decline") {
-          await postAction(
-            "/api/driver/decline-mission",
-            {
-              driver_id: currentDriverId,
-              dispatch_id: element.dataset.dispatchId
-            },
-            "Mission declined successfully."
-          );
-        } else if (action === "en-route") {
-          await postAction(
-            "/api/driver/mark-en-route",
-            {
-              driver_id: currentDriverId,
-              ride_id: element.dataset.rideId
-            },
-            "Driver marked en route."
-          );
-        } else if (action === "arrived") {
-          await postAction(
-            "/api/driver/mark-arrived",
-            {
-              driver_id: currentDriverId,
-              ride_id: element.dataset.rideId
-            },
-            "Driver marked arrived."
-          );
-        } else if (action === "start-trip") {
-          await postAction(
-            "/api/driver/start-trip",
-            {
-              driver_id: currentDriverId,
-              ride_id: element.dataset.rideId
-            },
-            "Trip started successfully."
-          );
-        } else if (action === "complete-trip") {
-          const finalFareInput = prompt("Enter final fare amount", "");
-          if (finalFareInput === null) {
-            element.disabled = false;
-            element.textContent = originalText;
-            return;
-          }
+        const data = await api(`/api/rides/${encodeURIComponent(rideId)}`);
+        const ride = data.ride;
 
-          const tipInput = prompt("Enter tip amount (use 0 if none)", "0");
-          if (tipInput === null) {
-            element.disabled = false;
-            element.textContent = originalText;
-            return;
-          }
+        renderRide(ride);
 
-          await postAction(
-            "/api/driver/complete-trip",
-            {
-              driver_id: currentDriverId,
-              ride_id: element.dataset.rideId,
-              final_fare: Number(finalFareInput || 0),
-              tip_amount: Number(tipInput || 0)
-            },
-            "Trip completed successfully."
-          );
+        if (ride && ride.driver_id && String(ride.driver_id) !== driverId) {
+          setMessage("error", "This ride is assigned to a different driver.");
+          addTimelineEntry("Mission Loaded", "Ride loaded, but assigned driver does not match current session.");
+        } else {
+          setMessage("success", "Mission loaded successfully.");
+          addTimelineEntry("Mission Loaded", `Ride ${rideId} loaded into the driver console.`);
         }
-      } finally {
-        element.disabled = false;
-        element.textContent = originalText;
+
+        setBadge(connectionBadge, "Connected", "green");
+      } catch (error) {
+        renderRide(null);
+        setBadge(connectionBadge, "Error", "red");
+        setMessage("error", error.message);
       }
     }
 
-    loadMissionsBtn.addEventListener("click", () => loadMissions(false));
-    refreshBtn.addEventListener("click", () => loadMissions(true));
-
-    driverIdInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        loadMissions(false);
+    async function refreshRide() {
+      if (!currentRide?.id) {
+        setMessage("error", "No mission is loaded yet.");
+        return;
       }
+
+      try {
+        const data = await api(`/api/rides/${encodeURIComponent(currentRide.id)}`);
+        renderRide(data.ride);
+        setMessage("success", "Mission refreshed.");
+        addTimelineEntry("Mission Refreshed", `Ride ${currentRide.id} status updated to ${titleCase(data.ride?.status || "unknown")}.`);
+      } catch (error) {
+        setMessage("error", error.message);
+      }
+    }
+
+    async function acceptRide() {
+      const driverId = driverIdInput.value.trim();
+
+      if (!currentRide?.id || !driverId) {
+        setMessage("error", "Load a mission and confirm your driver ID first.");
+        return;
+      }
+
+      try {
+        const data = await api("/api/driver/accept", {
+          method: "POST",
+          body: JSON.stringify({
+            ride_id: currentRide.id,
+            driver_id: driverId
+          })
+        });
+
+        renderRide(data.ride);
+        availabilitySelect.value = "busy";
+        updateDriverStatusVisual("busy");
+        setMessage("success", data.message || "Ride accepted.");
+        addTimelineEntry("Ride Accepted", `Driver ${driverId} accepted ride ${currentRide.id}.`);
+      } catch (error) {
+        setMessage("error", error.message);
+      }
+    }
+
+    async function rejectRide() {
+      const driverId = driverIdInput.value.trim();
+
+      if (!currentRide?.id || !driverId) {
+        setMessage("error", "Load a mission and confirm your driver ID first.");
+        return;
+      }
+
+      try {
+        const data = await api("/api/driver/reject", {
+          method: "POST",
+          body: JSON.stringify({
+            ride_id: currentRide.id,
+            driver_id: driverId
+          })
+        });
+
+        renderRide(data.ride);
+        availabilitySelect.value = "available";
+        updateDriverStatusVisual("available");
+        setMessage("success", data.message || "Ride rejected.");
+        addTimelineEntry("Ride Rejected", `Ride ${currentRide.id} was rejected and sent back for redispatch.`);
+      } catch (error) {
+        setMessage("error", error.message);
+      }
+    }
+
+    async function startRide() {
+      if (!currentRide?.id) {
+        setMessage("error", "No mission is loaded.");
+        return;
+      }
+
+      try {
+        const data = await api(`/api/rides/${encodeURIComponent(currentRide.id)}/start`, {
+          method: "POST"
+        });
+
+        renderRide(data.ride);
+        availabilitySelect.value = "busy";
+        updateDriverStatusVisual("busy");
+        setMessage("success", data.message || "Ride started.");
+        addTimelineEntry("Trip Started", `Ride ${currentRide.id} moved into in-progress state.`);
+      } catch (error) {
+        setMessage("error", error.message);
+      }
+    }
+
+    async function completeRide() {
+      if (!currentRide?.id) {
+        setMessage("error", "No mission is loaded.");
+        return;
+      }
+
+      try {
+        const data = await api(`/api/rides/${encodeURIComponent(currentRide.id)}/complete`, {
+          method: "POST"
+        });
+
+        renderRide(data.ride);
+        availabilitySelect.value = "available";
+        updateDriverStatusVisual("available");
+        setMessage("success", data.message || "Ride completed.");
+        addTimelineEntry("Trip Completed", `Ride ${currentRide.id} was completed successfully.`);
+      } catch (error) {
+        setMessage("error", error.message);
+      }
+    }
+
+    async function cancelRide() {
+      if (!currentRide?.id) {
+        setMessage("error", "No mission is loaded.");
+        return;
+      }
+
+      try {
+        const data = await api(`/api/rides/${encodeURIComponent(currentRide.id)}/cancel`, {
+          method: "POST"
+        });
+
+        renderRide(data.ride);
+        availabilitySelect.value = "available";
+        updateDriverStatusVisual("available");
+        setMessage("success", data.message || "Ride cancelled.");
+        addTimelineEntry("Trip Cancelled", `Ride ${currentRide.id} was cancelled.`);
+      } catch (error) {
+        setMessage("error", error.message);
+      }
+    }
+
+    loadMissionBtn.addEventListener("click", loadRide);
+    updateAvailabilityBtn.addEventListener("click", updateAvailability);
+    refreshMissionBtn.addEventListener("click", refreshRide);
+    acceptBtn.addEventListener("click", acceptRide);
+    rejectBtn.addEventListener("click", rejectRide);
+    startBtn.addEventListener("click", startRide);
+    completeBtn.addEventListener("click", completeRide);
+    cancelBtn.addEventListener("click", cancelRide);
+
+    driverIdInput.addEventListener("input", () => {
+      const value = driverIdInput.value.trim();
+      sessionText.textContent = value
+        ? `Driver session ready for ID: ${value}`
+        : "Enter your driver ID to load assigned missions and keep your status in sync.";
     });
 
-    missionList.addEventListener("click", (e) => {
-      const target = e.target.closest("button[data-action]");
-      if (!target) return;
-
-      const action = target.dataset.action;
-      handleMissionAction(action, target);
-    });
+    updateDriverStatusVisual("offline");
+    updateRideStatusVisual("no mission");
+    syncButtons();
   </script>
 </body>
 </html>
