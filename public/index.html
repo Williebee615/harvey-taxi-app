@@ -11,463 +11,514 @@
 
 <style>
 :root{
---bg1:#040814;
---bg2:#091126;
---bg3:#101935;
---panel:rgba(10,17,38,.88);
---panel2:rgba(15,23,52,.72);
---line:rgba(122,162,255,.16);
---text:#f4f7ff;
---muted:#aab8de;
---blue:#5ea0ff;
---cyan:#63f5ff;
---green:#6dffb3;
---gold:#ffd76a;
---danger:#ff7e97;
---shadow:0 20px 70px rgba(0,0,0,.35);
---radius:22px;
---radius-sm:16px;
---max:1150px;
+  --bg1:#040814;
+  --bg2:#091126;
+  --bg3:#101935;
+  --panel:rgba(10,17,38,.88);
+  --panel2:rgba(15,23,52,.72);
+  --line:rgba(122,162,255,.16);
+  --text:#f4f7ff;
+  --muted:#aab8de;
+  --blue:#5ea0ff;
+  --cyan:#63f5ff;
+  --green:#6dffb3;
+  --gold:#ffd76a;
+  --danger:#ff7e97;
+  --shadow:0 20px 70px rgba(0,0,0,.35);
+  --radius:22px;
+  --radius-sm:16px;
+  --max:1150px;
 }
 
 *{box-sizing:border-box;margin:0;padding:0}
 
 html{
-scroll-behavior:smooth;
+  scroll-behavior:smooth;
 }
 
 body{
-font-family:Inter,Arial,sans-serif;
-color:var(--text);
-background:
-radial-gradient(circle at top left,rgba(99,245,255,.12),transparent 30%),
-radial-gradient(circle at top right,rgba(94,160,255,.10),transparent 28%),
-linear-gradient(160deg,var(--bg1),var(--bg2) 50%,var(--bg3));
-min-height:100vh;
+  font-family:Inter,Arial,sans-serif;
+  color:var(--text);
+  background:
+    radial-gradient(circle at top left,rgba(99,245,255,.12),transparent 30%),
+    radial-gradient(circle at top right,rgba(94,160,255,.10),transparent 28%),
+    linear-gradient(160deg,var(--bg1),var(--bg2) 50%,var(--bg3));
+  min-height:100vh;
 }
 
 a{
-color:inherit;
-text-decoration:none;
+  color:inherit;
+  text-decoration:none;
 }
 
 .shell{
-max-width:var(--max);
-margin:auto;
-padding:18px 16px 120px;
+  max-width:var(--max);
+  margin:auto;
+  padding:18px 16px 120px;
 }
 
 /* top bar */
 .topbar{
-display:flex;
-justify-content:space-between;
-align-items:center;
-gap:14px;
-padding:14px 18px;
-border:1px solid var(--line);
-border-radius:999px;
-background:rgba(7,12,28,.78);
-backdrop-filter:blur(12px);
-margin-bottom:18px;
-box-shadow:var(--shadow);
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:14px;
+  padding:14px 18px;
+  border:1px solid var(--line);
+  border-radius:999px;
+  background:rgba(7,12,28,.78);
+  backdrop-filter:blur(12px);
+  margin-bottom:18px;
+  box-shadow:var(--shadow);
 }
 
 .brand-wrap{
-display:flex;
-align-items:center;
-gap:12px;
+  display:flex;
+  align-items:center;
+  gap:12px;
 }
 
 .logo-dot{
-width:12px;
-height:12px;
-border-radius:50%;
-background:linear-gradient(135deg,var(--cyan),var(--blue));
-box-shadow:0 0 18px rgba(99,245,255,.55);
+  width:12px;
+  height:12px;
+  border-radius:50%;
+  background:linear-gradient(135deg,var(--cyan),var(--blue));
+  box-shadow:0 0 18px rgba(99,245,255,.55);
 }
 
 .brand{
-font-weight:900;
-letter-spacing:.12em;
-font-size:14px;
+  font-weight:900;
+  letter-spacing:.12em;
+  font-size:14px;
 }
 
 .top-links{
-display:flex;
-gap:10px;
-flex-wrap:wrap;
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
 }
 
 .top-link{
-padding:10px 14px;
-border-radius:999px;
-border:1px solid rgba(255,255,255,.08);
-background:rgba(255,255,255,.03);
-color:var(--muted);
-font-size:13px;
-font-weight:700;
+  padding:10px 14px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.08);
+  background:rgba(255,255,255,.03);
+  color:var(--muted);
+  font-size:13px;
+  font-weight:700;
 }
 
 /* hero */
 .hero{
-position:relative;
-overflow:hidden;
-background:
-linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.015)),
-var(--panel);
-padding:32px;
-border-radius:var(--radius);
-border:1px solid var(--line);
-margin-bottom:18px;
-box-shadow:var(--shadow);
+  position:relative;
+  overflow:hidden;
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.015)),
+    var(--panel);
+  padding:32px;
+  border-radius:var(--radius);
+  border:1px solid var(--line);
+  margin-bottom:18px;
+  box-shadow:var(--shadow);
 }
 
 .hero::before{
-content:"";
-position:absolute;
-top:-60px;
-right:-60px;
-width:220px;
-height:220px;
-border-radius:50%;
-background:radial-gradient(circle,rgba(99,245,255,.18),transparent 65%);
-pointer-events:none;
+  content:"";
+  position:absolute;
+  top:-60px;
+  right:-60px;
+  width:220px;
+  height:220px;
+  border-radius:50%;
+  background:radial-gradient(circle,rgba(99,245,255,.18),transparent 65%);
+  pointer-events:none;
 }
 
 .hero-badge{
-display:inline-flex;
-align-items:center;
-gap:10px;
-padding:10px 14px;
-border-radius:999px;
-border:1px solid rgba(255,255,255,.08);
-background:rgba(255,255,255,.04);
-margin-bottom:18px;
-color:var(--cyan);
-font-size:13px;
-font-weight:800;
-letter-spacing:.05em;
-text-transform:uppercase;
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 14px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.08);
+  background:rgba(255,255,255,.04);
+  margin-bottom:18px;
+  color:var(--cyan);
+  font-size:13px;
+  font-weight:800;
+  letter-spacing:.05em;
+  text-transform:uppercase;
 }
 
 .hero h1{
-font-size:42px;
-line-height:1.08;
-margin-bottom:14px;
-max-width:780px;
+  font-size:42px;
+  line-height:1.08;
+  margin-bottom:14px;
+  max-width:780px;
 }
 
 .hero p{
-color:var(--muted);
-line-height:1.7;
-margin-bottom:22px;
-max-width:760px;
-font-size:16px;
+  color:var(--muted);
+  line-height:1.7;
+  margin-bottom:22px;
+  max-width:760px;
+  font-size:16px;
 }
 
 .mini-stats{
-display:grid;
-grid-template-columns:repeat(4,1fr);
-gap:12px;
-margin-top:20px;
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:12px;
+  margin-top:20px;
 }
 
 .mini-stat{
-padding:16px;
-border-radius:16px;
-border:1px solid rgba(255,255,255,.07);
-background:rgba(255,255,255,.03);
+  padding:16px;
+  border-radius:16px;
+  border:1px solid rgba(255,255,255,.07);
+  background:rgba(255,255,255,.03);
 }
 
 .mini-stat strong{
-display:block;
-font-size:18px;
-margin-bottom:6px;
+  display:block;
+  font-size:18px;
+  margin-bottom:6px;
 }
 
 .mini-stat span{
-color:var(--muted);
-font-size:13px;
-line-height:1.5;
+  color:var(--muted);
+  font-size:13px;
+  line-height:1.5;
 }
 
 /* buttons */
 .actions{
-display:flex;
-flex-wrap:wrap;
-gap:12px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
 }
 
 .btn{
-padding:14px 18px;
-border-radius:14px;
-border:1px solid var(--line);
-background:rgba(255,255,255,.04);
-color:white;
-font-weight:800;
-cursor:pointer;
-text-decoration:none;
-transition:.18s ease;
-display:inline-flex;
-align-items:center;
-justify-content:center;
-gap:8px;
+  padding:14px 18px;
+  border-radius:14px;
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.04);
+  color:white;
+  font-weight:800;
+  cursor:pointer;
+  text-decoration:none;
+  transition:.18s ease;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
 }
 
 .btn:hover{
-transform:translateY(-1px);
-background:rgba(255,255,255,.06);
+  transform:translateY(-1px);
+  background:rgba(255,255,255,.06);
 }
 
 .btn.primary{
-background:linear-gradient(135deg,var(--cyan),var(--blue));
-color:#07121f;
-border:none;
+  background:linear-gradient(135deg,var(--cyan),var(--blue));
+  color:#07121f;
+  border:none;
 }
 
 .btn.success{
-background:linear-gradient(135deg,var(--green),#89ffd0);
-color:#062014;
-border:none;
+  background:linear-gradient(135deg,var(--green),#89ffd0);
+  color:#062014;
+  border:none;
 }
 
 .btn.ghost{
-background:transparent;
+  background:transparent;
+}
+
+.btn.autonomous{
+  background:linear-gradient(135deg,#7f7bff,#63f5ff);
+  color:#04121f;
+  border:none;
+  box-shadow:0 12px 32px rgba(99,245,255,.18);
+}
+
+.btn.autonomous:hover{
+  filter:brightness(1.05);
+  transform:translateY(-1px);
+}
+
+.pilot-tag{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:4px 8px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:900;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  background:rgba(4,18,31,.16);
+  color:#04121f;
 }
 
 /* cards */
 .grid{
-display:grid;
-grid-template-columns:repeat(3,1fr);
-gap:12px;
-margin-top:18px;
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:12px;
+  margin-top:18px;
 }
 
 .card{
-padding:18px;
-border-radius:16px;
-border:1px solid rgba(255,255,255,.07);
-background:rgba(255,255,255,.03);
-display:block;
+  padding:18px;
+  border-radius:16px;
+  border:1px solid rgba(255,255,255,.07);
+  background:rgba(255,255,255,.03);
+  display:block;
 }
 
 .card strong{
-display:block;
-margin-bottom:8px;
-font-size:16px;
+  display:block;
+  margin-bottom:8px;
+  font-size:16px;
 }
 
 .card span{
-color:var(--muted);
-font-size:14px;
-line-height:1.6;
+  color:var(--muted);
+  font-size:14px;
+  line-height:1.6;
 }
 
 /* section */
 .section{
-margin-top:18px;
-background:var(--panel);
-padding:24px;
-border-radius:var(--radius);
-border:1px solid var(--line);
-box-shadow:var(--shadow);
+  margin-top:18px;
+  background:var(--panel);
+  padding:24px;
+  border-radius:var(--radius);
+  border:1px solid var(--line);
+  box-shadow:var(--shadow);
 }
 
 .section-header{
-display:flex;
-justify-content:space-between;
-align-items:flex-end;
-gap:14px;
-flex-wrap:wrap;
-margin-bottom:14px;
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-end;
+  gap:14px;
+  flex-wrap:wrap;
+  margin-bottom:14px;
 }
 
 .section h2{
-font-size:26px;
-margin-bottom:4px;
+  font-size:26px;
+  margin-bottom:4px;
 }
 
 .section p.lead{
-color:var(--muted);
-line-height:1.7;
-max-width:780px;
+  color:var(--muted);
+  line-height:1.7;
+  max-width:780px;
 }
 
 .list{
-display:grid;
-gap:12px;
-margin-top:14px;
+  display:grid;
+  gap:12px;
+  margin-top:14px;
 }
 
 .list-item{
-padding:16px 18px;
-border-radius:16px;
-border:1px solid rgba(255,255,255,.07);
-background:rgba(255,255,255,.03);
+  padding:16px 18px;
+  border-radius:16px;
+  border:1px solid rgba(255,255,255,.07);
+  background:rgba(255,255,255,.03);
 }
 
 .list-item strong{
-display:block;
-margin-bottom:6px;
+  display:block;
+  margin-bottom:6px;
 }
 
 .list-item span{
-color:var(--muted);
-font-size:14px;
-line-height:1.6;
+  color:var(--muted);
+  font-size:14px;
+  line-height:1.6;
 }
 
 .info-grid{
-display:grid;
-grid-template-columns:1.2fr .8fr;
-gap:14px;
-margin-top:18px;
+  display:grid;
+  grid-template-columns:1.2fr .8fr;
+  gap:14px;
+  margin-top:18px;
 }
 
 .highlight{
-padding:22px;
-border-radius:18px;
-background:
-linear-gradient(180deg,rgba(99,245,255,.05),rgba(94,160,255,.02)),
-rgba(255,255,255,.03);
-border:1px solid rgba(99,245,255,.14);
+  padding:22px;
+  border-radius:18px;
+  background:
+    linear-gradient(180deg,rgba(99,245,255,.05),rgba(94,160,255,.02)),
+    rgba(255,255,255,.03);
+  border:1px solid rgba(99,245,255,.14);
 }
 
 .highlight h3{
-margin-bottom:10px;
-font-size:22px;
+  margin-bottom:10px;
+  font-size:22px;
 }
 
 .highlight p{
-color:var(--muted);
-line-height:1.7;
+  color:var(--muted);
+  line-height:1.7;
 }
 
 .pill-row{
-display:flex;
-flex-wrap:wrap;
-gap:10px;
-margin-top:16px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-top:16px;
 }
 
 .pill{
-padding:10px 14px;
-border-radius:999px;
-background:rgba(255,255,255,.05);
-border:1px solid rgba(255,255,255,.08);
-font-size:13px;
-font-weight:700;
-color:var(--muted);
+  padding:10px 14px;
+  border-radius:999px;
+  background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.08);
+  font-size:13px;
+  font-weight:700;
+  color:var(--muted);
 }
 
 .status-good{
-color:var(--green);
-font-weight:800;
+  color:var(--green);
+  font-weight:800;
 }
 
 .status-warn{
-color:var(--gold);
-font-weight:800;
+  color:var(--gold);
+  font-weight:800;
+}
+
+.av-banner{
+  margin-top:18px;
+  padding:16px 18px;
+  border-radius:18px;
+  border:1px solid rgba(99,245,255,.16);
+  background:linear-gradient(135deg,rgba(99,245,255,.10),rgba(94,160,255,.06));
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:14px;
+  flex-wrap:wrap;
+}
+
+.av-banner strong{
+  display:block;
+  margin-bottom:4px;
+  font-size:16px;
+}
+
+.av-banner span{
+  color:var(--muted);
+  font-size:14px;
+  line-height:1.6;
 }
 
 /* footer */
 .footer{
-margin-top:18px;
-padding:20px;
-border-radius:var(--radius);
-border:1px solid var(--line);
-background:var(--panel);
-display:flex;
-justify-content:space-between;
-align-items:flex-start;
-flex-wrap:wrap;
-gap:16px;
-box-shadow:var(--shadow);
+  margin-top:18px;
+  padding:20px;
+  border-radius:var(--radius);
+  border:1px solid var(--line);
+  background:var(--panel);
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  flex-wrap:wrap;
+  gap:16px;
+  box-shadow:var(--shadow);
 }
 
 .footer p{
-color:var(--muted);
-font-size:14px;
-line-height:1.7;
-max-width:680px;
+  color:var(--muted);
+  font-size:14px;
+  line-height:1.7;
+  max-width:680px;
 }
 
 /* bottom nav */
 .bottom-nav{
-position:fixed;
-left:0;
-right:0;
-bottom:0;
-background:rgba(6,12,26,.96);
-backdrop-filter:blur(14px);
-border-top:1px solid rgba(255,255,255,.08);
-display:flex;
-justify-content:space-around;
-padding:12px 8px;
-z-index:1000;
+  position:fixed;
+  left:0;
+  right:0;
+  bottom:0;
+  background:rgba(6,12,26,.96);
+  backdrop-filter:blur(14px);
+  border-top:1px solid rgba(255,255,255,.08);
+  display:flex;
+  justify-content:space-around;
+  padding:12px 8px;
+  z-index:1000;
 }
 
 .nav-btn{
-color:var(--muted);
-background:none;
-border:none;
-font-size:13px;
-font-weight:700;
-cursor:pointer;
+  color:var(--muted);
+  background:none;
+  border:none;
+  font-size:13px;
+  font-weight:700;
+  cursor:pointer;
 }
 
 .nav-btn.active{
-color:white;
+  color:white;
 }
 
 /* mobile */
 @media(max-width:980px){
-.mini-stats{
-grid-template-columns:repeat(2,1fr);
-}
-.info-grid{
-grid-template-columns:1fr;
-}
-.grid{
-grid-template-columns:1fr;
-}
-.hero h1{
-font-size:32px;
-}
+  .mini-stats{
+    grid-template-columns:repeat(2,1fr);
+  }
+  .info-grid{
+    grid-template-columns:1fr;
+  }
+  .grid{
+    grid-template-columns:1fr;
+  }
+  .hero h1{
+    font-size:32px;
+  }
 }
 
 @media(max-width:700px){
-.topbar{
-border-radius:24px;
-padding:14px;
-align-items:flex-start;
-flex-direction:column;
-}
-.top-links{
-width:100%;
-}
-.top-link{
-flex:1;
-text-align:center;
-}
-.hero{
-padding:24px 20px;
-}
-.hero h1{
-font-size:28px;
-}
-.section{
-padding:20px;
-}
-.actions{
-flex-direction:column;
-}
-.btn{
-width:100%;
-}
-.mini-stats{
-grid-template-columns:1fr;
-}
+  .topbar{
+    border-radius:24px;
+    padding:14px;
+    align-items:flex-start;
+    flex-direction:column;
+  }
+  .top-links{
+    width:100%;
+  }
+  .top-link{
+    flex:1;
+    text-align:center;
+  }
+  .hero{
+    padding:24px 20px;
+  }
+  .hero h1{
+    font-size:28px;
+  }
+  .section{
+    padding:20px;
+  }
+  .actions{
+    flex-direction:column;
+  }
+  .btn{
+    width:100%;
+  }
+  .mini-stats{
+    grid-template-columns:1fr;
+  }
 }
 </style>
 </head>
@@ -493,19 +544,33 @@ grid-template-columns:1fr;
   <div class="hero">
     <div class="hero-badge">Trusted mobility platform • Tennessee service</div>
 
-    <h1>Trusted ride access with a cleaner, safer, more professional experience.</h1>
+    <h1>Driver or Autonomous — You Choose.</h1>
 
     <p>
-      Harvey Taxi Service LLC helps connect approved riders, qualified drivers, transportation support,
-      and community-focused mobility resources through one intelligent platform designed for safety,
-      accountability, and service clarity.
+      Harvey Taxi Service LLC connects approved riders, qualified drivers, transportation support,
+      and next-generation autonomous ride access through one intelligent platform designed for safety,
+      accountability, flexibility, and service clarity.
     </p>
 
     <div class="actions">
-      <a class="btn primary" href="request-ride.html">Request Ride</a>
+      <a class="btn primary" href="request-ride.html?mode=driver">🚖 Request Driver</a>
+
+      <a class="btn autonomous" href="request-ride.html?mode=autonomous">
+        🤖 Request Autonomous
+        <span class="pilot-tag">Pilot</span>
+      </a>
+
       <a class="btn" href="rider-signup.html">Rider Sign Up</a>
       <a class="btn" href="driver-signup.html">Driver Sign Up</a>
       <a class="btn ghost" href="#how-it-works">How It Works</a>
+    </div>
+
+    <div class="av-banner">
+      <div>
+        <strong>Autonomous ride pilot in development</strong>
+        <span>Harvey Taxi is being positioned as a hybrid platform for both human-driven and autonomous transportation access in Nashville and across Tennessee.</span>
+      </div>
+      <a class="btn" href="request-ride.html?mode=autonomous">Open AV Pilot Flow</a>
     </div>
 
     <div class="mini-stats">
@@ -514,8 +579,8 @@ grid-template-columns:1fr;
         <span>Rider approval and driver onboarding help protect platform use.</span>
       </div>
       <div class="mini-stat">
-        <strong>Service Area</strong>
-        <span>Tennessee-focused transportation support with expansion readiness.</span>
+        <strong>Hybrid Ready</strong>
+        <span>Supports human driver rides today with autonomous ride architecture in progress.</span>
       </div>
       <div class="mini-stat">
         <strong>Safety First</strong>
@@ -569,8 +634,8 @@ grid-template-columns:1fr;
       </div>
 
       <div class="card">
-        <strong>2. Request Transportation</strong>
-        <span>Approved riders submit trip details including pickup and destination information.</span>
+        <strong>2. Choose Ride Type</strong>
+        <span>Approved riders can request a human driver ride or enter the autonomous pilot flow where available.</span>
       </div>
 
       <div class="card">
@@ -587,12 +652,12 @@ grid-template-columns:1fr;
 
       <div class="card">
         <strong>5. Safety & Oversight</strong>
-        <span>Support resources, policies, onboarding controls, and admin review structure improve trust.</span>
+        <span>Support resources, onboarding controls, verification, and admin review structure improve trust.</span>
       </div>
 
       <div class="card">
         <strong>6. Ongoing Expansion</strong>
-        <span>The platform is built to support broader transportation and community mobility services.</span>
+        <span>The platform is built to support broader transportation and community mobility services, including AV readiness.</span>
       </div>
     </div>
   </div>
@@ -628,7 +693,7 @@ grid-template-columns:1fr;
         <p>
           Harvey Taxi is designed around structured onboarding, safer access control, service clarity,
           and a cleaner operational flow. The goal is to reduce confusion, improve trust, and present
-          a more accountable ride experience for riders, drivers, and support stakeholders.
+          a more accountable ride experience for riders, drivers, support stakeholders, and future fleet partners.
         </p>
 
         <div class="pill-row">
@@ -666,19 +731,36 @@ grid-template-columns:1fr;
     </div>
 
     <div class="grid">
-      <a class="card" href="request-ride.html">
-        <strong>Request Ride</strong>
-        <span>Submit transportation details for pickup and destination support.</span>
+      <a class="card" href="request-ride.html?mode=driver">
+        <strong>Request Driver</strong>
+        <span>Submit transportation details for human-driver pickup and destination support.</span>
+      </a>
+
+      <a class="card" href="request-ride.html?mode=autonomous">
+        <strong>Request Autonomous</strong>
+        <span>Enter the autonomous pilot ride flow for AV-ready service expansion.</span>
       </a>
 
       <a class="card" href="rider-signup.html">
         <strong>Rider Account</strong>
         <span>Create rider access and begin the onboarding process.</span>
       </a>
+    </div>
 
+    <div class="grid">
       <a class="card" href="driver-signup.html">
         <strong>Driver Apply</strong>
         <span>Apply to drive and enter the qualification flow.</span>
+      </a>
+
+      <a class="card" href="support.html">
+        <strong>Safety & Support</strong>
+        <span>Access help resources, platform guidance, and support information.</span>
+      </a>
+
+      <a class="card" href="terms.html">
+        <strong>Policy Access</strong>
+        <span>Review terms, privacy, and platform expectations from one place.</span>
       </a>
     </div>
   </div>
@@ -722,8 +804,9 @@ grid-template-columns:1fr;
         <h3>Harvey Taxi Service LLC</h3>
         <p>
           Harvey Taxi is a transportation platform focused on trusted ride access, driver onboarding,
-          payment support, and community-centered transportation assistance. The platform is designed
-          to support riders, drivers, and broader mobility services through a modern app experience.
+          payment support, community-centered transportation assistance, and hybrid mobility expansion.
+          The platform is designed to support riders, drivers, and broader next-generation mobility services
+          through a modern app experience.
         </p>
 
         <div class="pill-row">
@@ -764,7 +847,7 @@ grid-template-columns:1fr;
       <a class="btn" href="privacy-policy.html">Privacy Policy</a>
       <a class="btn" href="terms.html">Terms of Service</a>
       <a class="btn" href="support.html">Support Center</a>
-      <a class="btn success" href="request-ride.html">Open Rider Flow</a>
+      <a class="btn success" href="request-ride.html?mode=driver">Open Rider Flow</a>
     </div>
   </div>
 
@@ -773,7 +856,7 @@ grid-template-columns:1fr;
       <strong style="display:block;margin-bottom:8px;">Harvey Taxi Service LLC</strong>
       <p>
         Trusted ride access, rider onboarding, driver qualification, payment support,
-        and transportation assistance through one intelligent mobility platform.
+        transportation assistance, and hybrid mobility readiness through one intelligent platform.
       </p>
     </div>
 
@@ -788,7 +871,7 @@ grid-template-columns:1fr;
 
 <div class="bottom-nav">
   <button class="nav-btn active" onclick="location.href='index.html'">Home</button>
-  <button class="nav-btn" onclick="location.href='request-ride.html'">Trips</button>
+  <button class="nav-btn" onclick="location.href='request-ride.html?mode=driver'">Trips</button>
   <button class="nav-btn" onclick="location.href='support.html'">Safety</button>
   <button class="nav-btn" onclick="location.href='#services'">Services</button>
 </div>
