@@ -17,7 +17,7 @@
       --panel:rgba(10,17,38,.88);
       --panel2:rgba(15,23,52,.72);
       --line:rgba(122,162,255,.16);
-      --line-strong:rgba(122,162,255,.26);
+      --line-strong:rgba(122,162,255,.28);
       --text:#f4f7ff;
       --muted:#aab8de;
       --blue:#5ea0ff;
@@ -27,7 +27,6 @@
       --danger:#ff7e97;
       --shadow:0 20px 70px rgba(0,0,0,.35);
       --radius:22px;
-      --radius-sm:16px;
       --max:1150px;
     }
 
@@ -119,6 +118,34 @@
       background:rgba(255,255,255,.06);
     }
 
+    .launch-strip{
+      margin-bottom:18px;
+      padding:14px 18px;
+      border-radius:18px;
+      border:1px solid rgba(109,255,179,.18);
+      background:linear-gradient(135deg,rgba(109,255,179,.12),rgba(94,160,255,.07));
+      box-shadow:var(--shadow);
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:14px;
+      flex-wrap:wrap;
+    }
+
+    .launch-strip strong{
+      display:block;
+      margin-bottom:4px;
+      color:var(--green);
+      font-size:15px;
+    }
+
+    .launch-strip span{
+      display:block;
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.6;
+    }
+
     .hero{
       position:relative;
       overflow:hidden;
@@ -161,17 +188,17 @@
     }
 
     .hero h1{
-      font-size:44px;
+      font-size:46px;
       line-height:1.08;
       margin-bottom:14px;
-      max-width:820px;
+      max-width:850px;
     }
 
     .hero p{
       color:var(--muted);
       line-height:1.7;
       margin-bottom:22px;
-      max-width:780px;
+      max-width:800px;
       font-size:16px;
     }
 
@@ -268,28 +295,6 @@
       color:var(--muted);
       font-size:13px;
       line-height:1.5;
-    }
-
-    .reviewer-note{
-      margin-top:18px;
-      padding:16px 18px;
-      border-radius:18px;
-      border:1px solid rgba(255,215,106,.18);
-      background:linear-gradient(135deg,rgba(255,215,106,.10),rgba(255,255,255,.03));
-    }
-
-    .reviewer-note strong{
-      display:block;
-      margin-bottom:6px;
-      color:var(--gold);
-      font-size:15px;
-    }
-
-    .reviewer-note span{
-      color:var(--muted);
-      line-height:1.6;
-      font-size:14px;
-      display:block;
     }
 
     .av-banner{
@@ -587,15 +592,23 @@
       </div>
     </div>
 
+    <div class="launch-strip">
+      <div>
+        <strong>Approved for App Store distribution</strong>
+        <span>Harvey Taxi Mobile has been approved. Public launch messaging, support access, and customer-facing platform presentation are now live.</span>
+      </div>
+      <a class="btn success" href="request-ride.html?mode=driver">Book a Ride</a>
+    </div>
+
     <div class="hero">
       <div class="hero-badge">Trusted mobility platform • Tennessee service</div>
 
-      <h1>Driver or Autonomous — You Choose.</h1>
+      <h1>Your next ride — human driver today, autonomous pilot tomorrow.</h1>
 
       <p>
         Harvey Taxi Service LLC connects approved riders, qualified drivers, transportation support,
-        payment access, and next-generation autonomous ride architecture through one intelligent platform
-        designed for safety, accountability, flexibility, and service clarity.
+        payment access, and next-generation mobility through one intelligent platform built for trust,
+        clarity, safety, and long-term transportation expansion across Tennessee.
       </p>
 
       <div class="actions">
@@ -613,40 +626,31 @@
 
       <div class="av-banner">
         <div>
-          <strong>Autonomous ride pilot mode is a development flow</strong>
+          <strong>Autonomous pilot mode is available as a labeled pilot flow</strong>
           <span>
-            Harvey Taxi currently supports human-driver ride access while autonomous ride capability is being
-            positioned as a pilot and future expansion path. The autonomous experience should be presented
-            as pilot/in development unless fully live in your service area.
+            Harvey Taxi currently supports human-driver ride access while autonomous service remains a pilot and future expansion path.
+            Autonomous requests should remain clearly labeled as pilot/in development unless fully active in the user's service area.
           </span>
         </div>
-        <a class="btn" href="request-ride.html?mode=autonomous">Open AV Pilot Flow</a>
-      </div>
-
-      <div class="reviewer-note">
-        <strong>Reviewer note</strong>
-        <span>
-          The primary live user flows are rider signup, driver signup, support access, policy access, and driver ride request flow.
-          Autonomous mode is labeled as pilot/in development so platform status is clearly communicated.
-        </span>
+        <a class="btn" href="request-ride.html?mode=autonomous">Open AV Pilot</a>
       </div>
 
       <div class="mini-stats">
         <div class="mini-stat">
           <strong>Verified Access</strong>
-          <span>Rider approval and driver onboarding help protect platform use before ride activity.</span>
+          <span>Rider approval and driver onboarding help protect platform activity before trip requests are fulfilled.</span>
         </div>
         <div class="mini-stat">
           <strong>Hybrid Ready</strong>
-          <span>Supports human driver rides today with autonomous ride architecture in progress.</span>
+          <span>Human-driver rides are supported now with autonomous architecture positioned as a pilot expansion path.</span>
         </div>
         <div class="mini-stat">
           <strong>Safety First</strong>
-          <span>Verification, onboarding review, support access, and ride structure improve trust.</span>
+          <span>Structured onboarding, support access, clear ride roles, and platform oversight improve trust.</span>
         </div>
         <div class="mini-stat">
           <strong>Business Ready</strong>
-          <span>Clear support, policy pages, payment flow, and company identity are visible throughout the platform.</span>
+          <span>Support pages, policy access, company identity, and launch-ready navigation are visible throughout the platform.</span>
         </div>
       </div>
     </div>
@@ -655,41 +659,41 @@
       <div class="section-header">
         <div>
           <h2>Platform Status</h2>
-          <p class="lead">This section helps users and reviewers understand what is available now and what is still in development.</p>
+          <p class="lead">A clear public snapshot of what Harvey Taxi supports today.</p>
         </div>
       </div>
 
       <div class="grid">
         <div class="card">
           <strong>Ride Requests</strong>
-          <span><span class="status-good">Operational</span><br />Approved riders can proceed through active ride request flow.</span>
+          <span><span class="status-good">Live</span><br />Approved riders can proceed through active ride request flow.</span>
         </div>
 
         <div class="card">
           <strong>Driver Onboarding</strong>
-          <span><span class="status-good">Available</span><br />Driver signup and qualification flow are available from the home screen.</span>
+          <span><span class="status-good">Open</span><br />Driver signup and qualification flow are available from the home screen.</span>
         </div>
 
         <div class="card">
           <strong>Payments</strong>
-          <span><span class="status-good">Enabled</span><br />Transportation payment authorization structure is built into the platform workflow.</span>
+          <span><span class="status-good">Enabled</span><br />Transportation payment authorization is built into the ride workflow.</span>
         </div>
       </div>
 
       <div class="grid">
         <div class="card">
           <strong>Support Resources</strong>
-          <span><span class="status-good">Available</span><br />Support page and policy access are visible for transparency and assistance.</span>
+          <span><span class="status-good">Available</span><br />Support page and policy access are visible for transparency and customer help.</span>
         </div>
 
         <div class="card">
-          <strong>Safety Controls</strong>
-          <span><span class="status-good">Structured</span><br />Separate rider and driver paths reduce confusion and improve operational clarity.</span>
+          <strong>Safety Structure</strong>
+          <span><span class="status-good">Active</span><br />Separate rider and driver paths reduce confusion and improve operational clarity.</span>
         </div>
 
         <div class="card">
           <strong>Autonomous Mode</strong>
-          <span><span class="status-warn">Pilot / In Development</span><br />Autonomous ride entry is clearly labeled as pilot flow and future expansion path.</span>
+          <span><span class="status-warn">Pilot</span><br />Autonomous ride entry remains clearly labeled as pilot/in development.</span>
         </div>
       </div>
     </div>
@@ -698,7 +702,7 @@
       <div class="section-header">
         <div>
           <h2>How Harvey Taxi Works</h2>
-          <p class="lead">A simple, review-friendly explanation of the user journey.</p>
+          <p class="lead">A simple walkthrough for riders, drivers, and launch visitors.</p>
         </div>
       </div>
 
@@ -710,29 +714,29 @@
 
         <div class="card">
           <strong>2. Approval & Readiness</strong>
-          <span>Rider approval and driver qualification structure help organize safer platform participation.</span>
+          <span>Rider approval and driver qualification help organize safer participation before live trip activity.</span>
         </div>
 
         <div class="card">
-          <strong>3. Choose Ride Type</strong>
-          <span>Approved riders can request a driver ride or enter the autonomous pilot flow where that experience is presented.</span>
+          <strong>3. Choose Your Ride</strong>
+          <span>Approved riders can request a driver ride or enter the autonomous pilot flow where presented.</span>
         </div>
       </div>
 
       <div class="grid">
         <div class="card">
           <strong>4. Payment Workflow</strong>
-          <span>Transportation payment authorization supports cleaner dispatch and clearer trip control.</span>
+          <span>Payment authorization supports cleaner dispatch, trip clarity, and stronger platform control.</span>
         </div>
 
         <div class="card">
           <strong>5. Dispatch & Mission Flow</strong>
-          <span>Ride fulfillment is organized through structured mission handling and role-based platform flow.</span>
+          <span>Ride fulfillment is organized through structured trip handling and role-based platform flow.</span>
         </div>
 
         <div class="card">
           <strong>6. Support & Oversight</strong>
-          <span>Support resources, policy access, and admin structure improve trust, oversight, and service clarity.</span>
+          <span>Support resources, policy access, and admin structure help improve accountability and service quality.</span>
         </div>
       </div>
     </div>
@@ -741,7 +745,7 @@
       <div class="section-header">
         <div>
           <h2>Safety & Trust</h2>
-          <p class="lead">A stronger safety section helps Harvey Taxi feel more legitimate, organized, and review-ready.</p>
+          <p class="lead">Harvey Taxi is designed to feel clear, accountable, and professionally operated.</p>
         </div>
       </div>
 
@@ -753,12 +757,12 @@
 
         <div class="card">
           <strong>Driver Qualification</strong>
-          <span>Driver onboarding includes identity review and qualification steps before active platform participation.</span>
+          <span>Driver onboarding includes identity review and qualification steps before active participation.</span>
         </div>
 
         <div class="card">
           <strong>Support Access</strong>
-          <span>Users can reach support resources, guidance pages, and policy information from the platform experience.</span>
+          <span>Users can reach support resources, help pages, and policy information directly from the platform.</span>
         </div>
       </div>
 
@@ -766,10 +770,10 @@
         <div class="highlight">
           <h3>Why riders and drivers can trust Harvey Taxi</h3>
           <p>
-            Harvey Taxi is designed around structured onboarding, safer access control, service clarity,
-            visible support access, and a cleaner operational flow. The goal is to reduce confusion,
-            improve trust, and present a more accountable ride experience for riders, drivers,
-            support stakeholders, and future fleet partners.
+            Harvey Taxi is built around structured onboarding, safer access control, clear support visibility,
+            payment workflow clarity, and a more accountable transportation experience. The goal is to reduce confusion,
+            improve trust, and build a platform that feels dependable for riders, drivers, support partners,
+            and future fleet expansion.
           </p>
 
           <div class="pill-row">
@@ -777,22 +781,22 @@
             <div class="pill">Support resources</div>
             <div class="pill">Policy transparency</div>
             <div class="pill">Payment workflow</div>
-            <div class="pill">Community assistance</div>
+            <div class="pill">Trip accountability</div>
           </div>
         </div>
 
         <div class="list">
           <div class="list-item">
             <strong>Emergency support direction</strong>
-            <span>Support and safety pages can guide users toward assistance resources when needed.</span>
+            <span>Support and safety pages can guide users toward help resources when needed.</span>
           </div>
           <div class="list-item">
             <strong>Clear user roles</strong>
-            <span>Separate rider and driver experiences reduce confusion and improve platform clarity.</span>
+            <span>Separate rider and driver experiences reduce confusion and improve platform quality.</span>
           </div>
           <div class="list-item">
-            <strong>Review-ready structure</strong>
-            <span>Key flows, support, and policy access are visible from the home screen for quick review.</span>
+            <strong>Professional launch presentation</strong>
+            <span>Key actions, support, and policy access are visible from the home screen.</span>
           </div>
         </div>
       </div>
@@ -802,7 +806,7 @@
       <div class="section-header">
         <div>
           <h2>Main Services</h2>
-          <p class="lead">Core entry points for riders, drivers, support users, and app reviewers.</p>
+          <p class="lead">Core entry points for riders, drivers, and public launch visitors.</p>
         </div>
       </div>
 
@@ -814,7 +818,7 @@
 
         <a class="card" href="request-ride.html?mode=autonomous">
           <strong>Request Autonomous</strong>
-          <span>Enter the autonomous pilot ride flow for AV-ready service expansion and testing presentation.</span>
+          <span>Enter the autonomous pilot ride flow for AV-ready expansion and future service development.</span>
         </a>
 
         <a class="card" href="rider-signup.html">
@@ -845,7 +849,7 @@
       <div class="section-header">
         <div>
           <h2>Service Area</h2>
-          <p class="lead">This helps users and reviewers quickly understand who the platform is for.</p>
+          <p class="lead">A clear snapshot of Harvey Taxi’s launch footprint and growth direction.</p>
         </div>
       </div>
 
@@ -862,7 +866,7 @@
 
         <div class="card">
           <strong>Tennessee Expansion</strong>
-          <span>Platform architecture is being positioned for broader statewide availability.</span>
+          <span>Platform architecture is positioned for broader statewide availability over time.</span>
         </div>
       </div>
     </div>
@@ -871,7 +875,7 @@
       <div class="section-header">
         <div>
           <h2>Company Information</h2>
-          <p class="lead">This is one of the most important trust sections for user confidence and app review.</p>
+          <p class="lead">A visible trust section for riders, drivers, and partners.</p>
         </div>
       </div>
 
@@ -880,9 +884,9 @@
           <h3>Harvey Taxi Service LLC</h3>
           <p>
             Harvey Taxi is a transportation platform focused on trusted ride access, rider onboarding,
-            driver onboarding, payment support, community-centered transportation assistance,
-            and hybrid mobility expansion. The platform is designed to support riders, drivers,
-            and future next-generation mobility services through a modern app experience.
+            driver onboarding, payment support, transportation assistance, and hybrid mobility growth.
+            The platform is designed to support riders, drivers, and future next-generation mobility services
+            through a modern app experience.
           </p>
 
           <div class="pill-row">
@@ -915,7 +919,7 @@
       <div class="section-header">
         <div>
           <h2>Support & Policies</h2>
-          <p class="lead">These links help the platform look complete, compliant, and professionally operated.</p>
+          <p class="lead">Public-facing access to the pages users expect from a live transportation platform.</p>
         </div>
       </div>
 
