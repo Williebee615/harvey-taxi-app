@@ -417,7 +417,7 @@
     <div class="hero">
       <h1 id="heroTitle">Request Your Ride</h1>
       <p id="heroText">
-        Harvey Taxi launch mode is active. Riders can request rides after account creation and secured payment, while drivers remain under protected approval controls.
+        Harvey Taxi launch mode is active. Riders can request rides after rider approval and secured payment.
       </p>
 
       <div class="mode-banner" id="modeBanner">
@@ -430,8 +430,8 @@
 
     <div class="grid">
       <div class="card">
-        <div class="section-title" id="accessTitle">Rider Launch Access</div>
-        <div class="sub" id="accessSub">In launch mode, rider accounts can request rides as soon as the rider account is found and payment is secured.</div>
+        <div class="section-title" id="accessTitle">Rider Access</div>
+        <div class="sub" id="accessSub">Your rider account must be approved before you can secure payment and request a ride.</div>
 
         <div class="status-box">
           <div class="mini">
@@ -554,6 +554,7 @@
     let riderVerified = false;
     let locationApproved = false;
     let currentCoords = null;
+    let currentRider = null;
 
     const urlParams = new URLSearchParams(window.location.search);
     const requestedMode = (urlParams.get("mode") || "driver").toLowerCase() === "autonomous" ? "autonomous" : "driver";
@@ -591,21 +592,21 @@
       if(isAutonomousMode){
         document.title = "Harvey Taxi — Request Autonomous Ride";
         heroTitle.textContent = "Request Your Autonomous Ride";
-        heroText.textContent = "Harvey Taxi autonomous pilot mode is active. Riders can request AV-ready trips after rider access is confirmed and payment is secured.";
+        heroText.textContent = "Harvey Taxi autonomous pilot mode is active. Riders can request AV-ready trips after rider approval and secured payment.";
         accessTitle.textContent = "Autonomous Pilot Access";
-        accessSub.textContent = "In autonomous pilot mode, rider accounts can enter AV-ready dispatch flow after the rider account is found and payment is secured.";
+        accessSub.textContent = "Your rider account must be approved before entering the autonomous pilot request flow.";
         rideSectionTitle.textContent = "Autonomous Ride Request";
         estimateSectionTitle.textContent = "Autonomous Ride Estimate";
-        estimateSub.textContent = "Review your current autonomous ride estimate before submitting your pilot ride request.";
+        estimateSub.textContent = "Review your current autonomous ride estimate before submitting your pilot request.";
         requestRideBtn.textContent = "Request Autonomous Ride";
         requestRideBtn.classList.add("autonomous-primary");
         modeBanner.style.display = "block";
       } else {
         document.title = "Harvey Taxi — Request Driver Ride";
         heroTitle.textContent = "Request Your Driver Ride";
-        heroText.textContent = "Harvey Taxi launch mode is active. Riders can request driver rides after account creation and secured payment, while drivers remain under protected approval controls.";
-        accessTitle.textContent = "Rider Launch Access";
-        accessSub.textContent = "In launch mode, rider accounts can request rides as soon as the rider account is found and payment is secured.";
+        heroText.textContent = "Harvey Taxi launch mode is active. Riders can request driver rides after rider approval and secured payment.";
+        accessTitle.textContent = "Rider Access";
+        accessSub.textContent = "Your rider account must be approved before you can secure payment and request a ride.";
         rideSectionTitle.textContent = "Ride Request";
         estimateSectionTitle.textContent = "Ride Estimate";
         estimateSub.textContent = "Review your current fare estimate before submitting your ride request.";
@@ -662,7 +663,7 @@
         dropoffAddress: document.getElementById("dropoff").value.trim(),
         rideType: document.getElementById("rideType").value,
         scheduledTime: document.getElementById("scheduledTime").value.trim(),
-        specialInstructions: document.getElementById("notes").value.trim(),
+        rideNotes: document.getElementById("notes").value.trim(),
         paymentMethod: selectedPaymentMethod,
         requestedMode
       };
@@ -718,40 +719,61 @@
         verificationTag.className = "tag warn";
         verificationTag.textContent = "Waiting";
         riderVerified = false;
+        currentRider = null;
         return false;
       }
 
       try{
-        const res = await fetch("/api/riders");
-        const data = await res.json();
+        const res = await fetch(`/api/riders/${encodeURIComponent(riderId)}`);
+        const data = await res.json().catch(() => ({}));
 
-        if(!res.ok || !data.ok || !Array.isArray(data.riders)){
+        if(!res.ok || !data.ok || !data.rider){
           riderVerified = false;
-          verificationText.textContent = "Unable to load rider account status.";
-          verificationTag.className = "tag bad";
-          verificationTag.textContent = "Error";
-          return false;
-        }
-
-        const rider = data.riders.find(r => r.id === riderId);
-
-        if(!rider){
-          riderVerified = false;
+          currentRider = null;
           verificationText.textContent = "We could not find that rider account.";
           verificationTag.className = "tag bad";
           verificationTag.textContent = "Not Found";
           return false;
         }
 
-        riderVerified = true;
-        verificationText.textContent = isAutonomousMode
-          ? "Autonomous pilot mode active. Rider account found and AV ride access can move forward."
-          : "Launch mode active. Rider account found and ride access is enabled.";
-        verificationTag.className = "tag ok";
-        verificationTag.textContent = "Ready";
-        return true;
+        const rider = data.rider;
+        currentRider = rider;
+
+        if(rider.is_approved && rider.verification_status === "approved"){
+          riderVerified = true;
+          verificationText.textContent = isAutonomousMode
+            ? "Rider account is approved and ready for autonomous pilot flow."
+            : "Rider account is approved and ready for ride requests.";
+          verificationTag.className = "tag ok";
+          verificationTag.textContent = "Approved";
+        } else if (rider.verification_status === "pending") {
+          riderVerified = false;
+          verificationText.textContent = "Rider account is still pending approval.";
+          verificationTag.className = "tag warn";
+          verificationTag.textContent = "Pending";
+        } else {
+          riderVerified = false;
+          verificationText.textContent = "Rider account is not approved for ride requests.";
+          verificationTag.className = "tag bad";
+          verificationTag.textContent = "Not Approved";
+        }
+
+        if(rider.payment_authorized){
+          paymentAuthorized = true;
+          paymentText.textContent = "Payment is already authorized on this rider account.";
+          paymentTag.className = "tag ok";
+          paymentTag.textContent = "Secured";
+        } else {
+          paymentAuthorized = false;
+          paymentText.textContent = "No payment has been secured yet.";
+          paymentTag.className = "tag warn";
+          paymentTag.textContent = "Not Secured";
+        }
+
+        return riderVerified;
       }catch(err){
         riderVerified = false;
+        currentRider = null;
         verificationText.textContent = "Unable to check rider status right now.";
         verificationTag.className = "tag bad";
         verificationTag.textContent = "Error";
@@ -788,31 +810,38 @@
 
         const data = await res.json().catch(() => ({}));
 
-        if(!res.ok || !data.ok || !data.fare){
+        if(!res.ok || !data.ok){
           showError(data.error || data.message || "Unable to calculate estimate.");
           return;
         }
 
-        currentEstimate = data.fare;
+        currentEstimate = {
+          estimatedFare: Number(data.estimated_fare || 0),
+          driverPayout: Number(data.driver_payout || 0),
+          distanceMiles: Number(data.breakdown?.distance_miles || 0),
+          durationMinutes: Number(data.breakdown?.duration_minutes || 0),
+          rideType: data.ride_type || payload.rideType
+        };
 
-        distanceValue.textContent = `${data.fare.distanceMiles} mi`;
-        durationValue.textContent = `${data.fare.durationMinutes} min`;
-        fareValue.textContent = `$${Number(data.fare.estimatedFare || 0).toFixed(2)}`;
+        distanceValue.textContent = `${currentEstimate.distanceMiles.toFixed(2)} mi`;
+        durationValue.textContent = `${currentEstimate.durationMinutes.toFixed(2)} min`;
+        fareValue.textContent = `$${currentEstimate.estimatedFare.toFixed(2)}`;
 
         estimateReceipt.innerHTML = `
           <strong>${isAutonomousMode ? "Autonomous Ride Preview" : "Ride Preview"}</strong><br><br>
           Mode: ${isAutonomousMode ? "Autonomous Pilot" : "Driver Ride"}<br>
-          Pickup: ${payload.pickupAddress}<br>
-          Dropoff: ${payload.dropoffAddress}<br>
-          Ride Type: ${payload.rideType}<br>
-          Estimated Distance: ${data.fare.distanceMiles} mi<br>
-          Estimated Duration: ${data.fare.durationMinutes} min<br>
-          Estimated Fare: $${Number(data.fare.estimatedFare || 0).toFixed(2)}
+          Pickup: ${data.pickup_address || payload.pickupAddress}<br>
+          Dropoff: ${data.dropoff_address || payload.dropoffAddress}<br>
+          Ride Type: ${currentEstimate.rideType}<br>
+          Estimated Distance: ${currentEstimate.distanceMiles.toFixed(2)} mi<br>
+          Estimated Duration: ${currentEstimate.durationMinutes.toFixed(2)} min<br>
+          Estimated Fare: $${currentEstimate.estimatedFare.toFixed(2)}
         `;
 
-        showResult(isAutonomousMode
-          ? "Autonomous ride estimate ready. Secure payment to continue."
-          : "Fare estimate ready. Secure payment to continue."
+        showResult(
+          isAutonomousMode
+            ? "Autonomous ride estimate ready. Secure payment to continue."
+            : "Fare estimate ready. Secure payment to continue."
         );
       }catch(err){
         showError("Unable to reach the estimate service.");
@@ -842,7 +871,7 @@
       const riderReady = await checkRiderStatus();
 
       if(!riderReady){
-        showError("We could not confirm your rider account. Enter a valid rider ID first.");
+        showError("Your rider account must be approved before payment can be secured.");
         return;
       }
 
@@ -853,8 +882,7 @@
           body: JSON.stringify({
             riderId: payload.riderId,
             paymentMethod: payload.paymentMethod,
-            amount: currentEstimate.estimatedFare,
-            requestedMode: payload.requestedMode
+            amount: currentEstimate.estimatedFare
           })
         });
 
@@ -873,9 +901,11 @@
         paymentText.textContent = `Payment secured by ${payload.paymentMethod === "apple_pay" ? "Apple Pay" : "Card"} for ${isAutonomousMode ? "autonomous pilot mode" : "driver mode"}.`;
         paymentTag.className = "tag ok";
         paymentTag.textContent = "Secured";
-        showResult(isAutonomousMode
-          ? "Payment secured. Your autonomous ride request can now move forward."
-          : "Payment secured. Your ride request can now move forward."
+
+        showResult(
+          isAutonomousMode
+            ? "Payment secured. Your autonomous ride request can now move forward."
+            : "Payment secured. Your ride request can now move forward."
         );
       }catch(err){
         paymentAuthorized = false;
@@ -919,7 +949,7 @@
       const riderReady = await checkRiderStatus();
 
       if(!riderReady){
-        showError("We could not confirm your rider account. Create your rider account first.");
+        showError("Your rider account must be approved before a ride can be requested.");
         return;
       }
 
@@ -931,6 +961,16 @@
       try{
         localStorage.setItem("harveyRiderId", payload.riderId);
 
+        const compiledNotes = [
+          `Requested Mode: ${isAutonomousMode ? "Autonomous Pilot" : "Driver Ride"}`,
+          payload.passengerFirstName ? `Passenger: ${payload.passengerFirstName}` : "",
+          payload.passengerPhone ? `Phone: ${payload.passengerPhone}` : "",
+          payload.scheduledTime ? `Scheduled Time: ${payload.scheduledTime}` : "",
+          payload.rideNotes ? `Notes: ${payload.rideNotes}` : "",
+          `Payment Method: ${payload.paymentMethod === "apple_pay" ? "Apple Pay" : "Card"}`,
+          currentCoords ? "Pickup Location Enabled" : ""
+        ].filter(Boolean).join(" | ");
+
         const res = await fetch("/api/request-ride", {
           method: "POST",
           headers: {"Content-Type":"application/json"},
@@ -939,18 +979,10 @@
             pickupAddress: payload.pickupAddress,
             dropoffAddress: payload.dropoffAddress,
             rideType: payload.rideType,
-            passengerCount: 1,
+            scheduledTime: payload.scheduledTime || null,
+            paymentMethod: payload.paymentMethod,
             requestedMode: payload.requestedMode,
-            riderLocationApproved: true,
-            specialInstructions: [
-              `Requested Mode: ${isAutonomousMode ? "Autonomous Pilot" : "Driver Ride"}`,
-              payload.passengerFirstName ? `Passenger: ${payload.passengerFirstName}` : "",
-              payload.passengerPhone ? `Phone: ${payload.passengerPhone}` : "",
-              payload.scheduledTime ? `Scheduled Time: ${payload.scheduledTime}` : "",
-              payload.specialInstructions ? `Notes: ${payload.specialInstructions}` : "",
-              `Payment Method: ${payload.paymentMethod === "apple_pay" ? "Apple Pay" : "Card"}`,
-              currentCoords ? `Pickup Location Enabled: ${currentCoords.latitude.toFixed(6)}, ${currentCoords.longitude.toFixed(6)}` : "Pickup Location Enabled"
-            ].filter(Boolean).join(" | ")
+            notes: compiledNotes
           })
         });
 
@@ -961,12 +993,16 @@
           return;
         }
 
+        const ride = data.ride || {};
+        const rideId = ride.ride_id || "Created";
+        const rideStatus = ride.status || (isAutonomousMode ? "autonomous_queue" : "driver_offered");
+
         showResult(`
           <strong>${isAutonomousMode ? "Autonomous Ride Requested Successfully" : "Ride Requested Successfully"}</strong><br><br>
           Your ${isAutonomousMode ? "autonomous pilot" : "ride"} request has been submitted successfully and is now being processed.<br><br>
           <strong>Mode:</strong> ${isAutonomousMode ? "Autonomous Pilot" : "Driver Ride"}<br>
-          <strong>Ride ID:</strong> ${data.ride?.id || "Created"}<br>
-          <strong>Status:</strong> ${data.ride?.status || "searching_driver"}
+          <strong>Ride ID:</strong> ${rideId}<br>
+          <strong>Status:</strong> ${rideStatus}
         `);
       }catch(err){
         showError("Unable to submit ride request.");
