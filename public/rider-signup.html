@@ -142,6 +142,11 @@
       color:rgba(244,247,255,.46);
     }
 
+    textarea{
+      resize:vertical;
+      min-height:94px;
+    }
+
     .row{
       display:grid;
       grid-template-columns:1fr 1fr;
@@ -287,7 +292,7 @@
       <h1>Rider Sign Up</h1>
       <p>
         Create your Harvey Taxi rider account to begin the protected rider onboarding flow.
-        Rider approval is required before ride requests can be submitted.
+        Launch mode is active, so rider accounts are approved for ride access after successful account creation.
       </p>
     </div>
 
@@ -365,16 +370,16 @@
       </div>
 
       <div class="card">
-        <div class="section-title">Rider Approval Status</div>
+        <div class="section-title">Rider Access Status</div>
         <div class="sub">
-          Harvey Taxi requires rider approval before a ride can be requested.
+          Launch mode is active. Rider accounts are enabled for ride requests after successful account creation.
         </div>
 
         <div class="status-box">
           <div class="mini">
             <h3>Account Status</h3>
             <div id="accountText">No rider account checked yet.</div>
-            <div id="accountTag" class="tag warn">Pending</div>
+            <div id="accountTag" class="tag warn">Waiting</div>
           </div>
 
           <div class="mini">
@@ -385,13 +390,14 @@
         </div>
 
         <div class="note">
-          After signup, your rider profile can be reviewed and approved before access to the ride request flow is granted.
+          Driver approval remains protected, but rider launch access is enabled so new riders can continue into the ride request flow.
         </div>
       </div>
     </div>
   </div>
 
   <script>
+    const LAUNCH_MODE_AUTO_APPROVE_RIDERS = true;
     let selectedDocumentType = "driver_license";
 
     const docButtons = document.querySelectorAll(".choice");
@@ -463,6 +469,22 @@
       return "";
     }
 
+    function isRiderApproved(rider){
+      if(!rider) return false;
+
+      if(LAUNCH_MODE_AUTO_APPROVE_RIDERS){
+        return true;
+      }
+
+      return !!(
+        rider.riderApproved ||
+        rider.approved ||
+        rider.canRequestRide ||
+        rider.status === "approved" ||
+        rider.approvalStatus === "approved"
+      );
+    }
+
     async function createRiderAccount(){
       clearMessages();
 
@@ -504,16 +526,20 @@
           localStorage.setItem("harveyRiderId", riderId);
         }
 
-        accountText.textContent = "Your rider account has been created and is waiting for approval.";
-        accountTag.className = "tag warn";
-        accountTag.textContent = "Pending";
+        accountText.textContent = LAUNCH_MODE_AUTO_APPROVE_RIDERS
+          ? "Your rider account has been created and launch access is now enabled."
+          : "Your rider account has been created and is waiting for approval.";
+
+        accountTag.className = `tag ${LAUNCH_MODE_AUTO_APPROVE_RIDERS ? "ok" : "warn"}`;
+        accountTag.textContent = LAUNCH_MODE_AUTO_APPROVE_RIDERS ? "Approved" : "Pending";
 
         showResult(`
           <strong>Rider Account Created</strong><br><br>
           Your Harvey Taxi rider account has been created successfully.<br><br>
           <strong>Rider ID:</strong> ${riderId || "Created"}<br>
-          <strong>Status:</strong> Pending Approval<br>
-          <strong>Verification Type:</strong> ${payload.verificationDocumentType.replace("_", " ")}
+          <strong>Status:</strong> ${LAUNCH_MODE_AUTO_APPROVE_RIDERS ? "Approved for Ride Access" : "Pending Approval"}<br>
+          <strong>Verification Type:</strong> ${payload.verificationDocumentType.replace("_", " ")}<br><br>
+          ${LAUNCH_MODE_AUTO_APPROVE_RIDERS ? "You can now continue to Request Ride." : "Your account is waiting for approval."}
         `);
       }catch(err){
         showError("Unable to reach the rider signup service.");
@@ -549,10 +575,10 @@
           return;
         }
 
-        const approved = !!rider.riderApproved;
+        const approved = isRiderApproved(rider);
 
         accountText.textContent = approved
-          ? "Your rider account is approved and ready for ride access."
+          ? "Your rider account is ready for ride access."
           : "Your rider account exists and is still waiting for approval.";
 
         accountTag.className = `tag ${approved ? "ok" : "warn"}`;
@@ -562,7 +588,7 @@
           <strong>Rider Status Checked</strong><br><br>
           <strong>Rider ID:</strong> ${rider.id}<br>
           <strong>Name:</strong> ${rider.firstName || ""} ${rider.lastName || ""}<br>
-          <strong>Status:</strong> ${approved ? "Approved" : "Pending Approval"}
+          <strong>Status:</strong> ${approved ? "Approved for Ride Access" : "Pending Approval"}
         `);
       }catch(err){
         showError("Unable to check rider status right now.");
@@ -574,8 +600,8 @@
 
     const savedRiderId = localStorage.getItem("harveyRiderId");
     if(savedRiderId){
-      accountText.textContent = "Saved rider account found. You can check your status now.";
-      accountTag.className = "tag warn";
+      accountText.textContent = "Saved rider account found. You can check your rider access now.";
+      accountTag.className = "tag ok";
       accountTag.textContent = "Saved";
     }
   </script>
