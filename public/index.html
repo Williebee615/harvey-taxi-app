@@ -1,963 +1,299 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Harvey Taxi</title>
-  <meta
-    name="description"
-    content="Harvey Taxi Service LLC provides trusted ride access, rider onboarding, driver onboarding, support resources, payment access, and transportation assistance across Tennessee."
-  />
-
-  <style>
-    :root{
-      --bg1:#040814;
-      --bg2:#091126;
-      --bg3:#101935;
-      --panel:rgba(10,17,38,.88);
-      --panel2:rgba(15,23,52,.72);
-      --line:rgba(122,162,255,.16);
-      --line-strong:rgba(122,162,255,.28);
-      --text:#f4f7ff;
-      --muted:#aab8de;
-      --blue:#5ea0ff;
-      --cyan:#63f5ff;
-      --green:#6dffb3;
-      --gold:#ffd76a;
-      --danger:#ff7e97;
-      --shadow:0 20px 70px rgba(0,0,0,.35);
-      --radius:22px;
-      --max:1150px;
-    }
-
-    *{
-      box-sizing:border-box;
-      margin:0;
-      padding:0;
-    }
-
-    html{
-      scroll-behavior:smooth;
-    }
-
-    body{
-      font-family:Inter, Arial, sans-serif;
-      color:var(--text);
-      background:
-        radial-gradient(circle at top left, rgba(99,245,255,.12), transparent 30%),
-        radial-gradient(circle at top right, rgba(94,160,255,.10), transparent 28%),
-        linear-gradient(160deg, var(--bg1), var(--bg2) 50%, var(--bg3));
-      min-height:100vh;
-    }
-
-    a{
-      color:inherit;
-      text-decoration:none;
-    }
-
-    .shell{
-      max-width:var(--max);
-      margin:auto;
-      padding:18px 16px 120px;
-    }
-
-    .topbar{
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:14px;
-      padding:14px 18px;
-      border:1px solid var(--line);
-      border-radius:999px;
-      background:rgba(7,12,28,.78);
-      backdrop-filter:blur(12px);
-      margin-bottom:18px;
-      box-shadow:var(--shadow);
-    }
-
-    .brand-wrap{
-      display:flex;
-      align-items:center;
-      gap:12px;
-    }
-
-    .logo-dot{
-      width:12px;
-      height:12px;
-      border-radius:50%;
-      background:linear-gradient(135deg,var(--cyan),var(--blue));
-      box-shadow:0 0 18px rgba(99,245,255,.55);
-      flex-shrink:0;
-    }
-
-    .brand{
-      font-weight:900;
-      letter-spacing:.12em;
-      font-size:14px;
-    }
-
-    .top-links{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-    }
-
-    .top-link{
-      padding:10px 14px;
-      border-radius:999px;
-      border:1px solid rgba(255,255,255,.08);
-      background:rgba(255,255,255,.03);
-      color:var(--muted);
-      font-size:13px;
-      font-weight:700;
-      transition:.18s ease;
-    }
-
-    .top-link:hover{
-      color:#fff;
-      background:rgba(255,255,255,.06);
-    }
-
-    .launch-strip{
-      margin-bottom:18px;
-      padding:14px 18px;
-      border-radius:18px;
-      border:1px solid rgba(109,255,179,.18);
-      background:linear-gradient(135deg,rgba(109,255,179,.12),rgba(94,160,255,.07));
-      box-shadow:var(--shadow);
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:14px;
-      flex-wrap:wrap;
-    }
-
-    .launch-strip strong{
-      display:block;
-      margin-bottom:4px;
-      color:var(--green);
-      font-size:15px;
-    }
-
-    .launch-strip span{
-      display:block;
-      color:var(--muted);
-      font-size:14px;
-      line-height:1.6;
-    }
-
-    .hero{
-      position:relative;
-      overflow:hidden;
-      background:
-        linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.015)),
-        var(--panel);
-      padding:34px;
-      border-radius:var(--radius);
-      border:1px solid var(--line);
-      margin-bottom:18px;
-      box-shadow:var(--shadow);
-    }
-
-    .hero::before{
-      content:"";
-      position:absolute;
-      top:-60px;
-      right:-60px;
-      width:220px;
-      height:220px;
-      border-radius:50%;
-      background:radial-gradient(circle,rgba(99,245,255,.18),transparent 65%);
-      pointer-events:none;
-    }
-
-    .hero-badge{
-      display:inline-flex;
-      align-items:center;
-      gap:10px;
-      padding:10px 14px;
-      border-radius:999px;
-      border:1px solid rgba(255,255,255,.08);
-      background:rgba(255,255,255,.04);
-      margin-bottom:18px;
-      color:var(--cyan);
-      font-size:13px;
-      font-weight:800;
-      letter-spacing:.05em;
-      text-transform:uppercase;
-    }
-
-    .hero h1{
-      font-size:46px;
-      line-height:1.08;
-      margin-bottom:14px;
-      max-width:850px;
-    }
-
-    .hero p{
-      color:var(--muted);
-      line-height:1.7;
-      margin-bottom:22px;
-      max-width:800px;
-      font-size:16px;
-    }
-
-    .actions{
-      display:flex;
-      flex-wrap:wrap;
-      gap:12px;
-    }
-
-    .btn{
-      padding:14px 18px;
-      border-radius:14px;
-      border:1px solid var(--line);
-      background:rgba(255,255,255,.04);
-      color:white;
-      font-weight:800;
-      cursor:pointer;
-      transition:.18s ease;
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      gap:8px;
-      min-height:48px;
-    }
-
-    .btn:hover{
-      transform:translateY(-1px);
-      background:rgba(255,255,255,.06);
-    }
-
-    .btn.primary{
-      background:linear-gradient(135deg,var(--cyan),var(--blue));
-      color:#07121f;
-      border:none;
-    }
-
-    .btn.success{
-      background:linear-gradient(135deg,var(--green),#89ffd0);
-      color:#062014;
-      border:none;
-    }
-
-    .btn.ghost{
-      background:transparent;
-    }
-
-    .btn.autonomous{
-      background:linear-gradient(135deg,#7f7bff,#63f5ff);
-      color:#04121f;
-      border:none;
-      box-shadow:0 12px 32px rgba(99,245,255,.18);
-    }
-
-    .btn.autonomous:hover{
-      filter:brightness(1.05);
-      transform:translateY(-1px);
-    }
-
-    .pilot-tag{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      padding:4px 8px;
-      border-radius:999px;
-      font-size:11px;
-      font-weight:900;
-      letter-spacing:.06em;
-      text-transform:uppercase;
-      background:rgba(4,18,31,.16);
-      color:#04121f;
-    }
-
-    .mini-stats{
-      display:grid;
-      grid-template-columns:repeat(4,1fr);
-      gap:12px;
-      margin-top:20px;
-    }
-
-    .mini-stat{
-      padding:16px;
-      border-radius:16px;
-      border:1px solid rgba(255,255,255,.07);
-      background:rgba(255,255,255,.03);
-    }
-
-    .mini-stat strong{
-      display:block;
-      font-size:18px;
-      margin-bottom:6px;
-    }
-
-    .mini-stat span{
-      color:var(--muted);
-      font-size:13px;
-      line-height:1.5;
-    }
-
-    .av-banner{
-      margin-top:18px;
-      padding:16px 18px;
-      border-radius:18px;
-      border:1px solid rgba(99,245,255,.16);
-      background:linear-gradient(135deg,rgba(99,245,255,.10),rgba(94,160,255,.06));
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:14px;
-      flex-wrap:wrap;
-    }
-
-    .av-banner strong{
-      display:block;
-      margin-bottom:4px;
-      font-size:16px;
-    }
-
-    .av-banner span{
-      color:var(--muted);
-      font-size:14px;
-      line-height:1.6;
-      display:block;
-    }
-
-    .section{
-      margin-top:18px;
-      background:var(--panel);
-      padding:24px;
-      border-radius:var(--radius);
-      border:1px solid var(--line);
-      box-shadow:var(--shadow);
-    }
-
-    .section-header{
-      display:flex;
-      justify-content:space-between;
-      align-items:flex-end;
-      gap:14px;
-      flex-wrap:wrap;
-      margin-bottom:14px;
-    }
-
-    .section h2{
-      font-size:26px;
-      margin-bottom:4px;
-    }
-
-    .section p.lead{
-      color:var(--muted);
-      line-height:1.7;
-      max-width:780px;
-    }
-
-    .grid{
-      display:grid;
-      grid-template-columns:repeat(3,1fr);
-      gap:12px;
-      margin-top:18px;
-    }
-
-    .card{
-      padding:18px;
-      border-radius:16px;
-      border:1px solid rgba(255,255,255,.07);
-      background:rgba(255,255,255,.03);
-      display:block;
-      transition:.18s ease;
-    }
-
-    .card:hover{
-      transform:translateY(-2px);
-      border-color:var(--line-strong);
-      background:rgba(255,255,255,.045);
-    }
-
-    .card strong{
-      display:block;
-      margin-bottom:8px;
-      font-size:16px;
-    }
-
-    .card span{
-      color:var(--muted);
-      font-size:14px;
-      line-height:1.6;
-      display:block;
-    }
-
-    .info-grid{
-      display:grid;
-      grid-template-columns:1.2fr .8fr;
-      gap:14px;
-      margin-top:18px;
-    }
-
-    .highlight{
-      padding:22px;
-      border-radius:18px;
-      background:
-        linear-gradient(180deg,rgba(99,245,255,.05),rgba(94,160,255,.02)),
-        rgba(255,255,255,.03);
-      border:1px solid rgba(99,245,255,.14);
-    }
-
-    .highlight h3{
-      margin-bottom:10px;
-      font-size:22px;
-    }
-
-    .highlight p{
-      color:var(--muted);
-      line-height:1.7;
-    }
-
-    .pill-row{
-      display:flex;
-      flex-wrap:wrap;
-      gap:10px;
-      margin-top:16px;
-    }
-
-    .pill{
-      padding:10px 14px;
-      border-radius:999px;
-      background:rgba(255,255,255,.05);
-      border:1px solid rgba(255,255,255,.08);
-      font-size:13px;
-      font-weight:700;
-      color:var(--muted);
-    }
-
-    .list{
-      display:grid;
-      gap:12px;
-      margin-top:14px;
-    }
-
-    .list-item{
-      padding:16px 18px;
-      border-radius:16px;
-      border:1px solid rgba(255,255,255,.07);
-      background:rgba(255,255,255,.03);
-    }
-
-    .list-item strong{
-      display:block;
-      margin-bottom:6px;
-    }
-
-    .list-item span{
-      color:var(--muted);
-      font-size:14px;
-      line-height:1.6;
-      display:block;
-    }
-
-    .status-good{
-      color:var(--green);
-      font-weight:800;
-    }
-
-    .status-warn{
-      color:var(--gold);
-      font-weight:800;
-    }
-
-    .footer{
-      margin-top:18px;
-      padding:20px;
-      border-radius:var(--radius);
-      border:1px solid var(--line);
-      background:var(--panel);
-      display:flex;
-      justify-content:space-between;
-      align-items:flex-start;
-      flex-wrap:wrap;
-      gap:16px;
-      box-shadow:var(--shadow);
-    }
-
-    .footer p{
-      color:var(--muted);
-      font-size:14px;
-      line-height:1.7;
-      max-width:680px;
-    }
-
-    .bottom-nav{
-      position:fixed;
-      left:0;
-      right:0;
-      bottom:0;
-      background:rgba(6,12,26,.96);
-      backdrop-filter:blur(14px);
-      border-top:1px solid rgba(255,255,255,.08);
-      display:flex;
-      justify-content:space-around;
-      padding:12px 8px;
-      z-index:1000;
-    }
-
-    .nav-btn{
-      color:var(--muted);
-      background:none;
-      border:none;
-      font-size:13px;
-      font-weight:700;
-      cursor:pointer;
-      padding:6px 10px;
-    }
-
-    .nav-btn.active{
-      color:white;
-    }
-
-    @media(max-width:980px){
-      .mini-stats{
-        grid-template-columns:repeat(2,1fr);
-      }
-      .info-grid{
-        grid-template-columns:1fr;
-      }
-      .grid{
-        grid-template-columns:1fr;
-      }
-      .hero h1{
-        font-size:34px;
-      }
-    }
-
-    @media(max-width:700px){
-      .topbar{
-        border-radius:24px;
-        padding:14px;
-        align-items:flex-start;
-        flex-direction:column;
-      }
-
-      .top-links{
-        width:100%;
-      }
-
-      .top-link{
-        flex:1;
-        text-align:center;
-      }
-
-      .hero{
-        padding:24px 20px;
-      }
-
-      .hero h1{
-        font-size:28px;
-      }
-
-      .section{
-        padding:20px;
-      }
-
-      .actions{
-        flex-direction:column;
-      }
-
-      .btn{
-        width:100%;
-      }
-
-      .mini-stats{
-        grid-template-columns:1fr;
-      }
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+<title>Harvey Taxi</title>
+
+<meta name="description"
+content="Harvey Taxi Service LLC provides trusted ride access, rider onboarding, driver onboarding, driver dashboard, support resources, and transportation assistance across Tennessee." />
+
+<style>
+:root{
+--bg1:#040814;
+--bg2:#091126;
+--bg3:#101935;
+--panel:rgba(10,17,38,.88);
+--line:rgba(122,162,255,.16);
+--text:#f4f7ff;
+--muted:#aab8de;
+--blue:#5ea0ff;
+--cyan:#63f5ff;
+--green:#6dffb3;
+--gold:#ffd76a;
+--shadow:0 20px 70px rgba(0,0,0,.35);
+--radius:22px;
+--max:1150px;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+
+body{
+font-family:Inter,Arial,sans-serif;
+color:var(--text);
+background:
+radial-gradient(circle at top left, rgba(99,245,255,.12), transparent 30%),
+radial-gradient(circle at top right, rgba(94,160,255,.10), transparent 28%),
+linear-gradient(160deg, var(--bg1), var(--bg2) 50%, var(--bg3));
+min-height:100vh;
+}
+
+.shell{
+max-width:var(--max);
+margin:auto;
+padding:18px 16px 120px;
+}
+
+.topbar{
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:14px 18px;
+border:1px solid var(--line);
+border-radius:999px;
+background:rgba(7,12,28,.78);
+margin-bottom:18px;
+}
+
+.brand{
+font-weight:900;
+letter-spacing:.12em;
+font-size:14px;
+}
+
+.launch{
+margin-bottom:18px;
+padding:18px;
+border-radius:18px;
+border:1px solid rgba(109,255,179,.18);
+background:linear-gradient(135deg,rgba(109,255,179,.12),rgba(94,160,255,.07));
+}
+
+.hero{
+background:var(--panel);
+padding:30px;
+border-radius:var(--radius);
+border:1px solid var(--line);
+margin-bottom:18px;
+}
+
+.hero h1{
+font-size:38px;
+margin-bottom:12px;
+}
+
+.hero p{
+color:var(--muted);
+line-height:1.7;
+margin-bottom:20px;
+}
+
+.actions{
+display:flex;
+flex-wrap:wrap;
+gap:10px;
+}
+
+.btn{
+padding:14px 18px;
+border-radius:14px;
+border:1px solid var(--line);
+background:rgba(255,255,255,.04);
+color:white;
+font-weight:800;
+cursor:pointer;
+text-decoration:none;
+display:inline-flex;
+justify-content:center;
+align-items:center;
+}
+
+.btn.primary{
+background:linear-gradient(135deg,var(--cyan),var(--blue));
+color:#07121f;
+border:none;
+}
+
+.btn.success{
+background:linear-gradient(135deg,var(--green),#89ffd0);
+color:#062014;
+border:none;
+}
+
+.btn.autonomous{
+background:linear-gradient(135deg,#7f7bff,#63f5ff);
+color:#04121f;
+border:none;
+}
+
+.section{
+margin-top:18px;
+background:var(--panel);
+padding:24px;
+border-radius:var(--radius);
+border:1px solid var(--line);
+}
+
+.grid{
+display:grid;
+grid-template-columns:repeat(3,1fr);
+gap:12px;
+margin-top:12px;
+}
+
+.card{
+padding:18px;
+border-radius:16px;
+border:1px solid rgba(255,255,255,.07);
+background:rgba(255,255,255,.03);
+}
+
+.bottom-nav{
+position:fixed;
+left:0;
+right:0;
+bottom:0;
+background:rgba(6,12,26,.96);
+display:flex;
+justify-content:space-around;
+padding:12px 8px;
+border-top:1px solid rgba(255,255,255,.08);
+}
+
+.nav-btn{
+color:var(--muted);
+background:none;
+border:none;
+font-weight:700;
+}
+
+.nav-btn.active{
+color:white;
+}
+
+@media(max-width:900px){
+.grid{grid-template-columns:1fr}
+.hero h1{font-size:28px}
+.actions{flex-direction:column}
+.btn{width:100%}
+}
+</style>
 </head>
 
 <body>
 
-  <div class="shell">
+<div class="shell">
 
-    <div class="topbar">
-      <div class="brand-wrap">
-        <div class="logo-dot"></div>
-        <div class="brand">HARVEY TAXI</div>
-      </div>
+<div class="topbar">
+<div class="brand">HARVEY TAXI</div>
+</div>
 
-      <div class="top-links">
-        <a class="top-link" href="#how-it-works">How It Works</a>
-        <a class="top-link" href="#safety">Safety</a>
-        <a class="top-link" href="#services">Services</a>
-        <a class="top-link" href="#company">Company</a>
-        <a class="top-link" href="support.html">Support</a>
-      </div>
-    </div>
+<div class="launch">
+<strong>Approved for App Store distribution</strong>
+<p>Harvey Taxi Mobile is ready. Riders and drivers can now access the platform.</p>
+<br>
+<a class="btn success" href="request-ride.html?mode=driver">Book a Ride</a>
+</div>
 
-    <div class="launch-strip">
-      <div>
-        <strong>Approved for App Store distribution</strong>
-        <span>Harvey Taxi Mobile has been approved. Public launch messaging, support access, and customer-facing platform presentation are now live.</span>
-      </div>
-      <a class="btn success" href="request-ride.html?mode=driver">Book a Ride</a>
-    </div>
+<div class="hero">
 
-    <div class="hero">
-      <div class="hero-badge">Trusted mobility platform • Tennessee service</div>
+<h1>Your next ride — human driver today, autonomous pilot tomorrow.</h1>
 
-      <h1>Your next ride — human driver today, autonomous pilot tomorrow.</h1>
+<p>
+Harvey Taxi Service LLC connects approved riders, qualified drivers,
+transportation support, payment access, and next-generation mobility
+through one intelligent platform.
+</p>
 
-      <p>
-        Harvey Taxi Service LLC connects approved riders, qualified drivers, transportation support,
-        payment access, and next-generation mobility through one intelligent platform built for trust,
-        clarity, safety, and long-term transportation expansion across Tennessee.
-      </p>
+<div class="actions">
 
-      <div class="actions">
-        <a class="btn primary" href="request-ride.html?mode=driver">🚖 Request Driver</a>
+<a class="btn primary" href="request-ride.html?mode=driver">
+🚖 Request Driver
+</a>
 
-        <a class="btn autonomous" href="request-ride.html?mode=autonomous">
-          🤖 Request Autonomous
-          <span class="pilot-tag">Pilot</span>
-        </a>
+<a class="btn autonomous" href="request-ride.html?mode=autonomous">
+🤖 Request Autonomous
+</a>
 
-        <a class="btn" href="rider-signup.html">Rider Sign Up</a>
-        <a class="btn" href="driver-signup.html">Driver Sign Up</a>
-        <a class="btn ghost" href="support.html">Support</a>
-      </div>
+<a class="btn" href="rider-signup.html">
+Rider Sign Up
+</a>
 
-      <div class="av-banner">
-        <div>
-          <strong>Autonomous pilot mode is available as a labeled pilot flow</strong>
-          <span>
-            Harvey Taxi currently supports human-driver ride access while autonomous service remains a pilot and future expansion path.
-            Autonomous requests should remain clearly labeled as pilot/in development unless fully active in the user's service area.
-          </span>
-        </div>
-        <a class="btn" href="request-ride.html?mode=autonomous">Open AV Pilot</a>
-      </div>
+<a class="btn" href="driver-signup.html">
+Driver Sign Up
+</a>
 
-      <div class="mini-stats">
-        <div class="mini-stat">
-          <strong>Verified Access</strong>
-          <span>Rider approval and driver onboarding help protect platform activity before trip requests are fulfilled.</span>
-        </div>
-        <div class="mini-stat">
-          <strong>Hybrid Ready</strong>
-          <span>Human-driver rides are supported now with autonomous architecture positioned as a pilot expansion path.</span>
-        </div>
-        <div class="mini-stat">
-          <strong>Safety First</strong>
-          <span>Structured onboarding, support access, clear ride roles, and platform oversight improve trust.</span>
-        </div>
-        <div class="mini-stat">
-          <strong>Business Ready</strong>
-          <span>Support pages, policy access, company identity, and launch-ready navigation are visible throughout the platform.</span>
-        </div>
-      </div>
-    </div>
+<a class="btn" href="driver-dashboard.html">
+Driver Dashboard
+</a>
 
-    <div class="section">
-      <div class="section-header">
-        <div>
-          <h2>Platform Status</h2>
-          <p class="lead">A clear public snapshot of what Harvey Taxi supports today.</p>
-        </div>
-      </div>
+<a class="btn" href="support.html">
+Support
+</a>
 
-      <div class="grid">
-        <div class="card">
-          <strong>Ride Requests</strong>
-          <span><span class="status-good">Live</span><br />Approved riders can proceed through active ride request flow.</span>
-        </div>
+</div>
+</div>
 
-        <div class="card">
-          <strong>Driver Onboarding</strong>
-          <span><span class="status-good">Open</span><br />Driver signup and qualification flow are available from the home screen.</span>
-        </div>
+<div class="section">
 
-        <div class="card">
-          <strong>Payments</strong>
-          <span><span class="status-good">Enabled</span><br />Transportation payment authorization is built into the ride workflow.</span>
-        </div>
-      </div>
+<h2>Platform Status</h2>
 
-      <div class="grid">
-        <div class="card">
-          <strong>Support Resources</strong>
-          <span><span class="status-good">Available</span><br />Support page and policy access are visible for transparency and customer help.</span>
-        </div>
+<div class="grid">
 
-        <div class="card">
-          <strong>Safety Structure</strong>
-          <span><span class="status-good">Active</span><br />Separate rider and driver paths reduce confusion and improve operational clarity.</span>
-        </div>
+<div class="card">
+<strong>Ride Requests</strong>
+Live rider booking flow
+</div>
 
-        <div class="card">
-          <strong>Autonomous Mode</strong>
-          <span><span class="status-warn">Pilot</span><br />Autonomous ride entry remains clearly labeled as pilot/in development.</span>
-        </div>
-      </div>
-    </div>
+<div class="card">
+<strong>Driver System</strong>
+Driver dashboard & missions
+</div>
 
-    <div class="section" id="how-it-works">
-      <div class="section-header">
-        <div>
-          <h2>How Harvey Taxi Works</h2>
-          <p class="lead">A simple walkthrough for riders, drivers, and launch visitors.</p>
-        </div>
-      </div>
+<div class="card">
+<strong>Payments</strong>
+Authorization enabled
+</div>
 
-      <div class="grid">
-        <div class="card">
-          <strong>1. Create Access</strong>
-          <span>Riders create access through rider signup. Drivers apply through a separate driver onboarding flow.</span>
-        </div>
+</div>
+</div>
 
-        <div class="card">
-          <strong>2. Approval & Readiness</strong>
-          <span>Rider approval and driver qualification help organize safer participation before live trip activity.</span>
-        </div>
+<div class="section">
 
-        <div class="card">
-          <strong>3. Choose Your Ride</strong>
-          <span>Approved riders can request a driver ride or enter the autonomous pilot flow where presented.</span>
-        </div>
-      </div>
+<h2>Main Services</h2>
 
-      <div class="grid">
-        <div class="card">
-          <strong>4. Payment Workflow</strong>
-          <span>Payment authorization supports cleaner dispatch, trip clarity, and stronger platform control.</span>
-        </div>
+<div class="grid">
 
-        <div class="card">
-          <strong>5. Dispatch & Mission Flow</strong>
-          <span>Ride fulfillment is organized through structured trip handling and role-based platform flow.</span>
-        </div>
+<a class="card" href="request-ride.html?mode=driver">
+<strong>Request Driver</strong>
+Book a ride with a human driver
+</a>
 
-        <div class="card">
-          <strong>6. Support & Oversight</strong>
-          <span>Support resources, policy access, and admin structure help improve accountability and service quality.</span>
-        </div>
-      </div>
-    </div>
+<a class="card" href="request-ride.html?mode=autonomous">
+<strong>Autonomous Pilot</strong>
+Future AV ride mode
+</a>
 
-    <div class="section" id="safety">
-      <div class="section-header">
-        <div>
-          <h2>Safety & Trust</h2>
-          <p class="lead">Harvey Taxi is designed to feel clear, accountable, and professionally operated.</p>
-        </div>
-      </div>
+<a class="card" href="driver-dashboard.html">
+<strong>Driver Dashboard</strong>
+Driver missions & wallet
+</a>
 
-      <div class="grid">
-        <div class="card">
-          <strong>Rider Verification</strong>
-          <span>Rider access is organized through an approval-based onboarding structure before ride activity.</span>
-        </div>
+</div>
+</div>
 
-        <div class="card">
-          <strong>Driver Qualification</strong>
-          <span>Driver onboarding includes identity review and qualification steps before active participation.</span>
-        </div>
+</div>
 
-        <div class="card">
-          <strong>Support Access</strong>
-          <span>Users can reach support resources, help pages, and policy information directly from the platform.</span>
-        </div>
-      </div>
+<div class="bottom-nav">
+<button class="nav-btn active" onclick="location.href='index.html'">Home</button>
+<button class="nav-btn" onclick="location.href='request-ride.html'">Trips</button>
+<button class="nav-btn" onclick="location.href='support.html'">Safety</button>
+<button class="nav-btn" onclick="location.href='driver-dashboard.html'">Driver</button>
+</div>
 
-      <div class="info-grid">
-        <div class="highlight">
-          <h3>Why riders and drivers can trust Harvey Taxi</h3>
-          <p>
-            Harvey Taxi is built around structured onboarding, safer access control, clear support visibility,
-            payment workflow clarity, and a more accountable transportation experience. The goal is to reduce confusion,
-            improve trust, and build a platform that feels dependable for riders, drivers, support partners,
-            and future fleet expansion.
-          </p>
-
-          <div class="pill-row">
-            <div class="pill">Structured onboarding</div>
-            <div class="pill">Support resources</div>
-            <div class="pill">Policy transparency</div>
-            <div class="pill">Payment workflow</div>
-            <div class="pill">Trip accountability</div>
-          </div>
-        </div>
-
-        <div class="list">
-          <div class="list-item">
-            <strong>Emergency support direction</strong>
-            <span>Support and safety pages can guide users toward help resources when needed.</span>
-          </div>
-          <div class="list-item">
-            <strong>Clear user roles</strong>
-            <span>Separate rider and driver experiences reduce confusion and improve platform quality.</span>
-          </div>
-          <div class="list-item">
-            <strong>Professional launch presentation</strong>
-            <span>Key actions, support, and policy access are visible from the home screen.</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="section" id="services">
-      <div class="section-header">
-        <div>
-          <h2>Main Services</h2>
-          <p class="lead">Core entry points for riders, drivers, and public launch visitors.</p>
-        </div>
-      </div>
-
-      <div class="grid">
-        <a class="card" href="request-ride.html?mode=driver">
-          <strong>Request Driver</strong>
-          <span>Submit transportation details for human-driver pickup and destination support.</span>
-        </a>
-
-        <a class="card" href="request-ride.html?mode=autonomous">
-          <strong>Request Autonomous</strong>
-          <span>Enter the autonomous pilot ride flow for AV-ready expansion and future service development.</span>
-        </a>
-
-        <a class="card" href="rider-signup.html">
-          <strong>Rider Account</strong>
-          <span>Create rider access and begin the onboarding process.</span>
-        </a>
-      </div>
-
-      <div class="grid">
-        <a class="card" href="driver-signup.html">
-          <strong>Driver Apply</strong>
-          <span>Apply to drive and enter the qualification flow.</span>
-        </a>
-
-        <a class="card" href="support.html">
-          <strong>Safety & Support</strong>
-          <span>Access help resources, platform guidance, and support information.</span>
-        </a>
-
-        <a class="card" href="terms.html">
-          <strong>Policy Access</strong>
-          <span>Review terms, privacy, and platform expectations from one place.</span>
-        </a>
-      </div>
-    </div>
-
-    <div class="section">
-      <div class="section-header">
-        <div>
-          <h2>Service Area</h2>
-          <p class="lead">A clear snapshot of Harvey Taxi’s launch footprint and growth direction.</p>
-        </div>
-      </div>
-
-      <div class="grid">
-        <div class="card">
-          <strong>Nashville</strong>
-          <span>Core ride access and transportation support focus.</span>
-        </div>
-
-        <div class="card">
-          <strong>Davidson County</strong>
-          <span>Regional service support and rider-driver activity base.</span>
-        </div>
-
-        <div class="card">
-          <strong>Tennessee Expansion</strong>
-          <span>Platform architecture is positioned for broader statewide availability over time.</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="section" id="company">
-      <div class="section-header">
-        <div>
-          <h2>Company Information</h2>
-          <p class="lead">A visible trust section for riders, drivers, and partners.</p>
-        </div>
-      </div>
-
-      <div class="info-grid">
-        <div class="highlight">
-          <h3>Harvey Taxi Service LLC</h3>
-          <p>
-            Harvey Taxi is a transportation platform focused on trusted ride access, rider onboarding,
-            driver onboarding, payment support, transportation assistance, and hybrid mobility growth.
-            The platform is designed to support riders, drivers, and future next-generation mobility services
-            through a modern app experience.
-          </p>
-
-          <div class="pill-row">
-            <div class="pill">Transportation platform</div>
-            <div class="pill">Support resources</div>
-            <div class="pill">Rider onboarding</div>
-            <div class="pill">Driver onboarding</div>
-            <div class="pill">Payment support</div>
-          </div>
-        </div>
-
-        <div class="list">
-          <div class="list-item">
-            <strong>Support Email</strong>
-            <span>williebee@harveytaxiservice.com</span>
-          </div>
-          <div class="list-item">
-            <strong>Company Website</strong>
-            <span>Harvey Taxi Service LLC web platform and support experience.</span>
-          </div>
-          <div class="list-item">
-            <strong>Policy Access</strong>
-            <span>Privacy policy, terms, and support resources are available from the links below.</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="section">
-      <div class="section-header">
-        <div>
-          <h2>Support & Policies</h2>
-          <p class="lead">Public-facing access to the pages users expect from a live transportation platform.</p>
-        </div>
-      </div>
-
-      <div class="actions">
-        <a class="btn" href="privacy-policy.html">Privacy Policy</a>
-        <a class="btn" href="terms.html">Terms of Service</a>
-        <a class="btn" href="support.html">Support Center</a>
-        <a class="btn success" href="request-ride.html?mode=driver">Open Rider Flow</a>
-      </div>
-    </div>
-
-    <div class="footer">
-      <div>
-        <strong style="display:block;margin-bottom:8px;">Harvey Taxi Service LLC</strong>
-        <p>
-          Trusted ride access, rider onboarding, driver qualification, payment support,
-          transportation assistance, and hybrid mobility readiness through one intelligent platform.
-        </p>
-      </div>
-
-      <div class="actions">
-        <a class="btn" href="privacy-policy.html">Privacy</a>
-        <a class="btn" href="terms.html">Terms</a>
-        <a class="btn" href="support.html">Support</a>
-      </div>
-    </div>
-
-  </div>
-
-  <div class="bottom-nav">
-    <button class="nav-btn active" onclick="location.href='index.html'">Home</button>
-    <button class="nav-btn" onclick="location.href='request-ride.html?mode=driver'">Trips</button>
-    <button class="nav-btn" onclick="location.href='support.html'">Safety</button>
-    <button class="nav-btn" onclick="document.getElementById('services').scrollIntoView({behavior:'smooth'})">Services</button>
-  </div>
-
-  <link rel="stylesheet" href="/ai-support-widget.css" />
-  <script src="/ai-support-widget.js"></script>
+<link rel="stylesheet" href="/ai-support-widget.css" />
+<script src="/ai-support-widget.js"></script>
 
 </body>
 </html>
