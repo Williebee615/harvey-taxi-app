@@ -389,8 +389,7 @@
     <div class="hero">
       <h1>Request Your Ride</h1>
       <p>
-        Harvey Taxi launch mode is now active. Riders can request rides after account creation
-        and secured payment, while drivers remain under protected approval controls.
+        Harvey Taxi launch mode is active. Riders can request rides after account creation and secured payment, while drivers remain under protected approval controls.
       </p>
     </div>
 
@@ -514,15 +513,12 @@
   </div>
 
   <script>
-    const LAUNCH_MODE_AUTO_APPROVE_RIDERS = true;
-
     let selectedPaymentMethod = "card";
     let currentEstimate = null;
     let paymentAuthorized = false;
     let riderVerified = false;
     let locationApproved = false;
     let currentCoords = null;
-    let currentRiderRecord = null;
 
     const paymentPills = document.querySelectorAll(".pill");
     const verificationText = document.getElementById("verificationText");
@@ -637,31 +633,14 @@
       );
     }
 
-    function resolveLaunchModeRiderApproval(rider){
-      if(!rider) return false;
-
-      if(LAUNCH_MODE_AUTO_APPROVE_RIDERS){
-        return true;
-      }
-
-      return !!(
-        rider.riderApproved ||
-        rider.approved ||
-        rider.canRequestRide ||
-        rider.status === "approved" ||
-        rider.approvalStatus === "approved"
-      );
-    }
-
     async function checkRiderStatus(){
       const riderId = document.getElementById("riderId").value.trim();
-      currentRiderRecord = null;
 
       if(!riderId){
-        riderVerified = false;
         verificationText.textContent = "Enter your rider ID to check rider access.";
         verificationTag.className = "tag warn";
         verificationTag.textContent = "Waiting";
+        riderVerified = false;
         return false;
       }
 
@@ -678,7 +657,6 @@
         }
 
         const rider = data.riders.find(r => r.id === riderId);
-        currentRiderRecord = rider || null;
 
         if(!rider){
           riderVerified = false;
@@ -688,22 +666,11 @@
           return false;
         }
 
-        riderVerified = resolveLaunchModeRiderApproval(rider);
-
-        if(riderVerified){
-          verificationText.textContent = LAUNCH_MODE_AUTO_APPROVE_RIDERS
-            ? "Launch mode active. Rider account found and ride access is enabled."
-            : "Your rider account is approved and ready for payment authorization.";
-
-          verificationTag.className = "tag ok";
-          verificationTag.textContent = "Ready";
-        } else {
-          verificationText.textContent = "Your rider account exists but is still waiting for approval.";
-          verificationTag.className = "tag warn";
-          verificationTag.textContent = "Pending";
-        }
-
-        return riderVerified;
+        riderVerified = true;
+        verificationText.textContent = "Launch mode active. Rider account found and ride access is enabled.";
+        verificationTag.className = "tag ok";
+        verificationTag.textContent = "Ready";
+        return true;
       }catch(err){
         riderVerified = false;
         verificationText.textContent = "Unable to check rider status right now.";
@@ -892,7 +859,6 @@
               payload.scheduledTime ? `Scheduled Time: ${payload.scheduledTime}` : "",
               payload.specialInstructions ? `Notes: ${payload.specialInstructions}` : "",
               `Payment Method: ${payload.paymentMethod === "apple_pay" ? "Apple Pay" : "Card"}`,
-              `Launch Mode Rider Access: ${LAUNCH_MODE_AUTO_APPROVE_RIDERS ? "Auto Approved" : "Standard Approval"}`,
               currentCoords ? `Pickup Location Enabled: ${currentCoords.latitude.toFixed(6)}, ${currentCoords.longitude.toFixed(6)}` : "Pickup Location Enabled"
             ].filter(Boolean).join(" | ")
           })
