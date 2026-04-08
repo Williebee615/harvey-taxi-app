@@ -87,6 +87,29 @@
       line-height:1.55;
     }
 
+    .mode-banner{
+      display:none;
+      margin-top:16px;
+      padding:14px 16px;
+      border-radius:18px;
+      border:1px solid rgba(99,245,255,.2);
+      background:linear-gradient(135deg,rgba(127,123,255,.14),rgba(99,245,255,.10));
+      box-shadow:var(--shadow);
+    }
+
+    .mode-banner strong{
+      display:block;
+      margin-bottom:6px;
+      color:#e9f8ff;
+      font-size:.98rem;
+    }
+
+    .mode-banner span{
+      color:var(--muted);
+      line-height:1.55;
+      font-size:.94rem;
+    }
+
     .grid{
       display:grid;
       grid-template-columns:1fr;
@@ -263,6 +286,11 @@
       flex:1;
     }
 
+    .autonomous-primary{
+      background:linear-gradient(90deg,#7f7bff,#63f5ff);
+      color:#041224;
+    }
+
     .receipt{
       margin-top:16px;
       padding:16px;
@@ -387,16 +415,23 @@
     </div>
 
     <div class="hero">
-      <h1>Request Your Ride</h1>
-      <p>
+      <h1 id="heroTitle">Request Your Ride</h1>
+      <p id="heroText">
         Harvey Taxi launch mode is active. Riders can request rides after account creation and secured payment, while drivers remain under protected approval controls.
       </p>
+
+      <div class="mode-banner" id="modeBanner">
+        <strong>Autonomous Pilot Mode Active</strong>
+        <span id="modeBannerText">
+          You are entering the Harvey Taxi autonomous ride pilot flow. Requests may be routed through AV-ready dispatch logic or pilot availability handling.
+        </span>
+      </div>
     </div>
 
     <div class="grid">
       <div class="card">
-        <div class="section-title">Rider Launch Access</div>
-        <div class="sub">In launch mode, rider accounts can request rides as soon as the rider account is found and payment is secured.</div>
+        <div class="section-title" id="accessTitle">Rider Launch Access</div>
+        <div class="sub" id="accessSub">In launch mode, rider accounts can request rides as soon as the rider account is found and payment is secured.</div>
 
         <div class="status-box">
           <div class="mini">
@@ -414,7 +449,7 @@
       </div>
 
       <div class="card">
-        <div class="section-title">Ride Request</div>
+        <div class="section-title" id="rideSectionTitle">Ride Request</div>
 
         <div class="field">
           <label for="riderId">Rider ID</label>
@@ -480,8 +515,8 @@
       </div>
 
       <div class="card">
-        <div class="section-title">Ride Estimate</div>
-        <div class="sub">Review your current fare estimate before submitting your ride request.</div>
+        <div class="section-title" id="estimateSectionTitle">Ride Estimate</div>
+        <div class="sub" id="estimateSub">Review your current fare estimate before submitting your ride request.</div>
 
         <div class="estimate">
           <div class="metric">
@@ -520,6 +555,10 @@
     let locationApproved = false;
     let currentCoords = null;
 
+    const urlParams = new URLSearchParams(window.location.search);
+    const requestedMode = (urlParams.get("mode") || "driver").toLowerCase() === "autonomous" ? "autonomous" : "driver";
+    const isAutonomousMode = requestedMode === "autonomous";
+
     const paymentPills = document.querySelectorAll(".pill");
     const verificationText = document.getElementById("verificationText");
     const verificationTag = document.getElementById("verificationTag");
@@ -537,6 +576,43 @@
     const locationGate = document.getElementById("locationGate");
     const locationStatusText = document.getElementById("locationStatusText");
     const enableLocationBtn = document.getElementById("enableLocationBtn");
+    const requestRideBtn = document.getElementById("requestRideBtn");
+
+    function applyRideModeUI(){
+      const heroTitle = document.getElementById("heroTitle");
+      const heroText = document.getElementById("heroText");
+      const modeBanner = document.getElementById("modeBanner");
+      const accessTitle = document.getElementById("accessTitle");
+      const accessSub = document.getElementById("accessSub");
+      const rideSectionTitle = document.getElementById("rideSectionTitle");
+      const estimateSectionTitle = document.getElementById("estimateSectionTitle");
+      const estimateSub = document.getElementById("estimateSub");
+
+      if(isAutonomousMode){
+        document.title = "Harvey Taxi — Request Autonomous Ride";
+        heroTitle.textContent = "Request Your Autonomous Ride";
+        heroText.textContent = "Harvey Taxi autonomous pilot mode is active. Riders can request AV-ready trips after rider access is confirmed and payment is secured.";
+        accessTitle.textContent = "Autonomous Pilot Access";
+        accessSub.textContent = "In autonomous pilot mode, rider accounts can enter AV-ready dispatch flow after the rider account is found and payment is secured.";
+        rideSectionTitle.textContent = "Autonomous Ride Request";
+        estimateSectionTitle.textContent = "Autonomous Ride Estimate";
+        estimateSub.textContent = "Review your current autonomous ride estimate before submitting your pilot ride request.";
+        requestRideBtn.textContent = "Request Autonomous Ride";
+        requestRideBtn.classList.add("autonomous-primary");
+        modeBanner.style.display = "block";
+      } else {
+        document.title = "Harvey Taxi — Request Driver Ride";
+        heroTitle.textContent = "Request Your Driver Ride";
+        heroText.textContent = "Harvey Taxi launch mode is active. Riders can request driver rides after account creation and secured payment, while drivers remain under protected approval controls.";
+        accessTitle.textContent = "Rider Launch Access";
+        accessSub.textContent = "In launch mode, rider accounts can request rides as soon as the rider account is found and payment is secured.";
+        rideSectionTitle.textContent = "Ride Request";
+        estimateSectionTitle.textContent = "Ride Estimate";
+        estimateSub.textContent = "Review your current fare estimate before submitting your ride request.";
+        requestRideBtn.textContent = "Request Ride";
+        modeBanner.style.display = "none";
+      }
+    }
 
     paymentPills.forEach(btn => {
       btn.addEventListener("click", () => {
@@ -587,7 +663,8 @@
         rideType: document.getElementById("rideType").value,
         scheduledTime: document.getElementById("scheduledTime").value.trim(),
         specialInstructions: document.getElementById("notes").value.trim(),
-        paymentMethod: selectedPaymentMethod
+        paymentMethod: selectedPaymentMethod,
+        requestedMode
       };
     }
 
@@ -667,7 +744,9 @@
         }
 
         riderVerified = true;
-        verificationText.textContent = "Launch mode active. Rider account found and ride access is enabled.";
+        verificationText.textContent = isAutonomousMode
+          ? "Autonomous pilot mode active. Rider account found and AV ride access can move forward."
+          : "Launch mode active. Rider account found and ride access is enabled.";
         verificationTag.className = "tag ok";
         verificationTag.textContent = "Ready";
         return true;
@@ -702,7 +781,8 @@
           body: JSON.stringify({
             pickupAddress: payload.pickupAddress,
             dropoffAddress: payload.dropoffAddress,
-            rideType: payload.rideType
+            rideType: payload.rideType,
+            requestedMode: payload.requestedMode
           })
         });
 
@@ -720,7 +800,8 @@
         fareValue.textContent = `$${Number(data.fare.estimatedFare || 0).toFixed(2)}`;
 
         estimateReceipt.innerHTML = `
-          <strong>Ride Preview</strong><br><br>
+          <strong>${isAutonomousMode ? "Autonomous Ride Preview" : "Ride Preview"}</strong><br><br>
+          Mode: ${isAutonomousMode ? "Autonomous Pilot" : "Driver Ride"}<br>
           Pickup: ${payload.pickupAddress}<br>
           Dropoff: ${payload.dropoffAddress}<br>
           Ride Type: ${payload.rideType}<br>
@@ -729,7 +810,10 @@
           Estimated Fare: $${Number(data.fare.estimatedFare || 0).toFixed(2)}
         `;
 
-        showResult("Fare estimate ready. Secure payment to continue.");
+        showResult(isAutonomousMode
+          ? "Autonomous ride estimate ready. Secure payment to continue."
+          : "Fare estimate ready. Secure payment to continue."
+        );
       }catch(err){
         showError("Unable to reach the estimate service.");
       }
@@ -769,7 +853,8 @@
           body: JSON.stringify({
             riderId: payload.riderId,
             paymentMethod: payload.paymentMethod,
-            amount: currentEstimate.estimatedFare
+            amount: currentEstimate.estimatedFare,
+            requestedMode: payload.requestedMode
           })
         });
 
@@ -785,10 +870,13 @@
         }
 
         paymentAuthorized = true;
-        paymentText.textContent = `Payment secured by ${payload.paymentMethod === "apple_pay" ? "Apple Pay" : "Card"}.`;
+        paymentText.textContent = `Payment secured by ${payload.paymentMethod === "apple_pay" ? "Apple Pay" : "Card"} for ${isAutonomousMode ? "autonomous pilot mode" : "driver mode"}.`;
         paymentTag.className = "tag ok";
         paymentTag.textContent = "Secured";
-        showResult("Payment secured. Your ride request can now move forward.");
+        showResult(isAutonomousMode
+          ? "Payment secured. Your autonomous ride request can now move forward."
+          : "Payment secured. Your ride request can now move forward."
+        );
       }catch(err){
         paymentAuthorized = false;
         paymentText.textContent = "Payment service unavailable.";
@@ -852,8 +940,10 @@
             dropoffAddress: payload.dropoffAddress,
             rideType: payload.rideType,
             passengerCount: 1,
+            requestedMode: payload.requestedMode,
             riderLocationApproved: true,
             specialInstructions: [
+              `Requested Mode: ${isAutonomousMode ? "Autonomous Pilot" : "Driver Ride"}`,
               payload.passengerFirstName ? `Passenger: ${payload.passengerFirstName}` : "",
               payload.passengerPhone ? `Phone: ${payload.passengerPhone}` : "",
               payload.scheduledTime ? `Scheduled Time: ${payload.scheduledTime}` : "",
@@ -872,8 +962,9 @@
         }
 
         showResult(`
-          <strong>Ride Requested Successfully</strong><br><br>
-          Your ride request has been submitted successfully and is now being processed.<br><br>
+          <strong>${isAutonomousMode ? "Autonomous Ride Requested Successfully" : "Ride Requested Successfully"}</strong><br><br>
+          Your ${isAutonomousMode ? "autonomous pilot" : "ride"} request has been submitted successfully and is now being processed.<br><br>
+          <strong>Mode:</strong> ${isAutonomousMode ? "Autonomous Pilot" : "Driver Ride"}<br>
           <strong>Ride ID:</strong> ${data.ride?.id || "Created"}<br>
           <strong>Status:</strong> ${data.ride?.status || "searching_driver"}
         `);
@@ -890,6 +981,8 @@
 
     const savedRiderId = localStorage.getItem("harveyRiderId");
     const savedLocationApproved = localStorage.getItem("harveyLocationApproved");
+
+    applyRideModeUI();
 
     if(savedRiderId){
       document.getElementById("riderId").value = savedRiderId;
