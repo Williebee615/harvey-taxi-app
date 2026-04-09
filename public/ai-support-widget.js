@@ -1,35 +1,147 @@
-(function(){
+(function () {
 
-const root = document.getElementById("harvey-ai-chat-root");
-if(!root) return;
+const root = document.createElement("div");
+root.id = "harvey-ai-root";
 
 root.innerHTML = `
 <div id="harveyAiLauncher">AI</div>
 
 <div id="harveyAiWindow">
-<div id="harveyAiHeader">
-<div>
-<strong>Harvey AI Support</strong>
-<span>Taxi + Assistance Foundation</span>
-</div>
-<button id="harveyAiClose">×</button>
-</div>
+  <div class="harvey-header">
+    <div>
+      <strong>Harvey AI Support</strong>
+      <span>Taxi + Assistance Foundation</span>
+    </div>
+    <button id="harveyAiClose">×</button>
+  </div>
 
-<div id="harveyAiMessages"></div>
+  <div id="harveyAiMessages"></div>
 
-<div id="harveyAiQuick">
-<button data-q="How do I request a ride?">Request Ride</button>
-<button data-q="How does assistance work?">Assistance</button>
-<button data-q="How do I become a driver?">Driver</button>
-<button data-q="How do I contact support?">Support</button>
-</div>
+  <div class="harvey-quick">
+    <button data-q="How do I request a ride?">Request Ride</button>
+    <button data-q="How does assistance work?">Assistance</button>
+    <button data-q="How do I become a driver?">Driver</button>
+    <button data-q="How do I contact support?">Support</button>
+  </div>
 
-<div id="harveyAiInputWrap">
-<input id="harveyAiInput" placeholder="Ask about Harvey Taxi or assistance..." />
-<button id="harveyAiSend">Send</button>
-</div>
+  <div class="harvey-input">
+    <input id="harveyAiInput" placeholder="Ask about Harvey Taxi or assistance..." />
+    <button id="harveyAiSend">Send</button>
+  </div>
 </div>
 `;
+
+document.body.appendChild(root);
+
+/* ===============================
+STYLE (FULLSCREEN MOBILE)
+=============================== */
+
+const style = document.createElement("style");
+style.innerHTML = `
+#harveyAiLauncher{
+position:fixed;
+bottom:20px;
+right:20px;
+width:60px;
+height:60px;
+border-radius:50%;
+background:linear-gradient(135deg,#4facfe,#00f2fe);
+display:flex;
+align-items:center;
+justify-content:center;
+font-weight:700;
+color:#000;
+z-index:99999;
+}
+
+#harveyAiWindow{
+position:fixed;
+top:0;
+left:0;
+right:0;
+bottom:0;
+background:#040814;
+display:none;
+flex-direction:column;
+z-index:999999;
+}
+
+.harvey-header{
+display:flex;
+justify-content:space-between;
+padding:16px;
+border-bottom:1px solid rgba(255,255,255,.1);
+}
+
+#harveyAiMessages{
+flex:1;
+overflow:auto;
+padding:16px;
+}
+
+.msg{
+margin-bottom:10px;
+padding:12px;
+border-radius:12px;
+max-width:80%;
+}
+
+.msg.user{
+background:#4facfe;
+color:#000;
+margin-left:auto;
+}
+
+.msg.ai{
+background:#111a2e;
+color:#fff;
+}
+
+.harvey-input{
+display:flex;
+gap:8px;
+padding:12px;
+border-top:1px solid rgba(255,255,255,.1);
+}
+
+.harvey-input input{
+flex:1;
+padding:14px;
+border-radius:10px;
+border:none;
+}
+
+.harvey-input button{
+padding:14px 18px;
+border-radius:10px;
+background:linear-gradient(135deg,#4facfe,#00f2fe);
+border:none;
+font-weight:600;
+}
+
+.harvey-quick{
+display:flex;
+gap:8px;
+overflow:auto;
+padding:10px;
+}
+
+.harvey-quick button{
+padding:8px 12px;
+border-radius:20px;
+border:none;
+background:#111a2e;
+color:white;
+white-space:nowrap;
+}
+`;
+
+document.head.appendChild(style);
+
+/* ===============================
+LOGIC
+=============================== */
 
 const launcher = document.getElementById("harveyAiLauncher");
 const windowEl = document.getElementById("harveyAiWindow");
@@ -38,29 +150,21 @@ const messages = document.getElementById("harveyAiMessages");
 const input = document.getElementById("harveyAiInput");
 const send = document.getElementById("harveyAiSend");
 
-launcher.onclick = openChat;
-closeBtn.onclick = closeChat;
-
-function openChat(){
-windowEl.style.display="flex";
-addMessage("ai", greeting());
-}
-
-function closeChat(){
-windowEl.style.display="none";
-}
+launcher.onclick = ()=> windowEl.style.display="flex";
+closeBtn.onclick = ()=> windowEl.style.display="none";
 
 send.onclick = handleSend;
+
 input.addEventListener("keypress",e=>{
 if(e.key==="Enter") handleSend();
 });
 
-document.querySelectorAll("#harveyAiQuick button").forEach(btn=>{
+document.querySelectorAll(".harvey-quick button").forEach(btn=>{
 btn.onclick=()=>handleSend(btn.dataset.q);
 });
 
 function handleSend(text){
-const msg = text || input.value.trim();
+const msg=text||input.value.trim();
 if(!msg) return;
 
 addMessage("user",msg);
@@ -79,71 +183,33 @@ messages.appendChild(div);
 messages.scrollTop=messages.scrollHeight;
 }
 
-function greeting(){
-return "Hi — I can help with Harvey Taxi rides, driver signup, rider signup, payments, and Harvey Transportation Assistance Foundation support.";
-}
-
 /* ===============================
-AI SUPPORT BRAIN
+AI RESPONSES
 =============================== */
 
 function getResponse(message){
+
 const msg=message.toLowerCase();
 
-/* support */
-if(msg.includes("support")||msg.includes("help"))
-return "Harvey AI Support can help with rider signup, driver signup, ride requests, payments, verification, and Harvey Transportation Assistance Foundation questions.";
+if(msg.includes("ride"))
+return "You can request a ride by tapping Book Ride and entering pickup and destination.";
 
-/* harvey taxi */
-if(msg.includes("harvey taxi"))
-return "Harvey Taxi is a transportation platform supporting rider onboarding, driver onboarding, ride dispatch, and transportation assistance.";
-
-/* foundation */
-if(msg.includes("foundation")||msg.includes("assistance"))
-return "Harvey Transportation Assistance Foundation helps provide transportation for essential needs like medical, work, and community travel.";
-
-/* request ride */
-if(msg.includes("request")&&msg.includes("ride"))
-return "To request a ride, enter pickup and destination, complete payment authorization, and submit your request.";
-
-/* driver */
 if(msg.includes("driver"))
-return "To become a driver, complete driver signup, upload documents, and wait for approval.";
+return "To become a driver, complete driver signup and submit documents for approval.";
 
-/* rider */
-if(msg.includes("rider"))
-return "Create a rider account, complete verification, authorize payment, then request a ride.";
+if(msg.includes("support"))
+return "Harvey Taxi support can help with riders, drivers, rides, and payments.";
 
-/* payment */
+if(msg.includes("foundation") || msg.includes("assistance"))
+return "Harvey Transportation Assistance Foundation helps provide transportation for essential needs.";
+
 if(msg.includes("payment"))
-return "Harvey Taxi authorizes payment before dispatch. You are only charged after the trip.";
+return "Payment is authorized before dispatch and charged after trip completion.";
 
-/* scheduled */
-if(msg.includes("schedule"))
-return "Scheduled rides allow you to request transportation in advance.";
+if(msg.includes("emergency"))
+return "If this is an emergency call 911 immediately.";
 
-/* medical */
-if(msg.includes("medical"))
-return "Medical rides may be supported through Harvey Taxi or the Harvey Transportation Assistance Foundation.";
-
-/* autonomous */
-if(msg.includes("autonomous"))
-return "Autonomous pilot mode allows future self-driving ride requests.";
-
-/* contact */
-if(msg.includes("contact"))
-return "You can contact Harvey Taxi support through the support page or AI chat.";
-
-/* emergency */
-if(msg.includes("emergency")||msg.includes("911"))
-return "If this is an emergency please call 911 immediately.";
-
-/* default */
-return "I can help with Harvey Taxi, rides, drivers, riders, payments, safety, and Harvey Transportation Assistance Foundation.";
+return "I can help with Harvey Taxi rides, drivers, payments, or assistance foundation.";
 }
-
-window.HarveyAI={
-open:openChat
-};
 
 })();
