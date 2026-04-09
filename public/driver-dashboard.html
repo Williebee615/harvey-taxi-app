@@ -2,213 +2,1272 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Driver Dashboard | Harvey Taxi</title>
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0"
+  />
+  <title>Harvey Taxi — Driver Dashboard</title>
+  <meta
+    name="description"
+    content="Harvey Taxi driver dashboard for mission control, availability, trip actions, and live account status."
+  />
   <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #0b1020;
-      color: white;
-      padding: 20px;
+    :root{
+      --bg1:#040814;
+      --bg2:#091126;
+      --bg3:#101935;
+      --panel:rgba(10,17,38,.88);
+      --panel2:rgba(15,23,52,.72);
+      --line:rgba(122,162,255,.16);
+      --lineStrong:rgba(122,162,255,.28);
+      --text:#f4f7ff;
+      --muted:#aab8de;
+      --blue:#5ea0ff;
+      --cyan:#63f5ff;
+      --green:#6dffb3;
+      --gold:#ffd76a;
+      --danger:#ff7e97;
+      --orange:#ffb86b;
+      --shadow:0 20px 70px rgba(0,0,0,.35);
+      --radius:24px;
+      --max:1180px;
     }
 
-    .container {
-      max-width: 700px;
-      margin: 0 auto;
-      background: #131a2e;
-      border-radius: 18px;
-      padding: 24px;
-      box-shadow: 0 12px 30px rgba(0,0,0,.35);
+    *{box-sizing:border-box;margin:0;padding:0}
+
+    html,body{
+      background:
+        radial-gradient(circle at top left, rgba(94,160,255,.16), transparent 28%),
+        radial-gradient(circle at top right, rgba(99,245,255,.12), transparent 22%),
+        linear-gradient(160deg,var(--bg1),var(--bg2) 45%,var(--bg3));
+      color:var(--text);
+      font-family:Inter,Arial,sans-serif;
+      min-height:100%;
     }
 
-    h1 {
-      margin-top: 0;
-      text-align: center;
+    body{padding:20px}
+
+    a{text-decoration:none;color:inherit}
+
+    .shell{
+      width:100%;
+      max-width:var(--max);
+      margin:0 auto;
     }
 
-    .card {
-      margin-top: 18px;
-      padding: 18px;
-      border-radius: 16px;
-      background: #0e1528;
-      border: 1px solid #283252;
+    .topbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:14px;
+      margin-bottom:18px;
+      flex-wrap:wrap;
     }
 
-    .actions {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 12px;
-      margin-top: 16px;
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:14px;
     }
 
-    button {
-      padding: 14px;
-      border-radius: 12px;
-      border: none;
-      cursor: pointer;
-      font-weight: bold;
+    .logo{
+      width:54px;
+      height:54px;
+      border-radius:18px;
+      display:grid;
+      place-items:center;
+      font-size:1.2rem;
+      font-weight:900;
+      color:#04111f;
+      background:linear-gradient(135deg,var(--cyan),var(--blue),var(--green));
+      box-shadow:0 12px 35px rgba(99,245,255,.28);
     }
 
-    .check-btn {
-      background: #3a86ff;
-      color: white;
+    .brand h1{
+      font-size:1.15rem;
+      line-height:1.1;
+      letter-spacing:.2px;
     }
 
-    .accept-btn {
-      background: #20c997;
-      color: #071018;
+    .brand p{
+      margin-top:4px;
+      color:var(--muted);
+      font-size:.94rem;
     }
 
-    .decline-btn {
-      background: #ef476f;
-      color: white;
+    .nav{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
     }
 
-    .status {
-      margin-top: 16px;
-      color: #d5dfff;
+    .nav a{
+      padding:10px 14px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.03);
+      color:var(--text);
+      font-size:.92rem;
     }
 
-    .label {
-      color: #91a4d7;
-      font-size: 14px;
-      margin-bottom: 4px;
+    .hero{
+      position:relative;
+      overflow:hidden;
+      background:linear-gradient(145deg,rgba(14,23,50,.96),rgba(9,15,34,.92));
+      border:1px solid var(--lineStrong);
+      border-radius:32px;
+      padding:24px;
+      box-shadow:var(--shadow);
+      margin-bottom:18px;
     }
 
-    .value {
-      margin-bottom: 12px;
-      font-size: 16px;
+    .hero::before{
+      content:"";
+      position:absolute;
+      inset:auto -60px -80px auto;
+      width:240px;
+      height:240px;
+      border-radius:50%;
+      background:radial-gradient(circle,rgba(99,245,255,.24),transparent 70%);
+      pointer-events:none;
+    }
+
+    .hero-grid{
+      display:grid;
+      grid-template-columns:1.4fr .9fr;
+      gap:16px;
+      position:relative;
+      z-index:1;
+    }
+
+    .eyebrow{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 12px;
+      border-radius:999px;
+      border:1px solid rgba(99,245,255,.22);
+      background:rgba(99,245,255,.08);
+      color:var(--cyan);
+      font-size:.84rem;
+      font-weight:700;
+      margin-bottom:14px;
+    }
+
+    .hero h2{
+      font-size:clamp(1.65rem,4vw,2.5rem);
+      line-height:1.05;
+      max-width:12ch;
+      margin-bottom:12px;
+    }
+
+    .hero p{
+      color:var(--muted);
+      max-width:58ch;
+      line-height:1.6;
+    }
+
+    .hero-actions{
+      display:flex;
+      flex-wrap:wrap;
+      gap:12px;
+      margin-top:18px;
+    }
+
+    .btn{
+      appearance:none;
+      border:none;
+      cursor:pointer;
+      border-radius:16px;
+      padding:13px 16px;
+      font-weight:800;
+      letter-spacing:.2px;
+      transition:.18s ease;
+      text-align:center;
+      min-height:48px;
+    }
+
+    .btn:hover{transform:translateY(-1px)}
+    .btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+
+    .btn-primary{
+      color:#031421;
+      background:linear-gradient(135deg,var(--cyan),var(--blue));
+      box-shadow:0 14px 32px rgba(94,160,255,.26);
+    }
+
+    .btn-secondary{
+      color:var(--text);
+      background:rgba(255,255,255,.05);
+      border:1px solid var(--lineStrong);
+    }
+
+    .btn-success{
+      color:#02170f;
+      background:linear-gradient(135deg,var(--green),#88ffd0);
+    }
+
+    .btn-warn{
+      color:#231100;
+      background:linear-gradient(135deg,var(--gold),var(--orange));
+    }
+
+    .btn-danger{
+      color:#2a0611;
+      background:linear-gradient(135deg,#ff9cb1,var(--danger));
+    }
+
+    .hero-status{
+      display:grid;
+      gap:12px;
+    }
+
+    .glass{
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:24px;
+      box-shadow:var(--shadow);
+    }
+
+    .status-card{
+      padding:18px;
+      min-height:100%;
+    }
+
+    .status-card h3{
+      font-size:.98rem;
+      margin-bottom:12px;
+    }
+
+    .status-row{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      align-items:center;
+      padding:12px 0;
+      border-top:1px solid rgba(255,255,255,.06);
+    }
+
+    .status-row:first-of-type{border-top:none;padding-top:0}
+
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 12px;
+      border-radius:999px;
+      font-size:.82rem;
+      font-weight:800;
+      line-height:1;
+      white-space:nowrap;
+    }
+
+    .pill::before{
+      content:"";
+      width:8px;
+      height:8px;
+      border-radius:50%;
+      background:currentColor;
+      box-shadow:0 0 12px currentColor;
+    }
+
+    .pill-blue{color:var(--blue);background:rgba(94,160,255,.12)}
+    .pill-green{color:var(--green);background:rgba(109,255,179,.1)}
+    .pill-gold{color:var(--gold);background:rgba(255,215,106,.1)}
+    .pill-red{color:var(--danger);background:rgba(255,126,151,.1)}
+    .pill-cyan{color:var(--cyan);background:rgba(99,245,255,.11)}
+
+    .grid{
+      display:grid;
+      grid-template-columns:repeat(12,1fr);
+      gap:18px;
+    }
+
+    .card{
+      padding:20px;
+      min-width:0;
+    }
+
+    .card h3{
+      font-size:1rem;
+      margin-bottom:14px;
+    }
+
+    .card p.sub{
+      color:var(--muted);
+      font-size:.93rem;
+      margin-top:-6px;
+      margin-bottom:14px;
+      line-height:1.5;
+    }
+
+    .span-4{grid-column:span 4}
+    .span-5{grid-column:span 5}
+    .span-6{grid-column:span 6}
+    .span-7{grid-column:span 7}
+    .span-8{grid-column:span 8}
+    .span-12{grid-column:span 12}
+
+    .stats{
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:14px;
+      margin:18px 0;
+    }
+
+    .stat{
+      background:rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.06);
+      border-radius:20px;
+      padding:16px;
+    }
+
+    .stat .label{
+      color:var(--muted);
+      font-size:.82rem;
+      margin-bottom:8px;
+    }
+
+    .stat .value{
+      font-size:1.45rem;
+      font-weight:900;
+      letter-spacing:.2px;
+    }
+
+    .field{
+      display:grid;
+      gap:8px;
+      margin-bottom:14px;
+    }
+
+    .field label{
+      font-size:.9rem;
+      color:var(--muted);
+      font-weight:700;
+    }
+
+    .input, .select, textarea{
+      width:100%;
+      border:none;
+      outline:none;
+      color:var(--text);
+      background:rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.09);
+      border-radius:16px;
+      padding:14px 14px;
+      font-size:1rem;
+      min-height:50px;
+    }
+
+    textarea{
+      resize:vertical;
+      min-height:110px;
+      line-height:1.45;
+    }
+
+    .row{
+      display:grid;
+      grid-template-columns:repeat(2,1fr);
+      gap:12px;
+    }
+
+    .action-grid{
+      display:grid;
+      grid-template-columns:repeat(2,1fr);
+      gap:12px;
+    }
+
+    .mission{
+      display:grid;
+      gap:12px;
+    }
+
+    .mission-box{
+      background:rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.06);
+      border-radius:22px;
+      padding:18px;
+    }
+
+    .mission-head{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      align-items:flex-start;
+      margin-bottom:14px;
+      flex-wrap:wrap;
+    }
+
+    .mission-route{
+      display:grid;
+      gap:10px;
+      margin:14px 0;
+    }
+
+    .route-stop{
+      display:flex;
+      gap:12px;
+      align-items:flex-start;
+    }
+
+    .route-icon{
+      width:34px;
+      height:34px;
+      border-radius:50%;
+      display:grid;
+      place-items:center;
+      flex:0 0 auto;
+      font-weight:900;
+    }
+
+    .pickup{background:rgba(99,245,255,.12);color:var(--cyan)}
+    .dropoff{background:rgba(109,255,179,.11);color:var(--green)}
+
+    .route-copy strong{
+      display:block;
+      margin-bottom:4px;
+      font-size:.94rem;
+    }
+
+    .route-copy span{
+      color:var(--muted);
+      line-height:1.45;
+      font-size:.94rem;
+    }
+
+    .detail-list{
+      display:grid;
+      gap:10px;
+      margin-top:8px;
+    }
+
+    .detail-row{
+      display:flex;
+      justify-content:space-between;
+      gap:14px;
+      padding:10px 0;
+      border-top:1px solid rgba(255,255,255,.06);
+      align-items:flex-start;
+    }
+
+    .detail-row:first-child{border-top:none;padding-top:0}
+
+    .detail-row span{
+      color:var(--muted);
+      font-size:.9rem;
+    }
+
+    .detail-row strong{
+      text-align:right;
+      max-width:58%;
+      line-height:1.4;
+      font-size:.94rem;
+    }
+
+    .activity{
+      display:grid;
+      gap:12px;
+    }
+
+    .activity-item{
+      background:rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.06);
+      border-radius:18px;
+      padding:14px;
+    }
+
+    .activity-item h4{
+      font-size:.96rem;
+      margin-bottom:8px;
+    }
+
+    .activity-item p{
+      color:var(--muted);
+      line-height:1.5;
+      font-size:.92rem;
+    }
+
+    .footer-note{
+      color:var(--muted);
+      font-size:.86rem;
+      text-align:center;
+      margin:22px 0 8px;
+    }
+
+    .msg{
+      margin-top:12px;
+      padding:12px 14px;
+      border-radius:16px;
+      font-size:.93rem;
+      font-weight:700;
+      display:none;
+    }
+
+    .msg.show{display:block}
+    .msg.ok{background:rgba(109,255,179,.12);color:var(--green);border:1px solid rgba(109,255,179,.18)}
+    .msg.err{background:rgba(255,126,151,.1);color:#ffb8c7;border:1px solid rgba(255,126,151,.18)}
+
+    .muted{color:var(--muted)}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+
+    @media (max-width: 1024px){
+      .hero-grid,
+      .stats,
+      .grid,
+      .row,
+      .action-grid{
+        grid-template-columns:1fr;
+      }
+
+      .span-4,.span-5,.span-6,.span-7,.span-8,.span-12{
+        grid-column:span 12;
+      }
+    }
+
+    @media (max-width: 680px){
+      body{padding:14px}
+      .hero,.card,.status-card{padding:18px}
+      .nav{width:100%}
+      .nav a{flex:1 1 auto;text-align:center}
+      .hero-actions .btn{width:100%}
+      .mission-head{flex-direction:column}
+      .detail-row{flex-direction:column}
+      .detail-row strong{text-align:left;max-width:100%}
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>Driver Dashboard</h1>
-
-    <div class="card">
-      <div class="label">Driver ID</div>
-      <div class="value" id="driverIdDisplay"></div>
-
-      <div class="label">Current Offer</div>
-      <div class="value" id="dispatchStatus">No active ride offers right now.</div>
-
-      <div class="actions">
-        <button class="check-btn" onclick="checkDispatchOffer()">Check Ride Offer</button>
-        <button class="accept-btn" onclick="acceptDispatch()">Accept Ride</button>
-        <button class="decline-btn" onclick="declineDispatch()">Decline Ride</button>
+  <div class="shell">
+    <div class="topbar">
+      <div class="brand">
+        <div class="logo">HT</div>
+        <div>
+          <h1>Harvey Taxi Driver Dashboard</h1>
+          <p>Mission control, availability, and live trip actions.</p>
+        </div>
       </div>
 
-      <div class="status" id="resultMessage"></div>
+      <div class="nav">
+        <a href="/">Home</a>
+        <a href="/driver-signup">Driver Sign Up</a>
+        <a href="/request-ride">Request Ride</a>
+        <a href="/admin-dashboard">Admin</a>
+      </div>
+    </div>
+
+    <section class="hero">
+      <div class="hero-grid">
+        <div>
+          <div class="eyebrow">Driver Mission Console</div>
+          <h2>See the full mission before you accept.</h2>
+          <p>
+            This dashboard is built so Harvey Taxi drivers can load their profile,
+            go available, review a mission package, accept or reject dispatch,
+            and manage the trip lifecycle in one place.
+          </p>
+
+          <div class="hero-actions">
+            <button class="btn btn-primary" id="refreshAllBtn" type="button">Refresh Dashboard</button>
+            <button class="btn btn-secondary" id="goAvailableBtn" type="button">Go Available</button>
+            <button class="btn btn-secondary" id="goOfflineBtn" type="button">Go Offline</button>
+          </div>
+
+          <div id="globalMsg" class="msg"></div>
+        </div>
+
+        <div class="hero-status">
+          <div class="glass status-card">
+            <h3>Driver Snapshot</h3>
+
+            <div class="status-row">
+              <span class="muted">Driver ID</span>
+              <strong id="snapDriverId">Not loaded</strong>
+            </div>
+
+            <div class="status-row">
+              <span class="muted">Approval</span>
+              <div id="snapApproval" class="pill pill-gold">Pending</div>
+            </div>
+
+            <div class="status-row">
+              <span class="muted">Availability</span>
+              <div id="snapAvailability" class="pill pill-red">Offline</div>
+            </div>
+
+            <div class="status-row">
+              <span class="muted">Mission</span>
+              <div id="snapMission" class="pill pill-blue">None</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="stats">
+      <div class="stat glass">
+        <div class="label">Completed Rides</div>
+        <div class="value" id="statCompleted">0</div>
+      </div>
+      <div class="stat glass">
+        <div class="label">Active Trips</div>
+        <div class="value" id="statActive">0</div>
+      </div>
+      <div class="stat glass">
+        <div class="label">Estimated Earnings</div>
+        <div class="value" id="statEarnings">$0.00</div>
+      </div>
+      <div class="stat glass">
+        <div class="label">Status</div>
+        <div class="value" id="statStatus">Offline</div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <section class="glass card span-4">
+        <h3>Load Driver Dashboard</h3>
+        <p class="sub">
+          Enter your driver email to sign in, or paste your driver ID directly.
+        </p>
+
+        <div class="field">
+          <label for="driverEmail">Driver Email</label>
+          <input id="driverEmail" class="input" type="email" placeholder="driver@email.com" />
+        </div>
+
+        <div class="field">
+          <label for="driverPassword">Password</label>
+          <input id="driverPassword" class="input" type="password" placeholder="Password" />
+        </div>
+
+        <button class="btn btn-primary" id="driverLoginBtn" type="button">Load Dashboard</button>
+
+        <div class="field" style="margin-top:14px;">
+          <label for="driverIdManual">Or Driver ID</label>
+          <input id="driverIdManual" class="input mono" type="text" placeholder="Paste driver ID" />
+        </div>
+
+        <button class="btn btn-secondary" id="loadByIdBtn" type="button">Load by Driver ID</button>
+
+        <div id="loginMsg" class="msg"></div>
+      </section>
+
+      <section class="glass card span-8">
+        <h3>Driver Profile</h3>
+        <p class="sub">
+          Profile, approval state, and vehicle information are shown here after loading.
+        </p>
+
+        <div class="detail-list">
+          <div class="detail-row">
+            <span>Name</span>
+            <strong id="profileName">—</strong>
+          </div>
+          <div class="detail-row">
+            <span>Email</span>
+            <strong id="profileEmail">—</strong>
+          </div>
+          <div class="detail-row">
+            <span>Phone</span>
+            <strong id="profilePhone">—</strong>
+          </div>
+          <div class="detail-row">
+            <span>Location</span>
+            <strong id="profileLocation">—</strong>
+          </div>
+          <div class="detail-row">
+            <span>Vehicle</span>
+            <strong id="profileVehicle">—</strong>
+          </div>
+          <div class="detail-row">
+            <span>Driver Type</span>
+            <strong id="profileDriverType">—</strong>
+          </div>
+          <div class="detail-row">
+            <span>Background Check</span>
+            <strong id="profileBackground">—</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="glass card span-7">
+        <h3>Current Mission</h3>
+        <p class="sub">
+          Drivers should see the complete mission before accepting the ride.
+        </p>
+
+        <div id="missionWrap" class="mission">
+          <div class="mission-box">
+            <div class="mission-head">
+              <div>
+                <h4 style="font-size:1rem;margin-bottom:6px;">No active mission loaded</h4>
+                <div class="muted">Load your dashboard to check live dispatch status.</div>
+              </div>
+              <div class="pill pill-blue">Standby</div>
+            </div>
+
+            <div class="mission-route">
+              <div class="route-stop">
+                <div class="route-icon pickup">P</div>
+                <div class="route-copy">
+                  <strong>Pickup</strong>
+                  <span>Mission pickup will appear here.</span>
+                </div>
+              </div>
+
+              <div class="route-stop">
+                <div class="route-icon dropoff">D</div>
+                <div class="route-copy">
+                  <strong>Dropoff</strong>
+                  <span>Mission dropoff will appear here.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="action-grid" style="margin-top:14px;">
+          <button class="btn btn-success" id="acceptBtn" type="button" disabled>Accept Ride</button>
+          <button class="btn btn-danger" id="rejectBtn" type="button" disabled>Reject Ride</button>
+          <button class="btn btn-warn" id="startBtn" type="button" disabled>Start Ride</button>
+          <button class="btn btn-primary" id="completeBtn" type="button" disabled>Complete Ride</button>
+        </div>
+
+        <div id="missionMsg" class="msg"></div>
+      </section>
+
+      <section class="glass card span-5">
+        <h3>Availability Control</h3>
+        <p class="sub">
+          Toggle your live availability and optionally send your latest GPS point to the backend.
+        </p>
+
+        <div class="row">
+          <div class="field">
+            <label for="availabilityStatus">Driver Status</label>
+            <select id="availabilityStatus" class="select">
+              <option value="offline">Offline</option>
+              <option value="available">Available</option>
+              <option value="busy">Busy</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="availabilityMode">Preferred Mode</label>
+            <select id="availabilityMode" class="select">
+              <option value="driver">Human Driver</option>
+              <option value="autonomous">Autonomous</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label for="driverLat">Latitude</label>
+            <input id="driverLat" class="input" type="number" step="any" placeholder="Optional" />
+          </div>
+          <div class="field">
+            <label for="driverLng">Longitude</label>
+            <input id="driverLng" class="input" type="number" step="any" placeholder="Optional" />
+          </div>
+        </div>
+
+        <button class="btn btn-primary" id="saveAvailabilityBtn" type="button">Save Availability</button>
+        <div id="availabilityMsg" class="msg"></div>
+      </section>
+
+      <section class="glass card span-12">
+        <h3>Recent Driver Activity</h3>
+        <p class="sub">
+          Dashboard summary from the backend: recent rides, current mission, and live driver state.
+        </p>
+
+        <div id="activityList" class="activity">
+          <div class="activity-item">
+            <h4>Waiting for driver load</h4>
+            <p>Once a driver account is loaded, recent ride activity will appear here.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="footer-note">
+      Harvey Taxi driver dashboard • human + autonomous-ready mission system
     </div>
   </div>
 
   <script>
-    const driverId = localStorage.getItem('driverId') || 'driver_1'
-    let currentDispatchId = null
+    const state = {
+      driverId: localStorage.getItem("harvey_driver_id") || "",
+      driver: null,
+      mission: null,
+      dashboard: null
+    };
 
-    document.getElementById('driverIdDisplay').textContent = driverId
+    const els = {
+      driverEmail: document.getElementById("driverEmail"),
+      driverPassword: document.getElementById("driverPassword"),
+      driverIdManual: document.getElementById("driverIdManual"),
+      driverLoginBtn: document.getElementById("driverLoginBtn"),
+      loadByIdBtn: document.getElementById("loadByIdBtn"),
+      refreshAllBtn: document.getElementById("refreshAllBtn"),
+      goAvailableBtn: document.getElementById("goAvailableBtn"),
+      goOfflineBtn: document.getElementById("goOfflineBtn"),
+      saveAvailabilityBtn: document.getElementById("saveAvailabilityBtn"),
+      availabilityStatus: document.getElementById("availabilityStatus"),
+      availabilityMode: document.getElementById("availabilityMode"),
+      driverLat: document.getElementById("driverLat"),
+      driverLng: document.getElementById("driverLng"),
+      acceptBtn: document.getElementById("acceptBtn"),
+      rejectBtn: document.getElementById("rejectBtn"),
+      startBtn: document.getElementById("startBtn"),
+      completeBtn: document.getElementById("completeBtn"),
 
-    function setResultMessage(text) {
-      document.getElementById('resultMessage').textContent = text
+      snapDriverId: document.getElementById("snapDriverId"),
+      snapApproval: document.getElementById("snapApproval"),
+      snapAvailability: document.getElementById("snapAvailability"),
+      snapMission: document.getElementById("snapMission"),
+
+      statCompleted: document.getElementById("statCompleted"),
+      statActive: document.getElementById("statActive"),
+      statEarnings: document.getElementById("statEarnings"),
+      statStatus: document.getElementById("statStatus"),
+
+      profileName: document.getElementById("profileName"),
+      profileEmail: document.getElementById("profileEmail"),
+      profilePhone: document.getElementById("profilePhone"),
+      profileLocation: document.getElementById("profileLocation"),
+      profileVehicle: document.getElementById("profileVehicle"),
+      profileDriverType: document.getElementById("profileDriverType"),
+      profileBackground: document.getElementById("profileBackground"),
+
+      missionWrap: document.getElementById("missionWrap"),
+      activityList: document.getElementById("activityList"),
+
+      globalMsg: document.getElementById("globalMsg"),
+      loginMsg: document.getElementById("loginMsg"),
+      missionMsg: document.getElementById("missionMsg"),
+      availabilityMsg: document.getElementById("availabilityMsg")
+    };
+
+    function showMsg(el, text, ok = true) {
+      el.textContent = text;
+      el.className = "msg show " + (ok ? "ok" : "err");
     }
 
-    async function checkDispatchOffer() {
-      try {
-        const res = await fetch(`/api/driver/offers/${driverId}`)
-        const data = await res.json()
+    function clearMsg(el) {
+      el.textContent = "";
+      el.className = "msg";
+    }
 
-        if (!data.offer) {
-          currentDispatchId = null
-          document.getElementById('dispatchStatus').innerHTML = 'No active ride offers right now.'
-          return
+    function money(value) {
+      return "$" + Number(value || 0).toFixed(2);
+    }
+
+    function titleCase(value) {
+      return String(value || "")
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (m) => m.toUpperCase());
+    }
+
+    function setPill(el, text, type) {
+      el.className = "pill " + type;
+      el.textContent = text;
+    }
+
+    async function api(url, options = {}) {
+      const response = await fetch(url, {
+        headers: {
+          "Content-Type": "application/json"
+        },
+        ...options
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.message || data.error || "Request failed.");
+      }
+
+      return data;
+    }
+
+    function missionActionState() {
+      const mission = state.mission;
+      const status = String(mission?.status || "").toLowerCase();
+
+      els.acceptBtn.disabled = !(mission && status === "awaiting_driver_acceptance");
+      els.rejectBtn.disabled = !(mission && status === "awaiting_driver_acceptance");
+      els.startBtn.disabled = !(mission && status === "driver_enroute");
+      els.completeBtn.disabled = !(mission && status === "in_progress");
+    }
+
+    function renderProfile() {
+      const d = state.driver;
+
+      if (!d) {
+        els.snapDriverId.textContent = "Not loaded";
+        setPill(els.snapApproval, "Pending", "pill-gold");
+        setPill(els.snapAvailability, "Offline", "pill-red");
+        setPill(els.snapMission, "None", "pill-blue");
+
+        els.profileName.textContent = "—";
+        els.profileEmail.textContent = "—";
+        els.profilePhone.textContent = "—";
+        els.profileLocation.textContent = "—";
+        els.profileVehicle.textContent = "—";
+        els.profileDriverType.textContent = "—";
+        els.profileBackground.textContent = "—";
+
+        els.statStatus.textContent = "Offline";
+        return;
+      }
+
+      els.snapDriverId.textContent = d.id || "—";
+
+      const approval = String(d.approval_status || d.verification_status || "pending").toLowerCase();
+      const status = String(d.status || "offline").toLowerCase();
+
+      setPill(
+        els.snapApproval,
+        titleCase(approval),
+        approval === "approved" ? "pill-green" : "pill-gold"
+      );
+
+      setPill(
+        els.snapAvailability,
+        titleCase(status),
+        status === "available"
+          ? "pill-green"
+          : status === "busy"
+          ? "pill-gold"
+          : "pill-red"
+      );
+
+      setPill(
+        els.snapMission,
+        state.mission ? titleCase(state.mission.status || "active") : "None",
+        state.mission ? "pill-cyan" : "pill-blue"
+      );
+
+      els.profileName.textContent =
+        [d.first_name, d.last_name].filter(Boolean).join(" ") || "—";
+      els.profileEmail.textContent = d.email || "—";
+      els.profilePhone.textContent = d.phone || "—";
+      els.profileLocation.textContent =
+        [d.city, d.state].filter(Boolean).join(", ") || "—";
+      els.profileVehicle.textContent =
+        [d.vehicle_year, d.vehicle_make, d.vehicle_model, d.vehicle_color]
+          .filter(Boolean)
+          .join(" ") || "—";
+      els.profileDriverType.textContent = titleCase(d.driver_type || "human");
+      els.profileBackground.textContent = titleCase(d.background_check_status || "pending");
+
+      els.availabilityStatus.value = status || "offline";
+      els.availabilityMode.value = d.driver_type === "autonomous" ? "autonomous" : "driver";
+      els.statStatus.textContent = titleCase(status);
+    }
+
+    function renderMission() {
+      const m = state.mission;
+
+      if (!m) {
+        els.missionWrap.innerHTML = `
+          <div class="mission-box">
+            <div class="mission-head">
+              <div>
+                <h4 style="font-size:1rem;margin-bottom:6px;">No active mission loaded</h4>
+                <div class="muted">You do not currently have an active dispatch or trip.</div>
+              </div>
+              <div class="pill pill-blue">Standby</div>
+            </div>
+
+            <div class="mission-route">
+              <div class="route-stop">
+                <div class="route-icon pickup">P</div>
+                <div class="route-copy">
+                  <strong>Pickup</strong>
+                  <span>Mission pickup will appear here.</span>
+                </div>
+              </div>
+
+              <div class="route-stop">
+                <div class="route-icon dropoff">D</div>
+                <div class="route-copy">
+                  <strong>Dropoff</strong>
+                  <span>Mission dropoff will appear here.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+        missionActionState();
+        return;
+      }
+
+      const rideType = titleCase(m.ride_type || "standard");
+      const requestedMode = titleCase(m.requested_mode || "driver");
+      const status = titleCase(m.status || "requested");
+
+      els.missionWrap.innerHTML = `
+        <div class="mission-box">
+          <div class="mission-head">
+            <div>
+              <h4 style="font-size:1rem;margin-bottom:6px;">Mission #${m.id || "—"}</h4>
+              <div class="muted">${rideType} • ${requestedMode}</div>
+            </div>
+            <div class="pill pill-cyan">${status}</div>
+          </div>
+
+          <div class="mission-route">
+            <div class="route-stop">
+              <div class="route-icon pickup">P</div>
+              <div class="route-copy">
+                <strong>Pickup</strong>
+                <span>${m.pickup_address || "—"}</span>
+              </div>
+            </div>
+
+            <div class="route-stop">
+              <div class="route-icon dropoff">D</div>
+              <div class="route-copy">
+                <strong>Dropoff</strong>
+                <span>${m.dropoff_address || "—"}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="detail-list">
+            <div class="detail-row">
+              <span>Payout Estimate</span>
+              <strong>${money(m.estimated_fare)}</strong>
+            </div>
+            <div class="detail-row">
+              <span>Distance</span>
+              <strong>${Number(m.distance_miles || 0).toFixed(2)} miles</strong>
+            </div>
+            <div class="detail-row">
+              <span>Duration</span>
+              <strong>${Number(m.duration_minutes || 0).toFixed(0)} minutes</strong>
+            </div>
+            <div class="detail-row">
+              <span>Notes</span>
+              <strong>${m.notes || "No special notes provided."}</strong>
+            </div>
+            <div class="detail-row">
+              <span>Scheduled Time</span>
+              <strong>${m.scheduled_time || "Immediate request"}</strong>
+            </div>
+          </div>
+        </div>
+      `;
+
+      missionActionState();
+    }
+
+    function renderActivity() {
+      const dash = state.dashboard;
+      const recent = dash?.recent_rides || [];
+
+      els.statCompleted.textContent = String(dash?.stats?.completed_rides || 0);
+      els.statActive.textContent = String(dash?.stats?.active_rides || 0);
+      els.statEarnings.textContent = money(dash?.stats?.estimated_earnings || 0);
+
+      if (!recent.length) {
+        els.activityList.innerHTML = `
+          <div class="activity-item">
+            <h4>No recent ride records yet</h4>
+            <p>Your recent mission and ride history will appear here after trips are created or completed.</p>
+          </div>
+        `;
+        return;
+      }
+
+      els.activityList.innerHTML = recent.map((ride) => `
+        <div class="activity-item">
+          <h4>${titleCase(ride.status || "ride")} • ${money(ride.estimated_fare)}</h4>
+          <p>
+            <strong>Pickup:</strong> ${ride.pickup_address || "—"}<br />
+            <strong>Dropoff:</strong> ${ride.dropoff_address || "—"}<br />
+            <strong>Ride Type:</strong> ${titleCase(ride.ride_type || "standard")}<br />
+            <strong>Requested Mode:</strong> ${titleCase(ride.requested_mode || "driver")}
+          </p>
+        </div>
+      `).join("");
+    }
+
+    async function loadDriverById(driverId) {
+      if (!driverId) {
+        showMsg(els.loginMsg, "Enter a driver ID first.", false);
+        return;
+      }
+
+      clearMsg(els.loginMsg);
+
+      try {
+        const dashboard = await api(`/api/drivers/${encodeURIComponent(driverId)}/dashboard`);
+        state.driverId = driverId;
+        state.driver = dashboard.driver || null;
+        state.mission = dashboard.current_mission || null;
+        state.dashboard = dashboard;
+
+        localStorage.setItem("harvey_driver_id", driverId);
+
+        renderProfile();
+        renderMission();
+        renderActivity();
+
+        showMsg(els.loginMsg, "Driver dashboard loaded.", true);
+      } catch (error) {
+        showMsg(els.loginMsg, error.message || "Failed to load driver dashboard.", false);
+      }
+    }
+
+    async function loginDriver() {
+      const email = els.driverEmail.value.trim();
+      const password = els.driverPassword.value.trim();
+
+      if (!email) {
+        showMsg(els.loginMsg, "Enter driver email first.", false);
+        return;
+      }
+
+      clearMsg(els.loginMsg);
+
+      try {
+        const data = await api("/api/driver/login", {
+          method: "POST",
+          body: JSON.stringify({ email, password })
+        });
+
+        const driverId = data.driver_id || data.driver?.id;
+
+        if (!driverId) {
+          throw new Error("Driver ID was not returned.");
         }
 
-        currentDispatchId = data.offer.id
-
-        document.getElementById('dispatchStatus').innerHTML = `
-          <div class="label">Dispatch ID</div>
-          <div class="value">${data.offer.id}</div>
-
-          <div class="label">Pickup Address</div>
-          <div class="value">${data.offer.pickup?.address || 'N/A'}</div>
-
-          <div class="label">Dropoff Address</div>
-          <div class="value">${data.offer.dropoff?.address || 'N/A'}</div>
-
-          <div class="label">Estimated Distance</div>
-          <div class="value">${Number(data.offer.milesAway || 0).toFixed(2)} miles away</div>
-
-          <div class="label">Fleet Type</div>
-          <div class="value">${data.offer.fleetType}</div>
-
-          <div class="label">Ride Status</div>
-          <div class="value">${data.offer.ride?.status || 'dispatching'}</div>
-        `
-      } catch (err) {
-        console.error(err)
-        setResultMessage('Failed to check dispatch offer.')
+        await loadDriverById(driverId);
+      } catch (error) {
+        showMsg(els.loginMsg, error.message || "Driver login failed.", false);
       }
     }
 
-    async function acceptDispatch() {
-      if (!currentDispatchId) {
-        setResultMessage('No dispatch offer to accept.')
-        return
+    async function refreshDashboard() {
+      if (!state.driverId) {
+        showMsg(els.globalMsg, "Load a driver first.", false);
+        return;
       }
+
+      clearMsg(els.globalMsg);
+      await loadDriverById(state.driverId);
+      showMsg(els.globalMsg, "Dashboard refreshed.", true);
+    }
+
+    async function saveAvailability(statusOverride = null) {
+      if (!state.driverId) {
+        showMsg(els.availabilityMsg, "Load a driver first.", false);
+        return;
+      }
+
+      clearMsg(els.availabilityMsg);
 
       try {
-        const res = await fetch('/api/dispatch/respond', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            dispatchId: currentDispatchId,
-            driverId,
-            action: 'accept'
-          })
-        })
+        const status = statusOverride || els.availabilityStatus.value;
+        const latitude = els.driverLat.value.trim();
+        const longitude = els.driverLng.value.trim();
 
-        const data = await res.json()
-        setResultMessage(data.message || 'Ride accepted.')
-        await checkDispatchOffer()
-      } catch (err) {
-        console.error(err)
-        setResultMessage('Failed to accept dispatch.')
+        await api(`/api/driver/${encodeURIComponent(state.driverId)}/availability`, {
+          method: "POST",
+          body: JSON.stringify({
+            status,
+            latitude: latitude === "" ? null : Number(latitude),
+            longitude: longitude === "" ? null : Number(longitude)
+          })
+        });
+
+        await loadDriverById(state.driverId);
+        showMsg(els.availabilityMsg, "Driver availability updated.", true);
+      } catch (error) {
+        showMsg(els.availabilityMsg, error.message || "Failed to update availability.", false);
       }
     }
 
-    async function declineDispatch() {
-      if (!currentDispatchId) {
-        setResultMessage('No dispatch offer to decline.')
-        return
+    async function missionAction(type) {
+      if (!state.driverId) {
+        showMsg(els.missionMsg, "Load a driver first.", false);
+        return;
       }
+
+      if (!state.mission) {
+        showMsg(els.missionMsg, "No active mission found.", false);
+        return;
+      }
+
+      clearMsg(els.missionMsg);
 
       try {
-        const res = await fetch('/api/dispatch/respond', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            dispatchId: currentDispatchId,
-            driverId,
-            action: 'decline'
-          })
-        })
+        if (type === "accept") {
+          await api("/api/driver/accept", {
+            method: "POST",
+            body: JSON.stringify({
+              ride_id: state.mission.id,
+              driver_id: state.driverId
+            })
+          });
+          showMsg(els.missionMsg, "Ride accepted.", true);
+        }
 
-        const data = await res.json()
-        setResultMessage(data.message || 'Ride declined.')
-        await checkDispatchOffer()
-      } catch (err) {
-        console.error(err)
-        setResultMessage('Failed to decline dispatch.')
+        if (type === "reject") {
+          await api("/api/driver/reject", {
+            method: "POST",
+            body: JSON.stringify({
+              ride_id: state.mission.id,
+              driver_id: state.driverId
+            })
+          });
+          showMsg(els.missionMsg, "Ride rejected and redispatch started.", true);
+        }
+
+        if (type === "start") {
+          await api(`/api/rides/${encodeURIComponent(state.mission.id)}/start`, {
+            method: "POST"
+          });
+          showMsg(els.missionMsg, "Ride started.", true);
+        }
+
+        if (type === "complete") {
+          await api(`/api/rides/${encodeURIComponent(state.mission.id)}/complete`, {
+            method: "POST"
+          });
+          showMsg(els.missionMsg, "Ride completed.", true);
+        }
+
+        await loadDriverById(state.driverId);
+      } catch (error) {
+        showMsg(els.missionMsg, error.message || "Mission action failed.", false);
       }
     }
 
-    checkDispatchOffer()
-    setInterval(checkDispatchOffer, 5000)
+    els.driverLoginBtn.addEventListener("click", loginDriver);
+    els.loadByIdBtn.addEventListener("click", () => {
+      loadDriverById(els.driverIdManual.value.trim());
+    });
+    els.refreshAllBtn.addEventListener("click", refreshDashboard);
+    els.goAvailableBtn.addEventListener("click", () => saveAvailability("available"));
+    els.goOfflineBtn.addEventListener("click", () => saveAvailability("offline"));
+    els.saveAvailabilityBtn.addEventListener("click", () => saveAvailability());
+    els.acceptBtn.addEventListener("click", () => missionAction("accept"));
+    els.rejectBtn.addEventListener("click", () => missionAction("reject"));
+    els.startBtn.addEventListener("click", () => missionAction("start"));
+    els.completeBtn.addEventListener("click", () => missionAction("complete"));
+
+    if (state.driverId) {
+      els.driverIdManual.value = state.driverId;
+      loadDriverById(state.driverId);
+    } else {
+      renderProfile();
+      renderMission();
+      renderActivity();
+    }
   </script>
 </body>
 </html>
