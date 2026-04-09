@@ -2,12 +2,16 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+  />
   <title>Harvey Taxi | Driver Sign Up</title>
   <meta
     name="description"
     content="Apply to join Harvey Taxi as a driver and complete onboarding for review."
   />
+
   <style>
     :root {
       --bg-1: #040814;
@@ -24,7 +28,10 @@
       --green: #71ffb7;
       --gold: #ffd86f;
       --danger: #ff7e90;
-      --shadow: 0 20px 60px rgba(0,0,0,0.35);
+      --shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+      --radius-lg: 28px;
+      --radius-md: 22px;
+      --radius-sm: 18px;
     }
 
     * {
@@ -42,8 +49,8 @@
       font-family: Inter, Arial, sans-serif;
       color: var(--text);
       background:
-        radial-gradient(circle at top left, rgba(98,245,255,0.12), transparent 28%),
-        radial-gradient(circle at top right, rgba(104,168,255,0.12), transparent 24%),
+        radial-gradient(circle at top left, rgba(98, 245, 255, 0.12), transparent 28%),
+        radial-gradient(circle at top right, rgba(104, 168, 255, 0.12), transparent 24%),
         linear-gradient(160deg, var(--bg-1), var(--bg-2) 45%, var(--bg-3));
     }
 
@@ -52,10 +59,22 @@
       text-decoration: none;
     }
 
+    button,
+    input,
+    select,
+    textarea,
+    label,
+    a {
+      pointer-events: auto;
+      -webkit-tap-highlight-color: transparent;
+    }
+
     .shell {
       width: min(100%, 1160px);
       margin: 0 auto;
       padding: 18px 16px 120px;
+      position: relative;
+      z-index: 2;
     }
 
     .topbar {
@@ -89,6 +108,7 @@
         radial-gradient(circle at 30% 30%, rgba(255,255,255,0.95), rgba(255,255,255,0.12) 18%, transparent 20%),
         linear-gradient(145deg, rgba(104,168,255,0.95), rgba(98,245,255,0.48), rgba(113,255,183,0.28));
       box-shadow: inset 0 0 22px rgba(255,255,255,0.12);
+      flex-shrink: 0;
     }
 
     .brand h1 {
@@ -115,12 +135,22 @@
 
     .mini-btn,
     .ghost-btn {
-      padding: 10px 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 16px;
       border-radius: 999px;
       background: rgba(255,255,255,0.04);
       color: var(--text);
       border: 1px solid var(--line);
-      font-size: 0.88rem;
+      font-size: 0.9rem;
+    }
+
+    .mini-btn:hover,
+    .ghost-btn:hover {
+      transform: translateY(-1px);
+      border-color: var(--line-strong);
+      background: rgba(255,255,255,0.06);
     }
 
     .page {
@@ -135,9 +165,11 @@
     .panel {
       background: var(--panel);
       border: 1px solid var(--line);
-      border-radius: 28px;
+      border-radius: var(--radius-lg);
       box-shadow: var(--shadow);
       backdrop-filter: blur(16px);
+      position: relative;
+      z-index: 2;
     }
 
     .hero {
@@ -259,6 +291,8 @@
       border-radius: 22px;
       padding: 18px;
       margin-bottom: 18px;
+      position: relative;
+      z-index: 3;
     }
 
     .section-title {
@@ -313,7 +347,7 @@
       line-height: 1.5;
     }
 
-    input,
+    input:not([type="checkbox"]):not([type="radio"]),
     select {
       width: 100%;
       padding: 16px 18px;
@@ -327,11 +361,11 @@
       appearance: none;
     }
 
-    input::placeholder {
+    input:not([type="checkbox"]):not([type="radio"])::placeholder {
       color: rgba(185,199,232,0.68);
     }
 
-    input:focus,
+    input:not([type="checkbox"]):not([type="radio"]):focus,
     select:focus {
       border-color: var(--blue);
       box-shadow: 0 0 0 3px rgba(104,168,255,0.16);
@@ -345,12 +379,16 @@
 
     .choice {
       position: relative;
+      display: block;
+      cursor: pointer;
     }
 
-    .choice input {
+    .choice input[type="radio"] {
       position: absolute;
-      inset: 0;
       opacity: 0;
+      inset: 0;
+      width: 100%;
+      height: 100%;
       cursor: pointer;
     }
 
@@ -376,41 +414,100 @@
       display: block;
     }
 
-    .choice input:checked + .choice-card {
+    .choice input[type="radio"]:checked + .choice-card {
       border-color: var(--cyan);
       box-shadow: 0 0 0 3px rgba(98,245,255,0.12);
       background: rgba(98,245,255,0.06);
       transform: translateY(-1px);
     }
 
-    .checkbox-row {
+    .consent-group {
+      display: grid;
+      gap: 14px;
+      position: relative;
+      z-index: 5;
+    }
+
+    .consent-card {
       display: flex;
       align-items: flex-start;
-      gap: 12px;
-      padding: 14px 14px;
-      border-radius: 18px;
+      gap: 16px;
+      padding: 18px;
+      border-radius: 22px;
       border: 1px solid var(--line);
       background: rgba(255,255,255,0.03);
+      cursor: pointer;
+      transition: 0.2s ease;
+      position: relative;
+      z-index: 6;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
     }
 
-    .checkbox-row input[type="checkbox"] {
-      width: 20px;
-      height: 20px;
+    .consent-card:hover {
+      border-color: var(--line-strong);
+      transform: translateY(-1px);
+    }
+
+    .consent-card input[type="checkbox"] {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+      width: 1px;
+      height: 1px;
+    }
+
+    .consent-check {
+      width: 34px;
+      height: 34px;
+      min-width: 34px;
+      border-radius: 50%;
+      border: 2px solid rgba(94,160,255,0.78);
+      background: #06143a;
+      box-shadow: 0 0 0 4px rgba(94,160,255,0.08);
       margin-top: 2px;
-      accent-color: var(--cyan);
+      transition: 0.2s ease;
+      position: relative;
+      flex-shrink: 0;
     }
 
-    .checkbox-row label {
+    .consent-text {
+      color: var(--text);
+      font-size: 0.98rem;
+      line-height: 1.65;
       font-weight: 700;
-      line-height: 1.6;
-      color: var(--muted);
-      font-size: 0.92rem;
+    }
+
+    .consent-card input[type="checkbox"]:checked + .consent-check {
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      border-color: var(--cyan);
+      box-shadow: 0 0 0 4px rgba(99,245,255,0.14);
+    }
+
+    .consent-card input[type="checkbox"]:checked + .consent-check::after {
+      content: "✓";
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: #03101f;
+      font-size: 1rem;
+      font-weight: 900;
+    }
+
+    .consent-card.active {
+      border-color: rgba(98,245,255,0.32);
+      background: rgba(98,245,255,0.06);
+      box-shadow: 0 0 0 3px rgba(98,245,255,0.08);
     }
 
     .actions {
       display: grid;
       gap: 12px;
       margin-top: 6px;
+      position: relative;
+      z-index: 6;
     }
 
     .btn {
@@ -423,10 +520,31 @@
       box-shadow: 0 16px 32px rgba(67, 140, 255, 0.18);
     }
 
+    .btn:hover {
+      transform: translateY(-1px);
+    }
+
     .btn:disabled {
       opacity: 0.72;
       cursor: wait;
       transform: none;
+    }
+
+    .form-hint {
+      margin-top: 14px;
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(111,170,255,0.14);
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+
+    .form-hint.ready {
+      color: var(--green);
+      border-color: rgba(113,255,183,0.2);
+      background: rgba(113,255,183,0.05);
     }
 
     .status {
@@ -507,6 +625,10 @@
       .panel {
         border-radius: 24px;
       }
+
+      .consent-text {
+        font-size: 0.95rem;
+      }
     }
   </style>
 </head>
@@ -561,7 +683,7 @@
           Complete the fields below as accurately as possible so your application can be reviewed cleanly.
         </div>
 
-        <form id="driverSignupForm">
+        <form id="driverSignupForm" novalidate>
           <div class="section-card">
             <div class="section-title">
               <h4>Driver Information</h4>
@@ -688,33 +810,34 @@
               Confirm the required onboarding acknowledgments before submitting.
             </p>
 
-            <div class="form-grid">
-              <div class="field full">
-                <div class="checkbox-row">
-                  <input type="checkbox" id="termsAccepted" required />
-                  <label for="termsAccepted">
-                    I agree to the Harvey Taxi driver onboarding terms and understand that approval is required before accepting missions.
-                  </label>
-                </div>
-              </div>
+            <div class="consent-group">
+              <label class="consent-card" for="termsAccepted">
+                <input type="checkbox" id="termsAccepted" required />
+                <span class="consent-check"></span>
+                <span class="consent-text">
+                  I agree to the Harvey Taxi driver onboarding terms and understand that approval is required before accepting missions.
+                </span>
+              </label>
 
-              <div class="field full">
-                <div class="checkbox-row">
-                  <input type="checkbox" id="backgroundAccepted" required />
-                  <label for="backgroundAccepted">
-                    I consent to verification and background review as part of the Harvey Taxi approval process.
-                  </label>
-                </div>
-              </div>
+              <label class="consent-card" for="backgroundAccepted">
+                <input type="checkbox" id="backgroundAccepted" required />
+                <span class="consent-check"></span>
+                <span class="consent-text">
+                  I consent to verification and background review as part of the Harvey Taxi approval process.
+                </span>
+              </label>
 
-              <div class="field full">
-                <div class="checkbox-row">
-                  <input type="checkbox" id="insuranceConfirmed" required />
-                  <label for="insuranceConfirmed">
-                    I confirm that I carry required insurance or will provide compliant insurance documentation during review.
-                  </label>
-                </div>
-              </div>
+              <label class="consent-card" for="insuranceConfirmed">
+                <input type="checkbox" id="insuranceConfirmed" required />
+                <span class="consent-check"></span>
+                <span class="consent-text">
+                  I confirm that I carry required insurance or will provide compliant insurance documentation during review.
+                </span>
+              </label>
+            </div>
+
+            <div id="formHint" class="form-hint">
+              Complete all required fields and tap all three acknowledgment cards.
             </div>
           </div>
 
@@ -735,10 +858,48 @@
     const driverForm = document.getElementById("driverSignupForm");
     const driverStatus = document.getElementById("statusMessage");
     const submitBtn = document.getElementById("submitBtn");
+    const formHint = document.getElementById("formHint");
+
+    const checkboxIds = [
+      "termsAccepted",
+      "backgroundAccepted",
+      "insuranceConfirmed"
+    ];
+
+    const textFieldIds = [
+      "firstName",
+      "lastName",
+      "email",
+      "phone",
+      "city",
+      "state",
+      "licenseNumber",
+      "password",
+      "vehicleMake",
+      "vehicleModel",
+      "vehicleYear"
+    ];
+
+    function apiBase() {
+      const host = window.location.hostname || "";
+      if (
+        host.includes("harvey-taxi-app-2.onrender.com") ||
+        host.includes("harveytaxiservicellc.com") ||
+        host.includes("harveytaxiservice.com")
+      ) {
+        return "";
+      }
+      return "https://harvey-taxi-app-2.onrender.com";
+    }
 
     function showStatus(type, message) {
       driverStatus.className = `status show ${type}`;
       driverStatus.innerHTML = message;
+    }
+
+    function clearStatus() {
+      driverStatus.className = "status";
+      driverStatus.innerHTML = "";
     }
 
     async function readJsonSafe(response) {
@@ -762,18 +923,71 @@
       return String(value || "").replace(/\D/g, "");
     }
 
+    function toggleConsentCardState() {
+      checkboxIds.forEach((id) => {
+        const input = document.getElementById(id);
+        const card = input?.closest(".consent-card");
+        if (!input || !card) return;
+        card.classList.toggle("active", input.checked);
+      });
+      updateFormHint();
+    }
+
+    function formReady() {
+      const textFieldsReady = textFieldIds.every((id) => {
+        const el = document.getElementById(id);
+        if (!el) return false;
+        if (id === "vehicleYear") {
+          return onlyDigits(el.value).length === 4;
+        }
+        return el.value.trim().length > 0;
+      });
+
+      const consentsReady = checkboxIds.every((id) => {
+        const el = document.getElementById(id);
+        return el && el.checked;
+      });
+
+      return textFieldsReady && consentsReady;
+    }
+
+    function updateFormHint() {
+      if (formReady()) {
+        formHint.classList.add("ready");
+        formHint.textContent = "All required fields and acknowledgments are complete.";
+      } else {
+        formHint.classList.remove("ready");
+        formHint.textContent = "Complete all required fields and tap all three acknowledgment cards.";
+      }
+    }
+
+    checkboxIds.forEach((id) => {
+      const input = document.getElementById(id);
+      if (input) {
+        input.addEventListener("change", toggleConsentCardState);
+        input.addEventListener("click", toggleConsentCardState);
+      }
+    });
+
+    textFieldIds.forEach((id) => {
+      const input = document.getElementById(id);
+      if (input) {
+        input.addEventListener("input", updateFormHint);
+        input.addEventListener("change", updateFormHint);
+      }
+    });
+
     driverForm.addEventListener("submit", async (e) => {
       e.preventDefault();
+      clearStatus();
 
-      driverStatus.className = "status";
-      driverStatus.innerHTML = "";
       submitBtn.disabled = true;
       submitBtn.textContent = "Submitting Application...";
 
       const payload = {
         firstName: document.getElementById("firstName").value.trim(),
         lastName: document.getElementById("lastName").value.trim(),
-        email: document.getElementById("email").value.trim(),
+        email: document.getElementById("email").value.trim().toLowerCase(),
         phone: document.getElementById("phone").value.trim(),
         city: document.getElementById("city").value.trim(),
         state: document.getElementById("state").value.trim().toUpperCase(),
@@ -813,8 +1027,15 @@
         return;
       }
 
-      if (!payload.vehicleMake || !payload.vehicleModel || !payload.vehicleYear) {
-        showStatus("error", "Vehicle make, model, and year are required.");
+      if (!payload.vehicleMake || !payload.vehicleModel || payload.vehicleYear.length !== 4) {
+        showStatus("error", "Vehicle make, model, and valid 4-digit year are required.");
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Submit Driver Application";
+        return;
+      }
+
+      if (!payload.password) {
+        showStatus("error", "Password is required.");
         submitBtn.disabled = false;
         submitBtn.textContent = "Submit Driver Application";
         return;
@@ -832,7 +1053,7 @@
       }
 
       try {
-        const response = await fetch("/api/driver/signup", {
+        const response = await fetch(`${apiBase()}/api/driver/signup`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json"
@@ -864,6 +1085,8 @@
         );
 
         driverForm.reset();
+        toggleConsentCardState();
+        updateFormHint();
       } catch (error) {
         showStatus(
           "error",
@@ -874,6 +1097,9 @@
         submitBtn.textContent = "Submit Driver Application";
       }
     });
+
+    toggleConsentCardState();
+    updateFormHint();
   </script>
 </body>
 </html>
