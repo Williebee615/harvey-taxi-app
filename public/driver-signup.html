@@ -9,7 +9,7 @@
   <title>Harvey Taxi | Driver Sign Up</title>
   <meta
     name="description"
-    content="Apply to join Harvey Taxi as a driver and complete onboarding for review."
+    content="Apply to join Harvey Taxi as a driver and complete onboarding, email verification, and SMS verification."
   />
 
   <style>
@@ -125,7 +125,8 @@
 
     .mini-btn,
     .btn,
-    .ghost-btn {
+    .ghost-btn,
+    .secondary-btn {
       border: none;
       cursor: pointer;
       transition: 0.25s ease;
@@ -134,7 +135,8 @@
     }
 
     .mini-btn,
-    .ghost-btn {
+    .ghost-btn,
+    .secondary-btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -147,7 +149,8 @@
     }
 
     .mini-btn:hover,
-    .ghost-btn:hover {
+    .ghost-btn:hover,
+    .secondary-btn:hover {
       transform: translateY(-1px);
       border-color: var(--line-strong);
       background: rgba(255,255,255,0.06);
@@ -265,7 +268,8 @@
     }
 
     .notice,
-    .security-note {
+    .security-note,
+    .verification-banner {
       padding: 14px 16px;
       border-radius: 18px;
       margin-bottom: 18px;
@@ -285,6 +289,17 @@
       color: var(--muted);
     }
 
+    .verification-banner {
+      background: rgba(113,255,183,0.08);
+      border: 1px solid rgba(113,255,183,0.18);
+      color: var(--text);
+      display: none;
+    }
+
+    .verification-banner.show {
+      display: block;
+    }
+
     .section-card {
       border: 1px solid var(--line);
       background: var(--panel-soft);
@@ -295,12 +310,17 @@
       z-index: 3;
     }
 
+    .section-card.hidden {
+      display: none;
+    }
+
     .section-title {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
       margin-bottom: 8px;
+      flex-wrap: wrap;
     }
 
     .section-title h4 {
@@ -502,12 +522,17 @@
       box-shadow: 0 0 0 3px rgba(98,245,255,0.08);
     }
 
-    .actions {
+    .actions,
+    .verification-actions {
       display: grid;
       gap: 12px;
       margin-top: 6px;
       position: relative;
       z-index: 6;
+    }
+
+    .verification-actions.two-col {
+      grid-template-columns: 1fr 1fr;
     }
 
     .btn {
@@ -524,10 +549,22 @@
       transform: translateY(-1px);
     }
 
-    .btn:disabled {
+    .btn:disabled,
+    .secondary-btn:disabled,
+    .ghost-btn:disabled {
       opacity: 0.72;
       cursor: wait;
       transform: none;
+    }
+
+    .secondary-btn {
+      width: 100%;
+      padding: 16px 18px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.05);
+      color: var(--text);
+      border: 1px solid var(--line);
+      font-size: 0.95rem;
     }
 
     .form-hint {
@@ -572,6 +609,70 @@
       color: var(--text);
     }
 
+    .progress-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 10px;
+    }
+
+    .progress-card {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 16px;
+      background: rgba(255,255,255,0.03);
+    }
+
+    .progress-card strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 0.95rem;
+    }
+
+    .progress-card span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.55;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 800;
+      letter-spacing: 0.01em;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.04);
+      color: var(--muted);
+    }
+
+    .pill.ok {
+      border-color: rgba(113,255,183,0.26);
+      background: rgba(113,255,183,0.08);
+      color: var(--green);
+    }
+
+    .pill.pending {
+      border-color: rgba(255,216,111,0.26);
+      background: rgba(255,216,111,0.08);
+      color: var(--gold);
+    }
+
+    .verification-note {
+      margin-top: 14px;
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: rgba(98,245,255,0.06);
+      border: 1px solid rgba(98,245,255,0.14);
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+
     .return-home {
       position: fixed;
       right: 16px;
@@ -598,7 +699,9 @@
 
     @media (max-width: 760px) {
       .form-grid,
-      .choice-grid {
+      .choice-grid,
+      .progress-grid,
+      .verification-actions.two-col {
         grid-template-columns: 1fr;
       }
     }
@@ -650,21 +753,21 @@
         <div class="eyebrow">Driver onboarding</div>
         <h2>Join the <span>Harvey Taxi fleet</span></h2>
         <p>
-          Submit your driver application to begin review. Driver access is only granted after verification, screening, and administrative approval.
+          Submit your driver application to begin review. Driver access is granted only after signup, email verification, SMS verification, and final approval.
         </p>
 
         <div class="checklist">
           <div class="item">
             <strong>Identity + screening path</strong>
-            <span>Built to support license review, identity verification, and background screening before approval.</span>
+            <span>Built to support license review, identity verification, background screening, and approval checkpoints before activation.</span>
+          </div>
+          <div class="item">
+            <strong>Email + phone verification</strong>
+            <span>After signup, Harvey Taxi sends an email verification link and an SMS verification code to complete the onboarding flow.</span>
           </div>
           <div class="item">
             <strong>Mission-first driver flow</strong>
             <span>Harvey Taxi is built to give drivers a clearer mission package before trip acceptance.</span>
-          </div>
-          <div class="item">
-            <strong>Future-ready fleet system</strong>
-            <span>Supports today’s human drivers while staying aligned with Harvey Taxi’s mixed-fleet vision.</span>
           </div>
         </div>
       </section>
@@ -672,178 +775,242 @@
       <section class="panel">
         <h3>Driver Sign Up</h3>
         <p class="panel-sub">
-          Complete this application to begin review. Driver access is activated only after verification and approval.
+          Complete this application to begin driver onboarding. After signup, verify your email and phone to finish the driver verification flow.
         </p>
 
         <div class="notice">
-          Approval is not immediate. Harvey Taxi reviews eligibility, onboarding details, and approval requirements before driver access is enabled.
+          Approval is not immediate. Harvey Taxi reviews eligibility, onboarding details, verification completion, and approval requirements before driver access is enabled.
         </div>
 
         <div class="security-note">
-          Complete the fields below as accurately as possible so your application can be reviewed cleanly.
+          Complete the fields below accurately. After you submit, you will verify your email and then enter the SMS code sent to your phone.
         </div>
 
+        <div id="verificationBanner" class="verification-banner"></div>
+
         <form id="driverSignupForm" novalidate>
-          <div class="section-card">
+          <div id="signupSection">
+            <div class="section-card">
+              <div class="section-title">
+                <h4>Driver Information</h4>
+                <span>Step 1</span>
+              </div>
+              <p class="section-copy">
+                Provide the information needed to start driver onboarding and regional review.
+              </p>
+
+              <div class="form-grid">
+                <div class="field">
+                  <label for="firstName">First Name</label>
+                  <input type="text" id="firstName" placeholder="Enter first name" required />
+                </div>
+
+                <div class="field">
+                  <label for="lastName">Last Name</label>
+                  <input type="text" id="lastName" placeholder="Enter last name" required />
+                </div>
+
+                <div class="field full">
+                  <label for="email">Email Address</label>
+                  <input type="email" id="email" placeholder="Enter your email address" required />
+                </div>
+
+                <div class="field">
+                  <label for="phone">Phone Number</label>
+                  <input type="tel" id="phone" placeholder="Enter your phone number" required />
+                </div>
+
+                <div class="field">
+                  <label for="city">Operating City</label>
+                  <input type="text" id="city" placeholder="Enter your operating city" required />
+                </div>
+
+                <div class="field">
+                  <label for="state">State</label>
+                  <input type="text" id="state" maxlength="2" placeholder="TN" required />
+                </div>
+
+                <div class="field">
+                  <label for="licenseNumber">Driver License Number</label>
+                  <input type="text" id="licenseNumber" placeholder="Enter license number" required />
+                </div>
+
+                <div class="field">
+                  <label for="password">Password</label>
+                  <input type="password" id="password" placeholder="Create password" required />
+                </div>
+              </div>
+            </div>
+
+            <div class="section-card">
+              <div class="section-title">
+                <h4>Vehicle Information</h4>
+                <span>Step 2</span>
+              </div>
+              <p class="section-copy">
+                Enter the vehicle details used for your Harvey Taxi driver profile.
+              </p>
+
+              <div class="form-grid">
+                <div class="field">
+                  <label for="vehicleMake">Vehicle Make</label>
+                  <input type="text" id="vehicleMake" placeholder="Toyota" required />
+                </div>
+
+                <div class="field">
+                  <label for="vehicleModel">Vehicle Model</label>
+                  <input type="text" id="vehicleModel" placeholder="Camry" required />
+                </div>
+
+                <div class="field">
+                  <label for="vehicleYear">Vehicle Year</label>
+                  <input type="text" id="vehicleYear" inputmode="numeric" maxlength="4" placeholder="2020" required />
+                </div>
+
+                <div class="field">
+                  <label for="vehicleColor">Vehicle Color (optional)</label>
+                  <input type="text" id="vehicleColor" placeholder="Black" />
+                </div>
+
+                <div class="field">
+                  <label for="licensePlate">License Plate (optional)</label>
+                  <input type="text" id="licensePlate" placeholder="ABC1234" />
+                </div>
+              </div>
+            </div>
+
+            <div class="section-card">
+              <div class="section-title">
+                <h4>Driver Mode</h4>
+                <span>Step 3</span>
+              </div>
+              <p class="section-copy">
+                Select the current driver mode for this application.
+              </p>
+
+              <div class="choice-grid">
+                <label class="choice">
+                  <input type="radio" name="driverType" value="human" checked />
+                  <div class="choice-card">
+                    <strong>Human Driver</strong>
+                    <span>Standard Harvey Taxi driver onboarding for live driver operations.</span>
+                  </div>
+                </label>
+
+                <label class="choice">
+                  <input type="radio" name="driverType" value="autonomous" />
+                  <div class="choice-card">
+                    <strong>Autonomous Pilot</strong>
+                    <span>Pilot-mode onboarding path for autonomous or AV-aligned testing scenarios.</span>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <div class="section-card">
+              <div class="section-title">
+                <h4>Driver Acknowledgment</h4>
+                <span>Step 4</span>
+              </div>
+              <p class="section-copy">
+                Confirm the required onboarding acknowledgments before submitting.
+              </p>
+
+              <div class="consent-group">
+                <label class="consent-card" for="termsAccepted">
+                  <input type="checkbox" id="termsAccepted" required />
+                  <span class="consent-check"></span>
+                  <span class="consent-text">
+                    I agree to the Harvey Taxi driver onboarding terms and understand that approval is required before accepting missions.
+                  </span>
+                </label>
+
+                <label class="consent-card" for="backgroundAccepted">
+                  <input type="checkbox" id="backgroundAccepted" required />
+                  <span class="consent-check"></span>
+                  <span class="consent-text">
+                    I consent to verification and background review as part of the Harvey Taxi approval process.
+                  </span>
+                </label>
+
+                <label class="consent-card" for="insuranceConfirmed">
+                  <input type="checkbox" id="insuranceConfirmed" required />
+                  <span class="consent-check"></span>
+                  <span class="consent-text">
+                    I confirm that I carry required insurance or will provide compliant insurance documentation during review.
+                  </span>
+                </label>
+              </div>
+
+              <div id="formHint" class="form-hint">
+                Complete all required fields and tap all three acknowledgment cards.
+              </div>
+            </div>
+
+            <div class="actions">
+              <button type="submit" class="btn" id="submitBtn">Submit Driver Application</button>
+              <a class="ghost-btn" href="/">Return Home</a>
+            </div>
+          </div>
+
+          <div id="verificationSection" class="section-card hidden">
             <div class="section-title">
-              <h4>Driver Information</h4>
-              <span>Step 1</span>
+              <h4>Driver Verification</h4>
+              <span>Finish onboarding</span>
             </div>
             <p class="section-copy">
-              Provide the information needed to start driver onboarding and regional review.
+              Your signup has been created. Verify your email from your inbox, then enter the SMS code sent to your phone.
             </p>
 
-            <div class="form-grid">
-              <div class="field">
-                <label for="firstName">First Name</label>
-                <input type="text" id="firstName" placeholder="Enter first name" required />
+            <div class="progress-grid">
+              <div class="progress-card">
+                <strong>Email Verification</strong>
+                <span id="emailTargetText">Waiting for email address...</span>
+                <div style="margin-top:10px;">
+                  <span id="emailPill" class="pill pending">Pending</span>
+                </div>
               </div>
 
-              <div class="field">
-                <label for="lastName">Last Name</label>
-                <input type="text" id="lastName" placeholder="Enter last name" required />
+              <div class="progress-card">
+                <strong>SMS Verification</strong>
+                <span id="smsTargetText">Waiting for phone number...</span>
+                <div style="margin-top:10px;">
+                  <span id="smsPill" class="pill pending">Pending</span>
+                </div>
               </div>
+            </div>
 
+            <div class="verification-note" id="verificationNote">
+              Check your email for the Harvey Taxi verification link. Then enter your SMS code below.
+            </div>
+
+            <div class="form-grid" style="margin-top:16px;">
               <div class="field full">
-                <label for="email">Email Address</label>
-                <input type="email" id="email" placeholder="Enter your email address" required />
-              </div>
-
-              <div class="field">
-                <label for="phone">Phone Number</label>
-                <input type="tel" id="phone" placeholder="Enter your phone number" required />
-              </div>
-
-              <div class="field">
-                <label for="city">Operating City</label>
-                <input type="text" id="city" placeholder="Enter your operating city" required />
-              </div>
-
-              <div class="field">
-                <label for="state">State</label>
-                <input type="text" id="state" maxlength="2" placeholder="TN" required />
-              </div>
-
-              <div class="field">
-                <label for="licenseNumber">Driver License Number</label>
-                <input type="text" id="licenseNumber" placeholder="Enter license number" required />
-              </div>
-
-              <div class="field">
-                <label for="password">Password</label>
-                <input type="password" id="password" placeholder="Create password" required />
+                <label for="smsCode">SMS Verification Code</label>
+                <input
+                  type="text"
+                  id="smsCode"
+                  inputmode="numeric"
+                  maxlength="6"
+                  placeholder="Enter 6-digit SMS code"
+                />
+                <small>Use the verification code sent to your phone after driver signup.</small>
               </div>
             </div>
-          </div>
 
-          <div class="section-card">
-            <div class="section-title">
-              <h4>Vehicle Information</h4>
-              <span>Step 2</span>
-            </div>
-            <p class="section-copy">
-              Enter the vehicle details used for your Harvey Taxi driver profile.
-            </p>
-
-            <div class="form-grid">
-              <div class="field">
-                <label for="vehicleMake">Vehicle Make</label>
-                <input type="text" id="vehicleMake" placeholder="Toyota" required />
-              </div>
-
-              <div class="field">
-                <label for="vehicleModel">Vehicle Model</label>
-                <input type="text" id="vehicleModel" placeholder="Camry" required />
-              </div>
-
-              <div class="field">
-                <label for="vehicleYear">Vehicle Year</label>
-                <input type="text" id="vehicleYear" inputmode="numeric" maxlength="4" placeholder="2020" required />
-              </div>
-
-              <div class="field">
-                <label for="vehicleColor">Vehicle Color (optional)</label>
-                <input type="text" id="vehicleColor" placeholder="Black" />
-              </div>
-
-              <div class="field">
-                <label for="licensePlate">License Plate (optional)</label>
-                <input type="text" id="licensePlate" placeholder="ABC1234" />
-              </div>
-            </div>
-          </div>
-
-          <div class="section-card">
-            <div class="section-title">
-              <h4>Driver Mode</h4>
-              <span>Step 3</span>
-            </div>
-            <p class="section-copy">
-              Select the current driver mode for this application.
-            </p>
-
-            <div class="choice-grid">
-              <label class="choice">
-                <input type="radio" name="driverType" value="human" checked />
-                <div class="choice-card">
-                  <strong>Human Driver</strong>
-                  <span>Standard Harvey Taxi driver onboarding for live driver operations.</span>
-                </div>
-              </label>
-
-              <label class="choice">
-                <input type="radio" name="driverType" value="autonomous" />
-                <div class="choice-card">
-                  <strong>Autonomous Pilot</strong>
-                  <span>Pilot-mode onboarding path for autonomous or AV-aligned testing scenarios.</span>
-                </div>
-              </label>
-            </div>
-          </div>
-
-          <div class="section-card">
-            <div class="section-title">
-              <h4>Driver Acknowledgment</h4>
-              <span>Step 4</span>
-            </div>
-            <p class="section-copy">
-              Confirm the required onboarding acknowledgments before submitting.
-            </p>
-
-            <div class="consent-group">
-              <label class="consent-card" for="termsAccepted">
-                <input type="checkbox" id="termsAccepted" required />
-                <span class="consent-check"></span>
-                <span class="consent-text">
-                  I agree to the Harvey Taxi driver onboarding terms and understand that approval is required before accepting missions.
-                </span>
-              </label>
-
-              <label class="consent-card" for="backgroundAccepted">
-                <input type="checkbox" id="backgroundAccepted" required />
-                <span class="consent-check"></span>
-                <span class="consent-text">
-                  I consent to verification and background review as part of the Harvey Taxi approval process.
-                </span>
-              </label>
-
-              <label class="consent-card" for="insuranceConfirmed">
-                <input type="checkbox" id="insuranceConfirmed" required />
-                <span class="consent-check"></span>
-                <span class="consent-text">
-                  I confirm that I carry required insurance or will provide compliant insurance documentation during review.
-                </span>
-              </label>
+            <div class="verification-actions" style="margin-top:16px;">
+              <button type="button" class="btn" id="verifySmsBtn">Verify SMS Code</button>
             </div>
 
-            <div id="formHint" class="form-hint">
-              Complete all required fields and tap all three acknowledgment cards.
+            <div class="verification-actions two-col" style="margin-top:12px;">
+              <button type="button" class="secondary-btn" id="refreshStatusBtn">Refresh Verification Status</button>
+              <button type="button" class="secondary-btn" id="resendEmailBtn">Resend Email Link</button>
             </div>
-          </div>
 
-          <div class="actions">
-            <button type="submit" class="btn" id="submitBtn">Submit Driver Application</button>
-            <a class="ghost-btn" href="/">Return Home</a>
+            <div class="verification-actions two-col" style="margin-top:12px;">
+              <button type="button" class="secondary-btn" id="resendSmsBtn">Resend SMS Code</button>
+              <button type="button" class="ghost-btn" id="startOverBtn">Start Over</button>
+            </div>
           </div>
 
           <div id="statusMessage" class="status"></div>
@@ -859,6 +1026,20 @@
     const driverStatus = document.getElementById("statusMessage");
     const submitBtn = document.getElementById("submitBtn");
     const formHint = document.getElementById("formHint");
+    const signupSection = document.getElementById("signupSection");
+    const verificationSection = document.getElementById("verificationSection");
+    const verificationBanner = document.getElementById("verificationBanner");
+    const emailTargetText = document.getElementById("emailTargetText");
+    const smsTargetText = document.getElementById("smsTargetText");
+    const emailPill = document.getElementById("emailPill");
+    const smsPill = document.getElementById("smsPill");
+    const verificationNote = document.getElementById("verificationNote");
+    const smsCodeInput = document.getElementById("smsCode");
+    const verifySmsBtn = document.getElementById("verifySmsBtn");
+    const refreshStatusBtn = document.getElementById("refreshStatusBtn");
+    const resendEmailBtn = document.getElementById("resendEmailBtn");
+    const resendSmsBtn = document.getElementById("resendSmsBtn");
+    const startOverBtn = document.getElementById("startOverBtn");
 
     const checkboxIds = [
       "termsAccepted",
@@ -879,6 +1060,15 @@
       "vehicleModel",
       "vehicleYear"
     ];
+
+    const onboardingState = {
+      driverId: "",
+      email: "",
+      phone: "",
+      emailVerified: false,
+      smsVerified: false,
+      fullyVerified: false
+    };
 
     function apiBase() {
       const host = window.location.hostname || "";
@@ -923,6 +1113,22 @@
       return String(value || "").replace(/\D/g, "");
     }
 
+    function maskEmail(email) {
+      const clean = String(email || "").trim().toLowerCase();
+      const parts = clean.split("@");
+      if (parts.length !== 2) return clean || "your email";
+      const local = parts[0];
+      const domain = parts[1];
+      if (local.length <= 2) return `${local.charAt(0)}***@${domain}`;
+      return `${local.slice(0, 2)}***@${domain}`;
+    }
+
+    function maskPhone(phone) {
+      const digits = onlyDigits(phone);
+      if (digits.length < 4) return phone || "your phone";
+      return `***-***-${digits.slice(-4)}`;
+    }
+
     function toggleConsentCardState() {
       checkboxIds.forEach((id) => {
         const input = document.getElementById(id);
@@ -961,6 +1167,160 @@
       }
     }
 
+    function setPill(pillEl, verified) {
+      pillEl.className = verified ? "pill ok" : "pill pending";
+      pillEl.textContent = verified ? "Verified" : "Pending";
+    }
+
+    function showVerificationSection() {
+      signupSection.style.display = "none";
+      verificationSection.classList.remove("hidden");
+      verificationBanner.classList.add("show");
+      verificationBanner.innerHTML = `
+        <strong>Driver application created.</strong><br>
+        Complete email verification and SMS verification to finish your driver onboarding flow.
+      `;
+      updateVerificationUI();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function hideVerificationSection() {
+      signupSection.style.display = "";
+      verificationSection.classList.add("hidden");
+      verificationBanner.classList.remove("show");
+      verificationBanner.innerHTML = "";
+    }
+
+    function updateVerificationUI() {
+      emailTargetText.textContent = onboardingState.email
+        ? `Verification link sent to ${maskEmail(onboardingState.email)}`
+        : "Waiting for email address...";
+
+      smsTargetText.textContent = onboardingState.phone
+        ? `Verification code sent to ${maskPhone(onboardingState.phone)}`
+        : "Waiting for phone number...";
+
+      setPill(emailPill, onboardingState.emailVerified);
+      setPill(smsPill, onboardingState.smsVerified);
+
+      if (onboardingState.fullyVerified) {
+        verificationNote.innerHTML = `
+          <strong>Verification complete.</strong><br>
+          Your email and phone are verified. Your driver profile can now continue through approval review.
+        `;
+      } else if (onboardingState.emailVerified && !onboardingState.smsVerified) {
+        verificationNote.innerHTML = `
+          <strong>Email verified.</strong><br>
+          Now enter the SMS code from your phone to finish driver verification.
+        `;
+      } else if (!onboardingState.emailVerified && onboardingState.smsVerified) {
+        verificationNote.innerHTML = `
+          <strong>SMS verified.</strong><br>
+          Check your email inbox and open the Harvey Taxi verification link to finish driver verification.
+        `;
+      } else {
+        verificationNote.innerHTML = `
+          Check your email for the Harvey Taxi verification link. Then enter your SMS code below.
+        `;
+      }
+    }
+
+    function saveOnboardingState() {
+      try {
+        window.localStorage.setItem("harvey_driver_onboarding_state", JSON.stringify(onboardingState));
+      } catch {}
+    }
+
+    function loadOnboardingState() {
+      try {
+        const raw = window.localStorage.getItem("harvey_driver_onboarding_state");
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        onboardingState.driverId = parsed.driverId || "";
+        onboardingState.email = parsed.email || "";
+        onboardingState.phone = parsed.phone || "";
+        onboardingState.emailVerified = parsed.emailVerified === true;
+        onboardingState.smsVerified = parsed.smsVerified === true;
+        onboardingState.fullyVerified = parsed.fullyVerified === true;
+      } catch {}
+    }
+
+    function clearOnboardingState() {
+      onboardingState.driverId = "";
+      onboardingState.email = "";
+      onboardingState.phone = "";
+      onboardingState.emailVerified = false;
+      onboardingState.smsVerified = false;
+      onboardingState.fullyVerified = false;
+      try {
+        window.localStorage.removeItem("harvey_driver_onboarding_state");
+      } catch {}
+    }
+
+    function setButtonLoading(button, isLoading, loadingText, defaultText) {
+      if (!button) return;
+      button.disabled = isLoading;
+      button.textContent = isLoading ? loadingText : defaultText;
+    }
+
+    async function refreshVerificationStatus(showMessage = false) {
+      if (!onboardingState.driverId) return;
+
+      try {
+        setButtonLoading(refreshStatusBtn, true, "Refreshing...", "Refresh Verification Status");
+
+        const response = await fetch(`${apiBase()}/api/driver/verification-status/${encodeURIComponent(onboardingState.driverId)}`);
+        const data = await readJsonSafe(response);
+
+        if (!response.ok || !data.success) {
+          if (showMessage) {
+            showStatus("error", data.error || data.message || "Unable to refresh verification status.");
+          }
+          return;
+        }
+
+        const verification = data.verification || {};
+        const driver = data.driver || {};
+
+        onboardingState.emailVerified = verification.email_verified === true;
+        onboardingState.smsVerified = verification.sms_verified === true;
+        onboardingState.fullyVerified = verification.fully_verified === true;
+        onboardingState.email = driver.email || onboardingState.email;
+        onboardingState.phone = driver.phone || onboardingState.phone;
+
+        saveOnboardingState();
+        updateVerificationUI();
+
+        if (showMessage) {
+          if (onboardingState.fullyVerified) {
+            showStatus(
+              "success",
+              `
+                <strong>Driver verification complete.</strong><br><br>
+                Email verification and SMS verification are complete.<br>
+                Your driver profile can continue through approval review.
+              `
+            );
+          } else {
+            showStatus(
+              "success",
+              `
+                <strong>Verification status refreshed.</strong><br><br>
+                Email verified: ${onboardingState.emailVerified ? "Yes" : "No"}<br>
+                SMS verified: ${onboardingState.smsVerified ? "Yes" : "No"}
+              `
+            );
+          }
+        }
+      } catch (error) {
+        if (showMessage) {
+          showStatus("error", "Unable to refresh verification status right now.");
+        }
+      } finally {
+        setButtonLoading(refreshStatusBtn, false, "Refreshing...", "Refresh Verification Status");
+      }
+    }
+
     checkboxIds.forEach((id) => {
       const input = document.getElementById(id);
       if (input) {
@@ -981,8 +1341,7 @@
       e.preventDefault();
       clearStatus();
 
-      submitBtn.disabled = true;
-      submitBtn.textContent = "Submitting Application...";
+      setButtonLoading(submitBtn, true, "Submitting Application...", "Submit Driver Application");
 
       const payload = {
         firstName: document.getElementById("firstName").value.trim(),
@@ -1008,36 +1367,31 @@
 
       if (!payload.firstName || !payload.lastName || !payload.email || !payload.phone) {
         showStatus("error", "First name, last name, email, and phone are required.");
-        submitBtn.disabled = false;
-        submitBtn.textContent = "Submit Driver Application";
+        setButtonLoading(submitBtn, false, "Submitting Application...", "Submit Driver Application");
         return;
       }
 
       if (!payload.city || !payload.state) {
         showStatus("error", "City and state are required.");
-        submitBtn.disabled = false;
-        submitBtn.textContent = "Submit Driver Application";
+        setButtonLoading(submitBtn, false, "Submitting Application...", "Submit Driver Application");
         return;
       }
 
       if (!payload.licenseNumber) {
         showStatus("error", "Driver license number is required.");
-        submitBtn.disabled = false;
-        submitBtn.textContent = "Submit Driver Application";
+        setButtonLoading(submitBtn, false, "Submitting Application...", "Submit Driver Application");
         return;
       }
 
       if (!payload.vehicleMake || !payload.vehicleModel || payload.vehicleYear.length !== 4) {
         showStatus("error", "Vehicle make, model, and valid 4-digit year are required.");
-        submitBtn.disabled = false;
-        submitBtn.textContent = "Submit Driver Application";
+        setButtonLoading(submitBtn, false, "Submitting Application...", "Submit Driver Application");
         return;
       }
 
       if (!payload.password) {
         showStatus("error", "Password is required.");
-        submitBtn.disabled = false;
-        submitBtn.textContent = "Submit Driver Application";
+        setButtonLoading(submitBtn, false, "Submitting Application...", "Submit Driver Application");
         return;
       }
 
@@ -1047,8 +1401,7 @@
         !payload.consents.insuranceConfirmed
       ) {
         showStatus("error", "Please accept all required onboarding acknowledgments before submitting.");
-        submitBtn.disabled = false;
-        submitBtn.textContent = "Submit Driver Application";
+        setButtonLoading(submitBtn, false, "Submitting Application...", "Submit Driver Application");
         return;
       }
 
@@ -1071,35 +1424,235 @@
           return;
         }
 
-        const driverId = data.driver_id || data.driver?.id || "Created";
-        const status = data.status || data.driver?.verification_status || "pending";
+        const driver = data.driver || {};
+        onboardingState.driverId = data.driver_id || driver.id || "";
+        onboardingState.email = payload.email;
+        onboardingState.phone = payload.phone;
+        onboardingState.emailVerified = driver.email_verified === true;
+        onboardingState.smsVerified = driver.sms_verified === true;
+        onboardingState.fullyVerified = driver.fully_verified === true;
+
+        saveOnboardingState();
+        showVerificationSection();
+
+        const emailDelivery = data.verification?.email?.delivery || "pending";
+        const smsDelivery = data.verification?.sms?.delivery || "pending";
 
         showStatus(
           "success",
           `
             <strong>Driver application submitted successfully.</strong><br><br>
-            <strong>Driver ID:</strong> ${driverId}<br>
-            <strong>Status:</strong> ${status}<br><br>
-            Your application is pending review and approval.
+            <strong>Driver ID:</strong> ${onboardingState.driverId || "Created"}<br>
+            <strong>Email:</strong> ${emailDelivery}<br>
+            <strong>SMS:</strong> ${smsDelivery}<br><br>
+            Check your email for the verification link and enter your SMS code below.
           `
         );
 
-        driverForm.reset();
-        toggleConsentCardState();
-        updateFormHint();
+        await refreshVerificationStatus(false);
       } catch (error) {
         showStatus(
           "error",
           "Unable to submit the driver application right now. Please try again."
         );
       } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = "Submit Driver Application";
+        setButtonLoading(submitBtn, false, "Submitting Application...", "Submit Driver Application");
       }
     });
 
+    verifySmsBtn.addEventListener("click", async () => {
+      clearStatus();
+
+      const code = onlyDigits(smsCodeInput.value).slice(0, 6);
+
+      if (!onboardingState.driverId) {
+        showStatus("error", "Driver verification session not found. Submit your driver application first.");
+        return;
+      }
+
+      if (code.length !== 6) {
+        showStatus("error", "Enter the 6-digit SMS verification code.");
+        return;
+      }
+
+      try {
+        setButtonLoading(verifySmsBtn, true, "Verifying SMS...", "Verify SMS Code");
+
+        const response = await fetch(`${apiBase()}/api/driver/verify-sms`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            driver_id: onboardingState.driverId,
+            code
+          })
+        });
+
+        const data = await readJsonSafe(response);
+
+        if (!response.ok || !data.success) {
+          showStatus(
+            "error",
+            data.error || data.message || "Unable to verify the SMS code."
+          );
+          return;
+        }
+
+        smsCodeInput.value = "";
+        await refreshVerificationStatus(false);
+
+        if (onboardingState.fullyVerified) {
+          showStatus(
+            "success",
+            `
+              <strong>Driver verification complete.</strong><br><br>
+              Email verification and SMS verification are complete.<br>
+              Your driver profile can continue through approval review.
+            `
+          );
+        } else {
+          showStatus(
+            "success",
+            `
+              <strong>SMS verified successfully.</strong><br><br>
+              If your email is not verified yet, open the Harvey Taxi email verification link to finish onboarding.
+            `
+          );
+        }
+      } catch (error) {
+        showStatus("error", "Unable to verify the SMS code right now.");
+      } finally {
+        setButtonLoading(verifySmsBtn, false, "Verifying SMS...", "Verify SMS Code");
+      }
+    });
+
+    refreshStatusBtn.addEventListener("click", async () => {
+      clearStatus();
+
+      if (!onboardingState.driverId) {
+        showStatus("error", "Driver verification session not found. Submit your driver application first.");
+        return;
+      }
+
+      await refreshVerificationStatus(true);
+    });
+
+    resendEmailBtn.addEventListener("click", async () => {
+      clearStatus();
+
+      if (!onboardingState.driverId && !onboardingState.email) {
+        showStatus("error", "Driver verification session not found. Submit your driver application first.");
+        return;
+      }
+
+      try {
+        setButtonLoading(resendEmailBtn, true, "Resending Email...", "Resend Email Link");
+
+        const response = await fetch(`${apiBase()}/api/driver/resend-email-verification`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            driver_id: onboardingState.driverId,
+            email: onboardingState.email
+          })
+        });
+
+        const data = await readJsonSafe(response);
+
+        if (!response.ok || !data.success) {
+          showStatus(
+            "error",
+            data.error || data.message || "Unable to resend the verification email."
+          );
+          return;
+        }
+
+        showStatus(
+          "success",
+          `
+            <strong>Email verification link resent.</strong><br><br>
+            Sent to ${data.sent_to || maskEmail(onboardingState.email)}.
+          `
+        );
+      } catch (error) {
+        showStatus("error", "Unable to resend the verification email right now.");
+      } finally {
+        setButtonLoading(resendEmailBtn, false, "Resending Email...", "Resend Email Link");
+      }
+    });
+
+    resendSmsBtn.addEventListener("click", async () => {
+      clearStatus();
+
+      if (!onboardingState.driverId && !onboardingState.phone) {
+        showStatus("error", "Driver verification session not found. Submit your driver application first.");
+        return;
+      }
+
+      try {
+        setButtonLoading(resendSmsBtn, true, "Resending SMS...", "Resend SMS Code");
+
+        const response = await fetch(`${apiBase()}/api/driver/resend-sms-verification`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            driver_id: onboardingState.driverId,
+            phone: onboardingState.phone
+          })
+        });
+
+        const data = await readJsonSafe(response);
+
+        if (!response.ok || !data.success) {
+          showStatus(
+            "error",
+            data.error || data.message || "Unable to resend the SMS code."
+          );
+          return;
+        }
+
+        showStatus(
+          "success",
+          `
+            <strong>SMS verification code resent.</strong><br><br>
+            Sent to ${data.sent_to || maskPhone(onboardingState.phone)}.
+          `
+        );
+      } catch (error) {
+        showStatus("error", "Unable to resend the SMS code right now.");
+      } finally {
+        setButtonLoading(resendSmsBtn, false, "Resending SMS...", "Resend SMS Code");
+      }
+    });
+
+    startOverBtn.addEventListener("click", () => {
+      clearStatus();
+      clearOnboardingState();
+      smsCodeInput.value = "";
+      hideVerificationSection();
+      driverForm.reset();
+      toggleConsentCardState();
+      updateFormHint();
+      showStatus(
+        "success",
+        "Driver signup form reset. You can start a new driver onboarding submission."
+      );
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+
+    loadOnboardingState();
     toggleConsentCardState();
     updateFormHint();
+
+    if (onboardingState.driverId) {
+      showVerificationSection();
+      refreshVerificationStatus(false);
+    }
   </script>
 </body>
 </html>
