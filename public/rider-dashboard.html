@@ -1,116 +1,1173 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Harvey Taxi — Rider Dashboard</title>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+  />
+  <title>Harvey Taxi — Rider Dashboard</title>
+  <meta
+    name="description"
+    content="Harvey Taxi futuristic rider dashboard with destination search, saved places, ride tools, active trips, and support."
+  />
 
-<style>
-body{
-font-family:Inter,Arial,sans-serif;
-background:#040814;
-color:white;
-margin:0;
-padding:0;
-}
+  <style>
+    :root{
+      --bg1:#040814;
+      --bg2:#091126;
+      --bg3:#101935;
+      --panel:rgba(10,17,38,.90);
+      --panel2:rgba(16,27,58,.86);
+      --panel3:rgba(255,255,255,.03);
+      --line:rgba(122,162,255,.16);
+      --line-strong:rgba(122,162,255,.30);
+      --text:#f4f7ff;
+      --muted:#aab8de;
+      --blue:#5ea0ff;
+      --cyan:#63f5ff;
+      --green:#6dffb3;
+      --gold:#ffd76a;
+      --danger:#ff7e97;
+      --shadow:0 20px 70px rgba(0,0,0,.35);
+      --radius:24px;
+      --max:1120px;
+    }
 
-.header{
-padding:20px;
-font-size:22px;
-font-weight:700;
-border-bottom:1px solid rgba(255,255,255,.1);
-}
+    *{
+      box-sizing:border-box;
+      margin:0;
+      padding:0;
+    }
 
-.card{
-margin:16px;
-padding:18px;
-background:#0b162d;
-border-radius:14px;
-}
+    html{
+      scroll-behavior:smooth;
+    }
 
-button{
-width:100%;
-padding:16px;
-border-radius:12px;
-border:none;
-margin-top:10px;
-font-weight:600;
-background:linear-gradient(135deg,#4facfe,#00f2fe);
-color:black;
-}
+    body{
+      font-family:Inter, Arial, sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(99,245,255,.12), transparent 30%),
+        radial-gradient(circle at top right, rgba(94,160,255,.10), transparent 28%),
+        linear-gradient(160deg, var(--bg1), var(--bg2) 50%, var(--bg3));
+      min-height:100vh;
+      overflow-x:hidden;
+    }
 
-.trip{
-padding:12px;
-background:#111a2e;
-border-radius:10px;
-margin-top:10px;
-}
+    a{
+      color:inherit;
+      text-decoration:none;
+    }
 
-</style>
+    button,
+    input{
+      font:inherit;
+    }
+
+    .shell{
+      max-width:var(--max);
+      margin:auto;
+      padding:18px 16px 140px;
+    }
+
+    .topbar{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:14px;
+      padding:14px 18px;
+      border:1px solid var(--line);
+      border-radius:999px;
+      background:rgba(7,12,28,.78);
+      backdrop-filter:blur(12px);
+      margin-bottom:18px;
+      box-shadow:var(--shadow);
+      position:sticky;
+      top:14px;
+      z-index:50;
+    }
+
+    .brand-wrap{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      min-width:0;
+    }
+
+    .logo-dot{
+      width:12px;
+      height:12px;
+      border-radius:50%;
+      background:linear-gradient(135deg,var(--cyan),var(--blue));
+      box-shadow:0 0 18px rgba(99,245,255,.55);
+      flex-shrink:0;
+    }
+
+    .brand-block{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+      min-width:0;
+    }
+
+    .brand{
+      font-weight:900;
+      letter-spacing:.12em;
+      font-size:14px;
+      white-space:nowrap;
+    }
+
+    .brand-sub{
+      font-size:11px;
+      color:var(--muted);
+      letter-spacing:.08em;
+      text-transform:uppercase;
+    }
+
+    .top-actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+
+    .top-chip{
+      padding:10px 14px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.08);
+      background:rgba(255,255,255,.03);
+      color:var(--muted);
+      font-size:13px;
+      font-weight:700;
+      transition:.18s ease;
+      cursor:pointer;
+    }
+
+    .top-chip:hover{
+      color:#fff;
+      background:rgba(255,255,255,.06);
+    }
+
+    .hero{
+      position:relative;
+      overflow:hidden;
+      background:
+        linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.015)),
+        var(--panel);
+      padding:28px;
+      border-radius:28px;
+      border:1px solid var(--line);
+      margin-bottom:18px;
+      box-shadow:var(--shadow);
+    }
+
+    .hero::before{
+      content:"";
+      position:absolute;
+      top:-70px;
+      right:-70px;
+      width:260px;
+      height:260px;
+      border-radius:50%;
+      background:radial-gradient(circle,rgba(99,245,255,.16),transparent 65%);
+      pointer-events:none;
+    }
+
+    .hero::after{
+      content:"";
+      position:absolute;
+      left:-70px;
+      bottom:-70px;
+      width:220px;
+      height:220px;
+      border-radius:50%;
+      background:radial-gradient(circle,rgba(94,160,255,.10),transparent 65%);
+      pointer-events:none;
+    }
+
+    .welcome{
+      position:relative;
+      z-index:2;
+      margin-bottom:20px;
+    }
+
+    .welcome-badge{
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      padding:10px 14px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.08);
+      background:rgba(255,255,255,.04);
+      color:var(--cyan);
+      font-size:12px;
+      font-weight:800;
+      letter-spacing:.05em;
+      text-transform:uppercase;
+      margin-bottom:14px;
+    }
+
+    .welcome h1{
+      font-size:42px;
+      line-height:1.04;
+      margin-bottom:10px;
+    }
+
+    .welcome p{
+      color:var(--muted);
+      font-size:16px;
+      line-height:1.7;
+      max-width:760px;
+    }
+
+    .search-card{
+      position:relative;
+      z-index:2;
+      margin-top:22px;
+      padding:18px;
+      border-radius:24px;
+      border:1px solid rgba(99,245,255,.16);
+      background:linear-gradient(135deg,rgba(99,245,255,.08),rgba(94,160,255,.04));
+    }
+
+    .search-button{
+      width:100%;
+      display:flex;
+      align-items:center;
+      gap:14px;
+      padding:18px 18px;
+      border:none;
+      border-radius:20px;
+      background:rgba(255,255,255,.96);
+      color:#1b2030;
+      font-size:20px;
+      font-weight:700;
+      cursor:pointer;
+      box-shadow:0 10px 28px rgba(0,0,0,.16);
+      text-align:left;
+    }
+
+    .search-icon{
+      width:44px;
+      height:44px;
+      border-radius:14px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:linear-gradient(135deg,var(--cyan),var(--blue));
+      color:#04111f;
+      font-size:20px;
+      flex-shrink:0;
+    }
+
+    .chip-row{
+      display:flex;
+      flex-wrap:wrap;
+      gap:12px;
+      margin-top:16px;
+    }
+
+    .action-chip{
+      padding:14px 16px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.08);
+      background:rgba(255,255,255,.05);
+      color:var(--text);
+      font-size:14px;
+      font-weight:800;
+      cursor:pointer;
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+    }
+
+    .action-chip:hover{
+      background:rgba(255,255,255,.08);
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns:1.05fr .95fr;
+      gap:16px;
+      margin-top:18px;
+    }
+
+    .section{
+      background:var(--panel);
+      padding:24px;
+      border-radius:24px;
+      border:1px solid var(--line);
+      box-shadow:var(--shadow);
+    }
+
+    .section-header{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-end;
+      gap:12px;
+      flex-wrap:wrap;
+      margin-bottom:16px;
+    }
+
+    .section-header h2{
+      font-size:28px;
+      margin-bottom:4px;
+    }
+
+    .section-header p{
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.7;
+      max-width:720px;
+    }
+
+    .places{
+      display:grid;
+      gap:12px;
+    }
+
+    .place-card{
+      display:flex;
+      align-items:center;
+      gap:14px;
+      padding:18px;
+      border-radius:20px;
+      border:1px solid rgba(255,255,255,.07);
+      background:rgba(255,255,255,.03);
+      transition:.18s ease;
+      cursor:pointer;
+    }
+
+    .place-card:hover{
+      transform:translateY(-1px);
+      background:rgba(255,255,255,.045);
+      border-color:var(--line-strong);
+    }
+
+    .place-icon{
+      width:54px;
+      height:54px;
+      border-radius:18px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:24px;
+      flex-shrink:0;
+      background:linear-gradient(135deg,rgba(99,245,255,.18),rgba(94,160,255,.18));
+      border:1px solid rgba(99,245,255,.18);
+    }
+
+    .place-copy{
+      flex:1;
+      min-width:0;
+    }
+
+    .place-copy strong{
+      display:block;
+      font-size:18px;
+      margin-bottom:4px;
+    }
+
+    .place-copy span{
+      display:block;
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.6;
+    }
+
+    .place-arrow{
+      color:var(--muted);
+      font-size:22px;
+      flex-shrink:0;
+    }
+
+    .services-grid{
+      display:grid;
+      grid-template-columns:repeat(2,1fr);
+      gap:12px;
+    }
+
+    .service-card{
+      padding:18px;
+      border-radius:20px;
+      border:1px solid rgba(255,255,255,.07);
+      background:rgba(255,255,255,.03);
+      transition:.18s ease;
+      cursor:pointer;
+      min-height:100%;
+    }
+
+    .service-card:hover{
+      transform:translateY(-1px);
+      background:rgba(255,255,255,.045);
+      border-color:var(--line-strong);
+    }
+
+    .service-icon{
+      width:52px;
+      height:52px;
+      border-radius:18px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:24px;
+      margin-bottom:12px;
+      background:linear-gradient(135deg,rgba(99,245,255,.16),rgba(94,160,255,.16));
+      border:1px solid rgba(99,245,255,.14);
+    }
+
+    .service-card strong{
+      display:block;
+      margin-bottom:8px;
+      font-size:17px;
+    }
+
+    .service-card span{
+      display:block;
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.6;
+    }
+
+    .status-strip{
+      margin-top:18px;
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:12px;
+    }
+
+    .status-card{
+      padding:16px;
+      border-radius:18px;
+      border:1px solid rgba(255,255,255,.07);
+      background:rgba(255,255,255,.03);
+    }
+
+    .status-card strong{
+      display:block;
+      font-size:20px;
+      margin-bottom:6px;
+    }
+
+    .status-card span{
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.6;
+      display:block;
+    }
+
+    .section-stack{
+      display:grid;
+      gap:18px;
+      margin-top:18px;
+    }
+
+    .trip-list{
+      display:grid;
+      gap:12px;
+    }
+
+    .trip-card{
+      padding:18px;
+      border-radius:20px;
+      border:1px solid rgba(255,255,255,.08);
+      background:rgba(255,255,255,.03);
+      display:grid;
+      gap:12px;
+    }
+
+    .trip-top{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+
+    .trip-title{
+      font-size:17px;
+      font-weight:800;
+    }
+
+    .trip-sub{
+      color:var(--muted);
+      font-size:14px;
+      margin-top:4px;
+    }
+
+    .trip-status{
+      padding:8px 12px;
+      border-radius:999px;
+      font-size:11px;
+      font-weight:900;
+      letter-spacing:.05em;
+      text-transform:uppercase;
+      border:1px solid rgba(255,255,255,.08);
+      background:rgba(255,255,255,.06);
+      color:var(--muted);
+    }
+
+    .trip-status.active{
+      background:linear-gradient(135deg,var(--cyan),var(--blue));
+      color:#04111f;
+      border:none;
+    }
+
+    .trip-status.completed{
+      background:linear-gradient(135deg,var(--green),#89ffd0);
+      color:#062014;
+      border:none;
+    }
+
+    .trip-meta{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:10px;
+    }
+
+    .meta-card{
+      padding:12px;
+      border-radius:16px;
+      background:rgba(255,255,255,.03);
+      border:1px solid rgba(255,255,255,.05);
+    }
+
+    .meta-card small{
+      display:block;
+      color:var(--muted);
+      font-size:11px;
+      margin-bottom:6px;
+      text-transform:uppercase;
+      letter-spacing:.05em;
+    }
+
+    .meta-card span{
+      display:block;
+      font-size:14px;
+      line-height:1.6;
+      word-break:break-word;
+    }
+
+    .account-panel{
+      padding:22px;
+      border-radius:22px;
+      border:1px solid rgba(255,255,255,.07);
+      background:
+        linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.015)),
+        var(--panel2);
+    }
+
+    .account-panel h3{
+      font-size:22px;
+      margin-bottom:8px;
+    }
+
+    .account-panel p{
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.7;
+      margin-bottom:16px;
+    }
+
+    .pill-row{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      margin-bottom:18px;
+    }
+
+    .pill{
+      padding:10px 14px;
+      border-radius:999px;
+      background:rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.08);
+      font-size:13px;
+      font-weight:700;
+      color:var(--muted);
+    }
+
+    .pill.ok{
+      background:linear-gradient(135deg,var(--green),#89ffd0);
+      color:#062014;
+      border:none;
+    }
+
+    .account-actions{
+      display:flex;
+      flex-wrap:wrap;
+      gap:12px;
+    }
+
+    .btn{
+      padding:14px 18px;
+      border-radius:14px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.04);
+      color:white;
+      font-weight:800;
+      cursor:pointer;
+      transition:.18s ease;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      min-height:48px;
+      text-align:center;
+    }
+
+    .btn:hover{
+      transform:translateY(-1px);
+      background:rgba(255,255,255,.06);
+    }
+
+    .btn.primary{
+      background:linear-gradient(135deg,var(--cyan),var(--blue));
+      color:#07121f;
+      border:none;
+    }
+
+    .btn.success{
+      background:linear-gradient(135deg,var(--green),#89ffd0);
+      color:#062014;
+      border:none;
+    }
+
+    .btn.ghost{
+      background:transparent;
+    }
+
+    .btn.danger{
+      background:linear-gradient(135deg,#ff9bb0,var(--danger));
+      color:#2b0712;
+      border:none;
+    }
+
+    .footer{
+      margin-top:18px;
+      padding:20px;
+      border-radius:24px;
+      border:1px solid var(--line);
+      background:var(--panel);
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      flex-wrap:wrap;
+      gap:16px;
+      box-shadow:var(--shadow);
+    }
+
+    .footer p{
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.7;
+      max-width:700px;
+    }
+
+    .bottom-nav{
+      position:fixed;
+      left:0;
+      right:0;
+      bottom:0;
+      background:rgba(6,12,26,.96);
+      backdrop-filter:blur(14px);
+      border-top:1px solid rgba(255,255,255,.08);
+      display:flex;
+      justify-content:space-around;
+      padding:12px 8px calc(12px + env(safe-area-inset-bottom));
+      z-index:1000;
+    }
+
+    .nav-btn{
+      color:var(--muted);
+      background:none;
+      border:none;
+      font-size:13px;
+      font-weight:700;
+      cursor:pointer;
+      padding:6px 10px;
+    }
+
+    .nav-btn.active{
+      color:white;
+    }
+
+    .empty-state{
+      padding:18px;
+      border-radius:18px;
+      border:1px dashed rgba(122,162,255,.22);
+      background:rgba(255,255,255,.02);
+      color:var(--muted);
+      line-height:1.7;
+    }
+
+    @media(max-width:980px){
+      .grid{
+        grid-template-columns:1fr;
+      }
+
+      .status-strip{
+        grid-template-columns:repeat(2,1fr);
+      }
+
+      .welcome h1{
+        font-size:34px;
+      }
+    }
+
+    @media(max-width:700px){
+      .shell{
+        padding:14px 12px 140px;
+      }
+
+      .topbar{
+        border-radius:24px;
+        padding:14px;
+        align-items:flex-start;
+        flex-direction:column;
+      }
+
+      .top-actions{
+        width:100%;
+        justify-content:flex-start;
+      }
+
+      .top-chip{
+        flex:1;
+        text-align:center;
+      }
+
+      .hero,
+      .section{
+        padding:20px;
+      }
+
+      .welcome h1{
+        font-size:28px;
+      }
+
+      .services-grid,
+      .status-strip,
+      .trip-meta{
+        grid-template-columns:1fr;
+      }
+
+      .actions,
+      .account-actions{
+        flex-direction:column;
+      }
+
+      .btn{
+        width:100%;
+      }
+
+      .search-button{
+        font-size:18px;
+        padding:16px;
+      }
+    }
+  </style>
 </head>
 
 <body>
+  <div class="shell">
 
-<div class="header">
-Rider Dashboard
-</div>
+    <div class="topbar">
+      <div class="brand-wrap">
+        <div class="logo-dot"></div>
+        <div class="brand-block">
+          <div class="brand">HARVEY TAXI</div>
+          <div class="brand-sub">Rider Dashboard</div>
+        </div>
+      </div>
 
-<div class="card">
-<h3>Request Ride</h3>
-<button onclick="requestRide()">Book Ride</button>
-</div>
+      <div class="top-actions">
+        <button class="top-chip" onclick="location.href='index.html'">Home</button>
+        <button class="top-chip" onclick="location.href='support.html'">Support</button>
+        <button class="top-chip" onclick="location.href='request-ride.html?mode=driver'">Book</button>
+      </div>
+    </div>
 
-<div class="card">
-<h3>My Trips</h3>
-<div id="trips"></div>
-</div>
+    <div class="hero">
+      <div class="welcome">
+        <div class="welcome-badge">Futuristic rider control center • Harvey Taxi</div>
+        <h1>Buckle up, Willie.</h1>
+        <p>
+          Search your next destination, manage your rider profile, review trip activity,
+          and launch Harvey Taxi services from one clean consumer-style dashboard built for speed.
+        </p>
+      </div>
 
-<div class="card">
-<h3>Account</h3>
-<button onclick="logout()">Logout</button>
-</div>
+      <div class="search-card">
+        <button class="search-button" onclick="goRequestRide()">
+          <div class="search-icon">⌕</div>
+          <span>Where are you going?</span>
+        </button>
 
-<script>
+        <div class="chip-row">
+          <button class="action-chip" onclick="goRequestRide('scheduled')">📅 Schedule ahead</button>
+          <button class="action-chip" onclick="changeRider()">👤 Change rider</button>
+          <button class="action-chip" onclick="goSupport()">🛟 Support</button>
+          <button class="action-chip" onclick="goRequestRide('medical')">🏥 Medical ride</button>
+        </div>
+      </div>
+    </div>
 
-async function requestRide(){
-window.location.href="/request-ride.html";
-}
+    <div class="grid">
+      <div class="section">
+        <div class="section-header">
+          <div>
+            <h2>Saved places</h2>
+            <p>Quick launch destinations inspired by the best consumer ride apps, rebuilt for Harvey Taxi.</p>
+          </div>
+        </div>
 
-async function loadTrips(){
+        <div class="places">
+          <div class="place-card" onclick="quickDestination('Work','2080 Aldi Blvd, Mt Juliet, TN')">
+            <div class="place-icon">💼</div>
+            <div class="place-copy">
+              <strong>Work</strong>
+              <span>2080 Aldi Blvd, Mt Juliet, TN</span>
+            </div>
+            <div class="place-arrow">›</div>
+          </div>
 
-try{
+          <div class="place-card" onclick="quickDestination('Home','Add shortcut')">
+            <div class="place-icon">🏠</div>
+            <div class="place-copy">
+              <strong>Home</strong>
+              <span>Add shortcut</span>
+            </div>
+            <div class="place-arrow">›</div>
+          </div>
 
-const res = await fetch("/api/rides");
-const data = await res.json();
+          <div class="place-card" onclick="quickDestination('BNA Airport','1 Terminal Dr, Nashville, TN')">
+            <div class="place-icon">✈️</div>
+            <div class="place-copy">
+              <strong>BNA Airport</strong>
+              <span>Fast airport request flow</span>
+            </div>
+            <div class="place-arrow">›</div>
+          </div>
+        </div>
+      </div>
 
-const trips = document.getElementById("trips");
-trips.innerHTML="";
+      <div class="section">
+        <div class="section-header">
+          <div>
+            <h2>Ride tools</h2>
+            <p>Fast consumer-style actions for rides, support, and future Harvey expansion.</p>
+          </div>
+        </div>
 
-data.forEach(trip=>{
-const div=document.createElement("div");
-div.className="trip";
-div.innerHTML=`
-Pickup: ${trip.pickup || "-"}<br>
-Dropoff: ${trip.dropoff || "-"}<br>
-Status: ${trip.status || "pending"}
-`;
-trips.appendChild(div);
-});
+        <div class="services-grid">
+          <div class="service-card" onclick="goRequestRide()">
+            <div class="service-icon">🚖</div>
+            <strong>Ride now</strong>
+            <span>Open the live Harvey Taxi booking flow.</span>
+          </div>
 
-}catch(e){
-console.log(e);
-}
+          <div class="service-card" onclick="goRequestRide('scheduled')">
+            <div class="service-icon">📅</div>
+            <strong>Reserve</strong>
+            <span>Plan transportation ahead of time.</span>
+          </div>
 
-}
+          <div class="service-card" onclick="goRequestRide('airport')">
+            <div class="service-icon">🛄</div>
+            <strong>Airport</strong>
+            <span>Launch a quick airport trip request.</span>
+          </div>
 
-function logout(){
-localStorage.removeItem("rider");
-window.location.href="/";
-}
+          <div class="service-card" onclick="goRequestRide('autonomous')">
+            <div class="service-icon">🤖</div>
+            <strong>AV Pilot</strong>
+            <span>Explore Harvey’s autonomous pilot mode.</span>
+          </div>
+        </div>
+      </div>
+    </div>
 
-loadTrips();
+    <div class="section">
+      <div class="section-header">
+        <div>
+          <h2>Rider status</h2>
+          <p>Your Harvey Taxi account readiness, trip access, and payment state in one place.</p>
+        </div>
+      </div>
 
-</script>
+      <div class="status-strip">
+        <div class="status-card">
+          <strong id="statusApproval">Approved</strong>
+          <span>Rider account readiness</span>
+        </div>
 
+        <div class="status-card">
+          <strong id="statusPayment">Ready</strong>
+          <span>Payment authorization state</span>
+        </div>
+
+        <div class="status-card">
+          <strong id="statusTrips">0</strong>
+          <span>Total trips loaded</span>
+        </div>
+
+        <div class="status-card">
+          <strong>Tennessee</strong>
+          <span>Current launch service focus</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="section">
+        <div class="section-header">
+          <div>
+            <h2>My trips</h2>
+            <p>Your latest Harvey Taxi ride activity appears below.</p>
+          </div>
+        </div>
+
+        <div id="tripList" class="trip-list"></div>
+
+        <div id="tripEmpty" class="empty-state" style="display:none;">
+          No trips are showing yet. Book your next ride to start building your Harvey Taxi history.
+        </div>
+      </div>
+
+      <div class="section-stack">
+        <div class="account-panel">
+          <h3>Account</h3>
+          <p>
+            Manage your rider experience, support access, and trip tools from this dashboard.
+          </p>
+
+          <div class="pill-row">
+            <div class="pill ok">Rider profile active</div>
+            <div class="pill">Support available</div>
+            <div class="pill">Trip-ready flow</div>
+          </div>
+
+          <div class="account-actions">
+            <button class="btn primary" onclick="goRequestRide()">Book Ride</button>
+            <button class="btn ghost" onclick="goSupport()">Support</button>
+            <button class="btn danger" onclick="logout()">Logout</button>
+          </div>
+        </div>
+
+        <div class="account-panel">
+          <h3>Need help fast?</h3>
+          <p>
+            Open Harvey support, get payment help, ask about assistance rides, or review your rider flow.
+          </p>
+
+          <div class="account-actions">
+            <button class="btn success" onclick="goSupport()">Open Support</button>
+            <button class="btn ghost" onclick="goHome()">Back Home</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div>
+        <strong style="display:block;margin-bottom:8px;">Harvey Taxi Service LLC</strong>
+        <p>
+          A futuristic consumer ride dashboard inspired by leading mobility apps, rebuilt for Harvey Taxi with
+          rider readiness, saved places, trip visibility, and fast service access.
+        </p>
+      </div>
+
+      <div class="account-actions">
+        <button class="btn ghost" onclick="goHome()">Home</button>
+        <button class="btn ghost" onclick="goSupport()">Support</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-nav">
+    <button class="nav-btn" onclick="location.href='index.html'">Home</button>
+    <button class="nav-btn active" onclick="location.href='rider-dashboard.html'">Trips</button>
+    <button class="nav-btn" onclick="location.href='support.html'">Safety</button>
+    <button class="nav-btn" onclick="location.href='driver-dashboard.html'">Driver</button>
+  </div>
+
+  <script>
+    function goHome() {
+      window.location.href = "index.html";
+    }
+
+    function goSupport() {
+      window.location.href = "support.html";
+    }
+
+    function changeRider() {
+      alert("Rider switching can be connected later. For now, continue with your active rider profile.");
+    }
+
+    function goRequestRide(mode) {
+      if (!mode) {
+        window.location.href = "request-ride.html?mode=driver";
+        return;
+      }
+
+      if (mode === "autonomous") {
+        window.location.href = "request-ride.html?mode=autonomous";
+        return;
+      }
+
+      window.location.href = "request-ride.html?mode=driver&type=" + encodeURIComponent(mode);
+    }
+
+    function quickDestination(label, address) {
+      if (!address || address === "Add shortcut") {
+        alert(label + " shortcut can be added in a future saved-places flow.");
+        return;
+      }
+
+      window.location.href =
+        "request-ride.html?mode=driver&destination=" + encodeURIComponent(address);
+    }
+
+    function logout() {
+      localStorage.removeItem("rider");
+      localStorage.removeItem("riderId");
+      localStorage.removeItem("rider_id");
+      window.location.href = "index.html";
+    }
+
+    function formatStatus(status) {
+      const value = String(status || "pending").toLowerCase();
+      if (value.includes("complete")) return "completed";
+      if (value.includes("active") || value.includes("ongoing") || value.includes("accepted")) return "active";
+      return "pending";
+    }
+
+    function niceStatus(status) {
+      const value = formatStatus(status);
+      if (value === "completed") return "Completed";
+      if (value === "active") return "Active";
+      return "Pending";
+    }
+
+    function renderTrips(trips) {
+      const tripList = document.getElementById("tripList");
+      const tripEmpty = document.getElementById("tripEmpty");
+      const totalTrips = document.getElementById("statusTrips");
+
+      tripList.innerHTML = "";
+      totalTrips.textContent = Array.isArray(trips) ? trips.length : 0;
+
+      if (!Array.isArray(trips) || trips.length === 0) {
+        tripEmpty.style.display = "block";
+        return;
+      }
+
+      tripEmpty.style.display = "none";
+
+      trips.slice(0, 6).forEach((trip) => {
+        const pickup =
+          trip.pickup ||
+          trip.pickup_address ||
+          trip.origin ||
+          trip.from ||
+          "Pickup not available";
+
+        const dropoff =
+          trip.dropoff ||
+          trip.destination ||
+          trip.destination_address ||
+          trip.to ||
+          "Destination not available";
+
+        const fare =
+          trip.fare ||
+          trip.total ||
+          trip.estimated_fare ||
+          trip.amount ||
+          "—";
+
+        const rideType =
+          trip.ride_type ||
+          trip.type ||
+          trip.requestedMode ||
+          "Standard";
+
+        const statusClass = formatStatus(trip.status);
+        const statusText = niceStatus(trip.status);
+
+        const card = document.createElement("div");
+        card.className = "trip-card";
+        card.innerHTML = `
+          <div class="trip-top">
+            <div>
+              <div class="trip-title">${pickup}</div>
+              <div class="trip-sub">to ${dropoff}</div>
+            </div>
+            <div class="trip-status ${statusClass}">${statusText}</div>
+          </div>
+
+          <div class="trip-meta">
+            <div class="meta-card">
+              <small>Ride Type</small>
+              <span>${rideType}</span>
+            </div>
+            <div class="meta-card">
+              <small>Fare</small>
+              <span>${fare}</span>
+            </div>
+            <div class="meta-card">
+              <small>Trip ID</small>
+              <span>${trip.ride_id || trip.id || "—"}</span>
+            </div>
+          </div>
+        `;
+        tripList.appendChild(card);
+      });
+    }
+
+    async function loadTrips() {
+      try {
+        const res = await fetch("/api/rides", {
+          credentials: "include"
+        });
+
+        if (!res.ok) throw new Error("Failed to load rides");
+
+        const data = await res.json();
+        const trips = Array.isArray(data) ? data : (Array.isArray(data.rides) ? data.rides : []);
+        renderTrips(trips);
+      } catch (err) {
+        console.error(err);
+        renderTrips([]);
+      }
+    }
+
+    function loadRiderState() {
+      const approval = document.getElementById("statusApproval");
+      const payment = document.getElementById("statusPayment");
+
+      const riderRaw =
+        localStorage.getItem("rider") ||
+        localStorage.getItem("riderProfile") ||
+        null;
+
+      try {
+        const rider = riderRaw ? JSON.parse(riderRaw) : null;
+
+        if (rider && rider.approval_status) {
+          approval.textContent = rider.approval_status;
+        }
+
+        if (rider && rider.payment_status) {
+          payment.textContent = rider.payment_status;
+        }
+      } catch (e) {
+        console.log("No structured rider profile in localStorage.");
+      }
+    }
+
+    loadRiderState();
+    loadTrips();
+  </script>
 </body>
 </html>
