@@ -34,7 +34,7 @@
     }
 
     .shell{
-      max-width:860px;
+      max-width:920px;
       margin:auto;
       padding:20px 16px 40px;
     }
@@ -45,6 +45,7 @@
       align-items:center;
       gap:12px;
       margin-bottom:20px;
+      flex-wrap:wrap;
     }
 
     .brand{
@@ -78,7 +79,7 @@
     }
 
     .hero h1{
-      font-size:1.6rem;
+      font-size:1.7rem;
       margin-bottom:8px;
     }
 
@@ -89,7 +90,7 @@
 
     .grid{
       display:grid;
-      grid-template-columns:1fr;
+      grid-template-columns:1.15fr .85fr;
       gap:18px;
     }
 
@@ -180,7 +181,7 @@
 
     .status-box{
       display:grid;
-      grid-template-columns:1fr 1fr;
+      grid-template-columns:1fr;
       gap:14px;
     }
 
@@ -239,26 +240,37 @@
       flex:1;
     }
 
-    .result{
+    button:disabled{
+      opacity:.7;
+      cursor:wait;
+    }
+
+    .result,
+    .error,
+    .info{
       margin-top:16px;
       display:none;
       padding:16px;
       border-radius:18px;
-      border:1px solid rgba(109,255,179,.18);
-      background:rgba(109,255,179,.08);
-      color:#dffff0;
       line-height:1.6;
     }
 
+    .result{
+      border:1px solid rgba(109,255,179,.18);
+      background:rgba(109,255,179,.08);
+      color:#dffff0;
+    }
+
     .error{
-      margin-top:16px;
-      display:none;
-      padding:16px;
-      border-radius:18px;
       border:1px solid rgba(255,126,151,.2);
       background:rgba(255,126,151,.08);
       color:#ffd9e1;
-      line-height:1.6;
+    }
+
+    .info{
+      border:1px solid rgba(99,245,255,.18);
+      background:rgba(99,245,255,.08);
+      color:#dcfdff;
     }
 
     .note{
@@ -272,9 +284,12 @@
       font-size:.92rem;
     }
 
+    @media (max-width: 860px){
+      .grid{grid-template-columns:1fr}
+    }
+
     @media (max-width: 760px){
       .row,
-      .status-box,
       .doc-row{
         grid-template-columns:1fr;
       }
@@ -291,7 +306,7 @@
     <div class="hero">
       <h1>Rider Sign Up</h1>
       <p>
-        Launch mode is active. Riders can create an account and move directly into the ride request flow after successful signup.
+        Create your Harvey Taxi rider account to begin onboarding. Rider approval status is determined by the platform and must be confirmed before ride requests can move forward.
       </p>
     </div>
 
@@ -299,7 +314,7 @@
       <div class="card">
         <div class="section-title">Rider Account Setup</div>
         <div class="sub">
-          Enter your information below. Riders may verify using a driver license, state ID, or passport.
+          Enter your rider information below. Verification document selection is collected for onboarding context.
         </div>
 
         <div class="row">
@@ -331,13 +346,19 @@
           </div>
           <div class="field">
             <label for="state">State</label>
-            <input class="input" id="state" placeholder="Enter state" />
+            <input class="input" id="state" maxlength="2" placeholder="TN" />
           </div>
         </div>
 
-        <div class="field">
-          <label for="dateOfBirth">Date of Birth</label>
-          <input class="input" id="dateOfBirth" type="date" />
+        <div class="row">
+          <div class="field">
+            <label for="password">Password</label>
+            <input class="input" id="password" type="password" placeholder="Create password" />
+          </div>
+          <div class="field">
+            <label for="confirmPassword">Confirm Password</label>
+            <input class="input" id="confirmPassword" type="password" placeholder="Confirm password" />
+          </div>
         </div>
 
         <div class="field">
@@ -364,6 +385,7 @@
           <button class="primary" id="signupBtn" type="button">Create Rider Account</button>
         </div>
 
+        <div class="info" id="infoBox"></div>
         <div class="result" id="resultBox"></div>
         <div class="error" id="errorBox"></div>
       </div>
@@ -371,7 +393,7 @@
       <div class="card">
         <div class="section-title">Rider Access Status</div>
         <div class="sub">
-          In launch mode, rider accounts are activated for ride access immediately after successful account creation.
+          This panel reflects backend status. Ride requests require rider approval according to the current Harvey Taxi rules.
         </div>
 
         <div class="status-box">
@@ -384,12 +406,12 @@
           <div class="mini">
             <h3>Verification Method</h3>
             <div id="documentText">Driver License selected.</div>
-            <div class="tag ok">Ready</div>
+            <div class="tag ok">Selected</div>
           </div>
         </div>
 
         <div class="note">
-          Drivers remain under protected approval controls, but riders are enabled for launch-mode ride access.
+          Creating a rider account does not override backend approval rules. Check your saved rider status here after signup.
         </div>
       </div>
     </div>
@@ -399,15 +421,18 @@
     let selectedDocumentType = "driver_license";
 
     const docButtons = document.querySelectorAll(".choice");
+    const signupBtn = document.getElementById("signupBtn");
+    const checkBtn = document.getElementById("checkBtn");
     const resultBox = document.getElementById("resultBox");
     const errorBox = document.getElementById("errorBox");
+    const infoBox = document.getElementById("infoBox");
     const accountText = document.getElementById("accountText");
     const accountTag = document.getElementById("accountTag");
     const documentText = document.getElementById("documentText");
 
-    docButtons.forEach(btn => {
+    docButtons.forEach((btn) => {
       btn.addEventListener("click", () => {
-        docButtons.forEach(item => item.classList.remove("active"));
+        docButtons.forEach((item) => item.classList.remove("active"));
         btn.classList.add("active");
         selectedDocumentType = btn.dataset.doc;
 
@@ -417,152 +442,212 @@
           passport: "Passport selected."
         };
 
-        documentText.textContent = labelMap[selectedDocumentType] || "Verification method selected.";
+        documentText.textContent =
+          labelMap[selectedDocumentType] || "Verification method selected.";
       });
     });
 
-    function showError(message){
-      errorBox.style.display = "block";
-      errorBox.textContent = message;
-      resultBox.style.display = "none";
-      resultBox.innerHTML = "";
+    function showBox(box, message) {
+      box.style.display = "block";
+      box.innerHTML = message;
     }
 
-    function showResult(message){
-      resultBox.style.display = "block";
-      resultBox.innerHTML = message;
-      errorBox.style.display = "none";
-      errorBox.textContent = "";
+    function hideBox(box) {
+      box.style.display = "none";
+      box.innerHTML = "";
     }
 
-    function clearMessages(){
-      resultBox.style.display = "none";
-      resultBox.innerHTML = "";
-      errorBox.style.display = "none";
-      errorBox.textContent = "";
+    function clearMessages() {
+      hideBox(resultBox);
+      hideBox(errorBox);
+      hideBox(infoBox);
     }
 
-    function getFormData(){
+    function getFormData() {
       return {
         firstName: document.getElementById("firstName").value.trim(),
         lastName: document.getElementById("lastName").value.trim(),
         email: document.getElementById("email").value.trim(),
         phone: document.getElementById("phone").value.trim(),
         city: document.getElementById("city").value.trim(),
-        state: document.getElementById("state").value.trim(),
-        dateOfBirth: document.getElementById("dateOfBirth").value.trim(),
+        state: document.getElementById("state").value.trim().toUpperCase(),
+        password: document.getElementById("password").value,
+        confirmPassword: document.getElementById("confirmPassword").value,
+        verificationDocumentType: selectedDocumentType,
         emergencyContact: document.getElementById("emergencyContact").value.trim(),
-        notes: document.getElementById("notes").value.trim(),
-        verificationDocumentType: selectedDocumentType
+        notes: document.getElementById("notes").value.trim()
       };
     }
 
-    function validatePayload(payload){
-      if(!payload.firstName) return "First name is required.";
-      if(!payload.lastName) return "Last name is required.";
-      if(!payload.email) return "Email is required.";
-      if(!payload.phone) return "Phone number is required.";
-      if(!payload.city || !payload.state) return "City and state are required.";
-      if(!payload.dateOfBirth) return "Date of birth is required.";
+    function validatePayload(payload) {
+      if (!payload.firstName) return "First name is required.";
+      if (!payload.lastName) return "Last name is required.";
+      if (!payload.email) return "Email is required.";
+      if (!payload.phone) return "Phone number is required.";
+      if (!payload.city) return "City is required.";
+      if (!payload.state) return "State is required.";
+      if (!payload.password) return "Password is required.";
+      if (payload.password !== payload.confirmPassword) return "Passwords do not match.";
       return "";
     }
 
-    async function createRiderAccount(){
+    async function safeJson(response) {
+      const text = await response.text();
+      try {
+        return text ? JSON.parse(text) : {};
+      } catch (error) {
+        return { success: false, message: text || "Invalid server response." };
+      }
+    }
+
+    async function createRiderAccount() {
       clearMessages();
 
       const payload = getFormData();
       const validationError = validatePayload(payload);
 
-      if(validationError){
-        showError(validationError);
+      if (validationError) {
+        showBox(errorBox, validationError);
         return;
       }
 
-      try{
+      signupBtn.disabled = true;
+      signupBtn.textContent = "Creating Account...";
+
+      try {
         const res = await fetch("/api/rider/signup", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
+          body: JSON.stringify({
+            firstName: payload.firstName,
+            lastName: payload.lastName,
+            email: payload.email,
+            phone: payload.phone,
+            city: payload.city,
+            state: payload.state,
+            password: payload.password,
+            verificationDocumentType: payload.verificationDocumentType,
+            emergencyContact: payload.emergencyContact,
+            notes: payload.notes
+          })
         });
 
-        const data = await res.json().catch(() => ({}));
+        const data = await safeJson(res);
 
-        if(!res.ok || !data.ok){
-          showError(data.error || data.message || "Unable to create rider account.");
+        if (!res.ok || !data.success) {
+          showBox(
+            errorBox,
+            data.error || data.message || "Unable to create rider account."
+          );
           return;
         }
 
         const rider = data.rider || {};
-        const riderId = rider.id || data.id || "";
+        const riderId = data.rider_id || rider.id || "";
+        const status = data.status || rider.verification_status || "pending";
+        const approved = data.approved === true || rider.approved === true;
 
         if (riderId) {
           localStorage.setItem("harveyRiderId", riderId);
         }
 
-        accountText.textContent = "Your rider account has been created and ride access is enabled.";
-        accountTag.className = "tag ok";
-        accountTag.textContent = "Approved";
+        if (payload.email) {
+          localStorage.setItem("harveyRiderEmail", payload.email);
+        }
 
-        showResult(`
-          <strong>Rider Account Created</strong><br><br>
-          Your Harvey Taxi rider account has been created successfully.<br><br>
-          <strong>Rider ID:</strong> ${riderId || "Created"}<br>
-          <strong>Status:</strong> Approved for Ride Access<br>
-          <strong>Verification Type:</strong> ${payload.verificationDocumentType.replace("_", " ")}<br><br>
-          Redirecting you to the Request Ride page...
-        `);
+        accountText.textContent = approved
+          ? "Your rider account is approved for ride access."
+          : "Your rider account was created and is waiting for approval.";
+        accountTag.className = approved ? "tag ok" : "tag warn";
+        accountTag.textContent = approved ? "Approved" : "Pending";
 
-        setTimeout(() => {
-          if (riderId) {
-            window.location.href = "/request-ride.html?riderId=" + encodeURIComponent(riderId);
-          }
-        }, 1200);
-      } catch (err) {
-        showError("Unable to reach the rider signup service.");
+        showBox(
+          resultBox,
+          `
+            <strong>Rider Account Created</strong><br><br>
+            <strong>Rider ID:</strong> ${riderId || "Created"}<br>
+            <strong>Status:</strong> ${status}<br>
+            <strong>Verification Type:</strong> ${payload.verificationDocumentType.replace("_", " ")}<br><br>
+            ${
+              approved
+                ? "Your rider account is approved. You can continue to request a ride."
+                : "Your rider account is created, but ride requests remain subject to backend approval rules."
+            }
+          `
+        );
+
+        if (approved && riderId) {
+          showBox(
+            infoBox,
+            `Approved rider detected. You can continue to <a href="/request-ride?riderId=${encodeURIComponent(riderId)}" style="color:#63f5ff;font-weight:800;">Request Ride</a>.`
+          );
+        }
+      } catch (error) {
+        showBox(errorBox, "Unable to reach the rider signup service.");
+      } finally {
+        signupBtn.disabled = false;
+        signupBtn.textContent = "Create Rider Account";
       }
     }
 
-    async function checkRiderStatus(){
+    async function checkRiderStatus() {
       clearMessages();
 
       const storedRiderId = localStorage.getItem("harveyRiderId");
 
-      if(!storedRiderId){
-        showError("No saved rider account found yet. Create your rider account first.");
+      if (!storedRiderId) {
+        showBox(errorBox, "No saved rider account found yet. Create your rider account first.");
         return;
       }
 
-      try{
-        const res = await fetch("/api/riders");
-        const data = await res.json().catch(() => ({}));
+      checkBtn.disabled = true;
+      checkBtn.textContent = "Checking Status...";
 
-        if(!res.ok || !data.ok || !Array.isArray(data.riders)){
-          showError("Unable to load rider account status.");
-          return;
-        }
+      try {
+        const res = await fetch(`/api/riders/${encodeURIComponent(storedRiderId)}`);
+        const data = await safeJson(res);
 
-        const rider = data.riders.find(item => item.id === storedRiderId);
-
-        if(!rider){
+        if (!res.ok || !data.success || !data.rider) {
           accountText.textContent = "Saved rider account could not be found.";
           accountTag.className = "tag bad";
           accountTag.textContent = "Not Found";
-          showError("Saved rider account could not be found.");
+          showBox(errorBox, data.message || "Unable to load rider account status.");
           return;
         }
 
-        accountText.textContent = "Your rider account is ready for ride access.";
-        accountTag.className = "tag ok";
-        accountTag.textContent = "Approved";
+        const rider = data.rider;
+        const approved = rider.approved === true;
+        const status = rider.verification_status || "pending";
+        const fullName = `${rider.first_name || ""} ${rider.last_name || ""}`.trim();
 
-        showResult(`
-          <strong>Rider Status Checked</strong><br><br>
-          <strong>Rider ID:</strong> ${rider.id}<br>
-          <strong>Name:</strong> ${rider.firstName || ""} ${rider.lastName || ""}<br>
-          <strong>Status:</strong> Approved for Ride Access
-        `);
-      } catch (err) {
-        showError("Unable to check rider status right now.");
+        accountText.textContent = approved
+          ? "Your rider account is approved for ride access."
+          : "Your rider account exists but is still pending approval.";
+        accountTag.className = approved ? "tag ok" : "tag warn";
+        accountTag.textContent = approved ? "Approved" : "Pending";
+
+        showBox(
+          resultBox,
+          `
+            <strong>Rider Status Checked</strong><br><br>
+            <strong>Rider ID:</strong> ${rider.id}<br>
+            <strong>Name:</strong> ${fullName || "Rider"}<br>
+            <strong>Status:</strong> ${status}<br>
+            <strong>Approved:</strong> ${approved ? "Yes" : "No"}
+          `
+        );
+
+        if (approved) {
+          showBox(
+            infoBox,
+            `You are approved for ride access. Continue to <a href="/request-ride?riderId=${encodeURIComponent(rider.id)}" style="color:#63f5ff;font-weight:800;">Request Ride</a>.`
+          );
+        }
+      } catch (error) {
+        showBox(errorBox, "Unable to check rider status right now.");
+      } finally {
+        checkBtn.disabled = false;
+        checkBtn.textContent = "Check Rider Status";
       }
     }
 
@@ -570,7 +655,7 @@
     document.getElementById("checkBtn").addEventListener("click", checkRiderStatus);
 
     const savedRiderId = localStorage.getItem("harveyRiderId");
-    if(savedRiderId){
+    if (savedRiderId) {
       accountText.textContent = "Saved rider account found. You can check rider status now.";
       accountTag.className = "tag ok";
       accountTag.textContent = "Saved";
