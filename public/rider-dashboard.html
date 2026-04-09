@@ -9,7 +9,7 @@
   <title>Harvey Taxi — Rider Dashboard</title>
   <meta
     name="description"
-    content="Harvey Taxi futuristic rider dashboard with destination search, saved places, ride tools, active trips, and support."
+    content="Harvey Taxi futuristic rider dashboard with destination search, saved places, ride tools, trip history, and support."
   />
 
   <style>
@@ -751,7 +751,6 @@
         grid-template-columns:1fr;
       }
 
-      .actions,
       .account-actions{
         flex-direction:column;
       }
@@ -790,10 +789,10 @@
     <div class="hero">
       <div class="welcome">
         <div class="welcome-badge">Futuristic rider control center • Harvey Taxi</div>
-        <h1>Buckle up, Willie.</h1>
+        <h1>Your next ride starts here.</h1>
         <p>
-          Search your next destination, manage your rider profile, review trip activity,
-          and launch Harvey Taxi services from one clean consumer-style dashboard built for speed.
+          Search your next destination, manage your rider profile, review trip activity, and launch
+          Harvey Taxi services from one clean consumer-style dashboard built for speed.
         </p>
       </div>
 
@@ -822,11 +821,11 @@
         </div>
 
         <div class="places">
-          <div class="place-card" onclick="quickDestination('Work','2080 Aldi Blvd, Mt Juliet, TN')">
+          <div class="place-card" onclick="quickDestination('Work','Add work address')">
             <div class="place-icon">💼</div>
             <div class="place-copy">
               <strong>Work</strong>
-              <span>2080 Aldi Blvd, Mt Juliet, TN</span>
+              <span>Add work shortcut</span>
             </div>
             <div class="place-arrow">›</div>
           </div>
@@ -1019,7 +1018,7 @@
     }
 
     function quickDestination(label, address) {
-      if (!address || address === "Add shortcut") {
+      if (!address || address === "Add shortcut" || address === "Add work address") {
         alert(label + " shortcut can be added in a future saved-places flow.");
         return;
       }
