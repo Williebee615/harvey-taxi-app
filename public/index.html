@@ -122,8 +122,8 @@
       margin-bottom:18px;
       padding:14px 18px;
       border-radius:18px;
-      border:1px solid rgba(109,255,179,.18);
-      background:linear-gradient(135deg,rgba(109,255,179,.12),rgba(94,160,255,.07));
+      border:1px solid rgba(99,245,255,.14);
+      background:linear-gradient(135deg,rgba(99,245,255,.10),rgba(94,160,255,.07));
       box-shadow:var(--shadow);
       display:flex;
       justify-content:space-between;
@@ -135,7 +135,7 @@
     .launch-strip strong{
       display:block;
       margin-bottom:4px;
-      color:var(--green);
+      color:var(--cyan);
       font-size:15px;
     }
 
@@ -460,16 +460,6 @@
       display:block;
     }
 
-    .status-good{
-      color:var(--green);
-      font-weight:800;
-    }
-
-    .status-warn{
-      color:var(--gold);
-      font-weight:800;
-    }
-
     .footer{
       margin-top:18px;
       padding:20px;
@@ -519,8 +509,37 @@
       color:white;
     }
 
-    /* AI widget spacing so HELP bubble clears bottom nav */
+    .support-callout{
+      margin-top:18px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:14px;
+      flex-wrap:wrap;
+      padding:18px;
+      border-radius:18px;
+      border:1px solid rgba(109,255,179,.16);
+      background:linear-gradient(135deg,rgba(109,255,179,.08),rgba(99,245,255,.05));
+    }
+
+    .support-callout strong{
+      display:block;
+      margin-bottom:5px;
+      font-size:16px;
+      color:var(--green);
+    }
+
+    .support-callout span{
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.6;
+      display:block;
+      max-width:760px;
+    }
+
+    /* AI chat widget placement */
     #harvey-ai-chat-root{
+      position:fixed !important;
       right:18px !important;
       bottom:100px !important;
       z-index:1200 !important;
@@ -614,8 +633,11 @@
 
     <div class="launch-strip">
       <div>
-        <strong>Approved for App Store distribution</strong>
-        <span>Harvey Taxi Mobile has been approved. Public launch messaging, support access, and customer-facing platform presentation are now live.</span>
+        <strong>Trusted mobility platform for Tennessee</strong>
+        <span>
+          Harvey Taxi brings together rider access, driver onboarding, support tools, payment access,
+          trip workflows, and future autonomous expansion through one modern transportation platform.
+        </span>
       </div>
       <a class="btn success" href="request-ride.html?mode=driver">Book a Ride</a>
     </div>
@@ -641,6 +663,7 @@
 
         <a class="btn" href="rider-signup.html">Rider Sign Up</a>
         <a class="btn" href="driver-signup.html">Driver Sign Up</a>
+        <a class="btn" href="rider-dashboard.html">Rider Dashboard</a>
         <a class="btn" href="driver-dashboard.html">Driver Dashboard</a>
         <a class="btn ghost" href="support.html">Support</a>
       </div>
@@ -677,6 +700,17 @@
           <span>Dashboard, missions, wallet flow, and driver tools can be reached directly from the launch experience.</span>
         </div>
       </div>
+
+      <div class="support-callout">
+        <div>
+          <strong>Need help fast? Open Harvey AI Support.</strong>
+          <span>
+            Use the on-page AI support chat for rider questions, support guidance, trip help, onboarding help,
+            and general Harvey Taxi platform assistance.
+          </span>
+        </div>
+        <button class="btn" type="button" onclick="openHarveyAiChat()">Open AI Support</button>
+      </div>
     </div>
 
     <div class="section">
@@ -700,7 +734,7 @@
 
         <div class="card">
           <strong>Payments</strong>
-          <span>Authorization enabled</span>
+          <span>Authorization-enabled trip workflow</span>
         </div>
       </div>
     </div>
@@ -804,7 +838,7 @@
           </div>
 
           <div class="list-item">
-            <strong>Professional launch presentation</strong>
+            <strong>Professional home experience</strong>
             <span>Key actions, support, and policy access are visible from the home screen.</span>
           </div>
         </div>
@@ -938,7 +972,7 @@
         <a class="btn" href="privacy-policy.html">Privacy Policy</a>
         <a class="btn" href="terms.html">Terms of Service</a>
         <a class="btn" href="support.html">Support Center</a>
-        <a class="btn success" href="request-ride.html?mode=driver">Open Rider Flow</a>
+        <button class="btn success" type="button" onclick="openHarveyAiChat()">AI Support Chat</button>
       </div>
     </div>
 
@@ -967,8 +1001,31 @@
     <button class="nav-btn" onclick="location.href='driver-dashboard.html'">Driver</button>
   </div>
 
+  <div id="harvey-ai-chat-root"></div>
+
   <link rel="stylesheet" href="/ai-support-widget.css" />
   <script src="/ai-support-widget.js"></script>
+
+  <script>
+    function openHarveyAiChat() {
+      if (window.HarveyAI && typeof window.HarveyAI.open === "function") {
+        window.HarveyAI.open();
+        return;
+      }
+
+      const launchButton =
+        document.querySelector('[data-harvey-ai-open]') ||
+        document.querySelector('.harvey-ai-launch') ||
+        document.querySelector('#harvey-ai-chat-root button');
+
+      if (launchButton) {
+        launchButton.click();
+        return;
+      }
+
+      window.location.href = "support.html";
+    }
+  </script>
 
 </body>
 </html>
