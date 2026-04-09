@@ -1,33 +1,33 @@
-(function () {
+(function(){
 
 const root = document.getElementById("harvey-ai-chat-root");
-if (!root) return;
+if(!root) return;
 
 root.innerHTML = `
-<div id="harveyAiLauncher" class="harvey-ai-launch">AI</div>
+<div id="harveyAiLauncher">AI</div>
 
-<div id="harveyAiWindow" class="harvey-ai-window">
-  <div class="harvey-ai-header">
-    <div>
-      <strong>Harvey AI Support</strong>
-      <span>Taxi + Assistance Foundation</span>
-    </div>
-    <button id="harveyAiClose">×</button>
-  </div>
+<div id="harveyAiWindow">
+<div id="harveyAiHeader">
+<div>
+<strong>Harvey AI Support</strong>
+<span>Taxi + Assistance Foundation</span>
+</div>
+<button id="harveyAiClose">×</button>
+</div>
 
-  <div id="harveyAiMessages" class="harvey-ai-messages"></div>
+<div id="harveyAiMessages"></div>
 
-  <div class="harvey-ai-quick">
-    <button data-q="How do I request a ride?">Request ride</button>
-    <button data-q="How does Harvey assistance work?">Assistance</button>
-    <button data-q="How do I become a driver?">Drive</button>
-    <button data-q="What is autonomous pilot?">Autonomous</button>
-  </div>
+<div id="harveyAiQuick">
+<button data-q="How do I request a ride?">Request Ride</button>
+<button data-q="How does assistance work?">Assistance</button>
+<button data-q="How do I become a driver?">Driver</button>
+<button data-q="How do I contact support?">Support</button>
+</div>
 
-  <div class="harvey-ai-input">
-    <input id="harveyAiInput" placeholder="Ask about Harvey Taxi or assistance..." />
-    <button id="harveyAiSend">Send</button>
-  </div>
+<div id="harveyAiInputWrap">
+<input id="harveyAiInput" placeholder="Ask about Harvey Taxi or assistance..." />
+<button id="harveyAiSend">Send</button>
+</div>
 </div>
 `;
 
@@ -42,68 +42,73 @@ launcher.onclick = openChat;
 closeBtn.onclick = closeChat;
 
 function openChat(){
-windowEl.classList.add("open");
+windowEl.style.display="flex";
 addMessage("ai", greeting());
 }
 
 function closeChat(){
-windowEl.classList.remove("open");
+windowEl.style.display="none";
 }
 
 send.onclick = handleSend;
-input.addEventListener("keypress", e=>{
-if(e.key === "Enter") handleSend();
+input.addEventListener("keypress",e=>{
+if(e.key==="Enter") handleSend();
 });
 
-document.querySelectorAll(".harvey-ai-quick button")
-.forEach(btn=>{
-btn.onclick = ()=>{
-handleSend(btn.dataset.q);
-};
+document.querySelectorAll("#harveyAiQuick button").forEach(btn=>{
+btn.onclick=()=>handleSend(btn.dataset.q);
 });
 
 function handleSend(text){
 const msg = text || input.value.trim();
 if(!msg) return;
 
-addMessage("user", msg);
-input.value = "";
+addMessage("user",msg);
+input.value="";
 
 setTimeout(()=>{
-addMessage("ai", getResponse(msg));
-}, 400);
+addMessage("ai",getResponse(msg));
+},400);
 }
 
-function addMessage(type, text){
-const div = document.createElement("div");
-div.className = "harvey-msg " + type;
-div.innerText = text;
+function addMessage(type,text){
+const div=document.createElement("div");
+div.className="msg "+type;
+div.innerText=text;
 messages.appendChild(div);
-messages.scrollTop = messages.scrollHeight;
+messages.scrollTop=messages.scrollHeight;
 }
 
 function greeting(){
-return "Hi — I can help with Harvey Taxi rides, driver signup, rider signup, payments, and Harvey Transportation Assistance Foundation support. What would you like help with?";
+return "Hi — I can help with Harvey Taxi rides, driver signup, rider signup, payments, and Harvey Transportation Assistance Foundation support.";
 }
 
-/* =================================
-   AI KNOWLEDGE BRAIN
-================================= */
+/* ===============================
+AI SUPPORT BRAIN
+=============================== */
 
 function getResponse(message){
-const msg = message.toLowerCase();
+const msg=message.toLowerCase();
+
+/* support */
+if(msg.includes("support")||msg.includes("help"))
+return "Harvey AI Support can help with rider signup, driver signup, ride requests, payments, verification, and Harvey Transportation Assistance Foundation questions.";
+
+/* harvey taxi */
+if(msg.includes("harvey taxi"))
+return "Harvey Taxi is a transportation platform supporting rider onboarding, driver onboarding, ride dispatch, and transportation assistance.";
+
+/* foundation */
+if(msg.includes("foundation")||msg.includes("assistance"))
+return "Harvey Transportation Assistance Foundation helps provide transportation for essential needs like medical, work, and community travel.";
 
 /* request ride */
-if(msg.includes("request") && msg.includes("ride"))
-return "To request a ride, open Request Ride, enter pickup and destination, complete payment authorization, and wait for dispatch.";
-
-/* assistance */
-if(msg.includes("assistance") || msg.includes("foundation"))
-return "Harvey Transportation Assistance Foundation helps provide transportation for essential needs like medical, work, and community access. Availability may vary.";
+if(msg.includes("request")&&msg.includes("ride"))
+return "To request a ride, enter pickup and destination, complete payment authorization, and submit your request.";
 
 /* driver */
 if(msg.includes("driver"))
-return "To become a driver, complete driver signup, upload documents, and wait for approval. Once approved, you can accept ride missions.";
+return "To become a driver, complete driver signup, upload documents, and wait for approval.";
 
 /* rider */
 if(msg.includes("rider"))
@@ -111,22 +116,34 @@ return "Create a rider account, complete verification, authorize payment, then r
 
 /* payment */
 if(msg.includes("payment"))
-return "Harvey Taxi uses payment authorization before dispatch. You are only charged after the trip.";
+return "Harvey Taxi authorizes payment before dispatch. You are only charged after the trip.";
+
+/* scheduled */
+if(msg.includes("schedule"))
+return "Scheduled rides allow you to request transportation in advance.";
+
+/* medical */
+if(msg.includes("medical"))
+return "Medical rides may be supported through Harvey Taxi or the Harvey Transportation Assistance Foundation.";
 
 /* autonomous */
 if(msg.includes("autonomous"))
-return "Autonomous pilot mode allows requesting future self-driving vehicles. This is currently a pilot feature.";
+return "Autonomous pilot mode allows future self-driving ride requests.";
 
-/* safety */
-if(msg.includes("emergency"))
+/* contact */
+if(msg.includes("contact"))
+return "You can contact Harvey Taxi support through the support page or AI chat.";
+
+/* emergency */
+if(msg.includes("emergency")||msg.includes("911"))
 return "If this is an emergency please call 911 immediately.";
 
 /* default */
-return "I can help with rides, drivers, riders, payments, safety, or Harvey Transportation Assistance Foundation. Ask me anything.";
+return "I can help with Harvey Taxi, rides, drivers, riders, payments, safety, and Harvey Transportation Assistance Foundation.";
 }
 
-window.HarveyAI = {
-open: openChat
+window.HarveyAI={
+open:openChat
 };
 
 })();
