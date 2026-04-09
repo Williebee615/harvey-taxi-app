@@ -38,8 +38,91 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 ========================================================= */
 const DISPATCH_OFFER_TIMEOUT_MS = 20000;
 const MAX_DISPATCH_ATTEMPTS = 5;
-const BOOKING_FEE = 3.5;
-const MINIMUM_FARE = 10;
+
+const FARE_CONFIG = {
+  driver: {
+    standard: {
+      baseFare: 1.1,
+      perMile: 0.95,
+      perMinute: 0.17,
+      bookingFee: 1.15,
+      minimumFare: 6.75
+    },
+    scheduled: {
+      baseFare: 1.35,
+      perMile: 1.0,
+      perMinute: 0.18,
+      bookingFee: 1.35,
+      minimumFare: 7.5
+    },
+    airport: {
+      baseFare: 2.0,
+      perMile: 1.1,
+      perMinute: 0.2,
+      bookingFee: 1.75,
+      minimumFare: 9.95
+    },
+    medical: {
+      baseFare: 1.0,
+      perMile: 0.9,
+      perMinute: 0.16,
+      bookingFee: 1.0,
+      minimumFare: 6.5
+    },
+    nonprofit: {
+      baseFare: 0.9,
+      perMile: 0.82,
+      perMinute: 0.15,
+      bookingFee: 0.85,
+      minimumFare: 6.0
+    }
+  },
+  autonomous: {
+    standard: {
+      baseFare: 1.35,
+      perMile: 1.05,
+      perMinute: 0.2,
+      bookingFee: 1.35,
+      minimumFare: 7.75
+    },
+    scheduled: {
+      baseFare: 1.6,
+      perMile: 1.1,
+      perMinute: 0.22,
+      bookingFee: 1.5,
+      minimumFare: 8.5
+    },
+    airport: {
+      baseFare: 2.25,
+      perMile: 1.2,
+      perMinute: 0.24,
+      bookingFee: 1.95,
+      minimumFare: 10.95
+    },
+    medical: {
+      baseFare: 1.25,
+      perMile: 1.0,
+      perMinute: 0.18,
+      bookingFee: 1.15,
+      minimumFare: 7.25
+    },
+    nonprofit: {
+      baseFare: 1.1,
+      perMile: 0.9,
+      perMinute: 0.17,
+      bookingFee: 1.0,
+      minimumFare: 6.95
+    }
+  }
+};
+
+const SURGE_RULES = {
+  offpeak: 1,
+  normal: 1,
+  busy: 1.15,
+  high_demand: 1.3,
+  event: 1.5
+};
 
 /* =========================================================
    HELPERS
@@ -68,42 +151,60 @@ function normalizeRideType(value = "standard") {
   return allowed.includes(rideType) ? rideType : "standard";
 }
 
+function normalizeSurgeLevel(value = "normal") {
+  const level = safeString(value).toLowerCase();
+  return Object.prototype.hasOwnProperty.call(SURGE_RULES, level) ? level : "normal";
+}
+
+function getFareProfile({ rideType = "standard", requestedMode = "driver" }) {
+  const normalizedMode = normalizeRequestedMode(requestedMode);
+  const normalizedRideType = normalizeRideType(rideType);
+
+  return (
+    FARE_CONFIG[normalizedMode]?.[normalizedRideType] ||
+    FARE_CONFIG.driver.standard
+  );
+}
+
 function calculateFare({
   distanceMiles = 0,
   durationMinutes = 0,
   rideType = "standard",
-  requestedMode = "driver"
+  requestedMode = "driver",
+  surgeLevel = "normal"
 }) {
   const normalizedMode = normalizeRequestedMode(requestedMode);
   const normalizedRideType = normalizeRideType(rideType);
+  const normalizedSurgeLevel = normalizeSurgeLevel(surgeLevel);
+  const profile = getFareProfile({
+    rideType: normalizedRideType,
+    requestedMode: normalizedMode
+  });
 
-  const baseFare = normalizedMode === "autonomous" ? 8 : 6;
-  const perMile = normalizedMode === "autonomous" ? 2.75 : 2.25;
-  const perMinute = normalizedMode === "autonomous" ? 0.45 : 0.35;
-
-  let rideTypeMultiplier = 1;
-
-  if (normalizedRideType === "airport") rideTypeMultiplier = 1.2;
-  if (normalizedRideType === "scheduled") rideTypeMultiplier = 1.15;
-  if (normalizedRideType === "medical") rideTypeMultiplier = 1.1;
-  if (normalizedRideType === "nonprofit") rideTypeMultiplier = 0.95;
+  const cleanDistance = Math.max(0, safeNumber(distanceMiles, 0));
+  const cleanDuration = Math.max(0, safeNumber(durationMinutes, 0));
+  const surgeMultiplier = safeNumber(SURGE_RULES[normalizedSurgeLevel], 1);
 
   const subtotal =
-    (baseFare + distanceMiles * perMile + durationMinutes * perMinute) *
-    rideTypeMultiplier;
+    profile.baseFare +
+    cleanDistance * profile.perMile +
+    cleanDuration * profile.perMinute +
+    profile.bookingFee;
 
-  const total = Math.max(MINIMUM_FARE, subtotal + BOOKING_FEE);
+  const surgedSubtotal = subtotal * surgeMultiplier;
+  const estimatedTotal = Math.max(profile.minimumFare, surgedSubtotal);
 
   return {
-    baseFare: Number(baseFare.toFixed(2)),
-    perMile: Number(perMile.toFixed(2)),
-    perMinute: Number(perMinute.toFixed(2)),
-    distanceMiles: Number(distanceMiles.toFixed(2)),
-    durationMinutes: Number(durationMinutes.toFixed(2)),
-    bookingFee: Number(BOOKING_FEE.toFixed(2)),
-    minimumFare: Number(MINIMUM_FARE.toFixed(2)),
-    rideTypeMultiplier: Number(rideTypeMultiplier.toFixed(2)),
-    estimatedTotal: Number(total.toFixed(2))
+    baseFare: Number(profile.baseFare.toFixed(2)),
+    perMile: Number(profile.perMile.toFixed(2)),
+    perMinute: Number(profile.perMinute.toFixed(2)),
+    distanceMiles: Number(cleanDistance.toFixed(2)),
+    durationMinutes: Number(cleanDuration.toFixed(2)),
+    bookingFee: Number(profile.bookingFee.toFixed(2)),
+    minimumFare: Number(profile.minimumFare.toFixed(2)),
+    surgeLevel: normalizedSurgeLevel,
+    surgeMultiplier: Number(surgeMultiplier.toFixed(2)),
+    estimatedTotal: Number(estimatedTotal.toFixed(2))
   };
 }
 
@@ -981,6 +1082,9 @@ app.post("/api/fare-estimate", async (req, res) => {
     const requestedMode = normalizeRequestedMode(
       req.body.requested_mode || req.body.requestedMode || "driver"
     );
+    const surgeLevel = normalizeSurgeLevel(
+      req.body.surge_level || req.body.surgeLevel || "normal"
+    );
 
     if (!pickupAddress || !dropoffAddress) {
       return res.status(400).json({
@@ -999,7 +1103,8 @@ app.post("/api/fare-estimate", async (req, res) => {
       distanceMiles: route.distanceMiles,
       durationMinutes: route.durationMinutes,
       rideType,
-      requestedMode
+      requestedMode,
+      surgeLevel
     });
 
     res.json({
@@ -1031,6 +1136,7 @@ app.post("/api/request-ride", async (req, res) => {
     const dropoffAddress = safeString(req.body.dropoff_address);
     const rideType = normalizeRideType(req.body.ride_type || "standard");
     const requestedMode = normalizeRequestedMode(req.body.requested_mode || "driver");
+    const surgeLevel = normalizeSurgeLevel(req.body.surge_level || "normal");
     const scheduledTime = req.body.scheduled_time || null;
     const notes = safeString(req.body.notes);
     const paymentMethod = safeString(req.body.payment_method || "card").toLowerCase();
@@ -1075,7 +1181,8 @@ app.post("/api/request-ride", async (req, res) => {
       distanceMiles: route.distanceMiles,
       durationMinutes: route.durationMinutes,
       rideType,
-      requestedMode
+      requestedMode,
+      surgeLevel
     });
 
     const { data: payment, error: paymentError } = await supabase
@@ -1116,6 +1223,8 @@ app.post("/api/request-ride", async (req, res) => {
       estimated_fare: fare.estimatedTotal,
       distance_miles: fare.distanceMiles,
       duration_minutes: fare.durationMinutes,
+      surge_level: fare.surgeLevel,
+      surge_multiplier: fare.surgeMultiplier,
       status: "requested",
       dispatch_attempts: 0,
       payment_method: paymentMethod,
