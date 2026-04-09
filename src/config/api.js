@@ -45,6 +45,10 @@ async function requestWithTimeout(url, options = {}, timeoutMs = 20000) {
       throw new Error("Request timed out. Please try again.");
     }
 
+    if (error.message === "Network request failed" || error.message === "fetch failed") {
+      throw new Error(`Unable to reach Harvey Taxi server at ${API_BASE_URL}`);
+    }
+
     throw error;
   } finally {
     clearTimeout(timeoutId);
@@ -81,14 +85,7 @@ async function tryPostEndpoints(endpoints, body) {
 }
 
 export async function healthCheck() {
-  try {
-    return await getJson("/api/health");
-  } catch (error) {
-    return {
-      ok: false,
-      error: error.message
-    };
-  }
+  return getJson("/api/health");
 }
 
 export async function riderSignup(payload) {
@@ -106,7 +103,7 @@ export async function driverSignup(payload) {
 }
 
 export async function getRiders() {
-  return tryPostEndpoints([], {});
+  return getJson("/api/riders");
 }
 
 export async function authorizePayment(payload) {
