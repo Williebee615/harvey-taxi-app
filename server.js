@@ -6,7 +6,12 @@ const { createClient } = require("@supabase/supabase-js");
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-app.use(cors());
+app.use(
+  cors({
+    origin: true,
+    credentials: true
+  })
+);
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "public")));
@@ -135,25 +140,51 @@ function safeString(value = "") {
   return String(value || "").trim();
 }
 
+function safeLower(value = "") {
+  return safeString(value).toLowerCase();
+}
+
 function safeNumber(value, fallback = 0) {
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
 }
 
+function getBodyValue(body, ...keys) {
+  for (const key of keys) {
+    if (body && body[key] !== undefined && body[key] !== null) {
+      return body[key];
+    }
+  }
+  return "";
+}
+
 function normalizeRequestedMode(value = "driver") {
-  const mode = safeString(value).toLowerCase();
+  const mode = safeLower(value);
   return mode === "autonomous" ? "autonomous" : "driver";
 }
 
 function normalizeRideType(value = "standard") {
-  const rideType = safeString(value).toLowerCase();
+  const rideType = safeLower(value);
   const allowed = ["standard", "scheduled", "airport", "medical", "nonprofit"];
   return allowed.includes(rideType) ? rideType : "standard";
 }
 
 function normalizeSurgeLevel(value = "normal") {
-  const level = safeString(value).toLowerCase();
+  const level = safeLower(value);
   return Object.prototype.hasOwnProperty.call(SURGE_RULES, level) ? level : "normal";
+}
+
+function normalizeDriverType(value = "human") {
+  const type = safeLower(value);
+  return type === "autonomous" ? "autonomous" : "human";
+}
+
+function normalizeBoolean(value, fallback = false) {
+  if (typeof value === "boolean") return value;
+  const text = safeLower(value);
+  if (["true", "1", "yes", "y"].includes(text)) return true;
+  if (["false", "0", "no", "n"].includes(text)) return false;
+  return fallback;
 }
 
 function getFareProfile({ rideType = "standard", requestedMode = "driver" }) {
@@ -235,6 +266,49 @@ function haversineMiles(lat1, lon1, lat2, lon2) {
 
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
+}
+
+function publicRider(rider) {
+  if (!rider) return null;
+  return {
+    id: rider.id,
+    first_name: rider.first_name || "",
+    last_name: rider.last_name || "",
+    email: rider.email || "",
+    phone: rider.phone || "",
+    city: rider.city || "",
+    state: rider.state || "",
+    approved: rider.approved === true,
+    verification_status: rider.verification_status || "pending",
+    created_at: rider.created_at || null,
+    updated_at: rider.updated_at || null
+  };
+}
+
+function publicDriver(driver) {
+  if (!driver) return null;
+  return {
+    id: driver.id,
+    first_name: driver.first_name || "",
+    last_name: driver.last_name || "",
+    email: driver.email || "",
+    phone: driver.phone || "",
+    city: driver.city || "",
+    state: driver.state || "",
+    vehicle_make: driver.vehicle_make || "",
+    vehicle_model: driver.vehicle_model || "",
+    vehicle_year: driver.vehicle_year || "",
+    vehicle_color: driver.vehicle_color || "",
+    license_plate: driver.license_plate || "",
+    license_number: driver.license_number || "",
+    driver_type: driver.driver_type || "human",
+    approved: driver.approved === true,
+    verification_status: driver.verification_status || "pending",
+    background_check_status: driver.background_check_status || "pending",
+    status: driver.status || "offline",
+    created_at: driver.created_at || null,
+    updated_at: driver.updated_at || null
+  };
 }
 
 async function geocodeAddress(address) {
@@ -348,6 +422,52 @@ async function getRideById(rideId) {
 
   if (error) throw error;
   return data;
+}
+
+async function getRiderById(riderId) {
+  const { data, error } = await supabase
+    .from("riders")
+    .select("*")
+    .eq("id", riderId)
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+async function getDriverById(driverId) {
+  const { data, error } = await supabase
+    .from("drivers")
+    .select("*")
+    .eq("id", driverId)
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+async function findRiderByEmail(email) {
+  const { data, error } = await supabase
+    .from("riders")
+    .select("*")
+    .eq("email", safeLower(email))
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
+}
+
+async function findDriverByEmail(email) {
+  const { data, error } = await supabase
+    .from("drivers")
+    .select("*")
+    .eq("email", safeLower(email))
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
 }
 
 async function createDispatchRecord(ride, driver, attemptNumber) {
@@ -686,6 +806,7 @@ app.get("/api/health", async (req, res) => {
 
     res.json({
       ok: true,
+      success: true,
       app: "Harvey Taxi",
       database: "connected",
       timestamp: nowIso()
@@ -693,6 +814,7 @@ app.get("/api/health", async (req, res) => {
   } catch (error) {
     res.status(500).json({
       ok: false,
+      success: false,
       app: "Harvey Taxi",
       database: "disconnected",
       error: error.message
@@ -720,6 +842,7 @@ app.post("/api/ai-support", async (req, res) => {
     if (!question) {
       return res.status(400).json({
         ok: false,
+        success: false,
         reply: "Please enter a question so I can help."
       });
     }
@@ -733,12 +856,14 @@ app.post("/api/ai-support", async (req, res) => {
 
     return res.json({
       ok: true,
+      success: true,
       reply
     });
   } catch (error) {
     console.error("❌ /api/ai-support error:", error);
     return res.json({
       ok: true,
+      success: true,
       reply:
         "I’m having trouble right now. Please try again or contact support@harveytaxiservice.com."
     });
@@ -750,7 +875,7 @@ app.post("/api/ai-support", async (req, res) => {
 ========================================================= */
 app.post("/api/admin/login", async (req, res) => {
   try {
-    const email = safeString(req.body.email).toLowerCase();
+    const email = safeLower(req.body.email);
     const password = safeString(req.body.password);
 
     if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
@@ -761,7 +886,7 @@ app.post("/api/admin/login", async (req, res) => {
     }
 
     if (
-      email === safeString(ADMIN_EMAIL).toLowerCase() &&
+      email === safeLower(ADMIN_EMAIL) &&
       password === safeString(ADMIN_PASSWORD)
     ) {
       return res.json({
@@ -788,25 +913,43 @@ app.post("/api/admin/login", async (req, res) => {
 ========================================================= */
 app.post("/api/rider/signup", async (req, res) => {
   try {
-    const payload = {
-      first_name: safeString(req.body.first_name),
-      last_name: safeString(req.body.last_name),
-      email: safeString(req.body.email).toLowerCase(),
-      phone: safeString(req.body.phone),
-      city: safeString(req.body.city),
-      state: safeString(req.body.state),
-      verification_status: "pending",
-      approved: false,
-      created_at: nowIso(),
-      updated_at: nowIso()
-    };
+    const firstName = safeString(getBodyValue(req.body, "first_name", "firstName"));
+    const lastName = safeString(getBodyValue(req.body, "last_name", "lastName"));
+    const email = safeLower(getBodyValue(req.body, "email"));
+    const phone = safeString(getBodyValue(req.body, "phone"));
+    const city = safeString(getBodyValue(req.body, "city"));
+    const state = safeString(getBodyValue(req.body, "state"));
+    const password = safeString(getBodyValue(req.body, "password"));
 
-    if (!payload.first_name || !payload.email || !payload.phone) {
+    if (!firstName || !email || !phone) {
       return res.status(400).json({
         success: false,
         message: "First name, email, and phone are required."
       });
     }
+
+    const existingRider = await findRiderByEmail(email);
+    if (existingRider) {
+      return res.status(409).json({
+        success: false,
+        message: "A rider account with this email already exists.",
+        rider: publicRider(existingRider)
+      });
+    }
+
+    const payload = {
+      first_name: firstName,
+      last_name: lastName,
+      email,
+      phone,
+      city,
+      state,
+      password: password || null,
+      verification_status: "pending",
+      approved: false,
+      created_at: nowIso(),
+      updated_at: nowIso()
+    };
 
     const { data, error } = await supabase
       .from("riders")
@@ -816,15 +959,70 @@ app.post("/api/rider/signup", async (req, res) => {
 
     if (error) throw error;
 
-    res.json({
+    const rider = publicRider(data);
+
+    return res.json({
       success: true,
       message: "Rider signup submitted.",
-      rider: data
+      rider_id: rider.id,
+      status: rider.verification_status,
+      approved: rider.approved,
+      rider
     });
   } catch (error) {
-    res.status(500).json({
+    console.error("❌ /api/rider/signup error:", error);
+    return res.status(500).json({
       success: false,
       message: "Rider signup failed.",
+      error: error.message
+    });
+  }
+});
+
+app.post("/api/riders/signup", async (req, res) => {
+  req.url = "/api/rider/signup";
+  app._router.handle(req, res);
+});
+
+app.post("/api/rider/login", async (req, res) => {
+  try {
+    const email = safeLower(getBodyValue(req.body, "email"));
+    const password = safeString(getBodyValue(req.body, "password"));
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required."
+      });
+    }
+
+    const rider = await findRiderByEmail(email);
+
+    if (!rider) {
+      return res.status(404).json({
+        success: false,
+        message: "Rider account not found."
+      });
+    }
+
+    if (rider.password && password && safeString(rider.password) !== password) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid rider credentials."
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: "Rider login successful.",
+      rider_id: rider.id,
+      rider: publicRider(rider)
+    });
+  } catch (error) {
+    console.error("❌ /api/rider/login error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Rider login failed.",
       error: error.message
     });
   }
@@ -839,12 +1037,12 @@ app.get("/api/riders", async (req, res) => {
 
     if (error) throw error;
 
-    res.json({
+    return res.json({
       success: true,
-      riders: data || []
+      riders: (data || []).map(publicRider)
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Failed to load riders.",
       error: error.message
@@ -854,22 +1052,14 @@ app.get("/api/riders", async (req, res) => {
 
 app.get("/api/riders/:riderId", async (req, res) => {
   try {
-    const riderId = req.params.riderId;
+    const rider = await getRiderById(req.params.riderId);
 
-    const { data, error } = await supabase
-      .from("riders")
-      .select("*")
-      .eq("id", riderId)
-      .single();
-
-    if (error) throw error;
-
-    res.json({
+    return res.json({
       success: true,
-      rider: data
+      rider: publicRider(rider)
     });
   } catch (error) {
-    res.status(404).json({
+    return res.status(404).json({
       success: false,
       message: "Rider not found.",
       error: error.message
@@ -882,35 +1072,97 @@ app.get("/api/riders/:riderId", async (req, res) => {
 ========================================================= */
 app.post("/api/driver/signup", async (req, res) => {
   try {
-    const payload = {
-      first_name: safeString(req.body.first_name),
-      last_name: safeString(req.body.last_name),
-      email: safeString(req.body.email).toLowerCase(),
-      phone: safeString(req.body.phone),
-      city: safeString(req.body.city),
-      state: safeString(req.body.state),
-      vehicle_make: safeString(req.body.vehicle_make),
-      vehicle_model: safeString(req.body.vehicle_model),
-      vehicle_year: safeString(req.body.vehicle_year),
-      vehicle_color: safeString(req.body.vehicle_color),
-      license_plate: safeString(req.body.license_plate),
-      verification_status: "pending",
-      background_check_status: "pending",
-      approved: false,
-      status: "offline",
-      driver_type: safeString(req.body.driver_type || "human").toLowerCase(),
-      latitude: null,
-      longitude: null,
-      created_at: nowIso(),
-      updated_at: nowIso()
-    };
+    const firstName = safeString(getBodyValue(req.body, "first_name", "firstName"));
+    const lastName = safeString(getBodyValue(req.body, "last_name", "lastName"));
+    const email = safeLower(getBodyValue(req.body, "email"));
+    const phone = safeString(getBodyValue(req.body, "phone"));
+    const city = safeString(getBodyValue(req.body, "city"));
+    const state = safeString(getBodyValue(req.body, "state"));
+    const password = safeString(getBodyValue(req.body, "password"));
 
-    if (!payload.first_name || !payload.email || !payload.phone) {
+    const vehicleMake = safeString(
+      getBodyValue(req.body, "vehicle_make", "vehicleMake")
+    );
+    const vehicleModel = safeString(
+      getBodyValue(req.body, "vehicle_model", "vehicleModel")
+    );
+    const vehicleYear = safeString(
+      getBodyValue(req.body, "vehicle_year", "vehicleYear")
+    );
+    const vehicleColor = safeString(
+      getBodyValue(req.body, "vehicle_color", "vehicleColor")
+    );
+    const licensePlate = safeString(
+      getBodyValue(req.body, "license_plate", "licensePlate")
+    );
+    const licenseNumber = safeString(
+      getBodyValue(req.body, "license_number", "licenseNumber")
+    );
+
+    const driverType = normalizeDriverType(
+      getBodyValue(req.body, "driver_type", "driverType", "requestedMode")
+    );
+
+    const consents = req.body?.consents || {};
+    const termsAccepted = normalizeBoolean(
+      getBodyValue(consents, "termsAccepted", "terms_accepted") ||
+        getBodyValue(req.body, "termsAccepted", "terms_accepted"),
+      false
+    );
+    const backgroundCheckAccepted = normalizeBoolean(
+      getBodyValue(consents, "backgroundCheckAccepted", "background_check_accepted") ||
+        getBodyValue(req.body, "backgroundCheckAccepted", "background_check_accepted"),
+      false
+    );
+    const insuranceConfirmed = normalizeBoolean(
+      getBodyValue(consents, "insuranceConfirmed", "insurance_confirmed") ||
+        getBodyValue(req.body, "insuranceConfirmed", "insurance_confirmed"),
+      false
+    );
+
+    if (!firstName || !email || !phone) {
       return res.status(400).json({
         success: false,
         message: "First name, email, and phone are required."
       });
     }
+
+    const existingDriver = await findDriverByEmail(email);
+    if (existingDriver) {
+      return res.status(409).json({
+        success: false,
+        message: "A driver account with this email already exists.",
+        driver: publicDriver(existingDriver)
+      });
+    }
+
+    const payload = {
+      first_name: firstName,
+      last_name: lastName,
+      email,
+      phone,
+      city,
+      state,
+      password: password || null,
+      vehicle_make: vehicleMake,
+      vehicle_model: vehicleModel,
+      vehicle_year: vehicleYear,
+      vehicle_color: vehicleColor,
+      license_plate: licensePlate,
+      license_number: licenseNumber,
+      verification_status: "pending",
+      background_check_status: backgroundCheckAccepted ? "pending" : "not_started",
+      approved: false,
+      status: "offline",
+      driver_type: driverType,
+      terms_accepted: termsAccepted,
+      background_check_accepted: backgroundCheckAccepted,
+      insurance_confirmed: insuranceConfirmed,
+      latitude: null,
+      longitude: null,
+      created_at: nowIso(),
+      updated_at: nowIso()
+    };
 
     const { data, error } = await supabase
       .from("drivers")
@@ -920,15 +1172,70 @@ app.post("/api/driver/signup", async (req, res) => {
 
     if (error) throw error;
 
-    res.json({
+    const driver = publicDriver(data);
+
+    return res.json({
       success: true,
       message: "Driver signup submitted.",
-      driver: data
+      driver_id: driver.id,
+      status: driver.verification_status,
+      approved: driver.approved,
+      driver
     });
   } catch (error) {
-    res.status(500).json({
+    console.error("❌ /api/driver/signup error:", error);
+    return res.status(500).json({
       success: false,
       message: "Driver signup failed.",
+      error: error.message
+    });
+  }
+});
+
+app.post("/api/drivers/signup", async (req, res) => {
+  req.url = "/api/driver/signup";
+  app._router.handle(req, res);
+});
+
+app.post("/api/driver/login", async (req, res) => {
+  try {
+    const email = safeLower(getBodyValue(req.body, "email"));
+    const password = safeString(getBodyValue(req.body, "password"));
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required."
+      });
+    }
+
+    const driver = await findDriverByEmail(email);
+
+    if (!driver) {
+      return res.status(404).json({
+        success: false,
+        message: "Driver account not found."
+      });
+    }
+
+    if (driver.password && password && safeString(driver.password) !== password) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid driver credentials."
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: "Driver login successful.",
+      driver_id: driver.id,
+      driver: publicDriver(driver)
+    });
+  } catch (error) {
+    console.error("❌ /api/driver/login error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Driver login failed.",
       error: error.message
     });
   }
@@ -943,14 +1250,31 @@ app.get("/api/drivers", async (req, res) => {
 
     if (error) throw error;
 
-    res.json({
+    return res.json({
       success: true,
-      drivers: data || []
+      drivers: (data || []).map(publicDriver)
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Failed to load drivers.",
+      error: error.message
+    });
+  }
+});
+
+app.get("/api/drivers/:driverId", async (req, res) => {
+  try {
+    const driver = await getDriverById(req.params.driverId);
+
+    return res.json({
+      success: true,
+      driver: publicDriver(driver)
+    });
+  } catch (error) {
+    return res.status(404).json({
+      success: false,
+      message: "Driver not found.",
       error: error.message
     });
   }
@@ -961,12 +1285,12 @@ app.get("/api/drivers/available", async (req, res) => {
     const requestedMode = normalizeRequestedMode(req.query.requestedMode || "driver");
     const drivers = await getAvailableDrivers(requestedMode);
 
-    res.json({
+    return res.json({
       success: true,
-      drivers
+      drivers: drivers.map(publicDriver)
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Failed to load available drivers.",
       error: error.message
@@ -977,7 +1301,7 @@ app.get("/api/drivers/available", async (req, res) => {
 app.post("/api/driver/:driverId/availability", async (req, res) => {
   try {
     const driverId = req.params.driverId;
-    const status = safeString(req.body.status || "offline").toLowerCase();
+    const status = safeLower(req.body.status || "offline");
     const latitude =
       req.body.latitude == null ? null : safeNumber(req.body.latitude, null);
     const longitude =
@@ -1008,13 +1332,13 @@ app.post("/api/driver/:driverId/availability", async (req, res) => {
 
     if (error) throw error;
 
-    res.json({
+    return res.json({
       success: true,
       message: "Driver availability updated.",
-      driver: data
+      driver: publicDriver(data)
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Failed to update driver availability.",
       error: error.message
@@ -1027,9 +1351,13 @@ app.post("/api/driver/:driverId/availability", async (req, res) => {
 ========================================================= */
 app.post("/api/payments/authorize", async (req, res) => {
   try {
-    const riderId = safeString(req.body.rider_id);
-    const amount = safeNumber(req.body.amount, 0);
-    const paymentMethod = safeString(req.body.payment_method || "card").toLowerCase();
+    const riderId = safeString(
+      getBodyValue(req.body, "rider_id", "riderId")
+    );
+    const amount = safeNumber(getBodyValue(req.body, "amount"), 0);
+    const paymentMethod = safeLower(
+      getBodyValue(req.body, "payment_method", "paymentMethod") || "card"
+    );
 
     if (!riderId || amount <= 0) {
       return res.status(400).json({
@@ -1055,13 +1383,13 @@ app.post("/api/payments/authorize", async (req, res) => {
 
     if (error) throw error;
 
-    res.json({
+    return res.json({
       success: true,
       message: "Payment authorized.",
       payment: data
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Payment authorization failed.",
       error: error.message
@@ -1074,16 +1402,20 @@ app.post("/api/payments/authorize", async (req, res) => {
 ========================================================= */
 app.post("/api/fare-estimate", async (req, res) => {
   try {
-    const pickupAddress = safeString(req.body.pickup_address || req.body.pickupAddress);
-    const dropoffAddress = safeString(
-      req.body.dropoff_address || req.body.dropoffAddress
+    const pickupAddress = safeString(
+      getBodyValue(req.body, "pickup_address", "pickupAddress")
     );
-    const rideType = normalizeRideType(req.body.ride_type || req.body.rideType || "standard");
+    const dropoffAddress = safeString(
+      getBodyValue(req.body, "dropoff_address", "dropoffAddress")
+    );
+    const rideType = normalizeRideType(
+      getBodyValue(req.body, "ride_type", "rideType") || "standard"
+    );
     const requestedMode = normalizeRequestedMode(
-      req.body.requested_mode || req.body.requestedMode || "driver"
+      getBodyValue(req.body, "requested_mode", "requestedMode") || "driver"
     );
     const surgeLevel = normalizeSurgeLevel(
-      req.body.surge_level || req.body.surgeLevel || "normal"
+      getBodyValue(req.body, "surge_level", "surgeLevel") || "normal"
     );
 
     if (!pickupAddress || !dropoffAddress) {
@@ -1107,7 +1439,7 @@ app.post("/api/fare-estimate", async (req, res) => {
       surgeLevel
     });
 
-    res.json({
+    return res.json({
       success: true,
       pickup_address: route.pickupDisplay,
       dropoff_address: route.dropoffDisplay,
@@ -1118,7 +1450,7 @@ app.post("/api/fare-estimate", async (req, res) => {
       fare
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Fare estimate failed.",
       error: error.message
@@ -1131,15 +1463,27 @@ app.post("/api/fare-estimate", async (req, res) => {
 ========================================================= */
 app.post("/api/request-ride", async (req, res) => {
   try {
-    const riderId = safeString(req.body.rider_id);
-    const pickupAddress = safeString(req.body.pickup_address);
-    const dropoffAddress = safeString(req.body.dropoff_address);
-    const rideType = normalizeRideType(req.body.ride_type || "standard");
-    const requestedMode = normalizeRequestedMode(req.body.requested_mode || "driver");
-    const surgeLevel = normalizeSurgeLevel(req.body.surge_level || "normal");
-    const scheduledTime = req.body.scheduled_time || null;
-    const notes = safeString(req.body.notes);
-    const paymentMethod = safeString(req.body.payment_method || "card").toLowerCase();
+    const riderId = safeString(getBodyValue(req.body, "rider_id", "riderId"));
+    const pickupAddress = safeString(
+      getBodyValue(req.body, "pickup_address", "pickupAddress")
+    );
+    const dropoffAddress = safeString(
+      getBodyValue(req.body, "dropoff_address", "dropoffAddress")
+    );
+    const rideType = normalizeRideType(
+      getBodyValue(req.body, "ride_type", "rideType") || "standard"
+    );
+    const requestedMode = normalizeRequestedMode(
+      getBodyValue(req.body, "requested_mode", "requestedMode") || "driver"
+    );
+    const surgeLevel = normalizeSurgeLevel(
+      getBodyValue(req.body, "surge_level", "surgeLevel") || "normal"
+    );
+    const scheduledTime = getBodyValue(req.body, "scheduled_time", "scheduledTime") || null;
+    const notes = safeString(getBodyValue(req.body, "notes"));
+    const paymentMethod = safeLower(
+      getBodyValue(req.body, "payment_method", "paymentMethod") || "card"
+    );
 
     if (!riderId || !pickupAddress || !dropoffAddress) {
       return res.status(400).json({
@@ -1163,7 +1507,7 @@ app.post("/api/request-ride", async (req, res) => {
 
     const riderApproved =
       rider.approved === true ||
-      safeString(rider.verification_status).toLowerCase() === "approved";
+      safeLower(rider.verification_status) === "approved";
 
     if (!riderApproved) {
       return res.status(403).json({
@@ -1244,7 +1588,7 @@ app.post("/api/request-ride", async (req, res) => {
     const dispatchResult = await dispatchRide(ride.id);
     const refreshedRide = await getRideById(ride.id);
 
-    res.json({
+    return res.json({
       success: true,
       message: dispatchResult.success
         ? "Ride created and dispatch started."
@@ -1256,7 +1600,7 @@ app.post("/api/request-ride", async (req, res) => {
     });
   } catch (error) {
     console.error("❌ /api/request-ride error:", error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Ride request failed.",
       error: error.message
@@ -1273,12 +1617,12 @@ app.get("/api/rides", async (req, res) => {
 
     if (error) throw error;
 
-    res.json({
+    return res.json({
       success: true,
       rides: data || []
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Failed to load rides.",
       error: error.message
@@ -1290,12 +1634,12 @@ app.get("/api/rides/:rideId", async (req, res) => {
   try {
     const ride = await getRideById(req.params.rideId);
 
-    res.json({
+    return res.json({
       success: true,
       ride
     });
   } catch (error) {
-    res.status(404).json({
+    return res.status(404).json({
       success: false,
       message: "Ride not found.",
       error: error.message
@@ -1308,8 +1652,8 @@ app.get("/api/rides/:rideId", async (req, res) => {
 ========================================================= */
 app.post("/api/driver/accept", async (req, res) => {
   try {
-    const rideId = safeString(req.body.ride_id);
-    const driverId = safeString(req.body.driver_id);
+    const rideId = safeString(getBodyValue(req.body, "ride_id", "rideId"));
+    const driverId = safeString(getBodyValue(req.body, "driver_id", "driverId"));
 
     if (!rideId || !driverId) {
       return res.status(400).json({
@@ -1373,13 +1717,13 @@ app.post("/api/driver/accept", async (req, res) => {
       })
       .eq("ride_id", rideId);
 
-    res.json({
+    return res.json({
       success: true,
       message: "Ride accepted.",
       ride: updatedRide
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Driver accept failed.",
       error: error.message
@@ -1389,8 +1733,8 @@ app.post("/api/driver/accept", async (req, res) => {
 
 app.post("/api/driver/reject", async (req, res) => {
   try {
-    const rideId = safeString(req.body.ride_id);
-    const driverId = safeString(req.body.driver_id);
+    const rideId = safeString(getBodyValue(req.body, "ride_id", "rideId"));
+    const driverId = safeString(getBodyValue(req.body, "driver_id", "driverId"));
 
     if (!rideId || !driverId) {
       return res.status(400).json({
@@ -1439,14 +1783,14 @@ app.post("/api/driver/reject", async (req, res) => {
     const result = await dispatchRide(rideId);
     const refreshedRide = await getRideById(rideId);
 
-    res.json({
+    return res.json({
       success: true,
       message: result.success ? "Ride redispatched." : "Redispatch pending.",
       ride: refreshedRide,
       dispatch: result
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Driver reject failed.",
       error: error.message
@@ -1479,13 +1823,13 @@ app.post("/api/rides/:rideId/start", async (req, res) => {
       })
       .eq("ride_id", rideId);
 
-    res.json({
+    return res.json({
       success: true,
       message: "Ride started.",
       ride: updatedRide
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Failed to start ride.",
       error: error.message
@@ -1529,13 +1873,13 @@ app.post("/api/rides/:rideId/complete", async (req, res) => {
       })
       .eq("ride_id", rideId);
 
-    res.json({
+    return res.json({
       success: true,
       message: "Ride completed.",
       ride: updatedRide
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Failed to complete ride.",
       error: error.message
@@ -1579,13 +1923,13 @@ app.post("/api/rides/:rideId/cancel", async (req, res) => {
       })
       .eq("ride_id", rideId);
 
-    res.json({
+    return res.json({
       success: true,
       message: "Ride cancelled.",
       ride: updatedRide
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Failed to cancel ride.",
       error: error.message
@@ -1616,7 +1960,7 @@ app.get("/api/admin/analytics", async (req, res) => {
     const payments = paymentsRes.data || [];
 
     const completedRides = rides.filter(
-      (ride) => safeString(ride.status).toLowerCase() === "completed"
+      (ride) => safeLower(ride.status) === "completed"
     );
 
     const activeRides = rides.filter((ride) =>
@@ -1626,11 +1970,11 @@ app.get("/api/admin/analytics", async (req, res) => {
         "driver_enroute",
         "in_progress",
         "redispatching"
-      ].includes(safeString(ride.status).toLowerCase())
+      ].includes(safeLower(ride.status))
     );
 
     const availableDrivers = drivers.filter(
-      (driver) => safeString(driver.status).toLowerCase() === "available"
+      (driver) => safeLower(driver.status) === "available"
     );
 
     const totalRevenue = completedRides.reduce(
@@ -1639,10 +1983,10 @@ app.get("/api/admin/analytics", async (req, res) => {
     );
 
     const authorizedPayments = payments.filter(
-      (payment) => safeString(payment.status).toLowerCase() === "authorized"
+      (payment) => safeLower(payment.status) === "authorized"
     );
 
-    res.json({
+    return res.json({
       success: true,
       analytics: {
         total_rides: rides.length,
@@ -1656,7 +2000,7 @@ app.get("/api/admin/analytics", async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Failed to load analytics.",
       error: error.message
