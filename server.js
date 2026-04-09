@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const crypto = require("crypto");
 const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
@@ -26,7 +27,14 @@ const {
   ADMIN_PASSWORD,
   GOOGLE_MAPS_API_KEY,
   OPENAI_API_KEY,
-  OPENAI_SUPPORT_MODEL
+  OPENAI_SUPPORT_MODEL,
+
+  SENDGRID_API_KEY,
+  SENDGRID_FROM_EMAIL,
+
+  TWILIO_ACCOUNT_SID,
+  TWILIO_AUTH_TOKEN,
+  TWILIO_PHONE_NUMBER
 } = process.env;
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
@@ -38,11 +46,17 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false, autoRefreshToken: false }
 });
 
+const hasSendGrid = !!(SENDGRID_API_KEY && SENDGRID_FROM_EMAIL);
+const hasTwilio = !!(TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_PHONE_NUMBER);
+
 /* =========================================================
    CONSTANTS
 ========================================================= */
 const DISPATCH_OFFER_TIMEOUT_MS = 20000;
 const MAX_DISPATCH_ATTEMPTS = 5;
+const DRIVER_SMS_CODE_TTL_MINUTES = 10;
+const DRIVER_EMAIL_TOKEN_TTL_HOURS = 24;
+const DRIVER_SMS_MAX_ATTEMPTS = 5;
 
 const FARE_CONFIG = {
   driver: {
@@ -182,90 +196,60 @@ function normalizeDriverType(value = "human") {
 function normalizeBoolean(value, fallback = false) {
   if (typeof value === "boolean") return value;
   const text = safeLower(value);
-  if (["true", "1", "yes", "y"].includes(text)) return true;
-  if (["false", "0", "no", "n"].includes(text)) return false;
+  if (["true", "1", "yes", "y", "on"].includes(text)) return true;
+  if (["false", "0", "no", "n", "off"].includes(text)) return false;
   return fallback;
 }
 
-function getFareProfile({ rideType = "standard", requestedMode = "driver" }) {
-  const normalizedMode = normalizeRequestedMode(requestedMode);
-  const normalizedRideType = normalizeRideType(rideType);
-
-  return (
-    FARE_CONFIG[normalizedMode]?.[normalizedRideType] ||
-    FARE_CONFIG.driver.standard
-  );
+function normalizeEmail(value = "") {
+  return safeLower(value);
 }
 
-function calculateFare({
-  distanceMiles = 0,
-  durationMinutes = 0,
-  rideType = "standard",
-  requestedMode = "driver",
-  surgeLevel = "normal"
-}) {
-  const normalizedMode = normalizeRequestedMode(requestedMode);
-  const normalizedRideType = normalizeRideType(rideType);
-  const normalizedSurgeLevel = normalizeSurgeLevel(surgeLevel);
-  const profile = getFareProfile({
-    rideType: normalizedRideType,
-    requestedMode: normalizedMode
-  });
-
-  const cleanDistance = Math.max(0, safeNumber(distanceMiles, 0));
-  const cleanDuration = Math.max(0, safeNumber(durationMinutes, 0));
-  const surgeMultiplier = safeNumber(SURGE_RULES[normalizedSurgeLevel], 1);
-
-  const subtotal =
-    profile.baseFare +
-    cleanDistance * profile.perMile +
-    cleanDuration * profile.perMinute +
-    profile.bookingFee;
-
-  const surgedSubtotal = subtotal * surgeMultiplier;
-  const estimatedTotal = Math.max(profile.minimumFare, surgedSubtotal);
-
-  return {
-    baseFare: Number(profile.baseFare.toFixed(2)),
-    perMile: Number(profile.perMile.toFixed(2)),
-    perMinute: Number(profile.perMinute.toFixed(2)),
-    distanceMiles: Number(cleanDistance.toFixed(2)),
-    durationMinutes: Number(cleanDuration.toFixed(2)),
-    bookingFee: Number(profile.bookingFee.toFixed(2)),
-    minimumFare: Number(profile.minimumFare.toFixed(2)),
-    surgeLevel: normalizedSurgeLevel,
-    surgeMultiplier: Number(surgeMultiplier.toFixed(2)),
-    estimatedTotal: Number(estimatedTotal.toFixed(2))
-  };
+function normalizePhone(value = "") {
+  return String(value || "").replace(/[^\d+]/g, "").trim();
 }
 
-function toRadians(value) {
-  return (value * Math.PI) / 180;
+function maskEmail(email = "") {
+  const clean = normalizeEmail(email);
+  const [local, domain] = clean.split("@");
+  if (!local || !domain) return "";
+  if (local.length <= 2) return `${local[0] || "*"}***@${domain}`;
+  return `${local.slice(0, 2)}***@${domain}`;
 }
 
-function haversineMiles(lat1, lon1, lat2, lon2) {
-  if (
-    !Number.isFinite(lat1) ||
-    !Number.isFinite(lon1) ||
-    !Number.isFinite(lat2) ||
-    !Number.isFinite(lon2)
-  ) {
-    return Number.POSITIVE_INFINITY;
+function maskPhone(phone = "") {
+  const digits = String(phone || "").replace(/[^\d]/g, "");
+  if (digits.length < 4) return "****";
+  return `***-***-${digits.slice(-4)}`;
+}
+
+function createToken(bytes = 32) {
+  return crypto.randomBytes(bytes).toString("hex");
+}
+
+function createNumericCode(length = 6) {
+  let code = "";
+  while (code.length < length) {
+    code += Math.floor(Math.random() * 10);
   }
+  return code.slice(0, length);
+}
 
-  const R = 3958.8;
-  const dLat = toRadians(lat2 - lat1);
-  const dLon = toRadians(lon2 - lon1);
+function addMinutes(dateInput, minutes) {
+  const date = new Date(dateInput || Date.now());
+  date.setMinutes(date.getMinutes() + minutes);
+  return date.toISOString();
+}
 
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRadians(lat1)) *
-      Math.cos(toRadians(lat2)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+function addHours(dateInput, hours) {
+  const date = new Date(dateInput || Date.now());
+  date.setHours(date.getHours() + hours);
+  return date.toISOString();
+}
 
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
+function isExpired(isoValue) {
+  if (!isoValue) return true;
+  return new Date(isoValue).getTime() < Date.now();
 }
 
 function publicRider(rider) {
@@ -285,8 +269,28 @@ function publicRider(rider) {
   };
 }
 
+function computeDriverVerificationSummary(driver) {
+  const emailVerified = driver?.email_verified === true;
+  const smsVerified = driver?.sms_verified === true;
+  const fullyVerified = emailVerified && smsVerified;
+
+  return {
+    email_verified: emailVerified,
+    sms_verified: smsVerified,
+    fully_verified: fullyVerified,
+    approval_ready: fullyVerified,
+    verification_status: fullyVerified
+      ? "verified"
+      : emailVerified || smsVerified
+      ? "partially_verified"
+      : driver?.verification_status || "pending"
+  };
+}
+
 function publicDriver(driver) {
   if (!driver) return null;
+  const verification = computeDriverVerificationSummary(driver);
+
   return {
     id: driver.id,
     first_name: driver.first_name || "",
@@ -303,12 +307,86 @@ function publicDriver(driver) {
     license_number: driver.license_number || "",
     driver_type: driver.driver_type || "human",
     approved: driver.approved === true,
-    verification_status: driver.verification_status || "pending",
+    verification_status: verification.verification_status,
     background_check_status: driver.background_check_status || "pending",
     status: driver.status || "offline",
+    email_verified: verification.email_verified,
+    sms_verified: verification.sms_verified,
+    fully_verified: verification.fully_verified,
+    approval_ready: verification.approval_ready,
     created_at: driver.created_at || null,
     updated_at: driver.updated_at || null
   };
+}
+
+async function sendEmailViaSendGrid({ to, subject, html, text }) {
+  if (!hasSendGrid) {
+    return {
+      success: false,
+      skipped: true,
+      message: "SendGrid not configured."
+    };
+  }
+
+  const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${SENDGRID_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      personalizations: [{ to: [{ email: to }] }],
+      from: { email: SENDGRID_FROM_EMAIL },
+      subject,
+      content: [
+        { type: "text/plain", value: text || "" },
+        { type: "text/html", value: html || "" }
+      ]
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`SendGrid email failed: ${errorText}`);
+  }
+
+  return { success: true };
+}
+
+async function sendSmsViaTwilio({ to, body }) {
+  if (!hasTwilio) {
+    return {
+      success: false,
+      skipped: true,
+      message: "Twilio not configured."
+    };
+  }
+
+  const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`;
+  const auth = Buffer.from(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`).toString("base64");
+
+  const formBody = new URLSearchParams({
+    To: to,
+    From: TWILIO_PHONE_NUMBER,
+    Body: body
+  });
+
+  const response = await fetch(twilioUrl, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${auth}`,
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: formBody.toString()
+  });
+
+  const data = await response.text();
+
+  if (!response.ok) {
+    throw new Error(`Twilio SMS failed: ${data}`);
+  }
+
+  return { success: true };
 }
 
 async function geocodeAddress(address) {
@@ -413,6 +491,87 @@ async function getDistanceAndDuration(pickupAddress, dropoffAddress) {
   };
 }
 
+function getFareProfile({ rideType = "standard", requestedMode = "driver" }) {
+  const normalizedMode = normalizeRequestedMode(requestedMode);
+  const normalizedRideType = normalizeRideType(rideType);
+
+  return (
+    FARE_CONFIG[normalizedMode]?.[normalizedRideType] ||
+    FARE_CONFIG.driver.standard
+  );
+}
+
+function calculateFare({
+  distanceMiles = 0,
+  durationMinutes = 0,
+  rideType = "standard",
+  requestedMode = "driver",
+  surgeLevel = "normal"
+}) {
+  const normalizedMode = normalizeRequestedMode(requestedMode);
+  const normalizedRideType = normalizeRideType(rideType);
+  const normalizedSurgeLevel = normalizeSurgeLevel(surgeLevel);
+  const profile = getFareProfile({
+    rideType: normalizedRideType,
+    requestedMode: normalizedMode
+  });
+
+  const cleanDistance = Math.max(0, safeNumber(distanceMiles, 0));
+  const cleanDuration = Math.max(0, safeNumber(durationMinutes, 0));
+  const surgeMultiplier = safeNumber(SURGE_RULES[normalizedSurgeLevel], 1);
+
+  const subtotal =
+    profile.baseFare +
+    cleanDistance * profile.perMile +
+    cleanDuration * profile.perMinute +
+    profile.bookingFee;
+
+  const surgedSubtotal = subtotal * surgeMultiplier;
+  const estimatedTotal = Math.max(profile.minimumFare, surgedSubtotal);
+
+  return {
+    baseFare: Number(profile.baseFare.toFixed(2)),
+    perMile: Number(profile.perMile.toFixed(2)),
+    perMinute: Number(profile.perMinute.toFixed(2)),
+    distanceMiles: Number(cleanDistance.toFixed(2)),
+    durationMinutes: Number(cleanDuration.toFixed(2)),
+    bookingFee: Number(profile.bookingFee.toFixed(2)),
+    minimumFare: Number(profile.minimumFare.toFixed(2)),
+    surgeLevel: normalizedSurgeLevel,
+    surgeMultiplier: Number(surgeMultiplier.toFixed(2)),
+    estimatedTotal: Number(estimatedTotal.toFixed(2))
+  };
+}
+
+function toRadians(value) {
+  return (value * Math.PI) / 180;
+}
+
+function haversineMiles(lat1, lon1, lat2, lon2) {
+  if (
+    !Number.isFinite(lat1) ||
+    !Number.isFinite(lon1) ||
+    !Number.isFinite(lat2) ||
+    !Number.isFinite(lon2)
+  ) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  const R = 3958.8;
+  const dLat = toRadians(lat2 - lat1);
+  const dLon = toRadians(lon2 - lon1);
+
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRadians(lat1)) *
+      Math.cos(toRadians(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 async function getRideById(rideId) {
   const { data, error } = await supabase
     .from("rides")
@@ -450,7 +609,7 @@ async function findRiderByEmail(email) {
   const { data, error } = await supabase
     .from("riders")
     .select("*")
-    .eq("email", safeLower(email))
+    .eq("email", normalizeEmail(email))
     .limit(1)
     .maybeSingle();
 
@@ -462,12 +621,100 @@ async function findDriverByEmail(email) {
   const { data, error } = await supabase
     .from("drivers")
     .select("*")
-    .eq("email", safeLower(email))
+    .eq("email", normalizeEmail(email))
     .limit(1)
     .maybeSingle();
 
   if (error) throw error;
   return data || null;
+}
+
+async function updateDriverVerificationStatus(driverId) {
+  const driver = await getDriverById(driverId);
+
+  const emailVerified = driver?.email_verified === true;
+  const smsVerified = driver?.sms_verified === true;
+  const fullyVerified = emailVerified && smsVerified;
+
+  const patch = {
+    verification_status: fullyVerified
+      ? "verified"
+      : emailVerified || smsVerified
+      ? "partially_verified"
+      : "pending",
+    updated_at: nowIso()
+  };
+
+  const { data, error } = await supabase
+    .from("drivers")
+    .update(patch)
+    .eq("id", driverId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+async function sendDriverVerificationEmail(driver) {
+  const appBase =
+    process.env.PUBLIC_APP_URL ||
+    process.env.RENDER_EXTERNAL_URL ||
+    process.env.APP_BASE_URL ||
+    "";
+
+  if (!appBase) {
+    throw new Error("Missing PUBLIC_APP_URL or RENDER_EXTERNAL_URL or APP_BASE_URL for email verification link.");
+  }
+
+  const verifyLink = `${appBase.replace(/\/$/, "")}/api/driver/verify-email?token=${encodeURIComponent(
+    driver.email_verification_token
+  )}`;
+
+  const subject = "Verify your Harvey Taxi driver email";
+  const text = [
+    `Hello ${driver.first_name || "Driver"},`,
+    "",
+    "Welcome to Harvey Taxi.",
+    "Please verify your email to continue your driver onboarding flow.",
+    "",
+    `Verify now: ${verifyLink}`,
+    "",
+    "If you did not request this, you can ignore this email."
+  ].join("\n");
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111;">
+      <h2>Verify your Harvey Taxi driver email</h2>
+      <p>Hello ${driver.first_name || "Driver"},</p>
+      <p>Welcome to Harvey Taxi. Please verify your email to continue your driver onboarding flow.</p>
+      <p>
+        <a href="${verifyLink}" style="display:inline-block;padding:12px 18px;background:#0b5cff;color:#fff;text-decoration:none;border-radius:8px;">
+          Verify Email
+        </a>
+      </p>
+      <p>If the button does not work, use this link:</p>
+      <p>${verifyLink}</p>
+      <p>If you did not request this, you can ignore this email.</p>
+    </div>
+  `;
+
+  return sendEmailViaSendGrid({
+    to: driver.email,
+    subject,
+    html,
+    text
+  });
+}
+
+async function sendDriverVerificationSms(driver) {
+  const code = driver.sms_verification_code || "";
+  const body = `Harvey Taxi verification code: ${code}. It expires in ${DRIVER_SMS_CODE_TTL_MINUTES} minutes.`;
+
+  return sendSmsViaTwilio({
+    to: driver.phone,
+    body
+  });
 }
 
 async function createDispatchRecord(ride, driver, attemptNumber) {
@@ -517,7 +764,9 @@ async function getAvailableDrivers(requestedMode = "driver") {
     .from("drivers")
     .select("*")
     .eq("approved", true)
-    .eq("status", "available");
+    .eq("status", "available")
+    .eq("email_verified", true)
+    .eq("sms_verified", true);
 
   if (normalizedMode === "autonomous") {
     query = query.eq("driver_type", "autonomous");
@@ -718,7 +967,7 @@ function getHarveySupportFallback(question, pageMode) {
   }
 
   if (mode === "driver") {
-    return "For driver onboarding, complete your signup carefully and finish the approval flow before trying to accept missions.";
+    return "For driver onboarding, complete your signup carefully, verify your email and phone, then complete the approval flow before trying to accept missions.";
   }
 
   if (mode === "request") {
@@ -747,6 +996,7 @@ Your job:
 Important platform rules:
 - Riders must be approved before they can request rides
 - Payment authorization is required before dispatch
+- Drivers must verify both email and SMS before they are fully verification-ready
 - Drivers should complete onboarding and approval before accepting trips
 - Harvey Taxi supports driver rides and autonomous pilot ride mode
 - Tipping may be supported during and after the trip
@@ -809,6 +1059,8 @@ app.get("/api/health", async (req, res) => {
       success: true,
       app: "Harvey Taxi",
       database: "connected",
+      email_service: hasSendGrid ? "configured" : "not_configured",
+      sms_service: hasTwilio ? "configured" : "not_configured",
       timestamp: nowIso()
     });
   } catch (error) {
@@ -915,8 +1167,8 @@ app.post("/api/rider/signup", async (req, res) => {
   try {
     const firstName = safeString(getBodyValue(req.body, "first_name", "firstName"));
     const lastName = safeString(getBodyValue(req.body, "last_name", "lastName"));
-    const email = safeLower(getBodyValue(req.body, "email"));
-    const phone = safeString(getBodyValue(req.body, "phone"));
+    const email = normalizeEmail(getBodyValue(req.body, "email"));
+    const phone = normalizePhone(getBodyValue(req.body, "phone"));
     const city = safeString(getBodyValue(req.body, "city"));
     const state = safeString(getBodyValue(req.body, "state"));
     const password = safeString(getBodyValue(req.body, "password"));
@@ -986,7 +1238,7 @@ app.post("/api/riders/signup", async (req, res) => {
 
 app.post("/api/rider/login", async (req, res) => {
   try {
-    const email = safeLower(getBodyValue(req.body, "email"));
+    const email = normalizeEmail(getBodyValue(req.body, "email"));
     const password = safeString(getBodyValue(req.body, "password"));
 
     if (!email) {
@@ -1074,30 +1326,18 @@ app.post("/api/driver/signup", async (req, res) => {
   try {
     const firstName = safeString(getBodyValue(req.body, "first_name", "firstName"));
     const lastName = safeString(getBodyValue(req.body, "last_name", "lastName"));
-    const email = safeLower(getBodyValue(req.body, "email"));
-    const phone = safeString(getBodyValue(req.body, "phone"));
+    const email = normalizeEmail(getBodyValue(req.body, "email"));
+    const phone = normalizePhone(getBodyValue(req.body, "phone"));
     const city = safeString(getBodyValue(req.body, "city"));
     const state = safeString(getBodyValue(req.body, "state"));
     const password = safeString(getBodyValue(req.body, "password"));
 
-    const vehicleMake = safeString(
-      getBodyValue(req.body, "vehicle_make", "vehicleMake")
-    );
-    const vehicleModel = safeString(
-      getBodyValue(req.body, "vehicle_model", "vehicleModel")
-    );
-    const vehicleYear = safeString(
-      getBodyValue(req.body, "vehicle_year", "vehicleYear")
-    );
-    const vehicleColor = safeString(
-      getBodyValue(req.body, "vehicle_color", "vehicleColor")
-    );
-    const licensePlate = safeString(
-      getBodyValue(req.body, "license_plate", "licensePlate")
-    );
-    const licenseNumber = safeString(
-      getBodyValue(req.body, "license_number", "licenseNumber")
-    );
+    const vehicleMake = safeString(getBodyValue(req.body, "vehicle_make", "vehicleMake"));
+    const vehicleModel = safeString(getBodyValue(req.body, "vehicle_model", "vehicleModel"));
+    const vehicleYear = safeString(getBodyValue(req.body, "vehicle_year", "vehicleYear"));
+    const vehicleColor = safeString(getBodyValue(req.body, "vehicle_color", "vehicleColor"));
+    const licensePlate = safeString(getBodyValue(req.body, "license_plate", "licensePlate"));
+    const licenseNumber = safeString(getBodyValue(req.body, "license_number", "licenseNumber"));
 
     const driverType = normalizeDriverType(
       getBodyValue(req.body, "driver_type", "driverType", "requestedMode")
@@ -1136,6 +1376,9 @@ app.post("/api/driver/signup", async (req, res) => {
       });
     }
 
+    const emailVerificationToken = createToken(32);
+    const smsVerificationCode = createNumericCode(6);
+
     const payload = {
       first_name: firstName,
       last_name: lastName,
@@ -1160,6 +1403,18 @@ app.post("/api/driver/signup", async (req, res) => {
       insurance_confirmed: insuranceConfirmed,
       latitude: null,
       longitude: null,
+
+      email_verified: false,
+      sms_verified: false,
+      email_verification_token: emailVerificationToken,
+      email_verification_sent_at: nowIso(),
+      email_verification_expires_at: addHours(Date.now(), DRIVER_EMAIL_TOKEN_TTL_HOURS),
+
+      sms_verification_code: smsVerificationCode,
+      sms_verification_sent_at: nowIso(),
+      sms_verification_expires_at: addMinutes(Date.now(), DRIVER_SMS_CODE_TTL_MINUTES),
+      sms_verification_attempts: 0,
+
       created_at: nowIso(),
       updated_at: nowIso()
     };
@@ -1172,15 +1427,54 @@ app.post("/api/driver/signup", async (req, res) => {
 
     if (error) throw error;
 
+    let emailDelivery = { success: false, skipped: true, message: "Not attempted." };
+    let smsDelivery = { success: false, skipped: true, message: "Not attempted." };
+
+    try {
+      emailDelivery = await sendDriverVerificationEmail(data);
+    } catch (emailError) {
+      console.error("❌ Driver email verification send failed:", emailError.message);
+      emailDelivery = {
+        success: false,
+        skipped: false,
+        message: emailError.message
+      };
+    }
+
+    try {
+      smsDelivery = await sendDriverVerificationSms(data);
+    } catch (smsError) {
+      console.error("❌ Driver SMS verification send failed:", smsError.message);
+      smsDelivery = {
+        success: false,
+        skipped: false,
+        message: smsError.message
+      };
+    }
+
     const driver = publicDriver(data);
 
     return res.json({
       success: true,
-      message: "Driver signup submitted.",
+      message: "Driver signup submitted. Email verification and SMS verification have been started.",
       driver_id: driver.id,
       status: driver.verification_status,
       approved: driver.approved,
-      driver
+      driver,
+      verification: {
+        email: {
+          required: true,
+          verified: driver.email_verified,
+          sent_to: maskEmail(driver.email),
+          delivery: emailDelivery.success ? "sent" : emailDelivery.skipped ? "skipped" : "failed"
+        },
+        sms: {
+          required: true,
+          verified: driver.sms_verified,
+          sent_to: maskPhone(driver.phone),
+          delivery: smsDelivery.success ? "sent" : smsDelivery.skipped ? "skipped" : "failed"
+        }
+      }
     });
   } catch (error) {
     console.error("❌ /api/driver/signup error:", error);
@@ -1197,9 +1491,309 @@ app.post("/api/drivers/signup", async (req, res) => {
   app._router.handle(req, res);
 });
 
+app.get("/api/driver/verify-email", async (req, res) => {
+  try {
+    const token = safeString(req.query.token);
+
+    if (!token) {
+      return res.status(400).send("Missing verification token.");
+    }
+
+    const { data: driver, error } = await supabase
+      .from("drivers")
+      .select("*")
+      .eq("email_verification_token", token)
+      .limit(1)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    if (!driver) {
+      return res.status(404).send("Invalid verification token.");
+    }
+
+    if (driver.email_verified === true) {
+      return res.send("Email already verified. You can return to Harvey Taxi.");
+    }
+
+    if (isExpired(driver.email_verification_expires_at)) {
+      return res.status(400).send("Email verification link expired. Please request a new verification email.");
+    }
+
+    const { data: updatedDriver, error: updateError } = await supabase
+      .from("drivers")
+      .update({
+        email_verified: true,
+        email_verified_at: nowIso(),
+        email_verification_token: null,
+        updated_at: nowIso()
+      })
+      .eq("id", driver.id)
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
+
+    await updateDriverVerificationStatus(driver.id);
+
+    return res.send(
+      "Email verified successfully. Return to Harvey Taxi to continue your driver onboarding."
+    );
+  } catch (error) {
+    console.error("❌ /api/driver/verify-email error:", error);
+    return res.status(500).send("Email verification failed.");
+  }
+});
+
+app.post("/api/driver/verify-sms", async (req, res) => {
+  try {
+    const driverId = safeString(getBodyValue(req.body, "driver_id", "driverId"));
+    const code = safeString(getBodyValue(req.body, "code", "sms_code", "smsCode"));
+
+    if (!driverId || !code) {
+      return res.status(400).json({
+        success: false,
+        message: "driver_id and code are required."
+      });
+    }
+
+    const driver = await getDriverById(driverId);
+
+    if (!driver) {
+      return res.status(404).json({
+        success: false,
+        message: "Driver not found."
+      });
+    }
+
+    if (driver.sms_verified === true) {
+      return res.json({
+        success: true,
+        message: "SMS already verified.",
+        driver: publicDriver(driver)
+      });
+    }
+
+    if (safeNumber(driver.sms_verification_attempts, 0) >= DRIVER_SMS_MAX_ATTEMPTS) {
+      return res.status(429).json({
+        success: false,
+        message: "Too many SMS verification attempts. Please request a new code."
+      });
+    }
+
+    if (isExpired(driver.sms_verification_expires_at)) {
+      return res.status(400).json({
+        success: false,
+        message: "SMS verification code expired. Please request a new code."
+      });
+    }
+
+    if (safeString(driver.sms_verification_code) !== code) {
+      await supabase
+        .from("drivers")
+        .update({
+          sms_verification_attempts: safeNumber(driver.sms_verification_attempts, 0) + 1,
+          updated_at: nowIso()
+        })
+        .eq("id", driverId);
+
+      return res.status(400).json({
+        success: false,
+        message: "Invalid SMS verification code."
+      });
+    }
+
+    const { data: updatedDriver, error: updateError } = await supabase
+      .from("drivers")
+      .update({
+        sms_verified: true,
+        sms_verified_at: nowIso(),
+        sms_verification_code: null,
+        sms_verification_attempts: 0,
+        updated_at: nowIso()
+      })
+      .eq("id", driverId)
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
+
+    const refreshed = await updateDriverVerificationStatus(driverId);
+
+    return res.json({
+      success: true,
+      message: "SMS verified successfully.",
+      driver: publicDriver(refreshed)
+    });
+  } catch (error) {
+    console.error("❌ /api/driver/verify-sms error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "SMS verification failed.",
+      error: error.message
+    });
+  }
+});
+
+app.post("/api/driver/resend-email-verification", async (req, res) => {
+  try {
+    const driverId = safeString(getBodyValue(req.body, "driver_id", "driverId"));
+    const email = normalizeEmail(getBodyValue(req.body, "email"));
+
+    let driver = null;
+
+    if (driverId) {
+      driver = await getDriverById(driverId);
+    } else if (email) {
+      driver = await findDriverByEmail(email);
+    }
+
+    if (!driver) {
+      return res.status(404).json({
+        success: false,
+        message: "Driver not found."
+      });
+    }
+
+    if (driver.email_verified === true) {
+      return res.json({
+        success: true,
+        message: "Email already verified.",
+        driver: publicDriver(driver)
+      });
+    }
+
+    const newToken = createToken(32);
+
+    const { data: updatedDriver, error } = await supabase
+      .from("drivers")
+      .update({
+        email_verification_token: newToken,
+        email_verification_sent_at: nowIso(),
+        email_verification_expires_at: addHours(Date.now(), DRIVER_EMAIL_TOKEN_TTL_HOURS),
+        updated_at: nowIso()
+      })
+      .eq("id", driver.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    await sendDriverVerificationEmail(updatedDriver);
+
+    return res.json({
+      success: true,
+      message: "Verification email resent.",
+      sent_to: maskEmail(updatedDriver.email)
+    });
+  } catch (error) {
+    console.error("❌ /api/driver/resend-email-verification error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to resend verification email.",
+      error: error.message
+    });
+  }
+});
+
+app.post("/api/driver/resend-sms-verification", async (req, res) => {
+  try {
+    const driverId = safeString(getBodyValue(req.body, "driver_id", "driverId"));
+    const phone = normalizePhone(getBodyValue(req.body, "phone"));
+
+    let driver = null;
+
+    if (driverId) {
+      driver = await getDriverById(driverId);
+    } else if (phone) {
+      const { data, error } = await supabase
+        .from("drivers")
+        .select("*")
+        .eq("phone", phone)
+        .limit(1)
+        .maybeSingle();
+
+      if (error) throw error;
+      driver = data || null;
+    }
+
+    if (!driver) {
+      return res.status(404).json({
+        success: false,
+        message: "Driver not found."
+      });
+    }
+
+    if (driver.sms_verified === true) {
+      return res.json({
+        success: true,
+        message: "SMS already verified.",
+        driver: publicDriver(driver)
+      });
+    }
+
+    const newCode = createNumericCode(6);
+
+    const { data: updatedDriver, error } = await supabase
+      .from("drivers")
+      .update({
+        sms_verification_code: newCode,
+        sms_verification_sent_at: nowIso(),
+        sms_verification_expires_at: addMinutes(Date.now(), DRIVER_SMS_CODE_TTL_MINUTES),
+        sms_verification_attempts: 0,
+        updated_at: nowIso()
+      })
+      .eq("id", driver.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    await sendDriverVerificationSms(updatedDriver);
+
+    return res.json({
+      success: true,
+      message: "Verification SMS resent.",
+      sent_to: maskPhone(updatedDriver.phone)
+    });
+  } catch (error) {
+    console.error("❌ /api/driver/resend-sms-verification error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to resend verification SMS.",
+      error: error.message
+    });
+  }
+});
+
+app.get("/api/driver/verification-status/:driverId", async (req, res) => {
+  try {
+    const driver = await getDriverById(req.params.driverId);
+
+    return res.json({
+      success: true,
+      driver_id: driver.id,
+      verification: {
+        email_verified: driver.email_verified === true,
+        sms_verified: driver.sms_verified === true,
+        fully_verified: driver.email_verified === true && driver.sms_verified === true,
+        verification_status: publicDriver(driver).verification_status,
+        approved: driver.approved === true
+      },
+      driver: publicDriver(driver)
+    });
+  } catch (error) {
+    return res.status(404).json({
+      success: false,
+      message: "Driver not found.",
+      error: error.message
+    });
+  }
+});
+
 app.post("/api/driver/login", async (req, res) => {
   try {
-    const email = safeLower(getBodyValue(req.body, "email"));
+    const email = normalizeEmail(getBodyValue(req.body, "email"));
     const password = safeString(getBodyValue(req.body, "password"));
 
     if (!email) {
@@ -1229,6 +1823,11 @@ app.post("/api/driver/login", async (req, res) => {
       success: true,
       message: "Driver login successful.",
       driver_id: driver.id,
+      verification: {
+        email_verified: driver.email_verified === true,
+        sms_verified: driver.sms_verified === true,
+        fully_verified: driver.email_verified === true && driver.sms_verified === true
+      },
       driver: publicDriver(driver)
     });
   } catch (error) {
@@ -1307,6 +1906,21 @@ app.post("/api/driver/:driverId/availability", async (req, res) => {
     const longitude =
       req.body.longitude == null ? null : safeNumber(req.body.longitude, null);
 
+    const driver = await getDriverById(driverId);
+    if (!driver) {
+      return res.status(404).json({
+        success: false,
+        message: "Driver not found."
+      });
+    }
+
+    if (!(driver.email_verified === true && driver.sms_verified === true)) {
+      return res.status(403).json({
+        success: false,
+        message: "Driver must complete email and SMS verification before going available."
+      });
+    }
+
     const allowedStatuses = ["available", "busy", "offline"];
     if (!allowedStatuses.includes(status)) {
       return res.status(400).json({
@@ -1351,9 +1965,7 @@ app.post("/api/driver/:driverId/availability", async (req, res) => {
 ========================================================= */
 app.post("/api/payments/authorize", async (req, res) => {
   try {
-    const riderId = safeString(
-      getBodyValue(req.body, "rider_id", "riderId")
-    );
+    const riderId = safeString(getBodyValue(req.body, "rider_id", "riderId"));
     const amount = safeNumber(getBodyValue(req.body, "amount"), 0);
     const paymentMethod = safeLower(
       getBodyValue(req.body, "payment_method", "paymentMethod") || "card"
@@ -1659,6 +2271,14 @@ app.post("/api/driver/accept", async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "ride_id and driver_id are required."
+      });
+    }
+
+    const driver = await getDriverById(driverId);
+    if (!(driver.email_verified === true && driver.sms_verified === true)) {
+      return res.status(403).json({
+        success: false,
+        message: "Driver must complete email and SMS verification before accepting rides."
       });
     }
 
@@ -1977,6 +2597,10 @@ app.get("/api/admin/analytics", async (req, res) => {
       (driver) => safeLower(driver.status) === "available"
     );
 
+    const verifiedDrivers = drivers.filter(
+      (driver) => driver.email_verified === true && driver.sms_verified === true
+    );
+
     const totalRevenue = completedRides.reduce(
       (sum, ride) => sum + safeNumber(ride.estimated_fare, 0),
       0
@@ -1994,6 +2618,7 @@ app.get("/api/admin/analytics", async (req, res) => {
         completed_rides: completedRides.length,
         total_riders: riders.length,
         total_drivers: drivers.length,
+        verified_drivers: verifiedDrivers.length,
         available_drivers: availableDrivers.length,
         authorized_payments: authorizedPayments.length,
         total_revenue_estimate: Number(totalRevenue.toFixed(2))
