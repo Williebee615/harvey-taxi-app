@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Harvey Taxi — Rider Dashboard</title>
+
+<style>
+body{
+font-family:Inter,Arial,sans-serif;
+background:#040814;
+color:white;
+margin:0;
+padding:0;
+}
+
+.header{
+padding:20px;
+font-size:22px;
+font-weight:700;
+border-bottom:1px solid rgba(255,255,255,.1);
+}
+
+.card{
+margin:16px;
+padding:18px;
+background:#0b162d;
+border-radius:14px;
+}
+
+button{
+width:100%;
+padding:16px;
+border-radius:12px;
+border:none;
+margin-top:10px;
+font-weight:600;
+background:linear-gradient(135deg,#4facfe,#00f2fe);
+color:black;
+}
+
+.trip{
+padding:12px;
+background:#111a2e;
+border-radius:10px;
+margin-top:10px;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="header">
+Rider Dashboard
+</div>
+
+<div class="card">
+<h3>Request Ride</h3>
+<button onclick="requestRide()">Book Ride</button>
+</div>
+
+<div class="card">
+<h3>My Trips</h3>
+<div id="trips"></div>
+</div>
+
+<div class="card">
+<h3>Account</h3>
+<button onclick="logout()">Logout</button>
+</div>
+
+<script>
+
+async function requestRide(){
+window.location.href="/request-ride.html";
+}
+
+async function loadTrips(){
+
+try{
+
+const res = await fetch("/api/rides");
+const data = await res.json();
+
+const trips = document.getElementById("trips");
+trips.innerHTML="";
+
+data.forEach(trip=>{
+const div=document.createElement("div");
+div.className="trip";
+div.innerHTML=`
+Pickup: ${trip.pickup || "-"}<br>
+Dropoff: ${trip.dropoff || "-"}<br>
+Status: ${trip.status || "pending"}
+`;
+trips.appendChild(div);
+});
+
+}catch(e){
+console.log(e);
+}
+
+}
+
+function logout(){
+localStorage.removeItem("rider");
+window.location.href="/";
+}
+
+loadTrips();
+
+</script>
+
+</body>
+</html>
