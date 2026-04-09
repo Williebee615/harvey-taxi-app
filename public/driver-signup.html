@@ -6,7 +6,7 @@
   <title>Harvey Taxi | Driver Sign Up</title>
   <meta
     name="description"
-    content="Apply to join Harvey Taxi as a driver and begin onboarding, identity review, and approval."
+    content="Apply to join Harvey Taxi as a driver, complete onboarding, and submit independent contractor tax information for approval."
   />
   <style>
     :root {
@@ -14,6 +14,7 @@
       --bg-2: #091126;
       --bg-3: #101a36;
       --panel: rgba(10, 18, 42, 0.92);
+      --panel-soft: rgba(13, 24, 54, 0.78);
       --line: rgba(111, 170, 255, 0.2);
       --line-strong: rgba(111, 170, 255, 0.38);
       --text: #f4f8ff;
@@ -32,6 +33,10 @@
       padding: 0;
     }
 
+    html {
+      scroll-behavior: smooth;
+    }
+
     body {
       min-height: 100vh;
       font-family: Inter, Arial, sans-serif;
@@ -48,15 +53,16 @@
     }
 
     .shell {
-      width: min(100%, 960px);
+      width: min(100%, 1160px);
       margin: 0 auto;
-      padding: 18px 16px 110px;
+      padding: 18px 16px 120px;
     }
 
     .topbar {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      gap: 14px;
       padding: 16px 18px;
       border: 1px solid var(--line);
       border-radius: 999px;
@@ -75,18 +81,19 @@
     }
 
     .brand-mark {
-      width: 44px;
-      height: 44px;
+      width: 46px;
+      height: 46px;
       border-radius: 14px;
       background:
-        radial-gradient(circle at 30% 30%, rgba(255,255,255,0.95), rgba(255,255,255,0.1) 18%, transparent 20%),
-        linear-gradient(145deg, rgba(104,168,255,0.95), rgba(98,245,255,0.45), rgba(113,255,183,0.25));
+        radial-gradient(circle at 30% 30%, rgba(255,255,255,0.95), rgba(255,255,255,0.12) 18%, transparent 20%),
+        linear-gradient(145deg, rgba(104,168,255,0.95), rgba(98,245,255,0.48), rgba(113,255,183,0.28));
+      box-shadow: inset 0 0 22px rgba(255,255,255,0.12);
     }
 
     .brand h1 {
       font-size: 1rem;
-      font-weight: 800;
-      letter-spacing: 0.06em;
+      font-weight: 900;
+      letter-spacing: 0.08em;
     }
 
     .brand p {
@@ -96,7 +103,8 @@
     }
 
     .mini-btn,
-    .btn {
+    .btn,
+    .ghost-btn {
       border: none;
       cursor: pointer;
       transition: 0.25s ease;
@@ -104,7 +112,8 @@
       font-family: inherit;
     }
 
-    .mini-btn {
+    .mini-btn,
+    .ghost-btn {
       padding: 10px 14px;
       border-radius: 999px;
       background: rgba(255,255,255,0.04);
@@ -113,11 +122,19 @@
       font-size: 0.88rem;
     }
 
+    .mini-btn:hover,
+    .ghost-btn:hover {
+      transform: translateY(-1px);
+      border-color: var(--line-strong);
+      background: rgba(255,255,255,0.07);
+    }
+
     .page {
       margin-top: 22px;
       display: grid;
-      grid-template-columns: 1fr 1.05fr;
+      grid-template-columns: 0.95fr 1.15fr;
       gap: 18px;
+      align-items: start;
     }
 
     .hero,
@@ -131,6 +148,19 @@
 
     .hero {
       padding: 28px;
+      position: sticky;
+      top: 104px;
+      overflow: hidden;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: auto -20% -20% auto;
+      width: 220px;
+      height: 220px;
+      background: radial-gradient(circle, rgba(98,245,255,0.16), transparent 65%);
+      pointer-events: none;
     }
 
     .eyebrow {
@@ -141,7 +171,7 @@
       padding: 9px 14px;
       border-radius: 999px;
       color: var(--gold);
-      font-weight: 700;
+      font-weight: 800;
       font-size: 0.88rem;
       background: rgba(255,216,111,0.06);
       margin-bottom: 18px;
@@ -149,9 +179,9 @@
 
     .hero h2 {
       font-size: clamp(2rem, 4vw, 3.4rem);
-      line-height: 1.03;
+      line-height: 1.02;
       font-weight: 900;
-      letter-spacing: -0.03em;
+      letter-spacing: -0.04em;
     }
 
     .hero h2 span {
@@ -164,6 +194,7 @@
       margin-top: 14px;
       color: var(--muted);
       line-height: 1.7;
+      font-size: 0.98rem;
     }
 
     .checklist {
@@ -174,7 +205,7 @@
 
     .item {
       padding: 14px 15px;
-      border-radius: 16px;
+      border-radius: 18px;
       background: rgba(255,255,255,0.03);
       border: 1px solid rgba(255,255,255,0.07);
     }
@@ -182,6 +213,7 @@
     .item strong {
       display: block;
       margin-bottom: 6px;
+      font-size: 0.98rem;
     }
 
     .item span {
@@ -195,24 +227,69 @@
     }
 
     .panel h3 {
-      font-size: 1.24rem;
+      font-size: 1.28rem;
       margin-bottom: 8px;
+      font-weight: 900;
     }
 
     .panel-sub {
       color: var(--muted);
-      line-height: 1.65;
+      line-height: 1.7;
       margin-bottom: 18px;
     }
 
-    .notice {
+    .notice,
+    .security-note {
       padding: 14px 16px;
-      border-radius: 16px;
+      border-radius: 18px;
       margin-bottom: 18px;
+      line-height: 1.65;
+      font-size: 0.92rem;
+    }
+
+    .notice {
       background: rgba(255,216,111,0.10);
       border: 1px solid rgba(255,216,111,0.18);
       color: var(--muted);
+    }
+
+    .security-note {
+      background: rgba(98,245,255,0.08);
+      border: 1px solid rgba(98,245,255,0.16);
+      color: var(--muted);
+    }
+
+    .section-card {
+      border: 1px solid var(--line);
+      background: var(--panel-soft);
+      border-radius: 22px;
+      padding: 18px;
+      margin-bottom: 18px;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .section-title h4 {
+      font-size: 1rem;
+      font-weight: 900;
+    }
+
+    .section-title span {
+      color: var(--muted);
+      font-size: 0.83rem;
+      font-weight: 700;
+    }
+
+    .section-copy {
+      color: var(--muted);
       line-height: 1.6;
+      margin-bottom: 16px;
       font-size: 0.92rem;
     }
 
@@ -225,7 +302,6 @@
     .field {
       display: grid;
       gap: 8px;
-      margin-bottom: 16px;
     }
 
     .field.full {
@@ -234,7 +310,7 @@
 
     .field label {
       font-weight: 800;
-      font-size: 0.96rem;
+      font-size: 0.95rem;
     }
 
     .field small {
@@ -254,12 +330,102 @@
       font-size: 1rem;
       outline: none;
       transition: 0.25s ease;
+      appearance: none;
+    }
+
+    input::placeholder {
+      color: rgba(185,199,232,0.68);
     }
 
     input:focus,
     select:focus {
       border-color: var(--blue);
       box-shadow: 0 0 0 3px rgba(104,168,255,0.16);
+    }
+
+    .choice-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .choice {
+      position: relative;
+    }
+
+    .choice input {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .choice-card {
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 16px;
+      background: rgba(255,255,255,0.03);
+      min-height: 118px;
+      transition: 0.25s ease;
+    }
+
+    .choice-card strong {
+      display: block;
+      font-size: 0.98rem;
+      margin-bottom: 8px;
+    }
+
+    .choice-card span {
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.55;
+      display: block;
+    }
+
+    .choice input:checked + .choice-card {
+      border-color: var(--cyan);
+      box-shadow: 0 0 0 3px rgba(98,245,255,0.12);
+      background: rgba(98,245,255,0.06);
+      transform: translateY(-1px);
+    }
+
+    .tax-block {
+      display: none;
+      margin-top: 16px;
+    }
+
+    .tax-block.show {
+      display: block;
+    }
+
+    .checkbox-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 14px 14px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.03);
+    }
+
+    .checkbox-row input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      margin-top: 2px;
+      accent-color: var(--cyan);
+    }
+
+    .checkbox-row label {
+      font-weight: 700;
+      line-height: 1.6;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .actions {
+      display: grid;
+      gap: 12px;
+      margin-top: 6px;
     }
 
     .btn {
@@ -269,11 +435,18 @@
       font-size: 1rem;
       color: #08111f;
       background: linear-gradient(135deg, var(--cyan), var(--blue), #9dbeff);
+      box-shadow: 0 16px 32px rgba(67, 140, 255, 0.18);
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.02);
     }
 
     .btn:disabled {
       opacity: 0.72;
       cursor: wait;
+      transform: none;
     }
 
     .status {
@@ -301,6 +474,12 @@
       color: var(--text);
     }
 
+    .status.info {
+      background: rgba(98,245,255,0.10);
+      border: 1px solid rgba(98,245,255,0.18);
+      color: var(--text);
+    }
+
     .return-home {
       position: fixed;
       right: 16px;
@@ -310,13 +489,28 @@
       border-radius: 999px;
       background: linear-gradient(135deg, var(--cyan), var(--blue));
       color: #08111f;
-      font-weight: 800;
+      font-weight: 900;
       box-shadow: var(--shadow);
     }
 
-    @media (max-width: 900px) {
-      .page,
-      .form-grid {
+    .hidden {
+      display: none !important;
+    }
+
+    @media (max-width: 980px) {
+      .page {
+        grid-template-columns: 1fr;
+      }
+
+      .hero {
+        position: relative;
+        top: 0;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .form-grid,
+      .choice-grid {
         grid-template-columns: 1fr;
       }
     }
@@ -332,6 +526,16 @@
         left: 12px;
         right: 12px;
         text-align: center;
+      }
+
+      .shell {
+        padding-left: 12px;
+        padding-right: 12px;
+      }
+
+      .hero,
+      .panel {
+        border-radius: 24px;
       }
     }
   </style>
@@ -351,25 +555,25 @@
 
     <main class="page">
       <section class="hero">
-        <div class="eyebrow">Fleet participation path</div>
-        <h2>Join the <span>driver network</span></h2>
+        <div class="eyebrow">Driver + contractor onboarding</div>
+        <h2>Join the <span>Harvey Taxi fleet</span></h2>
         <p>
-          Start your Harvey Taxi driver application with a cleaner professional experience built
-          for onboarding, identity review, background screening, and approval.
+          Submit your driver application, complete onboarding, and provide contractor tax details
+          so Harvey Taxi can review your eligibility, activate your profile, and support compliant payouts.
         </p>
 
         <div class="checklist">
           <div class="item">
-            <strong>Identity review</strong>
-            <span>Supports Persona-based verification and secure onboarding structure.</span>
+            <strong>Identity + screening path</strong>
+            <span>Built to support license review, Persona identity verification, and background screening before approval.</span>
           </div>
           <div class="item">
-            <strong>Background check flow</strong>
-            <span>Driver approval can connect into Checkr and downstream operations.</span>
+            <strong>Independent contractor ready</strong>
+            <span>Drivers can submit tax classification information for SSN or EIN-based onboarding and 1099 support later.</span>
           </div>
           <div class="item">
-            <strong>Mixed-fleet ready</strong>
-            <span>Built to support human drivers now and future autonomous fleet compatibility later.</span>
+            <strong>Future-ready fleet system</strong>
+            <span>Supports today’s human driver network while staying aligned with the larger Harvey Taxi mixed-fleet vision.</span>
           </div>
         </div>
       </section>
@@ -377,55 +581,189 @@
       <section class="panel">
         <h3>Driver Sign Up</h3>
         <p class="panel-sub">
-          Submit your information to begin the Harvey Taxi driver application and approval path.
+          Complete this application to begin review. Driver access is only granted after verification,
+          screening, tax onboarding, and administrative approval.
         </p>
 
         <div class="notice">
-          Driver access is not immediate. Identity review, screening, and approval must be completed first.
+          Approval is not immediate. Harvey Taxi reviews identity, driving eligibility, and contractor setup before activating driver access.
+        </div>
+
+        <div class="security-note">
+          Tax details are requested for independent contractor onboarding. Drivers may provide an SSN as an individual contractor or an EIN if operating through a business entity.
         </div>
 
         <form id="driverSignupForm">
-          <div class="form-grid">
-            <div class="field">
-              <label for="fullName">Full Name</label>
-              <input type="text" id="fullName" name="fullName" placeholder="Enter your full name" required />
+          <div class="section-card">
+            <div class="section-title">
+              <h4>Driver Information</h4>
+              <span>Step 1</span>
             </div>
+            <p class="section-copy">
+              Provide the core information needed to start driver onboarding and region matching.
+            </p>
 
-            <div class="field">
-              <label for="phone">Phone Number</label>
-              <input type="tel" id="phone" name="phone" placeholder="Enter your phone number" required />
-            </div>
+            <div class="form-grid">
+              <div class="field">
+                <label for="fullName">Full Name</label>
+                <input type="text" id="fullName" name="fullName" placeholder="Enter your full name" required />
+              </div>
 
-            <div class="field full">
-              <label for="email">Email Address</label>
-              <input type="email" id="email" name="email" placeholder="Enter your email address" required />
-            </div>
+              <div class="field">
+                <label for="phone">Phone Number</label>
+                <input type="tel" id="phone" name="phone" placeholder="Enter your phone number" required />
+              </div>
 
-            <div class="field">
-              <label for="vehicleType">Vehicle Type</label>
-              <select id="vehicleType" name="vehicleType" required>
-                <option value="">Select vehicle type</option>
-                <option value="Sedan">Sedan</option>
-                <option value="SUV">SUV</option>
-                <option value="Van">Van</option>
-                <option value="Luxury">Luxury</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
+              <div class="field full">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" name="email" placeholder="Enter your email address" required />
+              </div>
 
-            <div class="field">
-              <label for="licenseNumber">Driver License Number</label>
-              <input type="text" id="licenseNumber" name="licenseNumber" placeholder="Enter license number" required />
-            </div>
+              <div class="field">
+                <label for="vehicleType">Vehicle Type</label>
+                <select id="vehicleType" name="vehicleType" required>
+                  <option value="">Select vehicle type</option>
+                  <option value="Sedan">Sedan</option>
+                  <option value="SUV">SUV</option>
+                  <option value="Van">Van</option>
+                  <option value="Luxury">Luxury</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
 
-            <div class="field full">
-              <label for="city">Operating City / Area</label>
-              <input type="text" id="city" name="city" placeholder="Enter your operating city or area" required />
-              <small>This helps connect the application to the right operating region.</small>
+              <div class="field">
+                <label for="licenseNumber">Driver License Number</label>
+                <input type="text" id="licenseNumber" name="licenseNumber" placeholder="Enter license number" required />
+              </div>
+
+              <div class="field full">
+                <label for="city">Operating City / Area</label>
+                <input type="text" id="city" name="city" placeholder="Enter your operating city or area" required />
+                <small>This helps align your application with the correct operating region.</small>
+              </div>
             </div>
           </div>
 
-          <button type="submit" class="btn" id="submitBtn">Submit Driver Application</button>
+          <div class="section-card">
+            <div class="section-title">
+              <h4>Independent Contractor Tax Setup</h4>
+              <span>Step 2</span>
+            </div>
+            <p class="section-copy">
+              Select how you want to be onboarded for contractor tax purposes.
+            </p>
+
+            <div class="choice-grid">
+              <div class="choice">
+                <input type="radio" id="taxTypeIndividual" name="taxClassification" value="individual" checked />
+                <div class="choice-card">
+                  <strong>Individual Contractor</strong>
+                  <span>Use your personal legal name and Social Security Number for independent contractor onboarding.</span>
+                </div>
+              </div>
+
+              <div class="choice">
+                <input type="radio" id="taxTypeBusiness" name="taxClassification" value="business" />
+                <div class="choice-card">
+                  <strong>Business / EIN Contractor</strong>
+                  <span>Use your business or LLC details and Employer Identification Number for onboarding.</span>
+                </div>
+              </div>
+            </div>
+
+            <div id="individualTaxBlock" class="tax-block show">
+              <div class="form-grid">
+                <div class="field">
+                  <label for="individualLegalName">Legal Name</label>
+                  <input type="text" id="individualLegalName" placeholder="Enter legal name" />
+                </div>
+
+                <div class="field">
+                  <label for="ssnLast4">SSN Last 4</label>
+                  <input type="text" id="ssnLast4" inputmode="numeric" maxlength="4" placeholder="Last 4 digits" />
+                  <small>Use numeric digits only.</small>
+                </div>
+
+                <div class="field full">
+                  <label for="individualTaxAddress">Tax Address</label>
+                  <input type="text" id="individualTaxAddress" placeholder="Enter tax mailing address" />
+                </div>
+              </div>
+            </div>
+
+            <div id="businessTaxBlock" class="tax-block">
+              <div class="form-grid">
+                <div class="field">
+                  <label for="businessName">Business Name</label>
+                  <input type="text" id="businessName" placeholder="Enter business or LLC name" />
+                </div>
+
+                <div class="field">
+                  <label for="einLast4">EIN Last 4</label>
+                  <input type="text" id="einLast4" inputmode="numeric" maxlength="4" placeholder="Last 4 digits" />
+                  <small>Use numeric digits only.</small>
+                </div>
+
+                <div class="field">
+                  <label for="businessOwnerName">Owner / Authorized Person</label>
+                  <input type="text" id="businessOwnerName" placeholder="Enter owner or signer name" />
+                </div>
+
+                <div class="field">
+                  <label for="businessTaxType">Business Type</label>
+                  <select id="businessTaxType">
+                    <option value="">Select business type</option>
+                    <option value="LLC">LLC</option>
+                    <option value="Sole Proprietor">Sole Proprietor</option>
+                    <option value="Corporation">Corporation</option>
+                    <option value="Partnership">Partnership</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div class="field full">
+                  <label for="businessTaxAddress">Business Tax Address</label>
+                  <input type="text" id="businessTaxAddress" placeholder="Enter business tax mailing address" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-card">
+            <div class="section-title">
+              <h4>Contractor Acknowledgment</h4>
+              <span>Step 3</span>
+            </div>
+            <p class="section-copy">
+              Confirm your onboarding acknowledgment before submitting the application.
+            </p>
+
+            <div class="form-grid">
+              <div class="field full">
+                <div class="checkbox-row">
+                  <input type="checkbox" id="contractorAgreement" required />
+                  <label for="contractorAgreement">
+                    I understand that if approved, I may be onboarded as an independent contractor and may be required to provide complete tax documentation before receiving payouts.
+                  </label>
+                </div>
+              </div>
+
+              <div class="field full">
+                <div class="checkbox-row">
+                  <input type="checkbox" id="accuracyAgreement" required />
+                  <label for="accuracyAgreement">
+                    I certify that the information I am submitting is accurate to the best of my knowledge and may be reviewed for onboarding, safety, compliance, and payment setup.
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button type="submit" class="btn" id="submitBtn">Submit Driver Application</button>
+            <a class="ghost-btn" href="index.html">Return Home</a>
+          </div>
+
           <div id="statusMessage" class="status"></div>
         </form>
       </section>
@@ -439,9 +777,64 @@
     const driverStatus = document.getElementById("statusMessage");
     const submitBtn = document.getElementById("submitBtn");
 
+    const taxTypeInputs = document.querySelectorAll('input[name="taxClassification"]');
+    const individualTaxBlock = document.getElementById("individualTaxBlock");
+    const businessTaxBlock = document.getElementById("businessTaxBlock");
+
+    const individualLegalName = document.getElementById("individualLegalName");
+    const ssnLast4 = document.getElementById("ssnLast4");
+    const individualTaxAddress = document.getElementById("individualTaxAddress");
+
+    const businessName = document.getElementById("businessName");
+    const einLast4 = document.getElementById("einLast4");
+    const businessOwnerName = document.getElementById("businessOwnerName");
+    const businessTaxType = document.getElementById("businessTaxType");
+    const businessTaxAddress = document.getElementById("businessTaxAddress");
+
+    function onlyDigits(value) {
+      return String(value || "").replace(/\D/g, "");
+    }
+
     function showStatus(type, message) {
       driverStatus.className = `status show ${type}`;
       driverStatus.textContent = message;
+    }
+
+    function getSelectedTaxClassification() {
+      const selected = document.querySelector('input[name="taxClassification"]:checked');
+      return selected ? selected.value : "individual";
+    }
+
+    function updateTaxView() {
+      const selectedType = getSelectedTaxClassification();
+
+      if (selectedType === "business") {
+        businessTaxBlock.classList.add("show");
+        individualTaxBlock.classList.remove("show");
+
+        individualLegalName.required = false;
+        ssnLast4.required = false;
+        individualTaxAddress.required = false;
+
+        businessName.required = true;
+        einLast4.required = true;
+        businessOwnerName.required = true;
+        businessTaxType.required = true;
+        businessTaxAddress.required = true;
+      } else {
+        individualTaxBlock.classList.add("show");
+        businessTaxBlock.classList.remove("show");
+
+        individualLegalName.required = true;
+        ssnLast4.required = true;
+        individualTaxAddress.required = true;
+
+        businessName.required = false;
+        einLast4.required = false;
+        businessOwnerName.required = false;
+        businessTaxType.required = false;
+        businessTaxAddress.required = false;
+      }
     }
 
     async function readJsonSafe(response) {
@@ -456,6 +849,42 @@
       }
     }
 
+    function validateTaxFields(payload) {
+      if (payload.taxClassification === "business") {
+        if (!payload.businessName || !payload.einLast4 || !payload.businessOwnerName || !payload.businessTaxType || !payload.businessTaxAddress) {
+          return "Please complete all business contractor tax fields.";
+        }
+
+        if (payload.einLast4.length !== 4) {
+          return "Please enter the last 4 digits of the EIN.";
+        }
+      } else {
+        if (!payload.individualLegalName || !payload.ssnLast4 || !payload.individualTaxAddress) {
+          return "Please complete all individual contractor tax fields.";
+        }
+
+        if (payload.ssnLast4.length !== 4) {
+          return "Please enter the last 4 digits of the SSN.";
+        }
+      }
+
+      return "";
+    }
+
+    taxTypeInputs.forEach((input) => {
+      input.addEventListener("change", updateTaxView);
+    });
+
+    ssnLast4.addEventListener("input", () => {
+      ssnLast4.value = onlyDigits(ssnLast4.value).slice(0, 4);
+    });
+
+    einLast4.addEventListener("input", () => {
+      einLast4.value = onlyDigits(einLast4.value).slice(0, 4);
+    });
+
+    updateTaxView();
+
     driverForm.addEventListener("submit", async (e) => {
       e.preventDefault();
 
@@ -464,14 +893,45 @@
       driverStatus.className = "status";
       driverStatus.textContent = "";
 
+      const taxClassification = getSelectedTaxClassification();
+
       const payload = {
         fullName: document.getElementById("fullName").value.trim(),
         phone: document.getElementById("phone").value.trim(),
         email: document.getElementById("email").value.trim(),
         vehicleType: document.getElementById("vehicleType").value,
         licenseNumber: document.getElementById("licenseNumber").value.trim(),
-        city: document.getElementById("city").value.trim()
+        city: document.getElementById("city").value.trim(),
+
+        taxClassification,
+        individualLegalName: individualLegalName.value.trim(),
+        ssnLast4: onlyDigits(ssnLast4.value).slice(0, 4),
+        individualTaxAddress: individualTaxAddress.value.trim(),
+
+        businessName: businessName.value.trim(),
+        einLast4: onlyDigits(einLast4.value).slice(0, 4),
+        businessOwnerName: businessOwnerName.value.trim(),
+        businessTaxType: businessTaxType.value,
+        businessTaxAddress: businessTaxAddress.value.trim(),
+
+        contractorAgreement: document.getElementById("contractorAgreement").checked,
+        accuracyAgreement: document.getElementById("accuracyAgreement").checked
       };
+
+      const taxError = validateTaxFields(payload);
+      if (taxError) {
+        showStatus("error", taxError);
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Submit Driver Application";
+        return;
+      }
+
+      if (!payload.contractorAgreement || !payload.accuracyAgreement) {
+        showStatus("error", "Please accept the required onboarding acknowledgments before submitting.");
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Submit Driver Application";
+        return;
+      }
 
       try {
         const response = await fetch("/api/driver/signup", {
@@ -495,11 +955,12 @@
         const successMessage = [
           data.message || "Driver application submitted successfully.",
           data.driver_id ? `Driver ID: ${data.driver_id}` : "",
-          "Your application is now pending approval."
+          "Your application is pending review and approval."
         ].filter(Boolean).join(" ");
 
         showStatus("success", successMessage);
         driverForm.reset();
+        updateTaxView();
       } catch (error) {
         showStatus(
           "error",
