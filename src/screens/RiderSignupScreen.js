@@ -28,15 +28,15 @@ export default function RiderSignupScreen({ onNavigate }) {
   );
 
   const formIsValid = useMemo(() => {
-    return (
+    return Boolean(
       firstName.trim() &&
-      lastName.trim() &&
-      phone.trim() &&
-      email.trim() &&
-      city.trim() &&
-      stateValue.trim() &&
-      password.trim() &&
-      confirmPassword.trim()
+        lastName.trim() &&
+        phone.trim() &&
+        email.trim() &&
+        city.trim() &&
+        stateValue.trim() &&
+        password.trim() &&
+        confirmPassword.trim()
     );
   }, [
     firstName,
@@ -91,8 +91,8 @@ export default function RiderSignupScreen({ onNavigate }) {
 
     try {
       const payload = {
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
         phone: phone.trim(),
         email: email.trim().toLowerCase(),
         city: city.trim(),
@@ -102,16 +102,13 @@ export default function RiderSignupScreen({ onNavigate }) {
 
       const result = await riderSignup(payload);
 
-      const riderId =
-        result?.rider?.id ||
-        result?.rider_id ||
-        result?.id ||
-        "Generated";
-
+      const rider = result?.rider || {};
+      const riderId = rider.id || result?.rider_id || result?.id || "Generated";
       const approvalText =
-        result?.rider?.status ||
+        rider.verification_status ||
         result?.status ||
-        "pending_verification";
+        rider.status ||
+        "pending";
 
       setSystemMessage("Rider signup completed.");
 
@@ -213,7 +210,7 @@ export default function RiderSignupScreen({ onNavigate }) {
           <TextInput
             style={styles.input}
             value={stateValue}
-            onChangeText={setStateValue}
+            onChangeText={(value) => setStateValue(value.toUpperCase())}
             placeholder="TN"
             placeholderTextColor="#8ea2d1"
             autoCapitalize="characters"
