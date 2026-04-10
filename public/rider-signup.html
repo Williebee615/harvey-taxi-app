@@ -11,6 +11,7 @@
       --panel:rgba(10,17,38,.88);
       --panel2:rgba(15,23,52,.72);
       --line:rgba(122,162,255,.16);
+      --line-strong:rgba(122,162,255,.28);
       --text:#f4f7ff;
       --muted:#aab8de;
       --blue:#5ea0ff;
@@ -284,6 +285,16 @@
       font-size:.92rem;
     }
 
+    .next-link{
+      color:#63f5ff;
+      font-weight:800;
+      text-decoration:none;
+    }
+
+    .next-link:hover{
+      text-decoration:underline;
+    }
+
     @media (max-width: 860px){
       .grid{grid-template-columns:1fr}
     }
@@ -500,6 +511,44 @@
       }
     }
 
+    function saveRiderSession(riderId, payload, rider, approved, status) {
+      const riderProfile = {
+        id: riderId || rider?.id || "",
+        first_name: rider?.first_name || payload.first_name,
+        last_name: rider?.last_name || payload.last_name,
+        email: rider?.email || payload.email,
+        phone: rider?.phone || payload.phone,
+        city: rider?.city || payload.city,
+        state: rider?.state || payload.state,
+        notes: rider?.notes ?? payload.notes ?? "",
+        emergency_contact: rider?.emergency_contact ?? payload.emergency_contact ?? "",
+        verification_document_type:
+          rider?.verification_document_type || payload.verification_document_type,
+        approval_status:
+          rider?.approval_status || (approved ? "approved" : "pending"),
+        verification_status:
+          rider?.verification_status || status || (approved ? "approved" : "pending"),
+        payment_status:
+          rider?.payment_authorization_status || "pending",
+        approved: approved === true
+      };
+
+      localStorage.setItem("harveyRiderId", riderProfile.id);
+      localStorage.setItem("harveyRiderEmail", riderProfile.email || "");
+      localStorage.setItem("riderId", riderProfile.id);
+      localStorage.setItem("rider_id", riderProfile.id);
+      localStorage.setItem("rider", JSON.stringify(riderProfile));
+      localStorage.setItem("riderProfile", JSON.stringify(riderProfile));
+    }
+
+    function goToRiderDashboard(riderId) {
+      const target = riderId
+        ? `/rider-dashboard.html?riderId=${encodeURIComponent(riderId)}`
+        : "/rider-dashboard.html";
+
+      window.location.href = target;
+    }
+
     async function createRiderAccount() {
       clearMessages();
 
@@ -544,16 +593,19 @@
 
         const rider = data.rider || {};
         const riderId = data.rider_id || rider.id || "";
-        const status = data.status || rider.verification_status || "pending";
-        const approved = data.approved === true || rider.approved === true;
+        const status =
+          rider.approval_status ||
+          rider.verification_status ||
+          data.status ||
+          "pending";
 
-        if (riderId) {
-          localStorage.setItem("harveyRiderId", riderId);
-        }
+        const approved =
+          data.approved === true ||
+          rider.approved === true ||
+          String(status).toLowerCase() === "approved" ||
+          String(rider.approval_status || "").toLowerCase() === "approved";
 
-        if (payload.email) {
-          localStorage.setItem("harveyRiderEmail", payload.email);
-        }
+        saveRiderSession(riderId, payload, rider, approved, status);
 
         accountText.textContent = approved
           ? "Your rider account is approved for ride access."
@@ -570,7 +622,7 @@
             <strong>Verification Type:</strong> ${payload.verification_document_type.replace("_", " ")}<br><br>
             ${
               approved
-                ? "Your rider account is approved. You can continue to request a ride."
+                ? "Your rider account is approved. Continue to your rider dashboard."
                 : "Your rider account is created, but ride requests remain subject to backend approval rules."
             }
           `
@@ -579,7 +631,16 @@
         if (approved && riderId) {
           showBox(
             infoBox,
-            `Approved rider detected. You can continue to <a href="/request-ride?riderId=${encodeURIComponent(riderId)}" style="color:#63f5ff;font-weight:800;">Request Ride</a>.`
+            `Approved rider detected. Continue to your <a class="next-link" href="/rider-dashboard.html?riderId=${encodeURIComponent(riderId)}">Rider Dashboard</a>.`
+          );
+
+          setTimeout(() => {
+            goToRiderDashboard(riderId);
+          }, 1200);
+        } else {
+          showBox(
+            infoBox,
+            "Account created. Use Check Rider Status to confirm when your rider profile is approved."
           );
         }
       } catch (error) {
@@ -616,9 +677,34 @@
         }
 
         const rider = data.rider;
-        const approved = rider.approved === true;
-        const status = rider.verification_status || "pending";
+        const approvalStatus =
+          rider.approval_status ||
+          rider.verification_status ||
+          "pending";
+
+        const approved =
+          rider.approved === true ||
+          String(approvalStatus).toLowerCase() === "approved";
+
         const fullName = `${rider.first_name || ""} ${rider.last_name || ""}`.trim();
+
+        saveRiderSession(
+          rider.id,
+          {
+            first_name: rider.first_name || "",
+            last_name: rider.last_name || "",
+            email: rider.email || "",
+            phone: rider.phone || "",
+            city: rider.city || "",
+            state: rider.state || "",
+            notes: rider.notes || "",
+            emergency_contact: rider.emergency_contact || "",
+            verification_document_type: rider.verification_document_type || selectedDocumentType
+          },
+          rider,
+          approved,
+          approvalStatus
+        );
 
         accountText.textContent = approved
           ? "Your rider account is approved for ride access."
@@ -632,7 +718,7 @@
             <strong>Rider Status Checked</strong><br><br>
             <strong>Rider ID:</strong> ${rider.id}<br>
             <strong>Name:</strong> ${fullName || "Rider"}<br>
-            <strong>Status:</strong> ${status}<br>
+            <strong>Status:</strong> ${approvalStatus}<br>
             <strong>Approved:</strong> ${approved ? "Yes" : "No"}
           `
         );
@@ -640,7 +726,12 @@
         if (approved) {
           showBox(
             infoBox,
-            `You are approved for ride access. Continue to <a href="/request-ride?riderId=${encodeURIComponent(rider.id)}" style="color:#63f5ff;font-weight:800;">Request Ride</a>.`
+            `You are approved for ride access. Continue to your <a class="next-link" href="/rider-dashboard.html?riderId=${encodeURIComponent(rider.id)}">Rider Dashboard</a>.`
+          );
+        } else {
+          showBox(
+            infoBox,
+            "Your rider account is still pending approval. Check again after your backend review updates."
           );
         }
       } catch (error) {
