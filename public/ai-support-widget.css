@@ -1,384 +1,625 @@
-#harvey-ai-chat-root{
-  position:fixed;
-  right:18px;
-  bottom:100px;
-  z-index:1200;
-  font-family:Inter, Arial, sans-serif;
-}
+(function () {
+  const root = document.getElementById("harvey-ai-chat-root");
+  if (!root) return;
 
-.harvey-ai-window{
-  width:380px;
-  max-width:calc(100vw - 24px);
-  height:640px;
-  max-height:calc(100vh - 130px);
-  background:
-    linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.015)),
-    rgba(10,17,38,.96);
-  border:1px solid rgba(122,162,255,.18);
-  border-radius:24px;
-  box-shadow:0 28px 90px rgba(0,0,0,.42);
-  overflow:hidden;
-  display:none;
-  flex-direction:column;
-  backdrop-filter:blur(16px);
-}
+  const PAGE_MODE = detectPageMode();
+  const STORAGE_KEY = "harvey_ai_chat_history_v3";
+  const MAX_HISTORY = 12;
 
-.harvey-ai-window.open{
-  display:flex;
-}
+  const QUICK_ACTIONS = {
+    home: [
+      "How do I get started?",
+      "How do I request a ride?",
+      "How do I become a driver?",
+      "How do I contact support?"
+    ],
+    rider_signup: [
+      "Why can’t I request a ride yet?",
+      "How does rider approval work?",
+      "What does payment authorization mean?",
+      "What rider information do I need?"
+    ],
+    driver_signup: [
+      "What do I need to become a driver?",
+      "Why is my approval pending?",
+      "How do email and SMS verification work?",
+      "When can I open the driver dashboard?"
+    ],
+    rider_dashboard: [
+      "Why can’t I request a ride?",
+      "How do I authorize payment?",
+      "How do I view my trip status?",
+      "What should I do next?"
+    ],
+    driver_dashboard: [
+      "How do I go online?",
+      "Why can’t I accept missions?",
+      "What is the mission center?",
+      "How do I update my profile?"
+    ],
+    request_ride: [
+      "Why do I need payment authorization first?",
+      "What ride types are available?",
+      "What is autonomous pilot mode?",
+      "How does dispatch work?"
+    ],
+    admin: [
+      "How do approvals work?",
+      "How should dispatch flow work?",
+      "What does the admin dashboard do?",
+      "How do I manage drivers and riders?"
+    ],
+    default: [
+      "How do I request a ride?",
+      "How does assistance work?",
+      "How do I become a driver?",
+      "How do I contact support?"
+    ]
+  };
 
-.harvey-ai-header{
-  padding:18px 18px 14px;
-  border-bottom:1px solid rgba(122,162,255,.12);
-  background:
-    radial-gradient(circle at top right, rgba(99,245,255,.10), transparent 45%),
-    linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01));
-}
+  root.innerHTML = `
+    <button id="harveyAiFab" class="harvey-ai-fab" aria-label="Open Harvey AI">AI</button>
 
-.harvey-ai-header-top{
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  gap:12px;
-}
+    <div id="harveyAiWindow" class="harvey-ai-window" aria-hidden="true">
+      <div class="harvey-ai-header">
+        <div class="harvey-ai-header-top">
+          <div class="harvey-ai-brand">
+            <div class="harvey-ai-badge">H</div>
+            <div>
+              <div class="harvey-ai-title">Harvey AI</div>
+              <div id="harveyAiSubtitle" class="harvey-ai-subtitle">Smart platform assistant</div>
+            </div>
+          </div>
+          <button id="harveyAiClose" class="harvey-ai-close" aria-label="Close Harvey AI">×</button>
+        </div>
 
-.harvey-ai-brand{
-  display:flex;
-  align-items:flex-start;
-  gap:12px;
-}
+        <div id="harveyAiNote" class="harvey-ai-note"></div>
+      </div>
 
-.harvey-ai-badge{
-  width:42px;
-  height:42px;
-  min-width:42px;
-  border-radius:14px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-size:14px;
-  font-weight:900;
-  letter-spacing:.08em;
-  color:#06131f;
-  background:linear-gradient(135deg, #63f5ff, #5ea0ff);
-  box-shadow:0 12px 30px rgba(99,245,255,.22);
-}
+      <div id="harveyAiQuickActions" class="harvey-ai-quick-actions"></div>
 
-.harvey-ai-title{
-  color:#f4f7ff;
-  font-size:16px;
-  font-weight:900;
-  line-height:1.2;
-  margin-bottom:4px;
-}
+      <div id="harveyAiMessages" class="harvey-ai-messages"></div>
 
-.harvey-ai-subtitle{
-  color:#aab8de;
-  font-size:12px;
-  line-height:1.5;
-}
+      <div id="harveyAiActionButtons" class="harvey-ai-quick-actions" style="padding-top:0;"></div>
 
-.harvey-ai-close{
-  width:36px;
-  height:36px;
-  min-width:36px;
-  border:none;
-  border-radius:12px;
-  cursor:pointer;
-  background:rgba(255,255,255,.05);
-  color:#f4f7ff;
-  font-size:22px;
-  line-height:1;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  transition:.18s ease;
-}
+      <div class="harvey-ai-footer">
+        <div class="harvey-ai-input-row">
+          <textarea
+            id="harveyAiInput"
+            class="harvey-ai-textarea"
+            placeholder="Ask Harvey AI about rides, drivers, approvals, payments, dashboards, or support..."
+            rows="1"
+          ></textarea>
+          <button id="harveyAiSend" class="harvey-ai-send">Send</button>
+        </div>
 
-.harvey-ai-close:hover{
-  background:rgba(255,255,255,.10);
-  transform:translateY(-1px);
-}
+        <div class="harvey-ai-footer-help">
+          Harvey AI can guide riders, drivers, support, and platform flows.
+        </div>
+      </div>
+    </div>
+  `;
 
-.harvey-ai-note{
-  margin-top:14px;
-  padding:12px 13px;
-  border-radius:14px;
-  background:rgba(255,255,255,.035);
-  border:1px solid rgba(255,255,255,.06);
-  color:#aab8de;
-  font-size:12px;
-  line-height:1.6;
-}
+  const fab = document.getElementById("harveyAiFab");
+  const windowEl = document.getElementById("harveyAiWindow");
+  const closeBtn = document.getElementById("harveyAiClose");
+  const subtitle = document.getElementById("harveyAiSubtitle");
+  const note = document.getElementById("harveyAiNote");
+  const messages = document.getElementById("harveyAiMessages");
+  const quickActions = document.getElementById("harveyAiQuickActions");
+  const actionButtons = document.getElementById("harveyAiActionButtons");
+  const input = document.getElementById("harveyAiInput");
+  const send = document.getElementById("harveyAiSend");
 
-.harvey-ai-quick-actions{
-  display:flex;
-  flex-wrap:wrap;
-  gap:8px;
-  padding:14px 16px 0;
-  background:transparent;
-}
+  let greeted = false;
+  let history = loadHistory();
 
-.harvey-ai-chip{
-  border:1px solid rgba(122,162,255,.18);
-  background:rgba(255,255,255,.03);
-  color:#dce5ff;
-  padding:9px 12px;
-  border-radius:999px;
-  font-size:12px;
-  font-weight:700;
-  cursor:pointer;
-  transition:.18s ease;
-}
+  subtitle.textContent = `${getPageLabel(PAGE_MODE)} assistant`;
+  note.textContent = buildContextNote();
 
-.harvey-ai-chip:hover{
-  background:rgba(255,255,255,.06);
-  border-color:rgba(122,162,255,.32);
-  transform:translateY(-1px);
-}
+  fab.addEventListener("click", openChat);
+  closeBtn.addEventListener("click", closeChat);
+  send.addEventListener("click", () => handleSend());
 
-.harvey-ai-messages{
-  flex:1;
-  overflow-y:auto;
-  padding:16px;
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-  scroll-behavior:smooth;
-}
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  });
 
-.harvey-ai-messages::-webkit-scrollbar{
-  width:8px;
-}
+  input.addEventListener("input", autoGrowTextarea);
 
-.harvey-ai-messages::-webkit-scrollbar-track{
-  background:transparent;
-}
+  renderQuickActions();
+  restoreHistory();
 
-.harvey-ai-messages::-webkit-scrollbar-thumb{
-  background:rgba(255,255,255,.08);
-  border-radius:999px;
-}
+  function openChat() {
+    windowEl.classList.add("open");
+    windowEl.setAttribute("aria-hidden", "false");
 
-.harvey-ai-message{
-  max-width:88%;
-  padding:12px 14px;
-  border-radius:16px;
-  font-size:14px;
-  line-height:1.65;
-  white-space:pre-wrap;
-  word-break:break-word;
-}
+    if (!greeted) {
+      greeted = true;
+      if (!history.length) {
+        const welcome = getWelcomeMessage();
+        addMessage("bot", welcome);
+        pushHistory("bot", welcome);
+      }
+    }
 
-.harvey-ai-message.bot{
-  align-self:flex-start;
-  background:rgba(255,255,255,.045);
-  border:1px solid rgba(255,255,255,.06);
-  color:#f4f7ff;
-  border-top-left-radius:8px;
-}
-
-.harvey-ai-message.user{
-  align-self:flex-end;
-  background:linear-gradient(135deg, #63f5ff, #5ea0ff);
-  color:#06131f;
-  font-weight:700;
-  border-top-right-radius:8px;
-  box-shadow:0 12px 28px rgba(94,160,255,.20);
-}
-
-.harvey-ai-message.system{
-  align-self:center;
-  max-width:95%;
-  text-align:center;
-  background:rgba(255,215,106,.09);
-  border:1px solid rgba(255,215,106,.18);
-  color:#ffd76a;
-  font-size:12px;
-  padding:10px 12px;
-  border-radius:999px;
-}
-
-.harvey-ai-typing{
-  display:flex;
-  align-items:center;
-  gap:6px;
-  min-height:20px;
-}
-
-.harvey-ai-typing span{
-  width:8px;
-  height:8px;
-  border-radius:50%;
-  background:#aab8de;
-  display:inline-block;
-  animation:harveyAiBounce 1.2s infinite ease-in-out;
-}
-
-.harvey-ai-typing span:nth-child(2){
-  animation-delay:.15s;
-}
-
-.harvey-ai-typing span:nth-child(3){
-  animation-delay:.3s;
-}
-
-@keyframes harveyAiBounce{
-  0%, 80%, 100%{
-    transform:scale(.7);
-    opacity:.5;
-  }
-  40%{
-    transform:scale(1);
-    opacity:1;
-  }
-}
-
-.harvey-ai-footer{
-  padding:14px 16px 16px;
-  border-top:1px solid rgba(122,162,255,.12);
-  background:
-    linear-gradient(180deg, rgba(255,255,255,.01), rgba(255,255,255,.03));
-}
-
-.harvey-ai-input-row{
-  display:flex;
-  gap:10px;
-  align-items:flex-end;
-}
-
-.harvey-ai-textarea{
-  flex:1;
-  min-height:52px;
-  max-height:140px;
-  resize:none;
-  border-radius:16px;
-  border:1px solid rgba(122,162,255,.18);
-  background:rgba(255,255,255,.035);
-  color:#f4f7ff;
-  padding:14px 14px;
-  outline:none;
-  font-size:14px;
-  line-height:1.5;
-}
-
-.harvey-ai-textarea::placeholder{
-  color:#8ea0c9;
-}
-
-.harvey-ai-textarea:focus{
-  border-color:rgba(99,245,255,.35);
-  box-shadow:0 0 0 3px rgba(99,245,255,.08);
-}
-
-.harvey-ai-send{
-  border:none;
-  border-radius:16px;
-  min-width:88px;
-  height:52px;
-  padding:0 16px;
-  cursor:pointer;
-  font-size:14px;
-  font-weight:900;
-  color:#04121f;
-  background:linear-gradient(135deg, #63f5ff, #5ea0ff);
-  box-shadow:0 12px 30px rgba(94,160,255,.20);
-  transition:.18s ease;
-}
-
-.harvey-ai-send:hover{
-  transform:translateY(-1px);
-  filter:brightness(1.03);
-}
-
-.harvey-ai-footer-help{
-  margin-top:10px;
-  font-size:12px;
-  color:#aab8de;
-  line-height:1.6;
-}
-
-.harvey-ai-footer-help a{
-  color:#63f5ff;
-  text-decoration:none;
-  font-weight:700;
-}
-
-.harvey-ai-footer-help a:hover{
-  text-decoration:underline;
-}
-
-.harvey-ai-fab{
-  width:68px;
-  height:68px;
-  border:none;
-  border-radius:50%;
-  cursor:pointer;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-size:14px;
-  font-weight:900;
-  letter-spacing:.08em;
-  color:#04121f;
-  background:linear-gradient(135deg, #63f5ff, #5ea0ff);
-  box-shadow:0 18px 40px rgba(94,160,255,.30);
-  transition:.2s ease;
-}
-
-.harvey-ai-fab:hover{
-  transform:translateY(-2px) scale(1.02);
-  filter:brightness(1.04);
-}
-
-.harvey-ai-fab:active{
-  transform:translateY(0) scale(.99);
-}
-
-@media (max-width:700px){
-  #harvey-ai-chat-root{
-    right:14px;
-    left:14px;
-    bottom:96px;
+    setTimeout(() => input.focus(), 50);
   }
 
-  .harvey-ai-window{
-    width:100%;
-    max-width:100%;
-    height:min(72vh, 620px);
-    max-height:min(72vh, 620px);
-    border-radius:22px;
+  function closeChat() {
+    windowEl.classList.remove("open");
+    windowEl.setAttribute("aria-hidden", "true");
   }
 
-  .harvey-ai-header{
-    padding:16px 16px 12px;
+  function autoGrowTextarea() {
+    input.style.height = "52px";
+    input.style.height = Math.min(input.scrollHeight, 140) + "px";
   }
 
-  .harvey-ai-quick-actions{
-    padding:12px 14px 0;
+  function handleSend(forcedText) {
+    const msg = (forcedText || input.value || "").trim();
+    if (!msg) return;
+
+    addMessage("user", msg);
+    pushHistory("user", msg);
+    input.value = "";
+    input.style.height = "52px";
+    clearActionButtons();
+
+    const typingEl = addTyping();
+
+    setTimeout(() => {
+      typingEl.remove();
+      const reply = getSmartResponse(msg);
+      addMessage("bot", reply.reply);
+      pushHistory("bot", reply.reply);
+      renderActionButtons(reply.actions || []);
+    }, 260);
   }
 
-  .harvey-ai-messages{
-    padding:14px;
+  function addMessage(type, text) {
+    const div = document.createElement("div");
+    div.className = `harvey-ai-message ${type}`;
+    div.innerText = text;
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
   }
 
-  .harvey-ai-footer{
-    padding:12px 14px 14px;
+  function addTyping() {
+    const wrap = document.createElement("div");
+    wrap.className = "harvey-ai-message bot";
+
+    const typing = document.createElement("div");
+    typing.className = "harvey-ai-typing";
+    typing.innerHTML = "<span></span><span></span><span></span>";
+
+    wrap.appendChild(typing);
+    messages.appendChild(wrap);
+    messages.scrollTop = messages.scrollHeight;
+    return wrap;
   }
 
-  .harvey-ai-input-row{
-    flex-direction:column;
-    align-items:stretch;
+  function renderQuickActions() {
+    quickActions.innerHTML = "";
+    const actions = QUICK_ACTIONS[PAGE_MODE] || QUICK_ACTIONS.default;
+
+    actions.forEach((question) => {
+      const btn = document.createElement("button");
+      btn.className = "harvey-ai-chip";
+      btn.textContent = question;
+      btn.addEventListener("click", () => handleSend(question));
+      quickActions.appendChild(btn);
+    });
   }
 
-  .harvey-ai-send{
-    width:100%;
-    min-width:100%;
+  function renderActionButtons(actions) {
+    actionButtons.innerHTML = "";
+    if (!actions.length) return;
+
+    actions.forEach((action) => {
+      const btn = document.createElement("button");
+      btn.className = "harvey-ai-chip";
+      btn.textContent = action.label;
+
+      btn.addEventListener("click", () => {
+        if (action.href) {
+          window.location.href = action.href;
+          return;
+        }
+
+        switch (action.onClick) {
+          case "open_support":
+            goSupport();
+            break;
+          case "open_home":
+            window.location.href = "/";
+            break;
+          case "open_request_ride":
+            openRequestRide();
+            break;
+          case "open_driver_dashboard":
+            openDriverDashboard();
+            break;
+          case "open_rider_dashboard":
+            openRiderDashboard();
+            break;
+          case "open_driver_signup":
+            window.location.href = "/driver-signup.html";
+            break;
+          case "open_rider_signup":
+            window.location.href = "/rider-signup.html";
+            break;
+        }
+      });
+
+      actionButtons.appendChild(btn);
+    });
   }
 
-  .harvey-ai-fab{
-    width:62px;
-    height:62px;
-    font-size:13px;
+  function clearActionButtons() {
+    actionButtons.innerHTML = "";
   }
-}
+
+  function pushHistory(type, text) {
+    history.push({ type, text });
+    if (history.length > MAX_HISTORY) {
+      history = history.slice(-MAX_HISTORY);
+    }
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+    } catch {}
+  }
+
+  function loadHistory() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function restoreHistory() {
+    if (!history.length) return;
+    history.forEach((item) => addMessage(item.type, item.text));
+  }
+
+  function detectPageMode() {
+    const path = (window.location.pathname || "").toLowerCase();
+    if (path.includes("driver-signup")) return "driver_signup";
+    if (path.includes("rider-signup")) return "rider_signup";
+    if (path.includes("request-ride")) return "request_ride";
+    if (path.includes("driver-dashboard")) return "driver_dashboard";
+    if (path.includes("rider-dashboard")) return "rider_dashboard";
+    if (path.includes("admin")) return "admin";
+    if (path === "/" || path.includes("index")) return "home";
+    return "default";
+  }
+
+  function getPageLabel(mode) {
+    switch (mode) {
+      case "driver_signup": return "Driver signup";
+      case "rider_signup": return "Rider signup";
+      case "request_ride": return "Request ride";
+      case "driver_dashboard": return "Driver dashboard";
+      case "rider_dashboard": return "Rider dashboard";
+      case "admin": return "Admin";
+      case "home": return "Home";
+      default: return "Platform";
+    }
+  }
+
+  function buildContextNote() {
+    const riderId =
+      localStorage.getItem("harveyRiderId") ||
+      localStorage.getItem("riderId") ||
+      localStorage.getItem("rider_id") ||
+      "";
+
+    const driverState = getDriverOnboardingState();
+    const parts = [`Page: ${getPageLabel(PAGE_MODE)}`];
+
+    if (riderId) parts.push("Rider saved");
+    if (driverState.driverId) parts.push("Driver saved");
+
+    return parts.join(" • ");
+  }
+
+  function getWelcomeMessage() {
+    switch (PAGE_MODE) {
+      case "driver_signup":
+        return "Hi — I can help with driver signup, verification, approval, and opening your Driver Dashboard.";
+      case "rider_signup":
+        return "Hi — I can help with rider signup, approval, payment readiness, and ride access.";
+      case "request_ride":
+        return "Hi — I can help with pickup, destination flow, ride types, payment authorization, and dispatch readiness.";
+      case "driver_dashboard":
+        return "Hi — I can help with availability, missions, trip tools, and driver account actions.";
+      case "rider_dashboard":
+        return "Hi — I can help with approval, payment readiness, trip status, and your next ride.";
+      default:
+        return "Hi — I can help with Harvey Taxi rides, drivers, riders, approvals, payments, dashboards, and support.";
+    }
+  }
+
+  function getSmartResponse(message) {
+    const msg = String(message || "").toLowerCase();
+    const rider = getStoredRider();
+    const riderApproved = isRiderApproved(rider);
+    const paymentReady = isPaymentReady(rider);
+    const driverState = getDriverOnboardingState();
+
+    if (msg.includes("emergency") || msg.includes("911") || msg.includes("unsafe")) {
+      return {
+        reply: "If this is an emergency, call 911 immediately. Use Harvey Taxi support features only after you are safe.",
+        actions: [
+          { label: "Open Support", onClick: "open_support" },
+          { label: "Return Home", onClick: "open_home" }
+        ]
+      };
+    }
+
+    if ((msg.includes("request") && msg.includes("ride")) || msg.includes("book ride")) {
+      if (!riderApproved) {
+        return {
+          reply: "Riders must be approved before requesting a ride. Under Harvey Taxi rules, approval is a hard gate before ride requests can move forward.",
+          actions: [
+            { label: "Open Rider Signup", onClick: "open_rider_signup" },
+            { label: "Open Rider Dashboard", onClick: "open_rider_dashboard" }
+          ]
+        };
+      }
+
+      if (!paymentReady) {
+        return {
+          reply: "Your rider account should also be payment-ready before dispatch begins. Payment authorization is required before a ride moves forward.",
+          actions: [
+            { label: "Open Rider Dashboard", onClick: "open_rider_dashboard" },
+            { label: "Open Request Ride", onClick: "open_request_ride" }
+          ]
+        };
+      }
+
+      return {
+        reply: "You can continue into the request ride flow now. Enter your pickup and destination, review the fare, and submit your request.",
+        actions: [
+          { label: "Open Request Ride", onClick: "open_request_ride" },
+          { label: "Open Rider Dashboard", onClick: "open_rider_dashboard" }
+        ]
+      };
+    }
+
+    if (msg.includes("driver dashboard")) {
+      return {
+        reply: "The Driver Dashboard is your driver command center for availability, missions, trip tools, and profile management.",
+        actions: [
+          { label: "Open Driver Dashboard", onClick: "open_driver_dashboard" },
+          { label: "Open Driver Signup", onClick: "open_driver_signup" }
+        ]
+      };
+    }
+
+    if (msg.includes("rider dashboard")) {
+      return {
+        reply: "The Rider Dashboard helps manage rider approval, payment readiness, trip status, and ride access.",
+        actions: [
+          { label: "Open Rider Dashboard", onClick: "open_rider_dashboard" },
+          { label: "Open Request Ride", onClick: "open_request_ride" }
+        ]
+      };
+    }
+
+    if (msg.includes("driver") || msg.includes("become a driver")) {
+      return {
+        reply: "To become a Harvey Taxi driver, complete driver signup, provide license and vehicle details, accept the required consents, and finish email and SMS verification. After approval, the Driver Dashboard becomes your command center.",
+        actions: [
+          { label: "Open Driver Signup", onClick: "open_driver_signup" },
+          { label: "Open Driver Dashboard", onClick: "open_driver_dashboard" }
+        ]
+      };
+    }
+
+    if (msg.includes("rider")) {
+      return {
+        reply: "To get started as a rider, create your rider account, wait for rider approval, and make sure payment authorization is ready before requesting a ride.",
+        actions: [
+          { label: "Open Rider Signup", onClick: "open_rider_signup" },
+          { label: "Open Rider Dashboard", onClick: "open_rider_dashboard" }
+        ]
+      };
+    }
+
+    if (msg.includes("payment")) {
+      return {
+        reply: "Harvey Taxi requires payment authorization before dispatch. Riders should be payment-ready before a trip moves into assignment.",
+        actions: [
+          { label: "Open Rider Dashboard", onClick: "open_rider_dashboard" },
+          { label: "Open Request Ride", onClick: "open_request_ride" }
+        ]
+      };
+    }
+
+    if (msg.includes("verification") || msg.includes("email") || msg.includes("sms")) {
+      return {
+        reply: "Driver onboarding uses email and SMS verification. After signup, verify your email link, enter your SMS code, and then continue into driver review and dashboard flow.",
+        actions: [
+          { label: "Open Driver Signup", onClick: "open_driver_signup" },
+          { label: "Open Driver Dashboard", onClick: "open_driver_dashboard" }
+        ]
+      };
+    }
+
+    if (msg.includes("mission")) {
+      return {
+        reply: "Harvey Taxi uses a mission-first driver flow. Drivers should receive enough trip detail before accepting, including pickup, dropoff, and mission visibility.",
+        actions: [
+          { label: "Open Driver Dashboard", onClick: "open_driver_dashboard" },
+          { label: "Open Request Ride", onClick: "open_request_ride" }
+        ]
+      };
+    }
+
+    if (msg.includes("autonomous")) {
+      return {
+        reply: "Autonomous pilot mode is Harvey Taxi’s AV-ready path for autonomous requests where enabled.",
+        actions: [
+          { label: "Open Request Ride", onClick: "open_request_ride" },
+          { label: "Return Home", onClick: "open_home" }
+        ]
+      };
+    }
+
+    if (msg.includes("assistance") || msg.includes("foundation") || msg.includes("medical")) {
+      return {
+        reply: "Harvey Transportation Assistance Foundation supports essential transportation needs such as medical, work, school, and community travel.",
+        actions: [
+          { label: "Open Support", onClick: "open_support" },
+          { label: "Open Request Ride", onClick: "open_request_ride" }
+        ]
+      };
+    }
+
+    if (msg.includes("support") || msg.includes("contact") || msg.includes("help")) {
+      return {
+        reply: "Harvey AI can guide you through rider signup, driver signup, approval status, payment readiness, dashboards, and ride requests. For direct support, open the support page.",
+        actions: [
+          { label: "Open Support", onClick: "open_support" },
+          { label: "Return Home", onClick: "open_home" }
+        ]
+      };
+    }
+
+    if (PAGE_MODE === "driver_signup") {
+      return {
+        reply: "On this page, the goal is clean driver onboarding: submit the application, finish email and SMS verification, and continue into the Driver Dashboard flow.",
+        actions: [
+          { label: "Open Driver Dashboard", onClick: "open_driver_dashboard" },
+          { label: "Return Home", onClick: "open_home" }
+        ]
+      };
+    }
+
+    if (PAGE_MODE === "rider_signup") {
+      return {
+        reply: "On this page, create the rider account and confirm your status. Rider approval is required before ride requests move forward.",
+        actions: [
+          { label: "Open Rider Dashboard", onClick: "open_rider_dashboard" },
+          { label: "Open Request Ride", onClick: "open_request_ride" }
+        ]
+      };
+    }
+
+    return {
+      reply: "I can help with Harvey Taxi rides, riders, drivers, approvals, payment authorization, dashboards, support, and assistance questions.",
+      actions: [
+        { label: "Open Request Ride", onClick: "open_request_ride" },
+        { label: "Open Rider Signup", onClick: "open_rider_signup" },
+        { label: "Open Driver Signup", onClick: "open_driver_signup" }
+      ]
+    };
+  }
+
+  function getStoredRider() {
+    const raw =
+      localStorage.getItem("rider") ||
+      localStorage.getItem("riderProfile") ||
+      null;
+
+    if (!raw) return null;
+
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  function getStoredRiderId() {
+    return (
+      localStorage.getItem("harveyRiderId") ||
+      localStorage.getItem("riderId") ||
+      localStorage.getItem("rider_id") ||
+      ""
+    );
+  }
+
+  function getDriverOnboardingState() {
+    try {
+      const raw = localStorage.getItem("harvey_driver_onboarding_state");
+      const parsed = raw ? JSON.parse(raw) : {};
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function isRiderApproved(rider) {
+    if (!rider) return false;
+    const approval =
+      rider.approval_status ||
+      rider.status ||
+      rider.verification_status ||
+      "";
+    return (
+      rider.approved === true ||
+      rider.is_approved === true ||
+      String(approval).toLowerCase() === "approved"
+    );
+  }
+
+  function isPaymentReady(rider) {
+    if (!rider) return false;
+    return Boolean(
+      rider.payment_ready === true ||
+      rider.paymentReady === true ||
+      rider.authorized === true ||
+      String(rider.payment_status || "").toLowerCase() === "authorized"
+    );
+  }
+
+  function openRequestRide() {
+    window.location.href = "/request-ride.html?mode=driver";
+  }
+
+  function openDriverDashboard() {
+    const driverState = getDriverOnboardingState();
+    if (driverState.driverId) {
+      window.location.href = `/driver-dashboard.html?driverId=${encodeURIComponent(driverState.driverId)}`;
+      return;
+    }
+    window.location.href = "/driver-dashboard.html";
+  }
+
+  function openRiderDashboard() {
+    const riderId = getStoredRiderId();
+    if (riderId) {
+      window.location.href = `/rider-dashboard.html?riderId=${encodeURIComponent(riderId)}`;
+      return;
+    }
+    window.location.href = "/rider-dashboard.html";
+  }
+
+  function goSupport() {
+    window.location.href = "/support.html";
+  }
+
+  window.HarveyAI = {
+    open: openChat,
+    close: closeChat,
+    ask(question) {
+      openChat();
+      handleSend(question);
+    },
+    clear() {
+      history = [];
+      localStorage.removeItem(STORAGE_KEY);
+      messages.innerHTML = "";
+      actionButtons.innerHTML = "";
+      greeted = false;
+    }
+  };
+})();
