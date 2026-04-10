@@ -1137,7 +1137,10 @@ app.get("/api/debug/runtime", (req, res) => {
 });
 
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+  return res.json({
+    success: true,
+    message: "Harvey Taxi API running"
+  });
 });
 
 /* =========================================================
