@@ -1,121 +1,130 @@
-const API_BASE_URL = "https://harvey-taxi-app-2.onrender.com";
+import { Platform } from "react-native";
 
-const DEFAULT_HEADERS = {
-  Accept: "application/json",
-  "Content-Type": "application/json"
-};
+const FALLBACK_RENDER_URL = "https://harvey-taxi-app-2.onrender.com";
 
-async function safeParseJson(response) {
+function normalizeBaseUrl(url) {
+  return String(url || "")
+    .trim()
+    .replace(/\/+$/, "");
+}
+
+function getBaseUrl() {
+  const configured =
+    process.env.EXPO_PUBLIC_API_BASE_URL ||
+    process.env.EXPO_PUBLIC_BACKEND_URL ||
+    "";
+
+  if (configured) {
+    return normalizeBaseUrl(configured);
+  }
+
+  if (__DEV__) {
+    if (Platform.OS === "android") {
+      return normalizeBaseUrl("http://10.0.2.2:10000");
+    }
+
+    return normalizeBaseUrl(FALLBACK_RENDER_URL);
+  }
+
+  return normalizeBaseUrl(FALLBACK_RENDER_URL);
+}
+
+export const API_BASE_URL = getBaseUrl();
+
+async function parseJsonSafely(response) {
   const text = await response.text();
 
-  if (!text) {
-    return {};
-  }
-
   try {
-    return JSON.parse(text);
+    return text ? JSON.parse(text) : {};
   } catch (error) {
-    return { raw: text };
+    return {
+      ok: false,
+      message: text || "Server returned a non-JSON response."
+    };
   }
 }
 
-async function requestWithTimeout(url, options = {}, timeoutMs = 20000) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+async function request(path, options = {}) {
+  const url = `${API_BASE_URL}${path}`;
 
+  let response;
   try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal
+    response = await fetch(url, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(options.headers || {})
+      },
+      ...options
     });
-
-    const data = await safeParseJson(response);
-
-    if (!response.ok) {
-      const message =
-        data?.error ||
-        data?.message ||
-        `Request failed with status ${response.status}`;
-      throw new Error(message);
-    }
-
-    return data;
   } catch (error) {
-    if (error.name === "AbortError") {
-      throw new Error("Request timed out. Please try again.");
-    }
-
-    if (error.message === "Network request failed" || error.message === "fetch failed") {
-      throw new Error(`Unable to reach Harvey Taxi server at ${API_BASE_URL}`);
-    }
-
-    throw error;
-  } finally {
-    clearTimeout(timeoutId);
-  }
-}
-
-async function postJson(endpoint, body) {
-  return requestWithTimeout(`${API_BASE_URL}${endpoint}`, {
-    method: "POST",
-    headers: DEFAULT_HEADERS,
-    body: JSON.stringify(body)
-  });
-}
-
-async function getJson(endpoint) {
-  return requestWithTimeout(`${API_BASE_URL}${endpoint}`, {
-    method: "GET",
-    headers: DEFAULT_HEADERS
-  });
-}
-
-async function tryPostEndpoints(endpoints, body) {
-  const errors = [];
-
-  for (const endpoint of endpoints) {
-    try {
-      return await postJson(endpoint, body);
-    } catch (error) {
-      errors.push(`${endpoint}: ${error.message}`);
-    }
+    throw new Error(
+      `Network request failed. Check API base URL and backend health. Base URL: ${API_BASE_URL}`
+    );
   }
 
-  throw new Error(errors.join(" | "));
+  const data = await parseJsonSafely(response);
+
+  if (!response.ok) {
+    throw new Error(
+      data?.message ||
+        `Request failed with status ${response.status}.`
+    );
+  }
+
+  return data;
 }
 
 export async function healthCheck() {
-  return getJson("/api/health");
+  return request("/api/health", {
+    method: "GET"
+  });
 }
 
 export async function riderSignup(payload) {
-  return tryPostEndpoints(
-    ["/api/rider/signup", "/api/riders/signup"],
-    payload
-  );
+  return request("/api/rider/signup", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function riderLogin(payload) {
+  return request("/api/rider/login", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
 }
 
 export async function driverSignup(payload) {
-  return tryPostEndpoints(
-    ["/api/driver/signup", "/api/drivers/signup"],
-    payload
-  );
+  return request("/api/driver/signup", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
 }
 
-export async function getRiders() {
-  return getJson("/api/riders");
-}
-
-export async function authorizePayment(payload) {
-  return postJson("/api/payments/authorize", payload);
+export async function driverLogin(payload) {
+  return request("/api/driver/login", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
 }
 
 export async function getFareEstimate(payload) {
-  return postJson("/api/fare-estimate", payload);
+  return request("/api/fare-estimate", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function authorizePayment(payload) {
+  return request("/api/payments/authorize", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
 }
 
 export async function requestRide(payload) {
-  return postJson("/api/request-ride", payload);
+  return request("/api/request-ride", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
 }
-
-export { API_BASE_URL };
