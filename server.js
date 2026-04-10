@@ -1137,10 +1137,7 @@ app.get("/api/debug/runtime", (req, res) => {
 });
 
 app.get("/", (req, res) => {
-  return res.json({
-    success: true,
-    message: "Harvey Taxi API running"
-  });
+  res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
 /* =========================================================
@@ -1217,6 +1214,815 @@ app.post("/api/admin/login", async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Admin login failed.",
+      error: error.message
+    });
+  }
+}); /* =========================================================
+   RIDERS
+========================================================= */
+async function riderSignupHandler(req, res) {
+  try {
+    const firstName = safeString(getBodyValue(req.body, "first_name", "firstName"));
+    const lastName = safeString(getBodyValue(req.body, "last_name", "lastName"));
+    const email = normalizeEmail(getBodyValue(req.body, "email"));
+    const phone = normalizePhone(getBodyValue(req.body, "phone"));
+    const city = safeString(getBodyValue(req.body, "city"));
+    const state = safeString(getBodyValue(req.body, "state"));
+    const password = safeString(getBodyValue(req.body, "password"));
+
+    if (!firstName || !email || !phone) {
+      return res.status(400).json({
+        success: false,
+        message: "First name, email, and phone are required."
+      });
+    }
+
+    const existingRider = await findRiderByEmail(email);
+    if (existingRider) {
+      return res.status(409).json({
+        success: false,
+        message: "A rider account with this email already exists.",
+        rider: publicRider(existingRider)
+      });
+    }
+
+    const payload = {
+      first_name: firstName,
+      last_name: lastName,
+      email,
+      phone,
+      city,
+      state,
+      password: password || null,
+      verification_status: "pending",
+      approved: false,
+      created_at: nowIso(),
+      updated_at: nowIso()
+    };
+
+    const { data, error } = await supabase
+      .from("riders")
+      .insert(payload)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    const rider = publicRider(data);
+
+    return res.json({
+      success: true,
+      message: "Rider signup submitted.",
+      rider_id: rider.id,
+      status: rider.verification_status,
+      approved: rider.approved,
+      rider
+    });
+  } catch (error) {
+    console.error("❌ riderSignupHandler error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Rider signup failed.",
+      error: error.message
+    });
+  }
+}
+
+app.post("/api/rider/signup", riderSignupHandler);
+app.post("/api/riders/signup", riderSignupHandler);
+
+app.post("/api/rider/login", async (req, res) => {
+  try {
+    const email = normalizeEmail(getBodyValue(req.body, "email"));
+    const password = safeString(getBodyValue(req.body, "password"));
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required."
+      });
+    }
+
+    const rider = await findRiderByEmail(email);
+
+    if (!rider) {
+      return res.status(404).json({
+        success: false,
+        message: "Rider account not found."
+      });
+    }
+
+    if (rider.password && password && safeString(rider.password) !== password) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid rider credentials."
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: "Rider login successful.",
+      rider_id: rider.id,
+      rider: publicRider(rider)
+    });
+  } catch (error) {
+    console.error("❌ /api/rider/login error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Rider login failed.",
+      error: error.message
+    });
+  }
+});
+
+app.get("/api/riders", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("riders")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    return res.json({
+      success: true,
+      riders: (data || []).map(publicRider)
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to load riders.",
+      error: error.message
+    });
+  }
+});
+
+app.get("/api/riders/:riderId", async (req, res) => {
+  try {
+    const rider = await getRiderById(req.params.riderId);
+
+    if (!rider) {
+      return res.status(404).json({
+        success: false,
+        message: "Rider not found."
+      });
+    }
+
+    return res.json({
+      success: true,
+      rider: publicRider(rider)
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to load rider.",
+      error: error.message
+    });
+  }
+});
+
+/* =========================================================
+   DRIVERS
+========================================================= */
+async function driverSignupHandler(req, res) {
+  try {
+    const firstName = safeString(getBodyValue(req.body, "first_name", "firstName"));
+    const lastName = safeString(getBodyValue(req.body, "last_name", "lastName"));
+    const email = normalizeEmail(getBodyValue(req.body, "email"));
+    const phone = normalizePhone(getBodyValue(req.body, "phone"));
+    const city = safeString(getBodyValue(req.body, "city"));
+    const state = safeString(getBodyValue(req.body, "state"));
+    const password = safeString(getBodyValue(req.body, "password"));
+
+    const vehicleMake = safeString(getBodyValue(req.body, "vehicle_make", "vehicleMake"));
+    const vehicleModel = safeString(getBodyValue(req.body, "vehicle_model", "vehicleModel"));
+    const vehicleYear = safeString(getBodyValue(req.body, "vehicle_year", "vehicleYear"));
+    const vehicleColor = safeString(getBodyValue(req.body, "vehicle_color", "vehicleColor"));
+    const licensePlate = safeString(getBodyValue(req.body, "license_plate", "licensePlate"));
+    const licenseNumber = safeString(getBodyValue(req.body, "license_number", "licenseNumber"));
+
+    const driverType = normalizeDriverType(
+      getBodyValue(req.body, "driver_type", "driverType", "requestedMode")
+    );
+
+    const consents = req.body?.consents || {};
+    const termsAccepted = normalizeBoolean(
+      getBodyValue(consents, "termsAccepted", "terms_accepted") ||
+        getBodyValue(req.body, "termsAccepted", "terms_accepted"),
+      false
+    );
+    const backgroundCheckAccepted = normalizeBoolean(
+      getBodyValue(consents, "backgroundCheckAccepted", "background_check_accepted") ||
+        getBodyValue(req.body, "backgroundCheckAccepted", "background_check_accepted"),
+      false
+    );
+    const insuranceConfirmed = normalizeBoolean(
+      getBodyValue(consents, "insuranceConfirmed", "insurance_confirmed") ||
+        getBodyValue(req.body, "insuranceConfirmed", "insurance_confirmed"),
+      false
+    );
+
+    if (!firstName || !email || !phone) {
+      return res.status(400).json({
+        success: false,
+        message: "First name, email, and phone are required."
+      });
+    }
+
+    const existingDriver = await findDriverByEmail(email);
+    if (existingDriver) {
+      return res.status(409).json({
+        success: false,
+        message: "A driver account with this email already exists.",
+        driver: publicDriver(existingDriver)
+      });
+    }
+
+    const emailVerificationToken = createToken(32);
+    const smsVerificationCode = createNumericCode(6);
+
+    const payload = {
+      first_name: firstName,
+      last_name: lastName,
+      email,
+      phone,
+      city,
+      state,
+      password: password || null,
+      vehicle_make: vehicleMake,
+      vehicle_model: vehicleModel,
+      vehicle_year: vehicleYear,
+      vehicle_color: vehicleColor,
+      license_plate: licensePlate,
+      license_number: licenseNumber,
+      verification_status: "pending",
+      background_check_status: backgroundCheckAccepted ? "pending" : "not_started",
+      approved: false,
+      status: "offline",
+      driver_type: driverType,
+      terms_accepted: termsAccepted,
+      background_check_accepted: backgroundCheckAccepted,
+      insurance_confirmed: insuranceConfirmed,
+      latitude: null,
+      longitude: null,
+      email_verified: false,
+      sms_verified: false,
+      email_verification_token: emailVerificationToken,
+      email_verification_sent_at: nowIso(),
+      email_verification_expires_at: addHours(Date.now(), DRIVER_EMAIL_TOKEN_TTL_HOURS),
+      sms_verification_code: smsVerificationCode,
+      sms_verification_sent_at: nowIso(),
+      sms_verification_expires_at: addMinutes(Date.now(), DRIVER_SMS_CODE_TTL_MINUTES),
+      sms_verification_attempts: 0,
+      created_at: nowIso(),
+      updated_at: nowIso()
+    };
+
+    const { data, error } = await supabase
+      .from("drivers")
+      .insert(payload)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    let emailDelivery = { success: false, skipped: true, message: "Not attempted." };
+    let smsDelivery = { success: false, skipped: true, message: "Not attempted." };
+
+    try {
+      emailDelivery = await sendDriverVerificationEmail(data);
+    } catch (emailError) {
+      console.error("❌ Driver email verification send failed:", emailError.message);
+      emailDelivery = {
+        success: false,
+        skipped: false,
+        message: emailError.message
+      };
+    }
+
+    try {
+      smsDelivery = await sendDriverVerificationSms(data);
+    } catch (smsError) {
+      console.error("❌ Driver SMS verification send failed:", smsError.message);
+      smsDelivery = {
+        success: false,
+        skipped: false,
+        message: smsError.message
+      };
+    }
+
+    const driver = publicDriver(data);
+
+    return res.json({
+      success: true,
+      message: "Driver signup submitted. Email verification and SMS verification have been started.",
+      driver_id: driver.id,
+      status: driver.verification_status,
+      approved: driver.approved,
+      driver,
+      verification: {
+        email: {
+          required: true,
+          verified: driver.email_verified,
+          sent_to: maskEmail(driver.email),
+          delivery: emailDelivery.success ? "sent" : emailDelivery.skipped ? "skipped" : "failed"
+        },
+        sms: {
+          required: true,
+          verified: driver.sms_verified,
+          sent_to: maskPhone(driver.phone),
+          delivery: smsDelivery.success ? "sent" : smsDelivery.skipped ? "skipped" : "failed"
+        }
+      }
+    });
+  } catch (error) {
+    console.error("❌ driverSignupHandler error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Driver signup failed.",
+      error: error.message
+    });
+  }
+}
+
+app.post("/api/driver/signup", driverSignupHandler);
+app.post("/api/drivers/signup", driverSignupHandler);
+
+app.get("/api/driver/verify-email", async (req, res) => {
+  try {
+    const token = safeString(req.query.token);
+
+    if (!token) {
+      return res.status(400).send("Missing verification token.");
+    }
+
+    const { data: driver, error } = await supabase
+      .from("drivers")
+      .select("*")
+      .eq("email_verification_token", token)
+      .limit(1)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    if (!driver) {
+      return res.status(404).send("Invalid verification token.");
+    }
+
+    if (driver.email_verified === true) {
+      return res.send("Email already verified. You can return to Harvey Taxi.");
+    }
+
+    if (isExpired(driver.email_verification_expires_at)) {
+      return res.status(400).send("Email verification link expired. Please request a new verification email.");
+    }
+
+    const { error: updateError } = await supabase
+      .from("drivers")
+      .update({
+        email_verified: true,
+        email_verified_at: nowIso(),
+        email_verification_token: null,
+        updated_at: nowIso()
+      })
+      .eq("id", driver.id);
+
+    if (updateError) throw updateError;
+
+    await updateDriverVerificationStatus(driver.id);
+
+    return res.send(
+      "Email verified successfully. Return to Harvey Taxi to continue your driver onboarding."
+    );
+  } catch (error) {
+    console.error("❌ /api/driver/verify-email error:", error);
+    return res.status(500).send("Email verification failed.");
+  }
+});
+
+app.post("/api/driver/verify-sms", async (req, res) => {
+  try {
+    const driverId = safeString(getBodyValue(req.body, "driver_id", "driverId"));
+    const code = safeString(getBodyValue(req.body, "code", "sms_code", "smsCode"));
+
+    if (!driverId || !code) {
+      return res.status(400).json({
+        success: false,
+        message: "driver_id and code are required."
+      });
+    }
+
+    const driver = await getDriverById(driverId);
+
+    if (!driver) {
+      return res.status(404).json({
+        success: false,
+        message: "Driver not found."
+      });
+    }
+
+    if (driver.sms_verified === true) {
+      return res.json({
+        success: true,
+        message: "SMS already verified.",
+        driver: publicDriver(driver)
+      });
+    }
+
+    if (safeNumber(driver.sms_verification_attempts, 0) >= DRIVER_SMS_MAX_ATTEMPTS) {
+      return res.status(429).json({
+        success: false,
+        message: "Too many SMS verification attempts. Please request a new code."
+      });
+    }
+
+    if (isExpired(driver.sms_verification_expires_at)) {
+      return res.status(400).json({
+        success: false,
+        message: "SMS verification code expired. Please request a new code."
+      });
+    }
+
+    if (safeString(driver.sms_verification_code) !== code) {
+      await supabase
+        .from("drivers")
+        .update({
+          sms_verification_attempts: safeNumber(driver.sms_verification_attempts, 0) + 1,
+          updated_at: nowIso()
+        })
+        .eq("id", driverId);
+
+      return res.status(400).json({
+        success: false,
+        message: "Invalid SMS verification code."
+      });
+    }
+
+    const { error: updateError } = await supabase
+      .from("drivers")
+      .update({
+        sms_verified: true,
+        sms_verified_at: nowIso(),
+        sms_verification_code: null,
+        sms_verification_attempts: 0,
+        updated_at: nowIso()
+      })
+      .eq("id", driverId);
+
+    if (updateError) throw updateError;
+
+    const refreshed = await updateDriverVerificationStatus(driverId);
+
+    return res.json({
+      success: true,
+      message: "SMS verified successfully.",
+      driver: publicDriver(refreshed)
+    });
+  } catch (error) {
+    console.error("❌ /api/driver/verify-sms error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "SMS verification failed.",
+      error: error.message
+    });
+  }
+});
+
+app.post("/api/driver/resend-email-verification", async (req, res) => {
+  try {
+    const driverId = safeString(getBodyValue(req.body, "driver_id", "driverId"));
+    const email = normalizeEmail(getBodyValue(req.body, "email"));
+
+    let driver = null;
+
+    if (driverId) {
+      driver = await getDriverById(driverId);
+    } else if (email) {
+      driver = await findDriverByEmail(email);
+    }
+
+    if (!driver) {
+      return res.status(404).json({
+        success: false,
+        message: "Driver not found."
+      });
+    }
+
+    if (driver.email_verified === true) {
+      return res.json({
+        success: true,
+        message: "Email already verified.",
+        driver: publicDriver(driver)
+      });
+    }
+
+    const newToken = createToken(32);
+
+    const { data: updatedDriver, error } = await supabase
+      .from("drivers")
+      .update({
+        email_verification_token: newToken,
+        email_verification_sent_at: nowIso(),
+        email_verification_expires_at: addHours(Date.now(), DRIVER_EMAIL_TOKEN_TTL_HOURS),
+        updated_at: nowIso()
+      })
+      .eq("id", driver.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    await sendDriverVerificationEmail(updatedDriver);
+
+    return res.json({
+      success: true,
+      message: "Verification email resent.",
+      sent_to: maskEmail(updatedDriver.email)
+    });
+  } catch (error) {
+    console.error("❌ /api/driver/resend-email-verification error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to resend verification email.",
+      error: error.message
+    });
+  }
+});
+
+app.post("/api/driver/resend-sms-verification", async (req, res) => {
+  try {
+    const driverId = safeString(getBodyValue(req.body, "driver_id", "driverId"));
+    const phone = normalizePhone(getBodyValue(req.body, "phone"));
+
+    let driver = null;
+
+    if (driverId) {
+      driver = await getDriverById(driverId);
+    } else if (phone) {
+      const { data, error } = await supabase
+        .from("drivers")
+        .select("*")
+        .eq("phone", phone)
+        .limit(1)
+        .maybeSingle();
+
+      if (error) throw error;
+      driver = data || null;
+    }
+
+    if (!driver) {
+      return res.status(404).json({
+        success: false,
+        message: "Driver not found."
+      });
+    }
+
+    if (driver.sms_verified === true) {
+      return res.json({
+        success: true,
+        message: "SMS already verified.",
+        driver: publicDriver(driver)
+      });
+    }
+
+    const newCode = createNumericCode(6);
+
+    const { data: updatedDriver, error } = await supabase
+      .from("drivers")
+      .update({
+        sms_verification_code: newCode,
+        sms_verification_sent_at: nowIso(),
+        sms_verification_expires_at: addMinutes(Date.now(), DRIVER_SMS_CODE_TTL_MINUTES),
+        sms_verification_attempts: 0,
+        updated_at: nowIso()
+      })
+      .eq("id", driver.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    await sendDriverVerificationSms(updatedDriver);
+
+    return res.json({
+      success: true,
+      message: "Verification SMS resent.",
+      sent_to: maskPhone(updatedDriver.phone)
+    });
+  } catch (error) {
+    console.error("❌ /api/driver/resend-sms-verification error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to resend verification SMS.",
+      error: error.message
+    });
+  }
+});
+
+app.get("/api/driver/verification-status/:driverId", async (req, res) => {
+  try {
+    const driver = await getDriverById(req.params.driverId);
+
+    if (!driver) {
+      return res.status(404).json({
+        success: false,
+        message: "Driver not found."
+      });
+    }
+
+    return res.json({
+      success: true,
+      driver_id: driver.id,
+      verification: {
+        email_verified: driver.email_verified === true,
+        sms_verified: driver.sms_verified === true,
+        fully_verified: driver.email_verified === true && driver.sms_verified === true,
+        verification_status: publicDriver(driver).verification_status,
+        approved: driver.approved === true
+      },
+      driver: publicDriver(driver)
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to load driver verification status.",
+      error: error.message
+    });
+  }
+});
+
+app.post("/api/driver/login", async (req, res) => {
+  try {
+    const email = normalizeEmail(getBodyValue(req.body, "email"));
+    const password = safeString(getBodyValue(req.body, "password"));
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required."
+      });
+    }
+
+    const driver = await findDriverByEmail(email);
+
+    if (!driver) {
+      return res.status(404).json({
+        success: false,
+        message: "Driver account not found."
+      });
+    }
+
+    if (driver.password && password && safeString(driver.password) !== password) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid driver credentials."
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: "Driver login successful.",
+      driver_id: driver.id,
+      verification: {
+        email_verified: driver.email_verified === true,
+        sms_verified: driver.sms_verified === true,
+        fully_verified: driver.email_verified === true && driver.sms_verified === true
+      },
+      driver: publicDriver(driver)
+    });
+  } catch (error) {
+    console.error("❌ /api/driver/login error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Driver login failed.",
+      error: error.message
+    });
+  }
+});
+
+app.get("/api/drivers", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("drivers")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    return res.json({
+      success: true,
+      drivers: (data || []).map(publicDriver)
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to load drivers.",
+      error: error.message
+    });
+  }
+});
+
+app.get("/api/drivers/:driverId", async (req, res) => {
+  try {
+    const driver = await getDriverById(req.params.driverId);
+
+    if (!driver) {
+      return res.status(404).json({
+        success: false,
+        message: "Driver not found."
+      });
+    }
+
+    return res.json({
+      success: true,
+      driver: publicDriver(driver)
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to load driver.",
+      error: error.message
+    });
+  }
+});
+
+app.get("/api/drivers/available", async (req, res) => {
+  try {
+    const requestedMode = normalizeRequestedMode(req.query.requestedMode || "driver");
+    const drivers = await getAvailableDrivers(requestedMode);
+
+    return res.json({
+      success: true,
+      drivers: drivers.map(publicDriver)
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to load available drivers.",
+      error: error.message
+    });
+  }
+});
+
+app.post("/api/driver/:driverId/availability", async (req, res) => {
+  try {
+    const driverId = req.params.driverId;
+    const status = safeLower(req.body.status || "offline");
+    const latitude =
+      req.body.latitude == null ? null : safeNumber(req.body.latitude, null);
+    const longitude =
+      req.body.longitude == null ? null : safeNumber(req.body.longitude, null);
+
+    const driver = await getDriverById(driverId);
+
+    if (!driver) {
+      return res.status(404).json({
+        success: false,
+        message: "Driver not found."
+      });
+    }
+
+    if (!(driver.email_verified === true && driver.sms_verified === true)) {
+      return res.status(403).json({
+        success: false,
+        message: "Driver must complete email and SMS verification before going available."
+      });
+    }
+
+    const allowedStatuses = ["available", "busy", "offline"];
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid driver status."
+      });
+    }
+
+    const updatePayload = {
+      status,
+      updated_at: nowIso()
+    };
+
+    if (latitude !== null) updatePayload.latitude = latitude;
+    if (longitude !== null) updatePayload.longitude = longitude;
+
+    const { data, error } = await supabase
+      .from("drivers")
+      .update(updatePayload)
+      .eq("id", driverId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return res.json({
+      success: true,
+      message: "Driver availability updated.",
+      driver: publicDriver(data)
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update driver availability.",
       error: error.message
     });
   }
