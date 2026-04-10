@@ -465,29 +465,29 @@
 
     function getFormData() {
       return {
-        firstName: document.getElementById("firstName").value.trim(),
-        lastName: document.getElementById("lastName").value.trim(),
-        email: document.getElementById("email").value.trim(),
+        first_name: document.getElementById("firstName").value.trim(),
+        last_name: document.getElementById("lastName").value.trim(),
+        email: document.getElementById("email").value.trim().toLowerCase(),
         phone: document.getElementById("phone").value.trim(),
         city: document.getElementById("city").value.trim(),
         state: document.getElementById("state").value.trim().toUpperCase(),
         password: document.getElementById("password").value,
-        confirmPassword: document.getElementById("confirmPassword").value,
-        verificationDocumentType: selectedDocumentType,
-        emergencyContact: document.getElementById("emergencyContact").value.trim(),
+        confirm_password: document.getElementById("confirmPassword").value,
+        verification_document_type: selectedDocumentType,
+        emergency_contact: document.getElementById("emergencyContact").value.trim(),
         notes: document.getElementById("notes").value.trim()
       };
     }
 
     function validatePayload(payload) {
-      if (!payload.firstName) return "First name is required.";
-      if (!payload.lastName) return "Last name is required.";
+      if (!payload.first_name) return "First name is required.";
+      if (!payload.last_name) return "Last name is required.";
       if (!payload.email) return "Email is required.";
       if (!payload.phone) return "Phone number is required.";
       if (!payload.city) return "City is required.";
       if (!payload.state) return "State is required.";
       if (!payload.password) return "Password is required.";
-      if (payload.password !== payload.confirmPassword) return "Passwords do not match.";
+      if (payload.password !== payload.confirm_password) return "Passwords do not match.";
       return "";
     }
 
@@ -519,16 +519,16 @@
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            firstName: payload.firstName,
-            lastName: payload.lastName,
+            first_name: payload.first_name,
+            last_name: payload.last_name,
             email: payload.email,
             phone: payload.phone,
             city: payload.city,
             state: payload.state,
             password: payload.password,
-            verificationDocumentType: payload.verificationDocumentType,
-            emergencyContact: payload.emergencyContact,
-            notes: payload.notes
+            verification_document_type: payload.verification_document_type,
+            emergency_contact: payload.emergency_contact || null,
+            notes: payload.notes || null
           })
         });
 
@@ -567,7 +567,7 @@
             <strong>Rider Account Created</strong><br><br>
             <strong>Rider ID:</strong> ${riderId || "Created"}<br>
             <strong>Status:</strong> ${status}<br>
-            <strong>Verification Type:</strong> ${payload.verificationDocumentType.replace("_", " ")}<br><br>
+            <strong>Verification Type:</strong> ${payload.verification_document_type.replace("_", " ")}<br><br>
             ${
               approved
                 ? "Your rider account is approved. You can continue to request a ride."
