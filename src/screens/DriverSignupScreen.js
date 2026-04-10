@@ -296,8 +296,11 @@ export default function DriverSignupScreen({ onNavigate }) {
       const verification = result?.verification || {};
       const driver = result?.driver || {};
 
-      setEmailVerified(verification.email_verified === true);
-      setSmsVerified(verification.sms_verified === true);
+      const nextEmailVerified = verification.email_verified === true;
+      const nextSmsVerified = verification.sms_verified === true;
+
+      setEmailVerified(nextEmailVerified);
+      setSmsVerified(nextSmsVerified);
 
       if (driver?.email) {
         setEmail(driver.email);
@@ -308,15 +311,28 @@ export default function DriverSignupScreen({ onNavigate }) {
       }
 
       if (showAlert) {
-        if (verification.fully_verified) {
+        if (verification.fully_verified || (nextEmailVerified && nextSmsVerified)) {
           Alert.alert(
             "Verification Complete",
-            "Email verification and SMS verification are complete. Your driver profile can continue through approval review."
+            "Email verification and SMS verification are complete. Opening Driver Dashboard.",
+            [
+              {
+                text: "Continue",
+                onPress: () => {
+                  if (onNavigate) {
+                    onNavigate("driverDashboard", {
+                      driverId,
+                      justVerified: true
+                    });
+                  }
+                }
+              }
+            ]
           );
         } else {
           Alert.alert(
             "Verification Status Updated",
-            `Email Verified: ${verification.email_verified ? "Yes" : "No"}\nSMS Verified: ${verification.sms_verified ? "Yes" : "No"}`
+            `Email Verified: ${nextEmailVerified ? "Yes" : "No"}\nSMS Verified: ${nextSmsVerified ? "Yes" : "No"}`
           );
         }
       }
@@ -414,9 +430,11 @@ export default function DriverSignupScreen({ onNavigate }) {
         vehicle_color: vehicleColor.trim() || null,
         license_plate: normalizePlate(licensePlate.trim()),
         driver_type: "human",
-        terms_accepted: agreeTerms,
-        background_check_accepted: agreeScreening,
-        insurance_confirmed: agreeInsurance,
+
+        accepted_terms: agreeTerms,
+        accepted_background_check_consent: agreeScreening,
+        accepted_driver_policy: agreeInsurance,
+
         consents: {
           termsAccepted: agreeTerms,
           backgroundCheckAccepted: agreeScreening,
@@ -442,7 +460,7 @@ export default function DriverSignupScreen({ onNavigate }) {
 
       Alert.alert(
         "Driver Signup Submitted",
-        `Driver ID: ${nextDriverId || "Generated"}\n\nEmail verification has been started for ${maskEmail(payload.email)}.\nSMS verification has been started for ${maskPhone(payload.phone)}.\n\nComplete both steps to finish driver verification.`
+        `Driver ID: ${nextDriverId || "Generated"}\n\nEmail verification has been started for ${maskEmail(payload.email)}.\nSMS verification has been started for ${maskPhone(payload.phone)}.\n\nComplete both steps to continue to your Driver Dashboard.`
       );
     } catch (error) {
       Alert.alert(
@@ -472,17 +490,53 @@ export default function DriverSignupScreen({ onNavigate }) {
 
       await verifyDriverSms(driverId, digitsOnly(smsCode).slice(0, 6));
       setSmsCode("");
-      await refreshVerificationStatus();
 
-      if (emailVerified || fullyVerified) {
+      const result = await getDriverVerificationStatus(driverId);
+      const verification = result?.verification || {};
+      const driver = result?.driver || {};
+
+      const nextEmailVerified = verification.email_verified === true;
+      const nextSmsVerified = verification.sms_verified === true;
+      const nextFullyVerified = verification.fully_verified === true || (nextEmailVerified && nextSmsVerified);
+
+      setEmailVerified(nextEmailVerified);
+      setSmsVerified(nextSmsVerified);
+
+      if (driver?.email) {
+        setEmail(driver.email);
+      }
+
+      if (driver?.phone) {
+        setPhone(driver.phone);
+      }
+
+      if (nextFullyVerified) {
         Alert.alert(
           "Verification Complete",
-          "Email verification and SMS verification are complete. Your driver profile can continue through approval review."
+          "Email verification and SMS verification are complete. Opening Driver Dashboard.",
+          [
+            {
+              text: "Continue",
+              onPress: () => {
+                if (onNavigate) {
+                  onNavigate("driverDashboard", {
+                    driverId,
+                    justVerified: true
+                  });
+                }
+              }
+            }
+          ]
         );
-      } else {
+      } else if (nextSmsVerified) {
         Alert.alert(
           "SMS Verified",
           "Your phone has been verified. Finish email verification from your inbox to complete the driver onboarding flow."
+        );
+      } else {
+        Alert.alert(
+          "Verification Updated",
+          "SMS verification was processed. Refresh status if needed."
         );
       }
     } catch (error) {
@@ -561,21 +615,15 @@ export default function DriverSignupScreen({ onNavigate }) {
   }
 
   function handleDone() {
-    Alert.alert(
-      "Verification Complete",
-      "Your driver verification flow is complete on this screen.",
-      [
-        {
-          text: "Go Home",
-          onPress: () => {
-            resetForm();
-            if (onNavigate) {
-              onNavigate("home");
-            }
-          }
-        }
-      ]
-    );
+    if (onNavigate) {
+      onNavigate("driverDashboard", {
+        driverId,
+        justVerified: true
+      });
+      return;
+    }
+
+    Alert.alert("Success", "Driver verification is complete.");
   }
 
   return (
@@ -811,7 +859,7 @@ export default function DriverSignupScreen({ onNavigate }) {
 
             <View style={styles.infoBanner}>
               <Text style={styles.infoBannerText}>
-                Your driver signup has been created. Finish your email verification and SMS verification to complete the onboarding flow.
+                Your driver signup has been created. Finish your email verification and SMS verification to continue to your Driver Dashboard.
               </Text>
             </View>
 
@@ -926,7 +974,7 @@ export default function DriverSignupScreen({ onNavigate }) {
                 onPress={handleDone}
                 android_ripple={{ color: "rgba(3,16,31,0.10)" }}
               >
-                <Text style={styles.primaryButtonText}>Finish and Return Home</Text>
+                <Text style={styles.primaryButtonText}>Open Driver Dashboard</Text>
               </Pressable>
             ) : null}
 
