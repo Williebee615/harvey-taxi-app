@@ -12,7 +12,6 @@ import {
   TextInput,
   View
 } from "react-native";
-import { driverSignup } from "../config/api";
 
 const API_BASE = "https://harvey-taxi-app-2.onrender.com";
 
@@ -26,6 +25,13 @@ function normalizePhone(value) {
 
 function digitsOnly(value) {
   return String(value || "").replace(/\D/g, "");
+}
+
+function normalizePlate(value) {
+  return String(value || "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9-]/g, "")
+    .slice(0, 10);
 }
 
 function maskEmail(email) {
@@ -52,6 +58,24 @@ async function readJsonSafe(response) {
       message: raw || "Server returned an invalid response."
     };
   }
+}
+
+async function submitDriverSignup(payload) {
+  const response = await fetch(`${API_BASE}/api/driver/signup`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const data = await readJsonSafe(response);
+
+  if (!response.ok || !data.success) {
+    throw new Error(data?.error || data?.message || "Unable to submit driver signup.");
+  }
+
+  return data;
 }
 
 async function verifyDriverSms(driverId, code) {
@@ -118,7 +142,10 @@ async function resendDriverSmsVerification(driverId, phone) {
 }
 
 async function getDriverVerificationStatus(driverId) {
-  const response = await fetch(`${API_BASE}/api/driver/verification-status/${encodeURIComponent(driverId)}`);
+  const response = await fetch(
+    `${API_BASE}/api/driver/verification-status/${encodeURIComponent(driverId)}`
+  );
+
   const data = await readJsonSafe(response);
 
   if (!response.ok || !data.success) {
@@ -132,13 +159,13 @@ function CheckRow({ label, value, onPress }) {
   return (
     <Pressable
       onPress={onPress}
+      hitSlop={10}
       style={({ pressed }) => [
         styles.checkRow,
         value && styles.checkRowActive,
         pressed && styles.checkRowPressed
       ]}
       android_ripple={{ color: "rgba(105,245,255,0.10)" }}
-      hitSlop={8}
     >
       <View style={[styles.checkbox, value && styles.checkboxActive]}>
         {value ? <Text style={styles.checkmark}>✓</Text> : null}
@@ -151,7 +178,12 @@ function CheckRow({ label, value, onPress }) {
 function StatusPill({ label, verified }) {
   return (
     <View style={[styles.statusPill, verified ? styles.statusPillOk : styles.statusPillPending]}>
-      <Text style={[styles.statusPillText, verified ? styles.statusPillTextOk : styles.statusPillTextPending]}>
+      <Text
+        style={[
+          styles.statusPillText,
+          verified ? styles.statusPillTextOk : styles.statusPillTextPending
+        ]}
+      >
         {label}: {verified ? "Verified" : "Pending"}
       </Text>
     </View>
@@ -168,6 +200,8 @@ export default function DriverSignupScreen({ onNavigate }) {
   const [vehicleMake, setVehicleMake] = useState("");
   const [vehicleModel, setVehicleModel] = useState("");
   const [vehicleYear, setVehicleYear] = useState("");
+  const [vehicleColor, setVehicleColor] = useState("");
+  const [licensePlate, setLicensePlate] = useState("");
   const [licenseNumber, setLicenseNumber] = useState("");
   const [password, setPassword] = useState("");
   const [agreeTerms, setAgreeTerms] = useState(false);
@@ -196,6 +230,7 @@ export default function DriverSignupScreen({ onNavigate }) {
         vehicleMake.trim() &&
         vehicleModel.trim() &&
         normalizeYear(vehicleYear).length === 4 &&
+        licensePlate.trim() &&
         licenseNumber.trim() &&
         password.trim() &&
         agreeTerms &&
@@ -212,6 +247,7 @@ export default function DriverSignupScreen({ onNavigate }) {
     vehicleMake,
     vehicleModel,
     vehicleYear,
+    licensePlate,
     licenseNumber,
     password,
     agreeTerms,
@@ -231,6 +267,8 @@ export default function DriverSignupScreen({ onNavigate }) {
     setVehicleMake("");
     setVehicleModel("");
     setVehicleYear("");
+    setVehicleColor("");
+    setLicensePlate("");
     setLicenseNumber("");
     setPassword("");
     setAgreeTerms(false);
@@ -284,7 +322,10 @@ export default function DriverSignupScreen({ onNavigate }) {
       }
     } catch (error) {
       if (showAlert) {
-        Alert.alert("Status Refresh Failed", error?.message || "Unable to refresh verification status.");
+        Alert.alert(
+          "Status Refresh Failed",
+          error?.message || "Unable to refresh verification status."
+        );
       }
     } finally {
       setStatusLoading(false);
@@ -337,6 +378,11 @@ export default function DriverSignupScreen({ onNavigate }) {
       return;
     }
 
+    if (!licensePlate.trim()) {
+      Alert.alert("Missing License Plate", "Please enter your vehicle license plate.");
+      return;
+    }
+
     if (!password.trim()) {
       Alert.alert("Missing Password", "Please create a password.");
       return;
@@ -354,17 +400,23 @@ export default function DriverSignupScreen({ onNavigate }) {
 
     try {
       const payload = {
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
         phone: normalizePhone(phone.trim()),
         email: email.trim().toLowerCase(),
         city: city.trim(),
         state: stateValue.trim().toUpperCase(),
         password: password.trim(),
-        licenseNumber: licenseNumber.trim(),
-        vehicleMake: vehicleMake.trim(),
-        vehicleModel: vehicleModel.trim(),
-        vehicleYear: normalizeYear(vehicleYear),
+        drivers_license_number: licenseNumber.trim(),
+        vehicle_make: vehicleMake.trim(),
+        vehicle_model: vehicleModel.trim(),
+        vehicle_year: normalizeYear(vehicleYear),
+        vehicle_color: vehicleColor.trim() || null,
+        license_plate: normalizePlate(licensePlate.trim()),
+        driver_type: "human",
+        terms_accepted: agreeTerms,
+        background_check_accepted: agreeScreening,
+        insurance_confirmed: agreeInsurance,
         consents: {
           termsAccepted: agreeTerms,
           backgroundCheckAccepted: agreeScreening,
@@ -372,7 +424,7 @@ export default function DriverSignupScreen({ onNavigate }) {
         }
       };
 
-      const result = await driverSignup(payload);
+      const result = await submitDriverSignup(payload);
 
       const nextDriverId =
         result?.driver?.id ||
@@ -534,7 +586,7 @@ export default function DriverSignupScreen({ onNavigate }) {
       <ScrollView
         style={styles.screen}
         contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="always"
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.heroCard}>
@@ -616,7 +668,7 @@ export default function DriverSignupScreen({ onNavigate }) {
               returnKeyType="next"
             />
 
-            <Text style={styles.label}>License Number</Text>
+            <Text style={styles.label}>Driver License Number</Text>
             <TextInput
               style={styles.input}
               value={licenseNumber}
@@ -672,6 +724,28 @@ export default function DriverSignupScreen({ onNavigate }) {
               placeholderTextColor="#8ea2d1"
               keyboardType="number-pad"
               maxLength={4}
+              returnKeyType="next"
+            />
+
+            <Text style={styles.label}>Vehicle Color (Optional)</Text>
+            <TextInput
+              style={styles.input}
+              value={vehicleColor}
+              onChangeText={setVehicleColor}
+              placeholder="Black"
+              placeholderTextColor="#8ea2d1"
+              returnKeyType="next"
+            />
+
+            <Text style={styles.label}>License Plate</Text>
+            <TextInput
+              style={styles.input}
+              value={licensePlate}
+              onChangeText={(text) => setLicensePlate(normalizePlate(text))}
+              placeholder="ABC1234"
+              placeholderTextColor="#8ea2d1"
+              autoCapitalize="characters"
+              autoCorrect={false}
               returnKeyType="done"
             />
 
