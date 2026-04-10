@@ -32,6 +32,7 @@
       --radius-lg: 28px;
       --radius-md: 22px;
       --radius-sm: 18px;
+      --focus: 0 0 0 3px rgba(98, 245, 255, 0.16);
     }
 
     * {
@@ -67,6 +68,17 @@
     a {
       pointer-events: auto;
       -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      font-family: inherit;
+    }
+
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible,
+    a:focus-visible,
+    label:focus-visible {
+      outline: none;
+      box-shadow: var(--focus);
     }
 
     .shell {
@@ -253,6 +265,7 @@
 
     .panel {
       padding: 24px;
+      overflow: visible;
     }
 
     .panel h3 {
@@ -308,6 +321,7 @@
       margin-bottom: 18px;
       position: relative;
       z-index: 3;
+      overflow: visible;
     }
 
     .section-card.hidden {
@@ -350,6 +364,7 @@
     .field {
       display: grid;
       gap: 8px;
+      min-width: 0;
     }
 
     .field.full {
@@ -370,6 +385,7 @@
     input:not([type="checkbox"]):not([type="radio"]),
     select {
       width: 100%;
+      min-height: 54px;
       padding: 16px 18px;
       border-radius: 18px;
       border: 1px solid rgba(34,81,182,0.5);
@@ -401,6 +417,8 @@
       position: relative;
       display: block;
       cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
     }
 
     .choice input[type="radio"] {
@@ -410,6 +428,7 @@
       width: 100%;
       height: 100%;
       cursor: pointer;
+      z-index: 2;
     }
 
     .choice-card {
@@ -446,6 +465,7 @@
       gap: 14px;
       position: relative;
       z-index: 5;
+      isolation: isolate;
     }
 
     .consent-card {
@@ -463,6 +483,7 @@
       user-select: none;
       -webkit-user-select: none;
       touch-action: manipulation;
+      min-height: 76px;
     }
 
     .consent-card:hover {
@@ -472,10 +493,12 @@
 
     .consent-card input[type="checkbox"] {
       position: absolute;
+      inset: 0;
       opacity: 0;
-      pointer-events: none;
-      width: 1px;
-      height: 1px;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+      z-index: 3;
     }
 
     .consent-check {
@@ -490,6 +513,7 @@
       transition: 0.2s ease;
       position: relative;
       flex-shrink: 0;
+      pointer-events: none;
     }
 
     .consent-text {
@@ -497,6 +521,7 @@
       font-size: 0.98rem;
       line-height: 1.65;
       font-weight: 700;
+      pointer-events: none;
     }
 
     .consent-card input[type="checkbox"]:checked + .consent-check {
@@ -873,8 +898,8 @@
                 </div>
 
                 <div class="field">
-                  <label for="licensePlate">License Plate (optional)</label>
-                  <input type="text" id="licensePlate" placeholder="ABC1234" />
+                  <label for="licensePlate">License Plate</label>
+                  <input type="text" id="licensePlate" placeholder="ABC1234" required />
                 </div>
               </div>
             </div>
@@ -1058,7 +1083,8 @@
       "password",
       "vehicleMake",
       "vehicleModel",
-      "vehicleYear"
+      "vehicleYear",
+      "licensePlate"
     ];
 
     const onboardingState = {
@@ -1151,7 +1177,7 @@
 
       const consentsReady = checkboxIds.every((id) => {
         const el = document.getElementById(id);
-        return el && el.checked;
+        return !!(el && el.checked);
       });
 
       return textFieldsReady && consentsReady;
@@ -1263,6 +1289,33 @@
       button.textContent = isLoading ? loadingText : defaultText;
     }
 
+    function normalizeDriverPayload(rawPayload) {
+      return {
+        first_name: rawPayload.firstName,
+        last_name: rawPayload.lastName,
+        email: rawPayload.email,
+        phone: rawPayload.phone,
+        city: rawPayload.city,
+        state: rawPayload.state,
+        password: rawPayload.password,
+        drivers_license_number: rawPayload.licenseNumber,
+        vehicle_make: rawPayload.vehicleMake,
+        vehicle_model: rawPayload.vehicleModel,
+        vehicle_year: rawPayload.vehicleYear,
+        vehicle_color: rawPayload.vehicleColor || null,
+        license_plate: rawPayload.licensePlate,
+        driver_type: rawPayload.driverType,
+        terms_accepted: rawPayload.consents.termsAccepted,
+        background_check_accepted: rawPayload.consents.backgroundCheckAccepted,
+        insurance_confirmed: rawPayload.consents.insuranceConfirmed,
+        consents: {
+          termsAccepted: rawPayload.consents.termsAccepted,
+          backgroundCheckAccepted: rawPayload.consents.backgroundCheckAccepted,
+          insuranceConfirmed: rawPayload.consents.insuranceConfirmed
+        }
+      };
+    }
+
     async function refreshVerificationStatus(showMessage = false) {
       if (!onboardingState.driverId) return;
 
@@ -1312,7 +1365,7 @@
             );
           }
         }
-      } catch (error) {
+      } catch {
         if (showMessage) {
           showStatus("error", "Unable to refresh verification status right now.");
         }
@@ -1325,7 +1378,6 @@
       const input = document.getElementById(id);
       if (input) {
         input.addEventListener("change", toggleConsentCardState);
-        input.addEventListener("click", toggleConsentCardState);
       }
     });
 
@@ -1337,13 +1389,26 @@
       }
     });
 
+    document.getElementById("vehicleYear").addEventListener("input", (e) => {
+      e.target.value = onlyDigits(e.target.value).slice(0, 4);
+      updateFormHint();
+    });
+
+    document.getElementById("state").addEventListener("input", (e) => {
+      e.target.value = String(e.target.value || "")
+        .replace(/[^a-z]/gi, "")
+        .toUpperCase()
+        .slice(0, 2);
+      updateFormHint();
+    });
+
     driverForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       clearStatus();
 
       setButtonLoading(submitBtn, true, "Submitting Application...", "Submit Driver Application");
 
-      const payload = {
+      const rawPayload = {
         firstName: document.getElementById("firstName").value.trim(),
         lastName: document.getElementById("lastName").value.trim(),
         email: document.getElementById("email").value.trim().toLowerCase(),
@@ -1365,45 +1430,53 @@
         }
       };
 
-      if (!payload.firstName || !payload.lastName || !payload.email || !payload.phone) {
+      if (!rawPayload.firstName || !rawPayload.lastName || !rawPayload.email || !rawPayload.phone) {
         showStatus("error", "First name, last name, email, and phone are required.");
         setButtonLoading(submitBtn, false, "Submitting Application...", "Submit Driver Application");
         return;
       }
 
-      if (!payload.city || !payload.state) {
+      if (!rawPayload.city || !rawPayload.state) {
         showStatus("error", "City and state are required.");
         setButtonLoading(submitBtn, false, "Submitting Application...", "Submit Driver Application");
         return;
       }
 
-      if (!payload.licenseNumber) {
+      if (!rawPayload.licenseNumber) {
         showStatus("error", "Driver license number is required.");
         setButtonLoading(submitBtn, false, "Submitting Application...", "Submit Driver Application");
         return;
       }
 
-      if (!payload.vehicleMake || !payload.vehicleModel || payload.vehicleYear.length !== 4) {
+      if (!rawPayload.vehicleMake || !rawPayload.vehicleModel || rawPayload.vehicleYear.length !== 4) {
         showStatus("error", "Vehicle make, model, and valid 4-digit year are required.");
         setButtonLoading(submitBtn, false, "Submitting Application...", "Submit Driver Application");
         return;
       }
 
-      if (!payload.password) {
+      if (!rawPayload.licensePlate) {
+        showStatus("error", "License plate is required.");
+        setButtonLoading(submitBtn, false, "Submitting Application...", "Submit Driver Application");
+        return;
+      }
+
+      if (!rawPayload.password) {
         showStatus("error", "Password is required.");
         setButtonLoading(submitBtn, false, "Submitting Application...", "Submit Driver Application");
         return;
       }
 
       if (
-        !payload.consents.termsAccepted ||
-        !payload.consents.backgroundCheckAccepted ||
-        !payload.consents.insuranceConfirmed
+        !rawPayload.consents.termsAccepted ||
+        !rawPayload.consents.backgroundCheckAccepted ||
+        !rawPayload.consents.insuranceConfirmed
       ) {
         showStatus("error", "Please accept all required onboarding acknowledgments before submitting.");
         setButtonLoading(submitBtn, false, "Submitting Application...", "Submit Driver Application");
         return;
       }
+
+      const payload = normalizeDriverPayload(rawPayload);
 
       try {
         const response = await fetch(`${apiBase()}/api/driver/signup`, {
@@ -1450,7 +1523,7 @@
         );
 
         await refreshVerificationStatus(false);
-      } catch (error) {
+      } catch {
         showStatus(
           "error",
           "Unable to submit the driver application right now. Please try again."
@@ -1520,7 +1593,7 @@
             `
           );
         }
-      } catch (error) {
+      } catch {
         showStatus("error", "Unable to verify the SMS code right now.");
       } finally {
         setButtonLoading(verifySmsBtn, false, "Verifying SMS...", "Verify SMS Code");
@@ -1577,7 +1650,7 @@
             Sent to ${data.sent_to || maskEmail(onboardingState.email)}.
           `
         );
-      } catch (error) {
+      } catch {
         showStatus("error", "Unable to resend the verification email right now.");
       } finally {
         setButtonLoading(resendEmailBtn, false, "Resending Email...", "Resend Email Link");
@@ -1623,7 +1696,7 @@
             Sent to ${data.sent_to || maskPhone(onboardingState.phone)}.
           `
         );
-      } catch (error) {
+      } catch {
         showStatus("error", "Unable to resend the SMS code right now.");
       } finally {
         setButtonLoading(resendSmsBtn, false, "Resending SMS...", "Resend SMS Code");
