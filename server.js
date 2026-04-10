@@ -69,7 +69,7 @@ function normalizeEmail(value = "") {
 }
 
 function hashValue(value = "") {
-  return crypto.createHash("sha256").update(String(value)).digest("hex");
+  return crypto.createHash("sha256").update(String(value || "")).digest("hex");
 }
 
 function redactPhone(phone = "") {
@@ -98,6 +98,13 @@ function isTruthyText(value) {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+function pickText(...values) {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return "";
+}
+
 /* =========================================================
    ENV
 ========================================================= */
@@ -110,7 +117,9 @@ const ADMIN_PASSWORD = cleanEnv(process.env.ADMIN_PASSWORD);
 const GOOGLE_MAPS_API_KEY = cleanEnv(process.env.GOOGLE_MAPS_API_KEY);
 
 const OPENAI_API_KEY = cleanEnv(process.env.OPENAI_API_KEY);
-const OPENAI_SUPPORT_MODEL = cleanEnv(process.env.OPENAI_SUPPORT_MODEL || "gpt-4o-mini");
+const OPENAI_SUPPORT_MODEL = cleanEnv(
+  process.env.OPENAI_SUPPORT_MODEL || "gpt-4o-mini"
+);
 
 const PUBLIC_APP_URL = cleanEnv(process.env.PUBLIC_APP_URL);
 const RENDER_EXTERNAL_URL = cleanEnv(process.env.RENDER_EXTERNAL_URL);
@@ -124,7 +133,9 @@ const TWILIO_AUTH_TOKEN = cleanEnv(process.env.TWILIO_AUTH_TOKEN);
 const TWILIO_FROM_NUMBER = cleanEnv(process.env.TWILIO_FROM_NUMBER);
 
 const RESEND_API_KEY = cleanEnv(process.env.RESEND_API_KEY);
-const EMAIL_FROM = cleanEnv(process.env.EMAIL_FROM || "Harvey Taxi <no-reply@harveytaxiservice.com>");
+const EMAIL_FROM = cleanEnv(
+  process.env.EMAIL_FROM || "Harvey Taxi <no-reply@harveytaxiservice.com>"
+);
 
 const DEFAULT_SUPPORT_EMAIL = cleanEnv(
   process.env.DEFAULT_SUPPORT_EMAIL || "support@harveytaxiservice.com"
@@ -145,8 +156,14 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 /* =========================================================
    CONSTANTS
 ========================================================= */
-const DISPATCH_OFFER_TIMEOUT_MS = toNumber(process.env.DISPATCH_OFFER_TIMEOUT_MS, 20000);
-const MAX_DISPATCH_ATTEMPTS = toNumber(process.env.MAX_DISPATCH_ATTEMPTS, 3);
+const DISPATCH_OFFER_TIMEOUT_MS = toNumber(
+  process.env.DISPATCH_OFFER_TIMEOUT_MS,
+  20000
+);
+const MAX_DISPATCH_ATTEMPTS = toNumber(
+  process.env.MAX_DISPATCH_ATTEMPTS,
+  3
+);
 
 const BASE_FARE = toNumber(process.env.BASE_FARE, 4.5);
 const PER_MILE_FARE = toNumber(process.env.PER_MILE_FARE, 1.9);
@@ -155,8 +172,14 @@ const BOOKING_FEE = toNumber(process.env.BOOKING_FEE, 2.5);
 const MINIMUM_FARE = toNumber(process.env.MINIMUM_FARE, 9.5);
 const SURGE_MULTIPLIER = toNumber(process.env.SURGE_MULTIPLIER, 1);
 
-const DRIVER_PAYOUT_PERCENT = toNumber(process.env.DRIVER_PAYOUT_PERCENT, 0.75);
-const AUTONOMOUS_PAYOUT_PERCENT = toNumber(process.env.AUTONOMOUS_PAYOUT_PERCENT, 0.85);
+const DRIVER_PAYOUT_PERCENT = toNumber(
+  process.env.DRIVER_PAYOUT_PERCENT,
+  0.75
+);
+const AUTONOMOUS_PAYOUT_PERCENT = toNumber(
+  process.env.AUTONOMOUS_PAYOUT_PERCENT,
+  0.85
+);
 
 const RIDE_TYPE_MULTIPLIERS = {
   standard: 1,
@@ -173,12 +196,11 @@ const REQUEST_MODES = {
 
 /* =========================================================
    IN-MEMORY FALLBACK STORES
-   Used for verification tokens / ephemeral offer tracking
 ========================================================= */
 const memoryStore = {
-  emailVerifications: new Map(), // token -> { driverId, email, expiresAt }
-  smsVerifications: new Map(), // driverId -> { code, phone, expiresAt }
-  dispatchOffers: new Map() // rideId -> { driverId, expiresAt, attempts }
+  emailVerifications: new Map(),
+  smsVerifications: new Map(),
+  dispatchOffers: new Map()
 };
 
 /* =========================================================
@@ -291,7 +313,11 @@ async function geocodeAddress(address) {
     throw new Error(`Geocode request failed with status ${response.status}`);
   }
 
-  if (json.status !== "OK" || !Array.isArray(json.results) || !json.results[0]) {
+  if (
+    json.status !== "OK" ||
+    !Array.isArray(json.results) ||
+    !json.results[0]
+  ) {
     throw new Error(`Geocode failed for address: ${address}`);
   }
 
@@ -304,7 +330,9 @@ async function geocodeAddress(address) {
 
 function haversineMiles(lat1, lng1, lat2, lng2) {
   if (
-    ![lat1, lng1, lat2, lng2].every((n) => typeof n === "number" && Number.isFinite(n))
+    ![lat1, lng1, lat2, lng2].every(
+      (n) => typeof n === "number" && Number.isFinite(n)
+    )
   ) {
     return null;
   }
@@ -465,11 +493,13 @@ async function sendEmail({ to, subject, html, text }) {
 }
 
 async function sendSms({ to, body }) {
-  if (!SEND_REAL_SMS || !TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_FROM_NUMBER) {
-    console.log("📱 SMS MOCK:", {
-      to,
-      body
-    });
+  if (
+    !SEND_REAL_SMS ||
+    !TWILIO_ACCOUNT_SID ||
+    !TWILIO_AUTH_TOKEN ||
+    !TWILIO_FROM_NUMBER
+  ) {
+    console.log("📱 SMS MOCK:", { to, body });
     return { mocked: true };
   }
 
@@ -480,7 +510,9 @@ async function sendSms({ to, body }) {
   form.append("From", TWILIO_FROM_NUMBER);
   form.append("Body", body);
 
-  const auth = Buffer.from(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`).toString("base64");
+  const auth = Buffer.from(
+    `${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`
+  ).toString("base64");
 
   const response = await fetch(endpoint, {
     method: "POST",
@@ -515,7 +547,10 @@ async function updateDriverVerificationStatus(driverId) {
     : "pending";
 
   const approvalStatus =
-    fullyVerified && ["approved", "active"].includes(String(driver.approval_status || "").toLowerCase())
+    fullyVerified &&
+    ["approved", "active"].includes(
+      String(driver.approval_status || "").toLowerCase()
+    )
       ? driver.approval_status
       : driver.approval_status || "pending_review";
 
@@ -537,7 +572,9 @@ async function updateDriverVerificationStatus(driverId) {
 async function sendDriverVerificationEmail(driver) {
   const appBase = PUBLIC_APP_URL || RENDER_EXTERNAL_URL || APP_BASE_URL || "";
   if (!appBase) {
-    throw new Error("Missing PUBLIC_APP_URL or RENDER_EXTERNAL_URL or APP_BASE_URL.");
+    throw new Error(
+      "Missing PUBLIC_APP_URL or RENDER_EXTERNAL_URL or APP_BASE_URL."
+    );
   }
 
   const token = createToken(24);
@@ -549,9 +586,10 @@ async function sendDriverVerificationEmail(driver) {
     expiresAt
   });
 
-  const verifyUrl = `${appBase.replace(/\/$/, "")}/api/driver/verify-email?token=${encodeURIComponent(
-    token
-  )}`;
+  const verifyUrl = `${appBase.replace(
+    /\/$/,
+    ""
+  )}/api/driver/verify-email?token=${encodeURIComponent(token)}`;
 
   await sendEmail({
     to: driver.email,
@@ -612,7 +650,9 @@ function requireFields(body, fields = []) {
 function requireBooleanAcceptances(body, fields = []) {
   const missing = fields.filter((field) => body[field] !== true);
   if (missing.length) {
-    const error = new Error(`Required acceptance missing: ${missing.join(", ")}`);
+    const error = new Error(
+      `Required acceptance missing: ${missing.join(", ")}`
+    );
     error.status = 400;
     throw error;
   }
@@ -622,8 +662,12 @@ function requireBooleanAcceptances(body, fields = []) {
    AUTH
 ========================================================= */
 function requireAdmin(req, res, next) {
-  const email = normalizeEmail(req.headers["x-admin-email"] || req.body.admin_email || "");
-  const password = cleanEnv(req.headers["x-admin-password"] || req.body.admin_password || "");
+  const email = normalizeEmail(
+    req.headers["x-admin-email"] || req.body.admin_email || ""
+  );
+  const password = cleanEnv(
+    req.headers["x-admin-password"] || req.body.admin_password || ""
+  );
 
   if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
     return res.status(500).json({
@@ -659,8 +703,12 @@ app.get("/api/health", async (req, res) => {
         google_maps: Boolean(GOOGLE_MAPS_API_KEY),
         openai: Boolean(OPENAI_API_KEY),
         email: Boolean(RESEND_API_KEY),
-        sms: Boolean(TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_FROM_NUMBER),
-        public_app_url: Boolean(PUBLIC_APP_URL || RENDER_EXTERNAL_URL || APP_BASE_URL)
+        sms: Boolean(
+          TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_FROM_NUMBER
+        ),
+        public_app_url: Boolean(
+          PUBLIC_APP_URL || RENDER_EXTERNAL_URL || APP_BASE_URL
+        )
       },
       tables: tableChecks
     });
@@ -676,8 +724,7 @@ app.get("/api/health", async (req, res) => {
    ROOT
 ========================================================= */
 app.get("/", (req, res) => {
-  const filePath = path.join(__dirname, "public", "index.html");
-  res.sendFile(filePath);
+  res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
 /* =========================================================
@@ -721,11 +768,38 @@ app.post("/api/admin/login", async (req, res) => {
 ========================================================= */
 app.post("/api/rider/signup", async (req, res) => {
   try {
-    requireFields(req.body, ["first_name", "last_name", "email", "phone", "password"]);
-    requireBooleanAcceptances(req.body, ["accepted_terms", "accepted_privacy_policy"]);
-
+    const firstName = pickText(req.body.first_name, req.body.firstName);
+    const lastName = pickText(req.body.last_name, req.body.lastName);
     const email = normalizeEmail(req.body.email);
     const phone = normalizePhone(req.body.phone);
+    const city = pickText(req.body.city);
+    const state = pickText(req.body.state).toUpperCase();
+    const password = pickText(req.body.password);
+    const verificationDocumentType = pickText(
+      req.body.verification_document_type,
+      req.body.verificationDocumentType
+    ) || "driver_license";
+    const emergencyContact = pickText(
+      req.body.emergency_contact,
+      req.body.emergencyContact
+    );
+    const notes = pickText(req.body.notes);
+
+    const bodyForValidation = {
+      first_name: firstName,
+      last_name: lastName,
+      email,
+      phone,
+      password
+    };
+
+    requireFields(bodyForValidation, [
+      "first_name",
+      "last_name",
+      "email",
+      "phone",
+      "password"
+    ]);
 
     if (!isEmail(email)) {
       return res.status(400).json({
@@ -737,6 +811,7 @@ app.post("/api/rider/signup", async (req, res) => {
     const existingEmail = await trySingle(
       supabase.from("riders").select("id,email").eq("email", email).maybeSingle()
     );
+
     if (existingEmail) {
       return res.status(409).json({
         success: false,
@@ -747,13 +822,18 @@ app.post("/api/rider/signup", async (req, res) => {
     const riderId = uid("rider");
     const riderPayload = {
       id: riderId,
-      first_name: req.body.first_name.trim(),
-      last_name: req.body.last_name.trim(),
-      full_name: `${req.body.first_name.trim()} ${req.body.last_name.trim()}`,
+      first_name: firstName,
+      last_name: lastName,
+      full_name: `${firstName} ${lastName}`,
       email,
       phone,
-      password_hash: hashValue(req.body.password),
-      verification_status: "approved", // user requested rider approval gate; this can later be manual
+      password_hash: hashValue(password),
+      city: city || null,
+      state: state || null,
+      verification_document_type: verificationDocumentType || "driver_license",
+      emergency_contact: emergencyContact || null,
+      notes: notes || null,
+      verification_status: "approved",
       approval_status: "approved",
       payment_authorization_status: "not_authorized",
       role: "rider",
@@ -765,7 +845,7 @@ app.post("/api/rider/signup", async (req, res) => {
       .from("riders")
       .insert(riderPayload)
       .select(
-        "id,first_name,last_name,full_name,email,phone,verification_status,approval_status,payment_authorization_status,created_at"
+        "id,first_name,last_name,full_name,email,phone,city,state,verification_document_type,emergency_contact,notes,verification_status,approval_status,payment_authorization_status,created_at"
       )
       .single();
 
@@ -779,6 +859,11 @@ app.post("/api/rider/signup", async (req, res) => {
     return res.status(201).json({
       success: true,
       message: "Rider signup completed.",
+      rider_id: data.id,
+      status: data.verification_status,
+      approved: ["approved", "verified"].includes(
+        String(data.approval_status || "").toLowerCase()
+      ),
       rider: data
     });
   } catch (error) {
@@ -821,6 +906,8 @@ app.post("/api/rider/login", async (req, res) => {
         full_name: rider.full_name,
         email: rider.email,
         phone: rider.phone,
+        city: rider.city,
+        state: rider.state,
         verification_status: rider.verification_status,
         approval_status: rider.approval_status,
         payment_authorization_status: rider.payment_authorization_status
@@ -852,11 +939,17 @@ app.post("/api/driver/signup", async (req, res) => {
       "drivers_license_number"
     ]);
 
-    requireBooleanAcceptances(req.body, [
-      "accepted_terms",
-      "accepted_background_check_consent",
-      "accepted_driver_policy"
-    ]);
+    if (
+      req.body.accepted_terms !== true ||
+      req.body.accepted_background_check_consent !== true ||
+      req.body.accepted_driver_policy !== true
+    ) {
+      return res.status(400).json({
+        success: false,
+        error:
+          "Driver consent checkboxes are required: accepted_terms, accepted_background_check_consent, accepted_driver_policy."
+      });
+    }
 
     const email = normalizeEmail(req.body.email);
     const phone = normalizePhone(req.body.phone);
@@ -871,6 +964,7 @@ app.post("/api/driver/signup", async (req, res) => {
     const existingEmail = await trySingle(
       supabase.from("drivers").select("id,email").eq("email", email).maybeSingle()
     );
+
     if (existingEmail) {
       return res.status(409).json({
         success: false,
@@ -998,6 +1092,7 @@ app.post("/api/driver/login", async (req, res) => {
 app.get("/api/driver/verify-email", async (req, res) => {
   try {
     const token = cleanEnv(req.query.token);
+
     if (!token) {
       return res.status(400).send("Missing email verification token.");
     }
@@ -1053,6 +1148,7 @@ app.post("/api/driver/verify-sms", async (req, res) => {
     const code = String(req.body.code).trim();
 
     const record = memoryStore.smsVerifications.get(driverId);
+
     if (!record) {
       return res.status(400).json({
         success: false,
@@ -1122,6 +1218,7 @@ app.post("/api/driver/resend-verification", async (req, res) => {
     if (driver.email_verified !== true) {
       results.email = await sendDriverVerificationEmail(driver);
     }
+
     if (driver.sms_verified !== true) {
       results.sms = await sendDriverVerificationSms(driver);
     }
@@ -1145,6 +1242,7 @@ app.post("/api/driver/resend-verification", async (req, res) => {
 app.get("/api/riders/:riderId", async (req, res) => {
   try {
     const rider = await getRiderById(req.params.riderId);
+
     if (!rider) {
       return res.status(404).json({
         success: false,
@@ -1161,8 +1259,13 @@ app.get("/api/riders/:riderId", async (req, res) => {
         full_name: rider.full_name,
         email: rider.email,
         phone: rider.phone,
+        city: rider.city,
+        state: rider.state,
         verification_status: rider.verification_status,
         approval_status: rider.approval_status,
+        approved: ["approved", "verified"].includes(
+          String(rider.approval_status || "").toLowerCase()
+        ),
         payment_authorization_status: rider.payment_authorization_status
       }
     });
@@ -1177,6 +1280,7 @@ app.get("/api/riders/:riderId", async (req, res) => {
 app.get("/api/drivers/:driverId", async (req, res) => {
   try {
     const driver = await getDriverById(req.params.driverId);
+
     if (!driver) {
       return res.status(404).json({
         success: false,
@@ -1218,7 +1322,9 @@ app.get("/api/drivers/:driverId", async (req, res) => {
 app.post("/api/driver/:driverId/availability", async (req, res) => {
   try {
     const driverId = req.params.driverId;
-    const availabilityStatus = safeLower(req.body.availability_status || "offline");
+    const availabilityStatus = safeLower(
+      req.body.availability_status || "offline"
+    );
 
     if (!["offline", "available", "busy"].includes(availabilityStatus)) {
       return res.status(400).json({
@@ -1348,7 +1454,7 @@ app.post("/api/payments/authorize", async (req, res) => {
       payment: data
     });
   } catch (error) {
-    return res.status(500).json({
+    return res.status(error.status || 500).json({
       success: false,
       error: error.message
     });
@@ -1363,9 +1469,15 @@ app.post("/api/fare-estimate", async (req, res) => {
     requireFields(req.body, ["pickup_address", "dropoff_address"]);
 
     const rideType = safeLower(req.body.ride_type || "standard");
-    const requestedMode = safeLower(req.body.requestedMode || req.body.requested_mode || "driver");
+    const requestedMode = safeLower(
+      req.body.requestedMode || req.body.requested_mode || "driver"
+    );
 
-    const route = await getRouteEstimate(req.body.pickup_address, req.body.dropoff_address);
+    const route = await getRouteEstimate(
+      req.body.pickup_address,
+      req.body.dropoff_address
+    );
+
     const fare = calculateFare({
       distanceMiles: route.distance_miles,
       durationMinutes: route.duration_minutes,
@@ -1577,7 +1689,11 @@ app.post("/api/request-ride", async (req, res) => {
       });
     }
 
-    if (!["approved", "verified"].includes(String(rider.approval_status || "").toLowerCase())) {
+    if (
+      !["approved", "verified"].includes(
+        String(rider.approval_status || "").toLowerCase()
+      )
+    ) {
       return res.status(403).json({
         success: false,
         error: "Rider approval is required before requesting a ride."
@@ -1593,16 +1709,24 @@ app.post("/api/request-ride", async (req, res) => {
     }
 
     const rideType = safeLower(req.body.ride_type || "standard");
-    const requestedMode = safeLower(req.body.requestedMode || req.body.requested_mode || "driver");
+    const requestedMode = safeLower(
+      req.body.requestedMode || req.body.requested_mode || "driver"
+    );
 
-    if (![REQUEST_MODES.DRIVER, REQUEST_MODES.AUTONOMOUS].includes(requestedMode)) {
+    if (
+      ![REQUEST_MODES.DRIVER, REQUEST_MODES.AUTONOMOUS].includes(requestedMode)
+    ) {
       return res.status(400).json({
         success: false,
         error: "Invalid requested mode."
       });
     }
 
-    const route = await getRouteEstimate(req.body.pickup_address, req.body.dropoff_address);
+    const route = await getRouteEstimate(
+      req.body.pickup_address,
+      req.body.dropoff_address
+    );
+
     const fare = calculateFare({
       distanceMiles: route.distance_miles,
       durationMinutes: route.duration_minutes,
@@ -1719,7 +1843,11 @@ app.post("/api/driver/:driverId/accept-ride", async (req, res) => {
       });
     }
 
-    if (!["approved", "active"].includes(String(driver.approval_status || "").toLowerCase())) {
+    if (
+      !["approved", "active"].includes(
+        String(driver.approval_status || "").toLowerCase()
+      )
+    ) {
       return res.status(403).json({
         success: false,
         error: "Driver approval is required before ride acceptance."
@@ -1820,7 +1948,11 @@ app.post("/api/rides/:rideId/start", async (req, res) => {
       });
     }
 
-    if (!["accepted", "assigned_autonomous"].includes(String(ride.status || "").toLowerCase())) {
+    if (
+      !["accepted", "assigned_autonomous"].includes(
+        String(ride.status || "").toLowerCase()
+      )
+    ) {
       return res.status(400).json({
         success: false,
         error: "Ride cannot be started from its current state."
@@ -1870,7 +2002,9 @@ app.post("/api/rides/:rideId/complete", async (req, res) => {
     }
 
     const tipAmount = Number(req.body.tip_amount || 0);
-    const finalCharge = Number((Number(ride.estimated_total || 0) + Math.max(0, tipAmount)).toFixed(2));
+    const finalCharge = Number(
+      (Number(ride.estimated_total || 0) + Math.max(0, tipAmount)).toFixed(2)
+    );
 
     const { data, error } = await supabase
       .from("rides")
@@ -1919,7 +2053,11 @@ app.post("/api/rides/:rideId/cancel", async (req, res) => {
       });
     }
 
-    if (["completed", "cancelled"].includes(String(ride.status || "").toLowerCase())) {
+    if (
+      ["completed", "cancelled"].includes(
+        String(ride.status || "").toLowerCase()
+      )
+    ) {
       return res.status(400).json({
         success: false,
         error: "Ride cannot be cancelled from its current state."
@@ -1970,10 +2108,28 @@ app.post("/api/rides/:rideId/cancel", async (req, res) => {
 app.get("/api/admin/analytics", requireAdmin, async (req, res) => {
   try {
     const [ridersRes, driversRes, ridesRes, paymentsRes] = await Promise.all([
-      supabase.from("riders").select("id,approval_status", { count: "exact", head: false }),
-      supabase.from("drivers").select("id,approval_status,verification_status", { count: "exact", head: false }),
-      supabase.from("rides").select("id,status,requested_mode,final_total,estimated_total", { count: "exact", head: false }),
-      supabase.from("payments").select("id,status,amount", { count: "exact", head: false })
+      supabase.from("riders").select("id,approval_status", {
+        count: "exact",
+        head: false
+      }),
+      supabase.from("drivers").select(
+        "id,approval_status,verification_status",
+        {
+          count: "exact",
+          head: false
+        }
+      ),
+      supabase.from("rides").select(
+        "id,status,requested_mode,final_total,estimated_total",
+        {
+          count: "exact",
+          head: false
+        }
+      ),
+      supabase.from("payments").select("id,status,amount", {
+        count: "exact",
+        head: false
+      })
     ]);
 
     if (ridersRes.error) throw ridersRes.error;
@@ -1989,13 +2145,19 @@ app.get("/api/admin/analytics", requireAdmin, async (req, res) => {
     const analytics = {
       riders_total: riders.length,
       riders_approved: riders.filter((x) =>
-        ["approved", "verified"].includes(String(x.approval_status || "").toLowerCase())
+        ["approved", "verified"].includes(
+          String(x.approval_status || "").toLowerCase()
+        )
       ).length,
 
       drivers_total: drivers.length,
-      drivers_verified: drivers.filter((x) => x.verification_status === "verified").length,
+      drivers_verified: drivers.filter(
+        (x) => x.verification_status === "verified"
+      ).length,
       drivers_approved: drivers.filter((x) =>
-        ["approved", "active"].includes(String(x.approval_status || "").toLowerCase())
+        ["approved", "active"].includes(
+          String(x.approval_status || "").toLowerCase()
+        )
       ).length,
 
       rides_total: rides.length,
@@ -2004,12 +2166,20 @@ app.get("/api/admin/analytics", requireAdmin, async (req, res) => {
       rides_completed: rides.filter((x) => x.status === "completed").length,
       rides_cancelled: rides.filter((x) => x.status === "cancelled").length,
       rides_driver_mode: rides.filter((x) => x.requested_mode === "driver").length,
-      rides_autonomous_mode: rides.filter((x) => x.requested_mode === "autonomous").length,
+      rides_autonomous_mode: rides.filter(
+        (x) => x.requested_mode === "autonomous"
+      ).length,
 
       payments_total: payments.length,
-      payments_authorized: payments.filter((x) => x.status === "authorized").length,
+      payments_authorized: payments.filter((x) => x.status === "authorized")
+        .length,
       gross_revenue_estimate: Number(
-        rides.reduce((sum, x) => sum + Number(x.final_total || x.estimated_total || 0), 0).toFixed(2)
+        rides
+          .reduce(
+            (sum, x) => sum + Number(x.final_total || x.estimated_total || 0),
+            0
+          )
+          .toFixed(2)
       )
     };
 
@@ -2039,7 +2209,8 @@ app.post("/api/admin/drivers/:driverId/approve", requireAdmin, async (req, res) 
       .from("drivers")
       .update({
         approval_status: "approved",
-        availability_status: driver.verification_status === "verified" ? "available" : "offline",
+        availability_status:
+          driver.verification_status === "verified" ? "available" : "offline",
         updated_at: nowIso()
       })
       .eq("id", driver.id)
@@ -2155,11 +2326,16 @@ Important policies:
     });
 
     const json = await response.json();
+
     if (!response.ok) {
-      throw new Error(json?.error?.message || "OpenAI support request failed.");
+      throw new Error(
+        json?.error?.message || "OpenAI support request failed."
+      );
     }
 
-    const answer = json?.choices?.[0]?.message?.content?.trim() || "Support response unavailable.";
+    const answer =
+      json?.choices?.[0]?.message?.content?.trim() ||
+      "Support response unavailable.";
 
     return res.json({
       success: true,
@@ -2185,9 +2361,10 @@ app.get("/api/support/info", async (req, res) => {
 });
 
 /* =========================================================
-   404 API HANDLER
+   API 404 HANDLER
+   IMPORTANT: do not use "/api/*" here
 ========================================================= */
-app.use("/api/*", (req, res) => {
+app.use("/api", (req, res) => {
   return res.status(404).json({
     success: false,
     error: "API route not found."
