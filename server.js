@@ -2594,4 +2594,308 @@ app.listen(PORT, () => {
   console.log("Port:", PORT);
   console.log("Environment:", process.env.NODE_ENV || "production");
   console.log("========================================");
-});
+});/* =========================================================
+   PHASE 8 AI HELPERS
+========================================================= */
+
+function clampNumber(value, min, max) {
+  const num = Number(value || 0);
+  if (!Number.isFinite(num)) return min;
+  return Math.max(min, Math.min(max, num));
+}
+
+function safeJsonParse(value, fallback = null) {
+  try {
+    return JSON.parse(value);
+  } catch (error) {
+    return fallback;
+  }
+}
+
+function estimateDistanceMilesFromAddresses(pickupAddress = "", dropoffAddress = "") {
+  const a = String(pickupAddress || "").trim();
+  const b = String(dropoffAddress || "").trim();
+
+  if (!a || !b) return 5;
+
+  const combinedLength = Math.abs(a.length - b.length) + ((a.length + b.length) / 20);
+  return clampNumber(Math.round(combinedLength), 2, 35);
+}
+
+function estimateDurationMinutesFromMiles(miles = 0) {
+  const base = Number(miles || 0) * 3;
+  return clampNumber(Math.round(base + 8), 8, 120);
+}
+
+async function getActiveRideCounts() {
+  const statuses = [
+    "searching_driver",
+    "dispatch_retry",
+    "driver_assigned",
+    "driver_en_route",
+    "driver_arrived",
+    "trip_in_progress"
+  ];
+
+  const { data, error } = await supabase
+    .from("rides")
+    .select("id,status")
+    .in("status", statuses);
+
+  if (error) throw error;
+
+  return {
+    activeRides: Array.isArray(data) ? data.length : 0
+  };
+}
+
+async function getAvailableDriverCountByMode(requestedMode = "driver") {
+  const drivers = await getAvailableDrivers(requestedMode);
+  return drivers.length;
+}
+
+async function getDemandMultiplier(requestedMode = "driver") {
+  const { activeRides } = await getActiveRideCounts();
+  const availableDrivers = await getAvailableDriverCountByMode(requestedMode);
+
+  if (availableDrivers <= 0) return 2.2;
+
+  const ratio = activeRides / Math.max(availableDrivers, 1);
+
+  if (ratio >= 3) return 2.0;
+  if (ratio >= 2) return 1.7;
+  if (ratio >= 1.25) return 1.35;
+  if (ratio >= 0.8) return 1.15;
+  return 1.0;
+}
+
+function calculateRuleBasedFare({
+  pickupAddress,
+  dropoffAddress,
+  rideType = "STANDARD",
+  requestedMode = "driver"
+}) {
+  const miles = estimateDistanceMilesFromAddresses(pickupAddress, dropoffAddress);
+  const minutes = estimateDurationMinutesFromMiles(miles);
+
+  const baseFare = requestedMode === "autonomous" ? 6.5 : 5.0;
+  const perMile = requestedMode === "autonomous" ? 2.35 : 2.1;
+  const perMinute = requestedMode === "autonomous" ? 0.48 : 0.42;
+  const bookingFee = 2.25;
+
+  let rideTypeMultiplier = 1.0;
+  if (rideType === "AIRPORT") rideTypeMultiplier = 1.2;
+  if (rideType === "SCHEDULED") rideTypeMultiplier = 1.15;
+  if (rideType === "MEDICAL") rideTypeMultiplier = 1.1;
+  if (rideType === "NONPROFIT") rideTypeMultiplier = 0.9;
+
+  const subtotal = (baseFare + miles * perMile + minutes * perMinute) * rideTypeMultiplier;
+  const total = subtotal + bookingFee;
+
+  return {
+    estimated_distance_miles: miles,
+    estimated_duration_minutes: minutes,
+    base_fare: Number(baseFare.toFixed(2)),
+    per_mile_rate: Number(perMile.toFixed(2)),
+    per_minute_rate: Number(perMinute.toFixed(2)),
+    booking_fee: Number(bookingFee.toFixed(2)),
+    ride_type_multiplier: rideTypeMultiplier,
+    estimated_fare: Number(total.toFixed(2))
+  };
+}
+
+async function getDriverDispatchStats(driverId) {
+  const [dispatchesResp, earningsResp] = await Promise.all([
+    supabase
+      .from("dispatches")
+      .select("status")
+      .eq("driver_id", driverId),
+    supabase
+      .from("driver_earnings")
+      .select("payout_amount")
+      .eq("driver_id", driverId)
+  ]);
+
+  const dispatchRows = Array.isArray(dispatchesResp.data) ? dispatchesResp.data : [];
+  const earningRows = Array.isArray(earningsResp.data) ? earningsResp.data : [];
+
+  const offered = dispatchRows.length;
+  const accepted = dispatchRows.filter((row) => row.status === "accepted").length;
+  const declined = dispatchRows.filter((row) => row.status === "declined").length;
+  const acceptanceRate = offered > 0 ? accepted / offered : 0;
+
+  const totalPayout = earningRows.reduce(
+    (sum, row) => sum + Number(row.payout_amount || 0),
+    0
+  );
+
+  return {
+    offered,
+    accepted,
+    declined,
+    acceptance_rate: Number(acceptanceRate.toFixed(4)),
+    total_payout: Number(totalPayout.toFixed(2))
+  };
+}
+
+async function buildAiDispatchContext(driver, ride) {
+  const stats = await getDriverDispatchStats(driver.id);
+
+  return {
+    driver_id: driver.id,
+    driver_type: driver.driver_type,
+    city: driver.city || "",
+    is_available: driver.is_available === true,
+    verification_status: driver.verification_status || "pending",
+    is_approved: driver.is_approved === true,
+    acceptance_rate: stats.acceptance_rate,
+    total_completed_payout: stats.total_payout,
+    historical_offers: stats.offered,
+    historical_accepts: stats.accepted,
+    ride_id: ride.id,
+    requested_mode: ride.requested_mode,
+    pickup_address: ride.pickup_address,
+    dropoff_address: ride.dropoff_address,
+    estimated_fare: Number(ride.estimated_fare || 0),
+    ride_type: ride.ride_type || "STANDARD"
+  };
+}
+
+async function aiScoreDriverForRide(driver, ride) {
+  const ruleScore = scoreDriverForRide(driver, ride);
+
+  if (!openai) {
+    return {
+      final_score: ruleScore,
+      reason: "OpenAI not configured, using rule-based score only",
+      ai_used: false
+    };
+  }
+
+  try {
+    const context = await buildAiDispatchContext(driver, ride);
+
+    const completion = await openai.chat.completions.create({
+      model: OPENAI_SUPPORT_MODEL,
+      temperature: 0.1,
+      messages: [
+        {
+          role: "system",
+          content:
+            "You score taxi driver dispatch candidates. Return JSON only with keys final_score and reason. final_score must be a number from 0 to 1000."
+        },
+        {
+          role: "user",
+          content: JSON.stringify({
+            instruction:
+              "Score this driver for this ride. Heavily reward approval, verification, availability, ride-mode match, city match, and acceptance history. Penalize weak fit. Start from the supplied rule_score but improve it intelligently.",
+            rule_score: ruleScore,
+            context
+          })
+        }
+      ]
+    });
+
+    const text = completion.choices?.[0]?.message?.content || "";
+    const parsed = safeJsonParse(text, null);
+
+    if (!parsed || typeof parsed.final_score !== "number") {
+      return {
+        final_score: ruleScore,
+        reason: "AI response invalid, using rule-based score",
+        ai_used: false
+      };
+    }
+
+    return {
+      final_score: clampNumber(parsed.final_score, 0, 1000),
+      reason: parsed.reason || "AI-scored candidate",
+      ai_used: true
+    };
+  } catch (error) {
+    console.error("ai score driver error", error.message);
+    return {
+      final_score: ruleScore,
+      reason: "AI scoring failed, using rule-based score",
+      ai_used: false
+    };
+  }
+}
+
+async function getAiFareBreakdown({
+  pickupAddress,
+  dropoffAddress,
+  rideType = "STANDARD",
+  requestedMode = "driver"
+}) {
+  const base = calculateRuleBasedFare({
+    pickupAddress,
+    dropoffAddress,
+    rideType,
+    requestedMode
+  });
+
+  const demandMultiplier = await getDemandMultiplier(requestedMode);
+  const surgedFare = Number((base.estimated_fare * demandMultiplier).toFixed(2));
+
+  if (!openai) {
+    return {
+      ...base,
+      demand_multiplier: demandMultiplier,
+      estimated_fare: surgedFare,
+      pricing_mode: "rules_only",
+      ai_summary: "Rule-based fare estimate used."
+    };
+  }
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: OPENAI_SUPPORT_MODEL,
+      temperature: 0.2,
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a taxi pricing optimizer. Return JSON only with keys recommended_multiplier and summary. recommended_multiplier must be a number from 0.8 to 3.0."
+        },
+        {
+          role: "user",
+          content: JSON.stringify({
+            instruction:
+              "Adjust the surge multiplier for this taxi ride based on ride mode, ride type, estimated time, and current demand.",
+            base,
+            requested_mode: requestedMode,
+            ride_type: rideType,
+            default_demand_multiplier: demandMultiplier
+          })
+        }
+      ]
+    });
+
+    const text = completion.choices?.[0]?.message?.content || "";
+    const parsed = safeJsonParse(text, null);
+
+    const recommendedMultiplier = clampNumber(
+      parsed?.recommended_multiplier ?? demandMultiplier,
+      0.8,
+      3.0
+    );
+
+    return {
+      ...base,
+      demand_multiplier: recommendedMultiplier,
+      estimated_fare: Number((base.estimated_fare * recommendedMultiplier).toFixed(2)),
+      pricing_mode: "ai_optimized",
+      ai_summary: parsed?.summary || "AI fare optimization applied."
+    };
+  } catch (error) {
+    console.error("ai fare error", error.message);
+    return {
+      ...base,
+      demand_multiplier: demandMultiplier,
+      estimated_fare: surgedFare,
+      pricing_mode: "rules_fallback",
+      ai_summary: "AI pricing unavailable, fallback estimate used."
+    };
+  }
+}
