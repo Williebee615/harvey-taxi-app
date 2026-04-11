@@ -4,25 +4,35 @@ const path = require("path");
 const crypto = require("crypto");
 const { createClient } = require("@supabase/supabase-js");
 
+let OpenAI = null;
+try {
+  OpenAI = require("openai");
+} catch (error) {
+  console.warn("OpenAI SDK not installed");
+}
+
 const app = express();
 const PORT = Number(process.env.PORT || 10000);
 
 /* =========================================================
    CORE APP
 ========================================================= */
+
 app.use(
   cors({
     origin: true,
     credentials: true
   })
 );
-app.use(express.json({ limit: "2mb" }));
+
+app.use(express.json({ limit: "6mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "public")));
 
 /* =========================================================
    ENV HELPERS
 ========================================================= */
+
 function cleanEnv(value = "") {
   return String(value || "")
     .trim()
@@ -44,6 +54,441 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+function uuid() {
+  return crypto.randomUUID();
+}
+
+/* =========================================================
+   ENV
+========================================================= */
+
+const SUPABASE_URL = cleanEnv(process.env.SUPABASE_URL);
+const SUPABASE_SERVICE_ROLE_KEY = cleanEnv(
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+const ADMIN_EMAIL = cleanEnv(process.env.ADMIN_EMAIL);
+const ADMIN_PASSWORD = cleanEnv(process.env.ADMIN_PASSWORD);
+
+const GOOGLE_MAPS_API_KEY = cleanEnv(process.env.GOOGLE_MAPS_API_KEY);
+
+const STRIPE_SECRET_KEY = cleanEnv(process.env.STRIPE_SECRET_KEY);
+const STRIPE_PUBLIC_KEY = cleanEnv(process.env.STRIPE_PUBLIC_KEY);
+
+const PERSONA_API_KEY = cleanEnv(process.env.PERSONA_API_KEY);
+const PERSONA_TEMPLATE_ID_RIDER = cleanEnv(
+  process.env.PERSONA_TEMPLATE_ID_RIDER
+);
+const PERSONA_TEMPLATE_ID_DRIVER = cleanEnv(
+  process.env.PERSONA_TEMPLATE_ID_DRIVER
+);
+const PERSONA_WEBHOOK_SECRET = cleanEnv(
+  process.env.PERSONA_WEBHOOK_SECRET
+);
+
+const OPENAI_API_KEY = cleanEnv(process.env.OPENAI_API_KEY);
+const OPENAI_SUPPORT_MODEL = cleanEnv(
+  process.env.OPENAI_SUPPORT_MODEL || "gpt-4o-mini"
+);
+
+const SMTP_HOST = cleanEnv(process.env.SMTP_HOST);
+const SMTP_PORT = toNumber(process.env.SMTP_PORT, 587);
+const SMTP_USER = cleanEnv(process.env.SMTP_USER);
+const SMTP_PASS = cleanEnv(process.env.SMTP_PASS);
+
+const TWILIO_ACCOUNT_SID = cleanEnv(process.env.TWILIO_ACCOUNT_SID);
+const TWILIO_AUTH_TOKEN = cleanEnv(process.env.TWILIO_AUTH_TOKEN);
+const TWILIO_PHONE = cleanEnv(process.env.TWILIO_PHONE);
+
+const BASE_URL =
+  cleanEnv(process.env.BASE_URL) ||
+  cleanEnv(process.env.PUBLIC_APP_URL) ||
+  "";
+
+/* =========================================================
+   VALIDATION
+========================================================= */
+
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  console.error("Missing Supabase config");
+  process.exit(1);
+}
+
+/* =========================================================
+   CLIENTS
+========================================================= */
+
+const supabase = createClient(
+  SUPABASE_URL,
+  SUPABASE_SERVICE_ROLE_KEY,
+  {
+    auth: {
+      persistSession: false
+    }
+  }
+);
+
+let openai = null;
+
+if (OPENAI_API_KEY && OpenAI) {
+  openai = new OpenAI({
+    apiKey: OPENAI_API_KEY
+  });
+}
+
+/* =========================================================
+   HEALTH
+========================================================= */
+
+app.get("/api/health", (req, res) => {
+  res.json({
+    ok: true,
+    service: "harvey-taxi",
+    time: nowIso()
+  });
+});/* =========================================================
+   RIDER SIGNUP
+========================================================= */
+
+app.post("/api/rider/signup", async (req, res) => {
+  try {
+    const {
+      firstName,
+      lastName,
+      email,
+      phone,
+      password,
+      city,
+      state
+    } = req.body;
+
+    if (!email || !phone || !password) {
+      return res.status(400).json({
+        error: "Missing required fields"
+      });
+    }
+
+    const riderId = uuid();
+
+    const { data, error } = await supabase
+      .from("riders")
+      .insert({
+        id: riderId,
+        first_name: firstName,
+        last_name: lastName,
+        email,
+        phone,
+        password,
+        city,
+        state,
+        verification_status: "not_started",
+        approved: false,
+        created_at: nowIso()
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      rider: data
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      error: "Signup failed"
+    });
+  }
+});
+
+/* =========================================================
+   START RIDER VERIFICATION
+========================================================= */
+
+app.post("/api/rider/start-verification", async (req, res) => {
+  try {
+    const { riderId } = req.body;
+
+    const { data: rider } = await supabase
+      .from("riders")
+      .select("*")
+      .eq("id", riderId)
+      .single();
+
+    if (!rider) {
+      return res.status(404).json({
+        error: "Rider not found"
+      });
+    }
+
+    const inquiryId = "inq_" + uuid();
+
+    await supabase
+      .from("riders")
+      .update({
+        verification_status: "pending",
+        verification_inquiry_id: inquiryId,
+        verification_started_at: nowIso()
+      })
+      .eq("id", riderId);
+
+    res.json({
+      success: true,
+      inquiryId
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      error: "verification failed"
+    });
+  }
+});
+
+/* =========================================================
+   COMPLETE VERIFICATION (WEBHOOK SIMULATION)
+========================================================= */
+
+app.post("/api/webhooks/persona", async (req, res) => {
+  try {
+    const { inquiryId, status } = req.body;
+
+    const approved = status === "approved";
+
+    const { data: rider } = await supabase
+      .from("riders")
+      .select("*")
+      .eq("verification_inquiry_id", inquiryId)
+      .single();
+
+    if (!rider) {
+      return res.json({ ok: true });
+    }
+
+    await supabase
+      .from("riders")
+      .update({
+        verification_status: status,
+        approved,
+        verified_at: nowIso()
+      })
+      .eq("id", rider.id);
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.json({ ok: true });
+  }
+});/* =========================================================
+   PAYMENT AUTHORIZATION
+========================================================= */
+
+app.post("/api/payments/authorize", async (req, res) => {
+  try {
+    const { riderId, amount, paymentMethodId } = req.body;
+
+    if (!riderId || !amount) {
+      return res.status(400).json({
+        error: "riderId and amount are required"
+      });
+    }
+
+    const { data: rider, error: riderError } = await supabase
+      .from("riders")
+      .select("*")
+      .eq("id", riderId)
+      .single();
+
+    if (riderError || !rider) {
+      return res.status(404).json({
+        error: "Rider not found"
+      });
+    }
+
+    if (rider.approved !== true || rider.verification_status !== "approved") {
+      return res.status(403).json({
+        error: "Rider must complete ID or passport verification before payment authorization"
+      });
+    }
+
+    const paymentId = uuid();
+
+    const authorizedAmount = Number(amount) || 0;
+    if (authorizedAmount <= 0) {
+      return res.status(400).json({
+        error: "Invalid amount"
+      });
+    }
+
+    const { data: payment, error: paymentError } = await supabase
+      .from("payments")
+      .insert({
+        id: paymentId,
+        rider_id: riderId,
+        amount: authorizedAmount,
+        currency: "usd",
+        status: "authorized",
+        payment_method_id: paymentMethodId || null,
+        created_at: nowIso(),
+        updated_at: nowIso()
+      })
+      .select()
+      .single();
+
+    if (paymentError) throw paymentError;
+
+    await supabase.from("trip_events").insert({
+      id: uuid(),
+      ride_id: null,
+      actor_type: "rider",
+      actor_id: riderId,
+      event_type: "payment_authorized",
+      payload: {
+        payment_id: payment.id,
+        amount: authorizedAmount
+      },
+      created_at: nowIso()
+    });
+
+    res.json({
+      success: true,
+      payment
+    });
+  } catch (err) {
+    console.error("payment authorize error", err);
+    res.status(500).json({
+      error: "Payment authorization failed"
+    });
+  }
+});
+
+/* =========================================================
+   GET ACTIVE PAYMENT AUTHORIZATION
+========================================================= */
+
+async function getAuthorizedPaymentForRider(riderId) {
+  const { data, error } = await supabase
+    .from("payments")
+    .select("*")
+    .eq("rider_id", riderId)
+    .eq("status", "authorized")
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (error) throw error;
+  return Array.isArray(data) && data.length ? data[0] : null;
+}
+
+/* =========================================================
+   REQUEST RIDE
+========================================================= */
+
+app.post("/api/request-ride", async (req, res) => {
+  try {
+    const {
+      riderId,
+      pickupAddress,
+      dropoffAddress,
+      requestedMode,
+      notes,
+      rideType,
+      estimatedFare
+    } = req.body;
+
+    if (!riderId || !pickupAddress || !dropoffAddress) {
+      return res.status(400).json({
+        error: "riderId, pickupAddress, and dropoffAddress are required"
+      });
+    }
+
+    const { data: rider, error: riderError } = await supabase
+      .from("riders")
+      .select("*")
+      .eq("id", riderId)
+      .single();
+
+    if (riderError || !rider) {
+      return res.status(404).json({
+        error: "Rider not found"
+      });
+    }
+
+    if (rider.approved !== true || rider.verification_status !== "approved") {
+      return res.status(403).json({
+        error: "Ride request blocked until rider ID or passport verification is approved"
+      });
+    }
+
+    const authorizedPayment = await getAuthorizedPaymentForRider(riderId);
+
+    if (!authorizedPayment) {
+      return res.status(403).json({
+        error: "Payment authorization required before dispatch"
+      });
+    }
+
+    const rideId = uuid();
+
+    const { data: ride, error: rideError } = await supabase
+      .from("rides")
+      .insert({
+        id: rideId,
+        rider_id: riderId,
+        payment_id: authorizedPayment.id,
+        pickup_address: pickupAddress,
+        dropoff_address: dropoffAddress,
+        requested_mode: requestedMode || "driver",
+        ride_type: rideType || "STANDARD",
+        notes: notes || "",
+        estimated_fare: Number(estimatedFare || authorizedPayment.amount || 0),
+        status: "searching_driver",
+        dispatch_status: "pending",
+        created_at: nowIso(),
+        updated_at: nowIso()
+      })
+      .select()
+      .single();
+
+    if (rideError) throw rideError;
+
+    await supabase.from("trip_events").insert({
+      id: uuid(),
+      ride_id: ride.id,
+      actor_type: "rider",
+      actor_id: riderId,
+      event_type: "ride_requested",
+      payload: {
+        pickup_address: pickupAddress,
+        dropoff_address: dropoffAddress,
+        requested_mode: requestedMode || "driver",
+        ride_type: rideType || "STANDARD"
+      },
+      created_at: nowIso()
+    });
+
+    res.json({
+      success: true,
+      ride_id: ride.id,
+      ride
+    });
+  } catch (err) {
+    console.error("request ride error", err);
+    res.status(500).json({
+      error: "Ride request failed"
+    });
+  }
+});/* =========================================================
+   DRIVER HELPERS
+========================================================= */
+
+function normalizeEmail(value = "") {
+  return String(value || "").trim().toLowerCase();
+}
+
+function normalizePhone(value = "") {
+  return String(value || "").replace(/[^\d+]/g, "").trim();
+}
+
 function randomDigits(length = 6) {
   let out = "";
   while (out.length < length) {
@@ -52,513 +497,85 @@ function randomDigits(length = 6) {
   return out.slice(0, length);
 }
 
-function uid(prefix = "id") {
-  return `${prefix}_${crypto.randomBytes(8).toString("hex")}`;
+function sha256(value = "") {
+  return crypto.createHash("sha256").update(String(value)).digest("hex");
 }
 
-function safeLower(value = "") {
-  return String(value || "").trim().toLowerCase();
+function futureIsoMinutes(minutes = 10) {
+  return new Date(Date.now() + minutes * 60 * 1000).toISOString();
 }
 
-function normalizePhone(value = "") {
-  return String(value || "").replace(/[^\d+]/g, "").trim();
-}
-
-function normalizeEmail(value = "") {
-  return String(value || "").trim().toLowerCase();
-}
-
-function hashValue(value = "") {
-  return crypto.createHash("sha256").update(String(value || "")).digest("hex");
-}
-
-function redactPhone(phone = "") {
-  const p = normalizePhone(phone);
-  if (p.length < 4) return "****";
-  return `${"*".repeat(Math.max(0, p.length - 4))}${p.slice(-4)}`;
-}
-
-function redactEmail(email = "") {
-  const e = normalizeEmail(email);
-  const [name, domain] = e.split("@");
-  if (!name || !domain) return "hidden";
-  const visible = name.slice(0, 2);
-  return `${visible}${"*".repeat(Math.max(0, name.length - 2))}@${domain}`;
-}
-
-function createToken(bytes = 24) {
-  return crypto.randomBytes(bytes).toString("hex");
-}
-
-function isEmail(value = "") {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
-}
-
-function isTruthyText(value) {
-  return typeof value === "string" && value.trim().length > 0;
-}
-
-function pickText(...values) {
-  for (const value of values) {
-    if (typeof value === "string" && value.trim()) return value.trim();
-  }
-  return "";
-}
-
-/* =========================================================
-   ENV
-========================================================= */
-const SUPABASE_URL = cleanEnv(process.env.SUPABASE_URL);
-const SUPABASE_SERVICE_ROLE_KEY = cleanEnv(process.env.SUPABASE_SERVICE_ROLE_KEY);
-
-const ADMIN_EMAIL = normalizeEmail(process.env.ADMIN_EMAIL);
-const ADMIN_PASSWORD = cleanEnv(process.env.ADMIN_PASSWORD);
-
-const GOOGLE_MAPS_API_KEY = cleanEnv(process.env.GOOGLE_MAPS_API_KEY);
-
-const OPENAI_API_KEY = cleanEnv(process.env.OPENAI_API_KEY);
-const OPENAI_SUPPORT_MODEL = cleanEnv(
-  process.env.OPENAI_SUPPORT_MODEL || "gpt-4o-mini"
-);
-
-const PUBLIC_APP_URL = cleanEnv(process.env.PUBLIC_APP_URL);
-const RENDER_EXTERNAL_URL = cleanEnv(process.env.RENDER_EXTERNAL_URL);
-const APP_BASE_URL = cleanEnv(process.env.APP_BASE_URL);
-
-const SEND_REAL_EMAIL = toBool(process.env.SEND_REAL_EMAIL, false);
-const SEND_REAL_SMS = toBool(process.env.SEND_REAL_SMS, false);
-
-const TWILIO_ACCOUNT_SID = cleanEnv(process.env.TWILIO_ACCOUNT_SID);
-const TWILIO_AUTH_TOKEN = cleanEnv(process.env.TWILIO_AUTH_TOKEN);
-const TWILIO_FROM_NUMBER = cleanEnv(process.env.TWILIO_FROM_NUMBER);
-
-const RESEND_API_KEY = cleanEnv(process.env.RESEND_API_KEY);
-const EMAIL_FROM = cleanEnv(
-  process.env.EMAIL_FROM || "Harvey Taxi <no-reply@harveytaxiservice.com>"
-);
-
-const DEFAULT_SUPPORT_EMAIL = cleanEnv(
-  process.env.DEFAULT_SUPPORT_EMAIL || "support@harveytaxiservice.com"
-);
-
-if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  console.error("❌ Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
-  process.exit(1);
-}
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false
-  }
-});
-
-/* =========================================================
-   CONSTANTS
-========================================================= */
-const DISPATCH_OFFER_TIMEOUT_MS = toNumber(
-  process.env.DISPATCH_OFFER_TIMEOUT_MS,
-  20000
-);
-const MAX_DISPATCH_ATTEMPTS = toNumber(
-  process.env.MAX_DISPATCH_ATTEMPTS,
-  3
-);
-
-const BASE_FARE = toNumber(process.env.BASE_FARE, 4.5);
-const PER_MILE_FARE = toNumber(process.env.PER_MILE_FARE, 1.9);
-const PER_MINUTE_FARE = toNumber(process.env.PER_MINUTE_FARE, 0.35);
-const BOOKING_FEE = toNumber(process.env.BOOKING_FEE, 2.5);
-const MINIMUM_FARE = toNumber(process.env.MINIMUM_FARE, 9.5);
-const SURGE_MULTIPLIER = toNumber(process.env.SURGE_MULTIPLIER, 1);
-
-const DRIVER_PAYOUT_PERCENT = toNumber(
-  process.env.DRIVER_PAYOUT_PERCENT,
-  0.75
-);
-const AUTONOMOUS_PAYOUT_PERCENT = toNumber(
-  process.env.AUTONOMOUS_PAYOUT_PERCENT,
-  0.85
-);
-
-const RIDE_TYPE_MULTIPLIERS = {
-  standard: 1,
-  scheduled: 1.08,
-  airport: 1.16,
-  medical: 1.05,
-  nonprofit: 0.92
-};
-
-const REQUEST_MODES = {
-  DRIVER: "driver",
-  AUTONOMOUS: "autonomous"
-};
-
-/* =========================================================
-   IN-MEMORY FALLBACK STORES
-========================================================= */
-const memoryStore = {
-  emailVerifications: new Map(),
-  smsVerifications: new Map(),
-  dispatchOffers: new Map()
-};
-
-/* =========================================================
-   DB HELPERS
-========================================================= */
-async function trySingle(queryPromise) {
-  const { data, error } = await queryPromise;
-  if (error) throw error;
-  return data;
-}
-
-async function getRiderById(riderId) {
-  return trySingle(
-    supabase.from("riders").select("*").eq("id", riderId).maybeSingle()
-  );
-}
-
-async function getDriverById(driverId) {
-  return trySingle(
-    supabase.from("drivers").select("*").eq("id", driverId).maybeSingle()
-  );
-}
-
-async function getRideById(rideId) {
-  return trySingle(
-    supabase.from("rides").select("*").eq("id", rideId).maybeSingle()
-  );
-}
-
-async function getLatestAuthorizedPaymentForRider(riderId) {
-  const { data, error } = await supabase
-    .from("payments")
-    .select("*")
-    .eq("rider_id", riderId)
-    .eq("status", "authorized")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) throw error;
-  return data || null;
-}
-
-async function logAdminEvent(type, message, metadata = {}) {
+async function logTripEvent({
+  rideId = null,
+  actorType = "system",
+  actorId = null,
+  eventType,
+  payload = {}
+}) {
   try {
-    await supabase.from("admin_logs").insert({
-      id: uid("log"),
-      type,
-      message,
-      metadata,
+    await supabase.from("trip_events").insert({
+      id: uuid(),
+      ride_id: rideId,
+      actor_type: actorType,
+      actor_id: actorId,
+      event_type: eventType,
+      payload,
       created_at: nowIso()
     });
   } catch (error) {
-    console.error("logAdminEvent failed:", error.message);
+    console.error("trip event log error", error.message);
   }
 }
 
-/* =========================================================
-   SCHEMA SAFETY / TABLE BOOTSTRAP CHECK
-========================================================= */
-async function verifyTables() {
-  const tableChecks = [
-    "riders",
-    "drivers",
-    "rides",
-    "payments",
-    "missions",
-    "dispatches",
-    "admin_logs"
-  ];
+async function getDriverByEmailOrPhone(email, phone) {
+  let query = supabase.from("drivers").select("*").limit(1);
 
-  const results = [];
-
-  for (const table of tableChecks) {
-    try {
-      const { error } = await supabase.from(table).select("*").limit(1);
-      results.push({ table, ok: !error, error: error ? error.message : null });
-    } catch (err) {
-      results.push({ table, ok: false, error: err.message });
-    }
+  if (email && phone) {
+    query = query.or(
+      `email.eq.${normalizeEmail(email)},phone.eq.${normalizePhone(phone)}`
+    );
+  } else if (email) {
+    query = query.eq("email", normalizeEmail(email));
+  } else if (phone) {
+    query = query.eq("phone", normalizePhone(phone));
   }
 
-  return results;
+  const { data, error } = await query;
+  if (error) throw error;
+  return Array.isArray(data) && data.length ? data[0] : null;
 }
 
-/* =========================================================
-   MAP / GEOCODE HELPERS
-========================================================= */
-async function geocodeAddress(address) {
-  if (!isTruthyText(address)) {
-    throw new Error("Address is required.");
-  }
+async function getDriverById(driverId) {
+  const { data, error } = await supabase
+    .from("drivers")
+    .select("*")
+    .eq("id", driverId)
+    .single();
 
-  if (!GOOGLE_MAPS_API_KEY) {
-    return {
-      formatted_address: address,
-      location: null,
-      provider: "fallback-no-google"
-    };
-  }
-
-  const endpoint = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
-    address
-  )}&key=${encodeURIComponent(GOOGLE_MAPS_API_KEY)}`;
-
-  const response = await fetch(endpoint);
-  const json = await response.json();
-
-  if (!response.ok) {
-    throw new Error(`Geocode request failed with status ${response.status}`);
-  }
-
-  if (
-    json.status !== "OK" ||
-    !Array.isArray(json.results) ||
-    !json.results[0]
-  ) {
-    throw new Error(`Geocode failed for address: ${address}`);
-  }
-
-  return {
-    formatted_address: json.results[0].formatted_address || address,
-    location: json.results[0].geometry?.location || null,
-    provider: "google"
-  };
-}
-
-function haversineMiles(lat1, lng1, lat2, lng2) {
-  if (
-    ![lat1, lng1, lat2, lng2].every(
-      (n) => typeof n === "number" && Number.isFinite(n)
-    )
-  ) {
-    return null;
-  }
-
-  const R = 3958.8;
-  const toRad = (deg) => (deg * Math.PI) / 180;
-
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
-      Math.sin(dLng / 2) ** 2;
-
-  const c = 2 * Math.asin(Math.sqrt(a));
-  return R * c;
-}
-
-async function getRouteEstimate(pickupAddress, dropoffAddress) {
-  const pickup = await geocodeAddress(pickupAddress);
-  const dropoff = await geocodeAddress(dropoffAddress);
-
-  if (GOOGLE_MAPS_API_KEY && pickup.location && dropoff.location) {
-    const endpoint = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodeURIComponent(
-      pickup.formatted_address
-    )}&destinations=${encodeURIComponent(
-      dropoff.formatted_address
-    )}&key=${encodeURIComponent(GOOGLE_MAPS_API_KEY)}`;
-
-    try {
-      const response = await fetch(endpoint);
-      const json = await response.json();
-
-      const element = json?.rows?.[0]?.elements?.[0];
-      if (response.ok && element?.status === "OK") {
-        return {
-          pickup_address: pickup.formatted_address,
-          dropoff_address: dropoff.formatted_address,
-          distance_miles: Number((element.distance.value / 1609.34).toFixed(2)),
-          duration_minutes: Number((element.duration.value / 60).toFixed(0)),
-          provider: "google"
-        };
-      }
-    } catch (error) {
-      console.error("Distance Matrix fallback:", error.message);
-    }
-  }
-
-  const fallbackMiles =
-    pickup.location && dropoff.location
-      ? haversineMiles(
-          pickup.location.lat,
-          pickup.location.lng,
-          dropoff.location.lat,
-          dropoff.location.lng
-        )
-      : 6.5;
-
-  const adjustedMiles = fallbackMiles ? Math.max(fallbackMiles * 1.2, 1.2) : 6.5;
-
-  return {
-    pickup_address: pickup.formatted_address,
-    dropoff_address: dropoff.formatted_address,
-    distance_miles: Number(adjustedMiles.toFixed(2)),
-    duration_minutes: Math.max(8, Math.round(adjustedMiles * 2.8)),
-    provider: "fallback-estimate"
-  };
-}
-
-/* =========================================================
-   FARE ENGINE
-========================================================= */
-function calculateFare({
-  distanceMiles = 0,
-  durationMinutes = 0,
-  rideType = "standard",
-  requestedMode = REQUEST_MODES.DRIVER,
-  surgeMultiplier = SURGE_MULTIPLIER
-}) {
-  const typeKey = safeLower(rideType) || "standard";
-  const modeKey = safeLower(requestedMode) || REQUEST_MODES.DRIVER;
-
-  const rideTypeMultiplier = RIDE_TYPE_MULTIPLIERS[typeKey] || 1;
-  const modeMultiplier = modeKey === REQUEST_MODES.AUTONOMOUS ? 1.18 : 1;
-
-  const subtotal =
-    BASE_FARE +
-    distanceMiles * PER_MILE_FARE +
-    durationMinutes * PER_MINUTE_FARE +
-    BOOKING_FEE;
-
-  const gross = Math.max(
-    subtotal * rideTypeMultiplier * modeMultiplier * Math.max(1, surgeMultiplier),
-    MINIMUM_FARE
-  );
-
-  const riderFare = Number(gross.toFixed(2));
-  const payoutRate =
-    modeKey === REQUEST_MODES.AUTONOMOUS
-      ? AUTONOMOUS_PAYOUT_PERCENT
-      : DRIVER_PAYOUT_PERCENT;
-
-  const driverPayout = Number((riderFare * payoutRate).toFixed(2));
-  const platformRevenue = Number((riderFare - driverPayout).toFixed(2));
-
-  return {
-    base_fare: BASE_FARE,
-    per_mile_fare: PER_MILE_FARE,
-    per_minute_fare: PER_MINUTE_FARE,
-    booking_fee: BOOKING_FEE,
-    minimum_fare: MINIMUM_FARE,
-    surge_multiplier: Math.max(1, surgeMultiplier),
-    ride_type_multiplier: rideTypeMultiplier,
-    mode_multiplier: modeMultiplier,
-    estimated_total: riderFare,
-    estimated_driver_payout: driverPayout,
-    estimated_platform_revenue: platformRevenue
-  };
-}
-
-/* =========================================================
-   EMAIL / SMS HELPERS
-========================================================= */
-async function sendEmail({ to, subject, html, text }) {
-  if (!SEND_REAL_EMAIL || !RESEND_API_KEY) {
-    console.log("📧 EMAIL MOCK:", {
-      to,
-      subject,
-      preview: text || html?.slice(0, 160) || ""
-    });
-    return { mocked: true };
-  }
-
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${RESEND_API_KEY}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      from: EMAIL_FROM,
-      to: Array.isArray(to) ? to : [to],
-      subject,
-      html,
-      text
-    })
-  });
-
-  const json = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(json?.message || `Email send failed (${response.status})`);
-  }
-
-  return json;
-}
-
-async function sendSms({ to, body }) {
-  if (
-    !SEND_REAL_SMS ||
-    !TWILIO_ACCOUNT_SID ||
-    !TWILIO_AUTH_TOKEN ||
-    !TWILIO_FROM_NUMBER
-  ) {
-    console.log("📱 SMS MOCK:", { to, body });
-    return { mocked: true };
-  }
-
-  const endpoint = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`;
-
-  const form = new URLSearchParams();
-  form.append("To", to);
-  form.append("From", TWILIO_FROM_NUMBER);
-  form.append("Body", body);
-
-  const auth = Buffer.from(
-    `${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`
-  ).toString("base64");
-
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${auth}`,
-      "Content-Type": "application/x-www-form-urlencoded"
-    },
-    body: form.toString()
-  });
-
-  const json = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(json?.message || `SMS send failed (${response.status})`);
-  }
-
-  return json;
+  if (error) return null;
+  return data;
 }
 
 async function updateDriverVerificationStatus(driverId) {
   const driver = await getDriverById(driverId);
-  if (!driver) throw new Error("Driver not found.");
+  if (!driver) {
+    throw new Error("Driver not found");
+  }
 
   const emailVerified = driver.email_verified === true;
   const smsVerified = driver.sms_verified === true;
-  const fullyVerified = emailVerified && smsVerified;
 
-  const verificationStatus = fullyVerified
-    ? "verified"
-    : emailVerified || smsVerified
-    ? "partially_verified"
-    : "pending";
-
-  const approvalStatus =
-    fullyVerified &&
-    ["approved", "active"].includes(
-      String(driver.approval_status || "").toLowerCase()
-    )
-      ? driver.approval_status
-      : driver.approval_status || "pending_review";
+  let verificationStatus = "pending";
+  if (emailVerified && smsVerified) {
+    verificationStatus = "verified";
+  } else if (emailVerified || smsVerified) {
+    verificationStatus = "partially_verified";
+  }
 
   const { data, error } = await supabase
     .from("drivers")
     .update({
       verification_status: verificationStatus,
-      approval_status: approvalStatus,
       updated_at: nowIso()
     })
     .eq("id", driverId)
@@ -569,605 +586,254 @@ async function updateDriverVerificationStatus(driverId) {
   return data;
 }
 
-async function sendDriverVerificationEmail(driver) {
-  const appBase = PUBLIC_APP_URL || RENDER_EXTERNAL_URL || APP_BASE_URL || "";
-  if (!appBase) {
-    throw new Error(
-      "Missing PUBLIC_APP_URL or RENDER_EXTERNAL_URL or APP_BASE_URL."
-    );
-  }
+/* =========================================================
+   EMAIL / SMS STUBS
+   Replace internals later with nodemailer / twilio live send
+========================================================= */
 
-  const token = createToken(24);
-  const expiresAt = Date.now() + 1000 * 60 * 60 * 24;
-
-  memoryStore.emailVerifications.set(token, {
-    driverId: driver.id,
+async function sendDriverVerificationEmail(driver, emailCode) {
+  console.log("sendDriverVerificationEmail", {
     email: driver.email,
-    expiresAt
+    code: emailCode
   });
+  return { success: true };
+}
 
-  const verifyUrl = `${appBase.replace(
-    /\/$/,
-    ""
-  )}/api/driver/verify-email?token=${encodeURIComponent(token)}`;
-
-  await sendEmail({
-    to: driver.email,
-    subject: "Verify your Harvey Taxi driver email",
-    text: `Welcome to Harvey Taxi. Verify your email by opening this link: ${verifyUrl}`,
-    html: `
-      <div style="font-family:Arial,sans-serif;color:#111;line-height:1.6">
-        <h2>Harvey Taxi Driver Verification</h2>
-        <p>Welcome, ${driver.first_name || "Driver"}.</p>
-        <p>Please verify your email to continue driver onboarding.</p>
-        <p><a href="${verifyUrl}" style="display:inline-block;padding:12px 18px;background:#111;color:#fff;text-decoration:none;border-radius:8px">Verify Email</a></p>
-        <p>Or copy and paste this link:</p>
-        <p>${verifyUrl}</p>
-        <p>This link expires in 24 hours.</p>
-      </div>
-    `
+async function sendDriverVerificationSms(driver, smsCode) {
+  console.log("sendDriverVerificationSms", {
+    phone: driver.phone,
+    code: smsCode
   });
-
-  return {
-    success: true,
-    email_sent_to: redactEmail(driver.email)
-  };
-}
-
-async function sendDriverVerificationSms(driver) {
-  const code = randomDigits(6);
-  const expiresAt = Date.now() + 1000 * 60 * 15;
-
-  memoryStore.smsVerifications.set(driver.id, {
-    code,
-    phone: normalizePhone(driver.phone),
-    expiresAt
-  });
-
-  await sendSms({
-    to: normalizePhone(driver.phone),
-    body: `Harvey Taxi verification code: ${code}. Expires in 15 minutes.`
-  });
-
-  return {
-    success: true,
-    sms_sent_to: redactPhone(driver.phone)
-  };
+  return { success: true };
 }
 
 /* =========================================================
-   VALIDATION
+   DRIVER SIGNUP
 ========================================================= */
-function requireFields(body, fields = []) {
-  const missing = fields.filter((field) => !isTruthyText(body[field]));
-  if (missing.length) {
-    const error = new Error(`Missing required fields: ${missing.join(", ")}`);
-    error.status = 400;
-    throw error;
-  }
-}
 
-function requireBooleanAcceptances(body, fields = []) {
-  const missing = fields.filter((field) => body[field] !== true);
-  if (missing.length) {
-    const error = new Error(
-      `Required acceptance missing: ${missing.join(", ")}`
-    );
-    error.status = 400;
-    throw error;
-  }
-}
-
-/* =========================================================
-   AUTH
-========================================================= */
-function requireAdmin(req, res, next) {
-  const email = normalizeEmail(
-    req.headers["x-admin-email"] || req.body.admin_email || ""
-  );
-  const password = cleanEnv(
-    req.headers["x-admin-password"] || req.body.admin_password || ""
-  );
-
-  if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
-    return res.status(500).json({
-      success: false,
-      error: "Admin credentials are not configured on the server."
-    });
-  }
-
-  if (email !== ADMIN_EMAIL || password !== ADMIN_PASSWORD) {
-    return res.status(401).json({
-      success: false,
-      error: "Unauthorized admin access."
-    });
-  }
-
-  next();
-}
-
-/* =========================================================
-   HEALTH
-========================================================= */
-app.get("/api/health", async (req, res) => {
-  try {
-    const tableChecks = await verifyTables();
-
-    return res.json({
-      success: true,
-      service: "Harvey Taxi API",
-      status: "ok",
-      time: nowIso(),
-      env: {
-        supabase: Boolean(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY),
-        google_maps: Boolean(GOOGLE_MAPS_API_KEY),
-        openai: Boolean(OPENAI_API_KEY),
-        email: Boolean(RESEND_API_KEY),
-        sms: Boolean(
-          TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_FROM_NUMBER
-        ),
-        public_app_url: Boolean(
-          PUBLIC_APP_URL || RENDER_EXTERNAL_URL || APP_BASE_URL
-        )
-      },
-      tables: tableChecks
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-/* =========================================================
-   ROOT
-========================================================= */
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
-});
-
-/* =========================================================
-   ADMIN LOGIN
-========================================================= */
-app.post("/api/admin/login", async (req, res) => {
-  try {
-    const email = normalizeEmail(req.body.email);
-    const password = cleanEnv(req.body.password);
-
-    if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
-      return res.status(500).json({
-        success: false,
-        error: "Admin credentials are not configured."
-      });
-    }
-
-    if (email !== ADMIN_EMAIL || password !== ADMIN_PASSWORD) {
-      return res.status(401).json({
-        success: false,
-        error: "Invalid admin credentials."
-      });
-    }
-
-    return res.json({
-      success: true,
-      admin: {
-        email: ADMIN_EMAIL
-      }
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-/* =========================================================
-   RIDER SIGNUP / LOGIN
-========================================================= */
-app.post("/api/rider/signup", async (req, res) => {
-  try {
-    const firstName = pickText(req.body.first_name, req.body.firstName);
-    const lastName = pickText(req.body.last_name, req.body.lastName);
-    const email = normalizeEmail(req.body.email);
-    const phone = normalizePhone(req.body.phone);
-    const city = pickText(req.body.city);
-    const state = pickText(req.body.state).toUpperCase();
-    const password = pickText(req.body.password);
-    const verificationDocumentType = pickText(
-      req.body.verification_document_type,
-      req.body.verificationDocumentType
-    ) || "driver_license";
-    const emergencyContact = pickText(
-      req.body.emergency_contact,
-      req.body.emergencyContact
-    );
-    const notes = pickText(req.body.notes);
-
-    const bodyForValidation = {
-      first_name: firstName,
-      last_name: lastName,
-      email,
-      phone,
-      password
-    };
-
-    requireFields(bodyForValidation, [
-      "first_name",
-      "last_name",
-      "email",
-      "phone",
-      "password"
-    ]);
-
-    if (!isEmail(email)) {
-      return res.status(400).json({
-        success: false,
-        error: "A valid rider email is required."
-      });
-    }
-
-    const existingEmail = await trySingle(
-      supabase.from("riders").select("id,email").eq("email", email).maybeSingle()
-    );
-
-    if (existingEmail) {
-      return res.status(409).json({
-        success: false,
-        error: "A rider with that email already exists."
-      });
-    }
-
-    const riderId = uid("rider");
-    const riderPayload = {
-      id: riderId,
-      first_name: firstName,
-      last_name: lastName,
-      full_name: `${firstName} ${lastName}`,
-      email,
-      phone,
-      password_hash: hashValue(password),
-      city: city || null,
-      state: state || null,
-      verification_document_type: verificationDocumentType || "driver_license",
-      emergency_contact: emergencyContact || null,
-      notes: notes || null,
-      verification_status: "approved",
-      approval_status: "approved",
-      payment_authorization_status: "not_authorized",
-      role: "rider",
-      created_at: nowIso(),
-      updated_at: nowIso()
-    };
-
-    const { data, error } = await supabase
-      .from("riders")
-      .insert(riderPayload)
-      .select(
-        "id,first_name,last_name,full_name,email,phone,city,state,verification_document_type,emergency_contact,notes,verification_status,approval_status,payment_authorization_status,created_at"
-      )
-      .single();
-
-    if (error) throw error;
-
-    await logAdminEvent("rider_signup", "New rider signup completed.", {
-      rider_id: data.id,
-      email: data.email
-    });
-
-    return res.status(201).json({
-      success: true,
-      message: "Rider signup completed.",
-      rider_id: data.id,
-      status: data.verification_status,
-      approved: ["approved", "verified"].includes(
-        String(data.approval_status || "").toLowerCase()
-      ),
-      rider: data
-    });
-  } catch (error) {
-    return res.status(error.status || 500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-app.post("/api/rider/login", async (req, res) => {
-  try {
-    requireFields(req.body, ["email", "password"]);
-
-    const email = normalizeEmail(req.body.email);
-    const passwordHash = hashValue(req.body.password);
-
-    const rider = await trySingle(
-      supabase
-        .from("riders")
-        .select("*")
-        .eq("email", email)
-        .eq("password_hash", passwordHash)
-        .maybeSingle()
-    );
-
-    if (!rider) {
-      return res.status(401).json({
-        success: false,
-        error: "Invalid rider login."
-      });
-    }
-
-    return res.json({
-      success: true,
-      rider: {
-        id: rider.id,
-        first_name: rider.first_name,
-        last_name: rider.last_name,
-        full_name: rider.full_name,
-        email: rider.email,
-        phone: rider.phone,
-        city: rider.city,
-        state: rider.state,
-        verification_status: rider.verification_status,
-        approval_status: rider.approval_status,
-        payment_authorization_status: rider.payment_authorization_status
-      }
-    });
-  } catch (error) {
-    return res.status(error.status || 500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-/* =========================================================
-   DRIVER SIGNUP / LOGIN / VERIFICATION
-========================================================= */
 app.post("/api/driver/signup", async (req, res) => {
   try {
-    requireFields(req.body, [
-      "first_name",
-      "last_name",
-      "email",
-      "phone",
-      "password",
-      "vehicle_make",
-      "vehicle_model",
-      "vehicle_year",
-      "license_plate",
-      "drivers_license_number"
-    ]);
-
-    if (
-      req.body.accepted_terms !== true ||
-      req.body.accepted_background_check_consent !== true ||
-      req.body.accepted_driver_policy !== true
-    ) {
-      return res.status(400).json({
-        success: false,
-        error:
-          "Driver consent checkboxes are required: accepted_terms, accepted_background_check_consent, accepted_driver_policy."
-      });
-    }
-
-    const email = normalizeEmail(req.body.email);
-    const phone = normalizePhone(req.body.phone);
-
-    if (!isEmail(email)) {
-      return res.status(400).json({
-        success: false,
-        error: "A valid driver email is required."
-      });
-    }
-
-    const existingEmail = await trySingle(
-      supabase.from("drivers").select("id,email").eq("email", email).maybeSingle()
-    );
-
-    if (existingEmail) {
-      return res.status(409).json({
-        success: false,
-        error: "A driver with that email already exists."
-      });
-    }
-
-    const driverId = uid("driver");
-
-    const driverPayload = {
-      id: driverId,
-      first_name: req.body.first_name.trim(),
-      last_name: req.body.last_name.trim(),
-      full_name: `${req.body.first_name.trim()} ${req.body.last_name.trim()}`,
+    const {
+      firstName,
+      lastName,
       email,
       phone,
-      password_hash: hashValue(req.body.password),
-      vehicle_make: req.body.vehicle_make.trim(),
-      vehicle_model: req.body.vehicle_model.trim(),
-      vehicle_year: String(req.body.vehicle_year).trim(),
-      license_plate: String(req.body.license_plate).trim().toUpperCase(),
-      drivers_license_number: String(req.body.drivers_license_number).trim(),
-      verification_status: "pending",
-      approval_status: "pending_review",
+      password,
+      city,
+      state,
+      vehicleMake,
+      vehicleModel,
+      vehicleYear,
+      vehicleColor,
+      licensePlate,
+      driverType
+    } = req.body;
+
+    const normalizedEmail = normalizeEmail(email);
+    const normalizedPhone = normalizePhone(phone);
+
+    if (!firstName || !lastName || !normalizedEmail || !normalizedPhone || !password) {
+      return res.status(400).json({
+        error: "Missing required driver fields"
+      });
+    }
+
+    const existingDriver = await getDriverByEmailOrPhone(
+      normalizedEmail,
+      normalizedPhone
+    );
+
+    if (existingDriver) {
+      return res.status(409).json({
+        error: "Driver already exists with that email or phone"
+      });
+    }
+
+    const driverId = uuid();
+    const emailCode = randomDigits(6);
+    const smsCode = randomDigits(6);
+
+    const insertPayload = {
+      id: driverId,
+      first_name: firstName,
+      last_name: lastName,
+      email: normalizedEmail,
+      phone: normalizedPhone,
+      password,
+      city: city || "",
+      state: state || "TN",
+      vehicle_make: vehicleMake || "",
+      vehicle_model: vehicleModel || "",
+      vehicle_year: vehicleYear || "",
+      vehicle_color: vehicleColor || "",
+      license_plate: licensePlate || "",
+      driver_type: driverType || "human",
+      is_available: false,
+      is_approved: false,
       email_verified: false,
       sms_verified: false,
-      availability_status: "offline",
-      role: "driver",
+      email_verification_code_hash: sha256(emailCode),
+      sms_verification_code_hash: sha256(smsCode),
+      email_verification_expires_at: futureIsoMinutes(30),
+      sms_verification_expires_at: futureIsoMinutes(15),
+      verification_status: "pending",
       created_at: nowIso(),
       updated_at: nowIso()
     };
 
-    const { data, error } = await supabase
+    const { data: driver, error } = await supabase
       .from("drivers")
-      .insert(driverPayload)
-      .select(
-        "id,first_name,last_name,full_name,email,phone,vehicle_make,vehicle_model,vehicle_year,license_plate,verification_status,approval_status,email_verified,sms_verified,availability_status,created_at"
-      )
+      .insert(insertPayload)
+      .select()
       .single();
 
     if (error) throw error;
 
-    try {
-      await sendDriverVerificationEmail(data);
-    } catch (emailError) {
-      console.error("Driver email verification send failed:", emailError.message);
-    }
+    await sendDriverVerificationEmail(driver, emailCode);
+    await sendDriverVerificationSms(driver, smsCode);
 
-    try {
-      await sendDriverVerificationSms(data);
-    } catch (smsError) {
-      console.error("Driver sms verification send failed:", smsError.message);
-    }
-
-    await logAdminEvent("driver_signup", "New driver signup submitted.", {
-      driver_id: data.id,
-      email: data.email
+    await logTripEvent({
+      actorType: "driver",
+      actorId: driver.id,
+      eventType: "driver_signup_created",
+      payload: {
+        email: driver.email,
+        phone: driver.phone,
+        driver_type: driver.driver_type
+      }
     });
 
-    return res.status(201).json({
+    res.json({
       success: true,
-      message:
-        "Driver signup submitted. Email and SMS verification have been initiated.",
-      driver: data
+      message: "Driver created. Email and SMS verification required.",
+      driver_id: driver.id,
+      verification_status: driver.verification_status
     });
-  } catch (error) {
-    return res.status(error.status || 500).json({
-      success: false,
-      error: error.message
+  } catch (err) {
+    console.error("driver signup error", err);
+    res.status(500).json({
+      error: "Driver signup failed"
     });
   }
 });
 
-app.post("/api/driver/login", async (req, res) => {
+/* =========================================================
+   DRIVER EMAIL VERIFICATION
+========================================================= */
+
+app.post("/api/driver/verify-email", async (req, res) => {
   try {
-    requireFields(req.body, ["email", "password"]);
+    const { driverId, code } = req.body;
 
-    const email = normalizeEmail(req.body.email);
-    const passwordHash = hashValue(req.body.password);
-
-    const driver = await trySingle(
-      supabase
-        .from("drivers")
-        .select("*")
-        .eq("email", email)
-        .eq("password_hash", passwordHash)
-        .maybeSingle()
-    );
-
-    if (!driver) {
-      return res.status(401).json({
-        success: false,
-        error: "Invalid driver login."
+    if (!driverId || !code) {
+      return res.status(400).json({
+        error: "driverId and code are required"
       });
     }
 
-    return res.json({
-      success: true,
-      driver: {
-        id: driver.id,
-        first_name: driver.first_name,
-        last_name: driver.last_name,
-        full_name: driver.full_name,
-        email: driver.email,
-        phone: driver.phone,
-        vehicle_make: driver.vehicle_make,
-        vehicle_model: driver.vehicle_model,
-        vehicle_year: driver.vehicle_year,
-        license_plate: driver.license_plate,
-        verification_status: driver.verification_status,
-        approval_status: driver.approval_status,
-        email_verified: driver.email_verified,
-        sms_verified: driver.sms_verified,
-        availability_status: driver.availability_status
-      }
-    });
-  } catch (error) {
-    return res.status(error.status || 500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-app.get("/api/driver/verify-email", async (req, res) => {
-  try {
-    const token = cleanEnv(req.query.token);
-
-    if (!token) {
-      return res.status(400).send("Missing email verification token.");
+    const driver = await getDriverById(driverId);
+    if (!driver) {
+      return res.status(404).json({
+        error: "Driver not found"
+      });
     }
 
-    const record = memoryStore.emailVerifications.get(token);
-    if (!record) {
-      return res.status(400).send("Invalid or expired email verification token.");
+    if (!driver.email_verification_code_hash) {
+      return res.status(400).json({
+        error: "No email verification code found"
+      });
     }
 
-    if (Date.now() > record.expiresAt) {
-      memoryStore.emailVerifications.delete(token);
-      return res.status(400).send("Email verification token expired.");
+    if (
+      driver.email_verification_expires_at &&
+      new Date(driver.email_verification_expires_at).getTime() < Date.now()
+    ) {
+      return res.status(400).json({
+        error: "Email verification code expired"
+      });
+    }
+
+    if (sha256(code) !== driver.email_verification_code_hash) {
+      return res.status(400).json({
+        error: "Invalid email verification code"
+      });
     }
 
     const { error } = await supabase
       .from("drivers")
       .update({
         email_verified: true,
+        email_verified_at: nowIso(),
+        email_verification_code_hash: null,
+        email_verification_expires_at: null,
         updated_at: nowIso()
       })
-      .eq("id", record.driverId);
+      .eq("id", driverId);
 
     if (error) throw error;
 
-    await updateDriverVerificationStatus(record.driverId);
-    memoryStore.emailVerifications.delete(token);
+    const updatedDriver = await updateDriverVerificationStatus(driverId);
 
-    await logAdminEvent("driver_email_verified", "Driver email verified.", {
-      driver_id: record.driverId,
-      email: record.email
+    await logTripEvent({
+      actorType: "driver",
+      actorId: driverId,
+      eventType: "driver_email_verified",
+      payload: {
+        verification_status: updatedDriver.verification_status
+      }
     });
 
-    return res.send(`
-      <html>
-        <head><title>Harvey Taxi</title></head>
-        <body style="font-family:Arial,sans-serif;background:#07111f;color:#fff;padding:40px">
-          <h1>Email Verified</h1>
-          <p>Your Harvey Taxi driver email has been verified successfully.</p>
-          <p>You may return to the app and continue onboarding.</p>
-        </body>
-      </html>
-    `);
-  } catch (error) {
-    return res.status(500).send(`Verification failed: ${error.message}`);
+    res.json({
+      success: true,
+      verification_status: updatedDriver.verification_status
+    });
+  } catch (err) {
+    console.error("driver verify email error", err);
+    res.status(500).json({
+      error: "Email verification failed"
+    });
   }
 });
 
+/* =========================================================
+   DRIVER SMS VERIFICATION
+========================================================= */
+
 app.post("/api/driver/verify-sms", async (req, res) => {
   try {
-    requireFields(req.body, ["driver_id", "code"]);
+    const { driverId, code } = req.body;
 
-    const driverId = req.body.driver_id;
-    const code = String(req.body.code).trim();
-
-    const record = memoryStore.smsVerifications.get(driverId);
-
-    if (!record) {
+    if (!driverId || !code) {
       return res.status(400).json({
-        success: false,
-        error: "SMS verification code not found or expired."
+        error: "driverId and code are required"
       });
     }
 
-    if (Date.now() > record.expiresAt) {
-      memoryStore.smsVerifications.delete(driverId);
-      return res.status(400).json({
-        success: false,
-        error: "SMS verification code expired."
+    const driver = await getDriverById(driverId);
+    if (!driver) {
+      return res.status(404).json({
+        error: "Driver not found"
       });
     }
 
-    if (record.code !== code) {
+    if (!driver.sms_verification_code_hash) {
       return res.status(400).json({
-        success: false,
-        error: "Invalid SMS verification code."
+        error: "No SMS verification code found"
+      });
+    }
+
+    if (
+      driver.sms_verification_expires_at &&
+      new Date(driver.sms_verification_expires_at).getTime() < Date.now()
+    ) {
+      return res.status(400).json({
+        error: "SMS verification code expired"
+      });
+    }
+
+    if (sha256(code) !== driver.sms_verification_code_hash) {
+      return res.status(400).json({
+        error: "Invalid SMS verification code"
       });
     }
 
@@ -1175,332 +841,186 @@ app.post("/api/driver/verify-sms", async (req, res) => {
       .from("drivers")
       .update({
         sms_verified: true,
+        sms_verified_at: nowIso(),
+        sms_verification_code_hash: null,
+        sms_verification_expires_at: null,
         updated_at: nowIso()
       })
       .eq("id", driverId);
 
     if (error) throw error;
 
-    memoryStore.smsVerifications.delete(driverId);
     const updatedDriver = await updateDriverVerificationStatus(driverId);
 
-    await logAdminEvent("driver_sms_verified", "Driver SMS verified.", {
-      driver_id: driverId
+    await logTripEvent({
+      actorType: "driver",
+      actorId: driverId,
+      eventType: "driver_sms_verified",
+      payload: {
+        verification_status: updatedDriver.verification_status
+      }
     });
 
-    return res.json({
+    res.json({
       success: true,
-      message: "Driver SMS verified successfully.",
-      driver: updatedDriver
+      verification_status: updatedDriver.verification_status
     });
-  } catch (error) {
-    return res.status(error.status || 500).json({
-      success: false,
-      error: error.message
+  } catch (err) {
+    console.error("driver verify sms error", err);
+    res.status(500).json({
+      error: "SMS verification failed"
     });
   }
 });
+
+/* =========================================================
+   RESEND DRIVER VERIFICATION CODES
+========================================================= */
 
 app.post("/api/driver/resend-verification", async (req, res) => {
   try {
-    requireFields(req.body, ["driver_id"]);
-
-    const driver = await getDriverById(req.body.driver_id);
-    if (!driver) {
-      return res.status(404).json({
-        success: false,
-        error: "Driver not found."
-      });
-    }
-
-    const results = {};
-
-    if (driver.email_verified !== true) {
-      results.email = await sendDriverVerificationEmail(driver);
-    }
-
-    if (driver.sms_verified !== true) {
-      results.sms = await sendDriverVerificationSms(driver);
-    }
-
-    return res.json({
-      success: true,
-      message: "Verification resend processed.",
-      results
-    });
-  } catch (error) {
-    return res.status(error.status || 500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-/* =========================================================
-   RIDER / DRIVER LOOKUP
-========================================================= */
-app.get("/api/riders/:riderId", async (req, res) => {
-  try {
-    const rider = await getRiderById(req.params.riderId);
-
-    if (!rider) {
-      return res.status(404).json({
-        success: false,
-        error: "Rider not found."
-      });
-    }
-
-    return res.json({
-      success: true,
-      rider: {
-        id: rider.id,
-        first_name: rider.first_name,
-        last_name: rider.last_name,
-        full_name: rider.full_name,
-        email: rider.email,
-        phone: rider.phone,
-        city: rider.city,
-        state: rider.state,
-        verification_status: rider.verification_status,
-        approval_status: rider.approval_status,
-        approved: ["approved", "verified"].includes(
-          String(rider.approval_status || "").toLowerCase()
-        ),
-        payment_authorization_status: rider.payment_authorization_status
-      }
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-app.get("/api/drivers/:driverId", async (req, res) => {
-  try {
-    const driver = await getDriverById(req.params.driverId);
-
-    if (!driver) {
-      return res.status(404).json({
-        success: false,
-        error: "Driver not found."
-      });
-    }
-
-    return res.json({
-      success: true,
-      driver: {
-        id: driver.id,
-        first_name: driver.first_name,
-        last_name: driver.last_name,
-        full_name: driver.full_name,
-        email: driver.email,
-        phone: driver.phone,
-        vehicle_make: driver.vehicle_make,
-        vehicle_model: driver.vehicle_model,
-        vehicle_year: driver.vehicle_year,
-        license_plate: driver.license_plate,
-        verification_status: driver.verification_status,
-        approval_status: driver.approval_status,
-        email_verified: driver.email_verified,
-        sms_verified: driver.sms_verified,
-        availability_status: driver.availability_status
-      }
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-/* =========================================================
-   DRIVER AVAILABILITY
-========================================================= */
-app.post("/api/driver/:driverId/availability", async (req, res) => {
-  try {
-    const driverId = req.params.driverId;
-    const availabilityStatus = safeLower(
-      req.body.availability_status || "offline"
-    );
-
-    if (!["offline", "available", "busy"].includes(availabilityStatus)) {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid availability_status."
-      });
-    }
+    const { driverId, channel } = req.body;
 
     const driver = await getDriverById(driverId);
     if (!driver) {
       return res.status(404).json({
-        success: false,
-        error: "Driver not found."
+        error: "Driver not found"
+      });
+    }
+
+    if (channel !== "email" && channel !== "sms") {
+      return res.status(400).json({
+        error: "channel must be email or sms"
+      });
+    }
+
+    if (channel === "email") {
+      const emailCode = randomDigits(6);
+
+      const { error } = await supabase
+        .from("drivers")
+        .update({
+          email_verification_code_hash: sha256(emailCode),
+          email_verification_expires_at: futureIsoMinutes(30),
+          updated_at: nowIso()
+        })
+        .eq("id", driverId);
+
+      if (error) throw error;
+      await sendDriverVerificationEmail(driver, emailCode);
+    }
+
+    if (channel === "sms") {
+      const smsCode = randomDigits(6);
+
+      const { error } = await supabase
+        .from("drivers")
+        .update({
+          sms_verification_code_hash: sha256(smsCode),
+          sms_verification_expires_at: futureIsoMinutes(15),
+          updated_at: nowIso()
+        })
+        .eq("id", driverId);
+
+      if (error) throw error;
+      await sendDriverVerificationSms(driver, smsCode);
+    }
+
+    await logTripEvent({
+      actorType: "driver",
+      actorId: driverId,
+      eventType: "driver_verification_code_resent",
+      payload: { channel }
+    });
+
+    res.json({
+      success: true,
+      message: `Driver ${channel} verification code resent`
+    });
+  } catch (err) {
+    console.error("resend verification error", err);
+    res.status(500).json({
+      error: "Could not resend verification"
+    });
+  }
+});/* =========================================================
+   DRIVER AVAILABILITY
+========================================================= */
+
+async function getAvailableDrivers(requestedMode = "driver") {
+  let query = supabase
+    .from("drivers")
+    .select("*")
+    .eq("is_available", true)
+    .eq("is_approved", true);
+
+  if (requestedMode === "autonomous") {
+    query = query.eq("driver_type", "autonomous");
+  } else {
+    query = query.in("driver_type", ["human", "driver"]);
+  }
+
+  const { data, error } = await query.order("updated_at", {
+    ascending: true
+  });
+
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
+}
+
+app.post("/api/driver/:driverId/availability", async (req, res) => {
+  try {
+    const { driverId } = req.params;
+    const { isAvailable } = req.body;
+
+    const driver = await getDriverById(driverId);
+    if (!driver) {
+      return res.status(404).json({
+        error: "Driver not found"
+      });
+    }
+
+    if (driver.is_approved !== true) {
+      return res.status(403).json({
+        error: "Driver is not approved yet"
+      });
+    }
+
+    if (driver.verification_status !== "verified") {
+      return res.status(403).json({
+        error: "Driver must complete email and SMS verification first"
       });
     }
 
     const { data, error } = await supabase
       .from("drivers")
       .update({
-        availability_status: availabilityStatus,
+        is_available: isAvailable === true,
         updated_at: nowIso()
       })
       .eq("id", driverId)
-      .select(
-        "id,full_name,email,phone,vehicle_make,vehicle_model,vehicle_year,license_plate,verification_status,approval_status,email_verified,sms_verified,availability_status"
-      )
+      .select()
       .single();
 
     if (error) throw error;
 
-    return res.json({
+    await logTripEvent({
+      actorType: "driver",
+      actorId: driverId,
+      eventType: "driver_availability_updated",
+      payload: {
+        is_available: data.is_available
+      }
+    });
+
+    res.json({
       success: true,
       driver: data
     });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-app.get("/api/drivers/available", async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from("drivers")
-      .select(
-        "id,full_name,vehicle_make,vehicle_model,vehicle_year,license_plate,verification_status,approval_status,availability_status"
-      )
-      .eq("availability_status", "available")
-      .eq("verification_status", "verified");
-
-    if (error) throw error;
-
-    return res.json({
-      success: true,
-      drivers: data || []
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-/* =========================================================
-   PAYMENT AUTHORIZATION GATE
-========================================================= */
-app.post("/api/payments/authorize", async (req, res) => {
-  try {
-    requireFields(req.body, ["rider_id", "amount"]);
-
-    const rider = await getRiderById(req.body.rider_id);
-    if (!rider) {
-      return res.status(404).json({
-        success: false,
-        error: "Rider not found."
-      });
-    }
-
-    const amount = Number(req.body.amount);
-    if (!Number.isFinite(amount) || amount <= 0) {
-      return res.status(400).json({
-        success: false,
-        error: "A valid amount is required."
-      });
-    }
-
-    const paymentId = uid("pay");
-
-    const paymentPayload = {
-      id: paymentId,
-      rider_id: rider.id,
-      amount: Number(amount.toFixed(2)),
-      currency: "USD",
-      status: "authorized",
-      authorization_reference: uid("auth"),
-      payment_method_last4: String(req.body.card_last4 || "4242").slice(-4),
-      created_at: nowIso(),
-      updated_at: nowIso()
-    };
-
-    const { data, error } = await supabase
-      .from("payments")
-      .insert(paymentPayload)
-      .select("*")
-      .single();
-
-    if (error) throw error;
-
-    await supabase
-      .from("riders")
-      .update({
-        payment_authorization_status: "authorized",
-        updated_at: nowIso()
-      })
-      .eq("id", rider.id);
-
-    await logAdminEvent("payment_authorized", "Payment authorization created.", {
-      rider_id: rider.id,
-      amount: paymentPayload.amount
-    });
-
-    return res.json({
-      success: true,
-      payment: data
-    });
-  } catch (error) {
-    return res.status(error.status || 500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-/* =========================================================
-   FARE ESTIMATE
-========================================================= */
-app.post("/api/fare-estimate", async (req, res) => {
-  try {
-    requireFields(req.body, ["pickup_address", "dropoff_address"]);
-
-    const rideType = safeLower(req.body.ride_type || "standard");
-    const requestedMode = safeLower(
-      req.body.requestedMode || req.body.requested_mode || "driver"
-    );
-
-    const route = await getRouteEstimate(
-      req.body.pickup_address,
-      req.body.dropoff_address
-    );
-
-    const fare = calculateFare({
-      distanceMiles: route.distance_miles,
-      durationMinutes: route.duration_minutes,
-      rideType,
-      requestedMode
-    });
-
-    return res.json({
-      success: true,
-      ride_id: null,
-      pickup_address: route.pickup_address,
-      dropoff_address: route.dropoff_address,
-      distance_miles: route.distance_miles,
-      duration_minutes: route.duration_minutes,
-      ride_type: rideType,
-      requested_mode: requestedMode,
-      route_provider: route.provider,
-      fare_estimate: fare
-    });
-  } catch (error) {
-    return res.status(error.status || 500).json({
-      success: false,
-      error: error.message
+  } catch (err) {
+    console.error("driver availability error", err);
+    res.status(500).json({
+      error: "Could not update driver availability"
     });
   }
 });
@@ -1508,890 +1028,1570 @@ app.post("/api/fare-estimate", async (req, res) => {
 /* =========================================================
    DISPATCH HELPERS
 ========================================================= */
-async function selectNearestAvailableDriver() {
-  const { data, error } = await supabase
-    .from("drivers")
-    .select("*")
-    .eq("availability_status", "available")
-    .eq("verification_status", "verified")
-    .in("approval_status", ["approved", "active"])
-    .order("updated_at", { ascending: true })
-    .limit(1);
 
-  if (error) throw error;
-  return data?.[0] || null;
+function scoreDriverForRide(driver, ride) {
+  let score = 0;
+
+  if (driver.driver_type === "autonomous" && ride.requested_mode === "autonomous") {
+    score += 100;
+  }
+
+  if (
+    (driver.driver_type === "human" || driver.driver_type === "driver") &&
+    ride.requested_mode !== "autonomous"
+  ) {
+    score += 100;
+  }
+
+  if (driver.verification_status === "verified") {
+    score += 50;
+  }
+
+  if (driver.is_available === true) {
+    score += 25;
+  }
+
+  if (driver.city && ride.pickup_address) {
+    const city = String(driver.city).toLowerCase();
+    const pickup = String(ride.pickup_address).toLowerCase();
+    if (pickup.includes(city)) {
+      score += 30;
+    }
+  }
+
+  const updatedAt = driver.updated_at ? new Date(driver.updated_at).getTime() : 0;
+  score += Math.floor(updatedAt / 1000000000) % 10;
+
+  return score;
 }
 
-async function createMissionForRide(ride, driver) {
-  const missionId = uid("mission");
+async function createDispatchOffer({
+  ride,
+  driver,
+  attemptNumber = 1,
+  expiresInSeconds = 25
+}) {
+  const dispatchId = uuid();
+  const missionId = uuid();
+  const now = Date.now();
+
+  const dispatchPayload = {
+    id: dispatchId,
+    ride_id: ride.id,
+    driver_id: driver.id,
+    mission_id: missionId,
+    attempt_number: attemptNumber,
+    status: "offered",
+    expires_at: new Date(now + expiresInSeconds * 1000).toISOString(),
+    created_at: nowIso(),
+    updated_at: nowIso()
+  };
+
+  const { data: dispatch, error: dispatchError } = await supabase
+    .from("dispatches")
+    .insert(dispatchPayload)
+    .select()
+    .single();
+
+  if (dispatchError) throw dispatchError;
 
   const missionPayload = {
     id: missionId,
     ride_id: ride.id,
-    rider_id: ride.rider_id,
-    driver_id: driver ? driver.id : null,
-    status: driver ? "offered" : "awaiting_driver",
-    requested_mode: ride.requested_mode,
+    driver_id: driver.id,
+    dispatch_id: dispatch.id,
+    status: "offered",
+    mission_type: ride.requested_mode === "autonomous" ? "autonomous_pickup" : "driver_pickup",
     pickup_address: ride.pickup_address,
     dropoff_address: ride.dropoff_address,
-    estimated_total: ride.estimated_total,
-    estimated_driver_payout: ride.estimated_driver_payout,
+    estimated_fare: ride.estimated_fare || 0,
     notes: ride.notes || "",
     created_at: nowIso(),
     updated_at: nowIso()
   };
 
-  const { data, error } = await supabase
+  const { data: mission, error: missionError } = await supabase
     .from("missions")
     .insert(missionPayload)
-    .select("*")
+    .select()
     .single();
 
-  if (error) throw error;
+  if (missionError) throw missionError;
+
+  await supabase
+    .from("rides")
+    .update({
+      dispatch_status: "offered",
+      assigned_driver_id: driver.id,
+      current_dispatch_id: dispatch.id,
+      updated_at: nowIso()
+    })
+    .eq("id", ride.id);
+
+  await logTripEvent({
+    rideId: ride.id,
+    actorType: "system",
+    actorId: null,
+    eventType: "dispatch_offer_created",
+    payload: {
+      dispatch_id: dispatch.id,
+      mission_id: mission.id,
+      driver_id: driver.id,
+      attempt_number: attemptNumber,
+      expires_at: dispatch.expires_at
+    }
+  });
+
+  return { dispatch, mission };
+}
+
+async function getRideById(rideId) {
+  const { data, error } = await supabase
+    .from("rides")
+    .select("*")
+    .eq("id", rideId)
+    .single();
+
+  if (error) return null;
   return data;
 }
 
-async function createDispatchRecord(ride, driver, attempt = 1) {
-  const payload = {
-    id: uid("dispatch"),
-    ride_id: ride.id,
-    rider_id: ride.rider_id,
-    driver_id: driver ? driver.id : null,
-    status: driver ? "offered" : "awaiting_driver",
-    attempt_number: attempt,
-    created_at: nowIso(),
-    updated_at: nowIso()
-  };
-
+async function getOpenDispatchForRide(rideId) {
   const { data, error } = await supabase
     .from("dispatches")
-    .insert(payload)
     .select("*")
-    .single();
+    .eq("ride_id", rideId)
+    .in("status", ["offered", "accepted"])
+    .order("created_at", { ascending: false })
+    .limit(1);
 
   if (error) throw error;
+  return Array.isArray(data) && data.length ? data[0] : null;
+}
 
-  if (driver) {
-    memoryStore.dispatchOffers.set(ride.id, {
-      driverId: driver.id,
-      expiresAt: Date.now() + DISPATCH_OFFER_TIMEOUT_MS,
-      attempts: attempt
-    });
+async function getDispatchAttemptsCount(rideId) {
+  const { count, error } = await supabase
+    .from("dispatches")
+    .select("*", { count: "exact", head: true })
+    .eq("ride_id", rideId);
+
+  if (error) throw error;
+  return Number(count || 0);
+}
+
+/* =========================================================
+   DISPATCH BRAIN
+========================================================= */
+
+async function dispatchRide(rideId) {
+  const ride = await getRideById(rideId);
+  if (!ride) {
+    throw new Error("Ride not found");
   }
 
+  if (!["searching_driver", "dispatch_retry"].includes(ride.status)) {
+    return {
+      success: false,
+      reason: `Ride status ${ride.status} is not dispatchable`
+    };
+  }
+
+  const openDispatch = await getOpenDispatchForRide(ride.id);
+  if (openDispatch && openDispatch.status === "offered") {
+    return {
+      success: true,
+      message: "Existing offer still open",
+      dispatch_id: openDispatch.id
+    };
+  }
+
+  const availableDrivers = await getAvailableDrivers(ride.requested_mode);
+  if (!availableDrivers.length) {
+    await supabase
+      .from("rides")
+      .update({
+        dispatch_status: "no_drivers_available",
+        updated_at: nowIso()
+      })
+      .eq("id", ride.id);
+
+    await logTripEvent({
+      rideId: ride.id,
+      eventType: "dispatch_no_drivers_available",
+      payload: {
+        requested_mode: ride.requested_mode
+      }
+    });
+
+    return {
+      success: false,
+      reason: "No drivers available"
+    };
+  }
+
+  const priorDispatchesResp = await supabase
+    .from("dispatches")
+    .select("driver_id")
+    .eq("ride_id", ride.id);
+
+  const priorDriverIds = new Set(
+    Array.isArray(priorDispatchesResp.data)
+      ? priorDispatchesResp.data.map((d) => d.driver_id).filter(Boolean)
+      : []
+  );
+
+  const eligibleDrivers = availableDrivers.filter(
+    (driver) => !priorDriverIds.has(driver.id)
+  );
+
+  const candidatePool = eligibleDrivers.length ? eligibleDrivers : availableDrivers;
+
+  const rankedDrivers = [...candidatePool].sort((a, b) => {
+    return scoreDriverForRide(b, ride) - scoreDriverForRide(a, ride);
+  });
+
+  const selectedDriver = rankedDrivers[0];
+  if (!selectedDriver) {
+    return {
+      success: false,
+      reason: "No eligible driver selected"
+    };
+  }
+
+  const attempts = await getDispatchAttemptsCount(ride.id);
+  const created = await createDispatchOffer({
+    ride,
+    driver: selectedDriver,
+    attemptNumber: attempts + 1,
+    expiresInSeconds: 25
+  });
+
+  return {
+    success: true,
+    driver_id: selectedDriver.id,
+    dispatch_id: created.dispatch.id,
+    mission_id: created.mission.id
+  };
+}
+
+app.post("/api/dispatch/:rideId/run", async (req, res) => {
+  try {
+    const { rideId } = req.params;
+    const result = await dispatchRide(rideId);
+    res.json(result);
+  } catch (err) {
+    console.error("dispatch run error", err);
+    res.status(500).json({
+      error: "Dispatch failed"
+    });
+  }
+});
+
+/* =========================================================
+   DRIVER MISSION FEED
+========================================================= */
+
+app.get("/api/driver/:driverId/current-mission", async (req, res) => {
+  try {
+    const { driverId } = req.params;
+
+    const { data, error } = await supabase
+      .from("missions")
+      .select("*")
+      .eq("driver_id", driverId)
+      .in("status", ["offered", "accepted", "en_route_pickup", "arrived_pickup", "in_progress"])
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (error) throw error;
+
+    const mission = Array.isArray(data) && data.length ? data[0] : null;
+
+    res.json({
+      success: true,
+      mission
+    });
+  } catch (err) {
+    console.error("current mission error", err);
+    res.status(500).json({
+      error: "Could not load current mission"
+    });
+  }
+});
+
+/* =========================================================
+   DRIVER ACCEPT / DECLINE MISSION
+========================================================= */
+
+app.post("/api/driver/:driverId/missions/:missionId/respond", async (req, res) => {
+  try {
+    const { driverId, missionId } = req.params;
+    const { action } = req.body;
+
+    if (!["accept", "decline"].includes(action)) {
+      return res.status(400).json({
+        error: "action must be accept or decline"
+      });
+    }
+
+    const { data: mission, error: missionError } = await supabase
+      .from("missions")
+      .select("*")
+      .eq("id", missionId)
+      .eq("driver_id", driverId)
+      .single();
+
+    if (missionError || !mission) {
+      return res.status(404).json({
+        error: "Mission not found"
+      });
+    }
+
+    const { data: dispatch, error: dispatchError } = await supabase
+      .from("dispatches")
+      .select("*")
+      .eq("id", mission.dispatch_id)
+      .single();
+
+    if (dispatchError || !dispatch) {
+      return res.status(404).json({
+        error: "Dispatch not found"
+      });
+    }
+
+    if (dispatch.status !== "offered") {
+      return res.status(400).json({
+        error: `Dispatch already ${dispatch.status}`
+      });
+    }
+
+    const expired =
+      dispatch.expires_at &&
+      new Date(dispatch.expires_at).getTime() < Date.now();
+
+    if (expired) {
+      await supabase
+        .from("dispatches")
+        .update({
+          status: "expired",
+          updated_at: nowIso()
+        })
+        .eq("id", dispatch.id);
+
+      await supabase
+        .from("missions")
+        .update({
+          status: "expired",
+          updated_at: nowIso()
+        })
+        .eq("id", mission.id);
+
+      return res.status(400).json({
+        error: "Mission offer expired"
+      });
+    }
+
+    if (action === "decline") {
+      await supabase
+        .from("dispatches")
+        .update({
+          status: "declined",
+          responded_at: nowIso(),
+          updated_at: nowIso()
+        })
+        .eq("id", dispatch.id);
+
+      await supabase
+        .from("missions")
+        .update({
+          status: "declined",
+          updated_at: nowIso()
+        })
+        .eq("id", mission.id);
+
+      await supabase
+        .from("rides")
+        .update({
+          status: "dispatch_retry",
+          dispatch_status: "retry_needed",
+          assigned_driver_id: null,
+          current_dispatch_id: null,
+          updated_at: nowIso()
+        })
+        .eq("id", mission.ride_id);
+
+      await logTripEvent({
+        rideId: mission.ride_id,
+        actorType: "driver",
+        actorId: driverId,
+        eventType: "mission_declined",
+        payload: {
+          mission_id: mission.id,
+          dispatch_id: dispatch.id
+        }
+      });
+
+      const retryResult = await dispatchRide(mission.ride_id);
+
+      return res.json({
+        success: true,
+        action: "declined",
+        retry: retryResult
+      });
+    }
+
+    await supabase
+      .from("dispatches")
+      .update({
+        status: "accepted",
+        responded_at: nowIso(),
+        updated_at: nowIso()
+      })
+      .eq("id", dispatch.id);
+
+    await supabase
+      .from("missions")
+      .update({
+        status: "accepted",
+        accepted_at: nowIso(),
+        updated_at: nowIso()
+      })
+      .eq("id", mission.id);
+
+    await supabase
+      .from("rides")
+      .update({
+        status: "driver_assigned",
+        dispatch_status: "accepted",
+        assigned_driver_id: driverId,
+        current_dispatch_id: dispatch.id,
+        updated_at: nowIso()
+      })
+      .eq("id", mission.ride_id);
+
+    await logTripEvent({
+      rideId: mission.ride_id,
+      actorType: "driver",
+      actorId: driverId,
+      eventType: "mission_accepted",
+      payload: {
+        mission_id: mission.id,
+        dispatch_id: dispatch.id
+      }
+    });
+
+    res.json({
+      success: true,
+      action: "accepted",
+      mission_id: mission.id,
+      dispatch_id: dispatch.id
+    });
+  } catch (err) {
+    console.error("mission respond error", err);
+    res.status(500).json({
+      error: "Could not process mission response"
+    });
+  }
+});/* =========================================================
+   RIDE / MISSION HELPERS
+========================================================= */
+
+async function getMissionById(missionId) {
+  const { data, error } = await supabase
+    .from("missions")
+    .select("*")
+    .eq("id", missionId)
+    .single();
+
+  if (error) return null;
   return data;
 }
 
-async function runDispatchBrain(ride) {
-  if (ride.requested_mode === REQUEST_MODES.AUTONOMOUS) {
-    const { data, error } = await supabase
-      .from("rides")
-      .update({
-        status: "assigned_autonomous",
-        assigned_mode: REQUEST_MODES.AUTONOMOUS,
-        updated_at: nowIso()
-      })
-      .eq("id", ride.id)
-      .select("*")
-      .single();
+async function getRideByIdStrict(rideId) {
+  const { data, error } = await supabase
+    .from("rides")
+    .select("*")
+    .eq("id", rideId)
+    .single();
 
-    if (error) throw error;
+  if (error) throw error;
+  return data;
+}
 
-    await createMissionForRide(data, null);
-    await createDispatchRecord(data, null, 1);
-
-    return {
-      dispatched: true,
-      mode: REQUEST_MODES.AUTONOMOUS,
-      ride: data,
-      driver: null
-    };
-  }
-
-  let attempt = 1;
-  let selectedDriver = null;
-
-  while (attempt <= MAX_DISPATCH_ATTEMPTS) {
-    selectedDriver = await selectNearestAvailableDriver();
-    if (selectedDriver) break;
-    attempt += 1;
-  }
-
-  if (!selectedDriver) {
-    const { data, error } = await supabase
-      .from("rides")
-      .update({
-        status: "pending_driver",
-        assigned_mode: REQUEST_MODES.DRIVER,
-        updated_at: nowIso()
-      })
-      .eq("id", ride.id)
-      .select("*")
-      .single();
-
-    if (error) throw error;
-
-    await createMissionForRide(data, null);
-    await createDispatchRecord(data, null, attempt);
-
-    return {
-      dispatched: false,
-      mode: REQUEST_MODES.DRIVER,
-      ride: data,
-      driver: null
-    };
-  }
-
+async function updateRideStatus(rideId, patch = {}) {
   const { data, error } = await supabase
     .from("rides")
     .update({
-      status: "driver_offered",
-      assigned_driver_id: selectedDriver.id,
-      assigned_mode: REQUEST_MODES.DRIVER,
+      ...patch,
       updated_at: nowIso()
     })
-    .eq("id", ride.id)
+    .eq("id", rideId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+async function updateMissionStatus(missionId, patch = {}) {
+  const { data, error } = await supabase
+    .from("missions")
+    .update({
+      ...patch,
+      updated_at: nowIso()
+    })
+    .eq("id", missionId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+async function getPaymentById(paymentId) {
+  if (!paymentId) return null;
+
+  const { data, error } = await supabase
+    .from("payments")
     .select("*")
+    .eq("id", paymentId)
+    .single();
+
+  if (error) return null;
+  return data;
+}
+
+async function capturePaymentForRide(ride) {
+  if (!ride.payment_id) {
+    return {
+      success: false,
+      reason: "No payment attached to ride"
+    };
+  }
+
+  const payment = await getPaymentById(ride.payment_id);
+  if (!payment) {
+    return {
+      success: false,
+      reason: "Payment not found"
+    };
+  }
+
+  if (payment.status === "captured") {
+    return {
+      success: true,
+      payment
+    };
+  }
+
+  const { data, error } = await supabase
+    .from("payments")
+    .update({
+      status: "captured",
+      captured_at: nowIso(),
+      updated_at: nowIso()
+    })
+    .eq("id", payment.id)
+    .select()
     .single();
 
   if (error) throw error;
 
-  await createMissionForRide(data, selectedDriver);
-  await createDispatchRecord(data, selectedDriver, attempt);
+  await logTripEvent({
+    rideId: ride.id,
+    actorType: "system",
+    eventType: "payment_captured",
+    payload: {
+      payment_id: payment.id,
+      amount: payment.amount
+    }
+  });
 
   return {
-    dispatched: true,
-    mode: REQUEST_MODES.DRIVER,
-    ride: data,
-    driver: {
-      id: selectedDriver.id,
-      full_name: selectedDriver.full_name,
-      vehicle_make: selectedDriver.vehicle_make,
-      vehicle_model: selectedDriver.vehicle_model,
-      vehicle_year: selectedDriver.vehicle_year,
-      license_plate: selectedDriver.license_plate
+    success: true,
+    payment: data
+  };
+}
+
+async function releasePaymentForRide(ride, reason = "ride_cancelled") {
+  if (!ride.payment_id) {
+    return {
+      success: false,
+      reason: "No payment attached to ride"
+    };
+  }
+
+  const payment = await getPaymentById(ride.payment_id);
+  if (!payment) {
+    return {
+      success: false,
+      reason: "Payment not found"
+    };
+  }
+
+  if (["released", "voided", "refunded"].includes(payment.status)) {
+    return {
+      success: true,
+      payment
+    };
+  }
+
+  const { data, error } = await supabase
+    .from("payments")
+    .update({
+      status: "released",
+      release_reason: reason,
+      released_at: nowIso(),
+      updated_at: nowIso()
+    })
+    .eq("id", payment.id)
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  await logTripEvent({
+    rideId: ride.id,
+    actorType: "system",
+    eventType: "payment_released",
+    payload: {
+      payment_id: payment.id,
+      reason
     }
+  });
+
+  return {
+    success: true,
+    payment: data
+  };
+}
+
+async function createDriverEarning({
+  ride,
+  driverId,
+  grossFare = 0,
+  tipAmount = 0,
+  bookingFee = 0,
+  platformFee = 0
+}) {
+  const gross = Number(grossFare || 0);
+  const tip = Number(tipAmount || 0);
+  const booking = Number(bookingFee || 0);
+  const platform = Number(platformFee || 0);
+  const payout = gross + tip - booking - platform;
+
+  const { data, error } = await supabase
+    .from("driver_earnings")
+    .insert({
+      id: uuid(),
+      ride_id: ride.id,
+      driver_id: driverId,
+      gross_fare: gross,
+      tip_amount: tip,
+      booking_fee: booking,
+      platform_fee: platform,
+      payout_amount: payout,
+      payout_status: "pending",
+      created_at: nowIso(),
+      updated_at: nowIso()
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  await logTripEvent({
+    rideId: ride.id,
+    actorType: "system",
+    eventType: "driver_earning_created",
+    payload: {
+      driver_id: driverId,
+      payout_amount: payout
+    }
+  });
+
+  return data;
+}
+
+/* =========================================================
+   DRIVER RIDE STATUS ACTIONS
+========================================================= */
+
+app.post("/api/driver/:driverId/missions/:missionId/status", async (req, res) => {
+  try {
+    const { driverId, missionId } = req.params;
+    const { status } = req.body;
+
+    const allowedStatuses = [
+      "en_route_pickup",
+      "arrived_pickup",
+      "in_progress",
+      "completed"
+    ];
+
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({
+        error: `status must be one of: ${allowedStatuses.join(", ")}`
+      });
+    }
+
+    const mission = await getMissionById(missionId);
+    if (!mission || mission.driver_id !== driverId) {
+      return res.status(404).json({
+        error: "Mission not found"
+      });
+    }
+
+    const ride = await getRideByIdStrict(mission.ride_id);
+
+    if (status === "en_route_pickup") {
+      const updatedMission = await updateMissionStatus(missionId, {
+        status: "en_route_pickup",
+        started_at: mission.started_at || nowIso()
+      });
+
+      const updatedRide = await updateRideStatus(ride.id, {
+        status: "driver_en_route"
+      });
+
+      await logTripEvent({
+        rideId: ride.id,
+        actorType: "driver",
+        actorId: driverId,
+        eventType: "driver_en_route_pickup",
+        payload: {
+          mission_id: missionId
+        }
+      });
+
+      return res.json({
+        success: true,
+        mission: updatedMission,
+        ride: updatedRide
+      });
+    }
+
+    if (status === "arrived_pickup") {
+      const updatedMission = await updateMissionStatus(missionId, {
+        status: "arrived_pickup",
+        arrived_pickup_at: nowIso()
+      });
+
+      const updatedRide = await updateRideStatus(ride.id, {
+        status: "driver_arrived"
+      });
+
+      await logTripEvent({
+        rideId: ride.id,
+        actorType: "driver",
+        actorId: driverId,
+        eventType: "driver_arrived_pickup",
+        payload: {
+          mission_id: missionId
+        }
+      });
+
+      return res.json({
+        success: true,
+        mission: updatedMission,
+        ride: updatedRide
+      });
+    }
+
+    if (status === "in_progress") {
+      const updatedMission = await updateMissionStatus(missionId, {
+        status: "in_progress",
+        trip_started_at: nowIso()
+      });
+
+      const updatedRide = await updateRideStatus(ride.id, {
+        status: "trip_in_progress",
+        trip_started_at: ride.trip_started_at || nowIso()
+      });
+
+      await logTripEvent({
+        rideId: ride.id,
+        actorType: "driver",
+        actorId: driverId,
+        eventType: "trip_started",
+        payload: {
+          mission_id: missionId
+        }
+      });
+
+      return res.json({
+        success: true,
+        mission: updatedMission,
+        ride: updatedRide
+      });
+    }
+
+    if (status === "completed") {
+      const finalFare = Number(req.body.finalFare || ride.estimated_fare || 0);
+      const tipAmount = Number(req.body.tipAmount || 0);
+      const bookingFee = Number(req.body.bookingFee || 0);
+      const platformFee = Number(req.body.platformFee || 0);
+
+      const updatedMission = await updateMissionStatus(missionId, {
+        status: "completed",
+        completed_at: nowIso()
+      });
+
+      const updatedRide = await updateRideStatus(ride.id, {
+        status: "completed",
+        dispatch_status: "completed",
+        completed_at: nowIso(),
+        final_fare: finalFare,
+        tip_amount: tipAmount
+      });
+
+      await capturePaymentForRide(updatedRide);
+
+      const earning = await createDriverEarning({
+        ride: updatedRide,
+        driverId,
+        grossFare: finalFare,
+        tipAmount,
+        bookingFee,
+        platformFee
+      });
+
+      await supabase
+        .from("drivers")
+        .update({
+          is_available: true,
+          updated_at: nowIso()
+        })
+        .eq("id", driverId);
+
+      await logTripEvent({
+        rideId: ride.id,
+        actorType: "driver",
+        actorId: driverId,
+        eventType: "trip_completed",
+        payload: {
+          mission_id: missionId,
+          final_fare: finalFare,
+          tip_amount: tipAmount,
+          earning_id: earning.id
+        }
+      });
+
+      return res.json({
+        success: true,
+        mission: updatedMission,
+        ride: updatedRide,
+        earning
+      });
+    }
+  } catch (err) {
+    console.error("mission status update error", err);
+    res.status(500).json({
+      error: "Could not update trip status"
+    });
+  }
+});
+
+/* =========================================================
+   RIDER / DRIVER RIDE STATUS ENDPOINTS
+========================================================= */
+
+app.get("/api/rides/:rideId/status", async (req, res) => {
+  try {
+    const ride = await getRideByIdStrict(req.params.rideId);
+
+    let mission = null;
+    if (ride.current_dispatch_id) {
+      const { data } = await supabase
+        .from("missions")
+        .select("*")
+        .eq("dispatch_id", ride.current_dispatch_id)
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      mission = Array.isArray(data) && data.length ? data[0] : null;
+    }
+
+    res.json({
+      success: true,
+      ride,
+      mission
+    });
+  } catch (err) {
+    console.error("ride status error", err);
+    res.status(500).json({
+      error: "Could not load ride status"
+    });
+  }
+});
+
+app.get("/api/rider/:riderId/rides", async (req, res) => {
+  try {
+    const { riderId } = req.params;
+
+    const { data, error } = await supabase
+      .from("rides")
+      .select("*")
+      .eq("rider_id", riderId)
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      rides: Array.isArray(data) ? data : []
+    });
+  } catch (err) {
+    console.error("rider rides error", err);
+    res.status(500).json({
+      error: "Could not load rider rides"
+    });
+  }
+});
+
+app.get("/api/driver/:driverId/current-ride", async (req, res) => {
+  try {
+    const { driverId } = req.params;
+
+    const { data, error } = await supabase
+      .from("rides")
+      .select("*")
+      .eq("assigned_driver_id", driverId)
+      .in("status", [
+        "driver_assigned",
+        "driver_en_route",
+        "driver_arrived",
+        "trip_in_progress"
+      ])
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (error) throw error;
+
+    const ride = Array.isArray(data) && data.length ? data[0] : null;
+
+    res.json({
+      success: true,
+      ride
+    });
+  } catch (err) {
+    console.error("driver current ride error", err);
+    res.status(500).json({
+      error: "Could not load driver current ride"
+    });
+  }
+});
+
+app.get("/api/driver/:driverId/earnings", async (req, res) => {
+  try {
+    const { driverId } = req.params;
+
+    const { data, error } = await supabase
+      .from("driver_earnings")
+      .select("*")
+      .eq("driver_id", driverId)
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    if (error) throw error;
+
+    const earnings = Array.isArray(data) ? data : [];
+    const totalPayout = earnings.reduce(
+      (sum, item) => sum + Number(item.payout_amount || 0),
+      0
+    );
+
+    res.json({
+      success: true,
+      total_payout: totalPayout,
+      earnings
+    });
+  } catch (err) {
+    console.error("driver earnings error", err);
+    res.status(500).json({
+      error: "Could not load driver earnings"
+    });
+  }
+});/* =========================================================
+   CANCEL / REDISPATCH HELPERS
+========================================================= */
+
+async function expireDispatchAndMission(dispatchId, missionId) {
+  if (dispatchId) {
+    await supabase
+      .from("dispatches")
+      .update({
+        status: "expired",
+        updated_at: nowIso()
+      })
+      .eq("id", dispatchId);
+  }
+
+  if (missionId) {
+    await supabase
+      .from("missions")
+      .update({
+        status: "expired",
+        updated_at: nowIso()
+      })
+      .eq("id", missionId);
+  }
+}
+
+async function findMissionByDispatchId(dispatchId) {
+  const { data, error } = await supabase
+    .from("missions")
+    .select("*")
+    .eq("dispatch_id", dispatchId)
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (error) throw error;
+  return Array.isArray(data) && data.length ? data[0] : null;
+}
+
+async function cancelRideInternal({
+  ride,
+  cancelledBy = "system",
+  actorId = null,
+  reason = "cancelled"
+}) {
+  const activeStatuses = [
+    "searching_driver",
+    "dispatch_retry",
+    "driver_assigned",
+    "driver_en_route",
+    "driver_arrived"
+  ];
+
+  if (!activeStatuses.includes(ride.status)) {
+    return {
+      success: false,
+      reason: `Ride cannot be cancelled from status ${ride.status}`
+    };
+  }
+
+  if (ride.current_dispatch_id) {
+    const mission = await findMissionByDispatchId(ride.current_dispatch_id);
+    await expireDispatchAndMission(
+      ride.current_dispatch_id,
+      mission ? mission.id : null
+    );
+  }
+
+  const updatedRide = await updateRideStatus(ride.id, {
+    status: "cancelled",
+    dispatch_status: "cancelled",
+    cancelled_at: nowIso(),
+    cancelled_by: cancelledBy,
+    cancellation_reason: reason
+  });
+
+  await releasePaymentForRide(updatedRide, reason);
+
+  if (ride.assigned_driver_id) {
+    await supabase
+      .from("drivers")
+      .update({
+        is_available: true,
+        updated_at: nowIso()
+      })
+      .eq("id", ride.assigned_driver_id);
+  }
+
+  await logTripEvent({
+    rideId: ride.id,
+    actorType: cancelledBy,
+    actorId,
+    eventType: "ride_cancelled",
+    payload: {
+      reason
+    }
+  });
+
+  return {
+    success: true,
+    ride: updatedRide
   };
 }
 
 /* =========================================================
-   REQUEST RIDE
+   RIDE CANCELLATION
 ========================================================= */
-app.post("/api/request-ride", async (req, res) => {
-  try {
-    requireFields(req.body, ["rider_id", "pickup_address", "dropoff_address"]);
-
-    const rider = await getRiderById(req.body.rider_id);
-    if (!rider) {
-      return res.status(404).json({
-        success: false,
-        error: "Rider not found."
-      });
-    }
-
-    if (
-      !["approved", "verified"].includes(
-        String(rider.approval_status || "").toLowerCase()
-      )
-    ) {
-      return res.status(403).json({
-        success: false,
-        error: "Rider approval is required before requesting a ride."
-      });
-    }
-
-    const authorizedPayment = await getLatestAuthorizedPaymentForRider(rider.id);
-    if (!authorizedPayment) {
-      return res.status(403).json({
-        success: false,
-        error: "Payment authorization is required before requesting a ride."
-      });
-    }
-
-    const rideType = safeLower(req.body.ride_type || "standard");
-    const requestedMode = safeLower(
-      req.body.requestedMode || req.body.requested_mode || "driver"
-    );
-
-    if (
-      ![REQUEST_MODES.DRIVER, REQUEST_MODES.AUTONOMOUS].includes(requestedMode)
-    ) {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid requested mode."
-      });
-    }
-
-    const route = await getRouteEstimate(
-      req.body.pickup_address,
-      req.body.dropoff_address
-    );
-
-    const fare = calculateFare({
-      distanceMiles: route.distance_miles,
-      durationMinutes: route.duration_minutes,
-      rideType,
-      requestedMode
-    });
-
-    const ridePayload = {
-      id: uid("ride"),
-      rider_id: rider.id,
-      assigned_driver_id: null,
-      assigned_mode: null,
-      requested_mode: requestedMode,
-      ride_type: rideType,
-      pickup_address: route.pickup_address,
-      dropoff_address: route.dropoff_address,
-      distance_miles: route.distance_miles,
-      duration_minutes: route.duration_minutes,
-      estimated_total: fare.estimated_total,
-      estimated_driver_payout: fare.estimated_driver_payout,
-      estimated_platform_revenue: fare.estimated_platform_revenue,
-      status: "requested",
-      notes: String(req.body.notes || "").trim(),
-      payment_authorization_id: authorizedPayment.id,
-      created_at: nowIso(),
-      updated_at: nowIso()
-    };
-
-    const { data: newRide, error: rideError } = await supabase
-      .from("rides")
-      .insert(ridePayload)
-      .select("*")
-      .single();
-
-    if (rideError) throw rideError;
-
-    const dispatchResult = await runDispatchBrain(newRide);
-
-    await logAdminEvent("ride_requested", "Ride request created.", {
-      ride_id: newRide.id,
-      rider_id: rider.id,
-      requested_mode: requestedMode,
-      ride_type: rideType
-    });
-
-    return res.status(201).json({
-      success: true,
-      ride_id: dispatchResult.ride.id,
-      ride: dispatchResult.ride,
-      dispatch: {
-        dispatched: dispatchResult.dispatched,
-        mode: dispatchResult.mode,
-        driver: dispatchResult.driver
-      },
-      fare_estimate: {
-        estimated_total: newRide.estimated_total,
-        estimated_driver_payout: newRide.estimated_driver_payout,
-        estimated_platform_revenue: newRide.estimated_platform_revenue
-      }
-    });
-  } catch (error) {
-    return res.status(error.status || 500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-/* =========================================================
-   RIDE ACCEPT / DECLINE / START / COMPLETE / CANCEL
-========================================================= */
-app.post("/api/driver/:driverId/accept-ride", async (req, res) => {
-  try {
-    requireFields(req.body, ["ride_id"]);
-
-    const driverId = req.params.driverId;
-    const rideId = req.body.ride_id;
-
-    const ride = await getRideById(rideId);
-    if (!ride) {
-      return res.status(404).json({
-        success: false,
-        error: "Ride not found."
-      });
-    }
-
-    if (ride.assigned_driver_id !== driverId) {
-      return res.status(403).json({
-        success: false,
-        error: "Ride is not assigned to this driver."
-      });
-    }
-
-    const offer = memoryStore.dispatchOffers.get(rideId);
-    if (offer && offer.driverId === driverId && Date.now() > offer.expiresAt) {
-      return res.status(410).json({
-        success: false,
-        error: "Dispatch offer expired."
-      });
-    }
-
-    const driver = await getDriverById(driverId);
-    if (!driver) {
-      return res.status(404).json({
-        success: false,
-        error: "Driver not found."
-      });
-    }
-
-    if (driver.verification_status !== "verified") {
-      return res.status(403).json({
-        success: false,
-        error: "Driver verification is required before ride acceptance."
-      });
-    }
-
-    if (
-      !["approved", "active"].includes(
-        String(driver.approval_status || "").toLowerCase()
-      )
-    ) {
-      return res.status(403).json({
-        success: false,
-        error: "Driver approval is required before ride acceptance."
-      });
-    }
-
-    const { data, error } = await supabase
-      .from("rides")
-      .update({
-        status: "accepted",
-        updated_at: nowIso()
-      })
-      .eq("id", rideId)
-      .select("*")
-      .single();
-
-    if (error) throw error;
-
-    await supabase
-      .from("drivers")
-      .update({
-        availability_status: "busy",
-        updated_at: nowIso()
-      })
-      .eq("id", driverId);
-
-    memoryStore.dispatchOffers.delete(rideId);
-
-    return res.json({
-      success: true,
-      ride: data
-    });
-  } catch (error) {
-    return res.status(error.status || 500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-app.post("/api/driver/:driverId/decline-ride", async (req, res) => {
-  try {
-    requireFields(req.body, ["ride_id"]);
-
-    const driverId = req.params.driverId;
-    const rideId = req.body.ride_id;
-
-    const ride = await getRideById(rideId);
-    if (!ride) {
-      return res.status(404).json({
-        success: false,
-        error: "Ride not found."
-      });
-    }
-
-    if (ride.assigned_driver_id !== driverId) {
-      return res.status(403).json({
-        success: false,
-        error: "Ride is not assigned to this driver."
-      });
-    }
-
-    const { data, error } = await supabase
-      .from("rides")
-      .update({
-        status: "pending_driver",
-        assigned_driver_id: null,
-        updated_at: nowIso()
-      })
-      .eq("id", rideId)
-      .select("*")
-      .single();
-
-    if (error) throw error;
-
-    memoryStore.dispatchOffers.delete(rideId);
-
-    return res.json({
-      success: true,
-      message: "Ride declined and returned to dispatch queue.",
-      ride: data
-    });
-  } catch (error) {
-    return res.status(error.status || 500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-app.post("/api/rides/:rideId/start", async (req, res) => {
-  try {
-    const ride = await getRideById(req.params.rideId);
-    if (!ride) {
-      return res.status(404).json({
-        success: false,
-        error: "Ride not found."
-      });
-    }
-
-    if (
-      !["accepted", "assigned_autonomous"].includes(
-        String(ride.status || "").toLowerCase()
-      )
-    ) {
-      return res.status(400).json({
-        success: false,
-        error: "Ride cannot be started from its current state."
-      });
-    }
-
-    const { data, error } = await supabase
-      .from("rides")
-      .update({
-        status: "in_progress",
-        started_at: nowIso(),
-        updated_at: nowIso()
-      })
-      .eq("id", ride.id)
-      .select("*")
-      .single();
-
-    if (error) throw error;
-
-    return res.json({
-      success: true,
-      ride: data
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-app.post("/api/rides/:rideId/complete", async (req, res) => {
-  try {
-    const ride = await getRideById(req.params.rideId);
-    if (!ride) {
-      return res.status(404).json({
-        success: false,
-        error: "Ride not found."
-      });
-    }
-
-    if (ride.status !== "in_progress") {
-      return res.status(400).json({
-        success: false,
-        error: "Ride must be in progress before completion."
-      });
-    }
-
-    const tipAmount = Number(req.body.tip_amount || 0);
-    const finalCharge = Number(
-      (Number(ride.estimated_total || 0) + Math.max(0, tipAmount)).toFixed(2)
-    );
-
-    const { data, error } = await supabase
-      .from("rides")
-      .update({
-        status: "completed",
-        completed_at: nowIso(),
-        final_total: finalCharge,
-        tip_amount: Math.max(0, tipAmount),
-        updated_at: nowIso()
-      })
-      .eq("id", ride.id)
-      .select("*")
-      .single();
-
-    if (error) throw error;
-
-    if (ride.assigned_driver_id) {
-      await supabase
-        .from("drivers")
-        .update({
-          availability_status: "available",
-          updated_at: nowIso()
-        })
-        .eq("id", ride.assigned_driver_id);
-    }
-
-    return res.json({
-      success: true,
-      ride: data
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
 
 app.post("/api/rides/:rideId/cancel", async (req, res) => {
   try {
-    const ride = await getRideById(req.params.rideId);
-    if (!ride) {
-      return res.status(404).json({
-        success: false,
-        error: "Ride not found."
-      });
-    }
+    const { rideId } = req.params;
+    const { actorType, actorId, reason } = req.body;
 
-    if (
-      ["completed", "cancelled"].includes(
-        String(ride.status || "").toLowerCase()
-      )
-    ) {
-      return res.status(400).json({
-        success: false,
-        error: "Ride cannot be cancelled from its current state."
-      });
-    }
+    const ride = await getRideByIdStrict(rideId);
 
-    const { data, error } = await supabase
-      .from("rides")
-      .update({
-        status: "cancelled",
-        cancelled_at: nowIso(),
-        cancellation_reason: String(req.body.reason || "cancelled_by_user"),
-        updated_at: nowIso()
-      })
-      .eq("id", ride.id)
-      .select("*")
-      .single();
-
-    if (error) throw error;
-
-    if (ride.assigned_driver_id) {
-      await supabase
-        .from("drivers")
-        .update({
-          availability_status: "available",
-          updated_at: nowIso()
-        })
-        .eq("id", ride.assigned_driver_id);
-    }
-
-    memoryStore.dispatchOffers.delete(ride.id);
-
-    return res.json({
-      success: true,
-      ride: data
+    const result = await cancelRideInternal({
+      ride,
+      cancelledBy: actorType || "rider",
+      actorId: actorId || null,
+      reason: reason || "ride_cancelled"
     });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: error.message
+
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+
+    res.json(result);
+  } catch (err) {
+    console.error("ride cancel error", err);
+    res.status(500).json({
+      error: "Could not cancel ride"
     });
   }
 });
 
 /* =========================================================
-   ADMIN ANALYTICS / ADMIN ACTIONS
+   AUTO REDISPATCH TIMEOUT SWEEPER
 ========================================================= */
-app.get("/api/admin/analytics", requireAdmin, async (req, res) => {
+
+async function sweepExpiredDispatches() {
+  const now = nowIso();
+
+  const { data: expiredDispatches, error } = await supabase
+    .from("dispatches")
+    .select("*")
+    .eq("status", "offered")
+    .lt("expires_at", now)
+    .limit(50);
+
+  if (error) {
+    console.error("expired dispatch sweep query error", error.message);
+    return;
+  }
+
+  for (const dispatch of expiredDispatches || []) {
+    try {
+      const mission = await findMissionByDispatchId(dispatch.id);
+
+      await expireDispatchAndMission(dispatch.id, mission ? mission.id : null);
+
+      const ride = await getRideById(dispatch.ride_id);
+      if (!ride) continue;
+
+      if (
+        ["completed", "cancelled"].includes(ride.status) ||
+        ride.dispatch_status === "completed"
+      ) {
+        continue;
+      }
+
+      await updateRideStatus(ride.id, {
+        status: "dispatch_retry",
+        dispatch_status: "retry_needed",
+        assigned_driver_id: null,
+        current_dispatch_id: null
+      });
+
+      await logTripEvent({
+        rideId: ride.id,
+        actorType: "system",
+        eventType: "dispatch_offer_expired",
+        payload: {
+          dispatch_id: dispatch.id,
+          mission_id: mission ? mission.id : null
+        }
+      });
+
+      await dispatchRide(ride.id);
+    } catch (sweepErr) {
+      console.error("dispatch sweep item error", sweepErr.message);
+    }
+  }
+}
+
+setInterval(() => {
+  sweepExpiredDispatches().catch((err) => {
+    console.error("dispatch sweep fatal error", err.message);
+  });
+}, 10000);
+
+/* =========================================================
+   ADMIN DISPATCH CONTROLS
+========================================================= */
+
+function isAdminRequest(req) {
+  const email =
+    cleanEnv(req.headers["x-admin-email"]) ||
+    cleanEnv(req.body?.adminEmail) ||
+    cleanEnv(req.query?.adminEmail);
+
+  const password =
+    cleanEnv(req.headers["x-admin-password"]) ||
+    cleanEnv(req.body?.adminPassword) ||
+    cleanEnv(req.query?.adminPassword);
+
+  return email === ADMIN_EMAIL && password === ADMIN_PASSWORD;
+}
+
+app.post("/api/admin/login", async (req, res) => {
   try {
-    const [ridersRes, driversRes, ridesRes, paymentsRes] = await Promise.all([
-      supabase.from("riders").select("id,approval_status", {
-        count: "exact",
-        head: false
-      }),
-      supabase.from("drivers").select(
-        "id,approval_status,verification_status",
-        {
-          count: "exact",
-          head: false
-        }
-      ),
-      supabase.from("rides").select(
-        "id,status,requested_mode,final_total,estimated_total",
-        {
-          count: "exact",
-          head: false
-        }
-      ),
-      supabase.from("payments").select("id,status,amount", {
-        count: "exact",
-        head: false
-      })
-    ]);
+    const { email, password } = req.body;
 
-    if (ridersRes.error) throw ridersRes.error;
-    if (driversRes.error) throw driversRes.error;
-    if (ridesRes.error) throw ridesRes.error;
-    if (paymentsRes.error) throw paymentsRes.error;
+    const ok =
+      cleanEnv(email) === ADMIN_EMAIL &&
+      cleanEnv(password) === ADMIN_PASSWORD;
 
-    const riders = ridersRes.data || [];
-    const drivers = driversRes.data || [];
-    const rides = ridesRes.data || [];
-    const payments = paymentsRes.data || [];
+    if (!ok) {
+      return res.status(401).json({
+        error: "Invalid admin credentials"
+      });
+    }
 
-    const analytics = {
-      riders_total: riders.length,
-      riders_approved: riders.filter((x) =>
-        ["approved", "verified"].includes(
-          String(x.approval_status || "").toLowerCase()
-        )
-      ).length,
-
-      drivers_total: drivers.length,
-      drivers_verified: drivers.filter(
-        (x) => x.verification_status === "verified"
-      ).length,
-      drivers_approved: drivers.filter((x) =>
-        ["approved", "active"].includes(
-          String(x.approval_status || "").toLowerCase()
-        )
-      ).length,
-
-      rides_total: rides.length,
-      rides_requested: rides.filter((x) => x.status === "requested").length,
-      rides_in_progress: rides.filter((x) => x.status === "in_progress").length,
-      rides_completed: rides.filter((x) => x.status === "completed").length,
-      rides_cancelled: rides.filter((x) => x.status === "cancelled").length,
-      rides_driver_mode: rides.filter((x) => x.requested_mode === "driver").length,
-      rides_autonomous_mode: rides.filter(
-        (x) => x.requested_mode === "autonomous"
-      ).length,
-
-      payments_total: payments.length,
-      payments_authorized: payments.filter((x) => x.status === "authorized")
-        .length,
-      gross_revenue_estimate: Number(
-        rides
-          .reduce(
-            (sum, x) => sum + Number(x.final_total || x.estimated_total || 0),
-            0
-          )
-          .toFixed(2)
-      )
-    };
-
-    return res.json({
+    res.json({
       success: true,
-      analytics
+      admin: {
+        email: ADMIN_EMAIL
+      }
     });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: error.message
+  } catch (err) {
+    console.error("admin login error", err);
+    res.status(500).json({
+      error: "Admin login failed"
     });
   }
 });
 
-app.post("/api/admin/drivers/:driverId/approve", requireAdmin, async (req, res) => {
+app.get("/api/admin/rides/active", async (req, res) => {
   try {
-    const driver = await getDriverById(req.params.driverId);
-    if (!driver) {
-      return res.status(404).json({
-        success: false,
-        error: "Driver not found."
+    if (!isAdminRequest(req)) {
+      return res.status(401).json({
+        error: "Unauthorized"
       });
     }
 
     const { data, error } = await supabase
-      .from("drivers")
-      .update({
-        approval_status: "approved",
-        availability_status:
-          driver.verification_status === "verified" ? "available" : "offline",
-        updated_at: nowIso()
-      })
-      .eq("id", driver.id)
+      .from("rides")
       .select("*")
-      .single();
+      .in("status", [
+        "searching_driver",
+        "dispatch_retry",
+        "driver_assigned",
+        "driver_en_route",
+        "driver_arrived",
+        "trip_in_progress"
+      ])
+      .order("created_at", { ascending: false })
+      .limit(100);
 
     if (error) throw error;
 
-    return res.json({
+    res.json({
       success: true,
-      driver: data
+      rides: Array.isArray(data) ? data : []
     });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: error.message
+  } catch (err) {
+    console.error("admin active rides error", err);
+    res.status(500).json({
+      error: "Could not load active rides"
     });
   }
 });
 
-app.post("/api/admin/riders/:riderId/approve", requireAdmin, async (req, res) => {
+app.post("/api/admin/rides/:rideId/dispatch", async (req, res) => {
   try {
-    const rider = await getRiderById(req.params.riderId);
-    if (!rider) {
-      return res.status(404).json({
-        success: false,
-        error: "Rider not found."
+    if (!isAdminRequest(req)) {
+      return res.status(401).json({
+        error: "Unauthorized"
       });
     }
+
+    const { rideId } = req.params;
+    const result = await dispatchRide(rideId);
+
+    await logTripEvent({
+      rideId,
+      actorType: "admin",
+      actorId: ADMIN_EMAIL,
+      eventType: "admin_dispatch_triggered",
+      payload: result
+    });
+
+    res.json({
+      success: true,
+      result
+    });
+  } catch (err) {
+    console.error("admin dispatch trigger error", err);
+    res.status(500).json({
+      error: "Admin dispatch trigger failed"
+    });
+  }
+});
+
+app.post("/api/admin/rides/:rideId/cancel", async (req, res) => {
+  try {
+    if (!isAdminRequest(req)) {
+      return res.status(401).json({
+        error: "Unauthorized"
+      });
+    }
+
+    const { rideId } = req.params;
+    const ride = await getRideByIdStrict(rideId);
+
+    const result = await cancelRideInternal({
+      ride,
+      cancelledBy: "admin",
+      actorId: ADMIN_EMAIL,
+      reason: req.body?.reason || "admin_cancelled"
+    });
+
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+
+    res.json(result);
+  } catch (err) {
+    console.error("admin ride cancel error", err);
+    res.status(500).json({
+      error: "Admin ride cancellation failed"
+    });
+  }
+});
+
+app.get("/api/admin/dispatches/:rideId", async (req, res) => {
+  try {
+    if (!isAdminRequest(req)) {
+      return res.status(401).json({
+        error: "Unauthorized"
+      });
+    }
+
+    const { rideId } = req.params;
+
+    const { data, error } = await supabase
+      .from("dispatches")
+      .select("*")
+      .eq("ride_id", rideId)
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      dispatches: Array.isArray(data) ? data : []
+    });
+  } catch (err) {
+    console.error("admin dispatch history error", err);
+    res.status(500).json({
+      error: "Could not load dispatch history"
+    });
+  }
+});
+
+app.get("/api/admin/trip-events/:rideId", async (req, res) => {
+  try {
+    if (!isAdminRequest(req)) {
+      return res.status(401).json({
+        error: "Unauthorized"
+      });
+    }
+
+    const { rideId } = req.params;
+
+    const { data, error } = await supabase
+      .from("trip_events")
+      .select("*")
+      .eq("ride_id", rideId)
+      .order("created_at", { ascending: true });
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      events: Array.isArray(data) ? data : []
+    });
+  } catch (err) {
+    console.error("admin trip events error", err);
+    res.status(500).json({
+      error: "Could not load trip events"
+    });
+  }
+});/* =========================================================
+   PERSONA RIDER VERIFICATION
+========================================================= */
+
+async function updateRiderVerificationStatus(riderId, status, payload = {}) {
+  const approved = status === "approved";
+
+  const { data, error } = await supabase
+    .from("riders")
+    .update({
+      verification_status: status,
+      approved,
+      verified_at: approved ? nowIso() : null,
+      verification_payload: payload,
+      updated_at: nowIso()
+    })
+    .eq("id", riderId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+async function findRiderByInquiryId(inquiryId) {
+  const { data, error } = await supabase
+    .from("riders")
+    .select("*")
+    .eq("verification_inquiry_id", inquiryId)
+    .single();
+
+  if (error) return null;
+  return data;
+}
+
+/* =========================================================
+   PERSONA WEBHOOK
+========================================================= */
+
+app.post("/api/webhooks/persona", async (req, res) => {
+  try {
+    const body = req.body;
+
+    const inquiryId =
+      body?.data?.id ||
+      body?.inquiryId ||
+      body?.inquiry_id;
+
+    const status =
+      body?.data?.attributes?.status ||
+      body?.status;
+
+    if (!inquiryId) {
+      return res.json({ ok: true });
+    }
+
+    const rider = await findRiderByInquiryId(inquiryId);
+
+    if (!rider) {
+      return res.json({ ok: true });
+    }
+
+    let mappedStatus = "pending";
+
+    if (status === "approved") {
+      mappedStatus = "approved";
+    }
+
+    if (status === "declined") {
+      mappedStatus = "declined";
+    }
+
+    if (status === "completed") {
+      mappedStatus = "approved";
+    }
+
+    const updated = await updateRiderVerificationStatus(
+      rider.id,
+      mappedStatus,
+      body
+    );
+
+    await logTripEvent({
+      actorType: "system",
+      actorId: null,
+      eventType: "rider_verification_updated",
+      payload: {
+        rider_id: rider.id,
+        inquiry_id: inquiryId,
+        status: mappedStatus
+      }
+    });
+
+    res.json({
+      ok: true
+    });
+  } catch (err) {
+    console.error("persona webhook error", err);
+    res.json({
+      ok: true
+    });
+  }
+});
+
+/* =========================================================
+   START RIDER VERIFICATION SESSION
+========================================================= */
+
+app.post("/api/rider/:riderId/start-verification", async (req, res) => {
+  try {
+    const { riderId } = req.params;
+
+    const inquiryId = "persona_" + uuid();
 
     const { data, error } = await supabase
       .from("riders")
       .update({
-        approval_status: "approved",
-        verification_status: "approved",
+        verification_status: "pending",
+        verification_inquiry_id: inquiryId,
+        verification_started_at: nowIso(),
         updated_at: nowIso()
       })
-      .eq("id", rider.id)
-      .select("*")
+      .eq("id", riderId)
+      .select()
       .single();
 
     if (error) throw error;
 
-    return res.json({
+    res.json({
       success: true,
+      inquiryId,
       rider: data
     });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: error.message
+  } catch (err) {
+    console.error("start verification error", err);
+    res.status(500).json({
+      error: "Could not start verification"
     });
   }
 });
 
 /* =========================================================
-   SIMPLE AI SUPPORT ENDPOINT
+   GET RIDER STATUS
 ========================================================= */
-app.post("/api/support/ask", async (req, res) => {
+
+app.get("/api/rider/:riderId/status", async (req, res) => {
   try {
-    const question = String(req.body.question || "").trim();
-    const pageMode = String(req.body.page_mode || "general").trim();
+    const { riderId } = req.params;
 
-    if (!question) {
-      return res.status(400).json({
-        success: false,
-        error: "Support question is required."
-      });
-    }
+    const { data, error } = await supabase
+      .from("riders")
+      .select("*")
+      .eq("id", riderId)
+      .single();
 
-    if (!OPENAI_API_KEY) {
-      return res.json({
-        success: true,
-        answer:
-          pageMode === "driver"
-            ? "Driver support is currently operating in fallback mode. Please complete email verification, SMS verification, document submission, and admin approval before accepting rides."
-            : pageMode === "request"
-            ? "Ride requests require rider approval and payment authorization before dispatch. Driver mode assigns a human driver. Autonomous mode requests pilot autonomous service when available."
-            : "Harvey Taxi support is live. Rider signup, driver onboarding, payment authorization, and ride requests are available."
-      });
-    }
+    if (error) throw error;
 
-    const systemPrompt = `
-You are Harvey Taxi support.
-Be concise, friendly, and operational.
-Never expose secrets or internal tokens.
-Important policies:
-- Riders must be approved before requesting rides.
-- Payment authorization is required before dispatch.
-- Drivers must complete email + SMS verification before driver activation.
-- Drivers should see enough mission details before ride acceptance.
-- Harvey Taxi supports driver mode and autonomous pilot mode.
-    `.trim();
-
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: OPENAI_SUPPORT_MODEL,
-        messages: [
-          { role: "system", content: systemPrompt },
-          {
-            role: "user",
-            content: `Page mode: ${pageMode}\nQuestion: ${question}`
-          }
-        ],
-        temperature: 0.4,
-        max_tokens: 250
-      })
-    });
-
-    const json = await response.json();
-
-    if (!response.ok) {
-      throw new Error(
-        json?.error?.message || "OpenAI support request failed."
-      );
-    }
-
-    const answer =
-      json?.choices?.[0]?.message?.content?.trim() ||
-      "Support response unavailable.";
-
-    return res.json({
+    res.json({
       success: true,
-      answer
+      rider: data,
+      verified: data.verification_status === "approved"
     });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: error.message
+  } catch (err) {
+    console.error("rider status error", err);
+    res.status(500).json({
+      error: "Could not load rider status"
     });
   }
 });
 
 /* =========================================================
-   SUPPORT INFO
+   SERVER START
 ========================================================= */
-app.get("/api/support/info", async (req, res) => {
-  return res.json({
-    success: true,
-    support_email: DEFAULT_SUPPORT_EMAIL,
-    emergency_notice: "If this is an emergency, call 911 immediately."
-  });
-});
 
-/* =========================================================
-   API 404 HANDLER
-   IMPORTANT: do not use "/api/*" here
-========================================================= */
-app.use("/api", (req, res) => {
-  return res.status(404).json({
-    success: false,
-    error: "API route not found."
-  });
-});
-
-/* =========================================================
-   GLOBAL ERROR HANDLER
-========================================================= */
-app.use((error, req, res, next) => {
-  console.error("Unhandled server error:", error);
-  return res.status(error.status || 500).json({
-    success: false,
-    error: error.message || "Internal server error."
-  });
-});
-
-/* =========================================================
-   START SERVER
-========================================================= */
-app.listen(PORT, async () => {
-  console.log(`✅ Harvey Taxi server running on port ${PORT}`);
-
-  try {
-    const checks = await verifyTables();
-    console.log("✅ Table diagnostics:", checks);
-  } catch (error) {
-    console.error("⚠️ Table diagnostics failed:", error.message);
-  }
+app.listen(PORT, () => {
+  console.log("========================================");
+  console.log("Harvey Taxi Phase 7 Server Running");
+  console.log("Port:", PORT);
+  console.log("Environment:", process.env.NODE_ENV || "production");
+  console.log("========================================");
 });
