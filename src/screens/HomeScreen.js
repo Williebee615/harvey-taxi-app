@@ -67,7 +67,7 @@ function HarveyAiChat({ visible, onClose, pageContext = "homepage" }) {
         {
           role: "assistant",
           text:
-            "I’m having trouble reaching Harvey AI right now. Please try again in a moment."
+            "I’m having trouble reaching Harvey AI right now. Please try again in a moment or use the support page."
         }
       ]);
     } finally {
@@ -87,29 +87,42 @@ function HarveyAiChat({ visible, onClose, pageContext = "homepage" }) {
   }
 
   const quickPrompts = [
-    "What is Harvey Taxi?",
     "How do I request a ride?",
+    "How do I sign up as a driver?",
+    "What is Harvey Taxi?",
     "What is the nonprofit mission?",
     "Is autonomous service live?"
   ];
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      statusBarTranslucent
+      onRequestClose={onClose}
+    >
       <View style={styles.aiOverlay}>
         <View style={styles.aiCard}>
           <View style={styles.aiHeader}>
-            <View style={styles.aiHeaderTextWrap}>
-              <Text style={styles.aiTitle}>Harvey AI Support</Text>
-              <Text style={styles.aiSubtitle}>Homepage support assistant</Text>
+            <View style={styles.aiBrandRow}>
+              <View style={styles.aiBadge}>
+                <Text style={styles.aiBadgeText}>AI</Text>
+              </View>
+
+              <View style={styles.aiHeaderTextWrap}>
+                <Text style={styles.aiTitle}>Harvey AI Support</Text>
+                <Text style={styles.aiSubtitle}>Home page support</Text>
+              </View>
             </View>
 
             <View style={styles.aiHeaderActions}>
               <TouchableOpacity style={styles.aiHeaderButton} onPress={resetChat}>
-                <Text style={styles.aiHeaderButtonText}>Reset</Text>
+                <Text style={styles.aiHeaderButtonText}>↺</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.aiHeaderButton} onPress={onClose}>
-                <Text style={styles.aiHeaderButtonText}>Close</Text>
+                <Text style={styles.aiHeaderButtonText}>✕</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -117,6 +130,8 @@ function HarveyAiChat({ visible, onClose, pageContext = "homepage" }) {
           <ScrollView
             style={styles.aiMessages}
             contentContainerStyle={styles.aiMessagesContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
           >
             {messages.map((message, index) => (
               <View
@@ -128,6 +143,17 @@ function HarveyAiChat({ visible, onClose, pageContext = "homepage" }) {
                     : styles.aiMessageWrapAssistant
                 ]}
               >
+                <Text
+                  style={[
+                    styles.aiRoleLabel,
+                    message.role === "user"
+                      ? styles.aiRoleLabelUser
+                      : styles.aiRoleLabelAssistant
+                  ]}
+                >
+                  {message.role === "user" ? "You" : "Harvey AI Support"}
+                </Text>
+
                 <View
                   style={[
                     styles.aiBubble,
@@ -152,6 +178,9 @@ function HarveyAiChat({ visible, onClose, pageContext = "homepage" }) {
 
             {loading ? (
               <View style={[styles.aiMessageWrap, styles.aiMessageWrapAssistant]}>
+                <Text style={[styles.aiRoleLabel, styles.aiRoleLabelAssistant]}>
+                  Harvey AI Support
+                </Text>
                 <View
                   style={[
                     styles.aiBubble,
@@ -159,8 +188,8 @@ function HarveyAiChat({ visible, onClose, pageContext = "homepage" }) {
                     styles.aiTypingBubble
                   ]}
                 >
-                  <ActivityIndicator />
-                  <Text style={styles.aiTypingText}>Harvey AI is thinking...</Text>
+                  <ActivityIndicator size="small" color="#63f5ff" />
+                  <Text style={styles.aiTypingText}>Thinking...</Text>
                 </View>
               </View>
             ) : null}
@@ -170,6 +199,7 @@ function HarveyAiChat({ visible, onClose, pageContext = "homepage" }) {
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.aiQuickRow}
+            keyboardShouldPersistTaps="handled"
           >
             {quickPrompts.map((prompt) => (
               <TouchableOpacity
@@ -187,8 +217,8 @@ function HarveyAiChat({ visible, onClose, pageContext = "homepage" }) {
             <TextInput
               value={input}
               onChangeText={setInput}
-              placeholder="Ask Harvey AI anything..."
-              placeholderTextColor="#8ea2d6"
+              placeholder="Ask Harvey AI about rides, support, drivers, nonprofit, or autonomous service..."
+              placeholderTextColor="#9fb0da"
               multiline
               style={styles.aiInput}
             />
@@ -198,13 +228,13 @@ function HarveyAiChat({ visible, onClose, pageContext = "homepage" }) {
               onPress={() => sendMessage()}
               disabled={!canSend}
             >
-              <Text style={styles.aiSendButtonText}>Send</Text>
+              <Text style={styles.aiSendButtonText}>➜</Text>
             </TouchableOpacity>
           </View>
 
           <Text style={styles.aiFootnote}>
-            Harvey AI can explain platform flow and support guidance. For emergencies,
-            contact local emergency services immediately.
+            Harvey AI can explain platform flow and support guidance. For
+            emergencies, contact local emergency services immediately.
           </Text>
         </View>
       </View>
@@ -215,13 +245,22 @@ function HarveyAiChat({ visible, onClose, pageContext = "homepage" }) {
 export default function HomeScreen({ onNavigate }) {
   const [chatOpen, setChatOpen] = useState(false);
 
+  function openChat() {
+    if (chatOpen) return;
+    setChatOpen(true);
+  }
+
   return (
     <>
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.hero}>
-          <Text style={styles.brand}>
-            Harvey <Text style={styles.brandAccent}>Taxi</Text>
-          </Text>
+          <View style={styles.brandRow}>
+            <View style={styles.brandDot} />
+            <Text style={styles.brand}>HARVEY TAXI</Text>
+          </View>
 
           <Text style={styles.title}>Real Mobility. Real Dispatch. Real Access.</Text>
 
@@ -229,6 +268,18 @@ export default function HomeScreen({ onNavigate }) {
             Harvey Taxi connects riders, drivers, and future autonomous fleet
             systems through one intelligent transportation platform.
           </Text>
+
+          <View style={styles.heroPills}>
+            <View style={styles.heroPill}>
+              <Text style={styles.heroPillText}>Verified access</Text>
+            </View>
+            <View style={styles.heroPill}>
+              <Text style={styles.heroPillText}>Dispatch brain online</Text>
+            </View>
+            <View style={styles.heroPill}>
+              <Text style={styles.heroPillText}>AI support live</Text>
+            </View>
+          </View>
         </View>
 
         <View style={styles.card}>
@@ -281,27 +332,23 @@ export default function HomeScreen({ onNavigate }) {
             mission questions, and autonomous pilot guidance.
           </Text>
 
-          <TouchableOpacity
-            style={styles.aiOpenButton}
-            onPress={() => setChatOpen(true)}
-          >
+          <TouchableOpacity style={styles.aiOpenButton} onPress={openChat}>
             <Text style={styles.aiOpenButtonText}>Open AI Support</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
 
-      <TouchableOpacity
-        style={styles.floatingAiButton}
-        onPress={() => setChatOpen(true)}
-      >
+      <TouchableOpacity style={styles.floatingAiButton} onPress={openChat}>
         <Text style={styles.floatingAiButtonText}>AI</Text>
       </TouchableOpacity>
 
-      <HarveyAiChat
-        visible={chatOpen}
-        onClose={() => setChatOpen(false)}
-        pageContext="homepage"
-      />
+      {chatOpen && (
+        <HarveyAiChat
+          visible={chatOpen}
+          onClose={() => setChatOpen(false)}
+          pageContext="homepage"
+        />
+      )}
     </>
   );
 }
@@ -313,35 +360,64 @@ const styles = StyleSheet.create({
     backgroundColor: "#040814"
   },
   hero: {
-    backgroundColor: "#0b1730",
-    borderRadius: 24,
-    padding: 22,
+    backgroundColor: "#07152d",
+    borderRadius: 28,
+    padding: 24,
     marginBottom: 18,
     borderWidth: 1,
-    borderColor: "rgba(122,162,255,0.16)"
+    borderColor: "rgba(122,162,255,0.18)"
+  },
+  brandRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16
+  },
+  brandDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: "#63f5ff",
+    marginRight: 12
   },
   brand: {
-    fontSize: 28,
-    fontWeight: "800",
-    color: "#f4f7ff",
-    marginBottom: 14
-  },
-  brandAccent: {
-    color: "#63f5ff"
+    fontSize: 18,
+    letterSpacing: 3,
+    fontWeight: "900",
+    color: "#f4f7ff"
   },
   title: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: "#f4f7ff",
-    marginBottom: 10
+    fontSize: 28,
+    fontWeight: "900",
+    color: "#ffffff",
+    lineHeight: 36,
+    marginBottom: 12
   },
   subtitle: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: "#aab8de"
+    fontSize: 16,
+    lineHeight: 24,
+    color: "#d2ddff"
+  },
+  heroPills: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginTop: 18
+  },
+  heroPill: {
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(122,162,255,0.18)",
+    paddingHorizontal: 12,
+    paddingVertical: 9
+  },
+  heroPillText: {
+    color: "#d9e4ff",
+    fontSize: 12,
+    fontWeight: "800"
   },
   card: {
-    backgroundColor: "rgba(10,17,38,0.88)",
+    backgroundColor: "rgba(10,17,38,0.92)",
     borderRadius: 24,
     padding: 20,
     marginBottom: 18,
@@ -349,27 +425,27 @@ const styles = StyleSheet.create({
     borderColor: "rgba(122,162,255,0.16)"
   },
   cardTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#f4f7ff",
+    fontSize: 20,
+    fontWeight: "900",
+    color: "#ffffff",
     marginBottom: 10
   },
   cardText: {
-    fontSize: 14,
-    lineHeight: 21,
-    color: "#aab8de",
+    fontSize: 15,
+    lineHeight: 24,
+    color: "#d2ddff",
     marginBottom: 16
   },
   primaryButton: {
     backgroundColor: "#5ea0ff",
-    borderRadius: 16,
-    paddingVertical: 14,
+    borderRadius: 18,
+    paddingVertical: 15,
     alignItems: "center"
   },
   primaryButtonText: {
     color: "#041224",
     fontSize: 16,
-    fontWeight: "800"
+    fontWeight: "900"
   },
   statusRow: {
     flexDirection: "row",
@@ -378,40 +454,41 @@ const styles = StyleSheet.create({
   },
   statusBox: {
     flex: 1,
-    backgroundColor: "rgba(255,255,255,0.04)",
+    backgroundColor: "rgba(255,255,255,0.05)",
     borderRadius: 18,
-    padding: 14,
+    padding: 16,
     borderWidth: 1,
-    borderColor: "rgba(122,162,255,0.16)"
+    borderColor: "rgba(122,162,255,0.18)"
   },
   statusLabel: {
-    color: "#aab8de",
+    color: "#b9c9ef",
     fontSize: 13,
-    marginBottom: 6
+    marginBottom: 8,
+    fontWeight: "700"
   },
   statusValue: {
     color: "#6dffb3",
-    fontSize: 16,
-    fontWeight: "800"
+    fontSize: 17,
+    fontWeight: "900"
   },
   aiOpenButton: {
     backgroundColor: "#63f5ff",
-    borderRadius: 16,
-    paddingVertical: 14,
+    borderRadius: 18,
+    paddingVertical: 15,
     alignItems: "center"
   },
   aiOpenButtonText: {
     color: "#041224",
     fontSize: 16,
-    fontWeight: "800"
+    fontWeight: "900"
   },
   floatingAiButton: {
     position: "absolute",
     right: 20,
     bottom: 28,
-    width: 66,
-    height: 66,
-    borderRadius: 33,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     backgroundColor: "#63f5ff",
     alignItems: "center",
     justifyContent: "center",
@@ -423,72 +500,100 @@ const styles = StyleSheet.create({
   },
   floatingAiButtonText: {
     color: "#041224",
-    fontSize: 18,
+    fontSize: 19,
     fontWeight: "900"
   },
   aiOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.45)",
-    justifyContent: "flex-end"
+    backgroundColor: "rgba(0,0,0,0.52)",
+    justifyContent: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 22
   },
   aiCard: {
-    height: "82%",
-    backgroundColor: "#07101f",
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    flex: 1,
+    maxHeight: "88%",
+    backgroundColor: "#081225",
+    borderRadius: 28,
     borderWidth: 1,
-    borderColor: "rgba(122,162,255,0.16)",
-    paddingTop: 14,
-    paddingHorizontal: 14,
-    paddingBottom: 20
+    borderColor: "rgba(122,162,255,0.18)",
+    overflow: "hidden"
   },
   aiHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 12,
-    gap: 12
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(122,162,255,0.14)",
+    backgroundColor: "rgba(255,255,255,0.02)"
+  },
+  aiBrandRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    paddingRight: 12
+  },
+  aiBadge: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    backgroundColor: "#63f5ff",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 14
+  },
+  aiBadgeText: {
+    color: "#041224",
+    fontSize: 20,
+    fontWeight: "900"
   },
   aiHeaderTextWrap: {
-    flex: 1,
-    paddingRight: 8
+    flex: 1
   },
   aiHeaderActions: {
     flexDirection: "row",
-    gap: 8
+    gap: 10
   },
   aiHeaderButton: {
+    width: 52,
+    height: 52,
     backgroundColor: "rgba(255,255,255,0.06)",
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
     borderWidth: 1,
     borderColor: "rgba(122,162,255,0.16)"
   },
   aiHeaderButtonText: {
-    color: "#f4f7ff",
-    fontWeight: "700",
-    fontSize: 12
+    color: "#ffffff",
+    fontWeight: "900",
+    fontSize: 22
   },
   aiTitle: {
-    color: "#f4f7ff",
+    color: "#ffffff",
     fontSize: 18,
-    fontWeight: "800"
+    fontWeight: "900",
+    lineHeight: 24
   },
   aiSubtitle: {
-    color: "#aab8de",
-    fontSize: 13,
-    marginTop: 4
+    color: "#b7c8ef",
+    fontSize: 14,
+    marginTop: 4,
+    lineHeight: 18
   },
   aiMessages: {
-    flex: 1
+    flex: 1,
+    backgroundColor: "#07101f"
   },
   aiMessagesContent: {
-    paddingBottom: 12,
-    gap: 10
+    padding: 16,
+    paddingBottom: 18
   },
   aiMessageWrap: {
-    width: "100%"
+    width: "100%",
+    marginBottom: 14
   },
   aiMessageWrapUser: {
     alignItems: "flex-end"
@@ -496,81 +601,101 @@ const styles = StyleSheet.create({
   aiMessageWrapAssistant: {
     alignItems: "flex-start"
   },
+  aiRoleLabel: {
+    fontSize: 12,
+    fontWeight: "800",
+    marginBottom: 6
+  },
+  aiRoleLabelUser: {
+    color: "#c6d3f8"
+  },
+  aiRoleLabelAssistant: {
+    color: "#b7c8ef"
+  },
   aiBubble: {
-    maxWidth: "88%",
-    borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 12
+    maxWidth: "90%",
+    borderRadius: 22,
+    paddingHorizontal: 16,
+    paddingVertical: 14
   },
   aiBubbleUser: {
     backgroundColor: "#5ea0ff"
   },
   aiBubbleAssistant: {
-    backgroundColor: "rgba(255,255,255,0.05)",
+    backgroundColor: "rgba(255,255,255,0.06)",
     borderWidth: 1,
     borderColor: "rgba(122,162,255,0.16)"
   },
   aiBubbleText: {
-    fontSize: 14,
-    lineHeight: 21
+    fontSize: 16,
+    lineHeight: 28
   },
   aiBubbleTextUser: {
     color: "#041224",
-    fontWeight: "700"
+    fontWeight: "800"
   },
   aiBubbleTextAssistant: {
-    color: "#f4f7ff"
+    color: "#ffffff",
+    fontWeight: "600"
   },
   aiTypingBubble: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 10
+    alignItems: "center"
   },
   aiTypingText: {
-    color: "#aab8de",
-    fontSize: 13
+    color: "#d2ddff",
+    fontSize: 15,
+    marginLeft: 10,
+    fontWeight: "700"
   },
   aiQuickRow: {
-    paddingVertical: 10,
-    gap: 8
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 10,
+    gap: 10,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(122,162,255,0.10)"
   },
   aiQuickButton: {
-    backgroundColor: "rgba(255,255,255,0.05)",
+    backgroundColor: "rgba(255,255,255,0.06)",
     borderWidth: 1,
     borderColor: "rgba(122,162,255,0.16)",
     borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 10
+    paddingHorizontal: 16,
+    paddingVertical: 12
   },
   aiQuickButtonText: {
-    color: "#aab8de",
-    fontSize: 12,
-    fontWeight: "700"
+    color: "#dce6ff",
+    fontSize: 14,
+    fontWeight: "900"
   },
   aiInputRow: {
     flexDirection: "row",
-    gap: 10,
+    gap: 12,
     alignItems: "flex-end",
-    marginTop: 8
+    paddingHorizontal: 16,
+    paddingTop: 10
   },
   aiInput: {
     flex: 1,
-    minHeight: 50,
-    maxHeight: 120,
-    backgroundColor: "rgba(255,255,255,0.05)",
-    borderWidth: 1,
-    borderColor: "rgba(122,162,255,0.16)",
-    borderRadius: 16,
-    color: "#f4f7ff",
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    textAlignVertical: "top"
+    minHeight: 60,
+    maxHeight: 130,
+    backgroundColor: "#091634",
+    borderWidth: 2,
+    borderColor: "rgba(94,160,255,0.28)",
+    borderRadius: 22,
+    color: "#ffffff",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    textAlignVertical: "top",
+    fontSize: 16,
+    lineHeight: 24
   },
   aiSendButton: {
     backgroundColor: "#6dffb3",
-    borderRadius: 16,
-    minWidth: 76,
-    height: 50,
+    borderRadius: 22,
+    width: 74,
+    height: 60,
     alignItems: "center",
     justifyContent: "center"
   },
@@ -579,13 +704,15 @@ const styles = StyleSheet.create({
   },
   aiSendButtonText: {
     color: "#062014",
-    fontWeight: "800",
-    fontSize: 14
+    fontWeight: "900",
+    fontSize: 28
   },
   aiFootnote: {
-    color: "#8ea2d6",
-    fontSize: 11,
-    lineHeight: 16,
-    marginTop: 10
+    color: "#c6d3f8",
+    fontSize: 13,
+    lineHeight: 20,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 16
   }
 });
