@@ -2,371 +2,462 @@
   const root = document.getElementById("harvey-ai-chat-root");
   if (!root) return;
 
-  root.innerHTML = `
-    <div id="harveyAiLauncher" aria-label="Open Harvey AI Support">AI</div>
+  const STORAGE_KEY = "harvey_ai_chat_state_v1";
+  const PAGE_CONTEXT = detectPageContext();
+  const API_ENDPOINT = "/api/ai/support";
 
-    <div id="harveyAiWindow">
-      <div class="harvey-header">
-        <div class="harvey-head-copy">
-          <strong>Harvey AI Support</strong>
-          <span>Taxi + Assistance Foundation</span>
-        </div>
-        <button id="harveyAiClose" aria-label="Close Harvey AI Support">×</button>
+  const state = {
+    isOpen: false,
+    isLoading: false,
+    messages: loadMessages(),
+    riderId: readContextValue("rider_id"),
+    driverId: readContextValue("driver_id"),
+    rideId: readContextValue("ride_id")
+  };
+
+  function detectPageContext() {
+    const path = (window.location.pathname || "").toLowerCase();
+
+    if (path.includes("rider-signup")) return "rider_signup";
+    if (path.includes("driver-signup")) return "driver_signup";
+    if (path.includes("request-ride")) return "request_ride";
+    if (path.includes("driver-dashboard")) return "driver_dashboard";
+    if (path.includes("admin")) return "admin_dashboard";
+    if (path.includes("support")) return "support_center";
+    if (path.includes("privacy")) return "privacy_policy";
+    if (path.includes("terms")) return "terms_of_service";
+    return "homepage";
+  }
+
+  function readContextValue(name) {
+    try {
+      const fromQuery = new URLSearchParams(window.location.search).get(name);
+      if (fromQuery) return fromQuery;
+
+      const fromSession = sessionStorage.getItem(name);
+      if (fromSession) return fromSession;
+
+      const fromLocal = localStorage.getItem(name);
+      if (fromLocal) return fromLocal;
+
+      return null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function loadMessages() {
+    try {
+      const raw = sessionStorage.getItem(STORAGE_KEY);
+      if (!raw) return getWelcomeMessages();
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) && parsed.length ? parsed : getWelcomeMessages();
+    } catch (error) {
+      return getWelcomeMessages();
+    }
+  }
+
+  function saveMessages() {
+    try {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state.messages.slice(-30)));
+    } catch (error) {
+      // ignore storage issues
+    }
+  }
+
+  function getWelcomeMessages() {
+    const welcomeText = getWelcomeTextByPage(PAGE_CONTEXT);
+
+    return [
+      {
+        role: "assistant",
+        text: welcomeText,
+        meta: "Harvey AI Support"
+      }
+    ];
+  }
+
+  function getWelcomeTextByPage(pageContext) {
+    const messages = {
+      homepage:
+        "Welcome to Harvey AI Support. I can help with rides, rider signup, driver onboarding, support questions, Harvey Taxi Service LLC, the nonprofit mission, and the autonomous pilot plan.",
+      rider_signup:
+        "Welcome to Harvey AI Support. I can help explain rider signup, approval flow, verification, and what happens before ride access is granted.",
+      driver_signup:
+        "Welcome to Harvey AI Support. I can help explain driver onboarding, verification, mission flow, and what drivers need before activation.",
+      request_ride:
+        "Welcome to Harvey AI Support. I can help with fare questions, ride requests, payment authorization, dispatch flow, and autonomous pilot labeling.",
+      driver_dashboard:
+        "Welcome to Harvey AI Support. I can help with missions, availability, ride status, driver payouts, and trip workflow.",
+      admin_dashboard:
+        "Welcome to Harvey AI Support. I can help explain dispatch, safety ops, analytics, incidents, and platform controls.",
+      support_center:
+        "Welcome to Harvey AI Support. Tell me what you need help with and I’ll guide you through Harvey Taxi support.",
+      privacy_policy:
+        "Welcome to Harvey AI Support. I can explain Harvey Taxi platform operations in plain language, but legal policy text should still be reviewed directly on the page.",
+      terms_of_service:
+        "Welcome to Harvey AI Support. I can help explain platform terms in plain language, but the posted terms remain the official source."
+    };
+
+    return messages[pageContext] || messages.homepage;
+  }
+
+  function buildSuggestions(pageContext) {
+    const shared = [
+      "What is Harvey Taxi?",
+      "What is the nonprofit mission?",
+      "Is autonomous service live?"
+    ];
+
+    const byPage = {
+      homepage: [
+        "How do I request a ride?",
+        "How do I sign up as a driver?"
+      ],
+      rider_signup: [
+        "Why do riders need approval?",
+        "What documents do I need?"
+      ],
+      driver_signup: [
+        "How does driver verification work?",
+        "When can I start driving?"
+      ],
+      request_ride: [
+        "How does payment authorization work?",
+        "How does dispatch work?"
+      ],
+      driver_dashboard: [
+        "How do missions work?",
+        "How do driver payouts work?"
+      ],
+      admin_dashboard: [
+        "How do dispatch overrides work?",
+        "What does the AI admin assistant do?"
+      ],
+      support_center: [
+        "How do I report an issue?",
+        "How do I get trip help?"
+      ]
+    };
+
+    return [...(byPage[pageContext] || []), ...shared].slice(0, 5);
+  }
+
+  function escapeHtml(value) {
+    return String(value || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function createWidget() {
+    root.innerHTML = `
+      <div class="harvey-ai-widget">
+        <button
+          class="harvey-ai-launch"
+          type="button"
+          aria-label="Open Harvey AI Support"
+          title="Open Harvey AI Support"
+          data-harvey-ai-open
+        >✦</button>
+
+        <section class="harvey-ai-panel" aria-live="polite" aria-label="Harvey AI Support chat panel">
+          <div class="harvey-ai-header">
+            <div class="harvey-ai-header-left">
+              <div class="harvey-ai-badge">AI</div>
+              <div class="harvey-ai-title-wrap">
+                <div class="harvey-ai-title">Harvey AI Support</div>
+                <div class="harvey-ai-subtitle">${escapeHtml(formatPageSubtitle(PAGE_CONTEXT))}</div>
+              </div>
+            </div>
+
+            <div class="harvey-ai-actions">
+              <button class="harvey-ai-icon-btn" type="button" data-harvey-ai-clear title="New chat">↺</button>
+              <button class="harvey-ai-icon-btn" type="button" data-harvey-ai-close title="Close chat">✕</button>
+            </div>
+          </div>
+
+          <div class="harvey-ai-body" data-harvey-ai-body></div>
+
+          <div class="harvey-ai-suggestions" data-harvey-ai-suggestions></div>
+
+          <div class="harvey-ai-footer">
+            <form class="harvey-ai-form" data-harvey-ai-form>
+              <textarea
+                class="harvey-ai-input"
+                data-harvey-ai-input
+                rows="1"
+                placeholder="Ask Harvey AI about rides, support, drivers, nonprofit mission, or autonomous plans..."
+              ></textarea>
+              <button class="harvey-ai-send" data-harvey-ai-send type="submit" aria-label="Send message">➜</button>
+            </form>
+            <div class="harvey-ai-footnote">
+              Harvey AI can explain platform flow and support guidance. For emergencies, contact local emergency services immediately.
+            </div>
+          </div>
+        </section>
       </div>
-
-      <div id="harveyAiMessages"></div>
-
-      <div class="harvey-quick">
-        <button data-q="How do I request a ride?">Request Ride</button>
-        <button data-q="How does assistance work?">Assistance</button>
-        <button data-q="How do I become a driver?">Driver</button>
-        <button data-q="How do I contact support?">Support</button>
-      </div>
-
-      <div class="harvey-input">
-        <input id="harveyAiInput" placeholder="Ask about Harvey Taxi or assistance..." />
-        <button id="harveyAiSend">Send</button>
-      </div>
-    </div>
-  `;
-
-  const styleId = "harvey-ai-widget-style";
-  if (!document.getElementById(styleId)) {
-    const style = document.createElement("style");
-    style.id = styleId;
-    style.innerHTML = `
-      :root{
-        --harvey-nav-clearance: 92px;
-        --harvey-launcher-size: 68px;
-        --harvey-widget-right: 16px;
-      }
-
-      #harvey-ai-chat-root,
-      #harvey-ai-chat-root *{
-        box-sizing:border-box;
-        font-family:Inter, Arial, sans-serif;
-      }
-
-      #harveyAiLauncher{
-        position:fixed;
-        right:var(--harvey-widget-right);
-        bottom:calc(var(--harvey-nav-clearance) + env(safe-area-inset-bottom));
-        width:var(--harvey-launcher-size);
-        height:var(--harvey-launcher-size);
-        border-radius:50%;
-        background:linear-gradient(135deg,#4facfe,#00f2fe);
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        font-weight:900;
-        font-size:22px;
-        color:#03111d;
-        box-shadow:0 18px 40px rgba(0,0,0,.35);
-        z-index:99999;
-        cursor:pointer;
-        user-select:none;
-      }
-
-      #harveyAiWindow{
-        position:fixed;
-        right:16px;
-        bottom:calc(16px + var(--harvey-nav-clearance) + env(safe-area-inset-bottom));
-        width:390px;
-        max-width:calc(100vw - 24px);
-        height:min(680px, calc(100dvh - 140px));
-        background:linear-gradient(180deg,#061125,#040814);
-        border:1px solid rgba(255,255,255,.08);
-        border-radius:24px;
-        display:none;
-        flex-direction:column;
-        overflow:hidden;
-        box-shadow:0 24px 60px rgba(0,0,0,.42);
-        z-index:999999;
-      }
-
-      .harvey-header{
-        display:flex;
-        justify-content:space-between;
-        align-items:flex-start;
-        gap:12px;
-        padding:16px;
-        border-bottom:1px solid rgba(255,255,255,.08);
-        background:rgba(255,255,255,.03);
-      }
-
-      .harvey-head-copy{
-        display:flex;
-        flex-direction:column;
-        gap:4px;
-      }
-
-      .harvey-head-copy strong{
-        color:#ffffff;
-        font-size:18px;
-        line-height:1.2;
-      }
-
-      .harvey-head-copy span{
-        color:#aab8de;
-        font-size:13px;
-        line-height:1.4;
-      }
-
-      #harveyAiClose{
-        border:none;
-        background:rgba(255,255,255,.08);
-        color:#fff;
-        width:40px;
-        height:40px;
-        border-radius:12px;
-        font-size:28px;
-        line-height:1;
-        cursor:pointer;
-      }
-
-      #harveyAiMessages{
-        flex:1;
-        overflow:auto;
-        padding:16px;
-        display:flex;
-        flex-direction:column;
-        gap:10px;
-      }
-
-      .msg{
-        margin-bottom:0;
-        padding:12px 14px;
-        border-radius:14px;
-        max-width:84%;
-        white-space:pre-wrap;
-        word-break:break-word;
-        font-size:15px;
-        line-height:1.5;
-      }
-
-      .msg.user{
-        background:linear-gradient(135deg,#4facfe,#00f2fe);
-        color:#03111d;
-        margin-left:auto;
-        font-weight:700;
-      }
-
-      .msg.ai{
-        background:#101a2e;
-        color:#ffffff;
-        border:1px solid rgba(255,255,255,.06);
-      }
-
-      .harvey-quick{
-        display:flex;
-        gap:8px;
-        overflow:auto;
-        padding:10px 12px;
-        border-top:1px solid rgba(255,255,255,.06);
-        border-bottom:1px solid rgba(255,255,255,.06);
-        background:rgba(255,255,255,.02);
-      }
-
-      .harvey-quick button{
-        padding:10px 12px;
-        border-radius:999px;
-        border:none;
-        background:#111a2e;
-        color:white;
-        white-space:nowrap;
-        font-weight:700;
-        cursor:pointer;
-      }
-
-      .harvey-input{
-        display:flex;
-        gap:8px;
-        padding:12px;
-        background:#07101f;
-      }
-
-      .harvey-input input{
-        flex:1;
-        padding:14px;
-        border-radius:12px;
-        border:1px solid rgba(255,255,255,.08);
-        background:#111a2e;
-        color:#fff;
-        outline:none;
-      }
-
-      .harvey-input input::placeholder{
-        color:#9fb0d5;
-      }
-
-      .harvey-input button{
-        padding:14px 18px;
-        border-radius:12px;
-        background:linear-gradient(135deg,#4facfe,#00f2fe);
-        border:none;
-        color:#03111d;
-        font-weight:800;
-        cursor:pointer;
-      }
-
-      @media (max-width: 768px){
-        :root{
-          --harvey-nav-clearance: 104px;
-          --harvey-launcher-size: 62px;
-          --harvey-widget-right: 14px;
-        }
-
-        #harveyAiLauncher{
-          right:14px;
-          bottom:calc(var(--harvey-nav-clearance) + env(safe-area-inset-bottom));
-          width:var(--harvey-launcher-size);
-          height:var(--harvey-launcher-size);
-          font-size:20px;
-        }
-
-        #harveyAiWindow{
-          right:0;
-          left:0;
-          bottom:calc(72px + env(safe-area-inset-bottom));
-          width:100vw;
-          max-width:100vw;
-          height:calc(100dvh - 72px - env(safe-area-inset-bottom));
-          border-radius:22px 22px 0 0;
-          border-left:none;
-          border-right:none;
-          border-bottom:none;
-        }
-
-        .harvey-input{
-          padding:10px;
-        }
-
-        .harvey-input input{
-          min-width:0;
-          font-size:16px;
-        }
-
-        .harvey-input button{
-          padding:14px 16px;
-          flex-shrink:0;
-        }
-      }
     `;
-    document.head.appendChild(style);
+
+    bindEvents();
+    renderMessages();
+    renderSuggestions();
   }
 
-  const launcher = document.getElementById("harveyAiLauncher");
-  const windowEl = document.getElementById("harveyAiWindow");
-  const closeBtn = document.getElementById("harveyAiClose");
-  const messages = document.getElementById("harveyAiMessages");
-  const input = document.getElementById("harveyAiInput");
-  const send = document.getElementById("harveyAiSend");
+  function formatPageSubtitle(pageContext) {
+    const map = {
+      homepage: "Home page support",
+      rider_signup: "Rider signup support",
+      driver_signup: "Driver onboarding support",
+      request_ride: "Ride request support",
+      driver_dashboard: "Driver dashboard support",
+      admin_dashboard: "Admin operations support",
+      support_center: "Support center assistance",
+      privacy_policy: "Privacy page assistance",
+      terms_of_service: "Terms page assistance"
+    };
 
-  launcher.onclick = openChat;
-  closeBtn.onclick = closeChat;
+    return map[pageContext] || "General platform support";
+  }
 
-  send.onclick = handleSend;
-  input.addEventListener("keypress", (e) => {
-    if (e.key === "Enter") handleSend();
-  });
+  function bindEvents() {
+    const panel = root.querySelector(".harvey-ai-panel");
+    const launch = root.querySelector(".harvey-ai-launch");
+    const closeBtn = root.querySelector("[data-harvey-ai-close]");
+    const clearBtn = root.querySelector("[data-harvey-ai-clear]");
+    const form = root.querySelector("[data-harvey-ai-form]");
+    const input = root.querySelector("[data-harvey-ai-input]");
 
-  document.querySelectorAll(".harvey-quick button").forEach((btn) => {
-    btn.onclick = () => handleSend(btn.dataset.q);
-  });
+    launch.addEventListener("click", open);
+    closeBtn.addEventListener("click", close);
 
-  let greeted = false;
+    clearBtn.addEventListener("click", function () {
+      state.messages = getWelcomeMessages();
+      saveMessages();
+      renderMessages();
+      renderSuggestions();
+      input.focus();
+    });
 
-  function openChat() {
-    windowEl.style.display = "flex";
-    if (!greeted) {
+    form.addEventListener("submit", async function (event) {
+      event.preventDefault();
+      const text = (input.value || "").trim();
+      if (!text || state.isLoading) return;
+
+      input.value = "";
+      autoResizeTextarea(input);
+
+      await sendMessage(text);
+    });
+
+    input.addEventListener("input", function () {
+      autoResizeTextarea(input);
+    });
+
+    input.addEventListener("keydown", function (event) {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        form.requestSubmit();
+      }
+    });
+
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape" && state.isOpen) {
+        close();
+      }
+    });
+
+    panel.addEventListener("click", function (event) {
+      event.stopPropagation();
+    });
+  }
+
+  function autoResizeTextarea(textarea) {
+    textarea.style.height = "auto";
+    textarea.style.height = Math.min(textarea.scrollHeight, 120) + "px";
+  }
+
+  function open() {
+    state.isOpen = true;
+    const panel = root.querySelector(".harvey-ai-panel");
+    panel.classList.add("open");
+    const input = root.querySelector("[data-harvey-ai-input]");
+    setTimeout(() => input && input.focus(), 80);
+    scrollToBottom();
+  }
+
+  function close() {
+    state.isOpen = false;
+    const panel = root.querySelector(".harvey-ai-panel");
+    panel.classList.remove("open");
+  }
+
+  function addMessage(role, text, meta) {
+    state.messages.push({
+      role,
+      text,
+      meta: meta || (role === "user" ? "You" : "Harvey AI Support")
+    });
+    saveMessages();
+    renderMessages();
+  }
+
+  function renderMessages() {
+    const body = root.querySelector("[data-harvey-ai-body]");
+    if (!body) return;
+
+    body.innerHTML = "";
+
+    state.messages.forEach((message) => {
+      const wrapper = document.createElement("div");
+      wrapper.className = `harvey-ai-message ${message.role === "user" ? "user" : "assistant"}`;
+
+      const bubble = document.createElement("div");
+      bubble.className = "harvey-ai-bubble";
+      bubble.textContent = message.text;
+
+      const meta = document.createElement("div");
+      meta.className = "harvey-ai-meta";
+      meta.textContent = message.meta || "";
+
+      wrapper.appendChild(bubble);
+      wrapper.appendChild(meta);
+      body.appendChild(wrapper);
+    });
+
+    if (state.isLoading) {
+      const typingWrap = document.createElement("div");
+      typingWrap.className = "harvey-ai-message assistant";
+      typingWrap.innerHTML = `
+        <div class="harvey-ai-typing" aria-label="Harvey AI is typing">
+          <span class="harvey-ai-typing-dot"></span>
+          <span class="harvey-ai-typing-dot"></span>
+          <span class="harvey-ai-typing-dot"></span>
+        </div>
+        <div class="harvey-ai-meta">Harvey AI Support</div>
+      `;
+      body.appendChild(typingWrap);
+    }
+
+    const systemLine = document.createElement("div");
+    systemLine.className = "harvey-ai-system-line";
+    systemLine.textContent = "Harvey AI can explain rides, support flow, LLC mission, nonprofit mission, and autonomous pilot status.";
+    body.appendChild(systemLine);
+
+    scrollToBottom();
+  }
+
+  function renderSuggestions() {
+    const container = root.querySelector("[data-harvey-ai-suggestions]");
+    if (!container) return;
+
+    container.innerHTML = "";
+
+    buildSuggestions(PAGE_CONTEXT).forEach((prompt) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "harvey-ai-suggestion";
+      button.textContent = prompt;
+      button.addEventListener("click", function () {
+        sendMessage(prompt);
+      });
+      container.appendChild(button);
+    });
+  }
+
+  function scrollToBottom() {
+    const body = root.querySelector("[data-harvey-ai-body]");
+    if (!body) return;
+    requestAnimationFrame(() => {
+      body.scrollTop = body.scrollHeight;
+    });
+  }
+
+  async function sendMessage(text) {
+    const trimmed = String(text || "").trim();
+    if (!trimmed || state.isLoading) return;
+
+    addMessage("user", trimmed, "You");
+    state.isLoading = true;
+    renderMessages();
+    toggleFormDisabled(true);
+
+    try {
+      const response = await fetch(API_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          message: trimmed,
+          pageContext: PAGE_CONTEXT,
+          rider_id: state.riderId || null,
+          driver_id: state.driverId || null,
+          ride_id: state.rideId || null
+        })
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error || "Harvey AI could not respond right now."
+        );
+      }
+
+      const reply =
+        data?.ai?.reply ||
+        data?.reply ||
+        "I’m here to help with Harvey Taxi support.";
+
+      addMessage("assistant", reply, "Harvey AI Support");
+    } catch (error) {
       addMessage(
-        "ai",
-        "Hi — I can help with Harvey Taxi rides, rider signup, driver signup, payments, support, and Harvey Transportation Assistance Foundation questions."
+        "assistant",
+        "I’m having trouble reaching Harvey AI right now. Please try again in a moment or use the support page.",
+        "Harvey AI Support"
       );
-      greeted = true;
+      console.error("Harvey AI widget error:", error);
+    } finally {
+      state.isLoading = false;
+      renderMessages();
+      toggleFormDisabled(false);
     }
   }
 
-  function closeChat() {
-    windowEl.style.display = "none";
-  }
+  function toggleFormDisabled(disabled) {
+    const input = root.querySelector("[data-harvey-ai-input]");
+    const sendBtn = root.querySelector("[data-harvey-ai-send]");
 
-  function handleSend(text) {
-    const msg = text || input.value.trim();
-    if (!msg) return;
+    if (input) input.disabled = disabled;
+    if (sendBtn) sendBtn.disabled = disabled;
 
-    addMessage("user", msg);
-    input.value = "";
-
-    setTimeout(() => {
-      addMessage("ai", getResponse(msg));
-    }, 250);
-  }
-
-  function addMessage(type, text) {
-    const div = document.createElement("div");
-    div.className = "msg " + type;
-    div.innerText = text;
-    messages.appendChild(div);
-    messages.scrollTop = messages.scrollHeight;
-  }
-
-  function getResponse(message) {
-    const msg = message.toLowerCase();
-
-    if (msg.includes("support") || msg.includes("help")) {
-      return "Harvey AI Support can help with rider signup, driver signup, ride requests, payments, verification, and Harvey Transportation Assistance Foundation questions.";
+    if (!disabled && input) {
+      input.focus();
     }
-
-    if (msg.includes("harvey taxi")) {
-      return "Harvey Taxi is a transportation platform supporting rider onboarding, driver onboarding, ride dispatch, payment authorization, and transportation assistance.";
-    }
-
-    if (msg.includes("foundation") || msg.includes("assistance")) {
-      return "Harvey Transportation Assistance Foundation helps provide transportation for essential needs like medical, work, school, and community travel.";
-    }
-
-    if (msg.includes("request") && msg.includes("ride")) {
-      return "To request a ride, enter pickup and destination, complete payment authorization, and submit your request.";
-    }
-
-    if (msg.includes("driver")) {
-      return "To become a driver, complete driver signup, upload documents, and wait for approval.";
-    }
-
-    if (msg.includes("rider")) {
-      return "Create a rider account, complete verification, authorize payment, then request a ride.";
-    }
-
-    if (msg.includes("payment")) {
-      return "Harvey Taxi authorizes payment before dispatch. You are only charged after the trip.";
-    }
-
-    if (msg.includes("schedule")) {
-      return "Scheduled rides allow you to request transportation in advance.";
-    }
-
-    if (msg.includes("medical")) {
-      return "Medical rides may be supported through Harvey Taxi or the Harvey Transportation Assistance Foundation.";
-    }
-
-    if (msg.includes("autonomous")) {
-      return "Autonomous pilot mode allows future self-driving ride requests.";
-    }
-
-    if (msg.includes("contact")) {
-      return "You can contact Harvey Taxi support through the support page or AI chat.";
-    }
-
-    if (msg.includes("emergency") || msg.includes("911")) {
-      return "If this is an emergency please call 911 immediately.";
-    }
-
-    return "I can help with Harvey Taxi, rides, drivers, riders, payments, safety, and Harvey Transportation Assistance Foundation.";
   }
 
   window.HarveyAI = {
-    open: openChat,
-    close: closeChat
+    open,
+    close,
+    ask(message) {
+      open();
+      return sendMessage(message);
+    },
+    setContext(nextContext) {
+      if (!nextContext || typeof nextContext !== "object") return;
+      state.riderId = nextContext.rider_id || state.riderId;
+      state.driverId = nextContext.driver_id || state.driverId;
+      state.rideId = nextContext.ride_id || state.rideId;
+    },
+    reset() {
+      state.messages = getWelcomeMessages();
+      saveMessages();
+      renderMessages();
+    }
   };
+
+  createWidget();
 })();
