@@ -833,7 +833,7 @@ app.post(
   "/api/rider/signup",
   asyncHandler(async (req, res) => {
     const first_name = cleanEnv(req.body?.firstName || req.body?.first_name);
-    const last_name = cleanEnv(req.body?.lastName || req.body?.first_name || req.body?.last_name);
+    const last_name = cleanEnv(req.body?.lastName || req.body?.last_name);
     const email = normalizeEmail(req.body?.email);
     const phone = normalizePhone(req.body?.phone);
     const city = cleanEnv(req.body?.city);
