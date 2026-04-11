@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
-import { API_BASE_URL } from "../config/api";
+import { askHarveyAI } from "../config/api";
 
 function HarveyAiChat({ visible, onClose, pageContext = "homepage" }) {
   const [messages, setMessages] = useState([
@@ -30,29 +30,24 @@ function HarveyAiChat({ visible, onClose, pageContext = "homepage" }) {
     const text = String(prefilledMessage || input).trim();
     if (!text || loading) return;
 
-    const nextUserMessage = { role: "user", text };
-    const nextMessages = [...messages, nextUserMessage];
-    setMessages(nextMessages);
+    setMessages((current) => [
+      ...current,
+      {
+        role: "user",
+        text
+      }
+    ]);
     setInput("");
     setLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/ai/support`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          message: text,
-          pageContext
-        })
+      const data = await askHarveyAI({
+        message: text,
+        pageContext,
+        riderId: null,
+        driverId: null,
+        rideId: null
       });
-
-      const data = await response.json().catch(() => null);
-
-      if (!response.ok) {
-        throw new Error(data?.error || "AI support request failed.");
-      }
 
       const reply =
         data?.ai?.reply ||
@@ -103,7 +98,7 @@ function HarveyAiChat({ visible, onClose, pageContext = "homepage" }) {
       <View style={styles.aiOverlay}>
         <View style={styles.aiCard}>
           <View style={styles.aiHeader}>
-            <View>
+            <View style={styles.aiHeaderTextWrap}>
               <Text style={styles.aiTitle}>Harvey AI Support</Text>
               <Text style={styles.aiSubtitle}>Homepage support assistant</Text>
             </View>
@@ -157,7 +152,13 @@ function HarveyAiChat({ visible, onClose, pageContext = "homepage" }) {
 
             {loading ? (
               <View style={[styles.aiMessageWrap, styles.aiMessageWrapAssistant]}>
-                <View style={[styles.aiBubble, styles.aiBubbleAssistant, styles.aiTypingBubble]}>
+                <View
+                  style={[
+                    styles.aiBubble,
+                    styles.aiBubbleAssistant,
+                    styles.aiTypingBubble
+                  ]}
+                >
                   <ActivityIndicator />
                   <Text style={styles.aiTypingText}>Harvey AI is thinking...</Text>
                 </View>
@@ -447,6 +448,10 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     marginBottom: 12,
     gap: 12
+  },
+  aiHeaderTextWrap: {
+    flex: 1,
+    paddingRight: 8
   },
   aiHeaderActions: {
     flexDirection: "row",
