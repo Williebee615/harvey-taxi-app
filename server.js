@@ -147,6 +147,126 @@ app.get("/api/health", (req, res) => {
     time: nowIso()
   });
 });/* =========================================================
+   PHASE 8 AI ENDPOINTS
+========================================================= */
+
+/* AI Fare Estimate */
+app.post("/api/ai/fare-estimate", async (req, res) => {
+  try {
+    const {
+      pickupAddress,
+      dropoffAddress,
+      rideType = "STANDARD",
+      requestedMode = "driver"
+    } = req.body || {};
+
+    if (!pickupAddress || !dropoffAddress) {
+      return res.status(400).json({
+        error: "pickupAddress and dropoffAddress required"
+      });
+    }
+
+    const result = await getAiFareBreakdown({
+      pickupAddress,
+      dropoffAddress,
+      rideType,
+      requestedMode
+    });
+
+    res.json(result);
+  } catch (error) {
+    console.error("AI fare estimate error", error);
+    res.status(500).json({ error: "AI fare estimate failed" });
+  }
+});
+
+
+/* AI Dispatch Score */
+app.post("/api/ai/dispatch-score", async (req, res) => {
+  try {
+    const { driverId, rideId } = req.body;
+
+    if (!driverId || !rideId) {
+      return res.status(400).json({
+        error: "driverId and rideId required"
+      });
+    }
+
+    const driver = await getDriverById(driverId);
+    const ride = await getRideById(rideId);
+
+    if (!driver || !ride) {
+      return res.status(404).json({
+        error: "driver or ride not found"
+      });
+    }
+
+    const score = await aiScoreDriverForRide(driver, ride);
+
+    res.json(score);
+  } catch (error) {
+    console.error("AI dispatch score error", error);
+    res.status(500).json({ error: "AI dispatch score failed" });
+  }
+});
+
+
+/* AI Support Brain */
+app.post("/api/ai/support", async (req, res) => {
+  try {
+    const { message, context } = req.body || {};
+
+    if (!message) {
+      return res.status(400).json({
+        error: "message required"
+      });
+    }
+
+    if (!openai) {
+      return res.json({
+        reply: "AI support is currently offline."
+      });
+    }
+
+    const completion = await openai.chat.completions.create({
+      model: OPENAI_SUPPORT_MODEL,
+      temperature: 0.3,
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are Harvey Taxi AI support. Be concise, helpful, and operational."
+        },
+        {
+          role: "user",
+          content: JSON.stringify({
+            message,
+            context
+          })
+        }
+      ]
+    });
+
+    const reply =
+      completion.choices?.[0]?.message?.content ||
+      "AI could not respond.";
+
+    res.json({ reply });
+  } catch (error) {
+    console.error("AI support error", error);
+    res.status(500).json({ error: "AI support failed" });
+  }
+});
+
+
+/* AI System Status */
+app.get("/api/ai/status", async (req, res) => {
+  res.json({
+    ai_enabled: !!openai,
+    model: OPENAI_SUPPORT_MODEL || null,
+    phase: "Phase 8 AI"
+  });
+});/* =========================================================
    RIDER SIGNUP
 ========================================================= */
 
