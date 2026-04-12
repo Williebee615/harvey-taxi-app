@@ -214,9 +214,10 @@ function fail(res, statusCode = 500, message = "Internal server error", extra = 
    ADMIN HELPER
 ========================================================= */
 function assertAdmin(req) {
-  const email = cleanEnv(req.headers["x-admin-email"] || req.body?.admin_email);
+  const body = req.body || {};
+  const email = cleanEnv(req.headers["x-admin-email"] || body.admin_email);
   const password = cleanEnv(
-    req.headers["x-admin-password"] || req.body?.admin_password
+    req.headers["x-admin-password"] || body.admin_password
   );
 
   if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
@@ -242,9 +243,23 @@ function getProviderReadiness() {
     supabase: !!(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY && supabase),
     google_maps: !!GOOGLE_MAPS_API_KEY,
     openai: !!(ENABLE_AI && OPENAI_API_KEY && openai),
-    persona: !!(PERSONA_API_KEY && PERSONA_TEMPLATE_ID_RIDER && PERSONA_TEMPLATE_ID_DRIVER),
-    twilio: !!(TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_FROM_NUMBER),
-    smtp: !!(SMTP_HOST && SMTP_PORT && SMTP_USER && SMTP_PASS && SMTP_FROM)
+    persona: !!(
+      PERSONA_API_KEY &&
+      PERSONA_TEMPLATE_ID_RIDER &&
+      PERSONA_TEMPLATE_ID_DRIVER
+    ),
+    twilio: !!(
+      TWILIO_ACCOUNT_SID &&
+      TWILIO_AUTH_TOKEN &&
+      TWILIO_FROM_NUMBER
+    ),
+    smtp: !!(
+      SMTP_HOST &&
+      SMTP_PORT &&
+      SMTP_USER &&
+      SMTP_PASS &&
+      SMTP_FROM
+    )
   };
 }
 
@@ -287,7 +302,6 @@ app.get("/ping", (req, res) => {
 
 /* =========================================================
    HEALTH CHECK (RENDER)
-   KEEP ABOVE ERROR HANDLER
 ========================================================= */
 app.get("/healthz", async (req, res) => {
   try {
@@ -367,7 +381,11 @@ function normalizeRequestedMode(value = "") {
 
 function normalizeRideType(value = "") {
   const rideType = lower(value);
-  if (["airport", "medical", "scheduled", "nonprofit", "standard"].includes(rideType)) {
+  if (
+    ["airport", "medical", "scheduled", "nonprofit", "standard"].includes(
+      rideType
+    )
+  ) {
     return rideType;
   }
   return "standard";
@@ -573,7 +591,10 @@ async function assertRiderEligibleForRideRequest(riderId) {
     throw err;
   }
 
-  if (ENABLE_RIDER_VERIFICATION_GATE && !isApprovedVerificationStatus(rider.verification_status)) {
+  if (
+    ENABLE_RIDER_VERIFICATION_GATE &&
+    !isApprovedVerificationStatus(rider.verification_status)
+  ) {
     const err = new Error("Rider verification is not approved");
     err.statusCode = 403;
     err.details = {
@@ -771,12 +792,16 @@ app.post("/api/request-ride", async (req, res) => {
       requested_mode: input.requestedMode
     });
 
-    return ok(res, {
-      message: "Ride request accepted",
-      ride_id: ride.id,
-      ride,
-      fare_estimate: fareEstimate
-    }, 201);
+    return ok(
+      res,
+      {
+        message: "Ride request accepted",
+        ride_id: ride.id,
+        ride,
+        fare_estimate: fareEstimate
+      },
+      201
+    );
   } catch (error) {
     console.error("❌ /api/request-ride failed:", error);
     return fail(
@@ -807,13 +832,12 @@ function toDispatchExpiryIso(timeoutSeconds = DISPATCH_TIMEOUT_SECONDS) {
 
 function isDriverAvailableStatus(value = "") {
   const status = lower(value);
-  return [
-    "",
-    "available",
-    "online",
-    "ready",
-    "active"
-  ].includes(status);
+  return ["", "available", "online", "ready", "active"].includes(status);
+}
+
+function isRideDispatchableStatus(value = "") {
+  const status = lower(value);
+  return ["awaiting_dispatch", "unassigned", "pending_dispatch"].includes(status);
 }
 
 function computeDriverDispatchScore(driver = {}, ride = {}) {
@@ -864,6 +888,7 @@ async function getEligibleDriversForRide(ride = {}) {
       rating,
       acceptance_rate,
       distance_miles,
+      is_priority,
       last_seen_at,
       vehicle_make,
       vehicle_model,
@@ -905,21 +930,15 @@ async function getEligibleDriversForRide(ride = {}) {
     return true;
   });
 
-  const rankedDrivers = eligibleDrivers
+  return eligibleDrivers
     .map((driver) => ({
       ...driver,
       dispatch_score: computeDriverDispatchScore(driver, ride)
     }))
     .sort((a, b) => Number(b.dispatch_score || 0) - Number(a.dispatch_score || 0));
-
-  return rankedDrivers;
 }
 
-async function createDispatchOffer({
-  ride,
-  driver,
-  attemptNumber = 1
-}) {
+async function createDispatchOffer({ ride, driver, attemptNumber = 1 }) {
   requireSupabase();
 
   const dispatchPayload = {
@@ -960,7 +979,12 @@ async function createDispatchOffer({
   return dispatch;
 }
 
-async function markRideAwaitingDriverAcceptance(rideId, driverId, dispatchId, attemptNumber) {
+async function markRideAwaitingDriverAcceptance(
+  rideId,
+  driverId,
+  dispatchId,
+  attemptNumber
+) {
   const ride = await safeUpdateById("rides", rideId, {
     status: "awaiting_driver_acceptance",
     driver_id: driverId,
@@ -978,7 +1002,11 @@ async function markRideAwaitingDriverAcceptance(rideId, driverId, dispatchId, at
   return ride;
 }
 
-async function markRideNoDriverAvailable(rideId, attempts = 0, reason = "no_eligible_drivers") {
+async function markRideNoDriverAvailable(
+  rideId,
+  attempts = 0,
+  reason = "no_eligible_drivers"
+) {
   const ride = await safeUpdateById("rides", rideId, {
     status: "no_driver_available",
     dispatch_attempts: attempts,
@@ -1084,6 +1112,18 @@ async function getRideById(rideId) {
   }
 
   return data;
+}
+
+async function assertDispatchDriverAccess(dispatchId, driverId) {
+  const dispatch = await getDispatchById(dispatchId);
+
+  if (cleanEnv(dispatch.driver_id) !== cleanEnv(driverId)) {
+    const err = new Error("Driver is not authorized for this dispatch");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  return dispatch;
 }
 
 async function expireDispatch(dispatchId, reason = "timeout") {
@@ -1193,7 +1233,11 @@ async function redispatchRideIfEligible(rideId) {
   const attempts = Number(ride.dispatch_attempts || 0);
 
   if (attempts >= MAX_DISPATCH_ATTEMPTS) {
-    await markRideNoDriverAvailable(ride.id, attempts, "max_dispatch_attempts_reached");
+    await markRideNoDriverAvailable(
+      ride.id,
+      attempts,
+      "max_dispatch_attempts_reached"
+    );
     return {
       redispatched: false,
       reason: "max_dispatch_attempts_reached"
@@ -1206,7 +1250,9 @@ async function redispatchRideIfEligible(rideId) {
     .eq("ride_id", ride.id);
 
   const attemptedDriverIds = new Set(
-    (offeredDispatchesResult.data || []).map((row) => cleanEnv(row.driver_id)).filter(Boolean)
+    (offeredDispatchesResult.data || [])
+      .map((row) => cleanEnv(row.driver_id))
+      .filter(Boolean)
   );
 
   const allCandidates = await getEligibleDriversForRide(ride);
@@ -1259,6 +1305,15 @@ app.post("/api/rides/:rideId/dispatch", async (req, res) => {
     }
 
     const ride = await getRideById(rideId);
+
+    if (!isRideDispatchableStatus(ride.status)) {
+      return fail(
+        res,
+        409,
+        `Ride cannot be dispatched from status: ${ride.status || "unknown"}`
+      );
+    }
+
     const result = await assignInitialDispatchForRide(ride);
 
     return ok(res, {
@@ -1281,10 +1336,17 @@ app.post("/api/rides/:rideId/dispatch", async (req, res) => {
 app.post("/api/dispatches/:dispatchId/accept", async (req, res) => {
   try {
     const dispatchId = cleanEnv(req.params.dispatchId);
+    const driverId = cleanEnv(req.body?.driver_id || req.body?.driverId);
+
     if (!dispatchId) {
       return fail(res, 400, "dispatchId is required");
     }
 
+    if (!driverId) {
+      return fail(res, 400, "driver_id is required");
+    }
+
+    await assertDispatchDriverAccess(dispatchId, driverId);
     const dispatch = await acceptDispatch(dispatchId);
 
     return ok(res, {
@@ -1305,14 +1367,20 @@ app.post("/api/dispatches/:dispatchId/accept", async (req, res) => {
 app.post("/api/dispatches/:dispatchId/reject", async (req, res) => {
   try {
     const dispatchId = cleanEnv(req.params.dispatchId);
+    const driverId = cleanEnv(req.body?.driver_id || req.body?.driverId);
     const reason = cleanEnv(req.body?.reason || "driver_rejected");
 
     if (!dispatchId) {
       return fail(res, 400, "dispatchId is required");
     }
 
+    if (!driverId) {
+      return fail(res, 400, "driver_id is required");
+    }
+
+    const ownedDispatch = await assertDispatchDriverAccess(dispatchId, driverId);
     const dispatch = await rejectDispatch(dispatchId, reason);
-    const redispatchResult = await redispatchRideIfEligible(dispatch.ride_id);
+    const redispatchResult = await redispatchRideIfEligible(ownedDispatch.ride_id);
 
     return ok(res, {
       message: "Dispatch rejected",
@@ -1333,14 +1401,20 @@ app.post("/api/dispatches/:dispatchId/reject", async (req, res) => {
 app.post("/api/dispatches/:dispatchId/expire", async (req, res) => {
   try {
     const dispatchId = cleanEnv(req.params.dispatchId);
+    const driverId = cleanEnv(req.body?.driver_id || req.body?.driverId);
     const reason = cleanEnv(req.body?.reason || "timeout");
 
     if (!dispatchId) {
       return fail(res, 400, "dispatchId is required");
     }
 
+    if (!driverId) {
+      return fail(res, 400, "driver_id is required");
+    }
+
+    const ownedDispatch = await assertDispatchDriverAccess(dispatchId, driverId);
     const dispatch = await expireDispatch(dispatchId, reason);
-    const redispatchResult = await redispatchRideIfEligible(dispatch.ride_id);
+    const redispatchResult = await redispatchRideIfEligible(ownedDispatch.ride_id);
 
     return ok(res, {
       message: "Dispatch expired",
@@ -1380,13 +1454,20 @@ async function getDriverById(driverId) {
 
 function canDriverOperateRide(driver = {}, ride = {}) {
   if (!driver || !ride) return false;
-  if (cleanEnv(driver.current_ride_id) && cleanEnv(driver.current_ride_id) !== cleanEnv(ride.id)) {
+
+  if (
+    cleanEnv(driver.current_ride_id) &&
+    cleanEnv(driver.current_ride_id) !== cleanEnv(ride.id)
+  ) {
     return false;
   }
+
   if (lower(driver.verification_status) !== "approved") return false;
 
   const driverType = normalizeDriverType(driver.driver_type);
-  const requestedType = getRequestedDriverTypeFromMode(ride.requested_mode || "driver");
+  const requestedType = getRequestedDriverTypeFromMode(
+    ride.requested_mode || "driver"
+  );
 
   return driverType === requestedType;
 }
@@ -1408,6 +1489,20 @@ function buildStatusTimestampPatch(status) {
     default:
       return {};
   }
+}
+
+function isRideStartableStatus(status = "") {
+  return ["dispatched", "driver_en_route", "arrived"].includes(lower(status));
+}
+
+function isRideCompletableStatus(status = "") {
+  return ["dispatched", "driver_en_route", "arrived", "in_progress"].includes(
+    lower(status)
+  );
+}
+
+function isRideCancellableStatus(status = "") {
+  return !["completed", "cancelled"].includes(lower(status));
 }
 
 async function updateRideStatus(rideId, status, extra = {}) {
@@ -1492,7 +1587,10 @@ async function createDriverEarningsLedgerEntry(ride = {}) {
         amount: entry.payout_amount
       });
     } catch (fallbackError) {
-      console.warn("⚠️ driver earnings ledger insert failed:", fallbackError.message);
+      console.warn(
+        "⚠️ driver earnings ledger insert failed:",
+        fallbackError.message
+      );
       return null;
     }
   }
@@ -1759,6 +1857,14 @@ app.post("/api/rides/:rideId/start", async (req, res) => {
       return fail(res, 403, "Driver is not eligible to start this ride");
     }
 
+    if (!isRideStartableStatus(ride.status)) {
+      return fail(
+        res,
+        409,
+        `Ride cannot be started from status: ${ride.status || "unknown"}`
+      );
+    }
+
     const updatedRide = await updateRideStatus(rideId, "in_progress", {
       driver_id: driverId
     });
@@ -1800,6 +1906,18 @@ app.post("/api/rides/:rideId/complete", async (req, res) => {
 
     if (!canDriverOperateRide(driver, ride)) {
       return fail(res, 403, "Driver is not eligible to complete this ride");
+    }
+
+    if (lower(ride.status) === "completed") {
+      return fail(res, 409, "Ride is already completed");
+    }
+
+    if (!isRideCompletableStatus(ride.status)) {
+      return fail(
+        res,
+        409,
+        `Ride cannot be completed from status: ${ride.status || "unknown"}`
+      );
     }
 
     const resolvedFinalTotal = asMoney(
@@ -1864,12 +1982,22 @@ app.post("/api/rides/:rideId/complete", async (req, res) => {
 app.post("/api/rides/:rideId/cancel", async (req, res) => {
   try {
     const rideId = cleanEnv(req.params.rideId);
-    const cancelledBy = cleanEnv(req.body?.cancelled_by || req.body?.cancelledBy || "unknown");
+    const cancelledBy = cleanEnv(
+      req.body?.cancelled_by || req.body?.cancelledBy || "unknown"
+    );
     const reason = cleanEnv(req.body?.reason || "cancelled");
 
     if (!rideId) return fail(res, 400, "rideId is required");
 
     const ride = await getRideById(rideId);
+
+    if (!isRideCancellableStatus(ride.status)) {
+      return fail(
+        res,
+        409,
+        `Ride cannot be cancelled from status: ${ride.status || "unknown"}`
+      );
+    }
 
     const updatedRide = await updateRideStatus(rideId, "cancelled", {
       cancelled_by: cancelledBy,
@@ -1939,10 +2067,14 @@ app.post("/api/rides/:rideId/tip", async (req, res) => {
       rider_id: ride.rider_id
     });
 
-    return ok(res, {
-      message: "Tip recorded",
-      tip
-    }, 201);
+    return ok(
+      res,
+      {
+        message: "Tip recorded",
+        tip
+      },
+      201
+    );
   } catch (error) {
     console.error("❌ /api/rides/:rideId/tip failed:", error);
     return fail(
@@ -2094,29 +2226,6 @@ async function getTableCount(tableName) {
   } catch (error) {
     return null;
   }
-}
-
-async function safeSelectWithPagination(tableName, queryBuilderCallback, options = {}) {
-  requireSupabase();
-
-  const { limit = 25, offset = 0 } = options;
-
-  let query = supabase.from(tableName).select("*");
-
-  if (typeof queryBuilderCallback === "function") {
-    query = queryBuilderCallback(query);
-  }
-
-  const { data, error } = await query.range(offset, offset + limit - 1);
-
-  if (error) {
-    const err = new Error(error.message || `Unable to query ${tableName}`);
-    err.statusCode = 500;
-    err.details = error;
-    throw err;
-  }
-
-  return data || [];
 }
 
 /* =========================================================
@@ -2336,14 +2445,11 @@ app.get("/api/admin/verification/riders", async (req, res) => {
     }
 
     const riders = data || [];
-    const summary = riders.reduce(
-      (acc, rider) => {
-        const key = lower(rider.verification_status || "unknown");
-        acc[key] = (acc[key] || 0) + 1;
-        return acc;
-      },
-      {}
-    );
+    const summary = riders.reduce((acc, rider) => {
+      const key = lower(rider.verification_status || "unknown");
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
 
     return ok(res, {
       limit,
@@ -2408,16 +2514,13 @@ app.get("/api/admin/verification/drivers", async (req, res) => {
     }
 
     const drivers = data || [];
-    const summary = drivers.reduce(
-      (acc, driver) => {
-        const verifyKey = `verification_${lower(driver.verification_status || "unknown")}`;
-        const approveKey = `approval_${lower(driver.approval_status || "unknown")}`;
-        acc[verifyKey] = (acc[verifyKey] || 0) + 1;
-        acc[approveKey] = (acc[approveKey] || 0) + 1;
-        return acc;
-      },
-      {}
-    );
+    const summary = drivers.reduce((acc, driver) => {
+      const verifyKey = `verification_${lower(driver.verification_status || "unknown")}`;
+      const approveKey = `approval_${lower(driver.approval_status || "unknown")}`;
+      acc[verifyKey] = (acc[verifyKey] || 0) + 1;
+      acc[approveKey] = (acc[approveKey] || 0) + 1;
+      return acc;
+    }, {});
 
     return ok(res, {
       limit,
@@ -2758,7 +2861,6 @@ app.use((req, res, next) => {
 
 /* =========================================================
    FINAL ERROR HANDLER
-   KEEP THIS NEAR THE BOTTOM
 ========================================================= */
 app.use((error, req, res, next) => {
   console.error("❌ SERVER ERROR:", {
