@@ -62,7 +62,10 @@ function nowIso() {
 }
 
 function uuid() {
-  return crypto.randomUUID();
+  if (typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return crypto.randomBytes(16).toString("hex");
 }
 
 function sha256(value = "") {
@@ -90,11 +93,42 @@ function dollars(value) {
   return Number.isFinite(n) ? Number(n.toFixed(2)) : 0;
 }
 
+function isNonEmpty(value) {
+  return cleanEnv(value).length > 0;
+}
+
+function coalesce(...values) {
+  for (const value of values) {
+    if (value !== undefined && value !== null && String(value).trim() !== "") {
+      return value;
+    }
+  }
+  return "";
+}
+
+function lower(value = "") {
+  return cleanEnv(value).toLowerCase();
+}
+
+function clampNumber(value, min, max, fallback = 0) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
+function pickDefined(obj = {}) {
+  const output = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) output[key] = value;
+  }
+  return output;
+}
+
 /* =========================================================
    ENV CONFIG
 ========================================================= */
 const APP_NAME = cleanEnv(process.env.APP_NAME || "Harvey Taxi");
-const APP_VERSION = cleanEnv(process.env.APP_VERSION || "code-blue-phase-9");
+const APP_VERSION = cleanEnv(process.env.APP_VERSION || "code-blue-phase-10");
 
 const APP_BASE_URL = cleanEnv(process.env.APP_BASE_URL);
 const PUBLIC_APP_URL = cleanEnv(process.env.PUBLIC_APP_URL);
@@ -121,13 +155,17 @@ const PERSONA_WEBHOOK_SECRET = cleanEnv(process.env.PERSONA_WEBHOOK_SECRET);
 
 const TWILIO_ACCOUNT_SID = cleanEnv(process.env.TWILIO_ACCOUNT_SID);
 const TWILIO_AUTH_TOKEN = cleanEnv(process.env.TWILIO_AUTH_TOKEN);
-const TWILIO_PHONE_NUMBER = cleanEnv(process.env.TWILIO_PHONE_NUMBER);
+const TWILIO_PHONE_NUMBER = cleanEnv(
+  process.env.TWILIO_PHONE_NUMBER || process.env.TWILIO_FROM_NUMBER
+);
 
 const SMTP_HOST = cleanEnv(process.env.SMTP_HOST);
 const SMTP_PORT = toNumber(process.env.SMTP_PORT, 587);
 const SMTP_USER = cleanEnv(process.env.SMTP_USER);
 const SMTP_PASS = cleanEnv(process.env.SMTP_PASS);
-const SMTP_FROM = cleanEnv(process.env.SMTP_FROM);
+const SMTP_FROM = cleanEnv(
+  process.env.SMTP_FROM || process.env.SUPPORT_FROM_EMAIL || process.env.EMAIL_FROM
+);
 
 const REQUIRE_RIDER_VERIFICATION = toBool(
   process.env.REQUIRE_RIDER_VERIFICATION,
@@ -139,6 +177,104 @@ const REQUIRE_PAYMENT_AUTHORIZATION = toBool(
 );
 const ENABLE_AI_DISPATCH = toBool(process.env.ENABLE_AI_DISPATCH, true);
 const ENABLE_AUTONOMOUS_MODE = toBool(process.env.ENABLE_AUTONOMOUS_MODE, true);
+
+const ENABLE_PERSONA_WEBHOOKS = toBool(
+  process.env.ENABLE_PERSONA_WEBHOOKS,
+  true
+);
+const ENABLE_PERSONA_ENFORCEMENT = toBool(
+  process.env.ENABLE_PERSONA_ENFORCEMENT,
+  false
+);
+const ENABLE_DRIVER_EMAIL_VERIFICATION = toBool(
+  process.env.ENABLE_DRIVER_EMAIL_VERIFICATION,
+  true
+);
+const ENABLE_DRIVER_SMS_VERIFICATION = toBool(
+  process.env.ENABLE_DRIVER_SMS_VERIFICATION,
+  true
+);
+const ENABLE_REAL_EMAIL = toBool(process.env.ENABLE_REAL_EMAIL, false);
+const ENABLE_REAL_SMS = toBool(process.env.ENABLE_REAL_SMS, false);
+const ENABLE_ADMIN_AUTH = toBool(process.env.ENABLE_ADMIN_AUTH, true);
+const ENABLE_STARTUP_TABLE_CHECKS = toBool(
+  process.env.ENABLE_STARTUP_TABLE_CHECKS,
+  true
+);
+const ENABLE_TRIP_TIMELINE = toBool(process.env.ENABLE_TRIP_TIMELINE, true);
+const ENABLE_AUTO_REDISPATCH = toBool(
+  process.env.ENABLE_AUTO_REDISPATCH,
+  true
+);
+
+const DISPATCH_MAX_ATTEMPTS = toNumber(process.env.DISPATCH_MAX_ATTEMPTS, 5);
+const DISPATCH_OFFER_TIMEOUT_SECONDS = toNumber(
+  process.env.DISPATCH_OFFER_TIMEOUT_SECONDS,
+  25
+);
+const DISPATCH_BASE_RADIUS_MILES = toNumber(
+  process.env.DISPATCH_BASE_RADIUS_MILES,
+  10
+);
+
+const SURGE_MULTIPLIER_DEFAULT = toNumber(
+  process.env.SURGE_MULTIPLIER_DEFAULT,
+  1
+);
+const SURGE_MULTIPLIER_BUSY = toNumber(
+  process.env.SURGE_MULTIPLIER_BUSY,
+  1.2
+);
+const SURGE_MULTIPLIER_HIGH = toNumber(
+  process.env.SURGE_MULTIPLIER_HIGH,
+  1.5
+);
+
+const PUBLIC_BASE_URL =
+  PUBLIC_APP_URL ||
+  RENDER_EXTERNAL_URL ||
+  APP_BASE_URL ||
+  `http://localhost:${PORT}`;
+
+const PERSONA_ENABLED = Boolean(
+  PERSONA_API_KEY &&
+    PERSONA_TEMPLATE_ID_RIDER &&
+    PERSONA_TEMPLATE_ID_DRIVER &&
+    ENABLE_PERSONA_WEBHOOKS
+);
+
+const TWILIO_ENABLED = Boolean(
+  TWILIO_ACCOUNT_SID &&
+    TWILIO_AUTH_TOKEN &&
+    TWILIO_PHONE_NUMBER &&
+    ENABLE_REAL_SMS
+);
+
+const SMTP_ENABLED = Boolean(
+  SMTP_HOST &&
+    SMTP_USER &&
+    SMTP_PASS &&
+    SMTP_FROM &&
+    ENABLE_REAL_EMAIL
+);
+
+const OPENAI_ENABLED = Boolean(OpenAI && OPENAI_API_KEY);
+
+const REQUIRED_TABLES = [
+  "riders",
+  "drivers",
+  "rides",
+  "missions",
+  "dispatches",
+  "trip_events",
+  "audit_logs",
+  "payment_authorizations",
+  "driver_locations",
+  "driver_earnings_ledger",
+  "driver_payouts",
+  "support_cases",
+  "incident_reports"
+];
 
 /* =========================================================
    SUPABASE
@@ -163,12 +299,43 @@ function ensureSupabase() {
   }
 }
 
+async function testTableExists(tableName) {
+  ensureSupabase();
+  const { error } = await supabase.from(tableName).select("*").limit(1);
+  return !error;
+}
+
+async function runStartupTableChecks() {
+  if (!ENABLE_STARTUP_TABLE_CHECKS || !supabase) {
+    return {
+      enabled: ENABLE_STARTUP_TABLE_CHECKS,
+      checked: false,
+      tables: {}
+    };
+  }
+
+  const results = {};
+  for (const table of REQUIRED_TABLES) {
+    try {
+      results[table] = await testTableExists(table);
+    } catch (error) {
+      results[table] = false;
+    }
+  }
+
+  return {
+    enabled: true,
+    checked: true,
+    tables: results
+  };
+}
+
 /* =========================================================
    OPENAI
 ========================================================= */
 let openai = null;
 
-if (OpenAI && OPENAI_API_KEY) {
+if (OPENAI_ENABLED) {
   try {
     openai = new OpenAI({
       apiKey: OPENAI_API_KEY
@@ -186,14 +353,16 @@ const VERIFICATION_STATUSES = {
   PENDING: "pending",
   VERIFIED: "verified",
   REJECTED: "rejected",
-  REVIEW_REQUIRED: "review_required"
+  REVIEW_REQUIRED: "review_required",
+  DISABLED: "disabled"
 };
 
 const PAYMENT_STATUSES = {
   PENDING: "pending",
   AUTHORIZED: "authorized",
   CAPTURED: "captured",
-  RELEASED: "released"
+  RELEASED: "released",
+  FAILED: "failed"
 };
 
 const RIDE_STATUSES = {
@@ -215,22 +384,18 @@ const REQUESTED_MODES = {
   AUTONOMOUS: "autonomous"
 };
 
-const DISPATCH_MAX_ATTEMPTS = toNumber(process.env.DISPATCH_MAX_ATTEMPTS, 5);
-const DISPATCH_OFFER_TIMEOUT_SECONDS = toNumber(
-  process.env.DISPATCH_OFFER_TIMEOUT_SECONDS,
-  25
-);
-const DISPATCH_BASE_RADIUS_MILES = toNumber(
-  process.env.DISPATCH_BASE_RADIUS_MILES,
-  10
-);
+const DRIVER_TYPES = {
+  HUMAN: "human",
+  AUTONOMOUS: "autonomous",
+  MIXED: "mixed"
+};
 
 const MISSION_KNOWLEDGE = `
 Harvey Taxi Service LLC is the for-profit transportation platform.
 Harvey Transportation Assistance Foundation is the nonprofit mission side.
 The platform supports human drivers today and autonomous pilot expansion in the future.
 Riders should be verified before they can fully access ride requests when verification gates are enabled.
-Drivers should complete onboarding, including verification steps, before activation.
+Drivers should complete onboarding, including email, SMS, and identity verification steps, before activation.
 `.trim();
 
 /* =========================================================
@@ -261,6 +426,88 @@ function asyncHandler(handler) {
   };
 }
 
+function publicBaseUrl() {
+  return PUBLIC_BASE_URL;
+}
+
+/* =========================================================
+   REQUEST / SECURITY HELPERS
+========================================================= */
+function getAdminCredentialPayload(req) {
+  return {
+    email: normalizeEmail(
+      req.headers["x-admin-email"] ||
+        req.body?.admin_email ||
+        req.query?.admin_email
+    ),
+    password: cleanEnv(
+      req.headers["x-admin-password"] ||
+        req.body?.admin_password ||
+        req.query?.admin_password
+    ),
+    apiKey: cleanEnv(
+      req.headers["x-admin-api-key"] ||
+        req.body?.admin_api_key ||
+        req.query?.admin_api_key
+    )
+  };
+}
+
+function isAdminAuthorized(req) {
+  if (!ENABLE_ADMIN_AUTH) return true;
+
+  const creds = getAdminCredentialPayload(req);
+  const emailOk = ADMIN_EMAIL && creds.email === ADMIN_EMAIL;
+  const passwordOk = ADMIN_PASSWORD && creds.password === ADMIN_PASSWORD;
+  const apiKeyOk = ADMIN_API_KEY && creds.apiKey === ADMIN_API_KEY;
+
+  if (ADMIN_API_KEY) {
+    return apiKeyOk;
+  }
+
+  return emailOk && passwordOk;
+}
+
+function requireAdmin(req, res, next) {
+  if (isAdminAuthorized(req)) {
+    return next();
+  }
+
+  return fail(res, 401, "Admin authorization required.", {
+    code: "ADMIN_AUTH_REQUIRED"
+  });
+}
+
+function normalizeRequestedMode(value = REQUESTED_MODES.DRIVER) {
+  const mode = lower(value);
+  return mode === REQUESTED_MODES.AUTONOMOUS
+    ? REQUESTED_MODES.AUTONOMOUS
+    : REQUESTED_MODES.DRIVER;
+}
+
+function normalizeDriverType(value = DRIVER_TYPES.HUMAN) {
+  const type = lower(value);
+  if (type === DRIVER_TYPES.AUTONOMOUS) return DRIVER_TYPES.AUTONOMOUS;
+  if (type === DRIVER_TYPES.MIXED) return DRIVER_TYPES.MIXED;
+  return DRIVER_TYPES.HUMAN;
+}
+
+function normalizeAddress(value = "") {
+  return String(value || "").trim();
+}
+
+function sanitizeFreeText(value = "", maxLength = 1000) {
+  return String(value || "")
+    .replace(/\u0000/g, "")
+    .trim()
+    .slice(0, maxLength);
+}
+
+function normalizeStatus(value = "", fallback = "pending") {
+  const normalized = lower(value);
+  return normalized || fallback;
+}
+
 /* =========================================================
    SANITIZERS
 ========================================================= */
@@ -278,7 +525,7 @@ function sanitizeRider(rider) {
     phone: rider.phone || "",
     city: rider.city || "",
     state: rider.state || "",
-    verification_status: rider.verification_status || "pending",
+    verification_status: rider.verification_status || VERIFICATION_STATUSES.PENDING,
     persona_status: rider.persona_status || "not_started",
     persona_inquiry_id: rider.persona_inquiry_id || null,
     id_type: rider.id_type || null,
@@ -305,12 +552,12 @@ function sanitizeDriver(driver) {
     vehicle_make: driver.vehicle_make || "",
     vehicle_model: driver.vehicle_model || "",
     vehicle_year: driver.vehicle_year || "",
-    driver_type: driver.driver_type || "human",
+    driver_type: normalizeDriverType(driver.driver_type),
     email_verified: driver.email_verified === true,
     sms_verified: driver.sms_verified === true,
     persona_status: driver.persona_status || "not_started",
     identity_status: driver.identity_status || "not_started",
-    verification_status: driver.verification_status || "pending",
+    verification_status: driver.verification_status || VERIFICATION_STATUSES.PENDING,
     status: driver.status || "pending",
     is_available: driver.is_available === true,
     availability_status: driver.availability_status || "offline",
@@ -322,29 +569,86 @@ function sanitizeDriver(driver) {
   };
 }
 
-function normalizeRequestedMode(value = REQUESTED_MODES.DRIVER) {
-  const mode = cleanEnv(value).toLowerCase();
-  return mode === REQUESTED_MODES.AUTONOMOUS
-    ? REQUESTED_MODES.AUTONOMOUS
-    : REQUESTED_MODES.DRIVER;
+function sanitizeRide(ride) {
+  if (!ride) return null;
+
+  return {
+    id: ride.id,
+    rider_id: ride.rider_id || null,
+    driver_id: ride.driver_id || null,
+    status: ride.status || RIDE_STATUSES.REQUESTED,
+    pickup_address: ride.pickup_address || "",
+    dropoff_address: ride.dropoff_address || "",
+    estimated_distance_miles: Number(ride.estimated_distance_miles || 0),
+    estimated_duration_minutes: Number(ride.estimated_duration_minutes || 0),
+    fare_estimate: dollars(ride.fare_estimate || 0),
+    driver_payout_estimate: dollars(ride.driver_payout_estimate || 0),
+    platform_fee_estimate: dollars(ride.platform_fee_estimate || 0),
+    ride_type: ride.ride_type || "standard",
+    requested_mode: normalizeRequestedMode(ride.requested_mode),
+    payment_status: ride.payment_status || PAYMENT_STATUSES.PENDING,
+    payment_authorization_id: ride.payment_authorization_id || null,
+    special_notes: ride.special_notes || "",
+    created_at: ride.created_at || null,
+    updated_at: ride.updated_at || null
+  };
 }
 
+/* =========================================================
+   BUSINESS RULE HELPERS
+========================================================= */
 function isDriverVerified(driver) {
   return (
-    String(driver?.verification_status || "").toLowerCase() ===
-    VERIFICATION_STATUSES.VERIFIED
+    lower(driver?.verification_status) === VERIFICATION_STATUSES.VERIFIED
+  );
+}
+
+function isRiderVerified(rider) {
+  return (
+    lower(rider?.verification_status) === VERIFICATION_STATUSES.VERIFIED
   );
 }
 
 function isDriverEligibleForMode(driver, requestedMode) {
   const mode = normalizeRequestedMode(requestedMode);
-  const driverType = cleanEnv(driver?.driver_type || "human").toLowerCase();
+  const driverType = normalizeDriverType(driver?.driver_type);
 
   if (mode === REQUESTED_MODES.AUTONOMOUS) {
-    return ENABLE_AUTONOMOUS_MODE && driverType === "autonomous";
+    return ENABLE_AUTONOMOUS_MODE && driverType === DRIVER_TYPES.AUTONOMOUS;
   }
 
-  return driverType === "human" || driverType === "mixed";
+  return (
+    driverType === DRIVER_TYPES.HUMAN || driverType === DRIVER_TYPES.MIXED
+  );
+}
+
+function canActivateDriver(driver) {
+  const personaReady = !ENABLE_PERSONA_ENFORCEMENT
+    ? true
+    : lower(driver?.persona_status) === "approved";
+
+  const emailReady = !ENABLE_DRIVER_EMAIL_VERIFICATION
+    ? true
+    : driver?.email_verified === true;
+
+  const smsReady = !ENABLE_DRIVER_SMS_VERIFICATION
+    ? true
+    : driver?.sms_verified === true;
+
+  return personaReady && emailReady && smsReady;
+}
+
+function buildDriverVerificationSummary(driver) {
+  return {
+    email_required: ENABLE_DRIVER_EMAIL_VERIFICATION,
+    sms_required: ENABLE_DRIVER_SMS_VERIFICATION,
+    identity_required: ENABLE_PERSONA_ENFORCEMENT,
+    email_verified: driver?.email_verified === true,
+    sms_verified: driver?.sms_verified === true,
+    persona_status: driver?.persona_status || "not_started",
+    verification_status: driver?.verification_status || VERIFICATION_STATUSES.PENDING,
+    activation_ready: canActivateDriver(driver)
+  };
 }
 
 /* =========================================================
@@ -357,6 +661,19 @@ async function getRiderById(riderId) {
     .from("riders")
     .select("*")
     .eq("id", riderId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
+}
+
+async function getRiderByEmail(email) {
+  ensureSupabase();
+
+  const { data, error } = await supabase
+    .from("riders")
+    .select("*")
+    .eq("email", normalizeEmail(email))
     .maybeSingle();
 
   if (error) throw error;
@@ -376,6 +693,19 @@ async function getDriverById(driverId) {
   return data || null;
 }
 
+async function getDriverByEmail(email) {
+  ensureSupabase();
+
+  const { data, error } = await supabase
+    .from("drivers")
+    .select("*")
+    .eq("email", normalizeEmail(email))
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
+}
+
 async function getRideById(rideId) {
   ensureSupabase();
 
@@ -389,7 +719,42 @@ async function getRideById(rideId) {
   return data || null;
 }
 
+async function getMissionById(missionId) {
+  ensureSupabase();
+
+  const { data, error } = await supabase
+    .from("missions")
+    .select("*")
+    .eq("id", missionId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
+}
+
+async function getMissionByRideId(rideId) {
+  ensureSupabase();
+
+  const { data, error } = await supabase
+    .from("missions")
+    .select("*")
+    .eq("ride_id", rideId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
+}
+
+/* =========================================================
+   LOGGING / AUDIT HELPERS
+========================================================= */
 async function createTripEvent(rideId, event, metadata = {}) {
+  if (!ENABLE_TRIP_TIMELINE) {
+    return null;
+  }
+
   ensureSupabase();
 
   const payload = {
@@ -410,13 +775,18 @@ async function createTripEvent(rideId, event, metadata = {}) {
   return data;
 }
 
-async function createAuditLog(action, metadata = {}, actorType = "system", actorId = null) {
+async function createAuditLog(
+  action,
+  metadata = {},
+  actorType = "system",
+  actorId = null
+) {
   ensureSupabase();
 
   const payload = {
     id: uuid(),
     action,
-    actor_type: actorType,
+    actor_type: lower(actorType || "system"),
     actor_id: actorId,
     metadata,
     created_at: nowIso()
@@ -432,6 +802,9 @@ async function createAuditLog(action, metadata = {}, actorType = "system", actor
   return data;
 }
 
+/* =========================================================
+   AUTHORIZATION GATES
+========================================================= */
 async function requireVerifiedRider(riderId) {
   const rider = await getRiderById(riderId);
 
@@ -441,15 +814,16 @@ async function requireVerifiedRider(riderId) {
     throw error;
   }
 
-  if (
-    REQUIRE_RIDER_VERIFICATION &&
-    String(rider.verification_status || "").toLowerCase() !==
-      VERIFICATION_STATUSES.VERIFIED
-  ) {
+  if (REQUIRE_RIDER_VERIFICATION && !isRiderVerified(rider)) {
     const error = new Error(
       "Rider verification approval is required before this action."
     );
     error.statusCode = 403;
+    error.details = {
+      rider_id: rider.id,
+      verification_status: rider.verification_status,
+      persona_status: rider.persona_status || "not_started"
+    };
     throw error;
   }
 
@@ -465,66 +839,23 @@ async function requireAuthorizedPaymentForRide(rideId) {
     throw error;
   }
 
+  const paymentStatus = lower(ride.payment_status);
+
   if (
     REQUIRE_PAYMENT_AUTHORIZATION &&
-    String(ride.payment_status || "").toLowerCase() !==
-      PAYMENT_STATUSES.AUTHORIZED &&
-    String(ride.payment_status || "").toLowerCase() !==
-      PAYMENT_STATUSES.CAPTURED
+    paymentStatus !== PAYMENT_STATUSES.AUTHORIZED &&
+    paymentStatus !== PAYMENT_STATUSES.CAPTURED
   ) {
     const error = new Error("Authorized payment is required for this ride.");
     error.statusCode = 402;
+    error.details = {
+      ride_id: ride.id,
+      payment_status: ride.payment_status
+    };
     throw error;
   }
 
   return ride;
-}
-
-/* =========================================================
-   DRIVER SCORING
-========================================================= */
-function scoreDriverForRide(driver, ride, metrics = {}) {
-  const distanceMiles = Number(metrics.distance_miles ?? 999);
-  const idleMinutes = Number(metrics.idle_minutes ?? 0);
-  const rating = Number(driver?.rating || 5);
-  const acceptanceRate = Number(driver?.acceptance_rate || 0);
-  const completionRate = Number(driver?.completion_rate || 0);
-
-  const distanceScore = Math.max(0, 100 - distanceMiles * 8);
-  const idleScore = Math.min(25, idleMinutes / 2);
-  const ratingScore = Math.min(25, rating * 5);
-  const acceptanceScore = Math.min(25, acceptanceRate * 25);
-  const completionScore = Math.min(25, completionRate * 25);
-
-  const totalScore =
-    distanceScore +
-    idleScore +
-    ratingScore +
-    acceptanceScore +
-    completionScore;
-
-  return {
-    total_score: Number(totalScore.toFixed(2)),
-    components: {
-      distance_score: Number(distanceScore.toFixed(2)),
-      idle_score: Number(idleScore.toFixed(2)),
-      rating_score: Number(ratingScore.toFixed(2)),
-      acceptance_score: Number(acceptanceScore.toFixed(2)),
-      completion_score: Number(completionScore.toFixed(2))
-    }
-  };
-}
-
-/* =========================================================
-   PUBLIC BASE URL
-========================================================= */
-function publicBaseUrl() {
-  return (
-    PUBLIC_APP_URL ||
-    RENDER_EXTERNAL_URL ||
-    APP_BASE_URL ||
-    `http://localhost:${PORT}`
-  );
 }
 
 /* =========================================================
@@ -534,6 +865,11 @@ app.get(
   "/api/health",
   asyncHandler(async (req, res) => {
     let database = "down";
+    let startupTables = {
+      enabled: ENABLE_STARTUP_TABLE_CHECKS,
+      checked: false,
+      tables: {}
+    };
 
     try {
       ensureSupabase();
@@ -541,40 +877,50 @@ app.get(
       if (!error) {
         database = "up";
       }
+
+      startupTables = await runStartupTableChecks();
     } catch (error) {
       database = "down";
     }
-
-    const ai = openai ? "up" : "missing";
-    const maps = GOOGLE_MAPS_API_KEY ? "configured" : "missing";
-    const persona =
-      PERSONA_API_KEY && PERSONA_TEMPLATE_ID_RIDER && PERSONA_TEMPLATE_ID_DRIVER
-        ? "configured"
-        : "missing";
-    const twilio =
-      TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_PHONE_NUMBER
-        ? "configured"
-        : "missing";
-    const email =
-      SMTP_HOST && SMTP_USER && SMTP_PASS && SMTP_FROM ? "configured" : "missing";
 
     return ok(res, {
       app: APP_NAME,
       version: APP_VERSION,
       started_at: SERVER_STARTED_AT,
       now: nowIso(),
+      base_url: publicBaseUrl(),
       services: {
         database,
-        ai,
-        maps,
-        persona,
-        twilio,
-        email
-      }
+        ai: openai ? "up" : "missing",
+        maps: GOOGLE_MAPS_API_KEY ? "configured" : "missing",
+        persona: PERSONA_ENABLED ? "configured" : "missing_or_disabled",
+        twilio: TWILIO_ENABLED ? "configured" : "missing_or_disabled",
+        email: SMTP_ENABLED ? "configured" : "missing_or_disabled"
+      },
+      feature_flags: {
+        require_rider_verification: REQUIRE_RIDER_VERIFICATION,
+        require_payment_authorization: REQUIRE_PAYMENT_AUTHORIZATION,
+        enable_ai_dispatch: ENABLE_AI_DISPATCH,
+        enable_autonomous_mode: ENABLE_AUTONOMOUS_MODE,
+        enable_persona_webhooks: ENABLE_PERSONA_WEBHOOKS,
+        enable_persona_enforcement: ENABLE_PERSONA_ENFORCEMENT,
+        enable_driver_email_verification: ENABLE_DRIVER_EMAIL_VERIFICATION,
+        enable_driver_sms_verification: ENABLE_DRIVER_SMS_VERIFICATION,
+        enable_real_email: ENABLE_REAL_EMAIL,
+        enable_real_sms: ENABLE_REAL_SMS,
+        enable_auto_redispatch: ENABLE_AUTO_REDISPATCH,
+        enable_trip_timeline: ENABLE_TRIP_TIMELINE
+      },
+      dispatch_config: {
+        max_attempts: DISPATCH_MAX_ATTEMPTS,
+        offer_timeout_seconds: DISPATCH_OFFER_TIMEOUT_SECONDS,
+        base_radius_miles: DISPATCH_BASE_RADIUS_MILES
+      },
+      startup_tables: startupTables
     });
   })
 );/* =========================================================
-   VERIFICATION / AUTH HELPERS
+   VERIFICATION / DELIVERY HELPERS
 ========================================================= */
 function generateVerificationToken() {
   return crypto.randomBytes(24).toString("hex");
@@ -588,59 +934,136 @@ function generateNumericCode(length = 6) {
   return output;
 }
 
-async function getRiderByEmail(email) {
-  ensureSupabase();
-
-  const { data, error } = await supabase
-    .from("riders")
-    .select("*")
-    .eq("email", normalizeEmail(email))
-    .maybeSingle();
-
-  if (error) throw error;
-  return data || null;
-}
-
-async function getDriverByEmail(email) {
-  ensureSupabase();
-
-  const { data, error } = await supabase
-    .from("drivers")
-    .select("*")
-    .eq("email", normalizeEmail(email))
-    .maybeSingle();
-
-  if (error) throw error;
-  return data || null;
-}
-
-async function sendEmailMessage({ to, subject, text }) {
+async function sendEmailMessage({ to, subject, text, html = "" }) {
   if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS || !SMTP_FROM) {
     console.warn("SMTP not configured. Email skipped.");
-    return { delivered: false, reason: "SMTP_NOT_CONFIGURED" };
+    return { delivered: false, mode: "disabled", reason: "SMTP_NOT_CONFIGURED" };
   }
 
-  console.log("EMAIL SEND", {
+  if (!ENABLE_REAL_EMAIL) {
+    console.log("EMAIL MOCK SEND", {
+      to,
+      subject,
+      text_preview: String(text || "").slice(0, 200)
+    });
+
+    return { delivered: true, mode: "mock" };
+  }
+
+  console.log("EMAIL LIVE SEND", {
     to,
     subject,
-    text_preview: String(text || "").slice(0, 120)
+    text_preview: String(text || "").slice(0, 200),
+    html_preview: String(html || "").slice(0, 200)
   });
 
-  return { delivered: true };
+  return { delivered: true, mode: "live" };
 }
 
 async function sendSmsMessage({ to, body }) {
   if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_PHONE_NUMBER) {
     console.warn("Twilio not configured. SMS skipped.");
-    return { delivered: false, reason: "TWILIO_NOT_CONFIGURED" };
+    return { delivered: false, mode: "disabled", reason: "TWILIO_NOT_CONFIGURED" };
   }
 
-  console.log("SMS SEND", {
+  if (!ENABLE_REAL_SMS) {
+    console.log("SMS MOCK SEND", {
+      to,
+      body_preview: String(body || "").slice(0, 200)
+    });
+
+    return { delivered: true, mode: "mock" };
+  }
+
+  console.log("SMS LIVE SEND", {
     to,
-    body_preview: String(body || "").slice(0, 120)
+    body_preview: String(body || "").slice(0, 200)
   });
 
-  return { delivered: true };
+  return { delivered: true, mode: "live" };
+}
+
+async function storeDriverEmailVerificationToken(driverId, rawToken) {
+  ensureSupabase();
+
+  const { data, error } = await supabase
+    .from("drivers")
+    .update({
+      email_verification_token_hash: sha256(rawToken),
+      email_verification_expires_at: new Date(
+        Date.now() + 24 * 60 * 60 * 1000
+      ).toISOString(),
+      updated_at: nowIso()
+    })
+    .eq("id", driverId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+async function storeDriverSmsVerificationCode(driverId, rawCode) {
+  ensureSupabase();
+
+  const { data, error } = await supabase
+    .from("drivers")
+    .update({
+      sms_verification_code_hash: sha256(rawCode),
+      sms_verification_expires_at: new Date(
+        Date.now() + 15 * 60 * 1000
+      ).toISOString(),
+      updated_at: nowIso()
+    })
+    .eq("id", driverId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+async function sendDriverVerificationEmail(driver) {
+  if (!ENABLE_DRIVER_EMAIL_VERIFICATION) {
+    return { delivered: false, skipped: true, reason: "EMAIL_VERIFICATION_DISABLED" };
+  }
+
+  const rawToken = generateVerificationToken();
+  await storeDriverEmailVerificationToken(driver.id, rawToken);
+
+  const verifyUrl = `${publicBaseUrl()}/driver-verify-email.html?token=${encodeURIComponent(
+    rawToken
+  )}&driver_id=${encodeURIComponent(driver.id)}`;
+
+  return sendEmailMessage({
+    to: driver.email,
+    subject: "Verify your Harvey Taxi driver email",
+    text: [
+      `Hello ${driver.first_name || "Driver"},`,
+      "",
+      "Please verify your driver email for Harvey Taxi.",
+      verifyUrl
+    ].join("\n"),
+    html: `
+      <p>Hello ${driver.first_name || "Driver"},</p>
+      <p>Please verify your driver email for Harvey Taxi.</p>
+      <p><a href="${verifyUrl}">Verify Email</a></p>
+    `
+  });
+}
+
+async function sendDriverVerificationSms(driver) {
+  if (!ENABLE_DRIVER_SMS_VERIFICATION) {
+    return { delivered: false, skipped: true, reason: "SMS_VERIFICATION_DISABLED" };
+  }
+
+  const rawCode = generateNumericCode(6);
+  await storeDriverSmsVerificationCode(driver.id, rawCode);
+
+  return sendSmsMessage({
+    to: driver.phone,
+    body: `Your Harvey Taxi verification code is ${rawCode}`
+  });
 }
 
 async function createPersonaInquiry({
@@ -657,7 +1080,7 @@ async function createPersonaInquiry({
       ? PERSONA_TEMPLATE_ID_DRIVER
       : PERSONA_TEMPLATE_ID_RIDER;
 
-  if (!PERSONA_API_KEY || !templateId) {
+  if (!PERSONA_ENABLED || !templateId) {
     return {
       enabled: false,
       status: "disabled",
@@ -682,6 +1105,7 @@ async function createPersonaInquiry({
         },
         meta: {
           account_id: accountId,
+          account_type: accountType,
           id_type: idType
         }
       }
@@ -734,72 +1158,6 @@ async function createPersonaInquiry({
   }
 }
 
-async function storeDriverEmailVerificationToken(driverId, rawToken) {
-  const { data, error } = await supabase
-    .from("drivers")
-    .update({
-      email_verification_token_hash: sha256(rawToken),
-      email_verification_expires_at: new Date(
-        Date.now() + 24 * 60 * 60 * 1000
-      ).toISOString(),
-      updated_at: nowIso()
-    })
-    .eq("id", driverId)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
-}
-
-async function storeDriverSmsVerificationCode(driverId, rawCode) {
-  const { data, error } = await supabase
-    .from("drivers")
-    .update({
-      sms_verification_code_hash: sha256(rawCode),
-      sms_verification_expires_at: new Date(
-        Date.now() + 15 * 60 * 1000
-      ).toISOString(),
-      updated_at: nowIso()
-    })
-    .eq("id", driverId)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
-}
-
-async function sendDriverVerificationEmail(driver) {
-  const rawToken = generateVerificationToken();
-  await storeDriverEmailVerificationToken(driver.id, rawToken);
-
-  const verifyUrl = `${publicBaseUrl()}/driver-verify-email.html?token=${encodeURIComponent(
-    rawToken
-  )}&driver_id=${encodeURIComponent(driver.id)}`;
-
-  return sendEmailMessage({
-    to: driver.email,
-    subject: "Verify your Harvey Taxi driver email",
-    text: [
-      `Hello ${driver.first_name || "Driver"},`,
-      "",
-      "Please verify your email for Harvey Taxi driver onboarding.",
-      verifyUrl
-    ].join("\n")
-  });
-}
-
-async function sendDriverVerificationSms(driver) {
-  const rawCode = generateNumericCode(6);
-  await storeDriverSmsVerificationCode(driver.id, rawCode);
-
-  return sendSmsMessage({
-    to: driver.phone,
-    body: `Your Harvey Taxi verification code is ${rawCode}`
-  });
-}
-
 function verifyWebhookSharedSecret(req) {
   if (!PERSONA_WEBHOOK_SECRET) return true;
 
@@ -826,23 +1184,53 @@ function requireVerifiedWebhook(req, res, next) {
   return next();
 }
 
+async function tryActivateDriver(driverId) {
+  const driver = await getDriverById(driverId);
+  if (!driver) return null;
+
+  let verificationStatus = driver.verification_status || VERIFICATION_STATUSES.PENDING;
+  let status = driver.status || "pending";
+
+  if (canActivateDriver(driver)) {
+    verificationStatus = VERIFICATION_STATUSES.VERIFIED;
+    status = "active";
+  } else if (lower(driver.persona_status) === "rejected") {
+    verificationStatus = VERIFICATION_STATUSES.REJECTED;
+    status = "rejected";
+  }
+
+  const { data, error } = await supabase
+    .from("drivers")
+    .update({
+      verification_status: verificationStatus,
+      status,
+      updated_at: nowIso()
+    })
+    .eq("id", driver.id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
 /* =========================================================
    RIDER AUTH / VERIFICATION
 ========================================================= */
 app.post(
   "/api/rider/signup",
   asyncHandler(async (req, res) => {
-    const first_name = cleanEnv(req.body?.firstName || req.body?.first_name);
-    const last_name = cleanEnv(req.body?.lastName || req.body?.last_name);
+    const first_name = cleanEnv(coalesce(req.body?.firstName, req.body?.first_name));
+    const last_name = cleanEnv(coalesce(req.body?.lastName, req.body?.last_name));
     const email = normalizeEmail(req.body?.email);
     const phone = normalizePhone(req.body?.phone);
     const city = cleanEnv(req.body?.city);
-    const state = cleanEnv(req.body?.state || req.body?.stateValue || "TN");
+    const state = cleanEnv(coalesce(req.body?.state, req.body?.stateValue, "TN"));
     const password = cleanEnv(req.body?.password);
     const confirmPassword = cleanEnv(
-      req.body?.confirmPassword || req.body?.confirm_password
+      coalesce(req.body?.confirmPassword, req.body?.confirm_password)
     );
-    const id_type = cleanEnv(req.body?.id_type || req.body?.idType || "government_id");
+    const id_type = cleanEnv(coalesce(req.body?.id_type, req.body?.idType, "government_id"));
 
     if (!first_name || !last_name || !email || !phone || !city || !password) {
       return fail(res, 400, "Missing required rider signup fields.");
@@ -875,8 +1263,12 @@ app.post(
         city,
         state,
         password_hash: sha256(password),
-        verification_status: "pending",
-        persona_status: "not_started",
+        verification_status: PERSONA_ENABLED
+          ? VERIFICATION_STATUSES.PENDING
+          : ENABLE_PERSONA_ENFORCEMENT
+          ? VERIFICATION_STATUSES.PENDING
+          : VERIFICATION_STATUSES.REVIEW_REQUIRED,
+        persona_status: PERSONA_ENABLED ? "not_started" : "disabled",
         id_type,
         id_last4: "",
         created_at: nowIso(),
@@ -897,14 +1289,18 @@ app.post(
       idType: id_type
     });
 
+    const riderPatch = {
+      persona_inquiry_id: inquiry?.inquiryId || null,
+      persona_status:
+        inquiry?.status === "created"
+          ? "started"
+          : inquiry?.status || (PERSONA_ENABLED ? "not_started" : "disabled"),
+      updated_at: nowIso()
+    };
+
     const { data: updatedRider, error: updateError } = await supabase
       .from("riders")
-      .update({
-        persona_inquiry_id: inquiry?.inquiryId || null,
-        persona_status:
-          inquiry?.status === "created" ? "started" : inquiry?.status || "not_started",
-        updated_at: nowIso()
-      })
+      .update(riderPatch)
       .eq("id", rider.id)
       .select()
       .single();
@@ -916,6 +1312,7 @@ app.post(
       {
         rider_id: updatedRider.id,
         email: updatedRider.email,
+        verification_status: updatedRider.verification_status,
         persona_status: updatedRider.persona_status
       },
       "rider",
@@ -926,10 +1323,11 @@ app.post(
       res,
       {
         message:
-          "Rider signup created. ID or passport verification must be completed before ride access.",
+          "Rider signup created. ID or passport verification must be completed before ride access when rider verification is enforced.",
         rider: sanitizeRider(updatedRider),
         verification: {
-          required: true,
+          required: REQUIRE_RIDER_VERIFICATION,
+          enforcement_enabled: ENABLE_PERSONA_ENFORCEMENT,
           status: updatedRider.verification_status,
           persona_enabled: inquiry.enabled,
           persona_status: inquiry.status,
@@ -1023,7 +1421,9 @@ app.post(
       .update({
         persona_inquiry_id: inquiry?.inquiryId || null,
         persona_status:
-          inquiry?.status === "created" ? "started" : inquiry?.status || "not_started",
+          inquiry?.status === "created"
+            ? "started"
+            : inquiry?.status || rider.persona_status || "not_started",
         updated_at: nowIso()
       })
       .eq("id", rider.id)
@@ -1036,7 +1436,7 @@ app.post(
       message: "Rider verification session created.",
       rider: sanitizeRider(data),
       verification: {
-        required: true,
+        required: REQUIRE_RIDER_VERIFICATION,
         persona_enabled: inquiry.enabled,
         persona_status: inquiry.status,
         inquiry_id: inquiry.inquiryId,
@@ -1052,20 +1452,26 @@ app.post(
 app.post(
   "/api/driver/signup",
   asyncHandler(async (req, res) => {
-    const first_name = cleanEnv(req.body?.firstName || req.body?.first_name);
-    const last_name = cleanEnv(req.body?.lastName || req.body?.last_name);
+    const first_name = cleanEnv(coalesce(req.body?.firstName, req.body?.first_name));
+    const last_name = cleanEnv(coalesce(req.body?.lastName, req.body?.last_name));
     const email = normalizeEmail(req.body?.email);
     const phone = normalizePhone(req.body?.phone);
     const city = cleanEnv(req.body?.city);
-    const state = cleanEnv(req.body?.state || req.body?.stateValue || "TN");
+    const state = cleanEnv(coalesce(req.body?.state, req.body?.stateValue, "TN"));
     const password = cleanEnv(req.body?.password);
     const confirmPassword = cleanEnv(
-      req.body?.confirmPassword || req.body?.confirm_password
+      coalesce(req.body?.confirmPassword, req.body?.confirm_password)
     );
-    const vehicle_make = cleanEnv(req.body?.vehicle_make || req.body?.vehicleMake);
-    const vehicle_model = cleanEnv(req.body?.vehicle_model || req.body?.vehicleModel);
-    const vehicle_year = cleanEnv(req.body?.vehicle_year || req.body?.vehicleYear);
-    const driver_type = cleanEnv(req.body?.driver_type || "human");
+    const vehicle_make = cleanEnv(
+      coalesce(req.body?.vehicle_make, req.body?.vehicleMake)
+    );
+    const vehicle_model = cleanEnv(
+      coalesce(req.body?.vehicle_model, req.body?.vehicleModel)
+    );
+    const vehicle_year = cleanEnv(
+      coalesce(req.body?.vehicle_year, req.body?.vehicleYear)
+    );
+    const driver_type = normalizeDriverType(req.body?.driver_type || "human");
 
     if (
       !first_name ||
@@ -1114,9 +1520,9 @@ app.post(
         driver_type,
         email_verified: false,
         sms_verified: false,
-        persona_status: "not_started",
-        identity_status: "not_started",
-        verification_status: "pending",
+        persona_status: PERSONA_ENABLED ? "not_started" : "disabled",
+        identity_status: PERSONA_ENABLED ? "not_started" : "disabled",
+        verification_status: VERIFICATION_STATUSES.PENDING,
         status: "pending",
         is_available: false,
         availability_status: "offline",
@@ -1143,7 +1549,13 @@ app.post(
       .update({
         persona_inquiry_id: inquiry?.inquiryId || null,
         persona_status:
-          inquiry?.status === "created" ? "started" : inquiry?.status || "not_started",
+          inquiry?.status === "created"
+            ? "started"
+            : inquiry?.status || (PERSONA_ENABLED ? "not_started" : "disabled"),
+        identity_status:
+          inquiry?.status === "created"
+            ? "started"
+            : inquiry?.status || (PERSONA_ENABLED ? "not_started" : "disabled"),
         updated_at: nowIso()
       })
       .eq("id", driver.id)
@@ -1175,11 +1587,8 @@ app.post(
           "Driver signup created. Complete email, SMS, and identity verification before activation.",
         driver: sanitizeDriver(patchedDriver),
         verification: {
-          email_required: true,
-          sms_required: true,
-          identity_required: true,
+          ...buildDriverVerificationSummary(patchedDriver),
           persona_enabled: inquiry.enabled,
-          persona_status: inquiry.status,
           inquiry_id: inquiry.inquiryId,
           inquiry_url: inquiry.inquiryUrl,
           email_delivery: emailDelivery,
@@ -1212,7 +1621,8 @@ app.post(
 
     return ok(res, {
       message: "Driver login successful.",
-      driver: sanitizeDriver(driver)
+      driver: sanitizeDriver(driver),
+      verification: buildDriverVerificationSummary(driver)
     });
   })
 );
@@ -1226,7 +1636,8 @@ app.get(
     }
 
     return ok(res, {
-      driver: sanitizeDriver(driver)
+      driver: sanitizeDriver(driver),
+      verification: buildDriverVerificationSummary(driver)
     });
   })
 );
@@ -1241,10 +1652,7 @@ app.get(
 
     return ok(res, {
       driver_id: driver.id,
-      email_verified: driver.email_verified === true,
-      sms_verified: driver.sms_verified === true,
-      persona_status: driver.persona_status || "not_started",
-      verification_status: driver.verification_status,
+      ...buildDriverVerificationSummary(driver),
       status: driver.status || "pending",
       driver_type: driver.driver_type || "human"
     });
@@ -1294,9 +1702,21 @@ app.post(
 
     if (error) throw error;
 
+    const activated = await tryActivateDriver(data.id);
+
+    await createAuditLog(
+      "driver_email_verified",
+      {
+        driver_id: data.id
+      },
+      "driver",
+      data.id
+    );
+
     return ok(res, {
       message: "Driver email verified successfully.",
-      driver: sanitizeDriver(data)
+      driver: sanitizeDriver(activated || data),
+      verification: buildDriverVerificationSummary(activated || data)
     });
   })
 );
@@ -1344,9 +1764,21 @@ app.post(
 
     if (error) throw error;
 
+    const activated = await tryActivateDriver(data.id);
+
+    await createAuditLog(
+      "driver_sms_verified",
+      {
+        driver_id: data.id
+      },
+      "driver",
+      data.id
+    );
+
     return ok(res, {
       message: "Driver SMS verified successfully.",
-      driver: sanitizeDriver(data)
+      driver: sanitizeDriver(activated || data),
+      verification: buildDriverVerificationSummary(activated || data)
     });
   })
 );
@@ -1360,6 +1792,16 @@ app.post(
     }
 
     const delivery = await sendDriverVerificationEmail(driver);
+
+    await createAuditLog(
+      "driver_email_verification_resent",
+      {
+        driver_id: driver.id,
+        delivery
+      },
+      "driver",
+      driver.id
+    );
 
     return ok(res, {
       message: "Driver email verification sent.",
@@ -1378,6 +1820,16 @@ app.post(
 
     const delivery = await sendDriverVerificationSms(driver);
 
+    await createAuditLog(
+      "driver_sms_verification_resent",
+      {
+        driver_id: driver.id,
+        delivery
+      },
+      "driver",
+      driver.id
+    );
+
     return ok(res, {
       message: "Driver SMS verification sent.",
       delivery
@@ -1392,8 +1844,16 @@ app.post(
   "/api/persona/webhook",
   requireVerifiedWebhook,
   asyncHandler(async (req, res) => {
+    if (!ENABLE_PERSONA_WEBHOOKS) {
+      return ok(res, {
+        message: "Persona webhooks are disabled."
+      });
+    }
+
     const payload = req.body || {};
-    const eventName = payload?.data?.attributes?.name || payload?.name || "";
+    const eventName = lower(
+      payload?.data?.attributes?.name || payload?.name || payload?.type || ""
+    );
     const inquiryId =
       payload?.data?.relationships?.inquiry?.data?.id ||
       payload?.data?.id ||
@@ -1415,27 +1875,29 @@ app.post(
       });
     }
 
-    const normalizedEvent = String(eventName || "").toLowerCase();
     const approved =
-      normalizedEvent.includes("approved") ||
-      normalizedEvent.includes("completed");
+      eventName.includes("approved") ||
+      eventName.includes("completed") ||
+      eventName.includes("passed");
+
     const rejected =
-      normalizedEvent.includes("failed") ||
-      normalizedEvent.includes("declined") ||
-      normalizedEvent.includes("expired");
+      eventName.includes("failed") ||
+      eventName.includes("declined") ||
+      eventName.includes("expired") ||
+      eventName.includes("rejected");
 
     if (accountType === "rider") {
-      let verification_status = "pending";
+      let verification_status = VERIFICATION_STATUSES.PENDING;
       let persona_status = "pending";
 
       if (approved) {
-        verification_status = "verified";
+        verification_status = VERIFICATION_STATUSES.VERIFIED;
         persona_status = "approved";
       } else if (rejected) {
-        verification_status = "rejected";
+        verification_status = VERIFICATION_STATUSES.REJECTED;
         persona_status = "rejected";
       } else {
-        verification_status = "review_required";
+        verification_status = VERIFICATION_STATUSES.REVIEW_REQUIRED;
         persona_status = "review_required";
       }
 
@@ -1468,7 +1930,8 @@ app.post(
           rider_id: accountId,
           inquiry_id: inquiryId,
           verification_status,
-          persona_status
+          persona_status,
+          event_name: eventName
         },
         "system",
         accountId
@@ -1481,40 +1944,28 @@ app.post(
     }
 
     if (accountType === "driver") {
-      const persona_status = approved
-        ? "approved"
-        : rejected
-        ? "rejected"
-        : "review_required";
-
       const currentDriver = await getDriverById(accountId);
       if (!currentDriver) {
         return fail(res, 404, "Driver not found for Persona webhook.");
       }
 
-      let verification_status = currentDriver.verification_status || "pending";
+      let persona_status = "review_required";
+      let identity_status = "review_required";
 
-      if (
-        approved &&
-        currentDriver.email_verified === true &&
-        currentDriver.sms_verified === true
-      ) {
-        verification_status = "verified";
+      if (approved) {
+        persona_status = "approved";
+        identity_status = "approved";
       } else if (rejected) {
-        verification_status = "rejected";
+        persona_status = "rejected";
+        identity_status = "rejected";
       }
 
-      const statusValue =
-        verification_status === "verified" ? "active" : currentDriver.status || "pending";
-
-      const { data, error } = await supabase
+      const { data: updatedDriver, error } = await supabase
         .from("drivers")
         .update({
           persona_status,
-          identity_status: persona_status,
-          verification_status,
+          identity_status,
           persona_inquiry_id: inquiryId,
-          status: statusValue,
           updated_at: nowIso()
         })
         .eq("id", accountId)
@@ -1523,13 +1974,16 @@ app.post(
 
       if (error) throw error;
 
+      const activated = await tryActivateDriver(updatedDriver.id);
+
       await createAuditLog(
         "persona_webhook_driver_processed",
         {
           driver_id: accountId,
           inquiry_id: inquiryId,
-          verification_status,
-          persona_status
+          persona_status,
+          identity_status,
+          event_name: eventName
         },
         "system",
         accountId
@@ -1537,7 +1991,8 @@ app.post(
 
       return ok(res, {
         message: "Driver Persona webhook processed.",
-        driver: sanitizeDriver(data)
+        driver: sanitizeDriver(activated || updatedDriver),
+        verification: buildDriverVerificationSummary(activated || updatedDriver)
       });
     }
 
@@ -1548,10 +2003,6 @@ app.post(
 );/* =========================================================
    MAP / ROUTE / FARE HELPERS
 ========================================================= */
-function normalizeAddress(value = "") {
-  return String(value || "").trim();
-}
-
 async function geocodeAddress(address) {
   const normalized = normalizeAddress(address);
 
@@ -1578,7 +2029,12 @@ async function geocodeAddress(address) {
   const response = await fetch(url);
   const result = await response.json();
 
-  if (!response.ok || result.status !== "OK" || !Array.isArray(result.results) || !result.results[0]) {
+  if (
+    !response.ok ||
+    result.status !== "OK" ||
+    !Array.isArray(result.results) ||
+    !result.results[0]
+  ) {
     const error = new Error("Unable to geocode address.");
     error.statusCode = 400;
     error.details = {
@@ -1632,7 +2088,12 @@ async function getRouteEstimate(originAddress, destinationAddress) {
 
   const element = result?.rows?.[0]?.elements?.[0];
 
-  if (!response.ok || result.status !== "OK" || !element || element.status !== "OK") {
+  if (
+    !response.ok ||
+    result.status !== "OK" ||
+    !element ||
+    element.status !== "OK"
+  ) {
     const error = new Error("Unable to calculate route estimate.");
     error.statusCode = 400;
     error.details = {
@@ -1659,7 +2120,7 @@ async function getRouteEstimate(originAddress, destinationAddress) {
 }
 
 function getRideTypeMultiplier(rideType = "standard") {
-  const type = cleanEnv(rideType || "standard").toLowerCase();
+  const type = lower(rideType || "standard");
 
   if (type === "airport") return 1.2;
   if (type === "medical") return 0.95;
@@ -1671,6 +2132,34 @@ function getRideTypeMultiplier(rideType = "standard") {
 function getRequestedModeMultiplier(requestedMode = REQUESTED_MODES.DRIVER) {
   const mode = normalizeRequestedMode(requestedMode);
   return mode === REQUESTED_MODES.AUTONOMOUS ? 1.15 : 1;
+}
+
+function estimateSurgeMultiplier({
+  requestedMode = REQUESTED_MODES.DRIVER,
+  rideType = "standard",
+  activeRideCount = 0,
+  availableDriverCount = 0
+} = {}) {
+  const mode = normalizeRequestedMode(requestedMode);
+  const rideTypeNormalized = lower(rideType || "standard");
+
+  if (mode === REQUESTED_MODES.AUTONOMOUS) {
+    return Number(SURGE_MULTIPLIER_DEFAULT.toFixed(2));
+  }
+
+  if (rideTypeNormalized === "medical" || rideTypeNormalized === "nonprofit") {
+    return Number(Math.min(SURGE_MULTIPLIER_BUSY, 1.1).toFixed(2));
+  }
+
+  if (activeRideCount >= 10 && availableDriverCount <= 3) {
+    return Number(SURGE_MULTIPLIER_HIGH.toFixed(2));
+  }
+
+  if (activeRideCount >= 5 && availableDriverCount <= 6) {
+    return Number(SURGE_MULTIPLIER_BUSY.toFixed(2));
+  }
+
+  return Number(SURGE_MULTIPLIER_DEFAULT.toFixed(2));
 }
 
 function calculateFare({
@@ -1740,11 +2229,11 @@ async function createRideRecord(payload) {
     fare_estimate: dollars(payload.fare_estimate || 0),
     driver_payout_estimate: dollars(payload.driver_payout_estimate || 0),
     platform_fee_estimate: dollars(payload.platform_fee_estimate || 0),
-    ride_type: cleanEnv(payload.ride_type || "standard").toLowerCase(),
+    ride_type: lower(payload.ride_type || "standard"),
     requested_mode: normalizeRequestedMode(payload.requested_mode),
-    payment_status: cleanEnv(payload.payment_status || PAYMENT_STATUSES.PENDING).toLowerCase(),
+    payment_status: lower(payload.payment_status || PAYMENT_STATUSES.PENDING),
     payment_authorization_id: payload.payment_authorization_id || null,
-    special_notes: cleanEnv(payload.special_notes || ""),
+    special_notes: sanitizeFreeText(payload.special_notes || "", 1000),
     created_at: nowIso(),
     updated_at: nowIso()
   };
@@ -1817,21 +2306,6 @@ async function createMissionRecord({ ride, rider }) {
   return data;
 }
 
-async function getMissionByRideId(rideId) {
-  ensureSupabase();
-
-  const { data, error } = await supabase
-    .from("missions")
-    .select("*")
-    .eq("ride_id", rideId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) throw error;
-  return data || null;
-}
-
 async function updateMission(missionId, patch) {
   ensureSupabase();
 
@@ -1868,7 +2342,7 @@ async function createPaymentAuthorizationRecord({
     rider_id,
     authorization_id: `payauth_${uuid()}`,
     amount: dollars(amount),
-    method: cleanEnv(method || "card").toLowerCase(),
+    method: lower(method || "card"),
     provider,
     status: PAYMENT_STATUSES.AUTHORIZED,
     created_at: nowIso(),
@@ -1899,40 +2373,6 @@ async function getLatestAuthorizedPaymentForRider(riderId) {
 
   if (error) throw error;
   return data || null;
-}
-
-async function getRideReceiptData(rideId) {
-  const ride = await getRideById(rideId);
-  if (!ride) return null;
-
-  const rider = ride.rider_id ? await getRiderById(ride.rider_id) : null;
-  const driver = ride.driver_id ? await getDriverById(ride.driver_id) : null;
-
-  const { data: ledgerEntries, error } = await supabase
-    .from("driver_earnings_ledger")
-    .select("*")
-    .eq("ride_id", ride.id)
-    .order("created_at", { ascending: true });
-
-  if (error) throw error;
-
-  const tipTotal = (ledgerEntries || [])
-    .filter((entry) => String(entry.entry_type || "").toLowerCase() === "tip")
-    .reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
-
-  return {
-    ride,
-    rider: sanitizeRider(rider),
-    driver: sanitizeDriver(driver),
-    ledger_entries: ledgerEntries || [],
-    financials: {
-      fare_estimate: dollars(ride.fare_estimate || 0),
-      driver_payout_estimate: dollars(ride.driver_payout_estimate || 0),
-      platform_fee_estimate: dollars(ride.platform_fee_estimate || 0),
-      tip_total: dollars(tipTotal),
-      total_charged_estimate: dollars(Number(ride.fare_estimate || 0) + tipTotal)
-    }
-  };
 }
 
 async function getOpenRideForRider(riderId) {
@@ -1986,6 +2426,40 @@ async function getOpenRideForDriver(driverId) {
   return data || null;
 }
 
+async function getRideReceiptData(rideId) {
+  const ride = await getRideById(rideId);
+  if (!ride) return null;
+
+  const rider = ride.rider_id ? await getRiderById(ride.rider_id) : null;
+  const driver = ride.driver_id ? await getDriverById(ride.driver_id) : null;
+
+  const { data: ledgerEntries, error } = await supabase
+    .from("driver_earnings_ledger")
+    .select("*")
+    .eq("ride_id", ride.id)
+    .order("created_at", { ascending: true });
+
+  if (error) throw error;
+
+  const tipTotal = (ledgerEntries || [])
+    .filter((entry) => lower(entry.entry_type) === "tip")
+    .reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
+
+  return {
+    ride: sanitizeRide(ride),
+    rider: sanitizeRider(rider),
+    driver: sanitizeDriver(driver),
+    ledger_entries: ledgerEntries || [],
+    financials: {
+      fare_estimate: dollars(ride.fare_estimate || 0),
+      driver_payout_estimate: dollars(ride.driver_payout_estimate || 0),
+      platform_fee_estimate: dollars(ride.platform_fee_estimate || 0),
+      tip_total: dollars(tipTotal),
+      total_charged_estimate: dollars(Number(ride.fare_estimate || 0) + tipTotal)
+    }
+  };
+}
+
 /* =========================================================
    FARE / PAYMENT / REQUEST RIDE
 ========================================================= */
@@ -1993,27 +2467,62 @@ app.post(
   "/api/fare-estimate",
   asyncHandler(async (req, res) => {
     const pickup_address = normalizeAddress(
-      req.body?.pickup_address || req.body?.pickupAddress
+      coalesce(req.body?.pickup_address, req.body?.pickupAddress)
     );
     const dropoff_address = normalizeAddress(
-      req.body?.dropoff_address || req.body?.dropoffAddress
+      coalesce(req.body?.dropoff_address, req.body?.dropoffAddress)
     );
-    const ride_type = cleanEnv(req.body?.ride_type || req.body?.rideType || "standard");
+    const ride_type = cleanEnv(coalesce(req.body?.ride_type, req.body?.rideType, "standard"));
     const requested_mode = cleanEnv(
-      req.body?.requested_mode || req.body?.requestedMode || REQUESTED_MODES.DRIVER
+      coalesce(req.body?.requested_mode, req.body?.requestedMode, REQUESTED_MODES.DRIVER)
     );
 
     if (!pickup_address || !dropoff_address) {
       return fail(res, 400, "Pickup and dropoff addresses are required.");
     }
 
+    let activeRideCount = 0;
+    let availableDriverCount = 0;
+
+    try {
+      const [ridesResult, driversResult] = await Promise.all([
+        supabase
+          .from("rides")
+          .select("id", { count: "exact", head: true })
+          .in("status", [
+            RIDE_STATUSES.SEARCHING,
+            RIDE_STATUSES.OFFERED,
+            RIDE_STATUSES.DRIVER_ASSIGNED,
+            RIDE_STATUSES.DRIVER_ENROUTE,
+            RIDE_STATUSES.DRIVER_ARRIVED,
+            RIDE_STATUSES.TRIP_STARTED
+          ]),
+        supabase
+          .from("drivers")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "active")
+      ]);
+
+      activeRideCount = Number(ridesResult.count || 0);
+      availableDriverCount = Number(driversResult.count || 0);
+    } catch (error) {
+      console.warn("Fare estimate live counts unavailable:", error.message);
+    }
+
     const route = await getRouteEstimate(pickup_address, dropoff_address);
+    const surge_multiplier = estimateSurgeMultiplier({
+      requestedMode: requested_mode,
+      rideType: ride_type,
+      activeRideCount,
+      availableDriverCount
+    });
+
     const fare = calculateFare({
       distance_miles: route.distance_miles,
       duration_minutes: route.duration_minutes,
       ride_type,
       requested_mode,
-      surge_multiplier: 1
+      surge_multiplier
     });
 
     return ok(res, {
@@ -2027,12 +2536,14 @@ app.post(
 app.post(
   "/api/payments/authorize",
   asyncHandler(async (req, res) => {
-    const rider_id = cleanEnv(req.body?.rider_id || req.body?.riderId);
+    const rider_id = cleanEnv(coalesce(req.body?.rider_id, req.body?.riderId));
     const estimated_amount = Number(
-      req.body?.estimated_amount ||
-      req.body?.estimatedAmount ||
-      req.body?.amount ||
-      0
+      coalesce(
+        req.body?.estimated_amount,
+        req.body?.estimatedAmount,
+        req.body?.amount,
+        0
+      )
     );
     const method = cleanEnv(req.body?.method || "card");
 
@@ -2081,18 +2592,18 @@ app.post(
 app.post(
   "/api/request-ride",
   asyncHandler(async (req, res) => {
-    const rider_id = cleanEnv(req.body?.rider_id || req.body?.riderId);
+    const rider_id = cleanEnv(coalesce(req.body?.rider_id, req.body?.riderId));
     const pickup_address = normalizeAddress(
-      req.body?.pickup_address || req.body?.pickupAddress
+      coalesce(req.body?.pickup_address, req.body?.pickupAddress)
     );
     const dropoff_address = normalizeAddress(
-      req.body?.dropoff_address || req.body?.dropoffAddress
+      coalesce(req.body?.dropoff_address, req.body?.dropoffAddress)
     );
-    const ride_type = cleanEnv(req.body?.ride_type || req.body?.rideType || "standard");
+    const ride_type = cleanEnv(coalesce(req.body?.ride_type, req.body?.rideType, "standard"));
     const requested_mode = cleanEnv(
-      req.body?.requested_mode || req.body?.requestedMode || REQUESTED_MODES.DRIVER
+      coalesce(req.body?.requested_mode, req.body?.requestedMode, REQUESTED_MODES.DRIVER)
     );
-    const special_notes = cleanEnv(req.body?.special_notes || req.body?.notes || "");
+    const special_notes = cleanEnv(coalesce(req.body?.special_notes, req.body?.notes, ""));
 
     if (!rider_id || !pickup_address || !dropoff_address) {
       return fail(
@@ -2104,23 +2615,71 @@ app.post(
 
     const rider = await requireVerifiedRider(rider_id);
 
+    const existingOpenRide = await getOpenRideForRider(rider.id);
+    if (existingOpenRide) {
+      return fail(res, 409, "Rider already has an active ride in progress.", {
+        code: "ACTIVE_RIDE_EXISTS",
+        ride: sanitizeRide(existingOpenRide)
+      });
+    }
+
     const latestPayment = await getLatestAuthorizedPaymentForRider(rider.id);
     if (REQUIRE_PAYMENT_AUTHORIZATION && !latestPayment) {
-      return fail(res, 402, "Payment authorization is required before requesting a ride.", {
-        code: "PAYMENT_NOT_AUTHORIZED"
-      });
+      return fail(
+        res,
+        402,
+        "Payment authorization is required before requesting a ride.",
+        {
+          code: "PAYMENT_NOT_AUTHORIZED"
+        }
+      );
     }
 
     const pickupGeo = await geocodeAddress(pickup_address);
     const dropoffGeo = await geocodeAddress(dropoff_address);
     const route = await getRouteEstimate(pickup_address, dropoff_address);
 
+    let activeRideCount = 0;
+    let availableDriverCount = 0;
+
+    try {
+      const [ridesResult, driversResult] = await Promise.all([
+        supabase
+          .from("rides")
+          .select("id", { count: "exact", head: true })
+          .in("status", [
+            RIDE_STATUSES.SEARCHING,
+            RIDE_STATUSES.OFFERED,
+            RIDE_STATUSES.DRIVER_ASSIGNED,
+            RIDE_STATUSES.DRIVER_ENROUTE,
+            RIDE_STATUSES.DRIVER_ARRIVED,
+            RIDE_STATUSES.TRIP_STARTED
+          ]),
+        supabase
+          .from("drivers")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "active")
+      ]);
+
+      activeRideCount = Number(ridesResult.count || 0);
+      availableDriverCount = Number(driversResult.count || 0);
+    } catch (error) {
+      console.warn("Request ride live counts unavailable:", error.message);
+    }
+
+    const surge_multiplier = estimateSurgeMultiplier({
+      requestedMode: requested_mode,
+      rideType: ride_type,
+      activeRideCount,
+      availableDriverCount
+    });
+
     const fare = calculateFare({
       distance_miles: route.distance_miles,
       duration_minutes: route.duration_minutes,
       ride_type,
       requested_mode,
-      surge_multiplier: 1
+      surge_multiplier
     });
 
     let ride = await createRideRecord({
@@ -2138,7 +2697,9 @@ app.post(
       platform_fee_estimate: fare.platform_fee_estimate,
       ride_type,
       requested_mode,
-      payment_status: latestPayment ? PAYMENT_STATUSES.AUTHORIZED : PAYMENT_STATUSES.PENDING,
+      payment_status: latestPayment
+        ? PAYMENT_STATUSES.AUTHORIZED
+        : PAYMENT_STATUSES.PENDING,
       payment_authorization_id: latestPayment?.authorization_id || null,
       special_notes,
       status: RIDE_STATUSES.REQUESTED
@@ -2179,7 +2740,7 @@ app.post(
       res,
       {
         message: "Ride request created and ready for dispatch.",
-        ride,
+        ride: sanitizeRide(ride),
         mission,
         fare,
         route
@@ -2201,7 +2762,7 @@ app.get(
       return fail(res, 404, "Ride not found.");
     }
 
-    return ok(res, { ride });
+    return ok(res, { ride: sanitizeRide(ride) });
   })
 );
 
@@ -2224,7 +2785,7 @@ app.get(
 
     return ok(res, {
       rider_id: rider.id,
-      rides: data || []
+      rides: (data || []).map(sanitizeRide)
     });
   })
 );
@@ -2242,7 +2803,7 @@ app.get(
 
     return ok(res, {
       rider_id: rider.id,
-      ride
+      ride: sanitizeRide(ride)
     });
   })
 );
@@ -2286,7 +2847,7 @@ app.get(
 
     return ok(res, {
       driver_id: driver.id,
-      ride
+      ride: sanitizeRide(ride)
     });
   })
 );
@@ -2334,7 +2895,7 @@ app.post(
 
     return ok(res, {
       message: "Ride marked driver_enroute.",
-      ride: updated
+      ride: sanitizeRide(updated)
     });
   })
 );
@@ -2354,7 +2915,7 @@ app.post(
 
     return ok(res, {
       message: "Ride marked driver_arrived.",
-      ride: updated
+      ride: sanitizeRide(updated)
     });
   })
 );
@@ -2375,7 +2936,7 @@ app.post(
 
     return ok(res, {
       message: "Trip started.",
-      ride: updated
+      ride: sanitizeRide(updated)
     });
   })
 );
@@ -2401,22 +2962,26 @@ app.post(
     });
 
     if (ride.driver_id) {
-      await supabase.from("driver_earnings_ledger").insert({
-        id: uuid(),
-        ride_id: ride.id,
-        driver_id: ride.driver_id,
-        rider_id: ride.rider_id,
-        entry_type: "ride_payout",
-        amount: dollars(ride.driver_payout_estimate || 0),
-        status: "earned",
-        notes: "Base driver payout for completed ride",
-        metadata: {
-          payment_status: PAYMENT_STATUSES.CAPTURED,
-          ride_status: RIDE_STATUSES.TRIP_COMPLETED
-        },
-        created_at: nowIso(),
-        updated_at: nowIso()
-      });
+      const { error: ledgerError } = await supabase
+        .from("driver_earnings_ledger")
+        .insert({
+          id: uuid(),
+          ride_id: ride.id,
+          driver_id: ride.driver_id,
+          rider_id: ride.rider_id,
+          entry_type: "ride_payout",
+          amount: dollars(ride.driver_payout_estimate || 0),
+          status: "earned",
+          notes: "Base driver payout for completed ride",
+          metadata: {
+            payment_status: PAYMENT_STATUSES.CAPTURED,
+            ride_status: RIDE_STATUSES.TRIP_COMPLETED
+          },
+          created_at: nowIso(),
+          updated_at: nowIso()
+        });
+
+      if (ledgerError) throw ledgerError;
     }
 
     await createAuditLog(
@@ -2433,7 +2998,7 @@ app.post(
 
     return ok(res, {
       message: "Trip completed.",
-      ride: updated
+      ride: sanitizeRide(updated)
     });
   })
 );
@@ -2451,7 +3016,7 @@ app.post(
     const updated = await updateRide(ride.id, {
       status: RIDE_STATUSES.CANCELLED,
       payment_status:
-        String(ride.payment_status || "").toLowerCase() === PAYMENT_STATUSES.AUTHORIZED
+        lower(ride.payment_status) === PAYMENT_STATUSES.AUTHORIZED
           ? PAYMENT_STATUSES.RELEASED
           : ride.payment_status
     });
@@ -2482,7 +3047,7 @@ app.post(
 
     return ok(res, {
       message: "Ride cancelled.",
-      ride: updated
+      ride: sanitizeRide(updated)
     });
   })
 );
@@ -2518,7 +3083,7 @@ app.post(
       RIDE_STATUSES.TRIP_COMPLETED
     ];
 
-    if (!allowedStatuses.includes(String(ride.status || "").toLowerCase())) {
+    if (!allowedStatuses.includes(lower(ride.status))) {
       return fail(res, 400, "Tips can only be added during or after an active trip.");
     }
 
@@ -2602,7 +3167,7 @@ app.get(
       if (ledgerError) throw ledgerError;
 
       const tipTotal = (ledgerEntries || [])
-        .filter((entry) => String(entry.entry_type || "").toLowerCase() === "tip")
+        .filter((entry) => lower(entry.entry_type) === "tip")
         .reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
 
       receipts.push({
@@ -2634,7 +3199,7 @@ app.post(
       return fail(res, 404, "Ride not found.");
     }
 
-    if (String(ride.status || "").toLowerCase() !== RIDE_STATUSES.TRIP_COMPLETED) {
+    if (lower(ride.status) !== RIDE_STATUSES.TRIP_COMPLETED) {
       return fail(res, 400, "Ride must be completed before payment capture.");
     }
 
@@ -2644,7 +3209,7 @@ app.post(
 
     return ok(res, {
       message: "Ride payment captured successfully.",
-      ride: updatedRide
+      ride: sanitizeRide(updatedRide)
     });
   })
 );
@@ -2669,7 +3234,7 @@ app.post(
 
     return ok(res, {
       message: "Ride payment released.",
-      ride: updatedRide
+      ride: sanitizeRide(updatedRide)
     });
   })
 );/* =========================================================
@@ -2750,7 +3315,7 @@ async function getAvailableDrivers({ requestedMode, limit = 100 }) {
   return (data || []).filter((driver) => {
     const availableFlag =
       driver.is_available === true ||
-      String(driver.availability_status || "").toLowerCase() === "available";
+      lower(driver.availability_status) === "available";
 
     return (
       isDriverVerified(driver) &&
@@ -2758,6 +3323,41 @@ async function getAvailableDrivers({ requestedMode, limit = 100 }) {
       isDriverEligibleForMode(driver, mode)
     );
   });
+}
+
+/* =========================================================
+   DRIVER SCORING
+========================================================= */
+function scoreDriverForRide(driver, ride, metrics = {}) {
+  const distanceMiles = Number(metrics.distance_miles ?? 999);
+  const idleMinutes = Number(metrics.idle_minutes ?? 0);
+  const rating = Number(driver?.rating || 5);
+  const acceptanceRate = Number(driver?.acceptance_rate || 0);
+  const completionRate = Number(driver?.completion_rate || 0);
+
+  const distanceScore = Math.max(0, 100 - distanceMiles * 8);
+  const idleScore = Math.min(25, idleMinutes / 2);
+  const ratingScore = Math.min(25, rating * 5);
+  const acceptanceScore = Math.min(25, acceptanceRate * 25);
+  const completionScore = Math.min(25, completionRate * 25);
+
+  const totalScore =
+    distanceScore +
+    idleScore +
+    ratingScore +
+    acceptanceScore +
+    completionScore;
+
+  return {
+    total_score: Number(totalScore.toFixed(2)),
+    components: {
+      distance_score: Number(distanceScore.toFixed(2)),
+      idle_score: Number(idleScore.toFixed(2)),
+      rating_score: Number(ratingScore.toFixed(2)),
+      acceptance_score: Number(acceptanceScore.toFixed(2)),
+      completion_score: Number(completionScore.toFixed(2))
+    }
+  };
 }
 
 async function buildDriverCandidatesForRide(ride, drivers = []) {
@@ -2812,6 +3412,20 @@ async function buildDriverCandidatesForRide(ride, drivers = []) {
       return true;
     })
     .sort((a, b) => b.score.total_score - a.score.total_score);
+}
+
+async function chooseBestDriverForRide(ride, excludedDriverIds = []) {
+  const availableDrivers = await getAvailableDrivers({
+    requestedMode: ride.requested_mode,
+    limit: 100
+  });
+
+  const candidates = await buildDriverCandidatesForRide(
+    ride,
+    availableDrivers.filter((driver) => !excludedDriverIds.includes(driver.id))
+  );
+
+  return candidates[0] || null;
 }
 
 /* =========================================================
@@ -2875,6 +3489,23 @@ async function getOpenDispatchForDriver(driverId) {
   return data || null;
 }
 
+async function updateDispatch(dispatchId, patch) {
+  ensureSupabase();
+
+  const { data, error } = await supabase
+    .from("dispatches")
+    .update({
+      ...patch,
+      updated_at: nowIso()
+    })
+    .eq("id", dispatchId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
 async function createDispatchOffer({ ride, mission, candidate, attempt }) {
   ensureSupabase();
 
@@ -2934,23 +3565,6 @@ async function createDispatchOffer({ ride, mission, candidate, attempt }) {
   return data;
 }
 
-async function updateDispatch(dispatchId, patch) {
-  ensureSupabase();
-
-  const { data, error } = await supabase
-    .from("dispatches")
-    .update({
-      ...patch,
-      updated_at: nowIso()
-    })
-    .eq("id", dispatchId)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
-}
-
 async function expireDispatch(dispatchId, reason = "timeout") {
   const updated = await updateDispatch(dispatchId, {
     status: "expired",
@@ -2979,20 +3593,6 @@ async function declineDispatch(dispatchId, reason = "declined_by_driver") {
   });
 
   return updated;
-}
-
-async function chooseBestDriverForRide(ride, excludedDriverIds = []) {
-  const availableDrivers = await getAvailableDrivers({
-    requestedMode: ride.requested_mode,
-    limit: 100
-  });
-
-  const candidates = await buildDriverCandidatesForRide(
-    ride,
-    availableDrivers.filter((driver) => !excludedDriverIds.includes(driver.id))
-  );
-
-  return candidates[0] || null;
 }
 
 async function assignDriverToRide({ ride, driver, dispatch, mission }) {
@@ -3045,7 +3645,7 @@ async function runDispatchAttempt(rideId) {
     throw error;
   }
 
-  if (String(ride.status || "").toLowerCase() !== RIDE_STATUSES.SEARCHING) {
+  if (lower(ride.status) !== RIDE_STATUSES.SEARCHING) {
     return {
       ride,
       message: "Ride is not in searching state. Dispatch skipped."
@@ -3175,7 +3775,7 @@ async function runDispatchRetryLoop(rideId) {
     const ride = await getRideById(rideId);
     if (!ride) break;
 
-    const status = String(ride.status || "").toLowerCase();
+    const status = lower(ride.status);
     if (
       [
         RIDE_STATUSES.ACCEPTED,
@@ -3238,7 +3838,7 @@ app.post(
 
     const isAvailable =
       req.body?.is_available === true ||
-      String(req.body?.availability_status || "").toLowerCase() === "available";
+      lower(req.body?.availability_status) === "available";
 
     const { data, error } = await supabase
       .from("drivers")
@@ -3326,7 +3926,7 @@ app.post(
 
     return ok(res, {
       message: result.message,
-      ride: result.ride || null,
+      ride: result.ride ? sanitizeRide(result.ride) : null,
       mission: result.mission || null,
       dispatch: result.dispatch || null,
       candidate: result.candidate
@@ -3348,7 +3948,7 @@ app.post(
 
     return ok(res, {
       message: result.message,
-      ride: result.ride || null,
+      ride: result.ride ? sanitizeRide(result.ride) : null,
       dispatch: result.dispatch || null
     });
   })
@@ -3376,21 +3976,12 @@ app.get(
     for (const dispatch of data || []) {
       const ride = await getRideById(dispatch.ride_id);
       const mission = dispatch.mission_id
-        ? await (async () => {
-            const { data: missionData, error: missionError } = await supabase
-              .from("missions")
-              .select("*")
-              .eq("id", dispatch.mission_id)
-              .maybeSingle();
-
-            if (missionError) throw missionError;
-            return missionData || null;
-          })()
+        ? await getMissionById(dispatch.mission_id)
         : null;
 
       missions.push({
         dispatch,
-        ride,
+        ride: sanitizeRide(ride),
         mission
       });
     }
@@ -3420,16 +4011,7 @@ app.get(
     }
 
     const mission = openDispatch.mission_id
-      ? await (async () => {
-          const { data, error } = await supabase
-            .from("missions")
-            .select("*")
-            .eq("id", openDispatch.mission_id)
-            .maybeSingle();
-
-          if (error) throw error;
-          return data || null;
-        })()
+      ? await getMissionById(openDispatch.mission_id)
       : null;
 
     return ok(res, {
@@ -3448,7 +4030,7 @@ app.post(
       return fail(res, 404, "Dispatch not found.");
     }
 
-    if (!["offered", "sent"].includes(String(dispatch.status || "").toLowerCase())) {
+    if (!["offered", "sent"].includes(lower(dispatch.status))) {
       return fail(res, 400, "Dispatch is not available to accept.");
     }
 
@@ -3469,16 +4051,7 @@ app.post(
     }
 
     const mission = dispatch.mission_id
-      ? await (async () => {
-          const { data, error } = await supabase
-            .from("missions")
-            .select("*")
-            .eq("id", dispatch.mission_id)
-            .maybeSingle();
-
-          if (error) throw error;
-          return data || null;
-        })()
+      ? await getMissionById(dispatch.mission_id)
       : null;
 
     const assigned = await assignDriverToRide({
@@ -3491,7 +4064,7 @@ app.post(
     return ok(res, {
       message: "Dispatch accepted and driver assigned.",
       dispatch_id: dispatch.id,
-      ride: assigned.ride,
+      ride: sanitizeRide(assigned.ride),
       mission: assigned.mission,
       driver: sanitizeDriver(driver)
     });
@@ -3513,13 +4086,17 @@ app.post(
       status: RIDE_STATUSES.SEARCHING
     });
 
-    const retryResult = await runDispatchAttempt(updated.ride_id);
+    const retryResult = ENABLE_AUTO_REDISPATCH
+      ? await runDispatchAttempt(updated.ride_id)
+      : { dispatch: null, ride: await getRideById(updated.ride_id) };
 
     return ok(res, {
-      message: "Dispatch declined. Re-dispatch attempted.",
+      message: ENABLE_AUTO_REDISPATCH
+        ? "Dispatch declined. Re-dispatch attempted."
+        : "Dispatch declined.",
       dispatch: updated,
       next_dispatch: retryResult.dispatch || null,
-      ride: retryResult.ride || null
+      ride: retryResult.ride ? sanitizeRide(retryResult.ride) : null
     });
   })
 );
@@ -3537,13 +4114,17 @@ app.post(
       status: RIDE_STATUSES.SEARCHING
     });
 
-    const retryResult = await runDispatchAttempt(updated.ride_id);
+    const retryResult = ENABLE_AUTO_REDISPATCH
+      ? await runDispatchAttempt(updated.ride_id)
+      : { dispatch: null, ride: await getRideById(updated.ride_id) };
 
     return ok(res, {
-      message: "Dispatch expired. Re-dispatch attempted.",
+      message: ENABLE_AUTO_REDISPATCH
+        ? "Dispatch expired. Re-dispatch attempted."
+        : "Dispatch expired.",
       dispatch: updated,
       next_dispatch: retryResult.dispatch || null,
-      ride: retryResult.ride || null
+      ride: retryResult.ride ? sanitizeRide(retryResult.ride) : null
     });
   })
 );
@@ -3553,6 +4134,7 @@ app.post(
 ========================================================= */
 app.get(
   "/api/admin/dispatches/open",
+  requireAdmin,
   asyncHandler(async (req, res) => {
     const { data, error } = await supabase
       .from("dispatches")
@@ -3570,6 +4152,7 @@ app.get(
 
 app.get(
   "/api/admin/rides/searching",
+  requireAdmin,
   asyncHandler(async (req, res) => {
     const { data, error } = await supabase
       .from("rides")
@@ -3580,7 +4163,7 @@ app.get(
     if (error) throw error;
 
     return ok(res, {
-      rides: data || []
+      rides: (data || []).map(sanitizeRide)
     });
   })
 );/* =========================================================
@@ -3604,10 +4187,10 @@ function sumLedgerAmounts(entries, type = null, status = null) {
     (entries || [])
       .filter((entry) => {
         const typeOk = type
-          ? String(entry.entry_type || "").toLowerCase() === String(type).toLowerCase()
+          ? lower(entry.entry_type) === lower(type)
           : true;
         const statusOk = status
-          ? String(entry.status || "").toLowerCase() === String(status).toLowerCase()
+          ? lower(entry.status) === lower(status)
           : true;
         return typeOk && statusOk;
       })
@@ -3632,8 +4215,8 @@ async function createPayoutRecord({
     ride_id,
     ledger_entry_id,
     amount: dollars(amount),
-    payout_method: cleanEnv(payout_method || "manual").toLowerCase(),
-    status: cleanEnv(status || "pending").toLowerCase(),
+    payout_method: lower(payout_method || "manual"),
+    status: lower(status || "pending"),
     notes: cleanEnv(notes),
     created_at: nowIso(),
     updated_at: nowIso()
@@ -3672,12 +4255,12 @@ async function createSupportCase({
     ride_id,
     rider_id,
     driver_id,
-    case_type: cleanEnv(case_type || "general").toLowerCase(),
-    priority: cleanEnv(priority || "normal").toLowerCase(),
+    case_type: lower(case_type || "general"),
+    priority: lower(priority || "normal"),
     subject: cleanEnv(subject),
     description: String(description || "").trim(),
-    status: cleanEnv(status || "open").toLowerCase(),
-    created_by_type: cleanEnv(created_by_type || "system").toLowerCase(),
+    status: lower(status || "open"),
+    created_by_type: lower(created_by_type || "system"),
     created_by_id: created_by_id || null,
     metadata,
     created_at: nowIso(),
@@ -3731,13 +4314,13 @@ async function createIncidentReport({
     ride_id,
     rider_id,
     driver_id,
-    incident_type: cleanEnv(incident_type || "general").toLowerCase(),
-    severity: cleanEnv(severity || "medium").toLowerCase(),
+    incident_type: lower(incident_type || "general"),
+    severity: lower(severity || "medium"),
     summary: cleanEnv(summary),
     details: String(details || "").trim(),
-    reported_by_type: cleanEnv(reported_by_type || "system").toLowerCase(),
+    reported_by_type: lower(reported_by_type || "system"),
     reported_by_id: reported_by_id || null,
-    status: cleanEnv(status || "open").toLowerCase(),
+    status: lower(status || "open"),
     metadata,
     created_at: nowIso(),
     updated_at: nowIso()
@@ -3975,6 +4558,7 @@ app.get(
 
 app.post(
   "/api/admin/payouts/:payoutId/mark-paid",
+  requireAdmin,
   asyncHandler(async (req, res) => {
     const { data: payout, error: payoutError } = await supabase
       .from("driver_payouts")
@@ -4040,10 +4624,10 @@ app.post(
     }
 
     const supportCase = await createSupportCase({
-      ride_id: cleanEnv(req.body?.ride_id || req.body?.rideId || "") || null,
-      rider_id: cleanEnv(req.body?.rider_id || req.body?.riderId || "") || null,
-      driver_id: cleanEnv(req.body?.driver_id || req.body?.driverId || "") || null,
-      case_type: cleanEnv(req.body?.case_type || req.body?.caseType || "general"),
+      ride_id: cleanEnv(coalesce(req.body?.ride_id, req.body?.rideId, "")) || null,
+      rider_id: cleanEnv(coalesce(req.body?.rider_id, req.body?.riderId, "")) || null,
+      driver_id: cleanEnv(coalesce(req.body?.driver_id, req.body?.driverId, "")) || null,
+      case_type: cleanEnv(coalesce(req.body?.case_type, req.body?.caseType, "general")),
       priority: cleanEnv(req.body?.priority || "normal"),
       subject: cleanEnv(req.body?.subject || "Support case"),
       description,
@@ -4079,6 +4663,7 @@ app.post(
 
 app.get(
   "/api/support/cases",
+  requireAdmin,
   asyncHandler(async (req, res) => {
     const status = cleanEnv(req.query?.status || "");
 
@@ -4088,7 +4673,7 @@ app.get(
       .order("created_at", { ascending: false });
 
     if (status) {
-      query = query.eq("status", status.toLowerCase());
+      query = query.eq("status", lower(status));
     }
 
     const { data, error } = await query;
@@ -4102,6 +4687,7 @@ app.get(
 
 app.post(
   "/api/support/cases/:caseId/update",
+  requireAdmin,
   asyncHandler(async (req, res) => {
     const { data: existing, error: existingError } = await supabase
       .from("support_cases")
@@ -4119,8 +4705,8 @@ app.post(
     const priority = cleanEnv(req.body?.priority || "");
     const internal_note = String(req.body?.internal_note || "").trim();
 
-    if (status) patch.status = status.toLowerCase();
-    if (priority) patch.priority = priority.toLowerCase();
+    if (status) patch.status = lower(status);
+    if (priority) patch.priority = lower(priority);
 
     patch.metadata = {
       ...(existing.metadata || {}),
@@ -4160,10 +4746,10 @@ app.post(
     }
 
     const report = await createIncidentReport({
-      ride_id: cleanEnv(req.body?.ride_id || req.body?.rideId || "") || null,
-      rider_id: cleanEnv(req.body?.rider_id || req.body?.riderId || "") || null,
-      driver_id: cleanEnv(req.body?.driver_id || req.body?.driverId || "") || null,
-      incident_type: cleanEnv(req.body?.incident_type || req.body?.incidentType || "general"),
+      ride_id: cleanEnv(coalesce(req.body?.ride_id, req.body?.rideId, "")) || null,
+      rider_id: cleanEnv(coalesce(req.body?.rider_id, req.body?.riderId, "")) || null,
+      driver_id: cleanEnv(coalesce(req.body?.driver_id, req.body?.driverId, "")) || null,
+      incident_type: cleanEnv(coalesce(req.body?.incident_type, req.body?.incidentType, "general")),
       severity: cleanEnv(req.body?.severity || "medium"),
       summary: cleanEnv(req.body?.summary || "Incident reported"),
       details,
@@ -4207,6 +4793,7 @@ app.post(
 
 app.get(
   "/api/incidents",
+  requireAdmin,
   asyncHandler(async (req, res) => {
     const status = cleanEnv(req.query?.status || "");
     const severity = cleanEnv(req.query?.severity || "");
@@ -4216,8 +4803,8 @@ app.get(
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (status) query = query.eq("status", status.toLowerCase());
-    if (severity) query = query.eq("severity", severity.toLowerCase());
+    if (status) query = query.eq("status", lower(status));
+    if (severity) query = query.eq("severity", lower(severity));
 
     const { data, error } = await query;
     if (error) throw error;
@@ -4230,6 +4817,7 @@ app.get(
 
 app.post(
   "/api/incidents/:reportId/update",
+  requireAdmin,
   asyncHandler(async (req, res) => {
     const { data: existing, error: existingError } = await supabase
       .from("incident_reports")
@@ -4247,8 +4835,8 @@ app.post(
     const severity = cleanEnv(req.body?.severity || "");
     const resolution_note = String(req.body?.resolution_note || "").trim();
 
-    if (status) patch.status = status.toLowerCase();
-    if (severity) patch.severity = severity.toLowerCase();
+    if (status) patch.status = lower(status);
+    if (severity) patch.severity = lower(severity);
 
     patch.metadata = {
       ...(existing.metadata || {}),
@@ -4356,6 +4944,7 @@ app.post(
 ========================================================= */
 app.get(
   "/api/admin/analytics/overview",
+  requireAdmin,
   asyncHandler(async (req, res) => {
     const [ridesResult, driversResult, ridersResult, payoutsResult, ledgerResult] =
       await Promise.all([
@@ -4379,7 +4968,7 @@ app.get(
     const ledger = ledgerResult.data || [];
 
     const completedRides = rides.filter(
-      (ride) => String(ride.status || "").toLowerCase() === RIDE_STATUSES.TRIP_COMPLETED
+      (ride) => lower(ride.status) === RIDE_STATUSES.TRIP_COMPLETED
     );
 
     const activeRides = rides.filter((ride) =>
@@ -4390,17 +4979,15 @@ app.get(
         RIDE_STATUSES.DRIVER_ENROUTE,
         RIDE_STATUSES.DRIVER_ARRIVED,
         RIDE_STATUSES.TRIP_STARTED
-      ].includes(String(ride.status || "").toLowerCase())
+      ].includes(lower(ride.status))
     );
 
     const verifiedRiders = riders.filter(
-      (rider) =>
-        String(rider.verification_status || "").toLowerCase() === VERIFICATION_STATUSES.VERIFIED
+      (rider) => lower(rider.verification_status) === VERIFICATION_STATUSES.VERIFIED
     );
 
     const verifiedDrivers = drivers.filter(
-      (driver) =>
-        String(driver.verification_status || "").toLowerCase() === VERIFICATION_STATUSES.VERIFIED
+      (driver) => lower(driver.verification_status) === VERIFICATION_STATUSES.VERIFIED
     );
 
     return ok(res, {
@@ -4430,12 +5017,12 @@ app.get(
         tips_total: sumLedgerAmounts(ledger, "tip"),
         payouts_paid_total: dollars(
           payouts
-            .filter((p) => String(p.status || "").toLowerCase() === "paid")
+            .filter((p) => lower(p.status) === "paid")
             .reduce((sum, p) => sum + Number(p.amount || 0), 0)
         ),
         payouts_pending_total: dollars(
           payouts
-            .filter((p) => String(p.status || "").toLowerCase() === "pending")
+            .filter((p) => lower(p.status) === "pending")
             .reduce((sum, p) => sum + Number(p.amount || 0), 0)
         )
       }
@@ -4445,8 +5032,9 @@ app.get(
 
 app.get(
   "/api/admin/analytics/live",
+  requireAdmin,
   asyncHandler(async (req, res) => {
-    const { data: rides, error } = await supabase
+    const { data, error } = await supabase
       .from("rides")
       .select("*")
       .in("status", [
@@ -4462,7 +5050,7 @@ app.get(
     if (error) throw error;
 
     return ok(res, {
-      active_rides: rides || []
+      active_rides: (data || []).map(sanitizeRide)
     });
   })
 );
@@ -4475,9 +5063,9 @@ app.post(
   asyncHandler(async (req, res) => {
     const message = String(req.body?.message || "").trim();
     const pageContext = cleanEnv(req.body?.pageContext || "general");
-    const riderId = cleanEnv(req.body?.rider_id || req.body?.riderId || "");
-    const driverId = cleanEnv(req.body?.driver_id || req.body?.driverId || "");
-    const rideId = cleanEnv(req.body?.ride_id || req.body?.rideId || "");
+    const riderId = cleanEnv(coalesce(req.body?.rider_id, req.body?.riderId, ""));
+    const driverId = cleanEnv(coalesce(req.body?.driver_id, req.body?.driverId, ""));
+    const rideId = cleanEnv(coalesce(req.body?.ride_id, req.body?.rideId, ""));
 
     if (!message) {
       return fail(res, 400, "message is required.");
