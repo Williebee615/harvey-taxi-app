@@ -5136,7 +5136,24 @@ app.use((error, req, res, next) => {
 /* =========================================================
    SERVER START
 ========================================================= */
-app.listen(PORT, () => {
+/* =========================================================
+   HEALTH CHECK (RENDER)
+========================================================= */
+app.get("/healthz", async (req, res) => {
+  try {
+    return res.status(200).json({
+      ok: true,
+      service: "harvey-taxi",
+      uptime: process.uptime(),
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    return res.status(503).json({
+      ok: false,
+      error: err.message
+    });
+  }
+});app.listen(PORT, () => {
   console.log(
     `${APP_NAME} server running on port ${PORT} | version=${APP_VERSION}`
   );
