@@ -5136,7 +5136,32 @@ app.use((error, req, res, next) => {
 /* =========================================================
    SERVER START
 ========================================================= */
-app.listen(PORT, () => {
+/* =========================================================
+   HEALTH CHECK (RENDER)
+========================================================= */
+app.get("/healthz", async (req, res) => {
+  try {
+    // OPTIONAL: quick DB check (safe + fast)
+    // comment this out if you want ultra-light check
+    if (typeof supabase !== "undefined") {
+      await supabase.from("riders").select("id").limit(1);
+    }
+
+    return res.status(200).json({
+      ok: true,
+      service: "harvey-taxi",
+      uptime: process.uptime(),
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error("Health check failed:", err.message);
+
+    return res.status(503).json({
+      ok: false,
+      error: err.message
+    });
+  }
+});app.listen(PORT, () => {
   console.log(
     `${APP_NAME} server running on port ${PORT} | version=${APP_VERSION}`
   );
