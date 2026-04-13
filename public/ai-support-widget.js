@@ -16,7 +16,7 @@
     injectStyles();
 
     const CONFIG = {
-      storageKey: "harvey_ai_chat_state_v9",
+      storageKey: "harvey_ai_chat_state_v10",
       endpoint: "/api/ai/support",
       messageLimit: 40,
       rateLimitMs: 1200,
@@ -31,6 +31,7 @@
     const state = {
       isOpen: false,
       isLoading: false,
+      isExpanded: false,
       messages: loadMessages(),
       riderId: readContextValue("rider_id"),
       driverId: readContextValue("driver_id"),
@@ -238,6 +239,14 @@
                 <button
                   class="harvey-ai-icon-btn"
                   type="button"
+                  data-harvey-ai-expand
+                  title="Expand chat"
+                  aria-label="Expand chat"
+                >⤢</button>
+
+                <button
+                  class="harvey-ai-icon-btn"
+                  type="button"
                   data-harvey-ai-reset
                   title="New chat"
                   aria-label="New chat"
@@ -297,6 +306,7 @@
       const openBtn = root.querySelector("[data-harvey-ai-open]");
       const closeBtn = root.querySelector("[data-harvey-ai-close]");
       const resetBtn = root.querySelector("[data-harvey-ai-reset]");
+      const expandBtn = root.querySelector("[data-harvey-ai-expand]");
       const form = root.querySelector("[data-harvey-ai-form]");
       const input = root.querySelector("[data-harvey-ai-input]");
 
@@ -327,13 +337,18 @@
         });
       }
 
+      if (expandBtn) {
+        expandBtn.addEventListener("click", function () {
+          toggleExpand();
+        });
+      }
+
       if (form) {
         form.addEventListener("submit", async function (event) {
           event.preventDefault();
 
           const text = String(input && input.value ? input.value : "").trim();
           if (!text) return;
-
           if (state.isLoading) return;
 
           const now = Date.now();
@@ -361,6 +376,11 @@
       }
 
       document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape" && state.isOpen && state.isExpanded) {
+          toggleExpand(false);
+          return;
+        }
+
         if (event.key === "Escape" && state.isOpen) {
           close();
         }
@@ -376,7 +396,19 @@
     function autoResizeTextarea(textarea) {
       if (!textarea) return;
       textarea.style.height = "auto";
-      textarea.style.height = Math.min(textarea.scrollHeight, 140) + "px";
+      textarea.style.height = Math.min(textarea.scrollHeight, 180) + "px";
+    }
+
+    function updateExpandButton() {
+      const expandBtn = root.querySelector("[data-harvey-ai-expand]");
+      if (!expandBtn) return;
+
+      expandBtn.textContent = state.isExpanded ? "⤡" : "⤢";
+      expandBtn.title = state.isExpanded ? "Restore chat size" : "Expand chat";
+      expandBtn.setAttribute(
+        "aria-label",
+        state.isExpanded ? "Restore chat size" : "Expand chat"
+      );
     }
 
     function open() {
@@ -384,6 +416,8 @@
 
       const panel = root.querySelector(".harvey-ai-panel");
       if (panel) panel.classList.add("open");
+
+      updateExpandButton();
 
       const input = root.querySelector("[data-harvey-ai-input]");
       setTimeout(function () {
@@ -398,6 +432,23 @@
 
       const panel = root.querySelector(".harvey-ai-panel");
       if (panel) panel.classList.remove("open");
+    }
+
+    function toggleExpand(forceValue) {
+      const panel = root.querySelector(".harvey-ai-panel");
+      if (!panel) return;
+
+      state.isExpanded =
+        typeof forceValue === "boolean" ? forceValue : !state.isExpanded;
+
+      if (state.isExpanded) {
+        panel.classList.add("expanded");
+      } else {
+        panel.classList.remove("expanded");
+      }
+
+      updateExpandButton();
+      scrollToBottom();
     }
 
     function addMessage(role, text, meta) {
@@ -612,8 +663,8 @@
       style.textContent = `
         #harvey-ai-chat-root {
           position: fixed;
-          right: 18px;
-          bottom: 92px;
+          right: 20px;
+          bottom: 96px;
           z-index: 99999;
           font-family: Inter, Arial, sans-serif;
         }
@@ -623,15 +674,15 @@
         }
 
         .harvey-ai-launch {
-          width: 72px;
-          height: 72px;
+          width: 78px;
+          height: 78px;
           border: none;
           border-radius: 50%;
           cursor: pointer;
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 28px;
+          font-size: 30px;
           font-weight: 900;
           line-height: 1;
           color: #04121f;
@@ -652,14 +703,15 @@
         }
 
         .harvey-ai-panel {
-          width: min(780px, calc(100vw - 28px));
-          max-width: 780px;
-          height: min(78vh, 1080px);
+          width: min(940px, calc(100vw - 34px));
+          max-width: 940px;
+          height: min(84vh, 1200px);
+          min-height: 760px;
           display: none;
           flex-direction: column;
           overflow: hidden;
-          border-radius: 34px;
-          margin-bottom: 16px;
+          border-radius: 36px;
+          margin-bottom: 18px;
           background:
             radial-gradient(circle at top right, rgba(99,245,255,.10), transparent 24%),
             linear-gradient(180deg, rgba(10,18,40,.98), rgba(4,10,28,.98));
@@ -673,12 +725,27 @@
           display: flex;
         }
 
+        .harvey-ai-panel.expanded {
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          bottom: 20px;
+          left: 20px;
+          width: auto;
+          max-width: none;
+          height: auto;
+          min-height: 0;
+          margin-bottom: 0;
+          border-radius: 28px;
+          z-index: 100000;
+        }
+
         .harvey-ai-header {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          gap: 14px;
-          padding: 18px 22px;
+          gap: 16px;
+          padding: 22px 26px;
           border-bottom: 1px solid rgba(255,255,255,.08);
           background: rgba(255,255,255,.02);
         }
@@ -686,20 +753,20 @@
         .harvey-ai-header-left {
           display: flex;
           align-items: center;
-          gap: 14px;
+          gap: 16px;
           min-width: 0;
         }
 
         .harvey-ai-badge {
-          width: 58px;
-          height: 58px;
-          border-radius: 18px;
+          width: 64px;
+          height: 64px;
+          border-radius: 20px;
           display: flex;
           align-items: center;
           justify-content: center;
           background: linear-gradient(135deg, #63f5ff, #5ea0ff);
           color: #04121f;
-          font-size: 18px;
+          font-size: 20px;
           font-weight: 900;
           flex-shrink: 0;
         }
@@ -710,7 +777,7 @@
 
         .harvey-ai-title {
           color: #f4f7ff;
-          font-size: 20px;
+          font-size: 22px;
           font-weight: 900;
           line-height: 1.2;
           margin-bottom: 4px;
@@ -718,7 +785,7 @@
 
         .harvey-ai-subtitle {
           color: #aab8de;
-          font-size: 13px;
+          font-size: 14px;
           line-height: 1.5;
         }
 
@@ -729,8 +796,8 @@
         }
 
         .harvey-ai-icon-btn {
-          width: 52px;
-          height: 52px;
+          width: 54px;
+          height: 54px;
           border-radius: 18px;
           border: 1px solid rgba(255,255,255,.08);
           background: rgba(255,255,255,.04);
@@ -745,17 +812,17 @@
         .harvey-ai-body {
           flex: 1;
           overflow-y: auto;
-          padding: 18px 20px;
+          padding: 22px 24px;
           display: flex;
           flex-direction: column;
-          gap: 14px;
+          gap: 16px;
         }
 
         .harvey-ai-message {
           display: flex;
           flex-direction: column;
           gap: 8px;
-          max-width: 88%;
+          max-width: 90%;
         }
 
         .harvey-ai-message.user {
@@ -769,10 +836,10 @@
         }
 
         .harvey-ai-bubble {
-          padding: 18px 20px;
-          border-radius: 22px;
-          font-size: 16px;
-          line-height: 1.65;
+          padding: 20px 22px;
+          border-radius: 24px;
+          font-size: 18px;
+          line-height: 1.72;
           white-space: pre-wrap;
           word-break: break-word;
         }
@@ -793,25 +860,25 @@
 
         .harvey-ai-meta {
           color: #aab8de;
-          font-size: 12px;
+          font-size: 13px;
           line-height: 1.4;
           padding: 0 2px;
         }
 
         .harvey-ai-system-line {
           color: #aab8de;
-          font-size: 12px;
-          line-height: 1.6;
-          margin-top: 2px;
+          font-size: 13px;
+          line-height: 1.7;
+          margin-top: 4px;
         }
 
         .harvey-ai-suggestions {
-          padding: 0 20px 18px;
+          padding: 0 24px 20px;
           display: flex;
           flex-wrap: wrap;
-          gap: 10px;
+          gap: 12px;
           border-top: 1px solid rgba(255,255,255,.06);
-          padding-top: 18px;
+          padding-top: 20px;
         }
 
         .harvey-ai-suggestion {
@@ -819,37 +886,37 @@
           background: rgba(255,255,255,.04);
           color: #dfe8ff;
           border-radius: 999px;
-          padding: 12px 18px;
+          padding: 13px 20px;
           font-size: 14px;
           font-weight: 800;
           cursor: pointer;
         }
 
         .harvey-ai-footer {
-          padding: 18px 20px 20px;
+          padding: 20px 24px 22px;
           border-top: 1px solid rgba(255,255,255,.08);
           background: rgba(255,255,255,.02);
         }
 
         .harvey-ai-form {
           display: grid;
-          grid-template-columns: 1fr 92px;
-          gap: 12px;
+          grid-template-columns: 1fr 100px;
+          gap: 14px;
           align-items: end;
         }
 
         .harvey-ai-input {
           width: 100%;
-          min-height: 68px;
-          max-height: 140px;
+          min-height: 78px;
+          max-height: 180px;
           resize: none;
-          border-radius: 22px;
+          border-radius: 24px;
           border: 1px solid rgba(94,160,255,.28);
           background: rgba(0,18,66,.34);
           color: #f4f7ff;
-          font-size: 16px;
-          line-height: 1.55;
-          padding: 18px 20px;
+          font-size: 17px;
+          line-height: 1.6;
+          padding: 20px 22px;
           outline: none;
         }
 
@@ -858,12 +925,12 @@
         }
 
         .harvey-ai-send {
-          height: 68px;
+          height: 78px;
           border: none;
-          border-radius: 22px;
+          border-radius: 24px;
           background: linear-gradient(135deg, #6dffb3, #89ffd0);
           color: #04121f;
-          font-size: 30px;
+          font-size: 32px;
           font-weight: 900;
           cursor: pointer;
         }
@@ -875,10 +942,10 @@
         }
 
         .harvey-ai-footnote {
-          margin-top: 12px;
+          margin-top: 14px;
           color: #aab8de;
           font-size: 12px;
-          line-height: 1.65;
+          line-height: 1.7;
         }
 
         .harvey-ai-typing {
@@ -919,7 +986,7 @@
           }
         }
 
-        @media (max-width: 700px) {
+        @media (max-width: 900px) {
           #harvey-ai-chat-root {
             right: 14px;
             bottom: 88px;
@@ -933,23 +1000,33 @@
 
           .harvey-ai-panel {
             width: calc(100vw - 28px);
-            height: min(76vh, 900px);
+            max-width: calc(100vw - 28px);
+            height: min(82vh, 1000px);
+            min-height: 680px;
             border-radius: 28px;
           }
 
+          .harvey-ai-panel.expanded {
+            top: 10px;
+            right: 10px;
+            bottom: 10px;
+            left: 10px;
+            border-radius: 22px;
+          }
+
           .harvey-ai-header {
-            padding: 16px;
+            padding: 18px;
           }
 
           .harvey-ai-badge {
-            width: 52px;
-            height: 52px;
-            font-size: 16px;
-            border-radius: 16px;
+            width: 56px;
+            height: 56px;
+            font-size: 17px;
+            border-radius: 18px;
           }
 
           .harvey-ai-title {
-            font-size: 18px;
+            font-size: 19px;
           }
 
           .harvey-ai-icon-btn {
@@ -960,16 +1037,17 @@
           }
 
           .harvey-ai-body {
-            padding: 16px;
+            padding: 18px;
           }
 
           .harvey-ai-bubble {
-            font-size: 15px;
-            padding: 16px 18px;
+            font-size: 16px;
+            line-height: 1.65;
+            padding: 18px 20px;
           }
 
           .harvey-ai-suggestions {
-            padding: 16px;
+            padding: 18px;
             gap: 10px;
           }
 
@@ -979,23 +1057,42 @@
           }
 
           .harvey-ai-footer {
-            padding: 16px;
+            padding: 18px;
           }
 
           .harvey-ai-form {
-            grid-template-columns: 1fr 78px;
+            grid-template-columns: 1fr 82px;
           }
 
           .harvey-ai-input {
-            min-height: 62px;
-            font-size: 15px;
-            padding: 16px 18px;
+            min-height: 68px;
+            font-size: 16px;
+            padding: 18px 20px;
           }
 
           .harvey-ai-send {
-            height: 62px;
+            height: 68px;
             border-radius: 20px;
             font-size: 28px;
+          }
+        }
+
+        @media (max-width: 600px) {
+          .harvey-ai-panel {
+            width: calc(100vw - 20px);
+            max-width: calc(100vw - 20px);
+            height: min(84vh, 920px);
+            min-height: 620px;
+            border-radius: 24px;
+          }
+
+          .harvey-ai-message {
+            max-width: 94%;
+          }
+
+          .harvey-ai-bubble {
+            font-size: 15px;
+            line-height: 1.6;
           }
         }
       `;
@@ -1009,6 +1106,13 @@
       },
       close: function () {
         close();
+      },
+      expand: function () {
+        open();
+        toggleExpand(true);
+      },
+      restore: function () {
+        toggleExpand(false);
       },
       ask: function (message) {
         open();
@@ -1029,6 +1133,7 @@
         return {
           isOpen: state.isOpen,
           isLoading: state.isLoading,
+          isExpanded: state.isExpanded,
           page: PAGE_CONTEXT,
           riderId: state.riderId,
           driverId: state.driverId,
