@@ -13,6 +13,22 @@
   --harvey-ai-font: Inter, Arial, sans-serif;
 }
 
+/* CRITICAL: this anchors the whole widget on screen */
+#harvey-ai-chat-root{
+  position: fixed;
+  right: 16px;
+  bottom: 88px;
+  z-index: 99999;
+  font-family: var(--harvey-ai-font);
+  pointer-events: none;
+}
+
+/* allow actual widget interaction */
+#harvey-ai-chat-root .harvey-ai-widget,
+#harvey-ai-chat-root .harvey-ai-widget *{
+  pointer-events: auto;
+}
+
 .harvey-ai-widget{
   position: relative;
   font-family: var(--harvey-ai-font);
@@ -50,16 +66,19 @@
   position: absolute;
   right: 0;
   bottom: 78px;
-  width: 380px;
-  max-width: calc(100vw - 28px);
-  height: 620px;
+  width: 400px;
+  max-width: min(400px, calc(100vw - 28px));
+  height: 640px;
   max-height: calc(100vh - 140px);
   border-radius: var(--harvey-ai-radius);
   border: 1px solid var(--harvey-ai-line);
   background:
+    radial-gradient(circle at top left, rgba(99,245,255,0.10), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(94,160,255,0.10), transparent 30%),
     linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015)),
     var(--harvey-ai-bg);
   backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   box-shadow: var(--harvey-ai-shadow);
   overflow: hidden;
   display: none;
@@ -88,8 +107,8 @@
 }
 
 .harvey-ai-badge{
-  width: 42px;
-  height: 42px;
+  width: 48px;
+  height: 48px;
   border-radius: 14px;
   background: linear-gradient(135deg, var(--harvey-ai-cyan), var(--harvey-ai-blue));
   color: #07121f;
@@ -106,7 +125,7 @@
 }
 
 .harvey-ai-title{
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 900;
   color: var(--harvey-ai-text);
   letter-spacing: .02em;
@@ -129,8 +148,8 @@
 }
 
 .harvey-ai-icon-btn{
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   border-radius: 12px;
   border: 1px solid rgba(255,255,255,0.08);
   background: rgba(255,255,255,0.04);
@@ -155,6 +174,7 @@
   flex-direction: column;
   gap: 12px;
   scroll-behavior: smooth;
+  min-height: 0;
 }
 
 .harvey-ai-body::-webkit-scrollbar{
@@ -350,11 +370,17 @@
 }
 
 @media (max-width: 700px){
+  #harvey-ai-chat-root{
+    right: 12px;
+    left: 12px;
+    bottom: 84px;
+  }
+
   .harvey-ai-panel{
     position: fixed;
     right: 12px;
     left: 12px;
-    bottom: 88px;
+    bottom: 84px;
     width: auto;
     height: min(76vh, 640px);
     max-width: none;
@@ -364,6 +390,8 @@
     width: 60px;
     height: 60px;
     font-size: 26px;
+    margin-left: auto;
+    display: inline-flex;
   }
 
   .harvey-ai-body{
