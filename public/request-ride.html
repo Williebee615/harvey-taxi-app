@@ -9,7 +9,14 @@
   <title>Harvey Taxi — Request Ride</title>
   <meta
     name="description"
-    content="Harvey Taxi futuristic request ride page with rider access, fare estimate, payment authorization, and dispatch request flow."
+    content="Harvey Taxi futuristic request ride page with rider access, live location map, fare estimate, payment authorization, and dispatch request flow."
+  />
+
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
   />
 
   <style>
@@ -31,7 +38,7 @@
       --danger:#ff7e97;
       --shadow:0 20px 70px rgba(0,0,0,.35);
       --radius:24px;
-      --max:1120px;
+      --max:1180px;
     }
 
     *{
@@ -275,7 +282,7 @@
 
     .grid{
       display:grid;
-      grid-template-columns:1.06fr .94fr;
+      grid-template-columns:1.04fr .96fr;
       gap:16px;
       margin-top:18px;
     }
@@ -765,6 +772,85 @@
       font-size:14px;
     }
 
+    .map-panel{
+      padding:20px;
+      border-radius:22px;
+      border:1px solid rgba(99,245,255,.16);
+      background:linear-gradient(135deg,rgba(99,245,255,.06),rgba(94,160,255,.035));
+      margin-bottom:16px;
+    }
+
+    .map-header{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:12px;
+      flex-wrap:wrap;
+      margin-bottom:14px;
+    }
+
+    .map-header h3{
+      font-size:20px;
+      margin-bottom:6px;
+    }
+
+    .map-header p{
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.7;
+      max-width:650px;
+    }
+
+    #liveMap{
+      width:100%;
+      height:360px;
+      border-radius:20px;
+      overflow:hidden;
+      border:1px solid rgba(255,255,255,.08);
+      box-shadow:0 14px 34px rgba(0,0,0,.20);
+      background:#0d1730;
+    }
+
+    .leaflet-control-container .leaflet-control{
+      font-family:Inter, Arial, sans-serif;
+    }
+
+    .map-readout{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:12px;
+      margin-top:14px;
+    }
+
+    .map-readout-card{
+      padding:14px;
+      border-radius:16px;
+      border:1px solid rgba(255,255,255,.08);
+      background:rgba(255,255,255,.03);
+    }
+
+    .map-readout-card .k{
+      color:var(--muted);
+      font-size:12px;
+      text-transform:uppercase;
+      letter-spacing:.05em;
+      margin-bottom:6px;
+    }
+
+    .map-readout-card .v{
+      font-size:14px;
+      line-height:1.6;
+      font-weight:700;
+      word-break:break-word;
+    }
+
+    .coord-note{
+      margin-top:12px;
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.6;
+    }
+
     @media(max-width:980px){
       .grid{
         grid-template-columns:1fr;
@@ -808,7 +894,8 @@
 
       .split,
       .status-strip,
-      .estimate{
+      .estimate,
+      .map-readout{
         grid-template-columns:1fr;
       }
 
@@ -823,6 +910,10 @@
       .location-panel h2{
         font-size:28px;
       }
+
+      #liveMap{
+        height:300px;
+      }
     }
   </style>
 </head>
@@ -833,7 +924,7 @@
       <h2>Enable Location Access</h2>
       <p>
         Harvey Taxi uses your device location to support pickup coordination,
-        ride requests, dispatch accuracy, and a safer transportation flow.
+        live map visibility, ride requests, dispatch accuracy, and a safer transportation flow.
       </p>
 
       <div class="account-actions" style="justify-content:center;">
@@ -846,7 +937,7 @@
 
       <div class="location-note">
         Your ride experience works best when live location is enabled for pickup support,
-        trip flow, and accurate dispatch.
+        map confirmation, trip flow, and accurate dispatch.
       </div>
     </div>
   </div>
@@ -925,6 +1016,53 @@
               <h3>Payment Status</h3>
               <p id="paymentText">No payment has been secured yet.</p>
               <div id="paymentTag" class="tag warn">Not Secured</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section" style="margin-bottom:16px;">
+          <div class="section-header">
+            <div>
+              <h2>Live pickup map</h2>
+              <p>
+                Riders can view their exact live position before booking. Use your current location
+                to confirm pickup support and improve dispatch accuracy.
+              </p>
+            </div>
+          </div>
+
+          <div class="map-panel">
+            <div class="map-header">
+              <div>
+                <h3>Live Location Preview</h3>
+                <p>
+                  This map shows your current device location. You can refresh it anytime
+                  and use it to support your pickup address before requesting a ride.
+                </p>
+              </div>
+            </div>
+
+            <div id="liveMap"></div>
+
+            <div class="account-actions">
+              <button class="btn secondary" type="button" id="refreshLocationBtn">Refresh Location</button>
+              <button class="btn secondary" type="button" id="useLiveLocationBtn">Use My Live Location</button>
+            </div>
+
+            <div class="map-readout">
+              <div class="map-readout-card">
+                <div class="k">Current Location Status</div>
+                <div class="v" id="mapStatusText">Waiting for live location...</div>
+              </div>
+
+              <div class="map-readout-card">
+                <div class="k">Coordinates</div>
+                <div class="v" id="mapCoordText">--</div>
+              </div>
+            </div>
+
+            <div class="coord-note">
+              Your coordinates are used only to improve pickup accuracy and live map support.
             </div>
           </div>
         </div>
@@ -1083,7 +1221,7 @@
         <strong style="display:block;margin-bottom:8px;">Harvey Taxi Service LLC</strong>
         <p>
           A futuristic consumer ride request experience rebuilt for Harvey Taxi with rider
-          readiness, estimate visibility, payment authorization, and support-first design.
+          readiness, live pickup visibility, estimate visibility, payment authorization, and support-first design.
         </p>
       </div>
 
@@ -1101,6 +1239,12 @@
     <button class="nav-btn" onclick="goSupport()">Safety</button>
   </div>
 
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+
   <script>
     let selectedPaymentMethod = "card";
     let currentEstimate = null;
@@ -1114,6 +1258,11 @@
     let isEstimating = false;
     let isAuthorizing = false;
     let isRequestingRide = false;
+    let isRefreshingLocation = false;
+
+    let liveMap = null;
+    let liveMarker = null;
+    let liveCircle = null;
 
     const urlParams = new URLSearchParams(window.location.search);
     const requestedMode =
@@ -1139,6 +1288,11 @@
     const locationGate = document.getElementById("locationGate");
     const locationStatusText = document.getElementById("locationStatusText");
     const enableLocationBtn = document.getElementById("enableLocationBtn");
+    const refreshLocationBtn = document.getElementById("refreshLocationBtn");
+    const useLiveLocationBtn = document.getElementById("useLiveLocationBtn");
+
+    const mapStatusText = document.getElementById("mapStatusText");
+    const mapCoordText = document.getElementById("mapCoordText");
 
     const estimateBtn = document.getElementById("estimateBtn");
     const authorizeBtn = document.getElementById("authorizeBtn");
@@ -1218,6 +1372,7 @@
         estimateSub.textContent =
           "Review your current fare estimate before submitting your ride request.";
         requestRideBtn.textContent = "Request Ride";
+        requestRideBtn.classList.remove("autonomous-primary");
         modeBanner.style.display = "none";
       }
     }
@@ -1295,6 +1450,11 @@
     function unlockLocationGate(){
       locationApproved = true;
       locationGate.style.display = "none";
+      setTimeout(() => {
+        if (liveMap) {
+          liveMap.invalidateSize();
+        }
+      }, 100);
     }
 
     function setLocationDeniedState(message){
@@ -1302,6 +1462,8 @@
       currentCoords = null;
       localStorage.removeItem("harveyLocationApproved");
       locationStatusText.textContent = message;
+      mapStatusText.textContent = message;
+      mapCoordText.textContent = "--";
     }
 
     function getFormData(){
@@ -1326,6 +1488,74 @@
     function isPhoneLikelyValid(phone){
       const cleaned = normalizePhone(phone);
       return cleaned.length >= 10;
+    }
+
+    function initMap(){
+      if (liveMap) return;
+
+      liveMap = L.map("liveMap", {
+        zoomControl: true,
+        attributionControl: true
+      }).setView([36.1627, -86.7816], 12);
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: "&copy; OpenStreetMap contributors"
+      }).addTo(liveMap);
+
+      setTimeout(() => {
+        liveMap.invalidateSize();
+      }, 100);
+    }
+
+    function updateLiveMap(coords){
+      if (!coords || !liveMap) return;
+
+      const lat = Number(coords.latitude);
+      const lng = Number(coords.longitude);
+      const accuracy = Number(coords.accuracy || 40);
+
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+      if (liveMarker) {
+        liveMarker.setLatLng([lat, lng]);
+      } else {
+        liveMarker = L.marker([lat, lng]).addTo(liveMap);
+      }
+
+      if (liveCircle) {
+        liveCircle.setLatLng([lat, lng]);
+        liveCircle.setRadius(accuracy);
+      } else {
+        liveCircle = L.circle([lat, lng], {
+          radius: accuracy,
+          color: "#63f5ff",
+          weight: 2,
+          fillColor: "#63f5ff",
+          fillOpacity: 0.12
+        }).addTo(liveMap);
+      }
+
+      liveMarker.bindPopup("Your live location").openPopup();
+      liveMap.setView([lat, lng], 16);
+
+      mapStatusText.textContent = "Live location active and visible on map.";
+      mapCoordText.textContent = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    }
+
+    function useLiveLocationForPickup(){
+      if (!currentCoords) {
+        showError("Live location is not available yet.");
+        return;
+      }
+
+      const lat = Number(currentCoords.latitude);
+      const lng = Number(currentCoords.longitude);
+
+      pickupInput.value = `Live Location (${lat.toFixed(6)}, ${lng.toFixed(6)})`;
+      resetEstimateState();
+      resetPaymentState();
+      showResult("Your live location has been applied to pickup support.");
     }
 
     paymentPills.forEach((btn) => {
@@ -1365,20 +1595,25 @@
         return;
       }
 
+      initMap();
+
       setButtonLoading(enableLocationBtn, true, "Enabling Location...", "Enable Location");
       locationStatusText.textContent = "Requesting location access...";
+      mapStatusText.textContent = "Requesting live location...";
 
       navigator.geolocation.getCurrentPosition(
         (position) => {
           currentCoords = {
             latitude: position.coords.latitude,
-            longitude: position.coords.longitude
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy
           };
 
           localStorage.setItem("harveyLocationApproved", "true");
           locationStatusText.textContent = "Location access enabled successfully.";
+          updateLiveMap(currentCoords);
           unlockLocationGate();
-          showResult("Location access enabled. You can now continue your ride request.");
+          showResult("Location access enabled. Your live pickup map is now active.");
           setButtonLoading(enableLocationBtn, false, "", "Enable Location");
         },
         (error) => {
@@ -1404,15 +1639,69 @@
       );
     }
 
-    async function restoreLocationFromPermission(){
-      if(!navigator.geolocation) return;
+    function refreshLiveLocation(){
+      clearMessages();
+
+      if(isRefreshingLocation) return;
+      if(!navigator.geolocation){
+        showError("This device does not support location services.");
+        return;
+      }
+
+      isRefreshingLocation = true;
+      setButtonLoading(refreshLocationBtn, true, "Refreshing...", "Refresh Location");
+      mapStatusText.textContent = "Refreshing live location...";
 
       navigator.geolocation.getCurrentPosition(
         (position) => {
           currentCoords = {
             latitude: position.coords.latitude,
-            longitude: position.coords.longitude
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy
           };
+
+          updateLiveMap(currentCoords);
+          showResult("Live location refreshed successfully.");
+          isRefreshingLocation = false;
+          setButtonLoading(refreshLocationBtn, false, "", "Refresh Location");
+        },
+        (error) => {
+          let message = "Unable to refresh live location.";
+
+          if(error && error.code === 1){
+            message = "Location permission was denied.";
+          } else if(error && error.code === 2){
+            message = "Current location could not be determined.";
+          } else if(error && error.code === 3){
+            message = "Location refresh timed out.";
+          }
+
+          showError(message);
+          mapStatusText.textContent = message;
+          isRefreshingLocation = false;
+          setButtonLoading(refreshLocationBtn, false, "", "Refresh Location");
+        },
+        {
+          enableHighAccuracy:true,
+          timeout:15000,
+          maximumAge:0
+        }
+      );
+    }
+
+    async function restoreLocationFromPermission(){
+      if(!navigator.geolocation) return;
+
+      initMap();
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          currentCoords = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy
+          };
+          updateLiveMap(currentCoords);
           unlockLocationGate();
         },
         () => {
@@ -1539,7 +1828,9 @@
             pickupAddress: payload.pickupAddress,
             dropoffAddress: payload.dropoffAddress,
             rideType: payload.rideType,
-            requestedMode: payload.requestedMode
+            requestedMode: payload.requestedMode,
+            pickupLat: currentCoords.latitude,
+            pickupLng: currentCoords.longitude
           })
         });
 
@@ -1551,11 +1842,11 @@
         }
 
         currentEstimate = {
-          estimatedFare: Number(data.estimated_fare || 0),
-          driverPayout: Number(data.driver_payout || 0),
-          distanceMiles: Number(data.breakdown?.distance_miles || 0),
-          durationMinutes: Number(data.breakdown?.duration_minutes || 0),
-          rideType: data.ride_type || payload.rideType
+          estimatedFare: Number(data.estimated_fare || data.estimate?.estimated_fare || 0),
+          driverPayout: Number(data.driver_payout || data.estimate?.provider_payout_estimate || 0),
+          distanceMiles: Number(data.breakdown?.distance_miles || data.estimate?.distance_miles || 0),
+          durationMinutes: Number(data.breakdown?.duration_minutes || data.estimate?.duration_minutes || 0),
+          rideType: data.ride_type || data.estimate?.ride_type || payload.rideType
         };
 
         distanceValue.textContent = `${currentEstimate.distanceMiles.toFixed(2)} mi`;
@@ -1566,8 +1857,8 @@
           isAutonomousMode ? "Autonomous Ride Preview" : "Ride Preview",
           "",
           `Mode: ${isAutonomousMode ? "Autonomous Pilot" : "Driver Ride"}`,
-          `Pickup: ${data.pickup_address || payload.pickupAddress}`,
-          `Dropoff: ${data.dropoff_address || payload.dropoffAddress}`,
+          `Pickup: ${data.pickup_address || data.estimate?.pickup_address || payload.pickupAddress}`,
+          `Dropoff: ${data.dropoff_address || data.estimate?.dropoff_address || payload.dropoffAddress}`,
           `Ride Type: ${currentEstimate.rideType}`,
           `Estimated Distance: ${currentEstimate.distanceMiles.toFixed(2)} mi`,
           `Estimated Duration: ${currentEstimate.durationMinutes.toFixed(2)} min`,
@@ -1736,7 +2027,7 @@
           payload.scheduledTime ? `Scheduled Time: ${payload.scheduledTime}` : "",
           payload.rideNotes ? `Notes: ${payload.rideNotes}` : "",
           `Payment Method: ${payload.paymentMethod === "apple_pay" ? "Apple Pay" : "Card"}`,
-          currentCoords ? "Pickup Location Enabled" : ""
+          currentCoords ? `Live Location: ${Number(currentCoords.latitude).toFixed(6)}, ${Number(currentCoords.longitude).toFixed(6)}` : ""
         ].filter(Boolean).join(" | ");
 
         const res = await fetch("/api/request-ride", {
@@ -1750,6 +2041,8 @@
             scheduledTime: payload.scheduledTime || null,
             paymentMethod: payload.paymentMethod,
             requestedMode: payload.requestedMode,
+            pickupLat: currentCoords.latitude,
+            pickupLng: currentCoords.longitude,
             notes: compiledNotes
           })
         });
@@ -1778,8 +2071,11 @@
           `Status: ${rideStatus}`,
           "",
           `Pickup: ${payload.pickupAddress}`,
-          `Dropoff: ${payload.dropoffAddress}`
-        ];
+          `Dropoff: ${payload.dropoffAddress}`,
+          currentCoords
+            ? `Live Map Position: ${Number(currentCoords.latitude).toFixed(6)}, ${Number(currentCoords.longitude).toFixed(6)}`
+            : ""
+        ].filter(Boolean);
 
         showResult(confirmation.join("\n"));
       } catch(error){
@@ -1796,6 +2092,8 @@
     }
 
     enableLocationBtn.addEventListener("click", requestLocationAccess);
+    refreshLocationBtn.addEventListener("click", refreshLiveLocation);
+    useLiveLocationBtn.addEventListener("click", useLiveLocationForPickup);
     riderIdInput.addEventListener("blur", checkRiderStatus);
     estimateBtn.addEventListener("click", getEstimate);
     authorizeBtn.addEventListener("click", authorizePayment);
@@ -1805,6 +2103,7 @@
     const savedLocationApproved = localStorage.getItem("harveyLocationApproved");
 
     applyRideModeUI();
+    initMap();
 
     if(savedRiderId){
       riderIdInput.value = savedRiderId;
