@@ -7,24 +7,31 @@
     content="width=device-width, initial-scale=1.0, viewport-fit=cover"
   />
   <title>Harvey Taxi — Request Ride</title>
+  <meta
+    name="description"
+    content="Harvey Taxi futuristic request ride page with rider access, fare estimate, payment authorization, and dispatch request flow."
+  />
 
   <style>
     :root{
       --bg1:#040814;
       --bg2:#091126;
-      --panel:rgba(10,17,38,.88);
-      --panel2:rgba(15,23,52,.72);
+      --bg3:#101935;
+      --panel:rgba(10,17,38,.90);
+      --panel2:rgba(16,27,58,.86);
+      --panel3:rgba(255,255,255,.03);
       --line:rgba(122,162,255,.16);
-      --line-strong:rgba(122,162,255,.28);
+      --line-strong:rgba(122,162,255,.30);
       --text:#f4f7ff;
       --muted:#aab8de;
       --blue:#5ea0ff;
       --cyan:#63f5ff;
       --green:#6dffb3;
-      --danger:#ff7e97;
       --gold:#ffd76a;
+      --danger:#ff7e97;
       --shadow:0 20px 70px rgba(0,0,0,.35);
-      --shadow-soft:0 10px 30px rgba(0,0,0,.2);
+      --radius:24px;
+      --max:1120px;
     }
 
     *{
@@ -33,245 +40,337 @@
       padding:0;
     }
 
-    html,body{
-      min-height:100%;
+    html{
+      scroll-behavior:smooth;
     }
 
     body{
-      font-family:Inter,Arial,sans-serif;
+      font-family:Inter, Arial, sans-serif;
       color:var(--text);
       background:
-        radial-gradient(circle at top left, rgba(99,245,255,.12), transparent 28%),
-        radial-gradient(circle at top right, rgba(94,160,255,.10), transparent 24%),
-        linear-gradient(160deg,var(--bg1),var(--bg2));
+        radial-gradient(circle at top left, rgba(99,245,255,.12), transparent 30%),
+        radial-gradient(circle at top right, rgba(94,160,255,.10), transparent 28%),
+        linear-gradient(160deg, var(--bg1), var(--bg2) 50%, var(--bg3));
+      min-height:100vh;
+      overflow-x:hidden;
+    }
+
+    a{
+      color:inherit;
+      text-decoration:none;
+    }
+
+    button,
+    input,
+    textarea,
+    select{
+      font:inherit;
     }
 
     .shell{
-      max-width:860px;
+      max-width:var(--max);
       margin:auto;
-      padding:20px 16px 48px;
+      padding:18px 16px 140px;
     }
 
     .topbar{
       display:flex;
       justify-content:space-between;
       align-items:center;
+      gap:14px;
+      padding:14px 18px;
+      border:1px solid var(--line);
+      border-radius:999px;
+      background:rgba(7,12,28,.78);
+      backdrop-filter:blur(12px);
+      margin-bottom:18px;
+      box-shadow:var(--shadow);
+      position:sticky;
+      top:14px;
+      z-index:50;
+    }
+
+    .brand-wrap{
+      display:flex;
+      align-items:center;
       gap:12px;
-      margin-bottom:20px;
+      min-width:0;
+    }
+
+    .logo-dot{
+      width:12px;
+      height:12px;
+      border-radius:50%;
+      background:linear-gradient(135deg,var(--cyan),var(--blue));
+      box-shadow:0 0 18px rgba(99,245,255,.55);
+      flex-shrink:0;
+    }
+
+    .brand-block{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+      min-width:0;
     }
 
     .brand{
-      font-size:1.25rem;
-      font-weight:800;
-      letter-spacing:.4px;
+      font-weight:900;
+      letter-spacing:.12em;
+      font-size:14px;
+      white-space:nowrap;
     }
 
-    .brand span{
-      color:var(--cyan);
+    .brand-sub{
+      font-size:11px;
+      color:var(--muted);
+      letter-spacing:.08em;
+      text-transform:uppercase;
     }
 
-    .home-btn{
-      text-decoration:none;
-      color:var(--text);
-      border:1px solid var(--line);
-      background:rgba(255,255,255,.04);
+    .top-actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+
+    .top-chip{
       padding:10px 14px;
       border-radius:999px;
+      border:1px solid rgba(255,255,255,.08);
+      background:rgba(255,255,255,.03);
+      color:var(--muted);
+      font-size:13px;
       font-weight:700;
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      transition:.2s ease;
+      transition:.18s ease;
+      cursor:pointer;
     }
 
-    .home-btn:hover{
-      border-color:var(--line-strong);
-      background:rgba(255,255,255,.07);
+    .top-chip:hover{
+      color:#fff;
+      background:rgba(255,255,255,.06);
     }
 
     .hero{
-      background:linear-gradient(180deg,rgba(17,31,66,.88),rgba(8,16,35,.92));
-      border:1px solid var(--line);
+      position:relative;
+      overflow:hidden;
+      background:
+        linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.015)),
+        var(--panel);
+      padding:28px;
       border-radius:28px;
-      padding:22px;
+      border:1px solid var(--line);
+      margin-bottom:18px;
       box-shadow:var(--shadow);
+    }
+
+    .hero::before{
+      content:"";
+      position:absolute;
+      top:-70px;
+      right:-70px;
+      width:260px;
+      height:260px;
+      border-radius:50%;
+      background:radial-gradient(circle,rgba(99,245,255,.16),transparent 65%);
+      pointer-events:none;
+    }
+
+    .hero::after{
+      content:"";
+      position:absolute;
+      left:-70px;
+      bottom:-70px;
+      width:220px;
+      height:220px;
+      border-radius:50%;
+      background:radial-gradient(circle,rgba(94,160,255,.10),transparent 65%);
+      pointer-events:none;
+    }
+
+    .welcome{
+      position:relative;
+      z-index:2;
       margin-bottom:18px;
     }
 
-    .hero h1{
-      font-size:1.6rem;
-      margin-bottom:8px;
+    .welcome-badge{
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      padding:10px 14px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.08);
+      background:rgba(255,255,255,.04);
+      color:var(--cyan);
+      font-size:12px;
+      font-weight:800;
+      letter-spacing:.05em;
+      text-transform:uppercase;
+      margin-bottom:14px;
     }
 
-    .hero p{
+    .welcome h1{
+      font-size:42px;
+      line-height:1.04;
+      margin-bottom:10px;
+    }
+
+    .welcome p{
       color:var(--muted);
-      line-height:1.55;
+      font-size:16px;
+      line-height:1.7;
+      max-width:760px;
     }
 
     .mode-banner{
+      position:relative;
+      z-index:2;
       display:none;
-      margin-top:16px;
-      padding:14px 16px;
-      border-radius:18px;
-      border:1px solid rgba(99,245,255,.2);
-      background:linear-gradient(135deg,rgba(127,123,255,.14),rgba(99,245,255,.10));
-      box-shadow:var(--shadow-soft);
+      margin-top:18px;
+      padding:18px;
+      border-radius:22px;
+      border:1px solid rgba(99,245,255,.16);
+      background:linear-gradient(135deg,rgba(127,123,255,.16),rgba(99,245,255,.08));
     }
 
     .mode-banner strong{
       display:block;
-      margin-bottom:6px;
-      color:#e9f8ff;
-      font-size:.98rem;
+      margin-bottom:8px;
+      font-size:16px;
     }
 
     .mode-banner span{
       color:var(--muted);
-      line-height:1.55;
-      font-size:.94rem;
+      line-height:1.7;
+      font-size:14px;
+      display:block;
+    }
+
+    .chip-row{
+      display:flex;
+      flex-wrap:wrap;
+      gap:12px;
+      margin-top:18px;
+      position:relative;
+      z-index:2;
+    }
+
+    .action-chip{
+      padding:14px 16px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.08);
+      background:rgba(255,255,255,.05);
+      color:var(--text);
+      font-size:14px;
+      font-weight:800;
+      cursor:pointer;
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+    }
+
+    .action-chip:hover{
+      background:rgba(255,255,255,.08);
     }
 
     .grid{
       display:grid;
-      grid-template-columns:1fr;
-      gap:18px;
+      grid-template-columns:1.06fr .94fr;
+      gap:16px;
+      margin-top:18px;
     }
 
-    .card{
+    .section{
       background:var(--panel);
-      border:1px solid var(--line);
+      padding:24px;
       border-radius:24px;
-      padding:20px;
+      border:1px solid var(--line);
       box-shadow:var(--shadow);
     }
 
-    .section-title{
-      font-size:1.08rem;
-      font-weight:800;
-      margin-bottom:14px;
-    }
-
-    .sub{
-      color:var(--muted);
-      font-size:.95rem;
+    .section-header{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-end;
+      gap:12px;
+      flex-wrap:wrap;
       margin-bottom:16px;
-      line-height:1.5;
     }
 
-    .field{
-      margin-bottom:14px;
+    .section-header h2{
+      font-size:28px;
+      margin-bottom:4px;
     }
 
-    .field label{
-      display:block;
-      margin-bottom:8px;
+    .section-header p{
       color:var(--muted);
-      font-size:.92rem;
-      font-weight:700;
+      font-size:14px;
+      line-height:1.7;
+      max-width:720px;
     }
 
-    .input,
-    select,
-    textarea{
-      width:100%;
-      background:var(--panel2);
-      color:var(--text);
-      border:1px solid rgba(255,255,255,.08);
-      border-radius:16px;
-      padding:14px 14px;
-      outline:none;
-      font-size:1rem;
-      transition:border-color .2s ease, box-shadow .2s ease, background .2s ease;
-    }
-
-    .input:focus,
-    select:focus,
-    textarea:focus{
-      border-color:rgba(99,245,255,.35);
-      box-shadow:0 0 0 4px rgba(99,245,255,.08);
-      background:rgba(20,31,62,.92);
-    }
-
-    .input::placeholder,
-    textarea::placeholder{
-      color:rgba(244,247,255,.46);
-    }
-
-    textarea{
-      resize:vertical;
-      min-height:94px;
-    }
-
-    .row{
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:14px;
-    }
-
-    .pill-row{
+    .step-row{
       display:flex;
       flex-wrap:wrap;
       gap:10px;
-      margin-top:8px;
+      margin-bottom:18px;
     }
 
-    .pill{
-      border:1px solid var(--line);
-      background:rgba(255,255,255,.04);
-      color:var(--text);
+    .step{
       padding:10px 14px;
       border-radius:999px;
-      font-weight:700;
-      cursor:pointer;
-      transition:.2s ease;
-    }
-
-    .pill:hover{
-      border-color:var(--line-strong);
-      background:rgba(255,255,255,.07);
-    }
-
-    .pill.active{
-      border-color:rgba(99,245,255,.5);
-      background:rgba(99,245,255,.12);
-      color:#dfffff;
-    }
-
-    .status-box{
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:14px;
-    }
-
-    .mini{
-      background:rgba(255,255,255,.035);
       border:1px solid var(--line);
-      border-radius:18px;
-      padding:14px;
+      background:rgba(255,255,255,.04);
+      color:var(--muted);
+      font-size:13px;
+      font-weight:800;
     }
 
-    .mini h3{
-      font-size:.95rem;
+    .step.active{
+      color:#dfffff;
+      border-color:rgba(99,245,255,.45);
+      background:rgba(99,245,255,.12);
+    }
+
+    .status-strip{
+      display:grid;
+      grid-template-columns:repeat(2,1fr);
+      gap:12px;
+    }
+
+    .status-card{
+      padding:16px;
+      border-radius:18px;
+      border:1px solid rgba(255,255,255,.07);
+      background:rgba(255,255,255,.03);
+    }
+
+    .status-card h3{
+      font-size:15px;
       margin-bottom:8px;
     }
 
-    .mini p{
-      line-height:1.5;
+    .status-card p{
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.7;
+      margin-bottom:8px;
     }
 
     .tag{
       display:inline-block;
-      margin-top:8px;
-      padding:7px 10px;
+      padding:8px 12px;
       border-radius:999px;
-      font-size:.8rem;
-      font-weight:800;
+      font-size:11px;
+      font-weight:900;
+      letter-spacing:.05em;
+      text-transform:uppercase;
     }
 
     .ok{
-      background:rgba(109,255,179,.12);
-      color:var(--green);
-      border:1px solid rgba(109,255,179,.2);
+      background:linear-gradient(135deg,var(--green),#89ffd0);
+      color:#062014;
+      border:none;
     }
 
     .warn{
@@ -286,195 +385,153 @@
       border:1px solid rgba(255,126,151,.2);
     }
 
-    .estimate{
+    .ride-card{
+      padding:20px;
+      border-radius:22px;
+      border:1px solid rgba(99,245,255,.16);
+      background:linear-gradient(135deg,rgba(99,245,255,.06),rgba(94,160,255,.035));
+    }
+
+    .field-grid{
       display:grid;
-      grid-template-columns:repeat(3,1fr);
-      gap:12px;
+      gap:14px;
     }
 
-    .metric{
-      background:rgba(255,255,255,.035);
-      border:1px solid var(--line);
-      border-radius:18px;
-      padding:14px;
-      text-align:center;
+    .field{
+      display:grid;
+      gap:8px;
     }
 
-    .metric .k{
+    .field label{
+      font-size:13px;
+      font-weight:800;
       color:var(--muted);
-      font-size:.8rem;
-      margin-bottom:6px;
+      text-transform:uppercase;
+      letter-spacing:.05em;
     }
 
-    .metric .v{
-      font-size:1.02rem;
-      font-weight:800;
-    }
-
-    .btn-row{
-      display:flex;
-      gap:12px;
-      flex-wrap:wrap;
-      margin-top:16px;
-    }
-
-    button{
+    .input,
+    select,
+    textarea{
+      width:100%;
       border:none;
-      cursor:pointer;
-      border-radius:16px;
-      padding:14px 18px;
-      font-size:1rem;
+      outline:none;
+      border-radius:18px;
+      padding:16px 16px;
+      background:rgba(255,255,255,.96);
+      color:#172033;
+      font-size:16px;
+      font-weight:600;
+      box-shadow:0 10px 28px rgba(0,0,0,.16);
+    }
+
+    select{
+      appearance:none;
+    }
+
+    textarea{
+      min-height:110px;
+      resize:vertical;
+    }
+
+    .split{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:14px;
+    }
+
+    .pill-row{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      margin-top:4px;
+    }
+
+    .pill{
+      border:1px solid rgba(255,255,255,.08);
+      background:rgba(255,255,255,.05);
+      color:var(--text);
+      padding:12px 15px;
+      border-radius:999px;
       font-weight:800;
+      cursor:pointer;
       transition:.2s ease;
     }
 
-    button:hover:not(:disabled){
+    .pill:hover{
+      border-color:var(--line-strong);
+      background:rgba(255,255,255,.07);
+    }
+
+    .pill.active{
+      border-color:rgba(99,245,255,.42);
+      background:linear-gradient(135deg,rgba(99,245,255,.12),rgba(94,160,255,.10));
+      color:#dfffff;
+    }
+
+    .trust-note{
+      margin-top:16px;
+      padding:16px 18px;
+      border-radius:18px;
+      border:1px solid rgba(109,255,179,.15);
+      background:rgba(109,255,179,.05);
+      color:#dfffee;
+      line-height:1.65;
+      font-size:14px;
+    }
+
+    .account-actions{
+      display:flex;
+      flex-wrap:wrap;
+      gap:12px;
+      margin-top:18px;
+    }
+
+    .btn{
+      padding:14px 18px;
+      border-radius:14px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.04);
+      color:white;
+      font-weight:800;
+      cursor:pointer;
+      transition:.18s ease;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      min-height:48px;
+      text-align:center;
+      text-decoration:none;
+    }
+
+    .btn:hover{
       transform:translateY(-1px);
+      background:rgba(255,255,255,.06);
     }
 
-    button:disabled{
-      opacity:.6;
-      cursor:not-allowed;
-      transform:none;
-    }
-
-    .primary{
-      background:linear-gradient(90deg,var(--blue),var(--cyan));
-      color:#041224;
+    .btn.primary{
+      background:linear-gradient(135deg,var(--cyan),var(--blue));
+      color:#07121f;
+      border:none;
       flex:1;
     }
 
-    .secondary{
+    .btn.secondary{
       background:rgba(255,255,255,.05);
       color:var(--text);
       border:1px solid var(--line);
       flex:1;
     }
 
-    .autonomous-primary{
+    .btn.autonomous-primary{
       background:linear-gradient(90deg,#7f7bff,#63f5ff);
       color:#041224;
+      border:none;
     }
 
-    .receipt{
-      margin-top:16px;
-      padding:16px;
-      border:1px solid var(--line);
-      background:rgba(255,255,255,.035);
-      border-radius:18px;
-      line-height:1.65;
-    }
-
-    .result{
-      margin-top:16px;
-      display:none;
-      padding:16px;
-      border-radius:18px;
-      border:1px solid rgba(109,255,179,.18);
-      background:rgba(109,255,179,.08);
-      color:#dffff0;
-      line-height:1.6;
-      white-space:pre-line;
-    }
-
-    .error{
-      margin-top:16px;
-      display:none;
-      padding:16px;
-      border-radius:18px;
-      border:1px solid rgba(255,126,151,.2);
-      background:rgba(255,126,151,.08);
-      color:#ffd9e1;
-      line-height:1.6;
-      white-space:pre-line;
-    }
-
-    .trust-note{
-      margin-top:12px;
-      padding:14px 16px;
-      border-radius:18px;
-      border:1px solid rgba(109,255,179,.15);
-      background:rgba(109,255,179,.05);
-      color:#dfffee;
-      line-height:1.55;
-      font-size:.94rem;
-    }
-
-    .step-row{
-      display:flex;
-      flex-wrap:wrap;
-      gap:10px;
-      margin:0 0 16px;
-    }
-
-    .step{
-      padding:8px 12px;
-      border-radius:999px;
-      border:1px solid var(--line);
-      background:rgba(255,255,255,.04);
-      color:var(--muted);
-      font-size:.84rem;
-      font-weight:800;
-    }
-
-    .step.active{
-      color:#dfffff;
-      border-color:rgba(99,245,255,.45);
-      background:rgba(99,245,255,.12);
-    }
-
-    .location-gate{
-      position:fixed;
-      inset:0;
-      z-index:9999;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding:20px;
-      background:
-        radial-gradient(circle at top left, rgba(99,245,255,.14), transparent 28%),
-        radial-gradient(circle at top right, rgba(94,160,255,.12), transparent 24%),
-        linear-gradient(160deg,#040814,#091126);
-    }
-
-    .location-panel{
-      width:100%;
-      max-width:560px;
-      background:linear-gradient(180deg,rgba(17,31,66,.94),rgba(8,16,35,.96));
-      border:1px solid var(--line);
-      border-radius:28px;
-      padding:28px 24px;
-      box-shadow:var(--shadow);
-      text-align:center;
-    }
-
-    .location-panel h2{
-      font-size:1.6rem;
-      margin-bottom:10px;
-    }
-
-    .location-panel p{
-      color:var(--muted);
-      line-height:1.6;
-      margin-bottom:18px;
-    }
-
-    .location-status{
-      margin-top:14px;
-      font-size:.95rem;
-      color:var(--muted);
-      min-height:24px;
-    }
-
-    .location-note{
-      margin-top:16px;
-      padding:12px 14px;
-      border-radius:16px;
-      border:1px solid var(--line);
-      background:rgba(255,255,255,.035);
-      color:var(--muted);
-      line-height:1.5;
-      font-size:.92rem;
+    .btn.ghost{
+      background:transparent;
     }
 
     .loading{
@@ -498,16 +555,273 @@
       to{transform:rotate(360deg);}
     }
 
-    @media (max-width:760px){
-      .row,
-      .status-box,
+    .section-stack{
+      display:grid;
+      gap:18px;
+    }
+
+    .estimate-panel{
+      padding:22px;
+      border-radius:22px;
+      border:1px solid rgba(255,255,255,.07);
+      background:
+        linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.015)),
+        var(--panel2);
+    }
+
+    .estimate-panel h3{
+      font-size:22px;
+      margin-bottom:8px;
+    }
+
+    .estimate-panel p{
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.7;
+      margin-bottom:16px;
+    }
+
+    .estimate{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:12px;
+      margin-bottom:16px;
+    }
+
+    .metric{
+      background:rgba(255,255,255,.035);
+      border:1px solid var(--line);
+      border-radius:18px;
+      padding:14px;
+      text-align:center;
+    }
+
+    .metric .k{
+      color:var(--muted);
+      font-size:12px;
+      margin-bottom:6px;
+      text-transform:uppercase;
+      letter-spacing:.05em;
+    }
+
+    .metric .v{
+      font-size:16px;
+      font-weight:800;
+      line-height:1.4;
+    }
+
+    .receipt{
+      margin-top:12px;
+      padding:16px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.035);
+      border-radius:18px;
+      line-height:1.7;
+      font-size:14px;
+    }
+
+    .result,
+    .error{
+      margin-top:16px;
+      display:none;
+      padding:16px;
+      border-radius:18px;
+      line-height:1.7;
+      white-space:pre-line;
+      font-size:14px;
+    }
+
+    .result{
+      border:1px solid rgba(109,255,179,.18);
+      background:rgba(109,255,179,.08);
+      color:#dffff0;
+    }
+
+    .error{
+      border:1px solid rgba(255,126,151,.2);
+      background:rgba(255,126,151,.08);
+      color:#ffd9e1;
+    }
+
+    .notice{
+      padding:16px 18px;
+      border-radius:18px;
+      border:1px solid rgba(255,255,255,.08);
+      background:rgba(255,255,255,.03);
+      color:var(--muted);
+      line-height:1.7;
+      font-size:14px;
+    }
+
+    .notice strong{
+      color:var(--text);
+      display:block;
+      margin-bottom:6px;
+    }
+
+    .footer{
+      margin-top:18px;
+      padding:20px;
+      border-radius:24px;
+      border:1px solid var(--line);
+      background:var(--panel);
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      flex-wrap:wrap;
+      gap:16px;
+      box-shadow:var(--shadow);
+    }
+
+    .footer p{
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.7;
+      max-width:700px;
+    }
+
+    .bottom-nav{
+      position:fixed;
+      left:0;
+      right:0;
+      bottom:0;
+      background:rgba(6,12,26,.96);
+      backdrop-filter:blur(14px);
+      border-top:1px solid rgba(255,255,255,.08);
+      display:flex;
+      justify-content:space-around;
+      padding:12px 8px calc(12px + env(safe-area-inset-bottom));
+      z-index:1000;
+    }
+
+    .nav-btn{
+      color:var(--muted);
+      background:none;
+      border:none;
+      font-size:13px;
+      font-weight:700;
+      cursor:pointer;
+      padding:6px 10px;
+    }
+
+    .nav-btn.active{
+      color:white;
+    }
+
+    .location-gate{
+      position:fixed;
+      inset:0;
+      z-index:9999;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:20px;
+      background:
+        radial-gradient(circle at top left, rgba(99,245,255,.14), transparent 28%),
+        radial-gradient(circle at top right, rgba(94,160,255,.12), transparent 24%),
+        linear-gradient(160deg,#040814,#091126);
+    }
+
+    .location-panel{
+      width:100%;
+      max-width:620px;
+      background:
+        linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.015)),
+        var(--panel);
+      border:1px solid var(--line);
+      border-radius:28px;
+      padding:28px 24px;
+      box-shadow:var(--shadow);
+      text-align:center;
+    }
+
+    .location-panel h2{
+      font-size:32px;
+      margin-bottom:10px;
+    }
+
+    .location-panel p{
+      color:var(--muted);
+      line-height:1.7;
+      margin-bottom:18px;
+      font-size:15px;
+    }
+
+    .location-status{
+      margin-top:14px;
+      font-size:14px;
+      color:var(--muted);
+      min-height:24px;
+    }
+
+    .location-note{
+      margin-top:16px;
+      padding:14px 16px;
+      border-radius:18px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.035);
+      color:var(--muted);
+      line-height:1.6;
+      font-size:14px;
+    }
+
+    @media(max-width:980px){
+      .grid{
+        grid-template-columns:1fr;
+      }
+
+      .welcome h1{
+        font-size:34px;
+      }
+    }
+
+    @media(max-width:700px){
+      .shell{
+        padding:14px 12px 140px;
+      }
+
+      .topbar{
+        border-radius:24px;
+        padding:14px;
+        align-items:flex-start;
+        flex-direction:column;
+      }
+
+      .top-actions{
+        width:100%;
+        justify-content:flex-start;
+      }
+
+      .top-chip{
+        flex:1;
+        text-align:center;
+      }
+
+      .hero,
+      .section{
+        padding:20px;
+      }
+
+      .welcome h1{
+        font-size:28px;
+      }
+
+      .split,
+      .status-strip,
       .estimate{
         grid-template-columns:1fr;
       }
 
-      .topbar{
+      .account-actions{
         flex-direction:column;
-        align-items:flex-start;
+      }
+
+      .btn{
+        width:100%;
+      }
+
+      .location-panel h2{
+        font-size:28px;
       }
     }
   </style>
@@ -515,14 +829,15 @@
 <body>
   <div id="locationGate" class="location-gate">
     <div class="location-panel">
+      <div class="welcome-badge" style="justify-content:center;">Location required • Harvey Taxi</div>
       <h2>Enable Location Access</h2>
       <p>
-        Harvey Taxi uses your device location to support ride requests,
-        pickup coordination, and a more secure transportation experience.
+        Harvey Taxi uses your device location to support pickup coordination,
+        ride requests, dispatch accuracy, and a safer transportation flow.
       </p>
 
-      <div class="btn-row" style="margin-top:10px;">
-        <button class="primary" id="enableLocationBtn" type="button">Enable Location</button>
+      <div class="account-actions" style="justify-content:center;">
+        <button class="btn primary" id="enableLocationBtn" type="button">Enable Location</button>
       </div>
 
       <div class="location-status" id="locationStatusText">
@@ -530,178 +845,260 @@
       </div>
 
       <div class="location-note">
-        Your ride experience works best when location is enabled for pickup support,
-        trip flow, and dispatch accuracy.
+        Your ride experience works best when live location is enabled for pickup support,
+        trip flow, and accurate dispatch.
       </div>
     </div>
   </div>
 
   <div class="shell">
+
     <div class="topbar">
-      <div class="brand">Harvey <span>Taxi</span></div>
-      <a class="home-btn" href="/">← Return Home</a>
+      <div class="brand-wrap">
+        <div class="logo-dot"></div>
+        <div class="brand-block">
+          <div class="brand">HARVEY TAXI</div>
+          <div class="brand-sub">Request Ride</div>
+        </div>
+      </div>
+
+      <div class="top-actions">
+        <button class="top-chip" onclick="goHome()">Home</button>
+        <button class="top-chip" onclick="goDashboard()">Dashboard</button>
+        <button class="top-chip" onclick="goSupport()">Support</button>
+      </div>
     </div>
 
     <div class="hero">
-      <h1 id="heroTitle">Request Your Ride</h1>
-      <p id="heroText">
-        Harvey Taxi launch mode is active. Riders can request rides after rider
-        approval and secured payment.
-      </p>
+      <div class="welcome">
+        <div class="welcome-badge">Premium booking flow • Harvey Taxi</div>
+        <h1 id="heroTitle">Request your ride with confidence.</h1>
+        <p id="heroText">
+          Harvey Taxi launch mode is active. Riders can request rides after rider approval
+          and secured payment.
+        </p>
+      </div>
 
       <div class="mode-banner" id="modeBanner">
         <strong>Autonomous Pilot Mode Active</strong>
         <span id="modeBannerText">
-          You are entering the Harvey Taxi autonomous ride pilot flow. Requests may
-          be routed through AV-ready dispatch logic or pilot availability handling.
+          You are entering Harvey Taxi autonomous ride pilot flow. Requests may be routed
+          through AV-ready dispatch logic or pilot availability handling.
         </span>
+      </div>
+
+      <div class="chip-row">
+        <button class="action-chip" type="button" onclick="setRideTypeQuick('standard')">🚖 Ride now</button>
+        <button class="action-chip" type="button" onclick="setRideTypeQuick('scheduled')">📅 Schedule ahead</button>
+        <button class="action-chip" type="button" onclick="setRideTypeQuick('airport')">✈️ Airport trip</button>
+        <button class="action-chip" type="button" onclick="setRideTypeQuick('medical')">🏥 Medical ride</button>
       </div>
     </div>
 
     <div class="grid">
-      <div class="card">
-        <div class="section-title" id="accessTitle">Rider Access</div>
-        <div class="sub" id="accessSub">
-          Your rider account must be approved before you can secure payment and
-          request a ride.
-        </div>
-
-        <div class="step-row">
-          <div class="step active" id="stepAccess">1. Rider Access</div>
-          <div class="step" id="stepEstimate">2. Estimate</div>
-          <div class="step" id="stepPayment">3. Payment</div>
-          <div class="step" id="stepRequest">4. Request</div>
-        </div>
-
-        <div class="status-box">
-          <div class="mini">
-            <h3>Rider Access Status</h3>
-            <p id="verificationText">Enter your rider ID to check rider access.</p>
-            <div id="verificationTag" class="tag warn">Waiting</div>
+      <div>
+        <div class="section" style="margin-bottom:16px;">
+          <div class="section-header">
+            <div>
+              <h2 id="accessTitle">Rider access</h2>
+              <p id="accessSub">
+                Your rider account must be approved before you can secure payment and request a ride.
+              </p>
+            </div>
           </div>
 
-          <div class="mini">
-            <h3>Payment Status</h3>
-            <p id="paymentText">No payment has been secured yet.</p>
-            <div id="paymentTag" class="tag warn">Not Secured</div>
+          <div class="step-row">
+            <div class="step active" id="stepAccess">1. Rider Access</div>
+            <div class="step" id="stepEstimate">2. Estimate</div>
+            <div class="step" id="stepPayment">3. Payment</div>
+            <div class="step" id="stepRequest">4. Request</div>
+          </div>
+
+          <div class="status-strip">
+            <div class="status-card">
+              <h3>Rider Access Status</h3>
+              <p id="verificationText">Enter your rider ID to check rider access.</p>
+              <div id="verificationTag" class="tag warn">Waiting</div>
+            </div>
+
+            <div class="status-card">
+              <h3>Payment Status</h3>
+              <p id="paymentText">No payment has been secured yet.</p>
+              <div id="paymentTag" class="tag warn">Not Secured</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-header">
+            <div>
+              <h2 id="rideSectionTitle">Ride request</h2>
+              <p>
+                Enter your trip details below to estimate fare, secure payment,
+                and submit your ride request.
+              </p>
+            </div>
+          </div>
+
+          <div class="ride-card">
+            <div class="field-grid">
+              <div class="field">
+                <label for="riderId">Rider ID</label>
+                <input class="input" id="riderId" placeholder="Enter your rider ID" />
+              </div>
+
+              <div class="split">
+                <div class="field">
+                  <label for="firstName">Passenger First Name</label>
+                  <input class="input" id="firstName" placeholder="Enter first name" />
+                </div>
+
+                <div class="field">
+                  <label for="phone">Passenger Phone</label>
+                  <input
+                    class="input"
+                    id="phone"
+                    type="tel"
+                    inputmode="tel"
+                    autocomplete="tel"
+                    placeholder="Enter phone number"
+                  />
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="pickup">Pickup Address</label>
+                <input class="input" id="pickup" placeholder="Enter pickup address" />
+              </div>
+
+              <div class="field">
+                <label for="dropoff">Dropoff Address</label>
+                <input class="input" id="dropoff" placeholder="Enter dropoff address" />
+              </div>
+
+              <div class="split">
+                <div class="field">
+                  <label for="rideType">Ride Type</label>
+                  <select id="rideType">
+                    <option value="standard">Standard Ride</option>
+                    <option value="scheduled">Scheduled Ride</option>
+                    <option value="airport">Airport Ride</option>
+                    <option value="medical">Medical Ride</option>
+                    <option value="nonprofit">Nonprofit Assistance Ride</option>
+                  </select>
+                </div>
+
+                <div class="field">
+                  <label for="scheduledTime">Scheduled Time (optional)</label>
+                  <input class="input" id="scheduledTime" type="datetime-local" />
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="notes">Ride Notes</label>
+                <textarea id="notes" placeholder="Add any helpful ride information"></textarea>
+              </div>
+
+              <div class="field">
+                <label>Payment Method</label>
+                <div class="pill-row">
+                  <button type="button" class="pill active" data-payment="card">Card</button>
+                  <button type="button" class="pill" data-payment="apple_pay">Apple Pay</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="trust-note">
+              🔒 Your payment is authorized securely before dispatch and is only captured
+              according to your ride completion flow.
+            </div>
+
+            <div class="account-actions">
+              <button class="btn secondary" id="estimateBtn" type="button">Get Fare Estimate</button>
+              <button class="btn secondary" id="authorizeBtn" type="button">Secure Payment</button>
+            </div>
           </div>
         </div>
       </div>
 
-      <div class="card">
-        <div class="section-title" id="rideSectionTitle">Ride Request</div>
+      <div class="section-stack">
+        <div class="estimate-panel">
+          <h3 id="estimateSectionTitle">Ride estimate</h3>
+          <p id="estimateSub">
+            Review your current fare estimate before submitting your ride request.
+          </p>
 
-        <div class="field">
-          <label for="riderId">Rider ID</label>
-          <input class="input" id="riderId" placeholder="Enter your rider ID" />
-        </div>
+          <div class="estimate">
+            <div class="metric">
+              <div class="k">Miles</div>
+              <div class="v" id="distanceValue">--</div>
+            </div>
 
-        <div class="row">
-          <div class="field">
-            <label for="firstName">Passenger First Name</label>
-            <input class="input" id="firstName" placeholder="Enter first name" />
+            <div class="metric">
+              <div class="k">Trip Time</div>
+              <div class="v" id="durationValue">--</div>
+            </div>
+
+            <div class="metric">
+              <div class="k">Fare</div>
+              <div class="v" id="fareValue">--</div>
+            </div>
           </div>
 
-          <div class="field">
-            <label for="phone">Passenger Phone</label>
-            <input
-              class="input"
-              id="phone"
-              type="tel"
-              inputmode="tel"
-              autocomplete="tel"
-              placeholder="Enter phone number"
-            />
-          </div>
-        </div>
-
-        <div class="field">
-          <label for="pickup">Pickup Address</label>
-          <input class="input" id="pickup" placeholder="Enter pickup address" />
-        </div>
-
-        <div class="field">
-          <label for="dropoff">Dropoff Address</label>
-          <input class="input" id="dropoff" placeholder="Enter dropoff address" />
-        </div>
-
-        <div class="row">
-          <div class="field">
-            <label for="rideType">Ride Type</label>
-            <select id="rideType">
-              <option value="standard">Standard Ride</option>
-              <option value="scheduled">Scheduled Ride</option>
-              <option value="airport">Airport Ride</option>
-              <option value="medical">Medical Ride</option>
-              <option value="nonprofit">Nonprofit Assistance Ride</option>
-            </select>
+          <div class="receipt" id="estimateReceipt">
+            No estimate yet. Enter your ride information and tap <strong>Get Fare Estimate</strong>.
           </div>
 
-          <div class="field">
-            <label for="scheduledTime">Scheduled Time (optional)</label>
-            <input class="input" id="scheduledTime" type="datetime-local" />
-          </div>
-        </div>
-
-        <div class="field">
-          <label for="notes">Ride Notes</label>
-          <textarea id="notes" placeholder="Add any helpful ride information"></textarea>
-        </div>
-
-        <div class="field">
-          <label>Payment Method</label>
-          <div class="pill-row">
-            <button type="button" class="pill active" data-payment="card">Card</button>
-            <button type="button" class="pill" data-payment="apple_pay">Apple Pay</button>
-          </div>
-        </div>
-
-        <div class="trust-note">
-          🔒 Your payment is authorized securely before dispatch and is only captured
-          according to your ride completion flow.
-        </div>
-
-        <div class="btn-row">
-          <button class="secondary" id="estimateBtn" type="button">Get Fare Estimate</button>
-          <button class="secondary" id="authorizeBtn" type="button">Secure Payment</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="section-title" id="estimateSectionTitle">Ride Estimate</div>
-        <div class="sub" id="estimateSub">
-          Review your current fare estimate before submitting your ride request.
-        </div>
-
-        <div class="estimate">
-          <div class="metric">
-            <div class="k">Miles</div>
-            <div class="v" id="distanceValue">--</div>
+          <div class="account-actions">
+            <button class="btn primary" id="requestRideBtn" type="button">Request Ride</button>
           </div>
 
-          <div class="metric">
-            <div class="k">Trip Time</div>
-            <div class="v" id="durationValue">--</div>
+          <div class="result" id="resultBox"></div>
+          <div class="error" id="errorBox"></div>
+        </div>
+
+        <div class="estimate-panel">
+          <h3>Booking guidance</h3>
+          <p>
+            Harvey Taxi may require rider approval and payment authorization before dispatch,
+            depending on your current account state and backend rules.
+          </p>
+
+          <div class="notice">
+            <strong>Helpful note</strong>
+            Standard requests launch the live driver request flow. Autonomous mode remains
+            clearly labeled as pilot mode.
           </div>
 
-          <div class="metric">
-            <div class="k">Fare</div>
-            <div class="v" id="fareValue">--</div>
+          <div class="account-actions">
+            <button class="btn ghost" type="button" onclick="goDashboard()">Rider Dashboard</button>
+            <button class="btn ghost" type="button" onclick="goSupport()">Support</button>
           </div>
         </div>
-
-        <div class="receipt" id="estimateReceipt">
-          No estimate yet. Enter your ride information and tap <strong>Get Fare Estimate</strong>.
-        </div>
-
-        <div class="btn-row">
-          <button class="primary" id="requestRideBtn" type="button">Request Ride</button>
-        </div>
-
-        <div class="result" id="resultBox"></div>
-        <div class="error" id="errorBox"></div>
       </div>
     </div>
+
+    <div class="footer">
+      <div>
+        <strong style="display:block;margin-bottom:8px;">Harvey Taxi Service LLC</strong>
+        <p>
+          A futuristic consumer ride request experience rebuilt for Harvey Taxi with rider
+          readiness, estimate visibility, payment authorization, and support-first design.
+        </p>
+      </div>
+
+      <div class="account-actions" style="margin-top:0;">
+        <button class="btn ghost" onclick="goHome()">Home</button>
+        <button class="btn ghost" onclick="goSupport()">Support</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-nav">
+    <button class="nav-btn" onclick="goHome()">Home</button>
+    <button class="nav-btn" onclick="goDashboard()">Trips</button>
+    <button class="nav-btn active" onclick="window.location.href='request-ride.html'">Book</button>
+    <button class="nav-btn" onclick="goSupport()">Safety</button>
   </div>
 
   <script>
@@ -761,6 +1158,28 @@
     const stepPayment = document.getElementById("stepPayment");
     const stepRequest = document.getElementById("stepRequest");
 
+    function goHome() {
+      window.location.href = "index.html";
+    }
+
+    function goDashboard() {
+      window.location.href = "rider-dashboard.html";
+    }
+
+    function goSupport() {
+      window.location.href = "support.html";
+    }
+
+    function setRideTypeQuick(type) {
+      rideTypeInput.value = type;
+      resetEstimateState();
+      resetPaymentState();
+
+      if (type === "scheduled") {
+        scheduledTimeInput.focus();
+      }
+    }
+
     function applyRideModeUI(){
       const heroTitle = document.getElementById("heroTitle");
       const heroText = document.getElementById("heroText");
@@ -773,14 +1192,14 @@
 
       if(isAutonomousMode){
         document.title = "Harvey Taxi — Request Autonomous Ride";
-        heroTitle.textContent = "Request Your Autonomous Ride";
+        heroTitle.textContent = "Request your autonomous ride with confidence.";
         heroText.textContent =
           "Harvey Taxi autonomous pilot mode is active. Riders can request AV-ready trips after rider approval and secured payment.";
-        accessTitle.textContent = "Autonomous Pilot Access";
+        accessTitle.textContent = "Autonomous pilot access";
         accessSub.textContent =
           "Your rider account must be approved before entering the autonomous pilot request flow.";
-        rideSectionTitle.textContent = "Autonomous Ride Request";
-        estimateSectionTitle.textContent = "Autonomous Ride Estimate";
+        rideSectionTitle.textContent = "Autonomous ride request";
+        estimateSectionTitle.textContent = "Autonomous ride estimate";
         estimateSub.textContent =
           "Review your current autonomous ride estimate before submitting your pilot request.";
         requestRideBtn.textContent = "Request Autonomous Ride";
@@ -788,14 +1207,14 @@
         modeBanner.style.display = "block";
       } else {
         document.title = "Harvey Taxi — Request Driver Ride";
-        heroTitle.textContent = "Request Your Driver Ride";
+        heroTitle.textContent = "Request your ride with confidence.";
         heroText.textContent =
           "Harvey Taxi launch mode is active. Riders can request driver rides after rider approval and secured payment.";
-        accessTitle.textContent = "Rider Access";
+        accessTitle.textContent = "Rider access";
         accessSub.textContent =
           "Your rider account must be approved before you can secure payment and request a ride.";
-        rideSectionTitle.textContent = "Ride Request";
-        estimateSectionTitle.textContent = "Ride Estimate";
+        rideSectionTitle.textContent = "Ride request";
+        estimateSectionTitle.textContent = "Ride estimate";
         estimateSub.textContent =
           "Review your current fare estimate before submitting your ride request.";
         requestRideBtn.textContent = "Request Ride";
@@ -919,6 +1338,10 @@
 
     [pickupInput, dropoffInput, rideTypeInput, scheduledTimeInput, notesInput].forEach((el) => {
       el.addEventListener("input", () => {
+        resetEstimateState();
+        resetPaymentState();
+      });
+      el.addEventListener("change", () => {
         resetEstimateState();
         resetPaymentState();
       });
