@@ -6451,9 +6451,20 @@ app.get("/api/ai/status", asyncHandler(async (req, res) => {
 /* =========================================================
    PART 7 END
 ========================================================= *//* =========================================================
+   /* =========================================================
    HARVEY TAXI — CODE BLUE CLEAN REBUILD
    PART 8: PERSONA WEBHOOKS + COMMUNICATIONS + FINAL PRODUCTION LAYER
 ========================================================= */
+
+/* =========================================================
+   OPTIONAL TWILIO SDK
+========================================================= */
+let Twilio = null;
+try {
+  Twilio = require("twilio");
+} catch (error) {
+  console.warn("⚠️ Twilio SDK not installed. Real SMS will stay disabled.");
+}
 
 /* =========================================================
    PERSONA / COMMUNICATION CONFIG
@@ -6462,35 +6473,130 @@ const PERSONA_WEBHOOK_SECRET = cleanEnv(process.env.PERSONA_WEBHOOK_SECRET);
 const PERSONA_TEMPLATE_ID_RIDER = cleanEnv(process.env.PERSONA_TEMPLATE_ID_RIDER);
 const PERSONA_TEMPLATE_ID_DRIVER = cleanEnv(process.env.PERSONA_TEMPLATE_ID_DRIVER);
 
+const TWILIO_ACCOUNT_SID = cleanEnv(process.env.TWILIO_ACCOUNT_SID);
+const TWILIO_AUTH_TOKEN = cleanEnv(process.env.TWILIO_AUTH_TOKEN);
 const TWILIO_FROM_NUMBER =
   cleanEnv(process.env.TWILIO_PHONE_NUMBER) ||
   cleanEnv(process.env.TWILIO_FROM_NUMBER);
 
+const twilioClient =
+  ENABLE_REAL_SMS && Twilio && TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN
+    ? Twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+    : null;
+
+/* =========================================================
+   RAW BODY SUPPORT FOR WEBHOOK SIGNATURE VALIDATION
+   If your earlier middleware already captures req.rawBody,
+   keep that version and do not duplicate this block.
+========================================================= */
+if (!global.__HARVEY_RAW_BODY_CAPTURED__) {
+  global.__HARVEY_RAW_BODY_CAPTURED__ = true;
+
+  app.use(
+    express.json({
+      limit: "10mb",
+      verify: (req, res, buf) => {
+        req.rawBody = buf ? buf.toString("utf8") : "";
+      }
+    })
+  );
+}
+
 /* =========================================================
    PERSONA HELPERS
 ========================================================= */
-function getWebhookSecretFromRequest(req) {
+function getPersonaSignatureHeader(req) {
   return clean(
-    req.headers["x-persona-signature"] ||
-      req.headers["persona-signature"] ||
-      req.headers["x-webhook-secret"] ||
+    req.headers["persona-signature"] ||
+      req.headers["x-persona-signature"] ||
       ""
   );
 }
 
+function parsePersonaSignatureHeader(headerValue = "") {
+  const parts = String(headerValue)
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  const parsed = {};
+
+  for (const part of parts) {
+    const [key, ...rest] = part.split("=");
+    const value = rest.join("=");
+    if (key && value) {
+      parsed[clean(key)] = clean(value);
+    }
+  }
+
+  return {
+    timestamp: clean(parsed.t || ""),
+    signature_v1: clean(parsed.v1 || "")
+  };
+}
+
+function isFreshPersonaTimestamp(timestamp = "", toleranceSeconds = 300) {
+  const unix = Number(timestamp);
+  if (!Number.isFinite(unix) || unix <= 0) return false;
+
+  const now = Math.floor(Date.now() / 1000);
+  return Math.abs(now - unix) <= toleranceSeconds;
+}
+
 function verifyPersonaWebhook(req) {
   if (!PERSONA_WEBHOOK_SECRET) return true;
-  const provided = getWebhookSecretFromRequest(req);
-  if (!provided) return false;
-  return safeEqual(provided, PERSONA_WEBHOOK_SECRET);
+
+  const header = getPersonaSignatureHeader(req);
+  if (!header) return false;
+
+  const { timestamp, signature_v1 } = parsePersonaSignatureHeader(header);
+  if (!timestamp || !signature_v1) return false;
+  if (!isFreshPersonaTimestamp(timestamp)) return false;
+
+  const rawBody =
+    typeof req.rawBody === "string"
+      ? req.rawBody
+      : JSON.stringify(req.body || {});
+
+  if (!rawBody) return false;
+
+  const signedPayload = `${timestamp}.${rawBody}`;
+  const expected = crypto
+    .createHmac("sha256", PERSONA_WEBHOOK_SECRET)
+    .update(signedPayload)
+    .digest("hex");
+
+  try {
+    return (
+      expected.length === signature_v1.length &&
+      crypto.timingSafeEqual(
+        Buffer.from(expected, "utf8"),
+        Buffer.from(signature_v1, "utf8")
+      )
+    );
+  } catch (error) {
+    return false;
+  }
 }
 
 function normalizePersonaOutcome(value = "") {
   const status = lower(value);
 
-  if (["approved", "completed", "passed", "verified"].includes(status)) return "approved";
-  if (["pending", "initiated", "created", "submitted", "in_review", "review"].includes(status)) return "pending";
-  if (["failed", "declined", "rejected", "expired"].includes(status)) return "failed";
+  if (["approved", "completed", "passed", "verified"].includes(status)) {
+    return "approved";
+  }
+
+  if (
+    ["pending", "initiated", "created", "submitted", "in_review", "review"].includes(
+      status
+    )
+  ) {
+    return "pending";
+  }
+
+  if (["failed", "declined", "rejected", "expired"].includes(status)) {
+    return "failed";
+  }
 
   return status || "pending";
 }
@@ -6507,11 +6613,12 @@ function extractPersonaPayload(req) {
     clean(attributes.inquiry_id);
 
   const rawEventName = clean(body.event_name || body.type || "");
-  const status = normalizePersonaOutcome(
-    attributes.status ||
-      body.status ||
-      rawEventName
-  );
+  const explicitStatus =
+    clean(attributes.status) ||
+    clean(body.status) ||
+    "";
+
+  const status = normalizePersonaOutcome(explicitStatus || "pending");
 
   const referenceId =
     clean(attributes.reference_id) ||
@@ -6562,6 +6669,7 @@ async function resolvePersonaTarget(payload = {}) {
 
   if (inquiryId) {
     rider = await findRiderByPersonaInquiryId(inquiryId);
+
     if (!rider) {
       driver = await findDriverByPersonaInquiryId(inquiryId);
     }
@@ -6591,8 +6699,6 @@ async function resolvePersonaTarget(payload = {}) {
 
 /* =========================================================
    COMMUNICATION HELPERS
-   These are safe placeholders now and can be swapped for
-   real provider integrations later without changing routes.
 ========================================================= */
 async function sendEmailMessage({
   to = "",
@@ -6659,7 +6765,7 @@ async function sendSmsMessage({
     };
   }
 
-  if (!ENABLE_REAL_SMS) {
+  if (!ENABLE_REAL_SMS || !twilioClient || !TWILIO_FROM_NUMBER) {
     console.log("MOCK SMS:", {
       to: normalizedTo,
       from: TWILIO_FROM_NUMBER || "mock-number",
@@ -6675,18 +6781,30 @@ async function sendSmsMessage({
     };
   }
 
-  console.log("REAL SMS PLACEHOLDER:", {
-    to: normalizedTo,
-    from: TWILIO_FROM_NUMBER || "",
-    category
-  });
+  try {
+    const message = await twilioClient.messages.create({
+      to: normalizedTo,
+      from: TWILIO_FROM_NUMBER,
+      body: text
+    });
 
-  return {
-    ok: true,
-    mocked: false,
-    channel: "sms",
-    to: normalizedTo
-  };
+    return {
+      ok: true,
+      mocked: false,
+      channel: "sms",
+      to: normalizedTo,
+      sid: clean(message?.sid || ""),
+      status: clean(message?.status || "queued")
+    };
+  } catch (error) {
+    console.error("Twilio SMS send failed:", error);
+
+    return {
+      ok: false,
+      reason: "sms_send_failed",
+      error: clean(error?.message || "Unknown SMS error")
+    };
+  }
 }
 
 /* =========================================================
@@ -6847,8 +6965,6 @@ async function notifyDriverMissionOffered(driver, mission) {
 
 /* =========================================================
    MISSION OFFER WITH NOTIFICATIONS
-   This overrides the base creator with notifications while
-   preserving the same return shape.
 ========================================================= */
 async function createDispatchOfferForDriverWithNotifications({
   ride,
@@ -6873,9 +6989,7 @@ async function createDispatchOfferForDriverWithNotifications({
 }
 
 /* =========================================================
-   REWIRE DISPATCH-TRIGGERING FLOWS TO USE NOTIFICATIONS
-   We keep the original helper intact and add new wrappers
-   for later usage where needed.
+   DISPATCH FLOWS WITH NOTIFICATIONS
 ========================================================= */
 async function createInitialRideDispatch({
   ride,
@@ -6927,7 +7041,10 @@ async function createInitialRideDispatch({
   };
 }
 
-async function attemptRedispatchForRideWithNotifications(rideId = "", reason = "redispatch_requested") {
+async function attemptRedispatchForRideWithNotifications(
+  rideId = "",
+  reason = "redispatch_requested"
+) {
   const ride = await getRideById(rideId);
 
   if (!ride) {
@@ -7059,6 +7176,10 @@ async function processRiderPersonaUpdate(rider, payload) {
     };
   }
 
+  const previousStatus = normalizePersonaOutcome(
+    rider.persona_status || rider.verification_status || rider.identity_status || ""
+  );
+
   const status = normalizePersonaOutcome(payload.status);
   const inquiryId = clean(payload.inquiry_id || rider.persona_inquiry_id || "");
   const eventName = clean(payload.raw_event_name || "");
@@ -7073,14 +7194,15 @@ async function processRiderPersonaUpdate(rider, payload) {
     verification_status: status,
     identity_status: status,
     persona_status: status,
+    persona_updated_at: nowIso(),
     updated_at: nowIso()
   };
 
   if (status === "approved") {
-    // verification approved, but admin approval remains separate
     if (!clean(rider.approval_status)) {
       updates.approval_status = "pending";
     }
+    updates.rejection_reason = null;
   }
 
   if (status === "failed") {
@@ -7093,7 +7215,7 @@ async function processRiderPersonaUpdate(rider, payload) {
     updates
   );
 
-  const updated = Array.isArray(rows) ? rows[0] : rider;
+  const updated = Array.isArray(rows) && rows[0] ? rows[0] : { ...rider, ...updates };
 
   await writeTripEvent({
     rider_id: rider.id,
@@ -7101,14 +7223,15 @@ async function processRiderPersonaUpdate(rider, payload) {
     event_payload: {
       persona_inquiry_id: inquiryId,
       status,
+      previous_status: previousStatus,
       event_name: eventName,
       reason: failureReason || null
     }
   });
 
-  if (status === "approved") {
+  if (status === "approved" && previousStatus !== "approved") {
     await notifyRiderVerificationApproved(updated);
-  } else if (status === "failed") {
+  } else if (status === "failed" && previousStatus !== "failed") {
     await notifyRiderVerificationFailed(updated, failureReason);
   }
 
@@ -7128,6 +7251,10 @@ async function processDriverPersonaUpdate(driver, payload) {
     };
   }
 
+  const previousStatus = normalizePersonaOutcome(
+    driver.persona_status || driver.verification_status || driver.identity_status || ""
+  );
+
   const status = normalizePersonaOutcome(payload.status);
   const inquiryId = clean(payload.inquiry_id || driver.persona_inquiry_id || "");
   const eventName = clean(payload.raw_event_name || "");
@@ -7142,8 +7269,13 @@ async function processDriverPersonaUpdate(driver, payload) {
     verification_status: status,
     identity_status: status,
     persona_status: status,
+    persona_updated_at: nowIso(),
     updated_at: nowIso()
   };
+
+  if (status === "approved") {
+    updates.rejection_reason = null;
+  }
 
   if (status === "failed") {
     updates.rejection_reason = failureReason || driver.rejection_reason || null;
@@ -7155,7 +7287,7 @@ async function processDriverPersonaUpdate(driver, payload) {
     updates
   );
 
-  const updated = Array.isArray(rows) ? rows[0] : driver;
+  const updated = Array.isArray(rows) && rows[0] ? rows[0] : { ...driver, ...updates };
 
   await writeTripEvent({
     driver_id: driver.id,
@@ -7163,14 +7295,15 @@ async function processDriverPersonaUpdate(driver, payload) {
     event_payload: {
       persona_inquiry_id: inquiryId,
       status,
+      previous_status: previousStatus,
       event_name: eventName,
       reason: failureReason || null
     }
   });
 
-  if (status === "approved") {
+  if (status === "approved" && previousStatus !== "approved") {
     await notifyDriverVerificationApproved(updated);
-  } else if (status === "failed") {
+  } else if (status === "failed" && previousStatus !== "failed") {
     await notifyDriverVerificationFailed(updated, failureReason);
   }
 
@@ -7185,26 +7318,62 @@ async function processDriverPersonaUpdate(driver, payload) {
 /* =========================================================
    PERSONA WEBHOOK ENDPOINT
 ========================================================= */
-app.post("/api/webhooks/persona", asyncHandler(async (req, res) => {
-  if (!verifyPersonaWebhook(req)) {
-    return fail(res, "Invalid Persona webhook signature.", 401);
-  }
+app.post(
+  "/api/webhooks/persona",
+  asyncHandler(async (req, res) => {
+    if (!verifyPersonaWebhook(req)) {
+      return fail(res, "Invalid Persona webhook signature.", 401);
+    }
 
-  const payload = extractPersonaPayload(req);
+    const payload = extractPersonaPayload(req);
 
-  if (!payload.inquiry_id && !payload.reference_id) {
-    return fail(res, "Persona webhook payload is missing target identifiers.", 400);
-  }
+    if (!payload.inquiry_id && !payload.reference_id) {
+      return fail(res, "Persona webhook payload is missing target identifiers.", 400);
+    }
 
-  const { rider, driver } = await resolvePersonaTarget(payload);
+    const { rider, driver } = await resolvePersonaTarget(payload);
 
-  if (!rider && !driver) {
+    if (!rider && !driver) {
+      await writeAdminLog({
+        action: "persona_webhook_target_not_found",
+        actor_email: "persona_webhook",
+        target_type: "persona",
+        target_id: clean(payload.inquiry_id || payload.reference_id || "unknown"),
+        details: {
+          raw_event_name: payload.raw_event_name,
+          status: payload.status
+        }
+      });
+
+      return ok(
+        res,
+        {
+          accepted: true,
+          matched: false,
+          payload_status: payload.status
+        },
+        "Persona webhook received, but no matching rider or driver was found."
+      );
+    }
+
+    let result = null;
+
+    if (rider) {
+      result = await processRiderPersonaUpdate(rider, payload);
+    } else if (driver) {
+      result = await processDriverPersonaUpdate(driver, payload);
+    }
+
     await writeAdminLog({
-      action: "persona_webhook_target_not_found",
+      action: "persona_webhook_processed",
       actor_email: "persona_webhook",
-      target_type: "persona",
-      target_id: clean(payload.inquiry_id || payload.reference_id || "unknown"),
+      target_type: result?.subject || "persona",
+      target_id: clean(
+        rider?.id || driver?.id || payload.inquiry_id || payload.reference_id || "unknown"
+      ),
       details: {
+        inquiry_id: payload.inquiry_id,
+        reference_id: payload.reference_id,
         raw_event_name: payload.raw_event_name,
         status: payload.status
       }
@@ -7214,191 +7383,181 @@ app.post("/api/webhooks/persona", asyncHandler(async (req, res) => {
       res,
       {
         accepted: true,
-        matched: false,
-        payload_status: payload.status
+        matched: true,
+        result
       },
-      "Persona webhook received, but no matching rider or driver was found."
+      "Persona webhook processed successfully."
     );
-  }
-
-  let result = null;
-
-  if (rider) {
-    result = await processRiderPersonaUpdate(rider, payload);
-  } else if (driver) {
-    result = await processDriverPersonaUpdate(driver, payload);
-  }
-
-  await writeAdminLog({
-    action: "persona_webhook_processed",
-    actor_email: "persona_webhook",
-    target_type: result?.subject || "persona",
-    target_id:
-      clean(rider?.id || driver?.id || payload.inquiry_id || payload.reference_id || "unknown"),
-    details: {
-      inquiry_id: payload.inquiry_id,
-      reference_id: payload.reference_id,
-      raw_event_name: payload.raw_event_name,
-      status: payload.status
-    }
-  });
-
-  return ok(
-    res,
-    {
-      accepted: true,
-      matched: true,
-      result
-    },
-    "Persona webhook processed successfully."
-  );
-}));
+  })
+);
 
 /* =========================================================
    PERSONA STATUS HELPERS
 ========================================================= */
-app.get("/api/persona/config", requireAdmin, asyncHandler(async (req, res) => {
-  return ok(
-    res,
-    {
-      persona_enforcement_enabled: ENABLE_PERSONA_ENFORCEMENT,
-      rider_template_id_present: Boolean(PERSONA_TEMPLATE_ID_RIDER),
-      driver_template_id_present: Boolean(PERSONA_TEMPLATE_ID_DRIVER),
-      webhook_secret_present: Boolean(PERSONA_WEBHOOK_SECRET)
-    },
-    "Persona config status loaded."
-  );
-}));
+app.get(
+  "/api/persona/config",
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    return ok(
+      res,
+      {
+        persona_enforcement_enabled: ENABLE_PERSONA_ENFORCEMENT,
+        rider_template_id_present: Boolean(PERSONA_TEMPLATE_ID_RIDER),
+        driver_template_id_present: Boolean(PERSONA_TEMPLATE_ID_DRIVER),
+        webhook_secret_present: Boolean(PERSONA_WEBHOOK_SECRET)
+      },
+      "Persona config status loaded."
+    );
+  })
+);
 
-app.get("/api/persona/rider-link/:riderId", requireAdmin, asyncHandler(async (req, res) => {
-  const rider = await getRiderById(req.params.riderId);
+app.get(
+  "/api/persona/rider-link/:riderId",
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const rider = await getRiderById(req.params.riderId);
 
-  if (!rider) {
-    return fail(res, "Rider not found.", 404);
-  }
+    if (!rider) {
+      return fail(res, "Rider not found.", 404);
+    }
 
-  return ok(
-    res,
-    {
-      rider_id: rider.id,
-      persona_template_id: PERSONA_TEMPLATE_ID_RIDER || null,
-      persona_inquiry_id: clean(rider.persona_inquiry_id || ""),
-      reference_id: rider.id
-    },
-    "Rider Persona link metadata loaded."
-  );
-}));
+    return ok(
+      res,
+      {
+        rider_id: rider.id,
+        persona_template_id: PERSONA_TEMPLATE_ID_RIDER || null,
+        persona_inquiry_id: clean(rider.persona_inquiry_id || ""),
+        reference_id: rider.id
+      },
+      "Rider Persona link metadata loaded."
+    );
+  })
+);
 
-app.get("/api/persona/driver-link/:driverId", requireAdmin, asyncHandler(async (req, res) => {
-  const driver = await getDriverById(req.params.driverId);
+app.get(
+  "/api/persona/driver-link/:driverId",
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const driver = await getDriverById(req.params.driverId);
 
-  if (!driver) {
-    return fail(res, "Driver not found.", 404);
-  }
+    if (!driver) {
+      return fail(res, "Driver not found.", 404);
+    }
 
-  return ok(
-    res,
-    {
-      driver_id: driver.id,
-      persona_template_id: PERSONA_TEMPLATE_ID_DRIVER || null,
-      persona_inquiry_id: clean(driver.persona_inquiry_id || ""),
-      reference_id: driver.id
-    },
-    "Driver Persona link metadata loaded."
-  );
-}));
+    return ok(
+      res,
+      {
+        driver_id: driver.id,
+        persona_template_id: PERSONA_TEMPLATE_ID_DRIVER || null,
+        persona_inquiry_id: clean(driver.persona_inquiry_id || ""),
+        reference_id: driver.id
+      },
+      "Driver Persona link metadata loaded."
+    );
+  })
+);
 
 /* =========================================================
    MISSION NOTIFICATION RESEND
 ========================================================= */
-app.post("/api/admin/missions/:missionId/resend-notification", requireAdmin, asyncHandler(async (req, res) => {
-  const missionId = clean(req.params.missionId);
-  const mission = await getMissionById(missionId);
+app.post(
+  "/api/admin/missions/:missionId/resend-notification",
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const missionId = clean(req.params.missionId);
+    const mission = await getMissionById(missionId);
 
-  if (!mission) {
-    return fail(res, "Mission not found.", 404);
-  }
-
-  const driver = await getDriverById(mission.driver_id);
-  if (!driver) {
-    return fail(res, "Driver not found for this mission.", 404);
-  }
-
-  const result = await notifyDriverMissionOffered(driver, mission);
-
-  await writeAdminLog({
-    action: "mission_notification_resent",
-    actor_email: getAdminCredentials(req).email,
-    target_type: "mission",
-    target_id: missionId,
-    details: {
-      driver_id: driver.id
+    if (!mission) {
+      return fail(res, "Mission not found.", 404);
     }
-  });
 
-  return ok(
-    res,
-    {
-      result
-    },
-    "Mission notification resent."
-  );
-}));
+    const driver = await getDriverById(mission.driver_id);
+    if (!driver) {
+      return fail(res, "Driver not found for this mission.", 404);
+    }
+
+    const result = await notifyDriverMissionOffered(driver, mission);
+
+    await writeAdminLog({
+      action: "mission_notification_resent",
+      actor_email: getAdminCredentials(req).email,
+      target_type: "mission",
+      target_id: missionId,
+      details: {
+        driver_id: driver.id
+      }
+    });
+
+    return ok(
+      res,
+      {
+        result
+      },
+      "Mission notification resent."
+    );
+  })
+);
 
 /* =========================================================
-   OPTIONAL PATCH ROUTES TO USE NOTIFICATION-AWARE DISPATCH
-   These do not delete earlier routes; they provide cleaner
-   admin operational endpoints for notification-aware flows.
+   OPTIONAL ADMIN REDISPATCH WITH NOTIFICATIONS
 ========================================================= */
-app.post("/api/admin/rides/:rideId/redispatch-with-notification", requireAdmin, asyncHandler(async (req, res) => {
-  const rideId = clean(req.params.rideId);
+app.post(
+  "/api/admin/rides/:rideId/redispatch-with-notification",
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const rideId = clean(req.params.rideId);
 
-  const result = await attemptRedispatchForRideWithNotifications(
-    rideId,
-    "admin_manual_redispatch_with_notification"
-  );
+    const result = await attemptRedispatchForRideWithNotifications(
+      rideId,
+      "admin_manual_redispatch_with_notification"
+    );
 
-  await writeAdminLog({
-    action: "admin_manual_redispatch_with_notification",
-    actor_email: getAdminCredentials(req).email,
-    target_type: "ride",
-    target_id: rideId,
-    details: result
-  });
+    await writeAdminLog({
+      action: "admin_manual_redispatch_with_notification",
+      actor_email: getAdminCredentials(req).email,
+      target_type: "ride",
+      target_id: rideId,
+      details: result
+    });
 
-  if (!result.ok) {
-    return fail(res, "Redispatch could not be created.", 409, result);
-  }
+    if (!result.ok) {
+      return fail(res, "Redispatch could not be created.", 409, result);
+    }
 
-  return ok(
-    res,
-    {
-      result
-    },
-    "Redispatch with notification created successfully."
-  );
-}));
+    return ok(
+      res,
+      {
+        result
+      },
+      "Redispatch with notification created successfully."
+    );
+  })
+);
 
 /* =========================================================
    FINAL PRODUCTION STATUS ROUTES
 ========================================================= */
-app.get("/api/production/status", asyncHandler(async (req, res) => {
-  return ok(
-    res,
-    {
-      app: APP_NAME,
-      version: APP_VERSION,
-      started_at: SERVER_STARTED_AT,
-      supabase_ready: supabaseReady,
-      ai_ready: Boolean(openai),
-      persona_enforcement_enabled: ENABLE_PERSONA_ENFORCEMENT,
-      real_email_enabled: ENABLE_REAL_EMAIL,
-      real_sms_enabled: ENABLE_REAL_SMS,
-      public_app_url: PUBLIC_APP_URL
-    },
-    "Production status loaded."
-  );
-}));
+app.get(
+  "/api/production/status",
+  asyncHandler(async (req, res) => {
+    return ok(
+      res,
+      {
+        app: APP_NAME,
+        version: APP_VERSION,
+        started_at: SERVER_STARTED_AT,
+        supabase_ready: supabaseReady,
+        ai_ready: Boolean(openai),
+        persona_enforcement_enabled: ENABLE_PERSONA_ENFORCEMENT,
+        real_email_enabled: ENABLE_REAL_EMAIL,
+        real_sms_enabled: ENABLE_REAL_SMS,
+        twilio_configured: Boolean(twilioClient && TWILIO_FROM_NUMBER),
+        public_app_url: PUBLIC_APP_URL
+      },
+      "Production status loaded."
+    );
+  })
+);
 
 /* =========================================================
    NOT FOUND HANDLER
@@ -7412,6 +7571,7 @@ app.use((req, res) => {
 ========================================================= */
 app.use((error, req, res, next) => {
   console.error("UNCAUGHT EXPRESS ERROR:", error);
+
   return res.status(500).json({
     ok: false,
     message: "Unhandled server error.",
@@ -7432,4 +7592,5 @@ app.listen(PORT, () => {
   console.log(`🛂 Persona enforcement: ${ENABLE_PERSONA_ENFORCEMENT}`);
   console.log(`📧 Real email enabled: ${ENABLE_REAL_EMAIL}`);
   console.log(`📱 Real SMS enabled: ${ENABLE_REAL_SMS}`);
+  console.log(`📲 Twilio configured: ${Boolean(twilioClient && TWILIO_FROM_NUMBER)}`);
 });
