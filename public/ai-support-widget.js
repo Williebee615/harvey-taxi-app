@@ -1,10 +1,354 @@
+<div id="harvey-ai-chat-root"></div>
+
+<style>
+  #harvey-ai-chat-root {
+    position: fixed;
+    right: 16px;
+    bottom: 88px;
+    z-index: 99999;
+    font-family: Inter, Arial, sans-serif;
+  }
+
+  .harvey-ai-widget {
+    position: relative;
+  }
+
+  .harvey-ai-launch {
+    width: 64px;
+    height: 64px;
+    border: none;
+    border-radius: 999px;
+    cursor: pointer;
+    font-size: 24px;
+    font-weight: 800;
+    color: #06111f;
+    background: linear-gradient(135deg, #6ee7ff 0%, #7aa2ff 100%);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+  }
+
+  .harvey-ai-panel {
+    position: absolute;
+    right: 0;
+    bottom: 78px;
+    width: min(430px, calc(100vw - 24px));
+    height: min(700px, calc(100vh - 130px));
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 28px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background:
+      radial-gradient(circle at top left, rgba(110, 231, 255, 0.13), transparent 30%),
+      radial-gradient(circle at bottom right, rgba(122, 162, 255, 0.10), transparent 30%),
+      #081224;
+    color: #ffffff;
+    box-shadow: 0 28px 70px rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(16px);
+  }
+
+  .harvey-ai-panel.open {
+    display: flex;
+  }
+
+  .harvey-ai-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 18px 18px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(8, 18, 36, 0.92);
+  }
+
+  .harvey-ai-header-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+  }
+
+  .harvey-ai-badge {
+    width: 64px;
+    height: 64px;
+    border-radius: 20px;
+    display: grid;
+    place-items: center;
+    font-size: 24px;
+    font-weight: 800;
+    color: #06111f;
+    background: linear-gradient(135deg, #6ee7ff 0%, #7aa2ff 100%);
+    flex-shrink: 0;
+  }
+
+  .harvey-ai-title-wrap {
+    min-width: 0;
+  }
+
+  .harvey-ai-title {
+    font-size: 18px;
+    font-weight: 800;
+    line-height: 1.2;
+  }
+
+  .harvey-ai-subtitle {
+    margin-top: 4px;
+    font-size: 13px;
+    color: rgba(220, 230, 255, 0.72);
+  }
+
+  .harvey-ai-actions {
+    display: flex;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  .harvey-ai-icon-btn {
+    width: 56px;
+    height: 56px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 18px;
+    cursor: pointer;
+    font-size: 24px;
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .harvey-ai-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-height: 0;
+  }
+
+  .harvey-ai-message {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .harvey-ai-message.user {
+    align-items: flex-end;
+  }
+
+  .harvey-ai-message.assistant {
+    align-items: flex-start;
+  }
+
+  .harvey-ai-bubble {
+    max-width: 88%;
+    padding: 16px 18px;
+    border-radius: 22px;
+    font-size: 15px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    word-break: break-word;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  }
+
+  .harvey-ai-message.assistant .harvey-ai-bubble {
+    background: rgba(255, 255, 255, 0.08);
+    color: #f4f7ff;
+    border-bottom-left-radius: 8px;
+  }
+
+  .harvey-ai-message.user .harvey-ai-bubble {
+    background: linear-gradient(135deg, #79f0b7 0%, #78f0e9 100%);
+    color: #07131f;
+    border-bottom-right-radius: 8px;
+    font-weight: 600;
+  }
+
+  .harvey-ai-meta {
+    font-size: 12px;
+    color: rgba(220, 230, 255, 0.65);
+    padding: 0 4px;
+  }
+
+  .harvey-ai-system-line {
+    font-size: 12px;
+    color: rgba(220, 230, 255, 0.68);
+    padding: 6px 2px 0;
+  }
+
+  .harvey-ai-typing {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 16px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .harvey-ai-typing-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: #b9c7ff;
+    animation: harveyTyping 1.1s infinite ease-in-out;
+  }
+
+  .harvey-ai-typing-dot:nth-child(2) {
+    animation-delay: 0.15s;
+  }
+
+  .harvey-ai-typing-dot:nth-child(3) {
+    animation-delay: 0.3s;
+  }
+
+  @keyframes harveyTyping {
+    0%, 80%, 100% {
+      transform: scale(0.7);
+      opacity: 0.6;
+    }
+    40% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  .harvey-ai-suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 16px 18px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .harvey-ai-suggestion {
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    background: rgba(255, 255, 255, 0.05);
+    color: #eaf0ff;
+    border-radius: 999px;
+    padding: 12px 16px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  .harvey-ai-footer {
+    padding: 16px 18px 18px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(8, 18, 36, 0.95);
+  }
+
+  .harvey-ai-form {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    align-items: end;
+  }
+
+  .harvey-ai-input {
+    min-height: 62px;
+    max-height: 140px;
+    resize: none;
+    padding: 16px 18px;
+    border-radius: 20px;
+    border: 1px solid rgba(110, 231, 255, 0.18);
+    background: rgba(7, 16, 34, 0.95);
+    color: #ffffff;
+    font-size: 15px;
+    line-height: 1.45;
+    outline: none;
+  }
+
+  .harvey-ai-input::placeholder {
+    color: rgba(220, 230, 255, 0.48);
+  }
+
+  .harvey-ai-send {
+    width: 90px;
+    height: 74px;
+    border: none;
+    border-radius: 24px;
+    cursor: pointer;
+    font-size: 28px;
+    font-weight: 800;
+    color: #07131f;
+    background: linear-gradient(135deg, #79f0b7 0%, #78f0e9 100%);
+    box-shadow: 0 12px 28px rgba(121, 240, 183, 0.25);
+  }
+
+  .harvey-ai-send:disabled,
+  .harvey-ai-input:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+  }
+
+  .harvey-ai-footnote {
+    margin-top: 12px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: rgba(220, 230, 255, 0.72);
+  }
+
+  @media (max-width: 640px) {
+    #harvey-ai-chat-root {
+      right: 12px;
+      left: 12px;
+      bottom: 84px;
+    }
+
+    .harvey-ai-launch {
+      margin-left: auto;
+      display: block;
+      width: 58px;
+      height: 58px;
+      font-size: 22px;
+    }
+
+    .harvey-ai-panel {
+      width: calc(100vw - 24px);
+      height: min(76vh, 760px);
+      bottom: 72px;
+      border-radius: 24px;
+    }
+
+    .harvey-ai-header {
+      padding: 16px;
+    }
+
+    .harvey-ai-badge {
+      width: 58px;
+      height: 58px;
+      border-radius: 18px;
+      font-size: 22px;
+    }
+
+    .harvey-ai-icon-btn {
+      width: 50px;
+      height: 50px;
+      border-radius: 16px;
+      font-size: 22px;
+    }
+
+    .harvey-ai-send {
+      width: 78px;
+      height: 68px;
+      border-radius: 22px;
+    }
+
+    .harvey-ai-bubble {
+      max-width: 92%;
+    }
+  }
+</style>
+
+<script>
 (function () {
   const root = document.getElementById("harvey-ai-chat-root");
   if (!root) return;
 
-  const STORAGE_KEY = "harvey_ai_chat_state_v1";
+  const STORAGE_KEY = "harvey_ai_chat_state_v3";
   const PAGE_CONTEXT = detectPageContext();
-  const API_ENDPOINT = "/api/ai/support";
+  const API_ENDPOINT =
+    window.location.hostname.includes("onrender.com")
+      ? "/api/ai/support"
+      : "https://harvey-taxi-app-2.onrender.com/api/ai/support";
 
   const state = {
     isOpen: false,
@@ -18,27 +362,23 @@
   function detectPageContext() {
     const path = (window.location.pathname || "").toLowerCase();
 
-    if (path.includes("rider-signup")) return "rider_signup";
-    if (path.includes("driver-signup")) return "driver_signup";
-    if (path.includes("request-ride")) return "request_ride";
-    if (path.includes("driver-dashboard")) return "driver_dashboard";
-    if (path.includes("admin")) return "admin_dashboard";
-    if (path.includes("support")) return "support_center";
-    if (path.includes("privacy")) return "privacy_policy";
-    if (path.includes("terms")) return "terms_of_service";
-    return "homepage";
+    if (path.includes("rider-signup")) return "rider";
+    if (path.includes("driver-signup")) return "driver";
+    if (path.includes("request-ride")) return "request";
+    if (path.includes("driver-dashboard")) return "driver";
+    return "general";
   }
 
   function readContextValue(name) {
     try {
-      const fromQuery = new URLSearchParams(window.location.search).get(name);
-      if (fromQuery) return fromQuery;
+      const query = new URLSearchParams(window.location.search).get(name);
+      if (query) return query;
 
-      const fromSession = sessionStorage.getItem(name);
-      if (fromSession) return fromSession;
+      const sessionValue = sessionStorage.getItem(name);
+      if (sessionValue) return sessionValue;
 
-      const fromLocal = localStorage.getItem(name);
-      if (fromLocal) return fromLocal;
+      const localValue = localStorage.getItem(name);
+      if (localValue) return localValue;
 
       return null;
     } catch (error) {
@@ -50,8 +390,13 @@
     try {
       const raw = sessionStorage.getItem(STORAGE_KEY);
       if (!raw) return getWelcomeMessages();
+
       const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) && parsed.length ? parsed : getWelcomeMessages();
+      if (!Array.isArray(parsed) || !parsed.length) {
+        return getWelcomeMessages();
+      }
+
+      return parsed;
     } catch (error) {
       return getWelcomeMessages();
     }
@@ -59,88 +404,73 @@
 
   function saveMessages() {
     try {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state.messages.slice(-30)));
+      sessionStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify(state.messages.slice(-30))
+      );
     } catch (error) {
-      // ignore storage issues
+      console.warn("Harvey AI storage warning:", error);
     }
   }
 
   function getWelcomeMessages() {
-    const welcomeText = getWelcomeTextByPage(PAGE_CONTEXT);
-
     return [
       {
         role: "assistant",
-        text: welcomeText,
+        text: getWelcomeTextByPage(PAGE_CONTEXT),
         meta: "Harvey AI Support"
       }
     ];
   }
 
   function getWelcomeTextByPage(pageContext) {
-    const messages = {
-      homepage:
-        "Welcome to Harvey AI Support. I can help with rides, rider signup, driver onboarding, support questions, Harvey Taxi Service LLC, the nonprofit mission, and the autonomous pilot plan.",
-      rider_signup:
-        "Welcome to Harvey AI Support. I can help explain rider signup, approval flow, verification, and what happens before ride access is granted.",
-      driver_signup:
-        "Welcome to Harvey AI Support. I can help explain driver onboarding, verification, mission flow, and what drivers need before activation.",
-      request_ride:
-        "Welcome to Harvey AI Support. I can help with fare questions, ride requests, payment authorization, dispatch flow, and autonomous pilot labeling.",
-      driver_dashboard:
-        "Welcome to Harvey AI Support. I can help with missions, availability, ride status, driver payouts, and trip workflow.",
-      admin_dashboard:
-        "Welcome to Harvey AI Support. I can help explain dispatch, safety ops, analytics, incidents, and platform controls.",
-      support_center:
-        "Welcome to Harvey AI Support. Tell me what you need help with and I’ll guide you through Harvey Taxi support.",
-      privacy_policy:
-        "Welcome to Harvey AI Support. I can explain Harvey Taxi platform operations in plain language, but legal policy text should still be reviewed directly on the page.",
-      terms_of_service:
-        "Welcome to Harvey AI Support. I can help explain platform terms in plain language, but the posted terms remain the official source."
+    const map = {
+      general:
+        "Hi, I’m Harvey AI. I can help with rides, support, driver onboarding, rider approval, payment questions, and Harvey Taxi platform guidance.",
+      rider:
+        "Hi, I’m Harvey AI. I can help explain rider signup, verification, approval, payment holds, and ride access.",
+      driver:
+        "Hi, I’m Harvey AI. I can help with driver onboarding, verification, approval, missions, and payouts.",
+      request:
+        "Hi, I’m Harvey AI. I can help with fare questions, trip requests, payment authorization, and dispatch flow."
     };
 
-    return messages[pageContext] || messages.homepage;
+    return map[pageContext] || map.general;
   }
 
   function buildSuggestions(pageContext) {
-    const shared = [
-      "What is Harvey Taxi?",
-      "What is the nonprofit mission?",
-      "Is autonomous service live?"
-    ];
-
-    const byPage = {
-      homepage: [
+    const map = {
+      general: [
         "How do I request a ride?",
-        "How do I sign up as a driver?"
+        "How do I sign up as a driver?",
+        "What is Harvey Taxi?",
+        "What is the nonprofit mission?",
+        "Is autonomous service live?"
       ],
-      rider_signup: [
+      rider: [
         "Why do riders need approval?",
-        "What documents do I need?"
-      ],
-      driver_signup: [
-        "How does driver verification work?",
-        "When can I start driving?"
-      ],
-      request_ride: [
+        "What documents do I need?",
         "How does payment authorization work?",
-        "How does dispatch work?"
+        "When can I request a ride?",
+        "How do I check my status?"
       ],
-      driver_dashboard: [
+      driver: [
+        "How does driver verification work?",
+        "When can I start driving?",
         "How do missions work?",
-        "How do driver payouts work?"
+        "How do driver payouts work?",
+        "What do I need before activation?"
       ],
-      admin_dashboard: [
-        "How do dispatch overrides work?",
-        "What does the AI admin assistant do?"
-      ],
-      support_center: [
-        "How do I report an issue?",
-        "How do I get trip help?"
+      request: [
+        "How does payment authorization work?",
+        "How does dispatch work?",
+        "How is fare estimated?",
+        "Can I request autonomous service?",
+        "Why can't I request a ride yet?"
       ]
     };
 
-    return [...(byPage[pageContext] || []), ...shared].slice(0, 5);
+    return map[pageContext] || map.general;
   }
 
   function escapeHtml(value) {
@@ -150,6 +480,17 @@
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#39;");
+  }
+
+  function formatPageSubtitle(pageContext) {
+    const map = {
+      general: "General support",
+      rider: "Rider support",
+      driver: "Driver support",
+      request: "Ride request support"
+    };
+
+    return map[pageContext] || "Platform support";
   }
 
   function createWidget() {
@@ -180,7 +521,6 @@
           </div>
 
           <div class="harvey-ai-body" data-harvey-ai-body></div>
-
           <div class="harvey-ai-suggestions" data-harvey-ai-suggestions></div>
 
           <div class="harvey-ai-footer">
@@ -189,12 +529,12 @@
                 class="harvey-ai-input"
                 data-harvey-ai-input
                 rows="1"
-                placeholder="Ask Harvey AI about rides, support, drivers, nonprofit mission, or autonomous plans..."
+                placeholder="Ask about rides, signup, payment holds, dispatch, missions, support, or autonomous pilot..."
               ></textarea>
               <button class="harvey-ai-send" data-harvey-ai-send type="submit" aria-label="Send message">➜</button>
             </form>
             <div class="harvey-ai-footnote">
-              Harvey AI can explain platform flow and support guidance. For emergencies, contact local emergency services immediately.
+              Harvey AI explains platform flow and support guidance. For emergencies, contact local emergency services immediately.
             </div>
           </div>
         </section>
@@ -206,25 +546,9 @@
     renderSuggestions();
   }
 
-  function formatPageSubtitle(pageContext) {
-    const map = {
-      homepage: "Home page support",
-      rider_signup: "Rider signup support",
-      driver_signup: "Driver onboarding support",
-      request_ride: "Ride request support",
-      driver_dashboard: "Driver dashboard support",
-      admin_dashboard: "Admin operations support",
-      support_center: "Support center assistance",
-      privacy_policy: "Privacy page assistance",
-      terms_of_service: "Terms page assistance"
-    };
-
-    return map[pageContext] || "General platform support";
-  }
-
   function bindEvents() {
     const panel = root.querySelector(".harvey-ai-panel");
-    const launch = root.querySelector(".harvey-ai-launch");
+    const launch = root.querySelector("[data-harvey-ai-open]");
     const closeBtn = root.querySelector("[data-harvey-ai-close]");
     const clearBtn = root.querySelector("[data-harvey-ai-clear]");
     const form = root.querySelector("[data-harvey-ai-form]");
@@ -238,7 +562,7 @@
       saveMessages();
       renderMessages();
       renderSuggestions();
-      input.focus();
+      if (input) input.focus();
     });
 
     form.addEventListener("submit", async function (event) {
@@ -248,7 +572,6 @@
 
       input.value = "";
       autoResizeTextarea(input);
-
       await sendMessage(text);
     });
 
@@ -276,15 +599,19 @@
 
   function autoResizeTextarea(textarea) {
     textarea.style.height = "auto";
-    textarea.style.height = Math.min(textarea.scrollHeight, 120) + "px";
+    textarea.style.height = Math.min(textarea.scrollHeight, 140) + "px";
   }
 
   function open() {
     state.isOpen = true;
     const panel = root.querySelector(".harvey-ai-panel");
     panel.classList.add("open");
+
     const input = root.querySelector("[data-harvey-ai-input]");
-    setTimeout(() => input && input.focus(), 80);
+    setTimeout(() => {
+      if (input) input.focus();
+    }, 80);
+
     scrollToBottom();
   }
 
@@ -300,6 +627,7 @@
       text,
       meta: meta || (role === "user" ? "You" : "Harvey AI Support")
     });
+
     saveMessages();
     renderMessages();
   }
@@ -343,7 +671,8 @@
 
     const systemLine = document.createElement("div");
     systemLine.className = "harvey-ai-system-line";
-    systemLine.textContent = "Harvey AI can explain rides, support flow, LLC mission, nonprofit mission, and autonomous pilot status.";
+    systemLine.textContent =
+      "Harvey AI can explain rides, support flow, driver onboarding, rider approval, and autonomous pilot status.";
     body.appendChild(systemLine);
 
     scrollToBottom();
@@ -370,6 +699,7 @@
   function scrollToBottom() {
     const body = root.querySelector("[data-harvey-ai-body]");
     if (!body) return;
+
     requestAnimationFrame(() => {
       body.scrollTop = body.scrollHeight;
     });
@@ -392,7 +722,7 @@
         },
         body: JSON.stringify({
           message: trimmed,
-          pageContext: PAGE_CONTEXT,
+          page: PAGE_CONTEXT,
           rider_id: state.riderId || null,
           driver_id: state.driverId || null,
           ride_id: state.rideId || null
@@ -402,24 +732,23 @@
       const data = await response.json().catch(() => null);
 
       if (!response.ok) {
-        throw new Error(
-          data?.error || "Harvey AI could not respond right now."
-        );
+        throw new Error(data?.error || "Harvey AI could not respond right now.");
       }
 
       const reply =
-        data?.ai?.reply ||
         data?.reply ||
+        data?.ai?.reply ||
         "I’m here to help with Harvey Taxi support.";
 
       addMessage("assistant", reply, "Harvey AI Support");
     } catch (error) {
+      console.error("Harvey AI widget error:", error);
+
       addMessage(
         "assistant",
         "I’m having trouble reaching Harvey AI right now. Please try again in a moment or use the support page.",
         "Harvey AI Support"
       );
-      console.error("Harvey AI widget error:", error);
     } finally {
       state.isLoading = false;
       renderMessages();
@@ -461,3 +790,4 @@
 
   createWidget();
 })();
+</script>
