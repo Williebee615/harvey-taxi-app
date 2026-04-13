@@ -84,7 +84,7 @@ export async function healthCheck() {
 }
 
 /* =========================================================
-   RIDER AUTH / VERIFICATION
+   RIDER AUTH / STATUS / PROFILE
 ========================================================= */
 
 export async function riderSignup(payload) {
@@ -101,9 +101,47 @@ export async function riderLogin(payload) {
   });
 }
 
+export async function getRiderStatus({ riderId, email, phone } = {}) {
+  const params = new URLSearchParams();
+
+  if (riderId) params.set("rider_id", riderId);
+  if (email) params.set("email", email);
+  if (phone) params.set("phone", phone);
+
+  const query = params.toString() ? `?${params.toString()}` : "";
+
+  return request(`/api/rider-status${query}`, {
+    method: "GET"
+  });
+}
+
 export async function getRiderVerificationStatus(riderId) {
+  return getRiderStatus({ riderId });
+}
+
+export async function getRiderById(riderId) {
+  return request(`/api/riders/${encodeURIComponent(riderId)}`, {
+    method: "GET"
+  });
+}
+
+export async function updateRiderProfile(riderId, payload) {
+  return request(`/api/riders/${encodeURIComponent(riderId)}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function updateRiderPassword(riderId, payload) {
+  return request(`/api/riders/${encodeURIComponent(riderId)}/update-password`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function canRiderRequestRide(riderId) {
   return request(
-    `/api/rider/${encodeURIComponent(riderId)}/verification-status`,
+    `/api/riders/${encodeURIComponent(riderId)}/can-request-ride`,
     {
       method: "GET"
     }
@@ -112,15 +150,42 @@ export async function getRiderVerificationStatus(riderId) {
 
 export async function startRiderVerification(riderId) {
   return request(
-    `/api/rider/${encodeURIComponent(riderId)}/start-verification`,
+    `/api/riders/${encodeURIComponent(riderId)}/start-verification`,
     {
       method: "POST"
     }
   );
 }
 
+export async function refreshRiderVerification(riderId) {
+  return request(
+    `/api/riders/${encodeURIComponent(riderId)}/refresh-verification`,
+    {
+      method: "POST"
+    }
+  );
+}
+
+export async function getRiderRides(riderId) {
+  return request(`/api/riders/${encodeURIComponent(riderId)}/rides`, {
+    method: "GET"
+  });
+}
+
+export async function getRiderDashboard(riderId) {
+  return request(`/api/riders/${encodeURIComponent(riderId)}/dashboard`, {
+    method: "GET"
+  });
+}
+
+export async function getRiderPayments(riderId) {
+  return request(`/api/riders/${encodeURIComponent(riderId)}/payments`, {
+    method: "GET"
+  });
+}
+
 /* =========================================================
-   DRIVER AUTH / VERIFICATION
+   DRIVER AUTH / STATUS / PROFILE
 ========================================================= */
 
 export async function driverSignup(payload) {
@@ -137,21 +202,86 @@ export async function driverLogin(payload) {
   });
 }
 
+export async function getDriverStatus({ driverId, email, phone } = {}) {
+  const params = new URLSearchParams();
+
+  if (driverId) params.set("driver_id", driverId);
+  if (email) params.set("email", email);
+  if (phone) params.set("phone", phone);
+
+  const query = params.toString() ? `?${params.toString()}` : "";
+
+  return request(`/api/driver-status${query}`, {
+    method: "GET"
+  });
+}
+
 export async function getDriverVerificationStatus(driverId) {
+  return getDriverStatus({ driverId });
+}
+
+export async function getDriverById(driverId) {
+  return request(`/api/drivers/${encodeURIComponent(driverId)}`, {
+    method: "GET"
+  });
+}
+
+export async function updateDriverProfile(driverId, payload) {
+  return request(`/api/drivers/${encodeURIComponent(driverId)}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function updateDriverPassword(driverId, payload) {
+  return request(`/api/drivers/${encodeURIComponent(driverId)}/update-password`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function startDriverVerification(driverId) {
   return request(
-    `/api/driver/${encodeURIComponent(driverId)}/verification-status`,
+    `/api/drivers/${encodeURIComponent(driverId)}/start-verification`,
     {
-      method: "GET"
+      method: "POST"
     }
   );
 }
 
-export async function verifyDriverEmail(driverId, token) {
+export async function refreshDriverVerification(driverId) {
+  return request(
+    `/api/drivers/${encodeURIComponent(driverId)}/refresh-verification`,
+    {
+      method: "POST"
+    }
+  );
+}
+
+export async function sendDriverEmailCode(driverId) {
+  return request("/api/driver/send-email-code", {
+    method: "POST",
+    body: JSON.stringify({
+      driver_id: driverId
+    })
+  });
+}
+
+export async function verifyDriverEmail(driverId, code) {
   return request("/api/driver/verify-email", {
     method: "POST",
     body: JSON.stringify({
       driver_id: driverId,
-      token
+      code
+    })
+  });
+}
+
+export async function sendDriverSmsCode(driverId) {
+  return request("/api/driver/send-sms-code", {
+    method: "POST",
+    body: JSON.stringify({
+      driver_id: driverId
     })
   });
 }
@@ -166,102 +296,69 @@ export async function verifyDriverSmsCode(driverId, code) {
   });
 }
 
-export async function resendDriverEmailVerification(driverId) {
+export async function setDriverStatus(driverId, status) {
+  return request(`/api/drivers/${encodeURIComponent(driverId)}/set-status`, {
+    method: "POST",
+    body: JSON.stringify({
+      status
+    })
+  });
+}
+
+export async function updateDriverAvailability(driverId, available) {
+  return setDriverStatus(driverId, available ? "available" : "offline");
+}
+
+export async function canDriverReceiveDispatch(driverId) {
   return request(
-    `/api/driver/${encodeURIComponent(driverId)}/resend-email-verification`,
+    `/api/drivers/${encodeURIComponent(driverId)}/can-receive-dispatch`,
     {
-      method: "POST"
+      method: "GET"
     }
   );
 }
 
-export async function resendDriverSmsVerification(driverId) {
+export async function getAvailableDrivers(requestedMode = "human") {
   return request(
-    `/api/driver/${encodeURIComponent(driverId)}/resend-sms-verification`,
+    `/api/drivers/available/list?requestedMode=${encodeURIComponent(requestedMode)}`,
     {
-      method: "POST"
+      method: "GET"
     }
   );
 }
 
-/* =========================================================
-   RIDER DATA
-========================================================= */
-
-export async function getRiderById(riderId) {
-  return request(`/api/riders/${encodeURIComponent(riderId)}`, {
-    method: "GET"
-  });
-}
-
-export async function getRiderRides(riderId) {
-  return request(`/api/rider/${encodeURIComponent(riderId)}/rides`, {
-    method: "GET"
-  });
-}
-
-export async function getRiderReceipts(riderId) {
-  return request(`/api/rider/${encodeURIComponent(riderId)}/receipts`, {
-    method: "GET"
-  });
-}
-
-/* =========================================================
-   DRIVER DATA
-========================================================= */
-
-export async function getDriverById(driverId) {
-  return request(`/api/drivers/${encodeURIComponent(driverId)}`, {
-    method: "GET"
-  });
-}
-
-export async function getDriverCurrentRide(driverId) {
-  return request(`/api/driver/${encodeURIComponent(driverId)}/current-ride`, {
+export async function getDriverCurrentMission(driverId) {
+  return request(`/api/drivers/${encodeURIComponent(driverId)}/current-mission`, {
     method: "GET"
   });
 }
 
 export async function getDriverMissions(driverId) {
-  return request(`/api/driver/${encodeURIComponent(driverId)}/missions`, {
+  return request(`/api/drivers/${encodeURIComponent(driverId)}/missions`, {
     method: "GET"
-  });
-}
-
-export async function updateDriverAvailability(driverId, available) {
-  return request(`/api/driver/${encodeURIComponent(driverId)}/availability`, {
-    method: "POST",
-    body: JSON.stringify({
-      is_available: available,
-      availability_status: available ? "available" : "offline"
-    })
-  });
-}
-
-export async function updateDriverLocation(driverId, latitude, longitude) {
-  return request(`/api/driver/${encodeURIComponent(driverId)}/location`, {
-    method: "POST",
-    body: JSON.stringify({
-      latitude,
-      longitude
-    })
   });
 }
 
 export async function getDriverEarnings(driverId) {
-  return request(`/api/driver/${encodeURIComponent(driverId)}/earnings`, {
+  return request(`/api/drivers/${encodeURIComponent(driverId)}/earnings`, {
     method: "GET"
   });
 }
 
-export async function getDriverPayouts(driverId) {
-  return request(`/api/driver/${encodeURIComponent(driverId)}/payouts`, {
+export async function getDriverTips(driverId) {
+  return request(`/api/drivers/${encodeURIComponent(driverId)}/tips`, {
+    method: "GET"
+  });
+}
+
+export async function getDriverDashboard(driverId) {
+  return request(`/api/drivers/${encodeURIComponent(driverId)}/dashboard`, {
     method: "GET"
   });
 }
 
 /* =========================================================
-   RIDES / PAYMENTS / DISPATCH
+   FARE / PAYMENTS / RIDES
 ========================================================= */
 
 export async function getFareEstimate(payload) {
@@ -291,44 +388,18 @@ export async function getRideById(rideId) {
   });
 }
 
-export async function getRideLiveStatus(rideId) {
-  return request(`/api/rides/${encodeURIComponent(rideId)}/live-status`, {
+export async function getRideDispatchStatus(rideId) {
+  return request(`/api/rides/${encodeURIComponent(rideId)}/dispatch-status`, {
     method: "GET"
   });
 }
 
+export async function getRideLiveStatus(rideId) {
+  return getRideDispatchStatus(rideId);
+}
+
 export async function dispatchRide(rideId) {
   return request(`/api/rides/${encodeURIComponent(rideId)}/dispatch`, {
-    method: "POST"
-  });
-}
-
-export async function retryRideDispatch(rideId) {
-  return request(`/api/rides/${encodeURIComponent(rideId)}/dispatch/retry`, {
-    method: "POST"
-  });
-}
-
-export async function markDriverEnroute(rideId) {
-  return request(`/api/rides/${encodeURIComponent(rideId)}/driver-enroute`, {
-    method: "POST"
-  });
-}
-
-export async function markDriverArrived(rideId) {
-  return request(`/api/rides/${encodeURIComponent(rideId)}/driver-arrived`, {
-    method: "POST"
-  });
-}
-
-export async function startTrip(rideId) {
-  return request(`/api/rides/${encodeURIComponent(rideId)}/start`, {
-    method: "POST"
-  });
-}
-
-export async function completeTrip(rideId) {
-  return request(`/api/rides/${encodeURIComponent(rideId)}/complete`, {
     method: "POST"
   });
 }
@@ -340,98 +411,100 @@ export async function cancelRide(rideId, reason = "cancelled_by_user") {
   });
 }
 
-export async function addRideTip(rideId, amount, note = "Tip added by rider") {
+export async function addRideTip(
+  rideId,
+  amount,
+  source = "post_trip"
+) {
   return request(`/api/rides/${encodeURIComponent(rideId)}/tip`, {
     method: "POST",
     body: JSON.stringify({
       amount,
-      note
+      source
     })
   });
 }
 
-export async function getRideReceipt(rideId) {
-  return request(`/api/rides/${encodeURIComponent(rideId)}/receipt`, {
-    method: "GET"
-  });
-}
-
-export async function captureRidePayment(rideId) {
-  return request(`/api/rides/${encodeURIComponent(rideId)}/capture-payment`, {
-    method: "POST"
-  });
-}
-
-export async function releaseRidePayment(rideId) {
-  return request(`/api/rides/${encodeURIComponent(rideId)}/release-payment`, {
+export async function linkLatestPaymentToRide(rideId) {
+  return request(`/api/rides/${encodeURIComponent(rideId)}/link-latest-payment`, {
     method: "POST"
   });
 }
 
 /* =========================================================
-   DRIVER DISPATCH ACTIONS
+   PAYMENTS
 ========================================================= */
 
-export async function acceptDispatch(dispatchId) {
-  return request(`/api/dispatch/${encodeURIComponent(dispatchId)}/accept`, {
+export async function capturePayment(paymentId) {
+  return request(`/api/payments/${encodeURIComponent(paymentId)}/capture`, {
     method: "POST"
   });
 }
 
-export async function declineDispatch(dispatchId, reason = "declined_by_driver") {
-  return request(`/api/dispatch/${encodeURIComponent(dispatchId)}/decline`, {
+export async function releasePayment(paymentId) {
+  return request(`/api/payments/${encodeURIComponent(paymentId)}/release`, {
+    method: "POST"
+  });
+}
+
+/* =========================================================
+   DISPATCH ACTIONS
+========================================================= */
+
+export async function acceptDispatch(dispatchId, driverId = null) {
+  return request(`/api/dispatches/${encodeURIComponent(dispatchId)}/accept`, {
+    method: "POST",
+    body: JSON.stringify(
+      driverId
+        ? {
+            driver_id: driverId
+          }
+        : {}
+    )
+  });
+}
+
+export async function declineDispatch(
+  dispatchId,
+  reason = "declined_by_driver"
+) {
+  return request(`/api/dispatches/${encodeURIComponent(dispatchId)}/decline`, {
     method: "POST",
     body: JSON.stringify({ reason })
   });
 }
 
 /* =========================================================
-   SUPPORT / INCIDENTS / SAFETY
+   MISSION / TRIP LIFECYCLE
 ========================================================= */
 
-export async function createSupportCase(payload) {
-  return request("/api/support/cases", {
-    method: "POST",
-    body: JSON.stringify(payload)
+export async function markDriverEnroute(missionId) {
+  return request(`/api/missions/${encodeURIComponent(missionId)}/en-route`, {
+    method: "POST"
   });
 }
 
-export async function getSupportCases(status = "") {
-  const query = status ? `?status=${encodeURIComponent(status)}` : "";
-  return request(`/api/support/cases${query}`, {
+export async function markDriverArrived(missionId) {
+  return request(`/api/missions/${encodeURIComponent(missionId)}/arrived`, {
+    method: "POST"
+  });
+}
+
+export async function startTrip(missionId) {
+  return request(`/api/missions/${encodeURIComponent(missionId)}/start`, {
+    method: "POST"
+  });
+}
+
+export async function completeTrip(missionId) {
+  return request(`/api/missions/${encodeURIComponent(missionId)}/complete`, {
+    method: "POST"
+  });
+}
+
+export async function getRideTimeline(rideId) {
+  return request(`/api/rides/${encodeURIComponent(rideId)}/timeline`, {
     method: "GET"
-  });
-}
-
-export async function reportIncident(payload) {
-  return request("/api/incidents/report", {
-    method: "POST",
-    body: JSON.stringify(payload)
-  });
-}
-
-export async function getIncidents(filters = {}) {
-  const params = new URLSearchParams();
-
-  if (filters.status) {
-    params.set("status", filters.status);
-  }
-
-  if (filters.severity) {
-    params.set("severity", filters.severity);
-  }
-
-  const query = params.toString() ? `?${params.toString()}` : "";
-
-  return request(`/api/incidents${query}`, {
-    method: "GET"
-  });
-}
-
-export async function triggerRideEmergency(rideId, payload = {}) {
-  return request(`/api/rides/${encodeURIComponent(rideId)}/emergency`, {
-    method: "POST",
-    body: JSON.stringify(payload)
   });
 }
 
@@ -444,10 +517,10 @@ export async function askHarveyAI(payload) {
     method: "POST",
     body: JSON.stringify({
       message: payload?.message || "",
-      pageContext: payload?.pageContext || "homepage",
-      rider_id: payload?.riderId || null,
-      driver_id: payload?.driverId || null,
-      ride_id: payload?.rideId || null
+      page: payload?.page || payload?.pageContext || "general",
+      rider_id: payload?.riderId || payload?.rider_id || null,
+      driver_id: payload?.driverId || payload?.driver_id || null,
+      ride_id: payload?.rideId || payload?.ride_id || null
     })
   });
 }
@@ -456,121 +529,124 @@ export async function askHarveyAI(payload) {
    ADMIN
 ========================================================= */
 
-export async function getAdminAnalyticsOverview(adminApiKey) {
+function buildAdminHeaders(adminEmail, adminPassword) {
+  const headers = {};
+
+  if (adminEmail) {
+    headers["x-admin-email"] = adminEmail;
+  }
+
+  if (adminPassword) {
+    headers["x-admin-password"] = adminPassword;
+  }
+
+  return headers;
+}
+
+export async function getAdminAnalyticsOverview(adminEmail, adminPassword) {
   return request("/api/admin/analytics/overview", {
     method: "GET",
-    headers: adminApiKey
-      ? {
-          "x-admin-api-key": adminApiKey
-        }
-      : {}
+    headers: buildAdminHeaders(adminEmail, adminPassword)
   });
 }
 
-export async function getAdminAnalyticsLive(adminApiKey) {
-  return request("/api/admin/analytics/live", {
+export async function getAdminLogs(adminEmail, adminPassword, limit = 100) {
+  return request(`/api/admin/logs?limit=${encodeURIComponent(String(limit))}`, {
     method: "GET",
-    headers: adminApiKey
-      ? {
-          "x-admin-api-key": adminApiKey
-        }
-      : {}
+    headers: buildAdminHeaders(adminEmail, adminPassword)
   });
 }
 
-export async function getOpenAdminDispatches(adminApiKey) {
-  return request("/api/admin/dispatches/open", {
-    method: "GET",
-    headers: adminApiKey
-      ? {
-          "x-admin-api-key": adminApiKey
-        }
-      : {}
-  });
+export async function getAdminTripEvents(adminEmail, adminPassword, limit = 100) {
+  return request(
+    `/api/admin/trip-events?limit=${encodeURIComponent(String(limit))}`,
+    {
+      method: "GET",
+      headers: buildAdminHeaders(adminEmail, adminPassword)
+    }
+  );
 }
 
-export async function getSearchingAdminRides(adminApiKey) {
-  return request("/api/admin/rides/searching", {
-    method: "GET",
-    headers: adminApiKey
-      ? {
-          "x-admin-api-key": adminApiKey
-        }
-      : {}
-  });
-}
-
-export async function adminAssignDriverToRide(rideId, driverId, adminApiKey) {
-  return request(`/api/admin/rides/${encodeURIComponent(rideId)}/assign-driver`, {
+export async function approveRider(riderId, adminEmail, adminPassword) {
+  return request(`/api/admin/riders/${encodeURIComponent(riderId)}/approve`, {
     method: "POST",
-    headers: adminApiKey
-      ? {
-          "x-admin-api-key": adminApiKey
-        }
-      : {},
+    headers: buildAdminHeaders(adminEmail, adminPassword)
+  });
+}
+
+export async function rejectRider(
+  riderId,
+  reason,
+  adminEmail,
+  adminPassword
+) {
+  return request(`/api/admin/riders/${encodeURIComponent(riderId)}/reject`, {
+    method: "POST",
+    headers: buildAdminHeaders(adminEmail, adminPassword),
     body: JSON.stringify({
-      driver_id: driverId
+      reason: reason || "Verification rejected."
     })
   });
 }
 
-export async function adminRedispatchRide(rideId, adminApiKey) {
-  return request(`/api/admin/rides/${encodeURIComponent(rideId)}/redispatch`, {
+export async function approveDriver(driverId, adminEmail, adminPassword) {
+  return request(`/api/admin/drivers/${encodeURIComponent(driverId)}/approve`, {
     method: "POST",
-    headers: adminApiKey
-      ? {
-          "x-admin-api-key": adminApiKey
-        }
-      : {}
+    headers: buildAdminHeaders(adminEmail, adminPassword)
   });
 }
 
-export async function adminForceCompleteRide(rideId, adminApiKey) {
-  return request(`/api/admin/rides/${encodeURIComponent(rideId)}/force-complete`, {
+export async function rejectDriver(
+  driverId,
+  reason,
+  adminEmail,
+  adminPassword
+) {
+  return request(`/api/admin/drivers/${encodeURIComponent(driverId)}/reject`, {
     method: "POST",
-    headers: adminApiKey
-      ? {
-          "x-admin-api-key": adminApiKey
-        }
-      : {}
-  });
-}
-
-export async function adminForceCancelRide(rideId, reason, adminApiKey) {
-  return request(`/api/admin/rides/${encodeURIComponent(rideId)}/force-cancel`, {
-    method: "POST",
-    headers: adminApiKey
-      ? {
-          "x-admin-api-key": adminApiKey
-        }
-      : {},
+    headers: buildAdminHeaders(adminEmail, adminPassword),
     body: JSON.stringify({
-      reason: reason || "admin_cancelled"
+      reason: reason || "Driver rejected."
     })
   });
 }
 
-export async function adminMarkPayoutPaid(payoutId, adminApiKey) {
-  return request(`/api/admin/payouts/${encodeURIComponent(payoutId)}/mark-paid`, {
-    method: "POST",
-    headers: adminApiKey
-      ? {
-          "x-admin-api-key": adminApiKey
-        }
-      : {}
-  });
+export async function adminSetRiderPersonaDecision(
+  riderId,
+  personaStatus,
+  inquiryId,
+  adminEmail,
+  adminPassword
+) {
+  return request(
+    `/api/admin/riders/${encodeURIComponent(riderId)}/persona-decision`,
+    {
+      method: "POST",
+      headers: buildAdminHeaders(adminEmail, adminPassword),
+      body: JSON.stringify({
+        persona_status: personaStatus,
+        inquiry_id: inquiryId || null
+      })
+    }
+  );
 }
 
-export async function askAdminHarveyAI(message, adminApiKey) {
-  return request("/api/admin/ai/operations", {
-    method: "POST",
-    headers: adminApiKey
-      ? {
-          "x-admin-api-key": adminApiKey
-        }
-      : {},
-    body: JSON.stringify({
-      message
-    })
-  });
+export async function adminSetDriverPersonaDecision(
+  driverId,
+  personaStatus,
+  inquiryId,
+  adminEmail,
+  adminPassword
+) {
+  return request(
+    `/api/admin/drivers/${encodeURIComponent(driverId)}/persona-decision`,
+    {
+      method: "POST",
+      headers: buildAdminHeaders(adminEmail, adminPassword),
+      body: JSON.stringify({
+        persona_status: personaStatus,
+        inquiry_id: inquiryId || null
+      })
+    }
+  );
 }
