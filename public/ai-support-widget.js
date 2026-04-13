@@ -1,3 +1,5 @@
+<div id="harvey-ai-chat-root"></div>
+
 <style>
   #harvey-ai-chat-root {
     position: fixed !important;
@@ -27,8 +29,8 @@
     border: none;
     border-radius: 999px;
     cursor: pointer;
-    font-size: 24px;
-    font-weight: 800;
+    font-size: 22px;
+    font-weight: 900;
     color: #06111f;
     background: linear-gradient(135deg, #6ee7ff 0%, #7aa2ff 100%);
     box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
@@ -37,6 +39,16 @@
     justify-content: center;
     -webkit-appearance: none;
     appearance: none;
+    transition: transform 0.18s ease, filter 0.18s ease;
+  }
+
+  .harvey-ai-launch:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.04);
+  }
+
+  .harvey-ai-launch:active {
+    transform: translateY(0);
   }
 
   .harvey-ai-panel {
@@ -82,13 +94,13 @@
   }
 
   .harvey-ai-badge {
-    width: 64px;
-    height: 64px;
-    border-radius: 20px;
+    width: 60px;
+    height: 60px;
+    border-radius: 18px;
     display: grid;
     place-items: center;
-    font-size: 24px;
-    font-weight: 800;
+    font-size: 22px;
+    font-weight: 900;
     color: #06111f;
     background: linear-gradient(135deg, #6ee7ff 0%, #7aa2ff 100%);
     flex-shrink: 0;
@@ -108,6 +120,7 @@
     margin-top: 4px;
     font-size: 13px;
     color: rgba(220, 230, 255, 0.72);
+    line-height: 1.4;
   }
 
   .harvey-ai-actions {
@@ -117,12 +130,12 @@
   }
 
   .harvey-ai-icon-btn {
-    width: 56px;
-    height: 56px;
+    width: 48px;
+    height: 48px;
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 18px;
+    border-radius: 16px;
     cursor: pointer;
-    font-size: 24px;
+    font-size: 20px;
     color: #ffffff;
     background: rgba(255, 255, 255, 0.06);
     -webkit-appearance: none;
@@ -137,6 +150,15 @@
     flex-direction: column;
     gap: 14px;
     min-height: 0;
+  }
+
+  .harvey-ai-body::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .harvey-ai-body::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.16);
+    border-radius: 999px;
   }
 
   .harvey-ai-message {
@@ -187,6 +209,7 @@
     font-size: 12px;
     color: rgba(220, 230, 255, 0.68);
     padding: 6px 2px 0;
+    text-align: center;
   }
 
   .harvey-ai-typing {
@@ -274,12 +297,12 @@
   }
 
   .harvey-ai-send {
-    width: 90px;
-    height: 74px;
+    width: 84px;
+    height: 70px;
     border: none;
-    border-radius: 24px;
+    border-radius: 22px;
     cursor: pointer;
-    font-size: 28px;
+    font-size: 26px;
     font-weight: 800;
     color: #07131f;
     background: linear-gradient(135deg, #79f0b7 0%, #78f0e9 100%);
@@ -311,7 +334,7 @@
     .harvey-ai-launch {
       width: 58px;
       height: 58px;
-      font-size: 22px;
+      font-size: 20px;
     }
 
     .harvey-ai-panel {
@@ -326,23 +349,23 @@
     }
 
     .harvey-ai-badge {
-      width: 58px;
-      height: 58px;
+      width: 56px;
+      height: 56px;
       border-radius: 18px;
-      font-size: 22px;
+      font-size: 20px;
     }
 
     .harvey-ai-icon-btn {
-      width: 50px;
-      height: 50px;
+      width: 46px;
+      height: 46px;
       border-radius: 16px;
-      font-size: 22px;
+      font-size: 20px;
     }
 
     .harvey-ai-send {
-      width: 78px;
-      height: 68px;
-      border-radius: 22px;
+      width: 74px;
+      height: 66px;
+      border-radius: 20px;
     }
 
     .harvey-ai-bubble {
@@ -364,12 +387,9 @@
       document.body.appendChild(root);
     }
 
-    const STORAGE_KEY = "harvey_ai_chat_state_v5";
+    const STORAGE_KEY = "harvey_ai_chat_state_v6";
     const PAGE_CONTEXT = detectPageContext();
-    const API_ENDPOINT =
-      window.location.hostname.includes("onrender.com")
-        ? "/api/ai/support"
-        : "https://harvey-taxi-app-2.onrender.com/api/ai/support";
+    const API_ENDPOINT = "/api/ai/support";
 
     const state = {
       isOpen: false,
@@ -386,6 +406,7 @@
       if (path.includes("driver-signup")) return "driver";
       if (path.includes("request-ride")) return "request";
       if (path.includes("driver-dashboard")) return "driver";
+      if (path.includes("rider-dashboard")) return "rider";
       return "general";
     }
 
@@ -412,7 +433,10 @@
 
     function saveMessages() {
       try {
-        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state.messages.slice(-30)));
+        sessionStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify(state.messages.slice(-30))
+        );
       } catch (error) {
         console.warn("Harvey AI storage warning:", error);
       }
@@ -608,10 +632,12 @@
       state.isOpen = true;
       const panel = root.querySelector(".harvey-ai-panel");
       panel.classList.add("open");
+
       const input = root.querySelector("[data-harvey-ai-input]");
       setTimeout(() => {
         if (input) input.focus();
       }, 80);
+
       scrollToBottom();
     }
 
