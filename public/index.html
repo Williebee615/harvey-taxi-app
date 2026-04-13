@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+  />
   <title>Harvey Taxi | Ride Across Tennessee</title>
   <meta
     name="description"
@@ -55,6 +58,10 @@
       text-decoration:none;
     }
 
+    button{
+      font:inherit;
+    }
+
     .shell{
       max-width:var(--max);
       margin:auto;
@@ -71,6 +78,7 @@
       border-radius:999px;
       background:rgba(7,12,28,.78);
       backdrop-filter:blur(12px);
+      -webkit-backdrop-filter:blur(12px);
       margin-bottom:18px;
       box-shadow:var(--shadow);
     }
@@ -488,6 +496,7 @@
       bottom:0;
       background:rgba(6,12,26,.96);
       backdrop-filter:blur(14px);
+      -webkit-backdrop-filter:blur(14px);
       border-top:1px solid rgba(255,255,255,.08);
       display:flex;
       justify-content:space-around;
@@ -535,13 +544,6 @@
       line-height:1.6;
       display:block;
       max-width:760px;
-    }
-
-    #harvey-ai-chat-root{
-      position:fixed !important;
-      right:18px !important;
-      bottom:100px !important;
-      z-index:1200 !important;
     }
 
     @media(max-width:980px){
@@ -602,17 +604,13 @@
       .mini-stats{
         grid-template-columns:1fr;
       }
-
-      #harvey-ai-chat-root{
-        right:14px !important;
-        bottom:96px !important;
-      }
     }
   </style>
+
+  <link rel="stylesheet" href="/ai-support-widget.css" />
 </head>
 
 <body>
-
   <div class="shell">
 
     <div class="topbar">
@@ -987,9 +985,6 @@
     <button class="nav-btn" onclick="location.href='driver-dashboard.html'">Driver</button>
   </div>
 
-  <div id="harvey-ai-chat-root"></div>
-
-  <link rel="stylesheet" href="/ai-support-widget.css" />
   <script src="/ai-support-widget.js"></script>
 
   <script>
@@ -1011,7 +1006,17 @@
 
       window.location.href = "support.html";
     }
-  </script>
 
+    window.addEventListener("load", function () {
+      setTimeout(function () {
+        const existingRoot = document.getElementById("harvey-ai-chat-root");
+        if (!existingRoot) {
+          const root = document.createElement("div");
+          root.id = "harvey-ai-chat-root";
+          document.body.appendChild(root);
+        }
+      }, 50);
+    });
+  </script>
 </body>
 </html>
