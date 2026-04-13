@@ -26,7 +26,6 @@
       --bg3:#101935;
       --panel:rgba(10,17,38,.90);
       --panel2:rgba(16,27,58,.86);
-      --panel3:rgba(255,255,255,.03);
       --line:rgba(122,162,255,.16);
       --line-strong:rgba(122,162,255,.30);
       --text:#f4f7ff;
@@ -37,7 +36,6 @@
       --gold:#ffd76a;
       --danger:#ff7e97;
       --shadow:0 20px 70px rgba(0,0,0,.35);
-      --radius:24px;
       --max:1180px;
     }
 
@@ -1026,7 +1024,7 @@
               <h2>Live pickup map</h2>
               <p>
                 Riders can view their exact live position before booking. Use your current location
-                to confirm pickup support and improve dispatch accuracy.
+                to confirm pickup support and improve dispatch accuracy without exposing coordinates in the interface.
               </p>
             </div>
           </div>
@@ -1056,13 +1054,13 @@
               </div>
 
               <div class="map-readout-card">
-                <div class="k">Coordinates</div>
-                <div class="v" id="mapCoordText">--</div>
+                <div class="k">Pickup Confirmation</div>
+                <div class="v" id="mapCoordText">Live pickup not confirmed yet.</div>
               </div>
             </div>
 
             <div class="coord-note">
-              Your coordinates are used only to improve pickup accuracy and live map support.
+              Harvey Taxi uses live location to improve pickup support while keeping raw coordinates hidden from the rider interface.
             </div>
           </div>
         </div>
@@ -1451,9 +1449,7 @@
       locationApproved = true;
       locationGate.style.display = "none";
       setTimeout(() => {
-        if (liveMap) {
-          liveMap.invalidateSize();
-        }
+        if (liveMap) liveMap.invalidateSize();
       }, 100);
     }
 
@@ -1463,7 +1459,7 @@
       localStorage.removeItem("harveyLocationApproved");
       locationStatusText.textContent = message;
       mapStatusText.textContent = message;
-      mapCoordText.textContent = "--";
+      mapCoordText.textContent = "Live pickup not confirmed yet.";
     }
 
     function getFormData(){
@@ -1540,7 +1536,7 @@
       liveMap.setView([lat, lng], 16);
 
       mapStatusText.textContent = "Live location active and visible on map.";
-      mapCoordText.textContent = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+      mapCoordText.textContent = "Pickup area confirmed on live map.";
     }
 
     function useLiveLocationForPickup(){
@@ -1549,13 +1545,19 @@
         return;
       }
 
-      const lat = Number(currentCoords.latitude);
-      const lng = Number(currentCoords.longitude);
+      if (pickupInput.value.trim()) {
+        mapCoordText.textContent = "Live pickup location confirmed.";
+        resetEstimateState();
+        resetPaymentState();
+        showResult("Your live location has been linked to the pickup flow.");
+        return;
+      }
 
-      pickupInput.value = `Live Location (${lat.toFixed(6)}, ${lng.toFixed(6)})`;
+      pickupInput.value = "Current live pickup location confirmed";
+      mapCoordText.textContent = "Live pickup location confirmed.";
       resetEstimateState();
       resetPaymentState();
-      showResult("Your live location has been applied to pickup support.");
+      showResult("Your live location has been linked to the pickup flow.");
     }
 
     paymentPills.forEach((btn) => {
@@ -2027,7 +2029,7 @@
           payload.scheduledTime ? `Scheduled Time: ${payload.scheduledTime}` : "",
           payload.rideNotes ? `Notes: ${payload.rideNotes}` : "",
           `Payment Method: ${payload.paymentMethod === "apple_pay" ? "Apple Pay" : "Card"}`,
-          currentCoords ? `Live Location: ${Number(currentCoords.latitude).toFixed(6)}, ${Number(currentCoords.longitude).toFixed(6)}` : ""
+          currentCoords ? "Live pickup location verified" : ""
         ].filter(Boolean).join(" | ");
 
         const res = await fetch("/api/request-ride", {
@@ -2072,9 +2074,7 @@
           "",
           `Pickup: ${payload.pickupAddress}`,
           `Dropoff: ${payload.dropoffAddress}`,
-          currentCoords
-            ? `Live Map Position: ${Number(currentCoords.latitude).toFixed(6)}, ${Number(currentCoords.longitude).toFixed(6)}`
-            : ""
+          currentCoords ? "Live pickup location confirmed on map" : ""
         ].filter(Boolean);
 
         showResult(confirmation.join("\n"));
