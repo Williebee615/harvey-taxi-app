@@ -9,14 +9,7 @@
   <title>Harvey Taxi — Request Ride</title>
   <meta
     name="description"
-    content="Harvey Taxi futuristic request ride page with rider access, live location map, fare estimate, payment authorization, and dispatch request flow."
-  />
-
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-    crossorigin=""
+    content="Harvey Taxi futuristic request ride page with rider access, Google Maps live location, fare estimate, payment authorization, and dispatch request flow."
   />
 
   <style>
@@ -809,10 +802,6 @@
       background:#0d1730;
     }
 
-    .leaflet-control-container .leaflet-control{
-      font-family:Inter, Arial, sans-serif;
-    }
-
     .map-readout{
       display:grid;
       grid-template-columns:1fr 1fr;
@@ -1237,12 +1226,6 @@
     <button class="nav-btn" onclick="goSupport()">Safety</button>
   </div>
 
-  <script
-    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-    crossorigin=""
-  ></script>
-
   <script>
     let selectedPaymentMethod = "card";
     let currentEstimate = null;
@@ -1449,8 +1432,16 @@
       locationApproved = true;
       locationGate.style.display = "none";
       setTimeout(() => {
-        if (liveMap) liveMap.invalidateSize();
-      }, 100);
+        if (liveMap && typeof google !== "undefined") {
+          google.maps.event.trigger(liveMap, "resize");
+          if (currentCoords) {
+            liveMap.setCenter({
+              lat: currentCoords.latitude,
+              lng: currentCoords.longitude
+            });
+          }
+        }
+      }, 120);
     }
 
     function setLocationDeniedState(message){
@@ -1487,25 +1478,23 @@
     }
 
     function initMap(){
-      if (liveMap) return;
+      if (liveMap || !window.google || !window.google.maps) return;
 
-      liveMap = L.map("liveMap", {
+      const fallbackCenter = { lat: 36.1627, lng: -86.7816 };
+
+      liveMap = new google.maps.Map(document.getElementById("liveMap"), {
+        center: fallbackCenter,
+        zoom: 12,
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: true,
         zoomControl: true,
-        attributionControl: true
-      }).setView([36.1627, -86.7816], 12);
-
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19,
-        attribution: "&copy; OpenStreetMap contributors"
-      }).addTo(liveMap);
-
-      setTimeout(() => {
-        liveMap.invalidateSize();
-      }, 100);
+        gestureHandling: "greedy"
+      });
     }
 
     function updateLiveMap(coords){
-      if (!coords || !liveMap) return;
+      if (!coords || !liveMap || !window.google || !window.google.maps) return;
 
       const lat = Number(coords.latitude);
       const lng = Number(coords.longitude);
@@ -1513,27 +1502,36 @@
 
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
 
-      if (liveMarker) {
-        liveMarker.setLatLng([lat, lng]);
+      const point = { lat, lng };
+
+      if (!liveMarker) {
+        liveMarker = new google.maps.Marker({
+          map: liveMap,
+          position: point,
+          title: "Your live location"
+        });
       } else {
-        liveMarker = L.marker([lat, lng]).addTo(liveMap);
+        liveMarker.setPosition(point);
       }
 
-      if (liveCircle) {
-        liveCircle.setLatLng([lat, lng]);
-        liveCircle.setRadius(accuracy);
-      } else {
-        liveCircle = L.circle([lat, lng], {
+      if (!liveCircle) {
+        liveCircle = new google.maps.Circle({
+          map: liveMap,
+          center: point,
           radius: accuracy,
-          color: "#63f5ff",
-          weight: 2,
+          strokeColor: "#63f5ff",
+          strokeOpacity: 0.45,
+          strokeWeight: 2,
           fillColor: "#63f5ff",
           fillOpacity: 0.12
-        }).addTo(liveMap);
+        });
+      } else {
+        liveCircle.setCenter(point);
+        liveCircle.setRadius(accuracy);
       }
 
-      liveMarker.bindPopup("Your live location").openPopup();
-      liveMap.setView([lat, lng], 16);
+      liveMap.setCenter(point);
+      liveMap.setZoom(16);
 
       mapStatusText.textContent = "Live location active and visible on map.";
       mapCoordText.textContent = "Pickup area confirmed on live map.";
@@ -1597,6 +1595,11 @@
         return;
       }
 
+      if (!window.google || !window.google.maps) {
+        showError("Google Maps is not ready yet. Reload the page and try again.");
+        return;
+      }
+
       initMap();
 
       setButtonLoading(enableLocationBtn, true, "Enabling Location...", "Enable Location");
@@ -1650,6 +1653,11 @@
         return;
       }
 
+      if (!window.google || !window.google.maps) {
+        showError("Google Maps is not ready yet.");
+        return;
+      }
+
       isRefreshingLocation = true;
       setButtonLoading(refreshLocationBtn, true, "Refreshing...", "Refresh Location");
       mapStatusText.textContent = "Refreshing live location...";
@@ -1693,6 +1701,7 @@
 
     async function restoreLocationFromPermission(){
       if(!navigator.geolocation) return;
+      if (!window.google || !window.google.maps) return;
 
       initMap();
 
@@ -2091,6 +2100,17 @@
       }
     }
 
+    function onGoogleMapsLoaded() {
+      initMap();
+
+      const savedLocationApproved = localStorage.getItem("harveyLocationApproved");
+      if(savedLocationApproved === "true"){
+        restoreLocationFromPermission();
+      }
+    }
+
+    window.onGoogleMapsLoaded = onGoogleMapsLoaded;
+
     enableLocationBtn.addEventListener("click", requestLocationAccess);
     refreshLocationBtn.addEventListener("click", refreshLiveLocation);
     useLiveLocationBtn.addEventListener("click", useLiveLocationForPickup);
@@ -2100,19 +2120,19 @@
     requestRideBtn.addEventListener("click", requestRide);
 
     const savedRiderId = localStorage.getItem("harveyRiderId");
-    const savedLocationApproved = localStorage.getItem("harveyLocationApproved");
 
     applyRideModeUI();
-    initMap();
 
     if(savedRiderId){
       riderIdInput.value = savedRiderId;
       checkRiderStatus();
     }
-
-    if(savedLocationApproved === "true"){
-      restoreLocationFromPermission();
-    }
   </script>
+
+  <script
+    src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_BROWSER_KEY&callback=onGoogleMapsLoaded"
+    async
+    defer
+  ></script>
 </body>
 </html>
