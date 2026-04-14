@@ -637,9 +637,9 @@ async function sendSms({ to, body }) {
 function riderIsApproved(rider) {
   const status = normalizeRiderStatus(
     rider?.status ||
-    rider?.approval_status ||
-    rider?.rider_status ||
-    rider?.verification_status
+      rider?.approval_status ||
+      rider?.rider_status ||
+      rider?.verification_status
   );
 
   return status === "approved";
@@ -648,9 +648,9 @@ function riderIsApproved(rider) {
 function driverIsApproved(driver) {
   const status = normalizeDriverStatus(
     driver?.status ||
-    driver?.approval_status ||
-    driver?.driver_status ||
-    driver?.verification_status
+      driver?.approval_status ||
+      driver?.driver_status ||
+      driver?.verification_status
   );
 
   return status === "approved";
@@ -828,7 +828,12 @@ function buildAddressObject(prefix, body = {}) {
     address: clean(body[`${prefix}_address`] || body[`${prefix}Address`] || body[prefix] || ""),
     city: clean(body[`${prefix}_city`] || body[`${prefix}City`] || ""),
     state: clean(body[`${prefix}_state`] || body[`${prefix}State`] || ""),
-    zip: clean(body[`${prefix}_zip`] || body[`${prefix}Zip`] || body[`${prefix}_postal_code`] || "")
+    zip: clean(
+      body[`${prefix}_zip`] ||
+        body[`${prefix}Zip`] ||
+        body[`${prefix}_postal_code`] ||
+        ""
+    )
   };
 }
 
@@ -839,6 +844,7 @@ function formatAddress(addressObj = {}) {
     clean(addressObj.state),
     clean(addressObj.zip)
   ].filter(Boolean);
+
   return parts.join(", ");
 }
 
@@ -957,7 +963,9 @@ async function geocodeAddress(address = "") {
   if (!query || !GOOGLE_MAPS_API_KEY) return null;
 
   const endpoint =
-    `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query)}&key=${encodeURIComponent(GOOGLE_MAPS_API_KEY)}`;
+    `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
+      query
+    )}&key=${encodeURIComponent(GOOGLE_MAPS_API_KEY)}`;
 
   const result = await safeFetchJson(endpoint);
 
@@ -984,7 +992,11 @@ async function getDistanceMatrix({ originAddress, destinationAddress }) {
   if (!origin || !destination || !GOOGLE_MAPS_API_KEY) return null;
 
   const endpoint =
-    `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodeURIComponent(origin)}&destinations=${encodeURIComponent(destination)}&units=imperial&key=${encodeURIComponent(GOOGLE_MAPS_API_KEY)}`;
+    `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodeURIComponent(
+      origin
+    )}&destinations=${encodeURIComponent(
+      destination
+    )}&units=imperial&key=${encodeURIComponent(GOOGLE_MAPS_API_KEY)}`;
 
   const result = await safeFetchJson(endpoint);
 
@@ -1035,6 +1047,7 @@ async function getRiderById(riderId) {
 async function getRiderByEmail(email) {
   const value = lower(email);
   if (!value) return null;
+
   return maybeSingle(
     requireSupabase()
       .from("riders")
@@ -1046,6 +1059,7 @@ async function getRiderByEmail(email) {
 async function getRiderByPhone(phone) {
   const value = normalizePhone(phone);
   if (!value) return null;
+
   return maybeSingle(
     requireSupabase()
       .from("riders")
@@ -1091,7 +1105,7 @@ function buildRiderStatusResponse(rider) {
     last_name: clean(rider?.last_name || ""),
     full_name: clean(
       rider?.full_name ||
-      [rider?.first_name, rider?.last_name].filter(Boolean).join(" ")
+        [rider?.first_name, rider?.last_name].filter(Boolean).join(" ")
     ),
     email: clean(rider?.email || ""),
     phone: clean(rider?.phone || ""),
@@ -1143,12 +1157,13 @@ function buildPaymentSummary(payment) {
   return {
     payment_id: payment.id || null,
     status: normalizedStatus,
-    is_authorized: normalizedStatus === "authorized" || normalizedStatus === "captured",
+    is_authorized:
+      normalizedStatus === "authorized" || normalizedStatus === "captured",
     authorization_amount: roundMoney(
       payment.authorization_amount ||
-      payment.amount_authorized ||
-      payment.amount ||
-      0
+        payment.amount_authorized ||
+        payment.amount ||
+        0
     ),
     currency: clean(payment.currency || "USD")
   };
@@ -1165,8 +1180,8 @@ function buildRidePayload({
 }) {
   const requestedMode = normalizeRideMode(
     requestBody.requested_mode ||
-    requestBody.requestedMode ||
-    requestBody.mode
+      requestBody.requestedMode ||
+      requestBody.mode
   );
 
   const rideType = normalizeRideType(
@@ -1178,16 +1193,16 @@ function buildRidePayload({
 
   const scheduledAt = normalizeScheduledTime(
     requestBody.scheduled_at ||
-    requestBody.scheduledAt ||
-    requestBody.schedule_time ||
-    requestBody.scheduleTime
+      requestBody.scheduledAt ||
+      requestBody.schedule_time ||
+      requestBody.scheduleTime
   );
 
   const notes = clean(
     requestBody.notes ||
-    requestBody.ride_notes ||
-    requestBody.special_instructions ||
-    requestBody.specialInstructions
+      requestBody.ride_notes ||
+      requestBody.special_instructions ||
+      requestBody.specialInstructions
   );
 
   return {
@@ -1244,6 +1259,7 @@ function validateRideRequestBody(body = {}) {
 
   if (!pickup) return "Pickup address is required";
   if (!dropoff) return "Dropoff address is required";
+
   if (pickup.toLowerCase() === dropoff.toLowerCase()) {
     return "Pickup and dropoff cannot be the same";
   }
@@ -1275,7 +1291,9 @@ app.post("/api/rider/signup", asyncHandler(async (req, res) => {
   const lastName = clean(req.body.last_name || req.body.lastName);
   const email = lower(req.body.email);
   const phone = normalizePhone(req.body.phone);
-  const documentType = lower(req.body.document_type || req.body.documentType || "");
+  const documentType = lower(
+    req.body.document_type || req.body.documentType || ""
+  );
 
   if (!firstName) return fail(res, "First name is required");
   if (!lastName) return fail(res, "Last name is required");
@@ -1323,10 +1341,14 @@ app.post("/api/rider/signup", asyncHandler(async (req, res) => {
     }
   });
 
-  return ok(res, {
-    message: "Rider signup submitted successfully",
-    rider: buildRiderStatusResponse(rider)
-  }, 201);
+  return ok(
+    res,
+    {
+      message: "Rider signup submitted successfully",
+      rider: buildRiderStatusResponse(rider)
+    },
+    201
+  );
 }));
 
 app.post("/api/rider/status", asyncHandler(async (req, res) => {
@@ -1401,8 +1423,8 @@ app.post("/api/payments/authorize", asyncHandler(async (req, res) => {
     roundMoney(
       toNumber(
         req.body.amount ||
-        req.body.authorization_amount ||
-        req.body.amount_authorized,
+          req.body.authorization_amount ||
+          req.body.amount_authorized,
         0
       )
     )
@@ -1421,8 +1443,12 @@ app.post("/api/payments/authorize", asyncHandler(async (req, res) => {
     authorization_amount: amount,
     amount: amount,
     currency: clean(req.body.currency || "USD") || "USD",
-    provider: clean(req.body.provider || "manual_authorization") || "manual_authorization",
-    payment_method_last4: clean(req.body.last4 || req.body.payment_method_last4 || ""),
+    provider:
+      clean(req.body.provider || "manual_authorization") ||
+      "manual_authorization",
+    payment_method_last4: clean(
+      req.body.last4 || req.body.payment_method_last4 || ""
+    ),
     created_at: nowIso(),
     updated_at: nowIso()
   });
@@ -1454,8 +1480,8 @@ app.post("/api/fare-estimate", asyncHandler(async (req, res) => {
 
   const requestedMode = normalizeRideMode(
     req.body.requested_mode ||
-    req.body.requestedMode ||
-    req.body.mode
+      req.body.requestedMode ||
+      req.body.mode
   );
 
   const rideType = normalizeRideType(
@@ -1527,8 +1553,8 @@ app.post("/api/request-ride", asyncHandler(async (req, res) => {
 
   const requestedMode = normalizeRideMode(
     req.body.requested_mode ||
-    req.body.requestedMode ||
-    req.body.mode
+      req.body.requestedMode ||
+      req.body.mode
   );
 
   const rideType = normalizeRideType(
@@ -1579,15 +1605,81 @@ app.post("/api/request-ride", asyncHandler(async (req, res) => {
     }
   });
 
-  return ok(res, {
-    message: "Ride request accepted and ready for dispatch",
-    ride_id: ride.id,
-    ride,
-    fare,
-    payout,
-    rider: buildRiderStatusResponse(rider),
-    payment: buildPaymentSummary(latestAuthorizedPayment)
-  }, 201);
+  let dispatchResult = null;
+
+  try {
+    dispatchResult = await dispatchRideToBestDriver(ride.id);
+
+    if (dispatchResult?.ok) {
+      await logTripEvent({
+        ride_id: ride.id,
+        rider_id: rider.id,
+        driver_id: dispatchResult?.driver?.id || null,
+        mission_id: dispatchResult?.mission?.id || null,
+        event_type: "auto_dispatch_triggered",
+        details: {
+          dispatch_id: dispatchResult?.dispatch?.id || null,
+          reused: !!dispatchResult?.reused,
+          requested_mode: ride.requested_mode
+        }
+      });
+    } else {
+      await logTripEvent({
+        ride_id: ride.id,
+        rider_id: rider.id,
+        event_type: "auto_dispatch_attempt_failed",
+        details: {
+          error: dispatchResult?.error || "Unknown dispatch error"
+        }
+      });
+    }
+  } catch (error) {
+    console.error("❌ Auto dispatch trigger failed:", error);
+
+    await logTripEvent({
+      ride_id: ride.id,
+      rider_id: rider.id,
+      event_type: "auto_dispatch_exception",
+      details: {
+        error: clean(error?.message || String(error))
+      }
+    });
+  }
+
+  const latestRideState = await getRideById(ride.id);
+
+  return ok(
+    res,
+    {
+      message: dispatchResult?.ok
+        ? "Ride request accepted and dispatch started automatically"
+        : "Ride request accepted but dispatch is still pending",
+      ride_id: ride.id,
+      ride: latestRideState || ride,
+      fare,
+      payout,
+      rider: buildRiderStatusResponse(rider),
+      payment: buildPaymentSummary(latestAuthorizedPayment),
+      dispatch: dispatchResult?.dispatch || null,
+      mission: dispatchResult?.mission || null,
+      assigned_driver: dispatchResult?.driver
+        ? {
+            id: dispatchResult.driver.id,
+            full_name: getDriverDisplayName(dispatchResult.driver),
+            driver_type: normalizeDriverType(
+              dispatchResult.driver.driver_type || "human"
+            )
+          }
+        : null,
+      dispatch_ai: {
+        triggered: true,
+        success: !!dispatchResult?.ok,
+        reused_existing_dispatch: !!dispatchResult?.reused,
+        error: dispatchResult?.ok ? null : dispatchResult?.error || null
+      }
+    },
+    201
+  );
 }));
 
 /* =========================================================
@@ -1597,7 +1689,7 @@ app.get("/api/rides/:rideId", asyncHandler(async (req, res) => {
   const rideId = clean(req.params.rideId);
   if (!rideId) return fail(res, "Ride ID is required");
 
-  const ride = await getRowById("rides", "id", rideId);
+  const ride = await getRideById("rides", "id", rideId);
   if (!ride) return fail(res, "Ride not found", 404);
 
   return ok(res, { ride });
@@ -1617,6 +1709,7 @@ async function getDriverById(driverId) {
 async function getDriverByEmail(email) {
   const value = lower(email);
   if (!value) return null;
+
   return maybeSingle(
     requireSupabase()
       .from("drivers")
@@ -1628,6 +1721,7 @@ async function getDriverByEmail(email) {
 async function getDriverByPhone(phone) {
   const value = normalizePhone(phone);
   if (!value) return null;
+
   return maybeSingle(
     requireSupabase()
       .from("drivers")
@@ -1668,6 +1762,7 @@ function driverIsVerified(driver) {
     driver?.sms_verified ?? driver?.phone_verified ?? driver?.phone_is_verified ?? false,
     false
   );
+
   return emailVerified && smsVerified;
 }
 
@@ -1675,9 +1770,11 @@ function driverIsOnline(driver) {
   const online = lower(
     driver?.availability_status || driver?.online_status || driver?.is_online
   );
+
   if (online === "true") return true;
   if (["online", "available", "ready", "active"].includes(online)) return true;
   if (typeof driver?.is_online === "boolean") return driver.is_online;
+
   return false;
 }
 
@@ -1739,6 +1836,7 @@ function distanceMilesBetweenDriverAndPickup(driver, ride) {
 
   const distance = haversineMiles(driverLat, driverLng, rideLat, rideLng);
   if (!distance || !Number.isFinite(distance)) return 9999;
+
   return distance;
 }
 
@@ -1758,6 +1856,7 @@ function getDriverAcceptanceRate(driver) {
       driver?.mission_acceptance_rate ??
       0.8
   );
+
   if (!Number.isFinite(value)) return 0.8;
   return clamp(value, 0, 1);
 }
