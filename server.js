@@ -1,550 +1,4 @@
 /* =========================================================
-   HARVEY TAXI — CODE BLUE STRONG FOUNDATION
-   PART 1: APP + ENV + SUPABASE + HEALTH CHECKS
-   FILE: server.js
-========================================================= */
-
-const express = require("express");
-const cors = require("cors");
-const path = require("path");
-const crypto = require("crypto");
-const { createClient } = require("@supabase/supabase-js");
-
-/* OPTIONAL OPENAI */
-let OpenAI = null;
-try {
-  OpenAI = require("openai");
-} catch (err) {
-  console.warn("⚠️ OpenAI SDK not installed. AI endpoints will remain disabled.");
-}
-
-/* =========================================================
-   APP INIT
-========================================================= */
-const app = express();
-const PORT = Number(process.env.PORT || 10000);
-const APP_NAME = "Harvey Taxi Code Blue";
-const SERVER_STARTED_AT = new Date().toISOString();
-
-/* =========================================================
-   CORE MIDDLEWARE
-========================================================= */
-app.use(cors({ origin: true, credentials: true }));
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, "public")));
-
-/* =========================================================
-   BASIC HELPERS
-========================================================= */
-function clean(value = "") {
-  return String(value ?? "").trim();
-}
-
-function lower(value = "") {
-  return clean(value).toLowerCase();
-}
-
-function boolFromEnv(value, fallback = false) {
-  const v = lower(value);
-  if (!v) return fallback;
-  return ["1", "true", "yes", "on", "enabled"].includes(v);
-}
-
-function numberFromEnv(value, fallback = 0) {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : fallback;
-}
-
-function nowIso() {
-  return new Date().toISOString();
-}
-
-function makeId(prefix = "id") {
-  return `${prefix}_${crypto.randomBytes(8).toString("hex")}`;
-}
-
-function safeErrorMessage(error) {
-  return clean(error?.message || "Unknown error");
-}
-
-function maskSecret(value = "") {
-  const v = clean(value);
-  if (!v) return "";
-  if (v.length <= 8) return "********";
-  return `${v.slice(0, 4)}********${v.slice(-4)}`;
-}
-
-/* =========================================================
-   ENV CONFIG
-========================================================= */
-const NODE_ENV = clean(process.env.NODE_ENV || "development");
-const PUBLIC_APP_URL =
-  clean(process.env.PUBLIC_APP_URL) ||
-  clean(process.env.RENDER_EXTERNAL_URL) ||
-  `http://localhost:${PORT}`;
-
-const SUPABASE_URL = clean(process.env.SUPABASE_URL);
-const SUPABASE_SERVICE_ROLE_KEY = clean(process.env.SUPABASE_SERVICE_ROLE_KEY);
-
-const OPENAI_API_KEY = clean(process.env.OPENAI_API_KEY);
-const OPENAI_SUPPORT_MODEL = clean(process.env.OPENAI_SUPPORT_MODEL || "gpt-4.1-mini");
-
-const GOOGLE_MAPS_API_KEY = clean(process.env.GOOGLE_MAPS_API_KEY);
-
-const ENABLE_STARTUP_TABLE_CHECKS = boolFromEnv(
-  process.env.ENABLE_STARTUP_TABLE_CHECKS,
-  true
-);
-
-const ENABLE_AI_BRAIN = boolFromEnv(process.env.ENABLE_AI_BRAIN, true);
-const ENABLE_RIDER_VERIFICATION_GATE = boolFromEnv(
-  process.env.ENABLE_RIDER_VERIFICATION_GATE,
-  true
-);
-const ENABLE_PAYMENT_GATE = boolFromEnv(process.env.ENABLE_PAYMENT_GATE, true);
-const ENABLE_AUTO_REDISPATCH = boolFromEnv(process.env.ENABLE_AUTO_REDISPATCH, true);
-
-/* =========================================================
-   REQUIRED TABLES
-========================================================= */
-const REQUIRED_TABLES = [
-  "riders",
-  "drivers",
-  "rides",
-  "payments",
-  "missions",
-  "dispatches",
-  "admin_logs"
-];
-
-const OPTIONAL_TABLES = [
-  "driver_locations",
-  "trip_events",
-  "driver_earnings",
-  "driver_payouts"
-];
-
-/* =========================================================
-   SUPABASE CLIENT
-========================================================= */
-let supabase = null;
-let supabaseEnabled = false;
-
-if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
-  supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-    auth: { persistSession: false }
-  });
-  supabaseEnabled = true;
-} else {
-  console.warn("⚠️ Supabase environment variables missing.");
-}
-
-/* =========================================================
-   OPTIONAL OPENAI CLIENT
-========================================================= */
-let openai = null;
-if (ENABLE_AI_BRAIN && OpenAI && OPENAI_API_KEY) {
-  try {
-    openai = new OpenAI({ apiKey: OPENAI_API_KEY });
-  } catch (err) {
-    console.warn("⚠️ Failed to initialize OpenAI client:", safeErrorMessage(err));
-  }
-}
-
-/* =========================================================
-   RUNTIME DIAGNOSTICS STATE
-========================================================= */
-const runtimeState = {
-  bootId: makeId("boot"),
-  bootStartedAt: SERVER_STARTED_AT,
-  bootCompletedAt: null,
-  startupChecksFinished: false,
-  startupChecksPassed: false,
-  lastStartupError: "",
-  lastHealthCheckAt: null,
-  lastReadinessCheckAt: null,
-  lastSupabasePingAt: null,
-  lastSupabasePingOk: false,
-  lastSupabasePingError: "",
-  envSummary: {
-    nodeEnv: NODE_ENV,
-    publicAppUrl: PUBLIC_APP_URL,
-    supabaseConfigured: Boolean(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY),
-    openaiConfigured: Boolean(OPENAI_API_KEY),
-    googleMapsConfigured: Boolean(GOOGLE_MAPS_API_KEY),
-    riderGateEnabled: ENABLE_RIDER_VERIFICATION_GATE,
-    paymentGateEnabled: ENABLE_PAYMENT_GATE,
-    autoRedispatchEnabled: ENABLE_AUTO_REDISPATCH
-  },
-  tableChecks: {
-    required: {},
-    optional: {}
-  }
-};
-
-/* =========================================================
-   REQUEST LOGGING
-========================================================= */
-app.use((req, res, next) => {
-  req.requestId = makeId("req");
-  req.requestStartedAt = Date.now();
-  res.setHeader("x-request-id", req.requestId);
-
-  res.on("finish", () => {
-    const ms = Date.now() - req.requestStartedAt;
-    const line = [
-      `[${nowIso()}]`,
-      req.method,
-      req.originalUrl,
-      res.statusCode,
-      `${ms}ms`,
-      req.requestId
-    ].join(" ");
-    console.log(line);
-  });
-
-  next();
-});
-
-/* =========================================================
-   ASYNC WRAPPER
-========================================================= */
-function asyncHandler(fn) {
-  return function wrapped(req, res, next) {
-    Promise.resolve(fn(req, res, next)).catch(next);
-  };
-}
-
-/* =========================================================
-   DATABASE PING
-========================================================= */
-async function pingSupabase() {
-  runtimeState.lastSupabasePingAt = nowIso();
-
-  if (!supabaseEnabled || !supabase) {
-    runtimeState.lastSupabasePingOk = false;
-    runtimeState.lastSupabasePingError = "Supabase not configured";
-    return {
-      ok: false,
-      message: "Supabase not configured"
-    };
-  }
-
-  try {
-    const { error } = await supabase.from("riders").select("id", { count: "exact", head: true });
-    if (error) {
-      runtimeState.lastSupabasePingOk = false;
-      runtimeState.lastSupabasePingError = safeErrorMessage(error);
-      return {
-        ok: false,
-        message: safeErrorMessage(error)
-      };
-    }
-
-    runtimeState.lastSupabasePingOk = true;
-    runtimeState.lastSupabasePingError = "";
-    return {
-      ok: true,
-      message: "Supabase reachable"
-    };
-  } catch (error) {
-    runtimeState.lastSupabasePingOk = false;
-    runtimeState.lastSupabasePingError = safeErrorMessage(error);
-    return {
-      ok: false,
-      message: safeErrorMessage(error)
-    };
-  }
-}
-
-/* =========================================================
-   TABLE CHECK HELPERS
-========================================================= */
-async function checkTableExists(tableName) {
-  if (!supabaseEnabled || !supabase) {
-    return {
-      ok: false,
-      table: tableName,
-      error: "Supabase not configured"
-    };
-  }
-
-  try {
-    const { error } = await supabase
-      .from(tableName)
-      .select("*", { head: true, count: "exact" });
-
-    if (error) {
-      return {
-        ok: false,
-        table: tableName,
-        error: safeErrorMessage(error)
-      };
-    }
-
-    return {
-      ok: true,
-      table: tableName
-    };
-  } catch (error) {
-    return {
-      ok: false,
-      table: tableName,
-      error: safeErrorMessage(error)
-    };
-  }
-}
-
-async function runTableChecks() {
-  const requiredResults = {};
-  const optionalResults = {};
-
-  for (const table of REQUIRED_TABLES) {
-    const result = await checkTableExists(table);
-    requiredResults[table] = result;
-  }
-
-  for (const table of OPTIONAL_TABLES) {
-    const result = await checkTableExists(table);
-    optionalResults[table] = result;
-  }
-
-  runtimeState.tableChecks.required = requiredResults;
-  runtimeState.tableChecks.optional = optionalResults;
-
-  const requiredFailures = Object.values(requiredResults).filter((x) => !x.ok);
-  return {
-    ok: requiredFailures.length === 0,
-    required: requiredResults,
-    optional: optionalResults,
-    requiredFailures
-  };
-}
-
-/* =========================================================
-   STARTUP CHECKS
-========================================================= */
-async function runStartupChecks() {
-  console.log("🚀 Running startup checks...");
-
-  try {
-    const envProblems = [];
-
-    if (!SUPABASE_URL) envProblems.push("Missing SUPABASE_URL");
-    if (!SUPABASE_SERVICE_ROLE_KEY) envProblems.push("Missing SUPABASE_SERVICE_ROLE_KEY");
-
-    if (envProblems.length) {
-      runtimeState.startupChecksFinished = true;
-      runtimeState.startupChecksPassed = false;
-      runtimeState.lastStartupError = envProblems.join("; ");
-      console.error("❌ Startup env checks failed:", runtimeState.lastStartupError);
-      return;
-    }
-
-    const dbPing = await pingSupabase();
-    if (!dbPing.ok) {
-      runtimeState.startupChecksFinished = true;
-      runtimeState.startupChecksPassed = false;
-      runtimeState.lastStartupError = dbPing.message;
-      console.error("❌ Supabase ping failed:", dbPing.message);
-      return;
-    }
-
-    if (ENABLE_STARTUP_TABLE_CHECKS) {
-      const tableCheck = await runTableChecks();
-      if (!tableCheck.ok) {
-        runtimeState.startupChecksFinished = true;
-        runtimeState.startupChecksPassed = false;
-        runtimeState.lastStartupError = tableCheck.requiredFailures
-          .map((item) => `${item.table}: ${item.error}`)
-          .join("; ");
-        console.error("❌ Required table checks failed:", runtimeState.lastStartupError);
-        return;
-      }
-    }
-
-    runtimeState.startupChecksFinished = true;
-    runtimeState.startupChecksPassed = true;
-    runtimeState.lastStartupError = "";
-    runtimeState.bootCompletedAt = nowIso();
-
-    console.log("✅ Startup checks passed.");
-  } catch (error) {
-    runtimeState.startupChecksFinished = true;
-    runtimeState.startupChecksPassed = false;
-    runtimeState.lastStartupError = safeErrorMessage(error);
-    console.error("❌ Startup checks crashed:", runtimeState.lastStartupError);
-  }
-}
-
-/* =========================================================
-   ROOT ROUTE
-========================================================= */
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
-});
-
-/* =========================================================
-   LIGHT LIVENESS CHECK
-========================================================= */
-app.get("/api/health", (req, res) => {
-  runtimeState.lastHealthCheckAt = nowIso();
-
-  return res.status(200).json({
-    ok: true,
-    service: APP_NAME,
-    status: "alive",
-    now: nowIso(),
-    uptime_seconds: Math.floor(process.uptime()),
-    started_at: SERVER_STARTED_AT,
-    node_env: NODE_ENV,
-    request_id: req.requestId
-  });
-});
-
-/* =========================================================
-   DEEP READINESS CHECK
-========================================================= */
-app.get(
-  "/api/health/ready",
-  asyncHandler(async (req, res) => {
-    runtimeState.lastReadinessCheckAt = nowIso();
-
-    const dbPing = await pingSupabase();
-    const requiredTableFailures = Object.values(runtimeState.tableChecks.required || {}).filter(
-      (x) => x && !x.ok
-    );
-
-    const ready =
-      runtimeState.startupChecksPassed &&
-      dbPing.ok &&
-      requiredTableFailures.length === 0;
-
-    return res.status(ready ? 200 : 503).json({
-      ok: ready,
-      service: APP_NAME,
-      status: ready ? "ready" : "not_ready",
-      now: nowIso(),
-      request_id: req.requestId,
-      checks: {
-        startup_checks_passed: runtimeState.startupChecksPassed,
-        supabase_ping_ok: dbPing.ok,
-        supabase_ping_message: dbPing.message,
-        required_table_failures: requiredTableFailures
-      }
-    });
-  })
-);
-
-/* =========================================================
-   FULL DIAGNOSTICS
-========================================================= */
-app.get(
-  "/api/health/full",
-  asyncHandler(async (req, res) => {
-    const dbPing = await pingSupabase();
-
-    return res.status(200).json({
-      ok: true,
-      service: APP_NAME,
-      now: nowIso(),
-      request_id: req.requestId,
-      runtime: {
-        uptime_seconds: Math.floor(process.uptime()),
-        boot_id: runtimeState.bootId,
-        boot_started_at: runtimeState.bootStartedAt,
-        boot_completed_at: runtimeState.bootCompletedAt,
-        startup_checks_finished: runtimeState.startupChecksFinished,
-        startup_checks_passed: runtimeState.startupChecksPassed,
-        last_startup_error: runtimeState.lastStartupError,
-        memory: process.memoryUsage()
-      },
-      env: {
-        node_env: NODE_ENV,
-        public_app_url: PUBLIC_APP_URL,
-        supabase_url_present: Boolean(SUPABASE_URL),
-        supabase_service_role_key_present: Boolean(SUPABASE_SERVICE_ROLE_KEY),
-        supabase_service_role_key_masked: maskSecret(SUPABASE_SERVICE_ROLE_KEY),
-        openai_enabled: Boolean(openai),
-        openai_api_key_present: Boolean(OPENAI_API_KEY),
-        openai_model: OPENAI_SUPPORT_MODEL,
-        google_maps_present: Boolean(GOOGLE_MAPS_API_KEY)
-      },
-      features: {
-        rider_verification_gate: ENABLE_RIDER_VERIFICATION_GATE,
-        payment_gate: ENABLE_PAYMENT_GATE,
-        auto_redispatch: ENABLE_AUTO_REDISPATCH,
-        startup_table_checks: ENABLE_STARTUP_TABLE_CHECKS
-      },
-      database: {
-        configured: supabaseEnabled,
-        ping_ok: dbPing.ok,
-        ping_message: dbPing.message,
-        last_ping_at: runtimeState.lastSupabasePingAt,
-        required_tables: runtimeState.tableChecks.required,
-        optional_tables: runtimeState.tableChecks.optional
-      }
-    });
-  })
-);
-
-/* =========================================================
-   SIMPLE VERSION ROUTE
-========================================================= */
-app.get("/api/version", (req, res) => {
-  res.json({
-    ok: true,
-    app: APP_NAME,
-    node_env: NODE_ENV,
-    started_at: SERVER_STARTED_AT,
-    public_app_url: PUBLIC_APP_URL,
-    boot_id: runtimeState.bootId
-  });
-});
-
-/* =========================================================
-   NOT FOUND
-========================================================= */
-app.use((req, res) => {
-  return res.status(404).json({
-    ok: false,
-    error: "Route not found",
-    path: req.originalUrl,
-    method: req.method,
-    request_id: req.requestId
-  });
-});
-
-/* =========================================================
-   GLOBAL ERROR HANDLER
-========================================================= */
-app.use((error, req, res, next) => {
-  console.error("🔥 Unhandled server error:", error);
-
-  return res.status(500).json({
-    ok: false,
-    error: "Internal server error",
-    message: NODE_ENV === "production" ? "Unexpected server failure" : safeErrorMessage(error),
-    request_id: req.requestId
-  });
-});
-
-/* =========================================================
-   START SERVER
-========================================================= */
-app.listen(PORT, async () => {
-  console.log("==================================================");
-  console.log(`🚕 ${APP_NAME} listening on port ${PORT}`);
-  console.log(`🌐 Public URL: ${PUBLIC_APP_URL}`);
-  console.log(`🕒 Started: ${SERVER_STARTED_AT}`);
-  console.log(`🧠 AI Enabled: ${Boolean(openai)}`);
-  console.log(`🗺️ Google Maps Configured: ${Boolean(GOOGLE_MAPS_API_KEY)}`);
-  console.log(`🗄️ Supabase Configured: ${supabaseEnabled}`);
-  console.log("==================================================");
-
-  await runStartupChecks();
-});/* =========================================================
    HARVEY TAXI — CODE BLUE PHASE 9 (PART 1)
    FOUNDATION + ENV + CLIENTS + ADVANCED HEALTH CHECKS
 ========================================================= */
@@ -725,6 +179,513 @@ app.get("/api/health/full", async (req, res) => {
 ========================================================= */
 app.listen(PORT, () => {
   console.log(`🚀 Harvey Taxi Server running on port ${PORT}`);
+});/* =========================================================
+   HARVEY TAXI — CODE BLUE PHASE 9 (PART 2)
+   RIDER GATES + PAYMENT GATE + RIDE REQUEST CORE
+========================================================= */
+
+/* =========================================================
+   FEATURE FLAGS
+========================================================= */
+const ENABLE_RIDER_APPROVAL_GATE =
+  clean(process.env.ENABLE_RIDER_APPROVAL_GATE || "true").toLowerCase() !== "false";
+
+const ENABLE_PAYMENT_AUTH_GATE =
+  clean(process.env.ENABLE_PAYMENT_AUTH_GATE || "true").toLowerCase() !== "false";
+
+const DEFAULT_BOOKING_FEE = Number(process.env.DEFAULT_BOOKING_FEE || 3.5);
+const DEFAULT_BASE_FARE = Number(process.env.DEFAULT_BASE_FARE || 8);
+const DEFAULT_PER_MILE = Number(process.env.DEFAULT_PER_MILE || 2.4);
+const DEFAULT_PER_MINUTE = Number(process.env.DEFAULT_PER_MINUTE || 0.45);
+const DEFAULT_MIN_FARE = Number(process.env.DEFAULT_MIN_FARE || 12);
+
+/* =========================================================
+   CORE HELPERS
+========================================================= */
+function toNumber(value, fallback = 0) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function rideStatus(value = "") {
+  const v = clean(value).toLowerCase();
+  return v || "pending";
+}
+
+function isApprovedStatus(value = "") {
+  const v = clean(value).toLowerCase();
+  return ["approved", "active", "verified", "cleared"].includes(v);
+}
+
+function isAuthorizedPaymentStatus(value = "") {
+  const v = clean(value).toLowerCase();
+  return ["authorized", "preauthorized", "pre_authorized", "held", "pending_capture"].includes(v);
+}
+
+function jsonError(res, status, message, extra = {}) {
+  return res.status(status).json({
+    ok: false,
+    error: message,
+    ...extra
+  });
+}
+
+function jsonOk(res, payload = {}) {
+  return res.json({
+    ok: true,
+    ...payload
+  });
+}
+
+function makePublicRideCode() {
+  return `HT-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+}
+
+/* =========================================================
+   RIDER HELPERS
+========================================================= */
+async function getRiderById(riderId) {
+  if (!supabase) throw new Error("Supabase not configured");
+
+  const { data, error } = await supabase
+    .from("riders")
+    .select("*")
+    .eq("id", riderId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
+}
+
+async function getRiderByEmail(email) {
+  if (!supabase) throw new Error("Supabase not configured");
+
+  const normalized = clean(email).toLowerCase();
+  if (!normalized) return null;
+
+  const { data, error } = await supabase
+    .from("riders")
+    .select("*")
+    .ilike("email", normalized)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
+}
+
+async function resolveRider({ rider_id, riderId, email }) {
+  const finalRiderId = clean(rider_id || riderId);
+
+  if (finalRiderId) {
+    return await getRiderById(finalRiderId);
+  }
+
+  if (clean(email)) {
+    return await getRiderByEmail(email);
+  }
+
+  return null;
+}
+
+function getRiderApprovalStatus(rider) {
+  if (!rider) return "";
+
+  return (
+    clean(rider.approval_status) ||
+    clean(rider.status) ||
+    clean(rider.verification_status) ||
+    clean(rider.access_status)
+  );
+}
+
+function riderCanRequestRide(rider) {
+  if (!rider) {
+    return {
+      ok: false,
+      reason: "Rider not found"
+    };
+  }
+
+  if (!ENABLE_RIDER_APPROVAL_GATE) {
+    return {
+      ok: true,
+      status: getRiderApprovalStatus(rider)
+    };
+  }
+
+  const approval = getRiderApprovalStatus(rider);
+
+  if (!isApprovedStatus(approval)) {
+    return {
+      ok: false,
+      reason: "Rider is not approved to request rides",
+      status: approval || "unapproved"
+    };
+  }
+
+  return {
+    ok: true,
+    status: approval
+  };
+}
+
+/* =========================================================
+   PAYMENT HELPERS
+========================================================= */
+async function getLatestAuthorizedPaymentForRider(riderId) {
+  if (!supabase) throw new Error("Supabase not configured");
+  if (!clean(riderId)) return null;
+
+  const { data, error } = await supabase
+    .from("payments")
+    .select("*")
+    .eq("rider_id", riderId)
+    .order("created_at", { ascending: false })
+    .limit(10);
+
+  if (error) throw error;
+
+  const rows = Array.isArray(data) ? data : [];
+  return rows.find((row) => isAuthorizedPaymentStatus(row.status)) || null;
+}
+
+async function ensurePaymentAuthorization(riderId) {
+  if (!ENABLE_PAYMENT_AUTH_GATE) {
+    return { ok: true, payment: null };
+  }
+
+  const payment = await getLatestAuthorizedPaymentForRider(riderId);
+
+  if (!payment) {
+    return {
+      ok: false,
+      reason: "No authorized payment method found for rider"
+    };
+  }
+
+  return {
+    ok: true,
+    payment
+  };
+}
+
+/* =========================================================
+   FARE ESTIMATE HELPERS
+========================================================= */
+function estimateTripMetrics({
+  distance_miles,
+  duration_minutes
+}) {
+  const miles = Math.max(0, toNumber(distance_miles, 5));
+  const minutes = Math.max(0, toNumber(duration_minutes, 15));
+
+  const subtotal =
+    DEFAULT_BASE_FARE +
+    DEFAULT_BOOKING_FEE +
+    miles * DEFAULT_PER_MILE +
+    minutes * DEFAULT_PER_MINUTE;
+
+  const estimatedFare = Math.max(DEFAULT_MIN_FARE, Number(subtotal.toFixed(2)));
+
+  return {
+    distance_miles: Number(miles.toFixed(2)),
+    duration_minutes: Number(minutes.toFixed(2)),
+    estimated_fare: estimatedFare,
+    pricing: {
+      base_fare: DEFAULT_BASE_FARE,
+      booking_fee: DEFAULT_BOOKING_FEE,
+      per_mile: DEFAULT_PER_MILE,
+      per_minute: DEFAULT_PER_MINUTE,
+      minimum_fare: DEFAULT_MIN_FARE
+    }
+  };
+}
+
+/* =========================================================
+   DISPATCH HELPERS
+========================================================= */
+async function createDispatchRecord({
+  rideId,
+  riderId,
+  requestedMode = "driver"
+}) {
+  if (!supabase) throw new Error("Supabase not configured");
+
+  const payload = {
+    id: crypto.randomUUID(),
+    ride_id: rideId,
+    rider_id: riderId,
+    requested_mode: clean(requestedMode || "driver").toLowerCase(),
+    status: "pending",
+    attempt_number: 1,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+
+  const { data, error } = await supabase
+    .from("dispatches")
+    .insert(payload)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/* =========================================================
+   RIDE CREATION HELPERS
+========================================================= */
+async function createRideRecord({
+  rider,
+  pickup_address,
+  dropoff_address,
+  requested_mode,
+  notes,
+  fareMetrics,
+  payment
+}) {
+  if (!supabase) throw new Error("Supabase not configured");
+
+  const now = new Date().toISOString();
+
+  const ridePayload = {
+    id: crypto.randomUUID(),
+    rider_id: rider.id,
+    public_code: makePublicRideCode(),
+    status: "awaiting_driver_acceptance",
+    requested_mode: clean(requested_mode || "driver").toLowerCase(),
+    pickup_address: clean(pickup_address),
+    dropoff_address: clean(dropoff_address),
+    notes: clean(notes),
+    estimated_fare: fareMetrics.estimated_fare,
+    estimated_distance_miles: fareMetrics.distance_miles,
+    estimated_duration_minutes: fareMetrics.duration_minutes,
+    pricing_snapshot: fareMetrics.pricing,
+    payment_id: payment?.id || null,
+    payment_status: payment?.status || null,
+    created_at: now,
+    updated_at: now
+  };
+
+  const { data, error } = await supabase
+    .from("rides")
+    .insert(ridePayload)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/* =========================================================
+   ROUTE — CHECK RIDER RIDE ACCESS
+========================================================= */
+app.post("/api/rider/check-access", async (req, res) => {
+  try {
+    if (!supabase) {
+      return jsonError(res, 500, "Supabase not configured");
+    }
+
+    const rider = await resolveRider(req.body || {});
+    const access = riderCanRequestRide(rider);
+
+    if (!rider) {
+      return jsonError(res, 404, "Rider not found");
+    }
+
+    return jsonOk(res, {
+      rider_id: rider.id,
+      rider_email: rider.email || null,
+      rider_status: getRiderApprovalStatus(rider) || "unknown",
+      can_request_ride: access.ok,
+      reason: access.reason || null
+    });
+  } catch (error) {
+    console.error("check-access error:", error);
+    return jsonError(res, 500, error.message || "Failed to check rider access");
+  }
+});
+
+/* =========================================================
+   ROUTE — FARE ESTIMATE
+========================================================= */
+app.post("/api/rides/fare-estimate", async (req, res) => {
+  try {
+    const pickup_address = clean(req.body?.pickup_address || req.body?.pickup);
+    const dropoff_address = clean(req.body?.dropoff_address || req.body?.dropoff);
+
+    if (!pickup_address || !dropoff_address) {
+      return jsonError(res, 400, "Pickup and dropoff addresses are required");
+    }
+
+    const fareMetrics = estimateTripMetrics({
+      distance_miles: req.body?.distance_miles,
+      duration_minutes: req.body?.duration_minutes
+    });
+
+    return jsonOk(res, {
+      pickup_address,
+      dropoff_address,
+      ...fareMetrics
+    });
+  } catch (error) {
+    console.error("fare-estimate error:", error);
+    return jsonError(res, 500, error.message || "Failed to estimate fare");
+  }
+});
+
+/* =========================================================
+   ROUTE — REQUEST RIDE
+========================================================= */
+app.post("/api/request-ride", async (req, res) => {
+  try {
+    if (!supabase) {
+      return jsonError(res, 500, "Supabase not configured");
+    }
+
+    const pickup_address = clean(req.body?.pickup_address || req.body?.pickup);
+    const dropoff_address = clean(req.body?.dropoff_address || req.body?.dropoff);
+    const notes = clean(req.body?.notes);
+    const requested_mode = clean(req.body?.requested_mode || req.body?.requestedMode || "driver").toLowerCase();
+
+    if (!pickup_address || !dropoff_address) {
+      return jsonError(res, 400, "Pickup and dropoff addresses are required");
+    }
+
+    const rider = await resolveRider(req.body || {});
+
+    if (!rider) {
+      return jsonError(res, 404, "Rider not found");
+    }
+
+    const riderAccess = riderCanRequestRide(rider);
+    if (!riderAccess.ok) {
+      return jsonError(res, 403, riderAccess.reason || "Rider is not approved", {
+        rider_status: riderAccess.status || "unapproved"
+      });
+    }
+
+    const paymentGate = await ensurePaymentAuthorization(rider.id);
+    if (!paymentGate.ok) {
+      return jsonError(res, 402, paymentGate.reason || "Payment authorization required");
+    }
+
+    const fareMetrics = estimateTripMetrics({
+      distance_miles: req.body?.distance_miles,
+      duration_minutes: req.body?.duration_minutes
+    });
+
+    const ride = await createRideRecord({
+      rider,
+      pickup_address,
+      dropoff_address,
+      requested_mode,
+      notes,
+      fareMetrics,
+      payment: paymentGate.payment
+    });
+
+    const dispatch = await createDispatchRecord({
+      rideId: ride.id,
+      riderId: rider.id,
+      requestedMode: requested_mode
+    });
+
+    return jsonOk(res, {
+      message: "Ride request created successfully",
+      ride_id: ride.id,
+      public_code: ride.public_code || null,
+      status: ride.status,
+      rider_id: rider.id,
+      dispatch_id: dispatch.id,
+      requested_mode,
+      estimated_fare: ride.estimated_fare,
+      estimated_distance_miles: ride.estimated_distance_miles,
+      estimated_duration_minutes: ride.estimated_duration_minutes
+    });
+  } catch (error) {
+    console.error("request-ride error:", error);
+    return jsonError(res, 500, error.message || "Failed to request ride");
+  }
+});
+
+/* =========================================================
+   ROUTE — GET RIDE STATUS
+========================================================= */
+app.get("/api/rides/:rideId/status", async (req, res) => {
+  try {
+    if (!supabase) {
+      return jsonError(res, 500, "Supabase not configured");
+    }
+
+    const rideId = clean(req.params.rideId);
+    if (!rideId) {
+      return jsonError(res, 400, "Ride ID is required");
+    }
+
+    const { data, error } = await supabase
+      .from("rides")
+      .select("*")
+      .eq("id", rideId)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) {
+      return jsonError(res, 404, "Ride not found");
+    }
+
+    return jsonOk(res, {
+      ride_id: data.id,
+      public_code: data.public_code || null,
+      status: rideStatus(data.status),
+      rider_id: data.rider_id || null,
+      driver_id: data.driver_id || null,
+      pickup_address: data.pickup_address || null,
+      dropoff_address: data.dropoff_address || null,
+      estimated_fare: data.estimated_fare || null,
+      payment_status: data.payment_status || null,
+      requested_mode: data.requested_mode || "driver",
+      created_at: data.created_at || null,
+      updated_at: data.updated_at || null
+    });
+  } catch (error) {
+    console.error("ride-status error:", error);
+    return jsonError(res, 500, error.message || "Failed to fetch ride status");
+  }
+});
+
+/* =========================================================
+   ROUTE — GET RIDER RIDES
+========================================================= */
+app.get("/api/riders/:riderId/rides", async (req, res) => {
+  try {
+    if (!supabase) {
+      return jsonError(res, 500, "Supabase not configured");
+    }
+
+    const riderId = clean(req.params.riderId);
+    if (!riderId) {
+      return jsonError(res, 400, "Rider ID is required");
+    }
+
+    const { data, error } = await supabase
+      .from("rides")
+      .select("*")
+      .eq("rider_id", riderId)
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (error) throw error;
+
+    return jsonOk(res, {
+      rider_id: riderId,
+      count: Array.isArray(data) ? data.length : 0,
+      rides: data || []
+    });
+  } catch (error) {
+    console.error("rider-rides error:", error);
+    return jsonError(res, 500, error.message || "Failed to fetch rider rides");
+  }
 });/* =========================================================
    HARVEY TAXI — CODE BLUE PHASE 9 (PART 3)
    DRIVER MISSIONS + ACCEPT / DECLINE + DISPATCH FLOW
