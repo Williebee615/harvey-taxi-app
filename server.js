@@ -1,6 +1,7 @@
 /* =========================================================
-   HARVEY TAXI — CODE BLUE PHASE 10
-   PART 1: CLEAN FOUNDATION + ENV + HELPERS + SUPABASE + HEALTH
+   HARVEY TAXI — AI OPERATIONS SERVER KIT
+   PART 1 OF 4
+   FOUNDATION + ENV + HELPERS + CLIENTS + HEALTH
    SR. DEVELOPER ENGINEER BUILD
 ========================================================= */
 
@@ -14,6 +15,18 @@ const cors = require("cors");
 const path = require("path");
 const crypto = require("crypto");
 const { createClient } = require("@supabase/supabase-js");
+
+/* =========================================================
+   FETCH FALLBACK
+========================================================= */
+let fetchFn = global.fetch;
+if (!fetchFn) {
+  try {
+    fetchFn = require("node-fetch");
+  } catch (error) {
+    console.warn("⚠️ node-fetch not installed. External fetch helpers may fail on older Node versions.");
+  }
+}
 
 /* =========================================================
    OPTIONAL IMPORTS
@@ -41,45 +54,6 @@ function clean(value = "") {
   return String(value ?? "").trim();
 }
 
-const APP_NAME = "Harvey Taxi Code Blue Phase 10";
-const PORT = Number(process.env.PORT || 10000);
-const NODE_ENV = clean(process.env.NODE_ENV || "development").toLowerCase();
-const IS_PROD = NODE_ENV === "production";
-const SERVER_STARTED_AT = new Date().toISOString();
-
-/* =========================================================
-   CORE MIDDLEWARE
-========================================================= */
-app.use(
-  cors({
-    origin: true,
-    credentials: true
-  })
-);
-
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
-app.use(express.static(path.join(__dirname, "public")));
-
-/* =========================================================
-   BASIC REQUEST LOGGING
-========================================================= */
-app.use((req, res, next) => {
-  const started = Date.now();
-
-  res.on("finish", () => {
-    const ms = Date.now() - started;
-    console.log(
-      `[${new Date().toISOString()}] ${req.method} ${req.originalUrl} -> ${res.statusCode} (${ms}ms)`
-    );
-  });
-
-  next();
-});
-
-/* =========================================================
-   HELPERS
-========================================================= */
 function lower(value = "") {
   return clean(value).toLowerCase();
 }
@@ -97,10 +71,6 @@ function toBool(value, fallback = false) {
   return fallback;
 }
 
-function cleanEnv(value = "") {
-  return clean(value);
-}
-
 function nowIso() {
   return new Date().toISOString();
 }
@@ -114,7 +84,7 @@ function clamp(value, min, max) {
 }
 
 function roundMoney(value) {
-  return Math.round((Number(value) + Number.EPSILON) * 100) / 100;
+  return Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100;
 }
 
 function isEmail(value = "") {
@@ -155,6 +125,45 @@ function parseNullableNumber(value) {
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+/* =========================================================
+   APP CONSTANTS
+========================================================= */
+const APP_NAME = "Harvey Taxi AI Operations";
+const PORT = Number(process.env.PORT || 10000);
+const NODE_ENV = clean(process.env.NODE_ENV || "development").toLowerCase();
+const IS_PROD = NODE_ENV === "production";
+const SERVER_STARTED_AT = nowIso();
+
+/* =========================================================
+   CORE MIDDLEWARE
+========================================================= */
+app.use(
+  cors({
+    origin: true,
+    credentials: true
+  })
+);
+
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+app.use(express.static(path.join(__dirname, "public")));
+
+/* =========================================================
+   BASIC REQUEST LOGGING
+========================================================= */
+app.use((req, res, next) => {
+  const started = Date.now();
+
+  res.on("finish", () => {
+    const ms = Date.now() - started;
+    console.log(
+      `[${new Date().toISOString()}] ${req.method} ${req.originalUrl} -> ${res.statusCode} (${ms}ms)`
+    );
+  });
+
+  next();
+});
 
 /* =========================================================
    RESPONSE HELPERS
@@ -199,26 +208,28 @@ function asyncHandler(fn) {
    CORE ENV
 ========================================================= */
 const PUBLIC_APP_URL =
-  cleanEnv(process.env.PUBLIC_APP_URL) ||
-  cleanEnv(process.env.RENDER_EXTERNAL_URL) ||
-  cleanEnv(process.env.APP_BASE_URL) ||
+  clean(process.env.PUBLIC_APP_URL) ||
+  clean(process.env.RENDER_EXTERNAL_URL) ||
+  clean(process.env.APP_BASE_URL) ||
   "";
 
 const SUPPORT_EMAIL =
-  cleanEnv(process.env.SUPPORT_EMAIL) ||
-  cleanEnv(process.env.SUPPORT_FROM_EMAIL) ||
+  clean(process.env.SUPPORT_EMAIL) ||
+  clean(process.env.SUPPORT_FROM_EMAIL) ||
   "support@harveytaxiservice.com";
 
 const ADMIN_EMAIL =
-  cleanEnv(process.env.ADMIN_EMAIL) ||
-  cleanEnv(process.env.SUPPORT_ADMIN_EMAIL) ||
+  clean(process.env.ADMIN_EMAIL) ||
+  clean(process.env.SUPPORT_ADMIN_EMAIL) ||
   "williebee@harveytaxiservice.com";
 
 const ADMIN_PASSWORD =
-  cleanEnv(process.env.ADMIN_PASSWORD) ||
-  cleanEnv(process.env.SUPPORT_ADMIN_PASSWORD);
+  clean(process.env.ADMIN_PASSWORD) ||
+  clean(process.env.SUPPORT_ADMIN_PASSWORD);
 
 const ENABLE_AI_BRAIN = toBool(process.env.ENABLE_AI_BRAIN, true);
+const ENABLE_AI_DISPATCH = toBool(process.env.ENABLE_AI_DISPATCH, true);
+const ENABLE_AI_OPERATIONS = toBool(process.env.ENABLE_AI_OPERATIONS, true);
 const ENABLE_REAL_SMS = toBool(process.env.ENABLE_REAL_SMS, false);
 const ENABLE_REAL_EMAIL = toBool(process.env.ENABLE_REAL_EMAIL, false);
 const ENABLE_RIDER_VERIFICATION_GATE = toBool(process.env.ENABLE_RIDER_VERIFICATION_GATE, true);
@@ -250,19 +261,20 @@ const SURGE_MULTIPLIER_HIGH = toNumber(process.env.SURGE_MULTIPLIER_HIGH, 1.5);
 /* =========================================================
    THIRD-PARTY ENV
 ========================================================= */
-const SUPABASE_URL = cleanEnv(process.env.SUPABASE_URL);
-const SUPABASE_SERVICE_ROLE_KEY = cleanEnv(process.env.SUPABASE_SERVICE_ROLE_KEY);
+const SUPABASE_URL = clean(process.env.SUPABASE_URL);
+const SUPABASE_SERVICE_ROLE_KEY = clean(process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-const OPENAI_API_KEY = cleanEnv(process.env.OPENAI_API_KEY);
-const OPENAI_SUPPORT_MODEL = cleanEnv(process.env.OPENAI_SUPPORT_MODEL || "gpt-4.1-mini");
+const OPENAI_API_KEY = clean(process.env.OPENAI_API_KEY);
+const OPENAI_SUPPORT_MODEL = clean(process.env.OPENAI_SUPPORT_MODEL || "gpt-4.1-mini");
+const OPENAI_OPERATIONS_MODEL = clean(process.env.OPENAI_OPERATIONS_MODEL || "gpt-4.1-mini");
 
-const TWILIO_ACCOUNT_SID = cleanEnv(process.env.TWILIO_ACCOUNT_SID);
-const TWILIO_AUTH_TOKEN = cleanEnv(process.env.TWILIO_AUTH_TOKEN);
+const TWILIO_ACCOUNT_SID = clean(process.env.TWILIO_ACCOUNT_SID);
+const TWILIO_AUTH_TOKEN = clean(process.env.TWILIO_AUTH_TOKEN);
 const TWILIO_FROM_NUMBER =
-  cleanEnv(process.env.TWILIO_PHONE_NUMBER) ||
-  cleanEnv(process.env.TWILIO_FROM_NUMBER);
+  clean(process.env.TWILIO_PHONE_NUMBER) ||
+  clean(process.env.TWILIO_FROM_NUMBER);
 
-const GOOGLE_MAPS_API_KEY = cleanEnv(process.env.GOOGLE_MAPS_API_KEY);
+const GOOGLE_MAPS_API_KEY = clean(process.env.GOOGLE_MAPS_API_KEY);
 
 /* =========================================================
    CLIENTS
@@ -301,6 +313,11 @@ const runtimeState = {
     enabled: ENABLE_AUTO_REDISPATCH,
     lastRanAt: null,
     lastError: null
+  },
+  aiOperations: {
+    enabled: ENABLE_AI_OPERATIONS,
+    lastRecommendationAt: null,
+    lastRecommendationError: null
   }
 };
 
@@ -707,7 +724,8 @@ async function runStartupChecks() {
     "missions",
     "dispatches",
     "admin_logs",
-    "trip_events"
+    "trip_events",
+    "driver_earnings"
   ];
 
   const results = {};
@@ -758,6 +776,8 @@ app.get("/api/health", asyncHandler(async (req, res) => {
       rider_verification_gate: ENABLE_RIDER_VERIFICATION_GATE,
       payment_gate: ENABLE_PAYMENT_GATE,
       auto_redispatch: ENABLE_AUTO_REDISPATCH,
+      ai_dispatch: ENABLE_AI_DISPATCH,
+      ai_operations: ENABLE_AI_OPERATIONS,
       driver_location_tracking: ENABLE_DRIVER_LOCATION_TRACKING
     },
     startup_checks: runtimeState.startupChecks
@@ -796,11 +816,12 @@ app.get("/api/admin/health/deep", requireAdmin, asyncHandler(async (req, res) =>
     }
   });
 }));/* =========================================================
-   PART 2: RIDERS + PAYMENTS + FARE ESTIMATE + REQUEST RIDE
+   PART 2 OF 4
+   RIDERS + PAYMENTS + FARE + REQUEST RIDE (AI TRIGGER READY)
 ========================================================= */
 
 /* =========================================================
-   ADDRESS + TRIP HELPERS
+   ADDRESS HELPERS
 ========================================================= */
 function hasText(value = "") {
   return !!clean(value);
@@ -825,41 +846,27 @@ function normalizeScheduledTime(value = "") {
 
 function buildAddressObject(prefix, body = {}) {
   return {
-    address: clean(body[`${prefix}_address`] || body[`${prefix}Address`] || body[prefix] || ""),
-    city: clean(body[`${prefix}_city`] || body[`${prefix}City`] || ""),
-    state: clean(body[`${prefix}_state`] || body[`${prefix}State`] || ""),
-    zip: clean(
-      body[`${prefix}_zip`] ||
-        body[`${prefix}Zip`] ||
-        body[`${prefix}_postal_code`] ||
-        ""
-    )
+    address: clean(body[`${prefix}_address`] || body[prefix] || ""),
+    city: clean(body[`${prefix}_city`] || ""),
+    state: clean(body[`${prefix}_state`] || ""),
+    zip: clean(body[`${prefix}_zip`] || "")
   };
 }
 
 function formatAddress(addressObj = {}) {
-  const parts = [
-    clean(addressObj.address),
-    clean(addressObj.city),
-    clean(addressObj.state),
-    clean(addressObj.zip)
-  ].filter(Boolean);
-
-  return parts.join(", ");
+  return [
+    addressObj.address,
+    addressObj.city,
+    addressObj.state,
+    addressObj.zip
+  ].filter(Boolean).join(", ");
 }
 
 /* =========================================================
-   DISTANCE HELPERS
+   DISTANCE + METRICS
 ========================================================= */
 function haversineMiles(lat1, lon1, lat2, lon2) {
-  if (
-    !Number.isFinite(lat1) ||
-    !Number.isFinite(lon1) ||
-    !Number.isFinite(lat2) ||
-    !Number.isFinite(lon2)
-  ) {
-    return null;
-  }
+  if (!lat1 || !lon1 || !lat2 || !lon2) return null;
 
   const toRad = (deg) => (deg * Math.PI) / 180;
   const R = 3958.8;
@@ -873,925 +880,232 @@ function haversineMiles(lat1, lon1, lat2, lon2) {
       Math.cos(toRad(lat2)) *
       Math.sin(dLon / 2) ** 2;
 
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 function estimateDurationMinutesFromMiles(miles = 0) {
-  const assumedAverageMph = 26;
-  const result = (Math.max(0, Number(miles) || 0) / assumedAverageMph) * 60;
-  return Math.max(5, roundMoney(result));
+  return Math.max(5, roundMoney((miles / 26) * 60));
 }
 
-function chooseSurgeMultiplier({
-  requestedMode = "driver",
-  rideType = "standard",
-  scheduledTime = null
-}) {
-  const mode = normalizeRideMode(requestedMode);
-  const type = normalizeRideType(rideType);
-
-  if (mode === "autonomous") return SURGE_MULTIPLIER_BUSY;
-  if (type === "airport") return SURGE_MULTIPLIER_BUSY;
-  if (scheduledTime) return SURGE_MULTIPLIER_DEFAULT;
-
-  return SURGE_MULTIPLIER_DEFAULT;
-}
-
-function buildFallbackTripMetrics(payload = {}) {
-  const pickupLat =
-    parseCoordinate(payload.pickup_latitude) ??
-    parseCoordinate(payload.pickupLatitude) ??
-    parseCoordinate(payload.pickup_lat);
-
-  const pickupLng =
-    parseCoordinate(payload.pickup_longitude) ??
-    parseCoordinate(payload.pickupLongitude) ??
-    parseCoordinate(payload.pickup_lng);
-
-  const dropoffLat =
-    parseCoordinate(payload.dropoff_latitude) ??
-    parseCoordinate(payload.dropoffLatitude) ??
-    parseCoordinate(payload.dropoff_lat);
-
-  const dropoffLng =
-    parseCoordinate(payload.dropoff_longitude) ??
-    parseCoordinate(payload.dropoffLongitude) ??
-    parseCoordinate(payload.dropoff_lng);
-
-  const miles = haversineMiles(pickupLat, pickupLng, dropoffLat, dropoffLng);
+async function resolveTripMetrics(payload = {}) {
+  const miles = haversineMiles(
+    parseCoordinate(payload.pickup_latitude),
+    parseCoordinate(payload.pickup_longitude),
+    parseCoordinate(payload.dropoff_latitude),
+    parseCoordinate(payload.dropoff_longitude)
+  );
 
   if (!miles) {
     return {
       distance_miles: 8,
       duration_minutes: 18,
-      source: "fallback_default"
+      source: "fallback"
     };
   }
 
   return {
-    distance_miles: roundMoney(Math.max(1, miles * 1.18)),
-    duration_minutes: estimateDurationMinutesFromMiles(miles * 1.18),
-    source: "fallback_haversine"
+    distance_miles: roundMoney(miles * 1.15),
+    duration_minutes: estimateDurationMinutesFromMiles(miles),
+    source: "haversine"
   };
-}
-
-/* =========================================================
-   GOOGLE MAPS HELPERS
-========================================================= */
-async function safeFetchJson(url, options = {}) {
-  const response = await fetch(url, options);
-  const text = await response.text();
-
-  let json = null;
-  try {
-    json = JSON.parse(text);
-  } catch (error) {
-    json = null;
-  }
-
-  return {
-    ok: response.ok,
-    status: response.status,
-    json,
-    text
-  };
-}
-
-async function geocodeAddress(address = "") {
-  const query = clean(address);
-  if (!query || !GOOGLE_MAPS_API_KEY) return null;
-
-  const endpoint =
-    `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
-      query
-    )}&key=${encodeURIComponent(GOOGLE_MAPS_API_KEY)}`;
-
-  const result = await safeFetchJson(endpoint);
-
-  if (!result.ok || !result.json || result.json.status !== "OK") {
-    return null;
-  }
-
-  const first = result.json.results?.[0];
-  const location = first?.geometry?.location;
-
-  if (!location) return null;
-
-  return {
-    latitude: Number(location.lat),
-    longitude: Number(location.lng),
-    formatted_address: clean(first.formatted_address || query)
-  };
-}
-
-async function getDistanceMatrix({ originAddress, destinationAddress }) {
-  const origin = clean(originAddress);
-  const destination = clean(destinationAddress);
-
-  if (!origin || !destination || !GOOGLE_MAPS_API_KEY) return null;
-
-  const endpoint =
-    `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodeURIComponent(
-      origin
-    )}&destinations=${encodeURIComponent(
-      destination
-    )}&units=imperial&key=${encodeURIComponent(GOOGLE_MAPS_API_KEY)}`;
-
-  const result = await safeFetchJson(endpoint);
-
-  if (!result.ok || !result.json || result.json.status !== "OK") {
-    return null;
-  }
-
-  const row = result.json.rows?.[0];
-  const element = row?.elements?.[0];
-
-  if (!element || element.status !== "OK") return null;
-
-  const distanceMeters = Number(element.distance?.value || 0);
-  const durationSeconds = Number(element.duration?.value || 0);
-
-  return {
-    distance_miles: roundMoney(distanceMeters / 1609.344),
-    duration_minutes: roundMoney(durationSeconds / 60),
-    source: "google_distance_matrix"
-  };
-}
-
-async function resolveTripMetrics(payload = {}) {
-  const pickup = formatAddress(buildAddressObject("pickup", payload));
-  const dropoff = formatAddress(buildAddressObject("dropoff", payload));
-
-  if (pickup && dropoff && GOOGLE_MAPS_API_KEY) {
-    const matrix = await getDistanceMatrix({
-      originAddress: pickup,
-      destinationAddress: dropoff
-    });
-
-    if (matrix) return matrix;
-  }
-
-  return buildFallbackTripMetrics(payload);
 }
 
 /* =========================================================
    RIDER HELPERS
 ========================================================= */
-async function getRiderById(riderId) {
-  const id = clean(riderId);
-  if (!id) return null;
-  return getRowById("riders", "id", id);
+async function getRiderById(id) {
+  return getRowById("riders", "id", clean(id));
 }
 
 async function getRiderByEmail(email) {
-  const value = lower(email);
-  if (!value) return null;
-
   return maybeSingle(
     requireSupabase()
       .from("riders")
       .select("*")
-      .ilike("email", value)
+      .ilike("email", lower(email))
   );
 }
 
-async function getRiderByPhone(phone) {
-  const value = normalizePhone(phone);
-  if (!value) return null;
-
-  return maybeSingle(
-    requireSupabase()
-      .from("riders")
-      .select("*")
-      .eq("phone", value)
+async function resolveRider(body = {}) {
+  return (
+    await getRiderById(body.rider_id) ||
+    await getRiderByEmail(body.email)
   );
-}
-
-async function resolveRiderFromRequest(body = {}) {
-  const riderId = pickFirst(body.rider_id, body.riderId);
-  const riderEmail = pickFirst(body.email, body.rider_email, body.riderEmail);
-  const riderPhone = pickFirst(body.phone, body.rider_phone, body.riderPhone);
-
-  if (riderId) {
-    const rider = await getRiderById(riderId);
-    if (rider) return rider;
-  }
-
-  if (riderEmail) {
-    const rider = await getRiderByEmail(riderEmail);
-    if (rider) return rider;
-  }
-
-  if (riderPhone) {
-    const rider = await getRiderByPhone(riderPhone);
-    if (rider) return rider;
-  }
-
-  return null;
-}
-
-function buildRiderStatusResponse(rider) {
-  const approvalStatus = normalizeRiderStatus(
-    rider?.status ||
-      rider?.approval_status ||
-      rider?.rider_status ||
-      rider?.verification_status
-  );
-
-  return {
-    rider_id: rider?.id || null,
-    first_name: clean(rider?.first_name || ""),
-    last_name: clean(rider?.last_name || ""),
-    full_name: clean(
-      rider?.full_name ||
-        [rider?.first_name, rider?.last_name].filter(Boolean).join(" ")
-    ),
-    email: clean(rider?.email || ""),
-    phone: clean(rider?.phone || ""),
-    status: approvalStatus,
-    is_approved: approvalStatus === "approved",
-    approval_status: approvalStatus,
-    rider_verification_required: ENABLE_RIDER_VERIFICATION_GATE
-  };
 }
 
 /* =========================================================
    PAYMENT HELPERS
 ========================================================= */
 async function getLatestPaymentForRider(riderId) {
-  const id = clean(riderId);
-  if (!id) return null;
-
-  const { data, error } = await requireSupabase()
+  const { data } = await requireSupabase()
     .from("payments")
     .select("*")
-    .eq("rider_id", id)
+    .eq("rider_id", riderId)
     .order("created_at", { ascending: false })
     .limit(1);
 
-  if (error) throw error;
   return data?.[0] || null;
 }
 
-async function getLatestAuthorizedPaymentForRider(riderId) {
-  const payment = await getLatestPaymentForRider(riderId);
-  if (!payment) return null;
-  return paymentIsAuthorized(payment) ? payment : null;
-}
-
-function buildPaymentSummary(payment) {
-  if (!payment) {
-    return {
-      payment_id: null,
-      status: "missing",
-      is_authorized: false,
-      authorization_amount: 0
-    };
-  }
-
-  const normalizedStatus = normalizePaymentStatus(
-    payment.status || payment.payment_status || payment.authorization_status
-  );
-
-  return {
-    payment_id: payment.id || null,
-    status: normalizedStatus,
-    is_authorized:
-      normalizedStatus === "authorized" || normalizedStatus === "captured",
-    authorization_amount: roundMoney(
-      payment.authorization_amount ||
-        payment.amount_authorized ||
-        payment.amount ||
-        0
-    ),
-    currency: clean(payment.currency || "USD")
-  };
-}
-
 /* =========================================================
-   RIDE HELPERS
+   AI DISPATCH TRIGGER CORE
 ========================================================= */
-function buildRidePayload({
-  rider,
-  requestBody,
-  fare,
-  payout
-}) {
-  const requestedMode = normalizeRideMode(
-    requestBody.requested_mode ||
-      requestBody.requestedMode ||
-      requestBody.mode
-  );
+async function triggerAIDispatch(ride) {
+  if (!ENABLE_AI_DISPATCH) return null;
 
-  const rideType = normalizeRideType(
-    requestBody.ride_type || requestBody.rideType
-  );
+  try {
+    const result = await dispatchRideToBestDriver(ride.id);
 
-  const pickupAddress = buildAddressObject("pickup", requestBody);
-  const dropoffAddress = buildAddressObject("dropoff", requestBody);
+    await logTripEvent({
+      ride_id: ride.id,
+      rider_id: ride.rider_id,
+      event_type: "ai_dispatch_triggered",
+      details: {
+        success: result?.ok,
+        reason: result?.error || null
+      }
+    });
 
-  const scheduledAt = normalizeScheduledTime(
-    requestBody.scheduled_at ||
-      requestBody.scheduledAt ||
-      requestBody.schedule_time ||
-      requestBody.scheduleTime
-  );
+    return result;
+  } catch (err) {
+    console.error("❌ AI DISPATCH ERROR:", err);
 
-  const notes = clean(
-    requestBody.notes ||
-      requestBody.ride_notes ||
-      requestBody.special_instructions ||
-      requestBody.specialInstructions
-  );
+    await logTripEvent({
+      ride_id: ride.id,
+      rider_id: ride.rider_id,
+      event_type: "ai_dispatch_failed",
+      details: { error: err.message }
+    });
 
-  return {
-    id: createId("ride"),
-    rider_id: rider.id,
-    status: normalizeRideStatus("awaiting_dispatch"),
-    requested_mode: requestedMode,
-    ride_type: rideType,
-    passenger_count: normalizePassengerCount(
-      requestBody.passenger_count || requestBody.passengerCount || 1
-    ),
-    pickup_address: formatAddress(pickupAddress),
-    pickup_city: pickupAddress.city,
-    pickup_state: pickupAddress.state,
-    pickup_zip: pickupAddress.zip,
-    dropoff_address: formatAddress(dropoffAddress),
-    dropoff_city: dropoffAddress.city,
-    dropoff_state: dropoffAddress.state,
-    dropoff_zip: dropoffAddress.zip,
-    pickup_latitude:
-      parseCoordinate(requestBody.pickup_latitude) ??
-      parseCoordinate(requestBody.pickupLatitude) ??
-      null,
-    pickup_longitude:
-      parseCoordinate(requestBody.pickup_longitude) ??
-      parseCoordinate(requestBody.pickupLongitude) ??
-      null,
-    dropoff_latitude:
-      parseCoordinate(requestBody.dropoff_latitude) ??
-      parseCoordinate(requestBody.dropoffLatitude) ??
-      null,
-    dropoff_longitude:
-      parseCoordinate(requestBody.dropoff_longitude) ??
-      parseCoordinate(requestBody.dropoffLongitude) ??
-      null,
-    estimated_distance_miles: fare.distance_miles,
-    estimated_duration_minutes: fare.duration_minutes,
-    estimated_total: fare.estimated_total,
-    estimated_driver_payout: payout.driver_payout_estimate,
-    estimated_platform_fee: payout.platform_fee_estimate,
-    surge_multiplier: fare.surge_multiplier,
-    fare_snapshot: fare,
-    notes: notes || null,
-    scheduled_at: scheduledAt,
-    requested_at: nowIso(),
-    created_at: nowIso(),
-    updated_at: nowIso()
-  };
+    return null;
+  }
 }
-
-function validateRideRequestBody(body = {}) {
-  const pickup = formatAddress(buildAddressObject("pickup", body));
-  const dropoff = formatAddress(buildAddressObject("dropoff", body));
-
-  if (!pickup) return "Pickup address is required";
-  if (!dropoff) return "Dropoff address is required";
-
-  if (pickup.toLowerCase() === dropoff.toLowerCase()) {
-    return "Pickup and dropoff cannot be the same";
-  }
-
-  const phone = pickFirst(body.phone, body.rider_phone, body.riderPhone);
-  if (phone && !normalizePhone(phone)) {
-    return "Phone number format is invalid";
-  }
-
-  const scheduledAt = normalizeScheduledTime(
-    body.scheduled_at || body.scheduledAt || body.schedule_time
-  );
-
-  if (
-    hasText(body.scheduled_at || body.scheduledAt || body.schedule_time) &&
-    !scheduledAt
-  ) {
-    return "Scheduled time is invalid";
-  }
-
-  return null;
-}
-
-/* =========================================================
-   RIDER ROUTES
-========================================================= */
-app.post("/api/rider/signup", asyncHandler(async (req, res) => {
-  const firstName = clean(req.body.first_name || req.body.firstName);
-  const lastName = clean(req.body.last_name || req.body.lastName);
-  const email = lower(req.body.email);
-  const phone = normalizePhone(req.body.phone);
-  const documentType = lower(
-    req.body.document_type || req.body.documentType || ""
-  );
-
-  if (!firstName) return fail(res, "First name is required");
-  if (!lastName) return fail(res, "Last name is required");
-  if (!email || !isEmail(email)) return fail(res, "Valid email is required");
-  if (!phone) return fail(res, "Valid phone number is required");
-
-  const existingByEmail = await getRiderByEmail(email);
-  if (existingByEmail) {
-    return ok(res, {
-      message: "Rider already exists",
-      rider: buildRiderStatusResponse(existingByEmail)
-    });
-  }
-
-  const existingByPhone = await getRiderByPhone(phone);
-  if (existingByPhone) {
-    return ok(res, {
-      message: "Rider already exists",
-      rider: buildRiderStatusResponse(existingByPhone)
-    });
-  }
-
-  const rider = await insertRow("riders", {
-    id: createId("rider"),
-    first_name: firstName,
-    last_name: lastName,
-    full_name: `${firstName} ${lastName}`.trim(),
-    email,
-    phone,
-    document_type: documentType || null,
-    status: "pending",
-    approval_status: "pending",
-    verification_status: "pending",
-    created_at: nowIso(),
-    updated_at: nowIso()
-  });
-
-  await logTripEvent({
-    rider_id: rider.id,
-    event_type: "rider_signup_created",
-    details: {
-      email,
-      phone,
-      document_type: documentType || null
-    }
-  });
-
-  return ok(
-    res,
-    {
-      message: "Rider signup submitted successfully",
-      rider: buildRiderStatusResponse(rider)
-    },
-    201
-  );
-}));
-
-app.post("/api/rider/status", asyncHandler(async (req, res) => {
-  const rider = await resolveRiderFromRequest(req.body);
-
-  if (!rider) {
-    return fail(res, "Rider not found", 404);
-  }
-
-  const latestPayment = await getLatestPaymentForRider(rider.id);
-
-  return ok(res, {
-    rider: buildRiderStatusResponse(rider),
-    payment: buildPaymentSummary(latestPayment)
-  });
-}));
-
-app.get("/api/rider/:riderId/status", asyncHandler(async (req, res) => {
-  const rider = await getRiderById(req.params.riderId);
-
-  if (!rider) {
-    return fail(res, "Rider not found", 404);
-  }
-
-  const latestPayment = await getLatestPaymentForRider(rider.id);
-
-  return ok(res, {
-    rider: buildRiderStatusResponse(rider),
-    payment: buildPaymentSummary(latestPayment)
-  });
-}));
-
-app.get("/api/rider/:riderId/rides", asyncHandler(async (req, res) => {
-  const riderId = clean(req.params.riderId);
-  if (!riderId) return fail(res, "Rider ID is required");
-
-  const rider = await getRiderById(riderId);
-  if (!rider) return fail(res, "Rider not found", 404);
-
-  const { data, error } = await requireSupabase()
-    .from("rides")
-    .select("*")
-    .eq("rider_id", riderId)
-    .order("created_at", { ascending: false });
-
-  if (error) throw error;
-
-  return ok(res, {
-    rider: buildRiderStatusResponse(rider),
-    rides: data || []
-  });
-}));
-
-/* =========================================================
-   PAYMENT ROUTES
-========================================================= */
-app.post("/api/payments/authorize", asyncHandler(async (req, res) => {
-  const rider = await resolveRiderFromRequest(req.body);
-
-  if (!rider) {
-    return fail(res, "Rider not found", 404);
-  }
-
-  if (ENABLE_RIDER_VERIFICATION_GATE && !riderIsApproved(rider)) {
-    return fail(res, "Rider is not approved yet", 403, {
-      rider: buildRiderStatusResponse(rider)
-    });
-  }
-
-  const amount = Math.max(
-    0,
-    roundMoney(
-      toNumber(
-        req.body.amount ||
-          req.body.authorization_amount ||
-          req.body.amount_authorized,
-        0
-      )
-    )
-  );
-
-  if (!amount) {
-    return fail(res, "Authorization amount is required");
-  }
-
-  const payment = await insertRow("payments", {
-    id: createId("pay"),
-    rider_id: rider.id,
-    status: "authorized",
-    payment_status: "authorized",
-    authorization_status: "authorized",
-    authorization_amount: amount,
-    amount: amount,
-    currency: clean(req.body.currency || "USD") || "USD",
-    provider:
-      clean(req.body.provider || "manual_authorization") ||
-      "manual_authorization",
-    payment_method_last4: clean(
-      req.body.last4 || req.body.payment_method_last4 || ""
-    ),
-    created_at: nowIso(),
-    updated_at: nowIso()
-  });
-
-  await logTripEvent({
-    rider_id: rider.id,
-    event_type: "payment_authorized",
-    details: {
-      payment_id: payment.id,
-      amount
-    }
-  });
-
-  return ok(res, {
-    message: "Payment authorized successfully",
-    payment: buildPaymentSummary(payment),
-    rider: buildRiderStatusResponse(rider)
-  });
-}));
 
 /* =========================================================
    FARE ESTIMATE
 ========================================================= */
 app.post("/api/fare-estimate", asyncHandler(async (req, res) => {
-  const validationError = validateRideRequestBody(req.body);
-  if (validationError) return fail(res, validationError);
-
-  const tripMetrics = await resolveTripMetrics(req.body);
-
-  const requestedMode = normalizeRideMode(
-    req.body.requested_mode ||
-      req.body.requestedMode ||
-      req.body.mode
-  );
-
-  const rideType = normalizeRideType(
-    req.body.ride_type || req.body.rideType
-  );
-
-  const scheduledAt = normalizeScheduledTime(
-    req.body.scheduled_at || req.body.scheduledAt || req.body.schedule_time
-  );
-
-  const surgeMultiplier = chooseSurgeMultiplier({
-    requestedMode,
-    rideType,
-    scheduledTime: scheduledAt
-  });
+  const metrics = await resolveTripMetrics(req.body);
 
   const fare = estimateFare({
-    distanceMiles: tripMetrics.distance_miles,
-    durationMinutes: tripMetrics.duration_minutes,
-    rideType,
-    requestedMode,
-    surgeMultiplier
+    distanceMiles: metrics.distance_miles,
+    durationMinutes: metrics.duration_minutes,
+    rideType: req.body.ride_type,
+    requestedMode: req.body.requested_mode
   });
 
-  const payout = calculateDriverPayout(
-    fare.estimated_total,
-    requestedMode === "autonomous" ? "autonomous" : "human"
-  );
-
   return ok(res, {
-    ride_id: null,
-    estimate_source: tripMetrics.source,
     fare,
-    payout
+    metrics
   });
 }));
 
 /* =========================================================
-   REQUEST RIDE
+   REQUEST RIDE (AI-FIRST FLOW)
 ========================================================= */
 app.post("/api/request-ride", asyncHandler(async (req, res) => {
-  const validationError = validateRideRequestBody(req.body);
-  if (validationError) return fail(res, validationError);
+  const rider = await resolveRider(req.body);
 
-  const rider = await resolveRiderFromRequest(req.body);
-
-  if (!rider) {
-    return fail(res, "Rider not found. Complete rider signup first.", 404);
-  }
+  if (!rider) return fail(res, "Rider not found", 404);
 
   if (ENABLE_RIDER_VERIFICATION_GATE && !riderIsApproved(rider)) {
-    return fail(res, "Rider approval is required before requesting a ride", 403, {
-      rider: buildRiderStatusResponse(rider)
-    });
+    return fail(res, "Rider not approved", 403);
   }
 
-  const latestAuthorizedPayment = ENABLE_PAYMENT_GATE
-    ? await getLatestAuthorizedPaymentForRider(rider.id)
-    : null;
+  const payment = await getLatestPaymentForRider(rider.id);
 
-  if (ENABLE_PAYMENT_GATE && !latestAuthorizedPayment) {
-    return fail(res, "Payment authorization is required before dispatch", 402, {
-      rider: buildRiderStatusResponse(rider),
-      payment: buildPaymentSummary(null)
-    });
+  if (ENABLE_PAYMENT_GATE && !paymentIsAuthorized(payment)) {
+    return fail(res, "Payment authorization required", 402);
   }
 
-  const tripMetrics = await resolveTripMetrics(req.body);
-
-  const requestedMode = normalizeRideMode(
-    req.body.requested_mode ||
-      req.body.requestedMode ||
-      req.body.mode
-  );
-
-  const rideType = normalizeRideType(
-    req.body.ride_type || req.body.rideType
-  );
-
-  const scheduledAt = normalizeScheduledTime(
-    req.body.scheduled_at || req.body.scheduledAt || req.body.schedule_time
-  );
-
-  const surgeMultiplier = chooseSurgeMultiplier({
-    requestedMode,
-    rideType,
-    scheduledTime: scheduledAt
-  });
+  const metrics = await resolveTripMetrics(req.body);
 
   const fare = estimateFare({
-    distanceMiles: tripMetrics.distance_miles,
-    durationMinutes: tripMetrics.duration_minutes,
-    rideType,
-    requestedMode,
-    surgeMultiplier
+    distanceMiles: metrics.distance_miles,
+    durationMinutes: metrics.duration_minutes,
+    rideType: req.body.ride_type,
+    requestedMode: req.body.requested_mode
   });
 
-  const payout = calculateDriverPayout(
-    fare.estimated_total,
-    requestedMode === "autonomous" ? "autonomous" : "human"
-  );
+  const payout = calculateDriverPayout(fare.estimated_total);
 
-  const ridePayload = buildRidePayload({
-    rider,
-    requestBody: req.body,
-    fare,
-    payout
+  const ride = await insertRow("rides", {
+    id: createId("ride"),
+    rider_id: rider.id,
+    status: "awaiting_dispatch",
+    pickup_address: req.body.pickup_address,
+    dropoff_address: req.body.dropoff_address,
+    estimated_total: fare.estimated_total,
+    estimated_driver_payout: payout.driver_payout_estimate,
+    created_at: nowIso(),
+    updated_at: nowIso()
   });
-
-  const ride = await insertRow("rides", ridePayload);
 
   await logTripEvent({
     ride_id: ride.id,
     rider_id: rider.id,
-    event_type: "ride_requested",
-    details: {
-      requested_mode: ride.requested_mode,
-      ride_type: ride.ride_type,
-      estimated_total: ride.estimated_total,
-      scheduled_at: ride.scheduled_at || null
-    }
+    event_type: "ride_created",
+    details: fare
   });
 
-  let dispatchResult = null;
+  /* =============================
+     🔥 AI DISPATCH AUTO TRIGGER
+  ============================= */
+  const dispatch = await triggerAIDispatch(ride);
 
-  try {
-    dispatchResult = await dispatchRideToBestDriver(ride.id);
-
-    if (dispatchResult?.ok) {
-      await logTripEvent({
-        ride_id: ride.id,
-        rider_id: rider.id,
-        driver_id: dispatchResult?.driver?.id || null,
-        mission_id: dispatchResult?.mission?.id || null,
-        event_type: "auto_dispatch_triggered",
-        details: {
-          dispatch_id: dispatchResult?.dispatch?.id || null,
-          reused: !!dispatchResult?.reused,
-          requested_mode: ride.requested_mode
-        }
-      });
-    } else {
-      await logTripEvent({
-        ride_id: ride.id,
-        rider_id: rider.id,
-        event_type: "auto_dispatch_attempt_failed",
-        details: {
-          error: dispatchResult?.error || "Unknown dispatch error"
-        }
-      });
-    }
-  } catch (error) {
-    console.error("❌ Auto dispatch trigger failed:", error);
-
-    await logTripEvent({
-      ride_id: ride.id,
-      rider_id: rider.id,
-      event_type: "auto_dispatch_exception",
-      details: {
-        error: clean(error?.message || String(error))
-      }
-    });
-  }
-
-  const latestRideState = await getRideById(ride.id);
-
-  return ok(
-    res,
-    {
-      message: dispatchResult?.ok
-        ? "Ride request accepted and dispatch started automatically"
-        : "Ride request accepted but dispatch is still pending",
-      ride_id: ride.id,
-      ride: latestRideState || ride,
-      fare,
-      payout,
-      rider: buildRiderStatusResponse(rider),
-      payment: buildPaymentSummary(latestAuthorizedPayment),
-      dispatch: dispatchResult?.dispatch || null,
-      mission: dispatchResult?.mission || null,
-      assigned_driver: dispatchResult?.driver
-        ? {
-            id: dispatchResult.driver.id,
-            full_name: getDriverDisplayName(dispatchResult.driver),
-            driver_type: normalizeDriverType(
-              dispatchResult.driver.driver_type || "human"
-            )
-          }
-        : null,
-      dispatch_ai: {
-        triggered: true,
-        success: !!dispatchResult?.ok,
-        reused_existing_dispatch: !!dispatchResult?.reused,
-        error: dispatchResult?.ok ? null : dispatchResult?.error || null
-      }
-    },
-    201
-  );
-}));
-
-/* =========================================================
-   SINGLE RIDE LOOKUP
-========================================================= */
-app.get("/api/rides/:rideId", asyncHandler(async (req, res) => {
-  const rideId = clean(req.params.rideId);
-  if (!rideId) return fail(res, "Ride ID is required");
-
-  const ride = await getRideById("rides", "id", rideId);
-  if (!ride) return fail(res, "Ride not found", 404);
-
-  return ok(res, { ride });
+  return ok(res, {
+    message: "Ride created",
+    ride,
+    dispatch
+  }, 201);
 }));/* =========================================================
-   PART 3: DRIVERS + DISPATCH + MISSIONS + ACCEPTANCE FLOW
+   PART 3 OF 4
+   DRIVERS + AI DISPATCH BRAIN + MISSIONS + REDISPATCH
 ========================================================= */
 
 /* =========================================================
    DRIVER HELPERS
 ========================================================= */
-async function getDriverById(driverId) {
-  const id = clean(driverId);
-  if (!id) return null;
-  return getRowById("drivers", "id", id);
+async function getDriverById(id) {
+  return getRowById("drivers", "id", clean(id));
 }
 
 async function getDriverByEmail(email) {
-  const value = lower(email);
-  if (!value) return null;
-
   return maybeSingle(
     requireSupabase()
       .from("drivers")
       .select("*")
-      .ilike("email", value)
+      .ilike("email", lower(email))
   );
 }
 
 async function getDriverByPhone(phone) {
-  const value = normalizePhone(phone);
-  if (!value) return null;
-
   return maybeSingle(
     requireSupabase()
       .from("drivers")
       .select("*")
-      .eq("phone", value)
+      .eq("phone", normalizePhone(phone))
   );
 }
 
-async function resolveDriverFromRequest(body = {}) {
-  const driverId = pickFirst(body.driver_id, body.driverId);
-  const driverEmail = pickFirst(body.email, body.driver_email, body.driverEmail);
-  const driverPhone = pickFirst(body.phone, body.driver_phone, body.driverPhone);
-
-  if (driverId) {
-    const driver = await getDriverById(driverId);
-    if (driver) return driver;
-  }
-
-  if (driverEmail) {
-    const driver = await getDriverByEmail(driverEmail);
-    if (driver) return driver;
-  }
-
-  if (driverPhone) {
-    const driver = await getDriverByPhone(driverPhone);
-    if (driver) return driver;
-  }
-
-  return null;
+async function resolveDriver(body = {}) {
+  return (
+    await getDriverById(body.driver_id || body.driverId) ||
+    await getDriverByEmail(body.email || body.driver_email || body.driverEmail) ||
+    await getDriverByPhone(body.phone || body.driver_phone || body.driverPhone)
+  );
 }
 
 function driverIsVerified(driver) {
-  const emailVerified = toBool(
-    driver?.email_verified ?? driver?.email_is_verified ?? false,
-    false
-  );
-  const smsVerified = toBool(
-    driver?.sms_verified ?? driver?.phone_verified ?? driver?.phone_is_verified ?? false,
-    false
-  );
-
+  const emailVerified = toBool(driver?.email_verified, false);
+  const smsVerified = toBool(driver?.sms_verified, false);
   return emailVerified && smsVerified;
 }
 
 function driverIsOnline(driver) {
-  const online = lower(
-    driver?.availability_status || driver?.online_status || driver?.is_online
-  );
-
-  if (online === "true") return true;
-  if (["online", "available", "ready", "active"].includes(online)) return true;
   if (typeof driver?.is_online === "boolean") return driver.is_online;
-
-  return false;
-}
-
-function driverCanReceiveMission(driver, requestedMode = "driver") {
-  const approved = driverIsApproved(driver);
-  const verified = driverIsVerified(driver);
-  const online = driverIsOnline(driver);
-  const driverType = normalizeDriverType(driver?.driver_type || driver?.type || "human");
-  const mode = normalizeRideMode(requestedMode);
-
-  if (!approved) return false;
-  if (!verified) return false;
-  if (!online) return false;
-  if (mode === "autonomous" && driverType !== "autonomous") return false;
-  if (mode === "driver" && driverType !== "human") return false;
-
-  return true;
+  const status = lower(driver?.availability_status || driver?.online_status || "");
+  return ["online", "available", "ready", "active", "true"].includes(status);
 }
 
 function getDriverDisplayName(driver = {}) {
@@ -1803,100 +1117,72 @@ function getDriverDisplayName(driver = {}) {
   );
 }
 
-/* =========================================================
-   DRIVER LOCATION / SCORING HELPERS
-========================================================= */
-function getDriverLatitude(driver) {
+function getDriverLatitude(driver = {}) {
   return (
-    parseNullableNumber(driver?.current_latitude) ??
-    parseNullableNumber(driver?.latitude) ??
-    parseNullableNumber(driver?.last_latitude)
+    parseNullableNumber(driver.current_latitude) ??
+    parseNullableNumber(driver.latitude) ??
+    parseNullableNumber(driver.last_latitude)
   );
 }
 
-function getDriverLongitude(driver) {
+function getDriverLongitude(driver = {}) {
   return (
-    parseNullableNumber(driver?.current_longitude) ??
-    parseNullableNumber(driver?.longitude) ??
-    parseNullableNumber(driver?.last_longitude)
+    parseNullableNumber(driver.current_longitude) ??
+    parseNullableNumber(driver.longitude) ??
+    parseNullableNumber(driver.last_longitude)
   );
 }
 
-function distanceMilesBetweenDriverAndPickup(driver, ride) {
-  const driverLat = getDriverLatitude(driver);
-  const driverLng = getDriverLongitude(driver);
-
-  const rideLat =
-    parseNullableNumber(ride?.pickup_latitude) ??
-    parseNullableNumber(ride?.origin_latitude);
-
-  const rideLng =
-    parseNullableNumber(ride?.pickup_longitude) ??
-    parseNullableNumber(ride?.origin_longitude);
-
-  const distance = haversineMiles(driverLat, driverLng, rideLat, rideLng);
-  if (!distance || !Number.isFinite(distance)) return 9999;
-
-  return distance;
-}
-
-function getDriverCompletedTrips(driver) {
+function getDriverCompletedTrips(driver = {}) {
   return toNumber(
-    driver?.completed_trips ||
-      driver?.total_completed_trips ||
-      driver?.trip_count ||
+    driver.completed_trips ||
+      driver.total_completed_trips ||
+      driver.trip_count ||
       0,
     0
   );
 }
 
-function getDriverAcceptanceRate(driver) {
-  const value = Number(
-    driver?.acceptance_rate ??
-      driver?.mission_acceptance_rate ??
-      0.8
+function getDriverAcceptanceRate(driver = {}) {
+  const value = Number(driver.acceptance_rate ?? driver.mission_acceptance_rate ?? 0.8);
+  return Number.isFinite(value) ? clamp(value, 0, 1) : 0.8;
+}
+
+function getDriverRating(driver = {}) {
+  const value = Number(driver.rating ?? driver.avg_rating ?? 5);
+  return Number.isFinite(value) ? clamp(value, 1, 5) : 5;
+}
+
+function driverSupportsMode(driver, requestedMode = "driver") {
+  const mode = normalizeRideMode(requestedMode);
+  const type = normalizeDriverType(driver?.driver_type || "human");
+
+  if (mode === "autonomous") return type === "autonomous";
+  return type === "human";
+}
+
+function driverCanReceiveDispatch(driver, requestedMode = "driver") {
+  return (
+    driverIsApproved(driver) &&
+    driverIsVerified(driver) &&
+    driverIsOnline(driver) &&
+    driverSupportsMode(driver, requestedMode)
   );
-
-  if (!Number.isFinite(value)) return 0.8;
-  return clamp(value, 0, 1);
-}
-
-function getDriverRating(driver) {
-  const value = Number(driver?.rating ?? driver?.avg_rating ?? 5);
-  if (!Number.isFinite(value)) return 5;
-  return clamp(value, 1, 5);
-}
-
-function scoreDriverForRide(driver, ride) {
-  const distance = distanceMilesBetweenDriverAndPickup(driver, ride);
-  const rating = getDriverRating(driver);
-  const completedTrips = getDriverCompletedTrips(driver);
-  const acceptanceRate = getDriverAcceptanceRate(driver);
-
-  let score = 0;
-  score += Math.max(0, 100 - distance * 8);
-  score += rating * 8;
-  score += Math.min(20, completedTrips * 0.1);
-  score += acceptanceRate * 25;
-
-  return {
-    score: roundMoney(score),
-    distance_miles_to_pickup: roundMoney(distance),
-    rating,
-    completed_trips: completedTrips,
-    acceptance_rate: acceptanceRate
-  };
 }
 
 /* =========================================================
-   DISPATCH HELPERS
+   DISPATCH LOOKUPS
 ========================================================= */
-function getDispatchExpiresAt() {
-  return new Date(Date.now() + DISPATCH_TIMEOUT_SECONDS * 1000).toISOString();
-}
-
 async function getRideById(rideId) {
   return getRowById("rides", "id", clean(rideId));
+}
+
+async function getMissionById(missionId) {
+  return getRowById("missions", "id", clean(missionId));
+}
+
+async function getDispatchById(dispatchId) {
+  return getRowById("dispatches", "id", clean(dispatchId));
 }
 
 async function getMissionByRideId(rideId) {
@@ -1920,14 +1206,6 @@ async function getActiveDispatchForRide(rideId) {
   );
 }
 
-async function getDispatchById(dispatchId) {
-  return getRowById("dispatches", "id", clean(dispatchId));
-}
-
-async function getMissionById(missionId) {
-  return getRowById("missions", "id", clean(missionId));
-}
-
 async function countDispatchAttemptsForRide(rideId) {
   const { count, error } = await requireSupabase()
     .from("dispatches")
@@ -1938,8 +1216,76 @@ async function countDispatchAttemptsForRide(rideId) {
   return Number(count || 0);
 }
 
+async function getTriedDriverIdsForRide(rideId) {
+  const { data, error } = await requireSupabase()
+    .from("dispatches")
+    .select("driver_id")
+    .eq("ride_id", clean(rideId));
+
+  if (error) throw error;
+  return new Set((data || []).map((row) => clean(row.driver_id)).filter(Boolean));
+}
+
+/* =========================================================
+   AI DISPATCH SCORING
+========================================================= */
+function distanceMilesBetweenDriverAndPickup(driver, ride) {
+  const driverLat = getDriverLatitude(driver);
+  const driverLng = getDriverLongitude(driver);
+
+  const rideLat = parseNullableNumber(ride?.pickup_latitude);
+  const rideLng = parseNullableNumber(ride?.pickup_longitude);
+
+  const distance = haversineMiles(driverLat, driverLng, rideLat, rideLng);
+  if (!distance || !Number.isFinite(distance)) return 9999;
+
+  return distance;
+}
+
+function getRideTypeScoreBoost(ride = {}) {
+  const type = normalizeRideType(ride.ride_type || "standard");
+  if (type === "airport") return 4;
+  if (type === "medical") return 6;
+  if (type === "scheduled") return 2;
+  if (type === "nonprofit") return 1;
+  return 0;
+}
+
+function getModeScoreBoost(driver, ride) {
+  const requestedMode = normalizeRideMode(ride?.requested_mode || "driver");
+  const driverType = normalizeDriverType(driver?.driver_type || "human");
+
+  if (requestedMode === "autonomous" && driverType === "autonomous") return 15;
+  if (requestedMode === "driver" && driverType === "human") return 10;
+  return 0;
+}
+
+function scoreDriverForRide(driver, ride) {
+  const distance = distanceMilesBetweenDriverAndPickup(driver, ride);
+  const rating = getDriverRating(driver);
+  const completedTrips = getDriverCompletedTrips(driver);
+  const acceptanceRate = getDriverAcceptanceRate(driver);
+
+  let score = 0;
+
+  score += Math.max(0, 120 - distance * 9);
+  score += rating * 9;
+  score += Math.min(25, completedTrips * 0.15);
+  score += acceptanceRate * 30;
+  score += getRideTypeScoreBoost(ride);
+  score += getModeScoreBoost(driver, ride);
+
+  return {
+    score: roundMoney(score),
+    distance_miles_to_pickup: roundMoney(distance),
+    rating,
+    completed_trips: completedTrips,
+    acceptance_rate: acceptanceRate
+  };
+}
+
 async function getCandidateDriversForRide(ride) {
-  const mode = normalizeRideMode(ride?.requested_mode || "driver");
+  const triedDriverIds = await getTriedDriverIdsForRide(ride.id);
 
   const { data, error } = await requireSupabase()
     .from("drivers")
@@ -1948,26 +1294,30 @@ async function getCandidateDriversForRide(ride) {
 
   if (error) throw error;
 
-  const drivers = (data || []).filter((driver) =>
-    driverCanReceiveMission(driver, mode)
-  );
-
-  return drivers
+  const candidates = (data || [])
+    .filter((driver) => !triedDriverIds.has(clean(driver.id)))
+    .filter((driver) => driverCanReceiveDispatch(driver, ride.requested_mode))
     .map((driver) => {
       const scoring = scoreDriverForRide(driver, ride);
-      return {
-        driver,
-        scoring
-      };
+      return { driver, scoring };
     })
     .sort((a, b) => b.scoring.score - a.scoring.score);
+
+  return candidates;
 }
 
-async function createMissionForRide(ride, driver, dispatchMeta = {}) {
-  const existingMission = await getMissionByRideId(ride.id);
-  if (existingMission) return existingMission;
+/* =========================================================
+   DISPATCH CREATION HELPERS
+========================================================= */
+function getDispatchExpiresAt() {
+  return new Date(Date.now() + DISPATCH_TIMEOUT_SECONDS * 1000).toISOString();
+}
 
-  const mission = await insertRow("missions", {
+async function createMissionForRide(ride, driver, scoring = {}) {
+  const existing = await getMissionByRideId(ride.id);
+  if (existing) return existing;
+
+  return insertRow("missions", {
     id: createId("mission"),
     ride_id: ride.id,
     rider_id: clean(ride.rider_id),
@@ -1976,27 +1326,20 @@ async function createMissionForRide(ride, driver, dispatchMeta = {}) {
     mission_status: "offered",
     requested_mode: normalizeRideMode(ride.requested_mode || "driver"),
     mission_snapshot: {
-      ride_id: ride.id,
       pickup_address: ride.pickup_address,
       dropoff_address: ride.dropoff_address,
       estimated_total: ride.estimated_total,
       estimated_driver_payout: ride.estimated_driver_payout,
-      passenger_count: ride.passenger_count,
       ride_type: ride.ride_type,
-      requested_mode: ride.requested_mode,
-      notes: ride.notes || null,
-      dispatch_meta: dispatchMeta
+      scoring
     },
     created_at: nowIso(),
     updated_at: nowIso()
   });
-
-  return mission;
 }
 
-async function createDispatchForRide(ride, driver, scoring) {
+async function createDispatchForRide(ride, driver, scoring = {}) {
   const attemptNumber = (await countDispatchAttemptsForRide(ride.id)) + 1;
-  const expiresAt = getDispatchExpiresAt();
 
   return insertRow("dispatches", {
     id: createId("dispatch"),
@@ -2007,7 +1350,7 @@ async function createDispatchForRide(ride, driver, scoring) {
     dispatch_status: "awaiting_driver_acceptance",
     attempt_number: attemptNumber,
     offered_at: nowIso(),
-    expires_at: expiresAt,
+    expires_at: getDispatchExpiresAt(),
     scoring_snapshot: scoring,
     created_at: nowIso(),
     updated_at: nowIso()
@@ -2015,150 +1358,42 @@ async function createDispatchForRide(ride, driver, scoring) {
 }
 
 async function assignDriverToRide(ride, driver, dispatch, mission) {
-  const updatedRides = await updateRows(
+  const updatedRows = await updateRows(
     "rides",
     { id: ride.id },
     {
       driver_id: driver.id,
-      mission_id: mission.id,
       dispatch_id: dispatch.id,
+      mission_id: mission.id,
       status: "awaiting_driver_acceptance",
       updated_at: nowIso()
     }
   );
 
-  await updateRows(
-    "missions",
-    { id: mission.id },
-    {
-      driver_id: driver.id,
-      status: "offered",
-      mission_status: "offered",
-      updated_at: nowIso()
-    }
-  );
-
-  return updatedRides?.[0] || ride;
-}
-
-async function expireDispatch(dispatch, reason = "expired") {
-  if (!dispatch?.id) return null;
-
-  const updated = await updateRows(
-    "dispatches",
-    { id: dispatch.id },
-    {
-      status: "expired",
-      dispatch_status: "expired",
-      expired_at: nowIso(),
-      expiry_reason: clean(reason || "expired"),
-      updated_at: nowIso()
-    }
-  );
-
-  return updated?.[0] || null;
-}
-
-async function rejectDispatch(dispatch, reason = "declined") {
-  if (!dispatch?.id) return null;
-
-  const updated = await updateRows(
-    "dispatches",
-    { id: dispatch.id },
-    {
-      status: "declined",
-      dispatch_status: "declined",
-      declined_at: nowIso(),
-      decline_reason: clean(reason || "declined"),
-      updated_at: nowIso()
-    }
-  );
-
-  return updated?.[0] || null;
-}
-
-async function markMissionExpired(missionId, reason = "dispatch_expired") {
-  if (!missionId) return null;
-
-  const updated = await updateRows(
-    "missions",
-    { id: missionId },
-    {
-      status: "expired",
-      mission_status: "expired",
-      expiry_reason: clean(reason),
-      updated_at: nowIso()
-    }
-  );
-
-  return updated?.[0] || null;
-}
-
-async function markMissionDeclined(missionId, reason = "driver_declined") {
-  if (!missionId) return null;
-
-  const updated = await updateRows(
-    "missions",
-    { id: missionId },
-    {
-      status: "declined",
-      mission_status: "declined",
-      decline_reason: clean(reason),
-      updated_at: nowIso()
-    }
-  );
-
-  return updated?.[0] || null;
-}
-
-async function moveRideBackToDispatchQueue(rideId) {
-  const updated = await updateRows(
-    "rides",
-    { id: clean(rideId) },
-    {
-      driver_id: null,
-      mission_id: null,
-      dispatch_id: null,
-      status: "awaiting_dispatch",
-      updated_at: nowIso()
-    }
-  );
-
-  return updated?.[0] || null;
-}
-
-async function markRideNoDriverAvailable(rideId) {
-  const updated = await updateRows(
-    "rides",
-    { id: clean(rideId) },
-    {
-      status: "no_driver_available",
-      updated_at: nowIso()
-    }
-  );
-
-  return updated?.[0] || null;
+  return updatedRows?.[0] || ride;
 }
 
 async function notifyDriverOfMission(driver, ride, dispatch) {
-  const to = driver?.phone;
   const body =
     `Harvey Taxi mission available. ` +
-    `Pickup: ${clean(ride?.pickup_address)}. ` +
-    `Dropoff: ${clean(ride?.dropoff_address)}. ` +
-    `Fare est: $${roundMoney(ride?.estimated_total || 0)}. ` +
-    `Dispatch ID: ${clean(dispatch?.id)}.`;
+    `Pickup: ${clean(ride.pickup_address)}. ` +
+    `Dropoff: ${clean(ride.dropoff_address)}. ` +
+    `Fare est: $${roundMoney(ride.estimated_total)}. ` +
+    `Dispatch ID: ${clean(dispatch.id)}.`;
 
-  return sendSms({ to, body });
+  return sendSms({
+    to: driver.phone,
+    body
+  });
 }
 
+/* =========================================================
+   AI DISPATCH ENGINE
+========================================================= */
 async function dispatchRideToBestDriver(rideId) {
   const ride = await getRideById(rideId);
   if (!ride) {
-    return {
-      ok: false,
-      error: "Ride not found"
-    };
+    return { ok: false, error: "Ride not found" };
   }
 
   const currentStatus = normalizeRideStatus(ride.status);
@@ -2175,18 +1410,28 @@ async function dispatchRideToBestDriver(rideId) {
       ok: true,
       reused: true,
       ride,
-      dispatch: activeDispatch
+      dispatch: activeDispatch,
+      mission: await getMissionByRideId(ride.id),
+      driver: activeDispatch.driver_id ? await getDriverById(activeDispatch.driver_id) : null
     };
   }
 
   const attempts = await countDispatchAttemptsForRide(ride.id);
   if (attempts >= MAX_DISPATCH_ATTEMPTS) {
-    const noDriverRide = await markRideNoDriverAvailable(ride.id);
+    const noDriverRows = await updateRows(
+      "rides",
+      { id: ride.id },
+      {
+        status: "no_driver_available",
+        updated_at: nowIso()
+      }
+    );
+
+    const noDriverRide = noDriverRows?.[0] || ride;
 
     await logTripEvent({
       ride_id: ride.id,
       rider_id: ride.rider_id,
-      driver_id: null,
       event_type: "dispatch_failed_max_attempts",
       details: {
         attempts,
@@ -2197,14 +1442,23 @@ async function dispatchRideToBestDriver(rideId) {
     return {
       ok: false,
       error: "No driver available after max dispatch attempts",
-      ride: noDriverRide || ride
+      ride: noDriverRide
     };
   }
 
   const candidates = await getCandidateDriversForRide(ride);
 
   if (!candidates.length) {
-    const noDriverRide = await markRideNoDriverAvailable(ride.id);
+    const noDriverRows = await updateRows(
+      "rides",
+      { id: ride.id },
+      {
+        status: "no_driver_available",
+        updated_at: nowIso()
+      }
+    );
+
+    const noDriverRide = noDriverRows?.[0] || ride;
 
     await logTripEvent({
       ride_id: ride.id,
@@ -2218,16 +1472,12 @@ async function dispatchRideToBestDriver(rideId) {
     return {
       ok: false,
       error: "No eligible drivers available",
-      ride: noDriverRide || ride
+      ride: noDriverRide
     };
   }
 
   const selected = candidates[0];
-  const mission = await createMissionForRide(ride, selected.driver, {
-    score: selected.scoring.score,
-    distance_miles_to_pickup: selected.scoring.distance_miles_to_pickup
-  });
-
+  const mission = await createMissionForRide(ride, selected.driver, selected.scoring);
   const dispatch = await createDispatchForRide(ride, selected.driver, selected.scoring);
   const updatedRide = await assignDriverToRide(ride, selected.driver, dispatch, mission);
 
@@ -2250,6 +1500,7 @@ async function dispatchRideToBestDriver(rideId) {
 
   return {
     ok: true,
+    reused: false,
     ride: updatedRide,
     driver: selected.driver,
     mission,
@@ -2266,9 +1517,7 @@ app.post("/api/driver/signup", asyncHandler(async (req, res) => {
   const lastName = clean(req.body.last_name || req.body.lastName);
   const email = lower(req.body.email);
   const phone = normalizePhone(req.body.phone);
-  const driverType = normalizeDriverType(
-    req.body.driver_type || req.body.driverType || "human"
-  );
+  const driverType = normalizeDriverType(req.body.driver_type || req.body.driverType || "human");
 
   if (!firstName) return fail(res, "First name is required");
   if (!lastName) return fail(res, "Last name is required");
@@ -2328,7 +1577,7 @@ app.post("/api/driver/signup", asyncHandler(async (req, res) => {
 }));
 
 app.post("/api/driver/status", asyncHandler(async (req, res) => {
-  const driver = await resolveDriverFromRequest(req.body);
+  const driver = await resolveDriver(req.body);
   if (!driver) return fail(res, "Driver not found", 404);
 
   return ok(res, {
@@ -2356,7 +1605,7 @@ app.get("/api/driver/:driverId/status", asyncHandler(async (req, res) => {
 }));
 
 app.post("/api/driver/go-online", asyncHandler(async (req, res) => {
-  const driver = await resolveDriverFromRequest(req.body);
+  const driver = await resolveDriver(req.body);
   if (!driver) return fail(res, "Driver not found", 404);
 
   if (!driverIsApproved(driver)) {
@@ -2384,7 +1633,7 @@ app.post("/api/driver/go-online", asyncHandler(async (req, res) => {
 }));
 
 app.post("/api/driver/go-offline", asyncHandler(async (req, res) => {
-  const driver = await resolveDriverFromRequest(req.body);
+  const driver = await resolveDriver(req.body);
   if (!driver) return fail(res, "Driver not found", 404);
 
   const updated = await updateRows(
@@ -2404,15 +1653,11 @@ app.post("/api/driver/go-offline", asyncHandler(async (req, res) => {
 }));
 
 app.post("/api/driver/location", asyncHandler(async (req, res) => {
-  const driver = await resolveDriverFromRequest(req.body);
+  const driver = await resolveDriver(req.body);
   if (!driver) return fail(res, "Driver not found", 404);
 
-  const latitude = parseNullableNumber(
-    req.body.latitude ?? req.body.current_latitude ?? req.body.lat
-  );
-  const longitude = parseNullableNumber(
-    req.body.longitude ?? req.body.current_longitude ?? req.body.lng
-  );
+  const latitude = parseNullableNumber(req.body.latitude ?? req.body.current_latitude ?? req.body.lat);
+  const longitude = parseNullableNumber(req.body.longitude ?? req.body.current_longitude ?? req.body.lng);
 
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
     return fail(res, "Valid latitude and longitude are required");
@@ -2493,13 +1738,7 @@ app.get("/api/driver/:driverId/current-mission", asyncHandler(async (req, res) =
     .from("missions")
     .select("*")
     .eq("driver_id", driverId)
-    .in("status", [
-      "offered",
-      "accepted",
-      "driver_en_route",
-      "arrived",
-      "in_progress"
-    ])
+    .in("status", ["offered", "accepted", "driver_en_route", "arrived", "in_progress"])
     .order("updated_at", { ascending: false })
     .limit(1);
 
@@ -2539,7 +1778,7 @@ app.get("/api/driver/:driverId/missions", asyncHandler(async (req, res) => {
    ACCEPT / DECLINE ROUTES
 ========================================================= */
 app.post("/api/mission/accept", asyncHandler(async (req, res) => {
-  const driver = await resolveDriverFromRequest(req.body);
+  const driver = await resolveDriver(req.body);
   if (!driver) return fail(res, "Driver not found", 404);
 
   const dispatchId = pickFirst(req.body.dispatch_id, req.body.dispatchId);
@@ -2567,9 +1806,26 @@ app.post("/api/mission/accept", asyncHandler(async (req, res) => {
   }
 
   if (new Date(dispatch.expires_at).getTime() < Date.now()) {
-    await expireDispatch(dispatch, "accepted_after_expiry");
-    await markMissionExpired(mission.id, "accepted_after_expiry");
-    await moveRideBackToDispatchQueue(dispatch.ride_id);
+    await updateRows("dispatches", { id: dispatch.id }, {
+      status: "expired",
+      dispatch_status: "expired",
+      expired_at: nowIso(),
+      updated_at: nowIso()
+    });
+
+    await updateRows("missions", { id: mission.id }, {
+      status: "expired",
+      mission_status: "expired",
+      updated_at: nowIso()
+    });
+
+    await updateRows("rides", { id: dispatch.ride_id }, {
+      driver_id: null,
+      mission_id: null,
+      dispatch_id: null,
+      status: "awaiting_dispatch",
+      updated_at: nowIso()
+    });
 
     return fail(res, "Dispatch has expired", 410);
   }
@@ -2577,39 +1833,27 @@ app.post("/api/mission/accept", asyncHandler(async (req, res) => {
   const ride = await getRideById(dispatch.ride_id);
   if (!ride) return fail(res, "Ride not found", 404);
 
-  const updatedDispatch = await updateRows(
-    "dispatches",
-    { id: dispatch.id },
-    {
-      status: "accepted",
-      dispatch_status: "accepted",
-      accepted_at: nowIso(),
-      updated_at: nowIso()
-    }
-  );
+  const updatedDispatch = await updateRows("dispatches", { id: dispatch.id }, {
+    status: "accepted",
+    dispatch_status: "accepted",
+    accepted_at: nowIso(),
+    updated_at: nowIso()
+  });
 
-  const updatedMission = await updateRows(
-    "missions",
-    { id: mission.id },
-    {
-      status: "accepted",
-      mission_status: "accepted",
-      accepted_at: nowIso(),
-      updated_at: nowIso()
-    }
-  );
+  const updatedMission = await updateRows("missions", { id: mission.id }, {
+    status: "accepted",
+    mission_status: "accepted",
+    accepted_at: nowIso(),
+    updated_at: nowIso()
+  });
 
-  const updatedRide = await updateRows(
-    "rides",
-    { id: ride.id },
-    {
-      driver_id: driver.id,
-      mission_id: mission.id,
-      dispatch_id: dispatch.id,
-      status: "dispatched",
-      updated_at: nowIso()
-    }
-  );
+  const updatedRide = await updateRows("rides", { id: ride.id }, {
+    driver_id: driver.id,
+    mission_id: mission.id,
+    dispatch_id: dispatch.id,
+    status: "dispatched",
+    updated_at: nowIso()
+  });
 
   await logTripEvent({
     ride_id: ride.id,
@@ -2631,7 +1875,7 @@ app.post("/api/mission/accept", asyncHandler(async (req, res) => {
 }));
 
 app.post("/api/mission/decline", asyncHandler(async (req, res) => {
-  const driver = await resolveDriverFromRequest(req.body);
+  const driver = await resolveDriver(req.body);
   if (!driver) return fail(res, "Driver not found", 404);
 
   const dispatchId = pickFirst(req.body.dispatch_id, req.body.dispatchId);
@@ -2655,9 +1899,30 @@ app.post("/api/mission/decline", asyncHandler(async (req, res) => {
     return fail(res, "This dispatch is not assigned to this driver", 403);
   }
 
-  await rejectDispatch(dispatch, reason);
-  await markMissionDeclined(mission.id, reason);
-  const queuedRide = await moveRideBackToDispatchQueue(dispatch.ride_id);
+  await updateRows("dispatches", { id: dispatch.id }, {
+    status: "declined",
+    dispatch_status: "declined",
+    declined_at: nowIso(),
+    decline_reason: reason,
+    updated_at: nowIso()
+  });
+
+  await updateRows("missions", { id: mission.id }, {
+    status: "declined",
+    mission_status: "declined",
+    decline_reason: reason,
+    updated_at: nowIso()
+  });
+
+  const queuedRideRows = await updateRows("rides", { id: dispatch.ride_id }, {
+    driver_id: null,
+    mission_id: null,
+    dispatch_id: null,
+    status: "awaiting_dispatch",
+    updated_at: nowIso()
+  });
+
+  const queuedRide = queuedRideRows?.[0] || null;
 
   await logTripEvent({
     ride_id: dispatch.ride_id,
@@ -2689,7 +1954,7 @@ app.post("/api/mission/decline", asyncHandler(async (req, res) => {
    RIDE STATUS LIFECYCLE
 ========================================================= */
 app.post("/api/mission/en-route", asyncHandler(async (req, res) => {
-  const driver = await resolveDriverFromRequest(req.body);
+  const driver = await resolveDriver(req.body);
   if (!driver) return fail(res, "Driver not found", 404);
 
   const missionId = pickFirst(req.body.mission_id, req.body.missionId);
@@ -2704,24 +1969,16 @@ app.post("/api/mission/en-route", asyncHandler(async (req, res) => {
   const ride = await getRideById(mission.ride_id);
   if (!ride) return fail(res, "Ride not found", 404);
 
-  const updatedMission = await updateRows(
-    "missions",
-    { id: mission.id },
-    {
-      status: "driver_en_route",
-      mission_status: "driver_en_route",
-      updated_at: nowIso()
-    }
-  );
+  const updatedMission = await updateRows("missions", { id: mission.id }, {
+    status: "driver_en_route",
+    mission_status: "driver_en_route",
+    updated_at: nowIso()
+  });
 
-  const updatedRide = await updateRows(
-    "rides",
-    { id: ride.id },
-    {
-      status: "driver_en_route",
-      updated_at: nowIso()
-    }
-  );
+  const updatedRide = await updateRows("rides", { id: ride.id }, {
+    status: "driver_en_route",
+    updated_at: nowIso()
+  });
 
   await logTripEvent({
     ride_id: ride.id,
@@ -2740,7 +1997,7 @@ app.post("/api/mission/en-route", asyncHandler(async (req, res) => {
 }));
 
 app.post("/api/mission/arrived", asyncHandler(async (req, res) => {
-  const driver = await resolveDriverFromRequest(req.body);
+  const driver = await resolveDriver(req.body);
   if (!driver) return fail(res, "Driver not found", 404);
 
   const missionId = pickFirst(req.body.mission_id, req.body.missionId);
@@ -2752,24 +2009,16 @@ app.post("/api/mission/arrived", asyncHandler(async (req, res) => {
   const ride = await getRideById(mission.ride_id);
   if (!ride) return fail(res, "Ride not found", 404);
 
-  const updatedMission = await updateRows(
-    "missions",
-    { id: mission.id },
-    {
-      status: "arrived",
-      mission_status: "arrived",
-      updated_at: nowIso()
-    }
-  );
+  const updatedMission = await updateRows("missions", { id: mission.id }, {
+    status: "arrived",
+    mission_status: "arrived",
+    updated_at: nowIso()
+  });
 
-  const updatedRide = await updateRows(
-    "rides",
-    { id: ride.id },
-    {
-      status: "arrived",
-      updated_at: nowIso()
-    }
-  );
+  const updatedRide = await updateRows("rides", { id: ride.id }, {
+    status: "arrived",
+    updated_at: nowIso()
+  });
 
   await logTripEvent({
     ride_id: ride.id,
@@ -2788,7 +2037,7 @@ app.post("/api/mission/arrived", asyncHandler(async (req, res) => {
 }));
 
 app.post("/api/mission/start-trip", asyncHandler(async (req, res) => {
-  const driver = await resolveDriverFromRequest(req.body);
+  const driver = await resolveDriver(req.body);
   if (!driver) return fail(res, "Driver not found", 404);
 
   const missionId = pickFirst(req.body.mission_id, req.body.missionId);
@@ -2800,26 +2049,18 @@ app.post("/api/mission/start-trip", asyncHandler(async (req, res) => {
   const ride = await getRideById(mission.ride_id);
   if (!ride) return fail(res, "Ride not found", 404);
 
-  const updatedMission = await updateRows(
-    "missions",
-    { id: mission.id },
-    {
-      status: "in_progress",
-      mission_status: "in_progress",
-      started_at: nowIso(),
-      updated_at: nowIso()
-    }
-  );
+  const updatedMission = await updateRows("missions", { id: mission.id }, {
+    status: "in_progress",
+    mission_status: "in_progress",
+    started_at: nowIso(),
+    updated_at: nowIso()
+  });
 
-  const updatedRide = await updateRows(
-    "rides",
-    { id: ride.id },
-    {
-      status: "in_progress",
-      started_at: nowIso(),
-      updated_at: nowIso()
-    }
-  );
+  const updatedRide = await updateRows("rides", { id: ride.id }, {
+    status: "in_progress",
+    started_at: nowIso(),
+    updated_at: nowIso()
+  });
 
   await logTripEvent({
     ride_id: ride.id,
@@ -2838,7 +2079,7 @@ app.post("/api/mission/start-trip", asyncHandler(async (req, res) => {
 }));
 
 app.post("/api/mission/complete", asyncHandler(async (req, res) => {
-  const driver = await resolveDriverFromRequest(req.body);
+  const driver = await resolveDriver(req.body);
   if (!driver) return fail(res, "Driver not found", 404);
 
   const missionId = pickFirst(req.body.mission_id, req.body.missionId);
@@ -2850,26 +2091,18 @@ app.post("/api/mission/complete", asyncHandler(async (req, res) => {
   const ride = await getRideById(mission.ride_id);
   if (!ride) return fail(res, "Ride not found", 404);
 
-  const updatedMission = await updateRows(
-    "missions",
-    { id: mission.id },
-    {
-      status: "completed",
-      mission_status: "completed",
-      completed_at: nowIso(),
-      updated_at: nowIso()
-    }
-  );
+  const updatedMission = await updateRows("missions", { id: mission.id }, {
+    status: "completed",
+    mission_status: "completed",
+    completed_at: nowIso(),
+    updated_at: nowIso()
+  });
 
-  const updatedRide = await updateRows(
-    "rides",
-    { id: ride.id },
-    {
-      status: "completed",
-      completed_at: nowIso(),
-      updated_at: nowIso()
-    }
-  );
+  const updatedRide = await updateRows("rides", { id: ride.id }, {
+    status: "completed",
+    completed_at: nowIso(),
+    updated_at: nowIso()
+  });
 
   await logTripEvent({
     ride_id: ride.id,
@@ -2890,7 +2123,7 @@ app.post("/api/mission/complete", asyncHandler(async (req, res) => {
 }));
 
 /* =========================================================
-   DISPATCH EXPIRY SWEEP
+   AUTO REDISPATCH SWEEP
 ========================================================= */
 async function sweepExpiredDispatches() {
   runtimeState.dispatchSweep.lastRanAt = nowIso();
@@ -2908,14 +2141,34 @@ async function sweepExpiredDispatches() {
   const results = [];
 
   for (const dispatch of expiredDispatches) {
-    const expired = await expireDispatch(dispatch, "timeout");
+    const expiredRows = await updateRows("dispatches", { id: dispatch.id }, {
+      status: "expired",
+      dispatch_status: "expired",
+      expired_at: nowIso(),
+      expiry_reason: "timeout",
+      updated_at: nowIso()
+    });
+    const expired = expiredRows?.[0] || dispatch;
 
     const mission = await getMissionByRideId(dispatch.ride_id);
     if (mission && clean(mission.driver_id) === clean(dispatch.driver_id)) {
-      await markMissionExpired(mission.id, "timeout");
+      await updateRows("missions", { id: mission.id }, {
+        status: "expired",
+        mission_status: "expired",
+        expiry_reason: "timeout",
+        updated_at: nowIso()
+      });
     }
 
-    const queuedRide = await moveRideBackToDispatchQueue(dispatch.ride_id);
+    const queuedRideRows = await updateRows("rides", { id: dispatch.ride_id }, {
+      driver_id: null,
+      mission_id: null,
+      dispatch_id: null,
+      status: "awaiting_dispatch",
+      updated_at: nowIso()
+    });
+
+    const queuedRide = queuedRideRows?.[0] || null;
 
     await logTripEvent({
       ride_id: dispatch.ride_id,
@@ -2935,7 +2188,7 @@ async function sweepExpiredDispatches() {
     }
 
     results.push({
-      expired_dispatch_id: expired?.id || dispatch.id,
+      expired_dispatch_id: expired.id || dispatch.id,
       ride_id: dispatch.ride_id,
       redispatch_ok: !!redispatch?.ok
     });
@@ -2943,7 +2196,10 @@ async function sweepExpiredDispatches() {
     await sleep(25);
 
     if (!queuedRide && !redispatch?.ok) {
-      await markRideNoDriverAvailable(dispatch.ride_id);
+      await updateRows("rides", { id: dispatch.ride_id }, {
+        status: "no_driver_available",
+        updated_at: nowIso()
+      });
     }
   }
 
@@ -3008,11 +2264,13 @@ app.get("/api/admin/dispatch/state", requireAdmin, asyncHandler(async (req, res)
       dispatch_timeout_seconds: DISPATCH_TIMEOUT_SECONDS,
       dispatch_sweep_interval_ms: DISPATCH_SWEEP_INTERVAL_MS,
       max_dispatch_attempts: MAX_DISPATCH_ATTEMPTS,
-      auto_redispatch_enabled: ENABLE_AUTO_REDISPATCH
+      auto_redispatch_enabled: ENABLE_AUTO_REDISPATCH,
+      ai_dispatch_enabled: ENABLE_AI_DISPATCH
     }
   });
 }));/* =========================================================
-   PART 4: LIVE STATUS + PAYMENTS + TIPPING + EARNINGS + ADMIN + AI
+   PART 4 OF 4
+   LIVE STATUS + PAYMENTS + TIPPING + EARNINGS + ADMIN + AI OPERATIONS + SUPPORT
 ========================================================= */
 
 /* =========================================================
@@ -3116,6 +2374,37 @@ function getRideTipAmount(ride) {
   return roundMoney(ride?.tip_amount || 0);
 }
 
+function buildPaymentSummary(payment) {
+  if (!payment) {
+    return {
+      payment_id: null,
+      status: "missing",
+      is_authorized: false,
+      authorization_amount: 0
+    };
+  }
+
+  const normalizedStatus = normalizePaymentStatus(
+    payment.status || payment.payment_status || payment.authorization_status
+  );
+
+  return {
+    payment_id: payment.id || null,
+    status: normalizedStatus,
+    is_authorized:
+      normalizedStatus === "authorized" || normalizedStatus === "captured",
+    authorization_amount: roundMoney(
+      payment.authorization_amount ||
+        payment.amount_authorized ||
+        payment.amount ||
+        0
+    ),
+    captured_amount: roundMoney(payment.captured_amount || 0),
+    tip_amount: roundMoney(payment.tip_amount || 0),
+    currency: clean(payment.currency || "USD")
+  };
+}
+
 /* =========================================================
    LIVE STATUS HELPERS
 ========================================================= */
@@ -3175,7 +2464,7 @@ async function buildRideLiveState(rideId) {
 }
 
 /* =========================================================
-   PAGE / AI HELPERS
+   PAGE / AI SUPPORT HELPERS
 ========================================================= */
 function normalizePage(page = "") {
   const value = lower(page);
@@ -3196,7 +2485,7 @@ function getFallbackReply(message = "", page = "general") {
   const normalizedPage = normalizePage(page);
 
   if (!text) {
-    return "Welcome to Harvey Taxi support. I can help with rider approval, driver onboarding, ride requests, payment authorization, trip status, dispatch, and autonomous pilot questions.";
+    return "Welcome to Harvey Taxi support. I can help with rider approval, driver onboarding, ride requests, payment authorization, trip status, dispatch, AI operations, and autonomous pilot questions.";
   }
 
   if (text.includes("emergency") || text.includes("911")) {
@@ -3205,7 +2494,7 @@ function getFallbackReply(message = "", page = "general") {
 
   if (text.includes("rider") || normalizedPage === "rider") {
     if (text.includes("approved") || text.includes("approval") || text.includes("verify")) {
-      return "Riders must be approved before they can request a ride. Use the rider status check to confirm whether the account is approved.";
+      return "Riders must be approved before they can request a ride. Use rider status to confirm approval.";
     }
     if (text.includes("payment")) {
       return "Harvey Taxi uses payment authorization before dispatch so the ride can move forward smoothly once a driver is assigned.";
@@ -3227,6 +2516,10 @@ function getFallbackReply(message = "", page = "general") {
     return "Harvey Taxi authorizes payment before dispatch, captures payment when the trip is completed, and supports tipping during or after the trip.";
   }
 
+  if (text.includes("operations") || text.includes("dispatch")) {
+    return "Harvey Taxi AI operations can support dispatch prioritization, live ride monitoring, and operational recommendations while you keep final authority over sensitive decisions.";
+  }
+
   if (text.includes("autonomous") || text.includes("pilot") || text.includes("av")) {
     return "Autonomous service is currently treated as a pilot mode. It is clearly labeled so riders understand when they are requesting a driver versus autonomous service.";
   }
@@ -3235,7 +2528,7 @@ function getFallbackReply(message = "", page = "general") {
     return "To request a ride, the rider must be approved first, then payment must be authorized, then the request can enter dispatch and be offered to an eligible driver.";
   }
 
-  return "I can help with Harvey Taxi rider signup, driver onboarding, payment authorization, ride dispatch, trip tracking, support questions, and autonomous pilot information.";
+  return "I can help with Harvey Taxi rider signup, driver onboarding, payment authorization, ride dispatch, trip tracking, support questions, and operational AI guidance.";
 }
 
 async function generateAiSupportReply({
@@ -3264,7 +2557,7 @@ async function generateAiSupportReply({
   }
 
   const systemPrompt = `
-You are Harvey Taxi AI Support for Harvey Taxi Service LLC and Harvey Assistance Foundation.
+You are Harvey Taxi AI Support for Harvey Taxi Service LLC.
 Your tone is calm, clear, professional, and helpful.
 Never invent policies.
 Always explain that:
@@ -3315,6 +2608,121 @@ ${clean(message)}
     return {
       reply: fallback,
       source: "fallback"
+    };
+  }
+}
+
+/* =========================================================
+   AI OPERATIONS HELPER
+========================================================= */
+async function buildOperationsSnapshot() {
+  const db = requireSupabase();
+
+  async function countTable(table, filters = null) {
+    let query = db.from(table).select("*", { count: "exact", head: true });
+
+    if (filters && Array.isArray(filters)) {
+      for (const filter of filters) {
+        if (filter.op === "eq") query = query.eq(filter.column, filter.value);
+        if (filter.op === "in") query = query.in(filter.column, filter.value);
+      }
+    }
+
+    const { count, error } = await query;
+    if (error) throw error;
+    return Number(count || 0);
+  }
+
+  const [
+    totalRides,
+    activeRides,
+    awaitingDispatch,
+    noDriverAvailable,
+    onlineDrivers,
+    approvedDrivers
+  ] = await Promise.all([
+    countTable("rides"),
+    countTable("rides", [
+      {
+        op: "in",
+        column: "status",
+        value: ["awaiting_driver_acceptance", "dispatched", "driver_en_route", "arrived", "in_progress"]
+      }
+    ]),
+    countTable("rides", [{ op: "eq", column: "status", value: "awaiting_dispatch" }]),
+    countTable("rides", [{ op: "eq", column: "status", value: "no_driver_available" }]),
+    countTable("drivers", [
+      { op: "in", column: "availability_status", value: ["online", "available", "ready", "active"] }
+    ]),
+    countTable("drivers", [
+      { op: "in", column: "status", value: ["approved", "active"] }
+    ])
+  ]);
+
+  return {
+    generated_at: nowIso(),
+    total_rides: totalRides,
+    active_rides: activeRides,
+    awaiting_dispatch: awaitingDispatch,
+    no_driver_available: noDriverAvailable,
+    online_drivers: onlineDrivers,
+    approved_drivers: approvedDrivers,
+    dispatch_timeout_seconds: DISPATCH_TIMEOUT_SECONDS,
+    max_dispatch_attempts: MAX_DISPATCH_ATTEMPTS
+  };
+}
+
+async function generateAiOperationsRecommendation(snapshot) {
+  if (!openai || !ENABLE_AI_OPERATIONS) {
+    return {
+      source: "fallback",
+      recommendation:
+        snapshot.awaiting_dispatch > snapshot.online_drivers
+          ? "Demand is exceeding available online drivers. Recommend increasing online driver supply or manually prioritizing urgent rides."
+          : "Operations appear stable. Continue monitoring dispatch queue, driver availability, and no-driver ride count."
+    };
+  }
+
+  const systemPrompt = `
+You are an operations advisor for Harvey Taxi Service LLC.
+You provide concise, practical, non-alarmist operational recommendations.
+Focus on dispatch pressure, ride backlog, online driver supply, and no-driver-available rides.
+Do not invent facts beyond the provided snapshot.
+`.trim();
+
+  const userPrompt = `
+Operations snapshot:
+${JSON.stringify(snapshot, null, 2)}
+
+Provide:
+1. one short operational summary
+2. top 3 practical recommendations
+`.trim();
+
+  try {
+    const response = await openai.responses.create({
+      model: OPENAI_OPERATIONS_MODEL,
+      input: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt }
+      ]
+    });
+
+    runtimeState.aiOperations.lastRecommendationAt = nowIso();
+    runtimeState.aiOperations.lastRecommendationError = null;
+
+    return {
+      source: "openai",
+      recommendation: clean(response?.output_text || "") || "No recommendation generated."
+    };
+  } catch (error) {
+    runtimeState.aiOperations.lastRecommendationError = clean(error?.message || String(error));
+    return {
+      source: "fallback",
+      recommendation:
+        snapshot.awaiting_dispatch > snapshot.online_drivers
+          ? "Dispatch queue pressure is elevated. Recommend bringing more approved drivers online and reviewing rides waiting for dispatch."
+          : "Operations look balanced. Keep monitoring active rides, expiring dispatches, and no-driver outcomes."
     };
   }
 }
@@ -3661,46 +3069,9 @@ app.get("/api/driver/:driverId/earnings", asyncHandler(async (req, res) => {
    ADMIN ANALYTICS ROUTES
 ========================================================= */
 app.get("/api/admin/analytics/overview", requireAdmin, asyncHandler(async (req, res) => {
-  const db = requireSupabase();
+  const snapshot = await buildOperationsSnapshot();
 
-  async function countTable(table, filters = null) {
-    let query = db.from(table).select("*", { count: "exact", head: true });
-
-    if (filters && Array.isArray(filters)) {
-      for (const filter of filters) {
-        if (filter.op === "eq") query = query.eq(filter.column, filter.value);
-        if (filter.op === "in") query = query.in(filter.column, filter.value);
-      }
-    }
-
-    const { count, error } = await query;
-    if (error) throw error;
-    return Number(count || 0);
-  }
-
-  const [
-    totalRiders,
-    approvedRiders,
-    totalDrivers,
-    approvedDrivers,
-    onlineDrivers,
-    totalRides,
-    activeRides,
-    completedRides,
-    noDriverRides
-  ] = await Promise.all([
-    countTable("riders"),
-    countTable("riders", [{ op: "in", column: "status", value: ["approved", "verified", "active"] }]),
-    countTable("drivers"),
-    countTable("drivers", [{ op: "in", column: "status", value: ["approved", "active"] }]),
-    countTable("drivers", [{ op: "in", column: "availability_status", value: ["online", "available", "ready", "active"] }]),
-    countTable("rides"),
-    countTable("rides", [{ op: "in", column: "status", value: ["awaiting_driver_acceptance", "dispatched", "driver_en_route", "arrived", "in_progress"] }]),
-    countTable("rides", [{ op: "eq", column: "status", value: "completed" }]),
-    countTable("rides", [{ op: "eq", column: "status", value: "no_driver_available" }])
-  ]);
-
-  const { data: recentRides, error: recentRidesError } = await db
+  const { data: recentRides, error: recentRidesError } = await requireSupabase()
     .from("rides")
     .select("*")
     .order("created_at", { ascending: false })
@@ -3726,24 +3097,15 @@ app.get("/api/admin/analytics/overview", requireAdmin, asyncHandler(async (req, 
 
   return ok(res, {
     generated_at: nowIso(),
-    counts: {
-      riders: totalRiders,
-      approved_riders: approvedRiders,
-      drivers: totalDrivers,
-      approved_drivers: approvedDrivers,
-      online_drivers: onlineDrivers,
-      rides: totalRides,
-      active_rides: activeRides,
-      completed_rides: completedRides,
-      no_driver_available_rides: noDriverRides
-    },
+    counts: snapshot,
     financial_snapshot_recent: {
       total_volume: roundMoney(revenue.estimated_total),
       driver_payout: roundMoney(revenue.driver_payout),
       platform_fee: roundMoney(revenue.platform_fee),
       tip_amount: roundMoney(revenue.tip_amount)
     },
-    dispatch: runtimeState.dispatchSweep
+    dispatch: runtimeState.dispatchSweep,
+    ai_operations: runtimeState.aiOperations
   });
 }));
 
@@ -3918,6 +3280,20 @@ app.post("/api/ai/support", asyncHandler(async (req, res) => {
 }));
 
 /* =========================================================
+   AI OPERATIONS ROUTE
+========================================================= */
+app.get("/api/admin/ai/operations", requireAdmin, asyncHandler(async (req, res) => {
+  const snapshot = await buildOperationsSnapshot();
+  const recommendation = await generateAiOperationsRecommendation(snapshot);
+
+  return ok(res, {
+    snapshot,
+    recommendation,
+    ai_operations: runtimeState.aiOperations
+  });
+}));
+
+/* =========================================================
    SUPPORT FAQ ROUTE
 ========================================================= */
 app.get("/api/support/faq", asyncHandler(async (req, res) => {
@@ -3942,6 +3318,10 @@ app.get("/api/support/faq", asyncHandler(async (req, res) => {
       {
         question: "Is autonomous service live?",
         answer: "Autonomous service is treated as a pilot mode and should be clearly labeled in the app."
+      },
+      {
+        question: "Can AI help run operations?",
+        answer: "Yes. AI can support dispatch, monitoring, and operational recommendations, while you keep final control over important decisions."
       },
       {
         question: "What if this is an emergency?",
@@ -3994,6 +3374,8 @@ async function startServer() {
       console.log(`🧠 AI Enabled: ${!!openai}`);
       console.log(`🗄️ Supabase Ready: ${!!supabase}`);
       console.log(`📲 Twilio Ready: ${!!twilioClient}`);
+      console.log(`🤖 AI Dispatch Enabled: ${ENABLE_AI_DISPATCH}`);
+      console.log(`🏢 AI Operations Enabled: ${ENABLE_AI_OPERATIONS}`);
       console.log("====================================================");
     });
   } catch (error) {
