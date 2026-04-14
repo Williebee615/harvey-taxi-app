@@ -14,12 +14,12 @@
     }
 
     const CONFIG = {
-      storageKey: "harvey_ai_chat_state_v13",
-      uiStateKey: "harvey_ai_chat_ui_state_v13",
+      storageKey: "harvey_ai_chat_state_v14",
+      uiStateKey: "harvey_ai_chat_ui_state_v14",
       endpoint: "/api/ai/support",
-      messageLimit: 60,
-      rateLimitMs: 1200,
-      requestTimeoutMs: 20000,
+      messageLimit: 80,
+      rateLimitMs: 1000,
+      requestTimeoutMs: 25000,
       autoOpenParam: "openHarveyAI",
       defaultOpenOnPages: [],
       widgetTitle: "Harvey Taxi AI Support"
@@ -120,33 +120,28 @@
           "How do I request a ride?",
           "How do I sign up as a driver?",
           "What is Harvey Taxi?",
-          "What is autonomous pilot mode?",
-          "How does support work?"
+          "What is autonomous pilot mode?"
         ],
         rider: [
           "Why do riders need approval?",
           "When can I request a ride?",
           "How does payment authorization work?",
-          "How do I check my rider status?",
-          "What documents do I need?"
+          "How do I check my rider status?"
         ],
         driver: [
           "How does driver verification work?",
           "When can I start driving?",
           "How do missions work?",
-          "How do payouts work?",
-          "What do I need before activation?"
+          "How do payouts work?"
         ],
         request: [
           "How is fare estimated?",
           "Why can't I request a ride yet?",
           "How does dispatch work?",
-          "Can I request autonomous service?",
           "Why is payment authorization required?"
         ],
         support: [
           "How do I get ride help?",
-          "How do I contact support?",
           "How do approvals work?",
           "What if my ride request is blocked?",
           "What does pilot mode mean?"
@@ -155,7 +150,6 @@
           "How does rider approval work?",
           "How does driver activation work?",
           "What is the dispatch flow?",
-          "How do mission offers work?",
           "How do payment holds work?"
         ]
       };
@@ -308,7 +302,7 @@
                   class="harvey-ai-input"
                   data-harvey-ai-input
                   rows="1"
-                  maxlength="1200"
+                  maxlength="1400"
                   placeholder="Ask Harvey Taxi AI about rides, signup, approvals, payment authorization, dispatch, missions, support, or autonomous pilot..."
                 ></textarea>
 
@@ -333,7 +327,7 @@
       renderSuggestions();
       syncPanelState();
 
-      if (shouldAutoOpen()) {
+      if (shouldAutoOpen() && !state.isOpen) {
         open();
       }
     }
@@ -436,7 +430,7 @@
     function autoResizeTextarea(textarea) {
       if (!textarea) return;
       textarea.style.height = "auto";
-      textarea.style.height = Math.min(textarea.scrollHeight, 180) + "px";
+      textarea.style.height = Math.min(textarea.scrollHeight, 220) + "px";
     }
 
     function updateExpandButton() {
@@ -637,17 +631,12 @@
         return data.reply.trim();
       }
 
-      if (data.ai && typeof data.ai.reply === "string" && data.ai.reply.trim()) {
-        return data.ai.reply.trim();
+      if (typeof data.message === "string" && data.message.trim() && !data.error) {
+        return data.message.trim();
       }
 
-      if (
-        data.ok &&
-        typeof data.message === "string" &&
-        data.message.trim() &&
-        !/response generated/i.test(data.message)
-      ) {
-        return data.message.trim();
+      if (data.ai && typeof data.ai.reply === "string" && data.ai.reply.trim()) {
+        return data.ai.reply.trim();
       }
 
       return null;
@@ -693,11 +682,15 @@
       } catch (error) {
         console.error("Harvey Taxi AI widget error:", error);
 
-        addMessage(
-          "assistant",
-          "I’m having trouble reaching Harvey Taxi AI Support right now. Please try again in a moment or use the support page.",
-          CONFIG.widgetTitle
-        );
+        let message =
+          "I’m having trouble reaching Harvey Taxi AI Support right now. Please try again in a moment or use the support page.";
+
+        if (String(error && error.message || "").toLowerCase().includes("timeout")) {
+          message =
+            "Harvey Taxi AI Support took too long to respond. Please try again in a moment.";
+        }
+
+        addMessage("assistant", message, CONFIG.widgetTitle);
       } finally {
         state.isLoading = false;
         renderMessages();
@@ -765,10 +758,10 @@
   position: absolute;
   right: 0;
   bottom: 86px;
-  width: min(760px, calc(100vw - 28px));
-  max-width: 760px;
-  height: min(82vh, 980px);
-  min-height: 720px;
+  width: min(900px, calc(100vw - 28px));
+  max-width: 900px;
+  height: min(86vh, 1100px);
+  min-height: 820px;
   display: none;
   flex-direction: column;
   overflow: hidden;
@@ -790,15 +783,15 @@
 
 .harvey-ai-panel.expanded {
   position: fixed;
-  top: 18px;
-  right: 18px;
-  bottom: 18px;
-  left: 18px;
+  top: 12px;
+  right: 12px;
+  bottom: 12px;
+  left: 12px;
   width: auto;
   max-width: none;
   height: auto;
   min-height: 0;
-  border-radius: 26px;
+  border-radius: 24px;
   z-index: 2147483001;
 }
 
@@ -871,10 +864,10 @@
 .harvey-ai-body {
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
+  padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
   min-height: 0;
   scroll-behavior: smooth;
 }
@@ -903,11 +896,11 @@
 }
 
 .harvey-ai-bubble {
-  max-width: 90%;
-  padding: 18px 20px;
+  max-width: 94%;
+  padding: 20px 22px;
   border-radius: 24px;
-  font-size: 17px;
-  line-height: 1.68;
+  font-size: 18px;
+  line-height: 1.72;
   white-space: pre-wrap;
   word-break: break-word;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
@@ -1012,8 +1005,8 @@
 }
 
 .harvey-ai-input {
-  min-height: 74px;
-  max-height: 180px;
+  min-height: 82px;
+  max-height: 220px;
   resize: none;
   padding: 18px 20px;
   border-radius: 22px;
@@ -1021,7 +1014,7 @@
   background: rgba(7, 16, 34, 0.95);
   color: #ffffff;
   font-size: 16px;
-  line-height: 1.55;
+  line-height: 1.6;
   outline: none;
 }
 
@@ -1031,7 +1024,7 @@
 
 .harvey-ai-send {
   width: 92px;
-  height: 74px;
+  height: 82px;
   border: none;
   border-radius: 22px;
   cursor: pointer;
@@ -1059,16 +1052,16 @@
 
 @media (max-width: 900px) {
   .harvey-ai-panel {
-    width: calc(100vw - 24px);
-    max-width: calc(100vw - 24px);
-    height: min(80vh, 900px);
+    width: calc(100vw - 20px);
+    max-width: calc(100vw - 20px);
+    height: min(84vh, 900px);
     min-height: 640px;
   }
 }
 
 @media (max-width: 640px) {
   #harvey-ai-chat-root {
-    right: 12px !important;
+    right: 10px !important;
     bottom: 84px !important;
     left: auto !important;
   }
@@ -1080,20 +1073,20 @@
   }
 
   .harvey-ai-panel {
-    width: calc(100vw - 24px);
-    max-width: calc(100vw - 24px);
-    height: min(82vh, 820px);
-    min-height: 580px;
+    width: calc(100vw - 20px);
+    max-width: calc(100vw - 20px);
+    height: min(84vh, 860px);
+    min-height: 620px;
     bottom: 74px;
-    border-radius: 24px;
+    border-radius: 22px;
   }
 
   .harvey-ai-panel.expanded {
-    top: 10px;
-    right: 10px;
-    bottom: 10px;
-    left: 10px;
-    border-radius: 20px;
+    top: 8px;
+    right: 8px;
+    bottom: 8px;
+    left: 8px;
+    border-radius: 18px;
   }
 
   .harvey-ai-header {
@@ -1123,9 +1116,9 @@
   }
 
   .harvey-ai-bubble {
-    max-width: 94%;
+    max-width: 96%;
     font-size: 15px;
-    line-height: 1.6;
+    line-height: 1.65;
     padding: 16px 18px;
   }
 
@@ -1143,14 +1136,14 @@
   }
 
   .harvey-ai-input {
-    min-height: 66px;
+    min-height: 70px;
     font-size: 15px;
     padding: 16px 18px;
   }
 
   .harvey-ai-send {
     width: 76px;
-    height: 66px;
+    height: 70px;
     border-radius: 20px;
     font-size: 24px;
   }
