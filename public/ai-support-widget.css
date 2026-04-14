@@ -1,7 +1,7 @@
 #harvey-ai-chat-root {
   position: fixed !important;
   right: 18px !important;
-  bottom: 92px !important;
+  bottom: calc(86px + env(safe-area-inset-bottom, 0px)) !important;
   z-index: 2147483000 !important;
   font-family: Inter, Arial, sans-serif !important;
   pointer-events: none !important;
@@ -36,12 +36,13 @@
   justify-content: center;
   -webkit-appearance: none;
   appearance: none;
-  transition: transform 0.18s ease, filter 0.18s ease;
+  transition: transform 0.18s ease, filter 0.18s ease, box-shadow 0.18s ease;
 }
 
 .harvey-ai-launch:hover {
   transform: translateY(-2px);
   filter: brightness(1.04);
+  box-shadow: 0 22px 48px rgba(0, 0, 0, 0.38);
 }
 
 .harvey-ai-launch:active {
@@ -51,11 +52,11 @@
 .harvey-ai-panel {
   position: absolute;
   right: 0;
-  bottom: 86px;
-  width: min(760px, calc(100vw - 28px));
+  bottom: 88px;
+  width: min(760px, calc(100vw - 32px));
   max-width: 760px;
-  height: min(82vh, 980px);
-  min-height: 720px;
+  height: min(82vh, 960px);
+  min-height: 640px;
   display: none;
   flex-direction: column;
   overflow: hidden;
@@ -77,10 +78,10 @@
 
 .harvey-ai-panel.expanded {
   position: fixed;
-  top: 18px;
-  right: 18px;
-  bottom: 18px;
-  left: 18px;
+  top: max(14px, env(safe-area-inset-top, 0px));
+  right: 14px;
+  bottom: max(14px, env(safe-area-inset-bottom, 0px));
+  left: 14px;
   width: auto;
   max-width: none;
   height: auto;
@@ -97,6 +98,7 @@
   padding: 20px 20px 18px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(8, 18, 36, 0.92);
+  flex-shrink: 0;
 }
 
 .harvey-ai-header-left {
@@ -153,16 +155,28 @@
   background: rgba(255, 255, 255, 0.06);
   -webkit-appearance: none;
   appearance: none;
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+
+.harvey-ai-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-1px);
+}
+
+.harvey-ai-icon-btn:active {
+  transform: translateY(0);
 }
 
 .harvey-ai-body {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  min-height: 0;
 }
 
 .harvey-ai-body::-webkit-scrollbar {
@@ -196,6 +210,7 @@
   line-height: 1.68;
   white-space: pre-wrap;
   word-break: break-word;
+  overflow-wrap: anywhere;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
 
@@ -268,6 +283,7 @@
   gap: 12px;
   padding: 18px 20px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
 }
 
 .harvey-ai-suggestion {
@@ -282,12 +298,20 @@
   line-height: 1.2;
   -webkit-appearance: none;
   appearance: none;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+
+.harvey-ai-suggestion:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(110, 231, 255, 0.3);
+  transform: translateY(-1px);
 }
 
 .harvey-ai-footer {
-  padding: 18px 20px 20px;
+  padding: 18px 20px calc(20px + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(8, 18, 36, 0.95);
+  flex-shrink: 0;
 }
 
 .harvey-ai-form {
@@ -309,6 +333,12 @@
   font-size: 16px;
   line-height: 1.55;
   outline: none;
+  width: 100%;
+}
+
+.harvey-ai-input:focus {
+  border-color: rgba(110, 231, 255, 0.46);
+  box-shadow: 0 0 0 3px rgba(110, 231, 255, 0.08);
 }
 
 .harvey-ai-input::placeholder {
@@ -328,6 +358,16 @@
   box-shadow: 0 12px 28px rgba(121, 240, 183, 0.25);
   -webkit-appearance: none;
   appearance: none;
+  transition: transform 0.18s ease, filter 0.18s ease;
+}
+
+.harvey-ai-send:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.03);
+}
+
+.harvey-ai-send:active {
+  transform: translateY(0);
 }
 
 .harvey-ai-send:disabled,
@@ -343,20 +383,33 @@
   color: rgba(220, 230, 255, 0.72);
 }
 
+@media (max-width: 1100px) {
+  .harvey-ai-panel {
+    width: min(680px, calc(100vw - 28px));
+    max-width: calc(100vw - 28px);
+    height: min(82vh, 900px);
+    min-height: 620px;
+  }
+}
+
 @media (max-width: 900px) {
   .harvey-ai-panel {
     width: calc(100vw - 24px);
     max-width: calc(100vw - 24px);
-    height: min(80vh, 900px);
-    min-height: 640px;
+    height: min(82vh, 840px);
+    min-height: 600px;
+  }
+
+  .harvey-ai-bubble {
+    max-width: 94%;
   }
 }
 
 @media (max-width: 640px) {
   #harvey-ai-chat-root {
     right: 12px !important;
-    bottom: 84px !important;
     left: auto !important;
+    bottom: calc(78px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
   .harvey-ai-launch {
@@ -366,24 +419,30 @@
   }
 
   .harvey-ai-panel {
+    right: 0;
+    bottom: 74px;
     width: calc(100vw - 24px);
     max-width: calc(100vw - 24px);
-    height: min(82vh, 820px);
-    min-height: 580px;
-    bottom: 74px;
+    height: min(80vh, 760px);
+    min-height: 540px;
     border-radius: 24px;
   }
 
   .harvey-ai-panel.expanded {
-    top: 10px;
+    top: max(10px, env(safe-area-inset-top, 0px));
     right: 10px;
-    bottom: 10px;
+    bottom: max(10px, env(safe-area-inset-bottom, 0px));
     left: 10px;
     border-radius: 20px;
   }
 
   .harvey-ai-header {
     padding: 16px;
+    gap: 10px;
+  }
+
+  .harvey-ai-header-left {
+    gap: 12px;
   }
 
   .harvey-ai-badge {
@@ -397,47 +456,113 @@
     font-size: 18px;
   }
 
+  .harvey-ai-subtitle {
+    font-size: 13px;
+  }
+
+  .harvey-ai-actions {
+    gap: 8px;
+  }
+
   .harvey-ai-icon-btn {
-    width: 46px;
-    height: 46px;
-    border-radius: 16px;
-    font-size: 20px;
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    font-size: 18px;
   }
 
   .harvey-ai-body {
     padding: 16px;
+    gap: 14px;
   }
 
   .harvey-ai-bubble {
-    max-width: 94%;
+    max-width: 96%;
     font-size: 15px;
     line-height: 1.6;
     padding: 16px 18px;
+    border-radius: 20px;
   }
 
   .harvey-ai-suggestions {
-    padding: 16px;
+    padding: 14px 16px;
+    gap: 10px;
   }
 
   .harvey-ai-suggestion {
     width: 100%;
     text-align: left;
+    padding: 12px 14px;
   }
 
   .harvey-ai-footer {
-    padding: 16px;
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .harvey-ai-form {
+    grid-template-columns: 1fr auto;
+    gap: 10px;
   }
 
   .harvey-ai-input {
     min-height: 66px;
+    max-height: 150px;
     font-size: 15px;
     padding: 16px 18px;
+    border-radius: 20px;
   }
 
   .harvey-ai-send {
-    width: 76px;
+    width: 74px;
     height: 66px;
     border-radius: 20px;
     font-size: 24px;
+  }
+}
+
+@media (max-width: 420px) {
+  #harvey-ai-chat-root {
+    right: 10px !important;
+    bottom: calc(74px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .harvey-ai-panel {
+    width: calc(100vw - 20px);
+    max-width: calc(100vw - 20px);
+    min-height: 500px;
+    bottom: 70px;
+  }
+
+  .harvey-ai-header {
+    padding: 14px;
+  }
+
+  .harvey-ai-body {
+    padding: 14px;
+  }
+
+  .harvey-ai-suggestions {
+    padding: 12px 14px;
+  }
+
+  .harvey-ai-footer {
+    padding: 14px 14px calc(14px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .harvey-ai-title {
+    font-size: 17px;
+  }
+
+  .harvey-ai-subtitle {
+    font-size: 12px;
+  }
+
+  .harvey-ai-bubble {
+    font-size: 14px;
+    padding: 14px 16px;
+  }
+
+  .harvey-ai-send {
+    width: 70px;
   }
 }
