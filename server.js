@@ -1,14 +1,8 @@
+JavaScript
 /* =========================================================
    HARVEY TAXI — CODE BLUE PHASE 10
    PART 1: CLEAN FOUNDATION + ENV + HELPERS + SUPABASE + HEALTH
    SR. DEVELOPER ENGINEER BUILD
-   ---------------------------------------------------------
-   ARCHITECTURE RULES:
-   - Supabase only
-   - No JSON file storage
-   - No duplicate route blocks
-   - Production-safe defaults
-   - Render-safe startup
 ========================================================= */
 
 "use strict";
@@ -43,6 +37,10 @@ try {
    APP INIT
 ========================================================= */
 const app = express();
+
+function clean(value = "") {
+  return String(value ?? "").trim();
+}
 
 const APP_NAME = "Harvey Taxi Code Blue Phase 10";
 const PORT = Number(process.env.PORT || 10000);
@@ -81,12 +79,8 @@ app.use((req, res, next) => {
 });
 
 /* =========================================================
-   ENV HELPERS
+   HELPERS
 ========================================================= */
-function clean(value = "") {
-  return String(value ?? "").trim();
-}
-
 function lower(value = "") {
   return clean(value).toLowerCase();
 }
@@ -104,20 +98,102 @@ function toBool(value, fallback = false) {
   return fallback;
 }
 
-function safeJsonParse(value, fallback = null) {
-  try {
-    return JSON.parse(value);
-  } catch (error) {
-    return fallback;
-  }
-}
-
 function cleanEnv(value = "") {
   return clean(value);
 }
 
-function requiredEnv(name, fallback = "") {
-  return clean(process.env[name] || fallback);
+function nowIso() {
+  return new Date().toISOString();
+}
+
+function createId(prefix = "id") {
+  return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
+}
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function roundMoney(value) {
+  return Math.round((Number(value) + Number.EPSILON) * 100) / 100;
+}
+
+function isEmail(value = "") {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean(value));
+}
+
+function normalizePhone(value = "") {
+  const raw = clean(value).replace(/[^\d+]/g, "");
+  if (!raw) return "";
+  if (raw.startsWith("+")) return raw;
+  if (raw.length === 10) return `+1${raw}`;
+  if (raw.length === 11 && raw.startsWith("1")) return `+${raw}`;
+  return raw;
+}
+
+function isObject(value) {
+  return value && typeof value === "object" && !Array.isArray(value);
+}
+
+function pickFirst(...values) {
+  for (const value of values) {
+    const cleaned = clean(value);
+    if (cleaned) return cleaned;
+  }
+  return "";
+}
+
+function parseCoordinate(value) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
+}
+
+function parseNullableNumber(value) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/* =========================================================
+   RESPONSE HELPERS
+========================================================= */
+function ok(res, data = {}, status = 200) {
+  return res.status(status).json({
+    ok: true,
+    ...data
+  });
+}
+
+function fail(res, message = "Request failed", status = 400, extra = {}) {
+  return res.status(status).json({
+    ok: false,
+    error: message,
+    ...extra
+  });
+}
+
+function serverError(res, error, message = "Internal server error") {
+  console.error("❌ SERVER ERROR:", error);
+  return res.status(500).json({
+    ok: false,
+    error: message,
+    details: IS_PROD ? undefined : clean(error?.message || String(error))
+  });
+}
+
+function asyncHandler(fn) {
+  return async function wrappedHandler(req, res, next) {
+    try {
+      await fn(req, res, next);
+    } catch (error) {
+      console.error("❌ Unhandled route error:", error);
+      if (res.headersSent) return;
+      return serverError(res, error);
+    }
+  };
 }
 
 /* =========================================================
@@ -153,7 +229,7 @@ const ENABLE_AUTO_REDISPATCH = toBool(process.env.ENABLE_AUTO_REDISPATCH, true);
 const ENABLE_STARTUP_TABLE_CHECKS = toBool(process.env.ENABLE_STARTUP_TABLE_CHECKS, true);
 
 /* =========================================================
-   DISPATCH + BUSINESS CONFIG
+   DISPATCH + FARE CONFIG
 ========================================================= */
 const DISPATCH_TIMEOUT_SECONDS = toNumber(process.env.DISPATCH_TIMEOUT_SECONDS, 30);
 const DISPATCH_SWEEP_INTERVAL_MS = toNumber(process.env.DISPATCH_SWEEP_INTERVAL_MS, 15000);
@@ -186,6 +262,8 @@ const TWILIO_AUTH_TOKEN = cleanEnv(process.env.TWILIO_AUTH_TOKEN);
 const TWILIO_FROM_NUMBER =
   cleanEnv(process.env.TWILIO_PHONE_NUMBER) ||
   cleanEnv(process.env.TWILIO_FROM_NUMBER);
+
+const GOOGLE_MAPS_API_KEY = cleanEnv(process.env.GOOGLE_MAPS_API_KEY);
 
 /* =========================================================
    CLIENTS
@@ -228,85 +306,79 @@ const runtimeState = {
 };
 
 /* =========================================================
-   GENERAL HELPERS
+   STATUS NORMALIZERS
 ========================================================= */
-function nowIso() {
-  return new Date().toISOString();
+function normalizeDriverType(value = "") {
+  const v = lower(value);
+  if (["av", "autonomous", "robotaxi", "self-driving"].includes(v)) return "autonomous";
+  return "human";
 }
 
-function createId(prefix = "id") {
-  return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
+function normalizeRideMode(value = "") {
+  const v = lower(value);
+  if (["autonomous", "av", "pilot"].includes(v)) return "autonomous";
+  return "driver";
 }
 
-function clamp(value, min, max) {
-  return Math.min(Math.max(value, min), max);
+function normalizeRideType(value = "") {
+  const v = lower(value);
+  if (["airport", "medical", "nonprofit", "scheduled", "standard"].includes(v)) return v;
+  return "standard";
 }
 
-function roundMoney(value) {
-  return Math.round((Number(value) + Number.EPSILON) * 100) / 100;
+function normalizePaymentStatus(value = "") {
+  const v = lower(value);
+  if (["authorized", "preauthorized", "pre_authorized"].includes(v)) return "authorized";
+  if (["captured", "paid", "complete"].includes(v)) return "captured";
+  if (["failed", "declined"].includes(v)) return "failed";
+  if (["refunded", "released"].includes(v)) return v;
+  return v || "pending";
 }
 
-function isEmail(value = "") {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean(value));
+function normalizeRideStatus(value = "") {
+  const v = lower(value);
+
+  if (!v) return "pending";
+  if (["pending", "requested", "new"].includes(v)) return "pending";
+  if (["quoted", "fare_estimated"].includes(v)) return "quoted";
+  if (["awaiting_payment", "payment_required"].includes(v)) return "awaiting_payment";
+  if (["awaiting_dispatch", "dispatch_ready"].includes(v)) return "awaiting_dispatch";
+  if (["offered", "awaiting_driver_acceptance"].includes(v)) return "awaiting_driver_acceptance";
+  if (["dispatched", "assigned"].includes(v)) return "dispatched";
+  if (["driver_en_route", "en_route"].includes(v)) return "driver_en_route";
+  if (["arrived"].includes(v)) return "arrived";
+  if (["in_progress", "on_trip"].includes(v)) return "in_progress";
+  if (["completed", "finished"].includes(v)) return "completed";
+  if (["cancelled", "canceled"].includes(v)) return "cancelled";
+  if (["no_driver", "no_driver_available"].includes(v)) return "no_driver_available";
+  if (["expired"].includes(v)) return "expired";
+
+  return v;
 }
 
-function normalizePhone(value = "") {
-  const raw = clean(value).replace(/[^\d+]/g, "");
-  if (!raw) return "";
-  if (raw.startsWith("+")) return raw;
-  if (raw.length === 10) return `+1${raw}`;
-  if (raw.length === 11 && raw.startsWith("1")) return `+${raw}`;
-  return raw;
+function normalizeDriverStatus(value = "") {
+  const v = lower(value);
+
+  if (!v) return "pending";
+  if (["pending", "new"].includes(v)) return "pending";
+  if (["verified"].includes(v)) return "verified";
+  if (["approved", "active"].includes(v)) return "approved";
+  if (["rejected", "denied"].includes(v)) return "rejected";
+  if (["suspended"].includes(v)) return "suspended";
+
+  return v;
 }
 
-function isObject(value) {
-  return value && typeof value === "object" && !Array.isArray(value);
-}
+function normalizeRiderStatus(value = "") {
+  const v = lower(value);
 
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+  if (!v) return "pending";
+  if (["pending", "new"].includes(v)) return "pending";
+  if (["approved", "verified", "active"].includes(v)) return "approved";
+  if (["rejected", "denied"].includes(v)) return "rejected";
+  if (["suspended"].includes(v)) return "suspended";
 
-/* =========================================================
-   RESPONSE HELPERS
-========================================================= */
-function ok(res, data = {}, status = 200) {
-  return res.status(status).json({
-    ok: true,
-    ...data
-  });
-}
-
-function fail(res, message = "Request failed", status = 400, extra = {}) {
-  return res.status(status).json({
-    ok: false,
-    error: message,
-    ...extra
-  });
-}
-
-function serverError(res, error, message = "Internal server error") {
-  console.error("❌ SERVER ERROR:", error);
-  return res.status(500).json({
-    ok: false,
-    error: message,
-    details: IS_PROD ? undefined : clean(error?.message || String(error))
-  });
-}
-
-/* =========================================================
-   ASYNC WRAPPER
-========================================================= */
-function asyncHandler(fn) {
-  return async function wrappedHandler(req, res, next) {
-    try {
-      await fn(req, res, next);
-    } catch (error) {
-      console.error("❌ Unhandled route error:", error);
-      if (res.headersSent) return;
-      return serverError(res, error);
-    }
-  };
+  return v;
 }
 
 /* =========================================================
@@ -346,84 +418,10 @@ function requireAdmin(req, res, next) {
 }
 
 /* =========================================================
-   STATUS NORMALIZERS
-========================================================= */
-function normalizeDriverType(value = "") {
-  const v = lower(value);
-  if (["av", "autonomous", "robotaxi", "self-driving"].includes(v)) return "autonomous";
-  return "human";
-}
-
-function normalizeRideMode(value = "") {
-  const v = lower(value);
-  if (["autonomous", "av", "pilot"].includes(v)) return "autonomous";
-  return "driver";
-}
-
-function normalizePaymentStatus(value = "") {
-  const v = lower(value);
-  if (["authorized", "preauthorized", "pre_authorized"].includes(v)) return "authorized";
-  if (["captured", "paid", "complete"].includes(v)) return "captured";
-  if (["failed", "declined"].includes(v)) return "failed";
-  if (["refunded"].includes(v)) return "refunded";
-  return v || "pending";
-}
-
-function normalizeRideStatus(value = "") {
-  const v = lower(value);
-
-  if (!v) return "pending";
-
-  if (["pending", "requested", "new"].includes(v)) return "pending";
-  if (["quoted", "fare_estimated"].includes(v)) return "quoted";
-  if (["awaiting_payment", "payment_required"].includes(v)) return "awaiting_payment";
-  if (["awaiting_dispatch", "dispatch_ready"].includes(v)) return "awaiting_dispatch";
-  if (["offered", "awaiting_driver_acceptance"].includes(v)) return "awaiting_driver_acceptance";
-  if (["dispatched", "assigned"].includes(v)) return "dispatched";
-  if (["driver_en_route", "en_route"].includes(v)) return "driver_en_route";
-  if (["arrived"].includes(v)) return "arrived";
-  if (["in_progress", "on_trip"].includes(v)) return "in_progress";
-  if (["completed", "finished"].includes(v)) return "completed";
-  if (["cancelled", "canceled"].includes(v)) return "cancelled";
-  if (["no_driver", "no_driver_available"].includes(v)) return "no_driver_available";
-  if (["expired"].includes(v)) return "expired";
-
-  return v;
-}
-
-function normalizeDriverStatus(value = "") {
-  const v = lower(value);
-
-  if (!v) return "pending";
-
-  if (["pending", "new"].includes(v)) return "pending";
-  if (["verified"].includes(v)) return "verified";
-  if (["approved", "active"].includes(v)) return "approved";
-  if (["rejected", "denied"].includes(v)) return "rejected";
-  if (["suspended"].includes(v)) return "suspended";
-
-  return v;
-}
-
-function normalizeRiderStatus(value = "") {
-  const v = lower(value);
-
-  if (!v) return "pending";
-
-  if (["pending", "new"].includes(v)) return "pending";
-  if (["approved", "verified", "active"].includes(v)) return "approved";
-  if (["rejected", "denied"].includes(v)) return "rejected";
-  if (["suspended"].includes(v)) return "suspended";
-
-  return v;
-}
-
-/* =========================================================
    FARE HELPERS
 ========================================================= */
 function getRideTypeMultiplier(rideType = "") {
   const value = lower(rideType);
-
   if (value === "airport") return 1.2;
   if (value === "scheduled") return 1.1;
   if (value === "medical") return 1.05;
@@ -578,7 +576,7 @@ async function logTripEvent({
     const db = requireSupabase();
     const payload = {
       id: createId("tevt"),
-      ride_id: clean(ride_id),
+      ride_id: clean(ride_id) || null,
       mission_id: clean(mission_id) || null,
       driver_id: clean(driver_id) || null,
       rider_id: clean(rider_id) || null,
@@ -638,25 +636,23 @@ async function sendSms({ to, body }) {
    GATE HELPERS
 ========================================================= */
 function riderIsApproved(rider) {
-  const status =
-    normalizeRiderStatus(
-      rider?.status ||
-        rider?.approval_status ||
-        rider?.rider_status ||
-        rider?.verification_status
-    );
+  const status = normalizeRiderStatus(
+    rider?.status ||
+    rider?.approval_status ||
+    rider?.rider_status ||
+    rider?.verification_status
+  );
 
   return status === "approved";
 }
 
 function driverIsApproved(driver) {
-  const status =
-    normalizeDriverStatus(
-      driver?.status ||
-        driver?.approval_status ||
-        driver?.driver_status ||
-        driver?.verification_status
-    );
+  const status = normalizeDriverStatus(
+    driver?.status ||
+    driver?.approval_status ||
+    driver?.driver_status ||
+    driver?.verification_status
+  );
 
   return status === "approved";
 }
@@ -711,7 +707,8 @@ async function runStartupChecks() {
     "payments",
     "missions",
     "dispatches",
-    "admin_logs"
+    "admin_logs",
+    "trip_events"
   ];
 
   const results = {};
@@ -730,7 +727,7 @@ async function runStartupChecks() {
 }
 
 /* =========================================================
-   ROOT ROUTES
+   ROOT / HEALTH ROUTES
 ========================================================= */
 app.get("/", (req, res) => {
   const indexFile = path.join(__dirname, "public", "index.html");
@@ -780,9 +777,6 @@ app.get("/api/config/public", (req, res) => {
   });
 });
 
-/* =========================================================
-   ADMIN HEALTH CHECK
-========================================================= */
 app.get("/api/admin/health/deep", requireAdmin, asyncHandler(async (req, res) => {
   const checks = await runStartupChecks();
 
@@ -798,86 +792,19 @@ app.get("/api/admin/health/deep", requireAdmin, asyncHandler(async (req, res) =>
       twilio_auth_present: !!TWILIO_AUTH_TOKEN,
       twilio_from_present: !!TWILIO_FROM_NUMBER,
       admin_email_present: !!ADMIN_EMAIL,
-      admin_password_present: !!ADMIN_PASSWORD
+      admin_password_present: !!ADMIN_PASSWORD,
+      google_maps_key_present: !!GOOGLE_MAPS_API_KEY
     }
   });
-}));
-
-/* =========================================================
-   NOT FOUND
-========================================================= */
-app.use((req, res) => {
-  return fail(res, "Route not found", 404, {
-    method: req.method,
-    path: req.originalUrl
-  });
-});
-
-/* =========================================================
-   ERROR HANDLER
-========================================================= */
-app.use((error, req, res, next) => {
-  console.error("❌ Express fatal error:", error);
-
-  if (res.headersSent) {
-    return next(error);
-  }
-
-  return res.status(500).json({
-    ok: false,
-    error: "Internal server error",
-    details: IS_PROD ? undefined : clean(error?.message || String(error))
-  });
-});
-
-/* =========================================================
-   START SERVER
-========================================================= */
-async function startServer() {
-  try {
-    await runStartupChecks();
-
-    app.listen(PORT, () => {
-      console.log("====================================================");
-      console.log(`🚕 ${APP_NAME} running`);
-      console.log(`🌐 Port: ${PORT}`);
-      console.log(`🛠️ Environment: ${NODE_ENV}`);
-      console.log(`🕒 Started: ${SERVER_STARTED_AT}`);
-      console.log(`🧠 AI Enabled: ${!!openai}`);
-      console.log(`🗄️ Supabase Ready: ${!!supabase}`);
-      console.log(`📲 Twilio Ready: ${!!twilioClient}`);
-      console.log("====================================================");
-    });
-  } catch (error) {
-    console.error("❌ Failed to start server:", error);
-    process.exit(1);
-  }
-}
-
-startServer();/* =========================================================
-   PART 2: RIDERS + PAYMENTS + FARE ESTIMATE + REQUEST RIDE GATES
+}));/* =========================================================
+   PART 2: RIDERS + PAYMENTS + FARE ESTIMATE + REQUEST RIDE
 ========================================================= */
 
 /* =========================================================
-   INPUT HELPERS
+   ADDRESS + TRIP HELPERS
 ========================================================= */
-function pickFirst(...values) {
-  for (const value of values) {
-    const cleaned = clean(value);
-    if (cleaned) return cleaned;
-  }
-  return "";
-}
-
-function parseCoordinate(value) {
-  const num = Number(value);
-  return Number.isFinite(num) ? num : null;
-}
-
-function normalizeRideType(value = "") {
-  const v = lower(value);
-  if (["airport", "medical", "nonprofit", "scheduled", "standard"].includes(v)) return v;
-  return "standard";
+function hasText(value = "") {
+  return !!clean(value);
 }
 
 function normalizePassengerCount(value) {
@@ -895,10 +822,6 @@ function normalizeScheduledTime(value = "") {
   const dt = new Date(raw);
   if (Number.isNaN(dt.getTime())) return null;
   return dt.toISOString();
-}
-
-function hasText(value = "") {
-  return !!clean(value);
 }
 
 function buildAddressObject(prefix, body = {}) {
@@ -921,7 +844,7 @@ function formatAddress(addressObj = {}) {
 }
 
 /* =========================================================
-   DISTANCE + TIME HELPERS
+   DISTANCE HELPERS
 ========================================================= */
 function haversineMiles(lat1, lon1, lat2, lon2) {
   if (
@@ -1011,8 +934,6 @@ function buildFallbackTripMetrics(payload = {}) {
 /* =========================================================
    GOOGLE MAPS HELPERS
 ========================================================= */
-const GOOGLE_MAPS_API_KEY = cleanEnv(process.env.GOOGLE_MAPS_API_KEY);
-
 async function safeFetchJson(url, options = {}) {
   const response = await fetch(url, options);
   const text = await response.text();
@@ -1057,10 +978,7 @@ async function geocodeAddress(address = "") {
   };
 }
 
-async function getDistanceMatrix({
-  originAddress,
-  destinationAddress
-}) {
+async function getDistanceMatrix({ originAddress, destinationAddress }) {
   const origin = clean(originAddress);
   const destination = clean(destinationAddress);
 
@@ -1170,11 +1088,11 @@ function buildRiderStatusResponse(rider) {
 
   return {
     rider_id: rider?.id || null,
-    first_name: clean(rider?.first_name || rider?.firstName || ""),
-    last_name: clean(rider?.last_name || rider?.lastName || ""),
+    first_name: clean(rider?.first_name || ""),
+    last_name: clean(rider?.last_name || ""),
     full_name: clean(
       rider?.full_name ||
-        [rider?.first_name, rider?.last_name].filter(Boolean).join(" ")
+      [rider?.first_name, rider?.last_name].filter(Boolean).join(" ")
     ),
     email: clean(rider?.email || ""),
     phone: clean(rider?.phone || ""),
@@ -1229,9 +1147,9 @@ function buildPaymentSummary(payment) {
     is_authorized: normalizedStatus === "authorized" || normalizedStatus === "captured",
     authorization_amount: roundMoney(
       payment.authorization_amount ||
-        payment.amount_authorized ||
-        payment.amount ||
-        0
+      payment.amount_authorized ||
+      payment.amount ||
+      0
     ),
     currency: clean(payment.currency || "USD")
   };
@@ -1243,14 +1161,13 @@ function buildPaymentSummary(payment) {
 function buildRidePayload({
   rider,
   requestBody,
-  tripMetrics,
   fare,
   payout
 }) {
   const requestedMode = normalizeRideMode(
     requestBody.requested_mode ||
-      requestBody.requestedMode ||
-      requestBody.mode
+    requestBody.requestedMode ||
+    requestBody.mode
   );
 
   const rideType = normalizeRideType(
@@ -1262,16 +1179,16 @@ function buildRidePayload({
 
   const scheduledAt = normalizeScheduledTime(
     requestBody.scheduled_at ||
-      requestBody.scheduledAt ||
-      requestBody.schedule_time ||
-      requestBody.scheduleTime
+    requestBody.scheduledAt ||
+    requestBody.schedule_time ||
+    requestBody.scheduleTime
   );
 
   const notes = clean(
     requestBody.notes ||
-      requestBody.ride_notes ||
-      requestBody.special_instructions ||
-      requestBody.specialInstructions
+    requestBody.ride_notes ||
+    requestBody.special_instructions ||
+    requestBody.specialInstructions
   );
 
   return {
@@ -1340,6 +1257,7 @@ function validateRideRequestBody(body = {}) {
   const scheduledAt = normalizeScheduledTime(
     body.scheduled_at || body.scheduledAt || body.schedule_time
   );
+
   if (
     hasText(body.scheduled_at || body.scheduledAt || body.schedule_time) &&
     !scheduledAt
@@ -1351,16 +1269,14 @@ function validateRideRequestBody(body = {}) {
 }
 
 /* =========================================================
-   ROUTES — RIDER SIGNUP
+   RIDER ROUTES
 ========================================================= */
 app.post("/api/rider/signup", asyncHandler(async (req, res) => {
   const firstName = clean(req.body.first_name || req.body.firstName);
   const lastName = clean(req.body.last_name || req.body.lastName);
   const email = lower(req.body.email);
   const phone = normalizePhone(req.body.phone);
-  const documentType = lower(
-    req.body.document_type || req.body.documentType || ""
-  );
+  const documentType = lower(req.body.document_type || req.body.documentType || "");
 
   if (!firstName) return fail(res, "First name is required");
   if (!lastName) return fail(res, "Last name is required");
@@ -1408,19 +1324,12 @@ app.post("/api/rider/signup", asyncHandler(async (req, res) => {
     }
   });
 
-  return ok(
-    res,
-    {
-      message: "Rider signup submitted successfully",
-      rider: buildRiderStatusResponse(rider)
-    },
-    201
-  );
+  return ok(res, {
+    message: "Rider signup submitted successfully",
+    rider: buildRiderStatusResponse(rider)
+  }, 201);
 }));
 
-/* =========================================================
-   ROUTES — RIDER STATUS
-========================================================= */
 app.post("/api/rider/status", asyncHandler(async (req, res) => {
   const rider = await resolveRiderFromRequest(req.body);
 
@@ -1451,8 +1360,29 @@ app.get("/api/rider/:riderId/status", asyncHandler(async (req, res) => {
   });
 }));
 
+app.get("/api/rider/:riderId/rides", asyncHandler(async (req, res) => {
+  const riderId = clean(req.params.riderId);
+  if (!riderId) return fail(res, "Rider ID is required");
+
+  const rider = await getRiderById(riderId);
+  if (!rider) return fail(res, "Rider not found", 404);
+
+  const { data, error } = await requireSupabase()
+    .from("rides")
+    .select("*")
+    .eq("rider_id", riderId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+
+  return ok(res, {
+    rider: buildRiderStatusResponse(rider),
+    rides: data || []
+  });
+}));
+
 /* =========================================================
-   ROUTES — PAYMENT AUTHORIZATION
+   PAYMENT ROUTES
 ========================================================= */
 app.post("/api/payments/authorize", asyncHandler(async (req, res) => {
   const rider = await resolveRiderFromRequest(req.body);
@@ -1472,8 +1402,8 @@ app.post("/api/payments/authorize", asyncHandler(async (req, res) => {
     roundMoney(
       toNumber(
         req.body.amount ||
-          req.body.authorization_amount ||
-          req.body.amount_authorized,
+        req.body.authorization_amount ||
+        req.body.amount_authorized,
         0
       )
     )
@@ -1515,7 +1445,7 @@ app.post("/api/payments/authorize", asyncHandler(async (req, res) => {
 }));
 
 /* =========================================================
-   ROUTES — FARE ESTIMATE
+   FARE ESTIMATE
 ========================================================= */
 app.post("/api/fare-estimate", asyncHandler(async (req, res) => {
   const validationError = validateRideRequestBody(req.body);
@@ -1525,8 +1455,8 @@ app.post("/api/fare-estimate", asyncHandler(async (req, res) => {
 
   const requestedMode = normalizeRideMode(
     req.body.requested_mode ||
-      req.body.requestedMode ||
-      req.body.mode
+    req.body.requestedMode ||
+    req.body.mode
   );
 
   const rideType = normalizeRideType(
@@ -1565,7 +1495,7 @@ app.post("/api/fare-estimate", asyncHandler(async (req, res) => {
 }));
 
 /* =========================================================
-   ROUTES — REQUEST RIDE
+   REQUEST RIDE
 ========================================================= */
 app.post("/api/request-ride", asyncHandler(async (req, res) => {
   const validationError = validateRideRequestBody(req.body);
@@ -1598,8 +1528,8 @@ app.post("/api/request-ride", asyncHandler(async (req, res) => {
 
   const requestedMode = normalizeRideMode(
     req.body.requested_mode ||
-      req.body.requestedMode ||
-      req.body.mode
+    req.body.requestedMode ||
+    req.body.mode
   );
 
   const rideType = normalizeRideType(
@@ -1632,7 +1562,6 @@ app.post("/api/request-ride", asyncHandler(async (req, res) => {
   const ridePayload = buildRidePayload({
     rider,
     requestBody: req.body,
-    tripMetrics,
     fare,
     payout
   });
@@ -1651,47 +1580,19 @@ app.post("/api/request-ride", asyncHandler(async (req, res) => {
     }
   });
 
-  return ok(
-    res,
-    {
-      message: "Ride request accepted and ready for dispatch",
-      ride_id: ride.id,
-      ride,
-      fare,
-      payout,
-      rider: buildRiderStatusResponse(rider),
-      payment: buildPaymentSummary(latestAuthorizedPayment)
-    },
-    201
-  );
-}));
-
-/* =========================================================
-   ROUTES — RIDER RIDES
-========================================================= */
-app.get("/api/rider/:riderId/rides", asyncHandler(async (req, res) => {
-  const riderId = clean(req.params.riderId);
-  if (!riderId) return fail(res, "Rider ID is required");
-
-  const rider = await getRiderById(riderId);
-  if (!rider) return fail(res, "Rider not found", 404);
-
-  const { data, error } = await requireSupabase()
-    .from("rides")
-    .select("*")
-    .eq("rider_id", riderId)
-    .order("created_at", { ascending: false });
-
-  if (error) throw error;
-
   return ok(res, {
+    message: "Ride request accepted and ready for dispatch",
+    ride_id: ride.id,
+    ride,
+    fare,
+    payout,
     rider: buildRiderStatusResponse(rider),
-    rides: data || []
-  });
+    payment: buildPaymentSummary(latestAuthorizedPayment)
+  }, 201);
 }));
 
 /* =========================================================
-   ROUTES — SINGLE RIDE
+   SINGLE RIDE LOOKUP
 ========================================================= */
 app.get("/api/rides/:rideId", asyncHandler(async (req, res) => {
   const rideId = clean(req.params.rideId);
@@ -1772,7 +1673,9 @@ function driverIsVerified(driver) {
 }
 
 function driverIsOnline(driver) {
-  const online = lower(driver?.availability_status || driver?.online_status || driver?.is_online);
+  const online = lower(
+    driver?.availability_status || driver?.online_status || driver?.is_online
+  );
   if (online === "true") return true;
   if (["online", "available", "ready", "active"].includes(online)) return true;
   if (typeof driver?.is_online === "boolean") return driver.is_online;
@@ -1807,11 +1710,6 @@ function getDriverDisplayName(driver = {}) {
 /* =========================================================
    DRIVER LOCATION / SCORING HELPERS
 ========================================================= */
-function parseNullableNumber(value) {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : null;
-}
-
 function getDriverLatitude(driver) {
   return (
     parseNullableNumber(driver?.current_latitude) ??
@@ -1835,6 +1733,7 @@ function distanceMilesBetweenDriverAndPickup(driver, ride) {
   const rideLat =
     parseNullableNumber(ride?.pickup_latitude) ??
     parseNullableNumber(ride?.origin_latitude);
+
   const rideLng =
     parseNullableNumber(ride?.pickup_longitude) ??
     parseNullableNumber(ride?.origin_longitude);
@@ -1877,7 +1776,6 @@ function scoreDriverForRide(driver, ride) {
   const acceptanceRate = getDriverAcceptanceRate(driver);
 
   let score = 0;
-
   score += Math.max(0, 100 - distance * 8);
   score += rating * 8;
   score += Math.min(20, completedTrips * 0.1);
@@ -2156,7 +2054,7 @@ async function notifyDriverOfMission(driver, ride, dispatch) {
   return sendSms({ to, body });
 }
 
-async function dispatchRideToBestDriver(rideId, options = {}) {
+async function dispatchRideToBestDriver(rideId) {
   const ride = await getRideById(rideId);
   if (!ride) {
     return {
@@ -2263,7 +2161,7 @@ async function dispatchRideToBestDriver(rideId, options = {}) {
 }
 
 /* =========================================================
-   DRIVER SIGNUP / STATUS ROUTES
+   DRIVER ROUTES
 ========================================================= */
 app.post("/api/driver/signup", asyncHandler(async (req, res) => {
   const firstName = clean(req.body.first_name || req.body.firstName);
@@ -2359,9 +2257,6 @@ app.get("/api/driver/:driverId/status", asyncHandler(async (req, res) => {
   });
 }));
 
-/* =========================================================
-   DRIVER ONLINE / LOCATION ROUTES
-========================================================= */
 app.post("/api/driver/go-online", asyncHandler(async (req, res) => {
   const driver = await resolveDriverFromRequest(req.body);
   if (!driver) return fail(res, "Driver not found", 404);
@@ -2514,9 +2409,7 @@ app.get("/api/driver/:driverId/current-mission", asyncHandler(async (req, res) =
 
   const mission = data?.[0] || null;
   if (!mission) {
-    return ok(res, {
-      mission: null
-    });
+    return ok(res, { mission: null });
   }
 
   const ride = await getRideById(mission.ride_id);
@@ -2986,7 +2879,7 @@ app.post("/api/admin/dispatch/retry", requireAdmin, asyncHandler(async (req, res
   const rideId = pickFirst(req.body.ride_id, req.body.rideId);
   if (!rideId) return fail(res, "Ride ID is required");
 
-  const result = await dispatchRideToBestDriver(rideId, { forced: true });
+  const result = await dispatchRideToBestDriver(rideId);
 
   await logAdminEvent({
     event_type: "admin_dispatch_retry",
@@ -3125,10 +3018,6 @@ function getRideTipAmount(ride) {
   return roundMoney(ride?.tip_amount || 0);
 }
 
-function getRideTotalWithTip(ride) {
-  return roundMoney(getRideBaseFareAmount(ride) + getRideTipAmount(ride));
-}
-
 /* =========================================================
    LIVE STATUS HELPERS
 ========================================================= */
@@ -3152,10 +3041,19 @@ async function buildRideLiveState(rideId) {
   const ride = await getRideById(rideId);
   if (!ride) return null;
 
-  const mission = ride.mission_id ? await getMissionById(ride.mission_id) : await getMissionByRideId(ride.id);
-  const dispatch = ride.dispatch_id ? await getDispatchById(ride.dispatch_id) : await getActiveDispatchForRide(ride.id);
+  const mission = ride.mission_id
+    ? await getMissionById(ride.mission_id)
+    : await getMissionByRideId(ride.id);
+
+  const dispatch = ride.dispatch_id
+    ? await getDispatchById(ride.dispatch_id)
+    : await getActiveDispatchForRide(ride.id);
+
   const driver = ride.driver_id ? await getDriverById(ride.driver_id) : null;
-  const payment = (await getLatestPaymentForRide(ride.id)) || (await getLatestPaymentForRider(ride.rider_id));
+  const payment =
+    (await getLatestPaymentForRide(ride.id)) ||
+    (await getLatestPaymentForRider(ride.rider_id));
+
   const timeline = await getRideTimeline(ride.id);
 
   return {
@@ -3200,7 +3098,7 @@ function getFallbackReply(message = "", page = "general") {
   const normalizedPage = normalizePage(page);
 
   if (!text) {
-    return "Welcome to Harvey Taxi support. I can help with rider approval, driver onboarding, ride requests, payment authorization, trip status, and autonomous pilot questions.";
+    return "Welcome to Harvey Taxi support. I can help with rider approval, driver onboarding, ride requests, payment authorization, trip status, dispatch, and autonomous pilot questions.";
   }
 
   if (text.includes("emergency") || text.includes("911")) {
@@ -3228,7 +3126,7 @@ function getFallbackReply(message = "", page = "general") {
   }
 
   if (text.includes("payment") || text.includes("authorize") || text.includes("card")) {
-    return "Harvey Taxi authorizes payment before dispatch, captures payment when the trip is completed, and can support tipping during or after the trip.";
+    return "Harvey Taxi authorizes payment before dispatch, captures payment when the trip is completed, and supports tipping during or after the trip.";
   }
 
   if (text.includes("autonomous") || text.includes("pilot") || text.includes("av")) {
@@ -3280,7 +3178,7 @@ Always explain that:
 Keep answers concise but useful.
 If the user asks about a live ride and ride context is available, use it.
 If something is missing, say so plainly.
-  `.trim();
+`.trim();
 
   const contextPrompt = `
 Page: ${normalizePage(page)}
@@ -3291,7 +3189,7 @@ Ride Context JSON:
 ${JSON.stringify(rideContext || {}, null, 2)}
 User Message:
 ${clean(message)}
-  `.trim();
+`.trim();
 
   try {
     const response = await openai.responses.create({
@@ -3308,9 +3206,7 @@ ${clean(message)}
       ]
     });
 
-    const reply =
-      clean(response?.output_text || "") ||
-      fallback;
+    const reply = clean(response?.output_text || "") || fallback;
 
     return {
       reply,
@@ -3437,9 +3333,7 @@ app.post("/api/payments/capture", asyncHandler(async (req, res) => {
     payoutBase.driver_payout_estimate + tipAmount
   );
 
-  const finalPlatformFee = roundMoney(
-    captureAmount - finalDriverPayout
-  );
+  const finalPlatformFee = roundMoney(captureAmount - finalDriverPayout);
 
   const updatedRide = await updateRideFinancials(ride.id, {
     payment_id: payment.id,
@@ -3899,11 +3793,12 @@ app.post("/api/admin/driver/verify-contact", requireAdmin, asyncHandler(async (r
    AI SUPPORT ROUTE
 ========================================================= */
 app.post("/api/ai/support", asyncHandler(async (req, res) => {
-  const message = clean(req.body.message || req.body.prompt || "");
-  const page = normalizePage(req.body.page || req.body.context_page || "general");
-  const rider_id = pickFirst(req.body.rider_id, req.body.riderId);
-  const driver_id = pickFirst(req.body.driver_id, req.body.driverId);
-  const ride_id = pickFirst(req.body.ride_id, req.body.rideId);
+  const body = req.body || {};
+  const message = clean(body.message || body.prompt || "");
+  const page = normalizePage(body.page || body.context_page || "general");
+  const rider_id = pickFirst(body.rider_id, body.riderId);
+  const driver_id = pickFirst(body.driver_id, body.driverId);
+  const ride_id = pickFirst(body.ride_id, body.rideId);
 
   if (!message) {
     return fail(res, "Message is required");
@@ -3957,3 +3852,56 @@ app.get("/api/support/faq", asyncHandler(async (req, res) => {
     ]
   });
 }));
+
+/* =========================================================
+   NOT FOUND
+========================================================= */
+app.use((req, res) => {
+  return fail(res, "Route not found", 404, {
+    method: req.method,
+    path: req.originalUrl
+  });
+});
+
+/* =========================================================
+   ERROR HANDLER
+========================================================= */
+app.use((error, req, res, next) => {
+  console.error("❌ Express fatal error:", error);
+
+  if (res.headersSent) {
+    return next(error);
+  }
+
+  return res.status(500).json({
+    ok: false,
+    error: "Internal server error",
+    details: IS_PROD ? undefined : clean(error?.message || String(error))
+  });
+});
+
+/* =========================================================
+   START SERVER
+========================================================= */
+async function startServer() {
+  try {
+    await runStartupChecks();
+
+    app.listen(PORT, () => {
+      console.log("====================================================");
+      console.log(`🚕 ${APP_NAME} running`);
+      console.log(`🌐 Port: ${PORT}`);
+      console.log(`🛠️ Environment: ${NODE_ENV}`);
+      console.log(`🕒 Started: ${SERVER_STARTED_AT}`);
+      console.log(`🧠 AI Enabled: ${!!openai}`);
+      console.log(`🗄️ Supabase Ready: ${!!supabase}`);
+      console.log(`📲 Twilio Ready: ${!!twilioClient}`);
+      console.log("====================================================");
+    });
+  } catch (error) {
+    console.error("❌ Failed to start server:", error);
+    process.exit(1);
+  }
+}
+
+startServer();
