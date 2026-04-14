@@ -1,23 +1,42 @@
 /* =========================================================
-   HARVEY TAXI — CODE BLUE FINAL BUILD
-   PART 1: FOUNDATION + ENV + CLIENTS + CORE HELPERS
+   HARVEY TAXI — CODE BLUE PHASE 9
+   PART 1: FOUNDATION + ENV + CLIENTS + RICH HEALTH
 ========================================================= */
 
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
 const crypto = require("crypto");
-const twilio = require("twilio");
 const { createClient } = require("@supabase/supabase-js");
 
-/* OPTIONAL AI */
+/* OPTIONAL PACKAGES */
+let Twilio = null;
 let OpenAI = null;
-try { OpenAI = require("openai"); } catch (e) {}
+let nodemailer = null;
+
+try {
+  Twilio = require("twilio");
+} catch (error) {
+  console.warn("⚠️ twilio package not installed");
+}
+
+try {
+  OpenAI = require("openai");
+} catch (error) {
+  console.warn("⚠️ openai package not installed");
+}
+
+try {
+  nodemailer = require("nodemailer");
+} catch (error) {
+  console.warn("⚠️ nodemailer package not installed");
+}
 
 /* APP */
 const app = express();
 const PORT = Number(process.env.PORT || 10000);
-const STARTED = new Date().toISOString();
+const STARTED_AT = new Date().toISOString();
+const APP_NAME = "Harvey Taxi Code Blue Phase 9";
 
 /* MIDDLEWARE */
 app.use(cors({ origin: true, credentials: true }));
@@ -25,250 +44,471 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "public")));
 
-/* HELPERS */
-const clean = (v="") => String(v||"").trim();
-const lower = (v="") => clean(v).toLowerCase();
-const now = () => new Date().toISOString();
-const id = (p="id") => `${p}_${crypto.randomBytes(6).toString("hex")}`;
-const round = (n)=> Math.round(n*100)/100;
+/* CORE HELPERS */
+function clean(value = "") {
+  return String(value || "").trim();
+}
 
-/* PHONE */
-function phone(p=""){
-  const d = clean(p).replace(/\D/g,"");
-  if (d.length===10) return "+1"+d;
-  if (d.length===11 && d.startsWith("1")) return "+"+d;
-  return clean(p);
+function lower(value = "") {
+  return clean(value).toLowerCase();
+}
+
+function boolEnv(value, fallback = false) {
+  const v = lower(value);
+  if (!v) return fallback;
+  return ["1", "true", "yes", "on"].includes(v);
+}
+
+function numEnv(value, fallback = 0) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function nowIso() {
+  return new Date().toISOString();
+}
+
+function makeId(prefix = "id") {
+  return `${prefix}_${crypto.randomBytes(8).toString("hex")}`;
+}
+
+function roundMoney(value) {
+  return Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100;
+}
+
+function ok(res, data = {}, status = 200) {
+  return res.status(status).json({ ok: true, ...data });
+}
+
+function fail(res, error = "Request failed", status = 400, extra = {}) {
+  return res.status(status).json({ ok: false, error, ...extra });
+}
+
+function normalizePhone(phone = "") {
+  const raw = clean(phone);
+  if (!raw) return "";
+
+  if (raw.startsWith("+")) {
+    return `+${raw.slice(1).replace(/\D/g, "")}`;
+  }
+
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith("1")) return `+${digits}`;
+
+  return raw;
+}
+
+function maskSecret(value = "") {
+  const raw = clean(value);
+  if (!raw) return "";
+  if (raw.length <= 8) return "********";
+  return `${raw.slice(0, 4)}...${raw.slice(-4)}`;
+}
+
+/* SAFE FETCH */
+async function safeFetchJson(url, options = {}) {
+  if (typeof fetch === "function") {
+    const res = await fetch(url, options);
+    return res.json();
+  }
+
+  const https = require("https");
+  const http = require("http");
+  const target = new URL(url);
+  const lib = target.protocol === "https:" ? https : http;
+
+  return new Promise((resolve, reject) => {
+    const req = lib.request(
+      target,
+      {
+        method: options.method || "GET",
+        headers: options.headers || {}
+      },
+      (res) => {
+        let body = "";
+
+        res.on("data", (chunk) => {
+          body += chunk;
+        });
+
+        res.on("end", () => {
+          try {
+            resolve(JSON.parse(body || "{}"));
+          } catch (error) {
+            resolve({});
+          }
+        });
+      }
+    );
+
+    req.on("error", reject);
+
+    if (options.body) req.write(options.body);
+    req.end();
+  });
 }
 
 /* ENV */
-const SUPABASE_URL = clean(process.env.SUPABASE_URL);
-const SUPABASE_KEY = clean(process.env.SUPABASE_SERVICE_ROLE_KEY);
+const NODE_ENV = clean(process.env.NODE_ENV || "development");
 
-const TWILIO_SID = clean(process.env.TWILIO_ACCOUNT_SID);
-const TWILIO_TOKEN = clean(process.env.TWILIO_AUTH_TOKEN);
-const TWILIO_VERIFY = clean(process.env.TWILIO_VERIFY_SERVICE_SID);
+const PUBLIC_APP_URL =
+  clean(process.env.PUBLIC_APP_URL) ||
+  clean(process.env.RENDER_EXTERNAL_URL) ||
+  clean(process.env.APP_BASE_URL) ||
+  `http://localhost:${PORT}`;
 
-const OPENAI_KEY = clean(process.env.OPENAI_API_KEY);
+const SUPPORT_EMAIL =
+  clean(process.env.SUPPORT_EMAIL) ||
+  clean(process.env.SUPPORT_FROM_EMAIL) ||
+  "support@harveytaxiservice.com";
 
-/* CLIENTS */
-const supabase = SUPABASE_URL && SUPABASE_KEY
-  ? createClient(SUPABASE_URL, SUPABASE_KEY)
-  : null;
+const ADMIN_EMAIL =
+  clean(process.env.ADMIN_EMAIL) ||
+  "williebee@harveytaxiservice.com";
 
-const twilioClient = TWILIO_SID && TWILIO_TOKEN
-  ? twilio(TWILIO_SID, TWILIO_TOKEN)
-  : null;
-
-const openai = OpenAI && OPENAI_KEY
-  ? new OpenAI({ apiKey: OPENAI_KEY })
-  : null;
-
-/* RESPONSES */
-const ok = (res,data={})=>res.json({ok:true,...data});
-const fail = (res,msg="error",code=400)=>res.status(code).json({ok:false,error:msg});
-
-/* HEALTH */
-app.get("/api/health",(req,res)=>{
-  ok(res,{
-    started: STARTED,
-    supabase: !!supabase,
-    twilio: !!twilioClient,
-    verify: !!TWILIO_VERIFY,
-    openai: !!openai
-  });
-});/* =========================================================
-   HARVEY TAXI — CODE BLUE FINAL BUILD
-   PART 2: VERIFY + ACCESS + MISSION-AWARE AI FOUNDATION
-========================================================= */
-
-/* CONFIG */
-const ADMIN_EMAIL = clean(process.env.ADMIN_EMAIL || "williebee@harveytaxiservice.com");
 const ADMIN_PASSWORD = clean(process.env.ADMIN_PASSWORD);
 
-const ENABLE_AI_BRAIN =
-  ["1", "true", "yes", "on"].includes(lower(process.env.ENABLE_AI_BRAIN || "true"));
+const SUPABASE_URL = clean(process.env.SUPABASE_URL);
+const SUPABASE_SERVICE_ROLE_KEY = clean(process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-const ENABLE_RIDER_VERIFICATION_GATE =
-  ["1", "true", "yes", "on"].includes(
-    lower(process.env.ENABLE_RIDER_VERIFICATION_GATE || "true")
-  );
+const TWILIO_ACCOUNT_SID = clean(process.env.TWILIO_ACCOUNT_SID);
+const TWILIO_AUTH_TOKEN = clean(process.env.TWILIO_AUTH_TOKEN);
+const TWILIO_VERIFY_SERVICE_SID = clean(process.env.TWILIO_VERIFY_SERVICE_SID);
+const TWILIO_PHONE_NUMBER = clean(process.env.TWILIO_PHONE_NUMBER);
 
-const ENABLE_DRIVER_PHONE_VERIFICATION =
-  ["1", "true", "yes", "on"].includes(
-    lower(process.env.ENABLE_DRIVER_PHONE_VERIFICATION || "true")
-  );
-
-const ENABLE_PAYMENT_GATE =
-  ["1", "true", "yes", "on"].includes(
-    lower(process.env.ENABLE_PAYMENT_GATE || "true")
-  );
-
+const OPENAI_API_KEY = clean(process.env.OPENAI_API_KEY);
 const OPENAI_SUPPORT_MODEL = clean(
   process.env.OPENAI_SUPPORT_MODEL || "gpt-4.1-mini"
 );
 
-/* ADMIN */
-function isAdmin(req) {
-  const email = lower(
-    req.headers["x-admin-email"] ||
-    req.body?.admin_email ||
-    req.query?.admin_email ||
-    ""
-  );
-  const password = clean(
-    req.headers["x-admin-password"] ||
-    req.body?.admin_password ||
-    req.query?.admin_password ||
-    ""
-  );
+const SMTP_HOST = clean(process.env.SMTP_HOST);
+const SMTP_PORT = numEnv(process.env.SMTP_PORT, 587);
+const SMTP_USER = clean(process.env.SMTP_USER);
+const SMTP_PASS = clean(process.env.SMTP_PASS);
+const SMTP_FROM =
+  clean(process.env.SMTP_FROM) ||
+  clean(process.env.SUPPORT_FROM_EMAIL) ||
+  SUPPORT_EMAIL;
 
+const GOOGLE_MAPS_API_KEY = clean(process.env.GOOGLE_MAPS_API_KEY);
+
+const ENABLE_AI_BRAIN = boolEnv(process.env.ENABLE_AI_BRAIN, true);
+const ENABLE_RIDER_VERIFICATION_GATE = boolEnv(
+  process.env.ENABLE_RIDER_VERIFICATION_GATE,
+  true
+);
+const ENABLE_DRIVER_PHONE_VERIFICATION = boolEnv(
+  process.env.ENABLE_DRIVER_PHONE_VERIFICATION,
+  true
+);
+const ENABLE_PAYMENT_GATE = boolEnv(process.env.ENABLE_PAYMENT_GATE, true);
+const ENABLE_AUTO_REDISPATCH = boolEnv(
+  process.env.ENABLE_AUTO_REDISPATCH,
+  true
+);
+
+const BASE_FARE = numEnv(process.env.BASE_FARE, 8);
+const PER_MILE_RATE = numEnv(process.env.PER_MILE_RATE, 2.2);
+const PER_MINUTE_RATE = numEnv(process.env.PER_MINUTE_RATE, 0.45);
+const BOOKING_FEE = numEnv(process.env.BOOKING_FEE, 2.5);
+const MINIMUM_FARE = numEnv(process.env.MINIMUM_FARE, 10);
+const DRIVER_PAYOUT_PERCENT = numEnv(
+  process.env.DRIVER_PAYOUT_PERCENT,
+  0.72
+);
+const AUTONOMOUS_PAYOUT_PERCENT = numEnv(
+  process.env.AUTONOMOUS_PAYOUT_PERCENT,
+  0.52
+);
+
+const DISPATCH_TIMEOUT_SECONDS = numEnv(
+  process.env.DISPATCH_TIMEOUT_SECONDS,
+  25
+);
+const MAX_DISPATCH_ATTEMPTS = numEnv(process.env.MAX_DISPATCH_ATTEMPTS, 5);
+const DISPATCH_SWEEP_INTERVAL_MS = Math.max(
+  15000,
+  numEnv(process.env.DISPATCH_SWEEP_INTERVAL_MS, 30000)
+);
+
+/* CLIENTS */
+const supabase =
+  SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
+    ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+        auth: { persistSession: false, autoRefreshToken: false }
+      })
+    : null;
+
+const twilioClient =
+  Twilio && TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN
+    ? Twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+    : null;
+
+const openai =
+  OpenAI && OPENAI_API_KEY && ENABLE_AI_BRAIN
+    ? new OpenAI({ apiKey: OPENAI_API_KEY })
+    : null;
+
+let mailTransport = null;
+function smtpReady() {
+  return !!(nodemailer && SMTP_HOST && SMTP_USER && SMTP_PASS);
+}
+
+function getMailTransport() {
+  if (!smtpReady()) return null;
+  if (mailTransport) return mailTransport;
+
+  mailTransport = nodemailer.createTransport({
+    host: SMTP_HOST,
+    port: SMTP_PORT,
+    secure: SMTP_PORT === 465,
+    auth: {
+      user: SMTP_USER,
+      pass: SMTP_PASS
+    }
+  });
+
+  return mailTransport;
+}
+
+/* ADMIN */
+function getAdminEmailFromRequest(req) {
+  return clean(
+    req.headers["x-admin-email"] ||
+      req.body?.admin_email ||
+      req.query?.admin_email ||
+      ""
+  );
+}
+
+function getAdminPasswordFromRequest(req) {
+  return clean(
+    req.headers["x-admin-password"] ||
+      req.body?.admin_password ||
+      req.query?.admin_password ||
+      ""
+  );
+}
+
+function isAdminRequest(req) {
   if (!ADMIN_EMAIL || !ADMIN_PASSWORD) return false;
-  return email === lower(ADMIN_EMAIL) && password === ADMIN_PASSWORD;
+  return (
+    lower(getAdminEmailFromRequest(req)) === lower(ADMIN_EMAIL) &&
+    getAdminPasswordFromRequest(req) === ADMIN_PASSWORD
+  );
 }
 
 function requireAdmin(req, res, next) {
-  if (!isAdmin(req)) return fail(res, "Unauthorized", 401);
+  if (!isAdminRequest(req)) {
+    return fail(res, "Unauthorized", 401);
+  }
   next();
 }
+
+/* DB HELPERS */
+async function maybeSingle(queryBuilder) {
+  try {
+    const { data, error } = await queryBuilder.maybeSingle();
+    if (error) return null;
+    return data || null;
+  } catch (error) {
+    return null;
+  }
+}
+
+async function tableCheck(table) {
+  if (!supabase) return { ok: false, error: "Supabase not configured" };
+
+  try {
+    const { error } = await supabase.from(table).select("*").limit(1);
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, error: null };
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
+}
+
+/* HEALTH */
+app.get("/api/health", async (req, res) => {
+  try {
+    const tables = {
+      riders: await tableCheck("riders"),
+      drivers: await tableCheck("drivers"),
+      rides: await tableCheck("rides"),
+      payments: await tableCheck("payments"),
+      missions: await tableCheck("missions"),
+      dispatches: await tableCheck("dispatches"),
+      admin_logs: await tableCheck("admin_logs")
+    };
+
+    return ok(res, {
+      app: APP_NAME,
+      started_at: STARTED_AT,
+      checked_at: nowIso(),
+      env: {
+        node_env: NODE_ENV,
+        public_app_url: PUBLIC_APP_URL,
+        support_email: SUPPORT_EMAIL,
+        primary_admin_email: ADMIN_EMAIL,
+        has_supabase: !!supabase,
+        has_google_maps: !!GOOGLE_MAPS_API_KEY,
+        ai_enabled: ENABLE_AI_BRAIN,
+        has_openai: !!openai,
+        has_twilio: !!twilioClient,
+        has_twilio_verify: !!TWILIO_VERIFY_SERVICE_SID,
+        has_smtp: smtpReady(),
+        rider_verification_gate: ENABLE_RIDER_VERIFICATION_GATE,
+        payment_gate: ENABLE_PAYMENT_GATE,
+        auto_redispatch: ENABLE_AUTO_REDISPATCH
+      },
+      config: {
+        dispatch_timeout_seconds: DISPATCH_TIMEOUT_SECONDS,
+        max_dispatch_attempts: MAX_DISPATCH_ATTEMPTS,
+        default_booking_fee: BOOKING_FEE,
+        driver_payout_percent: DRIVER_PAYOUT_PERCENT,
+        autonomous_payout_percent: AUTONOMOUS_PAYOUT_PERCENT
+      },
+      secrets_masked: {
+        supabase_url: maskSecret(SUPABASE_URL),
+        twilio_account_sid: maskSecret(TWILIO_ACCOUNT_SID),
+        twilio_verify_service_sid: maskSecret(TWILIO_VERIFY_SERVICE_SID),
+        openai_api_key: maskSecret(OPENAI_API_KEY),
+        smtp_host: clean(SMTP_HOST)
+      },
+      tables
+    });
+  } catch (error) {
+    return fail(res, error.message || "Health check failed", 500);
+  }
+});/* =========================================================
+   HARVEY TAXI — CODE BLUE PHASE 9
+   PART 2: LOOKUPS + STATUS HELPERS + VERIFY + AI SUPPORT
+========================================================= */
 
 /* LOOKUPS */
 async function getRiderById(riderId) {
   if (!supabase || !clean(riderId)) return null;
-
-  const { data, error } = await supabase
-    .from("riders")
-    .select("*")
-    .eq("id", clean(riderId))
-    .maybeSingle();
-
-  if (error) return null;
-  return data || null;
+  return maybeSingle(
+    supabase.from("riders").select("*").eq("id", clean(riderId))
+  );
 }
 
 async function getDriverById(driverId) {
   if (!supabase || !clean(driverId)) return null;
-
-  const { data, error } = await supabase
-    .from("drivers")
-    .select("*")
-    .eq("id", clean(driverId))
-    .maybeSingle();
-
-  if (error) return null;
-  return data || null;
+  return maybeSingle(
+    supabase.from("drivers").select("*").eq("id", clean(driverId))
+  );
 }
 
 async function getRideById(rideId) {
   if (!supabase || !clean(rideId)) return null;
+  return maybeSingle(
+    supabase.from("rides").select("*").eq("id", clean(rideId))
+  );
+}
 
-  const { data, error } = await supabase
-    .from("rides")
-    .select("*")
-    .eq("id", clean(rideId))
-    .maybeSingle();
-
-  if (error) return null;
-  return data || null;
+async function getMissionById(missionId) {
+  if (!supabase || !clean(missionId)) return null;
+  return maybeSingle(
+    supabase.from("missions").select("*").eq("id", clean(missionId))
+  );
 }
 
 async function getMissionByRideId(rideId) {
   if (!supabase || !clean(rideId)) return null;
-
-  const { data, error } = await supabase
-    .from("missions")
-    .select("*")
-    .eq("ride_id", clean(rideId))
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) return null;
-  return data || null;
+  return maybeSingle(
+    supabase
+      .from("missions")
+      .select("*")
+      .eq("ride_id", clean(rideId))
+      .order("created_at", { ascending: false })
+      .limit(1)
+  );
 }
 
 async function getLatestDispatchByRideId(rideId) {
   if (!supabase || !clean(rideId)) return null;
-
-  const { data, error } = await supabase
-    .from("dispatches")
-    .select("*")
-    .eq("ride_id", clean(rideId))
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) return null;
-  return data || null;
+  return maybeSingle(
+    supabase
+      .from("dispatches")
+      .select("*")
+      .eq("ride_id", clean(rideId))
+      .order("created_at", { ascending: false })
+      .limit(1)
+  );
 }
 
 async function getRecentDispatchesByRideId(rideId, limit = 5) {
   if (!supabase || !clean(rideId)) return [];
 
-  const { data, error } = await supabase
-    .from("dispatches")
-    .select("*")
-    .eq("ride_id", clean(rideId))
-    .order("created_at", { ascending: false })
-    .limit(limit);
-
-  if (error || !Array.isArray(data)) return [];
-  return data;
-}
-
-async function getRecentTripEventsByRideId(rideId, limit = 8) {
-  if (!supabase || !clean(rideId)) return [];
-
-  let { data, error } = await supabase
-    .from("trip_events")
-    .select("*")
-    .eq("ride_id", clean(rideId))
-    .order("created_at", { ascending: false })
-    .limit(limit);
-
-  if (error) {
-    const fallback = await supabase
-      .from("trip_timelines")
+  try {
+    const { data, error } = await supabase
+      .from("dispatches")
       .select("*")
       .eq("ride_id", clean(rideId))
       .order("created_at", { ascending: false })
       .limit(limit);
 
-    data = fallback.data || [];
-    error = fallback.error || null;
+    if (error || !Array.isArray(data)) return [];
+    return data;
+  } catch (error) {
+    return [];
   }
+}
 
-  if (error || !Array.isArray(data)) return [];
-  return data;
+async function getRecentTripEventsByRideId(rideId, limit = 8) {
+  if (!supabase || !clean(rideId)) return [];
+
+  try {
+    let { data, error } = await supabase
+      .from("trip_events")
+      .select("*")
+      .eq("ride_id", clean(rideId))
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      const fallback = await supabase
+        .from("trip_timelines")
+        .select("*")
+        .eq("ride_id", clean(rideId))
+        .order("created_at", { ascending: false })
+        .limit(limit);
+
+      data = fallback.data || [];
+      error = fallback.error || null;
+    }
+
+    if (error || !Array.isArray(data)) return [];
+    return data;
+  } catch (error) {
+    return [];
+  }
 }
 
 async function getLatestPaymentForRider(riderId) {
   if (!supabase || !clean(riderId)) return null;
-
-  const { data, error } = await supabase
-    .from("payments")
-    .select("*")
-    .eq("rider_id", clean(riderId))
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) return null;
-  return data || null;
+  return maybeSingle(
+    supabase
+      .from("payments")
+      .select("*")
+      .eq("rider_id", clean(riderId))
+      .order("created_at", { ascending: false })
+      .limit(1)
+  );
 }
 
 async function getLatestPaymentForRide(rideId) {
   if (!supabase || !clean(rideId)) return null;
-
-  const { data, error } = await supabase
-    .from("payments")
-    .select("*")
-    .eq("ride_id", clean(rideId))
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) return null;
-  return data || null;
+  return maybeSingle(
+    supabase
+      .from("payments")
+      .select("*")
+      .eq("ride_id", clean(rideId))
+      .order("created_at", { ascending: false })
+      .limit(1)
+  );
 }
 
 /* STATUS HELPERS */
@@ -344,6 +584,7 @@ function isPaymentAuthorized(payment) {
 /* ACCESS HELPERS */
 async function ensureRiderCanRequestRide({ riderId, rideId = "" }) {
   const rider = await getRiderById(riderId);
+
   if (!rider) {
     return { ok: false, status: 404, error: "Rider not found" };
   }
@@ -383,11 +624,12 @@ async function ensureRiderCanRequestRide({ riderId, rideId = "" }) {
 
 async function ensureDriverCanGoActive({ driverId }) {
   const driver = await getDriverById(driverId);
+
   if (!driver) {
     return { ok: false, status: 404, error: "Driver not found" };
   }
 
-  if (!driverPhoneVerified(driver)) {
+  if (ENABLE_DRIVER_PHONE_VERIFICATION && !driverPhoneVerified(driver)) {
     return {
       ok: false,
       status: 403,
@@ -406,19 +648,21 @@ async function ensureDriverCanGoActive({ driverId }) {
   return { ok: true, driver };
 }
 
-/* TWILIO VERIFY */
-function twilioReady() {
-  return !!(twilioClient && TWILIO_VERIFY);
+/* VERIFY HELPERS */
+function twilioVerifyReady() {
+  return !!(twilioClient && TWILIO_VERIFY_SERVICE_SID);
 }
 
 async function sendVerificationCode(phoneNumber) {
-  if (!twilioReady()) throw new Error("Twilio Verify is not configured");
+  if (!twilioVerifyReady()) {
+    throw new Error("Twilio Verify is not configured");
+  }
 
-  const to = phone(phoneNumber);
+  const to = normalizePhone(phoneNumber);
   if (!to) throw new Error("Valid phone number required");
 
   return twilioClient.verify.v2
-    .services(TWILIO_VERIFY)
+    .services(TWILIO_VERIFY_SERVICE_SID)
     .verifications.create({
       to,
       channel: "sms"
@@ -426,15 +670,19 @@ async function sendVerificationCode(phoneNumber) {
 }
 
 async function checkVerificationCode(phoneNumber, code) {
-  if (!twilioReady()) throw new Error("Twilio Verify is not configured");
+  if (!twilioVerifyReady()) {
+    throw new Error("Twilio Verify is not configured");
+  }
 
-  const to = phone(phoneNumber);
+  const to = normalizePhone(phoneNumber);
   const pin = clean(code);
 
-  if (!to || !pin) throw new Error("Phone number and code are required");
+  if (!to || !pin) {
+    throw new Error("Phone number and code are required");
+  }
 
   return twilioClient.verify.v2
-    .services(TWILIO_VERIFY)
+    .services(TWILIO_VERIFY_SERVICE_SID)
     .verificationChecks.create({
       to,
       code: pin
@@ -444,44 +692,53 @@ async function checkVerificationCode(phoneNumber, code) {
 async function markRiderPhoneVerified({ riderId, phoneNumber }) {
   if (!supabase || !clean(riderId)) return null;
 
-  const { data, error } = await supabase
-    .from("riders")
-    .update({
-      phone: phone(phoneNumber),
-      phone_verified: true,
-      sms_verified: true,
-      updated_at: now()
-    })
-    .eq("id", clean(riderId))
-    .select("*")
-    .maybeSingle();
+  try {
+    const { data, error } = await supabase
+      .from("riders")
+      .update({
+        phone: normalizePhone(phoneNumber),
+        phone_verified: true,
+        sms_verified: true,
+        updated_at: nowIso()
+      })
+      .eq("id", clean(riderId))
+      .select("*")
+      .maybeSingle();
 
-  if (error) return null;
-  return data || null;
+    if (error) return null;
+    return data || null;
+  } catch (error) {
+    return null;
+  }
 }
 
 async function markDriverPhoneVerified({ driverId, phoneNumber }) {
   if (!supabase || !clean(driverId)) return null;
 
-  const { data, error } = await supabase
-    .from("drivers")
-    .update({
-      phone: phone(phoneNumber),
-      phone_verified: true,
-      sms_verified: true,
-      updated_at: now()
-    })
-    .eq("id", clean(driverId))
-    .select("*")
-    .maybeSingle();
+  try {
+    const { data, error } = await supabase
+      .from("drivers")
+      .update({
+        phone: normalizePhone(phoneNumber),
+        phone_verified: true,
+        sms_verified: true,
+        updated_at: nowIso()
+      })
+      .eq("id", clean(driverId))
+      .select("*")
+      .maybeSingle();
 
-  if (error) return null;
-  return data || null;
+    if (error) return null;
+    return data || null;
+  } catch (error) {
+    return null;
+  }
 }
 
-/* AI */
+/* AI HELPERS */
 function normalizePage(page = "") {
   const value = lower(page);
+
   if (!value) return "general";
   if (["home", "index", "landing"].includes(value)) return "general";
   if (["rider", "rider-signup", "rider-dashboard"].includes(value)) return "rider";
@@ -489,19 +746,18 @@ function normalizePage(page = "") {
   if (["request", "request-ride", "ride"].includes(value)) return "request";
   if (["support", "help", "faq"].includes(value)) return "support";
   if (["mission", "dispatch", "ops"].includes(value)) return value;
+
   return value;
 }
 
 function summarizeMissionState({ ride, mission, dispatches, events }) {
   if (!ride) return "No ride was found for this request.";
 
-  const latestDispatch = Array.isArray(dispatches) && dispatches.length
-    ? dispatches[0]
-    : null;
+  const latestDispatch =
+    Array.isArray(dispatches) && dispatches.length ? dispatches[0] : null;
 
-  const latestEvent = Array.isArray(events) && events.length
-    ? events[0]
-    : null;
+  const latestEvent =
+    Array.isArray(events) && events.length ? events[0] : null;
 
   return {
     ride_status: ride.status || "unknown",
@@ -520,9 +776,14 @@ function getFallbackReply(message = "", page = "general", context = {}) {
     return "Harvey Taxi is not an emergency service. If you are in danger or need urgent help, call 911 immediately.";
   }
 
-  if (text.includes("mission") || text.includes("dispatch") || text.includes("driver accepted")) {
+  if (
+    text.includes("mission") ||
+    text.includes("dispatch") ||
+    text.includes("driver accepted") ||
+    text.includes("ride status")
+  ) {
     const summary = summarizeMissionState(context);
-    if (summary.ride_status && typeof summary === "object") {
+    if (summary && typeof summary === "object" && summary.ride_status) {
       return `Your current ride status is ${summary.ride_status}. Mission status is ${summary.mission_status}. Latest dispatch status is ${summary.latest_dispatch_status}.`;
     }
   }
@@ -551,7 +812,11 @@ function getFallbackReply(message = "", page = "general", context = {}) {
     return "I can help with driver signup, document requirements, phone verification, approval, mission offers, and trip status.";
   }
 
-  if (safePage === "request" || safePage === "mission" || safePage === "dispatch") {
+  if (
+    safePage === "request" ||
+    safePage === "mission" ||
+    safePage === "dispatch"
+  ) {
     return "I can help with fare estimates, payment authorization, ride requests, mission status, dispatch progress, and trip updates.";
   }
 
@@ -561,12 +826,14 @@ function getFallbackReply(message = "", page = "general", context = {}) {
 /* VERIFY ROUTES */
 app.post("/api/verify/send-code", async (req, res) => {
   try {
-    const phoneNumber = phone(req.body?.phone);
+    const phoneNumber = normalizePhone(req.body?.phone);
     const userType = lower(req.body?.userType || req.body?.user_type);
     const riderId = clean(req.body?.rider_id);
     const driverId = clean(req.body?.driver_id);
 
-    if (!phoneNumber) return fail(res, "Phone number is required", 400);
+    if (!phoneNumber) {
+      return fail(res, "Phone number is required", 400);
+    }
 
     if (userType === "rider" && riderId) {
       const rider = await getRiderById(riderId);
@@ -582,7 +849,7 @@ app.post("/api/verify/send-code", async (req, res) => {
 
     return ok(res, {
       message: "Verification code sent",
-      status: verification.status,
+      status: verification.status || "pending",
       to: phoneNumber,
       channel: "sms"
     });
@@ -594,7 +861,7 @@ app.post("/api/verify/send-code", async (req, res) => {
 
 app.post("/api/verify/check-code", async (req, res) => {
   try {
-    const phoneNumber = phone(req.body?.phone);
+    const phoneNumber = normalizePhone(req.body?.phone);
     const code = clean(req.body?.code);
     const userType = lower(req.body?.userType || req.body?.user_type);
     const riderId = clean(req.body?.rider_id);
@@ -647,6 +914,7 @@ app.get("/api/rider/status/:riderId", async (req, res) => {
   try {
     const riderId = clean(req.params.riderId);
     const rider = await getRiderById(riderId);
+
     if (!rider) return fail(res, "Rider not found", 404);
 
     const latestPayment = await getLatestPaymentForRider(riderId);
@@ -673,6 +941,7 @@ app.get("/api/driver/status/:driverId", async (req, res) => {
   try {
     const driverId = clean(req.params.driverId);
     const driver = await getDriverById(driverId);
+
     if (!driver) return fail(res, "Driver not found", 404);
 
     return ok(res, {
@@ -681,7 +950,9 @@ app.get("/api/driver/status/:driverId", async (req, res) => {
       phone: driver.phone || null,
       phone_verified: driverPhoneVerified(driver),
       driver_approved: isDriverApproved(driver),
-      can_go_active: driverPhoneVerified(driver) && isDriverApproved(driver)
+      can_go_active:
+        (!ENABLE_DRIVER_PHONE_VERIFICATION || driverPhoneVerified(driver)) &&
+        isDriverApproved(driver)
     });
   } catch (error) {
     console.error("/api/driver/status/:driverId error:", error.message);
@@ -698,14 +969,20 @@ app.post("/api/ai/support", async (req, res) => {
     const driverId = clean(req.body?.driver_id);
     const rideId = clean(req.body?.ride_id);
 
-    if (!message) return fail(res, "Message is required", 400);
+    if (!message) {
+      return fail(res, "Message is required", 400);
+    }
 
     const rider = riderId ? await getRiderById(riderId) : null;
     const driver = driverId ? await getDriverById(driverId) : null;
     const ride = rideId ? await getRideById(rideId) : null;
     const mission = ride ? await getMissionByRideId(ride.id) : null;
-    const dispatches = ride ? await getRecentDispatchesByRideId(ride.id, 5) : [];
-    const events = ride ? await getRecentTripEventsByRideId(ride.id, 8) : [];
+    const dispatches = ride
+      ? await getRecentDispatchesByRideId(ride.id, 5)
+      : [];
+    const events = ride
+      ? await getRecentTripEventsByRideId(ride.id, 8)
+      : [];
     const latestPayment = ride
       ? await getLatestPaymentForRide(ride.id)
       : rider
@@ -751,7 +1028,7 @@ Harvey Taxi rules:
 - Drivers must complete signup, verification, and approval before going active
 - Autonomous service is pilot mode only when clearly labeled
 Current page context: ${page}
-      `.trim();
+        `.trim();
 
     const completion = await openai.chat.completions.create({
       model: OPENAI_SUPPORT_MODEL,
@@ -791,22 +1068,27 @@ Current page context: ${page}
     });
   }
 });/* =========================================================
-   HARVEY TAXI — CODE BLUE FINAL BUILD
-   PART 3: FARE ENGINE + RIDE REQUEST + MISSION + DISPATCH
+   HARVEY TAXI — CODE BLUE PHASE 9
+   PART 3: FARE ENGINE + REQUEST RIDE + MISSION + DISPATCH
 ========================================================= */
 
 /* FARE / DISPATCH CONFIG */
-const BASE_FARE = Number(process.env.BASE_FARE || 8);
-const PER_MILE_RATE = Number(process.env.PER_MILE_RATE || 2.2);
-const PER_MINUTE_RATE = Number(process.env.PER_MINUTE_RATE || 0.45);
-const BOOKING_FEE = Number(process.env.BOOKING_FEE || 2.5);
-const MINIMUM_FARE = Number(process.env.MINIMUM_FARE || 10);
-const DRIVER_PAYOUT_PERCENT = Number(process.env.DRIVER_PAYOUT_PERCENT || 0.75);
+const BASE_FARE = numEnv(process.env.BASE_FARE, 8);
+const PER_MILE_RATE = numEnv(process.env.PER_MILE_RATE, 2.2);
+const PER_MINUTE_RATE = numEnv(process.env.PER_MINUTE_RATE, 0.45);
+const BOOKING_FEE = numEnv(process.env.BOOKING_FEE, 2.5);
+const MINIMUM_FARE = numEnv(process.env.MINIMUM_FARE, 10);
+const DRIVER_PAYOUT_PERCENT = numEnv(process.env.DRIVER_PAYOUT_PERCENT, 0.72);
+const AUTONOMOUS_PAYOUT_PERCENT = numEnv(
+  process.env.AUTONOMOUS_PAYOUT_PERCENT,
+  0.52
+);
 
-const DISPATCH_TIMEOUT_SECONDS = Number(process.env.DISPATCH_TIMEOUT_SECONDS || 25);
-const MAX_DISPATCH_ATTEMPTS = Number(process.env.MAX_DISPATCH_ATTEMPTS || 5);
-
-const GOOGLE_MAPS_API_KEY = clean(process.env.GOOGLE_MAPS_API_KEY);
+const DISPATCH_TIMEOUT_SECONDS = numEnv(
+  process.env.DISPATCH_TIMEOUT_SECONDS,
+  25
+);
+const MAX_DISPATCH_ATTEMPTS = numEnv(process.env.MAX_DISPATCH_ATTEMPTS, 5);
 
 /* REQUEST HELPERS */
 function cleanAddress(value = "") {
@@ -825,7 +1107,17 @@ function cleanRequestedMode(value = "") {
 
 function cleanRideType(value = "") {
   const type = lower(value);
-  if (["airport", "scheduled", "medical", "nonprofit", "standard", "event", "tourist"].includes(type)) {
+  if (
+    [
+      "airport",
+      "scheduled",
+      "medical",
+      "nonprofit",
+      "standard",
+      "event",
+      "tourist"
+    ].includes(type)
+  ) {
     return type;
   }
   return "standard";
@@ -896,6 +1188,7 @@ function publicMission(mission) {
     dropoff_address: mission.dropoff_address || null,
     mission_summary: mission.mission_summary || null,
     estimated_fare: mission.estimated_fare ?? null,
+    estimated_driver_payout: mission.estimated_driver_payout ?? null,
     created_at: mission.created_at || null
   };
 }
@@ -906,10 +1199,12 @@ function publicDispatch(dispatch) {
   return {
     dispatch_id: dispatch.id,
     ride_id: dispatch.ride_id || null,
-    driver_id: dispatch.driver_id || null,
     mission_id: dispatch.mission_id || null,
+    rider_id: dispatch.rider_id || null,
+    driver_id: dispatch.driver_id || null,
     status: dispatch.status || null,
     attempt_number: dispatch.attempt_number ?? null,
+    requested_mode: dispatch.requested_mode || "driver",
     expires_at: dispatch.expires_at || null,
     created_at: dispatch.created_at || null
   };
@@ -941,77 +1236,30 @@ function estimateFare({
   subtotal *= safeSurge;
 
   const fare = Math.max(MINIMUM_FARE, subtotal + BOOKING_FEE);
-  const driverPayout = requestedMode === "autonomous"
-    ? 0
-    : round(fare * DRIVER_PAYOUT_PERCENT);
-  const platformRevenue = round(fare - driverPayout);
+
+  const payoutPercent =
+    requestedMode === "autonomous"
+      ? AUTONOMOUS_PAYOUT_PERCENT
+      : DRIVER_PAYOUT_PERCENT;
+
+  const driverPayout = roundMoney(fare * payoutPercent);
+  const platformRevenue = roundMoney(fare - driverPayout);
 
   return {
-    estimated_fare: round(fare),
-    base_fare: round(BASE_FARE),
-    booking_fee: round(BOOKING_FEE),
-    estimated_driver_payout: round(driverPayout),
-    estimated_platform_revenue: round(platformRevenue),
-    surge_multiplier: round(safeSurge),
+    estimated_fare: roundMoney(fare),
+    base_fare: roundMoney(BASE_FARE),
+    booking_fee: roundMoney(BOOKING_FEE),
+    estimated_driver_payout: roundMoney(driverPayout),
+    estimated_platform_revenue: roundMoney(platformRevenue),
+    surge_multiplier: roundMoney(safeSurge),
     requested_mode: requestedMode,
     ride_type: rideType,
-    miles: round(safeMiles),
-    minutes: round(safeMinutes)
+    miles: roundMoney(safeMiles),
+    minutes: roundMoney(safeMinutes)
   };
 }
 
-/* MAP HELPERS */
-async function safeFetch(url, options = {}) {
-  if (typeof fetch === "function") {
-    return fetch(url, options);
-  }
-
-  const https = require("https");
-  const http = require("http");
-  const target = new URL(url);
-  const lib = target.protocol === "https:" ? https : http;
-
-  return new Promise((resolve, reject) => {
-    const req = lib.request(
-      target,
-      {
-        method: options.method || "GET",
-        headers: options.headers || {}
-      },
-      (res) => {
-        let body = "";
-
-        res.on("data", (chunk) => {
-          body += chunk;
-        });
-
-        res.on("end", () => {
-          resolve({
-            ok: res.statusCode >= 200 && res.statusCode < 300,
-            status: res.statusCode,
-            json: async () => {
-              try {
-                return JSON.parse(body || "{}");
-              } catch (error) {
-                return {};
-              }
-            },
-            text: async () => body
-          });
-        });
-      }
-    );
-
-    req.on("error", reject);
-
-    if (options.body) {
-      req.write(options.body);
-    }
-
-    req.end();
-  });
-}
-
+/* GOOGLE MAPS DISTANCE */
 async function estimateTripFromAddresses({
   pickupAddress,
   dropoffAddress
@@ -1046,8 +1294,7 @@ async function estimateTripFromAddresses({
       `&units=imperial` +
       `&key=${GOOGLE_MAPS_API_KEY}`;
 
-    const response = await safeFetch(url);
-    const data = await response.json();
+    const data = await safeFetchJson(url);
 
     const row = data?.rows?.[0];
     const element = row?.elements?.[0];
@@ -1062,13 +1309,13 @@ async function estimateTripFromAddresses({
       const minutes = element.duration.value / 60;
 
       return {
-        miles: round(miles),
-        minutes: round(minutes),
+        miles: roundMoney(miles),
+        minutes: roundMoney(minutes),
         source: "google_maps"
       };
     }
   } catch (error) {
-    console.warn("Distance Matrix fallback triggered:", error.message);
+    console.warn("⚠️ Distance Matrix fallback triggered:", error.message);
   }
 
   return {
@@ -1133,7 +1380,7 @@ async function createRideRecord(payload) {
   if (!supabase) throw new Error("Supabase is not configured");
 
   const record = {
-    id: id("ride"),
+    id: makeId("ride"),
     rider_id: clean(payload.rider_id),
     pickup_address: cleanAddress(payload.pickup_address),
     dropoff_address: cleanAddress(payload.dropoff_address),
@@ -1154,8 +1401,8 @@ async function createRideRecord(payload) {
     scheduled_time: payload.scheduled_time || null,
     driver_id: payload.driver_id || null,
     mission_id: payload.mission_id || null,
-    created_at: now(),
-    updated_at: now()
+    created_at: nowIso(),
+    updated_at: nowIso()
   };
 
   const { data, error } = await supabase
@@ -1172,7 +1419,7 @@ async function createMissionRecord(payload) {
   if (!supabase) throw new Error("Supabase is not configured");
 
   const record = {
-    id: id("mission"),
+    id: makeId("mission"),
     ride_id: clean(payload.ride_id),
     rider_id: clean(payload.rider_id),
     driver_id: clean(payload.driver_id),
@@ -1184,8 +1431,8 @@ async function createMissionRecord(payload) {
     notes: cleanNotes(payload.notes),
     estimated_fare: Number(payload.estimated_fare || 0),
     estimated_driver_payout: Number(payload.estimated_driver_payout || 0),
-    created_at: now(),
-    updated_at: now()
+    created_at: nowIso(),
+    updated_at: nowIso()
   };
 
   const { data, error } = await supabase
@@ -1206,7 +1453,7 @@ async function createDispatchRecord(payload) {
   ).toISOString();
 
   const record = {
-    id: id("dispatch"),
+    id: makeId("dispatch"),
     ride_id: clean(payload.ride_id),
     mission_id: clean(payload.mission_id),
     driver_id: clean(payload.driver_id),
@@ -1215,8 +1462,8 @@ async function createDispatchRecord(payload) {
     status: clean(payload.status || "offered"),
     requested_mode: cleanRequestedMode(payload.requested_mode),
     expires_at: expiresAt,
-    created_at: now(),
-    updated_at: now()
+    created_at: nowIso(),
+    updated_at: nowIso()
   };
 
   const { data, error } = await supabase
@@ -1243,7 +1490,7 @@ async function linkRideMission({
     driver_id: clean(driverId) || null,
     dispatch_status: clean(dispatchStatus),
     status: clean(rideStatus),
-    updated_at: now()
+    updated_at: nowIso()
   };
 
   const { data, error } = await supabase
@@ -1257,19 +1504,19 @@ async function linkRideMission({
   return data || null;
 }
 
-/* OPTIONAL TRIP EVENT LOGGING */
+/* TRIP EVENT LOGGING */
 async function logTripEventSafe(payload = {}) {
   if (!supabase) return;
 
   try {
     const row = {
-      id: id("tevt"),
+      id: makeId("tevt"),
       ride_id: clean(payload.ride_id),
       mission_id: clean(payload.mission_id),
       dispatch_id: clean(payload.dispatch_id),
       event_type: clean(payload.event_type),
       details: payload.details || {},
-      created_at: now()
+      created_at: nowIso()
     };
 
     const { error } = await supabase.from("trip_events").insert(row);
@@ -1284,10 +1531,18 @@ async function logTripEventSafe(payload = {}) {
 /* ROUTES */
 app.post("/api/fare-estimate", async (req, res) => {
   try {
-    const pickupAddress = cleanAddress(req.body?.pickup_address || req.body?.pickup);
-    const dropoffAddress = cleanAddress(req.body?.dropoff_address || req.body?.dropoff);
-    const requestedMode = cleanRequestedMode(req.body?.requestedMode || req.body?.requested_mode);
-    const rideType = cleanRideType(req.body?.rideType || req.body?.ride_type);
+    const pickupAddress = cleanAddress(
+      req.body?.pickup_address || req.body?.pickup
+    );
+    const dropoffAddress = cleanAddress(
+      req.body?.dropoff_address || req.body?.dropoff
+    );
+    const requestedMode = cleanRequestedMode(
+      req.body?.requestedMode || req.body?.requested_mode
+    );
+    const rideType = cleanRideType(
+      req.body?.rideType || req.body?.ride_type
+    );
     const scheduledTime = parseScheduledTime(
       req.body?.scheduled_time || req.body?.scheduledTime
     );
@@ -1340,7 +1595,6 @@ app.post("/api/payment/check-authorization", async (req, res) => {
     }
 
     let payment = null;
-
     if (rideId) payment = await getLatestPaymentForRide(rideId);
     if (!payment && riderId) payment = await getLatestPaymentForRider(riderId);
 
@@ -1399,13 +1653,21 @@ app.post("/api/request-ride", async (req, res) => {
     }
 
     const riderId = clean(req.body?.rider_id);
-    const pickupAddress = cleanAddress(req.body?.pickup_address || req.body?.pickup);
-    const dropoffAddress = cleanAddress(req.body?.dropoff_address || req.body?.dropoff);
-    const notes = cleanNotes(req.body?.notes || req.body?.specialInstructions);
+    const pickupAddress = cleanAddress(
+      req.body?.pickup_address || req.body?.pickup
+    );
+    const dropoffAddress = cleanAddress(
+      req.body?.dropoff_address || req.body?.dropoff
+    );
+    const notes = cleanNotes(
+      req.body?.notes || req.body?.specialInstructions
+    );
     const requestedMode = cleanRequestedMode(
       req.body?.requestedMode || req.body?.requested_mode
     );
-    const rideType = cleanRideType(req.body?.rideType || req.body?.ride_type);
+    const rideType = cleanRideType(
+      req.body?.rideType || req.body?.ride_type
+    );
     const scheduledTime = parseScheduledTime(
       req.body?.scheduled_time || req.body?.scheduledTime
     );
@@ -1418,9 +1680,7 @@ app.post("/api/request-ride", async (req, res) => {
       return fail(res, "Pickup and dropoff addresses are required", 400);
     }
 
-    const riderAccess = await ensureRiderCanRequestRide({
-      riderId
-    });
+    const riderAccess = await ensureRiderCanRequestRide({ riderId });
 
     if (!riderAccess.ok) {
       return fail(res, riderAccess.error, riderAccess.status || 403);
@@ -1600,7 +1860,9 @@ app.get("/api/rider/:id/rides", async (req, res) => {
       .eq("rider_id", riderId)
       .order("created_at", { ascending: false });
 
-    if (error) return fail(res, error.message || "Failed to fetch rides", 500);
+    if (error) {
+      return fail(res, error.message || "Failed to fetch rides", 500);
+    }
 
     return ok(res, {
       rides: Array.isArray(data) ? data.map(publicRide) : []
@@ -1631,7 +1893,9 @@ app.get("/api/driver/:id/current", async (req, res) => {
       .limit(1)
       .maybeSingle();
 
-    if (error) return fail(res, error.message || "Failed to fetch current ride", 500);
+    if (error) {
+      return fail(res, error.message || "Failed to fetch current ride", 500);
+    }
 
     return ok(res, {
       ride: publicRide(data || null)
@@ -1641,164 +1905,151 @@ app.get("/api/driver/:id/current", async (req, res) => {
     return fail(res, "Failed to fetch current ride", 500);
   }
 });/* =========================================================
-   HARVEY TAXI — CODE BLUE FINAL BUILD
+   HARVEY TAXI — CODE BLUE PHASE 9
    PART 4: MISSION ACCEPT / REJECT + REDISPATCH + TRIP FLOW
 ========================================================= */
 
 /* LOOKUPS */
-async function getMissionById(missionId) {
-  if (!supabase || !clean(missionId)) return null;
-
-  const { data, error } = await supabase
-    .from("missions")
-    .select("*")
-    .eq("id", clean(missionId))
-    .maybeSingle();
-
-  if (error) return null;
-  return data || null;
-}
-
-async function getDispatchById(dispatchId) {
-  if (!supabase || !clean(dispatchId)) return null;
-
-  const { data, error } = await supabase
-    .from("dispatches")
-    .select("*")
-    .eq("id", clean(dispatchId))
-    .maybeSingle();
-
-  if (error) return null;
-  return data || null;
-}
-
-async function getLatestDispatchForRide(rideId) {
-  if (!supabase || !clean(rideId)) return null;
-
-  const { data, error } = await supabase
-    .from("dispatches")
-    .select("*")
-    .eq("ride_id", clean(rideId))
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) return null;
-  return data || null;
-}
-
 async function getOpenDispatchesForRide(rideId) {
   if (!supabase || !clean(rideId)) return [];
 
-  const { data, error } = await supabase
-    .from("dispatches")
-    .select("*")
-    .eq("ride_id", clean(rideId))
-    .in("status", ["offered", "pending", "sent"])
-    .order("created_at", { ascending: true });
+  try {
+    const { data, error } = await supabase
+      .from("dispatches")
+      .select("*")
+      .eq("ride_id", clean(rideId))
+      .in("status", ["offered", "pending", "sent"])
+      .order("created_at", { ascending: true });
 
-  if (error || !Array.isArray(data)) return [];
-  return data;
+    if (error || !Array.isArray(data)) return [];
+    return data;
+  } catch (error) {
+    return [];
+  }
 }
 
 async function getDispatchAttemptsCount(rideId) {
   if (!supabase || !clean(rideId)) return 0;
 
-  const { count, error } = await supabase
-    .from("dispatches")
-    .select("*", { count: "exact", head: true })
-    .eq("ride_id", clean(rideId));
+  try {
+    const { count, error } = await supabase
+      .from("dispatches")
+      .select("*", { count: "exact", head: true })
+      .eq("ride_id", clean(rideId));
 
-  if (error) return 0;
-  return Number(count || 0);
+    if (error) return 0;
+    return Number(count || 0);
+  } catch (error) {
+    return 0;
+  }
 }
 
 async function getOfferedDriverIdsForRide(rideId) {
   if (!supabase || !clean(rideId)) return [];
 
-  const { data, error } = await supabase
-    .from("dispatches")
-    .select("driver_id")
-    .eq("ride_id", clean(rideId));
+  try {
+    const { data, error } = await supabase
+      .from("dispatches")
+      .select("driver_id")
+      .eq("ride_id", clean(rideId));
 
-  if (error || !Array.isArray(data)) return [];
-  return data.map((row) => clean(row.driver_id)).filter(Boolean);
+    if (error || !Array.isArray(data)) return [];
+    return data.map((row) => clean(row.driver_id)).filter(Boolean);
+  } catch (error) {
+    return [];
+  }
 }
 
 /* UPDATE HELPERS */
 async function updateRide(rideId, updates = {}) {
   if (!supabase || !clean(rideId)) return null;
 
-  const payload = {
-    ...updates,
-    updated_at: now()
-  };
+  try {
+    const payload = {
+      ...updates,
+      updated_at: nowIso()
+    };
 
-  const { data, error } = await supabase
-    .from("rides")
-    .update(payload)
-    .eq("id", clean(rideId))
-    .select("*")
-    .maybeSingle();
+    const { data, error } = await supabase
+      .from("rides")
+      .update(payload)
+      .eq("id", clean(rideId))
+      .select("*")
+      .maybeSingle();
 
-  if (error) return null;
-  return data || null;
+    if (error) return null;
+    return data || null;
+  } catch (error) {
+    return null;
+  }
 }
 
 async function updateMission(missionId, updates = {}) {
   if (!supabase || !clean(missionId)) return null;
 
-  const payload = {
-    ...updates,
-    updated_at: now()
-  };
+  try {
+    const payload = {
+      ...updates,
+      updated_at: nowIso()
+    };
 
-  const { data, error } = await supabase
-    .from("missions")
-    .update(payload)
-    .eq("id", clean(missionId))
-    .select("*")
-    .maybeSingle();
+    const { data, error } = await supabase
+      .from("missions")
+      .update(payload)
+      .eq("id", clean(missionId))
+      .select("*")
+      .maybeSingle();
 
-  if (error) return null;
-  return data || null;
+    if (error) return null;
+    return data || null;
+  } catch (error) {
+    return null;
+  }
 }
 
 async function updateDispatch(dispatchId, updates = {}) {
   if (!supabase || !clean(dispatchId)) return null;
 
-  const payload = {
-    ...updates,
-    updated_at: now()
-  };
+  try {
+    const payload = {
+      ...updates,
+      updated_at: nowIso()
+    };
 
-  const { data, error } = await supabase
-    .from("dispatches")
-    .update(payload)
-    .eq("id", clean(dispatchId))
-    .select("*")
-    .maybeSingle();
+    const { data, error } = await supabase
+      .from("dispatches")
+      .update(payload)
+      .eq("id", clean(dispatchId))
+      .select("*")
+      .maybeSingle();
 
-  if (error) return null;
-  return data || null;
+    if (error) return null;
+    return data || null;
+  } catch (error) {
+    return null;
+  }
 }
 
 async function setDriverAvailability(driverId, isAvailable, isOnline = true) {
   if (!supabase || !clean(driverId)) return null;
 
-  const { data, error } = await supabase
-    .from("drivers")
-    .update({
-      is_available: !!isAvailable,
-      is_online: !!isOnline,
-      updated_at: now()
-    })
-    .eq("id", clean(driverId))
-    .select("*")
-    .maybeSingle();
+  try {
+    const { data, error } = await supabase
+      .from("drivers")
+      .update({
+        is_available: !!isAvailable,
+        is_online: !!isOnline,
+        updated_at: nowIso()
+      })
+      .eq("id", clean(driverId))
+      .select("*")
+      .maybeSingle();
 
-  if (error) return null;
-  return data || null;
+    if (error) return null;
+    return data || null;
+  } catch (error) {
+    return null;
+  }
 }
 
 async function closeOpenDispatchesForRide(rideId, finalStatus = "closed") {
@@ -1809,7 +2060,7 @@ async function closeOpenDispatchesForRide(rideId, finalStatus = "closed") {
       .from("dispatches")
       .update({
         status: clean(finalStatus),
-        updated_at: now()
+        updated_at: nowIso()
       })
       .eq("ride_id", clean(rideId))
       .in("status", ["offered", "pending", "sent"]);
@@ -1997,7 +2248,9 @@ async function expireDispatchIfNeeded(dispatch) {
     return { ok: true, expired: true, dispatch: expired || dispatch };
   }
 
-  const redispatch = await redispatchRide(ride);
+  const redispatch = ENABLE_AUTO_REDISPATCH
+    ? await redispatchRide(ride)
+    : { ok: false, error: "Auto redispatch disabled" };
 
   return {
     ok: true,
@@ -2051,7 +2304,9 @@ app.post("/api/dispatch/check-expiry", async (req, res) => {
       return fail(res, "dispatch_id is required", 400);
     }
 
-    const dispatch = await getDispatchById(dispatchId);
+    const dispatch = await getLatestDispatchByRideId("") || await maybeSingle(
+      supabase.from("dispatches").select("*").eq("id", dispatchId)
+    );
 
     if (!dispatch) {
       return fail(res, "Dispatch not found", 404);
@@ -2087,7 +2342,6 @@ app.post("/api/missions/accept", async (req, res) => {
     }
 
     const mission = await getMissionById(missionId);
-
     if (!mission) {
       return fail(res, "Mission not found", 404);
     }
@@ -2097,13 +2351,11 @@ app.post("/api/missions/accept", async (req, res) => {
     }
 
     const ride = await getRideById(mission.ride_id);
-
     if (!ride) {
       return fail(res, "Ride not found", 404);
     }
 
-    const dispatch = await getLatestDispatchForRide(ride.id);
-
+    const dispatch = await getLatestDispatchByRideId(ride.id);
     if (!dispatch) {
       return fail(res, "Dispatch not found", 404);
     }
@@ -2166,7 +2418,6 @@ app.post("/api/missions/reject", async (req, res) => {
     }
 
     const mission = await getMissionById(missionId);
-
     if (!mission) {
       return fail(res, "Mission not found", 404);
     }
@@ -2176,12 +2427,11 @@ app.post("/api/missions/reject", async (req, res) => {
     }
 
     const ride = await getRideById(mission.ride_id);
-
     if (!ride) {
       return fail(res, "Ride not found", 404);
     }
 
-    const dispatch = await getLatestDispatchForRide(ride.id);
+    const dispatch = await getLatestDispatchByRideId(ride.id);
 
     if (dispatch && clean(dispatch.driver_id) === driverId) {
       await updateDispatch(dispatch.id, {
@@ -2202,7 +2452,9 @@ app.post("/api/missions/reject", async (req, res) => {
       }
     });
 
-    const result = await redispatchRide(ride);
+    const result = ENABLE_AUTO_REDISPATCH
+      ? await redispatchRide(ride)
+      : { ok: false, error: "Auto redispatch disabled", ride };
 
     return ok(res, {
       message: result.ok ? "Mission rejected and redispatched" : "Mission rejected",
@@ -2227,7 +2479,6 @@ app.post("/api/rides/driver-en-route", async (req, res) => {
     }
 
     const ride = await getRideById(rideId);
-
     if (!ride) {
       return fail(res, "Ride not found", 404);
     }
@@ -2276,7 +2527,6 @@ app.post("/api/rides/driver-arrived", async (req, res) => {
     }
 
     const ride = await getRideById(rideId);
-
     if (!ride) {
       return fail(res, "Ride not found", 404);
     }
@@ -2325,7 +2575,6 @@ app.post("/api/rides/start", async (req, res) => {
     }
 
     const ride = await getRideById(rideId);
-
     if (!ride) {
       return fail(res, "Ride not found", 404);
     }
@@ -2336,7 +2585,7 @@ app.post("/api/rides/start", async (req, res) => {
 
     const updatedRide = await updateRide(rideId, {
       status: "in_progress",
-      started_at: now()
+      started_at: nowIso()
     });
 
     if (ride.mission_id) {
@@ -2375,7 +2624,6 @@ app.post("/api/rides/complete", async (req, res) => {
     }
 
     const ride = await getRideById(rideId);
-
     if (!ride) {
       return fail(res, "Ride not found", 404);
     }
@@ -2387,7 +2635,7 @@ app.post("/api/rides/complete", async (req, res) => {
     const updatedRide = await updateRide(rideId, {
       status: "completed",
       dispatch_status: "completed",
-      completed_at: now()
+      completed_at: nowIso()
     });
 
     if (ride.mission_id) {
@@ -2435,7 +2683,6 @@ app.post("/api/rides/cancel", async (req, res) => {
     }
 
     const ride = await getRideById(rideId);
-
     if (!ride) {
       return fail(res, "Ride not found", 404);
     }
@@ -2493,7 +2740,6 @@ app.post("/api/admin/rides/cancel", requireAdmin, async (req, res) => {
     }
 
     const ride = await getRideById(rideId);
-
     if (!ride) {
       return fail(res, "Ride not found", 404);
     }
@@ -2534,54 +2780,17 @@ app.post("/api/admin/rides/cancel", requireAdmin, async (req, res) => {
     return fail(res, "Failed to cancel ride", 500);
   }
 });/* =========================================================
-   HARVEY TAXI — CODE BLUE FINAL BUILD
-   PART 5: ADMIN DASHBOARD + ANALYTICS + EARNINGS + FINAL BOOT
+   HARVEY TAXI — CODE BLUE PHASE 9
+   PART 5: ADMIN + ANALYTICS + EARNINGS + FINAL BOOT
 ========================================================= */
 
 /* OPTIONAL EMAIL */
-let nodemailer = null;
-try { nodemailer = require("nodemailer"); } catch (e) {}
-
-/* EMAIL CONFIG */
-const SUPPORT_EMAIL = clean(
-  process.env.SUPPORT_EMAIL ||
-  process.env.SUPPORT_FROM_EMAIL ||
-  "support@harveytaxiservice.com"
-);
-
-const SMTP_HOST = clean(process.env.SMTP_HOST);
-const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
-const SMTP_USER = clean(process.env.SMTP_USER);
-const SMTP_PASS = clean(process.env.SMTP_PASS);
-const SMTP_FROM = clean(process.env.SMTP_FROM || SUPPORT_EMAIL);
-
-function smtpReady() {
-  return !!(nodemailer && SMTP_HOST && SMTP_USER && SMTP_PASS);
-}
-
-let mailTransport = null;
-
-function getMailTransport() {
-  if (!smtpReady()) return null;
-  if (mailTransport) return mailTransport;
-
-  mailTransport = nodemailer.createTransport({
-    host: SMTP_HOST,
-    port: SMTP_PORT,
-    secure: SMTP_PORT === 465,
-    auth: {
-      user: SMTP_USER,
-      pass: SMTP_PASS
-    }
-  });
-
-  return mailTransport;
-}
-
 async function sendEmail({ to, subject, text, html = "" }) {
   try {
     const transport = getMailTransport();
-    if (!transport || !clean(to)) return { ok: false, skipped: true };
+    if (!transport || !clean(to)) {
+      return { ok: false, skipped: true };
+    }
 
     const info = await transport.sendMail({
       from: SMTP_FROM,
@@ -2604,7 +2813,7 @@ async function sendEmail({ to, subject, text, html = "" }) {
   }
 }
 
-/* COUNTS / ANALYTICS */
+/* ANALYTICS HELPERS */
 async function getCounts() {
   if (!supabase) {
     return {
@@ -2617,12 +2826,16 @@ async function getCounts() {
   }
 
   async function countTable(table) {
-    const { count, error } = await supabase
-      .from(table)
-      .select("*", { count: "exact", head: true });
+    try {
+      const { count, error } = await supabase
+        .from(table)
+        .select("*", { count: "exact", head: true });
 
-    if (error) return 0;
-    return Number(count || 0);
+      if (error) return 0;
+      return Number(count || 0);
+    } catch (error) {
+      return 0;
+    }
   }
 
   return {
@@ -2637,27 +2850,35 @@ async function getCounts() {
 async function getRideStatusBreakdown() {
   if (!supabase) return {};
 
-  const { data, error } = await supabase.from("rides").select("status");
-  if (error || !Array.isArray(data)) return {};
+  try {
+    const { data, error } = await supabase.from("rides").select("status");
+    if (error || !Array.isArray(data)) return {};
 
-  return data.reduce((acc, row) => {
-    const key = clean(row.status || "unknown");
-    acc[key] = (acc[key] || 0) + 1;
-    return acc;
-  }, {});
+    return data.reduce((acc, row) => {
+      const key = clean(row.status || "unknown");
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+  } catch (error) {
+    return {};
+  }
 }
 
 async function getDispatchStatusBreakdown() {
   if (!supabase) return {};
 
-  const { data, error } = await supabase.from("dispatches").select("status");
-  if (error || !Array.isArray(data)) return {};
+  try {
+    const { data, error } = await supabase.from("dispatches").select("status");
+    if (error || !Array.isArray(data)) return {};
 
-  return data.reduce((acc, row) => {
-    const key = clean(row.status || "unknown");
-    acc[key] = (acc[key] || 0) + 1;
-    return acc;
-  }, {});
+    return data.reduce((acc, row) => {
+      const key = clean(row.status || "unknown");
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+  } catch (error) {
+    return {};
+  }
 }
 
 async function getRevenueSnapshot() {
@@ -2669,112 +2890,134 @@ async function getRevenueSnapshot() {
     };
   }
 
-  const { data, error } = await supabase
-    .from("rides")
-    .select("estimated_fare, estimated_driver_payout, estimated_platform_revenue");
+  try {
+    const { data, error } = await supabase
+      .from("rides")
+      .select("estimated_fare, estimated_driver_payout, estimated_platform_revenue");
 
-  if (error || !Array.isArray(data)) {
+    if (error || !Array.isArray(data)) {
+      return {
+        estimated_fares_total: 0,
+        estimated_driver_payout_total: 0,
+        estimated_platform_revenue_total: 0
+      };
+    }
+
+    const totals = data.reduce(
+      (acc, row) => {
+        acc.estimated_fares_total += Number(row.estimated_fare || 0);
+        acc.estimated_driver_payout_total += Number(row.estimated_driver_payout || 0);
+        acc.estimated_platform_revenue_total += Number(
+          row.estimated_platform_revenue || 0
+        );
+        return acc;
+      },
+      {
+        estimated_fares_total: 0,
+        estimated_driver_payout_total: 0,
+        estimated_platform_revenue_total: 0
+      }
+    );
+
+    return {
+      estimated_fares_total: roundMoney(totals.estimated_fares_total),
+      estimated_driver_payout_total: roundMoney(
+        totals.estimated_driver_payout_total
+      ),
+      estimated_platform_revenue_total: roundMoney(
+        totals.estimated_platform_revenue_total
+      )
+    };
+  } catch (error) {
     return {
       estimated_fares_total: 0,
       estimated_driver_payout_total: 0,
       estimated_platform_revenue_total: 0
     };
   }
-
-  const totals = data.reduce(
-    (acc, row) => {
-      acc.estimated_fares_total += Number(row.estimated_fare || 0);
-      acc.estimated_driver_payout_total += Number(row.estimated_driver_payout || 0);
-      acc.estimated_platform_revenue_total += Number(row.estimated_platform_revenue || 0);
-      return acc;
-    },
-    {
-      estimated_fares_total: 0,
-      estimated_driver_payout_total: 0,
-      estimated_platform_revenue_total: 0
-    }
-  );
-
-  return {
-    estimated_fares_total: round(totals.estimated_fares_total),
-    estimated_driver_payout_total: round(totals.estimated_driver_payout_total),
-    estimated_platform_revenue_total: round(totals.estimated_platform_revenue_total)
-  };
 }
 
 /* DRIVER EARNINGS */
 async function createDriverEarningFromRide(ride) {
   if (!supabase || !ride || !ride.driver_id) return null;
 
-  const { data: existing, error: existingError } = await supabase
-    .from("driver_earnings")
-    .select("*")
-    .eq("ride_id", clean(ride.id))
-    .eq("driver_id", clean(ride.driver_id))
-    .maybeSingle();
+  try {
+    const { data: existing, error: existingError } = await supabase
+      .from("driver_earnings")
+      .select("*")
+      .eq("ride_id", clean(ride.id))
+      .eq("driver_id", clean(ride.driver_id))
+      .maybeSingle();
 
-  if (!existingError && existing) return existing;
+    if (!existingError && existing) return existing;
 
-  const { data, error } = await supabase
-    .from("driver_earnings")
-    .insert({
-      id: id("earn"),
-      driver_id: clean(ride.driver_id),
-      ride_id: clean(ride.id),
-      amount: Number(ride.estimated_driver_payout || 0),
-      status: "pending",
-      created_at: now(),
-      updated_at: now()
-    })
-    .select("*")
-    .maybeSingle();
+    const { data, error } = await supabase
+      .from("driver_earnings")
+      .insert({
+        id: makeId("earn"),
+        driver_id: clean(ride.driver_id),
+        ride_id: clean(ride.id),
+        amount: Number(ride.estimated_driver_payout || 0),
+        status: "pending",
+        created_at: nowIso(),
+        updated_at: nowIso()
+      })
+      .select("*")
+      .maybeSingle();
 
-  if (error) return null;
-  return data || null;
+    if (error) return null;
+    return data || null;
+  } catch (error) {
+    return null;
+  }
 }
 
 async function createDriverPayout(driverId) {
   if (!supabase || !clean(driverId)) return null;
 
-  const { data: earnings, error } = await supabase
-    .from("driver_earnings")
-    .select("*")
-    .eq("driver_id", clean(driverId))
-    .neq("status", "paid");
+  try {
+    const { data: earnings, error } = await supabase
+      .from("driver_earnings")
+      .select("*")
+      .eq("driver_id", clean(driverId))
+      .neq("status", "paid");
 
-  if (error) return null;
+    if (error) return null;
 
-  const rows = earnings || [];
-  if (!rows.length) return null;
+    const rows = earnings || [];
+    if (!rows.length) return null;
 
-  const total = rows.reduce((sum, row) => sum + Number(row.amount || 0), 0);
-  const earningIds = rows.map((row) => row.id);
+    const total = rows.reduce((sum, row) => sum + Number(row.amount || 0), 0);
+    const earningIds = rows.map((row) => row.id);
 
-  const { data: payout, error: payoutError } = await supabase
-    .from("driver_payouts")
-    .insert({
-      id: id("payout"),
-      driver_id: clean(driverId),
-      amount: round(total),
-      earning_ids: earningIds,
-      status: "scheduled",
-      created_at: now(),
-      updated_at: now()
-    })
-    .select("*")
-    .maybeSingle();
+    const { data: payout, error: payoutError } = await supabase
+      .from("driver_payouts")
+      .insert({
+        id: makeId("payout"),
+        driver_id: clean(driverId),
+        amount: roundMoney(total),
+        earning_ids: earningIds,
+        status: "scheduled",
+        created_at: nowIso(),
+        updated_at: nowIso()
+      })
+      .select("*")
+      .maybeSingle();
 
-  if (payoutError || !payout) return null;
+    if (payoutError || !payout) return null;
 
-  await supabase
-    .from("driver_earnings")
-    .update({
-      status: "paid",
-      updated_at: now()
-    })
-    .in("id", earningIds);
+    await supabase
+      .from("driver_earnings")
+      .update({
+        status: "paid",
+        updated_at: nowIso()
+      })
+      .in("id", earningIds);
 
-  return payout;
+    return payout;
+  } catch (error) {
+    return null;
+  }
 }
 
 /* ADMIN ROUTES */
@@ -2967,9 +3210,9 @@ app.get("/api/driver/:id/earnings", async (req, res) => {
     return ok(res, {
       driver_id: driverId,
       totals: {
-        total_earnings: round(total),
-        paid_earnings: round(paid),
-        pending_earnings: round(pending)
+        total_earnings: roundMoney(total),
+        paid_earnings: roundMoney(paid),
+        pending_earnings: roundMoney(pending)
       },
       earnings
     });
@@ -3051,13 +3294,23 @@ async function runStartupChecks() {
     const counts = await getCounts();
 
     console.log("========================================");
-    console.log("Harvey Taxi Code Blue Final Build");
-    console.log("Started:", STARTED);
+    console.log(APP_NAME);
+    console.log("Started:", STARTED_AT);
+    console.log("Public URL:", PUBLIC_APP_URL);
+    console.log("Support Email:", SUPPORT_EMAIL);
+    console.log("Primary Admin Email:", ADMIN_EMAIL);
     console.log("Supabase:", !!supabase);
     console.log("Twilio:", !!twilioClient);
-    console.log("Twilio Verify:", !!TWILIO_VERIFY);
+    console.log("Twilio Verify:", !!TWILIO_VERIFY_SERVICE_SID);
     console.log("OpenAI:", !!openai);
     console.log("SMTP:", smtpReady());
+    console.log("Google Maps:", !!GOOGLE_MAPS_API_KEY);
+    console.log("AI Enabled:", ENABLE_AI_BRAIN);
+    console.log("Rider Verification Gate:", ENABLE_RIDER_VERIFICATION_GATE);
+    console.log("Payment Gate:", ENABLE_PAYMENT_GATE);
+    console.log("Auto Redispatch:", ENABLE_AUTO_REDISPATCH);
+    console.log("Dispatch Timeout Seconds:", DISPATCH_TIMEOUT_SECONDS);
+    console.log("Max Dispatch Attempts:", MAX_DISPATCH_ATTEMPTS);
     console.log("Counts:", counts);
     console.log("========================================");
   } catch (error) {
@@ -3073,7 +3326,11 @@ app.use((req, res) => {
 /* FINAL ERROR */
 app.use((error, req, res, next) => {
   console.error("Unhandled server error:", error);
-  return fail(res, error?.message || "Internal server error", error?.statusCode || 500);
+  return fail(
+    res,
+    error?.message || "Internal server error",
+    error?.statusCode || 500
+  );
 });
 
 /* SERVER START */
