@@ -14,15 +14,17 @@
     }
 
     const CONFIG = {
-      storageKey: "harvey_ai_chat_state_v14",
-      uiStateKey: "harvey_ai_chat_ui_state_v14",
+      storageKey: "harvey_ai_chat_state_v15",
+      uiStateKey: "harvey_ai_chat_ui_state_v15",
       endpoint: "/api/ai/support",
       messageLimit: 80,
       rateLimitMs: 1000,
       requestTimeoutMs: 25000,
       autoOpenParam: "openHarveyAI",
       defaultOpenOnPages: [],
-      widgetTitle: "Harvey Taxi AI Support"
+      widgetTitle: "Harvey Taxi AI Support",
+      fallbackError:
+        "I’m having trouble reaching Harvey Taxi AI Support right now. Please try again in a moment."
     };
 
     injectStyles();
@@ -77,9 +79,7 @@
       try {
         const params = new URLSearchParams(window.location.search);
         if (params.get(CONFIG.autoOpenParam) === "1") return true;
-      } catch (error) {
-        // ignore
-      }
+      } catch (_error) {}
 
       return CONFIG.defaultOpenOnPages.includes(PAGE_CONTEXT);
     }
@@ -186,7 +186,7 @@
             return item && typeof item.role === "string" && typeof item.text === "string";
           })
           .slice(-CONFIG.messageLimit);
-      } catch (error) {
+      } catch (_error) {
         return getWelcomeMessages();
       }
     }
@@ -212,7 +212,7 @@
           isOpen: !!(parsed && parsed.isOpen),
           isExpanded: !!(parsed && parsed.isExpanded)
         };
-      } catch (error) {
+      } catch (_error) {
         return { isOpen: false, isExpanded: false };
       }
     }
@@ -532,14 +532,23 @@
       if (state.isLoading) {
         const typingWrap = document.createElement("div");
         typingWrap.className = "harvey-ai-message assistant";
-        typingWrap.innerHTML = `
-          <div class="harvey-ai-typing" aria-label="${escapeHtml(CONFIG.widgetTitle)} is typing">
-            <span class="harvey-ai-typing-dot"></span>
-            <span class="harvey-ai-typing-dot"></span>
-            <span class="harvey-ai-typing-dot"></span>
-          </div>
-          <div class="harvey-ai-meta">${escapeHtml(CONFIG.widgetTitle)}</div>
-        `;
+
+        const typing = document.createElement("div");
+        typing.className = "harvey-ai-typing";
+        typing.setAttribute("aria-label", `${CONFIG.widgetTitle} is typing`);
+
+        for (let i = 0; i < 3; i += 1) {
+          const dot = document.createElement("span");
+          dot.className = "harvey-ai-typing-dot";
+          typing.appendChild(dot);
+        }
+
+        const meta = document.createElement("div");
+        meta.className = "harvey-ai-meta";
+        meta.textContent = CONFIG.widgetTitle;
+
+        typingWrap.appendChild(typing);
+        typingWrap.appendChild(meta);
         body.appendChild(typingWrap);
       }
 
@@ -642,10 +651,20 @@
       return null;
     }
 
+    async function safeParseResponse(response) {
+      const text = await response.text();
+      const data = safeJsonParse(text, null);
+      return {
+        text,
+        data
+      };
+    }
+
     async function sendMessage(text) {
       const trimmed = String(text || "").trim();
       if (!trimmed || state.isLoading) return;
 
+      open();
       addMessage("user", trimmed, "You");
       state.isLoading = true;
       renderMessages();
@@ -663,9 +682,8 @@
           CONFIG.requestTimeoutMs
         );
 
-        const data = await response.json().catch(function () {
-          return null;
-        });
+        const parsed = await safeParseResponse(response);
+        const data = parsed.data;
 
         if (!response.ok) {
           throw new Error(
@@ -682,12 +700,20 @@
       } catch (error) {
         console.error("Harvey Taxi AI widget error:", error);
 
-        let message =
-          "I’m having trouble reaching Harvey Taxi AI Support right now. Please try again in a moment or use the support page.";
+        let message = CONFIG.fallbackError;
 
-        if (String(error && error.message || "").toLowerCase().includes("timeout")) {
+        const lowered = String((error && error.message) || "").toLowerCase();
+
+        if (lowered.includes("timeout")) {
           message =
             "Harvey Taxi AI Support took too long to respond. Please try again in a moment.";
+        } else if (
+          lowered.includes("failed to fetch") ||
+          lowered.includes("network") ||
+          lowered.includes("load")
+        ) {
+          message =
+            "Harvey Taxi AI Support could not reach the server. Please try again in a moment.";
         }
 
         addMessage("assistant", message, CONFIG.widgetTitle);
@@ -707,7 +733,7 @@
 #harvey-ai-chat-root {
   position: fixed !important;
   right: 18px !important;
-  bottom: 92px !important;
+  bottom: calc(86px + env(safe-area-inset-bottom, 0px)) !important;
   z-index: 2147483000 !important;
   font-family: Inter, Arial, sans-serif !important;
   pointer-events: none !important;
@@ -742,12 +768,13 @@
   justify-content: center;
   -webkit-appearance: none;
   appearance: none;
-  transition: transform 0.18s ease, filter 0.18s ease;
+  transition: transform 0.18s ease, filter 0.18s ease, box-shadow 0.18s ease;
 }
 
 .harvey-ai-launch:hover {
   transform: translateY(-2px);
   filter: brightness(1.04);
+  box-shadow: 0 22px 48px rgba(0, 0, 0, 0.38);
 }
 
 .harvey-ai-launch:active {
@@ -757,8 +784,8 @@
 .harvey-ai-panel {
   position: absolute;
   right: 0;
-  bottom: 86px;
-  width: min(900px, calc(100vw - 28px));
+  bottom: 88px;
+  width: min(900px, calc(100vw - 32px));
   max-width: 900px;
   height: min(86vh, 1100px);
   min-height: 820px;
@@ -783,9 +810,9 @@
 
 .harvey-ai-panel.expanded {
   position: fixed;
-  top: 12px;
+  top: max(12px, env(safe-area-inset-top, 0px));
   right: 12px;
-  bottom: 12px;
+  bottom: max(12px, env(safe-area-inset-bottom, 0px));
   left: 12px;
   width: auto;
   max-width: none;
@@ -803,6 +830,7 @@
   padding: 20px 20px 18px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(8, 18, 36, 0.92);
+  flex-shrink: 0;
 }
 
 .harvey-ai-header-left {
@@ -859,16 +887,22 @@
   background: rgba(255, 255, 255, 0.06);
   -webkit-appearance: none;
   appearance: none;
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+
+.harvey-ai-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.10);
+  transform: translateY(-1px);
 }
 
 .harvey-ai-body {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 18px;
-  min-height: 0;
   scroll-behavior: smooth;
 }
 
@@ -903,6 +937,7 @@
   line-height: 1.72;
   white-space: pre-wrap;
   word-break: break-word;
+  overflow-wrap: anywhere;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
 
@@ -975,6 +1010,7 @@
   gap: 12px;
   padding: 18px 20px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
 }
 
 .harvey-ai-suggestion {
@@ -989,12 +1025,19 @@
   line-height: 1.2;
   -webkit-appearance: none;
   appearance: none;
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+
+.harvey-ai-suggestion:hover {
+  background: rgba(255, 255, 255, 0.09);
+  transform: translateY(-1px);
 }
 
 .harvey-ai-footer {
-  padding: 18px 20px 20px;
+  padding: 18px 20px calc(20px + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(8, 18, 36, 0.95);
+  flex-shrink: 0;
 }
 
 .harvey-ai-form {
@@ -1016,6 +1059,12 @@
   font-size: 16px;
   line-height: 1.6;
   outline: none;
+  width: 100%;
+}
+
+.harvey-ai-input:focus {
+  border-color: rgba(110, 231, 255, 0.46);
+  box-shadow: 0 0 0 3px rgba(110, 231, 255, 0.08);
 }
 
 .harvey-ai-input::placeholder {
@@ -1035,6 +1084,12 @@
   box-shadow: 0 12px 28px rgba(121, 240, 183, 0.25);
   -webkit-appearance: none;
   appearance: none;
+  transition: transform 0.18s ease, filter 0.18s ease;
+}
+
+.harvey-ai-send:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.03);
 }
 
 .harvey-ai-send:disabled,
@@ -1062,7 +1117,7 @@
 @media (max-width: 640px) {
   #harvey-ai-chat-root {
     right: 10px !important;
-    bottom: 84px !important;
+    bottom: calc(84px + env(safe-area-inset-bottom, 0px)) !important;
     left: auto !important;
   }
 
@@ -1082,9 +1137,9 @@
   }
 
   .harvey-ai-panel.expanded {
-    top: 8px;
+    top: max(8px, env(safe-area-inset-top, 0px));
     right: 8px;
-    bottom: 8px;
+    bottom: max(8px, env(safe-area-inset-bottom, 0px));
     left: 8px;
     border-radius: 18px;
   }
@@ -1132,7 +1187,7 @@
   }
 
   .harvey-ai-footer {
-    padding: 16px;
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
   }
 
   .harvey-ai-input {
@@ -1177,9 +1232,9 @@
       },
       setContext: function (nextContext) {
         if (!nextContext || typeof nextContext !== "object") return;
-        state.riderId = nextContext.rider_id || state.riderId;
-        state.driverId = nextContext.driver_id || state.driverId;
-        state.rideId = nextContext.ride_id || state.rideId;
+        state.riderId = nextContext.rider_id || nextContext.riderId || state.riderId;
+        state.driverId = nextContext.driver_id || nextContext.driverId || state.driverId;
+        state.rideId = nextContext.ride_id || nextContext.rideId || state.rideId;
       },
       getState: function () {
         return {
