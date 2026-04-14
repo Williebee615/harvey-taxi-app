@@ -1,17 +1,8 @@
-{
-  "name": "harvey-taxi-app",
-  "version": "1.0.0",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js"
-  },
-  "engines": {
-    "node": "22.x"
-  },
-  "dependencies": {
-    "@supabase/supabase-js": "^2.49.8",
-    "cors": "^2.8.5",
-    "express": "^4.21.2",
-    "openai": "^4.56.0"
-  }
+"dependencies": {
+  "@supabase/supabase-js": "^2.49.8",
+  "cors": "^2.8.5",
+  "express": "^4.21.2",
+  "openai": "^4.56.0",
+  "twilio": "^4.23.0",
+  "nodemailer": "^6.9.0"
 }
