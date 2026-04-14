@@ -1,4 +1,3 @@
-JavaScript
 /* =========================================================
    HARVEY TAXI — CODE BLUE PHASE 10
    PART 1: CLEAN FOUNDATION + ENV + HELPERS + SUPABASE + HEALTH
