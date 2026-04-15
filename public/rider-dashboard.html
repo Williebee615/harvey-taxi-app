@@ -9,8 +9,9 @@
   <title>Harvey Taxi — Rider Dashboard</title>
   <meta
     name="description"
-    content="Harvey Taxi futuristic rider dashboard with destination search, saved places, ride tools, trip history, and support."
+    content="Harvey Taxi futuristic rider dashboard with destination search, saved places, ride tools, trip history, rider status, and support."
   />
+  <meta name="theme-color" content="#07111f" />
 
   <style>
     :root{
@@ -29,7 +30,9 @@
       --green:#6dffb3;
       --gold:#ffd76a;
       --danger:#ff7e97;
+      --ink:#07121f;
       --shadow:0 20px 70px rgba(0,0,0,.35);
+      --shadow-soft:0 10px 30px rgba(0,0,0,.24);
       --radius:24px;
       --max:1120px;
     }
@@ -50,6 +53,7 @@
       background:
         radial-gradient(circle at top left, rgba(99,245,255,.12), transparent 30%),
         radial-gradient(circle at top right, rgba(94,160,255,.10), transparent 28%),
+        radial-gradient(circle at 50% 110%, rgba(109,255,179,.05), transparent 24%),
         linear-gradient(160deg, var(--bg1), var(--bg2) 50%, var(--bg3));
       min-height:100vh;
       overflow-x:hidden;
@@ -81,11 +85,13 @@
       border-radius:999px;
       background:rgba(7,12,28,.78);
       backdrop-filter:blur(12px);
+      -webkit-backdrop-filter:blur(12px);
       margin-bottom:18px;
       box-shadow:var(--shadow);
       position:sticky;
       top:14px;
       z-index:50;
+      flex-wrap:wrap;
     }
 
     .brand-wrap{
@@ -146,6 +152,7 @@
     .top-chip:hover{
       color:#fff;
       background:rgba(255,255,255,.06);
+      transform:translateY(-1px);
     }
 
     .hero{
@@ -220,6 +227,35 @@
       max-width:760px;
     }
 
+    .hero-stats{
+      margin-top:18px;
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:12px;
+      position:relative;
+      z-index:2;
+    }
+
+    .hero-stat{
+      padding:16px;
+      border-radius:18px;
+      border:1px solid rgba(255,255,255,.07);
+      background:rgba(255,255,255,.03);
+    }
+
+    .hero-stat strong{
+      display:block;
+      font-size:18px;
+      margin-bottom:6px;
+    }
+
+    .hero-stat span{
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.6;
+      display:block;
+    }
+
     .search-card{
       position:relative;
       z-index:2;
@@ -279,10 +315,12 @@
       display:inline-flex;
       align-items:center;
       gap:10px;
+      transition:.18s ease;
     }
 
     .action-chip:hover{
       background:rgba(255,255,255,.08);
+      transform:translateY(-1px);
     }
 
     .grid{
@@ -447,6 +485,7 @@
       display:block;
       font-size:20px;
       margin-bottom:6px;
+      word-break:break-word;
     }
 
     .status-card span{
@@ -517,6 +556,12 @@
       background:linear-gradient(135deg,var(--green),#89ffd0);
       color:#062014;
       border:none;
+    }
+
+    .trip-status.pending{
+      background:rgba(255,215,106,.12);
+      color:var(--gold);
+      border:1px solid rgba(255,215,106,.18);
     }
 
     .trip-meta{
@@ -592,6 +637,12 @@
       border:none;
     }
 
+    .pill.warn{
+      background:rgba(255,215,106,.12);
+      color:var(--gold);
+      border:1px solid rgba(255,215,106,.18);
+    }
+
     .account-actions{
       display:flex;
       flex-wrap:wrap;
@@ -622,7 +673,7 @@
 
     .btn.primary{
       background:linear-gradient(135deg,var(--cyan),var(--blue));
-      color:#07121f;
+      color:var(--ink);
       border:none;
     }
 
@@ -670,6 +721,7 @@
       bottom:0;
       background:rgba(6,12,26,.96);
       backdrop-filter:blur(14px);
+      -webkit-backdrop-filter:blur(14px);
       border-top:1px solid rgba(255,255,255,.08);
       display:flex;
       justify-content:space-around;
@@ -700,12 +752,25 @@
       line-height:1.7;
     }
 
+    .loading-state{
+      padding:18px;
+      border-radius:18px;
+      border:1px solid rgba(99,245,255,.14);
+      background:rgba(99,245,255,.05);
+      color:#dffeff;
+      line-height:1.7;
+    }
+
     @media(max-width:980px){
       .grid{
         grid-template-columns:1fr;
       }
 
       .status-strip{
+        grid-template-columns:repeat(2,1fr);
+      }
+
+      .hero-stats{
         grid-template-columns:repeat(2,1fr);
       }
 
@@ -747,7 +812,8 @@
 
       .services-grid,
       .status-strip,
-      .trip-meta{
+      .trip-meta,
+      .hero-stats{
         grid-template-columns:1fr;
       }
 
@@ -789,11 +855,30 @@
     <div class="hero">
       <div class="welcome">
         <div class="welcome-badge">Futuristic rider control center • Harvey Taxi</div>
-        <h1>Your next ride starts here.</h1>
-        <p>
+        <h1 id="heroTitle">Your next ride starts here.</h1>
+        <p id="heroText">
           Search your next destination, manage your rider profile, review trip activity, and launch
           Harvey Taxi services from one clean consumer-style dashboard built for speed.
         </p>
+      </div>
+
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <strong id="heroRiderName">Rider</strong>
+          <span>Current rider profile</span>
+        </div>
+        <div class="hero-stat">
+          <strong id="heroApprovalState">Pending</strong>
+          <span>Rider access state</span>
+        </div>
+        <div class="hero-stat">
+          <strong id="heroTripCount">0</strong>
+          <span>Trips loaded</span>
+        </div>
+        <div class="hero-stat">
+          <strong id="heroPaymentState">Pending</strong>
+          <span>Payment readiness</span>
+        </div>
       </div>
 
       <div class="search-card">
@@ -896,12 +981,12 @@
 
       <div class="status-strip">
         <div class="status-card">
-          <strong id="statusApproval">Approved</strong>
+          <strong id="statusApproval">Pending</strong>
           <span>Rider account readiness</span>
         </div>
 
         <div class="status-card">
-          <strong id="statusPayment">Ready</strong>
+          <strong id="statusPayment">Pending</strong>
           <span>Payment authorization state</span>
         </div>
 
@@ -911,8 +996,8 @@
         </div>
 
         <div class="status-card">
-          <strong>Tennessee</strong>
-          <span>Current launch service focus</span>
+          <strong id="statusRiderId">—</strong>
+          <span>Active rider ID</span>
         </div>
       </div>
     </div>
@@ -926,6 +1011,7 @@
           </div>
         </div>
 
+        <div id="tripLoading" class="loading-state">Loading your Harvey Taxi trips...</div>
         <div id="tripList" class="trip-list"></div>
 
         <div id="tripEmpty" class="empty-state" style="display:none;">
@@ -940,10 +1026,9 @@
             Manage your rider experience, support access, and trip tools from this dashboard.
           </p>
 
-          <div class="pill-row">
-            <div class="pill ok">Rider profile active</div>
+          <div class="pill-row" id="accountPills">
+            <div class="pill">Rider profile loading</div>
             <div class="pill">Support available</div>
-            <div class="pill">Trip-ready flow</div>
           </div>
 
           <div class="account-actions">
@@ -991,6 +1076,12 @@
   </div>
 
   <script>
+    const state = {
+      riderId: "",
+      riderProfile: null,
+      trips: []
+    };
+
     function goHome() {
       window.location.href = "index.html";
     }
@@ -1000,21 +1091,34 @@
     }
 
     function changeRider() {
-      alert("Rider switching can be connected later. For now, continue with your active rider profile.");
+      localStorage.removeItem("rider");
+      localStorage.removeItem("riderId");
+      localStorage.removeItem("rider_id");
+      localStorage.removeItem("riderProfile");
+      localStorage.removeItem("harveyRiderId");
+      localStorage.removeItem("harveyRiderEmail");
+      window.location.href = "rider-signup.html";
     }
 
     function goRequestRide(mode) {
-      if (!mode) {
-        window.location.href = "request-ride.html?mode=driver";
-        return;
-      }
+      const riderId = state.riderId || getStoredRiderId();
+      const params = new URLSearchParams();
 
       if (mode === "autonomous") {
-        window.location.href = "request-ride.html?mode=autonomous";
-        return;
+        params.set("mode", "autonomous");
+      } else {
+        params.set("mode", "driver");
       }
 
-      window.location.href = "request-ride.html?mode=driver&type=" + encodeURIComponent(mode);
+      if (mode && mode !== "autonomous") {
+        params.set("type", mode);
+      }
+
+      if (riderId) {
+        params.set("rider_id", riderId);
+      }
+
+      window.location.href = `request-ride.html?${params.toString()}`;
     }
 
     function quickDestination(label, address) {
@@ -1023,21 +1127,77 @@
         return;
       }
 
-      window.location.href =
-        "request-ride.html?mode=driver&destination=" + encodeURIComponent(address);
+      const riderId = state.riderId || getStoredRiderId();
+      const params = new URLSearchParams();
+      params.set("mode", "driver");
+      params.set("destination", address);
+      if (riderId) params.set("rider_id", riderId);
+
+      window.location.href = `request-ride.html?${params.toString()}`;
     }
 
     function logout() {
       localStorage.removeItem("rider");
       localStorage.removeItem("riderId");
       localStorage.removeItem("rider_id");
+      localStorage.removeItem("riderProfile");
+      localStorage.removeItem("harveyRiderId");
+      localStorage.removeItem("harveyRiderEmail");
       window.location.href = "index.html";
+    }
+
+    function getStoredRiderId() {
+      const urlParams = new URLSearchParams(window.location.search);
+      return (
+        urlParams.get("riderId") ||
+        urlParams.get("rider_id") ||
+        localStorage.getItem("harveyRiderId") ||
+        localStorage.getItem("riderId") ||
+        localStorage.getItem("rider_id") ||
+        ""
+      );
+    }
+
+    function getStoredRiderProfile() {
+      const riderRaw =
+        localStorage.getItem("riderProfile") ||
+        localStorage.getItem("rider") ||
+        null;
+
+      if (!riderRaw) return null;
+
+      try {
+        return JSON.parse(riderRaw);
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function humanizeStatus(value) {
+      const text = String(value || "pending").replace(/_/g, " ").trim();
+      if (!text) return "Pending";
+      return text.charAt(0).toUpperCase() + text.slice(1);
     }
 
     function formatStatus(status) {
       const value = String(status || "pending").toLowerCase();
-      if (value.includes("complete")) return "completed";
-      if (value.includes("active") || value.includes("ongoing") || value.includes("accepted")) return "active";
+      if (
+        value.includes("completed") ||
+        value.includes("complete") ||
+        value.includes("finished")
+      ) return "completed";
+
+      if (
+        value.includes("dispatched") ||
+        value.includes("en route") ||
+        value.includes("en_route") ||
+        value.includes("in progress") ||
+        value.includes("in_progress") ||
+        value.includes("accepted") ||
+        value.includes("driver") ||
+        value.includes("arrived")
+      ) return "active";
+
       return "pending";
     }
 
@@ -1048,13 +1208,25 @@
       return "Pending";
     }
 
+    function formatCurrency(value) {
+      const number = Number(value);
+      if (!Number.isFinite(number)) return "—";
+      return `$${number.toFixed(2)}`;
+    }
+
+    function setLoadingState(isLoading) {
+      document.getElementById("tripLoading").style.display = isLoading ? "block" : "none";
+    }
+
     function renderTrips(trips) {
       const tripList = document.getElementById("tripList");
       const tripEmpty = document.getElementById("tripEmpty");
       const totalTrips = document.getElementById("statusTrips");
+      const heroTripCount = document.getElementById("heroTripCount");
 
       tripList.innerHTML = "";
       totalTrips.textContent = Array.isArray(trips) ? trips.length : 0;
+      heroTripCount.textContent = Array.isArray(trips) ? trips.length : 0;
 
       if (!Array.isArray(trips) || trips.length === 0) {
         tripEmpty.style.display = "block";
@@ -1065,13 +1237,14 @@
 
       trips.slice(0, 6).forEach((trip) => {
         const pickup =
-          trip.pickup ||
           trip.pickup_address ||
+          trip.pickup ||
           trip.origin ||
           trip.from ||
           "Pickup not available";
 
         const dropoff =
+          trip.dropoff_address ||
           trip.dropoff ||
           trip.destination ||
           trip.destination_address ||
@@ -1079,15 +1252,18 @@
           "Destination not available";
 
         const fare =
+          trip.final_total ||
+          trip.estimated_total ||
           trip.fare ||
           trip.total ||
           trip.estimated_fare ||
           trip.amount ||
-          "—";
+          null;
 
         const rideType =
           trip.ride_type ||
           trip.type ||
+          trip.requested_mode ||
           trip.requestedMode ||
           "Standard";
 
@@ -1099,24 +1275,24 @@
         card.innerHTML = `
           <div class="trip-top">
             <div>
-              <div class="trip-title">${pickup}</div>
-              <div class="trip-sub">to ${dropoff}</div>
+              <div class="trip-title">${escapeHtml(pickup)}</div>
+              <div class="trip-sub">to ${escapeHtml(dropoff)}</div>
             </div>
-            <div class="trip-status ${statusClass}">${statusText}</div>
+            <div class="trip-status ${statusClass}">${escapeHtml(statusText)}</div>
           </div>
 
           <div class="trip-meta">
             <div class="meta-card">
               <small>Ride Type</small>
-              <span>${rideType}</span>
+              <span>${escapeHtml(humanizeStatus(rideType))}</span>
             </div>
             <div class="meta-card">
               <small>Fare</small>
-              <span>${fare}</span>
+              <span>${escapeHtml(formatCurrency(fare))}</span>
             </div>
             <div class="meta-card">
               <small>Trip ID</small>
-              <span>${trip.ride_id || trip.id || "—"}</span>
+              <span>${escapeHtml(trip.id || trip.ride_id || "—")}</span>
             </div>
           </div>
         `;
@@ -1124,44 +1300,192 @@
       });
     }
 
+    function escapeHtml(value) {
+      return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
     async function loadTrips() {
+      setLoadingState(true);
+
       try {
-        const res = await fetch("/api/rides", {
-          credentials: "include"
-        });
+        const riderId = state.riderId || getStoredRiderId();
+        const attempts = [];
 
-        if (!res.ok) throw new Error("Failed to load rides");
+        if (riderId) {
+          attempts.push(`/api/rides?rider_id=${encodeURIComponent(riderId)}`);
+          attempts.push(`/api/rides?riderId=${encodeURIComponent(riderId)}`);
+        }
 
-        const data = await res.json();
-        const trips = Array.isArray(data) ? data : (Array.isArray(data.rides) ? data.rides : []);
+        attempts.push("/api/rides");
+
+        let trips = [];
+
+        for (const url of attempts) {
+          try {
+            const res = await fetch(url, { credentials: "include" });
+            if (!res.ok) continue;
+
+            const data = await res.json();
+            const maybeTrips = Array.isArray(data)
+              ? data
+              : Array.isArray(data.rides)
+                ? data.rides
+                : Array.isArray(data.data)
+                  ? data.data
+                  : [];
+
+            if (maybeTrips.length || url === attempts[attempts.length - 1]) {
+              trips = riderId
+                ? maybeTrips.filter((trip) => {
+                    const tripRiderId =
+                      trip.rider_id ||
+                      trip.riderId ||
+                      trip.rider?.id ||
+                      "";
+                    return !tripRiderId || String(tripRiderId) === String(riderId);
+                  })
+                : maybeTrips;
+              break;
+            }
+          } catch (error) {
+            continue;
+          }
+        }
+
+        state.trips = trips;
         renderTrips(trips);
       } catch (err) {
         console.error(err);
+        state.trips = [];
         renderTrips([]);
+      } finally {
+        setLoadingState(false);
       }
     }
 
-    function loadRiderState() {
+    async function loadRiderState() {
       const approval = document.getElementById("statusApproval");
       const payment = document.getElementById("statusPayment");
+      const riderIdEl = document.getElementById("statusRiderId");
+      const heroName = document.getElementById("heroRiderName");
+      const heroApproval = document.getElementById("heroApprovalState");
+      const heroPayment = document.getElementById("heroPaymentState");
+      const accountPills = document.getElementById("accountPills");
 
-      const riderRaw =
-        localStorage.getItem("rider") ||
-        localStorage.getItem("riderProfile") ||
-        null;
+      state.riderId = getStoredRiderId();
+      state.riderProfile = getStoredRiderProfile();
+
+      riderIdEl.textContent = state.riderId || "—";
+
+      if (state.riderProfile) {
+        const rider = state.riderProfile;
+        const fullName = [rider.first_name, rider.last_name].filter(Boolean).join(" ").trim();
+
+        heroName.textContent = fullName || rider.email || "Rider";
+        approval.textContent = humanizeStatus(
+          rider.approval_status || rider.verification_status || rider.status || "pending"
+        );
+        payment.textContent = humanizeStatus(
+          rider.payment_status || rider.payment_authorization_status || "pending"
+        );
+
+        heroApproval.textContent = approval.textContent;
+        heroPayment.textContent = payment.textContent;
+
+        const approvalOk =
+          String(rider.approval_status || rider.verification_status || rider.status || "")
+            .toLowerCase()
+            .includes("approved");
+
+        const paymentOk =
+          String(rider.payment_status || rider.payment_authorization_status || "")
+            .toLowerCase()
+            .includes("authorized") ||
+          String(rider.payment_status || rider.payment_authorization_status || "")
+            .toLowerCase()
+            .includes("ready");
+
+        accountPills.innerHTML = `
+          <div class="pill ${approvalOk ? "ok" : "warn"}">${approvalOk ? "Rider approved" : "Approval pending"}</div>
+          <div class="pill ${paymentOk ? "ok" : ""}">${paymentOk ? "Payment ready" : "Payment pending"}</div>
+          <div class="pill">Support available</div>
+        `;
+      }
+
+      if (!state.riderId) {
+        heroTitle.textContent = "Finish setup and request your next ride.";
+        heroText.textContent =
+          "Your Harvey Taxi rider session was not found. Create or restore your rider profile to continue into the booking flow.";
+        approval.textContent = "Missing";
+        payment.textContent = "Missing";
+        heroApproval.textContent = "Missing";
+        heroPayment.textContent = "Missing";
+        heroName.textContent = "No rider";
+        accountPills.innerHTML = `
+          <div class="pill warn">Rider session missing</div>
+          <div class="pill">Support available</div>
+        `;
+        return;
+      }
 
       try {
-        const rider = riderRaw ? JSON.parse(riderRaw) : null;
+        const res = await fetch(`/api/rider/${encodeURIComponent(state.riderId)}/status`, {
+          credentials: "include"
+        });
 
-        if (rider && rider.approval_status) {
-          approval.textContent = rider.approval_status;
-        }
+        if (!res.ok) return;
 
-        if (rider && rider.payment_status) {
-          payment.textContent = rider.payment_status;
-        }
-      } catch (e) {
-        console.log("No structured rider profile in localStorage.");
+        const data = await res.json();
+        const rider = data.rider;
+
+        if (!rider) return;
+
+        state.riderProfile = {
+          ...(state.riderProfile || {}),
+          ...rider
+        };
+
+        localStorage.setItem("riderProfile", JSON.stringify(state.riderProfile));
+        localStorage.setItem("rider", JSON.stringify(state.riderProfile));
+
+        const fullName = [rider.first_name, rider.last_name].filter(Boolean).join(" ").trim();
+        const approvalText = humanizeStatus(
+          rider.approval_status || rider.verification_status || rider.status || (rider.is_approved ? "approved" : "pending")
+        );
+
+        const paymentText = humanizeStatus(
+          rider.payment_status ||
+          rider.payment_authorization_status ||
+          (rider.payment_authorized ? "authorized" : "pending")
+        );
+
+        heroName.textContent = fullName || rider.email || "Rider";
+        approval.textContent = approvalText;
+        payment.textContent = paymentText;
+        heroApproval.textContent = approvalText;
+        heroPayment.textContent = paymentText;
+
+        const approvalOk =
+          rider.is_approved === true ||
+          String(approvalText).toLowerCase().includes("approved");
+
+        const paymentOk =
+          rider.payment_authorized === true ||
+          String(paymentText).toLowerCase().includes("authorized") ||
+          String(paymentText).toLowerCase().includes("ready");
+
+        accountPills.innerHTML = `
+          <div class="pill ${approvalOk ? "ok" : "warn"}">${approvalOk ? "Rider approved" : "Approval pending"}</div>
+          <div class="pill ${paymentOk ? "ok" : ""}">${paymentOk ? "Payment ready" : "Payment pending"}</div>
+          <div class="pill">Support available</div>
+        `;
+      } catch (error) {
+        console.log("Rider status refresh unavailable.");
       }
     }
 
@@ -1169,4 +1493,4 @@
     loadTrips();
   </script>
 </body>
-</html>
+          </html>
