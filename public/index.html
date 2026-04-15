@@ -19,7 +19,8 @@
       --bg2:#091126;
       --bg3:#101935;
       --panel:rgba(10,17,38,.88);
-      --panel-2:rgba(15,23,52,.74);
+      --panel-2:rgba(15,23,52,.78);
+      --panel-3:rgba(255,255,255,.03);
       --glass:rgba(255,255,255,.04);
       --line:rgba(122,162,255,.16);
       --line-strong:rgba(122,162,255,.30);
@@ -30,12 +31,16 @@
       --green:#6dffb3;
       --gold:#ffd76a;
       --danger:#ff7e97;
+      --violet:#8c83ff;
       --ink:#07121f;
       --shadow:0 20px 70px rgba(0,0,0,.35);
       --shadow-soft:0 10px 30px rgba(0,0,0,.24);
-      --radius:24px;
-      --max:1180px;
-      --nav-h:74px;
+      --radius-xl:30px;
+      --radius-lg:22px;
+      --radius-md:16px;
+      --max:1220px;
+      --nav-h:76px;
+      --top-offset:12px;
     }
 
     *{
@@ -54,7 +59,7 @@
       background:
         radial-gradient(circle at top left, rgba(99,245,255,.11), transparent 30%),
         radial-gradient(circle at top right, rgba(94,160,255,.10), transparent 28%),
-        radial-gradient(circle at 50% 110%, rgba(109,255,179,.07), transparent 24%),
+        radial-gradient(circle at 50% 110%, rgba(109,255,179,.06), transparent 24%),
         linear-gradient(160deg, var(--bg1), var(--bg2) 48%, var(--bg3));
       min-height:100vh;
       overflow-x:hidden;
@@ -72,17 +77,19 @@
 
     button{
       font:inherit;
+      border:none;
+      outline:none;
     }
 
     .shell{
       max-width:var(--max);
       margin:auto;
-      padding:20px 16px calc(var(--nav-h) + 78px);
+      padding:20px 16px calc(var(--nav-h) + 86px);
     }
 
     .topbar{
       position:sticky;
-      top:12px;
+      top:var(--top-offset);
       z-index:90;
       display:flex;
       align-items:center;
@@ -105,12 +112,17 @@
       min-width:0;
     }
 
-    .logo-dot{
-      width:12px;
-      height:12px;
-      border-radius:50%;
+    .logo-mark{
+      width:42px;
+      height:42px;
+      border-radius:14px;
+      display:grid;
+      place-items:center;
       background:linear-gradient(135deg,var(--cyan),var(--blue));
-      box-shadow:0 0 18px rgba(99,245,255,.55);
+      box-shadow:0 0 22px rgba(99,245,255,.25);
+      color:var(--ink);
+      font-size:13px;
+      font-weight:900;
       flex-shrink:0;
     }
 
@@ -198,13 +210,13 @@
     .hero{
       position:relative;
       overflow:hidden;
-      border-radius:30px;
+      border-radius:34px;
       border:1px solid var(--line);
       background:
-        linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.015)),
+        linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.012)),
         var(--panel);
       box-shadow:var(--shadow);
-      padding:34px;
+      padding:36px;
       margin-bottom:18px;
     }
 
@@ -234,10 +246,11 @@
 
     .hero-grid{
       display:grid;
-      grid-template-columns:1.2fr .8fr;
+      grid-template-columns:1.18fr .82fr;
       gap:18px;
       position:relative;
       z-index:1;
+      align-items:start;
     }
 
     .hero-badge{
@@ -257,16 +270,17 @@
     }
 
     .hero-title{
-      font-size:52px;
-      line-height:1.04;
+      font-size:56px;
+      line-height:1.02;
       margin-bottom:14px;
       max-width:860px;
+      letter-spacing:-.04em;
     }
 
     .hero-copy{
       color:var(--muted);
-      line-height:1.75;
-      margin-bottom:22px;
+      line-height:1.8;
+      margin-bottom:24px;
       max-width:760px;
       font-size:16px;
     }
@@ -292,6 +306,7 @@
       gap:8px;
       min-height:50px;
       box-shadow:none;
+      text-align:center;
     }
 
     .btn:hover{
@@ -313,7 +328,7 @@
     }
 
     .btn.autonomous{
-      background:linear-gradient(135deg,#7f7bff,#63f5ff);
+      background:linear-gradient(135deg,var(--violet),var(--cyan));
       color:#04121f;
       border:none;
       box-shadow:0 12px 32px rgba(99,245,255,.18);
@@ -321,6 +336,12 @@
 
     .btn.autonomous:hover{
       filter:brightness(1.05);
+    }
+
+    .btn.foundation{
+      background:linear-gradient(135deg,var(--gold),#ffe9a1);
+      color:#2b2200;
+      border:none;
     }
 
     .btn.ghost{
@@ -346,7 +367,7 @@
       grid-template-columns:repeat(2,1fr);
       gap:10px;
       margin-top:18px;
-      max-width:680px;
+      max-width:720px;
     }
 
     .hero-point{
@@ -374,12 +395,20 @@
 
     .status-card,
     .trust-card,
-    .pilot-card{
+    .pilot-card,
+    .foundation-card{
       padding:20px;
       border-radius:20px;
       border:1px solid rgba(255,255,255,.08);
       background:rgba(255,255,255,.035);
       box-shadow:var(--shadow-soft);
+    }
+
+    .foundation-card{
+      background:
+        linear-gradient(180deg, rgba(255,215,106,.08), rgba(255,255,255,.025)),
+        rgba(255,255,255,.03);
+      border-color:rgba(255,215,106,.16);
     }
 
     .eyebrow{
@@ -394,16 +423,22 @@
       text-transform:uppercase;
     }
 
+    .foundation-card .eyebrow{
+      color:var(--gold);
+    }
+
     .status-card h3,
     .trust-card h3,
-    .pilot-card h3{
+    .pilot-card h3,
+    .foundation-card h3{
       font-size:20px;
       margin-bottom:10px;
     }
 
     .status-card p,
     .trust-card p,
-    .pilot-card p{
+    .pilot-card p,
+    .foundation-card p{
       color:var(--muted);
       line-height:1.7;
       font-size:14px;
@@ -487,7 +522,7 @@
       margin-top:18px;
       background:var(--panel);
       padding:24px;
-      border-radius:var(--radius);
+      border-radius:var(--radius-xl);
       border:1px solid var(--line);
       box-shadow:var(--shadow);
     }
@@ -502,14 +537,15 @@
     }
 
     .section h2{
-      font-size:28px;
-      margin-bottom:5px;
+      font-size:30px;
+      margin-bottom:6px;
+      letter-spacing:-.03em;
     }
 
     .lead{
       color:var(--muted);
       line-height:1.72;
-      max-width:790px;
+      max-width:820px;
       font-size:15px;
     }
 
@@ -569,6 +605,13 @@
         linear-gradient(180deg,rgba(99,245,255,.05),rgba(94,160,255,.02)),
         rgba(255,255,255,.03);
       border:1px solid rgba(99,245,255,.14);
+    }
+
+    .highlight.foundation{
+      background:
+        linear-gradient(180deg,rgba(255,215,106,.06),rgba(255,255,255,.02)),
+        rgba(255,255,255,.03);
+      border-color:rgba(255,215,106,.14);
     }
 
     .highlight h3{
@@ -655,7 +698,7 @@
 
     .service-row{
       display:grid;
-      grid-template-columns:repeat(3,1fr);
+      grid-template-columns:repeat(4,1fr);
       gap:12px;
       margin-top:18px;
     }
@@ -683,6 +726,10 @@
       pointer-events:none;
     }
 
+    .service-card.foundation::before{
+      background:radial-gradient(circle,rgba(255,215,106,.14),transparent 68%);
+    }
+
     .service-card h3{
       margin-bottom:8px;
       font-size:18px;
@@ -693,6 +740,7 @@
       line-height:1.7;
       font-size:14px;
       margin-bottom:14px;
+      min-height:92px;
     }
 
     .service-card .btn{
@@ -702,7 +750,7 @@
     .footer{
       margin-top:18px;
       padding:22px;
-      border-radius:var(--radius);
+      border-radius:var(--radius-xl);
       border:1px solid var(--line);
       background:var(--panel);
       display:flex;
@@ -768,9 +816,13 @@
       border:0;
     }
 
-    @media(max-width:1080px){
+    @media(max-width:1180px){
       .hero-grid{
         grid-template-columns:1fr;
+      }
+
+      .service-row{
+        grid-template-columns:repeat(2,1fr);
       }
 
       .mini-stats{
@@ -780,20 +832,17 @@
       .info-grid{
         grid-template-columns:1fr;
       }
-
-      .service-row{
-        grid-template-columns:1fr;
-      }
     }
 
     @media(max-width:980px){
       .grid,
-      .grid.two{
+      .grid.two,
+      .service-row{
         grid-template-columns:1fr;
       }
 
       .hero-title{
-        font-size:38px;
+        font-size:40px;
       }
 
       .hero-points{
@@ -851,6 +900,10 @@
       .mini-stats{
         grid-template-columns:1fr;
       }
+
+      .bottom-nav{
+        overflow-x:auto;
+      }
     }
   </style>
 
@@ -862,7 +915,7 @@
 
     <header class="topbar">
       <div class="brand-wrap">
-        <div class="logo-dot" aria-hidden="true"></div>
+        <div class="logo-mark" aria-hidden="true">HT</div>
         <div class="brand-stack">
           <div class="brand">HARVEY TAXI</div>
           <div class="brand-sub">Tennessee mobility platform</div>
@@ -873,6 +926,7 @@
         <a class="top-link" href="#how-it-works">How It Works</a>
         <a class="top-link" href="#safety">Safety</a>
         <a class="top-link" href="#services">Services</a>
+        <a class="top-link" href="foundation.html">Foundation</a>
         <a class="top-link" href="#company">Company</a>
         <a class="top-link" href="support.html">Support</a>
         <a class="top-link cta" href="request-ride.html?mode=driver">Book Now</a>
@@ -883,7 +937,7 @@
       <div class="announce-copy">
         <strong>Now serving Tennessee with a cleaner ride experience</strong>
         <span>
-          Harvey Taxi brings together rider access, driver onboarding, trip support, and public help tools through one modern transportation platform.
+          Harvey Taxi brings together rider access, driver onboarding, trip support, and community mobility through one modern transportation platform.
         </span>
       </div>
       <a class="btn success" href="request-ride.html?mode=driver">Request a Ride</a>
@@ -909,6 +963,7 @@
               </a>
               <a class="btn" href="rider-signup.html">Rider Sign Up</a>
               <a class="btn" href="driver-signup.html">Drive with Harvey</a>
+              <a class="btn foundation" href="foundation.html">Support Transportation Access</a>
               <button class="btn ghost" type="button" onclick="openHarveyAiChat()">AI Support</button>
             </div>
 
@@ -964,6 +1019,20 @@
               </p>
             </div>
 
+            <div class="foundation-card">
+              <div class="eyebrow">Community mission</div>
+              <h3>Support the foundation.</h3>
+              <p>
+                Harvey Transportation Assistance Foundation helps remove transportation barriers for medical appointments, work, school, and essential community mobility.
+              </p>
+
+              <div style="margin-top:14px;">
+                <a class="btn foundation" href="foundation.html" style="width:100%;">
+                  Open Foundation Page
+                </a>
+              </div>
+            </div>
+
             <div class="pilot-card">
               <div class="eyebrow">Autonomous notice</div>
               <h3>Pilot features stay clearly labeled.</h3>
@@ -1012,7 +1081,7 @@
           <div>
             <h2>Platform Status</h2>
             <p class="lead">
-              Harvey Taxi is structured to support ride booking, driver workflow, and public support through one coordinated experience.
+              Harvey Taxi is structured to support ride booking, driver workflow, community giving, and public support through one coordinated experience.
             </p>
           </div>
         </div>
@@ -1030,7 +1099,7 @@
 
           <div class="card">
             <strong>Live Support</strong>
-            <span>Support pages, policy pages, and AI support entry points are available from the home screen.</span>
+            <span>Support pages, policy pages, foundation access, and AI support entry points are available from the home screen.</span>
           </div>
         </div>
       </section>
@@ -1147,7 +1216,7 @@
           <div>
             <h2>Main Services</h2>
             <p class="lead">
-              Core entry points for riders, drivers, and public visitors.
+              Core entry points for riders, drivers, supporters, and public visitors.
             </p>
           </div>
         </div>
@@ -1175,6 +1244,14 @@
               Use Harvey AI Support or open the support center for questions, help, and public guidance.
             </p>
             <button class="btn success" type="button" onclick="openHarveyAiChat()">Open AI Support</button>
+          </div>
+
+          <div class="service-card foundation">
+            <h3>Support Transportation Access</h3>
+            <p>
+              Visit the foundation page and help expand transportation support for medical care, work, school, and community mobility.
+            </p>
+            <a class="btn foundation" href="foundation.html">Open Foundation</a>
           </div>
         </div>
 
@@ -1229,7 +1306,7 @@
           <div>
             <h2>Company Information</h2>
             <p class="lead">
-              A trust section for riders, drivers, partners, and public visitors.
+              A trust section for riders, drivers, partners, donors, and public visitors.
             </p>
           </div>
         </div>
@@ -1258,7 +1335,7 @@
 
             <div class="list-item">
               <strong>Connected Public Platform</strong>
-              <span>Booking, signup, support, and driver access are connected through this site.</span>
+              <span>Booking, signup, support, foundation access, and driver tools are connected through this site.</span>
             </div>
 
             <div class="list-item">
@@ -1266,6 +1343,58 @@
               <span>Privacy, terms, support guidance, and AI help entry points are available below.</span>
             </div>
           </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <div>
+            <h2>Community Mobility Mission</h2>
+            <p class="lead">
+              Harvey Transportation Assistance Foundation extends the Harvey ecosystem into transportation support for people who need access most.
+            </p>
+          </div>
+        </div>
+
+        <div class="info-grid">
+          <div class="highlight foundation">
+            <h3>Harvey Transportation Assistance Foundation</h3>
+            <p>
+              The foundation helps remove transportation barriers for individuals and families who need access to medical appointments, work, school, and essential community mobility. This keeps the Harvey platform connected to real community impact.
+            </p>
+
+            <div class="pill-row">
+              <div class="pill">Medical rides</div>
+              <div class="pill">School access</div>
+              <div class="pill">Work access</div>
+              <div class="pill">Community mobility</div>
+              <div class="pill">Donation support</div>
+            </div>
+          </div>
+
+          <div class="list">
+            <div class="list-item">
+              <strong>Foundation Page</strong>
+              <span>Visit the donation and mission page to support transportation access.</span>
+            </div>
+
+            <div class="list-item">
+              <strong>Public Support Mission</strong>
+              <span>Community giving helps strengthen access, outreach, and transportation assistance.</span>
+            </div>
+
+            <div class="list-item">
+              <strong>Connected Harvey Ecosystem</strong>
+              <span>The foundation and ride platform can work together while staying clearly separated by mission.</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:18px;" class="actions">
+          <a class="btn foundation" href="foundation.html">Open Foundation Page</a>
+          <a class="btn" href="https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00" target="_blank" rel="noopener noreferrer">
+            Donate Securely
+          </a>
         </div>
       </section>
 
@@ -1292,7 +1421,7 @@
       <div>
         <span class="footer-title">Harvey Taxi Service LLC</span>
         <p>
-          Book rides, onboard drivers, manage trip flow, and reach support through one connected Tennessee transportation platform built for trust, clarity, and long-term growth.
+          Book rides, onboard drivers, manage trip flow, support transportation access, and reach help through one connected Tennessee transportation platform built for trust, clarity, and long-term growth.
         </p>
       </div>
 
@@ -1300,6 +1429,7 @@
         <a class="btn" href="privacy-policy.html">Privacy</a>
         <a class="btn" href="terms.html">Terms</a>
         <a class="btn" href="support.html">Support</a>
+        <a class="btn foundation" href="foundation.html">Foundation</a>
       </div>
     </footer>
 
@@ -1308,6 +1438,7 @@
   <nav class="bottom-nav" aria-label="Bottom navigation">
     <button class="nav-btn active" onclick="location.href='index.html'">Home</button>
     <button class="nav-btn" onclick="location.href='request-ride.html?mode=driver'">Trips</button>
+    <button class="nav-btn" onclick="location.href='foundation.html'">Foundation</button>
     <button class="nav-btn" onclick="location.href='support.html'">Support</button>
     <button class="nav-btn" onclick="location.href='driver-dashboard.html'">Driver</button>
   </nav>
@@ -1354,4 +1485,4 @@
     });
   </script>
 </body>
-</html>
+  </html>
