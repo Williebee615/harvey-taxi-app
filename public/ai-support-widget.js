@@ -14,10 +14,10 @@
     }
 
     const CONFIG = {
-      storageKey: "harvey_ai_chat_state_v16",
-      uiStateKey: "harvey_ai_chat_ui_state_v16",
+      storageKey: "harvey_ai_chat_state_v17",
+      uiStateKey: "harvey_ai_chat_ui_state_v17",
       endpoint: "/api/ai/support",
-      messageLimit: 100,
+      messageLimit: 120,
       rateLimitMs: 900,
       requestTimeoutMs: 25000,
       autoOpenParam: "openHarveyAI",
@@ -970,7 +970,7 @@
       style.textContent = `
 #harvey-ai-chat-root {
   position: fixed !important;
-  right: 18px !important;
+  right: 16px !important;
   bottom: calc(86px + env(safe-area-inset-bottom, 0px)) !important;
   z-index: 2147483000 !important;
   font-family: Inter, Arial, sans-serif !important;
@@ -992,12 +992,12 @@
 
 .harvey-ai-launch {
   position: relative;
-  width: 72px;
-  height: 72px;
+  width: 68px;
+  height: 68px;
   border: none;
   border-radius: 999px;
   cursor: pointer;
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 900;
   color: #06111f;
   background: linear-gradient(135deg, #6ee7ff 0%, #7aa2ff 100%);
@@ -1049,20 +1049,17 @@
 .harvey-ai-panel {
   position: absolute;
   right: 0;
-  bottom: 88px;
-  width: min(920px, calc(100vw - 32px));
-  max-width: 920px;
-  height: min(86vh, 1100px);
-  min-height: 820px;
+  bottom: 84px;
+  width: min(760px, calc(100vw - 24px));
+  max-width: 760px;
+  height: min(82vh, 920px);
+  min-height: 620px;
   display: none;
   flex-direction: column;
   overflow: hidden;
-  border-radius: 30px;
+  border-radius: 28px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  background:
-    radial-gradient(circle at top left, rgba(110, 231, 255, 0.13), transparent 30%),
-    radial-gradient(circle at bottom right, rgba(122, 162, 255, 0.10), transparent 30%),
-    #081224;
+  background: linear-gradient(180deg, rgba(8,18,36,.98), rgba(7,14,28,.98));
   color: #ffffff;
   box-shadow: 0 28px 70px rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(16px);
@@ -1075,15 +1072,15 @@
 
 .harvey-ai-panel.expanded {
   position: fixed;
-  top: max(12px, env(safe-area-inset-top, 0px));
-  right: 12px;
-  bottom: max(12px, env(safe-area-inset-bottom, 0px));
-  left: 12px;
+  top: max(10px, env(safe-area-inset-top, 0px));
+  right: 10px;
+  bottom: max(10px, env(safe-area-inset-bottom, 0px));
+  left: 10px;
   width: auto;
   max-width: none;
   height: auto;
   min-height: 0;
-  border-radius: 24px;
+  border-radius: 22px;
   z-index: 2147483001;
 }
 
@@ -1092,26 +1089,26 @@
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding: 20px 20px 18px;
+  padding: 18px 18px 16px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(8, 18, 36, 0.92);
+  background: rgba(8, 18, 36, 0.96);
   flex-shrink: 0;
 }
 
 .harvey-ai-header-left {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   min-width: 0;
 }
 
 .harvey-ai-badge {
-  width: 64px;
-  height: 64px;
-  border-radius: 20px;
+  width: 58px;
+  height: 58px;
+  border-radius: 18px;
   display: grid;
   place-items: center;
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 900;
   color: #06111f;
   background: linear-gradient(135deg, #6ee7ff 0%, #7aa2ff 100%);
@@ -1123,31 +1120,31 @@
 }
 
 .harvey-ai-title {
-  font-size: 20px;
+  font-size: 19px;
   font-weight: 800;
   line-height: 1.2;
 }
 
 .harvey-ai-subtitle {
   margin-top: 4px;
-  font-size: 14px;
-  color: rgba(220, 230, 255, 0.72);
+  font-size: 13px;
+  color: rgba(230, 238, 255, 0.76);
   line-height: 1.4;
 }
 
 .harvey-ai-actions {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   flex-shrink: 0;
 }
 
 .harvey-ai-icon-btn {
-  width: 50px;
-  height: 50px;
+  width: 46px;
+  height: 46px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
+  border-radius: 14px;
   cursor: pointer;
-  font-size: 21px;
+  font-size: 19px;
   color: #ffffff;
   background: rgba(255, 255, 255, 0.06);
   -webkit-appearance: none;
@@ -1164,16 +1161,16 @@
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  padding: 14px 20px 0;
+  padding: 14px 18px 0;
   flex-shrink: 0;
 }
 
 .harvey-ai-quick-action {
   border: 1px solid rgba(255, 255, 255, 0.10);
   background: rgba(255, 255, 255, 0.05);
-  color: #eaf0ff;
+  color: #f3f8ff;
   border-radius: 999px;
-  padding: 10px 14px;
+  padding: 11px 15px;
   cursor: pointer;
   font-size: 13px;
   font-weight: 800;
@@ -1205,11 +1202,12 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 24px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
   scroll-behavior: smooth;
+  background: linear-gradient(180deg, rgba(5,12,25,.55), rgba(7,14,28,.82));
 }
 
 .harvey-ai-body::-webkit-scrollbar {
@@ -1236,36 +1234,39 @@
 }
 
 .harvey-ai-bubble {
-  max-width: 94%;
-  padding: 20px 22px;
-  border-radius: 24px;
-  font-size: 18px;
-  line-height: 1.72;
+  max-width: 96%;
+  padding: 18px 20px;
+  border-radius: 22px;
+  font-size: 17px;
+  line-height: 1.8;
   white-space: pre-wrap;
   word-break: break-word;
   overflow-wrap: anywhere;
+  letter-spacing: 0.01em;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
 
-.harvey-ai-message.assistant .harvey-ai-bubble {
-  background: rgba(255, 255, 255, 0.08);
-  color: #f4f7ff;
-  border-bottom-left-radius: 8px;
+.harvey-ai-message.user .harvey-ai-bubble {
+  margin-left: 28px;
+  background: linear-gradient(135deg, #79f0b7 0%, #78f0e9 100%);
+  color: #04131d;
+  border-bottom-right-radius: 8px;
+  font-weight: 700;
 }
 
-.harvey-ai-message.user .harvey-ai-bubble {
-  background: linear-gradient(135deg, #79f0b7 0%, #78f0e9 100%);
-  color: #07131f;
-  border-bottom-right-radius: 8px;
-  font-weight: 600;
+.harvey-ai-message.assistant .harvey-ai-bubble {
+  margin-right: 28px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #f8fbff;
+  border-bottom-left-radius: 8px;
 }
 
 .harvey-ai-inline-card {
   margin-top: 10px;
-  max-width: 94%;
+  max-width: 96%;
   padding: 16px 18px;
   border-radius: 18px;
-  background: rgba(255,255,255,.05);
+  background: rgba(255,255,255,.06);
   border: 1px solid rgba(255,255,255,.08);
 }
 
@@ -1278,9 +1279,9 @@
 
 .harvey-ai-inline-card span {
   display: block;
-  color: rgba(234,240,255,.82);
+  color: rgba(234,240,255,.88);
   font-size: 13px;
-  line-height: 1.6;
+  line-height: 1.65;
 }
 
 .harvey-ai-inline-link {
@@ -1297,13 +1298,14 @@
 
 .harvey-ai-meta {
   font-size: 12px;
-  color: rgba(220, 230, 255, 0.65);
-  padding: 0 4px;
+  color: rgba(230, 238, 255, 0.82);
+  padding: 0 6px;
+  font-weight: 700;
 }
 
 .harvey-ai-system-line {
   font-size: 13px;
-  color: rgba(220, 230, 255, 0.68);
+  color: rgba(220, 230, 255, 0.72);
   padding: 6px 2px 0;
   text-align: center;
   line-height: 1.6;
@@ -1349,21 +1351,22 @@
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  padding: 18px 20px;
+  padding: 16px 18px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
   flex-shrink: 0;
 }
 
 .harvey-ai-suggestion {
   border: 1px solid rgba(255, 255, 255, 0.10);
-  background: rgba(255, 255, 255, 0.05);
-  color: #eaf0ff;
-  border-radius: 999px;
-  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #f3f8ff;
+  border-radius: 18px;
+  padding: 14px 18px;
   cursor: pointer;
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1.2;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.35;
+  text-align: left;
   -webkit-appearance: none;
   appearance: none;
   transition: background 0.18s ease, transform 0.18s ease;
@@ -1375,9 +1378,9 @@
 }
 
 .harvey-ai-footer {
-  padding: 18px 20px calc(20px + env(safe-area-inset-bottom, 0px));
+  padding: 16px 18px calc(18px + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(8, 18, 36, 0.95);
+  background: rgba(8, 18, 36, 0.96);
   flex-shrink: 0;
 }
 
@@ -1389,16 +1392,17 @@
 }
 
 .harvey-ai-input {
-  min-height: 82px;
+  min-height: 74px;
   max-height: 220px;
   resize: none;
-  padding: 18px 20px;
-  border-radius: 22px;
-  border: 1px solid rgba(110, 231, 255, 0.18);
-  background: rgba(7, 16, 34, 0.95);
-  color: #ffffff;
-  font-size: 16px;
-  line-height: 1.6;
+  padding: 16px 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(110, 231, 255, 0.22);
+  background: rgba(5, 14, 30, 0.98);
+  color: #f8fbff;
+  font-size: 17px;
+  line-height: 1.7;
+  font-weight: 600;
   outline: none;
   width: 100%;
 }
@@ -1409,16 +1413,16 @@
 }
 
 .harvey-ai-input::placeholder {
-  color: rgba(220, 230, 255, 0.48);
+  color: rgba(220, 230, 255, 0.62);
 }
 
 .harvey-ai-send {
-  width: 92px;
-  height: 82px;
+  width: 84px;
+  height: 74px;
   border: none;
-  border-radius: 22px;
+  border-radius: 20px;
   cursor: pointer;
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 800;
   color: #07131f;
   background: linear-gradient(135deg, #79f0b7 0%, #78f0e9 100%);
@@ -1443,7 +1447,7 @@
   margin-top: 12px;
   font-size: 12px;
   line-height: 1.6;
-  color: rgba(220, 230, 255, 0.72);
+  color: rgba(220, 230, 255, 0.78);
 }
 
 @media (max-width: 900px) {
@@ -1451,7 +1455,7 @@
     width: calc(100vw - 20px);
     max-width: calc(100vw - 20px);
     height: min(84vh, 900px);
-    min-height: 640px;
+    min-height: 620px;
   }
 }
 
@@ -1472,7 +1476,7 @@
     width: calc(100vw - 20px);
     max-width: calc(100vw - 20px);
     height: min(84vh, 860px);
-    min-height: 620px;
+    min-height: 600px;
     bottom: 74px;
     border-radius: 22px;
   }
@@ -1500,21 +1504,21 @@
   }
 
   .harvey-ai-badge {
-    width: 56px;
-    height: 56px;
-    border-radius: 18px;
-    font-size: 20px;
+    width: 52px;
+    height: 52px;
+    border-radius: 16px;
+    font-size: 19px;
   }
 
   .harvey-ai-title {
-    font-size: 18px;
+    font-size: 17px;
   }
 
   .harvey-ai-icon-btn {
-    width: 46px;
-    height: 46px;
-    border-radius: 16px;
-    font-size: 20px;
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    font-size: 18px;
   }
 
   .harvey-ai-body {
@@ -1522,14 +1526,22 @@
   }
 
   .harvey-ai-bubble {
-    max-width: 96%;
-    font-size: 15px;
-    line-height: 1.65;
-    padding: 16px 18px;
+    max-width: 98%;
+    font-size: 16px;
+    line-height: 1.75;
+    padding: 16px 17px;
+  }
+
+  .harvey-ai-message.user .harvey-ai-bubble {
+    margin-left: 12px;
+  }
+
+  .harvey-ai-message.assistant .harvey-ai-bubble {
+    margin-right: 12px;
   }
 
   .harvey-ai-inline-card {
-    max-width: 96%;
+    max-width: 98%;
   }
 
   .harvey-ai-suggestions {
@@ -1546,15 +1558,15 @@
   }
 
   .harvey-ai-input {
-    min-height: 70px;
-    font-size: 15px;
-    padding: 16px 18px;
+    min-height: 68px;
+    font-size: 16px;
+    padding: 15px 16px;
   }
 
   .harvey-ai-send {
-    width: 76px;
-    height: 70px;
-    border-radius: 20px;
+    width: 74px;
+    height: 68px;
+    border-radius: 18px;
     font-size: 24px;
   }
 }
