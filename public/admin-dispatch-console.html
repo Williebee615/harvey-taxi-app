@@ -2,174 +2,1426 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Admin Dispatch Console | Harvey Taxi</title>
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+  />
+  <title>Harvey Taxi | Admin Dispatch Console</title>
+  <meta
+    name="description"
+    content="Harvey Taxi admin dispatch console for monitoring active dispatches, ride routing, fleet assignment, and live operations."
+  />
+
   <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #0b1020;
-      color: white;
-      padding: 20px;
+    :root{
+      --bg1:#040814;
+      --bg2:#091126;
+      --bg3:#101935;
+      --panel:rgba(10,17,38,.90);
+      --panel2:rgba(16,27,58,.82);
+      --panel3:rgba(255,255,255,.035);
+      --line:rgba(122,162,255,.16);
+      --line-strong:rgba(122,162,255,.28);
+      --text:#f4f7ff;
+      --muted:#aab8de;
+      --blue:#5ea0ff;
+      --cyan:#63f5ff;
+      --green:#6dffb3;
+      --gold:#ffd76a;
+      --danger:#ff7e97;
+      --orange:#ffb86b;
+      --shadow:0 20px 70px rgba(0,0,0,.35);
+      --radius:24px;
+      --max:1280px;
+      --ok-bg:rgba(109,255,179,.12);
+      --ok-bd:rgba(109,255,179,.2);
+      --warn-bg:rgba(255,215,106,.12);
+      --warn-bd:rgba(255,215,106,.2);
+      --bad-bg:rgba(255,126,151,.12);
+      --bad-bd:rgba(255,126,151,.2);
+      --info-bg:rgba(99,245,255,.10);
+      --info-bd:rgba(99,245,255,.18);
     }
 
-    .container {
-      max-width: 900px;
-      margin: 0 auto;
-      background: #131a2e;
-      border-radius: 18px;
-      padding: 24px;
-      box-shadow: 0 12px 30px rgba(0,0,0,.35);
+    *{
+      box-sizing:border-box;
+      margin:0;
+      padding:0;
     }
 
-    h1 {
-      text-align: center;
-      margin-top: 0;
+    html{
+      scroll-behavior:smooth;
     }
 
-    .dispatch-card {
-      border: 1px solid #283252;
-      background: #0e1528;
-      border-radius: 16px;
-      padding: 16px;
-      margin-top: 14px;
+    body{
+      font-family:Inter,Arial,sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(99,245,255,.11), transparent 28%),
+        radial-gradient(circle at top right, rgba(94,160,255,.10), transparent 24%),
+        linear-gradient(160deg,var(--bg1),var(--bg2) 48%,var(--bg3));
+      min-height:100vh;
+      overflow-x:hidden;
     }
 
-    .row {
-      margin-bottom: 8px;
+    button{
+      font:inherit;
     }
 
-    .label {
-      color: #91a4d7;
-      font-size: 13px;
+    .shell{
+      max-width:var(--max);
+      margin:auto;
+      padding:18px 16px 42px;
     }
 
-    .value {
-      font-size: 15px;
-      margin-top: 2px;
+    .topbar{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:14px;
+      padding:14px 18px;
+      border:1px solid var(--line);
+      border-radius:999px;
+      background:rgba(7,12,28,.78);
+      backdrop-filter:blur(12px);
+      -webkit-backdrop-filter:blur(12px);
+      margin-bottom:18px;
+      box-shadow:var(--shadow);
+      position:sticky;
+      top:14px;
+      z-index:40;
+      flex-wrap:wrap;
     }
 
-    .header-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
+    .brand-wrap{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      min-width:0;
     }
 
-    .refresh-btn {
-      background: #3a86ff;
-      border: none;
-      color: white;
-      padding: 12px 16px;
-      border-radius: 12px;
-      cursor: pointer;
-      font-weight: bold;
+    .logo-dot{
+      width:12px;
+      height:12px;
+      border-radius:50%;
+      background:linear-gradient(135deg,var(--cyan),var(--blue));
+      box-shadow:0 0 18px rgba(99,245,255,.55);
+      flex-shrink:0;
     }
 
-    .empty {
-      margin-top: 20px;
-      padding: 16px;
-      border-radius: 12px;
-      background: #0e1528;
-      color: #d5dfff;
+    .brand-block{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+      min-width:0;
     }
 
-    .status-pill {
-      display: inline-block;
-      padding: 6px 10px;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: bold;
-      background: #1f2c4d;
-      color: #dbe7ff;
+    .brand{
+      font-weight:900;
+      letter-spacing:.12em;
+      font-size:14px;
+      white-space:nowrap;
+    }
+
+    .brand-sub{
+      font-size:11px;
+      color:var(--muted);
+      letter-spacing:.08em;
+      text-transform:uppercase;
+      white-space:nowrap;
+    }
+
+    .top-actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+
+    .chip-btn{
+      padding:10px 14px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.08);
+      background:rgba(255,255,255,.03);
+      color:var(--muted);
+      font-size:13px;
+      font-weight:800;
+      cursor:pointer;
+      transition:.18s ease;
+    }
+
+    .chip-btn:hover{
+      color:#fff;
+      background:rgba(255,255,255,.06);
+    }
+
+    .chip-btn.primary{
+      background:linear-gradient(135deg,var(--cyan),var(--blue));
+      color:#07121f;
+      border:none;
+    }
+
+    .hero{
+      position:relative;
+      overflow:hidden;
+      background:
+        linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.015)),
+        var(--panel);
+      padding:28px;
+      border-radius:30px;
+      border:1px solid var(--line);
+      margin-bottom:18px;
+      box-shadow:var(--shadow);
+    }
+
+    .hero::before{
+      content:"";
+      position:absolute;
+      top:-80px;
+      right:-80px;
+      width:240px;
+      height:240px;
+      border-radius:50%;
+      background:radial-gradient(circle,rgba(99,245,255,.18),transparent 66%);
+      pointer-events:none;
+    }
+
+    .hero::after{
+      content:"";
+      position:absolute;
+      left:-70px;
+      bottom:-70px;
+      width:220px;
+      height:220px;
+      border-radius:50%;
+      background:radial-gradient(circle,rgba(94,160,255,.10),transparent 65%);
+      pointer-events:none;
+    }
+
+    .hero-grid{
+      position:relative;
+      z-index:2;
+      display:grid;
+      grid-template-columns:1.1fr .9fr;
+      gap:18px;
+      align-items:start;
+    }
+
+    .hero-badge{
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      padding:10px 14px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.08);
+      background:rgba(255,255,255,.04);
+      color:var(--cyan);
+      font-size:12px;
+      font-weight:900;
+      letter-spacing:.07em;
+      text-transform:uppercase;
+      margin-bottom:16px;
+    }
+
+    .hero h1{
+      font-size:46px;
+      line-height:1.02;
+      margin-bottom:12px;
+      letter-spacing:-.04em;
+      max-width:720px;
+    }
+
+    .hero p{
+      color:var(--muted);
+      line-height:1.72;
+      font-size:15px;
+      max-width:760px;
+    }
+
+    .hero-actions{
+      display:flex;
+      gap:12px;
+      flex-wrap:wrap;
+      margin-top:20px;
+    }
+
+    .btn{
+      padding:14px 18px;
+      border-radius:16px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.04);
+      color:#fff;
+      font-weight:800;
+      cursor:pointer;
+      transition:.18s ease;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      min-height:50px;
+      text-align:center;
+    }
+
+    .btn:hover{
+      transform:translateY(-1px);
+      background:rgba(255,255,255,.06);
+    }
+
+    .btn.primary{
+      background:linear-gradient(135deg,var(--cyan),var(--blue));
+      color:#07121f;
+      border:none;
+    }
+
+    .btn.success{
+      background:linear-gradient(135deg,var(--green),#89ffd0);
+      color:#062014;
+      border:none;
+    }
+
+    .btn.warn{
+      background:linear-gradient(135deg,var(--gold),var(--orange));
+      color:#2a1600;
+      border:none;
+    }
+
+    .hero-stats{
+      display:grid;
+      grid-template-columns:repeat(2,1fr);
+      gap:12px;
+    }
+
+    .stat-card{
+      padding:18px;
+      border-radius:20px;
+      border:1px solid rgba(255,255,255,.07);
+      background:rgba(255,255,255,.03);
+      box-shadow:0 12px 28px rgba(0,0,0,.18);
+    }
+
+    .stat-card .k{
+      color:var(--muted);
+      font-size:12px;
+      text-transform:uppercase;
+      letter-spacing:.06em;
+      margin-bottom:8px;
+    }
+
+    .stat-card .v{
+      font-size:26px;
+      font-weight:900;
+      line-height:1.1;
+      margin-bottom:6px;
+    }
+
+    .stat-card .s{
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.5;
+    }
+
+    .dashboard{
+      display:grid;
+      grid-template-columns:320px 1fr;
+      gap:16px;
+      margin-top:18px;
+    }
+
+    .section{
+      background:var(--panel);
+      padding:22px;
+      border-radius:24px;
+      border:1px solid var(--line);
+      box-shadow:var(--shadow);
+      min-width:0;
+    }
+
+    .section-header{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-end;
+      gap:12px;
+      flex-wrap:wrap;
+      margin-bottom:16px;
+    }
+
+    .section-header h2{
+      font-size:24px;
+      margin-bottom:4px;
+      letter-spacing:-.02em;
+    }
+
+    .section-header p{
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.65;
+      max-width:720px;
+    }
+
+    .stack{
+      display:grid;
+      gap:16px;
+    }
+
+    .mini-card{
+      padding:16px;
+      border-radius:18px;
+      border:1px solid rgba(255,255,255,.07);
+      background:rgba(255,255,255,.03);
+    }
+
+    .mini-card h3{
+      font-size:15px;
+      margin-bottom:10px;
+    }
+
+    .mini-grid{
+      display:grid;
+      gap:10px;
+    }
+
+    .mini-row{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      align-items:center;
+      padding-top:10px;
+      border-top:1px solid rgba(255,255,255,.06);
+    }
+
+    .mini-row:first-child{
+      border-top:none;
+      padding-top:0;
+    }
+
+    .mini-row .label{
+      color:var(--muted);
+      font-size:13px;
+    }
+
+    .mini-row .value{
+      font-size:14px;
+      font-weight:800;
+      text-align:right;
+    }
+
+    .status-pill{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      padding:8px 12px;
+      border-radius:999px;
+      font-size:11px;
+      font-weight:900;
+      letter-spacing:.05em;
+      text-transform:uppercase;
+      border:1px solid rgba(255,255,255,.08);
+      background:rgba(255,255,255,.06);
+      color:var(--muted);
+    }
+
+    .status-active,
+    .status-awaiting_driver_acceptance,
+    .status-offered,
+    .status-awaiting_dispatch{
+      background:var(--info-bg);
+      border-color:var(--info-bd);
+      color:var(--cyan);
+    }
+
+    .status-dispatched,
+    .status-driver_en_route,
+    .status-in_progress{
+      background:var(--warn-bg);
+      border-color:var(--warn-bd);
+      color:var(--gold);
+    }
+
+    .status-accepted,
+    .status-completed{
+      background:var(--ok-bg);
+      border-color:var(--ok-bd);
+      color:var(--green);
+    }
+
+    .status-rejected,
+    .status-declined,
+    .status-failed,
+    .status-cancelled,
+    .status-expired{
+      background:var(--bad-bg);
+      border-color:var(--bad-bd);
+      color:var(--danger);
+    }
+
+    .toolbar{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-bottom:16px;
+    }
+
+    .search-input{
+      flex:1;
+      min-width:220px;
+      border:none;
+      outline:none;
+      border-radius:16px;
+      padding:14px 16px;
+      background:rgba(255,255,255,.96);
+      color:#172033;
+      font-size:15px;
+      font-weight:700;
+      box-shadow:0 10px 24px rgba(0,0,0,.16);
+    }
+
+    .select{
+      min-width:170px;
+      border:none;
+      outline:none;
+      border-radius:16px;
+      padding:14px 16px;
+      background:rgba(255,255,255,.96);
+      color:#172033;
+      font-size:15px;
+      font-weight:700;
+      box-shadow:0 10px 24px rgba(0,0,0,.16);
+    }
+
+    .feed{
+      display:grid;
+      gap:14px;
+    }
+
+    .dispatch-card{
+      border:1px solid rgba(255,255,255,.07);
+      background:
+        linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.015)),
+        rgba(255,255,255,.02);
+      border-radius:22px;
+      padding:18px;
+      transition:.18s ease;
+    }
+
+    .dispatch-card:hover{
+      transform:translateY(-1px);
+      border-color:var(--line-strong);
+      background:rgba(255,255,255,.045);
+    }
+
+    .dispatch-top{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:12px;
+      flex-wrap:wrap;
+      margin-bottom:14px;
+    }
+
+    .dispatch-title{
+      display:grid;
+      gap:6px;
+    }
+
+    .dispatch-title strong{
+      font-size:17px;
+      letter-spacing:-.01em;
+      word-break:break-word;
+    }
+
+    .dispatch-title span{
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.55;
+    }
+
+    .dispatch-grid{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:12px;
+      margin-bottom:14px;
+    }
+
+    .data-box{
+      padding:14px;
+      border-radius:16px;
+      border:1px solid rgba(255,255,255,.06);
+      background:rgba(255,255,255,.03);
+      min-width:0;
+    }
+
+    .data-box .k{
+      color:var(--muted);
+      font-size:11px;
+      text-transform:uppercase;
+      letter-spacing:.06em;
+      margin-bottom:6px;
+    }
+
+    .data-box .v{
+      font-size:14px;
+      font-weight:800;
+      line-height:1.55;
+      word-break:break-word;
+    }
+
+    .route-box{
+      display:grid;
+      gap:12px;
+      margin-bottom:14px;
+    }
+
+    .route-row{
+      display:flex;
+      gap:12px;
+      align-items:flex-start;
+      padding:14px;
+      border-radius:16px;
+      border:1px solid rgba(255,255,255,.06);
+      background:rgba(255,255,255,.03);
+    }
+
+    .route-icon{
+      width:38px;
+      height:38px;
+      border-radius:50%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      flex-shrink:0;
+      font-size:16px;
+      font-weight:900;
+    }
+
+    .route-icon.pickup{
+      background:rgba(99,245,255,.12);
+      color:var(--cyan);
+      border:1px solid rgba(99,245,255,.18);
+    }
+
+    .route-icon.dropoff{
+      background:rgba(109,255,179,.12);
+      color:var(--green);
+      border:1px solid rgba(109,255,179,.18);
+    }
+
+    .route-copy{
+      display:grid;
+      gap:4px;
+      min-width:0;
+    }
+
+    .route-copy strong{
+      font-size:14px;
+    }
+
+    .route-copy span{
+      color:var(--muted);
+      line-height:1.58;
+      font-size:14px;
+      word-break:break-word;
+    }
+
+    .dispatch-actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+
+    .tiny-btn{
+      padding:11px 14px;
+      border-radius:12px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.04);
+      color:#fff;
+      font-size:13px;
+      font-weight:800;
+      cursor:pointer;
+      transition:.18s ease;
+    }
+
+    .tiny-btn:hover{
+      transform:translateY(-1px);
+      background:rgba(255,255,255,.06);
+    }
+
+    .tiny-btn.primary{
+      background:linear-gradient(135deg,var(--cyan),var(--blue));
+      color:#07121f;
+      border:none;
+    }
+
+    .tiny-btn.success{
+      background:linear-gradient(135deg,var(--green),#89ffd0);
+      color:#062014;
+      border:none;
+    }
+
+    .tiny-btn.warn{
+      background:linear-gradient(135deg,var(--gold),var(--orange));
+      color:#261400;
+      border:none;
+    }
+
+    .tiny-btn.danger{
+      background:linear-gradient(135deg,#ff9bb0,var(--danger));
+      color:#2b0712;
+      border:none;
+    }
+
+    .empty{
+      margin-top:8px;
+      padding:18px;
+      border-radius:18px;
+      background:rgba(255,255,255,.03);
+      border:1px dashed rgba(122,162,255,.26);
+      color:var(--muted);
+      line-height:1.7;
+    }
+
+    .notice{
+      padding:16px 18px;
+      border-radius:18px;
+      border:1px solid rgba(255,255,255,.08);
+      background:rgba(255,255,255,.03);
+      color:var(--muted);
+      line-height:1.66;
+      font-size:14px;
+    }
+
+    .notice strong{
+      display:block;
+      color:var(--text);
+      margin-bottom:6px;
+    }
+
+    .msg{
+      display:none;
+      margin-top:14px;
+      padding:14px 16px;
+      border-radius:16px;
+      line-height:1.65;
+      font-size:14px;
+      white-space:pre-line;
+    }
+
+    .msg.show{
+      display:block;
+    }
+
+    .msg.ok{
+      background:var(--ok-bg);
+      border:1px solid var(--ok-bd);
+      color:#dffff0;
+    }
+
+    .msg.err{
+      background:var(--bad-bg);
+      border:1px solid var(--bad-bd);
+      color:#ffd9e1;
+    }
+
+    .footer{
+      margin-top:18px;
+      padding:20px;
+      border-radius:24px;
+      border:1px solid var(--line);
+      background:var(--panel);
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      flex-wrap:wrap;
+      gap:16px;
+      box-shadow:var(--shadow);
+    }
+
+    .footer p{
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.7;
+      max-width:760px;
+    }
+
+    .loading-inline{
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.7;
+      padding:12px 0;
+    }
+
+    @media(max-width:1100px){
+      .hero-grid,
+      .dashboard{
+        grid-template-columns:1fr;
+      }
+
+      .hero h1{
+        font-size:38px;
+      }
+    }
+
+    @media(max-width:760px){
+      .shell{
+        padding:14px 12px 34px;
+      }
+
+      .topbar{
+        border-radius:24px;
+        padding:14px;
+        align-items:flex-start;
+        flex-direction:column;
+      }
+
+      .top-actions{
+        width:100%;
+        justify-content:flex-start;
+      }
+
+      .chip-btn{
+        flex:1;
+        text-align:center;
+      }
+
+      .hero,
+      .section{
+        padding:20px;
+      }
+
+      .hero h1{
+        font-size:30px;
+      }
+
+      .hero-stats,
+      .dispatch-grid{
+        grid-template-columns:1fr;
+      }
+
+      .toolbar{
+        flex-direction:column;
+      }
+
+      .search-input,
+      .select,
+      .btn{
+        width:100%;
+      }
+
+      .dispatch-actions{
+        flex-direction:column;
+      }
+
+      .tiny-btn{
+        width:100%;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header-row">
-      <h1>Admin Dispatch Console</h1>
-      <button class="refresh-btn" onclick="loadActiveDispatches()">Refresh</button>
+  <div class="shell">
+
+    <div class="topbar">
+      <div class="brand-wrap">
+        <div class="logo-dot"></div>
+        <div class="brand-block">
+          <div class="brand">HARVEY TAXI</div>
+          <div class="brand-sub">Admin Dispatch Console</div>
+        </div>
+      </div>
+
+      <div class="top-actions">
+        <button class="chip-btn" type="button" onclick="goHome()">Home</button>
+        <button class="chip-btn" type="button" onclick="goAdminAnalytics()">Analytics</button>
+        <button class="chip-btn primary" id="refreshTopBtn" type="button">Refresh Live</button>
+      </div>
     </div>
 
-    <div id="activeDispatches"></div>
+    <section class="hero">
+      <div class="hero-grid">
+        <div>
+          <div class="hero-badge">Live operations • dispatch visibility • fleet control</div>
+          <h1>Monitor active dispatches in one clean command view.</h1>
+          <p>
+            This admin dispatch console helps Harvey Taxi operations review live dispatch activity,
+            route assignments, fleet mode, pickup and dropoff addresses, and vehicle proximity in one
+            professional real-time operations surface.
+          </p>
+
+          <div class="hero-actions">
+            <button class="btn primary" id="refreshHeroBtn" type="button">Refresh Dispatches</button>
+            <button class="btn success" id="toggleAutoBtn" type="button">Pause Auto Refresh</button>
+            <button class="btn warn" type="button" onclick="scrollToDispatchFeed()">Jump to Feed</button>
+          </div>
+
+          <div id="globalMsg" class="msg"></div>
+        </div>
+
+        <div class="hero-stats">
+          <div class="stat-card">
+            <div class="k">Active Dispatches</div>
+            <div class="v" id="statDispatches">0</div>
+            <div class="s">Current visible live dispatch records.</div>
+          </div>
+
+          <div class="stat-card">
+            <div class="k">Human Fleet</div>
+            <div class="v" id="statHuman">0</div>
+            <div class="s">Driver-based dispatches in the current feed.</div>
+          </div>
+
+          <div class="stat-card">
+            <div class="k">Autonomous</div>
+            <div class="v" id="statAutonomous">0</div>
+            <div class="s">AV or pilot dispatches currently in view.</div>
+          </div>
+
+          <div class="stat-card">
+            <div class="k">Last Refresh</div>
+            <div class="v" id="statUpdated">--</div>
+            <div class="s">Most recent sync time for this console.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="dashboard">
+      <aside class="stack">
+        <section class="section">
+          <div class="section-header">
+            <div>
+              <h2>Operations snapshot</h2>
+              <p>Quick visibility into current dispatch conditions.</p>
+            </div>
+          </div>
+
+          <div class="mini-card">
+            <h3>Dispatch summary</h3>
+            <div class="mini-grid">
+              <div class="mini-row">
+                <div class="label">Loaded dispatches</div>
+                <div class="value" id="miniLoaded">0</div>
+              </div>
+
+              <div class="mini-row">
+                <div class="label">Auto refresh</div>
+                <div class="value" id="miniAutoRefresh">Enabled</div>
+              </div>
+
+              <div class="mini-row">
+                <div class="label">Refresh interval</div>
+                <div class="value">4 seconds</div>
+              </div>
+
+              <div class="mini-row">
+                <div class="label">Feed state</div>
+                <div class="value" id="miniFeedState">Waiting</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mini-card">
+            <h3>Filter tools</h3>
+            <div class="mini-grid">
+              <div class="mini-row">
+                <div class="label">Search</div>
+                <div class="value" id="miniSearchState">All records</div>
+              </div>
+
+              <div class="mini-row">
+                <div class="label">Status filter</div>
+                <div class="value" id="miniStatusState">All statuses</div>
+              </div>
+
+              <div class="mini-row">
+                <div class="label">Fleet filter</div>
+                <div class="value" id="miniFleetState">All fleets</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="notice">
+            <strong>Console note</strong>
+            This screen is designed for active dispatch visibility. It refreshes on an interval and
+            can be filtered by status, fleet mode, and free-text search across ride, dispatch,
+            driver, vehicle, and address fields.
+          </div>
+        </section>
+      </aside>
+
+      <main class="section" id="dispatchFeedSection">
+        <div class="section-header">
+          <div>
+            <h2>Active dispatch feed</h2>
+            <p>
+              Review each dispatch card for ride identity, assigned fleet, pickup and dropoff routing,
+              vehicle distance, and current dispatch state.
+            </p>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <input
+            id="searchInput"
+            class="search-input"
+            type="text"
+            placeholder="Search by dispatch ID, ride ID, driver, vehicle, pickup, or dropoff..."
+          />
+
+          <select id="statusFilter" class="select">
+            <option value="all">All statuses</option>
+            <option value="awaiting_driver_acceptance">Awaiting acceptance</option>
+            <option value="offered">Offered</option>
+            <option value="awaiting_dispatch">Awaiting dispatch</option>
+            <option value="dispatched">Dispatched</option>
+            <option value="driver_en_route">Driver en route</option>
+            <option value="accepted">Accepted</option>
+            <option value="in_progress">In progress</option>
+            <option value="completed">Completed</option>
+          </select>
+
+          <select id="fleetFilter" class="select">
+            <option value="all">All fleets</option>
+            <option value="human">Human</option>
+            <option value="autonomous">Autonomous</option>
+            <option value="hybrid">Hybrid / Unknown</option>
+          </select>
+        </div>
+
+        <div id="feedMessage" class="msg"></div>
+        <div id="activeDispatches" class="feed">
+          <div class="loading-inline">Loading active dispatches...</div>
+        </div>
+      </main>
+    </div>
+
+    <div class="footer">
+      <div>
+        <strong style="display:block;margin-bottom:8px;">Harvey Taxi Dispatch Operations</strong>
+        <p>
+          A professional operations console for real-time dispatch awareness, routing visibility,
+          fleet mode monitoring, and admin-side live ride flow management.
+        </p>
+      </div>
+
+      <div class="top-actions" style="margin-top:0;">
+        <button class="chip-btn" type="button" onclick="goHome()">Home</button>
+        <button class="chip-btn" type="button" onclick="scrollToTopSmooth()">Top</button>
+      </div>
+    </div>
   </div>
 
   <script>
-    async function loadActiveDispatches() {
-      const container = document.getElementById('activeDispatches')
-      container.innerHTML = 'Loading active dispatches...'
+    const state = {
+      rawDispatches: [],
+      filteredDispatches: [],
+      autoRefreshEnabled: true,
+      refreshIntervalMs: 4000,
+      refreshTimer: null,
+      isLoading: false,
+      lastUpdatedAt: null
+    };
+
+    const els = {
+      activeDispatches: document.getElementById("activeDispatches"),
+      globalMsg: document.getElementById("globalMsg"),
+      feedMessage: document.getElementById("feedMessage"),
+
+      refreshTopBtn: document.getElementById("refreshTopBtn"),
+      refreshHeroBtn: document.getElementById("refreshHeroBtn"),
+      toggleAutoBtn: document.getElementById("toggleAutoBtn"),
+
+      searchInput: document.getElementById("searchInput"),
+      statusFilter: document.getElementById("statusFilter"),
+      fleetFilter: document.getElementById("fleetFilter"),
+
+      statDispatches: document.getElementById("statDispatches"),
+      statHuman: document.getElementById("statHuman"),
+      statAutonomous: document.getElementById("statAutonomous"),
+      statUpdated: document.getElementById("statUpdated"),
+
+      miniLoaded: document.getElementById("miniLoaded"),
+      miniAutoRefresh: document.getElementById("miniAutoRefresh"),
+      miniFeedState: document.getElementById("miniFeedState"),
+      miniSearchState: document.getElementById("miniSearchState"),
+      miniStatusState: document.getElementById("miniStatusState"),
+      miniFleetState: document.getElementById("miniFleetState")
+    };
+
+    function goHome() {
+      window.location.href = "/";
+    }
+
+    function goAdminAnalytics() {
+      window.location.href = "/admin-dashboard.html";
+    }
+
+    function scrollToDispatchFeed() {
+      document.getElementById("dispatchFeedSection").scrollIntoView({ behavior: "smooth" });
+    }
+
+    function scrollToTopSmooth() {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function showMsg(el, message, ok = true) {
+      if (!el) return;
+      el.textContent = message;
+      el.className = "msg show " + (ok ? "ok" : "err");
+    }
+
+    function clearMsg(el) {
+      if (!el) return;
+      el.textContent = "";
+      el.className = "msg";
+    }
+
+    function safeText(value, fallback = "N/A") {
+      const text = String(value ?? "").trim();
+      return text || fallback;
+    }
+
+    function formatNumber(value, digits = 0) {
+      const num = Number(value);
+      if (!Number.isFinite(num)) return digits > 0 ? (0).toFixed(digits) : "0";
+      return num.toFixed(digits);
+    }
+
+    function formatStatus(status) {
+      const value = String(status || "unknown").trim().toLowerCase();
+      return value || "unknown";
+    }
+
+    function prettyStatus(status) {
+      return formatStatus(status).replace(/_/g, " ");
+    }
+
+    function titleCase(text) {
+      return String(text || "")
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (m) => m.toUpperCase());
+    }
+
+    function statusClass(status) {
+      const key = formatStatus(status);
+      return "status-pill status-" + key;
+    }
+
+    function deriveFleetType(item) {
+      const rawFleet = String(item.fleetType || item.fleet_type || "").toLowerCase();
+      const rawDriver = String(item.driverId || item.driver_id || "").toLowerCase();
+      const rawVehicle = String(item.vehicleId || item.vehicle_id || "").toLowerCase();
+
+      if (rawFleet.includes("autonomous") || rawFleet.includes("av")) return "autonomous";
+      if (rawFleet.includes("human") || rawFleet.includes("driver")) return "human";
+      if (!rawDriver || rawDriver === "av mode") return "autonomous";
+      if (rawVehicle.includes("av") || rawVehicle.includes("auto")) return "autonomous";
+      return "human";
+    }
+
+    function formatTime(value) {
+      if (!value) return "--";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return safeText(value, "--");
+      return date.toLocaleString([], {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit"
+      });
+    }
+
+    function buildSearchBlob(item) {
+      return [
+        item.id,
+        item.rideId,
+        item.ride_id,
+        item.vehicleId,
+        item.vehicle_id,
+        item.driverId,
+        item.driver_id,
+        item.fleetType,
+        item.fleet_type,
+        item.status,
+        item.pickup && item.pickup.address,
+        item.dropoff && item.dropoff.address
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+    }
+
+    function updateStats(dispatches) {
+      const items = Array.isArray(dispatches) ? dispatches : [];
+      const humanCount = items.filter((item) => deriveFleetType(item) === "human").length;
+      const autonomousCount = items.filter((item) => deriveFleetType(item) === "autonomous").length;
+
+      els.statDispatches.textContent = String(items.length);
+      els.statHuman.textContent = String(humanCount);
+      els.statAutonomous.textContent = String(autonomousCount);
+      els.statUpdated.textContent = state.lastUpdatedAt ? formatTime(state.lastUpdatedAt) : "--";
+
+      els.miniLoaded.textContent = String(items.length);
+      els.miniAutoRefresh.textContent = state.autoRefreshEnabled ? "Enabled" : "Paused";
+      els.miniFeedState.textContent = state.isLoading ? "Refreshing" : "Live";
+      els.miniSearchState.textContent = els.searchInput.value.trim()
+        ? `Search: "${els.searchInput.value.trim()}"`
+        : "All records";
+      els.miniStatusState.textContent =
+        els.statusFilter.value === "all"
+          ? "All statuses"
+          : titleCase(els.statusFilter.value);
+      els.miniFleetState.textContent =
+        els.fleetFilter.value === "all"
+          ? "All fleets"
+          : titleCase(els.fleetFilter.value);
+    }
+
+    function renderDispatches(dispatches) {
+      const items = Array.isArray(dispatches) ? dispatches : [];
+
+      if (!items.length) {
+        els.activeDispatches.innerHTML =
+          '<div class="empty">No active dispatches match the current filters right now.</div>';
+        return;
+      }
+
+      els.activeDispatches.innerHTML = items.map((item) => {
+        const id = safeText(item.id);
+        const rideId = safeText(item.rideId || item.ride_id);
+        const vehicleId = safeText(item.vehicleId || item.vehicle_id);
+        const driverId = safeText(item.driverId || item.driver_id, "AV MODE");
+        const fleetType = titleCase(item.fleetType || item.fleet_type || deriveFleetType(item));
+        const pickupAddress = safeText(item.pickup && item.pickup.address);
+        const dropoffAddress = safeText(item.dropoff && item.dropoff.address);
+        const milesAway = formatNumber(item.milesAway ?? item.miles_away ?? 0, 2);
+        const createdAt = formatTime(item.createdAt || item.created_at);
+        const status = prettyStatus(item.status);
+
+        return `
+          <article class="dispatch-card">
+            <div class="dispatch-top">
+              <div class="dispatch-title">
+                <strong>Dispatch ${id}</strong>
+                <span>Ride ${rideId} • Fleet ${fleetType}</span>
+              </div>
+              <div class="${statusClass(item.status)}">${status}</div>
+            </div>
+
+            <div class="dispatch-grid">
+              <div class="data-box">
+                <div class="k">Ride ID</div>
+                <div class="v">${rideId}</div>
+              </div>
+
+              <div class="data-box">
+                <div class="k">Vehicle ID</div>
+                <div class="v">${vehicleId}</div>
+              </div>
+
+              <div class="data-box">
+                <div class="k">Driver</div>
+                <div class="v">${driverId}</div>
+              </div>
+
+              <div class="data-box">
+                <div class="k">Fleet Type</div>
+                <div class="v">${fleetType}</div>
+              </div>
+
+              <div class="data-box">
+                <div class="k">Distance From Vehicle</div>
+                <div class="v">${milesAway} miles</div>
+              </div>
+
+              <div class="data-box">
+                <div class="k">Created</div>
+                <div class="v">${createdAt}</div>
+              </div>
+            </div>
+
+            <div class="route-box">
+              <div class="route-row">
+                <div class="route-icon pickup">P</div>
+                <div class="route-copy">
+                  <strong>Pickup Address</strong>
+                  <span>${pickupAddress}</span>
+                </div>
+              </div>
+
+              <div class="route-row">
+                <div class="route-icon dropoff">D</div>
+                <div class="route-copy">
+                  <strong>Dropoff Address</strong>
+                  <span>${dropoffAddress}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="dispatch-actions">
+              <button class="tiny-btn primary" type="button" onclick="copyDispatchId('${escapeForJs(id)}')">Copy Dispatch ID</button>
+              <button class="tiny-btn" type="button" onclick="copyRideId('${escapeForJs(rideId)}')">Copy Ride ID</button>
+              <button class="tiny-btn success" type="button" onclick="filterByFleet('${escapeForJs(deriveFleetType(item))}')">Filter Fleet</button>
+              <button class="tiny-btn warn" type="button" onclick="filterByStatus('${escapeForJs(formatStatus(item.status))}')">Filter Status</button>
+            </div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    function escapeForJs(value) {
+      return String(value || "")
+        .replace(/\\/g, "\\\\")
+        .replace(/'/g, "\\'");
+    }
+
+    function applyFilters() {
+      const searchTerm = els.searchInput.value.trim().toLowerCase();
+      const statusValue = els.statusFilter.value;
+      const fleetValue = els.fleetFilter.value;
+
+      state.filteredDispatches = state.rawDispatches.filter((item) => {
+        const blob = buildSearchBlob(item);
+        const fleet = deriveFleetType(item);
+        const status = formatStatus(item.status);
+
+        const searchOk = !searchTerm || blob.includes(searchTerm);
+        const statusOk = statusValue === "all" || status === statusValue;
+        const fleetOk =
+          fleetValue === "all" ||
+          (fleetValue === "hybrid" && !["human", "autonomous"].includes(fleet)) ||
+          fleet === fleetValue;
+
+        return searchOk && statusOk && fleetOk;
+      });
+
+      updateStats(state.filteredDispatches);
+      renderDispatches(state.filteredDispatches);
+    }
+
+    async function loadActiveDispatches(showToast = false) {
+      if (state.isLoading) return;
+
+      state.isLoading = true;
+      updateStats(state.filteredDispatches);
+
+      if (!state.rawDispatches.length) {
+        els.activeDispatches.innerHTML =
+          '<div class="loading-inline">Loading active dispatches...</div>';
+      }
 
       try {
-        const res = await fetch('/api/admin/active-dispatches')
-        const data = await res.json()
+        const res = await fetch("/api/admin/active-dispatches", {
+          headers: { "Content-Type": "application/json" }
+        });
 
-        if (!Array.isArray(data) || data.length === 0) {
-          container.innerHTML = '<div class="empty">No active dispatches right now.</div>'
-          return
+        const data = await res.json().catch(() => []);
+
+        if (!res.ok) {
+          throw new Error(
+            (data && (data.error || data.message)) || "Failed to load active dispatches."
+          );
         }
 
-        container.innerHTML = data.map(item => `
-          <div class="dispatch-card">
-            <div class="row">
-              <span class="status-pill">${item.status}</span>
-            </div>
+        if (!Array.isArray(data)) {
+          throw new Error("Dispatch response format was invalid.");
+        }
 
-            <div class="row">
-              <div class="label">Dispatch ID</div>
-              <div class="value">${item.id}</div>
-            </div>
+        state.rawDispatches = data;
+        state.lastUpdatedAt = new Date().toISOString();
+        clearMsg(els.feedMessage);
+        applyFilters();
 
-            <div class="row">
-              <div class="label">Ride ID</div>
-              <div class="value">${item.rideId}</div>
-            </div>
-
-            <div class="row">
-              <div class="label">Vehicle ID</div>
-              <div class="value">${item.vehicleId}</div>
-            </div>
-
-            <div class="row">
-              <div class="label">Driver</div>
-              <div class="value">${item.driverId || 'AV MODE'}</div>
-            </div>
-
-            <div class="row">
-              <div class="label">Fleet Type</div>
-              <div class="value">${item.fleetType}</div>
-            </div>
-
-            <div class="row">
-              <div class="label">Pickup Address</div>
-              <div class="value">${item.pickup?.address || 'N/A'}</div>
-            </div>
-
-            <div class="row">
-              <div class="label">Dropoff Address</div>
-              <div class="value">${item.dropoff?.address || 'N/A'}</div>
-            </div>
-
-            <div class="row">
-              <div class="label">Distance From Vehicle</div>
-              <div class="value">${Number(item.milesAway || 0).toFixed(2)} miles</div>
-            </div>
-
-            <div class="row">
-              <div class="label">Created</div>
-              <div class="value">${item.createdAt || ''}</div>
-            </div>
-          </div>
-        `).join('')
+        if (showToast) {
+          showMsg(els.globalMsg, "Dispatch feed refreshed successfully.", true);
+        }
       } catch (err) {
-        console.error(err)
-        container.innerHTML = '<div class="empty">Failed to load active dispatches.</div>'
+        console.error(err);
+        showMsg(
+          els.feedMessage,
+          err && err.message ? err.message : "Failed to load active dispatches.",
+          false
+        );
+
+        if (!state.rawDispatches.length) {
+          els.activeDispatches.innerHTML =
+            '<div class="empty">Failed to load active dispatches.</div>';
+        }
+      } finally {
+        state.isLoading = false;
+        updateStats(state.filteredDispatches);
       }
     }
 
-    loadActiveDispatches()
-    setInterval(loadActiveDispatches, 4000)
+    function startAutoRefresh() {
+      stopAutoRefresh();
+      state.refreshTimer = setInterval(() => {
+        if (state.autoRefreshEnabled) {
+          loadActiveDispatches(false);
+        }
+      }, state.refreshIntervalMs);
+    }
+
+    function stopAutoRefresh() {
+      if (state.refreshTimer) {
+        clearInterval(state.refreshTimer);
+        state.refreshTimer = null;
+      }
+    }
+
+    function toggleAutoRefresh() {
+      state.autoRefreshEnabled = !state.autoRefreshEnabled;
+      els.toggleAutoBtn.textContent = state.autoRefreshEnabled
+        ? "Pause Auto Refresh"
+        : "Resume Auto Refresh";
+      updateStats(state.filteredDispatches);
+
+      showMsg(
+        els.globalMsg,
+        state.autoRefreshEnabled
+          ? "Auto refresh resumed."
+          : "Auto refresh paused.",
+        true
+      );
+    }
+
+    async function copyText(value, successMessage) {
+      try {
+        await navigator.clipboard.writeText(String(value || ""));
+        showMsg(els.globalMsg, successMessage, true);
+      } catch (error) {
+        showMsg(els.globalMsg, "Unable to copy right now.", false);
+      }
+    }
+
+    function copyDispatchId(id) {
+      copyText(id, `Dispatch ID copied: ${id}`);
+    }
+
+    function copyRideId(id) {
+      copyText(id, `Ride ID copied: ${id}`);
+    }
+
+    function filterByStatus(status) {
+      els.statusFilter.value = status || "all";
+      applyFilters();
+      scrollToDispatchFeed();
+    }
+
+    function filterByFleet(fleet) {
+      els.fleetFilter.value = fleet || "all";
+      applyFilters();
+      scrollToDispatchFeed();
+    }
+
+    els.refreshTopBtn.addEventListener("click", () => loadActiveDispatches(true));
+    els.refreshHeroBtn.addEventListener("click", () => loadActiveDispatches(true));
+    els.toggleAutoBtn.addEventListener("click", toggleAutoRefresh);
+
+    els.searchInput.addEventListener("input", applyFilters);
+    els.statusFilter.addEventListener("change", applyFilters);
+    els.fleetFilter.addEventListener("change", applyFilters);
+
+    loadActiveDispatches(false);
+    startAutoRefresh();
   </script>
 </body>
-</html>
+  </html>
