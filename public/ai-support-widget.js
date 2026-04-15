@@ -14,17 +14,22 @@
     }
 
     const CONFIG = {
-      storageKey: "harvey_ai_chat_state_v15",
-      uiStateKey: "harvey_ai_chat_ui_state_v15",
+      storageKey: "harvey_ai_chat_state_v16",
+      uiStateKey: "harvey_ai_chat_ui_state_v16",
       endpoint: "/api/ai/support",
-      messageLimit: 80,
-      rateLimitMs: 1000,
+      messageLimit: 100,
+      rateLimitMs: 900,
       requestTimeoutMs: 25000,
       autoOpenParam: "openHarveyAI",
       defaultOpenOnPages: [],
       widgetTitle: "Harvey Taxi AI Support",
+      foundationUrl: "foundation.html",
+      donationUrl: "https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00",
       fallbackError:
-        "I’m having trouble reaching Harvey Taxi AI Support right now. Please try again in a moment."
+        "I’m having trouble reaching Harvey Taxi AI Support right now. Please try again in a moment.",
+      assistantMeta: "Harvey Taxi AI Support",
+      emergencyNotice:
+        "Harvey Taxi AI Support provides platform guidance only. For emergencies, contact local emergency services immediately."
     };
 
     injectStyles();
@@ -40,12 +45,14 @@
       riderId: readContextValue("rider_id"),
       driverId: readContextValue("driver_id"),
       rideId: readContextValue("ride_id"),
-      lastSentAt: 0
+      lastSentAt: 0,
+      lastQuickAction: null
     };
 
     function detectPageContext() {
       const path = String(window.location.pathname || "").toLowerCase();
 
+      if (path.includes("foundation")) return "foundation";
       if (path.includes("rider-signup")) return "rider";
       if (path.includes("rider-dashboard")) return "rider";
       if (path.includes("driver-signup")) return "driver";
@@ -53,6 +60,7 @@
       if (path.includes("request-ride")) return "request";
       if (path.includes("support")) return "support";
       if (path.includes("admin")) return "admin";
+      if (path.includes("index") || path === "/" || path.endsWith("/")) return "general";
 
       return "general";
     }
@@ -70,8 +78,16 @@
         if (localValue) return localValue;
 
         return null;
-      } catch (error) {
+      } catch (_error) {
         return null;
+      }
+    }
+
+    function safeJsonParse(value, fallback) {
+      try {
+        return JSON.parse(value);
+      } catch (_error) {
+        return fallback;
       }
     }
 
@@ -89,7 +105,7 @@
         {
           role: "assistant",
           text: getWelcomeTextByPage(PAGE_CONTEXT),
-          meta: CONFIG.widgetTitle,
+          meta: CONFIG.assistantMeta,
           ts: Date.now()
         }
       ];
@@ -98,17 +114,19 @@
     function getWelcomeTextByPage(pageContext) {
       const map = {
         general:
-          "Hi, I’m Harvey Taxi AI Support. I can help with rides, rider approval, driver onboarding, payment authorization, dispatch, mission flow, and autonomous pilot guidance.",
+          "Hi, I’m Harvey Taxi AI Support. I can help with rides, rider approval, driver onboarding, payment authorization, dispatch, mission flow, autonomous pilot guidance, and Harvey Transportation Assistance Foundation questions.",
         rider:
-          "Hi, I’m Harvey Taxi AI Support. I can help explain rider signup, rider approval, payment authorization, and ride access.",
+          "Hi, I’m Harvey Taxi AI Support. I can help explain rider signup, rider approval, payment authorization, ride access, and account support.",
         driver:
-          "Hi, I’m Harvey Taxi AI Support. I can help with driver onboarding, verification, approval, missions, driver status, and payout questions.",
+          "Hi, I’m Harvey Taxi AI Support. I can help with driver onboarding, verification, approval, missions, driver status, payouts, and support guidance.",
         request:
           "Hi, I’m Harvey Taxi AI Support. I can help with fare estimates, payment authorization, ride requests, dispatch flow, trip updates, and ride availability.",
         support:
-          "Hi, I’m Harvey Taxi AI Support. I can help with support questions about accounts, rides, approvals, dispatch, payments, and autonomous pilot mode.",
+          "Hi, I’m Harvey Taxi AI Support. I can help with support questions about accounts, rides, approvals, dispatch, payments, autonomous pilot mode, and foundation access.",
         admin:
-          "Hi, I’m Harvey Taxi AI Support. I can help explain rider access rules, driver activation flow, dispatch logic, payment holds, and support processes."
+          "Hi, I’m Harvey Taxi AI Support. I can help explain rider access rules, driver activation flow, dispatch logic, payment holds, trip operations, and support processes.",
+        foundation:
+          "Hi, I’m Harvey Taxi AI Support. I can help explain the Harvey Transportation Assistance Foundation mission, transportation access support, donations, and how community giving connects to the Harvey ecosystem."
       };
 
       return map[pageContext] || map.general;
@@ -120,7 +138,8 @@
           "How do I request a ride?",
           "How do I sign up as a driver?",
           "What is Harvey Taxi?",
-          "What is autonomous pilot mode?"
+          "What is autonomous pilot mode?",
+          "How do I support the foundation?"
         ],
         rider: [
           "Why do riders need approval?",
@@ -144,17 +163,82 @@
           "How do I get ride help?",
           "How do approvals work?",
           "What if my ride request is blocked?",
-          "What does pilot mode mean?"
+          "What does pilot mode mean?",
+          "How do I donate?"
         ],
         admin: [
           "How does rider approval work?",
           "How does driver activation work?",
           "What is the dispatch flow?",
           "How do payment holds work?"
+        ],
+        foundation: [
+          "What does the foundation support?",
+          "How do I donate?",
+          "How do donations help transportation access?",
+          "How is the foundation connected to Harvey Taxi?"
         ]
       };
 
       return map[pageContext] || map.general;
+    }
+
+    function buildQuickActions(pageContext) {
+      const base = [
+        {
+          label: "Foundation",
+          action: "link",
+          href: CONFIG.foundationUrl,
+          style: "gold"
+        },
+        {
+          label: "Donate",
+          action: "link",
+          href: CONFIG.donationUrl,
+          external: true,
+          style: "green"
+        }
+      ];
+
+      const pageSpecific = {
+        general: [
+          { label: "Request Ride", action: "link", href: "request-ride.html?mode=driver" },
+          { label: "Driver Signup", action: "link", href: "driver-signup.html" },
+          { label: "Ask About Pilot", action: "message", message: "What is autonomous pilot mode?" }
+        ],
+        rider: [
+          { label: "Rider Status", action: "message", message: "How do I check my rider status?" },
+          { label: "Payment Help", action: "message", message: "How does payment authorization work?" },
+          { label: "Request Ride", action: "link", href: "request-ride.html?mode=driver" }
+        ],
+        driver: [
+          { label: "Driver Missions", action: "message", message: "How do missions work?" },
+          { label: "Payout Help", action: "message", message: "How do payouts work?" },
+          { label: "Driver Dashboard", action: "link", href: "driver-dashboard.html" }
+        ],
+        request: [
+          { label: "Fare Help", action: "message", message: "How is fare estimated?" },
+          { label: "Dispatch Flow", action: "message", message: "How does dispatch work?" },
+          { label: "Support", action: "link", href: "support.html" }
+        ],
+        support: [
+          { label: "Ride Help", action: "message", message: "How do I get ride help?" },
+          { label: "Approvals", action: "message", message: "How do approvals work?" },
+          { label: "Support Center", action: "link", href: "support.html" }
+        ],
+        admin: [
+          { label: "Rider Approval", action: "message", message: "How does rider approval work?" },
+          { label: "Driver Activation", action: "message", message: "How does driver activation work?" },
+          { label: "Dispatch Logic", action: "message", message: "What is the dispatch flow?" }
+        ],
+        foundation: [
+          { label: "Foundation Mission", action: "message", message: "What does the foundation support?" },
+          { label: "Donate Now", action: "link", href: CONFIG.donationUrl, external: true, style: "green" },
+          { label: "Open Foundation", action: "link", href: CONFIG.foundationUrl, style: "gold" }
+        ]
+      };
+
+      return (pageSpecific[pageContext] || pageSpecific.general).concat(base);
     }
 
     function formatPageSubtitle(pageContext) {
@@ -164,7 +248,8 @@
         driver: "Driver support",
         request: "Ride request support",
         support: "Customer support",
-        admin: "Platform support"
+        admin: "Platform support",
+        foundation: "Foundation support"
       };
 
       return map[pageContext] || "Platform support";
@@ -175,7 +260,7 @@
         const raw = sessionStorage.getItem(CONFIG.storageKey);
         if (!raw) return getWelcomeMessages();
 
-        const parsed = JSON.parse(raw);
+        const parsed = safeJsonParse(raw, null);
 
         if (!Array.isArray(parsed) || !parsed.length) {
           return getWelcomeMessages();
@@ -207,7 +292,7 @@
         const raw = sessionStorage.getItem(CONFIG.uiStateKey);
         if (!raw) return { isOpen: false, isExpanded: false };
 
-        const parsed = JSON.parse(raw);
+        const parsed = safeJsonParse(raw, {});
         return {
           isOpen: !!(parsed && parsed.isOpen),
           isExpanded: !!(parsed && parsed.isExpanded)
@@ -249,7 +334,10 @@
             aria-label="Open ${escapeHtml(CONFIG.widgetTitle)}"
             title="Open ${escapeHtml(CONFIG.widgetTitle)}"
             data-harvey-ai-open
-          >✦</button>
+          >
+            <span class="harvey-ai-launch-icon">✦</span>
+            <span class="harvey-ai-launch-ping"></span>
+          </button>
 
           <section
             class="harvey-ai-panel"
@@ -292,6 +380,8 @@
               </div>
             </div>
 
+            <div class="harvey-ai-quick-actions" data-harvey-ai-quick-actions></div>
+
             <div class="harvey-ai-body" data-harvey-ai-body></div>
 
             <div class="harvey-ai-suggestions" data-harvey-ai-suggestions></div>
@@ -303,7 +393,7 @@
                   data-harvey-ai-input
                   rows="1"
                   maxlength="1400"
-                  placeholder="Ask Harvey Taxi AI about rides, signup, approvals, payment authorization, dispatch, missions, support, or autonomous pilot..."
+                  placeholder="Ask Harvey Taxi AI about rides, signup, approvals, payment authorization, dispatch, missions, support, autonomous pilot, or foundation help..."
                 ></textarea>
 
                 <button
@@ -315,7 +405,7 @@
               </form>
 
               <div class="harvey-ai-footnote">
-                Harvey Taxi AI Support provides platform guidance. For emergencies, contact local emergency services immediately.
+                ${escapeHtml(CONFIG.emergencyNotice)}
               </div>
             </div>
           </section>
@@ -325,6 +415,7 @@
       bindEvents();
       renderMessages();
       renderSuggestions();
+      renderQuickActions();
       syncPanelState();
 
       if (shouldAutoOpen() && !state.isOpen) {
@@ -359,6 +450,7 @@
           saveMessages();
           renderMessages();
           renderSuggestions();
+          renderQuickActions();
 
           if (input) {
             input.value = "";
@@ -400,7 +492,11 @@
         input.addEventListener("keydown", function (event) {
           if (event.key === "Enter" && !event.shiftKey) {
             event.preventDefault();
-            if (form) form.requestSubmit();
+            if (form && typeof form.requestSubmit === "function") {
+              form.requestSubmit();
+            } else if (form) {
+              form.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+            }
           }
         });
       }
@@ -449,17 +545,8 @@
       const panel = root.querySelector(".harvey-ai-panel");
       if (!panel) return;
 
-      if (state.isOpen) {
-        panel.classList.add("open");
-      } else {
-        panel.classList.remove("open");
-      }
-
-      if (state.isExpanded) {
-        panel.classList.add("expanded");
-      } else {
-        panel.classList.remove("expanded");
-      }
+      panel.classList.toggle("open", !!state.isOpen);
+      panel.classList.toggle("expanded", !!state.isExpanded);
 
       updateExpandButton();
       saveUiState();
@@ -490,12 +577,13 @@
       scrollToBottom();
     }
 
-    function addMessage(role, text, meta) {
+    function addMessage(role, text, meta, data) {
       state.messages.push({
         role: role === "user" ? "user" : "assistant",
         text: String(text || ""),
-        meta: meta || (role === "user" ? "You" : CONFIG.widgetTitle),
-        ts: Date.now()
+        meta: meta || (role === "user" ? "You" : CONFIG.assistantMeta),
+        ts: Date.now(),
+        card: data && data.card ? data.card : null
       });
 
       state.messages = state.messages.slice(-CONFIG.messageLimit);
@@ -521,10 +609,42 @@
         const meta = document.createElement("div");
         meta.className = "harvey-ai-meta";
         meta.textContent = String(
-          message.meta || (message.role === "user" ? "You" : CONFIG.widgetTitle)
+          message.meta || (message.role === "user" ? "You" : CONFIG.assistantMeta)
         );
 
         wrapper.appendChild(bubble);
+
+        if (message.card && message.role !== "user") {
+          const card = document.createElement("div");
+          card.className = "harvey-ai-inline-card";
+
+          if (message.card.title) {
+            const title = document.createElement("strong");
+            title.textContent = message.card.title;
+            card.appendChild(title);
+          }
+
+          if (message.card.text) {
+            const text = document.createElement("span");
+            text.textContent = message.card.text;
+            card.appendChild(text);
+          }
+
+          if (message.card.href) {
+            const link = document.createElement("a");
+            link.className = "harvey-ai-inline-link";
+            link.href = message.card.href;
+            link.textContent = message.card.label || "Open";
+            if (message.card.external) {
+              link.target = "_blank";
+              link.rel = "noopener noreferrer";
+            }
+            card.appendChild(link);
+          }
+
+          wrapper.appendChild(card);
+        }
+
         wrapper.appendChild(meta);
         body.appendChild(wrapper);
       });
@@ -535,7 +655,7 @@
 
         const typing = document.createElement("div");
         typing.className = "harvey-ai-typing";
-        typing.setAttribute("aria-label", `${CONFIG.widgetTitle} is typing`);
+        typing.setAttribute("aria-label", CONFIG.assistantMeta + " is typing");
 
         for (let i = 0; i < 3; i += 1) {
           const dot = document.createElement("span");
@@ -545,7 +665,7 @@
 
         const meta = document.createElement("div");
         meta.className = "harvey-ai-meta";
-        meta.textContent = CONFIG.widgetTitle;
+        meta.textContent = CONFIG.assistantMeta;
 
         typingWrap.appendChild(typing);
         typingWrap.appendChild(meta);
@@ -555,7 +675,7 @@
       const systemLine = document.createElement("div");
       systemLine.className = "harvey-ai-system-line";
       systemLine.textContent =
-        "Harvey Taxi AI Support can explain rides, rider approval, driver onboarding, dispatch, mission status, payment authorization, and autonomous pilot guidance.";
+        "Harvey Taxi AI Support can explain rides, rider approval, driver onboarding, dispatch, mission status, payment authorization, autonomous pilot guidance, and foundation support.";
       body.appendChild(systemLine);
 
       scrollToBottom();
@@ -579,6 +699,43 @@
           sendMessage(prompt);
         });
 
+        container.appendChild(button);
+      });
+    }
+
+    function renderQuickActions() {
+      const container = root.querySelector("[data-harvey-ai-quick-actions]");
+      if (!container) return;
+
+      container.innerHTML = "";
+
+      buildQuickActions(PAGE_CONTEXT).forEach(function (item, index) {
+        const button = document.createElement(
+          item.action === "link" ? "a" : "button"
+        );
+
+        button.className =
+          "harvey-ai-quick-action" +
+          (item.style === "green" ? " green" : "") +
+          (item.style === "gold" ? " gold" : "");
+
+        if (item.action === "link") {
+          button.href = item.href;
+          if (item.external) {
+            button.target = "_blank";
+            button.rel = "noopener noreferrer";
+          }
+        } else {
+          button.type = "button";
+          button.addEventListener("click", function () {
+            if (state.isLoading) return;
+            state.lastQuickAction = item.label || ("action_" + index);
+            open();
+            sendMessage(item.message);
+          });
+        }
+
+        button.textContent = item.label;
         container.appendChild(button);
       });
     }
@@ -629,7 +786,9 @@
         rider_id: state.riderId || null,
         driver_id: state.driverId || null,
         ride_id: state.rideId || null,
-        source: "widget"
+        source: "widget",
+        foundation_url: CONFIG.foundationUrl,
+        donation_url: CONFIG.donationUrl
       };
     }
 
@@ -651,12 +810,81 @@
       return null;
     }
 
+    function maybeBuildLocalCard(messageText, replyText) {
+      const combined = (String(messageText || "") + " " + String(replyText || "")).toLowerCase();
+
+      if (
+        combined.includes("foundation") ||
+        combined.includes("donate") ||
+        combined.includes("donation") ||
+        combined.includes("transportation access")
+      ) {
+        return {
+          title: "Harvey Transportation Assistance Foundation",
+          text: "Support transportation access for medical appointments, work, school, and essential community mobility.",
+          href: CONFIG.foundationUrl,
+          label: "Open Foundation",
+          external: false
+        };
+      }
+
+      return null;
+    }
+
     async function safeParseResponse(response) {
       const text = await response.text();
       const data = safeJsonParse(text, null);
       return {
-        text,
-        data
+        text: text,
+        data: data
+      };
+    }
+
+    function buildLocalFallback(trimmed) {
+      const message = String(trimmed || "").toLowerCase();
+
+      if (message.includes("foundation") || message.includes("donate") || message.includes("donation")) {
+        return {
+          reply:
+            "Harvey Transportation Assistance Foundation helps remove transportation barriers for medical appointments, work, school, and community mobility. You can open the foundation page or use the secure donation link to support transportation access.",
+          card: {
+            title: "Support Transportation Access",
+            text: "Visit the foundation page or donate securely to help expand community mobility support.",
+            href: CONFIG.foundationUrl,
+            label: "Open Foundation",
+            external: false
+          }
+        };
+      }
+
+      if (message.includes("pilot") || message.includes("autonomous")) {
+        return {
+          reply:
+            "Autonomous Pilot is a clearly labeled pilot experience. Standard Harvey rides are fulfilled by human drivers today, and pilot experiences should only be used where available.",
+          card: null
+        };
+      }
+
+      if (message.includes("driver")) {
+        return {
+          reply:
+            "I can help with driver onboarding, verification, approval, missions, and payout guidance. You can also open the driver signup flow or dashboard from the platform.",
+          card: null
+        };
+      }
+
+      if (message.includes("rider") || message.includes("ride")) {
+        return {
+          reply:
+            "I can help explain rider approval, payment authorization, ride requests, dispatch flow, and trip support. Harvey Taxi uses a structured access flow before live ride activity begins.",
+          card: null
+        };
+      }
+
+      return {
+        reply:
+          "I’m here to help with Harvey Taxi support, rides, onboarding, approvals, payment authorization, dispatch, mission guidance, and foundation support.",
+        card: null
       };
     }
 
@@ -694,13 +922,19 @@
 
         const reply =
           parseReply(data) ||
-          "I’m here to help with Harvey Taxi support, rides, onboarding, approvals, payment authorization, dispatch, and mission guidance.";
+          "I’m here to help with Harvey Taxi support, rides, onboarding, approvals, payment authorization, dispatch, mission guidance, and foundation support.";
 
-        addMessage("assistant", reply, CONFIG.widgetTitle);
+        addMessage(
+          "assistant",
+          reply,
+          CONFIG.assistantMeta,
+          { card: maybeBuildLocalCard(trimmed, reply) }
+        );
       } catch (error) {
         console.error("Harvey Taxi AI widget error:", error);
 
         let message = CONFIG.fallbackError;
+        let card = null;
 
         const lowered = String((error && error.message) || "").toLowerCase();
 
@@ -714,9 +948,13 @@
         ) {
           message =
             "Harvey Taxi AI Support could not reach the server. Please try again in a moment.";
+        } else {
+          const fallback = buildLocalFallback(trimmed);
+          message = fallback.reply;
+          card = fallback.card;
         }
 
-        addMessage("assistant", message, CONFIG.widgetTitle);
+        addMessage("assistant", message, CONFIG.assistantMeta, { card: card });
       } finally {
         state.isLoading = false;
         renderMessages();
@@ -753,6 +991,7 @@
 }
 
 .harvey-ai-launch {
+  position: relative;
   width: 72px;
   height: 72px;
   border: none;
@@ -769,6 +1008,7 @@
   -webkit-appearance: none;
   appearance: none;
   transition: transform 0.18s ease, filter 0.18s ease, box-shadow 0.18s ease;
+  overflow: hidden;
 }
 
 .harvey-ai-launch:hover {
@@ -781,12 +1021,37 @@
   transform: translateY(0);
 }
 
+.harvey-ai-launch-icon {
+  position: relative;
+  z-index: 2;
+}
+
+.harvey-ai-launch-ping {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 0 0 rgba(110, 231, 255, 0.36);
+  animation: harveyAiPing 2.4s infinite;
+}
+
+@keyframes harveyAiPing {
+  0% {
+    box-shadow: 0 0 0 0 rgba(110, 231, 255, 0.34);
+  }
+  70% {
+    box-shadow: 0 0 0 18px rgba(110, 231, 255, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(110, 231, 255, 0);
+  }
+}
+
 .harvey-ai-panel {
   position: absolute;
   right: 0;
   bottom: 88px;
-  width: min(900px, calc(100vw - 32px));
-  max-width: 900px;
+  width: min(920px, calc(100vw - 32px));
+  max-width: 920px;
   height: min(86vh, 1100px);
   min-height: 820px;
   display: none;
@@ -895,6 +1160,47 @@
   transform: translateY(-1px);
 }
 
+.harvey-ai-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 14px 20px 0;
+  flex-shrink: 0;
+}
+
+.harvey-ai-quick-action {
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.05);
+  color: #eaf0ff;
+  border-radius: 999px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.2;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: background 0.18s ease, transform 0.18s ease;
+  text-decoration: none;
+}
+
+.harvey-ai-quick-action:hover {
+  background: rgba(255, 255, 255, 0.09);
+  transform: translateY(-1px);
+}
+
+.harvey-ai-quick-action.green {
+  background: linear-gradient(135deg, #79f0b7 0%, #78f0e9 100%);
+  color: #07131f;
+  border: none;
+}
+
+.harvey-ai-quick-action.gold {
+  background: linear-gradient(135deg, #ffd76a 0%, #ffe8a2 100%);
+  color: #2e2400;
+  border: none;
+}
+
 .harvey-ai-body {
   flex: 1;
   min-height: 0;
@@ -952,6 +1258,41 @@
   color: #07131f;
   border-bottom-right-radius: 8px;
   font-weight: 600;
+}
+
+.harvey-ai-inline-card {
+  margin-top: 10px;
+  max-width: 94%;
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.08);
+}
+
+.harvey-ai-inline-card strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 15px;
+  color: #ffffff;
+}
+
+.harvey-ai-inline-card span {
+  display: block;
+  color: rgba(234,240,255,.82);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.harvey-ai-inline-link {
+  display: inline-flex;
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #ffd76a 0%, #ffe8a2 100%);
+  color: #2e2400;
+  font-size: 13px;
+  font-weight: 900;
+  text-decoration: none;
 }
 
 .harvey-ai-meta {
@@ -1148,6 +1489,16 @@
     padding: 16px;
   }
 
+  .harvey-ai-quick-actions {
+    padding: 12px 16px 0;
+  }
+
+  .harvey-ai-quick-action {
+    flex: 1 1 calc(50% - 6px);
+    text-align: center;
+    justify-content: center;
+  }
+
   .harvey-ai-badge {
     width: 56px;
     height: 56px;
@@ -1175,6 +1526,10 @@
     font-size: 15px;
     line-height: 1.65;
     padding: 16px 18px;
+  }
+
+  .harvey-ai-inline-card {
+    max-width: 96%;
   }
 
   .harvey-ai-suggestions {
@@ -1229,6 +1584,14 @@
         state.messages = getWelcomeMessages();
         saveMessages();
         renderMessages();
+        renderSuggestions();
+        renderQuickActions();
+      },
+      openFoundation: function () {
+        window.location.href = CONFIG.foundationUrl;
+      },
+      donate: function () {
+        window.open(CONFIG.donationUrl, "_blank", "noopener,noreferrer");
       },
       setContext: function (nextContext) {
         if (!nextContext || typeof nextContext !== "object") return;
