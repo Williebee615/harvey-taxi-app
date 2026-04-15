@@ -49,6 +49,7 @@ async function request(path, options = {}) {
   try {
     response = await fetch(url, {
       headers: {
+        Accept: "application/json",
         "Content-Type": "application/json",
         ...(options.headers || {})
       },
@@ -56,7 +57,7 @@ async function request(path, options = {}) {
     });
   } catch (error) {
     throw new Error(
-      `Network request failed. Check API base URL and backend health. Base URL: ${API_BASE_URL}`
+      `Network request failed. Check backend health and API base URL. Base URL: ${API_BASE_URL}`
     );
   }
 
