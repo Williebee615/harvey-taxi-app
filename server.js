@@ -144,6 +144,12 @@ function safeEqual(a = "", b = "") {
   return crypto.timingSafeEqual(aBuf, bBuf);
 }
 
+function omitUndefined(obj = {}) {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, value]) => value !== undefined)
+  );
+}
+
 async function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -2674,7 +2680,7 @@ function startDispatchSweepLoop() {
       console.error("❌ Dispatch sweep failed:", error);
     }
   }, DISPATCH_SWEEP_INTERVAL_MS);
-                                }/* =========================================================
+     }/* =========================================================
    PART 4 OF 4
    LIVE STATUS + PAYMENTS + TIPPING + EARNINGS + ADMIN + AI
 ========================================================= */
@@ -3054,6 +3060,7 @@ function normalizePage(page = "") {
   if (["request", "request-ride", "ride"].includes(value)) return "request";
   if (["support", "help", "faq"].includes(value)) return "support";
   if (["admin", "admin-dashboard"].includes(value)) return "admin";
+  if (["foundation", "nonprofit", "donation"].includes(value)) return "foundation";
   return value;
 }
 
@@ -3062,11 +3069,15 @@ function getFallbackReply(message = "", page = "general") {
   const normalizedPage = normalizePage(page);
 
   if (!text) {
-    return "I can help with rider approval, driver onboarding, ride requests, payment authorization, trip status, dispatch, and Harvey Taxi support.";
+    return "I can help with rider approval, driver onboarding, ride requests, payment authorization, trip status, dispatch, Harvey Taxi support, and foundation support.";
   }
 
   if (text.includes("emergency") || text.includes("911")) {
     return "Harvey Taxi is not an emergency service. Call 911 for emergencies.";
+  }
+
+  if (text.includes("foundation") || text.includes("donate") || normalizedPage === "foundation") {
+    return "Harvey Transportation Assistance Foundation helps remove transportation barriers for medical appointments, work, school, and community mobility. You can open the foundation page or use the donation link to support transportation access.";
   }
 
   if (text.includes("rider") || normalizedPage === "rider") {
@@ -3074,7 +3085,7 @@ function getFallbackReply(message = "", page = "general") {
   }
 
   if (text.includes("driver") || normalizedPage === "driver") {
-    return "Drivers must complete signup, verification, approval before going online and receiving missions.";
+    return "Drivers must complete signup, verification, and approval before going online and receiving missions.";
   }
 
   if (text.includes("payment")) {
@@ -3085,7 +3096,7 @@ function getFallbackReply(message = "", page = "general") {
     return "Harvey Taxi dispatch prioritizes eligible drivers and can automatically redispatch expired offers.";
   }
 
-  return "I can help with rides, driver onboarding, payments, dispatch, and support questions.";
+  return "I can help with rides, driver onboarding, payments, dispatch, support questions, and foundation support.";
 }
 
 async function generateAiSupportReply({ message, page = "general", ride_id = "" }) {
@@ -3112,7 +3123,7 @@ async function generateAiSupportReply({ message, page = "general", ride_id = "" 
           {
             role: "system",
             content:
-              "You are Harvey Taxi AI Support. Be concise, clear, calm, and accurate. Never invent policies."
+              "You are Harvey Taxi AI Support. Be concise, clear, calm, and accurate. Never invent policies. You may answer questions about Harvey Taxi rides, driver onboarding, rider approval, payment authorization, dispatch, autonomous pilot guidance, and Harvey Transportation Assistance Foundation support."
           },
           {
             role: "user",
@@ -3134,7 +3145,7 @@ async function generateAiSupportReply({ message, page = "general", ride_id = "" 
         {
           role: "system",
           content:
-            "You are Harvey Taxi AI Support. Be concise, clear, calm, and accurate. Never invent policies."
+            "You are Harvey Taxi AI Support. Be concise, clear, calm, and accurate. Never invent policies. You may answer questions about Harvey Taxi rides, driver onboarding, rider approval, payment authorization, dispatch, autonomous pilot guidance, and Harvey Transportation Assistance Foundation support."
         },
         {
           role: "user",
@@ -3376,6 +3387,10 @@ app.get("/api/support/faq", asyncHandler(async (_req, res) => {
       {
         question: "Can riders tip drivers?",
         answer: "Yes. Tipping is supported during or after the trip."
+      },
+      {
+        question: "What does the foundation support?",
+        answer: "Harvey Transportation Assistance Foundation supports transportation access for medical appointments, school, work, and community mobility."
       }
     ]
   });
