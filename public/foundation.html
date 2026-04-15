@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+  />
+  <title>Harvey Transportation Assistance Foundation</title>
+  <meta
+    name="description"
+    content="Support Harvey Transportation Assistance Foundation and help remove transportation barriers for medical appointments, school, work, and essential community mobility."
+  />
+
+  <style>
+    :root{
+      --bg1:#040814;
+      --bg2:#091126;
+      --bg3:#101935;
+      --panel:rgba(10,17,38,.88);
+      --panel2:rgba(15,23,52,.78);
+      --panel3:rgba(255,255,255,.04);
+      --line:rgba(122,162,255,.16);
+      --line-strong:rgba(122,162,255,.28);
+      --text:#f4f7ff;
+      --muted:#aab8de;
+      --blue:#5ea0ff;
+      --cyan:#63f5ff;
+      --green:#6dffb3;
+      --gold:#ffd76a;
+      --danger:#ff7e97;
+      --shadow:0 22px 70px rgba(0,0,0,.38);
+      --radius-xl:28px;
+      --radius-lg:20px;
+      --radius-md:14px;
+      --maxw:1240px;
+      --topbar-h:84px;
+    }
+
+    *{box-sizing:border-box}
+
+    html{scroll-behavior:smooth}
+
+    body{
+      margin:0;
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Helvetica,Arial,sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(94,160,255,.15), transparent 24%),
+        radial-gradient(circle at top right, rgba(99,245,255,.10), transparent 22%),
+        linear-gradient(180deg,var(--bg1) 0%,var(--bg2) 45%,var(--bg3) 100%);
+      min-height:100vh;
+      overflow-x:hidden;
+    }
+
+    a{
+      color:inherit;
+      text-decoration:none;
+    }
+
+    img{
+      max-width:100%;
+      display:block;
+    }
+
+    .shell{
+      width:min(var(--maxw), calc(100% - 32px));
+      margin:0 auto;
+    }
+
+    .topbar{
+      position:sticky;
+      top:0;
+      z-index:80;
+      backdrop-filter:blur(18px);
+      background:rgba(4,8,20,.72);
+      border-bottom:1px solid rgba(255,255,255,.05);
+    }
+
+    .topbar-inner{
+      min-height:var(--topbar-h);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:18px;
+    }
+
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:14px;
+      min-width:0;
+    }
+
+    .brand-mark{
+      width:52px;
+      height:52px;
+      border-radius:16px;
+      display:grid;
+      place-items:center;
+      background:linear-gradient(135deg,var(--cyan),var(--blue));
+      color:#04101c;
+      font-size:1.15rem;
+      font-weight:900;
+      box-shadow:0 12px 30px rgba(94,160,255,.28);
+      flex-shrink:0;
+    }
+
+    .brand-copy{
+      min-width:0;
+    }
+
+    .brand-copy h1{
+      margin:0;
+      font-size:1rem;
+      line-height:1.1;
+      letter-spacing:.02em;
+    }
+
+    .brand-copy p{
+      margin:4px 0 0;
+      color:var(--muted);
+      font-size:.85rem;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    .nav{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+
+    .nav a{
+      padding:10px 14px;
+      border-radius:999px;
+      color:var(--muted);
+      border:1px solid transparent;
+      transition:.22s ease;
+      font-size:.94rem;
+    }
+
+    .nav a:hover{
+      color:var(--text);
+      border-color:rgba(255,255,255,.08);
+      background:rgba(255,255,255,.03);
+    }
+
+    .nav .cta{
+      color:#04101c;
+      font-weight:800;
+      background:linear-gradient(135deg,var(--cyan),var(--blue));
+      box-shadow:0 14px 34px rgba(94,160,255,.25);
+    }
+
+    .hero{
+      padding:56px 0 24px;
+    }
+
+    .hero-shell{
+      display:grid;
+      grid-template-columns:minmax(0, 1.28fr) minmax(320px, .72fr);
+      gap:24px;
+      align-items:start;
+    }
+
+    .hero-main{
+      display:grid;
+      gap:24px;
+    }
+
+    .card{
+      background:linear-gradient(180deg, rgba(16,27,58,.82), rgba(7,13,31,.92));
+      border:1px solid var(--line);
+      box-shadow:var(--shadow);
+      border-radius:var(--radius-xl);
+    }
+
+    .hero-card{
+      padding:36px;
+      position:relative;
+      overflow:hidden;
+    }
+
+    .hero-card::before{
+      content:"";
+      position:absolute;
+      right:-90px;
+      bottom:-90px;
+      width:220px;
+      height:220px;
+      border-radius:50%;
+      background:radial-gradient(circle, rgba(99,245,255,.18), transparent 65%);
+      pointer-events:none;
+    }
+
+    .eyebrow{
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      padding:8px 14px;
+      border-radius:999px;
+      background:rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.08);
+      color:var(--cyan);
+      font-size:.84rem;
+      letter-spacing:.04em;
+      text-transform:uppercase;
+      margin-bottom:18px;
+    }
+
+    .hero-card h2{
+      margin:0 0 14px;
+      font-size:clamp(2.15rem, 4.8vw, 4.6rem);
+      line-height:.98;
+      letter-spacing:-.04em;
+      max-width:780px;
+    }
+
+    .hero-card p{
+      margin:0;
+      color:var(--muted);
+      font-size:1.07rem;
+      line-height:1.72;
+      max-width:760px;
+    }
+
+    .hero-actions{
+      display:flex;
+      flex-wrap:wrap;
+      gap:14px;
+      margin-top:28px;
+    }
+
+    .btn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:10px;
+      min-height:54px;
+      padding:0 22px;
+      border-radius:16px;
+      font-weight:800;
+      transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease;
+      border:1px solid transparent;
+      cursor:pointer;
+    }
+
+    .btn:hover{
+      transform:translateY(-1px);
+    }
+
+    .btn-primary{
+      color:#04101c;
+      background:linear-gradient(135deg,var(--cyan),var(--blue));
+      box-shadow:0 18px 40px rgba(94,160,255,.24);
+    }
+
+    .btn-secondary{
+      color:var(--text);
+      background:rgba(255,255,255,.04);
+      border-color:rgba(255,255,255,.08);
+    }
+
+    .impact-strip{
+      display:grid;
+      grid-template-columns:repeat(3, 1fr);
+      gap:14px;
+    }
+
+    .impact-mini{
+      padding:18px;
+      border-radius:20px;
+      background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border:1px solid rgba(255,255,255,.06);
+    }
+
+    .impact-mini strong{
+      display:block;
+      font-size:1rem;
+      margin-bottom:6px;
+    }
+
+    .impact-mini span{
+      display:block;
+      color:var(--muted);
+      line-height:1.55;
+      font-size:.94rem;
+    }
+
+    .sticky-column{
+      position:relative;
+    }
+
+    .sticky-box{
+      position:sticky;
+      top:calc(var(--topbar-h) + 16px);
+      display:grid;
+      gap:18px;
+    }
+
+    .qr-card{
+      padding:24px;
+    }
+
+    .qr-card h3{
+      margin:0 0 10px;
+      font-size:1.26rem;
+      letter-spacing:-.02em;
+    }
+
+    .qr-card p{
+      margin:0;
+      color:var(--muted);
+      line-height:1.64;
+    }
+
+    .qr-frame{
+      margin-top:18px;
+      border-radius:24px;
+      padding:18px;
+      background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border:1px solid rgba(255,255,255,.08);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
+    }
+
+    .qr-box{
+      width:100%;
+      aspect-ratio:1 / 1;
+      border-radius:20px;
+      background:linear-gradient(180deg, #ffffff, #edf5ff);
+      display:grid;
+      place-items:center;
+      overflow:hidden;
+      box-shadow:0 18px 50px rgba(0,0,0,.24);
+    }
+
+    .qr-box img{
+      width:100%;
+      height:100%;
+      object-fit:contain;
+      background:#fff;
+    }
+
+    .qr-fallback{
+      width:100%;
+      height:100%;
+      display:grid;
+      place-items:center;
+      text-align:center;
+      padding:24px;
+      color:#091126;
+      font-weight:800;
+      border:2px dashed rgba(9,17,38,.16);
+      border-radius:18px;
+      line-height:1.5;
+    }
+
+    .scan-note{
+      margin-top:14px;
+      color:var(--muted);
+      text-align:center;
+      font-size:.92rem;
+      line-height:1.55;
+    }
+
+    .link-card{
+      padding:22px;
+      display:grid;
+      gap:14px;
+    }
+
+    .link-card h4{
+      margin:0;
+      font-size:1.02rem;
+    }
+
+    .link-card p{
+      margin:0;
+      color:var(--muted);
+      line-height:1.6;
+    }
+
+    .donation-link{
+      display:block;
+      width:100%;
+      padding:14px 16px;
+      border-radius:16px;
+      background:rgba(255,255,255,.035);
+      border:1px solid rgba(255,255,255,.08);
+      color:var(--cyan);
+      word-break:break-all;
+      font-size:.94rem;
+    }
+
+    .section{
+      padding:18px 0;
+    }
+
+    .section-card{
+      padding:30px;
+    }
+
+    .section-head{
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      gap:18px;
+      flex-wrap:wrap;
+      margin-bottom:18px;
+    }
+
+    .section-head h3{
+      margin:0;
+      font-size:clamp(1.45rem, 2vw, 2rem);
+      letter-spacing:-.02em;
+    }
+
+    .section-head p{
+      margin:8px 0 0;
+      color:var(--muted);
+      max-width:760px;
+      line-height:1.65;
+    }
+
+    .grid-3{
+      display:grid;
+      grid-template-columns:repeat(3, 1fr);
+      gap:16px;
+    }
+
+    .feature-card{
+      padding:24px;
+      border-radius:22px;
+      background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border:1px solid rgba(255,255,255,.06);
+    }
+
+    .feature-icon{
+      width:52px;
+      height:52px;
+      border-radius:16px;
+      display:grid;
+      place-items:center;
+      margin-bottom:16px;
+      font-size:1.35rem;
+      background:linear-gradient(135deg, rgba(99,245,255,.18), rgba(94,160,255,.16));
+      border:1px solid rgba(99,245,255,.16);
+    }
+
+    .feature-card h4{
+      margin:0 0 10px;
+      font-size:1.06rem;
+    }
+
+    .feature-card p{
+      margin:0;
+      color:var(--muted);
+      line-height:1.65;
+      font-size:.96rem;
+    }
+
+    .why-shell{
+      display:grid;
+      grid-template-columns:1.05fr .95fr;
+      gap:18px;
+    }
+
+    .why-card{
+      padding:28px;
+    }
+
+    .why-card h3{
+      margin:0 0 10px;
+      font-size:1.45rem;
+      letter-spacing:-.02em;
+    }
+
+    .why-card p{
+      margin:0;
+      color:var(--muted);
+      line-height:1.7;
+    }
+
+    .why-list{
+      margin:0;
+      padding:0;
+      list-style:none;
+      display:grid;
+      gap:12px;
+    }
+
+    .why-list li{
+      display:flex;
+      align-items:flex-start;
+      gap:12px;
+      color:var(--muted);
+      line-height:1.6;
+    }
+
+    .why-list li::before{
+      content:"•";
+      color:var(--green);
+      font-size:1.4rem;
+      line-height:1;
+      margin-top:-1px;
+    }
+
+    .cta-card{
+      padding:30px;
+      display:grid;
+      grid-template-columns:1.15fr .85fr;
+      gap:20px;
+      align-items:center;
+    }
+
+    .cta-copy h3{
+      margin:0 0 10px;
+      font-size:1.75rem;
+      letter-spacing:-.03em;
+    }
+
+    .cta-copy p{
+      margin:0;
+      color:var(--muted);
+      line-height:1.72;
+      max-width:760px;
+    }
+
+    .cta-actions{
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+
+    .footer{
+      padding:24px 0 52px;
+    }
+
+    .footer-row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:18px;
+      flex-wrap:wrap;
+      color:var(--muted);
+      font-size:.92rem;
+    }
+
+    .footer-row a{
+      color:var(--text);
+    }
+
+    @media (max-width: 1080px){
+      .hero-shell,
+      .why-shell,
+      .cta-card{
+        grid-template-columns:1fr;
+      }
+
+      .sticky-box{
+        position:static;
+      }
+
+      .grid-3,
+      .impact-strip{
+        grid-template-columns:1fr;
+      }
+    }
+
+    @media (max-width: 860px){
+      .nav{
+        display:none;
+      }
+
+      .hero{
+        padding-top:30px;
+      }
+    }
+
+    @media (max-width: 640px){
+      :root{
+        --topbar-h:76px;
+      }
+
+      .shell{
+        width:min(var(--maxw), calc(100% - 20px));
+      }
+
+      .hero-card,
+      .qr-card,
+      .link-card,
+      .section-card,
+      .why-card,
+      .cta-card{
+        padding:22px;
+        border-radius:22px;
+      }
+
+      .brand-copy p{
+        white-space:normal;
+      }
+
+      .hero-card h2{
+        font-size:2.2rem;
+      }
+
+      .hero-actions{
+        flex-direction:column;
+      }
+
+      .btn{
+        width:100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="shell topbar-inner">
+      <a href="/" class="brand" aria-label="Harvey home">
+        <div class="brand-mark">HT</div>
+        <div class="brand-copy">
+          <h1>Harvey Transportation Assistance Foundation</h1>
+          <p>Help us remove transportation barriers</p>
+        </div>
+      </a>
+
+      <nav class="nav" aria-label="Primary">
+        <a href="/">Home</a>
+        <a href="/request-ride.html">Request Ride</a>
+        <a href="/support.html">Support</a>
+        <a href="#why-give">Why Give</a>
+        <a href="#donate" class="cta">Donate Now</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="shell hero-shell">
+        <div class="hero-main">
+          <section class="card hero-card">
+            <div class="eyebrow">Community Ride Fund</div>
+
+            <h2>Help us remove transportation barriers.</h2>
+
+            <p>
+              Your donation helps support transportation assistance for individuals and families
+              who need access to medical appointments, school, work, and essential community mobility.
+              Every contribution helps us move closer to a stronger, more connected community.
+            </p>
+
+            <div class="hero-actions">
+              <a
+                class="btn btn-primary"
+                href="https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Donate Now
+              </a>
+
+              <a class="btn btn-secondary" href="#qr-donate">
+                Scan QR Code
+              </a>
+            </div>
+          </section>
+
+          <section class="impact-strip">
+            <article class="impact-mini card">
+              <strong>Medical rides</strong>
+              <span>Support transportation access for healthcare and appointments.</span>
+            </article>
+
+            <article class="impact-mini card">
+              <strong>School &amp; work access</strong>
+              <span>Help people reach education and employment opportunities.</span>
+            </article>
+
+            <article class="impact-mini card">
+              <strong>Community mobility</strong>
+              <span>Strengthen local transportation support where it is needed most.</span>
+            </article>
+          </section>
+        </div>
+
+        <aside class="sticky-column">
+          <div class="sticky-box">
+            <section class="card qr-card" id="qr-donate">
+              <h3>Scan to Donate</h3>
+              <p>
+                Use your phone camera to scan the QR code or tap the button below.
+              </p>
+
+              <div class="qr-frame">
+                <div class="qr-box">
+                  <img
+                    src="/images/foundation-qr.png"
+                    alt="QR code for Harvey Transportation Assistance Foundation donation page"
+                    onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';"
+                  />
+                  <div class="qr-fallback" style="display:none;">
+                    Add your QR code image at<br />
+                    <strong>/images/foundation-qr.png</strong>
+                  </div>
+                </div>
+              </div>
+
+              <div class="scan-note">
+                The QR card stays visible while people scroll on desktop for faster donations.
+              </div>
+
+              <div style="margin-top:16px;">
+                <a
+                  class="btn btn-primary"
+                  href="https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style="width:100%;"
+                >
+                  Open Donation Link
+                </a>
+              </div>
+            </section>
+
+            <section class="card link-card" id="donate">
+              <h4>Donation Link</h4>
+              <p>
+                Secure donation page for Harvey Transportation Assistance Foundation.
+              </p>
+
+              <a
+                class="donation-link"
+                href="https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00
+              </a>
+            </section>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section" id="impact">
+      <div class="shell">
+        <div class="card section-card">
+          <div class="section-head">
+            <div>
+              <h3>Where support goes</h3>
+              <p>
+                Every donation helps strengthen real transportation access for people facing
+                mobility barriers in daily life.
+              </p>
+            </div>
+          </div>
+
+          <div class="grid-3">
+            <article class="feature-card">
+              <div class="feature-icon">🏥</div>
+              <h4>Medical rides</h4>
+              <p>
+                Support transportation access for healthcare visits, follow-up appointments,
+                treatment schedules, pharmacy access, and essential medical mobility.
+              </p>
+            </article>
+
+            <article class="feature-card">
+              <div class="feature-icon">🎓</div>
+              <h4>School &amp; work access</h4>
+              <p>
+                Help individuals and families reach education, job opportunities, training,
+                interviews, and employment-related transportation needs with greater reliability.
+              </p>
+            </article>
+
+            <article class="feature-card">
+              <div class="feature-icon">🚘</div>
+              <h4>Community mobility</h4>
+              <p>
+                Strengthen local transportation support where it is needed most and help remove
+                barriers that limit independence, opportunity, and daily stability.
+              </p>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="why-give">
+      <div class="shell why-shell">
+        <section class="card why-card">
+          <h3>Why give</h3>
+          <ul class="why-list">
+            <li>Support a transportation-focused nonprofit mission</li>
+            <li>Help expand reliable ride access for people in need</li>
+            <li>Strengthen community support and outreach efforts</li>
+          </ul>
+        </section>
+
+        <section class="card why-card">
+          <h3>Why it matters</h3>
+          <p>
+            Transportation is often the missing link between people and opportunity. Access to a ride
+            can help someone reach care, keep a job, stay in school, and remain connected to community resources.
+          </p>
+        </section>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="shell">
+        <section class="card cta-card">
+          <div class="cta-copy">
+            <h3>Every contribution helps move someone forward.</h3>
+            <p>
+              Join the Harvey Transportation Assistance Foundation mission and help support community
+              transportation access for medical appointments, education, work, and essential daily mobility.
+            </p>
+          </div>
+
+          <div class="cta-actions">
+            <a
+              class="btn btn-primary"
+              href="https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Donate Now
+            </a>
+
+            <a
+              class="btn btn-secondary"
+              href="#qr-donate"
+            >
+              Scan QR Code
+            </a>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="shell footer-row">
+      <div>© Harvey Transportation Assistance Foundation</div>
+      <div>
+        <a
+          href="https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Donate Securely
+        </a>
+      </div>
+    </div>
+  </footer>
+</body>
+  </html>
