@@ -1,7 +1,7 @@
 /* =========================================================
    HARVEY TAXI — CODE BLUE PHASE 11
    PART 1 OF 4
-   FOUNDATION + ENV + REALTIME CORE + MIDDLEWARE + HELPERS
+   FOUNDATION + ENV + SECURITY CORE + REALTIME + MIDDLEWARE + HELPERS
    SR. DEVELOPER ENGINEER BUILD
 ========================================================= */
 
@@ -126,6 +126,12 @@ function isObject(value) {
   return !!value && typeof value === "object" && !Array.isArray(value);
 }
 
+function omitUndefined(obj = {}) {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, value]) => value !== undefined)
+  );
+}
+
 function pickFirst(...values) {
   for (const value of values) {
     const v = clean(value);
@@ -154,10 +160,8 @@ function safeEqual(a = "", b = "") {
   return crypto.timingSafeEqual(aBuf, bBuf);
 }
 
-function omitUndefined(obj = {}) {
-  return Object.fromEntries(
-    Object.entries(obj).filter(([, value]) => value !== undefined)
-  );
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function haversineMiles(lat1, lon1, lat2, lon2) {
@@ -185,12 +189,8 @@ function haversineMiles(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-async function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 /* =========================================================
-   CORE ENV
+   ENV
 ========================================================= */
 const PUBLIC_APP_URL =
   clean(process.env.PUBLIC_APP_URL) ||
@@ -211,21 +211,32 @@ const ADMIN_EMAIL =
 
 const ADMIN_PASSWORD =
   clean(process.env.ADMIN_PASSWORD) ||
-  clean(process.env.SUPPORT_ADMIN_PASSWORD);
+  clean(process.env.SUPPORT_ADMIN_PASSWORD) ||
+  "";
 
+/* =========================================================
+   FEATURE FLAGS
+========================================================= */
 const ENABLE_AI_BRAIN = toBool(process.env.ENABLE_AI_BRAIN, true);
 const ENABLE_AI_DISPATCH = toBool(process.env.ENABLE_AI_DISPATCH, true);
 const ENABLE_AI_OPERATIONS = toBool(process.env.ENABLE_AI_OPERATIONS, true);
+const ENABLE_AI_SECURITY_BRAIN = toBool(process.env.ENABLE_AI_SECURITY_BRAIN, true);
+
 const ENABLE_REAL_SMS = toBool(process.env.ENABLE_REAL_SMS, false);
 const ENABLE_REAL_EMAIL = toBool(process.env.ENABLE_REAL_EMAIL, false);
+
 const ENABLE_RIDER_VERIFICATION_GATE = toBool(process.env.ENABLE_RIDER_VERIFICATION_GATE, true);
 const ENABLE_PAYMENT_GATE = toBool(process.env.ENABLE_PAYMENT_GATE, true);
+
 const ENABLE_DRIVER_LOCATION_TRACKING = toBool(process.env.ENABLE_DRIVER_LOCATION_TRACKING, true);
 const ENABLE_DRIVER_HEARTBEAT = toBool(process.env.ENABLE_DRIVER_HEARTBEAT, true);
 const ENABLE_AUTO_REDISPATCH = toBool(process.env.ENABLE_AUTO_REDISPATCH, true);
 const ENABLE_REALTIME_EVENTS = toBool(process.env.ENABLE_REALTIME_EVENTS, true);
 const ENABLE_STARTUP_TABLE_CHECKS = toBool(process.env.ENABLE_STARTUP_TABLE_CHECKS, true);
 
+/* =========================================================
+   TIMERS / THRESHOLDS
+========================================================= */
 const DRIVER_HEARTBEAT_STALE_MS = clamp(
   toNumber(process.env.DRIVER_HEARTBEAT_STALE_MS, 90_000),
   15_000,
@@ -262,6 +273,9 @@ const DISPATCH_BATCH_LIMIT = clamp(
   200
 );
 
+/* =========================================================
+   FARE / PAYOUT CONFIG
+========================================================= */
 const FARE_BASE = toNumber(process.env.FARE_BASE, 5.5);
 const FARE_PER_MILE = toNumber(process.env.FARE_PER_MILE, 2.15);
 const FARE_PER_MINUTE = toNumber(process.env.FARE_PER_MINUTE, 0.42);
@@ -285,6 +299,9 @@ const SURGE_MULTIPLIER_DEFAULT = Math.max(
   toNumber(process.env.SURGE_MULTIPLIER_DEFAULT, 1.0)
 );
 
+/* =========================================================
+   DISPATCH SCORING WEIGHTS
+========================================================= */
 const SCORE_DISTANCE_WEIGHT = clamp(
   toNumber(process.env.SCORE_DISTANCE_WEIGHT, 0.45),
   0,
@@ -316,6 +333,27 @@ const SCORE_ACTIVITY_WEIGHT = clamp(
 );
 
 /* =========================================================
+   AI SECURITY THRESHOLDS
+========================================================= */
+const RISK_REVIEW_THRESHOLD = clamp(
+  toNumber(process.env.RISK_REVIEW_THRESHOLD, 45),
+  1,
+  100
+);
+
+const RISK_HIGH_THRESHOLD = clamp(
+  toNumber(process.env.RISK_HIGH_THRESHOLD, 70),
+  1,
+  100
+);
+
+const RISK_CRITICAL_THRESHOLD = clamp(
+  toNumber(process.env.RISK_CRITICAL_THRESHOLD, 85),
+  1,
+  100
+);
+
+/* =========================================================
    THIRD-PARTY ENV
 ========================================================= */
 const SUPABASE_URL = clean(process.env.SUPABASE_URL);
@@ -324,6 +362,7 @@ const SUPABASE_SERVICE_ROLE_KEY = clean(process.env.SUPABASE_SERVICE_ROLE_KEY);
 const OPENAI_API_KEY = clean(process.env.OPENAI_API_KEY);
 const OPENAI_SUPPORT_MODEL = clean(process.env.OPENAI_SUPPORT_MODEL || "gpt-4.1-mini");
 const OPENAI_OPERATIONS_MODEL = clean(process.env.OPENAI_OPERATIONS_MODEL || "gpt-4.1-mini");
+const OPENAI_SECURITY_MODEL = clean(process.env.OPENAI_SECURITY_MODEL || "gpt-4.1-mini");
 
 const TWILIO_ACCOUNT_SID = clean(process.env.TWILIO_ACCOUNT_SID);
 const TWILIO_AUTH_TOKEN = clean(process.env.TWILIO_AUTH_TOKEN);
@@ -352,7 +391,10 @@ const PERSONA_WEBHOOK_SECRET = clean(process.env.PERSONA_WEBHOOK_SECRET);
 const supabase =
   SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
     ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-        auth: { persistSession: false, autoRefreshToken: false }
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false
+        }
       })
     : null;
 
@@ -402,6 +444,11 @@ const runtimeState = {
     lastRecommendationAt: null,
     lastRecommendationError: null
   },
+  aiSecurity: {
+    enabled: ENABLE_AI_SECURITY_BRAIN,
+    lastAssessmentAt: null,
+    lastAssessmentError: null
+  },
   realtime: {
     enabled: ENABLE_REALTIME_EVENTS,
     riderStreams: new Map(),
@@ -418,7 +465,7 @@ const runtimeState = {
    REALTIME EVENT BUS
 ========================================================= */
 const realtimeBus = new EventEmitter();
-realtimeBus.setMaxListeners(500);
+realtimeBus.setMaxListeners(1000);
 
 function writeSse(res, eventName, payload) {
   if (!res || res.writableEnded) return;
@@ -434,6 +481,7 @@ function openSseStream(res) {
   if (typeof res.flushHeaders === "function") {
     res.flushHeaders();
   }
+
   writeSse(res, "connected", {
     ok: true,
     connected_at: nowIso()
@@ -442,18 +490,15 @@ function openSseStream(res) {
 
 function closeTrackedStream(map, key, res) {
   const list = map.get(key) || [];
-  const nextList = list.filter((item) => item !== res && !item.writableEnded);
-  if (nextList.length) {
-    map.set(key, nextList);
-  } else {
-    map.delete(key);
-  }
+  const next = list.filter((item) => item !== res && !item.writableEnded);
+  if (next.length) map.set(key, next);
+  else map.delete(key);
 }
 
 function addTrackedStream(map, key, res) {
-  const existing = map.get(key) || [];
-  existing.push(res);
-  map.set(key, existing);
+  const list = map.get(key) || [];
+  list.push(res);
+  map.set(key, list);
 
   res.on("close", () => {
     closeTrackedStream(map, key, res);
@@ -471,11 +516,8 @@ function emitToTrackedStreams(map, key, eventName, payload) {
     }
   }
 
-  if (alive.length) {
-    map.set(key, alive);
-  } else {
-    map.delete(key);
-  }
+  if (alive.length) map.set(key, alive);
+  else map.delete(key);
 }
 
 function emitRideRealtime(rideId, payload = {}) {
@@ -504,10 +546,16 @@ function emitAdminRealtime(payload = {}) {
   });
 }
 
-function startRealtimeKeepAliveLoop() {
+function emitSecurityRealtime(payload = {}) {
   if (!ENABLE_REALTIME_EVENTS) return;
-  if (runtimeState.realtime.keepAliveStarted) return;
+  realtimeBus.emit("security_event", {
+    ...payload,
+    emitted_at: nowIso()
+  });
+}
 
+function startRealtimeKeepAliveLoop() {
+  if (!ENABLE_REALTIME_EVENTS || runtimeState.realtime.keepAliveStarted) return;
   runtimeState.realtime.keepAliveStarted = true;
 
   setInterval(() => {
@@ -543,6 +591,7 @@ realtimeBus.on("ride_event", (payload) => {
     "ride_update",
     payload
   );
+
   emitToTrackedStreams(
     runtimeState.realtime.adminStreams,
     "global",
@@ -558,6 +607,7 @@ realtimeBus.on("driver_event", (payload) => {
     "driver_update",
     payload
   );
+
   emitToTrackedStreams(
     runtimeState.realtime.adminStreams,
     "global",
@@ -575,8 +625,17 @@ realtimeBus.on("admin_event", (payload) => {
   );
 });
 
+realtimeBus.on("security_event", (payload) => {
+  emitToTrackedStreams(
+    runtimeState.realtime.adminStreams,
+    "global",
+    "security_update",
+    payload
+  );
+});
+
 /* =========================================================
-   REQUEST ID + RAW BODY + BODY PARSERS
+   REQUEST ID + BODY PARSERS
 ========================================================= */
 app.use((req, res, next) => {
   req.requestId =
@@ -654,20 +713,27 @@ app.use((req, res, next) => {
 
   const limitedPaths = [
     "/api/driver/signup",
+    "/api/rider/signup",
     "/api/request-ride",
     "/api/ai/support",
     "/api/persona/webhook",
     "/api/driver/location",
-    "/api/driver/heartbeat"
+    "/api/driver/heartbeat",
+    "/api/payments/authorize"
   ];
 
   if (!limitedPaths.some((p) => req.originalUrl.startsWith(p))) {
     return next();
   }
 
+  const pathLimit =
+    req.path === "/api/ai/support" ? 25 :
+    req.path === "/api/persona/webhook" ? 120 :
+    80;
+
   const result = applyBasicRateLimit({
     key: `${ip}:${req.path}`,
-    limit: req.path === "/api/ai/support" ? 25 : 80,
+    limit: pathLimit,
     windowMs: 60_000
   });
 
@@ -687,7 +753,10 @@ app.use((req, res, next) => {
    RESPONSE HELPERS
 ========================================================= */
 function ok(res, data = {}, status = 200) {
-  return res.status(status).json({ ok: true, ...data });
+  return res.status(status).json({
+    ok: true,
+    ...data
+  });
 }
 
 function fail(res, message = "Request failed", status = 400, extra = {}) {
@@ -765,6 +834,7 @@ function normalizeRideStatus(value = "") {
   if (["cancelled", "canceled"].includes(v)) return "cancelled";
   if (["no_driver", "no_driver_available"].includes(v)) return "no_driver_available";
   if (["expired"].includes(v)) return "expired";
+  if (["security_review"].includes(v)) return "security_review";
   return v;
 }
 
@@ -776,6 +846,7 @@ function normalizeDriverStatus(value = "") {
   if (["approved", "active"].includes(v)) return "approved";
   if (["rejected", "denied"].includes(v)) return "rejected";
   if (["suspended"].includes(v)) return "suspended";
+  if (["security_locked"].includes(v)) return "security_locked";
   return v;
 }
 
@@ -786,6 +857,7 @@ function normalizeRiderStatus(value = "") {
   if (["approved", "verified", "active"].includes(v)) return "approved";
   if (["rejected", "denied"].includes(v)) return "rejected";
   if (["suspended"].includes(v)) return "suspended";
+  if (["security_locked"].includes(v)) return "security_locked";
   return v;
 }
 
@@ -959,6 +1031,160 @@ async function logTripEvent({
 }
 
 /* =========================================================
+   SECURITY BRAIN HELPERS
+========================================================= */
+function getSeverityFromScore(score = 0) {
+  if (score >= RISK_CRITICAL_THRESHOLD) return "critical";
+  if (score >= RISK_HIGH_THRESHOLD) return "high";
+  if (score >= RISK_REVIEW_THRESHOLD) return "medium";
+  return "low";
+}
+
+function uniqueArray(values = []) {
+  return [...new Set((values || []).filter(Boolean))];
+}
+
+async function getOpenAIClientSafe() {
+  if (!OpenAI || !OPENAI_API_KEY || !ENABLE_AI_SECURITY_BRAIN) return null;
+  try {
+    return new OpenAI({ apiKey: OPENAI_API_KEY });
+  } catch (error) {
+    console.warn("⚠️ AI security OpenAI init failed:", error.message);
+    return null;
+  }
+}
+
+async function writeSecurityEvent({
+  subjectType,
+  subjectId,
+  eventType,
+  title,
+  summary,
+  riskScore,
+  severity,
+  evidence = {},
+  aiAnalysis = {},
+  recommendedActions = []
+}) {
+  if (!supabase) return { ok: false, error: "supabase_missing" };
+
+  try {
+    const { data, error } = await requireSupabase()
+      .from("security_events")
+      .insert({
+        subject_type: clean(subjectType),
+        subject_id: clean(subjectId) || null,
+        event_type: clean(eventType),
+        severity: clean(severity || "medium"),
+        risk_score: clamp(toNumber(riskScore, 0), 0, 100),
+        title: clean(title || eventType),
+        summary: clean(summary || ""),
+        evidence: isObject(evidence) ? evidence : { value: evidence },
+        ai_analysis: isObject(aiAnalysis) ? aiAnalysis : {},
+        recommended_actions: Array.isArray(recommendedActions) ? recommendedActions : [],
+        created_at: nowIso(),
+        updated_at: nowIso()
+      })
+      .select()
+      .limit(1);
+
+    if (error) throw error;
+
+    emitSecurityRealtime({
+      type: "security_event_created",
+      subject_type: clean(subjectType),
+      subject_id: clean(subjectId),
+      event_type: clean(eventType),
+      severity: clean(severity || "medium"),
+      risk_score: clamp(toNumber(riskScore, 0), 0, 100)
+    });
+
+    return { ok: true, event: data?.[0] || null };
+  } catch (error) {
+    return { ok: false, error: clean(error?.message || String(error)) };
+  }
+}
+
+async function upsertSecurityProfile({
+  subjectType,
+  subjectId,
+  riskScore,
+  flags = [],
+  autoLocked = false
+}) {
+  if (!supabase || !subjectType || !subjectId) {
+    return { ok: false, error: "missing_subject" };
+  }
+
+  try {
+    const { data: existing, error: existingError } = await requireSupabase()
+      .from("security_profiles")
+      .select("*")
+      .eq("subject_type", clean(subjectType))
+      .eq("subject_id", clean(subjectId))
+      .maybeSingle();
+
+    if (existingError) throw existingError;
+
+    const currentRisk = clamp(toNumber(riskScore, 0), 0, 100);
+    const lifetimeRisk = toNumber(existing?.lifetime_risk_score, 0) + currentRisk;
+
+    const { data, error } = await requireSupabase()
+      .from("security_profiles")
+      .upsert({
+        subject_type: clean(subjectType),
+        subject_id: clean(subjectId),
+        current_risk_score: currentRisk,
+        lifetime_risk_score: lifetimeRisk,
+        flags: uniqueArray([...(existing?.flags || []), ...(flags || [])]).slice(0, 100),
+        auto_locked: !!autoLocked,
+        last_event_at: nowIso(),
+        updated_at: nowIso()
+      }, { onConflict: "subject_type,subject_id" })
+      .select()
+      .limit(1);
+
+    if (error) throw error;
+    return { ok: true, profile: data?.[0] || null };
+  } catch (error) {
+    return { ok: false, error: clean(error?.message || String(error)) };
+  }
+}
+
+async function createSecurityAction({
+  subjectType,
+  subjectId,
+  actionType,
+  reason,
+  metadata = {}
+}) {
+  if (!supabase) return { ok: false, error: "supabase_missing" };
+
+  try {
+    const { data, error } = await requireSupabase()
+      .from("security_actions")
+      .insert({
+        subject_type: clean(subjectType),
+        subject_id: clean(subjectId) || null,
+        action_type: clean(actionType),
+        action_status: "pending",
+        reason: clean(reason || ""),
+        source: "ai_security_brain",
+        metadata: isObject(metadata) ? metadata : { value: metadata },
+        created_at: nowIso(),
+        updated_at: nowIso()
+      })
+      .select()
+      .limit(1);
+
+    if (error) throw error;
+    return { ok: true, action: data?.[0] || null };
+  } catch (error) {
+    return { ok: false, error: clean(error?.message || String(error)) };
+  }
+}
+
+/* =========================================================
    COMMUNICATION HELPERS
 ========================================================= */
 async function sendSms({ to, body }) {
@@ -979,7 +1205,11 @@ async function sendSms({ to, body }) {
     body: String(body)
   });
 
-  return { ok: true, provider: "twilio", sid: result.sid || null };
+  return {
+    ok: true,
+    provider: "twilio",
+    sid: result.sid || null
+  };
 }
 
 async function sendEmail({ to, subject, text, html = "" }) {
@@ -1013,9 +1243,9 @@ async function sendEmail({ to, subject, text, html = "" }) {
 function riderIsApproved(rider) {
   const status = normalizeRiderStatus(
     rider?.status ||
-      rider?.approval_status ||
-      rider?.rider_status ||
-      rider?.verification_status
+    rider?.approval_status ||
+    rider?.rider_status ||
+    rider?.verification_status
   );
   return status === "approved";
 }
@@ -1023,9 +1253,9 @@ function riderIsApproved(rider) {
 function driverIsApproved(driver) {
   const status = normalizeDriverStatus(
     driver?.status ||
-      driver?.approval_status ||
-      driver?.driver_status ||
-      driver?.verification_status
+    driver?.approval_status ||
+    driver?.driver_status ||
+    driver?.verification_status
   );
   return status === "approved";
 }
@@ -1166,7 +1396,8 @@ async function runStartupChecks() {
     admin_password_present: !!ADMIN_PASSWORD,
     google_maps_key_present: !!GOOGLE_MAPS_API_KEY,
     realtime_events_enabled: ENABLE_REALTIME_EVENTS,
-    driver_heartbeat_enabled: ENABLE_DRIVER_HEARTBEAT
+    driver_heartbeat_enabled: ENABLE_DRIVER_HEARTBEAT,
+    ai_security_enabled: ENABLE_AI_SECURITY_BRAIN
   };
 
   if (!supabase) {
@@ -1192,7 +1423,10 @@ async function runStartupChecks() {
     "dispatches",
     "admin_logs",
     "trip_events",
-    "driver_earnings"
+    "driver_earnings",
+    "security_events",
+    "security_profiles",
+    "security_actions"
   ];
 
   let allOk = true;
@@ -1207,6 +1441,41 @@ async function runStartupChecks() {
   runtimeState.startupChecks.ok = allOk;
   runtimeState.startupChecks.tables = results;
   return runtimeState.startupChecks;
+}
+
+/* =========================================================
+   SECURITY TABLE BOOTSTRAP
+   NOTE:
+   These tables should ideally already exist in Supabase.
+   This check is here so the server knows whether the AI
+   security brain is fully wired.
+========================================================= */
+async function ensureSecurityBrainReady() {
+  if (!supabase) return;
+
+  const targets = ["security_events", "security_profiles", "security_actions"];
+  const results = {};
+
+  for (const table of targets) {
+    try {
+      const result = await checkTableAccessible(table);
+      results[table] = result;
+    } catch (error) {
+      results[table] = {
+        ok: false,
+        error: clean(error?.message || String(error))
+      };
+    }
+  }
+
+  const failed = Object.values(results).some((v) => !v.ok);
+  if (failed) {
+    console.warn("⚠️ AI security brain tables are not fully ready:", results);
+  } else {
+    console.log("🛡️ AI security brain tables ready");
+  }
+
+  return results;
 }
 
 /* =========================================================
@@ -1225,7 +1494,7 @@ app.get("/api", (req, res) => {
   });
 });
 
-app.get("/api/health", asyncHandler(async (req, res) => {
+app.get("/api/health", asyncHandler(async (_req, res) => {
   return ok(res, {
     app: APP_NAME,
     environment: NODE_ENV,
@@ -1243,6 +1512,7 @@ app.get("/api/health", asyncHandler(async (req, res) => {
       auto_redispatch: ENABLE_AUTO_REDISPATCH,
       ai_dispatch: ENABLE_AI_DISPATCH,
       ai_operations: ENABLE_AI_OPERATIONS,
+      ai_security: ENABLE_AI_SECURITY_BRAIN,
       driver_location_tracking: ENABLE_DRIVER_LOCATION_TRACKING,
       driver_heartbeat: ENABLE_DRIVER_HEARTBEAT,
       realtime_events: ENABLE_REALTIME_EVENTS
@@ -1258,7 +1528,7 @@ app.get("/api/health", asyncHandler(async (req, res) => {
   });
 }));
 
-app.get("/api/config/public", (req, res) => {
+app.get("/api/config/public", (_req, res) => {
   return ok(res, {
     support_email: SUPPORT_EMAIL,
     support_phone: TWILIO_FROM_NUMBER || null,
@@ -1271,7 +1541,7 @@ app.get("/api/config/public", (req, res) => {
   });
 });
 
-app.get("/api/admin/health/deep", requireAdmin, asyncHandler(async (req, res) => {
+app.get("/api/admin/health/deep", requireAdmin, asyncHandler(async (_req, res) => {
   const checks = await runStartupChecks();
 
   return ok(res, {
@@ -1324,7 +1594,7 @@ app.get("/api/realtime/drivers/:driverId/stream", asyncHandler(async (req, res) 
   });
 }));
 
-app.get("/api/realtime/admin/stream", requireAdmin, asyncHandler(async (req, res) => {
+app.get("/api/realtime/admin/stream", requireAdmin, asyncHandler(async (_req, res) => {
   if (!ENABLE_REALTIME_EVENTS) {
     return fail(res, "Realtime events disabled", 403);
   }
@@ -1337,8 +1607,9 @@ app.get("/api/realtime/admin/stream", requireAdmin, asyncHandler(async (req, res
     subscribed_at: nowIso()
   });
 }));/* =========================================================
-   PHASE 11 — PART 2 OF 4
-   RIDERS + PAYMENTS + MAPS + REQUEST RIDE + PERSONA + REALTIME
+   HARVEY TAXI — CODE BLUE PHASE 11
+   PART 2 OF 4
+   MAPS + RIDERS + PAYMENTS + REQUEST RIDE + PERSONA
 ========================================================= */
 
 /* =========================================================
@@ -1582,6 +1853,314 @@ function buildSafeRideRealtimePayload(ride, extra = {}) {
 }
 
 /* =========================================================
+   AI SECURITY SIGNAL HELPERS
+========================================================= */
+async function getRecentRiderSignals(riderId) {
+  if (!supabase || !riderId) return {};
+
+  const since10m = new Date(Date.now() - (10 * 60 * 1000)).toISOString();
+  const since1h = new Date(Date.now() - (60 * 60 * 1000)).toISOString();
+  const since24h = new Date(Date.now() - (24 * 60 * 60 * 1000)).toISOString();
+  const since30d = new Date(Date.now() - (30 * 24 * 60 * 60 * 1000)).toISOString();
+
+  const [rides10m, rides1h, failedPayments, cancelledRides] = await Promise.all([
+    requireSupabase()
+      .from("rides")
+      .select("id", { count: "exact", head: true })
+      .eq("rider_id", riderId)
+      .gte("created_at", since10m),
+
+    requireSupabase()
+      .from("rides")
+      .select("id", { count: "exact", head: true })
+      .eq("rider_id", riderId)
+      .gte("created_at", since1h),
+
+    requireSupabase()
+      .from("payments")
+      .select("id", { count: "exact", head: true })
+      .eq("rider_id", riderId)
+      .in("status", ["failed", "declined"])
+      .gte("created_at", since24h),
+
+    requireSupabase()
+      .from("rides")
+      .select("id", { count: "exact", head: true })
+      .eq("rider_id", riderId)
+      .in("status", ["cancelled", "canceled"])
+      .gte("created_at", since24h)
+  ]);
+
+  return {
+    request_count_10m: rides10m.count || 0,
+    request_count_1h: rides1h.count || 0,
+    failed_payments_24h: failedPayments.count || 0,
+    cancelled_rides_24h: cancelledRides.count || 0,
+    support_complaints_30d: 0
+  };
+}
+
+function buildRecommendedSecurityActions(score = 0, subjectType = "", eventType = "") {
+  const actions = [];
+
+  if (score >= RISK_REVIEW_THRESHOLD) actions.push("flag_for_review");
+  if (score >= RISK_HIGH_THRESHOLD) {
+    actions.push("require_manual_review");
+    actions.push("increase_monitoring");
+  }
+  if (score >= RISK_CRITICAL_THRESHOLD) {
+    actions.push("temporarily_lock_account");
+    actions.push("pause_sensitive_operations");
+  }
+
+  if (eventType.includes("payment")) actions.push("review_payment_authorization");
+  if (eventType.includes("ride")) actions.push("review_request_pattern");
+  if (subjectType === "rider" && score >= RISK_HIGH_THRESHOLD) {
+    actions.push("block_new_ride_requests_pending_review");
+  }
+
+  return uniqueArray(actions);
+}
+
+function buildRuleBasedRiderRiskAssessment(payload = {}) {
+  const reasons = [];
+  let score = 0;
+
+  const recent = payload.recent_activity || {};
+  const context = payload.context || {};
+  const rider = payload.subject || {};
+
+  const accountAgeHours = toNumber(rider.account_age_hours, 0);
+  const requestCount10m = toNumber(recent.request_count_10m, 0);
+  const requestCount1h = toNumber(recent.request_count_1h, 0);
+  const failedPayments24h = toNumber(recent.failed_payments_24h, 0);
+  const cancelledRides24h = toNumber(recent.cancelled_rides_24h, 0);
+  const fareAmount = toNumber(context.fare_amount, 0);
+  const distanceMiles = toNumber(context.distance_miles, 0);
+
+  if (accountAgeHours > 0 && accountAgeHours < 24) {
+    score += 10;
+    reasons.push("Very new rider account");
+  }
+
+  if (requestCount10m >= 3) {
+    score += 15;
+    reasons.push("High ride request frequency in 10 minutes");
+  }
+
+  if (requestCount1h >= 8) {
+    score += 15;
+    reasons.push("High ride request frequency in 1 hour");
+  }
+
+  if (failedPayments24h >= 2) {
+    score += 20;
+    reasons.push("Multiple failed payments in 24 hours");
+  }
+
+  if (cancelledRides24h >= 4) {
+    score += 12;
+    reasons.push("Repeated ride cancellations");
+  }
+
+  if (fareAmount >= 150) {
+    score += 8;
+    reasons.push("High fare amount");
+  }
+
+  if (distanceMiles >= 60) {
+    score += 7;
+    reasons.push("Unusually long ride distance");
+  }
+
+  score = clamp(score, 0, 100);
+
+  return {
+    risk_score: score,
+    severity: getSeverityFromScore(score),
+    reasons,
+    recommended_actions: buildRecommendedSecurityActions(score, "rider", "ride_request")
+  };
+}
+
+async function getAiSecurityAssessment(payload = {}) {
+  const client = await getOpenAIClientSafe();
+  if (!client) return null;
+
+  try {
+    const response = await client.chat.completions.create({
+      model: OPENAI_SECURITY_MODEL,
+      temperature: 0.1,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a transportation platform security analyst. Score fraud, abuse, payment risk, and identity risk. Return strict JSON with keys: risk_score, severity, summary, reasons, recommended_actions."
+        },
+        {
+          role: "user",
+          content: JSON.stringify(payload)
+        }
+      ]
+    });
+
+    const raw = response?.choices?.[0]?.message?.content || "{}";
+    const parsed = safeJsonParse(raw, null);
+    if (!parsed) return null;
+
+    return {
+      risk_score: clamp(toNumber(parsed.risk_score, 0), 0, 100),
+      severity: ["low", "medium", "high", "critical"].includes(parsed.severity)
+        ? parsed.severity
+        : "medium",
+      summary: clean(parsed.summary || ""),
+      reasons: Array.isArray(parsed.reasons) ? parsed.reasons.map(String).slice(0, 20) : [],
+      recommended_actions: Array.isArray(parsed.recommended_actions)
+        ? parsed.recommended_actions.map(String).slice(0, 20)
+        : []
+    };
+  } catch (error) {
+    runtimeState.aiSecurity.lastAssessmentError = clean(error?.message || String(error));
+    return null;
+  }
+}
+
+function mergeSecurityAssessments(ruleAssessment = {}, aiAssessment = null) {
+  if (!aiAssessment) {
+    return {
+      risk_score: ruleAssessment.risk_score || 0,
+      severity: ruleAssessment.severity || "low",
+      summary: (ruleAssessment.reasons || []).join("; "),
+      reasons: ruleAssessment.reasons || [],
+      recommended_actions: ruleAssessment.recommended_actions || [],
+      ai_analysis: {}
+    };
+  }
+
+  const mergedScore = clamp(
+    Math.round(((ruleAssessment.risk_score || 0) * 0.65) + ((aiAssessment.risk_score || 0) * 0.35)),
+    0,
+    100
+  );
+
+  return {
+    risk_score: mergedScore,
+    severity: getSeverityFromScore(mergedScore),
+    summary: aiAssessment.summary || (ruleAssessment.reasons || []).join("; "),
+    reasons: uniqueArray([...(ruleAssessment.reasons || []), ...(aiAssessment.reasons || [])]).slice(0, 25),
+    recommended_actions: uniqueArray([
+      ...(ruleAssessment.recommended_actions || []),
+      ...(aiAssessment.recommended_actions || [])
+    ]).slice(0, 25),
+    ai_analysis: aiAssessment
+  };
+}
+
+async function maybeAssessRiderSecurity({
+  rider,
+  ridePayload = {},
+  eventType = "ride_request"
+}) {
+  try {
+    if (!ENABLE_AI_SECURITY_BRAIN || !rider?.id) {
+      return { ok: true, skipped: true };
+    }
+
+    const recentSignals = await getRecentRiderSignals(rider.id);
+
+    const createdAt = rider.created_at ? new Date(rider.created_at).getTime() : null;
+    const accountAgeHours =
+      createdAt && Number.isFinite(createdAt)
+        ? roundMoney((Date.now() - createdAt) / (1000 * 60 * 60))
+        : 0;
+
+    const assessmentPayload = {
+      subject_type: "rider",
+      event_type: eventType,
+      subject: {
+        id: rider.id,
+        email: clean(rider.email || ""),
+        phone: clean(rider.phone || ""),
+        status: clean(rider.status || ""),
+        account_age_hours: accountAgeHours
+      },
+      recent_activity: recentSignals,
+      context: {
+        requested_mode: normalizeRideMode(ridePayload.requested_mode || ridePayload.requestedMode || "driver"),
+        ride_type: normalizeRideType(ridePayload.ride_type || ridePayload.rideType || "standard"),
+        fare_amount: toNumber(ridePayload.estimated_total, 0),
+        distance_miles: toNumber(ridePayload.distance_miles, 0),
+        pickup_address: clean(ridePayload.pickup_address || ridePayload.pickupAddress || ""),
+        dropoff_address: clean(ridePayload.dropoff_address || ridePayload.dropoffAddress || "")
+      }
+    };
+
+    const ruleAssessment = buildRuleBasedRiderRiskAssessment(assessmentPayload);
+    const aiAssessment = await getAiSecurityAssessment(assessmentPayload);
+    const merged = mergeSecurityAssessments(ruleAssessment, aiAssessment);
+
+    runtimeState.aiSecurity.lastAssessmentAt = nowIso();
+    runtimeState.aiSecurity.lastAssessmentError = null;
+
+    await upsertSecurityProfile({
+      subjectType: "rider",
+      subjectId: rider.id,
+      riskScore: merged.risk_score,
+      flags: merged.reasons,
+      autoLocked: merged.risk_score >= RISK_CRITICAL_THRESHOLD
+    });
+
+    if (merged.risk_score >= RISK_REVIEW_THRESHOLD) {
+      await writeSecurityEvent({
+        subjectType: "rider",
+        subjectId: rider.id,
+        eventType,
+        title: "Rider security review triggered",
+        summary: merged.summary,
+        riskScore: merged.risk_score,
+        severity: merged.severity,
+        evidence: assessmentPayload,
+        aiAnalysis: merged.ai_analysis,
+        recommendedActions: merged.recommended_actions
+      });
+
+      for (const action of merged.recommended_actions) {
+        await createSecurityAction({
+          subjectType: "rider",
+          subjectId: rider.id,
+          actionType: action,
+          reason: merged.summary,
+          metadata: {
+            risk_score: merged.risk_score,
+            event_type: eventType
+          }
+        });
+      }
+
+      if (merged.risk_score >= RISK_CRITICAL_THRESHOLD) {
+        await updateRows("riders", { id: rider.id }, {
+          status: "security_locked",
+          approval_status: "security_locked",
+          updated_at: nowIso()
+        });
+      }
+    }
+
+    return {
+      ok: true,
+      assessment: merged
+    };
+  } catch (error) {
+    runtimeState.aiSecurity.lastAssessmentError = clean(error?.message || String(error));
+    return {
+      ok: false,
+      error: clean(error?.message || String(error))
+    };
+  }
+}
+
+/* =========================================================
    RIDER ROUTES
 ========================================================= */
 app.post("/api/rider/signup", asyncHandler(async (req, res) => {
@@ -1732,16 +2311,28 @@ app.post("/api/payments/authorize", asyncHandler(async (req, res) => {
     }
   });
 
+  const securityCheck = await maybeAssessRiderSecurity({
+    rider,
+    ridePayload: {
+      estimated_total: amount,
+      requested_mode: req.body.requested_mode || "driver",
+      ride_type: req.body.ride_type || "standard"
+    },
+    eventType: "payment_authorization"
+  });
+
   emitAdminRealtime({
     type: "payment_authorized",
     rider_id: rider.id,
     payment_id: payment.id,
-    authorization_amount: amount
+    authorization_amount: amount,
+    security_risk_score: securityCheck?.assessment?.risk_score ?? null
   });
 
   return ok(res, {
     message: "Payment authorized successfully",
-    payment
+    payment,
+    security: securityCheck?.assessment || null
   }, 201);
 }));
 
@@ -1756,6 +2347,10 @@ app.post("/api/request-ride", asyncHandler(async (req, res) => {
     return fail(res, "Rider not approved", 403, {
       rider: buildRiderStatusResponse(rider)
     });
+  }
+
+  if (normalizeRiderStatus(rider.status || rider.approval_status) === "security_locked") {
+    return fail(res, "Rider account is locked for security review", 403);
   }
 
   const payment = await getLatestPaymentForRider(rider.id);
@@ -1816,11 +2411,34 @@ app.post("/api/request-ride", asyncHandler(async (req, res) => {
     requestedMode === "autonomous" ? "autonomous" : "human"
   );
 
+  const securityCheck = await maybeAssessRiderSecurity({
+    rider,
+    ridePayload: {
+      ...req.body,
+      estimated_total: fare.estimated_total,
+      distance_miles: metrics.distance_miles,
+      pickup_address: pickupGeo?.ok ? pickupGeo.formatted_address : pickupAddress,
+      dropoff_address: dropoffGeo?.ok ? dropoffGeo.formatted_address : dropoffAddress
+    },
+    eventType: "ride_request"
+  });
+
+  if (
+    securityCheck?.assessment?.risk_score >= RISK_CRITICAL_THRESHOLD ||
+    normalizeRiderStatus((await getRiderById(rider.id))?.status) === "security_locked"
+  ) {
+    return fail(res, "Ride request paused for security review", 403, {
+      security: securityCheck.assessment
+    });
+  }
+
   const ride = await insertRow("rides", {
     id: createId("ride"),
     rider_id: rider.id,
     payment_id: payment?.id || null,
-    status: "awaiting_dispatch",
+    status: securityCheck?.assessment?.risk_score >= RISK_HIGH_THRESHOLD
+      ? "security_review"
+      : "awaiting_dispatch",
     ride_type: rideType,
     requested_mode: requestedMode,
     pickup_address: pickupGeo?.ok ? pickupGeo.formatted_address : pickupAddress,
@@ -1856,7 +2474,8 @@ app.post("/api/request-ride", asyncHandler(async (req, res) => {
       requested_mode: requestedMode,
       ride_type: rideType,
       metrics,
-      fare
+      fare,
+      security_risk_score: securityCheck?.assessment?.risk_score ?? null
     }
   });
 
@@ -1873,20 +2492,29 @@ app.post("/api/request-ride", asyncHandler(async (req, res) => {
     type: "ride_created",
     ride_id: ride.id,
     rider_id: rider.id,
-    status: ride.status
+    status: ride.status,
+    security_risk_score: securityCheck?.assessment?.risk_score ?? null
   });
 
   let dispatch = null;
-  if (ENABLE_AI_DISPATCH) {
+  if (
+    ENABLE_AI_DISPATCH &&
+    normalizeRideStatus(ride.status) === "awaiting_dispatch" &&
+    typeof dispatchRideToBestDriver === "function"
+  ) {
     dispatch = await dispatchRideToBestDriver(ride.id);
   }
 
   return ok(res, {
-    message: "Ride created successfully",
+    message:
+      normalizeRideStatus(ride.status) === "security_review"
+        ? "Ride created and sent for security review"
+        : "Ride created successfully",
     ride,
     fare,
     payout,
     metrics,
+    security: securityCheck?.assessment || null,
     dispatch
   }, 201);
 }));
@@ -2058,8 +2686,9 @@ app.post("/api/persona/webhook", asyncHandler(async (req, res) => {
     event: eventName
   });
 }));/* =========================================================
-   PHASE 11 — PART 3 OF 4
-   DRIVERS + AI DISPATCH + MISSIONS + HEARTBEAT + REDISPATCH + LIVE EVENTS
+   HARVEY TAXI — CODE BLUE PHASE 11
+   PART 3 OF 4
+   DRIVERS + AI DISPATCH + MISSIONS + HEARTBEAT + REDISPATCH
 ========================================================= */
 
 /* =========================================================
@@ -2148,7 +2777,13 @@ function getDriverRating(driver = {}) {
 }
 
 function getDriverActivityBoost(driver = {}) {
-  const lastSeenAt = clean(driver.last_heartbeat_at || driver.last_location_at || driver.updated_at || "");
+  const lastSeenAt = clean(
+    driver.last_heartbeat_at ||
+    driver.last_location_at ||
+    driver.updated_at ||
+    ""
+  );
+
   if (!lastSeenAt) return 0.5;
 
   const ageMs = Date.now() - new Date(lastSeenAt).getTime();
@@ -2173,8 +2808,169 @@ function driverCanReceiveDispatch(driver, requestedMode = "driver") {
     driverIsApproved(driver) &&
     driverIsVerified(driver) &&
     driverIsOnline(driver) &&
-    driverSupportsMode(driver, requestedMode)
+    driverSupportsMode(driver, requestedMode) &&
+    normalizeDriverStatus(driver.status || driver.approval_status) !== "security_locked"
   );
+}
+
+/* =========================================================
+   DRIVER SECURITY HELPERS
+========================================================= */
+async function getRecentDriverSignals(driverId) {
+  if (!supabase || !driverId) return {};
+
+  const since24h = new Date(Date.now() - (24 * 60 * 60 * 1000)).toISOString();
+
+  const [timeouts] = await Promise.all([
+    requireSupabase()
+      .from("dispatches")
+      .select("id", { count: "exact", head: true })
+      .eq("driver_id", driverId)
+      .in("status", ["expired", "timed_out", "declined"])
+      .gte("created_at", since24h)
+  ]);
+
+  return {
+    dispatch_timeouts_24h: timeouts.count || 0,
+    support_complaints_30d: 0,
+    background_alerts_30d: 0
+  };
+}
+
+function buildRuleBasedDriverRiskAssessment(payload = {}) {
+  const reasons = [];
+  let score = 0;
+
+  const recent = payload.recent_activity || {};
+  const driver = payload.subject || {};
+
+  const accountAgeHours = toNumber(driver.account_age_hours, 0);
+  const dispatchTimeouts24h = toNumber(recent.dispatch_timeouts_24h, 0);
+  const supportComplaints30d = toNumber(recent.support_complaints_30d, 0);
+
+  if (accountAgeHours > 0 && accountAgeHours < 24) {
+    score += 8;
+    reasons.push("Very new driver account");
+  }
+
+  if (dispatchTimeouts24h >= 5) {
+    score += 15;
+    reasons.push("Repeated dispatch timeouts or declines");
+  }
+
+  if (supportComplaints30d >= 3) {
+    score += 12;
+    reasons.push("Multiple support complaints");
+  }
+
+  score = clamp(score, 0, 100);
+
+  return {
+    risk_score: score,
+    severity: getSeverityFromScore(score),
+    reasons,
+    recommended_actions: buildRecommendedSecurityActions(score, "driver", "driver_activity")
+  };
+}
+
+async function maybeAssessDriverSecurity({
+  driver,
+  eventType = "driver_activity"
+}) {
+  try {
+    if (!ENABLE_AI_SECURITY_BRAIN || !driver?.id) {
+      return { ok: true, skipped: true };
+    }
+
+    const recentSignals = await getRecentDriverSignals(driver.id);
+
+    const createdAt = driver.created_at ? new Date(driver.created_at).getTime() : null;
+    const accountAgeHours =
+      createdAt && Number.isFinite(createdAt)
+        ? roundMoney((Date.now() - createdAt) / (1000 * 60 * 60))
+        : 0;
+
+    const assessmentPayload = {
+      subject_type: "driver",
+      event_type: eventType,
+      subject: {
+        id: driver.id,
+        email: clean(driver.email || ""),
+        phone: clean(driver.phone || ""),
+        status: clean(driver.status || ""),
+        account_age_hours: accountAgeHours
+      },
+      recent_activity: recentSignals,
+      context: {
+        driver_type: normalizeDriverType(driver.driver_type || "human"),
+        is_online: !!driver.is_online
+      }
+    };
+
+    const ruleAssessment = buildRuleBasedDriverRiskAssessment(assessmentPayload);
+    const aiAssessment = await getAiSecurityAssessment(assessmentPayload);
+    const merged = mergeSecurityAssessments(ruleAssessment, aiAssessment);
+
+    runtimeState.aiSecurity.lastAssessmentAt = nowIso();
+    runtimeState.aiSecurity.lastAssessmentError = null;
+
+    await upsertSecurityProfile({
+      subjectType: "driver",
+      subjectId: driver.id,
+      riskScore: merged.risk_score,
+      flags: merged.reasons,
+      autoLocked: merged.risk_score >= RISK_CRITICAL_THRESHOLD
+    });
+
+    if (merged.risk_score >= RISK_REVIEW_THRESHOLD) {
+      await writeSecurityEvent({
+        subjectType: "driver",
+        subjectId: driver.id,
+        eventType,
+        title: "Driver security review triggered",
+        summary: merged.summary,
+        riskScore: merged.risk_score,
+        severity: merged.severity,
+        evidence: assessmentPayload,
+        aiAnalysis: merged.ai_analysis,
+        recommendedActions: merged.recommended_actions
+      });
+
+      for (const action of merged.recommended_actions) {
+        await createSecurityAction({
+          subjectType: "driver",
+          subjectId: driver.id,
+          actionType: action,
+          reason: merged.summary,
+          metadata: {
+            risk_score: merged.risk_score,
+            event_type: eventType
+          }
+        });
+      }
+
+      if (merged.risk_score >= RISK_CRITICAL_THRESHOLD) {
+        await updateRows("drivers", { id: driver.id }, {
+          status: "security_locked",
+          approval_status: "security_locked",
+          is_online: false,
+          availability_status: "offline",
+          updated_at: nowIso()
+        });
+      }
+    }
+
+    return {
+      ok: true,
+      assessment: merged
+    };
+  } catch (error) {
+    runtimeState.aiSecurity.lastAssessmentError = clean(error?.message || String(error));
+    return {
+      ok: false,
+      error: clean(error?.message || String(error))
+    };
+  }
 }
 
 /* =========================================================
@@ -2490,6 +3286,19 @@ async function dispatchRideToBestDriver(rideId) {
   }
 
   const selected = candidates[0];
+
+  const driverSecurity = await maybeAssessDriverSecurity({
+    driver: selected.driver,
+    eventType: "dispatch_candidate_selection"
+  });
+
+  if (driverSecurity?.assessment?.risk_score >= RISK_CRITICAL_THRESHOLD) {
+    return {
+      ok: false,
+      error: "Selected driver paused for security review"
+    };
+  }
+
   const mission = await createMissionForRide(ride, selected.driver, selected.scoring);
   const dispatch = await createDispatchForRide(ride, selected.driver, selected.scoring);
   const updatedRide = await assignDriverToRide(ride, selected.driver, dispatch, mission);
@@ -2651,6 +3460,21 @@ app.post("/api/driver/go-online", asyncHandler(async (req, res) => {
     return fail(res, "Driver verification is required", 403);
   }
 
+  if (normalizeDriverStatus(driver.status || driver.approval_status) === "security_locked") {
+    return fail(res, "Driver account is locked for security review", 403);
+  }
+
+  const securityCheck = await maybeAssessDriverSecurity({
+    driver,
+    eventType: "driver_go_online"
+  });
+
+  if (securityCheck?.assessment?.risk_score >= RISK_CRITICAL_THRESHOLD) {
+    return fail(res, "Driver cannot go online due to security review", 403, {
+      security: securityCheck.assessment
+    });
+  }
+
   const rows = await updateRows("drivers", { id: driver.id }, {
     is_online: true,
     availability_status: "online",
@@ -2674,7 +3498,8 @@ app.post("/api/driver/go-online", asyncHandler(async (req, res) => {
 
   return ok(res, {
     message: "Driver is now online",
-    driver: updatedDriver
+    driver: updatedDriver,
+    security: securityCheck?.assessment || null
   });
 }));
 
@@ -3083,7 +3908,9 @@ app.post("/api/mission/decline", asyncHandler(async (req, res) => {
 
   emitRideRealtime(dispatch.ride_id, {
     type: "driver_declined_dispatch",
-    ride: buildSafeRideRealtimePayload(queuedRide || { id: dispatch.ride_id, status: "awaiting_dispatch" }),
+    ride: buildSafeRideRealtimePayload(
+      queuedRide || { id: dispatch.ride_id, status: "awaiting_dispatch" }
+    ),
     reason
   });
 
@@ -3118,6 +3945,8 @@ app.post("/api/mission/decline", asyncHandler(async (req, res) => {
    MISSION STATUS LIFECYCLE
 ========================================================= */
 async function updateMissionAndRideStatus(missionId, newStatus, eventType) {
+  if (!missionId) throw new Error("Mission ID is required");
+
   const mission = await getMissionById(missionId);
   if (!mission) throw new Error("Mission not found");
 
@@ -3196,8 +4025,15 @@ app.post("/api/mission/start-trip", asyncHandler(async (req, res) => {
   const missionId = pickFirst(req.body.mission_id, req.body.missionId);
   const result = await updateMissionAndRideStatus(missionId, "in_progress", "trip_started");
 
-  await updateRows("missions", { id: missionId }, { started_at: nowIso(), updated_at: nowIso() });
-  await updateRows("rides", { id: result.ride.id }, { started_at: nowIso(), updated_at: nowIso() });
+  await updateRows("missions", { id: missionId }, {
+    started_at: nowIso(),
+    updated_at: nowIso()
+  });
+
+  await updateRows("rides", { id: result.ride.id }, {
+    started_at: nowIso(),
+    updated_at: nowIso()
+  });
 
   emitRideRealtime(result.ride.id, {
     type: "trip_started",
@@ -3211,8 +4047,15 @@ app.post("/api/mission/complete", asyncHandler(async (req, res) => {
   const missionId = pickFirst(req.body.mission_id, req.body.missionId);
   const result = await updateMissionAndRideStatus(missionId, "completed", "trip_completed");
 
-  await updateRows("missions", { id: missionId }, { completed_at: nowIso(), updated_at: nowIso() });
-  await updateRows("rides", { id: result.ride.id }, { completed_at: nowIso(), updated_at: nowIso() });
+  await updateRows("missions", { id: missionId }, {
+    completed_at: nowIso(),
+    updated_at: nowIso()
+  });
+
+  await updateRows("rides", { id: result.ride.id }, {
+    completed_at: nowIso(),
+    updated_at: nowIso()
+  });
 
   emitRideRealtime(result.ride.id, {
     type: "trip_completed",
@@ -3342,8 +4185,9 @@ function startDispatchSweepLoop() {
       console.error("❌ Dispatch sweep failed:", error);
     }
   }, DISPATCH_SWEEP_INTERVAL_MS);
-  }/* =========================================================
-   PHASE 11 — PART 4 OF 4
+     }/* =========================================================
+   HARVEY TAXI — CODE BLUE PHASE 11
+   PART 4 OF 4
    LIVE STATUS + PAYMENTS + TIPPING + EARNINGS + ADMIN + AI + STARTUP
 ========================================================= */
 
@@ -3627,7 +4471,7 @@ app.post("/api/payments/capture", asyncHandler(async (req, res) => {
 
   const tipAmount = roundMoney(toNumber(req.body.tip_amount, ride.tip_amount || 0));
   const baseAmount = roundMoney(
-    toNumber(req.body.amount, ride.estimated_total || payment.authorization_amount || 0)
+    toNumber(req.body.amount, ride.final_total || ride.estimated_total || payment.authorization_amount || 0)
   );
   const captureAmount = roundMoney(baseAmount + tipAmount);
 
@@ -4102,6 +4946,94 @@ app.get("/api/admin/ai/operations", requireAdmin, asyncHandler(async (_req, res)
 }));
 
 /* =========================================================
+   ADMIN SECURITY ROUTES
+========================================================= */
+app.get("/api/admin/security/overview", requireAdmin, asyncHandler(async (_req, res) => {
+  const [events, actions, profiles] = await Promise.all([
+    requireSupabase()
+      .from("security_events")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(50),
+
+    requireSupabase()
+      .from("security_actions")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(50),
+
+    requireSupabase()
+      .from("security_profiles")
+      .select("*")
+      .order("updated_at", { ascending: false })
+      .limit(50)
+  ]);
+
+  return ok(res, {
+    security_events: events.data || [],
+    security_actions: actions.data || [],
+    security_profiles: profiles.data || [],
+    ai_security: runtimeState.aiSecurity
+  });
+}));
+
+app.post("/api/admin/security/rider/unlock", requireAdmin, asyncHandler(async (req, res) => {
+  const riderId = pickFirst(req.body.rider_id, req.body.riderId);
+  if (!riderId) return fail(res, "Rider ID is required");
+
+  const rider = await getRiderById(riderId);
+  if (!rider) return fail(res, "Rider not found", 404);
+
+  const rows = await updateRows("riders", { id: rider.id }, {
+    status: "approved",
+    approval_status: "approved",
+    verification_status: "approved",
+    updated_at: nowIso()
+  });
+
+  await createSecurityAction({
+    subjectType: "rider",
+    subjectId: rider.id,
+    actionType: "manual_unlock",
+    reason: "Admin unlocked rider account",
+    metadata: { actor_email: ADMIN_EMAIL }
+  });
+
+  return ok(res, {
+    message: "Rider unlocked successfully",
+    rider: rows?.[0] || rider
+  });
+}));
+
+app.post("/api/admin/security/driver/unlock", requireAdmin, asyncHandler(async (req, res) => {
+  const driverId = pickFirst(req.body.driver_id, req.body.driverId);
+  if (!driverId) return fail(res, "Driver ID is required");
+
+  const driver = await getDriverById(driverId);
+  if (!driver) return fail(res, "Driver not found", 404);
+
+  const rows = await updateRows("drivers", { id: driver.id }, {
+    status: "approved",
+    approval_status: "approved",
+    verification_status: "approved",
+    updated_at: nowIso()
+  });
+
+  await createSecurityAction({
+    subjectType: "driver",
+    subjectId: driver.id,
+    actionType: "manual_unlock",
+    reason: "Admin unlocked driver account",
+    metadata: { actor_email: ADMIN_EMAIL }
+  });
+
+  return ok(res, {
+    message: "Driver unlocked successfully",
+    driver: rows?.[0] || driver
+  });
+}));
+
+/* =========================================================
    ADMIN ROUTES
 ========================================================= */
 app.post("/api/admin/rider/approve", requireAdmin, asyncHandler(async (req, res) => {
@@ -4191,6 +5123,7 @@ app.get("/api/admin/analytics/overview", requireAdmin, asyncHandler(async (_req,
     counts: snapshot,
     dispatch: runtimeState.dispatchSweep,
     ai_operations: runtimeState.aiOperations,
+    ai_security: runtimeState.aiSecurity,
     realtime: {
       enabled: runtimeState.realtime.enabled,
       rider_stream_keys: runtimeState.realtime.riderStreams.size,
@@ -4284,6 +5217,8 @@ process.on("SIGINT", () => shutdown("SIGINT"));
 async function startServer() {
   try {
     await runStartupChecks();
+    await ensureSecurityBrainReady();
+
     startRealtimeKeepAliveLoop();
     startDriverHeartbeatSweepLoop();
     startDispatchSweepLoop();
@@ -4295,6 +5230,7 @@ async function startServer() {
       console.log(`🛠️ Environment: ${NODE_ENV}`);
       console.log(`🕒 Started: ${SERVER_STARTED_AT}`);
       console.log(`🧠 AI Enabled: ${!!openai}`);
+      console.log(`🛡️ AI Security Enabled: ${ENABLE_AI_SECURITY_BRAIN}`);
       console.log(`🗄️ Supabase Ready: ${!!supabase}`);
       console.log(`📲 Twilio Ready: ${!!twilioClient}`);
       console.log(`📧 SMTP Ready: ${!!emailTransporter}`);
