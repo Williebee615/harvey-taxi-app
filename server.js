@@ -1,7 +1,7 @@
 /* =========================================================
-   HARVEY TAXI — CODE BLUE PHASE 10 ULTRA
+   HARVEY TAXI — CODE BLUE PHASE 11
    PART 1 OF 4
-   FOUNDATION + ENV + MIDDLEWARE + CLIENTS + CORE HELPERS
+   FOUNDATION + ENV + REALTIME CORE + MIDDLEWARE + HELPERS
    SR. DEVELOPER ENGINEER BUILD
 ========================================================= */
 
@@ -15,6 +15,7 @@ const cors = require("cors");
 const path = require("path");
 const crypto = require("crypto");
 const http = require("http");
+const EventEmitter = require("events");
 const { createClient } = require("@supabase/supabase-js");
 
 /* =========================================================
@@ -57,6 +58,15 @@ const app = express();
 const server = http.createServer(app);
 
 /* =========================================================
+   APP CONSTANTS
+========================================================= */
+const APP_NAME = "Harvey Taxi Code Blue Phase 11";
+const PORT = Number(process.env.PORT || 10000);
+const NODE_ENV = String(process.env.NODE_ENV || "development").toLowerCase();
+const IS_PROD = NODE_ENV === "production";
+const SERVER_STARTED_AT = new Date().toISOString();
+
+/* =========================================================
    BASIC HELPERS
 ========================================================= */
 function clean(value = "") {
@@ -68,15 +78,15 @@ function lower(value = "") {
 }
 
 function toNumber(value, fallback = 0) {
-  const num = Number(value);
-  return Number.isFinite(num) ? num : fallback;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
 }
 
 function toBool(value, fallback = false) {
-  const normalized = lower(value);
-  if (!normalized) return fallback;
-  if (["1", "true", "yes", "y", "on", "enabled"].includes(normalized)) return true;
-  if (["0", "false", "no", "n", "off", "disabled"].includes(normalized)) return false;
+  const v = lower(value);
+  if (!v) return fallback;
+  if (["1", "true", "yes", "y", "on", "enabled"].includes(v)) return true;
+  if (["0", "false", "no", "n", "off", "disabled"].includes(v)) return false;
   return fallback;
 }
 
@@ -99,8 +109,29 @@ function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
-function isEmail(value = "") {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean(value));
+function safeJsonParse(value, fallback = null) {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+}
+
+function parseNullableNumber(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function isObject(value) {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function pickFirst(...values) {
+  for (const value of values) {
+    const v = clean(value);
+    if (v) return v;
+  }
+  return "";
 }
 
 function normalizePhone(value = "") {
@@ -112,29 +143,8 @@ function normalizePhone(value = "") {
   return raw;
 }
 
-function pickFirst(...values) {
-  for (const value of values) {
-    const v = clean(value);
-    if (v) return v;
-  }
-  return "";
-}
-
-function parseNullableNumber(value) {
-  const num = Number(value);
-  return Number.isFinite(num) ? num : null;
-}
-
-function isObject(value) {
-  return !!value && typeof value === "object" && !Array.isArray(value);
-}
-
-function safeJsonParse(value, fallback = null) {
-  try {
-    return JSON.parse(value);
-  } catch {
-    return fallback;
-  }
+function isEmail(value = "") {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean(value));
 }
 
 function safeEqual(a = "", b = "") {
@@ -150,18 +160,34 @@ function omitUndefined(obj = {}) {
   );
 }
 
+function haversineMiles(lat1, lon1, lat2, lon2) {
+  if (
+    !Number.isFinite(Number(lat1)) ||
+    !Number.isFinite(Number(lon1)) ||
+    !Number.isFinite(Number(lat2)) ||
+    !Number.isFinite(Number(lon2))
+  ) {
+    return null;
+  }
+
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const R = 3958.8;
+
+  const dLat = toRad(Number(lat2) - Number(lat1));
+  const dLon = toRad(Number(lon2) - Number(lon1));
+
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(Number(lat1))) *
+      Math.cos(toRad(Number(lat2))) *
+      Math.sin(dLon / 2) ** 2;
+
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 async function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
-
-/* =========================================================
-   APP CONSTANTS
-========================================================= */
-const APP_NAME = "Harvey Taxi Code Blue Ultra";
-const PORT = toNumber(process.env.PORT, 10000);
-const NODE_ENV = lower(process.env.NODE_ENV || "development");
-const IS_PROD = NODE_ENV === "production";
-const SERVER_STARTED_AT = nowIso();
 
 /* =========================================================
    CORE ENV
@@ -195,8 +221,22 @@ const ENABLE_REAL_EMAIL = toBool(process.env.ENABLE_REAL_EMAIL, false);
 const ENABLE_RIDER_VERIFICATION_GATE = toBool(process.env.ENABLE_RIDER_VERIFICATION_GATE, true);
 const ENABLE_PAYMENT_GATE = toBool(process.env.ENABLE_PAYMENT_GATE, true);
 const ENABLE_DRIVER_LOCATION_TRACKING = toBool(process.env.ENABLE_DRIVER_LOCATION_TRACKING, true);
+const ENABLE_DRIVER_HEARTBEAT = toBool(process.env.ENABLE_DRIVER_HEARTBEAT, true);
 const ENABLE_AUTO_REDISPATCH = toBool(process.env.ENABLE_AUTO_REDISPATCH, true);
+const ENABLE_REALTIME_EVENTS = toBool(process.env.ENABLE_REALTIME_EVENTS, true);
 const ENABLE_STARTUP_TABLE_CHECKS = toBool(process.env.ENABLE_STARTUP_TABLE_CHECKS, true);
+
+const DRIVER_HEARTBEAT_STALE_MS = clamp(
+  toNumber(process.env.DRIVER_HEARTBEAT_STALE_MS, 90_000),
+  15_000,
+  600_000
+);
+
+const REALTIME_KEEPALIVE_MS = clamp(
+  toNumber(process.env.REALTIME_KEEPALIVE_MS, 20_000),
+  5_000,
+  60_000
+);
 
 const DISPATCH_TIMEOUT_SECONDS = clamp(
   toNumber(process.env.DISPATCH_TIMEOUT_SECONDS, 30),
@@ -205,9 +245,9 @@ const DISPATCH_TIMEOUT_SECONDS = clamp(
 );
 
 const DISPATCH_SWEEP_INTERVAL_MS = clamp(
-  toNumber(process.env.DISPATCH_SWEEP_INTERVAL_MS, 15000),
-  5000,
-  120000
+  toNumber(process.env.DISPATCH_SWEEP_INTERVAL_MS, 15_000),
+  5_000,
+  120_000
 );
 
 const MAX_DISPATCH_ATTEMPTS = clamp(
@@ -252,19 +292,19 @@ const SCORE_DISTANCE_WEIGHT = clamp(
 );
 
 const SCORE_RATING_WEIGHT = clamp(
-  toNumber(process.env.SCORE_RATING_WEIGHT, 0.20),
+  toNumber(process.env.SCORE_RATING_WEIGHT, 0.2),
   0,
   1
 );
 
 const SCORE_ACCEPTANCE_WEIGHT = clamp(
-  toNumber(process.env.SCORE_ACCEPTANCE_WEIGHT, 0.20),
+  toNumber(process.env.SCORE_ACCEPTANCE_WEIGHT, 0.2),
   0,
   1
 );
 
 const SCORE_COMPLETION_WEIGHT = clamp(
-  toNumber(process.env.SCORE_COMPLETION_WEIGHT, 0.10),
+  toNumber(process.env.SCORE_COMPLETION_WEIGHT, 0.1),
   0,
   1
 );
@@ -362,10 +402,178 @@ const runtimeState = {
     lastRecommendationAt: null,
     lastRecommendationError: null
   },
+  realtime: {
+    enabled: ENABLE_REALTIME_EVENTS,
+    riderStreams: new Map(),
+    driverStreams: new Map(),
+    adminStreams: new Map(),
+    keepAliveStarted: false
+  },
   process: {
     shuttingDown: false
   }
 };
+
+/* =========================================================
+   REALTIME EVENT BUS
+========================================================= */
+const realtimeBus = new EventEmitter();
+realtimeBus.setMaxListeners(500);
+
+function writeSse(res, eventName, payload) {
+  if (!res || res.writableEnded) return;
+  res.write(`event: ${eventName}\n`);
+  res.write(`data: ${JSON.stringify(payload)}\n\n`);
+}
+
+function openSseStream(res) {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  if (typeof res.flushHeaders === "function") {
+    res.flushHeaders();
+  }
+  writeSse(res, "connected", {
+    ok: true,
+    connected_at: nowIso()
+  });
+}
+
+function closeTrackedStream(map, key, res) {
+  const list = map.get(key) || [];
+  const nextList = list.filter((item) => item !== res && !item.writableEnded);
+  if (nextList.length) {
+    map.set(key, nextList);
+  } else {
+    map.delete(key);
+  }
+}
+
+function addTrackedStream(map, key, res) {
+  const existing = map.get(key) || [];
+  existing.push(res);
+  map.set(key, existing);
+
+  res.on("close", () => {
+    closeTrackedStream(map, key, res);
+  });
+}
+
+function emitToTrackedStreams(map, key, eventName, payload) {
+  const list = map.get(key) || [];
+  const alive = [];
+
+  for (const res of list) {
+    if (!res.writableEnded) {
+      writeSse(res, eventName, payload);
+      alive.push(res);
+    }
+  }
+
+  if (alive.length) {
+    map.set(key, alive);
+  } else {
+    map.delete(key);
+  }
+}
+
+function emitRideRealtime(rideId, payload = {}) {
+  if (!ENABLE_REALTIME_EVENTS || !rideId) return;
+  realtimeBus.emit("ride_event", {
+    ride_id: clean(rideId),
+    ...payload,
+    emitted_at: nowIso()
+  });
+}
+
+function emitDriverRealtime(driverId, payload = {}) {
+  if (!ENABLE_REALTIME_EVENTS || !driverId) return;
+  realtimeBus.emit("driver_event", {
+    driver_id: clean(driverId),
+    ...payload,
+    emitted_at: nowIso()
+  });
+}
+
+function emitAdminRealtime(payload = {}) {
+  if (!ENABLE_REALTIME_EVENTS) return;
+  realtimeBus.emit("admin_event", {
+    ...payload,
+    emitted_at: nowIso()
+  });
+}
+
+function startRealtimeKeepAliveLoop() {
+  if (!ENABLE_REALTIME_EVENTS) return;
+  if (runtimeState.realtime.keepAliveStarted) return;
+
+  runtimeState.realtime.keepAliveStarted = true;
+
+  setInterval(() => {
+    const payload = { ts: nowIso() };
+
+    for (const [key, streams] of runtimeState.realtime.riderStreams.entries()) {
+      const alive = streams.filter((res) => !res.writableEnded);
+      alive.forEach((res) => writeSse(res, "ping", payload));
+      if (alive.length) runtimeState.realtime.riderStreams.set(key, alive);
+      else runtimeState.realtime.riderStreams.delete(key);
+    }
+
+    for (const [key, streams] of runtimeState.realtime.driverStreams.entries()) {
+      const alive = streams.filter((res) => !res.writableEnded);
+      alive.forEach((res) => writeSse(res, "ping", payload));
+      if (alive.length) runtimeState.realtime.driverStreams.set(key, alive);
+      else runtimeState.realtime.driverStreams.delete(key);
+    }
+
+    for (const [key, streams] of runtimeState.realtime.adminStreams.entries()) {
+      const alive = streams.filter((res) => !res.writableEnded);
+      alive.forEach((res) => writeSse(res, "ping", payload));
+      if (alive.length) runtimeState.realtime.adminStreams.set(key, alive);
+      else runtimeState.realtime.adminStreams.delete(key);
+    }
+  }, REALTIME_KEEPALIVE_MS);
+}
+
+realtimeBus.on("ride_event", (payload) => {
+  emitToTrackedStreams(
+    runtimeState.realtime.riderStreams,
+    clean(payload.ride_id),
+    "ride_update",
+    payload
+  );
+  emitToTrackedStreams(
+    runtimeState.realtime.adminStreams,
+    "global",
+    "ride_update",
+    payload
+  );
+});
+
+realtimeBus.on("driver_event", (payload) => {
+  emitToTrackedStreams(
+    runtimeState.realtime.driverStreams,
+    clean(payload.driver_id),
+    "driver_update",
+    payload
+  );
+  emitToTrackedStreams(
+    runtimeState.realtime.adminStreams,
+    "global",
+    "driver_update",
+    payload
+  );
+});
+
+realtimeBus.on("admin_event", (payload) => {
+  emitToTrackedStreams(
+    runtimeState.realtime.adminStreams,
+    "global",
+    "admin_update",
+    payload
+  );
+});
 
 /* =========================================================
    REQUEST ID + RAW BODY + BODY PARSERS
@@ -448,7 +656,9 @@ app.use((req, res, next) => {
     "/api/driver/signup",
     "/api/request-ride",
     "/api/ai/support",
-    "/api/persona/webhook"
+    "/api/persona/webhook",
+    "/api/driver/location",
+    "/api/driver/heartbeat"
   ];
 
   if (!limitedPaths.some((p) => req.originalUrl.startsWith(p))) {
@@ -457,7 +667,7 @@ app.use((req, res, next) => {
 
   const result = applyBasicRateLimit({
     key: `${ip}:${req.path}`,
-    limit: req.path === "/api/ai/support" ? 25 : 60,
+    limit: req.path === "/api/ai/support" ? 25 : 80,
     windowMs: 60_000
   });
 
@@ -954,7 +1164,9 @@ async function runStartupChecks() {
     persona_template_driver_present: !!PERSONA_TEMPLATE_ID_DRIVER,
     admin_email_present: !!ADMIN_EMAIL,
     admin_password_present: !!ADMIN_PASSWORD,
-    google_maps_key_present: !!GOOGLE_MAPS_API_KEY
+    google_maps_key_present: !!GOOGLE_MAPS_API_KEY,
+    realtime_events_enabled: ENABLE_REALTIME_EVENTS,
+    driver_heartbeat_enabled: ENABLE_DRIVER_HEARTBEAT
   };
 
   if (!supabase) {
@@ -1031,9 +1243,17 @@ app.get("/api/health", asyncHandler(async (req, res) => {
       auto_redispatch: ENABLE_AUTO_REDISPATCH,
       ai_dispatch: ENABLE_AI_DISPATCH,
       ai_operations: ENABLE_AI_OPERATIONS,
-      driver_location_tracking: ENABLE_DRIVER_LOCATION_TRACKING
+      driver_location_tracking: ENABLE_DRIVER_LOCATION_TRACKING,
+      driver_heartbeat: ENABLE_DRIVER_HEARTBEAT,
+      realtime_events: ENABLE_REALTIME_EVENTS
     },
     startup_checks: runtimeState.startupChecks,
+    realtime: {
+      enabled: runtimeState.realtime.enabled,
+      rider_stream_keys: runtimeState.realtime.riderStreams.size,
+      driver_stream_keys: runtimeState.realtime.driverStreams.size,
+      admin_stream_keys: runtimeState.realtime.adminStreams.size
+    },
     process: runtimeState.process
   });
 }));
@@ -1046,7 +1266,8 @@ app.get("/api/config/public", (req, res) => {
     rider_verification_required: ENABLE_RIDER_VERIFICATION_GATE,
     payment_authorization_required: ENABLE_PAYMENT_GATE,
     dispatch_timeout_seconds: DISPATCH_TIMEOUT_SECONDS,
-    autonomous_pilot_enabled: true
+    autonomous_pilot_enabled: true,
+    realtime_enabled: ENABLE_REALTIME_EVENTS
   });
 });
 
@@ -1058,9 +1279,66 @@ app.get("/api/admin/health/deep", requireAdmin, asyncHandler(async (req, res) =>
     checked_at: nowIso(),
     startup_checks: checks
   });
+}));
+
+/* =========================================================
+   REALTIME STREAM ROUTES
+========================================================= */
+app.get("/api/realtime/rides/:rideId/stream", asyncHandler(async (req, res) => {
+  if (!ENABLE_REALTIME_EVENTS) {
+    return fail(res, "Realtime events disabled", 403);
+  }
+
+  const rideId = clean(req.params.rideId);
+  if (!rideId) {
+    return fail(res, "Ride ID is required");
+  }
+
+  openSseStream(res);
+  addTrackedStream(runtimeState.realtime.riderStreams, rideId, res);
+
+  writeSse(res, "subscribed", {
+    channel: "ride",
+    ride_id: rideId,
+    subscribed_at: nowIso()
+  });
+}));
+
+app.get("/api/realtime/drivers/:driverId/stream", asyncHandler(async (req, res) => {
+  if (!ENABLE_REALTIME_EVENTS) {
+    return fail(res, "Realtime events disabled", 403);
+  }
+
+  const driverId = clean(req.params.driverId);
+  if (!driverId) {
+    return fail(res, "Driver ID is required");
+  }
+
+  openSseStream(res);
+  addTrackedStream(runtimeState.realtime.driverStreams, driverId, res);
+
+  writeSse(res, "subscribed", {
+    channel: "driver",
+    driver_id: driverId,
+    subscribed_at: nowIso()
+  });
+}));
+
+app.get("/api/realtime/admin/stream", requireAdmin, asyncHandler(async (req, res) => {
+  if (!ENABLE_REALTIME_EVENTS) {
+    return fail(res, "Realtime events disabled", 403);
+  }
+
+  openSseStream(res);
+  addTrackedStream(runtimeState.realtime.adminStreams, "global", res);
+
+  writeSse(res, "subscribed", {
+    channel: "admin",
+    subscribed_at: nowIso()
+  });
 }));/* =========================================================
-   PART 2 OF 4
-   RIDERS + PAYMENTS + MAPS + FARE + REQUEST RIDE + PERSONA
+   PHASE 11 — PART 2 OF 4
+   RIDERS + PAYMENTS + MAPS + REQUEST RIDE + PERSONA + REALTIME
 ========================================================= */
 
 /* =========================================================
@@ -1087,17 +1365,11 @@ async function httpGetJson(url) {
 async function geocodeAddress(address) {
   const query = clean(address);
   if (!query) {
-    return {
-      ok: false,
-      error: "Address is required"
-    };
+    return { ok: false, error: "Address is required" };
   }
 
   if (!GOOGLE_MAPS_API_KEY) {
-    return {
-      ok: false,
-      error: "GOOGLE_MAPS_API_KEY missing"
-    };
+    return { ok: false, error: "GOOGLE_MAPS_API_KEY missing" };
   }
 
   const url =
@@ -1132,17 +1404,11 @@ async function distanceMatrix(originAddress, destinationAddress) {
   const destination = clean(destinationAddress);
 
   if (!origin || !destination) {
-    return {
-      ok: false,
-      error: "Origin and destination required"
-    };
+    return { ok: false, error: "Origin and destination required" };
   }
 
   if (!GOOGLE_MAPS_API_KEY) {
-    return {
-      ok: false,
-      error: "GOOGLE_MAPS_API_KEY missing"
-    };
+    return { ok: false, error: "GOOGLE_MAPS_API_KEY missing" };
   }
 
   const url =
@@ -1158,11 +1424,7 @@ async function distanceMatrix(originAddress, destinationAddress) {
   const row = json.rows?.[0];
   const element = row?.elements?.[0];
 
-  if (
-    json.status !== "OK" ||
-    !element ||
-    element.status !== "OK"
-  ) {
+  if (json.status !== "OK" || !element || element.status !== "OK") {
     return {
       ok: false,
       error: json.error_message || element?.status || json.status || "Distance matrix failed"
@@ -1179,30 +1441,6 @@ async function distanceMatrix(originAddress, destinationAddress) {
     distance_text: clean(element.distance?.text || ""),
     duration_text: clean(element.duration?.text || "")
   };
-}
-
-function haversineMiles(lat1, lon1, lat2, lon2) {
-  if (
-    !Number.isFinite(Number(lat1)) ||
-    !Number.isFinite(Number(lon1)) ||
-    !Number.isFinite(Number(lat2)) ||
-    !Number.isFinite(Number(lon2))
-  ) {
-    return null;
-  }
-
-  const toRad = (deg) => (deg * Math.PI) / 180;
-  const R = 3958.8;
-  const dLat = toRad(Number(lat2) - Number(lat1));
-  const dLon = toRad(Number(lon2) - Number(lon1));
-
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(Number(lat1))) *
-      Math.cos(toRad(Number(lat2))) *
-      Math.sin(dLon / 2) ** 2;
-
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 function estimateDurationMinutesFromMiles(miles = 0) {
@@ -1325,6 +1563,24 @@ function computeDynamicSurge({ requestedMode = "driver", rideType = "standard" }
   return Math.max(1, roundMoney(surge));
 }
 
+function buildSafeRideRealtimePayload(ride, extra = {}) {
+  return {
+    ride_id: clean(ride?.id || ""),
+    rider_id: clean(ride?.rider_id || ""),
+    driver_id: clean(ride?.driver_id || ""),
+    status: normalizeRideStatus(ride?.status || "pending"),
+    requested_mode: normalizeRideMode(ride?.requested_mode || "driver"),
+    ride_type: normalizeRideType(ride?.ride_type || "standard"),
+    pickup_address: clean(ride?.pickup_address || ""),
+    dropoff_address: clean(ride?.dropoff_address || ""),
+    estimated_total: roundMoney(ride?.estimated_total || 0),
+    final_total: roundMoney(ride?.final_total || 0),
+    tip_amount: roundMoney(ride?.tip_amount || 0),
+    updated_at: clean(ride?.updated_at || nowIso()),
+    ...extra
+  };
+}
+
 /* =========================================================
    RIDER ROUTES
 ========================================================= */
@@ -1368,16 +1624,19 @@ app.post("/api/rider/signup", asyncHandler(async (req, res) => {
     event_type: "rider_signup_created",
     target_table: "riders",
     target_id: rider.id,
-    details: {
-      email,
-      phone
-    }
+    details: { email, phone }
   });
 
   await sendEmail({
     to: email,
     subject: "Harvey Taxi rider signup received",
     text: "Your rider signup was received. Approval is required before requesting rides."
+  });
+
+  emitAdminRealtime({
+    type: "rider_signup_created",
+    rider_id: rider.id,
+    email
   });
 
   return ok(res, {
@@ -1471,6 +1730,13 @@ app.post("/api/payments/authorize", asyncHandler(async (req, res) => {
       payment_id: payment.id,
       authorization_amount: amount
     }
+  });
+
+  emitAdminRealtime({
+    type: "payment_authorized",
+    rider_id: rider.id,
+    payment_id: payment.id,
+    authorization_amount: amount
   });
 
   return ok(res, {
@@ -1594,6 +1860,22 @@ app.post("/api/request-ride", asyncHandler(async (req, res) => {
     }
   });
 
+  emitRideRealtime(ride.id, {
+    type: "ride_created",
+    ride: buildSafeRideRealtimePayload(ride, {
+      metrics,
+      fare,
+      payout
+    })
+  });
+
+  emitAdminRealtime({
+    type: "ride_created",
+    ride_id: ride.id,
+    rider_id: rider.id,
+    status: ride.status
+  });
+
   let dispatch = null;
   if (ENABLE_AI_DISPATCH) {
     dispatch = await dispatchRideToBestDriver(ride.id);
@@ -1636,6 +1918,12 @@ async function processPersonaRiderEvent(eventName, inquiry) {
       target_id: riderLookup,
       details: { inquiry_id: inquiry.inquiryId }
     });
+
+    emitAdminRealtime({
+      type: "rider_persona_approved",
+      rider_lookup: riderLookup,
+      inquiry_id: inquiry.inquiryId
+    });
   }
 
   if (["inquiry.declined", "inquiry.failed"].includes(eventName)) {
@@ -1659,6 +1947,13 @@ async function processPersonaRiderEvent(eventName, inquiry) {
       target_table: "riders",
       target_id: riderLookup,
       details: { inquiry_id: inquiry.inquiryId, eventName }
+    });
+
+    emitAdminRealtime({
+      type: "rider_persona_blocked",
+      rider_lookup: riderLookup,
+      inquiry_id: inquiry.inquiryId,
+      event_name: eventName
     });
   }
 }
@@ -1686,6 +1981,12 @@ async function processPersonaDriverEvent(eventName, inquiry) {
       target_id: driverLookup,
       details: { inquiry_id: inquiry.inquiryId }
     });
+
+    emitAdminRealtime({
+      type: "driver_persona_approved",
+      driver_lookup: driverLookup,
+      inquiry_id: inquiry.inquiryId
+    });
   }
 
   if (["inquiry.declined", "inquiry.failed"].includes(eventName)) {
@@ -1709,6 +2010,13 @@ async function processPersonaDriverEvent(eventName, inquiry) {
       target_id: driverLookup,
       details: { inquiry_id: inquiry.inquiryId, eventName }
     });
+
+    emitAdminRealtime({
+      type: "driver_persona_blocked",
+      driver_lookup: driverLookup,
+      inquiry_id: inquiry.inquiryId,
+      event_name: eventName
+    });
   }
 }
 
@@ -1728,10 +2036,7 @@ app.post("/api/persona/webhook", asyncHandler(async (req, res) => {
     event_type: "persona_webhook_received",
     target_table: "admin_logs",
     target_id: inquiry.inquiryId || null,
-    details: {
-      eventName,
-      inquiry
-    }
+    details: { eventName, inquiry }
   });
 
   const isRiderTemplate =
@@ -1753,8 +2058,8 @@ app.post("/api/persona/webhook", asyncHandler(async (req, res) => {
     event: eventName
   });
 }));/* =========================================================
-   PART 3 OF 4
-   DRIVERS + AI DISPATCH BRAIN + MISSIONS + REDISPATCH
+   PHASE 11 — PART 3 OF 4
+   DRIVERS + AI DISPATCH + MISSIONS + HEARTBEAT + REDISPATCH + LIVE EVENTS
 ========================================================= */
 
 /* =========================================================
@@ -1827,10 +2132,6 @@ function getDriverLongitude(driver = {}) {
   );
 }
 
-function getDriverCompletedTrips(driver = {}) {
-  return toNumber(driver.completed_trips || driver.trip_count || 0, 0);
-}
-
 function getDriverAcceptanceRate(driver = {}) {
   const value = Number(driver.acceptance_rate ?? 0.8);
   return Number.isFinite(value) ? clamp(value, 0, 1) : 0.8;
@@ -1847,10 +2148,10 @@ function getDriverRating(driver = {}) {
 }
 
 function getDriverActivityBoost(driver = {}) {
-  const lastLocationAt = clean(driver.last_location_at || driver.updated_at || "");
-  if (!lastLocationAt) return 0.5;
+  const lastSeenAt = clean(driver.last_heartbeat_at || driver.last_location_at || driver.updated_at || "");
+  if (!lastSeenAt) return 0.5;
 
-  const ageMs = Date.now() - new Date(lastLocationAt).getTime();
+  const ageMs = Date.now() - new Date(lastSeenAt).getTime();
   if (!Number.isFinite(ageMs) || ageMs < 0) return 0.5;
 
   if (ageMs <= 5 * 60 * 1000) return 1;
@@ -1862,6 +2163,7 @@ function getDriverActivityBoost(driver = {}) {
 function driverSupportsMode(driver, requestedMode = "driver") {
   const mode = normalizeRideMode(requestedMode);
   const type = normalizeDriverType(driver?.driver_type || "human");
+
   if (mode === "autonomous") return type === "autonomous";
   return type === "human";
 }
@@ -1929,6 +2231,25 @@ async function getTriedDriverIdsForRide(rideId) {
 
   if (error) throw error;
   return new Set((data || []).map((row) => clean(row.driver_id)).filter(Boolean));
+}
+
+async function getActiveRideForDriver(driverId) {
+  const { data, error } = await requireSupabase()
+    .from("rides")
+    .select("*")
+    .eq("driver_id", clean(driverId))
+    .in("status", [
+      "awaiting_driver_acceptance",
+      "dispatched",
+      "driver_en_route",
+      "arrived",
+      "in_progress"
+    ])
+    .order("updated_at", { ascending: false })
+    .limit(1);
+
+  if (error) throw error;
+  return data?.[0] || null;
 }
 
 /* =========================================================
@@ -2118,6 +2439,17 @@ async function dispatchRideToBestDriver(rideId) {
       details: { attempts, max_attempts: MAX_DISPATCH_ATTEMPTS }
     });
 
+    emitRideRealtime(ride.id, {
+      type: "dispatch_failed_max_attempts",
+      ride: buildSafeRideRealtimePayload(rows?.[0] || ride)
+    });
+
+    emitAdminRealtime({
+      type: "dispatch_failed_max_attempts",
+      ride_id: ride.id,
+      attempts
+    });
+
     return {
       ok: false,
       error: "No driver available after max dispatch attempts",
@@ -2137,6 +2469,17 @@ async function dispatchRideToBestDriver(rideId) {
       rider_id: ride.rider_id,
       event_type: "dispatch_failed_no_candidates",
       details: { requested_mode: ride.requested_mode }
+    });
+
+    emitRideRealtime(ride.id, {
+      type: "dispatch_failed_no_candidates",
+      ride: buildSafeRideRealtimePayload(rows?.[0] || ride)
+    });
+
+    emitAdminRealtime({
+      type: "dispatch_failed_no_candidates",
+      ride_id: ride.id,
+      requested_mode: ride.requested_mode
     });
 
     return {
@@ -2166,6 +2509,40 @@ async function dispatchRideToBestDriver(rideId) {
   });
 
   await notifyDriverOfMission(selected.driver, updatedRide, dispatch);
+
+  emitRideRealtime(updatedRide.id, {
+    type: "dispatch_offered",
+    ride: buildSafeRideRealtimePayload(updatedRide),
+    driver: {
+      id: clean(selected.driver.id),
+      full_name: getDriverDisplayName(selected.driver),
+      driver_type: normalizeDriverType(selected.driver.driver_type || "human")
+    },
+    dispatch: {
+      id: dispatch.id,
+      attempt_number: dispatch.attempt_number,
+      expires_at: dispatch.expires_at
+    }
+  });
+
+  emitDriverRealtime(selected.driver.id, {
+    type: "mission_offered",
+    driver_id: selected.driver.id,
+    ride_id: updatedRide.id,
+    mission_id: mission.id,
+    dispatch_id: dispatch.id,
+    pickup_address: clean(updatedRide.pickup_address),
+    dropoff_address: clean(updatedRide.dropoff_address),
+    estimated_total: roundMoney(updatedRide.estimated_total)
+  });
+
+  emitAdminRealtime({
+    type: "dispatch_offered",
+    ride_id: updatedRide.id,
+    driver_id: selected.driver.id,
+    dispatch_id: dispatch.id,
+    score: selected.scoring.score
+  });
 
   return {
     ok: true,
@@ -2235,6 +2612,13 @@ app.post("/api/driver/signup", asyncHandler(async (req, res) => {
     details: { email, phone, driver_type: driverType }
   });
 
+  emitAdminRealtime({
+    type: "driver_signup_created",
+    driver_id: driver.id,
+    email,
+    driver_type: driverType
+  });
+
   return ok(res, {
     message: "Driver signup submitted successfully",
     driver
@@ -2270,12 +2654,27 @@ app.post("/api/driver/go-online", asyncHandler(async (req, res) => {
   const rows = await updateRows("drivers", { id: driver.id }, {
     is_online: true,
     availability_status: "online",
+    last_heartbeat_at: nowIso(),
     updated_at: nowIso()
+  });
+
+  const updatedDriver = rows?.[0] || driver;
+
+  emitDriverRealtime(updatedDriver.id, {
+    type: "driver_online",
+    driver_id: updatedDriver.id,
+    availability_status: "online",
+    updated_at: updatedDriver.updated_at
+  });
+
+  emitAdminRealtime({
+    type: "driver_online",
+    driver_id: updatedDriver.id
   });
 
   return ok(res, {
     message: "Driver is now online",
-    driver: rows?.[0] || driver
+    driver: updatedDriver
   });
 }));
 
@@ -2289,9 +2688,23 @@ app.post("/api/driver/go-offline", asyncHandler(async (req, res) => {
     updated_at: nowIso()
   });
 
+  const updatedDriver = rows?.[0] || driver;
+
+  emitDriverRealtime(updatedDriver.id, {
+    type: "driver_offline",
+    driver_id: updatedDriver.id,
+    availability_status: "offline",
+    updated_at: updatedDriver.updated_at
+  });
+
+  emitAdminRealtime({
+    type: "driver_offline",
+    driver_id: updatedDriver.id
+  });
+
   return ok(res, {
     message: "Driver is now offline",
-    driver: rows?.[0] || driver
+    driver: updatedDriver
   });
 }));
 
@@ -2314,14 +2727,162 @@ app.post("/api/driver/location", asyncHandler(async (req, res) => {
     current_latitude: latitude,
     current_longitude: longitude,
     last_location_at: nowIso(),
+    last_heartbeat_at: nowIso(),
     updated_at: nowIso()
+  });
+
+  const updatedDriver = rows?.[0] || driver;
+  const activeRide = await getActiveRideForDriver(updatedDriver.id);
+
+  emitDriverRealtime(updatedDriver.id, {
+    type: "driver_location_updated",
+    driver_id: updatedDriver.id,
+    ride_id: activeRide?.id || null,
+    latitude,
+    longitude,
+    last_location_at: updatedDriver.last_location_at
+  });
+
+  if (activeRide) {
+    emitRideRealtime(activeRide.id, {
+      type: "driver_location_updated",
+      ride_id: activeRide.id,
+      driver_id: updatedDriver.id,
+      latitude,
+      longitude,
+      last_location_at: updatedDriver.last_location_at
+    });
+  }
+
+  emitAdminRealtime({
+    type: "driver_location_updated",
+    driver_id: updatedDriver.id,
+    ride_id: activeRide?.id || null
   });
 
   return ok(res, {
     message: "Driver location updated",
-    driver: rows?.[0] || driver
+    driver: updatedDriver,
+    active_ride_id: activeRide?.id || null
   });
 }));
+
+app.post("/api/driver/heartbeat", asyncHandler(async (req, res) => {
+  if (!ENABLE_DRIVER_HEARTBEAT) {
+    return fail(res, "Driver heartbeat is disabled", 403);
+  }
+
+  const driver = await resolveDriver(req.body);
+  if (!driver) return fail(res, "Driver not found", 404);
+
+  const latitude = parseNullableNumber(req.body.latitude ?? req.body.current_latitude ?? req.body.lat);
+  const longitude = parseNullableNumber(req.body.longitude ?? req.body.current_longitude ?? req.body.lng);
+
+  const updatePayload = {
+    last_heartbeat_at: nowIso(),
+    updated_at: nowIso()
+  };
+
+  if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+    updatePayload.current_latitude = latitude;
+    updatePayload.current_longitude = longitude;
+    updatePayload.last_location_at = nowIso();
+  }
+
+  const rows = await updateRows("drivers", { id: driver.id }, updatePayload);
+  const updatedDriver = rows?.[0] || driver;
+  const activeRide = await getActiveRideForDriver(updatedDriver.id);
+
+  emitDriverRealtime(updatedDriver.id, {
+    type: "driver_heartbeat",
+    driver_id: updatedDriver.id,
+    ride_id: activeRide?.id || null,
+    latitude: Number.isFinite(latitude) ? latitude : null,
+    longitude: Number.isFinite(longitude) ? longitude : null,
+    last_heartbeat_at: updatedDriver.last_heartbeat_at
+  });
+
+  if (activeRide && Number.isFinite(latitude) && Number.isFinite(longitude)) {
+    emitRideRealtime(activeRide.id, {
+      type: "driver_heartbeat",
+      ride_id: activeRide.id,
+      driver_id: updatedDriver.id,
+      latitude,
+      longitude,
+      last_heartbeat_at: updatedDriver.last_heartbeat_at
+    });
+  }
+
+  return ok(res, {
+    message: "Driver heartbeat received",
+    driver_id: updatedDriver.id,
+    last_heartbeat_at: updatedDriver.last_heartbeat_at,
+    active_ride_id: activeRide?.id || null
+  });
+}));
+
+/* =========================================================
+   DRIVER HEARTBEAT SWEEP
+========================================================= */
+async function sweepStaleDrivers() {
+  if (!ENABLE_DRIVER_HEARTBEAT) return { ok: true, skipped: true };
+
+  const staleBefore = new Date(Date.now() - DRIVER_HEARTBEAT_STALE_MS).toISOString();
+
+  const { data, error } = await requireSupabase()
+    .from("drivers")
+    .select("*")
+    .eq("is_online", true)
+    .lt("last_heartbeat_at", staleBefore)
+    .limit(100);
+
+  if (error) throw error;
+
+  const results = [];
+
+  for (const driver of data || []) {
+    const rows = await updateRows("drivers", { id: driver.id }, {
+      is_online: false,
+      availability_status: "offline",
+      updated_at: nowIso()
+    });
+
+    results.push(clean(driver.id));
+
+    emitDriverRealtime(driver.id, {
+      type: "driver_marked_offline_stale",
+      driver_id: driver.id
+    });
+
+    emitAdminRealtime({
+      type: "driver_marked_offline_stale",
+      driver_id: driver.id
+    });
+
+    await sleep(10);
+  }
+
+  return {
+    ok: true,
+    count: results.length,
+    driver_ids: results
+  };
+}
+
+function startDriverHeartbeatSweepLoop() {
+  if (!ENABLE_DRIVER_HEARTBEAT) return;
+
+  setInterval(async () => {
+    try {
+      const result = await sweepStaleDrivers();
+      if (result?.count > 0) {
+        console.log(`💓 Driver heartbeat sweep marked ${result.count} driver(s) offline`);
+      }
+    } catch (error) {
+      console.error("❌ Driver heartbeat sweep failed:", error);
+    }
+  }, Math.max(15_000, DRIVER_HEARTBEAT_STALE_MS / 2));
+}
 
 /* =========================================================
    DISPATCH ROUTES
@@ -2399,6 +2960,11 @@ app.post("/api/mission/accept", asyncHandler(async (req, res) => {
       updated_at: nowIso()
     });
 
+    emitRideRealtime(dispatch.ride_id, {
+      type: "dispatch_expired_before_accept",
+      ride_id: dispatch.ride_id
+    });
+
     return fail(res, "Dispatch has expired", 410);
   }
 
@@ -2434,6 +3000,25 @@ app.post("/api/mission/accept", asyncHandler(async (req, res) => {
     mission_id: mission.id,
     event_type: "driver_accepted_dispatch",
     details: { dispatch_id: dispatch.id }
+  });
+
+  emitRideRealtime(ride.id, {
+    type: "driver_accepted_dispatch",
+    ride: buildSafeRideRealtimePayload(updatedRide?.[0] || ride)
+  });
+
+  emitDriverRealtime(driver.id, {
+    type: "mission_accepted",
+    driver_id: driver.id,
+    ride_id: ride.id,
+    mission_id: mission.id
+  });
+
+  emitAdminRealtime({
+    type: "driver_accepted_dispatch",
+    driver_id: driver.id,
+    ride_id: ride.id,
+    mission_id: mission.id
   });
 
   return ok(res, {
@@ -2485,13 +3070,35 @@ app.post("/api/mission/decline", asyncHandler(async (req, res) => {
     updated_at: nowIso()
   });
 
+  const queuedRide = queuedRideRows?.[0] || null;
+
   await logTripEvent({
     ride_id: dispatch.ride_id,
-    rider_id: queuedRideRows?.[0]?.rider_id || null,
+    rider_id: queuedRide?.rider_id || null,
     driver_id: driver.id,
     mission_id: mission.id,
     event_type: "driver_declined_dispatch",
     details: { dispatch_id: dispatch.id, reason }
+  });
+
+  emitRideRealtime(dispatch.ride_id, {
+    type: "driver_declined_dispatch",
+    ride: buildSafeRideRealtimePayload(queuedRide || { id: dispatch.ride_id, status: "awaiting_dispatch" }),
+    reason
+  });
+
+  emitDriverRealtime(driver.id, {
+    type: "mission_declined",
+    driver_id: driver.id,
+    ride_id: dispatch.ride_id,
+    reason
+  });
+
+  emitAdminRealtime({
+    type: "driver_declined_dispatch",
+    driver_id: driver.id,
+    ride_id: dispatch.ride_id,
+    reason
   });
 
   const redispatch = ENABLE_AUTO_REDISPATCH
@@ -2502,7 +3109,7 @@ app.post("/api/mission/decline", asyncHandler(async (req, res) => {
     message: ENABLE_AUTO_REDISPATCH
       ? "Mission declined and redispatch attempted"
       : "Mission declined",
-    ride: queuedRideRows?.[0] || null,
+    ride: queuedRide,
     redispatch
   });
 }));
@@ -2537,9 +3144,33 @@ async function updateMissionAndRideStatus(missionId, newStatus, eventType) {
     details: {}
   });
 
+  const updatedMission = missionRows?.[0] || mission;
+  const updatedRide = rideRows?.[0] || ride;
+
+  emitRideRealtime(ride.id, {
+    type: eventType,
+    ride: buildSafeRideRealtimePayload(updatedRide)
+  });
+
+  if (mission.driver_id) {
+    emitDriverRealtime(mission.driver_id, {
+      type: eventType,
+      driver_id: mission.driver_id,
+      ride_id: ride.id,
+      mission_id: mission.id
+    });
+  }
+
+  emitAdminRealtime({
+    type: eventType,
+    ride_id: ride.id,
+    mission_id: mission.id,
+    driver_id: mission.driver_id
+  });
+
   return {
-    mission: missionRows?.[0] || mission,
-    ride: rideRows?.[0] || ride
+    mission: updatedMission,
+    ride: updatedRide
   };
 }
 
@@ -2568,6 +3199,11 @@ app.post("/api/mission/start-trip", asyncHandler(async (req, res) => {
   await updateRows("missions", { id: missionId }, { started_at: nowIso(), updated_at: nowIso() });
   await updateRows("rides", { id: result.ride.id }, { started_at: nowIso(), updated_at: nowIso() });
 
+  emitRideRealtime(result.ride.id, {
+    type: "trip_started",
+    ride: buildSafeRideRealtimePayload({ ...result.ride, started_at: nowIso() })
+  });
+
   return ok(res, { message: "Trip started", ...result });
 }));
 
@@ -2577,6 +3213,11 @@ app.post("/api/mission/complete", asyncHandler(async (req, res) => {
 
   await updateRows("missions", { id: missionId }, { completed_at: nowIso(), updated_at: nowIso() });
   await updateRows("rides", { id: result.ride.id }, { completed_at: nowIso(), updated_at: nowIso() });
+
+  emitRideRealtime(result.ride.id, {
+    type: "trip_completed",
+    ride: buildSafeRideRealtimePayload({ ...result.ride, completed_at: nowIso() })
+  });
 
   return ok(res, { message: "Trip completed", ...result });
 }));
@@ -2641,6 +3282,27 @@ async function sweepExpiredDispatches() {
         details: { dispatch_id: dispatch.id, attempt_number: dispatch.attempt_number }
       });
 
+      emitRideRealtime(dispatch.ride_id, {
+        type: "dispatch_expired",
+        ride_id: dispatch.ride_id,
+        dispatch_id: dispatch.id,
+        attempt_number: dispatch.attempt_number
+      });
+
+      emitDriverRealtime(dispatch.driver_id, {
+        type: "dispatch_expired",
+        driver_id: dispatch.driver_id,
+        ride_id: dispatch.ride_id,
+        dispatch_id: dispatch.id
+      });
+
+      emitAdminRealtime({
+        type: "dispatch_expired",
+        ride_id: dispatch.ride_id,
+        driver_id: dispatch.driver_id,
+        dispatch_id: dispatch.id
+      });
+
       const redispatch = ENABLE_AUTO_REDISPATCH
         ? await dispatchRideToBestDriver(dispatch.ride_id)
         : null;
@@ -2680,9 +3342,9 @@ function startDispatchSweepLoop() {
       console.error("❌ Dispatch sweep failed:", error);
     }
   }, DISPATCH_SWEEP_INTERVAL_MS);
-     }/* =========================================================
-   PART 4 OF 4
-   LIVE STATUS + PAYMENTS + TIPPING + EARNINGS + ADMIN + AI
+  }/* =========================================================
+   PHASE 11 — PART 4 OF 4
+   LIVE STATUS + PAYMENTS + TIPPING + EARNINGS + ADMIN + AI + STARTUP
 ========================================================= */
 
 /* =========================================================
@@ -2799,6 +3461,61 @@ async function getRideTimeline(rideId) {
   }
 }
 
+function sanitizeDriverForRider(driver = {}) {
+  return {
+    id: clean(driver.id || ""),
+    full_name: clean(driver.full_name || ""),
+    driver_type: clean(driver.driver_type || "human"),
+    phone: clean(driver.phone || ""),
+    last_location_at: clean(driver.last_location_at || "")
+  };
+}
+
+function sanitizeDriverForDriver(driver = {}) {
+  return {
+    id: clean(driver.id || ""),
+    full_name: clean(driver.full_name || ""),
+    driver_type: clean(driver.driver_type || "human"),
+    phone: clean(driver.phone || ""),
+    current_latitude: parseNullableNumber(driver.current_latitude),
+    current_longitude: parseNullableNumber(driver.current_longitude),
+    last_location_at: clean(driver.last_location_at || "")
+  };
+}
+
+function sanitizeRideForPublic(ride = {}) {
+  return {
+    id: clean(ride.id || ""),
+    rider_id: clean(ride.rider_id || ""),
+    driver_id: clean(ride.driver_id || ""),
+    mission_id: clean(ride.mission_id || ""),
+    dispatch_id: clean(ride.dispatch_id || ""),
+    status: normalizeRideStatus(ride.status || "pending"),
+    ride_type: normalizeRideType(ride.ride_type || "standard"),
+    requested_mode: normalizeRideMode(ride.requested_mode || "driver"),
+    pickup_address: clean(ride.pickup_address || ""),
+    dropoff_address: clean(ride.dropoff_address || ""),
+    estimated_total: roundMoney(ride.estimated_total || 0),
+    final_total: roundMoney(ride.final_total || 0),
+    tip_amount: roundMoney(ride.tip_amount || 0),
+    payment_status: clean(ride.payment_status || ""),
+    started_at: clean(ride.started_at || ""),
+    completed_at: clean(ride.completed_at || ""),
+    created_at: clean(ride.created_at || ""),
+    updated_at: clean(ride.updated_at || "")
+  };
+}
+
+function sanitizeRideForDriver(ride = {}) {
+  return {
+    ...sanitizeRideForPublic(ride),
+    pickup_latitude: parseNullableNumber(ride.pickup_latitude),
+    pickup_longitude: parseNullableNumber(ride.pickup_longitude),
+    dropoff_latitude: parseNullableNumber(ride.dropoff_latitude),
+    dropoff_longitude: parseNullableNumber(ride.dropoff_longitude)
+  };
+}
+
 async function buildRideLiveState(rideId) {
   const ride = await getRideById(rideId);
   if (!ride) return null;
@@ -2842,7 +3559,15 @@ async function buildRideLiveState(rideId) {
 app.get("/api/rides/:rideId/live", asyncHandler(async (req, res) => {
   const liveState = await buildRideLiveState(req.params.rideId);
   if (!liveState) return fail(res, "Ride not found", 404);
-  return ok(res, liveState);
+
+  return ok(res, {
+    ride: sanitizeRideForPublic(liveState.ride),
+    mission: liveState.mission,
+    dispatch: liveState.dispatch,
+    driver: liveState.driver ? sanitizeDriverForRider(liveState.driver) : null,
+    payment: liveState.payment,
+    timeline: liveState.timeline
+  });
 }));
 
 app.get("/api/driver/:driverId/current-ride", asyncHandler(async (req, res) => {
@@ -2867,7 +3592,16 @@ app.get("/api/driver/:driverId/current-ride", asyncHandler(async (req, res) => {
   const ride = data?.[0] || null;
   if (!ride) return ok(res, { ride: null });
 
-  return ok(res, await buildRideLiveState(ride.id));
+  const liveState = await buildRideLiveState(ride.id);
+
+  return ok(res, {
+    ride: sanitizeRideForDriver(liveState.ride),
+    mission: liveState.mission,
+    dispatch: liveState.dispatch,
+    driver: liveState.driver ? sanitizeDriverForDriver(liveState.driver) : null,
+    payment: liveState.payment,
+    timeline: liveState.timeline
+  });
 }));
 
 /* =========================================================
@@ -2951,6 +3685,29 @@ app.post("/api/payments/capture", asyncHandler(async (req, res) => {
     }
   });
 
+  emitRideRealtime(ride.id, {
+    type: "payment_captured",
+    ride: buildSafeRideRealtimePayload(updatedRide || ride),
+    payment: buildPaymentSummary(updatedPayments?.[0] || payment)
+  });
+
+  if (ride.driver_id) {
+    emitDriverRealtime(ride.driver_id, {
+      type: "payment_captured",
+      driver_id: ride.driver_id,
+      ride_id: ride.id,
+      capture_amount: captureAmount,
+      tip_amount: tipAmount
+    });
+  }
+
+  emitAdminRealtime({
+    type: "payment_captured",
+    ride_id: ride.id,
+    payment_id: payment.id,
+    capture_amount: captureAmount
+  });
+
   return ok(res, {
     message: "Payment captured successfully",
     payment: buildPaymentSummary(updatedPayments?.[0] || payment),
@@ -2986,7 +3743,19 @@ app.post("/api/payments/release", asyncHandler(async (req, res) => {
 
   if (ride) {
     await updateRideFinancials(ride.id, { payment_status: "released" });
+
+    emitRideRealtime(ride.id, {
+      type: "payment_released",
+      ride_id: ride.id,
+      payment_id: payment.id
+    });
   }
+
+  emitAdminRealtime({
+    type: "payment_released",
+    payment_id: payment.id,
+    ride_id: ride?.id || null
+  });
 
   return ok(res, {
     message: "Payment released successfully",
@@ -3022,6 +3791,30 @@ app.post("/api/rides/:rideId/tip", asyncHandler(async (req, res) => {
     final_total: newFinalTotal,
     estimated_driver_payout: newDriverPayout,
     estimated_platform_fee: newPlatformFee
+  });
+
+  emitRideRealtime(ride.id, {
+    type: "tip_added",
+    ride: buildSafeRideRealtimePayload(updatedRide || ride),
+    tip_amount: tipAmount,
+    new_tip_total: newTipTotal
+  });
+
+  if (ride.driver_id) {
+    emitDriverRealtime(ride.driver_id, {
+      type: "tip_added",
+      driver_id: ride.driver_id,
+      ride_id: ride.id,
+      tip_amount: tipAmount,
+      new_tip_total: newTipTotal
+    });
+  }
+
+  emitAdminRealtime({
+    type: "tip_added",
+    ride_id: ride.id,
+    driver_id: ride.driver_id || null,
+    tip_amount: tipAmount
   });
 
   return ok(res, {
@@ -3069,7 +3862,7 @@ function getFallbackReply(message = "", page = "general") {
   const normalizedPage = normalizePage(page);
 
   if (!text) {
-    return "I can help with rider approval, driver onboarding, ride requests, payment authorization, trip status, dispatch, Harvey Taxi support, and foundation support.";
+    return "I can help with rider approval, driver onboarding, ride requests, payment authorization, live trip status, dispatch, Harvey Taxi support, and foundation support.";
   }
 
   if (text.includes("emergency") || text.includes("911")) {
@@ -3078,6 +3871,10 @@ function getFallbackReply(message = "", page = "general") {
 
   if (text.includes("foundation") || text.includes("donate") || normalizedPage === "foundation") {
     return "Harvey Transportation Assistance Foundation helps remove transportation barriers for medical appointments, work, school, and community mobility. You can open the foundation page or use the donation link to support transportation access.";
+  }
+
+  if (text.includes("live") || text.includes("track") || text.includes("where is my driver")) {
+    return "If a ride is active, Harvey Taxi can provide live ride state updates and driver movement updates through the platform.";
   }
 
   if (text.includes("rider") || normalizedPage === "rider") {
@@ -3096,7 +3893,7 @@ function getFallbackReply(message = "", page = "general") {
     return "Harvey Taxi dispatch prioritizes eligible drivers and can automatically redispatch expired offers.";
   }
 
-  return "I can help with rides, driver onboarding, payments, dispatch, support questions, and foundation support.";
+  return "I can help with rides, driver onboarding, payments, live trip updates, dispatch, support questions, and foundation support.";
 }
 
 async function generateAiSupportReply({ message, page = "general", ride_id = "" }) {
@@ -3123,7 +3920,7 @@ async function generateAiSupportReply({ message, page = "general", ride_id = "" 
           {
             role: "system",
             content:
-              "You are Harvey Taxi AI Support. Be concise, clear, calm, and accurate. Never invent policies. You may answer questions about Harvey Taxi rides, driver onboarding, rider approval, payment authorization, dispatch, autonomous pilot guidance, and Harvey Transportation Assistance Foundation support."
+              "You are Harvey Taxi AI Support. Be concise, clear, calm, and accurate. Never invent policies. You may answer questions about Harvey Taxi rides, driver onboarding, rider approval, payment authorization, dispatch, live ride updates, autonomous pilot guidance, and Harvey Transportation Assistance Foundation support."
           },
           {
             role: "user",
@@ -3145,7 +3942,7 @@ async function generateAiSupportReply({ message, page = "general", ride_id = "" 
         {
           role: "system",
           content:
-            "You are Harvey Taxi AI Support. Be concise, clear, calm, and accurate. Never invent policies. You may answer questions about Harvey Taxi rides, driver onboarding, rider approval, payment authorization, dispatch, autonomous pilot guidance, and Harvey Transportation Assistance Foundation support."
+            "You are Harvey Taxi AI Support. Be concise, clear, calm, and accurate. Never invent policies. You may answer questions about Harvey Taxi rides, driver onboarding, rider approval, payment authorization, dispatch, live ride updates, autonomous pilot guidance, and Harvey Transportation Assistance Foundation support."
         },
         {
           role: "user",
@@ -3174,6 +3971,7 @@ async function buildOperationsSnapshot() {
       for (const filter of filters) {
         if (filter.op === "eq") query = query.eq(filter.column, filter.value);
         if (filter.op === "in") query = query.in(filter.column, filter.value);
+        if (filter.op === "lt") query = query.lt(filter.column, filter.value);
       }
     }
 
@@ -3182,12 +3980,15 @@ async function buildOperationsSnapshot() {
     return Number(count || 0);
   }
 
+  const staleBefore = new Date(Date.now() - DRIVER_HEARTBEAT_STALE_MS).toISOString();
+
   const [
     totalRides,
     activeRides,
     awaitingDispatch,
     noDriverAvailable,
     onlineDrivers,
+    staleDrivers,
     totalDrivers,
     totalRiders
   ] = await Promise.all([
@@ -3204,6 +4005,10 @@ async function buildOperationsSnapshot() {
       column: "availability_status",
       value: ["online", "available", "ready", "active"]
     }]),
+    countTable("drivers", [
+      { op: "eq", column: "is_online", value: true },
+      { op: "lt", column: "last_heartbeat_at", value: staleBefore }
+    ]),
     countTable("drivers"),
     countTable("riders")
   ]);
@@ -3215,8 +4020,10 @@ async function buildOperationsSnapshot() {
     awaiting_dispatch: awaitingDispatch,
     no_driver_available: noDriverAvailable,
     online_drivers: onlineDrivers,
+    stale_online_drivers: staleDrivers,
     total_drivers: totalDrivers,
-    total_riders: totalRiders
+    total_riders: totalRiders,
+    realtime_enabled: ENABLE_REALTIME_EVENTS
   };
 }
 
@@ -3250,7 +4057,7 @@ app.get("/api/admin/ai/operations", requireAdmin, asyncHandler(async (_req, res)
             {
               role: "system",
               content:
-                "You are Harvey Taxi AI Operations. Review the metrics and return a short operational recommendation."
+                "You are Harvey Taxi AI Operations. Review the metrics and return a short operational recommendation focused on dispatch pressure, stale drivers, rider wait risk, and fleet responsiveness."
             },
             {
               role: "user",
@@ -3268,7 +4075,7 @@ app.get("/api/admin/ai/operations", requireAdmin, asyncHandler(async (_req, res)
             {
               role: "system",
               content:
-                "You are Harvey Taxi AI Operations. Review the metrics and return a short operational recommendation."
+                "You are Harvey Taxi AI Operations. Review the metrics and return a short operational recommendation focused on dispatch pressure, stale drivers, rider wait risk, and fleet responsiveness."
             },
             {
               role: "user",
@@ -3311,9 +4118,16 @@ app.post("/api/admin/rider/approve", requireAdmin, asyncHandler(async (req, res)
     updated_at: nowIso()
   });
 
+  const updatedRider = rows?.[0] || rider;
+
+  emitAdminRealtime({
+    type: "rider_approved",
+    rider_id: updatedRider.id
+  });
+
   return ok(res, {
     message: "Rider approved successfully",
-    rider: buildRiderStatusResponse(rows?.[0] || rider)
+    rider: buildRiderStatusResponse(updatedRider)
   });
 }));
 
@@ -3331,9 +4145,16 @@ app.post("/api/admin/driver/approve", requireAdmin, asyncHandler(async (req, res
     updated_at: nowIso()
   });
 
+  const updatedDriver = rows?.[0] || driver;
+
+  emitAdminRealtime({
+    type: "driver_approved",
+    driver_id: updatedDriver.id
+  });
+
   return ok(res, {
     message: "Driver approved successfully",
-    driver: rows?.[0] || driver
+    driver: updatedDriver
   });
 }));
 
@@ -3350,9 +4171,16 @@ app.post("/api/admin/driver/verify-contact", requireAdmin, asyncHandler(async (r
     updated_at: nowIso()
   });
 
+  const updatedDriver = rows?.[0] || driver;
+
+  emitAdminRealtime({
+    type: "driver_contact_verified",
+    driver_id: updatedDriver.id
+  });
+
   return ok(res, {
     message: "Driver email and SMS marked verified",
-    driver: rows?.[0] || driver
+    driver: updatedDriver
   });
 }));
 
@@ -3362,7 +4190,13 @@ app.get("/api/admin/analytics/overview", requireAdmin, asyncHandler(async (_req,
     generated_at: nowIso(),
     counts: snapshot,
     dispatch: runtimeState.dispatchSweep,
-    ai_operations: runtimeState.aiOperations
+    ai_operations: runtimeState.aiOperations,
+    realtime: {
+      enabled: runtimeState.realtime.enabled,
+      rider_stream_keys: runtimeState.realtime.riderStreams.size,
+      driver_stream_keys: runtimeState.realtime.driverStreams.size,
+      admin_stream_keys: runtimeState.realtime.adminStreams.size
+    }
   });
 }));
 
@@ -3379,6 +4213,10 @@ app.get("/api/support/faq", asyncHandler(async (_req, res) => {
       {
         question: "What does a driver need before going online?",
         answer: "Drivers need signup completion, verification, approval, and then they can go online to receive missions."
+      },
+      {
+        question: "Can riders see live trip progress?",
+        answer: "Yes. Harvey Taxi can provide live ride state updates and driver movement updates when a trip is active."
       },
       {
         question: "When is payment captured?",
@@ -3446,6 +4284,8 @@ process.on("SIGINT", () => shutdown("SIGINT"));
 async function startServer() {
   try {
     await runStartupChecks();
+    startRealtimeKeepAliveLoop();
+    startDriverHeartbeatSweepLoop();
     startDispatchSweepLoop();
 
     server.listen(PORT, () => {
@@ -3460,6 +4300,8 @@ async function startServer() {
       console.log(`📧 SMTP Ready: ${!!emailTransporter}`);
       console.log(`🤖 AI Dispatch Enabled: ${ENABLE_AI_DISPATCH}`);
       console.log(`🏢 AI Operations Enabled: ${ENABLE_AI_OPERATIONS}`);
+      console.log(`📡 Realtime Enabled: ${ENABLE_REALTIME_EVENTS}`);
+      console.log(`💓 Driver Heartbeat Enabled: ${ENABLE_DRIVER_HEARTBEAT}`);
       console.log("====================================================");
     });
   } catch (error) {
