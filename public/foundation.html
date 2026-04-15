@@ -15,47 +15,38 @@
 
   <style>
     :root{
-      --bg1:#040814;
-      --bg2:#091126;
-      --bg3:#12214a;
-      --panel:rgba(9,16,36,.88);
-      --panel2:rgba(13,24,54,.84);
-      --panel3:rgba(255,255,255,.04);
-      --line:rgba(128,168,255,.14);
-      --line-strong:rgba(128,168,255,.28);
-      --text:#f4f7ff;
-      --muted:#aab8de;
+      --bg1:#030712;
+      --bg2:#09162f;
+      --bg3:#112455;
+      --panel:rgba(7,14,32,.82);
+      --panel-2:rgba(12,22,50,.82);
+      --line:rgba(126,166,255,.16);
+      --text:#f5f8ff;
+      --muted:#adbbde;
       --blue:#6aa7ff;
       --cyan:#73f4ff;
       --green:#7cffc7;
-      --gold:#ffd976;
-      --shadow:0 24px 70px rgba(0,0,0,.38);
-      --shadow-soft:0 12px 28px rgba(0,0,0,.18);
-      --radius-xl:30px;
-      --radius-lg:22px;
-      --radius-md:16px;
-      --radius-sm:12px;
-      --maxw:1240px;
-      --topbar-h:82px;
+      --shadow:0 24px 80px rgba(0,0,0,.42);
+      --shadow-soft:0 14px 34px rgba(0,0,0,.22);
+      --radius-xl:32px;
+      --radius-lg:24px;
+      --radius-md:18px;
+      --maxw:1260px;
+      --topbar-h:84px;
     }
 
-    *{
-      box-sizing:border-box;
-    }
-
-    html{
-      scroll-behavior:smooth;
-    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
 
     body{
       margin:0;
       font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
       color:var(--text);
       background:
-        radial-gradient(circle at top left, rgba(106,167,255,.16), transparent 24%),
-        radial-gradient(circle at top right, rgba(115,244,255,.11), transparent 20%),
-        radial-gradient(circle at 50% 120%, rgba(124,255,199,.08), transparent 24%),
-        linear-gradient(180deg,var(--bg1) 0%,var(--bg2) 46%,var(--bg3) 100%);
+        radial-gradient(circle at top left, rgba(106,167,255,.18), transparent 22%),
+        radial-gradient(circle at top right, rgba(115,244,255,.10), transparent 18%),
+        radial-gradient(circle at center bottom, rgba(124,255,199,.08), transparent 22%),
+        linear-gradient(180deg,var(--bg1) 0%,var(--bg2) 48%,var(--bg3) 100%);
       min-height:100vh;
       overflow-x:hidden;
     }
@@ -66,22 +57,24 @@
     }
 
     img{
-      max-width:100%;
       display:block;
+      max-width:100%;
     }
 
     .shell{
       width:min(var(--maxw), calc(100% - 28px));
       margin:0 auto;
+      position:relative;
+      z-index:1;
     }
 
     .topbar{
       position:sticky;
       top:0;
       z-index:90;
-      backdrop-filter:blur(16px);
-      -webkit-backdrop-filter:blur(16px);
-      background:rgba(4,8,20,.72);
+      backdrop-filter:blur(18px);
+      -webkit-backdrop-filter:blur(18px);
+      background:rgba(4,8,20,.66);
       border-bottom:1px solid rgba(255,255,255,.05);
     }
 
@@ -101,14 +94,14 @@
     }
 
     .brand-mark{
-      width:54px;
-      height:54px;
-      border-radius:16px;
+      width:56px;
+      height:56px;
+      border-radius:18px;
+      overflow:hidden;
       display:grid;
       place-items:center;
-      overflow:hidden;
       background:linear-gradient(135deg,var(--cyan),var(--blue));
-      box-shadow:0 12px 28px rgba(106,167,255,.24);
+      box-shadow:0 14px 32px rgba(106,167,255,.28);
       flex-shrink:0;
     }
 
@@ -119,9 +112,9 @@
     }
 
     .brand-fallback{
-      font-size:1.15rem;
       font-weight:900;
-      color:#07111f;
+      color:#04101c;
+      font-size:1.2rem;
       letter-spacing:.04em;
     }
 
@@ -132,7 +125,7 @@
     .brand-copy h1{
       margin:0;
       font-size:1rem;
-      line-height:1.15;
+      line-height:1.14;
       letter-spacing:.01em;
     }
 
@@ -160,7 +153,7 @@
       border:1px solid transparent;
       transition:.18s ease;
       font-size:.93rem;
-      font-weight:700;
+      font-weight:800;
     }
 
     .nav a:hover{
@@ -171,9 +164,8 @@
 
     .nav .cta{
       color:#06101f;
-      font-weight:900;
       background:linear-gradient(135deg,var(--cyan),var(--blue));
-      box-shadow:0 14px 32px rgba(106,167,255,.24);
+      box-shadow:0 14px 34px rgba(106,167,255,.24);
     }
 
     .hero{
@@ -182,47 +174,47 @@
 
     .hero-shell{
       display:grid;
-      grid-template-columns:minmax(0,1.16fr) minmax(340px,.84fr);
+      grid-template-columns:minmax(0,1.12fr) minmax(340px,.88fr);
       gap:22px;
       align-items:start;
     }
 
     .card{
+      position:relative;
+      overflow:hidden;
       background:
         linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.01)),
-        linear-gradient(180deg, rgba(16,27,58,.82), rgba(7,13,31,.94));
+        linear-gradient(180deg, rgba(12,22,50,.82), rgba(5,11,28,.96));
       border:1px solid var(--line);
-      box-shadow:var(--shadow);
       border-radius:var(--radius-xl);
+      box-shadow:var(--shadow);
     }
 
     .hero-card{
-      padding:38px;
-      position:relative;
-      overflow:hidden;
+      padding:40px;
+      min-height:100%;
     }
 
     .hero-card::before{
       content:"";
       position:absolute;
-      right:-70px;
-      top:-70px;
-      width:220px;
-      height:220px;
+      right:-80px;
+      top:-80px;
+      width:240px;
+      height:240px;
       border-radius:50%;
-      background:radial-gradient(circle, rgba(115,244,255,.16), transparent 68%);
+      background:radial-gradient(circle, rgba(115,244,255,.18), transparent 68%);
       pointer-events:none;
     }
 
-    .hero-card::after{
-      content:"";
+    .hero-card .glow{
       position:absolute;
       left:-70px;
       bottom:-70px;
       width:220px;
       height:220px;
       border-radius:50%;
-      background:radial-gradient(circle, rgba(124,255,199,.08), transparent 68%);
+      background:radial-gradient(circle, rgba(124,255,199,.08), transparent 70%);
       pointer-events:none;
     }
 
@@ -236,7 +228,7 @@
       border:1px solid rgba(255,255,255,.08);
       color:var(--cyan);
       font-size:.82rem;
-      font-weight:800;
+      font-weight:900;
       letter-spacing:.05em;
       text-transform:uppercase;
       margin-bottom:18px;
@@ -244,9 +236,9 @@
 
     .hero-card h2{
       margin:0 0 14px;
-      font-size:clamp(2.25rem, 5vw, 4.9rem);
-      line-height:.96;
-      letter-spacing:-.05em;
+      font-size:clamp(2.35rem, 5vw, 5.1rem);
+      line-height:.94;
+      letter-spacing:-.055em;
       max-width:780px;
     }
 
@@ -254,7 +246,7 @@
       margin:0;
       color:var(--muted);
       font-size:1.04rem;
-      line-height:1.74;
+      line-height:1.78;
       max-width:760px;
     }
 
@@ -270,11 +262,11 @@
       align-items:center;
       justify-content:center;
       gap:10px;
-      min-height:54px;
+      min-height:56px;
       padding:0 22px;
-      border-radius:16px;
+      border-radius:17px;
       font-weight:900;
-      transition:transform .18s ease, box-shadow .18s ease, background .18s ease, border-color .18s ease;
+      transition:transform .18s ease, box-shadow .18s ease, background .18s ease, filter .18s ease;
       border:1px solid transparent;
       cursor:pointer;
       text-align:center;
@@ -282,12 +274,13 @@
 
     .btn:hover{
       transform:translateY(-1px);
+      filter:brightness(1.03);
     }
 
     .btn-primary{
       color:#04101c;
       background:linear-gradient(135deg,var(--cyan),var(--blue));
-      box-shadow:0 16px 38px rgba(106,167,255,.22);
+      box-shadow:0 18px 40px rgba(106,167,255,.24);
     }
 
     .btn-secondary{
@@ -315,7 +308,6 @@
       display:block;
       font-size:1rem;
       margin-bottom:7px;
-      letter-spacing:-.01em;
     }
 
     .impact-mini span{
@@ -332,138 +324,71 @@
       gap:18px;
     }
 
-    .qr-card{
-      padding:26px;
+    .spotlight-card{
+      padding:22px;
     }
 
-    .qr-card h3{
+    .spotlight-card h3{
       margin:0 0 10px;
-      font-size:1.3rem;
+      font-size:1.34rem;
       letter-spacing:-.02em;
     }
 
-    .qr-card p{
+    .spotlight-card p{
       margin:0;
       color:var(--muted);
-      line-height:1.65;
+      line-height:1.66;
     }
 
-    .qr-stack{
-      display:grid;
-      gap:16px;
+    .spotlight-media{
       margin-top:18px;
-    }
-
-    .donation-feature-card{
-      position:relative;
-      overflow:hidden;
       border-radius:24px;
+      overflow:hidden;
       border:1px solid rgba(255,255,255,.08);
-      background:
-        radial-gradient(circle at top left, rgba(255,255,255,.22), transparent 28%),
-        linear-gradient(135deg, rgba(106,167,255,.22), rgba(115,244,255,.16));
+      background:linear-gradient(135deg, rgba(255,255,255,.08), rgba(255,255,255,.03));
       box-shadow:var(--shadow-soft);
-      min-height:220px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding:16px;
     }
 
-    .donation-feature-card img{
+    .spotlight-media img{
       width:100%;
       height:auto;
-      max-height:340px;
+      max-height:520px;
       object-fit:contain;
-      border-radius:18px;
-      box-shadow:0 14px 34px rgba(0,0,0,.18);
-      background:rgba(255,255,255,.08);
+      background:rgba(255,255,255,.12);
     }
 
-    .donation-feature-fallback{
+    .spotlight-fallback{
       display:none;
-      width:100%;
-      min-height:180px;
-      border-radius:18px;
-      border:2px dashed rgba(255,255,255,.14);
+      min-height:240px;
       align-items:center;
       justify-content:center;
       text-align:center;
-      padding:22px;
+      padding:24px;
       color:var(--text);
+      font-weight:900;
       line-height:1.6;
-      font-weight:800;
-      background:rgba(255,255,255,.04);
+      background:rgba(255,255,255,.06);
     }
 
-    .donation-feature-copy{
+    .spotlight-copy{
+      margin-top:16px;
       padding:18px;
       border-radius:20px;
-      background:rgba(255,255,255,.03);
+      background:rgba(255,255,255,.035);
       border:1px solid rgba(255,255,255,.06);
     }
 
-    .donation-feature-copy strong{
+    .spotlight-copy strong{
       display:block;
       margin-bottom:8px;
       font-size:1rem;
-      letter-spacing:-.01em;
     }
 
-    .donation-feature-copy span{
+    .spotlight-copy span{
       display:block;
       color:var(--muted);
       line-height:1.62;
       font-size:.93rem;
-    }
-
-    .qr-frame{
-      border-radius:24px;
-      padding:18px;
-      background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
-      border:1px solid rgba(255,255,255,.08);
-      box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
-    }
-
-    .qr-box{
-      width:100%;
-      aspect-ratio:1/1;
-      border-radius:20px;
-      background:linear-gradient(180deg,#ffffff,#eef5ff);
-      display:grid;
-      place-items:center;
-      overflow:hidden;
-      box-shadow:0 16px 44px rgba(0,0,0,.22);
-      position:relative;
-    }
-
-    .qr-box img{
-      width:100%;
-      height:100%;
-      object-fit:contain;
-      background:#fff;
-      padding:12px;
-    }
-
-    .qr-fallback{
-      width:100%;
-      height:100%;
-      display:none;
-      place-items:center;
-      text-align:center;
-      padding:24px;
-      color:#091126;
-      font-weight:800;
-      border:2px dashed rgba(9,17,38,.16);
-      border-radius:18px;
-      line-height:1.5;
-    }
-
-    .scan-note{
-      color:var(--muted);
-      text-align:center;
-      font-size:.92rem;
-      line-height:1.55;
     }
 
     .link-card{
@@ -475,7 +400,6 @@
     .link-card h4{
       margin:0;
       font-size:1.04rem;
-      letter-spacing:-.01em;
     }
 
     .link-card p{
@@ -555,7 +479,6 @@
     .feature-card h4{
       margin:0 0 10px;
       font-size:1.06rem;
-      letter-spacing:-.01em;
     }
 
     .feature-card p{
@@ -578,7 +501,6 @@
     .why-card h3{
       margin:0 0 12px;
       font-size:1.46rem;
-      letter-spacing:-.02em;
     }
 
     .why-card p{
@@ -704,7 +626,7 @@
       }
 
       .hero-card,
-      .qr-card,
+      .spotlight-card,
       .link-card,
       .section-card,
       .why-card,
@@ -727,10 +649,6 @@
 
       .btn{
         width:100%;
-      }
-
-      .donation-feature-card{
-        min-height:180px;
       }
     }
   </style>
@@ -769,6 +687,7 @@
       <div class="shell hero-shell">
         <div>
           <section class="card hero-card">
+            <div class="glow"></div>
             <div class="eyebrow">Community Transportation Support</div>
 
             <h2>Help us remove transportation barriers.</h2>
@@ -789,8 +708,8 @@
                 Donate Now
               </a>
 
-              <a class="btn btn-secondary" href="#qr-donate">
-                Scan QR Code
+              <a class="btn btn-secondary" href="#donate">
+                View Donation Card
               </a>
             </div>
           </section>
@@ -815,50 +734,29 @@
 
         <aside>
           <div class="sticky-box">
-            <section class="card qr-card" id="qr-donate">
-              <h3>Scan to Donate</h3>
+            <section class="card spotlight-card" id="donate">
+              <h3>Featured Donation Card</h3>
               <p>
-                Use your phone camera to scan the QR code, view the foundation donation card, or tap the secure donation button below.
+                This section now uses your donation image directly and removes the separate QR code section for a cleaner, more professional presentation.
               </p>
 
-              <div class="qr-stack">
-                <div class="donation-feature-card">
-                  <img
-                    src="/images/foundation-donation-card.png"
-                    alt="Harvey Transportation Assistance Foundation donation card with logo and scan-to-donate QR code"
-                    onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-                  />
-                  <div class="donation-feature-fallback">
-                    Add your donation card image at<br />
-                    <strong>/images/foundation-donation-card.png</strong>
-                  </div>
+              <div class="spotlight-media">
+                <img
+                  src="/images/foundation-donation-card.png"
+                  alt="Harvey Transportation Assistance Foundation donation card"
+                  onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                />
+                <div class="spotlight-fallback">
+                  Add your image at<br />
+                  <strong>/images/foundation-donation-card.png</strong>
                 </div>
+              </div>
 
-                <div class="donation-feature-copy">
-                  <strong>Foundation Donation Card</strong>
-                  <span>
-                    This featured card gives the QR section a cleaner, more professional visual presentation
-                    and makes the donation flow feel more polished for visitors on mobile and desktop.
-                  </span>
-                </div>
-
-                <div class="qr-frame">
-                  <div class="qr-box">
-                    <img
-                      src="/images/foundation-qr.png"
-                      alt="QR code for Harvey Transportation Assistance Foundation donation page"
-                      onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';"
-                    />
-                    <div class="qr-fallback">
-                      Add your QR image at<br />
-                      <strong>/images/foundation-qr.png</strong>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="scan-note">
-                  The donation card and QR block stay together for a more premium, futuristic giving experience.
-                </div>
+              <div class="spotlight-copy">
+                <strong>Support Transportation Access</strong>
+                <span>
+                  Share this donation card with supporters and community partners to highlight your foundation in a more polished, futuristic way.
+                </span>
               </div>
 
               <div style="margin-top:18px;">
@@ -874,7 +772,7 @@
               </div>
             </section>
 
-            <section class="card link-card" id="donate">
+            <section class="card link-card">
               <h4>Secure Donation Link</h4>
               <p>
                 Share this direct donation page with supporters, partners, and community members.
@@ -984,9 +882,9 @@
 
             <a
               class="btn btn-secondary"
-              href="#qr-donate"
+              href="#donate"
             >
-              Scan QR Code
+              View Donation Card
             </a>
           </div>
         </section>
@@ -1012,4 +910,4 @@
     </div>
   </footer>
 </body>
-                </html>
+</html>
