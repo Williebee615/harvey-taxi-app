@@ -9,7 +9,7 @@
   <title>Harvey Taxi — Request Ride</title>
   <meta
     name="description"
-    content="Harvey Taxi futuristic request ride page with rider access, Google Maps live location, fare estimate, payment authorization, and dispatch request flow."
+    content="Harvey Taxi futuristic request ride page with rider access, live Google Maps pickup preview, fare estimate, payment authorization, and dispatch request flow."
   />
   <meta name="theme-color" content="#07111f" />
 
@@ -29,7 +29,6 @@
       --green:#6dffb3;
       --gold:#ffd76a;
       --danger:#ff7e97;
-      --ink:#07121f;
       --shadow:0 20px 70px rgba(0,0,0,.35);
       --max:1180px;
       --ok-bg:rgba(109,255,179,.10);
@@ -79,8 +78,11 @@
     }
 
     .brand-wrap{ display:flex; align-items:center; gap:12px; min-width:0; }
+
     .logo-dot{
-      width:12px; height:12px; border-radius:50%;
+      width:12px;
+      height:12px;
+      border-radius:50%;
       background:linear-gradient(135deg,var(--cyan),var(--blue));
       box-shadow:0 0 18px rgba(99,245,255,.55);
       flex-shrink:0;
@@ -91,6 +93,7 @@
     .brand-sub{ font-size:11px; color:var(--muted); letter-spacing:.08em; text-transform:uppercase; }
 
     .top-actions{ display:flex; gap:10px; flex-wrap:wrap; }
+
     .top-chip{
       padding:10px 14px;
       border-radius:999px;
@@ -102,7 +105,11 @@
       transition:.18s ease;
       cursor:pointer;
     }
-    .top-chip:hover{ color:#fff; background:rgba(255,255,255,.06); }
+
+    .top-chip:hover{
+      color:#fff;
+      background:rgba(255,255,255,.06);
+    }
 
     .hero{
       position:relative;
@@ -120,8 +127,11 @@
     .hero::before{
       content:"";
       position:absolute;
-      top:-70px; right:-70px;
-      width:260px; height:260px; border-radius:50%;
+      top:-70px;
+      right:-70px;
+      width:260px;
+      height:260px;
+      border-radius:50%;
       background:radial-gradient(circle,rgba(99,245,255,.16),transparent 65%);
       pointer-events:none;
     }
@@ -129,8 +139,11 @@
     .hero::after{
       content:"";
       position:absolute;
-      left:-70px; bottom:-70px;
-      width:220px; height:220px; border-radius:50%;
+      left:-70px;
+      bottom:-70px;
+      width:220px;
+      height:220px;
+      border-radius:50%;
       background:radial-gradient(circle,rgba(94,160,255,.10),transparent 65%);
       pointer-events:none;
     }
@@ -153,7 +166,12 @@
       margin-bottom:14px;
     }
 
-    .welcome h1{ font-size:42px; line-height:1.04; margin-bottom:10px; }
+    .welcome h1{
+      font-size:42px;
+      line-height:1.04;
+      margin-bottom:10px;
+    }
+
     .welcome p{
       color:var(--muted);
       font-size:16px;
@@ -172,7 +190,12 @@
       background:linear-gradient(135deg,rgba(127,123,255,.16),rgba(99,245,255,.08));
     }
 
-    .mode-banner strong{ display:block; margin-bottom:8px; font-size:16px; }
+    .mode-banner strong{
+      display:block;
+      margin-bottom:8px;
+      font-size:16px;
+    }
+
     .mode-banner span{
       color:var(--muted);
       line-height:1.7;
@@ -180,7 +203,14 @@
       display:block;
     }
 
-    .chip-row{ display:flex; flex-wrap:wrap; gap:12px; margin-top:18px; position:relative; z-index:2; }
+    .chip-row{
+      display:flex;
+      flex-wrap:wrap;
+      gap:12px;
+      margin-top:18px;
+      position:relative;
+      z-index:2;
+    }
 
     .action-chip{
       padding:14px 16px;
@@ -222,7 +252,11 @@
       margin-bottom:16px;
     }
 
-    .section-header h2{ font-size:28px; margin-bottom:4px; }
+    .section-header h2{
+      font-size:28px;
+      margin-bottom:4px;
+    }
+
     .section-header p{
       color:var(--muted);
       font-size:14px;
@@ -248,7 +282,11 @@
       background:rgba(99,245,255,.12);
     }
 
-    .status-strip{ display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
+    .status-strip{
+      display:grid;
+      grid-template-columns:repeat(2,1fr);
+      gap:12px;
+    }
 
     .status-card{
       padding:16px;
@@ -257,7 +295,11 @@
       background:rgba(255,255,255,.03);
     }
 
-    .status-card h3{ font-size:15px; margin-bottom:8px; }
+    .status-card h3{
+      font-size:15px;
+      margin-bottom:8px;
+    }
+
     .status-card p{
       color:var(--muted);
       font-size:14px;
@@ -298,7 +340,9 @@
       letter-spacing:.05em;
     }
 
-    .input, select, textarea{
+    .input,
+    select,
+    textarea{
       width:100%;
       border:none;
       outline:none;
@@ -314,8 +358,18 @@
     select{ appearance:none; }
     textarea{ min-height:110px; resize:vertical; }
 
-    .split{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-    .pill-row{ display:flex; flex-wrap:wrap; gap:10px; margin-top:4px; }
+    .split{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:14px;
+    }
+
+    .pill-row{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      margin-top:4px;
+    }
 
     .pill{
       border:1px solid rgba(255,255,255,.08);
@@ -328,7 +382,11 @@
       transition:.2s ease;
     }
 
-    .pill:hover{ border-color:var(--line-strong); background:rgba(255,255,255,.07); }
+    .pill:hover{
+      border-color:var(--line-strong);
+      background:rgba(255,255,255,.07);
+    }
+
     .pill.active{
       border-color:rgba(99,245,255,.42);
       background:linear-gradient(135deg,rgba(99,245,255,.12),rgba(94,160,255,.10));
@@ -346,7 +404,12 @@
       font-size:14px;
     }
 
-    .account-actions{ display:flex; flex-wrap:wrap; gap:12px; margin-top:18px; }
+    .account-actions{
+      display:flex;
+      flex-wrap:wrap;
+      gap:12px;
+      margin-top:18px;
+    }
 
     .btn{
       padding:14px 18px;
@@ -366,16 +429,39 @@
       text-decoration:none;
     }
 
-    .btn:hover{ transform:translateY(-1px); background:rgba(255,255,255,.06); }
-    .btn.primary{ background:linear-gradient(135deg,var(--cyan),var(--blue)); color:#07121f; border:none; flex:1; }
-    .btn.secondary{ background:rgba(255,255,255,.05); color:var(--text); border:1px solid var(--line); flex:1; }
-    .btn.autonomous-primary{ background:linear-gradient(90deg,#7f7bff,#63f5ff); color:#041224; border:none; }
+    .btn:hover{
+      transform:translateY(-1px);
+      background:rgba(255,255,255,.06);
+    }
+
+    .btn.primary{
+      background:linear-gradient(135deg,var(--cyan),var(--blue));
+      color:#07121f;
+      border:none;
+      flex:1;
+    }
+
+    .btn.secondary{
+      background:rgba(255,255,255,.05);
+      color:var(--text);
+      border:1px solid var(--line);
+      flex:1;
+    }
+
+    .btn.autonomous-primary{
+      background:linear-gradient(90deg,#7f7bff,#63f5ff);
+      color:#041224;
+      border:none;
+    }
+
     .btn.ghost{ background:transparent; }
 
     .loading{ pointer-events:none; opacity:.86; }
+
     .loading::after{
       content:"";
-      width:16px; height:16px;
+      width:16px;
+      height:16px;
       border:2px solid rgba(255,255,255,.32);
       border-top-color:rgba(255,255,255,.96);
       border-radius:50%;
@@ -385,7 +471,7 @@
       animation:spin .7s linear infinite;
     }
 
-    @keyframes spin{ to{transform:rotate(360deg);} }
+    @keyframes spin{ to{ transform:rotate(360deg); } }
 
     .section-stack{ display:grid; gap:18px; }
 
@@ -398,7 +484,11 @@
         var(--panel2);
     }
 
-    .estimate-panel h3{ font-size:22px; margin-bottom:8px; }
+    .estimate-panel h3{
+      font-size:22px;
+      margin-bottom:8px;
+    }
+
     .estimate-panel p{
       color:var(--muted);
       font-size:14px;
@@ -421,8 +511,19 @@
       text-align:center;
     }
 
-    .metric .k{ color:var(--muted); font-size:12px; margin-bottom:6px; text-transform:uppercase; letter-spacing:.05em; }
-    .metric .v{ font-size:16px; font-weight:800; line-height:1.4; }
+    .metric .k{
+      color:var(--muted);
+      font-size:12px;
+      margin-bottom:6px;
+      text-transform:uppercase;
+      letter-spacing:.05em;
+    }
+
+    .metric .v{
+      font-size:16px;
+      font-weight:800;
+      line-height:1.4;
+    }
 
     .receipt{
       margin-top:12px;
@@ -434,7 +535,8 @@
       font-size:14px;
     }
 
-    .result, .error{
+    .result,
+    .error{
       margin-top:16px;
       display:none;
       padding:16px;
@@ -466,7 +568,11 @@
       font-size:14px;
     }
 
-    .notice strong{ color:var(--text); display:block; margin-bottom:6px; }
+    .notice strong{
+      color:var(--text);
+      display:block;
+      margin-bottom:6px;
+    }
 
     .footer{
       margin-top:18px;
@@ -491,7 +597,9 @@
 
     .bottom-nav{
       position:fixed;
-      left:0; right:0; bottom:0;
+      left:0;
+      right:0;
+      bottom:0;
       background:rgba(6,12,26,.96);
       backdrop-filter:blur(14px);
       -webkit-backdrop-filter:blur(14px);
@@ -541,7 +649,11 @@
       text-align:center;
     }
 
-    .location-panel h2{ font-size:32px; margin-bottom:10px; }
+    .location-panel h2{
+      font-size:32px;
+      margin-bottom:10px;
+    }
+
     .location-panel p{
       color:var(--muted);
       line-height:1.7;
@@ -549,7 +661,12 @@
       font-size:15px;
     }
 
-    .location-status{ margin-top:14px; font-size:14px; color:var(--muted); min-height:24px; }
+    .location-status{
+      margin-top:14px;
+      font-size:14px;
+      color:var(--muted);
+      min-height:24px;
+    }
 
     .location-note{
       margin-top:16px;
@@ -579,7 +696,11 @@
       margin-bottom:14px;
     }
 
-    .map-header h3{ font-size:20px; margin-bottom:6px; }
+    .map-header h3{
+      font-size:20px;
+      margin-bottom:6px;
+    }
+
     .map-header p{
       color:var(--muted);
       font-size:14px;
@@ -645,7 +766,12 @@
       word-break:break-word;
     }
 
-    .coord-note{ margin-top:12px; color:var(--muted); font-size:13px; line-height:1.6; }
+    .coord-note{
+      margin-top:12px;
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.6;
+    }
 
     @media(max-width:980px){
       .grid{ grid-template-columns:1fr; }
@@ -665,10 +791,10 @@
       .top-actions{ width:100%; justify-content:flex-start; }
       .top-chip{ flex:1; text-align:center; }
 
-      .hero, .section{ padding:20px; }
+      .hero,.section{ padding:20px; }
       .welcome h1{ font-size:28px; }
 
-      .split, .status-strip, .estimate, .map-readout{ grid-template-columns:1fr; }
+      .split,.status-strip,.estimate,.map-readout{ grid-template-columns:1fr; }
 
       .account-actions{ flex-direction:column; }
       .btn{ width:100%; }
@@ -1024,8 +1150,10 @@
     let geocoder = null;
     let mapsReady = false;
     let mapBootAttempted = false;
+    let mapBootFinished = false;
+    let mapBootTimer = null;
 
-    const GOOGLE_MAPS_BROWSER_KEY = "AIzaSyDUMMY_REPLACE_WITH_REAL_BROWSER_KEY";
+    const GOOGLE_MAPS_BROWSER_KEY = "AIzaSyDXXRPHFCh1-hKyUdh4wBFp9gjEgz_55QE";
 
     const urlParams = new URLSearchParams(window.location.search);
     const requestedMode =
@@ -1100,24 +1228,30 @@
       if(isAutonomousMode){
         document.title = "Harvey Taxi — Request Autonomous Ride";
         heroTitle.textContent = "Request your autonomous ride with confidence.";
-        heroText.textContent = "Harvey Taxi autonomous pilot mode is active. Riders can request AV-ready trips after rider approval and secured payment.";
+        heroText.textContent =
+          "Harvey Taxi autonomous pilot mode is active. Riders can request AV-ready trips after rider approval and secured payment.";
         accessTitle.textContent = "Autonomous pilot access";
-        accessSub.textContent = "Your rider account must be approved before entering the autonomous pilot request flow.";
+        accessSub.textContent =
+          "Your rider account must be approved before entering the autonomous pilot request flow.";
         rideSectionTitle.textContent = "Autonomous ride request";
         estimateSectionTitle.textContent = "Autonomous ride estimate";
-        estimateSub.textContent = "Review your current autonomous ride estimate before submitting your pilot request.";
+        estimateSub.textContent =
+          "Review your current autonomous ride estimate before submitting your pilot request.";
         requestRideBtn.textContent = "Request Autonomous Ride";
         requestRideBtn.classList.add("autonomous-primary");
         modeBanner.style.display = "block";
       } else {
         document.title = "Harvey Taxi — Request Driver Ride";
         heroTitle.textContent = "Request your ride with confidence.";
-        heroText.textContent = "Harvey Taxi launch mode is active. Riders can request driver rides after rider approval and secured payment.";
+        heroText.textContent =
+          "Harvey Taxi launch mode is active. Riders can request driver rides after rider approval and secured payment.";
         accessTitle.textContent = "Rider access";
-        accessSub.textContent = "Your rider account must be approved before you can secure payment and request a ride.";
+        accessSub.textContent =
+          "Your rider account must be approved before you can secure payment and request a ride.";
         rideSectionTitle.textContent = "Ride request";
         estimateSectionTitle.textContent = "Ride estimate";
-        estimateSub.textContent = "Review your current fare estimate before submitting your ride request.";
+        estimateSub.textContent =
+          "Review your current fare estimate before submitting your ride request.";
         requestRideBtn.textContent = "Request Ride";
         requestRideBtn.classList.remove("autonomous-primary");
         modeBanner.style.display = "none";
@@ -1129,7 +1263,8 @@
       distanceValue.textContent = "--";
       durationValue.textContent = "--";
       fareValue.textContent = "--";
-      estimateReceipt.innerHTML = 'No estimate yet. Enter your ride information and tap <strong>Get Fare Estimate</strong>.';
+      estimateReceipt.innerHTML =
+        'No estimate yet. Enter your ride information and tap <strong>Get Fare Estimate</strong>.';
       stepEstimate.classList.remove("active");
       stepPayment.classList.remove("active");
       stepRequest.classList.remove("active");
@@ -1348,7 +1483,12 @@
         }
 
         geocoder.geocode(
-          { location: { lat: currentCoords.latitude, lng: currentCoords.longitude } },
+          {
+            location: {
+              lat: currentCoords.latitude,
+              lng: currentCoords.longitude
+            }
+          },
           (results, status) => {
             if (status === "OK" && Array.isArray(results) && results.length) {
               resolve(results[0].formatted_address || "");
@@ -1429,6 +1569,7 @@
       }
 
       initMap();
+
       setButtonLoading(enableLocationBtn, true, "Enabling Location...", "Enable Location");
       locationStatusText.textContent = "Requesting location access...";
       mapStatusText.textContent = "Requesting live location...";
@@ -1452,9 +1593,13 @@
         (error) => {
           let message = "Location access is required before continuing.";
 
-          if(error && error.code === 1) message = "Location permission was denied. Please allow access and try again.";
-          else if(error && error.code === 2) message = "Your location could not be determined right now. Try again.";
-          else if(error && error.code === 3) message = "Location request timed out. Please try again.";
+          if(error && error.code === 1){
+            message = "Location permission was denied. Please allow access and try again.";
+          } else if(error && error.code === 2){
+            message = "Your location could not be determined right now. Try again.";
+          } else if(error && error.code === 3){
+            message = "Location request timed out. Please try again.";
+          }
 
           setLocationDeniedState(message);
           showError(message);
@@ -1504,9 +1649,13 @@
         (error) => {
           let message = "Unable to refresh live location.";
 
-          if(error && error.code === 1) message = "Location permission was denied.";
-          else if(error && error.code === 2) message = "Current location could not be determined.";
-          else if(error && error.code === 3) message = "Location refresh timed out.";
+          if(error && error.code === 1){
+            message = "Location permission was denied.";
+          } else if(error && error.code === 2){
+            message = "Current location could not be determined.";
+          } else if(error && error.code === 3){
+            message = "Location refresh timed out.";
+          }
 
           showError(message);
           mapStatusText.textContent = message;
@@ -1918,11 +2067,22 @@
       }
     }
 
+    function markMapBootComplete() {
+      mapBootFinished = true;
+      if (mapBootTimer) {
+        clearTimeout(mapBootTimer);
+        mapBootTimer = null;
+      }
+    }
+
     function onGoogleMapsLoaded() {
+      markMapBootComplete();
+
       if (!window.google || !window.google.maps) {
         mapsReady = false;
         setMapLoading("Google Maps failed to load.");
         mapStatusText.textContent = "Google Maps failed to load.";
+        showError("Google Maps loaded incorrectly. Verify your browser key and website restriction.");
         return;
       }
 
@@ -1938,24 +2098,45 @@
     }
 
     function onGoogleMapsError() {
+      markMapBootComplete();
       mapsReady = false;
       setMapLoading("Google Maps could not load. Check your browser key and allowed domain.");
       mapStatusText.textContent = "Google Maps load error.";
       showError("Google Maps could not load. Make sure your browser key and website restriction are correct.");
     }
 
+    window.gm_authFailure = function () {
+      markMapBootComplete();
+      mapsReady = false;
+      setMapLoading("Google Maps authentication failed.");
+      mapStatusText.textContent = "Google Maps auth failure.";
+      showError("Google Maps authentication failed. Your browser key is wrong, restricted to the wrong website, or still not authorized.");
+    };
+
     function loadGoogleMapsScript() {
       if (mapBootAttempted) return;
       mapBootAttempted = true;
 
-      if (!GOOGLE_MAPS_BROWSER_KEY || GOOGLE_MAPS_BROWSER_KEY.includes("REPLACE_WITH_REAL_BROWSER_KEY")) {
+      if (!GOOGLE_MAPS_BROWSER_KEY) {
         onGoogleMapsError();
-        showError("Replace GOOGLE_MAPS_BROWSER_KEY in request-ride.html with your real browser-restricted Google Maps key.");
+        showError("Google Maps browser key is missing.");
         return;
       }
 
       const existing = document.getElementById("harveyGoogleMapsScript");
       if (existing) return;
+
+      setMapLoading("Loading Google Maps...");
+      mapStatusText.textContent = "Initializing Google Maps...";
+
+      mapBootTimer = setTimeout(() => {
+        if (!mapBootFinished) {
+          mapsReady = false;
+          setMapLoading("Google Maps timed out while loading.");
+          mapStatusText.textContent = "Google Maps timeout.";
+          showError("Google Maps timed out. This usually means the browser key restriction, billing, or website authorization is still wrong.");
+        }
+      }, 15000);
 
       const script = document.createElement("script");
       script.id = "harveyGoogleMapsScript";
