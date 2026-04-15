@@ -11,30 +11,33 @@
     name="description"
     content="Support Harvey Transportation Assistance Foundation and help remove transportation barriers for medical appointments, school, work, and essential community mobility."
   />
+  <meta name="theme-color" content="#0b1530" />
 
   <style>
     :root{
-      --bg1:#040814;
-      --bg2:#091126;
-      --bg3:#101935;
+      --bg1:#050916;
+      --bg2:#0a1530;
+      --bg3:#101f42;
       --panel:rgba(10,17,38,.88);
-      --panel2:rgba(15,23,52,.78);
+      --panel2:rgba(14,24,54,.84);
       --panel3:rgba(255,255,255,.04);
-      --line:rgba(122,162,255,.16);
-      --line-strong:rgba(122,162,255,.28);
+      --line:rgba(128,168,255,.14);
+      --line-strong:rgba(128,168,255,.26);
       --text:#f4f7ff;
       --muted:#aab8de;
-      --blue:#5ea0ff;
-      --cyan:#63f5ff;
-      --green:#6dffb3;
-      --gold:#ffd76a;
-      --danger:#ff7e97;
-      --shadow:0 22px 70px rgba(0,0,0,.38);
-      --radius-xl:28px;
-      --radius-lg:20px;
-      --radius-md:14px;
-      --maxw:1240px;
-      --topbar-h:84px;
+      --blue:#6aa7ff;
+      --cyan:#73f4ff;
+      --green:#7cffc7;
+      --gold:#ffd976;
+      --shadow:0 24px 70px rgba(0,0,0,.38);
+      --shadow-soft:0 12px 28px rgba(0,0,0,.18);
+      --radius-xl:30px;
+      --radius-lg:22px;
+      --radius-md:16px;
+      --radius-sm:12px;
+      --maxw:1220px;
+      --topbar-h:82px;
+      --content-pad:clamp(18px,2.2vw,30px);
     }
 
     *{box-sizing:border-box}
@@ -43,12 +46,13 @@
 
     body{
       margin:0;
-      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Helvetica,Arial,sans-serif;
+      font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
       color:var(--text);
       background:
-        radial-gradient(circle at top left, rgba(94,160,255,.15), transparent 24%),
-        radial-gradient(circle at top right, rgba(99,245,255,.10), transparent 22%),
-        linear-gradient(180deg,var(--bg1) 0%,var(--bg2) 45%,var(--bg3) 100%);
+        radial-gradient(circle at top left, rgba(106,167,255,.14), transparent 26%),
+        radial-gradient(circle at top right, rgba(115,244,255,.10), transparent 20%),
+        radial-gradient(circle at 50% 120%, rgba(124,255,199,.08), transparent 24%),
+        linear-gradient(180deg,var(--bg1) 0%,var(--bg2) 46%,var(--bg3) 100%);
       min-height:100vh;
       overflow-x:hidden;
     }
@@ -64,15 +68,16 @@
     }
 
     .shell{
-      width:min(var(--maxw), calc(100% - 32px));
+      width:min(var(--maxw), calc(100% - 28px));
       margin:0 auto;
     }
 
     .topbar{
       position:sticky;
       top:0;
-      z-index:80;
-      backdrop-filter:blur(18px);
+      z-index:90;
+      backdrop-filter:blur(16px);
+      -webkit-backdrop-filter:blur(16px);
       background:rgba(4,8,20,.72);
       border-bottom:1px solid rgba(255,255,255,.05);
     }
@@ -93,17 +98,28 @@
     }
 
     .brand-mark{
-      width:52px;
-      height:52px;
+      width:54px;
+      height:54px;
       border-radius:16px;
       display:grid;
       place-items:center;
+      overflow:hidden;
       background:linear-gradient(135deg,var(--cyan),var(--blue));
-      color:#04101c;
+      box-shadow:0 12px 28px rgba(106,167,255,.24);
+      flex-shrink:0;
+    }
+
+    .brand-mark img{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+    }
+
+    .brand-fallback{
       font-size:1.15rem;
       font-weight:900;
-      box-shadow:0 12px 30px rgba(94,160,255,.28);
-      flex-shrink:0;
+      color:#07111f;
+      letter-spacing:.04em;
     }
 
     .brand-copy{
@@ -113,14 +129,14 @@
     .brand-copy h1{
       margin:0;
       font-size:1rem;
-      line-height:1.1;
-      letter-spacing:.02em;
+      line-height:1.15;
+      letter-spacing:.01em;
     }
 
     .brand-copy p{
       margin:4px 0 0;
       color:var(--muted);
-      font-size:.85rem;
+      font-size:.84rem;
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
@@ -129,7 +145,7 @@
     .nav{
       display:flex;
       align-items:center;
-      gap:12px;
+      gap:10px;
       flex-wrap:wrap;
       justify-content:flex-end;
     }
@@ -139,48 +155,46 @@
       border-radius:999px;
       color:var(--muted);
       border:1px solid transparent;
-      transition:.22s ease;
-      font-size:.94rem;
+      transition:.18s ease;
+      font-size:.93rem;
+      font-weight:700;
     }
 
     .nav a:hover{
       color:var(--text);
       border-color:rgba(255,255,255,.08);
-      background:rgba(255,255,255,.03);
+      background:rgba(255,255,255,.04);
     }
 
     .nav .cta{
-      color:#04101c;
-      font-weight:800;
+      color:#06101f;
+      font-weight:900;
       background:linear-gradient(135deg,var(--cyan),var(--blue));
-      box-shadow:0 14px 34px rgba(94,160,255,.25);
+      box-shadow:0 14px 32px rgba(106,167,255,.24);
     }
 
     .hero{
-      padding:56px 0 24px;
+      padding:42px 0 24px;
     }
 
     .hero-shell{
       display:grid;
-      grid-template-columns:minmax(0, 1.28fr) minmax(320px, .72fr);
-      gap:24px;
+      grid-template-columns:minmax(0,1.2fr) minmax(340px,.8fr);
+      gap:22px;
       align-items:start;
     }
 
-    .hero-main{
-      display:grid;
-      gap:24px;
-    }
-
     .card{
-      background:linear-gradient(180deg, rgba(16,27,58,.82), rgba(7,13,31,.92));
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.01)),
+        linear-gradient(180deg, rgba(16,27,58,.82), rgba(7,13,31,.94));
       border:1px solid var(--line);
       box-shadow:var(--shadow);
       border-radius:var(--radius-xl);
     }
 
     .hero-card{
-      padding:36px;
+      padding:38px;
       position:relative;
       overflow:hidden;
     }
@@ -188,12 +202,24 @@
     .hero-card::before{
       content:"";
       position:absolute;
-      right:-90px;
-      bottom:-90px;
+      right:-70px;
+      top:-70px;
       width:220px;
       height:220px;
       border-radius:50%;
-      background:radial-gradient(circle, rgba(99,245,255,.18), transparent 65%);
+      background:radial-gradient(circle, rgba(115,244,255,.16), transparent 68%);
+      pointer-events:none;
+    }
+
+    .hero-card::after{
+      content:"";
+      position:absolute;
+      left:-70px;
+      bottom:-70px;
+      width:220px;
+      height:220px;
+      border-radius:50%;
+      background:radial-gradient(circle, rgba(124,255,199,.08), transparent 68%);
       pointer-events:none;
     }
 
@@ -201,30 +227,31 @@
       display:inline-flex;
       align-items:center;
       gap:10px;
-      padding:8px 14px;
+      padding:9px 14px;
       border-radius:999px;
       background:rgba(255,255,255,.04);
       border:1px solid rgba(255,255,255,.08);
       color:var(--cyan);
-      font-size:.84rem;
-      letter-spacing:.04em;
+      font-size:.82rem;
+      font-weight:800;
+      letter-spacing:.05em;
       text-transform:uppercase;
       margin-bottom:18px;
     }
 
     .hero-card h2{
       margin:0 0 14px;
-      font-size:clamp(2.15rem, 4.8vw, 4.6rem);
-      line-height:.98;
-      letter-spacing:-.04em;
+      font-size:clamp(2.25rem, 5vw, 4.9rem);
+      line-height:.96;
+      letter-spacing:-.05em;
       max-width:780px;
     }
 
     .hero-card p{
       margin:0;
       color:var(--muted);
-      font-size:1.07rem;
-      line-height:1.72;
+      font-size:1.04rem;
+      line-height:1.74;
       max-width:760px;
     }
 
@@ -243,10 +270,11 @@
       min-height:54px;
       padding:0 22px;
       border-radius:16px;
-      font-weight:800;
-      transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease;
+      font-weight:900;
+      transition:transform .18s ease, box-shadow .18s ease, background .18s ease, border-color .18s ease;
       border:1px solid transparent;
       cursor:pointer;
+      text-align:center;
     }
 
     .btn:hover{
@@ -256,7 +284,7 @@
     .btn-primary{
       color:#04101c;
       background:linear-gradient(135deg,var(--cyan),var(--blue));
-      box-shadow:0 18px 40px rgba(94,160,255,.24);
+      box-shadow:0 16px 38px rgba(106,167,255,.22);
     }
 
     .btn-secondary{
@@ -267,32 +295,31 @@
 
     .impact-strip{
       display:grid;
-      grid-template-columns:repeat(3, 1fr);
+      grid-template-columns:repeat(3,1fr);
       gap:14px;
+      margin-top:18px;
     }
 
     .impact-mini{
-      padding:18px;
-      border-radius:20px;
+      padding:20px;
+      border-radius:22px;
       background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
       border:1px solid rgba(255,255,255,.06);
+      box-shadow:var(--shadow-soft);
     }
 
     .impact-mini strong{
       display:block;
       font-size:1rem;
-      margin-bottom:6px;
+      margin-bottom:7px;
+      letter-spacing:-.01em;
     }
 
     .impact-mini span{
       display:block;
       color:var(--muted);
-      line-height:1.55;
+      line-height:1.58;
       font-size:.94rem;
-    }
-
-    .sticky-column{
-      position:relative;
     }
 
     .sticky-box{
@@ -303,19 +330,19 @@
     }
 
     .qr-card{
-      padding:24px;
+      padding:26px;
     }
 
     .qr-card h3{
       margin:0 0 10px;
-      font-size:1.26rem;
+      font-size:1.3rem;
       letter-spacing:-.02em;
     }
 
     .qr-card p{
       margin:0;
       color:var(--muted);
-      line-height:1.64;
+      line-height:1.65;
     }
 
     .qr-frame{
@@ -329,13 +356,14 @@
 
     .qr-box{
       width:100%;
-      aspect-ratio:1 / 1;
+      aspect-ratio:1/1;
       border-radius:20px;
-      background:linear-gradient(180deg, #ffffff, #edf5ff);
+      background:linear-gradient(180deg,#ffffff,#eef5ff);
       display:grid;
       place-items:center;
       overflow:hidden;
-      box-shadow:0 18px 50px rgba(0,0,0,.24);
+      box-shadow:0 16px 44px rgba(0,0,0,.22);
+      position:relative;
     }
 
     .qr-box img{
@@ -343,12 +371,13 @@
       height:100%;
       object-fit:contain;
       background:#fff;
+      padding:12px;
     }
 
     .qr-fallback{
       width:100%;
       height:100%;
-      display:grid;
+      display:none;
       place-items:center;
       text-align:center;
       padding:24px;
@@ -375,13 +404,14 @@
 
     .link-card h4{
       margin:0;
-      font-size:1.02rem;
+      font-size:1.04rem;
+      letter-spacing:-.01em;
     }
 
     .link-card p{
       margin:0;
       color:var(--muted);
-      line-height:1.6;
+      line-height:1.62;
     }
 
     .donation-link{
@@ -393,7 +423,7 @@
       border:1px solid rgba(255,255,255,.08);
       color:var(--cyan);
       word-break:break-all;
-      font-size:.94rem;
+      font-size:.93rem;
     }
 
     .section{
@@ -401,7 +431,7 @@
     }
 
     .section-card{
-      padding:30px;
+      padding:32px;
     }
 
     .section-head{
@@ -415,20 +445,20 @@
 
     .section-head h3{
       margin:0;
-      font-size:clamp(1.45rem, 2vw, 2rem);
-      letter-spacing:-.02em;
+      font-size:clamp(1.45rem,2vw,2rem);
+      letter-spacing:-.03em;
     }
 
     .section-head p{
       margin:8px 0 0;
       color:var(--muted);
       max-width:760px;
-      line-height:1.65;
+      line-height:1.68;
     }
 
     .grid-3{
       display:grid;
-      grid-template-columns:repeat(3, 1fr);
+      grid-template-columns:repeat(3,1fr);
       gap:16px;
     }
 
@@ -437,29 +467,31 @@
       border-radius:22px;
       background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
       border:1px solid rgba(255,255,255,.06);
+      box-shadow:var(--shadow-soft);
     }
 
     .feature-icon{
-      width:52px;
-      height:52px;
+      width:54px;
+      height:54px;
       border-radius:16px;
       display:grid;
       place-items:center;
       margin-bottom:16px;
       font-size:1.35rem;
-      background:linear-gradient(135deg, rgba(99,245,255,.18), rgba(94,160,255,.16));
-      border:1px solid rgba(99,245,255,.16);
+      background:linear-gradient(135deg, rgba(115,244,255,.18), rgba(106,167,255,.14));
+      border:1px solid rgba(115,244,255,.14);
     }
 
     .feature-card h4{
       margin:0 0 10px;
       font-size:1.06rem;
+      letter-spacing:-.01em;
     }
 
     .feature-card p{
       margin:0;
       color:var(--muted);
-      line-height:1.65;
+      line-height:1.66;
       font-size:.96rem;
     }
 
@@ -470,19 +502,19 @@
     }
 
     .why-card{
-      padding:28px;
+      padding:30px;
     }
 
     .why-card h3{
-      margin:0 0 10px;
-      font-size:1.45rem;
+      margin:0 0 12px;
+      font-size:1.46rem;
       letter-spacing:-.02em;
     }
 
     .why-card p{
       margin:0;
       color:var(--muted);
-      line-height:1.7;
+      line-height:1.72;
     }
 
     .why-list{
@@ -490,7 +522,7 @@
       padding:0;
       list-style:none;
       display:grid;
-      gap:12px;
+      gap:14px;
     }
 
     .why-list li{
@@ -498,29 +530,33 @@
       align-items:flex-start;
       gap:12px;
       color:var(--muted);
-      line-height:1.6;
+      line-height:1.62;
     }
 
     .why-list li::before{
-      content:"•";
-      color:var(--green);
-      font-size:1.4rem;
-      line-height:1;
-      margin-top:-1px;
+      content:"";
+      width:10px;
+      height:10px;
+      border-radius:50%;
+      background:linear-gradient(135deg,var(--green),var(--cyan));
+      box-shadow:0 0 16px rgba(124,255,199,.45);
+      margin-top:8px;
+      flex-shrink:0;
     }
 
     .cta-card{
-      padding:30px;
+      padding:34px;
       display:grid;
-      grid-template-columns:1.15fr .85fr;
+      grid-template-columns:1.1fr .9fr;
       gap:20px;
       align-items:center;
     }
 
     .cta-copy h3{
       margin:0 0 10px;
-      font-size:1.75rem;
-      letter-spacing:-.03em;
+      font-size:1.8rem;
+      letter-spacing:-.04em;
+      line-height:1.05;
     }
 
     .cta-copy p{
@@ -537,7 +573,7 @@
     }
 
     .footer{
-      padding:24px 0 52px;
+      padding:22px 0 50px;
     }
 
     .footer-row{
@@ -552,6 +588,13 @@
 
     .footer-row a{
       color:var(--text);
+      font-weight:700;
+    }
+
+    .footer-links{
+      display:flex;
+      gap:14px;
+      flex-wrap:wrap;
     }
 
     @media (max-width: 1080px){
@@ -564,6 +607,12 @@
       .sticky-box{
         position:static;
       }
+    }
+
+    @media (max-width: 900px){
+      .nav{
+        display:none;
+      }
 
       .grid-3,
       .impact-strip{
@@ -571,23 +620,17 @@
       }
     }
 
-    @media (max-width: 860px){
-      .nav{
-        display:none;
-      }
-
-      .hero{
-        padding-top:30px;
-      }
-    }
-
     @media (max-width: 640px){
       :root{
-        --topbar-h:76px;
+        --topbar-h:74px;
       }
 
       .shell{
         width:min(var(--maxw), calc(100% - 20px));
+      }
+
+      .hero{
+        padding-top:28px;
       }
 
       .hero-card,
@@ -597,7 +640,7 @@
       .why-card,
       .cta-card{
         padding:22px;
-        border-radius:22px;
+        border-radius:24px;
       }
 
       .brand-copy p{
@@ -622,7 +665,14 @@
   <header class="topbar">
     <div class="shell topbar-inner">
       <a href="/" class="brand" aria-label="Harvey home">
-        <div class="brand-mark">HT</div>
+        <div class="brand-mark">
+          <img
+            src="/images/foundation-logo.png"
+            alt="Harvey Transportation Assistance Foundation logo"
+            onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=&quot;brand-fallback&quot;>HT</div>';"
+          />
+        </div>
+
         <div class="brand-copy">
           <h1>Harvey Transportation Assistance Foundation</h1>
           <p>Help us remove transportation barriers</p>
@@ -633,6 +683,7 @@
         <a href="/">Home</a>
         <a href="/request-ride.html">Request Ride</a>
         <a href="/support.html">Support</a>
+        <a href="#impact">Impact</a>
         <a href="#why-give">Why Give</a>
         <a href="#donate" class="cta">Donate Now</a>
       </nav>
@@ -642,9 +693,9 @@
   <main>
     <section class="hero">
       <div class="shell hero-shell">
-        <div class="hero-main">
+        <div>
           <section class="card hero-card">
-            <div class="eyebrow">Community Ride Fund</div>
+            <div class="eyebrow">Community Transportation Support</div>
 
             <h2>Help us remove transportation barriers.</h2>
 
@@ -664,7 +715,10 @@
                 Donate Now
               </a>
 
-              <a class="btn btn-secondary" href="#qr-donate">
+              <a
+                class="btn btn-secondary"
+                href="#qr-donate"
+              >
                 Scan QR Code
               </a>
             </div>
@@ -673,12 +727,12 @@
           <section class="impact-strip">
             <article class="impact-mini card">
               <strong>Medical rides</strong>
-              <span>Support transportation access for healthcare and appointments.</span>
+              <span>Support transportation access for healthcare visits, treatment, and appointments.</span>
             </article>
 
             <article class="impact-mini card">
               <strong>School &amp; work access</strong>
-              <span>Help people reach education and employment opportunities.</span>
+              <span>Help people reach education, training, interviews, and employment opportunities.</span>
             </article>
 
             <article class="impact-mini card">
@@ -688,12 +742,12 @@
           </section>
         </div>
 
-        <aside class="sticky-column">
+        <aside>
           <div class="sticky-box">
             <section class="card qr-card" id="qr-donate">
               <h3>Scan to Donate</h3>
               <p>
-                Use your phone camera to scan the QR code or tap the button below.
+                Use your phone camera to scan the QR code or tap the donation button below.
               </p>
 
               <div class="qr-frame">
@@ -703,15 +757,15 @@
                     alt="QR code for Harvey Transportation Assistance Foundation donation page"
                     onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';"
                   />
-                  <div class="qr-fallback" style="display:none;">
-                    Add your QR code image at<br />
+                  <div class="qr-fallback">
+                    Add your QR image at<br />
                     <strong>/images/foundation-qr.png</strong>
                   </div>
                 </div>
               </div>
 
               <div class="scan-note">
-                The QR card stays visible while people scroll on desktop for faster donations.
+                The donation QR stays visible on desktop so visitors can give faster while they browse.
               </div>
 
               <div style="margin-top:16px;">
@@ -728,9 +782,9 @@
             </section>
 
             <section class="card link-card" id="donate">
-              <h4>Donation Link</h4>
+              <h4>Secure Donation Link</h4>
               <p>
-                Secure donation page for Harvey Transportation Assistance Foundation.
+                Share this direct donation page with supporters, partners, and community members.
               </p>
 
               <a
@@ -763,28 +817,28 @@
           <div class="grid-3">
             <article class="feature-card">
               <div class="feature-icon">🏥</div>
-              <h4>Medical rides</h4>
+              <h4>Medical appointments</h4>
               <p>
-                Support transportation access for healthcare visits, follow-up appointments,
-                treatment schedules, pharmacy access, and essential medical mobility.
+                Support dependable transportation for healthcare access, treatment schedules,
+                follow-up visits, pharmacy needs, and essential care mobility.
               </p>
             </article>
 
             <article class="feature-card">
               <div class="feature-icon">🎓</div>
-              <h4>School &amp; work access</h4>
+              <h4>School and employment</h4>
               <p>
-                Help individuals and families reach education, job opportunities, training,
-                interviews, and employment-related transportation needs with greater reliability.
+                Help remove transportation obstacles that can prevent people from reaching
+                classrooms, job training, interviews, and work opportunities.
               </p>
             </article>
 
             <article class="feature-card">
               <div class="feature-icon">🚘</div>
-              <h4>Community mobility</h4>
+              <h4>Essential community access</h4>
               <p>
-                Strengthen local transportation support where it is needed most and help remove
-                barriers that limit independence, opportunity, and daily stability.
+                Strengthen everyday mobility for individuals and families who need a reliable
+                way to stay connected to services, opportunity, and support systems.
               </p>
             </article>
           </div>
@@ -807,7 +861,8 @@
           <h3>Why it matters</h3>
           <p>
             Transportation is often the missing link between people and opportunity. Access to a ride
-            can help someone reach care, keep a job, stay in school, and remain connected to community resources.
+            can help someone reach care, keep a job, stay in school, and remain connected to the resources
+            that support daily life and long-term stability.
           </p>
         </section>
       </div>
@@ -819,8 +874,8 @@
           <div class="cta-copy">
             <h3>Every contribution helps move someone forward.</h3>
             <p>
-              Join the Harvey Transportation Assistance Foundation mission and help support community
-              transportation access for medical appointments, education, work, and essential daily mobility.
+              Join the Harvey Transportation Assistance Foundation mission and help support
+              transportation access for medical appointments, school, work, and essential community mobility.
             </p>
           </div>
 
@@ -849,7 +904,10 @@
   <footer class="footer">
     <div class="shell footer-row">
       <div>© Harvey Transportation Assistance Foundation</div>
-      <div>
+
+      <div class="footer-links">
+        <a href="/">Home</a>
+        <a href="/support.html">Support</a>
         <a
           href="https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00"
           target="_blank"
@@ -861,4 +919,4 @@
     </div>
   </footer>
 </body>
-  </html>
+</html>
