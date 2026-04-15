@@ -2,14 +2,25 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+  />
   <title>Harvey Taxi — Rider Sign Up</title>
+  <meta
+    name="description"
+    content="Create your Harvey Taxi rider account, track rider approval status, and continue into the Harvey Taxi rider access flow."
+  />
+  <meta name="theme-color" content="#07111f" />
+
   <style>
     :root{
       --bg1:#040814;
       --bg2:#091126;
-      --panel:rgba(10,17,38,.88);
-      --panel2:rgba(15,23,52,.72);
+      --bg3:#101935;
+      --panel:rgba(10,17,38,.90);
+      --panel2:rgba(15,23,52,.74);
+      --glass:rgba(255,255,255,.04);
       --line:rgba(122,162,255,.16);
       --line-strong:rgba(122,162,255,.28);
       --text:#f4f7ff;
@@ -19,10 +30,22 @@
       --green:#6dffb3;
       --danger:#ff7e97;
       --gold:#ffd76a;
+      --ink:#07121f;
       --shadow:0 20px 70px rgba(0,0,0,.35);
+      --shadow-soft:0 10px 30px rgba(0,0,0,.24);
+      --radius:28px;
+      --max:1080px;
     }
 
-    *{box-sizing:border-box;margin:0;padding:0}
+    *{
+      box-sizing:border-box;
+      margin:0;
+      padding:0;
+    }
+
+    html{
+      scroll-behavior:smooth;
+    }
 
     body{
       font-family:Inter,Arial,sans-serif;
@@ -30,12 +53,25 @@
       background:
         radial-gradient(circle at top left, rgba(99,245,255,.12), transparent 28%),
         radial-gradient(circle at top right, rgba(94,160,255,.10), transparent 24%),
-        linear-gradient(160deg,var(--bg1),var(--bg2));
+        radial-gradient(circle at 50% 110%, rgba(109,255,179,.06), transparent 24%),
+        linear-gradient(160deg,var(--bg1),var(--bg2) 50%,var(--bg3));
       min-height:100vh;
+      overflow-x:hidden;
+    }
+
+    a{
+      color:inherit;
+      text-decoration:none;
+    }
+
+    button,
+    input,
+    textarea{
+      font:inherit;
     }
 
     .shell{
-      max-width:920px;
+      max-width:var(--max);
       margin:auto;
       padding:20px 16px 40px;
     }
@@ -47,15 +83,61 @@
       gap:12px;
       margin-bottom:20px;
       flex-wrap:wrap;
+      padding:14px 18px;
+      border:1px solid var(--line);
+      border-radius:999px;
+      background:rgba(7,12,28,.78);
+      backdrop-filter:blur(12px);
+      -webkit-backdrop-filter:blur(12px);
+      box-shadow:var(--shadow-soft);
+      position:sticky;
+      top:12px;
+      z-index:80;
+    }
+
+    .brand-wrap{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      min-width:0;
+    }
+
+    .logo-dot{
+      width:12px;
+      height:12px;
+      border-radius:999px;
+      background:linear-gradient(135deg,var(--cyan),var(--blue));
+      box-shadow:0 0 18px rgba(99,245,255,.55);
+      flex-shrink:0;
+    }
+
+    .brand-stack{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+      min-width:0;
     }
 
     .brand{
-      font-size:1.25rem;
-      font-weight:800;
-      letter-spacing:.4px;
+      font-size:14px;
+      font-weight:900;
+      letter-spacing:.14em;
+      white-space:nowrap;
     }
 
-    .brand span{color:var(--cyan)}
+    .brand-sub{
+      color:var(--muted);
+      font-size:11px;
+      letter-spacing:.08em;
+      text-transform:uppercase;
+      white-space:nowrap;
+    }
+
+    .top-actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+    }
 
     .home-btn{
       text-decoration:none;
@@ -68,30 +150,98 @@
       display:inline-flex;
       align-items:center;
       gap:8px;
+      transition:.18s ease;
+    }
+
+    .home-btn:hover{
+      background:rgba(255,255,255,.07);
+      transform:translateY(-1px);
     }
 
     .hero{
-      background:linear-gradient(180deg,rgba(17,31,66,.88),rgba(8,16,35,.92));
+      background:
+        radial-gradient(circle at top right, rgba(99,245,255,.10), transparent 28%),
+        linear-gradient(180deg,rgba(17,31,66,.88),rgba(8,16,35,.92));
       border:1px solid var(--line);
-      border-radius:28px;
-      padding:22px;
+      border-radius:var(--radius);
+      padding:24px;
       box-shadow:var(--shadow);
       margin-bottom:18px;
+      position:relative;
+      overflow:hidden;
+    }
+
+    .hero::after{
+      content:"";
+      position:absolute;
+      left:-60px;
+      bottom:-60px;
+      width:180px;
+      height:180px;
+      border-radius:50%;
+      background:radial-gradient(circle, rgba(94,160,255,.12), transparent 70%);
+      pointer-events:none;
+    }
+
+    .hero-badge{
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      padding:10px 14px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.08);
+      background:rgba(255,255,255,.04);
+      color:var(--cyan);
+      font-size:12px;
+      font-weight:800;
+      letter-spacing:.05em;
+      text-transform:uppercase;
+      margin-bottom:14px;
     }
 
     .hero h1{
-      font-size:1.7rem;
+      font-size:2rem;
       margin-bottom:8px;
+      line-height:1.05;
+      letter-spacing:-.03em;
     }
 
     .hero p{
       color:var(--muted);
-      line-height:1.55;
+      line-height:1.65;
+      max-width:780px;
+    }
+
+    .hero-points{
+      margin-top:18px;
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:12px;
+    }
+
+    .hero-point{
+      padding:14px;
+      border-radius:18px;
+      border:1px solid rgba(255,255,255,.07);
+      background:rgba(255,255,255,.035);
+    }
+
+    .hero-point strong{
+      display:block;
+      font-size:15px;
+      margin-bottom:6px;
+    }
+
+    .hero-point span{
+      display:block;
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.6;
     }
 
     .grid{
       display:grid;
-      grid-template-columns:1.15fr .85fr;
+      grid-template-columns:1.1fr .9fr;
       gap:18px;
     }
 
@@ -106,14 +256,14 @@
     .section-title{
       font-size:1.08rem;
       font-weight:800;
-      margin-bottom:14px;
+      margin-bottom:10px;
     }
 
     .sub{
       color:var(--muted);
       font-size:.95rem;
       margin-bottom:16px;
-      line-height:1.5;
+      line-height:1.6;
     }
 
     .field{
@@ -128,7 +278,8 @@
       font-weight:700;
     }
 
-    .input, textarea{
+    .input,
+    textarea{
       width:100%;
       background:var(--panel2);
       color:var(--text);
@@ -137,6 +288,13 @@
       padding:14px;
       outline:none;
       font-size:1rem;
+      transition:border-color .18s ease, box-shadow .18s ease;
+    }
+
+    .input:focus,
+    textarea:focus{
+      border-color:rgba(99,245,255,.34);
+      box-shadow:0 0 0 3px rgba(99,245,255,.08);
     }
 
     .input::placeholder,
@@ -174,10 +332,51 @@
       transition:.2s ease;
     }
 
+    .choice:hover{
+      background:rgba(255,255,255,.07);
+      border-color:var(--line-strong);
+    }
+
     .choice.active{
       border-color:rgba(99,245,255,.5);
       background:rgba(99,245,255,.12);
       color:#dfffff;
+    }
+
+    .checklist{
+      display:grid;
+      gap:10px;
+      margin-bottom:16px;
+    }
+
+    .check-item{
+      display:flex;
+      align-items:flex-start;
+      gap:10px;
+      padding:12px 14px;
+      border-radius:16px;
+      border:1px solid rgba(255,255,255,.07);
+      background:rgba(255,255,255,.03);
+    }
+
+    .check-item .icon{
+      flex-shrink:0;
+      width:22px;
+      height:22px;
+      display:grid;
+      place-items:center;
+      border-radius:999px;
+      background:rgba(99,245,255,.12);
+      color:var(--cyan);
+      font-size:12px;
+      font-weight:900;
+      margin-top:1px;
+    }
+
+    .check-item span{
+      color:var(--muted);
+      line-height:1.55;
+      font-size:.92rem;
     }
 
     .status-box{
@@ -198,18 +397,39 @@
       margin-bottom:8px;
     }
 
+    .mini p{
+      color:var(--muted);
+      line-height:1.6;
+      font-size:.92rem;
+    }
+
     .tag{
       display:inline-block;
-      margin-top:8px;
+      margin-top:10px;
       padding:7px 10px;
       border-radius:999px;
       font-size:.8rem;
       font-weight:800;
+      border:1px solid transparent;
     }
 
-    .ok{background:rgba(109,255,179,.12);color:var(--green);border:1px solid rgba(109,255,179,.2)}
-    .warn{background:rgba(255,215,106,.12);color:var(--gold);border:1px solid rgba(255,215,106,.2)}
-    .bad{background:rgba(255,126,151,.12);color:var(--danger);border:1px solid rgba(255,126,151,.2)}
+    .ok{
+      background:rgba(109,255,179,.12);
+      color:var(--green);
+      border-color:rgba(109,255,179,.2);
+    }
+
+    .warn{
+      background:rgba(255,215,106,.12);
+      color:var(--gold);
+      border-color:rgba(255,215,106,.2);
+    }
+
+    .bad{
+      background:rgba(255,126,151,.12);
+      color:var(--danger);
+      border-color:rgba(255,126,151,.2);
+    }
 
     .btn-row{
       display:flex;
@@ -241,9 +461,16 @@
       flex:1;
     }
 
+    .primary:hover,
+    .secondary:hover{
+      transform:translateY(-1px);
+      filter:brightness(1.03);
+    }
+
     button:disabled{
-      opacity:.7;
+      opacity:.72;
       cursor:wait;
+      transform:none;
     }
 
     .result,
@@ -253,7 +480,8 @@
       display:none;
       padding:16px;
       border-radius:18px;
-      line-height:1.6;
+      line-height:1.7;
+      font-size:.95rem;
     }
 
     .result{
@@ -281,7 +509,7 @@
       border:1px solid var(--line);
       background:rgba(255,255,255,.035);
       color:var(--muted);
-      line-height:1.5;
+      line-height:1.6;
       font-size:.92rem;
     }
 
@@ -295,8 +523,63 @@
       text-decoration:underline;
     }
 
-    @media (max-width: 860px){
-      .grid{grid-template-columns:1fr}
+    .status-steps{
+      display:grid;
+      gap:10px;
+      margin-bottom:16px;
+    }
+
+    .status-step{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:12px 14px;
+      border-radius:16px;
+      border:1px solid rgba(255,255,255,.07);
+      background:rgba(255,255,255,.03);
+    }
+
+    .status-step strong{
+      font-size:.92rem;
+    }
+
+    .status-step span{
+      color:var(--muted);
+      font-size:.85rem;
+    }
+
+    .rider-id-box{
+      margin-top:14px;
+      padding:16px;
+      border-radius:18px;
+      background:linear-gradient(135deg,rgba(99,245,255,.10),rgba(94,160,255,.08));
+      border:1px solid rgba(99,245,255,.18);
+      display:none;
+    }
+
+    .rider-id-box strong{
+      display:block;
+      margin-bottom:8px;
+      font-size:.92rem;
+      color:#dfffff;
+    }
+
+    .rider-id-value{
+      font-size:1rem;
+      font-weight:900;
+      letter-spacing:.04em;
+      word-break:break-word;
+    }
+
+    @media (max-width: 980px){
+      .hero-points{
+        grid-template-columns:1fr;
+      }
+
+      .grid{
+        grid-template-columns:1fr;
+      }
     }
 
     @media (max-width: 760px){
@@ -304,21 +587,71 @@
       .doc-row{
         grid-template-columns:1fr;
       }
+
+      .btn-row{
+        flex-direction:column;
+      }
+
+      .topbar{
+        border-radius:24px;
+        align-items:flex-start;
+        flex-direction:column;
+      }
+
+      .top-actions{
+        width:100%;
+      }
+
+      .home-btn{
+        width:100%;
+        justify-content:center;
+      }
+
+      .hero h1{
+        font-size:1.65rem;
+      }
     }
   </style>
 </head>
 <body>
   <div class="shell">
     <div class="topbar">
-      <div class="brand">Harvey <span>Taxi</span></div>
-      <a class="home-btn" href="/">← Return Home</a>
+      <div class="brand-wrap">
+        <div class="logo-dot"></div>
+        <div class="brand-stack">
+          <div class="brand">HARVEY TAXI</div>
+          <div class="brand-sub">Rider onboarding</div>
+        </div>
+      </div>
+
+      <div class="top-actions">
+        <a class="home-btn" href="/">← Return Home</a>
+      </div>
     </div>
 
     <div class="hero">
+      <div class="hero-badge">Secure rider onboarding • Harvey Taxi</div>
       <h1>Rider Sign Up</h1>
       <p>
         Create your Harvey Taxi rider account to begin onboarding. Rider approval status is determined by the platform and must be confirmed before ride requests can move forward.
       </p>
+
+      <div class="hero-points">
+        <div class="hero-point">
+          <strong>Structured rider access</strong>
+          <span>Account creation starts the rider access flow, but approval rules still apply before rides can be requested.</span>
+        </div>
+
+        <div class="hero-point">
+          <strong>Verification-aware onboarding</strong>
+          <span>Your document selection helps organize rider onboarding and future account review steps.</span>
+        </div>
+
+        <div class="hero-point">
+          <strong>Dashboard continuation</strong>
+          <span>Approved riders can move directly into the Harvey Taxi rider dashboard after signup or status check.</span>
+        </div>
+      </div>
     </div>
 
     <div class="grid">
@@ -328,47 +661,62 @@
           Enter your rider information below. Verification document selection is collected for onboarding context.
         </div>
 
+        <div class="checklist">
+          <div class="check-item">
+            <div class="icon">1</div>
+            <span>Create your rider account with your core contact details.</span>
+          </div>
+          <div class="check-item">
+            <div class="icon">2</div>
+            <span>Select your rider verification document type.</span>
+          </div>
+          <div class="check-item">
+            <div class="icon">3</div>
+            <span>Check rider status after signup to confirm approval progress.</span>
+          </div>
+        </div>
+
         <div class="row">
           <div class="field">
             <label for="firstName">First Name</label>
-            <input class="input" id="firstName" placeholder="Enter first name" />
+            <input class="input" id="firstName" placeholder="Enter first name" autocomplete="given-name" />
           </div>
           <div class="field">
             <label for="lastName">Last Name</label>
-            <input class="input" id="lastName" placeholder="Enter last name" />
+            <input class="input" id="lastName" placeholder="Enter last name" autocomplete="family-name" />
           </div>
         </div>
 
         <div class="row">
           <div class="field">
             <label for="email">Email Address</label>
-            <input class="input" id="email" type="email" placeholder="Enter email address" />
+            <input class="input" id="email" type="email" placeholder="Enter email address" autocomplete="email" />
           </div>
           <div class="field">
             <label for="phone">Phone Number</label>
-            <input class="input" id="phone" placeholder="Enter phone number" />
+            <input class="input" id="phone" type="tel" inputmode="tel" placeholder="Enter phone number" autocomplete="tel" />
           </div>
         </div>
 
         <div class="row">
           <div class="field">
             <label for="city">City</label>
-            <input class="input" id="city" placeholder="Enter city" />
+            <input class="input" id="city" placeholder="Enter city" autocomplete="address-level2" />
           </div>
           <div class="field">
             <label for="state">State</label>
-            <input class="input" id="state" maxlength="2" placeholder="TN" />
+            <input class="input" id="state" maxlength="2" placeholder="TN" autocomplete="address-level1" />
           </div>
         </div>
 
         <div class="row">
           <div class="field">
             <label for="password">Password</label>
-            <input class="input" id="password" type="password" placeholder="Create password" />
+            <input class="input" id="password" type="password" placeholder="Create password" autocomplete="new-password" />
           </div>
           <div class="field">
             <label for="confirmPassword">Confirm Password</label>
-            <input class="input" id="confirmPassword" type="password" placeholder="Confirm password" />
+            <input class="input" id="confirmPassword" type="password" placeholder="Confirm password" autocomplete="new-password" />
           </div>
         </div>
 
@@ -396,6 +744,11 @@
           <button class="primary" id="signupBtn" type="button">Create Rider Account</button>
         </div>
 
+        <div class="rider-id-box" id="riderIdBox">
+          <strong>Saved Rider ID</strong>
+          <div class="rider-id-value" id="savedRiderIdValue">--</div>
+        </div>
+
         <div class="info" id="infoBox"></div>
         <div class="result" id="resultBox"></div>
         <div class="error" id="errorBox"></div>
@@ -407,22 +760,46 @@
           This panel reflects backend status. Ride requests require rider approval according to the current Harvey Taxi rules.
         </div>
 
-        <div class="status-box">
-          <div class="mini">
-            <h3>Account Status</h3>
-            <div id="accountText">No rider account checked yet.</div>
-            <div id="accountTag" class="tag warn">Waiting</div>
+        <div class="status-steps">
+          <div class="status-step">
+            <div>
+              <strong>Account Created</strong>
+              <span>Your rider profile is saved in the platform.</span>
+            </div>
+            <div class="tag warn" id="accountCreatedTag">Waiting</div>
           </div>
 
-          <div class="mini">
-            <h3>Verification Method</h3>
-            <div id="documentText">Driver License selected.</div>
+          <div class="status-step">
+            <div>
+              <strong>Verification Context</strong>
+              <span id="documentText">Driver License selected.</span>
+            </div>
             <div class="tag ok">Selected</div>
+          </div>
+
+          <div class="status-step">
+            <div>
+              <strong>Ride Access Approval</strong>
+              <span id="approvalStepText">No rider account checked yet.</span>
+            </div>
+            <div id="accountTag" class="tag warn">Waiting</div>
           </div>
         </div>
 
+        <div class="mini">
+          <h3>Account Status</h3>
+          <p id="accountText">No rider account checked yet.</p>
+        </div>
+
+        <div class="mini">
+          <h3>What happens next</h3>
+          <p>
+            Creating a rider account does not override backend approval rules. Check your saved rider status here after signup. Once approved, you can continue into your rider dashboard and request ride flow.
+          </p>
+        </div>
+
         <div class="note">
-          Creating a rider account does not override backend approval rules. Check your saved rider status here after signup.
+          Harvey Taxi uses a structured rider access flow. Approval status may remain pending until the platform completes review or verification steps.
         </div>
       </div>
     </div>
@@ -430,6 +807,8 @@
 
   <script>
     let selectedDocumentType = "driver_license";
+    let isCreatingAccount = false;
+    let isCheckingStatus = false;
 
     const docButtons = document.querySelectorAll(".choice");
     const signupBtn = document.getElementById("signupBtn");
@@ -440,6 +819,10 @@
     const accountText = document.getElementById("accountText");
     const accountTag = document.getElementById("accountTag");
     const documentText = document.getElementById("documentText");
+    const approvalStepText = document.getElementById("approvalStepText");
+    const accountCreatedTag = document.getElementById("accountCreatedTag");
+    const riderIdBox = document.getElementById("riderIdBox");
+    const savedRiderIdValue = document.getElementById("savedRiderIdValue");
 
     docButtons.forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -474,12 +857,31 @@
       hideBox(infoBox);
     }
 
+    function setButtonLoading(button, loading, loadingText, idleText) {
+      if (loading) {
+        button.disabled = true;
+        button.dataset.originalText = button.textContent;
+        button.textContent = loadingText;
+      } else {
+        button.disabled = false;
+        button.textContent = idleText || button.dataset.originalText || button.textContent;
+      }
+    }
+
+    function normalizePhone(phone) {
+      return String(phone || "").replace(/[^\d+]/g, "").trim();
+    }
+
+    function isEmailLikelyValid(email) {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || "").trim());
+    }
+
     function getFormData() {
       return {
         first_name: document.getElementById("firstName").value.trim(),
         last_name: document.getElementById("lastName").value.trim(),
         email: document.getElementById("email").value.trim().toLowerCase(),
-        phone: document.getElementById("phone").value.trim(),
+        phone: normalizePhone(document.getElementById("phone").value),
         city: document.getElementById("city").value.trim(),
         state: document.getElementById("state").value.trim().toUpperCase(),
         password: document.getElementById("password").value,
@@ -494,10 +896,14 @@
       if (!payload.first_name) return "First name is required.";
       if (!payload.last_name) return "Last name is required.";
       if (!payload.email) return "Email is required.";
+      if (!isEmailLikelyValid(payload.email)) return "Enter a valid email address.";
       if (!payload.phone) return "Phone number is required.";
+      if (payload.phone.length < 10) return "Enter a valid phone number.";
       if (!payload.city) return "City is required.";
       if (!payload.state) return "State is required.";
+      if (payload.state.length !== 2) return "Enter a valid 2-letter state code.";
       if (!payload.password) return "Password is required.";
+      if (payload.password.length < 8) return "Password must be at least 8 characters.";
       if (payload.password !== payload.confirm_password) return "Passwords do not match.";
       return "";
     }
@@ -507,8 +913,14 @@
       try {
         return text ? JSON.parse(text) : {};
       } catch (error) {
-        return { success: false, message: text || "Invalid server response." };
+        return { ok: false, success: false, message: text || "Invalid server response." };
       }
+    }
+
+    function updateSavedRiderId(riderId) {
+      if (!riderId) return;
+      riderIdBox.style.display = "block";
+      savedRiderIdValue.textContent = riderId;
     }
 
     function saveRiderSession(riderId, payload, rider, approved, status) {
@@ -539,6 +951,8 @@
       localStorage.setItem("rider_id", riderProfile.id);
       localStorage.setItem("rider", JSON.stringify(riderProfile));
       localStorage.setItem("riderProfile", JSON.stringify(riderProfile));
+
+      updateSavedRiderId(riderProfile.id);
     }
 
     function goToRiderDashboard(riderId) {
@@ -549,8 +963,59 @@
       window.location.href = target;
     }
 
+    function setAccountStatusDisplay(state) {
+      if (state === "approved") {
+        accountCreatedTag.className = "tag ok";
+        accountCreatedTag.textContent = "Created";
+        accountText.textContent = "Your rider account is approved for ride access.";
+        approvalStepText.textContent = "Rider account is approved for ride access.";
+        accountTag.className = "tag ok";
+        accountTag.textContent = "Approved";
+        return;
+      }
+
+      if (state === "pending") {
+        accountCreatedTag.className = "tag ok";
+        accountCreatedTag.textContent = "Created";
+        accountText.textContent = "Your rider account exists but is still pending approval.";
+        approvalStepText.textContent = "Rider account is waiting for approval.";
+        accountTag.className = "tag warn";
+        accountTag.textContent = "Pending";
+        return;
+      }
+
+      if (state === "missing") {
+        accountCreatedTag.className = "tag warn";
+        accountCreatedTag.textContent = "Waiting";
+        accountText.textContent = "No rider account checked yet.";
+        approvalStepText.textContent = "No rider account checked yet.";
+        accountTag.className = "tag warn";
+        accountTag.textContent = "Waiting";
+        return;
+      }
+
+      if (state === "not_found") {
+        accountCreatedTag.className = "tag bad";
+        accountCreatedTag.textContent = "Missing";
+        accountText.textContent = "Saved rider account could not be found.";
+        approvalStepText.textContent = "Saved rider account could not be found.";
+        accountTag.className = "tag bad";
+        accountTag.textContent = "Not Found";
+        return;
+      }
+
+      accountCreatedTag.className = "tag warn";
+      accountCreatedTag.textContent = "Created";
+      accountText.textContent = "Your rider account is not approved for ride access yet.";
+      approvalStepText.textContent = "Rider account is not approved for ride access.";
+      accountTag.className = "tag bad";
+      accountTag.textContent = "Not Approved";
+    }
+
     async function createRiderAccount() {
       clearMessages();
+
+      if (isCreatingAccount) return;
 
       const payload = getFormData();
       const validationError = validatePayload(payload);
@@ -560,8 +1025,8 @@
         return;
       }
 
-      signupBtn.disabled = true;
-      signupBtn.textContent = "Creating Account...";
+      isCreatingAccount = true;
+      setButtonLoading(signupBtn, true, "Creating Account...", "Create Rider Account");
 
       try {
         const res = await fetch("/api/rider/signup", {
@@ -583,7 +1048,7 @@
 
         const data = await safeJson(res);
 
-        if (!res.ok || !data.success) {
+        if (!res.ok || !(data.ok || data.success)) {
           showBox(
             errorBox,
             data.error || data.message || "Unable to create rider account."
@@ -596,22 +1061,19 @@
         const status =
           rider.approval_status ||
           rider.verification_status ||
+          rider.status ||
           data.status ||
           "pending";
 
         const approved =
           data.approved === true ||
           rider.approved === true ||
+          rider.is_approved === true ||
           String(status).toLowerCase() === "approved" ||
           String(rider.approval_status || "").toLowerCase() === "approved";
 
         saveRiderSession(riderId, payload, rider, approved, status);
-
-        accountText.textContent = approved
-          ? "Your rider account is approved for ride access."
-          : "Your rider account was created and is waiting for approval.";
-        accountTag.className = approved ? "tag ok" : "tag warn";
-        accountTag.textContent = approved ? "Approved" : "Pending";
+        setAccountStatusDisplay(approved ? "approved" : "pending");
 
         showBox(
           resultBox,
@@ -619,7 +1081,7 @@
             <strong>Rider Account Created</strong><br><br>
             <strong>Rider ID:</strong> ${riderId || "Created"}<br>
             <strong>Status:</strong> ${status}<br>
-            <strong>Verification Type:</strong> ${payload.verification_document_type.replace("_", " ")}<br><br>
+            <strong>Verification Type:</strong> ${payload.verification_document_type.replace(/_/g, " ")}<br><br>
             ${
               approved
                 ? "Your rider account is approved. Continue to your rider dashboard."
@@ -646,33 +1108,34 @@
       } catch (error) {
         showBox(errorBox, "Unable to reach the rider signup service.");
       } finally {
-        signupBtn.disabled = false;
-        signupBtn.textContent = "Create Rider Account";
+        isCreatingAccount = false;
+        setButtonLoading(signupBtn, false, "", "Create Rider Account");
       }
     }
 
     async function checkRiderStatus() {
       clearMessages();
 
+      if (isCheckingStatus) return;
+
       const storedRiderId = localStorage.getItem("harveyRiderId");
 
       if (!storedRiderId) {
         showBox(errorBox, "No saved rider account found yet. Create your rider account first.");
+        setAccountStatusDisplay("missing");
         return;
       }
 
-      checkBtn.disabled = true;
-      checkBtn.textContent = "Checking Status...";
+      isCheckingStatus = true;
+      setButtonLoading(checkBtn, true, "Checking Status...", "Check Rider Status");
 
       try {
-        const res = await fetch(`/api/riders/${encodeURIComponent(storedRiderId)}`);
+        const res = await fetch(`/api/rider/${encodeURIComponent(storedRiderId)}/status`);
         const data = await safeJson(res);
 
-        if (!res.ok || !data.success || !data.rider) {
-          accountText.textContent = "Saved rider account could not be found.";
-          accountTag.className = "tag bad";
-          accountTag.textContent = "Not Found";
-          showBox(errorBox, data.message || "Unable to load rider account status.");
+        if (!res.ok || !(data.ok || data.success) || !data.rider) {
+          setAccountStatusDisplay("not_found");
+          showBox(errorBox, data.error || data.message || "Unable to load rider account status.");
           return;
         }
 
@@ -680,10 +1143,12 @@
         const approvalStatus =
           rider.approval_status ||
           rider.verification_status ||
+          rider.status ||
           "pending";
 
         const approved =
           rider.approved === true ||
+          rider.is_approved === true ||
           String(approvalStatus).toLowerCase() === "approved";
 
         const fullName = `${rider.first_name || ""} ${rider.last_name || ""}`.trim();
@@ -706,11 +1171,7 @@
           approvalStatus
         );
 
-        accountText.textContent = approved
-          ? "Your rider account is approved for ride access."
-          : "Your rider account exists but is still pending approval.";
-        accountTag.className = approved ? "tag ok" : "tag warn";
-        accountTag.textContent = approved ? "Approved" : "Pending";
+        setAccountStatusDisplay(approved ? "approved" : "pending");
 
         showBox(
           resultBox,
@@ -737,8 +1198,8 @@
       } catch (error) {
         showBox(errorBox, "Unable to check rider status right now.");
       } finally {
-        checkBtn.disabled = false;
-        checkBtn.textContent = "Check Rider Status";
+        isCheckingStatus = false;
+        setButtonLoading(checkBtn, false, "", "Check Rider Status");
       }
     }
 
@@ -747,10 +1208,16 @@
 
     const savedRiderId = localStorage.getItem("harveyRiderId");
     if (savedRiderId) {
+      updateSavedRiderId(savedRiderId);
       accountText.textContent = "Saved rider account found. You can check rider status now.";
+      approvalStepText.textContent = "Saved rider account found. Status can be checked now.";
       accountTag.className = "tag ok";
       accountTag.textContent = "Saved";
+      accountCreatedTag.className = "tag ok";
+      accountCreatedTag.textContent = "Created";
+    } else {
+      setAccountStatusDisplay("missing");
     }
   </script>
 </body>
-</html>
+            </html>
