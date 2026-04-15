@@ -11,6 +11,7 @@
     name="description"
     content="Harvey Taxi futuristic request ride page with rider access, Google Maps live location, fare estimate, payment authorization, and dispatch request flow."
   />
+  <meta name="theme-color" content="#07111f" />
 
   <style>
     :root{
@@ -28,8 +29,12 @@
       --green:#6dffb3;
       --gold:#ffd76a;
       --danger:#ff7e97;
+      --ink:#07121f;
       --shadow:0 20px 70px rgba(0,0,0,.35);
       --max:1180px;
+      --ok-bg:rgba(109,255,179,.10);
+      --warn-bg:rgba(255,215,106,.10);
+      --bad-bg:rgba(255,126,151,.10);
     }
 
     *{
@@ -81,6 +86,7 @@
       border-radius:999px;
       background:rgba(7,12,28,.78);
       backdrop-filter:blur(12px);
+      -webkit-backdrop-filter:blur(12px);
       margin-bottom:18px;
       box-shadow:var(--shadow);
       position:sticky;
@@ -363,24 +369,25 @@
       font-weight:900;
       letter-spacing:.05em;
       text-transform:uppercase;
+      border:1px solid transparent;
     }
 
     .ok{
-      background:linear-gradient(135deg,var(--green),#89ffd0);
-      color:#062014;
-      border:none;
+      background:var(--ok-bg);
+      color:var(--green);
+      border-color:rgba(109,255,179,.20);
     }
 
     .warn{
-      background:rgba(255,215,106,.12);
+      background:var(--warn-bg);
       color:var(--gold);
-      border:1px solid rgba(255,215,106,.2);
+      border-color:rgba(255,215,106,.20);
     }
 
     .bad{
-      background:rgba(255,126,151,.12);
+      background:var(--bad-bg);
       color:var(--danger);
-      border:1px solid rgba(255,126,151,.2);
+      border-color:rgba(255,126,151,.20);
     }
 
     .ride-card{
@@ -534,6 +541,7 @@
 
     .loading{
       pointer-events:none;
+      opacity:.86;
     }
 
     .loading::after{
@@ -685,6 +693,7 @@
       bottom:0;
       background:rgba(6,12,26,.96);
       backdrop-filter:blur(14px);
+      -webkit-backdrop-filter:blur(14px);
       border-top:1px solid rgba(255,255,255,.08);
       display:flex;
       justify-content:space-around;
@@ -799,7 +808,26 @@
       overflow:hidden;
       border:1px solid rgba(255,255,255,.08);
       box-shadow:0 14px 34px rgba(0,0,0,.20);
-      background:#0d1730;
+      background:
+        radial-gradient(circle at center, rgba(99,245,255,.10), transparent 46%),
+        #0d1730;
+      position:relative;
+    }
+
+    .map-loading{
+      position:absolute;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:var(--muted);
+      font-size:15px;
+      line-height:1.6;
+      text-align:center;
+      padding:20px;
+      background:linear-gradient(180deg,rgba(13,23,48,.30),rgba(13,23,48,.12));
+      z-index:1;
+      pointer-events:none;
     }
 
     .map-readout{
@@ -930,7 +958,6 @@
   </div>
 
   <div class="shell">
-
     <div class="topbar">
       <div class="brand-wrap">
         <div class="logo-dot"></div>
@@ -1029,7 +1056,11 @@
               </div>
             </div>
 
-            <div id="liveMap"></div>
+            <div id="liveMap">
+              <div class="map-loading" id="mapLoadingText">
+                Loading Google Maps...
+              </div>
+            </div>
 
             <div class="account-actions">
               <button class="btn secondary" type="button" id="refreshLocationBtn">Refresh Location</button>
@@ -1244,6 +1275,8 @@
     let liveMap = null;
     let liveMarker = null;
     let liveCircle = null;
+    let geocoder = null;
+    let mapsReady = false;
 
     const urlParams = new URLSearchParams(window.location.search);
     const requestedMode =
@@ -1274,6 +1307,7 @@
 
     const mapStatusText = document.getElementById("mapStatusText");
     const mapCoordText = document.getElementById("mapCoordText");
+    const mapLoadingText = document.getElementById("mapLoadingText");
 
     const estimateBtn = document.getElementById("estimateBtn");
     const authorizeBtn = document.getElementById("authorizeBtn");
@@ -1431,15 +1465,15 @@
     function unlockLocationGate(){
       locationApproved = true;
       locationGate.style.display = "none";
+
       setTimeout(() => {
-        if (liveMap && typeof google !== "undefined") {
-          google.maps.event.trigger(liveMap, "resize");
-          if (currentCoords) {
-            liveMap.setCenter({
-              lat: currentCoords.latitude,
-              lng: currentCoords.longitude
-            });
-          }
+        if (liveMap && mapsReady && currentCoords) {
+          const point = {
+            lat: currentCoords.latitude,
+            lng: currentCoords.longitude
+          };
+          liveMap.setCenter(point);
+          liveMap.setZoom(16);
         }
       }, 120);
     }
@@ -1477,8 +1511,21 @@
       return cleaned.length >= 10;
     }
 
+    function setMapLoading(message) {
+      if (mapLoadingText) {
+        mapLoadingText.textContent = message;
+        mapLoadingText.style.display = "flex";
+      }
+    }
+
+    function hideMapLoading() {
+      if (mapLoadingText) {
+        mapLoadingText.style.display = "none";
+      }
+    }
+
     function initMap(){
-      if (liveMap || !window.google || !window.google.maps) return;
+      if (!mapsReady || liveMap) return;
 
       const fallbackCenter = { lat: 36.1627, lng: -86.7816 };
 
@@ -1489,16 +1536,55 @@
         streetViewControl: false,
         fullscreenControl: true,
         zoomControl: true,
-        gestureHandling: "greedy"
+        gestureHandling: "greedy",
+        clickableIcons: false,
+        disableDefaultUI: false,
+        styles: [
+          {
+            elementType: "geometry",
+            stylers: [{ color: "#0b1732" }]
+          },
+          {
+            elementType: "labels.text.stroke",
+            stylers: [{ color: "#0b1732" }]
+          },
+          {
+            elementType: "labels.text.fill",
+            stylers: [{ color: "#9fb7e6" }]
+          },
+          {
+            featureType: "road",
+            elementType: "geometry",
+            stylers: [{ color: "#24407a" }]
+          },
+          {
+            featureType: "road.highway",
+            elementType: "geometry",
+            stylers: [{ color: "#3558a8" }]
+          },
+          {
+            featureType: "water",
+            elementType: "geometry",
+            stylers: [{ color: "#081224" }]
+          },
+          {
+            featureType: "poi",
+            stylers: [{ visibility: "off" }]
+          }
+        ]
       });
+
+      geocoder = new google.maps.Geocoder();
+      hideMapLoading();
+      mapStatusText.textContent = "Google Maps ready.";
     }
 
     function updateLiveMap(coords){
-      if (!coords || !liveMap || !window.google || !window.google.maps) return;
+      if (!coords || !liveMap || !mapsReady) return;
 
       const lat = Number(coords.latitude);
       const lng = Number(coords.longitude);
-      const accuracy = Number(coords.accuracy || 40);
+      const accuracy = Math.max(15, Number(coords.accuracy || 40));
 
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
 
@@ -1508,7 +1594,16 @@
         liveMarker = new google.maps.Marker({
           map: liveMap,
           position: point,
-          title: "Your live location"
+          title: "Your live location",
+          animation: google.maps.Animation.DROP,
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 10,
+            fillColor: "#63f5ff",
+            fillOpacity: 1,
+            strokeColor: "#ffffff",
+            strokeWeight: 2
+          }
         });
       } else {
         liveMarker.setPosition(point);
@@ -1530,24 +1625,67 @@
         liveCircle.setRadius(accuracy);
       }
 
-      liveMap.setCenter(point);
-      liveMap.setZoom(16);
+      const bounds = new google.maps.LatLngBounds();
+      bounds.extend(point);
+
+      const edgePoint = {
+        lat: lat + 0.0015,
+        lng: lng + 0.0015
+      };
+      bounds.extend(edgePoint);
+
+      liveMap.fitBounds(bounds, 70);
+
+      if (liveMap.getZoom() > 17) {
+        liveMap.setZoom(17);
+      }
 
       mapStatusText.textContent = "Live location active and visible on map.";
       mapCoordText.textContent = "Pickup area confirmed on live map.";
+      hideMapLoading();
     }
 
-    function useLiveLocationForPickup(){
+    function reverseGeocodeCurrentLocation() {
+      return new Promise((resolve) => {
+        if (!geocoder || !currentCoords || !mapsReady) {
+          resolve("");
+          return;
+        }
+
+        geocoder.geocode(
+          {
+            location: {
+              lat: currentCoords.latitude,
+              lng: currentCoords.longitude
+            }
+          },
+          (results, status) => {
+            if (status === "OK" && Array.isArray(results) && results.length) {
+              resolve(results[0].formatted_address || "");
+              return;
+            }
+            resolve("");
+          }
+        );
+      });
+    }
+
+    async function useLiveLocationForPickup(){
+      clearMessages();
+
       if (!currentCoords) {
         showError("Live location is not available yet.");
         return;
       }
 
-      if (pickupInput.value.trim()) {
-        mapCoordText.textContent = "Live pickup location confirmed.";
+      const address = await reverseGeocodeCurrentLocation();
+
+      if (address) {
+        pickupInput.value = address;
+        mapCoordText.textContent = "Live pickup address confirmed from Google Maps.";
         resetEstimateState();
         resetPaymentState();
-        showResult("Your live location has been linked to the pickup flow.");
+        showResult("Your live location has been converted into a pickup address.");
         return;
       }
 
@@ -1595,8 +1733,8 @@
         return;
       }
 
-      if (!window.google || !window.google.maps) {
-        showError("Google Maps is not ready yet. Reload the page and try again.");
+      if (!mapsReady) {
+        showError("Google Maps is not ready yet. Wait a moment and try again.");
         return;
       }
 
@@ -1605,6 +1743,7 @@
       setButtonLoading(enableLocationBtn, true, "Enabling Location...", "Enable Location");
       locationStatusText.textContent = "Requesting location access...";
       mapStatusText.textContent = "Requesting live location...";
+      setMapLoading("Requesting your live location...");
 
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -1634,6 +1773,7 @@
 
           setLocationDeniedState(message);
           showError(message);
+          setMapLoading(message);
           setButtonLoading(enableLocationBtn, false, "", "Enable Location");
         },
         {
@@ -1653,7 +1793,7 @@
         return;
       }
 
-      if (!window.google || !window.google.maps) {
+      if (!mapsReady) {
         showError("Google Maps is not ready yet.");
         return;
       }
@@ -1661,6 +1801,7 @@
       isRefreshingLocation = true;
       setButtonLoading(refreshLocationBtn, true, "Refreshing...", "Refresh Location");
       mapStatusText.textContent = "Refreshing live location...";
+      setMapLoading("Refreshing your live location...");
 
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -1688,6 +1829,7 @@
 
           showError(message);
           mapStatusText.textContent = message;
+          setMapLoading(message);
           isRefreshingLocation = false;
           setButtonLoading(refreshLocationBtn, false, "", "Refresh Location");
         },
@@ -1700,10 +1842,10 @@
     }
 
     async function restoreLocationFromPermission(){
-      if(!navigator.geolocation) return;
-      if (!window.google || !window.google.maps) return;
+      if(!navigator.geolocation || !mapsReady) return;
 
       initMap();
+      setMapLoading("Restoring your last approved live location...");
 
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -1719,6 +1861,7 @@
           localStorage.removeItem("harveyLocationApproved");
           locationGate.style.display = "flex";
           locationApproved = false;
+          setMapLoading("Enable location to activate your live pickup map.");
         },
         {
           enableHighAccuracy:true,
@@ -1746,7 +1889,7 @@
       isCheckingRider = true;
 
       try{
-        const res = await fetch(`/api/riders/${encodeURIComponent(riderId)}`);
+        const res = await fetch(`/api/rider/${encodeURIComponent(riderId)}/status`);
         const data = await res.json().catch(() => ({}));
 
         if(!res.ok || !data.ok || !data.rider){
@@ -1762,7 +1905,7 @@
         const rider = data.rider;
         currentRider = rider;
 
-        if(rider.is_approved && rider.verification_status === "approved"){
+        if(rider.is_approved){
           riderVerified = true;
           verificationText.textContent = isAutonomousMode
             ? "Rider account is approved and ready for autonomous pilot flow."
@@ -1770,7 +1913,7 @@
           verificationTag.className = "tag ok";
           verificationTag.textContent = "Approved";
           stepAccess.classList.add("active");
-        } else if(rider.verification_status === "pending"){
+        } else if((rider.status || "").toLowerCase() === "pending"){
           riderVerified = false;
           verificationText.textContent = "Rider account is still pending approval.";
           verificationTag.className = "tag warn";
@@ -1782,20 +1925,6 @@
           verificationTag.className = "tag bad";
           verificationTag.textContent = "Not Approved";
           resetPaymentState();
-        }
-
-        if(rider.payment_authorized){
-          paymentAuthorized = true;
-          paymentText.textContent = "Payment is already authorized on this rider account.";
-          paymentTag.className = "tag ok";
-          paymentTag.textContent = "Secured";
-          stepPayment.classList.add("active");
-        } else {
-          paymentAuthorized = false;
-          paymentText.textContent = "No payment has been secured yet.";
-          paymentTag.className = "tag warn";
-          paymentTag.textContent = "Not Secured";
-          stepPayment.classList.remove("active");
         }
 
         return riderVerified;
@@ -1836,12 +1965,12 @@
           method:"POST",
           headers:{"Content-Type":"application/json"},
           body:JSON.stringify({
-            pickupAddress: payload.pickupAddress,
-            dropoffAddress: payload.dropoffAddress,
-            rideType: payload.rideType,
-            requestedMode: payload.requestedMode,
-            pickupLat: currentCoords.latitude,
-            pickupLng: currentCoords.longitude
+            pickup_address: payload.pickupAddress,
+            dropoff_address: payload.dropoffAddress,
+            ride_type: payload.rideType,
+            requested_mode: payload.requestedMode,
+            pickup_latitude: currentCoords.latitude,
+            pickup_longitude: currentCoords.longitude
           })
         });
 
@@ -1852,12 +1981,16 @@
           return;
         }
 
+        const fare = data.fare || {};
+        const metrics = data.metrics || {};
+        const payout = data.payout || {};
+
         currentEstimate = {
-          estimatedFare: Number(data.estimated_fare || data.estimate?.estimated_fare || 0),
-          driverPayout: Number(data.driver_payout || data.estimate?.provider_payout_estimate || 0),
-          distanceMiles: Number(data.breakdown?.distance_miles || data.estimate?.distance_miles || 0),
-          durationMinutes: Number(data.breakdown?.duration_minutes || data.estimate?.duration_minutes || 0),
-          rideType: data.ride_type || data.estimate?.ride_type || payload.rideType
+          estimatedFare: Number(fare.estimated_total || 0),
+          driverPayout: Number(payout.driver_payout_estimate || 0),
+          distanceMiles: Number(metrics.distance_miles || fare.distance_miles || 0),
+          durationMinutes: Number(metrics.duration_minutes || fare.duration_minutes || 0),
+          rideType: payload.rideType
         };
 
         distanceValue.textContent = `${currentEstimate.distanceMiles.toFixed(2)} mi`;
@@ -1868,12 +2001,13 @@
           isAutonomousMode ? "Autonomous Ride Preview" : "Ride Preview",
           "",
           `Mode: ${isAutonomousMode ? "Autonomous Pilot" : "Driver Ride"}`,
-          `Pickup: ${data.pickup_address || data.estimate?.pickup_address || payload.pickupAddress}`,
-          `Dropoff: ${data.dropoff_address || data.estimate?.dropoff_address || payload.dropoffAddress}`,
+          `Pickup: ${payload.pickupAddress}`,
+          `Dropoff: ${payload.dropoffAddress}`,
           `Ride Type: ${currentEstimate.rideType}`,
           `Estimated Distance: ${currentEstimate.distanceMiles.toFixed(2)} mi`,
           `Estimated Duration: ${currentEstimate.durationMinutes.toFixed(2)} min`,
-          `Estimated Fare: $${currentEstimate.estimatedFare.toFixed(2)}`
+          `Estimated Fare: $${currentEstimate.estimatedFare.toFixed(2)}`,
+          `Driver Payout Estimate: $${currentEstimate.driverPayout.toFixed(2)}`
         ];
 
         estimateReceipt.innerHTML = escapeHtml(summary.join("\n")).replace(/\n/g, "<br>");
@@ -1927,9 +2061,9 @@
           method:"POST",
           headers:{"Content-Type":"application/json"},
           body:JSON.stringify({
-            riderId: payload.riderId,
-            paymentMethod: payload.paymentMethod,
-            amount: currentEstimate.estimatedFare
+            rider_id: payload.riderId,
+            amount: currentEstimate.estimatedFare,
+            payment_method: payload.paymentMethod
           })
         });
 
@@ -2045,15 +2179,14 @@
           method:"POST",
           headers:{"Content-Type":"application/json"},
           body:JSON.stringify({
-            riderId: payload.riderId,
-            pickupAddress: payload.pickupAddress,
-            dropoffAddress: payload.dropoffAddress,
-            rideType: payload.rideType,
-            scheduledTime: payload.scheduledTime || null,
-            paymentMethod: payload.paymentMethod,
-            requestedMode: payload.requestedMode,
-            pickupLat: currentCoords.latitude,
-            pickupLng: currentCoords.longitude,
+            rider_id: payload.riderId,
+            pickup_address: payload.pickupAddress,
+            dropoff_address: payload.dropoffAddress,
+            ride_type: payload.rideType,
+            scheduled_at: payload.scheduledTime || null,
+            requested_mode: payload.requestedMode,
+            pickup_latitude: currentCoords.latitude,
+            pickup_longitude: currentCoords.longitude,
             notes: compiledNotes
           })
         });
@@ -2066,9 +2199,13 @@
         }
 
         const ride = data.ride || {};
-        const rideId = ride.ride_id || ride.id || "Created";
-        const rideStatus =
-          ride.status || (isAutonomousMode ? "autonomous_queue" : "driver_offered");
+        const rideId = ride.id || "Created";
+        const rideStatus = ride.status || (isAutonomousMode ? "autonomous_queue" : "awaiting_dispatch");
+
+        if (rideId && rideId !== "Created") {
+          localStorage.setItem("harveyActiveRideId", rideId);
+          sessionStorage.setItem("harveyActiveRideId", rideId);
+        }
 
         stepRequest.classList.add("active");
 
@@ -2101,15 +2238,33 @@
     }
 
     function onGoogleMapsLoaded() {
+      if (!window.google || !window.google.maps) {
+        mapsReady = false;
+        setMapLoading("Google Maps failed to load.");
+        mapStatusText.textContent = "Google Maps failed to load.";
+        return;
+      }
+
+      mapsReady = true;
       initMap();
 
       const savedLocationApproved = localStorage.getItem("harveyLocationApproved");
       if(savedLocationApproved === "true"){
         restoreLocationFromPermission();
+      } else {
+        setMapLoading("Enable location to activate your live pickup map.");
       }
     }
 
+    function onGoogleMapsError() {
+      mapsReady = false;
+      setMapLoading("Google Maps could not load. Check your browser key and allowed domain.");
+      mapStatusText.textContent = "Google Maps load error.";
+      showError("Google Maps could not load. Make sure your browser key and website restriction are correct.");
+    }
+
     window.onGoogleMapsLoaded = onGoogleMapsLoaded;
+    window.onGoogleMapsError = onGoogleMapsError;
 
     enableLocationBtn.addEventListener("click", requestLocationAccess);
     refreshLocationBtn.addEventListener("click", refreshLiveLocation);
@@ -2129,10 +2284,12 @@
     }
   </script>
 
+  <!-- Replace YOUR_GOOGLE_MAPS_BROWSER_KEY with your actual browser-restricted key -->
   <script
-    src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_BROWSER_KEY&callback=onGoogleMapsLoaded"
+    src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_BROWSER_KEY&libraries=places&callback=onGoogleMapsLoaded"
     async
     defer
+    onerror="onGoogleMapsError()"
   ></script>
 </body>
-</html>
+          </html>
