@@ -14,8 +14,8 @@
     }
 
     const CONFIG = {
-      storageKey: "harvey_ai_chat_state_v20",
-      uiStateKey: "harvey_ai_chat_ui_state_v20",
+      storageKey: "harvey_ai_chat_state_v21",
+      uiStateKey: "harvey_ai_chat_ui_state_v21",
       endpoint: "/api/ai/support",
       messageLimit: 120,
       rateLimitMs: 900,
@@ -47,9 +47,7 @@
       riderId: readContextValue("rider_id"),
       driverId: readContextValue("driver_id"),
       rideId: readContextValue("ride_id"),
-      lastSentAt: 0,
-      lastQuickAction: null,
-      online: navigator.onLine !== false
+      lastSentAt: 0
     };
 
     function detectPageContext() {
@@ -530,14 +528,6 @@
 
       window.addEventListener("resize", function () {
         scrollToBottom();
-      });
-
-      window.addEventListener("online", function () {
-        state.online = true;
-      });
-
-      window.addEventListener("offline", function () {
-        state.online = false;
       });
     }
 
@@ -1054,7 +1044,7 @@
   min-height: 620px;
   display: none;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
   border-radius: 26px;
   border: 1px solid rgba(120, 170, 255, 0.16);
   background: linear-gradient(180deg, rgba(8,18,36,.98), rgba(5,11,24,.98));
@@ -1239,6 +1229,7 @@
   flex-wrap: wrap;
   gap: 10px;
   padding: 14px 16px 0;
+  margin-bottom: 14px;
 }
 
 .harvey-ai-quick-action {
@@ -1269,9 +1260,37 @@
 }
 
 .harvey-ai-inline-composer {
-  padding: 14px 16px 18px;
-  border-top: 1px solid rgba(255,255,255,.06);
-  background: linear-gradient(180deg, rgba(8,18,36,.98), rgba(7,14,30,.98));
+  position: relative;
+  z-index: 5;
+  margin: 18px 14px 0;
+  padding: 18px;
+  border-radius: 22px;
+  background: linear-gradient(
+    180deg,
+    rgba(10, 24, 50, 0.98),
+    rgba(6, 14, 32, 0.98)
+  );
+  border: 1px solid rgba(110, 231, 255, 0.18);
+  box-shadow:
+    0 18px 40px rgba(0,0,0,.35),
+    0 0 0 1px rgba(110,231,255,.06),
+    inset 0 1px 0 rgba(255,255,255,.04);
+}
+
+.harvey-ai-inline-composer::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(
+    135deg,
+    rgba(110,231,255,.25),
+    rgba(122,162,255,.18),
+    transparent
+  );
+  opacity: 0.35;
+  z-index: -1;
+  pointer-events: none;
 }
 
 .harvey-ai-form {
@@ -1287,10 +1306,10 @@
   resize: none;
   padding: 14px 16px;
   border-radius: 18px;
-  border: 1px solid rgba(110, 231, 255, 0.18);
-  background: rgba(5, 14, 30, 0.96);
+  border: 1px solid rgba(110, 231, 255, 0.35);
+  background: rgba(5, 14, 30, 1);
   color: #f8fbff;
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.45;
   font-weight: 700;
   outline: none;
@@ -1298,7 +1317,7 @@
 }
 
 .harvey-ai-input::placeholder {
-  color: rgba(220, 230, 255, 0.48);
+  color: rgba(220, 230, 255, 0.72);
   font-size: 14px;
   line-height: 1.4;
   font-weight: 600;
@@ -1319,7 +1338,7 @@
   font-weight: 800;
   color: #07131f;
   background: linear-gradient(135deg, #79f0b7 0%, #78f0e9 100%);
-  box-shadow: 0 10px 24px rgba(121, 240, 183, 0.18);
+  box-shadow: 0 12px 30px rgba(121, 240, 183, 0.35);
   -webkit-appearance: none;
   appearance: none;
 }
@@ -1470,6 +1489,12 @@
   }
 }
 
+.harvey-ai-inline-composer,
+.harvey-ai-inline-composer * {
+  position: relative;
+  z-index: 10;
+}
+
 @media (max-width: 900px) {
   .harvey-ai-panel {
     width: calc(100vw - 20px);
@@ -1545,10 +1570,13 @@
 
   .harvey-ai-quick-actions {
     padding: 12px 14px 0;
+    margin-bottom: 12px;
   }
 
   .harvey-ai-inline-composer {
-    padding: 12px 14px 16px;
+    margin: 16px 12px 0;
+    padding: 16px;
+    border-radius: 20px;
   }
 
   .harvey-ai-form {
