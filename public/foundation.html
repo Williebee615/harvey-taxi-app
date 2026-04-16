@@ -18,14 +18,16 @@
       --bg1:#030712;
       --bg2:#09162f;
       --bg3:#112455;
-      --panel:rgba(7,14,32,.82);
-      --panel-2:rgba(12,22,50,.82);
+      --panel:rgba(7,14,32,.84);
+      --panel-2:rgba(12,22,50,.84);
       --line:rgba(126,166,255,.16);
+      --line-strong:rgba(126,166,255,.26);
       --text:#f5f8ff;
       --muted:#adbbde;
       --blue:#6aa7ff;
       --cyan:#73f4ff;
       --green:#7cffc7;
+      --gold:#ffd978;
       --shadow:0 24px 80px rgba(0,0,0,.42);
       --shadow-soft:0 14px 34px rgba(0,0,0,.22);
       --radius-xl:32px;
@@ -51,14 +53,21 @@
       overflow-x:hidden;
     }
 
+    body::before{
+      content:"";
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      background:
+        linear-gradient(rgba(255,255,255,.015), rgba(255,255,255,0)),
+        radial-gradient(circle at 20% 10%, rgba(115,244,255,.06), transparent 22%),
+        radial-gradient(circle at 80% 20%, rgba(106,167,255,.06), transparent 20%);
+      z-index:0;
+    }
+
     a{
       color:inherit;
       text-decoration:none;
-    }
-
-    img{
-      display:block;
-      max-width:100%;
     }
 
     .shell{
@@ -103,6 +112,7 @@
       background:linear-gradient(135deg,var(--cyan),var(--blue));
       box-shadow:0 14px 32px rgba(106,167,255,.28);
       flex-shrink:0;
+      position:relative;
     }
 
     .brand-mark img{
@@ -266,7 +276,7 @@
       padding:0 22px;
       border-radius:17px;
       font-weight:900;
-      transition:transform .18s ease, box-shadow .18s ease, background .18s ease, filter .18s ease;
+      transition:transform .18s ease, box-shadow .18s ease, background .18s ease, filter .18s ease, border-color .18s ease;
       border:1px solid transparent;
       cursor:pointer;
       text-align:center;
@@ -325,7 +335,7 @@
     }
 
     .spotlight-card{
-      padding:22px;
+      padding:24px;
     }
 
     .spotlight-card h3{
@@ -340,34 +350,72 @@
       line-height:1.66;
     }
 
-    .spotlight-media{
+    .link-preview{
       margin-top:18px;
+      padding:22px;
       border-radius:24px;
-      overflow:hidden;
       border:1px solid rgba(255,255,255,.08);
-      background:linear-gradient(135deg, rgba(255,255,255,.08), rgba(255,255,255,.03));
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02)),
+        linear-gradient(135deg, rgba(115,244,255,.08), rgba(106,167,255,.08));
       box-shadow:var(--shadow-soft);
+      position:relative;
+      overflow:hidden;
     }
 
-    .spotlight-media img{
-      width:100%;
-      height:auto;
-      max-height:520px;
-      object-fit:contain;
-      background:rgba(255,255,255,.12);
+    .link-preview::before{
+      content:"";
+      position:absolute;
+      top:-40px;
+      right:-40px;
+      width:140px;
+      height:140px;
+      border-radius:50%;
+      background:radial-gradient(circle, rgba(115,244,255,.15), transparent 70%);
+      pointer-events:none;
     }
 
-    .spotlight-fallback{
-      display:none;
-      min-height:240px;
+    .preview-badge{
+      display:inline-flex;
       align-items:center;
-      justify-content:center;
-      text-align:center;
-      padding:24px;
-      color:var(--text);
-      font-weight:900;
-      line-height:1.6;
+      gap:8px;
+      margin-bottom:14px;
+      padding:8px 12px;
+      border-radius:999px;
       background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.08);
+      color:var(--cyan);
+      font-size:.78rem;
+      font-weight:900;
+      letter-spacing:.05em;
+      text-transform:uppercase;
+    }
+
+    .preview-title{
+      margin:0 0 10px;
+      font-size:1.14rem;
+      line-height:1.3;
+      letter-spacing:-.02em;
+    }
+
+    .preview-copy{
+      color:var(--muted);
+      line-height:1.66;
+      font-size:.95rem;
+      margin:0 0 16px;
+    }
+
+    .preview-link{
+      display:block;
+      width:100%;
+      padding:14px 16px;
+      border-radius:16px;
+      background:rgba(255,255,255,.045);
+      border:1px solid rgba(255,255,255,.08);
+      color:var(--cyan);
+      word-break:break-all;
+      font-size:.92rem;
+      font-weight:700;
     }
 
     .spotlight-copy{
@@ -709,7 +757,7 @@
               </a>
 
               <a class="btn btn-secondary" href="#donate">
-                View Donation Card
+                View Featured Link
               </a>
             </div>
           </section>
@@ -735,39 +783,44 @@
         <aside>
           <div class="sticky-box">
             <section class="card spotlight-card" id="donate">
-              <h3>Featured Donation Card</h3>
+              <h3>Featured Foundation Link</h3>
               <p>
-                This section now uses your donation image directly and removes the separate QR code section for a cleaner, more professional presentation.
+                Your photo has been removed and replaced with a cleaner featured link section for a more professional presentation.
               </p>
 
-              <div class="spotlight-media">
-                <img
-                  src="/images/foundation-donation-card.png"
-                  alt="Harvey Transportation Assistance Foundation donation card"
-                  onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-                />
-                <div class="spotlight-fallback">
-                  Add your image at<br />
-                  <strong>/images/foundation-donation-card.png</strong>
-                </div>
+              <div class="link-preview">
+                <div class="preview-badge">Featured Resource</div>
+                <h4 class="preview-title">Open the shared Harvey Foundation / ChatGPT resource</h4>
+                <p class="preview-copy">
+                  This featured panel highlights your shared link in place of the image area, creating a cleaner and more modern foundation layout.
+                </p>
+
+                <a
+                  class="preview-link"
+                  href="https://chatgpt.com/s/m_69c9f57798d08191803856ce69d9134d"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  https://chatgpt.com/s/m_69c9f57798d08191803856ce69d9134d
+                </a>
               </div>
 
               <div class="spotlight-copy">
-                <strong>Support Transportation Access</strong>
+                <strong>Professional, clean, and shareable</strong>
                 <span>
-                  Share this donation card with supporters and community partners to highlight your foundation in a more polished, futuristic way.
+                  This updated featured section removes the photo-based look and replaces it with a polished link presentation that better matches your futuristic foundation brand.
                 </span>
               </div>
 
               <div style="margin-top:18px;">
                 <a
                   class="btn btn-primary"
-                  href="https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00"
+                  href="https://chatgpt.com/s/m_69c9f57798d08191803856ce69d9134d"
                   target="_blank"
                   rel="noopener noreferrer"
                   style="width:100%;"
                 >
-                  Open Donation Link
+                  Open Featured Link
                 </a>
               </div>
             </section>
@@ -882,9 +935,11 @@
 
             <a
               class="btn btn-secondary"
-              href="#donate"
+              href="https://chatgpt.com/s/m_69c9f57798d08191803856ce69d9134d"
+              target="_blank"
+              rel="noopener noreferrer"
             >
-              View Donation Card
+              Open Featured Link
             </a>
           </div>
         </section>
