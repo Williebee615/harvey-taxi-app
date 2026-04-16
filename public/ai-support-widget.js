@@ -14,8 +14,8 @@
     }
 
     const CONFIG = {
-      storageKey: "harvey_ai_chat_state_v22",
-      uiStateKey: "harvey_ai_chat_ui_state_v22",
+      storageKey: "harvey_ai_chat_state_v23",
+      uiStateKey: "harvey_ai_chat_ui_state_v23",
       endpoint: "/api/ai/support",
       messageLimit: 160,
       rateLimitMs: 900,
@@ -40,9 +40,9 @@
     const savedUiState = loadUiState();
 
     const state = {
-      isOpen: savedUiState.isOpen !== false,
+      isOpen: !!savedUiState.isOpen,
+      isExpanded: !!savedUiState.isExpanded,
       isLoading: false,
-      isExpanded: true,
       messages: loadMessages(),
       riderId: readContextValue("rider_id"),
       driverId: readContextValue("driver_id"),
@@ -77,11 +77,9 @@
 
         const localValue = localStorage.getItem(name);
         if (localValue) return localValue;
+      } catch (_error) {}
 
-        return null;
-      } catch (_error) {
-        return null;
-      }
+      return null;
     }
 
     function safeJsonParse(value, fallback) {
@@ -98,7 +96,7 @@
         if (params.get(CONFIG.autoOpenParam) === "1") return true;
       } catch (_error) {}
 
-      return true;
+      return CONFIG.defaultOpenOnPages.includes(PAGE_CONTEXT);
     }
 
     function getWelcomeMessages() {
@@ -285,15 +283,15 @@
     function loadUiState() {
       try {
         const raw = sessionStorage.getItem(CONFIG.uiStateKey);
-        if (!raw) return { isOpen: true, isExpanded: true };
+        if (!raw) return { isOpen: false, isExpanded: true };
 
         const parsed = safeJsonParse(raw, {});
         return {
-          isOpen: parsed.isOpen !== false,
-          isExpanded: true
+          isOpen: !!parsed.isOpen,
+          isExpanded: parsed.isExpanded !== false
         };
       } catch (_error) {
-        return { isOpen: true, isExpanded: true };
+        return { isOpen: false, isExpanded: true };
       }
     }
 
@@ -303,7 +301,7 @@
           CONFIG.uiStateKey,
           JSON.stringify({
             isOpen: !!state.isOpen,
-            isExpanded: true
+            isExpanded: !!state.isExpanded
           })
         );
       } catch (error) {
@@ -322,7 +320,7 @@
 
     function createWidget() {
       root.innerHTML = `
-        <div class="harvey-ai-widget full-window-mode">
+        <div class="harvey-ai-widget">
           <button
             class="harvey-ai-launch"
             type="button"
@@ -335,7 +333,7 @@
           </button>
 
           <section
-            class="harvey-ai-panel full-window open"
+            class="harvey-ai-panel"
             aria-live="polite"
             aria-label="${escapeHtml(CONFIG.widgetTitle)} chat panel"
           >
@@ -356,6 +354,14 @@
                   title="New chat"
                   aria-label="New chat"
                 >↺</button>
+
+                <button
+                  class="harvey-ai-icon-btn"
+                  type="button"
+                  data-harvey-ai-expand
+                  title="Expand chat"
+                  aria-label="Expand chat"
+                >⤢</button>
 
                 <button
                   class="harvey-ai-icon-btn"
@@ -428,6 +434,7 @@
       const openBtn = root.querySelector("[data-harvey-ai-open]");
       const closeBtn = root.querySelector("[data-harvey-ai-close]");
       const resetBtn = root.querySelector("[data-harvey-ai-reset]");
+      const expandBtn = root.querySelector("[data-harvey-ai-expand]");
       const form = root.querySelector("[data-harvey-ai-form]");
       const input = root.querySelector("[data-harvey-ai-input]");
 
@@ -456,6 +463,12 @@
             autoResizeTextarea(input);
             input.focus();
           }
+        });
+      }
+
+      if (expandBtn) {
+        expandBtn.addEventListener("click", function () {
+          toggleExpand();
         });
       }
 
@@ -514,12 +527,12 @@
     function syncPanelState() {
       const panel = root.querySelector(".harvey-ai-panel");
       const launch = root.querySelector(".harvey-ai-launch");
-      if (!panel) return;
+      if (!panel || !launch) return;
 
       panel.classList.toggle("open", !!state.isOpen);
-      if (launch) {
-        launch.classList.toggle("hidden-launch", !!state.isOpen);
-      }
+      panel.classList.toggle("expanded", !!state.isExpanded);
+      launch.classList.toggle("hidden-launch", !!state.isOpen);
+
       saveUiState();
     }
 
@@ -535,6 +548,11 @@
 
     function close() {
       state.isOpen = false;
+      syncPanelState();
+    }
+
+    function toggleExpand() {
+      state.isExpanded = !state.isExpanded;
       syncPanelState();
     }
 
@@ -917,8 +935,6 @@
 #harvey-ai-chat-root {
   position: fixed !important;
   right: 12px !important;
-  left: 12px !important;
-  top: max(12px, env(safe-area-inset-top, 0px)) !important;
   bottom: calc(88px + env(safe-area-inset-bottom, 0px)) !important;
   z-index: 2147483000 !important;
   font-family: Inter, Arial, sans-serif !important;
@@ -936,14 +952,10 @@
 
 .harvey-ai-widget {
   position: relative;
-  width: 100%;
-  height: 100%;
 }
 
 .harvey-ai-launch {
-  position: absolute;
-  right: 0;
-  bottom: 0;
+  position: relative;
   width: 66px;
   height: 66px;
   border: none;
@@ -968,6 +980,11 @@
   pointer-events: none;
 }
 
+.harvey-ai-launch:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.04);
+}
+
 .harvey-ai-launch-icon {
   position: relative;
   z-index: 2;
@@ -988,19 +1005,12 @@
 }
 
 .harvey-ai-panel {
+  position: fixed;
+  top: max(12px, env(safe-area-inset-top, 0px));
+  right: 12px;
+  bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+  left: 12px;
   display: none;
-}
-
-.harvey-ai-panel.open {
-  display: flex;
-}
-
-.harvey-ai-panel.full-window {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  min-height: 0;
   flex-direction: column;
   overflow: hidden;
   border-radius: 28px;
@@ -1010,6 +1020,18 @@
   box-shadow: 0 28px 70px rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+}
+
+.harvey-ai-panel.open {
+  display: flex;
+}
+
+.harvey-ai-panel:not(.expanded) {
+  top: auto;
+  left: auto;
+  width: min(920px, calc(100vw - 24px));
+  height: min(82vh, 900px);
+  bottom: calc(88px + env(safe-area-inset-bottom, 0px));
 }
 
 .harvey-ai-header {
@@ -1082,8 +1104,7 @@
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 360px 1fr;
-  gap: 0;
+  grid-template-columns: 340px 1fr;
 }
 
 .harvey-ai-sidebar {
@@ -1447,7 +1468,7 @@
   }
 
   .harvey-ai-sidebar {
-    max-height: 38vh;
+    max-height: 34vh;
     border-right: none;
     border-bottom: 1px solid rgba(255,255,255,.06);
   }
@@ -1456,13 +1477,20 @@
 @media (max-width: 640px) {
   #harvey-ai-chat-root {
     right: 8px !important;
-    left: 8px !important;
-    top: max(8px, env(safe-area-inset-top, 0px)) !important;
     bottom: calc(82px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
-  .harvey-ai-panel.full-window {
+  .harvey-ai-panel {
+    right: 8px;
+    left: 8px;
+    top: max(8px, env(safe-area-inset-top, 0px));
+    bottom: calc(82px + env(safe-area-inset-bottom, 0px));
     border-radius: 20px;
+  }
+
+  .harvey-ai-panel:not(.expanded) {
+    width: calc(100vw - 16px);
+    height: min(80vh, 860px);
   }
 
   .harvey-ai-header {
@@ -1575,6 +1603,7 @@
       getState: function () {
         return {
           isOpen: state.isOpen,
+          isExpanded: state.isExpanded,
           isLoading: state.isLoading,
           page: PAGE_CONTEXT,
           riderId: state.riderId,
@@ -1586,7 +1615,7 @@
     };
 
     createWidget();
-    console.log("Harvey Taxi AI full-window widget booted");
+    console.log("Harvey Taxi AI safe full-chat widget booted");
   }
 
   if (document.readyState === "loading") {
