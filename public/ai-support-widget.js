@@ -14,8 +14,8 @@
     }
 
     const CONFIG = {
-      storageKey: "harvey_ai_chat_state_v18",
-      uiStateKey: "harvey_ai_chat_ui_state_v18",
+      storageKey: "harvey_ai_chat_state_v19",
+      uiStateKey: "harvey_ai_chat_ui_state_v19",
       endpoint: "/api/ai/support",
       messageLimit: 120,
       rateLimitMs: 900,
@@ -31,12 +31,16 @@
       emergencyNotice:
         "Harvey Taxi AI Support provides platform guidance only. For emergencies, contact local emergency services immediately.",
       systemLine:
-        "Harvey Taxi AI Support can explain rides, rider approval, driver onboarding, dispatch, mission status, payment authorization, autonomous pilot guidance, and foundation support."
+        "Harvey Taxi AI Support can explain rides, rider approval, driver onboarding, dispatch, payment authorization, autonomous pilot guidance, and foundation support."
     };
+
+    const PAGE_CONTEXT = detectPageContext();
+    const IS_SUPPORT_PAGE =
+      PAGE_CONTEXT === "support" ||
+      String(window.location.pathname || "").toLowerCase().includes("support");
 
     injectStyles();
 
-    const PAGE_CONTEXT = detectPageContext();
     const savedUiState = loadUiState();
 
     const state = {
@@ -48,7 +52,6 @@
       driverId: readContextValue("driver_id"),
       rideId: readContextValue("ride_id"),
       lastSentAt: 0,
-      lastQuickAction: null,
       online: navigator.onLine !== false
     };
 
@@ -133,7 +136,7 @@
       return map[pageContext] || map.general;
     }
 
-    function buildSuggestions(pageContext) {
+    function buildSupportQuestions(pageContext) {
       const map = {
         general: [
           "How do I request a ride?",
@@ -161,11 +164,11 @@
           "Why is payment authorization required?"
         ],
         support: [
-          "How do I get ride help?",
-          "How do approvals work?",
-          "What if my ride request is blocked?",
-          "What does pilot mode mean?",
-          "How do I donate?"
+          "How do I request a ride?",
+          "How do I sign up as a driver?",
+          "What is Harvey Taxi?",
+          "What is autonomous pilot mode?",
+          "How do I support the foundation?"
         ],
         admin: [
           "How does rider approval work?",
@@ -204,86 +207,35 @@
       const pageSpecific = {
         general: [
           { label: "Request Ride", action: "link", href: "request-ride.html?mode=driver" },
-          { label: "Driver Signup", action: "link", href: "driver-signup.html" },
-          { label: "Ask About Pilot", action: "message", message: "What is autonomous pilot mode?" }
+          { label: "Driver Signup", action: "link", href: "driver-signup.html" }
         ],
         rider: [
           { label: "Rider Status", action: "message", message: "How do I check my rider status?" },
-          { label: "Payment Help", action: "message", message: "How does payment authorization work?" },
-          { label: "Request Ride", action: "link", href: "request-ride.html?mode=driver" }
+          { label: "Payment Help", action: "message", message: "How does payment authorization work?" }
         ],
         driver: [
           { label: "Driver Missions", action: "message", message: "How do missions work?" },
-          { label: "Payout Help", action: "message", message: "How do payouts work?" },
-          { label: "Driver Dashboard", action: "link", href: "driver-dashboard.html" }
+          { label: "Payout Help", action: "message", message: "How do payouts work?" }
         ],
         request: [
           { label: "Fare Help", action: "message", message: "How is fare estimated?" },
-          { label: "Dispatch Flow", action: "message", message: "How does dispatch work?" },
-          { label: "Support", action: "link", href: "support.html" }
+          { label: "Dispatch Flow", action: "message", message: "How does dispatch work?" }
         ],
         support: [
-          { label: "Ride Help", action: "message", message: "How do I get ride help?" },
-          { label: "Approvals", action: "message", message: "How do approvals work?" },
-          { label: "Support Center", action: "link", href: "support.html" }
+          { label: "Ride Help", action: "message", message: "How do I request a ride?" },
+          { label: "Approvals", action: "message", message: "How do approvals work?" }
         ],
         admin: [
           { label: "Rider Approval", action: "message", message: "How does rider approval work?" },
-          { label: "Driver Activation", action: "message", message: "How does driver activation work?" },
           { label: "Dispatch Logic", action: "message", message: "What is the dispatch flow?" }
         ],
         foundation: [
           { label: "Foundation Mission", action: "message", message: "What does the foundation support?" },
-          { label: "Donate Now", action: "link", href: CONFIG.donationUrl, external: true, style: "green" },
-          { label: "Open Foundation", action: "link", href: CONFIG.foundationUrl, style: "gold" }
+          { label: "Donate Now", action: "link", href: CONFIG.donationUrl, external: true, style: "green" }
         ]
       };
 
       return (pageSpecific[pageContext] || pageSpecific.general).concat(base);
-    }
-
-    function buildSupportWindows(pageContext) {
-      const map = {
-        general: [
-          "How do I request a ride?",
-          "How do I sign up as a driver?",
-          "What is Harvey Taxi?",
-          "What is autonomous pilot mode?",
-          "How do I support the foundation?"
-        ],
-        rider: [
-          "Why do riders need approval?",
-          "How does payment authorization work?",
-          "How do I check my rider status?"
-        ],
-        driver: [
-          "How does driver verification work?",
-          "When can I start driving?",
-          "How do missions work?"
-        ],
-        request: [
-          "How is fare estimated?",
-          "How does dispatch work?",
-          "Why is payment authorization required?"
-        ],
-        support: [
-          "How do I get ride help?",
-          "How do approvals work?",
-          "What does pilot mode mean?"
-        ],
-        admin: [
-          "How does rider approval work?",
-          "How does driver activation work?",
-          "What is the dispatch flow?"
-        ],
-        foundation: [
-          "What does the foundation support?",
-          "How do donations help transportation access?",
-          "How is the foundation connected to Harvey Taxi?"
-        ]
-      };
-
-      return map[pageContext] || map.general;
     }
 
     function formatPageSubtitle(pageContext) {
@@ -298,20 +250,6 @@
       };
 
       return map[pageContext] || "Platform support";
-    }
-
-    function formatPageEyebrow(pageContext) {
-      const map = {
-        general: "Smart support",
-        rider: "Rider help",
-        driver: "Driver help",
-        request: "Ride help",
-        support: "Support center",
-        admin: "Operations support",
-        foundation: "Foundation help"
-      };
-
-      return map[pageContext] || "Support";
     }
 
     function loadMessages() {
@@ -386,7 +324,11 @@
 
     function createWidget() {
       root.innerHTML = `
-        <div class="harvey-ai-widget">
+        <div class="harvey-ai-widget ${IS_SUPPORT_PAGE ? "support-embedded-mode" : ""}">
+          ${
+            IS_SUPPORT_PAGE
+              ? ""
+              : `
           <button
             class="harvey-ai-launch"
             type="button"
@@ -395,26 +337,28 @@
             data-harvey-ai-open
           >
             <span class="harvey-ai-launch-icon">✦</span>
-            <span class="harvey-ai-launch-ring"></span>
             <span class="harvey-ai-launch-ping"></span>
           </button>
+          `
+          }
 
           <section
-            class="harvey-ai-panel"
+            class="harvey-ai-panel ${IS_SUPPORT_PAGE ? "open embedded" : ""}"
             aria-live="polite"
             aria-label="${escapeHtml(CONFIG.widgetTitle)} chat panel"
           >
             <div class="harvey-ai-header">
               <div class="harvey-ai-header-left">
-                <div class="harvey-ai-badge">AI</div>
-
                 <div class="harvey-ai-title-wrap">
-                  <div class="harvey-ai-eyebrow">${escapeHtml(formatPageEyebrow(PAGE_CONTEXT))}</div>
-                  <div class="harvey-ai-title">${escapeHtml(CONFIG.widgetTitle)}</div>
+                  <div class="harvey-ai-kicker">Suggested Questions</div>
                   <div class="harvey-ai-subtitle">${escapeHtml(formatPageSubtitle(PAGE_CONTEXT))}</div>
                 </div>
               </div>
 
+              ${
+                IS_SUPPORT_PAGE
+                  ? ""
+                  : `
               <div class="harvey-ai-actions">
                 <button
                   class="harvey-ai-icon-btn"
@@ -440,53 +384,24 @@
                   aria-label="Close chat"
                 >✕</button>
               </div>
-            </div>
-
-            <div class="harvey-ai-hero">
-              <div class="harvey-ai-hero-copy">
-                <div class="harvey-ai-hero-kicker">Need help fast?</div>
-                <div class="harvey-ai-hero-title">Get answers about rides, signup, approvals, dispatch, pilot mode, and foundation support.</div>
-              </div>
-
-              <div class="harvey-ai-status-row">
-                <div class="harvey-ai-status-pill" data-harvey-ai-network-pill>
-                  <span class="harvey-ai-status-dot"></span>
-                  <span data-harvey-ai-network-text>${state.online ? "Online" : "Offline"}</span>
-                </div>
-
-                <div class="harvey-ai-status-pill subtle">
-                  <span>Page:</span>
-                  <strong>${escapeHtml(formatPageSubtitle(PAGE_CONTEXT))}</strong>
-                </div>
-              </div>
+              `
+              }
             </div>
 
             <div class="harvey-ai-support-window">
-              <div class="harvey-ai-support-window-head">
-                <div class="harvey-ai-support-window-title">Popular support</div>
-                <div class="harvey-ai-support-window-subtitle">Tap a topic below to ask instantly</div>
-              </div>
-
               <div class="harvey-ai-support-grid" data-harvey-ai-support-grid></div>
             </div>
 
             <div class="harvey-ai-quick-actions" data-harvey-ai-quick-actions></div>
 
-            <div class="harvey-ai-body" data-harvey-ai-body></div>
-
-            <div class="harvey-ai-suggestions-wrap">
-              <div class="harvey-ai-suggestions-label">Suggested questions</div>
-              <div class="harvey-ai-suggestions" data-harvey-ai-suggestions></div>
-            </div>
-
-            <div class="harvey-ai-footer">
+            <div class="harvey-ai-inline-composer">
               <form class="harvey-ai-form" data-harvey-ai-form>
                 <textarea
                   class="harvey-ai-input"
                   data-harvey-ai-input
                   rows="1"
                   maxlength="1400"
-                  placeholder="Ask Harvey Taxi AI about rides, signup, approvals, payment authorization, dispatch, missions, support, autonomous pilot, or foundation help..."
+                  placeholder="Ask Harvey Taxi AI about rides, signup, approvals, dispatch, payment authorization, pilot mode, or foundation support..."
                 ></textarea>
 
                 <button
@@ -501,24 +416,24 @@
                 ${escapeHtml(CONFIG.emergencyNotice)}
               </div>
             </div>
+
+            <div class="harvey-ai-body" data-harvey-ai-body></div>
           </section>
         </div>
       `;
 
       bindEvents();
       renderMessages();
-      renderSuggestions();
-      renderQuickActions();
       renderSupportGrid();
+      renderQuickActions();
       syncPanelState();
 
-      if (shouldAutoOpen() && !state.isOpen) {
+      if (!IS_SUPPORT_PAGE && shouldAutoOpen() && !state.isOpen) {
         open();
       }
     }
 
     function bindEvents() {
-      const panel = root.querySelector(".harvey-ai-panel");
       const openBtn = root.querySelector("[data-harvey-ai-open]");
       const closeBtn = root.querySelector("[data-harvey-ai-close]");
       const resetBtn = root.querySelector("[data-harvey-ai-reset]");
@@ -543,9 +458,6 @@
           state.messages = getWelcomeMessages();
           saveMessages();
           renderMessages();
-          renderSuggestions();
-          renderQuickActions();
-          renderSupportGrid();
 
           if (input) {
             input.value = "";
@@ -596,78 +508,32 @@
         });
       }
 
-      document.addEventListener("keydown", function (event) {
-        if (event.key === "Escape" && state.isOpen && state.isExpanded) {
-          toggleExpand(false);
-          return;
-        }
-
-        if (event.key === "Escape" && state.isOpen) {
-          close();
-        }
-      });
-
-      if (panel) {
-        panel.addEventListener("click", function (event) {
-          event.stopPropagation();
-        });
-      }
-
-      window.addEventListener("resize", function () {
-        scrollToBottom();
-      });
-
       window.addEventListener("online", function () {
         state.online = true;
-        updateNetworkStatus();
       });
 
       window.addEventListener("offline", function () {
         state.online = false;
-        updateNetworkStatus();
       });
     }
 
     function autoResizeTextarea(textarea) {
       if (!textarea) return;
       textarea.style.height = "auto";
-      textarea.style.height = Math.min(textarea.scrollHeight, 220) + "px";
-    }
-
-    function updateExpandButton() {
-      const expandBtn = root.querySelector("[data-harvey-ai-expand]");
-      if (!expandBtn) return;
-
-      expandBtn.textContent = state.isExpanded ? "⤡" : "⤢";
-      expandBtn.title = state.isExpanded ? "Restore chat size" : "Expand chat";
-      expandBtn.setAttribute(
-        "aria-label",
-        state.isExpanded ? "Restore chat size" : "Expand chat"
-      );
-    }
-
-    function updateNetworkStatus() {
-      const pill = root.querySelector("[data-harvey-ai-network-pill]");
-      const text = root.querySelector("[data-harvey-ai-network-text]");
-      if (!pill || !text) return;
-
-      pill.classList.toggle("offline", !state.online);
-      text.textContent = state.online ? "Online" : "Offline";
+      textarea.style.height = Math.min(textarea.scrollHeight, 140) + "px";
     }
 
     function syncPanelState() {
       const panel = root.querySelector(".harvey-ai-panel");
-      if (!panel) return;
+      if (!panel || IS_SUPPORT_PAGE) return;
 
       panel.classList.toggle("open", !!state.isOpen);
       panel.classList.toggle("expanded", !!state.isExpanded);
-
-      updateExpandButton();
-      updateNetworkStatus();
       saveUiState();
     }
 
     function open() {
+      if (IS_SUPPORT_PAGE) return;
       state.isOpen = true;
       syncPanelState();
 
@@ -675,21 +541,19 @@
       setTimeout(function () {
         if (input) input.focus();
       }, 60);
-
-      scrollToBottom();
     }
 
     function close() {
+      if (IS_SUPPORT_PAGE) return;
       state.isOpen = false;
       syncPanelState();
     }
 
     function toggleExpand(forceValue) {
+      if (IS_SUPPORT_PAGE) return;
       state.isExpanded =
         typeof forceValue === "boolean" ? forceValue : !state.isExpanded;
-
       syncPanelState();
-      scrollToBottom();
     }
 
     function addMessage(role, text, meta, data) {
@@ -709,6 +573,11 @@
     function renderMessages() {
       const body = root.querySelector("[data-harvey-ai-body]");
       if (!body) return;
+
+      if (!state.messages.length) {
+        body.innerHTML = "";
+        return;
+      }
 
       body.innerHTML = "";
 
@@ -770,7 +639,6 @@
 
         const typing = document.createElement("div");
         typing.className = "harvey-ai-typing";
-        typing.setAttribute("aria-label", CONFIG.assistantMeta + " is typing");
 
         for (let i = 0; i < 3; i += 1) {
           const dot = document.createElement("span");
@@ -778,12 +646,7 @@
           typing.appendChild(dot);
         }
 
-        const meta = document.createElement("div");
-        meta.className = "harvey-ai-meta";
-        meta.textContent = CONFIG.assistantMeta;
-
         typingWrap.appendChild(typing);
-        typingWrap.appendChild(meta);
         body.appendChild(typingWrap);
       }
 
@@ -792,24 +655,27 @@
       systemLine.textContent = CONFIG.systemLine;
       body.appendChild(systemLine);
 
-      scrollToBottom();
+      requestAnimationFrame(function () {
+        body.scrollTop = body.scrollHeight;
+      });
     }
 
-    function renderSuggestions() {
-      const container = root.querySelector("[data-harvey-ai-suggestions]");
+    function renderSupportGrid() {
+      const container = root.querySelector("[data-harvey-ai-support-grid]");
       if (!container) return;
 
       container.innerHTML = "";
 
-      buildSuggestions(PAGE_CONTEXT).forEach(function (prompt) {
+      buildSupportQuestions(PAGE_CONTEXT).forEach(function (prompt, index) {
         const button = document.createElement("button");
         button.type = "button";
-        button.className = "harvey-ai-suggestion";
-        button.textContent = prompt;
+        button.className = "harvey-ai-support-card" + (index === 0 ? " primary" : "");
+        button.innerHTML = `
+          <span class="harvey-ai-support-card-text">${escapeHtml(prompt)}</span>
+          <span class="harvey-ai-support-card-arrow">→</span>
+        `;
 
         button.addEventListener("click", function () {
-          if (state.isLoading) return;
-          open();
           sendMessage(prompt);
         });
 
@@ -823,7 +689,7 @@
 
       container.innerHTML = "";
 
-      buildQuickActions(PAGE_CONTEXT).forEach(function (item, index) {
+      buildQuickActions(PAGE_CONTEXT).forEach(function (item) {
         const button = document.createElement(item.action === "link" ? "a" : "button");
 
         button.className =
@@ -840,9 +706,6 @@
         } else {
           button.type = "button";
           button.addEventListener("click", function () {
-            if (state.isLoading) return;
-            state.lastQuickAction = item.label || ("action_" + index);
-            open();
             sendMessage(item.message);
           });
         }
@@ -852,52 +715,12 @@
       });
     }
 
-    function renderSupportGrid() {
-      const container = root.querySelector("[data-harvey-ai-support-grid]");
-      if (!container) return;
-
-      container.innerHTML = "";
-
-      buildSupportWindows(PAGE_CONTEXT).forEach(function (prompt, index) {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className =
-          "harvey-ai-support-card" + (index === 0 ? " primary" : "");
-
-        button.innerHTML = `
-          <span class="harvey-ai-support-card-text">${escapeHtml(prompt)}</span>
-          <span class="harvey-ai-support-card-arrow">→</span>
-        `;
-
-        button.addEventListener("click", function () {
-          if (state.isLoading) return;
-          open();
-          sendMessage(prompt);
-        });
-
-        container.appendChild(button);
-      });
-    }
-
-    function scrollToBottom() {
-      const body = root.querySelector("[data-harvey-ai-body]");
-      if (!body) return;
-
-      requestAnimationFrame(function () {
-        body.scrollTop = body.scrollHeight;
-      });
-    }
-
     function toggleFormDisabled(disabled) {
       const input = root.querySelector("[data-harvey-ai-input]");
       const sendBtn = root.querySelector("[data-harvey-ai-send]");
 
       if (input) input.disabled = !!disabled;
       if (sendBtn) sendBtn.disabled = !!disabled;
-
-      if (!disabled && input && state.isOpen) {
-        input.focus();
-      }
     }
 
     function withTimeout(promise, timeoutMs) {
@@ -925,7 +748,7 @@
         rider_id: state.riderId || null,
         driver_id: state.driverId || null,
         ride_id: state.rideId || null,
-        source: "widget",
+        source: IS_SUPPORT_PAGE ? "support_page" : "widget",
         foundation_url: CONFIG.foundationUrl,
         donation_url: CONFIG.donationUrl
       };
@@ -973,10 +796,7 @@
     async function safeParseResponse(response) {
       const text = await response.text();
       const data = safeJsonParse(text, null);
-      return {
-        text: text,
-        data: data
-      };
+      return { data: data, text: text };
     }
 
     function buildLocalFallback(trimmed) {
@@ -1007,7 +827,7 @@
       if (message.includes("driver")) {
         return {
           reply:
-            "I can help with driver onboarding, verification, approval, missions, and payout guidance. You can also open the driver signup flow or dashboard from the platform.",
+            "I can help with driver onboarding, verification, approval, missions, and payout guidance. You can also open the driver signup flow from the platform.",
           card: null
         };
       }
@@ -1022,7 +842,7 @@
 
       return {
         reply:
-          "I’m here to help with Harvey Taxi support, rides, onboarding, approvals, payment authorization, dispatch, mission guidance, and foundation support.",
+          "I’m here to help with Harvey Taxi support, rides, onboarding, approvals, dispatch, payment authorization, mission guidance, and foundation support.",
         card: null
       };
     }
@@ -1031,7 +851,6 @@
       const trimmed = String(text || "").trim();
       if (!trimmed || state.isLoading) return;
 
-      open();
       addMessage("user", trimmed, "You");
       state.isLoading = true;
       renderMessages();
@@ -1061,14 +880,11 @@
 
         const reply =
           parseReply(data) ||
-          "I’m here to help with Harvey Taxi support, rides, onboarding, approvals, payment authorization, dispatch, mission guidance, and foundation support.";
+          "I’m here to help with Harvey Taxi support, rides, onboarding, approvals, dispatch, payment authorization, mission guidance, and foundation support.";
 
-        addMessage(
-          "assistant",
-          reply,
-          CONFIG.assistantMeta,
-          { card: maybeBuildLocalCard(trimmed, reply) }
-        );
+        addMessage("assistant", reply, CONFIG.assistantMeta, {
+          card: maybeBuildLocalCard(trimmed, reply)
+        });
       } catch (error) {
         console.error("Harvey Taxi AI widget error:", error);
 
@@ -1129,96 +945,65 @@
   position: relative;
 }
 
+.harvey-ai-widget.support-embedded-mode {
+  width: min(100%, 100vw);
+}
+
 .harvey-ai-launch {
   position: relative;
-  width: 70px;
-  height: 70px;
+  width: 66px;
+  height: 66px;
   border: none;
   border-radius: 999px;
   cursor: pointer;
   font-size: 24px;
   font-weight: 900;
   color: #06111f;
-  background:
-    radial-gradient(circle at 30% 30%, rgba(255,255,255,.42), transparent 38%),
-    linear-gradient(135deg, #72f1ff 0%, #7aa2ff 52%, #8ad7ff 100%);
-  box-shadow:
-    0 22px 48px rgba(0, 0, 0, 0.38),
-    0 0 0 1px rgba(255,255,255,.18),
-    0 0 26px rgba(100, 200, 255, 0.22);
+  background: linear-gradient(135deg, #6ee7ff 0%, #7aa2ff 100%);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   -webkit-appearance: none;
   appearance: none;
-  transition: transform 0.18s ease, filter 0.18s ease, box-shadow 0.18s ease;
   overflow: hidden;
+  transition: transform 0.18s ease, filter 0.18s ease;
 }
 
 .harvey-ai-launch:hover {
-  transform: translateY(-2px) scale(1.01);
-  filter: brightness(1.05);
+  transform: translateY(-2px);
+  filter: brightness(1.04);
 }
 
-.harvey-ai-launch:active {
-  transform: translateY(0) scale(0.98);
-}
-
-.harvey-ai-launch-icon {
-  position: relative;
-  z-index: 2;
-}
-
-.harvey-ai-launch-ring,
 .harvey-ai-launch-ping {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-}
-
-.harvey-ai-launch-ring {
-  border: 1px solid rgba(255,255,255,.24);
-}
-
-.harvey-ai-launch-ping {
   box-shadow: 0 0 0 0 rgba(110, 231, 255, 0.36);
-  animation: harveyAiPing 2.5s infinite;
+  animation: harveyAiPing 2.4s infinite;
 }
 
 @keyframes harveyAiPing {
-  0% {
-    box-shadow: 0 0 0 0 rgba(110, 231, 255, 0.34);
-  }
-  70% {
-    box-shadow: 0 0 0 18px rgba(110, 231, 255, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(110, 231, 255, 0);
-  }
+  0% { box-shadow: 0 0 0 0 rgba(110, 231, 255, 0.34); }
+  70% { box-shadow: 0 0 0 18px rgba(110, 231, 255, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(110, 231, 255, 0); }
 }
 
 .harvey-ai-panel {
   position: absolute;
   right: 0;
-  bottom: 88px;
-  width: min(780px, calc(100vw - 24px));
-  max-width: 780px;
-  height: min(86vh, 960px);
-  min-height: 680px;
+  bottom: 82px;
+  width: min(760px, calc(100vw - 24px));
+  max-width: 760px;
+  min-height: 620px;
   display: none;
   flex-direction: column;
   overflow: hidden;
-  border-radius: 30px;
-  border: 1px solid rgba(140, 190, 255, 0.18);
-  background:
-    radial-gradient(circle at top right, rgba(90, 150, 255, 0.16), transparent 24%),
-    radial-gradient(circle at top left, rgba(80, 255, 215, 0.08), transparent 20%),
-    linear-gradient(180deg, rgba(8,18,36,.985), rgba(5,11,23,.985));
+  border-radius: 26px;
+  border: 1px solid rgba(120, 170, 255, 0.16);
+  background: linear-gradient(180deg, rgba(8,18,36,.98), rgba(5,11,24,.98));
   color: #ffffff;
-  box-shadow:
-    0 36px 90px rgba(0, 0, 0, 0.55),
-    0 0 0 1px rgba(255,255,255,.03),
-    0 0 42px rgba(90, 150, 255, 0.12);
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
 }
@@ -1235,272 +1020,139 @@
   left: 10px;
   width: auto;
   max-width: none;
-  height: auto;
   min-height: 0;
   border-radius: 22px;
   z-index: 2147483001;
+}
+
+.harvey-ai-panel.embedded {
+  position: relative;
+  right: auto;
+  bottom: auto;
+  width: calc(100vw - 24px);
+  max-width: 100%;
+  min-height: 0;
+  display: flex;
+  margin: 0 auto;
+  border-radius: 0 0 28px 28px;
+  box-shadow: none;
+  border-left: 1px solid rgba(120, 170, 255, 0.12);
+  border-right: 1px solid rgba(120, 170, 255, 0.12);
+  border-bottom: 1px solid rgba(120, 170, 255, 0.12);
+  background:
+    linear-gradient(180deg, rgba(4,12,28,.985), rgba(3,9,22,.985));
 }
 
 .harvey-ai-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  padding: 18px 18px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-  background: linear-gradient(180deg, rgba(10, 21, 42, 0.98), rgba(8, 18, 36, 0.96));
-  flex-shrink: 0;
-}
-
-.harvey-ai-header-left {
-  display: flex;
-  align-items: center;
   gap: 12px;
-  min-width: 0;
-}
-
-.harvey-ai-badge {
-  width: 58px;
-  height: 58px;
-  border-radius: 18px;
-  display: grid;
-  place-items: center;
-  font-size: 22px;
-  font-weight: 900;
-  color: #06111f;
-  background: linear-gradient(135deg, #72f1ff 0%, #7aa2ff 100%);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.35),
-    0 12px 24px rgba(0,0,0,.22);
-  flex-shrink: 0;
+  padding: 18px 18px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .harvey-ai-title-wrap {
   min-width: 0;
 }
 
-.harvey-ai-eyebrow {
-  font-size: 11px;
-  font-weight: 900;
-  letter-spacing: .14em;
+.harvey-ai-kicker {
+  font-size: 13px;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #8cf3ff;
-  opacity: .92;
-  margin-bottom: 4px;
-}
-
-.harvey-ai-title {
-  font-size: 20px;
-  font-weight: 800;
-  line-height: 1.2;
+  font-weight: 900;
+  color: #7fc4ff;
 }
 
 .harvey-ai-subtitle {
-  margin-top: 4px;
-  font-size: 13px;
-  color: rgba(230, 238, 255, 0.78);
-  line-height: 1.4;
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(220, 230, 255, 0.58);
 }
 
 .harvey-ai-actions {
   display: flex;
   gap: 8px;
-  flex-shrink: 0;
 }
 
 .harvey-ai-icon-btn {
-  width: 46px;
-  height: 46px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(255,255,255,.08);
   border-radius: 14px;
   cursor: pointer;
-  font-size: 19px;
+  font-size: 18px;
   color: #ffffff;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255,255,255,.06);
   -webkit-appearance: none;
   appearance: none;
-  transition: background 0.18s ease, transform 0.18s ease, border-color 0.18s ease;
-}
-
-.harvey-ai-icon-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  transform: translateY(-1px);
-  border-color: rgba(140, 190, 255, .22);
-}
-
-.harvey-ai-hero {
-  margin: 16px 18px 0;
-  padding: 18px;
-  border-radius: 24px;
-  border: 1px solid rgba(120, 170, 255, 0.18);
-  background:
-    linear-gradient(145deg, rgba(26, 45, 92, 0.68), rgba(8, 18, 36, 0.88)),
-    rgba(255,255,255,.02);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.05),
-    0 14px 34px rgba(0, 0, 0, 0.22);
-  flex-shrink: 0;
-}
-
-.harvey-ai-hero-kicker {
-  font-size: 11px;
-  font-weight: 900;
-  letter-spacing: .14em;
-  text-transform: uppercase;
-  color: #90f8ff;
-  margin-bottom: 8px;
-}
-
-.harvey-ai-hero-title {
-  font-size: 17px;
-  line-height: 1.55;
-  color: #f8fbff;
-  font-weight: 700;
-}
-
-.harvey-ai-status-row {
-  margin-top: 14px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.harvey-ai-status-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  min-height: 38px;
-  padding: 9px 12px;
-  border-radius: 999px;
-  background: rgba(255,255,255,.06);
-  border: 1px solid rgba(255,255,255,.08);
-  color: #f3f8ff;
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.harvey-ai-status-pill.subtle {
-  color: rgba(240,246,255,.88);
-}
-
-.harvey-ai-status-pill strong {
-  font-weight: 900;
-}
-
-.harvey-ai-status-pill.offline {
-  border-color: rgba(255, 126, 151, .3);
-  background: rgba(255, 126, 151, .08);
-}
-
-.harvey-ai-status-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 999px;
-  background: #79f0b7;
-  box-shadow: 0 0 10px rgba(121,240,183,.55);
-}
-
-.harvey-ai-status-pill.offline .harvey-ai-status-dot {
-  background: #ff7e97;
-  box-shadow: 0 0 10px rgba(255,126,151,.45);
 }
 
 .harvey-ai-support-window {
-  margin: 16px 18px 0;
+  margin: 0;
   padding: 18px;
-  border-radius: 24px;
-  background:
-    linear-gradient(180deg, rgba(13, 24, 49, .96), rgba(8, 16, 32, .94));
-  border: 1px solid rgba(120,170,255,.2);
-  box-shadow:
-    0 18px 38px rgba(0,0,0,.24),
-    0 0 18px rgba(100,180,255,.08);
-  flex-shrink: 0;
-}
-
-.harvey-ai-support-window-head {
-  margin-bottom: 14px;
-}
-
-.harvey-ai-support-window-title {
-  font-size: 18px;
-  font-weight: 900;
-  color: #ffffff;
-}
-
-.harvey-ai-support-window-subtitle {
-  margin-top: 4px;
-  font-size: 13px;
-  color: rgba(230,238,255,.74);
-  line-height: 1.5;
 }
 
 .harvey-ai-support-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 12px;
 }
 
 .harvey-ai-support-card {
-  min-height: 78px;
-  width: 100%;
-  padding: 16px 18px;
+  min-height: 68px;
+  padding: 0 18px;
   border-radius: 20px;
-  text-align: left;
-  border: 1px solid rgba(140,190,255,.16);
-  background:
-    linear-gradient(145deg, rgba(27, 44, 92, 0.58), rgba(8, 17, 35, 0.92));
+  border: 1px solid rgba(255,255,255,.08);
+  background: linear-gradient(145deg, rgba(24,37,74,.92), rgba(13,22,48,.96));
   color: #ffffff;
-  cursor: pointer;
-  -webkit-appearance: none;
-  appearance: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  transition: transform .18s ease, background .18s ease, border-color .18s ease, box-shadow .18s ease;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+  gap: 12px;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+  transition: transform .18s ease, background .18s ease, border-color .18s ease;
 }
 
 .harvey-ai-support-card:hover {
   transform: translateY(-1px);
-  border-color: rgba(140,190,255,.28);
-  background:
-    linear-gradient(145deg, rgba(40, 66, 132, 0.72), rgba(10, 22, 44, 0.96));
-  box-shadow: 0 12px 26px rgba(0,0,0,.2);
+  border-color: rgba(120, 170, 255, .18);
 }
 
 .harvey-ai-support-card.primary {
-  border-color: rgba(121,240,183,.26);
-  background:
-    linear-gradient(145deg, rgba(19, 59, 70, 0.72), rgba(11, 24, 39, 0.96));
+  border-color: rgba(122, 240, 200, 0.22);
+  background: linear-gradient(145deg, rgba(18,53,65,.95), rgba(11,23,39,.98));
 }
 
 .harvey-ai-support-card-text {
   font-size: 15px;
-  line-height: 1.5;
-  font-weight: 800;
-  color: #f8fbff;
+  line-height: 1.35;
+  font-weight: 750;
+  color: #f5f8ff;
+  text-align: left;
 }
 
 .harvey-ai-support-card-arrow {
+  font-size: 18px;
+  color: #89f2ff;
+  opacity: 0.9;
   flex-shrink: 0;
-  font-size: 20px;
-  font-weight: 900;
-  color: #90f8ff;
 }
 
 .harvey-ai-quick-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  padding: 16px 18px 0;
-  flex-shrink: 0;
+  padding: 0 18px 14px;
 }
 
 .harvey-ai-quick-action {
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.05);
   color: #f3f8ff;
   border-radius: 999px;
   padding: 11px 15px;
@@ -1510,13 +1162,7 @@
   line-height: 1.2;
   -webkit-appearance: none;
   appearance: none;
-  transition: background 0.18s ease, transform 0.18s ease;
   text-decoration: none;
-}
-
-.harvey-ai-quick-action:hover {
-  background: rgba(255, 255, 255, 0.09);
-  transform: translateY(-1px);
 }
 
 .harvey-ai-quick-action.green {
@@ -1531,32 +1177,90 @@
   border: none;
 }
 
+.harvey-ai-inline-composer {
+  padding: 14px 18px 18px;
+  border-top: 1px solid rgba(255,255,255,.06);
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  background: linear-gradient(180deg, rgba(8,18,36,.98), rgba(7,14,30,.98));
+}
+
+.harvey-ai-form {
+  display: grid;
+  grid-template-columns: 1fr 78px;
+  gap: 10px;
+  align-items: center;
+}
+
+.harvey-ai-input {
+  min-height: 60px;
+  max-height: 140px;
+  resize: none;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(110, 231, 255, 0.18);
+  background: rgba(5, 14, 30, 0.96);
+  color: #f8fbff;
+  font-size: 14px;
+  line-height: 1.45;
+  font-weight: 700;
+  outline: none;
+  width: 100%;
+}
+
+.harvey-ai-input::placeholder {
+  color: rgba(220, 230, 255, 0.48);
+  font-size: 14px;
+  line-height: 1.4;
+  font-weight: 600;
+}
+
+.harvey-ai-input:focus {
+  border-color: rgba(110, 231, 255, 0.46);
+  box-shadow: 0 0 0 3px rgba(110, 231, 255, 0.08);
+}
+
+.harvey-ai-send {
+  width: 78px;
+  height: 60px;
+  border: none;
+  border-radius: 18px;
+  cursor: pointer;
+  font-size: 24px;
+  font-weight: 800;
+  color: #07131f;
+  background: linear-gradient(135deg, #79f0b7 0%, #78f0e9 100%);
+  box-shadow: 0 10px 24px rgba(121, 240, 183, 0.18);
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.harvey-ai-send:disabled,
+.harvey-ai-input:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.harvey-ai-footnote {
+  margin-top: 10px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: rgba(220,230,255,.68);
+}
+
 .harvey-ai-body {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  scroll-behavior: smooth;
-  background:
-    linear-gradient(180deg, rgba(5,12,25,.48), rgba(7,14,28,.84));
-}
-
-.harvey-ai-body::-webkit-scrollbar {
-  width: 8px;
-}
-
-.harvey-ai-body::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.16);
-  border-radius: 999px;
+  gap: 14px;
+  padding: 18px;
+  max-height: 420px;
+  overflow-y: auto;
+  background: linear-gradient(180deg, rgba(5,12,25,.48), rgba(7,14,28,.84));
 }
 
 .harvey-ai-message {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 6px;
 }
 
 .harvey-ai-message.user {
@@ -1569,19 +1273,16 @@
 
 .harvey-ai-bubble {
   max-width: 96%;
-  padding: 18px 20px;
-  border-radius: 22px;
-  font-size: 17px;
-  line-height: 1.8;
+  padding: 16px 18px;
+  border-radius: 20px;
+  font-size: 15px;
+  line-height: 1.7;
   white-space: pre-wrap;
   word-break: break-word;
   overflow-wrap: anywhere;
-  letter-spacing: 0.01em;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
 
 .harvey-ai-message.user .harvey-ai-bubble {
-  margin-left: 28px;
   background: linear-gradient(135deg, #79f0b7 0%, #78f0e9 100%);
   color: #04131d;
   border-bottom-right-radius: 8px;
@@ -1589,17 +1290,16 @@
 }
 
 .harvey-ai-message.assistant .harvey-ai-bubble {
-  margin-right: 28px;
-  background: rgba(255, 255, 255, 0.11);
+  background: rgba(255,255,255,.10);
   color: #f8fbff;
   border-bottom-left-radius: 8px;
 }
 
 .harvey-ai-inline-card {
-  margin-top: 10px;
+  margin-top: 8px;
   max-width: 96%;
-  padding: 16px 18px;
-  border-radius: 18px;
+  padding: 14px 16px;
+  border-radius: 16px;
   background: rgba(255,255,255,.06);
   border: 1px solid rgba(255,255,255,.08);
 }
@@ -1607,20 +1307,19 @@
 .harvey-ai-inline-card strong {
   display: block;
   margin-bottom: 6px;
-  font-size: 15px;
-  color: #ffffff;
+  font-size: 14px;
 }
 
 .harvey-ai-inline-card span {
   display: block;
-  color: rgba(234,240,255,.88);
   font-size: 13px;
-  line-height: 1.65;
+  line-height: 1.6;
+  color: rgba(234,240,255,.88);
 }
 
 .harvey-ai-inline-link {
   display: inline-flex;
-  margin-top: 12px;
+  margin-top: 10px;
   padding: 10px 14px;
   border-radius: 999px;
   background: linear-gradient(135deg, #ffd76a 0%, #ffe8a2 100%);
@@ -1632,26 +1331,26 @@
 
 .harvey-ai-meta {
   font-size: 12px;
-  color: rgba(230, 238, 255, 0.82);
-  padding: 0 6px;
+  color: rgba(230,238,255,.78);
+  padding: 0 4px;
   font-weight: 700;
 }
 
 .harvey-ai-system-line {
-  font-size: 13px;
-  color: rgba(220, 230, 255, 0.72);
-  padding: 6px 2px 0;
+  font-size: 12px;
+  color: rgba(220,230,255,.64);
+  padding: 4px 2px 0;
   text-align: center;
-  line-height: 1.6;
+  line-height: 1.55;
 }
 
 .harvey-ai-typing {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 14px 16px;
+  padding: 12px 14px;
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255,255,255,.08);
 }
 
 .harvey-ai-typing-dot {
@@ -1681,257 +1380,68 @@
   }
 }
 
-.harvey-ai-suggestions-wrap {
-  padding: 16px 18px 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  flex-shrink: 0;
-}
-
-.harvey-ai-suggestions-label {
-  font-size: 12px;
-  font-weight: 900;
-  letter-spacing: .12em;
-  text-transform: uppercase;
-  color: rgba(150, 220, 255, .84);
-  margin-bottom: 12px;
-}
-
-.harvey-ai-suggestions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.harvey-ai-suggestion {
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  background: rgba(255, 255, 255, 0.06);
-  color: #f3f8ff;
-  border-radius: 18px;
-  padding: 14px 18px;
-  cursor: pointer;
-  font-size: 15px;
-  font-weight: 800;
-  line-height: 1.35;
-  text-align: left;
-  -webkit-appearance: none;
-  appearance: none;
-  transition: background 0.18s ease, transform 0.18s ease;
-}
-
-.harvey-ai-suggestion:hover {
-  background: rgba(255, 255, 255, 0.09);
-  transform: translateY(-1px);
-}
-
-.harvey-ai-footer {
-  padding: 16px 18px calc(18px + env(safe-area-inset-bottom, 0px));
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  background: linear-gradient(180deg, rgba(9, 18, 36, 0.98), rgba(8, 18, 36, 0.96));
-  flex-shrink: 0;
-}
-
-.harvey-ai-form {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 12px;
-  align-items: end;
-}
-
-.harvey-ai-input {
-  min-height: 76px;
-  max-height: 220px;
-  resize: none;
-  padding: 16px 18px;
-  border-radius: 22px;
-  border: 1px solid rgba(110, 231, 255, 0.24);
-  background:
-    linear-gradient(180deg, rgba(4, 12, 26, 0.98), rgba(6, 14, 28, 0.98));
-  color: #f8fbff;
-  font-size: 17px;
-  line-height: 1.7;
-  font-weight: 600;
-  outline: none;
-  width: 100%;
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.03),
-    0 0 0 1px rgba(255,255,255,.02);
-}
-
-.harvey-ai-input:focus {
-  border-color: rgba(110, 231, 255, 0.48);
-  box-shadow: 0 0 0 3px rgba(110, 231, 255, 0.08);
-}
-
-.harvey-ai-input::placeholder {
-  color: rgba(220, 230, 255, 0.62);
-}
-
-.harvey-ai-send {
-  width: 84px;
-  height: 76px;
-  border: none;
-  border-radius: 22px;
-  cursor: pointer;
-  font-size: 26px;
-  font-weight: 800;
-  color: #07131f;
-  background: linear-gradient(135deg, #79f0b7 0%, #78f0e9 100%);
-  box-shadow:
-    0 12px 28px rgba(121, 240, 183, 0.25),
-    inset 0 1px 0 rgba(255,255,255,.26);
-  -webkit-appearance: none;
-  appearance: none;
-  transition: transform 0.18s ease, filter 0.18s ease;
-}
-
-.harvey-ai-send:hover {
-  transform: translateY(-1px);
-  filter: brightness(1.03);
-}
-
-.harvey-ai-send:disabled,
-.harvey-ai-input:disabled {
-  opacity: 0.65;
-  cursor: not-allowed;
-}
-
-.harvey-ai-footnote {
-  margin-top: 12px;
-  font-size: 12px;
-  line-height: 1.6;
-  color: rgba(220, 230, 255, 0.78);
-}
-
-@media (max-width: 900px) {
-  .harvey-ai-panel {
-    width: calc(100vw - 20px);
-    max-width: calc(100vw - 20px);
-    height: min(86vh, 920px);
-    min-height: 640px;
-  }
-
-  .harvey-ai-support-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
 @media (max-width: 640px) {
   #harvey-ai-chat-root {
-    right: 10px !important;
-    bottom: calc(84px + env(safe-area-inset-bottom, 0px)) !important;
-    left: auto !important;
+    right: 0 !important;
+    left: 0 !important;
+    bottom: auto !important;
+    top: auto !important;
+    position: relative !important;
+    width: 100% !important;
   }
 
-  .harvey-ai-launch {
-    width: 62px;
-    height: 62px;
-    font-size: 22px;
+  .harvey-ai-panel.embedded {
+    width: 100%;
+    border-radius: 0 0 24px 24px;
   }
 
-  .harvey-ai-panel {
-    width: calc(100vw - 20px);
-    max-width: calc(100vw - 20px);
-    height: min(86vh, 900px);
-    min-height: 620px;
-    bottom: 76px;
-    border-radius: 22px;
-  }
-
-  .harvey-ai-panel.expanded {
-    top: max(8px, env(safe-area-inset-top, 0px));
-    right: 8px;
-    bottom: max(8px, env(safe-area-inset-bottom, 0px));
-    left: 8px;
-    border-radius: 18px;
-  }
-
-  .harvey-ai-header {
-    padding: 16px;
-  }
-
-  .harvey-ai-hero,
   .harvey-ai-support-window {
-    margin: 14px 16px 0;
-    padding: 16px;
-    border-radius: 20px;
+    padding: 14px;
+  }
+
+  .harvey-ai-support-card {
+    min-height: 58px;
+    border-radius: 16px;
+    padding: 0 16px;
+  }
+
+  .harvey-ai-support-card-text {
+    font-size: 14px;
   }
 
   .harvey-ai-quick-actions {
-    padding: 14px 16px 0;
+    padding: 0 14px 12px;
   }
 
-  .harvey-ai-quick-action {
-    flex: 1 1 calc(50% - 6px);
-    text-align: center;
-    justify-content: center;
+  .harvey-ai-inline-composer {
+    padding: 12px 14px 16px;
   }
 
-  .harvey-ai-badge {
-    width: 52px;
-    height: 52px;
-    border-radius: 16px;
-    font-size: 19px;
-  }
-
-  .harvey-ai-title {
-    font-size: 17px;
-  }
-
-  .harvey-ai-icon-btn {
-    width: 42px;
-    height: 42px;
-    border-radius: 14px;
-    font-size: 18px;
-  }
-
-  .harvey-ai-body {
-    padding: 16px;
-  }
-
-  .harvey-ai-bubble {
-    max-width: 98%;
-    font-size: 16px;
-    line-height: 1.75;
-    padding: 16px 17px;
-  }
-
-  .harvey-ai-message.user .harvey-ai-bubble {
-    margin-left: 12px;
-  }
-
-  .harvey-ai-message.assistant .harvey-ai-bubble {
-    margin-right: 12px;
-  }
-
-  .harvey-ai-inline-card {
-    max-width: 98%;
-  }
-
-  .harvey-ai-suggestions-wrap {
-    padding: 16px 16px 0;
-  }
-
-  .harvey-ai-suggestion {
-    width: 100%;
-    text-align: left;
-  }
-
-  .harvey-ai-footer {
-    padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  .harvey-ai-form {
+    grid-template-columns: 1fr 70px;
   }
 
   .harvey-ai-input {
-    min-height: 70px;
-    font-size: 16px;
-    padding: 15px 16px;
-    border-radius: 20px;
+    min-height: 56px;
+    font-size: 14px;
+    padding: 13px 14px;
   }
 
   .harvey-ai-send {
-    width: 74px;
-    height: 70px;
-    border-radius: 20px;
-    font-size: 24px;
+    width: 70px;
+    height: 56px;
+    border-radius: 16px;
+    font-size: 22px;
+  }
+
+  .harvey-ai-body {
+    padding: 14px;
+    max-height: 360px;
+  }
+
+  .harvey-ai-bubble {
+    font-size: 14px;
+    padding: 14px 15px;
   }
 }
       `;
@@ -1939,30 +1449,13 @@
     }
 
     window.HarveyAI = {
-      open: function () {
-        open();
-      },
-      close: function () {
-        close();
-      },
-      expand: function () {
-        open();
-        toggleExpand(true);
-      },
-      restore: function () {
-        toggleExpand(false);
-      },
       ask: function (message) {
-        open();
         return sendMessage(message);
       },
       reset: function () {
         state.messages = getWelcomeMessages();
         saveMessages();
         renderMessages();
-        renderSuggestions();
-        renderQuickActions();
-        renderSupportGrid();
       },
       openFoundation: function () {
         window.location.href = CONFIG.foundationUrl;
@@ -1991,7 +1484,7 @@
     };
 
     createWidget();
-    console.log("Harvey Taxi AI widget booted");
+    console.log("Harvey Taxi AI support module booted");
   }
 
   if (document.readyState === "loading") {
