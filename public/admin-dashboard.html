@@ -2,15 +2,27 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover"
+  />
   <title>Harvey Taxi — Admin Dashboard</title>
+  <meta
+    name="description"
+    content="Harvey Taxi admin dashboard for rider approvals, driver approvals, dispatch control, trip operations, payment visibility, and preferred driver oversight."
+  />
+  <meta name="theme-color" content="#07111f" />
+
   <style>
     :root{
       --bg1:#040814;
       --bg2:#0a1126;
+      --bg3:#101935;
       --panel:rgba(10,17,38,.92);
       --panel2:rgba(255,255,255,.04);
+      --panel3:rgba(255,255,255,.03);
       --line:rgba(122,162,255,.16);
+      --lineStrong:rgba(122,162,255,.28);
       --text:#f4f7ff;
       --muted:#aab8de;
       --blue:#5ea0ff;
@@ -18,10 +30,16 @@
       --green:#6dffb3;
       --danger:#ff7e97;
       --gold:#ffd76a;
+      --orange:#ffb86b;
       --shadow:0 18px 60px rgba(0,0,0,.35);
+      --shadowSoft:0 10px 28px rgba(0,0,0,.22);
+      --radius:24px;
+      --max:1420px;
     }
 
     *{box-sizing:border-box;margin:0;padding:0}
+
+    html{scroll-behavior:smooth}
 
     body{
       font-family:Inter,Arial,sans-serif;
@@ -29,11 +47,15 @@
       min-height:100vh;
       background:
         radial-gradient(circle at top left, rgba(99,245,255,.12), transparent 25%),
-        linear-gradient(160deg,var(--bg1),var(--bg2));
+        radial-gradient(circle at top right, rgba(94,160,255,.10), transparent 25%),
+        linear-gradient(160deg,var(--bg1),var(--bg2) 48%,var(--bg3));
     }
 
+    a{text-decoration:none;color:inherit}
+    button,input,select,textarea{font:inherit}
+
     .shell{
-      max-width:1360px;
+      max-width:var(--max);
       margin:auto;
       padding:20px 16px 48px;
     }
@@ -45,17 +67,52 @@
       gap:12px;
       margin-bottom:18px;
       flex-wrap:wrap;
+      padding:14px 16px;
+      border-radius:999px;
+      border:1px solid var(--lineStrong);
+      background:rgba(7,12,28,.78);
+      box-shadow:var(--shadow);
+      backdrop-filter:blur(14px);
+      -webkit-backdrop-filter:blur(14px);
+      position:sticky;
+      top:14px;
+      z-index:40;
+    }
+
+    .brand-wrap{
+      display:flex;
+      align-items:center;
+      gap:12px;
+    }
+
+    .brand-logo{
+      width:50px;
+      height:50px;
+      display:grid;
+      place-items:center;
+      border-radius:16px;
+      font-weight:900;
+      color:#04111f;
+      background:linear-gradient(135deg,var(--cyan),var(--blue),var(--green));
+      box-shadow:0 14px 32px rgba(99,245,255,.22);
+      flex-shrink:0;
     }
 
     .brand{
-      font-size:1.3rem;
+      font-size:1.22rem;
       font-weight:800;
       letter-spacing:.3px;
     }
 
     .brand span{color:var(--cyan)}
 
-    .home-btn{
+    .top-actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+
+    .top-btn{
       text-decoration:none;
       color:var(--text);
       border:1px solid var(--line);
@@ -63,6 +120,14 @@
       padding:10px 14px;
       border-radius:999px;
       font-weight:700;
+      cursor:pointer;
+      transition:.18s ease;
+    }
+
+    .top-btn:hover{
+      transform:translateY(-1px);
+      border-color:var(--lineStrong);
+      background:rgba(255,255,255,.06);
     }
 
     .hero,.card,.stat{
@@ -73,21 +138,73 @@
       box-shadow:var(--shadow);
     }
 
-    .hero{margin-bottom:16px}
+    .hero{
+      margin-bottom:16px;
+      position:relative;
+      overflow:hidden;
+    }
+
+    .hero::after{
+      content:"";
+      position:absolute;
+      right:-60px;
+      bottom:-60px;
+      width:220px;
+      height:220px;
+      border-radius:50%;
+      background:radial-gradient(circle, rgba(99,245,255,.18), transparent 70%);
+      pointer-events:none;
+    }
 
     .hero h1{
-      font-size:1.55rem;
+      font-size:1.65rem;
       margin-bottom:8px;
+      position:relative;
+      z-index:1;
     }
 
     .hero p{
       color:var(--muted);
-      line-height:1.55;
+      line-height:1.6;
+      max-width:70ch;
+      position:relative;
+      z-index:1;
+    }
+
+    .hero-actions{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      margin-top:16px;
+      position:relative;
+      z-index:1;
+    }
+
+    .result,.error{
+      display:none;
+      margin-bottom:14px;
+      padding:14px 16px;
+      border-radius:18px;
+      line-height:1.6;
+      font-weight:700;
+      box-shadow:var(--shadowSoft);
+    }
+
+    .result{
+      border:1px solid rgba(109,255,179,.2);
+      background:rgba(109,255,179,.08);
+      color:#dffff0;
+    }
+
+    .error{
+      border:1px solid rgba(255,126,151,.2);
+      background:rgba(255,126,151,.08);
+      color:#ffd9e1;
     }
 
     .stats{
       display:grid;
-      grid-template-columns:repeat(5,1fr);
+      grid-template-columns:repeat(7,1fr);
       gap:12px;
       margin-bottom:16px;
     }
@@ -102,11 +219,12 @@
       font-size:1.12rem;
       font-weight:800;
       line-height:1.4;
+      word-break:break-word;
     }
 
     .grid{
       display:grid;
-      grid-template-columns:1fr 1.2fr;
+      grid-template-columns:1fr 1.25fr;
       gap:16px;
     }
 
@@ -133,6 +251,7 @@
       color:var(--muted);
       line-height:1.5;
       font-size:.94rem;
+      margin-top:4px;
     }
 
     .list{
@@ -153,17 +272,20 @@
       gap:10px;
       flex-wrap:wrap;
       margin-bottom:10px;
+      align-items:flex-start;
     }
 
     .item-title{
       font-weight:800;
       margin-bottom:4px;
+      line-height:1.45;
     }
 
     .item-sub{
       color:var(--muted);
       font-size:.92rem;
-      line-height:1.45;
+      line-height:1.5;
+      word-break:break-word;
     }
 
     .badge{
@@ -195,6 +317,12 @@
       border-color:rgba(255,126,151,.18);
     }
 
+    .blue{
+      background:rgba(94,160,255,.12);
+      color:var(--blue);
+      border-color:rgba(94,160,255,.18);
+    }
+
     .item-grid{
       display:grid;
       grid-template-columns:repeat(2,1fr);
@@ -207,6 +335,7 @@
       border:1px solid var(--line);
       border-radius:14px;
       padding:10px 12px;
+      min-width:0;
     }
 
     .box .v{
@@ -219,8 +348,9 @@
       border-radius:14px;
       border:1px solid var(--line);
       background:rgba(255,255,255,.03);
-      line-height:1.55;
+      line-height:1.6;
       margin-bottom:10px;
+      word-break:break-word;
     }
 
     .actions{
@@ -237,7 +367,11 @@
       padding:11px 14px;
       font-size:.95rem;
       font-weight:800;
+      transition:.18s ease;
     }
+
+    button:hover{transform:translateY(-1px)}
+    button:disabled{opacity:.55;cursor:not-allowed;transform:none}
 
     .primary{
       background:linear-gradient(90deg,var(--blue),var(--cyan));
@@ -272,6 +406,7 @@
       border:1px dashed var(--line);
       border-radius:18px;
       background:rgba(255,255,255,.02);
+      line-height:1.55;
     }
 
     .insight-card{
@@ -288,7 +423,7 @@
 
     .candidate{
       display:grid;
-      grid-template-columns:1.2fr .8fr .8fr .8fr;
+      grid-template-columns:1.3fr .8fr .8fr .8fr;
       gap:10px;
       padding:10px 0;
       border-top:1px solid rgba(255,255,255,.06);
@@ -303,53 +438,96 @@
     .mini{
       font-size:.88rem;
       color:var(--muted);
+      line-height:1.45;
     }
 
-    .result{
-      display:none;
-      margin-bottom:14px;
-      padding:14px;
-      border-radius:18px;
-      border:1px solid rgba(109,255,179,.2);
-      background:rgba(109,255,179,.08);
-      color:#dffff0;
-      line-height:1.55;
+    .settings-grid{
+      display:grid;
+      grid-template-columns:repeat(2,1fr);
+      gap:10px;
     }
 
-    .error{
-      display:none;
-      margin-bottom:14px;
-      padding:14px;
-      border-radius:18px;
-      border:1px solid rgba(255,126,151,.2);
-      background:rgba(255,126,151,.08);
-      color:#ffd9e1;
-      line-height:1.55;
+    .field{
+      display:grid;
+      gap:8px;
     }
 
-    @media (max-width: 1120px){
-      .stats,
+    .field label{
+      font-size:.88rem;
+      color:var(--muted);
+      font-weight:700;
+    }
+
+    .input,.select{
+      width:100%;
+      border:none;
+      outline:none;
+      color:var(--text);
+      background:rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.09);
+      border-radius:14px;
+      padding:13px 14px;
+      min-height:46px;
+    }
+
+    .input:focus,.select:focus{
+      border-color:rgba(99,245,255,.35);
+      box-shadow:0 0 0 3px rgba(99,245,255,.08);
+    }
+
+    .footer-note{
+      color:var(--muted);
+      font-size:.86rem;
+      text-align:center;
+      margin-top:22px;
+    }
+
+    @media (max-width: 1180px){
+      .stats{grid-template-columns:repeat(2,1fr)}
       .grid,
       .item-grid,
-      .candidate{
+      .candidate,
+      .settings-grid{
         grid-template-columns:1fr;
       }
+    }
+
+    @media (max-width: 720px){
+      .topbar{border-radius:24px}
+      .top-actions{width:100%}
+      .top-actions .top-btn{flex:1 1 auto;text-align:center}
+      .hero-actions button{width:100%}
     }
   </style>
 </head>
 <body>
   <div class="shell">
     <div class="topbar">
-      <div class="brand">Harvey <span>Taxi</span> Admin Dashboard</div>
-      <a class="home-btn" href="/">← Return Home</a>
+      <div class="brand-wrap">
+        <div class="brand-logo">HT</div>
+        <div class="brand">Harvey <span>Taxi</span> Admin Dashboard</div>
+      </div>
+
+      <div class="top-actions">
+        <a class="top-btn" href="/">Home</a>
+        <a class="top-btn" href="/request-ride.html">Request Ride</a>
+        <a class="top-btn" href="/driver-dashboard.html">Driver Dashboard</a>
+        <button class="top-btn" id="refreshBtn" type="button">Refresh</button>
+      </div>
     </div>
 
     <div class="hero">
       <h1>Operations + Dispatch Brain Command Center</h1>
       <p>
-        Approve riders and drivers, monitor dispatch flow, run the dispatch brain,
-        inspect candidate scoring, and control live trip progression from one dashboard.
+        Approve riders and drivers, monitor dispatch flow, inspect payment and mission states,
+        review preferred driver intent, run the dispatch brain, and control live trip progression
+        from one production-safe admin dashboard.
       </p>
+
+      <div class="hero-actions">
+        <button class="primary" id="manualRefreshBtn" type="button">Refresh Dashboard</button>
+        <button class="neutral" id="toggleAutoRefreshBtn" type="button">Auto Refresh: On</button>
+      </div>
     </div>
 
     <div class="result" id="resultBox"></div>
@@ -376,6 +554,14 @@
         <div class="k">Completed Trips</div>
         <div class="v" id="completedTripsCount">0</div>
       </div>
+      <div class="stat">
+        <div class="k">Online Drivers</div>
+        <div class="v" id="onlineDriversCount">0</div>
+      </div>
+      <div class="stat">
+        <div class="k">Auto Refresh</div>
+        <div class="v" id="autoRefreshState">On</div>
+      </div>
     </div>
 
     <div class="grid">
@@ -383,10 +569,29 @@
         <div class="card">
           <div class="card-header">
             <div>
+              <div class="card-title">Admin Controls</div>
+              <div class="sub">Optional admin identity fields for protected routes that require headers or payload credentials.</div>
+            </div>
+          </div>
+
+          <div class="settings-grid">
+            <div class="field">
+              <label for="adminEmail">Admin Email</label>
+              <input id="adminEmail" class="input" type="email" placeholder="williebee@harveytaxiservice.com" />
+            </div>
+            <div class="field">
+              <label for="adminPassword">Admin Password</label>
+              <input id="adminPassword" class="input" type="password" placeholder="Admin password" />
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div>
               <div class="card-title">Pending Rider Approvals</div>
               <div class="sub">Approve rider verification before ride requests are allowed.</div>
             </div>
-            <button class="primary" onclick="loadDashboard()">Refresh</button>
           </div>
           <div class="list" id="pendingRidersList">
             <div class="empty">Loading riders...</div>
@@ -397,7 +602,7 @@
           <div class="card-header">
             <div>
               <div class="card-title">Pending Driver Approvals</div>
-              <div class="sub">Approve only drivers that are ready to receive missions.</div>
+              <div class="sub">Approve only drivers that are ready to receive missions and dispatch offers.</div>
             </div>
           </div>
           <div class="list" id="pendingDriversList">
@@ -409,7 +614,7 @@
           <div class="card-header">
             <div>
               <div class="card-title">Dispatch Brain Insights</div>
-              <div class="sub">Tap an insight button on a ride to view scoring candidates.</div>
+              <div class="sub">Select a ride to view candidate scoring and preferred-driver context.</div>
             </div>
           </div>
           <div id="dispatchInsightsPanel">
@@ -423,7 +628,7 @@
           <div class="card-header">
             <div>
               <div class="card-title">Live Dispatch Feed</div>
-              <div class="sub">Review mission status, payment status, and trip progression.</div>
+              <div class="sub">Review ride, mission, dispatch, payment, and preferred-driver status from one live feed.</div>
             </div>
           </div>
           <div class="list" id="ridesList">
@@ -432,41 +637,110 @@
         </div>
       </div>
     </div>
+
+    <div class="footer-note">
+      Harvey Taxi admin dashboard • dispatch brain • approvals • mission control • preferred-driver aware
+    </div>
   </div>
 
   <script>
+    const state = {
+      isLoading: false,
+      isAutoRefresh: true,
+      refreshMs: 6000,
+      timer: null,
+      actionLocks: new Set(),
+      selectedRideId: null
+    };
+
+    const els = {
+      resultBox: document.getElementById("resultBox"),
+      errorBox: document.getElementById("errorBox"),
+      refreshBtn: document.getElementById("refreshBtn"),
+      manualRefreshBtn: document.getElementById("manualRefreshBtn"),
+      toggleAutoRefreshBtn: document.getElementById("toggleAutoRefreshBtn"),
+      pendingRidersCount: document.getElementById("pendingRidersCount"),
+      pendingDriversCount: document.getElementById("pendingDriversCount"),
+      waitingRidesCount: document.getElementById("waitingRidesCount"),
+      activeTripsCount: document.getElementById("activeTripsCount"),
+      completedTripsCount: document.getElementById("completedTripsCount"),
+      onlineDriversCount: document.getElementById("onlineDriversCount"),
+      autoRefreshState: document.getElementById("autoRefreshState"),
+      pendingRidersList: document.getElementById("pendingRidersList"),
+      pendingDriversList: document.getElementById("pendingDriversList"),
+      ridesList: document.getElementById("ridesList"),
+      dispatchInsightsPanel: document.getElementById("dispatchInsightsPanel"),
+      adminEmail: document.getElementById("adminEmail"),
+      adminPassword: document.getElementById("adminPassword")
+    };
+
+    function escapeHtml(value){
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
     function money(value){
       return `$${Number(value || 0).toFixed(2)}`;
     }
 
+    function titleCase(value){
+      return String(value || "")
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (m) => m.toUpperCase())
+        .trim();
+    }
+
+    function normalize(value){
+      return String(value || "").trim().toUpperCase();
+    }
+
     function showResult(message){
-      const resultBox = document.getElementById("resultBox");
-      const errorBox = document.getElementById("errorBox");
-      resultBox.style.display = "block";
-      resultBox.innerHTML = message;
-      errorBox.style.display = "none";
+      els.resultBox.style.display = "block";
+      els.resultBox.innerHTML = message;
+      els.errorBox.style.display = "none";
     }
 
     function showError(message){
-      const resultBox = document.getElementById("resultBox");
-      const errorBox = document.getElementById("errorBox");
-      errorBox.style.display = "block";
-      errorBox.innerHTML = message;
-      resultBox.style.display = "none";
+      els.errorBox.style.display = "block";
+      els.errorBox.innerHTML = message;
+      els.resultBox.style.display = "none";
+    }
+
+    function clearAlerts(){
+      els.resultBox.style.display = "none";
+      els.errorBox.style.display = "none";
+      els.resultBox.innerHTML = "";
+      els.errorBox.innerHTML = "";
     }
 
     function badgeClass(value){
+      const v = normalize(value);
+
       const okValues = [
         "APPROVED","AUTHORIZED","SPONSORED","SETTLED","COMPLETED",
-        "IN_PROGRESS","DRIVER_ACCEPTED","DRIVER_ARRIVING","ACCEPTED","ONLINE"
+        "IN_PROGRESS","DRIVER_ACCEPTED","DRIVER_ARRIVING","ACCEPTED","ONLINE",
+        "AVAILABLE","ACTIVE","PAID","VERIFIED","SUCCESS"
       ];
+
       const warnValues = [
         "PENDING","READY_FOR_DRIVER","DISPATCHING","WAITING_FOR_DRIVER",
-        "OFFERED_TO_DRIVER","DRIVER_EN_ROUTE_TO_PICKUP","RUNNING_DISPATCH_BRAIN","REDISPATCHING"
+        "OFFERED_TO_DRIVER","DRIVER_EN_ROUTE_TO_PICKUP","RUNNING_DISPATCH_BRAIN",
+        "REDISPATCHING","ARRIVED","BUSY","HOLD","PARTIAL","REVIEW"
       ];
-      if(okValues.includes(value)) return "ok";
-      if(warnValues.includes(value)) return "warn";
+
+      if (okValues.includes(v)) return "ok";
+      if (warnValues.includes(v)) return "warn";
+      if (v === "NONE" || v === "UNASSIGNED" || v === "NO_MISSION") return "blue";
       return "bad";
+    }
+
+    function safeText(value, fallback = "--"){
+      const raw = String(value ?? "").trim();
+      return raw ? escapeHtml(raw) : escapeHtml(fallback);
     }
 
     async function safeJson(res){
@@ -477,325 +751,670 @@
       }
     }
 
-    async function loadDashboard(){
-      try{
-        const res = await fetch("/api/admin/dashboard-data");
-        const data = await safeJson(res);
+    function getAdminContext(){
+      const email = els.adminEmail.value.trim();
+      const password = els.adminPassword.value.trim();
 
-        if(!data.success){
-          showError(data.message || "Unable to load dashboard.");
-          return;
+      return {
+        email,
+        password,
+        headers: {
+          ...(email ? { "x-admin-email": email } : {}),
+          ...(password ? { "x-admin-password": password } : {})
+        },
+        payload: {
+          ...(email ? { admin_email: email } : {}),
+          ...(password ? { admin_password: password } : {})
         }
+      };
+    }
 
-        document.getElementById("pendingRidersCount").textContent = data.pending_riders.length;
-        document.getElementById("pendingDriversCount").textContent = data.pending_drivers.length;
-        document.getElementById("waitingRidesCount").textContent = data.summary.waiting_rides;
-        document.getElementById("activeTripsCount").textContent = data.summary.active_trips;
-        document.getElementById("completedTripsCount").textContent = data.summary.completed_trips;
+    async function api(url, options = {}){
+      const admin = getAdminContext();
 
-        renderPendingRiders(data.pending_riders);
-        renderPendingDrivers(data.pending_drivers);
-        renderRides(data.rides);
-      }catch(err){
-        showError("Unable to load dashboard.");
-        document.getElementById("pendingRidersList").innerHTML = `<div class="empty">Unable to load riders.</div>`;
-        document.getElementById("pendingDriversList").innerHTML = `<div class="empty">Unable to load drivers.</div>`;
-        document.getElementById("ridesList").innerHTML = `<div class="empty">Unable to load rides.</div>`;
+      const response = await fetch(url, {
+        headers: {
+          "Content-Type":"application/json",
+          ...admin.headers,
+          ...(options.headers || {})
+        },
+        ...options
+      });
+
+      const data = await safeJson(response);
+
+      if(!response.ok || data.success === false){
+        throw new Error(data.message || data.error || "Request failed.");
       }
+
+      return data;
+    }
+
+    function setActionLocked(key, locked){
+      if(locked){
+        state.actionLocks.add(key);
+      }else{
+        state.actionLocks.delete(key);
+      }
+    }
+
+    function isActionLocked(key){
+      return state.actionLocks.has(key);
+    }
+
+    function toggleAutoRefresh(){
+      state.isAutoRefresh = !state.isAutoRefresh;
+      els.toggleAutoRefreshBtn.textContent = `Auto Refresh: ${state.isAutoRefresh ? "On" : "Off"}`;
+      els.autoRefreshState.textContent = state.isAutoRefresh ? "On" : "Off";
+
+      if(state.isAutoRefresh){
+        startAutoRefresh();
+      }else{
+        stopAutoRefresh();
+      }
+    }
+
+    function stopAutoRefresh(){
+      if(state.timer){
+        clearInterval(state.timer);
+        state.timer = null;
+      }
+    }
+
+    function startAutoRefresh(){
+      stopAutoRefresh();
+      if(!state.isAutoRefresh) return;
+
+      state.timer = setInterval(() => {
+        if(document.hidden || state.isLoading) return;
+        loadDashboard({ silent: true });
+      }, state.refreshMs);
+    }
+
+    function renderSummary(data){
+      const pendingRiders = Array.isArray(data.pending_riders) ? data.pending_riders : [];
+      const pendingDrivers = Array.isArray(data.pending_drivers) ? data.pending_drivers : [];
+      const rides = Array.isArray(data.rides) ? data.rides : [];
+      const summary = data.summary || {};
+
+      const onlineDrivers =
+        Number(summary.online_drivers ?? summary.available_drivers ?? 0) ||
+        rides.filter((ride) => normalize(ride.driver_status) === "ONLINE").length;
+
+      els.pendingRidersCount.textContent = pendingRiders.length;
+      els.pendingDriversCount.textContent = pendingDrivers.length;
+      els.waitingRidesCount.textContent = Number(summary.waiting_rides ?? 0);
+      els.activeTripsCount.textContent = Number(summary.active_trips ?? 0);
+      els.completedTripsCount.textContent = Number(summary.completed_trips ?? 0);
+      els.onlineDriversCount.textContent = onlineDrivers;
+      els.autoRefreshState.textContent = state.isAutoRefresh ? "On" : "Off";
     }
 
     function renderPendingRiders(riders){
-      const container = document.getElementById("pendingRidersList");
-
-      if(!riders.length){
-        container.innerHTML = `<div class="empty">No pending riders.</div>`;
+      if(!Array.isArray(riders) || !riders.length){
+        els.pendingRidersList.innerHTML = `<div class="empty">No pending riders.</div>`;
         return;
       }
 
-      container.innerHTML = riders.map(rider => `
-        <div class="item">
-          <div class="item-top">
-            <div>
-              <div class="item-title">${rider.first_name || "Rider"} • ${rider.rider_id}</div>
-              <div class="item-sub">${rider.phone || "No phone available"}</div>
-            </div>
-            <div class="badge ${badgeClass(rider.verification_status)}">${rider.verification_status}</div>
-          </div>
+      els.pendingRidersList.innerHTML = riders.map((rider) => {
+        const riderId = rider.rider_id || rider.id || "";
+        const actionKeyApprove = `approve-rider-${riderId}`;
+        const actionKeyReject = `reject-rider-${riderId}`;
 
-          <div class="actions">
-            <button class="success" onclick="approveRider('${rider.rider_id}')">Approve Rider</button>
-            <button class="danger" onclick="rejectRider('${rider.rider_id}')">Reject Rider</button>
+        return `
+          <div class="item">
+            <div class="item-top">
+              <div>
+                <div class="item-title">${safeText(rider.first_name || "Rider")} • ${safeText(riderId)}</div>
+                <div class="item-sub">${safeText(rider.phone || rider.email || "No contact available")}</div>
+              </div>
+              <div class="badge ${badgeClass(rider.verification_status)}">${safeText(rider.verification_status || "PENDING")}</div>
+            </div>
+
+            <div class="item-grid">
+              <div class="box">
+                <div class="k">Verification</div>
+                <div class="v">${safeText(titleCase(rider.verification_status || "pending"))}</div>
+              </div>
+              <div class="box">
+                <div class="k">Document Type</div>
+                <div class="v">${safeText(titleCase(rider.document_type || rider.id_type || "--"))}</div>
+              </div>
+            </div>
+
+            <div class="actions">
+              <button
+                class="success"
+                ${isActionLocked(actionKeyApprove) ? "disabled" : ""}
+                onclick="approveRider('${escapeHtml(riderId)}')"
+              >Approve Rider</button>
+              <button
+                class="danger"
+                ${isActionLocked(actionKeyReject) ? "disabled" : ""}
+                onclick="rejectRider('${escapeHtml(riderId)}')"
+              >Reject Rider</button>
+            </div>
           </div>
-        </div>
-      `).join("");
+        `;
+      }).join("");
     }
 
     function renderPendingDrivers(drivers){
-      const container = document.getElementById("pendingDriversList");
-
-      if(!drivers.length){
-        container.innerHTML = `<div class="empty">No pending drivers.</div>`;
+      if(!Array.isArray(drivers) || !drivers.length){
+        els.pendingDriversList.innerHTML = `<div class="empty">No pending drivers.</div>`;
         return;
       }
 
-      container.innerHTML = drivers.map(driver => `
-        <div class="item">
-          <div class="item-top">
-            <div>
-              <div class="item-title">${driver.first_name || "Driver"} • ${driver.driver_id}</div>
-              <div class="item-sub">${driver.current_address || "No address available"}</div>
-            </div>
-            <div class="badge ${badgeClass(driver.verification_status)}">${driver.verification_status}</div>
-          </div>
+      els.pendingDriversList.innerHTML = drivers.map((driver) => {
+        const driverId = driver.driver_id || driver.id || "";
+        const actionKeyApprove = `approve-driver-${driverId}`;
+        const actionKeyReject = `reject-driver-${driverId}`;
 
-          <div class="item-grid">
-            <div class="box">
-              <div class="k">Verification</div>
-              <div class="v">${driver.verification_status || "--"}</div>
+        return `
+          <div class="item">
+            <div class="item-top">
+              <div>
+                <div class="item-title">${safeText(driver.first_name || "Driver")} • ${safeText(driverId)}</div>
+                <div class="item-sub">${safeText(driver.current_address || driver.city || "No address available")}</div>
+              </div>
+              <div class="badge ${badgeClass(driver.verification_status)}">${safeText(driver.verification_status || "PENDING")}</div>
             </div>
-            <div class="box">
-              <div class="k">Background</div>
-              <div class="v">${driver.background_status || "--"}</div>
-            </div>
-          </div>
 
-          <div class="actions">
-            <button class="success" onclick="approveDriver('${driver.driver_id}')">Approve Driver</button>
-            <button class="danger" onclick="rejectDriver('${driver.driver_id}')">Reject Driver</button>
+            <div class="item-grid">
+              <div class="box">
+                <div class="k">Verification</div>
+                <div class="v">${safeText(titleCase(driver.verification_status || "--"))}</div>
+              </div>
+              <div class="box">
+                <div class="k">Background</div>
+                <div class="v">${safeText(titleCase(driver.background_status || driver.background_check_status || "--"))}</div>
+              </div>
+              <div class="box">
+                <div class="k">Driver Type</div>
+                <div class="v">${safeText(titleCase(driver.driver_type || "driver"))}</div>
+              </div>
+              <div class="box">
+                <div class="k">Availability</div>
+                <div class="v">${safeText(titleCase(driver.availability_status || driver.online_status || "--"))}</div>
+              </div>
+            </div>
+
+            <div class="actions">
+              <button
+                class="success"
+                ${isActionLocked(actionKeyApprove) ? "disabled" : ""}
+                onclick="approveDriver('${escapeHtml(driverId)}')"
+              >Approve Driver</button>
+              <button
+                class="danger"
+                ${isActionLocked(actionKeyReject) ? "disabled" : ""}
+                onclick="rejectDriver('${escapeHtml(driverId)}')"
+              >Reject Driver</button>
+            </div>
           </div>
-        </div>
-      `).join("");
+        `;
+      }).join("");
     }
 
     function renderRides(rides){
-      const container = document.getElementById("ridesList");
-
-      if(!rides.length){
-        container.innerHTML = `<div class="empty">No rides yet.</div>`;
+      if(!Array.isArray(rides) || !rides.length){
+        els.ridesList.innerHTML = `<div class="empty">No rides yet.</div>`;
         return;
       }
 
-      container.innerHTML = rides.map(ride => `
-        <div class="item">
-          <div class="item-top">
-            <div>
-              <div class="item-title">${(ride.ride_type || "STANDARD").replaceAll("_"," ")} • ${ride.ride_id}</div>
-              <div class="item-sub">
-                ${ride.pickup_address || "--"}<br>
-                to ${ride.dropoff_address || "--"}
+      els.ridesList.innerHTML = rides.map((ride) => {
+        const rideId = ride.ride_id || ride.id || "";
+        const preferredDriverName =
+          ride.preferred_driver_name ||
+          ride.preferred_driver ||
+          ride.requested_driver_name ||
+          "";
+        const preferredDriverId =
+          ride.preferred_driver_id ||
+          ride.requested_driver_id ||
+          "";
+
+        return `
+          <div class="item">
+            <div class="item-top">
+              <div>
+                <div class="item-title">${safeText(titleCase(ride.ride_type || "standard"))} • ${safeText(rideId)}</div>
+                <div class="item-sub">
+                  ${safeText(ride.pickup_address || "--")}<br>
+                  to ${safeText(ride.dropoff_address || "--")}
+                </div>
+              </div>
+              <div class="badge ${badgeClass(ride.ride_status)}">${safeText(ride.ride_status || "UNKNOWN")}</div>
+            </div>
+
+            <div class="item-grid">
+              <div class="box">
+                <div class="k">Passenger</div>
+                <div class="v">${safeText(ride.passenger_first_name || ride.rider_name || "--")}</div>
+              </div>
+              <div class="box">
+                <div class="k">Driver</div>
+                <div class="v">${safeText(ride.driver_name || "Unassigned")}</div>
+              </div>
+              <div class="box">
+                <div class="k">Payment</div>
+                <div class="v">${safeText(titleCase(ride.payment_status || "--"))}</div>
+              </div>
+              <div class="box">
+                <div class="k">Mission</div>
+                <div class="v">${safeText(titleCase(ride.mission_status || "--"))}</div>
+              </div>
+              <div class="box">
+                <div class="k">Fare</div>
+                <div class="v">${safeText(money(ride.fare_amount))}</div>
+              </div>
+              <div class="box">
+                <div class="k">Total</div>
+                <div class="v">${safeText(money(ride.total_amount))}</div>
+              </div>
+              <div class="box">
+                <div class="k">ETA to Pickup</div>
+                <div class="v">${safeText(ride.eta_to_pickup_minutes ? ride.eta_to_pickup_minutes + " min" : "--")}</div>
+              </div>
+              <div class="box">
+                <div class="k">Dispatch Score</div>
+                <div class="v">${safeText(ride.dispatch_score || "--")}</div>
               </div>
             </div>
-            <div class="badge ${badgeClass(ride.ride_status)}">${ride.ride_status || "UNKNOWN"}</div>
-          </div>
 
-          <div class="item-grid">
-            <div class="box">
-              <div class="k">Passenger</div>
-              <div class="v">${ride.passenger_first_name || "--"}</div>
+            <div class="notes">
+              <strong>Preferred Driver:</strong><br>
+              ${
+                preferredDriverId || preferredDriverName
+                  ? `${safeText(preferredDriverName || "Preferred driver selected")} ${preferredDriverId ? `• ${safeText(preferredDriverId)}` : ""}`
+                  : "No preferred driver selected."
+              }
+              <br><br>
+              <strong>Notes:</strong><br>
+              ${safeText(ride.special_notes && String(ride.special_notes).trim() ? ride.special_notes : "No special notes provided.")}
             </div>
-            <div class="box">
-              <div class="k">Driver</div>
-              <div class="v">${ride.driver_name || "Unassigned"}</div>
-            </div>
-            <div class="box">
-              <div class="k">Payment</div>
-              <div class="v">${ride.payment_status || "--"}</div>
-            </div>
-            <div class="box">
-              <div class="k">Mission</div>
-              <div class="v">${ride.mission_status || "--"}</div>
-            </div>
-            <div class="box">
-              <div class="k">Fare</div>
-              <div class="v">${money(ride.fare_amount)}</div>
-            </div>
-            <div class="box">
-              <div class="k">Total</div>
-              <div class="v">${money(ride.total_amount)}</div>
-            </div>
-            <div class="box">
-              <div class="k">ETA to Pickup</div>
-              <div class="v">${ride.eta_to_pickup_minutes ? ride.eta_to_pickup_minutes + " min" : "--"}</div>
-            </div>
-            <div class="box">
-              <div class="k">Dispatch Score</div>
-              <div class="v">${ride.dispatch_score || "--"}</div>
-            </div>
-          </div>
 
-          <div class="notes">
-            <strong>Notes:</strong><br>
-            ${ride.special_notes && ride.special_notes.trim() ? ride.special_notes : "No special notes provided."}
+            <div class="actions">
+              <button class="gold" onclick="runDispatchBrain('${escapeHtml(rideId)}')">Run Dispatch Brain</button>
+              <button class="neutral" onclick="showDispatchInsights('${escapeHtml(rideId)}')">Dispatch Insights</button>
+              <button class="neutral" onclick="markArriving('${escapeHtml(rideId)}')">Driver Arriving</button>
+              <button class="success" onclick="startTrip('${escapeHtml(rideId)}')">Start Trip</button>
+              <button class="primary" onclick="completeTrip('${escapeHtml(rideId)}')">Complete Trip</button>
+            </div>
           </div>
+        `;
+      }).join("");
+    }
 
-          <div class="actions">
-            <button class="gold" onclick="runDispatchBrain('${ride.ride_id}')">Run Dispatch Brain</button>
-            <button class="neutral" onclick="showDispatchInsights('${ride.ride_id}')">Dispatch Insights</button>
-            <button class="neutral" onclick="markArriving('${ride.ride_id}')">Driver Arriving</button>
-            <button class="success" onclick="startTrip('${ride.ride_id}')">Start Trip</button>
-            <button class="primary" onclick="completeTrip('${ride.ride_id}')">Complete Trip</button>
-          </div>
-        </div>
-      `).join("");
+    async function loadDashboard({ silent = false } = {}){
+      if(state.isLoading) return;
+
+      try{
+        state.isLoading = true;
+        if(!silent) clearAlerts();
+
+        const attempts = [
+          () => api("/api/admin/dashboard-data"),
+          () => api("/api/admin/dashboard")
+        ];
+
+        let data = null;
+        let lastError = null;
+
+        for(const attempt of attempts){
+          try{
+            data = await attempt();
+            if(data) break;
+          }catch(error){
+            lastError = error;
+          }
+        }
+
+        if(!data){
+          throw lastError || new Error("Unable to load dashboard.");
+        }
+
+        renderSummary(data);
+        renderPendingRiders(Array.isArray(data.pending_riders) ? data.pending_riders : []);
+        renderPendingDrivers(Array.isArray(data.pending_drivers) ? data.pending_drivers : []);
+        renderRides(Array.isArray(data.rides) ? data.rides : []);
+
+        if(state.selectedRideId){
+          showDispatchInsights(state.selectedRideId, { silent: true });
+        }
+      }catch(err){
+        if(!silent){
+          showError(escapeHtml(err.message || "Unable to load dashboard."));
+        }
+        els.pendingRidersList.innerHTML = `<div class="empty">Unable to load riders.</div>`;
+        els.pendingDriversList.innerHTML = `<div class="empty">Unable to load drivers.</div>`;
+        els.ridesList.innerHTML = `<div class="empty">Unable to load rides.</div>`;
+      }finally{
+        state.isLoading = false;
+      }
+    }
+
+    async function runAdminAction(actionKey, handler){
+      if(isActionLocked(actionKey)) return;
+
+      try{
+        setActionLocked(actionKey, true);
+        await handler();
+      }finally{
+        setActionLocked(actionKey, false);
+        await loadDashboard({ silent: true });
+      }
     }
 
     async function approveRider(riderId){
-      const res = await fetch("/api/admin/approve-rider", {
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({ rider_id:riderId })
+      const actionKey = `approve-rider-${riderId}`;
+      await runAdminAction(actionKey, async () => {
+        const admin = getAdminContext();
+        const res = await api("/api/admin/approve-rider", {
+          method:"POST",
+          body:JSON.stringify({
+            rider_id:riderId,
+            ...admin.payload
+          })
+        });
+        const riderName = res.rider?.first_name || "Rider";
+        showResult(`Rider approved: <strong>${escapeHtml(riderName)}</strong>`);
       });
-      const data = await safeJson(res);
-      if(!data.success) return showError(data.message || "Unable to approve rider.");
-      showResult(`Rider approved: <strong>${data.rider.first_name}</strong>`);
-      loadDashboard();
     }
 
     async function rejectRider(riderId){
-      const res = await fetch("/api/admin/reject-rider", {
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({ rider_id:riderId })
+      const actionKey = `reject-rider-${riderId}`;
+      await runAdminAction(actionKey, async () => {
+        const admin = getAdminContext();
+        const res = await api("/api/admin/reject-rider", {
+          method:"POST",
+          body:JSON.stringify({
+            rider_id:riderId,
+            ...admin.payload
+          })
+        });
+        const riderName = res.rider?.first_name || "Rider";
+        showResult(`Rider rejected: <strong>${escapeHtml(riderName)}</strong>`);
       });
-      const data = await safeJson(res);
-      if(!data.success) return showError(data.message || "Unable to reject rider.");
-      showResult(`Rider rejected: <strong>${data.rider.first_name}</strong>`);
-      loadDashboard();
     }
 
     async function approveDriver(driverId){
-      const res = await fetch("/api/admin/approve-driver", {
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({ driver_id:driverId })
+      const actionKey = `approve-driver-${driverId}`;
+      await runAdminAction(actionKey, async () => {
+        const admin = getAdminContext();
+        const res = await api("/api/admin/approve-driver", {
+          method:"POST",
+          body:JSON.stringify({
+            driver_id:driverId,
+            ...admin.payload
+          })
+        });
+        const driverName = res.driver?.first_name || "Driver";
+        showResult(`Driver approved: <strong>${escapeHtml(driverName)}</strong>`);
       });
-      const data = await safeJson(res);
-      if(!data.success) return showError(data.message || "Unable to approve driver.");
-      showResult(`Driver approved: <strong>${data.driver.first_name}</strong>`);
-      loadDashboard();
     }
 
     async function rejectDriver(driverId){
-      const res = await fetch("/api/admin/reject-driver", {
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({ driver_id:driverId })
+      const actionKey = `reject-driver-${driverId}`;
+      await runAdminAction(actionKey, async () => {
+        const admin = getAdminContext();
+        const res = await api("/api/admin/reject-driver", {
+          method:"POST",
+          body:JSON.stringify({
+            driver_id:driverId,
+            ...admin.payload
+          })
+        });
+        const driverName = res.driver?.first_name || "Driver";
+        showResult(`Driver rejected: <strong>${escapeHtml(driverName)}</strong>`);
       });
-      const data = await safeJson(res);
-      if(!data.success) return showError(data.message || "Unable to reject driver.");
-      showResult(`Driver rejected: <strong>${data.driver.first_name}</strong>`);
-      loadDashboard();
     }
 
     async function runDispatchBrain(rideId){
-      const res = await fetch(`/api/admin/run-dispatch/${rideId}`, {
-        method:"POST",
-        headers:{"Content-Type":"application/json"}
+      const actionKey = `dispatch-${rideId}`;
+      await runAdminAction(actionKey, async () => {
+        const admin = getAdminContext();
+        const attempts = [
+          () => api(`/api/admin/run-dispatch/${encodeURIComponent(rideId)}`, {
+            method:"POST",
+            body:JSON.stringify(admin.payload)
+          }),
+          () => api(`/api/admin/run-dispatch-brain/${encodeURIComponent(rideId)}`, {
+            method:"POST",
+            body:JSON.stringify(admin.payload)
+          })
+        ];
+
+        let data = null;
+        let lastError = null;
+
+        for(const attempt of attempts){
+          try{
+            data = await attempt();
+            if(data) break;
+          }catch(error){
+            lastError = error;
+          }
+        }
+
+        if(!data){
+          throw lastError || new Error("Unable to run dispatch brain.");
+        }
+
+        if(data.dispatch && data.dispatch.assigned){
+          showResult(`
+            <strong>Dispatch brain assigned a driver.</strong><br><br>
+            Ride ID: ${escapeHtml(data.ride?.ride_id || rideId)}<br>
+            Driver: ${escapeHtml(data.dispatch.driver?.first_name || data.dispatch.driver_name || "--")}<br>
+            ETA to Pickup: ${escapeHtml(String(data.dispatch.eta_to_pickup_minutes || "--"))} min<br>
+            Dispatch Score: ${escapeHtml(String(data.dispatch.dispatch_score || "--"))}
+          `);
+        }else{
+          showResult(`
+            <strong>Dispatch brain ran successfully.</strong><br><br>
+            No approved online driver is available right now for ride <strong>${escapeHtml(rideId)}</strong>.
+          `);
+        }
       });
-      const data = await safeJson(res);
-
-      if(!data.success){
-        showError(data.message || "Unable to run dispatch brain.");
-        return;
-      }
-
-      if(data.dispatch && data.dispatch.assigned){
-        showResult(`
-          <strong>Dispatch brain assigned a driver.</strong><br><br>
-          Ride ID: ${data.ride.ride_id}<br>
-          Driver: ${data.dispatch.driver ? data.dispatch.driver.first_name : (data.dispatch.driver_name || "--")}<br>
-          ETA to Pickup: ${data.dispatch.eta_to_pickup_minutes || "--"} min<br>
-          Dispatch Score: ${data.dispatch.dispatch_score || "--"}
-        `);
-      }else{
-        showResult(`
-          <strong>Dispatch brain ran successfully.</strong><br><br>
-          No approved online driver is available right now for ride <strong>${data.ride.ride_id}</strong>.
-        `);
-      }
-
-      loadDashboard();
     }
 
-    async function showDispatchInsights(rideId){
-      const panel = document.getElementById("dispatchInsightsPanel");
-      panel.innerHTML = `<div class="empty">Loading dispatch insights...</div>`;
+    async function showDispatchInsights(rideId, { silent = false } = {}){
+      state.selectedRideId = rideId;
+      els.dispatchInsightsPanel.innerHTML = `<div class="empty">Loading dispatch insights...</div>`;
 
-      const res = await fetch(`/api/admin/dispatch-insights/${rideId}`);
-      const data = await safeJson(res);
+      try{
+        const attempts = [
+          () => api(`/api/admin/dispatch-insights/${encodeURIComponent(rideId)}`),
+          () => api(`/api/admin/dispatch-candidates/${encodeURIComponent(rideId)}`)
+        ];
 
-      if(!data.success){
-        panel.innerHTML = `<div class="empty">${data.message || "Unable to load insights."}</div>`;
-        return;
-      }
+        let data = null;
+        let lastError = null;
 
-      if(!data.candidates || !data.candidates.length){
-        panel.innerHTML = `
+        for(const attempt of attempts){
+          try{
+            data = await attempt();
+            if(data) break;
+          }catch(error){
+            lastError = error;
+          }
+        }
+
+        if(!data){
+          throw lastError || new Error("Unable to load insights.");
+        }
+
+        if(!data.candidates || !data.candidates.length){
+          els.dispatchInsightsPanel.innerHTML = `
+            <div class="insight-card">
+              <div class="insight-title">Ride ${safeText(data.ride?.ride_id || rideId)}</div>
+              <div class="empty">No eligible driver candidates right now.</div>
+            </div>
+          `;
+          return;
+        }
+
+        const preferredDriverName =
+          data.ride?.preferred_driver_name ||
+          data.ride?.preferred_driver ||
+          data.ride?.requested_driver_name ||
+          "";
+        const preferredDriverId =
+          data.ride?.preferred_driver_id ||
+          data.ride?.requested_driver_id ||
+          "";
+
+        els.dispatchInsightsPanel.innerHTML = `
           <div class="insight-card">
-            <div class="insight-title">Ride ${data.ride.ride_id}</div>
-            <div class="empty">No eligible driver candidates right now.</div>
+            <div class="insight-title">Dispatch Insights • ${safeText(data.ride?.ride_id || rideId)}</div>
+            <div class="mini" style="margin-bottom:12px;">
+              Pickup: ${safeText(data.ride?.pickup_address || "--")}<br>
+              Dropoff: ${safeText(data.ride?.dropoff_address || "--")}<br>
+              Preferred Driver: ${
+                preferredDriverName || preferredDriverId
+                  ? `${safeText(preferredDriverName || "Preferred")} ${preferredDriverId ? `• ${safeText(preferredDriverId)}` : ""}`
+                  : "None"
+              }
+            </div>
+            ${data.candidates.map((candidate, index) => `
+              <div class="candidate">
+                <div>
+                  <strong>#${index + 1} ${safeText(candidate.driver_name || "Driver")}</strong><br>
+                  <span class="mini">${safeText(candidate.driver_id || "--")} • Zone: ${safeText(candidate.zone || "--")}</span>
+                </div>
+                <div>
+                  <strong>${safeText(candidate.score || "--")}</strong><br>
+                  <span class="mini">Score</span>
+                </div>
+                <div>
+                  <strong>${safeText(candidate.eta_to_pickup_minutes || "--")} min</strong><br>
+                  <span class="mini">ETA</span>
+                </div>
+                <div>
+                  <strong>${safeText(candidate.is_busy ? "Busy" : "Ready")}</strong><br>
+                  <span class="mini">Availability</span>
+                </div>
+              </div>
+            `).join("")}
           </div>
         `;
-        return;
+      }catch(error){
+        els.dispatchInsightsPanel.innerHTML = `<div class="empty">${escapeHtml(error.message || "Unable to load insights.")}</div>`;
+        if(!silent){
+          showError(escapeHtml(error.message || "Unable to load insights."));
+        }
       }
-
-      panel.innerHTML = `
-        <div class="insight-card">
-          <div class="insight-title">Dispatch Insights • ${data.ride.ride_id}</div>
-          <div class="mini" style="margin-bottom:12px;">
-            Pickup: ${data.ride.pickup_address}<br>
-            Dropoff: ${data.ride.dropoff_address}
-          </div>
-          ${data.candidates.map((candidate, index) => `
-            <div class="candidate">
-              <div>
-                <strong>#${index + 1} ${candidate.driver_name}</strong><br>
-                <span class="mini">${candidate.driver_id} • Zone: ${candidate.zone}</span>
-              </div>
-              <div>
-                <strong>${candidate.score}</strong><br>
-                <span class="mini">Score</span>
-              </div>
-              <div>
-                <strong>${candidate.eta_to_pickup_minutes} min</strong><br>
-                <span class="mini">ETA</span>
-              </div>
-              <div>
-                <strong>${candidate.is_busy ? "Busy" : "Ready"}</strong><br>
-                <span class="mini">Availability</span>
-              </div>
-            </div>
-          `).join("")}
-        </div>
-      `;
     }
 
     async function markArriving(rideId){
-      const res = await fetch(`/api/rides/${rideId}/arriving`, { method:"POST" });
-      const data = await safeJson(res);
-      if(!data.success) return showError(data.message || "Unable to update ride.");
-      showResult(`Ride marked as <strong>driver arriving</strong>.`);
-      loadDashboard();
+      const actionKey = `arriving-${rideId}`;
+      await runAdminAction(actionKey, async () => {
+        const attempts = [
+          () => api(`/api/rides/${encodeURIComponent(rideId)}/arriving`, { method:"POST" }),
+          () => api(`/api/mission/${encodeURIComponent(rideId)}/arriving`, { method:"POST" })
+        ];
+
+        let data = null;
+        let lastError = null;
+
+        for(const attempt of attempts){
+          try{
+            data = await attempt();
+            if(data) break;
+          }catch(error){
+            lastError = error;
+          }
+        }
+
+        if(!data){
+          throw lastError || new Error("Unable to update ride.");
+        }
+
+        showResult(`Ride marked as <strong>driver arriving</strong>.`);
+      });
     }
 
     async function startTrip(rideId){
-      const res = await fetch(`/api/rides/${rideId}/start`, { method:"POST" });
-      const data = await safeJson(res);
-      if(!data.success) return showError(data.message || "Unable to start trip.");
-      showResult(`Trip started for ride <strong>${rideId}</strong>.`);
-      loadDashboard();
+      const actionKey = `start-${rideId}`;
+      await runAdminAction(actionKey, async () => {
+        const attempts = [
+          () => api(`/api/rides/${encodeURIComponent(rideId)}/start`, { method:"POST" }),
+          () => api(`/api/mission/${encodeURIComponent(rideId)}/start-trip`, { method:"POST" })
+        ];
+
+        let data = null;
+        let lastError = null;
+
+        for(const attempt of attempts){
+          try{
+            data = await attempt();
+            if(data) break;
+          }catch(error){
+            lastError = error;
+          }
+        }
+
+        if(!data){
+          throw lastError || new Error("Unable to start trip.");
+        }
+
+        showResult(`Trip started for ride <strong>${escapeHtml(rideId)}</strong>.`);
+      });
     }
 
     async function completeTrip(rideId){
-      const res = await fetch(`/api/rides/${rideId}/complete`, { method:"POST" });
-      const data = await safeJson(res);
-      if(!data.success) return showError(data.message || "Unable to complete trip.");
-      showResult(`Trip completed for ride <strong>${rideId}</strong>.`);
-      loadDashboard();
+      const actionKey = `complete-${rideId}`;
+      await runAdminAction(actionKey, async () => {
+        const attempts = [
+          () => api(`/api/rides/${encodeURIComponent(rideId)}/complete`, { method:"POST" }),
+          () => api(`/api/mission/${encodeURIComponent(rideId)}/complete`, { method:"POST" }),
+          () => api(`/api/mission/${encodeURIComponent(rideId)}/complete-trip`, { method:"POST" })
+        ];
+
+        let data = null;
+        let lastError = null;
+
+        for(const attempt of attempts){
+          try{
+            data = await attempt();
+            if(data) break;
+          }catch(error){
+            lastError = error;
+          }
+        }
+
+        if(!data){
+          throw lastError || new Error("Unable to complete trip.");
+        }
+
+        showResult(`Trip completed for ride <strong>${escapeHtml(rideId)}</strong>.`);
+      });
     }
 
-    loadDashboard();
-    setInterval(loadDashboard, 5000);
+    function wireEvents(){
+      els.refreshBtn.addEventListener("click", () => loadDashboard());
+      els.manualRefreshBtn.addEventListener("click", () => loadDashboard());
+      els.toggleAutoRefreshBtn.addEventListener("click", toggleAutoRefresh);
+
+      document.addEventListener("visibilitychange", () => {
+        if(document.hidden){
+          stopAutoRefresh();
+        }else if(state.isAutoRefresh){
+          startAutoRefresh();
+          loadDashboard({ silent: true });
+        }
+      });
+
+      window.addEventListener("beforeunload", stopAutoRefresh);
+    }
+
+    async function bootstrap(){
+      wireEvents();
+      await loadDashboard();
+      startAutoRefresh();
+    }
+
+    bootstrap();
   </script>
 </body>
-</html>
+  </html>
