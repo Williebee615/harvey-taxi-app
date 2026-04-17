@@ -72,7 +72,6 @@
     textarea,
     label,
     a {
-      pointer-events: auto;
       -webkit-tap-highlight-color: transparent;
       touch-action: manipulation;
       font-family: inherit;
@@ -87,10 +86,14 @@
       box-shadow: var(--focus);
     }
 
+    .hidden {
+      display: none !important;
+    }
+
     .shell {
       width: min(100%, 1180px);
       margin: 0 auto;
-      padding: 18px 16px 120px;
+      padding: 18px 16px 170px;
       position: relative;
       z-index: 2;
     }
@@ -348,14 +351,21 @@
       display: block;
     }
 
+    .section-card,
+    .actions,
+    .verification-actions,
+    .panel,
+    form {
+      position: relative;
+      z-index: 3;
+    }
+
     .section-card {
       border: 1px solid var(--line);
       background: var(--panel-soft);
       border-radius: 22px;
       padding: 18px;
       margin-bottom: 18px;
-      position: relative;
-      z-index: 3;
       overflow: visible;
     }
 
@@ -499,8 +509,8 @@
       display: grid;
       gap: 14px;
       position: relative;
-      z-index: 5;
       isolation: isolate;
+      z-index: 6;
     }
 
     .consent-card {
@@ -514,7 +524,7 @@
       cursor: pointer;
       transition: 0.2s ease;
       position: relative;
-      z-index: 6;
+      z-index: 7;
       user-select: none;
       -webkit-user-select: none;
       touch-action: manipulation;
@@ -529,6 +539,8 @@
     .consent-card input[type="checkbox"] {
       position: absolute;
       opacity: 0;
+      width: 1px;
+      height: 1px;
       pointer-events: none;
     }
 
@@ -583,8 +595,7 @@
       display: grid;
       gap: 12px;
       margin-top: 6px;
-      position: relative;
-      z-index: 6;
+      z-index: 7;
     }
 
     .verification-actions.two-col {
@@ -599,6 +610,8 @@
       color: var(--ink);
       background: linear-gradient(135deg, var(--cyan), var(--blue), #9dbeff);
       box-shadow: 0 16px 32px rgba(67, 140, 255, 0.18);
+      position: relative;
+      z-index: 8;
     }
 
     .btn:hover {
@@ -623,6 +636,19 @@
       color: var(--text);
       border: 1px solid var(--line);
       font-size: 0.95rem;
+      position: relative;
+      z-index: 8;
+    }
+
+    #submitBtn,
+    #verifySmsBtn,
+    #refreshStatusBtn,
+    #resendEmailBtn,
+    #resendSmsBtn,
+    #startOverBtn,
+    #openDashboardBtn {
+      position: relative;
+      z-index: 9;
     }
 
     .form-hint {
@@ -765,19 +791,6 @@
       margin-bottom: 6px;
     }
 
-    .return-home {
-      position: fixed;
-      right: 16px;
-      bottom: 16px;
-      z-index: 60;
-      padding: 15px 20px;
-      border-radius: 999px;
-      background: linear-gradient(135deg, var(--cyan), var(--blue));
-      color: var(--ink);
-      font-weight: 900;
-      box-shadow: var(--shadow);
-    }
-
     @media (max-width: 980px) {
       .page {
         grid-template-columns: 1fr;
@@ -803,12 +816,6 @@
         flex-direction: column;
         align-items: flex-start;
         border-radius: 24px;
-      }
-
-      .return-home {
-        left: 12px;
-        right: 12px;
-        text-align: center;
       }
 
       .shell {
@@ -1130,8 +1137,6 @@
       </section>
     </main>
   </div>
-
-  <a href="/" class="return-home">Return Home</a>
 
   <script>
     const STORAGE = {
@@ -1612,7 +1617,7 @@
         onboardingState.smsVerified = driver.sms_verified === true || driver.is_verified === true;
         onboardingState.approved = driver.is_approved === true || String(driver.approval_status || "").toLowerCase() === "approved";
         onboardingState.fullyVerified =
-          (driver.is_verified === true) ||
+          driver.is_verified === true ||
           (onboardingState.emailVerified && onboardingState.smsVerified);
         onboardingState.email = driver.email || onboardingState.email;
         onboardingState.phone = driver.phone || onboardingState.phone;
@@ -1656,12 +1661,13 @@
       const card = input?.closest(".consent-card");
 
       if (input && card) {
-        input.addEventListener("change", toggleConsentCardState);
         card.addEventListener("click", (event) => {
-          if (event.target === input) return;
+          if (event.target.tagName.toLowerCase() === "a") return;
           input.checked = !input.checked;
-          input.dispatchEvent(new Event("change", { bubbles: true }));
+          toggleConsentCardState();
         });
+
+        input.addEventListener("change", toggleConsentCardState);
       }
     });
 
