@@ -1,7 +1,8 @@
 /* =========================================================
-   HARVEY TAXI — CODE BLUE PHASE 11
+   HARVEY TAXI — CODE BLUE PHASE 12
    PART 1 OF 4
    FOUNDATION + ENV + SECURITY CORE + REALTIME + MIDDLEWARE + HELPERS
+   INSURANCE + PREFERRED DRIVER + NONPROFIT BENEFITS FOUNDATION
    SR. DEVELOPER ENGINEER BUILD
 ========================================================= */
 
@@ -60,7 +61,7 @@ const server = http.createServer(app);
 /* =========================================================
    APP CONSTANTS
 ========================================================= */
-const APP_NAME = "Harvey Taxi Code Blue Phase 11";
+const APP_NAME = "Harvey Taxi Code Blue Phase 12";
 const PORT = Number(process.env.PORT || 10000);
 const NODE_ENV = String(process.env.NODE_ENV || "development").toLowerCase();
 const IS_PROD = NODE_ENV === "production";
@@ -190,6 +191,131 @@ function haversineMiles(lat1, lon1, lat2, lon2) {
 }
 
 /* =========================================================
+   NEW PHASE 12 FOUNDATION HELPERS
+========================================================= */
+function toDateMs(value) {
+  const ms = new Date(value).getTime();
+  return Number.isFinite(ms) ? ms : null;
+}
+
+function daysUntil(value) {
+  const ms = toDateMs(value);
+  if (!ms) return null;
+  return Math.floor((ms - Date.now()) / (1000 * 60 * 60 * 24));
+}
+
+function isFutureDate(value) {
+  const ms = toDateMs(value);
+  return !!ms && ms > Date.now();
+}
+
+function uniqueArray(values = []) {
+  return [...new Set((values || []).filter(Boolean))];
+}
+
+function normalizeInsuranceStatus(value = "") {
+  const v = lower(value);
+  if (!v) return "missing";
+  if (["active", "approved", "verified", "valid"].includes(v)) return "active";
+  if (["pending", "submitted", "review"].includes(v)) return "pending";
+  if (["expired"].includes(v)) return "expired";
+  if (["rejected", "denied"].includes(v)) return "rejected";
+  if (["missing", "none"].includes(v)) return "missing";
+  if (["suspended", "blocked", "invalid"].includes(v)) return "blocked";
+  return v;
+}
+
+function normalizeComplianceStatus(value = "") {
+  const v = lower(value);
+  if (!v) return "pending";
+  if (["approved", "clear", "ready", "compliant"].includes(v)) return "approved";
+  if (["pending", "review", "under_review"].includes(v)) return "pending";
+  if (["blocked", "hold", "held", "compliance_blocked"].includes(v)) return "blocked";
+  if (["expired"].includes(v)) return "expired";
+  if (["rejected", "denied"].includes(v)) return "rejected";
+  return v;
+}
+
+function normalizeBenefitType(value = "") {
+  const v = lower(value);
+  if (!v) return "none";
+  if (["medical", "medical_transport"].includes(v)) return "medical";
+  if (["work", "employment"].includes(v)) return "work";
+  if (["school", "education"].includes(v)) return "school";
+  if (["community", "essential", "essential_access"].includes(v)) return "community";
+  if (["sponsored", "foundation", "charity", "nonprofit"].includes(v)) return "foundation";
+  return v;
+}
+
+function normalizePreferredDriverPolicy(value = "") {
+  const v = lower(value);
+  if (!v) return "fallback_allowed";
+  if (["required", "only", "strict"].includes(v)) return "required";
+  if (["preferred", "first", "preferred_first"].includes(v)) return "preferred_first";
+  return "fallback_allowed";
+}
+
+function insuranceIsActive(driver = {}) {
+  const status = normalizeInsuranceStatus(
+    driver.insurance_status ||
+    driver.driver_insurance_status ||
+    driver.compliance_insurance_status
+  );
+
+  const expiration =
+    clean(driver.insurance_expiration_date) ||
+    clean(driver.insurance_expiration) ||
+    clean(driver.policy_expiration_date);
+
+  return status === "active" && isFutureDate(expiration);
+}
+
+function driverHasRequiredInsurance(driver = {}) {
+  const insuranceVerified = toBool(
+    driver.insurance_verified ??
+    driver.driver_insurance_verified ??
+    false,
+    false
+  );
+
+  const tncConfirmed = toBool(
+    driver.tnc_endorsement_confirmed ??
+    driver.commercial_use_confirmed ??
+    false,
+    false
+  );
+
+  return insuranceVerified && tncConfirmed && insuranceIsActive(driver);
+}
+
+function calculateNonprofitBenefitEstimate({
+  estimatedTotal = 0,
+  benefitPercent = 0,
+  riderCopay = null
+} = {}) {
+  const total = Math.max(0, Number(estimatedTotal) || 0);
+  const percent = clamp(Number(benefitPercent || 0), 0, 1);
+  const sponsoredAmount = roundMoney(total * percent);
+
+  if (riderCopay !== null && Number.isFinite(Number(riderCopay))) {
+    const copay = Math.max(0, roundMoney(riderCopay));
+    return {
+      estimated_total: roundMoney(total),
+      sponsored_amount: roundMoney(Math.min(total, total - copay)),
+      rider_copay_amount: roundMoney(Math.min(total, copay)),
+      sponsorship_percent: roundMoney(total > 0 ? (Math.min(total, total - copay) / total) : 0)
+    };
+  }
+
+  return {
+    estimated_total: roundMoney(total),
+    sponsored_amount: sponsoredAmount,
+    rider_copay_amount: roundMoney(total - sponsoredAmount),
+    sponsorship_percent: roundMoney(percent)
+  };
+}
+
+/* =========================================================
    ENV
 ========================================================= */
 const PUBLIC_APP_URL =
@@ -235,6 +361,44 @@ const ENABLE_REALTIME_EVENTS = toBool(process.env.ENABLE_REALTIME_EVENTS, true);
 const ENABLE_STARTUP_TABLE_CHECKS = toBool(process.env.ENABLE_STARTUP_TABLE_CHECKS, true);
 
 /* =========================================================
+   NEW PHASE 12 FEATURE FLAGS
+========================================================= */
+const ENABLE_DRIVER_INSURANCE_GATE = toBool(
+  process.env.ENABLE_DRIVER_INSURANCE_GATE,
+  true
+);
+
+const ENABLE_DRIVER_COMPLIANCE_GATE = toBool(
+  process.env.ENABLE_DRIVER_COMPLIANCE_GATE,
+  true
+);
+
+const ENABLE_PREFERRED_DRIVER_SYSTEM = toBool(
+  process.env.ENABLE_PREFERRED_DRIVER_SYSTEM,
+  true
+);
+
+const ENABLE_NONPROFIT_BENEFITS = toBool(
+  process.env.ENABLE_NONPROFIT_BENEFITS,
+  true
+);
+
+const ENABLE_SPONSORED_RIDES = toBool(
+  process.env.ENABLE_SPONSORED_RIDES,
+  true
+);
+
+const ENABLE_COMPLIANCE_SWEEPS = toBool(
+  process.env.ENABLE_COMPLIANCE_SWEEPS,
+  true
+);
+
+const ENABLE_DRIVER_INSURANCE_EXPIRY_WARNINGS = toBool(
+  process.env.ENABLE_DRIVER_INSURANCE_EXPIRY_WARNINGS,
+  true
+);
+
+/* =========================================================
    TIMERS / THRESHOLDS
 ========================================================= */
 const DRIVER_HEARTBEAT_STALE_MS = clamp(
@@ -271,6 +435,45 @@ const DISPATCH_BATCH_LIMIT = clamp(
   toNumber(process.env.DISPATCH_BATCH_LIMIT, 50),
   1,
   200
+);
+
+/* =========================================================
+   NEW PHASE 12 COMPLIANCE / BENEFITS THRESHOLDS
+========================================================= */
+const INSURANCE_EXPIRY_WARNING_DAYS_1 = clamp(
+  toNumber(process.env.INSURANCE_EXPIRY_WARNING_DAYS_1, 30),
+  1,
+  365
+);
+
+const INSURANCE_EXPIRY_WARNING_DAYS_2 = clamp(
+  toNumber(process.env.INSURANCE_EXPIRY_WARNING_DAYS_2, 14),
+  1,
+  365
+);
+
+const INSURANCE_EXPIRY_WARNING_DAYS_3 = clamp(
+  toNumber(process.env.INSURANCE_EXPIRY_WARNING_DAYS_3, 7),
+  1,
+  365
+);
+
+const COMPLIANCE_SWEEP_INTERVAL_MS = clamp(
+  toNumber(process.env.COMPLIANCE_SWEEP_INTERVAL_MS, 60_000),
+  10_000,
+  3_600_000
+);
+
+const NONPROFIT_DEFAULT_SPONSORSHIP_PERCENT = clamp(
+  toNumber(process.env.NONPROFIT_DEFAULT_SPONSORSHIP_PERCENT, 0.25),
+  0,
+  1
+);
+
+const NONPROFIT_MAX_SPONSORSHIP_PERCENT = clamp(
+  toNumber(process.env.NONPROFIT_MAX_SPONSORSHIP_PERCENT, 1),
+  0,
+  1
 );
 
 /* =========================================================
@@ -458,6 +661,29 @@ const runtimeState = {
   },
   process: {
     shuttingDown: false
+  },
+
+  /* =========================================================
+     NEW PHASE 12 RUNTIME STATE
+  ========================================================= */
+  complianceSweep: {
+    enabled: ENABLE_COMPLIANCE_SWEEPS,
+    running: false,
+    timerStarted: false,
+    lastRanAt: null,
+    lastError: null
+  },
+  insurance: {
+    enabled: ENABLE_DRIVER_INSURANCE_GATE,
+    lastSweepAt: null,
+    lastSweepError: null
+  },
+  preferredDriver: {
+    enabled: ENABLE_PREFERRED_DRIVER_SYSTEM
+  },
+  nonprofitBenefits: {
+    enabled: ENABLE_NONPROFIT_BENEFITS,
+    sponsoredRidesEnabled: ENABLE_SPONSORED_RIDES
   }
 };
 
@@ -554,6 +780,25 @@ function emitSecurityRealtime(payload = {}) {
   });
 }
 
+/* =========================================================
+   NEW PHASE 12 REALTIME EMITTERS
+========================================================= */
+function emitComplianceRealtime(payload = {}) {
+  if (!ENABLE_REALTIME_EVENTS) return;
+  realtimeBus.emit("compliance_event", {
+    ...payload,
+    emitted_at: nowIso()
+  });
+}
+
+function emitBenefitsRealtime(payload = {}) {
+  if (!ENABLE_REALTIME_EVENTS) return;
+  realtimeBus.emit("benefit_event", {
+    ...payload,
+    emitted_at: nowIso()
+  });
+}
+
 function startRealtimeKeepAliveLoop() {
   if (!ENABLE_REALTIME_EVENTS || runtimeState.realtime.keepAliveStarted) return;
   runtimeState.realtime.keepAliveStarted = true;
@@ -630,6 +875,24 @@ realtimeBus.on("security_event", (payload) => {
     runtimeState.realtime.adminStreams,
     "global",
     "security_update",
+    payload
+  );
+});
+
+realtimeBus.on("compliance_event", (payload) => {
+  emitToTrackedStreams(
+    runtimeState.realtime.adminStreams,
+    "global",
+    "compliance_update",
+    payload
+  );
+});
+
+realtimeBus.on("benefit_event", (payload) => {
+  emitToTrackedStreams(
+    runtimeState.realtime.adminStreams,
+    "global",
+    "benefit_update",
     payload
   );
 });
@@ -719,7 +982,10 @@ app.use((req, res, next) => {
     "/api/persona/webhook",
     "/api/driver/location",
     "/api/driver/heartbeat",
-    "/api/payments/authorize"
+    "/api/payments/authorize",
+    "/api/driver/insurance/upload",
+    "/api/rider/favorite-driver",
+    "/api/benefits/apply"
   ];
 
   if (!limitedPaths.some((p) => req.originalUrl.startsWith(p))) {
@@ -835,6 +1101,7 @@ function normalizeRideStatus(value = "") {
   if (["no_driver", "no_driver_available"].includes(v)) return "no_driver_available";
   if (["expired"].includes(v)) return "expired";
   if (["security_review"].includes(v)) return "security_review";
+  if (["compliance_review"].includes(v)) return "compliance_review";
   return v;
 }
 
@@ -847,6 +1114,7 @@ function normalizeDriverStatus(value = "") {
   if (["rejected", "denied"].includes(v)) return "rejected";
   if (["suspended"].includes(v)) return "suspended";
   if (["security_locked"].includes(v)) return "security_locked";
+  if (["compliance_blocked", "insurance_blocked"].includes(v)) return "compliance_blocked";
   return v;
 }
 
@@ -1031,6 +1299,62 @@ async function logTripEvent({
 }
 
 /* =========================================================
+   NEW PHASE 12 COMPLIANCE / BENEFITS HELPERS
+========================================================= */
+async function logComplianceEvent({
+  subject_type,
+  subject_id,
+  event_type,
+  severity = "info",
+  details = {}
+}) {
+  try {
+    const tableAccessible = await maybeSingle(
+      requireSupabase()
+        .from("driver_compliance_audit")
+        .select("*")
+    ).catch(() => null);
+
+    void tableAccessible;
+
+    await requireSupabase().from("driver_compliance_audit").insert({
+      id: createId("cmp"),
+      subject_type: clean(subject_type || "driver"),
+      subject_id: clean(subject_id || ""),
+      event_type: clean(event_type || "compliance_event"),
+      severity: clean(severity || "info"),
+      details: isObject(details) ? details : { value: details },
+      created_at: nowIso()
+    });
+  } catch (error) {
+    console.warn("⚠️ Compliance audit insert skipped:", error.message);
+  }
+}
+
+async function logBenefitEvent({
+  rider_id = null,
+  ride_id = null,
+  application_id = null,
+  event_type,
+  details = {}
+}) {
+  try {
+    await requireSupabase().from("benefit_transactions").insert({
+      id: createId("benefit"),
+      rider_id: clean(rider_id) || null,
+      ride_id: clean(ride_id) || null,
+      application_id: clean(application_id) || null,
+      event_type: clean(event_type || "benefit_event"),
+      details: isObject(details) ? details : { value: details },
+      created_at: nowIso(),
+      updated_at: nowIso()
+    });
+  } catch (error) {
+    console.warn("⚠️ Benefit transaction insert skipped:", error.message);
+  }
+}
+
+/* =========================================================
    SECURITY BRAIN HELPERS
 ========================================================= */
 function getSeverityFromScore(score = 0) {
@@ -1038,10 +1362,6 @@ function getSeverityFromScore(score = 0) {
   if (score >= RISK_HIGH_THRESHOLD) return "high";
   if (score >= RISK_REVIEW_THRESHOLD) return "medium";
   return "low";
-}
-
-function uniqueArray(values = []) {
-  return [...new Set((values || []).filter(Boolean))];
 }
 
 async function getOpenAIClientSafe() {
@@ -1268,6 +1588,36 @@ function paymentIsAuthorized(payment) {
 }
 
 /* =========================================================
+   NEW PHASE 12 PROFESSIONAL GATE HELPERS
+========================================================= */
+function driverComplianceIsClear(driver = {}) {
+  const complianceStatus = normalizeComplianceStatus(
+    driver.compliance_status ||
+    driver.driver_compliance_status
+  );
+
+  if (["blocked", "expired", "rejected"].includes(complianceStatus)) {
+    return false;
+  }
+
+  if (ENABLE_DRIVER_INSURANCE_GATE && !driverHasRequiredInsurance(driver)) {
+    return false;
+  }
+
+  return true;
+}
+
+function riderEligibleForBenefits(rider = {}) {
+  return toBool(
+    rider.nonprofit_benefits_approved ??
+    rider.foundation_benefits_approved ??
+    rider.is_nonprofit_member ??
+    false,
+    false
+  );
+}
+
+/* =========================================================
    ADMIN AUTH
 ========================================================= */
 function getAdminEmailFromRequest(req) {
@@ -1397,7 +1747,14 @@ async function runStartupChecks() {
     google_maps_key_present: !!GOOGLE_MAPS_API_KEY,
     realtime_events_enabled: ENABLE_REALTIME_EVENTS,
     driver_heartbeat_enabled: ENABLE_DRIVER_HEARTBEAT,
-    ai_security_enabled: ENABLE_AI_SECURITY_BRAIN
+    ai_security_enabled: ENABLE_AI_SECURITY_BRAIN,
+
+    /* NEW PHASE 12 */
+    insurance_gate_enabled: ENABLE_DRIVER_INSURANCE_GATE,
+    compliance_gate_enabled: ENABLE_DRIVER_COMPLIANCE_GATE,
+    preferred_driver_enabled: ENABLE_PREFERRED_DRIVER_SYSTEM,
+    nonprofit_benefits_enabled: ENABLE_NONPROFIT_BENEFITS,
+    sponsored_rides_enabled: ENABLE_SPONSORED_RIDES
   };
 
   if (!supabase) {
@@ -1426,7 +1783,19 @@ async function runStartupChecks() {
     "driver_earnings",
     "security_events",
     "security_profiles",
-    "security_actions"
+    "security_actions",
+
+    /* NEW PHASE 12 TABLES */
+    "favorite_drivers",
+    "recurring_rides",
+    "driver_compliance_audit",
+    "benefit_programs",
+    "benefit_eligibility_rules",
+    "benefit_applications",
+    "benefit_approvals",
+    "benefit_wallets",
+    "benefit_transactions",
+    "sponsored_rides"
   ];
 
   let allOk = true;
@@ -1445,10 +1814,6 @@ async function runStartupChecks() {
 
 /* =========================================================
    SECURITY TABLE BOOTSTRAP
-   NOTE:
-   These tables should ideally already exist in Supabase.
-   This check is here so the server knows whether the AI
-   security brain is fully wired.
 ========================================================= */
 async function ensureSecurityBrainReady() {
   if (!supabase) return;
@@ -1473,6 +1838,45 @@ async function ensureSecurityBrainReady() {
     console.warn("⚠️ AI security brain tables are not fully ready:", results);
   } else {
     console.log("🛡️ AI security brain tables ready");
+  }
+
+  return results;
+}
+
+/* =========================================================
+   NEW PHASE 12 FOUNDATION READINESS CHECKS
+========================================================= */
+async function ensurePhase12FoundationReady() {
+  if (!supabase) return;
+
+  const targets = [
+    "favorite_drivers",
+    "recurring_rides",
+    "driver_compliance_audit",
+    "benefit_programs",
+    "benefit_applications",
+    "benefit_transactions",
+    "sponsored_rides"
+  ];
+
+  const results = {};
+
+  for (const table of targets) {
+    try {
+      results[table] = await checkTableAccessible(table);
+    } catch (error) {
+      results[table] = {
+        ok: false,
+        error: clean(error?.message || String(error))
+      };
+    }
+  }
+
+  const failed = Object.values(results).some((v) => !v.ok);
+  if (failed) {
+    console.warn("⚠️ Phase 12 foundation tables are not fully ready:", results);
+  } else {
+    console.log("🏗️ Phase 12 foundation tables ready");
   }
 
   return results;
@@ -1515,7 +1919,15 @@ app.get("/api/health", asyncHandler(async (_req, res) => {
       ai_security: ENABLE_AI_SECURITY_BRAIN,
       driver_location_tracking: ENABLE_DRIVER_LOCATION_TRACKING,
       driver_heartbeat: ENABLE_DRIVER_HEARTBEAT,
-      realtime_events: ENABLE_REALTIME_EVENTS
+      realtime_events: ENABLE_REALTIME_EVENTS,
+
+      /* NEW PHASE 12 */
+      driver_insurance_gate: ENABLE_DRIVER_INSURANCE_GATE,
+      driver_compliance_gate: ENABLE_DRIVER_COMPLIANCE_GATE,
+      preferred_driver_system: ENABLE_PREFERRED_DRIVER_SYSTEM,
+      nonprofit_benefits: ENABLE_NONPROFIT_BENEFITS,
+      sponsored_rides: ENABLE_SPONSORED_RIDES,
+      compliance_sweeps: ENABLE_COMPLIANCE_SWEEPS
     },
     startup_checks: runtimeState.startupChecks,
     realtime: {
@@ -1524,7 +1936,13 @@ app.get("/api/health", asyncHandler(async (_req, res) => {
       driver_stream_keys: runtimeState.realtime.driverStreams.size,
       admin_stream_keys: runtimeState.realtime.adminStreams.size
     },
-    process: runtimeState.process
+    process: runtimeState.process,
+    phase12: {
+      compliance_sweep: runtimeState.complianceSweep,
+      insurance: runtimeState.insurance,
+      preferred_driver: runtimeState.preferredDriver,
+      nonprofit_benefits: runtimeState.nonprofitBenefits
+    }
   });
 }));
 
@@ -1537,7 +1955,12 @@ app.get("/api/config/public", (_req, res) => {
     payment_authorization_required: ENABLE_PAYMENT_GATE,
     dispatch_timeout_seconds: DISPATCH_TIMEOUT_SECONDS,
     autonomous_pilot_enabled: true,
-    realtime_enabled: ENABLE_REALTIME_EVENTS
+    realtime_enabled: ENABLE_REALTIME_EVENTS,
+
+    /* NEW PHASE 12 */
+    preferred_driver_enabled: ENABLE_PREFERRED_DRIVER_SYSTEM,
+    nonprofit_benefits_enabled: ENABLE_NONPROFIT_BENEFITS,
+    sponsored_rides_enabled: ENABLE_SPONSORED_RIDES
   });
 });
 
@@ -1606,10 +2029,75 @@ app.get("/api/realtime/admin/stream", requireAdmin, asyncHandler(async (_req, re
     channel: "admin",
     subscribed_at: nowIso()
   });
-}));/* =========================================================
-   HARVEY TAXI — CODE BLUE PHASE 11
+}));
+
+/* =========================================================
+   GRACEFUL SHUTDOWN
+========================================================= */
+function shutdown(signal) {
+  if (runtimeState.process.shuttingDown) return;
+  runtimeState.process.shuttingDown = true;
+
+  console.log(`⚠️ Received ${signal}. Shutting down gracefully...`);
+
+  server.close(() => {
+    console.log("✅ HTTP server closed");
+    process.exit(0);
+  });
+
+  setTimeout(() => {
+    console.error("❌ Forced shutdown after timeout");
+    process.exit(1);
+  }, 10000).unref();
+}
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
+
+/* =========================================================
+   START SERVER
+========================================================= */
+async function startServer() {
+  try {
+    await runStartupChecks();
+    await ensureSecurityBrainReady();
+    await ensurePhase12FoundationReady();
+
+    startRealtimeKeepAliveLoop();
+
+    server.listen(PORT, () => {
+      console.log("====================================================");
+      console.log(`🚕 ${APP_NAME} running`);
+      console.log(`🌐 Port: ${PORT}`);
+      console.log(`🛠️ Environment: ${NODE_ENV}`);
+      console.log(`🕒 Started: ${SERVER_STARTED_AT}`);
+      console.log(`🧠 AI Enabled: ${!!openai}`);
+      console.log(`🛡️ AI Security Enabled: ${ENABLE_AI_SECURITY_BRAIN}`);
+      console.log(`🗄️ Supabase Ready: ${!!supabase}`);
+      console.log(`📲 Twilio Ready: ${!!twilioClient}`);
+      console.log(`📧 SMTP Ready: ${!!emailTransporter}`);
+      console.log(`🤖 AI Dispatch Enabled: ${ENABLE_AI_DISPATCH}`);
+      console.log(`🏢 AI Operations Enabled: ${ENABLE_AI_OPERATIONS}`);
+      console.log(`📡 Realtime Enabled: ${ENABLE_REALTIME_EVENTS}`);
+      console.log(`💓 Driver Heartbeat Enabled: ${ENABLE_DRIVER_HEARTBEAT}`);
+      console.log(`🛡️ Driver Insurance Gate: ${ENABLE_DRIVER_INSURANCE_GATE}`);
+      console.log(`📋 Driver Compliance Gate: ${ENABLE_DRIVER_COMPLIANCE_GATE}`);
+      console.log(`⭐ Preferred Driver System: ${ENABLE_PREFERRED_DRIVER_SYSTEM}`);
+      console.log(`❤️ Nonprofit Benefits: ${ENABLE_NONPROFIT_BENEFITS}`);
+      console.log(`🤝 Sponsored Rides: ${ENABLE_SPONSORED_RIDES}`);
+      console.log("====================================================");
+    });
+  } catch (error) {
+    console.error("❌ Failed to start server:", error);
+    process.exit(1);
+  }
+}
+
+startServer();/* =========================================================
+   HARVEY TAXI — CODE BLUE PHASE 12
    PART 2 OF 4
    MAPS + RIDERS + PAYMENTS + REQUEST RIDE + PERSONA
+   PREFERRED DRIVER + NONPROFIT BENEFITS + COMPLIANCE-AWARE REQUEST FLOW
 ========================================================= */
 
 /* =========================================================
@@ -1772,7 +2260,8 @@ function buildRiderStatusResponse(rider = {}) {
   return {
     ...rider,
     status,
-    is_approved: status === "approved"
+    is_approved: status === "approved",
+    benefits_approved: riderEligibleForBenefits(rider)
   };
 }
 
@@ -1847,9 +2336,140 @@ function buildSafeRideRealtimePayload(ride, extra = {}) {
     estimated_total: roundMoney(ride?.estimated_total || 0),
     final_total: roundMoney(ride?.final_total || 0),
     tip_amount: roundMoney(ride?.tip_amount || 0),
+    preferred_driver_id: clean(ride?.preferred_driver_id || ""),
+    preferred_driver_required: !!ride?.preferred_driver_required,
+    sponsorship_type: clean(ride?.sponsorship_type || ""),
+    sponsored_amount: roundMoney(ride?.sponsored_amount || 0),
+    rider_copay_amount: roundMoney(ride?.rider_copay_amount || 0),
     updated_at: clean(ride?.updated_at || nowIso()),
     ...extra
   };
+}
+
+/* =========================================================
+   PREFERRED DRIVER / NONPROFIT HELPERS
+========================================================= */
+async function getFavoriteDriverRecord(riderId, driverId) {
+  return maybeSingle(
+    requireSupabase()
+      .from("favorite_drivers")
+      .select("*")
+      .eq("rider_id", clean(riderId))
+      .eq("driver_id", clean(driverId))
+      .eq("is_active", true)
+  );
+}
+
+async function riderHasFavoriteDriver(riderId, driverId) {
+  const record = await getFavoriteDriverRecord(riderId, driverId);
+  return !!record;
+}
+
+async function getCompletedRideBetweenRiderAndDriver(riderId, driverId) {
+  const { data, error } = await requireSupabase()
+    .from("rides")
+    .select("*")
+    .eq("rider_id", clean(riderId))
+    .eq("driver_id", clean(driverId))
+    .eq("status", "completed")
+    .order("updated_at", { ascending: false })
+    .limit(1);
+
+  if (error) throw error;
+  return data?.[0] || null;
+}
+
+async function getBenefitWalletForRider(riderId) {
+  try {
+    const { data, error } = await requireSupabase()
+      .from("benefit_wallets")
+      .select("*")
+      .eq("rider_id", clean(riderId))
+      .order("updated_at", { ascending: false })
+      .limit(1);
+
+    if (error) throw error;
+    return data?.[0] || null;
+  } catch (error) {
+    console.warn("⚠️ Benefit wallet lookup skipped:", error.message);
+    return null;
+  }
+}
+
+async function getOpenBenefitApprovalForRider(riderId) {
+  try {
+    const { data, error } = await requireSupabase()
+      .from("benefit_approvals")
+      .select("*")
+      .eq("rider_id", clean(riderId))
+      .in("status", ["approved", "active"])
+      .order("updated_at", { ascending: false })
+      .limit(1);
+
+    if (error) throw error;
+    return data?.[0] || null;
+  } catch (error) {
+    console.warn("⚠️ Benefit approval lookup skipped:", error.message);
+    return null;
+  }
+}
+
+async function resolveRequestedBenefitProfile({ rider, requestedRideType, requestedBenefitType }) {
+  if (!ENABLE_NONPROFIT_BENEFITS || !rider?.id) {
+    return {
+      eligible: false,
+      benefit_type: "none",
+      sponsored_amount: 0,
+      rider_copay_amount: 0,
+      sponsorship_percent: 0,
+      source: null
+    };
+  }
+
+  const riderApproved = riderEligibleForBenefits(rider);
+  const wallet = await getBenefitWalletForRider(rider.id);
+  const approval = await getOpenBenefitApprovalForRider(rider.id);
+
+  const requestedType = normalizeBenefitType(requestedBenefitType || requestedRideType);
+
+  if (!riderApproved && !wallet && !approval) {
+    return {
+      eligible: false,
+      benefit_type: "none",
+      sponsored_amount: 0,
+      rider_copay_amount: 0,
+      sponsorship_percent: 0,
+      source: null
+    };
+  }
+
+  let sponsorshipPercent = NONPROFIT_DEFAULT_SPONSORSHIP_PERCENT;
+
+  if (approval?.sponsorship_percent !== undefined && approval?.sponsorship_percent !== null) {
+    sponsorshipPercent = clamp(toNumber(approval.sponsorship_percent, sponsorshipPercent), 0, NONPROFIT_MAX_SPONSORSHIP_PERCENT);
+  }
+
+  if (wallet?.default_sponsorship_percent !== undefined && wallet?.default_sponsorship_percent !== null) {
+    sponsorshipPercent = clamp(toNumber(wallet.default_sponsorship_percent, sponsorshipPercent), 0, NONPROFIT_MAX_SPONSORSHIP_PERCENT);
+  }
+
+  return {
+    eligible: true,
+    benefit_type: requestedType === "none" ? "foundation" : requestedType,
+    sponsored_amount: 0,
+    rider_copay_amount: 0,
+    sponsorship_percent: sponsorshipPercent,
+    source: approval ? "benefit_approval" : wallet ? "benefit_wallet" : "rider_profile",
+    approval_id: approval?.id || null,
+    wallet_id: wallet?.id || null
+  };
+}
+
+function rideRequiresBenefitReview({ benefitProfile, requestedRideType }) {
+  const rideType = normalizeRideType(requestedRideType);
+  if (!benefitProfile?.eligible) return false;
+  if (rideType === "nonprofit") return false;
+  return false;
 }
 
 /* =========================================================
@@ -1861,7 +2481,6 @@ async function getRecentRiderSignals(riderId) {
   const since10m = new Date(Date.now() - (10 * 60 * 1000)).toISOString();
   const since1h = new Date(Date.now() - (60 * 60 * 1000)).toISOString();
   const since24h = new Date(Date.now() - (24 * 60 * 60 * 1000)).toISOString();
-  const since30d = new Date(Date.now() - (30 * 24 * 60 * 60 * 1000)).toISOString();
 
   const [rides10m, rides1h, failedPayments, cancelledRides] = await Promise.all([
     requireSupabase()
@@ -1973,6 +2592,16 @@ function buildRuleBasedRiderRiskAssessment(payload = {}) {
     reasons.push("Unusually long ride distance");
   }
 
+  if (context.preferred_driver_required === true) {
+    score += 3;
+    reasons.push("Strict preferred driver request");
+  }
+
+  if (context.sponsorship_percent >= 0.8) {
+    score += 4;
+    reasons.push("High sponsorship percentage");
+  }
+
   score = clamp(score, 0, 100);
 
   return {
@@ -1996,7 +2625,7 @@ async function getAiSecurityAssessment(payload = {}) {
         {
           role: "system",
           content:
-            "You are a transportation platform security analyst. Score fraud, abuse, payment risk, and identity risk. Return strict JSON with keys: risk_score, severity, summary, reasons, recommended_actions."
+            "You are a transportation platform security analyst. Score fraud, abuse, payment risk, identity risk, and sponsored ride misuse. Return strict JSON with keys: risk_score, severity, summary, reasons, recommended_actions."
         },
         {
           role: "user",
@@ -2053,8 +2682,8 @@ function mergeSecurityAssessments(ruleAssessment = {}, aiAssessment = null) {
       ...(ruleAssessment.recommended_actions || []),
       ...(aiAssessment.recommended_actions || [])
     ]).slice(0, 25),
-    ai_analysis: aiAssessment
-  };
+      ai_analysis: aiAssessment
+    };
 }
 
 async function maybeAssessRiderSecurity({
@@ -2092,7 +2721,10 @@ async function maybeAssessRiderSecurity({
         fare_amount: toNumber(ridePayload.estimated_total, 0),
         distance_miles: toNumber(ridePayload.distance_miles, 0),
         pickup_address: clean(ridePayload.pickup_address || ridePayload.pickupAddress || ""),
-        dropoff_address: clean(ridePayload.dropoff_address || ridePayload.dropoffAddress || "")
+        dropoff_address: clean(ridePayload.dropoff_address || ridePayload.dropoffAddress || ""),
+        preferred_driver_required: !!ridePayload.preferred_driver_required,
+        sponsorship_percent: toNumber(ridePayload.sponsorship_percent, 0),
+        benefit_type: clean(ridePayload.benefit_type || "")
       }
     };
 
@@ -2195,6 +2827,7 @@ app.post("/api/rider/signup", asyncHandler(async (req, res) => {
     status: "pending",
     approval_status: "pending",
     verification_status: "pending",
+    nonprofit_benefits_approved: false,
     created_at: nowIso(),
     updated_at: nowIso()
   });
@@ -2243,13 +2876,52 @@ app.get("/api/rider/:riderId/status", asyncHandler(async (req, res) => {
 }));
 
 /* =========================================================
+   BENEFIT / NONPROFIT PREVIEW ROUTE
+========================================================= */
+app.post("/api/benefits/preview", asyncHandler(async (req, res) => {
+  const rider = await resolveRider(req.body);
+  if (!rider) return fail(res, "Rider not found", 404);
+
+  const estimatedTotal = roundMoney(toNumber(req.body.estimated_total, 0));
+  const requestedRideType = normalizeRideType(req.body.ride_type || req.body.rideType || "standard");
+  const requestedBenefitType = normalizeBenefitType(req.body.benefit_type || req.body.benefitType || requestedRideType);
+
+  const benefitProfile = await resolveRequestedBenefitProfile({
+    rider,
+    requestedRideType,
+    requestedBenefitType
+  });
+
+  if (!benefitProfile.eligible) {
+    return ok(res, {
+      eligible: false,
+      benefit_profile: benefitProfile
+    });
+  }
+
+  const estimate = calculateNonprofitBenefitEstimate({
+    estimatedTotal,
+    benefitPercent: benefitProfile.sponsorship_percent
+  });
+
+  return ok(res, {
+    eligible: true,
+    benefit_profile: {
+      ...benefitProfile,
+      ...estimate
+    }
+  });
+}));
+
+/* =========================================================
    FARE ESTIMATE
 ========================================================= */
 app.post("/api/fare-estimate", asyncHandler(async (req, res) => {
+  const rider = await resolveRider(req.body).catch(() => null);
   const metrics = await resolveTripMetrics(req.body);
 
-  const requestedMode = normalizeRideMode(req.body.requested_mode);
-  const rideType = normalizeRideType(req.body.ride_type);
+  const requestedMode = normalizeRideMode(req.body.requested_mode || req.body.requestedMode);
+  const rideType = normalizeRideType(req.body.ride_type || req.body.rideType);
   const surgeMultiplier = computeDynamicSurge({
     requestedMode,
     rideType
@@ -2268,10 +2940,32 @@ app.post("/api/fare-estimate", asyncHandler(async (req, res) => {
     requestedMode === "autonomous" ? "autonomous" : "human"
   );
 
+  let benefit_profile = null;
+  if (rider && ENABLE_NONPROFIT_BENEFITS) {
+    const requestedBenefitType = normalizeBenefitType(req.body.benefit_type || req.body.benefitType || rideType);
+
+    const benefitProfile = await resolveRequestedBenefitProfile({
+      rider,
+      requestedRideType: rideType,
+      requestedBenefitType
+    });
+
+    if (benefitProfile.eligible) {
+      benefit_profile = {
+        ...benefitProfile,
+        ...calculateNonprofitBenefitEstimate({
+          estimatedTotal: fare.estimated_total,
+          benefitPercent: benefitProfile.sponsorship_percent
+        })
+      };
+    }
+  }
+
   return ok(res, {
     fare,
     payout,
-    metrics
+    metrics,
+    benefit_profile
   });
 }));
 
@@ -2290,12 +2984,28 @@ app.post("/api/payments/authorize", asyncHandler(async (req, res) => {
     return fail(res, "Valid authorization amount is required");
   }
 
+  const sponsorshipPercent = clamp(toNumber(req.body.sponsorship_percent, 0), 0, NONPROFIT_MAX_SPONSORSHIP_PERCENT);
+  const requestedBenefitType = normalizeBenefitType(req.body.benefit_type || req.body.benefitType || "");
+  const benefitEstimate = calculateNonprofitBenefitEstimate({
+    estimatedTotal: amount,
+    benefitPercent: sponsorshipPercent
+  });
+
+  const riderChargeAmount =
+    ENABLE_NONPROFIT_BENEFITS && sponsorshipPercent > 0
+      ? roundMoney(benefitEstimate.rider_copay_amount)
+      : amount;
+
   const payment = await insertRow("payments", {
     id: createId("pay"),
     rider_id: rider.id,
     status: "authorized",
     payment_status: "authorized",
-    authorization_amount: amount,
+    authorization_amount: riderChargeAmount,
+    gross_authorization_amount: amount,
+    sponsored_amount: roundMoney(benefitEstimate.sponsored_amount || 0),
+    sponsorship_percent: sponsorshipPercent,
+    benefit_type: requestedBenefitType || null,
     currency: "USD",
     created_at: nowIso(),
     updated_at: nowIso()
@@ -2307,7 +3017,10 @@ app.post("/api/payments/authorize", asyncHandler(async (req, res) => {
     event_type: "payment_authorized",
     details: {
       payment_id: payment.id,
-      authorization_amount: amount
+      authorization_amount: riderChargeAmount,
+      gross_authorization_amount: amount,
+      sponsored_amount: roundMoney(benefitEstimate.sponsored_amount || 0),
+      sponsorship_percent: sponsorshipPercent
     }
   });
 
@@ -2316,7 +3029,9 @@ app.post("/api/payments/authorize", asyncHandler(async (req, res) => {
     ridePayload: {
       estimated_total: amount,
       requested_mode: req.body.requested_mode || "driver",
-      ride_type: req.body.ride_type || "standard"
+      ride_type: req.body.ride_type || "standard",
+      sponsorship_percent: sponsorshipPercent,
+      benefit_type: requestedBenefitType
     },
     eventType: "payment_authorization"
   });
@@ -2325,7 +3040,8 @@ app.post("/api/payments/authorize", asyncHandler(async (req, res) => {
     type: "payment_authorized",
     rider_id: rider.id,
     payment_id: payment.id,
-    authorization_amount: amount,
+    authorization_amount: riderChargeAmount,
+    gross_authorization_amount: amount,
     security_risk_score: securityCheck?.assessment?.risk_score ?? null
   });
 
@@ -2371,6 +3087,67 @@ app.post("/api/request-ride", asyncHandler(async (req, res) => {
   const notes = clean(req.body.notes);
   const scheduledAt = clean(req.body.scheduled_at || req.body.scheduledAt);
 
+  const preferredDriverId = clean(
+    req.body.preferred_driver_id ||
+    req.body.preferredDriverId ||
+    req.body.requested_driver_id ||
+    req.body.requestedDriverId
+  );
+
+  const preferredDriverRequired = toBool(
+    req.body.preferred_driver_required || req.body.preferredDriverRequired,
+    false
+  );
+
+  const preferredDriverPolicy = normalizePreferredDriverPolicy(
+    req.body.preferred_driver_policy ||
+    req.body.preferredDriverPolicy ||
+    (preferredDriverRequired ? "required" : "preferred_first")
+  );
+
+  const requestedBenefitType = normalizeBenefitType(
+    req.body.benefit_type ||
+    req.body.benefitType ||
+    rideType
+  );
+
+  if (preferredDriverId && !ENABLE_PREFERRED_DRIVER_SYSTEM) {
+    return fail(res, "Preferred driver system is disabled", 403);
+  }
+
+  if (preferredDriverId) {
+    const preferredDriver = await getRowById("drivers", "id", preferredDriverId);
+
+    if (!preferredDriver) {
+      return fail(res, "Preferred driver not found", 404);
+    }
+
+    const priorCompletedRide = await getCompletedRideBetweenRiderAndDriver(
+      rider.id,
+      preferredDriverId
+    );
+
+    const isFavorited = await riderHasFavoriteDriver(rider.id, preferredDriverId);
+
+    if (!priorCompletedRide && !isFavorited) {
+      return fail(
+        res,
+        "Preferred driver can only be requested after a completed trip or favorite connection",
+        403
+      );
+    }
+
+    if (normalizeDriverType(preferredDriver.driver_type || "human") !== normalizeRideMode(requestedMode)) {
+      if (!(normalizeRideMode(requestedMode) === "driver" && normalizeDriverType(preferredDriver.driver_type || "human") === "human")) {
+        return fail(res, "Preferred driver does not support this ride mode", 400);
+      }
+    }
+
+    if (ENABLE_DRIVER_COMPLIANCE_GATE && !driverComplianceIsClear(preferredDriver)) {
+      return fail(res, "Preferred driver is not currently compliant for dispatch", 403);
+    }
+  }
+
   let pickupGeo = null;
   let dropoffGeo = null;
 
@@ -2411,6 +3188,26 @@ app.post("/api/request-ride", asyncHandler(async (req, res) => {
     requestedMode === "autonomous" ? "autonomous" : "human"
   );
 
+  const benefitProfile = await resolveRequestedBenefitProfile({
+    rider,
+    requestedRideType: rideType,
+    requestedBenefitType
+  });
+
+  let benefitEstimate = {
+    estimated_total: fare.estimated_total,
+    sponsored_amount: 0,
+    rider_copay_amount: fare.estimated_total,
+    sponsorship_percent: 0
+  };
+
+  if (benefitProfile.eligible) {
+    benefitEstimate = calculateNonprofitBenefitEstimate({
+      estimatedTotal: fare.estimated_total,
+      benefitPercent: benefitProfile.sponsorship_percent
+    });
+  }
+
   const securityCheck = await maybeAssessRiderSecurity({
     rider,
     ridePayload: {
@@ -2418,7 +3215,10 @@ app.post("/api/request-ride", asyncHandler(async (req, res) => {
       estimated_total: fare.estimated_total,
       distance_miles: metrics.distance_miles,
       pickup_address: pickupGeo?.ok ? pickupGeo.formatted_address : pickupAddress,
-      dropoff_address: dropoffGeo?.ok ? dropoffGeo.formatted_address : dropoffAddress
+      dropoff_address: dropoffGeo?.ok ? dropoffGeo.formatted_address : dropoffAddress,
+      preferred_driver_required: preferredDriverRequired,
+      sponsorship_percent: benefitEstimate.sponsorship_percent,
+      benefit_type: benefitProfile.benefit_type
     },
     eventType: "ride_request"
   });
@@ -2432,13 +3232,21 @@ app.post("/api/request-ride", asyncHandler(async (req, res) => {
     });
   }
 
+  const requiresBenefitReview = rideRequiresBenefitReview({
+    benefitProfile,
+    requestedRideType: rideType
+  });
+
   const ride = await insertRow("rides", {
     id: createId("ride"),
     rider_id: rider.id,
     payment_id: payment?.id || null,
-    status: securityCheck?.assessment?.risk_score >= RISK_HIGH_THRESHOLD
-      ? "security_review"
-      : "awaiting_dispatch",
+    status:
+      securityCheck?.assessment?.risk_score >= RISK_HIGH_THRESHOLD
+        ? "security_review"
+        : requiresBenefitReview
+          ? "compliance_review"
+          : "awaiting_dispatch",
     ride_type: rideType,
     requested_mode: requestedMode,
     pickup_address: pickupGeo?.ok ? pickupGeo.formatted_address : pickupAddress,
@@ -2455,6 +3263,22 @@ app.post("/api/request-ride", asyncHandler(async (req, res) => {
     estimated_driver_payout: payout.driver_payout_estimate,
     estimated_platform_fee: payout.platform_fee_estimate,
     surge_multiplier: fare.surge_multiplier,
+
+    preferred_driver_id: preferredDriverId || null,
+    preferred_driver_required: preferredDriverRequired,
+    preferred_driver_policy: preferredDriverPolicy,
+    preferred_driver_attempted: false,
+    preferred_driver_dispatched_at: null,
+
+    benefit_type: benefitProfile.benefit_type || null,
+    benefit_source: benefitProfile.source || null,
+    benefit_approval_id: benefitProfile.approval_id || null,
+    benefit_wallet_id: benefitProfile.wallet_id || null,
+    sponsorship_type: benefitProfile.eligible ? "foundation" : null,
+    sponsorship_percent: benefitEstimate.sponsorship_percent,
+    sponsored_amount: benefitEstimate.sponsored_amount,
+    rider_copay_amount: benefitEstimate.rider_copay_amount,
+
     created_at: nowIso(),
     updated_at: nowIso()
   });
@@ -2466,6 +3290,45 @@ app.post("/api/request-ride", asyncHandler(async (req, res) => {
     });
   }
 
+  if (benefitProfile.eligible && ENABLE_SPONSORED_RIDES) {
+    try {
+      await insertRow("sponsored_rides", {
+        id: createId("sride"),
+        ride_id: ride.id,
+        rider_id: rider.id,
+        benefit_type: benefitProfile.benefit_type || "foundation",
+        sponsorship_percent: benefitEstimate.sponsorship_percent,
+        sponsored_amount: benefitEstimate.sponsored_amount,
+        rider_copay_amount: benefitEstimate.rider_copay_amount,
+        status: requiresBenefitReview ? "pending_review" : "approved",
+        created_at: nowIso(),
+        updated_at: nowIso()
+      });
+
+      await logBenefitEvent({
+        rider_id: rider.id,
+        ride_id: ride.id,
+        application_id: benefitProfile.approval_id || null,
+        event_type: "sponsored_ride_created",
+        details: {
+          benefit_type: benefitProfile.benefit_type,
+          sponsored_amount: benefitEstimate.sponsored_amount,
+          rider_copay_amount: benefitEstimate.rider_copay_amount,
+          sponsorship_percent: benefitEstimate.sponsorship_percent
+        }
+      });
+
+      emitBenefitsRealtime({
+        type: "sponsored_ride_created",
+        ride_id: ride.id,
+        rider_id: rider.id,
+        sponsored_amount: benefitEstimate.sponsored_amount
+      });
+    } catch (error) {
+      console.warn("⚠️ Sponsored ride insert skipped:", error.message);
+    }
+  }
+
   await logTripEvent({
     ride_id: ride.id,
     rider_id: rider.id,
@@ -2475,7 +3338,13 @@ app.post("/api/request-ride", asyncHandler(async (req, res) => {
       ride_type: rideType,
       metrics,
       fare,
-      security_risk_score: securityCheck?.assessment?.risk_score ?? null
+      security_risk_score: securityCheck?.assessment?.risk_score ?? null,
+      preferred_driver_id: preferredDriverId || null,
+      preferred_driver_required: preferredDriverRequired,
+      sponsorship_percent: benefitEstimate.sponsorship_percent,
+      sponsored_amount: benefitEstimate.sponsored_amount,
+      rider_copay_amount: benefitEstimate.rider_copay_amount,
+      benefit_type: benefitProfile.benefit_type || null
     }
   });
 
@@ -2484,7 +3353,13 @@ app.post("/api/request-ride", asyncHandler(async (req, res) => {
     ride: buildSafeRideRealtimePayload(ride, {
       metrics,
       fare,
-      payout
+      payout,
+      benefit_profile: benefitProfile.eligible
+        ? {
+            ...benefitProfile,
+            ...benefitEstimate
+          }
+        : null
     })
   });
 
@@ -2493,7 +3368,9 @@ app.post("/api/request-ride", asyncHandler(async (req, res) => {
     ride_id: ride.id,
     rider_id: rider.id,
     status: ride.status,
-    security_risk_score: securityCheck?.assessment?.risk_score ?? null
+    security_risk_score: securityCheck?.assessment?.risk_score ?? null,
+    preferred_driver_id: preferredDriverId || null,
+    sponsored_amount: benefitEstimate.sponsored_amount
   });
 
   let dispatch = null;
@@ -2509,12 +3386,20 @@ app.post("/api/request-ride", asyncHandler(async (req, res) => {
     message:
       normalizeRideStatus(ride.status) === "security_review"
         ? "Ride created and sent for security review"
-        : "Ride created successfully",
+        : normalizeRideStatus(ride.status) === "compliance_review"
+          ? "Ride created and sent for benefit/compliance review"
+          : "Ride created successfully",
     ride,
     fare,
     payout,
     metrics,
     security: securityCheck?.assessment || null,
+    benefit_profile: benefitProfile.eligible
+      ? {
+          ...benefitProfile,
+          ...benefitEstimate
+        }
+      : null,
     dispatch
   }, 201);
 }));
@@ -2686,9 +3571,10 @@ app.post("/api/persona/webhook", asyncHandler(async (req, res) => {
     event: eventName
   });
 }));/* =========================================================
-   HARVEY TAXI — CODE BLUE PHASE 11
+   HARVEY TAXI — CODE BLUE PHASE 12
    PART 3 OF 4
-   DRIVERS + AI DISPATCH + MISSIONS + HEARTBEAT + REDISPATCH
+   DRIVERS + INSURANCE COMPLIANCE + PREFERRED DRIVER DISPATCH
+   MISSIONS + HEARTBEAT + REDISPATCH + COMPLIANCE SWEEPS
 ========================================================= */
 
 /* =========================================================
@@ -2803,14 +3689,246 @@ function driverSupportsMode(driver, requestedMode = "driver") {
   return type === "human";
 }
 
-function driverCanReceiveDispatch(driver, requestedMode = "driver") {
+/* =========================================================
+   INSURANCE / COMPLIANCE HELPERS
+========================================================= */
+function getDriverInsuranceExpiration(driver = {}) {
   return (
-    driverIsApproved(driver) &&
-    driverIsVerified(driver) &&
-    driverIsOnline(driver) &&
-    driverSupportsMode(driver, requestedMode) &&
-    normalizeDriverStatus(driver.status || driver.approval_status) !== "security_locked"
+    clean(driver.insurance_expiration_date) ||
+    clean(driver.insurance_expiration) ||
+    clean(driver.policy_expiration_date) ||
+    ""
   );
+}
+
+function getDriverInsuranceStatus(driver = {}) {
+  return normalizeInsuranceStatus(
+    driver.insurance_status ||
+    driver.driver_insurance_status ||
+    driver.compliance_insurance_status ||
+    ""
+  );
+}
+
+function getDriverComplianceStatus(driver = {}) {
+  return normalizeComplianceStatus(
+    driver.compliance_status ||
+    driver.driver_compliance_status ||
+    driver.status ||
+    driver.approval_status ||
+    ""
+  );
+}
+
+function getDriverComplianceBlockReason(driver = {}) {
+  return clean(
+    driver.compliance_block_reason ||
+    driver.block_reason ||
+    driver.insurance_block_reason ||
+    ""
+  );
+}
+
+function buildDriverComplianceSummary(driver = {}) {
+  const insuranceExpiration = getDriverInsuranceExpiration(driver);
+  const insuranceDaysRemaining = daysUntil(insuranceExpiration);
+
+  return {
+    compliance_status: getDriverComplianceStatus(driver),
+    compliance_block_reason: getDriverComplianceBlockReason(driver),
+    insurance_status: getDriverInsuranceStatus(driver),
+    insurance_verified: toBool(
+      driver.insurance_verified ??
+      driver.driver_insurance_verified ??
+      false,
+      false
+    ),
+    tnc_endorsement_confirmed: toBool(
+      driver.tnc_endorsement_confirmed ??
+      driver.commercial_use_confirmed ??
+      false,
+      false
+    ),
+    insurance_expiration_date: insuranceExpiration || null,
+    insurance_days_remaining: insuranceDaysRemaining,
+    insurance_is_active: insuranceIsActive(driver),
+    insurance_is_compliant: driverHasRequiredInsurance(driver),
+    compliance_is_clear: driverComplianceIsClear(driver)
+  };
+}
+
+function driverCanReceiveDispatch(driver, requestedMode = "driver") {
+  const approved = driverIsApproved(driver);
+  const verified = driverIsVerified(driver);
+  const online = driverIsOnline(driver);
+  const modeSupported = driverSupportsMode(driver, requestedMode);
+  const notSecurityLocked =
+    normalizeDriverStatus(driver.status || driver.approval_status) !== "security_locked";
+
+  if (!approved || !verified || !online || !modeSupported || !notSecurityLocked) {
+    return false;
+  }
+
+  if (ENABLE_DRIVER_COMPLIANCE_GATE && !driverComplianceIsClear(driver)) {
+    return false;
+  }
+
+  return true;
+}
+
+async function setDriverComplianceBlocked(driverId, reason = "compliance_blocked") {
+  const rows = await updateRows("drivers", { id: clean(driverId) }, {
+    status: "compliance_blocked",
+    approval_status: "compliance_blocked",
+    compliance_status: "blocked",
+    compliance_block_reason: clean(reason),
+    is_online: false,
+    availability_status: "offline",
+    updated_at: nowIso()
+  });
+
+  const updated = rows?.[0] || null;
+
+  if (updated) {
+    await logComplianceEvent({
+      subject_type: "driver",
+      subject_id: updated.id,
+      event_type: "driver_compliance_blocked",
+      severity: "high",
+      details: {
+        reason: clean(reason)
+      }
+    });
+
+    emitComplianceRealtime({
+      type: "driver_compliance_blocked",
+      driver_id: updated.id,
+      reason: clean(reason)
+    });
+
+    emitDriverRealtime(updated.id, {
+      type: "driver_compliance_blocked",
+      driver_id: updated.id,
+      reason: clean(reason)
+    });
+
+    emitAdminRealtime({
+      type: "driver_compliance_blocked",
+      driver_id: updated.id,
+      reason: clean(reason)
+    });
+  }
+
+  return updated;
+}
+
+async function setDriverComplianceApproved(driverId, reason = "compliance_cleared") {
+  const rows = await updateRows("drivers", { id: clean(driverId) }, {
+    compliance_status: "approved",
+    compliance_block_reason: null,
+    status: "approved",
+    approval_status: "approved",
+    updated_at: nowIso()
+  });
+
+  const updated = rows?.[0] || null;
+
+  if (updated) {
+    await logComplianceEvent({
+      subject_type: "driver",
+      subject_id: updated.id,
+      event_type: "driver_compliance_approved",
+      severity: "info",
+      details: {
+        reason: clean(reason)
+      }
+    });
+
+    emitComplianceRealtime({
+      type: "driver_compliance_approved",
+      driver_id: updated.id,
+      reason: clean(reason)
+    });
+  }
+
+  return updated;
+}
+
+/* =========================================================
+   FAVORITE / PREFERRED DRIVER HELPERS
+========================================================= */
+async function getFavoriteDriverRecord(riderId, driverId) {
+  return maybeSingle(
+    requireSupabase()
+      .from("favorite_drivers")
+      .select("*")
+      .eq("rider_id", clean(riderId))
+      .eq("driver_id", clean(driverId))
+  );
+}
+
+async function riderHasFavoriteDriver(riderId, driverId) {
+  const record = await getFavoriteDriverRecord(riderId, driverId);
+  return !!record && record.is_active !== false;
+}
+
+async function addFavoriteDriver(riderId, driverId) {
+  const existing = await getFavoriteDriverRecord(riderId, driverId);
+
+  if (existing) {
+    const rows = await updateRows("favorite_drivers", { id: existing.id }, {
+      is_active: true,
+      updated_at: nowIso()
+    });
+    return rows?.[0] || existing;
+  }
+
+  return insertRow("favorite_drivers", {
+    id: createId("favdrv"),
+    rider_id: clean(riderId),
+    driver_id: clean(driverId),
+    is_active: true,
+    created_at: nowIso(),
+    updated_at: nowIso()
+  });
+}
+
+async function removeFavoriteDriver(riderId, driverId) {
+  const existing = await getFavoriteDriverRecord(riderId, driverId);
+  if (!existing) return null;
+
+  const rows = await updateRows("favorite_drivers", { id: existing.id }, {
+    is_active: false,
+    updated_at: nowIso()
+  });
+
+  return rows?.[0] || existing;
+}
+
+async function getFavoriteDriversForRider(riderId) {
+  const { data, error } = await requireSupabase()
+    .from("favorite_drivers")
+    .select("*")
+    .eq("rider_id", clean(riderId))
+    .eq("is_active", true)
+    .order("updated_at", { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+}
+
+async function getCompletedRideBetweenRiderAndDriver(riderId, driverId) {
+  const { data, error } = await requireSupabase()
+    .from("rides")
+    .select("*")
+    .eq("rider_id", clean(riderId))
+    .eq("driver_id", clean(driverId))
+    .eq("status", "completed")
+    .order("updated_at", { ascending: false })
+    .limit(1);
+
+  if (error) throw error;
+  return data?.[0] || null;
 }
 
 /* =========================================================
@@ -2843,6 +3961,7 @@ function buildRuleBasedDriverRiskAssessment(payload = {}) {
 
   const recent = payload.recent_activity || {};
   const driver = payload.subject || {};
+  const context = payload.context || {};
 
   const accountAgeHours = toNumber(driver.account_age_hours, 0);
   const dispatchTimeouts24h = toNumber(recent.dispatch_timeouts_24h, 0);
@@ -2861,6 +3980,16 @@ function buildRuleBasedDriverRiskAssessment(payload = {}) {
   if (supportComplaints30d >= 3) {
     score += 12;
     reasons.push("Multiple support complaints");
+  }
+
+  if (context.insurance_is_active === false) {
+    score += 18;
+    reasons.push("Insurance inactive or expired");
+  }
+
+  if (context.compliance_is_clear === false) {
+    score += 12;
+    reasons.push("Driver compliance not clear");
   }
 
   score = clamp(score, 0, 100);
@@ -2890,6 +4019,8 @@ async function maybeAssessDriverSecurity({
         ? roundMoney((Date.now() - createdAt) / (1000 * 60 * 60))
         : 0;
 
+    const compliance = buildDriverComplianceSummary(driver);
+
     const assessmentPayload = {
       subject_type: "driver",
       event_type: eventType,
@@ -2903,7 +4034,9 @@ async function maybeAssessDriverSecurity({
       recent_activity: recentSignals,
       context: {
         driver_type: normalizeDriverType(driver.driver_type || "human"),
-        is_online: !!driver.is_online
+        is_online: !!driver.is_online,
+        insurance_is_active: compliance.insurance_is_active,
+        compliance_is_clear: compliance.compliance_is_clear
       }
     };
 
@@ -3093,6 +4226,14 @@ function scoreDriverForRide(driver, ride) {
     score += 0.05;
   }
 
+  if (clean(ride?.preferred_driver_id) === clean(driver?.id)) {
+    score += 0.15;
+  }
+
+  if (toBool(ride?.preferred_driver_required, false)) {
+    score += 0.05;
+  }
+
   return {
     score: roundMoney(score),
     distance_miles_to_pickup: roundMoney(distance),
@@ -3145,6 +4286,11 @@ async function createMissionForRide(ride, driver, scoring = {}) {
       estimated_total: ride.estimated_total,
       estimated_driver_payout: ride.estimated_driver_payout,
       ride_type: ride.ride_type,
+      preferred_driver_id: clean(ride.preferred_driver_id || ""),
+      preferred_driver_required: !!ride.preferred_driver_required,
+      sponsored_amount: roundMoney(ride.sponsored_amount || 0),
+      rider_copay_amount: roundMoney(ride.rider_copay_amount || 0),
+      benefit_type: clean(ride.benefit_type || ""),
       scoring
     },
     created_at: nowIso(),
@@ -3184,17 +4330,173 @@ async function assignDriverToRide(ride, driver, dispatch, mission) {
 }
 
 async function notifyDriverOfMission(driver, ride, dispatch) {
-  const body =
-    `Harvey Taxi mission available. ` +
-    `Pickup: ${clean(ride.pickup_address)}. ` +
-    `Dropoff: ${clean(ride.dropoff_address)}. ` +
-    `Fare est: $${roundMoney(ride.estimated_total)}. ` +
-    `Dispatch ID: ${clean(dispatch.id)}.`;
+  const parts = [
+    "Harvey Taxi mission available.",
+    `Pickup: ${clean(ride.pickup_address)}.`,
+    `Dropoff: ${clean(ride.dropoff_address)}.`,
+    `Fare est: $${roundMoney(ride.estimated_total)}.`,
+    clean(ride.preferred_driver_id) === clean(driver.id) ? "Preferred rider request." : "",
+    roundMoney(ride.sponsored_amount || 0) > 0
+      ? `Sponsored amount: $${roundMoney(ride.sponsored_amount)}.`
+      : "",
+    `Dispatch ID: ${clean(dispatch.id)}.`
+  ].filter(Boolean);
 
   return sendSms({
     to: driver.phone,
-    body
+    body: parts.join(" ")
   });
+}
+
+/* =========================================================
+   PREFERRED DRIVER DISPATCH HELPERS
+========================================================= */
+async function getDispatchablePreferredDriverForRide(ride, preferredDriverId) {
+  if (!preferredDriverId) return null;
+
+  const driver = await getDriverById(preferredDriverId);
+  if (!driver) return null;
+
+  if (!driverCanReceiveDispatch(driver, ride.requested_mode)) {
+    return null;
+  }
+
+  const activeRide = await getActiveRideForDriver(driver.id);
+  if (activeRide) {
+    return null;
+  }
+
+  const scoring = scoreDriverForRide(driver, ride);
+  return { driver, scoring };
+}
+
+async function dispatchRideToSpecificDriver(rideId, preferredDriverId, reason = "preferred_driver_requested") {
+  const ride = await getRideById(rideId);
+  if (!ride) return { ok: false, error: "Ride not found" };
+
+  const currentStatus = normalizeRideStatus(ride.status);
+  if (!["awaiting_dispatch", "awaiting_driver_acceptance"].includes(currentStatus)) {
+    return { ok: false, error: `Ride is not dispatchable from status ${currentStatus}` };
+  }
+
+  const activeDispatch = await getActiveDispatchForRide(ride.id);
+  if (activeDispatch) {
+    return {
+      ok: true,
+      reused: true,
+      ride,
+      dispatch: activeDispatch,
+      mission: await getMissionByRideId(ride.id),
+      driver: activeDispatch.driver_id ? await getDriverById(activeDispatch.driver_id) : null
+    };
+  }
+
+  const attempts = await countDispatchAttemptsForRide(ride.id);
+  if (attempts >= MAX_DISPATCH_ATTEMPTS) {
+    return { ok: false, error: "Max dispatch attempts reached" };
+  }
+
+  const preferred = await getDispatchablePreferredDriverForRide(ride, preferredDriverId);
+  if (!preferred) {
+    return {
+      ok: false,
+      error: "Preferred driver unavailable"
+    };
+  }
+
+  const driverSecurity = await maybeAssessDriverSecurity({
+    driver: preferred.driver,
+    eventType: "preferred_driver_selection"
+  });
+
+  if (driverSecurity?.assessment?.risk_score >= RISK_CRITICAL_THRESHOLD) {
+    return {
+      ok: false,
+      error: "Preferred driver paused for security review"
+    };
+  }
+
+  const mission = await createMissionForRide(ride, preferred.driver, {
+    ...preferred.scoring,
+    preferred_driver: true,
+    selection_reason: reason
+  });
+
+  const dispatch = await createDispatchForRide(ride, preferred.driver, {
+    ...preferred.scoring,
+    preferred_driver: true,
+    selection_reason: reason
+  });
+
+  const updatedRideRows = await updateRows("rides", { id: ride.id }, {
+    driver_id: preferred.driver.id,
+    dispatch_id: dispatch.id,
+    mission_id: mission.id,
+    status: "awaiting_driver_acceptance",
+    preferred_driver_id: clean(preferred.driver.id),
+    preferred_driver_attempted: true,
+    preferred_driver_dispatched_at: nowIso(),
+    updated_at: nowIso()
+  });
+
+  const updatedRide = updatedRideRows?.[0] || ride;
+
+  await logTripEvent({
+    ride_id: updatedRide.id,
+    rider_id: updatedRide.rider_id,
+    driver_id: preferred.driver.id,
+    mission_id: mission.id,
+    event_type: "preferred_driver_dispatch_offered",
+    details: {
+      dispatch_id: dispatch.id,
+      preferred_driver_id: preferred.driver.id,
+      reason,
+      score: preferred.scoring.score
+    }
+  });
+
+  await notifyDriverOfMission(preferred.driver, updatedRide, dispatch);
+
+  emitRideRealtime(updatedRide.id, {
+    type: "preferred_driver_dispatch_offered",
+    ride: buildSafeRideRealtimePayload(updatedRide),
+    driver: {
+      id: clean(preferred.driver.id),
+      full_name: getDriverDisplayName(preferred.driver),
+      driver_type: normalizeDriverType(preferred.driver.driver_type || "human")
+    },
+    dispatch: {
+      id: dispatch.id,
+      attempt_number: dispatch.attempt_number,
+      expires_at: dispatch.expires_at
+    }
+  });
+
+  emitDriverRealtime(preferred.driver.id, {
+    type: "preferred_driver_mission_offered",
+    driver_id: preferred.driver.id,
+    ride_id: updatedRide.id,
+    mission_id: mission.id,
+    dispatch_id: dispatch.id
+  });
+
+  emitAdminRealtime({
+    type: "preferred_driver_dispatch_offered",
+    ride_id: updatedRide.id,
+    driver_id: preferred.driver.id,
+    dispatch_id: dispatch.id
+  });
+
+  return {
+    ok: true,
+    reused: false,
+    preferred_driver: true,
+    ride: updatedRide,
+    driver: preferred.driver,
+    mission,
+    dispatch,
+    scoring: preferred.scoring
+  };
 }
 
 /* =========================================================
@@ -3207,6 +4509,33 @@ async function dispatchRideToBestDriver(rideId) {
   const currentStatus = normalizeRideStatus(ride.status);
   if (!["awaiting_dispatch", "awaiting_driver_acceptance"].includes(currentStatus)) {
     return { ok: false, error: `Ride is not dispatchable from status ${currentStatus}` };
+  }
+
+  const preferredDriverId = clean(
+    ride.preferred_driver_id ||
+    ride.requested_driver_id ||
+    ""
+  );
+
+  const preferredRequired = toBool(ride.preferred_driver_required, false);
+
+  if (preferredDriverId && ENABLE_PREFERRED_DRIVER_SYSTEM) {
+    const preferredResult = await dispatchRideToSpecificDriver(
+      ride.id,
+      preferredDriverId,
+      preferredRequired ? "preferred_driver_required" : "preferred_driver_first"
+    );
+
+    if (preferredResult?.ok) {
+      return preferredResult;
+    }
+
+    if (preferredRequired) {
+      return {
+        ok: false,
+        error: preferredResult?.error || "Preferred driver unavailable"
+      };
+    }
   }
 
   const activeDispatch = await getActiveDispatchForRide(ride.id);
@@ -3400,6 +4729,11 @@ app.post("/api/driver/signup", asyncHandler(async (req, res) => {
     status: "pending",
     approval_status: "pending",
     verification_status: "pending",
+    compliance_status: "pending",
+    compliance_block_reason: null,
+    insurance_status: "missing",
+    insurance_verified: false,
+    tnc_endorsement_confirmed: false,
     email_verified: false,
     sms_verified: false,
     is_online: false,
@@ -3411,7 +4745,7 @@ app.post("/api/driver/signup", asyncHandler(async (req, res) => {
   await sendEmail({
     to: email,
     subject: "Harvey Taxi driver signup received",
-    text: "Your driver signup was received. Contact verification, identity verification, and approval are required before going online."
+    text: "Your driver signup was received. Contact verification, identity verification, insurance compliance, and approval are required before going online."
   });
 
   await logAdminEvent({
@@ -3419,6 +4753,18 @@ app.post("/api/driver/signup", asyncHandler(async (req, res) => {
     target_table: "drivers",
     target_id: driver.id,
     details: { email, phone, driver_type: driverType }
+  });
+
+  await logComplianceEvent({
+    subject_type: "driver",
+    subject_id: driver.id,
+    event_type: "driver_signup_created",
+    severity: "info",
+    details: {
+      email,
+      phone,
+      driver_type: driverType
+    }
   });
 
   emitAdminRealtime({
@@ -3430,7 +4776,10 @@ app.post("/api/driver/signup", asyncHandler(async (req, res) => {
 
   return ok(res, {
     message: "Driver signup submitted successfully",
-    driver
+    driver: {
+      ...driver,
+      compliance: buildDriverComplianceSummary(driver)
+    }
   }, 201);
 }));
 
@@ -3443,8 +4792,99 @@ app.post("/api/driver/status", asyncHandler(async (req, res) => {
       ...driver,
       is_verified: driverIsVerified(driver),
       is_approved: driverIsApproved(driver),
-      is_online: driverIsOnline(driver)
+      is_online: driverIsOnline(driver),
+      compliance: buildDriverComplianceSummary(driver)
     }
+  });
+}));
+
+app.get("/api/driver/:driverId/compliance-status", asyncHandler(async (req, res) => {
+  const driver = await getDriverById(req.params.driverId);
+  if (!driver) return fail(res, "Driver not found", 404);
+
+  return ok(res, {
+    driver: {
+      id: driver.id,
+      full_name: getDriverDisplayName(driver),
+      driver_type: normalizeDriverType(driver.driver_type || "human"),
+      is_verified: driverIsVerified(driver),
+      is_approved: driverIsApproved(driver),
+      is_online: driverIsOnline(driver)
+    },
+    compliance: buildDriverComplianceSummary(driver)
+  });
+}));
+
+app.post("/api/driver/insurance/upload", asyncHandler(async (req, res) => {
+  const driver = await resolveDriver(req.body);
+  if (!driver) return fail(res, "Driver not found", 404);
+
+  const insuranceCompany = clean(req.body.insurance_company || req.body.insuranceCompany);
+  const policyNumber = clean(req.body.insurance_policy_number || req.body.policy_number || req.body.policyNumber);
+  const expirationDate = clean(
+    req.body.insurance_expiration_date ||
+    req.body.insurance_expiration ||
+    req.body.policy_expiration_date
+  );
+  const effectiveDate = clean(
+    req.body.insurance_effective_date ||
+    req.body.insurance_effective ||
+    req.body.policy_effective_date
+  );
+  const liabilityLimit = clean(req.body.insurance_liability_limit || req.body.liability_limit);
+  const docUrl = clean(req.body.insurance_doc_url || req.body.document_url || req.body.docUrl);
+  const tncConfirmed = toBool(
+    req.body.tnc_endorsement_confirmed || req.body.commercial_use_confirmed,
+    false
+  );
+
+  if (!insuranceCompany) return fail(res, "Insurance company is required");
+  if (!policyNumber) return fail(res, "Policy number is required");
+  if (!expirationDate) return fail(res, "Insurance expiration date is required");
+
+  const rows = await updateRows("drivers", { id: driver.id }, {
+    insurance_company: insuranceCompany,
+    insurance_policy_number: policyNumber,
+    insurance_effective_date: effectiveDate || null,
+    insurance_expiration_date: expirationDate,
+    insurance_liability_limit: liabilityLimit || null,
+    insurance_doc_url: docUrl || null,
+    insurance_status: "pending",
+    insurance_verified: false,
+    tnc_endorsement_confirmed: tncConfirmed,
+    compliance_status: "pending",
+    compliance_block_reason: null,
+    updated_at: nowIso()
+  });
+
+  const updatedDriver = rows?.[0] || driver;
+
+  await logComplianceEvent({
+    subject_type: "driver",
+    subject_id: updatedDriver.id,
+    event_type: "driver_insurance_uploaded",
+    severity: "info",
+    details: {
+      insurance_company: insuranceCompany,
+      insurance_expiration_date: expirationDate,
+      tnc_endorsement_confirmed: tncConfirmed
+    }
+  });
+
+  emitComplianceRealtime({
+    type: "driver_insurance_uploaded",
+    driver_id: updatedDriver.id
+  });
+
+  emitAdminRealtime({
+    type: "driver_insurance_uploaded",
+    driver_id: updatedDriver.id
+  });
+
+  return ok(res, {
+    message: "Driver insurance submitted successfully",
+    driver: updatedDriver,
+    compliance: buildDriverComplianceSummary(updatedDriver)
   });
 }));
 
@@ -3464,6 +4904,18 @@ app.post("/api/driver/go-online", asyncHandler(async (req, res) => {
     return fail(res, "Driver account is locked for security review", 403);
   }
 
+  if (ENABLE_DRIVER_COMPLIANCE_GATE && !driverComplianceIsClear(driver)) {
+    return fail(res, "Driver compliance clearance is required", 403, {
+      compliance: buildDriverComplianceSummary(driver)
+    });
+  }
+
+  if (ENABLE_DRIVER_INSURANCE_GATE && !driverHasRequiredInsurance(driver)) {
+    return fail(res, "Driver insurance approval is required", 403, {
+      compliance: buildDriverComplianceSummary(driver)
+    });
+  }
+
   const securityCheck = await maybeAssessDriverSecurity({
     driver,
     eventType: "driver_go_online"
@@ -3478,6 +4930,7 @@ app.post("/api/driver/go-online", asyncHandler(async (req, res) => {
   const rows = await updateRows("drivers", { id: driver.id }, {
     is_online: true,
     availability_status: "online",
+    compliance_status: driver.compliance_status || "approved",
     last_heartbeat_at: nowIso(),
     updated_at: nowIso()
   });
@@ -3499,7 +4952,8 @@ app.post("/api/driver/go-online", asyncHandler(async (req, res) => {
   return ok(res, {
     message: "Driver is now online",
     driver: updatedDriver,
-    security: securityCheck?.assessment || null
+    security: securityCheck?.assessment || null,
+    compliance: buildDriverComplianceSummary(updatedDriver)
   });
 }));
 
@@ -3539,6 +4993,12 @@ app.post("/api/driver/location", asyncHandler(async (req, res) => {
 
   if (!ENABLE_DRIVER_LOCATION_TRACKING) {
     return fail(res, "Driver location tracking is disabled", 403);
+  }
+
+  if (ENABLE_DRIVER_COMPLIANCE_GATE && !driverComplianceIsClear(driver)) {
+    return fail(res, "Driver compliance clearance is required", 403, {
+      compliance: buildDriverComplianceSummary(driver)
+    });
   }
 
   const latitude = parseNullableNumber(req.body.latitude ?? req.body.current_latitude ?? req.body.lat);
@@ -3599,6 +5059,12 @@ app.post("/api/driver/heartbeat", asyncHandler(async (req, res) => {
 
   const driver = await resolveDriver(req.body);
   if (!driver) return fail(res, "Driver not found", 404);
+
+  if (ENABLE_DRIVER_COMPLIANCE_GATE && !driverComplianceIsClear(driver)) {
+    return fail(res, "Driver compliance clearance is required", 403, {
+      compliance: buildDriverComplianceSummary(driver)
+    });
+  }
 
   const latitude = parseNullableNumber(req.body.latitude ?? req.body.current_latitude ?? req.body.lat);
   const longitude = parseNullableNumber(req.body.longitude ?? req.body.current_longitude ?? req.body.lng);
@@ -3666,7 +5132,7 @@ async function sweepStaleDrivers() {
   const results = [];
 
   for (const driver of data || []) {
-    const rows = await updateRows("drivers", { id: driver.id }, {
+    await updateRows("drivers", { id: driver.id }, {
       is_online: false,
       availability_status: "offline",
       updated_at: nowIso()
@@ -3710,6 +5176,120 @@ function startDriverHeartbeatSweepLoop() {
 }
 
 /* =========================================================
+   COMPLIANCE SWEEP
+========================================================= */
+async function sweepDriverCompliance() {
+  if (!ENABLE_COMPLIANCE_SWEEPS) {
+    return { ok: true, skipped: true, reason: "disabled" };
+  }
+
+  if (runtimeState.complianceSweep.running) {
+    return { ok: true, skipped: true, reason: "already_running" };
+  }
+
+  runtimeState.complianceSweep.running = true;
+  runtimeState.complianceSweep.lastRanAt = nowIso();
+  runtimeState.insurance.lastSweepAt = nowIso();
+
+  try {
+    const { data, error } = await requireSupabase()
+      .from("drivers")
+      .select("*")
+      .order("updated_at", { ascending: false })
+      .limit(250);
+
+    if (error) throw error;
+
+    const results = [];
+
+    for (const driver of data || []) {
+      const compliance = buildDriverComplianceSummary(driver);
+      const reasonParts = [];
+
+      if (ENABLE_DRIVER_INSURANCE_GATE) {
+        if (!compliance.insurance_verified) reasonParts.push("insurance_not_verified");
+        if (!compliance.tnc_endorsement_confirmed) reasonParts.push("tnc_endorsement_missing");
+        if (!compliance.insurance_is_active) reasonParts.push("insurance_inactive_or_expired");
+      }
+
+      if (reasonParts.length) {
+        const updated = await setDriverComplianceBlocked(driver.id, reasonParts.join(","));
+
+        if (ENABLE_DRIVER_INSURANCE_EXPIRY_WARNINGS && compliance.insurance_days_remaining !== null) {
+          const warningDays = [
+            INSURANCE_EXPIRY_WARNING_DAYS_1,
+            INSURANCE_EXPIRY_WARNING_DAYS_2,
+            INSURANCE_EXPIRY_WARNING_DAYS_3
+          ];
+
+          if (warningDays.includes(compliance.insurance_days_remaining)) {
+            await logComplianceEvent({
+              subject_type: "driver",
+              subject_id: driver.id,
+              event_type: "driver_insurance_expiry_warning",
+              severity: "medium",
+              details: {
+                insurance_days_remaining: compliance.insurance_days_remaining,
+                insurance_expiration_date: compliance.insurance_expiration_date
+              }
+            });
+          }
+        }
+
+        results.push({
+          driver_id: driver.id,
+          status: "blocked",
+          reason: reasonParts.join(","),
+          updated: !!updated
+        });
+      } else {
+        const updated = await setDriverComplianceApproved(driver.id, "compliance_sweep_clear");
+        results.push({
+          driver_id: driver.id,
+          status: "approved",
+          updated: !!updated
+        });
+      }
+
+      await sleep(10);
+    }
+
+    runtimeState.complianceSweep.lastError = null;
+    runtimeState.insurance.lastSweepError = null;
+
+    return {
+      ok: true,
+      count: results.length,
+      results
+    };
+  } catch (error) {
+    runtimeState.complianceSweep.lastError = clean(error?.message || String(error));
+    runtimeState.insurance.lastSweepError = clean(error?.message || String(error));
+    throw error;
+  } finally {
+    runtimeState.complianceSweep.running = false;
+  }
+}
+
+function startComplianceSweepLoop() {
+  if (!ENABLE_COMPLIANCE_SWEEPS) return;
+  if (runtimeState.complianceSweep.timerStarted) return;
+
+  runtimeState.complianceSweep.timerStarted = true;
+
+  setInterval(async () => {
+    try {
+      const result = await sweepDriverCompliance();
+      if (result?.count > 0) {
+        console.log(`📋 Compliance sweep processed ${result.count} driver(s)`);
+      }
+    } catch (error) {
+      console.error("❌ Compliance sweep failed:", error);
+    }
+  }, COMPLIANCE_SWEEP_INTERVAL_MS);
+}
+
+/* =========================================================
    DISPATCH ROUTES
 ========================================================= */
 app.post("/api/dispatch/start", asyncHandler(async (req, res) => {
@@ -3735,7 +5315,8 @@ app.post("/api/dispatch/start", asyncHandler(async (req, res) => {
           driver_type: normalizeDriverType(result.driver.driver_type || "human")
         }
       : null,
-    scoring: result.scoring || null
+    scoring: result.scoring || null,
+    preferred_driver: !!result.preferred_driver
   });
 }));
 
@@ -3745,6 +5326,12 @@ app.post("/api/dispatch/start", asyncHandler(async (req, res) => {
 app.post("/api/mission/accept", asyncHandler(async (req, res) => {
   const driver = await resolveDriver(req.body);
   if (!driver) return fail(res, "Driver not found", 404);
+
+  if (ENABLE_DRIVER_COMPLIANCE_GATE && !driverComplianceIsClear(driver)) {
+    return fail(res, "Driver compliance clearance is required", 403, {
+      compliance: buildDriverComplianceSummary(driver)
+    });
+  }
 
   const dispatchId = pickFirst(req.body.dispatch_id, req.body.dispatchId);
   const missionId = pickFirst(req.body.mission_id, req.body.missionId);
@@ -4185,10 +5772,11 @@ function startDispatchSweepLoop() {
       console.error("❌ Dispatch sweep failed:", error);
     }
   }, DISPATCH_SWEEP_INTERVAL_MS);
-     }/* =========================================================
-   HARVEY TAXI — CODE BLUE PHASE 11
+         }/* =========================================================
+   HARVEY TAXI — CODE BLUE PHASE 12
    PART 4 OF 4
    LIVE STATUS + PAYMENTS + TIPPING + EARNINGS + ADMIN + AI + STARTUP
+   PREFERRED DRIVER + INSURANCE COMPLIANCE + NONPROFIT BENEFITS
 ========================================================= */
 
 /* =========================================================
@@ -4218,6 +5806,8 @@ async function createDriverEarningEntry({
   tip_amount = 0,
   payout_amount = 0,
   platform_fee = 0,
+  sponsored_amount = 0,
+  rider_copay_amount = 0,
   status = "pending"
 }) {
   try {
@@ -4230,6 +5820,8 @@ async function createDriverEarningEntry({
       tip_amount: roundMoney(tip_amount),
       payout_amount: roundMoney(payout_amount),
       platform_fee: roundMoney(platform_fee),
+      sponsored_amount: roundMoney(sponsored_amount),
+      rider_copay_amount: roundMoney(rider_copay_amount),
       status: clean(status || "pending"),
       created_at: nowIso(),
       updated_at: nowIso()
@@ -4265,7 +5857,10 @@ function buildPaymentSummary(payment) {
       payment_id: null,
       status: "missing",
       is_authorized: false,
-      authorization_amount: 0
+      authorization_amount: 0,
+      gross_authorization_amount: 0,
+      sponsored_amount: 0,
+      sponsorship_percent: 0
     };
   }
 
@@ -4280,8 +5875,14 @@ function buildPaymentSummary(payment) {
     authorization_amount: roundMoney(
       payment.authorization_amount || payment.amount_authorized || payment.amount || 0
     ),
+    gross_authorization_amount: roundMoney(
+      payment.gross_authorization_amount || payment.authorization_amount || 0
+    ),
+    sponsored_amount: roundMoney(payment.sponsored_amount || 0),
+    sponsorship_percent: roundMoney(payment.sponsorship_percent || 0),
     captured_amount: roundMoney(payment.captured_amount || 0),
     tip_amount: roundMoney(payment.tip_amount || 0),
+    benefit_type: clean(payment.benefit_type || ""),
     currency: clean(payment.currency || "USD")
   };
 }
@@ -4311,7 +5912,8 @@ function sanitizeDriverForRider(driver = {}) {
     full_name: clean(driver.full_name || ""),
     driver_type: clean(driver.driver_type || "human"),
     phone: clean(driver.phone || ""),
-    last_location_at: clean(driver.last_location_at || "")
+    last_location_at: clean(driver.last_location_at || ""),
+    compliance_status: clean(driver.compliance_status || "")
   };
 }
 
@@ -4323,7 +5925,8 @@ function sanitizeDriverForDriver(driver = {}) {
     phone: clean(driver.phone || ""),
     current_latitude: parseNullableNumber(driver.current_latitude),
     current_longitude: parseNullableNumber(driver.current_longitude),
-    last_location_at: clean(driver.last_location_at || "")
+    last_location_at: clean(driver.last_location_at || ""),
+    compliance_status: clean(driver.compliance_status || "")
   };
 }
 
@@ -4346,7 +5949,19 @@ function sanitizeRideForPublic(ride = {}) {
     started_at: clean(ride.started_at || ""),
     completed_at: clean(ride.completed_at || ""),
     created_at: clean(ride.created_at || ""),
-    updated_at: clean(ride.updated_at || "")
+    updated_at: clean(ride.updated_at || ""),
+
+    preferred_driver_id: clean(ride.preferred_driver_id || ""),
+    preferred_driver_required: !!ride.preferred_driver_required,
+    preferred_driver_attempted: !!ride.preferred_driver_attempted,
+    preferred_driver_policy: clean(ride.preferred_driver_policy || ""),
+
+    sponsorship_type: clean(ride.sponsorship_type || ""),
+    sponsorship_percent: roundMoney(ride.sponsorship_percent || 0),
+    sponsored_amount: roundMoney(ride.sponsored_amount || 0),
+    rider_copay_amount: roundMoney(ride.rider_copay_amount || 0),
+    benefit_type: clean(ride.benefit_type || ""),
+    benefit_source: clean(ride.benefit_source || "")
   };
 }
 
@@ -4377,6 +5992,22 @@ async function buildRideLiveState(rideId) {
     (await getLatestPaymentForRide(ride.id)) ||
     (await getLatestPaymentForRider(ride.rider_id));
 
+  let sponsoredRide = null;
+  try {
+    const { data, error } = await requireSupabase()
+      .from("sponsored_rides")
+      .select("*")
+      .eq("ride_id", clean(ride.id))
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (!error) {
+      sponsoredRide = data?.[0] || null;
+    }
+  } catch (error) {
+    console.warn("⚠️ Sponsored ride lookup skipped:", error.message);
+  }
+
   return {
     ride,
     mission,
@@ -4389,11 +6020,14 @@ async function buildRideLiveState(rideId) {
           phone: clean(driver.phone || ""),
           current_latitude: getDriverLatitude(driver),
           current_longitude: getDriverLongitude(driver),
-          last_location_at: clean(driver.last_location_at || "")
+          last_location_at: clean(driver.last_location_at || ""),
+          compliance_status: clean(driver.compliance_status || ""),
+          compliance_block_reason: clean(driver.compliance_block_reason || "")
         }
       : null,
     payment: buildPaymentSummary(payment),
-    timeline: await getRideTimeline(ride.id)
+    timeline: await getRideTimeline(ride.id),
+    sponsored_ride: sponsoredRide
   };
 }
 
@@ -4410,7 +6044,8 @@ app.get("/api/rides/:rideId/live", asyncHandler(async (req, res) => {
     dispatch: liveState.dispatch,
     driver: liveState.driver ? sanitizeDriverForRider(liveState.driver) : null,
     payment: liveState.payment,
-    timeline: liveState.timeline
+    timeline: liveState.timeline,
+    sponsored_ride: liveState.sponsored_ride
   });
 }));
 
@@ -4444,7 +6079,26 @@ app.get("/api/driver/:driverId/current-ride", asyncHandler(async (req, res) => {
     dispatch: liveState.dispatch,
     driver: liveState.driver ? sanitizeDriverForDriver(liveState.driver) : null,
     payment: liveState.payment,
-    timeline: liveState.timeline
+    timeline: liveState.timeline,
+    sponsored_ride: liveState.sponsored_ride
+  });
+}));
+
+app.get("/api/rider/:riderId/rides", asyncHandler(async (req, res) => {
+  const rider = await getRiderById(req.params.riderId);
+  if (!rider) return fail(res, "Rider not found", 404);
+
+  const { data, error } = await requireSupabase()
+    .from("rides")
+    .select("*")
+    .eq("rider_id", clean(rider.id))
+    .order("updated_at", { ascending: false })
+    .limit(100);
+
+  if (error) throw error;
+
+  return ok(res, {
+    rides: (data || []).map((ride) => sanitizeRideForPublic(ride))
   });
 }));
 
@@ -4471,15 +6125,38 @@ app.post("/api/payments/capture", asyncHandler(async (req, res) => {
 
   const tipAmount = roundMoney(toNumber(req.body.tip_amount, ride.tip_amount || 0));
   const baseAmount = roundMoney(
-    toNumber(req.body.amount, ride.final_total || ride.estimated_total || payment.authorization_amount || 0)
+    toNumber(
+      req.body.amount,
+      ride.final_total ||
+      ride.estimated_total ||
+      payment.gross_authorization_amount ||
+      payment.authorization_amount ||
+      0
+    )
   );
-  const captureAmount = roundMoney(baseAmount + tipAmount);
+
+  const sponsoredAmount = roundMoney(
+    toNumber(req.body.sponsored_amount, ride.sponsored_amount || payment.sponsored_amount || 0)
+  );
+
+  const riderCopayAmount = roundMoney(
+    toNumber(
+      req.body.rider_copay_amount,
+      ride.rider_copay_amount ||
+      payment.authorization_amount ||
+      Math.max(0, baseAmount - sponsoredAmount)
+    )
+  );
+
+  const captureAmount = roundMoney(riderCopayAmount + tipAmount);
 
   const updatedPayments = await updateRows("payments", { id: payment.id }, {
     ride_id: ride.id,
     status: "captured",
     payment_status: "captured",
     captured_amount: captureAmount,
+    gross_captured_amount: baseAmount,
+    sponsored_amount: sponsoredAmount,
     tip_amount: tipAmount,
     captured_at: nowIso(),
     updated_at: nowIso()
@@ -4491,13 +6168,16 @@ app.post("/api/payments/capture", asyncHandler(async (req, res) => {
   );
 
   const finalDriverPayout = roundMoney(payoutBase.driver_payout_estimate + tipAmount);
-  const finalPlatformFee = roundMoney(captureAmount - finalDriverPayout);
+  const finalPlatformFee = roundMoney(baseAmount + tipAmount - finalDriverPayout);
 
   const updatedRide = await updateRideFinancials(ride.id, {
     payment_id: payment.id,
-    final_total: captureAmount,
+    final_total: roundMoney(baseAmount + tipAmount),
     captured_amount: captureAmount,
+    gross_captured_amount: baseAmount,
     tip_amount: tipAmount,
+    sponsored_amount: sponsoredAmount,
+    rider_copay_amount: riderCopayAmount,
     estimated_driver_payout: finalDriverPayout,
     estimated_platform_fee: finalPlatformFee,
     payment_status: "captured"
@@ -4512,8 +6192,51 @@ app.post("/api/payments/capture", asyncHandler(async (req, res) => {
       tip_amount: tipAmount,
       payout_amount: finalDriverPayout,
       platform_fee: finalPlatformFee,
+      sponsored_amount: sponsoredAmount,
+      rider_copay_amount: riderCopayAmount,
       status: "earned"
     });
+  }
+
+  if (ENABLE_SPONSORED_RIDES && roundMoney(sponsoredAmount) > 0) {
+    try {
+      const { data: sponsoredRows, error: sponsoredError } = await requireSupabase()
+        .from("sponsored_rides")
+        .select("*")
+        .eq("ride_id", clean(ride.id))
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (!sponsoredError && sponsoredRows?.[0]) {
+        await updateRows("sponsored_rides", { id: sponsoredRows[0].id }, {
+          status: "captured",
+          sponsored_amount: sponsoredAmount,
+          rider_copay_amount: riderCopayAmount,
+          updated_at: nowIso()
+        });
+      }
+
+      await logBenefitEvent({
+        rider_id: ride.rider_id,
+        ride_id: ride.id,
+        application_id: ride.benefit_approval_id || null,
+        event_type: "sponsored_ride_captured",
+        details: {
+          sponsored_amount: sponsoredAmount,
+          rider_copay_amount: riderCopayAmount,
+          tip_amount: tipAmount
+        }
+      });
+
+      emitBenefitsRealtime({
+        type: "sponsored_ride_captured",
+        ride_id: ride.id,
+        sponsored_amount: sponsoredAmount,
+        rider_copay_amount: riderCopayAmount
+      });
+    } catch (error) {
+      console.warn("⚠️ Sponsored ride capture update skipped:", error.message);
+    }
   }
 
   await logTripEvent({
@@ -4525,6 +6248,9 @@ app.post("/api/payments/capture", asyncHandler(async (req, res) => {
     details: {
       payment_id: payment.id,
       capture_amount: captureAmount,
+      gross_capture_amount: baseAmount,
+      sponsored_amount: sponsoredAmount,
+      rider_copay_amount: riderCopayAmount,
       tip_amount: tipAmount
     }
   });
@@ -4541,6 +6267,7 @@ app.post("/api/payments/capture", asyncHandler(async (req, res) => {
       driver_id: ride.driver_id,
       ride_id: ride.id,
       capture_amount: captureAmount,
+      gross_capture_amount: baseAmount,
       tip_amount: tipAmount
     });
   }
@@ -4549,7 +6276,9 @@ app.post("/api/payments/capture", asyncHandler(async (req, res) => {
     type: "payment_captured",
     ride_id: ride.id,
     payment_id: payment.id,
-    capture_amount: captureAmount
+    capture_amount: captureAmount,
+    gross_capture_amount: baseAmount,
+    sponsored_amount: sponsoredAmount
   });
 
   return ok(res, {
@@ -4622,12 +6351,12 @@ app.post("/api/rides/:rideId/tip", asyncHandler(async (req, res) => {
   const newTipTotal = roundMoney(currentTip + tipAmount);
   const baseFare = roundMoney(ride.final_total || ride.estimated_total || 0);
   const payoutBase = calculateDriverPayout(
-    baseFare,
+    Math.max(0, baseFare - currentTip),
     ride.requested_mode === "autonomous" ? "autonomous" : "human"
   );
 
   const newDriverPayout = roundMoney(payoutBase.driver_payout_estimate + newTipTotal);
-  const newFinalTotal = roundMoney(baseFare + tipAmount);
+  const newFinalTotal = roundMoney(Math.max(0, baseFare - currentTip) + newTipTotal);
   const newPlatformFee = roundMoney(newFinalTotal - newDriverPayout);
 
   const updatedRide = await updateRideFinancials(ride.id, {
@@ -4661,6 +6390,18 @@ app.post("/api/rides/:rideId/tip", asyncHandler(async (req, res) => {
     tip_amount: tipAmount
   });
 
+  await logTripEvent({
+    ride_id: ride.id,
+    rider_id: ride.rider_id,
+    driver_id: ride.driver_id,
+    mission_id: ride.mission_id,
+    event_type: "tip_added",
+    details: {
+      tip_amount: tipAmount,
+      new_tip_total: newTipTotal
+    }
+  });
+
   return ok(res, {
     message: "Tip added successfully",
     ride: updatedRide || ride
@@ -4681,7 +6422,179 @@ app.get("/api/driver/:driverId/earnings", asyncHandler(async (req, res) => {
       full_name: getDriverDisplayName(driver),
       driver_type: normalizeDriverType(driver.driver_type || "human")
     },
-    earnings
+    earnings,
+    compliance: buildDriverComplianceSummary(driver)
+  });
+}));
+
+/* =========================================================
+   FAVORITE DRIVER ROUTES
+========================================================= */
+app.post("/api/rider/favorite-driver", asyncHandler(async (req, res) => {
+  const rider = await resolveRider(req.body);
+  if (!rider) return fail(res, "Rider not found", 404);
+
+  const driverId = pickFirst(req.body.driver_id, req.body.driverId);
+  if (!driverId) return fail(res, "Driver ID is required");
+
+  const driver = await getDriverById(driverId);
+  if (!driver) return fail(res, "Driver not found", 404);
+
+  const completedRide = await getCompletedRideBetweenRiderAndDriver(rider.id, driver.id);
+  if (!completedRide) {
+    return fail(res, "Driver can only be favorited after a completed ride", 403);
+  }
+
+  const favorite = await addFavoriteDriver(rider.id, driver.id);
+
+  await logAdminEvent({
+    event_type: "rider_favorited_driver",
+    target_table: "favorite_drivers",
+    target_id: favorite.id,
+    details: {
+      rider_id: rider.id,
+      driver_id: driver.id
+    }
+  });
+
+  return ok(res, {
+    message: "Driver added to favorites",
+    favorite
+  }, 201);
+}));
+
+app.post("/api/rider/unfavorite-driver", asyncHandler(async (req, res) => {
+  const rider = await resolveRider(req.body);
+  if (!rider) return fail(res, "Rider not found", 404);
+
+  const driverId = pickFirst(req.body.driver_id, req.body.driverId);
+  if (!driverId) return fail(res, "Driver ID is required");
+
+  const favorite = await removeFavoriteDriver(rider.id, driverId);
+  if (!favorite) return fail(res, "Favorite driver record not found", 404);
+
+  return ok(res, {
+    message: "Driver removed from favorites",
+    favorite
+  });
+}));
+
+app.get("/api/rider/:riderId/favorite-drivers", asyncHandler(async (req, res) => {
+  const rider = await getRiderById(req.params.riderId);
+  if (!rider) return fail(res, "Rider not found", 404);
+
+  const favorites = await getFavoriteDriversForRider(rider.id);
+  const driverIds = favorites.map((f) => clean(f.driver_id)).filter(Boolean);
+
+  let drivers = [];
+  if (driverIds.length) {
+    const { data, error } = await requireSupabase()
+      .from("drivers")
+      .select("*")
+      .in("id", driverIds);
+
+    if (error) throw error;
+    drivers = data || [];
+  }
+
+  const results = favorites.map((fav) => {
+    const driver = drivers.find((d) => clean(d.id) === clean(fav.driver_id));
+    return {
+      favorite_id: fav.id,
+      rider_id: fav.rider_id,
+      driver_id: fav.driver_id,
+      created_at: fav.created_at,
+      updated_at: fav.updated_at,
+      driver: driver
+        ? {
+            id: driver.id,
+            full_name: getDriverDisplayName(driver),
+            driver_type: normalizeDriverType(driver.driver_type || "human"),
+            status: normalizeDriverStatus(driver.status || driver.approval_status),
+            is_online: driverIsOnline(driver),
+            is_approved: driverIsApproved(driver),
+            is_verified: driverIsVerified(driver),
+            compliance: buildDriverComplianceSummary(driver)
+          }
+        : null
+    };
+  });
+
+  return ok(res, {
+    rider: {
+      id: rider.id,
+      full_name: clean(rider.full_name || `${rider.first_name || ""} ${rider.last_name || ""}`.trim())
+    },
+    favorite_drivers: results
+  });
+}));
+
+/* =========================================================
+   RECURRING RIDES ROUTES
+========================================================= */
+app.post("/api/recurring-rides/create", asyncHandler(async (req, res) => {
+  const rider = await resolveRider(req.body);
+  if (!rider) return fail(res, "Rider not found", 404);
+
+  const pickupAddress = clean(req.body.pickup_address || req.body.pickupAddress);
+  const dropoffAddress = clean(req.body.dropoff_address || req.body.dropoffAddress);
+  const preferredDriverId = pickFirst(req.body.preferred_driver_id, req.body.preferredDriverId);
+  const scheduledTime = clean(req.body.scheduled_time || req.body.scheduledTime);
+  const scheduledDays = Array.isArray(req.body.scheduled_days) ? req.body.scheduled_days : [];
+  const requestedMode = normalizeRideMode(req.body.requested_mode || req.body.requestedMode || "driver");
+  const rideType = normalizeRideType(req.body.ride_type || req.body.rideType || "standard");
+  const notes = clean(req.body.notes);
+
+  if (!pickupAddress) return fail(res, "Pickup address is required");
+  if (!dropoffAddress) return fail(res, "Dropoff address is required");
+  if (!scheduledTime) return fail(res, "Scheduled time is required");
+  if (!scheduledDays.length) return fail(res, "At least one scheduled day is required");
+
+  if (preferredDriverId) {
+    const priorCompletedRide = await getCompletedRideBetweenRiderAndDriver(rider.id, preferredDriverId);
+    const isFavorited = await riderHasFavoriteDriver(rider.id, preferredDriverId);
+
+    if (!priorCompletedRide && !isFavorited) {
+      return fail(res, "Preferred recurring driver requires prior trip history or favorite status", 403);
+    }
+  }
+
+  const recurringRide = await insertRow("recurring_rides", {
+    id: createId("recur"),
+    rider_id: rider.id,
+    preferred_driver_id: preferredDriverId || null,
+    status: "active",
+    requested_mode: requestedMode,
+    ride_type: rideType,
+    pickup_address: pickupAddress,
+    dropoff_address: dropoffAddress,
+    scheduled_days: scheduledDays,
+    scheduled_time: scheduledTime,
+    notes: notes || null,
+    created_at: nowIso(),
+    updated_at: nowIso()
+  });
+
+  return ok(res, {
+    message: "Recurring ride created successfully",
+    recurring_ride: recurringRide
+  }, 201);
+}));
+
+app.get("/api/rider/:riderId/recurring-rides", asyncHandler(async (req, res) => {
+  const rider = await getRiderById(req.params.riderId);
+  if (!rider) return fail(res, "Rider not found", 404);
+
+  const { data, error } = await requireSupabase()
+    .from("recurring_rides")
+    .select("*")
+    .eq("rider_id", rider.id)
+    .order("updated_at", { ascending: false });
+
+  if (error) throw error;
+
+  return ok(res, {
+    recurring_rides: data || []
   });
 }));
 
@@ -4706,7 +6619,7 @@ function getFallbackReply(message = "", page = "general") {
   const normalizedPage = normalizePage(page);
 
   if (!text) {
-    return "I can help with rider approval, driver onboarding, ride requests, payment authorization, live trip status, dispatch, Harvey Taxi support, and foundation support.";
+    return "I can help with rider approval, driver onboarding, ride requests, payment authorization, live trip status, preferred drivers, compliance, dispatch, Harvey Taxi support, and foundation support.";
   }
 
   if (text.includes("emergency") || text.includes("911")) {
@@ -4714,7 +6627,15 @@ function getFallbackReply(message = "", page = "general") {
   }
 
   if (text.includes("foundation") || text.includes("donate") || normalizedPage === "foundation") {
-    return "Harvey Transportation Assistance Foundation helps remove transportation barriers for medical appointments, work, school, and community mobility. You can open the foundation page or use the donation link to support transportation access.";
+    return "Harvey Transportation Assistance Foundation helps remove transportation barriers for medical appointments, work, school, and community mobility. Eligible riders may receive sponsored ride support through the platform.";
+  }
+
+  if (text.includes("preferred driver") || text.includes("favorite driver")) {
+    return "Harvey Taxi can support favorite drivers and preferred-driver ride requests when the rider has prior trip history or a favorite-driver connection.";
+  }
+
+  if (text.includes("insurance") || text.includes("compliance")) {
+    return "Harvey Taxi drivers may need identity verification, contact verification, insurance approval, and compliance clearance before going online.";
   }
 
   if (text.includes("live") || text.includes("track") || text.includes("where is my driver")) {
@@ -4726,18 +6647,18 @@ function getFallbackReply(message = "", page = "general") {
   }
 
   if (text.includes("driver") || normalizedPage === "driver") {
-    return "Drivers must complete signup, verification, and approval before going online and receiving missions.";
+    return "Drivers must complete signup, verification, insurance compliance, and approval before going online and receiving missions.";
   }
 
   if (text.includes("payment")) {
-    return "Harvey Taxi authorizes payment before dispatch and can capture payment when the ride is completed.";
+    return "Harvey Taxi can authorize payment before dispatch and capture payment when the ride is completed. Sponsored rides may split the total between foundation support and rider copay.";
   }
 
   if (text.includes("dispatch") || text.includes("operations")) {
-    return "Harvey Taxi dispatch prioritizes eligible drivers and can automatically redispatch expired offers.";
+    return "Harvey Taxi dispatch prioritizes eligible drivers, can honor preferred-driver requests, and can automatically redispatch expired offers.";
   }
 
-  return "I can help with rides, driver onboarding, payments, live trip updates, dispatch, support questions, and foundation support.";
+  return "I can help with rides, favorite drivers, driver onboarding, insurance compliance, payments, live trip updates, dispatch, support questions, and foundation support.";
 }
 
 async function generateAiSupportReply({ message, page = "general", ride_id = "" }) {
@@ -4764,7 +6685,7 @@ async function generateAiSupportReply({ message, page = "general", ride_id = "" 
           {
             role: "system",
             content:
-              "You are Harvey Taxi AI Support. Be concise, clear, calm, and accurate. Never invent policies. You may answer questions about Harvey Taxi rides, driver onboarding, rider approval, payment authorization, dispatch, live ride updates, autonomous pilot guidance, and Harvey Transportation Assistance Foundation support."
+              "You are Harvey Taxi AI Support. Be concise, clear, calm, and accurate. Never invent policies. You may answer questions about Harvey Taxi rides, favorite drivers, preferred-driver requests, driver onboarding, insurance compliance, rider approval, payment authorization, dispatch, live ride updates, autonomous pilot guidance, and Harvey Transportation Assistance Foundation support."
           },
           {
             role: "user",
@@ -4786,7 +6707,7 @@ async function generateAiSupportReply({ message, page = "general", ride_id = "" 
         {
           role: "system",
           content:
-            "You are Harvey Taxi AI Support. Be concise, clear, calm, and accurate. Never invent policies. You may answer questions about Harvey Taxi rides, driver onboarding, rider approval, payment authorization, dispatch, live ride updates, autonomous pilot guidance, and Harvey Transportation Assistance Foundation support."
+            "You are Harvey Taxi AI Support. Be concise, clear, calm, and accurate. Never invent policies. You may answer questions about Harvey Taxi rides, favorite drivers, preferred-driver requests, driver onboarding, insurance compliance, rider approval, payment authorization, dispatch, live ride updates, autonomous pilot guidance, and Harvey Transportation Assistance Foundation support."
         },
         {
           role: "user",
@@ -4816,6 +6737,7 @@ async function buildOperationsSnapshot() {
         if (filter.op === "eq") query = query.eq(filter.column, filter.value);
         if (filter.op === "in") query = query.in(filter.column, filter.value);
         if (filter.op === "lt") query = query.lt(filter.column, filter.value);
+        if (filter.op === "gt") query = query.gt(filter.column, filter.value);
       }
     }
 
@@ -4834,7 +6756,11 @@ async function buildOperationsSnapshot() {
     onlineDrivers,
     staleDrivers,
     totalDrivers,
-    totalRiders
+    totalRiders,
+    compliantDrivers,
+    blockedDrivers,
+    sponsoredRides,
+    preferredDriverRides
   ] = await Promise.all([
     countTable("rides"),
     countTable("rides", [{
@@ -4854,7 +6780,11 @@ async function buildOperationsSnapshot() {
       { op: "lt", column: "last_heartbeat_at", value: staleBefore }
     ]),
     countTable("drivers"),
-    countTable("riders")
+    countTable("riders"),
+    countTable("drivers", [{ op: "eq", column: "compliance_status", value: "approved" }]),
+    countTable("drivers", [{ op: "eq", column: "compliance_status", value: "blocked" }]),
+    countTable("rides", [{ op: "gt", column: "sponsored_amount", value: 0 }]),
+    countTable("rides", [{ op: "gt", column: "preferred_driver_id", value: "" }]).catch(() => 0)
   ]);
 
   return {
@@ -4867,7 +6797,14 @@ async function buildOperationsSnapshot() {
     stale_online_drivers: staleDrivers,
     total_drivers: totalDrivers,
     total_riders: totalRiders,
-    realtime_enabled: ENABLE_REALTIME_EVENTS
+    compliant_drivers: compliantDrivers,
+    blocked_drivers: blockedDrivers,
+    sponsored_rides: sponsoredRides,
+    preferred_driver_rides: preferredDriverRides,
+    realtime_enabled: ENABLE_REALTIME_EVENTS,
+    preferred_driver_enabled: ENABLE_PREFERRED_DRIVER_SYSTEM,
+    nonprofit_benefits_enabled: ENABLE_NONPROFIT_BENEFITS,
+    insurance_gate_enabled: ENABLE_DRIVER_INSURANCE_GATE
   };
 }
 
@@ -4901,7 +6838,7 @@ app.get("/api/admin/ai/operations", requireAdmin, asyncHandler(async (_req, res)
             {
               role: "system",
               content:
-                "You are Harvey Taxi AI Operations. Review the metrics and return a short operational recommendation focused on dispatch pressure, stale drivers, rider wait risk, and fleet responsiveness."
+                "You are Harvey Taxi AI Operations. Review the metrics and return a short operational recommendation focused on dispatch pressure, stale drivers, compliance readiness, favorite-driver demand, sponsored rides, rider wait risk, and fleet responsiveness."
             },
             {
               role: "user",
@@ -4919,7 +6856,7 @@ app.get("/api/admin/ai/operations", requireAdmin, asyncHandler(async (_req, res)
             {
               role: "system",
               content:
-                "You are Harvey Taxi AI Operations. Review the metrics and return a short operational recommendation focused on dispatch pressure, stale drivers, rider wait risk, and fleet responsiveness."
+                "You are Harvey Taxi AI Operations. Review the metrics and return a short operational recommendation focused on dispatch pressure, stale drivers, compliance readiness, favorite-driver demand, sponsored rides, rider wait risk, and fleet responsiveness."
             },
             {
               role: "user",
@@ -4946,7 +6883,7 @@ app.get("/api/admin/ai/operations", requireAdmin, asyncHandler(async (_req, res)
 }));
 
 /* =========================================================
-   ADMIN SECURITY ROUTES
+   ADMIN SECURITY / COMPLIANCE / BENEFIT ROUTES
 ========================================================= */
 app.get("/api/admin/security/overview", requireAdmin, asyncHandler(async (_req, res) => {
   const [events, actions, profiles] = await Promise.all([
@@ -4974,6 +6911,151 @@ app.get("/api/admin/security/overview", requireAdmin, asyncHandler(async (_req, 
     security_actions: actions.data || [],
     security_profiles: profiles.data || [],
     ai_security: runtimeState.aiSecurity
+  });
+}));
+
+app.get("/api/admin/compliance/drivers", requireAdmin, asyncHandler(async (_req, res) => {
+  const { data, error } = await requireSupabase()
+    .from("drivers")
+    .select("*")
+    .order("updated_at", { ascending: false })
+    .limit(200);
+
+  if (error) throw error;
+
+  return ok(res, {
+    drivers: (data || []).map((driver) => ({
+      id: driver.id,
+      full_name: getDriverDisplayName(driver),
+      email: clean(driver.email || ""),
+      phone: clean(driver.phone || ""),
+      driver_type: normalizeDriverType(driver.driver_type || "human"),
+      status: normalizeDriverStatus(driver.status || driver.approval_status),
+      is_online: driverIsOnline(driver),
+      is_verified: driverIsVerified(driver),
+      is_approved: driverIsApproved(driver),
+      compliance: buildDriverComplianceSummary(driver)
+    }))
+  });
+}));
+
+app.post("/api/admin/driver/insurance/approve", requireAdmin, asyncHandler(async (req, res) => {
+  const driverId = pickFirst(req.body.driver_id, req.body.driverId);
+  if (!driverId) return fail(res, "Driver ID is required");
+
+  const driver = await getDriverById(driverId);
+  if (!driver) return fail(res, "Driver not found", 404);
+
+  const rows = await updateRows("drivers", { id: driver.id }, {
+    insurance_status: "active",
+    insurance_verified: true,
+    compliance_status: "approved",
+    compliance_block_reason: null,
+    updated_at: nowIso()
+  });
+
+  const updatedDriver = rows?.[0] || driver;
+
+  await logComplianceEvent({
+    subject_type: "driver",
+    subject_id: updatedDriver.id,
+    event_type: "driver_insurance_approved",
+    severity: "info",
+    details: {
+      actor_email: ADMIN_EMAIL
+    }
+  });
+
+  emitComplianceRealtime({
+    type: "driver_insurance_approved",
+    driver_id: updatedDriver.id
+  });
+
+  return ok(res, {
+    message: "Driver insurance approved successfully",
+    driver: updatedDriver,
+    compliance: buildDriverComplianceSummary(updatedDriver)
+  });
+}));
+
+app.post("/api/admin/driver/insurance/reject", requireAdmin, asyncHandler(async (req, res) => {
+  const driverId = pickFirst(req.body.driver_id, req.body.driverId);
+  const reason = clean(req.body.reason || "insurance_rejected");
+
+  if (!driverId) return fail(res, "Driver ID is required");
+
+  const driver = await getDriverById(driverId);
+  if (!driver) return fail(res, "Driver not found", 404);
+
+  const rows = await updateRows("drivers", { id: driver.id }, {
+    insurance_status: "rejected",
+    insurance_verified: false,
+    compliance_status: "blocked",
+    compliance_block_reason: reason,
+    is_online: false,
+    availability_status: "offline",
+    updated_at: nowIso()
+  });
+
+  const updatedDriver = rows?.[0] || driver;
+
+  await logComplianceEvent({
+    subject_type: "driver",
+    subject_id: updatedDriver.id,
+    event_type: "driver_insurance_rejected",
+    severity: "high",
+    details: {
+      actor_email: ADMIN_EMAIL,
+      reason
+    }
+  });
+
+  emitComplianceRealtime({
+    type: "driver_insurance_rejected",
+    driver_id: updatedDriver.id,
+    reason
+  });
+
+  return ok(res, {
+    message: "Driver insurance rejected",
+    driver: updatedDriver,
+    compliance: buildDriverComplianceSummary(updatedDriver)
+  });
+}));
+
+app.get("/api/admin/benefits/overview", requireAdmin, asyncHandler(async (_req, res) => {
+  const [programs, approvals, sponsoredRides, transactions] = await Promise.all([
+    requireSupabase()
+      .from("benefit_programs")
+      .select("*")
+      .order("updated_at", { ascending: false })
+      .limit(50),
+
+    requireSupabase()
+      .from("benefit_approvals")
+      .select("*")
+      .order("updated_at", { ascending: false })
+      .limit(50),
+
+    requireSupabase()
+      .from("sponsored_rides")
+      .select("*")
+      .order("updated_at", { ascending: false })
+      .limit(50),
+
+    requireSupabase()
+      .from("benefit_transactions")
+      .select("*")
+      .order("updated_at", { ascending: false })
+      .limit(50)
+  ]);
+
+  return ok(res, {
+    benefit_programs: programs.data || [],
+    benefit_approvals: approvals.data || [],
+    sponsored_rides: sponsoredRides.data || [],
+    benefit_transactions: transactions.data || [],
+    nonprofit_runtime: runtimeState.nonprofitBenefits
   });
 }));
 
@@ -5016,6 +7098,8 @@ app.post("/api/admin/security/driver/unlock", requireAdmin, asyncHandler(async (
     status: "approved",
     approval_status: "approved",
     verification_status: "approved",
+    compliance_status: "approved",
+    compliance_block_reason: null,
     updated_at: nowIso()
   });
 
@@ -5074,6 +7158,7 @@ app.post("/api/admin/driver/approve", requireAdmin, asyncHandler(async (req, res
     status: "approved",
     approval_status: "approved",
     verification_status: "approved",
+    compliance_status: driver.compliance_status || "pending",
     updated_at: nowIso()
   });
 
@@ -5086,7 +7171,8 @@ app.post("/api/admin/driver/approve", requireAdmin, asyncHandler(async (req, res
 
   return ok(res, {
     message: "Driver approved successfully",
-    driver: updatedDriver
+    driver: updatedDriver,
+    compliance: buildDriverComplianceSummary(updatedDriver)
   });
 }));
 
@@ -5112,7 +7198,54 @@ app.post("/api/admin/driver/verify-contact", requireAdmin, asyncHandler(async (r
 
   return ok(res, {
     message: "Driver email and SMS marked verified",
-    driver: updatedDriver
+    driver: updatedDriver,
+    compliance: buildDriverComplianceSummary(updatedDriver)
+  });
+}));
+
+app.post("/api/admin/rider/benefits/approve", requireAdmin, asyncHandler(async (req, res) => {
+  const riderId = pickFirst(req.body.rider_id, req.body.riderId);
+  const sponsorshipPercent = clamp(
+    toNumber(req.body.sponsorship_percent, NONPROFIT_DEFAULT_SPONSORSHIP_PERCENT),
+    0,
+    NONPROFIT_MAX_SPONSORSHIP_PERCENT
+  );
+
+  if (!riderId) return fail(res, "Rider ID is required");
+
+  const rider = await getRiderById(riderId);
+  if (!rider) return fail(res, "Rider not found", 404);
+
+  const rows = await updateRows("riders", { id: rider.id }, {
+    nonprofit_benefits_approved: true,
+    updated_at: nowIso()
+  });
+
+  let approval = null;
+  try {
+    approval = await insertRow("benefit_approvals", {
+      id: createId("bapprove"),
+      rider_id: rider.id,
+      status: "approved",
+      sponsorship_percent: sponsorshipPercent,
+      approved_by: ADMIN_EMAIL,
+      created_at: nowIso(),
+      updated_at: nowIso()
+    });
+  } catch (error) {
+    console.warn("⚠️ Benefit approval insert skipped:", error.message);
+  }
+
+  emitBenefitsRealtime({
+    type: "rider_benefits_approved",
+    rider_id: rider.id,
+    sponsorship_percent: sponsorshipPercent
+  });
+
+  return ok(res, {
+    message: "Rider benefits approved",
+    rider: rows?.[0] || rider,
+    approval
   });
 }));
 
@@ -5122,8 +7255,11 @@ app.get("/api/admin/analytics/overview", requireAdmin, asyncHandler(async (_req,
     generated_at: nowIso(),
     counts: snapshot,
     dispatch: runtimeState.dispatchSweep,
+    compliance: runtimeState.complianceSweep,
+    insurance: runtimeState.insurance,
     ai_operations: runtimeState.aiOperations,
     ai_security: runtimeState.aiSecurity,
+    nonprofit_benefits: runtimeState.nonprofitBenefits,
     realtime: {
       enabled: runtimeState.realtime.enabled,
       rider_stream_keys: runtimeState.realtime.riderStreams.size,
@@ -5145,7 +7281,11 @@ app.get("/api/support/faq", asyncHandler(async (_req, res) => {
       },
       {
         question: "What does a driver need before going online?",
-        answer: "Drivers need signup completion, verification, approval, and then they can go online to receive missions."
+        answer: "Drivers need signup completion, verification, insurance compliance, approval, and then they can go online to receive missions."
+      },
+      {
+        question: "Can riders choose a favorite driver?",
+        answer: "Yes. Riders can favorite a driver after a completed trip and may request that preferred driver again later."
       },
       {
         question: "Can riders see live trip progress?",
@@ -5154,6 +7294,10 @@ app.get("/api/support/faq", asyncHandler(async (_req, res) => {
       {
         question: "When is payment captured?",
         answer: "Payment is typically authorized before dispatch and captured when the ride is completed."
+      },
+      {
+        question: "Can rides be sponsored by the foundation?",
+        answer: "Yes. Eligible rides may include foundation sponsorship support, which can reduce the rider copay."
       },
       {
         question: "Can riders tip drivers?",
@@ -5187,63 +7331,3 @@ app.use((error, req, res, next) => {
     details: IS_PROD ? undefined : clean(error?.message || String(error))
   });
 });
-
-/* =========================================================
-   GRACEFUL SHUTDOWN
-========================================================= */
-function shutdown(signal) {
-  if (runtimeState.process.shuttingDown) return;
-  runtimeState.process.shuttingDown = true;
-
-  console.log(`⚠️ Received ${signal}. Shutting down gracefully...`);
-
-  server.close(() => {
-    console.log("✅ HTTP server closed");
-    process.exit(0);
-  });
-
-  setTimeout(() => {
-    console.error("❌ Forced shutdown after timeout");
-    process.exit(1);
-  }, 10000).unref();
-}
-
-process.on("SIGTERM", () => shutdown("SIGTERM"));
-process.on("SIGINT", () => shutdown("SIGINT"));
-
-/* =========================================================
-   START SERVER
-========================================================= */
-async function startServer() {
-  try {
-    await runStartupChecks();
-    await ensureSecurityBrainReady();
-
-    startRealtimeKeepAliveLoop();
-    startDriverHeartbeatSweepLoop();
-    startDispatchSweepLoop();
-
-    server.listen(PORT, () => {
-      console.log("====================================================");
-      console.log(`🚕 ${APP_NAME} running`);
-      console.log(`🌐 Port: ${PORT}`);
-      console.log(`🛠️ Environment: ${NODE_ENV}`);
-      console.log(`🕒 Started: ${SERVER_STARTED_AT}`);
-      console.log(`🧠 AI Enabled: ${!!openai}`);
-      console.log(`🛡️ AI Security Enabled: ${ENABLE_AI_SECURITY_BRAIN}`);
-      console.log(`🗄️ Supabase Ready: ${!!supabase}`);
-      console.log(`📲 Twilio Ready: ${!!twilioClient}`);
-      console.log(`📧 SMTP Ready: ${!!emailTransporter}`);
-      console.log(`🤖 AI Dispatch Enabled: ${ENABLE_AI_DISPATCH}`);
-      console.log(`🏢 AI Operations Enabled: ${ENABLE_AI_OPERATIONS}`);
-      console.log(`📡 Realtime Enabled: ${ENABLE_REALTIME_EVENTS}`);
-      console.log(`💓 Driver Heartbeat Enabled: ${ENABLE_DRIVER_HEARTBEAT}`);
-      console.log("====================================================");
-    });
-  } catch (error) {
-    console.error("❌ Failed to start server:", error);
-    process.exit(1);
-  }
-}
-
-startServer();
