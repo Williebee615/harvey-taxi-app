@@ -80,12 +80,14 @@
       position: sticky;
       top: 12px;
       z-index: 50;
+      flex-wrap: wrap;
     }
 
     .brand-wrap {
       display: flex;
       align-items: center;
       gap: 12px;
+      min-width: 0;
     }
 
     .brand-mark {
@@ -99,6 +101,7 @@
         0 0 18px rgba(98,245,255,0.18),
         inset 0 0 16px rgba(255,255,255,0.08);
       position: relative;
+      flex-shrink: 0;
     }
 
     .brand-mark::after {
@@ -268,6 +271,7 @@
     .metric .value {
       font-size: 1.3rem;
       font-weight: 800;
+      word-break: break-word;
     }
 
     .hero-side {
@@ -295,6 +299,7 @@
       border: 1px solid rgba(110,255,184,0.16);
       background: rgba(110,255,184,0.06);
       margin-bottom: 14px;
+      flex-wrap: wrap;
     }
 
     .live-left {
@@ -417,6 +422,19 @@
         linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
       background-size: 38px 38px;
       opacity: 0.45;
+    }
+
+    .map-state {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 20px;
+      color: var(--muted);
+      z-index: 2;
+      line-height: 1.6;
     }
 
     .map-route {
@@ -563,10 +581,16 @@
       background: rgba(255,127,148,0.92);
     }
 
+    .badge.completed {
+      color: #071713;
+      background: rgba(110,255,184,0.92);
+    }
+
     .dispatch-meta {
       color: var(--muted);
       font-size: 0.86rem;
       line-height: 1.55;
+      word-break: break-word;
     }
 
     .detail-grid {
@@ -596,6 +620,7 @@
     .detail-box span {
       line-height: 1.5;
       font-size: 0.92rem;
+      word-break: break-word;
     }
 
     .detail-actions {
@@ -644,6 +669,7 @@
       padding: 12px 10px;
       border-bottom: 1px solid rgba(255,255,255,0.06);
       font-size: 0.9rem;
+      vertical-align: top;
     }
 
     th {
@@ -705,6 +731,41 @@
       flex-wrap: wrap;
       align-items: center;
       margin-bottom: 6px;
+    }
+
+    .message-box {
+      display: none;
+      margin: 16px 0 0;
+      padding: 14px 16px;
+      border-radius: 14px;
+      line-height: 1.6;
+      font-size: 0.92rem;
+    }
+
+    .message-box.show {
+      display: block;
+    }
+
+    .message-box.success {
+      background: rgba(110,255,184,0.12);
+      border: 1px solid rgba(110,255,184,0.22);
+      color: var(--text);
+    }
+
+    .message-box.error {
+      background: rgba(255,127,148,0.12);
+      border: 1px solid rgba(255,127,148,0.22);
+      color: var(--text);
+    }
+
+    .empty-state {
+      padding: 18px;
+      border-radius: 16px;
+      border: 1px dashed rgba(255,255,255,0.10);
+      color: var(--muted);
+      text-align: center;
+      background: rgba(255,255,255,0.02);
+      line-height: 1.6;
     }
 
     .return-home {
@@ -801,6 +862,8 @@
         <a class="mini-btn" href="#queueSection">Queue</a>
         <a class="mini-btn" href="#fleetSection">Fleet</a>
         <a class="mini-btn" href="admin-dashboard.html">Admin Dashboard</a>
+        <button class="mini-btn" id="refreshBtn" type="button">Refresh</button>
+        <button class="mini-btn primary" id="autoRefreshBtn" type="button">Auto Refresh: On</button>
         <a class="mini-btn primary" href="/">Return Home</a>
       </div>
     </header>
@@ -822,21 +885,23 @@
         <div class="metric-grid">
           <div class="metric">
             <div class="label">Pending Requests</div>
-            <div class="value" id="pendingMetric">4</div>
+            <div class="value" id="pendingMetric">0</div>
           </div>
           <div class="metric">
             <div class="label">Active Trips</div>
-            <div class="value" id="activeMetric">3</div>
+            <div class="value" id="activeMetric">0</div>
           </div>
           <div class="metric">
             <div class="label">Available Drivers</div>
-            <div class="value" id="availableMetric">5</div>
+            <div class="value" id="availableMetric">0</div>
           </div>
           <div class="metric">
             <div class="label">Safety Flags</div>
-            <div class="value" id="safetyMetric">1</div>
+            <div class="value" id="safetyMetric">0</div>
           </div>
         </div>
+
+        <div id="pageMessage" class="message-box"></div>
       </div>
 
       <div class="hero-side">
@@ -847,13 +912,13 @@
               <div class="dot"></div>
               <span>Dispatch Network Live</span>
             </div>
-            <strong style="color: var(--green);">Active</strong>
+            <strong style="color: var(--green);" id="networkState">Active</strong>
           </div>
 
           <div class="status-grid">
             <div class="status-box">
               <strong>Human Driver Layer</strong>
-              <span>Available, assigned, en route, and busy statuses visible to admin.</span>
+              <span id="humanLayerText">Available, assigned, en route, and busy statuses visible to admin.</span>
             </div>
             <div class="status-box">
               <strong>Mixed Fleet Ready</strong>
@@ -865,20 +930,20 @@
             </div>
             <div class="status-box">
               <strong>Safety Escalation</strong>
-              <span>SOS and incident controls are available for faster response handling.</span>
+              <span id="safetyStatusText">SOS and incident controls are available for faster response handling.</span>
             </div>
           </div>
         </div>
 
         <div class="panel">
           <h3>Dispatch Filters</h3>
-          <div class="filters">
-            <button class="chip active" type="button">All Trips</button>
-            <button class="chip" type="button">Pending</button>
-            <button class="chip" type="button">Assigned</button>
-            <button class="chip" type="button">En Route</button>
-            <button class="chip" type="button">Completed</button>
-            <button class="chip" type="button">Drivers Only</button>
+          <div class="filters" id="filterChips">
+            <button class="chip active" type="button" data-filter="all">All Trips</button>
+            <button class="chip" type="button" data-filter="pending">Pending</button>
+            <button class="chip" type="button" data-filter="assigned">Assigned</button>
+            <button class="chip" type="button" data-filter="enroute">En Route</button>
+            <button class="chip" type="button" data-filter="completed">Completed</button>
+            <button class="chip" type="button" data-filter="drivers_only">Drivers Only</button>
           </div>
         </div>
       </div>
@@ -894,8 +959,8 @@
             </p>
           </div>
           <div style="display:flex; gap:10px; flex-wrap:wrap;">
-            <button class="action-btn" type="button">Refresh View</button>
-            <button class="action-btn primary" type="button">Center Active Trips</button>
+            <button class="action-btn" id="refreshMapBtn" type="button">Refresh View</button>
+            <button class="action-btn primary" id="centerSelectedBtn" type="button">Center Selected Trip</button>
           </div>
         </div>
 
@@ -907,6 +972,7 @@
           <div class="map-marker trip m3" title="Active trip"></div>
           <div class="map-marker driver m4" title="Assigned driver"></div>
           <div class="map-marker rider m5" title="Pending request"></div>
+          <div class="map-state" id="mapStateText">Live map placeholder is active. Connect Google Maps when ready for full driver tracking.</div>
         </div>
 
         <div class="map-legend">
@@ -925,50 +991,8 @@
             </div>
           </div>
 
-          <div class="dispatch-list">
-            <div class="dispatch-item active" onclick="selectTrip(this, 'TRIP-2048', 'Pending Assignment', 'Rider: Angela M.', 'Pickup: 222 Broadway, Nashville', 'Dropoff: BNA Airport, Nashville', 'Unassigned', '$26.40', 'Rider Verified', '3 min ago')">
-              <div class="dispatch-top">
-                <div class="dispatch-id">TRIP-2048</div>
-                <div class="badge pending">Pending</div>
-              </div>
-              <div class="dispatch-meta">
-                Angela M. • 222 Broadway, Nashville → BNA Airport, Nashville<br />
-                Requested 3 min ago • Estimated fare $26.40
-              </div>
-            </div>
-
-            <div class="dispatch-item" onclick="selectTrip(this, 'TRIP-2047', 'Driver Assigned', 'Rider: Marcus T.', 'Pickup: 1100 Charlotte Ave, Nashville', 'Dropoff: Vanderbilt University Medical Center', 'Driver: James R.', '$18.20', 'Rider Verified', '6 min ago')">
-              <div class="dispatch-top">
-                <div class="dispatch-id">TRIP-2047</div>
-                <div class="badge assigned">Assigned</div>
-              </div>
-              <div class="dispatch-meta">
-                Marcus T. • Charlotte Ave pickup → VUMC<br />
-                Driver James R. assigned • ETA 5 min
-              </div>
-            </div>
-
-            <div class="dispatch-item" onclick="selectTrip(this, 'TRIP-2045', 'Driver En Route', 'Rider: Olivia S.', 'Pickup: 5th Ave N, Nashville', 'Dropoff: Nissan Stadium', 'Driver: Tasha B.', '$14.75', 'Rider Verified', '11 min ago')">
-              <div class="dispatch-top">
-                <div class="dispatch-id">TRIP-2045</div>
-                <div class="badge enroute">En Route</div>
-              </div>
-              <div class="dispatch-meta">
-                Olivia S. • 5th Ave N → Nissan Stadium<br />
-                Driver Tasha B. approaching pickup
-              </div>
-            </div>
-
-            <div class="dispatch-item" onclick="selectTrip(this, 'TRIP-2042', 'Safety Review Required', 'Rider: Daniel P.', 'Pickup: 920 Jefferson St, Nashville', 'Dropoff: 1617 Lebanon Pike', 'Driver: Chris L.', '$21.10', 'SOS Flag Active', '2 min ago')">
-              <div class="dispatch-top">
-                <div class="dispatch-id">TRIP-2042</div>
-                <div class="badge alert">Alert</div>
-              </div>
-              <div class="dispatch-meta">
-                Daniel P. • Jefferson St pickup → Lebanon Pike<br />
-                Safety note flagged • Admin review needed
-              </div>
-            </div>
+          <div class="dispatch-list" id="dispatchList">
+            <div class="empty-state">Loading live dispatch queue...</div>
           </div>
         </div>
 
@@ -983,50 +1007,50 @@
           <div class="detail-grid">
             <div class="detail-box">
               <label>Trip ID</label>
-              <strong id="tripId">TRIP-2048</strong>
+              <strong id="tripId">—</strong>
             </div>
             <div class="detail-box">
               <label>Status</label>
-              <strong id="tripStatus">Pending Assignment</strong>
+              <strong id="tripStatus">—</strong>
             </div>
             <div class="detail-box">
               <label>Rider</label>
-              <span id="tripRider">Rider: Angela M.</span>
+              <span id="tripRider">—</span>
             </div>
             <div class="detail-box">
               <label>Assigned Driver</label>
-              <span id="tripDriver">Unassigned</span>
+              <span id="tripDriver">—</span>
             </div>
             <div class="detail-box">
               <label>Pickup Address</label>
-              <span id="tripPickup">Pickup: 222 Broadway, Nashville</span>
+              <span id="tripPickup">—</span>
             </div>
             <div class="detail-box">
               <label>Dropoff Address</label>
-              <span id="tripDropoff">Dropoff: BNA Airport, Nashville</span>
+              <span id="tripDropoff">—</span>
             </div>
             <div class="detail-box">
               <label>Estimated Fare</label>
-              <span id="tripFare">$26.40</span>
+              <span id="tripFare">—</span>
             </div>
             <div class="detail-box">
               <label>Verification / Safety</label>
-              <span id="tripVerify">Rider Verified</span>
+              <span id="tripVerify">—</span>
             </div>
             <div class="detail-box" style="grid-column: 1 / -1;">
               <label>Queue Time</label>
-              <span id="tripTime">3 min ago</span>
+              <span id="tripTime">—</span>
             </div>
           </div>
 
           <div class="detail-actions">
-            <button class="action-btn primary" type="button">Assign Driver</button>
-            <button class="action-btn" type="button">Reassign</button>
-            <button class="action-btn" type="button">Mark Arrived</button>
-            <button class="action-btn" type="button">Start Trip</button>
-            <button class="action-btn" type="button">Complete Trip</button>
-            <button class="action-btn warning" type="button">Incident Note</button>
-            <button class="action-btn danger" type="button">SOS Hold</button>
+            <button class="action-btn primary" type="button" id="assignDriverBtn">Assign Driver</button>
+            <button class="action-btn" type="button" id="reassignBtn">Reassign</button>
+            <button class="action-btn" type="button" id="markArrivedBtn">Mark Arrived</button>
+            <button class="action-btn" type="button" id="startTripBtn">Start Trip</button>
+            <button class="action-btn" type="button" id="completeTripBtn">Complete Trip</button>
+            <button class="action-btn warning" type="button" id="incidentNoteBtn">Incident Note</button>
+            <button class="action-btn danger" type="button" id="sosHoldBtn">SOS Hold</button>
           </div>
         </div>
       </div>
@@ -1041,17 +1065,17 @@
           </p>
         </div>
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
-          <select class="action-btn" aria-label="Filter zone">
-            <option>All Zones</option>
-            <option>Downtown</option>
-            <option>Airport</option>
-            <option>East Nashville</option>
-            <option>Medical District</option>
+          <select class="action-btn" aria-label="Filter zone" id="zoneFilter">
+            <option value="all">All Zones</option>
+            <option value="downtown">Downtown</option>
+            <option value="airport">Airport</option>
+            <option value="east_nashville">East Nashville</option>
+            <option value="medical_district">Medical District</option>
           </select>
-          <select class="action-btn" aria-label="Filter fleet">
-            <option>All Fleet Types</option>
-            <option>Human Drivers</option>
-            <option>AV Ready</option>
+          <select class="action-btn" aria-label="Filter fleet" id="fleetFilter">
+            <option value="all">All Fleet Types</option>
+            <option value="human">Human Drivers</option>
+            <option value="autonomous">AV Ready</option>
           </select>
         </div>
       </div>
@@ -1071,69 +1095,10 @@
               <th>Actions</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody id="dispatchTableBody">
             <tr>
-              <td>TRIP-2048</td>
-              <td>Angela M.</td>
-              <td>222 Broadway, Nashville</td>
-              <td>BNA Airport</td>
-              <td>Unassigned</td>
-              <td>Pending</td>
-              <td>—</td>
-              <td>$26.40</td>
-              <td>
-                <div class="row-actions">
-                  <button class="row-btn primary" type="button">Assign</button>
-                  <button class="row-btn" type="button">View</button>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td>TRIP-2047</td>
-              <td>Marcus T.</td>
-              <td>1100 Charlotte Ave</td>
-              <td>VUMC</td>
-              <td>James R.</td>
-              <td>Assigned</td>
-              <td>5 min</td>
-              <td>$18.20</td>
-              <td>
-                <div class="row-actions">
-                  <button class="row-btn" type="button">Reassign</button>
-                  <button class="row-btn" type="button">Arrived</button>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td>TRIP-2045</td>
-              <td>Olivia S.</td>
-              <td>5th Ave N</td>
-              <td>Nissan Stadium</td>
-              <td>Tasha B.</td>
-              <td>En Route</td>
-              <td>3 min</td>
-              <td>$14.75</td>
-              <td>
-                <div class="row-actions">
-                  <button class="row-btn" type="button">Track</button>
-                  <button class="row-btn" type="button">Complete</button>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td>TRIP-2042</td>
-              <td>Daniel P.</td>
-              <td>920 Jefferson St</td>
-              <td>1617 Lebanon Pike</td>
-              <td>Chris L.</td>
-              <td>Alert</td>
-              <td>—</td>
-              <td>$21.10</td>
-              <td>
-                <div class="row-actions">
-                  <button class="row-btn" type="button">Review</button>
-                  <button class="row-btn" type="button">Hold</button>
-                </div>
+              <td colspan="9">
+                <div class="empty-state">Loading dispatch table...</div>
               </td>
             </tr>
           </tbody>
@@ -1150,26 +1115,8 @@
           </div>
         </div>
 
-        <div class="alert-list">
-          <div class="alert-item">
-            <strong>SOS Review • TRIP-2042</strong>
-            <span>
-              Rider issue flag submitted. Admin should contact driver and review trip state
-              before trip continuation.
-            </span>
-          </div>
-          <div class="alert-item">
-            <strong>Late Pickup Warning • TRIP-2047</strong>
-            <span>
-              Driver delay threshold approaching. Reassignment option available if ETA increases.
-            </span>
-          </div>
-          <div class="alert-item">
-            <strong>Verification Gate Active</strong>
-            <span>
-              Rider request access remains restricted until rider approval is complete.
-            </span>
-          </div>
+        <div class="alert-list" id="alertList">
+          <div class="empty-state">Loading safety feed...</div>
         </div>
       </div>
 
@@ -1181,38 +1128,8 @@
           </div>
         </div>
 
-        <div class="driver-list">
-          <div class="driver-item">
-            <div class="driver-top">
-              <strong>James R.</strong>
-              <span class="badge assigned">Assigned</span>
-            </div>
-            <span>Zone: Downtown • Vehicle Ready • Next action: pickup approach</span>
-          </div>
-
-          <div class="driver-item">
-            <div class="driver-top">
-              <strong>Tasha B.</strong>
-              <span class="badge enroute">En Route</span>
-            </div>
-            <span>Zone: Stadium Corridor • Active trip in progress</span>
-          </div>
-
-          <div class="driver-item">
-            <div class="driver-top">
-              <strong>Chris L.</strong>
-              <span class="badge alert">Alert</span>
-            </div>
-            <span>Zone: North Nashville • Safety hold review recommended</span>
-          </div>
-
-          <div class="driver-item">
-            <div class="driver-top">
-              <strong>Monica W.</strong>
-              <span class="badge pending">Available</span>
-            </div>
-            <span>Zone: Airport • Best candidate for next unassigned request</span>
-          </div>
+        <div class="driver-list" id="driverList">
+          <div class="empty-state">Loading driver fleet...</div>
         </div>
       </div>
     </section>
@@ -1221,27 +1138,761 @@
   <a class="return-home" href="/">Return Home</a>
 
   <script>
-    function selectTrip(card, id, status, rider, pickup, dropoff, driver, fare, verify, time) {
-      document.querySelectorAll(".dispatch-item").forEach((item) => item.classList.remove("active"));
-      card.classList.add("active");
+    const state = {
+      rides: [],
+      drivers: [],
+      alerts: [],
+      selectedRideId: null,
+      activeFilter: "all",
+      autoRefresh: true,
+      refreshMs: 10000,
+      timer: null,
+      busyAction: false
+    };
 
-      document.getElementById("tripId").textContent = id;
-      document.getElementById("tripStatus").textContent = status;
-      document.getElementById("tripRider").textContent = rider;
-      document.getElementById("tripPickup").textContent = pickup;
-      document.getElementById("tripDropoff").textContent = dropoff;
-      document.getElementById("tripDriver").textContent = driver;
-      document.getElementById("tripFare").textContent = fare;
-      document.getElementById("tripVerify").textContent = verify;
-      document.getElementById("tripTime").textContent = time;
+    const els = {
+      pendingMetric: document.getElementById("pendingMetric"),
+      activeMetric: document.getElementById("activeMetric"),
+      availableMetric: document.getElementById("availableMetric"),
+      safetyMetric: document.getElementById("safetyMetric"),
+      networkState: document.getElementById("networkState"),
+      humanLayerText: document.getElementById("humanLayerText"),
+      safetyStatusText: document.getElementById("safetyStatusText"),
+      pageMessage: document.getElementById("pageMessage"),
+      dispatchList: document.getElementById("dispatchList"),
+      dispatchTableBody: document.getElementById("dispatchTableBody"),
+      alertList: document.getElementById("alertList"),
+      driverList: document.getElementById("driverList"),
+      mapStateText: document.getElementById("mapStateText"),
+      refreshBtn: document.getElementById("refreshBtn"),
+      autoRefreshBtn: document.getElementById("autoRefreshBtn"),
+      refreshMapBtn: document.getElementById("refreshMapBtn"),
+      centerSelectedBtn: document.getElementById("centerSelectedBtn"),
+      zoneFilter: document.getElementById("zoneFilter"),
+      fleetFilter: document.getElementById("fleetFilter"),
+      assignDriverBtn: document.getElementById("assignDriverBtn"),
+      reassignBtn: document.getElementById("reassignBtn"),
+      markArrivedBtn: document.getElementById("markArrivedBtn"),
+      startTripBtn: document.getElementById("startTripBtn"),
+      completeTripBtn: document.getElementById("completeTripBtn"),
+      incidentNoteBtn: document.getElementById("incidentNoteBtn"),
+      sosHoldBtn: document.getElementById("sosHoldBtn"),
+      tripId: document.getElementById("tripId"),
+      tripStatus: document.getElementById("tripStatus"),
+      tripRider: document.getElementById("tripRider"),
+      tripDriver: document.getElementById("tripDriver"),
+      tripPickup: document.getElementById("tripPickup"),
+      tripDropoff: document.getElementById("tripDropoff"),
+      tripFare: document.getElementById("tripFare"),
+      tripVerify: document.getElementById("tripVerify"),
+      tripTime: document.getElementById("tripTime")
+    };
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
     }
 
-    document.querySelectorAll(".chip").forEach((chip) => {
-      chip.addEventListener("click", () => {
-        document.querySelectorAll(".chip").forEach((c) => c.classList.remove("active"));
-        chip.classList.add("active");
+    function money(value) {
+      return "$" + Number(value || 0).toFixed(2);
+    }
+
+    function titleCase(value) {
+      return String(value || "")
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (m) => m.toUpperCase())
+        .trim();
+    }
+
+    function normalizeStatus(value) {
+      return String(value || "").trim().toLowerCase();
+    }
+
+    function showMessage(type, message) {
+      els.pageMessage.className = `message-box show ${type}`;
+      els.pageMessage.innerHTML = message;
+    }
+
+    function clearMessage() {
+      els.pageMessage.className = "message-box";
+      els.pageMessage.innerHTML = "";
+    }
+
+    function badgeClass(status) {
+      const normalized = normalizeStatus(status);
+
+      if (["completed", "complete", "finished"].includes(normalized)) return "completed";
+      if (["assigned", "accepted", "driver_assigned", "dispatched"].includes(normalized)) return "assigned";
+      if (["driver_en_route", "en route", "enroute", "in_progress", "arrived"].includes(normalized)) return "enroute";
+      if (["alert", "sos", "security_hold", "incident", "rejected", "cancelled", "canceled", "failed"].includes(normalized)) return "alert";
+      return "pending";
+    }
+
+    function timeAgo(value) {
+      if (!value) return "—";
+      const parsed = new Date(value);
+      if (Number.isNaN(parsed.getTime())) return String(value);
+
+      const diffMs = Date.now() - parsed.getTime();
+      const diffMin = Math.floor(diffMs / 60000);
+      if (diffMin < 1) return "just now";
+      if (diffMin < 60) return `${diffMin} min ago`;
+      const diffHr = Math.floor(diffMin / 60);
+      if (diffHr < 24) return `${diffHr} hr ago`;
+      const diffDay = Math.floor(diffHr / 24);
+      return `${diffDay} day ago`;
+    }
+
+    async function readJsonSafe(response) {
+      const raw = await response.text();
+      try {
+        return raw ? JSON.parse(raw) : {};
+      } catch {
+        return { ok: false, success: false, message: raw || "Invalid server response." };
+      }
+    }
+
+    async function api(path, options = {}) {
+      const response = await fetch(path, {
+        headers: {
+          "Content-Type": "application/json",
+          ...(options.headers || {})
+        },
+        ...options
       });
+
+      const data = await readJsonSafe(response);
+
+      if (!response.ok) {
+        throw new Error(data.message || data.error || "Request failed.");
+      }
+
+      return data;
+    }
+
+    async function tryEndpoints(endpoints) {
+      let lastError = null;
+      for (const endpoint of endpoints) {
+        try {
+          return await endpoint();
+        } catch (error) {
+          lastError = error;
+        }
+      }
+      throw lastError || new Error("No endpoint available.");
+    }
+
+    function getSelectedRide() {
+      return state.rides.find((ride) => getRideId(ride) === state.selectedRideId) || null;
+    }
+
+    function getRideId(ride) {
+      return String(
+        ride?.ride_id ||
+        ride?.id ||
+        ride?.mission_id ||
+        ""
+      );
+    }
+
+    function getRiderName(ride) {
+      return (
+        ride?.rider_name ||
+        ride?.passenger_first_name ||
+        ride?.passenger_name ||
+        [ride?.rider_first_name, ride?.rider_last_name].filter(Boolean).join(" ") ||
+        "Rider"
+      );
+    }
+
+    function getDriverName(ride) {
+      return (
+        ride?.driver_name ||
+        [ride?.driver_first_name, ride?.driver_last_name].filter(Boolean).join(" ") ||
+        "Unassigned"
+      );
+    }
+
+    function getRideStatus(ride) {
+      return (
+        ride?.ride_status ||
+        ride?.status ||
+        ride?.mission_status ||
+        "pending"
+      );
+    }
+
+    function rideMatchesFilter(ride) {
+      const filter = state.activeFilter;
+      const status = normalizeStatus(getRideStatus(ride));
+      const fleetFilter = els.fleetFilter.value;
+      const zoneFilter = els.zoneFilter.value;
+
+      if (filter === "pending" && !["pending", "requested", "awaiting_driver_acceptance", "unassigned"].includes(status)) {
+        return false;
+      }
+
+      if (filter === "assigned" && !["assigned", "accepted", "driver_assigned", "dispatched"].includes(status)) {
+        return false;
+      }
+
+      if (filter === "enroute" && !["driver_en_route", "enroute", "en route", "in_progress", "arrived"].includes(status)) {
+        return false;
+      }
+
+      if (filter === "completed" && !["completed", "complete", "finished"].includes(status)) {
+        return false;
+      }
+
+      if (filter === "drivers_only" && !getDriverName(ride) !== "Unassigned") {
+        // intentionally fall through below
+      }
+
+      if (filter === "drivers_only" && getDriverName(ride) === "Unassigned") {
+        return false;
+      }
+
+      if (fleetFilter !== "all") {
+        const rideFleet = normalizeStatus(ride?.requested_mode || ride?.driver_type || "human");
+        if (fleetFilter === "human" && rideFleet === "autonomous") return false;
+        if (fleetFilter === "autonomous" && rideFleet !== "autonomous") return false;
+      }
+
+      if (zoneFilter !== "all") {
+        const text = `${ride?.pickup_address || ""} ${ride?.dropoff_address || ""}`.toLowerCase();
+        const zoneMap = {
+          downtown: "downtown",
+          airport: "airport",
+          east_nashville: "east nashville",
+          medical_district: "medical"
+        };
+        const needle = zoneMap[zoneFilter];
+        if (needle && !text.includes(needle)) return false;
+      }
+
+      return true;
+    }
+
+    function renderMetrics() {
+      const filtered = state.rides.filter(rideMatchesFilter);
+      const pendingCount = state.rides.filter((ride) => {
+        const s = normalizeStatus(getRideStatus(ride));
+        return ["pending", "requested", "awaiting_driver_acceptance", "unassigned"].includes(s);
+      }).length;
+
+      const activeCount = state.rides.filter((ride) => {
+        const s = normalizeStatus(getRideStatus(ride));
+        return ["assigned", "accepted", "driver_assigned", "dispatched", "driver_en_route", "enroute", "en route", "arrived", "in_progress"].includes(s);
+      }).length;
+
+      const availableDrivers = state.drivers.filter((driver) => {
+        const s = normalizeStatus(driver?.availability_status || driver?.online_status || driver?.status);
+        return ["available", "online"].includes(s);
+      }).length;
+
+      els.pendingMetric.textContent = String(pendingCount);
+      els.activeMetric.textContent = String(activeCount);
+      els.availableMetric.textContent = String(availableDrivers);
+      els.safetyMetric.textContent = String(state.alerts.length);
+
+      els.networkState.textContent = "Active";
+      els.humanLayerText.textContent = `${availableDrivers} drivers currently available or online.`;
+      els.safetyStatusText.textContent =
+        state.alerts.length
+          ? `${state.alerts.length} alert item(s) need review.`
+          : "No active safety alerts at this moment.";
+
+      els.mapStateText.textContent =
+        filtered.length
+          ? `${filtered.length} ride(s) in current filtered view. Live GPS map upgrade can be connected next.`
+          : "No rides match the current filters.";
+    }
+
+    function renderQueue() {
+      const rides = state.rides.filter(rideMatchesFilter);
+
+      if (!rides.length) {
+        els.dispatchList.innerHTML = `<div class="empty-state">No live rides match the current filters.</div>`;
+        return;
+      }
+
+      els.dispatchList.innerHTML = rides.map((ride) => {
+        const rideId = getRideId(ride);
+        const riderName = getRiderName(ride);
+        const driverName = getDriverName(ride);
+        const pickup = ride?.pickup_address || "Pickup pending";
+        const dropoff = ride?.dropoff_address || "Dropoff pending";
+        const fare = money(ride?.total_amount ?? ride?.fare_amount ?? ride?.estimated_fare ?? 0);
+        const status = getRideStatus(ride);
+        const active = state.selectedRideId === rideId ? "active" : "";
+
+        return `
+          <div class="dispatch-item ${active}" data-ride-id="${escapeHtml(rideId)}">
+            <div class="dispatch-top">
+              <div class="dispatch-id">${escapeHtml(rideId || "Ride")}</div>
+              <div class="badge ${badgeClass(status)}">${escapeHtml(titleCase(status || "pending"))}</div>
+            </div>
+            <div class="dispatch-meta">
+              ${escapeHtml(riderName)} • ${escapeHtml(pickup)} → ${escapeHtml(dropoff)}<br />
+              ${escapeHtml(driverName)} • ${escapeHtml(timeAgo(ride?.created_at || ride?.requested_at || ride?.updated_at))} • ${escapeHtml(fare)}
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      els.dispatchList.querySelectorAll(".dispatch-item").forEach((item) => {
+        item.addEventListener("click", () => {
+          const rideId = item.getAttribute("data-ride-id");
+          selectRideById(rideId);
+        });
+      });
+    }
+
+    function renderSelectedRide() {
+      const ride = getSelectedRide();
+
+      if (!ride) {
+        els.tripId.textContent = "—";
+        els.tripStatus.textContent = "—";
+        els.tripRider.textContent = "—";
+        els.tripDriver.textContent = "—";
+        els.tripPickup.textContent = "—";
+        els.tripDropoff.textContent = "—";
+        els.tripFare.textContent = "—";
+        els.tripVerify.textContent = "—";
+        els.tripTime.textContent = "—";
+        return;
+      }
+
+      els.tripId.textContent = getRideId(ride) || "—";
+      els.tripStatus.textContent = titleCase(getRideStatus(ride) || "pending");
+      els.tripRider.textContent = getRiderName(ride);
+      els.tripDriver.textContent = getDriverName(ride);
+      els.tripPickup.textContent = ride?.pickup_address || "—";
+      els.tripDropoff.textContent = ride?.dropoff_address || "—";
+      els.tripFare.textContent = money(ride?.total_amount ?? ride?.fare_amount ?? ride?.estimated_fare ?? 0);
+      els.tripVerify.textContent =
+        ride?.verification_status ||
+        ride?.payment_status ||
+        ride?.security_status ||
+        "No special verification notes";
+      els.tripTime.textContent = timeAgo(ride?.created_at || ride?.requested_at || ride?.updated_at);
+    }
+
+    function renderTable() {
+      const rides = state.rides.filter(rideMatchesFilter);
+
+      if (!rides.length) {
+        els.dispatchTableBody.innerHTML = `
+          <tr>
+            <td colspan="9">
+              <div class="empty-state">No rides available for the current filters.</div>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      els.dispatchTableBody.innerHTML = rides.map((ride) => {
+        const rideId = getRideId(ride);
+        const riderName = getRiderName(ride);
+        const driverName = getDriverName(ride);
+        const pickup = ride?.pickup_address || "—";
+        const dropoff = ride?.dropoff_address || "—";
+        const status = titleCase(getRideStatus(ride) || "pending");
+        const eta = ride?.eta_to_pickup_minutes ? `${ride.eta_to_pickup_minutes} min` : "—";
+        const fare = money(ride?.total_amount ?? ride?.fare_amount ?? ride?.estimated_fare ?? 0);
+
+        return `
+          <tr>
+            <td>${escapeHtml(rideId || "—")}</td>
+            <td>${escapeHtml(riderName)}</td>
+            <td>${escapeHtml(pickup)}</td>
+            <td>${escapeHtml(dropoff)}</td>
+            <td>${escapeHtml(driverName)}</td>
+            <td>${escapeHtml(status)}</td>
+            <td>${escapeHtml(eta)}</td>
+            <td>${escapeHtml(fare)}</td>
+            <td>
+              <div class="row-actions">
+                <button class="row-btn primary" type="button" data-action="assign" data-ride-id="${escapeHtml(rideId)}">Assign</button>
+                <button class="row-btn" type="button" data-action="view" data-ride-id="${escapeHtml(rideId)}">View</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join("");
+
+      els.dispatchTableBody.querySelectorAll("[data-action='view']").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          selectRideById(btn.getAttribute("data-ride-id"));
+          document.getElementById("queueSection").scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+      });
+
+      els.dispatchTableBody.querySelectorAll("[data-action='assign']").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          selectRideById(btn.getAttribute("data-ride-id"));
+          await assignDriver();
+        });
+      });
+    }
+
+    function renderAlerts() {
+      if (!state.alerts.length) {
+        els.alertList.innerHTML = `<div class="empty-state">No safety or incident alerts right now.</div>`;
+        return;
+      }
+
+      els.alertList.innerHTML = state.alerts.map((alert) => {
+        const tripId = alert?.ride_id || alert?.trip_id || "Unknown";
+        const title = alert?.title || alert?.event_type || "Safety Review";
+        const body = alert?.message || alert?.notes || alert?.description || "Admin review recommended.";
+
+        return `
+          <div class="alert-item">
+            <strong>${escapeHtml(title)} • ${escapeHtml(tripId)}</strong>
+            <span>${escapeHtml(body)}</span>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function renderDrivers() {
+      if (!state.drivers.length) {
+        els.driverList.innerHTML = `<div class="empty-state">No driver availability data available.</div>`;
+        return;
+      }
+
+      els.driverList.innerHTML = state.drivers.slice(0, 8).map((driver) => {
+        const name =
+          [driver?.first_name, driver?.last_name].filter(Boolean).join(" ") ||
+          driver?.full_name ||
+          driver?.name ||
+          "Driver";
+        const status = titleCase(driver?.availability_status || driver?.online_status || driver?.status || "Unknown");
+        const zone = driver?.current_address || driver?.city || driver?.zone || "Zone unavailable";
+        const badge = badgeClass(driver?.availability_status || driver?.online_status || driver?.status);
+
+        return `
+          <div class="driver-item">
+            <div class="driver-top">
+              <strong>${escapeHtml(name)}</strong>
+              <span class="badge ${badge}">${escapeHtml(status)}</span>
+            </div>
+            <span>${escapeHtml(zone)}</span>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function selectRideById(rideId) {
+      const exists = state.rides.find((ride) => getRideId(ride) === rideId);
+      if (!exists) return;
+
+      state.selectedRideId = rideId;
+      renderQueue();
+      renderSelectedRide();
+    }
+
+    function applySelectionFallback() {
+      const filtered = state.rides.filter(rideMatchesFilter);
+      if (!filtered.length) {
+        state.selectedRideId = null;
+        renderSelectedRide();
+        return;
+      }
+
+      const stillExists = filtered.some((ride) => getRideId(ride) === state.selectedRideId);
+      if (!stillExists) {
+        state.selectedRideId = getRideId(filtered[0]);
+      }
+
+      renderSelectedRide();
+    }
+
+    async function loadRides() {
+      return tryEndpoints([
+        () => api("/api/admin/dashboard-data"),
+        () => api("/api/admin/dashboard"),
+        () => api("/api/rides"),
+        () => api("/api/admin/rides")
+      ]);
+    }
+
+    async function loadDrivers() {
+      return tryEndpoints([
+        () => api("/api/admin/drivers"),
+        () => api("/api/drivers"),
+        () => api("/api/driver/fleet")
+      ]);
+    }
+
+    async function loadAlerts() {
+      return tryEndpoints([
+        () => api("/api/admin/security-events"),
+        () => api("/api/admin/alerts"),
+        () => api("/api/security/events")
+      ]);
+    }
+
+    async function refreshAll(showToast = false) {
+      try {
+        const [ridesPayload, driversPayload, alertsPayload] = await Promise.allSettled([
+          loadRides(),
+          loadDrivers(),
+          loadAlerts()
+        ]);
+
+        const rideData = ridesPayload.status === "fulfilled" ? ridesPayload.value : {};
+        const driverData = driversPayload.status === "fulfilled" ? driversPayload.value : {};
+        const alertData = alertsPayload.status === "fulfilled" ? alertsPayload.value : {};
+
+        state.rides =
+          rideData?.rides ||
+          rideData?.recent_rides ||
+          rideData?.data?.rides ||
+          [];
+
+        state.drivers =
+          driverData?.drivers ||
+          driverData?.data?.drivers ||
+          driverData?.available_drivers ||
+          [];
+
+        state.alerts =
+          alertData?.events ||
+          alertData?.alerts ||
+          alertData?.data?.alerts ||
+          [];
+
+        renderMetrics();
+        renderQueue();
+        applySelectionFallback();
+        renderTable();
+        renderAlerts();
+        renderDrivers();
+
+        if (showToast) {
+          showMessage("success", "Dispatch command center refreshed.");
+          setTimeout(clearMessage, 1600);
+        }
+      } catch (error) {
+        showMessage("error", escapeHtml(error.message || "Unable to load dispatch command center."));
+        els.dispatchList.innerHTML = `<div class="empty-state">Unable to load dispatch queue.</div>`;
+        els.dispatchTableBody.innerHTML = `<tr><td colspan="9"><div class="empty-state">Unable to load dispatch table.</div></td></tr>`;
+        els.alertList.innerHTML = `<div class="empty-state">Unable to load safety feed.</div>`;
+        els.driverList.innerHTML = `<div class="empty-state">Unable to load driver fleet.</div>`;
+      }
+    }
+
+    async function performRideAction(actionName, endpoints) {
+      const ride = getSelectedRide();
+      if (!ride) {
+        showMessage("error", "Select a trip first.");
+        return;
+      }
+
+      if (state.busyAction) return;
+      state.busyAction = true;
+
+      try {
+        const rideId = getRideId(ride);
+
+        await tryEndpoints(endpoints.map((endpoint) => () =>
+          api(endpoint.path, {
+            method: endpoint.method || "POST",
+            body: JSON.stringify(endpoint.body(rideId, ride))
+          })
+        ));
+
+        showMessage("success", `${actionName} completed for ${escapeHtml(rideId)}.`);
+        await refreshAll(false);
+      } catch (error) {
+        showMessage("error", escapeHtml(error.message || `${actionName} failed.`));
+      } finally {
+        state.busyAction = false;
+      }
+    }
+
+    async function assignDriver() {
+      const ride = getSelectedRide();
+      if (!ride) {
+        showMessage("error", "Select a trip first.");
+        return;
+      }
+
+      await performRideAction("Dispatch assignment", [
+        {
+          path: `/api/admin/run-dispatch/${encodeURIComponent(getRideId(ride))}`,
+          body: () => ({})
+        },
+        {
+          path: `/api/admin/run-dispatch-brain/${encodeURIComponent(getRideId(ride))}`,
+          body: () => ({})
+        }
+      ]);
+    }
+
+    async function reassignDriver() {
+      await performRideAction("Reassignment", [
+        {
+          path: `/api/admin/run-dispatch/${encodeURIComponent(getRideId(getSelectedRide()))}`,
+          body: () => ({ force_reassign: true, reassign: true })
+        },
+        {
+          path: `/api/admin/run-dispatch-brain/${encodeURIComponent(getRideId(getSelectedRide()))}`,
+          body: () => ({ force_reassign: true, reassign: true })
+        }
+      ]);
+    }
+
+    async function markArrived() {
+      await performRideAction("Mark arrived", [
+        {
+          path: `/api/rides/${encodeURIComponent(getRideId(getSelectedRide()))}/arriving`,
+          body: () => ({})
+        },
+        {
+          path: `/api/mission/arrived`,
+          body: (rideId) => ({ mission_id: rideId, ride_id: rideId })
+        }
+      ]);
+    }
+
+    async function startTrip() {
+      await performRideAction("Start trip", [
+        {
+          path: `/api/rides/${encodeURIComponent(getRideId(getSelectedRide()))}/start`,
+          body: () => ({})
+        },
+        {
+          path: `/api/mission/start-trip`,
+          body: (rideId) => ({ mission_id: rideId, ride_id: rideId })
+        }
+      ]);
+    }
+
+    async function completeTrip() {
+      await performRideAction("Complete trip", [
+        {
+          path: `/api/rides/${encodeURIComponent(getRideId(getSelectedRide()))}/complete`,
+          body: () => ({})
+        },
+        {
+          path: `/api/mission/complete`,
+          body: (rideId) => ({ mission_id: rideId, ride_id: rideId })
+        }
+      ]);
+    }
+
+    function incidentNote() {
+      const ride = getSelectedRide();
+      if (!ride) {
+        showMessage("error", "Select a trip first.");
+        return;
+      }
+      showMessage("success", `Incident note workflow opened for ${escapeHtml(getRideId(ride))}. Next step can be backend note persistence.`);
+    }
+
+    function sosHold() {
+      const ride = getSelectedRide();
+      if (!ride) {
+        showMessage("error", "Select a trip first.");
+        return;
+      }
+      showMessage("error", `SOS hold flagged for ${escapeHtml(getRideId(ride))}. Next step can be backend security action wiring.`);
+    }
+
+    function setupFilters() {
+      document.querySelectorAll("#filterChips .chip").forEach((chip) => {
+        chip.addEventListener("click", () => {
+          document.querySelectorAll("#filterChips .chip").forEach((c) => c.classList.remove("active"));
+          chip.classList.add("active");
+          state.activeFilter = chip.getAttribute("data-filter") || "all";
+          renderMetrics();
+          renderQueue();
+          applySelectionFallback();
+          renderTable();
+        });
+      });
+
+      els.zoneFilter.addEventListener("change", () => {
+        renderQueue();
+        applySelectionFallback();
+        renderTable();
+      });
+
+      els.fleetFilter.addEventListener("change", () => {
+        renderQueue();
+        applySelectionFallback();
+        renderTable();
+      });
+    }
+
+    function startAutoRefresh() {
+      stopAutoRefresh();
+      if (!state.autoRefresh) return;
+
+      state.timer = setInterval(() => {
+        if (document.hidden || state.busyAction) return;
+        refreshAll(false);
+      }, state.refreshMs);
+    }
+
+    function stopAutoRefresh() {
+      if (state.timer) {
+        clearInterval(state.timer);
+        state.timer = null;
+      }
+    }
+
+    function toggleAutoRefresh() {
+      state.autoRefresh = !state.autoRefresh;
+      els.autoRefreshBtn.textContent = `Auto Refresh: ${state.autoRefresh ? "On" : "Off"}`;
+      if (state.autoRefresh) {
+        startAutoRefresh();
+      } else {
+        stopAutoRefresh();
+      }
+    }
+
+    els.refreshBtn.addEventListener("click", () => refreshAll(true));
+    els.refreshMapBtn.addEventListener("click", () => refreshAll(true));
+    els.centerSelectedBtn.addEventListener("click", () => {
+      const ride = getSelectedRide();
+      if (!ride) {
+        showMessage("error", "Select a trip first.");
+        return;
+      }
+      showMessage("success", `Map centered for ${escapeHtml(getRideId(ride))}. Full map camera sync can be added next.`);
     });
+
+    els.autoRefreshBtn.addEventListener("click", toggleAutoRefresh);
+    els.assignDriverBtn.addEventListener("click", assignDriver);
+    els.reassignBtn.addEventListener("click", reassignDriver);
+    els.markArrivedBtn.addEventListener("click", markArrived);
+    els.startTripBtn.addEventListener("click", startTrip);
+    els.completeTripBtn.addEventListener("click", completeTrip);
+    els.incidentNoteBtn.addEventListener("click", incidentNote);
+    els.sosHoldBtn.addEventListener("click", sosHold);
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        stopAutoRefresh();
+      } else if (state.autoRefresh) {
+        startAutoRefresh();
+        refreshAll(false);
+      }
+    });
+
+    setupFilters();
+    refreshAll(false);
+    startAutoRefresh();
   </script>
 </body>
-</html>
+  </html>
