@@ -401,6 +401,7 @@
       color:var(--muted);
       line-height:1.6;
       font-size:.92rem;
+      word-break:break-word;
     }
 
     .tag{
@@ -429,6 +430,12 @@
       background:rgba(255,126,151,.12);
       color:var(--danger);
       border-color:rgba(255,126,151,.2);
+    }
+
+    .info-tag{
+      background:rgba(99,245,255,.12);
+      color:var(--cyan);
+      border-color:rgba(99,245,255,.18);
     }
 
     .btn-row{
@@ -547,6 +554,7 @@
     .status-step span{
       color:var(--muted);
       font-size:.85rem;
+      line-height:1.45;
     }
 
     .rider-id-box{
@@ -570,6 +578,28 @@
       font-weight:900;
       letter-spacing:.04em;
       word-break:break-word;
+    }
+
+    .small-actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top:12px;
+    }
+
+    .small-btn{
+      padding:10px 12px;
+      border-radius:14px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.04);
+      color:var(--text);
+      font-size:.9rem;
+      font-weight:800;
+      cursor:pointer;
+    }
+
+    .small-btn:hover{
+      background:rgba(255,255,255,.07);
     }
 
     @media (max-width: 980px){
@@ -749,6 +779,11 @@
           <div class="rider-id-value" id="savedRiderIdValue">--</div>
         </div>
 
+        <div class="small-actions">
+          <button class="small-btn" id="continueBtn" type="button">Continue to Rider Dashboard</button>
+          <button class="small-btn" id="clearSavedBtn" type="button">Clear Saved Rider Session</button>
+        </div>
+
         <div class="info" id="infoBox"></div>
         <div class="result" id="resultBox"></div>
         <div class="error" id="errorBox"></div>
@@ -774,7 +809,7 @@
               <strong>Verification Context</strong>
               <span id="documentText">Driver License selected.</span>
             </div>
-            <div class="tag ok">Selected</div>
+            <div class="tag info-tag">Selected</div>
           </div>
 
           <div class="status-step">
@@ -798,6 +833,11 @@
           </p>
         </div>
 
+        <div class="mini">
+          <h3>Saved Rider Session</h3>
+          <p id="savedSessionText">No saved rider session detected yet.</p>
+        </div>
+
         <div class="note">
           Harvey Taxi uses a structured rider access flow. Approval status may remain pending until the platform completes review or verification steps.
         </div>
@@ -806,6 +846,15 @@
   </div>
 
   <script>
+    const STORAGE = {
+      riderId: "harveyRiderId",
+      riderEmail: "harveyRiderEmail",
+      rider: "rider",
+      riderProfile: "riderProfile",
+      riderIdAlt1: "riderId",
+      riderIdAlt2: "rider_id"
+    };
+
     let selectedDocumentType = "driver_license";
     let isCreatingAccount = false;
     let isCheckingStatus = false;
@@ -813,9 +862,13 @@
     const docButtons = document.querySelectorAll(".choice");
     const signupBtn = document.getElementById("signupBtn");
     const checkBtn = document.getElementById("checkBtn");
+    const continueBtn = document.getElementById("continueBtn");
+    const clearSavedBtn = document.getElementById("clearSavedBtn");
+
     const resultBox = document.getElementById("resultBox");
     const errorBox = document.getElementById("errorBox");
     const infoBox = document.getElementById("infoBox");
+
     const accountText = document.getElementById("accountText");
     const accountTag = document.getElementById("accountTag");
     const documentText = document.getElementById("documentText");
@@ -823,23 +876,16 @@
     const accountCreatedTag = document.getElementById("accountCreatedTag");
     const riderIdBox = document.getElementById("riderIdBox");
     const savedRiderIdValue = document.getElementById("savedRiderIdValue");
+    const savedSessionText = document.getElementById("savedSessionText");
 
-    docButtons.forEach((btn) => {
-      btn.addEventListener("click", () => {
-        docButtons.forEach((item) => item.classList.remove("active"));
-        btn.classList.add("active");
-        selectedDocumentType = btn.dataset.doc;
-
-        const labelMap = {
-          driver_license: "Driver License selected.",
-          state_id: "State ID selected.",
-          passport: "Passport selected."
-        };
-
-        documentText.textContent =
-          labelMap[selectedDocumentType] || "Verification method selected.";
-      });
-    });
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
 
     function showBox(box, message) {
       box.style.display = "block";
@@ -860,7 +906,7 @@
     function setButtonLoading(button, loading, loadingText, idleText) {
       if (loading) {
         button.disabled = true;
-        button.dataset.originalText = button.textContent;
+        button.dataset.originalText = button.dataset.originalText || button.textContent;
         button.textContent = loadingText;
       } else {
         button.disabled = false;
@@ -874,6 +920,37 @@
 
     function isEmailLikelyValid(email) {
       return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || "").trim());
+    }
+
+    function titleCase(value) {
+      return String(value || "")
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (m) => m.toUpperCase())
+        .trim();
+    }
+
+    function getSavedRiderId() {
+      return (
+        localStorage.getItem(STORAGE.riderId) ||
+        localStorage.getItem(STORAGE.riderIdAlt1) ||
+        localStorage.getItem(STORAGE.riderIdAlt2) ||
+        ""
+      ).trim();
+    }
+
+    function getSavedRiderProfile() {
+      const candidates = [
+        localStorage.getItem(STORAGE.riderProfile),
+        localStorage.getItem(STORAGE.rider)
+      ].filter(Boolean);
+
+      for (const item of candidates) {
+        try {
+          const parsed = JSON.parse(item);
+          if (parsed && typeof parsed === "object") return parsed;
+        } catch (_) {}
+      }
+      return null;
     }
 
     function getFormData() {
@@ -898,7 +975,7 @@
       if (!payload.email) return "Email is required.";
       if (!isEmailLikelyValid(payload.email)) return "Enter a valid email address.";
       if (!payload.phone) return "Phone number is required.";
-      if (payload.phone.length < 10) return "Enter a valid phone number.";
+      if (payload.phone.replace(/[^\d]/g, "").length < 10) return "Enter a valid phone number.";
       if (!payload.city) return "City is required.";
       if (!payload.state) return "State is required.";
       if (payload.state.length !== 2) return "Enter a valid 2-letter state code.";
@@ -912,47 +989,113 @@
       const text = await response.text();
       try {
         return text ? JSON.parse(text) : {};
-      } catch (error) {
+      } catch (_) {
         return { ok: false, success: false, message: text || "Invalid server response." };
       }
     }
 
+    async function api(url, options = {}) {
+      const response = await fetch(url, {
+        headers: {
+          "Content-Type": "application/json",
+          ...(options.headers || {})
+        },
+        ...options
+      });
+
+      const data = await safeJson(response);
+
+      if (!response.ok || !(data.ok || data.success)) {
+        throw new Error(data.error || data.message || "Request failed.");
+      }
+
+      return data;
+    }
+
     function updateSavedRiderId(riderId) {
-      if (!riderId) return;
+      if (!riderId) {
+        riderIdBox.style.display = "none";
+        savedRiderIdValue.textContent = "--";
+        return;
+      }
+
       riderIdBox.style.display = "block";
       savedRiderIdValue.textContent = riderId;
+    }
+
+    function updateSavedSessionText() {
+      const riderId = getSavedRiderId();
+      const riderProfile = getSavedRiderProfile();
+
+      if (!riderId && !riderProfile) {
+        savedSessionText.textContent = "No saved rider session detected yet.";
+        updateSavedRiderId("");
+        return;
+      }
+
+      const fullName = riderProfile
+        ? [riderProfile.first_name, riderProfile.last_name].filter(Boolean).join(" ")
+        : "";
+
+      savedSessionText.textContent = [
+        riderId ? `Saved Rider ID: ${riderId}` : "",
+        fullName ? `Name: ${fullName}` : "",
+        riderProfile?.email ? `Email: ${riderProfile.email}` : ""
+      ].filter(Boolean).join(" • ");
+
+      if (riderId) {
+        updateSavedRiderId(riderId);
+      }
     }
 
     function saveRiderSession(riderId, payload, rider, approved, status) {
       const riderProfile = {
         id: riderId || rider?.id || "",
-        first_name: rider?.first_name || payload.first_name,
-        last_name: rider?.last_name || payload.last_name,
-        email: rider?.email || payload.email,
-        phone: rider?.phone || payload.phone,
-        city: rider?.city || payload.city,
-        state: rider?.state || payload.state,
+        first_name: rider?.first_name || payload.first_name || "",
+        last_name: rider?.last_name || payload.last_name || "",
+        email: rider?.email || payload.email || "",
+        phone: rider?.phone || payload.phone || "",
+        city: rider?.city || payload.city || "",
+        state: rider?.state || payload.state || "",
         notes: rider?.notes ?? payload.notes ?? "",
         emergency_contact: rider?.emergency_contact ?? payload.emergency_contact ?? "",
         verification_document_type:
-          rider?.verification_document_type || payload.verification_document_type,
+          rider?.verification_document_type || payload.verification_document_type || selectedDocumentType,
         approval_status:
           rider?.approval_status || (approved ? "approved" : "pending"),
         verification_status:
           rider?.verification_status || status || (approved ? "approved" : "pending"),
         payment_status:
-          rider?.payment_authorization_status || "pending",
+          rider?.payment_authorization_status || rider?.payment_status || "pending",
         approved: approved === true
       };
 
-      localStorage.setItem("harveyRiderId", riderProfile.id);
-      localStorage.setItem("harveyRiderEmail", riderProfile.email || "");
-      localStorage.setItem("riderId", riderProfile.id);
-      localStorage.setItem("rider_id", riderProfile.id);
-      localStorage.setItem("rider", JSON.stringify(riderProfile));
-      localStorage.setItem("riderProfile", JSON.stringify(riderProfile));
+      if (riderProfile.id) {
+        localStorage.setItem(STORAGE.riderId, riderProfile.id);
+        localStorage.setItem(STORAGE.riderIdAlt1, riderProfile.id);
+        localStorage.setItem(STORAGE.riderIdAlt2, riderProfile.id);
+      }
+
+      localStorage.setItem(STORAGE.riderEmail, riderProfile.email || "");
+      localStorage.setItem(STORAGE.rider, JSON.stringify(riderProfile));
+      localStorage.setItem(STORAGE.riderProfile, JSON.stringify(riderProfile));
 
       updateSavedRiderId(riderProfile.id);
+      updateSavedSessionText();
+    }
+
+    function clearRiderSession() {
+      localStorage.removeItem(STORAGE.riderId);
+      localStorage.removeItem(STORAGE.riderIdAlt1);
+      localStorage.removeItem(STORAGE.riderIdAlt2);
+      localStorage.removeItem(STORAGE.riderEmail);
+      localStorage.removeItem(STORAGE.rider);
+      localStorage.removeItem(STORAGE.riderProfile);
+
+      updateSavedRiderId("");
+      updateSavedSessionText();
+      setAccountStatusDisplay("missing");
+      showBox(infoBox, "Saved rider session cleared.");
     }
 
     function goToRiderDashboard(riderId) {
@@ -961,6 +1104,39 @@
         : "/rider-dashboard.html";
 
       window.location.href = target;
+    }
+
+    function hydrateFormFromSavedProfile() {
+      const riderProfile = getSavedRiderProfile();
+      if (!riderProfile) return;
+
+      if (riderProfile.first_name) document.getElementById("firstName").value = riderProfile.first_name;
+      if (riderProfile.last_name) document.getElementById("lastName").value = riderProfile.last_name;
+      if (riderProfile.email) document.getElementById("email").value = riderProfile.email;
+      if (riderProfile.phone) document.getElementById("phone").value = riderProfile.phone;
+      if (riderProfile.city) document.getElementById("city").value = riderProfile.city;
+      if (riderProfile.state) document.getElementById("state").value = riderProfile.state;
+      if (riderProfile.emergency_contact) document.getElementById("emergencyContact").value = riderProfile.emergency_contact;
+      if (riderProfile.notes) document.getElementById("notes").value = riderProfile.notes;
+
+      if (riderProfile.verification_document_type) {
+        selectedDocumentType = riderProfile.verification_document_type;
+        docButtons.forEach((item) => item.classList.remove("active"));
+        const matching = [...docButtons].find((btn) => btn.dataset.doc === selectedDocumentType);
+        if (matching) matching.classList.add("active");
+        updateDocumentText();
+      }
+    }
+
+    function updateDocumentText() {
+      const labelMap = {
+        driver_license: "Driver License selected.",
+        state_id: "State ID selected.",
+        passport: "Passport selected."
+      };
+
+      documentText.textContent =
+        labelMap[selectedDocumentType] || "Verification method selected.";
     }
 
     function setAccountStatusDisplay(state) {
@@ -981,6 +1157,16 @@
         approvalStepText.textContent = "Rider account is waiting for approval.";
         accountTag.className = "tag warn";
         accountTag.textContent = "Pending";
+        return;
+      }
+
+      if (state === "saved") {
+        accountCreatedTag.className = "tag ok";
+        accountCreatedTag.textContent = "Created";
+        accountText.textContent = "Saved rider session found. Status can be checked now.";
+        approvalStepText.textContent = "Saved rider account found. Status can be checked now.";
+        accountTag.className = "tag info-tag";
+        accountTag.textContent = "Saved";
         return;
       }
 
@@ -1014,14 +1200,13 @@
 
     async function createRiderAccount() {
       clearMessages();
-
       if (isCreatingAccount) return;
 
       const payload = getFormData();
       const validationError = validatePayload(payload);
 
       if (validationError) {
-        showBox(errorBox, validationError);
+        showBox(errorBox, escapeHtml(validationError));
         return;
       }
 
@@ -1029,34 +1214,54 @@
       setButtonLoading(signupBtn, true, "Creating Account...", "Create Rider Account");
 
       try {
-        const res = await fetch("/api/rider/signup", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            first_name: payload.first_name,
-            last_name: payload.last_name,
-            email: payload.email,
-            phone: payload.phone,
-            city: payload.city,
-            state: payload.state,
-            password: payload.password,
-            verification_document_type: payload.verification_document_type,
-            emergency_contact: payload.emergency_contact || null,
-            notes: payload.notes || null
+        const attempts = [
+          () => api("/api/rider/signup", {
+            method: "POST",
+            body: JSON.stringify({
+              first_name: payload.first_name,
+              last_name: payload.last_name,
+              email: payload.email,
+              phone: payload.phone,
+              city: payload.city,
+              state: payload.state,
+              password: payload.password,
+              verification_document_type: payload.verification_document_type,
+              emergency_contact: payload.emergency_contact || null,
+              notes: payload.notes || null
+            })
+          }),
+          () => api("/api/riders/signup", {
+            method: "POST",
+            body: JSON.stringify({
+              first_name: payload.first_name,
+              last_name: payload.last_name,
+              email: payload.email,
+              phone: payload.phone,
+              city: payload.city,
+              state: payload.state,
+              password: payload.password,
+              verification_document_type: payload.verification_document_type,
+              emergency_contact: payload.emergency_contact || null,
+              notes: payload.notes || null
+            })
           })
-        });
+        ];
 
-        const data = await safeJson(res);
+        let data = null;
+        let lastError = null;
 
-        if (!res.ok || !(data.ok || data.success)) {
-          showBox(
-            errorBox,
-            data.error || data.message || "Unable to create rider account."
-          );
-          return;
+        for (const attempt of attempts) {
+          try {
+            data = await attempt();
+            if (data) break;
+          } catch (error) {
+            lastError = error;
+          }
         }
 
-        const rider = data.rider || {};
+        if (!data) throw lastError || new Error("Unable to create rider account.");
+
+        const rider = data.rider || data.profile || {};
         const riderId = data.rider_id || rider.id || "";
         const status =
           rider.approval_status ||
@@ -1079,9 +1284,9 @@
           resultBox,
           `
             <strong>Rider Account Created</strong><br><br>
-            <strong>Rider ID:</strong> ${riderId || "Created"}<br>
-            <strong>Status:</strong> ${status}<br>
-            <strong>Verification Type:</strong> ${payload.verification_document_type.replace(/_/g, " ")}<br><br>
+            <strong>Rider ID:</strong> ${escapeHtml(riderId || "Created")}<br>
+            <strong>Status:</strong> ${escapeHtml(String(status))}<br>
+            <strong>Verification Type:</strong> ${escapeHtml(titleCase(payload.verification_document_type))}<br><br>
             ${
               approved
                 ? "Your rider account is approved. Continue to your rider dashboard."
@@ -1106,7 +1311,7 @@
           );
         }
       } catch (error) {
-        showBox(errorBox, "Unable to reach the rider signup service.");
+        showBox(errorBox, escapeHtml(error.message || "Unable to reach the rider signup service."));
       } finally {
         isCreatingAccount = false;
         setButtonLoading(signupBtn, false, "", "Create Rider Account");
@@ -1115,10 +1320,9 @@
 
     async function checkRiderStatus() {
       clearMessages();
-
       if (isCheckingStatus) return;
 
-      const storedRiderId = localStorage.getItem("harveyRiderId");
+      const storedRiderId = getSavedRiderId();
 
       if (!storedRiderId) {
         showBox(errorBox, "No saved rider account found yet. Create your rider account first.");
@@ -1130,16 +1334,35 @@
       setButtonLoading(checkBtn, true, "Checking Status...", "Check Rider Status");
 
       try {
-        const res = await fetch(`/api/rider/${encodeURIComponent(storedRiderId)}/status`);
-        const data = await safeJson(res);
+        const attempts = [
+          () => api(`/api/rider/${encodeURIComponent(storedRiderId)}/status`),
+          () => api(`/api/riders/${encodeURIComponent(storedRiderId)}/status`),
+          () => api("/api/rider/status", {
+            method: "POST",
+            body: JSON.stringify({ rider_id: storedRiderId })
+          })
+        ];
 
-        if (!res.ok || !(data.ok || data.success) || !data.rider) {
-          setAccountStatusDisplay("not_found");
-          showBox(errorBox, data.error || data.message || "Unable to load rider account status.");
-          return;
+        let data = null;
+        let lastError = null;
+
+        for (const attempt of attempts) {
+          try {
+            data = await attempt();
+            if (data) break;
+          } catch (error) {
+            lastError = error;
+          }
         }
 
-        const rider = data.rider;
+        if (!data) throw lastError || new Error("Unable to load rider account status.");
+
+        const rider = data.rider || data.profile;
+        if (!rider) {
+          setAccountStatusDisplay("not_found");
+          throw new Error("Unable to load rider account status.");
+        }
+
         const approvalStatus =
           rider.approval_status ||
           rider.verification_status ||
@@ -1154,7 +1377,7 @@
         const fullName = `${rider.first_name || ""} ${rider.last_name || ""}`.trim();
 
         saveRiderSession(
-          rider.id,
+          rider.id || storedRiderId,
           {
             first_name: rider.first_name || "",
             last_name: rider.last_name || "",
@@ -1177,9 +1400,9 @@
           resultBox,
           `
             <strong>Rider Status Checked</strong><br><br>
-            <strong>Rider ID:</strong> ${rider.id}<br>
-            <strong>Name:</strong> ${fullName || "Rider"}<br>
-            <strong>Status:</strong> ${approvalStatus}<br>
+            <strong>Rider ID:</strong> ${escapeHtml(rider.id || storedRiderId)}<br>
+            <strong>Name:</strong> ${escapeHtml(fullName || "Rider")}<br>
+            <strong>Status:</strong> ${escapeHtml(String(approvalStatus))}<br>
             <strong>Approved:</strong> ${approved ? "Yes" : "No"}
           `
         );
@@ -1187,7 +1410,7 @@
         if (approved) {
           showBox(
             infoBox,
-            `You are approved for ride access. Continue to your <a class="next-link" href="/rider-dashboard.html?riderId=${encodeURIComponent(rider.id)}">Rider Dashboard</a>.`
+            `You are approved for ride access. Continue to your <a class="next-link" href="/rider-dashboard.html?riderId=${encodeURIComponent(rider.id || storedRiderId)}">Rider Dashboard</a>.`
           );
         } else {
           showBox(
@@ -1196,28 +1419,61 @@
           );
         }
       } catch (error) {
-        showBox(errorBox, "Unable to check rider status right now.");
+        showBox(errorBox, escapeHtml(error.message || "Unable to check rider status right now."));
       } finally {
         isCheckingStatus = false;
         setButtonLoading(checkBtn, false, "", "Check Rider Status");
       }
     }
 
-    document.getElementById("signupBtn").addEventListener("click", createRiderAccount);
-    document.getElementById("checkBtn").addEventListener("click", checkRiderStatus);
+    function continueToDashboard() {
+      const riderId = getSavedRiderId();
 
-    const savedRiderId = localStorage.getItem("harveyRiderId");
-    if (savedRiderId) {
-      updateSavedRiderId(savedRiderId);
-      accountText.textContent = "Saved rider account found. You can check rider status now.";
-      approvalStepText.textContent = "Saved rider account found. Status can be checked now.";
-      accountTag.className = "tag ok";
-      accountTag.textContent = "Saved";
-      accountCreatedTag.className = "tag ok";
-      accountCreatedTag.textContent = "Created";
-    } else {
-      setAccountStatusDisplay("missing");
+      if (!riderId) {
+        clearMessages();
+        showBox(errorBox, "No saved rider session found. Create or recover your rider account first.");
+        return;
+      }
+
+      goToRiderDashboard(riderId);
     }
+
+    function bootstrapSavedSession() {
+      hydrateFormFromSavedProfile();
+      updateDocumentText();
+      updateSavedSessionText();
+
+      const savedRiderId = getSavedRiderId();
+      if (savedRiderId) {
+        setAccountStatusDisplay("saved");
+      } else {
+        setAccountStatusDisplay("missing");
+      }
+    }
+
+    docButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        docButtons.forEach((item) => item.classList.remove("active"));
+        btn.classList.add("active");
+        selectedDocumentType = btn.dataset.doc;
+        updateDocumentText();
+      });
+    });
+
+    signupBtn.addEventListener("click", createRiderAccount);
+    checkBtn.addEventListener("click", checkRiderStatus);
+    continueBtn.addEventListener("click", continueToDashboard);
+    clearSavedBtn.addEventListener("click", clearRiderSession);
+
+    document.getElementById("email").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") createRiderAccount();
+    });
+
+    document.getElementById("confirmPassword").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") createRiderAccount();
+    });
+
+    bootstrapSavedSession();
   </script>
 </body>
-            </html>
+  </html>
