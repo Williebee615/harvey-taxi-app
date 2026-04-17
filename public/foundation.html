@@ -28,6 +28,7 @@
       --cyan:#73f4ff;
       --green:#7cffc7;
       --gold:#ffd978;
+      --danger:#ff8ea2;
       --shadow:0 24px 80px rgba(0,0,0,.42);
       --shadow-soft:0 14px 34px rgba(0,0,0,.22);
       --radius-xl:32px;
@@ -299,6 +300,12 @@
       border-color:rgba(255,255,255,.08);
     }
 
+    .btn-danger{
+      color:#fff3f6;
+      background:rgba(255,142,162,.10);
+      border-color:rgba(255,142,162,.22);
+    }
+
     .impact-strip{
       display:grid;
       grid-template-columns:repeat(3,1fr);
@@ -348,6 +355,30 @@
       margin:0;
       color:var(--muted);
       line-height:1.66;
+    }
+
+    .trust-grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:12px;
+      margin-top:18px;
+    }
+
+    .trust-pill{
+      padding:14px;
+      border-radius:18px;
+      border:1px solid rgba(255,255,255,.07);
+      background:rgba(255,255,255,.03);
+      color:var(--muted);
+      line-height:1.55;
+      font-size:.88rem;
+    }
+
+    .trust-pill strong{
+      display:block;
+      color:var(--text);
+      margin-bottom:5px;
+      font-size:.92rem;
     }
 
     .link-preview{
@@ -483,6 +514,31 @@
       font-size:.93rem;
     }
 
+    .copy-status{
+      display:none;
+      padding:12px 14px;
+      border-radius:14px;
+      font-size:.9rem;
+      line-height:1.55;
+      border:1px solid transparent;
+    }
+
+    .copy-status.show{
+      display:block;
+    }
+
+    .copy-status.ok{
+      background:rgba(124,255,199,.10);
+      border-color:rgba(124,255,199,.18);
+      color:var(--green);
+    }
+
+    .copy-status.err{
+      background:rgba(255,142,162,.10);
+      border-color:rgba(255,142,162,.18);
+      color:#ffcad4;
+    }
+
     .section{
       padding:18px 0;
     }
@@ -551,6 +607,35 @@
       font-size:.96rem;
     }
 
+    .stats-shell{
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:14px;
+      margin-top:18px;
+    }
+
+    .stat-card{
+      padding:20px;
+      border-radius:22px;
+      background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border:1px solid rgba(255,255,255,.06);
+      box-shadow:var(--shadow-soft);
+    }
+
+    .stat-card strong{
+      display:block;
+      font-size:1.55rem;
+      letter-spacing:-.03em;
+      margin-bottom:8px;
+    }
+
+    .stat-card span{
+      display:block;
+      color:var(--muted);
+      line-height:1.55;
+      font-size:.92rem;
+    }
+
     .why-shell{
       display:grid;
       grid-template-columns:1.05fr .95fr;
@@ -597,6 +682,31 @@
       box-shadow:0 0 16px rgba(124,255,199,.45);
       margin-top:8px;
       flex-shrink:0;
+    }
+
+    .faq-grid{
+      display:grid;
+      gap:14px;
+    }
+
+    .faq-item{
+      padding:20px;
+      border-radius:20px;
+      border:1px solid rgba(255,255,255,.06);
+      background:rgba(255,255,255,.03);
+    }
+
+    .faq-item strong{
+      display:block;
+      margin-bottom:8px;
+      font-size:1rem;
+    }
+
+    .faq-item span{
+      display:block;
+      color:var(--muted);
+      line-height:1.65;
+      font-size:.94rem;
     }
 
     .cta-card{
@@ -662,6 +772,10 @@
       .sticky-box{
         position:static;
       }
+
+      .stats-shell{
+        grid-template-columns:1fr 1fr;
+      }
     }
 
     @media (max-width: 900px){
@@ -670,7 +784,8 @@
       }
 
       .grid-3,
-      .impact-strip{
+      .impact-strip,
+      .trust-grid{
         grid-template-columns:1fr;
       }
     }
@@ -714,6 +829,10 @@
       .btn{
         width:100%;
       }
+
+      .stats-shell{
+        grid-template-columns:1fr;
+      }
     }
   </style>
 </head>
@@ -741,6 +860,7 @@
         <a href="/support.html">Support</a>
         <a href="#impact">Impact</a>
         <a href="#why-give">Why Give</a>
+        <a href="#faq">FAQ</a>
         <a href="#donate" class="cta">Donate Now</a>
       </nav>
     </div>
@@ -805,6 +925,17 @@
                 community support vision, and ways to stay connected with Harvey Transportation Assistance Foundation.
               </p>
 
+              <div class="trust-grid">
+                <div class="trust-pill">
+                  <strong>Mission-led giving</strong>
+                  Contributions support transportation access and community mobility outreach.
+                </div>
+                <div class="trust-pill">
+                  <strong>Secure donation path</strong>
+                  Donations route through your secure Stripe donation link.
+                </div>
+              </div>
+
               <div class="link-preview">
                 <div class="preview-badge">Featured Resource</div>
                 <h4 class="preview-title">Open the Harvey Foundation shared resource</h4>
@@ -845,7 +976,7 @@
               <div class="spotlight-copy">
                 <strong>Clean, professional, and mission-focused</strong>
                 <span>
-                  This section now presents your foundation resource in a polished public-facing format
+                  This section presents your foundation resource in a polished public-facing format
                   that better matches your futuristic nonprofit brand and community mission.
                 </span>
               </div>
@@ -873,6 +1004,8 @@
               >
                 Copy Donation Link
               </button>
+
+              <div id="copyStatus" class="copy-status"></div>
             </section>
           </div>
         </aside>
@@ -920,6 +1053,25 @@
               </p>
             </article>
           </div>
+
+          <div class="stats-shell">
+            <div class="stat-card">
+              <strong>Access</strong>
+              <span>Help close transportation gaps that interrupt healthcare, education, and work.</span>
+            </div>
+            <div class="stat-card">
+              <strong>Relief</strong>
+              <span>Support families facing mobility barriers and transportation instability.</span>
+            </div>
+            <div class="stat-card">
+              <strong>Opportunity</strong>
+              <span>Make it easier for people to reach jobs, training, and essential services.</span>
+            </div>
+            <div class="stat-card">
+              <strong>Community</strong>
+              <span>Strengthen the local support network through transportation-focused giving.</span>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -932,6 +1084,7 @@
             <li>Support a transportation-focused nonprofit mission</li>
             <li>Help expand reliable ride access for people in need</li>
             <li>Strengthen community support and outreach efforts</li>
+            <li>Help remove mobility barriers that block daily opportunity</li>
           </ul>
         </section>
 
@@ -942,6 +1095,45 @@
             can help someone reach care, keep a job, stay in school, and remain connected to the resources
             that support daily life and long-term stability.
           </p>
+        </section>
+      </div>
+    </section>
+
+    <section class="section" id="faq">
+      <div class="shell">
+        <section class="card section-card">
+          <div class="section-head">
+            <div>
+              <h3>Supporter FAQ</h3>
+              <p>
+                Clear answers for supporters, partners, and community members exploring the foundation mission.
+              </p>
+            </div>
+          </div>
+
+          <div class="faq-grid">
+            <article class="faq-item">
+              <strong>What does the foundation support?</strong>
+              <span>
+                Harvey Transportation Assistance Foundation supports transportation access tied to medical appointments,
+                school, work, and essential community mobility.
+              </span>
+            </article>
+
+            <article class="faq-item">
+              <strong>How do I donate?</strong>
+              <span>
+                Use the secure donation button or direct Stripe donation link on this page to contribute.
+              </span>
+            </article>
+
+            <article class="faq-item">
+              <strong>Can I share this page with supporters?</strong>
+              <span>
+                Yes. This page is designed to be shared with supporters, partners, and community contacts who want to help.
+              </span>
+            </article>
+          </div>
         </section>
       </div>
     </section>
@@ -1002,25 +1194,38 @@
   <script>
     const FOUNDATION_RESOURCE_LINK = "https://chatgpt.com/s/m_69c9f57798d08191803856ce69d9134d";
     const DONATION_LINK = "https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00";
+    const copyStatusEl = document.getElementById("copyStatus");
+
+    function showCopyStatus(message, ok = true) {
+      copyStatusEl.textContent = message;
+      copyStatusEl.className = "copy-status show " + (ok ? "ok" : "err");
+
+      window.clearTimeout(showCopyStatus._timer);
+      showCopyStatus._timer = window.setTimeout(() => {
+        copyStatusEl.className = "copy-status";
+        copyStatusEl.textContent = "";
+      }, 2200);
+    }
 
     async function copyText(value, successMessage) {
       try {
         await navigator.clipboard.writeText(value);
-        alert(successMessage);
+        showCopyStatus(successMessage, true);
       } catch (error) {
         const textArea = document.createElement("textarea");
         textArea.value = value;
         textArea.style.position = "fixed";
         textArea.style.opacity = "0";
+        textArea.style.pointerEvents = "none";
         document.body.appendChild(textArea);
         textArea.focus();
         textArea.select();
 
         try {
           document.execCommand("copy");
-          alert(successMessage);
+          showCopyStatus(successMessage, true);
         } catch (fallbackError) {
-          alert("Unable to copy automatically. Please copy the link manually.");
+          showCopyStatus("Unable to copy automatically. Please copy the link manually.", false);
         }
 
         document.body.removeChild(textArea);
