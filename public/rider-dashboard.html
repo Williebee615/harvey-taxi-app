@@ -35,6 +35,9 @@
       --shadow-soft:0 10px 30px rgba(0,0,0,.24);
       --radius:24px;
       --max:1120px;
+      --ok-bg:rgba(109,255,179,.10);
+      --warn-bg:rgba(255,215,106,.10);
+      --bad-bg:rgba(255,126,151,.10);
     }
 
     *{
@@ -247,6 +250,7 @@
       display:block;
       font-size:18px;
       margin-bottom:6px;
+      word-break:break-word;
     }
 
     .hero-stat span{
@@ -641,6 +645,12 @@
       background:rgba(255,215,106,.12);
       color:var(--gold);
       border:1px solid rgba(255,215,106,.18);
+    }
+
+    .pill.bad{
+      background:rgba(255,126,151,.12);
+      color:var(--danger);
+      border:1px solid rgba(255,126,151,.18);
     }
 
     .account-actions{
@@ -1082,6 +1092,9 @@
       trips: []
     };
 
+    const heroTitle = document.getElementById("heroTitle");
+    const heroText = document.getElementById("heroText");
+
     function goHome() {
       window.location.href = "index.html";
     }
@@ -1090,35 +1103,61 @@
       window.location.href = "support.html";
     }
 
+    function clearRiderSession() {
+      const keys = [
+        "rider",
+        "riderId",
+        "rider_id",
+        "riderProfile",
+        "harveyRiderId",
+        "harveyRiderEmail",
+        "harveyActiveRideId"
+      ];
+
+      keys.forEach((key) => {
+        localStorage.removeItem(key);
+        sessionStorage.removeItem(key);
+      });
+    }
+
     function changeRider() {
-      localStorage.removeItem("rider");
-      localStorage.removeItem("riderId");
-      localStorage.removeItem("rider_id");
-      localStorage.removeItem("riderProfile");
-      localStorage.removeItem("harveyRiderId");
-      localStorage.removeItem("harveyRiderEmail");
+      clearRiderSession();
       window.location.href = "rider-signup.html";
     }
 
-    function goRequestRide(mode) {
+    function buildRequestRideUrl({ mode = "driver", type = "", destination = "" } = {}) {
       const riderId = state.riderId || getStoredRiderId();
       const params = new URLSearchParams();
 
-      if (mode === "autonomous") {
-        params.set("mode", "autonomous");
-      } else {
-        params.set("mode", "driver");
+      params.set("mode", mode === "autonomous" ? "autonomous" : "driver");
+
+      if (type && type !== "autonomous") {
+        params.set("type", type);
       }
 
-      if (mode && mode !== "autonomous") {
-        params.set("type", mode);
+      if (destination) {
+        params.set("destination", destination);
       }
 
       if (riderId) {
         params.set("rider_id", riderId);
       }
 
-      window.location.href = `request-ride.html?${params.toString()}`;
+      return `request-ride.html?${params.toString()}`;
+    }
+
+    function goRequestRide(mode) {
+      if (mode === "autonomous") {
+        window.location.href = buildRequestRideUrl({ mode: "autonomous" });
+        return;
+      }
+
+      if (mode === "scheduled" || mode === "medical" || mode === "airport" || mode === "nonprofit") {
+        window.location.href = buildRequestRideUrl({ mode: "driver", type: mode });
+        return;
+      }
+
+      window.location.href = buildRequestRideUrl({ mode: "driver" });
     }
 
     function quickDestination(label, address) {
@@ -1127,22 +1166,20 @@
         return;
       }
 
-      const riderId = state.riderId || getStoredRiderId();
-      const params = new URLSearchParams();
-      params.set("mode", "driver");
-      params.set("destination", address);
-      if (riderId) params.set("rider_id", riderId);
+      let type = "";
+      if (label.toLowerCase().includes("airport")) {
+        type = "airport";
+      }
 
-      window.location.href = `request-ride.html?${params.toString()}`;
+      window.location.href = buildRequestRideUrl({
+        mode: "driver",
+        type,
+        destination: address
+      });
     }
 
     function logout() {
-      localStorage.removeItem("rider");
-      localStorage.removeItem("riderId");
-      localStorage.removeItem("rider_id");
-      localStorage.removeItem("riderProfile");
-      localStorage.removeItem("harveyRiderId");
-      localStorage.removeItem("harveyRiderEmail");
+      clearRiderSession();
       window.location.href = "index.html";
     }
 
@@ -1152,25 +1189,32 @@
         urlParams.get("riderId") ||
         urlParams.get("rider_id") ||
         localStorage.getItem("harveyRiderId") ||
+        sessionStorage.getItem("harveyRiderId") ||
         localStorage.getItem("riderId") ||
         localStorage.getItem("rider_id") ||
+        sessionStorage.getItem("riderId") ||
+        sessionStorage.getItem("rider_id") ||
         ""
       );
     }
 
-    function getStoredRiderProfile() {
-      const riderRaw =
-        localStorage.getItem("riderProfile") ||
-        localStorage.getItem("rider") ||
-        null;
-
-      if (!riderRaw) return null;
-
+    function parseStoredJson(raw) {
+      if (!raw) return null;
       try {
-        return JSON.parse(riderRaw);
-      } catch (error) {
+        return JSON.parse(raw);
+      } catch {
         return null;
       }
+    }
+
+    function getStoredRiderProfile() {
+      return (
+        parseStoredJson(localStorage.getItem("riderProfile")) ||
+        parseStoredJson(localStorage.getItem("rider")) ||
+        parseStoredJson(sessionStorage.getItem("riderProfile")) ||
+        parseStoredJson(sessionStorage.getItem("rider")) ||
+        null
+      );
     }
 
     function humanizeStatus(value) {
@@ -1179,8 +1223,30 @@
       return text.charAt(0).toUpperCase() + text.slice(1);
     }
 
+    function isApprovalReady(rider) {
+      const text = String(
+        rider?.approval_status ||
+        rider?.verification_status ||
+        rider?.status ||
+        ""
+      ).toLowerCase();
+
+      return rider?.is_approved === true || text.includes("approved") || text.includes("active");
+    }
+
+    function isPaymentReady(rider) {
+      const text = String(
+        rider?.payment_status ||
+        rider?.payment_authorization_status ||
+        ""
+      ).toLowerCase();
+
+      return rider?.payment_authorized === true || text.includes("authorized") || text.includes("ready") || text.includes("secured");
+    }
+
     function formatStatus(status) {
       const value = String(status || "pending").toLowerCase();
+
       if (
         value.includes("completed") ||
         value.includes("complete") ||
@@ -1225,8 +1291,8 @@
       const heroTripCount = document.getElementById("heroTripCount");
 
       tripList.innerHTML = "";
-      totalTrips.textContent = Array.isArray(trips) ? trips.length : 0;
-      heroTripCount.textContent = Array.isArray(trips) ? trips.length : 0;
+      totalTrips.textContent = Array.isArray(trips) ? String(trips.length) : "0";
+      heroTripCount.textContent = Array.isArray(trips) ? String(trips.length) : "0";
 
       if (!Array.isArray(trips) || trips.length === 0) {
         tripEmpty.style.display = "block";
@@ -1309,6 +1375,26 @@
         .replace(/'/g, "&#39;");
     }
 
+    function normalizeTripsPayload(data) {
+      if (Array.isArray(data)) return data;
+      if (Array.isArray(data?.rides)) return data.rides;
+      if (Array.isArray(data?.data)) return data.data;
+      return [];
+    }
+
+    function tripBelongsToRider(trip, riderId) {
+      if (!riderId) return true;
+
+      const tripRiderId =
+        trip?.rider_id ||
+        trip?.riderId ||
+        trip?.rider?.id ||
+        "";
+
+      if (!tripRiderId) return false;
+      return String(tripRiderId) === String(riderId);
+    }
+
     async function loadTrips() {
       setLoadingState(true);
 
@@ -1319,9 +1405,8 @@
         if (riderId) {
           attempts.push(`/api/rides?rider_id=${encodeURIComponent(riderId)}`);
           attempts.push(`/api/rides?riderId=${encodeURIComponent(riderId)}`);
+          attempts.push(`/api/rider/${encodeURIComponent(riderId)}/rides`);
         }
-
-        attempts.push("/api/rides");
 
         let trips = [];
 
@@ -1330,27 +1415,12 @@
             const res = await fetch(url, { credentials: "include" });
             if (!res.ok) continue;
 
-            const data = await res.json();
-            const maybeTrips = Array.isArray(data)
-              ? data
-              : Array.isArray(data.rides)
-                ? data.rides
-                : Array.isArray(data.data)
-                  ? data.data
-                  : [];
+            const data = await res.json().catch(() => ({}));
+            const maybeTrips = normalizeTripsPayload(data);
 
-            if (maybeTrips.length || url === attempts[attempts.length - 1]) {
-              trips = riderId
-                ? maybeTrips.filter((trip) => {
-                    const tripRiderId =
-                      trip.rider_id ||
-                      trip.riderId ||
-                      trip.rider?.id ||
-                      "";
-                    return !tripRiderId || String(tripRiderId) === String(riderId);
-                  })
-                : maybeTrips;
-              break;
+            if (maybeTrips.length) {
+              trips = maybeTrips.filter((trip) => tripBelongsToRider(trip, riderId));
+              if (trips.length) break;
             }
           } catch (error) {
             continue;
@@ -1368,6 +1438,52 @@
       }
     }
 
+    function updateHeroForMissingRider() {
+      heroTitle.textContent = "Finish setup and request your next ride.";
+      heroText.textContent =
+        "Your Harvey Taxi rider session was not found. Create or restore your rider profile to continue into the booking flow.";
+    }
+
+    function renderRiderStateFromProfile(rider) {
+      const approval = document.getElementById("statusApproval");
+      const payment = document.getElementById("statusPayment");
+      const riderIdEl = document.getElementById("statusRiderId");
+      const heroName = document.getElementById("heroRiderName");
+      const heroApproval = document.getElementById("heroApprovalState");
+      const heroPayment = document.getElementById("heroPaymentState");
+      const accountPills = document.getElementById("accountPills");
+
+      const fullName = [rider?.first_name, rider?.last_name].filter(Boolean).join(" ").trim();
+      const approvalText = humanizeStatus(
+        rider?.approval_status ||
+        rider?.verification_status ||
+        rider?.status ||
+        (rider?.is_approved ? "approved" : "pending")
+      );
+
+      const paymentText = humanizeStatus(
+        rider?.payment_status ||
+        rider?.payment_authorization_status ||
+        (rider?.payment_authorized ? "authorized" : "pending")
+      );
+
+      const approvalOk = isApprovalReady(rider);
+      const paymentOk = isPaymentReady(rider);
+
+      riderIdEl.textContent = state.riderId || "—";
+      heroName.textContent = fullName || rider?.email || "Rider";
+      approval.textContent = approvalText;
+      payment.textContent = paymentText;
+      heroApproval.textContent = approvalText;
+      heroPayment.textContent = paymentText;
+
+      accountPills.innerHTML = `
+        <div class="pill ${approvalOk ? "ok" : "warn"}">${approvalOk ? "Rider approved" : "Approval pending"}</div>
+        <div class="pill ${paymentOk ? "ok" : "warn"}">${paymentOk ? "Payment ready" : "Payment pending"}</div>
+        <div class="pill">Support available</div>
+      `;
+    }
+
     async function loadRiderState() {
       const approval = document.getElementById("statusApproval");
       const payment = document.getElementById("statusPayment");
@@ -1383,44 +1499,11 @@
       riderIdEl.textContent = state.riderId || "—";
 
       if (state.riderProfile) {
-        const rider = state.riderProfile;
-        const fullName = [rider.first_name, rider.last_name].filter(Boolean).join(" ").trim();
-
-        heroName.textContent = fullName || rider.email || "Rider";
-        approval.textContent = humanizeStatus(
-          rider.approval_status || rider.verification_status || rider.status || "pending"
-        );
-        payment.textContent = humanizeStatus(
-          rider.payment_status || rider.payment_authorization_status || "pending"
-        );
-
-        heroApproval.textContent = approval.textContent;
-        heroPayment.textContent = payment.textContent;
-
-        const approvalOk =
-          String(rider.approval_status || rider.verification_status || rider.status || "")
-            .toLowerCase()
-            .includes("approved");
-
-        const paymentOk =
-          String(rider.payment_status || rider.payment_authorization_status || "")
-            .toLowerCase()
-            .includes("authorized") ||
-          String(rider.payment_status || rider.payment_authorization_status || "")
-            .toLowerCase()
-            .includes("ready");
-
-        accountPills.innerHTML = `
-          <div class="pill ${approvalOk ? "ok" : "warn"}">${approvalOk ? "Rider approved" : "Approval pending"}</div>
-          <div class="pill ${paymentOk ? "ok" : ""}">${paymentOk ? "Payment ready" : "Payment pending"}</div>
-          <div class="pill">Support available</div>
-        `;
+        renderRiderStateFromProfile(state.riderProfile);
       }
 
       if (!state.riderId) {
-        heroTitle.textContent = "Finish setup and request your next ride.";
-        heroText.textContent =
-          "Your Harvey Taxi rider session was not found. Create or restore your rider profile to continue into the booking flow.";
+        updateHeroForMissingRider();
         approval.textContent = "Missing";
         payment.textContent = "Missing";
         heroApproval.textContent = "Missing";
@@ -1440,8 +1523,8 @@
 
         if (!res.ok) return;
 
-        const data = await res.json();
-        const rider = data.rider;
+        const data = await res.json().catch(() => ({}));
+        const rider = data?.rider;
 
         if (!rider) return;
 
@@ -1452,45 +1535,20 @@
 
         localStorage.setItem("riderProfile", JSON.stringify(state.riderProfile));
         localStorage.setItem("rider", JSON.stringify(state.riderProfile));
+        localStorage.setItem("harveyRiderId", state.riderId);
 
-        const fullName = [rider.first_name, rider.last_name].filter(Boolean).join(" ").trim();
-        const approvalText = humanizeStatus(
-          rider.approval_status || rider.verification_status || rider.status || (rider.is_approved ? "approved" : "pending")
-        );
-
-        const paymentText = humanizeStatus(
-          rider.payment_status ||
-          rider.payment_authorization_status ||
-          (rider.payment_authorized ? "authorized" : "pending")
-        );
-
-        heroName.textContent = fullName || rider.email || "Rider";
-        approval.textContent = approvalText;
-        payment.textContent = paymentText;
-        heroApproval.textContent = approvalText;
-        heroPayment.textContent = paymentText;
-
-        const approvalOk =
-          rider.is_approved === true ||
-          String(approvalText).toLowerCase().includes("approved");
-
-        const paymentOk =
-          rider.payment_authorized === true ||
-          String(paymentText).toLowerCase().includes("authorized") ||
-          String(paymentText).toLowerCase().includes("ready");
-
-        accountPills.innerHTML = `
-          <div class="pill ${approvalOk ? "ok" : "warn"}">${approvalOk ? "Rider approved" : "Approval pending"}</div>
-          <div class="pill ${paymentOk ? "ok" : ""}">${paymentOk ? "Payment ready" : "Payment pending"}</div>
-          <div class="pill">Support available</div>
-        `;
+        renderRiderStateFromProfile(state.riderProfile);
       } catch (error) {
         console.log("Rider status refresh unavailable.");
       }
     }
 
-    loadRiderState();
-    loadTrips();
+    async function bootDashboard() {
+      await loadRiderState();
+      await loadTrips();
+    }
+
+    bootDashboard();
   </script>
 </body>
-          </html>
+  </html>
