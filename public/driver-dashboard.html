@@ -35,16 +35,15 @@
       --shadow:0 20px 70px rgba(0,0,0,.35);
       --shadowSoft:0 10px 30px rgba(0,0,0,.22);
       --radius:24px;
-      --max:1180px;
+      --max:1240px;
     }
 
     *{box-sizing:border-box;margin:0;padding:0}
 
-    html{
-      scroll-behavior:smooth;
-    }
+    html{scroll-behavior:smooth}
 
     html,body{
+      min-height:100%;
       background:
         radial-gradient(circle at top left, rgba(94,160,255,.16), transparent 28%),
         radial-gradient(circle at top right, rgba(99,245,255,.12), transparent 22%),
@@ -52,7 +51,6 @@
         linear-gradient(160deg,var(--bg1),var(--bg2) 45%,var(--bg3));
       color:var(--text);
       font-family:Inter,Arial,sans-serif;
-      min-height:100%;
     }
 
     body{
@@ -61,10 +59,7 @@
     }
 
     a{text-decoration:none;color:inherit}
-
-    button,input,select,textarea{
-      font:inherit;
-    }
+    button,input,select,textarea{font:inherit}
 
     .shell{
       width:100%;
@@ -131,7 +126,7 @@
       gap:10px;
     }
 
-    .nav a{
+    .nav a,.nav button{
       padding:10px 14px;
       border-radius:999px;
       border:1px solid var(--line);
@@ -139,9 +134,10 @@
       color:var(--text);
       font-size:.92rem;
       transition:.18s ease;
+      cursor:pointer;
     }
 
-    .nav a:hover{
+    .nav a:hover,.nav button:hover{
       transform:translateY(-1px);
       border-color:var(--lineStrong);
       background:rgba(255,255,255,.06);
@@ -183,7 +179,7 @@
 
     .hero-grid{
       display:grid;
-      grid-template-columns:1.4fr .9fr;
+      grid-template-columns:1.35fr .95fr;
       gap:16px;
       position:relative;
       z-index:1;
@@ -205,7 +201,7 @@
     }
 
     .hero h2{
-      font-size:clamp(1.65rem,4vw,2.7rem);
+      font-size:clamp(1.65rem,4vw,2.85rem);
       line-height:1.02;
       max-width:13ch;
       margin-bottom:12px;
@@ -213,7 +209,7 @@
 
     .hero p{
       color:var(--muted);
-      max-width:58ch;
+      max-width:62ch;
       line-height:1.65;
       font-size:.98rem;
     }
@@ -310,7 +306,7 @@
 
     .status-row strong{
       text-align:right;
-      max-width:65%;
+      max-width:68%;
       word-break:break-word;
     }
 
@@ -374,7 +370,7 @@
 
     .stats{
       display:grid;
-      grid-template-columns:repeat(4,1fr);
+      grid-template-columns:repeat(5,1fr);
       gap:14px;
       margin:18px 0;
     }
@@ -394,7 +390,7 @@
     }
 
     .stat .value{
-      font-size:1.45rem;
+      font-size:1.3rem;
       font-weight:900;
       letter-spacing:.2px;
       word-break:break-word;
@@ -450,6 +446,11 @@
     .action-grid{
       display:grid;
       grid-template-columns:repeat(2,1fr);
+      gap:12px;
+    }
+
+    .stack{
+      display:grid;
       gap:12px;
     }
 
@@ -536,7 +537,7 @@
 
     .detail-row strong{
       text-align:right;
-      max-width:58%;
+      max-width:62%;
       line-height:1.4;
       font-size:.94rem;
       word-break:break-word;
@@ -565,6 +566,12 @@
       font-size:.92rem;
     }
 
+    .mini-note{
+      color:var(--muted);
+      font-size:.86rem;
+      line-height:1.55;
+    }
+
     .footer-note{
       color:var(--muted);
       font-size:.86rem;
@@ -590,15 +597,10 @@
     .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
     .hidden{display:none !important}
 
-    @media (max-width: 1024px){
-      .hero-grid,
-      .stats,
-      .grid,
-      .row,
-      .action-grid{
+    @media (max-width: 1100px){
+      .hero-grid,.grid,.row,.action-grid,.stats{
         grid-template-columns:1fr;
       }
-
       .span-4,.span-5,.span-6,.span-7,.span-8,.span-12{
         grid-column:span 12;
       }
@@ -609,7 +611,7 @@
       .hero,.card,.status-card{padding:18px}
       .topbar{border-radius:24px}
       .nav{width:100%}
-      .nav a{flex:1 1 auto;text-align:center}
+      .nav a,.nav button{flex:1 1 auto;text-align:center}
       .hero-actions .btn{width:100%}
       .mission-head{flex-direction:column}
       .detail-row{flex-direction:column}
@@ -626,7 +628,7 @@
         <div class="logo">HT</div>
         <div>
           <h1>Harvey Taxi Driver Dashboard</h1>
-          <p>Mission control, availability, and live trip actions.</p>
+          <p>Mission control, availability, trip actions, live status, and earnings.</p>
         </div>
       </div>
 
@@ -635,6 +637,7 @@
         <a href="/driver-signup.html">Driver Sign Up</a>
         <a href="/request-ride.html">Request Ride</a>
         <a href="/admin-dashboard.html">Admin</a>
+        <button id="logoutBtn" type="button">Logout</button>
       </div>
     </div>
 
@@ -642,11 +645,11 @@
       <div class="hero-grid">
         <div>
           <div class="eyebrow">Driver Mission Console</div>
-          <h2>See the full mission before you accept.</h2>
+          <h2>Load your profile, review the mission, then control the ride lifecycle.</h2>
           <p>
-            This dashboard is built so Harvey Taxi drivers can load their profile,
-            go available, review a mission package, accept or reject dispatch,
-            and manage the trip lifecycle in one place.
+            This Harvey Taxi dashboard is designed for mission-first operations. Drivers can
+            recover their session, go available, view dispatch details before accepting, and
+            safely manage the trip from offer to completion.
           </p>
 
           <div class="hero-actions">
@@ -681,6 +684,11 @@
               <span class="muted">Mission</span>
               <div id="snapMission" class="pill pill-blue">None</div>
             </div>
+
+            <div class="status-row">
+              <span class="muted">Live Refresh</span>
+              <div id="snapPolling" class="pill pill-blue">Off</div>
+            </div>
           </div>
         </div>
       </div>
@@ -703,13 +711,17 @@
         <div class="label">Status</div>
         <div class="value" id="statStatus">Offline</div>
       </div>
+      <div class="stat glass">
+        <div class="label">Driver Mode</div>
+        <div class="value" id="statMode">Driver</div>
+      </div>
     </div>
 
     <div class="grid">
       <section class="glass card span-4">
         <h3>Load Driver Dashboard</h3>
         <p class="sub">
-          Enter your driver email to sign in, or paste your driver ID directly.
+          Sign in by driver email, or recover the dashboard directly with a saved driver ID.
         </p>
 
         <div class="field">
@@ -737,7 +749,7 @@
       <section class="glass card span-8">
         <h3>Driver Profile</h3>
         <p class="sub">
-          Profile, approval state, and vehicle information are shown here after loading.
+          Profile, approval, verification, and vehicle state appear here after dashboard load.
         </p>
 
         <div class="detail-list">
@@ -754,7 +766,7 @@
             <strong id="profilePhone">—</strong>
           </div>
           <div class="detail-row">
-            <span>Location</span>
+            <span>Service Area</span>
             <strong id="profileLocation">—</strong>
           </div>
           <div class="detail-row">
@@ -769,13 +781,17 @@
             <span>Verification</span>
             <strong id="profileBackground">—</strong>
           </div>
+          <div class="detail-row">
+            <span>Preferred Address</span>
+            <strong id="profileLastAddress">—</strong>
+          </div>
         </div>
       </section>
 
       <section class="glass card span-7">
         <h3>Current Mission</h3>
         <p class="sub">
-          Drivers should see the complete mission before accepting the ride.
+          Drivers should see the complete mission package before accepting the ride.
         </p>
 
         <div id="missionWrap" class="mission">
@@ -823,48 +839,63 @@
       <section class="glass card span-5">
         <h3>Availability Control</h3>
         <p class="sub">
-          Toggle your live availability and optionally send your latest GPS point to the backend.
+          Update your live availability and preferred service location using address-first mode.
         </p>
 
-        <div class="row">
-          <div class="field">
-            <label for="availabilityStatus">Driver Status</label>
-            <select id="availabilityStatus" class="select">
-              <option value="offline">Offline</option>
-              <option value="online">Online</option>
-              <option value="available">Available</option>
-              <option value="busy">Busy</option>
-            </select>
+        <div class="stack">
+          <div class="row">
+            <div class="field">
+              <label for="availabilityStatus">Driver Status</label>
+              <select id="availabilityStatus" class="select">
+                <option value="offline">Offline</option>
+                <option value="online">Online</option>
+                <option value="available">Available</option>
+                <option value="busy">Busy</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="availabilityMode">Preferred Mode</label>
+              <select id="availabilityMode" class="select">
+                <option value="driver">Human Driver</option>
+                <option value="autonomous">Autonomous</option>
+              </select>
+            </div>
           </div>
 
           <div class="field">
-            <label for="availabilityMode">Preferred Mode</label>
-            <select id="availabilityMode" class="select">
-              <option value="driver">Human Driver</option>
-              <option value="autonomous">Autonomous</option>
-            </select>
+            <label for="driverAddress">Current Service Address</label>
+            <input
+              id="driverAddress"
+              class="input"
+              type="text"
+              placeholder="123 Main St, Nashville, TN"
+            />
           </div>
+
+          <div class="field">
+            <label for="driverNotes">Availability Notes</label>
+            <textarea
+              id="driverNotes"
+              placeholder="Optional notes for dispatch or admin visibility."
+            ></textarea>
+          </div>
+
+          <div class="mini-note">
+            Harvey Taxi is using an address-first dashboard direction here so visible latitude and longitude
+            are not exposed on the driver page.
+          </div>
+
+          <button class="btn btn-primary" id="saveAvailabilityBtn" type="button">Save Availability</button>
         </div>
 
-        <div class="row">
-          <div class="field">
-            <label for="driverLat">Latitude</label>
-            <input id="driverLat" class="input" type="number" step="any" placeholder="Optional" />
-          </div>
-          <div class="field">
-            <label for="driverLng">Longitude</label>
-            <input id="driverLng" class="input" type="number" step="any" placeholder="Optional" />
-          </div>
-        </div>
-
-        <button class="btn btn-primary" id="saveAvailabilityBtn" type="button">Save Availability</button>
         <div id="availabilityMsg" class="msg"></div>
       </section>
 
       <section class="glass card span-12">
         <h3>Recent Driver Activity</h3>
         <p class="sub">
-          Dashboard summary from the backend: recent rides, current mission, and live driver state.
+          Backend summary of recent rides, current mission state, and driver activity history.
         </p>
 
         <div id="activityList" class="activity">
@@ -877,16 +908,28 @@
     </div>
 
     <div class="footer-note">
-      Harvey Taxi driver dashboard • human + autonomous-ready mission system
+      Harvey Taxi driver dashboard • mission-first • human + autonomous-ready
     </div>
   </div>
 
   <script>
+    const STORAGE = {
+      driverId: "harvey_driver_id",
+      driverEmail: "harvey_driver_email",
+      driverProfile: "harvey_driver_profile",
+      lastAddress: "harvey_driver_last_address"
+    };
+
     const state = {
-      driverId: localStorage.getItem("harvey_driver_id") || "",
+      driverId: localStorage.getItem(STORAGE.driverId) || "",
+      driverEmail: localStorage.getItem(STORAGE.driverEmail) || "",
       driver: null,
       mission: null,
-      dashboard: null
+      dashboard: null,
+      isBusy: false,
+      poller: null,
+      pollMs: 15000,
+      isPolling: false
     };
 
     const els = {
@@ -899,10 +942,12 @@
       goAvailableBtn: document.getElementById("goAvailableBtn"),
       goOfflineBtn: document.getElementById("goOfflineBtn"),
       saveAvailabilityBtn: document.getElementById("saveAvailabilityBtn"),
+      logoutBtn: document.getElementById("logoutBtn"),
       availabilityStatus: document.getElementById("availabilityStatus"),
       availabilityMode: document.getElementById("availabilityMode"),
-      driverLat: document.getElementById("driverLat"),
-      driverLng: document.getElementById("driverLng"),
+      driverAddress: document.getElementById("driverAddress"),
+      driverNotes: document.getElementById("driverNotes"),
+
       acceptBtn: document.getElementById("acceptBtn"),
       rejectBtn: document.getElementById("rejectBtn"),
       enRouteBtn: document.getElementById("enRouteBtn"),
@@ -914,11 +959,13 @@
       snapApproval: document.getElementById("snapApproval"),
       snapAvailability: document.getElementById("snapAvailability"),
       snapMission: document.getElementById("snapMission"),
+      snapPolling: document.getElementById("snapPolling"),
 
       statCompleted: document.getElementById("statCompleted"),
       statActive: document.getElementById("statActive"),
       statEarnings: document.getElementById("statEarnings"),
       statStatus: document.getElementById("statStatus"),
+      statMode: document.getElementById("statMode"),
 
       profileName: document.getElementById("profileName"),
       profileEmail: document.getElementById("profileEmail"),
@@ -927,6 +974,7 @@
       profileVehicle: document.getElementById("profileVehicle"),
       profileDriverType: document.getElementById("profileDriverType"),
       profileBackground: document.getElementById("profileBackground"),
+      profileLastAddress: document.getElementById("profileLastAddress"),
 
       missionWrap: document.getElementById("missionWrap"),
       activityList: document.getElementById("activityList"),
@@ -937,12 +985,23 @@
       availabilityMsg: document.getElementById("availabilityMsg")
     };
 
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
     function showMsg(el, text, ok = true) {
+      if (!el) return;
       el.textContent = text;
       el.className = "msg show " + (ok ? "ok" : "err");
     }
 
     function clearMsg(el) {
+      if (!el) return;
       el.textContent = "";
       el.className = "msg";
     }
@@ -955,7 +1014,8 @@
     function titleCase(value) {
       return String(value || "")
         .replace(/_/g, " ")
-        .replace(/\b\w/g, (m) => m.toUpperCase());
+        .replace(/\b\w/g, (m) => m.toUpperCase())
+        .trim() || "—";
     }
 
     function setPill(el, text, type) {
@@ -968,15 +1028,49 @@
       return Number.isFinite(n) ? n : null;
     }
 
+    function setBusy(isBusy) {
+      state.isBusy = !!isBusy;
+
+      const buttons = [
+        els.driverLoginBtn,
+        els.loadByIdBtn,
+        els.refreshAllBtn,
+        els.goAvailableBtn,
+        els.goOfflineBtn,
+        els.saveAvailabilityBtn,
+        els.acceptBtn,
+        els.rejectBtn,
+        els.enRouteBtn,
+        els.arrivedBtn,
+        els.startBtn,
+        els.completeBtn
+      ];
+
+      buttons.forEach((btn) => {
+        if (!btn) return;
+        btn.disabled = isBusy || btn.dataset.locked === "true";
+      });
+
+      if (!isBusy) {
+        missionActionState();
+      }
+    }
+
     async function api(url, options = {}) {
       const response = await fetch(url, {
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          ...(options.headers || {})
         },
         ...options
       });
 
-      const data = await response.json().catch(() => ({}));
+      let data = {};
+      try {
+        data = await response.json();
+      } catch (_) {
+        data = {};
+      }
 
       if (!response.ok) {
         throw new Error(data.message || data.error || "Request failed.");
@@ -985,38 +1079,153 @@
       return data;
     }
 
+    function normalizeStatus(value) {
+      return String(value || "").trim().toLowerCase();
+    }
+
     function pickDriverFromPayload(payload) {
-      return payload.driver || payload.profile || payload.data?.driver || null;
+      return (
+        payload?.driver ||
+        payload?.profile ||
+        payload?.data?.driver ||
+        payload?.data?.profile ||
+        payload?.result?.driver ||
+        null
+      );
     }
 
     function pickMissionFromPayload(payload) {
       return (
-        payload.current_mission ||
-        payload.mission ||
-        payload.currentRide ||
-        payload.current_ride ||
-        payload.active_mission ||
+        payload?.current_mission ||
+        payload?.mission ||
+        payload?.currentRide ||
+        payload?.current_ride ||
+        payload?.active_mission ||
+        payload?.ride ||
+        payload?.data?.mission ||
+        payload?.data?.current_mission ||
         null
       );
     }
 
     function pickRecentRides(payload) {
-      if (Array.isArray(payload.recent_rides)) return payload.recent_rides;
-      if (Array.isArray(payload.rides)) return payload.rides;
-      if (Array.isArray(payload.recent_activity)) return payload.recent_activity;
+      if (Array.isArray(payload?.recent_rides)) return payload.recent_rides;
+      if (Array.isArray(payload?.rides)) return payload.rides;
+      if (Array.isArray(payload?.recent_activity)) return payload.recent_activity;
+      if (Array.isArray(payload?.data?.recent_rides)) return payload.data.recent_rides;
       return [];
+    }
+
+    function deriveApproval(driver) {
+      return normalizeStatus(
+        driver?.approval_status ||
+        driver?.driver_approval_status ||
+        driver?.verification_status ||
+        driver?.status ||
+        "pending"
+      );
+    }
+
+    function deriveAvailability(driver) {
+      return normalizeStatus(
+        driver?.availability_status ||
+        driver?.online_status ||
+        (driver?.is_online === true ? "online" : "") ||
+        driver?.status ||
+        "offline"
+      );
+    }
+
+    function deriveDriverType(driver) {
+      const raw = normalizeStatus(
+        driver?.driver_type ||
+        driver?.mode ||
+        driver?.preferred_mode ||
+        "driver"
+      );
+      return raw === "autonomous" ? "autonomous" : "driver";
     }
 
     function missionActionState() {
       const mission = state.mission;
-      const status = String(mission?.status || "").toLowerCase();
+      const driverLoaded = !!state.driverId;
 
-      els.acceptBtn.disabled = !(mission && (status === "awaiting_driver_acceptance" || status === "offered"));
-      els.rejectBtn.disabled = !(mission && (status === "awaiting_driver_acceptance" || status === "offered"));
-      els.enRouteBtn.disabled = !(mission && (status === "accepted" || status === "dispatched"));
-      els.arrivedBtn.disabled = !(mission && status === "driver_en_route");
-      els.startBtn.disabled = !(mission && status === "arrived");
-      els.completeBtn.disabled = !(mission && status === "in_progress");
+      [els.acceptBtn, els.rejectBtn, els.enRouteBtn, els.arrivedBtn, els.startBtn, els.completeBtn]
+        .forEach((btn) => {
+          if (btn && btn.dataset.locked !== "true") btn.disabled = true;
+        });
+
+      if (!driverLoaded || !mission || state.isBusy) return;
+
+      const status = normalizeStatus(mission?.status);
+
+      if (status === "awaiting_driver_acceptance" || status === "offered") {
+        els.acceptBtn.disabled = false;
+        els.rejectBtn.disabled = false;
+      }
+
+      if (status === "accepted" || status === "dispatched") {
+        els.enRouteBtn.disabled = false;
+      }
+
+      if (status === "driver_en_route") {
+        els.arrivedBtn.disabled = false;
+      }
+
+      if (status === "arrived") {
+        els.startBtn.disabled = false;
+      }
+
+      if (status === "in_progress") {
+        els.completeBtn.disabled = false;
+      }
+    }
+
+    function storeDriverSession(driver) {
+      const driverId = driver?.id || state.driverId || "";
+      const email = driver?.email || state.driverEmail || "";
+
+      if (driverId) {
+        state.driverId = String(driverId);
+        localStorage.setItem(STORAGE.driverId, String(driverId));
+      }
+
+      if (email) {
+        state.driverEmail = String(email).toLowerCase();
+        localStorage.setItem(STORAGE.driverEmail, state.driverEmail);
+      }
+
+      if (driver) {
+        localStorage.setItem(STORAGE.driverProfile, JSON.stringify(driver));
+      }
+    }
+
+    function clearDriverSession() {
+      state.driverId = "";
+      state.driverEmail = "";
+      state.driver = null;
+      state.mission = null;
+      state.dashboard = null;
+
+      localStorage.removeItem(STORAGE.driverId);
+      localStorage.removeItem(STORAGE.driverEmail);
+      localStorage.removeItem(STORAGE.driverProfile);
+
+      stopPolling();
+      renderAll();
+    }
+
+    function applySavedFields() {
+      if (state.driverEmail) {
+        els.driverEmail.value = state.driverEmail;
+      }
+      if (state.driverId) {
+        els.driverIdManual.value = state.driverId;
+      }
+      const lastAddress = localStorage.getItem(STORAGE.lastAddress) || "";
+      if (lastAddress) {
+        els.driverAddress.value = lastAddress;
+      }
     }
 
     function renderProfile() {
@@ -1027,6 +1236,7 @@
         setPill(els.snapApproval, "Pending", "pill-gold");
         setPill(els.snapAvailability, "Offline", "pill-red");
         setPill(els.snapMission, "None", "pill-blue");
+        setPill(els.snapPolling, "Off", "pill-blue");
 
         els.profileName.textContent = "—";
         els.profileEmail.textContent = "—";
@@ -1035,22 +1245,25 @@
         els.profileVehicle.textContent = "—";
         els.profileDriverType.textContent = "—";
         els.profileBackground.textContent = "—";
+        els.profileLastAddress.textContent = "—";
 
+        els.statCompleted.textContent = "0";
+        els.statActive.textContent = "0";
+        els.statEarnings.textContent = "$0.00";
         els.statStatus.textContent = "Offline";
+        els.statMode.textContent = "Driver";
         return;
       }
 
-      const approval =
-        String(d.approval_status || d.verification_status || d.status || "pending").toLowerCase();
-
-      const availability =
-        String(
-          d.availability_status ||
-          d.online_status ||
-          (d.is_online === true ? "online" : "") ||
-          d.status ||
-          "offline"
-        ).toLowerCase();
+      const approval = deriveApproval(d);
+      const availability = deriveAvailability(d);
+      const driverType = deriveDriverType(d);
+      const lastAddress =
+        d.current_address ||
+        d.last_known_address ||
+        d.service_address ||
+        localStorage.getItem(STORAGE.lastAddress) ||
+        "—";
 
       els.snapDriverId.textContent = d.id || state.driverId || "—";
 
@@ -1076,44 +1289,55 @@
         state.mission ? "pill-cyan" : "pill-blue"
       );
 
+      setPill(
+        els.snapPolling,
+        state.isPolling ? "Live" : "Off",
+        state.isPolling ? "pill-green" : "pill-blue"
+      );
+
       els.profileName.textContent =
         [d.first_name, d.last_name].filter(Boolean).join(" ") ||
         d.full_name ||
+        d.name ||
         "—";
 
       els.profileEmail.textContent = d.email || "—";
       els.profilePhone.textContent = d.phone || "—";
       els.profileLocation.textContent =
-        [d.city, d.state].filter(Boolean).join(", ") || "—";
+        [d.city, d.state].filter(Boolean).join(", ") ||
+        d.service_area ||
+        d.region ||
+        "—";
 
       els.profileVehicle.textContent =
         [d.vehicle_year, d.vehicle_make, d.vehicle_model, d.vehicle_color]
           .filter(Boolean)
           .join(" ") ||
+        d.vehicle_name ||
         "—";
 
-      els.profileDriverType.textContent = titleCase(d.driver_type || "human");
+      els.profileDriverType.textContent = titleCase(driverType);
       els.profileBackground.textContent = titleCase(
         d.background_check_status ||
         d.verification_status ||
+        d.document_status ||
         "pending"
       );
+      els.profileLastAddress.textContent = lastAddress;
 
       els.availabilityStatus.value =
-        availability === "online" || availability === "available" || availability === "busy"
+        ["offline", "online", "available", "busy"].includes(availability)
           ? availability
           : "offline";
 
-      els.availabilityMode.value = d.driver_type === "autonomous" ? "autonomous" : "driver";
+      els.availabilityMode.value = driverType === "autonomous" ? "autonomous" : "driver";
 
-      if (safeNumber(d.current_latitude) !== null) {
-        els.driverLat.value = d.current_latitude;
-      }
-      if (safeNumber(d.current_longitude) !== null) {
-        els.driverLng.value = d.current_longitude;
+      if (!els.driverAddress.value && lastAddress && lastAddress !== "—") {
+        els.driverAddress.value = lastAddress;
       }
 
       els.statStatus.textContent = titleCase(availability);
+      els.statMode.textContent = titleCase(driverType);
     }
 
     function renderMission() {
@@ -1163,28 +1387,33 @@
         m.estimated_fare ??
         0;
 
-      const distance =
-        Number(
-          m.distance_miles ??
-          m.estimated_distance_miles ??
-          0
-        );
+      const distance = Number(
+        m.distance_miles ??
+        m.estimated_distance_miles ??
+        m.route_distance_miles ??
+        0
+      );
 
-      const duration =
-        Number(
-          m.duration_minutes ??
-          m.estimated_duration_minutes ??
-          0
-        );
+      const duration = Number(
+        m.duration_minutes ??
+        m.estimated_duration_minutes ??
+        m.route_duration_minutes ??
+        0
+      );
+
+      const riderName =
+        [m.rider_first_name, m.rider_last_name].filter(Boolean).join(" ") ||
+        m.rider_name ||
+        "Passenger";
 
       els.missionWrap.innerHTML = `
         <div class="mission-box">
           <div class="mission-head">
             <div>
-              <h4 style="font-size:1rem;margin-bottom:6px;">Mission #${m.id || m.ride_id || "—"}</h4>
-              <div class="muted">${rideType} • ${requestedMode}</div>
+              <h4 style="font-size:1rem;margin-bottom:6px;">Mission #${escapeHtml(m.id || m.ride_id || m.mission_id || "—")}</h4>
+              <div class="muted">${escapeHtml(rideType)} • ${escapeHtml(requestedMode)} • ${escapeHtml(riderName)}</div>
             </div>
-            <div class="pill pill-cyan">${status}</div>
+            <div class="pill pill-cyan">${escapeHtml(status)}</div>
           </div>
 
           <div class="mission-route">
@@ -1192,7 +1421,7 @@
               <div class="route-icon pickup">P</div>
               <div class="route-copy">
                 <strong>Pickup</strong>
-                <span>${m.pickup_address || "—"}</span>
+                <span>${escapeHtml(m.pickup_address || "—")}</span>
               </div>
             </div>
 
@@ -1200,7 +1429,7 @@
               <div class="route-icon dropoff">D</div>
               <div class="route-copy">
                 <strong>Dropoff</strong>
-                <span>${m.dropoff_address || "—"}</span>
+                <span>${escapeHtml(m.dropoff_address || "—")}</span>
               </div>
             </div>
           </div>
@@ -1208,23 +1437,27 @@
           <div class="detail-list">
             <div class="detail-row">
               <span>Payout Estimate</span>
-              <strong>${money(payout)}</strong>
+              <strong>${escapeHtml(money(payout))}</strong>
             </div>
             <div class="detail-row">
               <span>Distance</span>
-              <strong>${distance.toFixed(2)} miles</strong>
+              <strong>${escapeHtml(distance.toFixed(2))} miles</strong>
             </div>
             <div class="detail-row">
               <span>Duration</span>
-              <strong>${duration.toFixed(0)} minutes</strong>
+              <strong>${escapeHtml(duration.toFixed(0))} minutes</strong>
+            </div>
+            <div class="detail-row">
+              <span>Rider Phone</span>
+              <strong>${escapeHtml(m.rider_phone || "Not available")}</strong>
             </div>
             <div class="detail-row">
               <span>Notes</span>
-              <strong>${m.notes || "No special notes provided."}</strong>
+              <strong>${escapeHtml(m.notes || "No special notes provided.")}</strong>
             </div>
             <div class="detail-row">
               <span>Scheduled Time</span>
-              <strong>${m.scheduled_at || m.scheduled_time || "Immediate request"}</strong>
+              <strong>${escapeHtml(m.scheduled_at || m.scheduled_time || "Immediate request")}</strong>
             </div>
           </div>
         </div>
@@ -1234,7 +1467,7 @@
     }
 
     function renderActivity() {
-      const dash = state.dashboard;
+      const dash = state.dashboard || {};
       const recent = pickRecentRides(dash);
       const completed =
         Number(dash?.stats?.completed_rides ?? dash?.completed_rides ?? 0);
@@ -1243,7 +1476,7 @@
         Number(dash?.stats?.active_rides ?? dash?.active_rides ?? (state.mission ? 1 : 0));
 
       const earnings =
-        Number(dash?.stats?.estimated_earnings ?? dash?.estimated_earnings ?? 0);
+        Number(dash?.stats?.estimated_earnings ?? dash?.estimated_earnings ?? dash?.driver_earnings_total ?? 0);
 
       els.statCompleted.textContent = String(completed);
       els.statActive.textContent = String(active);
@@ -1259,75 +1492,98 @@
         return;
       }
 
-      els.activityList.innerHTML = recent.map((ride) => `
-        <div class="activity-item">
-          <h4>${titleCase(ride.status || "ride")} • ${money(ride.estimated_driver_payout ?? ride.driver_payout ?? ride.estimated_fare ?? 0)}</h4>
-          <p>
-            <strong>Pickup:</strong> ${ride.pickup_address || "—"}<br />
-            <strong>Dropoff:</strong> ${ride.dropoff_address || "—"}<br />
-            <strong>Ride Type:</strong> ${titleCase(ride.ride_type || "standard")}<br />
-            <strong>Requested Mode:</strong> ${titleCase(ride.requested_mode || "driver")}
-          </p>
-        </div>
-      `).join("");
+      els.activityList.innerHTML = recent.map((ride) => {
+        const payout = ride.estimated_driver_payout ?? ride.driver_payout ?? ride.estimated_fare ?? 0;
+        return `
+          <div class="activity-item">
+            <h4>${escapeHtml(titleCase(ride.status || "ride"))} • ${escapeHtml(money(payout))}</h4>
+            <p>
+              <strong>Pickup:</strong> ${escapeHtml(ride.pickup_address || "—")}<br />
+              <strong>Dropoff:</strong> ${escapeHtml(ride.dropoff_address || "—")}<br />
+              <strong>Ride Type:</strong> ${escapeHtml(titleCase(ride.ride_type || "standard"))}<br />
+              <strong>Requested Mode:</strong> ${escapeHtml(titleCase(ride.requested_mode || "driver"))}
+            </p>
+          </div>
+        `;
+      }).join("");
     }
 
     function renderAll() {
       renderProfile();
       renderMission();
       renderActivity();
+      missionActionState();
     }
 
-    async function loadDriverById(driverId) {
-      if (!driverId) {
-        showMsg(els.loginMsg, "Enter a driver ID first.", false);
+    async function tryDashboardEndpoints(driverId) {
+      const attempts = [
+        () => api(`/api/drivers/${encodeURIComponent(driverId)}/dashboard`),
+        () => api(`/api/driver/${encodeURIComponent(driverId)}/dashboard`),
+        () => api(`/api/driver/${encodeURIComponent(driverId)}/current-ride`),
+        () => api(`/api/drivers/${encodeURIComponent(driverId)}/current-ride`),
+        () => api("/api/driver/status", {
+          method: "POST",
+          body: JSON.stringify({ driver_id: driverId })
+        })
+      ];
+
+      let lastError = null;
+
+      for (const attempt of attempts) {
+        try {
+          const data = await attempt();
+          if (data) return data;
+        } catch (error) {
+          lastError = error;
+        }
+      }
+
+      throw lastError || new Error("Unable to load driver dashboard.");
+    }
+
+    async function loadDriverById(driverId, { silent = false } = {}) {
+      const cleanId = String(driverId || "").trim();
+      if (!cleanId) {
+        if (!silent) showMsg(els.loginMsg, "Enter a driver ID first.", false);
         return;
       }
 
-      clearMsg(els.loginMsg);
+      if (!silent) clearMsg(els.loginMsg);
 
       try {
-        let dashboard = null;
+        setBusy(true);
 
-        try {
-          dashboard = await api(`/api/driver/${encodeURIComponent(driverId)}/current-ride`);
-        } catch (e) {
-          dashboard = null;
-        }
+        const dashboard = await tryDashboardEndpoints(cleanId);
 
-        if (!dashboard || (!dashboard.driver && !dashboard.ride && !dashboard.mission)) {
-          try {
-            dashboard = await api(`/api/drivers/${encodeURIComponent(driverId)}/dashboard`);
-          } catch (e) {
-            dashboard = null;
-          }
-        }
-
-        if (!dashboard) {
-          const driverStatus = await api("/api/driver/status", {
-            method: "POST",
-            body: JSON.stringify({ driver_id: driverId })
-          });
-
-          dashboard = {
-            driver: driverStatus.driver || null,
-            current_mission: null,
-            recent_rides: [],
-            stats: {}
-          };
-        }
-
-        state.driverId = driverId;
+        state.driverId = cleanId;
         state.driver = pickDriverFromPayload(dashboard) || dashboard.driver || null;
         state.mission = pickMissionFromPayload(dashboard) || null;
-        state.dashboard = dashboard;
+        state.dashboard = dashboard || {};
 
-        localStorage.setItem("harvey_driver_id", driverId);
+        if (!state.driver && localStorage.getItem(STORAGE.driverProfile)) {
+          try {
+            state.driver = JSON.parse(localStorage.getItem(STORAGE.driverProfile) || "{}");
+          } catch (_) {}
+        }
+
+        if (state.driver) {
+          storeDriverSession(state.driver);
+        } else {
+          localStorage.setItem(STORAGE.driverId, cleanId);
+        }
 
         renderAll();
-        showMsg(els.loginMsg, "Driver dashboard loaded.", true);
+        startPolling();
+
+        if (!silent) {
+          showMsg(els.loginMsg, "Driver dashboard loaded.", true);
+        }
       } catch (error) {
-        showMsg(els.loginMsg, error.message || "Failed to load driver dashboard.", false);
+        if (!silent) {
+          showMsg(els.loginMsg, error.message || "Failed to load driver dashboard.", false);
+        }
+      } finally {
+        setBusy(false);
       }
     }
 
@@ -1343,7 +1599,10 @@
       clearMsg(els.loginMsg);
 
       try {
+        setBusy(true);
+
         let driverId = "";
+        let driverObj = null;
 
         try {
           const data = await api("/api/driver/login", {
@@ -1351,33 +1610,48 @@
             body: JSON.stringify({ email, password })
           });
           driverId = data.driver_id || data.driver?.id || "";
-        } catch (e) {
+          driverObj = data.driver || null;
+        } catch (_) {
           const status = await api("/api/driver/status", {
             method: "POST",
             body: JSON.stringify({ email })
           });
           driverId = status.driver?.id || "";
+          driverObj = status.driver || null;
         }
 
         if (!driverId) {
           throw new Error("Driver ID was not returned.");
         }
 
+        state.driverEmail = email;
+        localStorage.setItem(STORAGE.driverEmail, email);
+
+        if (driverObj) {
+          storeDriverSession(driverObj);
+        }
+
         await loadDriverById(driverId);
       } catch (error) {
         showMsg(els.loginMsg, error.message || "Driver login failed.", false);
+      } finally {
+        setBusy(false);
       }
     }
 
-    async function refreshDashboard() {
+    async function refreshDashboard({ silent = false } = {}) {
       if (!state.driverId) {
-        showMsg(els.globalMsg, "Load a driver first.", false);
+        if (!silent) showMsg(els.globalMsg, "Load a driver first.", false);
         return;
       }
 
-      clearMsg(els.globalMsg);
-      await loadDriverById(state.driverId);
-      showMsg(els.globalMsg, "Dashboard refreshed.", true);
+      if (!silent) clearMsg(els.globalMsg);
+
+      await loadDriverById(state.driverId, { silent: true });
+
+      if (!silent) {
+        showMsg(els.globalMsg, "Dashboard refreshed.", true);
+      }
     }
 
     async function saveAvailability(statusOverride = null) {
@@ -1389,9 +1663,12 @@
       clearMsg(els.availabilityMsg);
 
       try {
-        const status = statusOverride || els.availabilityStatus.value;
-        const latitude = els.driverLat.value.trim();
-        const longitude = els.driverLng.value.trim();
+        setBusy(true);
+
+        const status = normalizeStatus(statusOverride || els.availabilityStatus.value);
+        const preferredMode = normalizeStatus(els.availabilityMode.value || "driver");
+        const address = els.driverAddress.value.trim();
+        const notes = els.driverNotes.value.trim();
 
         let updated = false;
 
@@ -1399,37 +1676,80 @@
           if (status === "offline") {
             await api("/api/driver/go-offline", {
               method: "POST",
-              body: JSON.stringify({ driver_id: state.driverId })
+              body: JSON.stringify({
+                driver_id: state.driverId,
+                preferred_mode: preferredMode
+              })
             });
           } else {
             await api("/api/driver/go-online", {
               method: "POST",
-              body: JSON.stringify({ driver_id: state.driverId })
+              body: JSON.stringify({
+                driver_id: state.driverId,
+                preferred_mode: preferredMode,
+                availability_status: status
+              })
             });
           }
           updated = true;
-        } catch (e) {}
+        } catch (_) {}
 
-        if (latitude !== "" && longitude !== "") {
-          await api("/api/driver/location", {
-            method: "POST",
-            body: JSON.stringify({
-              driver_id: state.driverId,
-              latitude: Number(latitude),
-              longitude: Number(longitude)
+        if (address || notes || preferredMode) {
+          const profileAttempts = [
+            () => api("/api/driver/location", {
+              method: "POST",
+              body: JSON.stringify({
+                driver_id: state.driverId,
+                address,
+                notes,
+                preferred_mode: preferredMode
+              })
+            }),
+            () => api("/api/driver/update-availability", {
+              method: "POST",
+              body: JSON.stringify({
+                driver_id: state.driverId,
+                availability_status: status,
+                preferred_mode: preferredMode,
+                address,
+                notes
+              })
+            }),
+            () => api("/api/drivers/update", {
+              method: "POST",
+              body: JSON.stringify({
+                driver_id: state.driverId,
+                availability_status: status,
+                driver_type: preferredMode,
+                current_address: address,
+                notes
+              })
             })
-          });
-          updated = true;
+          ];
+
+          for (const attempt of profileAttempts) {
+            try {
+              await attempt();
+              updated = true;
+              break;
+            } catch (_) {}
+          }
         }
 
         if (!updated) {
           throw new Error("Availability update service is unavailable.");
         }
 
-        await loadDriverById(state.driverId);
+        if (address) {
+          localStorage.setItem(STORAGE.lastAddress, address);
+        }
+
+        await loadDriverById(state.driverId, { silent: true });
         showMsg(els.availabilityMsg, "Driver availability updated.", true);
       } catch (error) {
         showMsg(els.availabilityMsg, error.message || "Failed to update availability.", false);
+      } finally {
+        setBusy(false);
       }
     }
 
@@ -1450,91 +1770,197 @@
       const dispatchId = state.mission.dispatch_id || "";
       const rideId = state.mission.ride_id || state.mission.id || "";
 
+      const routes = {
+        accept: [
+          ["/api/mission/accept", { mission_id: missionId, dispatch_id: dispatchId, driver_id: state.driverId, ride_id: rideId }],
+          ["/api/driver/mission/accept", { mission_id: missionId, dispatch_id: dispatchId, driver_id: state.driverId, ride_id: rideId }]
+        ],
+        reject: [
+          ["/api/mission/decline", { mission_id: missionId, dispatch_id: dispatchId, driver_id: state.driverId, ride_id: rideId, reason: "driver_rejected_from_dashboard" }],
+          ["/api/driver/mission/decline", { mission_id: missionId, dispatch_id: dispatchId, driver_id: state.driverId, ride_id: rideId, reason: "driver_rejected_from_dashboard" }]
+        ],
+        enroute: [
+          ["/api/mission/en-route", { mission_id: missionId, ride_id: rideId, driver_id: state.driverId }],
+          ["/api/mission/enroute", { mission_id: missionId, ride_id: rideId, driver_id: state.driverId }]
+        ],
+        arrived: [
+          ["/api/mission/arrived", { mission_id: missionId, ride_id: rideId, driver_id: state.driverId }]
+        ],
+        start: [
+          ["/api/mission/start-trip", { mission_id: missionId, ride_id: rideId, driver_id: state.driverId }],
+          ["/api/mission/start", { mission_id: missionId, ride_id: rideId, driver_id: state.driverId }]
+        ],
+        complete: [
+          ["/api/mission/complete", { mission_id: missionId, ride_id: rideId, driver_id: state.driverId }],
+          ["/api/mission/complete-trip", { mission_id: missionId, ride_id: rideId, driver_id: state.driverId }]
+        ]
+      };
+
+      const successText = {
+        accept: "Ride accepted.",
+        reject: "Ride rejected and redispatch started.",
+        enroute: "Mission marked en route.",
+        arrived: "Mission marked arrived.",
+        start: "Ride started.",
+        complete: "Ride completed."
+      };
+
       try {
-        if (type === "accept") {
-          await api("/api/mission/accept", {
-            method: "POST",
-            body: JSON.stringify({
-              mission_id: missionId,
-              dispatch_id: dispatchId,
-              driver_id: state.driverId
-            })
-          });
-          showMsg(els.missionMsg, "Ride accepted.", true);
+        setBusy(true);
+
+        const btnMap = {
+          accept: els.acceptBtn,
+          reject: els.rejectBtn,
+          enroute: els.enRouteBtn,
+          arrived: els.arrivedBtn,
+          start: els.startBtn,
+          complete: els.completeBtn
+        };
+
+        if (btnMap[type]) {
+          btnMap[type].dataset.locked = "true";
         }
 
-        if (type === "reject") {
-          await api("/api/mission/decline", {
-            method: "POST",
-            body: JSON.stringify({
-              mission_id: missionId,
-              dispatch_id: dispatchId,
-              driver_id: state.driverId,
-              reason: "driver_rejected_from_dashboard"
-            })
-          });
-          showMsg(els.missionMsg, "Ride rejected and redispatch started.", true);
+        let succeeded = false;
+        let lastError = null;
+
+        for (const [endpoint, body] of routes[type] || []) {
+          try {
+            await api(endpoint, {
+              method: "POST",
+              body: JSON.stringify(body)
+            });
+            succeeded = true;
+            break;
+          } catch (error) {
+            lastError = error;
+          }
         }
 
-        if (type === "enroute") {
-          await api("/api/mission/en-route", {
-            method: "POST",
-            body: JSON.stringify({ mission_id: missionId })
-          });
-          showMsg(els.missionMsg, "Mission marked en route.", true);
+        if (!succeeded) {
+          throw lastError || new Error("Mission action failed.");
         }
 
-        if (type === "arrived") {
-          await api("/api/mission/arrived", {
-            method: "POST",
-            body: JSON.stringify({ mission_id: missionId })
-          });
-          showMsg(els.missionMsg, "Mission marked arrived.", true);
-        }
-
-        if (type === "start") {
-          await api("/api/mission/start-trip", {
-            method: "POST",
-            body: JSON.stringify({ mission_id: missionId })
-          });
-          showMsg(els.missionMsg, "Ride started.", true);
-        }
-
-        if (type === "complete") {
-          await api("/api/mission/complete", {
-            method: "POST",
-            body: JSON.stringify({ mission_id: missionId })
-          });
-          showMsg(els.missionMsg, "Ride completed.", true);
-        }
-
-        await loadDriverById(state.driverId);
+        showMsg(els.missionMsg, successText[type] || "Mission updated.", true);
+        await loadDriverById(state.driverId, { silent: true });
       } catch (error) {
         showMsg(els.missionMsg, error.message || "Mission action failed.", false);
+      } finally {
+        const btnMap = {
+          accept: els.acceptBtn,
+          reject: els.rejectBtn,
+          enroute: els.enRouteBtn,
+          arrived: els.arrivedBtn,
+          start: els.startBtn,
+          complete: els.completeBtn
+        };
+        if (btnMap[type]) {
+          delete btnMap[type].dataset.locked;
+        }
+        setBusy(false);
       }
     }
 
-    els.driverLoginBtn.addEventListener("click", loginDriver);
-    els.loadByIdBtn.addEventListener("click", () => {
-      loadDriverById(els.driverIdManual.value.trim());
-    });
-    els.refreshAllBtn.addEventListener("click", refreshDashboard);
-    els.goAvailableBtn.addEventListener("click", () => saveAvailability("online"));
-    els.goOfflineBtn.addEventListener("click", () => saveAvailability("offline"));
-    els.saveAvailabilityBtn.addEventListener("click", () => saveAvailability());
-    els.acceptBtn.addEventListener("click", () => missionAction("accept"));
-    els.rejectBtn.addEventListener("click", () => missionAction("reject"));
-    els.enRouteBtn.addEventListener("click", () => missionAction("enroute"));
-    els.arrivedBtn.addEventListener("click", () => missionAction("arrived"));
-    els.startBtn.addEventListener("click", () => missionAction("start"));
-    els.completeBtn.addEventListener("click", () => missionAction("complete"));
-
-    if (state.driverId) {
-      els.driverIdManual.value = state.driverId;
-      loadDriverById(state.driverId);
-    } else {
-      renderAll();
+    function stopPolling() {
+      if (state.poller) {
+        clearInterval(state.poller);
+        state.poller = null;
+      }
+      state.isPolling = false;
+      renderProfile();
     }
+
+    function startPolling() {
+      stopPolling();
+
+      if (!state.driverId) return;
+
+      state.isPolling = true;
+      renderProfile();
+
+      state.poller = setInterval(async () => {
+        if (!state.driverId || state.isBusy) return;
+        try {
+          await loadDriverById(state.driverId, { silent: true });
+        } catch (_) {}
+      }, state.pollMs);
+    }
+
+    function logoutDriver() {
+      clearDriverSession();
+      els.driverEmail.value = "";
+      els.driverPassword.value = "";
+      els.driverIdManual.value = "";
+      els.driverAddress.value = localStorage.getItem(STORAGE.lastAddress) || "";
+      els.driverNotes.value = "";
+      clearMsg(els.globalMsg);
+      clearMsg(els.loginMsg);
+      clearMsg(els.missionMsg);
+      clearMsg(els.availabilityMsg);
+      showMsg(els.globalMsg, "Driver session cleared.", true);
+    }
+
+    function wireEvents() {
+      els.driverLoginBtn.addEventListener("click", loginDriver);
+      els.loadByIdBtn.addEventListener("click", () => {
+        loadDriverById(els.driverIdManual.value.trim());
+      });
+      els.refreshAllBtn.addEventListener("click", () => refreshDashboard());
+      els.goAvailableBtn.addEventListener("click", () => {
+        els.availabilityStatus.value = "online";
+        saveAvailability("online");
+      });
+      els.goOfflineBtn.addEventListener("click", () => {
+        els.availabilityStatus.value = "offline";
+        saveAvailability("offline");
+      });
+      els.saveAvailabilityBtn.addEventListener("click", () => saveAvailability());
+      els.logoutBtn.addEventListener("click", logoutDriver);
+
+      els.acceptBtn.addEventListener("click", () => missionAction("accept"));
+      els.rejectBtn.addEventListener("click", () => missionAction("reject"));
+      els.enRouteBtn.addEventListener("click", () => missionAction("enroute"));
+      els.arrivedBtn.addEventListener("click", () => missionAction("arrived"));
+      els.startBtn.addEventListener("click", () => missionAction("start"));
+      els.completeBtn.addEventListener("click", () => missionAction("complete"));
+
+      els.driverEmail.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") loginDriver();
+      });
+
+      els.driverPassword.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") loginDriver();
+      });
+
+      els.driverIdManual.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") loadDriverById(els.driverIdManual.value.trim());
+      });
+
+      window.addEventListener("beforeunload", stopPolling);
+
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) {
+          stopPolling();
+        } else if (state.driverId) {
+          startPolling();
+          refreshDashboard({ silent: true });
+        }
+      });
+    }
+
+    async function bootstrap() {
+      applySavedFields();
+      renderAll();
+      wireEvents();
+
+      if (state.driverId) {
+        await loadDriverById(state.driverId, { silent: true });
+      } else if (state.driverEmail) {
+        els.driverEmail.value = state.driverEmail;
+      }
+    }
+
+    bootstrap();
   </script>
 </body>
-              </html>
+  </html>
