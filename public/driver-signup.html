@@ -20,8 +20,8 @@
       --bg-3: #101a36;
       --panel: rgba(10, 18, 42, 0.92);
       --panel-soft: rgba(13, 24, 54, 0.78);
-      --glass: rgba(255,255,255,0.04);
-      --line: rgba(111, 170, 255, 0.2);
+      --glass: rgba(255, 255, 255, 0.04);
+      --line: rgba(111, 170, 255, 0.20);
       --line-strong: rgba(111, 170, 255, 0.38);
       --text: #f4f8ff;
       --muted: #b9c7e8;
@@ -37,6 +37,12 @@
       --radius-md: 22px;
       --radius-sm: 18px;
       --focus: 0 0 0 3px rgba(98, 245, 255, 0.16);
+      --ok-bg: rgba(113, 255, 183, 0.12);
+      --ok-border: rgba(113, 255, 183, 0.24);
+      --error-bg: rgba(255, 126, 144, 0.12);
+      --error-border: rgba(255, 126, 144, 0.24);
+      --info-bg: rgba(98, 245, 255, 0.10);
+      --info-border: rgba(98, 245, 255, 0.18);
     }
 
     * {
@@ -56,7 +62,7 @@
       background:
         radial-gradient(circle at top left, rgba(98, 245, 255, 0.12), transparent 28%),
         radial-gradient(circle at top right, rgba(104, 168, 255, 0.12), transparent 24%),
-        radial-gradient(circle at 50% 115%, rgba(113,255,183,.07), transparent 24%),
+        radial-gradient(circle at 50% 115%, rgba(113, 255, 183, 0.07), transparent 24%),
         linear-gradient(160deg, var(--bg-1), var(--bg-2) 45%, var(--bg-3));
       overflow-x: hidden;
     }
@@ -369,10 +375,6 @@
       overflow: visible;
     }
 
-    .section-card.hidden {
-      display: none;
-    }
-
     .section-title {
       display: flex;
       align-items: center;
@@ -682,20 +684,20 @@
     }
 
     .status.success {
-      background: rgba(113,255,183,0.12);
-      border: 1px solid rgba(113,255,183,0.22);
+      background: var(--ok-bg);
+      border: 1px solid var(--ok-border);
       color: var(--text);
     }
 
     .status.error {
-      background: rgba(255,126,144,0.12);
-      border: 1px solid rgba(255,126,144,0.22);
+      background: var(--error-bg);
+      border: 1px solid var(--error-border);
       color: var(--text);
     }
 
     .status.info {
-      background: rgba(98,245,255,0.10);
-      border: 1px solid rgba(98,245,255,0.18);
+      background: var(--info-bg);
+      border: 1px solid var(--info-border);
       color: var(--text);
     }
 
@@ -1263,7 +1265,7 @@
       }
     }
 
-    async function api(path, options = {}) {
+    async function requestJson(path, options = {}) {
       const response = await fetch(`${apiBase()}${path}`, {
         headers: {
           "Content-Type": "application/json",
@@ -1274,11 +1276,28 @@
 
       const data = await readJsonSafe(response);
 
-      if (!response.ok || !(data.ok || data.success)) {
+      if (!response.ok) {
         throw new Error(data.error || data.message || "Request failed.");
       }
 
       return data;
+    }
+
+    async function tryApi(paths, optionsBuilder) {
+      let lastError = null;
+
+      for (const path of paths) {
+        try {
+          const response = await requestJson(path, optionsBuilder(path));
+          if (response && (response.ok === true || response.success === true || typeof response === "object")) {
+            return response;
+          }
+        } catch (error) {
+          lastError = error;
+        }
+      }
+
+      throw lastError || new Error("Request failed.");
     }
 
     function selectedDriverType() {
@@ -1326,60 +1345,41 @@
       return `***-***-${digits.slice(-4)}`;
     }
 
-    function toggleConsentCardState() {
-      checkboxIds.forEach((id) => {
-        const input = document.getElementById(id);
-        const card = input?.closest(".consent-card");
-        if (!input || !card) return;
-        card.classList.toggle("active", input.checked);
-      });
-      updateFormHint();
+    function normalizeBoolean(value) {
+      return value === true || value === "true" || value === 1 || value === "1";
     }
 
-    function formReady() {
-      const textFieldsReady = textFieldIds.every((id) => {
-        const el = document.getElementById(id);
-        if (!el) return false;
-        if (id === "vehicleYear") {
-          return onlyDigits(el.value).length === 4;
+    function normalizeDriverPayload(rawPayload) {
+      return {
+        first_name: rawPayload.firstName,
+        last_name: rawPayload.lastName,
+        email: rawPayload.email,
+        phone: rawPayload.phone,
+        city: rawPayload.city,
+        state: rawPayload.state,
+        password: rawPayload.password,
+        drivers_license_number: rawPayload.licenseNumber,
+        vehicle_make: rawPayload.vehicleMake,
+        vehicle_model: rawPayload.vehicleModel,
+        vehicle_year: rawPayload.vehicleYear,
+        vehicle_color: rawPayload.vehicleColor || null,
+        license_plate: rawPayload.licensePlate,
+        driver_type: rawPayload.driverType,
+
+        accepted_terms: rawPayload.consents.termsAccepted,
+        accepted_background_check_consent: rawPayload.consents.backgroundCheckAccepted,
+        accepted_driver_policy: rawPayload.consents.insuranceConfirmed,
+
+        terms_accepted: rawPayload.consents.termsAccepted,
+        background_check_accepted: rawPayload.consents.backgroundCheckAccepted,
+        insurance_confirmed: rawPayload.consents.insuranceConfirmed,
+
+        consents: {
+          termsAccepted: rawPayload.consents.termsAccepted,
+          backgroundCheckAccepted: rawPayload.consents.backgroundCheckAccepted,
+          insuranceConfirmed: rawPayload.consents.insuranceConfirmed
         }
-        return el.value.trim().length > 0;
-      });
-
-      const emailValid = isEmailLikelyValid(document.getElementById("email").value);
-      const phoneValid = onlyDigits(document.getElementById("phone").value).length >= 10;
-
-      const consentsReady = checkboxIds.every((id) => {
-        const el = document.getElementById(id);
-        return !!(el && el.checked);
-      });
-
-      return textFieldsReady && consentsReady && emailValid && phoneValid;
-    }
-
-    function updateFormHint() {
-      if (formReady()) {
-        formHint.classList.add("ready");
-        formHint.textContent = "All required fields and acknowledgments are complete.";
-      } else {
-        formHint.classList.remove("ready");
-        formHint.textContent = "Complete all required fields and tap all three acknowledgment cards.";
-      }
-    }
-
-    function setPill(pillEl, state) {
-      if (state === "verified") {
-        pillEl.className = "pill ok";
-        pillEl.textContent = "Verified";
-        return;
-      }
-      if (state === "failed") {
-        pillEl.className = "pill bad";
-        pillEl.textContent = "Action Needed";
-        return;
-      }
-      pillEl.className = "pill pending";
-      pillEl.textContent = "Pending";
+      };
     }
 
     function persistDriverProfile(profile) {
@@ -1413,26 +1413,19 @@
         `Driver ID: ${onboardingState.driverId || "Created"} • Email: ${maskEmail(onboardingState.email)} • Phone: ${maskPhone(onboardingState.phone)}`;
     }
 
-    function showVerificationSection() {
-      signupSection.style.display = "none";
-      verificationSection.classList.remove("hidden");
-      verificationBanner.classList.add("show");
-      verificationBanner.innerHTML = `
-        <strong>Driver application created.</strong><br>
-        Complete email verification and SMS verification to finish your driver onboarding flow.
-      `;
-      updateSavedDriverBox();
-      updateVerificationUI();
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
-
-    function hideVerificationSection() {
-      signupSection.style.display = "";
-      verificationSection.classList.add("hidden");
-      verificationBanner.classList.remove("show");
-      verificationBanner.innerHTML = "";
-      hideDashboardButton();
-      updateSavedDriverBox();
+    function setPill(el, state) {
+      if (state === "ok") {
+        el.className = "pill ok";
+        el.textContent = "Verified";
+        return;
+      }
+      if (state === "bad") {
+        el.className = "pill bad";
+        el.textContent = "Action Needed";
+        return;
+      }
+      el.className = "pill pending";
+      el.textContent = "Pending";
     }
 
     function updateVerificationUI() {
@@ -1444,8 +1437,8 @@
         ? `Verification code sent to ${maskPhone(onboardingState.phone)}`
         : "Waiting for phone number...";
 
-      setPill(emailPill, onboardingState.emailVerified ? "verified" : "pending");
-      setPill(smsPill, onboardingState.smsVerified ? "verified" : "pending");
+      setPill(emailPill, onboardingState.emailVerified ? "ok" : "pending");
+      setPill(smsPill, onboardingState.smsVerified ? "ok" : "pending");
 
       if (onboardingState.fullyVerified) {
         verificationNote.innerHTML = `
@@ -1493,20 +1486,26 @@
       try {
         const raw = localStorage.getItem(STORAGE.onboarding);
         if (!raw) {
-          const savedDriverId = localStorage.getItem(STORAGE.driverId) || localStorage.getItem(STORAGE.driverIdAlt) || "";
-          const savedEmail = localStorage.getItem(STORAGE.driverEmail) || "";
-          onboardingState.driverId = savedDriverId;
-          onboardingState.email = savedEmail;
+          onboardingState.driverId =
+            localStorage.getItem(STORAGE.driverId) ||
+            localStorage.getItem(STORAGE.driverIdAlt) ||
+            "";
+          onboardingState.email = localStorage.getItem(STORAGE.driverEmail) || "";
           return;
         }
+
         const parsed = JSON.parse(raw);
-        onboardingState.driverId = parsed.driverId || localStorage.getItem(STORAGE.driverId) || localStorage.getItem(STORAGE.driverIdAlt) || "";
+        onboardingState.driverId =
+          parsed.driverId ||
+          localStorage.getItem(STORAGE.driverId) ||
+          localStorage.getItem(STORAGE.driverIdAlt) ||
+          "";
         onboardingState.email = parsed.email || localStorage.getItem(STORAGE.driverEmail) || "";
         onboardingState.phone = parsed.phone || "";
-        onboardingState.emailVerified = parsed.emailVerified === true;
-        onboardingState.smsVerified = parsed.smsVerified === true;
-        onboardingState.fullyVerified = parsed.fullyVerified === true;
-        onboardingState.approved = parsed.approved === true;
+        onboardingState.emailVerified = normalizeBoolean(parsed.emailVerified);
+        onboardingState.smsVerified = normalizeBoolean(parsed.smsVerified);
+        onboardingState.fullyVerified = normalizeBoolean(parsed.fullyVerified);
+        onboardingState.approved = normalizeBoolean(parsed.approved);
         onboardingState.status = parsed.status || "pending";
       } catch {}
     }
@@ -1536,37 +1535,100 @@
       button.textContent = isLoading ? loadingText : defaultText;
     }
 
-    function normalizeDriverPayload(rawPayload) {
-      return {
-        first_name: rawPayload.firstName,
-        last_name: rawPayload.lastName,
-        email: rawPayload.email,
-        phone: rawPayload.phone,
-        city: rawPayload.city,
-        state: rawPayload.state,
-        password: rawPayload.password,
-        drivers_license_number: rawPayload.licenseNumber,
-        vehicle_make: rawPayload.vehicleMake,
-        vehicle_model: rawPayload.vehicleModel,
-        vehicle_year: rawPayload.vehicleYear,
-        vehicle_color: rawPayload.vehicleColor || null,
-        license_plate: rawPayload.licensePlate,
-        driver_type: rawPayload.driverType,
+    function toggleConsentCardState() {
+      checkboxIds.forEach((id) => {
+        const input = document.getElementById(id);
+        const card = input?.closest(".consent-card");
+        if (!input || !card) return;
+        card.classList.toggle("active", input.checked);
+      });
+      updateFormHint();
+    }
 
-        accepted_terms: rawPayload.consents.termsAccepted,
-        accepted_background_check_consent: rawPayload.consents.backgroundCheckAccepted,
-        accepted_driver_policy: rawPayload.consents.insuranceConfirmed,
+    function formReady() {
+      const textFieldsReady = textFieldIds.every((id) => {
+        const el = document.getElementById(id);
+        if (!el) return false;
+        if (id === "vehicleYear") return onlyDigits(el.value).length === 4;
+        return el.value.trim().length > 0;
+      });
 
-        terms_accepted: rawPayload.consents.termsAccepted,
-        background_check_accepted: rawPayload.consents.backgroundCheckAccepted,
-        insurance_confirmed: rawPayload.consents.insuranceConfirmed,
+      const emailValid = isEmailLikelyValid(document.getElementById("email").value);
+      const phoneValid = onlyDigits(document.getElementById("phone").value).length >= 10;
+      const consentsReady = checkboxIds.every((id) => {
+        const el = document.getElementById(id);
+        return !!(el && el.checked);
+      });
 
-        consents: {
-          termsAccepted: rawPayload.consents.termsAccepted,
-          backgroundCheckAccepted: rawPayload.consents.backgroundCheckAccepted,
-          insuranceConfirmed: rawPayload.consents.insuranceConfirmed
-        }
-      };
+      return textFieldsReady && emailValid && phoneValid && consentsReady;
+    }
+
+    function updateFormHint() {
+      if (formReady()) {
+        formHint.classList.add("ready");
+        formHint.textContent = "All required fields and acknowledgments are complete.";
+      } else {
+        formHint.classList.remove("ready");
+        formHint.textContent = "Complete all required fields and tap all three acknowledgment cards.";
+      }
+    }
+
+    function showVerificationSection() {
+      signupSection.style.display = "none";
+      verificationSection.classList.remove("hidden");
+      verificationBanner.classList.add("show");
+      verificationBanner.innerHTML = `
+        <strong>Driver application created.</strong><br>
+        Complete email verification and SMS verification to finish your driver onboarding flow.
+      `;
+      updateSavedDriverBox();
+      updateVerificationUI();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function hideVerificationSection() {
+      signupSection.style.display = "";
+      verificationSection.classList.add("hidden");
+      verificationBanner.classList.remove("show");
+      verificationBanner.innerHTML = "";
+      hideDashboardButton();
+      updateSavedDriverBox();
+    }
+
+    function openVerificationIfNeeded() {
+      if (onboardingState.driverId || onboardingState.email) {
+        showVerificationSection();
+        updateVerificationUI();
+      }
+    }
+
+    function hydrateStateFromDriver(driver = {}) {
+      onboardingState.driverId = driver.id || onboardingState.driverId;
+      onboardingState.email = driver.email || onboardingState.email;
+      onboardingState.phone = driver.phone || onboardingState.phone;
+
+      const emailVerified =
+        normalizeBoolean(driver.email_verified) ||
+        normalizeBoolean(driver.emailVerified);
+
+      const smsVerified =
+        normalizeBoolean(driver.sms_verified) ||
+        normalizeBoolean(driver.smsVerified);
+
+      const isVerified =
+        normalizeBoolean(driver.is_verified) ||
+        normalizeBoolean(driver.isVerified);
+
+      const approved =
+        normalizeBoolean(driver.is_approved) ||
+        normalizeBoolean(driver.approved) ||
+        String(driver.approval_status || driver.status || "").toLowerCase() === "approved";
+
+      onboardingState.emailVerified = emailVerified || isVerified;
+      onboardingState.smsVerified = smsVerified || isVerified;
+      onboardingState.fullyVerified = onboardingState.emailVerified && onboardingState.smsVerified;
+      onboardingState.approved = approved;
+      onboardingState.status = driver.status || driver.approval_status || onboardingState.status || "pending";
     }
 
     async function refreshVerificationStatus(showMessage = false) {
@@ -1575,54 +1637,41 @@
       try {
         setButtonLoading(refreshStatusBtn, true, "Refreshing...", "Refresh Verification Status");
 
-        const attempts = [];
+        const bodyByDriverId = onboardingState.driverId
+          ? { driver_id: onboardingState.driverId }
+          : null;
 
-        if (onboardingState.driverId) {
-          attempts.push(() =>
-            api("/api/driver/status", {
-              method: "POST",
-              body: JSON.stringify({ driver_id: onboardingState.driverId })
-            })
-          );
-        }
+        const bodyByEmail = onboardingState.email
+          ? { email: onboardingState.email }
+          : null;
 
-        if (onboardingState.email) {
-          attempts.push(() =>
-            api("/api/driver/status", {
-              method: "POST",
-              body: JSON.stringify({ email: onboardingState.email })
-            })
-          );
-        }
-
-        let data = null;
-        let lastError = null;
-
-        for (const attempt of attempts) {
-          try {
-            data = await attempt();
-            if (data) break;
-          } catch (error) {
-            lastError = error;
+        const data = await tryApi(
+          [
+            "/api/driver/status",
+            "/api/drivers/status"
+          ],
+          (path) => ({
+            method: "POST",
+            body: JSON.stringify(bodyByDriverId || bodyByEmail || {})
+          })
+        ).catch(async () => {
+          if (!bodyByEmail || bodyByDriverId) {
+            throw new Error("Unable to refresh verification status.");
           }
-        }
+          return tryApi(
+            [
+              "/api/driver/status",
+              "/api/drivers/status"
+            ],
+            () => ({
+              method: "POST",
+              body: JSON.stringify(bodyByEmail)
+            })
+          );
+        });
 
-        if (!data) {
-          throw lastError || new Error("Unable to refresh verification status.");
-        }
-
-        const driver = data.driver || {};
-        onboardingState.driverId = driver.id || onboardingState.driverId;
-        onboardingState.emailVerified = driver.email_verified === true || driver.is_verified === true;
-        onboardingState.smsVerified = driver.sms_verified === true || driver.is_verified === true;
-        onboardingState.approved = driver.is_approved === true || String(driver.approval_status || "").toLowerCase() === "approved";
-        onboardingState.fullyVerified =
-          driver.is_verified === true ||
-          (onboardingState.emailVerified && onboardingState.smsVerified);
-        onboardingState.email = driver.email || onboardingState.email;
-        onboardingState.phone = driver.phone || onboardingState.phone;
-        onboardingState.status = driver.status || driver.approval_status || onboardingState.status;
-
+        const driver = data.driver || data.data || {};
+        hydrateStateFromDriver(driver);
         saveOnboardingState();
         updateVerificationUI();
 
@@ -1705,6 +1754,10 @@
     document.getElementById("email").addEventListener("blur", (e) => {
       e.target.value = String(e.target.value || "").trim().toLowerCase();
       updateFormHint();
+    });
+
+    smsCodeInput.addEventListener("input", (e) => {
+      e.target.value = onlyDigits(e.target.value).slice(0, 6);
     });
 
     openDashboardBtn.addEventListener("click", openDriverDashboard);
@@ -1803,47 +1856,27 @@
         return;
       }
 
-      const payload = normalizeDriverPayload(rawPayload);
-
       try {
-        const attempts = [
-          () => api("/api/driver/signup", {
-            method: "POST",
-            body: JSON.stringify(payload)
-          }),
-          () => api("/api/drivers/signup", {
+        const payload = normalizeDriverPayload(rawPayload);
+
+        const data = await tryApi(
+          [
+            "/api/driver/signup",
+            "/api/drivers/signup"
+          ],
+          () => ({
             method: "POST",
             body: JSON.stringify(payload)
           })
-        ];
+        );
 
-        let data = null;
-        let lastError = null;
-
-        for (const attempt of attempts) {
-          try {
-            data = await attempt();
-            if (data) break;
-          } catch (error) {
-            lastError = error;
-          }
-        }
-
-        if (!data) {
-          throw lastError || new Error("Unable to submit the driver application right now. Please try again.");
-        }
-
-        const driver = data.driver || {};
-        onboardingState.driverId = data.driver_id || driver.id || "";
-        onboardingState.email = driver.email || payload.email;
-        onboardingState.phone = driver.phone || payload.phone;
-        onboardingState.emailVerified = driver.email_verified === true;
-        onboardingState.smsVerified = driver.sms_verified === true;
-        onboardingState.approved = driver.is_approved === true || String(driver.approval_status || "").toLowerCase() === "approved";
-        onboardingState.fullyVerified =
-          (driver.email_verified === true && driver.sms_verified === true) ||
-          driver.is_verified === true;
-        onboardingState.status = driver.status || driver.approval_status || "pending";
+        const driver = data.driver || data.data || {};
+        hydrateStateFromDriver({
+          ...driver,
+          email: driver.email || payload.email,
+          phone: driver.phone || payload.phone,
+          id: data.driver_id || driver.id || onboardingState.driverId
+        });
 
         saveOnboardingState();
         showVerificationSection();
@@ -1888,40 +1921,29 @@
       try {
         setButtonLoading(verifySmsBtn, true, "Verifying SMS...", "Verify SMS Code");
 
-        const attempts = [
-          () => api("/api/driver/verify-sms", {
-            method: "POST",
-            body: JSON.stringify({
-              driver_id: onboardingState.driverId,
-              code
-            })
-          }),
-          () => api("/api/driver/sms/verify", {
+        const data = await tryApi(
+          [
+            "/api/driver/verify-sms",
+            "/api/driver/sms/verify",
+            "/api/drivers/verify-sms"
+          ],
+          () => ({
             method: "POST",
             body: JSON.stringify({
               driver_id: onboardingState.driverId,
               code
             })
           })
-        ];
+        );
 
-        let succeeded = false;
-
-        for (const attempt of attempts) {
-          try {
-            await attempt();
-            succeeded = true;
-            break;
-          } catch (_) {}
-        }
-
-        if (!succeeded) {
-          onboardingState.smsVerified = true;
+        const driver = data.driver || {};
+        if (Object.keys(driver).length) {
+          hydrateStateFromDriver(driver);
         } else {
           onboardingState.smsVerified = true;
+          onboardingState.fullyVerified = onboardingState.emailVerified && onboardingState.smsVerified;
         }
 
-        onboardingState.fullyVerified = onboardingState.emailVerified && onboardingState.smsVerified;
         saveOnboardingState();
         smsCodeInput.value = "";
         updateVerificationUI();
@@ -1944,8 +1966,8 @@
             `
           );
         }
-      } catch {
-        showStatus("error", "Unable to verify the SMS code right now.");
+      } catch (error) {
+        showStatus("error", escapeHtml(error.message || "Unable to verify the SMS code right now."));
       } finally {
         setButtonLoading(verifySmsBtn, false, "Verifying SMS...", "Verify SMS Code");
       }
@@ -1973,41 +1995,30 @@
       try {
         setButtonLoading(resendEmailBtn, true, "Resending Email...", "Resend Email Link");
 
-        const attempts = [
-          () => api("/api/driver/resend-email-verification", {
-            method: "POST",
-            body: JSON.stringify({
-              driver_id: onboardingState.driverId,
-              email: onboardingState.email
-            })
-          }),
-          () => api("/api/driver/email/resend", {
+        await tryApi(
+          [
+            "/api/driver/resend-email-verification",
+            "/api/driver/email/resend",
+            "/api/drivers/resend-email-verification"
+          ],
+          () => ({
             method: "POST",
             body: JSON.stringify({
               driver_id: onboardingState.driverId,
               email: onboardingState.email
             })
           })
-        ];
-
-        let succeeded = false;
-        for (const attempt of attempts) {
-          try {
-            await attempt();
-            succeeded = true;
-            break;
-          } catch (_) {}
-        }
+        );
 
         showStatus(
           "success",
           `
-            <strong>${succeeded ? "Email verification link resent." : "Email verification resend requested."}</strong><br><br>
+            <strong>Email verification link resent.</strong><br><br>
             Sent to ${escapeHtml(maskEmail(onboardingState.email))}.
           `
         );
-      } catch {
-        showStatus("error", "Unable to resend the verification email right now.");
+      } catch (error) {
+        showStatus("error", escapeHtml(error.message || "Unable to resend the verification email right now."));
       } finally {
         setButtonLoading(resendEmailBtn, false, "Resending Email...", "Resend Email Link");
       }
@@ -2024,41 +2035,30 @@
       try {
         setButtonLoading(resendSmsBtn, true, "Resending SMS...", "Resend SMS Code");
 
-        const attempts = [
-          () => api("/api/driver/resend-sms-verification", {
-            method: "POST",
-            body: JSON.stringify({
-              driver_id: onboardingState.driverId,
-              phone: onboardingState.phone
-            })
-          }),
-          () => api("/api/driver/sms/resend", {
+        await tryApi(
+          [
+            "/api/driver/resend-sms-verification",
+            "/api/driver/sms/resend",
+            "/api/drivers/resend-sms-verification"
+          ],
+          () => ({
             method: "POST",
             body: JSON.stringify({
               driver_id: onboardingState.driverId,
               phone: onboardingState.phone
             })
           })
-        ];
-
-        let succeeded = false;
-        for (const attempt of attempts) {
-          try {
-            await attempt();
-            succeeded = true;
-            break;
-          } catch (_) {}
-        }
+        );
 
         showStatus(
           "success",
           `
-            <strong>${succeeded ? "SMS verification code resent." : "SMS resend requested."}</strong><br><br>
+            <strong>SMS verification code resent.</strong><br><br>
             Sent to ${escapeHtml(maskPhone(onboardingState.phone))}.
           `
         );
-      } catch {
-        showStatus("error", "Unable to resend the SMS code right now.");
+      } catch (error) {
+        showStatus("error", escapeHtml(error.message || "Unable to resend the SMS code right now."));
       } finally {
         setButtonLoading(resendSmsBtn, false, "Resending SMS...", "Resend SMS Code");
       }
@@ -2080,19 +2080,11 @@
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
-    smsCodeInput.addEventListener("input", (e) => {
-      e.target.value = onlyDigits(e.target.value).slice(0, 6);
-    });
-
     loadOnboardingState();
     toggleConsentCardState();
     updateFormHint();
     updateSavedDriverBox();
-
-    if (onboardingState.driverId || onboardingState.email) {
-      showVerificationSection();
-      updateVerificationUI();
-    }
+    openVerificationIfNeeded();
   </script>
 </body>
-  </html>
+</html>
