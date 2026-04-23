@@ -15,12 +15,13 @@
 
   <style>
     :root{
-      --bg1:#030712;
-      --bg2:#09162f;
-      --bg3:#112455;
-      --panel:rgba(7,14,32,.84);
-      --panel-2:rgba(12,22,50,.84);
-      --line:rgba(126,166,255,.16);
+      --bg1:#040814;
+      --bg2:#0a1733;
+      --bg3:#112657;
+      --panel:rgba(8,15,34,.84);
+      --panel-2:rgba(12,22,50,.86);
+      --panel-3:rgba(255,255,255,.04);
+      --line:rgba(126,166,255,.14);
       --line-strong:rgba(126,166,255,.26);
       --text:#f5f8ff;
       --muted:#adbbde;
@@ -439,17 +440,11 @@
       border-radius:16px;
       background:rgba(255,255,255,.045);
       border:1px solid rgba(255,255,255,.08);
+      color:var(--cyan);
       word-break:break-all;
       font-size:.92rem;
       font-weight:700;
       margin-bottom:16px;
-    }
-
-    .static-link{
-      color:var(--text);
-      font-weight:800;
-      background:rgba(255,255,255,.04);
-      border:1px solid rgba(255,255,255,.08);
     }
 
     .preview-actions{
@@ -487,35 +482,6 @@
       font-size:.93rem;
     }
 
-    .link-card{
-      padding:22px;
-      display:grid;
-      gap:14px;
-    }
-
-    .link-card h4{
-      margin:0;
-      font-size:1.04rem;
-    }
-
-    .link-card p{
-      margin:0;
-      color:var(--muted);
-      line-height:1.62;
-    }
-
-    .donation-link{
-      display:block;
-      width:100%;
-      padding:14px 16px;
-      border-radius:16px;
-      background:rgba(255,255,255,.035);
-      border:1px solid rgba(255,255,255,.08);
-      color:var(--cyan);
-      word-break:break-all;
-      font-size:.93rem;
-    }
-
     .copy-status{
       display:none;
       padding:12px 14px;
@@ -523,6 +489,7 @@
       font-size:.9rem;
       line-height:1.55;
       border:1px solid transparent;
+      margin-top:8px;
     }
 
     .copy-status.show{
@@ -807,7 +774,6 @@
 
       .hero-card,
       .spotlight-card,
-      .link-card,
       .section-card,
       .why-card,
       .cta-card{
@@ -881,7 +847,7 @@
             <p>
               Your donation helps support transportation assistance for individuals and families
               who need access to medical appointments, school, work, and essential community mobility.
-              Every contribution helps us move closer to a stronger, more connected community.
+              Every contribution helps move people toward greater stability, opportunity, and connection.
             </p>
 
             <div class="hero-actions">
@@ -895,7 +861,7 @@
               </a>
 
               <a class="btn btn-secondary" href="#donate">
-                View Foundation Resource
+                Learn More
               </a>
             </div>
           </section>
@@ -907,7 +873,7 @@
             </article>
 
             <article class="impact-mini card">
-              <strong>School &amp; work access</strong>
+              <strong>School and work access</strong>
               <span>Help people reach education, training, interviews, and employment opportunities.</span>
             </article>
 
@@ -921,35 +887,39 @@
         <aside>
           <div class="sticky-box">
             <section class="card spotlight-card" id="donate">
-              <h3>Featured Foundation Resource</h3>
+              <h3>Support the Foundation</h3>
               <p>
-                Explore a clean foundation-focused resource panel that keeps the page professional,
-                donor-friendly, and fully aligned with your nonprofit mission.
+                Harvey Transportation Assistance Foundation is focused on reducing transportation barriers
+                for individuals and families who need reliable access to care, education, work, and essential services.
               </p>
 
               <div class="trust-grid">
                 <div class="trust-pill">
-                  <strong>Mission-led giving</strong>
-                  Contributions support transportation access and community mobility outreach.
+                  <strong>Mission-focused impact</strong>
+                  Support transportation access where it creates meaningful community value.
                 </div>
                 <div class="trust-pill">
-                  <strong>Secure donation path</strong>
-                  Donations route through your secure Stripe donation link.
+                  <strong>Secure giving</strong>
+                  Donations are processed through a secure Stripe donation page.
                 </div>
               </div>
 
               <div class="link-preview">
-                <div class="preview-badge">Foundation Resource</div>
-                <h4 class="preview-title">Support community transportation access</h4>
+                <div class="preview-badge">Foundation Giving</div>
+                <h4 class="preview-title">Invest in access, mobility, and opportunity</h4>
                 <p class="preview-copy">
-                  Help expand transportation support for medical appointments, school, work,
-                  and essential daily mobility. This foundation page is designed to give
-                  supporters a clear, professional way to contribute.
+                  Every contribution helps strengthen transportation support for people navigating
+                  medical appointments, employment, education, and essential daily needs.
                 </p>
 
-                <div class="preview-link static-link">
-                  Harvey Transportation Assistance Foundation Community Resource
-                </div>
+                <a
+                  class="preview-link"
+                  href="https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00
+                </a>
 
                 <div class="preview-actions">
                   <a
@@ -972,36 +942,11 @@
               </div>
 
               <div class="spotlight-copy">
-                <strong>Clean, professional, and mission-focused</strong>
+                <strong>Professional, clear, and donor-friendly</strong>
                 <span>
-                  This section presents your foundation in a polished public-facing format
-                  that matches your futuristic nonprofit brand and community mission.
+                  This section is designed to keep the page polished, trustworthy, and easy for supporters to understand and share.
                 </span>
               </div>
-            </section>
-
-            <section class="card link-card">
-              <h4>Secure Donation Link</h4>
-              <p>
-                Share this direct donation page with supporters, partners, and community members.
-              </p>
-
-              <a
-                class="donation-link"
-                href="https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00
-              </a>
-
-              <button
-                class="btn btn-secondary"
-                type="button"
-                onclick="copyDonationLink()"
-              >
-                Copy Donation Link
-              </button>
 
               <div id="copyStatus" class="copy-status"></div>
             </section>
@@ -1082,7 +1027,7 @@
             <li>Support a transportation-focused nonprofit mission</li>
             <li>Help expand reliable ride access for people in need</li>
             <li>Strengthen community support and outreach efforts</li>
-            <li>Help remove mobility barriers that block daily opportunity</li>
+            <li>Help remove mobility barriers that limit daily opportunity</li>
           </ul>
         </section>
 
@@ -1161,7 +1106,7 @@
               class="btn btn-secondary"
               href="#donate"
             >
-              View Foundation Resource
+              Learn More
             </a>
           </div>
         </section>
@@ -1232,4 +1177,4 @@
     }
   </script>
 </body>
-  </html>
+      </html>
