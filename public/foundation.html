@@ -300,12 +300,6 @@
       border-color:rgba(255,255,255,.08);
     }
 
-    .btn-danger{
-      color:#fff3f6;
-      background:rgba(255,142,162,.10);
-      border-color:rgba(255,142,162,.22);
-    }
-
     .impact-strip{
       display:grid;
       grid-template-columns:repeat(3,1fr);
@@ -424,9 +418,10 @@
 
     .preview-title{
       margin:0 0 10px;
-      font-size:1.28rem;
+      font-size:1.34rem;
       line-height:1.3;
       letter-spacing:-.02em;
+      font-weight:900;
     }
 
     .preview-copy{
@@ -434,6 +429,7 @@
       line-height:1.66;
       font-size:.95rem;
       margin:0 0 16px;
+      max-width:62ch;
     }
 
     .preview-link{
@@ -443,11 +439,17 @@
       border-radius:16px;
       background:rgba(255,255,255,.045);
       border:1px solid rgba(255,255,255,.08);
-      color:var(--cyan);
       word-break:break-all;
       font-size:.92rem;
       font-weight:700;
       margin-bottom:16px;
+    }
+
+    .static-link{
+      color:var(--text);
+      font-weight:800;
+      background:rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.08);
     }
 
     .preview-actions{
@@ -921,8 +923,8 @@
             <section class="card spotlight-card" id="donate">
               <h3>Featured Foundation Resource</h3>
               <p>
-                Explore our featured foundation resource to learn more about the mission,
-                community support vision, and ways to stay connected with Harvey Transportation Assistance Foundation.
+                Explore a clean foundation-focused resource panel that keeps the page professional,
+                donor-friendly, and fully aligned with your nonprofit mission.
               </p>
 
               <div class="trust-grid">
@@ -937,38 +939,34 @@
               </div>
 
               <div class="link-preview">
-                <div class="preview-badge">Featured Resource</div>
-                <h4 class="preview-title">Open the Harvey Foundation shared resource</h4>
+                <div class="preview-badge">Foundation Resource</div>
+                <h4 class="preview-title">Support community transportation access</h4>
                 <p class="preview-copy">
-                  This featured access panel gives supporters, partners, and community members
-                  a clean way to open your shared resource without cluttering the page with placeholder text.
+                  Help expand transportation support for medical appointments, school, work,
+                  and essential daily mobility. This foundation page is designed to give
+                  supporters a clear, professional way to contribute.
                 </p>
 
-                <a
-                  class="preview-link"
-                  href="https://chatgpt.com/s/m_69c9f57798d08191803856ce69d9134d"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  https://chatgpt.com/s/m_69c9f57798d08191803856ce69d9134d
-                </a>
+                <div class="preview-link static-link">
+                  Harvey Transportation Assistance Foundation Community Resource
+                </div>
 
                 <div class="preview-actions">
                   <a
                     class="btn btn-primary btn-compact"
-                    href="https://chatgpt.com/s/m_69c9f57798d08191803856ce69d9134d"
+                    href="https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00"
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    Open Resource
+                    Support the Foundation
                   </a>
 
                   <button
                     class="btn btn-secondary btn-compact"
                     type="button"
-                    onclick="copyFoundationLink()"
+                    onclick="copyDonationLink()"
                   >
-                    Copy Link
+                    Copy Donation Link
                   </button>
                 </div>
               </div>
@@ -976,8 +974,8 @@
               <div class="spotlight-copy">
                 <strong>Clean, professional, and mission-focused</strong>
                 <span>
-                  This section presents your foundation resource in a polished public-facing format
-                  that better matches your futuristic nonprofit brand and community mission.
+                  This section presents your foundation in a polished public-facing format
+                  that matches your futuristic nonprofit brand and community mission.
                 </span>
               </div>
             </section>
@@ -1161,11 +1159,9 @@
 
             <a
               class="btn btn-secondary"
-              href="https://chatgpt.com/s/m_69c9f57798d08191803856ce69d9134d"
-              target="_blank"
-              rel="noopener noreferrer"
+              href="#donate"
             >
-              Open Foundation Resource
+              View Foundation Resource
             </a>
           </div>
         </section>
@@ -1192,7 +1188,6 @@
   </footer>
 
   <script>
-    const FOUNDATION_RESOURCE_LINK = "https://chatgpt.com/s/m_69c9f57798d08191803856ce69d9134d";
     const DONATION_LINK = "https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00";
     const copyStatusEl = document.getElementById("copyStatus");
 
@@ -1232,13 +1227,9 @@
       }
     }
 
-    function copyFoundationLink() {
-      copyText(FOUNDATION_RESOURCE_LINK, "Foundation resource link copied.");
-    }
-
     function copyDonationLink() {
       copyText(DONATION_LINK, "Donation link copied.");
     }
   </script>
 </body>
-</html>
+  </html>
