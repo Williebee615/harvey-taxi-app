@@ -2,15 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
-  />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Harvey Taxi — Rider Dashboard</title>
-  <meta
-    name="description"
-    content="Harvey Taxi futuristic rider dashboard with destination search, saved places, ride tools, trip history, rider status, and support."
-  />
+  <meta name="description" content="Harvey Taxi rider dashboard for rides, fast food delivery, grocery delivery, trip history, delivery history, rider verification, and support." />
   <meta name="theme-color" content="#07111f" />
 
   <style>
@@ -18,11 +12,11 @@
       --bg1:#040814;
       --bg2:#091126;
       --bg3:#101935;
-      --panel:rgba(10,17,38,.90);
+      --panel:rgba(10,17,38,.92);
       --panel2:rgba(16,27,58,.86);
-      --panel3:rgba(255,255,255,.03);
-      --line:rgba(122,162,255,.16);
-      --line-strong:rgba(122,162,255,.30);
+      --soft:rgba(255,255,255,.04);
+      --line:rgba(122,162,255,.18);
+      --line2:rgba(122,162,255,.34);
       --text:#f4f7ff;
       --muted:#aab8de;
       --blue:#5ea0ff;
@@ -31,52 +25,30 @@
       --gold:#ffd76a;
       --danger:#ff7e97;
       --ink:#07121f;
-      --shadow:0 20px 70px rgba(0,0,0,.35);
-      --shadow-soft:0 10px 30px rgba(0,0,0,.24);
+      --shadow:0 20px 70px rgba(0,0,0,.36);
       --radius:24px;
       --max:1120px;
-      --ok-bg:rgba(109,255,179,.10);
-      --warn-bg:rgba(255,215,106,.10);
-      --bad-bg:rgba(255,126,151,.10);
     }
 
-    *{
-      box-sizing:border-box;
-      margin:0;
-      padding:0;
-    }
-
-    html{
-      scroll-behavior:smooth;
-    }
-
+    *{box-sizing:border-box;margin:0;padding:0}
+    html{scroll-behavior:smooth}
     body{
-      font-family:Inter, Arial, sans-serif;
+      font-family:Inter,Arial,sans-serif;
       color:var(--text);
-      background:
-        radial-gradient(circle at top left, rgba(99,245,255,.12), transparent 30%),
-        radial-gradient(circle at top right, rgba(94,160,255,.10), transparent 28%),
-        radial-gradient(circle at 50% 110%, rgba(109,255,179,.05), transparent 24%),
-        linear-gradient(160deg, var(--bg1), var(--bg2) 50%, var(--bg3));
       min-height:100vh;
       overflow-x:hidden;
+      background:
+        radial-gradient(circle at top left,rgba(99,245,255,.14),transparent 30%),
+        radial-gradient(circle at top right,rgba(94,160,255,.12),transparent 28%),
+        radial-gradient(circle at 50% 110%,rgba(109,255,179,.06),transparent 24%),
+        linear-gradient(160deg,var(--bg1),var(--bg2) 50%,var(--bg3));
     }
 
-    a{
-      color:inherit;
-      text-decoration:none;
-    }
+    a{color:inherit;text-decoration:none}
+    button,input,textarea,select{font:inherit}
+    button{cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 
-    button,
-    input{
-      font:inherit;
-    }
-
-    .shell{
-      max-width:var(--max);
-      margin:auto;
-      padding:18px 16px 140px;
-    }
+    .shell{max-width:var(--max);margin:auto;padding:18px 16px 140px}
 
     .topbar{
       display:flex;
@@ -87,8 +59,8 @@
       border:1px solid var(--line);
       border-radius:999px;
       background:rgba(7,12,28,.78);
-      backdrop-filter:blur(12px);
-      -webkit-backdrop-filter:blur(12px);
+      backdrop-filter:blur(14px);
+      -webkit-backdrop-filter:blur(14px);
       margin-bottom:18px;
       box-shadow:var(--shadow);
       position:sticky;
@@ -97,839 +69,340 @@
       flex-wrap:wrap;
     }
 
-    .brand-wrap{
-      display:flex;
-      align-items:center;
-      gap:12px;
-      min-width:0;
-    }
-
+    .brand-wrap{display:flex;align-items:center;gap:12px;min-width:0}
     .logo-dot{
-      width:12px;
-      height:12px;
-      border-radius:50%;
+      width:14px;height:14px;border-radius:50%;
       background:linear-gradient(135deg,var(--cyan),var(--blue));
-      box-shadow:0 0 18px rgba(99,245,255,.55);
+      box-shadow:0 0 22px rgba(99,245,255,.6);
       flex-shrink:0;
     }
+    .brand{font-weight:950;letter-spacing:.12em;font-size:14px;white-space:nowrap}
+    .brand-sub{font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-top:2px}
 
-    .brand-block{
-      display:flex;
-      flex-direction:column;
-      gap:2px;
-      min-width:0;
-    }
-
-    .brand{
-      font-weight:900;
-      letter-spacing:.12em;
-      font-size:14px;
-      white-space:nowrap;
-    }
-
-    .brand-sub{
-      font-size:11px;
-      color:var(--muted);
-      letter-spacing:.08em;
-      text-transform:uppercase;
-    }
-
-    .top-actions{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-    }
-
+    .top-actions{display:flex;gap:10px;flex-wrap:wrap}
     .top-chip{
-      padding:10px 14px;
-      border-radius:999px;
-      border:1px solid rgba(255,255,255,.08);
-      background:rgba(255,255,255,.03);
-      color:var(--muted);
-      font-size:13px;
-      font-weight:700;
-      transition:.18s ease;
-      cursor:pointer;
+      padding:10px 14px;border-radius:999px;border:1px solid rgba(255,255,255,.08);
+      background:rgba(255,255,255,.04);color:var(--muted);
+      font-size:13px;font-weight:800;transition:.18s ease;
     }
+    .top-chip:hover{color:#fff;background:rgba(255,255,255,.07);transform:translateY(-1px)}
 
-    .top-chip:hover{
-      color:#fff;
-      background:rgba(255,255,255,.06);
-      transform:translateY(-1px);
-    }
-
-    .hero{
+    .hero,.section,.card{
+      border:1px solid var(--line);
+      background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.015)),var(--panel);
+      border-radius:28px;
+      box-shadow:var(--shadow);
       position:relative;
       overflow:hidden;
-      background:
-        linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.015)),
-        var(--panel);
-      padding:28px;
-      border-radius:28px;
-      border:1px solid var(--line);
-      margin-bottom:18px;
-      box-shadow:var(--shadow);
     }
 
+    .hero{padding:28px;margin-bottom:18px}
     .hero::before{
-      content:"";
-      position:absolute;
-      top:-70px;
-      right:-70px;
-      width:260px;
-      height:260px;
-      border-radius:50%;
+      content:"";position:absolute;top:-80px;right:-80px;width:280px;height:280px;border-radius:50%;
       background:radial-gradient(circle,rgba(99,245,255,.16),transparent 65%);
       pointer-events:none;
     }
-
     .hero::after{
-      content:"";
-      position:absolute;
-      left:-70px;
-      bottom:-70px;
-      width:220px;
-      height:220px;
-      border-radius:50%;
-      background:radial-gradient(circle,rgba(94,160,255,.10),transparent 65%);
+      content:"";position:absolute;left:-80px;bottom:-80px;width:240px;height:240px;border-radius:50%;
+      background:radial-gradient(circle,rgba(94,160,255,.12),transparent 65%);
       pointer-events:none;
     }
 
-    .welcome{
-      position:relative;
-      z-index:2;
-      margin-bottom:20px;
+    .hero-inner{position:relative;z-index:2}
+    .badge{
+      display:inline-flex;align-items:center;gap:10px;padding:10px 14px;border-radius:999px;
+      border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);
+      color:var(--cyan);font-size:12px;font-weight:900;letter-spacing:.05em;text-transform:uppercase;margin-bottom:14px;
     }
+    .hero h1{font-size:clamp(2rem,5vw,3rem);line-height:1.04;margin-bottom:10px}
+    .hero p{color:var(--muted);font-size:16px;line-height:1.7;max-width:780px}
 
-    .welcome-badge{
-      display:inline-flex;
-      align-items:center;
-      gap:10px;
-      padding:10px 14px;
-      border-radius:999px;
-      border:1px solid rgba(255,255,255,.08);
-      background:rgba(255,255,255,.04);
-      color:var(--cyan);
-      font-size:12px;
-      font-weight:800;
-      letter-spacing:.05em;
-      text-transform:uppercase;
-      margin-bottom:14px;
-    }
-
-    .welcome h1{
-      font-size:42px;
-      line-height:1.04;
-      margin-bottom:10px;
-    }
-
-    .welcome p{
-      color:var(--muted);
-      font-size:16px;
-      line-height:1.7;
-      max-width:760px;
-    }
-
-    .hero-stats{
-      margin-top:18px;
-      display:grid;
-      grid-template-columns:repeat(4,1fr);
-      gap:12px;
-      position:relative;
-      z-index:2;
-    }
-
+    .hero-stats{margin-top:18px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
     .hero-stat{
-      padding:16px;
-      border-radius:18px;
-      border:1px solid rgba(255,255,255,.07);
-      background:rgba(255,255,255,.03);
+      padding:16px;border-radius:18px;border:1px solid rgba(255,255,255,.07);
+      background:rgba(255,255,255,.035);
     }
+    .hero-stat strong{display:block;font-size:18px;margin-bottom:6px;word-break:break-word}
+    .hero-stat span{display:block;color:var(--muted);font-size:13px;line-height:1.5}
 
-    .hero-stat strong{
-      display:block;
-      font-size:18px;
-      margin-bottom:6px;
-      word-break:break-word;
-    }
-
-    .hero-stat span{
-      color:var(--muted);
-      font-size:13px;
-      line-height:1.6;
-      display:block;
-    }
-
-    .search-card{
-      position:relative;
-      z-index:2;
+    .service-launch{
+      position:relative;z-index:2;
       margin-top:22px;
-      padding:18px;
-      border-radius:24px;
-      border:1px solid rgba(99,245,255,.16);
-      background:linear-gradient(135deg,rgba(99,245,255,.08),rgba(94,160,255,.04));
-    }
-
-    .search-button{
-      width:100%;
-      display:flex;
-      align-items:center;
-      gap:14px;
-      padding:18px 18px;
-      border:none;
-      border-radius:20px;
-      background:rgba(255,255,255,.96);
-      color:#1b2030;
-      font-size:20px;
-      font-weight:700;
-      cursor:pointer;
-      box-shadow:0 10px 28px rgba(0,0,0,.16);
-      text-align:left;
-    }
-
-    .search-icon{
-      width:44px;
-      height:44px;
-      border-radius:14px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      background:linear-gradient(135deg,var(--cyan),var(--blue));
-      color:#04111f;
-      font-size:20px;
-      flex-shrink:0;
-    }
-
-    .chip-row{
-      display:flex;
-      flex-wrap:wrap;
-      gap:12px;
-      margin-top:16px;
-    }
-
-    .action-chip{
-      padding:14px 16px;
-      border-radius:999px;
-      border:1px solid rgba(255,255,255,.08);
-      background:rgba(255,255,255,.05);
-      color:var(--text);
-      font-size:14px;
-      font-weight:800;
-      cursor:pointer;
-      display:inline-flex;
-      align-items:center;
-      gap:10px;
-      transition:.18s ease;
-    }
-
-    .action-chip:hover{
-      background:rgba(255,255,255,.08);
-      transform:translateY(-1px);
-    }
-
-    .grid{
-      display:grid;
-      grid-template-columns:1.05fr .95fr;
-      gap:16px;
-      margin-top:18px;
-    }
-
-    .section{
-      background:var(--panel);
-      padding:24px;
-      border-radius:24px;
-      border:1px solid var(--line);
-      box-shadow:var(--shadow);
-    }
-
-    .section-header{
-      display:flex;
-      justify-content:space-between;
-      align-items:flex-end;
-      gap:12px;
-      flex-wrap:wrap;
-      margin-bottom:16px;
-    }
-
-    .section-header h2{
-      font-size:28px;
-      margin-bottom:4px;
-    }
-
-    .section-header p{
-      color:var(--muted);
-      font-size:14px;
-      line-height:1.7;
-      max-width:720px;
-    }
-
-    .places{
-      display:grid;
-      gap:12px;
-    }
-
-    .place-card{
-      display:flex;
-      align-items:center;
-      gap:14px;
-      padding:18px;
-      border-radius:20px;
-      border:1px solid rgba(255,255,255,.07);
-      background:rgba(255,255,255,.03);
-      transition:.18s ease;
-      cursor:pointer;
-    }
-
-    .place-card:hover{
-      transform:translateY(-1px);
-      background:rgba(255,255,255,.045);
-      border-color:var(--line-strong);
-    }
-
-    .place-icon{
-      width:54px;
-      height:54px;
-      border-radius:18px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      font-size:24px;
-      flex-shrink:0;
-      background:linear-gradient(135deg,rgba(99,245,255,.18),rgba(94,160,255,.18));
-      border:1px solid rgba(99,245,255,.18);
-    }
-
-    .place-copy{
-      flex:1;
-      min-width:0;
-    }
-
-    .place-copy strong{
-      display:block;
-      font-size:18px;
-      margin-bottom:4px;
-    }
-
-    .place-copy span{
-      display:block;
-      color:var(--muted);
-      font-size:14px;
-      line-height:1.6;
-    }
-
-    .place-arrow{
-      color:var(--muted);
-      font-size:22px;
-      flex-shrink:0;
-    }
-
-    .services-grid{
-      display:grid;
-      grid-template-columns:repeat(2,1fr);
-      gap:12px;
-    }
-
-    .service-card{
-      padding:18px;
-      border-radius:20px;
-      border:1px solid rgba(255,255,255,.07);
-      background:rgba(255,255,255,.03);
-      transition:.18s ease;
-      cursor:pointer;
-      min-height:100%;
-    }
-
-    .service-card:hover{
-      transform:translateY(-1px);
-      background:rgba(255,255,255,.045);
-      border-color:var(--line-strong);
-    }
-
-    .service-icon{
-      width:52px;
-      height:52px;
-      border-radius:18px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      font-size:24px;
-      margin-bottom:12px;
-      background:linear-gradient(135deg,rgba(99,245,255,.16),rgba(94,160,255,.16));
-      border:1px solid rgba(99,245,255,.14);
-    }
-
-    .service-card strong{
-      display:block;
-      margin-bottom:8px;
-      font-size:17px;
-    }
-
-    .service-card span{
-      display:block;
-      color:var(--muted);
-      font-size:14px;
-      line-height:1.6;
-    }
-
-    .status-strip{
-      margin-top:18px;
-      display:grid;
-      grid-template-columns:repeat(4,1fr);
-      gap:12px;
-    }
-
-    .status-card{
-      padding:16px;
-      border-radius:18px;
-      border:1px solid rgba(255,255,255,.07);
-      background:rgba(255,255,255,.03);
-    }
-
-    .status-card strong{
-      display:block;
-      font-size:20px;
-      margin-bottom:6px;
-      word-break:break-word;
-    }
-
-    .status-card span{
-      color:var(--muted);
-      font-size:13px;
-      line-height:1.6;
-      display:block;
-    }
-
-    .section-stack{
-      display:grid;
-      gap:18px;
-      margin-top:18px;
-    }
-
-    .trip-list{
-      display:grid;
-      gap:12px;
-    }
-
-    .trip-card{
-      padding:18px;
-      border-radius:20px;
-      border:1px solid rgba(255,255,255,.08);
-      background:rgba(255,255,255,.03);
-      display:grid;
-      gap:12px;
-    }
-
-    .trip-top{
-      display:flex;
-      justify-content:space-between;
-      align-items:flex-start;
-      gap:12px;
-      flex-wrap:wrap;
-    }
-
-    .trip-title{
-      font-size:17px;
-      font-weight:800;
-    }
-
-    .trip-sub{
-      color:var(--muted);
-      font-size:14px;
-      margin-top:4px;
-    }
-
-    .trip-status{
-      padding:8px 12px;
-      border-radius:999px;
-      font-size:11px;
-      font-weight:900;
-      letter-spacing:.05em;
-      text-transform:uppercase;
-      border:1px solid rgba(255,255,255,.08);
-      background:rgba(255,255,255,.06);
-      color:var(--muted);
-    }
-
-    .trip-status.active{
-      background:linear-gradient(135deg,var(--cyan),var(--blue));
-      color:#04111f;
-      border:none;
-    }
-
-    .trip-status.completed{
-      background:linear-gradient(135deg,var(--green),#89ffd0);
-      color:#062014;
-      border:none;
-    }
-
-    .trip-status.pending{
-      background:rgba(255,215,106,.12);
-      color:var(--gold);
-      border:1px solid rgba(255,215,106,.18);
-    }
-
-    .trip-meta{
       display:grid;
       grid-template-columns:repeat(3,1fr);
-      gap:10px;
-    }
-
-    .meta-card{
-      padding:12px;
-      border-radius:16px;
-      background:rgba(255,255,255,.03);
-      border:1px solid rgba(255,255,255,.05);
-    }
-
-    .meta-card small{
-      display:block;
-      color:var(--muted);
-      font-size:11px;
-      margin-bottom:6px;
-      text-transform:uppercase;
-      letter-spacing:.05em;
-    }
-
-    .meta-card span{
-      display:block;
-      font-size:14px;
-      line-height:1.6;
-      word-break:break-word;
-    }
-
-    .account-panel{
-      padding:22px;
-      border-radius:22px;
-      border:1px solid rgba(255,255,255,.07);
-      background:
-        linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.015)),
-        var(--panel2);
-    }
-
-    .account-panel h3{
-      font-size:22px;
-      margin-bottom:8px;
-    }
-
-    .account-panel p{
-      color:var(--muted);
-      font-size:14px;
-      line-height:1.7;
-      margin-bottom:16px;
-    }
-
-    .pill-row{
-      display:flex;
-      flex-wrap:wrap;
-      gap:10px;
-      margin-bottom:18px;
-    }
-
-    .pill{
-      padding:10px 14px;
-      border-radius:999px;
-      background:rgba(255,255,255,.05);
-      border:1px solid rgba(255,255,255,.08);
-      font-size:13px;
-      font-weight:700;
-      color:var(--muted);
-    }
-
-    .pill.ok{
-      background:linear-gradient(135deg,var(--green),#89ffd0);
-      color:#062014;
-      border:none;
-    }
-
-    .pill.warn{
-      background:rgba(255,215,106,.12);
-      color:var(--gold);
-      border:1px solid rgba(255,215,106,.18);
-    }
-
-    .pill.bad{
-      background:rgba(255,126,151,.12);
-      color:var(--danger);
-      border:1px solid rgba(255,126,151,.18);
-    }
-
-    .account-actions{
-      display:flex;
-      flex-wrap:wrap;
       gap:12px;
     }
 
-    .btn{
-      padding:14px 18px;
-      border-radius:14px;
-      border:1px solid var(--line);
-      background:rgba(255,255,255,.04);
-      color:white;
-      font-weight:800;
-      cursor:pointer;
+    .launch-card{
+      padding:18px;
+      border-radius:22px;
+      border:1px solid rgba(99,245,255,.16);
+      background:linear-gradient(135deg,rgba(99,245,255,.08),rgba(94,160,255,.04));
       transition:.18s ease;
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      gap:8px;
-      min-height:48px;
-      text-align:center;
+      cursor:pointer;
+      min-height:150px;
     }
-
-    .btn:hover{
-      transform:translateY(-1px);
-      background:rgba(255,255,255,.06);
-    }
-
-    .btn.primary{
+    .launch-card:hover{transform:translateY(-2px);border-color:var(--line2);background:linear-gradient(135deg,rgba(99,245,255,.12),rgba(94,160,255,.07))}
+    .launch-icon{
+      width:54px;height:54px;border-radius:18px;display:grid;place-items:center;
       background:linear-gradient(135deg,var(--cyan),var(--blue));
-      color:var(--ink);
-      border:none;
+      color:var(--ink);font-size:26px;margin-bottom:12px;font-weight:900;
     }
+    .launch-card strong{display:block;font-size:18px;margin-bottom:8px}
+    .launch-card span{display:block;color:var(--muted);font-size:14px;line-height:1.55}
 
-    .btn.success{
-      background:linear-gradient(135deg,var(--green),#89ffd0);
-      color:#062014;
-      border:none;
-    }
+    .grid{display:grid;grid-template-columns:1.05fr .95fr;gap:16px;margin-top:18px}
+    .section{padding:24px}
+    .section-header{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+    .section-header h2{font-size:26px;margin-bottom:4px}
+    .section-header p{color:var(--muted);font-size:14px;line-height:1.7;max-width:720px}
 
-    .btn.ghost{
-      background:transparent;
+    .places,.list{display:grid;gap:12px}
+    .place-card,.service-card,.trip-card{
+      padding:18px;border-radius:20px;border:1px solid rgba(255,255,255,.075);
+      background:rgba(255,255,255,.035);transition:.18s ease;
     }
+    .place-card{display:flex;align-items:center;gap:14px;cursor:pointer}
+    .place-card:hover,.service-card:hover{transform:translateY(-1px);background:rgba(255,255,255,.055);border-color:var(--line2)}
+    .place-icon,.service-icon{
+      width:52px;height:52px;border-radius:18px;display:grid;place-items:center;font-size:24px;
+      background:linear-gradient(135deg,rgba(99,245,255,.18),rgba(94,160,255,.18));
+      border:1px solid rgba(99,245,255,.18);flex-shrink:0;
+    }
+    .place-copy{flex:1;min-width:0}
+    .place-copy strong,.service-card strong{display:block;font-size:17px;margin-bottom:5px}
+    .place-copy span,.service-card span{display:block;color:var(--muted);font-size:14px;line-height:1.55}
+    .place-arrow{font-size:24px;color:var(--muted)}
 
-    .btn.danger{
-      background:linear-gradient(135deg,#ff9bb0,var(--danger));
-      color:#2b0712;
-      border:none;
+    .services-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+    .service-card{cursor:pointer}
+    .service-icon{margin-bottom:12px}
+
+    .status-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+    .status-card{
+      padding:16px;border-radius:18px;border:1px solid rgba(255,255,255,.07);
+      background:rgba(255,255,255,.035);
     }
+    .status-card strong{display:block;font-size:18px;margin-bottom:6px;word-break:break-word}
+    .status-card span{display:block;color:var(--muted);font-size:13px;line-height:1.5}
+
+    .trip-card{display:grid;gap:12px}
+    .trip-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+    .trip-title{font-size:16px;font-weight:900}
+    .trip-sub{color:var(--muted);font-size:14px;margin-top:4px;line-height:1.5}
+    .trip-status{
+      padding:8px 12px;border-radius:999px;font-size:11px;font-weight:950;letter-spacing:.05em;text-transform:uppercase;
+      border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.06);color:var(--muted);
+    }
+    .trip-status.active{background:linear-gradient(135deg,var(--cyan),var(--blue));color:var(--ink);border:none}
+    .trip-status.completed{background:linear-gradient(135deg,var(--green),#89ffd0);color:#062014;border:none}
+    .trip-status.pending{background:rgba(255,215,106,.12);color:var(--gold);border:1px solid rgba(255,215,106,.2)}
+    .trip-status.bad{background:rgba(255,126,151,.12);color:var(--danger);border:1px solid rgba(255,126,151,.2)}
+
+    .trip-meta{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+    .meta-card{padding:12px;border-radius:16px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05)}
+    .meta-card small{display:block;color:var(--muted);font-size:11px;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em}
+    .meta-card span{display:block;font-size:14px;line-height:1.55;word-break:break-word}
+
+    .account-panel{
+      padding:22px;border-radius:22px;border:1px solid rgba(255,255,255,.075);
+      background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.015)),var(--panel2);
+    }
+    .account-panel h3{font-size:22px;margin-bottom:8px}
+    .account-panel p{color:var(--muted);font-size:14px;line-height:1.7;margin-bottom:16px}
+
+    .pill-row{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px}
+    .pill{
+      padding:10px 14px;border-radius:999px;background:rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.08);font-size:13px;font-weight:800;color:var(--muted);
+    }
+    .pill.ok{background:linear-gradient(135deg,var(--green),#89ffd0);color:#062014;border:none}
+    .pill.warn{background:rgba(255,215,106,.12);color:var(--gold);border:1px solid rgba(255,215,106,.18)}
+    .pill.bad{background:rgba(255,126,151,.12);color:var(--danger);border:1px solid rgba(255,126,151,.18)}
+
+    .actions{display:flex;flex-wrap:wrap;gap:12px}
+    .btn{
+      padding:14px 18px;border-radius:14px;border:1px solid var(--line);
+      background:rgba(255,255,255,.04);color:white;font-weight:900;
+      transition:.18s ease;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;text-align:center;
+    }
+    .btn:hover{transform:translateY(-1px);background:rgba(255,255,255,.065)}
+    .btn.primary{background:linear-gradient(135deg,var(--cyan),var(--blue));color:var(--ink);border:none}
+    .btn.success{background:linear-gradient(135deg,var(--green),#89ffd0);color:#062014;border:none}
+    .btn.danger{background:linear-gradient(135deg,#ff9bb0,var(--danger));color:#2b0712;border:none}
+
+    .empty,.loading,.notice{
+      padding:18px;border-radius:18px;line-height:1.7;
+    }
+    .empty{border:1px dashed rgba(122,162,255,.24);background:rgba(255,255,255,.02);color:var(--muted)}
+    .loading{border:1px solid rgba(99,245,255,.14);background:rgba(99,245,255,.05);color:#dffeff}
+    .notice{border:1px solid rgba(255,215,106,.18);background:rgba(255,215,106,.08);color:var(--gold);margin-bottom:14px}
+
+    .tabs{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+    .tab{
+      padding:10px 14px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.04);
+      color:var(--muted);font-weight:900;
+    }
+    .tab.active{background:linear-gradient(135deg,var(--cyan),var(--blue));color:var(--ink);border:none}
 
     .footer{
-      margin-top:18px;
-      padding:20px;
-      border-radius:24px;
-      border:1px solid var(--line);
-      background:var(--panel);
-      display:flex;
-      justify-content:space-between;
-      align-items:flex-start;
-      flex-wrap:wrap;
-      gap:16px;
-      box-shadow:var(--shadow);
+      margin-top:18px;padding:20px;border-radius:24px;border:1px solid var(--line);
+      background:var(--panel);display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px;box-shadow:var(--shadow);
     }
-
-    .footer p{
-      color:var(--muted);
-      font-size:14px;
-      line-height:1.7;
-      max-width:700px;
-    }
+    .footer p{color:var(--muted);font-size:14px;line-height:1.7;max-width:720px}
 
     .bottom-nav{
-      position:fixed;
-      left:0;
-      right:0;
-      bottom:0;
-      background:rgba(6,12,26,.96);
-      backdrop-filter:blur(14px);
-      -webkit-backdrop-filter:blur(14px);
+      position:fixed;left:0;right:0;bottom:0;background:rgba(6,12,26,.96);
+      backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
       border-top:1px solid rgba(255,255,255,.08);
-      display:flex;
-      justify-content:space-around;
-      padding:12px 8px calc(12px + env(safe-area-inset-bottom));
+      display:flex;justify-content:space-around;padding:12px 8px calc(12px + env(safe-area-inset-bottom));
       z-index:1000;
     }
-
-    .nav-btn{
-      color:var(--muted);
-      background:none;
-      border:none;
-      font-size:13px;
-      font-weight:700;
-      cursor:pointer;
-      padding:6px 10px;
-    }
-
-    .nav-btn.active{
-      color:white;
-    }
-
-    .empty-state{
-      padding:18px;
-      border-radius:18px;
-      border:1px dashed rgba(122,162,255,.22);
-      background:rgba(255,255,255,.02);
-      color:var(--muted);
-      line-height:1.7;
-    }
-
-    .loading-state{
-      padding:18px;
-      border-radius:18px;
-      border:1px solid rgba(99,245,255,.14);
-      background:rgba(99,245,255,.05);
-      color:#dffeff;
-      line-height:1.7;
-    }
+    .nav-btn{color:var(--muted);background:none;border:none;font-size:13px;font-weight:800;padding:6px 10px}
+    .nav-btn.active{color:white}
 
     @media(max-width:980px){
-      .grid{
-        grid-template-columns:1fr;
-      }
-
-      .status-strip{
-        grid-template-columns:repeat(2,1fr);
-      }
-
-      .hero-stats{
-        grid-template-columns:repeat(2,1fr);
-      }
-
-      .welcome h1{
-        font-size:34px;
-      }
+      .grid{grid-template-columns:1fr}
+      .status-strip,.hero-stats{grid-template-columns:repeat(2,1fr)}
+      .service-launch{grid-template-columns:1fr}
     }
-
     @media(max-width:700px){
-      .shell{
-        padding:14px 12px 140px;
-      }
-
-      .topbar{
-        border-radius:24px;
-        padding:14px;
-        align-items:flex-start;
-        flex-direction:column;
-      }
-
-      .top-actions{
-        width:100%;
-        justify-content:flex-start;
-      }
-
-      .top-chip{
-        flex:1;
-        text-align:center;
-      }
-
-      .hero,
-      .section{
-        padding:20px;
-      }
-
-      .welcome h1{
-        font-size:28px;
-      }
-
-      .services-grid,
-      .status-strip,
-      .trip-meta,
-      .hero-stats{
-        grid-template-columns:1fr;
-      }
-
-      .account-actions{
-        flex-direction:column;
-      }
-
-      .btn{
-        width:100%;
-      }
-
-      .search-button{
-        font-size:18px;
-        padding:16px;
-      }
+      .shell{padding:14px 12px 140px}
+      .topbar{border-radius:24px;align-items:flex-start;flex-direction:column}
+      .top-actions{width:100%}
+      .top-chip{flex:1;text-align:center}
+      .hero,.section{padding:20px}
+      .services-grid,.status-strip,.trip-meta,.hero-stats{grid-template-columns:1fr}
+      .actions{flex-direction:column}
+      .btn{width:100%}
     }
   </style>
 </head>
 
 <body>
   <div class="shell">
-
     <div class="topbar">
       <div class="brand-wrap">
         <div class="logo-dot"></div>
-        <div class="brand-block">
+        <div>
           <div class="brand">HARVEY TAXI</div>
-          <div class="brand-sub">Rider Dashboard</div>
+          <div class="brand-sub">Rider Super App Dashboard</div>
         </div>
       </div>
 
       <div class="top-actions">
-        <button class="top-chip" onclick="location.href='index.html'">Home</button>
-        <button class="top-chip" onclick="location.href='support.html'">Support</button>
-        <button class="top-chip" onclick="location.href='request-ride.html?mode=driver'">Book</button>
+        <button class="top-chip" onclick="goHome()">Home</button>
+        <button class="top-chip" onclick="goSupport()">Support</button>
+        <button class="top-chip" onclick="goRide()">Book</button>
       </div>
     </div>
 
-    <div class="hero">
-      <div class="welcome">
-        <div class="welcome-badge">Futuristic rider control center • Harvey Taxi</div>
-        <h1 id="heroTitle">Your next ride starts here.</h1>
+    <section class="hero">
+      <div class="hero-inner">
+        <div class="badge">Rides • Fast Food • Groceries • Harvey Taxi</div>
+        <h1 id="heroTitle">Your Harvey Taxi super app starts here.</h1>
         <p id="heroText">
-          Search your next destination, manage your rider profile, review trip activity, and launch
-          Harvey Taxi services from one clean consumer-style dashboard built for speed.
+          Manage rides, fast food delivery, grocery delivery, rider verification, payment readiness,
+          active orders, trip history, and support from one futuristic dashboard.
         </p>
+
+        <div class="hero-stats">
+          <div class="hero-stat">
+            <strong id="heroRiderName">Rider</strong>
+            <span>Current rider profile</span>
+          </div>
+          <div class="hero-stat">
+            <strong id="heroApprovalState">Pending</strong>
+            <span>Persona / rider access</span>
+          </div>
+          <div class="hero-stat">
+            <strong id="heroRideCount">0</strong>
+            <span>Rides loaded</span>
+          </div>
+          <div class="hero-stat">
+            <strong id="heroDeliveryCount">0</strong>
+            <span>Deliveries loaded</span>
+          </div>
+        </div>
+
+        <div class="service-launch">
+          <div class="launch-card" onclick="goRide()">
+            <div class="launch-icon">🚖</div>
+            <strong>Request Ride</strong>
+            <span>Start a Harvey Taxi ride with rider verification and payment gate support.</span>
+          </div>
+
+          <div class="launch-card" onclick="goFoodDelivery()">
+            <div class="launch-icon">🍔</div>
+            <strong>Fast Food Delivery</strong>
+            <span>Launch a food delivery request using your new delivery backend.</span>
+          </div>
+
+          <div class="launch-card" onclick="goGroceryDelivery()">
+            <div class="launch-icon">🛒</div>
+            <strong>Grocery Delivery</strong>
+            <span>Request groceries with pickup, dropoff, items, payment, and dispatch support.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div>
+          <h2>Rider status</h2>
+          <p>Your account readiness for ride, food delivery, and grocery delivery.</p>
+        </div>
       </div>
 
-      <div class="hero-stats">
-        <div class="hero-stat">
-          <strong id="heroRiderName">Rider</strong>
-          <span>Current rider profile</span>
-        </div>
-        <div class="hero-stat">
-          <strong id="heroApprovalState">Pending</strong>
-          <span>Rider access state</span>
-        </div>
-        <div class="hero-stat">
-          <strong id="heroTripCount">0</strong>
-          <span>Trips loaded</span>
-        </div>
-        <div class="hero-stat">
-          <strong id="heroPaymentState">Pending</strong>
-          <span>Payment readiness</span>
-        </div>
+      <div id="approvalNotice" class="notice" style="display:none;">
+        Rider Persona verification must be approved before requesting rides or delivery.
       </div>
 
-      <div class="search-card">
-        <button class="search-button" onclick="goRequestRide()">
-          <div class="search-icon">⌕</div>
-          <span>Where are you going?</span>
-        </button>
-
-        <div class="chip-row">
-          <button class="action-chip" onclick="goRequestRide('scheduled')">📅 Schedule ahead</button>
-          <button class="action-chip" onclick="changeRider()">👤 Change rider</button>
-          <button class="action-chip" onclick="goSupport()">🛟 Support</button>
-          <button class="action-chip" onclick="goRequestRide('medical')">🏥 Medical ride</button>
+      <div class="status-strip">
+        <div class="status-card">
+          <strong id="statusApproval">Pending</strong>
+          <span>Rider approval</span>
+        </div>
+        <div class="status-card">
+          <strong id="statusRideAccess">Pending</strong>
+          <span>Ride access</span>
+        </div>
+        <div class="status-card">
+          <strong id="statusDeliveryAccess">Pending</strong>
+          <span>Delivery access</span>
+        </div>
+        <div class="status-card">
+          <strong id="statusRiderId">—</strong>
+          <span>Active rider ID</span>
         </div>
       </div>
-    </div>
+    </section>
 
     <div class="grid">
-      <div class="section">
+      <section class="section">
         <div class="section-header">
           <div>
             <h2>Saved places</h2>
-            <p>Quick launch destinations inspired by the best consumer ride apps, rebuilt for Harvey Taxi.</p>
+            <p>Quick launch destinations for rides and delivery dropoffs.</p>
           </div>
         </div>
 
         <div class="places">
-          <div class="place-card" onclick="quickDestination('Work','Add work address')">
-            <div class="place-icon">💼</div>
+          <div class="place-card" onclick="quickDestination('Home','')">
+            <div class="place-icon">🏠</div>
             <div class="place-copy">
-              <strong>Work</strong>
-              <span>Add work shortcut</span>
+              <strong>Home</strong>
+              <span>Saved home shortcut coming soon</span>
             </div>
             <div class="place-arrow">›</div>
           </div>
 
-          <div class="place-card" onclick="quickDestination('Home','Add shortcut')">
-            <div class="place-icon">🏠</div>
+          <div class="place-card" onclick="quickDestination('Work','')">
+            <div class="place-icon">💼</div>
             <div class="place-copy">
-              <strong>Home</strong>
-              <span>Add shortcut</span>
+              <strong>Work</strong>
+              <span>Saved work shortcut coming soon</span>
             </div>
             <div class="place-arrow">›</div>
           </div>
@@ -938,617 +411,548 @@
             <div class="place-icon">✈️</div>
             <div class="place-copy">
               <strong>BNA Airport</strong>
-              <span>Fast airport request flow</span>
+              <span>Quick airport ride request</span>
             </div>
             <div class="place-arrow">›</div>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div class="section">
+      <section class="section">
         <div class="section-header">
           <div>
-            <h2>Ride tools</h2>
-            <p>Fast consumer-style actions for rides, support, and future Harvey expansion.</p>
+            <h2>Service tools</h2>
+            <p>Launch the correct Harvey service flow.</p>
           </div>
         </div>
 
         <div class="services-grid">
-          <div class="service-card" onclick="goRequestRide()">
+          <div class="service-card" onclick="goRide()">
             <div class="service-icon">🚖</div>
             <strong>Ride now</strong>
-            <span>Open the live Harvey Taxi booking flow.</span>
+            <span>Request a human driver.</span>
           </div>
 
-          <div class="service-card" onclick="goRequestRide('scheduled')">
-            <div class="service-icon">📅</div>
-            <strong>Reserve</strong>
-            <span>Plan transportation ahead of time.</span>
-          </div>
-
-          <div class="service-card" onclick="goRequestRide('airport')">
-            <div class="service-icon">🛄</div>
-            <strong>Airport</strong>
-            <span>Launch a quick airport trip request.</span>
-          </div>
-
-          <div class="service-card" onclick="goRequestRide('autonomous')">
+          <div class="service-card" onclick="goAutonomous()">
             <div class="service-icon">🤖</div>
             <strong>AV Pilot</strong>
-            <span>Explore Harvey’s autonomous pilot mode.</span>
+            <span>Open autonomous pilot mode.</span>
+          </div>
+
+          <div class="service-card" onclick="goFoodDelivery()">
+            <div class="service-icon">🍟</div>
+            <strong>Food delivery</strong>
+            <span>Order fast food pickup and delivery.</span>
+          </div>
+
+          <div class="service-card" onclick="goGroceryDelivery()">
+            <div class="service-icon">🥬</div>
+            <strong>Grocery delivery</strong>
+            <span>Request grocery pickup and delivery.</span>
           </div>
         </div>
-      </div>
+      </section>
     </div>
 
-    <div class="section">
+    <section class="section" style="margin-top:18px;">
       <div class="section-header">
         <div>
-          <h2>Rider status</h2>
-          <p>Your Harvey Taxi account readiness, trip access, and payment state in one place.</p>
+          <h2>Activity</h2>
+          <p>View your rides and delivery orders from the new unified backend.</p>
         </div>
       </div>
 
-      <div class="status-strip">
-        <div class="status-card">
-          <strong id="statusApproval">Pending</strong>
-          <span>Rider account readiness</span>
-        </div>
-
-        <div class="status-card">
-          <strong id="statusPayment">Pending</strong>
-          <span>Payment authorization state</span>
-        </div>
-
-        <div class="status-card">
-          <strong id="statusTrips">0</strong>
-          <span>Total trips loaded</span>
-        </div>
-
-        <div class="status-card">
-          <strong id="statusRiderId">—</strong>
-          <span>Active rider ID</span>
-        </div>
+      <div class="tabs">
+        <button id="ridesTab" class="tab active" onclick="setTab('rides')">Rides</button>
+        <button id="deliveriesTab" class="tab" onclick="setTab('deliveries')">Deliveries</button>
       </div>
-    </div>
+
+      <div id="activityLoading" class="loading">Loading your Harvey Taxi activity...</div>
+      <div id="activityList" class="list"></div>
+      <div id="activityEmpty" class="empty" style="display:none;">
+        No activity found yet. Request a ride, fast food delivery, or grocery delivery to start your history.
+      </div>
+    </section>
 
     <div class="grid">
-      <div class="section">
+      <section class="section">
         <div class="section-header">
           <div>
-            <h2>My trips</h2>
-            <p>Your latest Harvey Taxi ride activity appears below.</p>
+            <h2>Account</h2>
+            <p>Manage rider session, verification, and support access.</p>
           </div>
         </div>
 
-        <div id="tripLoading" class="loading-state">Loading your Harvey Taxi trips...</div>
-        <div id="tripList" class="trip-list"></div>
-
-        <div id="tripEmpty" class="empty-state" style="display:none;">
-          No trips are showing yet. Book your next ride to start building your Harvey Taxi history.
-        </div>
-      </div>
-
-      <div class="section-stack">
         <div class="account-panel">
-          <h3>Account</h3>
-          <p>
-            Manage your rider experience, support access, and trip tools from this dashboard.
-          </p>
+          <h3 id="accountTitle">Rider account</h3>
+          <p id="accountCopy">Your rider profile loads here.</p>
 
-          <div class="pill-row" id="accountPills">
-            <div class="pill">Rider profile loading</div>
-            <div class="pill">Support available</div>
+          <div id="accountPills" class="pill-row">
+            <div class="pill">Loading profile</div>
           </div>
 
-          <div class="account-actions">
-            <button class="btn primary" onclick="goRequestRide()">Book Ride</button>
-            <button class="btn ghost" onclick="goSupport()">Support</button>
+          <div class="actions">
+            <button class="btn primary" onclick="goRide()">Book Ride</button>
+            <button class="btn success" onclick="startPersona()">Start Persona</button>
+            <button class="btn" onclick="refreshAll()">Refresh</button>
             <button class="btn danger" onclick="logout()">Logout</button>
           </div>
         </div>
+      </section>
 
-        <div class="account-panel">
-          <h3>Need help fast?</h3>
-          <p>
-            Open Harvey support, get payment help, ask about assistance rides, or review your rider flow.
-          </p>
-
-          <div class="account-actions">
-            <button class="btn success" onclick="goSupport()">Open Support</button>
-            <button class="btn ghost" onclick="goHome()">Back Home</button>
+      <section class="section">
+        <div class="section-header">
+          <div>
+            <h2>Support</h2>
+            <p>Get help with rides, food delivery, groceries, verification, payments, and safety.</p>
           </div>
         </div>
-      </div>
+
+        <div class="account-panel">
+          <h3>Need help?</h3>
+          <p>Harvey Taxi support can help with rider onboarding, Persona verification, payment authorization, rides, and delivery orders.</p>
+          <div class="actions">
+            <button class="btn success" onclick="goSupport()">Open Support</button>
+            <button class="btn" onclick="goHome()">Return Home</button>
+          </div>
+        </div>
+      </section>
     </div>
 
-    <div class="footer">
+    <footer class="footer">
       <div>
         <strong style="display:block;margin-bottom:8px;">Harvey Taxi Service LLC</strong>
         <p>
-          A futuristic consumer ride dashboard inspired by leading mobility apps, rebuilt for Harvey Taxi with
-          rider readiness, saved places, trip visibility, and fast service access.
+          Rider dashboard upgraded for the Harvey Taxi super app: rides, fast food delivery,
+          grocery delivery, Persona-gated rider access, payments, support, and history.
         </p>
       </div>
 
-      <div class="account-actions">
-        <button class="btn ghost" onclick="goHome()">Home</button>
-        <button class="btn ghost" onclick="goSupport()">Support</button>
+      <div class="actions">
+        <button class="btn" onclick="goHome()">Home</button>
+        <button class="btn" onclick="goSupport()">Support</button>
       </div>
-    </div>
+    </footer>
   </div>
 
-  <div class="bottom-nav">
-    <button class="nav-btn" onclick="location.href='index.html'">Home</button>
-    <button class="nav-btn active" onclick="location.href='rider-dashboard.html'">Trips</button>
-    <button class="nav-btn" onclick="location.href='support.html'">Safety</button>
+  <nav class="bottom-nav">
+    <button class="nav-btn" onclick="goHome()">Home</button>
+    <button class="nav-btn active" onclick="location.href='rider-dashboard.html'">Rider</button>
+    <button class="nav-btn" onclick="goRide()">Ride</button>
     <button class="nav-btn" onclick="location.href='driver-dashboard.html'">Driver</button>
-  </div>
+  </nav>
 
   <script>
     const state = {
       riderId: "",
       riderProfile: null,
-      trips: []
+      rides: [],
+      deliveries: [],
+      tab: "rides"
     };
 
-    const heroTitle = document.getElementById("heroTitle");
-    const heroText = document.getElementById("heroText");
-
-    function goHome() {
-      window.location.href = "index.html";
+    function apiBase() {
+      const host = window.location.hostname || "";
+      if (
+        host.includes("harvey-taxi-app-2.onrender.com") ||
+        host.includes("harveytaxiservice.com") ||
+        host.includes("harveytaxiservicellc.com")
+      ) return "";
+      return "https://harvey-taxi-app-2.onrender.com";
     }
 
-    function goSupport() {
-      window.location.href = "support.html";
+    function goHome(){ window.location.href = "index.html"; }
+    function goSupport(){ window.location.href = "support.html"; }
+
+    function goRide(){
+      const params = new URLSearchParams();
+      params.set("mode", "driver");
+      if (state.riderId) params.set("rider_id", state.riderId);
+      window.location.href = `request-ride.html?${params.toString()}`;
     }
 
-    function clearRiderSession() {
-      const keys = [
-        "rider",
-        "riderId",
-        "rider_id",
-        "riderProfile",
-        "harveyRiderId",
-        "harveyRiderEmail",
-        "harveyActiveRideId"
-      ];
+    function goAutonomous(){
+      const params = new URLSearchParams();
+      params.set("mode", "autonomous");
+      if (state.riderId) params.set("rider_id", state.riderId);
+      window.location.href = `request-ride.html?${params.toString()}`;
+    }
 
-      keys.forEach((key) => {
+    function goFoodDelivery(){
+      goDelivery("food");
+    }
+
+    function goGroceryDelivery(){
+      goDelivery("grocery");
+    }
+
+    function goDelivery(type){
+      const params = new URLSearchParams();
+      params.set("service_type", type);
+      if (state.riderId) params.set("rider_id", state.riderId);
+
+      const page = type === "grocery" ? "request-grocery.html" : "request-food.html";
+      window.location.href = `${page}?${params.toString()}`;
+    }
+
+    function quickDestination(label, address){
+      if (!address) {
+        alert(`${label} saved-place editing will be added in the next frontend phase.`);
+        return;
+      }
+
+      const params = new URLSearchParams();
+      params.set("mode", "driver");
+      params.set("destination", address);
+      if (state.riderId) params.set("rider_id", state.riderId);
+      window.location.href = `request-ride.html?${params.toString()}`;
+    }
+
+    function clearRiderSession(){
+      [
+        "rider","riderId","rider_id","riderProfile",
+        "harveyRiderId","harveyRiderEmail","harveyActiveRideId"
+      ].forEach((key) => {
         localStorage.removeItem(key);
         sessionStorage.removeItem(key);
       });
     }
 
-    function changeRider() {
-      clearRiderSession();
-      window.location.href = "rider-signup.html";
-    }
-
-    function buildRequestRideUrl({ mode = "driver", type = "", destination = "" } = {}) {
-      const riderId = state.riderId || getStoredRiderId();
-      const params = new URLSearchParams();
-
-      params.set("mode", mode === "autonomous" ? "autonomous" : "driver");
-
-      if (type && type !== "autonomous") {
-        params.set("type", type);
-      }
-
-      if (destination) {
-        params.set("destination", destination);
-      }
-
-      if (riderId) {
-        params.set("rider_id", riderId);
-      }
-
-      return `request-ride.html?${params.toString()}`;
-    }
-
-    function goRequestRide(mode) {
-      if (mode === "autonomous") {
-        window.location.href = buildRequestRideUrl({ mode: "autonomous" });
-        return;
-      }
-
-      if (mode === "scheduled" || mode === "medical" || mode === "airport" || mode === "nonprofit") {
-        window.location.href = buildRequestRideUrl({ mode: "driver", type: mode });
-        return;
-      }
-
-      window.location.href = buildRequestRideUrl({ mode: "driver" });
-    }
-
-    function quickDestination(label, address) {
-      if (!address || address === "Add shortcut" || address === "Add work address") {
-        alert(label + " shortcut can be added in a future saved-places flow.");
-        return;
-      }
-
-      let type = "";
-      if (label.toLowerCase().includes("airport")) {
-        type = "airport";
-      }
-
-      window.location.href = buildRequestRideUrl({
-        mode: "driver",
-        type,
-        destination: address
-      });
-    }
-
-    function logout() {
+    function logout(){
       clearRiderSession();
       window.location.href = "index.html";
     }
 
-    function getStoredRiderId() {
-      const urlParams = new URLSearchParams(window.location.search);
+    function parseJson(raw){
+      if (!raw) return null;
+      try { return JSON.parse(raw); } catch { return null; }
+    }
+
+    function getStoredRiderId(){
+      const params = new URLSearchParams(window.location.search);
       return (
-        urlParams.get("riderId") ||
-        urlParams.get("rider_id") ||
+        params.get("rider_id") ||
+        params.get("riderId") ||
         localStorage.getItem("harveyRiderId") ||
-        sessionStorage.getItem("harveyRiderId") ||
         localStorage.getItem("riderId") ||
         localStorage.getItem("rider_id") ||
+        sessionStorage.getItem("harveyRiderId") ||
         sessionStorage.getItem("riderId") ||
         sessionStorage.getItem("rider_id") ||
         ""
       );
     }
 
-    function parseStoredJson(raw) {
-      if (!raw) return null;
-      try {
-        return JSON.parse(raw);
-      } catch {
-        return null;
-      }
-    }
-
-    function getStoredRiderProfile() {
+    function getStoredRiderProfile(){
       return (
-        parseStoredJson(localStorage.getItem("riderProfile")) ||
-        parseStoredJson(localStorage.getItem("rider")) ||
-        parseStoredJson(sessionStorage.getItem("riderProfile")) ||
-        parseStoredJson(sessionStorage.getItem("rider")) ||
+        parseJson(localStorage.getItem("riderProfile")) ||
+        parseJson(localStorage.getItem("rider")) ||
+        parseJson(sessionStorage.getItem("riderProfile")) ||
+        parseJson(sessionStorage.getItem("rider")) ||
         null
       );
     }
 
-    function humanizeStatus(value) {
-      const text = String(value || "pending").replace(/_/g, " ").trim();
-      if (!text) return "Pending";
-      return text.charAt(0).toUpperCase() + text.slice(1);
+    function escapeHtml(value){
+      return String(value ?? "")
+        .replace(/&/g,"&amp;")
+        .replace(/</g,"&lt;")
+        .replace(/>/g,"&gt;")
+        .replace(/"/g,"&quot;")
+        .replace(/'/g,"&#39;");
     }
 
-    function isApprovalReady(rider) {
-      const text = String(
+    function human(value){
+      const clean = String(value || "pending").replace(/_/g," ").trim();
+      return clean ? clean.charAt(0).toUpperCase() + clean.slice(1) : "Pending";
+    }
+
+    function money(value){
+      const n = Number(value);
+      return Number.isFinite(n) ? `$${n.toFixed(2)}` : "—";
+    }
+
+    function approvalReady(rider){
+      const status = String(
         rider?.approval_status ||
         rider?.verification_status ||
+        rider?.persona_status ||
         rider?.status ||
         ""
       ).toLowerCase();
 
-      return rider?.is_approved === true || text.includes("approved") || text.includes("active");
+      return rider?.is_approved === true || status.includes("approved") || status.includes("active");
     }
 
-    function isPaymentReady(rider) {
-      const text = String(
-        rider?.payment_status ||
-        rider?.payment_authorization_status ||
-        ""
-      ).toLowerCase();
-
-      return rider?.payment_authorized === true || text.includes("authorized") || text.includes("ready") || text.includes("secured");
-    }
-
-    function formatStatus(status) {
-      const value = String(status || "pending").toLowerCase();
-
+    function statusClass(status){
+      const s = String(status || "").toLowerCase();
+      if (s.includes("complete") || s.includes("delivered")) return "completed";
+      if (s.includes("cancel") || s.includes("reject") || s.includes("failed")) return "bad";
       if (
-        value.includes("completed") ||
-        value.includes("complete") ||
-        value.includes("finished")
-      ) return "completed";
-
-      if (
-        value.includes("dispatched") ||
-        value.includes("en route") ||
-        value.includes("en_route") ||
-        value.includes("in progress") ||
-        value.includes("in_progress") ||
-        value.includes("accepted") ||
-        value.includes("driver") ||
-        value.includes("arrived")
+        s.includes("driver") ||
+        s.includes("route") ||
+        s.includes("progress") ||
+        s.includes("accepted") ||
+        s.includes("picked") ||
+        s.includes("arrived") ||
+        s.includes("searching")
       ) return "active";
-
       return "pending";
     }
 
-    function niceStatus(status) {
-      const value = formatStatus(status);
-      if (value === "completed") return "Completed";
-      if (value === "active") return "Active";
-      return "Pending";
+    function saveRider(rider){
+      if (!rider) return;
+      state.riderProfile = rider;
+      localStorage.setItem("riderProfile", JSON.stringify(rider));
+      localStorage.setItem("rider", JSON.stringify(rider));
+      if (rider.id) {
+        state.riderId = rider.id;
+        localStorage.setItem("harveyRiderId", rider.id);
+        localStorage.setItem("riderId", rider.id);
+      }
+      if (rider.email) localStorage.setItem("harveyRiderEmail", rider.email);
     }
 
-    function formatCurrency(value) {
-      const number = Number(value);
-      if (!Number.isFinite(number)) return "—";
-      return `$${number.toFixed(2)}`;
+    function renderRider(){
+      const rider = state.riderProfile || {};
+      const approved = approvalReady(rider);
+
+      const name =
+        rider.full_name ||
+        [rider.first_name, rider.last_name].filter(Boolean).join(" ") ||
+        rider.email ||
+        "Rider";
+
+      const approval =
+        rider.approval_status ||
+        rider.verification_status ||
+        rider.persona_status ||
+        rider.status ||
+        "pending";
+
+      document.getElementById("heroRiderName").textContent = name;
+      document.getElementById("heroApprovalState").textContent = human(approval);
+      document.getElementById("statusApproval").textContent = human(approval);
+      document.getElementById("statusRideAccess").textContent = approved ? "Open" : "Locked";
+      document.getElementById("statusDeliveryAccess").textContent = approved ? "Open" : "Locked";
+      document.getElementById("statusRiderId").textContent = state.riderId || "—";
+
+      document.getElementById("accountTitle").textContent = name;
+      document.getElementById("accountCopy").textContent = approved
+        ? "Your rider profile is ready for rides and delivery requests."
+        : "Your rider profile must pass Persona verification before requesting rides or delivery.";
+
+      document.getElementById("approvalNotice").style.display = approved ? "none" : "block";
+
+      document.getElementById("accountPills").innerHTML = `
+        <div class="pill ${approved ? "ok" : "warn"}">${approved ? "Rider approved" : "Approval pending"}</div>
+        <div class="pill ${rider.persona_status === "approved" ? "ok" : "warn"}">Persona: ${escapeHtml(human(rider.persona_status || "not_started"))}</div>
+        <div class="pill">Rides: ${state.rides.length}</div>
+        <div class="pill">Deliveries: ${state.deliveries.length}</div>
+      `;
     }
 
-    function setLoadingState(isLoading) {
-      document.getElementById("tripLoading").style.display = isLoading ? "block" : "none";
+    async function requestJson(path, options = {}){
+      const response = await fetch(`${apiBase()}${path}`, {
+        headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+        credentials: "include",
+        ...options
+      });
+
+      const text = await response.text();
+      let data = {};
+      try { data = text ? JSON.parse(text) : {}; } catch { data = { ok:false, error:text }; }
+
+      if (!response.ok || data.ok === false) {
+        throw new Error(data.error || data.message || "Request failed.");
+      }
+
+      return data;
     }
 
-    function renderTrips(trips) {
-      const tripList = document.getElementById("tripList");
-      const tripEmpty = document.getElementById("tripEmpty");
-      const totalTrips = document.getElementById("statusTrips");
-      const heroTripCount = document.getElementById("heroTripCount");
+    async function loadRiderStatus(){
+      state.riderId = getStoredRiderId();
+      state.riderProfile = getStoredRiderProfile();
 
-      tripList.innerHTML = "";
-      totalTrips.textContent = Array.isArray(trips) ? String(trips.length) : "0";
-      heroTripCount.textContent = Array.isArray(trips) ? String(trips.length) : "0";
+      if (state.riderProfile) renderRider();
 
-      if (!Array.isArray(trips) || trips.length === 0) {
-        tripEmpty.style.display = "block";
+      if (!state.riderId && !state.riderProfile?.email) {
+        document.getElementById("heroTitle").textContent = "Finish rider setup to continue.";
+        document.getElementById("heroText").textContent =
+          "Your rider session was not found. Sign up or restore your rider profile before requesting rides or delivery.";
+        renderRider();
         return;
       }
 
-      tripEmpty.style.display = "none";
+      const query = state.riderId
+        ? `riderId=${encodeURIComponent(state.riderId)}`
+        : `email=${encodeURIComponent(state.riderProfile.email)}`;
 
-      trips.slice(0, 6).forEach((trip) => {
-        const pickup =
-          trip.pickup_address ||
-          trip.pickup ||
-          trip.origin ||
-          trip.from ||
-          "Pickup not available";
+      try {
+        const data = await requestJson(`/api/riders/status?${query}`);
+        if (data.rider) saveRider(data.rider);
+      } catch (error) {
+        console.log("Rider status unavailable:", error.message);
+      }
 
-        const dropoff =
-          trip.dropoff_address ||
-          trip.dropoff ||
-          trip.destination ||
-          trip.destination_address ||
-          trip.to ||
-          "Destination not available";
+      renderRider();
+    }
 
-        const fare =
-          trip.final_total ||
-          trip.estimated_total ||
-          trip.fare ||
-          trip.total ||
-          trip.estimated_fare ||
-          trip.amount ||
-          null;
+    async function loadHistory(){
+      document.getElementById("activityLoading").style.display = "block";
+      document.getElementById("activityEmpty").style.display = "none";
+      document.getElementById("activityList").innerHTML = "";
 
-        const rideType =
-          trip.ride_type ||
-          trip.type ||
-          trip.requested_mode ||
-          trip.requestedMode ||
-          "Standard";
+      try {
+        if (!state.riderId) {
+          state.rides = [];
+          state.deliveries = [];
+          renderActivity();
+          return;
+        }
 
-        const statusClass = formatStatus(trip.status);
-        const statusText = niceStatus(trip.status);
+        const data = await requestJson(`/api/rider/history?riderId=${encodeURIComponent(state.riderId)}`);
+
+        state.rides = Array.isArray(data.rides) ? data.rides : [];
+        state.deliveries = Array.isArray(data.deliveries) ? data.deliveries : [];
+
+        document.getElementById("heroRideCount").textContent = String(state.rides.length);
+        document.getElementById("heroDeliveryCount").textContent = String(state.deliveries.length);
+
+        renderRider();
+        renderActivity();
+      } catch (error) {
+        console.log("History unavailable:", error.message);
+
+        try {
+          const ridesData = await requestJson(`/api/rides/status?riderId=${encodeURIComponent(state.riderId)}`);
+          state.rides = Array.isArray(ridesData.rides) ? ridesData.rides : [];
+
+          const deliveryData = await requestJson(`/api/delivery/status?riderId=${encodeURIComponent(state.riderId)}`);
+          state.deliveries = Array.isArray(deliveryData.deliveries) ? deliveryData.deliveries : [];
+        } catch {}
+
+        renderActivity();
+      } finally {
+        document.getElementById("activityLoading").style.display = "none";
+      }
+    }
+
+    function setTab(tab){
+      state.tab = tab;
+      document.getElementById("ridesTab").classList.toggle("active", tab === "rides");
+      document.getElementById("deliveriesTab").classList.toggle("active", tab === "deliveries");
+      renderActivity();
+    }
+
+    function renderActivity(){
+      const list = document.getElementById("activityList");
+      const empty = document.getElementById("activityEmpty");
+      list.innerHTML = "";
+
+      const items = state.tab === "rides" ? state.rides : state.deliveries;
+
+      if (!items.length) {
+        empty.style.display = "block";
+        return;
+      }
+
+      empty.style.display = "none";
+
+      items.slice(0, 12).forEach((item) => {
+        const isDelivery = state.tab === "deliveries";
+
+        const pickup = item.pickup_address || item.pickup || "Pickup unavailable";
+        const dropoff = item.dropoff_address || item.dropoff || item.destination || "Dropoff unavailable";
+        const title = isDelivery
+          ? `${human(item.service_type)} Delivery`
+          : `${human(item.requested_mode || "driver")} Ride`;
+
+        const amount = isDelivery
+          ? item.total
+          : item.fare_total || item.final_total || item.estimated_total || item.fare || item.amount;
 
         const card = document.createElement("div");
         card.className = "trip-card";
         card.innerHTML = `
           <div class="trip-top">
             <div>
-              <div class="trip-title">${escapeHtml(pickup)}</div>
-              <div class="trip-sub">to ${escapeHtml(dropoff)}</div>
+              <div class="trip-title">${escapeHtml(title)}</div>
+              <div class="trip-sub">${escapeHtml(pickup)} → ${escapeHtml(dropoff)}</div>
             </div>
-            <div class="trip-status ${statusClass}">${escapeHtml(statusText)}</div>
+            <div class="trip-status ${statusClass(item.status)}">${escapeHtml(human(item.status))}</div>
           </div>
 
           <div class="trip-meta">
             <div class="meta-card">
-              <small>Ride Type</small>
-              <span>${escapeHtml(humanizeStatus(rideType))}</span>
+              <small>${isDelivery ? "Service" : "Mode"}</small>
+              <span>${escapeHtml(human(isDelivery ? item.service_type : item.requested_mode || "driver"))}</span>
             </div>
             <div class="meta-card">
-              <small>Fare</small>
-              <span>${escapeHtml(formatCurrency(fare))}</span>
+              <small>Total</small>
+              <span>${escapeHtml(money(amount))}</span>
             </div>
             <div class="meta-card">
-              <small>Trip ID</small>
-              <span>${escapeHtml(trip.id || trip.ride_id || "—")}</span>
+              <small>ID</small>
+              <span>${escapeHtml(item.id || "—")}</span>
             </div>
           </div>
+
+          ${
+            item.status === "completed" || item.status === "delivered"
+              ? `<div class="actions"><button class="btn success" onclick="tipDriver('${escapeHtml(item.id)}','${isDelivery ? "delivery" : "ride"}')">Tip Driver</button></div>`
+              : ""
+          }
         `;
-        tripList.appendChild(card);
+
+        list.appendChild(card);
       });
     }
 
-    function escapeHtml(value) {
-      return String(value || "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#39;");
-    }
-
-    function normalizeTripsPayload(data) {
-      if (Array.isArray(data)) return data;
-      if (Array.isArray(data?.rides)) return data.rides;
-      if (Array.isArray(data?.data)) return data.data;
-      return [];
-    }
-
-    function tripBelongsToRider(trip, riderId) {
-      if (!riderId) return true;
-
-      const tripRiderId =
-        trip?.rider_id ||
-        trip?.riderId ||
-        trip?.rider?.id ||
-        "";
-
-      if (!tripRiderId) return false;
-      return String(tripRiderId) === String(riderId);
-    }
-
-    async function loadTrips() {
-      setLoadingState(true);
-
-      try {
-        const riderId = state.riderId || getStoredRiderId();
-        const attempts = [];
-
-        if (riderId) {
-          attempts.push(`/api/rides?rider_id=${encodeURIComponent(riderId)}`);
-          attempts.push(`/api/rides?riderId=${encodeURIComponent(riderId)}`);
-          attempts.push(`/api/rider/${encodeURIComponent(riderId)}/rides`);
-        }
-
-        let trips = [];
-
-        for (const url of attempts) {
-          try {
-            const res = await fetch(url, { credentials: "include" });
-            if (!res.ok) continue;
-
-            const data = await res.json().catch(() => ({}));
-            const maybeTrips = normalizeTripsPayload(data);
-
-            if (maybeTrips.length) {
-              trips = maybeTrips.filter((trip) => tripBelongsToRider(trip, riderId));
-              if (trips.length) break;
-            }
-          } catch (error) {
-            continue;
-          }
-        }
-
-        state.trips = trips;
-        renderTrips(trips);
-      } catch (err) {
-        console.error(err);
-        state.trips = [];
-        renderTrips([]);
-      } finally {
-        setLoadingState(false);
-      }
-    }
-
-    function updateHeroForMissingRider() {
-      heroTitle.textContent = "Finish setup and request your next ride.";
-      heroText.textContent =
-        "Your Harvey Taxi rider session was not found. Create or restore your rider profile to continue into the booking flow.";
-    }
-
-    function renderRiderStateFromProfile(rider) {
-      const approval = document.getElementById("statusApproval");
-      const payment = document.getElementById("statusPayment");
-      const riderIdEl = document.getElementById("statusRiderId");
-      const heroName = document.getElementById("heroRiderName");
-      const heroApproval = document.getElementById("heroApprovalState");
-      const heroPayment = document.getElementById("heroPaymentState");
-      const accountPills = document.getElementById("accountPills");
-
-      const fullName = [rider?.first_name, rider?.last_name].filter(Boolean).join(" ").trim();
-      const approvalText = humanizeStatus(
-        rider?.approval_status ||
-        rider?.verification_status ||
-        rider?.status ||
-        (rider?.is_approved ? "approved" : "pending")
-      );
-
-      const paymentText = humanizeStatus(
-        rider?.payment_status ||
-        rider?.payment_authorization_status ||
-        (rider?.payment_authorized ? "authorized" : "pending")
-      );
-
-      const approvalOk = isApprovalReady(rider);
-      const paymentOk = isPaymentReady(rider);
-
-      riderIdEl.textContent = state.riderId || "—";
-      heroName.textContent = fullName || rider?.email || "Rider";
-      approval.textContent = approvalText;
-      payment.textContent = paymentText;
-      heroApproval.textContent = approvalText;
-      heroPayment.textContent = paymentText;
-
-      accountPills.innerHTML = `
-        <div class="pill ${approvalOk ? "ok" : "warn"}">${approvalOk ? "Rider approved" : "Approval pending"}</div>
-        <div class="pill ${paymentOk ? "ok" : "warn"}">${paymentOk ? "Payment ready" : "Payment pending"}</div>
-        <div class="pill">Support available</div>
-      `;
-    }
-
-    async function loadRiderState() {
-      const approval = document.getElementById("statusApproval");
-      const payment = document.getElementById("statusPayment");
-      const riderIdEl = document.getElementById("statusRiderId");
-      const heroName = document.getElementById("heroRiderName");
-      const heroApproval = document.getElementById("heroApprovalState");
-      const heroPayment = document.getElementById("heroPaymentState");
-      const accountPills = document.getElementById("accountPills");
-
-      state.riderId = getStoredRiderId();
-      state.riderProfile = getStoredRiderProfile();
-
-      riderIdEl.textContent = state.riderId || "—";
-
-      if (state.riderProfile) {
-        renderRiderStateFromProfile(state.riderProfile);
-      }
-
-      if (!state.riderId) {
-        updateHeroForMissingRider();
-        approval.textContent = "Missing";
-        payment.textContent = "Missing";
-        heroApproval.textContent = "Missing";
-        heroPayment.textContent = "Missing";
-        heroName.textContent = "No rider";
-        accountPills.innerHTML = `
-          <div class="pill warn">Rider session missing</div>
-          <div class="pill">Support available</div>
-        `;
+    async function startPersona(){
+      if (!state.riderId && !state.riderProfile?.email) {
+        alert("Rider profile not found. Please sign up first.");
+        window.location.href = "rider-signup.html";
         return;
       }
 
       try {
-        const res = await fetch(`/api/rider/${encodeURIComponent(state.riderId)}/status`, {
-          credentials: "include"
+        const data = await requestJson("/api/riders/start-persona", {
+          method: "POST",
+          body: JSON.stringify({
+            riderId: state.riderId,
+            email: state.riderProfile?.email
+          })
         });
 
-        if (!res.ok) return;
+        const url = data?.persona?.hostedUrl || data?.persona?.hosted_url;
 
-        const data = await res.json().catch(() => ({}));
-        const rider = data?.rider;
+        if (url) {
+          window.location.href = url;
+          return;
+        }
 
-        if (!rider) return;
-
-        state.riderProfile = {
-          ...(state.riderProfile || {}),
-          ...rider
-        };
-
-        localStorage.setItem("riderProfile", JSON.stringify(state.riderProfile));
-        localStorage.setItem("rider", JSON.stringify(state.riderProfile));
-        localStorage.setItem("harveyRiderId", state.riderId);
-
-        renderRiderStateFromProfile(state.riderProfile);
+        alert(data.message || "Persona verification started. Check your verification flow.");
       } catch (error) {
-        console.log("Rider status refresh unavailable.");
+        alert(error.message || "Could not start Persona verification.");
       }
     }
 
-    async function bootDashboard() {
-      await loadRiderState();
-      await loadTrips();
+    function tipDriver(id, type){
+      alert(`Tip flow will open next. ${type}: ${id}`);
     }
 
-    bootDashboard();
+    async function refreshAll(){
+      await loadRiderStatus();
+      await loadHistory();
+    }
+
+    async function boot(){
+      await loadRiderStatus();
+      await loadHistory();
+    }
+
+    boot();
   </script>
 </body>
   </html>
