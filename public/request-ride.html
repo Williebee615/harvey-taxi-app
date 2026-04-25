@@ -2,838 +2,203 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
-  />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Harvey Taxi — Request Ride</title>
-  <meta
-    name="description"
-    content="Harvey Taxi futuristic request ride page with rider access, live Google Maps pickup preview, fare estimate, payment authorization, and dispatch request flow."
-  />
+  <meta name="description" content="Harvey Taxi request ride page with rider Persona gate, live pickup, ride estimate, payment authorization, and dispatch request flow." />
   <meta name="theme-color" content="#07111f" />
-
-  <!--
-    IMPORTANT:
-    Set this from your server-side render or manually before deploy.
-    Do NOT hardcode secret server keys here.
-    This must be a browser-restricted Google Maps JavaScript API key.
-  -->
   <meta name="google-maps-browser-key" content="" />
 
   <style>
     :root{
-      --bg1:#040814;
-      --bg2:#091126;
-      --bg3:#101935;
-      --panel:rgba(10,17,38,.90);
-      --panel2:rgba(16,27,58,.86);
-      --line:rgba(122,162,255,.16);
-      --line-strong:rgba(122,162,255,.30);
-      --text:#f4f7ff;
-      --muted:#aab8de;
-      --blue:#5ea0ff;
-      --cyan:#63f5ff;
-      --green:#6dffb3;
-      --gold:#ffd76a;
-      --danger:#ff7e97;
-      --shadow:0 20px 70px rgba(0,0,0,.35);
-      --max:1180px;
-      --ok-bg:rgba(109,255,179,.10);
-      --warn-bg:rgba(255,215,106,.10);
-      --bad-bg:rgba(255,126,151,.10);
+      --bg1:#040814;--bg2:#091126;--bg3:#101935;
+      --panel:rgba(10,17,38,.91);--panel2:rgba(16,27,58,.86);
+      --line:rgba(122,162,255,.17);--line-strong:rgba(122,162,255,.32);
+      --text:#f4f7ff;--muted:#aab8de;--blue:#5ea0ff;--cyan:#63f5ff;
+      --green:#6dffb3;--gold:#ffd76a;--danger:#ff7e97;--ink:#07121f;
+      --shadow:0 20px 70px rgba(0,0,0,.35);--max:1180px;
+      --ok-bg:rgba(109,255,179,.10);--warn-bg:rgba(255,215,106,.10);--bad-bg:rgba(255,126,151,.10);
     }
-
-    *{ box-sizing:border-box; margin:0; padding:0; }
-    html{ scroll-behavior:smooth; }
-
+    *{box-sizing:border-box;margin:0;padding:0}
+    html{scroll-behavior:smooth}
     body{
-      font-family:Inter, Arial, sans-serif;
-      color:var(--text);
+      font-family:Inter,Arial,sans-serif;color:var(--text);min-height:100vh;overflow-x:hidden;
       background:
-        radial-gradient(circle at top left, rgba(99,245,255,.12), transparent 30%),
-        radial-gradient(circle at top right, rgba(94,160,255,.10), transparent 28%),
-        linear-gradient(160deg, var(--bg1), var(--bg2) 50%, var(--bg3));
-      min-height:100vh;
-      overflow-x:hidden;
+        radial-gradient(circle at top left,rgba(99,245,255,.12),transparent 30%),
+        radial-gradient(circle at top right,rgba(94,160,255,.10),transparent 28%),
+        linear-gradient(160deg,var(--bg1),var(--bg2) 50%,var(--bg3));
     }
-
-    a{ color:inherit; text-decoration:none; }
-    button,input,textarea,select{ font:inherit; }
-
-    .shell{
-      max-width:var(--max);
-      margin:auto;
-      padding:18px 16px 140px;
-    }
-
+    a{color:inherit;text-decoration:none}
+    button,input,textarea,select{font:inherit}
+    button{cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+    .hidden{display:none!important}
+    .shell{max-width:var(--max);margin:auto;padding:18px 16px 140px}
     .topbar{
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:14px;
-      padding:14px 18px;
-      border:1px solid var(--line);
-      border-radius:999px;
-      background:rgba(7,12,28,.78);
-      backdrop-filter:blur(12px);
-      -webkit-backdrop-filter:blur(12px);
-      margin-bottom:18px;
-      box-shadow:var(--shadow);
-      position:sticky;
-      top:14px;
-      z-index:50;
+      display:flex;justify-content:space-between;align-items:center;gap:14px;padding:14px 18px;
+      border:1px solid var(--line);border-radius:999px;background:rgba(7,12,28,.78);
+      backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);margin-bottom:18px;box-shadow:var(--shadow);
+      position:sticky;top:14px;z-index:50;flex-wrap:wrap;
     }
-
-    .brand-wrap{ display:flex; align-items:center; gap:12px; min-width:0; }
-
-    .logo-dot{
-      width:12px;
-      height:12px;
-      border-radius:50%;
-      background:linear-gradient(135deg,var(--cyan),var(--blue));
-      box-shadow:0 0 18px rgba(99,245,255,.55);
-      flex-shrink:0;
+    .brand-wrap{display:flex;align-items:center;gap:12px;min-width:0}
+    .logo-dot{width:12px;height:12px;border-radius:50%;background:linear-gradient(135deg,var(--cyan),var(--blue));box-shadow:0 0 18px rgba(99,245,255,.55);flex-shrink:0}
+    .brand{font-weight:900;letter-spacing:.12em;font-size:14px;white-space:nowrap}
+    .brand-sub{font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-top:2px}
+    .top-actions{display:flex;gap:10px;flex-wrap:wrap}
+    .top-chip,.action-chip,.pill{
+      border-radius:999px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.045);
+      color:var(--text);font-weight:800;transition:.18s ease;
     }
-
-    .brand-block{ display:flex; flex-direction:column; gap:2px; min-width:0; }
-    .brand{ font-weight:900; letter-spacing:.12em; font-size:14px; white-space:nowrap; }
-    .brand-sub{ font-size:11px; color:var(--muted); letter-spacing:.08em; text-transform:uppercase; }
-
-    .top-actions{ display:flex; gap:10px; flex-wrap:wrap; }
-
-    .top-chip{
-      padding:10px 14px;
-      border-radius:999px;
-      border:1px solid rgba(255,255,255,.08);
-      background:rgba(255,255,255,.03);
-      color:var(--muted);
-      font-size:13px;
-      font-weight:700;
-      transition:.18s ease;
-      cursor:pointer;
+    .top-chip{padding:10px 14px;color:var(--muted);font-size:13px}
+    .top-chip:hover,.action-chip:hover,.pill:hover{background:rgba(255,255,255,.075);transform:translateY(-1px)}
+    .hero,.section,.estimate-panel{
+      background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.015)),var(--panel);
+      border:1px solid var(--line);box-shadow:var(--shadow);
     }
-
-    .top-chip:hover{
-      color:#fff;
-      background:rgba(255,255,255,.06);
-    }
-
-    .hero{
-      position:relative;
-      overflow:hidden;
-      background:
-        linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.015)),
-        var(--panel);
-      padding:28px;
-      border-radius:28px;
-      border:1px solid var(--line);
-      margin-bottom:18px;
-      box-shadow:var(--shadow);
-    }
-
-    .hero::before{
-      content:"";
-      position:absolute;
-      top:-70px;
-      right:-70px;
-      width:260px;
-      height:260px;
-      border-radius:50%;
-      background:radial-gradient(circle,rgba(99,245,255,.16),transparent 65%);
-      pointer-events:none;
-    }
-
-    .hero::after{
-      content:"";
-      position:absolute;
-      left:-70px;
-      bottom:-70px;
-      width:220px;
-      height:220px;
-      border-radius:50%;
-      background:radial-gradient(circle,rgba(94,160,255,.10),transparent 65%);
-      pointer-events:none;
-    }
-
-    .welcome{ position:relative; z-index:2; margin-bottom:18px; }
-
+    .hero{position:relative;overflow:hidden;padding:28px;border-radius:28px;margin-bottom:18px}
+    .hero::before{content:"";position:absolute;top:-70px;right:-70px;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(99,245,255,.16),transparent 65%);pointer-events:none}
+    .hero::after{content:"";position:absolute;left:-70px;bottom:-70px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(94,160,255,.10),transparent 65%);pointer-events:none}
+    .welcome{position:relative;z-index:2;margin-bottom:18px}
     .welcome-badge{
-      display:inline-flex;
-      align-items:center;
-      gap:10px;
-      padding:10px 14px;
-      border-radius:999px;
-      border:1px solid rgba(255,255,255,.08);
-      background:rgba(255,255,255,.04);
-      color:var(--cyan);
-      font-size:12px;
-      font-weight:800;
-      letter-spacing:.05em;
-      text-transform:uppercase;
-      margin-bottom:14px;
+      display:inline-flex;align-items:center;gap:10px;padding:10px 14px;border-radius:999px;
+      border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);color:var(--cyan);
+      font-size:12px;font-weight:900;letter-spacing:.05em;text-transform:uppercase;margin-bottom:14px;
     }
-
-    .welcome h1{
-      font-size:42px;
-      line-height:1.04;
-      margin-bottom:10px;
-    }
-
-    .welcome p{
-      color:var(--muted);
-      font-size:16px;
-      line-height:1.7;
-      max-width:760px;
-    }
-
+    .welcome h1{font-size:clamp(2rem,5vw,2.7rem);line-height:1.04;margin-bottom:10px}
+    .welcome p{color:var(--muted);font-size:16px;line-height:1.7;max-width:760px}
     .mode-banner{
-      position:relative;
-      z-index:2;
-      display:none;
-      margin-top:18px;
-      padding:18px;
-      border-radius:22px;
-      border:1px solid rgba(99,245,255,.16);
-      background:linear-gradient(135deg,rgba(127,123,255,.16),rgba(99,245,255,.08));
+      position:relative;z-index:2;display:none;margin-top:18px;padding:18px;border-radius:22px;
+      border:1px solid rgba(99,245,255,.16);background:linear-gradient(135deg,rgba(127,123,255,.16),rgba(99,245,255,.08));
     }
-
-    .mode-banner strong{
-      display:block;
-      margin-bottom:8px;
-      font-size:16px;
+    .mode-banner strong{display:block;margin-bottom:8px}
+    .mode-banner span{color:var(--muted);line-height:1.7;font-size:14px;display:block}
+    .chip-row{display:flex;flex-wrap:wrap;gap:12px;margin-top:18px;position:relative;z-index:2}
+    .action-chip{padding:14px 16px;font-size:14px;display:inline-flex;align-items:center;gap:10px}
+    .grid{display:grid;grid-template-columns:1.04fr .96fr;gap:16px;margin-top:18px}
+    .section{padding:24px;border-radius:24px}
+    .section-header{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+    .section-header h2{font-size:28px;margin-bottom:4px}
+    .section-header p{color:var(--muted);font-size:14px;line-height:1.7;max-width:720px}
+    .step-row{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px}
+    .step{padding:10px 14px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--muted);font-size:13px;font-weight:900}
+    .step.active{color:#dfffff;border-color:rgba(99,245,255,.45);background:rgba(99,245,255,.12)}
+    .status-strip{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+    .status-card,.metric,.map-readout-card{
+      padding:16px;border-radius:18px;border:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.035);
     }
-
-    .mode-banner span{
-      color:var(--muted);
-      line-height:1.7;
-      font-size:14px;
-      display:block;
-    }
-
-    .chip-row{
-      display:flex;
-      flex-wrap:wrap;
-      gap:12px;
-      margin-top:18px;
-      position:relative;
-      z-index:2;
-    }
-
-    .action-chip{
-      padding:14px 16px;
-      border-radius:999px;
-      border:1px solid rgba(255,255,255,.08);
-      background:rgba(255,255,255,.05);
-      color:var(--text);
-      font-size:14px;
-      font-weight:800;
-      cursor:pointer;
-      display:inline-flex;
-      align-items:center;
-      gap:10px;
-    }
-
-    .action-chip:hover{ background:rgba(255,255,255,.08); }
-
-    .grid{
-      display:grid;
-      grid-template-columns:1.04fr .96fr;
-      gap:16px;
-      margin-top:18px;
-    }
-
-    .section{
-      background:var(--panel);
-      padding:24px;
-      border-radius:24px;
-      border:1px solid var(--line);
-      box-shadow:var(--shadow);
-    }
-
-    .section-header{
-      display:flex;
-      justify-content:space-between;
-      align-items:flex-end;
-      gap:12px;
-      flex-wrap:wrap;
-      margin-bottom:16px;
-    }
-
-    .section-header h2{
-      font-size:28px;
-      margin-bottom:4px;
-    }
-
-    .section-header p{
-      color:var(--muted);
-      font-size:14px;
-      line-height:1.7;
-      max-width:720px;
-    }
-
-    .step-row{ display:flex; flex-wrap:wrap; gap:10px; margin-bottom:18px; }
-
-    .step{
-      padding:10px 14px;
-      border-radius:999px;
-      border:1px solid var(--line);
-      background:rgba(255,255,255,.04);
-      color:var(--muted);
-      font-size:13px;
-      font-weight:800;
-    }
-
-    .step.active{
-      color:#dfffff;
-      border-color:rgba(99,245,255,.45);
-      background:rgba(99,245,255,.12);
-    }
-
-    .status-strip{
-      display:grid;
-      grid-template-columns:repeat(2,1fr);
-      gap:12px;
-    }
-
-    .status-card{
-      padding:16px;
-      border-radius:18px;
-      border:1px solid rgba(255,255,255,.07);
-      background:rgba(255,255,255,.03);
-    }
-
-    .status-card h3{
-      font-size:15px;
-      margin-bottom:8px;
-    }
-
-    .status-card p{
-      color:var(--muted);
-      font-size:14px;
-      line-height:1.7;
-      margin-bottom:8px;
-    }
-
-    .tag{
-      display:inline-block;
-      padding:8px 12px;
-      border-radius:999px;
-      font-size:11px;
-      font-weight:900;
-      letter-spacing:.05em;
-      text-transform:uppercase;
-      border:1px solid transparent;
-    }
-
-    .ok{ background:var(--ok-bg); color:var(--green); border-color:rgba(109,255,179,.20); }
-    .warn{ background:var(--warn-bg); color:var(--gold); border-color:rgba(255,215,106,.20); }
-    .bad{ background:var(--bad-bg); color:var(--danger); border-color:rgba(255,126,151,.20); }
-
-    .ride-card{
-      padding:20px;
-      border-radius:22px;
-      border:1px solid rgba(99,245,255,.16);
+    .status-card h3{font-size:15px;margin-bottom:8px}
+    .status-card p{color:var(--muted);font-size:14px;line-height:1.7;margin-bottom:8px}
+    .tag{display:inline-block;padding:8px 12px;border-radius:999px;font-size:11px;font-weight:900;letter-spacing:.05em;text-transform:uppercase;border:1px solid transparent}
+    .ok{background:var(--ok-bg);color:var(--green);border-color:rgba(109,255,179,.20)}
+    .warn{background:var(--warn-bg);color:var(--gold);border-color:rgba(255,215,106,.20)}
+    .bad{background:var(--bad-bg);color:var(--danger);border-color:rgba(255,126,151,.20)}
+    .ride-card,.map-panel{
+      padding:20px;border-radius:22px;border:1px solid rgba(99,245,255,.16);
       background:linear-gradient(135deg,rgba(99,245,255,.06),rgba(94,160,255,.035));
     }
-
-    .field-grid{ display:grid; gap:14px; }
-    .field{ display:grid; gap:8px; }
-
-    .field label{
-      font-size:13px;
-      font-weight:800;
-      color:var(--muted);
-      text-transform:uppercase;
-      letter-spacing:.05em;
+    .field-grid{display:grid;gap:14px}
+    .field{display:grid;gap:8px}
+    .field label{font-size:13px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+    .input,select,textarea{
+      width:100%;border:none;outline:none;border-radius:18px;padding:16px;background:rgba(255,255,255,.96);
+      color:#172033;font-size:16px;font-weight:700;box-shadow:0 10px 28px rgba(0,0,0,.16);
     }
-
-    .input,
-    select,
-    textarea{
-      width:100%;
-      border:none;
-      outline:none;
-      border-radius:18px;
-      padding:16px 16px;
-      background:rgba(255,255,255,.96);
-      color:#172033;
-      font-size:16px;
-      font-weight:600;
-      box-shadow:0 10px 28px rgba(0,0,0,.16);
+    textarea{min-height:110px;resize:vertical}
+    .split{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .pill-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:4px}
+    .pill{padding:12px 15px}
+    .pill.active{border-color:rgba(99,245,255,.42);background:linear-gradient(135deg,rgba(99,245,255,.12),rgba(94,160,255,.10));color:#dfffff}
+    .trust-note,.notice{
+      margin-top:16px;padding:16px 18px;border-radius:18px;border:1px solid rgba(109,255,179,.15);
+      background:rgba(109,255,179,.05);color:#dfffee;line-height:1.65;font-size:14px;
     }
-
-    select{ appearance:none; }
-    textarea{ min-height:110px; resize:vertical; }
-
-    .split{
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:14px;
-    }
-
-    .pill-row{
-      display:flex;
-      flex-wrap:wrap;
-      gap:10px;
-      margin-top:4px;
-    }
-
-    .pill{
-      border:1px solid rgba(255,255,255,.08);
-      background:rgba(255,255,255,.05);
-      color:var(--text);
-      padding:12px 15px;
-      border-radius:999px;
-      font-weight:800;
-      cursor:pointer;
-      transition:.2s ease;
-    }
-
-    .pill:hover{
-      border-color:var(--line-strong);
-      background:rgba(255,255,255,.07);
-    }
-
-    .pill.active{
-      border-color:rgba(99,245,255,.42);
-      background:linear-gradient(135deg,rgba(99,245,255,.12),rgba(94,160,255,.10));
-      color:#dfffff;
-    }
-
-    .trust-note{
-      margin-top:16px;
-      padding:16px 18px;
-      border-radius:18px;
-      border:1px solid rgba(109,255,179,.15);
-      background:rgba(109,255,179,.05);
-      color:#dfffee;
-      line-height:1.65;
-      font-size:14px;
-    }
-
-    .account-actions{
-      display:flex;
-      flex-wrap:wrap;
-      gap:12px;
-      margin-top:18px;
-    }
-
+    .notice{border-color:rgba(255,255,255,.08);background:rgba(255,255,255,.03);color:var(--muted);margin-top:0}
+    .notice strong{color:var(--text);display:block;margin-bottom:6px}
+    .account-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:18px}
     .btn{
-      padding:14px 18px;
-      border-radius:14px;
-      border:1px solid var(--line);
-      background:rgba(255,255,255,.04);
-      color:white;
-      font-weight:800;
-      cursor:pointer;
-      transition:.18s ease;
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      gap:8px;
-      min-height:48px;
-      text-align:center;
-      text-decoration:none;
+      padding:14px 18px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.04);
+      color:white;font-weight:900;transition:.18s ease;display:inline-flex;align-items:center;justify-content:center;
+      gap:8px;min-height:48px;text-align:center;text-decoration:none;
     }
-
-    .btn:hover{
-      transform:translateY(-1px);
-      background:rgba(255,255,255,.06);
-    }
-
-    .btn.primary{
-      background:linear-gradient(135deg,var(--cyan),var(--blue));
-      color:#07121f;
-      border:none;
-      flex:1;
-    }
-
-    .btn.secondary{
-      background:rgba(255,255,255,.05);
-      color:var(--text);
-      border:1px solid var(--line);
-      flex:1;
-    }
-
-    .btn.autonomous-primary{
-      background:linear-gradient(90deg,#7f7bff,#63f5ff);
-      color:#041224;
-      border:none;
-    }
-
-    .btn.ghost{ background:transparent; }
-
-    .loading{ pointer-events:none; opacity:.86; }
-
+    .btn:hover{transform:translateY(-1px);background:rgba(255,255,255,.06)}
+    .btn:disabled{opacity:.65;cursor:not-allowed;transform:none}
+    .btn.primary{background:linear-gradient(135deg,var(--cyan),var(--blue));color:var(--ink);border:none;flex:1}
+    .btn.secondary{background:rgba(255,255,255,.05);color:var(--text);border:1px solid var(--line);flex:1}
+    .btn.autonomous-primary{background:linear-gradient(90deg,#7f7bff,#63f5ff);color:#041224;border:none}
+    .btn.ghost{background:transparent}
+    .loading{pointer-events:none;opacity:.86}
     .loading::after{
-      content:"";
-      width:16px;
-      height:16px;
-      border:2px solid rgba(255,255,255,.32);
-      border-top-color:rgba(255,255,255,.96);
-      border-radius:50%;
-      display:inline-block;
-      margin-left:10px;
-      vertical-align:middle;
-      animation:spin .7s linear infinite;
+      content:"";width:16px;height:16px;border:2px solid rgba(255,255,255,.32);border-top-color:#fff;
+      border-radius:50%;display:inline-block;margin-left:10px;vertical-align:middle;animation:spin .7s linear infinite;
     }
-
-    @keyframes spin{ to{ transform:rotate(360deg); } }
-
-    .section-stack{ display:grid; gap:18px; }
-
-    .estimate-panel{
-      padding:22px;
-      border-radius:22px;
-      border:1px solid rgba(255,255,255,.07);
-      background:
-        linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.015)),
-        var(--panel2);
-    }
-
-    .estimate-panel h3{
-      font-size:22px;
-      margin-bottom:8px;
-    }
-
-    .estimate-panel p{
-      color:var(--muted);
-      font-size:14px;
-      line-height:1.7;
-      margin-bottom:16px;
-    }
-
-    .estimate{
-      display:grid;
-      grid-template-columns:repeat(3,1fr);
-      gap:12px;
-      margin-bottom:16px;
-    }
-
-    .metric{
-      background:rgba(255,255,255,.035);
-      border:1px solid var(--line);
-      border-radius:18px;
-      padding:14px;
-      text-align:center;
-    }
-
-    .metric .k{
-      color:var(--muted);
-      font-size:12px;
-      margin-bottom:6px;
-      text-transform:uppercase;
-      letter-spacing:.05em;
-    }
-
-    .metric .v{
-      font-size:16px;
-      font-weight:800;
-      line-height:1.4;
-    }
-
-    .receipt{
-      margin-top:12px;
-      padding:16px;
-      border:1px solid var(--line);
-      background:rgba(255,255,255,.035);
-      border-radius:18px;
-      line-height:1.7;
-      font-size:14px;
-    }
-
-    .result,
-    .error{
-      margin-top:16px;
-      display:none;
-      padding:16px;
-      border-radius:18px;
-      line-height:1.7;
-      white-space:pre-line;
-      font-size:14px;
-    }
-
-    .result{
-      border:1px solid rgba(109,255,179,.18);
-      background:rgba(109,255,179,.08);
-      color:#dffff0;
-    }
-
-    .error{
-      border:1px solid rgba(255,126,151,.2);
-      background:rgba(255,126,151,.08);
-      color:#ffd9e1;
-    }
-
-    .notice{
-      padding:16px 18px;
-      border-radius:18px;
-      border:1px solid rgba(255,255,255,.08);
-      background:rgba(255,255,255,.03);
-      color:var(--muted);
-      line-height:1.7;
-      font-size:14px;
-    }
-
-    .notice strong{
-      color:var(--text);
-      display:block;
-      margin-bottom:6px;
-    }
-
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .section-stack{display:grid;gap:18px}
+    .estimate-panel{padding:22px;border-radius:22px}
+    .estimate-panel h3{font-size:22px;margin-bottom:8px}
+    .estimate-panel p{color:var(--muted);font-size:14px;line-height:1.7;margin-bottom:16px}
+    .estimate{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+    .metric{text-align:center}
+    .metric .k,.map-readout-card .k{color:var(--muted);font-size:12px;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em}
+    .metric .v{font-size:16px;font-weight:900;line-height:1.4}
+    .receipt{margin-top:12px;padding:16px;border:1px solid var(--line);background:rgba(255,255,255,.035);border-radius:18px;line-height:1.7;font-size:14px}
+    .result,.error{margin-top:16px;display:none;padding:16px;border-radius:18px;line-height:1.7;white-space:pre-line;font-size:14px}
+    .result{border:1px solid rgba(109,255,179,.18);background:rgba(109,255,179,.08);color:#dffff0}
+    .error{border:1px solid rgba(255,126,151,.2);background:rgba(255,126,151,.08);color:#ffd9e1}
     .footer{
-      margin-top:18px;
-      padding:20px;
-      border-radius:24px;
-      border:1px solid var(--line);
-      background:var(--panel);
-      display:flex;
-      justify-content:space-between;
-      align-items:flex-start;
-      flex-wrap:wrap;
-      gap:16px;
-      box-shadow:var(--shadow);
+      margin-top:18px;padding:20px;border-radius:24px;border:1px solid var(--line);background:var(--panel);
+      display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px;box-shadow:var(--shadow);
     }
-
-    .footer p{
-      color:var(--muted);
-      font-size:14px;
-      line-height:1.7;
-      max-width:700px;
-    }
-
+    .footer p{color:var(--muted);font-size:14px;line-height:1.7;max-width:700px}
     .bottom-nav{
-      position:fixed;
-      left:0;
-      right:0;
-      bottom:0;
-      background:rgba(6,12,26,.96);
-      backdrop-filter:blur(14px);
-      -webkit-backdrop-filter:blur(14px);
-      border-top:1px solid rgba(255,255,255,.08);
-      display:flex;
-      justify-content:space-around;
-      padding:12px 8px calc(12px + env(safe-area-inset-bottom));
-      z-index:1000;
+      position:fixed;left:0;right:0;bottom:0;background:rgba(6,12,26,.96);backdrop-filter:blur(14px);
+      -webkit-backdrop-filter:blur(14px);border-top:1px solid rgba(255,255,255,.08);display:flex;justify-content:space-around;
+      padding:12px 8px calc(12px + env(safe-area-inset-bottom));z-index:1000;
     }
-
-    .nav-btn{
-      color:var(--muted);
-      background:none;
-      border:none;
-      font-size:13px;
-      font-weight:700;
-      cursor:pointer;
-      padding:6px 10px;
-    }
-
-    .nav-btn.active{ color:white; }
-
+    .nav-btn{color:var(--muted);background:none;border:none;font-size:13px;font-weight:800;padding:6px 10px}
+    .nav-btn.active{color:white}
     .location-gate{
-      position:fixed;
-      inset:0;
-      z-index:9999;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding:20px;
-      background:
-        radial-gradient(circle at top left, rgba(99,245,255,.14), transparent 28%),
-        radial-gradient(circle at top right, rgba(94,160,255,.12), transparent 24%),
-        linear-gradient(160deg,#040814,#091126);
+      position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;
+      background:radial-gradient(circle at top left,rgba(99,245,255,.14),transparent 28%),linear-gradient(160deg,#040814,#091126);
     }
-
     .location-panel{
-      width:100%;
-      max-width:620px;
-      background:
-        linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.015)),
-        var(--panel);
-      border:1px solid var(--line);
-      border-radius:28px;
-      padding:28px 24px;
-      box-shadow:var(--shadow);
-      text-align:center;
+      width:100%;max-width:620px;background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.015)),var(--panel);
+      border:1px solid var(--line);border-radius:28px;padding:28px 24px;box-shadow:var(--shadow);text-align:center;
     }
-
-    .location-panel h2{
-      font-size:32px;
-      margin-bottom:10px;
-    }
-
-    .location-panel p{
-      color:var(--muted);
-      line-height:1.7;
-      margin-bottom:18px;
-      font-size:15px;
-    }
-
-    .location-status{
-      margin-top:14px;
-      font-size:14px;
-      color:var(--muted);
-      min-height:24px;
-    }
-
-    .location-note{
-      margin-top:16px;
-      padding:14px 16px;
-      border-radius:18px;
-      border:1px solid var(--line);
-      background:rgba(255,255,255,.035);
-      color:var(--muted);
-      line-height:1.6;
-      font-size:14px;
-    }
-
-    .map-panel{
-      padding:20px;
-      border-radius:22px;
-      border:1px solid rgba(99,245,255,.16);
-      background:linear-gradient(135deg,rgba(99,245,255,.06),rgba(94,160,255,.035));
-      margin-bottom:16px;
-    }
-
-    .map-header{
-      display:flex;
-      justify-content:space-between;
-      align-items:flex-start;
-      gap:12px;
-      flex-wrap:wrap;
-      margin-bottom:14px;
-    }
-
-    .map-header h3{
-      font-size:20px;
-      margin-bottom:6px;
-    }
-
-    .map-header p{
-      color:var(--muted);
-      font-size:14px;
-      line-height:1.7;
-      max-width:650px;
-    }
-
+    .location-panel h2{font-size:32px;margin-bottom:10px}
+    .location-panel p{color:var(--muted);line-height:1.7;margin-bottom:18px;font-size:15px}
+    .location-status{margin-top:14px;font-size:14px;color:var(--muted);min-height:24px}
+    .location-note{margin-top:16px;padding:14px 16px;border-radius:18px;border:1px solid var(--line);background:rgba(255,255,255,.035);color:var(--muted);line-height:1.6;font-size:14px}
+    .map-panel{margin-bottom:16px}
+    .map-header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+    .map-header h3{font-size:20px;margin-bottom:6px}
+    .map-header p{color:var(--muted);font-size:14px;line-height:1.7;max-width:650px}
     #liveMap{
-      width:100%;
-      height:360px;
-      border-radius:20px;
-      overflow:hidden;
-      border:1px solid rgba(255,255,255,.08);
-      box-shadow:0 14px 34px rgba(0,0,0,.20);
-      background:
-        radial-gradient(circle at center, rgba(99,245,255,.10), transparent 46%),
-        #0d1730;
-      position:relative;
+      width:100%;height:360px;border-radius:20px;overflow:hidden;border:1px solid rgba(255,255,255,.08);
+      box-shadow:0 14px 34px rgba(0,0,0,.20);background:radial-gradient(circle at center,rgba(99,245,255,.10),transparent 46%),#0d1730;position:relative;
     }
-
-    .map-loading{
-      position:absolute;
-      inset:0;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      color:var(--muted);
-      font-size:15px;
-      line-height:1.6;
-      text-align:center;
-      padding:20px;
-      background:linear-gradient(180deg,rgba(13,23,48,.30),rgba(13,23,48,.12));
-      z-index:1;
-      pointer-events:none;
-    }
-
-    .map-readout{
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:12px;
-      margin-top:14px;
-    }
-
-    .map-readout-card{
-      padding:14px;
-      border-radius:16px;
-      border:1px solid rgba(255,255,255,.08);
-      background:rgba(255,255,255,.03);
-    }
-
-    .map-readout-card .k{
-      color:var(--muted);
-      font-size:12px;
-      text-transform:uppercase;
-      letter-spacing:.05em;
-      margin-bottom:6px;
-    }
-
-    .map-readout-card .v{
-      font-size:14px;
-      line-height:1.6;
-      font-weight:700;
-      word-break:break-word;
-    }
-
-    .coord-note{
-      margin-top:12px;
-      color:var(--muted);
-      font-size:13px;
-      line-height:1.6;
-    }
-
-    @media(max-width:980px){
-      .grid{ grid-template-columns:1fr; }
-      .welcome h1{ font-size:34px; }
-    }
-
+    .map-loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:15px;line-height:1.6;text-align:center;padding:20px;z-index:1;pointer-events:none}
+    .map-readout{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+    .map-readout-card .v{font-size:14px;line-height:1.6;font-weight:800;word-break:break-word}
+    .coord-note{margin-top:12px;color:var(--muted);font-size:13px;line-height:1.6}
+    @media(max-width:980px){.grid{grid-template-columns:1fr}}
     @media(max-width:700px){
-      .shell{ padding:14px 12px 140px; }
-
-      .topbar{
-        border-radius:24px;
-        padding:14px;
-        align-items:flex-start;
-        flex-direction:column;
-      }
-
-      .top-actions{ width:100%; justify-content:flex-start; }
-      .top-chip{ flex:1; text-align:center; }
-
-      .hero,.section{ padding:20px; }
-      .welcome h1{ font-size:28px; }
-
-      .split,.status-strip,.estimate,.map-readout{ grid-template-columns:1fr; }
-
-      .account-actions{ flex-direction:column; }
-      .btn{ width:100%; }
-
-      .location-panel h2{ font-size:28px; }
-      #liveMap{ height:300px; }
+      .shell{padding:14px 12px 140px}.topbar{border-radius:24px;padding:14px;align-items:flex-start;flex-direction:column}
+      .top-actions{width:100%}.top-chip{flex:1;text-align:center}.hero,.section{padding:20px}
+      .split,.status-strip,.estimate,.map-readout{grid-template-columns:1fr}.account-actions{flex-direction:column}.btn{width:100%}
+      #liveMap{height:300px}.location-panel h2{font-size:28px}
     }
   </style>
 </head>
+
 <body>
   <div id="locationGate" class="location-gate">
     <div class="location-panel">
       <div class="welcome-badge" style="justify-content:center;">Location required • Harvey Taxi</div>
       <h2>Enable Location Access</h2>
-      <p>
-        Harvey Taxi uses your device location to support pickup coordination,
-        live map visibility, ride requests, dispatch accuracy, and a safer transportation flow.
-      </p>
-
+      <p>Harvey Taxi uses your device location for pickup support, live map visibility, and dispatch accuracy.</p>
       <div class="account-actions" style="justify-content:center;">
         <button class="btn primary" id="enableLocationBtn" type="button">Enable Location</button>
       </div>
-
-      <div class="location-status" id="locationStatusText">
-        Location access is required before continuing.
-      </div>
-
-      <div class="location-note">
-        Your ride experience works best when live location is enabled for pickup support,
-        map confirmation, trip flow, and accurate dispatch.
-      </div>
+      <div class="location-status" id="locationStatusText">Location access is required before continuing.</div>
+      <div class="location-note">Your ride experience works best when live location is enabled.</div>
     </div>
   </div>
 
@@ -841,12 +206,11 @@
     <div class="topbar">
       <div class="brand-wrap">
         <div class="logo-dot"></div>
-        <div class="brand-block">
+        <div>
           <div class="brand">HARVEY TAXI</div>
           <div class="brand-sub">Request Ride</div>
         </div>
       </div>
-
       <div class="top-actions">
         <button class="top-chip" onclick="goHome()">Home</button>
         <button class="top-chip" onclick="goDashboard()">Dashboard</button>
@@ -858,18 +222,12 @@
       <div class="welcome">
         <div class="welcome-badge">Premium booking flow • Harvey Taxi</div>
         <h1 id="heroTitle">Request your ride with confidence.</h1>
-        <p id="heroText">
-          Harvey Taxi launch mode is active. Riders can request rides after rider approval
-          and secured payment.
-        </p>
+        <p id="heroText">Riders can request driver rides after Persona approval and secured payment authorization.</p>
       </div>
 
       <div class="mode-banner" id="modeBanner">
         <strong>Autonomous Pilot Mode Active</strong>
-        <span id="modeBannerText">
-          You are entering Harvey Taxi autonomous ride pilot flow. Requests may be routed
-          through AV-ready dispatch logic or pilot availability handling.
-        </span>
+        <span>You are entering Harvey Taxi autonomous ride pilot flow.</span>
       </div>
 
       <div class="chip-row">
@@ -877,6 +235,8 @@
         <button class="action-chip" type="button" onclick="setRideTypeQuick('scheduled')">📅 Schedule ahead</button>
         <button class="action-chip" type="button" onclick="setRideTypeQuick('airport')">✈️ Airport trip</button>
         <button class="action-chip" type="button" onclick="setRideTypeQuick('medical')">🏥 Medical ride</button>
+        <button class="action-chip" type="button" onclick="goFood()">🍔 Food delivery</button>
+        <button class="action-chip" type="button" onclick="goGrocery()">🛒 Grocery delivery</button>
       </div>
     </div>
 
@@ -886,9 +246,7 @@
           <div class="section-header">
             <div>
               <h2 id="accessTitle">Rider access</h2>
-              <p id="accessSub">
-                Your rider account must be approved before you can secure payment and request a ride.
-              </p>
+              <p id="accessSub">Your rider account must be Persona approved before payment and dispatch.</p>
             </div>
           </div>
 
@@ -918,10 +276,7 @@
           <div class="section-header">
             <div>
               <h2>Live pickup map</h2>
-              <p>
-                Riders can view their exact live position before booking. Use your current location
-                to confirm pickup support and improve dispatch accuracy without exposing coordinates in the interface.
-              </p>
+              <p>View your current position before booking. Raw coordinates stay hidden in the interface.</p>
             </div>
           </div>
 
@@ -929,17 +284,12 @@
             <div class="map-header">
               <div>
                 <h3>Live Location Preview</h3>
-                <p>
-                  This map shows your current device location. You can refresh it anytime
-                  and use it to support your pickup address before requesting a ride.
-                </p>
+                <p>This map shows your current device location for pickup support.</p>
               </div>
             </div>
 
             <div id="liveMap">
-              <div class="map-loading" id="mapLoadingText">
-                Loading Google Maps...
-              </div>
+              <div class="map-loading" id="mapLoadingText">Loading Google Maps...</div>
             </div>
 
             <div class="account-actions">
@@ -952,16 +302,13 @@
                 <div class="k">Current Location Status</div>
                 <div class="v" id="mapStatusText">Waiting for live location...</div>
               </div>
-
               <div class="map-readout-card">
                 <div class="k">Pickup Confirmation</div>
                 <div class="v" id="mapCoordText">Live pickup not confirmed yet.</div>
               </div>
             </div>
 
-            <div class="coord-note">
-              Harvey Taxi uses live location to improve pickup support while keeping raw coordinates hidden from the rider interface.
-            </div>
+            <div class="coord-note">Harvey Taxi uses live location to improve pickup support while keeping coordinates hidden from the rider interface.</div>
           </div>
         </div>
 
@@ -969,10 +316,7 @@
           <div class="section-header">
             <div>
               <h2 id="rideSectionTitle">Ride request</h2>
-              <p>
-                Enter your trip details below to estimate fare, secure payment,
-                and submit your ride request.
-              </p>
+              <p>Enter trip details to estimate fare, secure payment, and submit your ride request.</p>
             </div>
           </div>
 
@@ -988,17 +332,9 @@
                   <label for="firstName">Passenger First Name</label>
                   <input class="input" id="firstName" placeholder="Enter first name" />
                 </div>
-
                 <div class="field">
                   <label for="phone">Passenger Phone</label>
-                  <input
-                    class="input"
-                    id="phone"
-                    type="tel"
-                    inputmode="tel"
-                    autocomplete="tel"
-                    placeholder="Enter phone number"
-                  />
+                  <input class="input" id="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="Enter phone number" />
                 </div>
               </div>
 
@@ -1023,9 +359,8 @@
                     <option value="nonprofit">Nonprofit Assistance Ride</option>
                   </select>
                 </div>
-
                 <div class="field">
-                  <label for="scheduledTime">Scheduled Time (optional)</label>
+                  <label for="scheduledTime">Scheduled Time</label>
                   <input class="input" id="scheduledTime" type="datetime-local" />
                 </div>
               </div>
@@ -1045,11 +380,11 @@
             </div>
 
             <div class="trust-note">
-              🔒 Your payment is authorized securely before dispatch and is only captured
-              according to your ride completion flow.
+              🔒 Payment authorization is required before dispatch. Stripe confirmation may need the next Stripe Elements phase if your payment gate is fully enabled.
             </div>
 
             <div class="account-actions">
+              <button class="btn secondary" id="checkRiderBtn" type="button">Check Rider</button>
               <button class="btn secondary" id="estimateBtn" type="button">Get Fare Estimate</button>
               <button class="btn secondary" id="authorizeBtn" type="button">Secure Payment</button>
             </div>
@@ -1060,25 +395,12 @@
       <div class="section-stack">
         <div class="estimate-panel">
           <h3 id="estimateSectionTitle">Ride estimate</h3>
-          <p id="estimateSub">
-            Review your current fare estimate before submitting your ride request.
-          </p>
+          <p id="estimateSub">Review your current fare estimate before submitting your ride request.</p>
 
           <div class="estimate">
-            <div class="metric">
-              <div class="k">Miles</div>
-              <div class="v" id="distanceValue">--</div>
-            </div>
-
-            <div class="metric">
-              <div class="k">Trip Time</div>
-              <div class="v" id="durationValue">--</div>
-            </div>
-
-            <div class="metric">
-              <div class="k">Fare</div>
-              <div class="v" id="fareValue">--</div>
-            </div>
+            <div class="metric"><div class="k">Miles</div><div class="v" id="distanceValue">--</div></div>
+            <div class="metric"><div class="k">Trip Time</div><div class="v" id="durationValue">--</div></div>
+            <div class="metric"><div class="k">Fare</div><div class="v" id="fareValue">--</div></div>
           </div>
 
           <div class="receipt" id="estimateReceipt">
@@ -1095,15 +417,15 @@
 
         <div class="estimate-panel">
           <h3>Booking guidance</h3>
-          <p>
-            Harvey Taxi may require rider approval and payment authorization before dispatch,
-            depending on your current account state and backend rules.
-          </p>
+          <p>Harvey Taxi requires rider Persona approval and payment authorization before dispatch.</p>
 
           <div class="notice">
-            <strong>Helpful note</strong>
-            Standard requests launch the live driver request flow. Autonomous mode remains
-            clearly labeled as pilot mode.
+            <strong>Important</strong>
+            This page is aligned to your newer backend routes:
+            <br>/api/riders/status
+            <br>/api/estimate-ride
+            <br>/api/payments/authorize
+            <br>/api/request-ride
           </div>
 
           <div class="account-actions">
@@ -1117,12 +439,8 @@
     <div class="footer">
       <div>
         <strong style="display:block;margin-bottom:8px;">Harvey Taxi Service LLC</strong>
-        <p>
-          A futuristic consumer ride request experience rebuilt for Harvey Taxi with rider
-          readiness, live pickup visibility, estimate visibility, payment authorization, and support-first design.
-        </p>
+        <p>Futuristic ride request experience with rider readiness, live pickup visibility, estimate visibility, payment authorization, and support-first design.</p>
       </div>
-
       <div class="account-actions" style="margin-top:0;">
         <button class="btn ghost" onclick="goHome()">Home</button>
         <button class="btn ghost" onclick="goSupport()">Support</button>
@@ -1166,57 +484,86 @@
       document.querySelector('meta[name="google-maps-browser-key"]')?.content?.trim() || "";
 
     const urlParams = new URLSearchParams(window.location.search);
-    const requestedMode =
-      (urlParams.get("mode") || "driver").toLowerCase() === "autonomous"
-        ? "autonomous"
-        : "driver";
+    const requestedMode = (urlParams.get("mode") || "driver").toLowerCase() === "autonomous" ? "autonomous" : "driver";
     const isAutonomousMode = requestedMode === "autonomous";
 
+    const $ = (id) => document.getElementById(id);
+
     const paymentPills = document.querySelectorAll(".pill");
-    const verificationText = document.getElementById("verificationText");
-    const verificationTag = document.getElementById("verificationTag");
-    const paymentText = document.getElementById("paymentText");
-    const paymentTag = document.getElementById("paymentTag");
+    const verificationText = $("verificationText");
+    const verificationTag = $("verificationTag");
+    const paymentText = $("paymentText");
+    const paymentTag = $("paymentTag");
+    const distanceValue = $("distanceValue");
+    const durationValue = $("durationValue");
+    const fareValue = $("fareValue");
+    const estimateReceipt = $("estimateReceipt");
+    const resultBox = $("resultBox");
+    const errorBox = $("errorBox");
+    const locationGate = $("locationGate");
+    const locationStatusText = $("locationStatusText");
+    const enableLocationBtn = $("enableLocationBtn");
+    const refreshLocationBtn = $("refreshLocationBtn");
+    const useLiveLocationBtn = $("useLiveLocationBtn");
+    const mapStatusText = $("mapStatusText");
+    const mapCoordText = $("mapCoordText");
+    const mapLoadingText = $("mapLoadingText");
+    const checkRiderBtn = $("checkRiderBtn");
+    const estimateBtn = $("estimateBtn");
+    const authorizeBtn = $("authorizeBtn");
+    const requestRideBtn = $("requestRideBtn");
+    const riderIdInput = $("riderId");
+    const firstNameInput = $("firstName");
+    const phoneInput = $("phone");
+    const pickupInput = $("pickup");
+    const dropoffInput = $("dropoff");
+    const rideTypeInput = $("rideType");
+    const scheduledTimeInput = $("scheduledTime");
+    const notesInput = $("notes");
+    const stepAccess = $("stepAccess");
+    const stepEstimate = $("stepEstimate");
+    const stepPayment = $("stepPayment");
+    const stepRequest = $("stepRequest");
 
-    const distanceValue = document.getElementById("distanceValue");
-    const durationValue = document.getElementById("durationValue");
-    const fareValue = document.getElementById("fareValue");
-    const estimateReceipt = document.getElementById("estimateReceipt");
-
-    const resultBox = document.getElementById("resultBox");
-    const errorBox = document.getElementById("errorBox");
-
-    const locationGate = document.getElementById("locationGate");
-    const locationStatusText = document.getElementById("locationStatusText");
-    const enableLocationBtn = document.getElementById("enableLocationBtn");
-    const refreshLocationBtn = document.getElementById("refreshLocationBtn");
-    const useLiveLocationBtn = document.getElementById("useLiveLocationBtn");
-
-    const mapStatusText = document.getElementById("mapStatusText");
-    const mapCoordText = document.getElementById("mapCoordText");
-    const mapLoadingText = document.getElementById("mapLoadingText");
-
-    const estimateBtn = document.getElementById("estimateBtn");
-    const authorizeBtn = document.getElementById("authorizeBtn");
-    const requestRideBtn = document.getElementById("requestRideBtn");
-
-    const riderIdInput = document.getElementById("riderId");
-    const firstNameInput = document.getElementById("firstName");
-    const phoneInput = document.getElementById("phone");
-    const pickupInput = document.getElementById("pickup");
-    const dropoffInput = document.getElementById("dropoff");
-    const rideTypeInput = document.getElementById("rideType");
-    const scheduledTimeInput = document.getElementById("scheduledTime");
-    const notesInput = document.getElementById("notes");
-
-    const stepAccess = document.getElementById("stepAccess");
-    const stepEstimate = document.getElementById("stepEstimate");
-    const stepPayment = document.getElementById("stepPayment");
-    const stepRequest = document.getElementById("stepRequest");
+    function apiBase(){
+      const host = window.location.hostname || "";
+      if (
+        host.includes("harvey-taxi-app-2.onrender.com") ||
+        host.includes("harveytaxiservice.com") ||
+        host.includes("harveytaxiservicellc.com")
+      ) return "";
+      return "https://harvey-taxi-app-2.onrender.com";
+    }
 
     function goHome(){ window.location.href = "index.html"; }
     function goDashboard(){ window.location.href = "rider-dashboard.html"; }
     function goSupport(){ window.location.href = "support.html"; }
+    function goFood(){ window.location.href = `request-food.html?rider_id=${encodeURIComponent(riderIdInput.value.trim())}`; }
+    function goGrocery(){ window.location.href = `request-grocery.html?rider_id=${encodeURIComponent(riderIdInput.value.trim())}`; }
+
+    function escapeHtml(value){
+      return String(value ?? "")
+        .replace(/&/g,"&amp;").replace(/</g,"&lt;")
+        .replace(/>/g,"&gt;").replace(/"/g,"&quot;")
+        .replace(/'/g,"&#39;");
+    }
+
+    async function readJson(response){
+      const text = await response.text();
+      try { return text ? JSON.parse(text) : {}; }
+      catch { return { ok:false, error:text || "Invalid server response." }; }
+    }
+
+    async function requestJson(path, options = {}){
+      const response = await fetch(`${apiBase()}${path}`, {
+        headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+        credentials: "include",
+        ...options
+      });
+      const data = await readJson(response);
+      if (!response.ok || data.ok === false) throw new Error(data.error || data.message || "Request failed.");
+      return data;
+    }
 
     function setRideTypeQuick(type){
       rideTypeInput.value = type;
@@ -1226,45 +573,16 @@
     }
 
     function applyRideModeUI(){
-      const heroTitle = document.getElementById("heroTitle");
-      const heroText = document.getElementById("heroText");
-      const modeBanner = document.getElementById("modeBanner");
-      const accessTitle = document.getElementById("accessTitle");
-      const accessSub = document.getElementById("accessSub");
-      const rideSectionTitle = document.getElementById("rideSectionTitle");
-      const estimateSectionTitle = document.getElementById("estimateSectionTitle");
-      const estimateSub = document.getElementById("estimateSub");
-
-      if(isAutonomousMode){
+      if (isAutonomousMode) {
         document.title = "Harvey Taxi — Request Autonomous Ride";
-        heroTitle.textContent = "Request your autonomous ride with confidence.";
-        heroText.textContent =
-          "Harvey Taxi autonomous pilot mode is active. Riders can request AV-ready trips after rider approval and secured payment.";
-        accessTitle.textContent = "Autonomous pilot access";
-        accessSub.textContent =
-          "Your rider account must be approved before entering the autonomous pilot request flow.";
-        rideSectionTitle.textContent = "Autonomous ride request";
-        estimateSectionTitle.textContent = "Autonomous ride estimate";
-        estimateSub.textContent =
-          "Review your current autonomous ride estimate before submitting your pilot request.";
+        $("heroTitle").textContent = "Request your autonomous ride with confidence.";
+        $("heroText").textContent = "Autonomous pilot mode is active. Riders can request AV-ready trips after rider approval and payment.";
+        $("accessTitle").textContent = "Autonomous pilot access";
+        $("rideSectionTitle").textContent = "Autonomous ride request";
+        $("estimateSectionTitle").textContent = "Autonomous ride estimate";
         requestRideBtn.textContent = "Request Autonomous Ride";
         requestRideBtn.classList.add("autonomous-primary");
-        modeBanner.style.display = "block";
-      } else {
-        document.title = "Harvey Taxi — Request Driver Ride";
-        heroTitle.textContent = "Request your ride with confidence.";
-        heroText.textContent =
-          "Harvey Taxi launch mode is active. Riders can request driver rides after rider approval and secured payment.";
-        accessTitle.textContent = "Rider access";
-        accessSub.textContent =
-          "Your rider account must be approved before you can secure payment and request a ride.";
-        rideSectionTitle.textContent = "Ride request";
-        estimateSectionTitle.textContent = "Ride estimate";
-        estimateSub.textContent =
-          "Review your current fare estimate before submitting your ride request.";
-        requestRideBtn.textContent = "Request Ride";
-        requestRideBtn.classList.remove("autonomous-primary");
-        modeBanner.style.display = "none";
+        $("modeBanner").style.display = "block";
       }
     }
 
@@ -1273,8 +591,7 @@
       distanceValue.textContent = "--";
       durationValue.textContent = "--";
       fareValue.textContent = "--";
-      estimateReceipt.innerHTML =
-        'No estimate yet. Enter your ride information and tap <strong>Get Fare Estimate</strong>.';
+      estimateReceipt.innerHTML = 'No estimate yet. Enter your ride information and tap <strong>Get Fare Estimate</strong>.';
       stepEstimate.classList.remove("active");
       stepPayment.classList.remove("active");
       stepRequest.classList.remove("active");
@@ -1290,14 +607,8 @@
       stepRequest.classList.remove("active");
     }
 
-    function resetRideFlowFromRiderChange(){
-      resetEstimateState();
-      resetPaymentState();
-      currentRider = null;
-    }
-
     function setButtonLoading(button, loading, loadingText, idleText){
-      if(loading){
+      if (loading) {
         button.disabled = true;
         button.classList.add("loading");
         button.dataset.originalText = button.textContent;
@@ -1328,15 +639,6 @@
       resultBox.textContent = String(message || "");
       errorBox.style.display = "none";
       errorBox.textContent = "";
-    }
-
-    function escapeHtml(value){
-      return String(value || "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#39;");
     }
 
     function unlockLocationGate(){
@@ -1375,14 +677,8 @@
       };
     }
 
-    function normalizePhone(phone){
-      return String(phone || "").replace(/[^\d+]/g, "");
-    }
-
-    function isPhoneLikelyValid(phone){
-      const cleaned = normalizePhone(phone);
-      return cleaned.replace(/^\+/, "").length >= 10;
-    }
+    function normalizePhone(phone){ return String(phone || "").replace(/[^\d+]/g, ""); }
+    function isPhoneLikelyValid(phone){ return normalizePhone(phone).replace(/^\+/, "").length >= 10; }
 
     function isScheduledTimeValid(scheduledTime){
       if (!scheduledTime) return false;
@@ -1390,25 +686,17 @@
       return Number.isFinite(parsed.getTime()) && parsed.getTime() > Date.now();
     }
 
-    function setMapLoading(message) {
-      if (mapLoadingText) {
-        mapLoadingText.textContent = message;
-        mapLoadingText.style.display = "flex";
-      }
+    function setMapLoading(message){
+      mapLoadingText.textContent = message;
+      mapLoadingText.style.display = "flex";
     }
 
-    function hideMapLoading() {
-      if (mapLoadingText) {
-        mapLoadingText.style.display = "none";
-      }
-    }
+    function hideMapLoading(){ mapLoadingText.style.display = "none"; }
 
     function initMap(){
       if (!mapsReady || liveMap || !window.google || !window.google.maps) return;
-
       const fallbackCenter = { lat: 36.1627, lng: -86.7816 };
-
-      liveMap = new google.maps.Map(document.getElementById("liveMap"), {
+      liveMap = new google.maps.Map($("liveMap"), {
         center: fallbackCenter,
         zoom: 12,
         mapTypeControl: false,
@@ -1416,19 +704,8 @@
         fullscreenControl: true,
         zoomControl: true,
         gestureHandling: "greedy",
-        clickableIcons: false,
-        disableDefaultUI: false,
-        styles: [
-          { elementType: "geometry", stylers: [{ color: "#0b1732" }] },
-          { elementType: "labels.text.stroke", stylers: [{ color: "#0b1732" }] },
-          { elementType: "labels.text.fill", stylers: [{ color: "#9fb7e6" }] },
-          { featureType: "road", elementType: "geometry", stylers: [{ color: "#24407a" }] },
-          { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#3558a8" }] },
-          { featureType: "water", elementType: "geometry", stylers: [{ color: "#081224" }] },
-          { featureType: "poi", stylers: [{ visibility: "off" }] }
-        ]
+        clickableIcons: false
       });
-
       geocoder = new google.maps.Geocoder();
       hideMapLoading();
       mapStatusText.textContent = "Google Maps ready.";
@@ -1436,14 +713,9 @@
 
     function updateLiveMap(coords){
       if (!coords || !liveMap || !mapsReady || !window.google || !window.google.maps) return;
-
-      const lat = Number(coords.latitude);
-      const lng = Number(coords.longitude);
+      const point = { lat: Number(coords.latitude), lng: Number(coords.longitude) };
       const accuracy = Math.max(15, Number(coords.accuracy || 40));
-
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
-
-      const point = { lat, lng };
+      if (!Number.isFinite(point.lat) || !Number.isFinite(point.lng)) return;
 
       if (!liveMarker) {
         liveMarker = new google.maps.Marker({
@@ -1460,9 +732,7 @@
             strokeWeight: 2
           }
         });
-      } else {
-        liveMarker.setPosition(point);
-      }
+      } else liveMarker.setPosition(point);
 
       if (!liveCircle) {
         liveCircle = new google.maps.Circle({
@@ -1482,31 +752,18 @@
 
       liveMap.setCenter(point);
       liveMap.setZoom(16);
-
       mapStatusText.textContent = "Live location active and visible on map.";
       mapCoordText.textContent = "Pickup area confirmed on live map.";
       hideMapLoading();
     }
 
-    function reverseGeocodeCurrentLocation() {
+    function reverseGeocodeCurrentLocation(){
       return new Promise((resolve) => {
-        if (!geocoder || !currentCoords || !mapsReady) {
-          resolve("");
-          return;
-        }
-
+        if (!geocoder || !currentCoords || !mapsReady) return resolve("");
         geocoder.geocode(
-          {
-            location: {
-              lat: currentCoords.latitude,
-              lng: currentCoords.longitude
-            }
-          },
+          { location: { lat: currentCoords.latitude, lng: currentCoords.longitude } },
           (results, status) => {
-            if (status === "OK" && Array.isArray(results) && results.length) {
-              resolve(results[0].formatted_address || "");
-              return;
-            }
+            if (status === "OK" && Array.isArray(results) && results.length) return resolve(results[0].formatted_address || "");
             resolve("");
           }
         );
@@ -1515,25 +772,10 @@
 
     async function useLiveLocationForPickup(){
       clearMessages();
-
-      if (!currentCoords) {
-        showError("Live location is not available yet.");
-        return;
-      }
-
+      if (!currentCoords) return showError("Live location is not available yet.");
       const address = await reverseGeocodeCurrentLocation();
-
-      if (address) {
-        pickupInput.value = address;
-        mapCoordText.textContent = "Live pickup address confirmed from Google Maps.";
-        resetEstimateState();
-        resetPaymentState();
-        showResult("Your live location has been converted into a pickup address.");
-        return;
-      }
-
-      pickupInput.value = "Current live pickup location confirmed";
-      mapCoordText.textContent = "Live pickup location confirmed.";
+      pickupInput.value = address || "Current live pickup location confirmed";
+      mapCoordText.textContent = address ? "Live pickup address confirmed from Google Maps." : "Live pickup location confirmed.";
       resetEstimateState();
       resetPaymentState();
       showResult("Your live location has been linked to the pickup flow.");
@@ -1549,48 +791,35 @@
     });
 
     [pickupInput, dropoffInput, rideTypeInput, scheduledTimeInput, notesInput].forEach((el) => {
-      el.addEventListener("input", () => {
-        resetEstimateState();
-        resetPaymentState();
-      });
-      el.addEventListener("change", () => {
-        resetEstimateState();
-        resetPaymentState();
-      });
+      el.addEventListener("input", () => { resetEstimateState(); resetPaymentState(); });
+      el.addEventListener("change", () => { resetEstimateState(); resetPaymentState(); });
     });
 
     riderIdInput.addEventListener("input", () => {
       riderVerified = false;
+      currentRider = null;
       verificationText.textContent = "Enter your rider ID to check rider access.";
       verificationTag.className = "tag warn";
       verificationTag.textContent = "Waiting";
       stepAccess.classList.add("active");
-      resetRideFlowFromRiderChange();
+      resetEstimateState();
+      resetPaymentState();
     });
 
-    function readGeolocationOnce(options = {}) {
+    function readGeolocationOnce(options = {}){
       return new Promise((resolve, reject) => {
-        if (!navigator.geolocation) {
-          reject(new Error("This device does not support location services."));
-          return;
-        }
-
-        navigator.geolocation.getCurrentPosition(
-          (position) => resolve(position),
-          (error) => reject(error),
-          {
-            enableHighAccuracy: true,
-            timeout: 15000,
-            maximumAge: 0,
-            ...options
-          }
-        );
+        if (!navigator.geolocation) return reject(new Error("This device does not support location services."));
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 0,
+          ...options
+        });
       });
     }
 
     async function requestLocationAccess(){
       clearMessages();
-
       setButtonLoading(enableLocationBtn, true, "Enabling Location...", "Enable Location");
       locationStatusText.textContent = "Requesting location access...";
       mapStatusText.textContent = "Requesting live location...";
@@ -1598,7 +827,6 @@
 
       try {
         const position = await readGeolocationOnce();
-
         currentCoords = {
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
@@ -1612,25 +840,17 @@
           initMap();
           updateLiveMap(currentCoords);
         } else {
-          setMapLoading("Location ready. Waiting for Google Maps to finish loading...");
+          setMapLoading("Location ready. Waiting for Google Maps...");
           mapStatusText.textContent = "Location ready. Waiting for map...";
         }
 
         unlockLocationGate();
-        showResult("Location access enabled. Your live pickup flow is now active.");
+        showResult("Location access enabled. Your live pickup flow is active.");
       } catch (error) {
         let message = "Location access is required before continuing.";
-
-        if(error && error.code === 1){
-          message = "Location permission was denied. Please allow access and try again.";
-        } else if(error && error.code === 2){
-          message = "Your location could not be determined right now. Try again.";
-        } else if(error && error.code === 3){
-          message = "Location request timed out. Please try again.";
-        } else if (error instanceof Error && error.message) {
-          message = error.message;
-        }
-
+        if (error && error.code === 1) message = "Location permission was denied. Please allow access and try again.";
+        if (error && error.code === 2) message = "Your location could not be determined right now. Try again.";
+        if (error && error.code === 3) message = "Location request timed out. Please try again.";
         setLocationDeniedState(message);
         showError(message);
         setMapLoading(message);
@@ -1641,41 +861,22 @@
 
     async function refreshLiveLocation(){
       clearMessages();
-
-      if(isRefreshingLocation) return;
-
-      if (!mapsReady) {
-        showError("Google Maps is not ready yet.");
-        return;
-      }
-
+      if (isRefreshingLocation) return;
       isRefreshingLocation = true;
       setButtonLoading(refreshLocationBtn, true, "Refreshing...", "Refresh Location");
-      mapStatusText.textContent = "Refreshing live location...";
       setMapLoading("Refreshing your live location...");
 
       try {
         const position = await readGeolocationOnce();
-
         currentCoords = {
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
           accuracy: position.coords.accuracy
         };
-
         updateLiveMap(currentCoords);
         showResult("Live location refreshed successfully.");
-      } catch (error) {
-        let message = "Unable to refresh live location.";
-
-        if(error && error.code === 1){
-          message = "Location permission was denied.";
-        } else if(error && error.code === 2){
-          message = "Current location could not be determined.";
-        } else if(error && error.code === 3){
-          message = "Location refresh timed out.";
-        }
-
+      } catch {
+        const message = "Unable to refresh live location.";
         showError(message);
         mapStatusText.textContent = message;
         setMapLoading(message);
@@ -1686,24 +887,19 @@
     }
 
     async function restoreLocationFromPermission(){
-      if(!navigator.geolocation) return;
-
+      if (!navigator.geolocation) return;
       setMapLoading("Restoring your last approved live location...");
-
       try {
         const position = await readGeolocationOnce({ timeout: 10000, maximumAge: 60000 });
-
         currentCoords = {
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
           accuracy: position.coords.accuracy
         };
-
         if (mapsReady) {
           initMap();
           updateLiveMap(currentCoords);
         }
-
         unlockLocationGate();
       } catch {
         localStorage.removeItem("harveyLocationApproved");
@@ -1715,10 +911,9 @@
 
     async function checkRiderStatus(){
       const riderId = riderIdInput.value.trim();
+      if (isCheckingRider) return riderVerified;
 
-      if(isCheckingRider) return riderVerified;
-
-      if(!riderId){
+      if (!riderId) {
         riderVerified = false;
         currentRider = null;
         verificationText.textContent = "Enter your rider ID to check rider access.";
@@ -1729,29 +924,20 @@
       }
 
       isCheckingRider = true;
+      setButtonLoading(checkRiderBtn, true, "Checking...", "Check Rider");
 
-      try{
-        const res = await fetch(`/api/rider/${encodeURIComponent(riderId)}/status`);
-        const data = await res.json().catch(() => ({}));
-
-        if(!res.ok || !data.ok || !data.rider){
-          riderVerified = false;
-          currentRider = null;
-          verificationText.textContent = "We could not find that rider account.";
-          verificationTag.className = "tag bad";
-          verificationTag.textContent = "Not Found";
-          resetPaymentState();
-          return false;
-        }
-
-        const rider = data.rider;
+      try {
+        const data = await requestJson(`/api/riders/status?riderId=${encodeURIComponent(riderId)}`);
+        const rider = data.rider || {};
         currentRider = rider;
 
-        const status = String(rider.status || "").toLowerCase();
         const approved =
-          rider.is_approved === true ||
-          status === "approved" ||
-          status === "active";
+          data.approved === true ||
+          data.canRequestRide === true ||
+          rider.approval_status === "approved" ||
+          rider.verification_status === "approved" ||
+          rider.persona_status === "approved" ||
+          rider.status === "approved";
 
         if (approved) {
           riderVerified = true;
@@ -1762,95 +948,70 @@
           verificationTag.textContent = "Approved";
           stepAccess.classList.add("active");
 
-          if (!firstNameInput.value && rider.first_name) {
-            firstNameInput.value = rider.first_name;
-          }
-          if (!phoneInput.value && rider.phone) {
-            phoneInput.value = rider.phone;
-          }
-        } else if(status === "pending"){
-          riderVerified = false;
-          verificationText.textContent = "Rider account is still pending approval.";
-          verificationTag.className = "tag warn";
-          verificationTag.textContent = "Pending";
-          resetPaymentState();
+          if (!firstNameInput.value && rider.full_name) firstNameInput.value = String(rider.full_name).split(" ")[0] || "";
+          if (!phoneInput.value && rider.phone) phoneInput.value = rider.phone;
+          if (rider.email) localStorage.setItem("harveyRiderEmail", rider.email);
+          localStorage.setItem("harveyRiderId", riderId);
         } else {
           riderVerified = false;
-          verificationText.textContent = "Rider account is not approved for ride requests.";
-          verificationTag.className = "tag bad";
-          verificationTag.textContent = "Not Approved";
+          verificationText.textContent = "Rider Persona verification must be approved before ride requests.";
+          verificationTag.className = "tag warn";
+          verificationTag.textContent = "Pending";
           resetPaymentState();
         }
 
         return riderVerified;
-      } catch(error){
+      } catch (error) {
         riderVerified = false;
         currentRider = null;
-        verificationText.textContent = "Unable to check rider status right now.";
+        verificationText.textContent = error.message || "Unable to check rider status.";
         verificationTag.className = "tag bad";
         verificationTag.textContent = "Error";
         resetPaymentState();
         return false;
       } finally {
         isCheckingRider = false;
+        setButtonLoading(checkRiderBtn, false, "", "Check Rider");
       }
     }
 
     async function getEstimate(){
       clearMessages();
-
-      if(isEstimating) return;
-      if(!locationApproved || !currentCoords){
-        showError("Enable live location access before getting a fare estimate.");
-        return;
-      }
+      if (isEstimating) return;
+      if (!locationApproved || !currentCoords) return showError("Enable live location access before getting a fare estimate.");
 
       const payload = getFormData();
-
-      if(!payload.pickupAddress || !payload.dropoffAddress){
-        showError("Enter both pickup and dropoff addresses first.");
-        return;
-      }
-
-      if(payload.rideType === "scheduled" && !isScheduledTimeValid(payload.scheduledTime)){
-        showError("Choose a future scheduled date and time.");
-        return;
-      }
+      if (!payload.pickupAddress || !payload.dropoffAddress) return showError("Enter both pickup and dropoff addresses first.");
+      if (payload.rideType === "scheduled" && !isScheduledTimeValid(payload.scheduledTime)) return showError("Choose a future scheduled date and time.");
 
       isEstimating = true;
       setButtonLoading(estimateBtn, true, "Calculating...", "Get Fare Estimate");
 
-      try{
-        const res = await fetch("/api/fare-estimate", {
-          method:"POST",
-          headers:{"Content-Type":"application/json"},
-          body:JSON.stringify({
+      try {
+        const data = await requestJson("/api/estimate-ride", {
+          method: "POST",
+          body: JSON.stringify({
+            pickup: payload.pickupAddress,
+            dropoff: payload.dropoffAddress,
             pickup_address: payload.pickupAddress,
             dropoff_address: payload.dropoffAddress,
-            ride_type: payload.rideType,
+            requestedMode: payload.requestedMode,
             requested_mode: payload.requestedMode,
-            pickup_latitude: currentCoords.latitude,
-            pickup_longitude: currentCoords.longitude
+            ride_type: payload.rideType
           })
         });
 
-        const data = await res.json().catch(() => ({}));
-
-        if(!res.ok || !data.ok){
-          showError(data.error || data.message || "Unable to calculate estimate.");
-          return;
-        }
-
-        const fare = data.fare || {};
-        const metrics = data.metrics || {};
-        const payout = data.payout || {};
+        const estimate = data.estimate || {};
+        const route = data.route || {};
 
         currentEstimate = {
-          estimatedFare: Number(fare.estimated_total || 0),
-          driverPayout: Number(payout.driver_payout_estimate || 0),
-          distanceMiles: Number(metrics.distance_miles || fare.distance_miles || 0),
-          durationMinutes: Number(metrics.duration_minutes || fare.duration_minutes || 0),
-          rideType: payload.rideType
+          estimatedFare: Number(estimate.total || estimate.estimated_total || 0),
+          driverPayout: Number(estimate.driverPayout || estimate.driver_payout || 0),
+          distanceMiles: Number(estimate.miles || 0),
+          durationMinutes: Number(estimate.minutes || 0),
+          rideType: payload.rideType,
+          raw: estimate,
+          route
         };
 
         distanceValue.textContent = `${currentEstimate.distanceMiles.toFixed(2)} mi`;
@@ -1861,25 +1022,20 @@
           isAutonomousMode ? "Autonomous Ride Preview" : "Ride Preview",
           "",
           `Mode: ${isAutonomousMode ? "Autonomous Pilot" : "Driver Ride"}`,
-          `Pickup: ${payload.pickupAddress}`,
-          `Dropoff: ${payload.dropoffAddress}`,
-          `Ride Type: ${currentEstimate.rideType}`,
-          `Estimated Distance: ${currentEstimate.distanceMiles.toFixed(2)} mi`,
-          `Estimated Duration: ${currentEstimate.durationMinutes.toFixed(0)} min`,
-          `Estimated Fare: $${currentEstimate.estimatedFare.toFixed(2)}`,
+          `Pickup: ${route.pickup || payload.pickupAddress}`,
+          `Dropoff: ${route.dropoff || payload.dropoffAddress}`,
+          `Ride Type: ${payload.rideType}`,
+          `Distance: ${currentEstimate.distanceMiles.toFixed(2)} mi`,
+          `Duration: ${currentEstimate.durationMinutes.toFixed(0)} min`,
+          `Fare: $${currentEstimate.estimatedFare.toFixed(2)}`,
           `Driver Payout Estimate: $${currentEstimate.driverPayout.toFixed(2)}`
         ];
 
         estimateReceipt.innerHTML = escapeHtml(summary.join("\n")).replace(/\n/g, "<br>");
         stepEstimate.classList.add("active");
-
-        showResult(
-          isAutonomousMode
-            ? "Autonomous ride estimate ready. Secure payment to continue."
-            : "Fare estimate ready. Secure payment to continue."
-        );
-      } catch(error){
-        showError("Unable to reach the estimate service.");
+        showResult("Fare estimate ready. Secure payment to continue.");
+      } catch (error) {
+        showError(error.message || "Unable to calculate estimate.");
       } finally {
         isEstimating = false;
         setButtonLoading(estimateBtn, false, "", "Get Fare Estimate");
@@ -1888,83 +1044,70 @@
 
     async function authorizePayment(){
       clearMessages();
-
-      if(isAuthorizing) return;
-      if(!locationApproved || !currentCoords){
-        showError("Enable live location access before securing payment.");
-        return;
-      }
+      if (isAuthorizing) return;
+      if (!locationApproved || !currentCoords) return showError("Enable live location access before securing payment.");
 
       const payload = getFormData();
-
-      if(!payload.riderId){
-        showError("Enter your rider ID before securing payment.");
-        return;
-      }
-
-      if(!currentEstimate){
-        showError("Get a fare estimate before securing payment.");
-        return;
-      }
+      if (!payload.riderId) return showError("Enter your rider ID before securing payment.");
+      if (!currentEstimate) return showError("Get a fare estimate before securing payment.");
 
       const riderReady = await checkRiderStatus();
-      if(!riderReady){
-        showError("Your rider account must be approved before payment can be secured.");
-        return;
-      }
+      if (!riderReady) return showError("Your rider account must be approved before payment can be secured.");
 
       isAuthorizing = true;
       setButtonLoading(authorizeBtn, true, "Securing Payment...", "Secure Payment");
 
-      try{
-        const res = await fetch("/api/payments/authorize", {
-          method:"POST",
-          headers:{"Content-Type":"application/json"},
-          body:JSON.stringify({
+      try {
+        const data = await requestJson("/api/payments/authorize", {
+          method: "POST",
+          body: JSON.stringify({
             rider_id: payload.riderId,
-            amount: currentEstimate.estimatedFare,
-            payment_method: payload.paymentMethod,
-            requested_mode: payload.requestedMode
+            riderId: payload.riderId,
+            pickup: payload.pickupAddress,
+            dropoff: payload.dropoffAddress,
+            pickup_address: payload.pickupAddress,
+            dropoff_address: payload.dropoffAddress,
+            requestedMode: payload.requestedMode,
+            requested_mode: payload.requestedMode,
+            payment_method: payload.paymentMethod
           })
         });
 
-        const data = await res.json().catch(() => ({}));
+        const payment = data.payment || {};
+        paymentAuthorizationId = payment.id || data.payment_id || data.authorization_id || null;
 
-        if(!res.ok || !data.ok){
-          paymentAuthorized = false;
-          paymentAuthorizationId = null;
-          paymentText.textContent = data.error || data.message || "Payment authorization failed.";
-          paymentTag.className = "tag bad";
-          paymentTag.textContent = "Failed";
-          showError(data.error || data.message || "Payment authorization failed.");
-          return;
-        }
+        const status = String(payment.status || data.status || "authorized").toLowerCase();
+        const isReady =
+          status === "authorized" ||
+          status === "requires_capture" ||
+          status === "succeeded" ||
+          status === "captured" ||
+          payment.provider === "disabled_gate";
 
-        paymentAuthorized = true;
-        paymentAuthorizationId =
-          data.authorization_id ||
-          data.payment_authorization_id ||
-          data.payment?.id ||
-          null;
+        if (!paymentAuthorizationId) throw new Error("Payment authorization ID was not returned.");
 
-        paymentText.textContent =
-          `Payment secured by ${payload.paymentMethod === "apple_pay" ? "Apple Pay" : "Card"} for ${isAutonomousMode ? "autonomous pilot mode" : "driver mode"}.`;
-        paymentTag.className = "tag ok";
-        paymentTag.textContent = "Secured";
+        paymentAuthorized = isReady;
+
+        paymentText.textContent = isReady
+          ? `Payment authorization is ready. Status: ${payment.status || "authorized"}.`
+          : `Payment intent created but may still require Stripe confirmation. Status: ${payment.status || "unknown"}.`;
+
+        paymentTag.className = isReady ? "tag ok" : "tag warn";
+        paymentTag.textContent = isReady ? "Secured" : "Needs Confirmation";
         stepPayment.classList.add("active");
 
         showResult(
-          isAutonomousMode
-            ? "Payment secured. Your autonomous ride request can now move forward."
-            : "Payment secured. Your ride request can now move forward."
+          isReady
+            ? "Payment secured. Your ride request can now move forward."
+            : "Payment intent created. Complete Stripe confirmation before dispatch if your live payment gate requires it."
         );
-      } catch(error){
+      } catch (error) {
         paymentAuthorized = false;
         paymentAuthorizationId = null;
-        paymentText.textContent = "Payment service unavailable.";
+        paymentText.textContent = error.message || "Payment authorization failed.";
         paymentTag.className = "tag bad";
-        paymentTag.textContent = "Error";
-        showError("Payment service unavailable.");
+        paymentTag.textContent = "Failed";
+        showError(error.message || "Payment authorization failed.");
       } finally {
         isAuthorizing = false;
         setButtonLoading(authorizeBtn, false, "", "Secure Payment");
@@ -1973,108 +1116,64 @@
 
     async function requestRide(){
       clearMessages();
-
-      if(isRequestingRide) return;
-      if(!locationApproved || !currentCoords){
-        showError("Enable live location access before requesting a ride.");
-        return;
-      }
+      if (isRequestingRide) return;
+      if (!locationApproved || !currentCoords) return showError("Enable live location access before requesting a ride.");
 
       const payload = getFormData();
 
-      if(!payload.riderId){
-        showError("Enter your rider ID.");
-        return;
-      }
-
-      if(!payload.passengerFirstName || !payload.passengerPhone){
-        showError("Enter passenger first name and phone number.");
-        return;
-      }
-
-      if(!isPhoneLikelyValid(payload.passengerPhone)){
-        showError("Enter a valid passenger phone number.");
-        return;
-      }
-
-      if(!payload.pickupAddress || !payload.dropoffAddress){
-        showError("Enter pickup and dropoff addresses.");
-        return;
-      }
-
-      if(payload.rideType === "scheduled" && !isScheduledTimeValid(payload.scheduledTime)){
-        showError("Select a future scheduled date and time for a scheduled ride.");
-        return;
-      }
-
-      if(!currentEstimate){
-        showError("Get a fare estimate first.");
-        return;
-      }
+      if (!payload.riderId) return showError("Enter your rider ID.");
+      if (!payload.passengerFirstName || !payload.passengerPhone) return showError("Enter passenger first name and phone number.");
+      if (!isPhoneLikelyValid(payload.passengerPhone)) return showError("Enter a valid passenger phone number.");
+      if (!payload.pickupAddress || !payload.dropoffAddress) return showError("Enter pickup and dropoff addresses.");
+      if (payload.rideType === "scheduled" && !isScheduledTimeValid(payload.scheduledTime)) return showError("Select a future scheduled date and time.");
+      if (!currentEstimate) return showError("Get a fare estimate first.");
 
       const riderReady = await checkRiderStatus();
-      if(!riderReady){
-        showError("Your rider account must be approved before a ride can be requested.");
-        return;
-      }
-
-      if(!paymentAuthorized){
-        showError("Payment must be secured before your ride can be requested.");
-        return;
-      }
+      if (!riderReady) return showError("Your rider account must be approved before a ride can be requested.");
+      if (!paymentAuthorized || !paymentAuthorizationId) return showError("Payment must be secured before your ride can be requested.");
 
       isRequestingRide = true;
-      setButtonLoading(
-        requestRideBtn,
-        true,
-        isAutonomousMode ? "Requesting Autonomous Ride..." : "Requesting Ride...",
-        isAutonomousMode ? "Request Autonomous Ride" : "Request Ride"
-      );
+      setButtonLoading(requestRideBtn, true, isAutonomousMode ? "Requesting Autonomous Ride..." : "Requesting Ride...", isAutonomousMode ? "Request Autonomous Ride" : "Request Ride");
 
-      try{
+      try {
         localStorage.setItem("harveyRiderId", payload.riderId);
 
         const compiledNotes = [
           `Requested Mode: ${isAutonomousMode ? "Autonomous Pilot" : "Driver Ride"}`,
-          payload.passengerFirstName ? `Passenger: ${payload.passengerFirstName}` : "",
-          payload.passengerPhone ? `Phone: ${payload.passengerPhone}` : "",
+          `Passenger: ${payload.passengerFirstName}`,
+          `Phone: ${payload.passengerPhone}`,
           payload.scheduledTime ? `Scheduled Time: ${payload.scheduledTime}` : "",
           payload.rideNotes ? `Notes: ${payload.rideNotes}` : "",
           `Payment Method: ${payload.paymentMethod === "apple_pay" ? "Apple Pay" : "Card"}`,
-          paymentAuthorizationId ? `Payment Authorization ID: ${paymentAuthorizationId}` : "",
-          currentCoords ? "Live pickup location verified" : ""
+          `Payment ID: ${paymentAuthorizationId}`,
+          "Live pickup location verified"
         ].filter(Boolean).join(" | ");
 
-        const res = await fetch("/api/request-ride", {
-          method:"POST",
-          headers:{"Content-Type":"application/json"},
-          body:JSON.stringify({
+        const data = await requestJson("/api/request-ride", {
+          method: "POST",
+          body: JSON.stringify({
             rider_id: payload.riderId,
+            riderId: payload.riderId,
+            payment_id: paymentAuthorizationId,
+            paymentId: paymentAuthorizationId,
+            pickup: payload.pickupAddress,
+            dropoff: payload.dropoffAddress,
             pickup_address: payload.pickupAddress,
             dropoff_address: payload.dropoffAddress,
             ride_type: payload.rideType,
             scheduled_at: payload.scheduledTime || null,
+            scheduledAt: payload.scheduledTime || null,
+            requestedMode: payload.requestedMode,
             requested_mode: payload.requestedMode,
+            notes: compiledNotes,
             pickup_latitude: currentCoords.latitude,
-            pickup_longitude: currentCoords.longitude,
-            payment_authorization_id: paymentAuthorizationId,
-            notes: compiledNotes
+            pickup_longitude: currentCoords.longitude
           })
         });
 
-        const data = await res.json().catch(() => ({}));
-
-        if(!res.ok || !data.ok){
-          showError(data.error || data.message || "Unable to request ride.");
-          return;
-        }
-
         const ride = data.ride || {};
         const rideId = ride.id || ride.ride_id || data.ride_id || "Created";
-        const rideStatus =
-          ride.status ||
-          data.status ||
-          (isAutonomousMode ? "autonomous_queue" : "awaiting_dispatch");
+        const rideStatus = ride.status || data.status || "searching";
 
         if (rideId && rideId !== "Created") {
           localStorage.setItem("harveyActiveRideId", rideId);
@@ -2083,10 +1182,8 @@
 
         stepRequest.classList.add("active");
 
-        const confirmation = [
-          isAutonomousMode
-            ? "Autonomous Ride Requested Successfully"
-            : "Ride Requested Successfully",
+        showResult([
+          isAutonomousMode ? "Autonomous Ride Requested Successfully" : "Ride Requested Successfully",
           "",
           `Mode: ${isAutonomousMode ? "Autonomous Pilot" : "Driver Ride"}`,
           `Ride ID: ${rideId}`,
@@ -2094,58 +1191,42 @@
           "",
           `Pickup: ${payload.pickupAddress}`,
           `Dropoff: ${payload.dropoffAddress}`,
-          currentCoords ? "Live pickup location confirmed on map" : ""
-        ].filter(Boolean);
-
-        showResult(confirmation.join("\n"));
-      } catch(error){
-        showError("Unable to submit ride request.");
+          "Live pickup location confirmed on map"
+        ].join("\n"));
+      } catch (error) {
+        showError(error.message || "Unable to submit ride request.");
       } finally {
         isRequestingRide = false;
-        setButtonLoading(
-          requestRideBtn,
-          false,
-          "",
-          isAutonomousMode ? "Request Autonomous Ride" : "Request Ride"
-        );
+        setButtonLoading(requestRideBtn, false, "", isAutonomousMode ? "Request Autonomous Ride" : "Request Ride");
       }
     }
 
-    function markMapBootComplete() {
+    function markMapBootComplete(){
       mapBootFinished = true;
-      if (mapBootTimer) {
-        clearTimeout(mapBootTimer);
-        mapBootTimer = null;
-      }
+      if (mapBootTimer) clearTimeout(mapBootTimer);
+      mapBootTimer = null;
     }
 
-    function onGoogleMapsLoaded() {
+    function onGoogleMapsLoaded(){
       markMapBootComplete();
-
       if (!window.google || !window.google.maps) {
         mapsReady = false;
         setMapLoading("Google Maps failed to load.");
         mapStatusText.textContent = "Google Maps failed to load.";
-        showError("Google Maps loaded incorrectly. Verify your browser key and website restriction.");
         return;
       }
 
       mapsReady = true;
       initMap();
 
-      if (currentCoords) {
-        updateLiveMap(currentCoords);
-      }
+      if (currentCoords) updateLiveMap(currentCoords);
 
       const savedLocationApproved = localStorage.getItem("harveyLocationApproved");
-      if(savedLocationApproved === "true" && !currentCoords){
-        restoreLocationFromPermission();
-      } else if (!currentCoords) {
-        setMapLoading("Enable location to activate your live pickup map.");
-      }
+      if (savedLocationApproved === "true" && !currentCoords) restoreLocationFromPermission();
+      else if (!currentCoords) setMapLoading("Enable location to activate your live pickup map.");
     }
 
-    function onGoogleMapsError() {
+    function onGoogleMapsError(){
       markMapBootComplete();
       mapsReady = false;
       setMapLoading("Google Maps could not load. Check your browser key and allowed domain.");
@@ -2153,15 +1234,15 @@
       showError("Google Maps could not load. Make sure your browser key and website restriction are correct.");
     }
 
-    window.gm_authFailure = function () {
+    window.gm_authFailure = function(){
       markMapBootComplete();
       mapsReady = false;
       setMapLoading("Google Maps authentication failed.");
       mapStatusText.textContent = "Google Maps auth failure.";
-      showError("Google Maps authentication failed. Your browser key is wrong, restricted to the wrong website, or still not authorized.");
+      showError("Google Maps authentication failed. Check your browser key restriction.");
     };
 
-    function loadGoogleMapsScript() {
+    function loadGoogleMapsScript(){
       if (mapBootAttempted) return;
       mapBootAttempted = true;
 
@@ -2170,11 +1251,10 @@
         mapsReady = false;
         setMapLoading("Google Maps browser key is missing.");
         mapStatusText.textContent = "Google Maps key missing.";
-        showError("Google Maps browser key is missing from this page.");
         return;
       }
 
-      const existing = document.getElementById("harveyGoogleMapsScript");
+      const existing = $("harveyGoogleMapsScript");
       if (existing) return;
 
       setMapLoading("Loading Google Maps...");
@@ -2185,7 +1265,6 @@
           mapsReady = false;
           setMapLoading("Google Maps timed out while loading.");
           mapStatusText.textContent = "Google Maps timeout.";
-          showError("Google Maps timed out. This usually means browser key restriction, billing, or website authorization is wrong.");
         }
       }, 15000);
 
@@ -2204,16 +1283,20 @@
     enableLocationBtn.addEventListener("click", requestLocationAccess);
     refreshLocationBtn.addEventListener("click", refreshLiveLocation);
     useLiveLocationBtn.addEventListener("click", useLiveLocationForPickup);
+    checkRiderBtn.addEventListener("click", checkRiderStatus);
     riderIdInput.addEventListener("blur", checkRiderStatus);
     estimateBtn.addEventListener("click", getEstimate);
     authorizeBtn.addEventListener("click", authorizePayment);
     requestRideBtn.addEventListener("click", requestRide);
 
-    const savedRiderId = localStorage.getItem("harveyRiderId");
+    const savedRiderId =
+      urlParams.get("rider_id") ||
+      urlParams.get("riderId") ||
+      localStorage.getItem("harveyRiderId");
 
     applyRideModeUI();
 
-    if(savedRiderId){
+    if (savedRiderId) {
       riderIdInput.value = savedRiderId;
       checkRiderStatus();
     }
@@ -2221,4 +1304,4 @@
     loadGoogleMapsScript();
   </script>
 </body>
-                  </html>
+          </html>
