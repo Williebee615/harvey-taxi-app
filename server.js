@@ -6125,6 +6125,256 @@ app.get("/api/admin/payouts", requireAdmin, async (req, res) => {
 ========================================================= */
 
 /* =========================================================
+   HARVEY TAXI — CODE BLUE AI ADMIN BRAIN
+   Admin AI Operations Assistant
+========================================================= */
+
+const ADMIN_AI_MODEL = env("ADMIN_AI_MODEL", OPENAI_MODEL || "gpt-4o-mini");
+
+function compactRows(rows = [], limit = 25) {
+  return (rows || []).slice(0, limit).map((row) => ({
+    id: row.id,
+    status: row.status || row.approval_status || row.payment_status || null,
+    service_type: row.service_type || row.ride_type || row.type || null,
+    rider_id: row.rider_id || null,
+    driver_id: row.driver_id || null,
+    pickup_address: row.pickup_address || null,
+    dropoff_address: row.dropoff_address || null,
+    total: row.total || row.amount || row.fare_total || row.estimated_total || null,
+    driver_payout: row.driver_payout || row.estimated_driver_payout || null,
+    payment_status: row.payment_status || null,
+    created_at: row.created_at || null,
+    updated_at: row.updated_at || null,
+  }));
+}
+
+function isStale(row, minutes = 15) {
+  const time = new Date(row.updated_at || row.created_at || 0).getTime();
+  if (!time) return false;
+  return Date.now() - time > minutes * 60 * 1000;
+}
+
+async function buildAdminAiContext() {
+  const [riders, drivers, rides, deliveries, payments, earnings, payouts] =
+    await Promise.all([
+      supabase.from("riders").select("*").order("created_at", { ascending: false }).limit(200),
+      supabase.from("drivers").select("*").order("created_at", { ascending: false }).limit(200),
+      supabase.from("rides").select("*").order("created_at", { ascending: false }).limit(200),
+      supabase.from("delivery_orders").select("*").order("created_at", { ascending: false }).limit(200),
+      supabase.from("payments").select("*").order("created_at", { ascending: false }).limit(200),
+      supabase.from("driver_earnings").select("*").order("created_at", { ascending: false }).limit(200),
+      supabase.from("driver_payouts").select("*").order("created_at", { ascending: false }).limit(200),
+    ]);
+
+  for (const result of [riders, drivers, rides, deliveries, payments, earnings, payouts]) {
+    if (result.error) throw result.error;
+  }
+
+  const riderRows = riders.data || [];
+  const driverRows = drivers.data || [];
+  const rideRows = rides.data || [];
+  const deliveryRows = deliveries.data || [];
+  const paymentRows = payments.data || [];
+  const earningRows = earnings.data || [];
+  const payoutRows = payouts.data || [];
+
+  const activeRideStatuses = [
+    "searching",
+    "awaiting_driver_acceptance",
+    "driver_assigned",
+    "driver_en_route",
+    "driver_arrived",
+    "in_progress",
+  ];
+
+  const activeDeliveryStatuses = [
+    "searching",
+    "awaiting_driver_acceptance",
+    "driver_assigned",
+    "driver_en_route_to_store",
+    "arrived_at_store",
+    "picked_up",
+    "en_route_to_customer",
+    "arrived_at_customer",
+  ];
+
+  const stuckRides = rideRows.filter(
+    (ride) => activeRideStatuses.includes(ride.status) && isStale(ride, 15)
+  );
+
+  const stuckDeliveries = deliveryRows.filter(
+    (order) => activeDeliveryStatuses.includes(order.status) && isStale(order, 20)
+  );
+
+  const paymentRisks = paymentRows.filter((payment) =>
+    ["failed", "canceled", "requires_payment_method", "requires_action"].includes(payment.status)
+  );
+
+  const pendingRiders = riderRows.filter((rider) =>
+    ["pending", "manual_review", "pending_persona_verification"].includes(
+      rider.approval_status || rider.status
+    )
+  );
+
+  const pendingDrivers = driverRows.filter((driver) =>
+    ["pending", "manual_review", "pending_email_verification", "background_check_invited"].includes(
+      driver.approval_status || driver.status
+    )
+  );
+
+  return {
+    summary: {
+      riders: {
+        total: riderRows.length,
+        pending: pendingRiders.length,
+        approved: riderRows.filter((r) => r.approval_status === "approved").length,
+      },
+      drivers: {
+        total: driverRows.length,
+        pending: pendingDrivers.length,
+        approved: driverRows.filter((d) => d.approval_status === "approved").length,
+        online: driverRows.filter((d) => d.available === true).length,
+      },
+      rides: {
+        total: rideRows.length,
+        active: rideRows.filter((r) => activeRideStatuses.includes(r.status)).length,
+        stuck: stuckRides.length,
+        completed: rideRows.filter((r) => r.status === "completed").length,
+      },
+      deliveries: {
+        total: deliveryRows.length,
+        active: deliveryRows.filter((d) => activeDeliveryStatuses.includes(d.status)).length,
+        stuck: stuckDeliveries.length,
+        food: deliveryRows.filter((d) => d.service_type === "food").length,
+        grocery: deliveryRows.filter((d) => d.service_type === "grocery").length,
+      },
+      payments: {
+        total: paymentRows.length,
+        risks: paymentRisks.length,
+        capturedRevenue: roundMoney(
+          paymentRows
+            .filter((p) => ["captured", "succeeded"].includes(p.status))
+            .reduce((sum, p) => sum + Number(p.amount || 0), 0)
+        ),
+      },
+      earnings: {
+        pending: earningRows.filter((e) => ["pending", "available", "payout_pending"].includes(e.status)).length,
+        awaitingPayment: earningRows.filter((e) => e.status === "awaiting_payment").length,
+      },
+      payouts: {
+        pending: payoutRows.filter((p) => ["pending", "created", "processing"].includes(p.status)).length,
+        paid: payoutRows.filter((p) => p.status === "paid").length,
+      },
+    },
+
+    priorityQueues: {
+      pendingRiders: compactRows(pendingRiders, 15),
+      pendingDrivers: compactRows(pendingDrivers, 15),
+      stuckRides: compactRows(stuckRides, 15),
+      stuckDeliveries: compactRows(stuckDeliveries, 15),
+      paymentRisks: compactRows(paymentRisks, 15),
+      recentRides: compactRows(rideRows, 15),
+      recentDeliveries: compactRows(deliveryRows, 15),
+      pendingEarnings: compactRows(
+        earningRows.filter((e) => ["pending", "available", "payout_pending"].includes(e.status)),
+        15
+      ),
+      pendingPayouts: compactRows(
+        payoutRows.filter((p) => ["pending", "created", "processing"].includes(p.status)),
+        15
+      ),
+    },
+  };
+}
+
+app.post("/api/ai/admin-brain", requireAdmin, async (req, res) => {
+  try {
+    const command = normalizeText(req.body.command || req.body.message);
+
+    if (!command) {
+      return fail(res, 400, "AI command is required.");
+    }
+
+    const context = await buildAdminAiContext();
+
+    if (!openai) {
+      return ok(res, {
+        response:
+          "AI is not configured, but the admin context was loaded. Add OPENAI_API_KEY and make sure ENABLE_AI_SUPPORT=true in Render.",
+        context,
+      });
+    }
+
+    const systemPrompt = `
+You are Harvey Taxi's AI Operations Brain.
+
+You are helping the admin operate a real transportation and delivery platform.
+
+Platform includes:
+- Rider approvals
+- Driver approvals
+- Ride dispatch
+- Fast food delivery
+- Grocery delivery
+- Payment authorization
+- Stripe payment risk
+- Driver earnings
+- Driver payouts
+- Redispatch needs
+- Stuck ride and stuck delivery detection
+
+Rules:
+- Be direct and operational.
+- Do not claim you performed actions unless a route confirms it.
+- Give prioritized admin actions.
+- Separate urgent issues from normal follow-up.
+- Mention specific ride, delivery, driver, rider, payment, earning, or payout IDs when available.
+- If there are no major issues, say what looks healthy.
+`;
+
+    const completion = await openai.chat.completions.create({
+      model: ADMIN_AI_MODEL,
+      temperature: 0.2,
+      max_tokens: 900,
+      messages: [
+        { role: "system", content: systemPrompt },
+        {
+          role: "user",
+          content: JSON.stringify({
+            command,
+            adminContext: context,
+          }),
+        },
+      ],
+    });
+
+    const response =
+      completion.choices?.[0]?.message?.content ||
+      "AI completed the review, but no response text was returned.";
+
+    await auditLog("admin_ai_brain_used", {
+      admin: req.admin.email,
+      command,
+      model: ADMIN_AI_MODEL,
+      summary: context.summary,
+    });
+
+    return ok(res, {
+      response,
+      result: response,
+      model: ADMIN_AI_MODEL,
+      summary: context.summary,
+    });
+  } catch (error) {
+    return serverError(res, error, "Admin AI Brain failed.");
+  }
+});
+
+/* Compatibility route for dashboard versions using /api/admin/ai-command */
+app.post("/api/admin/ai-command", requireAdmin, async (req, res) => {
+  req.url = "/api/ai/admin-brain";
+  return app._router.handle(req, res);
+});/* =========================================================
    ADMIN DASHBOARD
 ========================================================= */
 
