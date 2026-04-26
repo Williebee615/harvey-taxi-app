@@ -9,7 +9,7 @@
   <title>Harvey Taxi — Admin Dashboard</title>
   <meta
     name="description"
-    content="Harvey Taxi admin dashboard for rider approvals, driver approvals, ride dispatch, food delivery, grocery delivery, payments, payouts, and operations control."
+    content="Harvey Taxi admin dashboard with AI operations brain for rider approvals, driver approvals, ride dispatch, food delivery, grocery delivery, payments, payouts, and operations control."
   />
   <meta name="theme-color" content="#07111f" />
 
@@ -31,6 +31,7 @@
       --danger:#ff7e97;
       --gold:#ffd76a;
       --orange:#ffb86b;
+      --purple:#9f8cff;
       --shadow:0 18px 60px rgba(0,0,0,.35);
       --shadowSoft:0 10px 28px rgba(0,0,0,.22);
       --radius:24px;
@@ -273,6 +274,11 @@
       color:#2b1600;
     }
 
+    .ai-btn{
+      background:linear-gradient(90deg,var(--purple),var(--cyan));
+      color:#07111f;
+    }
+
     .result,
     .error{
       display:none;
@@ -449,6 +455,12 @@
       border-color:rgba(99,245,255,.18);
     }
 
+    .purple{
+      background:rgba(159,140,255,.14);
+      color:#cfc6ff;
+      border-color:rgba(159,140,255,.22);
+    }
+
     .item-grid{
       display:grid;
       grid-template-columns:repeat(2,1fr);
@@ -502,7 +514,8 @@
       line-height:1.55;
     }
 
-    .insight-card{
+    .insight-card,
+    .ai-panel{
       background:rgba(255,255,255,.03);
       border:1px solid var(--line);
       border-radius:18px;
@@ -552,7 +565,8 @@
     }
 
     .input,
-    .select{
+    .select,
+    textarea.input{
       width:100%;
       border:none;
       outline:none;
@@ -564,10 +578,23 @@
       min-height:46px;
     }
 
+    textarea.input{
+      resize:vertical;
+      min-height:120px;
+      line-height:1.55;
+    }
+
     .input:focus,
-    .select:focus{
+    .select:focus,
+    textarea.input:focus{
       border-color:rgba(99,245,255,.35);
       box-shadow:0 0 0 3px rgba(99,245,255,.08);
+    }
+
+    .ai-result{
+      display:none;
+      margin-top:14px;
+      white-space:normal;
     }
 
     .footer-note{
@@ -621,15 +648,14 @@
       }
     }
   </style>
-</head>
-<body>
+</head><body>
   <div class="shell">
     <div class="topbar">
       <div class="brand-wrap">
         <div class="brand-logo">HT</div>
         <div>
           <div class="brand">Harvey <span>Taxi</span> Admin Dashboard</div>
-          <div class="brand-sub">Rides • Food Delivery • Grocery Delivery • Payments • Driver Payouts</div>
+          <div class="brand-sub">AI Brain • Rides • Food • Grocery • Payments • Payouts</div>
         </div>
       </div>
 
@@ -643,11 +669,11 @@
     </div>
 
     <div class="hero">
-      <h1>Operations + Delivery Dispatch Command Center</h1>
+      <h1>AI Operations + Delivery Dispatch Command Center</h1>
       <p>
-        Approve riders and drivers, monitor ride dispatch, manage fast food and grocery delivery,
-        inspect payments and driver earnings, run redispatch controls, and keep Harvey Taxi moving
-        from one production-safe admin console.
+        Manage rider approvals, driver approvals, ride dispatch, fast food delivery,
+        grocery delivery, payments, earnings, payouts, stuck operations, and AI-assisted
+        admin decisions from one Harvey Taxi command console.
       </p>
 
       <div class="hero-actions">
@@ -655,6 +681,7 @@
         <button class="neutral" id="toggleAutoRefreshBtn" type="button">Auto Refresh: On</button>
         <button class="gold" id="loadEarningsBtn" type="button">Load Earnings</button>
         <button class="orange" id="loadPayoutsBtn" type="button">Load Payouts</button>
+        <button class="ai-btn" id="quickAiReviewBtn" type="button">AI Review Now</button>
       </div>
     </div>
 
@@ -703,7 +730,7 @@
             <div>
               <div class="card-title">Admin Controls</div>
               <div class="sub">
-                Optional admin identity fields for routes protected by x-admin-email and x-admin-password.
+                Optional admin identity fields for protected backend routes.
               </div>
             </div>
           </div>
@@ -711,11 +738,22 @@
           <div class="settings-grid">
             <div class="field">
               <label for="adminEmail">Admin Email</label>
-              <input id="adminEmail" class="input" type="email" placeholder="williebee@harveytaxiservice.com" />
+              <input
+                id="adminEmail"
+                class="input"
+                type="email"
+                placeholder="williebee@harveytaxiservice.com"
+              />
             </div>
+
             <div class="field">
               <label for="adminPassword">Admin Password</label>
-              <input id="adminPassword" class="input" type="password" placeholder="Admin password" />
+              <input
+                id="adminPassword"
+                class="input"
+                type="password"
+                placeholder="Admin password"
+              />
             </div>
           </div>
         </div>
@@ -723,14 +761,48 @@
         <div class="card">
           <div class="card-header">
             <div>
+              <div class="card-title">AI Operations Brain</div>
+              <div class="sub">
+                Ask Harvey AI to review rides, deliveries, approvals, payments, payouts,
+                stuck trips, redispatch needs, and operational risk.
+              </div>
+            </div>
+            <div class="badge purple">AI Brain</div>
+          </div>
+
+          <div class="field">
+            <label for="aiCommandInput">AI Command</label>
+            <textarea
+              id="aiCommandInput"
+              class="input"
+              placeholder="Example: Review all rides, deliveries, drivers, riders, payments, and payouts. Tell me what needs admin attention right now."
+            ></textarea>
+          </div>
+
+          <div class="actions">
+            <button class="ai-btn" id="runAiBrainBtn" type="button">Run AI Brain</button>
+            <button class="neutral" id="clearAiBrainBtn" type="button">Clear</button>
+          </div>
+
+          <div id="aiBrainResult" class="notes ai-result"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div>
               <div class="card-title">Pending Rider Approvals</div>
-              <div class="sub">Riders must be approved before requesting rides or delivery.</div>
+              <div class="sub">
+                Riders must be approved before requesting rides or delivery.
+              </div>
             </div>
           </div>
+
           <div class="list" id="pendingRidersList">
             <div class="empty">Loading riders...</div>
           </div>
-  </div><div class="card">
+        </div>
+
+        <div class="card">
           <div class="card-header">
             <div>
               <div class="card-title">Pending Driver Approvals</div>
@@ -772,7 +844,6 @@
             </div>
           </div>
 
-          <!-- NEW: SERVICE TYPE FILTER -->
           <div class="tabs">
             <button class="tab active" data-type="all">All</button>
             <button class="tab" data-type="ride">Rides</button>
@@ -785,13 +856,12 @@
           </div>
         </div>
 
-        <!-- NEW: FINANCIAL PANEL -->
         <div class="card">
           <div class="card-header">
             <div>
               <div class="card-title">Financial Overview</div>
               <div class="sub">
-                Monitor platform revenue, driver earnings, and payout readiness.
+                Monitor platform revenue, driver earnings, payout readiness, and payment risk.
               </div>
             </div>
           </div>
@@ -804,712 +874,289 @@
     </div>
 
     <div class="footer-note">
-      Harvey Taxi • Rides • Food Delivery • Grocery Delivery • Dispatch Brain • Earnings • Payouts
+      Harvey Taxi • AI Operations Brain • Rides • Food Delivery • Grocery Delivery • Dispatch • Earnings • Payouts
     </div>
-  </div>
+  </div><script>
+/* =========================================================
+   HARVEY TAXI — ADMIN AI BRAIN CORE
+   PART 3 (LOGIC + AI ENGINE)
+========================================================= */
 
-  <script>
-    const state = {
-      isLoading:false,
-      isAutoRefresh:true,
-      refreshMs:6000,
-      timer:null,
-      actionLocks:new Set(),
-      selectedRideId:null,
-      activeFilter:"all"
-    };
+const state = {
+  isLoading:false,
+  isAutoRefresh:true,
+  refreshMs:6000,
+  timer:null,
+  activeFilter:"all"
+};
 
-    const els = {
-      resultBox:document.getElementById("resultBox"),
-      errorBox:document.getElementById("errorBox"),
-      refreshBtn:document.getElementById("refreshBtn"),
-      manualRefreshBtn:document.getElementById("manualRefreshBtn"),
-      toggleAutoRefreshBtn:document.getElementById("toggleAutoRefreshBtn"),
-      pendingRidersCount:document.getElementById("pendingRidersCount"),
-      pendingDriversCount:document.getElementById("pendingDriversCount"),
-      activeRidesCount:document.getElementById("activeRidesCount"),
-      activeDeliveriesCount:document.getElementById("activeDeliveriesCount"),
-      completedRidesCount:document.getElementById("completedRidesCount"),
-      completedDeliveriesCount:document.getElementById("completedDeliveriesCount"),
-      onlineDriversCount:document.getElementById("onlineDriversCount"),
-      capturedRevenueCount:document.getElementById("capturedRevenueCount"),
-      pendingRidersList:document.getElementById("pendingRidersList"),
-      pendingDriversList:document.getElementById("pendingDriversList"),
-      ridesList:document.getElementById("ridesList"),
-      dispatchInsightsPanel:document.getElementById("dispatchInsightsPanel"),
-      financialList:document.getElementById("financialList"),
-      adminEmail:document.getElementById("adminEmail"),
-      adminPassword:document.getElementById("adminPassword")
-    };
+const els = {
+  resultBox:document.getElementById("resultBox"),
+  errorBox:document.getElementById("errorBox"),
+  ridesList:document.getElementById("ridesList"),
+  financialList:document.getElementById("financialList"),
+  aiCommandInput:document.getElementById("aiCommandInput"),
+  aiBrainResult:document.getElementById("aiBrainResult")
+};
 
-    /* =========================
-       HELPERS
-    ========================= */
+/* =========================================================
+   HELPERS
+========================================================= */
 
-    function escapeHtml(v){
-      return String(v ?? "")
-        .replace(/&/g,"&amp;")
-        .replace(/</g,"&lt;")
-        .replace(/>/g,"&gt;")
-        .replace(/"/g,"&quot;");
-    }
+function escapeHtml(v){
+  return String(v ?? "")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;");
+}
 
-    function money(v){
-      return `$${Number(v||0).toFixed(2)}`;
-    }
+function money(v){
+  return `$${Number(v||0).toFixed(2)}`;
+}
 
-    function normalize(v){
-      return String(v||"").toUpperCase();
-    }
+function showResult(msg){
+  els.resultBox.style.display="block";
+  els.resultBox.innerHTML=msg;
+  els.errorBox.style.display="none";
+}
 
-    function showResult(msg){
-      els.resultBox.style.display="block";
-      els.resultBox.innerHTML=msg;
-      els.errorBox.style.display="none";
-    }
+function showError(msg){
+  els.errorBox.style.display="block";
+  els.errorBox.innerHTML=msg;
+  els.resultBox.style.display="none";
+}
 
-    function showError(msg){
-      els.errorBox.style.display="block";
-      els.errorBox.innerHTML=msg;
-      els.resultBox.style.display="none";
-    }
+/* =========================================================
+   API LAYER
+========================================================= */
 
-    function clearAlerts(){
-      els.resultBox.style.display="none";
-      els.errorBox.style.display="none";
-    }
+async function api(url, options={}){
+  const res = await fetch(url,{
+    headers:{ "Content-Type":"application/json" },
+    ...options
+  });
 
-    function badgeClass(v){
-      const val = normalize(v);
+  const data = await res.json().catch(()=>({}));
 
-      if(["APPROVED","COMPLETED","PAID","ACTIVE","ONLINE"].includes(val)) return "ok";
-      if(["PENDING","WAITING","DISPATCHING"].includes(val)) return "warn";
-      if(["NONE","UNASSIGNED"].includes(val)) return "blue";
-      return "bad";
-    }
+  if(!res.ok || data.success===false){
+    throw new Error(data.message || "Request failed");
+  }
 
-    function getAdmin(){
-      const email = els.adminEmail.value.trim();
-      const password = els.adminPassword.value.trim();
+  return data;
+}
 
-      return {
-        headers:{
-          ...(email && {"x-admin-email":email}),
-          ...(password && {"x-admin-password":password})
-        },
-        payload:{
-          ...(email && {admin_email:email}),
-          ...(password && {admin_password:password})
-        }
-      };
-    }
+/* =========================================================
+   AI BRAIN (CORE FEATURE)
+========================================================= */
 
-    async function api(url, options={}){
-      const admin = getAdmin();
+async function runAiBrain(){
+  const command = els.aiCommandInput.value.trim();
 
-      const res = await fetch(url,{
-        headers:{
-          "Content-Type":"application/json",
-          ...admin.headers,
-          ...(options.headers||{})
-        },
-        ...options
-      });
+  if(!command){
+    showError("Enter an AI command.");
+    return;
+  }
 
-      const data = await res.json().catch(()=>({}));
+  try{
+    els.aiBrainResult.innerHTML = "Running AI analysis...";
 
-      if(!res.ok || data.success===false){
-        throw new Error(data.message || "Request failed");
-      }
-
-      return data;
-    }
-
-    /* =========================
-       FILTER TABS
-    ========================= */
-
-    document.querySelectorAll(".tab").forEach(tab=>{
-      tab.addEventListener("click",()=>{
-        document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
-        tab.classList.add("active");
-        state.activeFilter = tab.dataset.type;
-        loadDashboard({silent:true});
-      });
+    const data = await api("/api/ai/admin-brain", {
+      method:"POST",
+      body:JSON.stringify({ command })
     });
 
-    /* =========================
-       RENDER RIDES + DELIVERY
-    ========================= */
+    els.aiBrainResult.innerHTML = `
+      <strong>AI Analysis:</strong><br><br>
+      ${escapeHtml(data.response || "No response")}
+    `;
 
-    function renderRides(items){
-      if(!items.length){
-        els.ridesList.innerHTML = `<div class="empty">No operations found.</div>`;
-        return;
-      }
+  }catch(err){
+    els.aiBrainResult.innerHTML = `<span style="color:#ff7e97">${escapeHtml(err.message)}</span>`;
+  }
+}
 
-      els.ridesList.innerHTML = items.map(item=>{
-        const type = item.service_type || item.type || "ride";
+/* =========================================================
+   RENDER OPERATIONS
+========================================================= */
 
-        return `
-          <div class="item">
-            <div class="item-top">
-              <div>
-                <div class="item-title">
-                  ${escapeHtml(type.toUpperCase())} • ${escapeHtml(item.id)}
-                </div>
-                <div class="item-sub">
-                  ${escapeHtml(item.pickup_address || "--")}<br>
-                  to ${escapeHtml(item.dropoff_address || "--")}
-                </div>
-              </div>
-              <div class="badge ${badgeClass(item.status)}">
-                ${escapeHtml(item.status || "UNKNOWN")}
-              </div>
-            </div>
+function renderOperations(items){
+  if(!items.length){
+    els.ridesList.innerHTML = `<div class="empty">No operations found.</div>`;
+    return;
+  }
 
-            <div class="item-grid">
-              <div class="box">
-                <div class="k">Customer</div>
-                <div class="v">${escapeHtml(item.customer_name || "--")}</div>
-              </div>
-
-              <div class="box">
-                <div class="k">Driver</div>
-                <div class="v">${escapeHtml(item.driver_name || "Unassigned")}</div>
-              </div>
-
-              <div class="box">
-                <div class="k">Total</div>
-                <div class="v">${money(item.total)}</div>
-              </div>
-
-              <div class="box">
-                <div class="k">Driver Pay</div>
-                <div class="v">${money(item.driver_payout)}</div>
-              </div>
-            </div>
-
-            ${
-              item.items
-                ? `<div class="notes"><strong>Order Items:</strong><br>${escapeHtml(item.items.join(", "))}</div>`
-                : ""
-            }
-
-            <div class="actions">
-              <button class="gold" onclick="runDispatch('${item.id}')">Dispatch</button>
-              <button class="neutral" onclick="markArriving('${item.id}')">Arriving</button>
-              <button class="success" onclick="startTrip('${item.id}')">Start</button>
-              <button class="primary" onclick="completeTrip('${item.id}')">Complete</button>
+  els.ridesList.innerHTML = items.map(item=>{
+    return `
+      <div class="item">
+        <div class="item-top">
+          <div>
+            <div class="item-title">${escapeHtml(item.id)}</div>
+            <div class="item-sub">
+              ${escapeHtml(item.pickup_address || "--")} → 
+              ${escapeHtml(item.dropoff_address || "--")}
             </div>
           </div>
-        `;
-      }).join("");
-    }
+          <div class="badge">${escapeHtml(item.status || "UNKNOWN")}</div>
+        </div>
 
-    /* =========================
-       LOAD DASHBOARD
-    ========================= */
-
-    async function loadDashboard({silent=false}={}){
-      if(state.isLoading) return;
-
-      try{
-        state.isLoading = true;
-        if(!silent) clearAlerts();
-
-        const data = await api("/api/admin/dashboard");
-
-        const rides = data.operations || [];
-
-        const filtered =
-          state.activeFilter === "all"
-            ? rides
-            : rides.filter(r => r.service_type === state.activeFilter);
-
-        renderRides(filtered);
-
-        els.pendingRidersCount.textContent = data.pending_riders?.length || 0;
-        els.pendingDriversCount.textContent = data.pending_drivers?.length || 0;
-        els.activeRidesCount.textContent = data.active_rides || 0;
-        els.activeDeliveriesCount.textContent = data.active_deliveries || 0;
-        els.completedRidesCount.textContent = data.completed_rides || 0;
-        els.completedDeliveriesCount.textContent = data.completed_deliveries || 0;
-        els.onlineDriversCount.textContent = data.online_drivers || 0;
-        els.capturedRevenueCount.textContent = money(data.revenue || 0);
-
-      }catch(err){
-        if(!silent){
-          showError(err.message);
-        }
-      }finally{
-        state.isLoading = false;
-      }
-    }/* =========================
-       APPROVAL ACTIONS
-    ========================= */
-
-    async function approveRider(riderId){
-      try{
-        const admin = getAdmin();
-
-        await api("/api/admin/approve-rider", {
-          method:"POST",
-          body:JSON.stringify({
-            rider_id:riderId,
-            riderId,
-            ...admin.payload
-          })
-        });
-
-        showResult(`Rider approved: <strong>${escapeHtml(riderId)}</strong>`);
-        await loadDashboard({ silent:true });
-      }catch(error){
-        showError(error.message || "Could not approve rider.");
-      }
-    }
-
-    async function rejectRider(riderId){
-      try{
-        const admin = getAdmin();
-
-        await api("/api/admin/reject-rider", {
-          method:"POST",
-          body:JSON.stringify({
-            rider_id:riderId,
-            riderId,
-            reason:"Rejected by admin dashboard.",
-            ...admin.payload
-          })
-        });
-
-        showResult(`Rider rejected: <strong>${escapeHtml(riderId)}</strong>`);
-        await loadDashboard({ silent:true });
-      }catch(error){
-        showError(error.message || "Could not reject rider.");
-      }
-    }
-
-    async function approveDriver(driverId){
-      try{
-        const admin = getAdmin();
-
-        await api("/api/admin/approve-driver", {
-          method:"POST",
-          body:JSON.stringify({
-            driver_id:driverId,
-            driverId,
-            ...admin.payload
-          })
-        });
-
-        showResult(`Driver approved: <strong>${escapeHtml(driverId)}</strong>`);
-        await loadDashboard({ silent:true });
-      }catch(error){
-        showError(error.message || "Could not approve driver.");
-      }
-    }
-
-    async function rejectDriver(driverId){
-      try{
-        const admin = getAdmin();
-
-        await api("/api/admin/reject-driver", {
-          method:"POST",
-          body:JSON.stringify({
-            driver_id:driverId,
-            driverId,
-            reason:"Rejected by admin dashboard.",
-            ...admin.payload
-          })
-        });
-
-        showResult(`Driver rejected: <strong>${escapeHtml(driverId)}</strong>`);
-        await loadDashboard({ silent:true });
-      }catch(error){
-        showError(error.message || "Could not reject driver.");
-      }
-    }
-
-    /* =========================
-       DISPATCH + LIFECYCLE
-    ========================= */
-
-    async function runDispatch(id){
-      try{
-        const admin = getAdmin();
-
-        const item = String(id || "").trim();
-        if(!item) throw new Error("Missing ride or delivery ID.");
-
-        let result;
-
-        try{
-          result = await api("/api/admin/rides/redispatch", {
-            method:"POST",
-            body:JSON.stringify({
-              ride_id:item,
-              rideId:item,
-              ...admin.payload
-            })
-          });
-        }catch{
-          result = await api("/api/admin/delivery/redispatch", {
-            method:"POST",
-            body:JSON.stringify({
-              delivery_order_id:item,
-              deliveryOrderId:item,
-              ...admin.payload
-            })
-          });
-        }
-
-        showResult(`Dispatch attempted for: <strong>${escapeHtml(item)}</strong>`);
-        await loadDashboard({ silent:true });
-      }catch(error){
-        showError(error.message || "Could not run dispatch.");
-      }
-    }
-
-    async function markArriving(id){
-      try{
-        const admin = getAdmin();
-
-        await api("/api/admin/rides/mark-arriving", {
-          method:"POST",
-          body:JSON.stringify({
-            ride_id:id,
-            rideId:id,
-            ...admin.payload
-          })
-        });
-
-        showResult(`Marked arriving: <strong>${escapeHtml(id)}</strong>`);
-        await loadDashboard({ silent:true });
-      }catch(error){
-        showError(error.message || "Could not mark arriving. This may only be supported from driver dashboard.");
-      }
-    }
-
-    async function startTrip(id){
-      try{
-        const admin = getAdmin();
-
-        await api("/api/admin/rides/start", {
-          method:"POST",
-          body:JSON.stringify({
-            ride_id:id,
-            rideId:id,
-            ...admin.payload
-          })
-        });
-
-        showResult(`Started trip: <strong>${escapeHtml(id)}</strong>`);
-        await loadDashboard({ silent:true });
-      }catch(error){
-        showError(error.message || "Could not start trip. Use driver dashboard if this lifecycle is driver-only.");
-      }
-    }
-
-    async function completeTrip(id){
-      try{
-        const admin = getAdmin();
-
-        let result;
-
-        try{
-          result = await api("/api/admin/rides/complete", {
-            method:"POST",
-            body:JSON.stringify({
-              ride_id:id,
-              rideId:id,
-              ...admin.payload
-            })
-          });
-        }catch{
-          result = await api("/api/admin/delivery/complete", {
-            method:"POST",
-            body:JSON.stringify({
-              delivery_order_id:id,
-              deliveryOrderId:id,
-              ...admin.payload
-            })
-          });
-        }
-
-        showResult(`Completed operation: <strong>${escapeHtml(id)}</strong>`);
-        await loadDashboard({ silent:true });
-      }catch(error){
-        showError(error.message || "Could not complete operation.");
-      }
-    }
-
-    async function cancelRide(id){
-      try{
-        const admin = getAdmin();
-
-        await api("/api/admin/rides/cancel", {
-          method:"POST",
-          body:JSON.stringify({
-            ride_id:id,
-            rideId:id,
-            reason:"Canceled from admin dashboard.",
-            ...admin.payload
-          })
-        });
-
-        showResult(`Ride canceled: <strong>${escapeHtml(id)}</strong>`);
-        await loadDashboard({ silent:true });
-      }catch(error){
-        showError(error.message || "Could not cancel ride.");
-      }
-    }
-
-    async function cancelDelivery(id){
-      try{
-        const admin = getAdmin();
-
-        await api("/api/admin/delivery/cancel", {
-          method:"POST",
-          body:JSON.stringify({
-            delivery_order_id:id,
-            deliveryOrderId:id,
-            reason:"Canceled from admin dashboard.",
-            ...admin.payload
-          })
-        });
-
-        showResult(`Delivery canceled: <strong>${escapeHtml(id)}</strong>`);
-        await loadDashboard({ silent:true });
-      }catch(error){
-        showError(error.message || "Could not cancel delivery.");
-      }
-    }
-
-    /* =========================
-       EARNINGS + PAYOUTS
-    ========================= */
-
-    async function loadEarnings(){
-      try{
-        const data = await api("/api/admin/earnings");
-
-        const earnings = Array.isArray(data.earnings) ? data.earnings : [];
-
-        if(!earnings.length){
-          els.financialList.innerHTML = `<div class="empty">No earnings found.</div>`;
-          return;
-        }
-
-        els.financialList.innerHTML = earnings.slice(0,40).map((earning)=>`
-          <div class="item">
-            <div class="item-top">
-              <div>
-                <div class="item-title">
-                  Driver Earning • ${escapeHtml(earning.id)}
-                </div>
-                <div class="item-sub">
-                  Driver: ${escapeHtml(earning.driver_id || "--")}<br>
-                  Service: ${escapeHtml(earning.service_type || earning.type || "--")}
-                </div>
-              </div>
-              <div class="badge ${badgeClass(earning.status)}">
-                ${escapeHtml(earning.status || "pending")}
-              </div>
-            </div>
-
-            <div class="item-grid">
-              <div class="box">
-                <div class="k">Amount</div>
-                <div class="v">${money(earning.amount)}</div>
-              </div>
-              <div class="box">
-                <div class="k">Type</div>
-                <div class="v">${escapeHtml(earning.type || "--")}</div>
-              </div>
-              <div class="box">
-                <div class="k">Ride</div>
-                <div class="v">${escapeHtml(earning.ride_id || "--")}</div>
-              </div>
-              <div class="box">
-                <div class="k">Delivery</div>
-                <div class="v">${escapeHtml(earning.delivery_order_id || "--")}</div>
-              </div>
-            </div>
-
-            <div class="actions">
-              <button class="gold" onclick="markEarningAvailable('${escapeHtml(earning.id)}')">
-                Mark Available
-              </button>
-            </div>
+        <div class="item-grid">
+          <div class="box">
+            <div class="k">Customer</div>
+            <div class="v">${escapeHtml(item.customer_name || "--")}</div>
           </div>
-        `).join("");
 
-      }catch(error){
-        showError(error.message || "Could not load earnings.");
-      }
-    }
-
-    async function markEarningAvailable(earningId){
-      try{
-        const admin = getAdmin();
-
-        await api("/api/admin/earnings/mark-available", {
-          method:"POST",
-          body:JSON.stringify({
-            earning_id:earningId,
-            earningId,
-            ...admin.payload
-          })
-        });
-
-        showResult(`Earning marked available: <strong>${escapeHtml(earningId)}</strong>`);
-        await loadEarnings();
-      }catch(error){
-        showError(error.message || "Could not mark earning available.");
-      }
-    }
-
-    async function loadPayouts(){
-      try{
-        const data = await api("/api/admin/payouts");
-
-        const payouts = Array.isArray(data.payouts) ? data.payouts : [];
-
-        if(!payouts.length){
-          els.financialList.innerHTML = `<div class="empty">No payouts found.</div>`;
-          return;
-        }
-
-        els.financialList.innerHTML = payouts.slice(0,40).map((payout)=>`
-          <div class="item">
-            <div class="item-top">
-              <div>
-                <div class="item-title">
-                  Driver Payout • ${escapeHtml(payout.id)}
-                </div>
-                <div class="item-sub">
-                  Driver: ${escapeHtml(payout.driver_id || "--")}
-                </div>
-              </div>
-              <div class="badge ${badgeClass(payout.status)}">
-                ${escapeHtml(payout.status || "pending")}
-              </div>
-            </div>
-
-            <div class="item-grid">
-              <div class="box">
-                <div class="k">Amount</div>
-                <div class="v">${money(payout.amount)}</div>
-              </div>
-              <div class="box">
-                <div class="k">Reference</div>
-                <div class="v">${escapeHtml(payout.payment_reference || "--")}</div>
-              </div>
-            </div>
-
-            <div class="actions">
-              <button class="success" onclick="markPayoutPaid('${escapeHtml(payout.id)}')">
-                Mark Paid
-              </button>
-            </div>
+          <div class="box">
+            <div class="k">Driver</div>
+            <div class="v">${escapeHtml(item.driver_name || "Unassigned")}</div>
           </div>
-        `).join("");
 
-      }catch(error){
-        showError(error.message || "Could not load payouts.");
-      }
+          <div class="box">
+            <div class="k">Total</div>
+            <div class="v">${money(item.total)}</div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button onclick="runDispatch('${item.id}')">Dispatch</button>
+          <button onclick="completeTrip('${item.id}')">Complete</button>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+/* =========================================================
+   DASHBOARD LOAD
+========================================================= */
+
+async function loadDashboard(){
+  if(state.isLoading) return;
+
+  try{
+    state.isLoading = true;
+
+    const data = await api("/api/admin/dashboard");
+
+    const items = data.operations || [];
+
+    const filtered =
+      state.activeFilter === "all"
+        ? items
+        : items.filter(i => i.service_type === state.activeFilter);
+
+    renderOperations(filtered);
+
+  }catch(err){
+    showError(err.message);
+  }finally{
+    state.isLoading = false;
+  }
+}
+
+/* =========================================================
+   DISPATCH ACTION
+========================================================= */
+
+async function runDispatch(id){
+  try{
+    await api("/api/admin/redispatch", {
+      method:"POST",
+      body:JSON.stringify({ id })
+    });
+
+    showResult(`Dispatch triggered for ${id}`);
+    loadDashboard();
+
+  }catch(err){
+    showError(err.message);
+  }
+}
+
+/* =========================================================
+   COMPLETE TRIP
+========================================================= */
+
+async function completeTrip(id){
+  try{
+    await api("/api/admin/complete", {
+      method:"POST",
+      body:JSON.stringify({ id })
+    });
+
+    showResult(`Completed ${id}`);
+    loadDashboard();
+
+  }catch(err){
+    showError(err.message);
+  }
+}
+
+/* =========================================================
+   FINANCIALS
+========================================================= */
+
+async function loadEarnings(){
+  try{
+    const data = await api("/api/admin/earnings");
+
+    els.financialList.innerHTML = data.earnings.map(e=>`
+      <div class="item">
+        <div class="item-title">${escapeHtml(e.driver_id)}</div>
+        <div class="item-sub">${money(e.amount)}</div>
+      </div>
+    `).join("");
+
+  }catch(err){
+    showError(err.message);
+  }
+}
+
+async function loadPayouts(){
+  try{
+    const data = await api("/api/admin/payouts");
+
+    els.financialList.innerHTML = data.payouts.map(p=>`
+      <div class="item">
+        <div class="item-title">${escapeHtml(p.driver_id)}</div>
+        <div class="item-sub">${money(p.amount)}</div>
+      </div>
+    `).join("");
+
+  }catch(err){
+    showError(err.message);
+  }
+}
+
+/* =========================================================
+   AUTO REFRESH
+========================================================= */
+
+function startAutoRefresh(){
+  setInterval(()=>{
+    if(!document.hidden){
+      loadDashboard();
     }
+  }, state.refreshMs);
+}
 
-    async function markPayoutPaid(payoutId){
-      try{
-        const admin = getAdmin();
+/* =========================================================
+   EVENTS
+========================================================= */
 
-        const reference = prompt("Enter payout/payment reference:", "manual-admin-payout");
-        if(reference === null) return;
+document.getElementById("runAiBrainBtn").onclick = runAiBrain;
+document.getElementById("quickAiReviewBtn").onclick = () => {
+  els.aiCommandInput.value = "Review entire system and flag issues.";
+  runAiBrain();
+};
 
-        await api("/api/admin/payouts/mark-paid", {
-          method:"POST",
-          body:JSON.stringify({
-            payout_id:payoutId,
-            payoutId,
-            reference,
-            ...admin.payload
-          })
-        });
+document.getElementById("loadEarningsBtn").onclick = loadEarnings;
+document.getElementById("loadPayoutsBtn").onclick = loadPayouts;
 
-        showResult(`Payout marked paid: <strong>${escapeHtml(payoutId)}</strong>`);
-        await loadPayouts();
-      }catch(error){
-        showError(error.message || "Could not mark payout paid.");
-      }
-    }
+/* =========================================================
+   INIT
+========================================================= */
 
-    /* =========================
-       AUTO REFRESH
-    ========================= */
+loadDashboard();
+startAutoRefresh();
 
-    function toggleAutoRefresh(){
-      state.isAutoRefresh = !state.isAutoRefresh;
-
-      els.toggleAutoRefreshBtn.textContent =
-        `Auto Refresh: ${state.isAutoRefresh ? "On" : "Off"}`;
-
-      if(state.isAutoRefresh){
-        startAutoRefresh();
-      }else{
-        stopAutoRefresh();
-      }
-    }
-
-    function stopAutoRefresh(){
-      if(state.timer){
-        clearInterval(state.timer);
-        state.timer = null;
-      }
-    }
-
-    function startAutoRefresh(){
-      stopAutoRefresh();
-
-      if(!state.isAutoRefresh) return;
-
-      state.timer = setInterval(()=>{
-        if(document.hidden || state.isLoading) return;
-        loadDashboard({ silent:true });
-      }, state.refreshMs);
-    }
-
-    /* =========================
-       EVENTS + BOOT
-    ========================= */
-
-    function wireEvents(){
-      els.refreshBtn.addEventListener("click",()=>loadDashboard());
-      els.manualRefreshBtn.addEventListener("click",()=>loadDashboard());
-      els.toggleAutoRefreshBtn.addEventListener("click",toggleAutoRefresh);
-      document.getElementById("loadEarningsBtn").addEventListener("click",loadEarnings);
-      document.getElementById("loadPayoutsBtn").addEventListener("click",loadPayouts);
-
-      document.addEventListener("visibilitychange",()=>{
-        if(document.hidden){
-          stopAutoRefresh();
-        }else if(state.isAutoRefresh){
-          startAutoRefresh();
-          loadDashboard({ silent:true });
-        }
-      });
-
-      window.addEventListener("beforeunload",stopAutoRefresh);
-    }
-
-    async function bootstrap(){
-      wireEvents();
-      await loadDashboard();
-      startAutoRefresh();
-    }
-
-    bootstrap();
-  </script>
-</body>
-</html>
+</script>
