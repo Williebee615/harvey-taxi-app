@@ -1,15 +1,94 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Food Delivery</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Harvey Taxi — Food Delivery</title>
+
+<style>
+body {
+  margin: 0;
+  background: linear-gradient(180deg,#020617,#091126);
+  color: #fff;
+  font-family: Arial, sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  text-align: center;
+}
+
+.container {
+  max-width: 400px;
+}
+
+h1 {
+  font-size: 28px;
+  margin-bottom: 10px;
+}
+
+p {
+  color: #aab4d6;
+  margin-bottom: 20px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(0,150,255,0.15);
+  color: #6aa7ff;
+  margin-bottom: 20px;
+}
+
+button {
+  padding: 14px;
+  width: 100%;
+  border-radius: 10px;
+  border: none;
+  background: #2563eb;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+button.secondary {
+  background: transparent;
+  border: 1px solid #2e3b6b;
+  margin-top: 10px;
+}
+</style>
 </head>
 
-<body style="background:#020617;color:white;font-family:Arial;padding:20px">
+<body>
+
+<div class="container">
+  <div class="badge">🚧 Coming Soon</div>
+
+  <h1>Food Delivery</h1>
+
+  <p>
+    Harvey Taxi is expanding into fast food and grocery delivery.
+    This feature is currently in development.
+  </p>
+
+  <button onclick="goToBeta()">
+    Continue to Beta
+  </button>
+
+  <button class="secondary" onclick="goHome()">
+    Back to Home
+  </button>
+</div>
 
 <script>
-window.location.href="/request.html?type=food"
+function goToBeta() {
+  window.location.href = "/request.html?type=food";
+}
+
+function goHome() {
+  window.location.href = "/";
+}
 </script>
 
 </body>
