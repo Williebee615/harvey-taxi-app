@@ -1,21 +1,105 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Grocery</title>
-  <style>
-    * { box-sizing: border-box; font-family: Arial, sans-serif; }
-    body { margin: 0; background: #09142d; color: white; padding: 20px; }
-    .wrap { max-width: 760px; margin: 0 auto; }
-    .card { background: #132754; border: 1px solid #23458e; border-radius: 18px; padding: 20px; }
-    input, textarea, button {
-      width: 100%;
-      padding: 14px;
-      border-radius: 12px;
-      margin-bottom: 12px;
-      font-size: 16px;
-    }
-    input, textarea { background: #0b1b3d; color: white; border: 1px solid #2b4f99; }
-    button { border: none; background: #2f7cff; color: white; font-weight: bold; }
-    .status { background: #0b1b3d; border: 1
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Harvey Taxi — Grocery Delivery</title>
+
+<style>
+* { box-sizing: border-box; font-family: Arial, sans-serif; }
+
+body {
+  margin: 0;
+  background: linear-gradient(180deg,#040814,#09142d);
+  color: white;
+  padding: 20px;
+}
+
+.wrap { max-width: 760px; margin: 0 auto; }
+
+.badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255,200,0,0.15);
+  color: #ffd76a;
+  margin-bottom: 10px;
+}
+
+.card {
+  background: #132754;
+  border: 1px solid #23458e;
+  border-radius: 18px;
+  padding: 20px;
+}
+
+input, textarea, button {
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  font-size: 16px;
+}
+
+input, textarea {
+  background: #0b1b3d;
+  color: white;
+  border: 1px solid #2b4f99;
+}
+
+button {
+  border: none;
+  background: #2f7cff;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+button.disabled {
+  background: #3b4c7a;
+  cursor: not-allowed;
+}
+
+.status {
+  background: #0b1b3d;
+  border: 1px solid #2b4f99;
+  padding: 12px;
+  border-radius: 10px;
+  margin-top: 10px;
+  color: #aab4d6;
+}
+</style>
+</head>
+
+<body>
+
+<div class="wrap">
+
+  <div class="badge">🧪 Grocery Delivery — Pilot Mode</div>
+
+  <div class="card">
+    <h2>Request Grocery Delivery</h2>
+
+    <p style="color:#aab4d6">
+      Harvey Taxi is expanding into grocery delivery. This feature is currently in pilot mode and may not be fully available in all areas.
+    </p>
+
+    <input placeholder="Store Name (Walmart, Kroger, etc.)" />
+    <textarea placeholder="Grocery List (items, quantities, notes)"></textarea>
+    <input placeholder="Delivery Address" />
+
+    <button class="disabled">
+      Submit Request (Coming Soon)
+    </button>
+
+    <div class="status">
+      🚧 Grocery delivery is under development.  
+      You will be able to request deliveries soon.
+    </div>
+
+  </div>
+
+</div>
+
+</body>
+</html>
