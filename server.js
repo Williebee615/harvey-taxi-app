@@ -987,7 +987,22 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(path.join(__dirname, "public")));app.use(express.static(path.join(__dirname, "public")));
+
+// ===============================
+// GROCERY ROUTE FIX
+// ===============================
+app.get("/grocery.html", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "request-groceries.html"));
+});
+
+app.get("/request-grocery.html", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "request-groceries.html"));
+});
+
+app.get("/request-groceries.html", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "request-groceries.html"));
+});
 
 /* =========================================================
    BASE ROUTES
