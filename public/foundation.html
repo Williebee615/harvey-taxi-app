@@ -2,15 +2,15 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
-  />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
   <title>Harvey Transportation Assistance Foundation</title>
+
   <meta
     name="description"
     content="Support Harvey Transportation Assistance Foundation and help remove transportation barriers for medical appointments, school, work, and essential community mobility."
   />
+
   <meta name="theme-color" content="#0b1530" />
 
   <style>
@@ -18,11 +18,11 @@
       --bg1:#040814;
       --bg2:#0a1733;
       --bg3:#112657;
-      --panel:rgba(8,15,34,.84);
-      --panel-2:rgba(12,22,50,.86);
-      --panel-3:rgba(255,255,255,.04);
-      --line:rgba(126,166,255,.14);
-      --line-strong:rgba(126,166,255,.26);
+      --panel:rgba(8,15,34,.88);
+      --panel2:rgba(12,22,50,.88);
+      --glass:rgba(255,255,255,.045);
+      --line:rgba(126,166,255,.16);
+      --lineStrong:rgba(126,166,255,.30);
       --text:#f5f8ff;
       --muted:#adbbde;
       --blue:#6aa7ff;
@@ -30,29 +30,39 @@
       --green:#7cffc7;
       --gold:#ffd978;
       --danger:#ff8ea2;
+      --ink:#04101c;
       --shadow:0 24px 80px rgba(0,0,0,.42);
-      --shadow-soft:0 14px 34px rgba(0,0,0,.22);
-      --radius-xl:32px;
-      --radius-lg:24px;
-      --radius-md:18px;
+      --shadowSoft:0 14px 34px rgba(0,0,0,.22);
+      --radiusXL:32px;
+      --radiusLG:24px;
+      --radiusMD:18px;
       --maxw:1260px;
-      --topbar-h:84px;
+      --navH:88px;
+      --topbarH:84px;
     }
 
-    *{box-sizing:border-box}
-    html{scroll-behavior:smooth}
+    *{
+      box-sizing:border-box;
+      margin:0;
+      padding:0;
+    }
+
+    html{
+      scroll-behavior:smooth;
+      min-height:100%;
+    }
 
     body{
-      margin:0;
       font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
       color:var(--text);
+      min-height:100vh;
+      overflow-x:hidden;
+      padding-bottom:calc(var(--navH) + env(safe-area-inset-bottom));
       background:
         radial-gradient(circle at top left, rgba(106,167,255,.18), transparent 22%),
         radial-gradient(circle at top right, rgba(115,244,255,.10), transparent 18%),
         radial-gradient(circle at center bottom, rgba(124,255,199,.08), transparent 22%),
         linear-gradient(180deg,var(--bg1) 0%,var(--bg2) 48%,var(--bg3) 100%);
-      min-height:100vh;
-      overflow-x:hidden;
     }
 
     body::before{
@@ -72,6 +82,24 @@
       text-decoration:none;
     }
 
+    button,
+    a{
+      -webkit-tap-highlight-color:transparent;
+      touch-action:manipulation;
+    }
+
+    button{
+      font:inherit;
+      border:none;
+      outline:none;
+      cursor:pointer;
+    }
+
+    img{
+      max-width:100%;
+      display:block;
+    }
+
     .shell{
       width:min(var(--maxw), calc(100% - 28px));
       margin:0 auto;
@@ -80,21 +108,21 @@
     }
 
     .topbar{
-      position:sticky;
-      top:0;
-      z-index:90;
+      position:relative;
+      z-index:50;
       backdrop-filter:blur(18px);
       -webkit-backdrop-filter:blur(18px);
-      background:rgba(4,8,20,.66);
+      background:rgba(4,8,20,.68);
       border-bottom:1px solid rgba(255,255,255,.05);
     }
 
     .topbar-inner{
-      min-height:var(--topbar-h);
+      min-height:var(--topbarH);
       display:flex;
       align-items:center;
       justify-content:space-between;
       gap:18px;
+      padding:12px 0;
     }
 
     .brand{
@@ -114,7 +142,8 @@
       background:linear-gradient(135deg,var(--cyan),var(--blue));
       box-shadow:0 14px 32px rgba(106,167,255,.28);
       flex-shrink:0;
-      position:relative;
+      color:var(--ink);
+      font-weight:900;
     }
 
     .brand-mark img{
@@ -125,7 +154,7 @@
 
     .brand-fallback{
       font-weight:900;
-      color:#04101c;
+      color:var(--ink);
       font-size:1.2rem;
       letter-spacing:.04em;
     }
@@ -135,14 +164,13 @@
     }
 
     .brand-copy h1{
-      margin:0;
       font-size:1rem;
       line-height:1.14;
       letter-spacing:.01em;
     }
 
     .brand-copy p{
-      margin:4px 0 0;
+      margin-top:4px;
       color:var(--muted);
       font-size:.84rem;
       white-space:nowrap;
@@ -166,22 +194,27 @@
       transition:.18s ease;
       font-size:.93rem;
       font-weight:800;
+      min-height:44px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
     }
 
     .nav a:hover{
       color:var(--text);
       border-color:rgba(255,255,255,.08);
       background:rgba(255,255,255,.04);
+      transform:translateY(-1px);
     }
 
     .nav .cta{
-      color:#06101f;
+      color:var(--ink);
       background:linear-gradient(135deg,var(--cyan),var(--blue));
       box-shadow:0 14px 34px rgba(106,167,255,.24);
     }
 
     .hero{
-      padding:42px 0 24px;
+      padding:34px 0 20px;
     }
 
     .hero-shell{
@@ -198,7 +231,7 @@
         linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.01)),
         linear-gradient(180deg, rgba(12,22,50,.82), rgba(5,11,28,.96));
       border:1px solid var(--line);
-      border-radius:var(--radius-xl);
+      border-radius:var(--radiusXL);
       box-shadow:var(--shadow);
     }
 
@@ -219,7 +252,8 @@
       pointer-events:none;
     }
 
-    .hero-card .glow{
+    .hero-card::after{
+      content:"";
       position:absolute;
       left:-70px;
       bottom:-70px;
@@ -228,6 +262,11 @@
       border-radius:50%;
       background:radial-gradient(circle, rgba(124,255,199,.08), transparent 70%);
       pointer-events:none;
+    }
+
+    .hero-content{
+      position:relative;
+      z-index:2;
     }
 
     .eyebrow{
@@ -247,15 +286,14 @@
     }
 
     .hero-card h2{
-      margin:0 0 14px;
       font-size:clamp(2.35rem, 5vw, 5.1rem);
       line-height:.94;
       letter-spacing:-.055em;
       max-width:780px;
+      margin-bottom:14px;
     }
 
     .hero-card p{
-      margin:0;
       color:var(--muted);
       font-size:1.04rem;
       line-height:1.78;
@@ -267,6 +305,8 @@
       flex-wrap:wrap;
       gap:14px;
       margin-top:28px;
+      position:relative;
+      z-index:5;
     }
 
     .btn{
@@ -278,10 +318,12 @@
       padding:0 22px;
       border-radius:17px;
       font-weight:900;
-      transition:transform .18s ease, box-shadow .18s ease, background .18s ease, filter .18s ease, border-color .18s ease;
+      transition:.18s ease;
       border:1px solid transparent;
       cursor:pointer;
       text-align:center;
+      position:relative;
+      z-index:5;
     }
 
     .btn:hover{
@@ -290,7 +332,7 @@
     }
 
     .btn-primary{
-      color:#04101c;
+      color:var(--ink);
       background:linear-gradient(135deg,var(--cyan),var(--blue));
       box-shadow:0 18px 40px rgba(106,167,255,.24);
     }
@@ -299,6 +341,12 @@
       color:var(--text);
       background:rgba(255,255,255,.04);
       border-color:rgba(255,255,255,.08);
+    }
+
+    .btn-gold{
+      color:#241b00;
+      background:linear-gradient(135deg,var(--gold),#ffe9a1);
+      box-shadow:0 18px 40px rgba(255,217,120,.18);
     }
 
     .impact-strip{
@@ -313,7 +361,7 @@
       border-radius:22px;
       background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
       border:1px solid rgba(255,255,255,.06);
-      box-shadow:var(--shadow-soft);
+      box-shadow:var(--shadowSoft);
     }
 
     .impact-mini strong{
@@ -331,7 +379,7 @@
 
     .sticky-box{
       position:sticky;
-      top:calc(var(--topbar-h) + 16px);
+      top:18px;
       display:grid;
       gap:18px;
     }
@@ -341,13 +389,12 @@
     }
 
     .spotlight-card h3{
-      margin:0 0 10px;
       font-size:1.34rem;
       letter-spacing:-.02em;
+      margin-bottom:10px;
     }
 
     .spotlight-card > p{
-      margin:0;
       color:var(--muted);
       line-height:1.66;
     }
@@ -384,21 +431,9 @@
       background:
         linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02)),
         linear-gradient(135deg, rgba(115,244,255,.08), rgba(106,167,255,.08));
-      box-shadow:var(--shadow-soft);
+      box-shadow:var(--shadowSoft);
       position:relative;
       overflow:hidden;
-    }
-
-    .link-preview::before{
-      content:"";
-      position:absolute;
-      top:-40px;
-      right:-40px;
-      width:140px;
-      height:140px;
-      border-radius:50%;
-      background:radial-gradient(circle, rgba(115,244,255,.15), transparent 70%);
-      pointer-events:none;
     }
 
     .preview-badge{
@@ -418,7 +453,7 @@
     }
 
     .preview-title{
-      margin:0 0 10px;
+      margin-bottom:10px;
       font-size:1.34rem;
       line-height:1.3;
       letter-spacing:-.02em;
@@ -429,7 +464,7 @@
       color:var(--muted);
       line-height:1.66;
       font-size:.95rem;
-      margin:0 0 16px;
+      margin-bottom:16px;
       max-width:62ch;
     }
 
@@ -451,7 +486,6 @@
       display:flex;
       flex-wrap:wrap;
       gap:12px;
-      margin-top:6px;
     }
 
     .btn-compact{
@@ -489,7 +523,7 @@
       font-size:.9rem;
       line-height:1.55;
       border:1px solid transparent;
-      margin-top:8px;
+      margin-top:12px;
     }
 
     .copy-status.show{
@@ -526,13 +560,12 @@
     }
 
     .section-head h3{
-      margin:0;
       font-size:clamp(1.45rem,2vw,2rem);
       letter-spacing:-.03em;
     }
 
     .section-head p{
-      margin:8px 0 0;
+      margin-top:8px;
       color:var(--muted);
       max-width:760px;
       line-height:1.68;
@@ -549,7 +582,7 @@
       border-radius:22px;
       background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
       border:1px solid rgba(255,255,255,.06);
-      box-shadow:var(--shadow-soft);
+      box-shadow:var(--shadowSoft);
     }
 
     .feature-icon{
@@ -565,12 +598,11 @@
     }
 
     .feature-card h4{
-      margin:0 0 10px;
+      margin-bottom:10px;
       font-size:1.06rem;
     }
 
     .feature-card p{
-      margin:0;
       color:var(--muted);
       line-height:1.66;
       font-size:.96rem;
@@ -588,7 +620,7 @@
       border-radius:22px;
       background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
       border:1px solid rgba(255,255,255,.06);
-      box-shadow:var(--shadow-soft);
+      box-shadow:var(--shadowSoft);
     }
 
     .stat-card strong{
@@ -616,19 +648,16 @@
     }
 
     .why-card h3{
-      margin:0 0 12px;
+      margin-bottom:12px;
       font-size:1.46rem;
     }
 
     .why-card p{
-      margin:0;
       color:var(--muted);
       line-height:1.72;
     }
 
     .why-list{
-      margin:0;
-      padding:0;
       list-style:none;
       display:grid;
       gap:14px;
@@ -687,14 +716,13 @@
     }
 
     .cta-copy h3{
-      margin:0 0 10px;
+      margin-bottom:10px;
       font-size:1.8rem;
       letter-spacing:-.04em;
       line-height:1.05;
     }
 
     .cta-copy p{
-      margin:0;
       color:var(--muted);
       line-height:1.72;
       max-width:760px;
@@ -706,8 +734,44 @@
       gap:12px;
     }
 
+    .bottom-nav{
+      position:fixed;
+      left:0;
+      right:0;
+      bottom:0;
+      min-height:calc(var(--navH) + env(safe-area-inset-bottom));
+      background:rgba(6,12,26,.96);
+      backdrop-filter:blur(14px);
+      -webkit-backdrop-filter:blur(14px);
+      border-top:1px solid rgba(255,255,255,.08);
+      display:flex;
+      justify-content:space-around;
+      align-items:flex-start;
+      padding:12px 8px calc(12px + env(safe-area-inset-bottom));
+      z-index:80;
+      pointer-events:auto;
+    }
+
+    .nav-btn{
+      color:var(--muted);
+      background:none;
+      border:none;
+      font-size:13px;
+      font-weight:900;
+      cursor:pointer;
+      padding:10px 10px;
+      border-radius:14px;
+      min-height:48px;
+      min-width:64px;
+    }
+
+    .nav-btn.active{
+      color:white;
+      background:rgba(255,255,255,.05);
+    }
+
     .footer{
-      padding:22px 0 50px;
+      padding:22px 0 calc(55px + var(--navH));
     }
 
     .footer-row{
@@ -731,7 +795,7 @@
       flex-wrap:wrap;
     }
 
-    @media (max-width: 1080px){
+    @media(max-width:1080px){
       .hero-shell,
       .why-shell,
       .cta-card{
@@ -747,7 +811,7 @@
       }
     }
 
-    @media (max-width: 900px){
+    @media(max-width:900px){
       .nav{
         display:none;
       }
@@ -759,17 +823,26 @@
       }
     }
 
-    @media (max-width: 640px){
+    @media(max-width:640px){
       :root{
-        --topbar-h:74px;
+        --topbarH:74px;
+        --navH:88px;
       }
 
       .shell{
         width:min(var(--maxw), calc(100% - 20px));
       }
 
+      .topbar-inner{
+        align-items:flex-start;
+      }
+
+      .brand-copy p{
+        white-space:normal;
+      }
+
       .hero{
-        padding-top:28px;
+        padding-top:24px;
       }
 
       .hero-card,
@@ -781,12 +854,12 @@
         border-radius:24px;
       }
 
-      .brand-copy p{
-        white-space:normal;
+      .hero-card h2{
+        font-size:2.25rem;
       }
 
-      .hero-card h2{
-        font-size:2.2rem;
+      .hero-card p{
+        font-size:.98rem;
       }
 
       .hero-actions,
@@ -801,13 +874,26 @@
       .stats-shell{
         grid-template-columns:1fr;
       }
+
+      .bottom-nav{
+        justify-content:flex-start;
+        overflow-x:auto;
+        gap:6px;
+      }
+
+      .nav-btn{
+        flex:0 0 auto;
+      }
     }
   </style>
+
+  <link rel="stylesheet" href="/ai-support-widget.css" />
 </head>
+
 <body>
   <header class="topbar">
     <div class="shell topbar-inner">
-      <a href="/" class="brand" aria-label="Harvey home">
+      <a href="index.html" class="brand" aria-label="Harvey Taxi home">
         <div class="brand-mark">
           <img
             src="/images/foundation-logo.png"
@@ -822,10 +908,10 @@
         </div>
       </a>
 
-      <nav class="nav" aria-label="Primary">
-        <a href="/">Home</a>
-        <a href="/request-ride.html">Request Ride</a>
-        <a href="/support.html">Support</a>
+      <nav class="nav" aria-label="Primary navigation">
+        <a href="index.html">Home</a>
+        <a href="request-ride.html?mode=driver">Request Ride</a>
+        <a href="support.html">Support</a>
         <a href="#impact">Impact</a>
         <a href="#why-give">Why Give</a>
         <a href="#faq">FAQ</a>
@@ -839,45 +925,43 @@
       <div class="shell hero-shell">
         <div>
           <section class="card hero-card">
-            <div class="glow"></div>
-            <div class="eyebrow">Community Transportation Support</div>
+            <div class="hero-content">
+              <div class="eyebrow">Community Transportation Support</div>
 
-            <h2>Help us remove transportation barriers.</h2>
+              <h2>Help us remove transportation barriers.</h2>
 
-            <p>
-              Your donation helps support transportation assistance for individuals and families
-              who need access to medical appointments, school, work, and essential community mobility.
-              Every contribution helps move people toward greater stability, opportunity, and connection.
-            </p>
+              <p>
+                Your donation helps support transportation assistance for individuals and families who need access to medical appointments, school, work, and essential community mobility. Every contribution helps move people toward stability, opportunity, and connection.
+              </p>
 
-            <div class="hero-actions">
-              <a
-                class="btn btn-primary"
-                href="https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Donate Now
-              </a>
+              <div class="hero-actions">
+                <a class="btn btn-primary" href="https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00" target="_blank" rel="noopener noreferrer">
+                  Donate Now
+                </a>
 
-              <a class="btn btn-secondary" href="#donate">
-                Learn More
-              </a>
+                <a class="btn btn-secondary" href="#impact">
+                  See Impact
+                </a>
+
+                <button class="btn btn-secondary" type="button" onclick="openHarveyAiChat()">
+                  Ask AI Support
+                </button>
+              </div>
             </div>
           </section>
 
           <section class="impact-strip">
-            <article class="impact-mini card">
+            <article class="impact-mini">
               <strong>Medical rides</strong>
               <span>Support transportation access for healthcare visits, treatment, and appointments.</span>
             </article>
 
-            <article class="impact-mini card">
+            <article class="impact-mini">
               <strong>School and work access</strong>
               <span>Help people reach education, training, interviews, and employment opportunities.</span>
             </article>
 
-            <article class="impact-mini card">
+            <article class="impact-mini">
               <strong>Community mobility</strong>
               <span>Strengthen local transportation support where it is needed most.</span>
             </article>
@@ -888,9 +972,9 @@
           <div class="sticky-box">
             <section class="card spotlight-card" id="donate">
               <h3>Support the Foundation</h3>
+
               <p>
-                Harvey Transportation Assistance Foundation is focused on reducing transportation barriers
-                for individuals and families who need reliable access to care, education, work, and essential services.
+                Harvey Transportation Assistance Foundation is focused on reducing transportation barriers for individuals and families who need reliable access to care, education, work, and essential services.
               </p>
 
               <div class="trust-grid">
@@ -898,6 +982,7 @@
                   <strong>Mission-focused impact</strong>
                   Support transportation access where it creates meaningful community value.
                 </div>
+
                 <div class="trust-pill">
                   <strong>Secure giving</strong>
                   Donations are processed through a secure Stripe donation page.
@@ -906,36 +991,23 @@
 
               <div class="link-preview">
                 <div class="preview-badge">Foundation Giving</div>
+
                 <h4 class="preview-title">Invest in access, mobility, and opportunity</h4>
+
                 <p class="preview-copy">
-                  Every contribution helps strengthen transportation support for people navigating
-                  medical appointments, employment, education, and essential daily needs.
+                  Every contribution helps strengthen transportation support for people navigating medical appointments, employment, education, and essential daily needs.
                 </p>
 
-                <a
-                  class="preview-link"
-                  href="https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
+                <a class="preview-link" href="https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00" target="_blank" rel="noopener noreferrer">
                   https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00
                 </a>
 
                 <div class="preview-actions">
-                  <a
-                    class="btn btn-primary btn-compact"
-                    href="https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
+                  <a class="btn btn-primary btn-compact" href="https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00" target="_blank" rel="noopener noreferrer">
                     Support the Foundation
                   </a>
 
-                  <button
-                    class="btn btn-secondary btn-compact"
-                    type="button"
-                    onclick="copyDonationLink()"
-                  >
+                  <button class="btn btn-secondary btn-compact" type="button" onclick="copyDonationLink()">
                     Copy Donation Link
                   </button>
                 </div>
@@ -944,7 +1016,7 @@
               <div class="spotlight-copy">
                 <strong>Professional, clear, and donor-friendly</strong>
                 <span>
-                  This section is designed to keep the page polished, trustworthy, and easy for supporters to understand and share.
+                  This page is built to be shared with supporters, partners, grant reviewers, and community contacts.
                 </span>
               </div>
 
@@ -962,8 +1034,7 @@
             <div>
               <h3>Where support goes</h3>
               <p>
-                Every donation helps strengthen real transportation access for people facing
-                mobility barriers in daily life.
+                Every donation helps strengthen real transportation access for people facing mobility barriers in daily life.
               </p>
             </div>
           </div>
@@ -973,8 +1044,7 @@
               <div class="feature-icon">🏥</div>
               <h4>Medical appointments</h4>
               <p>
-                Support dependable transportation for healthcare access, treatment schedules,
-                follow-up visits, pharmacy needs, and essential care mobility.
+                Support dependable transportation for healthcare access, treatment schedules, follow-up visits, pharmacy needs, and essential care mobility.
               </p>
             </article>
 
@@ -982,8 +1052,7 @@
               <div class="feature-icon">🎓</div>
               <h4>School and employment</h4>
               <p>
-                Help remove transportation obstacles that can prevent people from reaching
-                classrooms, job training, interviews, and work opportunities.
+                Help remove transportation obstacles that can prevent people from reaching classrooms, job training, interviews, and work opportunities.
               </p>
             </article>
 
@@ -991,8 +1060,7 @@
               <div class="feature-icon">🚘</div>
               <h4>Essential community access</h4>
               <p>
-                Strengthen everyday mobility for individuals and families who need a reliable
-                way to stay connected to services, opportunity, and support systems.
+                Strengthen everyday mobility for individuals and families who need a reliable way to stay connected to services, opportunity, and support systems.
               </p>
             </article>
           </div>
@@ -1002,14 +1070,17 @@
               <strong>Access</strong>
               <span>Help close transportation gaps that interrupt healthcare, education, and work.</span>
             </div>
+
             <div class="stat-card">
               <strong>Relief</strong>
               <span>Support families facing mobility barriers and transportation instability.</span>
             </div>
+
             <div class="stat-card">
               <strong>Opportunity</strong>
               <span>Make it easier for people to reach jobs, training, and essential services.</span>
             </div>
+
             <div class="stat-card">
               <strong>Community</strong>
               <span>Strengthen the local support network through transportation-focused giving.</span>
@@ -1024,19 +1095,17 @@
         <section class="card why-card">
           <h3>Why give</h3>
           <ul class="why-list">
-            <li>Support a transportation-focused nonprofit mission</li>
-            <li>Help expand reliable ride access for people in need</li>
-            <li>Strengthen community support and outreach efforts</li>
-            <li>Help remove mobility barriers that limit daily opportunity</li>
+            <li>Support a transportation-focused nonprofit mission.</li>
+            <li>Help expand reliable ride access for people in need.</li>
+            <li>Strengthen community support and outreach efforts.</li>
+            <li>Help remove mobility barriers that limit daily opportunity.</li>
           </ul>
         </section>
 
         <section class="card why-card">
           <h3>Why it matters</h3>
           <p>
-            Transportation is often the missing link between people and opportunity. Access to a ride
-            can help someone reach care, keep a job, stay in school, and remain connected to the resources
-            that support daily life and long-term stability.
+            Transportation is often the missing link between people and opportunity. Access to a ride can help someone reach care, keep a job, stay in school, and remain connected to resources that support daily life and long-term stability.
           </p>
         </section>
       </div>
@@ -1058,8 +1127,7 @@
             <article class="faq-item">
               <strong>What does the foundation support?</strong>
               <span>
-                Harvey Transportation Assistance Foundation supports transportation access tied to medical appointments,
-                school, work, and essential community mobility.
+                Harvey Transportation Assistance Foundation supports transportation access tied to medical appointments, school, work, and essential community mobility.
               </span>
             </article>
 
@@ -1076,6 +1144,13 @@
                 Yes. This page is designed to be shared with supporters, partners, and community contacts who want to help.
               </span>
             </article>
+
+            <article class="faq-item">
+              <strong>Is this separate from Harvey Taxi Service LLC?</strong>
+              <span>
+                Yes. The foundation mission should remain clearly separated from the for-profit ride platform while both can support the broader transportation-access ecosystem.
+              </span>
+            </article>
           </div>
         </section>
       </div>
@@ -1087,26 +1162,21 @@
           <div class="cta-copy">
             <h3>Every contribution helps move someone forward.</h3>
             <p>
-              Join the Harvey Transportation Assistance Foundation mission and help support
-              transportation access for medical appointments, school, work, and essential community mobility.
+              Join the Harvey Transportation Assistance Foundation mission and help support transportation access for medical appointments, school, work, and essential community mobility.
             </p>
           </div>
 
           <div class="cta-actions">
-            <a
-              class="btn btn-primary"
-              href="https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <a class="btn btn-primary" href="https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00" target="_blank" rel="noopener noreferrer">
               Donate Now
             </a>
 
-            <a
-              class="btn btn-secondary"
-              href="#donate"
-            >
-              Learn More
+            <button class="btn btn-secondary" type="button" onclick="copyDonationLink()">
+              Copy Donation Link
+            </button>
+
+            <a class="btn btn-secondary" href="support.html">
+              Contact Support
             </a>
           </div>
         </section>
@@ -1119,24 +1189,39 @@
       <div>© Harvey Transportation Assistance Foundation</div>
 
       <div class="footer-links">
-        <a href="/">Home</a>
-        <a href="/support.html">Support</a>
-        <a
-          href="https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
+        <a href="index.html">Home</a>
+        <a href="support.html">Support</a>
+        <a href="privacy.html">Privacy</a>
+        <a href="terms.html">Terms</a>
+        <a href="https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00" target="_blank" rel="noopener noreferrer">
           Donate Securely
         </a>
       </div>
     </div>
   </footer>
 
+  <nav class="bottom-nav" aria-label="Bottom navigation">
+    <button class="nav-btn" type="button" onclick="location.href='index.html'">Home</button>
+    <button class="nav-btn" type="button" onclick="location.href='request-ride.html?mode=driver'">Rides</button>
+    <button class="nav-btn active" type="button" onclick="location.href='foundation.html'">Foundation</button>
+    <button class="nav-btn" type="button" onclick="location.href='support.html'">Support</button>
+    <button class="nav-btn" type="button" onclick="openHarveyAiChat()">AI Help</button>
+  </nav>
+
+  <script src="/ai-support-widget.js"></script>
+
   <script>
     const DONATION_LINK = "https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00";
     const copyStatusEl = document.getElementById("copyStatus");
 
+    window.HARVEY_API_BASE =
+      window.location.origin && window.location.origin.includes("http")
+        ? window.location.origin
+        : "";
+
     function showCopyStatus(message, ok = true) {
+      if (!copyStatusEl) return;
+
       copyStatusEl.textContent = message;
       copyStatusEl.className = "copy-status show " + (ok ? "ok" : "err");
 
@@ -1144,7 +1229,7 @@
       showCopyStatus._timer = window.setTimeout(() => {
         copyStatusEl.className = "copy-status";
         copyStatusEl.textContent = "";
-      }, 2200);
+      }, 2400);
     }
 
     async function copyText(value, successMessage) {
@@ -1175,6 +1260,43 @@
     function copyDonationLink() {
       copyText(DONATION_LINK, "Donation link copied.");
     }
+
+    function openHarveyAiChat() {
+      try {
+        if (window.HarveyAI && typeof window.HarveyAI.open === "function") {
+          window.HarveyAI.open();
+          return;
+        }
+
+        const root = document.getElementById("harvey-ai-chat-root");
+
+        if (root) {
+          const toggle =
+            root.querySelector("[data-harvey-ai-open]") ||
+            root.querySelector(".harvey-ai-launch") ||
+            root.querySelector("button");
+
+          if (toggle && typeof toggle.click === "function") {
+            toggle.click();
+            return;
+          }
+        }
+
+        window.location.href = "support.html";
+      } catch (error) {
+        window.location.href = "support.html";
+      }
+    }
+
+    window.addEventListener("load", function () {
+      setTimeout(function () {
+        if (!document.getElementById("harvey-ai-chat-root")) {
+          const root = document.createElement("div");
+          root.id = "harvey-ai-chat-root";
+          document.body.appendChild(root);
+        }
+      }, 80);
+    });
   </script>
 </body>
-      </html>
+</html>
