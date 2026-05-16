@@ -734,6 +734,8 @@
       background: rgba(99, 245, 255, 0.06);
     }
 
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
     @media(max-width: 1180px) {
       .hero-grid { grid-template-columns: 1fr; }
       .service-row { grid-template-columns: repeat(2, 1fr); }
@@ -916,11 +918,11 @@
           </div>
           <div class="service-card">
             <div><h3>Food System</h3><p>Hyperlocal food delivery capabilities processing setup builds.</p></div>
-            <button class="btn ghost" disabled>Under Development</button>
+            <button class="btn primary" style="background: linear-gradient(135deg, #ff9f43, #ff5252); color: #fff;" onclick="showUnderConstruction('Food Delivery')">Launch Pilot</button>
           </div>
           <div class="service-card">
             <div><h3>Groceries Path</h3><p>Bulk delivery network parameters finalizing system integration.</p></div>
-            <button class="btn ghost" disabled>Under Development</button>
+            <button class="btn primary" style="background: linear-gradient(135deg, #1dd1a1, #10ac84); color: #fff;" onclick="showUnderConstruction('Grocery Delivery')">Launch Pilot</button>
           </div>
         </div>
         <div class="grid" style="margin-top: 16px;">
@@ -1007,6 +1009,60 @@
       } catch (error) {
         window.location.href = "support.html";
       }
+    }
+
+    function showUnderConstruction(serviceName) {
+      const overlay = document.createElement('div');
+      overlay.id = 'pilot-modal-overlay';
+      overlay.style.position = 'fixed';
+      overlay.style.inset = '0';
+      overlay.style.backgroundColor = 'rgba(4, 8, 20, 0.85)';
+      overlay.style.backdropFilter = 'blur(12px)';
+      overlay.style.webkitBackdropFilter = 'blur(12px)';
+      overlay.style.display = 'flex';
+      overlay.style.alignItems = 'center';
+      overlay.style.justifyContent = 'center';
+      overlay.style.zIndex = '9999';
+      overlay.style.padding = '20px';
+      overlay.style.animation = 'fadeIn 0.2s ease-out';
+
+      const modal = document.createElement('div');
+      modal.style.background = 'linear-gradient(160deg, #091126, #101935)';
+      modal.style.border = '1px solid rgba(122, 162, 255, 0.25)';
+      modal.style.borderRadius = '24px';
+      modal.style.padding = '32px';
+      modal.style.maxWidth = '440px';
+      modal.style.width = '100%';
+      modal.style.textAlign = 'center';
+      modal.style.boxShadow = '0 25px 50px -12px rgba(0, 0, 0, 0.5)';
+
+      modal.innerHTML = `
+        <div style="font-size: 48px; margin-bottom: 16px;">🚧</div>
+        <h3 style="font-size: 22px; font-weight: 800; color: #fff; margin-bottom: 12px; letter-spacing: -0.02em;">
+          ${serviceName} Pilot Coming Soon
+        </h3>
+        <p style="color: #aab8de; font-size: 14px; line-height: 1.6; margin-bottom: 24px;">
+          Our logistics engineering network is actively testing the framework for this module inside the Davidson County perimeter. Systems rollout initialized shortly.
+        </p>
+        <button id="close-pilot-modal" style="
+          width: 100%;
+          padding: 14px;
+          border-radius: 12px;
+          background: rgba(255, 255, 255, 0.06);
+          color: #fff;
+          font-weight: 700;
+          cursor: pointer;
+          border: 1px solid rgba(255,255,255,0.12);
+          transition: 0.2s;
+        ">Acknowledge</button>
+      `;
+
+      overlay.appendChild(modal);
+      document.body.appendChild(overlay);
+
+      const closeBtn = document.getElementById('close-pilot-modal');
+      closeBtn.addEventListener('click', () => overlay.remove());
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
     }
 
     window.addEventListener("load", function () {
