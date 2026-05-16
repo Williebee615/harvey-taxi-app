@@ -1,1 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
+  <title>Privacy Policy — Harvey Transportation Assistance Foundation</title>
+
+  <meta
+    name="description"
+    content="Review the Privacy Policy for the Harvey Transportation Assistance Foundation. Learn how we secure, protect, and manage donor and participant parameters."
+  />
+
+  <meta name="theme-color" content="#0b1530" />
+
+  <!-- Preconnect to external assets -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg1: #040814;
+      --bg2: #0a1733;
+      --bg3: #112657;
+      --panel: rgba(8, 15, 34, 0.92);
+      --line: rgba(126, 166, 255, 0.18);
+      --text: #f5f8ff;
+      --muted: #adbbde;
+      --blue: #6aa7ff;
+      --cyan: #73f4ff;
+      --green: #7cffc7;
+      --ink: #04101c;
+      --shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+      --radiusXL: 32px;
+      --radiusLG: 24px;
+      --maxw: 1100px;
+      --navH: 88px;
+      --topbarH: 84px;
+      --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      min-height: 100%;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+      padding-bottom: calc(var(--navH) + env(safe-area-inset-bottom) + 20px);
+      background:
+        radial-gradient(circle at top left, rgba(106, 167, 255, 0.15), transparent 30%),
+        radial-gradient(circle at top right, rgba(115, 244, 255, 0.08), transparent 25%),
+        linear-gradient(180deg, var(--bg1) 0%, var(--bg2) 58%, var(--bg3) 100%);
+    }
+
+    .shell {
+      width: min(var(--maxw), calc(100% - 32px));
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+    }
+
+    .topbar {
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      background: rgba(4, 8, 20, 0.72);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .topbar-inner {
+      min-height: var(--topbarH);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 12px 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-mark {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      box-shadow: 0 8px 24px rgba(106, 167, 255, 0.3);
+      color: var(--ink);
+      font-weight: 900;
+      font-size: 0.95rem;
+    }
+
+    .brand-copy h1 {
+      font-size: 1rem;
+      font-weight: 800;
+      line-height: 1.2;
+    }
+
+    .nav {
+      display: flex;
+      gap: 10px;
+    }
+
+    .nav a {
+      padding: 10px 16px;
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: .9rem;
+      font-weight: 700;
+      transition: var(--transition-fast);
+      border: 1px solid transparent;
+    }
+
+    .nav a:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.08);
+    }
+
+    .policy-container {
+      padding: 40px 0;
+    }
+
+    .card {
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01)),
+        linear-gradient(180deg, rgba(12, 22, 50, 0.85), rgba(5, 11, 28, 0.98));
+      border: 1px solid var(--line);
+      border-radius: var(--radiusXL);
+      box-shadow: var(--shadow);
+      padding: 48px;
+    }
+
+    .policy-header {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 28px;
+      margin-bottom: 32px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(115, 244, 255, 0.06);
+      border: 1px solid rgba(115, 244, 255, 0.15);
+      color: var(--cyan);
+      font-size: .78rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      margin-bottom: 14px;
+    }
+
+    .policy-header h2 {
+      font-size: clamp(1.8rem, 4vw, 2.6rem);
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+      margin-bottom: 8px;
+    }
+
+    .last-updated {
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    .policy-body {
+      line-height: 1.75;
+      font-size: 1.02rem;
+      color: #e2e8f0;
+    }
+
+    .policy-body h3 {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: var(--text);
+      margin: 32px 0 12px 0;
+      letter-spacing: -0.01em;
+    }
+
+    .policy-body p {
+      margin-bottom: 18px;
+      color: var(--muted);
+    }
+
+    .policy-body ul {
+      margin: 0 0 20px 24px;
+      color: var(--muted);
+    }
+
+    .policy-body li {
+      margin-bottom: 8px;
+    }
+
+    .notice-box {
+      margin: 24px 0;
+      padding: 20px;
+      border-radius: 16px;
+      background: rgba(0, 112, 186, 0.06);
+      border: 1px solid rgba(0, 112, 186, 0.2);
+      color: #e1f0ff;
+    }
+
+    .notice-box strong {
+      color: var(--blue);
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .bottom-nav {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: calc(var(--navH) + env(safe-area-inset-bottom));
+      background: rgba(6, 12, 26, 0.96);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      justify-content: space-around;
+      align-items: flex-start;
+      padding: 12px 8px calc(12px + env(safe-area-inset-bottom));
+      z-index: 80;
+    }
+
+    .nav-btn {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+      padding: 10px;
+      border-radius: 14px;
+      min-height: 48px;
+      min-width: 64px;
+      background: none;
+      border: none;
+      cursor: pointer;
+    }
+
+    .nav-btn.active {
+      color: white;
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .footer {
+      padding: 20px 0 calc(20px + var(--navH));
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .footer-inner {
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    @media(max-width: 768px) {
+      .topbar-inner { flex-direction: column; align-items: center; gap: 12px; }
+      .card { padding: 24px; border-radius: var(--radiusLG); }
+      .footer-inner { flex-direction: column; text-align: center; }
+    }
+
+    @media(max-width: 640px) {
+      .nav { display: none; }
+      .bottom-nav { justify-content: flex-start; overflow-x: auto; gap: 6px; }
+      .nav-btn { flex: 0 0 auto; }
+    }
+  </style>
+</head>
+
+<body>
+  <header class="topbar">
+    <div class="shell topbar-inner">
+      <a href="index.html" class="brand" style="text-decoration:none; color:inherit;">
+        <div class="brand-mark">HT</div>
+        <div class="brand-copy">
+          <h1>Harvey Foundation</h1>
+        </div>
+      </a>
+      <nav class="nav" aria-label="Primary navigation">
+        <a href="index.html">Home</a>
+        <a href="foundation.html">Foundation Hub</a>
+        <a href="support.html">Support</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="shell policy-container">
+    <article class="card">
+      <header class="policy-header">
+        <div class="eyebrow">Legal Framework</div>
+        <h2>Privacy Policy</h2>
+        <div class="last-updated">Last Compliance Sync: May 2026</div>
+      </header>
+
+      <section class="policy-body">
+        <p>
+          At Harvey Transportation Assistance Foundation, we recognize the paramount importance of data security and transparency. This Privacy Policy details the exact framework governing how our non-profit structural containers gather, protect, process, and handle data layers generated by our visitors, donors, and participant networks.
+        </p>
+
+        <h3>1. Information Collected Across Infrastructure Nodes</h3>
+        <p>We only log informational parameters necessary to fulfill community transportation assistance services and maintain operational compliance:</p>
+        <ul>
+          <li><strong>Identity Parameters:</strong> Alphanumeric identification frameworks, structural user tokens, and names provided voluntarily during account onboarding.</li>
+          <li><strong>Contact Infrastructure:</strong> Valid email strings and authenticated hardware telephone numbers used for logistical support updates.</li>
+          <li><strong>Spatial Navigation Metrics:</strong> Hardware GPS coordinates, geocoded signatures, and text-based addresses submitted via booking terminals to optimize live dispatch visualization.</li>
+        </ul>
+
+        <h3>2. Financial Handshake & Donor Processing Operations</h3>
+        <p>To safeguard capital routing pipelines, all transactions execute inside sandboxed third-party clearing frameworks. We do not store raw primary account numbers or financial authentication secrets on our local servers.</p>
+        
+        <div class="notice-box">
+          <strong>PayPal Giving Fund Compliance Notice</strong>
+          Financial support channeled through our verified PayPal Charity Hub operates directly inside secure PayPal network infrastructure. Personal details shared during the donor lifecycle are subjected to strict non-profit privacy preservation matrices. PayPal processes the gross total securely without sharing critical payment asset details with our application backend layer.
+        </div>
+
+        <h3>3. Utilization of Data Matrices</h3>
+        <p>Gathered data streams are exclusively utilized inside the following operational scopes:</p>
+        <ul>
+          <li>Calculating spatial ride matrices and trip runtime metrics via mapping providers.</li>
+          <li>Verifying rider identity statuses with compliance gates before allocating non-profit assistance funds.</li>
+          <li>Distributing direct service confirmations, tax-deductible donor sheets, and technical alerts.</li>
+        </ul>
+
+        <h3>4. Third-Party Data Disclosures & Security Enclaves</h3>
+        <p>We do not lease, trade, or monetize transactional records or profile configurations to external marketing conglomerates. Information layers are exclusively distributed to trusted system vendors (such as map libraries or cloud microservices) essential for operational integrity.</p>
+        <p>Data packets remain secured using active socket encryption layers during raw network transmission loops to prevent interception parameters.</p>
+
+        <h3>5. Strategic User Rights & Global Alignment</h3>
+        <p>Account holders retain the structural privilege to request full diagnostic dumps of stored metrics, register data modification updates, or initiate complete purge protocols of their profile logs from our production containers by interfacing directly through standard support endpoints.</p>
+
+        <h3>6. Modifications to the Framework</h3>
+        <p>The foundation reserves the baseline authority to issue updates to this documentation map to match global technical compliance benchmarks. Continued utilization of this web portal implies active consent to revised paradigms.</p>
+      </section>
+    </article>
+  </main>
+
+  <footer class="footer">
+    <div class="shell footer-inner">
+      <div>© Harvey Transportation Assistance Foundation. All rights reserved.</div>
+      <div class="footer-links">
+        <a href="index.html">Home</a> • 
+        <a href="foundation.html">Foundation</a> • 
+        <a href="support.html">Support</a>
+      </div>
+    </div>
+  </footer>
+
+  <nav class="bottom-nav" aria-label="Bottom navigation">
+    <button class="nav-btn" type="button" onclick="window.location.href='index.html'">Home</button>
+    <button class="nav-btn" type="button" onclick="window.location.href='request-ride.html?mode=driver'">Rides</button>
+    <button class="nav-btn" type="button" onclick="window.location.href='foundation.html'">Foundation</button>
+    <button class="nav-btn active" type="button" onclick="window.location.reload()">Privacy</button>
+    <button class="nav-btn" type="button" onclick="window.location.href='support.html'">Support</button>
+  </nav>
+</body>
+</html>
