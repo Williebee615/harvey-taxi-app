@@ -4,14 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
-  <title>Privacy Policy — Harvey Transportation Assistance Foundation</title>
+  <title>Privacy Policy — Harvey Taxi Service LLC</title>
 
   <meta
     name="description"
-    content="Review the Privacy Policy for the Harvey Transportation Assistance Foundation. Learn how we secure, protect, and manage donor and participant parameters."
+    content="Review the Privacy Policy for Harvey Taxi Service LLC. Learn how we manage, encrypt, and safeguard passenger telemetry, location tracing, and payment processing."
   />
 
-  <meta name="theme-color" content="#0b1530" />
+  <meta name="theme-color" content="#07111f" />
 
   <!-- Preconnect to external assets -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -21,17 +21,17 @@
   <style>
     :root {
       --bg1: #040814;
-      --bg2: #0a1733;
-      --bg3: #112657;
-      --panel: rgba(8, 15, 34, 0.92);
-      --line: rgba(126, 166, 255, 0.18);
-      --text: #f5f8ff;
-      --muted: #adbbde;
-      --blue: #6aa7ff;
-      --cyan: #73f4ff;
-      --green: #7cffc7;
-      --ink: #04101c;
-      --shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+      --bg2: #091126;
+      --bg3: #101935;
+      --panel: rgba(10, 17, 38, 0.93);
+      --line: rgba(122, 162, 255, 0.18);
+      --text: #f4f7ff;
+      --muted: #aab8de;
+      --blue: #5ea0ff;
+      --cyan: #63f5ff;
+      --green: #6dffb3;
+      --ink: #07121f;
+      --shadow: 0 20px 70px rgba(0, 0, 0, 0.4);
       --radiusXL: 32px;
       --radiusLG: 24px;
       --maxw: 1100px;
@@ -60,9 +60,9 @@
       overflow-x: hidden;
       padding-bottom: calc(var(--navH) + env(safe-area-inset-bottom) + 20px);
       background:
-        radial-gradient(circle at top left, rgba(106, 167, 255, 0.15), transparent 30%),
-        radial-gradient(circle at top right, rgba(115, 244, 255, 0.08), transparent 25%),
-        linear-gradient(180deg, var(--bg1) 0%, var(--bg2) 58%, var(--bg3) 100%);
+        radial-gradient(circle at top left, rgba(99, 245, 255, 0.12), transparent 35%),
+        radial-gradient(circle at top right, rgba(94, 160, 255, 0.10), transparent 30%),
+        linear-gradient(160deg, var(--bg1), var(--bg2) 50%, var(--bg3));
     }
 
     .shell {
@@ -75,8 +75,8 @@
     .topbar {
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
-      background: rgba(4, 8, 20, 0.72);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      background: rgba(7, 12, 28, 0.82);
+      border-bottom: 1px solid var(--line);
     }
 
     .topbar-inner {
@@ -91,26 +91,21 @@
     .brand {
       display: flex;
       align-items: center;
-      gap: 14px;
+      gap: 12px;
     }
 
-    .brand-mark {
-      width: 44px;
-      height: 44px;
-      border-radius: 14px;
-      display: grid;
-      place-items: center;
+    .logo-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
       background: linear-gradient(135deg, var(--cyan), var(--blue));
-      box-shadow: 0 8px 24px rgba(106, 167, 255, 0.3);
-      color: var(--ink);
-      font-weight: 900;
-      font-size: 0.95rem;
+      box-shadow: 0 0 14px rgba(99, 245, 255, 0.6);
     }
 
     .brand-copy h1 {
-      font-size: 1rem;
-      font-weight: 800;
-      line-height: 1.2;
+      font-size: 1.05rem;
+      font-weight: 900;
+      letter-spacing: 0.05em;
     }
 
     .nav {
@@ -139,9 +134,7 @@
     }
 
     .card {
-      background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01)),
-        linear-gradient(180deg, rgba(12, 22, 50, 0.85), rgba(5, 11, 28, 0.98));
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0)), var(--panel);
       border: 1px solid var(--line);
       border-radius: var(--radiusXL);
       box-shadow: var(--shadow);
@@ -158,8 +151,8 @@
       display: inline-flex;
       padding: 6px 12px;
       border-radius: 999px;
-      background: rgba(115, 244, 255, 0.06);
-      border: 1px solid rgba(115, 244, 255, 0.15);
+      background: rgba(99, 245, 255, 0.06);
+      border: 1px solid rgba(99, 245, 255, 0.2);
       color: var(--cyan);
       font-size: .78rem;
       font-weight: 800;
@@ -170,7 +163,7 @@
 
     .policy-header h2 {
       font-size: clamp(1.8rem, 4vw, 2.6rem);
-      font-weight: 900;
+      font-weight: 800;
       letter-spacing: -0.02em;
       line-height: 1.1;
       margin-bottom: 8px;
@@ -213,13 +206,13 @@
       margin: 24px 0;
       padding: 20px;
       border-radius: 16px;
-      background: rgba(0, 112, 186, 0.06);
-      border: 1px solid rgba(0, 112, 186, 0.2);
+      background: rgba(99, 245, 255, 0.04);
+      border: 1px solid rgba(99, 245, 255, 0.15);
       color: #e1f0ff;
     }
 
     .notice-box strong {
-      color: var(--blue);
+      color: var(--cyan);
       display: block;
       margin-bottom: 4px;
     }
@@ -291,14 +284,14 @@
   <header class="topbar">
     <div class="shell topbar-inner">
       <a href="index.html" class="brand" style="text-decoration:none; color:inherit;">
-        <div class="brand-mark">HT</div>
+        <div class="logo-dot"></div>
         <div class="brand-copy">
-          <h1>Harvey Foundation</h1>
+          <h1>HARVEY TAXI</h1>
         </div>
       </a>
       <nav class="nav" aria-label="Primary navigation">
         <a href="index.html">Home</a>
-        <a href="foundation.html">Foundation Hub</a>
+        <a href="request-ride.html">Book Ride</a>
         <a href="support.html">Support</a>
       </nav>
     </div>
@@ -307,59 +300,63 @@
   <main class="shell policy-container">
     <article class="card">
       <header class="policy-header">
-        <div class="eyebrow">Legal Framework</div>
+        <div class="eyebrow">Platform Compliance</div>
         <h2>Privacy Policy</h2>
-        <div class="last-updated">Last Compliance Sync: May 2026</div>
+        <div class="last-updated">Effective Date: May 2026</div>
       </header>
 
       <section class="policy-body">
         <p>
-          At Harvey Transportation Assistance Foundation, we recognize the paramount importance of data security and transparency. This Privacy Policy details the exact framework governing how our non-profit structural containers gather, protect, process, and handle data layers generated by our visitors, donors, and participant networks.
+          At Harvey Taxi Service LLC, we are committed to keeping our platform secure, fair, and transparent. This Privacy Policy outlines exactly how we manage, utilize, and secure your data across our rideshare infrastructure, mobile web portals, and matching APIs.
         </p>
 
-        <h3>1. Information Collected Across Infrastructure Nodes</h3>
-        <p>We only log informational parameters necessary to fulfill community transportation assistance services and maintain operational compliance:</p>
+        <h3>1. Spatial Telemetry & Location Monitoring</h3>
+        <p>To deliver instantaneous dispatch calculations and track active passenger trips, we collect and monitor accurate hardware location parameters:</p>
         <ul>
-          <li><strong>Identity Parameters:</strong> Alphanumeric identification frameworks, structural user tokens, and names provided voluntarily during account onboarding.</li>
-          <li><strong>Contact Infrastructure:</strong> Valid email strings and authenticated hardware telephone numbers used for logistical support updates.</li>
-          <li><strong>Spatial Navigation Metrics:</strong> Hardware GPS coordinates, geocoded signatures, and text-based addresses submitted via booking terminals to optimize live dispatch visualization.</li>
+          <li><strong>Real-Time Tracking:</strong> With your permission, we trace device GPS coordinates to show available drivers nearby and safely monitor active rides.</li>
+          <li><strong>Background Positioning:</strong> Driver clients stream continuous background location updates to ensure optimal route distribution. For passengers, tracking metrics are capped when the trip lifecycle finishes.</li>
+          <li><strong>Masked Data Layers:</strong> Raw coordinates are safely parsed inside backend container structures while staying hidden inside client-facing user interfaces.</li>
         </ul>
 
-        <h3>2. Financial Handshake & Donor Processing Operations</h3>
-        <p>To safeguard capital routing pipelines, all transactions execute inside sandboxed third-party clearing frameworks. We do not store raw primary account numbers or financial authentication secrets on our local servers.</p>
-        
+        <h3>2. Information We Collect</h3>
+        <p>We process standard account information required to establish secure rideshare operations:</p>
+        <ul>
+          <li><strong>Rider Profiles:</strong> System ID strings, first names, and profile attributes needed for passenger validation and matching protocols.</li>
+          <li><strong>Contact Linking:</strong> Phone numbers and verified email endpoints utilized for automated system dispatch messages, support updates, and secure receipts.</li>
+          <li><strong>Trip Configurations:</strong> Metadata details surrounding pick-up points, drop-off paths, manifest comments, and selected fleet choices.</li>
+        </ul>
+
         <div class="notice-box">
-          <strong>PayPal Giving Fund Compliance Notice</strong>
-          Financial support channeled through our verified PayPal Charity Hub operates directly inside secure PayPal network infrastructure. Personal details shared during the donor lifecycle are subjected to strict non-profit privacy preservation matrices. PayPal processes the gross total securely without sharing critical payment asset details with our application backend layer.
+          <strong>Secure Transaction Architecture</strong>
+          All payment tokens clear directly through sandboxed third-party networks (like Stripe or Apple Pay). Harvey Taxi Service LLC does not log, process, or keep your primary credit card numbers or banking authentication tokens on local hardware systems.
         </div>
 
-        <h3>3. Utilization of Data Matrices</h3>
-        <p>Gathered data streams are exclusively utilized inside the following operational scopes:</p>
+        <h3>3. Data Usage Framework</h3>
+        <p>Collected user metrics are only used to support direct network operations:</p>
         <ul>
-          <li>Calculating spatial ride matrices and trip runtime metrics via mapping providers.</li>
-          <li>Verifying rider identity statuses with compliance gates before allocating non-profit assistance funds.</li>
-          <li>Distributing direct service confirmations, tax-deductible donor sheets, and technical alerts.</li>
+          <li>Computing route distances, trip runtimes, and gross fare matrix calculations.</li>
+          <li>Enabling secure proxy communications between drivers and riders while preserving contact privacy.</li>
+          <li>Running account status validation checks to protect network safety and prevent booking fraud.</li>
         </ul>
 
-        <h3>4. Third-Party Data Disclosures & Security Enclaves</h3>
-        <p>We do not lease, trade, or monetize transactional records or profile configurations to external marketing conglomerates. Information layers are exclusively distributed to trusted system vendors (such as map libraries or cloud microservices) essential for operational integrity.</p>
-        <p>Data packets remain secured using active socket encryption layers during raw network transmission loops to prevent interception parameters.</p>
+        <h3>4. Sharing with Third-Party Networks</h3>
+        <p>We do not broker, trade, or expose your personal trip histories or profile configurations to outside advertising companies. Data parameters are strictly distributed to core operational tools (like mapping APIs, SMS dispatch alerts, and secure transaction systems) required to run the service.</p>
 
-        <h3>5. Strategic User Rights & Global Alignment</h3>
-        <p>Account holders retain the structural privilege to request full diagnostic dumps of stored metrics, register data modification updates, or initiate complete purge protocols of their profile logs from our production containers by interfacing directly through standard support endpoints.</p>
+        <h3>5. Your Rights & Profiles</h3>
+        <p>Users have full access control over their accounts and can request an export of their trip logs, make profile updates, or completely delete their account files from our servers by connecting with the support team.</p>
 
-        <h3>6. Modifications to the Framework</h3>
-        <p>The foundation reserves the baseline authority to issue updates to this documentation map to match global technical compliance benchmarks. Continued utilization of this web portal implies active consent to revised paradigms.</p>
+        <h3>6. Framework Modifications</h3>
+        <p>Harvey Taxi Service LLC reserves the authority to issue regular updates to this policy framework to maintain compliance with municipal regulations and technology standards. Using the portal signifies active consent to current rules.</p>
       </section>
     </article>
   </main>
 
   <footer class="footer">
     <div class="shell footer-inner">
-      <div>© Harvey Transportation Assistance Foundation. All rights reserved.</div>
+      <div>© Harvey Taxi Service LLC. All rights reserved.</div>
       <div class="footer-links">
         <a href="index.html">Home</a> • 
-        <a href="foundation.html">Foundation</a> • 
+        <a href="request-ride.html">Book</a> • 
         <a href="support.html">Support</a>
       </div>
     </div>
@@ -367,8 +364,7 @@
 
   <nav class="bottom-nav" aria-label="Bottom navigation">
     <button class="nav-btn" type="button" onclick="window.location.href='index.html'">Home</button>
-    <button class="nav-btn" type="button" onclick="window.location.href='request-ride.html?mode=driver'">Rides</button>
-    <button class="nav-btn" type="button" onclick="window.location.href='foundation.html'">Foundation</button>
+    <button class="nav-btn" type="button" onclick="window.location.href='request-ride.html'">Book</button>
     <button class="nav-btn active" type="button" onclick="window.location.reload()">Privacy</button>
     <button class="nav-btn" type="button" onclick="window.location.href='support.html'">Support</button>
   </nav>
