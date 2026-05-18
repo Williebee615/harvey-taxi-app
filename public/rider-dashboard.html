@@ -2,253 +2,907 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+  />
+
   <title>Harvey Taxi — Rider Dashboard</title>
-  <meta name="description" content="Harvey Taxi rider dashboard for rides, fast food delivery, grocery delivery, rider verification, payment readiness, history, and support." />
+
+  <meta
+    name="description"
+    content="Harvey Taxi rider dashboard for rides, food delivery, grocery delivery, rider verification, payment readiness, trip history, tipping, and support."
+  />
+
   <meta name="theme-color" content="#07111f" />
 
   <style>
-    :root{
-      --bg1:#040814;--bg2:#091126;--bg3:#101935;
-      --panel:rgba(10,17,38,.92);--panel2:rgba(16,27,58,.86);
-      --line:rgba(122,162,255,.18);--line-strong:rgba(122,162,255,.34);
-      --text:#f4f7ff;--muted:#aab8de;--blue:#5ea0ff;--cyan:#63f5ff;
-      --green:#6dffb3;--gold:#ffd76a;--danger:#ff7e97;--ink:#07121f;
-      --shadow:0 20px 70px rgba(0,0,0,.36);--max:1120px;
+    :root {
+      --bg1: #040814;
+      --bg2: #091126;
+      --bg3: #101935;
+
+      --panel: rgba(10, 17, 38, 0.92);
+      --panel2: rgba(16, 27, 58, 0.88);
+      --panel3: rgba(255, 255, 255, 0.04);
+
+      --line: rgba(122, 162, 255, 0.18);
+      --line-strong: rgba(122, 162, 255, 0.34);
+
+      --text: #f4f7ff;
+      --muted: #aab8de;
+      --soft: #d7e3ff;
+
+      --blue: #5ea0ff;
+      --cyan: #63f5ff;
+      --green: #6dffb3;
+      --gold: #ffd76a;
+      --danger: #ff7e97;
+      --ink: #07121f;
+
+      --shadow: 0 20px 70px rgba(0, 0, 0, 0.36);
+      --max: 1120px;
+
+      --safe-bottom: env(safe-area-inset-bottom);
+      --safe-top: env(safe-area-inset-top);
     }
 
-    *{box-sizing:border-box;margin:0;padding:0}
-    html{scroll-behavior:smooth}
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-    body{
-      font-family:Inter,Arial,sans-serif;
-      color:var(--text);
-      min-height:100vh;
-      overflow-x:hidden;
+    html {
+      scroll-behavior: smooth;
+      background: var(--bg1);
+    }
+
+    body {
+      font-family:
+        Inter,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Arial,
+        sans-serif;
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
       background:
-        radial-gradient(circle at top left,rgba(99,245,255,.14),transparent 30%),
-        radial-gradient(circle at top right,rgba(94,160,255,.12),transparent 28%),
-        radial-gradient(circle at 50% 110%,rgba(109,255,179,.06),transparent 24%),
-        linear-gradient(160deg,var(--bg1),var(--bg2) 50%,var(--bg3));
+        radial-gradient(circle at top left, rgba(99, 245, 255, 0.14), transparent 30%),
+        radial-gradient(circle at top right, rgba(94, 160, 255, 0.12), transparent 28%),
+        radial-gradient(circle at 50% 110%, rgba(109, 255, 179, 0.06), transparent 24%),
+        linear-gradient(160deg, var(--bg1), var(--bg2) 50%, var(--bg3));
     }
 
-    a{color:inherit;text-decoration:none}
-    button,input,textarea,select{font:inherit}
-    button{cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
-
-    .shell{max-width:var(--max);margin:auto;padding:18px 16px 140px}
-
-    .topbar{
-      display:flex;justify-content:space-between;align-items:center;gap:14px;
-      padding:14px 18px;border:1px solid var(--line);border-radius:999px;
-      background:rgba(7,12,28,.78);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-      margin-bottom:18px;box-shadow:var(--shadow);position:sticky;top:14px;z-index:50;flex-wrap:wrap;
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+      background-size: 44px 44px;
+      mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.55), transparent 75%);
+      z-index: 0;
     }
 
-    .brand-wrap{display:flex;align-items:center;gap:12px;min-width:0}
-    .logo-dot{
-      width:14px;height:14px;border-radius:50%;
-      background:linear-gradient(135deg,var(--cyan),var(--blue));
-      box-shadow:0 0 22px rgba(99,245,255,.6);flex-shrink:0;
-    }
-    .brand{font-weight:950;letter-spacing:.12em;font-size:14px;white-space:nowrap}
-    .brand-sub{font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-top:2px}
-
-    .top-actions{display:flex;gap:10px;flex-wrap:wrap}
-    .top-chip{
-      padding:10px 14px;border-radius:999px;border:1px solid rgba(255,255,255,.08);
-      background:rgba(255,255,255,.04);color:var(--muted);font-size:13px;font-weight:800;
-      transition:.18s ease;
-    }
-    .top-chip:hover{color:#fff;background:rgba(255,255,255,.07);transform:translateY(-1px)}
-
-    .hero,.section,.card{
-      border:1px solid var(--line);
-      background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.015)),var(--panel);
-      border-radius:28px;box-shadow:var(--shadow);position:relative;overflow:hidden;
+    a {
+      color: inherit;
+      text-decoration: none;
     }
 
-    .hero{padding:28px;margin-bottom:18px}
-    .hero::before{
-      content:"";position:absolute;top:-80px;right:-80px;width:280px;height:280px;border-radius:50%;
-      background:radial-gradient(circle,rgba(99,245,255,.16),transparent 65%);pointer-events:none;
-    }
-    .hero::after{
-      content:"";position:absolute;left:-80px;bottom:-80px;width:240px;height:240px;border-radius:50%;
-      background:radial-gradient(circle,rgba(94,160,255,.12),transparent 65%);pointer-events:none;
+    button,
+    input,
+    textarea,
+    select {
+      font: inherit;
     }
 
-    .hero-inner{position:relative;z-index:2}
-    .badge{
-      display:inline-flex;align-items:center;gap:10px;padding:10px 14px;border-radius:999px;
-      border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);
-      color:var(--cyan);font-size:12px;font-weight:900;letter-spacing:.05em;text-transform:uppercase;margin-bottom:14px;
-    }
-    .hero h1{font-size:clamp(2rem,5vw,3rem);line-height:1.04;margin-bottom:10px}
-    .hero p{color:var(--muted);font-size:16px;line-height:1.7;max-width:780px}
-
-    .hero-stats{margin-top:18px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-    .hero-stat{
-      padding:16px;border-radius:18px;border:1px solid rgba(255,255,255,.07);
-      background:rgba(255,255,255,.035);
-    }
-    .hero-stat strong{display:block;font-size:18px;margin-bottom:6px;word-break:break-word}
-    .hero-stat span{display:block;color:var(--muted);font-size:13px;line-height:1.5}
-
-    .service-launch{
-      position:relative;z-index:2;margin-top:22px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px;
+    button {
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
     }
 
-    .launch-card{
-      padding:18px;border-radius:22px;border:1px solid rgba(99,245,255,.16);
-      background:linear-gradient(135deg,rgba(99,245,255,.08),rgba(94,160,255,.04));
-      transition:.18s ease;cursor:pointer;min-height:150px;
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
     }
-    .launch-card:hover{
-      transform:translateY(-2px);border-color:var(--line-strong);
-      background:linear-gradient(135deg,rgba(99,245,255,.12),rgba(94,160,255,.07));
-    }
-    .launch-icon{
-      width:54px;height:54px;border-radius:18px;display:grid;place-items:center;
-      background:linear-gradient(135deg,var(--cyan),var(--blue));
-      color:var(--ink);font-size:26px;margin-bottom:12px;font-weight:900;
-    }
-    .launch-card strong{display:block;font-size:18px;margin-bottom:8px}
-    .launch-card span{display:block;color:var(--muted);font-size:14px;line-height:1.55}
 
-    .grid{display:grid;grid-template-columns:1.05fr .95fr;gap:16px;margin-top:18px}
-    .section{padding:24px}
-    .section-header{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:16px}
-    .section-header h2{font-size:26px;margin-bottom:4px}
-    .section-header p{color:var(--muted);font-size:14px;line-height:1.7;max-width:720px}
-
-    .places,.list{display:grid;gap:12px}
-    .place-card,.service-card,.trip-card{
-      padding:18px;border-radius:20px;border:1px solid rgba(255,255,255,.075);
-      background:rgba(255,255,255,.035);transition:.18s ease;
+    .shell {
+      position: relative;
+      z-index: 1;
+      max-width: var(--max);
+      margin: auto;
+      padding: calc(18px + var(--safe-top)) 16px calc(140px + var(--safe-bottom));
     }
-    .place-card{display:flex;align-items:center;gap:14px;cursor:pointer}
-    .place-card:hover,.service-card:hover{
-      transform:translateY(-1px);background:rgba(255,255,255,.055);border-color:var(--line-strong);
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 18px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(7, 12, 28, 0.78);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      margin-bottom: 18px;
+      box-shadow: var(--shadow);
+      position: sticky;
+      top: 14px;
+      z-index: 50;
+      flex-wrap: wrap;
     }
-    .place-icon,.service-icon{
-      width:52px;height:52px;border-radius:18px;display:grid;place-items:center;font-size:24px;
-      background:linear-gradient(135deg,rgba(99,245,255,.18),rgba(94,160,255,.18));
-      border:1px solid rgba(99,245,255,.18);flex-shrink:0;
+
+    .brand-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
     }
-    .place-copy{flex:1;min-width:0}
-    .place-copy strong,.service-card strong{display:block;font-size:17px;margin-bottom:5px}
-    .place-copy span,.service-card span{display:block;color:var(--muted);font-size:14px;line-height:1.55}
-    .place-arrow{font-size:24px;color:var(--muted)}
 
-    .services-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
-    .service-card{cursor:pointer}
-    .service-icon{margin-bottom:12px}
-
-    .status-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-    .status-card{
-      padding:16px;border-radius:18px;border:1px solid rgba(255,255,255,.07);
-      background:rgba(255,255,255,.035);
+    .logo-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      box-shadow: 0 0 22px rgba(99, 245, 255, 0.6);
+      flex-shrink: 0;
     }
-    .status-card strong{display:block;font-size:18px;margin-bottom:6px;word-break:break-word}
-    .status-card span{display:block;color:var(--muted);font-size:13px;line-height:1.5}
 
-    .trip-card{display:grid;gap:12px}
-    .trip-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
-    .trip-title{font-size:16px;font-weight:900}
-    .trip-sub{color:var(--muted);font-size:14px;margin-top:4px;line-height:1.5}
-    .trip-status{
-      padding:8px 12px;border-radius:999px;font-size:11px;font-weight:950;letter-spacing:.05em;text-transform:uppercase;
-      border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.06);color:var(--muted);
+    .brand {
+      font-weight: 950;
+      letter-spacing: 0.12em;
+      font-size: 14px;
+      white-space: nowrap;
     }
-    .trip-status.active{background:linear-gradient(135deg,var(--cyan),var(--blue));color:var(--ink);border:none}
-    .trip-status.completed{background:linear-gradient(135deg,var(--green),#89ffd0);color:#062014;border:none}
-    .trip-status.pending{background:rgba(255,215,106,.12);color:var(--gold);border:1px solid rgba(255,215,106,.2)}
-    .trip-status.bad{background:rgba(255,126,151,.12);color:var(--danger);border:1px solid rgba(255,126,151,.2)}
 
-    .trip-meta{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-    .meta-card{padding:12px;border-radius:16px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05)}
-    .meta-card small{display:block;color:var(--muted);font-size:11px;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em}
-    .meta-card span{display:block;font-size:14px;line-height:1.55;word-break:break-word}
-
-    .account-panel{
-      padding:22px;border-radius:22px;border:1px solid rgba(255,255,255,.075);
-      background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.015)),var(--panel2);
+    .brand-sub {
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-top: 2px;
     }
-    .account-panel h3{font-size:22px;margin-bottom:8px}
-    .account-panel p{color:var(--muted);font-size:14px;line-height:1.7;margin-bottom:16px}
 
-    .pill-row{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px}
-    .pill{
-      padding:10px 14px;border-radius:999px;background:rgba(255,255,255,.05);
-      border:1px solid rgba(255,255,255,.08);font-size:13px;font-weight:800;color:var(--muted);
+    .top-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
     }
-    .pill.ok{background:linear-gradient(135deg,var(--green),#89ffd0);color:#062014;border:none}
-    .pill.warn{background:rgba(255,215,106,.12);color:var(--gold);border:1px solid rgba(255,215,106,.18)}
-    .pill.bad{background:rgba(255,126,151,.12);color:var(--danger);border:1px solid rgba(255,126,151,.18)}
 
-    .actions{display:flex;flex-wrap:wrap;gap:12px}
-    .btn{
-      padding:14px 18px;border-radius:14px;border:1px solid var(--line);
-      background:rgba(255,255,255,.04);color:white;font-weight:900;
-      transition:.18s ease;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;text-align:center;
+    .top-chip {
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+      transition: 0.18s ease;
     }
-    .btn:hover{transform:translateY(-1px);background:rgba(255,255,255,.065)}
-    .btn.primary{background:linear-gradient(135deg,var(--cyan),var(--blue));color:var(--ink);border:none}
-    .btn.success{background:linear-gradient(135deg,var(--green),#89ffd0);color:#062014;border:none}
-    .btn.danger{background:linear-gradient(135deg,#ff9bb0,var(--danger));color:#2b0712;border:none}
 
-    .empty,.loading,.notice{padding:18px;border-radius:18px;line-height:1.7}
-    .empty{border:1px dashed rgba(122,162,255,.24);background:rgba(255,255,255,.02);color:var(--muted)}
-    .loading{border:1px solid rgba(99,245,255,.14);background:rgba(99,245,255,.05);color:#dffeff}
-    .notice{border:1px solid rgba(255,215,106,.18);background:rgba(255,215,106,.08);color:var(--gold);margin-bottom:14px}
-
-    .tabs{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
-    .tab{
-      padding:10px 14px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.04);
-      color:var(--muted);font-weight:900;
+    .top-chip:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.07);
+      transform: translateY(-1px);
     }
-    .tab.active{background:linear-gradient(135deg,var(--cyan),var(--blue));color:var(--ink);border:none}
 
-    .footer{
-      margin-top:18px;padding:20px;border-radius:24px;border:1px solid var(--line);
-      background:var(--panel);display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px;box-shadow:var(--shadow);
+    .hero,
+    .section,
+    .card {
+      border: 1px solid var(--line);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.015)),
+        var(--panel);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
     }
-    .footer p{color:var(--muted);font-size:14px;line-height:1.7;max-width:720px}
 
-    .bottom-nav{
-      position:fixed;left:0;right:0;bottom:0;background:rgba(6,12,26,.96);
-      backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-      border-top:1px solid rgba(255,255,255,.08);
-      display:flex;justify-content:space-around;padding:12px 8px calc(12px + env(safe-area-inset-bottom));
-      z-index:1000;
+    .hero {
+      padding: 28px;
+      margin-bottom: 18px;
     }
-    .nav-btn{color:var(--muted);background:none;border:none;font-size:13px;font-weight:800;padding:6px 10px}
-    .nav-btn.active{color:white}
 
-    @media(max-width:980px){
-      .grid{grid-template-columns:1fr}
-      .status-strip,.hero-stats{grid-template-columns:repeat(2,1fr)}
-      .service-launch{grid-template-columns:1fr}
+    .hero::before {
+      content: "";
+      position: absolute;
+      top: -80px;
+      right: -80px;
+      width: 280px;
+      height: 280px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(99, 245, 255, 0.16), transparent 65%);
+      pointer-events: none;
     }
-    @media(max-width:700px){
-      .shell{padding:14px 12px 140px}
-      .topbar{border-radius:24px;align-items:flex-start;flex-direction:column}
-      .top-actions{width:100%}
-      .top-chip{flex:1;text-align:center}
-      .hero,.section{padding:20px}
-      .services-grid,.status-strip,.trip-meta,.hero-stats{grid-template-columns:1fr}
-      .actions{flex-direction:column}
-      .btn{width:100%}
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      left: -80px;
+      bottom: -80px;
+      width: 240px;
+      height: 240px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(94, 160, 255, 0.12), transparent 65%);
+      pointer-events: none;
+    }
+
+    .hero-inner {
+      position: relative;
+      z-index: 2;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--cyan);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3rem);
+      line-height: 1.04;
+      margin-bottom: 10px;
+      letter-spacing: -0.055em;
+    }
+
+    .hero p {
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.7;
+      max-width: 820px;
+    }
+
+    .hero-stats {
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    .hero-stat {
+      padding: 16px;
+      border-radius: 18px;
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      background: rgba(255, 255, 255, 0.035);
+    }
+
+    .hero-stat strong {
+      display: block;
+      font-size: 18px;
+      margin-bottom: 6px;
+      word-break: break-word;
+    }
+
+    .hero-stat span {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .service-launch {
+      position: relative;
+      z-index: 2;
+      margin-top: 22px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .launch-card {
+      padding: 18px;
+      border-radius: 22px;
+      border: 1px solid rgba(99, 245, 255, 0.16);
+      background: linear-gradient(135deg, rgba(99, 245, 255, 0.08), rgba(94, 160, 255, 0.04));
+      transition: 0.18s ease;
+      cursor: pointer;
+      min-height: 150px;
+      text-align: left;
+      color: var(--text);
+    }
+
+    .launch-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--line-strong);
+      background: linear-gradient(135deg, rgba(99, 245, 255, 0.12), rgba(94, 160, 255, 0.07));
+    }
+
+    .launch-icon {
+      width: 54px;
+      height: 54px;
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      color: var(--ink);
+      font-size: 26px;
+      margin-bottom: 12px;
+      font-weight: 900;
+    }
+
+    .launch-card strong {
+      display: block;
+      font-size: 18px;
+      margin-bottom: 8px;
+    }
+
+    .launch-card span {
+      display: block;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.55;
+    }    .grid {
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 16px;
+      margin-top: 18px;
+    }
+
+    .section {
+      padding: 24px;
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .section-header h2 {
+      font-size: 26px;
+      margin-bottom: 4px;
+      letter-spacing: -0.045em;
+    }
+
+    .section-header p {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.7;
+      max-width: 720px;
+    }
+
+    .places,
+    .list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .place-card,
+    .service-card,
+    .trip-card,
+    .order-card {
+      padding: 18px;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.075);
+      background: rgba(255, 255, 255, 0.035);
+      transition: 0.18s ease;
+    }
+
+    .place-card {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      cursor: pointer;
+      color: var(--text);
+      text-align: left;
+      width: 100%;
+    }
+
+    .place-card:hover,
+    .service-card:hover {
+      transform: translateY(-1px);
+      background: rgba(255, 255, 255, 0.055);
+      border-color: var(--line-strong);
+    }
+
+    .place-icon,
+    .service-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+      font-size: 24px;
+      background: linear-gradient(135deg, rgba(99, 245, 255, 0.18), rgba(94, 160, 255, 0.18));
+      border: 1px solid rgba(99, 245, 255, 0.18);
+      flex-shrink: 0;
+    }
+
+    .place-copy {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .place-copy strong,
+    .service-card strong {
+      display: block;
+      font-size: 17px;
+      margin-bottom: 5px;
+    }
+
+    .place-copy span,
+    .service-card span {
+      display: block;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    .place-arrow {
+      font-size: 24px;
+      color: var(--muted);
+    }
+
+    .services-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    .service-card {
+      cursor: pointer;
+      color: var(--text);
+      text-align: left;
+      width: 100%;
+    }
+
+    .service-icon {
+      margin-bottom: 12px;
+    }
+
+    .status-strip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    .status-card {
+      padding: 16px;
+      border-radius: 18px;
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      background: rgba(255, 255, 255, 0.035);
+    }
+
+    .status-card strong {
+      display: block;
+      font-size: 18px;
+      margin-bottom: 6px;
+      word-break: break-word;
+    }
+
+    .status-card span {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .trip-card,
+    .order-card {
+      display: grid;
+      gap: 12px;
+    }
+
+    .trip-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .trip-title {
+      font-size: 16px;
+      font-weight: 900;
+    }
+
+    .trip-sub {
+      color: var(--muted);
+      font-size: 14px;
+      margin-top: 4px;
+      line-height: 1.5;
+    }
+
+    .trip-status {
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 950;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--muted);
+    }
+
+    .trip-status.active {
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      color: var(--ink);
+      border: none;
+    }
+
+    .trip-status.completed {
+      background: linear-gradient(135deg, var(--green), #89ffd0);
+      color: #062014;
+      border: none;
+    }
+
+    .trip-status.pending {
+      background: rgba(255, 215, 106, 0.12);
+      color: var(--gold);
+      border: 1px solid rgba(255, 215, 106, 0.2);
+    }
+
+    .trip-status.bad {
+      background: rgba(255, 126, 151, 0.12);
+      color: var(--danger);
+      border: 1px solid rgba(255, 126, 151, 0.2);
+    }
+
+    .trip-meta {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .meta-card {
+      padding: 12px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .meta-card small {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .meta-card span {
+      display: block;
+      font-size: 14px;
+      line-height: 1.55;
+      word-break: break-word;
+    }
+
+    .account-panel {
+      padding: 22px;
+      border-radius: 22px;
+      border: 1px solid rgba(255, 255, 255, 0.075);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.015)),
+        var(--panel2);
+    }
+
+    .account-panel h3 {
+      font-size: 22px;
+      margin-bottom: 8px;
+      letter-spacing: -0.04em;
+    }
+
+    .account-panel p {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.7;
+      margin-bottom: 16px;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .pill {
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--muted);
+    }
+
+    .pill.ok {
+      background: linear-gradient(135deg, var(--green), #89ffd0);
+      color: #062014;
+      border: none;
+    }
+
+    .pill.warn {
+      background: rgba(255, 215, 106, 0.12);
+      color: var(--gold);
+      border: 1px solid rgba(255, 215, 106, 0.18);
+    }
+
+    .pill.bad {
+      background: rgba(255, 126, 151, 0.12);
+      color: var(--danger);
+      border: 1px solid rgba(255, 126, 151, 0.18);
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .btn {
+      padding: 14px 18px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.04);
+      color: white;
+      font-weight: 900;
+      transition: 0.18s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 48px;
+      text-align: center;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      background: rgba(255, 255, 255, 0.065);
+    }
+
+    .btn.primary {
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      color: var(--ink);
+      border: none;
+    }
+
+    .btn.success {
+      background: linear-gradient(135deg, var(--green), #89ffd0);
+      color: #062014;
+      border: none;
+    }
+
+    .btn.danger {
+      background: linear-gradient(135deg, #ff9bb0, var(--danger));
+      color: #2b0712;
+      border: none;
+    }
+
+    .btn.ghost {
+      background: rgba(255, 255, 255, 0.035);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--soft);
+    }
+
+    .empty,
+    .loading,
+    .notice {
+      padding: 18px;
+      border-radius: 18px;
+      line-height: 1.7;
+    }
+
+    .empty {
+      border: 1px dashed rgba(122, 162, 255, 0.24);
+      background: rgba(255, 255, 255, 0.02);
+      color: var(--muted);
+    }
+
+    .loading {
+      border: 1px solid rgba(99, 245, 255, 0.14);
+      background: rgba(99, 245, 255, 0.05);
+      color: #dffeff;
+    }
+
+    .notice {
+      border: 1px solid rgba(255, 215, 106, 0.18);
+      background: rgba(255, 215, 106, 0.08);
+      color: var(--gold);
+      margin-bottom: 14px;
+    }
+
+    .notice.success {
+      border-color: rgba(109, 255, 179, 0.24);
+      background: rgba(109, 255, 179, 0.08);
+      color: #c9ffe4;
+    }
+
+    .notice.danger {
+      border-color: rgba(255, 126, 151, 0.22);
+      background: rgba(255, 126, 151, 0.08);
+      color: #ffd7df;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
+    .tab {
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--muted);
+      font-weight: 900;
+    }
+
+    .tab.active {
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      color: var(--ink);
+      border: none;
+    }
+
+    .mini-form {
+      display: grid;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .mini-form input,
+    .mini-form textarea {
+      width: 100%;
+      border: 1px solid rgba(122, 162, 255, 0.18);
+      border-radius: 16px;
+      background: rgba(3, 8, 18, 0.68);
+      color: var(--text);
+      padding: 13px 14px;
+      outline: none;
+    }
+
+    .mini-form textarea {
+      min-height: 86px;
+      resize: vertical;
+    }
+
+    .mini-form input:focus,
+    .mini-form textarea:focus {
+      border-color: rgba(99, 245, 255, 0.5);
+      box-shadow: 0 0 0 4px rgba(99, 245, 255, 0.08);
+    }
+
+    .footer {
+      margin-top: 18px;
+      padding: 20px;
+      border-radius: 24px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .footer p {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.7;
+      max-width: 720px;
+    }
+
+    .bottom-nav {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(6, 12, 26, 0.96);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      justify-content: space-around;
+      padding: 12px 8px calc(12px + var(--safe-bottom));
+      z-index: 1000;
+    }
+
+    .nav-btn {
+      color: var(--muted);
+      background: none;
+      border: none;
+      font-size: 13px;
+      font-weight: 800;
+      padding: 6px 10px;
+    }
+
+    .nav-btn.active {
+      color: white;
+    }
+
+    @media (max-width: 980px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .status-strip,
+      .hero-stats {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .service-launch {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 700px) {
+      .shell {
+        padding: calc(14px + var(--safe-top)) 12px calc(140px + var(--safe-bottom));
+      }
+
+      .topbar {
+        border-radius: 24px;
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .top-actions {
+        width: 100%;
+      }
+
+      .top-chip {
+        flex: 1;
+        text-align: center;
+      }
+
+      .hero,
+      .section {
+        padding: 20px;
+      }
+
+      .services-grid,
+      .status-strip,
+      .trip-meta,
+      .hero-stats {
+        grid-template-columns: 1fr;
+      }
+
+      .actions {
+        flex-direction: column;
+      }
+
+      .btn {
+        width: 100%;
+      }
     }
   </style>
 </head>
 
 <body>
   <div class="shell">
-    <div class="topbar">
+
+    <!-- TOPBAR -->
+    <header class="topbar">
       <div class="brand-wrap">
         <div class="logo-dot"></div>
+
         <div>
           <div class="brand">HARVEY TAXI</div>
           <div class="brand-sub">Rider Super App Dashboard</div>
@@ -256,19 +910,27 @@
       </div>
 
       <div class="top-actions">
-        <button class="top-chip" onclick="goHome()">Home</button>
-        <button class="top-chip" onclick="goSupport()">Support</button>
-        <button class="top-chip" onclick="goRide()">Book</button>
+        <button class="top-chip" type="button" data-action="home">Home</button>
+        <button class="top-chip" type="button" data-action="support">Support</button>
+        <button class="top-chip" type="button" data-action="ride">Book</button>
       </div>
-    </div>
+    </header>
 
+    <!-- HERO -->
     <section class="hero">
       <div class="hero-inner">
-        <div class="badge">Rides • Fast Food • Groceries • Harvey Taxi</div>
-        <h1 id="heroTitle">Your Harvey Taxi super app starts here.</h1>
+        <div class="badge">
+          Rides • Food • Groceries • Harvey Taxi
+        </div>
+
+        <h1 id="heroTitle">
+          Your Harvey Taxi super app starts here.
+        </h1>
+
         <p id="heroText">
-          Manage rides, fast food delivery, grocery delivery, rider verification, payment readiness,
-          active orders, trip history, and support from one futuristic dashboard.
+          Manage rides, food delivery, grocery delivery, rider verification,
+          payment readiness, active orders, trip history, tipping, and support
+          from one futuristic dashboard.
         </p>
 
         <div class="hero-stats">
@@ -276,14 +938,17 @@
             <strong id="heroRiderName">Rider</strong>
             <span>Current rider profile</span>
           </div>
+
           <div class="hero-stat">
             <strong id="heroApprovalState">Pending</strong>
             <span>Persona / rider access</span>
           </div>
+
           <div class="hero-stat">
             <strong id="heroRideCount">0</strong>
             <span>Rides loaded</span>
           </div>
+
           <div class="hero-stat">
             <strong id="heroDeliveryCount">0</strong>
             <span>Deliveries loaded</span>
@@ -291,348 +956,618 @@
         </div>
 
         <div class="service-launch">
-          <div class="launch-card" onclick="goRide()">
+          <button class="launch-card" type="button" data-action="ride">
             <div class="launch-icon">🚖</div>
             <strong>Request Ride</strong>
-            <span>Start a Harvey Taxi ride with rider verification and payment gate support.</span>
-          </div>
+            <span>
+              Start a Harvey Taxi ride with rider verification and payment gate support.
+            </span>
+          </button>
 
-          <div class="launch-card" onclick="goFoodDelivery()">
+          <button class="launch-card" type="button" data-action="food">
             <div class="launch-icon">🍔</div>
-            <strong>Fast Food Delivery</strong>
-            <span>Launch a food delivery request using your new delivery backend.</span>
-          </div>
+            <strong>Food Delivery</strong>
+            <span>
+              Launch a food delivery request using your delivery-ready backend flow.
+            </span>
+          </button>
 
-          <div class="launch-card" onclick="goGroceryDelivery()">
+          <button class="launch-card" type="button" data-action="grocery">
             <div class="launch-icon">🛒</div>
             <strong>Grocery Delivery</strong>
-            <span>Request groceries with pickup, dropoff, items, payment, and dispatch support.</span>
-          </div>
+            <span>
+              Request groceries with pickup, dropoff, items, payment, and dispatch support.
+            </span>
+          </button>
         </div>
       </div>
-    </section>
-
+    </section>    <!-- RIDER STATUS -->
     <section class="section">
       <div class="section-header">
         <div>
           <h2>Rider status</h2>
-          <p>Your account readiness for ride, food delivery, and grocery delivery.</p>
+          <p>
+            Your account readiness for rides, food delivery,
+            grocery delivery, payment authorization, and dispatch.
+          </p>
         </div>
       </div>
 
-      <div id="approvalNotice" class="notice" style="display:none;">
-        Rider Persona verification must be approved before requesting rides or delivery.
+      <div
+        id="approvalNotice"
+        class="notice"
+        style="display:none;"
+      >
+        Rider Persona verification must be approved before
+        requesting rides or delivery.
       </div>
 
+      <div
+        id="systemNotice"
+        class="notice success"
+        style="display:none;"
+      ></div>
+
       <div class="status-strip">
+
         <div class="status-card">
           <strong id="statusApproval">Pending</strong>
           <span>Rider approval</span>
         </div>
+
         <div class="status-card">
           <strong id="statusRideAccess">Pending</strong>
           <span>Ride access</span>
         </div>
+
         <div class="status-card">
           <strong id="statusDeliveryAccess">Pending</strong>
           <span>Delivery access</span>
         </div>
+
         <div class="status-card">
           <strong id="statusRiderId">—</strong>
           <span>Active rider ID</span>
         </div>
+
       </div>
     </section>
 
+    <!-- GRID -->
     <div class="grid">
+
+      <!-- SAVED PLACES -->
       <section class="section">
+
         <div class="section-header">
           <div>
             <h2>Saved places</h2>
-            <p>Quick launch destinations for rides and delivery dropoffs.</p>
+
+            <p>
+              Quick-launch destinations for rides and delivery dropoffs.
+            </p>
           </div>
         </div>
 
         <div class="places">
-          <div class="place-card" onclick="quickDestination('Home','')">
+
+          <button
+            class="place-card"
+            type="button"
+            data-place="home"
+          >
             <div class="place-icon">🏠</div>
+
             <div class="place-copy">
               <strong>Home</strong>
-              <span>Saved home shortcut coming soon</span>
+              <span>
+                Saved home shortcut support coming soon.
+              </span>
             </div>
-            <div class="place-arrow">›</div>
-          </div>
 
-          <div class="place-card" onclick="quickDestination('Work','')">
+            <div class="place-arrow">›</div>
+          </button>
+
+          <button
+            class="place-card"
+            type="button"
+            data-place="work"
+          >
             <div class="place-icon">💼</div>
+
             <div class="place-copy">
               <strong>Work</strong>
-              <span>Saved work shortcut coming soon</span>
+              <span>
+                Saved work shortcut support coming soon.
+              </span>
             </div>
-            <div class="place-arrow">›</div>
-          </div>
 
-          <div class="place-card" onclick="quickDestination('BNA Airport','1 Terminal Dr, Nashville, TN')">
+            <div class="place-arrow">›</div>
+          </button>
+
+          <button
+            class="place-card"
+            type="button"
+            data-place="airport"
+            data-address="1 Terminal Dr, Nashville, TN"
+          >
             <div class="place-icon">✈️</div>
+
             <div class="place-copy">
               <strong>BNA Airport</strong>
-              <span>Quick airport ride request</span>
+              <span>
+                Quick airport ride request flow.
+              </span>
             </div>
+
             <div class="place-arrow">›</div>
-          </div>
+          </button>
+
         </div>
+
       </section>
 
+      <!-- SERVICES -->
       <section class="section">
+
         <div class="section-header">
           <div>
             <h2>Service tools</h2>
-            <p>Launch the correct Harvey service flow.</p>
+
+            <p>
+              Launch the correct Harvey Taxi service flow.
+            </p>
           </div>
         </div>
 
         <div class="services-grid">
-          <div class="service-card" onclick="goRide()">
+
+          <button
+            class="service-card"
+            type="button"
+            data-action="ride"
+          >
             <div class="service-icon">🚖</div>
+
             <strong>Ride now</strong>
-            <span>Request a human driver.</span>
-          </div>
 
-          <div class="service-card" onclick="goAutonomous()">
+            <span>
+              Request a human driver ride.
+            </span>
+          </button>
+
+          <button
+            class="service-card"
+            type="button"
+            data-action="autonomous"
+          >
             <div class="service-icon">🤖</div>
+
             <strong>AV Pilot</strong>
-            <span>Open autonomous pilot mode.</span>
-          </div>
 
-          <div class="service-card" onclick="goFoodDelivery()">
+            <span>
+              Open autonomous pilot mode.
+            </span>
+          </button>
+
+          <button
+            class="service-card"
+            type="button"
+            data-action="food"
+          >
             <div class="service-icon">🍟</div>
-            <strong>Food delivery</strong>
-            <span>Order fast food pickup and delivery.</span>
-          </div>
 
-          <div class="service-card" onclick="goGroceryDelivery()">
+            <strong>Food delivery</strong>
+
+            <span>
+              Order fast food pickup and delivery.
+            </span>
+          </button>
+
+          <button
+            class="service-card"
+            type="button"
+            data-action="grocery"
+          >
             <div class="service-icon">🥬</div>
+
             <strong>Grocery delivery</strong>
-            <span>Request grocery pickup and delivery.</span>
-          </div>
+
+            <span>
+              Request grocery pickup and delivery.
+            </span>
+          </button>
+
         </div>
+
       </section>
+
     </div>
 
-    <section class="section" style="margin-top:18px;">
+    <!-- ACTIVITY -->
+    <section
+      class="section"
+      style="margin-top:18px;"
+    >
+
       <div class="section-header">
         <div>
           <h2>Activity</h2>
-          <p>View your rides and delivery orders from the new unified backend.</p>
+
+          <p>
+            View rides and delivery orders from the unified backend.
+          </p>
         </div>
       </div>
 
       <div class="tabs">
-        <button id="ridesTab" class="tab active" onclick="setTab('rides')">Rides</button>
-        <button id="deliveriesTab" class="tab" onclick="setTab('deliveries')">Deliveries</button>
+
+        <button
+          id="ridesTab"
+          class="tab active"
+          type="button"
+          data-tab="rides"
+        >
+          Rides
+        </button>
+
+        <button
+          id="deliveriesTab"
+          class="tab"
+          type="button"
+          data-tab="deliveries"
+        >
+          Deliveries
+        </button>
+
       </div>
 
-      <div id="activityLoading" class="loading">Loading your Harvey Taxi activity...</div>
-      <div id="activityList" class="list"></div>
-      <div id="activityEmpty" class="empty" style="display:none;">
-        No activity found yet. Request a ride, fast food delivery, or grocery delivery to start your history.
+      <div
+        id="activityLoading"
+        class="loading"
+      >
+        Loading your Harvey Taxi activity...
       </div>
+
+      <div
+        id="activityList"
+        class="list"
+      ></div>
+
+      <div
+        id="activityEmpty"
+        class="empty"
+        style="display:none;"
+      >
+        No activity found yet. Request a ride, food delivery,
+        or grocery delivery to start your history.
+      </div>
+
     </section>
 
+    <!-- ACCOUNT + SUPPORT -->
     <div class="grid">
+
+      <!-- ACCOUNT -->
       <section class="section">
+
         <div class="section-header">
           <div>
             <h2>Account</h2>
-            <p>Manage rider session, verification, and support access.</p>
+
+            <p>
+              Manage rider session, verification,
+              support access, and payment readiness.
+            </p>
           </div>
         </div>
 
         <div class="account-panel">
-          <h3 id="accountTitle">Rider account</h3>
-          <p id="accountCopy">Your rider profile loads here.</p>
 
-          <div id="accountPills" class="pill-row">
-            <div class="pill">Loading profile</div>
+          <h3 id="accountTitle">
+            Rider account
+          </h3>
+
+          <p id="accountCopy">
+            Your rider profile loads here.
+          </p>
+
+          <div
+            id="accountPills"
+            class="pill-row"
+          >
+            <div class="pill">
+              Loading profile
+            </div>
           </div>
 
           <div class="actions">
-            <button class="btn primary" onclick="goRide()">Book Ride</button>
-            <button class="btn success" onclick="startPersona()">Start Persona</button>
-            <button class="btn" onclick="refreshAll()">Refresh</button>
-            <button class="btn danger" onclick="logout()">Logout</button>
+
+            <button
+              class="btn primary"
+              type="button"
+              data-action="ride"
+            >
+              Book Ride
+            </button>
+
+            <button
+              class="btn success"
+              type="button"
+              id="personaBtn"
+            >
+              Start Persona
+            </button>
+
+            <button
+              class="btn ghost"
+              type="button"
+              id="refreshBtn"
+            >
+              Refresh
+            </button>
+
+            <button
+              class="btn danger"
+              type="button"
+              id="logoutBtn"
+            >
+              Logout
+            </button>
+
           </div>
+
         </div>
+
       </section>
 
+      <!-- SUPPORT -->
       <section class="section">
+
         <div class="section-header">
           <div>
             <h2>Support</h2>
-            <p>Get help with rides, food delivery, groceries, verification, payments, and safety.</p>
+
+            <p>
+              Get help with rides, food delivery,
+              groceries, verification, payments, and safety.
+            </p>
           </div>
         </div>
 
         <div class="account-panel">
-          <h3>Need help?</h3>
-          <p>Harvey Taxi support can help with rider onboarding, Persona verification, payment authorization, rides, and delivery orders.</p>
+
+          <h3>
+            Need help?
+          </h3>
+
+          <p>
+            Harvey Taxi support can help with rider onboarding,
+            Persona verification, payment authorization,
+            rides, and delivery orders.
+          </p>
+
           <div class="actions">
-            <button class="btn success" onclick="goSupport()">Open Support</button>
-            <button class="btn" onclick="goHome()">Return Home</button>
+
+            <button
+              class="btn success"
+              type="button"
+              data-action="support"
+            >
+              Open Support
+            </button>
+
+            <button
+              class="btn"
+              type="button"
+              data-action="home"
+            >
+              Return Home
+            </button>
+
           </div>
+
+          <div class="mini-form">
+
+            <input
+              id="quickSupportSubject"
+              type="text"
+              placeholder="Quick support subject"
+            />
+
+            <textarea
+              id="quickSupportMessage"
+              placeholder="Describe your issue..."
+            ></textarea>
+
+            <button
+              class="btn primary"
+              type="button"
+              id="sendSupportBtn"
+            >
+              Send Support Request
+            </button>
+
+          </div>
+
         </div>
+
       </section>
+
     </div>
 
+    <!-- FOOTER -->
     <footer class="footer">
+
       <div>
-        <strong style="display:block;margin-bottom:8px;">Harvey Taxi Service LLC</strong>
+        <strong style="display:block;margin-bottom:8px;">
+          Harvey Taxi Service LLC
+        </strong>
+
         <p>
-          Rider dashboard upgraded for the Harvey Taxi super app: rides, fast food delivery,
-          grocery delivery, Persona-gated rider access, payments, support, and history.
+          Rider dashboard upgraded for the Harvey Taxi super app:
+          rides, food delivery, grocery delivery, Persona-gated rider access,
+          payments, support, tipping, and history.
         </p>
       </div>
 
       <div class="actions">
-        <button class="btn" onclick="goHome()">Home</button>
-        <button class="btn" onclick="goSupport()">Support</button>
+
+        <button
+          class="btn"
+          type="button"
+          data-action="home"
+        >
+          Home
+        </button>
+
+        <button
+          class="btn"
+          type="button"
+          data-action="support"
+        >
+          Support
+        </button>
+
       </div>
+
     </footer>
+
   </div>
 
+  <!-- BOTTOM NAV -->
   <nav class="bottom-nav">
-    <button class="nav-btn" onclick="goHome()">Home</button>
-    <button class="nav-btn active" onclick="location.href='rider-dashboard.html'">Rider</button>
-    <button class="nav-btn" onclick="goRide()">Ride</button>
-    <button class="nav-btn" onclick="location.href='driver-dashboard.html'">Driver</button>
+
+    <button
+      class="nav-btn"
+      type="button"
+      data-action="home"
+    >
+      Home
+    </button>
+
+    <button
+      class="nav-btn active"
+      type="button"
+    >
+      Rider
+    </button>
+
+    <button
+      class="nav-btn"
+      type="button"
+      data-action="ride"
+    >
+      Ride
+    </button>
+
+    <button
+      class="nav-btn"
+      type="button"
+      data-action="driver"
+    >
+      Driver
+    </button>
+
   </nav>
 
   <script>
+    /**
+     * Harvey Taxi — Rider Dashboard
+     * Code Blue unified dashboard rebuild
+     */
+
+    const CONFIG = {
+      API_BASE:
+        window.HARVEY_API_BASE ||
+        (
+          window.location.hostname.includes("onrender.com") ||
+          window.location.hostname.includes("harveytaxiservice")
+        )
+          ? ""
+          : "https://harvey-taxi-app-2.onrender.com",
+
+      STORAGE_KEYS: {
+        riderId: "harvey_rider_id",
+        riderEmail: "harvey_rider_email",
+        riderProfile: "harvey_rider_profile",
+        activeRideId: "harvey_active_ride_id"
+      }
+    };
+
     const state = {
       riderId: "",
       riderProfile: null,
       rides: [],
       deliveries: [],
-      tab: "rides"
+      tab: "rides",
+      loading: false
     };
 
-    function apiBase() {
-      const host = window.location.hostname || "";
-      if (
-        host.includes("harvey-taxi-app-2.onrender.com") ||
-        host.includes("harveytaxiservice.com") ||
-        host.includes("harveytaxiservicellc.com")
-      ) return "";
-      return "https://harvey-taxi-app-2.onrender.com";
+    const els = {
+      heroTitle: document.getElementById("heroTitle"),
+      heroText: document.getElementById("heroText"),
+
+      heroRiderName: document.getElementById("heroRiderName"),
+      heroApprovalState: document.getElementById("heroApprovalState"),
+      heroRideCount: document.getElementById("heroRideCount"),
+      heroDeliveryCount: document.getElementById("heroDeliveryCount"),
+
+      approvalNotice: document.getElementById("approvalNotice"),
+      systemNotice: document.getElementById("systemNotice"),
+
+      statusApproval: document.getElementById("statusApproval"),
+      statusRideAccess: document.getElementById("statusRideAccess"),
+      statusDeliveryAccess: document.getElementById("statusDeliveryAccess"),
+      statusRiderId: document.getElementById("statusRiderId"),
+
+      activityLoading: document.getElementById("activityLoading"),
+      activityList: document.getElementById("activityList"),
+      activityEmpty: document.getElementById("activityEmpty"),
+
+      ridesTab: document.getElementById("ridesTab"),
+      deliveriesTab: document.getElementById("deliveriesTab"),
+
+      accountTitle: document.getElementById("accountTitle"),
+      accountCopy: document.getElementById("accountCopy"),
+      accountPills: document.getElementById("accountPills"),
+
+      quickSupportSubject: document.getElementById("quickSupportSubject"),
+      quickSupportMessage: document.getElementById("quickSupportMessage")
+    };    function safe(value) {
+      return String(value ?? "").trim();
     }
 
-    function goHome(){ window.location.href = "index.html"; }
-    function goSupport(){ window.location.href = "support.html"; }
-
-    function goRide(){
-      const params = new URLSearchParams();
-      params.set("mode", "driver");
-      if (state.riderId) params.set("rider_id", state.riderId);
-      window.location.href = `request-ride.html?${params.toString()}`;
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
     }
 
-    function goAutonomous(){
-      const params = new URLSearchParams();
-      params.set("mode", "autonomous");
-      if (state.riderId) params.set("rider_id", state.riderId);
-      window.location.href = `request-ride.html?${params.toString()}`;
+    function human(value) {
+      const clean = safe(value)
+        .replace(/_/g, " ")
+        .toLowerCase();
+
+      if (!clean) return "Pending";
+
+      return clean.charAt(0).toUpperCase() + clean.slice(1);
     }
 
-    function goFoodDelivery(){ goDelivery("food"); }
-    function goGroceryDelivery(){ goDelivery("grocery"); }
+    function money(value) {
+      const number = Number(value);
 
-    function goDelivery(type){
-      const params = new URLSearchParams();
-      params.set("service_type", type);
-      if (state.riderId) params.set("rider_id", state.riderId);
-
-      const page = type === "grocery" ? "request-grocery.html" : "request-food.html";
-      window.location.href = `${page}?${params.toString()}`;
-    }
-
-    function quickDestination(label, address){
-      if (!address) {
-        alert(`${label} saved-place editing will be added in the next frontend phase.`);
-        return;
+      if (!Number.isFinite(number)) {
+        return "—";
       }
 
-      const params = new URLSearchParams();
-      params.set("mode", "driver");
-      params.set("destination", address);
-      if (state.riderId) params.set("rider_id", state.riderId);
-      window.location.href = `request-ride.html?${params.toString()}`;
+      return `$${number.toFixed(2)}`;
     }
 
-    function clearRiderSession(){
-      [
-        "rider","riderId","rider_id","riderProfile",
-        "harveyRiderId","harveyRiderEmail","harveyActiveRideId"
-      ].forEach((key) => {
-        localStorage.removeItem(key);
-        sessionStorage.removeItem(key);
-      });
-    }
-
-    function logout(){
-      clearRiderSession();
-      window.location.href = "index.html";
-    }
-
-    function parseJson(raw){
-      if (!raw) return null;
-      try { return JSON.parse(raw); } catch { return null; }
-    }
-
-    function getStoredRiderId(){
-      const params = new URLSearchParams(window.location.search);
-      return (
-        params.get("rider_id") ||
-        params.get("riderId") ||
-        localStorage.getItem("harveyRiderId") ||
-        localStorage.getItem("riderId") ||
-        localStorage.getItem("rider_id") ||
-        sessionStorage.getItem("harveyRiderId") ||
-        sessionStorage.getItem("riderId") ||
-        sessionStorage.getItem("rider_id") ||
-        ""
-      );
-    }
-
-    function getStoredRiderProfile(){
-      return (
-        parseJson(localStorage.getItem("riderProfile")) ||
-        parseJson(localStorage.getItem("rider")) ||
-        parseJson(sessionStorage.getItem("riderProfile")) ||
-        parseJson(sessionStorage.getItem("rider")) ||
-        null
-      );
-    }
-
-    function escapeHtml(value){
-      return String(value ?? "")
-        .replace(/&/g,"&amp;")
-        .replace(/</g,"&lt;")
-        .replace(/>/g,"&gt;")
-        .replace(/"/g,"&quot;")
-        .replace(/'/g,"&#39;");
-    }
-
-    function human(value){
-      const clean = String(value || "pending").replace(/_/g," ").trim();
-      return clean ? clean.charAt(0).toUpperCase() + clean.slice(1) : "Pending";
-    }
-
-    function money(value){
-      const n = Number(value);
-      return Number.isFinite(n) ? `$${n.toFixed(2)}` : "—";
-    }
-
-    function approvalReady(rider){
+    function approvalReady(rider) {
       const status = String(
         rider?.approval_status ||
         rider?.verification_status ||
@@ -641,13 +1576,34 @@
         ""
       ).toLowerCase();
 
-      return rider?.is_approved === true || status.includes("approved") || status.includes("active");
+      return (
+        rider?.approved === true ||
+        rider?.is_approved === true ||
+        status.includes("approved") ||
+        status.includes("active") ||
+        status.includes("verified")
+      );
     }
 
-    function statusClass(status){
+    function statusClass(status) {
       const s = String(status || "").toLowerCase();
-      if (s.includes("complete") || s.includes("delivered")) return "completed";
-      if (s.includes("cancel") || s.includes("reject") || s.includes("failed")) return "bad";
+
+      if (
+        s.includes("complete") ||
+        s.includes("completed") ||
+        s.includes("delivered")
+      ) {
+        return "completed";
+      }
+
+      if (
+        s.includes("cancel") ||
+        s.includes("reject") ||
+        s.includes("failed")
+      ) {
+        return "bad";
+      }
+
       if (
         s.includes("driver") ||
         s.includes("route") ||
@@ -656,30 +1612,239 @@
         s.includes("picked") ||
         s.includes("arrived") ||
         s.includes("searching")
-      ) return "active";
+      ) {
+        return "active";
+      }
+
       return "pending";
     }
 
-    function saveRider(rider){
-      if (!rider) return;
-      state.riderProfile = rider;
-      localStorage.setItem("riderProfile", JSON.stringify(rider));
-      localStorage.setItem("rider", JSON.stringify(rider));
-      if (rider.id) {
-        state.riderId = rider.id;
-        localStorage.setItem("harveyRiderId", rider.id);
-        localStorage.setItem("riderId", rider.id);
-      }
-      if (rider.email) localStorage.setItem("harveyRiderEmail", rider.email);
+    function showSystemNotice(message, type = "success") {
+      if (!els.systemNotice) return;
+
+      els.systemNotice.style.display = "block";
+      els.systemNotice.className = `notice ${type}`;
+      els.systemNotice.textContent = message;
     }
 
-    function renderRider(){
+    function hideSystemNotice() {
+      if (!els.systemNotice) return;
+
+      els.systemNotice.style.display = "none";
+      els.systemNotice.textContent = "";
+    }
+
+    function apiBase() {
+      return CONFIG.API_BASE || "";
+    }
+
+    function parseJson(raw) {
+      if (!raw) return null;
+
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return null;
+      }
+    }
+
+    function saveStorage(key, value) {
+      try {
+        if (value === undefined || value === null || value === "") {
+          localStorage.removeItem(key);
+          return;
+        }
+
+        localStorage.setItem(key, value);
+      } catch {}
+    }
+
+    function getStoredRiderId() {
+      const params = new URLSearchParams(window.location.search);
+
+      return (
+        params.get("rider_id") ||
+        params.get("riderId") ||
+        localStorage.getItem(CONFIG.STORAGE_KEYS.riderId) ||
+        sessionStorage.getItem(CONFIG.STORAGE_KEYS.riderId) ||
+        localStorage.getItem("riderId") ||
+        localStorage.getItem("rider_id") ||
+        ""
+      );
+    }
+
+    function getStoredRiderProfile() {
+      return (
+        parseJson(localStorage.getItem(CONFIG.STORAGE_KEYS.riderProfile)) ||
+        parseJson(localStorage.getItem("riderProfile")) ||
+        parseJson(localStorage.getItem("rider")) ||
+        parseJson(sessionStorage.getItem("riderProfile")) ||
+        parseJson(sessionStorage.getItem("rider")) ||
+        null
+      );
+    }
+
+    function saveRider(rider) {
+      if (!rider) return;
+
+      state.riderProfile = rider;
+
+      localStorage.setItem(
+        CONFIG.STORAGE_KEYS.riderProfile,
+        JSON.stringify(rider)
+      );
+
+      localStorage.setItem("riderProfile", JSON.stringify(rider));
+
+      if (rider.id) {
+        state.riderId = rider.id;
+
+        saveStorage(CONFIG.STORAGE_KEYS.riderId, rider.id);
+        saveStorage("riderId", rider.id);
+      }
+
+      if (rider.email) {
+        saveStorage(CONFIG.STORAGE_KEYS.riderEmail, rider.email);
+      }
+    }
+
+    function clearRiderSession() {
+      [
+        CONFIG.STORAGE_KEYS.riderId,
+        CONFIG.STORAGE_KEYS.riderEmail,
+        CONFIG.STORAGE_KEYS.riderProfile,
+        CONFIG.STORAGE_KEYS.activeRideId,
+
+        "rider",
+        "riderId",
+        "rider_id",
+        "riderProfile",
+        "harveyRiderId",
+        "harveyRiderEmail",
+        "harveyActiveRideId"
+      ].forEach((key) => {
+        localStorage.removeItem(key);
+        sessionStorage.removeItem(key);
+      });
+    }
+
+    async function requestJson(path, options = {}) {
+      const response = await fetch(`${apiBase()}${path}`, {
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          ...(options.headers || {})
+        },
+        ...options
+      });
+
+      const text = await response.text();
+
+      let data = {};
+
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        data = {
+          ok: false,
+          error: text || "Invalid server response."
+        };
+      }
+
+      if (!response.ok || data.ok === false) {
+        throw new Error(
+          data.error ||
+          data.message ||
+          `Request failed (${response.status})`
+        );
+      }
+
+      return data;
+    }
+
+    function goHome() {
+      window.location.href = "index.html";
+    }
+
+    function goSupport() {
+      window.location.href = "support.html";
+    }
+
+    function goDriver() {
+      window.location.href = "driver-dashboard.html";
+    }
+
+    function goRide(mode = "driver") {
+      const params = new URLSearchParams();
+
+      params.set("mode", mode);
+
+      if (state.riderId) {
+        params.set("rider_id", state.riderId);
+      }
+
+      window.location.href =
+        `request-ride.html?${params.toString()}`;
+    }
+
+    function goFoodDelivery() {
+      goDelivery("food");
+    }
+
+    function goGroceryDelivery() {
+      goDelivery("grocery");
+    }
+
+    function goDelivery(type) {
+      const params = new URLSearchParams();
+
+      params.set("service_type", type);
+
+      if (state.riderId) {
+        params.set("rider_id", state.riderId);
+      }
+
+      const page =
+        type === "grocery"
+          ? "request-grocery.html"
+          : "request-food.html";
+
+      window.location.href =
+        `${page}?${params.toString()}`;
+    }
+
+    function quickDestination(label, address) {
+      if (!address) {
+        showSystemNotice(
+          `${label} saved-place editing will be added in the next frontend phase.`,
+          "success"
+        );
+
+        return;
+      }
+
+      const params = new URLSearchParams();
+
+      params.set("mode", "driver");
+      params.set("destination", address);
+
+      if (state.riderId) {
+        params.set("rider_id", state.riderId);
+      }
+
+      window.location.href =
+        `request-ride.html?${params.toString()}`;
+    }
+
+    function renderRider() {
       const rider = state.riderProfile || {};
       const approved = approvalReady(rider);
 
       const name =
         rider.full_name ||
-        [rider.first_name, rider.last_name].filter(Boolean).join(" ") ||
+        [rider.first_name, rider.last_name]
+          .filter(Boolean)
+          .join(" ") ||
         rider.email ||
         "Rider";
 
@@ -690,56 +1855,71 @@
         rider.status ||
         "pending";
 
-      document.getElementById("heroRiderName").textContent = name;
-      document.getElementById("heroApprovalState").textContent = human(approval);
-      document.getElementById("statusApproval").textContent = human(approval);
-      document.getElementById("statusRideAccess").textContent = approved ? "Open" : "Locked";
-      document.getElementById("statusDeliveryAccess").textContent = approved ? "Open" : "Locked";
-      document.getElementById("statusRiderId").textContent = state.riderId || "—";
+      els.heroRiderName.textContent = name;
+      els.heroApprovalState.textContent = human(approval);
 
-      document.getElementById("accountTitle").textContent = name;
-      document.getElementById("accountCopy").textContent = approved
+      els.statusApproval.textContent = human(approval);
+      els.statusRideAccess.textContent =
+        approved ? "Open" : "Locked";
+
+      els.statusDeliveryAccess.textContent =
+        approved ? "Open" : "Locked";
+
+      els.statusRiderId.textContent =
+        state.riderId || "—";
+
+      els.accountTitle.textContent = name;
+
+      els.accountCopy.textContent = approved
         ? "Your rider profile is ready for rides and delivery requests."
         : "Your rider profile must pass Persona verification before requesting rides or delivery.";
 
-      document.getElementById("approvalNotice").style.display = approved ? "none" : "block";
+      els.approvalNotice.style.display =
+        approved ? "none" : "block";
 
-      document.getElementById("accountPills").innerHTML = `
-        <div class="pill ${approved ? "ok" : "warn"}">${approved ? "Rider approved" : "Approval pending"}</div>
-        <div class="pill ${rider.persona_status === "approved" ? "ok" : "warn"}">Persona: ${escapeHtml(human(rider.persona_status || "not_started"))}</div>
-        <div class="pill">Rides: ${state.rides.length}</div>
-        <div class="pill">Deliveries: ${state.deliveries.length}</div>
+      els.accountPills.innerHTML = `
+        <div class="pill ${approved ? "ok" : "warn"}">
+          ${approved ? "Rider approved" : "Approval pending"}
+        </div>
+
+        <div class="pill ${
+          rider.persona_status === "approved"
+            ? "ok"
+            : "warn"
+        }">
+          Persona: ${escapeHtml(
+            human(rider.persona_status || "not_started")
+          )}
+        </div>
+
+        <div class="pill">
+          Rides: ${state.rides.length}
+        </div>
+
+        <div class="pill">
+          Deliveries: ${state.deliveries.length}
+        </div>
       `;
     }
 
-    async function requestJson(path, options = {}){
-      const response = await fetch(`${apiBase()}${path}`, {
-        headers: { "Content-Type": "application/json", ...(options.headers || {}) },
-        credentials: "include",
-        ...options
-      });
-
-      const text = await response.text();
-      let data = {};
-      try { data = text ? JSON.parse(text) : {}; } catch { data = { ok:false, error:text }; }
-
-      if (!response.ok || data.ok === false) {
-        throw new Error(data.error || data.message || "Request failed.");
-      }
-
-      return data;
-    }
-
-    async function loadRiderStatus(){
+    async function loadRiderStatus() {
       state.riderId = getStoredRiderId();
       state.riderProfile = getStoredRiderProfile();
 
-      if (state.riderProfile) renderRider();
+      if (state.riderProfile) {
+        renderRider();
+      }
 
-      if (!state.riderId && !state.riderProfile?.email) {
-        document.getElementById("heroTitle").textContent = "Finish rider setup to continue.";
-        document.getElementById("heroText").textContent =
+      if (
+        !state.riderId &&
+        !state.riderProfile?.email
+      ) {
+        els.heroTitle.textContent =
+          "Finish rider setup to continue.";
+
+        els.heroText.textContent =
           "Your rider session was not found. Sign up or restore your rider profile before requesting rides or delivery.";
+
         renderRider();
         return;
       }
@@ -749,170 +1929,508 @@
         : `email=${encodeURIComponent(state.riderProfile.email)}`;
 
       try {
-        const data = await requestJson(`/api/riders/status?${query}`);
-        if (data.rider) saveRider(data.rider);
-      } catch (error) {
-        console.log("Rider status unavailable:", error.message);
-      }
+        const data = await requestJson(
+          `/api/riders/status?${query}`
+        );
 
-      renderRider();
-    }
-
-    async function loadHistory(){
-      document.getElementById("activityLoading").style.display = "block";
-      document.getElementById("activityEmpty").style.display = "none";
-      document.getElementById("activityList").innerHTML = "";
-
-      try {
-        if (!state.riderId) {
-          state.rides = [];
-          state.deliveries = [];
-          renderActivity();
-          return;
+        if (data.rider) {
+          saveRider(data.rider);
         }
 
-        const data = await requestJson(`/api/rider/history?riderId=${encodeURIComponent(state.riderId)}`);
-
-        state.rides = Array.isArray(data.rides) ? data.rides : [];
-        state.deliveries = Array.isArray(data.deliveries) ? data.deliveries : [];
-
-        document.getElementById("heroRideCount").textContent = String(state.rides.length);
-        document.getElementById("heroDeliveryCount").textContent = String(state.deliveries.length);
+        renderRider();
+      } catch (error) {
+        console.log(
+          "Rider status unavailable:",
+          error.message
+        );
 
         renderRider();
-        renderActivity();
-      } catch (error) {
-        console.log("History unavailable:", error.message);
-
-        try {
-          const ridesData = await requestJson(`/api/rides/status?riderId=${encodeURIComponent(state.riderId)}`);
-          state.rides = Array.isArray(ridesData.rides) ? ridesData.rides : [];
-
-          const deliveryData = await requestJson(`/api/delivery/status?riderId=${encodeURIComponent(state.riderId)}`);
-          state.deliveries = Array.isArray(deliveryData.deliveries) ? deliveryData.deliveries : [];
-        } catch {}
-
-        renderActivity();
-      } finally {
-        document.getElementById("activityLoading").style.display = "none";
       }
     }
 
-    function setTab(tab){
+    function setTab(tab) {
       state.tab = tab;
-      document.getElementById("ridesTab").classList.toggle("active", tab === "rides");
-      document.getElementById("deliveriesTab").classList.toggle("active", tab === "deliveries");
+
+      els.ridesTab.classList.toggle(
+        "active",
+        tab === "rides"
+      );
+
+      els.deliveriesTab.classList.toggle(
+        "active",
+        tab === "deliveries"
+      );
+
       renderActivity();
-    }
+    }    async function loadHistory() {
+      els.activityLoading.style.display = "block";
+      els.activityEmpty.style.display = "none";
+      els.activityList.innerHTML = "";
 
-    function renderActivity(){
-      const list = document.getElementById("activityList");
-      const empty = document.getElementById("activityEmpty");
-      list.innerHTML = "";
-
-      const items = state.tab === "rides" ? state.rides : state.deliveries;
-
-      if (!items.length) {
-        empty.style.display = "block";
+      if (!state.riderId) {
+        state.rides = [];
+        state.deliveries = [];
+        renderActivity();
+        els.activityLoading.style.display = "none";
         return;
       }
 
-      empty.style.display = "none";
+      try {
+        const data = await requestJson(
+          `/api/rider/history?riderId=${encodeURIComponent(state.riderId)}`
+        );
+
+        state.rides = Array.isArray(data.rides)
+          ? data.rides
+          : [];
+
+        state.deliveries = Array.isArray(data.deliveries)
+          ? data.deliveries
+          : [];
+
+      } catch (error) {
+        console.log("Unified history unavailable:", error.message);
+
+        try {
+          const ridesData = await requestJson(
+            `/api/rides/status?riderId=${encodeURIComponent(state.riderId)}`
+          );
+
+          state.rides = Array.isArray(ridesData.rides)
+            ? ridesData.rides
+            : Array.isArray(ridesData.data)
+              ? ridesData.data
+              : [];
+
+        } catch (rideError) {
+          console.log("Ride fallback unavailable:", rideError.message);
+          state.rides = [];
+        }
+
+        try {
+          const deliveryData = await requestJson(
+            `/api/delivery/status?riderId=${encodeURIComponent(state.riderId)}`
+          );
+
+          state.deliveries = Array.isArray(deliveryData.deliveries)
+            ? deliveryData.deliveries
+            : Array.isArray(deliveryData.orders)
+              ? deliveryData.orders
+              : Array.isArray(deliveryData.data)
+                ? deliveryData.data
+                : [];
+
+        } catch (deliveryError) {
+          console.log("Delivery fallback unavailable:", deliveryError.message);
+          state.deliveries = [];
+        }
+      } finally {
+        els.heroRideCount.textContent =
+          String(state.rides.length);
+
+        els.heroDeliveryCount.textContent =
+          String(state.deliveries.length);
+
+        renderRider();
+        renderActivity();
+
+        els.activityLoading.style.display = "none";
+      }
+    }
+
+    function normalizeItemTitle(item, isDelivery) {
+      if (isDelivery) {
+        return `${human(
+          item.service_type ||
+          item.delivery_type ||
+          item.type ||
+          "delivery"
+        )} Delivery`;
+      }
+
+      return `${human(
+        item.requested_mode ||
+        item.requestedMode ||
+        item.mode ||
+        "driver"
+      )} Ride`;
+    }
+
+    function normalizeItemPickup(item) {
+      return (
+        item.pickup_address ||
+        item.pickupAddress ||
+        item.pickup ||
+        item.store_address ||
+        item.restaurant_address ||
+        "Pickup unavailable"
+      );
+    }
+
+    function normalizeItemDropoff(item) {
+      return (
+        item.dropoff_address ||
+        item.dropoffAddress ||
+        item.destination_address ||
+        item.destinationAddress ||
+        item.destination ||
+        item.dropoff ||
+        "Dropoff unavailable"
+      );
+    }
+
+    function normalizeItemAmount(item, isDelivery) {
+      if (isDelivery) {
+        return (
+          item.total ||
+          item.total_amount ||
+          item.estimated_total ||
+          item.amount ||
+          item.delivery_total
+        );
+      }
+
+      return (
+        item.fare_total ||
+        item.final_total ||
+        item.estimated_total ||
+        item.estimated_fare ||
+        item.fare ||
+        item.amount
+      );
+    }
+
+    function normalizeItemId(item) {
+      return (
+        item.id ||
+        item.ride_id ||
+        item.rideId ||
+        item.order_id ||
+        item.orderId ||
+        item.delivery_id ||
+        item.deliveryId ||
+        "—"
+      );
+    }
+
+    function renderActivity() {
+      els.activityList.innerHTML = "";
+
+      const isDelivery = state.tab === "deliveries";
+      const items = isDelivery ? state.deliveries : state.rides;
+
+      if (!items.length) {
+        els.activityEmpty.style.display = "block";
+        return;
+      }
+
+      els.activityEmpty.style.display = "none";
 
       items.slice(0, 12).forEach((item) => {
-        const isDelivery = state.tab === "deliveries";
-
-        const pickup = item.pickup_address || item.pickup || "Pickup unavailable";
-        const dropoff = item.dropoff_address || item.dropoff || item.destination || "Dropoff unavailable";
-        const title = isDelivery
-          ? `${human(item.service_type)} Delivery`
-          : `${human(item.requested_mode || "driver")} Ride`;
-
-        const amount = isDelivery
-          ? item.total
-          : item.fare_total || item.final_total || item.estimated_total || item.fare || item.amount;
+        const pickup = normalizeItemPickup(item);
+        const dropoff = normalizeItemDropoff(item);
+        const title = normalizeItemTitle(item, isDelivery);
+        const amount = normalizeItemAmount(item, isDelivery);
+        const id = normalizeItemId(item);
+        const status = item.status || item.ride_status || item.delivery_status || "pending";
 
         const card = document.createElement("div");
-        card.className = "trip-card";
+        card.className = isDelivery ? "order-card" : "trip-card";
+
         card.innerHTML = `
           <div class="trip-top">
             <div>
-              <div class="trip-title">${escapeHtml(title)}</div>
-              <div class="trip-sub">${escapeHtml(pickup)} → ${escapeHtml(dropoff)}</div>
+              <div class="trip-title">
+                ${escapeHtml(title)}
+              </div>
+
+              <div class="trip-sub">
+                ${escapeHtml(pickup)} → ${escapeHtml(dropoff)}
+              </div>
             </div>
-            <div class="trip-status ${statusClass(item.status)}">${escapeHtml(human(item.status))}</div>
+
+            <div class="trip-status ${statusClass(status)}">
+              ${escapeHtml(human(status))}
+            </div>
           </div>
 
           <div class="trip-meta">
             <div class="meta-card">
               <small>${isDelivery ? "Service" : "Mode"}</small>
-              <span>${escapeHtml(human(isDelivery ? item.service_type : item.requested_mode || "driver"))}</span>
+              <span>
+                ${escapeHtml(
+                  human(
+                    isDelivery
+                      ? item.service_type || item.delivery_type || "delivery"
+                      : item.requested_mode || item.requestedMode || "driver"
+                  )
+                )}
+              </span>
             </div>
+
             <div class="meta-card">
               <small>Total</small>
               <span>${escapeHtml(money(amount))}</span>
             </div>
+
             <div class="meta-card">
               <small>ID</small>
-              <span>${escapeHtml(item.id || "—")}</span>
+              <span>${escapeHtml(id)}</span>
             </div>
           </div>
 
           ${
-            item.status === "completed" || item.status === "delivered"
-              ? `<div class="actions"><button class="btn success" onclick="tipDriver('${escapeHtml(item.id)}','${isDelivery ? "delivery" : "ride"}')">Tip Driver</button></div>`
+            ["completed", "complete", "delivered"].includes(String(status).toLowerCase())
+              ? `
+                <div class="actions">
+                  <button
+                    class="btn success"
+                    type="button"
+                    data-tip-id="${escapeHtml(id)}"
+                    data-tip-type="${isDelivery ? "delivery" : "ride"}"
+                  >
+                    Tip Driver
+                  </button>
+                </div>
+              `
               : ""
           }
         `;
 
-        list.appendChild(card);
+        els.activityList.appendChild(card);
       });
     }
 
-    async function startPersona(){
+    async function startPersona() {
       if (!state.riderId && !state.riderProfile?.email) {
-        alert("Rider profile not found. Please sign up first.");
-        window.location.href = "rider-signup.html";
+        showSystemNotice(
+          "Rider profile not found. Please sign up first.",
+          "danger"
+        );
+
+        window.setTimeout(() => {
+          window.location.href = "rider-signup.html";
+        }, 700);
+
         return;
       }
 
       try {
-        const data = await requestJson("/api/riders/start-persona", {
-          method: "POST",
-          body: JSON.stringify({
-            riderId: state.riderId,
-            email: state.riderProfile?.email
-          })
-        });
+        const data = await requestJson(
+          "/api/riders/start-persona",
+          {
+            method: "POST",
+            body: JSON.stringify({
+              riderId: state.riderId,
+              rider_id: state.riderId,
+              email: state.riderProfile?.email
+            })
+          }
+        );
 
-        const url = data?.persona?.hostedUrl || data?.persona?.hosted_url;
+        const url =
+          data?.persona?.hostedUrl ||
+          data?.persona?.hosted_url ||
+          data?.hostedUrl ||
+          data?.hosted_url ||
+          data?.url;
 
         if (url) {
           window.location.href = url;
           return;
         }
 
-        alert(data.message || "Persona verification started. Check your verification flow.");
+        showSystemNotice(
+          data.message ||
+            "Persona verification started. Check your verification flow.",
+          "success"
+        );
+
       } catch (error) {
-        alert(error.message || "Could not start Persona verification.");
+        showSystemNotice(
+          error.message || "Could not start Persona verification.",
+          "danger"
+        );
       }
     }
 
-    function tipDriver(id, type){
-      alert(`Tip flow will open next. ${type}: ${id}`);
+    async function sendSupportRequest() {
+      const subject = safe(els.quickSupportSubject?.value);
+      const message = safe(els.quickSupportMessage?.value);
+
+      if (!subject || subject.length < 3) {
+        showSystemNotice("Please enter a support subject.", "danger");
+        return;
+      }
+
+      if (!message || message.length < 8) {
+        showSystemNotice("Please enter a short support message.", "danger");
+        return;
+      }
+
+      try {
+        await requestJson("/api/support/request", {
+          method: "POST",
+          body: JSON.stringify({
+            riderId: state.riderId || null,
+            rider_id: state.riderId || null,
+            email: state.riderProfile?.email || "",
+            subject,
+            message,
+            source: "rider-dashboard.html"
+          })
+        });
+
+        showSystemNotice(
+          "Support request sent. Harvey Taxi support will review it.",
+          "success"
+        );
+
+        if (els.quickSupportSubject) els.quickSupportSubject.value = "";
+        if (els.quickSupportMessage) els.quickSupportMessage.value = "";
+
+      } catch (error) {
+        showSystemNotice(
+          error.message ||
+            "Support request could not be sent. Please open Support instead.",
+          "danger"
+        );
+      }
     }
 
-    async function refreshAll(){
+    function tipDriver(id, type) {
+      const params = new URLSearchParams();
+
+      params.set("type", type || "ride");
+      params.set("id", id || "");
+
+      if (state.riderId) {
+        params.set("rider_id", state.riderId);
+      }
+
+      window.location.href = `tip-driver.html?${params.toString()}`;
+    }
+
+    async function refreshAll() {
+      hideSystemNotice();
       await loadRiderStatus();
       await loadHistory();
+
+      showSystemNotice(
+        "Dashboard refreshed successfully.",
+        "success"
+      );
     }
 
-    async function boot(){
-      await loadRiderStatus();
-      await loadHistory();
+    function logout() {
+      clearRiderSession();
+      window.location.href = "index.html";
     }
 
-    boot();
+    function handleAction(action) {
+      switch (action) {
+        case "home":
+          goHome();
+          break;
+
+        case "support":
+          goSupport();
+          break;
+
+        case "ride":
+          goRide("driver");
+          break;
+
+        case "autonomous":
+          goRide("autonomous");
+          break;
+
+        case "food":
+          goFoodDelivery();
+          break;
+
+        case "grocery":
+          goGroceryDelivery();
+          break;
+
+        case "driver":
+          goDriver();
+          break;
+
+        default:
+          break;
+      }
+    }
+
+    function bindEvents() {
+      document.querySelectorAll("[data-action]").forEach((button) => {
+        button.addEventListener("click", () => {
+          handleAction(button.dataset.action);
+        });
+      });
+
+      document.querySelectorAll("[data-tab]").forEach((button) => {
+        button.addEventListener("click", () => {
+          setTab(button.dataset.tab);
+        });
+      });
+
+      document.querySelectorAll("[data-place]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const label =
+            button.dataset.place === "airport"
+              ? "BNA Airport"
+              : human(button.dataset.place);
+
+          quickDestination(label, button.dataset.address || "");
+        });
+      });
+
+      document.addEventListener("click", (event) => {
+        const tipButton = event.target.closest("[data-tip-id]");
+
+        if (tipButton) {
+          tipDriver(
+            tipButton.dataset.tipId,
+            tipButton.dataset.tipType
+          );
+        }
+      });
+
+      document
+        .getElementById("personaBtn")
+        ?.addEventListener("click", startPersona);
+
+      document
+        .getElementById("refreshBtn")
+        ?.addEventListener("click", refreshAll);
+
+      document
+        .getElementById("logoutBtn")
+        ?.addEventListener("click", logout);
+
+      document
+        .getElementById("sendSupportBtn")
+        ?.addEventListener("click", sendSupportRequest);
+    }
+
+    async function boot() {
+      bindEvents();
+
+      try {
+        await loadRiderStatus();
+        await loadHistory();
+      } catch (error) {
+        console.log("Dashboard boot warning:", error.message);
+
+        showSystemNotice(
+          "Dashboard loaded, but some live data could not be reached.",
+          "danger"
+        );
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", boot);
   </script>
 </body>
-          </html>
+</html>
