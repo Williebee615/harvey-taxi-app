@@ -1054,4 +1054,1623 @@
                 </select>
               </div>
 
+            </div>            <!-- SCHEDULED TIME -->
+            <div class="field" id="scheduledRideBlock">
+              <label for="scheduledTime">
+                Scheduled Pickup Time
+              </label>
+
+              <div class="input-wrap">
+                <input
+                  id="scheduledTime"
+                  type="datetime-local"
+                />
+              </div>
+
+              <small>
+                Optional for standard rides. Required when
+                “Scheduled Ride” is selected.
+              </small>
             </div>
+
+            <!-- NOTES -->
+            <div class="field">
+              <label for="rideNotes">
+                Ride Notes
+              </label>
+
+              <textarea
+                id="rideNotes"
+                placeholder="Gate code, pickup details, accessibility needs, or special notes..."
+              ></textarea>
+
+              <small>
+                Do not place emergency requests here. For emergencies,
+                call 911 immediately.
+              </small>
+            </div>
+
+            <!-- ESTIMATE DETAILS -->
+            <div class="details">
+
+              <div class="detail-card">
+                <span>Estimated Fare</span>
+                <strong id="fareEstimateText">
+                  Not calculated
+                </strong>
+              </div>
+
+              <div class="detail-card">
+                <span>Trip Distance</span>
+                <strong id="distanceText">
+                  Pending
+                </strong>
+              </div>
+
+              <div class="detail-card">
+                <span>Estimated Time</span>
+                <strong id="durationText">
+                  Pending
+                </strong>
+              </div>
+
+            </div>
+
+            <!-- PAYMENT / DISPATCH ACTIONS -->
+            <div class="actions">
+
+              <button
+                type="button"
+                class="secondary-btn"
+                id="checkRiderBtn"
+              >
+                Check Rider Approval
+              </button>
+
+              <button
+                type="button"
+                class="secondary-btn"
+                id="estimateBtn"
+              >
+                Get Fare Estimate
+              </button>
+
+              <button
+                type="button"
+                class="secondary-btn"
+                id="authorizePaymentBtn"
+                disabled
+              >
+                Authorize Payment
+              </button>
+
+              <button
+                type="submit"
+                class="primary-btn"
+                id="requestRideBtn"
+                disabled
+              >
+                Request Dispatch
+              </button>
+
+            </div>
+
+          </form>
+        </div>
+      </section>
+
+      <!-- LOWER PANELS -->
+      <section class="panels">
+
+        <div class="panel">
+          <h3>
+            What Happens Next
+          </h3>
+
+          <p>
+            Harvey Taxi checks rider approval, estimates the trip,
+            authorizes payment when required, then sends the request
+            into dispatch for driver matching.
+          </p>
+
+          <div class="mini-list">
+
+            <a href="/rider-dashboard.html">
+              Open Rider Dashboard
+            </a>
+
+            <a href="/support.html">
+              Contact Harvey Taxi Support
+            </a>
+
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>
+            Delivery & Foundation Access
+          </h3>
+
+          <p>
+            Harvey Taxi is being built as a mobility platform with
+            ride support, delivery expansion, and transportation
+            assistance through the Harvey Transportation Assistance
+            Foundation.
+          </p>
+
+          <div class="mini-list">
+
+            <a href="/request-food.html">
+              Request Food Delivery
+            </a>
+
+            <a href="/request-groceries.html">
+              Request Groceries
+            </a>
+
+            <a href="/foundation.html">
+              Visit Foundation Page
+            </a>
+
+          </div>
+        </div>
+
+      </section>
+
+      <!-- LIVE REQUEST SUMMARY -->
+      <section class="panels">
+
+        <div class="panel">
+          <h3>
+            Live Request Status
+          </h3>
+
+          <p id="liveStatusText">
+            Complete the form and start with rider approval.
+          </p>
+
+          <div class="mini-list">
+
+            <button
+              type="button"
+              id="refreshStatusBtn"
+            >
+              Refresh Current Ride Status
+            </button>
+
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>
+            Safety Notice
+          </h3>
+
+          <p>
+            Harvey Taxi is not an emergency service. If you are in
+            immediate danger or need urgent medical assistance,
+            call 911 now.
+          </p>
+
+          <div class="mini-list">
+
+            <a href="/safety.html">
+              View Safety Information
+            </a>
+
+            <a href="/terms.html">
+              Terms & Policies
+            </a>
+
+          </div>
+        </div>
+
+      </section>
+
+      <p class="footer-note">
+        Harvey Taxi Service LLC • Tennessee ride access • Driver,
+        autonomous pilot, food delivery, grocery delivery, and
+        foundation support features may vary by availability,
+        approval status, and live operations.
+      </p>
+
+    </div>
+  </div>
+
+  <script>
+    /**
+     * Harvey Taxi — Request Ride
+     * Code Blue production-safe frontend controller
+     *
+     * This file is designed to work with the upgraded Harvey Taxi
+     * Supabase-backed server.js architecture:
+     *
+     * - rider approval gate
+     * - payment authorization gate
+     * - fare estimate before dispatch
+     * - requestedMode support: driver / autonomous / food / grocery
+     * - ride_id compatible response handling
+     * - graceful fallback if location, maps, or optional endpoints fail
+     */
+
+    const CONFIG = {
+      API_BASE:
+        window.HARVEY_API_BASE ||
+        window.location.origin ||
+        "https://harvey-taxi-app-2.onrender.com",
+
+      DASHBOARD_URL: "/rider-dashboard.html",
+      SUPPORT_URL: "/support.html",
+      FOUNDATION_URL: "/foundation.html",
+
+      ENDPOINTS: {
+        health: "/api/health",
+
+        riderLookup: "/api/riders/lookup",
+        riderStatus: "/api/rider/status",
+        riderApproval: "/api/rider/approval-status",
+
+        fareEstimate: "/api/fare-estimate",
+        estimateRide: "/api/estimate-ride",
+
+        authorizePayment: "/api/payments/authorize",
+        requestRide: "/api/request-ride",
+
+        rideStatus: "/api/rides/status",
+        currentRide: "/api/rider/current-ride"
+      },
+
+      STORAGE_KEYS: {
+        riderId: "harvey_rider_id",
+        riderEmail: "harvey_rider_email",
+        riderName: "harvey_rider_name",
+        riderPhone: "harvey_rider_phone",
+        lastRideId: "harvey_last_ride_id",
+        lastPaymentId: "harvey_last_payment_id",
+        requestMode: "harvey_request_mode"
+      },
+
+      REQUIRE_RIDER_APPROVAL: true,
+      REQUIRE_PAYMENT_AUTHORIZATION: true,
+
+      DEFAULT_MODE: "driver"
+    };
+
+    const state = {
+      mode: CONFIG.DEFAULT_MODE,
+
+      rider: {
+        id: "",
+        name: "",
+        phone: "",
+        email: "",
+        approved: false,
+        verified: false,
+        status: "unknown"
+      },
+
+      pickup: {
+        address: "",
+        latitude: null,
+        longitude: null,
+        source: "manual"
+      },
+
+      destination: {
+        address: ""
+      },
+
+      estimate: {
+        ready: false,
+        fare: null,
+        distance: null,
+        duration: null,
+        raw: null
+      },
+
+      payment: {
+        authorized: false,
+        paymentId: "",
+        clientSecret: "",
+        raw: null
+      },
+
+      ride: {
+        requested: false,
+        rideId: "",
+        status: "not_requested",
+        raw: null
+      },
+
+      ui: {
+        busy: false,
+        lastAction: ""
+      }
+    };
+
+    const $ = (id) => document.getElementById(id);
+
+    const els = {
+      heroEyebrowText: $("heroEyebrowText"),
+      heroTitle: $("heroTitle"),
+      heroCopy: $("heroCopy"),
+
+      requestCardTitle: $("requestCardTitle"),
+      requestCardCopy: $("requestCardCopy"),
+      statusBadgeText: $("statusBadgeText"),
+
+      noticeBox: $("noticeBox"),
+
+      rideForm: $("rideForm"),
+
+      riderName: $("riderName"),
+      riderPhone: $("riderPhone"),
+      riderEmail: $("riderEmail"),
+
+      pickupAddress: $("pickupAddress"),
+      destinationAddress: $("destinationAddress"),
+      rideType: $("rideType"),
+      passengerCount: $("passengerCount"),
+      scheduledTime: $("scheduledTime"),
+      rideNotes: $("rideNotes"),
+
+      locationStatusText: $("locationStatusText"),
+
+      detectLocationBtn: $("detectLocationBtn"),
+      checkRiderBtn: $("checkRiderBtn"),
+      estimateBtn: $("estimateBtn"),
+      authorizePaymentBtn: $("authorizePaymentBtn"),
+      requestRideBtn: $("requestRideBtn"),
+      refreshStatusBtn: $("refreshStatusBtn"),
+
+      fareEstimateText: $("fareEstimateText"),
+      distanceText: $("distanceText"),
+      durationText: $("durationText"),
+      liveStatusText: $("liveStatusText"),
+
+      modeButtons: Array.from(document.querySelectorAll(".mode-chip"))
+    };    function safeTrim(value) {
+      return String(value || "").trim();
+    }
+
+    function safeLower(value) {
+      return safeTrim(value).toLowerCase();
+    }
+
+    function money(value) {
+      const amount = Number(value);
+
+      if (!Number.isFinite(amount)) {
+        return "Pending";
+      }
+
+      return amount.toLocaleString("en-US", {
+        style: "currency",
+        currency: "USD"
+      });
+    }
+
+    function readStorage(key) {
+      try {
+        return localStorage.getItem(key) || "";
+      } catch (error) {
+        return "";
+      }
+    }
+
+    function writeStorage(key, value) {
+      try {
+        if (value === undefined || value === null || value === "") {
+          localStorage.removeItem(key);
+          return;
+        }
+
+        localStorage.setItem(key, String(value));
+      } catch (error) {
+        // Storage can fail in private mode. Do not block rider flow.
+      }
+    }
+
+    function getQueryParam(name) {
+      const params = new URLSearchParams(window.location.search);
+      return safeLower(params.get(name));
+    }
+
+    function setBusy(button, isBusy, busyText) {
+      if (!button) return;
+
+      if (isBusy) {
+        button.dataset.originalText = button.textContent;
+        button.disabled = true;
+        button.innerHTML = `
+          <span class="loading-inline">
+            <span class="spinner"></span>
+            <span>${busyText || "Processing..."}</span>
+          </span>
+        `;
+        return;
+      }
+
+      const originalText = button.dataset.originalText;
+      if (originalText) {
+        button.textContent = originalText;
+      }
+
+      button.disabled = false;
+    }
+
+    function showNotice(message, type = "warning") {
+      if (!els.noticeBox) return;
+
+      els.noticeBox.textContent = message;
+      els.noticeBox.className = `notice show ${type}`;
+    }
+
+    function clearNotice() {
+      if (!els.noticeBox) return;
+
+      els.noticeBox.textContent = "";
+      els.noticeBox.className = "notice";
+    }
+
+    function setLiveStatus(message) {
+      if (els.liveStatusText) {
+        els.liveStatusText.textContent = message;
+      }
+    }
+
+    function setBadge(message) {
+      if (els.statusBadgeText) {
+        els.statusBadgeText.textContent = message;
+      }
+    }
+
+    function normalizeMode(mode) {
+      const clean = safeLower(mode);
+
+      if (["driver", "autonomous", "food", "grocery"].includes(clean)) {
+        return clean;
+      }
+
+      if (clean === "groceries") {
+        return "grocery";
+      }
+
+      if (clean === "delivery") {
+        return "food";
+      }
+
+      return CONFIG.DEFAULT_MODE;
+    }
+
+    function getModeContent(mode) {
+      const content = {
+        driver: {
+          eyebrow: "LIVE RIDE REQUEST SYSTEM",
+          title: "Request Your Ride",
+          copy:
+            "Harvey Taxi connects approved riders with drivers, dispatch systems, and payment-first ride flow support.",
+          cardTitle: "Ride Request",
+          cardCopy: "Complete the secure ride request flow below.",
+          badge: "Dispatch Ready"
+        },
+
+        autonomous: {
+          eyebrow: "AUTONOMOUS PILOT MODE",
+          title: "Request Autonomous Pilot",
+          copy:
+            "This mode is clearly labeled for Harvey Taxi autonomous pilot development and future AV-ready operations.",
+          cardTitle: "Autonomous Pilot Request",
+          cardCopy:
+            "Submit a clearly labeled autonomous pilot request where available.",
+          badge: "Pilot Mode"
+        },
+
+        food: {
+          eyebrow: "FOOD DELIVERY ACCESS",
+          title: "Request Food Delivery",
+          copy:
+            "Harvey Taxi delivery expansion can support food pickup and delivery through the same secure request foundation.",
+          cardTitle: "Food Delivery Request",
+          cardCopy:
+            "Use this flow for food delivery if your backend supports unified service requests.",
+          badge: "Food Delivery"
+        },
+
+        grocery: {
+          eyebrow: "GROCERY DELIVERY ACCESS",
+          title: "Request Groceries",
+          copy:
+            "Harvey Taxi grocery support helps expand transportation assistance into essential household access.",
+          cardTitle: "Grocery Delivery Request",
+          cardCopy:
+            "Use this flow for grocery delivery if your backend supports unified service requests.",
+          badge: "Groceries"
+        }
+      };
+
+      return content[mode] || content.driver;
+    }
+
+    function applyMode(mode) {
+      const nextMode = normalizeMode(mode);
+      const copy = getModeContent(nextMode);
+
+      state.mode = nextMode;
+      writeStorage(CONFIG.STORAGE_KEYS.requestMode, nextMode);
+
+      els.modeButtons.forEach((button) => {
+        const isActive = normalizeMode(button.dataset.mode) === nextMode;
+        button.classList.toggle("active", isActive);
+      });
+
+      if (els.heroEyebrowText) els.heroEyebrowText.textContent = copy.eyebrow;
+      if (els.heroTitle) els.heroTitle.textContent = copy.title;
+      if (els.heroCopy) els.heroCopy.textContent = copy.copy;
+
+      if (els.requestCardTitle) els.requestCardTitle.textContent = copy.cardTitle;
+      if (els.requestCardCopy) els.requestCardCopy.textContent = copy.cardCopy;
+
+      setBadge(copy.badge);
+
+      if (nextMode === "food") {
+        if (els.destinationAddress) {
+          els.destinationAddress.placeholder =
+            "Restaurant name/address and delivery destination";
+        }
+
+        if (els.rideNotes) {
+          els.rideNotes.placeholder =
+            "Order details, restaurant name, pickup instructions, delivery notes...";
+        }
+      } else if (nextMode === "grocery") {
+        if (els.destinationAddress) {
+          els.destinationAddress.placeholder =
+            "Store name/address and delivery destination";
+        }
+
+        if (els.rideNotes) {
+          els.rideNotes.placeholder =
+            "Store name, grocery notes, delivery instructions, substitutions...";
+        }
+      } else {
+        if (els.destinationAddress) {
+          els.destinationAddress.placeholder = "Enter destination";
+        }
+
+        if (els.rideNotes) {
+          els.rideNotes.placeholder =
+            "Gate code, pickup details, accessibility needs, or special notes...";
+        }
+      }
+
+      resetEstimateAndPayment(
+        "Mode changed. Please re-check estimate and payment authorization."
+      );
+    }
+
+    function hydrateFromStorage() {
+      const storedName = readStorage(CONFIG.STORAGE_KEYS.riderName);
+      const storedPhone = readStorage(CONFIG.STORAGE_KEYS.riderPhone);
+      const storedEmail = readStorage(CONFIG.STORAGE_KEYS.riderEmail);
+      const storedRiderId = readStorage(CONFIG.STORAGE_KEYS.riderId);
+      const storedRideId = readStorage(CONFIG.STORAGE_KEYS.lastRideId);
+
+      if (els.riderName && storedName) els.riderName.value = storedName;
+      if (els.riderPhone && storedPhone) els.riderPhone.value = storedPhone;
+      if (els.riderEmail && storedEmail) els.riderEmail.value = storedEmail;
+
+      state.rider.name = storedName;
+      state.rider.phone = storedPhone;
+      state.rider.email = storedEmail;
+      state.rider.id = storedRiderId;
+      state.ride.rideId = storedRideId;
+
+      const queryMode =
+        getQueryParam("mode") ||
+        getQueryParam("service") ||
+        getQueryParam("type");
+
+      const storedMode = readStorage(CONFIG.STORAGE_KEYS.requestMode);
+      applyMode(queryMode || storedMode || CONFIG.DEFAULT_MODE);
+    }
+
+    function syncRiderFromForm() {
+      state.rider.name = safeTrim(els.riderName?.value);
+      state.rider.phone = safeTrim(els.riderPhone?.value);
+      state.rider.email = safeLower(els.riderEmail?.value);
+
+      writeStorage(CONFIG.STORAGE_KEYS.riderName, state.rider.name);
+      writeStorage(CONFIG.STORAGE_KEYS.riderPhone, state.rider.phone);
+      writeStorage(CONFIG.STORAGE_KEYS.riderEmail, state.rider.email);
+    }
+
+    function syncTripFromForm() {
+      state.pickup.address = safeTrim(els.pickupAddress?.value);
+      state.destination.address = safeTrim(els.destinationAddress?.value);
+    }
+
+    function isValidEmail(email) {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(safeTrim(email));
+    }
+
+    function normalizePhone(phone) {
+      return safeTrim(phone).replace(/[^\d+]/g, "");
+    }
+
+    function validateRiderFields() {
+      syncRiderFromForm();
+
+      if (!state.rider.name || state.rider.name.length < 2) {
+        return "Please enter your full name.";
+      }
+
+      if (!state.rider.email || !isValidEmail(state.rider.email)) {
+        return "Please enter a valid email address.";
+      }
+
+      const cleanPhone = normalizePhone(state.rider.phone);
+
+      if (!cleanPhone || cleanPhone.length < 10) {
+        return "Please enter a valid phone number.";
+      }
+
+      return "";
+    }
+
+    function validateTripFields() {
+      syncTripFromForm();
+
+      if (!state.pickup.address || state.pickup.address.length < 5) {
+        return "Please enter your pickup location.";
+      }
+
+      if (!state.destination.address || state.destination.address.length < 5) {
+        return "Please enter your destination.";
+      }
+
+      if (els.rideType?.value === "scheduled" && !els.scheduledTime?.value) {
+        return "Please choose a scheduled pickup time.";
+      }
+
+      if (els.scheduledTime?.value) {
+        const scheduledDate = new Date(els.scheduledTime.value);
+        const now = new Date();
+
+        if (Number.isNaN(scheduledDate.getTime())) {
+          return "Please choose a valid scheduled pickup time.";
+        }
+
+        if (scheduledDate.getTime() < now.getTime() + 10 * 60 * 1000) {
+          return "Scheduled pickup time must be at least 10 minutes from now.";
+        }
+      }
+
+      return "";
+    }
+
+    function resetEstimateAndPayment(reason) {
+      state.estimate = {
+        ready: false,
+        fare: null,
+        distance: null,
+        duration: null,
+        raw: null
+      };
+
+      state.payment = {
+        authorized: false,
+        paymentId: "",
+        clientSecret: "",
+        raw: null
+      };
+
+      if (els.fareEstimateText) els.fareEstimateText.textContent = "Not calculated";
+      if (els.distanceText) els.distanceText.textContent = "Pending";
+      if (els.durationText) els.durationText.textContent = "Pending";
+
+      if (els.authorizePaymentBtn) {
+        els.authorizePaymentBtn.disabled = true;
+      }
+
+      if (els.requestRideBtn) {
+        els.requestRideBtn.disabled = true;
+      }
+
+      if (reason) {
+        setLiveStatus(reason);
+      }
+    }
+
+    async function apiFetch(path, options = {}) {
+      const url = `${CONFIG.API_BASE}${path}`;
+
+      const headers = {
+        "Content-Type": "application/json",
+        ...(options.headers || {})
+      };
+
+      const response = await fetch(url, {
+        ...options,
+        headers
+      });
+
+      let data = null;
+
+      try {
+        data = await response.json();
+      } catch (error) {
+        data = {
+          ok: false,
+          error: "Server returned a non-JSON response."
+        };
+      }
+
+      if (!response.ok) {
+        const message =
+          data?.error ||
+          data?.message ||
+          `Request failed with status ${response.status}`;
+
+        const apiError = new Error(message);
+        apiError.status = response.status;
+        apiError.data = data;
+        throw apiError;
+      }
+
+      return data;
+    }
+
+    async function apiPost(path, body) {
+      return apiFetch(path, {
+        method: "POST",
+        body: JSON.stringify(body || {})
+      });
+    }
+
+    function pickFirstValue(source, keys, fallback = "") {
+      for (const key of keys) {
+        if (source && source[key] !== undefined && source[key] !== null) {
+          return source[key];
+        }
+      }
+
+      return fallback;
+    }
+
+    function normalizeApprovalPayload(data) {
+      const rider =
+        data?.rider ||
+        data?.data?.rider ||
+        data?.profile ||
+        data?.user ||
+        data ||
+        {};
+
+      const riderId = pickFirstValue(rider, [
+        "id",
+        "rider_id",
+        "riderId",
+        "uuid"
+      ]);
+
+      const status = safeLower(
+        pickFirstValue(rider, [
+          "approval_status",
+          "verification_status",
+          "status",
+          "rider_status"
+        ], "unknown")
+      );
+
+      const approvedFlag =
+        rider?.approved === true ||
+        rider?.is_approved === true ||
+        rider?.rider_approved === true ||
+        data?.approved === true ||
+        data?.is_approved === true;
+
+      const verifiedFlag =
+        rider?.verified === true ||
+        rider?.is_verified === true ||
+        rider?.phone_verified === true ||
+        data?.verified === true;
+
+      const approvedByStatus = [
+        "approved",
+        "active",
+        "verified",
+        "ready",
+        "complete"
+      ].includes(status);
+
+      return {
+        id: riderId || "",
+        status,
+        approved: Boolean(approvedFlag || approvedByStatus),
+        verified: Boolean(verifiedFlag || approvedByStatus),
+        raw: data
+      };
+    }
+
+    async function checkRiderApproval() {
+      const validationError = validateRiderFields();
+
+      if (validationError) {
+        showNotice(validationError, "warning");
+        return false;
+      }
+
+      setBusy(els.checkRiderBtn, true, "Checking rider...");
+      clearNotice();
+      setLiveStatus("Checking rider approval status...");
+
+      const payload = {
+        email: state.rider.email,
+        phone: state.rider.phone,
+        name: state.rider.name
+      };
+
+      const endpointsToTry = [
+        CONFIG.ENDPOINTS.riderApproval,
+        CONFIG.ENDPOINTS.riderStatus,
+        CONFIG.ENDPOINTS.riderLookup
+      ];
+
+      try {
+        let data = null;
+        let lastError = null;
+
+        for (const endpoint of endpointsToTry) {
+          try {
+            data = await apiPost(endpoint, payload);
+            break;
+          } catch (error) {
+            lastError = error;
+          }
+        }
+
+        if (!data && lastError) {
+          throw lastError;
+        }
+
+        const normalized = normalizeApprovalPayload(data);
+
+        state.rider.id = normalized.id || state.rider.id;
+        state.rider.status = normalized.status;
+        state.rider.approved = normalized.approved;
+        state.rider.verified = normalized.verified;
+
+        if (state.rider.id) {
+          writeStorage(CONFIG.STORAGE_KEYS.riderId, state.rider.id);
+        }
+
+        if (!state.rider.approved && CONFIG.REQUIRE_RIDER_APPROVAL) {
+          showNotice(
+            "Your rider profile is not approved yet. Please complete rider verification or contact Harvey Taxi support.",
+            "warning"
+          );
+
+          setLiveStatus("Rider approval is required before dispatch.");
+          setBadge("Approval Needed");
+
+          return false;
+        }
+
+        showNotice(
+          "Rider approval confirmed. You can now get your fare estimate.",
+          "success"
+        );
+
+        setLiveStatus("Rider approval confirmed. Next step: fare estimate.");
+        setBadge("Rider Approved");
+
+        return true;
+      } catch (error) {
+        showNotice(
+          error?.message ||
+            "Unable to confirm rider approval. Please try again or contact support.",
+          "error"
+        );
+
+        setLiveStatus("Rider approval check failed.");
+        setBadge("Check Failed");
+
+        return false;
+      } finally {
+        setBusy(els.checkRiderBtn, false);
+      }
+    }
+
+    function detectLocation() {
+      if (!navigator.geolocation) {
+        showNotice(
+          "Location is not supported on this device. Please enter pickup address manually.",
+          "warning"
+        );
+        return;
+      }
+
+      setBusy(els.detectLocationBtn, true, "Detecting...");
+      setLiveStatus("Requesting location permission...");
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          state.pickup.latitude = position.coords.latitude;
+          state.pickup.longitude = position.coords.longitude;
+          state.pickup.source = "browser_geolocation";
+
+          const locationText =
+            `Current location detected (${state.pickup.latitude.toFixed(5)}, ` +
+            `${state.pickup.longitude.toFixed(5)})`;
+
+          if (els.pickupAddress && !safeTrim(els.pickupAddress.value)) {
+            els.pickupAddress.value = "Current GPS Location";
+          }
+
+          if (els.locationStatusText) {
+            els.locationStatusText.textContent =
+              "Live pickup location detected. You can still edit the pickup address.";
+          }
+
+          showNotice(
+            "Live pickup location detected. Confirm the pickup address before requesting dispatch.",
+            "success"
+          );
+
+          setLiveStatus(locationText);
+          resetEstimateAndPayment("Location changed. Please get a fresh fare estimate.");
+          setBusy(els.detectLocationBtn, false);
+        },
+        (error) => {
+          let message =
+            "Location permission was not granted. Please enter pickup address manually.";
+
+          if (error?.code === 1) {
+            message =
+              "Location permission was denied. You can still enter pickup address manually.";
+          }
+
+          if (error?.code === 2) {
+            message =
+              "Your location could not be detected. Please enter pickup address manually.";
+          }
+
+          if (error?.code === 3) {
+            message =
+              "Location request timed out. Please enter pickup address manually.";
+          }
+
+          showNotice(message, "warning");
+          setLiveStatus("Manual pickup entry is available.");
+          setBusy(els.detectLocationBtn, false);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 12000,
+          maximumAge: 30000
+        }
+      );
+    }    function buildTripPayload() {
+      syncRiderFromForm();
+      syncTripFromForm();
+
+      return {
+        rider_id: state.rider.id || null,
+        riderId: state.rider.id || null,
+
+        rider_name: state.rider.name,
+        riderName: state.rider.name,
+
+        phone: state.rider.phone,
+        rider_phone: state.rider.phone,
+
+        email: state.rider.email,
+        rider_email: state.rider.email,
+
+        pickup: state.pickup.address,
+        pickup_address: state.pickup.address,
+        pickupAddress: state.pickup.address,
+
+        destination: state.destination.address,
+        destination_address: state.destination.address,
+        destinationAddress: state.destination.address,
+
+        pickup_latitude: state.pickup.latitude,
+        pickup_longitude: state.pickup.longitude,
+
+        requestedMode: state.mode,
+        requested_mode: state.mode,
+        service_type: state.mode === "driver" || state.mode === "autonomous"
+          ? "ride"
+          : state.mode,
+
+        ride_type: els.rideType?.value || "standard",
+        rideType: els.rideType?.value || "standard",
+
+        passenger_count: Number(els.passengerCount?.value || 1),
+        passengerCount: Number(els.passengerCount?.value || 1),
+
+        scheduled_time: els.scheduledTime?.value || null,
+        scheduledTime: els.scheduledTime?.value || null,
+
+        notes: safeTrim(els.rideNotes?.value),
+        specialInstructions: safeTrim(els.rideNotes?.value)
+      };
+    }
+
+    function normalizeEstimatePayload(data) {
+      const estimate =
+        data?.estimate ||
+        data?.fare_estimate ||
+        data?.fareEstimate ||
+        data?.data ||
+        data ||
+        {};
+
+      const fare = Number(
+        pickFirstValue(estimate, [
+          "fare",
+          "estimated_fare",
+          "estimatedFare",
+          "total",
+          "total_fare",
+          "amount",
+          "price"
+        ], null)
+      );
+
+      const distance = pickFirstValue(estimate, [
+        "distance",
+        "distance_text",
+        "distanceText",
+        "estimated_distance",
+        "miles"
+      ], "");
+
+      const duration = pickFirstValue(estimate, [
+        "duration",
+        "duration_text",
+        "durationText",
+        "estimated_duration",
+        "minutes"
+      ], "");
+
+      return {
+        fare: Number.isFinite(fare) ? fare : null,
+        distance,
+        duration,
+        raw: data
+      };
+    }
+
+    async function getFareEstimate() {
+      const riderError = validateRiderFields();
+
+      if (riderError) {
+        showNotice(riderError, "warning");
+        return false;
+      }
+
+      const tripError = validateTripFields();
+
+      if (tripError) {
+        showNotice(tripError, "warning");
+        return false;
+      }
+
+      if (CONFIG.REQUIRE_RIDER_APPROVAL && !state.rider.approved) {
+        const approved = await checkRiderApproval();
+
+        if (!approved) {
+          return false;
+        }
+      }
+
+      setBusy(els.estimateBtn, true, "Estimating...");
+      clearNotice();
+      setLiveStatus("Calculating fare estimate...");
+
+      const payload = buildTripPayload();
+
+      const endpointsToTry = [
+        CONFIG.ENDPOINTS.fareEstimate,
+        CONFIG.ENDPOINTS.estimateRide
+      ];
+
+      try {
+        let data = null;
+        let lastError = null;
+
+        for (const endpoint of endpointsToTry) {
+          try {
+            data = await apiPost(endpoint, payload);
+            break;
+          } catch (error) {
+            lastError = error;
+          }
+        }
+
+        if (!data && lastError) {
+          throw lastError;
+        }
+
+        const normalized = normalizeEstimatePayload(data);
+
+        state.estimate.ready = true;
+        state.estimate.fare = normalized.fare;
+        state.estimate.distance = normalized.distance;
+        state.estimate.duration = normalized.duration;
+        state.estimate.raw = normalized.raw;
+
+        if (els.fareEstimateText) {
+          els.fareEstimateText.textContent =
+            normalized.fare === null ? "Calculated" : money(normalized.fare);
+        }
+
+        if (els.distanceText) {
+          els.distanceText.textContent =
+            normalized.distance ? String(normalized.distance) : "Calculated";
+        }
+
+        if (els.durationText) {
+          els.durationText.textContent =
+            normalized.duration ? String(normalized.duration) : "Calculated";
+        }
+
+        if (els.authorizePaymentBtn) {
+          els.authorizePaymentBtn.disabled = false;
+        }
+
+        if (!CONFIG.REQUIRE_PAYMENT_AUTHORIZATION && els.requestRideBtn) {
+          els.requestRideBtn.disabled = false;
+        }
+
+        showNotice(
+          "Fare estimate ready. Next step: authorize payment before dispatch.",
+          "success"
+        );
+
+        setLiveStatus("Fare estimate ready. Payment authorization is next.");
+        setBadge("Estimate Ready");
+
+        return true;
+      } catch (error) {
+        showNotice(
+          error?.message ||
+            "Unable to calculate estimate. Please check the trip details and try again.",
+          "error"
+        );
+
+        setLiveStatus("Fare estimate failed.");
+        setBadge("Estimate Failed");
+
+        return false;
+      } finally {
+        setBusy(els.estimateBtn, false);
+      }
+    }
+
+    function normalizePaymentPayload(data) {
+      const payment =
+        data?.payment ||
+        data?.authorization ||
+        data?.payment_intent ||
+        data?.paymentIntent ||
+        data?.data ||
+        data ||
+        {};
+
+      const paymentId = pickFirstValue(payment, [
+        "id",
+        "payment_id",
+        "paymentId",
+        "payment_intent_id",
+        "paymentIntentId",
+        "authorization_id",
+        "authorizationId"
+      ], "");
+
+      const clientSecret = pickFirstValue(payment, [
+        "client_secret",
+        "clientSecret"
+      ], "");
+
+      const authorized =
+        data?.authorized === true ||
+        data?.ok === true ||
+        payment?.authorized === true ||
+        ["authorized", "requires_capture", "succeeded", "approved"].includes(
+          safeLower(payment?.status)
+        );
+
+      return {
+        authorized: Boolean(authorized || paymentId || clientSecret),
+        paymentId,
+        clientSecret,
+        raw: data
+      };
+    }
+
+    async function authorizePayment() {
+      const tripError = validateTripFields();
+
+      if (tripError) {
+        showNotice(tripError, "warning");
+        return false;
+      }
+
+      if (!state.estimate.ready) {
+        const estimated = await getFareEstimate();
+
+        if (!estimated) {
+          return false;
+        }
+      }
+
+      setBusy(els.authorizePaymentBtn, true, "Authorizing...");
+      clearNotice();
+      setLiveStatus("Authorizing payment...");
+
+      const payload = {
+        ...buildTripPayload(),
+
+        estimate: state.estimate.raw,
+        estimated_fare: state.estimate.fare,
+        estimatedFare: state.estimate.fare,
+
+        amount: state.estimate.fare,
+        currency: "usd"
+      };
+
+      try {
+        const data = await apiPost(CONFIG.ENDPOINTS.authorizePayment, payload);
+        const normalized = normalizePaymentPayload(data);
+
+        state.payment.authorized = normalized.authorized;
+        state.payment.paymentId = normalized.paymentId;
+        state.payment.clientSecret = normalized.clientSecret;
+        state.payment.raw = normalized.raw;
+
+        if (state.payment.paymentId) {
+          writeStorage(CONFIG.STORAGE_KEYS.lastPaymentId, state.payment.paymentId);
+        }
+
+        if (!state.payment.authorized && CONFIG.REQUIRE_PAYMENT_AUTHORIZATION) {
+          showNotice(
+            "Payment was not authorized. Please try again or contact support.",
+            "warning"
+          );
+
+          setLiveStatus("Payment authorization required before dispatch.");
+          setBadge("Payment Needed");
+
+          return false;
+        }
+
+        if (els.requestRideBtn) {
+          els.requestRideBtn.disabled = false;
+        }
+
+        showNotice(
+          "Payment authorization confirmed. You can now request dispatch.",
+          "success"
+        );
+
+        setLiveStatus("Payment authorized. Ready to request dispatch.");
+        setBadge("Payment Ready");
+
+        return true;
+      } catch (error) {
+        showNotice(
+          error?.message ||
+            "Payment authorization failed. Please try again or contact support.",
+          "error"
+        );
+
+        setLiveStatus("Payment authorization failed.");
+        setBadge("Payment Failed");
+
+        return false;
+      } finally {
+        setBusy(els.authorizePaymentBtn, false);
+      }
+    }
+
+    function normalizeRidePayload(data) {
+      const ride =
+        data?.ride ||
+        data?.trip ||
+        data?.request ||
+        data?.data ||
+        data ||
+        {};
+
+      const rideId = pickFirstValue(ride, [
+        "ride_id",
+        "rideId",
+        "id",
+        "trip_id",
+        "tripId",
+        "request_id",
+        "requestId"
+      ], "");
+
+      const status = safeLower(
+        pickFirstValue(ride, [
+          "status",
+          "ride_status",
+          "trip_status",
+          "dispatch_status"
+        ], "requested")
+      );
+
+      return {
+        rideId,
+        status: status || "requested",
+        raw: data
+      };
+    }
+
+    async function requestDispatch(event) {
+      if (event) {
+        event.preventDefault();
+      }
+
+      const riderError = validateRiderFields();
+
+      if (riderError) {
+        showNotice(riderError, "warning");
+        return false;
+      }
+
+      const tripError = validateTripFields();
+
+      if (tripError) {
+        showNotice(tripError, "warning");
+        return false;
+      }
+
+      if (CONFIG.REQUIRE_RIDER_APPROVAL && !state.rider.approved) {
+        const approved = await checkRiderApproval();
+
+        if (!approved) {
+          return false;
+        }
+      }
+
+      if (!state.estimate.ready) {
+        const estimated = await getFareEstimate();
+
+        if (!estimated) {
+          return false;
+        }
+      }
+
+      if (CONFIG.REQUIRE_PAYMENT_AUTHORIZATION && !state.payment.authorized) {
+        const authorized = await authorizePayment();
+
+        if (!authorized) {
+          return false;
+        }
+      }
+
+      setBusy(els.requestRideBtn, true, "Requesting dispatch...");
+      clearNotice();
+      setLiveStatus("Sending request into Harvey Taxi dispatch...");
+
+      const payload = {
+        ...buildTripPayload(),
+
+        payment_id: state.payment.paymentId || readStorage(CONFIG.STORAGE_KEYS.lastPaymentId),
+        paymentId: state.payment.paymentId || readStorage(CONFIG.STORAGE_KEYS.lastPaymentId),
+
+        payment_authorized: state.payment.authorized,
+        paymentAuthorized: state.payment.authorized,
+
+        estimate: state.estimate.raw,
+        estimated_fare: state.estimate.fare,
+        estimatedFare: state.estimate.fare,
+
+        source: "request-ride.html",
+        client_version: "code-blue-request-ride-v1"
+      };
+
+      try {
+        const data = await apiPost(CONFIG.ENDPOINTS.requestRide, payload);
+        const normalized = normalizeRidePayload(data);
+
+        state.ride.requested = true;
+        state.ride.rideId = normalized.rideId;
+        state.ride.status = normalized.status;
+        state.ride.raw = normalized.raw;
+
+        if (state.ride.rideId) {
+          writeStorage(CONFIG.STORAGE_KEYS.lastRideId, state.ride.rideId);
+        }
+
+        showNotice(
+          "Dispatch request submitted successfully. Open your rider dashboard for live updates.",
+          "success"
+        );
+
+        setLiveStatus(
+          state.ride.rideId
+            ? `Ride request submitted. Ride ID: ${state.ride.rideId}`
+            : "Ride request submitted. Open your dashboard for updates."
+        );
+
+        setBadge("Requested");
+
+        if (els.requestRideBtn) {
+          els.requestRideBtn.disabled = true;
+          els.requestRideBtn.textContent = "Dispatch Requested";
+        }
+
+        return true;
+      } catch (error) {
+        showNotice(
+          error?.message ||
+            "Dispatch request failed. Please try again or contact support.",
+          "error"
+        );
+
+        setLiveStatus("Dispatch request failed.");
+        setBadge("Dispatch Failed");
+
+        return false;
+      } finally {
+        setBusy(els.requestRideBtn, false);
+      }
+    }
+
+    async function refreshRideStatus() {
+      const rideId =
+        state.ride.rideId ||
+        readStorage(CONFIG.STORAGE_KEYS.lastRideId);
+
+      if (!rideId) {
+        showNotice(
+          "No recent ride request found on this device.",
+          "warning"
+        );
+
+        setLiveStatus("No active ride request found.");
+        return;
+      }
+
+      setBusy(els.refreshStatusBtn, true, "Refreshing...");
+      clearNotice();
+
+      const payload = {
+        ride_id: rideId,
+        rideId,
+        rider_id: state.rider.id || readStorage(CONFIG.STORAGE_KEYS.riderId),
+        riderId: state.rider.id || readStorage(CONFIG.STORAGE_KEYS.riderId),
+        email: state.rider.email || readStorage(CONFIG.STORAGE_KEYS.riderEmail)
+      };
+
+      const endpointsToTry = [
+        CONFIG.ENDPOINTS.rideStatus,
+        CONFIG.ENDPOINTS.currentRide
+      ];
+
+      try {
+        let data = null;
+        let lastError = null;
+
+        for (const endpoint of endpointsToTry) {
+          try {
+            data = await apiPost(endpoint, payload);
+            break;
+          } catch (error) {
+            lastError = error;
+          }
+        }
+
+        if (!data && lastError) {
+          throw lastError;
+        }
+
+        const normalized = normalizeRidePayload(data);
+
+        state.ride.rideId = normalized.rideId || rideId;
+        state.ride.status = normalized.status;
+        state.ride.raw = normalized.raw;
+
+        setLiveStatus(
+          `Current ride status: ${state.ride.status || "unknown"}`
+        );
+
+        setBadge("Status Updated");
+
+        showNotice(
+          "Ride status refreshed successfully.",
+          "success"
+        );
+      } catch (error) {
+        showNotice(
+          error?.message ||
+            "Unable to refresh ride status. Please open the rider dashboard or contact support.",
+          "error"
+        );
+
+        setLiveStatus("Ride status refresh failed.");
+        setBadge("Status Failed");
+      } finally {
+        setBusy(els.refreshStatusBtn, false);
+      }
+    }
+
+    function bindEvents() {
+      els.modeButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          applyMode(button.dataset.mode);
+        });
+      });
+
+      els.detectLocationBtn?.addEventListener("click", detectLocation);
+      els.checkRiderBtn?.addEventListener("click", checkRiderApproval);
+      els.estimateBtn?.addEventListener("click", getFareEstimate);
+      els.authorizePaymentBtn?.addEventListener("click", authorizePayment);
+      els.refreshStatusBtn?.addEventListener("click", refreshRideStatus);
+
+      els.rideForm?.addEventListener("submit", requestDispatch);
+
+      [
+        els.pickupAddress,
+        els.destinationAddress,
+        els.rideType,
+        els.passengerCount,
+        els.scheduledTime,
+        els.rideNotes
+      ].forEach((field) => {
+        field?.addEventListener("input", () => {
+          resetEstimateAndPayment(
+            "Trip details changed. Please get a fresh fare estimate."
+          );
+        });
+
+        field?.addEventListener("change", () => {
+          resetEstimateAndPayment(
+            "Trip details changed. Please get a fresh fare estimate."
+          );
+        });
+      });
+
+      [
+        els.riderName,
+        els.riderPhone,
+        els.riderEmail
+      ].forEach((field) => {
+        field?.addEventListener("input", () => {
+          syncRiderFromForm();
+
+          state.rider.approved = false;
+          state.rider.verified = false;
+
+          resetEstimateAndPayment(
+            "Rider details changed. Please re-check rider approval."
+          );
+        });
+      });
+    }
+
+    function boot() {
+      hydrateFromStorage();
+      bindEvents();
+
+      setLiveStatus("Complete the form and start with rider approval.");
+      setBadge(getModeContent(state.mode).badge);
+
+      if (state.ride.rideId) {
+        setLiveStatus(
+          "A previous ride request was found. You can refresh the status below."
+        );
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", boot);
+  </script>
+</body>
+</html>
