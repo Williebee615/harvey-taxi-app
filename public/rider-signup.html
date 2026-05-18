@@ -2,652 +2,723 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+
   <meta
     name="viewport"
     content="width=device-width, initial-scale=1.0, viewport-fit=cover"
   />
+
   <title>Harvey Taxi — Rider Sign Up</title>
+
   <meta
     name="description"
-    content="Create your Harvey Taxi rider account, track rider approval status, and continue into the Harvey Taxi rider access flow."
+    content="Create your Harvey Taxi rider account, track rider approval status, verify rider access, and continue into the Harvey Taxi rider dashboard."
   />
+
   <meta name="theme-color" content="#07111f" />
 
   <style>
-    :root{
-      --bg1:#040814;
-      --bg2:#091126;
-      --bg3:#101935;
-      --panel:rgba(10,17,38,.90);
-      --panel2:rgba(15,23,52,.74);
-      --glass:rgba(255,255,255,.04);
-      --line:rgba(122,162,255,.16);
-      --line-strong:rgba(122,162,255,.28);
-      --text:#f4f7ff;
-      --muted:#aab8de;
-      --blue:#5ea0ff;
-      --cyan:#63f5ff;
-      --green:#6dffb3;
-      --danger:#ff7e97;
-      --gold:#ffd76a;
-      --ink:#07121f;
-      --shadow:0 20px 70px rgba(0,0,0,.35);
-      --shadow-soft:0 10px 30px rgba(0,0,0,.24);
-      --radius:28px;
-      --max:1080px;
+    :root {
+      --bg1: #040814;
+      --bg2: #091126;
+      --bg3: #101935;
+
+      --panel: rgba(10, 17, 38, 0.92);
+      --panel2: rgba(15, 23, 52, 0.78);
+      --glass: rgba(255, 255, 255, 0.04);
+
+      --line: rgba(122, 162, 255, 0.16);
+      --line-strong: rgba(122, 162, 255, 0.28);
+
+      --text: #f4f7ff;
+      --muted: #aab8de;
+
+      --blue: #5ea0ff;
+      --cyan: #63f5ff;
+      --green: #6dffb3;
+      --danger: #ff7e97;
+      --gold: #ffd76a;
+      --ink: #07121f;
+
+      --shadow: 0 20px 70px rgba(0, 0, 0, 0.35);
+      --shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.24);
+
+      --radius: 28px;
+      --max: 1080px;
+
+      --safe-top: env(safe-area-inset-top);
+      --safe-bottom: env(safe-area-inset-bottom);
     }
 
-    *{
-      box-sizing:border-box;
-      margin:0;
-      padding:0;
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
 
-    html{
-      scroll-behavior:smooth;
+    html {
+      scroll-behavior: smooth;
+      background: var(--bg1);
     }
 
-    body{
-      font-family:Inter,Arial,sans-serif;
-      color:var(--text);
+    body {
+      font-family:
+        Inter,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Arial,
+        sans-serif;
+      color: var(--text);
       background:
-        radial-gradient(circle at top left, rgba(99,245,255,.12), transparent 28%),
-        radial-gradient(circle at top right, rgba(94,160,255,.10), transparent 24%),
-        radial-gradient(circle at 50% 110%, rgba(109,255,179,.06), transparent 24%),
-        linear-gradient(160deg,var(--bg1),var(--bg2) 50%,var(--bg3));
-      min-height:100vh;
-      overflow-x:hidden;
+        radial-gradient(circle at top left, rgba(99, 245, 255, 0.12), transparent 28%),
+        radial-gradient(circle at top right, rgba(94, 160, 255, 0.10), transparent 24%),
+        radial-gradient(circle at 50% 110%, rgba(109, 255, 179, 0.06), transparent 24%),
+        linear-gradient(160deg, var(--bg1), var(--bg2) 50%, var(--bg3));
+      min-height: 100vh;
+      overflow-x: hidden;
     }
 
-    a{
-      color:inherit;
-      text-decoration:none;
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+      background-size: 44px 44px;
+      mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.55), transparent 75%);
+      z-index: 0;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
     }
 
     button,
     input,
-    textarea{
-      font:inherit;
+    textarea {
+      font: inherit;
     }
 
-    .shell{
-      max-width:var(--max);
-      margin:auto;
-      padding:20px 16px 40px;
+    button {
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
     }
 
-    .topbar{
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:12px;
-      margin-bottom:20px;
-      flex-wrap:wrap;
-      padding:14px 18px;
-      border:1px solid var(--line);
-      border-radius:999px;
-      background:rgba(7,12,28,.78);
-      backdrop-filter:blur(12px);
-      -webkit-backdrop-filter:blur(12px);
-      box-shadow:var(--shadow-soft);
-      position:sticky;
-      top:12px;
-      z-index:80;
+    .shell {
+      position: relative;
+      z-index: 1;
+      max-width: var(--max);
+      margin: auto;
+      padding: calc(20px + var(--safe-top)) 16px calc(40px + var(--safe-bottom));
     }
 
-    .brand-wrap{
-      display:flex;
-      align-items:center;
-      gap:12px;
-      min-width:0;
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      padding: 14px 18px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(7, 12, 28, 0.78);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: var(--shadow-soft);
+      position: sticky;
+      top: 12px;
+      z-index: 80;
     }
 
-    .logo-dot{
-      width:12px;
-      height:12px;
-      border-radius:999px;
-      background:linear-gradient(135deg,var(--cyan),var(--blue));
-      box-shadow:0 0 18px rgba(99,245,255,.55);
-      flex-shrink:0;
+    .brand-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
     }
 
-    .brand-stack{
-      display:flex;
-      flex-direction:column;
-      gap:2px;
-      min-width:0;
+    .logo-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      box-shadow: 0 0 18px rgba(99, 245, 255, 0.55);
+      flex-shrink: 0;
     }
 
-    .brand{
-      font-size:14px;
-      font-weight:900;
-      letter-spacing:.14em;
-      white-space:nowrap;
+    .brand-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
     }
 
-    .brand-sub{
-      color:var(--muted);
-      font-size:11px;
-      letter-spacing:.08em;
-      text-transform:uppercase;
-      white-space:nowrap;
+    .brand {
+      font-size: 14px;
+      font-weight: 900;
+      letter-spacing: 0.14em;
+      white-space: nowrap;
     }
 
-    .top-actions{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
+    .brand-sub {
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      white-space: nowrap;
     }
 
-    .home-btn{
-      text-decoration:none;
-      color:var(--text);
-      border:1px solid var(--line);
-      background:rgba(255,255,255,.04);
-      padding:10px 14px;
-      border-radius:999px;
-      font-weight:700;
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      transition:.18s ease;
+    .top-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
     }
 
-    .home-btn:hover{
-      background:rgba(255,255,255,.07);
-      transform:translateY(-1px);
+    .home-btn {
+      color: var(--text);
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.04);
+      padding: 10px 14px;
+      border-radius: 999px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: 0.18s ease;
     }
 
-    .hero{
+    .home-btn:hover {
+      background: rgba(255, 255, 255, 0.07);
+      transform: translateY(-1px);
+    }
+
+    .hero {
       background:
-        radial-gradient(circle at top right, rgba(99,245,255,.10), transparent 28%),
-        linear-gradient(180deg,rgba(17,31,66,.88),rgba(8,16,35,.92));
-      border:1px solid var(--line);
-      border-radius:var(--radius);
-      padding:24px;
-      box-shadow:var(--shadow);
-      margin-bottom:18px;
-      position:relative;
-      overflow:hidden;
+        radial-gradient(circle at top right, rgba(99, 245, 255, 0.10), transparent 28%),
+        linear-gradient(180deg, rgba(17, 31, 66, 0.88), rgba(8, 16, 35, 0.92));
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: var(--shadow);
+      margin-bottom: 18px;
+      position: relative;
+      overflow: hidden;
     }
 
-    .hero::after{
-      content:"";
-      position:absolute;
-      left:-60px;
-      bottom:-60px;
-      width:180px;
-      height:180px;
-      border-radius:50%;
-      background:radial-gradient(circle, rgba(94,160,255,.12), transparent 70%);
-      pointer-events:none;
+    .hero::after {
+      content: "";
+      position: absolute;
+      left: -60px;
+      bottom: -60px;
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(94, 160, 255, 0.12), transparent 70%);
+      pointer-events: none;
     }
 
-    .hero-badge{
-      display:inline-flex;
-      align-items:center;
-      gap:10px;
-      padding:10px 14px;
-      border-radius:999px;
-      border:1px solid rgba(255,255,255,.08);
-      background:rgba(255,255,255,.04);
-      color:var(--cyan);
-      font-size:12px;
-      font-weight:800;
-      letter-spacing:.05em;
-      text-transform:uppercase;
-      margin-bottom:14px;
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--cyan);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 14px;
     }
 
-    .hero h1{
-      font-size:2rem;
-      margin-bottom:8px;
-      line-height:1.05;
-      letter-spacing:-.03em;
+    .hero h1 {
+      font-size: clamp(1.8rem, 5vw, 2.65rem);
+      margin-bottom: 8px;
+      line-height: 1.05;
+      letter-spacing: -0.04em;
     }
 
-    .hero p{
-      color:var(--muted);
-      line-height:1.65;
-      max-width:780px;
+    .hero p {
+      color: var(--muted);
+      line-height: 1.65;
+      max-width: 780px;
     }
 
-    .hero-points{
-      margin-top:18px;
-      display:grid;
-      grid-template-columns:repeat(3,1fr);
-      gap:12px;
+    .hero-points {
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
     }
 
-    .hero-point{
-      padding:14px;
-      border-radius:18px;
-      border:1px solid rgba(255,255,255,.07);
-      background:rgba(255,255,255,.035);
+    .hero-point {
+      padding: 14px;
+      border-radius: 18px;
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      background: rgba(255, 255, 255, 0.035);
     }
 
-    .hero-point strong{
-      display:block;
-      font-size:15px;
-      margin-bottom:6px;
+    .hero-point strong {
+      display: block;
+      font-size: 15px;
+      margin-bottom: 6px;
     }
 
-    .hero-point span{
-      display:block;
-      color:var(--muted);
-      font-size:13px;
-      line-height:1.6;
+    .hero-point span {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
     }
 
-    .grid{
-      display:grid;
-      grid-template-columns:1.1fr .9fr;
-      gap:18px;
+    .grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 18px;
     }
 
-    .card{
-      background:var(--panel);
-      border:1px solid var(--line);
-      border-radius:24px;
-      padding:20px;
-      box-shadow:var(--shadow);
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: 20px;
+      box-shadow: var(--shadow);
     }
 
-    .section-title{
-      font-size:1.08rem;
-      font-weight:800;
-      margin-bottom:10px;
+    .section-title {
+      font-size: 1.08rem;
+      font-weight: 800;
+      margin-bottom: 10px;
     }
 
-    .sub{
-      color:var(--muted);
-      font-size:.95rem;
-      margin-bottom:16px;
-      line-height:1.6;
+    .sub {
+      color: var(--muted);
+      font-size: 0.95rem;
+      margin-bottom: 16px;
+      line-height: 1.6;
+    }    .field {
+      margin-bottom: 14px;
     }
 
-    .field{
-      margin-bottom:14px;
-    }
-
-    .field label{
-      display:block;
-      margin-bottom:8px;
-      color:var(--muted);
-      font-size:.92rem;
-      font-weight:700;
+    .field label {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--muted);
+      font-size: 0.92rem;
+      font-weight: 700;
     }
 
     .input,
-    textarea{
-      width:100%;
-      background:var(--panel2);
-      color:var(--text);
-      border:1px solid rgba(255,255,255,.08);
-      border-radius:16px;
-      padding:14px;
-      outline:none;
-      font-size:1rem;
-      transition:border-color .18s ease, box-shadow .18s ease;
+    textarea {
+      width: 100%;
+      background: var(--panel2);
+      color: var(--text);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      padding: 14px;
+      outline: none;
+      font-size: 1rem;
+      transition:
+        border-color 0.18s ease,
+        box-shadow 0.18s ease;
     }
 
     .input:focus,
-    textarea:focus{
-      border-color:rgba(99,245,255,.34);
-      box-shadow:0 0 0 3px rgba(99,245,255,.08);
+    textarea:focus {
+      border-color: rgba(99, 245, 255, 0.34);
+      box-shadow: 0 0 0 3px rgba(99, 245, 255, 0.08);
     }
 
     .input::placeholder,
-    textarea::placeholder{
-      color:rgba(244,247,255,.46);
+    textarea::placeholder {
+      color: rgba(244, 247, 255, 0.46);
     }
 
-    textarea{
-      resize:vertical;
-      min-height:94px;
+    textarea {
+      resize: vertical;
+      min-height: 94px;
     }
 
-    .row{
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:14px;
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
     }
 
-    .doc-row{
-      display:grid;
-      grid-template-columns:1fr 1fr 1fr;
-      gap:10px;
-      margin-top:8px;
+    .doc-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      margin-top: 8px;
     }
 
-    .choice{
-      border:1px solid var(--line);
-      background:rgba(255,255,255,.04);
-      color:var(--text);
-      padding:12px 14px;
-      border-radius:16px;
-      font-weight:700;
-      text-align:center;
-      cursor:pointer;
-      transition:.2s ease;
+    .choice {
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      padding: 12px 14px;
+      border-radius: 16px;
+      font-weight: 700;
+      text-align: center;
+      cursor: pointer;
+      transition: 0.2s ease;
     }
 
-    .choice:hover{
-      background:rgba(255,255,255,.07);
-      border-color:var(--line-strong);
+    .choice:hover {
+      background: rgba(255, 255, 255, 0.07);
+      border-color: var(--line-strong);
     }
 
-    .choice.active{
-      border-color:rgba(99,245,255,.5);
-      background:rgba(99,245,255,.12);
-      color:#dfffff;
+    .choice.active {
+      border-color: rgba(99, 245, 255, 0.5);
+      background: rgba(99, 245, 255, 0.12);
+      color: #dfffff;
     }
 
-    .checklist{
-      display:grid;
-      gap:10px;
-      margin-bottom:16px;
+    .checklist {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 16px;
     }
 
-    .check-item{
-      display:flex;
-      align-items:flex-start;
-      gap:10px;
-      padding:12px 14px;
-      border-radius:16px;
-      border:1px solid rgba(255,255,255,.07);
-      background:rgba(255,255,255,.03);
+    .check-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 12px 14px;
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      background: rgba(255, 255, 255, 0.03);
     }
 
-    .check-item .icon{
-      flex-shrink:0;
-      width:22px;
-      height:22px;
-      display:grid;
-      place-items:center;
-      border-radius:999px;
-      background:rgba(99,245,255,.12);
-      color:var(--cyan);
-      font-size:12px;
-      font-weight:900;
-      margin-top:1px;
+    .check-item .icon {
+      flex-shrink: 0;
+      width: 22px;
+      height: 22px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      background: rgba(99, 245, 255, 0.12);
+      color: var(--cyan);
+      font-size: 12px;
+      font-weight: 900;
+      margin-top: 1px;
     }
 
-    .check-item span{
-      color:var(--muted);
-      line-height:1.55;
-      font-size:.92rem;
+    .check-item span {
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 0.92rem;
     }
 
-    .status-box{
-      display:grid;
-      grid-template-columns:1fr;
-      gap:14px;
+    .status-box {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
     }
 
-    .mini{
-      background:rgba(255,255,255,.035);
-      border:1px solid var(--line);
-      border-radius:18px;
-      padding:14px;
+    .mini {
+      background: rgba(255, 255, 255, 0.035);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 14px;
     }
 
-    .mini h3{
-      font-size:.95rem;
-      margin-bottom:8px;
+    .mini h3 {
+      font-size: 0.95rem;
+      margin-bottom: 8px;
     }
 
-    .mini p{
-      color:var(--muted);
-      line-height:1.6;
-      font-size:.92rem;
-      word-break:break-word;
+    .mini p {
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 0.92rem;
+      word-break: break-word;
     }
 
-    .tag{
-      display:inline-block;
-      margin-top:10px;
-      padding:7px 10px;
-      border-radius:999px;
-      font-size:.8rem;
-      font-weight:800;
-      border:1px solid transparent;
+    .tag {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 800;
+      border: 1px solid transparent;
     }
 
-    .ok{
-      background:rgba(109,255,179,.12);
-      color:var(--green);
-      border-color:rgba(109,255,179,.2);
+    .ok {
+      background: rgba(109, 255, 179, 0.12);
+      color: var(--green);
+      border-color: rgba(109, 255, 179, 0.2);
     }
 
-    .warn{
-      background:rgba(255,215,106,.12);
-      color:var(--gold);
-      border-color:rgba(255,215,106,.2);
+    .warn {
+      background: rgba(255, 215, 106, 0.12);
+      color: var(--gold);
+      border-color: rgba(255, 215, 106, 0.2);
     }
 
-    .bad{
-      background:rgba(255,126,151,.12);
-      color:var(--danger);
-      border-color:rgba(255,126,151,.2);
+    .bad {
+      background: rgba(255, 126, 151, 0.12);
+      color: var(--danger);
+      border-color: rgba(255, 126, 151, 0.2);
     }
 
-    .info-tag{
-      background:rgba(99,245,255,.12);
-      color:var(--cyan);
-      border-color:rgba(99,245,255,.18);
+    .info-tag {
+      background: rgba(99, 245, 255, 0.12);
+      color: var(--cyan);
+      border-color: rgba(99, 245, 255, 0.18);
     }
 
-    .btn-row{
-      display:flex;
-      gap:12px;
-      flex-wrap:wrap;
-      margin-top:16px;
+    .btn-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 16px;
     }
 
-    button{
-      border:none;
-      cursor:pointer;
-      border-radius:16px;
-      padding:14px 18px;
-      font-size:1rem;
-      font-weight:800;
-      transition:.2s ease;
+    button {
+      border: none;
+      cursor: pointer;
+      border-radius: 16px;
+      padding: 14px 18px;
+      font-size: 1rem;
+      font-weight: 800;
+      transition: 0.2s ease;
     }
 
-    .primary{
-      background:linear-gradient(90deg,var(--blue),var(--cyan));
-      color:#041224;
-      flex:1;
+    .primary {
+      background: linear-gradient(90deg, var(--blue), var(--cyan));
+      color: #041224;
+      flex: 1;
     }
 
-    .secondary{
-      background:rgba(255,255,255,.05);
-      color:var(--text);
-      border:1px solid var(--line);
-      flex:1;
+    .secondary {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+      border: 1px solid var(--line);
+      flex: 1;
     }
 
     .primary:hover,
-    .secondary:hover{
-      transform:translateY(-1px);
-      filter:brightness(1.03);
+    .secondary:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.03);
     }
 
-    button:disabled{
-      opacity:.72;
-      cursor:wait;
-      transform:none;
+    button:disabled {
+      opacity: 0.72;
+      cursor: wait;
+      transform: none;
     }
 
     .result,
     .error,
-    .info{
-      margin-top:16px;
-      display:none;
-      padding:16px;
-      border-radius:18px;
-      line-height:1.7;
-      font-size:.95rem;
+    .info {
+      margin-top: 16px;
+      display: none;
+      padding: 16px;
+      border-radius: 18px;
+      line-height: 1.7;
+      font-size: 0.95rem;
     }
 
-    .result{
-      border:1px solid rgba(109,255,179,.18);
-      background:rgba(109,255,179,.08);
-      color:#dffff0;
+    .result {
+      border: 1px solid rgba(109, 255, 179, 0.18);
+      background: rgba(109, 255, 179, 0.08);
+      color: #dffff0;
     }
 
-    .error{
-      border:1px solid rgba(255,126,151,.2);
-      background:rgba(255,126,151,.08);
-      color:#ffd9e1;
+    .error {
+      border: 1px solid rgba(255, 126, 151, 0.2);
+      background: rgba(255, 126, 151, 0.08);
+      color: #ffd9e1;
     }
 
-    .info{
-      border:1px solid rgba(99,245,255,.18);
-      background:rgba(99,245,255,.08);
-      color:#dcfdff;
+    .info {
+      border: 1px solid rgba(99, 245, 255, 0.18);
+      background: rgba(99, 245, 255, 0.08);
+      color: #dcfdff;
     }
 
-    .note{
-      margin-top:12px;
-      padding:12px 14px;
-      border-radius:16px;
-      border:1px solid var(--line);
-      background:rgba(255,255,255,.035);
-      color:var(--muted);
-      line-height:1.6;
-      font-size:.92rem;
+    .note {
+      margin-top: 12px;
+      padding: 12px 14px;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.035);
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 0.92rem;
     }
 
-    .next-link{
-      color:#63f5ff;
-      font-weight:800;
-      text-decoration:none;
+    .next-link {
+      color: #63f5ff;
+      font-weight: 800;
     }
 
-    .next-link:hover{
-      text-decoration:underline;
+    .next-link:hover {
+      text-decoration: underline;
     }
 
-    .status-steps{
-      display:grid;
-      gap:10px;
-      margin-bottom:16px;
+    .status-steps {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 16px;
     }
 
-    .status-step{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-      padding:12px 14px;
-      border-radius:16px;
-      border:1px solid rgba(255,255,255,.07);
-      background:rgba(255,255,255,.03);
+    .status-step {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px 14px;
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      background: rgba(255, 255, 255, 0.03);
     }
 
-    .status-step strong{
-      font-size:.92rem;
+    .status-step strong {
+      font-size: 0.92rem;
     }
 
-    .status-step span{
-      color:var(--muted);
-      font-size:.85rem;
-      line-height:1.45;
+    .status-step span {
+      color: var(--muted);
+      font-size: 0.85rem;
+      line-height: 1.45;
     }
 
-    .rider-id-box{
-      margin-top:14px;
-      padding:16px;
-      border-radius:18px;
-      background:linear-gradient(135deg,rgba(99,245,255,.10),rgba(94,160,255,.08));
-      border:1px solid rgba(99,245,255,.18);
-      display:none;
+    .rider-id-box {
+      margin-top: 14px;
+      padding: 16px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, rgba(99, 245, 255, 0.10), rgba(94, 160, 255, 0.08));
+      border: 1px solid rgba(99, 245, 255, 0.18);
+      display: none;
     }
 
-    .rider-id-box strong{
-      display:block;
-      margin-bottom:8px;
-      font-size:.92rem;
-      color:#dfffff;
+    .rider-id-box strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 0.92rem;
+      color: #dfffff;
     }
 
-    .rider-id-value{
-      font-size:1rem;
-      font-weight:900;
-      letter-spacing:.04em;
-      word-break:break-word;
+    .rider-id-value {
+      font-size: 1rem;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      word-break: break-word;
     }
 
-    .small-actions{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      margin-top:12px;
+    .small-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 12px;
     }
 
-    .small-btn{
-      padding:10px 12px;
-      border-radius:14px;
-      border:1px solid var(--line);
-      background:rgba(255,255,255,.04);
-      color:var(--text);
-      font-size:.9rem;
-      font-weight:800;
-      cursor:pointer;
+    .small-btn {
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      font-size: 0.9rem;
+      font-weight: 800;
+      cursor: pointer;
     }
 
-    .small-btn:hover{
-      background:rgba(255,255,255,.07);
+    .small-btn:hover {
+      background: rgba(255, 255, 255, 0.07);
     }
 
-    @media (max-width: 980px){
-      .hero-points{
-        grid-template-columns:1fr;
+    .consent-box {
+      display: grid;
+      gap: 10px;
+      margin: 14px 0 0;
+    }
+
+    .consent-row {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.035);
+      border-radius: 16px;
+      padding: 13px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .consent-row input {
+      margin-top: 4px;
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      accent-color: var(--cyan);
+    }
+
+    .consent-row span {
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 0.9rem;
+    }
+
+    @media (max-width: 980px) {
+      .hero-points {
+        grid-template-columns: 1fr;
       }
 
-      .grid{
-        grid-template-columns:1fr;
+      .grid {
+        grid-template-columns: 1fr;
       }
     }
 
-    @media (max-width: 760px){
+    @media (max-width: 760px) {
       .row,
-      .doc-row{
-        grid-template-columns:1fr;
+      .doc-row {
+        grid-template-columns: 1fr;
       }
 
-      .btn-row{
-        flex-direction:column;
+      .btn-row {
+        flex-direction: column;
       }
 
-      .topbar{
-        border-radius:24px;
-        align-items:flex-start;
-        flex-direction:column;
+      .topbar {
+        border-radius: 24px;
+        align-items: flex-start;
+        flex-direction: column;
       }
 
-      .top-actions{
-        width:100%;
+      .top-actions {
+        width: 100%;
       }
 
-      .home-btn{
-        width:100%;
-        justify-content:center;
-      }
-
-      .hero h1{
-        font-size:1.65rem;
+      .home-btn {
+        width: 100%;
       }
     }
   </style>
 </head>
+
 <body>
   <div class="shell">
-    <div class="topbar">
+
+    <!-- TOPBAR -->
+    <header class="topbar">
       <div class="brand-wrap">
         <div class="logo-dot"></div>
+
         <div class="brand-stack">
           <div class="brand">HARVEY TAXI</div>
           <div class="brand-sub">Rider onboarding</div>
@@ -657,195 +728,554 @@
       <div class="top-actions">
         <a class="home-btn" href="/">← Return Home</a>
       </div>
-    </div>
+    </header>    <!-- HERO -->
+    <section class="hero">
+      <div class="hero-badge">
+        Secure rider onboarding • Harvey Taxi
+      </div>
 
-    <div class="hero">
-      <div class="hero-badge">Secure rider onboarding • Harvey Taxi</div>
-      <h1>Rider Sign Up</h1>
+      <h1>
+        Create your Harvey Taxi rider account
+      </h1>
+
       <p>
-        Create your Harvey Taxi rider account to begin onboarding. Rider approval status is determined by the platform and must be confirmed before ride requests can move forward.
+        Begin the Harvey Taxi rider onboarding flow with secure rider profile creation,
+        approval-aware access controls, AI-assisted support compatibility,
+        and production-safe rider session recovery.
       </p>
 
       <div class="hero-points">
+
         <div class="hero-point">
-          <strong>Structured rider access</strong>
-          <span>Account creation starts the rider access flow, but approval rules still apply before rides can be requested.</span>
+          <strong>Approval-gated access</strong>
+          <span>
+            Riders must be approved before requesting rides,
+            payment authorization, or dispatch access.
+          </span>
         </div>
 
         <div class="hero-point">
-          <strong>Verification-aware onboarding</strong>
-          <span>Your document selection helps organize rider onboarding and future account review steps.</span>
+          <strong>Verification-first onboarding</strong>
+          <span>
+            Driver license, state ID, and passport onboarding support
+            align with future Persona verification workflows.
+          </span>
         </div>
 
         <div class="hero-point">
           <strong>Dashboard continuation</strong>
-          <span>Approved riders can move directly into the Harvey Taxi rider dashboard after signup or status check.</span>
+          <span>
+            Returning riders can recover saved sessions and continue directly
+            into the Harvey Taxi rider dashboard experience.
+          </span>
         </div>
+
       </div>
-    </div>
+    </section>
 
-    <div class="grid">
-      <div class="card">
-        <div class="section-title">Rider Account Setup</div>
-        <div class="sub">
-          Enter your rider information below. Verification document selection is collected for onboarding context.
+    <!-- GRID -->
+    <main class="grid">
+
+      <!-- LEFT -->
+      <section class="card">
+
+        <div class="section-title">
+          Rider Account Setup
         </div>
 
+        <div class="sub">
+          Enter your rider information below to begin the Harvey Taxi
+          onboarding process.
+        </div>
+
+        <!-- CHECKLIST -->
         <div class="checklist">
+
           <div class="check-item">
             <div class="icon">1</div>
-            <span>Create your rider account with your core contact details.</span>
+
+            <span>
+              Create your secure rider account profile.
+            </span>
           </div>
+
           <div class="check-item">
             <div class="icon">2</div>
-            <span>Select your rider verification document type.</span>
+
+            <span>
+              Select your rider verification document type.
+            </span>
           </div>
+
           <div class="check-item">
             <div class="icon">3</div>
-            <span>Check rider status after signup to confirm approval progress.</span>
+
+            <span>
+              Check rider approval status before requesting rides.
+            </span>
           </div>
+
         </div>
 
+        <!-- NAME -->
         <div class="row">
+
           <div class="field">
-            <label for="firstName">First Name</label>
-            <input class="input" id="firstName" placeholder="Enter first name" autocomplete="given-name" />
+            <label for="firstName">
+              First Name
+            </label>
+
+            <input
+              class="input"
+              id="firstName"
+              placeholder="Enter first name"
+              autocomplete="given-name"
+            />
           </div>
+
           <div class="field">
-            <label for="lastName">Last Name</label>
-            <input class="input" id="lastName" placeholder="Enter last name" autocomplete="family-name" />
+            <label for="lastName">
+              Last Name
+            </label>
+
+            <input
+              class="input"
+              id="lastName"
+              placeholder="Enter last name"
+              autocomplete="family-name"
+            />
           </div>
+
         </div>
 
+        <!-- EMAIL + PHONE -->
         <div class="row">
+
           <div class="field">
-            <label for="email">Email Address</label>
-            <input class="input" id="email" type="email" placeholder="Enter email address" autocomplete="email" />
+            <label for="email">
+              Email Address
+            </label>
+
+            <input
+              class="input"
+              id="email"
+              type="email"
+              placeholder="Enter email address"
+              autocomplete="email"
+            />
           </div>
+
           <div class="field">
-            <label for="phone">Phone Number</label>
-            <input class="input" id="phone" type="tel" inputmode="tel" placeholder="Enter phone number" autocomplete="tel" />
+            <label for="phone">
+              Phone Number
+            </label>
+
+            <input
+              class="input"
+              id="phone"
+              type="tel"
+              inputmode="tel"
+              placeholder="+16155551234"
+              autocomplete="tel"
+            />
           </div>
+
         </div>
 
+        <!-- CITY + STATE -->
         <div class="row">
+
           <div class="field">
-            <label for="city">City</label>
-            <input class="input" id="city" placeholder="Enter city" autocomplete="address-level2" />
+            <label for="city">
+              City
+            </label>
+
+            <input
+              class="input"
+              id="city"
+              placeholder="Nashville"
+              autocomplete="address-level2"
+            />
           </div>
+
           <div class="field">
-            <label for="state">State</label>
-            <input class="input" id="state" maxlength="2" placeholder="TN" autocomplete="address-level1" />
+            <label for="state">
+              State
+            </label>
+
+            <input
+              class="input"
+              id="state"
+              maxlength="2"
+              placeholder="TN"
+              autocomplete="address-level1"
+            />
           </div>
+
         </div>
 
+        <!-- PASSWORD -->
         <div class="row">
+
           <div class="field">
-            <label for="password">Password</label>
-            <input class="input" id="password" type="password" placeholder="Create password" autocomplete="new-password" />
+            <label for="password">
+              Password
+            </label>
+
+            <input
+              class="input"
+              id="password"
+              type="password"
+              placeholder="Minimum 8 characters"
+              autocomplete="new-password"
+            />
           </div>
+
           <div class="field">
-            <label for="confirmPassword">Confirm Password</label>
-            <input class="input" id="confirmPassword" type="password" placeholder="Confirm password" autocomplete="new-password" />
+            <label for="confirmPassword">
+              Confirm Password
+            </label>
+
+            <input
+              class="input"
+              id="confirmPassword"
+              type="password"
+              placeholder="Confirm password"
+              autocomplete="new-password"
+            />
           </div>
+
         </div>
 
+        <!-- DOCUMENT TYPE -->
         <div class="field">
-          <label>Rider Verification Document</label>
+
+          <label>
+            Rider Verification Document
+          </label>
+
           <div class="doc-row">
-            <button type="button" class="choice active" data-doc="driver_license">Driver License</button>
-            <button type="button" class="choice" data-doc="state_id">State ID</button>
-            <button type="button" class="choice" data-doc="passport">Passport</button>
+
+            <button
+              type="button"
+              class="choice active"
+              data-doc="driver_license"
+            >
+              Driver License
+            </button>
+
+            <button
+              type="button"
+              class="choice"
+              data-doc="state_id"
+            >
+              State ID
+            </button>
+
+            <button
+              type="button"
+              class="choice"
+              data-doc="passport"
+            >
+              Passport
+            </button>
+
           </div>
+
+        </div>        <!-- OPTIONAL INFO -->
+        <div class="field">
+
+          <label for="emergencyContact">
+            Emergency Contact (optional)
+          </label>
+
+          <input
+            class="input"
+            id="emergencyContact"
+            placeholder="Emergency contact name and phone"
+          />
+
         </div>
 
         <div class="field">
-          <label for="emergencyContact">Emergency Contact (optional)</label>
-          <input class="input" id="emergencyContact" placeholder="Enter emergency contact name and phone" />
+
+          <label for="notes">
+            Rider Notes (optional)
+          </label>
+
+          <textarea
+            id="notes"
+            placeholder="Helpful rider notes, accessibility needs, or onboarding context"
+          ></textarea>
+
         </div>
 
-        <div class="field">
-          <label for="notes">Account Notes (optional)</label>
-          <textarea id="notes" placeholder="Add any helpful rider information"></textarea>
+        <!-- CONSENTS -->
+        <div class="consent-box">
+
+          <label class="consent-row">
+
+            <input
+              type="checkbox"
+              id="termsConsent"
+            />
+
+            <span>
+              I agree to Harvey Taxi onboarding policies and understand
+              ride access requires rider approval before dispatch.
+            </span>
+
+          </label>
+
+          <label class="consent-row">
+
+            <input
+              type="checkbox"
+              id="verificationConsent"
+            />
+
+            <span>
+              I understand Harvey Taxi may require future identity
+              verification before full rider access is granted.
+            </span>
+
+          </label>
+
+          <label class="consent-row">
+
+            <input
+              type="checkbox"
+              id="communicationsConsent"
+            />
+
+            <span>
+              I consent to Harvey Taxi sending onboarding,
+              rider approval, ride status, and support notifications.
+            </span>
+
+          </label>
+
         </div>
 
+        <!-- BUTTONS -->
         <div class="btn-row">
-          <button class="secondary" id="checkBtn" type="button">Check Rider Status</button>
-          <button class="primary" id="signupBtn" type="button">Create Rider Account</button>
+
+          <button
+            class="secondary"
+            id="checkBtn"
+            type="button"
+          >
+            Check Rider Status
+          </button>
+
+          <button
+            class="primary"
+            id="signupBtn"
+            type="button"
+          >
+            Create Rider Account
+          </button>
+
         </div>
 
-        <div class="rider-id-box" id="riderIdBox">
-          <strong>Saved Rider ID</strong>
-          <div class="rider-id-value" id="savedRiderIdValue">--</div>
+        <!-- SAVED RIDER -->
+        <div
+          class="rider-id-box"
+          id="riderIdBox"
+        >
+
+          <strong>
+            Saved Rider Session
+          </strong>
+
+          <div
+            class="rider-id-value"
+            id="savedRiderIdValue"
+          >
+            --
+          </div>
+
         </div>
 
+        <!-- SMALL ACTIONS -->
         <div class="small-actions">
-          <button class="small-btn" id="continueBtn" type="button">Continue to Rider Dashboard</button>
-          <button class="small-btn" id="clearSavedBtn" type="button">Clear Saved Rider Session</button>
+
+          <button
+            class="small-btn"
+            id="continueBtn"
+            type="button"
+          >
+            Continue to Rider Dashboard
+          </button>
+
+          <button
+            class="small-btn"
+            id="clearSavedBtn"
+            type="button"
+          >
+            Clear Saved Rider Session
+          </button>
+
         </div>
 
-        <div class="info" id="infoBox"></div>
-        <div class="result" id="resultBox"></div>
-        <div class="error" id="errorBox"></div>
-      </div>
+        <!-- ALERT BOXES -->
+        <div
+          class="info"
+          id="infoBox"
+        ></div>
 
-      <div class="card">
-        <div class="section-title">Rider Access Status</div>
+        <div
+          class="result"
+          id="resultBox"
+        ></div>
+
+        <div
+          class="error"
+          id="errorBox"
+        ></div>
+
+      </section>
+
+      <!-- RIGHT PANEL -->
+      <aside class="card">
+
+        <div class="section-title">
+          Rider Access Status
+        </div>
+
         <div class="sub">
-          This panel reflects backend status. Ride requests require rider approval according to the current Harvey Taxi rules.
+          Harvey Taxi uses approval-aware onboarding logic before
+          riders can request dispatches or access protected services.
         </div>
 
+        <!-- STATUS STEPS -->
         <div class="status-steps">
+
           <div class="status-step">
+
             <div>
-              <strong>Account Created</strong>
-              <span>Your rider profile is saved in the platform.</span>
+              <strong>
+                Rider Account
+              </strong>
+
+              <span>
+                Rider profile successfully created.
+              </span>
             </div>
-            <div class="tag warn" id="accountCreatedTag">Waiting</div>
+
+            <div
+              class="tag warn"
+              id="accountCreatedTag"
+            >
+              Waiting
+            </div>
+
           </div>
 
           <div class="status-step">
+
             <div>
-              <strong>Verification Context</strong>
-              <span id="documentText">Driver License selected.</span>
+              <strong>
+                Verification Context
+              </strong>
+
+              <span id="documentText">
+                Driver License selected.
+              </span>
             </div>
-            <div class="tag info-tag">Selected</div>
+
+            <div class="tag info-tag">
+              Selected
+            </div>
+
           </div>
 
           <div class="status-step">
+
             <div>
-              <strong>Ride Access Approval</strong>
-              <span id="approvalStepText">No rider account checked yet.</span>
+              <strong>
+                Rider Approval
+              </strong>
+
+              <span id="approvalStepText">
+                No rider account checked yet.
+              </span>
             </div>
-            <div id="accountTag" class="tag warn">Waiting</div>
+
+            <div
+              class="tag warn"
+              id="accountTag"
+            >
+              Waiting
+            </div>
+
           </div>
+
         </div>
 
-        <div class="mini">
-          <h3>Account Status</h3>
-          <p id="accountText">No rider account checked yet.</p>
+        <!-- STATUS CARDS -->
+        <div class="status-box">
+
+          <div class="mini">
+
+            <h3>
+              Account Status
+            </h3>
+
+            <p id="accountText">
+              No rider account checked yet.
+            </p>
+
+          </div>
+
+          <div class="mini">
+
+            <h3>
+              What Happens Next
+            </h3>
+
+            <p>
+              Creating your rider account does not bypass backend approval rules.
+              Approved riders can continue into the Harvey Taxi dashboard,
+              payment authorization flow,
+              and request-ride experience.
+            </p>
+
+          </div>
+
+          <div class="mini">
+
+            <h3>
+              Saved Rider Session
+            </h3>
+
+            <p id="savedSessionText">
+              No saved rider session detected yet.
+            </p>
+
+          </div>
+
         </div>
 
-        <div class="mini">
-          <h3>What happens next</h3>
-          <p>
-            Creating a rider account does not override backend approval rules. Check your saved rider status here after signup. Once approved, you can continue into your rider dashboard and request ride flow.
-          </p>
-        </div>
-
-        <div class="mini">
-          <h3>Saved Rider Session</h3>
-          <p id="savedSessionText">No saved rider session detected yet.</p>
-        </div>
-
+        <!-- NOTE -->
         <div class="note">
-          Harvey Taxi uses a structured rider access flow. Approval status may remain pending until the platform completes review or verification steps.
+          Harvey Taxi rider onboarding supports future
+          Persona verification,
+          payment authorization,
+          AI support integration,
+          and dispatch-safe production workflows.
         </div>
-      </div>
-    </div>
-  </div>
 
-  <script>
+      </aside>
+
+    </main>
+  </div>  <script>
+    const APP_VERSION = "harvey-rider-signup-codeblue-v2026.05.18";
+    const API_BASE =
+      window.location.origin.includes("localhost")
+        ? "https://harvey-taxi-app-2.onrender.com"
+        : "";
+
     const STORAGE = {
       riderId: "harveyRiderId",
       riderEmail: "harveyRiderEmail",
@@ -856,10 +1286,12 @@
     };
 
     let selectedDocumentType = "driver_license";
+
     let isCreatingAccount = false;
     let isCheckingStatus = false;
 
     const docButtons = document.querySelectorAll(".choice");
+
     const signupBtn = document.getElementById("signupBtn");
     const checkBtn = document.getElementById("checkBtn");
     const continueBtn = document.getElementById("continueBtn");
@@ -873,10 +1305,22 @@
     const accountTag = document.getElementById("accountTag");
     const documentText = document.getElementById("documentText");
     const approvalStepText = document.getElementById("approvalStepText");
-    const accountCreatedTag = document.getElementById("accountCreatedTag");
-    const riderIdBox = document.getElementById("riderIdBox");
-    const savedRiderIdValue = document.getElementById("savedRiderIdValue");
-    const savedSessionText = document.getElementById("savedSessionText");
+
+    const accountCreatedTag =
+      document.getElementById("accountCreatedTag");
+
+    const riderIdBox =
+      document.getElementById("riderIdBox");
+
+    const savedRiderIdValue =
+      document.getElementById("savedRiderIdValue");
+
+    const savedSessionText =
+      document.getElementById("savedSessionText");
+
+    /* ------------------------------------- */
+    /* HELPERS */
+    /* ------------------------------------- */
 
     function escapeHtml(value) {
       return String(value ?? "")
@@ -887,12 +1331,48 @@
         .replace(/'/g, "&#39;");
     }
 
+    function normalizePhone(phone) {
+      const digits = String(phone || "")
+        .replace(/\D/g, "");
+
+      if (!digits) return "";
+
+      if (digits.length === 10) {
+        return `+1${digits}`;
+      }
+
+      if (
+        digits.length === 11 &&
+        digits.startsWith("1")
+      ) {
+        return `+${digits}`;
+      }
+
+      return `+${digits}`;
+    }
+
+    function validEmail(email) {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+        .test(String(email || "").trim());
+    }
+
+    function titleCase(value) {
+      return String(value || "")
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (m) => m.toUpperCase())
+        .trim();
+    }
+
     function showBox(box, message) {
+      if (!box) return;
+
       box.style.display = "block";
       box.innerHTML = message;
     }
 
     function hideBox(box) {
+      if (!box) return;
+
       box.style.display = "none";
       box.innerHTML = "";
     }
@@ -903,31 +1383,86 @@
       hideBox(infoBox);
     }
 
-    function setButtonLoading(button, loading, loadingText, idleText) {
+    function setButtonLoading(
+      button,
+      loading,
+      loadingText,
+      idleText
+    ) {
+      if (!button) return;
+
+      button.disabled = loading;
+
       if (loading) {
-        button.disabled = true;
-        button.dataset.originalText = button.dataset.originalText || button.textContent;
+        button.dataset.originalText =
+          button.dataset.originalText ||
+          button.textContent;
+
         button.textContent = loadingText;
       } else {
-        button.disabled = false;
-        button.textContent = idleText || button.dataset.originalText || button.textContent;
+        button.textContent =
+          idleText ||
+          button.dataset.originalText ||
+          button.textContent;
       }
     }
 
-    function normalizePhone(phone) {
-      return String(phone || "").replace(/[^\d+]/g, "").trim();
+    function apiUrl(path) {
+      return `${API_BASE}${path}`;
     }
 
-    function isEmailLikelyValid(email) {
-      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || "").trim());
+    async function safeJson(response) {
+      const text = await response.text();
+
+      try {
+        return text ? JSON.parse(text) : {};
+      } catch (_) {
+        return {
+          ok: false,
+          error: text || "Invalid JSON response."
+        };
+      }
     }
 
-    function titleCase(value) {
-      return String(value || "")
-        .replace(/_/g, " ")
-        .replace(/\b\w/g, (m) => m.toUpperCase())
-        .trim();
+    async function api(path, options = {}) {
+      const response = await fetch(
+        apiUrl(path),
+        {
+          method: options.method || "GET",
+
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            ...(options.headers || {})
+          },
+
+          body: options.body || null,
+
+          cache: "no-store",
+          credentials: "omit"
+        }
+      );
+
+      const data = await safeJson(response);
+
+      if (
+        !response.ok ||
+        data.ok === false ||
+        data.success === false
+      ) {
+        throw new Error(
+          data.error ||
+          data.message ||
+          `Request failed (${response.status})`
+        );
+      }
+
+      return data;
     }
+
+    /* ------------------------------------- */
+    /* STORAGE */
+    /* ------------------------------------- */
 
     function getSavedRiderId() {
       return (
@@ -938,34 +1473,125 @@
       ).trim();
     }
 
-    function getSavedRiderProfile() {
+    function getSavedProfile() {
       const candidates = [
         localStorage.getItem(STORAGE.riderProfile),
         localStorage.getItem(STORAGE.rider)
       ].filter(Boolean);
 
-      for (const item of candidates) {
+      for (const raw of candidates) {
         try {
-          const parsed = JSON.parse(item);
-          if (parsed && typeof parsed === "object") return parsed;
+          const parsed = JSON.parse(raw);
+
+          if (
+            parsed &&
+            typeof parsed === "object"
+          ) {
+            return parsed;
+          }
         } catch (_) {}
       }
+
       return null;
     }
+
+    function saveRiderProfile(profile) {
+      if (!profile) return;
+
+      const riderId =
+        profile.id ||
+        profile.rider_id ||
+        "";
+
+      if (riderId) {
+        localStorage.setItem(
+          STORAGE.riderId,
+          riderId
+        );
+
+        localStorage.setItem(
+          STORAGE.riderIdAlt1,
+          riderId
+        );
+
+        localStorage.setItem(
+          STORAGE.riderIdAlt2,
+          riderId
+        );
+      }
+
+      if (profile.email) {
+        localStorage.setItem(
+          STORAGE.riderEmail,
+          profile.email
+        );
+      }
+
+      localStorage.setItem(
+        STORAGE.rider,
+        JSON.stringify(profile)
+      );
+
+      localStorage.setItem(
+        STORAGE.riderProfile,
+        JSON.stringify(profile)
+      );
+    }
+
+    function clearSavedSession() {
+      Object.values(STORAGE).forEach((key) => {
+        localStorage.removeItem(key);
+      });
+
+      riderIdBox.style.display = "none";
+
+      savedRiderIdValue.textContent = "--";
+
+      savedSessionText.textContent =
+        "No saved rider session detected yet.";
+
+      setAccountStatusDisplay("missing");
+
+      clearMessages();
+
+      showBox(
+        infoBox,
+        "Saved rider session cleared."
+      );
+    }    /* ------------------------------------- */
+    /* FORM DATA */
+    /* ------------------------------------- */
 
     function getFormData() {
       return {
         first_name: document.getElementById("firstName").value.trim(),
         last_name: document.getElementById("lastName").value.trim(),
+
         email: document.getElementById("email").value.trim().toLowerCase(),
-        phone: normalizePhone(document.getElementById("phone").value),
+
+        phone: normalizePhone(
+          document.getElementById("phone").value
+        ),
+
         city: document.getElementById("city").value.trim(),
+
         state: document.getElementById("state").value.trim().toUpperCase(),
+
         password: document.getElementById("password").value,
+
         confirm_password: document.getElementById("confirmPassword").value,
+
         verification_document_type: selectedDocumentType,
+
         emergency_contact: document.getElementById("emergencyContact").value.trim(),
-        notes: document.getElementById("notes").value.trim()
+
+        notes: document.getElementById("notes").value.trim(),
+
+        terms_accepted: document.getElementById("termsConsent").checked,
+
+        verification_consent: document.getElementById("verificationConsent").checked,
+
+        communications_consent: document.getElementById("communicationsConsent").checked
       };
     }
 
@@ -973,43 +1599,216 @@
       if (!payload.first_name) return "First name is required.";
       if (!payload.last_name) return "Last name is required.";
       if (!payload.email) return "Email is required.";
-      if (!isEmailLikelyValid(payload.email)) return "Enter a valid email address.";
+      if (!validEmail(payload.email)) return "Enter a valid email address.";
+
       if (!payload.phone) return "Phone number is required.";
-      if (payload.phone.replace(/[^\d]/g, "").length < 10) return "Enter a valid phone number.";
+
+      if (
+        payload.phone.replace(/[^\d]/g, "").length < 10
+      ) {
+        return "Enter a valid phone number.";
+      }
+
       if (!payload.city) return "City is required.";
       if (!payload.state) return "State is required.";
       if (payload.state.length !== 2) return "Enter a valid 2-letter state code.";
+
       if (!payload.password) return "Password is required.";
       if (payload.password.length < 8) return "Password must be at least 8 characters.";
-      if (payload.password !== payload.confirm_password) return "Passwords do not match.";
+
+      if (payload.password !== payload.confirm_password) {
+        return "Passwords do not match.";
+      }
+
+      if (!payload.terms_accepted) {
+        return "You must accept Harvey Taxi rider onboarding policies.";
+      }
+
+      if (!payload.verification_consent) {
+        return "You must acknowledge future rider identity verification requirements.";
+      }
+
+      if (!payload.communications_consent) {
+        return "You must consent to onboarding and ride-status communications.";
+      }
+
       return "";
     }
 
-    async function safeJson(response) {
-      const text = await response.text();
-      try {
-        return text ? JSON.parse(text) : {};
-      } catch (_) {
-        return { ok: false, success: false, message: text || "Invalid server response." };
-      }
+    function buildSignupBody(payload) {
+      const fullName =
+        `${payload.first_name} ${payload.last_name}`.trim();
+
+      return {
+        first_name: payload.first_name,
+        firstName: payload.first_name,
+
+        last_name: payload.last_name,
+        lastName: payload.last_name,
+
+        full_name: fullName,
+        fullName,
+
+        email: payload.email,
+        phone: payload.phone,
+
+        city: payload.city,
+        state: payload.state,
+
+        password: payload.password,
+
+        verification_document_type: payload.verification_document_type,
+        verificationDocumentType: payload.verification_document_type,
+
+        document_type: payload.verification_document_type,
+        documentType: payload.verification_document_type,
+
+        emergency_contact: payload.emergency_contact || null,
+        emergencyContact: payload.emergency_contact || null,
+
+        notes: payload.notes || null,
+
+        terms_accepted: payload.terms_accepted,
+        termsAccepted: payload.terms_accepted,
+
+        verification_consent: payload.verification_consent,
+        verificationConsent: payload.verification_consent,
+
+        communications_consent: payload.communications_consent,
+        communicationsConsent: payload.communications_consent,
+
+        source: "rider-signup.html",
+        client_version: APP_VERSION
+      };
     }
 
-    async function api(url, options = {}) {
-      const response = await fetch(url, {
-        headers: {
-          "Content-Type": "application/json",
-          ...(options.headers || {})
-        },
-        ...options
-      });
+    function normalizeRiderFromResponse(data, payload) {
+      const rider =
+        data?.rider ||
+        data?.profile ||
+        data?.data?.rider ||
+        data?.data?.profile ||
+        {};
 
-      const data = await safeJson(response);
+      const riderId =
+        data?.rider_id ||
+        data?.riderId ||
+        rider?.id ||
+        rider?.rider_id ||
+        "";
 
-      if (!response.ok || !(data.ok || data.success)) {
-        throw new Error(data.error || data.message || "Request failed.");
-      }
+      const approvalStatus =
+        rider?.approval_status ||
+        rider?.verification_status ||
+        rider?.status ||
+        data?.approval_status ||
+        data?.status ||
+        "pending";
 
-      return data;
+      const approved =
+        data?.approved === true ||
+        rider?.approved === true ||
+        rider?.is_approved === true ||
+        ["approved", "active", "verified"].includes(
+          String(approvalStatus).toLowerCase()
+        );
+
+      return {
+        id: riderId,
+        rider_id: riderId,
+
+        first_name:
+          rider?.first_name ||
+          payload?.first_name ||
+          "",
+
+        last_name:
+          rider?.last_name ||
+          payload?.last_name ||
+          "",
+
+        full_name:
+          rider?.full_name ||
+          `${payload?.first_name || ""} ${payload?.last_name || ""}`.trim(),
+
+        email:
+          rider?.email ||
+          payload?.email ||
+          "",
+
+        phone:
+          rider?.phone ||
+          payload?.phone ||
+          "",
+
+        city:
+          rider?.city ||
+          payload?.city ||
+          "",
+
+        state:
+          rider?.state ||
+          payload?.state ||
+          "",
+
+        notes:
+          rider?.notes ??
+          payload?.notes ??
+          "",
+
+        emergency_contact:
+          rider?.emergency_contact ??
+          payload?.emergency_contact ??
+          "",
+
+        verification_document_type:
+          rider?.verification_document_type ||
+          payload?.verification_document_type ||
+          selectedDocumentType,
+
+        approval_status: approvalStatus,
+        verification_status:
+          rider?.verification_status ||
+          approvalStatus,
+
+        phone_verified:
+          Boolean(
+            rider?.phone_verified ||
+            rider?.sms_verified
+          ),
+
+        email_verified:
+          Boolean(rider?.email_verified),
+
+        persona_status:
+          rider?.persona_status ||
+          data?.persona_status ||
+          "pending",
+
+        payment_status:
+          rider?.payment_authorization_status ||
+          rider?.payment_status ||
+          data?.payment_status ||
+          "pending",
+
+        approved
+      };
+    }
+
+    /* ------------------------------------- */
+    /* UI STATUS */
+    /* ------------------------------------- */
+
+    function updateDocumentText() {
+      const labelMap = {
+        driver_license: "Driver License selected.",
+        state_id: "State ID selected.",
+        passport: "Passport selected."
+      };
+
+      documentText.textContent =
+        labelMap[selectedDocumentType] ||
+        "Verification method selected.";
     }
 
     function updateSavedRiderId(riderId) {
@@ -1025,455 +1824,746 @@
 
     function updateSavedSessionText() {
       const riderId = getSavedRiderId();
-      const riderProfile = getSavedRiderProfile();
+      const profile = getSavedProfile();
 
-      if (!riderId && !riderProfile) {
-        savedSessionText.textContent = "No saved rider session detected yet.";
+      if (!riderId && !profile) {
+        savedSessionText.textContent =
+          "No saved rider session detected yet.";
+
         updateSavedRiderId("");
         return;
       }
 
-      const fullName = riderProfile
-        ? [riderProfile.first_name, riderProfile.last_name].filter(Boolean).join(" ")
-        : "";
+      const fullName =
+        profile?.full_name ||
+        [profile?.first_name, profile?.last_name]
+          .filter(Boolean)
+          .join(" ");
 
-      savedSessionText.textContent = [
-        riderId ? `Saved Rider ID: ${riderId}` : "",
-        fullName ? `Name: ${fullName}` : "",
-        riderProfile?.email ? `Email: ${riderProfile.email}` : ""
-      ].filter(Boolean).join(" • ");
+      savedSessionText.textContent =
+        [
+          riderId ? `Saved Rider ID: ${riderId}` : "",
+          fullName ? `Name: ${fullName}` : "",
+          profile?.email ? `Email: ${profile.email}` : "",
+          profile?.approval_status ? `Status: ${titleCase(profile.approval_status)}` : ""
+        ]
+          .filter(Boolean)
+          .join(" • ");
 
       if (riderId) {
         updateSavedRiderId(riderId);
       }
     }
 
-    function saveRiderSession(riderId, payload, rider, approved, status) {
-      const riderProfile = {
-        id: riderId || rider?.id || "",
-        first_name: rider?.first_name || payload.first_name || "",
-        last_name: rider?.last_name || payload.last_name || "",
-        email: rider?.email || payload.email || "",
-        phone: rider?.phone || payload.phone || "",
-        city: rider?.city || payload.city || "",
-        state: rider?.state || payload.state || "",
-        notes: rider?.notes ?? payload.notes ?? "",
-        emergency_contact: rider?.emergency_contact ?? payload.emergency_contact ?? "",
-        verification_document_type:
-          rider?.verification_document_type || payload.verification_document_type || selectedDocumentType,
-        approval_status:
-          rider?.approval_status || (approved ? "approved" : "pending"),
-        verification_status:
-          rider?.verification_status || status || (approved ? "approved" : "pending"),
-        payment_status:
-          rider?.payment_authorization_status || rider?.payment_status || "pending",
-        approved: approved === true
-      };
-
-      if (riderProfile.id) {
-        localStorage.setItem(STORAGE.riderId, riderProfile.id);
-        localStorage.setItem(STORAGE.riderIdAlt1, riderProfile.id);
-        localStorage.setItem(STORAGE.riderIdAlt2, riderProfile.id);
-      }
-
-      localStorage.setItem(STORAGE.riderEmail, riderProfile.email || "");
-      localStorage.setItem(STORAGE.rider, JSON.stringify(riderProfile));
-      localStorage.setItem(STORAGE.riderProfile, JSON.stringify(riderProfile));
-
-      updateSavedRiderId(riderProfile.id);
-      updateSavedSessionText();
-    }
-
-    function clearRiderSession() {
-      localStorage.removeItem(STORAGE.riderId);
-      localStorage.removeItem(STORAGE.riderIdAlt1);
-      localStorage.removeItem(STORAGE.riderIdAlt2);
-      localStorage.removeItem(STORAGE.riderEmail);
-      localStorage.removeItem(STORAGE.rider);
-      localStorage.removeItem(STORAGE.riderProfile);
-
-      updateSavedRiderId("");
-      updateSavedSessionText();
-      setAccountStatusDisplay("missing");
-      showBox(infoBox, "Saved rider session cleared.");
-    }
-
-    function goToRiderDashboard(riderId) {
-      const target = riderId
-        ? `/rider-dashboard.html?riderId=${encodeURIComponent(riderId)}`
-        : "/rider-dashboard.html";
-
-      window.location.href = target;
-    }
-
-    function hydrateFormFromSavedProfile() {
-      const riderProfile = getSavedRiderProfile();
-      if (!riderProfile) return;
-
-      if (riderProfile.first_name) document.getElementById("firstName").value = riderProfile.first_name;
-      if (riderProfile.last_name) document.getElementById("lastName").value = riderProfile.last_name;
-      if (riderProfile.email) document.getElementById("email").value = riderProfile.email;
-      if (riderProfile.phone) document.getElementById("phone").value = riderProfile.phone;
-      if (riderProfile.city) document.getElementById("city").value = riderProfile.city;
-      if (riderProfile.state) document.getElementById("state").value = riderProfile.state;
-      if (riderProfile.emergency_contact) document.getElementById("emergencyContact").value = riderProfile.emergency_contact;
-      if (riderProfile.notes) document.getElementById("notes").value = riderProfile.notes;
-
-      if (riderProfile.verification_document_type) {
-        selectedDocumentType = riderProfile.verification_document_type;
-        docButtons.forEach((item) => item.classList.remove("active"));
-        const matching = [...docButtons].find((btn) => btn.dataset.doc === selectedDocumentType);
-        if (matching) matching.classList.add("active");
-        updateDocumentText();
-      }
-    }
-
-    function updateDocumentText() {
-      const labelMap = {
-        driver_license: "Driver License selected.",
-        state_id: "State ID selected.",
-        passport: "Passport selected."
-      };
-
-      documentText.textContent =
-        labelMap[selectedDocumentType] || "Verification method selected.";
-    }
-
-    function setAccountStatusDisplay(state) {
-      if (state === "approved") {
+    function setAccountStatusDisplay(status) {
+      if (status === "approved") {
         accountCreatedTag.className = "tag ok";
         accountCreatedTag.textContent = "Created";
-        accountText.textContent = "Your rider account is approved for ride access.";
-        approvalStepText.textContent = "Rider account is approved for ride access.";
+
+        accountText.textContent =
+          "Your rider account is approved for ride access.";
+
+        approvalStepText.textContent =
+          "Rider account is approved for ride access.";
+
         accountTag.className = "tag ok";
         accountTag.textContent = "Approved";
         return;
       }
 
-      if (state === "pending") {
+      if (status === "pending") {
         accountCreatedTag.className = "tag ok";
         accountCreatedTag.textContent = "Created";
-        accountText.textContent = "Your rider account exists but is still pending approval.";
-        approvalStepText.textContent = "Rider account is waiting for approval.";
+
+        accountText.textContent =
+          "Your rider account exists but is still pending approval.";
+
+        approvalStepText.textContent =
+          "Rider account is waiting for approval.";
+
         accountTag.className = "tag warn";
         accountTag.textContent = "Pending";
         return;
       }
 
-      if (state === "saved") {
+      if (status === "saved") {
         accountCreatedTag.className = "tag ok";
         accountCreatedTag.textContent = "Created";
-        accountText.textContent = "Saved rider session found. Status can be checked now.";
-        approvalStepText.textContent = "Saved rider account found. Status can be checked now.";
+
+        accountText.textContent =
+          "Saved rider session found. Status can be checked now.";
+
+        approvalStepText.textContent =
+          "Saved rider account found. Status can be checked now.";
+
         accountTag.className = "tag info-tag";
         accountTag.textContent = "Saved";
         return;
       }
 
-      if (state === "missing") {
-        accountCreatedTag.className = "tag warn";
-        accountCreatedTag.textContent = "Waiting";
-        accountText.textContent = "No rider account checked yet.";
-        approvalStepText.textContent = "No rider account checked yet.";
-        accountTag.className = "tag warn";
-        accountTag.textContent = "Waiting";
-        return;
-      }
-
-      if (state === "not_found") {
+      if (status === "not_found") {
         accountCreatedTag.className = "tag bad";
         accountCreatedTag.textContent = "Missing";
-        accountText.textContent = "Saved rider account could not be found.";
-        approvalStepText.textContent = "Saved rider account could not be found.";
+
+        accountText.textContent =
+          "Saved rider account could not be found.";
+
+        approvalStepText.textContent =
+          "Saved rider account could not be found.";
+
         accountTag.className = "tag bad";
         accountTag.textContent = "Not Found";
         return;
       }
 
       accountCreatedTag.className = "tag warn";
-      accountCreatedTag.textContent = "Created";
-      accountText.textContent = "Your rider account is not approved for ride access yet.";
-      approvalStepText.textContent = "Rider account is not approved for ride access.";
-      accountTag.className = "tag bad";
-      accountTag.textContent = "Not Approved";
-    }
+      accountCreatedTag.textContent = "Waiting";
+
+      accountText.textContent =
+        "No rider account checked yet.";
+
+      approvalStepText.textContent =
+        "No rider account checked yet.";
+
+      accountTag.className = "tag warn";
+      accountTag.textContent = "Waiting";
+    }    /* ------------------------------------- */
+    /* RIDER SIGNUP */
+    /* ------------------------------------- */
 
     async function createRiderAccount() {
       clearMessages();
+
       if (isCreatingAccount) return;
 
       const payload = getFormData();
-      const validationError = validatePayload(payload);
+
+      const validationError =
+        validatePayload(payload);
 
       if (validationError) {
-        showBox(errorBox, escapeHtml(validationError));
+        showBox(
+          errorBox,
+          escapeHtml(validationError)
+        );
+
         return;
       }
 
       isCreatingAccount = true;
-      setButtonLoading(signupBtn, true, "Creating Account...", "Create Rider Account");
+
+      setButtonLoading(
+        signupBtn,
+        true,
+        "Creating Account...",
+        "Create Rider Account"
+      );
 
       try {
-        const attempts = [
-          () => api("/api/rider/signup", {
-            method: "POST",
-            body: JSON.stringify({
-              first_name: payload.first_name,
-              last_name: payload.last_name,
-              email: payload.email,
-              phone: payload.phone,
-              city: payload.city,
-              state: payload.state,
-              password: payload.password,
-              verification_document_type: payload.verification_document_type,
-              emergency_contact: payload.emergency_contact || null,
-              notes: payload.notes || null
+        const body = buildSignupBody(payload);
+
+        const signupAttempts = [
+
+          /* PRIMARY */
+          () =>
+            api("/api/rider/signup", {
+              method: "POST",
+              body: JSON.stringify(body)
+            }),
+
+          /* FALLBACK */
+          () =>
+            api("/api/riders/signup", {
+              method: "POST",
+              body: JSON.stringify(body)
+            }),
+
+          /* LEGACY */
+          () =>
+            api("/api/signup/rider", {
+              method: "POST",
+              body: JSON.stringify(body)
             })
-          }),
-          () => api("/api/riders/signup", {
-            method: "POST",
-            body: JSON.stringify({
-              first_name: payload.first_name,
-              last_name: payload.last_name,
-              email: payload.email,
-              phone: payload.phone,
-              city: payload.city,
-              state: payload.state,
-              password: payload.password,
-              verification_document_type: payload.verification_document_type,
-              emergency_contact: payload.emergency_contact || null,
-              notes: payload.notes || null
-            })
-          })
+
         ];
 
         let data = null;
         let lastError = null;
 
-        for (const attempt of attempts) {
+        for (const attempt of signupAttempts) {
           try {
             data = await attempt();
+
             if (data) break;
+
           } catch (error) {
             lastError = error;
           }
         }
 
-        if (!data) throw lastError || new Error("Unable to create rider account.");
+        if (!data) {
+          throw (
+            lastError ||
+            new Error(
+              "Unable to create rider account."
+            )
+          );
+        }
 
-        const rider = data.rider || data.profile || {};
-        const riderId = data.rider_id || rider.id || "";
-        const status =
-          rider.approval_status ||
-          rider.verification_status ||
-          rider.status ||
-          data.status ||
-          "pending";
+        const rider =
+          normalizeRiderFromResponse(
+            data,
+            payload
+          );
 
-        const approved =
-          data.approved === true ||
-          rider.approved === true ||
-          rider.is_approved === true ||
-          String(status).toLowerCase() === "approved" ||
-          String(rider.approval_status || "").toLowerCase() === "approved";
+        saveRiderProfile(rider);
 
-        saveRiderSession(riderId, payload, rider, approved, status);
-        setAccountStatusDisplay(approved ? "approved" : "pending");
+        updateSavedSessionText();
+
+        updateSavedRiderId(rider.id);
+
+        setAccountStatusDisplay(
+          rider.approved
+            ? "approved"
+            : "pending"
+        );
 
         showBox(
           resultBox,
           `
-            <strong>Rider Account Created</strong><br><br>
-            <strong>Rider ID:</strong> ${escapeHtml(riderId || "Created")}<br>
-            <strong>Status:</strong> ${escapeHtml(String(status))}<br>
-            <strong>Verification Type:</strong> ${escapeHtml(titleCase(payload.verification_document_type))}<br><br>
+            <strong>
+              Rider Account Created
+            </strong>
+
+            <br><br>
+
+            <strong>Rider ID:</strong>
+            ${escapeHtml(rider.id || "Created")}
+
+            <br>
+
+            <strong>Status:</strong>
+            ${escapeHtml(
+              titleCase(
+                rider.approval_status
+              )
+            )}
+
+            <br>
+
+            <strong>Verification Type:</strong>
+            ${escapeHtml(
+              titleCase(
+                rider.verification_document_type
+              )
+            )}
+
+            <br><br>
+
             ${
-              approved
-                ? "Your rider account is approved. Continue to your rider dashboard."
-                : "Your rider account is created, but ride requests remain subject to backend approval rules."
+              rider.approved
+                ? `
+                  Your rider account is approved
+                  for ride access.
+                `
+                : `
+                  Your rider account was created,
+                  but ride access remains approval-gated.
+                `
             }
           `
         );
 
-        if (approved && riderId) {
+        if (rider.approved) {
+
           showBox(
             infoBox,
-            `Approved rider detected. Continue to your <a class="next-link" href="/rider-dashboard.html?riderId=${encodeURIComponent(riderId)}">Rider Dashboard</a>.`
+            `
+              Approved rider detected.
+
+              <br><br>
+
+              Continue to your
+              <a
+                class="next-link"
+                href="/rider-dashboard.html?riderId=${encodeURIComponent(rider.id)}"
+              >
+                Rider Dashboard
+              </a>.
+            `
           );
 
           setTimeout(() => {
-            goToRiderDashboard(riderId);
-          }, 1200);
+            goToDashboard(rider.id);
+          }, 1400);
+
         } else {
+
           showBox(
             infoBox,
-            "Account created. Use Check Rider Status to confirm when your rider profile is approved."
+            `
+              Rider account created successfully.
+
+              <br><br>
+
+              Use
+              <strong>
+                Check Rider Status
+              </strong>
+              to monitor your approval status
+              before requesting rides.
+            `
           );
         }
+
       } catch (error) {
-        showBox(errorBox, escapeHtml(error.message || "Unable to reach the rider signup service."));
+
+        showBox(
+          errorBox,
+          `
+            <strong>
+              Rider signup failed.
+            </strong>
+
+            <br><br>
+
+            ${escapeHtml(
+              error.message ||
+              "Unable to reach rider signup service."
+            )}
+          `
+        );
+
       } finally {
+
         isCreatingAccount = false;
-        setButtonLoading(signupBtn, false, "", "Create Rider Account");
+
+        setButtonLoading(
+          signupBtn,
+          false,
+          "",
+          "Create Rider Account"
+        );
       }
     }
 
+    /* ------------------------------------- */
+    /* RIDER STATUS */
+    /* ------------------------------------- */
+
     async function checkRiderStatus() {
       clearMessages();
+
       if (isCheckingStatus) return;
 
-      const storedRiderId = getSavedRiderId();
+      const riderId =
+        getSavedRiderId();
 
-      if (!storedRiderId) {
-        showBox(errorBox, "No saved rider account found yet. Create your rider account first.");
-        setAccountStatusDisplay("missing");
+      if (!riderId) {
+
+        setAccountStatusDisplay(
+          "missing"
+        );
+
+        showBox(
+          errorBox,
+          `
+            No saved rider session found.
+
+            <br><br>
+
+            Create your rider account first.
+          `
+        );
+
         return;
       }
 
       isCheckingStatus = true;
-      setButtonLoading(checkBtn, true, "Checking Status...", "Check Rider Status");
+
+      setButtonLoading(
+        checkBtn,
+        true,
+        "Checking Status...",
+        "Check Rider Status"
+      );
 
       try {
+
         const attempts = [
-          () => api(`/api/rider/${encodeURIComponent(storedRiderId)}/status`),
-          () => api(`/api/riders/${encodeURIComponent(storedRiderId)}/status`),
-          () => api("/api/rider/status", {
-            method: "POST",
-            body: JSON.stringify({ rider_id: storedRiderId })
-          })
+
+          () =>
+            api(
+              `/api/rider/${encodeURIComponent(riderId)}/status`
+            ),
+
+          () =>
+            api(
+              `/api/riders/${encodeURIComponent(riderId)}/status`
+            ),
+
+          () =>
+            api(
+              "/api/rider/status",
+              {
+                method: "POST",
+                body: JSON.stringify({
+                  rider_id: riderId
+                })
+              }
+            )
+
         ];
 
         let data = null;
         let lastError = null;
 
         for (const attempt of attempts) {
+
           try {
+
             data = await attempt();
+
             if (data) break;
+
           } catch (error) {
             lastError = error;
           }
         }
 
-        if (!data) throw lastError || new Error("Unable to load rider account status.");
-
-        const rider = data.rider || data.profile;
-        if (!rider) {
-          setAccountStatusDisplay("not_found");
-          throw new Error("Unable to load rider account status.");
+        if (!data) {
+          throw (
+            lastError ||
+            new Error(
+              "Unable to load rider status."
+            )
+          );
         }
 
-        const approvalStatus =
-          rider.approval_status ||
-          rider.verification_status ||
-          rider.status ||
-          "pending";
+        const rider =
+          normalizeRiderFromResponse(
+            data,
+            {}
+          );
 
-        const approved =
-          rider.approved === true ||
-          rider.is_approved === true ||
-          String(approvalStatus).toLowerCase() === "approved";
+        if (!rider.id) {
+          rider.id = riderId;
+        }
 
-        const fullName = `${rider.first_name || ""} ${rider.last_name || ""}`.trim();
+        saveRiderProfile(rider);
 
-        saveRiderSession(
-          rider.id || storedRiderId,
-          {
-            first_name: rider.first_name || "",
-            last_name: rider.last_name || "",
-            email: rider.email || "",
-            phone: rider.phone || "",
-            city: rider.city || "",
-            state: rider.state || "",
-            notes: rider.notes || "",
-            emergency_contact: rider.emergency_contact || "",
-            verification_document_type: rider.verification_document_type || selectedDocumentType
-          },
-          rider,
-          approved,
-          approvalStatus
-        );
+        updateSavedSessionText();
 
-        setAccountStatusDisplay(approved ? "approved" : "pending");
+        setAccountStatusDisplay(
+          rider.approved
+            ? "approved"
+            : "pending"
+        );        const fullName =
+          [
+            rider.first_name,
+            rider.last_name
+          ]
+          .filter(Boolean)
+          .join(" ");
 
         showBox(
           resultBox,
           `
-            <strong>Rider Status Checked</strong><br><br>
-            <strong>Rider ID:</strong> ${escapeHtml(rider.id || storedRiderId)}<br>
-            <strong>Name:</strong> ${escapeHtml(fullName || "Rider")}<br>
-            <strong>Status:</strong> ${escapeHtml(String(approvalStatus))}<br>
-            <strong>Approved:</strong> ${approved ? "Yes" : "No"}
+            <strong>
+              Rider Status Loaded
+            </strong>
+
+            <br><br>
+
+            <strong>Rider ID:</strong>
+            ${escapeHtml(rider.id)}
+
+            <br>
+
+            <strong>Name:</strong>
+            ${escapeHtml(
+              fullName || "Rider"
+            )}
+
+            <br>
+
+            <strong>Approval Status:</strong>
+            ${escapeHtml(
+              titleCase(
+                rider.approval_status
+              )
+            )}
+
+            <br>
+
+            <strong>Verification:</strong>
+            ${escapeHtml(
+              titleCase(
+                rider.verification_status
+              )
+            )}
+
+            <br>
+
+            <strong>Payment Status:</strong>
+            ${escapeHtml(
+              titleCase(
+                rider.payment_status
+              )
+            )}
+
+            <br>
+
+            <strong>Ride Access:</strong>
+            ${
+              rider.approved
+                ? "Approved"
+                : "Pending"
+            }
           `
         );
 
-        if (approved) {
+        if (rider.approved) {
+
           showBox(
             infoBox,
-            `You are approved for ride access. Continue to your <a class="next-link" href="/rider-dashboard.html?riderId=${encodeURIComponent(rider.id || storedRiderId)}">Rider Dashboard</a>.`
+            `
+              Your rider account is approved.
+
+              <br><br>
+
+              Continue into your
+              <a
+                class="next-link"
+                href="/rider-dashboard.html?riderId=${encodeURIComponent(rider.id)}"
+              >
+                Rider Dashboard
+              </a>.
+            `
           );
+
         } else {
+
           showBox(
             infoBox,
-            "Your rider account is still pending approval. Check again after your backend review updates."
+            `
+              Your rider profile is still pending approval.
+
+              <br><br>
+
+              Ride requests remain locked until
+              approval is completed.
+            `
           );
         }
+
       } catch (error) {
-        showBox(errorBox, escapeHtml(error.message || "Unable to check rider status right now."));
+
+        setAccountStatusDisplay(
+          "not_found"
+        );
+
+        showBox(
+          errorBox,
+          `
+            <strong>
+              Rider status check failed.
+            </strong>
+
+            <br><br>
+
+            ${escapeHtml(
+              error.message ||
+              "Unable to load rider account status."
+            )}
+          `
+        );
+
       } finally {
+
         isCheckingStatus = false;
-        setButtonLoading(checkBtn, false, "", "Check Rider Status");
+
+        setButtonLoading(
+          checkBtn,
+          false,
+          "",
+          "Check Rider Status"
+        );
       }
+    }
+
+    /* ------------------------------------- */
+    /* NAVIGATION */
+    /* ------------------------------------- */
+
+    function goToDashboard(riderId) {
+
+      const target =
+        riderId
+          ? `/rider-dashboard.html?riderId=${encodeURIComponent(riderId)}`
+          : "/rider-dashboard.html";
+
+      window.location.href = target;
     }
 
     function continueToDashboard() {
-      const riderId = getSavedRiderId();
+
+      clearMessages();
+
+      const riderId =
+        getSavedRiderId();
 
       if (!riderId) {
-        clearMessages();
-        showBox(errorBox, "No saved rider session found. Create or recover your rider account first.");
+
+        showBox(
+          errorBox,
+          `
+            No saved rider session found.
+
+            <br><br>
+
+            Create or recover your rider account first.
+          `
+        );
+
         return;
       }
 
-      goToRiderDashboard(riderId);
+      goToDashboard(riderId);
     }
 
-    function bootstrapSavedSession() {
-      hydrateFormFromSavedProfile();
-      updateDocumentText();
+    /* ------------------------------------- */
+    /* SESSION CLEAR */
+    /* ------------------------------------- */
+
+    function clearRiderSession() {
+
+      Object.values(STORAGE).forEach((key) => {
+        localStorage.removeItem(key);
+      });
+
       updateSavedSessionText();
 
-      const savedRiderId = getSavedRiderId();
-      if (savedRiderId) {
-        setAccountStatusDisplay("saved");
+      updateSavedRiderId("");
+
+      setAccountStatusDisplay(
+        "missing"
+      );
+
+      clearMessages();
+
+      showBox(
+        infoBox,
+        `
+          Saved rider session cleared successfully.
+        `
+      );
+    }
+
+    /* ------------------------------------- */
+    /* UI EVENTS */
+    /* ------------------------------------- */
+
+    docButtons.forEach((btn) => {
+
+      btn.addEventListener(
+        "click",
+        () => {
+
+          docButtons.forEach((item) => {
+            item.classList.remove("active");
+          });
+
+          btn.classList.add("active");
+
+          selectedDocumentType =
+            btn.dataset.doc ||
+            "driver_license";
+
+          updateDocumentText();
+        }
+      );
+    });
+
+    signupBtn.addEventListener(
+      "click",
+      createRiderAccount
+    );
+
+    checkBtn.addEventListener(
+      "click",
+      checkRiderStatus
+    );
+
+    continueBtn.addEventListener(
+      "click",
+      continueToDashboard
+    );
+
+    clearSavedBtn.addEventListener(
+      "click",
+      clearRiderSession
+    );
+
+    document
+      .getElementById("email")
+      .addEventListener(
+        "keydown",
+        (event) => {
+
+          if (event.key === "Enter") {
+            createRiderAccount();
+          }
+        }
+      );
+
+    document
+      .getElementById("confirmPassword")
+      .addEventListener(
+        "keydown",
+        (event) => {
+
+          if (event.key === "Enter") {
+            createRiderAccount();
+          }
+        }
+      );
+
+    /* ------------------------------------- */
+    /* BOOTSTRAP */
+    /* ------------------------------------- */
+
+    async function bootstrap() {
+
+      updateDocumentText();
+
+      hydrateFormFromSavedProfile();
+
+      updateSavedSessionText();
+
+      const riderId =
+        getSavedRiderId();
+
+      if (riderId) {
+
+        setAccountStatusDisplay(
+          "saved"
+        );
+
+        try {
+          await checkRiderStatus();
+        } catch (_) {}
+
       } else {
-        setAccountStatusDisplay("missing");
+
+        setAccountStatusDisplay(
+          "missing"
+        );
       }
     }
 
-    docButtons.forEach((btn) => {
-      btn.addEventListener("click", () => {
-        docButtons.forEach((item) => item.classList.remove("active"));
-        btn.classList.add("active");
-        selectedDocumentType = btn.dataset.doc;
-        updateDocumentText();
-      });
-    });
+    bootstrap();
 
-    signupBtn.addEventListener("click", createRiderAccount);
-    checkBtn.addEventListener("click", checkRiderStatus);
-    continueBtn.addEventListener("click", continueToDashboard);
-    clearSavedBtn.addEventListener("click", clearRiderSession);
-
-    document.getElementById("email").addEventListener("keydown", (e) => {
-      if (e.key === "Enter") createRiderAccount();
-    });
-
-    document.getElementById("confirmPassword").addEventListener("keydown", (e) => {
-      if (e.key === "Enter") createRiderAccount();
-    });
-
-    bootstrapSavedSession();
   </script>
 </body>
-  </html>
+</html>
