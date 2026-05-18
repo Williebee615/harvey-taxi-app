@@ -3,20 +3,26 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
   <title>Harvey Taxi | Safe Tennessee Rides, Driver Access, and Live Support</title>
-  <meta name="description" content="Harvey Taxi Service LLC helps approved riders request safe Tennessee rides, connect with qualified drivers, access support, and explore clearly labeled autonomous pilot features." />
+  <meta
+    name="description"
+    content="Harvey Taxi Service LLC helps Tennessee riders request safe rides, connect with qualified drivers, access live support, and explore future mobility services."
+  />
   <meta name="theme-color" content="#07111f" />
+
+  <link rel="stylesheet" href="/ai-support-widget.css" />
 
   <style>
     :root {
       --bg1: #040814;
       --bg2: #091126;
       --bg3: #101935;
-      --panel: rgba(10, 17, 38, 0.90);
-      --panel-2: rgba(15, 23, 52, 0.80);
+      --panel: rgba(10, 17, 38, 0.92);
+      --panel-2: rgba(15, 23, 52, 0.84);
       --glass: rgba(255, 255, 255, 0.04);
       --line: rgba(122, 162, 255, 0.16);
-      --line-strong: rgba(122, 162, 255, 0.30);
+      --line-strong: rgba(122, 162, 255, 0.32);
       --text: #f4f7ff;
       --muted: #aab8de;
       --blue: #5ea0ff;
@@ -26,8 +32,8 @@
       --danger: #ff7e97;
       --violet: #8c83ff;
       --ink: #07121f;
-      --shadow: 0 20px 70px rgba(0,0,0,0.35);
-      --shadow-soft: 0 10px 30px rgba(0,0,0,0.24);
+      --shadow: 0 20px 70px rgba(0, 0, 0, 0.35);
+      --shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.24);
       --radius-xl: 30px;
       --radius-lg: 22px;
       --radius-md: 16px;
@@ -50,13 +56,13 @@
       font-family: Inter, Arial, sans-serif;
       color: var(--text);
       background:
-        radial-gradient(circle at top left, rgba(99,245,255,0.11), transparent 30%),
-        radial-gradient(circle at top right, rgba(94,160,255,0.10), transparent 28%),
-        radial-gradient(circle at 50% 110%, rgba(109,255,179,0.06), transparent 24%),
+        radial-gradient(circle at top left, rgba(99, 245, 255, 0.12), transparent 30%),
+        radial-gradient(circle at top right, rgba(94, 160, 255, 0.11), transparent 28%),
+        radial-gradient(circle at 50% 110%, rgba(109, 255, 179, 0.07), transparent 24%),
         linear-gradient(160deg, var(--bg1), var(--bg2) 48%, var(--bg3));
       min-height: 100vh;
       overflow-x: hidden;
-      padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 30px);
+      padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 28px);
     }
 
     a {
@@ -64,7 +70,8 @@
       text-decoration: none;
     }
 
-    button, a {
+    button,
+    a {
       -webkit-tap-highlight-color: transparent;
       touch-action: manipulation;
     }
@@ -85,18 +92,19 @@
     }
 
     .topbar {
-      position: relative;
-      z-index: 20;
+      position: sticky;
+      top: 12px;
+      z-index: 50;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 14px;
-      padding: 14px 24px;
+      padding: 14px 22px;
       border: 1px solid var(--line);
       border-radius: 999px;
-      background: rgba(7, 12, 28, 0.78);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
+      background: rgba(7, 12, 28, 0.82);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
       box-shadow: var(--shadow);
       margin-bottom: 24px;
     }
@@ -115,7 +123,7 @@
       display: grid;
       place-items: center;
       background: linear-gradient(135deg, var(--cyan), var(--blue));
-      box-shadow: 0 0 22px rgba(99,245,255,0.25);
+      box-shadow: 0 0 22px rgba(99, 245, 255, 0.25);
       color: var(--ink);
       font-size: 14px;
       font-weight: 900;
@@ -131,7 +139,7 @@
 
     .brand {
       font-weight: 900;
-      letter-spacing: .12em;
+      letter-spacing: 0.12em;
       font-size: 15px;
       white-space: nowrap;
     }
@@ -139,7 +147,7 @@
     .brand-sub {
       color: var(--muted);
       font-size: 11px;
-      letter-spacing: .05em;
+      letter-spacing: 0.05em;
       white-space: nowrap;
     }
 
@@ -150,23 +158,24 @@
     }
 
     .top-link {
-      padding: 10px 16px;
+      padding: 10px 15px;
       border-radius: 999px;
-      border: 1px solid rgba(255,255,255,0.04);
-      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      background: rgba(255, 255, 255, 0.02);
       color: var(--muted);
       font-size: 13px;
-      font-weight: 700;
-      transition: .18s ease;
+      font-weight: 800;
+      transition: 0.18s ease;
       display: inline-flex;
       align-items: center;
       justify-content: center;
     }
 
-    .top-link:hover {
+    .top-link:hover,
+    .top-link:focus-visible {
       color: #fff;
-      background: rgba(255,255,255,0.07);
-      border-color: rgba(255,255,255,0.14);
+      background: rgba(255, 255, 255, 0.07);
+      border-color: rgba(255, 255, 255, 0.14);
       transform: translateY(-1px);
     }
 
@@ -174,15 +183,14 @@
       background: linear-gradient(135deg, var(--cyan), var(--blue));
       color: var(--ink);
       border: none;
-      font-weight: 800;
     }
 
     .announce {
       margin-bottom: 24px;
-      padding: 16px 24px;
+      padding: 16px 22px;
       border-radius: 20px;
-      border: 1px solid rgba(99,245,255,0.14);
-      background: linear-gradient(135deg, rgba(99,245,255,0.10), rgba(94,160,255,0.07));
+      border: 1px solid rgba(99, 245, 255, 0.14);
+      background: linear-gradient(135deg, rgba(99, 245, 255, 0.10), rgba(94, 160, 255, 0.07));
       box-shadow: var(--shadow-soft);
       display: flex;
       justify-content: space-between;
@@ -208,10 +216,26 @@
       position: relative;
       border-radius: 34px;
       border: 1px solid var(--line);
-      background: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.012)), var(--panel);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.012)), var(--panel);
       box-shadow: var(--shadow);
       padding: 40px;
       margin-bottom: 24px;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: -1px;
+      background:
+        radial-gradient(circle at 20% 0%, rgba(99, 245, 255, 0.12), transparent 35%),
+        radial-gradient(circle at 80% 20%, rgba(140, 131, 255, 0.12), transparent 32%);
+      pointer-events: none;
+    }
+
+    .hero > * {
+      position: relative;
+      z-index: 1;
     }
 
     .hero-grid {
@@ -231,15 +255,15 @@
       margin-bottom: 20px;
       color: var(--cyan);
       font-size: 12px;
-      font-weight: 800;
-      letter-spacing: .05em;
+      font-weight: 900;
+      letter-spacing: 0.05em;
     }
 
     .hero-title {
-      font-size: clamp(2.4rem, 5vw, 3.8rem);
-      line-height: 1.1;
+      font-size: clamp(2.35rem, 5vw, 3.9rem);
+      line-height: 1.08;
       margin-bottom: 16px;
-      letter-spacing: -.03em;
+      letter-spacing: -0.04em;
     }
 
     .hero-copy {
@@ -247,10 +271,11 @@
       line-height: 1.75;
       margin-bottom: 28px;
       font-size: 16px;
+      max-width: 760px;
     }
 
     .action-container {
-      background: rgba(4, 8, 20, 0.5);
+      background: rgba(4, 8, 20, 0.54);
       border: 1px solid rgba(255, 255, 255, 0.06);
       padding: 24px;
       border-radius: 20px;
@@ -272,7 +297,8 @@
       margin-bottom: 14px;
     }
 
-    .secondary-actions {
+    .secondary-actions,
+    .actions {
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
@@ -287,20 +313,22 @@
       padding: 14px 20px;
       border-radius: 14px;
       border: 1px solid var(--line);
-      background: rgba(255,255,255,0.04);
+      background: rgba(255, 255, 255, 0.04);
       color: white;
-      font-weight: 700;
-      transition: .18s ease;
+      font-weight: 800;
+      transition: 0.18s ease;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
       min-height: 52px;
+      text-align: center;
     }
 
-    .btn:hover {
+    .btn:hover,
+    .btn:focus-visible {
       transform: translateY(-2px);
-      background: rgba(255,255,255,0.07);
+      background: rgba(255, 255, 255, 0.07);
       border-color: var(--line-strong);
     }
 
@@ -308,36 +336,29 @@
       background: linear-gradient(135deg, var(--cyan), var(--blue));
       color: var(--ink);
       border: none;
-      font-weight: 800;
     }
 
     .btn.success {
       background: linear-gradient(135deg, var(--green), #89ffd0);
       color: #062014;
       border: none;
-      font-weight: 800;
     }
 
     .btn.autonomous {
       background: rgba(140, 131, 255, 0.15);
-      color: #c9c8ff;
+      color: #d8d6ff;
       border: 1px solid rgba(140, 131, 255, 0.3);
-    }
-
-    .btn.autonomous:hover {
-      background: rgba(140, 131, 255, 0.25);
     }
 
     .btn.foundation {
       background: linear-gradient(135deg, var(--gold), #ffe9a1);
       color: #2b2200;
       border: none;
-      font-weight: 800;
     }
 
     .btn.ghost {
       background: transparent;
-      border-color: rgba(255,255,255,0.12);
+      border-color: rgba(255, 255, 255, 0.12);
     }
 
     .pilot-tag {
@@ -360,8 +381,8 @@
     .hero-point {
       padding: 16px;
       border-radius: 16px;
-      background: rgba(255,255,255,0.02);
-      border: 1px solid rgba(255,255,255,0.05);
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
       color: var(--muted);
       font-size: 14px;
       line-height: 1.5;
@@ -380,16 +401,17 @@
       gap: 16px;
     }
 
-    .status-card, .trust-card, .pilot-card, .foundation-card {
+    .status-card,
+    .foundation-card {
       padding: 24px;
       border-radius: 20px;
-      border: 1px solid rgba(255,255,255,0.06);
-      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      background: rgba(255, 255, 255, 0.02);
     }
 
     .foundation-card {
-      background: linear-gradient(180deg, rgba(255,215,106,0.05), transparent), rgba(255,255,255,0.02);
-      border-color: rgba(255,215,106,0.16);
+      background: linear-gradient(180deg, rgba(255, 215, 106, 0.06), transparent), rgba(255, 255, 255, 0.02);
+      border-color: rgba(255, 215, 106, 0.16);
     }
 
     .eyebrow {
@@ -397,20 +419,24 @@
       margin-bottom: 8px;
       color: var(--cyan);
       font-size: 11px;
-      font-weight: 800;
-      letter-spacing: .08em;
+      font-weight: 900;
+      letter-spacing: 0.08em;
       text-transform: uppercase;
     }
 
-    .foundation-card .eyebrow { color: var(--gold); }
+    .foundation-card .eyebrow {
+      color: var(--gold);
+    }
 
-    .status-card h3, .trust-card h3, .pilot-card h3, .foundation-card h3 {
+    .status-card h3,
+    .foundation-card h3 {
       font-size: 20px;
       margin-bottom: 12px;
       letter-spacing: -0.02em;
     }
 
-    .status-card p, .trust-card p, .pilot-card p, .foundation-card p {
+    .status-card p,
+    .foundation-card p {
       color: var(--muted);
       line-height: 1.6;
       font-size: 14px;
@@ -429,27 +455,39 @@
       gap: 12px;
       padding: 12px 16px;
       border-radius: 12px;
-      background: rgba(255,255,255,0.02);
-      border: 1px solid rgba(255,255,255,0.04);
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.04);
     }
 
     .status-item span {
       font-size: 14px;
-      font-weight: 600;
+      font-weight: 700;
     }
 
     .status-pill {
       padding: 4px 10px;
       border-radius: 999px;
       font-size: 11px;
-      font-weight: 800;
-      background: rgba(109,255,179,0.12);
+      font-weight: 900;
+      background: rgba(109, 255, 179, 0.12);
       color: var(--green);
+      white-space: nowrap;
     }
 
-    .status-pill.info { background: rgba(99,245,255,0.12); color: var(--cyan); }
-    .status-pill.pilot { background: rgba(140,131,255,0.15); color: #c9c8ff; }
-    .status-pill.build { background: rgba(255,215,106,0.12); color: var(--gold); }
+    .status-pill.info {
+      background: rgba(99, 245, 255, 0.12);
+      color: var(--cyan);
+    }
+
+    .status-pill.pilot {
+      background: rgba(140, 131, 255, 0.15);
+      color: #c9c8ff;
+    }
+
+    .status-pill.build {
+      background: rgba(255, 215, 106, 0.12);
+      color: var(--gold);
+    }
 
     .mini-stats {
       display: grid;
@@ -461,8 +499,8 @@
     .mini-stat {
       padding: 20px;
       border-radius: 18px;
-      border: 1px solid rgba(255,255,255,0.05);
-      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      background: rgba(255, 255, 255, 0.02);
     }
 
     .mini-stat strong {
@@ -486,8 +524,8 @@
       gap: 16px;
       padding: 20px 24px;
       border-radius: 20px;
-      border: 1px solid rgba(109,255,179,0.16);
-      background: linear-gradient(135deg, rgba(109,255,179,0.06), rgba(99,245,255,0.03));
+      border: 1px solid rgba(109, 255, 179, 0.16);
+      background: linear-gradient(135deg, rgba(109, 255, 179, 0.06), rgba(99, 245, 255, 0.03));
     }
 
     .support-callout strong {
@@ -519,7 +557,7 @@
     .section h2 {
       font-size: 28px;
       margin-bottom: 8px;
-      letter-spacing: -.02em;
+      letter-spacing: -0.02em;
     }
 
     .lead {
@@ -534,22 +572,25 @@
       gap: 16px;
     }
 
-    .grid.six-steps {
-      grid-template-columns: repeat(3, 1fr);
+    .card,
+    .highlight,
+    .list-item,
+    .service-card {
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      background: rgba(255, 255, 255, 0.02);
     }
 
     .card {
       padding: 20px;
       border-radius: 16px;
-      border: 1px solid rgba(255,255,255,0.05);
-      background: rgba(255,255,255,0.02);
-      transition: .18s ease;
+      transition: 0.18s ease;
     }
 
-    a.card:hover {
+    a.card:hover,
+    a.card:focus-visible {
       transform: translateY(-3px);
       border-color: var(--line-strong);
-      background: rgba(255,255,255,0.04);
+      background: rgba(255, 255, 255, 0.04);
     }
 
     .card strong {
@@ -576,12 +617,6 @@
     .highlight {
       padding: 24px;
       border-radius: 18px;
-      background: rgba(255,255,255,0.02);
-      border: 1px solid rgba(255,255,255,0.06);
-    }
-
-    .highlight.foundation {
-      border-color: rgba(255,215,106,0.14);
     }
 
     .highlight h3 {
@@ -605,8 +640,8 @@
     .pill {
       padding: 6px 12px;
       border-radius: 999px;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.06);
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.06);
       font-size: 12px;
       color: var(--muted);
     }
@@ -619,8 +654,6 @@
     .list-item {
       padding: 16px;
       border-radius: 14px;
-      border: 1px solid rgba(255,255,255,0.05);
-      background: rgba(255,255,255,0.02);
     }
 
     .list-item strong {
@@ -634,6 +667,7 @@
       font-size: 13px;
       line-height: 1.5;
       display: block;
+      overflow-wrap: anywhere;
     }
 
     .service-row {
@@ -645,8 +679,6 @@
     .service-card {
       padding: 24px;
       border-radius: 20px;
-      border: 1px solid rgba(255,255,255,0.06);
-      background: rgba(255,255,255,0.02);
       display: flex;
       flex-direction: column;
       justify-content: space-between;
@@ -694,7 +726,7 @@
       color: var(--muted);
       font-size: 14px;
       line-height: 1.6;
-      max-width: 600px;
+      max-width: 650px;
     }
 
     .bottom-nav {
@@ -703,7 +735,7 @@
       right: 0;
       bottom: 0;
       height: calc(var(--nav-h) + env(safe-area-inset-bottom));
-      background: rgba(6, 12, 26, 0.95);
+      background: rgba(6, 12, 26, 0.96);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
       border-top: 1px solid rgba(255, 255, 255, 0.08);
@@ -717,10 +749,9 @@
     .nav-btn {
       color: var(--muted);
       background: none;
-      border: none;
       font-size: 12px;
-      font-weight: 700;
-      padding: 8px 16px;
+      font-weight: 800;
+      padding: 8px 14px;
       border-radius: 12px;
       display: flex;
       flex-direction: column;
@@ -729,50 +760,150 @@
       transition: 0.15s ease;
     }
 
-    .nav-btn.active {
+    .nav-btn.active,
+    .nav-btn:hover,
+    .nav-btn:focus-visible {
       color: var(--cyan);
       background: rgba(99, 245, 255, 0.06);
     }
 
-    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-    @media(max-width: 1180px) {
-      .hero-grid { grid-template-columns: 1fr; }
-      .service-row { grid-template-columns: repeat(2, 1fr); }
-      .mini-stats { grid-template-columns: repeat(2, 1fr); }
-      .info-grid { grid-template-columns: 1fr; }
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background-color: rgba(4, 8, 20, 0.86);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      padding: 20px;
+      animation: fadeIn 0.2s ease-out;
     }
 
-    @media(max-width: 900px) {
-      .grid, .grid.six-steps { grid-template-columns: repeat(2, 1fr); }
+    .modal-card {
+      background: linear-gradient(160deg, #091126, #101935);
+      border: 1px solid rgba(122, 162, 255, 0.25);
+      border-radius: 24px;
+      padding: 32px;
+      max-width: 450px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
     }
 
-    @media(max-width: 650px) {
-      .grid, .grid.six-steps, .service-row { grid-template-columns: 1fr; }
-      .mini-stats { grid-template-columns: 1fr; }
-      .primary-actions { grid-template-columns: 1fr; }
-      .hero { padding: 24px; border-radius: 24px; }
-      .hero-title { font-size: 28px; }
-      .announce { flex-direction: column; align-items: flex-start; }
-      .announce .btn { width: 100%; }
-      .footer { flex-direction: column; align-items: flex-start; padding: 24px; }
-      .footer .actions { width: 100%; flex-direction: column; }
-      .footer .actions .btn { width: 100%; }
+    .modal-card h3 {
+      font-size: 22px;
+      font-weight: 900;
+      color: #fff;
+      margin-bottom: 12px;
+      letter-spacing: -0.02em;
+    }
+
+    .modal-card p {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @media (max-width: 1180px) {
+      .hero-grid,
+      .info-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .service-row,
+      .mini-stats {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 900px) {
+      .topbar {
+        position: relative;
+        top: 0;
+        border-radius: 24px;
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .top-links {
+        width: 100%;
+        overflow-x: auto;
+        padding-bottom: 2px;
+      }
+
+      .top-link {
+        white-space: nowrap;
+      }
+
+      .grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 650px) {
+      .shell {
+        padding: 14px 12px;
+      }
+
+      .grid,
+      .service-row,
+      .mini-stats,
+      .primary-actions,
+      .hero-points {
+        grid-template-columns: 1fr;
+      }
+
+      .hero,
+      .section {
+        padding: 24px;
+        border-radius: 24px;
+      }
+
+      .hero-title {
+        font-size: 31px;
+      }
+
+      .announce,
+      .support-callout,
+      .footer {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .announce .btn,
+      .support-callout .btn,
+      .footer .actions,
+      .footer .actions .btn,
+      .actions .btn {
+        width: 100%;
+      }
+
+      .brand-sub {
+        white-space: normal;
+      }
     }
   </style>
-  <link rel="stylesheet" href="/ai-support-widget.css" />
 </head>
 
 <body>
   <div class="shell">
     <header class="topbar">
-      <div class="brand-wrap">
+      <a class="brand-wrap" href="index.html" aria-label="Harvey Taxi home">
         <div class="logo-mark" aria-hidden="true">HT</div>
         <div class="brand-stack">
           <div class="brand">HARVEY TAXI</div>
           <div class="brand-sub">Tennessee mobility platform</div>
         </div>
-      </div>
+      </a>
+
       <nav class="top-links" aria-label="Primary navigation">
         <a class="top-link" href="#how-it-works">How It Works</a>
         <a class="top-link" href="#safety">Safety</a>
@@ -785,7 +916,7 @@
     <section class="announce" aria-label="Launch announcement">
       <div class="announce-copy">
         <strong>Now serving Tennessee with a cleaner ride experience</strong>
-        <span>Harvey Taxi brings together rider access, driver onboarding, and community mobility into one reliable network.</span>
+        <span>Harvey Taxi connects rider access, driver onboarding, live support, and community mobility into one dependable platform.</span>
       </div>
       <a class="btn success" href="request-ride.html?mode=driver">Request a Ride</a>
     </section>
@@ -795,70 +926,102 @@
         <div class="hero-grid">
           <div>
             <div class="hero-badge">Tennessee mobility • verified operations • live support</div>
+
             <h1 class="hero-title">Book a safer, smarter ride with Harvey Taxi.</h1>
+
             <p class="hero-copy">
-              Harvey Taxi helps approved riders request trips, connect with background-checked drivers, and manage travel flow effortlessly. Standard human driver paths are open today across core operating zones, while advanced logistics targets stay cleanly isolated as test configurations.
+              Harvey Taxi helps approved riders request trips, connect with qualified drivers, and receive real support when it matters. Human driver rides are the active service path today, while autonomous, food, and grocery services are clearly labeled as pilot or build-stage modules.
             </p>
 
             <div class="action-container">
-              <h4>Get Started with the Platform</h4>
+              <h4>Get Started</h4>
+
               <div class="primary-actions">
                 <a class="btn primary" href="request-ride.html?mode=driver">🚖 Request Driver Ride</a>
                 <a class="btn success" href="driver-signup.html">🤝 Drive with Harvey</a>
               </div>
+
               <div class="secondary-actions">
                 <a class="btn ghost" href="rider-signup.html">Rider Sign Up</a>
-                <a class="btn autonomous" href="request-ride.html?mode=autonomous">🤖 Autonomous Hub <span class="pilot-tag">Pilot</span></a>
+                <a class="btn autonomous" href="request-ride.html?mode=autonomous">
+                  🤖 Autonomous Hub <span class="pilot-tag">Pilot</span>
+                </a>
               </div>
             </div>
 
             <div class="hero-points">
               <div class="hero-point">
-                <strong>Approval-Based Verification</strong>
-                Riders match secure profile parameters before dispatch assignments initialize.
+                <strong>Approval-Based Access</strong>
+                Riders can be reviewed before trip access so the platform stays safer and more accountable.
               </div>
               <div class="hero-point">
-                <strong>Structured Driver Pipeline</strong>
-                Background processing checks identity accuracy before deployment access.
+                <strong>Driver Onboarding Pipeline</strong>
+                Driver access is designed around identity checks, approval status, and operational readiness.
               </div>
             </div>
           </div>
 
-          <aside class="hero-side">
+          <aside class="hero-side" aria-label="Platform status">
             <div class="status-card">
               <div class="eyebrow">Platform status</div>
-              <h3>Active Operations Matrix</h3>
-              <p>State status tracks active core processes alongside secondary experimental modules framework.</p>
+              <h3>Active Operations</h3>
+              <p>Current service modules are separated clearly so riders, drivers, and supporters understand what is live today.</p>
+
               <div class="status-list">
-                <div class="status-item"><span>Human Rides</span><div class="status-pill">Available</div></div>
-                <div class="status-item"><span>Live Support</span><div class="status-pill info">Live</div></div>
-                <div class="status-item"><span>Autonomous Run</span><div class="status-pill pilot">Pilot</div></div>
-                <div class="status-item"><span>Food Delivery</span><div class="status-pill build">Building</div></div>
+                <div class="status-item">
+                  <span>Human Rides</span>
+                  <div class="status-pill">Available</div>
+                </div>
+                <div class="status-item">
+                  <span>Live Support</span>
+                  <div class="status-pill info">Live</div>
+                </div>
+                <div class="status-item">
+                  <span>Autonomous Ride Path</span>
+                  <div class="status-pill pilot">Pilot</div>
+                </div>
+                <div class="status-item">
+                  <span>Food & Grocery</span>
+                  <div class="status-pill build">Building</div>
+                </div>
               </div>
             </div>
 
             <div class="foundation-card">
               <div class="eyebrow">Community mission</div>
-              <h3>Harvey Mobility Foundation</h3>
-              <p>Removing access blockades for core medical, job tracking, and basic education transit paths.</p>
-              <div style="margin-top:14px;">
-                <a class="btn foundation" href="foundation.html" style="width:100%;">Explore Foundation Access</a>
+              <h3>Harvey Transportation Assistance Foundation</h3>
+              <p>Helping remove transportation barriers for medical appointments, work, education, and essential community access.</p>
+
+              <div style="margin-top: 14px;">
+                <a class="btn foundation" href="foundation.html" style="width: 100%;">Explore Foundation Access</a>
               </div>
             </div>
           </aside>
         </div>
 
         <div class="mini-stats">
-          <div class="mini-stat"><strong>Secure Ecosystem</strong><span>Validation logic helps safeguard vehicle environments.</span></div>
-          <div class="mini-stat"><strong>Verified Drivers</strong><span>Continuous screening credentials maintain operational security.</span></div>
-          <div class="mini-stat"><strong>Unified Console</strong><span>Financial processing and matching variables execute dynamically.</span></div>
-          <div class="mini-stat"><strong>Instant Support</strong><span>Integrated system response teams monitor active route queries.</span></div>
+          <div class="mini-stat">
+            <strong>Secure Ecosystem</strong>
+            <span>Designed around rider approval, driver onboarding, and safer platform access.</span>
+          </div>
+          <div class="mini-stat">
+            <strong>Qualified Drivers</strong>
+            <span>Driver workflows support identity review, approval status, and mission readiness.</span>
+          </div>
+          <div class="mini-stat">
+            <strong>Unified Platform</strong>
+            <span>Ride requests, support, foundation access, and driver tools stay connected.</span>
+          </div>
+          <div class="mini-stat">
+            <strong>Instant Support</strong>
+            <span>AI support helps riders and drivers find the right next step quickly.</span>
+          </div>
         </div>
 
         <div class="support-callout">
           <div>
             <strong>Need immediate platform assistance?</strong>
-            <span>Launch automated dispatch routing support to consult system parameters or account clearance updates.</span>
+            <span>Open Harvey Taxi AI Support for rider help, driver help, trip questions, or foundation guidance.</span>
           </div>
           <button class="btn success" type="button" onclick="openHarveyAiChat()">Open AI Support</button>
         </div>
@@ -867,37 +1030,72 @@
       <section class="section" id="how-it-works">
         <div class="section-header">
           <h2>How It Works</h2>
-          <p class="lead">From initial authentication to destination fulfillment, our sequence stays clean and highly accountable.</p>
+          <p class="lead">A cleaner flow from sign-up to trip request, built around verification, payment readiness, dispatch, and support.</p>
         </div>
-        <div class="grid six-steps">
-          <div class="card"><strong>1. Secure Registration</strong><span>Register your user tier classification inside our global server nodes.</span></div>
-          <div class="card"><strong>2. Identity Verification</strong><span>Pass standard account validation checkpoints designed to secure network spaces.</span></div>
-          <div class="card"><strong>3. Define Parameters</strong><span>Select live on-demand standard human operators or test pilot paths.</span></div>
-          <div class="card"><strong>4. Payment Readiness</strong><span>Confirm active payment methods before automated matching requests deploy.</span></div>
-          <div class="card"><strong>5. Dispatch Routing</strong><span>Logistics modules locate optimal operators near coordinate targets.</span></div>
-          <div class="card"><strong>6. End-to-End Safety</strong><span>Track live coordinates with direct paths back to system support infrastructure.</span></div>
+
+        <div class="grid">
+          <div class="card">
+            <strong>1. Create Your Account</strong>
+            <span>Riders and drivers begin with the correct sign-up path for their role.</span>
+          </div>
+          <div class="card">
+            <strong>2. Complete Verification</strong>
+            <span>Account review helps protect riders, drivers, and platform operations.</span>
+          </div>
+          <div class="card">
+            <strong>3. Request a Ride</strong>
+            <span>Approved riders can enter pickup, destination, contact details, and trip preferences.</span>
+          </div>
+          <div class="card">
+            <strong>4. Confirm Payment Readiness</strong>
+            <span>The platform is built to confirm payment authorization before dispatch.</span>
+          </div>
+          <div class="card">
+            <strong>5. Match with a Driver</strong>
+            <span>Dispatch logic helps connect the request with the right available driver.</span>
+          </div>
+          <div class="card">
+            <strong>6. Ride with Support</strong>
+            <span>Riders and drivers can use support tools throughout the platform experience.</span>
+          </div>
         </div>
       </section>
 
       <section class="section" id="safety">
         <div class="section-header">
           <h2>Safety & Platform Integrity</h2>
-          <p class="lead">Providing reliable service delivery throughout Tennessee built upon absolute accountability.</p>
+          <p class="lead">Harvey Taxi is built around accountability, clear access rules, and cleaner separation between rider, driver, and admin workflows.</p>
         </div>
+
         <div class="info-grid">
           <div class="highlight">
-            <h3>The Operational Difference</h3>
-            <p>We avoid generic unchecked structures. Every layer of dispatch relies on clear driver processing pipelines and verified user requirements to isolate issues before they hit physical streets.</p>
+            <h3>The Harvey Taxi Difference</h3>
+            <p>
+              We are building more than a basic ride form. The platform is designed around rider approval, driver onboarding, payment readiness, support access, and structured trip flow so the experience is safer and easier to manage.
+            </p>
+
             <div class="pill-row">
-              <div class="pill">Verified parameters</div>
-              <div class="pill">Onboarding checks</div>
-              <div class="pill">Interface clarity</div>
-              <div class="pill">Transit security</div>
+              <div class="pill">Rider approval</div>
+              <div class="pill">Driver onboarding</div>
+              <div class="pill">Live support</div>
+              <div class="pill">Payment readiness</div>
+              <div class="pill">Mission-based dispatch</div>
             </div>
           </div>
+
           <div class="list">
-            <div class="list-item"><strong>Isolated User Profiles</strong><span>Distinct functional setups separate dynamic operator workspaces from consumer views.</span></div>
-            <div class="list-item"><strong>Direct Dispatch Context</strong><span>Route updates and platform variables track clearly without complex structural interference.</span></div>
+            <div class="list-item">
+              <strong>Separated User Workflows</strong>
+              <span>Rider, driver, foundation, and support actions remain clearly separated to reduce confusion.</span>
+            </div>
+            <div class="list-item">
+              <strong>Clear Service Labels</strong>
+              <span>Live, pilot, and build-stage services are labeled so users know what is currently available.</span>
+            </div>
+            <div class="list-item">
+              <strong>Support-First Experience</strong>
+              <span>AI support and support pages help guide users through questions, status issues, and next steps.</span>
+            </div>
           </div>
         </div>
       </section>
@@ -905,64 +1103,118 @@
       <section class="section" id="services">
         <div class="section-header">
           <h2>Main Application Services</h2>
-          <p class="lead">Core service arrays optimized across current expansion vectors.</p>
+          <p class="lead">Human rides are the active core service. Future delivery and autonomous modules are positioned as pilot-stage expansion paths.</p>
         </div>
+
         <div class="service-row">
           <div class="service-card">
-            <div><h3>Standard Human Rides</h3><p>Secure human operations across standard micro-regions.</p></div>
+            <div>
+              <h3>Standard Human Rides</h3>
+              <p>Request a ride through the active Harvey Taxi driver-based service path.</p>
+            </div>
             <a class="btn primary" href="request-ride.html?mode=driver">Book Ride</a>
           </div>
+
           <div class="service-card">
-            <div><h3>Autonomous Module</h3><p>Review test setups processing smart hardware trials.</p></div>
-            <a class="btn autonomous" href="request-ride.html?mode=autonomous">Launch Sandbox</a>
+            <div>
+              <h3>Autonomous Module</h3>
+              <p>Explore the clearly labeled autonomous pilot path for future mobility testing.</p>
+            </div>
+            <a class="btn autonomous" href="request-ride.html?mode=autonomous">Open Pilot</a>
           </div>
+
           <div class="service-card">
-            <div><h3>Food System</h3><p>Hyperlocal food delivery capabilities processing setup builds.</p></div>
-            <button class="btn primary" style="background: linear-gradient(135deg, #ff9f43, #ff5252); color: #fff;" onclick="showUnderConstruction('Food Delivery')">Launch Pilot</button>
+            <div>
+              <h3>Food Delivery</h3>
+              <p>Local food delivery is being prepared as a future Harvey Taxi service expansion.</p>
+            </div>
+            <button class="btn primary" type="button" onclick="showUnderConstruction('Food Delivery')">View Pilot</button>
           </div>
+
           <div class="service-card">
-            <div><h3>Groceries Path</h3><p>Bulk delivery network parameters finalizing system integration.</p></div>
-            <button class="btn primary" style="background: linear-gradient(135deg, #1dd1a1, #10ac84); color: #fff;" onclick="showUnderConstruction('Grocery Delivery')">Launch Pilot</button>
+            <div>
+              <h3>Grocery Delivery</h3>
+              <p>Grocery delivery is being structured as part of the future multi-service platform.</p>
+            </div>
+            <button class="btn success" type="button" onclick="showUnderConstruction('Grocery Delivery')">View Pilot</button>
           </div>
         </div>
+
         <div class="grid" style="margin-top: 16px;">
-          <a class="card" href="driver-dashboard.html"><strong>Operator Central Dashboard</strong><span>Access mission logs, route updates, and secure status parameters.</span></a>
-          <a class="card" href="support.html"><strong>Document Knowledgebase</strong><span>Review public guidelines and common platform assistance documentation.</span></a>
-          <a class="card" href="foundation.html"><strong>Foundation Infrastructure</strong><span>Participate directly in regional mobility resource distribution.</span></a>
+          <a class="card" href="driver-dashboard.html">
+            <strong>Driver Dashboard</strong>
+            <span>Access mission flow, trip updates, availability, and driver tools.</span>
+          </a>
+          <a class="card" href="support.html">
+            <strong>Support Center</strong>
+            <span>Get help with rider access, driver onboarding, trips, and account questions.</span>
+          </a>
+          <a class="card" href="foundation.html">
+            <strong>Foundation Hub</strong>
+            <span>Support transportation assistance for medical, work, school, and essential access.</span>
+          </a>
         </div>
       </section>
 
       <section class="section">
         <div class="section-header">
           <h2>Core Coverage Areas</h2>
-          <p class="lead">Focused regional targeting securing safe transport patterns.</p>
+          <p class="lead">Focused regional growth starting with Tennessee service areas and scalable expansion planning.</p>
         </div>
+
         <div class="grid">
-          <div class="card"><strong>Nashville Zone</strong><span>Primary node layer running on-demand physical operations and dispatch coordination.</span></div>
-          <div class="card"><strong>Davidson County</strong><span>Extended operational circle processing background parameters and driver coverage.</span></div>
-          <div class="card"><strong>Statewide Pipeline</strong><span>Architecture frameworks scale across target municipal zones seamlessly.</span></div>
+          <div class="card">
+            <strong>Nashville Zone</strong>
+            <span>Primary operating area for early ride service coordination and platform growth.</span>
+          </div>
+          <div class="card">
+            <strong>Davidson County</strong>
+            <span>Expanded regional focus for rider access, driver onboarding, and service support.</span>
+          </div>
+          <div class="card">
+            <strong>Statewide Pipeline</strong>
+            <span>Architecture designed to scale into additional Tennessee communities over time.</span>
+          </div>
         </div>
       </section>
 
       <section class="section">
         <div class="section-header">
-          <h2>Corporate Integrity & Support Hub</h2>
-          <p class="lead">Secure processing boundaries managing operational clear paths.</p>
+          <h2>Company & Support</h2>
+          <p class="lead">Harvey Taxi Service LLC is building a safer transportation platform with a connected nonprofit mission.</p>
         </div>
+
         <div class="info-grid">
           <div class="highlight">
             <h3>Harvey Taxi Service LLC</h3>
-            <p>Our goal balances reliable physical performance alongside intuitive system feedback. We establish complete compliance layers checking every vehicle step to give operators and riders total transparency.</p>
+            <p>
+              Our goal is to combine reliable ride access, driver opportunity, community support, and modern platform tools into one trusted Tennessee mobility network.
+            </p>
           </div>
+
           <div class="list">
-            <div class="list-item"><strong>Support Communication Target</strong><span>support@harveytaxiservice.com</span></div>
-            <div class="list-item"><strong>Platform Compliance</strong><span>Encrypted identity safeguards and uniform data practices apply across all modules.</span></div>
+            <div class="list-item">
+              <strong>Support Email</strong>
+              <span>support@harveytaxiservice.com</span>
+            </div>
+            <div class="list-item">
+              <strong>Community Mission</strong>
+              <span>Transportation assistance for essential needs through the Harvey Transportation Assistance Foundation.</span>
+            </div>
           </div>
         </div>
+
         <div class="actions" style="margin-top: 16px;">
           <a class="btn ghost" href="privacy.html">Privacy Policy</a>
           <a class="btn ghost" href="terms.html">Terms of Service</a>
-          <a class="btn foundation" href="https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00" target="_blank" rel="noopener noreferrer">Secure Foundation Donation</a>
+          <a
+            class="btn foundation"
+            href="https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Secure Foundation Donation
+          </a>
         </div>
       </section>
     </main>
@@ -970,8 +1222,11 @@
     <footer class="footer">
       <div>
         <span class="footer-title">Harvey Taxi Service LLC</span>
-        <p>Providing safe local transit networks, background-checked operator onboarding, and structured community support distributions across major Tennessee territories.</p>
+        <p>
+          Safe local transportation, driver opportunity, live support, and community mobility assistance across Tennessee.
+        </p>
       </div>
+
       <div class="actions">
         <a class="btn ghost" href="privacy.html">Privacy</a>
         <a class="btn ghost" href="terms.html">Terms</a>
@@ -980,16 +1235,24 @@
     </footer>
   </div>
 
-  <nav class="bottom-nav" aria-label="Bottom mobile navigation layout">
-    <button class="nav-btn active" type="button" onclick="location.href='index.html'"><span>Home</span></button>
-    <button class="nav-btn" type="button" onclick="location.href='request-ride.html?mode=driver'"><span>Trips</span></button>
-    <button class="nav-btn" type="button" onclick="location.href='foundation.html'"><span>Foundation</span></button>
-    <button class="nav-btn" type="button" onclick="location.href='driver-dashboard.html'"><span>Driver</span></button>
+  <nav class="bottom-nav" aria-label="Bottom mobile navigation">
+    <button class="nav-btn active" type="button" onclick="safeGo('index.html')"><span>Home</span></button>
+    <button class="nav-btn" type="button" onclick="safeGo('request-ride.html?mode=driver')"><span>Trips</span></button>
+    <button class="nav-btn" type="button" onclick="safeGo('foundation.html')"><span>Foundation</span></button>
+    <button class="nav-btn" type="button" onclick="safeGo('driver-dashboard.html')"><span>Driver</span></button>
   </nav>
 
   <script src="/ai-support-widget.js"></script>
+
   <script>
-    window.HARVEY_API_BASE = window.location.origin && window.location.origin.includes("http") ? window.location.origin : "";
+    window.HARVEY_API_BASE =
+      window.location.origin && window.location.origin.includes("http")
+        ? window.location.origin
+        : "";
+
+    function safeGo(path) {
+      window.location.href = path;
+    }
 
     function openHarveyAiChat() {
       try {
@@ -997,72 +1260,85 @@
           window.HarveyAI.open();
           return;
         }
+
         const root = document.getElementById("harvey-ai-chat-root");
+
         if (root) {
-          const toggle = root.querySelector("[data-harvey-ai-open]") || root.querySelector(".harvey-ai-launch") || root.querySelector("button");
+          const toggle =
+            root.querySelector("[data-harvey-ai-open]") ||
+            root.querySelector(".harvey-ai-launch") ||
+            root.querySelector("button");
+
           if (toggle && typeof toggle.click === "function") {
             toggle.click();
             return;
           }
         }
+
         window.location.href = "support.html";
       } catch (error) {
         window.location.href = "support.html";
       }
     }
 
-    function showUnderConstruction(serviceName) {
-      const overlay = document.createElement('div');
-      overlay.id = 'pilot-modal-overlay';
-      overlay.style.position = 'fixed';
-      overlay.style.inset = '0';
-      overlay.style.backgroundColor = 'rgba(4, 8, 20, 0.85)';
-      overlay.style.backdropFilter = 'blur(12px)';
-      overlay.style.webkitBackdropFilter = 'blur(12px)';
-      overlay.style.display = 'flex';
-      overlay.style.alignItems = 'center';
-      overlay.style.justifyContent = 'center';
-      overlay.style.zIndex = '9999';
-      overlay.style.padding = '20px';
-      overlay.style.animation = 'fadeIn 0.2s ease-out';
+    function escapeHtml(value) {
+      return String(value || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
 
-      const modal = document.createElement('div');
-      modal.style.background = 'linear-gradient(160deg, #091126, #101935)';
-      modal.style.border = '1px solid rgba(122, 162, 255, 0.25)';
-      modal.style.borderRadius = '24px';
-      modal.style.padding = '32px';
-      modal.style.maxWidth = '440px';
-      modal.style.width = '100%';
-      modal.style.textAlign = 'center';
-      modal.style.boxShadow = '0 25px 50px -12px rgba(0, 0, 0, 0.5)';
+    function showUnderConstruction(serviceName) {
+      const existing = document.getElementById("pilot-modal-overlay");
+      if (existing) existing.remove();
+
+      const safeName = escapeHtml(serviceName);
+
+      const overlay = document.createElement("div");
+      overlay.id = "pilot-modal-overlay";
+      overlay.className = "modal-overlay";
+      overlay.setAttribute("role", "dialog");
+      overlay.setAttribute("aria-modal", "true");
+      overlay.setAttribute("aria-labelledby", "pilot-modal-title");
+
+      const modal = document.createElement("div");
+      modal.className = "modal-card";
 
       modal.innerHTML = `
-        <div style="font-size: 48px; margin-bottom: 16px;">🚧</div>
-        <h3 style="font-size: 22px; font-weight: 800; color: #fff; margin-bottom: 12px; letter-spacing: -0.02em;">
-          ${serviceName} Pilot Coming Soon
-        </h3>
-        <p style="color: #aab8de; font-size: 14px; line-height: 1.6; margin-bottom: 24px;">
-          Our logistics engineering network is actively testing the framework for this module inside the Davidson County perimeter. Systems rollout initialized shortly.
+        <div style="font-size: 48px; margin-bottom: 16px;" aria-hidden="true">🚧</div>
+        <h3 id="pilot-modal-title">${safeName} Pilot Coming Soon</h3>
+        <p>
+          Harvey Taxi is actively preparing this service as part of the future multi-service platform.
+          For now, standard driver rides remain the active booking path.
         </p>
-        <button id="close-pilot-modal" style="
-          width: 100%;
-          padding: 14px;
-          border-radius: 12px;
-          background: rgba(255, 255, 255, 0.06);
-          color: #fff;
-          font-weight: 700;
-          cursor: pointer;
-          border: 1px solid rgba(255,255,255,0.12);
-          transition: 0.2s;
-        ">Acknowledge</button>
+        <button id="close-pilot-modal" class="btn ghost" type="button" style="width: 100%;">
+          Acknowledge
+        </button>
       `;
 
       overlay.appendChild(modal);
       document.body.appendChild(overlay);
 
-      const closeBtn = document.getElementById('close-pilot-modal');
-      closeBtn.addEventListener('click', () => overlay.remove());
-      overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+      const closeBtn = document.getElementById("close-pilot-modal");
+
+      function closeModal() {
+        overlay.remove();
+        document.removeEventListener("keydown", handleKeydown);
+      }
+
+      function handleKeydown(event) {
+        if (event.key === "Escape") closeModal();
+      }
+
+      closeBtn.addEventListener("click", closeModal);
+      overlay.addEventListener("click", function (event) {
+        if (event.target === overlay) closeModal();
+      });
+
+      document.addEventListener("keydown", handleKeydown);
+      closeBtn.focus();
     }
 
     window.addEventListener("load", function () {
