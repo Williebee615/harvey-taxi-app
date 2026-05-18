@@ -3,1195 +3,301 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-
   <title>Harvey Taxi — Request Ride</title>
-  <meta
-    name="description"
-    content="Request a Harvey Taxi ride with rider verification, live pickup support, fare estimate, payment authorization, and dispatch request flow."
-  />
+  <meta name="description" content="Request a Harvey Taxi ride with rider verification, fare estimate, payment authorization, and dispatch." />
   <meta name="theme-color" content="#07111f" />
-  <meta name="google-maps-browser-key" content="" />
-
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
-    rel="stylesheet"
-  />
 
   <style>
-    :root {
-      --bg1: #040814;
-      --bg2: #091126;
-      --bg3: #101935;
-      --panel: rgba(10, 17, 38, 0.93);
-      --panel2: rgba(16, 27, 58, 0.88);
-      --line: rgba(122, 162, 255, 0.18);
-      --line-strong: rgba(122, 162, 255, 0.35);
-      --text: #f4f7ff;
-      --muted: #aab8de;
-      --blue: #5ea0ff;
-      --cyan: #63f5ff;
-      --green: #6dffb3;
-      --gold: #ffd76a;
-      --danger: #ff7e97;
-      --violet: #8c83ff;
-      --ink: #07121f;
-      --shadow: 0 20px 70px rgba(0, 0, 0, 0.4);
-      --max: 1180px;
-      --bottom-nav-height: 92px;
-      --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    :root{
+      --bg1:#040814;--bg2:#091126;--bg3:#101935;
+      --panel:rgba(10,17,38,.93);--line:rgba(122,162,255,.18);
+      --line2:rgba(122,162,255,.35);--text:#f4f7ff;--muted:#aab8de;
+      --blue:#5ea0ff;--cyan:#63f5ff;--green:#6dffb3;--gold:#ffd76a;
+      --danger:#ff7e97;--ink:#07121f;--shadow:0 20px 70px rgba(0,0,0,.4);
+      --nav:92px;--max:1180px;
     }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    html {
-      scroll-behavior: smooth;
-      min-height: 100%;
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-    }
-
-    body {
-      font-family: "Inter", Arial, sans-serif;
-      color: var(--text);
-      min-height: 100vh;
-      overflow-x: hidden;
-      padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 20px);
+    *{box-sizing:border-box;margin:0;padding:0}
+    html{scroll-behavior:smooth}
+    body{
+      font-family:Inter,Arial,sans-serif;color:var(--text);min-height:100vh;overflow-x:hidden;
+      padding-bottom:calc(var(--nav) + env(safe-area-inset-bottom) + 20px);
       background:
-        radial-gradient(circle at top left, rgba(99, 245, 255, 0.12), transparent 35%),
-        radial-gradient(circle at top right, rgba(94, 160, 255, 0.10), transparent 30%),
-        radial-gradient(circle at bottom center, rgba(109, 255, 179, 0.06), transparent 28%),
-        linear-gradient(160deg, var(--bg1), var(--bg2) 50%, var(--bg3));
-    }
-
-    a {
-      color: inherit;
-      text-decoration: none;
-    }
-
-    button,
-    input,
-    textarea,
-    select {
-      font-family: inherit;
-      color: inherit;
-      background: none;
-      border: none;
-      outline: none;
-    }
-
-    button,
-    a {
-      -webkit-tap-highlight-color: transparent;
-      touch-action: manipulation;
-    }
-
-    button {
-      cursor: pointer;
-      transition: var(--transition-fast);
-    }
-
-    .hidden {
-      display: none !important;
-    }
-
-    .shell {
-      max-width: var(--max);
-      margin: auto;
-      padding: 24px 16px;
-      position: relative;
-      z-index: 1;
-    }
-
-    .topbar {
-      position: sticky;
-      top: 12px;
-      z-index: 50;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 14px;
-      padding: 14px 24px;
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      background: rgba(7, 12, 28, 0.84);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      margin-bottom: 24px;
-      box-shadow: var(--shadow);
-    }
-
-    .brand-wrap {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      min-width: 0;
-    }
-
-    .logo-mark {
-      width: 42px;
-      height: 42px;
-      border-radius: 14px;
-      display: grid;
-      place-items: center;
-      background: linear-gradient(135deg, var(--cyan), var(--blue));
-      color: var(--ink);
-      font-size: 14px;
-      font-weight: 900;
-      box-shadow: 0 0 18px rgba(99, 245, 255, 0.38);
-      flex-shrink: 0;
-    }
-
-    .brand {
-      font-weight: 900;
-      letter-spacing: 0.12em;
-      font-size: 15px;
-      white-space: nowrap;
-    }
-
-    .brand-sub {
-      font-size: 11px;
-      color: var(--muted);
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      margin-top: 2px;
-      white-space: nowrap;
-    }
-
-    .top-actions {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-    }
-
-    .top-chip,
-    .action-chip,
-    .pill {
-      border-radius: 999px;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      background: rgba(255, 255, 255, 0.04);
-      font-weight: 800;
-      font-size: 13px;
-    }
-
-    .top-chip {
-      padding: 10px 18px;
-      color: var(--muted);
-    }
-
-    .top-chip:hover,
-    .top-chip:focus-visible,
-    .action-chip:hover,
-    .action-chip:focus-visible,
-    .pill:hover,
-    .pill:focus-visible {
-      background: rgba(255, 255, 255, 0.09);
-      color: #fff;
-      transform: translateY(-1px);
-    }
-
-    .hero,
-    .section,
-    .estimate-panel {
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0)), var(--panel);
-      border: 1px solid var(--line);
-      box-shadow: var(--shadow);
-      position: relative;
-    }
-
-    .hero {
-      overflow: hidden;
-      padding: 32px;
-      border-radius: 28px;
-      margin-bottom: 24px;
-    }
-
-    .hero::before {
-      content: "";
-      position: absolute;
-      top: -70px;
-      right: -70px;
-      width: 260px;
-      height: 260px;
-      background: radial-gradient(circle, rgba(99, 245, 255, 0.16), transparent 65%);
-      pointer-events: none;
-    }
-
-    .welcome {
-      position: relative;
-      z-index: 2;
-      margin-bottom: 20px;
-    }
-
-    .welcome-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      padding: 8px 16px;
-      border-radius: 999px;
-      border: 1px solid rgba(99, 245, 255, 0.2);
-      background: rgba(99, 245, 255, 0.06);
-      color: var(--cyan);
-      font-size: 11px;
-      font-weight: 900;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      margin-bottom: 16px;
-    }
-
-    .welcome h1 {
-      font-size: clamp(1.9rem, 4vw, 2.75rem);
-      font-weight: 900;
-      line-height: 1.08;
-      letter-spacing: -0.03em;
-      margin-bottom: 12px;
-    }
-
-    .welcome p {
-      color: var(--muted);
-      font-size: 15px;
-      line-height: 1.65;
-      max-width: 760px;
-    }
-
-    .mode-banner {
-      display: none;
-      position: relative;
-      z-index: 3;
-      margin-top: 20px;
-      padding: 16px 20px;
-      border-radius: 18px;
-      border: 1px solid rgba(140, 131, 255, 0.30);
-      background: linear-gradient(135deg, rgba(127, 123, 255, 0.15), rgba(99, 245, 255, 0.08));
-    }
-
-    .mode-banner strong {
-      display: block;
-      font-size: 14px;
-      color: #d8d6ff;
-      margin-bottom: 4px;
-    }
-
-    .mode-banner span {
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.5;
-    }
-
-    .chip-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 24px;
-      position: relative;
-      z-index: 3;
-    }
-
-    .action-chip {
-      padding: 12px 18px;
-      font-size: 14px;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      color: var(--text);
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: 1.1fr 0.9fr;
-      gap: 24px;
-      align-items: start;
-    }
-
-    .section {
-      padding: 28px;
-      border-radius: 24px;
-      margin-bottom: 24px;
-    }
-
-    .section-header h2 {
-      font-size: 22px;
-      font-weight: 900;
-      margin-bottom: 6px;
-      letter-spacing: -0.02em;
-    }
-
-    .section-header p {
-      color: var(--muted);
-      font-size: 14px;
-      line-height: 1.55;
-      margin-bottom: 20px;
-    }
-
-    .step-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 20px;
-    }
-
-    .step {
-      padding: 8px 14px;
-      border-radius: 999px;
-      border: 1px solid var(--line);
-      background: rgba(255, 255, 255, 0.03);
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 800;
-    }
-
-    .step.active {
-      color: #ffffff;
-      border-color: rgba(99, 245, 255, 0.4);
-      background: rgba(99, 245, 255, 0.12);
-    }
-
-    .status-strip {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-    }
-
-    .status-card,
-    .metric,
-    .map-readout-card {
-      padding: 18px;
-      border-radius: 16px;
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      background: rgba(255, 255, 255, 0.03);
-    }
-
-    .status-card h3 {
-      font-size: 14px;
-      font-weight: 800;
-      margin-bottom: 6px;
-    }
-
-    .status-card p {
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.5;
-      margin-bottom: 12px;
-      min-height: 38px;
-    }
-
-    .tag {
-      display: inline-block;
-      padding: 6px 12px;
-      border-radius: 999px;
-      font-size: 11px;
-      font-weight: 900;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      border: 1px solid transparent;
-    }
-
-    .tag.ok {
-      background: rgba(109, 255, 179, 0.1);
-      color: var(--green);
-      border-color: rgba(109, 255, 179, 0.2);
-    }
-
-    .tag.warn {
-      background: rgba(255, 215, 106, 0.1);
-      color: var(--gold);
-      border-color: rgba(255, 215, 106, 0.2);
-    }
-
-    .tag.bad {
-      background: rgba(255, 126, 151, 0.1);
-      color: var(--danger);
-      border-color: rgba(255, 126, 151, 0.2);
-    }
-
-    .ride-card,
-    .map-panel {
-      padding: 24px;
-      border-radius: 20px;
-      border: 1px solid rgba(99, 245, 255, 0.15);
-      background: linear-gradient(135deg, rgba(99, 245, 255, 0.04), rgba(94, 160, 255, 0.02));
-    }
-
-    .field-grid {
-      display: grid;
-      gap: 16px;
-    }
-
-    .field {
-      display: grid;
-      gap: 6px;
-    }
-
-    .field label {
-      font-size: 12px;
-      font-weight: 900;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    .input,
-    select,
-    textarea {
-      width: 100%;
-      border-radius: 14px;
-      padding: 14px 16px;
-      background: #ffffff;
-      color: #111827;
-      font-size: 15px;
-      font-weight: 700;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.10);
-      transition: border var(--transition-fast), box-shadow var(--transition-fast);
-      border: 2px solid transparent;
-    }
-
-    .input:focus,
-    select:focus,
-    textarea:focus {
-      border-color: var(--blue);
-      box-shadow: 0 0 0 4px rgba(94, 160, 255, 0.18);
-    }
-
-    textarea {
-      min-height: 100px;
-      resize: vertical;
-    }
-
-    .split {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-    }
-
-    .pill-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-
-    .pill {
-      padding: 12px 20px;
-      border-radius: 12px;
-      color: var(--muted);
-    }
-
-    .pill.active {
-      border-color: rgba(99, 245, 255, 0.4);
-      background: rgba(99, 245, 255, 0.15);
-      color: var(--cyan);
-    }
-
-    .trust-note,
-    .notice {
-      margin-top: 16px;
-      padding: 14px 16px;
-      border-radius: 14px;
-      border: 1px solid rgba(109, 255, 179, 0.15);
-      background: rgba(109, 255, 179, 0.04);
-      color: #dfffee;
-      font-size: 13px;
-      line-height: 1.6;
-    }
-
-    .notice {
-      border-color: rgba(255, 255, 255, 0.08);
-      background: rgba(255, 255, 255, 0.02);
-      color: var(--muted);
-      margin-top: 0;
-    }
-
-    .notice strong {
-      color: var(--text);
-      display: block;
-      margin-bottom: 4px;
-    }
-
-    .account-actions {
-      display: flex;
-      gap: 12px;
-      margin-top: 20px;
-    }
-
-    .btn {
-      padding: 14px 20px;
-      border-radius: 14px;
-      border: 1px solid var(--line);
-      background: rgba(255, 255, 255, 0.04);
-      color: white;
-      font-weight: 900;
-      font-size: 14px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      min-height: 50px;
-      flex: 1;
-      text-align: center;
-    }
-
-    .btn:hover,
-    .btn:focus-visible {
-      transform: translateY(-1px);
-      background: rgba(255, 255, 255, 0.08);
-      border-color: var(--line-strong);
-    }
-
-    .btn:disabled {
-      opacity: 0.55;
-      cursor: not-allowed;
-      transform: none;
-    }
-
-    .btn.primary {
-      background: linear-gradient(135deg, var(--cyan), var(--blue));
-      color: var(--ink);
-      border: none;
-    }
-
-    .btn.success {
-      background: linear-gradient(135deg, var(--green), #89ffd0);
-      color: #062014;
-      border: none;
-    }
-
-    .btn.autonomous-primary {
-      background: linear-gradient(90deg, #7f7bff, #63f5ff);
-      color: #041224;
-      border: none;
-    }
-
-    .btn.ghost {
-      background: transparent;
-      border-color: rgba(255, 255, 255, 0.10);
-    }
-
-    .loading::after {
-      content: "";
-      width: 16px;
-      height: 16px;
-      border: 2px solid rgba(255, 255, 255, 0.32);
-      border-top-color: #fff;
-      border-radius: 50%;
-      display: inline-block;
-      animation: spin 0.7s linear infinite;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    .section-stack {
-      display: flex;
-      flex-direction: column;
-      gap: 24px;
-    }
-
-    .estimate-panel {
-      padding: 24px;
-      border-radius: 24px;
-    }
-
-    .estimate-panel h3 {
-      font-size: 18px;
-      font-weight: 900;
-      margin-bottom: 6px;
-    }
-
-    .estimate-panel p {
-      color: var(--muted);
-      font-size: 14px;
-      line-height: 1.55;
-      margin-bottom: 20px;
-    }
-
-    .estimate {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
-      margin-bottom: 16px;
-    }
-
-    .metric {
-      text-align: center;
-    }
-
-    .metric .k,
-    .map-readout-card .k {
-      color: var(--muted);
-      font-size: 11px;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin-bottom: 4px;
-    }
-
-    .metric .v {
-      font-size: 16px;
-      font-weight: 900;
-    }
-
-    .receipt {
-      padding: 16px;
-      border: 1px solid var(--line);
-      background: rgba(255, 255, 255, 0.02);
-      border-radius: 14px;
-      font-size: 13px;
-      line-height: 1.6;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      white-space: pre-wrap;
-      overflow-wrap: anywhere;
-    }
-
-    .result,
-    .error {
-      margin-top: 16px;
-      display: none;
-      padding: 16px;
-      border-radius: 14px;
-      line-height: 1.5;
-      font-size: 14px;
-    }
-
-    .result {
-      background: rgba(109, 255, 179, 0.08);
-      border: 1px solid rgba(109, 255, 179, 0.2);
-      color: #dffff0;
-    }
-
-    .error {
-      background: rgba(255, 126, 151, 0.08);
-      border: 1px solid rgba(255, 126, 151, 0.2);
-      color: #ffd9e1;
-    }
-
-    .location-gate {
-      position: fixed;
-      inset: 0;
-      z-index: 9999;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 16px;
-      background:
-        radial-gradient(circle at top left, rgba(99, 245, 255, 0.12), transparent 35%),
-        linear-gradient(160deg, #040814, #091126);
-    }
-
-    .location-panel {
-      width: 100%;
-      max-width: 520px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 28px;
-      padding: 32px 24px;
-      text-align: center;
-      box-shadow: var(--shadow);
-    }
-
-    .location-panel h2 {
-      font-size: 24px;
-      font-weight: 900;
-      margin-bottom: 8px;
-    }
-
-    .location-panel p {
-      color: var(--muted);
-      font-size: 14px;
-      line-height: 1.6;
-      margin-bottom: 24px;
-    }
-
-    .location-note {
-      margin-top: 14px;
-      font-size: 12px;
-      color: var(--muted);
-      line-height: 1.5;
-    }
-
-    #liveMap {
-      width: 100%;
-      height: 320px;
-      border-radius: 16px;
-      overflow: hidden;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      background: #0d1730;
-      position: relative;
-    }
-
-    .map-loading {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--muted);
-      font-size: 14px;
-      text-align: center;
-      padding: 18px;
-      background: rgba(13, 23, 48, 0.88);
-      z-index: 6;
-    }
-
-    .map-readout {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-top: 16px;
-    }
-
-    .map-readout-card .v {
-      font-size: 13px;
-      font-weight: 800;
-      color: var(--text);
-      overflow-wrap: anywhere;
-    }
-
-    .footer {
-      margin-top: 40px;
-      padding: 24px;
-      border-radius: 24px;
-      border: 1px solid var(--line);
-      background: var(--panel);
-      display: flex;
-      justify-content: space-between;
-      gap: 20px;
-    }
-
-    .footer p {
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.6;
-      max-width: 650px;
-    }
-
-    .bottom-nav {
-      position: fixed;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
-      background: rgba(6, 12, 26, 0.96);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border-top: 1px solid rgba(255, 255, 255, 0.08);
-      display: flex;
-      justify-content: space-around;
-      align-items: flex-start;
-      padding: 12px 10px env(safe-area-inset-bottom);
-      z-index: 80;
-    }
-
-    .nav-btn {
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 800;
-      padding: 8px 16px;
-      height: 44px;
-      border-radius: 12px;
-    }
-
-    .nav-btn.active,
-    .nav-btn:hover,
-    .nav-btn:focus-visible {
-      color: white;
-      background: rgba(255, 255, 255, 0.06);
-    }
-
-    @media (max-width: 960px) {
-      .grid {
-        grid-template-columns: 1fr;
-      }
-
-      .topbar {
-        position: relative;
-        top: 0;
-        border-radius: 24px;
-      }
-    }
-
-    @media (max-width: 640px) {
-      .shell {
-        padding: 14px 12px;
-      }
-
-      .hero,
-      .section,
-      .estimate-panel {
-        padding: 22px;
-        border-radius: 22px;
-      }
-
-      .split,
-      .status-strip,
-      .map-readout,
-      .estimate {
-        grid-template-columns: 1fr;
-      }
-
-      .top-actions {
-        display: none;
-      }
-
-      .account-actions {
-        flex-direction: column;
-      }
-
-      .chip-row {
-        display: grid;
-        grid-template-columns: 1fr;
-      }
-
-      .action-chip,
-      .btn {
-        width: 100%;
-      }
-
-      .footer {
-        flex-direction: column;
-      }
-    }
+        radial-gradient(circle at top left,rgba(99,245,255,.12),transparent 35%),
+        radial-gradient(circle at top right,rgba(94,160,255,.1),transparent 30%),
+        linear-gradient(160deg,var(--bg1),var(--bg2) 50%,var(--bg3));
+    }
+    a{color:inherit;text-decoration:none}
+    button,input,textarea,select{font:inherit}
+    button{cursor:pointer;border:0}
+    .shell{max-width:var(--max);margin:auto;padding:24px 16px}
+    .topbar,.hero,.section,.panel,.footer{
+      background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,0)),var(--panel);
+      border:1px solid var(--line);box-shadow:var(--shadow);
+    }
+    .topbar{
+      display:flex;justify-content:space-between;align-items:center;gap:14px;
+      padding:14px 22px;border-radius:999px;margin-bottom:24px;position:sticky;top:12px;z-index:50;
+      backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)
+    }
+    .brand-wrap{display:flex;align-items:center;gap:12px}
+    .logo{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(135deg,var(--cyan),var(--blue));color:var(--ink);font-weight:900}
+    .brand{font-weight:900;letter-spacing:.12em;font-size:15px}
+    .sub{font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+    .top-actions{display:flex;gap:10px}
+    .chip,.pill{
+      padding:10px 16px;border-radius:999px;border:1px solid rgba(255,255,255,.08);
+      background:rgba(255,255,255,.04);color:var(--muted);font-weight:800;font-size:13px
+    }
+    .chip:hover,.pill:hover{background:rgba(255,255,255,.09);color:#fff}
+    .hero{padding:32px;border-radius:28px;margin-bottom:24px;overflow:hidden;position:relative}
+    .badge{
+      display:inline-flex;padding:8px 16px;border-radius:999px;border:1px solid rgba(99,245,255,.2);
+      background:rgba(99,245,255,.06);color:var(--cyan);font-size:11px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;margin-bottom:16px
+    }
+    h1{font-size:clamp(1.9rem,4vw,2.75rem);line-height:1.08;margin-bottom:12px}
+    .hero p,.section p,.panel p,.footer p{color:var(--muted);line-height:1.6;font-size:14px}
+    .mode-banner{display:none;margin-top:18px;padding:16px;border-radius:18px;border:1px solid rgba(140,131,255,.3);background:rgba(140,131,255,.12)}
+    .mode-banner strong{display:block;color:#d8d6ff;margin-bottom:4px}
+    .quick{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}
+    .quick button{padding:12px 16px;border-radius:999px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);color:#fff;font-weight:800}
+    .grid{display:grid;grid-template-columns:1.1fr .9fr;gap:24px;align-items:start}
+    .section,.panel{padding:26px;border-radius:24px;margin-bottom:24px}
+    h2{font-size:22px;margin-bottom:6px}
+    h3{font-size:18px;margin-bottom:6px}
+    .steps{display:flex;flex-wrap:wrap;gap:8px;margin:20px 0}
+    .step{padding:8px 14px;border-radius:999px;border:1px solid var(--line);color:var(--muted);font-size:12px;font-weight:800}
+    .step.active{color:#fff;border-color:rgba(99,245,255,.4);background:rgba(99,245,255,.12)}
+    .status{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .card,.metric,.map-box{padding:18px;border-radius:16px;border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.03)}
+    .card h3{font-size:14px}.card p{min-height:38px;margin:6px 0 12px}
+    .tag{display:inline-block;padding:6px 12px;border-radius:999px;font-size:11px;font-weight:900;text-transform:uppercase}
+    .warn{background:rgba(255,215,106,.1);color:var(--gold);border:1px solid rgba(255,215,106,.2)}
+    .ok{background:rgba(109,255,179,.1);color:var(--green);border:1px solid rgba(109,255,179,.2)}
+    .bad{background:rgba(255,126,151,.1);color:var(--danger);border:1px solid rgba(255,126,151,.2)}
+    .field-grid{display:grid;gap:16px}
+    .field{display:grid;gap:6px}
+    label{font-size:12px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+    input,select,textarea{
+      width:100%;border-radius:14px;padding:14px 16px;background:#fff;color:#111827;
+      font-size:15px;font-weight:700;border:2px solid transparent;outline:0
+    }
+    input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 0 4px rgba(94,160,255,.18)}
+    textarea{min-height:100px;resize:vertical}
+    .split{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .pill-row{display:flex;gap:10px;flex-wrap:wrap}
+    .pill.active{border-color:rgba(99,245,255,.4);background:rgba(99,245,255,.15);color:var(--cyan)}
+    .note,.notice{margin-top:16px;padding:14px 16px;border-radius:14px;border:1px solid rgba(109,255,179,.15);background:rgba(109,255,179,.04);color:#dfffee;font-size:13px;line-height:1.6}
+    .notice{border-color:rgba(255,255,255,.08);background:rgba(255,255,255,.02);color:var(--muted);margin-top:0}
+    .actions{display:flex;gap:12px;margin-top:20px}
+    .btn{
+      flex:1;min-height:50px;padding:14px 18px;border-radius:14px;border:1px solid var(--line);
+      background:rgba(255,255,255,.04);color:#fff;font-weight:900;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-align:center
+    }
+    .btn.primary{background:linear-gradient(135deg,var(--cyan),var(--blue));color:var(--ink);border:0}
+    .btn.success{background:linear-gradient(135deg,var(--green),#89ffd0);color:#062014;border:0}
+    .btn.ghost{background:transparent}
+    .btn:disabled{opacity:.55;cursor:not-allowed}
+    .btn.loading::after{content:"";width:16px;height:16px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .stack{display:flex;flex-direction:column;gap:24px}
+    .estimate{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:16px 0}
+    .metric{text-align:center}.k{font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:900;margin-bottom:5px}.v{font-weight:900}
+    .receipt{padding:16px;border:1px solid var(--line);background:rgba(255,255,255,.02);border-radius:14px;font:13px/1.6 monospace;white-space:pre-wrap}
+    .result,.error{display:none;margin-top:16px;padding:16px;border-radius:14px;font-size:14px;line-height:1.5}
+    .result{background:rgba(109,255,179,.08);border:1px solid rgba(109,255,179,.2);color:#dffff0}
+    .error{background:rgba(255,126,151,.08);border:1px solid rgba(255,126,151,.2);color:#ffd9e1}
+    .map-placeholder{height:280px;border-radius:16px;border:1px solid rgba(255,255,255,.08);background:rgba(13,23,48,.88);display:grid;place-items:center;text-align:center;color:var(--muted);padding:20px}
+    .footer{padding:24px;border-radius:24px;margin-top:20px}
+    .bottom-nav{
+      position:fixed;left:0;right:0;bottom:0;height:calc(var(--nav) + env(safe-area-inset-bottom));
+      background:rgba(6,12,26,.96);backdrop-filter:blur(20px);border-top:1px solid rgba(255,255,255,.08);
+      display:flex;justify-content:space-around;padding:12px 10px env(safe-area-inset-bottom);z-index:80
+    }
+    .nav-btn{color:var(--muted);font-size:12px;font-weight:800;padding:8px 16px;height:44px;border-radius:12px;background:transparent}
+    .nav-btn.active{color:#fff;background:rgba(255,255,255,.06)}
+    @media(max-width:960px){.grid{grid-template-columns:1fr}.topbar{position:relative;top:0;border-radius:24px}}
+    @media(max-width:640px){.shell{padding:14px 12px}.hero,.section,.panel{padding:22px}.split,.status,.estimate{grid-template-columns:1fr}.top-actions{display:none}.actions{flex-direction:column}.quick{display:grid}.quick button,.btn{width:100%}}
   </style>
 </head>
 
 <body>
-  <div id="locationGate" class="location-gate">
-    <div class="location-panel">
-      <div class="welcome-badge">Location access required</div>
-      <h2>Enable Location Access</h2>
-      <p>
-        Harvey Taxi uses your device location to help calculate pickup accuracy, improve dispatch readiness,
-        and support the live map preview. Your exact coordinates are not displayed on this page.
-      </p>
-      <button class="btn primary" id="enableLocationBtn" type="button">Enable Location Services</button>
-      <button class="btn ghost" id="skipLocationBtn" type="button" style="margin-top: 10px;">
-        Continue Without GPS
-      </button>
-      <div class="location-note" id="locationStatusText">
-        Waiting for permission. You can still type your pickup address manually.
-      </div>
-    </div>
-  </div>
-
   <main class="shell">
     <header class="topbar">
-      <a class="brand-wrap" href="index.html" aria-label="Harvey Taxi home">
-        <div class="logo-mark">HT</div>
+      <a class="brand-wrap" href="index.html">
+        <div class="logo">HT</div>
         <div>
           <div class="brand">HARVEY TAXI</div>
-          <div class="brand-sub">Request Ride</div>
+          <div class="sub">Request Ride</div>
         </div>
       </a>
-
-      <nav class="top-actions" aria-label="Request ride navigation">
-        <button class="top-chip" type="button" onclick="goHome()">Home</button>
-        <button class="top-chip" type="button" onclick="goDashboard()">Dashboard</button>
-        <button class="top-chip" type="button" onclick="goSupport()">Support</button>
+      <nav class="top-actions">
+        <button class="chip" onclick="goHome()" type="button">Home</button>
+        <button class="chip" onclick="goDashboard()" type="button">Dashboard</button>
+        <button class="chip" onclick="goSupport()" type="button">Support</button>
       </nav>
     </header>
 
     <section class="hero">
-      <div class="welcome">
-        <div class="welcome-badge" id="badgeText">Premium booking pipeline • Harvey Taxi</div>
-        <h1 id="heroTitle">Request your ride with confidence.</h1>
-        <p id="heroText">
-          Approved riders can estimate a trip, prepare payment authorization, and submit a ride request
-          into Harvey Taxi dispatch.
-        </p>
-      </div>
+      <div class="badge" id="badgeText">Premium booking pipeline • Harvey Taxi</div>
+      <h1 id="heroTitle">Request your ride with confidence.</h1>
+      <p id="heroText">Approved riders can estimate a trip, authorize payment, and submit a ride request into Harvey Taxi dispatch.</p>
 
       <div class="mode-banner" id="modeBanner">
         <strong>Autonomous pilot mode selected</strong>
-        <span>
-          This path is clearly labeled as a pilot experience. Standard human driver rides remain the active service path.
-        </span>
+        <span>This path is labeled as a pilot. Standard human driver rides remain the active service path.</span>
       </div>
 
-      <div class="chip-row">
-        <button class="action-chip" type="button" onclick="setRideTypeQuick('standard')">🚖 Ride now</button>
-        <button class="action-chip" type="button" onclick="setRideTypeQuick('scheduled')">📅 Schedule ahead</button>
-        <button class="action-chip" type="button" onclick="setRideTypeQuick('airport')">✈️ Airport trip</button>
-        <button class="action-chip" type="button" onclick="setRideTypeQuick('medical')">🏥 Medical ride</button>
-        <button class="action-chip" type="button" onclick="goFood()">🍔 Food delivery</button>
-        <button class="action-chip" type="button" onclick="goGrocery()">🛒 Grocery delivery</button>
+      <div class="quick">
+        <button type="button" onclick="setRideTypeQuick('standard')">🚖 Ride now</button>
+        <button type="button" onclick="setRideTypeQuick('scheduled')">📅 Schedule ahead</button>
+        <button type="button" onclick="setRideTypeQuick('airport')">✈️ Airport trip</button>
+        <button type="button" onclick="setRideTypeQuick('medical')">🏥 Medical ride</button>
+        <button type="button" onclick="goFood()">🍔 Food delivery</button>
+        <button type="button" onclick="goGrocery()">🛒 Grocery delivery</button>
       </div>
-    </section>    <div class="grid">
-      <div class="form-stack">
+    </section>
 
+    <div class="grid">
+      <div>
         <section class="section">
-          <div class="section-header">
-            <h2 id="accessTitle">Rider Verification</h2>
-            <p id="accessSub">
-              Your rider account may require approval before trip requests can be dispatched.
-            </p>
-          </div>
+          <h2 id="accessTitle">Rider Verification</h2>
+          <p>Your rider account may require approval before ride requests can be dispatched.</p>
 
-          <div class="step-row">
+          <div class="steps">
             <div class="step active" id="stepAccess">1. Rider Access</div>
             <div class="step" id="stepEstimate">2. Estimate</div>
             <div class="step" id="stepPayment">3. Payment</div>
             <div class="step" id="stepRequest">4. Request</div>
           </div>
 
-          <div class="status-strip">
-            <div class="status-card">
+          <div class="status">
+            <div class="card">
               <h3>Rider Status</h3>
-              <p id="verificationText">
-                Enter your rider profile ID to continue.
-              </p>
+              <p id="verificationText">Enter your rider profile ID to continue.</p>
               <div id="verificationTag" class="tag warn">Awaiting Input</div>
             </div>
-
-            <div class="status-card">
+            <div class="card">
               <h3>Payment Authorization</h3>
-              <p id="paymentText">
-                No payment authorization has been prepared.
-              </p>
+              <p id="paymentText">No payment authorization has been prepared.</p>
               <div id="paymentTag" class="tag warn">Not Authorized</div>
             </div>
           </div>
         </section>
 
         <section class="section">
-          <div class="section-header">
-            <h2>Live Pickup Preview</h2>
-            <p>
-              Harvey Taxi can use your current device location to help prepare pickup routing and dispatch flow.
-            </p>
+          <h2>Pickup Location</h2>
+          <p>Use device location when available, or manually type your pickup address.</p>
+
+          <div class="map-placeholder" id="mapBox">
+            <div>
+              <strong>Location helper ready</strong><br />
+              Exact coordinates stay hidden. Tap “Use My Location” to fill pickup when your browser allows it.
+            </div>
           </div>
 
-          <div class="map-panel">
-            <div id="liveMap">
-              <div class="map-loading" id="mapLoadingText">
-                Waiting for live map services...
-              </div>
-            </div>
-
-            <div class="account-actions">
-              <button class="btn" type="button" id="refreshLocationBtn">
-                Refresh Location
-              </button>
-
-              <button class="btn success" type="button" id="useLiveLocationBtn">
-                Use Current Location
-              </button>
-            </div>
-
-            <div class="map-readout">
-              <div class="map-readout-card">
-                <div class="k">Map Status</div>
-                <div class="v" id="mapStatusText">
-                  Waiting for location services.
-                </div>
-              </div>
-
-              <div class="map-readout-card">
-                <div class="k">Pickup Status</div>
-                <div class="v" id="mapCoordText">
-                  Pickup location not selected.
-                </div>
-              </div>
-            </div>
+          <div class="actions">
+            <button class="btn" type="button" id="useLocationBtn">Use My Location</button>
+            <button class="btn ghost" type="button" id="clearPickupBtn">Clear Pickup</button>
           </div>
         </section>
 
         <section class="section">
-          <div class="section-header">
-            <h2 id="rideSectionTitle">Ride Information</h2>
-            <p>
-              Enter accurate pickup and dropoff information before requesting a ride.
-            </p>
+          <h2 id="rideSectionTitle">Ride Information</h2>
+          <p>Enter accurate pickup and dropoff information before requesting a ride.</p>
+
+          <div class="field-grid">
+            <div class="field">
+              <label for="riderId">Rider Profile ID</label>
+              <input id="riderId" autocomplete="off" placeholder="Enter rider profile ID" />
+            </div>
+
+            <div class="split">
+              <div class="field">
+                <label for="firstName">Passenger First Name</label>
+                <input id="firstName" autocomplete="given-name" placeholder="First name" />
+              </div>
+              <div class="field">
+                <label for="phone">Passenger Phone Number</label>
+                <input id="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(555) 000-0000" />
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="pickup">Pickup Address</label>
+              <input id="pickup" autocomplete="street-address" placeholder="Street, city, state" />
+            </div>
+
+            <div class="field">
+              <label for="dropoff">Dropoff Address</label>
+              <input id="dropoff" autocomplete="street-address" placeholder="Street, city, state" />
+            </div>
+
+            <div class="split">
+              <div class="field">
+                <label for="rideType">Ride Type</label>
+                <select id="rideType">
+                  <option value="standard">Standard Ride</option>
+                  <option value="scheduled">Scheduled Ride</option>
+                  <option value="airport">Airport Transfer</option>
+                  <option value="medical">Medical Ride</option>
+                  <option value="nonprofit">Community Support Ride</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="scheduledTime">Scheduled Time</label>
+                <input id="scheduledTime" type="datetime-local" />
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="notes">Trip Notes</label>
+              <textarea id="notes" placeholder="Gate codes, accessibility needs, apartment number, pickup details..."></textarea>
+            </div>
+
+            <div class="field">
+              <label>Payment Method</label>
+              <div class="pill-row">
+                <button type="button" class="pill active" data-payment="card">Credit / Debit Card</button>
+                <button type="button" class="pill" data-payment="apple_pay">Apple Pay</button>
+              </div>
+            </div>
           </div>
 
-          <div class="ride-card">
-            <div class="field-grid">
+          <div class="note">🔒 Harvey Taxi uses protected rider verification, payment authorization, and dispatch request flow.</div>
 
-              <div class="field">
-                <label for="riderId">Rider Profile ID</label>
-                <input
-                  class="input"
-                  id="riderId"
-                  autocomplete="off"
-                  placeholder="Enter rider profile ID"
-                />
-              </div>
-
-              <div class="split">
-                <div class="field">
-                  <label for="firstName">Passenger First Name</label>
-                  <input
-                    class="input"
-                    id="firstName"
-                    autocomplete="given-name"
-                    placeholder="First name"
-                  />
-                </div>
-
-                <div class="field">
-                  <label for="phone">Passenger Phone Number</label>
-                  <input
-                    class="input"
-                    id="phone"
-                    type="tel"
-                    inputmode="tel"
-                    autocomplete="tel"
-                    placeholder="(555) 000-0000"
-                  />
-                </div>
-              </div>
-
-              <div class="field">
-                <label for="pickup">Pickup Address</label>
-                <input
-                  class="input"
-                  id="pickup"
-                  autocomplete="street-address"
-                  placeholder="Street, city, state"
-                />
-              </div>
-
-              <div class="field">
-                <label for="dropoff">Dropoff Address</label>
-                <input
-                  class="input"
-                  id="dropoff"
-                  autocomplete="street-address"
-                  placeholder="Street, city, state"
-                />
-              </div>
-
-              <div class="split">
-
-                <div class="field">
-                  <label for="rideType">Ride Type</label>
-
-                  <select id="rideType">
-                    <option value="standard">Standard Ride</option>
-                    <option value="scheduled">Scheduled Ride</option>
-                    <option value="airport">Airport Transfer</option>
-                    <option value="medical">Medical Ride</option>
-                    <option value="nonprofit">Community Support Ride</option>
-                  </select>
-                </div>
-
-                <div class="field">
-                  <label for="scheduledTime">Scheduled Time</label>
-
-                  <input
-                    class="input"
-                    id="scheduledTime"
-                    type="datetime-local"
-                  />
-                </div>
-              </div>
-
-              <div class="field">
-                <label for="notes">Trip Notes</label>
-
-                <textarea
-                  id="notes"
-                  placeholder="Gate codes, accessibility needs, apartment number, pickup details..."
-                ></textarea>
-              </div>
-
-              <div class="field">
-                <label>Payment Method</label>
-
-                <div class="pill-row">
-                  <button
-                    type="button"
-                    class="pill active"
-                    data-payment="card"
-                  >
-                    Credit / Debit Card
-                  </button>
-
-                  <button
-                    type="button"
-                    class="pill"
-                    data-payment="apple_pay"
-                  >
-                    Apple Pay
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div class="trust-note">
-              🔒 Harvey Taxi uses encrypted payment authorization and protected rider request flows.
-            </div>
-
-            <div class="account-actions">
-              <button class="btn" id="checkRiderBtn" type="button">
-                Verify Rider
-              </button>
-
-              <button class="btn" id="estimateBtn" type="button">
-                Get Estimate
-              </button>
-
-              <button class="btn" id="authorizeBtn" type="button">
-                Authorize Payment
-              </button>
-            </div>
+          <div class="actions">
+            <button class="btn" id="checkRiderBtn" type="button">Verify Rider</button>
+            <button class="btn" id="estimateBtn" type="button">Get Estimate</button>
+            <button class="btn" id="authorizeBtn" type="button">Authorize Payment</button>
           </div>
         </section>
       </div>
 
-      <aside class="section-stack">
-
-        <section class="estimate-panel">
+      <aside class="stack">
+        <section class="panel">
           <h3 id="estimateSectionTitle">Trip Estimate</h3>
-
-          <p id="estimateSub">
-            Review your estimated distance, duration, and fare before requesting dispatch.
-          </p>
+          <p>Review your estimated distance, duration, and fare before requesting dispatch.</p>
 
           <div class="estimate">
-
-            <div class="metric">
-              <div class="k">Distance</div>
-              <div class="v" id="distanceValue">--</div>
-            </div>
-
-            <div class="metric">
-              <div class="k">Duration</div>
-              <div class="v" id="durationValue">--</div>
-            </div>
-
-            <div class="metric">
-              <div class="k">Estimated Fare</div>
-              <div class="v" id="fareValue">--</div>
-            </div>
+            <div class="metric"><div class="k">Distance</div><div class="v" id="distanceValue">--</div></div>
+            <div class="metric"><div class="k">Duration</div><div class="v" id="durationValue">--</div></div>
+            <div class="metric"><div class="k">Estimated Fare</div><div class="v" id="fareValue">--</div></div>
           </div>
 
-          <div class="receipt" id="estimateReceipt">
-Awaiting trip information.
-Pickup and dropoff are required before an estimate can be calculated.
+          <div class="receipt" id="estimateReceipt">Awaiting trip information.
+Pickup and dropoff are required before an estimate can be calculated.</div>
+
+          <div class="actions">
+            <button class="btn primary" id="requestRideBtn" type="button">Request Ride</button>
           </div>
 
-          <div class="account-actions">
-            <button class="btn primary" id="requestRideBtn" type="button">
-              Request Ride
-            </button>
-          </div>
-
-          <div class="result" id="resultBox" aria-live="polite"></div>
-          <div class="error" id="errorBox" aria-live="assertive"></div>
+          <div class="result" id="resultBox"></div>
+          <div class="error" id="errorBox"></div>
         </section>
 
-        <section class="estimate-panel">
+        <section class="panel">
           <h3>Dispatch Support</h3>
-
-          <p>
-            Harvey Taxi request flow is connected to rider verification, estimate, payment authorization,
-            and dispatch routing systems.
-          </p>
-
+          <p>This page connects to rider status, estimate, payment authorization, and ride request endpoints.</p>
           <div class="notice">
             <strong>Platform Routes</strong>
             • GET /api/riders/status<br />
@@ -1199,37 +305,459 @@ Pickup and dropoff are required before an estimate can be calculated.
             • POST /api/payments/authorize<br />
             • POST /api/request-ride
           </div>
-
-          <div class="account-actions">
-            <button class="btn ghost" type="button" onclick="goDashboard()">
-              Open Rider Dashboard
-            </button>
+          <div class="actions">
+            <button class="btn ghost" type="button" onclick="goDashboard()">Open Rider Dashboard</button>
           </div>
         </section>
       </aside>
     </div>
 
     <footer class="footer">
-      <div>
-        <strong style="display:block; margin-bottom:4px;">
-          Harvey Taxi Service LLC
-        </strong>
-
-        <p>
-          Safe Tennessee transportation with rider verification, driver onboarding,
-          live support, and community-focused mobility access.
-        </p>
-      </div>
+      <strong>Harvey Taxi Service LLC</strong>
+      <p>Safe Tennessee transportation with rider verification, driver onboarding, live support, and community-focused mobility access.</p>
     </footer>
   </main>
 
   <nav class="bottom-nav">
     <button class="nav-btn" type="button" onclick="goHome()">Home</button>
     <button class="nav-btn" type="button" onclick="goDashboard()">Trips</button>
-    <button class="nav-btn active" type="button" onclick="window.location.reload()">
-      Book
-    </button>
+    <button class="nav-btn active" type="button" onclick="window.location.reload()">Book</button>
     <button class="nav-btn" type="button" onclick="goSupport()">Support</button>
   </nav>
 
   <script>
+    let selectedPaymentMethod = "card";
+    let currentEstimate = null;
+    let paymentAuthorized = false;
+    let paymentAuthorizationId = null;
+    let riderVerified = false;
+    let currentCoords = null;
+    let currentRider = null;
+
+    let isCheckingRider = false;
+    let isEstimating = false;
+    let isAuthorizing = false;
+    let isRequestingRide = false;
+
+    const $ = (id) => document.getElementById(id);
+    const urlParams = new URLSearchParams(window.location.search);
+    const requestedMode = (urlParams.get("mode") || "driver").toLowerCase() === "autonomous" ? "autonomous" : "driver";
+    const isAutonomousMode = requestedMode === "autonomous";
+
+    const els = {
+      riderId: $("riderId"),
+      firstName: $("firstName"),
+      phone: $("phone"),
+      pickup: $("pickup"),
+      dropoff: $("dropoff"),
+      rideType: $("rideType"),
+      scheduledTime: $("scheduledTime"),
+      notes: $("notes"),
+      verificationText: $("verificationText"),
+      verificationTag: $("verificationTag"),
+      paymentText: $("paymentText"),
+      paymentTag: $("paymentTag"),
+      distanceValue: $("distanceValue"),
+      durationValue: $("durationValue"),
+      fareValue: $("fareValue"),
+      estimateReceipt: $("estimateReceipt"),
+      resultBox: $("resultBox"),
+      errorBox: $("errorBox"),
+      checkRiderBtn: $("checkRiderBtn"),
+      estimateBtn: $("estimateBtn"),
+      authorizeBtn: $("authorizeBtn"),
+      requestRideBtn: $("requestRideBtn"),
+      useLocationBtn: $("useLocationBtn"),
+      clearPickupBtn: $("clearPickupBtn"),
+      stepAccess: $("stepAccess"),
+      stepEstimate: $("stepEstimate"),
+      stepPayment: $("stepPayment"),
+      stepRequest: $("stepRequest")
+    };
+
+    function apiBase() {
+      const host = window.location.hostname || "";
+      if (
+        host.includes("harvey-taxi-app-2.onrender.com") ||
+        host.includes("harveytaxiservice.com") ||
+        host.includes("harveytaxiservicellc.com")
+      ) return "";
+      return "https://harvey-taxi-app-2.onrender.com";
+    }
+
+    function goHome(){ window.location.href = "index.html"; }
+    function goDashboard(){ window.location.href = "rider-dashboard.html"; }
+    function goSupport(){ window.location.href = "support.html"; }
+    function goFood(){ window.location.href = `request-food.html?rider_id=${encodeURIComponent(els.riderId.value.trim())}`; }
+    function goGrocery(){ window.location.href = `request-grocery.html?rider_id=${encodeURIComponent(els.riderId.value.trim())}`; }
+
+    function clearMessages(){
+      els.resultBox.style.display = "none";
+      els.errorBox.style.display = "none";
+      els.resultBox.textContent = "";
+      els.errorBox.textContent = "";
+    }
+
+    function showError(msg){
+      els.errorBox.style.display = "block";
+      els.errorBox.textContent = msg || "Something went wrong.";
+      els.resultBox.style.display = "none";
+    }
+
+    function showResult(msg){
+      els.resultBox.style.display = "block";
+      els.resultBox.textContent = msg || "";
+      els.errorBox.style.display = "none";
+    }
+
+    function setButtonLoading(btn, loading){
+      if (!btn) return;
+      if (loading) {
+        btn.disabled = true;
+        btn.dataset.prevText = btn.textContent;
+        btn.textContent = "";
+        btn.classList.add("loading");
+      } else {
+        btn.disabled = false;
+        btn.classList.remove("loading");
+        if (btn.dataset.prevText) btn.textContent = btn.dataset.prevText;
+      }
+    }
+
+    async function requestJson(path, options = {}) {
+      const response = await fetch(`${apiBase()}${path}`, {
+        headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+        credentials: "include",
+        ...options
+      });
+
+      const text = await response.text();
+      let data = {};
+      try { data = text ? JSON.parse(text) : {}; }
+      catch { throw new Error("Server returned an unreadable response."); }
+
+      if (!response.ok || data.ok === false || data.success === false) {
+        throw new Error(data.error || data.message || "Request failed.");
+      }
+      return data;
+    }
+
+    function normalizeEstimate(data) {
+      const est = data.estimate || data.fare || data || {};
+      const fare = Number(est.total || est.estimated_total || est.amount || est.fare || data.total || 0);
+      const miles = Number(est.miles || est.distance_miles || data.miles || 0);
+      const mins = Number(est.minutes || est.duration_minutes || data.minutes || 0);
+      return { fare, miles, mins, raw: est };
+    }
+
+    function resetEstimateState(){
+      currentEstimate = null;
+      els.distanceValue.textContent = "--";
+      els.durationValue.textContent = "--";
+      els.fareValue.textContent = "--";
+      els.estimateReceipt.textContent = "Awaiting trip information.\nPickup and dropoff are required before an estimate can be calculated.";
+      els.stepEstimate.classList.remove("active");
+      resetPaymentState();
+    }
+
+    function resetPaymentState(){
+      paymentAuthorized = false;
+      paymentAuthorizationId = null;
+      els.paymentText.textContent = "No payment authorization has been prepared.";
+      els.paymentTag.className = "tag warn";
+      els.paymentTag.textContent = "Not Authorized";
+      els.stepPayment.classList.remove("active");
+      els.stepRequest.classList.remove("active");
+    }
+
+    function setRideTypeQuick(type){
+      els.rideType.value = type;
+      resetEstimateState();
+      if (type === "scheduled") els.scheduledTime.focus();
+    }
+
+    function applyModeUI(){
+      if (!isAutonomousMode) return;
+      document.title = "Harvey Taxi — Request Autonomous Ride";
+      $("heroTitle").textContent = "Request your autonomous pilot ride.";
+      $("heroText").textContent = "Autonomous mode is clearly labeled as pilot access. Human driver rides remain the active service path.";
+      $("modeBanner").style.display = "block";
+      els.requestRideBtn.textContent = "Request Autonomous Pilot Ride";
+    }
+
+    function validateBasicFields({ requireEstimate = false, requirePayment = false } = {}){
+      const riderId = els.riderId.value.trim();
+      const pickup = els.pickup.value.trim();
+      const dropoff = els.dropoff.value.trim();
+      const phone = els.phone.value.trim();
+
+      if (!riderId) throw new Error("Enter your Rider Profile ID first.");
+      if (!pickup) throw new Error("Enter a pickup address.");
+      if (!dropoff) throw new Error("Enter a dropoff address.");
+      if (phone && phone.replace(/\D/g, "").length < 10) throw new Error("Enter a valid phone number.");
+      if (els.rideType.value === "scheduled" && !els.scheduledTime.value) throw new Error("Select a scheduled pickup time.");
+      if (requireEstimate && !currentEstimate) throw new Error("Get an estimate before continuing.");
+      if (requirePayment && !paymentAuthorized) throw new Error("Authorize payment before requesting a ride.");
+    }
+
+    async function checkRiderStatus(){
+      const rid = els.riderId.value.trim();
+      clearMessages();
+      if (!rid) { showError("Enter your Rider Profile ID first."); return false; }
+      if (isCheckingRider) return false;
+
+      isCheckingRider = true;
+      setButtonLoading(els.checkRiderBtn, true);
+
+      try {
+        const data = await requestJson(`/api/riders/status?riderId=${encodeURIComponent(rid)}`);
+        const rider = data.rider || {};
+        currentRider = rider;
+
+        const isApproved =
+          data.approved === true ||
+          rider.approved === true ||
+          rider.status === "approved" ||
+          rider.approval_status === "approved" ||
+          rider.persona_status === "approved" ||
+          rider.verification_status === "approved";
+
+        if (!isApproved) throw new Error("This rider profile is not approved for ride requests yet.");
+
+        riderVerified = true;
+        els.verificationText.textContent = "Rider profile approved. You can continue.";
+        els.verificationTag.className = "tag ok";
+        els.verificationTag.textContent = "Approved";
+        els.stepAccess.classList.add("active");
+
+        if (!els.firstName.value && rider.full_name) els.firstName.value = String(rider.full_name).split(" ")[0];
+        if (!els.phone.value && rider.phone) els.phone.value = rider.phone;
+        localStorage.setItem("harveyRiderId", rid);
+        return true;
+      } catch (err) {
+        riderVerified = false;
+        els.verificationText.textContent = err.message || "Rider verification failed.";
+        els.verificationTag.className = "tag bad";
+        els.verificationTag.textContent = "Not Approved";
+        resetPaymentState();
+        showError(err.message);
+        return false;
+      } finally {
+        isCheckingRider = false;
+        setButtonLoading(els.checkRiderBtn, false);
+      }
+    }
+
+    async function getEstimate(){
+      clearMessages();
+      if (isEstimating) return;
+
+      try { validateBasicFields(); }
+      catch (err) { showError(err.message); return; }
+
+      isEstimating = true;
+      setButtonLoading(els.estimateBtn, true);
+
+      try {
+        const data = await requestJson("/api/estimate-ride", {
+          method: "POST",
+          body: JSON.stringify({
+            pickup: els.pickup.value.trim(),
+            dropoff: els.dropoff.value.trim(),
+            requestedMode,
+            ride_type: els.rideType.value
+          })
+        });
+
+        currentEstimate = normalizeEstimate(data);
+
+        els.distanceValue.textContent = currentEstimate.miles ? `${currentEstimate.miles.toFixed(1)} mi` : "Pending";
+        els.durationValue.textContent = currentEstimate.mins ? `${Math.round(currentEstimate.mins)} min` : "Pending";
+        els.fareValue.textContent = currentEstimate.fare ? `$${currentEstimate.fare.toFixed(2)}` : "Pending";
+
+        els.estimateReceipt.textContent =
+`TRIP ESTIMATE
+Pickup: ${els.pickup.value.trim()}
+Dropoff: ${els.dropoff.value.trim()}
+Ride Type: ${els.rideType.value}
+Mode: ${requestedMode}
+Distance: ${currentEstimate.miles ? currentEstimate.miles.toFixed(1) + " mi" : "Pending"}
+Duration: ${currentEstimate.mins ? Math.round(currentEstimate.mins) + " min" : "Pending"}
+Estimated Fare: ${currentEstimate.fare ? "$" + currentEstimate.fare.toFixed(2) : "Pending"}`;
+
+        els.stepEstimate.classList.add("active");
+        resetPaymentState();
+      } catch (err) {
+        showError(err.message || "Estimate failed.");
+      } finally {
+        isEstimating = false;
+        setButtonLoading(els.estimateBtn, false);
+      }
+    }
+
+    async function authorizePayment(){
+      clearMessages();
+      if (isAuthorizing) return;
+
+      try { validateBasicFields({ requireEstimate: true }); }
+      catch (err) { showError(err.message); return; }
+
+      const verified = riderVerified || await checkRiderStatus();
+      if (!verified) return;
+
+      isAuthorizing = true;
+      setButtonLoading(els.authorizeBtn, true);
+
+      try {
+        const data = await requestJson("/api/payments/authorize", {
+          method: "POST",
+          body: JSON.stringify({
+            riderId: els.riderId.value.trim(),
+            rider_id: els.riderId.value.trim(),
+            pickup: els.pickup.value.trim(),
+            dropoff: els.dropoff.value.trim(),
+            amount: currentEstimate?.fare || null,
+            payment_method: selectedPaymentMethod,
+            requestedMode
+          })
+        });
+
+        paymentAuthorizationId =
+          data.payment?.id ||
+          data.payment_id ||
+          data.authorization_id ||
+          data.id ||
+          "AUTHORIZED";
+
+        paymentAuthorized = true;
+        els.paymentText.textContent = "Payment authorization prepared successfully.";
+        els.paymentTag.className = "tag ok";
+        els.paymentTag.textContent = "Authorized";
+        els.stepPayment.classList.add("active");
+      } catch (err) {
+        paymentAuthorized = false;
+        els.paymentText.textContent = "Payment authorization failed.";
+        els.paymentTag.className = "tag bad";
+        els.paymentTag.textContent = "Failed";
+        showError(err.message || "Payment authorization failed.");
+      } finally {
+        isAuthorizing = false;
+        setButtonLoading(els.authorizeBtn, false);
+      }
+    }
+
+    async function requestRide(){
+      clearMessages();
+      if (isRequestingRide) return;
+
+      try { validateBasicFields({ requireEstimate: true, requirePayment: true }); }
+      catch (err) { showError(err.message); return; }
+
+      isRequestingRide = true;
+      setButtonLoading(els.requestRideBtn, true);
+
+      try {
+        const data = await requestJson("/api/request-ride", {
+          method: "POST",
+          body: JSON.stringify({
+            riderId: els.riderId.value.trim(),
+            rider_id: els.riderId.value.trim(),
+            paymentId: paymentAuthorizationId,
+            payment_id: paymentAuthorizationId,
+            pickup: els.pickup.value.trim(),
+            dropoff: els.dropoff.value.trim(),
+            phone: els.phone.value.trim(),
+            firstName: els.firstName.value.trim(),
+            first_name: els.firstName.value.trim(),
+            ride_type: els.rideType.value,
+            scheduled_time: els.scheduledTime.value || null,
+            notes: els.notes.value.trim(),
+            requestedMode,
+            pickup_latitude: currentCoords?.latitude || null,
+            pickup_longitude: currentCoords?.longitude || null,
+            estimate: currentEstimate
+          })
+        });
+
+        const rideId = data.ride?.id || data.ride_id || data.id || "QUEUED";
+        els.stepRequest.classList.add("active");
+        showResult(`Ride request submitted. Dispatch ID: ${rideId}. Driver matching can now begin.`);
+      } catch (err) {
+        showError(err.message || "Ride request failed.");
+      } finally {
+        isRequestingRide = false;
+        setButtonLoading(els.requestRideBtn, false);
+      }
+    }
+
+    function useMyLocation(){
+      clearMessages();
+      if (!navigator.geolocation) {
+        showError("This device does not support browser location.");
+        return;
+      }
+
+      setButtonLoading(els.useLocationBtn, true);
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          currentCoords = {
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+            accuracy: pos.coords.accuracy
+          };
+          els.pickup.value = "Current Location";
+          $("mapBox").innerHTML = "<div><strong>Location attached</strong><br />Pickup set to your current verified device location.</div>";
+          resetEstimateState();
+          setButtonLoading(els.useLocationBtn, false);
+        },
+        () => {
+          showError("Location permission was blocked or unavailable. You can still type your pickup address manually.");
+          setButtonLoading(els.useLocationBtn, false);
+        },
+        { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+      );
+    }
+
+    document.querySelectorAll(".pill").forEach((pill) => {
+      pill.addEventListener("click", () => {
+        document.querySelectorAll(".pill").forEach((p) => p.classList.remove("active"));
+        pill.classList.add("active");
+        selectedPaymentMethod = pill.dataset.payment || "card";
+        resetPaymentState();
+      });
+    });
+
+    [els.pickup, els.dropoff, els.rideType, els.scheduledTime].forEach((el) => {
+      el.addEventListener("change", resetEstimateState);
+      el.addEventListener("input", () => {
+        if (el === els.pickup || el === els.dropoff) resetEstimateState();
+      });
+    });
+
+    els.checkRiderBtn.addEventListener("click", checkRiderStatus);
+    els.estimateBtn.addEventListener("click", getEstimate);
+    els.authorizeBtn.addEventListener("click", authorizePayment);
+    els.requestRideBtn.addEventListener("click", requestRide);
+    els.useLocationBtn.addEventListener("click", useMyLocation);
+    els.clearPickupBtn.addEventListener("click", () => {
+      els.pickup.value = "";
+      currentCoords = null;
+      $("mapBox").innerHTML = "<div><strong>Location helper ready</strong><br />Exact coordinates stay hidden. Tap “Use My Location” to fill pickup when your browser allows it.</div>";
+      resetEstimateState();
+    });
+
+    window.addEventListener("DOMContentLoaded", () => {
+      applyModeUI();
+
+      const savedId = urlParams.get("rider_id") || localStorage.getItem("harveyRiderId");
+      if (savedId) {
+        els.riderId.value = savedId;
+        checkRiderStatus();
+      }
+
+      fetch(`${apiBase()}/api/riders/status?ping=true`).catch(() => {});
+    });
+  </script>
+</body>
+</html>
