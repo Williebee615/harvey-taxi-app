@@ -11,11 +11,31 @@
 
   <meta
     name="description"
-    content="Request a Harvey Taxi ride with rider approval, live pickup support, fare estimate, payment authorization, and dispatch."
+    content="Request a Harvey Taxi ride with rider approval, precise pickup location, live map preview, fare estimate, payment authorization, dispatch, and trip status."
   />
 
   <meta name="theme-color" content="#07111f" />
   <meta name="google-maps-browser-key" content="" />
+
+  <!--
+    CODE BLUE — REQUEST RIDE PAGE
+    Senior Developer Engineer Build
+
+    Major upgrades:
+    - Precise browser geolocation support
+    - Live pickup map preview
+    - Google Maps support when key is available
+    - No-map fallback UI when key is missing
+    - Rider approval gate
+    - Payment authorization gate
+    - Fare estimate gate
+    - Driver / autonomous / food / grocery mode support
+    - Safer state management
+    - Better storage recovery
+    - Better endpoint compatibility
+    - Cleaner mobile layout
+    - Production-safe frontend error handling
+  -->
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -29,8 +49,11 @@
     :root {
       --bg-main: #040814;
       --bg-soft: #07111f;
+      --bg-deep: #02050c;
+
       --bg-card: rgba(11, 20, 39, 0.92);
       --bg-card-strong: rgba(15, 28, 54, 0.96);
+      --bg-glass: rgba(255, 255, 255, 0.045);
 
       --text-main: #f8fbff;
       --text-soft: #b8c7e6;
@@ -42,11 +65,14 @@
       --green: #38e08f;
       --yellow: #ffd166;
       --red: #ff5c7a;
+      --purple: #a78bfa;
 
       --line: rgba(125, 170, 255, 0.18);
       --line-strong: rgba(125, 170, 255, 0.34);
 
       --shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
+      --shadow-soft: 0 14px 40px rgba(0, 0, 0, 0.28);
+
       --radius-xl: 28px;
       --radius-lg: 22px;
       --radius-md: 16px;
@@ -67,7 +93,13 @@
     body {
       margin: 0;
       min-height: 100vh;
-      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-family:
+        "Inter",
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
       color: var(--text-main);
       background:
         radial-gradient(circle at top left, rgba(77, 163, 255, 0.18), transparent 35%),
@@ -82,10 +114,10 @@
       inset: 0;
       pointer-events: none;
       background-image:
-        linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
+        linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
       background-size: 42px 42px;
-      mask-image: linear-gradient(to bottom, rgba(0,0,0,0.55), transparent 75%);
+      mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.55), transparent 75%);
       z-index: 0;
     }
 
@@ -113,7 +145,7 @@
     }
 
     .shell {
-      width: min(1180px, 100%);
+      width: min(1220px, 100%);
       margin: 0 auto;
     }
 
@@ -139,11 +171,12 @@
       display: grid;
       place-items: center;
       background:
-        linear-gradient(145deg, rgba(77,163,255,0.95), rgba(70,240,255,0.75));
+        linear-gradient(145deg, rgba(77, 163, 255, 0.95), rgba(70, 240, 255, 0.75));
       box-shadow: 0 16px 40px rgba(77, 163, 255, 0.3);
       color: #03101f;
       font-weight: 900;
       letter-spacing: -0.04em;
+      flex: 0 0 auto;
     }
 
     .brand-text {
@@ -182,7 +215,7 @@
       padding: 10px 13px;
       border-radius: 999px;
       font-size: 0.84rem;
-      font-weight: 700;
+      font-weight: 800;
       transition: 180ms ease;
     }
 
@@ -194,16 +227,18 @@
 
     .hero {
       display: grid;
-      grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
+      grid-template-columns: minmax(0, 1.04fr) minmax(340px, 0.96fr);
       gap: 22px;
       align-items: stretch;
     }
 
     .hero-card,
     .ride-card,
-    .panel {
+    .panel,
+    .map-card {
       border: 1px solid var(--line);
-      background: linear-gradient(180deg, rgba(14, 27, 55, 0.88), rgba(5, 10, 22, 0.94));
+      background:
+        linear-gradient(180deg, rgba(14, 27, 55, 0.88), rgba(5, 10, 22, 0.94));
       box-shadow: var(--shadow);
       border-radius: var(--radius-xl);
       backdrop-filter: blur(20px);
@@ -222,7 +257,7 @@
       height: 360px;
       right: -130px;
       top: -130px;
-      background: radial-gradient(circle, rgba(77,163,255,0.22), transparent 68%);
+      background: radial-gradient(circle, rgba(77, 163, 255, 0.22), transparent 68%);
       pointer-events: none;
     }
 
@@ -236,7 +271,7 @@
       border: 1px solid rgba(77, 163, 255, 0.24);
       color: #cfe6ff;
       font-size: 0.78rem;
-      font-weight: 800;
+      font-weight: 900;
       text-transform: uppercase;
       letter-spacing: 0.08em;
     }
@@ -251,7 +286,7 @@
 
     h1 {
       margin: 18px 0 12px;
-      font-size: clamp(2.15rem, 7vw, 4.8rem);
+      font-size: clamp(2.15rem, 7vw, 4.85rem);
       line-height: 0.94;
       letter-spacing: -0.075em;
     }
@@ -280,12 +315,12 @@
 
     .mode-chip {
       border: 1px solid var(--line);
-      background: rgba(255,255,255,0.045);
+      background: rgba(255, 255, 255, 0.045);
       color: var(--text-soft);
       border-radius: 18px;
       padding: 13px 12px;
       text-align: left;
-      min-height: 78px;
+      min-height: 82px;
       transition: 180ms ease;
     }
 
@@ -303,9 +338,10 @@
     }
 
     .mode-chip.active {
-      border-color: rgba(70,240,255,0.55);
-      background: linear-gradient(180deg, rgba(77,163,255,0.18), rgba(70,240,255,0.08));
-      box-shadow: 0 18px 50px rgba(77,163,255,0.16);
+      border-color: rgba(70, 240, 255, 0.55);
+      background:
+        linear-gradient(180deg, rgba(77, 163, 255, 0.18), rgba(70, 240, 255, 0.08));
+      box-shadow: 0 18px 50px rgba(77, 163, 255, 0.16);
     }
 
     .status-stack {
@@ -319,7 +355,7 @@
       align-items: flex-start;
       gap: 12px;
       border: 1px solid var(--line);
-      background: rgba(255,255,255,0.045);
+      background: rgba(255, 255, 255, 0.045);
       border-radius: 18px;
       padding: 14px;
     }
@@ -330,7 +366,7 @@
       display: grid;
       place-items: center;
       border-radius: 13px;
-      background: rgba(77,163,255,0.14);
+      background: rgba(77, 163, 255, 0.14);
       flex: 0 0 auto;
     }
 
@@ -346,12 +382,139 @@
       line-height: 1.45;
     }
 
-    .ride-card {
+    .map-card {
+      margin-top: 18px;
+      padding: 18px;
+    }
+
+    .map-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .map-header h3 {
+      margin: 0;
+      font-size: 1rem;
+      letter-spacing: -0.035em;
+    }
+
+    .map-header p {
+      margin: 4px 0 0;
+      color: var(--text-soft);
+      font-size: 0.8rem;
+      line-height: 1.45;
+    }
+
+    .map-shell {
+      position: relative;
+      overflow: hidden;
+      border-radius: 22px;
+      border: 1px solid rgba(125, 170, 255, 0.22);
+      min-height: 300px;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(70, 240, 255, 0.16), transparent 26%),
+        radial-gradient(circle at 80% 20%, rgba(77, 163, 255, 0.16), transparent 26%),
+        linear-gradient(135deg, rgba(3, 12, 26, 0.96), rgba(8, 18, 38, 0.96));
+    }
+
+    #pickupMap {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      min-height: 300px;
+    }
+
+    .map-fallback {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      text-align: center;
+      background:
+        radial-gradient(circle at center, rgba(77, 163, 255, 0.16), transparent 44%),
+        linear-gradient(180deg, rgba(2, 8, 20, 0.68), rgba(2, 8, 20, 0.92));
+    }
+
+    .map-fallback-card {
+      width: min(420px, 100%);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 18px;
+      background: rgba(255, 255, 255, 0.055);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .map-fallback-card strong {
+      display: block;
+      font-size: 1rem;
+      margin-bottom: 7px;
+    }
+
+    .map-fallback-card span {
+      display: block;
+      color: var(--text-soft);
+      font-size: 0.84rem;
+      line-height: 1.5;
+    }
+
+    .map-meta {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .map-meta-box {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.045);
+      padding: 12px;
+      min-width: 0;
+    }
+
+    .map-meta-box span {
+      display: block;
+      color: var(--text-muted);
+      font-size: 0.68rem;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .map-meta-box strong {
+      display: block;
+      font-size: 0.84rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }    .ride-card {
       padding: 22px;
       position: relative;
+      overflow: hidden;
+    }
+
+    .ride-card::before {
+      content: "";
+      position: absolute;
+      width: 320px;
+      height: 320px;
+      top: -160px;
+      right: -120px;
+      border-radius: 999px;
+      background:
+        radial-gradient(circle, rgba(70, 240, 255, 0.14), transparent 68%);
+      pointer-events: none;
     }
 
     .card-header {
+      position: relative;
+      z-index: 1;
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
@@ -386,7 +549,49 @@
       white-space: nowrap;
     }
 
+    .notice {
+      display: none;
+      border-radius: 18px;
+      padding: 14px;
+      font-size: 0.84rem;
+      line-height: 1.5;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.045);
+      color: var(--text-soft);
+      margin-bottom: 16px;
+    }
+
+    .notice.show {
+      display: block;
+    }
+
+    .notice.success {
+      border-color: rgba(56, 224, 143, 0.35);
+      background: rgba(56, 224, 143, 0.09);
+      color: #d4ffe9;
+    }
+
+    .notice.warning {
+      border-color: rgba(255, 209, 102, 0.35);
+      background: rgba(255, 209, 102, 0.09);
+      color: #fff0c4;
+    }
+
+    .notice.error {
+      border-color: rgba(255, 92, 122, 0.35);
+      background: rgba(255, 92, 122, 0.09);
+      color: #ffdbe3;
+    }
+
+    .notice.info {
+      border-color: rgba(77, 163, 255, 0.35);
+      background: rgba(77, 163, 255, 0.08);
+      color: #d6ebff;
+    }
+
     .form-grid {
+      position: relative;
+      z-index: 1;
       display: grid;
       gap: 14px;
     }
@@ -405,7 +610,7 @@
     .field small {
       color: var(--text-muted);
       font-size: 0.74rem;
-      line-height: 1.4;
+      line-height: 1.45;
     }
 
     .input-wrap {
@@ -423,10 +628,11 @@
       padding: 14px 14px;
       outline: none;
       transition: 180ms ease;
+      appearance: none;
     }
 
     textarea {
-      min-height: 96px;
+      min-height: 110px;
       resize: vertical;
     }
 
@@ -448,6 +654,12 @@
       gap: 12px;
     }
 
+    .three-col {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
     .location-row {
       display: grid;
       grid-template-columns: 1fr auto;
@@ -463,10 +675,35 @@
       padding: 14px 13px;
       font-weight: 900;
       white-space: nowrap;
+      transition: 180ms ease;
     }
 
     .mini-btn:hover {
       background: rgba(77, 163, 255, 0.2);
+      transform: translateY(-1px);
+    }
+
+    .gps-status {
+      margin-top: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      color: var(--text-soft);
+      font-size: 0.78rem;
+    }
+
+    .gps-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.2);
+      flex: 0 0 auto;
+    }
+
+    .gps-dot.active {
+      background: var(--green);
+      box-shadow: 0 0 0 5px rgba(56, 224, 143, 0.12);
     }
 
     .actions {
@@ -477,9 +714,9 @@
 
     .primary-btn,
     .secondary-btn,
-    .danger-btn {
+    .danger-btn,
+    .ghost-btn {
       width: 100%;
-      border: 0;
       border-radius: 18px;
       padding: 15px 16px;
       font-weight: 900;
@@ -488,8 +725,10 @@
     }
 
     .primary-btn {
+      border: 0;
       color: #03101f;
-      background: linear-gradient(135deg, #ffffff, #7fc3ff 42%, #46f0ff 100%);
+      background:
+        linear-gradient(135deg, #ffffff, #7fc3ff 42%, #46f0ff 100%);
       box-shadow: 0 18px 50px rgba(70, 240, 255, 0.18);
     }
 
@@ -499,20 +738,32 @@
     }
 
     .secondary-btn {
-      color: var(--text-main);
-      background: rgba(255, 255, 255, 0.055);
       border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.055);
+      color: var(--text-main);
+    }
+
+    .secondary-btn:hover {
+      background: rgba(255,255,255,0.08);
+      transform: translateY(-1px);
+    }
+
+    .ghost-btn {
+      border: 1px dashed rgba(125, 170, 255, 0.24);
+      background: transparent;
+      color: var(--text-soft);
     }
 
     .danger-btn {
-      color: #ffe5eb;
-      background: rgba(255, 92, 122, 0.12);
       border: 1px solid rgba(255, 92, 122, 0.28);
+      background: rgba(255, 92, 122, 0.12);
+      color: #ffe5eb;
     }
 
     .primary-btn:disabled,
     .secondary-btn:disabled,
     .danger-btn:disabled,
+    .ghost-btn:disabled,
     .mini-btn:disabled {
       cursor: not-allowed;
       opacity: 0.55;
@@ -520,43 +771,10 @@
       box-shadow: none;
     }
 
-    .notice {
-      display: none;
-      border-radius: 18px;
-      padding: 14px;
-      font-size: 0.84rem;
-      line-height: 1.45;
-      border: 1px solid var(--line);
-      background: rgba(255,255,255,0.045);
-      color: var(--text-soft);
-    }
-
-    .notice.show {
-      display: block;
-    }
-
-    .notice.success {
-      border-color: rgba(56,224,143,0.35);
-      background: rgba(56,224,143,0.09);
-      color: #d4ffe9;
-    }
-
-    .notice.warning {
-      border-color: rgba(255,209,102,0.35);
-      background: rgba(255,209,102,0.09);
-      color: #fff0c4;
-    }
-
-    .notice.error {
-      border-color: rgba(255,92,122,0.35);
-      background: rgba(255,92,122,0.09);
-      color: #ffdbe3;
-    }
-
     .details {
       margin-top: 20px;
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 12px;
     }
 
@@ -581,6 +799,46 @@
       display: block;
       font-size: 1.08rem;
       letter-spacing: -0.04em;
+    }
+
+    .trip-timeline {
+      margin-top: 18px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .timeline-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 14px;
+      background: rgba(255,255,255,0.04);
+    }
+
+    .timeline-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      background: rgba(77,163,255,0.12);
+      flex: 0 0 auto;
+      font-size: 0.92rem;
+    }
+
+    .timeline-item strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 0.9rem;
+    }
+
+    .timeline-item span {
+      display: block;
+      color: var(--text-soft);
+      font-size: 0.8rem;
+      line-height: 1.45;
     }
 
     .panels {
@@ -623,6 +881,13 @@
       border-radius: 15px;
       padding: 12px;
       font-weight: 800;
+      transition: 180ms ease;
+    }
+
+    .mini-list a:hover,
+    .mini-list button:hover {
+      background: rgba(255,255,255,0.08);
+      transform: translateY(-1px);
     }
 
     .footer-note {
@@ -648,13 +913,17 @@
       animation: spin 850ms linear infinite;
     }
 
+    .hidden {
+      display: none !important;
+    }
+
     @keyframes spin {
       to {
         transform: rotate(360deg);
       }
     }
 
-    @media (max-width: 920px) {
+    @media (max-width: 1020px) {
       .hero {
         grid-template-columns: 1fr;
       }
@@ -664,12 +933,14 @@
       }
 
       .details,
-      .panels {
+      .map-meta,
+      .panels,
+      .three-col {
         grid-template-columns: 1fr;
       }
     }
 
-    @media (max-width: 560px) {
+    @media (max-width: 640px) {
       .page {
         padding-left: 12px;
         padding-right: 12px;
@@ -685,14 +956,12 @@
 
       .hero-card,
       .ride-card,
-      .panel {
+      .panel,
+      .map-card {
         border-radius: 24px;
       }
 
-      .mode-grid {
-        grid-template-columns: 1fr;
-      }
-
+      .mode-grid,
       .two-col,
       .location-row {
         grid-template-columns: 1fr;
@@ -701,9 +970,20 @@
       .mini-btn {
         width: 100%;
       }
+
+      .details {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      #pickupMap,
+      .map-shell {
+        min-height: 240px;
+      }
     }
   </style>
-</head><body>
+</head>
+
+<body>
   <div class="page">
     <div class="shell">
 
@@ -711,17 +991,21 @@
       <header class="topbar">
 
         <a href="/" class="brand">
-          <div class="brand-mark">H</div>
+          <div class="brand-mark">
+            H
+          </div>
 
           <div class="brand-text">
             <strong>Harvey Taxi</strong>
+
             <span>
-              Tennessee Ride Access • Live Dispatch • Support
+              Tennessee Ride Access • Live Dispatch • Smart Mobility
             </span>
           </div>
         </a>
 
         <div class="top-actions">
+
           <a class="pill-link" href="/rider-dashboard.html">
             Rider Dashboard
           </a>
@@ -733,162 +1017,251 @@
           <a class="pill-link" href="/foundation.html">
             Foundation
           </a>
-        </div>
-      </header>
 
-      <!-- HERO -->
+        </div>
+      </header>      <!-- HERO -->
       <section class="hero">
 
-        <!-- LEFT -->
-        <div class="hero-card">
+        <!-- LEFT SIDE -->
+        <div>
 
-          <div class="eyebrow">
-            <div class="pulse-dot"></div>
-            <span id="heroEyebrowText">
-              LIVE RIDE REQUEST SYSTEM
-            </span>
-          </div>
+          <div class="hero-card">
 
-          <h1>
-            <span class="gradient-text" id="heroTitle">
-              Request Your Ride
-            </span>
-          </h1>
+            <div class="eyebrow">
+              <div class="pulse-dot"></div>
 
-          <p class="hero-copy" id="heroCopy">
-            Harvey Taxi connects approved riders with drivers,
-            dispatch systems, and clearly labeled autonomous pilot
-            experiences using a safer payment-first ride flow.
-          </p>
-
-          <!-- MODES -->
-          <div class="mode-grid">
-
-            <button
-              type="button"
-              class="mode-chip active"
-              id="modeDriverBtn"
-              data-mode="driver"
-            >
-              <strong>Driver Ride</strong>
-
-              <span>
-                Request a standard ride with a human driver.
+              <span id="heroEyebrowText">
+                LIVE DISPATCH + LOCATION INTELLIGENCE
               </span>
-            </button>
-
-            <button
-              type="button"
-              class="mode-chip"
-              id="modeAutonomousBtn"
-              data-mode="autonomous"
-            >
-              <strong>Autonomous Pilot</strong>
-
-              <span>
-                Explore clearly labeled future autonomous support.
-              </span>
-            </button>
-
-            <button
-              type="button"
-              class="mode-chip"
-              id="modeFoodBtn"
-              data-mode="food"
-            >
-              <strong>Food Delivery</strong>
-
-              <span>
-                Request food delivery through Harvey systems.
-              </span>
-            </button>
-
-            <button
-              type="button"
-              class="mode-chip"
-              id="modeGroceryBtn"
-              data-mode="grocery"
-            >
-              <strong>Groceries</strong>
-
-              <span>
-                Grocery support and delivery access.
-              </span>
-            </button>
-
-          </div>
-
-          <!-- STATUS -->
-          <div class="status-stack">
-
-            <div class="status-box">
-              <div class="status-icon">
-                🛡️
-              </div>
-
-              <div>
-                <strong>Rider Approval Gate</strong>
-
-                <span>
-                  Harvey Taxi may require approved rider status,
-                  identity verification, and phone confirmation
-                  before dispatch activation.
-                </span>
-              </div>
             </div>
 
-            <div class="status-box">
-              <div class="status-icon">
-                💳
-              </div>
+            <h1>
+              <span class="gradient-text" id="heroTitle">
+                Request Your Ride
+              </span>
+            </h1>
 
-              <div>
-                <strong>Payment Authorization</strong>
+            <p class="hero-copy" id="heroCopy">
+              Harvey Taxi connects approved riders with drivers,
+              dispatch systems, precise pickup intelligence,
+              payment authorization, and future autonomous pilot systems.
+            </p>
+
+            <!-- MODES -->
+            <div class="mode-grid">
+
+              <button
+                type="button"
+                class="mode-chip active"
+                id="modeDriverBtn"
+                data-mode="driver"
+              >
+                <strong>Driver Ride</strong>
 
                 <span>
-                  Payment authorization may occur before ride
-                  dispatch to reduce failed trips and improve
-                  operational reliability.
+                  Standard ride request with a human driver.
                 </span>
-              </div>
+              </button>
+
+              <button
+                type="button"
+                class="mode-chip"
+                id="modeAutonomousBtn"
+                data-mode="autonomous"
+              >
+                <strong>Autonomous Pilot</strong>
+
+                <span>
+                  Clearly labeled autonomous pilot experience.
+                </span>
+              </button>
+
+              <button
+                type="button"
+                class="mode-chip"
+                id="modeFoodBtn"
+                data-mode="food"
+              >
+                <strong>Food Delivery</strong>
+
+                <span>
+                  Food pickup and delivery request mode.
+                </span>
+              </button>
+
+              <button
+                type="button"
+                class="mode-chip"
+                id="modeGroceryBtn"
+                data-mode="grocery"
+              >
+                <strong>Groceries</strong>
+
+                <span>
+                  Grocery delivery and assistance support.
+                </span>
+              </button>
+
             </div>
 
-            <div class="status-box">
-              <div class="status-icon">
-                📡
+            <!-- STATUS -->
+            <div class="status-stack">
+
+              <div class="status-box">
+                <div class="status-icon">
+                  🛡️
+                </div>
+
+                <div>
+                  <strong>Rider Approval Gate</strong>
+
+                  <span>
+                    Harvey Taxi can require approved rider status,
+                    identity verification, and phone verification
+                    before dispatch activation.
+                  </span>
+                </div>
               </div>
 
-              <div>
-                <strong>Live Dispatch Intelligence</strong>
+              <div class="status-box">
+                <div class="status-icon">
+                  💳
+                </div>
 
-                <span>
-                  Your request may be routed using live driver
-                  availability, location intelligence, and
-                  dispatch timing systems.
-                </span>
+                <div>
+                  <strong>Payment Authorization</strong>
+
+                  <span>
+                    Payment authorization may occur before dispatch
+                    to reduce failed trips and improve operational reliability.
+                  </span>
+                </div>
               </div>
+
+              <div class="status-box">
+                <div class="status-icon">
+                  📡
+                </div>
+
+                <div>
+                  <strong>Live Dispatch Intelligence</strong>
+
+                  <span>
+                    Dispatch routing may use driver proximity,
+                    demand balancing, availability scoring,
+                    and live trip conditions.
+                  </span>
+                </div>
+              </div>
+
             </div>
 
           </div>
+
+          <!-- MAP CARD -->
+          <div class="map-card">
+
+            <div class="map-header">
+
+              <div>
+                <h3>
+                  Live Pickup Location
+                </h3>
+
+                <p>
+                  Harvey Taxi can use precise browser GPS location
+                  and live map preview when permission is granted.
+                </p>
+              </div>
+
+              <div class="badge">
+                <span>●</span>
+                <span id="mapStatusBadge">
+                  Map Ready
+                </span>
+              </div>
+
+            </div>
+
+            <div class="map-shell">
+
+              <!-- LIVE MAP -->
+              <div id="pickupMap"></div>
+
+              <!-- FALLBACK -->
+              <div
+                id="mapFallback"
+                class="map-fallback"
+              >
+                <div class="map-fallback-card">
+
+                  <strong>
+                    Live Map Standby
+                  </strong>
+
+                  <span>
+                    Use “Use My Location” to activate precise pickup support.
+                    Google Maps preview automatically loads when configured.
+                  </span>
+
+                </div>
+              </div>
+
+            </div>
+
+            <!-- MAP META -->
+            <div class="map-meta">
+
+              <div class="map-meta-box">
+                <span>Latitude</span>
+
+                <strong id="latitudeText">
+                  Pending
+                </strong>
+              </div>
+
+              <div class="map-meta-box">
+                <span>Longitude</span>
+
+                <strong id="longitudeText">
+                  Pending
+                </strong>
+              </div>
+
+              <div class="map-meta-box">
+                <span>GPS Accuracy</span>
+
+                <strong id="accuracyText">
+                  Pending
+                </strong>
+              </div>
+
+            </div>
+
+          </div>
+
         </div>
 
-        <!-- RIGHT CARD -->
+        <!-- RIGHT SIDE -->
         <div class="ride-card">
 
           <div class="card-header">
 
             <div>
+
               <h2 id="requestCardTitle">
                 Ride Request
               </h2>
 
               <p id="requestCardCopy">
-                Complete the secure request flow below.
+                Complete the secure Harvey Taxi request flow below.
               </p>
+
             </div>
 
             <div class="badge">
               <span>●</span>
+
               <span id="statusBadgeText">
                 Dispatch Ready
               </span>
@@ -903,12 +1276,16 @@
           ></div>
 
           <!-- FORM -->
-          <form id="rideForm" class="form-grid">
+          <form
+            id="rideForm"
+            class="form-grid"
+          >
 
             <!-- RIDER -->
             <div class="two-col">
 
               <div class="field">
+
                 <label for="riderName">
                   Full Name
                 </label>
@@ -918,12 +1295,14 @@
                     id="riderName"
                     type="text"
                     autocomplete="name"
-                    placeholder="Enter your name"
+                    placeholder="Enter your full name"
                   />
                 </div>
+
               </div>
 
               <div class="field">
+
                 <label for="riderPhone">
                   Phone Number
                 </label>
@@ -937,12 +1316,14 @@
                     placeholder="(555) 555-5555"
                   />
                 </div>
+
               </div>
 
             </div>
 
             <!-- EMAIL -->
             <div class="field">
+
               <label for="riderEmail">
                 Email Address
               </label>
@@ -958,8 +1339,10 @@
 
               <small>
                 Your email may be used for receipts,
-                verification, ride updates, and support.
+                verification, ride updates, support,
+                and trip lifecycle communication.
               </small>
+
             </div>
 
             <!-- PICKUP -->
@@ -972,12 +1355,14 @@
               <div class="location-row">
 
                 <div class="input-wrap">
+
                   <input
                     id="pickupAddress"
                     type="text"
                     autocomplete="street-address"
                     placeholder="Enter pickup address"
                   />
+
                 </div>
 
                 <button
@@ -990,38 +1375,52 @@
 
               </div>
 
-              <small id="locationStatusText">
-                Harvey Taxi can use live location when permission
-                is granted.
-              </small>
+              <!-- GPS STATUS -->
+              <div class="gps-status">
+
+                <div
+                  id="gpsDot"
+                  class="gps-dot"
+                ></div>
+
+                <span id="locationStatusText">
+                  Harvey Taxi can use precise GPS location
+                  when permission is granted.
+                </span>
+
+              </div>
 
             </div>
 
             <!-- DESTINATION -->
             <div class="field">
+
               <label for="destinationAddress">
                 Destination
               </label>
 
               <div class="input-wrap">
+
                 <input
                   id="destinationAddress"
                   type="text"
                   autocomplete="street-address"
                   placeholder="Enter destination"
                 />
-              </div>
-            </div>
 
-            <!-- SERVICE -->
-            <div class="two-col">
+              </div>
+
+            </div>            <!-- SERVICE SETTINGS -->
+            <div class="three-col">
 
               <div class="field">
+
                 <label for="rideType">
                   Ride Type
                 </label>
 
                 <select id="rideType">
+
                   <option value="standard">
                     Standard Ride
                   </option>
@@ -1037,71 +1436,128 @@
                   <option value="scheduled">
                     Scheduled Ride
                   </option>
+
                 </select>
+
               </div>
 
               <div class="field">
+
                 <label for="passengerCount">
                   Passenger Count
                 </label>
 
                 <select id="passengerCount">
-                  <option value="1">1 Passenger</option>
-                  <option value="2">2 Passengers</option>
-                  <option value="3">3 Passengers</option>
-                  <option value="4">4 Passengers</option>
-                  <option value="5">5+ Passengers</option>
+
+                  <option value="1">
+                    1 Passenger
+                  </option>
+
+                  <option value="2">
+                    2 Passengers
+                  </option>
+
+                  <option value="3">
+                    3 Passengers
+                  </option>
+
+                  <option value="4">
+                    4 Passengers
+                  </option>
+
+                  <option value="5">
+                    5+ Passengers
+                  </option>
+
                 </select>
+
               </div>
 
-            </div>            <!-- SCHEDULED TIME -->
-            <div class="field" id="scheduledRideBlock">
+              <div class="field">
+
+                <label for="servicePriority">
+                  Service Priority
+                </label>
+
+                <select id="servicePriority">
+
+                  <option value="normal">
+                    Normal
+                  </option>
+
+                  <option value="high">
+                    High Priority
+                  </option>
+
+                  <option value="vip">
+                    VIP Priority
+                  </option>
+
+                </select>
+
+              </div>
+
+            </div>
+
+            <!-- SCHEDULED -->
+            <div
+              class="field"
+              id="scheduledRideBlock"
+            >
+
               <label for="scheduledTime">
                 Scheduled Pickup Time
               </label>
 
               <div class="input-wrap">
+
                 <input
                   id="scheduledTime"
                   type="datetime-local"
                 />
+
               </div>
 
               <small>
-                Optional for standard rides. Required when
-                “Scheduled Ride” is selected.
+                Required for scheduled rides.
+                Pickup must be at least 10 minutes in the future.
               </small>
+
             </div>
 
             <!-- NOTES -->
             <div class="field">
+
               <label for="rideNotes">
                 Ride Notes
               </label>
 
               <textarea
                 id="rideNotes"
-                placeholder="Gate code, pickup details, accessibility needs, or special notes..."
+                placeholder="Gate code, pickup details, accessibility needs, delivery notes, or special instructions..."
               ></textarea>
 
               <small>
-                Do not place emergency requests here. For emergencies,
-                call 911 immediately.
+                Harvey Taxi is not an emergency service.
+                For emergencies, call 911 immediately.
               </small>
+
             </div>
 
-            <!-- ESTIMATE DETAILS -->
+            <!-- DETAILS -->
             <div class="details">
 
               <div class="detail-card">
                 <span>Estimated Fare</span>
+
                 <strong id="fareEstimateText">
-                  Not calculated
+                  Pending
                 </strong>
               </div>
 
               <div class="detail-card">
-                <span>Trip Distance</span>
+                <span>Distance</span>
+
                 <strong id="distanceText">
                   Pending
                 </strong>
@@ -1109,14 +1565,23 @@
 
               <div class="detail-card">
                 <span>Estimated Time</span>
+
                 <strong id="durationText">
                   Pending
                 </strong>
               </div>
 
+              <div class="detail-card">
+                <span>Dispatch Status</span>
+
+                <strong id="dispatchStateText">
+                  Standby
+                </strong>
+              </div>
+
             </div>
 
-            <!-- PAYMENT / DISPATCH ACTIONS -->
+            <!-- ACTIONS -->
             <div class="actions">
 
               <button
@@ -1153,24 +1618,101 @@
                 Request Dispatch
               </button>
 
+              <button
+                type="button"
+                class="ghost-btn"
+                id="resetFlowBtn"
+              >
+                Reset Request Flow
+              </button>
+
+            </div>
+
+            <!-- TIMELINE -->
+            <div class="trip-timeline">
+
+              <div class="timeline-item">
+
+                <div class="timeline-icon">
+                  👤
+                </div>
+
+                <div>
+
+                  <strong>
+                    Rider Approval
+                  </strong>
+
+                  <span id="approvalTimelineText">
+                    Waiting for rider approval verification.
+                  </span>
+
+                </div>
+
+              </div>
+
+              <div class="timeline-item">
+
+                <div class="timeline-icon">
+                  💳
+                </div>
+
+                <div>
+
+                  <strong>
+                    Payment Authorization
+                  </strong>
+
+                  <span id="paymentTimelineText">
+                    Payment authorization has not started yet.
+                  </span>
+
+                </div>
+
+              </div>
+
+              <div class="timeline-item">
+
+                <div class="timeline-icon">
+                  🚕
+                </div>
+
+                <div>
+
+                  <strong>
+                    Dispatch Lifecycle
+                  </strong>
+
+                  <span id="dispatchTimelineText">
+                    Dispatch request has not been submitted yet.
+                  </span>
+
+                </div>
+
+              </div>
+
             </div>
 
           </form>
+
         </div>
+
       </section>
 
       <!-- LOWER PANELS -->
       <section class="panels">
 
         <div class="panel">
+
           <h3>
             What Happens Next
           </h3>
 
           <p>
-            Harvey Taxi checks rider approval, estimates the trip,
-            authorizes payment when required, then sends the request
-            into dispatch for driver matching.
+            Harvey Taxi validates rider access,
+            calculates the route,
+            authorizes payment when required,
+            then routes the request into live dispatch.
           </p>
 
           <div class="mini-list">
@@ -1183,19 +1725,24 @@
               Contact Harvey Taxi Support
             </a>
 
+            <a href="/driver-dashboard.html">
+              Driver Mission Dashboard
+            </a>
+
           </div>
+
         </div>
 
         <div class="panel">
+
           <h3>
-            Delivery & Foundation Access
+            Delivery + Foundation Expansion
           </h3>
 
           <p>
-            Harvey Taxi is being built as a mobility platform with
-            ride support, delivery expansion, and transportation
-            assistance through the Harvey Transportation Assistance
-            Foundation.
+            Harvey Taxi is being built as a future-ready
+            mobility ecosystem with rides, food delivery,
+            grocery support, and transportation assistance access.
           </p>
 
           <div class="mini-list">
@@ -1205,28 +1752,30 @@
             </a>
 
             <a href="/request-groceries.html">
-              Request Groceries
+              Request Grocery Delivery
             </a>
 
             <a href="/foundation.html">
-              Visit Foundation Page
+              Visit Foundation
             </a>
 
           </div>
+
         </div>
 
       </section>
 
-      <!-- LIVE REQUEST SUMMARY -->
+      <!-- LIVE STATUS -->
       <section class="panels">
 
         <div class="panel">
+
           <h3>
             Live Request Status
           </h3>
 
           <p id="liveStatusText">
-            Complete the form and start with rider approval.
+            Complete the secure request flow to begin.
           </p>
 
           <div class="mini-list">
@@ -1238,18 +1787,27 @@
               Refresh Current Ride Status
             </button>
 
+            <button
+              type="button"
+              id="openDashboardBtn"
+            >
+              Open Rider Dashboard
+            </button>
+
           </div>
+
         </div>
 
         <div class="panel">
+
           <h3>
             Safety Notice
           </h3>
 
           <p>
-            Harvey Taxi is not an emergency service. If you are in
-            immediate danger or need urgent medical assistance,
-            call 911 now.
+            Harvey Taxi is not an emergency service.
+            If you are in immediate danger or require
+            urgent medical assistance, call 911 immediately.
           </p>
 
           <div class="mini-list">
@@ -1262,35 +1820,71 @@
               Terms & Policies
             </a>
 
+            <a href="/privacy.html">
+              Privacy Policy
+            </a>
+
           </div>
+
         </div>
 
       </section>
 
       <p class="footer-note">
-        Harvey Taxi Service LLC • Tennessee ride access • Driver,
-        autonomous pilot, food delivery, grocery delivery, and
-        foundation support features may vary by availability,
-        approval status, and live operations.
+        Harvey Taxi Service LLC • Tennessee ride access •
+        Driver rides, autonomous pilot systems, food delivery,
+        grocery delivery, and foundation support features
+        may vary by approval status, operational availability,
+        location coverage, and dispatch conditions.
       </p>
 
     </div>
   </div>
 
+  <!-- GOOGLE MAPS -->
+  <script>
+    (() => {
+      const meta = document.querySelector(
+        'meta[name="google-maps-browser-key"]'
+      );
+
+      const key =
+        meta?.getAttribute("content") ||
+        window.GOOGLE_MAPS_API_KEY ||
+        "";
+
+      if (!key) {
+        window.__HARVEY_MAPS_ENABLED__ = false;
+        return;
+      }
+
+      const script = document.createElement("script");
+
+      script.src =
+        `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}`;
+
+      script.async = true;
+      script.defer = true;
+
+      script.onload = () => {
+        window.__HARVEY_MAPS_ENABLED__ = true;
+      };
+
+      script.onerror = () => {
+        window.__HARVEY_MAPS_ENABLED__ = false;
+      };
+
+      document.head.appendChild(script);
+    })();
+  </script>
+
+  <!-- MAIN CONTROLLER -->
   <script>
     /**
-     * Harvey Taxi — Request Ride
-     * Code Blue production-safe frontend controller
+     * HARVEY TAXI
+     * REQUEST RIDE — CODE BLUE
      *
-     * This file is designed to work with the upgraded Harvey Taxi
-     * Supabase-backed server.js architecture:
-     *
-     * - rider approval gate
-     * - payment authorization gate
-     * - fare estimate before dispatch
-     * - requestedMode support: driver / autonomous / food / grocery
-     * - ride_id compatible response handling
-     * - graceful fallback if location, maps, or optional endpoints fail
+     * Senior Developer Engineer Build
      */
 
     const CONFIG = {
@@ -1300,8 +1894,6 @@
         "https://harvey-taxi-app-2.onrender.com",
 
       DASHBOARD_URL: "/rider-dashboard.html",
-      SUPPORT_URL: "/support.html",
-      FOUNDATION_URL: "/foundation.html",
 
       ENDPOINTS: {
         health: "/api/health",
@@ -1314,6 +1906,7 @@
         estimateRide: "/api/estimate-ride",
 
         authorizePayment: "/api/payments/authorize",
+
         requestRide: "/api/request-ride",
 
         rideStatus: "/api/rides/status",
@@ -1325,15 +1918,19 @@
         riderEmail: "harvey_rider_email",
         riderName: "harvey_rider_name",
         riderPhone: "harvey_rider_phone",
+
         lastRideId: "harvey_last_ride_id",
         lastPaymentId: "harvey_last_payment_id",
+
         requestMode: "harvey_request_mode"
       },
 
       REQUIRE_RIDER_APPROVAL: true,
       REQUIRE_PAYMENT_AUTHORIZATION: true,
 
-      DEFAULT_MODE: "driver"
+      DEFAULT_MODE: "driver",
+
+      MAP_DEFAULT_ZOOM: 15
     };
 
     const state = {
@@ -1353,6 +1950,7 @@
         address: "",
         latitude: null,
         longitude: null,
+        accuracy: null,
         source: "manual"
       },
 
@@ -1382,13 +1980,12 @@
         raw: null
       },
 
-      ui: {
-        busy: false,
-        lastAction: ""
+      map: {
+        instance: null,
+        marker: null,
+        loaded: false
       }
-    };
-
-    const $ = (id) => document.getElementById(id);
+    };    const $ = (id) => document.getElementById(id);
 
     const els = {
       heroEyebrowText: $("heroEyebrowText"),
@@ -1397,10 +1994,11 @@
 
       requestCardTitle: $("requestCardTitle"),
       requestCardCopy: $("requestCardCopy"),
+
       statusBadgeText: $("statusBadgeText"),
+      mapStatusBadge: $("mapStatusBadge"),
 
       noticeBox: $("noticeBox"),
-
       rideForm: $("rideForm"),
 
       riderName: $("riderName"),
@@ -1409,27 +2007,47 @@
 
       pickupAddress: $("pickupAddress"),
       destinationAddress: $("destinationAddress"),
+
       rideType: $("rideType"),
       passengerCount: $("passengerCount"),
+      servicePriority: $("servicePriority"),
       scheduledTime: $("scheduledTime"),
       rideNotes: $("rideNotes"),
-
-      locationStatusText: $("locationStatusText"),
 
       detectLocationBtn: $("detectLocationBtn"),
       checkRiderBtn: $("checkRiderBtn"),
       estimateBtn: $("estimateBtn"),
       authorizePaymentBtn: $("authorizePaymentBtn"),
       requestRideBtn: $("requestRideBtn"),
+      resetFlowBtn: $("resetFlowBtn"),
       refreshStatusBtn: $("refreshStatusBtn"),
+      openDashboardBtn: $("openDashboardBtn"),
+
+      locationStatusText: $("locationStatusText"),
+      gpsDot: $("gpsDot"),
+
+      pickupMap: $("pickupMap"),
+      mapFallback: $("mapFallback"),
+
+      latitudeText: $("latitudeText"),
+      longitudeText: $("longitudeText"),
+      accuracyText: $("accuracyText"),
 
       fareEstimateText: $("fareEstimateText"),
       distanceText: $("distanceText"),
       durationText: $("durationText"),
+      dispatchStateText: $("dispatchStateText"),
+
       liveStatusText: $("liveStatusText"),
 
+      approvalTimelineText: $("approvalTimelineText"),
+      paymentTimelineText: $("paymentTimelineText"),
+      dispatchTimelineText: $("dispatchTimelineText"),
+
       modeButtons: Array.from(document.querySelectorAll(".mode-chip"))
-    };    function safeTrim(value) {
+    };
+
+    function safeTrim(value) {
       return String(value || "").trim();
     }
 
@@ -1467,20 +2085,35 @@
 
         localStorage.setItem(key, String(value));
       } catch (error) {
-        // Storage can fail in private mode. Do not block rider flow.
+        // Private mode or restricted browser storage should not break the page.
       }
     }
 
     function getQueryParam(name) {
-      const params = new URLSearchParams(window.location.search);
-      return safeLower(params.get(name));
+      try {
+        const params = new URLSearchParams(window.location.search);
+        return safeLower(params.get(name));
+      } catch (error) {
+        return "";
+      }
+    }
+
+    function isValidEmail(email) {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(safeTrim(email));
+    }
+
+    function normalizePhone(phone) {
+      return safeTrim(phone).replace(/[^\d+]/g, "");
     }
 
     function setBusy(button, isBusy, busyText) {
       if (!button) return;
 
       if (isBusy) {
-        button.dataset.originalText = button.textContent;
+        if (!button.dataset.originalText) {
+          button.dataset.originalText = button.textContent;
+        }
+
         button.disabled = true;
         button.innerHTML = `
           <span class="loading-inline">
@@ -1492,6 +2125,7 @@
       }
 
       const originalText = button.dataset.originalText;
+
       if (originalText) {
         button.textContent = originalText;
       }
@@ -1525,6 +2159,62 @@
       }
     }
 
+    function setMapBadge(message) {
+      if (els.mapStatusBadge) {
+        els.mapStatusBadge.textContent = message;
+      }
+    }
+
+    function setDispatchState(message) {
+      if (els.dispatchStateText) {
+        els.dispatchStateText.textContent = message;
+      }
+    }
+
+    function setTimeline(type, message) {
+      if (type === "approval" && els.approvalTimelineText) {
+        els.approvalTimelineText.textContent = message;
+      }
+
+      if (type === "payment" && els.paymentTimelineText) {
+        els.paymentTimelineText.textContent = message;
+      }
+
+      if (type === "dispatch" && els.dispatchTimelineText) {
+        els.dispatchTimelineText.textContent = message;
+      }
+    }
+
+    function updateLocationMeta() {
+      if (els.latitudeText) {
+        els.latitudeText.textContent =
+          state.pickup.latitude === null
+            ? "Pending"
+            : Number(state.pickup.latitude).toFixed(6);
+      }
+
+      if (els.longitudeText) {
+        els.longitudeText.textContent =
+          state.pickup.longitude === null
+            ? "Pending"
+            : Number(state.pickup.longitude).toFixed(6);
+      }
+
+      if (els.accuracyText) {
+        els.accuracyText.textContent =
+          state.pickup.accuracy === null
+            ? "Pending"
+            : `${Math.round(Number(state.pickup.accuracy))} meters`;
+      }
+
+      if (els.gpsDot) {
+        els.gpsDot.classList.toggle(
+          "active",
+          state.pickup.latitude !== null && state.pickup.longitude !== null
+        );
+      }
+    }
+
     function normalizeMode(mode) {
       const clean = safeLower(mode);
 
@@ -1546,12 +2236,12 @@
     function getModeContent(mode) {
       const content = {
         driver: {
-          eyebrow: "LIVE RIDE REQUEST SYSTEM",
+          eyebrow: "LIVE DISPATCH + LOCATION INTELLIGENCE",
           title: "Request Your Ride",
           copy:
-            "Harvey Taxi connects approved riders with drivers, dispatch systems, and payment-first ride flow support.",
+            "Harvey Taxi connects approved riders with drivers, dispatch systems, precise pickup support, payment authorization, and ride lifecycle updates.",
           cardTitle: "Ride Request",
-          cardCopy: "Complete the secure ride request flow below.",
+          cardCopy: "Complete the secure Harvey Taxi ride request flow below.",
           badge: "Dispatch Ready"
         },
 
@@ -1559,10 +2249,10 @@
           eyebrow: "AUTONOMOUS PILOT MODE",
           title: "Request Autonomous Pilot",
           copy:
-            "This mode is clearly labeled for Harvey Taxi autonomous pilot development and future AV-ready operations.",
+            "This mode is clearly labeled for Harvey Taxi autonomous pilot development and AV-ready future operations.",
           cardTitle: "Autonomous Pilot Request",
           cardCopy:
-            "Submit a clearly labeled autonomous pilot request where available.",
+            "Submit a clearly labeled autonomous pilot request where operationally available.",
           badge: "Pilot Mode"
         },
 
@@ -1581,7 +2271,7 @@
           eyebrow: "GROCERY DELIVERY ACCESS",
           title: "Request Groceries",
           copy:
-            "Harvey Taxi grocery support helps expand transportation assistance into essential household access.",
+            "Harvey Taxi grocery support expands mobility assistance into essential household access.",
           cardTitle: "Grocery Delivery Request",
           cardCopy:
             "Use this flow for grocery delivery if your backend supports unified service requests.",
@@ -1604,34 +2294,47 @@
         button.classList.toggle("active", isActive);
       });
 
-      if (els.heroEyebrowText) els.heroEyebrowText.textContent = copy.eyebrow;
-      if (els.heroTitle) els.heroTitle.textContent = copy.title;
-      if (els.heroCopy) els.heroCopy.textContent = copy.copy;
+      if (els.heroEyebrowText) {
+        els.heroEyebrowText.textContent = copy.eyebrow;
+      }
 
-      if (els.requestCardTitle) els.requestCardTitle.textContent = copy.cardTitle;
-      if (els.requestCardCopy) els.requestCardCopy.textContent = copy.cardCopy;
+      if (els.heroTitle) {
+        els.heroTitle.textContent = copy.title;
+      }
+
+      if (els.heroCopy) {
+        els.heroCopy.textContent = copy.copy;
+      }
+
+      if (els.requestCardTitle) {
+        els.requestCardTitle.textContent = copy.cardTitle;
+      }
+
+      if (els.requestCardCopy) {
+        els.requestCardCopy.textContent = copy.cardCopy;
+      }
 
       setBadge(copy.badge);
 
       if (nextMode === "food") {
         if (els.destinationAddress) {
           els.destinationAddress.placeholder =
-            "Restaurant name/address and delivery destination";
+            "Restaurant address and delivery destination";
         }
 
         if (els.rideNotes) {
           els.rideNotes.placeholder =
-            "Order details, restaurant name, pickup instructions, delivery notes...";
+            "Restaurant name, order details, pickup instructions, delivery notes...";
         }
       } else if (nextMode === "grocery") {
         if (els.destinationAddress) {
           els.destinationAddress.placeholder =
-            "Store name/address and delivery destination";
+            "Store address and delivery destination";
         }
 
         if (els.rideNotes) {
           els.rideNotes.placeholder =
-            "Store name, grocery notes, delivery instructions, substitutions...";
+            "Store name, grocery list, delivery instructions, substitutions...";
         }
       } else {
         if (els.destinationAddress) {
@@ -1645,34 +2348,8 @@
       }
 
       resetEstimateAndPayment(
-        "Mode changed. Please re-check estimate and payment authorization."
+        "Request mode changed. Please get a fresh fare estimate."
       );
-    }
-
-    function hydrateFromStorage() {
-      const storedName = readStorage(CONFIG.STORAGE_KEYS.riderName);
-      const storedPhone = readStorage(CONFIG.STORAGE_KEYS.riderPhone);
-      const storedEmail = readStorage(CONFIG.STORAGE_KEYS.riderEmail);
-      const storedRiderId = readStorage(CONFIG.STORAGE_KEYS.riderId);
-      const storedRideId = readStorage(CONFIG.STORAGE_KEYS.lastRideId);
-
-      if (els.riderName && storedName) els.riderName.value = storedName;
-      if (els.riderPhone && storedPhone) els.riderPhone.value = storedPhone;
-      if (els.riderEmail && storedEmail) els.riderEmail.value = storedEmail;
-
-      state.rider.name = storedName;
-      state.rider.phone = storedPhone;
-      state.rider.email = storedEmail;
-      state.rider.id = storedRiderId;
-      state.ride.rideId = storedRideId;
-
-      const queryMode =
-        getQueryParam("mode") ||
-        getQueryParam("service") ||
-        getQueryParam("type");
-
-      const storedMode = readStorage(CONFIG.STORAGE_KEYS.requestMode);
-      applyMode(queryMode || storedMode || CONFIG.DEFAULT_MODE);
     }
 
     function syncRiderFromForm() {
@@ -1690,15 +2367,40 @@
       state.destination.address = safeTrim(els.destinationAddress?.value);
     }
 
-    function isValidEmail(email) {
-      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(safeTrim(email));
-    }
+    function hydrateFromStorage() {
+      const storedName = readStorage(CONFIG.STORAGE_KEYS.riderName);
+      const storedPhone = readStorage(CONFIG.STORAGE_KEYS.riderPhone);
+      const storedEmail = readStorage(CONFIG.STORAGE_KEYS.riderEmail);
+      const storedRiderId = readStorage(CONFIG.STORAGE_KEYS.riderId);
+      const storedRideId = readStorage(CONFIG.STORAGE_KEYS.lastRideId);
 
-    function normalizePhone(phone) {
-      return safeTrim(phone).replace(/[^\d+]/g, "");
-    }
+      if (els.riderName && storedName) {
+        els.riderName.value = storedName;
+      }
 
-    function validateRiderFields() {
+      if (els.riderPhone && storedPhone) {
+        els.riderPhone.value = storedPhone;
+      }
+
+      if (els.riderEmail && storedEmail) {
+        els.riderEmail.value = storedEmail;
+      }
+
+      state.rider.name = storedName;
+      state.rider.phone = storedPhone;
+      state.rider.email = storedEmail;
+      state.rider.id = storedRiderId;
+      state.ride.rideId = storedRideId;
+
+      const queryMode =
+        getQueryParam("mode") ||
+        getQueryParam("service") ||
+        getQueryParam("type");
+
+      const storedMode = readStorage(CONFIG.STORAGE_KEYS.requestMode);
+
+      applyMode(queryMode || storedMode || CONFIG.DEFAULT_MODE);
+    }    function validateRiderFields() {
       syncRiderFromForm();
 
       if (!state.rider.name || state.rider.name.length < 2) {
@@ -1721,16 +2423,19 @@
     function validateTripFields() {
       syncTripFromForm();
 
-      if (!state.pickup.address || state.pickup.address.length < 5) {
+      if (!state.pickup.address || state.pickup.address.length < 3) {
         return "Please enter your pickup location.";
       }
 
-      if (!state.destination.address || state.destination.address.length < 5) {
+      if (!state.destination.address || state.destination.address.length < 3) {
         return "Please enter your destination.";
       }
 
-      if (els.rideType?.value === "scheduled" && !els.scheduledTime?.value) {
-        return "Please choose a scheduled pickup time.";
+      if (
+        els.rideType?.value === "scheduled" &&
+        !els.scheduledTime?.value
+      ) {
+        return "Please select a scheduled pickup time.";
       }
 
       if (els.scheduledTime?.value) {
@@ -1738,11 +2443,11 @@
         const now = new Date();
 
         if (Number.isNaN(scheduledDate.getTime())) {
-          return "Please choose a valid scheduled pickup time.";
+          return "Please select a valid scheduled pickup time.";
         }
 
         if (scheduledDate.getTime() < now.getTime() + 10 * 60 * 1000) {
-          return "Scheduled pickup time must be at least 10 minutes from now.";
+          return "Scheduled pickup time must be at least 10 minutes in the future.";
         }
       }
 
@@ -1765,9 +2470,17 @@
         raw: null
       };
 
-      if (els.fareEstimateText) els.fareEstimateText.textContent = "Not calculated";
-      if (els.distanceText) els.distanceText.textContent = "Pending";
-      if (els.durationText) els.durationText.textContent = "Pending";
+      if (els.fareEstimateText) {
+        els.fareEstimateText.textContent = "Pending";
+      }
+
+      if (els.distanceText) {
+        els.distanceText.textContent = "Pending";
+      }
+
+      if (els.durationText) {
+        els.durationText.textContent = "Pending";
+      }
 
       if (els.authorizePaymentBtn) {
         els.authorizePaymentBtn.disabled = true;
@@ -1777,9 +2490,87 @@
         els.requestRideBtn.disabled = true;
       }
 
+      setDispatchState("Standby");
+
       if (reason) {
         setLiveStatus(reason);
       }
+    }
+
+    function resetEntireFlow() {
+      clearNotice();
+
+      state.estimate = {
+        ready: false,
+        fare: null,
+        distance: null,
+        duration: null,
+        raw: null
+      };
+
+      state.payment = {
+        authorized: false,
+        paymentId: "",
+        clientSecret: "",
+        raw: null
+      };
+
+      state.ride = {
+        requested: false,
+        rideId: "",
+        status: "not_requested",
+        raw: null
+      };
+
+      writeStorage(CONFIG.STORAGE_KEYS.lastRideId, "");
+      writeStorage(CONFIG.STORAGE_KEYS.lastPaymentId, "");
+
+      if (els.requestRideBtn) {
+        els.requestRideBtn.disabled = true;
+        els.requestRideBtn.textContent = "Request Dispatch";
+      }
+
+      if (els.authorizePaymentBtn) {
+        els.authorizePaymentBtn.disabled = true;
+      }
+
+      if (els.fareEstimateText) {
+        els.fareEstimateText.textContent = "Pending";
+      }
+
+      if (els.distanceText) {
+        els.distanceText.textContent = "Pending";
+      }
+
+      if (els.durationText) {
+        els.durationText.textContent = "Pending";
+      }
+
+      setDispatchState("Standby");
+
+      setTimeline(
+        "approval",
+        "Waiting for rider approval verification."
+      );
+
+      setTimeline(
+        "payment",
+        "Payment authorization has not started yet."
+      );
+
+      setTimeline(
+        "dispatch",
+        "Dispatch request has not been submitted yet."
+      );
+
+      setLiveStatus(
+        "Request flow reset successfully."
+      );
+
+      showNotice(
+        "Request flow reset successfully.",
+        "success"
+      );
     }
 
     async function apiFetch(path, options = {}) {
@@ -1813,8 +2604,10 @@
           `Request failed with status ${response.status}`;
 
         const apiError = new Error(message);
+
         apiError.status = response.status;
         apiError.data = data;
+
         throw apiError;
       }
 
@@ -1830,7 +2623,11 @@
 
     function pickFirstValue(source, keys, fallback = "") {
       for (const key of keys) {
-        if (source && source[key] !== undefined && source[key] !== null) {
+        if (
+          source &&
+          source[key] !== undefined &&
+          source[key] !== null
+        ) {
           return source[key];
         }
       }
@@ -1855,12 +2652,16 @@
       ]);
 
       const status = safeLower(
-        pickFirstValue(rider, [
-          "approval_status",
-          "verification_status",
-          "status",
-          "rider_status"
-        ], "unknown")
+        pickFirstValue(
+          rider,
+          [
+            "approval_status",
+            "verification_status",
+            "status",
+            "rider_status"
+          ],
+          "unknown"
+        )
       );
 
       const approvedFlag =
@@ -1887,8 +2688,12 @@
       return {
         id: riderId || "",
         status,
-        approved: Boolean(approvedFlag || approvedByStatus),
-        verified: Boolean(verifiedFlag || approvedByStatus),
+        approved: Boolean(
+          approvedFlag || approvedByStatus
+        ),
+        verified: Boolean(
+          verifiedFlag || approvedByStatus
+        ),
         raw: data
       };
     }
@@ -1901,9 +2706,22 @@
         return false;
       }
 
-      setBusy(els.checkRiderBtn, true, "Checking rider...");
+      setBusy(
+        els.checkRiderBtn,
+        true,
+        "Checking rider..."
+      );
+
       clearNotice();
-      setLiveStatus("Checking rider approval status...");
+
+      setLiveStatus(
+        "Checking rider approval status..."
+      );
+
+      setTimeline(
+        "approval",
+        "Verifying rider profile and approval status..."
+      );
 
       const payload = {
         email: state.rider.email,
@@ -1934,123 +2752,90 @@
           throw lastError;
         }
 
-        const normalized = normalizeApprovalPayload(data);
+        const normalized =
+          normalizeApprovalPayload(data);
 
-        state.rider.id = normalized.id || state.rider.id;
-        state.rider.status = normalized.status;
-        state.rider.approved = normalized.approved;
-        state.rider.verified = normalized.verified;
+        state.rider.id =
+          normalized.id || state.rider.id;
+
+        state.rider.status =
+          normalized.status;
+
+        state.rider.approved =
+          normalized.approved;
+
+        state.rider.verified =
+          normalized.verified;
 
         if (state.rider.id) {
-          writeStorage(CONFIG.STORAGE_KEYS.riderId, state.rider.id);
+          writeStorage(
+            CONFIG.STORAGE_KEYS.riderId,
+            state.rider.id
+          );
         }
 
-        if (!state.rider.approved && CONFIG.REQUIRE_RIDER_APPROVAL) {
-          showNotice(
-            "Your rider profile is not approved yet. Please complete rider verification or contact Harvey Taxi support.",
-            "warning"
+        if (
+          !state.rider.approved &&
+          CONFIG.REQUIRE_RIDER_APPROVAL
+        ) {
+          setBadge("Approval Needed");
+
+          setTimeline(
+            "approval",
+            "Rider approval is required before dispatch."
           );
 
-          setLiveStatus("Rider approval is required before dispatch.");
-          setBadge("Approval Needed");
+          setLiveStatus(
+            "Rider approval is required before dispatch."
+          );
+
+          showNotice(
+            "Your rider profile is not approved yet. Please complete verification or contact Harvey Taxi support.",
+            "warning"
+          );
 
           return false;
         }
 
+        setBadge("Rider Approved");
+
+        setTimeline(
+          "approval",
+          "Rider approval confirmed successfully."
+        );
+
+        setLiveStatus(
+          "Rider approval confirmed. Next step: fare estimate."
+        );
+
         showNotice(
-          "Rider approval confirmed. You can now get your fare estimate.",
+          "Rider approval confirmed successfully.",
           "success"
         );
 
-        setLiveStatus("Rider approval confirmed. Next step: fare estimate.");
-        setBadge("Rider Approved");
-
         return true;
       } catch (error) {
-        showNotice(
-          error?.message ||
-            "Unable to confirm rider approval. Please try again or contact support.",
-          "error"
+        setBadge("Approval Failed");
+
+        setTimeline(
+          "approval",
+          "Rider approval verification failed."
         );
 
-        setLiveStatus("Rider approval check failed.");
-        setBadge("Check Failed");
+        setLiveStatus(
+          "Rider approval check failed."
+        );
+
+        showNotice(
+          error?.message ||
+            "Unable to confirm rider approval.",
+          "error"
+        );
 
         return false;
       } finally {
         setBusy(els.checkRiderBtn, false);
       }
-    }
-
-    function detectLocation() {
-      if (!navigator.geolocation) {
-        showNotice(
-          "Location is not supported on this device. Please enter pickup address manually.",
-          "warning"
-        );
-        return;
-      }
-
-      setBusy(els.detectLocationBtn, true, "Detecting...");
-      setLiveStatus("Requesting location permission...");
-
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          state.pickup.latitude = position.coords.latitude;
-          state.pickup.longitude = position.coords.longitude;
-          state.pickup.source = "browser_geolocation";
-
-          const locationText =
-            `Current location detected (${state.pickup.latitude.toFixed(5)}, ` +
-            `${state.pickup.longitude.toFixed(5)})`;
-
-          if (els.pickupAddress && !safeTrim(els.pickupAddress.value)) {
-            els.pickupAddress.value = "Current GPS Location";
-          }
-
-          if (els.locationStatusText) {
-            els.locationStatusText.textContent =
-              "Live pickup location detected. You can still edit the pickup address.";
-          }
-
-          showNotice(
-            "Live pickup location detected. Confirm the pickup address before requesting dispatch.",
-            "success"
-          );
-
-          setLiveStatus(locationText);
-          resetEstimateAndPayment("Location changed. Please get a fresh fare estimate.");
-          setBusy(els.detectLocationBtn, false);
-        },
-        (error) => {
-          let message =
-            "Location permission was not granted. Please enter pickup address manually.";
-
-          if (error?.code === 1) {
-            message =
-              "Location permission was denied. You can still enter pickup address manually.";
-          }
-
-          if (error?.code === 2) {
-            message =
-              "Your location could not be detected. Please enter pickup address manually.";
-          }
-
-          if (error?.code === 3) {
-            message =
-              "Location request timed out. Please enter pickup address manually.";
-          }
-
-          showNotice(message, "warning");
-          setLiveStatus("Manual pickup entry is available.");
-          setBusy(els.detectLocationBtn, false);
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 12000,
-          maximumAge: 30000
-        }
-      );
     }    function buildTripPayload() {
       syncRiderFromForm();
       syncTripFromForm();
@@ -2062,11 +2847,11 @@
         rider_name: state.rider.name,
         riderName: state.rider.name,
 
-        phone: state.rider.phone,
         rider_phone: state.rider.phone,
+        phone: state.rider.phone,
 
-        email: state.rider.email,
         rider_email: state.rider.email,
+        email: state.rider.email,
 
         pickup: state.pickup.address,
         pickup_address: state.pickup.address,
@@ -2078,24 +2863,38 @@
 
         pickup_latitude: state.pickup.latitude,
         pickup_longitude: state.pickup.longitude,
+        pickup_accuracy: state.pickup.accuracy,
 
         requestedMode: state.mode,
         requested_mode: state.mode,
-        service_type: state.mode === "driver" || state.mode === "autonomous"
-          ? "ride"
-          : state.mode,
 
-        ride_type: els.rideType?.value || "standard",
-        rideType: els.rideType?.value || "standard",
+        service_type:
+          state.mode === "driver" ||
+          state.mode === "autonomous"
+            ? "ride"
+            : state.mode,
 
-        passenger_count: Number(els.passengerCount?.value || 1),
-        passengerCount: Number(els.passengerCount?.value || 1),
+        ride_type:
+          els.rideType?.value || "standard",
 
-        scheduled_time: els.scheduledTime?.value || null,
-        scheduledTime: els.scheduledTime?.value || null,
+        passenger_count:
+          Number(els.passengerCount?.value || 1),
 
-        notes: safeTrim(els.rideNotes?.value),
-        specialInstructions: safeTrim(els.rideNotes?.value)
+        service_priority:
+          els.servicePriority?.value || "normal",
+
+        scheduled_time:
+          els.scheduledTime?.value || null,
+
+        notes:
+          safeTrim(els.rideNotes?.value),
+
+        specialInstructions:
+          safeTrim(els.rideNotes?.value),
+
+        source: "request-ride.html",
+        client_version:
+          "code-blue-request-ride-v2"
       };
     }
 
@@ -2109,35 +2908,53 @@
         {};
 
       const fare = Number(
-        pickFirstValue(estimate, [
-          "fare",
-          "estimated_fare",
-          "estimatedFare",
-          "total",
-          "total_fare",
-          "amount",
-          "price"
-        ], null)
+        pickFirstValue(
+          estimate,
+          [
+            "fare",
+            "estimated_fare",
+            "estimatedFare",
+            "total",
+            "total_fare",
+            "amount",
+            "price"
+          ],
+          null
+        )
       );
 
-      const distance = pickFirstValue(estimate, [
-        "distance",
-        "distance_text",
-        "distanceText",
-        "estimated_distance",
-        "miles"
-      ], "");
+      const distance =
+        pickFirstValue(
+          estimate,
+          [
+            "distance",
+            "distance_text",
+            "distanceText",
+            "estimated_distance",
+            "miles"
+          ],
+          ""
+        );
 
-      const duration = pickFirstValue(estimate, [
-        "duration",
-        "duration_text",
-        "durationText",
-        "estimated_duration",
-        "minutes"
-      ], "");
+      const duration =
+        pickFirstValue(
+          estimate,
+          [
+            "duration",
+            "duration_text",
+            "durationText",
+            "estimated_duration",
+            "minutes"
+          ],
+          ""
+        );
 
       return {
-        fare: Number.isFinite(fare) ? fare : null,
+        fare:
+          Number.isFinite(fare)
+            ? fare
+            : null,
+
         distance,
         duration,
         raw: data
@@ -2145,33 +2962,53 @@
     }
 
     async function getFareEstimate() {
-      const riderError = validateRiderFields();
+      const riderError =
+        validateRiderFields();
 
       if (riderError) {
         showNotice(riderError, "warning");
         return false;
       }
 
-      const tripError = validateTripFields();
+      const tripError =
+        validateTripFields();
 
       if (tripError) {
         showNotice(tripError, "warning");
         return false;
       }
 
-      if (CONFIG.REQUIRE_RIDER_APPROVAL && !state.rider.approved) {
-        const approved = await checkRiderApproval();
+      if (
+        CONFIG.REQUIRE_RIDER_APPROVAL &&
+        !state.rider.approved
+      ) {
+        const approved =
+          await checkRiderApproval();
 
         if (!approved) {
           return false;
         }
       }
 
-      setBusy(els.estimateBtn, true, "Estimating...");
-      clearNotice();
-      setLiveStatus("Calculating fare estimate...");
+      setBusy(
+        els.estimateBtn,
+        true,
+        "Calculating..."
+      );
 
-      const payload = buildTripPayload();
+      clearNotice();
+
+      setLiveStatus(
+        "Calculating fare estimate..."
+      );
+
+      setTimeline(
+        "dispatch",
+        "Preparing dispatch estimate and trip routing..."
+      );
+
+      const payload =
+        buildTripPayload();
 
       const endpointsToTry = [
         CONFIG.ENDPOINTS.fareEstimate,
@@ -2184,7 +3021,11 @@
 
         for (const endpoint of endpointsToTry) {
           try {
-            data = await apiPost(endpoint, payload);
+            data = await apiPost(
+              endpoint,
+              payload
+            );
+
             break;
           } catch (error) {
             lastError = error;
@@ -2195,55 +3036,93 @@
           throw lastError;
         }
 
-        const normalized = normalizeEstimatePayload(data);
+        const normalized =
+          normalizeEstimatePayload(data);
 
         state.estimate.ready = true;
-        state.estimate.fare = normalized.fare;
-        state.estimate.distance = normalized.distance;
-        state.estimate.duration = normalized.duration;
-        state.estimate.raw = normalized.raw;
+
+        state.estimate.fare =
+          normalized.fare;
+
+        state.estimate.distance =
+          normalized.distance;
+
+        state.estimate.duration =
+          normalized.duration;
+
+        state.estimate.raw =
+          normalized.raw;
 
         if (els.fareEstimateText) {
           els.fareEstimateText.textContent =
-            normalized.fare === null ? "Calculated" : money(normalized.fare);
+            normalized.fare === null
+              ? "Calculated"
+              : money(normalized.fare);
         }
 
         if (els.distanceText) {
           els.distanceText.textContent =
-            normalized.distance ? String(normalized.distance) : "Calculated";
+            normalized.distance
+              ? String(normalized.distance)
+              : "Calculated";
         }
 
         if (els.durationText) {
           els.durationText.textContent =
-            normalized.duration ? String(normalized.duration) : "Calculated";
+            normalized.duration
+              ? String(normalized.duration)
+              : "Calculated";
         }
 
         if (els.authorizePaymentBtn) {
           els.authorizePaymentBtn.disabled = false;
         }
 
-        if (!CONFIG.REQUIRE_PAYMENT_AUTHORIZATION && els.requestRideBtn) {
+        if (
+          !CONFIG.REQUIRE_PAYMENT_AUTHORIZATION &&
+          els.requestRideBtn
+        ) {
           els.requestRideBtn.disabled = false;
         }
 
+        setDispatchState("Estimate Ready");
+
+        setBadge("Estimate Ready");
+
+        setTimeline(
+          "dispatch",
+          "Fare estimate completed successfully."
+        );
+
+        setLiveStatus(
+          "Fare estimate completed. Payment authorization is next."
+        );
+
         showNotice(
-          "Fare estimate ready. Next step: authorize payment before dispatch.",
+          "Fare estimate completed successfully.",
           "success"
         );
 
-        setLiveStatus("Fare estimate ready. Payment authorization is next.");
-        setBadge("Estimate Ready");
-
         return true;
       } catch (error) {
-        showNotice(
-          error?.message ||
-            "Unable to calculate estimate. Please check the trip details and try again.",
-          "error"
+        setDispatchState("Estimate Failed");
+
+        setBadge("Estimate Failed");
+
+        setTimeline(
+          "dispatch",
+          "Fare estimate failed."
         );
 
-        setLiveStatus("Fare estimate failed.");
-        setBadge("Estimate Failed");
+        setLiveStatus(
+          "Fare estimate failed."
+        );
+
+        showNotice(
+          error?.message ||
+            "Unable to calculate fare estimate.",
+          "error"
+        );
 
         return false;
       } finally {
@@ -2261,31 +3140,51 @@
         data ||
         {};
 
-      const paymentId = pickFirstValue(payment, [
-        "id",
-        "payment_id",
-        "paymentId",
-        "payment_intent_id",
-        "paymentIntentId",
-        "authorization_id",
-        "authorizationId"
-      ], "");
+      const paymentId =
+        pickFirstValue(
+          payment,
+          [
+            "id",
+            "payment_id",
+            "paymentId",
+            "payment_intent_id",
+            "paymentIntentId",
+            "authorization_id",
+            "authorizationId"
+          ],
+          ""
+        );
 
-      const clientSecret = pickFirstValue(payment, [
-        "client_secret",
-        "clientSecret"
-      ], "");
+      const clientSecret =
+        pickFirstValue(
+          payment,
+          [
+            "client_secret",
+            "clientSecret"
+          ],
+          ""
+        );
 
       const authorized =
         data?.authorized === true ||
         data?.ok === true ||
         payment?.authorized === true ||
-        ["authorized", "requires_capture", "succeeded", "approved"].includes(
+        [
+          "authorized",
+          "requires_capture",
+          "succeeded",
+          "approved"
+        ].includes(
           safeLower(payment?.status)
         );
 
       return {
-        authorized: Boolean(authorized || paymentId || clientSecret),
+        authorized: Boolean(
+          authorized ||
+            paymentId ||
+            clientSecret
+        ),
+
         paymentId,
         clientSecret,
         raw: data
@@ -2293,7 +3192,8 @@
     }
 
     async function authorizePayment() {
-      const tripError = validateTripFields();
+      const tripError =
+        validateTripFields();
 
       if (tripError) {
         showNotice(tripError, "warning");
@@ -2301,49 +3201,99 @@
       }
 
       if (!state.estimate.ready) {
-        const estimated = await getFareEstimate();
+        const estimated =
+          await getFareEstimate();
 
         if (!estimated) {
           return false;
         }
       }
 
-      setBusy(els.authorizePaymentBtn, true, "Authorizing...");
+      setBusy(
+        els.authorizePaymentBtn,
+        true,
+        "Authorizing..."
+      );
+
       clearNotice();
-      setLiveStatus("Authorizing payment...");
+
+      setLiveStatus(
+        "Authorizing payment..."
+      );
+
+      setTimeline(
+        "payment",
+        "Authorizing payment before dispatch..."
+      );
 
       const payload = {
         ...buildTripPayload(),
 
-        estimate: state.estimate.raw,
-        estimated_fare: state.estimate.fare,
-        estimatedFare: state.estimate.fare,
+        estimate:
+          state.estimate.raw,
 
-        amount: state.estimate.fare,
+        estimated_fare:
+          state.estimate.fare,
+
+        estimatedFare:
+          state.estimate.fare,
+
+        amount:
+          state.estimate.fare,
+
         currency: "usd"
       };
 
       try {
-        const data = await apiPost(CONFIG.ENDPOINTS.authorizePayment, payload);
-        const normalized = normalizePaymentPayload(data);
-
-        state.payment.authorized = normalized.authorized;
-        state.payment.paymentId = normalized.paymentId;
-        state.payment.clientSecret = normalized.clientSecret;
-        state.payment.raw = normalized.raw;
-
-        if (state.payment.paymentId) {
-          writeStorage(CONFIG.STORAGE_KEYS.lastPaymentId, state.payment.paymentId);
-        }
-
-        if (!state.payment.authorized && CONFIG.REQUIRE_PAYMENT_AUTHORIZATION) {
-          showNotice(
-            "Payment was not authorized. Please try again or contact support.",
-            "warning"
+        const data =
+          await apiPost(
+            CONFIG.ENDPOINTS.authorizePayment,
+            payload
           );
 
-          setLiveStatus("Payment authorization required before dispatch.");
+        const normalized =
+          normalizePaymentPayload(data);
+
+        state.payment.authorized =
+          normalized.authorized;
+
+        state.payment.paymentId =
+          normalized.paymentId;
+
+        state.payment.clientSecret =
+          normalized.clientSecret;
+
+        state.payment.raw =
+          normalized.raw;
+
+        if (
+          state.payment.paymentId
+        ) {
+          writeStorage(
+            CONFIG.STORAGE_KEYS.lastPaymentId,
+            state.payment.paymentId
+          );
+        }
+
+        if (
+          !state.payment.authorized &&
+          CONFIG.REQUIRE_PAYMENT_AUTHORIZATION
+        ) {
           setBadge("Payment Needed");
+
+          setTimeline(
+            "payment",
+            "Payment authorization is required before dispatch."
+          );
+
+          setLiveStatus(
+            "Payment authorization required."
+          );
+
+          showNotice(
+            "Payment was not authorized.",
+            "warning"
+          );
 
           return false;
         }
@@ -2352,28 +3302,47 @@
           els.requestRideBtn.disabled = false;
         }
 
+        setBadge("Payment Ready");
+
+        setTimeline(
+          "payment",
+          "Payment authorization completed successfully."
+        );
+
+        setLiveStatus(
+          "Payment authorized successfully."
+        );
+
         showNotice(
-          "Payment authorization confirmed. You can now request dispatch.",
+          "Payment authorization completed successfully.",
           "success"
         );
 
-        setLiveStatus("Payment authorized. Ready to request dispatch.");
-        setBadge("Payment Ready");
-
         return true;
       } catch (error) {
+        setBadge("Payment Failed");
+
+        setTimeline(
+          "payment",
+          "Payment authorization failed."
+        );
+
+        setLiveStatus(
+          "Payment authorization failed."
+        );
+
         showNotice(
           error?.message ||
-            "Payment authorization failed. Please try again or contact support.",
+            "Payment authorization failed.",
           "error"
         );
 
-        setLiveStatus("Payment authorization failed.");
-        setBadge("Payment Failed");
-
         return false;
       } finally {
-        setBusy(els.authorizePaymentBtn, false);
+        setBusy(
+          els.authorizePaymentBtn,
+          false
+        );
       }
     }
 
@@ -2386,33 +3355,42 @@
         data ||
         {};
 
-      const rideId = pickFirstValue(ride, [
-        "ride_id",
-        "rideId",
-        "id",
-        "trip_id",
-        "tripId",
-        "request_id",
-        "requestId"
-      ], "");
+      const rideId =
+        pickFirstValue(
+          ride,
+          [
+            "ride_id",
+            "rideId",
+            "id",
+            "trip_id",
+            "tripId",
+            "request_id",
+            "requestId"
+          ],
+          ""
+        );
 
-      const status = safeLower(
-        pickFirstValue(ride, [
-          "status",
-          "ride_status",
-          "trip_status",
-          "dispatch_status"
-        ], "requested")
-      );
+      const status =
+        safeLower(
+          pickFirstValue(
+            ride,
+            [
+              "status",
+              "ride_status",
+              "trip_status",
+              "dispatch_status"
+            ],
+            "requested"
+          )
+        );
 
       return {
         rideId,
-        status: status || "requested",
+        status:
+          status || "requested",
         raw: data
       };
-    }
-
-    async function requestDispatch(event) {
+    }    async function requestDispatch(event) {
       if (event) {
         event.preventDefault();
       }
@@ -2431,7 +3409,10 @@
         return false;
       }
 
-      if (CONFIG.REQUIRE_RIDER_APPROVAL && !state.rider.approved) {
+      if (
+        CONFIG.REQUIRE_RIDER_APPROVAL &&
+        !state.rider.approved
+      ) {
         const approved = await checkRiderApproval();
 
         if (!approved) {
@@ -2447,7 +3428,10 @@
         }
       }
 
-      if (CONFIG.REQUIRE_PAYMENT_AUTHORIZATION && !state.payment.authorized) {
+      if (
+        CONFIG.REQUIRE_PAYMENT_AUTHORIZATION &&
+        !state.payment.authorized
+      ) {
         const authorized = await authorizePayment();
 
         if (!authorized) {
@@ -2455,30 +3439,51 @@
         }
       }
 
-      setBusy(els.requestRideBtn, true, "Requesting dispatch...");
+      setBusy(
+        els.requestRideBtn,
+        true,
+        "Requesting dispatch..."
+      );
+
       clearNotice();
-      setLiveStatus("Sending request into Harvey Taxi dispatch...");
+
+      setLiveStatus(
+        "Sending request into Harvey Taxi dispatch..."
+      );
+
+      setDispatchState("Dispatching");
+
+      setTimeline(
+        "dispatch",
+        "Dispatch request is being submitted."
+      );
+
+      const paymentId =
+        state.payment.paymentId ||
+        readStorage(CONFIG.STORAGE_KEYS.lastPaymentId);
 
       const payload = {
         ...buildTripPayload(),
 
-        payment_id: state.payment.paymentId || readStorage(CONFIG.STORAGE_KEYS.lastPaymentId),
-        paymentId: state.payment.paymentId || readStorage(CONFIG.STORAGE_KEYS.lastPaymentId),
+        payment_id: paymentId,
+        paymentId,
 
         payment_authorized: state.payment.authorized,
         paymentAuthorized: state.payment.authorized,
 
         estimate: state.estimate.raw,
         estimated_fare: state.estimate.fare,
-        estimatedFare: state.estimate.fare,
-
-        source: "request-ride.html",
-        client_version: "code-blue-request-ride-v1"
+        estimatedFare: state.estimate.fare
       };
 
       try {
-        const data = await apiPost(CONFIG.ENDPOINTS.requestRide, payload);
-        const normalized = normalizeRidePayload(data);
+        const data = await apiPost(
+          CONFIG.ENDPOINTS.requestRide,
+          payload
+        );
+
+        const normalized =
+          normalizeRidePayload(data);
 
         state.ride.requested = true;
         state.ride.rideId = normalized.rideId;
@@ -2486,12 +3491,20 @@
         state.ride.raw = normalized.raw;
 
         if (state.ride.rideId) {
-          writeStorage(CONFIG.STORAGE_KEYS.lastRideId, state.ride.rideId);
+          writeStorage(
+            CONFIG.STORAGE_KEYS.lastRideId,
+            state.ride.rideId
+          );
         }
 
-        showNotice(
-          "Dispatch request submitted successfully. Open your rider dashboard for live updates.",
-          "success"
+        setBadge("Requested");
+        setDispatchState("Requested");
+
+        setTimeline(
+          "dispatch",
+          state.ride.rideId
+            ? `Dispatch submitted. Ride ID: ${state.ride.rideId}`
+            : "Dispatch request submitted successfully."
         );
 
         setLiveStatus(
@@ -2500,7 +3513,10 @@
             : "Ride request submitted. Open your dashboard for updates."
         );
 
-        setBadge("Requested");
+        showNotice(
+          "Dispatch request submitted successfully. Open your rider dashboard for live updates.",
+          "success"
+        );
 
         if (els.requestRideBtn) {
           els.requestRideBtn.disabled = true;
@@ -2509,14 +3525,23 @@
 
         return true;
       } catch (error) {
+        setBadge("Dispatch Failed");
+        setDispatchState("Failed");
+
+        setTimeline(
+          "dispatch",
+          "Dispatch request failed."
+        );
+
+        setLiveStatus(
+          "Dispatch request failed."
+        );
+
         showNotice(
           error?.message ||
             "Dispatch request failed. Please try again or contact support.",
           "error"
         );
-
-        setLiveStatus("Dispatch request failed.");
-        setBadge("Dispatch Failed");
 
         return false;
       } finally {
@@ -2531,23 +3556,40 @@
 
       if (!rideId) {
         showNotice(
-          "No recent ride request found on this device.",
+          "No recent ride request was found on this device.",
           "warning"
         );
 
-        setLiveStatus("No active ride request found.");
+        setLiveStatus(
+          "No active ride request found."
+        );
+
         return;
       }
 
-      setBusy(els.refreshStatusBtn, true, "Refreshing...");
+      setBusy(
+        els.refreshStatusBtn,
+        true,
+        "Refreshing..."
+      );
+
       clearNotice();
 
       const payload = {
         ride_id: rideId,
         rideId,
-        rider_id: state.rider.id || readStorage(CONFIG.STORAGE_KEYS.riderId),
-        riderId: state.rider.id || readStorage(CONFIG.STORAGE_KEYS.riderId),
-        email: state.rider.email || readStorage(CONFIG.STORAGE_KEYS.riderEmail)
+
+        rider_id:
+          state.rider.id ||
+          readStorage(CONFIG.STORAGE_KEYS.riderId),
+
+        riderId:
+          state.rider.id ||
+          readStorage(CONFIG.STORAGE_KEYS.riderId),
+
+        email:
+          state.rider.email ||
+          readStorage(CONFIG.STORAGE_KEYS.riderEmail)
       };
 
       const endpointsToTry = [
@@ -2572,34 +3614,237 @@
           throw lastError;
         }
 
-        const normalized = normalizeRidePayload(data);
+        const normalized =
+          normalizeRidePayload(data);
 
-        state.ride.rideId = normalized.rideId || rideId;
-        state.ride.status = normalized.status;
-        state.ride.raw = normalized.raw;
+        state.ride.rideId =
+          normalized.rideId || rideId;
+
+        state.ride.status =
+          normalized.status;
+
+        state.ride.raw =
+          normalized.raw;
+
+        setBadge("Status Updated");
+
+        setDispatchState(
+          state.ride.status || "Updated"
+        );
+
+        setTimeline(
+          "dispatch",
+          `Current ride status: ${state.ride.status || "unknown"}`
+        );
 
         setLiveStatus(
           `Current ride status: ${state.ride.status || "unknown"}`
         );
-
-        setBadge("Status Updated");
 
         showNotice(
           "Ride status refreshed successfully.",
           "success"
         );
       } catch (error) {
+        setBadge("Status Failed");
+
+        setLiveStatus(
+          "Ride status refresh failed."
+        );
+
         showNotice(
           error?.message ||
             "Unable to refresh ride status. Please open the rider dashboard or contact support.",
           "error"
         );
-
-        setLiveStatus("Ride status refresh failed.");
-        setBadge("Status Failed");
       } finally {
-        setBusy(els.refreshStatusBtn, false);
+        setBusy(
+          els.refreshStatusBtn,
+          false
+        );
       }
+    }
+
+    function canUseGoogleMaps() {
+      return Boolean(
+        window.__HARVEY_MAPS_ENABLED__ &&
+        window.google &&
+        window.google.maps &&
+        els.pickupMap
+      );
+    }
+
+    function hideMapFallback() {
+      if (els.mapFallback) {
+        els.mapFallback.classList.add("hidden");
+      }
+    }
+
+    function showMapFallback() {
+      if (els.mapFallback) {
+        els.mapFallback.classList.remove("hidden");
+      }
+    }
+
+    function initOrUpdateMap() {
+      if (
+        state.pickup.latitude === null ||
+        state.pickup.longitude === null
+      ) {
+        showMapFallback();
+        setMapBadge("Map Standby");
+        return;
+      }
+
+      const center = {
+        lat: Number(state.pickup.latitude),
+        lng: Number(state.pickup.longitude)
+      };
+
+      updateLocationMeta();
+
+      if (!canUseGoogleMaps()) {
+        showMapFallback();
+        setMapBadge("GPS Captured");
+        return;
+      }
+
+      hideMapFallback();
+      setMapBadge("Live Map");
+
+      if (!state.map.instance) {
+        state.map.instance = new google.maps.Map(
+          els.pickupMap,
+          {
+            center,
+            zoom: CONFIG.MAP_DEFAULT_ZOOM,
+            disableDefaultUI: true,
+            zoomControl: true,
+            streetViewControl: false,
+            mapTypeControl: false,
+            fullscreenControl: true
+          }
+        );
+
+        state.map.marker = new google.maps.Marker({
+          position: center,
+          map: state.map.instance,
+          title: "Harvey Taxi Pickup Location"
+        });
+
+        state.map.loaded = true;
+        return;
+      }
+
+      state.map.instance.setCenter(center);
+
+      if (state.map.marker) {
+        state.map.marker.setPosition(center);
+      }
+    }
+
+    function detectLocation() {
+      if (!navigator.geolocation) {
+        showNotice(
+          "Location is not supported on this device. Please enter pickup manually.",
+          "warning"
+        );
+
+        return;
+      }
+
+      setBusy(
+        els.detectLocationBtn,
+        true,
+        "Detecting..."
+      );
+
+      setLiveStatus(
+        "Requesting precise location permission..."
+      );
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          state.pickup.latitude =
+            position.coords.latitude;
+
+          state.pickup.longitude =
+            position.coords.longitude;
+
+          state.pickup.accuracy =
+            position.coords.accuracy;
+
+          state.pickup.source =
+            "browser_geolocation";
+
+          if (
+            els.pickupAddress &&
+            !safeTrim(els.pickupAddress.value)
+          ) {
+            els.pickupAddress.value =
+              "Current GPS Location";
+          }
+
+          if (els.locationStatusText) {
+            els.locationStatusText.textContent =
+              `Precise location captured with ~${Math.round(
+                state.pickup.accuracy || 0
+              )}m accuracy. Confirm pickup before dispatch.`;
+          }
+
+          updateLocationMeta();
+          initOrUpdateMap();
+
+          resetEstimateAndPayment(
+            "Precise location captured. Please get a fresh fare estimate."
+          );
+
+          showNotice(
+            "Precise pickup location captured. Confirm the pickup address before dispatch.",
+            "success"
+          );
+
+          setBusy(
+            els.detectLocationBtn,
+            false
+          );
+        },
+        (error) => {
+          let message =
+            "Location permission was not granted. Please enter pickup manually.";
+
+          if (error?.code === 1) {
+            message =
+              "Location permission was denied. You can still enter pickup manually.";
+          }
+
+          if (error?.code === 2) {
+            message =
+              "Your location could not be detected. Please enter pickup manually.";
+          }
+
+          if (error?.code === 3) {
+            message =
+              "Location request timed out. Please enter pickup manually.";
+          }
+
+          showNotice(message, "warning");
+
+          setLiveStatus(
+            "Manual pickup entry is available."
+          );
+
+          setBusy(
+            els.detectLocationBtn,
+            false
+          );
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 15000
+        }
+      );
     }
 
     function bindEvents() {
@@ -2609,31 +3854,66 @@
         });
       });
 
-      els.detectLocationBtn?.addEventListener("click", detectLocation);
-      els.checkRiderBtn?.addEventListener("click", checkRiderApproval);
-      els.estimateBtn?.addEventListener("click", getFareEstimate);
-      els.authorizePaymentBtn?.addEventListener("click", authorizePayment);
-      els.refreshStatusBtn?.addEventListener("click", refreshRideStatus);
+      els.detectLocationBtn?.addEventListener(
+        "click",
+        detectLocation
+      );
 
-      els.rideForm?.addEventListener("submit", requestDispatch);
+      els.checkRiderBtn?.addEventListener(
+        "click",
+        checkRiderApproval
+      );
+
+      els.estimateBtn?.addEventListener(
+        "click",
+        getFareEstimate
+      );
+
+      els.authorizePaymentBtn?.addEventListener(
+        "click",
+        authorizePayment
+      );
+
+      els.refreshStatusBtn?.addEventListener(
+        "click",
+        refreshRideStatus
+      );
+
+      els.resetFlowBtn?.addEventListener(
+        "click",
+        resetEntireFlow
+      );
+
+      els.openDashboardBtn?.addEventListener(
+        "click",
+        () => {
+          window.location.href = CONFIG.DASHBOARD_URL;
+        }
+      );
+
+      els.rideForm?.addEventListener(
+        "submit",
+        requestDispatch
+      );
 
       [
         els.pickupAddress,
         els.destinationAddress,
         els.rideType,
         els.passengerCount,
+        els.servicePriority,
         els.scheduledTime,
         els.rideNotes
       ].forEach((field) => {
         field?.addEventListener("input", () => {
           resetEstimateAndPayment(
-            "Trip details changed. Please get a fresh fare estimate."
+            "Trip details changed. Please get a fresh estimate."
           );
         });
 
         field?.addEventListener("change", () => {
           resetEstimateAndPayment(
-            "Trip details changed. Please get a fresh fare estimate."
+            "Trip details changed. Please get a fresh estimate."
           );
         });
       });
@@ -2652,6 +3932,11 @@
           resetEstimateAndPayment(
             "Rider details changed. Please re-check rider approval."
           );
+
+          setTimeline(
+            "approval",
+            "Rider details changed. Approval must be checked again."
+          );
         });
       });
     }
@@ -2659,18 +3944,32 @@
     function boot() {
       hydrateFromStorage();
       bindEvents();
+      updateLocationMeta();
+      initOrUpdateMap();
 
-      setLiveStatus("Complete the form and start with rider approval.");
+      setLiveStatus(
+        "Complete the form and start with rider approval."
+      );
+
+      setDispatchState("Standby");
       setBadge(getModeContent(state.mode).badge);
 
       if (state.ride.rideId) {
         setLiveStatus(
           "A previous ride request was found. You can refresh the status below."
         );
+
+        setTimeline(
+          "dispatch",
+          "Previous ride request found on this device."
+        );
       }
     }
 
-    document.addEventListener("DOMContentLoaded", boot);
+    document.addEventListener(
+      "DOMContentLoaded",
+      boot
+    );
   </script>
 </body>
 </html>
