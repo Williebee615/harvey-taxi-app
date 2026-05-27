@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Harvey Taxi — Settings</title>
+  <meta name="theme-color" content="#07111f" />
+
+  <style>
+    :root{
+      --bg:#040814;
+      --card:rgba(11,20,39,.92);
+      --line:rgba(125,170,255,.22);
+      --text:#f8fbff;
+      --soft:#b8c7e6;
+      --muted:#7f91b8;
+      --blue:#4da3ff;
+      --cyan:#46f0ff;
+      --green:#38e08f;
+      --red:#ff5c7a;
+      --yellow:#ffd166;
+    }
+
+    *{box-sizing:border-box}
+
+    body{
+      margin:0;
+      min-height:100vh;
+      font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(circle at top left,rgba(77,163,255,.18),transparent 35%),
+        linear-gradient(180deg,#040814,#07111f 48%,#02050c);
+      padding:24px 14px;
+    }
+
+    .shell{
+      width:min(860px,100%);
+      margin:0 auto;
+    }
+
+    .topbar{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      margin-bottom:18px;
+    }
+
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      color:white;
+      text-decoration:none;
+    }
+
+    .mark{
+      width:44px;
+      height:44px;
+      border-radius:16px;
+      display:grid;
+      place-items:center;
+      color:#03101f;
+      font-weight:900;
+      background:linear-gradient(135deg,#fff,#7fc3ff,#46f0ff);
+    }
+
+    .brand strong{display:block}
+    .brand span{display:block;color:var(--soft);font-size:.8rem}
+
+    .back{
+      color:var(--soft);
+      text-decoration:none;
+      border:1px solid var(--line);
+      border-radius:999px;
+      padding:10px 13px;
+      font-weight:800;
+      background:rgba(255,255,255,.05);
+    }
+
+    .hero,
+    .card{
+      border:1px solid var(--line);
+      background:linear-gradient(180deg,rgba(14,27,55,.9),rgba(5,10,22,.95));
+      border-radius:28px;
+      box-shadow:0 24px 70px rgba(0,0,0,.45);
+    }
+
+    .hero{
+      padding:28px;
+      margin-bottom:16px;
+    }
+
+    .hero h1{
+      margin:0 0 10px;
+      font-size:clamp(2rem,7vw,4rem);
+      line-height:.95;
+      letter-spacing:-.07em;
+      background:linear-gradient(135deg,#fff,#a8d6ff,#46f0ff);
+      -webkit-background-clip:text;
+      color:transparent;
+    }
+
+    .hero p{
+      margin:0;
+      color:var(--soft);
+      line-height:1.6;
+    }
+
+    .grid{
+      display:grid;
+      gap:16px;
+    }
+
+    .card{
+      padding:20px;
+    }
+
+    .card h2{
+      margin:0 0 8px;
+      font-size:1.2rem;
+      letter-spacing:-.04em;
+    }
+
+    .card p{
+      margin:0 0 14px;
+      color:var(--soft);
+      line-height:1.55;
+      font-size:.92rem;
+    }
+
+    .setting-row{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      padding:14px;
+      border:1px solid var(--line);
+      border-radius:18px;
+      background:rgba(255,255,255,.045);
+      margin-top:10px;
+    }
+
+    .setting-row strong{
+      display:block;
+      margin-bottom:4px;
+    }
+
+    .setting-row span{
+      color:var(--muted);
+      font-size:.82rem;
+      line-height:1.4;
+    }
+
+    .switch{
+      position:relative;
+      width:58px;
+      height:32px;
+      flex:0 0 auto;
+    }
+
+    .switch input{
+      display:none;
+    }
+
+    .slider{
+      position:absolute;
+      inset:0;
+      border-radius:999px;
+      background:rgba(255,255,255,.15);
+      border:1px solid var(--line);
+      transition:.2s ease;
+    }
+
+    .slider:before{
+      content:"";
+      position:absolute;
+      width:24px;
+      height:24px;
+      left:4px;
+      top:3px;
+      border-radius:999px;
+      background:white;
+      transition:.2s ease;
+    }
+
+    .switch input:checked + .slider{
+      background:rgba(56,224,143,.35);
+      border-color:rgba(56,224,143,.5);
+    }
+
+    .switch input:checked + .slider:before{
+      transform:translateX(25px);
+    }
+
+    input,
+    select{
+      width:100%;
+      border:1px solid var(--line);
+      background:rgba(2,8,20,.75);
+      color:var(--text);
+      border-radius:16px;
+      padding:14px;
+      outline:none;
+    }
+
+    label{
+      display:block;
+      margin:12px 0 7px;
+      color:#dfeaff;
+      font-weight:800;
+      font-size:.85rem;
+    }
+
+    .btn{
+      width:100%;
+      border:0;
+      border-radius:18px;
+      padding:15px 16px;
+      font-weight:900;
+      margin-top:12px;
+      cursor:pointer;
+    }
+
+    .primary{
+      color:#03101f;
+      background:linear-gradient(135deg,#fff,#7fc3ff,#46f0ff);
+    }
+
+    .secondary{
+      color:var(--text);
+      background:rgba(255,255,255,.07);
+      border:1px solid var(--line);
+    }
+
+    .danger{
+      color:#ffe5eb;
+      background:rgba(255,92,122,.13);
+      border:1px solid rgba(255,92,122,.35);
+    }
+
+    .notice{
+      display:none;
+      margin-top:12px;
+      border-radius:18px;
+      padding:14px;
+      line-height:1.45;
+      color:var(--soft);
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.045);
+    }
+
+    .notice.show{display:block}
+    .notice.success{color:#d4ffe9;border-color:rgba(56,224,143,.35);background:rgba(56,224,143,.09)}
+    .notice.error{color:#ffdbe3;border-color:rgba(255,92,122,.35);background:rgba(255,92,122,.09)}
+    .notice.warning{color:#fff0c4;border-color:rgba(255,209,102,.35);background:rgba(255,209,102,.09)}
+
+    @media(max-width:640px){
+      .setting-row{align-items:flex-start}
+      .topbar{align-items:flex-start}
+    }
+  </style>
+</head>
+
+<body>
+  <main class="shell">
+
+    <header class="topbar">
+      <a href="/" class="brand">
+        <div class="mark">H</div>
+        <div>
+          <strong>Harvey Taxi</strong>
+          <span>App Settings</span>
+        </div>
+      </a>
+
+      <a class="back" href="/rider-dashboard.html">Dashboard</a>
+    </header>
+
+    <section class="hero">
+      <h1>Settings</h1>
+      <p>
+        Manage Harvey Taxi app preferences, battery optimization,
+        notifications, account type, and account deletion.
+      </p>
+    </section>
+
+    <section class="grid">
+
+      <div class="card">
+        <h2>Account</h2>
+        <p>Select whether this settings action is for a rider or driver account.</p>
+
+        <label for="accountType">Account Type</label>
+        <select id="accountType">
+          <option value="rider">Rider</option>
+          <option value="driver">Driver</option>
+        </select>
+
+        <label for="accountEmail">Account Email</label>
+        <input id="accountEmail" type="email" placeholder="you@example.com" />
+      </div>
+
+      <div class="card">
+        <h2>Battery Optimizer</h2>
+        <p>
+          Battery Optimizer reduces background tracking intensity when you are not actively
+          on a ride or mission. For active trips, Harvey Taxi should keep live status accurate.
+        </p>
+
+        <div class="setting-row">
+          <div>
+            <strong>Enable Battery Optimizer</strong>
+            <span>Reduces background refresh, map updates, and location polling when idle.</span>
+          </div>
+
+          <label class="switch">
+            <input id="batteryOptimizerToggle" type="checkbox" checked />
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="setting-row">
+          <div>
+            <strong>Precise Location During Trips</strong>
+            <span>Recommended for riders and required for active driver missions.</span>
+          </div>
+
+          <label class="switch">
+            <input id="preciseLocationToggle" type="checkbox" checked />
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="setting-row">
+          <div>
+            <strong>Low Power Mode Warning</strong>
+            <span>Shows a reminder when battery saving may affect live tracking.</span>
+          </div>
+
+          <label class="switch">
+            <input id="lowPowerWarningToggle" type="checkbox" checked />
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <button class="btn primary" id="saveSettingsBtn">
+          Save Settings
+        </button>
+
+        <div id="settingsNotice" class="notice"></div>
+      </div>
+
+      <div class="card">
+        <h2>Delete Account</h2>
+        <p>
+          This sends a delete-account request to Harvey Taxi. For safety, the backend should
+          deactivate the account first, preserve legally required trip/payment records, and remove
+          unnecessary personal access data.
+        </p>
+
+        <label for="deleteConfirm">Type DELETE to confirm</label>
+        <input id="deleteConfirm" type="text" placeholder="DELETE" />
+
+        <button class="btn danger" id="deleteAccountBtn">
+          Delete My Account
+        </button>
+
+        <div id="deleteNotice" class="notice"></div>
+      </div>
+
+    </section>
+  </main>
+
+  <script>
+    const CONFIG = {
+      API_BASE:
+        window.HARVEY_API_BASE ||
+        window.location.origin ||
+        "https://harvey-taxi-app-2.onrender.com",
+
+      ENDPOINTS: {
+        saveSettings: "/api/account/settings",
+        deleteAccount: "/api/account/delete-request"
+      },
+
+      STORAGE_KEYS: {
+        riderEmail: "harvey_rider_email",
+        driverEmail: "harvey_driver_email",
+        batteryOptimizer: "harvey_battery_optimizer",
+        preciseLocation: "harvey_precise_location",
+        lowPowerWarning: "harvey_low_power_warning"
+      }
+    };
+
+    const $ = (id) => document.getElementById(id);
+
+    const els = {
+      accountType: $("accountType"),
+      accountEmail: $("accountEmail"),
+      batteryOptimizerToggle: $("batteryOptimizerToggle"),
+      preciseLocationToggle: $("preciseLocationToggle"),
+      lowPowerWarningToggle: $("lowPowerWarningToggle"),
+      saveSettingsBtn: $("saveSettingsBtn"),
+      deleteConfirm: $("deleteConfirm"),
+      deleteAccountBtn: $("deleteAccountBtn"),
+      settingsNotice: $("settingsNotice"),
+      deleteNotice: $("deleteNotice")
+    };
+
+    function readStorage(key, fallback = "") {
+      try {
+        const value = localStorage.getItem(key);
+        return value === null ? fallback : value;
+      } catch {
+        return fallback;
+      }
+    }
+
+    function writeStorage(key, value) {
+      try {
+        localStorage.setItem(key, String(value));
+      } catch {}
+    }
+
+    function showNotice(el, message, type = "warning") {
+      if (!el) return;
+      el.textContent = message;
+      el.className = `notice show ${type}`;
+    }
+
+    function isEmail(value) {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
+    }
+
+    async function apiPost(path, body) {
+      const response = await fetch(`${CONFIG.API_BASE}${path}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(body || {})
+      });
+
+      let data = {};
+      try {
+        data = await response.json();
+      } catch {
+        data = { ok: false, error: "Server returned non-JSON response." };
+      }
+
+      if (!response.ok) {
+        throw new Error(data.error || data.message || "Request failed.");
+      }
+
+      return data;
+    }
+
+    function hydrate() {
+      const riderEmail = readStorage(CONFIG.STORAGE_KEYS.riderEmail);
+      const driverEmail = readStorage(CONFIG.STORAGE_KEYS.driverEmail);
+
+      els.accountEmail.value = riderEmail || driverEmail || "";
+
+      els.batteryOptimizerToggle.checked =
+        readStorage(CONFIG.STORAGE_KEYS.batteryOptimizer, "true") !== "false";
+
+      els.preciseLocationToggle.checked =
+        readStorage(CONFIG.STORAGE_KEYS.preciseLocation, "true") !== "false";
+
+      els.lowPowerWarningToggle.checked =
+        readStorage(CONFIG.STORAGE_KEYS.lowPowerWarning, "true") !== "false";
+    }
+
+    async function saveSettings() {
+      const accountType = els.accountType.value;
+      const email = String(els.accountEmail.value || "").trim().toLowerCase();
+
+      if (!isEmail(email)) {
+        showNotice(els.settingsNotice, "Please enter a valid account email.", "warning");
+        return;
+      }
+
+      const settings = {
+        account_type: accountType,
+        email,
+        battery_optimizer_enabled: els.batteryOptimizerToggle.checked,
+        precise_location_enabled: els.preciseLocationToggle.checked,
+        low_power_warning_enabled: els.lowPowerWarningToggle.checked
+      };
+
+      writeStorage(CONFIG.STORAGE_KEYS.batteryOptimizer, settings.battery_optimizer_enabled);
+      writeStorage(CONFIG.STORAGE_KEYS.preciseLocation, settings.precise_location_enabled);
+      writeStorage(CONFIG.STORAGE_KEYS.lowPowerWarning, settings.low_power_warning_enabled);
+
+      if (accountType === "rider") {
+        writeStorage(CONFIG.STORAGE_KEYS.riderEmail, email);
+      } else {
+        writeStorage(CONFIG.STORAGE_KEYS.driverEmail, email);
+      }
+
+      try {
+        await apiPost(CONFIG.ENDPOINTS.saveSettings, settings);
+        showNotice(els.settingsNotice, "Settings saved successfully.", "success");
+      } catch (error) {
+        showNotice(
+          els.settingsNotice,
+          "Settings saved on this device. Backend settings endpoint is not connected yet.",
+          "warning"
+        );
+      }
+    }
+
+    async function deleteAccount() {
+      const accountType = els.accountType.value;
+      const email = String(els.accountEmail.value || "").trim().toLowerCase();
+      const confirmText = String(els.deleteConfirm.value || "").trim();
+
+      if (!isEmail(email)) {
+        showNotice(els.deleteNotice, "Please enter a valid account email.", "warning");
+        return;
+      }
+
+      if (confirmText !== "DELETE") {
+        showNotice(els.deleteNotice, "Type DELETE to confirm account deletion.", "warning");
+        return;
+      }
+
+      const confirmed = window.confirm(
+        "Are you sure you want to request account deletion? This may deactivate your Harvey Taxi account."
+      );
+
+      if (!confirmed) return;
+
+      try {
+        await apiPost(CONFIG.ENDPOINTS.deleteAccount, {
+          account_type: accountType,
+          email,
+          reason: "User requested account deletion from settings page."
+        });
+
+        showNotice(
+          els.deleteNotice,
+          "Account deletion request submitted. Harvey Taxi will process the request according to policy.",
+          "success"
+        );
+      } catch (error) {
+        showNotice(
+          els.deleteNotice,
+          error.message || "Unable to submit delete request.",
+          "error"
+        );
+      }
+    }
+
+    els.saveSettingsBtn.addEventListener("click", saveSettings);
+    els.deleteAccountBtn.addEventListener("click", deleteAccount);
+
+    hydrate();
+  </script>
+</body>
+</html>
