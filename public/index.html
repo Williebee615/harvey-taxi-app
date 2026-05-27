@@ -742,16 +742,16 @@
       display: flex;
       justify-content: space-around;
       align-items: center;
-      padding: 0 12px env(safe-area-inset-bottom) 12px;
+      padding: 0 8px env(safe-area-inset-bottom) 8px;
       z-index: 100;
     }
 
     .nav-btn {
       color: var(--muted);
       background: none;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 800;
-      padding: 8px 14px;
+      padding: 8px 10px;
       border-radius: 12px;
       display: flex;
       flex-direction: column;
@@ -909,6 +909,7 @@
         <a class="top-link" href="#safety">Safety</a>
         <a class="top-link" href="#services">Services</a>
         <a class="top-link" href="foundation.html">Foundation</a>
+        <a class="top-link" href="settings.html">⚙️ Settings</a>
         <a class="top-link cta" href="request-ride.html?mode=driver">Book Now</a>
       </nav>
     </header>
@@ -946,6 +947,7 @@
                 <a class="btn autonomous" href="request-ride.html?mode=autonomous">
                   🤖 Autonomous Hub <span class="pilot-tag">Pilot</span>
                 </a>
+                <a class="btn ghost" href="settings.html">⚙️ Settings</a>
               </div>
             </div>
 
@@ -1149,6 +1151,10 @@
             <strong>Support Center</strong>
             <span>Get help with rider access, driver onboarding, trips, and account questions.</span>
           </a>
+          <a class="card" href="settings.html">
+            <strong>Settings</strong>
+            <span>Manage battery optimization, account preferences, and account deletion requests.</span>
+          </a>
           <a class="card" href="foundation.html">
             <strong>Foundation Hub</strong>
             <span>Support transportation assistance for medical, work, school, and essential access.</span>
@@ -1207,6 +1213,7 @@
         <div class="actions" style="margin-top: 16px;">
           <a class="btn ghost" href="privacy.html">Privacy Policy</a>
           <a class="btn ghost" href="terms.html">Terms of Service</a>
+          <a class="btn ghost" href="settings.html">Settings</a>
           <a
             class="btn foundation"
             href="https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00"
@@ -1230,6 +1237,7 @@
       <div class="actions">
         <a class="btn ghost" href="privacy.html">Privacy</a>
         <a class="btn ghost" href="terms.html">Terms</a>
+        <a class="btn ghost" href="settings.html">Settings</a>
         <a class="btn foundation" href="foundation.html">Foundation Hub</a>
       </div>
     </footer>
@@ -1240,6 +1248,7 @@
     <button class="nav-btn" type="button" onclick="safeGo('request-ride.html?mode=driver')"><span>Trips</span></button>
     <button class="nav-btn" type="button" onclick="safeGo('foundation.html')"><span>Foundation</span></button>
     <button class="nav-btn" type="button" onclick="safeGo('driver-dashboard.html')"><span>Driver</span></button>
+    <button class="nav-btn" type="button" onclick="safeGo('settings.html')"><span>Settings</span></button>
   </nav>
 
   <script src="/ai-support-widget.js"></script>
@@ -1333,6 +1342,7 @@
       }
 
       closeBtn.addEventListener("click", closeModal);
+
       overlay.addEventListener("click", function (event) {
         if (event.target === overlay) closeModal();
       });
