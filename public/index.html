@@ -5,852 +5,850 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
   <title>Harvey Taxi | Safe Tennessee Rides, Driver Access, and Live Support</title>
-  <meta
-    name="description"
-    content="Harvey Taxi Service LLC helps Tennessee riders request safe rides, connect with qualified drivers, access live support, and explore future mobility services."
-  />
+  <meta name="description" content="Harvey Taxi Service LLC helps Tennessee riders request safe rides, connect with qualified drivers, access live support, and explore future mobility services." />
   <meta name="theme-color" content="#07111f" />
+
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-814LXYV9DN"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){ dataLayer.push(arguments); }
+
+    gtag("js", new Date());
+    gtag("config", "G-814LXYV9DN");
+    gtag("config", "AW-17088105743");
+  </script>
 
   <link rel="stylesheet" href="/ai-support-widget.css" />
 
   <style>
     :root {
-      --bg1: #040814;
-      --bg2: #091126;
-      --bg3: #101935;
-      --panel: rgba(10, 17, 38, 0.92);
-      --panel-2: rgba(15, 23, 52, 0.84);
-      --glass: rgba(255, 255, 255, 0.04);
-      --line: rgba(122, 162, 255, 0.16);
-      --line-strong: rgba(122, 162, 255, 0.32);
-      --text: #f4f7ff;
-      --muted: #aab8de;
-      --blue: #5ea0ff;
-      --cyan: #63f5ff;
-      --green: #6dffb3;
-      --gold: #ffd76a;
-      --danger: #ff7e97;
-      --violet: #8c83ff;
-      --ink: #07121f;
-      --shadow: 0 20px 70px rgba(0, 0, 0, 0.35);
-      --shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.24);
-      --radius-xl: 30px;
-      --radius-lg: 22px;
-      --radius-md: 16px;
-      --max: 1220px;
-      --nav-h: 76px;
+      --bg1:#040814;
+      --bg2:#091126;
+      --bg3:#101935;
+      --panel:rgba(10,17,38,.92);
+      --glass:rgba(255,255,255,.04);
+      --line:rgba(122,162,255,.16);
+      --line-strong:rgba(122,162,255,.32);
+      --text:#f4f7ff;
+      --muted:#aab8de;
+      --blue:#5ea0ff;
+      --cyan:#63f5ff;
+      --green:#6dffb3;
+      --gold:#ffd76a;
+      --violet:#8c83ff;
+      --ink:#07121f;
+      --shadow:0 20px 70px rgba(0,0,0,.35);
+      --shadow-soft:0 10px 30px rgba(0,0,0,.24);
+      --radius-xl:30px;
+      --max:1220px;
+      --nav-h:76px;
     }
 
     * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
+      box-sizing:border-box;
+      margin:0;
+      padding:0;
     }
 
     html {
-      scroll-behavior: smooth;
-      min-height: 100%;
+      scroll-behavior:smooth;
+      min-height:100%;
     }
 
     body {
-      font-family: Inter, Arial, sans-serif;
-      color: var(--text);
+      font-family:Inter, Arial, sans-serif;
+      color:var(--text);
       background:
-        radial-gradient(circle at top left, rgba(99, 245, 255, 0.12), transparent 30%),
-        radial-gradient(circle at top right, rgba(94, 160, 255, 0.11), transparent 28%),
-        radial-gradient(circle at 50% 110%, rgba(109, 255, 179, 0.07), transparent 24%),
-        linear-gradient(160deg, var(--bg1), var(--bg2) 48%, var(--bg3));
-      min-height: 100vh;
-      overflow-x: hidden;
-      padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 28px);
+        radial-gradient(circle at top left, rgba(99,245,255,.12), transparent 30%),
+        radial-gradient(circle at top right, rgba(94,160,255,.11), transparent 28%),
+        radial-gradient(circle at 50% 110%, rgba(109,255,179,.07), transparent 24%),
+        linear-gradient(160deg,var(--bg1),var(--bg2) 48%,var(--bg3));
+      min-height:100vh;
+      overflow-x:hidden;
+      padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 28px);
     }
 
     a {
-      color: inherit;
-      text-decoration: none;
+      color:inherit;
+      text-decoration:none;
     }
 
     button,
     a {
-      -webkit-tap-highlight-color: transparent;
-      touch-action: manipulation;
+      -webkit-tap-highlight-color:transparent;
+      touch-action:manipulation;
     }
 
     button {
-      font: inherit;
-      border: none;
-      outline: none;
-      cursor: pointer;
+      font:inherit;
+      border:none;
+      outline:none;
+      cursor:pointer;
     }
 
     .shell {
-      max-width: var(--max);
-      margin: auto;
-      padding: 20px 16px;
-      position: relative;
-      z-index: 1;
+      max-width:var(--max);
+      margin:auto;
+      padding:20px 16px;
+      position:relative;
+      z-index:1;
     }
 
     .topbar {
-      position: sticky;
-      top: 12px;
-      z-index: 50;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 14px;
-      padding: 14px 22px;
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      background: rgba(7, 12, 28, 0.82);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      box-shadow: var(--shadow);
-      margin-bottom: 24px;
+      position:sticky;
+      top:12px;
+      z-index:50;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:14px;
+      padding:14px 22px;
+      border:1px solid var(--line);
+      border-radius:999px;
+      background:rgba(7,12,28,.82);
+      backdrop-filter:blur(16px);
+      -webkit-backdrop-filter:blur(16px);
+      box-shadow:var(--shadow);
+      margin-bottom:24px;
     }
 
     .brand-wrap {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      min-width: 0;
+      display:flex;
+      align-items:center;
+      gap:12px;
+      min-width:0;
     }
 
     .logo-mark {
-      width: 42px;
-      height: 42px;
-      border-radius: 14px;
-      display: grid;
-      place-items: center;
-      background: linear-gradient(135deg, var(--cyan), var(--blue));
-      box-shadow: 0 0 22px rgba(99, 245, 255, 0.25);
-      color: var(--ink);
-      font-size: 14px;
-      font-weight: 900;
-      flex-shrink: 0;
+      width:42px;
+      height:42px;
+      border-radius:14px;
+      display:grid;
+      place-items:center;
+      background:linear-gradient(135deg,var(--cyan),var(--blue));
+      box-shadow:0 0 22px rgba(99,245,255,.25);
+      color:var(--ink);
+      font-size:14px;
+      font-weight:900;
+      flex-shrink:0;
     }
 
     .brand-stack {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      min-width: 0;
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+      min-width:0;
     }
 
     .brand {
-      font-weight: 900;
-      letter-spacing: 0.12em;
-      font-size: 15px;
-      white-space: nowrap;
+      font-weight:900;
+      letter-spacing:.12em;
+      font-size:15px;
+      white-space:nowrap;
     }
 
     .brand-sub {
-      color: var(--muted);
-      font-size: 11px;
-      letter-spacing: 0.05em;
-      white-space: nowrap;
+      color:var(--muted);
+      font-size:11px;
+      letter-spacing:.05em;
+      white-space:nowrap;
     }
 
     .top-links {
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      display:flex;
+      align-items:center;
+      gap:8px;
     }
 
     .top-link {
-      padding: 10px 15px;
-      border-radius: 999px;
-      border: 1px solid rgba(255, 255, 255, 0.04);
-      background: rgba(255, 255, 255, 0.02);
-      color: var(--muted);
-      font-size: 13px;
-      font-weight: 800;
-      transition: 0.18s ease;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
+      padding:10px 15px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.04);
+      background:rgba(255,255,255,.02);
+      color:var(--muted);
+      font-size:13px;
+      font-weight:800;
+      transition:.18s ease;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
     }
 
     .top-link:hover,
     .top-link:focus-visible {
-      color: #fff;
-      background: rgba(255, 255, 255, 0.07);
-      border-color: rgba(255, 255, 255, 0.14);
-      transform: translateY(-1px);
+      color:#fff;
+      background:rgba(255,255,255,.07);
+      border-color:rgba(255,255,255,.14);
+      transform:translateY(-1px);
     }
 
     .top-link.cta {
-      background: linear-gradient(135deg, var(--cyan), var(--blue));
-      color: var(--ink);
-      border: none;
+      background:linear-gradient(135deg,var(--cyan),var(--blue));
+      color:var(--ink);
+      border:none;
     }
 
     .announce {
-      margin-bottom: 24px;
-      padding: 16px 22px;
-      border-radius: 20px;
-      border: 1px solid rgba(99, 245, 255, 0.14);
-      background: linear-gradient(135deg, rgba(99, 245, 255, 0.10), rgba(94, 160, 255, 0.07));
-      box-shadow: var(--shadow-soft);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 16px;
+      margin-bottom:24px;
+      padding:16px 22px;
+      border-radius:20px;
+      border:1px solid rgba(99,245,255,.14);
+      background:linear-gradient(135deg,rgba(99,245,255,.10),rgba(94,160,255,.07));
+      box-shadow:var(--shadow-soft);
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:16px;
     }
 
     .announce-copy strong {
-      display: block;
-      margin-bottom: 4px;
-      color: var(--cyan);
-      font-size: 15px;
+      display:block;
+      margin-bottom:4px;
+      color:var(--cyan);
+      font-size:15px;
     }
 
     .announce-copy span {
-      display: block;
-      color: var(--muted);
-      font-size: 14px;
-      line-height: 1.6;
+      display:block;
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.6;
     }
 
     .hero {
-      position: relative;
-      border-radius: 34px;
-      border: 1px solid var(--line);
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.012)), var(--panel);
-      box-shadow: var(--shadow);
-      padding: 40px;
-      margin-bottom: 24px;
-      overflow: hidden;
+      position:relative;
+      border-radius:34px;
+      border:1px solid var(--line);
+      background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.012)),var(--panel);
+      box-shadow:var(--shadow);
+      padding:40px;
+      margin-bottom:24px;
+      overflow:hidden;
     }
 
     .hero::before {
-      content: "";
-      position: absolute;
-      inset: -1px;
+      content:"";
+      position:absolute;
+      inset:-1px;
       background:
-        radial-gradient(circle at 20% 0%, rgba(99, 245, 255, 0.12), transparent 35%),
-        radial-gradient(circle at 80% 20%, rgba(140, 131, 255, 0.12), transparent 32%);
-      pointer-events: none;
+        radial-gradient(circle at 20% 0%,rgba(99,245,255,.12),transparent 35%),
+        radial-gradient(circle at 80% 20%,rgba(140,131,255,.12),transparent 32%);
+      pointer-events:none;
     }
 
     .hero > * {
-      position: relative;
-      z-index: 1;
+      position:relative;
+      z-index:1;
     }
 
     .hero-grid {
-      display: grid;
-      grid-template-columns: 1.2fr 0.8fr;
-      gap: 32px;
-      align-items: start;
+      display:grid;
+      grid-template-columns:1.2fr .8fr;
+      gap:32px;
+      align-items:start;
     }
 
     .hero-badge {
-      display: inline-flex;
-      align-items: center;
-      padding: 8px 16px;
-      border-radius: 999px;
-      border: 1px solid rgba(99, 245, 255, 0.2);
-      background: rgba(99, 245, 255, 0.05);
-      margin-bottom: 20px;
-      color: var(--cyan);
-      font-size: 12px;
-      font-weight: 900;
-      letter-spacing: 0.05em;
+      display:inline-flex;
+      align-items:center;
+      padding:8px 16px;
+      border-radius:999px;
+      border:1px solid rgba(99,245,255,.2);
+      background:rgba(99,245,255,.05);
+      margin-bottom:20px;
+      color:var(--cyan);
+      font-size:12px;
+      font-weight:900;
+      letter-spacing:.05em;
     }
 
     .hero-title {
-      font-size: clamp(2.35rem, 5vw, 3.9rem);
-      line-height: 1.08;
-      margin-bottom: 16px;
-      letter-spacing: -0.04em;
+      font-size:clamp(2.35rem,5vw,3.9rem);
+      line-height:1.08;
+      margin-bottom:16px;
+      letter-spacing:-.04em;
     }
 
     .hero-copy {
-      color: var(--muted);
-      line-height: 1.75;
-      margin-bottom: 28px;
-      font-size: 16px;
-      max-width: 760px;
+      color:var(--muted);
+      line-height:1.75;
+      margin-bottom:28px;
+      font-size:16px;
+      max-width:760px;
     }
 
     .action-container {
-      background: rgba(4, 8, 20, 0.54);
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      padding: 24px;
-      border-radius: 20px;
-      margin-bottom: 28px;
+      background:rgba(4,8,20,.54);
+      border:1px solid rgba(255,255,255,.06);
+      padding:24px;
+      border-radius:20px;
+      margin-bottom:28px;
     }
 
     .action-container h4 {
-      font-size: 14px;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--muted);
-      margin-bottom: 14px;
+      font-size:14px;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+      color:var(--muted);
+      margin-bottom:14px;
     }
 
     .primary-actions {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-bottom: 14px;
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:12px;
+      margin-bottom:14px;
     }
 
     .secondary-actions,
     .actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
     }
 
     .secondary-actions .btn {
-      flex: 1;
-      min-width: 140px;
+      flex:1;
+      min-width:140px;
     }
 
     .btn {
-      padding: 14px 20px;
-      border-radius: 14px;
-      border: 1px solid var(--line);
-      background: rgba(255, 255, 255, 0.04);
-      color: white;
-      font-weight: 800;
-      transition: 0.18s ease;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      min-height: 52px;
-      text-align: center;
+      padding:14px 20px;
+      border-radius:14px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.04);
+      color:white;
+      font-weight:800;
+      transition:.18s ease;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      min-height:52px;
+      text-align:center;
     }
 
     .btn:hover,
     .btn:focus-visible {
-      transform: translateY(-2px);
-      background: rgba(255, 255, 255, 0.07);
-      border-color: var(--line-strong);
+      transform:translateY(-2px);
+      background:rgba(255,255,255,.07);
+      border-color:var(--line-strong);
     }
 
     .btn.primary {
-      background: linear-gradient(135deg, var(--cyan), var(--blue));
-      color: var(--ink);
-      border: none;
+      background:linear-gradient(135deg,var(--cyan),var(--blue));
+      color:var(--ink);
+      border:none;
     }
 
     .btn.success {
-      background: linear-gradient(135deg, var(--green), #89ffd0);
-      color: #062014;
-      border: none;
+      background:linear-gradient(135deg,var(--green),#89ffd0);
+      color:#062014;
+      border:none;
     }
 
     .btn.autonomous {
-      background: rgba(140, 131, 255, 0.15);
-      color: #d8d6ff;
-      border: 1px solid rgba(140, 131, 255, 0.3);
+      background:rgba(140,131,255,.15);
+      color:#d8d6ff;
+      border:1px solid rgba(140,131,255,.3);
     }
 
     .btn.foundation {
-      background: linear-gradient(135deg, var(--gold), #ffe9a1);
-      color: #2b2200;
-      border: none;
+      background:linear-gradient(135deg,var(--gold),#ffe9a1);
+      color:#2b2200;
+      border:none;
     }
 
     .btn.ghost {
-      background: transparent;
-      border-color: rgba(255, 255, 255, 0.12);
+      background:transparent;
+      border-color:rgba(255,255,255,.12);
     }
 
     .pilot-tag {
-      display: inline-flex;
-      align-items: center;
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-size: 10px;
-      font-weight: 900;
-      background: var(--violet);
-      color: #fff;
+      display:inline-flex;
+      align-items:center;
+      padding:2px 6px;
+      border-radius:4px;
+      font-size:10px;
+      font-weight:900;
+      background:var(--violet);
+      color:#fff;
     }
 
     .hero-points {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 12px;
+      display:grid;
+      grid-template-columns:repeat(2,1fr);
+      gap:12px;
     }
 
     .hero-point {
-      padding: 16px;
-      border-radius: 16px;
-      background: rgba(255, 255, 255, 0.02);
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      color: var(--muted);
-      font-size: 14px;
-      line-height: 1.5;
+      padding:16px;
+      border-radius:16px;
+      background:rgba(255,255,255,.02);
+      border:1px solid rgba(255,255,255,.05);
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.5;
     }
 
     .hero-point strong {
-      display: block;
-      color: #fff;
-      margin-bottom: 4px;
-      font-size: 15px;
+      display:block;
+      color:#fff;
+      margin-bottom:4px;
+      font-size:15px;
     }
 
     .hero-side {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
+      display:flex;
+      flex-direction:column;
+      gap:16px;
     }
 
     .status-card,
     .foundation-card {
-      padding: 24px;
-      border-radius: 20px;
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      background: rgba(255, 255, 255, 0.02);
+      padding:24px;
+      border-radius:20px;
+      border:1px solid rgba(255,255,255,.06);
+      background:rgba(255,255,255,.02);
     }
 
     .foundation-card {
-      background: linear-gradient(180deg, rgba(255, 215, 106, 0.06), transparent), rgba(255, 255, 255, 0.02);
-      border-color: rgba(255, 215, 106, 0.16);
+      background:linear-gradient(180deg,rgba(255,215,106,.06),transparent),rgba(255,255,255,.02);
+      border-color:rgba(255,215,106,.16);
     }
 
     .eyebrow {
-      display: inline-flex;
-      margin-bottom: 8px;
-      color: var(--cyan);
-      font-size: 11px;
-      font-weight: 900;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
+      display:inline-flex;
+      margin-bottom:8px;
+      color:var(--cyan);
+      font-size:11px;
+      font-weight:900;
+      letter-spacing:.08em;
+      text-transform:uppercase;
     }
 
     .foundation-card .eyebrow {
-      color: var(--gold);
+      color:var(--gold);
     }
 
     .status-card h3,
     .foundation-card h3 {
-      font-size: 20px;
-      margin-bottom: 12px;
-      letter-spacing: -0.02em;
+      font-size:20px;
+      margin-bottom:12px;
+      letter-spacing:-.02em;
     }
 
     .status-card p,
     .foundation-card p {
-      color: var(--muted);
-      line-height: 1.6;
-      font-size: 14px;
+      color:var(--muted);
+      line-height:1.6;
+      font-size:14px;
     }
 
     .status-list {
-      display: grid;
-      gap: 8px;
-      margin-top: 16px;
+      display:grid;
+      gap:8px;
+      margin-top:16px;
     }
 
     .status-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      padding: 12px 16px;
-      border-radius: 12px;
-      background: rgba(255, 255, 255, 0.02);
-      border: 1px solid rgba(255, 255, 255, 0.04);
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      padding:12px 16px;
+      border-radius:12px;
+      background:rgba(255,255,255,.02);
+      border:1px solid rgba(255,255,255,.04);
     }
 
     .status-item span {
-      font-size: 14px;
-      font-weight: 700;
+      font-size:14px;
+      font-weight:700;
     }
 
     .status-pill {
-      padding: 4px 10px;
-      border-radius: 999px;
-      font-size: 11px;
-      font-weight: 900;
-      background: rgba(109, 255, 179, 0.12);
-      color: var(--green);
-      white-space: nowrap;
+      padding:4px 10px;
+      border-radius:999px;
+      font-size:11px;
+      font-weight:900;
+      background:rgba(109,255,179,.12);
+      color:var(--green);
+      white-space:nowrap;
     }
 
     .status-pill.info {
-      background: rgba(99, 245, 255, 0.12);
-      color: var(--cyan);
+      background:rgba(99,245,255,.12);
+      color:var(--cyan);
     }
 
     .status-pill.pilot {
-      background: rgba(140, 131, 255, 0.15);
-      color: #c9c8ff;
+      background:rgba(140,131,255,.15);
+      color:#c9c8ff;
     }
 
     .status-pill.build {
-      background: rgba(255, 215, 106, 0.12);
-      color: var(--gold);
+      background:rgba(255,215,106,.12);
+      color:var(--gold);
     }
 
     .mini-stats {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 16px;
-      margin-top: 24px;
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:16px;
+      margin-top:24px;
     }
 
     .mini-stat {
-      padding: 20px;
-      border-radius: 18px;
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      background: rgba(255, 255, 255, 0.02);
+      padding:20px;
+      border-radius:18px;
+      border:1px solid rgba(255,255,255,.05);
+      background:rgba(255,255,255,.02);
     }
 
     .mini-stat strong {
-      display: block;
-      font-size: 16px;
-      margin-bottom: 6px;
-      color: white;
+      display:block;
+      font-size:16px;
+      margin-bottom:6px;
+      color:white;
     }
 
     .mini-stat span {
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.5;
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.5;
     }
 
     .support-callout {
-      margin-top: 24px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      padding: 20px 24px;
-      border-radius: 20px;
-      border: 1px solid rgba(109, 255, 179, 0.16);
-      background: linear-gradient(135deg, rgba(109, 255, 179, 0.06), rgba(99, 245, 255, 0.03));
+      margin-top:24px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:16px;
+      padding:20px 24px;
+      border-radius:20px;
+      border:1px solid rgba(109,255,179,.16);
+      background:linear-gradient(135deg,rgba(109,255,179,.06),rgba(99,245,255,.03));
     }
 
     .support-callout strong {
-      display: block;
-      margin-bottom: 4px;
-      font-size: 16px;
-      color: var(--green);
+      display:block;
+      margin-bottom:4px;
+      font-size:16px;
+      color:var(--green);
     }
 
     .support-callout span {
-      color: var(--muted);
-      font-size: 14px;
-      line-height: 1.5;
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.5;
     }
 
     .section {
-      margin-top: 24px;
-      background: var(--panel);
-      padding: 32px;
-      border-radius: var(--radius-xl);
-      border: 1px solid var(--line);
-      box-shadow: var(--shadow);
+      margin-top:24px;
+      background:var(--panel);
+      padding:32px;
+      border-radius:var(--radius-xl);
+      border:1px solid var(--line);
+      box-shadow:var(--shadow);
     }
 
     .section-header {
-      margin-bottom: 24px;
+      margin-bottom:24px;
     }
 
     .section h2 {
-      font-size: 28px;
-      margin-bottom: 8px;
-      letter-spacing: -0.02em;
+      font-size:28px;
+      margin-bottom:8px;
+      letter-spacing:-.02em;
     }
 
     .lead {
-      color: var(--muted);
-      line-height: 1.65;
-      font-size: 15px;
+      color:var(--muted);
+      line-height:1.65;
+      font-size:15px;
     }
 
     .grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 16px;
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:16px;
     }
 
     .card,
     .highlight,
     .list-item,
     .service-card {
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      background: rgba(255, 255, 255, 0.02);
+      border:1px solid rgba(255,255,255,.05);
+      background:rgba(255,255,255,.02);
     }
 
     .card {
-      padding: 20px;
-      border-radius: 16px;
-      transition: 0.18s ease;
+      padding:20px;
+      border-radius:16px;
+      transition:.18s ease;
     }
 
     a.card:hover,
     a.card:focus-visible {
-      transform: translateY(-3px);
-      border-color: var(--line-strong);
-      background: rgba(255, 255, 255, 0.04);
+      transform:translateY(-3px);
+      border-color:var(--line-strong);
+      background:rgba(255,255,255,.04);
     }
 
     .card strong {
-      display: block;
-      margin-bottom: 8px;
-      font-size: 16px;
-      color: white;
+      display:block;
+      margin-bottom:8px;
+      font-size:16px;
+      color:white;
     }
 
     .card span {
-      color: var(--muted);
-      font-size: 14px;
-      line-height: 1.6;
-      display: block;
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.6;
+      display:block;
     }
 
     .info-grid {
-      display: grid;
-      grid-template-columns: 1.1fr 0.9fr;
-      gap: 16px;
-      margin-top: 16px;
+      display:grid;
+      grid-template-columns:1.1fr .9fr;
+      gap:16px;
+      margin-top:16px;
     }
 
     .highlight {
-      padding: 24px;
-      border-radius: 18px;
+      padding:24px;
+      border-radius:18px;
     }
 
     .highlight h3 {
-      margin-bottom: 12px;
-      font-size: 20px;
+      margin-bottom:12px;
+      font-size:20px;
     }
 
     .highlight p {
-      color: var(--muted);
-      line-height: 1.65;
-      font-size: 14px;
+      color:var(--muted);
+      line-height:1.65;
+      font-size:14px;
     }
 
     .pill-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 16px;
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      margin-top:16px;
     }
 
     .pill {
-      padding: 6px 12px;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      font-size: 12px;
-      color: var(--muted);
+      padding:6px 12px;
+      border-radius:999px;
+      background:rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.06);
+      font-size:12px;
+      color:var(--muted);
     }
 
     .list {
-      display: grid;
-      gap: 12px;
+      display:grid;
+      gap:12px;
     }
 
     .list-item {
-      padding: 16px;
-      border-radius: 14px;
+      padding:16px;
+      border-radius:14px;
     }
 
     .list-item strong {
-      display: block;
-      margin-bottom: 4px;
-      font-size: 15px;
+      display:block;
+      margin-bottom:4px;
+      font-size:15px;
     }
 
     .list-item span {
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.5;
-      display: block;
-      overflow-wrap: anywhere;
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.5;
+      display:block;
+      overflow-wrap:anywhere;
     }
 
     .service-row {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 16px;
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:16px;
     }
 
     .service-card {
-      padding: 24px;
-      border-radius: 20px;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
+      padding:24px;
+      border-radius:20px;
+      display:flex;
+      flex-direction:column;
+      justify-content:space-between;
     }
 
     .service-card h3 {
-      margin-bottom: 8px;
-      font-size: 18px;
+      margin-bottom:8px;
+      font-size:18px;
     }
 
     .service-card p {
-      color: var(--muted);
-      line-height: 1.6;
-      font-size: 14px;
-      margin-bottom: 20px;
-      flex-grow: 1;
+      color:var(--muted);
+      line-height:1.6;
+      font-size:14px;
+      margin-bottom:20px;
+      flex-grow:1;
     }
 
     .service-card .btn {
-      width: 100%;
+      width:100%;
     }
 
     .footer {
-      margin-top: 24px;
-      padding: 32px;
-      border-radius: var(--radius-xl);
-      border: 1px solid var(--line);
-      background: var(--panel);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 24px;
-      box-shadow: var(--shadow);
+      margin-top:24px;
+      padding:32px;
+      border-radius:var(--radius-xl);
+      border:1px solid var(--line);
+      background:var(--panel);
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      flex-wrap:wrap;
+      gap:24px;
+      box-shadow:var(--shadow);
     }
 
     .footer-title {
-      display: block;
-      margin-bottom: 6px;
-      font-weight: 900;
-      font-size: 16px;
+      display:block;
+      margin-bottom:6px;
+      font-weight:900;
+      font-size:16px;
     }
 
     .footer p {
-      color: var(--muted);
-      font-size: 14px;
-      line-height: 1.6;
-      max-width: 650px;
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.6;
+      max-width:650px;
     }
 
     .bottom-nav {
-      position: fixed;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      height: calc(var(--nav-h) + env(safe-area-inset-bottom));
-      background: rgba(6, 12, 26, 0.96);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border-top: 1px solid rgba(255, 255, 255, 0.08);
-      display: flex;
-      justify-content: space-around;
-      align-items: center;
-      padding: 0 8px env(safe-area-inset-bottom) 8px;
-      z-index: 100;
+      position:fixed;
+      left:0;
+      right:0;
+      bottom:0;
+      height:calc(var(--nav-h) + env(safe-area-inset-bottom));
+      background:rgba(6,12,26,.96);
+      backdrop-filter:blur(20px);
+      -webkit-backdrop-filter:blur(20px);
+      border-top:1px solid rgba(255,255,255,.08);
+      display:flex;
+      justify-content:space-around;
+      align-items:center;
+      padding:0 8px env(safe-area-inset-bottom) 8px;
+      z-index:100;
     }
 
     .nav-btn {
-      color: var(--muted);
-      background: none;
-      font-size: 11px;
-      font-weight: 800;
-      padding: 8px 10px;
-      border-radius: 12px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 4px;
-      transition: 0.15s ease;
+      color:var(--muted);
+      background:none;
+      font-size:11px;
+      font-weight:800;
+      padding:8px 10px;
+      border-radius:12px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:4px;
+      transition:.15s ease;
     }
 
     .nav-btn.active,
     .nav-btn:hover,
     .nav-btn:focus-visible {
-      color: var(--cyan);
-      background: rgba(99, 245, 255, 0.06);
+      color:var(--cyan);
+      background:rgba(99,245,255,.06);
     }
 
     .modal-overlay {
-      position: fixed;
-      inset: 0;
-      background-color: rgba(4, 8, 20, 0.86);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 9999;
-      padding: 20px;
-      animation: fadeIn 0.2s ease-out;
+      position:fixed;
+      inset:0;
+      background-color:rgba(4,8,20,.86);
+      backdrop-filter:blur(12px);
+      -webkit-backdrop-filter:blur(12px);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      z-index:9999;
+      padding:20px;
     }
 
     .modal-card {
-      background: linear-gradient(160deg, #091126, #101935);
-      border: 1px solid rgba(122, 162, 255, 0.25);
-      border-radius: 24px;
-      padding: 32px;
-      max-width: 450px;
-      width: 100%;
-      text-align: center;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      background:linear-gradient(160deg,#091126,#101935);
+      border:1px solid rgba(122,162,255,.25);
+      border-radius:24px;
+      padding:32px;
+      max-width:450px;
+      width:100%;
+      text-align:center;
+      box-shadow:0 25px 50px -12px rgba(0,0,0,.5);
     }
 
     .modal-card h3 {
-      font-size: 22px;
-      font-weight: 900;
-      color: #fff;
-      margin-bottom: 12px;
-      letter-spacing: -0.02em;
+      font-size:22px;
+      font-weight:900;
+      color:#fff;
+      margin-bottom:12px;
+      letter-spacing:-.02em;
     }
 
     .modal-card p {
-      color: var(--muted);
-      font-size: 14px;
-      line-height: 1.6;
-      margin-bottom: 24px;
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.6;
+      margin-bottom:24px;
     }
 
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-
-    @media (max-width: 1180px) {
+    @media (max-width:1180px) {
       .hero-grid,
       .info-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns:1fr;
       }
 
       .service-row,
       .mini-stats {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns:repeat(2,1fr);
       }
     }
 
-    @media (max-width: 900px) {
+    @media (max-width:900px) {
       .topbar {
-        position: relative;
-        top: 0;
-        border-radius: 24px;
-        align-items: flex-start;
-        flex-direction: column;
+        position:relative;
+        top:0;
+        border-radius:24px;
+        align-items:flex-start;
+        flex-direction:column;
       }
 
       .top-links {
-        width: 100%;
-        overflow-x: auto;
-        padding-bottom: 2px;
+        width:100%;
+        overflow-x:auto;
+        padding-bottom:2px;
       }
 
       .top-link {
-        white-space: nowrap;
+        white-space:nowrap;
       }
 
       .grid {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns:repeat(2,1fr);
       }
     }
 
-    @media (max-width: 650px) {
+    @media (max-width:650px) {
       .shell {
-        padding: 14px 12px;
+        padding:14px 12px;
       }
 
       .grid,
@@ -858,24 +856,24 @@
       .mini-stats,
       .primary-actions,
       .hero-points {
-        grid-template-columns: 1fr;
+        grid-template-columns:1fr;
       }
 
       .hero,
       .section {
-        padding: 24px;
-        border-radius: 24px;
+        padding:24px;
+        border-radius:24px;
       }
 
       .hero-title {
-        font-size: 31px;
+        font-size:31px;
       }
 
       .announce,
       .support-callout,
       .footer {
-        flex-direction: column;
-        align-items: flex-start;
+        flex-direction:column;
+        align-items:flex-start;
       }
 
       .announce .btn,
@@ -883,11 +881,11 @@
       .footer .actions,
       .footer .actions .btn,
       .actions .btn {
-        width: 100%;
+        width:100%;
       }
 
       .brand-sub {
-        white-space: normal;
+        white-space:normal;
       }
     }
   </style>
@@ -896,7 +894,7 @@
 <body>
   <div class="shell">
     <header class="topbar">
-      <a class="brand-wrap" href="index.html" aria-label="Harvey Taxi home">
+      <a class="brand-wrap" href="index.html" aria-label="Harvey Taxi home" data-track="home_brand">
         <div class="logo-mark" aria-hidden="true">HT</div>
         <div class="brand-stack">
           <div class="brand">HARVEY TAXI</div>
@@ -905,12 +903,12 @@
       </a>
 
       <nav class="top-links" aria-label="Primary navigation">
-        <a class="top-link" href="#how-it-works">How It Works</a>
-        <a class="top-link" href="#safety">Safety</a>
-        <a class="top-link" href="#services">Services</a>
-        <a class="top-link" href="foundation.html">Foundation</a>
-        <a class="top-link" href="settings.html">⚙️ Settings</a>
-        <a class="top-link cta" href="request-ride.html?mode=driver">Book Now</a>
+        <a class="top-link" href="#how-it-works" data-track="nav_how_it_works">How It Works</a>
+        <a class="top-link" href="#safety" data-track="nav_safety">Safety</a>
+        <a class="top-link" href="#services" data-track="nav_services">Services</a>
+        <a class="top-link" href="foundation.html" data-track="foundation_nav">Foundation</a>
+        <a class="top-link" href="settings.html" data-track="settings_nav">⚙️ Settings</a>
+        <a class="top-link cta" href="request-ride.html?mode=driver" data-intent="request_ride_start">Book Now</a>
       </nav>
     </header>
 
@@ -919,7 +917,7 @@
         <strong>Now serving Tennessee with a cleaner ride experience</strong>
         <span>Harvey Taxi connects rider access, driver onboarding, live support, and community mobility into one dependable platform.</span>
       </div>
-      <a class="btn success" href="request-ride.html?mode=driver">Request a Ride</a>
+      <a class="btn success" href="request-ride.html?mode=driver" data-intent="request_ride_start">Request a Ride</a>
     </section>
 
     <main>
@@ -938,16 +936,16 @@
               <h4>Get Started</h4>
 
               <div class="primary-actions">
-                <a class="btn primary" href="request-ride.html?mode=driver">🚖 Request Driver Ride</a>
-                <a class="btn success" href="driver-signup.html">🤝 Drive with Harvey</a>
+                <a class="btn primary" href="request-ride.html?mode=driver" data-intent="request_ride_start">🚖 Request Driver Ride</a>
+                <a class="btn success" href="driver-signup.html" data-intent="driver_signup_start">🤝 Drive with Harvey</a>
               </div>
 
               <div class="secondary-actions">
-                <a class="btn ghost" href="rider-signup.html">Rider Sign Up</a>
-                <a class="btn autonomous" href="request-ride.html?mode=autonomous">
+                <a class="btn ghost" href="rider-signup.html" data-intent="rider_signup_start">Rider Sign Up</a>
+                <a class="btn autonomous" href="request-ride.html?mode=autonomous" data-track="autonomous_pilot_open">
                   🤖 Autonomous Hub <span class="pilot-tag">Pilot</span>
                 </a>
-                <a class="btn ghost" href="settings.html">⚙️ Settings</a>
+                <a class="btn ghost" href="settings.html" data-track="settings_button">⚙️ Settings</a>
               </div>
             </div>
 
@@ -994,8 +992,8 @@
               <h3>Harvey Transportation Assistance Foundation</h3>
               <p>Helping remove transportation barriers for medical appointments, work, education, and essential community access.</p>
 
-              <div style="margin-top: 14px;">
-                <a class="btn foundation" href="foundation.html" style="width: 100%;">Explore Foundation Access</a>
+              <div style="margin-top:14px;">
+                <a class="btn foundation" href="foundation.html" style="width:100%;" data-track="foundation_card">Explore Foundation Access</a>
               </div>
             </div>
           </aside>
@@ -1025,7 +1023,9 @@
             <strong>Need immediate platform assistance?</strong>
             <span>Open Harvey Taxi AI Support for rider help, driver help, trip questions, or foundation guidance.</span>
           </div>
-          <button class="btn success" type="button" onclick="openHarveyAiChat()">Open AI Support</button>
+          <button class="btn success" type="button" onclick="trackHarveyEvent('ai_support_open'); openHarveyAiChat();">
+            Open AI Support
+          </button>
         </div>
       </section>
 
@@ -1114,7 +1114,7 @@
               <h3>Standard Human Rides</h3>
               <p>Request a ride through the active Harvey Taxi driver-based service path.</p>
             </div>
-            <a class="btn primary" href="request-ride.html?mode=driver">Book Ride</a>
+            <a class="btn primary" href="request-ride.html?mode=driver" data-intent="request_ride_start">Book Ride</a>
           </div>
 
           <div class="service-card">
@@ -1122,7 +1122,7 @@
               <h3>Autonomous Module</h3>
               <p>Explore the clearly labeled autonomous pilot path for future mobility testing.</p>
             </div>
-            <a class="btn autonomous" href="request-ride.html?mode=autonomous">Open Pilot</a>
+            <a class="btn autonomous" href="request-ride.html?mode=autonomous" data-track="autonomous_pilot_service">Open Pilot</a>
           </div>
 
           <div class="service-card">
@@ -1130,7 +1130,7 @@
               <h3>Food Delivery</h3>
               <p>Local food delivery is being prepared as a future Harvey Taxi service expansion.</p>
             </div>
-            <button class="btn primary" type="button" onclick="showUnderConstruction('Food Delivery')">View Pilot</button>
+            <button class="btn primary" type="button" onclick="trackHarveyEvent('food_delivery_pilot'); showUnderConstruction('Food Delivery')">View Pilot</button>
           </div>
 
           <div class="service-card">
@@ -1138,24 +1138,24 @@
               <h3>Grocery Delivery</h3>
               <p>Grocery delivery is being structured as part of the future multi-service platform.</p>
             </div>
-            <button class="btn success" type="button" onclick="showUnderConstruction('Grocery Delivery')">View Pilot</button>
+            <button class="btn success" type="button" onclick="trackHarveyEvent('grocery_delivery_pilot'); showUnderConstruction('Grocery Delivery')">View Pilot</button>
           </div>
         </div>
 
-        <div class="grid" style="margin-top: 16px;">
-          <a class="card" href="driver-dashboard.html">
+        <div class="grid" style="margin-top:16px;">
+          <a class="card" href="driver-dashboard.html" data-track="driver_dashboard">
             <strong>Driver Dashboard</strong>
             <span>Access mission flow, trip updates, availability, and driver tools.</span>
           </a>
-          <a class="card" href="support.html">
+          <a class="card" href="support.html" data-track="support_center">
             <strong>Support Center</strong>
             <span>Get help with rider access, driver onboarding, trips, and account questions.</span>
           </a>
-          <a class="card" href="settings.html">
+          <a class="card" href="settings.html" data-track="settings_card">
             <strong>Settings</strong>
             <span>Manage battery optimization, account preferences, and account deletion requests.</span>
           </a>
-          <a class="card" href="foundation.html">
+          <a class="card" href="foundation.html" data-track="foundation_hub">
             <strong>Foundation Hub</strong>
             <span>Support transportation assistance for medical, work, school, and essential access.</span>
           </a>
@@ -1210,15 +1210,16 @@
           </div>
         </div>
 
-        <div class="actions" style="margin-top: 16px;">
-          <a class="btn ghost" href="privacy.html">Privacy Policy</a>
-          <a class="btn ghost" href="terms.html">Terms of Service</a>
-          <a class="btn ghost" href="settings.html">Settings</a>
+        <div class="actions" style="margin-top:16px;">
+          <a class="btn ghost" href="privacy.html" data-track="privacy_open">Privacy Policy</a>
+          <a class="btn ghost" href="terms.html" data-track="terms_open">Terms of Service</a>
+          <a class="btn ghost" href="settings.html" data-track="settings_footer">Settings</a>
           <a
             class="btn foundation"
             href="https://buy.stripe.com/00w14g14g3JrcpEc4i6kg00"
             target="_blank"
             rel="noopener noreferrer"
+            data-intent="foundation_donation_start"
           >
             Secure Foundation Donation
           </a>
@@ -1235,20 +1236,20 @@
       </div>
 
       <div class="actions">
-        <a class="btn ghost" href="privacy.html">Privacy</a>
-        <a class="btn ghost" href="terms.html">Terms</a>
-        <a class="btn ghost" href="settings.html">Settings</a>
-        <a class="btn foundation" href="foundation.html">Foundation Hub</a>
+        <a class="btn ghost" href="privacy.html" data-track="privacy_footer">Privacy</a>
+        <a class="btn ghost" href="terms.html" data-track="terms_footer">Terms</a>
+        <a class="btn ghost" href="settings.html" data-track="settings_footer_bottom">Settings</a>
+        <a class="btn foundation" href="foundation.html" data-track="foundation_footer">Foundation Hub</a>
       </div>
     </footer>
   </div>
 
   <nav class="bottom-nav" aria-label="Bottom mobile navigation">
-    <button class="nav-btn active" type="button" onclick="safeGo('index.html')"><span>Home</span></button>
-    <button class="nav-btn" type="button" onclick="safeGo('request-ride.html?mode=driver')"><span>Trips</span></button>
-    <button class="nav-btn" type="button" onclick="safeGo('foundation.html')"><span>Foundation</span></button>
-    <button class="nav-btn" type="button" onclick="safeGo('driver-dashboard.html')"><span>Driver</span></button>
-    <button class="nav-btn" type="button" onclick="safeGo('settings.html')"><span>Settings</span></button>
+    <button class="nav-btn active" type="button" onclick="safeGo('index.html','bottom_home')"><span>Home</span></button>
+    <button class="nav-btn" type="button" onclick="safeGo('request-ride.html?mode=driver','bottom_trips')"><span>Trips</span></button>
+    <button class="nav-btn" type="button" onclick="safeGo('foundation.html','bottom_foundation')"><span>Foundation</span></button>
+    <button class="nav-btn" type="button" onclick="safeGo('driver-dashboard.html','bottom_driver')"><span>Driver</span></button>
+    <button class="nav-btn" type="button" onclick="safeGo('settings.html','bottom_settings')"><span>Settings</span></button>
   </nav>
 
   <script src="/ai-support-widget.js"></script>
@@ -1259,9 +1260,89 @@
         ? window.location.origin
         : "";
 
-    function safeGo(path) {
+    const HARVEY_ADS_CONVERSION_ID = "AW-17088105743";
+    const HARVEY_SUBMIT_LEAD_SEND_TO = "AW-17088105743/5p6oCL-uq_YaEM_j8_JD";
+
+    function trackHarveyEvent(eventName, params = {}) {
+      try {
+        if (typeof gtag === "function") {
+          gtag("event", eventName, {
+            app_name: "Harvey Taxi",
+            page_location: window.location.href,
+            transport_platform: "harvey_taxi",
+            ...params
+          });
+        }
+      } catch (error) {
+        console.warn("Tracking event failed:", error);
+      }
+    }
+
+    function trackLeadIntent(intentName) {
+      trackHarveyEvent(intentName, {
+        event_category: "lead_intent",
+        event_label: intentName
+      });
+    }
+
+    /*
+      IMPORTANT:
+      Do not fire Google Ads completed conversions here.
+      Completed conversions should fire only after:
+      - rider signup API success
+      - driver signup API success
+      - ride request API success
+      - donation confirmation/success page
+
+      This homepage tracks intent only.
+    */
+    function trackCompletedLeadConversion(actionName, value = 1.0) {
+      try {
+        trackHarveyEvent(actionName, {
+          event_category: "completed_conversion",
+          event_label: actionName
+        });
+
+        if (typeof gtag === "function") {
+          gtag("event", "conversion", {
+            send_to: HARVEY_SUBMIT_LEAD_SEND_TO,
+            value,
+            currency: "USD",
+            event_label: actionName
+          });
+        }
+      } catch (error) {
+        console.warn("Conversion tracking failed:", error);
+      }
+    }
+
+    window.HarveyTracking = {
+      event: trackHarveyEvent,
+      intent: trackLeadIntent,
+      completedLead: trackCompletedLeadConversion
+    };
+
+    function safeGo(path, eventName) {
+      if (eventName) {
+        trackHarveyEvent(eventName);
+      }
+
       window.location.href = path;
     }
+
+    document.addEventListener("click", function (event) {
+      const intentTarget = event.target.closest("[data-intent]");
+      const trackTarget = event.target.closest("[data-track]");
+
+      if (intentTarget) {
+        trackLeadIntent(intentTarget.dataset.intent);
+        return;
+      }
+
+      if (trackTarget) {
+        trackHarveyEvent(trackTarget.dataset.track);
+      }
+    });
 
     function openHarveyAiChat() {
       try {
@@ -1312,22 +1393,20 @@
       overlay.setAttribute("aria-modal", "true");
       overlay.setAttribute("aria-labelledby", "pilot-modal-title");
 
-      const modal = document.createElement("div");
-      modal.className = "modal-card";
-
-      modal.innerHTML = `
-        <div style="font-size: 48px; margin-bottom: 16px;" aria-hidden="true">🚧</div>
-        <h3 id="pilot-modal-title">${safeName} Pilot Coming Soon</h3>
-        <p>
-          Harvey Taxi is actively preparing this service as part of the future multi-service platform.
-          For now, standard driver rides remain the active booking path.
-        </p>
-        <button id="close-pilot-modal" class="btn ghost" type="button" style="width: 100%;">
-          Acknowledge
-        </button>
+      overlay.innerHTML = `
+        <div class="modal-card">
+          <div style="font-size:48px;margin-bottom:16px;" aria-hidden="true">🚧</div>
+          <h3 id="pilot-modal-title">${safeName} Pilot Coming Soon</h3>
+          <p>
+            Harvey Taxi is actively preparing this service as part of the future multi-service platform.
+            For now, standard driver rides remain the active booking path.
+          </p>
+          <button id="close-pilot-modal" class="btn ghost" type="button" style="width:100%;">
+            Acknowledge
+          </button>
+        </div>
       `;
 
-      overlay.appendChild(modal);
       document.body.appendChild(overlay);
 
       const closeBtn = document.getElementById("close-pilot-modal");
@@ -1352,6 +1431,8 @@
     }
 
     window.addEventListener("load", function () {
+      trackHarveyEvent("page_view_home");
+
       setTimeout(function () {
         if (!document.getElementById("harvey-ai-chat-root")) {
           const root = document.createElement("div");
