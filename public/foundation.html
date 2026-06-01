@@ -4,19 +4,45 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
-  <title>Harvey Transportation Assistance Foundation</title>
+  <title>Harvey Transportation Assistance Foundation | Transportation Assistance Tennessee</title>
 
   <meta
     name="description"
-    content="Support Harvey Transportation Assistance Foundation and help remove transportation barriers for medical appointments, school, work, and essential community mobility."
+    content="Support Harvey Transportation Assistance Foundation and help remove transportation barriers for medical appointments, school, work, jobs, and essential community mobility across Tennessee."
   />
 
   <meta name="theme-color" content="#0b1530" />
+  <meta name="robots" content="index, follow" />
 
-  <!-- Preconnect to external assets -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <meta property="og:title" content="Harvey Transportation Assistance Foundation" />
+  <meta
+    property="og:description"
+    content="Helping remove transportation barriers for medical appointments, school, work, and essential mobility across Tennessee."
+  />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://harvey-taxi-app-2.onrender.com/foundation.html" />
+
+  <!-- Google Ads Tag -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18161547185"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){ dataLayer.push(arguments); }
+
+    gtag("js", new Date());
+    gtag("config", "AW-18161547185");
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preconnect" href="https://www.googletagmanager.com" />
+  <link rel="preconnect" href="https://www.paypal.com" />
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+    rel="stylesheet"
+  />
+
+  <link rel="stylesheet" href="/ai-support-widget.css" />
 
   <style>
     :root {
@@ -61,7 +87,7 @@
     }
 
     body {
-      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       color: var(--text);
       min-height: 100vh;
       overflow-x: hidden;
@@ -90,7 +116,8 @@
       text-decoration: none;
     }
 
-    button, a {
+    button,
+    a {
       -webkit-tap-highlight-color: transparent;
       touch-action: manipulation;
     }
@@ -165,7 +192,7 @@
       font-weight: 900;
       color: var(--ink);
       font-size: 1.2rem;
-      letter-spacing: .04em;
+      letter-spacing: 0.04em;
     }
 
     .brand-copy {
@@ -176,13 +203,13 @@
       font-size: 1.05rem;
       font-weight: 800;
       line-height: 1.2;
-      letter-spacing: .01em;
+      letter-spacing: 0.01em;
     }
 
     .brand-copy p {
       margin-top: 4px;
       color: var(--muted);
-      font-size: .86rem;
+      font-size: 0.86rem;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -202,7 +229,7 @@
       color: var(--muted);
       border: 1px solid transparent;
       transition: var(--transition-fast);
-      font-size: .93rem;
+      font-size: 0.93rem;
       font-weight: 700;
       min-height: 44px;
       display: inline-flex;
@@ -288,9 +315,9 @@
       background: rgba(255, 255, 255, 0.04);
       border: 1px solid rgba(255, 255, 255, 0.08);
       color: var(--cyan);
-      font-size: .8rem;
+      font-size: 0.8rem;
       font-weight: 800;
-      letter-spacing: .06em;
+      letter-spacing: 0.06em;
       text-transform: uppercase;
       margin-bottom: 20px;
     }
@@ -299,7 +326,7 @@
       font-size: clamp(2.2rem, 4.5vw, 3.2rem);
       font-weight: 900;
       line-height: 1.05;
-      letter-spacing: -.03em;
+      letter-spacing: -0.03em;
       max-width: 780px;
       margin-bottom: 16px;
     }
@@ -370,9 +397,7 @@
 
     .btn-gold:hover {
       box-shadow: 0 18px 45px rgba(0, 112, 186, 0.35);
-    }
-
-    .impact-strip {
+    }    .impact-strip {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 14px;
@@ -398,7 +423,7 @@
       display: block;
       color: var(--muted);
       line-height: 1.5;
-      font-size: .94rem;
+      font-size: 0.94rem;
     }
 
     .sticky-box {
@@ -415,7 +440,7 @@
     .spotlight-card h3 {
       font-size: 1.4rem;
       font-weight: 800;
-      letter-spacing: -.02em;
+      letter-spacing: -0.02em;
       margin-bottom: 12px;
     }
 
@@ -439,14 +464,14 @@
       background: rgba(255, 255, 255, 0.03);
       color: var(--muted);
       line-height: 1.5;
-      font-size: .88rem;
+      font-size: 0.88rem;
     }
 
     .trust-pill strong {
       display: block;
       color: var(--text);
       margin-bottom: 6px;
-      font-size: .94rem;
+      font-size: 0.94rem;
       font-weight: 700;
     }
 
@@ -473,9 +498,9 @@
       background: rgba(0, 112, 186, 0.15);
       border: 1px solid rgba(0, 112, 186, 0.3);
       color: var(--blue);
-      font-size: .78rem;
+      font-size: 0.78rem;
       font-weight: 800;
-      letter-spacing: .05em;
+      letter-spacing: 0.05em;
       text-transform: uppercase;
     }
 
@@ -483,14 +508,14 @@
       margin-bottom: 10px;
       font-size: 1.3rem;
       line-height: 1.25;
-      letter-spacing: -.02em;
+      letter-spacing: -0.02em;
       font-weight: 800;
     }
 
     .preview-copy {
       color: var(--muted);
       line-height: 1.6;
-      font-size: .95rem;
+      font-size: 0.95rem;
       margin-bottom: 18px;
     }
 
@@ -503,7 +528,7 @@
       border: 1px solid rgba(255, 255, 255, 0.08);
       color: var(--cyan);
       word-break: break-all;
-      font-size: .88rem;
+      font-size: 0.88rem;
       font-weight: 600;
       margin-bottom: 18px;
     }
@@ -518,7 +543,7 @@
       min-height: 48px;
       padding: 0 20px;
       border-radius: 14px;
-      font-size: .92rem;
+      font-size: 0.92rem;
     }
 
     .spotlight-copy {
@@ -532,7 +557,7 @@
     .spotlight-copy strong {
       display: block;
       margin-bottom: 6px;
-      font-size: .96rem;
+      font-size: 0.96rem;
       font-weight: 700;
     }
 
@@ -540,22 +565,34 @@
       display: block;
       color: var(--muted);
       line-height: 1.5;
-      font-size: .92rem;
+      font-size: 0.92rem;
     }
 
     .copy-status {
       display: none;
       padding: 12px 14px;
       border-radius: 14px;
-      font-size: .9rem;
+      font-size: 0.9rem;
       line-height: 1.5;
       border: 1px solid transparent;
       margin-top: 14px;
     }
 
-    .copy-status.show { display: block; }
-    .copy-status.ok { background: rgba(124, 255, 199, 0.1); border-color: rgba(124, 255, 199, 0.18); color: var(--green); }
-    .copy-status.err { background: rgba(255, 142, 162, 0.1); border-color: rgba(255, 142, 162, 0.18); color: #ffcad4; }
+    .copy-status.show {
+      display: block;
+    }
+
+    .copy-status.ok {
+      background: rgba(124, 255, 199, 0.1);
+      border-color: rgba(124, 255, 199, 0.18);
+      color: var(--green);
+    }
+
+    .copy-status.err {
+      background: rgba(255, 142, 162, 0.1);
+      border-color: rgba(255, 142, 162, 0.18);
+      color: #ffcad4;
+    }
 
     .section {
       padding: 20px 0;
@@ -577,7 +614,7 @@
     .section-head h3 {
       font-size: clamp(1.4rem, 2.5vw, 2rem);
       font-weight: 800;
-      letter-spacing: -.03em;
+      letter-spacing: -0.03em;
     }
 
     .section-head p {
@@ -622,7 +659,7 @@
     .feature-card p {
       color: var(--muted);
       line-height: 1.6;
-      font-size: .96rem;
+      font-size: 0.96rem;
     }
 
     .stats-shell {
@@ -644,7 +681,7 @@
       display: block;
       font-size: 1.6rem;
       font-weight: 800;
-      letter-spacing: -.03em;
+      letter-spacing: -0.03em;
       margin-bottom: 6px;
       color: var(--cyan);
     }
@@ -653,12 +690,12 @@
       display: block;
       color: var(--muted);
       line-height: 1.5;
-      font-size: .92rem;
+      font-size: 0.92rem;
     }
 
     .why-shell {
       display: grid;
-      grid-template-columns: 1.05fr .95fr;
+      grid-template-columns: 1.05fr 0.95fr;
       gap: 24px;
     }
 
@@ -725,13 +762,13 @@
       display: block;
       color: var(--muted);
       line-height: 1.6;
-      font-size: .95rem;
+      font-size: 0.95rem;
     }
 
     .cta-card {
       padding: 40px;
       display: grid;
-      grid-template-columns: 1.1fr .9fr;
+      grid-template-columns: 1.1fr 0.9fr;
       gap: 24px;
       align-items: center;
     }
@@ -740,7 +777,7 @@
       margin-bottom: 12px;
       font-size: 1.8rem;
       font-weight: 800;
-      letter-spacing: -.03em;
+      letter-spacing: -0.03em;
       line-height: 1.1;
     }
 
@@ -799,7 +836,7 @@
       gap: 18px;
       flex-wrap: wrap;
       color: var(--muted);
-      font-size: .92rem;
+      font-size: 0.92rem;
     }
 
     .footer-row a {
@@ -814,439 +851,754 @@
     }
 
     @media(max-width: 1080px) {
-      .hero-shell, .why-shell, .cta-card { grid-template-columns: 1fr; }
-      .sticky-box { position: static; }
-      .stats-shell { grid-template-columns: 1fr 1fr; }
+      .hero-shell,
+      .why-shell,
+      .cta-card {
+        grid-template-columns: 1fr;
+      }
+
+      .sticky-box {
+        position: static;
+      }
+
+      .stats-shell {
+        grid-template-columns: 1fr 1fr;
+      }
     }
 
     @media(max-width: 900px) {
-      .nav { display: none; }
-      .grid-3, .impact-strip, .trust-grid { grid-template-columns: 1fr; }
+      .nav {
+        display: none;
+      }
+
+      .grid-3,
+      .impact-strip,
+      .trust-grid {
+        grid-template-columns: 1fr;
+      }
     }
 
     @media(max-width: 640px) {
-      :root { --topbarH: 74px; --navH: 88px; }
-      .shell { width: min(var(--maxw), calc(100% - 24px)); }
-      .topbar-inner { align-items: flex-start; }
-      .brand-copy p { white-space: normal; }
-      .hero { padding-top: 24px; }
-      .hero-card, .spotlight-card, .section-card, .why-card, .cta-card { padding: 24px; border-radius: 24px; }
-      .hero-card h2 { font-size: 2.2rem; }
-      .hero-actions, .preview-actions { flex-direction: column; }
-      .btn { width: 100%; }
-      .stats-shell { grid-template-columns: 1fr; }
-      .bottom-nav { justify-content: flex-start; overflow-x: auto; gap: 6px; }
-      .nav-btn { flex: 0 0 auto; }
+      :root {
+        --topbarH: 74px;
+        --navH: 88px;
+      }
+
+      .shell {
+        width: min(var(--maxw), calc(100% - 24px));
+      }
+
+      .topbar-inner {
+        align-items: flex-start;
+      }
+
+      .brand-copy p {
+        white-space: normal;
+      }
+
+      .hero {
+        padding-top: 24px;
+      }
+
+      .hero-card,
+      .spotlight-card,
+      .section-card,
+      .why-card,
+      .cta-card {
+        padding: 24px;
+        border-radius: 24px;
+      }
+
+      .hero-card h2 {
+        font-size: 2.2rem;
+      }
+
+      .hero-actions,
+      .preview-actions {
+        flex-direction: column;
+      }
+
+      .btn {
+        width: 100%;
+      }
+
+      .stats-shell {
+        grid-template-columns: 1fr;
+      }
+
+      .bottom-nav {
+        justify-content: flex-start;
+        overflow-x: auto;
+        gap: 6px;
+      }
+
+      .nav-btn {
+        flex: 0 0 auto;
+      }
     }
   </style>
 
   <link rel="stylesheet" href="/ai-support-widget.css" />
 </head>
 
-<body>
-  <header class="topbar">
-    <div class="shell topbar-inner">
-      <a href="index.html" class="brand" aria-label="Harvey Taxi home">
-        <div class="brand-mark">
-          <img
-            src="/images/foundation-logo.png"
-            alt="Harvey Transportation Assistance Foundation logo"
-            onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=&quot;brand-fallback&quot;>HT</div>';"
-          />
+<body><header class="topbar">
+  <div class="shell topbar-inner">
+
+    <a href="index.html" class="brand" aria-label="Harvey Taxi home">
+      <div class="brand-mark">
+        <img
+          src="/images/foundation-logo.png"
+          alt="Harvey Transportation Assistance Foundation Logo"
+          onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=&quot;brand-fallback&quot;>HT</div>';"
+        />
+      </div>
+
+      <div class="brand-copy">
+        <h1>Harvey Transportation Assistance Foundation</h1>
+        <p>Transportation Access • Community Impact • Mobility Support</p>
+      </div>
+    </a>
+
+    <nav class="nav" aria-label="Primary navigation">
+      <a href="index.html">Home</a>
+      <a href="#impact">Impact</a>
+      <a href="#programs">Programs</a>
+      <a href="#faq">FAQ</a>
+      <a href="support.html">Support</a>
+      <a href="#donate" class="cta">Donate Now</a>
+    </nav>
+
+  </div>
+</header>
+
+<main>
+
+<section class="hero">
+  <div class="shell hero-shell">
+
+    <section class="card hero-card">
+
+      <div class="hero-content">
+
+        <div class="eyebrow">
+          Tennessee Transportation Assistance Initiative
         </div>
 
-        <div class="brand-copy">
-          <h1>Harvey Transportation Assistance Foundation</h1>
-          <p>Help us remove transportation barriers</p>
+        <h2>
+          Transportation Should Never Be The Reason Someone Misses Opportunity.
+        </h2>
+
+        <p>
+          Harvey Transportation Assistance Foundation exists to help remove
+          transportation barriers for individuals and families facing challenges
+          accessing healthcare, employment, education, and essential services.
+          Every contribution directly supports mobility-focused community
+          assistance programs designed to create access and opportunity.
+        </p>
+
+        <div class="hero-actions">
+
+          <a
+            href="https://www.paypal.com/us/fundraiser/charity/5906918"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="btn btn-gold"
+          >
+            💙 Donate via PayPal Giving Fund
+          </a>
+
+          <a href="#impact" class="btn btn-primary">
+            View Community Impact
+          </a>
+
+          <button
+            type="button"
+            class="btn btn-secondary"
+            onclick="openHarveyAiChat()"
+          >
+            Ask AI Support
+          </button>
+
         </div>
-      </a>
 
-      <nav class="nav" aria-label="Primary navigation">
-        <a href="index.html">Home</a>
-        <a href="request-ride.html?mode=driver">Request Ride</a>
-        <a href="support.html">Support</a>
-        <a href="#impact">Impact</a>
-        <a href="#why-give">Why Give</a>
-        <a href="#faq">FAQ</a>
-        <a href="#donate" class="cta">Donate Now</a>
-      </nav>
-    </div>
-  </header>
+      </div>
 
-  <main>
-    <section class="hero">
-      <div class="shell hero-shell">
+    </section>
+
+    <aside>
+
+      <div class="sticky-box">
+
+        <section class="card spotlight-card" id="donate">
+
+          <h3>Support Transportation Access</h3>
+
+          <p>
+            Your donation helps connect individuals and families to medical
+            appointments, work opportunities, educational programs, and
+            essential community services.
+          </p>
+
+          <div class="trust-grid">
+
+            <div class="trust-pill">
+              <strong>Medical Transportation</strong>
+              Support rides to healthcare providers and treatment facilities.
+            </div>
+
+            <div class="trust-pill">
+              <strong>Employment Access</strong>
+              Help people reach jobs, interviews, and workforce programs.
+            </div>
+
+            <div class="trust-pill">
+              <strong>Education Support</strong>
+              Improve transportation access for students and training programs.
+            </div>
+
+            <div class="trust-pill">
+              <strong>Community Mobility</strong>
+              Assist individuals facing transportation hardships.
+            </div>
+
+          </div>
+
+          <div class="link-preview">
+
+            <div class="preview-badge">
+              Verified PayPal Giving Fund
+            </div>
+
+            <h4 class="preview-title">
+              Donate Securely Today
+            </h4>
+
+            <p class="preview-copy">
+              Every contribution supports transportation assistance programs
+              designed to improve mobility and access throughout Tennessee.
+            </p>
+
+            <a
+              class="preview-link"
+              href="https://www.paypal.com/us/fundraiser/charity/5906918"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              https://www.paypal.com/us/fundraiser/charity/5906918
+            </a>
+
+            <div class="preview-actions">
+
+              <a
+                href="https://www.paypal.com/us/fundraiser/charity/5906918"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="btn btn-gold btn-compact"
+              >
+                Donate Now
+              </a>
+
+              <button
+                class="btn btn-secondary btn-compact"
+                type="button"
+                onclick="copyDonationLink()"
+              >
+                Copy Link
+              </button>
+
+            </div>
+
+          </div>
+
+          <div class="spotlight-copy">
+            <strong>Community Powered Impact</strong>
+            <span>
+              Every donation contributes toward expanding transportation access
+              and reducing mobility barriers across Tennessee communities.
+            </span>
+          </div>
+
+          <div id="copyStatus" class="copy-status"></div>
+
+        </section>
+
+      </div>
+
+    </aside>
+
+  </div>
+</section>
+
+<section class="section" id="impact">
+
+  <div class="shell">
+
+    <section class="card section-card">
+
+      <div class="section-head">
+
         <div>
-          <section class="card hero-card">
-            <div class="hero-content">
-              <div class="eyebrow">Community Transportation Support</div>
+          <h3>Community Impact Areas</h3>
 
-              <h2>Help us remove transportation barriers.</h2>
+          <p>
+            Transportation access affects nearly every aspect of daily life.
+            Our programs focus on helping people stay connected to critical
+            opportunities and services.
+          </p>
+        </div>
 
-              <p>
-                Your donation helps support transportation assistance for individuals and families who need access to medical appointments, school, work, and essential community mobility. Every contribution helps move people toward stability, opportunity, and connection.
-              </p>
+      </div>
 
-              <div class="hero-actions">
-                <a class="btn btn-gold" href="https://www.paypal.com/us/fundraiser/charity/5906918" target="_blank" rel="noopener noreferrer">
-                  💙 Donate via PayPal Giving Portal
-                </a>
+      <div class="grid-3">
 
-                <a class="btn btn-secondary" href="#impact">
-                  See Impact
-                </a>
+        <article class="feature-card">
 
-                <button class="btn btn-secondary" type="button" onclick="openHarveyAiChat()">
-                  Ask AI Support
-                </button>
+          <div class="feature-icon">🏥</div>
+
+          <h4>Medical Transportation</h4>
+
+          <p>
+            Helping individuals reach healthcare appointments, treatment
+            facilities, pharmacies, and wellness services.
+          </p>
+
+        </article>
+
+        <article class="feature-card">
+
+          <div class="feature-icon">💼</div>
+
+          <h4>Employment Mobility</h4>
+
+          <p>
+            Supporting transportation access for interviews, training
+            opportunities, and workforce participation.
+          </p>
+
+        </article>
+
+        <article class="feature-card">
+
+          <div class="feature-icon">🎓</div>
+
+          <h4>Educational Access</h4>
+
+          <p>
+            Supporting transportation needs that help students access learning
+            opportunities and educational programs.
+          </p>
+
+        </article>
+
+      </div>      <section class="section" id="programs">
+
+        <div class="shell">
+
+          <section class="card section-card">
+
+            <div class="section-head">
+              <div>
+                <h3>Foundation Programs</h3>
+
+                <p>
+                  Harvey Transportation Assistance Foundation focuses on
+                  transportation-related support programs designed to help
+                  individuals overcome mobility barriers and maintain access
+                  to essential opportunities.
+                </p>
               </div>
             </div>
+
+            <div class="grid-3">
+
+              <article class="feature-card">
+                <div class="feature-icon">🚑</div>
+                <h4>Healthcare Access</h4>
+                <p>
+                  Transportation assistance for medical appointments,
+                  treatments, healthcare facilities, pharmacies, and wellness
+                  programs.
+                </p>
+              </article>
+
+              <article class="feature-card">
+                <div class="feature-icon">💼</div>
+                <h4>Workforce Access</h4>
+                <p>
+                  Helping individuals reach employment opportunities,
+                  interviews, training programs, and workforce development
+                  initiatives.
+                </p>
+              </article>
+
+              <article class="feature-card">
+                <div class="feature-icon">🏫</div>
+                <h4>Education Mobility</h4>
+                <p>
+                  Supporting transportation access for students, educational
+                  programs, certifications, and career advancement resources.
+                </p>
+              </article>
+
+            </div>
+
           </section>
 
-          <section class="impact-strip">
-            <article class="impact-mini">
-              <strong>Medical rides</strong>
-              <span>Support transportation access for healthcare visits, treatment, and appointments.</span>
-            </article>
-
-            <article class="impact-mini">
-              <strong>School and work access</strong>
-              <span>Help people reach education, training, interviews, and employment opportunities.</span>
-            </article>
-
-            <article class="impact-mini">
-              <strong>Community mobility</strong>
-              <span>Strengthen local transportation support where it is needed most.</span>
-            </article>
-          </section>
         </div>
 
-        <aside>
-          <div class="sticky-box">
-            <section class="card spotlight-card" id="donate">
-              <h3>Support the Foundation</h3>
+      </section>
 
-              <p>
-                Harvey Transportation Assistance Foundation is focused on reducing transportation barriers for individuals and families who need reliable access to care, education, work, and essential services.
-              </p>
+      <section class="section">
 
-              <div class="trust-grid">
-                <div class="trust-pill">
-                  <strong>Mission-focused impact</strong>
-                  Support transportation access where it creates meaningful community value.
-                </div>
+        <div class="shell">
 
-                <div class="trust-pill">
-                  <strong>PayPal Giving Fund</strong>
-                  Secure processing ensures 100% of your donation safely reaches our programs.
-                </div>
-              </div>
+          <section class="card section-card">
 
-              <div class="link-preview">
-                <div class="preview-badge">PayPal Verified Charity Hub</div>
+            <div class="section-head">
+              <div>
+                <h3>Why Transportation Matters</h3>
 
-                <h4 class="preview-title">Invest in access, mobility, and opportunity</h4>
-
-                <p class="preview-copy">
-                  Every contribution helps strengthen transportation support for people navigating medical appointments, employment, education, and essential daily needs.
+                <p>
+                  Transportation is often the missing link between people and
+                  opportunity. Reliable mobility affects healthcare outcomes,
+                  employment success, educational achievement, and overall
+                  quality of life.
                 </p>
-
-                <a class="preview-link" href="https://www.paypal.com/us/fundraiser/charity/5906918" target="_blank" rel="noopener noreferrer">
-                  https://www.paypal.com/us/fundraiser/charity/5906918
-                </a>
-
-                <div class="preview-actions">
-                  <a class="btn btn-gold btn-compact" href="https://www.paypal.com/us/fundraiser/charity/5906918" target="_blank" rel="noopener noreferrer">
-                    Support via PayPal
-                  </a>
-
-                  <button class="btn btn-secondary btn-compact" type="button" onclick="copyDonationLink()">
-                    Copy Portal Link
-                  </button>
-                </div>
               </div>
+            </div>
 
-              <div class="spotlight-copy">
-                <strong>Professional, clear, and donor-friendly</strong>
+            <div class="stats-shell">
+
+              <div class="stat-card">
+                <strong>Healthcare</strong>
                 <span>
-                  This page is built to be shared with supporters, partners, grant reviewers, and community contacts.
+                  Transportation barriers often contribute to missed medical
+                  appointments and delayed care.
                 </span>
               </div>
 
-              <div id="copyStatus" class="copy-status"></div>
-            </section>
-          </div>
-        </aside>
-      </div>
-    </section>
+              <div class="stat-card">
+                <strong>Employment</strong>
+                <span>
+                  Reliable transportation supports workforce participation and
+                  economic stability.
+                </span>
+              </div>
 
-    <section class="section" id="impact">
-      <div class="shell">
-        <div class="card section-card">
-          <div class="section-head">
-            <div>
-              <h3>Where support goes</h3>
-              <p>
-                Every donation helps strengthen real transportation access for people facing mobility barriers in daily life.
-              </p>
-            </div>
-          </div>
+              <div class="stat-card">
+                <strong>Education</strong>
+                <span>
+                  Mobility access helps students participate consistently in
+                  educational opportunities.
+                </span>
+              </div>
 
-          <div class="grid-3">
-            <article class="feature-card">
-              <div class="feature-icon">🏥</div>
-              <h4>Medical appointments</h4>
-              <p>
-                Support dependable transportation for healthcare access, treatment schedules, follow-up visits, pharmacy needs, and essential care mobility.
-              </p>
-            </article>
+              <div class="stat-card">
+                <strong>Community</strong>
+                <span>
+                  Transportation strengthens community engagement and access
+                  to support resources.
+                </span>
+              </div>
 
-            <article class="feature-card">
-              <div class="feature-icon">🎓</div>
-              <h4>School and employment</h4>
-              <p>
-                Help remove transportation obstacles that can prevent people from reaching classrooms, job training, interviews, and work opportunities.
-              </p>
-            </article>
-
-            <article class="feature-card">
-              <div class="feature-icon">🚘</div>
-              <h4>Essential community access</h4>
-              <p>
-                Strengthen everyday mobility for individuals and families who need a reliable way to stay connected to services, opportunity, and support systems.
-              </p>
-            </article>
-          </div>
-
-          <div class="stats-shell">
-            <div class="stat-card">
-              <strong>Access</strong>
-              <span>Help close transportation gaps that interrupt healthcare, education, and work.</span>
             </div>
 
-            <div class="stat-card">
-              <strong>Relief</strong>
-              <span>Support families facing mobility barriers and transportation instability.</span>
-            </div>
+          </section>
 
-            <div class="stat-card">
-              <strong>Opportunity</strong>
-              <span>Make it easier for people to reach jobs, training, and essential services.</span>
-            </div>
-
-            <div class="stat-card">
-              <strong>Community</strong>
-              <span>Strengthen the local support network through transportation-focused giving.</span>
-            </div>
-          </div>
         </div>
-      </div>
-    </section>
 
-    <section class="section" id="why-give">
-      <div class="shell why-shell">
-        <section class="card why-card">
-          <h3>Why give</h3>
-          <ul class="why-list">
-            <li>Support a transportation-focused nonprofit mission.</li>
-            <li>Help expand reliable ride access for people in need.</li>
-            <li>Strengthen community support and outreach efforts.</li>
-            <li>Help remove mobility barriers that limit daily opportunity.</li>
-          </ul>
-        </section>
+      </section>
 
-        <section class="card why-card">
-          <h3>Why it matters</h3>
-          <p>
-            Transportation is often the missing link between people and opportunity. Access to a ride can help someone reach care, keep a job, stay in school, and remain connected to resources that support daily life and long-term stability.
-          </p>
-        </section>
-      </div>
-    </section>
+      <section class="section" id="why-give">
 
-    <section class="section" id="faq">
-      <div class="shell">
-        <section class="card section-card">
-          <div class="section-head">
-            <div>
-              <h3>Supporter FAQ</h3>
-              <p>
-                Clear answers for supporters, partners, and community members exploring the foundation mission.
-              </p>
-            </div>
-          </div>
+        <div class="shell why-shell">
 
-          <div class="faq-grid">
-            <article class="faq-item">
-              <strong>What does the foundation support?</strong>
-              <span>
-                Harvey Transportation Assistance Foundation supports transportation access tied to medical appointments, school, work, and essential community mobility.
-              </span>
-            </article>
+          <section class="card why-card">
 
-            <article class="faq-item">
-              <strong>How do I donate?</strong>
-              <span>
-                Use the verified PayPal Charity links embedded on this interface to securely route capital directly through the PayPal Giving Fund.
-              </span>
-            </article>
+            <h3>Why Give?</h3>
 
-            <article class="faq-item">
-              <strong>Can I share this page with supporters?</strong>
-              <span>
-                Yes. This page is designed to be shared with supporters, partners, and community contacts who want to help.
-              </span>
-            </article>
+            <ul class="why-list">
 
-            <article class="faq-item">
-              <strong>Is this separate from Harvey Taxi Service LLC?</strong>
-              <span>
-                Yes. The foundation mission remains completely distinct from the for-profit platform operations while both work to resolve distinct gaps within our local transportation network.
-              </span>
-            </article>
-          </div>
-        </section>
-      </div>
-    </section>
+              <li>
+                Help remove transportation barriers for individuals and
+                families.
+              </li>
 
-    <section class="section">
-      <div class="shell">
-        <section class="card cta-card">
-          <div class="cta-copy">
-            <h3>Every contribution helps move someone forward.</h3>
+              <li>
+                Support access to healthcare, education, and employment.
+              </li>
+
+              <li>
+                Strengthen transportation-focused community assistance.
+              </li>
+
+              <li>
+                Help create pathways toward opportunity and stability.
+              </li>
+
+              <li>
+                Support a transportation-centered nonprofit mission.
+              </li>
+
+            </ul>
+
+          </section>
+
+          <section class="card why-card">
+
+            <h3>Our Mission</h3>
+
             <p>
-              Join the Harvey Transportation Assistance Foundation mission and help support transportation access for medical appointments, school, work, and essential community mobility.
+              Harvey Transportation Assistance Foundation exists to reduce
+              transportation-related hardships by helping connect people with
+              the resources, opportunities, and destinations that improve
+              their quality of life. Through transportation-focused support
+              initiatives, we aim to strengthen mobility access throughout
+              Tennessee communities.
             </p>
-          </div>
 
-          <div class="cta-actions">
-            <a class="btn btn-gold" href="https://www.paypal.com/us/fundraiser/charity/5906918" target="_blank" rel="noopener noreferrer">
-              💙 Support Our Mission via PayPal
-            </a>
+          </section>
 
-            <button class="btn btn-secondary" type="button" onclick="copyDonationLink()">
-              Copy Donation Link
-            </button>
+        </div>
 
-            <a class="btn btn-secondary" href="support.html">
-              Contact Support
-            </a>
-          </div>
-        </section>
-      </div>
-    </section>
-  </main>
+      </section>
 
-  <footer class="footer">
-    <div class="shell footer-row">
-      <div>© Harvey Transportation Assistance Foundation</div>
+      <section class="section" id="faq">
 
-      <div class="footer-links">
-        <a href="index.html">Home</a>
-        <a href="support.html">Support</a>
-        <a href="privacy.html">Privacy</a>
-        <a href="terms.html">Terms</a>
-        <a href="https://www.paypal.com/us/fundraiser/charity/5906918" target="_blank" rel="noopener noreferrer">
-          Donate Securely via PayPal
-        </a>
-      </div>
+        <div class="shell">
+
+          <section class="card section-card">
+
+            <div class="section-head">
+              <div>
+                <h3>Frequently Asked Questions</h3>
+
+                <p>
+                  Common questions from supporters, donors, partners, and
+                  community members.
+                </p>
+              </div>
+            </div>
+
+            <div class="faq-grid">
+
+              <article class="faq-item">
+                <strong>How can I support the foundation?</strong>
+                <span>
+                  Donations can be made securely through our PayPal Giving
+                  Fund donation portal.
+                </span>
+              </article>
+
+              <article class="faq-item">
+                <strong>What does my donation support?</strong>
+                <span>
+                  Donations help support transportation-related community
+                  assistance initiatives and mobility access programs.
+                </span>
+              </article>
+
+              <article class="faq-item">
+                <strong>Can I share this page?</strong>
+                <span>
+                  Absolutely. We encourage supporters to share our mission
+                  with family, friends, businesses, and community partners.
+                </span>
+              </article>
+
+              <article class="faq-item">
+                <strong>Is the foundation separate from Harvey Taxi?</strong>
+                <span>
+                  Yes. Harvey Transportation Assistance Foundation operates
+                  independently as a nonprofit-focused mission supporting
+                  transportation access and mobility assistance.
+                </span>
+              </article>
+
+            </div>
+
+          </section>
+
+        </div>
+
+      </section>
+
+      <section class="section">
+
+        <div class="shell">
+
+          <section class="card cta-card">
+
+            <div class="cta-copy">
+
+              <h3>
+                Every Donation Helps Someone Move Forward.
+              </h3>
+
+              <p>
+                Join our mission to help reduce transportation barriers and
+                create access to healthcare, education, employment, and
+                community resources.
+              </p>
+
+            </div>
+
+            <div class="cta-actions">
+
+              <a
+                href="https://www.paypal.com/us/fundraiser/charity/5906918"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="btn btn-gold"
+              >
+                💙 Donate Securely
+              </a>
+
+              <button
+                class="btn btn-secondary"
+                type="button"
+                onclick="copyDonationLink()"
+              >
+                Copy Donation Link
+              </button>
+
+              <button
+                class="btn btn-primary"
+                type="button"
+                onclick="openHarveyAiChat()"
+              >
+                Ask AI Support
+              </button>
+
+            </div>
+
+          </section>
+
+        </div>
+
+      </section>
+
+</main>
+
+<footer class="footer">
+
+  <div class="shell footer-row">
+
+    <div>
+      © 2026 Harvey Transportation Assistance Foundation
     </div>
-  </footer>
 
-  <nav class="bottom-nav" aria-label="Bottom navigation">
-    <button class="nav-btn" type="button" onclick="window.location.href='index.html'">Home</button>
-    <button class="nav-btn" type="button" onclick="window.location.href='request-ride.html?mode=driver'">Rides</button>
-    <button class="nav-btn active" type="button" onclick="window.location.reload()">Foundation</button>
-    <button class="nav-btn" type="button" onclick="window.location.href='support.html'">Support</button>
-    <button class="nav-btn" type="button" onclick="openHarveyAiChat()">AI Help</button>
-  </nav>
+    <div class="footer-links">
+      <a href="index.html">Home</a>
+      <a href="support.html">Support</a>
+      <a href="privacy.html">Privacy</a>
+      <a href="terms.html">Terms</a>
 
-  <script src="/ai-support-widget.js"></script>
+      <a
+        href="https://www.paypal.com/us/fundraiser/charity/5906918"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Donate
+      </a>
+    </div>
 
-  <script>
-    const DONATION_LINK = "https://www.paypal.com/us/fundraiser/charity/5906918";
-    const copyStatusEl = document.getElementById("copyStatus");
+  </div>
 
-    window.HARVEY_API_BASE = window.location.origin && window.location.origin.includes("http") ? window.location.origin : "";
+</footer>
 
-    function showCopyStatus(message, ok = true) {
-      if (!copyStatusEl) return;
+<nav class="bottom-nav">
 
-      copyStatusEl.textContent = message;
-      copyStatusEl.className = "copy-status show " + (ok ? "ok" : "err");
+  <button class="nav-btn"
+    onclick="window.location.href='index.html'">
+    Home
+  </button>
 
-      window.clearTimeout(showCopyStatus._timer);
-      showCopyStatus._timer = window.setTimeout(() => {
-        copyStatusEl.className = "copy-status";
-        copyStatusEl.textContent = "";
-      }, 2400);
+  <button class="nav-btn"
+    onclick="window.location.href='request-ride.html?mode=driver'">
+    Rides
+  </button>
+
+  <button class="nav-btn active">
+    Foundation
+  </button>
+
+  <button class="nav-btn"
+    onclick="window.location.href='support.html'">
+    Support
+  </button>
+
+  <button class="nav-btn"
+    onclick="openHarveyAiChat()">
+    AI Help
+  </button>
+
+</nav>
+
+<script src="/ai-support-widget.js"></script>
+
+<script>
+
+const DONATION_LINK =
+"https://www.paypal.com/us/fundraiser/charity/5906918";
+
+const copyStatusEl =
+document.getElementById("copyStatus");
+
+function showCopyStatus(message, ok = true) {
+
+  if (!copyStatusEl) return;
+
+  copyStatusEl.textContent = message;
+
+  copyStatusEl.className =
+    "copy-status show " + (ok ? "ok" : "err");
+
+  setTimeout(() => {
+    copyStatusEl.className = "copy-status";
+    copyStatusEl.textContent = "";
+  }, 2500);
+}
+
+async function copyDonationLink() {
+
+  try {
+
+    await navigator.clipboard.writeText(
+      DONATION_LINK
+    );
+
+    showCopyStatus(
+      "Donation link copied successfully."
+    );
+
+  } catch {
+
+    showCopyStatus(
+      "Unable to copy automatically.",
+      false
+    );
+  }
+}
+
+function openHarveyAiChat() {
+
+  try {
+
+    if (
+      window.HarveyAI &&
+      typeof window.HarveyAI.open === "function"
+    ) {
+      window.HarveyAI.open();
+      return;
     }
 
-    async function copyText(value, successMessage) {
-      try {
-        await navigator.clipboard.writeText(value);
-        showCopyStatus(successMessage, true);
-      } catch (error) {
-        const textArea = document.createElement("textarea");
-        textArea.value = value;
-        textArea.style.position = "fixed";
-        textArea.style.opacity = "0";
-        textArea.style.pointerEvents = "none";
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
+  } catch (err) {}
 
-        try {
-          document.execCommand("copy");
-          showCopyStatus(successMessage, true);
-        } catch (fallbackError) {
-          showCopyStatus("Unable to copy automatically. Please copy the link manually.", false);
-        }
+  window.location.href = "support.html";
+}
 
-        document.body.removeChild(textArea);
-      }
-    }
+</script>
 
-    function copyDonationLink() {
-      copyText(DONATION_LINK, "PayPal fundraising link copied to clipboard.");
-    }
-
-    function openHarveyAiChat() {
-      try {
-        if (window.HarveyAI && typeof window.HarveyAI.open === "function") {
-          window.HarveyAI.open();
-          return;
-        }
-
-        const root = document.getElementById("harvey-ai-chat-root");
-
-        if (root) {
-          const toggle =
-            root.querySelector("[data-harvey-ai-open]") ||
-            root.querySelector(".harvey-ai-launch") ||
-            root.querySelector("button");
-
-          if (toggle && typeof toggle.click === "function") {
-            toggle.click();
-            return;
-          }
-        }
-
-        window.location.href = "support.html";
-      } catch (error) {
-        window.location.href = "support.html";
-      }
-    }
-
-    window.addEventListener("load", function () {
-      setTimeout(function () {
-        if (!document.getElementById("harvey-ai-chat-root")) {
-          const root = document.createElement("div");
-          root.id = "harvey-ai-chat-root";
-          document.body.appendChild(root);
-        }
-      }, 80);
-    });
-  </script>
 </body>
 </html>
