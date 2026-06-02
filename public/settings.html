@@ -3,389 +3,150 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Harvey Taxi — Settings</title>
-  <meta name="theme-color" content="#07111f" />
+  <title>Harvey Logistics — System Preferences</title>
+  <meta name="theme-color" content="#020617" />
+
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 
   <style>
-    :root{
-      --bg:#040814;
-      --card:rgba(11,20,39,.92);
-      --line:rgba(125,170,255,.22);
-      --text:#f8fbff;
-      --soft:#b8c7e6;
-      --muted:#7f91b8;
-      --blue:#4da3ff;
-      --cyan:#46f0ff;
-      --green:#38e08f;
-      --red:#ff5c7a;
-      --yellow:#ffd166;
+    body {
+      background: linear-gradient(135deg, #020617 0%, #0b1329 100%);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
-
-    *{box-sizing:border-box}
-
-    body{
-      margin:0;
-      min-height:100vh;
-      font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-      color:var(--text);
-      background:
-        radial-gradient(circle at top left,rgba(77,163,255,.18),transparent 35%),
-        linear-gradient(180deg,#040814,#07111f 48%,#02050c);
-      padding:24px 14px;
-    }
-
-    .shell{
-      width:min(860px,100%);
-      margin:0 auto;
-    }
-
-    .topbar{
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:12px;
-      margin-bottom:18px;
-    }
-
-    .brand{
-      display:flex;
-      align-items:center;
-      gap:12px;
-      color:white;
-      text-decoration:none;
-    }
-
-    .mark{
-      width:44px;
-      height:44px;
-      border-radius:16px;
-      display:grid;
-      place-items:center;
-      color:#03101f;
-      font-weight:900;
-      background:linear-gradient(135deg,#fff,#7fc3ff,#46f0ff);
-    }
-
-    .brand strong{display:block}
-    .brand span{display:block;color:var(--soft);font-size:.8rem}
-
-    .back{
-      color:var(--soft);
-      text-decoration:none;
-      border:1px solid var(--line);
-      border-radius:999px;
-      padding:10px 13px;
-      font-weight:800;
-      background:rgba(255,255,255,.05);
-    }
-
-    .hero,
-    .card{
-      border:1px solid var(--line);
-      background:linear-gradient(180deg,rgba(14,27,55,.9),rgba(5,10,22,.95));
-      border-radius:28px;
-      box-shadow:0 24px 70px rgba(0,0,0,.45);
-    }
-
-    .hero{
-      padding:28px;
-      margin-bottom:16px;
-    }
-
-    .hero h1{
-      margin:0 0 10px;
-      font-size:clamp(2rem,7vw,4rem);
-      line-height:.95;
-      letter-spacing:-.07em;
-      background:linear-gradient(135deg,#fff,#a8d6ff,#46f0ff);
-      -webkit-background-clip:text;
-      color:transparent;
-    }
-
-    .hero p{
-      margin:0;
-      color:var(--soft);
-      line-height:1.6;
-    }
-
-    .grid{
-      display:grid;
-      gap:16px;
-    }
-
-    .card{
-      padding:20px;
-    }
-
-    .card h2{
-      margin:0 0 8px;
-      font-size:1.2rem;
-      letter-spacing:-.04em;
-    }
-
-    .card p{
-      margin:0 0 14px;
-      color:var(--soft);
-      line-height:1.55;
-      font-size:.92rem;
-    }
-
-    .setting-row{
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:12px;
-      padding:14px;
-      border:1px solid var(--line);
-      border-radius:18px;
-      background:rgba(255,255,255,.045);
-      margin-top:10px;
-    }
-
-    .setting-row strong{
-      display:block;
-      margin-bottom:4px;
-    }
-
-    .setting-row span{
-      color:var(--muted);
-      font-size:.82rem;
-      line-height:1.4;
-    }
-
-    .switch{
-      position:relative;
-      width:58px;
-      height:32px;
-      flex:0 0 auto;
-    }
-
-    .switch input{
-      display:none;
-    }
-
-    .slider{
-      position:absolute;
-      inset:0;
-      border-radius:999px;
-      background:rgba(255,255,255,.15);
-      border:1px solid var(--line);
-      transition:.2s ease;
-    }
-
-    .slider:before{
-      content:"";
-      position:absolute;
-      width:24px;
-      height:24px;
-      left:4px;
-      top:3px;
-      border-radius:999px;
-      background:white;
-      transition:.2s ease;
-    }
-
-    .switch input:checked + .slider{
-      background:rgba(56,224,143,.35);
-      border-color:rgba(56,224,143,.5);
-    }
-
-    .switch input:checked + .slider:before{
-      transform:translateX(25px);
-    }
-
-    input,
-    select{
-      width:100%;
-      border:1px solid var(--line);
-      background:rgba(2,8,20,.75);
-      color:var(--text);
-      border-radius:16px;
-      padding:14px;
-      outline:none;
-    }
-
-    label{
-      display:block;
-      margin:12px 0 7px;
-      color:#dfeaff;
-      font-weight:800;
-      font-size:.85rem;
-    }
-
-    .btn{
-      width:100%;
-      border:0;
-      border-radius:18px;
-      padding:15px 16px;
-      font-weight:900;
-      margin-top:12px;
-      cursor:pointer;
-    }
-
-    .primary{
-      color:#03101f;
-      background:linear-gradient(135deg,#fff,#7fc3ff,#46f0ff);
-    }
-
-    .secondary{
-      color:var(--text);
-      background:rgba(255,255,255,.07);
-      border:1px solid var(--line);
-    }
-
-    .danger{
-      color:#ffe5eb;
-      background:rgba(255,92,122,.13);
-      border:1px solid rgba(255,92,122,.35);
-    }
-
-    .notice{
-      display:none;
-      margin-top:12px;
-      border-radius:18px;
-      padding:14px;
-      line-height:1.45;
-      color:var(--soft);
-      border:1px solid var(--line);
-      background:rgba(255,255,255,.045);
-    }
-
-    .notice.show{display:block}
-    .notice.success{color:#d4ffe9;border-color:rgba(56,224,143,.35);background:rgba(56,224,143,.09)}
-    .notice.error{color:#ffdbe3;border-color:rgba(255,92,122,.35);background:rgba(255,92,122,.09)}
-    .notice.warning{color:#fff0c4;border-color:rgba(255,209,102,.35);background:rgba(255,209,102,.09)}
-
-    @media(max-width:640px){
-      .setting-row{align-items:flex-start}
-      .topbar{align-items:flex-start}
+    .custom-transition {
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     }
   </style>
 </head>
+<body class="min-h-screen text-slate-100 py-8 px-4 sm:px-6 antialiased flex items-center justify-center">
 
-<body>
-  <main class="shell">
-
-    <header class="topbar">
-      <a href="/" class="brand">
-        <div class="mark">H</div>
+  <main class="w-full max-w-2xl bg-slate-900/80 border border-slate-800/80 backdrop-blur-xl rounded-3xl shadow-2xl p-6 sm:p-8 space-y-6 custom-transition">
+    
+    <header class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-5 border-b border-slate-800/80">
+      <a href="/" class="group flex items-center gap-3.5 no-underline">
+        <div class="w-12 h-12 rounded-2xl font-black text-slate-950 bg-gradient-to-tr from-white via-blue-200 to-cyan-300 flex items-center justify-center shadow-lg shadow-blue-500/10 group-hover:scale-[1.03] transition-transform">
+          H
+        </div>
         <div>
-          <strong>Harvey Taxi</strong>
-          <span>App Settings</span>
+          <strong class="block text-lg font-bold tracking-tight text-white group-hover:text-blue-400 transition-colors">Harvey Logistics</strong>
+          <span class="block text-xs text-slate-400 mt-0.5">Global System Settings</span>
         </div>
       </a>
-
-      <a class="back" href="/rider-dashboard.html">Dashboard</a>
+      <a class="self-start sm:self-auto text-xs font-semibold px-4 py-2.5 rounded-full bg-slate-950 hover:bg-slate-800 text-slate-300 hover:text-slate-100 border border-slate-800 hover:border-slate-700 transition-all cursor-pointer shadow-sm text-center" href="/rider-dashboard.html">
+        Return to Dashboard
+      </a>
     </header>
 
-    <section class="hero">
-      <h1>Settings</h1>
-      <p>
-        Manage Harvey Taxi app preferences, battery optimization,
-        notifications, account type, and account deletion.
+    <section class="bg-slate-950/40 border border-slate-800/60 rounded-2xl p-5 space-y-1.5">
+      <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">Preferences Engine</h1>
+      <p class="text-xs leading-relaxed text-slate-400">
+        Calibrate hardware polling optimizations, execution variables, account routing state identities, and data lifecycle management directives.
       </p>
     </section>
 
-    <section class="grid">
+    <div class="space-y-6">
 
-      <div class="card">
-        <h2>Account</h2>
-        <p>Select whether this settings action is for a rider or driver account.</p>
+      <section class="bg-slate-950/20 border border-slate-800 rounded-2xl p-5 space-y-4">
+        <div>
+          <h2 class="text-sm font-bold uppercase tracking-wider text-slate-400">Profile Identity</h2>
+          <p class="text-xs text-slate-500 mt-0.5">Toggle account type scopes to load cross-hydrated localized device datasets dynamically.</p>
+        </div>
 
-        <label for="accountType">Account Type</label>
-        <select id="accountType">
-          <option value="rider">Rider</option>
-          <option value="driver">Driver</option>
-        </select>
-
-        <label for="accountEmail">Account Email</label>
-        <input id="accountEmail" type="email" placeholder="you@example.com" />
-      </div>
-
-      <div class="card">
-        <h2>Battery Optimizer</h2>
-        <p>
-          Battery Optimizer reduces background tracking intensity when you are not actively
-          on a ride or mission. For active trips, Harvey Taxi should keep live status accurate.
-        </p>
-
-        <div class="setting-row">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <strong>Enable Battery Optimizer</strong>
-            <span>Reduces background refresh, map updates, and location polling when idle.</span>
+            <label for="accountType" class="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Active Persona Profile</label>
+            <select id="accountType" class="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-slate-200 transition-all cursor-pointer">
+              <option value="rider">Rider / Cargo Client</option>
+              <option value="driver">Logistics Courier / Driver</option>
+            </select>
           </div>
+          <div>
+            <label for="accountEmail" class="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Verification Email Address</label>
+            <input id="accountEmail" type="email" placeholder="identity@domain.com" class="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-slate-200 transition-all" />
+          </div>
+        </div>
+      </section>
 
-          <label class="switch">
-            <input id="batteryOptimizerToggle" type="checkbox" checked />
-            <span class="slider"></span>
+      <section class="bg-slate-950/20 border border-slate-800 rounded-2xl p-5 space-y-4">
+        <div>
+          <h2 class="text-sm font-bold uppercase tracking-wider text-slate-400">Telemetry & Hardware Optimization</h2>
+          <p class="text-xs text-slate-500 mt-0.5">Adjust background power drains against telemetry pinpoint positioning requirements.</p>
+        </div>
+
+        <div class="flex items-center justify-between gap-4 p-4 border border-slate-800/80 rounded-xl bg-slate-950/30">
+          <div class="space-y-0.5">
+            <strong class="block text-xs font-semibold text-slate-200">Battery Optimizer System</strong>
+            <span class="block text-[11px] text-slate-400 leading-normal">Reduces lifecycle execution ticks, render threads, and location calls when stagnant.</span>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer select-none">
+            <input id="batteryOptimizerToggle" type="checkbox" class="sr-only peer" checked />
+            <div class="w-11 h-6 bg-slate-800 border border-slate-700/80 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600/30 peer-checked:border-emerald-500"></div>
           </label>
         </div>
 
-        <div class="setting-row">
-          <div>
-            <strong>Precise Location During Trips</strong>
-            <span>Recommended for riders and required for active driver missions.</span>
+        <div class="flex items-center justify-between gap-4 p-4 border border-slate-800/80 rounded-xl bg-slate-950/30">
+          <div class="space-y-0.5">
+            <strong class="block text-xs font-semibold text-slate-200">Continuous Precise Location</strong>
+            <span class="block text-[11px] text-slate-400 leading-normal">Enforces uninterrupted precise high-accuracy GPS streams during active transits.</span>
           </div>
-
-          <label class="switch">
-            <input id="preciseLocationToggle" type="checkbox" checked />
-            <span class="slider"></span>
+          <label class="relative inline-flex items-center cursor-pointer select-none">
+            <input id="preciseLocationToggle" type="checkbox" class="sr-only peer" checked />
+            <div class="w-11 h-6 bg-slate-800 border border-slate-700/80 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600/30 peer-checked:border-emerald-500"></div>
           </label>
         </div>
 
-        <div class="setting-row">
-          <div>
-            <strong>Low Power Mode Warning</strong>
-            <span>Shows a reminder when battery saving may affect live tracking.</span>
+        <div class="flex items-center justify-between gap-4 p-4 border border-slate-800/80 rounded-xl bg-slate-950/30">
+          <div class="space-y-0.5">
+            <strong class="block text-xs font-semibold text-slate-200">Low Power Runtime Reminders</strong>
+            <span class="block text-[11px] text-slate-400 leading-normal">Triggers notifications if device throttling layers impact active routing accuracy.</span>
           </div>
-
-          <label class="switch">
-            <input id="lowPowerWarningToggle" type="checkbox" checked />
-            <span class="slider"></span>
+          <label class="relative inline-flex items-center cursor-pointer select-none">
+            <input id="lowPowerWarningToggle" type="checkbox" class="sr-only peer" checked />
+            <div class="w-11 h-6 bg-slate-800 border border-slate-700/80 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600/30 peer-checked:border-emerald-500"></div>
           </label>
         </div>
 
-        <button class="btn primary" id="saveSettingsBtn">
-          Save Settings
-        </button>
+        <div class="pt-2">
+          <button class="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-slate-100 text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-md shadow-blue-600/10 cursor-pointer active:scale-[0.995]" id="saveSettingsBtn">
+            Commit Preferences Configuration
+          </button>
+          <div id="settingsNotice" class="hidden mt-3 px-4 py-3 rounded-xl border text-xs font-medium custom-transition"></div>
+        </div>
+      </section>
 
-        <div id="settingsNotice" class="notice"></div>
-      </div>
+      <section class="bg-red-950/10 border border-red-900/30 rounded-2xl p-5 space-y-4">
+        <div>
+          <h2 class="text-sm font-bold uppercase tracking-wider text-red-400">Account Deletion & Data Redaction</h2>
+          <p class="text-xs text-slate-500 mt-0.5">
+            Submits account purge commands. Legal financial transaction records are securely vaulted according to regular operational compliance requirements.
+          </p>
+        </div>
 
-      <div class="card">
-        <h2>Delete Account</h2>
-        <p>
-          This sends a delete-account request to Harvey Taxi. For safety, the backend should
-          deactivate the account first, preserve legally required trip/payment records, and remove
-          unnecessary personal access data.
-        </p>
+        <div class="space-y-3">
+          <div>
+            <label for="deleteConfirm" class="block text-[11px] font-bold uppercase tracking-wider text-red-400/80 mb-1.5">Verification Keyphrase</label>
+            <input id="deleteConfirm" type="text" placeholder="Type 'DELETE' to initialize confirmation" class="w-full px-4 py-3 bg-slate-950 border border-red-900/30 rounded-xl text-sm focus:outline-none focus:border-red-500 text-slate-200 transition-all placeholder-red-900/40" />
+          </div>
 
-        <label for="deleteConfirm">Type DELETE to confirm</label>
-        <input id="deleteConfirm" type="text" placeholder="DELETE" />
+          <button class="w-full py-3 bg-red-950/40 hover:bg-red-900/30 text-red-400 hover:text-red-300 font-bold text-xs uppercase tracking-wider rounded-xl border border-red-900/40 transition-all cursor-pointer" id="deleteAccountBtn">
+            Request Complete Account Deletion
+          </button>
+          <div id="deleteNotice" class="hidden mt-3 px-4 py-3 rounded-xl border text-xs font-medium custom-transition"></div>
+        </div>
+      </section>
 
-        <button class="btn danger" id="deleteAccountBtn">
-          Delete My Account
-        </button>
-
-        <div id="deleteNotice" class="notice"></div>
-      </div>
-
-    </section>
+    </div>
   </main>
 
   <script>
     const CONFIG = {
-      API_BASE:
-        window.HARVEY_API_BASE ||
-        window.location.origin ||
-        "https://harvey-taxi-app-2.onrender.com",
-
+      API_BASE: window.HARVEY_API_BASE || window.location.origin || "https://harvey-taxi-app-2.onrender.com",
       ENDPOINTS: {
         saveSettings: "/api/account/settings",
         deleteAccount: "/api/account/delete-request"
       },
-
       STORAGE_KEYS: {
+        activePersona: "harvey_active_persona",
         riderEmail: "harvey_rider_email",
         driverEmail: "harvey_driver_email",
         batteryOptimizer: "harvey_battery_optimizer",
@@ -409,155 +170,187 @@
       deleteNotice: $("deleteNotice")
     };
 
+    // Safe Engine Storage Interfaces
     function readStorage(key, fallback = "") {
       try {
-        const value = localStorage.getItem(key);
-        return value === null ? fallback : value;
-      } catch {
-        return fallback;
-      }
+        const val = localStorage.getItem(key);
+        return val === null ? fallback : val;
+      } catch { return fallback; }
     }
 
     function writeStorage(key, value) {
-      try {
-        localStorage.setItem(key, String(value));
-      } catch {}
+      try { localStorage.setItem(key, String(value)); } catch {}
     }
 
-    function showNotice(el, message, type = "warning") {
-      if (!el) return;
-      el.textContent = message;
-      el.className = `notice show ${type}`;
-    }
-
-    function isEmail(value) {
-      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
-    }
-
-    async function apiPost(path, body) {
-      const response = await fetch(`${CONFIG.API_BASE}${path}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(body || {})
-      });
-
-      let data = {};
-      try {
-        data = await response.json();
-      } catch {
-        data = { ok: false, error: "Server returned non-JSON response." };
+    // Interactive Notification Toast Manager
+    function dispatchNotice(targetElement, msg, styleVariant = "warning") {
+      if (!targetElement) return;
+      targetElement.textContent = msg;
+      targetElement.classList.remove('hidden', 'bg-amber-500/10', 'border-amber-500/30', 'text-amber-400', 'bg-emerald-500/10', 'border-emerald-500/30', 'text-emerald-400', 'bg-red-500/10', 'border-red-500/30', 'text-red-400');
+      
+      if (styleVariant === "success") {
+        targetElement.classList.add('bg-emerald-500/10', 'border-emerald-500/30', 'text-emerald-400');
+      } else if (styleVariant === "error") {
+        targetElement.classList.add('bg-red-500/10', 'border-red-500/30', 'text-red-400');
+      } else {
+        targetElement.classList.add('bg-amber-500/10', 'border-amber-500/30', 'text-amber-400');
       }
+    }
 
-      if (!response.ok) {
-        throw new Error(data.error || data.message || "Request failed.");
+    function checkEmailValidity(targetString) {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(targetString || "").trim());
+    }
+
+    // Dynamic Context Switching State Manager
+    function updateEmailFieldFromPersonaChange() {
+      const selectedPersona = els.accountType.value;
+      writeStorage(CONFIG.STORAGE_KEYS.activePersona, selectedPersona);
+      
+      const identityEmail = selectedPersona === "rider" 
+        ? readStorage(CONFIG.STORAGE_KEYS.riderEmail)
+        : readStorage(CONFIG.STORAGE_KEYS.driverEmail);
+        
+      els.accountEmail.value = identityEmail || "";
+    }
+
+    // Network Interface Posting Handler
+    async function executeApiPost(endpointPath, payloadBody) {
+      const requestSignalTimeout = 5000; 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), requestSignalTimeout);
+
+      try {
+        const response = await fetch(`${CONFIG.API_BASE}${endpointPath}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payloadBody || {}),
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        let parsedData = {};
+        try {
+          parsedData = await response.json();
+        } catch {
+          parsedData = { ok: false, error: "Server structural processing failed." };
+        }
+
+        if (!response.ok) {
+          throw new Error(parsedData.error || parsedData.message || `HTTP server anomaly: status ${response.status}`);
+        }
+        return parsedData;
+      } catch (err) {
+        clearTimeout(timeoutId);
+        throw err;
       }
-
-      return data;
     }
 
-    function hydrate() {
-      const riderEmail = readStorage(CONFIG.STORAGE_KEYS.riderEmail);
-      const driverEmail = readStorage(CONFIG.STORAGE_KEYS.driverEmail);
+    // Hardware State Hydration Routine
+    function performStateHydration() {
+      const activePersona = readStorage(CONFIG.STORAGE_KEYS.activePersona, "rider");
+      els.accountType.value = activePersona;
 
-      els.accountEmail.value = riderEmail || driverEmail || "";
+      const storedRiderEmail = readStorage(CONFIG.STORAGE_KEYS.riderEmail);
+      const storedDriverEmail = readStorage(CONFIG.STORAGE_KEYS.driverEmail);
+      els.accountEmail.value = activePersona === "rider" ? (storedRiderEmail || "") : (storedDriverEmail || "");
 
-      els.batteryOptimizerToggle.checked =
-        readStorage(CONFIG.STORAGE_KEYS.batteryOptimizer, "true") !== "false";
-
-      els.preciseLocationToggle.checked =
-        readStorage(CONFIG.STORAGE_KEYS.preciseLocation, "true") !== "false";
-
-      els.lowPowerWarningToggle.checked =
-        readStorage(CONFIG.STORAGE_KEYS.lowPowerWarning, "true") !== "false";
+      els.batteryOptimizerToggle.checked = readStorage(CONFIG.STORAGE_KEYS.batteryOptimizer, "true") !== "false";
+      els.preciseLocationToggle.checked = readStorage(CONFIG.STORAGE_KEYS.preciseLocation, "true") !== "false";
+      els.lowPowerWarningToggle.checked = readStorage(CONFIG.STORAGE_KEYS.lowPowerWarning, "true") !== "false";
     }
 
-    async function saveSettings() {
-      const accountType = els.accountType.value;
-      const email = String(els.accountEmail.value || "").trim().toLowerCase();
+    // Execution Commits
+    async function commitSavedSettings() {
+      const activePersona = els.accountType.value;
+      const filteredEmail = String(els.accountEmail.value || "").trim().toLowerCase();
 
-      if (!isEmail(email)) {
-        showNotice(els.settingsNotice, "Please enter a valid account email.", "warning");
+      if (!checkEmailValidity(filteredEmail)) {
+        dispatchNotice(els.settingsNotice, "Please enter an authenticated account email framework address.", "warning");
         return;
       }
 
-      const settings = {
-        account_type: accountType,
-        email,
+      const parametersPayload = {
+        account_type: activePersona,
+        email: filteredEmail,
         battery_optimizer_enabled: els.batteryOptimizerToggle.checked,
         precise_location_enabled: els.preciseLocationToggle.checked,
         low_power_warning_enabled: els.lowPowerWarningToggle.checked
       };
 
-      writeStorage(CONFIG.STORAGE_KEYS.batteryOptimizer, settings.battery_optimizer_enabled);
-      writeStorage(CONFIG.STORAGE_KEYS.preciseLocation, settings.precise_location_enabled);
-      writeStorage(CONFIG.STORAGE_KEYS.lowPowerWarning, settings.low_power_warning_enabled);
+      // Commit locally immediately to guarantee hardware loop integrity
+      writeStorage(CONFIG.STORAGE_KEYS.batteryOptimizer, parametersPayload.battery_optimizer_enabled);
+      writeStorage(CONFIG.STORAGE_KEYS.preciseLocation, parametersPayload.precise_location_enabled);
+      writeStorage(CONFIG.STORAGE_KEYS.lowPowerWarning, parametersPayload.low_power_warning_enabled);
 
-      if (accountType === "rider") {
-        writeStorage(CONFIG.STORAGE_KEYS.riderEmail, email);
+      if (activePersona === "rider") {
+        writeStorage(CONFIG.STORAGE_KEYS.riderEmail, filteredEmail);
       } else {
-        writeStorage(CONFIG.STORAGE_KEYS.driverEmail, email);
+        writeStorage(CONFIG.STORAGE_KEYS.driverEmail, filteredEmail);
       }
 
       try {
-        await apiPost(CONFIG.ENDPOINTS.saveSettings, settings);
-        showNotice(els.settingsNotice, "Settings saved successfully.", "success");
-      } catch (error) {
-        showNotice(
-          els.settingsNotice,
-          "Settings saved on this device. Backend settings endpoint is not connected yet.",
+        await executeApiPost(CONFIG.ENDPOINTS.saveSettings, parametersPayload);
+        dispatchNotice(els.settingsNotice, "Hardware updates saved successfully on database tracking records.", "success");
+      } catch (err) {
+        // Safe UX fallback execution context if remote endpoints aren't deployed
+        dispatchNotice(
+          els.settingsNotice, 
+          "Preferences cached successfully locally on this machine (Remote endpoint offline fallback active).", 
           "warning"
         );
       }
     }
 
-    async function deleteAccount() {
-      const accountType = els.accountType.value;
-      const email = String(els.accountEmail.value || "").trim().toLowerCase();
-      const confirmText = String(els.deleteConfirm.value || "").trim();
+    async function triggerAccountDeletionSequence() {
+      const activePersona = els.accountType.value;
+      const filteredEmail = String(els.accountEmail.value || "").trim().toLowerCase();
+      const verificationString = String(els.deleteConfirm.value || "").trim();
 
-      if (!isEmail(email)) {
-        showNotice(els.deleteNotice, "Please enter a valid account email.", "warning");
+      if (!checkEmailValidity(filteredEmail)) {
+        dispatchNotice(els.deleteNotice, "An authentic validated profile address is required to locate historical records.", "warning");
         return;
       }
 
-      if (confirmText !== "DELETE") {
-        showNotice(els.deleteNotice, "Type DELETE to confirm account deletion.", "warning");
+      if (verificationString !== "DELETE") {
+        dispatchNotice(els.deleteNotice, "Type explicit keyphrase 'DELETE' to authorize account lifecycle processing termination.", "warning");
         return;
       }
 
-      const confirmed = window.confirm(
-        "Are you sure you want to request account deletion? This may deactivate your Harvey Taxi account."
+      const explicitInterlockingCheck = window.confirm(
+        "CRITICAL ALERT: Initialize complete data redaction? Access to your active Harvey Logistics history profile will terminate instantly."
       );
 
-      if (!confirmed) return;
+      if (!explicitInterlockingCheck) return;
 
       try {
-        await apiPost(CONFIG.ENDPOINTS.deleteAccount, {
-          account_type: accountType,
-          email,
-          reason: "User requested account deletion from settings page."
+        await executeApiPost(CONFIG.ENDPOINTS.deleteAccount, {
+          account_type: activePersona,
+          email: filteredEmail,
+          reason: "User manually authorized data destruction sequence from systems profile panel."
         });
 
-        showNotice(
+        dispatchNotice(
           els.deleteNotice,
-          "Account deletion request submitted. Harvey Taxi will process the request according to policy.",
+          "Profile flagged. Identity destruction processing queued successfully.",
           "success"
         );
-      } catch (error) {
-        showNotice(
+        els.deleteConfirm.value = "";
+      } catch (err) {
+        dispatchNotice(
           els.deleteNotice,
-          error.message || "Unable to submit delete request.",
+          err.message || "Network exception encountered while validating teardown sequence.",
           "error"
         );
       }
     }
 
-    els.saveSettingsBtn.addEventListener("click", saveSettings);
-    els.deleteAccountBtn.addEventListener("click", deleteAccount);
+    // Interactive Wireframing Attachments
+    els.accountType.addEventListener("change", updateEmailFieldFromPersonaChange);
+    els.saveSettingsBtn.addEventListener("click", commitSavedSettings);
+    els.deleteAccountBtn.addEventListener("click", triggerAccountDeletionSequence);
 
-    hydrate();
+    // Run Initializer
+    performStateHydration();
   </script>
 </body>
 </html>
