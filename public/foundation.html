@@ -22,7 +22,6 @@
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://harvey-taxi-app-2.onrender.com/foundation.html" />
 
-  <!-- Google Ads Tag -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18161547185"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
@@ -40,6 +39,9 @@
     href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
     rel="stylesheet"
   />
+
+  <link rel="stylesheet" href="/ai-support-widget.css" />
+  <script src="/ai-support-widget.js" defer></script>
 
   <style>
     :root {
@@ -67,7 +69,7 @@
       --maxw: 1260px;
       --navH: 88px;
       --topbarH: 84px;
-      --transition-fast: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     * {
@@ -238,7 +240,7 @@
       color: var(--text);
       border-color: rgba(255, 255, 255, 0.08);
       background: rgba(255, 255, 255, 0.05);
-      transform: translateY(-2px);
+      transform: translateY(-1px);
     }
 
     .nav .cta {
@@ -267,11 +269,6 @@
       border: 1px solid var(--line);
       border-radius: var(--radiusXL);
       box-shadow: var(--shadow);
-      transition: border-color var(--transition-fast);
-    }
-
-    .card:hover {
-      border-color: var(--lineStrong);
     }
 
     .hero-card {
@@ -368,11 +365,7 @@
     }
 
     .btn:hover {
-      transform: translateY(-2px);
-    }
-
-    .btn:active {
-      transform: translateY(0);
+      transform: translateY(-1px);
     }
 
     .btn-primary {
@@ -403,6 +396,35 @@
 
     .btn-gold:hover {
       box-shadow: 0 18px 45px rgba(0, 112, 186, 0.35);
+    }
+
+    .impact-strip {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-top: 20px;
+    }
+
+    .impact-mini {
+      padding: 22px;
+      border-radius: 22px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      box-shadow: var(--shadowSoft);
+    }
+
+    .impact-mini strong {
+      display: block;
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .impact-mini span {
+      display: block;
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 0.94rem;
     }
 
     .sticky-box {
@@ -510,11 +532,6 @@
       font-size: 0.88rem;
       font-weight: 600;
       margin-bottom: 18px;
-      transition: background var(--transition-fast);
-    }
-
-    .preview-link:hover {
-      background: rgba(255, 255, 255, 0.08);
     }
 
     .preview-actions {
@@ -560,12 +577,6 @@
       line-height: 1.5;
       border: 1px solid transparent;
       margin-top: 14px;
-      animation: fadeIn 0.3s ease;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(4px); }
-      to { opacity: 1; transform: translateY(0); }
     }
 
     .copy-status.show {
@@ -626,12 +637,6 @@
       background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
       border: 1px solid rgba(255, 255, 255, 0.06);
       box-shadow: var(--shadowSoft);
-      transition: transform var(--transition-fast), border-color var(--transition-fast);
-    }
-
-    .feature-card:hover {
-      transform: translateY(-4px);
-      border-color: rgba(115, 244, 255, 0.25);
     }
 
     .feature-icon {
@@ -714,6 +719,7 @@
       list-style: none;
       display: grid;
       gap: 14px;
+      margin-top: 20px;
     }
 
     .why-list li {
@@ -738,7 +744,6 @@
     .faq-grid {
       display: grid;
       gap: 16px;
-      margin-top: 24px;
     }
 
     .faq-item {
@@ -753,7 +758,6 @@
       margin-bottom: 8px;
       font-size: 1.05rem;
       font-weight: 700;
-      color: var(--text);
     }
 
     .faq-item span {
@@ -761,6 +765,34 @@
       color: var(--muted);
       line-height: 1.6;
       font-size: 0.95rem;
+    }
+
+    .cta-card {
+      padding: 40px;
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 24px;
+      align-items: center;
+    }
+
+    .cta-copy h3 {
+      margin-bottom: 12px;
+      font-size: 1.8rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+    }
+
+    .cta-copy p {
+      color: var(--muted);
+      line-height: 1.65;
+      max-width: 720px;
+    }
+
+    .cta-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
     }
 
     .bottom-nav {
@@ -773,7 +805,7 @@
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
       border-top: 1px solid rgba(255, 255, 255, 0.08);
-      display: none; /* Controlled via mobile queries */
+      display: flex;
       justify-content: space-around;
       align-items: flex-start;
       padding: 12px 8px calc(12px + env(safe-area-inset-bottom));
@@ -788,21 +820,15 @@
       border-radius: 14px;
       min-height: 48px;
       min-width: 64px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
     }
 
-    .nav-btn.active, .nav-btn:hover {
+    .nav-btn.active {
       color: white;
       background: rgba(255, 255, 255, 0.06);
     }
 
     .footer {
-      padding: 40px 0 20px;
-      border-top: 1px solid rgba(255, 255, 255, 0.05);
-      margin-top: 40px;
+      padding: 40px 0 calc(40px + var(--navH));
     }
 
     .footer-row {
@@ -826,18 +852,10 @@
       flex-wrap: wrap;
     }
 
-    #confetti-canvas {
-      position: fixed;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      z-index: 999;
-    }
-
     @media(max-width: 1080px) {
       .hero-shell,
-      .why-shell {
+      .why-shell,
+      .cta-card {
         grid-template-columns: 1fr;
       }
 
@@ -856,16 +874,9 @@
       }
 
       .grid-3,
+      .impact-strip,
       .trust-grid {
         grid-template-columns: 1fr;
-      }
-      
-      .bottom-nav {
-        display: flex;
-      }
-      
-      .footer {
-        padding-bottom: calc(40px + var(--navH));
       }
     }
 
@@ -894,7 +905,8 @@
       .hero-card,
       .spotlight-card,
       .section-card,
-      .why-card {
+      .why-card,
+      .cta-card {
         padding: 24px;
         border-radius: 24px;
       }
@@ -927,16 +939,11 @@
       }
     }
   </style>
-  <link rel="stylesheet" href="/ai-support-widget.css" />
 </head>
-
 <body>
-
-<canvas id="confetti-canvas"></canvas>
 
 <header class="topbar">
   <div class="shell topbar-inner">
-
     <a href="index.html" class="brand" aria-label="Harvey Taxi home">
       <div class="brand-mark">
         <img
@@ -945,7 +952,6 @@
           onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=&quot;brand-fallback&quot;>HT</div>';"
         />
       </div>
-
       <div class="brand-copy">
         <h1>Harvey Transportation Assistance Foundation</h1>
         <p>Transportation Access • Community Impact • Mobility Support</p>
@@ -955,446 +961,3 @@
     <nav class="nav" aria-label="Primary navigation">
       <a href="index.html">Home</a>
       <a href="#impact">Impact</a>
-      <a href="#programs">Programs</a>
-      <a href="#faq">FAQ</a>
-      <a href="support.html">Support</a>
-      <a href="#donate" class="cta">Donate Now</a>
-    </nav>
-
-  </div>
-</header>
-
-<main>
-
-  <section class="hero">
-    <div class="shell hero-shell">
-
-      <div class="card hero-card">
-        <div class="hero-content">
-          <div class="eyebrow">
-            Tennessee Transportation Assistance Initiative
-          </div>
-          <h2>
-            Transportation Should Never Be The Reason Someone Misses Opportunity.
-          </h2>
-          <p>
-            Harvey Transportation Assistance Foundation exists to help remove
-            transportation barriers for individuals and families facing challenges
-            accessing healthcare, employment, education, and essential services.
-            Every contribution directly supports mobility-focused community
-            assistance programs designed to create access and opportunity.
-          </p>
-
-          <div class="hero-actions">
-            <a
-              href="https://www.paypal.com/us/fundraiser/charity/5906918"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="btn btn-gold"
-            >
-              💙 Donate via PayPal Giving Fund
-            </a>
-            <a href="#impact" class="btn btn-primary">
-              View Community Impact
-            </a>
-            <button
-              type="button"
-              class="btn btn-secondary"
-              onclick="openHarveyAiChat()"
-            >
-              Ask AI Support
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <aside>
-        <div class="sticky-box">
-          <section class="card spotlight-card" id="donate">
-            <h3>Support Transportation Access</h3>
-            <p>
-              Your donation helps connect individuals and families to medical
-              appointments, work opportunities, educational programs, and
-              essential community services.
-            </p>
-
-            <div class="trust-grid">
-              <div class="trust-pill">
-                <strong>Medical Transportation</strong>
-                Support rides to healthcare providers and treatment facilities.
-              </div>
-              <div class="trust-pill">
-                <strong>Employment Access</strong>
-                Help people reach jobs, interviews, and workforce programs.
-              </div>
-              <div class="trust-pill">
-                <strong>Education Support</strong>
-                Improve transportation access for students and training programs.
-              </div>
-              <div class="trust-pill">
-                <strong>Community Mobility</strong>
-                Assist individuals facing transportation hardships.
-              </div>
-            </div>
-
-            <div class="link-preview">
-              <div class="preview-badge">
-                Verified PayPal Giving Fund
-              </div>
-              <h4 class="preview-title">
-                Donate Securely Today
-              </h4>
-              <p class="preview-copy">
-                Every contribution supports transportation assistance programs
-                designed to improve mobility and access throughout Tennessee.
-              </p>
-              <a
-                class="preview-link"
-                href="https://www.paypal.com/us/fundraiser/charity/5906918"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                https://www.paypal.com/us/fundraiser/charity/5906918
-              </a>
-
-              <div class="preview-actions">
-                <a
-                  href="https://www.paypal.com/us/fundraiser/charity/5906918"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="btn btn-gold btn-compact"
-                >
-                  Donate Now
-                </a>
-                <button
-                  class="btn btn-secondary btn-compact"
-                  type="button"
-                  onclick="copyDonationLink()"
-                >
-                  Copy Link
-                </button>
-              </div>
-            </div>
-
-            <div class="spotlight-copy">
-              <strong>Community Powered Impact</strong>
-              <span>
-                Every donation contributes toward expanding transportation access
-                and reducing mobility barriers across Tennessee communities.
-              </span>
-            </div>
-
-            <div id="copyStatus" class="copy-status"></div>
-          </section>
-        </div>
-      </aside>
-
-    </div>
-  </section>
-
-  <section class="section" id="impact">
-    <div class="shell">
-      <div class="card section-card">
-        <div class="section-head">
-          <div>
-            <h3>Community Impact Areas</h3>
-            <p>
-              Transportation access affects nearly every aspect of daily life.
-              Our programs focus on helping people stay connected to critical
-              opportunities and services.
-            </p>
-          </div>
-        </div>
-
-        <div class="grid-3">
-          <article class="feature-card">
-            <div class="feature-icon">🏥</div>
-            <h4>Medical Transportation</h4>
-            <p>
-              Helping individuals reach healthcare appointments, treatment
-              facilities, pharmacies, and wellness services.
-            </p>
-          </article>
-
-          <article class="feature-card">
-            <div class="feature-icon">💼</div>
-            <h4>Employment Mobility</h4>
-            <p>
-              Supporting transportation access for interviews, training
-              opportunities, and workforce participation.
-            </p>
-          </article>
-
-          <article class="feature-card">
-            <div class="feature-icon">🎓</div>
-            <h4>Educational Access</h4>
-            <p>
-              Supporting transportation needs that help students access learning
-              opportunities and educational programs.
-            </p>
-          </article>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="section" id="programs">
-    <div class="shell">
-      <div class="card section-card">
-        <div class="section-head">
-          <div>
-            <h3>Foundation Programs</h3>
-            <p>
-              Harvey Transportation Assistance Foundation focuses on
-              transportation-related support programs designed to help
-              individuals overcome mobility barriers and maintain access
-              to essential opportunities.
-            </p>
-          </div>
-        </div>
-
-        <div class="grid-3">
-          <article class="feature-card">
-            <div class="feature-icon">🚑</div>
-            <h4>Healthcare Access</h4>
-            <p>
-              Transportation assistance for medical appointments,
-              treatments, healthcare facilities, pharmacies, and wellness
-              programs.
-            </p>
-          </article>
-
-          <article class="feature-card">
-            <div class="feature-icon">💼</div>
-            <h4>Workforce Access</h4>
-            <p>
-              Helping individuals reach employment opportunities,
-              interviews, training programs, and workforce development
-              initiatives.
-            </p>
-          </article>
-
-          <article class="feature-card">
-            <div class="feature-icon">🏫</div>
-            <h4>Education Mobility</h4>
-            <p>
-              Supporting transportation access for students, educational
-              programs, certifications, and career advancement resources.
-            </p>
-          </article>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="section">
-    <div class="shell">
-      <div class="card section-card">
-        <div class="section-head">
-          <div>
-            <h3>Why Transportation Matters</h3>
-            <p>
-              Transportation is often the missing link between people and
-              opportunity. Reliable mobility affects healthcare outcomes,
-              employment success, educational achievement, and overall
-              quality of life.
-            </p>
-          </div>
-        </div>
-
-        <div class="stats-shell">
-          <div class="stat-card">
-            <strong>Healthcare</strong>
-            <span>
-              Transportation barriers often contribute to missed medical
-              appointments and delayed care.
-            </span>
-          </div>
-
-          <div class="stat-card">
-            <strong>Employment</strong>
-            <span>
-              Reliable transportation supports workforce participation and
-              economic stability.
-            </span>
-          </div>
-
-          <div class="stat-card">
-            <strong>Education</strong>
-            <span>
-              Mobility access helps students participate consistently in
-              educational opportunities.
-            </span>
-          </div>
-
-          <div class="stat-card">
-            <strong>Community</strong>
-            <span>
-              Transportation strengthens community engagement and access
-              to support resources.
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="section" id="why-give">
-    <div class="shell why-shell">
-      <div class="card why-card">
-        <h3>Why Give?</h3>
-        <ul class="why-list">
-          <li>Help remove transportation barriers for individuals and families.</li>
-          <li>Support access to healthcare, education, and employment.</li>
-          <li>Strengthen transportation-focused community assistance.</li>
-          <li>Help create pathways toward opportunity and stability.</li>
-        </ul>
-      </div>
-
-      <div class="card why-card" id="faq">
-        <h3>Frequently Asked Questions</h3>
-        <div class="faq-grid">
-          <div class="faq-item">
-            <strong>How are donations managed?</strong>
-            <span>Donations via the PayPal Giving Fund are delivered directly to the foundation to support active mobility assistance assets.</span>
-          </div>
-          <div class="faq-item">
-            <strong>Who qualifies for support?</strong>
-            <span>Programs prioritize individuals facing documented economic or mobility hardships needing access to vital life appointments.</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-</main>
-
-<footer class="footer">
-  <div class="shell footer-row">
-    <div>
-      &copy; 2026 Harvey Transportation Assistance Foundation. All rights reserved.
-    </div>
-    <div class="footer-links">
-      <a href="index.html">Home</a>
-      <a href="support.html">Support</a>
-      <a href="https://www.paypal.com/us/fundraiser/charity/5906918" target="_blank" rel="noopener noreferrer">Donate</a>
-    </div>
-  </div>
-</footer>
-
-<div class="bottom-nav" aria-label="Mobile navigation">
-  <a href="index.html" class="nav-btn"><span>🏠</span><span>Home</span></a>
-  <a href="#impact" class="nav-btn"><span>📊</span><span>Impact</span></a>
-  <a href="#programs" class="nav-btn"><span>🛠️</span><span>Programs</span></a>
-  <a href="#donate" class="nav-btn"><span>❤️</span><span>Donate</span></a>
-</div>
-
-<script>
-  function openHarveyAiChat() {
-    if (window.HarveyAiWidget && typeof window.HarveyAiWidget.open === 'function') {
-      window.HarveyAiWidget.open();
-    } else {
-      alert("AI Support assistant is loading. Please try again in a moment.");
-    }
-  }
-
-  function copyDonationLink() {
-    const linkText = "https://www.paypal.com/us/fundraiser/charity/5906918";
-    const statusBox = document.getElementById("copyStatus");
-    
-    if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(linkText).then(() => {
-        showStatus(true);
-        triggerConfetti();
-      }).catch(() => {
-        showStatus(false);
-      });
-    } else {
-      // Fallback
-      const textArea = document.createElement("textarea");
-      textArea.value = linkText;
-      textArea.style.position = "fixed";
-      document.body.appendChild(textArea);
-      textArea.focus();
-      textArea.select();
-      try {
-        document.execCommand('copy');
-        showStatus(true);
-        triggerConfetti();
-      } catch (err) {
-        showStatus(false);
-      }
-      document.body.removeChild(textArea);
-    }
-
-    function showStatus(isSuccess) {
-      statusBox.className = "copy-status show " + (isSuccess ? "ok" : "err");
-      statusBox.textContent = isSuccess ? "✓ Link copied to clipboard! Thank you." : "✕ Failed to copy automatically. Please copy the URL text directly.";
-      setTimeout(() => {
-        statusBox.className = "copy-status";
-      }, 4000);
-    }
-  }
-
-  // Simple High-Performance Canvas Confetti Burst
-  function triggerConfetti() {
-    const canvas = document.getElementById('confetti-canvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-
-    let particles = [];
-    const colors = ['#73f4ff', '#6aa7ff', '#7cffc7', '#ffd978'];
-
-    for (let i = 0; i < 60; i++) {
-      particles.push({
-        x: canvas.width / 2,
-        y: canvas.height / 2 + 100,
-        radius: Math.random() * 4 + 3,
-        color: colors[Math.floor(Math.random() * colors.length)],
-        vx: (Math.random() - 0.5) * 12,
-        vy: (Math.random() - 0.7) * 16 - 4,
-        opacity: 1
-      });
-    }
-
-    function render() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      let alive = false;
-
-      particles.forEach(p => {
-        if (p.opacity <= 0) return;
-        alive = true;
-        p.x += p.vx;
-        p.y += p.vy;
-        p.vy += 0.3; // gravity
-        p.opacity -= 0.015;
-
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-        ctx.fillStyle = p.color;
-        ctx.globalAlpha = p.opacity;
-        ctx.fill();
-      });
-
-      if (alive) {
-        requestAnimationFrame(render);
-      } else {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-      }
-    }
-    render();
-  }
-
-  // Handle Dynamic Window Resizing for Confetti
-  window.addEventListener('resize', () => {
-    const canvas = document.getElementById('confetti-canvas');
-    if(canvas) {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    }
-  });
-</script>
-
-</body>
-</html>
