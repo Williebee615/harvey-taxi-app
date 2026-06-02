@@ -1,95 +1,498 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Harvey Taxi — Food Delivery</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Harvey Logistics — Driver Hub</title>
 
-<style>
-body {
-  margin: 0;
-  background: linear-gradient(180deg,#020617,#091126);
-  color: #fff;
-  font-family: Arial, sans-serif;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100vh;
-  text-align: center;
-}
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 
-.container {
-  max-width: 400px;
-}
-
-h1 {
-  font-size: 28px;
-  margin-bottom: 10px;
-}
-
-p {
-  color: #aab4d6;
-  margin-bottom: 20px;
-}
-
-.badge {
-  display: inline-block;
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: rgba(0,150,255,0.15);
-  color: #6aa7ff;
-  margin-bottom: 20px;
-}
-
-button {
-  padding: 14px;
-  width: 100%;
-  border-radius: 10px;
-  border: none;
-  background: #2563eb;
-  color: white;
-  font-size: 16px;
-  cursor: pointer;
-}
-
-button.secondary {
-  background: transparent;
-  border: 1px solid #2e3b6b;
-  margin-top: 10px;
-}
-</style>
+  <style>
+    body {
+      background: linear-gradient(135deg, #020617 0%, #0f172a 100%);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    }
+    /* Smooth transition utilities */
+    .fade-element {
+      transition: all 0.3s ease-in-out;
+    }
+    .pulse-glow {
+      animation: pulseGlow 2s infinite ease-in-out;
+    }
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 5px rgba(37, 99, 235, 0.2); }
+      50% { box-shadow: 0 0 20px rgba(37, 99, 235, 0.6); }
+    }
+  </style>
 </head>
+<body class="min-h-screen text-slate-100 flex items-center justify-center p-4 antialiased">
 
-<body>
+  <div class="w-full max-w-lg bg-slate-900/80 border border-slate-800 backdrop-blur-xl rounded-2xl shadow-2xl p-6 fade-element">
+    
+    <header class="flex items-center justify-between border-b border-slate-800 pb-4 mb-6">
+      <div>
+        <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
+          Harvey Logistics
+        </h1>
+        <p class="text-xs text-slate-400" id="driver-badge">Driver Portal • Offline</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="relative flex h-3 w-3">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-slate-500 opacity-75" id="status-ping-pulse"></span>
+          <span class="relative inline-flex rounded-full h-3 w-3 bg-slate-500" id="status-ping-dot"></span>
+        </span>
+        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400" id="status-text">Offline</span>
+      </div>
+    </header>
 
-<div class="container">
-  <div class="badge">🚧 Coming Soon</div>
+    <div id="panel-auth" class="space-y-4">
+      <div class="text-center py-4">
+        <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-500/10 text-blue-400 mb-3">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+        </div>
+        <h2 class="text-lg font-medium">Initialize Session</h2>
+        <p class="text-sm text-slate-400 mt-1">Authenticate to access live taxi and delivery routing engines.</p>
+      </div>
+      <div class="space-y-3">
+        <input type="text" id="driver-id" placeholder="Driver Identifier (e.g., DX-884)" class="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:outline-none focus:border-blue-500 text-slate-200 transition-colors" value="DX-2041" />
+        <button id="btn-login" class="w-full py-3 bg-blue-600 hover:bg-blue-500 font-medium rounded-xl text-sm transition-all cursor-pointer shadow-lg shadow-blue-600/20 active:scale-[0.99]">
+          Launch Dashboard
+        </button>
+      </div>
+    </div>
 
-  <h1>Food Delivery</h1>
+    <div id="panel-dashboard" class="hidden space-y-6">
+      
+      <div class="grid grid-cols-3 gap-3 bg-slate-950/50 p-3 rounded-xl border border-slate-800/60">
+        <div class="text-center">
+          <p class="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Shift Income</p>
+          <p class="text-base font-semibold text-emerald-400 mt-0.5" id="metric-earnings">$0.00</p>
+        </div>
+        <div class="text-center border-x border-slate-800">
+          <p class="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Jobs Finished</p>
+          <p class="text-base font-semibold text-slate-200 mt-0.5" id="metric-jobs">0</p>
+        </div>
+        <div class="text-center">
+          <p class="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Acceptance</p>
+          <p class="text-base font-semibold text-blue-400 mt-0.5" id="metric-ratio">100%</p>
+        </div>
+      </div>
 
-  <p>
-    Harvey Taxi is expanding into fast food and grocery delivery.
-    This feature is currently in development.
-  </p>
+      <div class="bg-slate-950/30 p-4 rounded-xl border border-slate-800 space-y-3">
+        <div class="flex items-center justify-between">
+          <label for="toggle-online" class="text-sm font-medium text-slate-300">Go Online & Pool Requests</label>
+          <input type="checkbox" id="toggle-online" class="w-9 h-5 bg-slate-700 checked:bg-blue-600 rounded-full appearance-none cursor-pointer relative before:content-[''] before:absolute before:w-4 before:h-4 before:bg-white before:rounded-full before:top-0.5 before:left-0.5 checked:before:left-4.5 before:transition-all transition-colors" />
+        </div>
+        <div class="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+          <span>Allowed Dispatches:</span>
+          <div class="flex gap-2">
+            <span class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 font-medium">Taxi-Ride</span>
+            <span class="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 font-medium">Food/Grocery</span>
+          </div>
+        </div>
+      </div>
 
-  <button onclick="goToBeta()">
-    Continue to Beta
-  </button>
+      <div id="dispatch-window" class="min-h-[140px] flex flex-col justify-center items-center p-6 border border-dashed border-slate-800 rounded-xl bg-slate-950/20 text-center">
+        <div id="disp-idle" class="space-y-2">
+          <p class="text-sm text-slate-400">Awaiting dispatch orders...</p>
+          <p class="text-xs text-slate-600">Keep toggle active to stream incoming logistics requests.</p>
+        </div>
 
-  <button class="secondary" onclick="goHome()">
-    Back to Home
-  </button>
-</div>
+        <div id="disp-offer" class="hidden w-full space-y-4">
+          <div class="flex items-center justify-between">
+            <span id="offer-type-badge" class="px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider"></span>
+            <span class="text-xs text-slate-400 font-mono" id="offer-id">#ID</span>
+          </div>
+          <div class="text-left space-y-1">
+            <p class="text-xs text-slate-500 uppercase font-bold">Route Strategy</p>
+            <p class="text-sm font-medium text-slate-200" id="offer-route">Origin → Destination</p>
+            <div class="flex items-center justify-between pt-1">
+              <span class="text-xs text-slate-400" id="offer-meta">Est: 14 mins</span>
+              <span class="text-sm font-bold text-emerald-400" id="offer-payout">$0.00</span>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3 pt-2">
+            <button id="btn-decline" class="py-2.5 bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-medium rounded-lg transition-colors cursor-pointer">
+              Decline
+            </button>
+            <button id="btn-accept" class="py-2.5 bg-blue-600 hover:bg-blue-500 text-xs font-medium rounded-lg transition-colors cursor-pointer shadow-md shadow-blue-600/10">
+              Accept Order
+            </button>
+          </div>
+        </div>
 
-<script>
-function goToBeta() {
-  window.location.href = "/request.html?type=food";
-}
+        <div id="disp-active" class="hidden w-full space-y-4 text-left">
+          <div class="flex items-center justify-between border-b border-slate-800/80 pb-2">
+            <div>
+              <span id="active-type-badge" class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider"></span>
+              <h3 class="text-sm font-semibold mt-1" id="active-title">Task Checklist</h3>
+            </div>
+            <p class="text-lg font-bold text-emerald-400" id="active-payout">$0.00</p>
+          </div>
+          
+          <div class="bg-slate-950/60 p-3 rounded-lg space-y-2 border border-slate-800/60 text-xs">
+            <div class="flex items-start gap-2">
+              <div class="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0"></div>
+              <div>
+                <p class="text-slate-400 font-medium" id="step-primary-label">Current Node</p>
+                <p class="text-slate-200 font-mono mt-0.5 text-[11px]" id="step-primary-value">Loading...</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-2 pt-2 border-t border-slate-800/40">
+              <div class="w-1.5 h-1.5 rounded-full bg-slate-700 mt-1.5 shrink-0"></div>
+              <div>
+                <p class="text-slate-500 font-medium" id="step-secondary-label">Destination Objective</p>
+                <p class="text-slate-400 text-[11px]" id="step-secondary-value">Loading...</p>
+              </div>
+            </div>
+          </div>
 
-function goHome() {
-  window.location.href = "/";
-}
-</script>
+          <button id="btn-pipeline-advance" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 font-semibold text-xs uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-lg shadow-emerald-600/10 active:scale-[0.99]">
+            Advance Pipeline Stage
+          </button>
+        </div>
 
+      </div>
+
+    </div>
+
+    <footer class="mt-6 pt-4 border-t border-slate-800/60 flex gap-3 text-xs">
+      <button id="btn-global-exit" class="py-2 px-3 bg-transparent hover:bg-slate-800/40 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-slate-200 rounded-lg transition-colors cursor-pointer text-center w-auto shrink-0">
+        Log Out
+      </button>
+      <div class="flex-1 flex items-center justify-end text-right text-[11px] text-slate-500">
+        <span>System Version 2.4.0-Beta</span>
+      </div>
+    </footer>
+
+  </div>
+
+  <script>
+    // App State Encapsulation
+    const state = {
+      isAuthenticated: false,
+      isOnline: false,
+      driverId: null,
+      metrics: {
+        earnings: 0.00,
+        jobsCompleted: 0,
+        offersAccepted: 0,
+        offersReceived: 0
+      },
+      currentJob: null,      // Object when assigned, null when clear
+      jobStageIndex: 0,      // Tracks placement inside active pipeline workflow arrays
+      pipelineWorkflow: []   // Array of strings dictating standard lifecycle rules
+    };
+
+    // UI Element Mappings
+    const el = {
+      panelAuth: document.getElementById('panel-auth'),
+      panelDashboard: document.getElementById('panel-dashboard'),
+      driverIdInput: document.getElementById('driver-id'),
+      btnLogin: document.getElementById('btn-login'),
+      btnGlobalExit: document.getElementById('btn-global-exit'),
+      driverBadge: document.getElementById('driver-badge'),
+      statusPingPulse: document.getElementById('status-ping-pulse'),
+      statusPingDot: document.getElementById('status-ping-dot'),
+      statusText: document.getElementById('status-text'),
+      toggleOnline: document.getElementById('toggle-online'),
+      
+      // Metrics
+      metricEarnings: document.getElementById('metric-earnings'),
+      metricJobs: document.getElementById('metric-jobs'),
+      metricRatio: document.getElementById('metric-ratio'),
+
+      // Windows
+      dispIdle: document.getElementById('disp-idle'),
+      dispOffer: document.getElementById('disp-offer'),
+      dispActive: document.getElementById('disp-active'),
+
+      // Offer Fields
+      offerTypeBadge: document.getElementById('offer-type-badge'),
+      offerId: document.getElementById('offer-id'),
+      offerRoute: document.getElementById('offer-route'),
+      offerMeta: document.getElementById('offer-meta'),
+      offerPayout: document.getElementById('offer-payout'),
+      btnDecline: document.getElementById('btn-decline'),
+      btnAccept: document.getElementById('btn-accept'),
+
+      // Active Fields
+      activeTypeBadge: document.getElementById('active-type-badge'),
+      activeTitle: document.getElementById('active-title'),
+      activePayout: document.getElementById('active-payout'),
+      stepPrimaryLabel: document.getElementById('step-primary-label'),
+      stepPrimaryValue: document.getElementById('step-primary-value'),
+      stepSecondaryLabel: document.getElementById('step-secondary-label'),
+      stepSecondaryValue: document.getElementById('step-secondary-value'),
+      btnPipelineAdvance: document.getElementById('btn-pipeline-advance')
+    };
+
+    // Pipeline Standard Framework Maps
+    const PIPELINES = {
+      taxi: [
+        { stage: 'enroute', label: 'Drive to Passenger', instructions: 'Head to passenger pickup location' },
+        { stage: 'arrived', label: 'Arrived at Location', instructions: 'Wait safely for rider to enter vehicle' },
+        { stage: 'started', label: 'Trip Progressing', instructions: 'Transit safely to designated target drop-off' },
+        { stage: 'complete', label: 'Job Terminating', instructions: 'Safely discharge passenger and finalize payment' }
+      ],
+      delivery: [
+        { stage: 'enroute_store', label: 'Heading to Kitchen', instructions: 'Transit to vendor merchant location' },
+        { stage: 'arrived_store', label: 'At Vendor Location', instructions: 'Provide order ID to merchant counter' },
+        { stage: 'picked_up', label: 'Cargo Secured', instructions: 'Verify items match payload list and depart' },
+        { stage: 'enroute_customer', label: 'Out for Delivery', instructions: 'Transit to customer dropping endpoint' },
+        { stage: 'arrived_customer', label: 'Arrived at Target', instructions: 'Complete drop-off following notes' },
+        { stage: 'complete_delivery', label: 'Job Terminating', instructions: 'Confirm delivery execution' }
+      ]
+    };
+
+    // Mock Payload Pools
+    const MOCK_Missions = [
+      { type: 'taxi', route: 'Downtown Arts Hotel → International Airport Term 2', payout: 34.50, estimatedTime: '22 mins', locationSource: '744 Market St', locationDest: 'Airport Drop Gate B' },
+      { type: 'delivery', route: 'Gourmet Burger Kitchen → 1044 Whispering Pines Dr', payout: 14.20, estimatedTime: '11 mins', locationSource: 'Burger Depot (Counter A)', locationDest: 'Apt 4B (Ring Bell)' },
+      { type: 'taxi', route: 'Financial District Plaza → Northside Medical Complex', payout: 19.80, estimatedTime: '15 mins', locationSource: 'Corner of 4th & Pine', locationDest: 'ER Entrance Valet' },
+      { type: 'delivery', route: 'Whole Foods Market → 889 Oakwood Terrace', payout: 22.10, estimatedTime: '19 mins', locationSource: 'Grocery Curbside Slot 4', locationDest: 'Leave at Front Porch' }
+    ];
+
+    let dispatchStreamTimer = null;
+
+    // Core Event Registrations
+    window.addEventListener('DOMContentLoaded', initSync);
+    el.btnLogin.addEventListener('click', handleLogin);
+    el.btnGlobalExit.addEventListener('click', handleLogout);
+    el.toggleOnline.addEventListener('click', handleOnlineToggle);
+    el.btnDecline.addEventListener('click', clearOfferState);
+    el.btnAccept.addEventListener('click', acceptOffer);
+    el.btnPipelineAdvance.addEventListener('click', advancePipelineStage);
+
+    function initSync() {
+      syncDOMState();
+    }
+
+    // Authentication Actions
+    function handleLogin() {
+      const val = el.driverIdInput.value.trim();
+      if (!val) return alert('Provide an authentic Driver ID.');
+      
+      state.driverId = val;
+      state.isAuthenticated = true;
+      
+      el.panelAuth.classList.add('hidden');
+      el.panelDashboard.classList.remove('hidden');
+      syncDOMState();
+    }
+
+    function handleLogout() {
+      // Clean up state parameters
+      state.isAuthenticated = false;
+      state.isOnline = false;
+      state.currentJob = null;
+      el.toggleOnline.checked = false;
+      clearInterval(dispatchStreamTimer);
+      
+      el.panelDashboard.classList.add('hidden');
+      el.panelAuth.classList.remove('hidden');
+      syncDOMState();
+    }
+
+    // Toggle Tracking Operations
+    function handleOnlineToggle() {
+      state.isOnline = el.toggleOnline.checked;
+      
+      if (!state.isOnline) {
+        clearInterval(dispatchStreamTimer);
+        if (state.currentJob && state.currentJob.status === 'offered') {
+          clearOfferState();
+        }
+      } else {
+        startDispatchStreamingLoop();
+      }
+      syncDOMState();
+    }
+
+    // Dispatch Generator Systems
+    function startDispatchStreamingLoop() {
+      clearInterval(dispatchStreamTimer);
+      dispatchStreamTimer = setInterval(() => {
+        // If driver becomes occupied or goes offline, do nothing
+        if (!state.isOnline || state.currentJob) return;
+
+        // 35% probability of generating a routing offer every loop execution tick
+        if (Math.random() > 0.35) {
+          generateRandomOffer();
+        }
+      }, 4000);
+    }
+
+    function generateRandomOffer() {
+      state.metrics.offersReceived++;
+      const baselineTemplate = MOCK_Missions[Math.floor(Math.random() * MOCK_Missions.length)];
+      
+      state.currentJob = {
+        ...baselineTemplate,
+        id: 'HRV-' + Math.floor(100000 + Math.random() * 900000),
+        status: 'offered'
+      };
+
+      // Play structural low-vibration browser sound template cue
+      triggerAudioCue();
+      syncDOMState();
+    }
+
+    function clearOfferState() {
+      state.currentJob = null;
+      syncDOMState();
+    }
+
+    function acceptOffer() {
+      if (!state.currentJob) return;
+      
+      state.metrics.offersAccepted++;
+      state.currentJob.status = 'active';
+      state.jobStageIndex = 0;
+      state.pipelineWorkflow = PIPELINES[state.currentJob.type];
+      
+      syncDOMState();
+    }
+
+    function advancePipelineStage() {
+      if (!state.currentJob || state.currentJob.status !== 'active') return;
+
+      if (state.jobStageIndex < state.pipelineWorkflow.length - 1) {
+        state.jobStageIndex++;
+      } else {
+        // Final pipeline workflow element reached -> Execute completion sequence
+        state.metrics.earnings += state.currentJob.payout;
+        state.metrics.jobsCompleted++;
+        state.currentJob = null;
+        triggerSuccessAudioCue();
+      }
+      syncDOMState();
+    }
+
+    // DOM Engine Synchronization
+    function syncDOMState() {
+      // Context Badge
+      if (state.isAuthenticated) {
+        el.driverBadge.textContent = `Driver Config: ${state.driverId}`;
+      } else {
+        el.driverBadge.textContent = 'Driver Portal • Offline';
+      }
+
+      // Connectivity Top Right Lights
+      if (state.isOnline) {
+        el.statusText.textContent = 'Online';
+        el.statusText.className = 'text-xs font-semibold uppercase tracking-wider text-blue-400';
+        el.statusPingDot.className = 'relative inline-flex rounded-full h-3 w-3 bg-blue-500';
+        el.statusPingPulse.className = 'animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75';
+      } else {
+        el.statusText.textContent = 'Offline';
+        el.statusText.className = 'text-xs font-semibold uppercase tracking-wider text-slate-400';
+        el.statusPingDot.className = 'relative inline-flex rounded-full h-3 w-3 bg-slate-500';
+        el.statusPingPulse.className = 'hidden';
+      }
+
+      // Global Metrics Update
+      el.metricEarnings.textContent = `$${state.metrics.earnings.toFixed(2)}`;
+      el.metricJobs.textContent = state.metrics.jobsCompleted;
+      
+      const ratio = state.metrics.offersReceived > 0 
+        ? Math.round((state.metrics.offersAccepted / state.metrics.offersReceived) * 100) 
+        : 100;
+      el.metricRatio.textContent = `${ratio}%`;
+
+      // Window Visibility Configurations
+      if (!state.currentJob) {
+        // IDLE STATE
+        el.dispIdle.classList.remove('hidden');
+        el.dispOffer.classList.add('hidden');
+        el.dispActive.classList.add('hidden');
+      } else if (state.currentJob.status === 'offered') {
+        // DISPATCH RECEIVED OFFER STATE
+        el.dispIdle.classList.add('hidden');
+        el.dispOffer.classList.remove('hidden');
+        el.dispActive.classList.add('hidden');
+
+        // Text Bindings
+        el.offerId.textContent = state.currentJob.id;
+        el.offerRoute.textContent = state.currentJob.route;
+        el.offerMeta.textContent = `Est. Duration: ${state.currentJob.estimatedTime}`;
+        el.offerPayout.textContent = `$${state.currentJob.payout.toFixed(2)}`;
+
+        if (state.currentJob.type === 'taxi') {
+          el.offerTypeBadge.textContent = 'Taxi Request';
+          el.offerTypeBadge.className = 'px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider bg-blue-500/10 text-blue-400 border border-blue-500/20';
+        } else {
+          el.offerTypeBadge.textContent = 'Delivery Payload';
+          el.offerTypeBadge.className = 'px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/20';
+        }
+      } else if (state.currentJob.status === 'active') {
+        // SYSTEM ENGAGED ACTIVE STATE
+        el.dispIdle.classList.add('hidden');
+        el.dispOffer.classList.add('hidden');
+        el.dispActive.classList.remove('hidden');
+
+        const activeStageObj = state.pipelineWorkflow[state.jobStageIndex];
+        el.activePayout.textContent = `$${state.currentJob.payout.toFixed(2)}`;
+        el.activeTitle.textContent = activeStageObj.label;
+
+        if (state.currentJob.type === 'taxi') {
+          el.activeTypeBadge.textContent = 'Taxi Ride';
+          el.activeTypeBadge.className = 'px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-blue-500/20 text-blue-300';
+        } else {
+          el.activeTypeBadge.textContent = 'Food Delivery';
+          el.activeTypeBadge.className = 'px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300';
+        }
+
+        // Checklist Target Setup Logic
+        el.stepPrimaryLabel.textContent = 'Current Objective Target';
+        el.stepPrimaryValue.textContent = activeStageObj.instructions;
+        el.stepSecondaryLabel = 'Route Summary Details';
+        el.stepSecondaryValue.textContent = state.currentJob.route;
+
+        // Button Label Handling
+        if (state.jobStageIndex === state.pipelineWorkflow.length - 1) {
+          el.btnPipelineAdvance.textContent = 'Finalize & Collect Payment';
+          el.btnPipelineAdvance.className = "w-full py-3 bg-emerald-600 hover:bg-emerald-500 font-bold text-xs uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-lg shadow-emerald-500/20";
+        } else {
+          const nextStageObj = state.pipelineWorkflow[state.jobStageIndex + 1];
+          el.btnPipelineAdvance.textContent = `Advance to: ${nextStageObj.label}`;
+          el.btnPipelineAdvance.className = "w-full py-3 bg-indigo-600 hover:bg-indigo-500 font-bold text-xs uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-lg shadow-indigo-500/20";
+        }
+      }
+    }
+
+    // Audio Engine Templates 
+    function triggerAudioCue() {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+        gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.15);
+      } catch (e) {
+        // Standard safety block if modern browser engine blocks autonomous user audio execution
+      }
+    }
+
+    function triggerSuccessAudioCue() {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
+        gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.2);
+      } catch(e){}
+    }
+  </script>
 </body>
 </html>
