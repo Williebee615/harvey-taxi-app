@@ -3,140 +3,742 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Harvey Logistics — System Preferences</title>
-  <meta name="theme-color" content="#020617" />
 
-  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <title>Harvey Taxi — Settings</title>
+  <meta
+    name="description"
+    content="Manage Harvey Taxi rider and driver settings, battery optimization, location preferences, notifications, support access, and account deletion requests."
+  />
+  <meta name="theme-color" content="#07111f" />
+  <meta name="robots" content="index, follow" />
+
+  <!-- Google Ads / Google Tag -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18161547185"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){ dataLayer.push(arguments); }
+    gtag("js", new Date());
+    gtag("config", "AW-18161547185");
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preconnect" href="https://www.googletagmanager.com" />
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+    rel="stylesheet"
+  />
+
+  <link rel="stylesheet" href="/ai-support-widget.css" />
 
   <style>
-    body {
-      background: linear-gradient(135deg, #020617 0%, #0b1329 100%);
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    :root {
+      --bg1: #040814;
+      --bg2: #091126;
+      --bg3: #101935;
+      --panel: rgba(10, 17, 38, 0.92);
+      --panel2: rgba(15, 23, 52, 0.82);
+      --glass: rgba(255, 255, 255, 0.05);
+      --line: rgba(122, 162, 255, 0.16);
+      --lineStrong: rgba(122, 162, 255, 0.34);
+      --text: #f4f7ff;
+      --muted: #aab8de;
+      --blue: #5ea0ff;
+      --cyan: #63f5ff;
+      --green: #6dffb3;
+      --gold: #ffd76a;
+      --danger: #ff7e97;
+      --danger2: #ff4d6d;
+      --ink: #07121f;
+      --shadow: 0 24px 80px rgba(0, 0, 0, 0.42);
+      --shadowSoft: 0 12px 36px rgba(0, 0, 0, 0.28);
+      --radiusXL: 30px;
+      --radiusLG: 22px;
+      --radiusMD: 16px;
+      --maxw: 980px;
+      --bottomNavH: 84px;
     }
-    .custom-transition {
-      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      min-height: 100%;
+      scroll-behavior: smooth;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+      min-height: 100vh;
+      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 0% 0%, rgba(99, 245, 255, 0.14), transparent 28%),
+        radial-gradient(circle at 100% 0%, rgba(94, 160, 255, 0.12), transparent 26%),
+        radial-gradient(circle at 50% 110%, rgba(109, 255, 179, 0.08), transparent 24%),
+        linear-gradient(160deg, var(--bg1), var(--bg2) 50%, var(--bg3));
+      overflow-x: hidden;
+      padding-bottom: calc(var(--bottomNavH) + env(safe-area-inset-bottom) + 20px);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(rgba(255,255,255,.018), rgba(255,255,255,0)),
+        radial-gradient(circle at 20% 15%, rgba(99,245,255,.06), transparent 25%);
+      z-index: 0;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    button,
+    a,
+    input,
+    select {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button,
+    select,
+    input {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+    }
+
+    .shell {
+      position: relative;
+      z-index: 1;
+      width: min(var(--maxw), calc(100% - 28px));
+      margin: 0 auto;
+      padding: 18px 0 28px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 14px 16px;
+      border-radius: 24px;
+      background: rgba(7, 12, 28, 0.78);
+      border: 1px solid rgba(122, 162, 255, 0.15);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      box-shadow: var(--shadowSoft);
+      margin-bottom: 18px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      width: 50px;
+      height: 50px;
+      border-radius: 17px;
+      display: grid;
+      place-items: center;
+      color: var(--ink);
+      font-weight: 900;
+      letter-spacing: 0.03em;
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      box-shadow: 0 0 26px rgba(99,245,255,.24);
+      flex-shrink: 0;
+    }
+
+    .brand-copy {
+      min-width: 0;
+    }
+
+    .brand-copy strong {
+      display: block;
+      font-size: 1.02rem;
+      line-height: 1.15;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .brand-copy span {
+      display: block;
+      margin-top: 4px;
+      font-size: 0.78rem;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .top-chip {
+      min-height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.08);
+      color: var(--muted);
+      font-size: 0.8rem;
+      font-weight: 800;
+      transition: 0.18s ease;
+    }
+
+    .top-chip:hover,
+    .top-chip:focus-visible {
+      color: white;
+      border-color: rgba(99,245,255,.24);
+      background: rgba(99,245,255,.07);
+      transform: translateY(-1px);
+      outline: none;
+    }
+
+    .hero {
+      padding: 26px;
+      border-radius: var(--radiusXL);
+      background:
+        radial-gradient(circle at 90% 0%, rgba(99,245,255,.10), transparent 28%),
+        linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.012)),
+        var(--panel);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      margin-bottom: 18px;
+      overflow: hidden;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 13px;
+      border-radius: 999px;
+      background: rgba(99,245,255,.06);
+      border: 1px solid rgba(99,245,255,.17);
+      color: var(--cyan);
+      font-size: 0.74rem;
+      font-weight: 900;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3.15rem);
+      line-height: 1.05;
+      letter-spacing: -0.05em;
+      margin-bottom: 12px;
+    }
+
+    .hero p {
+      max-width: 780px;
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 0.98rem;
+    }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .status-card {
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255,255,255,.025);
+      border: 1px solid rgba(255,255,255,.06);
+    }
+
+    .status-card strong {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 0.88rem;
+    }
+
+    .status-card span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.78rem;
+      line-height: 1.5;
+    }
+
+    .grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .panel {
+      padding: 22px;
+      border-radius: var(--radiusXL);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadowSoft);
+    }
+
+    .panel.danger {
+      background:
+        linear-gradient(180deg, rgba(255, 77, 109, 0.08), rgba(255, 77, 109, 0.02)),
+        var(--panel);
+      border-color: rgba(255, 77, 109, 0.24);
+    }
+
+    .section-head {
+      margin-bottom: 16px;
+    }
+
+    .section-head h2 {
+      font-size: 1rem;
+      font-weight: 900;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #ffffff;
+      margin-bottom: 6px;
+    }
+
+    .section-head p {
+      color: var(--muted);
+      font-size: 0.84rem;
+      line-height: 1.6;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .field {
+      display: grid;
+      gap: 7px;
+    }
+
+    label {
+      color: var(--muted);
+      font-size: 0.72rem;
+      font-weight: 900;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    input,
+    select {
+      width: 100%;
+      min-height: 52px;
+      border-radius: 16px;
+      border: 1px solid rgba(122,162,255,.15);
+      background: rgba(4,8,20,.62);
+      color: var(--text);
+      padding: 0 14px;
+      outline: none;
+      transition: 0.18s ease;
+    }
+
+    input::placeholder {
+      color: rgba(170,184,222,.52);
+    }
+
+    input:focus,
+    select:focus {
+      border-color: rgba(99,245,255,.45);
+      box-shadow: 0 0 0 4px rgba(99,245,255,.07);
+    }
+
+    .setting-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255,255,255,.025);
+      border: 1px solid rgba(255,255,255,.06);
+    }
+
+    .setting-copy strong {
+      display: block;
+      font-size: 0.9rem;
+      margin-bottom: 5px;
+    }
+
+    .setting-copy span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.78rem;
+      line-height: 1.5;
+    }
+
+    .switch {
+      position: relative;
+      display: inline-flex;
+      width: 50px;
+      height: 30px;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+
+    .switch input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .slider {
+      position: absolute;
+      inset: 0;
+      border-radius: 999px;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.10);
+      transition: 0.2s ease;
+    }
+
+    .slider::after {
+      content: "";
+      position: absolute;
+      width: 22px;
+      height: 22px;
+      left: 3px;
+      top: 3px;
+      border-radius: 999px;
+      background: #fff;
+      transition: 0.2s ease;
+      box-shadow: 0 6px 15px rgba(0,0,0,.28);
+    }
+
+    .switch input:checked + .slider {
+      background: rgba(109,255,179,.22);
+      border-color: rgba(109,255,179,.45);
+    }
+
+    .switch input:checked + .slider::after {
+      transform: translateX(20px);
+    }
+
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .btn {
+      min-height: 52px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      padding: 0 18px;
+      border-radius: 16px;
+      font-weight: 900;
+      font-size: 0.86rem;
+      transition: 0.18s ease;
+      text-align: center;
+      border: 1px solid transparent;
+    }
+
+    .btn:hover,
+    .btn:focus-visible {
+      transform: translateY(-1px);
+      outline: none;
+    }
+
+    .btn.primary {
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      color: var(--ink);
+      box-shadow: 0 18px 40px rgba(94,160,255,.20);
+    }
+
+    .btn.secondary {
+      background: rgba(255,255,255,.045);
+      border-color: rgba(255,255,255,.09);
+      color: var(--text);
+    }
+
+    .btn.success {
+      background: linear-gradient(135deg, var(--green), #9dffd9);
+      color: #061f15;
+    }
+
+    .btn.danger {
+      background: rgba(255,77,109,.12);
+      border-color: rgba(255,77,109,.34);
+      color: #ffc7d1;
+    }
+
+    .btn.full {
+      width: 100%;
+    }
+
+    .notice {
+      display: none;
+      margin-top: 12px;
+      padding: 13px 14px;
+      border-radius: 16px;
+      font-size: 0.82rem;
+      line-height: 1.5;
+      font-weight: 700;
+      border: 1px solid transparent;
+    }
+
+    .notice.show {
+      display: block;
+    }
+
+    .notice.success {
+      color: var(--green);
+      background: rgba(109,255,179,.09);
+      border-color: rgba(109,255,179,.22);
+    }
+
+    .notice.warning {
+      color: var(--gold);
+      background: rgba(255,215,106,.09);
+      border-color: rgba(255,215,106,.22);
+    }
+
+    .notice.error {
+      color: #ffc7d1;
+      background: rgba(255,77,109,.10);
+      border-color: rgba(255,77,109,.24);
+    }    .bottom-nav {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      min-height: calc(var(--bottomNavH) + env(safe-area-inset-bottom));
+      background: rgba(6, 12, 26, 0.96);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      justify-content: space-around;
+      align-items: flex-start;
+      padding: 12px 8px calc(12px + env(safe-area-inset-bottom));
+      z-index: 80;
+    }
+
+    .nav-btn {
+      color: var(--muted);
+      background: transparent;
+      font-size: 12px;
+      font-weight: 900;
+      padding: 10px;
+      border-radius: 14px;
+      min-height: 48px;
+      min-width: 64px;
+    }
+
+    .nav-btn.active {
+      color: white;
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    @media(max-width: 760px) {
+      .topbar,
+      .form-grid,
+      .status-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .topbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .top-actions,
+      .button-row {
+        width: 100%;
+      }
+
+      .top-chip,
+      .btn {
+        width: 100%;
+      }
+
+      .setting-row {
+        align-items: flex-start;
+      }
     }
   </style>
 </head>
-<body class="min-h-screen text-slate-100 py-8 px-4 sm:px-6 antialiased flex items-center justify-center">
 
-  <main class="w-full max-w-2xl bg-slate-900/80 border border-slate-800/80 backdrop-blur-xl rounded-3xl shadow-2xl p-6 sm:p-8 space-y-6 custom-transition">
-    
-    <header class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-5 border-b border-slate-800/80">
-      <a href="/" class="group flex items-center gap-3.5 no-underline">
-        <div class="w-12 h-12 rounded-2xl font-black text-slate-950 bg-gradient-to-tr from-white via-blue-200 to-cyan-300 flex items-center justify-center shadow-lg shadow-blue-500/10 group-hover:scale-[1.03] transition-transform">
-          H
-        </div>
-        <div>
-          <strong class="block text-lg font-bold tracking-tight text-white group-hover:text-blue-400 transition-colors">Harvey Logistics</strong>
-          <span class="block text-xs text-slate-400 mt-0.5">Global System Settings</span>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <a href="index.html" class="brand" aria-label="Harvey Taxi home">
+        <div class="brand-mark">HT</div>
+        <div class="brand-copy">
+          <strong>Harvey Taxi Settings</strong>
+          <span>Rider, driver, battery, privacy, and account controls</span>
         </div>
       </a>
-      <a class="self-start sm:self-auto text-xs font-semibold px-4 py-2.5 rounded-full bg-slate-950 hover:bg-slate-800 text-slate-300 hover:text-slate-100 border border-slate-800 hover:border-slate-700 transition-all cursor-pointer shadow-sm text-center" href="/rider-dashboard.html">
-        Return to Dashboard
-      </a>
+
+      <div class="top-actions">
+        <a class="top-chip" href="rider-dashboard.html">Rider Dashboard</a>
+        <a class="top-chip" href="driver-dashboard.html">Driver Dashboard</a>
+      </div>
     </header>
 
-    <section class="bg-slate-950/40 border border-slate-800/60 rounded-2xl p-5 space-y-1.5">
-      <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">Preferences Engine</h1>
-      <p class="text-xs leading-relaxed text-slate-400">
-        Calibrate hardware polling optimizations, execution variables, account routing state identities, and data lifecycle management directives.
+    <section class="hero">
+      <div class="eyebrow">System Preferences</div>
+      <h1>Control your Harvey Taxi app experience.</h1>
+      <p>
+        Manage your rider or driver profile settings, battery optimization, precise location preferences,
+        low-power reminders, support access, and account deletion requests.
       </p>
+
+      <div class="status-grid">
+        <div class="status-card">
+          <strong>Battery Optimizer</strong>
+          <span>Reduces background updates when no active ride or mission is running.</span>
+        </div>
+        <div class="status-card">
+          <strong>Precise Location</strong>
+          <span>Supports accurate pickup, trip status, and driver mission tracking.</span>
+        </div>
+        <div class="status-card">
+          <strong>Data Controls</strong>
+          <span>Submit a deletion request for rider or driver account records.</span>
+        </div>
+      </div>
     </section>
 
-    <div class="space-y-6">
-
-      <section class="bg-slate-950/20 border border-slate-800 rounded-2xl p-5 space-y-4">
-        <div>
-          <h2 class="text-sm font-bold uppercase tracking-wider text-slate-400">Profile Identity</h2>
-          <p class="text-xs text-slate-500 mt-0.5">Toggle account type scopes to load cross-hydrated localized device datasets dynamically.</p>
+    <section class="grid">
+      <section class="panel">
+        <div class="section-head">
+          <h2>Profile Identity</h2>
+          <p>Select which Harvey Taxi profile you want to update. This helps route preferences to the correct rider or driver account.</p>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label for="accountType" class="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Active Persona Profile</label>
-            <select id="accountType" class="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-slate-200 transition-all cursor-pointer">
-              <option value="rider">Rider / Cargo Client</option>
-              <option value="driver">Logistics Courier / Driver</option>
+        <div class="form-grid">
+          <div class="field">
+            <label for="accountType">Account Type</label>
+            <select id="accountType">
+              <option value="rider">Rider Account</option>
+              <option value="driver">Driver Account</option>
             </select>
           </div>
-          <div>
-            <label for="accountEmail" class="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Verification Email Address</label>
-            <input id="accountEmail" type="email" placeholder="identity@domain.com" class="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-slate-200 transition-all" />
+
+          <div class="field">
+            <label for="accountEmail">Account Email</label>
+            <input id="accountEmail" type="email" placeholder="you@example.com" autocomplete="email" />
           </div>
         </div>
       </section>
 
-      <section class="bg-slate-950/20 border border-slate-800 rounded-2xl p-5 space-y-4">
-        <div>
-          <h2 class="text-sm font-bold uppercase tracking-wider text-slate-400">Telemetry & Hardware Optimization</h2>
-          <p class="text-xs text-slate-500 mt-0.5">Adjust background power drains against telemetry pinpoint positioning requirements.</p>
+      <section class="panel">
+        <div class="section-head">
+          <h2>Battery & Location</h2>
+          <p>These settings help balance battery life with live trip accuracy. During active rides, precise location may still be required for safety and dispatch accuracy.</p>
         </div>
 
-        <div class="flex items-center justify-between gap-4 p-4 border border-slate-800/80 rounded-xl bg-slate-950/30">
-          <div class="space-y-0.5">
-            <strong class="block text-xs font-semibold text-slate-200">Battery Optimizer System</strong>
-            <span class="block text-[11px] text-slate-400 leading-normal">Reduces lifecycle execution ticks, render threads, and location calls when stagnant.</span>
+        <div class="setting-list">
+          <div class="setting-row">
+            <div class="setting-copy">
+              <strong>Battery Optimizer</strong>
+              <span>Use fewer background checks when no ride, delivery, or driver mission is active.</span>
+            </div>
+            <label class="switch" aria-label="Battery Optimizer">
+              <input id="batteryOptimizerToggle" type="checkbox" checked />
+              <span class="slider"></span>
+            </label>
           </div>
-          <label class="relative inline-flex items-center cursor-pointer select-none">
-            <input id="batteryOptimizerToggle" type="checkbox" class="sr-only peer" checked />
-            <div class="w-11 h-6 bg-slate-800 border border-slate-700/80 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600/30 peer-checked:border-emerald-500"></div>
-          </label>
-        </div>
 
-        <div class="flex items-center justify-between gap-4 p-4 border border-slate-800/80 rounded-xl bg-slate-950/30">
-          <div class="space-y-0.5">
-            <strong class="block text-xs font-semibold text-slate-200">Continuous Precise Location</strong>
-            <span class="block text-[11px] text-slate-400 leading-normal">Enforces uninterrupted precise high-accuracy GPS streams during active transits.</span>
+          <div class="setting-row">
+            <div class="setting-copy">
+              <strong>Precise Location During Trips</strong>
+              <span>Allow high-accuracy location while requesting rides, driving, or completing missions.</span>
+            </div>
+            <label class="switch" aria-label="Precise Location During Trips">
+              <input id="preciseLocationToggle" type="checkbox" checked />
+              <span class="slider"></span>
+            </label>
           </div>
-          <label class="relative inline-flex items-center cursor-pointer select-none">
-            <input id="preciseLocationToggle" type="checkbox" class="sr-only peer" checked />
-            <div class="w-11 h-6 bg-slate-800 border border-slate-700/80 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600/30 peer-checked:border-emerald-500"></div>
-          </label>
-        </div>
 
-        <div class="flex items-center justify-between gap-4 p-4 border border-slate-800/80 rounded-xl bg-slate-950/30">
-          <div class="space-y-0.5">
-            <strong class="block text-xs font-semibold text-slate-200">Low Power Runtime Reminders</strong>
-            <span class="block text-[11px] text-slate-400 leading-normal">Triggers notifications if device throttling layers impact active routing accuracy.</span>
+          <div class="setting-row">
+            <div class="setting-copy">
+              <strong>Low Power Mode Reminders</strong>
+              <span>Show reminders if battery settings may interfere with active trip updates.</span>
+            </div>
+            <label class="switch" aria-label="Low Power Mode Reminders">
+              <input id="lowPowerWarningToggle" type="checkbox" checked />
+              <span class="slider"></span>
+            </label>
           </div>
-          <label class="relative inline-flex items-center cursor-pointer select-none">
-            <input id="lowPowerWarningToggle" type="checkbox" class="sr-only peer" checked />
-            <div class="w-11 h-6 bg-slate-800 border border-slate-700/80 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600/30 peer-checked:border-emerald-500"></div>
-          </label>
         </div>
 
-        <div class="pt-2">
-          <button class="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-slate-100 text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-md shadow-blue-600/10 cursor-pointer active:scale-[0.995]" id="saveSettingsBtn">
-            Commit Preferences Configuration
-          </button>
-          <div id="settingsNotice" class="hidden mt-3 px-4 py-3 rounded-xl border text-xs font-medium custom-transition"></div>
+        <div class="button-row">
+          <button class="btn primary" type="button" id="saveSettingsBtn">Save Settings</button>
+          <button class="btn secondary" type="button" onclick="openHarveyAiChat()">Ask AI Support</button>
         </div>
+
+        <div id="settingsNotice" class="notice"></div>
       </section>
 
-      <section class="bg-red-950/10 border border-red-900/30 rounded-2xl p-5 space-y-4">
-        <div>
-          <h2 class="text-sm font-bold uppercase tracking-wider text-red-400">Account Deletion & Data Redaction</h2>
-          <p class="text-xs text-slate-500 mt-0.5">
-            Submits account purge commands. Legal financial transaction records are securely vaulted according to regular operational compliance requirements.
+      <section class="panel danger">
+        <div class="section-head">
+          <h2>Delete Account Request</h2>
+          <p>
+            Submit a deletion request for your rider or driver account. Some legal, payment, fraud-prevention,
+            safety, and transaction records may need to be retained as required by law or business compliance.
           </p>
         </div>
 
-        <div class="space-y-3">
-          <div>
-            <label for="deleteConfirm" class="block text-[11px] font-bold uppercase tracking-wider text-red-400/80 mb-1.5">Verification Keyphrase</label>
-            <input id="deleteConfirm" type="text" placeholder="Type 'DELETE' to initialize confirmation" class="w-full px-4 py-3 bg-slate-950 border border-red-900/30 rounded-xl text-sm focus:outline-none focus:border-red-500 text-slate-200 transition-all placeholder-red-900/40" />
-          </div>
-
-          <button class="w-full py-3 bg-red-950/40 hover:bg-red-900/30 text-red-400 hover:text-red-300 font-bold text-xs uppercase tracking-wider rounded-xl border border-red-900/40 transition-all cursor-pointer" id="deleteAccountBtn">
-            Request Complete Account Deletion
-          </button>
-          <div id="deleteNotice" class="hidden mt-3 px-4 py-3 rounded-xl border text-xs font-medium custom-transition"></div>
+        <div class="field">
+          <label for="deleteConfirm">Type DELETE to confirm</label>
+          <input id="deleteConfirm" type="text" placeholder="DELETE" autocomplete="off" />
         </div>
-      </section>
 
-    </div>
+        <div class="button-row">
+          <button class="btn danger full" type="button" id="deleteAccountBtn">Request Account Deletion</button>
+        </div>
+
+        <div id="deleteNotice" class="notice"></div>
+      </section>
+    </section>
   </main>
+
+  <nav class="bottom-nav" aria-label="Settings bottom navigation">
+    <button class="nav-btn" type="button" onclick="window.location.href='index.html'">Home</button>
+    <button class="nav-btn" type="button" onclick="window.location.href='request-ride.html?mode=driver'">Trips</button>
+    <button class="nav-btn" type="button" onclick="window.location.href='rider-dashboard.html'">Rider</button>
+    <button class="nav-btn" type="button" onclick="window.location.href='driver-dashboard.html'">Driver</button>
+    <button class="nav-btn active" type="button">Settings</button>
+  </nav>
+
+  <script src="/ai-support-widget.js"></script>
 
   <script>
     const CONFIG = {
@@ -155,6 +757,12 @@
       }
     };
 
+    window.HARVEY_AI_CONTEXT = {
+      page: "settings",
+      app: "Harvey Taxi",
+      purpose: "Help riders and drivers manage battery optimization, location preferences, account settings, and deletion requests."
+    };
+
     const $ = (id) => document.getElementById(id);
 
     const els = {
@@ -170,54 +778,60 @@
       deleteNotice: $("deleteNotice")
     };
 
-    // Safe Engine Storage Interfaces
+    function trackSettingsEvent(eventName, params = {}) {
+      try {
+        if (typeof gtag === "function") {
+          gtag("event", eventName, {
+            event_category: "settings",
+            event_label: eventName,
+            page_location: window.location.href,
+            ...params
+          });
+        }
+      } catch (error) {}
+    }
+
     function readStorage(key, fallback = "") {
       try {
         const val = localStorage.getItem(key);
         return val === null ? fallback : val;
-      } catch { return fallback; }
+      } catch {
+        return fallback;
+      }
     }
 
     function writeStorage(key, value) {
-      try { localStorage.setItem(key, String(value)); } catch {}
+      try {
+        localStorage.setItem(key, String(value));
+      } catch {}
     }
 
-    // Interactive Notification Toast Manager
     function dispatchNotice(targetElement, msg, styleVariant = "warning") {
       if (!targetElement) return;
+
       targetElement.textContent = msg;
-      targetElement.classList.remove('hidden', 'bg-amber-500/10', 'border-amber-500/30', 'text-amber-400', 'bg-emerald-500/10', 'border-emerald-500/30', 'text-emerald-400', 'bg-red-500/10', 'border-red-500/30', 'text-red-400');
-      
-      if (styleVariant === "success") {
-        targetElement.classList.add('bg-emerald-500/10', 'border-emerald-500/30', 'text-emerald-400');
-      } else if (styleVariant === "error") {
-        targetElement.classList.add('bg-red-500/10', 'border-red-500/30', 'text-red-400');
-      } else {
-        targetElement.classList.add('bg-amber-500/10', 'border-amber-500/30', 'text-amber-400');
-      }
+      targetElement.className = "notice show " + styleVariant;
     }
 
     function checkEmailValidity(targetString) {
       return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(targetString || "").trim());
     }
 
-    // Dynamic Context Switching State Manager
     function updateEmailFieldFromPersonaChange() {
       const selectedPersona = els.accountType.value;
       writeStorage(CONFIG.STORAGE_KEYS.activePersona, selectedPersona);
-      
-      const identityEmail = selectedPersona === "rider" 
+
+      const identityEmail = selectedPersona === "rider"
         ? readStorage(CONFIG.STORAGE_KEYS.riderEmail)
         : readStorage(CONFIG.STORAGE_KEYS.driverEmail);
-        
+
       els.accountEmail.value = identityEmail || "";
+      trackSettingsEvent("settings_persona_changed", { account_type: selectedPersona });
     }
 
-    // Network Interface Posting Handler
     async function executeApiPost(endpointPath, payloadBody) {
-      const requestSignalTimeout = 5000; 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), requestSignalTimeout);
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
 
       try {
         const response = await fetch(`${CONFIG.API_BASE}${endpointPath}`, {
@@ -226,18 +840,20 @@
           body: JSON.stringify(payloadBody || {}),
           signal: controller.signal
         });
+
         clearTimeout(timeoutId);
 
         let parsedData = {};
         try {
           parsedData = await response.json();
         } catch {
-          parsedData = { ok: false, error: "Server structural processing failed." };
+          parsedData = {};
         }
 
         if (!response.ok) {
-          throw new Error(parsedData.error || parsedData.message || `HTTP server anomaly: status ${response.status}`);
+          throw new Error(parsedData.error || parsedData.message || `Request failed with status ${response.status}`);
         }
+
         return parsedData;
       } catch (err) {
         clearTimeout(timeoutId);
@@ -245,13 +861,13 @@
       }
     }
 
-    // Hardware State Hydration Routine
     function performStateHydration() {
       const activePersona = readStorage(CONFIG.STORAGE_KEYS.activePersona, "rider");
       els.accountType.value = activePersona;
 
       const storedRiderEmail = readStorage(CONFIG.STORAGE_KEYS.riderEmail);
       const storedDriverEmail = readStorage(CONFIG.STORAGE_KEYS.driverEmail);
+
       els.accountEmail.value = activePersona === "rider" ? (storedRiderEmail || "") : (storedDriverEmail || "");
 
       els.batteryOptimizerToggle.checked = readStorage(CONFIG.STORAGE_KEYS.batteryOptimizer, "true") !== "false";
@@ -259,17 +875,16 @@
       els.lowPowerWarningToggle.checked = readStorage(CONFIG.STORAGE_KEYS.lowPowerWarning, "true") !== "false";
     }
 
-    // Execution Commits
     async function commitSavedSettings() {
       const activePersona = els.accountType.value;
       const filteredEmail = String(els.accountEmail.value || "").trim().toLowerCase();
 
       if (!checkEmailValidity(filteredEmail)) {
-        dispatchNotice(els.settingsNotice, "Please enter an authenticated account email framework address.", "warning");
+        dispatchNotice(els.settingsNotice, "Please enter a valid rider or driver account email.", "warning");
         return;
       }
 
-      const parametersPayload = {
+      const payload = {
         account_type: activePersona,
         email: filteredEmail,
         battery_optimizer_enabled: els.batteryOptimizerToggle.checked,
@@ -277,10 +892,10 @@
         low_power_warning_enabled: els.lowPowerWarningToggle.checked
       };
 
-      // Commit locally immediately to guarantee hardware loop integrity
-      writeStorage(CONFIG.STORAGE_KEYS.batteryOptimizer, parametersPayload.battery_optimizer_enabled);
-      writeStorage(CONFIG.STORAGE_KEYS.preciseLocation, parametersPayload.precise_location_enabled);
-      writeStorage(CONFIG.STORAGE_KEYS.lowPowerWarning, parametersPayload.low_power_warning_enabled);
+      writeStorage(CONFIG.STORAGE_KEYS.activePersona, activePersona);
+      writeStorage(CONFIG.STORAGE_KEYS.batteryOptimizer, payload.battery_optimizer_enabled);
+      writeStorage(CONFIG.STORAGE_KEYS.preciseLocation, payload.precise_location_enabled);
+      writeStorage(CONFIG.STORAGE_KEYS.lowPowerWarning, payload.low_power_warning_enabled);
 
       if (activePersona === "rider") {
         writeStorage(CONFIG.STORAGE_KEYS.riderEmail, filteredEmail);
@@ -288,16 +903,19 @@
         writeStorage(CONFIG.STORAGE_KEYS.driverEmail, filteredEmail);
       }
 
+      trackSettingsEvent("settings_save_attempt", { account_type: activePersona });
+
       try {
-        await executeApiPost(CONFIG.ENDPOINTS.saveSettings, parametersPayload);
-        dispatchNotice(els.settingsNotice, "Hardware updates saved successfully on database tracking records.", "success");
+        await executeApiPost(CONFIG.ENDPOINTS.saveSettings, payload);
+        dispatchNotice(els.settingsNotice, "Settings saved successfully.", "success");
+        trackSettingsEvent("settings_save_success", { account_type: activePersona });
       } catch (err) {
-        // Safe UX fallback execution context if remote endpoints aren't deployed
         dispatchNotice(
-          els.settingsNotice, 
-          "Preferences cached successfully locally on this machine (Remote endpoint offline fallback active).", 
+          els.settingsNotice,
+          "Settings were saved on this device. Backend sync is not available yet.",
           "warning"
         );
+        trackSettingsEvent("settings_save_local_fallback", { account_type: activePersona });
       }
     }
 
@@ -307,50 +925,90 @@
       const verificationString = String(els.deleteConfirm.value || "").trim();
 
       if (!checkEmailValidity(filteredEmail)) {
-        dispatchNotice(els.deleteNotice, "An authentic validated profile address is required to locate historical records.", "warning");
+        dispatchNotice(els.deleteNotice, "Please enter the email address for the account you want deleted.", "warning");
         return;
       }
 
       if (verificationString !== "DELETE") {
-        dispatchNotice(els.deleteNotice, "Type explicit keyphrase 'DELETE' to authorize account lifecycle processing termination.", "warning");
+        dispatchNotice(els.deleteNotice, "Type DELETE to confirm your account deletion request.", "warning");
         return;
       }
 
-      const explicitInterlockingCheck = window.confirm(
-        "CRITICAL ALERT: Initialize complete data redaction? Access to your active Harvey Logistics history profile will terminate instantly."
+      const confirmed = window.confirm(
+        "Submit account deletion request for this Harvey Taxi profile? This cannot be undone from the app screen."
       );
 
-      if (!explicitInterlockingCheck) return;
+      if (!confirmed) return;
+
+      trackSettingsEvent("delete_request_attempt", { account_type: activePersona });
 
       try {
         await executeApiPost(CONFIG.ENDPOINTS.deleteAccount, {
           account_type: activePersona,
           email: filteredEmail,
-          reason: "User manually authorized data destruction sequence from systems profile panel."
+          reason: "User requested account deletion from Harvey Taxi settings page."
         });
 
         dispatchNotice(
           els.deleteNotice,
-          "Profile flagged. Identity destruction processing queued successfully.",
+          "Account deletion request submitted successfully.",
           "success"
         );
+
         els.deleteConfirm.value = "";
+        trackSettingsEvent("delete_request_success", { account_type: activePersona });
       } catch (err) {
         dispatchNotice(
           els.deleteNotice,
-          err.message || "Network exception encountered while validating teardown sequence.",
+          err.message || "Unable to submit deletion request right now. Please contact support.",
           "error"
         );
+
+        trackSettingsEvent("delete_request_error", { account_type: activePersona });
       }
     }
 
-    // Interactive Wireframing Attachments
+    function openHarveyAiChat() {
+      try {
+        if (window.HarveyAI && typeof window.HarveyAI.open === "function") {
+          window.HarveyAI.open();
+          return;
+        }
+
+        const root = document.getElementById("harvey-ai-chat-root");
+
+        if (root) {
+          const toggle =
+            root.querySelector("[data-harvey-ai-open]") ||
+            root.querySelector(".harvey-ai-launch") ||
+            root.querySelector("button");
+
+          if (toggle && typeof toggle.click === "function") {
+            toggle.click();
+            return;
+          }
+        }
+      } catch (error) {}
+
+      window.location.href = "support.html";
+    }
+
     els.accountType.addEventListener("change", updateEmailFieldFromPersonaChange);
     els.saveSettingsBtn.addEventListener("click", commitSavedSettings);
     els.deleteAccountBtn.addEventListener("click", triggerAccountDeletionSequence);
 
-    // Run Initializer
-    performStateHydration();
+    window.addEventListener("load", function () {
+      performStateHydration();
+      trackSettingsEvent("settings_page_view");
+
+      setTimeout(function () {
+        if (!document.getElementById("harvey-ai-chat-root")) {
+          const root = document.createElement("div");
+          root.id = "harvey-ai-chat-root";
+          document.body.appendChild(root);
+        }
+      }, 80);
+    });
   </script>
 </body>
 </html>
