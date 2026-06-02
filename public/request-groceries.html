@@ -1,105 +1,339 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Harvey Taxi — Grocery Delivery</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Harvey Logistics — Grocery Delivery Service</title>
 
-<style>
-* { box-sizing: border-box; font-family: Arial, sans-serif; }
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 
-body {
-  margin: 0;
-  background: linear-gradient(180deg,#040814,#09142d);
-  color: white;
-  padding: 20px;
-}
-
-.wrap { max-width: 760px; margin: 0 auto; }
-
-.badge {
-  display: inline-block;
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: rgba(255,200,0,0.15);
-  color: #ffd76a;
-  margin-bottom: 10px;
-}
-
-.card {
-  background: #132754;
-  border: 1px solid #23458e;
-  border-radius: 18px;
-  padding: 20px;
-}
-
-input, textarea, button {
-  width: 100%;
-  padding: 14px;
-  border-radius: 12px;
-  margin-bottom: 12px;
-  font-size: 16px;
-}
-
-input, textarea {
-  background: #0b1b3d;
-  color: white;
-  border: 1px solid #2b4f99;
-}
-
-button {
-  border: none;
-  background: #2f7cff;
-  color: white;
-  font-weight: bold;
-  cursor: pointer;
-}
-
-button.disabled {
-  background: #3b4c7a;
-  cursor: not-allowed;
-}
-
-.status {
-  background: #0b1b3d;
-  border: 1px solid #2b4f99;
-  padding: 12px;
-  border-radius: 10px;
-  margin-top: 10px;
-  color: #aab4d6;
-}
-</style>
+  <style>
+    body {
+      background: linear-gradient(135deg, #020617 0%, #0b1528 100%);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 4px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: rgba(51, 65, 85, 1);
+      border-radius: 2px;
+    }
+  </style>
 </head>
+<body class="min-h-screen text-slate-100 p-4 md:p-8 flex items-center justify-center antialiased">
 
-<body>
+  <div class="w-full max-w-4xl grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+    
+    <main class="md:col-span-7 bg-slate-900/90 border border-slate-800/80 rounded-2xl shadow-2xl p-6 backdrop-blur-xl transition-all">
+      
+      <header class="mb-6 pb-4 border-b border-slate-800 flex justify-between items-center">
+        <div>
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 mb-2">
+            <span class="w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse"></span>
+            Grocery Delivery • Active Pilot Mode
+          </span>
+          <h1 class="text-2xl font-bold tracking-tight bg-gradient-to-r from-slate-100 to-slate-300 bg-clip-text text-transparent">
+            Harvey Logistics Delivery
+          </h1>
+        </div>
+      </header>
 
-<div class="wrap">
+      <form id="delivery-form" class="space-y-4" onsubmit="event.preventDefault();">
+        <div>
+          <label class="block text-xs uppercase font-bold tracking-wider text-slate-400 mb-1.5">Preferred Store Merchant</label>
+          <select id="form-store" class="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:outline-none focus:border-blue-500 text-slate-200 transition-colors cursor-pointer">
+            <option value="Whole Foods Market">Whole Foods Market</option>
+            <option value="Kroger Supermarket">Kroger Supermarket</option>
+            <option value="Walmart Supercenter">Walmart Supercenter</option>
+            <option value="Trader Joe's">Trader Joe's</option>
+          </select>
+        </div>
 
-  <div class="badge">🧪 Grocery Delivery — Pilot Mode</div>
+        <div>
+          <label class="block text-xs uppercase font-bold tracking-wider text-slate-400 mb-1.5">Grocery Shopping List Manifest</label>
+          <textarea id="form-manifest" rows="4" placeholder="List your payload items, quantity requests, and pick instructions here... (e.g., Organic Bananas x1 bunch, Whole Milk 1gal x1, French Roast Coffee beans x1 bag)" class="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:outline-none focus:border-blue-500 text-slate-200 placeholder-slate-600 transition-colors resize-none"></textarea>
+        </div>
 
-  <div class="card">
-    <h2>Request Grocery Delivery</h2>
+        <div>
+          <label class="block text-xs uppercase font-bold tracking-wider text-slate-400 mb-1.5">Target Destination Address</label>
+          <div class="relative">
+            <input type="text" id="form-address" placeholder="Enter residential or corporate drop-off point..." class="w-full px-4 py-3 pl-10 bg-slate-950 border border-slate-800 rounded-xl text-sm focus:outline-none focus:border-blue-500 text-slate-200 placeholder-slate-600 transition-colors" />
+            <span class="absolute left-3.5 top-3.5 text-slate-500">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            </span>
+          </div>
+        </div>
 
-    <p style="color:#aab4d6">
-      Harvey Taxi is expanding into grocery delivery. This feature is currently in pilot mode and may not be fully available in all areas.
-    </p>
+        <div class="grid grid-cols-2 gap-3 bg-slate-950/60 p-3 rounded-xl border border-slate-800/60 text-xs">
+          <div>
+            <p class="text-slate-500 uppercase font-bold tracking-wider">Est. Delivery Fee</p>
+            <p class="text-base font-semibold text-slate-300 mt-0.5" id="calc-fee">$5.00</p>
+          </div>
+          <div>
+            <p class="text-slate-500 uppercase font-bold tracking-wider">Service Priority Surge</p>
+            <p class="text-base font-semibold text-emerald-400 mt-0.5">Normal (1.0x)</p>
+          </div>
+        </div>
 
-    <input placeholder="Store Name (Walmart, Kroger, etc.)" />
-    <textarea placeholder="Grocery List (items, quantities, notes)"></textarea>
-    <input placeholder="Delivery Address" />
+        <button id="btn-submit" type="button" class="w-full py-3.5 bg-blue-600 hover:bg-blue-500 text-slate-100 font-bold rounded-xl text-sm transition-all cursor-pointer shadow-lg shadow-blue-600/20 active:scale-[0.995]">
+          Dispatch Delivery Request
+        </button>
+      </form>
 
-    <button class="disabled">
-      Submit Request (Coming Soon)
-    </button>
+    </main>
 
-    <div class="status">
-      🚧 Grocery delivery is under development.  
-      You will be able to request deliveries soon.
-    </div>
+    <aside class="md:col-span-5 space-y-4">
+      
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-2xl backdrop-blur-xl">
+        <h3 class="text-sm font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center justify-between">
+          <span>Live Operations Telemetry</span>
+          <span id="telemetry-status-dot" class="inline-block w-2 h-2 rounded-full bg-slate-600"></span>
+        </h3>
+        
+        <div id="telemetry-idle" class="py-8 text-center border border-dashed border-slate-800 rounded-xl bg-slate-950/30">
+          <svg class="w-8 h-8 text-slate-700 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+          <p class="text-xs text-slate-500 font-medium px-4">No payload submitted. Complete the client form to spin up a mock dispatch pipeline.</p>
+        </div>
+
+        <div id="telemetry-active" class="hidden space-y-4">
+          <div class="bg-slate-950 p-3 rounded-xl border border-slate-800/80 flex justify-between items-center">
+            <div>
+              <p class="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Assigned Driver Pipeline</p>
+              <p class="text-xs font-mono text-blue-400 font-semibold mt-0.5" id="telemetry-driver-id">Courier #0000</p>
+            </div>
+            <div class="text-right">
+              <p class="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Job Tracking Number</p>
+              <p class="text-xs font-mono text-slate-300 mt-0.5" id="telemetry-job-id">#HRV-000</p>
+            </div>
+          </div>
+
+          <div class="space-y-3 relative before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-800/80 pl-6 text-xs">
+            <div id="step-received" class="relative transition-all duration-300">
+              <span class="absolute -left-5.5 top-0.5 w-3 h-3 rounded-full bg-slate-800 border-2 border-slate-900 shadow"></span>
+              <p class="font-bold text-slate-400" id="txt-step-received-title">1. Request Received</p>
+              <p class="text-slate-500 text-[11px] mt-0.5" id="txt-step-received-desc">Order parsed into logistics routing system pool.</p>
+            </div>
+            <div id="step-transit-store" class="relative transition-all duration-300">
+              <span class="absolute -left-5.5 top-0.5 w-3 h-3 rounded-full bg-slate-800 border-2 border-slate-900 shadow"></span>
+              <p class="font-bold text-slate-400" id="txt-step-transit-title">2. Driver En-Route</p>
+              <p class="text-slate-500 text-[11px] mt-0.5" id="txt-step-transit-desc">Courier navigating to requested merchant destination node.</p>
+            </div>
+            <div id="step-procuring" class="relative transition-all duration-300">
+              <span class="absolute -left-5.5 top-0.5 w-3 h-3 rounded-full bg-slate-800 border-2 border-slate-900 shadow"></span>
+              <p class="font-bold text-slate-400" id="txt-step-procure-title">3. Basket Assembly</p>
+              <p class="text-slate-500 text-[11px] mt-0.5" id="txt-step-procure-desc">Procuring requested inventory items and clearing merchant checkout point.</p>
+            </div>
+            <div id="step-delivery" class="relative transition-all duration-300">
+              <span class="absolute -left-5.5 top-0.5 w-3 h-3 rounded-full bg-slate-800 border-2 border-slate-900 shadow"></span>
+              <p class="font-bold text-slate-400" id="txt-step-delivery-title">4. Last Mile Transit</p>
+              <p class="text-slate-500 text-[11px] mt-0.5" id="txt-step-delivery-desc">Courier heading out to drop-off endpoint destination address.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-2xl backdrop-blur-xl">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2.5 flex items-center justify-between">
+          <span>System Event Terminal Log</span>
+          <button id="btn-clear-terminal" class="text-[10px] bg-slate-950 px-2 py-0.5 rounded border border-slate-800 hover:border-slate-700 text-slate-500 hover:text-slate-300 font-mono transition-colors cursor-pointer">Clear Logs</button>
+        </h3>
+        <div id="terminal-log" class="h-32 bg-slate-950 border border-slate-800/80 rounded-xl p-3 font-mono text-[11px] text-slate-400 overflow-y-auto space-y-1.5 custom-scroll">
+          <div class="text-slate-600">[SYS INFO] Core logistics environment initialized...</div>
+          <div class="text-slate-600">[SYS INFO] Awaiting delivery pipeline activation commands...</div>
+        </div>
+      </div>
+
+    </aside>
 
   </div>
 
-</div>
+  <script>
+    // System Data Encapsulation Object
+    const appState = {
+      activeOrder: null,
+      simulationTimer: null,
+      currentStepIndex: 0
+    };
 
+    // DOM Selectors
+    const dom = {
+      formStore: document.getElementById('form-store'),
+      formManifest: document.getElementById('form-manifest'),
+      formAddress: document.getElementById('form-address'),
+      calcFee: document.getElementById('calc-fee'),
+      btnSubmit: document.getElementById('btn-submit'),
+      
+      // Telemetry
+      telemetryIdle: document.getElementById('telemetry-idle'),
+      telemetryActive: document.getElementById('telemetry-active'),
+      telemetryStatusDot: document.getElementById('telemetry-status-dot'),
+      telemetryDriverId: document.getElementById('telemetry-driver-id'),
+      telemetryJobId: document.getElementById('telemetry-job-id'),
+      terminalLog: document.getElementById('terminal-log'),
+      btnClearTerminal: document.getElementById('btn-clear-terminal'),
+
+      // Individual Progress Steps mapping
+      steps: [
+        { el: document.getElementById('step-received'), title: document.getElementById('txt-step-received-title'), desc: document.getElementById('txt-step-received-desc') },
+        { el: document.getElementById('step-transit-store'), title: document.getElementById('txt-step-transit-title'), desc: document.getElementById('txt-step-transit-desc') },
+        { el: document.getElementById('step-procuring'), title: document.getElementById('txt-step-procure-title'), desc: document.getElementById('txt-step-procure-desc') },
+        { el: document.getElementById('step-delivery'), title: document.getElementById('txt-step-delivery-title'), desc: document.getElementById('txt-step-delivery-desc') }
+      ]
+    };
+
+    // Event Registration Hooks
+    dom.btnSubmit.addEventListener('click', handleRequestSubmission);
+    dom.formManifest.addEventListener('input', computeDynamicFees);
+    dom.btnClearTerminal.addEventListener('click', () => {
+      dom.terminalLog.innerHTML = '<div class="text-slate-600">[SYS INFO] Logs wiped cleanly.</div>';
+    });
+
+    // Automatically recalculate fee metrics if changes arise
+    function computeDynamicFees() {
+      const textLength = dom.formManifest.value.trim().length;
+      // Compute dynamic fees based roughly on character length as proxy item count estimation
+      const variableModifier = Math.min(15.00, parseFloat((textLength * 0.08).toFixed(2)));
+      const localizedTotal = 5.00 + variableModifier;
+      dom.calcFee.textContent = `$${localizedTotal.toFixed(2)}`;
+    }
+
+    // Submission Handler Sequence 
+    function handleRequestSubmission() {
+      const store = dom.formStore.value;
+      const manifest = dom.formManifest.value.trim();
+      const destination = dom.formAddress.value.trim();
+
+      // Form validation rules
+      if (!manifest) {
+        logEvent('SYS WARN', 'Cannot dispatch empty manifest payload array.', 'text-amber-500');
+        alert('Please specify items inside your Shopping List Manifest.');
+        return;
+      }
+      if (!destination) {
+        logEvent('SYS WARN', 'Invalid target routing destination configuration.', 'text-amber-500');
+        alert('Please include a destination drop address.');
+        return;
+      }
+
+      // Block multi-order race conditions inside mock scope
+      if (appState.activeOrder) {
+        logEvent('SYS ERR', 'Logistics engine busy processing current routing stack.', 'text-red-400');
+        alert('An active job order simulation is running. Await tracking termination before re-submitting.');
+        return;
+      }
+
+      // Initialize Active Job Data Model State 
+      appState.activeOrder = {
+        jobId: 'HRV-' + Math.floor(100000 + Math.random() * 900000),
+        courierId: 'DX-' + Math.floor(1000 + Math.random() * 9000),
+        storeName: store,
+        deliveryTarget: destination,
+        estimatedTotalCost: dom.calcFee.textContent
+      };
+
+      // Transform UI layouts
+      dom.telemetryIdle.classList.add('hidden');
+      dom.telemetryActive.classList.remove('hidden');
+      dom.telemetryStatusDot.className = "inline-block w-2 h-2 rounded-full bg-blue-500 animate-ping";
+      
+      dom.telemetryDriverId.textContent = appState.activeOrder.courierId;
+      dom.telemetryJobId.textContent = `#${appState.activeOrder.jobId}`;
+
+      // Reset step styles across previous simulation frameworks
+      appState.currentStepIndex = 0;
+      resetTelemetryViewVisuals();
+
+      logEvent('CLIENT', `Dispatched grocery payload routing request to server...`, 'text-blue-400');
+      logEvent('SYS ENGINE', `Assembled internal state maps for Job #${appState.activeOrder.jobId}`, 'text-slate-400');
+
+      // Begin Real-Time Tick Pipeline Simulation Steps Loops
+      executeSimulationPipelineTick();
+    }
+
+    // Telemetry Stepper State Machine Loops
+    function executeSimulationPipelineTick() {
+      if (appState.currentStepIndex >= dom.steps.length) {
+        // Completion Sequence Terminating Loop Lifecycle 
+        logEvent('SYS ENGINE', `Job #${appState.activeOrder.jobId} finalized successfully. Closing route channels.`, 'text-emerald-400');
+        triggerNotificationAudio();
+        
+        dom.telemetryStatusDot.className = "inline-block w-2 h-2 rounded-full bg-emerald-500";
+        appState.activeOrder = null;
+        return;
+      }
+
+      // Highlight active tracking element arrays visually
+      const trackingStep = dom.steps[appState.currentStepIndex];
+      const bulletDot = trackingStep.el.querySelector('span');
+      
+      // Style active state adjustments
+      bulletDot.className = "absolute -left-5.5 top-0.5 w-3 h-3 rounded-full bg-blue-500 border-2 border-slate-900 ring-4 ring-blue-500/20";
+      trackingStep.title.className = "font-bold text-blue-400 transition-colors duration-300";
+      trackingStep.desc.className = "text-slate-300 text-[11px] mt-0.5 transition-colors duration-300";
+
+      // Context log triggers
+      if (appState.currentStepIndex === 0) {
+        logEvent('PIPELINE', `Order accepted by routing engine. Routing matrix assigned to courier ${appState.activeOrder.courierId}.`, 'text-indigo-400');
+      } else if (appState.currentStepIndex === 1) {
+        logEvent('COURIER', `Driver arrived at ${appState.activeOrder.storeName}. Scanning procurement channels.`, 'text-indigo-400');
+        trackingStep.desc.textContent = `Courier has arrived at ${appState.activeOrder.storeName} and is procuring items.`;
+      } else if (appState.currentStepIndex === 2) {
+        logEvent('COURIER', `Items secured safely. Merchant ledger cleared. Transit commencing...`, 'text-indigo-400');
+      } else if (appState.currentStepIndex === 3) {
+        logEvent('COURIER', `Drop off complete at target address: ${appState.activeOrder.deliveryTarget}`, 'text-emerald-400');
+        trackingStep.desc.textContent = `Cargo delivered safely to ${appState.activeOrder.deliveryTarget}. Transaction complete.`;
+        bulletDot.className = "absolute -left-5.5 top-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-slate-900";
+        trackingStep.title.className = "font-bold text-emerald-400";
+      }
+
+      // Schedule subsequent operational tick advancement intervals
+      appState.currentStepIndex++;
+      appState.simulationTimer = setTimeout(executeSimulationPipelineTick, 4500);
+    }
+
+    function resetTelemetryViewVisuals() {
+      dom.steps.forEach((step, index) => {
+        const bulletDot = step.el.querySelector('span');
+        bulletDot.className = "absolute -left-5.5 top-0.5 w-3 h-3 rounded-full bg-slate-800 border-2 border-slate-900";
+        step.title.className = "font-bold text-slate-500";
+        step.desc.className = "text-slate-600 text-[11px] mt-0.5";
+      });
+      // Restore default static string states
+      dom.steps[1].desc.textContent = "Courier navigating to requested merchant destination node.";
+      dom.steps[3].desc.textContent = "Courier heading out to drop-off endpoint destination address.";
+    }
+
+    // Logger Component Functions
+    function logEvent(channel, description, tailwindColorClass = 'text-slate-400') {
+      const stamp = new Date().toLocaleTimeString([], { hour12: false });
+      const row = document.createElement('div');
+      row.className = `leading-relaxed tracking-normal ${tailwindColorClass}`;
+      row.innerHTML = `<span class="text-slate-600 font-normal mr-1">[${stamp}] [${channel}]</span> ${description}`;
+      
+      dom.terminalLog.appendChild(row);
+      dom.terminalLog.scrollTop = dom.terminalLog.scrollHeight;
+    }
+
+    // Autonomous Browser Synthesis Synthesizer Audio Cues
+    function triggerNotificationAudio() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
+        osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.12); // E5
+        gain.gain.setValueAtTime(0.06, ctx.currentTime);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.3);
+      } catch(e) {}
+    }
+  </script>
 </body>
 </html>
