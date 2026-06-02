@@ -1,1339 +1,1161 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-
-  <title>Harvey Transportation Assistance Foundation | Transportation Assistance Tennessee</title>
-
-  <meta
-    name="description"
-    content="Support Harvey Transportation Assistance Foundation and help remove transportation barriers for medical appointments, school, work, jobs, and essential community mobility across Tennessee."
-  />
-
-  <meta name="theme-color" content="#0b1530" />
-  <meta name="robots" content="index, follow" />
-
-  <meta property="og:title" content="Harvey Transportation Assistance Foundation" />
-  <meta
-    property="og:description"
-    content="Helping remove transportation barriers for medical appointments, school, work, and essential mobility across Tennessee."
-  />
-  <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://harvey-taxi-app-2.onrender.com/foundation.html" />
-
-  <!-- Google Ads Tag -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18161547185"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){ dataLayer.push(arguments); }
-
-    gtag("js", new Date());
-    gtag("config", "AW-18161547185");
-  </script>
-
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="preconnect" href="https://www.googletagmanager.com" />
-  <link rel="preconnect" href="https://www.paypal.com" />
-
-  <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
-    rel="stylesheet"
-  />
-
-  <link rel="stylesheet" href="/ai-support-widget.css" />
-
-  <style>
-    :root {
-      --bg1: #040814;
-      --bg2: #0a1733;
-      --bg3: #112657;
-      --panel: rgba(8, 15, 34, 0.92);
-      --panel2: rgba(12, 22, 50, 0.92);
-      --glass: rgba(255, 255, 255, 0.05);
-      --line: rgba(126, 166, 255, 0.18);
-      --lineStrong: rgba(126, 166, 255, 0.35);
-      --text: #f5f8ff;
-      --muted: #adbbde;
-      --blue: #6aa7ff;
-      --cyan: #73f4ff;
-      --green: #7cffc7;
-      --gold: #ffd978;
-      --danger: #ff8ea2;
-      --ink: #04101c;
-      --shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
-      --shadowSoft: 0 14px 34px rgba(0, 0, 0, 0.25);
-      --radiusXL: 32px;
-      --radiusLG: 24px;
-      --radiusMD: 18px;
-      --maxw: 1260px;
-      --navH: 88px;
-      --topbarH: 84px;
-      --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    html {
-      scroll-behavior: smooth;
-      min-height: 100%;
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-    }
-
-    body {
-      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      color: var(--text);
-      min-height: 100vh;
-      overflow-x: hidden;
-      padding-bottom: calc(var(--navH) + env(safe-area-inset-bottom) + 20px);
-      background:
-        radial-gradient(circle at top left, rgba(106, 167, 255, 0.18), transparent 25%),
-        radial-gradient(circle at top right, rgba(115, 244, 255, 0.10), transparent 20%),
-        radial-gradient(circle at center bottom, rgba(124, 255, 199, 0.08), transparent 25%),
-        linear-gradient(180deg, var(--bg1) 0%, var(--bg2) 48%, var(--bg3) 100%);
-    }
-
-    body::before {
-      content: "";
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      background:
-        linear-gradient(rgba(255, 255, 255, 0.015), rgba(255, 255, 255, 0)),
-        radial-gradient(circle at 20% 10%, rgba(115, 244, 255, 0.06), transparent 22%),
-        radial-gradient(circle at 80% 20%, rgba(106, 167, 255, 0.06), transparent 20%);
-      z-index: 0;
-    }
-
-    a {
-      color: inherit;
-      text-decoration: none;
-    }
-
-    button,
-    a {
-      -webkit-tap-highlight-color: transparent;
-      touch-action: manipulation;
-    }
-
-    button {
-      font-family: inherit;
-      border: none;
-      background: none;
-      outline: none;
-      cursor: pointer;
-      transition: var(--transition-fast);
-    }
-
-    img {
-      max-width: 100%;
-      display: block;
-    }
-
-    .shell {
-      width: min(var(--maxw), calc(100% - 32px));
-      margin: 0 auto;
-      position: relative;
-      z-index: 1;
-    }
-
-    .topbar {
-      position: relative;
-      z-index: 50;
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      background: rgba(4, 8, 20, 0.72);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-    }
-
-    .topbar-inner {
-      min-height: var(--topbarH);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 18px;
-      padding: 12px 0;
-    }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      min-width: 0;
-    }
-
-    .brand-mark {
-      width: 56px;
-      height: 56px;
-      border-radius: 18px;
-      overflow: hidden;
-      display: grid;
-      place-items: center;
-      background: linear-gradient(135deg, var(--cyan), var(--blue));
-      box-shadow: 0 14px 32px rgba(106, 167, 255, 0.3);
-      flex-shrink: 0;
-      color: var(--ink);
-      font-weight: 900;
-    }
-
-    .brand-mark img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-
-    .brand-fallback {
-      font-weight: 900;
-      color: var(--ink);
-      font-size: 1.2rem;
-      letter-spacing: 0.04em;
-    }
-
-    .brand-copy {
-      min-width: 0;
-    }
-
-    .brand-copy h1 {
-      font-size: 1.05rem;
-      font-weight: 800;
-      line-height: 1.2;
-      letter-spacing: 0.01em;
-    }
-
-    .brand-copy p {
-      margin-top: 4px;
-      color: var(--muted);
-      font-size: 0.86rem;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .nav {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-    }
-
-    .nav a {
-      padding: 10px 16px;
-      border-radius: 999px;
-      color: var(--muted);
-      border: 1px solid transparent;
-      transition: var(--transition-fast);
-      font-size: 0.93rem;
-      font-weight: 700;
-      min-height: 44px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .nav a:hover {
-      color: var(--text);
-      border-color: rgba(255, 255, 255, 0.08);
-      background: rgba(255, 255, 255, 0.05);
-      transform: translateY(-1px);
-    }
-
-    .nav .cta {
-      color: var(--ink);
-      background: linear-gradient(135deg, var(--cyan), var(--blue));
-      box-shadow: 0 14px 34px rgba(106, 167, 255, 0.24);
-    }
-
-    .hero {
-      padding: 40px 0 20px;
-    }
-
-    .hero-shell {
-      display: grid;
-      grid-template-columns: minmax(0, 1.15fr) minmax(340px, 0.85fr);
-      gap: 24px;
-      align-items: start;
-    }
-
-    .card {
-      position: relative;
-      overflow: hidden;
-      background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01)),
-        linear-gradient(180deg, rgba(12, 22, 50, 0.85), rgba(5, 11, 28, 0.98));
-      border: 1px solid var(--line);
-      border-radius: var(--radiusXL);
-      box-shadow: var(--shadow);
-    }
-
-    .hero-card {
-      padding: 44px;
-      min-height: 100%;
-    }
-
-    .hero-card::before {
-      content: "";
-      position: absolute;
-      right: -80px;
-      top: -80px;
-      width: 240px;
-      height: 240px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(115, 244, 255, 0.18), transparent 68%);
-      pointer-events: none;
-    }
-
-    .hero-card::after {
-      content: "";
-      position: absolute;
-      left: -70px;
-      bottom: -70px;
-      width: 220px;
-      height: 220px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(124, 255, 199, 0.08), transparent 70%);
-      pointer-events: none;
-    }
-
-    .hero-content {
-      position: relative;
-      z-index: 2;
-    }
-
-    .eyebrow {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      padding: 8px 14px;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      color: var(--cyan);
-      font-size: 0.8rem;
-      font-weight: 800;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      margin-bottom: 20px;
-    }
-
-    .hero-card h2 {
-      font-size: clamp(2.2rem, 4.5vw, 3.2rem);
-      font-weight: 900;
-      line-height: 1.05;
-      letter-spacing: -0.03em;
-      max-width: 780px;
-      margin-bottom: 16px;
-    }
-
-    .hero-card p {
-      color: var(--muted);
-      font-size: 1.05rem;
-      line-height: 1.7;
-      max-width: 720px;
-    }
-
-    .hero-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 14px;
-      margin-top: 32px;
-      position: relative;
-      z-index: 5;
-    }
-
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      min-height: 54px;
-      padding: 0 24px;
-      border-radius: 16px;
-      font-weight: 800;
-      font-size: 15px;
-      transition: var(--transition-fast);
-      border: 1px solid transparent;
-      cursor: pointer;
-      text-align: center;
-      position: relative;
-      z-index: 5;
-    }
-
-    .btn:hover {
-      transform: translateY(-1px);
-    }
-
-    .btn-primary {
-      color: var(--ink);
-      background: linear-gradient(135deg, var(--cyan), var(--blue));
-      box-shadow: 0 18px 40px rgba(106, 167, 255, 0.25);
-    }
-
-    .btn-primary:hover {
-      box-shadow: 0 18px 45px rgba(106, 167, 255, 0.35);
-    }
-
-    .btn-secondary {
-      color: var(--text);
-      background: rgba(255, 255, 255, 0.04);
-      border-color: rgba(255, 255, 255, 0.08);
-    }
-
-    .btn-secondary:hover {
-      background: rgba(255, 255, 255, 0.07);
-    }
-
-    .btn-gold {
-      color: #ffffff;
-      background: linear-gradient(135deg, #0070ba, #154670);
-      box-shadow: 0 18px 40px rgba(0, 112, 186, 0.25);
-    }
-
-    .btn-gold:hover {
-      box-shadow: 0 18px 45px rgba(0, 112, 186, 0.35);
-    }    .impact-strip {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 14px;
-      margin-top: 20px;
-    }
-
-    .impact-mini {
-      padding: 22px;
-      border-radius: 22px;
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      box-shadow: var(--shadowSoft);
-    }
-
-    .impact-mini strong {
-      display: block;
-      font-size: 1.05rem;
-      font-weight: 700;
-      margin-bottom: 6px;
-    }
-
-    .impact-mini span {
-      display: block;
-      color: var(--muted);
-      line-height: 1.5;
-      font-size: 0.94rem;
-    }
-
-    .sticky-box {
-      position: sticky;
-      top: 24px;
-      display: grid;
-      gap: 20px;
-    }
-
-    .spotlight-card {
-      padding: 28px;
-    }
-
-    .spotlight-card h3 {
-      font-size: 1.4rem;
-      font-weight: 800;
-      letter-spacing: -0.02em;
-      margin-bottom: 12px;
-    }
-
-    .spotlight-card > p {
-      color: var(--muted);
-      line-height: 1.6;
-      font-size: 0.96rem;
-    }
-
-    .trust-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-top: 20px;
-    }
-
-    .trust-pill {
-      padding: 16px;
-      border-radius: 18px;
-      border: 1px solid rgba(255, 255, 255, 0.07);
-      background: rgba(255, 255, 255, 0.03);
-      color: var(--muted);
-      line-height: 1.5;
-      font-size: 0.88rem;
-    }
-
-    .trust-pill strong {
-      display: block;
-      color: var(--text);
-      margin-bottom: 6px;
-      font-size: 0.94rem;
-      font-weight: 700;
-    }
-
-    .link-preview {
-      margin-top: 20px;
-      padding: 24px;
-      border-radius: 24px;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)),
-        linear-gradient(135deg, rgba(115, 244, 255, 0.06), rgba(106, 167, 255, 0.06));
-      box-shadow: var(--shadowSoft);
-      position: relative;
-      overflow: hidden;
-    }
-
-    .preview-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 14px;
-      padding: 6px 12px;
-      border-radius: 999px;
-      background: rgba(0, 112, 186, 0.15);
-      border: 1px solid rgba(0, 112, 186, 0.3);
-      color: var(--blue);
-      font-size: 0.78rem;
-      font-weight: 800;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-    }
-
-    .preview-title {
-      margin-bottom: 10px;
-      font-size: 1.3rem;
-      line-height: 1.25;
-      letter-spacing: -0.02em;
-      font-weight: 800;
-    }
-
-    .preview-copy {
-      color: var(--muted);
-      line-height: 1.6;
-      font-size: 0.95rem;
-      margin-bottom: 18px;
-    }
-
-    .preview-link {
-      display: block;
-      width: 100%;
-      padding: 14px;
-      border-radius: 14px;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      color: var(--cyan);
-      word-break: break-all;
-      font-size: 0.88rem;
-      font-weight: 600;
-      margin-bottom: 18px;
-    }
-
-    .preview-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-    }
-
-    .btn-compact {
-      min-height: 48px;
-      padding: 0 20px;
-      border-radius: 14px;
-      font-size: 0.92rem;
-    }
-
-    .spotlight-copy {
-      margin-top: 20px;
-      padding: 18px;
-      border-radius: 20px;
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid rgba(255, 255, 255, 0.06);
-    }
-
-    .spotlight-copy strong {
-      display: block;
-      margin-bottom: 6px;
-      font-size: 0.96rem;
-      font-weight: 700;
-    }
-
-    .spotlight-copy span {
-      display: block;
-      color: var(--muted);
-      line-height: 1.5;
-      font-size: 0.92rem;
-    }
-
-    .copy-status {
-      display: none;
-      padding: 12px 14px;
-      border-radius: 14px;
-      font-size: 0.9rem;
-      line-height: 1.5;
-      border: 1px solid transparent;
-      margin-top: 14px;
-    }
-
-    .copy-status.show {
-      display: block;
-    }
-
-    .copy-status.ok {
-      background: rgba(124, 255, 199, 0.1);
-      border-color: rgba(124, 255, 199, 0.18);
-      color: var(--green);
-    }
-
-    .copy-status.err {
-      background: rgba(255, 142, 162, 0.1);
-      border-color: rgba(255, 142, 162, 0.18);
-      color: #ffcad4;
-    }
-
-    .section {
-      padding: 20px 0;
-    }
-
-    .section-card {
-      padding: 36px;
-    }
-
-    .section-head {
-      display: flex;
-      align-items: flex-end;
-      justify-content: space-between;
-      gap: 18px;
-      flex-wrap: wrap;
-      margin-bottom: 24px;
-    }
-
-    .section-head h3 {
-      font-size: clamp(1.4rem, 2.5vw, 2rem);
-      font-weight: 800;
-      letter-spacing: -0.03em;
-    }
-
-    .section-head p {
-      margin-top: 8px;
-      color: var(--muted);
-      max-width: 760px;
-      line-height: 1.6;
-    }
-
-    .grid-3 {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 20px;
-    }
-
-    .feature-card {
-      padding: 28px;
-      border-radius: 22px;
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      box-shadow: var(--shadowSoft);
-    }
-
-    .feature-icon {
-      width: 54px;
-      height: 54px;
-      border-radius: 16px;
-      display: grid;
-      place-items: center;
-      margin-bottom: 18px;
-      font-size: 1.4rem;
-      background: linear-gradient(135deg, rgba(115, 244, 255, 0.18), rgba(106, 167, 255, 0.14));
-      border: 1px solid rgba(115, 244, 255, 0.14);
-    }
-
-    .feature-card h4 {
-      margin-bottom: 10px;
-      font-size: 1.1rem;
-      font-weight: 700;
-    }
-
-    .feature-card p {
-      color: var(--muted);
-      line-height: 1.6;
-      font-size: 0.96rem;
-    }
-
-    .stats-shell {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 16px;
-      margin-top: 24px;
-    }
-
-    .stat-card {
-      padding: 22px;
-      border-radius: 22px;
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      box-shadow: var(--shadowSoft);
-    }
-
-    .stat-card strong {
-      display: block;
-      font-size: 1.6rem;
-      font-weight: 800;
-      letter-spacing: -0.03em;
-      margin-bottom: 6px;
-      color: var(--cyan);
-    }
-
-    .stat-card span {
-      display: block;
-      color: var(--muted);
-      line-height: 1.5;
-      font-size: 0.92rem;
-    }
-
-    .why-shell {
-      display: grid;
-      grid-template-columns: 1.05fr 0.95fr;
-      gap: 24px;
-    }
-
-    .why-card {
-      padding: 36px;
-    }
-
-    .why-card h3 {
-      margin-bottom: 16px;
-      font-size: 1.5rem;
-      font-weight: 800;
-    }
-
-    .why-card p {
-      color: var(--muted);
-      line-height: 1.65;
-    }
-
-    .why-list {
-      list-style: none;
-      display: grid;
-      gap: 14px;
-    }
-
-    .why-list li {
-      display: flex;
-      align-items: flex-start;
-      gap: 12px;
-      color: var(--muted);
-      line-height: 1.6;
-    }
-
-    .why-list li::before {
-      content: "";
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--green), var(--cyan));
-      box-shadow: 0 0 16px rgba(124, 255, 199, 0.45);
-      margin-top: 7px;
-      flex-shrink: 0;
-    }
-
-    .faq-grid {
-      display: grid;
-      gap: 16px;
-    }
-
-    .faq-item {
-      padding: 24px;
-      border-radius: 20px;
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      background: rgba(255, 255, 255, 0.02);
-    }
-
-    .faq-item strong {
-      display: block;
-      margin-bottom: 8px;
-      font-size: 1.05rem;
-      font-weight: 700;
-    }
-
-    .faq-item span {
-      display: block;
-      color: var(--muted);
-      line-height: 1.6;
-      font-size: 0.95rem;
-    }
-
-    .cta-card {
-      padding: 40px;
-      display: grid;
-      grid-template-columns: 1.1fr 0.9fr;
-      gap: 24px;
-      align-items: center;
-    }
-
-    .cta-copy h3 {
-      margin-bottom: 12px;
-      font-size: 1.8rem;
-      font-weight: 800;
-      letter-spacing: -0.03em;
-      line-height: 1.1;
-    }
-
-    .cta-copy p {
-      color: var(--muted);
-      line-height: 1.65;
-      max-width: 720px;
-    }
-
-    .cta-actions {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    .bottom-nav {
-      position: fixed;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      min-height: calc(var(--navH) + env(safe-area-inset-bottom));
-      background: rgba(6, 12, 26, 0.96);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border-top: 1px solid rgba(255, 255, 255, 0.08);
-      display: flex;
-      justify-content: space-around;
-      align-items: flex-start;
-      padding: 12px 8px calc(12px + env(safe-area-inset-bottom));
-      z-index: 80;
-    }
-
-    .nav-btn {
-      color: var(--muted);
-      font-size: 13px;
-      font-weight: 800;
-      padding: 10px;
-      border-radius: 14px;
-      min-height: 48px;
-      min-width: 64px;
-    }
-
-    .nav-btn.active {
-      color: white;
-      background: rgba(255, 255, 255, 0.06);
-    }
-
-    .footer {
-      padding: 40px 0 calc(40px + var(--navH));
-    }
-
-    .footer-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 18px;
-      flex-wrap: wrap;
-      color: var(--muted);
-      font-size: 0.92rem;
-    }
-
-    .footer-row a {
-      color: var(--text);
-      font-weight: 600;
-    }
-
-    .footer-links {
-      display: flex;
-      gap: 16px;
-      flex-wrap: wrap;
-    }
-
-    @media(max-width: 1080px) {
-      .hero-shell,
-      .why-shell,
-      .cta-card {
-        grid-template-columns: 1fr;
-      }
-
-      .sticky-box {
-        position: static;
-      }
-
-      .stats-shell {
-        grid-template-columns: 1fr 1fr;
-      }
-    }
-
-    @media(max-width: 900px) {
-      .nav {
-        display: none;
-      }
-
-      .grid-3,
-      .impact-strip,
-      .trust-grid {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    @media(max-width: 640px) {
-      :root {
-        --topbarH: 74px;
-        --navH: 88px;
-      }
-
-      .shell {
-        width: min(var(--maxw), calc(100% - 24px));
-      }
-
-      .topbar-inner {
-        align-items: flex-start;
-      }
-
-      .brand-copy p {
-        white-space: normal;
-      }
-
-      .hero {
-        padding-top: 24px;
-      }
-
-      .hero-card,
-      .spotlight-card,
-      .section-card,
-      .why-card,
-      .cta-card {
-        padding: 24px;
-        border-radius: 24px;
-      }
-
-      .hero-card h2 {
-        font-size: 2.2rem;
-      }
-
-      .hero-actions,
-      .preview-actions {
-        flex-direction: column;
-      }
-
-      .btn {
-        width: 100%;
-      }
-
-      .stats-shell {
-        grid-template-columns: 1fr;
-      }
-
-      .bottom-nav {
-        justify-content: flex-start;
-        overflow-x: auto;
-        gap: 6px;
-      }
-
-      .nav-btn {
-        flex: 0 0 auto;
-      }
-    }
-  </style>
-
-  <link rel="stylesheet" href="/ai-support-widget.css" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+  <title>Harvey Transportation Assistance Foundation | Tennessee Transportation Assistance</title>
+
+  <meta name="description" content="Harvey Transportation Assistance Foundation helps remove transportation barriers for medical appointments, seniors, disability access, veterans, employment, education, and essential mobility across Tennessee." />
+  <meta name="theme-color" content="#0b1530" />
+  <meta name="robots" content="index, follow" />
+
+  <meta property="og:title" content="Harvey Transportation Assistance Foundation" />
+  <meta property="og:description" content="Helping remove transportation barriers for healthcare, work, school, veterans, seniors, disability access, and essential community mobility." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://harvey-taxi-app-2.onrender.com/foundation.html" />
+
+  <!-- Google Ads Tag -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18161547185"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){ dataLayer.push(arguments); }
+    gtag("js", new Date());
+    gtag("config", "AW-18161547185");
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preconnect" href="https://www.googletagmanager.com" />
+  <link rel="preconnect" href="https://www.paypal.com" />
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/ai-support-widget.css" />
+
+  <style>
+    :root {
+      --bg1:#040814;
+      --bg2:#0a1733;
+      --bg3:#112657;
+      --panel:rgba(8,15,34,.92);
+      --line:rgba(126,166,255,.18);
+      --lineStrong:rgba(126,166,255,.35);
+      --text:#f5f8ff;
+      --muted:#adbbde;
+      --blue:#6aa7ff;
+      --cyan:#73f4ff;
+      --green:#7cffc7;
+      --gold:#ffd978;
+      --ink:#04101c;
+      --shadow:0 24px 80px rgba(0,0,0,.45);
+      --shadowSoft:0 14px 34px rgba(0,0,0,.25);
+      --radiusXL:32px;
+      --navH:88px;
+      --maxw:1260px;
+    }
+
+    * {
+      box-sizing:border-box;
+      margin:0;
+      padding:0;
+    }
+
+    html {
+      scroll-behavior:smooth;
+      -webkit-font-smoothing:antialiased;
+    }
+
+    body {
+      font-family:"Inter",system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      color:var(--text);
+      min-height:100vh;
+      overflow-x:hidden;
+      padding-bottom:calc(var(--navH) + env(safe-area-inset-bottom) + 22px);
+      background:
+        radial-gradient(circle at top left,rgba(106,167,255,.18),transparent 25%),
+        radial-gradient(circle at top right,rgba(115,244,255,.10),transparent 22%),
+        radial-gradient(circle at center bottom,rgba(124,255,199,.08),transparent 28%),
+        linear-gradient(180deg,var(--bg1),var(--bg2) 48%,var(--bg3));
+    }
+
+    body::before {
+      content:"";
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      background:
+        radial-gradient(circle at 20% 10%,rgba(115,244,255,.06),transparent 22%),
+        radial-gradient(circle at 80% 20%,rgba(106,167,255,.06),transparent 20%);
+      z-index:0;
+    }
+
+    a {
+      color:inherit;
+      text-decoration:none;
+    }
+
+    button,
+    a {
+      -webkit-tap-highlight-color:transparent;
+      touch-action:manipulation;
+    }
+
+    button {
+      font-family:inherit;
+      border:0;
+      background:none;
+      color:inherit;
+      cursor:pointer;
+    }
+
+    img {
+      max-width:100%;
+      display:block;
+    }
+
+    .shell {
+      width:min(var(--maxw),calc(100% - 32px));
+      margin:0 auto;
+      position:relative;
+      z-index:1;
+    }
+
+    .topbar {
+      position:relative;
+      z-index:50;
+      background:rgba(4,8,20,.84);
+      border-bottom:1px solid rgba(255,255,255,.08);
+      backdrop-filter:blur(20px);
+      -webkit-backdrop-filter:blur(20px);
+    }
+
+    .topbar-inner {
+      min-height:104px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:18px;
+      padding:16px 0;
+    }
+
+    .brand {
+      display:flex;
+      align-items:center;
+      gap:18px;
+      min-width:0;
+    }
+
+    .brand-mark {
+      width:72px;
+      height:72px;
+      border-radius:22px;
+      display:grid;
+      place-items:center;
+      background:linear-gradient(135deg,var(--cyan),var(--blue));
+      box-shadow:0 14px 32px rgba(106,167,255,.3);
+      flex:0 0 auto;
+      color:var(--ink);
+      font-size:1.45rem;
+      font-weight:900;
+      letter-spacing:.04em;
+      overflow:hidden;
+    }
+
+    .brand-mark img {
+      width:100%;
+      height:100%;
+      object-fit:cover;
+    }
+
+    .brand-copy {
+      min-width:0;
+      max-width:720px;
+    }
+
+    .brand-copy h1 {
+      font-size:clamp(1.35rem,3vw,2rem);
+      font-weight:900;
+      line-height:1.1;
+      letter-spacing:-.03em;
+    }
+
+    .brand-copy p {
+      margin-top:8px;
+      color:var(--muted);
+      font-size:1rem;
+      line-height:1.45;
+    }
+
+    .nav {
+      display:flex;
+      align-items:center;
+      justify-content:flex-end;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+
+    .nav a {
+      min-height:44px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      padding:10px 16px;
+      border-radius:999px;
+      color:var(--muted);
+      border:1px solid transparent;
+      font-size:.93rem;
+      font-weight:800;
+    }
+
+    .nav a:hover {
+      color:var(--text);
+      border-color:rgba(255,255,255,.10);
+      background:rgba(255,255,255,.05);
+    }
+
+    .nav .cta {
+      color:var(--ink);
+      background:linear-gradient(135deg,var(--cyan),var(--blue));
+      box-shadow:0 14px 34px rgba(106,167,255,.24);
+    }
+
+    .hero {
+      padding:34px 0 20px;
+    }
+
+    .hero-shell {
+      display:grid;
+      grid-template-columns:minmax(0,1.15fr) minmax(340px,.85fr);
+      gap:24px;
+      align-items:start;
+    }
+
+    .card {
+      position:relative;
+      overflow:hidden;
+      background:
+        linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.012)),
+        linear-gradient(180deg,rgba(12,22,50,.86),rgba(5,11,28,.98));
+      border:1px solid var(--line);
+      border-radius:var(--radiusXL);
+      box-shadow:var(--shadow);
+    }
+
+    .hero-card,
+    .section-card,
+    .why-card,
+    .cta-card,
+    .spotlight-card {
+      padding:36px;
+    }
+
+    .hero-card::before {
+      content:"";
+      position:absolute;
+      right:-90px;
+      top:-90px;
+      width:260px;
+      height:260px;
+      border-radius:50%;
+      background:radial-gradient(circle,rgba(115,244,255,.18),transparent 68%);
+      pointer-events:none;
+    }
+
+    .hero-content {
+      position:relative;
+      z-index:2;
+    }
+
+    .eyebrow {
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      padding:8px 14px;
+      border-radius:999px;
+      background:rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.08);
+      color:var(--cyan);
+      font-size:.8rem;
+      font-weight:900;
+      letter-spacing:.06em;
+      text-transform:uppercase;
+      margin-bottom:20px;
+    }
+
+    .hero-card h2 {
+      font-size:clamp(2rem,4.5vw,3.2rem);
+      font-weight:900;
+      line-height:1.06;
+      letter-spacing:-.04em;
+      max-width:820px;
+      margin-bottom:18px;
+    }
+
+    .hero-card p,
+    .section-head p,
+    .feature-card p,
+    .why-card p,
+    .faq-item span,
+    .stat-card span,
+    .process-card span,
+    .spotlight-card p,
+    .trust-pill,
+    .preview-copy {
+      color:var(--muted);
+      line-height:1.65;
+    }
+
+    .hero-card p {
+      font-size:1.05rem;
+      max-width:760px;
+    }
+
+    .hero-actions,
+    .preview-actions {
+      display:flex;
+      flex-wrap:wrap;
+      gap:14px;
+      margin-top:28px;
+    }
+
+    .btn {
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:10px;
+      min-height:54px;
+      padding:0 24px;
+      border-radius:16px;
+      font-weight:900;
+      font-size:15px;
+      border:1px solid transparent;
+      cursor:pointer;
+      text-align:center;
+      position:relative;
+      z-index:5;
+    }
+
+    .btn-primary {
+      color:var(--ink);
+      background:linear-gradient(135deg,var(--cyan),var(--blue));
+      box-shadow:0 18px 40px rgba(106,167,255,.25);
+    }
+
+    .btn-secondary {
+      color:var(--text);
+      background:rgba(255,255,255,.04);
+      border-color:rgba(255,255,255,.08);
+    }
+
+    .btn-gold {
+      color:#fff;
+      background:linear-gradient(135deg,#0070ba,#154670);
+      box-shadow:0 18px 40px rgba(0,112,186,.25);
+    }
+
+    .impact-strip,
+    .grid-3 {
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:16px;
+    }
+
+    .impact-strip {
+      margin-top:20px;
+    }
+
+    .impact-mini,
+    .feature-card,
+    .stat-card,
+    .trust-pill,
+    .faq-item,
+    .process-card {
+      background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.01));
+      border:1px solid rgba(255,255,255,.06);
+      box-shadow:var(--shadowSoft);
+      border-radius:22px;
+      padding:22px;
+    }
+
+    .impact-mini strong,
+    .feature-card h4,
+    .faq-item strong,
+    .trust-pill strong,
+    .process-card strong {
+      display:block;
+      color:var(--text);
+      font-weight:900;
+      margin-bottom:8px;
+    }
+
+    .impact-mini span {
+      color:var(--muted);
+      line-height:1.5;
+      font-size:.94rem;
+    }
+
+    .sticky-box {
+      position:sticky;
+      top:24px;
+      display:grid;
+      gap:20px;
+    }
+
+    .trust-grid {
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:12px;
+      margin-top:20px;
+    }
+
+    .link-preview {
+      margin-top:20px;
+      padding:24px;
+      border-radius:24px;
+      border:1px solid rgba(255,255,255,.08);
+      background:
+        linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02)),
+        linear-gradient(135deg,rgba(115,244,255,.06),rgba(106,167,255,.06));
+      box-shadow:var(--shadowSoft);
+    }
+
+    .preview-badge {
+      display:inline-flex;
+      margin-bottom:14px;
+      padding:6px 12px;
+      border-radius:999px;
+      background:rgba(0,112,186,.15);
+      border:1px solid rgba(0,112,186,.3);
+      color:var(--blue);
+      font-size:.78rem;
+      font-weight:900;
+      text-transform:uppercase;
+    }
+
+    .preview-title {
+      margin-bottom:10px;
+      font-size:1.3rem;
+      line-height:1.25;
+      font-weight:900;
+    }
+
+    .preview-link {
+      display:block;
+      width:100%;
+      padding:14px;
+      border-radius:14px;
+      background:rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.08);
+      color:var(--cyan);
+      word-break:break-all;
+      font-size:.88rem;
+      font-weight:700;
+      margin-top:16px;
+    }
+
+    .btn-compact {
+      min-height:48px;
+      padding:0 20px;
+      border-radius:14px;
+      font-size:.92rem;
+    }
+
+    .section {
+      padding:20px 0;
+    }
+
+    .section-head {
+      margin-bottom:24px;
+    }
+
+    .section-head h3,
+    .why-card h3,
+    .cta-copy h3 {
+      font-size:clamp(1.45rem,2.5vw,2rem);
+      font-weight:900;
+      letter-spacing:-.03em;
+      margin-bottom:8px;
+    }
+
+    .feature-icon {
+      width:54px;
+      height:54px;
+      border-radius:16px;
+      display:grid;
+      place-items:center;
+      margin-bottom:18px;
+      font-size:1.4rem;
+      background:linear-gradient(135deg,rgba(115,244,255,.18),rgba(106,167,255,.14));
+      border:1px solid rgba(115,244,255,.14);
+    }
+
+    .stats-shell,
+    .process-grid {
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:16px;
+      margin-top:24px;
+    }
+
+    .stat-card strong,
+    .process-card strong {
+      color:var(--cyan);
+      font-size:1.2rem;
+    }
+
+    .program-actions {
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+      margin-top:18px;
+    }
+
+    .program-actions .btn {
+      min-height:44px;
+      padding:0 14px;
+      border-radius:13px;
+      font-size:.86rem;
+    }
+
+    .why-shell {
+      display:grid;
+      grid-template-columns:1.05fr .95fr;
+      gap:24px;
+    }
+
+    .why-list {
+      list-style:none;
+      display:grid;
+      gap:14px;
+    }
+
+    .why-list li {
+      display:flex;
+      gap:12px;
+      color:var(--muted);
+      line-height:1.6;
+    }
+
+    .why-list li::before {
+      content:"";
+      width:10px;
+      height:10px;
+      border-radius:50%;
+      background:linear-gradient(135deg,var(--green),var(--cyan));
+      box-shadow:0 0 16px rgba(124,255,199,.45);
+      margin-top:7px;
+      flex:0 0 auto;
+    }
+
+    .faq-grid {
+      display:grid;
+      gap:16px;
+    }
+
+    .cta-card {
+      display:grid;
+      grid-template-columns:1.1fr .9fr;
+      gap:24px;
+      align-items:center;
+    }
+
+    .cta-actions {
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+
+    .copy-status {
+      display:none;
+      padding:12px 14px;
+      border-radius:14px;
+      font-size:.9rem;
+      line-height:1.5;
+      border:1px solid transparent;
+      margin-top:14px;
+    }
+
+    .copy-status.show {
+      display:block;
+    }
+
+    .copy-status.ok {
+      background:rgba(124,255,199,.1);
+      border-color:rgba(124,255,199,.18);
+      color:var(--green);
+    }
+
+    .copy-status.err {
+      background:rgba(255,142,162,.1);
+      border-color:rgba(255,142,162,.18);
+      color:#ffcad4;
+    }
+
+    .bottom-nav {
+      position:fixed;
+      left:0;
+      right:0;
+      bottom:0;
+      min-height:calc(var(--navH) + env(safe-area-inset-bottom));
+      background:rgba(6,12,26,.96);
+      backdrop-filter:blur(20px);
+      -webkit-backdrop-filter:blur(20px);
+      border-top:1px solid rgba(255,255,255,.08);
+      display:flex;
+      justify-content:space-around;
+      align-items:flex-start;
+      padding:12px 8px calc(12px + env(safe-area-inset-bottom));
+      z-index:80;
+    }
+
+    .nav-btn {
+      color:var(--muted);
+      font-size:13px;
+      font-weight:900;
+      padding:10px;
+      border-radius:14px;
+      min-height:48px;
+      min-width:64px;
+    }
+
+    .nav-btn.active {
+      color:white;
+      background:rgba(255,255,255,.06);
+    }
+
+    .footer {
+      padding:40px 0 calc(40px + var(--navH));
+    }
+
+    .footer-row {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:18px;
+      flex-wrap:wrap;
+      color:var(--muted);
+      font-size:.92rem;
+    }
+
+    .footer-links {
+      display:flex;
+      gap:16px;
+      flex-wrap:wrap;
+    }
+
+    @media(max-width:1080px) {
+      .hero-shell,
+      .why-shell,
+      .cta-card {
+        grid-template-columns:1fr;
+      }
+
+      .sticky-box {
+        position:static;
+      }
+
+      .stats-shell,
+      .process-grid {
+        grid-template-columns:1fr 1fr;
+      }
+    }
+
+    @media(max-width:900px) {
+      .nav {
+        display:none;
+      }
+
+      .grid-3,
+      .impact-strip,
+      .trust-grid {
+        grid-template-columns:1fr;
+      }
+
+      .topbar-inner {
+        justify-content:flex-start;
+      }
+    }
+
+    @media(max-width:640px) {
+      .shell {
+        width:min(var(--maxw),calc(100% - 24px));
+      }
+
+      .topbar-inner {
+        min-height:auto;
+        padding:18px 0;
+      }
+
+      .brand {
+        align-items:flex-start;
+        gap:14px;
+        width:100%;
+      }
+
+      .brand-mark {
+        width:64px;
+        height:64px;
+        border-radius:20px;
+        font-size:1.3rem;
+      }
+
+      .brand-copy h1 {
+        font-size:1.48rem;
+        line-height:1.16;
+        letter-spacing:-.035em;
+      }
+
+      .brand-copy p {
+        white-space:normal;
+        font-size:.98rem;
+        line-height:1.45;
+        max-width:270px;
+      }
+
+      .hero {
+        padding-top:24px;
+      }
+
+      .hero-card,
+      .spotlight-card,
+      .section-card,
+      .why-card,
+      .cta-card {
+        padding:24px;
+        border-radius:24px;
+      }
+
+      .hero-card h2 {
+        font-size:2.15rem;
+        line-height:1.08;
+      }
+
+      .hero-card p {
+        font-size:1rem;
+      }
+
+      .hero-actions,
+      .preview-actions {
+        flex-direction:column;
+      }
+
+      .btn {
+        width:100%;
+      }
+
+      .program-actions {
+        grid-template-columns:1fr;
+      }
+
+      .stats-shell,
+      .process-grid {
+        grid-template-columns:1fr;
+      }
+
+      .bottom-nav {
+        justify-content:flex-start;
+        overflow-x:auto;
+        gap:6px;
+      }
+
+      .nav-btn {
+        flex:0 0 auto;
+      }
+    }
+  </style>
 </head>
 
-<body><header class="topbar">
-  <div class="shell topbar-inner">
-
-    <a href="index.html" class="brand" aria-label="Harvey Taxi home">
-      <div class="brand-mark">
-        <img
-          src="/images/foundation-logo.png"
-          alt="Harvey Transportation Assistance Foundation Logo"
-          onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=&quot;brand-fallback&quot;>HT</div>';"
-        />
-      </div>
-
-      <div class="brand-copy">
-        <h1>Harvey Transportation Assistance Foundation</h1>
-        <p>Transportation Access • Community Impact • Mobility Support</p>
-      </div>
-    </a>
-
-    <nav class="nav" aria-label="Primary navigation">
-      <a href="index.html">Home</a>
-      <a href="#impact">Impact</a>
-      <a href="#programs">Programs</a>
-      <a href="#faq">FAQ</a>
-      <a href="support.html">Support</a>
-      <a href="#donate" class="cta">Donate Now</a>
-    </nav>
-
-  </div>
-</header>
-
-<main>
-
-<section class="hero">
-  <div class="shell hero-shell">
-
-    <section class="card hero-card">
-
-      <div class="hero-content">
-
-        <div class="eyebrow">
-          Tennessee Transportation Assistance Initiative
-        </div>
-
-        <h2>
-          Transportation Should Never Be The Reason Someone Misses Opportunity.
-        </h2>
-
-        <p>
-          Harvey Transportation Assistance Foundation exists to help remove
-          transportation barriers for individuals and families facing challenges
-          accessing healthcare, employment, education, and essential services.
-          Every contribution directly supports mobility-focused community
-          assistance programs designed to create access and opportunity.
-        </p>
-
-        <div class="hero-actions">
-
-          <a
-            href="https://www.paypal.com/us/fundraiser/charity/5906918"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="btn btn-gold"
-          >
-            💙 Donate via PayPal Giving Fund
-          </a>
-
-          <a href="#impact" class="btn btn-primary">
-            View Community Impact
-          </a>
-
-          <button
-            type="button"
-            class="btn btn-secondary"
-            onclick="openHarveyAiChat()"
-          >
-            Ask AI Support
-          </button>
-
-        </div>
-
-      </div>
-
-    </section>
-
-    <aside>
-
-      <div class="sticky-box">
-
-        <section class="card spotlight-card" id="donate">
-
-          <h3>Support Transportation Access</h3>
-
-          <p>
-            Your donation helps connect individuals and families to medical
-            appointments, work opportunities, educational programs, and
-            essential community services.
-          </p>
-
-          <div class="trust-grid">
-
-            <div class="trust-pill">
-              <strong>Medical Transportation</strong>
-              Support rides to healthcare providers and treatment facilities.
-            </div>
-
-            <div class="trust-pill">
-              <strong>Employment Access</strong>
-              Help people reach jobs, interviews, and workforce programs.
-            </div>
-
-            <div class="trust-pill">
-              <strong>Education Support</strong>
-              Improve transportation access for students and training programs.
-            </div>
-
-            <div class="trust-pill">
-              <strong>Community Mobility</strong>
-              Assist individuals facing transportation hardships.
-            </div>
-
-          </div>
-
-          <div class="link-preview">
-
-            <div class="preview-badge">
-              Verified PayPal Giving Fund
-            </div>
-
-            <h4 class="preview-title">
-              Donate Securely Today
-            </h4>
-
-            <p class="preview-copy">
-              Every contribution supports transportation assistance programs
-              designed to improve mobility and access throughout Tennessee.
-            </p>
-
-            <a
-              class="preview-link"
-              href="https://www.paypal.com/us/fundraiser/charity/5906918"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              https://www.paypal.com/us/fundraiser/charity/5906918
-            </a>
-
-            <div class="preview-actions">
-
-              <a
-                href="https://www.paypal.com/us/fundraiser/charity/5906918"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="btn btn-gold btn-compact"
-              >
-                Donate Now
-              </a>
-
-              <button
-                class="btn btn-secondary btn-compact"
-                type="button"
-                onclick="copyDonationLink()"
-              >
-                Copy Link
-              </button>
-
-            </div>
-
-          </div>
-
-          <div class="spotlight-copy">
-            <strong>Community Powered Impact</strong>
-            <span>
-              Every donation contributes toward expanding transportation access
-              and reducing mobility barriers across Tennessee communities.
-            </span>
-          </div>
-
-          <div id="copyStatus" class="copy-status"></div>
-
-        </section>
-
-      </div>
-
-    </aside>
-
-  </div>
-</section>
-
-<section class="section" id="impact">
-
-  <div class="shell">
-
-    <section class="card section-card">
-
-      <div class="section-head">
-
-        <div>
-          <h3>Community Impact Areas</h3>
-
-          <p>
-            Transportation access affects nearly every aspect of daily life.
-            Our programs focus on helping people stay connected to critical
-            opportunities and services.
-          </p>
-        </div>
-
-      </div>
-
-      <div class="grid-3">
-
-        <article class="feature-card">
-
-          <div class="feature-icon">🏥</div>
-
-          <h4>Medical Transportation</h4>
-
-          <p>
-            Helping individuals reach healthcare appointments, treatment
-            facilities, pharmacies, and wellness services.
-          </p>
-
-        </article>
-
-        <article class="feature-card">
-
-          <div class="feature-icon">💼</div>
-
-          <h4>Employment Mobility</h4>
-
-          <p>
-            Supporting transportation access for interviews, training
-            opportunities, and workforce participation.
-          </p>
-
-        </article>
-
-        <article class="feature-card">
-
-          <div class="feature-icon">🎓</div>
-
-          <h4>Educational Access</h4>
-
-          <p>
-            Supporting transportation needs that help students access learning
-            opportunities and educational programs.
-          </p>
-
-        </article>
-
-      </div>      <section class="section" id="programs">
-
-        <div class="shell">
-
-          <section class="card section-card">
-
-            <div class="section-head">
-              <div>
-                <h3>Foundation Programs</h3>
-
-                <p>
-                  Harvey Transportation Assistance Foundation focuses on
-                  transportation-related support programs designed to help
-                  individuals overcome mobility barriers and maintain access
-                  to essential opportunities.
-                </p>
-              </div>
-            </div>
-
-            <div class="grid-3">
-
-              <article class="feature-card">
-                <div class="feature-icon">🚑</div>
-                <h4>Healthcare Access</h4>
-                <p>
-                  Transportation assistance for medical appointments,
-                  treatments, healthcare facilities, pharmacies, and wellness
-                  programs.
-                </p>
-              </article>
-
-              <article class="feature-card">
-                <div class="feature-icon">💼</div>
-                <h4>Workforce Access</h4>
-                <p>
-                  Helping individuals reach employment opportunities,
-                  interviews, training programs, and workforce development
-                  initiatives.
-                </p>
-              </article>
-
-              <article class="feature-card">
-                <div class="feature-icon">🏫</div>
-                <h4>Education Mobility</h4>
-                <p>
-                  Supporting transportation access for students, educational
-                  programs, certifications, and career advancement resources.
-                </p>
-              </article>
-
-            </div>
-
-          </section>
-
-        </div>
-
-      </section>
-
-      <section class="section">
-
-        <div class="shell">
-
-          <section class="card section-card">
-
-            <div class="section-head">
-              <div>
-                <h3>Why Transportation Matters</h3>
-
-                <p>
-                  Transportation is often the missing link between people and
-                  opportunity. Reliable mobility affects healthcare outcomes,
-                  employment success, educational achievement, and overall
-                  quality of life.
-                </p>
-              </div>
-            </div>
-
-            <div class="stats-shell">
-
-              <div class="stat-card">
-                <strong>Healthcare</strong>
-                <span>
-                  Transportation barriers often contribute to missed medical
-                  appointments and delayed care.
-                </span>
-              </div>
-
-              <div class="stat-card">
-                <strong>Employment</strong>
-                <span>
-                  Reliable transportation supports workforce participation and
-                  economic stability.
-                </span>
-              </div>
-
-              <div class="stat-card">
-                <strong>Education</strong>
-                <span>
-                  Mobility access helps students participate consistently in
-                  educational opportunities.
-                </span>
-              </div>
-
-              <div class="stat-card">
-                <strong>Community</strong>
-                <span>
-                  Transportation strengthens community engagement and access
-                  to support resources.
-                </span>
-              </div>
-
-            </div>
-
-          </section>
-
-        </div>
-
-      </section>
-
-      <section class="section" id="why-give">
-
-        <div class="shell why-shell">
-
-          <section class="card why-card">
-
-            <h3>Why Give?</h3>
-
-            <ul class="why-list">
-
-              <li>
-                Help remove transportation barriers for individuals and
-                families.
-              </li>
-
-              <li>
-                Support access to healthcare, education, and employment.
-              </li>
-
-              <li>
-                Strengthen transportation-focused community assistance.
-              </li>
-
-              <li>
-                Help create pathways toward opportunity and stability.
-              </li>
-
-              <l
+<body>
+  <header class="topbar">
+    <div class="shell topbar-inner">
+      <a href="index.html" class="brand" aria-label="Harvey Taxi home">
+        <div class="brand-mark">
+          <img
+            src="/images/foundation-logo.png"
+            alt="Harvey Transportation Assistance Foundation Logo"
+            onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=&quot;brand-fallback&quot;>HT</div>';"
+          />
+        </div>
+
+        <div class="brand-copy">
+          <h1>Harvey Transportation Assistance Foundation</h1>
+          <p>Transportation Access • Community Impact • Mobility Support</p>
+        </div>
+      </a>
+
+      <nav class="nav" aria-label="Primary navigation">
+        <a href="index.html">Home</a>
+        <a href="#impact">Impact</a>
+        <a href="#programs">Programs</a>
+        <a href="#apply">Apply</a>
+        <a href="#process">How It Works</a>
+        <a href="#faq">FAQ</a>
+        <a href="support.html">Support</a>
+        <a href="#donate" class="cta">Donate</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="shell hero-shell">
+        <div>
+          <section class="card hero-card">
+            <div class="hero-content">
+              <div class="eyebrow">Tennessee Transportation Assistance Initiative</div>
+
+              <h2>Transportation should never be the reason someone misses opportunity.</h2>
+
+              <p>
+                Harvey Transportation Assistance Foundation helps remove transportation barriers for individuals and families facing challenges accessing healthcare, employment, education, veteran services, senior mobility, disability access, and essential community support.
+              </p>
+
+              <div class="hero-actions">
+                <a href="#apply" class="btn btn-primary">Apply for Assistance</a>
+                <a href="#programs" class="btn btn-secondary">View Programs</a>
+                <a href="https://www.paypal.com/us/fundraiser/charity/5906918" target="_blank" rel="noopener noreferrer" class="btn btn-gold">
+                  💙 Donate via PayPal Giving Fund
+                </a>
+              </div>
+            </div>
+          </section>
+
+          <section class="impact-strip">
+            <article class="impact-mini">
+              <strong>Medical rides</strong>
+              <span>Healthcare visits, treatment, pharmacy needs, and appointments.</span>
+            </article>
+
+            <article class="impact-mini">
+              <strong>Senior, disability & veteran support</strong>
+              <span>Essential transportation for people facing mobility barriers.</span>
+            </article>
+
+            <article class="impact-mini">
+              <strong>Employment access</strong>
+              <span>Transportation to interviews, job training, orientation, and work.</span>
+            </article>
+          </section>
+        </div>
+
+        <aside>
+          <div class="sticky-box">
+            <section class="card spotlight-card" id="donate">
+              <h3>Support Transportation Access</h3>
+
+              <p>
+                Your donation helps support transportation assistance programs built around intake, eligibility review, ride coordination, provider verification, and ride tracking.
+              </p>
+
+              <div class="trust-grid">
+                <div class="trust-pill"><strong>Official Programs</strong>HTAF-100 through HTAF-800.</div>
+                <div class="trust-pill"><strong>Secure Giving</strong>PayPal Giving Fund donation portal.</div>
+                <div class="trust-pill"><strong>Ride Support</strong>Eligible transportation coordination.</div>
+                <div class="trust-pill"><strong>Grant Ready</strong>Tracking and reporting structure.</div>
+              </div>
+
+              <div class="link-preview">
+                <div class="preview-badge">Verified PayPal Giving Fund</div>
+                <h4 class="preview-title">Donate securely today</h4>
+                <p class="preview-copy">Every contribution supports transportation assistance programs designed to improve mobility and access throughout Tennessee.</p>
+
+                <a class="preview-link" href="https://www.paypal.com/us/fundraiser/charity/5906918" target="_blank" rel="noopener noreferrer">
+                  https://www.paypal.com/us/fundraiser/charity/5906918
+                </a>
+
+                <div class="preview-actions">
+                  <a href="https://www.paypal.com/us/fundraiser/charity/5906918" target="_blank" rel="noopener noreferrer" class="btn btn-gold btn-compact">Donate Now</a>
+                  <button class="btn btn-secondary btn-compact" type="button" onclick="copyDonationLink()">Copy Link</button>
+                </div>
+              </div>
+
+              <div id="copyStatus" class="copy-status"></div>
+            </section>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section" id="apply">
+      <div class="shell">
+        <section class="card section-card">
+          <div class="section-head">
+            <h3>Apply for Transportation Assistance</h3>
+            <p>Choose the program that best fits your need. If you are unsure, start with the rider intake application.</p>
+          </div>
+
+          <div class="grid-3">
+            <article class="feature-card">
+              <div class="feature-icon">📝</div>
+              <h4>Start General Intake</h4>
+              <p>Begin with HTAF-100 Rider Intake & Eligibility for review.</p>
+              <div class="program-actions">
+                <a class="btn btn-primary" href="htaf-100-intake.html">Apply Online</a>
+                <a class="btn btn-secondary" href="/forms/HTAF-100-rider-intake.pdf">PDF Form</a>
+              </div>
+            </article>
+
+            <article class="feature-card">
+              <div class="feature-icon">🏥</div>
+              <h4>Medical Ride Assistance</h4>
+              <p>Apply for help reaching approved medical appointments or treatment.</p>
+              <div class="program-actions">
+                <a class="btn btn-primary" href="htaf-200-medical.html">Apply Online</a>
+                <a class="btn btn-secondary" href="/forms/HTAF-200-medical-transportation.pdf">PDF Form</a>
+              </div>
+            </article>
+
+            <article class="feature-card">
+              <div class="feature-icon">💼</div>
+              <h4>Employment Transportation</h4>
+              <p>Apply for transportation help for job interviews, training, or work access.</p>
+              <div class="program-actions">
+                <a class="btn btn-primary" href="htaf-600-employment.html">Apply Online</a>
+                <a class="btn btn-secondary" href="/forms/HTAF-600-employment-transportation.pdf">PDF Form</a>
+              </div>
+            </article>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section class="section" id="impact">
+      <div class="shell">
+        <section class="card section-card">
+          <div class="section-head">
+            <h3>Community Impact Areas</h3>
+            <p>Transportation access affects healthcare, employment, education, senior independence, disability access, veteran support, and essential daily mobility.</p>
+          </div>
+
+          <div class="grid-3">
+            <article class="feature-card"><div class="feature-icon">🏥</div><h4>Medical Transportation</h4><p>Helping eligible individuals reach healthcare appointments, treatment facilities, pharmacies, and wellness services.</p></article>
+            <article class="feature-card"><div class="feature-icon">👵</div><h4>Senior Mobility</h4><p>Supporting seniors who need reliable transportation for care, essential needs, community services, and independence.</p></article>
+            <article class="feature-card"><div class="feature-icon">♿</div><h4>Disability Transportation</h4><p>Helping individuals with disabilities and mobility limitations access approved transportation assistance.</p></article>
+            <article class="feature-card"><div class="feature-icon">🇺🇸</div><h4>Veteran Assistance</h4><p>Supporting veterans with transportation access to healthcare, services, employment, and community resources.</p></article>
+            <article class="feature-card"><div class="feature-icon">💼</div><h4>Employment Mobility</h4><p>Helping people reach job interviews, workforce training, orientation, employment services, and work opportunities.</p></article>
+            <article class="feature-card"><div class="feature-icon">📋</div><h4>Program Tracking</h4><p>Monthly ride tracking and provider verification support responsible program administration and future grant reporting.</p></article>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section class="section" id="programs">
+      <div class="shell">
+        <section class="card section-card">
+          <div class="section-head">
+            <h3>Official Assistance Programs</h3>
+            <p>Structured transportation assistance programs aligned with the Harvey Transportation Assistance Foundation mission.</p>
+          </div>
+
+          <div class="grid-3">
+            <article class="feature-card"><div class="feature-icon">📝</div><h4>HTAF-100 Rider Intake & Eligibility</h4><p>Initial intake, eligibility review, applicant certification, and transportation assistance determination.</p></article>
+            <article class="feature-card"><div class="feature-icon">🏥</div><h4>HTAF-200 Medical Transportation</h4><p>Transportation assistance for medical appointments, treatment, healthcare providers, and pharmacy access.</p></article>
+            <article class="feature-card"><div class="feature-icon">👵</div><h4>HTAF-300 Senior Mobility</h4><p>Transportation assistance helping seniors maintain independence and reach essential services.</p></article>
+            <article class="feature-card"><div class="feature-icon">♿</div><h4>HTAF-400 Disability Transportation</h4><p>Transportation support for individuals with disabilities and mobility challenges.</p></article>
+            <article class="feature-card"><div class="feature-icon">🇺🇸</div><h4>HTAF-500 Veteran Transportation</h4><p>Transportation assistance for veterans accessing healthcare, services, employment, and resources.</p></article>
+            <article class="feature-card"><div class="feature-icon">💼</div><h4>HTAF-600 Employment Transportation</h4><p>Transportation assistance helping individuals reach job opportunities and workforce programs.</p></article>
+            <article class="feature-card"><div class="feature-icon">✅</div><h4>HTAF-700 Medical Provider Verification</h4><p>Provider verification supporting medical transportation eligibility and documentation.</p></article>
+            <article class="feature-card"><div class="feature-icon">📊</div><h4>HTAF-800 Monthly Ride Tracking</h4><p>Ride tracking for program administration, reporting, compliance review, and grant readiness.</p></article>
+            <article class="feature-card"><div class="feature-icon">🚗</div><h4>Ride Coordination Support</h4><p>Approved transportation tools may support eligible rides when funding is available.</p></article>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section class="section" id="process">
+      <div class="shell">
+        <section class="card section-card">
+          <div class="section-head">
+            <h3>How Assistance Works</h3>
+            <p>The assistance process directs transportation resources toward eligible individuals while supporting responsible program administration.</p>
+          </div>
+
+          <div class="process-grid">
+            <div class="process-card"><strong>Step 1</strong><span>Complete rider intake and eligibility application.</span></div>
+            <div class="process-card"><strong>Step 2</strong><span>Submit eligibility details and program need statement.</span></div>
+            <div class="process-card"><strong>Step 3</strong><span>Foundation reviews program fit, verification, and available support.</span></div>
+            <div class="process-card"><strong>Step 4</strong><span>Approved ride assistance is coordinated and tracked.</span></div>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section class="section" id="why-give">
+      <div class="shell why-shell">
+        <section class="card why-card">
+          <h3>Why Give?</h3>
+          <ul class="why-list">
+            <li>Help remove transportation barriers for individuals and families.</li>
+            <li>Support access to healthcare, employment, education, and essential services.</li>
+            <li>Strengthen transportation-focused community assistance.</li>
+            <li>Support senior mobility, disability access, and veteran transportation needs.</li>
+            <li>Help build a grant-ready transportation assistance infrastructure.</li>
+          </ul>
+        </section>
+
+        <section class="card why-card">
+          <h3>Our Mission</h3>
+          <p>
+            Harvey Transportation Assistance Foundation exists to reduce transportation-related hardship by helping connect people with care, services, work opportunities, education, and community resources that improve quality of life.
+          </p>
+        </section>
+      </div>
+    </section>
+
+    <section class="section" id="faq">
+      <div class="shell">
+        <section class="card section-card">
+          <div class="section-head">
+            <h3>Frequently Asked Questions</h3>
+            <p>Common questions from applicants, supporters, donors, partners, and community members.</p>
+          </div>
+
+          <div class="faq-grid">
+            <article class="faq-item"><strong>What programs does the foundation support?</strong><span>Medical, senior, disability, veteran, employment, intake, provider verification, and ride tracking programs.</span></article>
+            <article class="faq-item"><strong>Who may be eligible?</strong><span>Eligibility may include seniors, people with disabilities, veterans, low-income applicants, Medicaid recipients, and others with transportation need.</span></article>
+            <article class="faq-item"><strong>How can I support the foundation?</strong><span>Donations can be made securely through the PayPal Giving Fund donation portal.</span></article>
+            <article class="faq-item"><strong>Is the foundation separate from Harvey Taxi?</strong><span>Yes. The foundation is a nonprofit-focused mission and remains separate from for-profit taxi platform operations.</span></article>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="shell">
+        <section class="card cta-card">
+          <div class="cta-copy">
+            <h3>Every donation helps someone move forward.</h3>
+            <p>Join the mission to reduce transportation barriers and create access to healthcare, employment, education, senior mobility, disability support, veteran resources, and essential services.</p>
+          </div>
+
+          <div class="cta-actions">
+            <a href="#apply" class="btn btn-primary">Apply for Assistance</a>
+            <a href="https://www.paypal.com/us/fundraiser/charity/5906918" target="_blank" rel="noopener noreferrer" class="btn btn-gold">💙 Donate Securely</a>
+            <button class="btn btn-secondary" type="button" onclick="openHarveyAiChat()">Ask AI Support</button>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="shell footer-row">
+      <div>© 2026 Harvey Transportation Assistance Foundation</div>
+
+      <div class="footer-links">
+        <a href="index.html">Home</a>
+        <a href="support.html">Support</a>
+        <a href="privacy.html">Privacy</a>
+        <a href="terms.html">Terms</a>
+        <a href="https://www.paypal.com/us/fundraiser/charity/5906918" target="_blank" rel="noopener noreferrer">Donate</a>
+      </div>
+    </div>
+  </footer>
+
+  <nav class="bottom-nav" aria-label="Foundation bottom navigation">
+    <button class="nav-btn" type="button" onclick="window.location.href='index.html'">Home</button>
+    <button class="nav-btn" type="button" onclick="window.location.href='request-ride.html?mode=driver'">Rides</button>
+    <button class="nav-btn active" type="button">Foundation</button>
+    <button class="nav-btn" type="button" onclick="window.location.href='support.html'">Support</button>
+    <button class="nav-btn" type="button" onclick="openHarveyAiChat()">AI Help</button>
+  </nav>
+
+  <script src="/ai-support-widget.js"></script>
+
+  <script>
+    const DONATION_LINK = "https://www.paypal.com/us/fundraiser/charity/5906918";
+    const copyStatusEl = document.getElementById("copyStatus");
+
+    window.HARVEY_API_BASE =
+      window.location.origin && window.location.origin.includes("http")
+        ? window.location.origin
+        : "";
+
+    window.HARVEY_AI_CONTEXT = {
+      page: "foundation",
+      organization: "Harvey Transportation Assistance Foundation",
+      mission: "Transportation assistance for medical, senior, disability, veteran, employment, school, and essential mobility needs.",
+      donationUrl: DONATION_LINK
+    };
+
+    function trackFoundationIntent(eventName, params = {}) {
+      try {
+        if (typeof gtag === "function") {
+          gtag("event", eventName, {
+            event_category: "foundation_engagement",
+            event_label: eventName,
+            page_location: window.location.href,
+            ...params
+          });
+        }
+      } catch (error) {}
+    }
+
+    document.querySelectorAll('a[href*="paypal.com/us/fundraiser/charity/5906918"]').forEach((link) => {
+      link.addEventListener("click", function () {
+        trackFoundationIntent("donation_intent");
+      });
+    });
+
+    function showCopyStatus(message, ok = true) {
+      if (!copyStatusEl) return;
+
+      copyStatusEl.textContent = message;
+      copyStatusEl.className = "copy-status show " + (ok ? "ok" : "err");
+
+      window.clearTimeout(showCopyStatus._timer);
+      showCopyStatus._timer = window.setTimeout(() => {
+        copyStatusEl.className = "copy-status";
+        copyStatusEl.textContent = "";
+      }, 2500);
+    }
+
+    async function copyDonationLink() {
+      try {
+        await navigator.clipboard.writeText(DONATION_LINK);
+        showCopyStatus("Donation link copied successfully.");
+        trackFoundationIntent("donation_link_copied");
+      } catch (error) {
+        showCopyStatus("Unable to copy automatically. Please copy the link manually.", false);
+      }
+    }
+
+    function openHarveyAiChat() {
+      try {
+        if (window.HarveyAI && typeof window.HarveyAI.open === "function") {
+          window.HarveyAI.open();
+          return;
+        }
+
+        const root = document.getElementById("harvey-ai-chat-root");
+
+        if (root) {
+          const toggle =
+            root.querySelector("[data-harvey-ai-open]") ||
+            root.querySelector(".harvey-ai-launch") ||
+            root.querySelector("button");
+
+          if (toggle && typeof toggle.click === "function") {
+            toggle.click();
+            return;
+          }
+        }
+      } catch (error) {}
+
+      window.location.href = "support.html";
+    }
+
+    window.addEventListener("load", function () {
+      trackFoundationIntent("foundation_page_view");
+
+      window.setTimeout(function () {
+        if (!document.getElementById("harvey-ai-chat-root")) {
+          const root = document.createElement("div");
+          root.id = "harvey-ai-chat-root";
+          document.body.appendChild(root);
+        }
+      }, 80);
+    });
+  </script>
+</body>
+</html>
