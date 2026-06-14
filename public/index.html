@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" dir="ltr">
 <head>
   <meta charset="UTF-8" />
   <meta
@@ -7,14 +7,18 @@
     content="width=device-width, initial-scale=1.0, viewport-fit=cover"
   />
 
-  <title>Harvey Taxi | Safe Tennessee Rides, Driver Access, Delivery, and Live Support</title>
+  <title data-i18n="metaTitle">
+    Harvey Taxi | Safe Tennessee Rides, Driver Access, Delivery, and Live Support
+  </title>
+
   <meta
     name="description"
     content="Harvey Taxi Service LLC helps Tennessee riders request safe rides, connect with qualified drivers, access live support, and explore driver, delivery, foundation, and future mobility services."
   />
+
   <meta name="theme-color" content="#07111f" />
 
-  <!-- Google tag (gtag.js) -->
+  <!-- Google tag -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-814LXYV9DN"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
@@ -108,21 +112,52 @@
       z-index: 0;
     }
 
+    body.high-contrast {
+      --bg1: #000;
+      --bg2: #020617;
+      --bg3: #020617;
+      --text: #ffffff;
+      --muted: #e2e8f0;
+      --line: rgba(255,255,255,0.35);
+      --line-strong: rgba(255,255,255,0.65);
+    }
+
+    body.large-text {
+      font-size: 18px;
+    }
+
+    body.reduced-motion *,
+    body.reduced-motion *::before,
+    body.reduced-motion *::after {
+      animation: none !important;
+      transition: none !important;
+      scroll-behavior: auto !important;
+    }
+
+    [dir="rtl"] body {
+      text-align: right;
+    }
+
     a {
       color: inherit;
       text-decoration: none;
     }
 
     button,
-    a {
+    a,
+    select {
       -webkit-tap-highlight-color: transparent;
       touch-action: manipulation;
     }
 
-    button {
+    button,
+    select {
       font: inherit;
       border: none;
       outline: none;
+    }
+
+    button {
       cursor: pointer;
     }
 
@@ -154,6 +189,72 @@
 
     .skip-link:focus {
       top: 14px;
+    }
+
+    .language-panel {
+      margin-bottom: 18px;
+      padding: 16px;
+      border-radius: 24px;
+      background: rgba(7, 12, 28, 0.82);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow-soft);
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 14px;
+      align-items: center;
+    }
+
+    .language-copy strong {
+      display: block;
+      color: var(--cyan);
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+
+    .language-copy span {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .language-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: flex-end;
+      align-items: center;
+    }
+
+    .select-control {
+      min-height: 44px;
+      padding: 0 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.06);
+      color: #fff;
+      border: 1px solid var(--line);
+      font-weight: 850;
+      max-width: 260px;
+    }
+
+    .select-control option {
+      color: #07121f;
+      background: #ffffff;
+    }
+
+    .access-btn {
+      min-height: 44px;
+      padding: 0 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.05);
+      color: var(--text);
+      border: 1px solid var(--line);
+      font-weight: 850;
+    }
+
+    .access-btn.active {
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      color: var(--ink);
+      border: none;
     }
 
     .topbar {
@@ -250,9 +351,7 @@
       color: var(--ink);
       border: none;
       box-shadow: 0 10px 24px rgba(94, 160, 255, 0.18);
-    }
-
-    .announce {
+    }    .announce {
       margin-bottom: 24px;
       padding: 16px 22px;
       border-radius: 22px;
@@ -279,6 +378,30 @@
       color: var(--muted);
       font-size: 14px;
       line-height: 1.6;
+    }
+
+    .inclusive-strip {
+      margin-bottom: 24px;
+      padding: 18px 22px;
+      border-radius: 24px;
+      background:
+        linear-gradient(135deg, rgba(255, 215, 106, 0.08), rgba(99, 245, 255, 0.05)),
+        rgba(255,255,255,0.025);
+      border: 1px solid rgba(255, 215, 106, 0.18);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .inclusive-strip strong {
+      display: block;
+      color: var(--gold);
+      font-size: 16px;
+      margin-bottom: 6px;
+    }
+
+    .inclusive-strip p {
+      color: var(--muted);
+      line-height: 1.65;
+      font-size: 14px;
     }
 
     .hero {
@@ -397,7 +520,9 @@
     .secondary-actions .btn {
       flex: 1;
       min-width: 140px;
-    }    .btn {
+    }
+
+    .btn {
       padding: 14px 20px;
       border-radius: 14px;
       border: 1px solid var(--line);
@@ -497,7 +622,8 @@
     }
 
     .status-card,
-    .foundation-card {
+    .foundation-card,
+    .community-card {
       padding:24px;
       border-radius:22px;
       border:1px solid rgba(255,255,255,.06);
@@ -509,6 +635,13 @@
         linear-gradient(180deg,rgba(255,215,106,.07),transparent),
         rgba(255,255,255,.02);
       border-color:rgba(255,215,106,.18);
+    }
+
+    .community-card {
+      background:
+        linear-gradient(180deg,rgba(140,131,255,.08),transparent),
+        rgba(255,255,255,.02);
+      border-color:rgba(140,131,255,.20);
     }
 
     .eyebrow {
@@ -525,15 +658,21 @@
       color:var(--gold);
     }
 
+    .community-card .eyebrow {
+      color:#c9c8ff;
+    }
+
     .status-card h3,
-    .foundation-card h3 {
+    .foundation-card h3,
+    .community-card h3 {
       font-size:20px;
       margin-bottom:12px;
       letter-spacing:-.02em;
     }
 
     .status-card p,
-    .foundation-card p {
+    .foundation-card p,
+    .community-card p {
       color:var(--muted);
       line-height:1.65;
       font-size:14px;
@@ -568,6 +707,7 @@
       font-weight:900;
       background:rgba(109,255,179,.12);
       color:var(--green);
+      white-space: nowrap;
     }
 
     .status-pill.info {
@@ -640,306 +780,355 @@
       color:var(--muted);
       font-size:14px;
       line-height:1.55;
-    }
-
-    .section {
-      margin-top:24px;
-      background:var(--panel);
-      padding:32px;
-      border-radius:var(--radius-xl);
-      border:1px solid var(--line);
-      box-shadow:var(--shadow);
+    }    .section {
+      margin-top: 24px;
+      background: var(--panel);
+      padding: 32px;
+      border-radius: var(--radius-xl);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
     }
 
     .section-header {
-      margin-bottom:24px;
+      margin-bottom: 24px;
     }
 
     .section h2 {
-      font-size:28px;
-      margin-bottom:8px;
-      letter-spacing:-.02em;
+      font-size: 28px;
+      margin-bottom: 8px;
+      letter-spacing: -.02em;
     }
 
     .lead {
-      color:var(--muted);
-      line-height:1.7;
-      font-size:15px;
-      max-width:850px;
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 15px;
+      max-width: 850px;
     }
 
     .grid {
-      display:grid;
-      grid-template-columns:repeat(3,1fr);
-      gap:16px;
+      display: grid;
+      grid-template-columns: repeat(3,1fr);
+      gap: 16px;
     }
 
     .card,
     .highlight,
     .list-item,
     .service-card {
-      border:1px solid rgba(255,255,255,.05);
-      background:rgba(255,255,255,.02);
+      border: 1px solid rgba(255,255,255,.05);
+      background: rgba(255,255,255,.02);
     }
 
     .card {
-      padding:20px;
-      border-radius:18px;
-      transition:.18s ease;
+      padding: 20px;
+      border-radius: 18px;
+      transition: .18s ease;
     }
 
     .card:hover {
-      transform:translateY(-3px);
-      border-color:var(--line-strong);
-      background:rgba(255,255,255,.04);
+      transform: translateY(-3px);
+      border-color: var(--line-strong);
+      background: rgba(255,255,255,.04);
     }
 
     .card strong {
-      display:block;
-      margin-bottom:8px;
-      font-size:16px;
-      color:#fff;
+      display: block;
+      margin-bottom: 8px;
+      font-size: 16px;
+      color: #fff;
     }
 
     .card span {
-      color:var(--muted);
-      font-size:14px;
-      line-height:1.6;
-      display:block;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+      display: block;
     }
 
     .info-grid {
-      display:grid;
-      grid-template-columns:1.1fr .9fr;
-      gap:16px;
-      margin-top:16px;
+      display: grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap: 16px;
+      margin-top: 16px;
     }
 
     .highlight {
-      padding:24px;
-      border-radius:18px;
+      padding: 24px;
+      border-radius: 18px;
     }
 
     .highlight h3 {
-      margin-bottom:12px;
-      font-size:20px;
+      margin-bottom: 12px;
+      font-size: 20px;
     }
 
     .highlight p {
-      color:var(--muted);
-      line-height:1.7;
-      font-size:14px;
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 14px;
     }
 
     .pill-row {
-      display:flex;
-      flex-wrap:wrap;
-      gap:8px;
-      margin-top:16px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
     }
 
     .pill {
-      padding:6px 12px;
-      border-radius:999px;
-      background:rgba(255,255,255,.04);
-      border:1px solid rgba(255,255,255,.06);
-      font-size:12px;
-      color:var(--muted);
-    }    .list {
-      display:grid;
-      gap:12px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.06);
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .list {
+      display: grid;
+      gap: 12px;
     }
 
     .list-item {
-      padding:16px;
-      border-radius:14px;
+      padding: 16px;
+      border-radius: 14px;
     }
 
     .list-item strong {
-      display:block;
-      margin-bottom:4px;
-      font-size:15px;
+      display: block;
+      margin-bottom: 4px;
+      font-size: 15px;
     }
 
     .list-item span {
-      color:var(--muted);
-      font-size:13px;
-      line-height:1.55;
-      display:block;
-      overflow-wrap:anywhere;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+      display: block;
+      overflow-wrap: anywhere;
     }
 
     .service-row {
-      display:grid;
-      grid-template-columns:repeat(4,1fr);
-      gap:16px;
+      display: grid;
+      grid-template-columns: repeat(4,1fr);
+      gap: 16px;
     }
 
     .service-card {
-      padding:24px;
-      border-radius:20px;
-      display:flex;
-      flex-direction:column;
-      justify-content:space-between;
-      transition:.2s ease;
+      padding: 24px;
+      border-radius: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: .2s ease;
     }
 
     .service-card:hover {
-      transform:translateY(-4px);
-      border-color:var(--line-strong);
-      background:rgba(255,255,255,.04);
+      transform: translateY(-4px);
+      border-color: var(--line-strong);
+      background: rgba(255,255,255,.04);
     }
 
     .service-card h3 {
-      margin-bottom:8px;
-      font-size:18px;
-      color:#fff;
+      margin-bottom: 8px;
+      font-size: 18px;
+      color: #fff;
     }
 
     .service-card p {
-      color:var(--muted);
-      line-height:1.6;
-      font-size:14px;
-      margin-bottom:20px;
-      flex-grow:1;
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 14px;
+      margin-bottom: 20px;
+      flex-grow: 1;
     }
 
     .service-card .btn {
-      width:100%;
+      width: 100%;
     }
 
     .coverage-grid {
-      display:grid;
-      grid-template-columns:repeat(4,1fr);
-      gap:16px;
+      display: grid;
+      grid-template-columns: repeat(4,1fr);
+      gap: 16px;
     }
 
     .coverage-card {
-      padding:22px;
-      border-radius:20px;
-      background:rgba(255,255,255,.02);
-      border:1px solid rgba(255,255,255,.05);
-      text-align:center;
+      padding: 22px;
+      border-radius: 20px;
+      background: rgba(255,255,255,.02);
+      border: 1px solid rgba(255,255,255,.05);
+      text-align: center;
     }
 
     .coverage-card strong {
-      display:block;
-      font-size:18px;
-      margin-bottom:8px;
+      display: block;
+      font-size: 18px;
+      margin-bottom: 8px;
     }
 
     .coverage-card span {
-      color:var(--muted);
-      font-size:13px;
-      line-height:1.6;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .language-support-grid {
+      display: grid;
+      grid-template-columns: repeat(4,1fr);
+      gap: 16px;
+      margin-top: 20px;
+    }
+
+    .language-card {
+      padding: 20px;
+      border-radius: 18px;
+      background: rgba(255,255,255,.02);
+      border: 1px solid rgba(99,245,255,.12);
+      text-align: center;
+    }
+
+    .language-card h4 {
+      color: var(--cyan);
+      margin-bottom: 8px;
+      font-size: 16px;
+    }
+
+    .language-card p {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .community-grid {
+      display: grid;
+      grid-template-columns: repeat(3,1fr);
+      gap: 16px;
+      margin-top: 18px;
+    }
+
+    .community-card-box {
+      padding: 22px;
+      border-radius: 20px;
+      background: rgba(255,255,255,.02);
+      border: 1px solid rgba(255,255,255,.05);
+    }
+
+    .community-card-box h4 {
+      color: #fff;
+      margin-bottom: 8px;
+    }
+
+    .community-card-box p {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
     }
 
     .footer {
-      margin-top:24px;
-      padding:32px;
-      border-radius:var(--radius-xl);
-      border:1px solid var(--line);
-      background:var(--panel);
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      flex-wrap:wrap;
-      gap:24px;
-      box-shadow:var(--shadow);
+      margin-top: 24px;
+      padding: 32px;
+      border-radius: var(--radius-xl);
+      border: 1px solid var(--line);
+      background: var(--panel);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 24px;
+      box-shadow: var(--shadow);
     }
 
     .footer-title {
-      display:block;
-      margin-bottom:6px;
-      font-weight:950;
-      font-size:16px;
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 950;
+      font-size: 16px;
     }
 
     .footer p {
-      color:var(--muted);
-      font-size:14px;
-      line-height:1.6;
-      max-width:650px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+      max-width: 650px;
     }
 
     .bottom-nav {
-      position:fixed;
-      left:0;
-      right:0;
-      bottom:0;
-      height:calc(var(--nav-h) + env(safe-area-inset-bottom));
-      background:rgba(6,12,26,.96);
-      backdrop-filter:blur(20px);
-      -webkit-backdrop-filter:blur(20px);
-      border-top:1px solid rgba(255,255,255,.08);
-      display:flex;
-      justify-content:space-around;
-      align-items:center;
-      padding:0 8px env(safe-area-inset-bottom) 8px;
-      z-index:100;
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: calc(var(--nav-h) + env(safe-area-inset-bottom));
+      background: rgba(6,12,26,.96);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-top: 1px solid rgba(255,255,255,.08);
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding: 0 8px env(safe-area-inset-bottom) 8px;
+      z-index: 100;
     }
 
     .nav-btn {
-      color:var(--muted);
-      background:none;
-      font-size:11px;
-      font-weight:850;
-      padding:8px 10px;
-      border-radius:12px;
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      gap:4px;
-      transition:.15s ease;
+      color: var(--muted);
+      background: none;
+      font-size: 11px;
+      font-weight: 850;
+      padding: 8px 10px;
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      transition: .15s ease;
     }
 
     .nav-btn.active,
     .nav-btn:hover,
     .nav-btn:focus-visible {
-      color:var(--cyan);
-      background:rgba(99,245,255,.06);
+      color: var(--cyan);
+      background: rgba(99,245,255,.06);
     }
 
     .modal-overlay {
-      position:fixed;
-      inset:0;
-      background-color:rgba(4,8,20,.86);
-      backdrop-filter:blur(12px);
-      -webkit-backdrop-filter:blur(12px);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      z-index:9999;
-      padding:20px;
+      position: fixed;
+      inset: 0;
+      background-color: rgba(4,8,20,.86);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      padding: 20px;
     }
 
     .modal-card {
-      background:linear-gradient(160deg,#091126,#101935);
-      border:1px solid rgba(122,162,255,.25);
-      border-radius:24px;
-      padding:32px;
-      max-width:450px;
-      width:100%;
-      text-align:center;
-      box-shadow:0 25px 50px -12px rgba(0,0,0,.5);
+      background: linear-gradient(160deg,#091126,#101935);
+      border: 1px solid rgba(122,162,255,.25);
+      border-radius: 24px;
+      padding: 32px;
+      max-width: 520px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,.5);
     }
 
     .modal-card h3 {
-      font-size:22px;
-      font-weight:950;
-      color:#fff;
-      margin-bottom:12px;
+      font-size: 22px;
+      font-weight: 950;
+      color: #fff;
+      margin-bottom: 12px;
     }
 
     .modal-card p {
-      color:var(--muted);
-      font-size:14px;
-      line-height:1.7;
-      margin-bottom:24px;
-    }
-
-    @media (max-width:1180px) {
-
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.7;
+      margin-bottom: 24px;
+    }    @media (max-width:1180px) {
       .hero-grid,
       .info-grid {
         grid-template-columns:1fr;
@@ -947,12 +1136,20 @@
 
       .service-row,
       .mini-stats,
-      .coverage-grid {
+      .coverage-grid,
+      .language-support-grid {
         grid-template-columns:repeat(2,1fr);
       }
     }
 
     @media (max-width:900px) {
+      .language-panel {
+        grid-template-columns:1fr;
+      }
+
+      .language-controls {
+        justify-content:flex-start;
+      }
 
       .topbar {
         position:relative;
@@ -972,13 +1169,13 @@
         white-space:nowrap;
       }
 
-      .grid {
+      .grid,
+      .community-grid {
         grid-template-columns:repeat(2,1fr);
       }
     }
 
     @media (max-width:650px) {
-
       .shell {
         padding:14px 12px;
       }
@@ -987,6 +1184,8 @@
       .service-row,
       .mini-stats,
       .coverage-grid,
+      .language-support-grid,
+      .community-grid,
       .hero-points,
       .primary-actions {
         grid-template-columns:1fr;
@@ -1020,1231 +1219,1683 @@
       .brand-sub {
         white-space:normal;
       }
+
+      .language-controls,
+      .language-controls select,
+      .language-controls button {
+        width:100%;
+      }
     }
   </style>
 </head>
 
 <body>
-
-<a href="#main-content" class="skip-link">
-  Skip to content
-</a>
-
-<div class="shell">
-
-<header class="topbar">
-
-  <a
-    class="brand-wrap"
-    href="index.html"
-    aria-label="Harvey Taxi Home"
-    data-track="home_brand"
-  >
-    <div class="logo-mark">HT</div>
-
-    <div class="brand-stack">
-      <div class="brand">HARVEY TAXI</div>
-      <div class="brand-sub">
-        Tennessee Mobility Platform
-      </div>
-    </div>
+  <a href="#main-content" class="skip-link" data-i18n="skipContent">
+    Skip to content
   </a>
 
-  <nav class="top-links">
+  <div class="shell">
+    <section class="language-panel" aria-label="Language and accessibility preferences">
+      <div class="language-copy">
+        <strong data-i18n="languageTitle">
+          Language & Accessibility
+        </strong>
+        <span data-i18n="languageCopy">
+          Harvey Taxi welcomes every rider, driver, family, culture, and community. Choose your preferred language and display settings.
+        </span>
+      </div>
 
-    <a
-      class="top-link"
-      href="#how-it-works"
-      data-track="nav_how"
-    >
-      How It Works
-    </a>
+      <div class="language-controls">
+        <select id="language-select" class="select-control" aria-label="Choose language">
+          <option value="en">English</option>
+          <option value="es">Español</option>
+          <option value="fr">Français</option>
+          <option value="ar">العربية</option>
+          <option value="sw">Kiswahili</option>
+          <option value="zh">中文</option>
+          <option value="hi">हिन्दी</option>
+          <option value="pt">Português</option>
+          <option value="ht">Kreyòl Ayisyen</option>
+          <option value="yo">Yorùbá</option>
+        </select>
 
-    <a
-      class="top-link"
-      href="#safety"
-      data-track="nav_safety"
-    >
-      Safety
-    </a>
+        <button id="contrast-toggle" class="access-btn" type="button" data-i18n="contrastBtn">
+          High Contrast
+        </button>
 
-    <a
-      class="top-link"
-      href="#services"
-      data-track="nav_services"
-    >
-      Services
-    </a>
+        <button id="text-toggle" class="access-btn" type="button" data-i18n="largeTextBtn">
+          Larger Text
+        </button>
 
-    <a
-      class="top-link"
-      href="foundation.html"
-      data-track="foundation_nav"
-    >
-      Foundation
-    </a>
+        <button id="motion-toggle" class="access-btn" type="button" data-i18n="motionBtn">
+          Reduce Motion
+        </button>
+      </div>
+    </section>
 
-    <a
-      class="top-link"
-      href="settings.html"
-      data-track="settings_nav"
-    >
-      ⚙ Settings
-    </a>
+    <header class="topbar">
+      <a
+        class="brand-wrap"
+        href="index.html"
+        aria-label="Harvey Taxi Home"
+        data-track="home_brand"
+      >
+        <div class="logo-mark">HT</div>
 
-    <a
-      class="top-link cta"
-      href="request-ride.html?mode=driver"
-      data-intent="request_ride_start"
+        <div class="brand-stack">
+          <div class="brand">HARVEY TAXI</div>
+          <div class="brand-sub" data-i18n="brandSub">
+            Tennessee Mobility Platform
+          </div>
+        </div>
+      </a>
+
+      <nav class="top-links">
+        <a class="top-link" href="#how-it-works" data-track="nav_how" data-i18n="navHow">
+          How It Works
+        </a>
+
+        <a class="top-link" href="#safety" data-track="nav_safety" data-i18n="navSafety">
+          Safety
+        </a>
+
+        <a class="top-link" href="#services" data-track="nav_services" data-i18n="navServices">
+          Services
+        </a>
+
+        <a class="top-link" href="foundation.html" data-track="foundation_nav" data-i18n="navFoundation">
+          Foundation
+        </a>
+
+        <a class="top-link" href="settings.html" data-track="settings_nav" data-i18n="navSettings">
+          ⚙ Settings
+        </a>
+
+        <a class="top-link cta" href="request-ride.html?mode=driver" data-intent="request_ride_start" data-i18n="navBook">
+          Book Ride
+        </a>
+      </nav>
+    </header>
+
+    <section class="announce">
+      <div class="announce-copy">
+        <strong data-i18n="announceTitle">
+          Harvey Taxi Code Blue Platform
+        </strong>
+
+        <span data-i18n="announceCopy">
+          Tennessee rides, future delivery, driver opportunities, foundation support, AI assistance, and autonomous pilot technologies in one ecosystem.
+        </span>
+      </div>
+
+      <a class="btn success" href="request-ride.html?mode=driver" data-intent="request_ride_start" data-i18n="requestRide">
+        Request Ride
+      </a>
+    </section>
+
+    <section class="inclusive-strip">
+      <strong data-i18n="inclusiveTitle">
+        Built for every community.
+      </strong>
+
+      <p data-i18n="inclusiveCopy">
+        Harvey Taxi respects all ethnicities, cultures, languages, families, seniors, workers, students, people with disabilities, immigrants, visitors, and underserved communities seeking safe transportation access.
+      </p>
+    </section>
+
+    <main id="main-content">
+      <section class="hero">
+        <div class="hero-grid">
+          <div>
+            <div class="hero-badge" data-i18n="heroBadge">
+              VERIFIED OPERATIONS • LIVE SUPPORT
+            </div>
+
+            <h1 class="hero-title">
+              <span data-i18n="heroTitleA">Tennessee Transportation</span>
+              <span class="gradient-text" data-i18n="heroTitleB">
+                Reimagined
+              </span>
+            </h1>
+
+            <p class="hero-copy" data-i18n="heroCopy">
+              Harvey Taxi combines rider access, driver opportunities, transportation assistance, AI support, and future mobility services into one connected Tennessee platform.
+            </p>
+
+            <div class="action-container">
+              <h4 data-i18n="startJourney">
+                Start Your Journey
+              </h4>
+
+              <div class="primary-actions">
+                <a class="btn primary" href="request-ride.html?mode=driver" data-intent="request_ride_start" data-i18n="requestRideEmoji">
+                  🚖 Request Ride
+                </a>
+
+                <a class="btn success" href="driver-signup.html" data-intent="driver_signup_start" data-i18n="becomeDriver">
+                  🤝 Become A Driver
+                </a>
+              </div>
+
+              <div class="secondary-actions">
+                <a class="btn ghost" href="rider-signup.html" data-intent="rider_signup_start" data-i18n="riderSignup">
+                  Rider Signup
+                </a>
+
+                <a class="btn autonomous" href="request-ride.html?mode=autonomous" data-track="autonomous_pilot">
+                  <span data-i18n="autonomous">🤖 Autonomous</span>
+                  <span class="pilot-tag" data-i18n="pilot">PILOT</span>
+                </a>
+
+                <a class="btn foundation" href="foundation.html" data-track="foundation_button" data-i18n="foundationEmoji">
+                  ❤️ Foundation
+                </a>
+              </div>
+            </div>            <div class="hero-points">
+
+              <div class="hero-point">
+                <strong data-i18n="point1Title">
+                  Approval Based Access
+                </strong>
+
+                <span data-i18n="point1Body">
+                  Riders and drivers move through structured onboarding and approval workflows.
+                </span>
+              </div>
+
+              <div class="hero-point">
+                <strong data-i18n="point2Title">
+                  AI Support System
+                </strong>
+
+                <span data-i18n="point2Body">
+                  Built-in support helps riders, drivers, and community members find answers instantly.
+                </span>
+              </div>
+
+              <div class="hero-point">
+                <strong data-i18n="point3Title">
+                  Driver Opportunity
+                </strong>
+
+                <span data-i18n="point3Body">
+                  Create income opportunities while supporting local transportation needs.
+                </span>
+              </div>
+
+              <div class="hero-point">
+                <strong data-i18n="point4Title">
+                  Community Mobility
+                </strong>
+
+                <span data-i18n="point4Body">
+                  Transportation assistance initiatives support access to work, education, and healthcare.
+                </span>
+              </div>
+
+            </div>
+
+          </div>
+
+          <aside class="hero-side">
+
+            <div class="status-card">
+
+              <div class="eyebrow" data-i18n="platformStatus">
+                Platform Status
+              </div>
+
+              <h3 data-i18n="liveOverview">
+                Live System Overview
+              </h3>
+
+              <p data-i18n="liveOverviewCopy">
+                Active services are clearly separated from pilot and future services.
+              </p>
+
+              <div class="status-list">
+
+                <div class="status-item">
+                  <span data-i18n="driverRides">
+                    Driver Rides
+                  </span>
+                  <div class="status-pill">
+                    LIVE
+                  </div>
+                </div>
+
+                <div class="status-item">
+                  <span data-i18n="aiSupport">
+                    AI Support
+                  </span>
+                  <div class="status-pill info">
+                    ONLINE
+                  </div>
+                </div>
+
+                <div class="status-item">
+                  <span data-i18n="autonomousHub">
+                    Autonomous Hub
+                  </span>
+                  <div class="status-pill pilot">
+                    PILOT
+                  </div>
+                </div>
+
+                <div class="status-item">
+                  <span data-i18n="foodDelivery">
+                    Food Delivery
+                  </span>
+                  <div class="status-pill build">
+                    BUILDING
+                  </div>
+                </div>
+
+                <div class="status-item">
+                  <span data-i18n="groceryDelivery">
+                    Grocery Delivery
+                  </span>
+                  <div class="status-pill build">
+                    BUILDING
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+
+            <div class="foundation-card">
+
+              <div class="eyebrow" data-i18n="communityImpact">
+                Community Impact
+              </div>
+
+              <h3 data-i18n="foundationTitle">
+                Harvey Transportation Assistance Foundation
+              </h3>
+
+              <p data-i18n="foundationCopy">
+                Helping remove transportation barriers for medical visits, employment, education, and essential mobility needs.
+              </p>
+
+              <div style="margin-top:16px;">
+                <a
+                  class="btn foundation"
+                  href="foundation.html"
+                  style="width:100%;"
+                  data-i18n="exploreFoundation"
+                >
+                  Explore Foundation
+                </a>
+              </div>
+
+            </div>
+
+            <div class="community-card">
+
+              <div class="eyebrow">
+                Global Communities
+              </div>
+
+              <h3>
+                Everyone Welcome
+              </h3>
+
+              <p>
+                Harvey Taxi welcomes riders, drivers, families,
+                immigrants, visitors, students, seniors, veterans,
+                healthcare patients, and communities from every
+                background and culture.
+              </p>
+
+            </div>
+
+          </aside>
+
+        </div>
+
+        <div class="mini-stats">
+
+          <div class="mini-stat">
+            <strong data-i18n="stat1Title">
+              Smart Dispatch
+            </strong>
+
+            <span data-i18n="stat1Body">
+              Driver matching and mission based ride assignments.
+            </span>
+          </div>
+
+          <div class="mini-stat">
+            <strong data-i18n="stat2Title">
+              Verified Access
+            </strong>
+
+            <span data-i18n="stat2Body">
+              Rider and driver onboarding built around approval workflows.
+            </span>
+          </div>
+
+          <div class="mini-stat">
+            <strong data-i18n="stat3Title">
+              Multi-Service Vision
+            </strong>
+
+            <span data-i18n="stat3Body">
+              Transportation, delivery, and mobility assistance under one platform.
+            </span>
+          </div>
+
+          <div class="mini-stat">
+            <strong data-i18n="stat4Title">
+              Tennessee Focus
+            </strong>
+
+            <span data-i18n="stat4Body">
+              Local growth with plans for statewide expansion.
+            </span>
+          </div>
+
+        </div>
+
+        <div class="support-callout">
+
+          <div>
+            <strong data-i18n="supportTitle">
+              Need Help Right Now?
+            </strong>
+
+            <span data-i18n="supportCopy">
+              Open Harvey AI Support for rider help, driver onboarding, account questions, or foundation assistance.
+            </span>
+          </div>
+
+          <button
+            class="btn success"
+            onclick="openHarveyAiChat();"
+            data-i18n="openAiSupport"
+          >
+            Open AI Support
+          </button>
+
+        </div>
+
+      </section>
+
+      <!-- NEW MULTILINGUAL SUPPORT SECTION -->
+
+      <section class="section">
+
+        <div class="section-header">
+
+          <h2>
+            Global Language Support
+          </h2>
+
+          <p class="lead">
+            Harvey Taxi is being designed to serve diverse communities
+            across Tennessee and beyond through accessible communication.
+          </p>
+
+        </div>
+
+        <div class="language-support-grid">
+
+          <div class="language-card">
+            <h4>English</h4>
+            <p>Primary platform language.</p>
+          </div>
+
+          <div class="language-card">
+            <h4>Español</h4>
+            <p>Spanish support for riders and drivers.</p>
+          </div>
+
+          <div class="language-card">
+            <h4>Français</h4>
+            <p>French accessibility support.</p>
+          </div>
+
+          <div class="language-card">
+            <h4>العربية</h4>
+            <p>Right-to-left Arabic language support.</p>
+          </div>
+
+          <div class="language-card">
+            <h4>Kiswahili</h4>
+            <p>East African community support.</p>
+          </div>
+
+          <div class="language-card">
+            <h4>中文</h4>
+            <p>Chinese language accessibility.</p>
+          </div>
+
+          <div class="language-card">
+            <h4>हिन्दी</h4>
+            <p>Hindi language support.</p>
+          </div>
+
+          <div class="language-card">
+            <h4>Português</h4>
+            <p>Portuguese language support.</p>
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- COMMUNITY INCLUSION SECTION -->
+
+      <section class="section">
+
+        <div class="section-header">
+
+          <h2>
+            Community Inclusion
+          </h2>
+
+          <p class="lead">
+            Transportation should be accessible, respectful,
+            and welcoming for every person.
+          </p>
+
+        </div>
+
+        <div class="community-grid">
+
+          <div class="community-card-box">
+            <h4>Families & Children</h4>
+            <p>
+              Safe transportation options for families,
+              caregivers, and children.
+            </p>
+          </div>
+
+          <div class="community-card-box">
+            <h4>Seniors</h4>
+            <p>
+              Transportation access supporting older adults
+              and healthcare mobility needs.
+            </p>
+          </div>
+
+          <div class="community-card-box">
+            <h4>Students</h4>
+            <p>
+              Helping students access educational opportunities
+              and training programs.
+            </p>
+          </div>
+
+          <div class="community-card-box">
+            <h4>Healthcare Access</h4>
+            <p>
+              Supporting transportation for medical visits
+              and wellness services.
+            </p>
+          </div>
+
+          <div class="community-card-box">
+            <h4>Workers</h4>
+            <p>
+              Helping connect people to employment
+              opportunities and workplaces.
+            </p>
+          </div>
+
+          <div class="community-card-box">
+            <h4>Visitors & New Residents</h4>
+            <p>
+              Accessible transportation for travelers,
+              immigrants, and newcomers.
+            </p>
+          </div>
+
+        </div>
+
+      </section>      <section class="section" id="how-it-works">
+        <div class="section-header">
+          <h2 data-i18n="howTitle">How Harvey Taxi Works</h2>
+          <p class="lead" data-i18n="howLead">
+            A cleaner transportation flow from signup to dispatch.
+          </p>
+        </div>
+
+        <div class="grid">
+          <div class="card">
+            <strong data-i18n="how1Title">1. Create Account</strong>
+            <span data-i18n="how1Body">Start as a rider or driver.</span>
+          </div>
+
+          <div class="card">
+            <strong data-i18n="how2Title">2. Verification</strong>
+            <span data-i18n="how2Body">Complete onboarding requirements.</span>
+          </div>
+
+          <div class="card">
+            <strong data-i18n="how3Title">3. Request Ride</strong>
+            <span data-i18n="how3Body">Enter trip details and preferences.</span>
+          </div>
+
+          <div class="card">
+            <strong data-i18n="how4Title">4. Driver Match</strong>
+            <span data-i18n="how4Body">Connect with the best available driver.</span>
+          </div>
+
+          <div class="card">
+            <strong data-i18n="how5Title">5. Complete Trip</strong>
+            <span data-i18n="how5Body">Ride safely with support available.</span>
+          </div>
+
+          <div class="card">
+            <strong data-i18n="how6Title">6. Rate Experience</strong>
+            <span data-i18n="how6Body">Help improve platform quality.</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="safety">
+        <div class="section-header">
+          <h2 data-i18n="safetyTitle">Safety & Trust</h2>
+          <p class="lead" data-i18n="safetyLead">
+            Harvey Taxi is built around accountability, onboarding, support, and safer mobility.
+          </p>
+        </div>
+
+        <div class="info-grid">
+          <div class="highlight">
+            <h3 data-i18n="accountabilityTitle">Designed For Accountability</h3>
+            <p data-i18n="accountabilityCopy">
+              Harvey Taxi separates rider, driver, support, and foundation workflows to create a cleaner, more transparent experience.
+            </p>
+
+            <div class="pill-row">
+              <div class="pill" data-i18n="pillDriver">Driver Approval</div>
+              <div class="pill" data-i18n="pillRider">Rider Approval</div>
+              <div class="pill" data-i18n="pillSupport">Support Access</div>
+              <div class="pill" data-i18n="pillTracking">Trip Tracking</div>
+              <div class="pill" data-i18n="pillDispatch">Mission Dispatch</div>
+            </div>
+          </div>
+
+          <div class="list">
+            <div class="list-item">
+              <strong data-i18n="safety1Title">Clear User Roles</strong>
+              <span data-i18n="safety1Body">
+                Riders, drivers, support users, and foundation visitors each have a dedicated path.
+              </span>
+            </div>
+
+            <div class="list-item">
+              <strong data-i18n="safety2Title">Live Support Layer</strong>
+              <span data-i18n="safety2Body">
+                AI support helps guide users through rides, onboarding, settings, and account questions.
+              </span>
+            </div>
+
+            <div class="list-item">
+              <strong data-i18n="safety3Title">Future-Ready Architecture</strong>
+              <span data-i18n="safety3Body">
+                The platform is designed for human rides now, with delivery and autonomous modules clearly labeled.
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="services">
+        <div class="section-header">
+          <h2 data-i18n="servicesTitle">Harvey Platform Services</h2>
+          <p class="lead" data-i18n="servicesLead">
+            Human driver rides are the active booking path. Delivery and autonomous features are structured as pilot or build-stage modules.
+          </p>
+        </div>
+
+        <div class="service-row">
+          <div class="service-card">
+            <div>
+              <h3 data-i18n="serviceRideTitle">Standard Driver Ride</h3>
+              <p data-i18n="serviceRideBody">
+                Book a driver-based Harvey Taxi ride through the active ride request system.
+              </p>
+            </div>
+            <a class="btn primary" href="request-ride.html?mode=driver" data-intent="service_standard_ride" data-i18n="bookRide">
+              Book Ride
+            </a>
+          </div>
+
+          <div class="service-card">
+            <div>
+              <h3 data-i18n="serviceAutoTitle">Autonomous Pilot</h3>
+              <p data-i18n="serviceAutoBody">
+                Explore the autonomous ride interface as a clearly labeled pilot pathway.
+              </p>
+            </div>
+            <a class="btn autonomous" href="request-ride.html?mode=autonomous" data-track="service_autonomous" data-i18n="openPilot">
+              Open Pilot
+            </a>
+          </div>
+
+          <div class="service-card">
+            <div>
+              <h3 data-i18n="serviceFoodTitle">Food Delivery</h3>
+              <p data-i18n="serviceFoodBody">
+                Local food delivery is being prepared as a future Harvey Logistics module.
+              </p>
+            </div>
+            <button class="btn primary" type="button" onclick="showUnderConstruction('Food Delivery')" data-i18n="viewPilot">
+              View Pilot
+            </button>
+          </div>
+
+          <div class="service-card">
+            <div>
+              <h3 data-i18n="serviceGroceryTitle">Grocery Delivery</h3>
+              <p data-i18n="serviceGroceryBody">
+                Grocery delivery is being structured for future Harvey Logistics operations.
+              </p>
+            </div>
+            <a class="btn success" href="grocery-delivery.html" data-track="service_grocery" data-i18n="openGrocery">
+              Open Grocery
+            </a>
+          </div>
+        </div>
+
+        <div class="grid" style="margin-top:16px;">
+          <a class="card" href="driver-dashboard.html" data-track="driver_dashboard">
+            <strong data-i18n="driverDashboardTitle">Driver Dashboard</strong>
+            <span data-i18n="driverDashboardBody">
+              Mission flow, availability, trip progress, earnings, and driver tools.
+            </span>
+          </a>
+
+          <a class="card" href="support.html" data-track="support_center">
+            <strong data-i18n="supportCenterTitle">Support Center</strong>
+            <span data-i18n="supportCenterBody">
+              Help with rides, onboarding, payment, foundation, and account questions.
+            </span>
+          </a>
+
+          <a class="card" href="settings.html" data-track="settings_card">
+            <strong data-i18n="settingsCardTitle">Settings</strong>
+            <span data-i18n="settingsCardBody">
+              Battery optimization, account preferences, safety options, and delete account request.
+            </span>
+          </a>
+
+          <a class="card" href="foundation.html" data-track="foundation_hub">
+            <strong data-i18n="foundationHubTitle">Foundation Hub</strong>
+            <span data-i18n="foundationHubBody">
+              Transportation assistance for medical, work, school, and essential needs.
+            </span>
+          </a>
+
+          <a class="card" href="rider-dashboard.html" data-track="rider_dashboard">
+            <strong data-i18n="riderDashboardTitle">Rider Dashboard</strong>
+            <span data-i18n="riderDashboardBody">
+              View trip access, account readiness, rides, and rider tools.
+            </span>
+          </a>
+
+          <a class="card" href="driver-signup.html" data-track="driver_signup_card">
+            <strong data-i18n="driverSignupTitle">Driver Signup</strong>
+            <span data-i18n="driverSignupBody">
+              Start onboarding to drive with Harvey Taxi.
+            </span>
+          </a>
+        </div>
+      </section>      <section class="section">
+
+        <div class="section-header">
+          <h2 data-i18n="coverageTitle">
+            Tennessee Coverage Focus
+          </h2>
+
+          <p class="lead" data-i18n="coverageLead">
+            Harvey Taxi is focused on Tennessee mobility with a Nashville-first growth strategy.
+          </p>
+        </div>
+
+        <div class="coverage-grid">
+
+          <div class="coverage-card">
+            <strong data-i18n="coverage1Title">
+              Nashville
+            </strong>
+
+            <span data-i18n="coverage1Body">
+              Primary operating and launch market.
+            </span>
+          </div>
+
+          <div class="coverage-card">
+            <strong data-i18n="coverage2Title">
+              Davidson County
+            </strong>
+
+            <span data-i18n="coverage2Body">
+              Early platform growth and rider support area.
+            </span>
+          </div>
+
+          <div class="coverage-card">
+            <strong data-i18n="coverage3Title">
+              Airport Access
+            </strong>
+
+            <span data-i18n="coverage3Body">
+              Ride support planning for BNA and travel corridors.
+            </span>
+          </div>
+
+          <div class="coverage-card">
+            <strong data-i18n="coverage4Title">
+              Statewide Pipeline
+            </strong>
+
+            <span data-i18n="coverage4Body">
+              Designed for future Tennessee expansion.
+            </span>
+          </div>
+
+        </div>
+
+      </section>
+
+      <section class="section">
+
+        <div class="section-header">
+
+          <h2 data-i18n="companyTitle">
+            Company & Community Support
+          </h2>
+
+          <p class="lead" data-i18n="companyLead">
+            Harvey Taxi Service LLC connects transportation, technology, driver opportunity, and community mobility assistance.
+          </p>
+
+        </div>
+
+        <div class="info-grid">
+
+          <div class="highlight">
+
+            <h3 data-i18n="companyHighlightTitle">
+              Harvey Taxi Service LLC
+            </h3>
+
+            <p data-i18n="companyHighlightBody">
+              Our mission is to create a safer, more accountable transportation network that supports riders, drivers, families, workers, students, and community access.
+            </p>
+
+            <div class="pill-row">
+
+              <div class="pill" data-i18n="companyPill1">
+                Safe Rides
+              </div>
+
+              <div class="pill" data-i18n="companyPill2">
+                Driver Opportunity
+              </div>
+
+              <div class="pill" data-i18n="companyPill3">
+                Community Support
+              </div>
+
+              <div class="pill" data-i18n="companyPill4">
+                AI Assistance
+              </div>
+
+              <div class="pill" data-i18n="companyPill5">
+                Future Mobility
+              </div>
+
+            </div>
+
+          </div>
+
+          <div class="list">
+
+            <div class="list-item">
+              <strong data-i18n="supportEmail">
+                Support Email
+              </strong>
+
+              <span>
+                support@harveytaxiservice.com
+              </span>
+            </div>
+
+            <div class="list-item">
+              <strong data-i18n="adminContact">
+                Admin Contact
+              </strong>
+
+              <span>
+                williebee@harveytaxiservice.com
+              </span>
+            </div>
+
+            <div class="list-item">
+              <strong data-i18n="foundationMission">
+                Foundation Mission
+              </strong>
+
+              <span data-i18n="foundationMissionBody">
+                Transportation assistance for medical, school, work, and essential mobility needs.
+              </span>
+            </div>
+
+          </div>
+
+        </div>
+
+        <div class="actions" style="margin-top:16px;">
+
+          <a
+            class="btn ghost"
+            href="privacy.html"
+            data-track="privacy_open"
+            data-i18n="privacyBtn"
+          >
+            Privacy Policy
+          </a>
+
+          <a
+            class="btn ghost"
+            href="terms.html"
+            data-track="terms_open"
+            data-i18n="termsBtn"
+          >
+            Terms
+          </a>
+
+          <a
+            class="btn ghost"
+            href="settings.html"
+            data-track="settings_company"
+            data-i18n="settingsBtn"
+          >
+            Settings
+          </a>
+
+          <a
+            class="btn foundation"
+            href="https://buy.stripe.com/fZufZigi8g5V4k9gdi0Fi00"
+            target="_blank"
+            rel="noopener noreferrer"
+            data-intent="foundation_donation_start"
+            data-i18n="donationBtn"
+          >
+            Secure Donation
+          </a>
+
+        </div>
+
+      </section>
+
+    </main>
+
+    <footer class="footer">
+
+      <div>
+
+        <span
+          class="footer-title"
+          data-i18n="footerTitle"
+        >
+          Harvey Taxi Service LLC
+        </span>
+
+        <p data-i18n="footerCopy">
+          Safe local transportation, driver opportunity, AI support, future delivery services, and community mobility assistance across Tennessee.
+        </p>
+
+      </div>
+
+      <div class="actions">
+
+        <a
+          class="btn ghost"
+          href="privacy.html"
+          data-track="privacy_footer"
+          data-i18n="privacyBtn"
+        >
+          Privacy
+        </a>
+
+        <a
+          class="btn ghost"
+          href="terms.html"
+          data-track="terms_footer"
+          data-i18n="termsBtn"
+        >
+          Terms
+        </a>
+
+        <a
+          class="btn ghost"
+          href="settings.html"
+          data-track="settings_footer"
+          data-i18n="settingsBtn"
+        >
+          Settings
+        </a>
+
+        <a
+          class="btn foundation"
+          href="foundation.html"
+          data-track="foundation_footer"
+          data-i18n="foundationBtn"
+        >
+          Foundation
+        </a>
+
+      </div>
+
+    </footer>
+
+  </div>
+
+  <nav
+    class="bottom-nav"
+    aria-label="Bottom mobile navigation"
+  >
+
+    <button
+      class="nav-btn active"
+      type="button"
+      onclick="safeGo('index.html','bottom_home')"
     >
-      Book Ride
-    </a>
+      <span data-i18n="navHome">
+        Home
+      </span>
+    </button>
+
+    <button
+      class="nav-btn"
+      type="button"
+      onclick="safeGo('request-ride.html?mode=driver','bottom_trips')"
+    >
+      <span data-i18n="navTrips">
+        Trips
+      </span>
+    </button>
+
+    <button
+      class="nav-btn"
+      type="button"
+      onclick="safeGo('foundation.html','bottom_foundation')"
+    >
+      <span data-i18n="navFoundation">
+        Foundation
+      </span>
+    </button>
+
+    <button
+      class="nav-btn"
+      type="button"
+      onclick="safeGo('driver-dashboard.html','bottom_driver')"
+    >
+      <span data-i18n="navDriver">
+        Driver
+      </span>
+    </button>
+
+    <button
+      class="nav-btn"
+      type="button"
+      onclick="safeGo('settings.html','bottom_settings')"
+    >
+      <span data-i18n="navSettings">
+        Settings
+      </span>
+    </button>
 
   </nav>
 
-</header>
-
-<section class="announce">
-
-  <div class="announce-copy">
-
-    <strong>
-      Harvey Taxi Code Blue Platform
-    </strong>
-
-    <span>
-      Tennessee rides, future delivery,
-      driver opportunities, foundation support,
-      AI assistance, and autonomous pilot
-      technologies in one ecosystem.
-    </span>
-
-  </div>
-
-  <a
-    class="btn success"
-    href="request-ride.html?mode=driver"
-    data-intent="request_ride_start"
-  >
-    Request Ride
-  </a>
-
-</section>
-
-<main id="main-content">
-
-<section class="hero">
-
-<div class="hero-grid">
-
-<div>
-
-<div class="hero-badge">
-  VERIFIED OPERATIONS • LIVE SUPPORT
-</div>
-
-<h1 class="hero-title">
-
-  Tennessee Transportation
-  <span class="gradient-text">
-    Reimagined
-  </span>
-
-</h1>
-
-<p class="hero-copy">
-
-  Harvey Taxi combines rider access,
-  driver opportunities, transportation
-  assistance, AI support, and future
-  mobility services into one connected
-  Tennessee platform.
-
-</p><div class="action-container">
-
-  <h4>
-    Start Your Journey
-  </h4>
-
-  <div class="primary-actions">
-
-    <a
-      class="btn primary"
-      href="request-ride.html?mode=driver"
-      data-intent="request_ride_start"
-    >
-      🚖 Request Ride
-    </a>
-
-    <a
-      class="btn success"
-      href="driver-signup.html"
-      data-intent="driver_signup_start"
-    >
-      🤝 Become A Driver
-    </a>
-
-  </div>
-
-  <div class="secondary-actions">
-
-    <a
-      class="btn ghost"
-      href="rider-signup.html"
-      data-intent="rider_signup_start"
-    >
-      Rider Signup
-    </a>
-
-    <a
-      class="btn autonomous"
-      href="request-ride.html?mode=autonomous"
-      data-track="autonomous_pilot"
-    >
-      🤖 Autonomous
-      <span class="pilot-tag">PILOT</span>
-    </a>
-
-    <a
-      class="btn foundation"
-      href="foundation.html"
-      data-track="foundation_button"
-    >
-      ❤️ Foundation
-    </a>
-
-  </div>
-
-</div>
-
-<div class="hero-points">
-
-  <div class="hero-point">
-    <strong>
-      Approval Based Access
-    </strong>
-
-    Riders and drivers move through
-    structured onboarding and approval
-    workflows.
-  </div>
-
-  <div class="hero-point">
-    <strong>
-      AI Support System
-    </strong>
-
-    Built-in support helps riders,
-    drivers, and community members
-    find answers instantly.
-  </div>
-
-  <div class="hero-point">
-    <strong>
-      Driver Opportunity
-    </strong>
-
-    Create income opportunities
-    while supporting local
-    transportation needs.
-  </div>
-
-  <div class="hero-point">
-    <strong>
-      Community Mobility
-    </strong>
-
-    Transportation assistance
-    initiatives support access
-    to work, education, and healthcare.
-  </div>
-
-</div>
-
-</div>
-
-<aside class="hero-side">
-
-<div class="status-card">
-
-  <div class="eyebrow">
-    Platform Status
-  </div>
-
-  <h3>
-    Live System Overview
-  </h3>
-
-  <p>
-    Active services are clearly
-    separated from pilot and
-    future services.
-  </p>
-
-  <div class="status-list">
-
-    <div class="status-item">
-      <span>Driver Rides</span>
-      <div class="status-pill">
-        LIVE
-      </div>
-    </div>
-
-    <div class="status-item">
-      <span>AI Support</span>
-      <div class="status-pill info">
-        ONLINE
-      </div>
-    </div>
-
-    <div class="status-item">
-      <span>Autonomous Hub</span>
-      <div class="status-pill pilot">
-        PILOT
-      </div>
-    </div>
-
-    <div class="status-item">
-      <span>Food Delivery</span>
-      <div class="status-pill build">
-        BUILDING
-      </div>
-    </div>
-
-    <div class="status-item">
-      <span>Grocery Delivery</span>
-      <div class="status-pill build">
-        BUILDING
-      </div>
-    </div>
-
-  </div>
-
-</div>
-
-<div class="foundation-card">
-
-  <div class="eyebrow">
-    Community Impact
-  </div>
-
-  <h3>
-    Harvey Transportation
-    Assistance Foundation
-  </h3>
-
-  <p>
-
-    Helping remove transportation
-    barriers for medical visits,
-    employment, education,
-    and essential mobility needs.
-
-  </p>
-
-  <div style="margin-top:16px;">
-
-    <a
-      class="btn foundation"
-      href="foundation.html"
-      style="width:100%;"
-    >
-      Explore Foundation
-    </a>
-
-  </div>
-
-</div>
-
-</aside>
-
-</div>
-
-<div class="mini-stats">
-
-  <div class="mini-stat">
-    <strong>
-      Smart Dispatch
-    </strong>
-
-    <span>
-      Driver matching and mission
-      based ride assignments.
-    </span>
-  </div>
-
-  <div class="mini-stat">
-    <strong>
-      Verified Access
-    </strong>
-
-    <span>
-      Rider and driver onboarding
-      built around approval workflows.
-    </span>
-  </div>
-
-  <div class="mini-stat">
-    <strong>
-      Multi-Service Vision
-    </strong>
-
-    <span>
-      Transportation, delivery,
-      and mobility assistance
-      under one platform.
-    </span>
-  </div>
-
-  <div class="mini-stat">
-    <strong>
-      Tennessee Focus
-    </strong>
-
-    <span>
-      Local growth with plans
-      for statewide expansion.
-    </span>
-  </div>
-
-</div>
-
-<div class="support-callout">
-
-  <div>
-
-    <strong>
-      Need Help Right Now?
-    </strong>
-
-    <span>
-      Open Harvey AI Support for
-      rider help, driver onboarding,
-      account questions, or foundation assistance.
-    </span>
-
-  </div>
-
-  <button
-    class="btn success"
-    onclick="openHarveyAiChat();"
-  >
-    Open AI Support
-  </button>
-
-</div>
-
-</section>
-
-<section
-  class="section"
-  id="how-it-works"
->
-
-<div class="section-header">
-
-  <h2>
-    How Harvey Taxi Works
-  </h2>
-
-  <p class="lead">
-    A cleaner transportation flow from
-    signup to dispatch.
-  </p>
-
-</div>
-
-<div class="grid">
-
-  <div class="card">
-    <strong>1. Create Account</strong>
-    <span>
-      Start as a rider or driver.
-    </span>
-  </div>
-
-  <div class="card">
-    <strong>2. Verification</strong>
-    <span>
-      Complete onboarding requirements.
-    </span>
-  </div>
-
-  <div class="card">
-    <strong>3. Request Ride</strong>
-    <span>
-      Enter trip details and preferences.
-    </span>
-  </div>
-
-  <div class="card">
-    <strong>4. Driver Match</strong>
-    <span>
-      Connect with the best available driver.
-    </span>
-  </div>
-
-  <div class="card">
-    <strong>5. Complete Trip</strong>
-    <span>
-      Ride safely with support available.
-    </span>
-  </div>
-
-  <div class="card">
-    <strong>6. Rate Experience</strong>
-    <span>
-      Help improve platform quality.
-    </span>
-  </div>
-
-</div>
-
-</section>
-
-<section
-  class="section"
-  id="safety"
->
-
-<div class="section-header">
-
-  <h2>
-    Safety & Trust
-  </h2>
-
-  <p class="lead">
-    Harvey Taxi is built around accountability,
-    onboarding, support, and safer mobility.
-  </p>
-
-</div>
-
-<div class="info-grid">
-
-  <div class="highlight">
-
-    <h3>
-      Designed For Accountability
-    </h3>
-
-    <p>
-
-      Harvey Taxi separates rider,
-      driver, support, and foundation
-      workflows to create a cleaner,
-      more transparent experience.
-
-    </p>
-
-    <div class="pill-row">
-
-      <div class="pill">Driver Approval</div>
-      <div class="pill">Rider Approval</div>
-      <div class="pill">Support Access</div>
-      <div class="pill">Trip Tracking</div>
-      <div class="pill">Mission Dispatch</div>
-
-    </div>
-
-  </div>  <div class="list">
-
-    <div class="list-item">
-      <strong>Clear User Roles</strong>
-      <span>
-        Riders, drivers, support users, and foundation visitors
-        each have a dedicated path.
-      </span>
-    </div>
-
-    <div class="list-item">
-      <strong>Live Support Layer</strong>
-      <span>
-        AI support helps guide users through rides,
-        onboarding, settings, and account questions.
-      </span>
-    </div>
-
-    <div class="list-item">
-      <strong>Future-Ready Architecture</strong>
-      <span>
-        The platform is designed for human rides now,
-        with delivery and autonomous modules clearly labeled.
-      </span>
-    </div>
-
-  </div>
-
-</div>
-
-</section>
-
-<section
-  class="section"
-  id="services"
->
-
-<div class="section-header">
-
-  <h2>
-    Harvey Platform Services
-  </h2>
-
-  <p class="lead">
-    Human driver rides are the active booking path.
-    Delivery and autonomous features are structured
-    as pilot or build-stage modules.
-  </p>
-
-</div>
-
-<div class="service-row">
-
-  <div class="service-card">
-
-    <div>
-      <h3>Standard Driver Ride</h3>
-      <p>
-        Book a driver-based Harvey Taxi ride
-        through the active ride request system.
-      </p>
-    </div>
-
-    <a
-      class="btn primary"
-      href="request-ride.html?mode=driver"
-      data-intent="service_standard_ride"
-    >
-      Book Ride
-    </a>
-
-  </div>
-
-  <div class="service-card">
-
-    <div>
-      <h3>Autonomous Pilot</h3>
-      <p>
-        Explore the autonomous ride interface
-        as a clearly labeled pilot pathway.
-      </p>
-    </div>
-
-    <a
-      class="btn autonomous"
-      href="request-ride.html?mode=autonomous"
-      data-track="service_autonomous"
-    >
-      Open Pilot
-    </a>
-
-  </div>
-
-  <div class="service-card">
-
-    <div>
-      <h3>Food Delivery</h3>
-      <p>
-        Local food delivery is being prepared
-        as a future Harvey Logistics module.
-      </p>
-    </div>
-
-    <button
-      class="btn primary"
-      type="button"
-      onclick="showUnderConstruction('Food Delivery')"
-    >
-      View Pilot
-    </button>
-
-  </div>
-
-  <div class="service-card">
-
-    <div>
-      <h3>Grocery Delivery</h3>
-      <p>
-        Grocery delivery is being structured
-        for future Harvey Logistics operations.
-      </p>
-    </div>
-
-    <a
-      class="btn success"
-      href="grocery-delivery.html"
-      data-track="service_grocery"
-    >
-      Open Grocery
-    </a>
-
-  </div>
-
-</div>
-
-<div
-  class="grid"
-  style="margin-top:16px;"
->
-
-  <a
-    class="card"
-    href="driver-dashboard.html"
-    data-track="driver_dashboard"
-  >
-    <strong>Driver Dashboard</strong>
-    <span>
-      Mission flow, availability, trip progress,
-      earnings, and driver tools.
-    </span>
-  </a>
-
-  <a
-    class="card"
-    href="support.html"
-    data-track="support_center"
-  >
-    <strong>Support Center</strong>
-    <span>
-      Help with rides, onboarding, payment,
-      foundation, and account questions.
-    </span>
-  </a>
-
-  <a
-    class="card"
-    href="settings.html"
-    data-track="settings_card"
-  >
-    <strong>Settings</strong>
-    <span>
-      Battery optimization, account preferences,
-      safety options, and delete account request.
-    </span>
-  </a>
-
-  <a
-    class="card"
-    href="foundation.html"
-    data-track="foundation_hub"
-  >
-    <strong>Foundation Hub</strong>
-    <span>
-      Transportation assistance for medical,
-      work, school, and essential needs.
-    </span>
-  </a>
-
-  <a
-    class="card"
-    href="rider-dashboard.html"
-    data-track="rider_dashboard"
-  >
-    <strong>Rider Dashboard</strong>
-    <span>
-      View trip access, account readiness,
-      rides, and rider tools.
-    </span>
-  </a>
-
-  <a
-    class="card"
-    href="driver-signup.html"
-    data-track="driver_signup_card"
-  >
-    <strong>Driver Signup</strong>
-    <span>
-      Start onboarding to drive with Harvey Taxi.
-    </span>
-  </a>
-
-</div>
-
-</section>
-
-<section class="section">
-
-<div class="section-header">
-
-  <h2>
-    Tennessee Coverage Focus
-  </h2>
-
-  <p class="lead">
-    Harvey Taxi is focused on Tennessee mobility
-    with a Nashville-first growth strategy.
-  </p>
-
-</div>
-
-<div class="coverage-grid">
-
-  <div class="coverage-card">
-    <strong>Nashville</strong>
-    <span>
-      Primary operating and launch market.
-    </span>
-  </div>
-
-  <div class="coverage-card">
-    <strong>Davidson County</strong>
-    <span>
-      Early platform growth and rider support area.
-    </span>
-  </div>
-
-  <div class="coverage-card">
-    <strong>Airport Access</strong>
-    <span>
-      Ride support planning for BNA and travel corridors.
-    </span>
-  </div>
-
-  <div class="coverage-card">
-    <strong>Statewide Pipeline</strong>
-    <span>
-      Designed for future Tennessee expansion.
-    </span>
-  </div>
-
-</div>
-
-</section>
-
-<section class="section">
-
-<div class="section-header">
-
-  <h2>
-    Company & Community Support
-  </h2>
-
-  <p class="lead">
-    Harvey Taxi Service LLC connects transportation,
-    technology, driver opportunity, and community
-    mobility assistance.
-  </p>
-
-</div>
-
-<div class="info-grid">
-
-  <div class="highlight">
-
-    <h3>
-      Harvey Taxi Service LLC
-    </h3>
-
-    <p>
-      Our mission is to create a safer,
-      more accountable transportation network
-      that supports riders, drivers, families,
-      workers, students, and community access.
-    </p>
-
-    <div class="pill-row">
-      <div class="pill">Safe Rides</div>
-      <div class="pill">Driver Opportunity</div>
-      <div class="pill">Community Support</div>
-      <div class="pill">AI Assistance</div>
-      <div class="pill">Future Mobility</div>
-    </div>
-
-  </div>
-
-  <div class="list">
-
-    <div class="list-item">
-      <strong>Support Email</strong>
-      <span>support@harveytaxiservice.com</span>
-    </div>
-
-    <div class="list-item">
-      <strong>Admin Contact</strong>
-      <span>williebee@harveytaxiservice.com</span>
-    </div>
-
-    <div class="list-item">
-      <strong>Foundation Mission</strong>
-      <span>
-        Transportation assistance for medical,
-        school, work, and essential mobility needs.
-      </span>
-    </div>
-
-  </div>
-
-</div>
-
-<div
-  class="actions"
-  style="margin-top:16px;"
->
-
-  <a
-    class="btn ghost"
-    href="privacy.html"
-    data-track="privacy_open"
-  >
-    Privacy Policy
-  </a>
-
-  <a
-    class="btn ghost"
-    href="terms.html"
-    data-track="terms_open"
-  >
-    Terms
-  </a>
-
-  <a
-    class="btn ghost"
-    href="settings.html"
-    data-track="settings_company"
-  >
-    Settings
-  </a>
-
-  <a
-    class="btn foundation"
-    href="https://buy.stripe.com/fZufZigi8g5V4k9gdi0Fi00"
-    target="_blank"
-    rel="noopener noreferrer"
-    data-intent="foundation_donation_start"
-  >
-    Secure Donation
-  </a>
-
-</div>
-
-</section>
-
-</main>
-
-<footer class="footer">
-
-  <div>
-    <span class="footer-title">
-      Harvey Taxi Service LLC
-    </span>
-
-    <p>
-      Safe local transportation, driver opportunity,
-      AI support, future delivery services, and
-      community mobility assistance across Tennessee.
-    </p>
-  </div>
-
-  <div class="actions">
-
-    <a
-      class="btn ghost"
-      href="privacy.html"
-      data-track="privacy_footer"
-    >
-      Privacy
-    </a>
-
-    <a
-      class="btn ghost"
-      href="terms.html"
-      data-track="terms_footer"
-    >
-      Terms
-    </a>
-
-    <a
-      class="btn ghost"
-      href="settings.html"
-      data-track="settings_footer"
-    >
-      Settings
-    </a>
-
-    <a
-      class="btn foundation"
-      href="foundation.html"
-      data-track="foundation_footer"
-    >
-      Foundation
-    </a>
-
-  </div>
-
-</footer>
-
-</div>
-
-<nav
-  class="bottom-nav"
-  aria-label="Bottom mobile navigation"
->
-
-  <button
-    class="nav-btn active"
-    type="button"
-    onclick="safeGo('index.html','bottom_home')"
-  >
-    <span>Home</span>
-  </button>
-
-  <button
-    class="nav-btn"
-    type="button"
-    onclick="safeGo('request-ride.html?mode=driver','bottom_trips')"
-  >
-    <span>Trips</span>
-  </button>
-
-  <button
-    class="nav-btn"
-    type="button"
-    onclick="safeGo('foundation.html','bottom_foundation')"
-  >
-    <span>Foundation</span>
-  </button>
-
-  <button
-    class="nav-btn"
-    type="button"
-    onclick="safeGo('driver-dashboard.html','bottom_driver')"
-  >
-    <span>Driver</span>
-  </button>
-
-  <button
-    class="nav-btn"
-    type="button"
-    onclick="safeGo('settings.html','bottom_settings')"
-  >
-    <span>Settings</span>
-  </button>
-
-</nav>
-
-<script src="/ai-support-widget.js"></script>
-
-<script>
-  window.HARVEY_API_BASE =
-    window.location.origin &&
-    window.location.origin.includes("http")
-      ? window.location.origin
-      : "";
-
-  const HARVEY_ADS_CONVERSION_ID = "AW-17088105743";
-  const HARVEY_SUBMIT_LEAD_SEND_TO =
-    "AW-17088105743/5p6oCL-uq_YaEM_j8_JD";
-
-  function trackHarveyEvent(eventName, params = {}) {
-    try {
-      if (typeof gtag === "function") {
-        gtag("event", eventName, {
-          app_name: "Harvey Taxi",
-          page_location: window.location.href,
-          transport_platform: "harvey_taxi",
-          ...params
-        });
+  <script src="/ai-support-widget.js"></script>
+
+  <script>
+
+    /* ==================================================
+       HARVEY TAXI GLOBAL LANGUAGE SYSTEM
+       ================================================== */
+
+    const TRANSLATIONS = {
+
+      en: {
+        languageTitle: "Language & Accessibility",
+        languageCopy:
+          "Harvey Taxi welcomes every rider, driver, family, culture, and community.",
+        navHome: "Home",
+        navTrips: "Trips",
+        navDriver: "Driver",
+        navSettings: "Settings",
+        requestRide: "Request Ride",
+        becomeDriver: "Become A Driver",
+        foundationBtn: "Foundation"
+      },
+
+      es: {
+        languageTitle: "Idioma y Accesibilidad",
+        languageCopy:
+          "Harvey Taxi da la bienvenida a todos los pasajeros, conductores y comunidades.",
+        navHome: "Inicio",
+        navTrips: "Viajes",
+        navDriver: "Conductor",
+        navSettings: "Configuración",
+        requestRide: "Solicitar Viaje",
+        becomeDriver: "Conviértete en Conductor",
+        foundationBtn: "Fundación"
+      },
+
+      fr: {
+        languageTitle: "Langue et Accessibilité",
+        languageCopy:
+          "Harvey Taxi accueille tous les passagers, conducteurs et communautés.",
+        navHome: "Accueil",
+        navTrips: "Trajets",
+        navDriver: "Conducteur",
+        navSettings: "Paramètres",
+        requestRide: "Réserver",
+        becomeDriver: "Devenir Conducteur",
+        foundationBtn: "Fondation"
+      },
+
+      ar: {
+        languageTitle: "اللغة وإمكانية الوصول",
+        languageCopy:
+          "ترحب هارفي تاكسي بجميع الركاب والسائقين والمجتمعات.",
+        navHome: "الرئيسية",
+        navTrips: "الرحلات",
+        navDriver: "السائق",
+        navSettings: "الإعدادات",
+        requestRide: "اطلب رحلة",
+        becomeDriver: "كن سائقًا",
+        foundationBtn: "المؤسسة"
       }
-    } catch (error) {
-      console.warn("Tracking event failed:", error);
+
+    };    const EXTRA_TRANSLATIONS = {
+      sw: {
+        languageTitle: "Lugha na Ufikivu",
+        languageCopy: "Harvey Taxi inakaribisha kila abiria, dereva, familia, utamaduni, na jamii.",
+        navHome: "Nyumbani",
+        navTrips: "Safari",
+        navDriver: "Dereva",
+        navSettings: "Mipangilio",
+        requestRide: "Omba Safari",
+        becomeDriver: "Kuwa Dereva",
+        foundationBtn: "Wakfu"
+      },
+
+      zh: {
+        languageTitle: "语言与无障碍",
+        languageCopy: "Harvey Taxi 欢迎每一位乘客、司机、家庭、文化和社区。",
+        navHome: "首页",
+        navTrips: "行程",
+        navDriver: "司机",
+        navSettings: "设置",
+        requestRide: "叫车",
+        becomeDriver: "成为司机",
+        foundationBtn: "基金会"
+      },
+
+      hi: {
+        languageTitle: "भाषा और पहुँच",
+        languageCopy: "Harvey Taxi हर यात्री, चालक, परिवार, संस्कृति और समुदाय का स्वागत करता है।",
+        navHome: "होम",
+        navTrips: "यात्राएँ",
+        navDriver: "चालक",
+        navSettings: "सेटिंग्स",
+        requestRide: "राइड बुक करें",
+        becomeDriver: "चालक बनें",
+        foundationBtn: "फाउंडेशन"
+      },
+
+      pt: {
+        languageTitle: "Idioma e Acessibilidade",
+        languageCopy: "A Harvey Taxi recebe todos os passageiros, motoristas, famílias, culturas e comunidades.",
+        navHome: "Início",
+        navTrips: "Viagens",
+        navDriver: "Motorista",
+        navSettings: "Configurações",
+        requestRide: "Solicitar Corrida",
+        becomeDriver: "Tornar-se Motorista",
+        foundationBtn: "Fundação"
+      },
+
+      ht: {
+        languageTitle: "Lang ak Aksè",
+        languageCopy: "Harvey Taxi akeyi chak pasaje, chofè, fanmi, kilti, ak kominote.",
+        navHome: "Akèy",
+        navTrips: "Vwayaj",
+        navDriver: "Chofè",
+        navSettings: "Anviwònman",
+        requestRide: "Mande Kous",
+        becomeDriver: "Vin Chofè",
+        foundationBtn: "Fondasyon"
+      },
+
+      yo: {
+        languageTitle: "Èdè àti Ìrọ̀rùn Ìwọlé",
+        languageCopy: "Harvey Taxi káàbọ̀ fún gbogbo arìnrìn-àjò, awakọ̀, ẹbí, àṣà, àti agbègbè.",
+        navHome: "Ilé",
+        navTrips: "Ìrìnàjò",
+        navDriver: "Awakọ̀",
+        navSettings: "Ètò",
+        requestRide: "Bẹ̀rẹ̀ Ìrìnàjò",
+        becomeDriver: "Di Awakọ̀",
+        foundationBtn: "Foundation"
+      }
+    };
+
+    Object.assign(TRANSLATIONS, EXTRA_TRANSLATIONS);
+
+    const DEFAULT_ENGLISH = {
+      skipContent: "Skip to content",
+      brandSub: "Tennessee Mobility Platform",
+      contrastBtn: "High Contrast",
+      largeTextBtn: "Larger Text",
+      motionBtn: "Reduce Motion",
+      navHow: "How It Works",
+      navSafety: "Safety",
+      navServices: "Services",
+      navFoundation: "Foundation",
+      navSettings: "⚙ Settings",
+      navBook: "Book Ride",
+      announceTitle: "Harvey Taxi Code Blue Platform",
+      announceCopy:
+        "Tennessee rides, future delivery, driver opportunities, foundation support, AI assistance, and autonomous pilot technologies in one ecosystem.",
+      inclusiveTitle: "Built for every community.",
+      inclusiveCopy:
+        "Harvey Taxi respects all ethnicities, cultures, languages, families, seniors, workers, students, people with disabilities, immigrants, visitors, and underserved communities seeking safe transportation access.",
+      heroBadge: "VERIFIED OPERATIONS • LIVE SUPPORT",
+      heroTitleA: "Tennessee Transportation",
+      heroTitleB: "Reimagined",
+      heroCopy:
+        "Harvey Taxi combines rider access, driver opportunities, transportation assistance, AI support, and future mobility services into one connected Tennessee platform.",
+      startJourney: "Start Your Journey",
+      requestRideEmoji: "🚖 Request Ride",
+      riderSignup: "Rider Signup",
+      autonomous: "🤖 Autonomous",
+      pilot: "PILOT",
+      foundationEmoji: "❤️ Foundation",
+      point1Title: "Approval Based Access",
+      point1Body:
+        "Riders and drivers move through structured onboarding and approval workflows.",
+      point2Title: "AI Support System",
+      point2Body:
+        "Built-in support helps riders, drivers, and community members find answers instantly.",
+      point3Title: "Driver Opportunity",
+      point3Body:
+        "Create income opportunities while supporting local transportation needs.",
+      point4Title: "Community Mobility",
+      point4Body:
+        "Transportation assistance initiatives support access to work, education, and healthcare.",
+      platformStatus: "Platform Status",
+      liveOverview: "Live System Overview",
+      liveOverviewCopy:
+        "Active services are clearly separated from pilot and future services.",
+      driverRides: "Driver Rides",
+      aiSupport: "AI Support",
+      autonomousHub: "Autonomous Hub",
+      foodDelivery: "Food Delivery",
+      groceryDelivery: "Grocery Delivery",
+      communityImpact: "Community Impact",
+      foundationTitle: "Harvey Transportation Assistance Foundation",
+      foundationCopy:
+        "Helping remove transportation barriers for medical visits, employment, education, and essential mobility needs.",
+      exploreFoundation: "Explore Foundation",
+      stat1Title: "Smart Dispatch",
+      stat1Body: "Driver matching and mission based ride assignments.",
+      stat2Title: "Verified Access",
+      stat2Body:
+        "Rider and driver onboarding built around approval workflows.",
+      stat3Title: "Multi-Service Vision",
+      stat3Body:
+        "Transportation, delivery, and mobility assistance under one platform.",
+      stat4Title: "Tennessee Focus",
+      stat4Body: "Local growth with plans for statewide expansion.",
+      supportTitle: "Need Help Right Now?",
+      supportCopy:
+        "Open Harvey AI Support for rider help, driver onboarding, account questions, or foundation assistance.",
+      openAiSupport: "Open AI Support",
+      howTitle: "How Harvey Taxi Works",
+      howLead: "A cleaner transportation flow from signup to dispatch.",
+      how1Title: "1. Create Account",
+      how1Body: "Start as a rider or driver.",
+      how2Title: "2. Verification",
+      how2Body: "Complete onboarding requirements.",
+      how3Title: "3. Request Ride",
+      how3Body: "Enter trip details and preferences.",
+      how4Title: "4. Driver Match",
+      how4Body: "Connect with the best available driver.",
+      how5Title: "5. Complete Trip",
+      how5Body: "Ride safely with support available.",
+      how6Title: "6. Rate Experience",
+      how6Body: "Help improve platform quality.",
+      safetyTitle: "Safety & Trust",
+      safetyLead:
+        "Harvey Taxi is built around accountability, onboarding, support, and safer mobility.",
+      accountabilityTitle: "Designed For Accountability",
+      accountabilityCopy:
+        "Harvey Taxi separates rider, driver, support, and foundation workflows to create a cleaner, more transparent experience.",
+      pillDriver: "Driver Approval",
+      pillRider: "Rider Approval",
+      pillSupport: "Support Access",
+      pillTracking: "Trip Tracking",
+      pillDispatch: "Mission Dispatch",
+      safety1Title: "Clear User Roles",
+      safety1Body:
+        "Riders, drivers, support users, and foundation visitors each have a dedicated path.",
+      safety2Title: "Live Support Layer",
+      safety2Body:
+        "AI support helps guide users through rides, onboarding, settings, and account questions.",
+      safety3Title: "Future-Ready Architecture",
+      safety3Body:
+        "The platform is designed for human rides now, with delivery and autonomous modules clearly labeled.",
+      servicesTitle: "Harvey Platform Services",
+      servicesLead:
+        "Human driver rides are the active booking path. Delivery and autonomous features are structured as pilot or build-stage modules.",
+      serviceRideTitle: "Standard Driver Ride",
+      serviceRideBody:
+        "Book a driver-based Harvey Taxi ride through the active ride request system.",
+      bookRide: "Book Ride",
+      serviceAutoTitle: "Autonomous Pilot",
+      serviceAutoBody:
+        "Explore the autonomous ride interface as a clearly labeled pilot pathway.",
+      openPilot: "Open Pilot",
+      serviceFoodTitle: "Food Delivery",
+      serviceFoodBody:
+        "Local food delivery is being prepared as a future Harvey Logistics module.",
+      viewPilot: "View Pilot",
+      serviceGroceryTitle: "Grocery Delivery",
+      serviceGroceryBody:
+        "Grocery delivery is being structured for future Harvey Logistics operations.",
+      openGrocery: "Open Grocery",
+      driverDashboardTitle: "Driver Dashboard",
+      driverDashboardBody:
+        "Mission flow, availability, trip progress, earnings, and driver tools.",
+      supportCenterTitle: "Support Center",
+      supportCenterBody:
+        "Help with rides, onboarding, payment, foundation, and account questions.",
+      settingsCardTitle: "Settings",
+      settingsCardBody:
+        "Battery optimization, account preferences, safety options, and delete account request.",
+      foundationHubTitle: "Foundation Hub",
+      foundationHubBody:
+        "Transportation assistance for medical, work, school, and essential needs.",
+      riderDashboardTitle: "Rider Dashboard",
+      riderDashboardBody:
+        "View trip access, account readiness, rides, and rider tools.",
+      driverSignupTitle: "Driver Signup",
+      driverSignupBody: "Start onboarding to drive with Harvey Taxi.",
+      coverageTitle: "Tennessee Coverage Focus",
+      coverageLead:
+        "Harvey Taxi is focused on Tennessee mobility with a Nashville-first growth strategy.",
+      coverage1Title: "Nashville",
+      coverage1Body: "Primary operating and launch market.",
+      coverage2Title: "Davidson County",
+      coverage2Body: "Early platform growth and rider support area.",
+      coverage3Title: "Airport Access",
+      coverage3Body:
+        "Ride support planning for BNA and travel corridors.",
+      coverage4Title: "Statewide Pipeline",
+      coverage4Body: "Designed for future Tennessee expansion.",
+      companyTitle: "Company & Community Support",
+      companyLead:
+        "Harvey Taxi Service LLC connects transportation, technology, driver opportunity, and community mobility assistance.",
+      companyHighlightTitle: "Harvey Taxi Service LLC",
+      companyHighlightBody:
+        "Our mission is to create a safer, more accountable transportation network that supports riders, drivers, families, workers, students, and community access.",
+      companyPill1: "Safe Rides",
+      companyPill2: "Driver Opportunity",
+      companyPill3: "Community Support",
+      companyPill4: "AI Assistance",
+      companyPill5: "Future Mobility",
+      supportEmail: "Support Email",
+      adminContact: "Admin Contact",
+      foundationMission: "Foundation Mission",
+      foundationMissionBody:
+        "Transportation assistance for medical, school, work, and essential mobility needs.",
+      privacyBtn: "Privacy Policy",
+      termsBtn: "Terms",
+      settingsBtn: "Settings",
+      donationBtn: "Secure Donation",
+      footerTitle: "Harvey Taxi Service LLC",
+      footerCopy:
+        "Safe local transportation, driver opportunity, AI support, future delivery services, and community mobility assistance across Tennessee."
+    };
+
+    TRANSLATIONS.en = {
+      ...DEFAULT_ENGLISH,
+      ...TRANSLATIONS.en
+    };
+
+    function fillMissingTranslations() {
+      Object.keys(TRANSLATIONS).forEach((lang) => {
+        TRANSLATIONS[lang] = {
+          ...DEFAULT_ENGLISH,
+          ...TRANSLATIONS[lang]
+        };
+      });
     }
-  }
 
-  function trackLeadIntent(intentName) {
-    trackHarveyEvent(intentName, {
-      event_category: "lead_intent",
-      event_label: intentName
-    });
-  }
+    fillMissingTranslations();
 
-  function trackCompletedLeadConversion(actionName, value = 1.0) {
-    try {
-      trackHarveyEvent(actionName, {
-        event_category: "completed_conversion",
-        event_label: actionName
+    const RTL_LANGUAGES = ["ar"];
+
+    function applyLanguage(lang) {
+      const selectedLang = TRANSLATIONS[lang] ? lang : "en";
+      const dict = TRANSLATIONS[selectedLang];
+
+      document.documentElement.lang = selectedLang;
+      document.documentElement.dir = RTL_LANGUAGES.includes(selectedLang)
+        ? "rtl"
+        : "ltr";
+
+      document.querySelectorAll("[data-i18n]").forEach((node) => {
+        const key = node.dataset.i18n;
+        if (dict[key]) {
+          node.textContent = dict[key];
+        }
       });
 
-      if (typeof gtag === "function") {
-        gtag("event", "conversion", {
-          send_to: HARVEY_SUBMIT_LEAD_SEND_TO,
-          value,
-          currency: "USD",
-          event_label: actionName
+      const titleText =
+        dict.metaTitle ||
+        "Harvey Taxi | Safe Tennessee Rides, Driver Access, Delivery, and Live Support";
+
+      document.title = titleText;
+
+      localStorage.setItem("harvey_language", selectedLang);
+
+      trackHarveyEvent("language_changed", {
+        language: selectedLang
+      });
+    }
+
+    function toggleBodyClass(className, storageKey, button) {
+      document.body.classList.toggle(className);
+      const active = document.body.classList.contains(className);
+
+      localStorage.setItem(storageKey, active ? "1" : "0");
+
+      if (button) {
+        button.classList.toggle("active", active);
+      }
+    }
+
+    function restoreAccessibility() {
+      const contrastBtn = document.getElementById("contrast-toggle");
+      const textBtn = document.getElementById("text-toggle");
+      const motionBtn = document.getElementById("motion-toggle");
+
+      if (localStorage.getItem("harvey_high_contrast") === "1") {
+        document.body.classList.add("high-contrast");
+        contrastBtn?.classList.add("active");
+      }
+
+      if (localStorage.getItem("harvey_large_text") === "1") {
+        document.body.classList.add("large-text");
+        textBtn?.classList.add("active");
+      }
+
+      if (localStorage.getItem("harvey_reduced_motion") === "1") {
+        document.body.classList.add("reduced-motion");
+        motionBtn?.classList.add("active");
+      }
+    }
+
+    function bindLanguageAndAccessibility() {
+      const languageSelect = document.getElementById("language-select");
+      const savedLang = localStorage.getItem("harvey_language") || "en";
+
+      if (languageSelect) {
+        languageSelect.value = TRANSLATIONS[savedLang] ? savedLang : "en";
+        languageSelect.addEventListener("change", function () {
+          applyLanguage(this.value);
         });
       }
-    } catch (error) {
-      console.warn("Conversion tracking failed:", error);
-    }
-  }
 
-  window.HarveyTracking = {
-    event: trackHarveyEvent,
-    intent: trackLeadIntent,
-    completedLead: trackCompletedLeadConversion
-  };
+      document.getElementById("contrast-toggle")?.addEventListener("click", function () {
+        toggleBodyClass("high-contrast", "harvey_high_contrast", this);
+      });
 
-  function safeGo(path, eventName) {
-    if (eventName) {
-      trackHarveyEvent(eventName);
-    }
+      document.getElementById("text-toggle")?.addEventListener("click", function () {
+        toggleBodyClass("large-text", "harvey_large_text", this);
+      });
 
-    window.location.href = path;
-  }
+      document.getElementById("motion-toggle")?.addEventListener("click", function () {
+        toggleBodyClass("reduced-motion", "harvey_reduced_motion", this);
+      });
 
-  document.addEventListener("click", function (event) {
-    const intentTarget = event.target.closest("[data-intent]");
-    const trackTarget = event.target.closest("[data-track]");
-
-    if (intentTarget) {
-      trackLeadIntent(intentTarget.dataset.intent);
-      return;
+      restoreAccessibility();
+      applyLanguage(savedLang);
     }
 
-    if (trackTarget) {
-      trackHarveyEvent(trackTarget.dataset.track);
+    window.HARVEY_API_BASE =
+      window.location.origin &&
+      window.location.origin.includes("http")
+        ? window.location.origin
+        : "";
+
+    const HARVEY_ADS_CONVERSION_ID = "AW-17088105743";
+    const HARVEY_SUBMIT_LEAD_SEND_TO =
+      "AW-17088105743/5p6oCL-uq_YaEM_j8_JD";
+
+    function trackHarveyEvent(eventName, params = {}) {
+      try {
+        if (typeof gtag === "function") {
+          gtag("event", eventName, {
+            app_name: "Harvey Taxi",
+            page_location: window.location.href,
+            transport_platform: "harvey_taxi",
+            ...params
+          });
+        }
+      } catch (error) {
+        console.warn("Tracking event failed:", error);
+      }
     }
-  });
 
-  function openHarveyAiChat() {
-    try {
-      trackHarveyEvent("ai_support_open");
+    function trackLeadIntent(intentName) {
+      trackHarveyEvent(intentName, {
+        event_category: "lead_intent",
+        event_label: intentName
+      });
+    }
 
-      if (
-        window.HarveyAI &&
-        typeof window.HarveyAI.open === "function"
-      ) {
-        window.HarveyAI.open();
+    function trackCompletedLeadConversion(actionName, value = 1.0) {
+      try {
+        trackHarveyEvent(actionName, {
+          event_category: "completed_conversion",
+          event_label: actionName
+        });
+
+        if (typeof gtag === "function") {
+          gtag("event", "conversion", {
+            send_to: HARVEY_SUBMIT_LEAD_SEND_TO,
+            value,
+            currency: "USD",
+            event_label: actionName
+          });
+        }
+      } catch (error) {
+        console.warn("Conversion tracking failed:", error);
+      }
+    }
+
+    window.HarveyTracking = {
+      event: trackHarveyEvent,
+      intent: trackLeadIntent,
+      completedLead: trackCompletedLeadConversion,
+      language: applyLanguage
+    };
+
+    function safeGo(path, eventName) {
+      if (eventName) {
+        trackHarveyEvent(eventName);
+      }
+
+      window.location.href = path;
+    }
+
+    document.addEventListener("click", function (event) {
+      const intentTarget = event.target.closest("[data-intent]");
+      const trackTarget = event.target.closest("[data-track]");
+
+      if (intentTarget) {
+        trackLeadIntent(intentTarget.dataset.intent);
         return;
       }
 
-      const root =
-        document.getElementById("harvey-ai-chat-root");
+      if (trackTarget) {
+        trackHarveyEvent(trackTarget.dataset.track);
+      }
+    });
 
-      if (root) {
-        const toggle =
-          root.querySelector("[data-harvey-ai-open]") ||
-          root.querySelector(".harvey-ai-launch") ||
-          root.querySelector("button");
+    function openHarveyAiChat() {
+      try {
+        trackHarveyEvent("ai_support_open");
 
         if (
-          toggle &&
-          typeof toggle.click === "function"
+          window.HarveyAI &&
+          typeof window.HarveyAI.open === "function"
         ) {
-          toggle.click();
+          window.HarveyAI.open();
           return;
+        }
+
+        const root =
+          document.getElementById("harvey-ai-chat-root");
+
+        if (root) {
+          const toggle =
+            root.querySelector("[data-harvey-ai-open]") ||
+            root.querySelector(".harvey-ai-launch") ||
+            root.querySelector("button");
+
+          if (
+            toggle &&
+            typeof toggle.click === "function"
+          ) {
+            toggle.click();
+            return;
+          }
+        }
+
+        window.location.href = "support.html";
+      } catch (error) {
+        window.location.href = "support.html";
+      }
+    }
+
+    function escapeHtml(value) {
+      return String(value || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function showUnderConstruction(serviceName) {
+      trackHarveyEvent("pilot_modal_open", {
+        service_name: serviceName
+      });
+
+      const existing =
+        document.getElementById("pilot-modal-overlay");
+
+      if (existing) {
+        existing.remove();
+      }
+
+      const safeName = escapeHtml(serviceName);
+
+      const overlay = document.createElement("div");
+      overlay.id = "pilot-modal-overlay";
+      overlay.className = "modal-overlay";
+      overlay.setAttribute("role", "dialog");
+      overlay.setAttribute("aria-modal", "true");
+      overlay.setAttribute(
+        "aria-labelledby",
+        "pilot-modal-title"
+      );
+
+      overlay.innerHTML = `
+        <div class="modal-card">
+          <div
+            style="font-size:48px;margin-bottom:16px;"
+            aria-hidden="true"
+          >
+            🚧
+          </div>
+
+          <h3 id="pilot-modal-title">
+            ${safeName} Pilot Coming Soon
+          </h3>
+
+          <p>
+            Harvey Taxi is preparing this service as part
+            of the future multi-service platform.
+            Standard driver rides remain the active
+            booking path right now.
+          </p>
+
+          <button
+            id="close-pilot-modal"
+            class="btn ghost"
+            type="button"
+            style="width:100%;"
+          >
+            Acknowledge
+          </button>
+        </div>
+      `;
+
+      document.body.appendChild(overlay);
+
+      const closeBtn =
+        document.getElementById("close-pilot-modal");
+
+      function closeModal() {
+        overlay.remove();
+        document.removeEventListener("keydown", handleKeydown);
+      }
+
+      function handleKeydown(event) {
+        if (event.key === "Escape") {
+          closeModal();
         }
       }
 
-      window.location.href = "support.html";
-    } catch (error) {
-      window.location.href = "support.html";
+      closeBtn.addEventListener("click", closeModal);
+
+      overlay.addEventListener("click", function (event) {
+        if (event.target === overlay) {
+          closeModal();
+        }
+      });
+
+      document.addEventListener("keydown", handleKeydown);
+      closeBtn.focus();
     }
-  }
 
-  function escapeHtml(value) {
-    return String(value || "")
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
-  }
+    window.addEventListener("load", function () {
+      bindLanguageAndAccessibility();
+      trackHarveyEvent("page_view_home");
 
-  function showUnderConstruction(serviceName) {
-    trackHarveyEvent("pilot_modal_open", {
-      service_name: serviceName
+      setTimeout(function () {
+        if (!document.getElementById("harvey-ai-chat-root")) {
+          const root = document.createElement("div");
+          root.id = "harvey-ai-chat-root";
+          document.body.appendChild(root);
+        }
+      }, 80);
     });
-
-    const existing =
-      document.getElementById("pilot-modal-overlay");
-
-    if (existing) {
-      existing.remove();
-    }
-
-    const safeName = escapeHtml(serviceName);
-
-    const overlay = document.createElement("div");
-    overlay.id = "pilot-modal-overlay";
-    overlay.className = "modal-overlay";
-    overlay.setAttribute("role", "dialog");
-    overlay.setAttribute("aria-modal", "true");
-    overlay.setAttribute(
-      "aria-labelledby",
-      "pilot-modal-title"
-    );
-
-    overlay.innerHTML = `
-      <div class="modal-card">
-        <div
-          style="font-size:48px;margin-bottom:16px;"
-          aria-hidden="true"
-        >
-          🚧
-        </div>
-
-        <h3 id="pilot-modal-title">
-          ${safeName} Pilot Coming Soon
-        </h3>
-
-        <p>
-          Harvey Taxi is preparing this service as part
-          of the future multi-service platform.
-          Standard driver rides remain the active
-          booking path right now.
-        </p>
-
-        <button
-          id="close-pilot-modal"
-          class="btn ghost"
-          type="button"
-          style="width:100%;"
-        >
-          Acknowledge
-        </button>
-      </div>
-    `;
-
-    document.body.appendChild(overlay);
-
-    const closeBtn =
-      document.getElementById("close-pilot-modal");
-
-    function closeModal() {
-      overlay.remove();
-      document.removeEventListener("keydown", handleKeydown);
-    }
-
-    function handleKeydown(event) {
-      if (event.key === "Escape") {
-        closeModal();
-      }
-    }
-
-    closeBtn.addEventListener("click", closeModal);
-
-    overlay.addEventListener("click", function (event) {
-      if (event.target === overlay) {
-        closeModal();
-      }
-    });
-
-    document.addEventListener("keydown", handleKeydown);
-    closeBtn.focus();
-  }
-
-  window.addEventListener("load", function () {
-    trackHarveyEvent("page_view_home");
-
-    setTimeout(function () {
-      if (!document.getElementById("harvey-ai-chat-root")) {
-        const root = document.createElement("div");
-        root.id = "harvey-ai-chat-root";
-        document.body.appendChild(root);
-      }
-    }, 80);
-  });
-</script>
-
+  </script>
 </body>
 </html>
