@@ -2,9 +2,30 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Harvey Taxi • Admin GPS Tracker</title>
+  <meta name="theme-color" content="#020817" />
+
   <style>
+    :root {
+      --bg: #020817;
+      --bg2: #03163d;
+      --panel: rgba(8, 24, 68, 0.96);
+      --panel2: rgba(11, 33, 86, 0.92);
+      --line: rgba(255,255,255,0.10);
+      --line2: rgba(124,164,255,0.45);
+      --text: #ffffff;
+      --muted: #9fb7ff;
+      --soft: #c7d8ff;
+      --green: #22c55e;
+      --yellow: #facc15;
+      --red: #ef4444;
+      --blue: #60a5fa;
+      --purple: #a78bfa;
+      --shadow: 0 18px 45px rgba(0,0,0,0.35);
+      --radius: 24px;
+    }
+
     * {
       box-sizing: border-box;
       font-family: Arial, Helvetica, sans-serif;
@@ -13,107 +34,1342 @@
     body {
       margin: 0;
       min-height: 100vh;
-      background: linear-gradient(180deg, #020817 0%, #03163d 100%);
-      color: white;
+      background:
+        radial-gradient(circle at top left, rgba(96,165,250,0.20), transparent 32%),
+        linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+      color: var(--text);
       padding: 20px;
     }
 
+    a {
+      color: inherit;
+    }
+
+    .page {
+      max-width: 1500px;
+      margin: 0 auto;
+    }
+
     .back {
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
       margin-bottom: 18px;
       color: #d6e2ff;
       text-decoration: none;
-      font-size: 18px;
+      font-size: 16px;
+      opacity: 0.92;
+    }
+
+    .back:hover {
+      opacity: 1;
+    }
+
+    .hero {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: flex-start;
+      margin-bottom: 18px;
     }
 
     .title {
-      font-size: 2.3rem;
-      font-weight: 800;
-      margin-bottom: 8px;
+      font-size: clamp(2rem, 5vw, 3.1rem);
+      font-weight: 900;
+      margin: 0 0 8px;
+      letter-spacing: -0.04em;
     }
 
     .sub {
-      color: #9fb7ff;
-      margin-bottom: 18px;
+      color: var(--muted);
+      margin: 0;
       line-height: 1.6;
+      max-width: 760px;
+    }
+
+    .status-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 999px;
+      background: rgba(12,32,83,0.9);
+      border: 1px solid var(--line);
+      color: #dbe7ff;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: var(--green);
+      box-shadow: 0 0 14px rgba(34,197,94,0.75);
+    }
+
+    .dot.yellow {
+      background: var(--yellow);
+      box-shadow: 0 0 14px rgba(250,204,21,0.75);
+    }
+
+    .dot.red {
+      background: var(--red);
+      box-shadow: 0 0 14px rgba(239,68,68,0.75);
     }
 
     .layout {
       display: grid;
-      grid-template-columns: 380px 1fr;
+      grid-template-columns: 390px minmax(0, 1fr);
       gap: 18px;
+      align-items: start;
     }
 
     .card {
-      background: rgba(8, 24, 68, 0.95);
-      border-radius: 24px;
+      background: var(--panel);
+      border-radius: var(--radius);
       padding: 18px;
-      border: 1px solid rgba(255,255,255,0.08);
-      box-shadow: 0 12px 28px rgba(0,0,0,0.28);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
     }
 
-    .card h2 {
+    .card h2,
+    .card h3 {
       margin-top: 0;
       margin-bottom: 14px;
     }
 
-    .search {
+    .muted {
+      color: var(--muted);
+    }
+
+    .small {
+      font-size: 13px;
+      color: var(--soft);
+      line-height: 1.5;
+    }
+
+    .search-row {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .search,
+    .select {
       width: 100%;
-      border: none;
+      border: 1px solid var(--line);
       border-radius: 14px;
       padding: 14px;
-      font-size: 16px;
-      margin-bottom: 14px;
+      font-size: 15px;
       background: #051335;
       color: white;
+      outline: none;
+    }
+
+    .search:focus,
+    .select:focus {
+      border-color: var(--line2);
+      box-shadow: 0 0 0 4px rgba(96,165,250,0.12);
+    }
+
+    .quick-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    button {
+      border: none;
+      cursor: pointer;
+      font-weight: 800;
+      transition: 0.18s ease;
+    }
+
+    button:active {
+      transform: scale(0.98);
+    }
+
+    .btn {
+      border-radius: 14px;
+      padding: 12px 13px;
+      color: white;
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+
+    .btn.secondary {
+      background: rgba(12,32,83,0.95);
+    }
+
+    .btn.danger {
+      background: linear-gradient(135deg, #dc2626, #991b1b);
+    }
+
+    .btn.success {
+      background: linear-gradient(135deg, #16a34a, #15803d);
+    }
+
+    .btn.warning {
+      background: linear-gradient(135deg, #ca8a04, #a16207);
+    }
+
+    .btn:hover {
+      filter: brightness(1.08);
     }
 
     .fleet-list {
-      max-height: 72vh;
+      max-height: 70vh;
       overflow-y: auto;
       padding-right: 4px;
     }
 
     .vehicle-item {
-      background: #0b2156;
-      border-radius: 16px;
+      background: var(--panel2);
+      border-radius: 18px;
       padding: 14px;
       margin-bottom: 10px;
       cursor: pointer;
-      border: 1px solid rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.07);
       transition: 0.2s ease;
     }
 
     .vehicle-item:hover {
       transform: translateY(-1px);
-      border-color: rgba(124, 164, 255, 0.35);
+      border-color: rgba(124,164,255,0.35);
     }
 
     .vehicle-item.active {
-      border-color: rgba(124, 164, 255, 0.65);
-      box-shadow: 0 0 18px rgba(68, 115, 255, 0.18);
+      border-color: rgba(124,164,255,0.75);
+      box-shadow: 0 0 22px rgba(68,115,255,0.22);
+    }
+
+    .vehicle-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: flex-start;
     }
 
     .vehicle-name {
       font-size: 1rem;
-      font-weight: 800;
+      font-weight: 900;
       margin-bottom: 6px;
     }
 
     .vehicle-meta {
-      color: #c7d8ff;
+      color: var(--soft);
       line-height: 1.55;
-      font-size: 14px;
+      font-size: 13px;
+    }
+
+    .status-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 900;
+      padding: 7px 9px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.06);
+      white-space: nowrap;
+    }
+
+    .chip-online {
+      color: #bbf7d0;
+      background: rgba(34,197,94,0.12);
+    }
+
+    .chip-trip {
+      color: #bfdbfe;
+      background: rgba(96,165,250,0.12);
+    }
+
+    .chip-break {
+      color: #fef08a;
+      background: rgba(250,204,21,0.12);
+    }
+
+    .chip-offline {
+      color: #fecaca;
+      background: rgba(239,68,68,0.12);
+    }
+
+    .main {
+      display: grid;
+      gap: 16px;
     }
 
     .top-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: 12px;
-      margin-bottom: 16px;
     }
 
     .pill {
-      background: #0c2053;
+      background: rgba(12,32,83,0.94);
+      border-radius: 18px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      min-height: 92px;
+    }
+
+    .pill-label {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+
+    .pill-value {
+      font-size: 1.45rem;
+      font-weight: 900;
+    }
+
+    .pill-foot {
+      color: var(--soft);
+      font-size: 12px;
+      margin-top: 6px;
+    }
+
+    .map-card {
+      min-height: 490px;
+      position: relative;
+      overflow: hidden;
+      padding: 0;
+    }
+
+    .map-toolbar {
+      position: absolute;
+      z-index: 5;
+      top: 14px;
+      left: 14px;
+      right: 14px;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .map-toolbar > div {
+      pointer-events: auto;
+    }
+
+    .map-label {
+      background: rgba(2,8,23,0.82);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 10px 12px;
+      color: #dbe7ff;
+      font-size: 13px;
+      backdrop-filter: blur(10px);
+    }
+
+    .map {
+      height: 490px;
+      width: 100%;
+      position: relative;
+      background:
+        linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px),
+        radial-gradient(circle at 30% 35%, rgba(96,165,250,0.20), transparent 20%),
+        radial-gradient(circle at 70% 65%, rgba(167,139,250,0.16), transparent 22%),
+        linear-gradient(145deg, #03112f, #061b49);
+      background-size: 42px 42px, 42px 42px, auto, auto, auto;
+      overflow: hidden;
+    }
+
+    .road {
+      position: absolute;
+      background: rgba(148,163,184,0.16);
+      border: 1px solid rgba(255,255,255,0.04);
+      border-radius: 999px;
+      transform-origin: center;
+    }
+
+    .road.r1 {
+      width: 900px;
+      height: 22px;
+      left: -120px;
+      top: 230px;
+      transform: rotate(-12deg);
+    }
+
+    .road.r2 {
+      width: 780px;
+      height: 18px;
+      left: 160px;
+      top: 300px;
+      transform: rotate(28deg);
+    }
+
+    .road.r3 {
+      width: 650px;
+      height: 16px;
+      left: 120px;
+      top: 140px;
+      transform: rotate(58deg);
+    }
+
+    .zone {
+      position: absolute;
+      border-radius: 999px;
+      border: 1px dashed rgba(147,197,253,0.28);
+      background: rgba(59,130,246,0.05);
+    }
+
+    .zone.z1 {
+      width: 260px;
+      height: 170px;
+      left: 8%;
+      top: 18%;
+    }
+
+    .zone.z2 {
+      width: 300px;
+      height: 210px;
+      right: 9%;
+      bottom: 13%;
+    }
+
+    .marker {
+      position: absolute;
+      z-index: 4;
+      width: 42px;
+      height: 42px;
+      border-radius: 50% 50% 50% 8px;
+      transform: rotate(-45deg);
+      background: linear-gradient(135deg, #60a5fa, #2563eb);
+      border: 2px solid rgba(255,255,255,0.9);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+      display: grid;
+      place-items: center;
+      transition: 0.7s ease;
+    }
+
+    .marker::after {
+      content: "🚕";
+      transform: rotate(45deg);
+      font-size: 20px;
+    }
+
+    .marker.online {
+      background: linear-gradient(135deg, #22c55e, #15803d);
+    }
+
+    .marker.trip {
+      background: linear-gradient(135deg, #60a5fa, #1d4ed8);
+    }
+
+    .marker.break {
+      background: linear-gradient(135deg, #facc15, #ca8a04);
+    }
+
+    .marker.offline {
+      background: linear-gradient(135deg, #ef4444, #991b1b);
+    }
+
+    .marker.selected {
+      width: 52px;
+      height: 52px;
+      box-shadow: 0 0 0 12px rgba(96,165,250,0.16), 0 16px 38px rgba(0,0,0,0.45);
+    }
+
+    .marker-label {
+      position: absolute;
+      transform: translate(-50%, 0);
+      z-index: 5;
+      background: rgba(2,8,23,0.84);
+      border: 1px solid var(--line);
+      color: #fff;
+      padding: 7px 9px;
+      border-radius: 999px;
+      font-size: 12px;
+      white-space: nowrap;
+      transition: 0.7s ease;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 16px;
+    }
+
+    .driver-detail {
+      display: grid;
+      gap: 12px;
+    }
+
+    .detail-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .driver-title {
+      font-size: 1.35rem;
+      font-weight: 900;
+      margin: 0 0 6px;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    .info-box {
+      background: rgba(5,19,53,0.86);
+      border: 1px solid var(--line);
       border-radius: 16px;
-      padding: 14px
+      padding: 12px;
+    }
+
+    .info-label {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+
+    .info-value {
+      font-weight: 900;
+      color: #fff;
+      line-height: 1.35;
+    }
+
+    .control-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    .alerts {
+      display: grid;
+      gap: 10px;
+      max-height: 360px;
+      overflow-y: auto;
+    }
+
+    .alert {
+      border-radius: 16px;
+      padding: 12px;
+      background: rgba(5,19,53,0.86);
+      border: 1px solid var(--line);
+      color: #dbe7ff;
+      line-height: 1.45;
+      font-size: 13px;
+    }
+
+    .alert strong {
+      color: #fff;
+    }
+
+    .alert.warn {
+      border-color: rgba(250,204,21,0.34);
+      background: rgba(250,204,21,0.08);
+    }
+
+    .alert.danger {
+      border-color: rgba(239,68,68,0.34);
+      background: rgba(239,68,68,0.08);
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 760px;
+    }
+
+    th,
+    td {
+      text-align: left;
+      padding: 13px 10px;
+      border-bottom: 1px solid var(--line);
+      color: #dbe7ff;
+      font-size: 13px;
+    }
+
+    th {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    td strong {
+      color: white;
+    }
+
+    .footer-note {
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+      text-align: center;
+    }
+
+    @media (max-width: 1050px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .fleet-list {
+        max-height: 420px;
+      }
+
+      .top-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .detail-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 14px;
+      }
+
+      .hero {
+        flex-direction: column;
+      }
+
+      .status-bar {
+        justify-content: flex-start;
+      }
+
+      .top-grid,
+      .info-grid,
+      .control-grid,
+      .quick-actions {
+        grid-template-columns: 1fr;
+      }
+
+      .map,
+      .map-card {
+        min-height: 430px;
+      }
+
+      .map {
+        height: 430px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="page">
+    <a class="back" href="admin-dashboard.html">← Back to Admin Dashboard</a>
+
+    <section class="hero">
+      <div>
+        <h1 class="title">Admin GPS Tracker</h1>
+        <p class="sub">
+          Monitor Harvey Taxi drivers, active rides, vehicle movement, safety alerts,
+          heartbeat status, and dispatch readiness from one live operations screen.
+        </p>
+      </div>
+
+      <div class="status-bar">
+        <span class="badge"><span class="dot"></span> Live tracking online</span>
+        <span class="badge" id="clockBadge">Loading time...</span>
+        <span class="badge">Admin Ops</span>
+      </div>
+    </section>
+
+    <section class="layout">
+      <aside class="card">
+        <h2>Fleet Control</h2>
+
+        <div class="search-row">
+          <input id="searchInput" class="search" type="search" placeholder="Search driver, vehicle, city, ride..." />
+          <select id="statusFilter" class="select">
+            <option value="all">All drivers</option>
+            <option value="online">Online</option>
+            <option value="trip">On active ride</option>
+            <option value="break">On break</option>
+            <option value="offline">Offline / heartbeat lost</option>
+          </select>
+        </div>
+
+        <div class="quick-actions">
+          <button class="btn secondary" id="centerFleetBtn">Center Fleet</button>
+          <button class="btn warning" id="simulateBtn">Pause Live GPS</button>
+        </div>
+
+        <div class="fleet-list" id="fleetList"></div>
+      </aside>
+
+      <section class="main">
+        <div class="top-grid">
+          <div class="pill">
+            <div class="pill-label">Online Drivers</div>
+            <div class="pill-value" id="onlineCount">0</div>
+            <div class="pill-foot">Available or moving</div>
+          </div>
+
+          <div class="pill">
+            <div class="pill-label">Active Trips</div>
+            <div class="pill-value" id="tripCount">0</div>
+            <div class="pill-foot">Currently assigned</div>
+          </div>
+
+          <div class="pill">
+            <div class="pill-label">Safety Alerts</div>
+            <div class="pill-value" id="alertCount">0</div>
+            <div class="pill-foot">Needs admin review</div>
+          </div>
+
+          <div class="pill">
+            <div class="pill-label">Avg. Heartbeat</div>
+            <div class="pill-value" id="heartbeatAvg">0s</div>
+            <div class="pill-foot">GPS signal freshness</div>
+          </div>
+        </div>
+
+        <section class="card map-card">
+          <div class="map-toolbar">
+            <div class="map-label" id="mapTitle">Nashville Live Fleet Map</div>
+            <div class="map-label" id="selectedMapLabel">No driver selected</div>
+          </div>
+
+          <div class="map" id="map">
+            <div class="road r1"></div>
+            <div class="road r2"></div>
+            <div class="road r3"></div>
+            <div class="zone z1"></div>
+            <div class="zone z2"></div>
+          </div>
+        </section>        <section class="detail-grid">
+          <article class="card driver-detail">
+            <div class="detail-head">
+              <div>
+                <h2 class="driver-title" id="driverName">Select a driver</h2>
+                <div class="small" id="driverSub">
+                  Choose a vehicle from the fleet list to view live driver details.
+                </div>
+              </div>
+              <span class="status-chip" id="driverChip">Waiting</span>
+            </div>
+
+            <div class="info-grid">
+              <div class="info-box">
+                <div class="info-label">Vehicle</div>
+                <div class="info-value" id="vehicleInfo">—</div>
+              </div>
+
+              <div class="info-box">
+                <div class="info-label">Current Location</div>
+                <div class="info-value" id="locationInfo">—</div>
+              </div>
+
+              <div class="info-box">
+                <div class="info-label">Speed / Heading</div>
+                <div class="info-value" id="speedInfo">—</div>
+              </div>
+
+              <div class="info-box">
+                <div class="info-label">Heartbeat</div>
+                <div class="info-value" id="heartbeatInfo">—</div>
+              </div>
+
+              <div class="info-box">
+                <div class="info-label">Ride Assignment</div>
+                <div class="info-value" id="rideInfo">—</div>
+              </div>
+
+              <div class="info-box">
+                <div class="info-label">Compliance</div>
+                <div class="info-value" id="complianceInfo">—</div>
+              </div>
+            </div>
+
+            <div class="control-grid">
+              <button class="btn success" id="messageDriverBtn">Message Driver</button>
+              <button class="btn secondary" id="focusDriverBtn">Focus on Map</button>
+              <button class="btn warning" id="flagDriverBtn">Flag Review</button>
+              <button class="btn danger" id="emergencyBtn">Safety Escalation</button>
+            </div>
+
+            <p class="small">
+              This admin tracker is built as a frontend operations screen. Connect it to Supabase,
+              Socket/SSE, or your backend GPS endpoint when you are ready for production live data.
+            </p>
+          </article>
+
+          <article class="card">
+            <h2>Operations Alerts</h2>
+            <div class="alerts" id="alertsList"></div>
+          </article>
+        </section>
+
+        <section class="card">
+          <h2>Recent GPS Events</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Driver</th>
+                  <th>Event</th>
+                  <th>Location</th>
+                  <th>Signal</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="eventsBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+    </section>
+
+    <p class="footer-note">
+      Harvey Taxi Service LLC • Admin GPS Tracker • Dispatch, safety, and fleet visibility layer.
+    </p>
+  </main>
+
+  <script>
+    const fleet = [
+      {
+        id: "DRV-1001",
+        name: "Marcus Johnson",
+        vehicle: "Toyota Camry • HT-204",
+        plate: "TN 8H2-204",
+        phone: "(615) 555-0181",
+        status: "trip",
+        city: "Nashville",
+        location: "Charlotte Ave near Midtown",
+        x: 36,
+        y: 48,
+        speed: 28,
+        heading: "East",
+        heartbeat: 4,
+        ride: "Ride #HTX-4812 • Rider pickup active",
+        compliance: "Approved • Insurance valid • Checkr clear",
+        alert: "Pickup running 3 minutes behind estimate.",
+        alertType: "warn"
+      },
+      {
+        id: "DRV-1002",
+        name: "Denise Carter",
+        vehicle: "Honda Accord • HT-118",
+        plate: "TN 4K9-118",
+        phone: "(615) 555-0194",
+        status: "online",
+        city: "Nashville",
+        location: "BNA Airport staging zone",
+        x: 68,
+        y: 62,
+        speed: 9,
+        heading: "North",
+        heartbeat: 2,
+        ride: "Available for dispatch",
+        compliance: "Approved • Insurance valid • Checkr clear",
+        alert: "Available near airport demand zone.",
+        alertType: "info"
+      },
+      {
+        id: "DRV-1003",
+        name: "Anthony Reed",
+        vehicle: "Hyundai Sonata • HT-321",
+        plate: "TN 7M1-321",
+        phone: "(615) 555-0142",
+        status: "break",
+        city: "Antioch",
+        location: "Bell Road near Hickory Hollow",
+        x: 74,
+        y: 38,
+        speed: 0,
+        heading: "Parked",
+        heartbeat: 11,
+        ride: "Break mode • Not accepting rides",
+        compliance: "Approved • Insurance valid • Checkr clear",
+        alert: "Driver is paused but GPS heartbeat is still active.",
+        alertType: "info"
+      },
+      {
+        id: "DRV-1004",
+        name: "Willie Harvey IV",
+        vehicle: "Admin Test Vehicle • HT-001",
+        plate: "ADMIN",
+        phone: "(615) 555-0100",
+        status: "online",
+        city: "Downtown Nashville",
+        location: "Broadway / 5th Ave",
+        x: 49,
+        y: 43,
+        speed: 16,
+        heading: "South",
+        heartbeat: 3,
+        ride: "Admin test route",
+        compliance: "Owner/Admin • Internal approved",
+        alert: "Admin test vehicle connected.",
+        alertType: "info"
+      },
+      {
+        id: "DRV-1005",
+        name: "Keisha Holloman",
+        vehicle: "Nissan Altima • HT-077",
+        plate: "TN 2C7-077",
+        phone: "(615) 555-0177",
+        status: "offline",
+        city: "Madison",
+        location: "Last seen near Gallatin Pike",
+        x: 26,
+        y: 29,
+        speed: 0,
+        heading: "Unknown",
+        heartbeat: 96,
+        ride: "No active assignment",
+        compliance: "Needs heartbeat verification",
+        alert: "GPS heartbeat lost. Driver should be contacted.",
+        alertType: "danger"
+      }
+    ];
+
+    let selectedId = fleet[0].id;
+    let liveGps = true;
+    let eventLog = [];
+
+    const fleetList = document.getElementById("fleetList");
+    const map = document.getElementById("map");
+    const searchInput = document.getElementById("searchInput");
+    const statusFilter = document.getElementById("statusFilter");
+
+    const onlineCount = document.getElementById("onlineCount");
+    const tripCount = document.getElementById("tripCount");
+    const alertCount = document.getElementById("alertCount");
+    const heartbeatAvg = document.getElementById("heartbeatAvg");
+
+    const driverName = document.getElementById("driverName");
+    const driverSub = document.getElementById("driverSub");
+    const driverChip = document.getElementById("driverChip");
+    const vehicleInfo = document.getElementById("vehicleInfo");
+    const locationInfo = document.getElementById("locationInfo");
+    const speedInfo = document.getElementById("speedInfo");
+    const heartbeatInfo = document.getElementById("heartbeatInfo");
+    const rideInfo = document.getElementById("rideInfo");
+    const complianceInfo = document.getElementById("complianceInfo");
+
+    const selectedMapLabel = document.getElementById("selectedMapLabel");
+    const alertsList = document.getElementById("alertsList");
+    const eventsBody = document.getElementById("eventsBody");
+    const simulateBtn = document.getElementById("simulateBtn");
+    const clockBadge = document.getElementById("clockBadge");
+
+    function statusLabel(status) {
+      if (status === "trip") return "On Ride";
+      if (status === "online") return "Online";
+      if (status === "break") return "Break";
+      return "Offline";
+    }
+
+    function chipClass(status) {
+      if (status === "trip") return "chip-trip";
+      if (status === "online") return "chip-online";
+      if (status === "break") return "chip-break";
+      return "chip-offline";
+    }
+
+    function currentDriver() {
+      return fleet.find(driver => driver.id === selectedId) || fleet[0];
+    }
+
+    function filteredFleet() {
+      const term = searchInput.value.trim().toLowerCase();
+      const filter = statusFilter.value;
+
+      return fleet.filter(driver => {
+        const haystack = [
+          driver.name,
+          driver.id,
+          driver.vehicle,
+          driver.plate,
+          driver.city,
+          driver.location,
+          driver.ride,
+          driver.status
+        ].join(" ").toLowerCase();
+
+        const termMatch = !term || haystack.includes(term);
+        const statusMatch = filter === "all" || driver.status === filter;
+
+        return termMatch && statusMatch;
+      });
+    }
+
+    function renderFleetList() {
+      const drivers = filteredFleet();
+
+      if (!drivers.length) {
+        fleetList.innerHTML = `
+          <div class="vehicle-item">
+            <div class="vehicle-name">No drivers found</div>
+            <div class="vehicle-meta">Try another search or status filter.</div>
+          </div>
+        `;
+        return;
+      }
+
+      fleetList.innerHTML = drivers.map(driver => `
+        <div class="vehicle-item ${driver.id === selectedId ? "active" : ""}" data-id="${driver.id}">
+          <div class="vehicle-head">
+            <div>
+              <div class="vehicle-name">${driver.name}</div>
+              <div class="vehicle-meta">
+                ${driver.vehicle}<br />
+                ${driver.location}<br />
+                Heartbeat: ${driver.heartbeat}s ago
+              </div>
+            </div>
+            <span class="status-chip ${chipClass(driver.status)}">
+              ${statusLabel(driver.status)}
+            </span>
+          </div>
+        </div>
+      `).join("");
+
+      document.querySelectorAll(".vehicle-item[data-id]").forEach(item => {
+        item.addEventListener("click", () => {
+          selectedId = item.dataset.id;
+          renderAll();
+        });
+      });
+    }
+
+    function renderMap() {
+      map.querySelectorAll(".marker, .marker-label").forEach(node => node.remove());
+
+      fleet.forEach(driver => {
+        const marker = document.createElement("button");
+        marker.className = `marker ${driver.status} ${driver.id === selectedId ? "selected" : ""}`;
+        marker.style.left = `${driver.x}%`;
+        marker.style.top = `${driver.y}%`;
+        marker.title = `${driver.name} • ${statusLabel(driver.status)}`;
+        marker.setAttribute("aria-label", `${driver.name} ${statusLabel(driver.status)}`);
+        marker.addEventListener("click", () => {
+          selectedId = driver.id;
+          renderAll();
+        });
+
+        const label = document.createElement("div");
+        label.className = "marker-label";
+        label.style.left = `${driver.x + 2}%`;
+        label.style.top = `${driver.y + 9}%`;
+        label.textContent = driver.id === selectedId ? `${driver.name} • ${statusLabel(driver.status)}` : driver.id;
+
+        map.appendChild(marker);
+        map.appendChild(label);
+      });
+    }    function renderDriverDetail() {
+      const driver = currentDriver();
+
+      driverName.textContent = driver.name;
+      driverSub.textContent = `${driver.id} • ${driver.phone} • ${driver.city}`;
+      driverChip.className = `status-chip ${chipClass(driver.status)}`;
+      driverChip.textContent = statusLabel(driver.status);
+
+      vehicleInfo.innerHTML = `
+        ${driver.vehicle}<br />
+        <span class="muted">${driver.plate}</span>
+      `;
+
+      locationInfo.textContent = driver.location;
+      speedInfo.textContent = `${driver.speed} mph • ${driver.heading}`;
+      heartbeatInfo.textContent = `${driver.heartbeat}s ago`;
+      rideInfo.textContent = driver.ride;
+      complianceInfo.textContent = driver.compliance;
+
+      selectedMapLabel.textContent = `${driver.name} • ${driver.location}`;
+    }
+
+    function renderStats() {
+      const online = fleet.filter(driver => driver.status === "online" || driver.status === "trip").length;
+      const trips = fleet.filter(driver => driver.status === "trip").length;
+      const alerts = fleet.filter(driver => driver.alertType === "warn" || driver.alertType === "danger").length;
+      const avgHeartbeat = Math.round(
+        fleet.reduce((sum, driver) => sum + driver.heartbeat, 0) / fleet.length
+      );
+
+      onlineCount.textContent = online;
+      tripCount.textContent = trips;
+      alertCount.textContent = alerts;
+      heartbeatAvg.textContent = `${avgHeartbeat}s`;
+    }
+
+    function renderAlerts() {
+      const alerts = [...fleet]
+        .sort((a, b) => {
+          const weight = { danger: 3, warn: 2, info: 1 };
+          return weight[b.alertType] - weight[a.alertType];
+        })
+        .map(driver => `
+          <div class="alert ${driver.alertType === "danger" ? "danger" : driver.alertType === "warn" ? "warn" : ""}">
+            <strong>${driver.name}</strong><br />
+            ${driver.alert}<br />
+            <span class="muted">${driver.location} • Heartbeat ${driver.heartbeat}s ago</span>
+          </div>
+        `)
+        .join("");
+
+      alertsList.innerHTML = alerts || `
+        <div class="alert">
+          <strong>No active alerts</strong><br />
+          Fleet is currently clear.
+        </div>
+      `;
+    }
+
+    function addEvent(driver, event, status = "Logged") {
+      const now = new Date();
+
+      eventLog.unshift({
+        time: now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+        driver: driver.name,
+        event,
+        location: driver.location,
+        signal: `${driver.heartbeat}s`,
+        status
+      });
+
+      eventLog = eventLog.slice(0, 12);
+    }
+
+    function seedEvents() {
+      eventLog = [];
+
+      fleet.forEach(driver => {
+        if (driver.status === "trip") {
+          addEvent(driver, "Active ride GPS ping received", "In Progress");
+        } else if (driver.status === "offline") {
+          addEvent(driver, "GPS heartbeat lost", "Needs Review");
+        } else if (driver.status === "break") {
+          addEvent(driver, "Driver entered break mode", "Paused");
+        } else {
+          addEvent(driver, "Driver available for dispatch", "Available");
+        }
+      });
+    }
+
+    function renderEvents() {
+      eventsBody.innerHTML = eventLog.map(row => `
+        <tr>
+          <td>${row.time}</td>
+          <td><strong>${row.driver}</strong></td>
+          <td>${row.event}</td>
+          <td>${row.location}</td>
+          <td>${row.signal}</td>
+          <td>${row.status}</td>
+        </tr>
+      `).join("");
+    }
+
+    function moveLiveFleet() {
+      if (!liveGps) return;
+
+      fleet.forEach(driver => {
+        if (driver.status === "offline" || driver.status === "break") {
+          driver.heartbeat += driver.status === "offline" ? 8 : 1;
+          return;
+        }
+
+        const driftX = (Math.random() - 0.5) * 2.8;
+        const driftY = (Math.random() - 0.5) * 2.8;
+
+        driver.x = Math.max(6, Math.min(90, driver.x + driftX));
+        driver.y = Math.max(10, Math.min(84, driver.y + driftY));
+        driver.speed = Math.max(4, Math.min(48, Math.round(driver.speed + (Math.random() - 0.5) * 8)));
+        driver.heartbeat = Math.max(1, Math.round(Math.random() * 7));
+
+        const headings = ["North", "South", "East", "West", "Northeast", "Northwest", "Southeast", "Southwest"];
+        driver.heading = headings[Math.floor(Math.random() * headings.length)];
+
+        if (Math.random() > 0.78) {
+          addEvent(driver, "GPS position updated", "Live");
+        }
+      });
+
+      renderAll(false);
+    }
+
+    function focusSelectedDriver() {
+      const driver = currentDriver();
+      selectedMapLabel.textContent = `Focused: ${driver.name} • ${driver.location}`;
+      addEvent(driver, "Admin focused driver on GPS map", "Reviewed");
+      renderEvents();
+    }
+
+    function messageSelectedDriver() {
+      const driver = currentDriver();
+      addEvent(driver, "Admin opened driver message action", "Message Ready");
+      renderEvents();
+
+      alert(
+        `Message action prepared for ${driver.name}.\n\nProduction connection: open SMS, in-app chat, or dispatch message endpoint.`
+      );
+    }
+
+    function flagSelectedDriver() {
+      const driver = currentDriver();
+
+      driver.alertType = "warn";
+      driver.alert = "Admin manually flagged this driver for operations review.";
+
+      addEvent(driver, "Driver manually flagged for review", "Flagged");
+      renderAll();
+    }
+
+    function emergencySelectedDriver() {
+      const driver = currentDriver();
+
+      driver.alertType = "danger";
+      driver.alert = "Safety escalation triggered by admin. Contact driver and rider immediately.";
+
+      addEvent(driver, "Safety escalation triggered", "Emergency");
+      renderAll();
+
+      alert(
+        `Safety escalation created for ${driver.name}.\n\nNext step: contact driver, rider, and emergency support if needed.`
+      );
+    }    function renderAll(refreshEvents = true) {
+      renderFleetList();
+      renderMap();
+      renderDriverDetail();
+      renderStats();
+      renderAlerts();
+
+      if (refreshEvents) {
+        renderEvents();
+      }
+    }
+
+    function updateClock() {
+      const now = new Date();
+
+      clockBadge.textContent =
+        now.toLocaleDateString() +
+        " • " +
+        now.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit"
+        });
+    }
+
+    searchInput.addEventListener("input", () => {
+      renderFleetList();
+    });
+
+    statusFilter.addEventListener("change", () => {
+      renderFleetList();
+    });
+
+    document
+      .getElementById("focusDriverBtn")
+      .addEventListener("click", focusSelectedDriver);
+
+    document
+      .getElementById("messageDriverBtn")
+      .addEventListener("click", messageSelectedDriver);
+
+    document
+      .getElementById("flagDriverBtn")
+      .addEventListener("click", flagSelectedDriver);
+
+    document
+      .getElementById("emergencyBtn")
+      .addEventListener("click", emergencySelectedDriver);
+
+    document
+      .getElementById("centerFleetBtn")
+      .addEventListener("click", () => {
+        selectedMapLabel.textContent =
+          "Fleet centered • Nashville Operations Region";
+
+        addEvent(
+          currentDriver(),
+          "Admin centered fleet map",
+          "Map Updated"
+        );
+
+        renderEvents();
+      });
+
+    simulateBtn.addEventListener("click", () => {
+      liveGps = !liveGps;
+
+      simulateBtn.textContent = liveGps
+        ? "Pause Live GPS"
+        : "Resume Live GPS";
+
+      simulateBtn.className = liveGps
+        ? "btn warning"
+        : "btn success";
+
+      addEvent(
+        currentDriver(),
+        liveGps
+          ? "Live GPS simulation resumed"
+          : "Live GPS simulation paused",
+        liveGps ? "Running" : "Paused"
+      );
+
+      renderEvents();
+    });
+
+    seedEvents();
+    renderAll();
+    updateClock();
+
+    setInterval(updateClock, 1000);
+
+    setInterval(() => {
+      moveLiveFleet();
+    }, 4000);
+
+    setInterval(() => {
+      const driver = fleet[Math.floor(Math.random() * fleet.length)];
+
+      if (Math.random() > 0.70) {
+        addEvent(
+          driver,
+          "Heartbeat verified from device",
+          "Verified"
+        );
+      }
+
+      if (
+        driver.status !== "offline" &&
+        Math.random() > 0.92
+      ) {
+        addEvent(
+          driver,
+          "Dispatch candidate identified nearby",
+          "Dispatch Ready"
+        );
+      }
+
+      renderEvents();
+      renderStats();
+    }, 9000);
+
+  </script>
+</body>
+</html>
