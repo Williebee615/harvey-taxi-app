@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" dir="ltr">
 <head>
   <meta charset="UTF-8" />
 
@@ -12,7 +12,7 @@
 
   <meta
     name="description"
-    content="Harvey Taxi driver onboarding with email verification, SMS verification, Persona identity review, Checkr background review, insurance confirmation, and admin approval."
+    content="Harvey Taxi driver onboarding with adaptive language options, email verification, SMS verification, Persona identity review, Checkr background review, insurance confirmation, and admin approval."
   />
 
   <meta name="theme-color" content="#07111f" />
@@ -92,6 +92,34 @@
       z-index: 0;
     }
 
+    body.high-contrast {
+      --bg: #000;
+      --panel: #050505;
+      --panel2: #070707;
+      --panel3: rgba(255,255,255,0.08);
+      --line: rgba(255,255,255,0.45);
+      --lineStrong: rgba(255,255,255,0.8);
+      --text: #ffffff;
+      --muted: #f1f5f9;
+      --soft: #ffffff;
+    }
+
+    body.large-text {
+      font-size: 118%;
+    }
+
+    body.reduced-motion *,
+    body.reduced-motion *::before,
+    body.reduced-motion *::after {
+      animation: none !important;
+      transition: none !important;
+      scroll-behavior: auto !important;
+    }
+
+    [dir="rtl"] body {
+      text-align: right;
+    }
+
     a {
       text-decoration: none;
       color: inherit;
@@ -121,11 +149,112 @@
       display: none !important;
     }
 
+    .skip-link {
+      position: absolute;
+      left: 16px;
+      top: -120px;
+      padding: 12px 16px;
+      border-radius: 999px;
+      background: var(--cyan);
+      color: var(--ink);
+      font-weight: 1000;
+      z-index: 99999;
+      transition: 0.16s ease;
+    }
+
+    .skip-link:focus {
+      top: 14px;
+    }
+
     .shell {
       max-width: var(--max);
       margin: auto;
       position: relative;
       z-index: 2;
+    }
+
+    .language-panel {
+      border: 1px solid var(--line);
+      background: rgba(11, 21, 48, 0.84);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      padding: 15px;
+      margin-bottom: 16px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .language-copy strong {
+      display: block;
+      color: var(--cyan);
+      margin-bottom: 4px;
+      font-size: 0.9rem;
+      font-weight: 1000;
+    }
+
+    .language-copy span {
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.5;
+    }
+
+    .language-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 9px;
+      justify-content: flex-end;
+      align-items: center;
+    }
+
+    .language-actions select,
+    .access-btn {
+      min-height: 43px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.045);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 0 13px;
+      font-weight: 900;
+      outline: none;
+    }
+
+    .language-actions select option {
+      background: #fff;
+      color: #07111f;
+    }
+
+    .access-btn.active {
+      border: none;
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      color: var(--ink);
+    }
+
+    .inclusive-note {
+      border: 1px solid rgba(255, 216, 111, 0.22);
+      background:
+        linear-gradient(135deg, rgba(255, 216, 111, 0.08), rgba(98, 245, 255, 0.045)),
+        rgba(255,255,255,0.025);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      padding: 15px 18px;
+      margin-bottom: 16px;
+    }
+
+    .inclusive-note strong {
+      display: block;
+      color: var(--gold);
+      margin-bottom: 6px;
+      font-weight: 1000;
+    }
+
+    .inclusive-note p {
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 0.9rem;
     }
 
     .topbar,
@@ -182,9 +311,7 @@
       color: var(--muted);
       font-size: 0.85rem;
       margin-top: 3px;
-    }
-
-    .mini,
+    }    .mini,
     .secondary,
     .ghost,
     .btn {
@@ -219,10 +346,15 @@
       border: none;
       border-radius: 18px;
       padding: 18px 20px;
-      background: linear-gradient(135deg, var(--cyan), var(--blue), #9dbeff);
+      background: linear-gradient(
+        135deg,
+        var(--cyan),
+        var(--blue),
+        #9dbeff
+      );
       color: var(--ink);
       font-size: 1rem;
-      box-shadow: 0 14px 32px rgba(67, 140, 255, 0.18);
+      box-shadow: 0 14px 32px rgba(67,140,255,.18);
     }
 
     .btn:hover {
@@ -253,7 +385,12 @@
       border-radius: 50%;
       right: -80px;
       bottom: -80px;
-      background: radial-gradient(circle, rgba(98, 245, 255, 0.16), transparent 68%);
+      background:
+        radial-gradient(
+          circle,
+          rgba(98,245,255,.16),
+          transparent 68%
+        );
       pointer-events: none;
     }
 
@@ -261,22 +398,28 @@
       display: inline-flex;
       padding: 9px 14px;
       border-radius: 999px;
-      border: 1px solid rgba(255, 216, 111, 0.25);
+      border: 1px solid rgba(255,216,111,.25);
       color: var(--gold);
-      background: rgba(255, 216, 111, 0.07);
+      background: rgba(255,216,111,.07);
       font-weight: 900;
       margin-bottom: 16px;
     }
 
     .hero h2 {
-      font-size: clamp(2rem, 4vw, 3.3rem);
+      font-size: clamp(2rem,4vw,3.3rem);
       line-height: 1.02;
-      letter-spacing: -0.04em;
+      letter-spacing: -.04em;
       font-weight: 1000;
     }
 
     .hero h2 span {
-      background: linear-gradient(90deg, #fff, #8dc2ff, #72fff0);
+      background:
+        linear-gradient(
+          90deg,
+          #fff,
+          #8dc2ff,
+          #72fff0
+        );
       -webkit-background-clip: text;
       background-clip: text;
       -webkit-text-fill-color: transparent;
@@ -293,8 +436,8 @@
     .item {
       margin-top: 14px;
       padding: 15px;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.03);
       border-radius: 18px;
       position: relative;
       z-index: 2;
@@ -308,7 +451,7 @@
     .item span {
       color: var(--muted);
       line-height: 1.55;
-      font-size: 0.92rem;
+      font-size: .92rem;
     }
 
     .card {
@@ -324,14 +467,16 @@
     .notice {
       padding: 14px 16px;
       border-radius: 18px;
-      background: rgba(255, 216, 111, 0.09);
-      border: 1px solid rgba(255, 216, 111, 0.18);
+      background: rgba(255,216,111,.09);
+      border: 1px solid rgba(255,216,111,.18);
       color: var(--muted);
       line-height: 1.55;
       margin: 16px 0;
-    }    .section {
+    }
+
+    .section {
       border: 1px solid var(--line);
-      background: rgba(13, 24, 54, 0.75);
+      background: rgba(13,24,54,.75);
       border-radius: 22px;
       padding: 18px;
       margin: 18px 0;
@@ -352,7 +497,7 @@
 
     .section-head span {
       color: var(--muted);
-      font-size: 0.84rem;
+      font-size: .84rem;
       font-weight: 900;
     }
 
@@ -375,7 +520,7 @@
 
     label {
       font-weight: 900;
-      font-size: 0.95rem;
+      font-size: .95rem;
     }
 
     input,
@@ -384,22 +529,37 @@
       min-height: 54px;
       padding: 15px 17px;
       border-radius: 18px;
-      border: 1px solid rgba(104, 168, 255, 0.45);
-      background: rgba(0, 12, 52, 0.86);
+      border: 1px solid rgba(104,168,255,.45);
+      background: rgba(0,12,52,.86);
       color: var(--text);
       font-size: 1rem;
       outline: none;
-      transition: 0.22s ease;
+      transition: .22s ease;
     }
 
     input::placeholder {
-      color: rgba(185, 199, 232, 0.65);
+      color: rgba(185,199,232,.65);
     }
 
     input:focus,
     select:focus {
       border-color: var(--cyan);
-      box-shadow: 0 0 0 3px rgba(98, 245, 255, 0.13);
+      box-shadow:
+        0 0 0 3px rgba(98,245,255,.13);
+    }
+
+    .language-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(98,245,255,.24);
+      background: rgba(98,245,255,.08);
+      color: var(--cyan);
+      font-size: .8rem;
+      font-weight: 1000;
+      margin-top: 12px;
     }
 
     .choice-grid {
@@ -434,25 +594,24 @@
       border: 1px solid var(--line);
       border-radius: 20px;
       padding: 16px;
-      background: rgba(255, 255, 255, 0.03);
-      transition: 0.22s ease;
+      background: rgba(255,255,255,.03);
+      transition: .22s ease;
     }
 
     .choice-card span {
       display: block;
       color: var(--muted);
-      font-size: 0.88rem;
+      font-size: .88rem;
       line-height: 1.55;
       margin-top: 8px;
     }
 
     .choice input:checked + .choice-card {
       border-color: var(--cyan);
-      background: rgba(98, 245, 255, 0.06);
-      box-shadow: 0 0 0 3px rgba(98, 245, 255, 0.1);
-    }
-
-    .consents {
+      background: rgba(98,245,255,.06);
+      box-shadow:
+        0 0 0 3px rgba(98,245,255,.10);
+    }    .consents {
       display: grid;
       gap: 13px;
       margin-top: 15px;
@@ -466,10 +625,10 @@
       padding: 16px;
       border-radius: 20px;
       border: 1px solid var(--line);
-      background: rgba(255, 255, 255, 0.03);
+      background: rgba(255,255,255,.03);
       user-select: none;
       -webkit-user-select: none;
-      transition: 0.22s ease;
+      transition: .22s ease;
     }
 
     .consent:hover {
@@ -491,7 +650,7 @@
       height: 32px;
       min-width: 32px;
       border-radius: 50%;
-      border: 2px solid rgba(98, 245, 255, 0.65);
+      border: 2px solid rgba(98,245,255,.65);
       background: #06143a;
       display: grid;
       place-items: center;
@@ -500,12 +659,17 @@
     }
 
     .consent.active {
-      background: rgba(98, 245, 255, 0.06);
-      border-color: rgba(98, 245, 255, 0.34);
+      background: rgba(98,245,255,.06);
+      border-color: rgba(98,245,255,.34);
     }
 
     .consent.active .check {
-      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      background:
+        linear-gradient(
+          135deg,
+          var(--cyan),
+          var(--blue)
+        );
       color: #06111f;
     }
 
@@ -543,18 +707,18 @@
     }
 
     .status.success {
-      background: rgba(113, 255, 183, 0.1);
-      border: 1px solid rgba(113, 255, 183, 0.24);
+      background: rgba(113,255,183,.1);
+      border: 1px solid rgba(113,255,183,.24);
     }
 
     .status.error {
-      background: rgba(255, 126, 144, 0.12);
-      border: 1px solid rgba(255, 126, 144, 0.25);
+      background: rgba(255,126,144,.12);
+      border: 1px solid rgba(255,126,144,.25);
     }
 
     .status.info {
-      background: rgba(98, 245, 255, 0.1);
-      border: 1px solid rgba(98, 245, 255, 0.18);
+      background: rgba(98,245,255,.1);
+      border: 1px solid rgba(98,245,255,.18);
     }
 
     .pill {
@@ -563,16 +727,16 @@
       border-radius: 999px;
       padding: 8px 12px;
       font-weight: 900;
-      font-size: 0.82rem;
+      font-size: .82rem;
       border: 1px solid var(--line);
       color: var(--gold);
-      background: rgba(255, 216, 111, 0.08);
+      background: rgba(255,216,111,.08);
     }
 
     .pill.ok {
       color: var(--green);
-      background: rgba(113, 255, 183, 0.08);
-      border-color: rgba(113, 255, 183, 0.24);
+      background: rgba(113,255,183,.08);
+      border-color: rgba(113,255,183,.24);
     }
 
     .progress {
@@ -586,12 +750,12 @@
       padding: 15px;
       border: 1px solid var(--line);
       border-radius: 18px;
-      background: rgba(255, 255, 255, 0.03);
+      background: rgba(255,255,255,.03);
     }
 
     .progress-card span {
       color: var(--muted);
-      font-size: 0.9rem;
+      font-size: .9rem;
       line-height: 1.5;
       display: block;
       margin-top: 6px;
@@ -603,7 +767,7 @@
       padding: 14px;
       border-radius: 16px;
       border: 1px solid var(--line);
-      background: rgba(255, 255, 255, 0.03);
+      background: rgba(255,255,255,.03);
       color: var(--muted);
       line-height: 1.55;
     }
@@ -618,10 +782,53 @@
       margin-bottom: 5px;
     }
 
+    .timeline {
+      display: grid;
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    .timeline-item {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      padding: 14px;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.02);
+    }
+
+    .timeline-item.active {
+      border-color: rgba(98,245,255,.3);
+      background: rgba(98,245,255,.05);
+    }
+
+    .timeline-dot {
+      width: 14px;
+      height: 14px;
+      min-width: 14px;
+      border-radius: 50%;
+      background: var(--cyan);
+      margin-top: 5px;
+      box-shadow: 0 0 12px rgba(98,245,255,.45);
+    }
+
+    .timeline-copy strong {
+      display: block;
+      margin-bottom: 4px;
+      font-weight: 1000;
+    }
+
+    .timeline-copy span {
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: .9rem;
+    }
+
     .debug {
       margin-top: 14px;
-      font-size: 0.78rem;
-      color: rgba(185, 199, 232, 0.72);
+      font-size: .78rem;
+      color: rgba(185,199,232,.72);
       line-height: 1.5;
       word-break: break-word;
     }
@@ -635,15 +842,16 @@
 
     .mini-pill {
       border: 1px solid var(--line);
-      background: rgba(255, 255, 255, 0.035);
+      background: rgba(255,255,255,.035);
       color: var(--muted);
       padding: 9px 12px;
       border-radius: 999px;
-      font-size: 0.82rem;
+      font-size: .82rem;
       font-weight: 900;
     }
 
     @media (max-width: 900px) {
+
       .grid {
         grid-template-columns: 1fr;
       }
@@ -652,11 +860,23 @@
         position: relative;
         top: 0;
       }
+
+      .language-panel {
+        grid-template-columns: 1fr;
+      }
+
+      .language-actions {
+        justify-content: flex-start;
+      }
     }
 
     @media (max-width: 680px) {
+
       body {
-        padding: calc(10px + var(--safe-top)) 10px calc(110px + var(--safe-bottom));
+        padding:
+          calc(10px + var(--safe-top))
+          10px
+          calc(110px + var(--safe-bottom));
       }
 
       .form-grid,
@@ -685,610 +905,391 @@
 </head>
 
 <body>
-  <div class="shell">
 
-    <!-- TOPBAR -->
-    <header class="topbar">
-      <div class="brand">
-        <div class="logo"></div>
+<a
+  href="#mainContent"
+  class="skip-link"
+>
+  Skip to content
+</a>
 
-        <div>
-          <h1>HARVEY TAXI</h1>
-          <p>Driver Onboarding Portal</p>
-        </div>
+<div class="shell">
+
+  <!-- LANGUAGE + ACCESSIBILITY -->
+
+  <section class="language-panel">
+
+    <div class="language-copy">
+
+      <strong id="langTitle">
+        Language & Accessibility
+      </strong>
+
+      <span id="langSubtitle">
+        Select your preferred language and accessibility settings.
+      </span>
+
+    </div>
+
+    <div class="language-actions">
+
+      <select id="languageSelect">
+
+        <option value="en">English</option>
+        <option value="es">Español</option>
+        <option value="fr">Français</option>
+        <option value="ar">العربية</option>
+
+      </select>
+
+      <button
+        type="button"
+        class="access-btn"
+        id="contrastBtn"
+      >
+        Contrast
+      </button>
+
+      <button
+        type="button"
+        class="access-btn"
+        id="textBtn"
+      >
+        A+
+      </button>
+
+      <button
+        type="button"
+        class="access-btn"
+        id="motionBtn"
+      >
+        Motion
+      </button>
+
+    </div>
+
+  </section>
+
+  <section class="inclusive-note">
+
+    <strong id="welcomeTitle">
+      Driver Access For Everyone
+    </strong>
+
+    <p id="welcomeText">
+      Harvey Taxi supports multilingual onboarding,
+      accessibility accommodations,
+      screen reader compatibility,
+      larger text preferences,
+      and reduced motion support.
+    </p>
+
+  </section>  <!-- TOPBAR -->
+
+  <header class="topbar">
+
+    <div class="brand">
+
+      <div class="logo"></div>
+
+      <div>
+        <h1 data-i18n="brand">
+          HARVEY TAXI
+        </h1>
+
+        <p data-i18n="portal">
+          Driver Onboarding Portal
+        </p>
       </div>
 
-      <a class="mini" href="/">
-        Return Home
-      </a>
-    </header>
-
-    <main class="grid">
-
-      <!-- HERO -->
-      <section class="hero">
-        <div class="eyebrow">
-          Driver onboarding
-        </div>
-
-        <h2>
-          Join the <span>Harvey Taxi fleet</span>
-        </h2>
-
-        <p>
-          Submit your application, verify your email,
-          verify your phone, complete identity review,
-          complete Checkr, and wait for admin approval
-          before going online.
-        </p>
-
-        <div class="item">
-          <strong>Email verification</strong>
-          <span>
-            A secure SendGrid email link verifies your email address.
-          </span>
-        </div>
-
-        <div class="item">
-          <strong>SMS verification</strong>
-          <span>
-            A 6-digit code verifies your phone number after your email is verified.
-          </span>
-        </div>
-
-        <div class="item">
-          <strong>Persona + Checkr review</strong>
-          <span>
-            Driver approval can include identity review, document review,
-            background review, and manual admin approval.
-          </span>
-        </div>
-
-        <div class="item">
-          <strong>Mission-first access</strong>
-          <span>
-            Drivers must be fully approved before receiving ride,
-            food delivery, or grocery delivery missions.
-          </span>
-        </div>
-      </section>
-
-      <!-- CARD -->
-      <section class="card">
-        <h3>Driver Sign Up</h3>
-
-        <p class="muted">
-          Complete the driver application below. After signup,
-          verify your email first, then request your SMS code.
-        </p>
-
-        <div class="notice">
-          Driver access is not immediate. Approval requires email verification,
-          phone verification, identity review, background review,
-          insurance confirmation, and admin approval.
-        </div>        <form id="driverSignupForm" novalidate>
-
-          <!-- SIGNUP SECTION -->
-          <div id="signupSection">
-
-            <!-- DRIVER INFO -->
-            <div class="section">
-
-              <div class="section-head">
-                <h4>Driver Information</h4>
-                <span>Step 1</span>
-              </div>
-
-              <div class="form-grid">
-
-                <div class="field">
-                  <label for="firstName">First Name</label>
-
-                  <input
-                    id="firstName"
-                    type="text"
-                    placeholder="First name"
-                    autocomplete="given-name"
-                    required
-                  />
-                </div>
-
-                <div class="field">
-                  <label for="lastName">Last Name</label>
-
-                  <input
-                    id="lastName"
-                    type="text"
-                    placeholder="Last name"
-                    autocomplete="family-name"
-                    required
-                  />
-                </div>
-
-                <div class="field full">
-                  <label for="email">Email Address</label>
-
-                  <input
-                    id="email"
-                    type="email"
-                    placeholder="Email address"
-                    autocomplete="email"
-                    autocapitalize="off"
-                    spellcheck="false"
-                    required
-                  />
-                </div>
-
-                <div class="field">
-                  <label for="phone">Phone Number</label>
-
-                  <input
-                    id="phone"
-                    type="tel"
-                    placeholder="+16155551234"
-                    autocomplete="tel"
-                    inputmode="tel"
-                    required
-                  />
-                </div>
-
-                <div class="field">
-                  <label for="city">Operating City</label>
-
-                  <input
-                    id="city"
-                    type="text"
-                    placeholder="Nashville"
-                    autocomplete="address-level2"
-                    required
-                  />
-                </div>
-
-                <div class="field">
-                  <label for="state">State</label>
-
-                  <input
-                    id="state"
-                    type="text"
-                    maxlength="2"
-                    placeholder="TN"
-                    autocomplete="address-level1"
-                    required
-                  />
-                </div>
-
-                <div class="field">
-                  <label for="licenseNumber">
-                    Driver License Number
-                  </label>
-
-                  <input
-                    id="licenseNumber"
-                    type="text"
-                    placeholder="License number"
-                    autocomplete="off"
-                    required
-                  />
-                </div>
-
-                <div class="field">
-                  <label for="password">Password</label>
-
-                  <input
-                    id="password"
-                    type="password"
-                    placeholder="Minimum 8 characters"
-                    autocomplete="new-password"
-                    required
-                  />
-                </div>
-
-              </div>
-            </div>
-
-            <!-- VEHICLE -->
-            <div class="section">
-
-              <div class="section-head">
-                <h4>Vehicle Information</h4>
-                <span>Step 2</span>
-              </div>
-
-              <div class="form-grid">
-
-                <div class="field">
-                  <label for="vehicleMake">Vehicle Make</label>
-
-                  <input
-                    id="vehicleMake"
-                    type="text"
-                    placeholder="Toyota"
-                    required
-                  />
-                </div>
-
-                <div class="field">
-                  <label for="vehicleModel">Vehicle Model</label>
-
-                  <input
-                    id="vehicleModel"
-                    type="text"
-                    placeholder="Camry"
-                    required
-                  />
-                </div>
-
-                <div class="field">
-                  <label for="vehicleYear">Vehicle Year</label>
-
-                  <input
-                    id="vehicleYear"
-                    type="text"
-                    inputmode="numeric"
-                    maxlength="4"
-                    placeholder="2020"
-                    required
-                  />
-                </div>
-
-                <div class="field">
-                  <label for="vehicleColor">Vehicle Color</label>
-
-                  <input
-                    id="vehicleColor"
-                    type="text"
-                    placeholder="Black"
-                  />
-                </div>
-
-                <div class="field full">
-                  <label for="licensePlate">License Plate</label>
-
-                  <input
-                    id="licensePlate"
-                    type="text"
-                    placeholder="ABC1234"
-                    required
-                  />
-                </div>
-
-              </div>
-            </div>
-
-            <!-- SERVICE TYPES -->
-            <div class="section">
-
-              <div class="section-head">
-                <h4>Driver Services</h4>
-                <span>Step 3</span>
-              </div>
-
-              <div class="choice-grid">
-
-                <label class="choice">
-                  <input
-                    type="checkbox"
-                    id="supportsRides"
-                    checked
-                  />
-
-                  <div class="choice-card">
-                    <strong>Passenger Rides</strong>
-
-                    <span>
-                      Standard Harvey Taxi ride requests and transportation missions.
-                    </span>
-                  </div>
-                </label>
-
-                <label class="choice">
-                  <input
-                    type="checkbox"
-                    id="supportsFood"
-                    checked
-                  />
-
-                  <div class="choice-card">
-                    <strong>Food Delivery</strong>
-
-                    <span>
-                      Restaurant and fast food delivery support.
-                    </span>
-                  </div>
-                </label>
-
-                <label class="choice">
-                  <input
-                    type="checkbox"
-                    id="supportsGrocery"
-                    checked
-                  />
-
-                  <div class="choice-card">
-                    <strong>Grocery Delivery</strong>
-
-                    <span>
-                      Grocery pickup and grocery delivery missions.
-                    </span>
-                  </div>
-                </label>
-
-                <label class="choice">
-                  <input
-                    type="checkbox"
-                    id="supportsPriority"
-                  />
-
-                  <div class="choice-card">
-                    <strong>Priority Missions</strong>
-
-                    <span>
-                      Allow high-priority dispatch and emergency-style mission routing.
-                    </span>
-                  </div>
-                </label>
-
-              </div>
-            </div>
-
-            <!-- DRIVER MODE -->
-            <div class="section">
-
-              <div class="section-head">
-                <h4>Driver Mode</h4>
-                <span>Step 4</span>
-              </div>
-
-              <div class="choice-grid">
-
-                <label class="choice">
-                  <input
-                    type="radio"
-                    name="driverType"
-                    value="human"
-                    checked
-                  />
-
-                  <div class="choice-card">
-                    <strong>Human Driver</strong>
-
-                    <span>
-                      Standard Harvey Taxi live driver onboarding.
-                    </span>
-                  </div>
-                </label>
-
-                <label class="choice">
-                  <input
-                    type="radio"
-                    name="driverType"
-                    value="autonomous"
-                  />
-
-                  <div class="choice-card">
-                    <strong>Autonomous Pilot</strong>
-
-                    <span>
-                      Pilot mode for AV-aligned testing and future readiness.
-                    </span>
-                  </div>
-                </label>
-
-              </div>
-
-              <div class="mini-row">
-                <div class="mini-pill">
-                  AI dispatch compatible
-                </div>
-
-                <div class="mini-pill">
-                  Mission-first workflow
-                </div>
-
-                <div class="mini-pill">
-                  Address-first visibility
-                </div>
-              </div>
-
-            </div>            <!-- DRIVER ACKNOWLEDGMENTS -->
-            <div class="section">
-
-              <div class="section-head">
-                <h4>Driver Acknowledgment</h4>
-                <span>Step 5</span>
-              </div>
-
-              <div class="consents">
-
-                <label class="consent" for="termsAccepted">
-
-                  <input
-                    id="termsAccepted"
-                    type="checkbox"
-                    required
-                  />
-
-                  <span class="check"></span>
-
-                  <span class="consent-text">
-                    I agree to Harvey Taxi onboarding terms and understand
-                    approval is required before accepting missions.
-                  </span>
-
-                </label>
-
-                <label class="consent" for="backgroundAccepted">
-
-                  <input
-                    id="backgroundAccepted"
-                    type="checkbox"
-                    required
-                  />
-
-                  <span class="check"></span>
-
-                  <span class="consent-text">
-                    I consent to Persona identity review, Checkr background
-                    review, and ongoing compliance verification.
-                  </span>
-
-                </label>
-
-                <label class="consent" for="insuranceConfirmed">
-
-                  <input
-                    id="insuranceConfirmed"
-                    type="checkbox"
-                    required
-                  />
-
-                  <span class="check"></span>
-
-                  <span class="consent-text">
-                    I confirm I carry or will provide required insurance
-                    documentation during review.
-                  </span>
-
-                </label>
-
-                <label class="consent" for="locationConsent">
-
-                  <input
-                    id="locationConsent"
-                    type="checkbox"
-                    required
-                  />
-
-                  <span class="check"></span>
-
-                  <span class="consent-text">
-                    I understand Harvey Taxi may use secure live driver
-                    location data for dispatch, rider safety, and mission
-                    routing.
-                  </span>
-
-                </label>
-
-              </div>
-
-              <p id="formHint" class="muted">
-                Complete all required fields and acknowledgments.
-              </p>
+    </div>
+
+    <a
+      class="mini"
+      href="/"
+      data-i18n="home"
+    >
+      Return Home
+    </a>
+
+  </header>
+
+  <main
+    id="mainContent"
+    class="grid"
+  >
+
+    <!-- HERO -->
+
+    <section class="hero">
+
+      <div
+        class="eyebrow"
+        data-i18n="onboarding"
+      >
+        Driver onboarding
+      </div>
+
+      <h2>
+        <span data-i18n="fleetTitle">
+          Join the Harvey Taxi fleet
+        </span>
+      </h2>
+
+      <p data-i18n="fleetDesc">
+        Submit your application, verify your email,
+        verify your phone, complete identity review,
+        complete Checkr, and wait for admin approval
+        before going online.
+      </p>
+
+      <div class="language-badge">
+        🌎
+        <span id="currentLanguageLabel">
+          English
+        </span>
+      </div>
+
+      <div class="item">
+
+        <strong data-i18n="emailVerification">
+          Email verification
+        </strong>
+
+        <span data-i18n="emailVerificationDesc">
+          A secure SendGrid email link verifies your email address.
+        </span>
+
+      </div>
+
+      <div class="item">
+
+        <strong data-i18n="smsVerification">
+          SMS verification
+        </strong>
+
+        <span data-i18n="smsVerificationDesc">
+          A 6-digit code verifies your phone number after your email is verified.
+        </span>
+
+      </div>
+
+      <div class="item">
+
+        <strong data-i18n="personaCheckr">
+          Persona + Checkr review
+        </strong>
+
+        <span data-i18n="personaCheckrDesc">
+          Driver approval can include identity review,
+          document review, background review,
+          and manual admin approval.
+        </span>
+
+      </div>
+
+      <div class="item">
+
+        <strong data-i18n="missionAccess">
+          Mission-first access
+        </strong>
+
+        <span data-i18n="missionAccessDesc">
+          Drivers must be fully approved before receiving ride,
+          food delivery, or grocery delivery missions.
+        </span>
+
+      </div>
+
+    </section>
+
+    <!-- CARD -->
+
+    <section class="card">
+
+      <h3 data-i18n="signupTitle">
+        Driver Sign Up
+      </h3>
+
+      <p
+        class="muted"
+        data-i18n="signupSubtitle"
+      >
+        Complete the driver application below.
+      </p>
+
+      <div
+        class="notice"
+        data-i18n="approvalNotice"
+      >
+        Driver access is not immediate.
+      </div>
+
+      <form
+        id="driverSignupForm"
+        novalidate
+      >
+
+        <div id="signupSection">
+
+          <!-- DRIVER INFO -->
+
+          <div class="section">
+
+            <div class="section-head">
+
+              <h4 data-i18n="driverInfo">
+                Driver Information
+              </h4>
+
+              <span>Step 1</span>
 
             </div>
 
-            <!-- DRIVER STATUS -->
-            <div class="section">
+            <div class="form-grid">
 
-              <div class="section-head">
-                <h4>Driver Approval Pipeline</h4>
-                <span>Realtime onboarding</span>
-              </div>
+              <div class="field">
 
-              <div class="timeline">
-
-                <div class="timeline-item active">
-                  <div class="timeline-dot"></div>
-
-                  <div class="timeline-copy">
-                    <strong>Application Submitted</strong>
-
-                    <span>
-                      Driver account created and onboarding initialized.
-                    </span>
-                  </div>
-                </div>
-
-                <div class="timeline-item">
-                  <div class="timeline-dot"></div>
-
-                  <div class="timeline-copy">
-                    <strong>Email Verification</strong>
-
-                    <span>
-                      SendGrid verification link confirms driver email ownership.
-                    </span>
-                  </div>
-                </div>
-
-                <div class="timeline-item">
-                  <div class="timeline-dot"></div>
-
-                  <div class="timeline-copy">
-                    <strong>SMS Verification</strong>
-
-                    <span>
-                      Twilio verification confirms driver phone number.
-                    </span>
-                  </div>
-                </div>
-
-                <div class="timeline-item">
-                  <div class="timeline-dot"></div>
-
-                  <div class="timeline-copy">
-                    <strong>Persona Review</strong>
-
-                    <span>
-                      Driver identity verification and document review.
-                    </span>
-                  </div>
-                </div>
-
-                <div class="timeline-item">
-                  <div class="timeline-dot"></div>
-
-                  <div class="timeline-copy">
-                    <strong>Checkr Background Review</strong>
-
-                    <span>
-                      Driver background screening and compliance review.
-                    </span>
-                  </div>
-                </div>
-
-                <div class="timeline-item">
-                  <div class="timeline-dot"></div>
-
-                  <div class="timeline-copy">
-                    <strong>Admin Approval</strong>
-
-                    <span>
-                      Harvey Taxi operations approves final driver access.
-                    </span>
-                  </div>
-                </div>
-
-              </div>
-
-            </div>
-
-            <!-- ACTIONS -->
-            <div class="actions">
-
-              <button
-                id="submitBtn"
-                class="btn"
-                type="submit"
-              >
-                Submit Driver Application
-              </button>
-
-              <div class="two">
-
-                <a
-                  class="ghost"
-                  href="/"
+                <label
+                  for="firstName"
+                  data-i18n="firstName"
                 >
-                  Return Home
-                </a>
+                  First Name
+                </label>
 
-                <a
-                  class="ghost"
-                  href="/support.html"
+                <input
+                  id="firstName"
+                  type="text"
+                  placeholder="First name"
+                  required
+                />
+
+              </div>
+
+              <div class="field">
+
+                <label
+                  for="lastName"
+                  data-i18n="lastName"
                 >
-                  Driver Support
-                </a>
+                  Last Name
+                </label>
+
+                <input
+                  id="lastName"
+                  type="text"
+                  placeholder="Last name"
+                  required
+                />
+
+              </div>
+
+              <div class="field full">
+
+                <label
+                  for="email"
+                  data-i18n="email"
+                >
+                  Email Address
+                </label>
+
+                <input
+                  id="email"
+                  type="email"
+                  placeholder="Email address"
+                  required
+                />
+
+              </div>
+
+              <div class="field">
+
+                <label
+                  for="phone"
+                  data-i18n="phone"
+                >
+                  Phone Number
+                </label>
+
+                <input
+                  id="phone"
+                  type="tel"
+                  placeholder="+16155551234"
+                  required
+                />
+
+              </div>
+
+              <div class="field">
+
+                <label
+                  for="city"
+                  data-i18n="city"
+                >
+                  Operating City
+                </label>
+
+                <input
+                  id="city"
+                  type="text"
+                  placeholder="Nashville"
+                  required
+                />
+
+              </div>
+
+              <div class="field">
+
+                <label
+                  for="state"
+                  data-i18n="state"
+                >
+                  State
+                </label>
+
+                <input
+                  id="state"
+                  type="text"
+                  maxlength="2"
+                  placeholder="TN"
+                  required
+                />
+
+              </div>
+
+              <div class="field">
+
+                <label
+                  for="licenseNumber"
+                  data-i18n="license"
+                >
+                  Driver License Number
+                </label>
+
+                <input
+                  id="licenseNumber"
+                  type="text"
+                  placeholder="License Number"
+                  required
+                />
+
+              </div>
+
+              <div class="field">
+
+                <label
+                  for="password"
+                  data-i18n="password"
+                >
+                  Password
+                </label>
+
+                <input
+                  id="password"
+                  type="password"
+                  placeholder="Minimum 8 characters"
+                  required
+                />
 
               </div>
 
@@ -1296,2194 +1297,1321 @@
 
           </div>
 
-          <!-- VERIFICATION SECTION -->
-          <div
-            id="verificationSection"
-            class="section hidden"
-          >
+          <!-- VEHICLE -->
+
+          <div class="section">
 
             <div class="section-head">
-              <h4>Driver Verification</h4>
-              <span>Finish onboarding</span>
-            </div>
 
-            <p class="muted">
-              Verify your email first. After email verification is confirmed,
-              request your SMS code and complete onboarding.
-            </p>
+              <h4 data-i18n="vehicleInfo">
+                Vehicle Information
+              </h4>
 
-            <div
-              id="savedDriverBox"
-              class="saved"
-            >
-
-              <strong>Saved Driver Session</strong>
-
-              <span id="savedDriverText"></span>
+              <span>Step 2</span>
 
             </div>
 
-            <div class="progress">
+            <div class="form-grid">
 
-              <div class="progress-card">
+              <div class="field">
 
-                <strong>Email Verification</strong>
-
-                <span id="emailTargetText">
-                  Waiting for email...
-                </span>
-
-                <span
-                  id="emailPill"
-                  class="pill"
+                <label
+                  for="vehicleMake"
+                  data-i18n="make"
                 >
-                  Pending
-                </span>
+                  Vehicle Make
+                </label>
+
+                <input
+                  id="vehicleMake"
+                  type="text"
+                  placeholder="Toyota"
+                  required
+                />
 
               </div>
 
-              <div class="progress-card">
+              <div class="field">
 
-                <strong>SMS Verification</strong>
-
-                <span id="smsTargetText">
-                  Waiting for phone...
-                </span>
-
-                <span
-                  id="smsPill"
-                  class="pill"
+                <label
+                  for="vehicleModel"
+                  data-i18n="model"
                 >
-                  Pending
-                </span>
+                  Vehicle Model
+                </label>
+
+                <input
+                  id="vehicleModel"
+                  type="text"
+                  placeholder="Camry"
+                  required
+                />
+
+              </div>
+
+              <div class="field">
+
+                <label
+                  for="vehicleYear"
+                  data-i18n="year"
+                >
+                  Vehicle Year
+                </label>
+
+                <input
+                  id="vehicleYear"
+                  type="text"
+                  placeholder="2024"
+                  required
+                />
+
+              </div>
+
+              <div class="field">
+
+                <label
+                  for="vehicleColor"
+                  data-i18n="color"
+                >
+                  Vehicle Color
+                </label>
+
+                <input
+                  id="vehicleColor"
+                  type="text"
+                  placeholder="Black"
+                />
+
+              </div>
+
+              <div class="field full">
+
+                <label
+                  for="licensePlate"
+                  data-i18n="plate"
+                >
+                  License Plate
+                </label>
+
+                <input
+                  id="licensePlate"
+                  type="text"
+                  placeholder="ABC1234"
+                  required
+                />
 
               </div>
 
             </div>
 
-            <div class="progress">
+          </div>          <!-- SERVICES -->
 
-              <div class="progress-card">
+          <div class="section">
 
-                <strong>Persona Review</strong>
+            <div class="section-head">
 
-                <span>
-                  Identity review status updates automatically.
-                </span>
+              <h4 data-i18n="services">
+                Driver Services
+              </h4>
 
-                <span
-                  id="personaPill"
-                  class="pill"
-                >
-                  Pending
-                </span>
+              <span>Step 3</span>
 
+            </div>
+
+            <div class="choice-grid">
+
+              <label class="choice">
+
+                <input
+                  type="checkbox"
+                  id="supportsRides"
+                  checked
+                />
+
+                <div class="choice-card">
+
+                  <strong data-i18n="rides">
+                    Passenger Rides
+                  </strong>
+
+                  <span data-i18n="ridesDesc">
+                    Standard Harvey Taxi transportation requests.
+                  </span>
+
+                </div>
+
+              </label>
+
+              <label class="choice">
+
+                <input
+                  type="checkbox"
+                  id="supportsFood"
+                  checked
+                />
+
+                <div class="choice-card">
+
+                  <strong data-i18n="food">
+                    Food Delivery
+                  </strong>
+
+                  <span data-i18n="foodDesc">
+                    Restaurant and fast food deliveries.
+                  </span>
+
+                </div>
+
+              </label>
+
+              <label class="choice">
+
+                <input
+                  type="checkbox"
+                  id="supportsGrocery"
+                  checked
+                />
+
+                <div class="choice-card">
+
+                  <strong data-i18n="grocery">
+                    Grocery Delivery
+                  </strong>
+
+                  <span data-i18n="groceryDesc">
+                    Grocery pickup and delivery missions.
+                  </span>
+
+                </div>
+
+              </label>
+
+              <label class="choice">
+
+                <input
+                  type="checkbox"
+                  id="supportsPriority"
+                />
+
+                <div class="choice-card">
+
+                  <strong data-i18n="priority">
+                    Priority Missions
+                  </strong>
+
+                  <span data-i18n="priorityDesc">
+                    Emergency and high-priority dispatch routing.
+                  </span>
+
+                </div>
+
+              </label>
+
+            </div>
+
+          </div>
+
+          <!-- DRIVER TYPE -->
+
+          <div class="section">
+
+            <div class="section-head">
+
+              <h4 data-i18n="driverMode">
+                Driver Mode
+              </h4>
+
+              <span>Step 4</span>
+
+            </div>
+
+            <div class="choice-grid">
+
+              <label class="choice">
+
+                <input
+                  type="radio"
+                  name="driverType"
+                  value="human"
+                  checked
+                />
+
+                <div class="choice-card">
+
+                  <strong data-i18n="humanDriver">
+                    Human Driver
+                  </strong>
+
+                  <span data-i18n="humanDriverDesc">
+                    Standard Harvey Taxi driver onboarding.
+                  </span>
+
+                </div>
+
+              </label>
+
+              <label class="choice">
+
+                <input
+                  type="radio"
+                  name="driverType"
+                  value="autonomous"
+                />
+
+                <div class="choice-card">
+
+                  <strong data-i18n="autonomous">
+                    Autonomous Pilot
+                  </strong>
+
+                  <span data-i18n="autonomousDesc">
+                    Future AV pilot readiness program.
+                  </span>
+
+                </div>
+
+              </label>
+
+            </div>
+
+            <div class="mini-row">
+
+              <div class="mini-pill">
+                AI Dispatch
               </div>
 
-              <div class="progress-card">
+              <div class="mini-pill">
+                Real-Time Missions
+              </div>
 
-                <strong>Checkr Review</strong>
+              <div class="mini-pill">
+                Smart Routing
+              </div>
 
-                <span>
-                  Background review status updates automatically.
-                </span>
+            </div>
+
+          </div>
+
+          <!-- ACKNOWLEDGEMENTS -->
+
+          <div class="section">
+
+            <div class="section-head">
+
+              <h4 data-i18n="acknowledgements">
+                Driver Acknowledgements
+              </h4>
+
+              <span>Step 5</span>
+
+            </div>
+
+            <div class="consents">
+
+              <label
+                class="consent"
+                for="termsAccepted"
+              >
+
+                <input
+                  id="termsAccepted"
+                  type="checkbox"
+                  required
+                />
+
+                <span class="check"></span>
 
                 <span
-                  id="checkrPill"
-                  class="pill"
+                  class="consent-text"
+                  data-i18n="termsConsent"
                 >
-                  Pending
+                  I agree to Harvey Taxi onboarding terms.
                 </span>
 
-              </div>
+              </label>
+
+              <label
+                class="consent"
+                for="backgroundAccepted"
+              >
+
+                <input
+                  id="backgroundAccepted"
+                  type="checkbox"
+                  required
+                />
+
+                <span class="check"></span>
+
+                <span
+                  class="consent-text"
+                  data-i18n="backgroundConsent"
+                >
+                  I consent to Persona and Checkr reviews.
+                </span>
+
+              </label>
+
+              <label
+                class="consent"
+                for="insuranceConfirmed"
+              >
+
+                <input
+                  id="insuranceConfirmed"
+                  type="checkbox"
+                  required
+                />
+
+                <span class="check"></span>
+
+                <span
+                  class="consent-text"
+                  data-i18n="insuranceConsent"
+                >
+                  I confirm insurance documentation will be provided.
+                </span>
+
+              </label>
+
+              <label
+                class="consent"
+                for="locationConsent"
+              >
+
+                <input
+                  id="locationConsent"
+                  type="checkbox"
+                  required
+                />
+
+                <span class="check"></span>
+
+                <span
+                  class="consent-text"
+                  data-i18n="locationTrackingConsent"
+                >
+                  I allow secure location tracking for dispatch and safety.
+                </span>
+
+              </label>
 
             </div>
 
             <p
-              id="verificationNote"
+              id="formHint"
               class="muted"
             >
-              Check your email for the Harvey Taxi verification link.
-            </p>            <div
-              class="field full"
-              style="margin-top:18px;"
-            >
-
-              <label for="smsCode">
-                SMS Verification Code
-              </label>
-
-              <input
-                id="smsCode"
-                type="text"
-                inputmode="numeric"
-                maxlength="6"
-                placeholder="Enter 6-digit SMS code"
-              />
-
-            </div>
-
-            <div class="actions">
-
-              <button
-                id="verifySmsBtn"
-                class="btn"
-                type="button"
-              >
-                Verify SMS Code
-              </button>
-
-            </div>
-
-            <div class="actions two">
-
-              <button
-                id="refreshStatusBtn"
-                class="secondary"
-                type="button"
-              >
-                Refresh Status
-              </button>
-
-              <button
-                id="resendEmailBtn"
-                class="secondary"
-                type="button"
-              >
-                Resend Email Link
-              </button>
-
-            </div>
-
-            <div class="actions two">
-
-              <button
-                id="resendSmsBtn"
-                class="secondary"
-                type="button"
-              >
-                Resend SMS Code
-              </button>
-
-              <button
-                id="startOverBtn"
-                class="secondary"
-                type="button"
-              >
-                Start Over
-              </button>
-
-            </div>
-
-            <div class="actions">
-
-              <button
-                id="launchPersonaBtn"
-                class="btn hidden"
-                type="button"
-              >
-                Start Persona Verification
-              </button>
-
-              <button
-                id="openDashboardBtn"
-                class="btn hidden"
-                type="button"
-              >
-                Open Driver Dashboard
-              </button>
-
-            </div>
-
-            <div
-              id="debugInfo"
-              class="debug"
-            ></div>
+              Complete all required fields.
+            </p>
 
           </div>
 
-          <!-- STATUS -->
-          <div
-            id="statusMessage"
-            class="status"
-          ></div>
+          <!-- LANGUAGE INFO PANEL -->
+
+          <div class="section">
+
+            <div class="section-head">
+
+              <h4>
+                Adaptive Language Support
+              </h4>
+
+              <span>
+                AI Translation
+              </span>
+
+            </div>
+
+            <div class="progress">
+
+              <div class="progress-card">
+
+                <strong>
+                  Current Language
+                </strong>
+
+                <span id="languageDisplay">
+                  English
+                </span>
+
+              </div>
+
+              <div class="progress-card">
+
+                <strong>
+                  Supported Languages
+                </strong>
+
+                <span>
+                  English, Español, Français, Português,
+                  العربية, 中文, हिन्दी, Swahili
+                </span>
+
+              </div>
+
+            </div>
+
+          </div>          <!-- APPROVAL PIPELINE -->
+
+          <div class="section">
+
+            <div class="section-head">
+
+              <h4 data-i18n="approvalPipeline">
+                Driver Approval Pipeline
+              </h4>
+
+              <span>
+                Real-Time Status
+              </span>
+
+            </div>
+
+            <div class="timeline">
+
+              <div class="timeline-item active">
+
+                <div class="timeline-dot"></div>
+
+                <div class="timeline-copy">
+
+                  <strong data-i18n="stepApplication">
+                    Application Submitted
+                  </strong>
+
+                  <span data-i18n="stepApplicationDesc">
+                    Driver profile created.
+                  </span>
+
+                </div>
+
+              </div>
+
+              <div class="timeline-item">
+
+                <div class="timeline-dot"></div>
+
+                <div class="timeline-copy">
+
+                  <strong data-i18n="stepEmail">
+                    Email Verification
+                  </strong>
+
+                  <span data-i18n="stepEmailDesc">
+                    Verify ownership of email.
+                  </span>
+
+                </div>
+
+              </div>
+
+              <div class="timeline-item">
+
+                <div class="timeline-dot"></div>
+
+                <div class="timeline-copy">
+
+                  <strong data-i18n="stepSms">
+                    SMS Verification
+                  </strong>
+
+                  <span data-i18n="stepSmsDesc">
+                    Verify mobile phone ownership.
+                  </span>
+
+                </div>
+
+              </div>
+
+              <div class="timeline-item">
+
+                <div class="timeline-dot"></div>
+
+                <div class="timeline-copy">
+
+                  <strong data-i18n="stepPersona">
+                    Persona Identity Review
+                  </strong>
+
+                  <span data-i18n="stepPersonaDesc">
+                    Identity and document review.
+                  </span>
+
+                </div>
+
+              </div>
+
+              <div class="timeline-item">
+
+                <div class="timeline-dot"></div>
+
+                <div class="timeline-copy">
+
+                  <strong data-i18n="stepCheckr">
+                    Checkr Background Review
+                  </strong>
+
+                  <span data-i18n="stepCheckrDesc">
+                    Criminal and compliance screening.
+                  </span>
+
+                </div>
+
+              </div>
+
+              <div class="timeline-item">
+
+                <div class="timeline-dot"></div>
+
+                <div class="timeline-copy">
+
+                  <strong data-i18n="stepApproval">
+                    Admin Approval
+                  </strong>
+
+                  <span data-i18n="stepApprovalDesc">
+                    Final Harvey Taxi activation.
+                  </span>
+
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+          <!-- ACTION BUTTONS -->
+
+          <div class="actions">
+
+            <button
+              id="submitBtn"
+              class="btn"
+              type="submit"
+            >
+              Submit Driver Application
+            </button>
+
+            <div class="two">
+
+              <a
+                class="ghost"
+                href="/"
+                data-i18n="returnHome"
+              >
+                Return Home
+              </a>
+
+              <a
+                class="ghost"
+                href="/support.html"
+                data-i18n="driverSupport"
+              >
+                Driver Support
+              </a>
+
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- VERIFICATION SECTION -->
+
+        <div
+          id="verificationSection"
+          class="section hidden"
+        >
+
+          <div class="section-head">
+
+            <h4 data-i18n="verificationTitle">
+              Driver Verification
+            </h4>
+
+            <span>
+              Final Steps
+            </span>
+
+          </div>
+
+          <p
+            class="muted"
+            data-i18n="verificationText"
+          >
+            Verify your email first, then complete SMS verification.
+          </p>
 
           <div
-            id="pageDebug"
+            id="savedDriverBox"
+            class="saved"
+          >
+
+            <strong>
+              Driver Session
+            </strong>
+
+            <span id="savedDriverText"></span>
+
+          </div>
+
+          <div class="progress">
+
+            <div class="progress-card">
+
+              <strong data-i18n="emailVerification">
+                Email Verification
+              </strong>
+
+              <span id="emailTargetText">
+                Waiting...
+              </span>
+
+              <span
+                id="emailPill"
+                class="pill"
+              >
+                Pending
+              </span>
+
+            </div>
+
+            <div class="progress-card">
+
+              <strong data-i18n="smsVerification">
+                SMS Verification
+              </strong>
+
+              <span id="smsTargetText">
+                Waiting...
+              </span>
+
+              <span
+                id="smsPill"
+                class="pill"
+              >
+                Pending
+              </span>
+
+            </div>
+
+          </div>
+
+          <div class="progress">
+
+            <div class="progress-card">
+
+              <strong>
+                Persona
+              </strong>
+
+              <span>
+                Identity verification review.
+              </span>
+
+              <span
+                id="personaPill"
+                class="pill"
+              >
+                Pending
+              </span>
+
+            </div>
+
+            <div class="progress-card">
+
+              <strong>
+                Checkr
+              </strong>
+
+              <span>
+                Background review.
+              </span>
+
+              <span
+                id="checkrPill"
+                class="pill"
+              >
+                Pending
+              </span>
+
+            </div>
+
+          </div>
+
+          <p
+            id="verificationNote"
+            class="muted"
+          >
+            Check your inbox for your verification link.
+          </p>          <!-- SMS CODE ENTRY -->
+
+          <div
+            class="field full"
+            style="margin-top:18px;"
+          >
+
+            <label
+              for="smsCode"
+              data-i18n="smsCode"
+            >
+              SMS Verification Code
+            </label>
+
+            <input
+              id="smsCode"
+              type="text"
+              inputmode="numeric"
+              maxlength="6"
+              placeholder="123456"
+            />
+
+          </div>
+
+          <!-- VERIFICATION ACTIONS -->
+
+          <div class="actions">
+
+            <button
+              id="verifySmsBtn"
+              class="btn"
+              type="button"
+              data-i18n="verifySms"
+            >
+              Verify SMS Code
+            </button>
+
+          </div>
+
+          <div class="actions two">
+
+            <button
+              id="refreshStatusBtn"
+              class="secondary"
+              type="button"
+              data-i18n="refreshStatus"
+            >
+              Refresh Status
+            </button>
+
+            <button
+              id="resendEmailBtn"
+              class="secondary"
+              type="button"
+              data-i18n="resendEmail"
+            >
+              Resend Email Link
+            </button>
+
+          </div>
+
+          <div class="actions two">
+
+            <button
+              id="resendSmsBtn"
+              class="secondary"
+              type="button"
+              data-i18n="resendSms"
+            >
+              Resend SMS Code
+            </button>
+
+            <button
+              id="startOverBtn"
+              class="secondary"
+              type="button"
+              data-i18n="startOver"
+            >
+              Start Over
+            </button>
+
+          </div>
+
+          <div class="actions">
+
+            <button
+              id="launchPersonaBtn"
+              class="btn hidden"
+              type="button"
+            >
+              Start Persona Verification
+            </button>
+
+            <button
+              id="openDashboardBtn"
+              class="btn hidden"
+              type="button"
+            >
+              Open Driver Dashboard
+            </button>
+
+          </div>
+
+          <div
+            id="debugInfo"
             class="debug"
           ></div>
 
-        </form>
+        </div>
 
-      </section>
+        <!-- STATUS AREA -->
 
-    </main>
+        <div
+          id="statusMessage"
+          class="status"
+        ></div>
 
-  </div>
+        <div
+          id="pageDebug"
+          class="debug"
+        ></div>
 
-  <!-- ===================================================== -->
-  <!-- HARVEY TAXI DRIVER SIGNUP SCRIPT -->
-  <!-- ===================================================== -->
-  <script>
+      </form>
 
-    const APP_VERSION =
-      "harvey-driver-signup-codeblue-v26";
+    </section>
 
-    const API_ORIGIN =
-      "https://harvey-taxi-app-2.onrender.com";
+  </main>
 
-    const STORAGE = {
-      onboarding: "harvey_driver_onboarding_state",
-      driverId: "harvey_driver_id",
-      driverIdAlt: "harveyDriverId",
-      driverEmail: "harvey_driver_email",
-      driverProfile: "harvey_driver_profile"
+</div>
+
+<!-- ======================================== -->
+<!-- ADAPTIVE LANGUAGE ENGINE -->
+<!-- ======================================== -->
+
+<script>
+
+const translations = {
+
+  en: {
+
+    heroTitle:
+      "Join the Harvey Taxi Fleet",
+
+    submit:
+      "Submit Driver Application",
+
+    returnHome:
+      "Return Home",
+
+    driverSupport:
+      "Driver Support",
+
+    verificationTitle:
+      "Driver Verification",
+
+    verificationText:
+      "Verify your email first, then complete SMS verification.",
+
+    services:
+      "Driver Services",
+
+    rides:
+      "Passenger Rides",
+
+    ridesDesc:
+      "Standard transportation missions.",
+
+    food:
+      "Food Delivery",
+
+    foodDesc:
+      "Restaurant and food delivery.",
+
+    grocery:
+      "Grocery Delivery",
+
+    groceryDesc:
+      "Grocery pickup and delivery.",
+
+    priority:
+      "Priority Missions",
+
+    priorityDesc:
+      "Emergency dispatch missions."
+
+  },
+
+  es: {
+
+    heroTitle:
+      "Únete a la flota de Harvey Taxi",
+
+    submit:
+      "Enviar Solicitud",
+
+    returnHome:
+      "Volver al Inicio",
+
+    driverSupport:
+      "Soporte para Conductores",
+
+    verificationTitle:
+      "Verificación del Conductor",
+
+    verificationText:
+      "Verifica tu correo electrónico primero y luego tu teléfono.",
+
+    services:
+      "Servicios del Conductor",
+
+    rides:
+      "Viajes de Pasajeros",
+
+    ridesDesc:
+      "Misiones de transporte estándar.",
+
+    food:
+      "Entrega de Comida",
+
+    foodDesc:
+      "Entregas de restaurantes.",
+
+    grocery:
+      "Entrega de Supermercado",
+
+    groceryDesc:
+      "Recogida y entrega de compras.",
+
+    priority:
+      "Misiones Prioritarias",
+
+    priorityDesc:
+      "Despacho de emergencia."
+  },
+
+  fr: {
+
+    heroTitle:
+      "Rejoignez la flotte Harvey Taxi",
+
+    submit:
+      "Soumettre la Demande",
+
+    returnHome:
+      "Retour à l'Accueil",
+
+    driverSupport:
+      "Support Chauffeur"
+
+  }
+
+};const adaptiveLanguageMap = {
+  ar: {
+    name: "العربية",
+    dir: "rtl",
+    heroTitle: "انضم إلى أسطول هارفي تاكسي",
+    submit: "إرسال طلب السائق",
+    returnHome: "العودة للرئيسية",
+    driverSupport: "دعم السائق",
+    verificationTitle: "تحقق السائق",
+    verificationText: "تحقق من بريدك الإلكتروني أولاً ثم أكمل التحقق عبر الرسائل."
+  },
+
+  pt: {
+    name: "Português",
+    dir: "ltr",
+    heroTitle: "Junte-se à frota Harvey Taxi",
+    submit: "Enviar Candidatura",
+    returnHome: "Voltar ao Início",
+    driverSupport: "Suporte ao Motorista",
+    verificationTitle: "Verificação do Motorista",
+    verificationText: "Verifique seu e-mail primeiro e depois conclua a verificação por SMS."
+  },
+
+  zh: {
+    name: "中文",
+    dir: "ltr",
+    heroTitle: "加入 Harvey Taxi 司机团队",
+    submit: "提交司机申请",
+    returnHome: "返回首页",
+    driverSupport: "司机支持",
+    verificationTitle: "司机验证",
+    verificationText: "请先验证电子邮件，然后完成短信验证。"
+  },
+
+  hi: {
+    name: "हिन्दी",
+    dir: "ltr",
+    heroTitle: "Harvey Taxi ड्राइवर टीम से जुड़ें",
+    submit: "ड्राइवर आवेदन जमा करें",
+    returnHome: "मुख्य पृष्ठ पर लौटें",
+    driverSupport: "ड्राइवर सहायता",
+    verificationTitle: "ड्राइवर सत्यापन",
+    verificationText: "पहले ईमेल सत्यापित करें, फिर SMS सत्यापन पूरा करें।"
+  },
+
+  sw: {
+    name: "Kiswahili",
+    dir: "ltr",
+    heroTitle: "Jiunge na madereva wa Harvey Taxi",
+    submit: "Wasilisha Ombi la Dereva",
+    returnHome: "Rudi Nyumbani",
+    driverSupport: "Msaada wa Dereva",
+    verificationTitle: "Uthibitishaji wa Dereva",
+    verificationText: "Thibitisha barua pepe kwanza, kisha kamilisha SMS."
+  }
+};
+
+Object.assign(translations, adaptiveLanguageMap);
+
+function detectPreferredLanguage() {
+  const saved =
+    localStorage.getItem("harvey_driver_language");
+
+  if (saved && translations[saved]) {
+    return saved;
+  }
+
+  const browserLang =
+    (navigator.language || "en")
+      .slice(0, 2)
+      .toLowerCase();
+
+  return translations[browserLang]
+    ? browserLang
+    : "en";
+}
+
+function applyLanguage(lang) {
+  const activeLang =
+    translations[lang] || translations.en;
+
+  document.documentElement.lang = lang;
+  document.documentElement.dir =
+    activeLang.dir || "ltr";
+
+  document.querySelectorAll("[data-i18n]")
+    .forEach((node) => {
+      const key = node.dataset.i18n;
+
+      if (activeLang[key]) {
+        node.textContent = activeLang[key];
+      }
+    });
+
+  if (document.querySelector(".hero h2 span")) {
+    document.querySelector(".hero h2 span").textContent =
+      activeLang.heroTitle || translations.en.heroTitle;
+  }
+
+  if ($("submitBtn")) {
+    $("submitBtn").textContent =
+      activeLang.submit || translations.en.submit;
+  }
+
+  if ($("languageDisplay")) {
+    $("languageDisplay").textContent =
+      activeLang.name ||
+      lang.toUpperCase();
+  }
+
+  if ($("currentLanguageLabel")) {
+    $("currentLanguageLabel").textContent =
+      activeLang.name ||
+      lang.toUpperCase();
+  }
+
+  localStorage.setItem(
+    "harvey_driver_language",
+    lang
+  );
+}
+
+function restoreAccessibilitySettings() {
+  const highContrast =
+    localStorage.getItem("harvey_driver_high_contrast") === "1";
+
+  const largeText =
+    localStorage.getItem("harvey_driver_large_text") === "1";
+
+  const reducedMotion =
+    localStorage.getItem("harvey_driver_reduced_motion") === "1";
+
+  document.body.classList.toggle(
+    "high-contrast",
+    highContrast
+  );
+
+  document.body.classList.toggle(
+    "large-text",
+    largeText
+  );
+
+  document.body.classList.toggle(
+    "reduced-motion",
+    reducedMotion
+  );
+
+  $("contrastBtn")?.classList.toggle(
+    "active",
+    highContrast
+  );
+
+  $("textBtn")?.classList.toggle(
+    "active",
+    largeText
+  );
+
+  $("motionBtn")?.classList.toggle(
+    "active",
+    reducedMotion
+  );
+}
+
+function bindAdaptiveControls() {
+  const languageSelect =
+    $("languageSelect");
+
+  const preferred =
+    detectPreferredLanguage();
+
+  if (languageSelect) {
+    languageSelect.value = preferred;
+
+    languageSelect.addEventListener(
+      "change",
+      () => {
+        applyLanguage(languageSelect.value);
+      }
+    );
+  }
+
+  $("contrastBtn")?.addEventListener(
+    "click",
+    () => {
+      const active =
+        !document.body.classList.contains("high-contrast");
+
+      document.body.classList.toggle(
+        "high-contrast",
+        active
+      );
+
+      localStorage.setItem(
+        "harvey_driver_high_contrast",
+        active ? "1" : "0"
+      );
+
+      $("contrastBtn").classList.toggle(
+        "active",
+        active
+      );
+    }
+  );
+
+  $("textBtn")?.addEventListener(
+    "click",
+    () => {
+      const active =
+        !document.body.classList.contains("large-text");
+
+      document.body.classList.toggle(
+        "large-text",
+        active
+      );
+
+      localStorage.setItem(
+        "harvey_driver_large_text",
+        active ? "1" : "0"
+      );
+
+      $("textBtn").classList.toggle(
+        "active",
+        active
+      );
+    }
+  );
+
+  $("motionBtn")?.addEventListener(
+    "click",
+    () => {
+      const active =
+        !document.body.classList.contains("reduced-motion");
+
+      document.body.classList.toggle(
+        "reduced-motion",
+        active
+      );
+
+      localStorage.setItem(
+        "harvey_driver_reduced_motion",
+        active ? "1" : "0"
+      );
+
+      $("motionBtn").classList.toggle(
+        "active",
+        active
+      );
+    }
+  );
+
+  restoreAccessibilitySettings();
+  applyLanguage(preferred);
+}
+
+/* Optional voice language notice */
+function speakLanguageReady() {
+  try {
+    if (!("speechSynthesis" in window)) {
+      return;
+    }
+
+    const lang =
+      localStorage.getItem("harvey_driver_language") || "en";
+
+    const phraseMap = {
+      en: "Harvey Taxi driver signup is ready.",
+      es: "El registro de conductor de Harvey Taxi está listo.",
+      fr: "L'inscription chauffeur Harvey Taxi est prête.",
+      ar: "تسجيل سائق هارفي تاكسي جاهز.",
+      pt: "O cadastro de motorista Harvey Taxi está pronto.",
+      zh: "Harvey Taxi 司机注册已准备好。",
+      hi: "Harvey Taxi ड्राइवर साइन अप तैयार है।",
+      sw: "Usajili wa dereva wa Harvey Taxi uko tayari."
     };
 
-    const $ = (id) => document.getElementById(id);
-
-    const els = {
-
-      driverSignupForm: $("driverSignupForm"),
-
-      signupSection: $("signupSection"),
-      verificationSection: $("verificationSection"),
-
-      submitBtn: $("submitBtn"),
-      verifySmsBtn: $("verifySmsBtn"),
-
-      refreshStatusBtn: $("refreshStatusBtn"),
-      resendEmailBtn: $("resendEmailBtn"),
-      resendSmsBtn: $("resendSmsBtn"),
-
-      launchPersonaBtn: $("launchPersonaBtn"),
-      openDashboardBtn: $("openDashboardBtn"),
-
-      startOverBtn: $("startOverBtn"),
-
-      smsCode: $("smsCode"),
-
-      formHint: $("formHint"),
-
-      emailPill: $("emailPill"),
-      smsPill: $("smsPill"),
-      personaPill: $("personaPill"),
-      checkrPill: $("checkrPill"),
-
-      emailTargetText: $("emailTargetText"),
-      smsTargetText: $("smsTargetText"),
-
-      verificationNote: $("verificationNote"),
-
-      savedDriverBox: $("savedDriverBox"),
-      savedDriverText: $("savedDriverText"),
-
-      statusMessage: $("statusMessage"),
-
-      debugInfo: $("debugInfo"),
-      pageDebug: $("pageDebug")
-
-    };
-
-    const state = {
-
-      driverId: "",
-      email: "",
-      phone: "",
-
-      emailVerified: false,
-      smsVerified: false,
-
-      personaStatus: "pending",
-      checkrStatus: "pending",
-
-      approved: false,
-
-      approvalStatus: "pending",
-
-      busy: false
-
-    };
-
-    const checkboxIds = [
-      "termsAccepted",
-      "backgroundAccepted",
-      "insuranceConfirmed",
-      "locationConsent"
-    ];
-
-    const requiredFields = [
-      "firstName",
-      "lastName",
-      "email",
-      "phone",
-      "city",
-      "state",
-      "licenseNumber",
-      "password",
-      "vehicleMake",
-      "vehicleModel",
-      "vehicleYear",
-      "licensePlate"
-    ];
-
-    function apiUrl(path) {
-
-      const current =
-        window.location.hostname || "";
-
-      if (
-        current.includes(
-          "harvey-taxi-app-2.onrender.com"
-        )
-      ) {
-        return path;
-      }
-
-      return API_ORIGIN + path;
-
-    }
-
-    function setDebug(message) {
-
-      const text =
-        `${APP_VERSION} • ${message}`;
-
-      if (els.pageDebug) {
-        els.pageDebug.textContent = text;
-      }
-
-      if (els.debugInfo) {
-        els.debugInfo.textContent = text;
-      }
-
-      console.log(
-        "[HARVEY DRIVER SIGNUP]",
-        text
+    const utterance =
+      new SpeechSynthesisUtterance(
+        phraseMap[lang] || phraseMap.en
       );
 
-    }
-
-    function escapeHtml(value) {
-
-      return String(value || "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#39;");
-
-    }
-
-    function onlyDigits(value) {
-
-      return String(value || "")
-        .replace(/\D/g, "");
-
-    }
-
-    function normalizePhone(value) {
-
-      const raw =
-        String(value || "").trim();
-
-      const digits =
-        raw.replace(/\D/g, "");
-
-      if (!digits) return "";
-
-      if (raw.startsWith("+")) {
-        return `+${digits}`;
-      }
-
-      if (
-        digits.length === 10
-      ) {
-        return `+1${digits}`;
-      }
-
-      if (
-        digits.length === 11 &&
-        digits.startsWith("1")
-      ) {
-        return `+${digits}`;
-      }
-
-      return `+${digits}`;
-
-    }
-
-    function normalizePlate(value) {
-
-      return String(value || "")
-        .toUpperCase()
-        .replace(/[^A-Z0-9-]/g, "")
-        .slice(0, 10);
-
-    }
-
-    function validEmail(value) {
-
-      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-        .test(
-          String(value || "")
-            .trim()
-        );
-
-    }
-
-    function maskEmail(email) {
-
-      const clean =
-        String(email || "")
-          .trim()
-          .toLowerCase();
-
-      const [local, domain] =
-        clean.split("@");
-
-      if (!local || !domain) {
-        return clean || "your email";
-      }
-
-      return `${local.slice(0,2)}***@${domain}`;
-
-    }
-
-    function maskPhone(phone) {
-
-      const digits =
-        onlyDigits(phone);
-
-      if (digits.length < 4) {
-        return "your phone";
-      }
-
-      return `***-***-${digits.slice(-4)}`;
-
-    }
-
-    function showStatus(type, message) {
-
-      els.statusMessage.className =
-        `status show ${type}`;
-
-      els.statusMessage.innerHTML =
-        message;
-
-    }
-
-    function clearStatus() {
-
-      els.statusMessage.className =
-        "status";
-
-      els.statusMessage.innerHTML =
-        "";
-
-    }
-
-    function setLoading(
-      button,
-      loading,
-      loadingText,
-      normalText
-    ) {
-
-      if (!button) return;
-
-      button.disabled = loading;
-
-      button.textContent =
-        loading
-          ? loadingText
-          : normalText;
-
-    }
-
-    function setPill(
-      element,
-      verified,
-      pendingText = "Pending",
-      successText = "Verified"
-    ) {
-
-      if (!element) return;
-
-      element.className =
-        verified
-          ? "pill ok"
-          : "pill";
-
-      element.textContent =
-        verified
-          ? successText
-          : pendingText;
-
-    }
-
-    async function requestJson(
-      path,
-      options = {}
-    ) {
-
-      const controller =
-        new AbortController();
-
-      const timeout =
-        setTimeout(() => {
-          controller.abort();
-        }, 25000);
-
-      const url =
-        apiUrl(path);
-
-      setDebug(
-        `${options.method || "GET"} ${url}`
-      );
-
-      try {
-
-        const response =
-          await fetch(url, {
-
-            method:
-              options.method || "GET",
-
-            headers: {
-              "Content-Type":
-                "application/json",
-
-              "Accept":
-                "application/json",
-
-              ...(options.headers || {})
-            },
-
-            body:
-              options.body,
-
-            cache:
-              "no-store",
-
-            mode:
-              "cors",
-
-            signal:
-              controller.signal
-
-          });
-
-        const text =
-          await response.text();
-
-        let data = {};
-
-        try {
-
-          data =
-            text
-              ? JSON.parse(text)
-              : {};
-
-        } catch {
-
-          throw new Error(
-            text ||
-            "Invalid server response."
-          );
-
-        }
-
-        if (
-          !response.ok ||
-          data.ok === false
-        ) {
-
-          throw new Error(
-            data.error ||
-            data.message ||
-            `Request failed (${response.status})`
-          );
-
-        }
-
-        return data;
-
-      } catch (error) {
-
-        if (
-          error.name ===
-          "AbortError"
-        ) {
-
-          throw new Error(
-            "Request timed out."
-          );
-
-        }
-
-        if (
-          String(error.message || "")
-            .includes("Failed to fetch")
-        ) {
-
-          throw new Error(
-            "Could not reach Harvey Taxi backend."
-          );
-
-        }
-
-        throw error;
-
-      } finally {
-
-        clearTimeout(timeout);
-
-      }
-
-    }    async function healthCheck() {
-
-      try {
-
-        const data =
-          await requestJson(
-            "/api/health",
-            {
-              method: "GET"
-            }
-          );
-
-        setDebug(
-          `Health OK • sendgrid=${!!data.services?.sendgrid} • twilio=${!!data.services?.twilio} • persona=${!!data.services?.persona} • checkr=${!!data.services?.checkr}`
-        );
-
-        return data;
-
-      } catch (error) {
-
-        setDebug(
-          `Health failed: ${error.message}`
-        );
-
-        return null;
-
-      }
-
-    }
-
-    function selectedDriverType() {
-
-      return (
-        document.querySelector(
-          'input[name="driverType"]:checked'
-        )?.value || "human"
-      );
-
-    }
-
-    function buildPayload() {
-
-      const firstName =
-        $("firstName").value.trim();
-
-      const lastName =
-        $("lastName").value.trim();
-
-      const fullName =
-        `${firstName} ${lastName}`.trim();
-
-      const phone =
-        normalizePhone(
-          $("phone").value
-        );
-
-      const vehicleYear =
-        onlyDigits(
-          $("vehicleYear").value
-        ).slice(0, 4);
-
-      const licensePlate =
-        normalizePlate(
-          $("licensePlate").value
-        );
-
-      return {
-
-        full_name: fullName,
-        fullName,
-
-        first_name: firstName,
-        firstName,
-
-        last_name: lastName,
-        lastName,
-
-        email:
-          $("email").value
-            .trim()
-            .toLowerCase(),
-
-        phone,
-
-        city:
-          $("city").value.trim(),
-
-        state:
-          $("state").value
-            .trim()
-            .toUpperCase(),
-
-        password:
-          $("password").value,
-
-        license_number:
-          $("licenseNumber").value.trim(),
-
-        licenseNumber:
-          $("licenseNumber").value.trim(),
-
-        drivers_license_number:
-          $("licenseNumber").value.trim(),
-
-        vehicle_make:
-          $("vehicleMake").value.trim(),
-
-        vehicleMake:
-          $("vehicleMake").value.trim(),
-
-        vehicle_model:
-          $("vehicleModel").value.trim(),
-
-        vehicleModel:
-          $("vehicleModel").value.trim(),
-
-        vehicle_year:
-          vehicleYear,
-
-        vehicleYear,
-
-        vehicle_color:
-          $("vehicleColor").value.trim() || null,
-
-        vehicleColor:
-          $("vehicleColor").value.trim() || null,
-
-        license_plate:
-          licensePlate,
-
-        licensePlate,
-
-        driver_type:
-          selectedDriverType(),
-
-        driverType:
-          selectedDriverType(),
-
-        supports_rides:
-          $("supportsRides").checked,
-
-        supportsRides:
-          $("supportsRides").checked,
-
-        supports_food_delivery:
-          $("supportsFood").checked,
-
-        supportsFoodDelivery:
-          $("supportsFood").checked,
-
-        supports_grocery_delivery:
-          $("supportsGrocery").checked,
-
-        supportsGroceryDelivery:
-          $("supportsGrocery").checked,
-
-        supports_priority_missions:
-          $("supportsPriority").checked,
-
-        supportsPriorityMissions:
-          $("supportsPriority").checked,
-
-        terms_accepted:
-          $("termsAccepted").checked,
-
-        background_check_accepted:
-          $("backgroundAccepted").checked,
-
-        insurance_confirmed:
-          $("insuranceConfirmed").checked,
-
-        location_consent:
-          $("locationConsent").checked,
-
-        accepted_terms:
-          $("termsAccepted").checked,
-
-        accepted_background_check_consent:
-          $("backgroundAccepted").checked,
-
-        accepted_driver_policy:
-          $("insuranceConfirmed").checked,
-
-        accepted_location_tracking:
-          $("locationConsent").checked,
-
-        consents: {
-
-          termsAccepted:
-            $("termsAccepted").checked,
-
-          backgroundCheckAccepted:
-            $("backgroundAccepted").checked,
-
-          insuranceConfirmed:
-            $("insuranceConfirmed").checked,
-
-          locationConsent:
-            $("locationConsent").checked
-
-        },
-
-        source:
-          "driver-signup.html",
-
-        client_version:
-          APP_VERSION
-
-      };
-
-    }
-
-    function hydrateDriver(driver = {}) {
-
-      state.driverId =
-        driver.id ||
-        driver.driver_id ||
-        state.driverId;
-
-      state.email =
-        driver.email ||
-        state.email;
-
-      state.phone =
-        driver.phone ||
-        state.phone;
-
-      state.emailVerified =
-        Boolean(
-          driver.email_verified ||
-          driver.emailVerified
-        );
-
-      state.smsVerified =
-        Boolean(
-          driver.phone_verified ||
-          driver.phoneVerified ||
-          driver.sms_verified ||
-          driver.smsVerified
-        );
-
-      state.personaStatus =
-        driver.persona_status ||
-        driver.personaStatus ||
-        state.personaStatus ||
-        "pending";
-
-      state.checkrStatus =
-        driver.checkr_status ||
-        driver.checkrStatus ||
-        state.checkrStatus ||
-        "pending";
-
-      state.approvalStatus =
-        driver.approval_status ||
-        driver.driver_approval_status ||
-        driver.status ||
-        state.approvalStatus ||
-        "pending";
-
-      state.approved =
-        [
-          "approved",
-          "active",
-          "verified"
-        ].includes(
-          String(state.approvalStatus)
-            .toLowerCase()
-        );
-
-    }
-
-    function saveState() {
-
-      try {
-
-        localStorage.setItem(
-          STORAGE.onboarding,
-          JSON.stringify(state)
-        );
-
-        if (state.driverId) {
-
-          localStorage.setItem(
-            STORAGE.driverId,
-            state.driverId
-          );
-
-          localStorage.setItem(
-            STORAGE.driverIdAlt,
-            state.driverId
-          );
-
-        }
-
-        if (state.email) {
-
-          localStorage.setItem(
-            STORAGE.driverEmail,
-            state.email
-          );
-
-        }
-
-        localStorage.setItem(
-          STORAGE.driverProfile,
-          JSON.stringify({
-
-            id:
-              state.driverId,
-
-            email:
-              state.email,
-
-            phone:
-              state.phone,
-
-            email_verified:
-              state.emailVerified,
-
-            phone_verified:
-              state.smsVerified,
-
-            persona_status:
-              state.personaStatus,
-
-            checkr_status:
-              state.checkrStatus,
-
-            approval_status:
-              state.approvalStatus
-
-          })
-        );
-
-      } catch (error) {
-
-        console.log(
-          "Could not save onboarding state:",
-          error.message
-        );
-
-      }
-
-    }
-
-    function loadState() {
-
-      try {
-
-        const raw =
-          localStorage.getItem(
-            STORAGE.onboarding
-          );
-
-        if (raw) {
-
-          const saved =
-            JSON.parse(raw);
-
-          Object.assign(
-            state,
-            saved
-          );
-
-        }
-
-      } catch (error) {
-
-        console.log(
-          "Could not load onboarding state:",
-          error.message
-        );
-
-      }
-
-    }
-
-    function clearState() {
-
-      state.driverId = "";
-      state.email = "";
-      state.phone = "";
-      state.emailVerified = false;
-      state.smsVerified = false;
-      state.personaStatus = "pending";
-      state.checkrStatus = "pending";
-      state.approved = false;
-      state.approvalStatus = "pending";
-      state.busy = false;
-
-      Object.values(STORAGE)
-        .forEach((key) => {
-
-          try {
-            localStorage.removeItem(key);
-          } catch {}
-
-        });
-
-    }
-
-    function normalizeReviewReady(value) {
-
-      const clean =
-        String(value || "")
-          .toLowerCase();
-
-      return [
-        "approved",
-        "complete",
-        "completed",
-        "clear",
-        "verified",
-        "passed"
-      ].some((word) =>
-        clean.includes(word)
-      );
-
-    }
-
-    function updateVerificationUI() {
-
-      els.emailTargetText.textContent =
-        state.email
-          ? `Verification link sent to ${maskEmail(state.email)}`
-          : "Waiting for email...";
-
-      els.smsTargetText.textContent =
-        state.phone
-          ? state.emailVerified
-            ? `SMS code can be sent to ${maskPhone(state.phone)}`
-            : `Email must be verified before SMS is sent to ${maskPhone(state.phone)}`
-          : "Waiting for phone...";
-
-      setPill(
-        els.emailPill,
-        state.emailVerified,
-        "Pending",
-        "Verified"
-      );
-
-      setPill(
-        els.smsPill,
-        state.smsVerified,
-        "Pending",
-        "Verified"
-      );
-
-      setPill(
-        els.personaPill,
-        normalizeReviewReady(state.personaStatus),
-        titleCase(state.personaStatus || "pending"),
-        titleCase(state.personaStatus || "approved")
-      );
-
-      setPill(
-        els.checkrPill,
-        normalizeReviewReady(state.checkrStatus),
-        titleCase(state.checkrStatus || "pending"),
-        titleCase(state.checkrStatus || "clear")
-      );
-
-      if (
-        state.driverId ||
-        state.email
-      ) {
-
-        els.savedDriverBox.classList.add(
-          "show"
-        );
-
-        els.savedDriverText.textContent =
-          `Driver ID: ${state.driverId || "Created"} • ` +
-          `Email: ${maskEmail(state.email)} • ` +
-          `Phone: ${maskPhone(state.phone)}`;
-
-      } else {
-
-        els.savedDriverBox.classList.remove(
-          "show"
-        );
-
-      }
-
-      if (
-        state.emailVerified &&
-        state.smsVerified
-      ) {
-
-        els.verificationNote.innerHTML =
-          "<strong>Email and SMS verified.</strong><br>Next step: complete Persona, Checkr, and wait for admin approval.";
-
-        els.launchPersonaBtn.classList.remove(
-          "hidden"
-        );
-
-      } else if (state.emailVerified) {
-
-        els.verificationNote.innerHTML =
-          "<strong>Email verified.</strong><br>Now tap Resend SMS Code, then enter the code sent to your phone.";
-
-        els.launchPersonaBtn.classList.add(
-          "hidden"
-        );
-
-      } else {
-
-        els.verificationNote.innerHTML =
-          "Check your email for the Harvey Taxi verification link. After clicking it, return here and tap Refresh Status.";
-
-        els.launchPersonaBtn.classList.add(
-          "hidden"
-        );
-
-      }
-
-      if (
-        state.approved ||
-        (
-          state.emailVerified &&
-          state.smsVerified &&
-          normalizeReviewReady(state.personaStatus) &&
-          normalizeReviewReady(state.checkrStatus)
-        )
-      ) {
-
-        els.openDashboardBtn.classList.remove(
-          "hidden"
-        );
-
-      } else {
-
-        els.openDashboardBtn.classList.add(
-          "hidden"
-        );
-
-      }
-
-    }
-
-    function titleCase(value) {
-
-      const clean =
-        String(value || "")
-          .replace(/_/g, " ")
-          .trim();
-
-      if (!clean) return "Pending";
-
-      return clean
-        .split(" ")
-        .map((word) =>
-          word
-            ? word[0].toUpperCase() +
-              word.slice(1).toLowerCase()
-            : ""
-        )
-        .join(" ");
-
-    }    function showVerification() {
-
-      els.signupSection.style.display =
-        "none";
-
-      els.verificationSection.classList.remove(
-        "hidden"
-      );
-
-      updateVerificationUI();
-
-      window.scrollTo({
-        top: 0,
-        behavior: "smooth"
-      });
-
-    }
-
-    function hideVerification() {
-
-      els.signupSection.style.display =
-        "";
-
-      els.verificationSection.classList.add(
-        "hidden"
-      );
-
-      els.launchPersonaBtn.classList.add(
-        "hidden"
-      );
-
-      els.openDashboardBtn.classList.add(
-        "hidden"
-      );
-
-    }
-
-    function fieldValue(id) {
-
-      return String($(id)?.value || "")
-        .trim();
-
-    }
-
-    function serviceReady() {
-
-      return (
-        $("supportsRides").checked ||
-        $("supportsFood").checked ||
-        $("supportsGrocery").checked ||
-        $("supportsPriority").checked
-      );
-
-    }
-
-    function formReady() {
-
-      const requiredReady =
-        requiredFields.every((id) => {
-
-          const el = $(id);
-
-          if (!el) return false;
-
-          if (id === "vehicleYear") {
-            return onlyDigits(el.value).length === 4;
-          }
-
-          if (id === "state") {
-            return fieldValue(id).length === 2;
-          }
-
-          return fieldValue(id).length > 0;
-
-        });
-
-      return (
-        requiredReady &&
-        validEmail($("email").value) &&
-        onlyDigits($("phone").value).length >= 10 &&
-        $("password").value.length >= 8 &&
-        serviceReady() &&
-        checkboxIds.every((id) => $(id).checked)
-      );
-
-    }
-
-    function updateFormHint() {
-
-      const ready =
-        formReady();
-
-      els.formHint.textContent =
-        ready
-          ? "All required fields, services, and acknowledgments are complete."
-          : "Complete all required fields, choose at least one service, use an 8+ character password, and tap all acknowledgments.";
-
-      els.formHint.style.color =
-        ready
-          ? "var(--green)"
-          : "var(--muted)";
-
-    }
-
-    function updateConsentCards() {
-
-      checkboxIds.forEach((id) => {
-
-        const input = $(id);
-
-        const card =
-          input.closest(".consent");
-
-        card.classList.toggle(
-          "active",
-          input.checked
-        );
-
-      });
-
-      updateFormHint();
-
-    }
-
-    function updateChoiceCards() {
-
-      document
-        .querySelectorAll(".choice")
-        .forEach((label) => {
-
-          const input =
-            label.querySelector("input");
-
-          const card =
-            label.querySelector(".choice-card");
-
-          if (!input || !card) return;
-
-          card.style.borderColor =
-            input.checked
-              ? "var(--cyan)"
-              : "";
-
-        });
-
-      updateFormHint();
-
-    }
-
-    async function refreshStatus(
-      showMessage = true
-    ) {
-
-      if (
-        !state.driverId &&
-        !state.email
-      ) {
-        return;
-      }
-
-      const query =
-        state.driverId
-          ? `driverId=${encodeURIComponent(state.driverId)}`
-          : `email=${encodeURIComponent(state.email)}`;
-
-      const data =
-        await requestJson(
-          `/api/drivers/status?${query}`,
-          {
-            method: "GET"
-          }
-        );
-
-      if (data.driver) {
-        hydrateDriver(data.driver);
-      }
-
-      saveState();
-      updateVerificationUI();
-
-      if (showMessage) {
-
-        showStatus(
-          "success",
-          `
-            <strong>Status refreshed.</strong><br><br>
-            Email verified: ${state.emailVerified ? "Yes" : "No"}<br>
-            SMS verified: ${state.smsVerified ? "Yes" : "No"}<br>
-            Persona: ${escapeHtml(titleCase(state.personaStatus))}<br>
-            Checkr: ${escapeHtml(titleCase(state.checkrStatus))}<br>
-            Approval: ${escapeHtml(titleCase(state.approvalStatus))}
-          `
-        );
-
-      }
-
-    }
-
-    async function sendSmsCode(
-      showMessage = true
-    ) {
-
-      await refreshStatus(false)
-        .catch(() => {});
-
-      if (!state.emailVerified) {
-
-        throw new Error(
-          "Verify your email first, then tap Refresh Status before sending SMS."
-        );
-
-      }
-
-      const data =
-        await requestJson(
-          "/api/drivers/send-sms-code",
-          {
-            method: "POST",
-            body: JSON.stringify({
-              driverId: state.driverId,
-              driver_id: state.driverId,
-              email: state.email,
-              phone: state.phone
-            })
-          }
-        );
-
-      if (data.devCode) {
-
-        showStatus(
-          "success",
-          `SMS code sent. Development code: <strong>${escapeHtml(data.devCode)}</strong>`
-        );
-
-      } else if (showMessage) {
-
-        showStatus(
-          "success",
-          `SMS code sent to ${escapeHtml(maskPhone(state.phone))}.`
-        );
-
-      }
-
-      return data;
-
-    }
-
-    async function launchPersona() {
-
-      if (!state.driverId && !state.email) {
-
-        showStatus(
-          "error",
-          "Driver session not found. Submit the application first."
-        );
-
-        return;
-
-      }
-
-      try {
-
-        setLoading(
-          els.launchPersonaBtn,
-          true,
-          "Starting Persona...",
-          "Start Persona Verification"
-        );
-
-        const data =
-          await requestJson(
-            "/api/drivers/start-persona",
-            {
-              method: "POST",
-              body: JSON.stringify({
-                driverId: state.driverId,
-                driver_id: state.driverId,
-                email: state.email,
-                phone: state.phone,
-                source: "driver-signup.html"
-              })
-            }
-          );
-
-        const url =
-          data?.persona?.hostedUrl ||
-          data?.persona?.hosted_url ||
-          data?.hostedUrl ||
-          data?.hosted_url ||
-          data?.url;
-
-        if (url) {
-          window.location.href = url;
-          return;
-        }
-
-        showStatus(
-          "success",
-          data.message ||
-            "Persona verification started."
-        );
-
-      } catch (error) {
-
-        showStatus(
-          "error",
-          escapeHtml(
-            error.message ||
-              "Could not start Persona verification."
-          )
-        );
-
-      } finally {
-
-        setLoading(
-          els.launchPersonaBtn,
-          false,
-          "Starting Persona...",
-          "Start Persona Verification"
-        );
-
-      }
-
-    }
-
-    function bindConsentEvents() {
-
-      checkboxIds.forEach((id) => {
-
-        const input = $(id);
-
-        const card =
-          input.closest(".consent");
-
-        card.addEventListener(
-          "click",
-          (event) => {
-
-            event.preventDefault();
-
-            input.checked =
-              !input.checked;
-
-            updateConsentCards();
-
-          }
-        );
-
-      });
-
-    }
-
-    function bindFieldEvents() {
-
-      requiredFields.forEach((id) => {
-
-        const el = $(id);
-
-        if (!el) return;
-
-        el.addEventListener(
-          "input",
-          updateFormHint
-        );
-
-        el.addEventListener(
-          "change",
-          updateFormHint
-        );
-
-      });
-
-      [
-        "supportsRides",
-        "supportsFood",
-        "supportsGrocery",
-        "supportsPriority"
-      ].forEach((id) => {
-
-        $(id)?.addEventListener(
-          "change",
-          updateChoiceCards
-        );
-
-      });
-
-      document
-        .querySelectorAll(
-          'input[name="driverType"]'
-        )
-        .forEach((input) => {
-
-          input.addEventListener(
-            "change",
-            updateChoiceCards
-          );
-
-        });
-
-      $("vehicleYear")
-        .addEventListener(
-          "input",
-          (event) => {
-
-            event.target.value =
-              onlyDigits(event.target.value)
-                .slice(0, 4);
-
-            updateFormHint();
-
-          }
-        );
-
-      $("state")
-        .addEventListener(
-          "input",
-          (event) => {
-
-            event.target.value =
-              String(event.target.value || "")
-                .replace(/[^a-z]/gi, "")
-                .toUpperCase()
-                .slice(0, 2);
-
-            updateFormHint();
-
-          }
-        );
-
-      $("licensePlate")
-        .addEventListener(
-          "input",
-          (event) => {
-
-            event.target.value =
-              normalizePlate(
-                event.target.value
-              );
-
-            updateFormHint();
-
-          }
-        );
-
-      $("phone")
-        .addEventListener(
-          "blur",
-          (event) => {
-
-            event.target.value =
-              normalizePhone(
-                event.target.value
-              );
-
-            updateFormHint();
-
-          }
-        );
-
-      $("email")
-        .addEventListener(
-          "blur",
-          (event) => {
-
-            event.target.value =
-              String(event.target.value || "")
-                .trim()
-                .toLowerCase();
-
-            updateFormHint();
-
-          }
-        );
-
-      els.smsCode.addEventListener(
-        "input",
-        (event) => {
-
-          event.target.value =
-            onlyDigits(event.target.value)
-              .slice(0, 6);
-
-        }
-      );
-
-    }    els.driverSignupForm
-      .addEventListener(
-        "submit",
-        async (event) => {
-
-          event.preventDefault();
-
-          clearStatus();
-
-          if (!formReady()) {
-
-            showStatus(
-              "error",
-              "Please complete all required fields, select at least one service type, use an 8+ character password, and accept all acknowledgments."
-            );
-
-            return;
-
-          }
-
-          try {
-
-            setLoading(
-              els.submitBtn,
-              true,
-              "Submitting...",
-              "Submit Driver Application"
-            );
-
-            await healthCheck();
-
-            const payload =
-              buildPayload();
-
-            const data =
-              await requestJson(
-                "/api/drivers/signup",
-                {
-                  method: "POST",
-                  body: JSON.stringify(payload)
-                }
-              );
-
-            hydrateDriver({
-
-              ...(data.driver || {}),
-
-              id:
-                data.driver_id ||
-                data.driver?.id,
-
-              email:
-                data.driver?.email ||
-                payload.email,
-
-              phone:
-                data.driver?.phone ||
-                payload.phone
-
-            });
-
-            saveState();
-
-            showVerification();
-
-            showStatus(
-              "success",
-              `
-                <strong>Driver application submitted.</strong><br><br>
-
-                Driver ID:
-                ${escapeHtml(state.driverId || "Created")}<br>
-
-                Email verification sent to
-                ${escapeHtml(maskEmail(state.email))}.<br><br>
-
-                <strong>Next Step:</strong><br>
-                Open your email, tap the Harvey Taxi verification link, then return here and tap Refresh Status.
-              `
-            );
-
-          } catch (error) {
-
-            showStatus(
-              "error",
-              `
-                <strong>Driver signup failed.</strong><br>
-                ${escapeHtml(error.message || "Unknown signup error.")}
-              `
-            );
-
-          } finally {
-
-            setLoading(
-              els.submitBtn,
-              false,
-              "Submitting...",
-              "Submit Driver Application"
-            );
-
-          }
-
-        }
-      );
-
-    els.verifySmsBtn
-      .addEventListener(
-        "click",
-        async () => {
-
-          clearStatus();
-
-          const code =
-            onlyDigits(
-              els.smsCode.value
-            ).slice(0, 6);
-
-          if (!state.driverId) {
-
-            showStatus(
-              "error",
-              "Driver session not found. Submit the application first."
-            );
-
-            return;
-
-          }
-
-          if (code.length !== 6) {
-
-            showStatus(
-              "error",
-              "Enter the 6-digit SMS code."
-            );
-
-            return;
-
-          }
-
-          try {
-
-            setLoading(
-              els.verifySmsBtn,
-              true,
-              "Verifying...",
-              "Verify SMS Code"
-            );
-
-            const data =
-              await requestJson(
-                "/api/drivers/verify-sms-code",
-                {
-                  method: "POST",
-                  body: JSON.stringify({
-
-                    driverId:
-                      state.driverId,
-
-                    driver_id:
-                      state.driverId,
-
-                    code
-
-                  })
-                }
-              );
-
-            if (data.driver) {
-
-              hydrateDriver(
-                data.driver
-              );
-
-            } else {
-
-              state.smsVerified =
-                true;
-
-            }
-
-            saveState();
-
-            els.smsCode.value =
-              "";
-
-            updateVerificationUI();
-
-            showStatus(
-              "success",
-              state.emailVerified &&
-              state.smsVerified
-                ? `
-                    <strong>Driver verification complete.</strong><br>
-                    Email and SMS verification are complete.<br><br>
-                    Continue with Persona and Checkr review.
-                  `
-                : `
-                    <strong>SMS verified.</strong><br>
-                    Verify your email link if you have not already.
-                  `
-            );
-
-          } catch (error) {
-
-            showStatus(
-              "error",
-              escapeHtml(
-                error.message ||
-                "SMS verification failed."
-              )
-            );
-
-          } finally {
-
-            setLoading(
-              els.verifySmsBtn,
-              false,
-              "Verifying...",
-              "Verify SMS Code"
-            );
-
-          }
-
-        }
-      );
-
-    els.refreshStatusBtn
-      .addEventListener(
-        "click",
-        async () => {
-
-          clearStatus();
-
-          try {
-
-            setLoading(
-              els.refreshStatusBtn,
-              true,
-              "Refreshing...",
-              "Refresh Status"
-            );
-
-            await refreshStatus(true);
-
-          } catch (error) {
-
-            showStatus(
-              "error",
-              escapeHtml(
-                error.message ||
-                "Could not refresh status."
-              )
-            );
-
-          } finally {
-
-            setLoading(
-              els.refreshStatusBtn,
-              false,
-              "Refreshing...",
-              "Refresh Status"
-            );
-
-          }
-
-        }
-      );
-
-    els.resendEmailBtn
-      .addEventListener(
-        "click",
-        async () => {
-
-          clearStatus();
-
-          if (
-            !state.driverId &&
-            !state.email
-          ) {
-
-            showStatus(
-              "error",
-              "Driver session not found. Submit the application first."
-            );
-
-            return;
-
-          }
-
-          try {
-
-            setLoading(
-              els.resendEmailBtn,
-              true,
-              "Resending...",
-              "Resend Email Link"
-            );
-
-            await requestJson(
-              "/api/drivers/resend-email-verification",
-              {
-                method: "POST",
-                body: JSON.stringify({
-
-                  driverId:
-                    state.driverId,
-
-                  driver_id:
-                    state.driverId,
-
-                  email:
-                    state.email
-
-                })
-              }
-            );
-
-            showStatus(
-              "success",
-              `Email verification link resent to ${escapeHtml(maskEmail(state.email))}.`
-            );
-
-          } catch (error) {
-
-            showStatus(
-              "error",
-              escapeHtml(
-                error.message ||
-                "Could not resend email."
-              )
-            );
-
-          } finally {
-
-            setLoading(
-              els.resendEmailBtn,
-              false,
-              "Resending...",
-              "Resend Email Link"
-            );
-
-          }
-
-        }
-      );
-
-    els.resendSmsBtn
-      .addEventListener(
-        "click",
-        async () => {
-
-          clearStatus();
-
-          if (
-            !state.driverId &&
-            !state.email
-          ) {
-
-            showStatus(
-              "error",
-              "Driver session not found. Submit the application first."
-            );
-
-            return;
-
-          }
-
-          try {
-
-            setLoading(
-              els.resendSmsBtn,
-              true,
-              "Sending...",
-              "Resend SMS Code"
-            );
-
-            await sendSmsCode(true);
-
-          } catch (error) {
-
-            showStatus(
-              "error",
-              escapeHtml(
-                error.message ||
-                "Could not send SMS code."
-              )
-            );
-
-          } finally {
-
-            setLoading(
-              els.resendSmsBtn,
-              false,
-              "Sending...",
-              "Resend SMS Code"
-            );
-
-          }
-
-        }
-      );
-
-    els.launchPersonaBtn
-      .addEventListener(
-        "click",
-        launchPersona
-      );
-
-    els.openDashboardBtn
-      .addEventListener(
-        "click",
-        () => {
-
-          if (!state.driverId) {
-
-            showStatus(
-              "error",
-              "Driver ID not found."
-            );
-
-            return;
-
-          }
-
-          window.location.href =
-            `/driver-dashboard.html?driverId=${encodeURIComponent(state.driverId)}`;
-
-        }
-      );
-
-    els.startOverBtn
-      .addEventListener(
-        "click",
-        () => {
-
-          clearStatus();
-
-          clearState();
-
-          els.driverSignupForm.reset();
-
-          els.smsCode.value =
-            "";
-
-          hideVerification();
-
-          updateConsentCards();
-
-          updateChoiceCards();
-
-          updateFormHint();
-
-          showStatus(
-            "success",
-            "Driver signup reset."
-          );
-
-        }
-      );
-
-    async function bootstrap() {
-
-      loadState();
-
-      bindConsentEvents();
-
-      bindFieldEvents();
-
-      updateConsentCards();
-
-      updateChoiceCards();
-
-      updateFormHint();
-
-      setDebug(
-        `Loaded on ${window.location.origin || "unknown"}`
-      );
-
-      await healthCheck();
-
-      if (
-        state.driverId ||
-        state.email
-      ) {
-
-        showVerification();
-
-        refreshStatus(false)
-          .catch(() => {});
-
-      }
-
-    }
-
-    bootstrap();
-
-  </script>
+    utterance.lang =
+      lang === "zh"
+        ? "zh-CN"
+        : lang === "ar"
+          ? "ar-SA"
+          : lang;
+
+    utterance.volume = 0.65;
+    utterance.rate = 0.95;
+
+    window.speechSynthesis.speak(utterance);
+  } catch {}
+}
+
+/* Upgrade bootstrap */
+const originalBootstrap =
+  typeof bootstrap === "function"
+    ? bootstrap
+    : null;
+
+async function finalBootstrap() {
+  bindAdaptiveControls();
+
+  if (originalBootstrap) {
+    await originalBootstrap();
+  }
+
+  setDebug(
+    "Adaptive language driver signup loaded."
+  );
+}
+
+finalBootstrap();
+
+</script>
 
 </body>
 </html>
