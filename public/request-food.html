@@ -11,20 +11,31 @@
   <style>
     :root {
       --bg: #020617;
-      --panel: rgba(15, 23, 42, 0.88);
+      --panel: rgba(15, 23, 42, 0.90);
+      --panel2: rgba(2, 6, 23, 0.78);
       --line: rgba(148, 163, 184, 0.16);
       --blue: #2563eb;
       --sky: #38bdf8;
       --green: #22c55e;
       --amber: #f59e0b;
       --red: #ef4444;
+      --purple: #a855f7;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
     }
 
     body {
       min-height: 100vh;
+      margin: 0;
       background:
-        radial-gradient(circle at top left, rgba(37,99,235,.25), transparent 35%),
-        radial-gradient(circle at bottom right, rgba(16,185,129,.16), transparent 32%),
+        radial-gradient(circle at top left, rgba(37,99,235,.28), transparent 35%),
+        radial-gradient(circle at bottom right, rgba(16,185,129,.18), transparent 32%),
         linear-gradient(135deg, #020617 0%, #0f172a 100%);
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
@@ -33,24 +44,25 @@
       background: var(--panel);
       border: 1px solid var(--line);
       backdrop-filter: blur(22px);
-      box-shadow: 0 30px 90px rgba(0,0,0,.4);
+      box-shadow: 0 30px 90px rgba(0,0,0,.42);
+    }
+
+    .soft {
+      background: var(--panel2);
+      border: 1px solid var(--line);
     }
 
     .btn {
       transition: .2s ease;
+      user-select: none;
+    }
+
+    .btn:hover {
+      filter: brightness(1.08);
     }
 
     .btn:active {
       transform: scale(.97);
-    }
-
-    .pulse-glow {
-      animation: pulseGlow 2s infinite ease-in-out;
-    }
-
-    @keyframes pulseGlow {
-      0%, 100% { box-shadow: 0 0 8px rgba(37,99,235,.25); }
-      50% { box-shadow: 0 0 28px rgba(37,99,235,.7); }
     }
 
     .input {
@@ -69,14 +81,15 @@
     }
 
     .toggle {
-      width: 54px;
-      height: 30px;
+      width: 58px;
+      height: 32px;
       border-radius: 999px;
       background: #334155;
       position: relative;
       cursor: pointer;
       transition: .25s ease;
       flex-shrink: 0;
+      border: 1px solid rgba(255,255,255,.08);
     }
 
     .toggle::after {
@@ -87,7 +100,7 @@
       border-radius: 999px;
       position: absolute;
       top: 3px;
-      left: 3px;
+      left: 4px;
       transition: .25s ease;
     }
 
@@ -96,25 +109,112 @@
     }
 
     .toggle.active::after {
-      left: 27px;
+      left: 28px;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 70;
+      background: rgba(2, 6, 23, .76);
+      backdrop-filter: blur(10px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+    }
+
+    .modal-backdrop.show {
+      display: flex;
+    }
+
+    .modal {
+      width: min(720px, 100%);
+      max-height: 88vh;
+      overflow: auto;
+    }
+
+    .danger-zone {
+      border: 1px solid rgba(239,68,68,.35);
+      background: rgba(239,68,68,.08);
+    }
+
+    .battery-ring {
+      width: 78px;
+      height: 78px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at center, #020617 58%, transparent 59%),
+        conic-gradient(var(--green) 0deg, var(--green) 252deg, rgba(148,163,184,.20) 252deg);
+      border: 1px solid rgba(255,255,255,.10);
+    }
+
+    .route-line {
+      position: relative;
+      padding-left: 26px;
+    }
+
+    .route-line::before {
+      content: "";
+      position: absolute;
+      left: 8px;
+      top: 10px;
+      bottom: 10px;
+      width: 2px;
+      background: linear-gradient(var(--sky), var(--green));
+      opacity: .7;
+    }
+
+    .route-dot {
+      width: 16px;
+      height: 16px;
+      border-radius: 999px;
+      position: absolute;
+      left: 1px;
+      background: var(--sky);
+      border: 3px solid #020617;
+    }
+
+    .route-dot.end {
+      background: var(--green);
+    }
+
+    .safe-pad {
+      padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    }
+
+    @media (max-width: 640px) {
+      .mobile-stack {
+        grid-template-columns: 1fr !important;
+      }
     }
   </style>
 </head>
 
-<body class="text-slate-100 antialiased p-4 sm:p-6">
-
-  <main class="max-w-6xl mx-auto">
-
-    <header class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+<body class="text-slate-100 antialiased p-4 sm:p-6 safe-pad">
+  <main class="max-w-7xl mx-auto">
+    <header class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 mb-6">
       <div>
-        <p class="text-xs uppercase tracking-[.35em] text-sky-300 font-black">Code Blue Driver Command</p>
-        <h1 class="text-3xl sm:text-5xl font-black mt-1">Harvey Logistics</h1>
-        <p id="driver-badge" class="text-slate-400 mt-2">Driver Portal • Offline</p>
+        <p class="text-xs uppercase tracking-[.35em] text-sky-300 font-black">
+          Code Blue Driver Command
+        </p>
+        <h1 class="text-3xl sm:text-5xl font-black mt-1 tracking-tight">
+          Harvey Logistics
+        </h1>
+        <p id="driver-badge" class="text-slate-400 mt-2">
+          Driver Portal • Offline
+        </p>
       </div>
 
-      <div class="flex items-center gap-3">
-        <button onclick="openSettings()" class="btn px-4 py-3 rounded-2xl bg-slate-900/80 border border-slate-700 font-bold">
+      <div class="flex flex-wrap items-center gap-3">
+        <button id="btn-settings" class="btn px-4 py-3 rounded-2xl bg-slate-900/80 border border-slate-700 font-bold">
           ⚙️ Settings
+        </button>
+
+        <button id="btn-battery" class="btn px-4 py-3 rounded-2xl bg-emerald-600/90 hover:bg-emerald-500 font-bold">
+          🔋 Battery Optimizer
         </button>
 
         <div class="glass rounded-2xl px-4 py-3 flex items-center gap-3">
@@ -122,7 +222,9 @@
             <span id="status-pulse" class="hidden absolute inline-flex h-full w-full rounded-full bg-slate-500 opacity-75"></span>
             <span id="status-dot" class="relative inline-flex rounded-full h-3 w-3 bg-slate-500"></span>
           </span>
-          <span id="status-text" class="text-xs font-black uppercase tracking-wider text-slate-400">Offline</span>
+          <span id="status-text" class="text-xs font-black uppercase tracking-wider text-slate-400">
+            Offline
+          </span>
         </div>
       </div>
     </header>
@@ -134,13 +236,18 @@
         </div>
         <h2 class="text-2xl font-black">Initialize Driver Session</h2>
         <p class="text-sm text-slate-400 mt-2">
-          Sign in to access live taxi, food, grocery, and logistics dispatch missions.
+          Sign in to access taxi, food, grocery, logistics, and nonprofit ride dispatch missions.
         </p>
       </div>
 
       <div class="space-y-3 mt-4">
         <input id="driver-id" class="input" placeholder="Driver ID or Email" value="DX-2041" />
         <input id="driver-phone" class="input" placeholder="Phone number optional" />
+
+        <div class="grid grid-cols-2 gap-3 mobile-stack">
+          <input id="driver-vehicle" class="input" placeholder="Vehicle ID optional" value="HT-204" />
+          <input id="driver-zone" class="input" placeholder="Preferred zone" value="Nashville" />
+        </div>
 
         <button id="btn-login" class="btn w-full py-4 rounded-2xl bg-blue-600 hover:bg-blue-500 font-black shadow-xl shadow-blue-600/20">
           Launch Driver Hub
@@ -150,21 +257,21 @@
       </div>
     </section>
 
-    <section id="panel-dashboard" class="hidden grid lg:grid-cols-[1.1fr_.9fr] gap-5">
-
+    <section id="panel-dashboard" class="hidden grid xl:grid-cols-[1.1fr_.9fr] gap-5">
       <div class="space-y-5">
-
         <section class="glass rounded-3xl p-5">
           <div class="flex items-center justify-between gap-4">
             <div>
               <h2 class="text-xl font-black">Driver Availability</h2>
-              <p class="text-sm text-slate-400">Control whether Harvey dispatch can send you missions.</p>
+              <p class="text-sm text-slate-400">
+                Control whether Harvey dispatch can send you missions.
+              </p>
             </div>
 
-            <div id="online-toggle" class="toggle"></div>
+            <div id="online-toggle" class="toggle" role="button" aria-label="Toggle online status"></div>
           </div>
 
-          <div class="grid sm:grid-cols-3 gap-3 mt-5">
+          <div class="grid sm:grid-cols-4 gap-3 mt-5">
             <div class="rounded-2xl bg-slate-950/60 border border-slate-800 p-4">
               <p class="text-xs text-slate-500 uppercase font-black">Shift Income</p>
               <p id="metric-earnings" class="text-2xl font-black text-emerald-400 mt-1">$0.00</p>
@@ -179,151 +286,535 @@
               <p class="text-xs text-slate-500 uppercase font-black">Acceptance</p>
               <p id="metric-ratio" class="text-2xl font-black text-sky-400 mt-1">100%</p>
             </div>
-          </div>
-        </section>
 
-        <section class="glass rounded-3xl p-5">
+            <div class="rounded-2xl bg-slate-950/60 border border-slate-800 p-4">
+              <p class="text-xs text-slate-500 uppercase font-black">Battery Mode</p>
+              <p id="metric-battery" class="text-2xl font-black text-emerald-400 mt-1">Smart</p>
+            </div>
+          </div>
+        </section>        <section class="glass rounded-3xl p-5">
           <div class="flex items-center justify-between mb-4">
             <div>
-              <h2 class="text-xl font-black">Dispatch Window</h2>
-              <p class="text-sm text-slate-400">Mission-first workflow with full route visibility before acceptance.</p>
+              <h2 class="text-xl font-black">Dispatch Command Center</h2>
+              <p class="text-sm text-slate-400">
+                Mission-first workflow with route visibility before acceptance.
+              </p>
             </div>
-            <span id="dispatch-mode" class="px-3 py-1 rounded-full bg-slate-800 text-xs font-black text-slate-300">
+
+            <span id="dispatch-mode"
+              class="px-3 py-1 rounded-full bg-slate-800 text-xs font-black text-slate-300">
               Standing By
             </span>
           </div>
 
-          <div id="disp-idle" class="min-h-[260px] flex flex-col justify-center items-center border border-dashed border-slate-700 rounded-3xl bg-slate-950/30 text-center p-8">
-            <div class="text-5xl mb-3">📡</div>
-            <h3 class="font-black">Awaiting dispatch orders</h3>
-            <p class="text-sm text-slate-500 mt-2">Go online to receive taxi, food, grocery, and support missions.</p>
+          <!-- Idle -->
+          <div id="disp-idle"
+            class="min-h-[280px] flex flex-col justify-center items-center border border-dashed border-slate-700 rounded-3xl bg-slate-950/30 text-center p-8">
+
+            <div class="text-6xl mb-3">📡</div>
+
+            <h3 class="font-black text-xl">
+              Awaiting dispatch orders
+            </h3>
+
+            <p class="text-sm text-slate-500 mt-2 max-w-md">
+              Go online to receive taxi rides, grocery deliveries,
+              food deliveries, logistics routes, and nonprofit missions.
+            </p>
+
+            <div class="grid sm:grid-cols-4 gap-3 mt-6 w-full max-w-3xl">
+              <div class="soft rounded-2xl p-4">
+                <div class="text-2xl">🚕</div>
+                <p class="text-xs mt-2 text-slate-400">Taxi</p>
+              </div>
+
+              <div class="soft rounded-2xl p-4">
+                <div class="text-2xl">🍔</div>
+                <p class="text-xs mt-2 text-slate-400">Food</p>
+              </div>
+
+              <div class="soft rounded-2xl p-4">
+                <div class="text-2xl">🛒</div>
+                <p class="text-xs mt-2 text-slate-400">Grocery</p>
+              </div>
+
+              <div class="soft rounded-2xl p-4">
+                <div class="text-2xl">❤️</div>
+                <p class="text-xs mt-2 text-slate-400">HTAF</p>
+              </div>
+            </div>
           </div>
 
-          <div id="disp-offer" class="hidden border border-blue-500/30 rounded-3xl bg-blue-500/5 p-5">
+          <!-- Incoming Offer -->
+          <div id="disp-offer"
+            class="hidden border border-blue-500/30 rounded-3xl bg-blue-500/5 p-5">
+
             <div class="flex items-center justify-between mb-4">
-              <span id="offer-type-badge" class="px-3 py-1 rounded-full text-xs font-black uppercase"></span>
-              <span id="offer-id" class="text-xs font-mono text-slate-400">#ID</span>
+              <span id="offer-type-badge"
+                class="px-3 py-1 rounded-full text-xs font-black uppercase">
+              </span>
+
+              <span id="offer-id"
+                class="text-xs font-mono text-slate-400">
+                #ID
+              </span>
             </div>
 
-            <h3 id="offer-route" class="text-xl font-black">Origin → Destination</h3>
+            <h3 id="offer-route"
+              class="text-xl font-black">
+              Origin → Destination
+            </h3>
 
             <div class="grid sm:grid-cols-3 gap-3 mt-4">
-              <div class="rounded-2xl bg-slate-950/60 border border-slate-800 p-3">
-                <p class="text-xs text-slate-500 font-black uppercase">Estimated Time</p>
-                <p id="offer-time" class="font-black mt-1">0 mins</p>
+              <div class="soft rounded-2xl p-3">
+                <p class="text-xs text-slate-500 font-black uppercase">
+                  Estimated Time
+                </p>
+                <p id="offer-time" class="font-black mt-1">
+                  0 mins
+                </p>
               </div>
-              <div class="rounded-2xl bg-slate-950/60 border border-slate-800 p-3">
-                <p class="text-xs text-slate-500 font-black uppercase">Payout</p>
-                <p id="offer-payout" class="font-black text-emerald-400 mt-1">$0.00</p>
+
+              <div class="soft rounded-2xl p-3">
+                <p class="text-xs text-slate-500 font-black uppercase">
+                  Driver Payout
+                </p>
+                <p id="offer-payout"
+                  class="font-black text-emerald-400 mt-1">
+                  $0.00
+                </p>
               </div>
-              <div class="rounded-2xl bg-slate-950/60 border border-slate-800 p-3">
-                <p class="text-xs text-slate-500 font-black uppercase">Priority</p>
-                <p id="offer-priority" class="font-black text-amber-300 mt-1">Normal</p>
+
+              <div class="soft rounded-2xl p-3">
+                <p class="text-xs text-slate-500 font-black uppercase">
+                  Priority
+                </p>
+                <p id="offer-priority"
+                  class="font-black text-amber-300 mt-1">
+                  Normal
+                </p>
               </div>
             </div>
 
-            <div class="mt-4 rounded-2xl bg-slate-950/50 border border-slate-800 p-4 text-sm text-slate-300">
-              <p><b>Pickup:</b> <span id="offer-pickup">Loading...</span></p>
-              <p class="mt-1"><b>Drop-off:</b> <span id="offer-dropoff">Loading...</span></p>
-              <p class="mt-1"><b>Notes:</b> <span id="offer-notes">No notes.</span></p>
+            <div class="mt-5 rounded-2xl bg-slate-950/50 border border-slate-800 p-4">
+              <div class="route-line relative py-3">
+                <span class="route-dot"></span>
+
+                <p class="text-xs uppercase text-slate-500 font-black">
+                  Pickup
+                </p>
+
+                <p id="offer-pickup"
+                  class="text-sm text-slate-200 mt-1">
+                  Loading...
+                </p>
+              </div>
+
+              <div class="route-line relative py-3">
+                <span class="route-dot end"></span>
+
+                <p class="text-xs uppercase text-slate-500 font-black">
+                  Drop-Off
+                </p>
+
+                <p id="offer-dropoff"
+                  class="text-sm text-slate-200 mt-1">
+                  Loading...
+                </p>
+              </div>
+
+              <div class="mt-3 border-t border-slate-800 pt-3">
+                <p class="text-xs uppercase text-slate-500 font-black">
+                  Mission Notes
+                </p>
+
+                <p id="offer-notes"
+                  class="text-sm text-slate-300 mt-1">
+                  No notes.
+                </p>
+              </div>
             </div>
 
             <div class="grid grid-cols-2 gap-3 mt-5">
-              <button id="btn-decline" class="btn py-4 rounded-2xl bg-slate-800 hover:bg-slate-700 font-black">
+              <button id="btn-decline"
+                class="btn py-4 rounded-2xl bg-slate-800 hover:bg-slate-700 font-black">
                 Decline
               </button>
-              <button id="btn-accept" class="btn py-4 rounded-2xl bg-blue-600 hover:bg-blue-500 font-black shadow-xl shadow-blue-600/20">
+
+              <button id="btn-accept"
+                class="btn py-4 rounded-2xl bg-blue-600 hover:bg-blue-500 font-black shadow-xl shadow-blue-600/20">
                 Accept Mission
               </button>
             </div>
           </div>
 
-          <div id="disp-active" class="hidden border border-emerald-500/30 rounded-3xl bg-emerald-500/5 p-5">
+          <!-- Active Mission -->
+          <div id="disp-active"
+            class="hidden border border-emerald-500/30 rounded-3xl bg-emerald-500/5 p-5">
+
             <div class="flex items-center justify-between border-b border-slate-800 pb-4 mb-4">
               <div>
-                <span id="active-type-badge" class="px-3 py-1 rounded-full text-xs font-black uppercase"></span>
-                <h3 id="active-title" class="text-xl font-black mt-3">Active Mission</h3>
+                <span id="active-type-badge"
+                  class="px-3 py-1 rounded-full text-xs font-black uppercase">
+                </span>
+
+                <h3 id="active-title"
+                  class="text-xl font-black mt-3">
+                  Active Mission
+                </h3>
               </div>
-              <p id="active-payout" class="text-2xl font-black text-emerald-400">$0.00</p>
+
+              <p id="active-payout"
+                class="text-2xl font-black text-emerald-400">
+                $0.00
+              </p>
             </div>
 
             <div class="space-y-3">
-              <div class="rounded-2xl bg-slate-950/60 border border-slate-800 p-4">
-                <p id="step-primary-label" class="text-xs text-slate-500 font-black uppercase">Current Objective</p>
-                <p id="step-primary-value" class="font-bold mt-1">Loading...</p>
+              <div class="soft rounded-2xl p-4">
+                <p id="step-primary-label"
+                  class="text-xs text-slate-500 font-black uppercase">
+                  Current Objective
+                </p>
+
+                <p id="step-primary-value"
+                  class="font-bold mt-2">
+                  Loading...
+                </p>
               </div>
 
-              <div class="rounded-2xl bg-slate-950/60 border border-slate-800 p-4">
-                <p id="step-secondary-label" class="text-xs text-slate-500 font-black uppercase">Route Summary</p>
-                <p id="step-secondary-value" class="text-sm text-slate-300 mt-1">Loading...</p>
+              <div class="soft rounded-2xl p-4">
+                <p id="step-secondary-label"
+                  class="text-xs text-slate-500 font-black uppercase">
+                  Route Summary
+                </p>
+
+                <p id="step-secondary-value"
+                  class="text-sm text-slate-300 mt-2">
+                  Loading...
+                </p>
+              </div>
+
+              <div class="soft rounded-2xl p-4">
+                <p class="text-xs text-slate-500 font-black uppercase">
+                  Mission Safety
+                </p>
+
+                <p class="text-sm text-slate-300 mt-2">
+                  Follow all traffic laws, confirm rider identity,
+                  and use the emergency tools if a safety issue occurs.
+                </p>
               </div>
             </div>
 
-            <button id="btn-pipeline-advance" class="btn w-full mt-5 py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 font-black shadow-xl shadow-emerald-600/20">
-              Advance Mission
-            </button>
+            <div class="grid sm:grid-cols-2 gap-3 mt-5">
+              <button id="btn-emergency"
+                class="btn py-4 rounded-2xl bg-red-600 hover:bg-red-500 font-black">
+                Emergency
+              </button>
+
+              <button id="btn-pipeline-advance"
+                class="btn py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 font-black shadow-xl shadow-emerald-600/20">
+                Advance Mission
+              </button>
+            </div>
           </div>
         </section>
-      </div>
+      </div>      <aside class="space-y-5">
 
-      <aside class="space-y-5">
-
+        <!-- Driver Readiness -->
         <section class="glass rounded-3xl p-5">
-          <h2 class="text-xl font-black mb-4">Driver Readiness</h2>
+          <h2 class="text-xl font-black mb-4">
+            Driver Readiness
+          </h2>
 
           <div class="space-y-3 text-sm">
+
             <div class="flex justify-between border-b border-slate-800 pb-3">
               <span class="text-slate-400">Verification</span>
-              <span id="readiness-verification" class="font-black text-emerald-400">Approved</span>
+              <span id="readiness-verification"
+                class="font-black text-emerald-400">
+                Approved
+              </span>
             </div>
 
             <div class="flex justify-between border-b border-slate-800 pb-3">
               <span class="text-slate-400">Background Check</span>
-              <span id="readiness-checkr" class="font-black text-amber-300">Admin Review</span>
+              <span id="readiness-checkr"
+                class="font-black text-amber-300">
+                Review Pending
+              </span>
             </div>
 
             <div class="flex justify-between border-b border-slate-800 pb-3">
               <span class="text-slate-400">Vehicle</span>
-              <span id="readiness-vehicle" class="font-black text-emerald-400">Active</span>
+              <span id="readiness-vehicle"
+                class="font-black text-emerald-400">
+                Active
+              </span>
+            </div>
+
+            <div class="flex justify-between border-b border-slate-800 pb-3">
+              <span class="text-slate-400">Insurance</span>
+              <span id="readiness-insurance"
+                class="font-black text-emerald-400">
+                Verified
+              </span>
             </div>
 
             <div class="flex justify-between">
               <span class="text-slate-400">Heartbeat</span>
-              <span id="heartbeat-status" class="font-black text-slate-300">Paused</span>
+              <span id="heartbeat-status"
+                class="font-black text-slate-300">
+                Paused
+              </span>
             </div>
+
           </div>
         </section>
 
+        <!-- Battery Optimizer -->
         <section class="glass rounded-3xl p-5">
-          <h2 class="text-xl font-black mb-4">Allowed Missions</h2>
+          <div class="flex items-center justify-between gap-4">
+
+            <div>
+              <h2 class="text-xl font-black">
+                Battery Optimizer
+              </h2>
+
+              <p class="text-sm text-slate-400 mt-1">
+                Keeps Harvey Driver Hub active while reducing battery usage.
+              </p>
+            </div>
+
+            <div class="battery-ring">
+              <span id="battery-percent"
+                class="font-black text-sm">
+                100%
+              </span>
+            </div>
+
+          </div>
+
+          <div class="grid grid-cols-3 gap-3 mt-5">
+
+            <button id="battery-low"
+              class="btn rounded-2xl bg-slate-950/60 border border-slate-800 py-3 font-black">
+              Low
+            </button>
+
+            <button id="battery-smart"
+              class="btn rounded-2xl bg-emerald-600 py-3 font-black">
+              Smart
+            </button>
+
+            <button id="battery-performance"
+              class="btn rounded-2xl bg-blue-600 py-3 font-black">
+              Max
+            </button>
+
+          </div>
+
+          <div class="soft rounded-2xl p-4 mt-4">
+            <p class="text-xs uppercase text-slate-500 font-black">
+              Current Mode
+            </p>
+
+            <p id="battery-mode-label"
+              class="font-black mt-2 text-emerald-400">
+              Smart Optimization Enabled
+            </p>
+          </div>
+        </section>
+
+        <!-- Mission Access -->
+        <section class="glass rounded-3xl p-5">
+          <h2 class="text-xl font-black mb-4">
+            Allowed Missions
+          </h2>
 
           <div class="flex flex-wrap gap-2">
-            <span class="px-3 py-2 rounded-xl bg-blue-500/10 text-blue-300 border border-blue-500/20 text-xs font-black">Taxi Ride</span>
-            <span class="px-3 py-2 rounded-xl bg-amber-500/10 text-amber-300 border border-amber-500/20 text-xs font-black">Food Delivery</span>
-            <span class="px-3 py-2 rounded-xl bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 text-xs font-black">Grocery</span>
-            <span class="px-3 py-2 rounded-xl bg-purple-500/10 text-purple-300 border border-purple-500/20 text-xs font-black">Nonprofit Ride</span>
+
+            <span class="px-3 py-2 rounded-xl bg-blue-500/10 text-blue-300 border border-blue-500/20 text-xs font-black">
+              Taxi Ride
+            </span>
+
+            <span class="px-3 py-2 rounded-xl bg-amber-500/10 text-amber-300 border border-amber-500/20 text-xs font-black">
+              Food Delivery
+            </span>
+
+            <span class="px-3 py-2 rounded-xl bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 text-xs font-black">
+              Grocery
+            </span>
+
+            <span class="px-3 py-2 rounded-xl bg-purple-500/10 text-purple-300 border border-purple-500/20 text-xs font-black">
+              HTAF Ride
+            </span>
+
+            <span class="px-3 py-2 rounded-xl bg-sky-500/10 text-sky-300 border border-sky-500/20 text-xs font-black">
+              Logistics
+            </span>
+
           </div>
         </section>
 
+        <!-- GPS & Heartbeat -->
         <section class="glass rounded-3xl p-5">
-          <h2 class="text-xl font-black mb-3">Activity Log</h2>
-          <div id="activity-log" class="space-y-2 max-h-72 overflow-auto text-sm">
-            <p class="text-slate-500">No activity yet.</p>
+          <h2 class="text-xl font-black mb-4">
+            GPS & Driver Status
+          </h2>
+
+          <div class="space-y-3">
+
+            <div class="soft rounded-2xl p-4">
+              <p class="text-xs uppercase text-slate-500 font-black">
+                GPS Signal
+              </p>
+
+              <p id="gps-status"
+                class="font-black mt-2 text-emerald-400">
+                Ready
+              </p>
+            </div>
+
+            <div class="soft rounded-2xl p-4">
+              <p class="text-xs uppercase text-slate-500 font-black">
+                Last Heartbeat
+              </p>
+
+              <p id="last-heartbeat"
+                class="font-black mt-2">
+                Waiting...
+              </p>
+            </div>
+
+            <div class="soft rounded-2xl p-4">
+              <p class="text-xs uppercase text-slate-500 font-black">
+                Driver Zone
+              </p>
+
+              <p id="driver-zone-display"
+                class="font-black mt-2">
+                Nashville
+              </p>
+            </div>
+
           </div>
         </section>
 
-        <button id="btn-global-exit" class="btn w-full py-4 rounded-2xl bg-red-600/90 hover:bg-red-500 font-black">
+        <!-- Activity Feed -->
+        <section class="glass rounded-3xl p-5">
+          <h2 class="text-xl font-black mb-3">
+            Activity Log
+          </h2>
+
+          <div id="activity-log"
+            class="space-y-2 max-h-72 overflow-auto text-sm">
+
+            <p class="text-slate-500">
+              No activity yet.
+            </p>
+
+          </div>
+        </section>
+
+        <!-- Logout -->
+        <button id="btn-global-exit"
+          class="btn w-full py-4 rounded-2xl bg-red-600/90 hover:bg-red-500 font-black">
           Log Out
         </button>
 
         <p class="text-center text-xs text-slate-600">
-          Harvey Logistics Driver Hub • System Version 3.0 Code Blue
+          Harvey Logistics Driver Hub • Code Blue X
         </p>
+
       </aside>
     </section>
+
+    <!-- Settings Modal -->
+
+    <div id="settings-modal"
+      class="modal-backdrop">
+
+      <div class="modal glass rounded-3xl p-6">
+
+        <div class="flex items-center justify-between mb-5">
+          <h2 class="text-2xl font-black">
+            Driver Settings
+          </h2>
+
+          <button id="close-settings"
+            class="btn px-4 py-2 rounded-xl bg-slate-800">
+            Close
+          </button>
+        </div>
+
+        <div class="grid gap-4">
+
+          <div class="soft rounded-2xl p-4">
+            <h3 class="font-black">
+              Driver Preferences
+            </h3>
+
+            <p class="text-sm text-slate-400 mt-1">
+              Customize dispatch and notification preferences.
+            </p>
+          </div>
+
+          <div class="soft rounded-2xl p-4">
+            <label class="flex items-center justify-between">
+              <span>Accept Taxi Missions</span>
+              <input type="checkbox" checked />
+            </label>
+          </div>
+
+          <div class="soft rounded-2xl p-4">
+            <label class="flex items-center justify-between">
+              <span>Accept Delivery Missions</span>
+              <input type="checkbox" checked />
+            </label>
+          </div>
+
+          <div class="soft rounded-2xl p-4">
+            <label class="flex items-center justify-between">
+              <span>Accept HTAF Missions</span>
+              <input type="checkbox" checked />
+            </label>
+          </div>
+
+        </div>        <div class="danger-zone rounded-2xl p-4 mt-5">
+          <h3 class="font-black text-red-300">
+            Delete App / Driver Account
+          </h3>
+
+          <p class="text-sm text-slate-300 mt-2">
+            This gives drivers a clear place to request account deletion,
+            remove local app data, or contact Harvey Taxi support.
+          </p>
+
+          <div class="grid sm:grid-cols-2 gap-3 mt-4">
+            <button id="btn-clear-local"
+              class="btn py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 font-black">
+              Clear Local App Data
+            </button>
+
+            <button id="btn-delete-request"
+              class="btn py-3 rounded-2xl bg-red-600 hover:bg-red-500 font-black">
+              Request Account Deletion
+            </button>
+          </div>
+
+          <p class="text-xs text-slate-500 mt-3">
+            Production note: connect account deletion to your backend deletion-request endpoint.
+          </p>
+        </div>
+      </div>
+    </div>
   </main>
 
-  <div id="toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl bg-slate-950 border border-slate-700 shadow-2xl text-sm font-black"></div>
+  <div id="toast"
+    class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl bg-slate-950 border border-slate-700 shadow-2xl text-sm font-black">
+  </div>
 
   <script>
     const API_BASE =
@@ -336,6 +827,10 @@
       isOnline: false,
       driverId: null,
       driverPhone: null,
+      vehicleId: null,
+      zone: "Nashville",
+      batteryMode: localStorage.getItem("harvey_battery_mode") || "smart",
+      lastHeartbeat: null,
       metrics: {
         earnings: 0,
         jobsCompleted: 0,
@@ -355,7 +850,7 @@
         { stage: "complete", label: "Complete Ride", instructions: "End the trip and finalize payment capture." }
       ],
       delivery: [
-        { stage: "enroute_store", label: "Go to Merchant", instructions: "Drive to the restaurant or store pickup location." },
+        { stage: "enroute_store", label: "Go to Merchant", instructions: "Drive to the restaurant, grocery store, or merchant pickup point." },
         { stage: "arrived_store", label: "At Merchant", instructions: "Confirm the order ID with the merchant." },
         { stage: "picked_up", label: "Order Picked Up", instructions: "Verify items and secure the delivery." },
         { stage: "enroute_customer", label: "Out for Delivery", instructions: "Drive to the customer drop-off location." },
@@ -363,10 +858,16 @@
         { stage: "complete_delivery", label: "Complete Delivery", instructions: "Confirm delivery completion and finalize payout." }
       ],
       nonprofit: [
-        { stage: "enroute", label: "Drive to Pickup", instructions: "Head to the approved assistance pickup location." },
-        { stage: "arrived", label: "Assist Passenger", instructions: "Confirm passenger and provide safe boarding support." },
-        { stage: "started", label: "Community Ride Active", instructions: "Complete the approved transportation assistance route." },
+        { stage: "enroute", label: "Drive to Pickup", instructions: "Head to the approved transportation-assistance pickup location." },
+        { stage: "arrived", label: "Assist Passenger", instructions: "Confirm passenger and provide safe boarding support if needed." },
+        { stage: "started", label: "Community Ride Active", instructions: "Complete the approved HTAF transportation assistance route." },
         { stage: "complete", label: "Complete Assistance Ride", instructions: "Finalize the nonprofit ride safely." }
+      ],
+      logistics: [
+        { stage: "enroute_pickup", label: "Go to Pickup", instructions: "Head to the logistics pickup location." },
+        { stage: "loaded", label: "Confirm Payload", instructions: "Confirm item details and secure the payload." },
+        { stage: "enroute_dropoff", label: "Deliver Payload", instructions: "Transport the payload to the drop-off location." },
+        { stage: "complete_logistics", label: "Complete Logistics Run", instructions: "Confirm delivery and finalize payout." }
       ]
     };
 
@@ -399,7 +900,7 @@
         pickup: "Front entrance",
         dropoff: "Clinic main lobby",
         priority: "Care Ride",
-        notes: "Nonprofit transportation assistance ride."
+        notes: "HTAF transportation assistance ride. Be patient and professional."
       },
       {
         type: "delivery",
@@ -410,31 +911,59 @@
         dropoff: "Front porch",
         priority: "Normal",
         notes: "Grocery payload. Keep items upright."
+      },
+      {
+        type: "logistics",
+        route: "Warehouse Pickup → Local Business",
+        payout: 27.40,
+        estimatedTime: "31 mins",
+        pickup: "Dock 2",
+        dropoff: "Main office reception",
+        priority: "Business",
+        notes: "Small business logistics drop-off. Signature may be required."
       }
     ];
 
     let dispatchTimer = null;
     let heartbeatTimer = null;
+    let batteryDrainTimer = null;
+    let batteryPercent = Number(localStorage.getItem("harvey_battery_percent") || 100);
 
     const el = {
       panelAuth: document.getElementById("panel-auth"),
       panelDashboard: document.getElementById("panel-dashboard"),
       driverIdInput: document.getElementById("driver-id"),
       driverPhoneInput: document.getElementById("driver-phone"),
+      driverVehicleInput: document.getElementById("driver-vehicle"),
+      driverZoneInput: document.getElementById("driver-zone"),
+
       btnLogin: document.getElementById("btn-login"),
       btnGlobalExit: document.getElementById("btn-global-exit"),
+      btnSettings: document.getElementById("btn-settings"),
+      btnBattery: document.getElementById("btn-battery"),
+      btnEmergency: document.getElementById("btn-emergency"),
+
+      settingsModal: document.getElementById("settings-modal"),
+      closeSettings: document.getElementById("close-settings"),
+      btnClearLocal: document.getElementById("btn-clear-local"),
+      btnDeleteRequest: document.getElementById("btn-delete-request"),
+
       driverBadge: document.getElementById("driver-badge"),
       statusPulse: document.getElementById("status-pulse"),
       statusDot: document.getElementById("status-dot"),
       statusText: document.getElementById("status-text"),
       onlineToggle: document.getElementById("online-toggle"),
+
       metricEarnings: document.getElementById("metric-earnings"),
       metricJobs: document.getElementById("metric-jobs"),
       metricRatio: document.getElementById("metric-ratio"),
+      metricBattery: document.getElementById("metric-battery"),
+
       dispatchMode: document.getElementById("dispatch-mode"),
       dispIdle: document.getElementById("disp-idle"),
       dispOffer: document.getElementById("disp-offer"),
       dispActive: document.getElementById("disp-active"),
+
       offerTypeBadge: document.getElementById("offer-type-badge"),
       offerId: document.getElementById("offer-id"),
       offerRoute: document.getElementById("offer-route"),
@@ -444,8 +973,11 @@
       offerPickup: document.getElementById("offer-pickup"),
       offerDropoff: document.getElementById("offer-dropoff"),
       offerNotes: document.getElementById("offer-notes"),
+
       btnDecline: document.getElementById("btn-decline"),
       btnAccept: document.getElementById("btn-accept"),
+      btnPipelineAdvance: document.getElementById("btn-pipeline-advance"),
+
       activeTypeBadge: document.getElementById("active-type-badge"),
       activeTitle: document.getElementById("active-title"),
       activePayout: document.getElementById("active-payout"),
@@ -453,55 +985,135 @@
       stepPrimaryValue: document.getElementById("step-primary-value"),
       stepSecondaryLabel: document.getElementById("step-secondary-label"),
       stepSecondaryValue: document.getElementById("step-secondary-value"),
-      btnPipelineAdvance: document.getElementById("btn-pipeline-advance"),
+
       heartbeatStatus: document.getElementById("heartbeat-status"),
+      gpsStatus: document.getElementById("gps-status"),
+      lastHeartbeat: document.getElementById("last-heartbeat"),
+      driverZoneDisplay: document.getElementById("driver-zone-display"),
+
+      batteryPercent: document.getElementById("battery-percent"),
+      batteryModeLabel: document.getElementById("battery-mode-label"),
+      batteryLow: document.getElementById("battery-low"),
+      batterySmart: document.getElementById("battery-smart"),
+      batteryPerformance: document.getElementById("battery-performance"),
+
       activityLog: document.getElementById("activity-log"),
       authMessage: document.getElementById("auth-message"),
       toast: document.getElementById("toast")
-    };
-
-    window.addEventListener("DOMContentLoaded", init);
-    el.btnLogin.addEventListener("click", login);
-    el.btnGlobalExit.addEventListener("click", logout);
-    el.onlineToggle.addEventListener("click", toggleOnline);
-    el.btnDecline.addEventListener("click", declineOffer);
-    el.btnAccept.addEventListener("click", acceptOffer);
-    el.btnPipelineAdvance.addEventListener("click", advancePipeline);
+    };    window.addEventListener("DOMContentLoaded", init);
 
     function init() {
-      const savedDriverId = localStorage.getItem("harvey_driver_id");
-      if (savedDriverId) el.driverIdInput.value = savedDriverId;
+      bindEvents();
+      applyBatteryMode(state.batteryMode);
+
+      const savedDriver = localStorage.getItem("harvey_driver_id");
+      if (savedDriver) {
+        el.driverIdInput.value = savedDriver;
+      }
+
+      const savedZone = localStorage.getItem("harvey_driver_zone");
+      if (savedZone) {
+        el.driverZoneInput.value = savedZone;
+      }
+
+      updateBatteryUI();
       render();
+    }
+
+    function bindEvents() {
+      el.btnLogin.addEventListener("click", login);
+      el.btnGlobalExit.addEventListener("click", logout);
+
+      el.onlineToggle.addEventListener("click", toggleOnline);
+
+      el.btnDecline.addEventListener("click", declineOffer);
+      el.btnAccept.addEventListener("click", acceptOffer);
+      el.btnPipelineAdvance.addEventListener("click", advancePipeline);
+
+      if (el.btnEmergency) {
+        el.btnEmergency.addEventListener("click", emergencyMode);
+      }
+
+      if (el.btnSettings) {
+        el.btnSettings.addEventListener("click", () => {
+          el.settingsModal.classList.add("show");
+        });
+      }
+
+      if (el.closeSettings) {
+        el.closeSettings.addEventListener("click", () => {
+          el.settingsModal.classList.remove("show");
+        });
+      }
+
+      if (el.btnBattery) {
+        el.btnBattery.addEventListener("click", () => {
+          toast(`Battery Mode: ${state.batteryMode.toUpperCase()}`);
+        });
+      }
+
+      if (el.batteryLow) {
+        el.batteryLow.addEventListener("click", () => {
+          applyBatteryMode("low");
+        });
+      }
+
+      if (el.batterySmart) {
+        el.batterySmart.addEventListener("click", () => {
+          applyBatteryMode("smart");
+        });
+      }
+
+      if (el.batteryPerformance) {
+        el.batteryPerformance.addEventListener("click", () => {
+          applyBatteryMode("performance");
+        });
+      }
+
+      if (el.btnClearLocal) {
+        el.btnClearLocal.addEventListener("click", clearLocalData);
+      }
+
+      if (el.btnDeleteRequest) {
+        el.btnDeleteRequest.addEventListener("click", requestDeletion);
+      }
     }
 
     function login() {
       const driverId = el.driverIdInput.value.trim();
       const phone = el.driverPhoneInput.value.trim();
+      const vehicle = el.driverVehicleInput.value.trim();
+      const zone = el.driverZoneInput.value.trim();
 
       if (!driverId) {
-        el.authMessage.textContent = "Enter your Driver ID or email.";
+        el.authMessage.textContent =
+          "Enter your Driver ID or email.";
         return;
       }
 
       state.driverId = driverId;
       state.driverPhone = phone;
+      state.vehicleId = vehicle;
+      state.zone = zone || "Nashville";
       state.isAuthenticated = true;
 
       localStorage.setItem("harvey_driver_id", driverId);
+      localStorage.setItem("harvey_driver_zone", state.zone);
       localStorage.setItem("harvey_user_type", "driver");
-      localStorage.setItem("harvey_user_name", driverId);
 
       el.panelAuth.classList.add("hidden");
       el.panelDashboard.classList.remove("hidden");
 
       logActivity("Driver session initialized.");
       toast("Driver Hub launched");
+
       render();
     }
 
     function logout() {
       stopDispatch();
       stopHeartbeat();
+      stopBatterySimulation();
 
       state.isAuthenticated = false;
       state.isOnline = false;
@@ -513,6 +1125,8 @@
       el.panelAuth.classList.remove("hidden");
 
       logActivity("Driver logged out.");
+      toast("Session closed");
+
       render();
     }
 
@@ -522,15 +1136,13 @@
       if (state.isOnline) {
         startDispatch();
         startHeartbeat();
+        startBatterySimulation();
+
         logActivity("Driver went online.");
         toast("You are online");
       } else {
         stopDispatch();
         stopHeartbeat();
-
-        if (state.currentJob && state.currentJob.status === "offered") {
-          state.currentJob = null;
-        }
 
         logActivity("Driver went offline.");
         toast("You are offline");
@@ -539,95 +1151,162 @@
       render();
     }
 
+    function applyBatteryMode(mode) {
+      state.batteryMode = mode;
+
+      localStorage.setItem(
+        "harvey_battery_mode",
+        mode
+      );
+
+      if (mode === "low") {
+        el.batteryModeLabel.textContent =
+          "Low Power Mode Enabled";
+      } else if (mode === "performance") {
+        el.batteryModeLabel.textContent =
+          "Maximum Performance Enabled";
+      } else {
+        el.batteryModeLabel.textContent =
+          "Smart Optimization Enabled";
+      }
+
+      updateBatteryUI();
+      toast(`Battery mode: ${mode}`);
+    }
+
+    function updateBatteryUI() {
+      el.metricBattery.textContent =
+        state.batteryMode.charAt(0).toUpperCase() +
+        state.batteryMode.slice(1);
+
+      el.batteryPercent.textContent =
+        `${batteryPercent}%`;
+
+      localStorage.setItem(
+        "harvey_battery_percent",
+        batteryPercent
+      );
+    }
+
+    function startBatterySimulation() {
+      stopBatterySimulation();
+
+      batteryDrainTimer = setInterval(() => {
+        let drain = 1;
+
+        if (state.batteryMode === "low") drain = 0.25;
+        if (state.batteryMode === "smart") drain = 0.50;
+        if (state.batteryMode === "performance") drain = 1.25;
+
+        batteryPercent = Math.max(
+          1,
+          batteryPercent - drain
+        );
+
+        updateBatteryUI();
+      }, 30000);
+    }
+
+    function stopBatterySimulation() {
+      if (batteryDrainTimer) {
+        clearInterval(batteryDrainTimer);
+      }
+
+      batteryDrainTimer = null;
+    }
+
     function startDispatch() {
       stopDispatch();
 
       dispatchTimer = setInterval(async () => {
-        if (!state.isOnline || state.currentJob) return;
+        if (!state.isOnline) return;
+        if (state.currentJob) return;
 
-        const liveMission = await fetchLiveMission();
-        if (liveMission) {
-          createOffer(liveMission);
-          return;
+        if (Math.random() > 0.55) {
+          createOffer(randomMission());
         }
-
-        if (Math.random() > 0.55) createOffer(randomMockMission());
       }, 4500);
     }
 
     function stopDispatch() {
-      if (dispatchTimer) clearInterval(dispatchTimer);
+      if (dispatchTimer) {
+        clearInterval(dispatchTimer);
+      }
+
       dispatchTimer = null;
     }
 
     function startHeartbeat() {
       stopHeartbeat();
+
       sendHeartbeat();
 
-      heartbeatTimer = setInterval(sendHeartbeat, 15000);
+      heartbeatTimer = setInterval(() => {
+        sendHeartbeat();
+      }, 15000);
     }
 
     function stopHeartbeat() {
-      if (heartbeatTimer) clearInterval(heartbeatTimer);
+      if (heartbeatTimer) {
+        clearInterval(heartbeatTimer);
+      }
+
       heartbeatTimer = null;
+
       el.heartbeatStatus.textContent = "Paused";
-      el.heartbeatStatus.className = "font-black text-slate-300";
+      el.heartbeatStatus.className =
+        "font-black text-slate-300";
     }
 
     async function sendHeartbeat() {
+      const now = new Date();
+
+      state.lastHeartbeat =
+        now.toLocaleTimeString();
+
+      el.lastHeartbeat.textContent =
+        state.lastHeartbeat;
+
       el.heartbeatStatus.textContent = "Live";
-      el.heartbeatStatus.className = "font-black text-emerald-400";
+      el.heartbeatStatus.className =
+        "font-black text-emerald-400";
 
-      if (!API_BASE || !state.driverId) return;
+      el.gpsStatus.textContent =
+        "GPS Active";
+
+      el.driverZoneDisplay.textContent =
+        state.zone || "Nashville";
+
+      if (!API_BASE || !state.driverId) {
+        return;
+      }
 
       try {
-        await fetch(`${API_BASE}/api/drivers/heartbeat`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            driver_id: state.driverId,
-            online: state.isOnline,
-            timestamp: new Date().toISOString()
-          })
-        });
+        await fetch(
+          `${API_BASE}/api/drivers/heartbeat`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              driver_id: state.driverId,
+              online: state.isOnline,
+              timestamp: new Date().toISOString()
+            })
+          }
+        );
       } catch {
-        el.heartbeatStatus.textContent = "Local";
-        el.heartbeatStatus.className = "font-black text-amber-300";
+        el.heartbeatStatus.textContent =
+          "Local Mode";
+
+        el.heartbeatStatus.className =
+          "font-black text-amber-300";
       }
-    }
-
-    async function fetchLiveMission() {
-      if (!API_BASE || !state.driverId) return null;
-
-      try {
-        const res = await fetch(`${API_BASE}/api/driver/current-offer?driver_id=${encodeURIComponent(state.driverId)}`);
-        if (!res.ok) return null;
-
-        const data = await res.json();
-        if (!data || !data.offer) return null;
-
-        return normalizeMission(data.offer);
-      } catch {
-        return null;
-      }
-    }
-
-    function normalizeMission(raw) {
-      return {
-        type: raw.service_type || raw.type || "taxi",
-        route: raw.route || `${raw.pickup_address || "Pickup"} → ${raw.dropoff_address || "Drop-off"}`,
-        payout: Number(raw.driver_payout || raw.payout || 0),
-        estimatedTime: raw.estimated_time || raw.eta || "Pending",
-        pickup: raw.pickup_address || raw.pickup || "Pickup location pending",
-        dropoff: raw.dropoff_address || raw.dropoff || "Drop-off location pending",
-        priority: raw.priority || "Normal",
-        notes: raw.notes || "No notes.",
-        id: raw.id || raw.mission_id || raw.ride_id
-      };
-    }
-
-    function randomMockMission() {
-      return MOCK_MISSIONS[Math.floor(Math.random() * MOCK_MISSIONS.length)];
+    }    function randomMission() {
+      return MOCK_MISSIONS[
+        Math.floor(Math.random() * MOCK_MISSIONS.length)
+      ];
     }
 
     function createOffer(template) {
@@ -635,11 +1314,17 @@
 
       state.currentJob = {
         ...template,
-        id: template.id || "HRV-" + Math.floor(100000 + Math.random() * 900000),
+        id:
+          template.id ||
+          "HRV-" +
+            Math.floor(100000 + Math.random() * 900000),
         status: "offered"
       };
 
-      logActivity(`New ${formatType(template.type)} mission received.`);
+      logActivity(
+        `New ${formatType(template.type)} mission received.`
+      );
+
       audioCue(587.33, 0.14);
       render();
     }
@@ -648,13 +1333,16 @@
       if (!state.currentJob) return;
 
       const offerId = state.currentJob.id;
+
       logActivity(`Mission declined: ${offerId}`);
 
       if (API_BASE) {
         try {
           await fetch(`${API_BASE}/api/driver/mission/decline`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json"
+            },
             body: JSON.stringify({
               driver_id: state.driverId,
               mission_id: offerId
@@ -673,15 +1361,21 @@
       state.metrics.offersAccepted++;
       state.currentJob.status = "active";
       state.jobStageIndex = 0;
-      state.pipelineWorkflow = PIPELINES[state.currentJob.type] || PIPELINES.taxi;
+      state.pipelineWorkflow =
+        PIPELINES[state.currentJob.type] ||
+        PIPELINES.taxi;
 
-      logActivity(`Mission accepted: ${state.currentJob.id}`);
+      logActivity(
+        `Mission accepted: ${state.currentJob.id}`
+      );
 
       if (API_BASE) {
         try {
           await fetch(`${API_BASE}/api/driver/mission/accept`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json"
+            },
             body: JSON.stringify({
               driver_id: state.driverId,
               mission_id: state.currentJob.id
@@ -695,15 +1389,23 @@
     }
 
     async function advancePipeline() {
-      if (!state.currentJob || state.currentJob.status !== "active") return;
+      if (
+        !state.currentJob ||
+        state.currentJob.status !== "active"
+      ) {
+        return;
+      }
 
-      const currentStage = state.pipelineWorkflow[state.jobStageIndex];
+      const currentStage =
+        state.pipelineWorkflow[state.jobStageIndex];
 
       if (API_BASE) {
         try {
           await fetch(`${API_BASE}/api/driver/mission/stage`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json"
+            },
             body: JSON.stringify({
               driver_id: state.driverId,
               mission_id: state.currentJob.id,
@@ -715,7 +1417,10 @@
 
       logActivity(`Stage updated: ${currentStage.label}`);
 
-      if (state.jobStageIndex < state.pipelineWorkflow.length - 1) {
+      if (
+        state.jobStageIndex <
+        state.pipelineWorkflow.length - 1
+      ) {
         state.jobStageIndex++;
       } else {
         completeMission();
@@ -725,12 +1430,16 @@
     }
 
     function completeMission() {
-      const payout = Number(state.currentJob.payout || 0);
+      const payout = Number(
+        state.currentJob.payout || 0
+      );
 
       state.metrics.earnings += payout;
       state.metrics.jobsCompleted++;
 
-      logActivity(`Mission completed. Payout added: $${payout.toFixed(2)}`);
+      logActivity(
+        `Mission completed. Payout added: $${payout.toFixed(2)}`
+      );
 
       state.currentJob = null;
       state.jobStageIndex = 0;
@@ -740,44 +1449,137 @@
       toast("Mission completed");
     }
 
-    function render() {
-      el.driverBadge.textContent = state.isAuthenticated
-        ? `Driver Config: ${state.driverId}`
-        : "Driver Portal • Offline";
+    function emergencyMode() {
+      if (!state.currentJob) {
+        toast("No active mission");
+        return;
+      }
 
-      el.onlineToggle.classList.toggle("active", state.isOnline);
+      logActivity(
+        `Emergency alert opened for ${state.currentJob.id}`
+      );
+
+      toast("Emergency mode activated");
+
+      if (API_BASE) {
+        fetch(`${API_BASE}/api/driver/emergency`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            driver_id: state.driverId,
+            mission_id: state.currentJob.id,
+            timestamp: new Date().toISOString()
+          })
+        }).catch(() => {});
+      }
+    }
+
+    function clearLocalData() {
+      localStorage.removeItem("harvey_driver_id");
+      localStorage.removeItem("harvey_driver_zone");
+      localStorage.removeItem("harvey_user_type");
+      localStorage.removeItem("harvey_battery_mode");
+      localStorage.removeItem("harvey_battery_percent");
+
+      toast("Local app data cleared");
+      logActivity("Local app data cleared.");
+    }
+
+    async function requestDeletion() {
+      logActivity("Driver account deletion request started.");
+
+      if (API_BASE && state.driverId) {
+        try {
+          await fetch(`${API_BASE}/api/driver/delete-request`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              driver_id: state.driverId,
+              phone: state.driverPhone,
+              requested_at: new Date().toISOString()
+            })
+          });
+
+          toast("Deletion request sent");
+          return;
+        } catch {}
+      }
+
+      toast("Deletion request saved locally");
+    }
+
+    function render() {
+      el.driverBadge.textContent =
+        state.isAuthenticated
+          ? `Driver Config: ${state.driverId} • ${state.zone}`
+          : "Driver Portal • Offline";
+
+      el.onlineToggle.classList.toggle(
+        "active",
+        state.isOnline
+      );
 
       if (state.isOnline) {
         el.statusText.textContent = "Online";
-        el.statusText.className = "text-xs font-black uppercase tracking-wider text-emerald-400";
-        el.statusDot.className = "relative inline-flex rounded-full h-3 w-3 bg-emerald-500";
-        el.statusPulse.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75";
+        el.statusText.className =
+          "text-xs font-black uppercase tracking-wider text-emerald-400";
+        el.statusDot.className =
+          "relative inline-flex rounded-full h-3 w-3 bg-emerald-500";
+        el.statusPulse.className =
+          "animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75";
       } else {
         el.statusText.textContent = "Offline";
-        el.statusText.className = "text-xs font-black uppercase tracking-wider text-slate-400";
-        el.statusDot.className = "relative inline-flex rounded-full h-3 w-3 bg-slate-500";
+        el.statusText.className =
+          "text-xs font-black uppercase tracking-wider text-slate-400";
+        el.statusDot.className =
+          "relative inline-flex rounded-full h-3 w-3 bg-slate-500";
         el.statusPulse.className = "hidden";
       }
 
-      el.metricEarnings.textContent = `$${state.metrics.earnings.toFixed(2)}`;
-      el.metricJobs.textContent = state.metrics.jobsCompleted;
+      el.metricEarnings.textContent =
+        `$${state.metrics.earnings.toFixed(2)}`;
+
+      el.metricJobs.textContent =
+        state.metrics.jobsCompleted;
 
       const ratio = state.metrics.offersReceived
-        ? Math.round((state.metrics.offersAccepted / state.metrics.offersReceived) * 100)
+        ? Math.round(
+            (state.metrics.offersAccepted /
+              state.metrics.offersReceived) *
+              100
+          )
         : 100;
 
       el.metricRatio.textContent = `${ratio}%`;
 
-      if (!state.currentJob) renderIdle();
-      else if (state.currentJob.status === "offered") renderOffer();
-      else renderActive();
+      el.driverZoneDisplay.textContent =
+        state.zone || "Nashville";
+
+      updateBatteryUI();
+
+      if (!state.currentJob) {
+        renderIdle();
+      } else if (state.currentJob.status === "offered") {
+        renderOffer();
+      } else {
+        renderActive();
+      }
     }
 
     function renderIdle() {
-      el.dispatchMode.textContent = state.isOnline ? "Online Listening" : "Standing By";
-      el.dispatchMode.className = state.isOnline
-        ? "px-3 py-1 rounded-full bg-emerald-500/10 text-xs font-black text-emerald-300"
-        : "px-3 py-1 rounded-full bg-slate-800 text-xs font-black text-slate-300";
+      el.dispatchMode.textContent =
+        state.isOnline
+          ? "Online Listening"
+          : "Standing By";
+
+      el.dispatchMode.className =
+        state.isOnline
+          ? "px-3 py-1 rounded-full bg-emerald-500/10 text-xs font-black text-emerald-300"
+          : "px-3 py-1 rounded-full bg-slate-800 text-xs font-black text-slate-300";
 
       el.dispIdle.classList.remove("hidden");
       el.dispOffer.classList.add("hidden");
@@ -788,7 +1590,8 @@
       const job = state.currentJob;
 
       el.dispatchMode.textContent = "Offer Received";
-      el.dispatchMode.className = "px-3 py-1 rounded-full bg-blue-500/10 text-xs font-black text-blue-300";
+      el.dispatchMode.className =
+        "px-3 py-1 rounded-full bg-blue-500/10 text-xs font-black text-blue-300";
 
       el.dispIdle.classList.add("hidden");
       el.dispOffer.classList.remove("hidden");
@@ -797,21 +1600,26 @@
       el.offerId.textContent = job.id;
       el.offerRoute.textContent = job.route;
       el.offerTime.textContent = job.estimatedTime;
-      el.offerPayout.textContent = `$${Number(job.payout || 0).toFixed(2)}`;
-      el.offerPriority.textContent = job.priority || "Normal";
+      el.offerPayout.textContent =
+        `$${Number(job.payout || 0).toFixed(2)}`;
+      el.offerPriority.textContent =
+        job.priority || "Normal";
       el.offerPickup.textContent = job.pickup;
       el.offerDropoff.textContent = job.dropoff;
-      el.offerNotes.textContent = job.notes || "No notes.";
+      el.offerNotes.textContent =
+        job.notes || "No notes.";
 
       setBadge(el.offerTypeBadge, job.type);
     }
 
     function renderActive() {
       const job = state.currentJob;
-      const stage = state.pipelineWorkflow[state.jobStageIndex];
+      const stage =
+        state.pipelineWorkflow[state.jobStageIndex];
 
       el.dispatchMode.textContent = "Mission Active";
-      el.dispatchMode.className = "px-3 py-1 rounded-full bg-emerald-500/10 text-xs font-black text-emerald-300";
+      el.dispatchMode.className =
+        "px-3 py-1 rounded-full bg-emerald-500/10 text-xs font-black text-emerald-300";
 
       el.dispIdle.classList.add("hidden");
       el.dispOffer.classList.add("hidden");
@@ -820,51 +1628,84 @@
       setBadge(el.activeTypeBadge, job.type);
 
       el.activeTitle.textContent = stage.label;
-      el.activePayout.textContent = `$${Number(job.payout || 0).toFixed(2)}`;
-      el.stepPrimaryLabel.textContent = "Current Objective";
-      el.stepPrimaryValue.textContent = stage.instructions;
-      el.stepSecondaryLabel.textContent = "Route Summary";
-      el.stepSecondaryValue.textContent = job.route;
+      el.activePayout.textContent =
+        `$${Number(job.payout || 0).toFixed(2)}`;
 
-      if (state.jobStageIndex === state.pipelineWorkflow.length - 1) {
-        el.btnPipelineAdvance.textContent = "Finalize Mission & Collect Payment";
-        el.btnPipelineAdvance.className = "btn w-full mt-5 py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 font-black shadow-xl shadow-emerald-600/20";
+      el.stepPrimaryLabel.textContent =
+        "Current Objective";
+      el.stepPrimaryValue.textContent =
+        stage.instructions;
+
+      el.stepSecondaryLabel.textContent =
+        "Route Summary";
+      el.stepSecondaryValue.textContent =
+        job.route;
+
+      if (
+        state.jobStageIndex ===
+        state.pipelineWorkflow.length - 1
+      ) {
+        el.btnPipelineAdvance.textContent =
+          "Finalize Mission & Collect Payment";
+
+        el.btnPipelineAdvance.className =
+          "btn py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 font-black shadow-xl shadow-emerald-600/20";
       } else {
-        const next = state.pipelineWorkflow[state.jobStageIndex + 1];
-        el.btnPipelineAdvance.textContent = `Advance to: ${next.label}`;
-        el.btnPipelineAdvance.className = "btn w-full mt-5 py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-500 font-black shadow-xl shadow-indigo-600/20";
+        const next =
+          state.pipelineWorkflow[
+            state.jobStageIndex + 1
+          ];
+
+        el.btnPipelineAdvance.textContent =
+          `Advance to: ${next.label}`;
+
+        el.btnPipelineAdvance.className =
+          "btn py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-500 font-black shadow-xl shadow-indigo-600/20";
       }
     }
 
     function setBadge(node, type) {
-      const label = formatType(type);
-
-      node.textContent = label;
+      node.textContent = formatType(type);
 
       if (type === "taxi") {
-        node.className = "px-3 py-1 rounded-full text-xs font-black uppercase bg-blue-500/10 text-blue-300 border border-blue-500/20";
+        node.className =
+          "px-3 py-1 rounded-full text-xs font-black uppercase bg-blue-500/10 text-blue-300 border border-blue-500/20";
       } else if (type === "nonprofit") {
-        node.className = "px-3 py-1 rounded-full text-xs font-black uppercase bg-purple-500/10 text-purple-300 border border-purple-500/20";
+        node.className =
+          "px-3 py-1 rounded-full text-xs font-black uppercase bg-purple-500/10 text-purple-300 border border-purple-500/20";
+      } else if (type === "logistics") {
+        node.className =
+          "px-3 py-1 rounded-full text-xs font-black uppercase bg-sky-500/10 text-sky-300 border border-sky-500/20";
       } else {
-        node.className = "px-3 py-1 rounded-full text-xs font-black uppercase bg-amber-500/10 text-amber-300 border border-amber-500/20";
+        node.className =
+          "px-3 py-1 rounded-full text-xs font-black uppercase bg-amber-500/10 text-amber-300 border border-amber-500/20";
       }
     }
 
     function formatType(type) {
       if (type === "taxi") return "Taxi Ride";
-      if (type === "nonprofit") return "Nonprofit Ride";
+      if (type === "nonprofit") return "HTAF Ride";
+      if (type === "logistics") return "Logistics";
       return "Delivery";
     }
 
     function logActivity(message) {
-      const empty = el.activityLog.querySelector(".text-slate-500");
+      const empty =
+        el.activityLog.querySelector(".text-slate-500");
+
       if (empty) empty.remove();
 
       const item = document.createElement("div");
-      item.className = "rounded-xl bg-slate-950/50 border border-slate-800 px-3 py-2";
+      item.className =
+        "rounded-xl bg-slate-950/50 border border-slate-800 px-3 py-2";
+
       item.innerHTML = `
-        <p class="font-bold text-slate-200">${escapeHTML(message)}</p>
-        <p class="text-xs text-slate-500">${new Date().toLocaleTimeString()}</p>
+        <p class="font-bold text-slate-200">
+          ${escapeHTML(message)}
+        </p>
+        <p class="text-xs text-slate-500">
+          ${new Date().toLocaleTimeString()}
+        </p>
       `;
 
       el.activityLog.prepend(item);
@@ -873,12 +1714,18 @@
     function toast(message) {
       el.toast.textContent = message;
       el.toast.classList.remove("hidden");
-      setTimeout(() => el.toast.classList.add("hidden"), 2400);
+
+      setTimeout(() => {
+        el.toast.classList.add("hidden");
+      }, 2400);
     }
 
     function audioCue(freq, duration) {
       try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const ctx =
+          new (window.AudioContext ||
+            window.webkitAudioContext)();
+
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
 
@@ -886,8 +1733,15 @@
         gain.connect(ctx.destination);
 
         osc.type = "sine";
-        osc.frequency.setValueAtTime(freq, ctx.currentTime);
-        gain.gain.setValueAtTime(0.07, ctx.currentTime);
+        osc.frequency.setValueAtTime(
+          freq,
+          ctx.currentTime
+        );
+
+        gain.gain.setValueAtTime(
+          0.07,
+          ctx.currentTime
+        );
 
         osc.start();
         osc.stop(ctx.currentTime + duration);
@@ -901,10 +1755,6 @@
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&#039;");
-    }
-
-    function openSettings() {
-      window.location.href = "settings.html";
     }
   </script>
 </body>
