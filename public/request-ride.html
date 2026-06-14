@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" dir="ltr">
 <head>
   <meta charset="UTF-8" />
   <meta
@@ -11,31 +11,11 @@
 
   <meta
     name="description"
-    content="Request a Harvey Taxi ride with rider approval, precise pickup location, live map preview, fare estimate, payment authorization, dispatch, and trip status."
+    content="Request a Harvey Taxi ride with rider approval, precise pickup location, live map preview, fare estimate, payment authorization, dispatch, multilingual access, and trip status."
   />
 
   <meta name="theme-color" content="#07111f" />
   <meta name="google-maps-browser-key" content="" />
-
-  <!--
-    CODE BLUE — REQUEST RIDE PAGE
-    Senior Developer Engineer Build
-
-    Major upgrades:
-    - Precise browser geolocation support
-    - Live pickup map preview
-    - Google Maps support when key is available
-    - No-map fallback UI when key is missing
-    - Rider approval gate
-    - Payment authorization gate
-    - Fare estimate gate
-    - Driver / autonomous / food / grocery mode support
-    - Safer state management
-    - Better storage recovery
-    - Better endpoint compatibility
-    - Cleaner mobile layout
-    - Production-safe frontend error handling
-  -->
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -66,6 +46,7 @@
       --yellow: #ffd166;
       --red: #ff5c7a;
       --purple: #a78bfa;
+      --gold: #ffd76a;
 
       --line: rgba(125, 170, 255, 0.18);
       --line-strong: rgba(125, 170, 255, 0.34);
@@ -99,6 +80,7 @@
         -apple-system,
         BlinkMacSystemFont,
         "Segoe UI",
+        Arial,
         sans-serif;
       color: var(--text-main);
       background:
@@ -121,6 +103,35 @@
       z-index: 0;
     }
 
+    body.high-contrast {
+      --bg-main: #000;
+      --bg-soft: #000;
+      --bg-deep: #000;
+      --bg-card: #050505;
+      --bg-card-strong: #050505;
+      --text-main: #ffffff;
+      --text-soft: #ffffff;
+      --text-muted: #e5e7eb;
+      --line: rgba(255,255,255,0.48);
+      --line-strong: rgba(255,255,255,0.82);
+    }
+
+    body.large-text {
+      font-size: 118%;
+    }
+
+    body.reduced-motion *,
+    body.reduced-motion *::before,
+    body.reduced-motion *::after {
+      animation: none !important;
+      transition: none !important;
+      scroll-behavior: auto !important;
+    }
+
+    [dir="rtl"] body {
+      text-align: right;
+    }
+
     a {
       color: inherit;
       text-decoration: none;
@@ -133,8 +144,32 @@
       font: inherit;
     }
 
+    button,
+    select,
+    a {
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+
     button {
       cursor: pointer;
+    }
+
+    .skip-link {
+      position: absolute;
+      left: 16px;
+      top: -120px;
+      padding: 12px 16px;
+      border-radius: 999px;
+      background: var(--cyan);
+      color: #03101f;
+      font-weight: 900;
+      z-index: 99999;
+      transition: 0.16s ease;
+    }
+
+    .skip-link:focus {
+      top: 14px;
     }
 
     .page {
@@ -147,6 +182,89 @@
     .shell {
       width: min(1220px, 100%);
       margin: 0 auto;
+    }
+
+    .language-toolbar {
+      margin-bottom: 16px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: rgba(7, 17, 31, 0.78);
+      box-shadow: var(--shadow-soft);
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: center;
+      backdrop-filter: blur(18px);
+    }
+
+    .language-copy strong {
+      display: block;
+      color: var(--cyan);
+      font-size: 0.88rem;
+      margin-bottom: 4px;
+    }
+
+    .language-copy span {
+      color: var(--text-soft);
+      font-size: 0.78rem;
+      line-height: 1.45;
+    }
+
+    .language-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+      align-items: center;
+    }
+
+    .language-actions select,
+    .accessibility-btn {
+      min-height: 43px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.055);
+      color: var(--text-main);
+      border-radius: 999px;
+      padding: 0 13px;
+      font-weight: 850;
+      outline: none;
+    }
+
+    .language-actions select option {
+      color: #03101f;
+      background: #ffffff;
+    }
+
+    .accessibility-btn.active {
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      color: #03101f;
+      border: none;
+    }
+
+    .inclusive-strip {
+      margin-bottom: 18px;
+      padding: 15px 18px;
+      border-radius: 22px;
+      background:
+        linear-gradient(135deg, rgba(255, 215, 106, 0.08), rgba(70, 240, 255, 0.055)),
+        rgba(255,255,255,0.025);
+      border: 1px solid rgba(255, 215, 106, 0.18);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .inclusive-strip strong {
+      display: block;
+      color: var(--gold);
+      font-size: 0.95rem;
+      margin-bottom: 5px;
+    }
+
+    .inclusive-strip p {
+      margin: 0;
+      color: var(--text-soft);
+      line-height: 1.58;
+      font-size: 0.84rem;
     }
 
     .topbar {
@@ -219,7 +337,8 @@
       transition: 180ms ease;
     }
 
-    .pill-link:hover {
+    .pill-link:hover,
+    .pill-link:focus-visible {
       border-color: var(--line-strong);
       background: rgba(77, 163, 255, 0.1);
       color: var(--text-main);
@@ -230,17 +349,19 @@
       grid-template-columns: minmax(0, 1.04fr) minmax(340px, 0.96fr);
       gap: 22px;
       align-items: stretch;
-    }
-
-    .hero-card,
+    }    .hero-card,
     .ride-card,
     .panel,
     .map-card {
       border: 1px solid var(--line);
       background:
-        linear-gradient(180deg, rgba(14, 27, 55, 0.88), rgba(5, 10, 22, 0.94));
+        linear-gradient(
+          180deg,
+          rgba(14, 27, 55, 0.88),
+          rgba(5, 10, 22, 0.94)
+        );
       box-shadow: var(--shadow);
-      border-radius: var(--radius-xl);
+      border-radius: 28px;
       backdrop-filter: blur(20px);
     }
 
@@ -257,7 +378,12 @@
       height: 360px;
       right: -130px;
       top: -130px;
-      background: radial-gradient(circle, rgba(77, 163, 255, 0.22), transparent 68%);
+      background:
+        radial-gradient(
+          circle,
+          rgba(77, 163, 255, 0.22),
+          transparent 68%
+        );
       pointer-events: none;
     }
 
@@ -292,7 +418,13 @@
     }
 
     .gradient-text {
-      background: linear-gradient(135deg, #ffffff 0%, #a8d6ff 45%, #46f0ff 100%);
+      background:
+        linear-gradient(
+          135deg,
+          #ffffff 0%,
+          #a8d6ff 45%,
+          #46f0ff 100%
+        );
       -webkit-background-clip: text;
       background-clip: text;
       color: transparent;
@@ -315,7 +447,7 @@
 
     .mode-chip {
       border: 1px solid var(--line);
-      background: rgba(255, 255, 255, 0.045);
+      background: rgba(255,255,255,0.045);
       color: var(--text-soft);
       border-radius: 18px;
       padding: 13px 12px;
@@ -338,10 +470,15 @@
     }
 
     .mode-chip.active {
-      border-color: rgba(70, 240, 255, 0.55);
+      border-color: rgba(70,240,255,0.55);
       background:
-        linear-gradient(180deg, rgba(77, 163, 255, 0.18), rgba(70, 240, 255, 0.08));
-      box-shadow: 0 18px 50px rgba(77, 163, 255, 0.16);
+        linear-gradient(
+          180deg,
+          rgba(77,163,255,0.18),
+          rgba(70,240,255,0.08)
+        );
+      box-shadow:
+        0 18px 50px rgba(77,163,255,0.16);
     }
 
     .status-stack {
@@ -355,7 +492,7 @@
       align-items: flex-start;
       gap: 12px;
       border: 1px solid var(--line);
-      background: rgba(255, 255, 255, 0.045);
+      background: rgba(255,255,255,0.045);
       border-radius: 18px;
       padding: 14px;
     }
@@ -366,7 +503,7 @@
       display: grid;
       place-items: center;
       border-radius: 13px;
-      background: rgba(77, 163, 255, 0.14);
+      background: rgba(77,163,255,0.14);
       flex: 0 0 auto;
     }
 
@@ -412,12 +549,24 @@
       position: relative;
       overflow: hidden;
       border-radius: 22px;
-      border: 1px solid rgba(125, 170, 255, 0.22);
-      min-height: 300px;
+      border: 1px solid rgba(125,170,255,0.22);
+      min-height: 320px;
       background:
-        radial-gradient(circle at 20% 20%, rgba(70, 240, 255, 0.16), transparent 26%),
-        radial-gradient(circle at 80% 20%, rgba(77, 163, 255, 0.16), transparent 26%),
-        linear-gradient(135deg, rgba(3, 12, 26, 0.96), rgba(8, 18, 38, 0.96));
+        radial-gradient(
+          circle at 20% 20%,
+          rgba(70,240,255,0.16),
+          transparent 26%
+        ),
+        radial-gradient(
+          circle at 80% 20%,
+          rgba(77,163,255,0.16),
+          transparent 26%
+        ),
+        linear-gradient(
+          135deg,
+          rgba(3,12,26,0.96),
+          rgba(8,18,38,0.96)
+        );
     }
 
     #pickupMap {
@@ -425,7 +574,7 @@
       inset: 0;
       width: 100%;
       height: 100%;
-      min-height: 300px;
+      min-height: 320px;
     }
 
     .map-fallback {
@@ -436,8 +585,16 @@
       padding: 24px;
       text-align: center;
       background:
-        radial-gradient(circle at center, rgba(77, 163, 255, 0.16), transparent 44%),
-        linear-gradient(180deg, rgba(2, 8, 20, 0.68), rgba(2, 8, 20, 0.92));
+        radial-gradient(
+          circle at center,
+          rgba(77,163,255,0.16),
+          transparent 44%
+        ),
+        linear-gradient(
+          180deg,
+          rgba(2,8,20,0.68),
+          rgba(2,8,20,0.92)
+        );
     }
 
     .map-fallback-card {
@@ -445,7 +602,7 @@
       border: 1px solid var(--line);
       border-radius: 22px;
       padding: 18px;
-      background: rgba(255, 255, 255, 0.055);
+      background: rgba(255,255,255,0.055);
       box-shadow: var(--shadow-soft);
     }
 
@@ -464,7 +621,7 @@
 
     .map-meta {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(3, minmax(0,1fr));
       gap: 10px;
       margin-top: 12px;
     }
@@ -472,7 +629,7 @@
     .map-meta-box {
       border: 1px solid var(--line);
       border-radius: 16px;
-      background: rgba(255, 255, 255, 0.045);
+      background: rgba(255,255,255,0.045);
       padding: 12px;
       min-width: 0;
     }
@@ -482,17 +639,47 @@
       color: var(--text-muted);
       font-size: 0.68rem;
       font-weight: 900;
-      letter-spacing: 0.08em;
+      letter-spacing: .08em;
       text-transform: uppercase;
       margin-bottom: 6px;
     }
 
     .map-meta-box strong {
       display: block;
-      font-size: 0.84rem;
+      font-size: .84rem;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+
+    .language-preferences {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: repeat(3,minmax(0,1fr));
+      gap: 10px;
+    }
+
+    .language-card {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 14px;
+      background: rgba(255,255,255,.04);
+    }
+
+    .language-card span {
+      display: block;
+      color: var(--text-muted);
+      font-size: .70rem;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      letter-spacing: .08em;
+      font-weight: 800;
+    }
+
+    .language-card strong {
+      display: block;
+      font-size: .92rem;
+      color: var(--text-main);
     }    .ride-card {
       padding: 22px;
       position: relative;
@@ -508,7 +695,11 @@
       right: -120px;
       border-radius: 999px;
       background:
-        radial-gradient(circle, rgba(70, 240, 255, 0.14), transparent 68%);
+        radial-gradient(
+          circle,
+          rgba(70,240,255,0.14),
+          transparent 68%
+        );
       pointer-events: none;
     }
 
@@ -541,9 +732,9 @@
       gap: 6px;
       border-radius: 999px;
       padding: 8px 10px;
-      background: rgba(56, 224, 143, 0.1);
+      background: rgba(56,224,143,0.10);
       color: #bff8dc;
-      border: 1px solid rgba(56, 224, 143, 0.24);
+      border: 1px solid rgba(56,224,143,0.24);
       font-size: 0.72rem;
       font-weight: 800;
       white-space: nowrap;
@@ -556,7 +747,7 @@
       font-size: 0.84rem;
       line-height: 1.5;
       border: 1px solid var(--line);
-      background: rgba(255, 255, 255, 0.045);
+      background: rgba(255,255,255,0.045);
       color: var(--text-soft);
       margin-bottom: 16px;
     }
@@ -566,26 +757,26 @@
     }
 
     .notice.success {
-      border-color: rgba(56, 224, 143, 0.35);
-      background: rgba(56, 224, 143, 0.09);
+      border-color: rgba(56,224,143,.35);
+      background: rgba(56,224,143,.09);
       color: #d4ffe9;
     }
 
     .notice.warning {
-      border-color: rgba(255, 209, 102, 0.35);
-      background: rgba(255, 209, 102, 0.09);
+      border-color: rgba(255,209,102,.35);
+      background: rgba(255,209,102,.09);
       color: #fff0c4;
     }
 
     .notice.error {
-      border-color: rgba(255, 92, 122, 0.35);
-      background: rgba(255, 92, 122, 0.09);
+      border-color: rgba(255,92,122,.35);
+      background: rgba(255,92,122,.09);
       color: #ffdbe3;
     }
 
     .notice.info {
-      border-color: rgba(77, 163, 255, 0.35);
-      background: rgba(77, 163, 255, 0.08);
+      border-color: rgba(77,163,255,.35);
+      background: rgba(77,163,255,.08);
       color: #d6ebff;
     }
 
@@ -603,13 +794,13 @@
 
     .field label {
       color: #dfeaff;
-      font-size: 0.82rem;
+      font-size: .82rem;
       font-weight: 800;
     }
 
     .field small {
       color: var(--text-muted);
-      font-size: 0.74rem;
+      font-size: .74rem;
       line-height: 1.45;
     }
 
@@ -621,11 +812,11 @@
     select,
     textarea {
       width: 100%;
-      border: 1px solid rgba(125, 170, 255, 0.2);
+      border: 1px solid rgba(125,170,255,0.2);
       border-radius: 16px;
       color: var(--text-main);
-      background: rgba(2, 8, 20, 0.72);
-      padding: 14px 14px;
+      background: rgba(2,8,20,0.72);
+      padding: 14px;
       outline: none;
       transition: 180ms ease;
       appearance: none;
@@ -638,14 +829,14 @@
 
     input::placeholder,
     textarea::placeholder {
-      color: rgba(184, 199, 230, 0.55);
+      color: rgba(184,199,230,.55);
     }
 
     input:focus,
     select:focus,
     textarea:focus {
-      border-color: rgba(70, 240, 255, 0.55);
-      box-shadow: 0 0 0 4px rgba(70, 240, 255, 0.08);
+      border-color: rgba(70,240,255,.55);
+      box-shadow: 0 0 0 4px rgba(70,240,255,.08);
     }
 
     .two-col {
@@ -656,7 +847,13 @@
 
     .three-col {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(3,minmax(0,1fr));
+      gap: 12px;
+    }
+
+    .four-col {
+      display: grid;
+      grid-template-columns: repeat(4,minmax(0,1fr));
       gap: 12px;
     }
 
@@ -668,18 +865,18 @@
     }
 
     .mini-btn {
-      border: 1px solid rgba(77, 163, 255, 0.32);
-      background: rgba(77, 163, 255, 0.12);
+      border: 1px solid rgba(77,163,255,.32);
+      background: rgba(77,163,255,.12);
       color: #d8ecff;
       border-radius: 16px;
       padding: 14px 13px;
       font-weight: 900;
       white-space: nowrap;
-      transition: 180ms ease;
+      transition: .18s ease;
     }
 
     .mini-btn:hover {
-      background: rgba(77, 163, 255, 0.2);
+      background: rgba(77,163,255,.20);
       transform: translateY(-1px);
     }
 
@@ -690,20 +887,80 @@
       gap: 8px;
       flex-wrap: wrap;
       color: var(--text-soft);
-      font-size: 0.78rem;
+      font-size: .78rem;
     }
 
     .gps-dot {
       width: 10px;
       height: 10px;
       border-radius: 999px;
-      background: rgba(255,255,255,0.2);
-      flex: 0 0 auto;
+      background: rgba(255,255,255,.20);
     }
 
     .gps-dot.active {
       background: var(--green);
-      box-shadow: 0 0 0 5px rgba(56, 224, 143, 0.12);
+      box-shadow: 0 0 0 5px rgba(56,224,143,.12);
+    }
+
+    .accessibility-panel {
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 16px;
+      background: rgba(255,255,255,.04);
+      display: grid;
+      gap: 12px;
+    }
+
+    .accessibility-panel h4 {
+      margin: 0;
+      font-size: .95rem;
+      letter-spacing: -.03em;
+    }
+
+    .accessibility-options {
+      display: grid;
+      grid-template-columns: repeat(3,minmax(0,1fr));
+      gap: 10px;
+    }
+
+    .accessibility-option {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 12px;
+      background: rgba(255,255,255,.03);
+    }
+
+    .accessibility-option label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-size: .82rem;
+      font-weight: 700;
+    }
+
+    .preferences-panel {
+      border: 1px solid rgba(70,240,255,.18);
+      border-radius: 22px;
+      padding: 18px;
+      background:
+        linear-gradient(
+          135deg,
+          rgba(70,240,255,.05),
+          rgba(77,163,255,.04)
+        );
+    }
+
+    .preferences-panel h4 {
+      margin: 0 0 8px;
+      font-size: 1rem;
+    }
+
+    .preferences-panel p {
+      margin: 0 0 12px;
+      color: var(--text-soft);
+      font-size: .84rem;
+      line-height: 1.5;
     }
 
     .actions {
@@ -720,67 +977,71 @@
       border-radius: 18px;
       padding: 15px 16px;
       font-weight: 900;
-      letter-spacing: -0.02em;
-      transition: 180ms ease;
+      letter-spacing: -.02em;
+      transition: .18s ease;
     }
 
     .primary-btn {
       border: 0;
       color: #03101f;
       background:
-        linear-gradient(135deg, #ffffff, #7fc3ff 42%, #46f0ff 100%);
-      box-shadow: 0 18px 50px rgba(70, 240, 255, 0.18);
+        linear-gradient(
+          135deg,
+          #ffffff,
+          #7fc3ff 42%,
+          #46f0ff 100%
+        );
+      box-shadow:
+        0 18px 50px rgba(70,240,255,.18);
     }
 
     .primary-btn:hover {
       transform: translateY(-1px);
-      box-shadow: 0 22px 58px rgba(70, 240, 255, 0.24);
+      box-shadow:
+        0 22px 58px rgba(70,240,255,.24);
     }
 
     .secondary-btn {
       border: 1px solid var(--line);
-      background: rgba(255, 255, 255, 0.055);
+      background: rgba(255,255,255,.055);
       color: var(--text-main);
     }
 
     .secondary-btn:hover {
-      background: rgba(255,255,255,0.08);
-      transform: translateY(-1px);
+      background: rgba(255,255,255,.08);
     }
 
     .ghost-btn {
-      border: 1px dashed rgba(125, 170, 255, 0.24);
+      border: 1px dashed rgba(125,170,255,.24);
       background: transparent;
       color: var(--text-soft);
     }
 
     .danger-btn {
-      border: 1px solid rgba(255, 92, 122, 0.28);
-      background: rgba(255, 92, 122, 0.12);
+      border: 1px solid rgba(255,92,122,.28);
+      background: rgba(255,92,122,.12);
       color: #ffe5eb;
     }
 
     .primary-btn:disabled,
     .secondary-btn:disabled,
-    .danger-btn:disabled,
     .ghost-btn:disabled,
+    .danger-btn:disabled,
     .mini-btn:disabled {
+      opacity: .55;
       cursor: not-allowed;
-      opacity: 0.55;
       transform: none;
       box-shadow: none;
-    }
-
-    .details {
+    }    .details {
       margin-top: 20px;
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(4,minmax(0,1fr));
       gap: 12px;
     }
 
     .detail-card {
       border: 1px solid var(--line);
-      background: rgba(255,255,255,0.04);
+      background: rgba(255,255,255,.04);
       border-radius: 18px;
       padding: 15px;
     }
@@ -788,17 +1049,17 @@
     .detail-card span {
       display: block;
       color: var(--text-muted);
-      font-size: 0.72rem;
+      font-size: .72rem;
       font-weight: 800;
       text-transform: uppercase;
-      letter-spacing: 0.08em;
+      letter-spacing: .08em;
       margin-bottom: 8px;
     }
 
     .detail-card strong {
       display: block;
       font-size: 1.08rem;
-      letter-spacing: -0.04em;
+      letter-spacing: -.04em;
     }
 
     .trip-timeline {
@@ -814,7 +1075,7 @@
       border: 1px solid var(--line);
       border-radius: 18px;
       padding: 14px;
-      background: rgba(255,255,255,0.04);
+      background: rgba(255,255,255,.04);
     }
 
     .timeline-icon {
@@ -823,22 +1084,163 @@
       border-radius: 12px;
       display: grid;
       place-items: center;
-      background: rgba(77,163,255,0.12);
+      background: rgba(77,163,255,.12);
       flex: 0 0 auto;
-      font-size: 0.92rem;
+      font-size: .92rem;
     }
 
     .timeline-item strong {
       display: block;
       margin-bottom: 4px;
-      font-size: 0.9rem;
+      font-size: .9rem;
     }
 
     .timeline-item span {
       display: block;
       color: var(--text-soft);
-      font-size: 0.8rem;
+      font-size: .8rem;
       line-height: 1.45;
+    }
+
+    .trip-progress {
+      margin-top: 18px;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      overflow: hidden;
+      background: rgba(255,255,255,.03);
+    }
+
+    .trip-progress-header {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .trip-progress-header strong {
+      font-size: .9rem;
+    }
+
+    .trip-progress-bar {
+      height: 10px;
+      background: rgba(255,255,255,.05);
+      overflow: hidden;
+    }
+
+    .trip-progress-fill {
+      width: 0%;
+      height: 100%;
+      background:
+        linear-gradient(
+          90deg,
+          var(--blue),
+          var(--cyan)
+        );
+      transition: width .4s ease;
+    }
+
+    .trip-progress-steps {
+      display: grid;
+      grid-template-columns: repeat(5,1fr);
+      gap: 8px;
+      padding: 14px;
+    }
+
+    .step {
+      text-align: center;
+      font-size: .72rem;
+      color: var(--text-muted);
+    }
+
+    .step.active {
+      color: var(--cyan);
+      font-weight: 800;
+    }
+
+    .step.complete {
+      color: var(--green);
+      font-weight: 800;
+    }
+
+    .driver-card {
+      margin-top: 18px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 18px;
+      background:
+        linear-gradient(
+          180deg,
+          rgba(77,163,255,.08),
+          rgba(255,255,255,.03)
+        );
+      display: none;
+    }
+
+    .driver-card.show {
+      display: block;
+    }
+
+    .driver-top {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .driver-avatar {
+      width: 62px;
+      height: 62px;
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+      background:
+        linear-gradient(
+          135deg,
+          var(--blue),
+          var(--cyan)
+        );
+      color: #04111d;
+      font-weight: 900;
+      font-size: 1.2rem;
+    }
+
+    .driver-info strong {
+      display: block;
+      font-size: 1rem;
+    }
+
+    .driver-info span {
+      display: block;
+      color: var(--text-soft);
+      margin-top: 4px;
+      font-size: .82rem;
+    }
+
+    .driver-grid {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: repeat(3,1fr);
+      gap: 10px;
+    }
+
+    .driver-stat {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 12px;
+      background: rgba(255,255,255,.04);
+    }
+
+    .driver-stat span {
+      display: block;
+      font-size: .68rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .driver-stat strong {
+      display: block;
+      font-size: .92rem;
     }
 
     .panels {
@@ -855,14 +1257,14 @@
     .panel h3 {
       margin: 0 0 8px;
       font-size: 1rem;
-      letter-spacing: -0.035em;
+      letter-spacing: -.035em;
     }
 
     .panel p {
       margin: 0;
       color: var(--text-soft);
       line-height: 1.55;
-      font-size: 0.88rem;
+      font-size: .88rem;
     }
 
     .mini-list {
@@ -876,24 +1278,24 @@
       width: 100%;
       text-align: left;
       border: 1px solid var(--line);
-      background: rgba(255,255,255,0.045);
+      background: rgba(255,255,255,.045);
       color: var(--text-main);
       border-radius: 15px;
       padding: 12px;
       font-weight: 800;
-      transition: 180ms ease;
+      transition: .18s ease;
     }
 
     .mini-list a:hover,
     .mini-list button:hover {
-      background: rgba(255,255,255,0.08);
+      background: rgba(255,255,255,.08);
       transform: translateY(-1px);
     }
 
     .footer-note {
       margin-top: 22px;
       color: var(--text-muted);
-      font-size: 0.78rem;
+      font-size: .78rem;
       line-height: 1.6;
       text-align: center;
     }
@@ -908,9 +1310,9 @@
       width: 15px;
       height: 15px;
       border-radius: 999px;
-      border: 2px solid rgba(255,255,255,0.35);
+      border: 2px solid rgba(255,255,255,.35);
       border-top-color: #03101f;
-      animation: spin 850ms linear infinite;
+      animation: spin .85s linear infinite;
     }
 
     .hidden {
@@ -923,42 +1325,35 @@
       }
     }
 
-    @media (max-width: 1020px) {
-      .hero {
+    @media (max-width:1020px) {
+
+      .hero,
+      .panels {
         grid-template-columns: 1fr;
       }
 
       .mode-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: repeat(2,minmax(0,1fr));
       }
 
       .details,
-      .map-meta,
-      .panels,
+      .driver-grid,
+      .accessibility-options,
+      .four-col,
       .three-col {
         grid-template-columns: 1fr;
       }
     }
 
-    @media (max-width: 640px) {
+    @media (max-width:640px) {
+
       .page {
         padding-left: 12px;
         padding-right: 12px;
       }
 
-      .topbar {
-        align-items: flex-start;
-      }
-
       .top-actions {
         display: none;
-      }
-
-      .hero-card,
-      .ride-card,
-      .panel,
-      .map-card {
-        border-radius: 24px;
       }
 
       .mode-grid,
@@ -967,12 +1362,12 @@
         grid-template-columns: 1fr;
       }
 
-      .mini-btn {
-        width: 100%;
-      }
-
       .details {
         grid-template-columns: 1fr 1fr;
+      }
+
+      .trip-progress-steps {
+        grid-template-columns: repeat(2,1fr);
       }
 
       #pickupMap,
@@ -984,2992 +1379,1694 @@
 </head>
 
 <body>
-  <div class="page">
-    <div class="shell">
 
-      <!-- TOPBAR -->
-      <header class="topbar">
+<div class="page">
+<div class="shell">
 
-        <a href="/" class="brand">
-          <div class="brand-mark">
-            H
-          </div>
+<header class="topbar">
 
-          <div class="brand-text">
-            <strong>Harvey Taxi</strong>
+<a href="/" class="brand">
 
-            <span>
-              Tennessee Ride Access • Live Dispatch • Smart Mobility
-            </span>
-          </div>
-        </a>
+<div class="brand-mark">H</div>
 
-        <div class="top-actions">
+<div class="brand-text">
+<strong>Harvey Taxi</strong>
+<span>
+Tennessee Ride Access • Smart Dispatch • Mobility Platform
+</span>
+</div>
 
-          <a class="pill-link" href="/rider-dashboard.html">
-            Rider Dashboard
-          </a>
+</a>
 
-          <a class="pill-link" href="/support.html">
-            Live Support
-          </a>
+<div class="top-actions">
 
-          <a class="pill-link" href="/foundation.html">
-            Foundation
-          </a>
+<a href="/rider-dashboard.html" class="pill-link">
+Rider Dashboard
+</a>
 
-        </div>
-      </header>      <!-- HERO -->
-      <section class="hero">
+<a href="/driver-dashboard.html" class="pill-link">
+Driver Hub
+</a>
 
-        <!-- LEFT SIDE -->
-        <div>
+<a href="/foundation.html" class="pill-link">
+HTAF
+</a>
 
-          <div class="hero-card">
+<a href="/support.html" class="pill-link">
+Support
+</a>
 
-            <div class="eyebrow">
-              <div class="pulse-dot"></div>
+</div>
 
-              <span id="heroEyebrowText">
-                LIVE DISPATCH + LOCATION INTELLIGENCE
-              </span>
-            </div>
+</header><!-- HERO -->
+<section class="hero">
 
-            <h1>
-              <span class="gradient-text" id="heroTitle">
-                Request Your Ride
-              </span>
-            </h1>
+  <!-- LEFT SIDE -->
+  <div>
 
-            <p class="hero-copy" id="heroCopy">
-              Harvey Taxi connects approved riders with drivers,
-              dispatch systems, precise pickup intelligence,
-              payment authorization, and future autonomous pilot systems.
-            </p>
+    <div class="hero-card">
 
-            <!-- MODES -->
-            <div class="mode-grid">
+      <div class="eyebrow">
+        <div class="pulse-dot"></div>
 
-              <button
-                type="button"
-                class="mode-chip active"
-                id="modeDriverBtn"
-                data-mode="driver"
-              >
-                <strong>Driver Ride</strong>
+        <span id="heroEyebrowText">
+          LIVE DISPATCH + LOCATION INTELLIGENCE
+        </span>
+      </div>
 
-                <span>
-                  Standard ride request with a human driver.
-                </span>
-              </button>
+      <h1>
+        <span class="gradient-text" id="heroTitle">
+          Request Your Ride
+        </span>
+      </h1>
 
-              <button
-                type="button"
-                class="mode-chip"
-                id="modeAutonomousBtn"
-                data-mode="autonomous"
-              >
-                <strong>Autonomous Pilot</strong>
-
-                <span>
-                  Clearly labeled autonomous pilot experience.
-                </span>
-              </button>
-
-              <button
-                type="button"
-                class="mode-chip"
-                id="modeFoodBtn"
-                data-mode="food"
-              >
-                <strong>Food Delivery</strong>
-
-                <span>
-                  Food pickup and delivery request mode.
-                </span>
-              </button>
-
-              <button
-                type="button"
-                class="mode-chip"
-                id="modeGroceryBtn"
-                data-mode="grocery"
-              >
-                <strong>Groceries</strong>
-
-                <span>
-                  Grocery delivery and assistance support.
-                </span>
-              </button>
-
-            </div>
-
-            <!-- STATUS -->
-            <div class="status-stack">
-
-              <div class="status-box">
-                <div class="status-icon">
-                  🛡️
-                </div>
-
-                <div>
-                  <strong>Rider Approval Gate</strong>
-
-                  <span>
-                    Harvey Taxi can require approved rider status,
-                    identity verification, and phone verification
-                    before dispatch activation.
-                  </span>
-                </div>
-              </div>
-
-              <div class="status-box">
-                <div class="status-icon">
-                  💳
-                </div>
-
-                <div>
-                  <strong>Payment Authorization</strong>
-
-                  <span>
-                    Payment authorization may occur before dispatch
-                    to reduce failed trips and improve operational reliability.
-                  </span>
-                </div>
-              </div>
-
-              <div class="status-box">
-                <div class="status-icon">
-                  📡
-                </div>
-
-                <div>
-                  <strong>Live Dispatch Intelligence</strong>
-
-                  <span>
-                    Dispatch routing may use driver proximity,
-                    demand balancing, availability scoring,
-                    and live trip conditions.
-                  </span>
-                </div>
-              </div>
-
-            </div>
-
-          </div>
-
-          <!-- MAP CARD -->
-          <div class="map-card">
-
-            <div class="map-header">
-
-              <div>
-                <h3>
-                  Live Pickup Location
-                </h3>
-
-                <p>
-                  Harvey Taxi can use precise browser GPS location
-                  and live map preview when permission is granted.
-                </p>
-              </div>
-
-              <div class="badge">
-                <span>●</span>
-                <span id="mapStatusBadge">
-                  Map Ready
-                </span>
-              </div>
-
-            </div>
-
-            <div class="map-shell">
-
-              <!-- LIVE MAP -->
-              <div id="pickupMap"></div>
-
-              <!-- FALLBACK -->
-              <div
-                id="mapFallback"
-                class="map-fallback"
-              >
-                <div class="map-fallback-card">
-
-                  <strong>
-                    Live Map Standby
-                  </strong>
-
-                  <span>
-                    Use “Use My Location” to activate precise pickup support.
-                    Google Maps preview automatically loads when configured.
-                  </span>
-
-                </div>
-              </div>
-
-            </div>
-
-            <!-- MAP META -->
-            <div class="map-meta">
-
-              <div class="map-meta-box">
-                <span>Latitude</span>
-
-                <strong id="latitudeText">
-                  Pending
-                </strong>
-              </div>
-
-              <div class="map-meta-box">
-                <span>Longitude</span>
-
-                <strong id="longitudeText">
-                  Pending
-                </strong>
-              </div>
-
-              <div class="map-meta-box">
-                <span>GPS Accuracy</span>
-
-                <strong id="accuracyText">
-                  Pending
-                </strong>
-              </div>
-
-            </div>
-
-          </div>
-
-        </div>
-
-        <!-- RIGHT SIDE -->
-        <div class="ride-card">
-
-          <div class="card-header">
-
-            <div>
-
-              <h2 id="requestCardTitle">
-                Ride Request
-              </h2>
-
-              <p id="requestCardCopy">
-                Complete the secure Harvey Taxi request flow below.
-              </p>
-
-            </div>
-
-            <div class="badge">
-              <span>●</span>
-
-              <span id="statusBadgeText">
-                Dispatch Ready
-              </span>
-            </div>
-
-          </div>
-
-          <!-- NOTICE -->
-          <div
-            id="noticeBox"
-            class="notice"
-          ></div>
-
-          <!-- FORM -->
-          <form
-            id="rideForm"
-            class="form-grid"
-          >
-
-            <!-- RIDER -->
-            <div class="two-col">
-
-              <div class="field">
-
-                <label for="riderName">
-                  Full Name
-                </label>
-
-                <div class="input-wrap">
-                  <input
-                    id="riderName"
-                    type="text"
-                    autocomplete="name"
-                    placeholder="Enter your full name"
-                  />
-                </div>
-
-              </div>
-
-              <div class="field">
-
-                <label for="riderPhone">
-                  Phone Number
-                </label>
-
-                <div class="input-wrap">
-                  <input
-                    id="riderPhone"
-                    type="tel"
-                    inputmode="tel"
-                    autocomplete="tel"
-                    placeholder="(555) 555-5555"
-                  />
-                </div>
-
-              </div>
-
-            </div>
-
-            <!-- EMAIL -->
-            <div class="field">
-
-              <label for="riderEmail">
-                Email Address
-              </label>
-
-              <div class="input-wrap">
-                <input
-                  id="riderEmail"
-                  type="email"
-                  autocomplete="email"
-                  placeholder="you@example.com"
-                />
-              </div>
-
-              <small>
-                Your email may be used for receipts,
-                verification, ride updates, support,
-                and trip lifecycle communication.
-              </small>
-
-            </div>
-
-            <!-- PICKUP -->
-            <div class="field">
-
-              <label for="pickupAddress">
-                Pickup Location
-              </label>
-
-              <div class="location-row">
-
-                <div class="input-wrap">
-
-                  <input
-                    id="pickupAddress"
-                    type="text"
-                    autocomplete="street-address"
-                    placeholder="Enter pickup address"
-                  />
-
-                </div>
-
-                <button
-                  type="button"
-                  class="mini-btn"
-                  id="detectLocationBtn"
-                >
-                  Use My Location
-                </button>
-
-              </div>
-
-              <!-- GPS STATUS -->
-              <div class="gps-status">
-
-                <div
-                  id="gpsDot"
-                  class="gps-dot"
-                ></div>
-
-                <span id="locationStatusText">
-                  Harvey Taxi can use precise GPS location
-                  when permission is granted.
-                </span>
-
-              </div>
-
-            </div>
-
-            <!-- DESTINATION -->
-            <div class="field">
-
-              <label for="destinationAddress">
-                Destination
-              </label>
-
-              <div class="input-wrap">
-
-                <input
-                  id="destinationAddress"
-                  type="text"
-                  autocomplete="street-address"
-                  placeholder="Enter destination"
-                />
-
-              </div>
-
-            </div>            <!-- SERVICE SETTINGS -->
-            <div class="three-col">
-
-              <div class="field">
-
-                <label for="rideType">
-                  Ride Type
-                </label>
-
-                <select id="rideType">
-
-                  <option value="standard">
-                    Standard Ride
-                  </option>
-
-                  <option value="priority">
-                    Priority Pickup
-                  </option>
-
-                  <option value="premium">
-                    Premium Ride
-                  </option>
-
-                  <option value="scheduled">
-                    Scheduled Ride
-                  </option>
-
-                </select>
-
-              </div>
-
-              <div class="field">
-
-                <label for="passengerCount">
-                  Passenger Count
-                </label>
-
-                <select id="passengerCount">
-
-                  <option value="1">
-                    1 Passenger
-                  </option>
-
-                  <option value="2">
-                    2 Passengers
-                  </option>
-
-                  <option value="3">
-                    3 Passengers
-                  </option>
-
-                  <option value="4">
-                    4 Passengers
-                  </option>
-
-                  <option value="5">
-                    5+ Passengers
-                  </option>
-
-                </select>
-
-              </div>
-
-              <div class="field">
-
-                <label for="servicePriority">
-                  Service Priority
-                </label>
-
-                <select id="servicePriority">
-
-                  <option value="normal">
-                    Normal
-                  </option>
-
-                  <option value="high">
-                    High Priority
-                  </option>
-
-                  <option value="vip">
-                    VIP Priority
-                  </option>
-
-                </select>
-
-              </div>
-
-            </div>
-
-            <!-- SCHEDULED -->
-            <div
-              class="field"
-              id="scheduledRideBlock"
-            >
-
-              <label for="scheduledTime">
-                Scheduled Pickup Time
-              </label>
-
-              <div class="input-wrap">
-
-                <input
-                  id="scheduledTime"
-                  type="datetime-local"
-                />
-
-              </div>
-
-              <small>
-                Required for scheduled rides.
-                Pickup must be at least 10 minutes in the future.
-              </small>
-
-            </div>
-
-            <!-- NOTES -->
-            <div class="field">
-
-              <label for="rideNotes">
-                Ride Notes
-              </label>
-
-              <textarea
-                id="rideNotes"
-                placeholder="Gate code, pickup details, accessibility needs, delivery notes, or special instructions..."
-              ></textarea>
-
-              <small>
-                Harvey Taxi is not an emergency service.
-                For emergencies, call 911 immediately.
-              </small>
-
-            </div>
-
-            <!-- DETAILS -->
-            <div class="details">
-
-              <div class="detail-card">
-                <span>Estimated Fare</span>
-
-                <strong id="fareEstimateText">
-                  Pending
-                </strong>
-              </div>
-
-              <div class="detail-card">
-                <span>Distance</span>
-
-                <strong id="distanceText">
-                  Pending
-                </strong>
-              </div>
-
-              <div class="detail-card">
-                <span>Estimated Time</span>
-
-                <strong id="durationText">
-                  Pending
-                </strong>
-              </div>
-
-              <div class="detail-card">
-                <span>Dispatch Status</span>
-
-                <strong id="dispatchStateText">
-                  Standby
-                </strong>
-              </div>
-
-            </div>
-
-            <!-- ACTIONS -->
-            <div class="actions">
-
-              <button
-                type="button"
-                class="secondary-btn"
-                id="checkRiderBtn"
-              >
-                Check Rider Approval
-              </button>
-
-              <button
-                type="button"
-                class="secondary-btn"
-                id="estimateBtn"
-              >
-                Get Fare Estimate
-              </button>
-
-              <button
-                type="button"
-                class="secondary-btn"
-                id="authorizePaymentBtn"
-                disabled
-              >
-                Authorize Payment
-              </button>
-
-              <button
-                type="submit"
-                class="primary-btn"
-                id="requestRideBtn"
-                disabled
-              >
-                Request Dispatch
-              </button>
-
-              <button
-                type="button"
-                class="ghost-btn"
-                id="resetFlowBtn"
-              >
-                Reset Request Flow
-              </button>
-
-            </div>
-
-            <!-- TIMELINE -->
-            <div class="trip-timeline">
-
-              <div class="timeline-item">
-
-                <div class="timeline-icon">
-                  👤
-                </div>
-
-                <div>
-
-                  <strong>
-                    Rider Approval
-                  </strong>
-
-                  <span id="approvalTimelineText">
-                    Waiting for rider approval verification.
-                  </span>
-
-                </div>
-
-              </div>
-
-              <div class="timeline-item">
-
-                <div class="timeline-icon">
-                  💳
-                </div>
-
-                <div>
-
-                  <strong>
-                    Payment Authorization
-                  </strong>
-
-                  <span id="paymentTimelineText">
-                    Payment authorization has not started yet.
-                  </span>
-
-                </div>
-
-              </div>
-
-              <div class="timeline-item">
-
-                <div class="timeline-icon">
-                  🚕
-                </div>
-
-                <div>
-
-                  <strong>
-                    Dispatch Lifecycle
-                  </strong>
-
-                  <span id="dispatchTimelineText">
-                    Dispatch request has not been submitted yet.
-                  </span>
-
-                </div>
-
-              </div>
-
-            </div>
-
-          </form>
-
-        </div>
-
-      </section>
-
-      <!-- LOWER PANELS -->
-      <section class="panels">
-
-        <div class="panel">
-
-          <h3>
-            What Happens Next
-          </h3>
-
-          <p>
-            Harvey Taxi validates rider access,
-            calculates the route,
-            authorizes payment when required,
-            then routes the request into live dispatch.
-          </p>
-
-          <div class="mini-list">
-
-            <a href="/rider-dashboard.html">
-              Open Rider Dashboard
-            </a>
-
-            <a href="/support.html">
-              Contact Harvey Taxi Support
-            </a>
-
-            <a href="/driver-dashboard.html">
-              Driver Mission Dashboard
-            </a>
-
-          </div>
-
-        </div>
-
-        <div class="panel">
-
-          <h3>
-            Delivery + Foundation Expansion
-          </h3>
-
-          <p>
-            Harvey Taxi is being built as a future-ready
-            mobility ecosystem with rides, food delivery,
-            grocery support, and transportation assistance access.
-          </p>
-
-          <div class="mini-list">
-
-            <a href="/request-food.html">
-              Request Food Delivery
-            </a>
-
-            <a href="/request-groceries.html">
-              Request Grocery Delivery
-            </a>
-
-            <a href="/foundation.html">
-              Visit Foundation
-            </a>
-
-          </div>
-
-        </div>
-
-      </section>
-
-      <!-- LIVE STATUS -->
-      <section class="panels">
-
-        <div class="panel">
-
-          <h3>
-            Live Request Status
-          </h3>
-
-          <p id="liveStatusText">
-            Complete the secure request flow to begin.
-          </p>
-
-          <div class="mini-list">
-
-            <button
-              type="button"
-              id="refreshStatusBtn"
-            >
-              Refresh Current Ride Status
-            </button>
-
-            <button
-              type="button"
-              id="openDashboardBtn"
-            >
-              Open Rider Dashboard
-            </button>
-
-          </div>
-
-        </div>
-
-        <div class="panel">
-
-          <h3>
-            Safety Notice
-          </h3>
-
-          <p>
-            Harvey Taxi is not an emergency service.
-            If you are in immediate danger or require
-            urgent medical assistance, call 911 immediately.
-          </p>
-
-          <div class="mini-list">
-
-            <a href="/safety.html">
-              View Safety Information
-            </a>
-
-            <a href="/terms.html">
-              Terms & Policies
-            </a>
-
-            <a href="/privacy.html">
-              Privacy Policy
-            </a>
-
-          </div>
-
-        </div>
-
-      </section>
-
-      <p class="footer-note">
-        Harvey Taxi Service LLC • Tennessee ride access •
-        Driver rides, autonomous pilot systems, food delivery,
-        grocery delivery, and foundation support features
-        may vary by approval status, operational availability,
-        location coverage, and dispatch conditions.
+      <p class="hero-copy" id="heroCopy">
+        Harvey Taxi connects approved riders with drivers,
+        real-time dispatch systems, live GPS tracking,
+        accessibility support, payment authorization,
+        and future autonomous mobility services.
       </p>
 
+      <!-- MODE SELECTOR -->
+      <div class="mode-grid">
+
+        <button
+          type="button"
+          class="mode-chip active"
+          data-mode="driver"
+        >
+          <strong>Driver Ride</strong>
+
+          <span>
+            Standard Harvey Taxi driver dispatch.
+          </span>
+        </button>
+
+        <button
+          type="button"
+          class="mode-chip"
+          data-mode="autonomous"
+        >
+          <strong>Autonomous Pilot</strong>
+
+          <span>
+            Future AV pilot request experience.
+          </span>
+        </button>
+
+        <button
+          type="button"
+          class="mode-chip"
+          data-mode="food"
+        >
+          <strong>Food Delivery</strong>
+
+          <span>
+            Restaurant pickup and delivery.
+          </span>
+        </button>
+
+        <button
+          type="button"
+          class="mode-chip"
+          data-mode="grocery"
+        >
+          <strong>Grocery Delivery</strong>
+
+          <span>
+            Essential grocery assistance.
+          </span>
+        </button>
+
+      </div>
+
+      <!-- STATUS STACK -->
+
+      <div class="status-stack">
+
+        <div class="status-box">
+
+          <div class="status-icon">
+            🛡️
+          </div>
+
+          <div>
+            <strong>
+              Rider Verification
+            </strong>
+
+            <span>
+              Identity verification, approval status,
+              phone validation and future Persona integration.
+            </span>
+          </div>
+
+        </div>
+
+        <div class="status-box">
+
+          <div class="status-icon">
+            💳
+          </div>
+
+          <div>
+            <strong>
+              Payment Protection
+            </strong>
+
+            <span>
+              Secure payment authorization
+              before driver dispatch assignment.
+            </span>
+          </div>
+
+        </div>
+
+        <div class="status-box">
+
+          <div class="status-icon">
+            🚕
+          </div>
+
+          <div>
+            <strong>
+              Smart Dispatch
+            </strong>
+
+            <span>
+              Nearby driver matching,
+              ETA calculations,
+              and automated redispatch logic.
+            </span>
+          </div>
+
+        </div>
+
+        <div class="status-box">
+
+          <div class="status-icon">
+            ❤️
+          </div>
+
+          <div>
+            <strong>
+              Transportation Assistance
+            </strong>
+
+            <span>
+              HTAF transportation support requests
+              may be available for approved riders.
+            </span>
+          </div>
+
+        </div>
+
+      </div>
+
     </div>
+
+    <!-- MAP CARD -->
+
+    <div class="map-card">
+
+      <div class="map-header">
+
+        <div>
+
+          <h3>
+            Live Pickup Location
+          </h3>
+
+          <p>
+            Precise GPS pickup positioning,
+            route awareness and dispatch intelligence.
+          </p>
+
+        </div>
+
+        <div class="badge">
+
+          <span>●</span>
+
+          <span id="mapStatusBadge">
+            GPS Ready
+          </span>
+
+        </div>
+
+      </div>
+
+      <div class="map-shell">
+
+        <div id="pickupMap"></div>
+
+        <div
+          id="mapFallback"
+          class="map-fallback"
+        >
+
+          <div class="map-fallback-card">
+
+            <strong>
+              GPS Standby
+            </strong>
+
+            <span>
+              Tap “Use My Location”
+              to activate precise GPS positioning.
+            </span>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="map-meta">
+
+        <div class="map-meta-box">
+          <span>Latitude</span>
+          <strong id="latitudeText">Pending</strong>
+        </div>
+
+        <div class="map-meta-box">
+          <span>Longitude</span>
+          <strong id="longitudeText">Pending</strong>
+        </div>
+
+        <div class="map-meta-box">
+          <span>Accuracy</span>
+          <strong id="accuracyText">Pending</strong>
+        </div>
+
+      </div>
+
+    </div>
+
   </div>
 
-  <!-- GOOGLE MAPS -->
-  <script>
-    (() => {
-      const meta = document.querySelector(
-        'meta[name="google-maps-browser-key"]'
-      );
+  <!-- RIGHT COLUMN -->
 
-      const key =
-        meta?.getAttribute("content") ||
-        window.GOOGLE_MAPS_API_KEY ||
-        "";
+  <div class="ride-card">
 
-      if (!key) {
-        window.__HARVEY_MAPS_ENABLED__ = false;
-        return;
-      }
+    <div class="card-header">
 
-      const script = document.createElement("script");
+      <div>
 
-      script.src =
-        `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}`;
+        <h2 id="requestCardTitle">
+          Ride Request
+        </h2>
 
-      script.async = true;
-      script.defer = true;
+        <p id="requestCardCopy">
+          Complete the secure Harvey Taxi request flow.
+        </p>
 
-      script.onload = () => {
-        window.__HARVEY_MAPS_ENABLED__ = true;
-      };
+      </div>
 
-      script.onerror = () => {
-        window.__HARVEY_MAPS_ENABLED__ = false;
-      };
+      <div class="badge">
 
-      document.head.appendChild(script);
-    })();
-  </script>
+        <span>●</span>
 
-  <!-- MAIN CONTROLLER -->
-  <script>
-    /**
-     * HARVEY TAXI
-     * REQUEST RIDE — CODE BLUE
-     *
-     * Senior Developer Engineer Build
-     */
+        <span id="statusBadgeText">
+          Dispatch Ready
+        </span>
 
-    const CONFIG = {
-      API_BASE:
-        window.HARVEY_API_BASE ||
-        window.location.origin ||
-        "https://harvey-taxi-app-2.onrender.com",
+      </div>
 
-      DASHBOARD_URL: "/rider-dashboard.html",
+    </div>
 
-      ENDPOINTS: {
-        health: "/api/health",
+    <div
+      id="noticeBox"
+      class="notice"
+    ></div>
 
-        riderLookup: "/api/riders/lookup",
-        riderStatus: "/api/rider/status",
-        riderApproval: "/api/rider/approval-status",
+    <form
+      id="rideForm"
+      class="form-grid"
+    >
 
-        fareEstimate: "/api/fare-estimate",
-        estimateRide: "/api/estimate-ride",
+      <!-- RIDER INFO -->
 
-        authorizePayment: "/api/payments/authorize",
+      <div class="two-col">
 
-        requestRide: "/api/request-ride",
+        <div class="field">
 
-        rideStatus: "/api/rides/status",
-        currentRide: "/api/rider/current-ride"
-      },
+          <label>
+            Full Name
+          </label>
 
-      STORAGE_KEYS: {
-        riderId: "harvey_rider_id",
-        riderEmail: "harvey_rider_email",
-        riderName: "harvey_rider_name",
-        riderPhone: "harvey_rider_phone",
+          <input
+            id="riderName"
+            type="text"
+            placeholder="Enter full name"
+          />
 
-        lastRideId: "harvey_last_ride_id",
-        lastPaymentId: "harvey_last_payment_id",
+        </div>
 
-        requestMode: "harvey_request_mode"
-      },
+        <div class="field">
 
-      REQUIRE_RIDER_APPROVAL: true,
-      REQUIRE_PAYMENT_AUTHORIZATION: true,
+          <label>
+            Phone Number
+          </label>
 
-      DEFAULT_MODE: "driver",
+          <input
+            id="riderPhone"
+            type="tel"
+            placeholder="(555) 555-5555"
+          />
 
-      MAP_DEFAULT_ZOOM: 15
-    };
+        </div>
 
-    const state = {
-      mode: CONFIG.DEFAULT_MODE,
+      </div>
 
-      rider: {
-        id: "",
-        name: "",
-        phone: "",
-        email: "",
-        approved: false,
-        verified: false,
-        status: "unknown"
-      },
+      <div class="field">
 
-      pickup: {
-        address: "",
-        latitude: null,
-        longitude: null,
-        accuracy: null,
-        source: "manual"
-      },
+        <label>
+          Email Address
+        </label>
 
-      destination: {
-        address: ""
-      },
+        <input
+          id="riderEmail"
+          type="email"
+          placeholder="you@example.com"
+        />
 
-      estimate: {
-        ready: false,
-        fare: null,
-        distance: null,
-        duration: null,
-        raw: null
-      },
+      </div>
 
-      payment: {
-        authorized: false,
-        paymentId: "",
-        clientSecret: "",
-        raw: null
-      },
+      <!-- ACCESSIBILITY -->
 
-      ride: {
-        requested: false,
-        rideId: "",
-        status: "not_requested",
-        raw: null
-      },
+      <div class="field">
 
-      map: {
-        instance: null,
-        marker: null,
-        loaded: false
-      }
-    };    const $ = (id) => document.getElementById(id);
+        <label>
+          Accessibility Services
+        </label>
 
-    const els = {
-      heroEyebrowText: $("heroEyebrowText"),
-      heroTitle: $("heroTitle"),
-      heroCopy: $("heroCopy"),
+        <div class="accessibility-options">
 
-      requestCardTitle: $("requestCardTitle"),
-      requestCardCopy: $("requestCardCopy"),
+          <button
+            type="button"
+            class="accessibility-chip"
+            data-accessibility="wheelchair"
+          >
+            ♿ Wheelchair
+          </button>
 
-      statusBadgeText: $("statusBadgeText"),
-      mapStatusBadge: $("mapStatusBadge"),
+          <button
+            type="button"
+            class="accessibility-chip"
+            data-accessibility="walker"
+          >
+            🚶 Walker
+          </button>
 
-      noticeBox: $("noticeBox"),
-      rideForm: $("rideForm"),
+          <button
+            type="button"
+            class="accessibility-chip"
+            data-accessibility="service_animal"
+          >
+            🐕 Service Animal
+          </button>
 
-      riderName: $("riderName"),
-      riderPhone: $("riderPhone"),
-      riderEmail: $("riderEmail"),
+          <button
+            type="button"
+            class="accessibility-chip"
+            data-accessibility="medical"
+          >
+            🏥 Medical Ride
+          </button>
 
-      pickupAddress: $("pickupAddress"),
-      destinationAddress: $("destinationAddress"),
+        </div>
 
-      rideType: $("rideType"),
-      passengerCount: $("passengerCount"),
-      servicePriority: $("servicePriority"),
-      scheduledTime: $("scheduledTime"),
-      rideNotes: $("rideNotes"),
+      </div>
 
-      detectLocationBtn: $("detectLocationBtn"),
-      checkRiderBtn: $("checkRiderBtn"),
-      estimateBtn: $("estimateBtn"),
-      authorizePaymentBtn: $("authorizePaymentBtn"),
-      requestRideBtn: $("requestRideBtn"),
-      resetFlowBtn: $("resetFlowBtn"),
-      refreshStatusBtn: $("refreshStatusBtn"),
-      openDashboardBtn: $("openDashboardBtn"),
+      <!-- PICKUP -->
 
-      locationStatusText: $("locationStatusText"),
-      gpsDot: $("gpsDot"),
+      <div class="field">
 
-      pickupMap: $("pickupMap"),
-      mapFallback: $("mapFallback"),
+        <label>
+          Pickup Address
+        </label>
 
-      latitudeText: $("latitudeText"),
-      longitudeText: $("longitudeText"),
-      accuracyText: $("accuracyText"),
+        <div class="location-row">
 
-      fareEstimateText: $("fareEstimateText"),
-      distanceText: $("distanceText"),
-      durationText: $("durationText"),
-      dispatchStateText: $("dispatchStateText"),
+          <input
+            id="pickupAddress"
+            type="text"
+            placeholder="Pickup address"
+          />
 
-      liveStatusText: $("liveStatusText"),
+          <button
+            type="button"
+            id="detectLocationBtn"
+            class="mini-btn"
+          >
+            Use My Location
+          </button>
 
-      approvalTimelineText: $("approvalTimelineText"),
-      paymentTimelineText: $("paymentTimelineText"),
-      dispatchTimelineText: $("dispatchTimelineText"),
+        </div>
 
-      modeButtons: Array.from(document.querySelectorAll(".mode-chip"))
-    };
+        <div class="gps-status">
 
-    function safeTrim(value) {
-      return String(value || "").trim();
-    }
+          <div
+            id="gpsDot"
+            class="gps-dot"
+          ></div>
 
-    function safeLower(value) {
-      return safeTrim(value).toLowerCase();
-    }
-
-    function money(value) {
-      const amount = Number(value);
-
-      if (!Number.isFinite(amount)) {
-        return "Pending";
-      }
-
-      return amount.toLocaleString("en-US", {
-        style: "currency",
-        currency: "USD"
-      });
-    }
-
-    function readStorage(key) {
-      try {
-        return localStorage.getItem(key) || "";
-      } catch (error) {
-        return "";
-      }
-    }
-
-    function writeStorage(key, value) {
-      try {
-        if (value === undefined || value === null || value === "") {
-          localStorage.removeItem(key);
-          return;
-        }
-
-        localStorage.setItem(key, String(value));
-      } catch (error) {
-        // Private mode or restricted browser storage should not break the page.
-      }
-    }
-
-    function getQueryParam(name) {
-      try {
-        const params = new URLSearchParams(window.location.search);
-        return safeLower(params.get(name));
-      } catch (error) {
-        return "";
-      }
-    }
-
-    function isValidEmail(email) {
-      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(safeTrim(email));
-    }
-
-    function normalizePhone(phone) {
-      return safeTrim(phone).replace(/[^\d+]/g, "");
-    }
-
-    function setBusy(button, isBusy, busyText) {
-      if (!button) return;
-
-      if (isBusy) {
-        if (!button.dataset.originalText) {
-          button.dataset.originalText = button.textContent;
-        }
-
-        button.disabled = true;
-        button.innerHTML = `
-          <span class="loading-inline">
-            <span class="spinner"></span>
-            <span>${busyText || "Processing..."}</span>
+          <span id="locationStatusText">
+            GPS location available when permission is granted.
           </span>
-        `;
-        return;
-      }
 
-      const originalText = button.dataset.originalText;
+        </div>
 
-      if (originalText) {
-        button.textContent = originalText;
-      }
+      </div>
 
-      button.disabled = false;
+      <!-- DESTINATION -->
+
+      <div class="field">
+
+        <label>
+          Destination
+        </label>
+
+        <input
+          id="destinationAddress"
+          type="text"
+          placeholder="Destination address"
+        />
+
+      </div>
+
+      <!-- SERVICE OPTIONS -->
+
+      <div class="four-col">
+
+        <div class="field">
+
+          <label>
+            Ride Type
+          </label>
+
+          <select id="rideType">
+
+            <option value="standard">
+              Standard
+            </option>
+
+            <option value="priority">
+              Priority
+            </option>
+
+            <option value="premium">
+              Premium
+            </option>
+
+            <option value="scheduled">
+              Scheduled
+            </option>
+
+          </select>
+
+        </div>
+
+        <div class="field">
+
+          <label>
+            Passengers
+          </label>
+
+          <select id="passengerCount">
+
+            <option>1</option>
+            <option>2</option>
+            <option>3</option>
+            <option>4</option>
+            <option>5+</option>
+
+          </select>
+
+        </div>
+
+        <div class="field">
+
+          <label>
+            Priority
+          </label>
+
+          <select id="servicePriority">
+
+            <option value="normal">
+              Normal
+            </option>
+
+            <option value="high">
+              High
+            </option>
+
+            <option value="vip">
+              VIP
+            </option>
+
+          </select>
+
+        </div>
+
+        <div class="field">
+
+          <label>
+            Preferred Driver
+          </label>
+
+          <input
+            id="preferredDriver"
+            type="text"
+            placeholder="Optional"
+          />
+
+        </div>
+
+      </div>      <!-- SCHEDULED PICKUP -->
+
+      <div
+        class="field"
+        id="scheduledRideBlock"
+      >
+
+        <label>
+          Scheduled Pickup Time
+        </label>
+
+        <input
+          id="scheduledTime"
+          type="datetime-local"
+        />
+
+        <small>
+          Pickup must be scheduled at least
+          10 minutes in advance.
+        </small>
+
+      </div>
+
+      <!-- NOTES -->
+
+      <div class="field">
+
+        <label>
+          Ride Notes
+        </label>
+
+        <textarea
+          id="rideNotes"
+          placeholder="Gate code, accessibility needs, pickup details, medical transportation notes, delivery instructions..."
+        ></textarea>
+
+      </div>
+
+      <!-- ESTIMATE CARDS -->
+
+      <div class="details">
+
+        <div class="detail-card">
+
+          <span>
+            Estimated Fare
+          </span>
+
+          <strong id="fareEstimateText">
+            Pending
+          </strong>
+
+        </div>
+
+        <div class="detail-card">
+
+          <span>
+            Distance
+          </span>
+
+          <strong id="distanceText">
+            Pending
+          </strong>
+
+        </div>
+
+        <div class="detail-card">
+
+          <span>
+            ETA
+          </span>
+
+          <strong id="durationText">
+            Pending
+          </strong>
+
+        </div>
+
+        <div class="detail-card">
+
+          <span>
+            Dispatch
+          </span>
+
+          <strong id="dispatchStateText">
+            Standby
+          </strong>
+
+        </div>
+
+      </div>
+
+      <!-- LIVE PROGRESS -->
+
+      <div class="trip-progress">
+
+        <div class="trip-progress-header">
+
+          <strong>
+            Trip Lifecycle
+          </strong>
+
+          <span id="tripProgressStatus">
+            Waiting
+          </span>
+
+        </div>
+
+        <div class="trip-progress-bar">
+
+          <div
+            id="tripProgressFill"
+            class="trip-progress-fill"
+          ></div>
+
+        </div>
+
+        <div class="trip-progress-steps">
+
+          <div
+            id="stepApproval"
+            class="step active"
+          >
+            Approval
+          </div>
+
+          <div
+            id="stepPayment"
+            class="step"
+          >
+            Payment
+          </div>
+
+          <div
+            id="stepDispatch"
+            class="step"
+          >
+            Dispatch
+          </div>
+
+          <div
+            id="stepDriver"
+            class="step"
+          >
+            Driver
+          </div>
+
+          <div
+            id="stepComplete"
+            class="step"
+          >
+            Complete
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- DRIVER CARD -->
+
+      <div
+        id="driverCard"
+        class="driver-card"
+      >
+
+        <div class="driver-top">
+
+          <div
+            id="driverAvatar"
+            class="driver-avatar"
+          >
+            D
+          </div>
+
+          <div class="driver-info">
+
+            <strong id="driverNameText">
+              Driver Pending
+            </strong>
+
+            <span id="driverVehicleText">
+              Waiting for assignment
+            </span>
+
+          </div>
+
+        </div>
+
+        <div class="driver-grid">
+
+          <div class="driver-stat">
+
+            <span>
+              ETA
+            </span>
+
+            <strong id="driverEtaText">
+              --
+            </strong>
+
+          </div>
+
+          <div class="driver-stat">
+
+            <span>
+              Rating
+            </span>
+
+            <strong id="driverRatingText">
+              --
+            </strong>
+
+          </div>
+
+          <div class="driver-stat">
+
+            <span>
+              Vehicle
+            </span>
+
+            <strong id="driverPlateText">
+              --
+            </strong>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- ACTION BUTTONS -->
+
+      <div class="actions">
+
+        <button
+          type="button"
+          class="secondary-btn"
+          id="checkRiderBtn"
+        >
+          Check Rider Approval
+        </button>
+
+        <button
+          type="button"
+          class="secondary-btn"
+          id="estimateBtn"
+        >
+          Get Fare Estimate
+        </button>
+
+        <button
+          type="button"
+          class="secondary-btn"
+          id="authorizePaymentBtn"
+          disabled
+        >
+          Authorize Payment
+        </button>
+
+        <button
+          type="submit"
+          class="primary-btn"
+          id="requestRideBtn"
+          disabled
+        >
+          Request Dispatch
+        </button>
+
+        <button
+          type="button"
+          class="ghost-btn"
+          id="trackRideBtn"
+        >
+          Track Active Ride
+        </button>
+
+        <button
+          type="button"
+          class="ghost-btn"
+          id="shareTripBtn"
+        >
+          Share Trip
+        </button>
+
+        <button
+          type="button"
+          class="danger-btn"
+          id="emergencyBtn"
+        >
+          Emergency Assistance
+        </button>
+
+        <button
+          type="button"
+          class="ghost-btn"
+          id="resetFlowBtn"
+        >
+          Reset Request
+        </button>
+
+      </div>
+
+      <!-- TIMELINE -->
+
+      <div class="trip-timeline">
+
+        <div class="timeline-item">
+
+          <div class="timeline-icon">
+            👤
+          </div>
+
+          <div>
+
+            <strong>
+              Rider Approval
+            </strong>
+
+            <span id="approvalTimelineText">
+              Waiting for rider verification.
+            </span>
+
+          </div>
+
+        </div>
+
+        <div class="timeline-item">
+
+          <div class="timeline-icon">
+            💳
+          </div>
+
+          <div>
+
+            <strong>
+              Payment Authorization
+            </strong>
+
+            <span id="paymentTimelineText">
+              Waiting for payment authorization.
+            </span>
+
+          </div>
+
+        </div>
+
+        <div class="timeline-item">
+
+          <div class="timeline-icon">
+            🚕
+          </div>
+
+          <div>
+
+            <strong>
+              Driver Dispatch
+            </strong>
+
+            <span id="dispatchTimelineText">
+              Driver dispatch has not started.
+            </span>
+
+          </div>
+
+        </div>
+
+        <div class="timeline-item">
+
+          <div class="timeline-icon">
+            📍
+          </div>
+
+          <div>
+
+            <strong>
+              Live Tracking
+            </strong>
+
+            <span id="trackingTimelineText">
+              Real-time driver tracking becomes available after assignment.
+            </span>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </form>
+
+  </div>
+
+</section>
+
+<!-- OPERATIONS PANEL -->
+
+<section class="panels">
+
+  <div class="panel">
+
+    <h3>
+      Harvey Taxi Operations Center
+    </h3>
+
+    <p>
+      Smart dispatch routes requests through
+      rider verification, payment authorization,
+      nearest driver matching, and active trip monitoring.
+    </p>
+
+    <div class="mini-list">
+
+      <button
+        id="refreshStatusBtn"
+        type="button"
+      >
+        Refresh Ride Status
+      </button>
+
+      <button
+        id="openDashboardBtn"
+        type="button"
+      >
+        Open Rider Dashboard
+      </button>
+
+      <button
+        id="supportButton"
+        type="button"
+      >
+        Contact Support
+      </button>
+
+    </div>
+
+  </div>
+
+  <div class="panel">
+
+    <h3>
+      Harvey Transportation Assistance Foundation
+    </h3>
+
+    <p>
+      Qualified transportation assistance riders
+      may be eligible for transportation support
+      through HTAF community mobility initiatives.
+    </p>
+
+    <div class="mini-list">
+
+      <a href="/foundation.html">
+        Transportation Assistance
+      </a>
+
+      <a href="/donate.html">
+        Donate
+      </a>
+
+      <a href="/apply-assistance.html">
+        Apply For Assistance
+      </a>
+
+    </div>
+
+  </div>
+
+</section><!-- LIVE STATUS PANEL -->
+
+<section class="panels">
+
+  <div class="panel">
+
+    <h3>
+      Live Request Status
+    </h3>
+
+    <p id="liveStatusText">
+      Complete the secure request flow to begin.
+    </p>
+
+    <div class="mini-list">
+
+      <button
+        type="button"
+        id="refreshStatusBtn2"
+      >
+        Refresh Current Ride Status
+      </button>
+
+      <button
+        type="button"
+        id="openDashboardBtn2"
+      >
+        Open Rider Dashboard
+      </button>
+
+    </div>
+
+  </div>
+
+  <div class="panel">
+
+    <h3>
+      Safety Notice
+    </h3>
+
+    <p>
+      Harvey Taxi is not an emergency service.
+      If you are in immediate danger or need urgent medical help,
+      call 911 immediately.
+    </p>
+
+    <div class="mini-list">
+
+      <a href="/safety.html">
+        View Safety Information
+      </a>
+
+      <a href="/terms.html">
+        Terms & Policies
+      </a>
+
+      <a href="/privacy.html">
+        Privacy Policy
+      </a>
+
+    </div>
+
+  </div>
+
+</section>
+
+<p class="footer-note">
+  Harvey Taxi Service LLC • Tennessee ride access •
+  Driver rides, autonomous pilot systems, food delivery,
+  grocery delivery, and foundation support features
+  may vary by approval status, operational availability,
+  location coverage, accessibility needs, language preference,
+  and dispatch conditions.
+</p>
+
+</div>
+</div>
+
+<!-- GOOGLE MAPS LOADER -->
+
+<script>
+  (() => {
+    const meta = document.querySelector(
+      'meta[name="google-maps-browser-key"]'
+    );
+
+    const key =
+      meta?.getAttribute("content") ||
+      window.GOOGLE_MAPS_API_KEY ||
+      "";
+
+    if (!key) {
+      window.__HARVEY_MAPS_ENABLED__ = false;
+      return;
     }
 
-    function showNotice(message, type = "warning") {
-      if (!els.noticeBox) return;
+    const script = document.createElement("script");
 
-      els.noticeBox.textContent = message;
-      els.noticeBox.className = `notice show ${type}`;
+    script.src =
+      `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}`;
+
+    script.async = true;
+    script.defer = true;
+
+    script.onload = () => {
+      window.__HARVEY_MAPS_ENABLED__ = true;
+    };
+
+    script.onerror = () => {
+      window.__HARVEY_MAPS_ENABLED__ = false;
+    };
+
+    document.head.appendChild(script);
+  })();
+</script>
+
+<!-- MAIN CONTROLLER -->
+
+<script>
+  const CONFIG = {
+    API_BASE:
+      window.HARVEY_API_BASE ||
+      window.location.origin ||
+      "https://harvey-taxi-app-2.onrender.com",
+
+    DASHBOARD_URL: "/rider-dashboard.html",
+
+    ENDPOINTS: {
+      riderLookup: "/api/riders/lookup",
+      riderStatus: "/api/rider/status",
+      riderApproval: "/api/rider/approval-status",
+      fareEstimate: "/api/fare-estimate",
+      estimateRide: "/api/estimate-ride",
+      authorizePayment: "/api/payments/authorize",
+      requestRide: "/api/request-ride",
+      rideStatus: "/api/rides/status",
+      currentRide: "/api/rider/current-ride",
+      emergency: "/api/rides/emergency",
+      shareTrip: "/api/rides/share"
+    },
+
+    STORAGE_KEYS: {
+      riderId: "harvey_rider_id",
+      riderEmail: "harvey_rider_email",
+      riderName: "harvey_rider_name",
+      riderPhone: "harvey_rider_phone",
+      lastRideId: "harvey_last_ride_id",
+      lastPaymentId: "harvey_last_payment_id",
+      requestMode: "harvey_request_mode",
+      language: "harvey_language",
+      accessibility: "harvey_accessibility_needs"
+    },
+
+    REQUIRE_RIDER_APPROVAL: true,
+    REQUIRE_PAYMENT_AUTHORIZATION: true,
+    DEFAULT_MODE: "driver",
+    MAP_DEFAULT_ZOOM: 15
+  };
+
+  const state = {
+    mode: CONFIG.DEFAULT_MODE,
+
+    rider: {
+      id: "",
+      name: "",
+      phone: "",
+      email: "",
+      approved: false,
+      verified: false,
+      status: "unknown"
+    },
+
+    pickup: {
+      address: "",
+      latitude: null,
+      longitude: null,
+      accuracy: null,
+      source: "manual"
+    },
+
+    destination: {
+      address: ""
+    },
+
+    accessibilityNeeds: [],
+
+    estimate: {
+      ready: false,
+      fare: null,
+      distance: null,
+      duration: null,
+      raw: null
+    },
+
+    payment: {
+      authorized: false,
+      paymentId: "",
+      clientSecret: "",
+      raw: null
+    },
+
+    ride: {
+      requested: false,
+      rideId: "",
+      status: "not_requested",
+      raw: null
+    },
+
+    driver: {
+      assigned: false,
+      name: "",
+      vehicle: "",
+      plate: "",
+      rating: "",
+      eta: ""
+    },
+
+    map: {
+      instance: null,
+      marker: null,
+      loaded: false
+    }
+  };
+
+  const $ = (id) => document.getElementById(id);
+
+  const els = {
+    heroEyebrowText: $("heroEyebrowText"),
+    heroTitle: $("heroTitle"),
+    heroCopy: $("heroCopy"),
+    requestCardTitle: $("requestCardTitle"),
+    requestCardCopy: $("requestCardCopy"),
+    statusBadgeText: $("statusBadgeText"),
+    mapStatusBadge: $("mapStatusBadge"),
+    noticeBox: $("noticeBox"),
+    rideForm: $("rideForm"),
+
+    riderName: $("riderName"),
+    riderPhone: $("riderPhone"),
+    riderEmail: $("riderEmail"),
+
+    pickupAddress: $("pickupAddress"),
+    destinationAddress: $("destinationAddress"),
+    preferredDriver: $("preferredDriver"),
+
+    rideType: $("rideType"),
+    passengerCount: $("passengerCount"),
+    servicePriority: $("servicePriority"),
+    scheduledTime: $("scheduledTime"),
+    rideNotes: $("rideNotes"),
+
+    detectLocationBtn: $("detectLocationBtn"),
+    checkRiderBtn: $("checkRiderBtn"),
+    estimateBtn: $("estimateBtn"),
+    authorizePaymentBtn: $("authorizePaymentBtn"),
+    requestRideBtn: $("requestRideBtn"),
+    resetFlowBtn: $("resetFlowBtn"),
+    trackRideBtn: $("trackRideBtn"),
+    shareTripBtn: $("shareTripBtn"),
+    emergencyBtn: $("emergencyBtn"),
+    supportButton: $("supportButton"),
+
+    refreshStatusBtn: $("refreshStatusBtn"),
+    refreshStatusBtn2: $("refreshStatusBtn2"),
+    openDashboardBtn: $("openDashboardBtn"),
+    openDashboardBtn2: $("openDashboardBtn2"),
+
+    locationStatusText: $("locationStatusText"),
+    gpsDot: $("gpsDot"),
+    pickupMap: $("pickupMap"),
+    mapFallback: $("mapFallback"),
+
+    latitudeText: $("latitudeText"),
+    longitudeText: $("longitudeText"),
+    accuracyText: $("accuracyText"),
+
+    fareEstimateText: $("fareEstimateText"),
+    distanceText: $("distanceText"),
+    durationText: $("durationText"),
+    dispatchStateText: $("dispatchStateText"),
+    liveStatusText: $("liveStatusText"),
+
+    approvalTimelineText: $("approvalTimelineText"),
+    paymentTimelineText: $("paymentTimelineText"),
+    dispatchTimelineText: $("dispatchTimelineText"),
+    trackingTimelineText: $("trackingTimelineText"),
+
+    tripProgressStatus: $("tripProgressStatus"),
+    tripProgressFill: $("tripProgressFill"),
+    stepApproval: $("stepApproval"),
+    stepPayment: $("stepPayment"),
+    stepDispatch: $("stepDispatch"),
+    stepDriver: $("stepDriver"),
+    stepComplete: $("stepComplete"),
+
+    driverCard: $("driverCard"),
+    driverAvatar: $("driverAvatar"),
+    driverNameText: $("driverNameText"),
+    driverVehicleText: $("driverVehicleText"),
+    driverEtaText: $("driverEtaText"),
+    driverRatingText: $("driverRatingText"),
+    driverPlateText: $("driverPlateText"),
+
+    modeButtons: Array.from(document.querySelectorAll(".mode-chip")),
+    accessibilityButtons: Array.from(document.querySelectorAll(".accessibility-chip"))
+  };  /* ===========================
+     CODE BLUE PART 8
+     HARVEY TAXI TRUE UPGRADE
+     =========================== */
+
+  function updateProgress(step) {
+
+    const map = {
+      approval: 20,
+      payment: 40,
+      dispatch: 60,
+      driver: 80,
+      complete: 100
+    };
+
+    if (els.tripProgressFill) {
+      els.tripProgressFill.style.width =
+        `${map[step] || 0}%`;
     }
 
-    function clearNotice() {
-      if (!els.noticeBox) return;
+    [
+      "stepApproval",
+      "stepPayment",
+      "stepDispatch",
+      "stepDriver",
+      "stepComplete"
+    ].forEach((id) => {
+      els[id]?.classList.remove(
+        "active",
+        "complete"
+      );
+    });
 
-      els.noticeBox.textContent = "";
-      els.noticeBox.className = "notice";
+    const order = [
+      "approval",
+      "payment",
+      "dispatch",
+      "driver",
+      "complete"
+    ];
+
+    const current =
+      order.indexOf(step);
+
+    order.forEach((item, index) => {
+
+      const el =
+        els[
+          `step${item.charAt(0).toUpperCase()}${item.slice(1)}`
+        ];
+
+      if (!el) return;
+
+      if (index < current) {
+        el.classList.add("complete");
+      } else if (index === current) {
+        el.classList.add("active");
+      }
+
+    });
+
+    if (els.tripProgressStatus) {
+      els.tripProgressStatus.textContent =
+        step.toUpperCase();
+    }
+  }
+
+  function showDriver(driver = {}) {
+
+    state.driver.assigned = true;
+
+    if (els.driverCard) {
+      els.driverCard.classList.add("show");
     }
 
-    function setLiveStatus(message) {
-      if (els.liveStatusText) {
-        els.liveStatusText.textContent = message;
-      }
+    if (els.driverNameText) {
+      els.driverNameText.textContent =
+        driver.name || "Driver Assigned";
     }
 
-    function setBadge(message) {
-      if (els.statusBadgeText) {
-        els.statusBadgeText.textContent = message;
-      }
+    if (els.driverVehicleText) {
+      els.driverVehicleText.textContent =
+        driver.vehicle ||
+        "Vehicle Information Pending";
     }
 
-    function setMapBadge(message) {
-      if (els.mapStatusBadge) {
-        els.mapStatusBadge.textContent = message;
-      }
+    if (els.driverEtaText) {
+      els.driverEtaText.textContent =
+        driver.eta || "5 min";
     }
 
-    function setDispatchState(message) {
-      if (els.dispatchStateText) {
-        els.dispatchStateText.textContent = message;
-      }
+    if (els.driverRatingText) {
+      els.driverRatingText.textContent =
+        driver.rating || "5.0";
     }
 
-    function setTimeline(type, message) {
-      if (type === "approval" && els.approvalTimelineText) {
-        els.approvalTimelineText.textContent = message;
-      }
-
-      if (type === "payment" && els.paymentTimelineText) {
-        els.paymentTimelineText.textContent = message;
-      }
-
-      if (type === "dispatch" && els.dispatchTimelineText) {
-        els.dispatchTimelineText.textContent = message;
-      }
+    if (els.driverPlateText) {
+      els.driverPlateText.textContent =
+        driver.plate || "Pending";
     }
 
-    function updateLocationMeta() {
-      if (els.latitudeText) {
-        els.latitudeText.textContent =
-          state.pickup.latitude === null
-            ? "Pending"
-            : Number(state.pickup.latitude).toFixed(6);
-      }
+    if (els.driverAvatar) {
 
-      if (els.longitudeText) {
-        els.longitudeText.textContent =
-          state.pickup.longitude === null
-            ? "Pending"
-            : Number(state.pickup.longitude).toFixed(6);
-      }
+      const first =
+        (driver.name || "D")
+          .charAt(0)
+          .toUpperCase();
 
-      if (els.accuracyText) {
-        els.accuracyText.textContent =
-          state.pickup.accuracy === null
-            ? "Pending"
-            : `${Math.round(Number(state.pickup.accuracy))} meters`;
-      }
+      els.driverAvatar.textContent =
+        first;
+    }
 
-      if (els.gpsDot) {
-        els.gpsDot.classList.toggle(
-          "active",
-          state.pickup.latitude !== null && state.pickup.longitude !== null
+    updateProgress("driver");
+  }
+
+  function toggleAccessibility(type) {
+
+    const exists =
+      state.accessibilityNeeds.includes(type);
+
+    if (exists) {
+
+      state.accessibilityNeeds =
+        state.accessibilityNeeds.filter(
+          item => item !== type
         );
-      }
+
+    } else {
+
+      state.accessibilityNeeds.push(type);
+
     }
 
-    function normalizeMode(mode) {
-      const clean = safeLower(mode);
+    localStorage.setItem(
+      CONFIG.STORAGE_KEYS.accessibility,
+      JSON.stringify(
+        state.accessibilityNeeds
+      )
+    );
 
-      if (["driver", "autonomous", "food", "grocery"].includes(clean)) {
-        return clean;
-      }
+    document
+      .querySelectorAll(
+        ".accessibility-chip"
+      )
+      .forEach(btn => {
 
-      if (clean === "groceries") {
-        return "grocery";
-      }
+        const active =
+          state.accessibilityNeeds.includes(
+            btn.dataset.accessibility
+          );
 
-      if (clean === "delivery") {
-        return "food";
-      }
-
-      return CONFIG.DEFAULT_MODE;
-    }
-
-    function getModeContent(mode) {
-      const content = {
-        driver: {
-          eyebrow: "LIVE DISPATCH + LOCATION INTELLIGENCE",
-          title: "Request Your Ride",
-          copy:
-            "Harvey Taxi connects approved riders with drivers, dispatch systems, precise pickup support, payment authorization, and ride lifecycle updates.",
-          cardTitle: "Ride Request",
-          cardCopy: "Complete the secure Harvey Taxi ride request flow below.",
-          badge: "Dispatch Ready"
-        },
-
-        autonomous: {
-          eyebrow: "AUTONOMOUS PILOT MODE",
-          title: "Request Autonomous Pilot",
-          copy:
-            "This mode is clearly labeled for Harvey Taxi autonomous pilot development and AV-ready future operations.",
-          cardTitle: "Autonomous Pilot Request",
-          cardCopy:
-            "Submit a clearly labeled autonomous pilot request where operationally available.",
-          badge: "Pilot Mode"
-        },
-
-        food: {
-          eyebrow: "FOOD DELIVERY ACCESS",
-          title: "Request Food Delivery",
-          copy:
-            "Harvey Taxi delivery expansion can support food pickup and delivery through the same secure request foundation.",
-          cardTitle: "Food Delivery Request",
-          cardCopy:
-            "Use this flow for food delivery if your backend supports unified service requests.",
-          badge: "Food Delivery"
-        },
-
-        grocery: {
-          eyebrow: "GROCERY DELIVERY ACCESS",
-          title: "Request Groceries",
-          copy:
-            "Harvey Taxi grocery support expands mobility assistance into essential household access.",
-          cardTitle: "Grocery Delivery Request",
-          cardCopy:
-            "Use this flow for grocery delivery if your backend supports unified service requests.",
-          badge: "Groceries"
-        }
-      };
-
-      return content[mode] || content.driver;
-    }
-
-    function applyMode(mode) {
-      const nextMode = normalizeMode(mode);
-      const copy = getModeContent(nextMode);
-
-      state.mode = nextMode;
-      writeStorage(CONFIG.STORAGE_KEYS.requestMode, nextMode);
-
-      els.modeButtons.forEach((button) => {
-        const isActive = normalizeMode(button.dataset.mode) === nextMode;
-        button.classList.toggle("active", isActive);
+        btn.classList.toggle(
+          "active",
+          active
+        );
       });
+  }
 
-      if (els.heroEyebrowText) {
-        els.heroEyebrowText.textContent = copy.eyebrow;
-      }
+  async function shareTrip() {
 
-      if (els.heroTitle) {
-        els.heroTitle.textContent = copy.title;
-      }
-
-      if (els.heroCopy) {
-        els.heroCopy.textContent = copy.copy;
-      }
-
-      if (els.requestCardTitle) {
-        els.requestCardTitle.textContent = copy.cardTitle;
-      }
-
-      if (els.requestCardCopy) {
-        els.requestCardCopy.textContent = copy.cardCopy;
-      }
-
-      setBadge(copy.badge);
-
-      if (nextMode === "food") {
-        if (els.destinationAddress) {
-          els.destinationAddress.placeholder =
-            "Restaurant address and delivery destination";
-        }
-
-        if (els.rideNotes) {
-          els.rideNotes.placeholder =
-            "Restaurant name, order details, pickup instructions, delivery notes...";
-        }
-      } else if (nextMode === "grocery") {
-        if (els.destinationAddress) {
-          els.destinationAddress.placeholder =
-            "Store address and delivery destination";
-        }
-
-        if (els.rideNotes) {
-          els.rideNotes.placeholder =
-            "Store name, grocery list, delivery instructions, substitutions...";
-        }
-      } else {
-        if (els.destinationAddress) {
-          els.destinationAddress.placeholder = "Enter destination";
-        }
-
-        if (els.rideNotes) {
-          els.rideNotes.placeholder =
-            "Gate code, pickup details, accessibility needs, or special notes...";
-        }
-      }
-
-      resetEstimateAndPayment(
-        "Request mode changed. Please get a fresh fare estimate."
-      );
-    }
-
-    function syncRiderFromForm() {
-      state.rider.name = safeTrim(els.riderName?.value);
-      state.rider.phone = safeTrim(els.riderPhone?.value);
-      state.rider.email = safeLower(els.riderEmail?.value);
-
-      writeStorage(CONFIG.STORAGE_KEYS.riderName, state.rider.name);
-      writeStorage(CONFIG.STORAGE_KEYS.riderPhone, state.rider.phone);
-      writeStorage(CONFIG.STORAGE_KEYS.riderEmail, state.rider.email);
-    }
-
-    function syncTripFromForm() {
-      state.pickup.address = safeTrim(els.pickupAddress?.value);
-      state.destination.address = safeTrim(els.destinationAddress?.value);
-    }
-
-    function hydrateFromStorage() {
-      const storedName = readStorage(CONFIG.STORAGE_KEYS.riderName);
-      const storedPhone = readStorage(CONFIG.STORAGE_KEYS.riderPhone);
-      const storedEmail = readStorage(CONFIG.STORAGE_KEYS.riderEmail);
-      const storedRiderId = readStorage(CONFIG.STORAGE_KEYS.riderId);
-      const storedRideId = readStorage(CONFIG.STORAGE_KEYS.lastRideId);
-
-      if (els.riderName && storedName) {
-        els.riderName.value = storedName;
-      }
-
-      if (els.riderPhone && storedPhone) {
-        els.riderPhone.value = storedPhone;
-      }
-
-      if (els.riderEmail && storedEmail) {
-        els.riderEmail.value = storedEmail;
-      }
-
-      state.rider.name = storedName;
-      state.rider.phone = storedPhone;
-      state.rider.email = storedEmail;
-      state.rider.id = storedRiderId;
-      state.ride.rideId = storedRideId;
-
-      const queryMode =
-        getQueryParam("mode") ||
-        getQueryParam("service") ||
-        getQueryParam("type");
-
-      const storedMode = readStorage(CONFIG.STORAGE_KEYS.requestMode);
-
-      applyMode(queryMode || storedMode || CONFIG.DEFAULT_MODE);
-    }    function validateRiderFields() {
-      syncRiderFromForm();
-
-      if (!state.rider.name || state.rider.name.length < 2) {
-        return "Please enter your full name.";
-      }
-
-      if (!state.rider.email || !isValidEmail(state.rider.email)) {
-        return "Please enter a valid email address.";
-      }
-
-      const cleanPhone = normalizePhone(state.rider.phone);
-
-      if (!cleanPhone || cleanPhone.length < 10) {
-        return "Please enter a valid phone number.";
-      }
-
-      return "";
-    }
-
-    function validateTripFields() {
-      syncTripFromForm();
-
-      if (!state.pickup.address || state.pickup.address.length < 3) {
-        return "Please enter your pickup location.";
-      }
-
-      if (!state.destination.address || state.destination.address.length < 3) {
-        return "Please enter your destination.";
-      }
-
-      if (
-        els.rideType?.value === "scheduled" &&
-        !els.scheduledTime?.value
-      ) {
-        return "Please select a scheduled pickup time.";
-      }
-
-      if (els.scheduledTime?.value) {
-        const scheduledDate = new Date(els.scheduledTime.value);
-        const now = new Date();
-
-        if (Number.isNaN(scheduledDate.getTime())) {
-          return "Please select a valid scheduled pickup time.";
-        }
-
-        if (scheduledDate.getTime() < now.getTime() + 10 * 60 * 1000) {
-          return "Scheduled pickup time must be at least 10 minutes in the future.";
-        }
-      }
-
-      return "";
-    }
-
-    function resetEstimateAndPayment(reason) {
-      state.estimate = {
-        ready: false,
-        fare: null,
-        distance: null,
-        duration: null,
-        raw: null
-      };
-
-      state.payment = {
-        authorized: false,
-        paymentId: "",
-        clientSecret: "",
-        raw: null
-      };
-
-      if (els.fareEstimateText) {
-        els.fareEstimateText.textContent = "Pending";
-      }
-
-      if (els.distanceText) {
-        els.distanceText.textContent = "Pending";
-      }
-
-      if (els.durationText) {
-        els.durationText.textContent = "Pending";
-      }
-
-      if (els.authorizePaymentBtn) {
-        els.authorizePaymentBtn.disabled = true;
-      }
-
-      if (els.requestRideBtn) {
-        els.requestRideBtn.disabled = true;
-      }
-
-      setDispatchState("Standby");
-
-      if (reason) {
-        setLiveStatus(reason);
-      }
-    }
-
-    function resetEntireFlow() {
-      clearNotice();
-
-      state.estimate = {
-        ready: false,
-        fare: null,
-        distance: null,
-        duration: null,
-        raw: null
-      };
-
-      state.payment = {
-        authorized: false,
-        paymentId: "",
-        clientSecret: "",
-        raw: null
-      };
-
-      state.ride = {
-        requested: false,
-        rideId: "",
-        status: "not_requested",
-        raw: null
-      };
-
-      writeStorage(CONFIG.STORAGE_KEYS.lastRideId, "");
-      writeStorage(CONFIG.STORAGE_KEYS.lastPaymentId, "");
-
-      if (els.requestRideBtn) {
-        els.requestRideBtn.disabled = true;
-        els.requestRideBtn.textContent = "Request Dispatch";
-      }
-
-      if (els.authorizePaymentBtn) {
-        els.authorizePaymentBtn.disabled = true;
-      }
-
-      if (els.fareEstimateText) {
-        els.fareEstimateText.textContent = "Pending";
-      }
-
-      if (els.distanceText) {
-        els.distanceText.textContent = "Pending";
-      }
-
-      if (els.durationText) {
-        els.durationText.textContent = "Pending";
-      }
-
-      setDispatchState("Standby");
-
-      setTimeline(
-        "approval",
-        "Waiting for rider approval verification."
+    const rideId =
+      state.ride.rideId ||
+      localStorage.getItem(
+        CONFIG.STORAGE_KEYS.lastRideId
       );
 
-      setTimeline(
-        "payment",
-        "Payment authorization has not started yet."
+    if (!rideId) {
+
+      showNotice(
+        "No active ride found.",
+        "warning"
       );
 
-      setTimeline(
-        "dispatch",
-        "Dispatch request has not been submitted yet."
-      );
+      return;
+    }
 
-      setLiveStatus(
-        "Request flow reset successfully."
+    const text =
+      `Track my Harvey Taxi trip.\nRide ID: ${rideId}`;
+
+    if (
+      navigator.share
+    ) {
+
+      try {
+
+        await navigator.share({
+          title: "Harvey Taxi Trip",
+          text
+        });
+
+      } catch (_) {}
+
+      return;
+    }
+
+    try {
+
+      await navigator.clipboard.writeText(
+        text
       );
 
       showNotice(
-        "Request flow reset successfully.",
+        "Trip information copied.",
         "success"
       );
+
+    } catch {
+
+      showNotice(
+        text,
+        "info"
+      );
+
+    }
+  }
+
+  function emergencyAssist() {
+
+    const confirmEmergency =
+      confirm(
+        "Are you experiencing an emergency?"
+      );
+
+    if (!confirmEmergency) {
+      return;
     }
 
-    async function apiFetch(path, options = {}) {
-      const url = `${CONFIG.API_BASE}${path}`;
+    window.location.href =
+      "tel:911";
+  }
 
-      const headers = {
-        "Content-Type": "application/json",
-        ...(options.headers || {})
-      };
+  function hydrateAccessibility() {
 
-      const response = await fetch(url, {
-        ...options,
-        headers
+    try {
+
+      const saved =
+        JSON.parse(
+          localStorage.getItem(
+            CONFIG.STORAGE_KEYS.accessibility
+          ) || "[]"
+        );
+
+      state.accessibilityNeeds =
+        Array.isArray(saved)
+          ? saved
+          : [];
+
+    } catch {
+
+      state.accessibilityNeeds = [];
+
+    }
+
+    document
+      .querySelectorAll(
+        ".accessibility-chip"
+      )
+      .forEach(btn => {
+
+        const active =
+          state.accessibilityNeeds.includes(
+            btn.dataset.accessibility
+          );
+
+        btn.classList.toggle(
+          "active",
+          active
+        );
       });
+  }
 
-      let data = null;
+  function initializeCodeBlueEnhancements() {
 
-      try {
-        data = await response.json();
-      } catch (error) {
-        data = {
-          ok: false,
-          error: "Server returned a non-JSON response."
-        };
+    hydrateAccessibility();
+
+    els.accessibilityButtons?.forEach(
+      button => {
+
+        button.addEventListener(
+          "click",
+          () =>
+            toggleAccessibility(
+              button.dataset.accessibility
+            )
+        );
+
       }
-
-      if (!response.ok) {
-        const message =
-          data?.error ||
-          data?.message ||
-          `Request failed with status ${response.status}`;
-
-        const apiError = new Error(message);
-
-        apiError.status = response.status;
-        apiError.data = data;
-
-        throw apiError;
-      }
-
-      return data;
-    }
-
-    async function apiPost(path, body) {
-      return apiFetch(path, {
-        method: "POST",
-        body: JSON.stringify(body || {})
-      });
-    }
-
-    function pickFirstValue(source, keys, fallback = "") {
-      for (const key of keys) {
-        if (
-          source &&
-          source[key] !== undefined &&
-          source[key] !== null
-        ) {
-          return source[key];
-        }
-      }
-
-      return fallback;
-    }
-
-    function normalizeApprovalPayload(data) {
-      const rider =
-        data?.rider ||
-        data?.data?.rider ||
-        data?.profile ||
-        data?.user ||
-        data ||
-        {};
-
-      const riderId = pickFirstValue(rider, [
-        "id",
-        "rider_id",
-        "riderId",
-        "uuid"
-      ]);
-
-      const status = safeLower(
-        pickFirstValue(
-          rider,
-          [
-            "approval_status",
-            "verification_status",
-            "status",
-            "rider_status"
-          ],
-          "unknown"
-        )
-      );
-
-      const approvedFlag =
-        rider?.approved === true ||
-        rider?.is_approved === true ||
-        rider?.rider_approved === true ||
-        data?.approved === true ||
-        data?.is_approved === true;
-
-      const verifiedFlag =
-        rider?.verified === true ||
-        rider?.is_verified === true ||
-        rider?.phone_verified === true ||
-        data?.verified === true;
-
-      const approvedByStatus = [
-        "approved",
-        "active",
-        "verified",
-        "ready",
-        "complete"
-      ].includes(status);
-
-      return {
-        id: riderId || "",
-        status,
-        approved: Boolean(
-          approvedFlag || approvedByStatus
-        ),
-        verified: Boolean(
-          verifiedFlag || approvedByStatus
-        ),
-        raw: data
-      };
-    }
-
-    async function checkRiderApproval() {
-      const validationError = validateRiderFields();
-
-      if (validationError) {
-        showNotice(validationError, "warning");
-        return false;
-      }
-
-      setBusy(
-        els.checkRiderBtn,
-        true,
-        "Checking rider..."
-      );
-
-      clearNotice();
-
-      setLiveStatus(
-        "Checking rider approval status..."
-      );
-
-      setTimeline(
-        "approval",
-        "Verifying rider profile and approval status..."
-      );
-
-      const payload = {
-        email: state.rider.email,
-        phone: state.rider.phone,
-        name: state.rider.name
-      };
-
-      const endpointsToTry = [
-        CONFIG.ENDPOINTS.riderApproval,
-        CONFIG.ENDPOINTS.riderStatus,
-        CONFIG.ENDPOINTS.riderLookup
-      ];
-
-      try {
-        let data = null;
-        let lastError = null;
-
-        for (const endpoint of endpointsToTry) {
-          try {
-            data = await apiPost(endpoint, payload);
-            break;
-          } catch (error) {
-            lastError = error;
-          }
-        }
-
-        if (!data && lastError) {
-          throw lastError;
-        }
-
-        const normalized =
-          normalizeApprovalPayload(data);
-
-        state.rider.id =
-          normalized.id || state.rider.id;
-
-        state.rider.status =
-          normalized.status;
-
-        state.rider.approved =
-          normalized.approved;
-
-        state.rider.verified =
-          normalized.verified;
-
-        if (state.rider.id) {
-          writeStorage(
-            CONFIG.STORAGE_KEYS.riderId,
-            state.rider.id
-          );
-        }
-
-        if (
-          !state.rider.approved &&
-          CONFIG.REQUIRE_RIDER_APPROVAL
-        ) {
-          setBadge("Approval Needed");
-
-          setTimeline(
-            "approval",
-            "Rider approval is required before dispatch."
-          );
-
-          setLiveStatus(
-            "Rider approval is required before dispatch."
-          );
-
-          showNotice(
-            "Your rider profile is not approved yet. Please complete verification or contact Harvey Taxi support.",
-            "warning"
-          );
-
-          return false;
-        }
-
-        setBadge("Rider Approved");
-
-        setTimeline(
-          "approval",
-          "Rider approval confirmed successfully."
-        );
-
-        setLiveStatus(
-          "Rider approval confirmed. Next step: fare estimate."
-        );
-
-        showNotice(
-          "Rider approval confirmed successfully.",
-          "success"
-        );
-
-        return true;
-      } catch (error) {
-        setBadge("Approval Failed");
-
-        setTimeline(
-          "approval",
-          "Rider approval verification failed."
-        );
-
-        setLiveStatus(
-          "Rider approval check failed."
-        );
-
-        showNotice(
-          error?.message ||
-            "Unable to confirm rider approval.",
-          "error"
-        );
-
-        return false;
-      } finally {
-        setBusy(els.checkRiderBtn, false);
-      }
-    }    function buildTripPayload() {
-      syncRiderFromForm();
-      syncTripFromForm();
-
-      return {
-        rider_id: state.rider.id || null,
-        riderId: state.rider.id || null,
-
-        rider_name: state.rider.name,
-        riderName: state.rider.name,
-
-        rider_phone: state.rider.phone,
-        phone: state.rider.phone,
-
-        rider_email: state.rider.email,
-        email: state.rider.email,
-
-        pickup: state.pickup.address,
-        pickup_address: state.pickup.address,
-        pickupAddress: state.pickup.address,
-
-        destination: state.destination.address,
-        destination_address: state.destination.address,
-        destinationAddress: state.destination.address,
-
-        pickup_latitude: state.pickup.latitude,
-        pickup_longitude: state.pickup.longitude,
-        pickup_accuracy: state.pickup.accuracy,
-
-        requestedMode: state.mode,
-        requested_mode: state.mode,
-
-        service_type:
-          state.mode === "driver" ||
-          state.mode === "autonomous"
-            ? "ride"
-            : state.mode,
-
-        ride_type:
-          els.rideType?.value || "standard",
-
-        passenger_count:
-          Number(els.passengerCount?.value || 1),
-
-        service_priority:
-          els.servicePriority?.value || "normal",
-
-        scheduled_time:
-          els.scheduledTime?.value || null,
-
-        notes:
-          safeTrim(els.rideNotes?.value),
-
-        specialInstructions:
-          safeTrim(els.rideNotes?.value),
-
-        source: "request-ride.html",
-        client_version:
-          "code-blue-request-ride-v2"
-      };
-    }
-
-    function normalizeEstimatePayload(data) {
-      const estimate =
-        data?.estimate ||
-        data?.fare_estimate ||
-        data?.fareEstimate ||
-        data?.data ||
-        data ||
-        {};
-
-      const fare = Number(
-        pickFirstValue(
-          estimate,
-          [
-            "fare",
-            "estimated_fare",
-            "estimatedFare",
-            "total",
-            "total_fare",
-            "amount",
-            "price"
-          ],
-          null
-        )
-      );
-
-      const distance =
-        pickFirstValue(
-          estimate,
-          [
-            "distance",
-            "distance_text",
-            "distanceText",
-            "estimated_distance",
-            "miles"
-          ],
-          ""
-        );
-
-      const duration =
-        pickFirstValue(
-          estimate,
-          [
-            "duration",
-            "duration_text",
-            "durationText",
-            "estimated_duration",
-            "minutes"
-          ],
-          ""
-        );
-
-      return {
-        fare:
-          Number.isFinite(fare)
-            ? fare
-            : null,
-
-        distance,
-        duration,
-        raw: data
-      };
-    }
-
-    async function getFareEstimate() {
-      const riderError =
-        validateRiderFields();
-
-      if (riderError) {
-        showNotice(riderError, "warning");
-        return false;
-      }
-
-      const tripError =
-        validateTripFields();
-
-      if (tripError) {
-        showNotice(tripError, "warning");
-        return false;
-      }
-
-      if (
-        CONFIG.REQUIRE_RIDER_APPROVAL &&
-        !state.rider.approved
-      ) {
-        const approved =
-          await checkRiderApproval();
-
-        if (!approved) {
-          return false;
-        }
-      }
-
-      setBusy(
-        els.estimateBtn,
-        true,
-        "Calculating..."
-      );
-
-      clearNotice();
-
-      setLiveStatus(
-        "Calculating fare estimate..."
-      );
-
-      setTimeline(
-        "dispatch",
-        "Preparing dispatch estimate and trip routing..."
-      );
-
-      const payload =
-        buildTripPayload();
-
-      const endpointsToTry = [
-        CONFIG.ENDPOINTS.fareEstimate,
-        CONFIG.ENDPOINTS.estimateRide
-      ];
-
-      try {
-        let data = null;
-        let lastError = null;
-
-        for (const endpoint of endpointsToTry) {
-          try {
-            data = await apiPost(
-              endpoint,
-              payload
-            );
-
-            break;
-          } catch (error) {
-            lastError = error;
-          }
-        }
-
-        if (!data && lastError) {
-          throw lastError;
-        }
-
-        const normalized =
-          normalizeEstimatePayload(data);
-
-        state.estimate.ready = true;
-
-        state.estimate.fare =
-          normalized.fare;
-
-        state.estimate.distance =
-          normalized.distance;
-
-        state.estimate.duration =
-          normalized.duration;
-
-        state.estimate.raw =
-          normalized.raw;
-
-        if (els.fareEstimateText) {
-          els.fareEstimateText.textContent =
-            normalized.fare === null
-              ? "Calculated"
-              : money(normalized.fare);
-        }
-
-        if (els.distanceText) {
-          els.distanceText.textContent =
-            normalized.distance
-              ? String(normalized.distance)
-              : "Calculated";
-        }
-
-        if (els.durationText) {
-          els.durationText.textContent =
-            normalized.duration
-              ? String(normalized.duration)
-              : "Calculated";
-        }
-
-        if (els.authorizePaymentBtn) {
-          els.authorizePaymentBtn.disabled = false;
-        }
-
-        if (
-          !CONFIG.REQUIRE_PAYMENT_AUTHORIZATION &&
-          els.requestRideBtn
-        ) {
-          els.requestRideBtn.disabled = false;
-        }
-
-        setDispatchState("Estimate Ready");
-
-        setBadge("Estimate Ready");
-
-        setTimeline(
-          "dispatch",
-          "Fare estimate completed successfully."
-        );
-
-        setLiveStatus(
-          "Fare estimate completed. Payment authorization is next."
-        );
-
-        showNotice(
-          "Fare estimate completed successfully.",
-          "success"
-        );
-
-        return true;
-      } catch (error) {
-        setDispatchState("Estimate Failed");
-
-        setBadge("Estimate Failed");
-
-        setTimeline(
-          "dispatch",
-          "Fare estimate failed."
-        );
-
-        setLiveStatus(
-          "Fare estimate failed."
-        );
-
-        showNotice(
-          error?.message ||
-            "Unable to calculate fare estimate.",
-          "error"
-        );
-
-        return false;
-      } finally {
-        setBusy(els.estimateBtn, false);
-      }
-    }
-
-    function normalizePaymentPayload(data) {
-      const payment =
-        data?.payment ||
-        data?.authorization ||
-        data?.payment_intent ||
-        data?.paymentIntent ||
-        data?.data ||
-        data ||
-        {};
-
-      const paymentId =
-        pickFirstValue(
-          payment,
-          [
-            "id",
-            "payment_id",
-            "paymentId",
-            "payment_intent_id",
-            "paymentIntentId",
-            "authorization_id",
-            "authorizationId"
-          ],
-          ""
-        );
-
-      const clientSecret =
-        pickFirstValue(
-          payment,
-          [
-            "client_secret",
-            "clientSecret"
-          ],
-          ""
-        );
-
-      const authorized =
-        data?.authorized === true ||
-        data?.ok === true ||
-        payment?.authorized === true ||
-        [
-          "authorized",
-          "requires_capture",
-          "succeeded",
-          "approved"
-        ].includes(
-          safeLower(payment?.status)
-        );
-
-      return {
-        authorized: Boolean(
-          authorized ||
-            paymentId ||
-            clientSecret
-        ),
-
-        paymentId,
-        clientSecret,
-        raw: data
-      };
-    }
-
-    async function authorizePayment() {
-      const tripError =
-        validateTripFields();
-
-      if (tripError) {
-        showNotice(tripError, "warning");
-        return false;
-      }
-
-      if (!state.estimate.ready) {
-        const estimated =
-          await getFareEstimate();
-
-        if (!estimated) {
-          return false;
-        }
-      }
-
-      setBusy(
-        els.authorizePaymentBtn,
-        true,
-        "Authorizing..."
-      );
-
-      clearNotice();
-
-      setLiveStatus(
-        "Authorizing payment..."
-      );
-
-      setTimeline(
-        "payment",
-        "Authorizing payment before dispatch..."
-      );
-
-      const payload = {
-        ...buildTripPayload(),
-
-        estimate:
-          state.estimate.raw,
-
-        estimated_fare:
-          state.estimate.fare,
-
-        estimatedFare:
-          state.estimate.fare,
-
-        amount:
-          state.estimate.fare,
-
-        currency: "usd"
-      };
-
-      try {
-        const data =
-          await apiPost(
-            CONFIG.ENDPOINTS.authorizePayment,
-            payload
-          );
-
-        const normalized =
-          normalizePaymentPayload(data);
-
-        state.payment.authorized =
-          normalized.authorized;
-
-        state.payment.paymentId =
-          normalized.paymentId;
-
-        state.payment.clientSecret =
-          normalized.clientSecret;
-
-        state.payment.raw =
-          normalized.raw;
-
-        if (
-          state.payment.paymentId
-        ) {
-          writeStorage(
-            CONFIG.STORAGE_KEYS.lastPaymentId,
-            state.payment.paymentId
-          );
-        }
-
-        if (
-          !state.payment.authorized &&
-          CONFIG.REQUIRE_PAYMENT_AUTHORIZATION
-        ) {
-          setBadge("Payment Needed");
-
-          setTimeline(
-            "payment",
-            "Payment authorization is required before dispatch."
-          );
-
-          setLiveStatus(
-            "Payment authorization required."
-          );
-
-          showNotice(
-            "Payment was not authorized.",
-            "warning"
-          );
-
-          return false;
-        }
-
-        if (els.requestRideBtn) {
-          els.requestRideBtn.disabled = false;
-        }
-
-        setBadge("Payment Ready");
-
-        setTimeline(
-          "payment",
-          "Payment authorization completed successfully."
-        );
-
-        setLiveStatus(
-          "Payment authorized successfully."
-        );
-
-        showNotice(
-          "Payment authorization completed successfully.",
-          "success"
-        );
-
-        return true;
-      } catch (error) {
-        setBadge("Payment Failed");
-
-        setTimeline(
-          "payment",
-          "Payment authorization failed."
-        );
-
-        setLiveStatus(
-          "Payment authorization failed."
-        );
-
-        showNotice(
-          error?.message ||
-            "Payment authorization failed.",
-          "error"
-        );
-
-        return false;
-      } finally {
-        setBusy(
-          els.authorizePaymentBtn,
-          false
-        );
-      }
-    }
-
-    function normalizeRidePayload(data) {
-      const ride =
-        data?.ride ||
-        data?.trip ||
-        data?.request ||
-        data?.data ||
-        data ||
-        {};
-
-      const rideId =
-        pickFirstValue(
-          ride,
-          [
-            "ride_id",
-            "rideId",
-            "id",
-            "trip_id",
-            "tripId",
-            "request_id",
-            "requestId"
-          ],
-          ""
-        );
-
-      const status =
-        safeLower(
-          pickFirstValue(
-            ride,
-            [
-              "status",
-              "ride_status",
-              "trip_status",
-              "dispatch_status"
-            ],
-            "requested"
-          )
-        );
-
-      return {
-        rideId,
-        status:
-          status || "requested",
-        raw: data
-      };
-    }    async function requestDispatch(event) {
-      if (event) {
-        event.preventDefault();
-      }
-
-      const riderError = validateRiderFields();
-
-      if (riderError) {
-        showNotice(riderError, "warning");
-        return false;
-      }
-
-      const tripError = validateTripFields();
-
-      if (tripError) {
-        showNotice(tripError, "warning");
-        return false;
-      }
-
-      if (
-        CONFIG.REQUIRE_RIDER_APPROVAL &&
-        !state.rider.approved
-      ) {
-        const approved = await checkRiderApproval();
-
-        if (!approved) {
-          return false;
-        }
-      }
-
-      if (!state.estimate.ready) {
-        const estimated = await getFareEstimate();
-
-        if (!estimated) {
-          return false;
-        }
-      }
-
-      if (
-        CONFIG.REQUIRE_PAYMENT_AUTHORIZATION &&
-        !state.payment.authorized
-      ) {
-        const authorized = await authorizePayment();
-
-        if (!authorized) {
-          return false;
-        }
-      }
-
-      setBusy(
-        els.requestRideBtn,
-        true,
-        "Requesting dispatch..."
-      );
-
-      clearNotice();
-
-      setLiveStatus(
-        "Sending request into Harvey Taxi dispatch..."
-      );
-
-      setDispatchState("Dispatching");
-
-      setTimeline(
-        "dispatch",
-        "Dispatch request is being submitted."
-      );
-
-      const paymentId =
-        state.payment.paymentId ||
-        readStorage(CONFIG.STORAGE_KEYS.lastPaymentId);
-
-      const payload = {
-        ...buildTripPayload(),
-
-        payment_id: paymentId,
-        paymentId,
-
-        payment_authorized: state.payment.authorized,
-        paymentAuthorized: state.payment.authorized,
-
-        estimate: state.estimate.raw,
-        estimated_fare: state.estimate.fare,
-        estimatedFare: state.estimate.fare
-      };
-
-      try {
-        const data = await apiPost(
-          CONFIG.ENDPOINTS.requestRide,
-          payload
-        );
-
-        const normalized =
-          normalizeRidePayload(data);
-
-        state.ride.requested = true;
-        state.ride.rideId = normalized.rideId;
-        state.ride.status = normalized.status;
-        state.ride.raw = normalized.raw;
-
-        if (state.ride.rideId) {
-          writeStorage(
-            CONFIG.STORAGE_KEYS.lastRideId,
-            state.ride.rideId
-          );
-        }
-
-        setBadge("Requested");
-        setDispatchState("Requested");
-
-        setTimeline(
-          "dispatch",
-          state.ride.rideId
-            ? `Dispatch submitted. Ride ID: ${state.ride.rideId}`
-            : "Dispatch request submitted successfully."
-        );
-
-        setLiveStatus(
-          state.ride.rideId
-            ? `Ride request submitted. Ride ID: ${state.ride.rideId}`
-            : "Ride request submitted. Open your dashboard for updates."
-        );
-
-        showNotice(
-          "Dispatch request submitted successfully. Open your rider dashboard for live updates.",
-          "success"
-        );
-
-        if (els.requestRideBtn) {
-          els.requestRideBtn.disabled = true;
-          els.requestRideBtn.textContent = "Dispatch Requested";
-        }
-
-        return true;
-      } catch (error) {
-        setBadge("Dispatch Failed");
-        setDispatchState("Failed");
-
-        setTimeline(
-          "dispatch",
-          "Dispatch request failed."
-        );
-
-        setLiveStatus(
-          "Dispatch request failed."
-        );
-
-        showNotice(
-          error?.message ||
-            "Dispatch request failed. Please try again or contact support.",
-          "error"
-        );
-
-        return false;
-      } finally {
-        setBusy(els.requestRideBtn, false);
-      }
-    }
-
-    async function refreshRideStatus() {
-      const rideId =
-        state.ride.rideId ||
-        readStorage(CONFIG.STORAGE_KEYS.lastRideId);
-
-      if (!rideId) {
-        showNotice(
-          "No recent ride request was found on this device.",
-          "warning"
-        );
-
-        setLiveStatus(
-          "No active ride request found."
-        );
-
-        return;
-      }
-
-      setBusy(
-        els.refreshStatusBtn,
-        true,
-        "Refreshing..."
-      );
-
-      clearNotice();
-
-      const payload = {
-        ride_id: rideId,
-        rideId,
-
-        rider_id:
-          state.rider.id ||
-          readStorage(CONFIG.STORAGE_KEYS.riderId),
-
-        riderId:
-          state.rider.id ||
-          readStorage(CONFIG.STORAGE_KEYS.riderId),
-
-        email:
-          state.rider.email ||
-          readStorage(CONFIG.STORAGE_KEYS.riderEmail)
-      };
-
-      const endpointsToTry = [
-        CONFIG.ENDPOINTS.rideStatus,
-        CONFIG.ENDPOINTS.currentRide
-      ];
-
-      try {
-        let data = null;
-        let lastError = null;
-
-        for (const endpoint of endpointsToTry) {
-          try {
-            data = await apiPost(endpoint, payload);
-            break;
-          } catch (error) {
-            lastError = error;
-          }
-        }
-
-        if (!data && lastError) {
-          throw lastError;
-        }
-
-        const normalized =
-          normalizeRidePayload(data);
-
-        state.ride.rideId =
-          normalized.rideId || rideId;
-
-        state.ride.status =
-          normalized.status;
-
-        state.ride.raw =
-          normalized.raw;
-
-        setBadge("Status Updated");
-
-        setDispatchState(
-          state.ride.status || "Updated"
-        );
-
-        setTimeline(
-          "dispatch",
-          `Current ride status: ${state.ride.status || "unknown"}`
-        );
-
-        setLiveStatus(
-          `Current ride status: ${state.ride.status || "unknown"}`
-        );
-
-        showNotice(
-          "Ride status refreshed successfully.",
-          "success"
-        );
-      } catch (error) {
-        setBadge("Status Failed");
-
-        setLiveStatus(
-          "Ride status refresh failed."
-        );
-
-        showNotice(
-          error?.message ||
-            "Unable to refresh ride status. Please open the rider dashboard or contact support.",
-          "error"
-        );
-      } finally {
-        setBusy(
-          els.refreshStatusBtn,
-          false
-        );
-      }
-    }
-
-    function canUseGoogleMaps() {
-      return Boolean(
-        window.__HARVEY_MAPS_ENABLED__ &&
-        window.google &&
-        window.google.maps &&
-        els.pickupMap
-      );
-    }
-
-    function hideMapFallback() {
-      if (els.mapFallback) {
-        els.mapFallback.classList.add("hidden");
-      }
-    }
-
-    function showMapFallback() {
-      if (els.mapFallback) {
-        els.mapFallback.classList.remove("hidden");
-      }
-    }
-
-    function initOrUpdateMap() {
-      if (
-        state.pickup.latitude === null ||
-        state.pickup.longitude === null
-      ) {
-        showMapFallback();
-        setMapBadge("Map Standby");
-        return;
-      }
-
-      const center = {
-        lat: Number(state.pickup.latitude),
-        lng: Number(state.pickup.longitude)
-      };
-
-      updateLocationMeta();
-
-      if (!canUseGoogleMaps()) {
-        showMapFallback();
-        setMapBadge("GPS Captured");
-        return;
-      }
-
-      hideMapFallback();
-      setMapBadge("Live Map");
-
-      if (!state.map.instance) {
-        state.map.instance = new google.maps.Map(
-          els.pickupMap,
-          {
-            center,
-            zoom: CONFIG.MAP_DEFAULT_ZOOM,
-            disableDefaultUI: true,
-            zoomControl: true,
-            streetViewControl: false,
-            mapTypeControl: false,
-            fullscreenControl: true
-          }
-        );
-
-        state.map.marker = new google.maps.Marker({
-          position: center,
-          map: state.map.instance,
-          title: "Harvey Taxi Pickup Location"
-        });
-
-        state.map.loaded = true;
-        return;
-      }
-
-      state.map.instance.setCenter(center);
-
-      if (state.map.marker) {
-        state.map.marker.setPosition(center);
-      }
-    }
-
-    function detectLocation() {
-      if (!navigator.geolocation) {
-        showNotice(
-          "Location is not supported on this device. Please enter pickup manually.",
-          "warning"
-        );
-
-        return;
-      }
-
-      setBusy(
-        els.detectLocationBtn,
-        true,
-        "Detecting..."
-      );
-
-      setLiveStatus(
-        "Requesting precise location permission..."
-      );
-
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          state.pickup.latitude =
-            position.coords.latitude;
-
-          state.pickup.longitude =
-            position.coords.longitude;
-
-          state.pickup.accuracy =
-            position.coords.accuracy;
-
-          state.pickup.source =
-            "browser_geolocation";
-
-          if (
-            els.pickupAddress &&
-            !safeTrim(els.pickupAddress.value)
-          ) {
-            els.pickupAddress.value =
-              "Current GPS Location";
-          }
-
-          if (els.locationStatusText) {
-            els.locationStatusText.textContent =
-              `Precise location captured with ~${Math.round(
-                state.pickup.accuracy || 0
-              )}m accuracy. Confirm pickup before dispatch.`;
-          }
-
-          updateLocationMeta();
-          initOrUpdateMap();
-
-          resetEstimateAndPayment(
-            "Precise location captured. Please get a fresh fare estimate."
-          );
-
-          showNotice(
-            "Precise pickup location captured. Confirm the pickup address before dispatch.",
-            "success"
-          );
-
-          setBusy(
-            els.detectLocationBtn,
-            false
-          );
-        },
-        (error) => {
-          let message =
-            "Location permission was not granted. Please enter pickup manually.";
-
-          if (error?.code === 1) {
-            message =
-              "Location permission was denied. You can still enter pickup manually.";
-          }
-
-          if (error?.code === 2) {
-            message =
-              "Your location could not be detected. Please enter pickup manually.";
-          }
-
-          if (error?.code === 3) {
-            message =
-              "Location request timed out. Please enter pickup manually.";
-          }
-
-          showNotice(message, "warning");
-
-          setLiveStatus(
-            "Manual pickup entry is available."
-          );
-
-          setBusy(
-            els.detectLocationBtn,
-            false
-          );
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 15000,
-          maximumAge: 15000
-        }
-      );
-    }
-
-    function bindEvents() {
-      els.modeButtons.forEach((button) => {
-        button.addEventListener("click", () => {
-          applyMode(button.dataset.mode);
-        });
-      });
-
-      els.detectLocationBtn?.addEventListener(
-        "click",
-        detectLocation
-      );
-
-      els.checkRiderBtn?.addEventListener(
-        "click",
-        checkRiderApproval
-      );
-
-      els.estimateBtn?.addEventListener(
-        "click",
-        getFareEstimate
-      );
-
-      els.authorizePaymentBtn?.addEventListener(
-        "click",
-        authorizePayment
-      );
-
-      els.refreshStatusBtn?.addEventListener(
-        "click",
-        refreshRideStatus
-      );
-
-      els.resetFlowBtn?.addEventListener(
-        "click",
-        resetEntireFlow
-      );
-
-      els.openDashboardBtn?.addEventListener(
-        "click",
-        () => {
-          window.location.href = CONFIG.DASHBOARD_URL;
-        }
-      );
-
-      els.rideForm?.addEventListener(
-        "submit",
-        requestDispatch
-      );
-
-      [
-        els.pickupAddress,
-        els.destinationAddress,
-        els.rideType,
-        els.passengerCount,
-        els.servicePriority,
-        els.scheduledTime,
-        els.rideNotes
-      ].forEach((field) => {
-        field?.addEventListener("input", () => {
-          resetEstimateAndPayment(
-            "Trip details changed. Please get a fresh estimate."
-          );
-        });
-
-        field?.addEventListener("change", () => {
-          resetEstimateAndPayment(
-            "Trip details changed. Please get a fresh estimate."
-          );
-        });
-      });
-
-      [
-        els.riderName,
-        els.riderPhone,
-        els.riderEmail
-      ].forEach((field) => {
-        field?.addEventListener("input", () => {
-          syncRiderFromForm();
-
-          state.rider.approved = false;
-          state.rider.verified = false;
-
-          resetEstimateAndPayment(
-            "Rider details changed. Please re-check rider approval."
-          );
-
-          setTimeline(
-            "approval",
-            "Rider details changed. Approval must be checked again."
-          );
-        });
-      });
-    }
-
-    function boot() {
-      hydrateFromStorage();
-      bindEvents();
-      updateLocationMeta();
-      initOrUpdateMap();
-
-      setLiveStatus(
-        "Complete the form and start with rider approval."
-      );
-
-      setDispatchState("Standby");
-      setBadge(getModeContent(state.mode).badge);
-
-      if (state.ride.rideId) {
-        setLiveStatus(
-          "A previous ride request was found. You can refresh the status below."
-        );
-
-        setTimeline(
-          "dispatch",
-          "Previous ride request found on this device."
-        );
-      }
-    }
-
-    document.addEventListener(
-      "DOMContentLoaded",
-      boot
     );
-  </script>
+
+    els.shareTripBtn?.addEventListener(
+      "click",
+      shareTrip
+    );
+
+    els.emergencyBtn?.addEventListener(
+      "click",
+      emergencyAssist
+    );
+
+    els.trackRideBtn?.addEventListener(
+      "click",
+      refreshRideStatus
+    );
+
+    els.supportButton?.addEventListener(
+      "click",
+      () => {
+        window.location.href =
+          "/support.html";
+      }
+    );
+
+    els.refreshStatusBtn2?.addEventListener(
+      "click",
+      refreshRideStatus
+    );
+
+    els.openDashboardBtn2?.addEventListener(
+      "click",
+      () => {
+        window.location.href =
+          CONFIG.DASHBOARD_URL;
+      }
+    );
+
+    updateProgress("approval");
+  }
+
+  const originalBoot = boot;
+
+  boot = function() {
+
+    originalBoot();
+
+    initializeCodeBlueEnhancements();
+
+    setLiveStatus(
+      "Harvey Taxi TRUE Request Ride System Ready."
+    );
+
+    console.log(
+      "HARVEY TAXI CODE BLUE TRUE UPGRADE LOADED"
+    );
+  };
+
+  document.addEventListener(
+    "DOMContentLoaded",
+    boot
+  );
+
+</script>
+
 </body>
 </html>
