@@ -32,7 +32,13 @@
 
   <meta name="robots" content="index, follow" />
 
-  <meta property="og:title" content="Harvey Transportation Assistance Foundation" />
+  <meta
+
+    property="og:title"
+
+    content="Harvey Transportation Assistance Foundation"
+
+  />
 
   <meta
 
@@ -52,13 +58,19 @@
 
   />
 
+  <!-- Google Ads Tag -->
+
   <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18161547185"></script>
 
   <script>
 
     window.dataLayer = window.dataLayer || [];
 
-    function gtag(){ dataLayer.push(arguments); }
+    function gtag() {
+
+      dataLayer.push(arguments);
+
+    }
 
     gtag("js", new Date());
 
@@ -119,6 +131,8 @@
       --gold: #ffd978;
 
       --danger: #ff7e90;
+
+      --purple: #a78bfa;
 
       --ink: #04101c;
 
@@ -858,7 +872,15 @@
 
     .status-box {
 
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
+      background: linear-gradient(
+
+        180deg,
+
+        rgba(255, 255, 255, 0.04),
+
+        rgba(255, 255, 255, 0.01)
+
+      );
 
       border: 1px solid rgba(255, 255, 255, 0.06);
 
@@ -1070,13 +1092,19 @@
 
       font-size: 1.4rem;
 
-      background: linear-gradient(135deg, rgba(115, 244, 255, 0.18), rgba(106, 167, 255, 0.14));
+      background: linear-gradient(
+
+        135deg,
+
+        rgba(115, 244, 255, 0.18),
+
+        rgba(106, 167, 255, 0.14)
+
+      );
 
       border: 1px solid rgba(115, 244, 255, 0.14);
 
-    }
-
-    .stats-shell,
+    }    .stats-shell,
 
     .process-grid {
 
@@ -1204,246 +1232,161 @@
 
       gap: 12px;
 
-    }<section class="section" id="apply"><section class="card application-card">
+    }
 
-  <div class="section-head">
-    <h3>Transportation Assistance Application Portal</h3>
+    /* ==========================================
 
-    <p>
-      Submit a transportation assistance request directly to
-      Harvey Transportation Assistance Foundation.
-      Applications are reviewed based on program eligibility,
-      funding availability, transportation need, and supporting
-      documentation.
-    </p>
-  </div>
+       HTAF APPLICATION PORTAL
 
-  <form id="htafApplicationForm">
+    ========================================== */
 
-    <div class="grid-3">
+    .application-grid {
 
-      <div class="field">
-        <label>First Name *</label>
-        <input
-          type="text"
-          id="firstName"
-          required
-          placeholder="First Name"
-        />
-      </div>
+      display: grid;
 
-      <div class="field">
-        <label>Last Name *</label>
-        <input
-          type="text"
-          id="lastName"
-          required
-          placeholder="Last Name"
-        />
-      </div>
+      grid-template-columns: minmax(0, 1fr) 340px;
 
-      <div class="field">
-        <label>Email *</label>
-        <input
-          type="email"
-          id="email"
-          required
-          placeholder="you@example.com"
-        />
-      </div>
+      gap: 20px;
 
-      <div class="field">
-        <label>Phone *</label>
-        <input
-          type="tel"
-          id="phone"
-          required
-          placeholder="(615) 555-5555"
-        />
-      </div>
+      align-items: start;
 
-      <div class="field">
-        <label>County *</label>
-        <input
-          type="text"
-          id="county"
-          required
-          placeholder="Davidson County"
-        />
-      </div>
+    }
 
-      <div class="field">
-        <label>City *</label>
-        <input
-          type="text"
-          id="city"
-          required
-          placeholder="Nashville"
-        />
-      </div>
+    .application-progress {
 
-    </div>
+      position: sticky;
 
-    <div class="field">
-      <label>Transportation Program *</label>
+      top: 24px;
 
-      <select id="programType" required>
-        <option value="">
-          Select Program
-        </option>
+      display: grid;
 
-        <option value="medical">
-          Medical Transportation
-        </option>
+      gap: 12px;
 
-        <option value="employment">
-          Employment Transportation
-        </option>
+    }
 
-        <option value="veteran">
-          Veteran Transportation
-        </option>
+    .progress-panel {
 
-        <option value="senior">
-          Senior Mobility
-        </option>
+      padding: 20px;
 
-        <option value="disability">
-          Disability Transportation
-        </option>
+      border-radius: 24px;
 
-        <option value="education">
-          Education Transportation
-        </option>
+      border: 1px solid rgba(255, 255, 255, 0.07);
 
-        <option value="general">
-          General Assistance
-        </option>
-      </select>
-    </div>
+      background:
 
-    <div class="grid-3">
+        linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.014)),
 
-      <div class="field">
-        <label>Pickup City *</label>
+        rgba(4, 10, 28, 0.7);
 
-        <input
-          type="text"
-          id="pickupCity"
-          required
-          placeholder="Pickup City"
-        />
-      </div>
+      box-shadow: var(--shadowSoft);
 
-      <div class="field">
-        <label>Destination *</label>
+    }
 
-        <input
-          type="text"
-          id="destination"
-          required
-          placeholder="Clinic, Employer, School"
-        />
-      </div>
+    .progress-panel h4 {
 
-      <div class="field">
-        <label>Ride Date Needed *</label>
+      font-size: 1rem;
 
-        <input
-          type="date"
-          id="rideDate"
-          required
-        />
-      </div>
+      font-weight: 900;
 
-    </div>
+      margin-bottom: 8px;
 
-    <div class="field">
-      <label>
-        Explain Transportation Need *
-      </label>
+    }
 
-      <textarea
-        id="transportationNeed"
-        rows="6"
-        required
-        placeholder="Describe why transportation assistance is needed..."
-      ></textarea>
-    </div>
+    .progress-panel p {
 
-    <div class="field">
-      <label>
-        Upload Supporting Documentation
-      </label>
+      color: var(--muted);
 
-      <input
-        type="file"
-        id="supportingDocs"
-        multiple
-        accept=".pdf,.png,.jpg,.jpeg"
-      />
+      line-height: 1.55;
 
-      <small>
-        Appointment letters, disability documentation,
-        veteran paperwork, employment verification,
-        school documentation, etc.
-      </small>
-    </div>
+      font-size: 0.9rem;
 
-    <div class="status-box">
-      <strong>
-        Applicant Certification
-      </strong>
+    }
 
-      <span>
-        By submitting this application, you certify
-        the information provided is accurate and
-        understand submission does not guarantee
-        transportation assistance.
-      </span>
-    </div>
+    .progress-steps {
 
-    <label class="consent-row">
+      display: grid;
 
-      <input
-        type="checkbox"
-        id="consent"
-        required
-      />
+      gap: 10px;
 
-      <span class="consent-text">
-        I agree to the certification above.
-      </span>
+      margin-top: 16px;
 
-    </label>
+    }
 
-    <div class="hero-actions">
+    .progress-step {
 
-      <button
-        type="submit"
-        class="btn btn-primary"
-      >
-        Submit Application
-      </button>
+      display: flex;
 
-      <button
-        type="button"
-        class="btn btn-secondary"
-        onclick="saveDraftApplication()"
-      >
-        Save Draft
-      </button>
+      align-items: flex-start;
 
-    </div>
+      gap: 10px;
 
-    <div
-      id="applicationStatus"
-      class="copy-status"
-    ></div>
+      padding: 12px;
 
-  </form>
+      border-radius: 16px;
 
-</section>    .field {
+      border: 1px solid rgba(255, 255, 255, 0.055);
+
+      background: rgba(255, 255, 255, 0.025);
+
+    }
+
+    .progress-dot {
+
+      width: 18px;
+
+      height: 18px;
+
+      min-width: 18px;
+
+      margin-top: 2px;
+
+      border-radius: 999px;
+
+      border: 2px solid rgba(115, 244, 255, 0.5);
+
+      background: rgba(115, 244, 255, 0.08);
+
+    }
+
+    .progress-step.active {
+
+      border-color: rgba(115, 244, 255, 0.26);
+
+      background: rgba(115, 244, 255, 0.06);
+
+    }
+
+    .progress-step.active .progress-dot {
+
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+
+      box-shadow: 0 0 18px rgba(115, 244, 255, 0.28);
+
+    }
+
+    .progress-step strong {
+
+      display: block;
+
+      font-size: 0.86rem;
+
+      margin-bottom: 3px;
+
+    }
+
+    .progress-step span {
+
+      display: block;
+
+      color: var(--muted);
+
+      line-height: 1.45;
+
+      font-size: 0.78rem;
+
+    }
+
+    .field {
 
       display: grid;
 
@@ -1543,7 +1486,165 @@
 
     }
 
-    .consent-row {
+    .form-section {
+
+      padding: 22px;
+
+      border-radius: 24px;
+
+      border: 1px solid rgba(255, 255, 255, 0.065);
+
+      background: rgba(255, 255, 255, 0.025);
+
+      margin-top: 18px;
+
+    }
+
+    .form-section:first-of-type {
+
+      margin-top: 0;
+
+    }
+
+    .form-section-title {
+
+      display: flex;
+
+      justify-content: space-between;
+
+      align-items: flex-start;
+
+      gap: 12px;
+
+      margin-bottom: 12px;
+
+    }
+
+    .form-section-title h4 {
+
+      font-size: 1rem;
+
+      font-weight: 950;
+
+      letter-spacing: -0.02em;
+
+    }
+
+    .form-section-title span {
+
+      display: inline-flex;
+
+      padding: 6px 10px;
+
+      border-radius: 999px;
+
+      color: var(--cyan);
+
+      background: rgba(115, 244, 255, 0.09);
+
+      border: 1px solid rgba(115, 244, 255, 0.16);
+
+      font-size: 0.72rem;
+
+      font-weight: 900;
+
+      white-space: nowrap;
+
+    }
+
+    .choice-grid {
+
+      display: grid;
+
+      grid-template-columns: repeat(2, 1fr);
+
+      gap: 14px;
+
+      margin-top: 16px;
+
+    }
+
+    .choice {
+
+      position: relative;
+
+      cursor: pointer;
+
+      display: block;
+
+      user-select: none;
+
+      -webkit-user-select: none;
+
+    }
+
+    .choice input {
+
+      position: absolute;
+
+      inset: 0;
+
+      width: 100%;
+
+      height: 100%;
+
+      opacity: 0;
+
+      cursor: pointer;
+
+      z-index: 2;
+
+    }
+
+    .choice-card {
+
+      min-height: 124px;
+
+      border-radius: 20px;
+
+      padding: 16px;
+
+      border: 1px solid rgba(126, 166, 255, 0.2);
+
+      background: rgba(255, 255, 255, 0.032);
+
+      transition: 0.18s ease;
+
+    }
+
+    .choice-card strong {
+
+      display: block;
+
+      margin-bottom: 7px;
+
+      color: var(--text);
+
+      font-weight: 900;
+
+    }
+
+    .choice-card span {
+
+      display: block;
+
+      color: var(--muted);
+
+      line-height: 1.5;
+
+      font-size: 0.86rem;
+
+    }
+
+    .choice input:checked + .choice-card {
+
+      border-color: rgba(115, 244, 255, 0.5);
+
+      background: rgba(115, 244, 255, 0.07);
+
+      box-shadow: 0 0 0 4px rgba(115, 244, 255, 0.08);
+
+    }    .consent-row {
 
       display: flex;
 
@@ -1717,21 +1818,291 @@
 
     }
 
-    @media(max-width: 900px) {
+    .eligibility-banner {
 
-      .application-card .grid-3 {
+      display: flex;
 
-        grid-template-columns: 1fr;
+      align-items: center;
+
+      gap: 12px;
+
+      padding: 18px;
+
+      border-radius: 20px;
+
+      margin-bottom: 18px;
+
+      background:
+
+        linear-gradient(
+
+          135deg,
+
+          rgba(124,255,199,.08),
+
+          rgba(115,244,255,.08)
+
+        );
+
+      border: 1px solid rgba(115,244,255,.15);
+
+    }
+
+    .eligibility-banner strong {
+
+      display:block;
+
+      font-size:.95rem;
+
+      margin-bottom:4px;
+
+    }
+
+    .eligibility-banner span {
+
+      display:block;
+
+      color:var(--muted);
+
+      line-height:1.55;
+
+      font-size:.88rem;
+
+    }
+
+    .eligibility-icon {
+
+      width:54px;
+
+      height:54px;
+
+      border-radius:16px;
+
+      display:grid;
+
+      place-items:center;
+
+      background:
+
+        linear-gradient(
+
+          135deg,
+
+          rgba(124,255,199,.18),
+
+          rgba(115,244,255,.18)
+
+        );
+
+      font-size:1.4rem;
+
+      flex:0 0 auto;
+
+    }
+
+    .upload-preview {
+
+      display:grid;
+
+      gap:10px;
+
+      margin-top:14px;
+
+    }
+
+    .upload-item {
+
+      display:flex;
+
+      justify-content:space-between;
+
+      align-items:center;
+
+      gap:10px;
+
+      padding:12px 14px;
+
+      border-radius:14px;
+
+      background:rgba(255,255,255,.03);
+
+      border:1px solid rgba(255,255,255,.06);
+
+    }
+
+    .upload-item span {
+
+      color:var(--muted);
+
+      font-size:.84rem;
+
+      overflow:hidden;
+
+      text-overflow:ellipsis;
+
+      white-space:nowrap;
+
+    }
+
+    .upload-item strong {
+
+      color:var(--cyan);
+
+      font-size:.8rem;
+
+    }
+
+    .review-panel {
+
+      margin-top:20px;
+
+      padding:20px;
+
+      border-radius:22px;
+
+      background:
+
+        linear-gradient(
+
+          180deg,
+
+          rgba(255,255,255,.05),
+
+          rgba(255,255,255,.015)
+
+        );
+
+      border:1px solid rgba(255,255,255,.08);
+
+      display:none;
+
+    }
+
+    .review-panel.show {
+
+      display:block;
+
+    }
+
+    .review-panel h4 {
+
+      margin-bottom:14px;
+
+      font-size:1rem;
+
+      font-weight:900;
+
+    }
+
+    .review-grid {
+
+      display:grid;
+
+      grid-template-columns:repeat(2,1fr);
+
+      gap:12px;
+
+    }
+
+    .review-item {
+
+      padding:12px;
+
+      border-radius:14px;
+
+      background:rgba(255,255,255,.03);
+
+      border:1px solid rgba(255,255,255,.06);
+
+    }
+
+    .review-item label {
+
+      display:block;
+
+      color:var(--cyan);
+
+      font-size:.72rem;
+
+      font-weight:900;
+
+      text-transform:uppercase;
+
+      margin-bottom:4px;
+
+    }
+
+    .review-item span {
+
+      display:block;
+
+      color:var(--soft);
+
+      line-height:1.45;
+
+      font-size:.88rem;
+
+      word-break:break-word;
+
+    }
+
+    .application-actions {
+
+      display:flex;
+
+      flex-wrap:wrap;
+
+      gap:12px;
+
+      margin-top:22px;
+
+    }
+
+    @media(max-width:1080px){
+
+      .application-grid{
+
+        grid-template-columns:1fr;
+
+      }
+
+      .application-progress{
+
+        position:static;
+
+      }
+
+      .review-grid{
+
+        grid-template-columns:1fr;
 
       }
 
     }
 
-    @media(max-width: 640px) {
+    @media(max-width:900px){
 
-      .field {
+      .stats-shell,
 
-        margin-top: 14px;
+      .process-grid,
+
+      .grid-3,
+
+      .impact-strip,
+
+      .choice-grid{
+
+        grid-template-columns:1fr;
+
+      }
+
+    }
+
+    @media(max-width:640px){
+
+      .field{
+
+        margin-top:14px;
 
       }
 
@@ -1739,29 +2110,1633 @@
 
       .field select,
 
-      .field textarea {
+      .field textarea{
 
-        min-height: 52px;
+        min-height:52px;
 
-        font-size: 16px;
-
-      }
-
-      .consent-row {
-
-        padding: 14px;
+        font-size:16px;
 
       }
 
-    }/* ==========================================
+      .consent-row{
 
-   HTAF APPLICATION PORTAL
+        padding:14px;
 
-   ========================================== */
+      }
+
+      .application-actions,
+
+      .hero-actions{
+
+        flex-direction:column;
+
+      }
+
+      .application-actions .btn,
+
+      .hero-actions .btn{
+
+        width:100%;
+
+      }
+
+    }
+
+  </style>
+
+</head>
+
+<body>
+
+<a href="#mainContent" class="skip-link">
+
+  Skip to content
+
+</a>
+
+<header class="topbar">
+
+  <div class="shell topbar-inner">
+
+    <a href="foundation.html" class="brand">
+
+      <div class="brand-mark">
+
+        <img
+
+          src="/images/foundation-logo.png"
+
+          alt="HTAF Logo"
+
+          onerror="this.style.display='none'; this.parentNode.innerHTML='<div class=&quot;brand-fallback&quot;>HT</div>';"
+
+        />
+
+      </div>
+
+      <div class="brand-copy">
+
+        <h1>
+
+          Harvey Transportation Assistance Foundation
+
+        </h1>
+
+        <p>
+
+          Transportation Access • Community Impact • Mobility Support
+
+        </p>
+
+      </div>
+
+    </a>
+
+    <nav class="nav">
+
+      <a href="foundation.html">
+
+        Home
+
+      </a>
+
+      <a href="#apply">
+
+        Apply
+
+      </a>
+
+      <a href="#faq">
+
+        FAQ
+
+      </a>
+
+      <a href="support.html">
+
+        Support
+
+      </a>
+
+      <a
+
+        href="https://www.paypal.com/us/fundraiser/charity/5906918"
+
+        target="_blank"
+
+        class="cta"
+
+      >
+
+        Donate
+
+      </a>
+
+    </nav>
+
+  </div>
+
+</header>
+
+<main id="mainContent"><section class="hero">
+
+  <div class="shell hero-shell">
+
+    <section class="card hero-card">
+
+      <div class="hero-content">
+
+        <div class="eyebrow">
+
+          Tennessee Transportation Assistance Application
+
+        </div>
+
+        <h2>
+
+          Apply for transportation assistance through HTAF.
+
+        </h2>
+
+        <p>
+
+          Harvey Transportation Assistance Foundation helps
+
+          eligible Tennessee residents access healthcare,
+
+          employment, education, disability services,
+
+          veteran resources, senior support, and other
+
+          essential transportation needs.
+
+        </p>
+
+        <div class="hero-actions">
+
+          <a
+
+            href="#apply"
+
+            class="btn btn-primary"
+
+          >
+
+            Start Application
+
+          </a>
+
+          <a
+
+            href="foundation.html"
+
+            class="btn btn-secondary"
+
+          >
+
+            Return to Foundation
+
+          </a>
+
+        </div>
+
+        <section class="impact-strip">
+
+          <article class="impact-mini">
+
+            <strong>
+
+              Medical Transportation
+
+            </strong>
+
+            <span>
+
+              Appointments, treatment,
+
+              pharmacy access, and wellness services.
+
+            </span>
+
+          </article>
+
+          <article class="impact-mini">
+
+            <strong>
+
+              Employment Access
+
+            </strong>
+
+            <span>
+
+              Interviews, workforce programs,
+
+              orientation, and job transportation.
+
+            </span>
+
+          </article>
+
+          <article class="impact-mini">
+
+            <strong>
+
+              Community Mobility
+
+            </strong>
+
+            <span>
+
+              Supporting transportation access
+
+              throughout Tennessee communities.
+
+            </span>
+
+          </article>
+
+        </section>
+
+      </div>
+
+    </section>
+
+    <aside>
+
+      <div class="sticky-box">
+
+        <section class="card spotlight-card">
+
+          <h3>
+
+            Eligibility Overview
+
+          </h3>
+
+          <p>
+
+            Applications are reviewed using
+
+            transportation need, documentation,
+
+            funding availability, and program fit.
+
+          </p>
+
+          <div class="trust-grid">
+
+            <div class="trust-pill">
+
+              <strong>
+
+                Tennessee Residents
+
+              </strong>
+
+              Priority consideration
+
+              for Tennessee-based applicants.
+
+            </div>
+
+            <div class="trust-pill">
+
+              <strong>
+
+                Program Review
+
+              </strong>
+
+              Applications reviewed
+
+              by HTAF intake process.
+
+            </div>
+
+            <div class="trust-pill">
+
+              <strong>
+
+                Documentation
+
+              </strong>
+
+              Supporting documentation
+
+              may improve review speed.
+
+            </div>
+
+            <div class="trust-pill">
+
+              <strong>
+
+                Funding Dependent
+
+              </strong>
+
+              Assistance availability
+
+              depends on program resources.
+
+            </div>
+
+          </div>
+
+          <div class="link-preview">
+
+            <div class="preview-badge">
+
+              HTAF Program Portal
+
+            </div>
+
+            <h4 class="preview-title">
+
+              Before you apply
+
+            </h4>
+
+            <p class="preview-copy">
+
+              Prepare your transportation need,
+
+              destination details, requested ride date,
+
+              and any supporting documentation.
+
+            </p>
+
+          </div>
+
+        </section>
+
+      </div>
+
+    </aside>
+
+  </div>
+
+</section>
+
+<section
+
+  class="section"
+
+  id="apply"
+
+>
+
+  <div class="shell">
+
+    <section class="card application-card">
+
+      <div class="eligibility-banner">
+
+        <div class="eligibility-icon">
+
+          ✅
+
+        </div>
+
+        <div>
+
+          <strong>
+
+            Transportation Assistance Request
+
+          </strong>
+
+          <span>
+
+            Complete all required sections
+
+            to submit your application.
+
+          </span>
+
+        </div>
+
+      </div>
+
+      <div class="section-head">
+
+        <h3>
+
+          Transportation Assistance Application Portal
+
+        </h3>
+
+        <p>
+
+          Submit a transportation assistance request directly
+
+          to Harvey Transportation Assistance Foundation.
+
+          Applications are reviewed based on transportation
+
+          need, eligibility requirements, funding availability,
+
+          and supporting documentation.
+
+        </p>
+
+      </div>
+
+      <form id="htafApplicationForm">
+
+        <div class="grid-3">
+
+          <div class="field">
+
+            <label>
+
+              First Name *
+
+            </label>
+
+            <input
+
+              type="text"
+
+              id="firstName"
+
+              required
+
+              placeholder="First Name"
+
+            />
+
+          </div>
+
+          <div class="field">
+
+            <label>
+
+              Last Name *
+
+            </label>
+
+            <input
+
+              type="text"
+
+              id="lastName"
+
+              required
+
+              placeholder="Last Name"
+
+            />
+
+          </div>
+
+          <div class="field">
+
+            <label>
+
+              Email *
+
+            </label>
+
+            <input
+
+              type="email"
+
+              id="email"
+
+              required
+
+              placeholder="you@example.com"
+
+            />
+
+          </div>
+
+          <div class="field">
+
+            <label>
+
+              Phone *
+
+            </label>
+
+            <input
+
+              type="tel"
+
+              id="phone"
+
+              required
+
+              placeholder="(615) 555-5555"
+
+            />
+
+          </div>
+
+          <div class="field">
+
+            <label>
+
+              County *
+
+            </label>
+
+            <input
+
+              type="text"
+
+              id="county"
+
+              required
+
+              placeholder="Davidson County"
+
+            />
+
+          </div>
+
+          <div class="field">
+
+            <label>
+
+              City *
+
+            </label>
+
+            <input
+
+              type="text"
+
+              id="city"
+
+              required
+
+              placeholder="Nashville"
+
+            />
+
+          </div>
+
+        </div>
+
+        <div class="field">
+
+          <label>
+
+            Transportation Program *
+
+          </label>
+
+          <select
+
+            id="programType"
+
+            required
+
+          >
+
+            <option value="">
+
+              Select Program
+
+            </option>
+
+            <option value="medical">
+
+              Medical Transportation
+
+            </option>
+
+            <option value="employment">
+
+              Employment Transportation
+
+            </option>
+
+            <option value="veteran">
+
+              Veteran Transportation
+
+            </option>
+
+            <option value="senior">
+
+              Senior Mobility
+
+            </option>
+
+            <option value="disability">
+
+              Disability Transportation
+
+            </option>
+
+            <option value="education">
+
+              Education Transportation
+
+            </option>
+
+            <option value="general">
+
+              General Assistance
+
+            </option>
+
+          </select>
+
+        </div>        <div class="grid-3">
+
+          <div class="field">
+
+            <label>
+
+              Pickup City *
+
+            </label>
+
+            <input
+
+              type="text"
+
+              id="pickupCity"
+
+              required
+
+              placeholder="Pickup City"
+
+            />
+
+          </div>
+
+          <div class="field">
+
+            <label>
+
+              Destination *
+
+            </label>
+
+            <input
+
+              type="text"
+
+              id="destination"
+
+              required
+
+              placeholder="Hospital, Employer, School, Agency"
+
+            />
+
+          </div>
+
+          <div class="field">
+
+            <label>
+
+              Ride Date Needed *
+
+            </label>
+
+            <input
+
+              type="date"
+
+              id="rideDate"
+
+              required
+
+            />
+
+          </div>
+
+        </div>
+
+        <div class="grid-3">
+
+          <div class="field">
+
+            <label>
+
+              Applicant Type
+
+            </label>
+
+            <select id="applicantType">
+
+              <option value="">
+
+                Select Applicant Type
+
+              </option>
+
+              <option value="self">
+
+                Self
+
+              </option>
+
+              <option value="parent">
+
+                Parent / Guardian
+
+              </option>
+
+              <option value="caregiver">
+
+                Caregiver
+
+              </option>
+
+              <option value="caseworker">
+
+                Case Worker
+
+              </option>
+
+              <option value="socialworker">
+
+                Social Worker
+
+              </option>
+
+            </select>
+
+          </div>
+
+          <div class="field">
+
+            <label>
+
+              Household Size
+
+            </label>
+
+            <input
+
+              type="number"
+
+              id="householdSize"
+
+              min="1"
+
+              max="20"
+
+              placeholder="Household Members"
+
+            />
+
+          </div>
+
+          <div class="field">
+
+            <label>
+
+              Monthly Income
+
+            </label>
+
+            <input
+
+              type="number"
+
+              id="monthlyIncome"
+
+              placeholder="Monthly Household Income"
+
+            />
+
+          </div>
+
+        </div>
+
+        <div class="field">
+
+          <label>
+
+            Transportation Need *
+
+          </label>
+
+          <textarea
+
+            id="transportationNeed"
+
+            rows="6"
+
+            required
+
+            placeholder="Please explain why transportation assistance is needed and how it will support healthcare, employment, education, disability services, veteran support, senior mobility, or another essential need."
+
+          ></textarea>
+
+        </div>
+
+        <div class="field">
+
+          <label>
+
+            Additional Notes
+
+          </label>
+
+          <textarea
+
+            id="additionalNotes"
+
+            rows="4"
+
+            placeholder="Optional additional information."
+
+          ></textarea>
+
+        </div>
+
+        <div class="field">
+
+          <label>
+
+            Upload Supporting Documentation
+
+          </label>
+
+          <input
+
+            type="file"
+
+            id="supportingDocs"
+
+            multiple
+
+            accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+
+          />
+
+          <small>
+
+            Medical appointments, TennCare documents,
+
+            disability verification, veteran paperwork,
+
+            employment verification, school schedules,
+
+            referral letters, or other supporting records.
+
+          </small>
+
+        </div>
+
+        <div class="status-box">
+
+          <strong>
+
+            Applicant Certification
+
+          </strong>
+
+          <span>
+
+            By submitting this application, you certify
+
+            that all information provided is accurate,
+
+            truthful, and complete to the best of your
+
+            knowledge. Submission does not guarantee
+
+            transportation assistance and all requests
+
+            remain subject to review, eligibility,
+
+            documentation verification, and funding
+
+            availability.
+
+          </span>
+
+        </div>
+
+        <label class="consent-row">
+
+          <input
+
+            type="checkbox"
+
+            id="consent"
+
+            required
+
+          />
+
+          <span class="consent-text">
+
+            I certify that the information provided is
+
+            accurate and authorize Harvey Transportation
+
+            Assistance Foundation to review this request.
+
+          </span>
+
+        </label>
+
+        <div class="hero-actions">
+
+          <button
+
+            type="submit"
+
+            class="btn btn-primary"
+
+          >
+
+            Submit Application
+
+          </button>
+
+          <button
+
+            type="button"
+
+            class="btn btn-secondary"
+
+            onclick="saveDraftApplication()"
+
+          >
+
+            Save Draft
+
+          </button>
+
+          <button
+
+            type="button"
+
+            class="btn btn-gold"
+
+            onclick="printApplication()"
+
+          >
+
+            Print Application
+
+          </button>
+
+        </div>
+
+        <div
+
+          id="applicationStatus"
+
+          class="copy-status"
+
+        ></div>
+
+        <div
+
+          id="applicationSummary"
+
+          class="application-summary"
+
+        ></div>
+
+      </form>
+
+    </section>
+
+  </div>
+
+</section>
+
+<section class="section">
+
+  <div class="shell">
+
+    <section class="card section-card">
+
+      <div class="section-head">
+
+        <h3>
+
+          Program Categories
+
+        </h3>
+
+        <p>
+
+          Transportation assistance requests are
+
+          categorized to help HTAF review applications
+
+          more efficiently and align resources with
+
+          community needs.
+
+        </p>
+
+      </div>
+
+      <div class="grid-3">
+
+        <article class="feature-card">
+
+          <div class="feature-icon">
+
+            🏥
+
+          </div>
+
+          <h4>
+
+            Medical Transportation
+
+          </h4>
+
+          <p>
+
+            Doctor appointments, treatment,
+
+            dialysis, rehabilitation,
+
+            counseling, pharmacy access,
+
+            and healthcare services.
+
+          </p>
+
+        </article>
+
+        <article class="feature-card">
+
+          <div class="feature-icon">
+
+            💼
+
+          </div>
+
+          <h4>
+
+            Employment Access
+
+          </h4>
+
+          <p>
+
+            Job interviews, onboarding,
+
+            training programs, workforce
+
+            development, and employment
+
+            transportation support.
+
+          </p>
+
+        </article>
+
+        <article class="feature-card">
+
+          <div class="feature-icon">
+
+            🎓
+
+          </div>
+
+          <h4>
+
+            Education Access
+
+          </h4>
+
+          <p>
+
+            School transportation,
+
+            educational programs,
+
+            workforce certification,
+
+            and learning opportunities.
+
+          </p>
+
+        </article>
+
+      </div>
+
+    </section>
+
+  </div>
+
+</section><section class="section">
+
+  <div class="shell">
+
+    <section class="card section-card">
+
+      <div class="section-head">
+
+        <h3>
+
+          Application Review Process
+
+        </h3>
+
+        <p>
+
+          Every application follows a structured review
+
+          workflow to ensure fairness, accountability,
+
+          and responsible use of transportation resources.
+
+        </p>
+
+      </div>
+
+      <div class="process-grid">
+
+        <div class="process-card">
+
+          <strong>
+
+            Step 1
+
+          </strong>
+
+          <span>
+
+            Submit transportation assistance
+
+            application and supporting documents.
+
+          </span>
+
+        </div>
+
+        <div class="process-card">
+
+          <strong>
+
+            Step 2
+
+          </strong>
+
+          <span>
+
+            HTAF reviews transportation need,
+
+            eligibility requirements,
+
+            and available documentation.
+
+          </span>
+
+        </div>
+
+        <div class="process-card">
+
+          <strong>
+
+            Step 3
+
+          </strong>
+
+          <span>
+
+            Additional verification may be
+
+            requested when necessary.
+
+          </span>
+
+        </div>
+
+        <div class="process-card">
+
+          <strong>
+
+            Step 4
+
+          </strong>
+
+          <span>
+
+            Approved requests move into
+
+            transportation coordination
+
+            and scheduling.
+
+          </span>
+
+        </div>
+
+      </div>
+
+    </section>
+
+  </div>
+
+</section>
+
+<section class="section">
+
+  <div class="shell">
+
+    <section class="card section-card">
+
+      <div class="section-head">
+
+        <h3>
+
+          Application Dashboard
+
+        </h3>
+
+        <p>
+
+          Applicants can monitor the status of their
+
+          transportation assistance request.
+
+        </p>
+
+      </div>
+
+      <div class="stats-shell">
+
+        <div class="stat-card">
+
+          <strong id="totalApplications">
+
+            0
+
+          </strong>
+
+          <span>
+
+            Applications Submitted
+
+          </span>
+
+        </div>
+
+        <div class="stat-card">
+
+          <strong id="pendingApplications">
+
+            0
+
+          </strong>
+
+          <span>
+
+            Pending Review
+
+          </span>
+
+        </div>
+
+        <div class="stat-card">
+
+          <strong id="approvedApplications">
+
+            0
+
+          </strong>
+
+          <span>
+
+            Approved Requests
+
+          </span>
+
+        </div>
+
+        <div class="stat-card">
+
+          <strong id="scheduledRides">
+
+            0
+
+          </strong>
+
+          <span>
+
+            Scheduled Rides
+
+          </span>
+
+        </div>
+
+      </div>
+
+    </section>
+
+  </div>
+
+</section>
+
+<section class="section">
+
+  <div class="shell why-shell">
+
+    <section class="card why-card">
+
+      <h3>
+
+        Common Supporting Documents
+
+      </h3>
+
+      <ul class="why-list">
+
+        <li>
+
+          Medical appointment confirmations
+
+        </li>
+
+        <li>
+
+          TennCare or Medicaid documentation
+
+        </li>
+
+        <li>
+
+          Disability verification paperwork
+
+        </li>
+
+        <li>
+
+          Veteran service documentation
+
+        </li>
+
+        <li>
+
+          Employment offer letters
+
+        </li>
+
+        <li>
+
+          Workforce training enrollment
+
+        </li>
+
+        <li>
+
+          School schedules or enrollment verification
+
+        </li>
+
+      </ul>
+
+    </section>
+
+    <section class="card why-card">
+
+      <h3>
+
+        Important Notice
+
+      </h3>
+
+      <p>
+
+        Harvey Transportation Assistance Foundation
+
+        reviews all requests individually.
+
+        Transportation assistance is not guaranteed
+
+        and remains dependent upon funding,
+
+        program requirements,
+
+        verification review,
+
+        transportation availability,
+
+        and organizational capacity.
+
+      </p>
+
+    </section>
+
+  </div>
+
+</section>
+
+<section class="section">
+
+  <div class="shell">
+
+    <section class="card cta-card">
+
+      <div class="cta-copy">
+
+        <h3>
+
+          Need help completing your application?
+
+        </h3>
+
+        <p>
+
+          Harvey AI Support can answer questions
+
+          about transportation programs,
+
+          required documentation,
+
+          eligibility requirements,
+
+          and application submission.
+
+        </p>
+
+      </div>
+
+      <div class="cta-actions">
+
+        <button
+
+          type="button"
+
+          class="btn btn-primary"
+
+          onclick="openHarveyAiChat()"
+
+        >
+
+          Open AI Support
+
+        </button>
+
+        <a
+
+          href="support.html"
+
+          class="btn btn-secondary"
+
+        >
+
+          Contact Support
+
+        </a>
+
+      </div>
+
+    </section>
+
+  </div>
+
+</section>
+
+<footer class="footer">
+
+  <div class="shell footer-row">
+
+    <div>
+
+      © 2026 Harvey Transportation Assistance Foundation
+
+    </div>
+
+    <div class="footer-links">
+
+      <a href="foundation.html">
+
+        Foundation
+
+      </a>
+
+      <a href="support.html">
+
+        Support
+
+      </a>
+
+      <a href="privacy.html">
+
+        Privacy
+
+      </a>
+
+      <a href="terms.html">
+
+        Terms
+
+      </a>
+
+    </div>
+
+  </div>
+
+</footer>
+
+<nav
+
+  class="bottom-nav"
+
+  aria-label="Bottom Navigation"
+
+>
+
+  <button
+
+    class="nav-btn"
+
+    onclick="window.location.href='index.html'"
+
+  >
+
+    Home
+
+  </button>
+
+  <button
+
+    class="nav-btn active"
+
+  >
+
+    Apply
+
+  </button>
+
+  <button
+
+    class="nav-btn"
+
+    onclick="window.location.href='foundation.html'"
+
+  >
+
+    Foundation
+
+  </button>
+
+  <button
+
+    class="nav-btn"
+
+    onclick="window.location.href='support.html'"
+
+  >
+
+    Support
+
+  </button>
+
+  <button
+
+    class="nav-btn"
+
+    onclick="openHarveyAiChat()"
+
+  >
+
+    AI Help
+
+  </button>
+
+</nav>
+
+<script src="/ai-support-widget.js"></script>
+
+<script>
+
+window.HARVEY_AI_CONTEXT = {
+
+  page: "htaf_application",
+
+  organization:
+
+    "Harvey Transportation Assistance Foundation",
+
+  program:
+
+    "Transportation Assistance Application",
+
+  state:
+
+    "Tennessee"
+
+};
 
 const APPLICATION_STORAGE_KEY =
 
-  "htaf_application_draft_v1";
+  "htaf_application_draft_v2";
 
 const applicationForm =
 
@@ -1776,6 +3751,14 @@ const applicationStatus =
   document.getElementById(
 
     "applicationStatus"
+
+  );
+
+const applicationSummary =
+
+  document.getElementById(
+
+    "applicationSummary"
 
   );
 
@@ -1797,15 +3780,15 @@ function showApplicationStatus(
 
     "copy-status show " + type;
 
-  window.clearTimeout(
+  clearTimeout(
 
-    showApplicationStatus._timer
+    showApplicationStatus.timer
 
   );
 
-  showApplicationStatus._timer =
+  showApplicationStatus.timer =
 
-    window.setTimeout(() => {
+    setTimeout(() => {
 
       applicationStatus.className =
 
@@ -1815,9 +3798,7 @@ function showApplicationStatus(
 
     }, 5000);
 
-}
-
-function getApplicationData() {
+}function getApplicationData() {
 
   return {
 
@@ -1877,6 +3858,30 @@ function getApplicationData() {
 
       )?.value || "",
 
+    applicant_type:
+
+      document.getElementById(
+
+        "applicantType"
+
+      )?.value || "",
+
+    household_size:
+
+      document.getElementById(
+
+        "householdSize"
+
+      )?.value || "",
+
+    monthly_income:
+
+      document.getElementById(
+
+        "monthlyIncome"
+
+      )?.value || "",
+
     pickup_city:
 
       document.getElementById(
@@ -1909,6 +3914,14 @@ function getApplicationData() {
 
       )?.value?.trim() || "",
 
+    additional_notes:
+
+      document.getElementById(
+
+        "additionalNotes"
+
+      )?.value?.trim() || "",
+
     submitted_at:
 
       new Date().toISOString()
@@ -1921,7 +3934,7 @@ function validateApplication() {
 
   let valid = true;
 
-  const fields = [
+  const requiredFields = [
 
     "firstName",
 
@@ -1947,21 +3960,41 @@ function validateApplication() {
 
   ];
 
-  fields.forEach((id) => {
+  requiredFields.forEach((fieldId) => {
 
-    const el =
+    const element =
 
-      document.getElementById(id);
+      document.getElementById(
 
-    if (!el) return;
+        fieldId
 
-    el.classList.remove("invalid");
+      );
 
-    if (!String(el.value).trim()) {
+    if (!element) return;
+
+    element.classList.remove(
+
+      "invalid"
+
+    );
+
+    if (
+
+      !String(
+
+        element.value
+
+      ).trim()
+
+    ) {
 
       valid = false;
 
-      el.classList.add("invalid");
+      element.classList.add(
+
+        "invalid"
+
+      );
 
     }
 
@@ -1975,7 +4008,13 @@ function validateApplication() {
 
     );
 
-  if (!consent?.checked) {
+  if (
+
+    consent &&
+
+    !consent.checked
+
+  ) {
 
     valid = false;
 
@@ -1985,7 +4024,7 @@ function validateApplication() {
 
     showApplicationStatus(
 
-      "Please complete all required fields.",
+      "Please complete all required fields before submitting.",
 
       "err"
 
@@ -2001,7 +4040,7 @@ function saveDraftApplication() {
 
   try {
 
-    const payload =
+    const applicationData =
 
       getApplicationData();
 
@@ -2009,25 +4048,25 @@ function saveDraftApplication() {
 
       APPLICATION_STORAGE_KEY,
 
-      JSON.stringify(payload)
+      JSON.stringify(
+
+        applicationData
+
+      )
 
     );
 
     showApplicationStatus(
 
-      "Application draft saved.",
+      "Application draft saved successfully.",
 
       "info"
 
     );
 
-    trackFoundationIntent(
-
-      "application_draft_saved"
-
-    );
-
   } catch (error) {
+
+    console.error(error);
 
     showApplicationStatus(
 
@@ -2045,7 +4084,7 @@ function loadDraftApplication() {
 
   try {
 
-    const raw =
+    const rawDraft =
 
       localStorage.getItem(
 
@@ -2053,139 +4092,183 @@ function loadDraftApplication() {
 
       );
 
-    if (!raw) return;
+    if (!rawDraft) {
+
+      return;
+
+    }
 
     const draft =
 
-      JSON.parse(raw);
+      JSON.parse(
 
-    document.getElementById(
+        rawDraft
 
-      "firstName"
+      );
 
-    ).value =
+    Object.entries(
 
-      draft.first_name || "";
+      draft
 
-    document.getElementById(
+    ).forEach(
 
-      "lastName"
+      ([key, value]) => {
 
-    ).value =
+        const map = {
 
-      draft.last_name || "";
+          first_name: "firstName",
 
-    document.getElementById(
+          last_name: "lastName",
 
-      "email"
+          email: "email",
 
-    ).value =
+          phone: "phone",
 
-      draft.email || "";
+          county: "county",
 
-    document.getElementById(
+          city: "city",
 
-      "phone"
+          program_type: "programType",
 
-    ).value =
+          applicant_type: "applicantType",
 
-      draft.phone || "";
+          household_size: "householdSize",
 
-    document.getElementById(
+          monthly_income: "monthlyIncome",
 
-      "county"
+          pickup_city: "pickupCity",
 
-    ).value =
+          destination: "destination",
 
-      draft.county || "";
+          ride_date: "rideDate",
 
-    document.getElementById(
+          transportation_need: "transportationNeed",
 
-      "city"
+          additional_notes: "additionalNotes"
 
-    ).value =
+        };
 
-      draft.city || "";
+        const field =
 
-    document.getElementById(
+          document.getElementById(
 
-      "programType"
+            map[key]
 
-    ).value =
+          );
 
-      draft.program_type || "";
+        if (field) {
 
-    document.getElementById(
+          field.value =
 
-      "pickupCity"
+            value || "";
 
-    ).value =
+        }
 
-      draft.pickup_city || "";
+      }
 
-    document.getElementById(
-
-      "destination"
-
-    ).value =
-
-      draft.destination || "";
-
-    document.getElementById(
-
-      "rideDate"
-
-    ).value =
-
-      draft.ride_date || "";
-
-    document.getElementById(
-
-      "transportationNeed"
-
-    ).value =
-
-      draft.transportation_need || "";
+    );
 
   } catch (error) {
 
-    console.warn(error);
+    console.error(error);
 
   }
 
 }
 
-async function submitApplication(
+function renderApplicationSummary(
 
   payload
 
 ) {
 
-  const response = await fetch(
+  if (
 
-    `${window.HARVEY_API_BASE}/api/foundation/apply`,
+    !applicationSummary
 
-    {
+  ) {
 
-      method: "POST",
+    return;
 
-      headers: {
+  }
 
-        "Content-Type":
+  applicationSummary.innerHTML = `
 
-          "application/json"
+    <strong>
 
-      },
+      Application Summary
 
-      body: JSON.stringify(
+    </strong>
 
-        payload
+    <span>
 
-      )
+      Applicant:
 
-    }
+      ${payload.first_name}
+
+      ${payload.last_name}
+
+    </span>
+
+    <span>
+
+      Program:
+
+      ${payload.program_type}
+
+    </span>
+
+    <span>
+
+      Destination:
+
+      ${payload.destination}
+
+    </span>
+
+    <span>
+
+      Requested Date:
+
+      ${payload.ride_date}
+
+    </span>
+
+  `;
+
+  applicationSummary.classList.add(
+
+    "show"
 
   );
+
+}async function submitApplication(
+
+  payload
+
+) {
+
+  const response =
+
+    await fetch(
+
+      `${window.HARVEY_API_BASE || ""}/api/foundation/apply`,
+
+      {
+
+        method: "POST",
+
+        headers: {
+
+          "Content-Type": "application/json"
+
+        },
+
+        body: JSON.stringify(payload)
+
+      }
+
+    );
 
   if (!response.ok) {
 
@@ -2198,6 +4281,228 @@ async function submitApplication(
   }
 
   return response.json();
+
+}
+
+function updateDashboardCounters() {
+
+  try {
+
+    const stored =
+
+      Number(
+
+        localStorage.getItem(
+
+          "htaf_total_applications"
+
+        ) || "0"
+
+      );
+
+    const total =
+
+      document.getElementById(
+
+        "totalApplications"
+
+      );
+
+    const pending =
+
+      document.getElementById(
+
+        "pendingApplications"
+
+      );
+
+    const approved =
+
+      document.getElementById(
+
+        "approvedApplications"
+
+      );
+
+    const scheduled =
+
+      document.getElementById(
+
+        "scheduledRides"
+
+      );
+
+    if (total) total.textContent = stored;
+
+    if (pending) pending.textContent = stored;
+
+    if (approved) approved.textContent = "0";
+
+    if (scheduled) scheduled.textContent = "0";
+
+  } catch (error) {
+
+    console.error(error);
+
+  }
+
+}
+
+function incrementApplicationCounter() {
+
+  const current =
+
+    Number(
+
+      localStorage.getItem(
+
+        "htaf_total_applications"
+
+      ) || "0"
+
+    );
+
+  localStorage.setItem(
+
+    "htaf_total_applications",
+
+    String(current + 1)
+
+  );
+
+  updateDashboardCounters();
+
+}
+
+function printApplication() {
+
+  window.print();
+
+}
+
+function trackFoundationIntent(
+
+  eventName,
+
+  params = {}
+
+) {
+
+  try {
+
+    if (
+
+      typeof gtag === "function"
+
+    ) {
+
+      gtag(
+
+        "event",
+
+        eventName,
+
+        {
+
+          event_category:
+
+            "htaf_application",
+
+          event_label:
+
+            eventName,
+
+          page_location:
+
+            window.location.href,
+
+          ...params
+
+        }
+
+      );
+
+    }
+
+  } catch (error) {}
+
+}
+
+function openHarveyAiChat() {
+
+  try {
+
+    trackFoundationIntent(
+
+      "ai_support_open"
+
+    );
+
+    if (
+
+      window.HarveyAI &&
+
+      typeof window.HarveyAI.open === "function"
+
+    ) {
+
+      window.HarveyAI.open();
+
+      return;
+
+    }
+
+    const root =
+
+      document.getElementById(
+
+        "harvey-ai-chat-root"
+
+      );
+
+    if (root) {
+
+      const toggle =
+
+        root.querySelector(
+
+          "[data-harvey-ai-open]"
+
+        ) ||
+
+        root.querySelector(
+
+          ".harvey-ai-launch"
+
+        ) ||
+
+        root.querySelector(
+
+          "button"
+
+        );
+
+      if (
+
+        toggle &&
+
+        typeof toggle.click === "function"
+
+      ) {
+
+        toggle.click();
+
+        return;
+
+      }
+
+    }
+
+  } catch (error) {}
+
+  window.location.href =
+
+    "support.html";
 
 }
 
@@ -2235,9 +4540,7 @@ if (applicationForm) {
 
       try {
 
-        submitButton.disabled =
-
-          true;
+        submitButton.disabled = true;
 
         submitButton.textContent =
 
@@ -2246,6 +4549,12 @@ if (applicationForm) {
         const payload =
 
           getApplicationData();
+
+        renderApplicationSummary(
+
+          payload
+
+        );
 
         await submitApplication(
 
@@ -2261,9 +4570,11 @@ if (applicationForm) {
 
         applicationForm.reset();
 
+        incrementApplicationCounter();
+
         showApplicationStatus(
 
-          "Application submitted successfully. HTAF will review your request.",
+          "Application submitted successfully. HTAF will review your transportation assistance request.",
 
           "ok"
 
@@ -2271,7 +4582,19 @@ if (applicationForm) {
 
         trackFoundationIntent(
 
-          "application_submitted"
+          "application_submitted",
+
+          {
+
+            program_type:
+
+              payload.program_type,
+
+            county:
+
+              payload.county
+
+          }
 
         );
 
@@ -2281,17 +4604,17 @@ if (applicationForm) {
 
         showApplicationStatus(
 
-          "Submission unavailable. Please try again later.",
+          "Submission unavailable right now. Your draft has been saved locally. Please try again later.",
 
           "err"
 
         );
 
+        saveDraftApplication();
+
       } finally {
 
-        submitButton.disabled =
-
-          false;
+        submitButton.disabled = false;
 
         submitButton.textContent =
 
@@ -2309,6 +4632,80 @@ window.addEventListener(
 
   "load",
 
-  loadDraftApplication
+  function () {
+
+    window.HARVEY_API_BASE =
+
+      window.location.origin &&
+
+      window.location.origin.includes(
+
+        "http"
+
+      )
+
+        ? window.location.origin
+
+        : "";
+
+    loadDraftApplication();
+
+    updateDashboardCounters();
+
+    trackFoundationIntent(
+
+      "htaf_application_page_view"
+
+    );
+
+    setTimeout(
+
+      function () {
+
+        if (
+
+          !document.getElementById(
+
+            "harvey-ai-chat-root"
+
+          )
+
+        ) {
+
+          const root =
+
+            document.createElement(
+
+              "div"
+
+            );
+
+          root.id =
+
+            "harvey-ai-chat-root";
+
+          document.body.appendChild(
+
+            root
+
+          );
+
+        }
+
+      },
+
+      80
+
+    );
+
+  }
 
 );
+
+</script>
+
+</main>
+
+</body>
+
+</html>
