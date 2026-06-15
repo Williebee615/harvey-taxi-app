@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Harvey Transportation Assistance Foundation | Apply for Transportation Assistance</title>
+  <meta name="description" content="Apply for Harvey Transportation Assistance Foundation transportation assistance for medical appointments, seniors, disability access, veterans, employment, education, and essential mobility across Tennessee." />
+  <meta name="theme-color" content="#0b1530" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:title" content="Harvey Transportation Assistance Foundation" />
+  <meta property="og:description" content="Apply for transportation assistance through Harvey Transportation Assistance Foundation." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://harvey-taxi-app-2.onrender.com/htaf-application.html" />
+
+  <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18161547185"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag("js", new Date());
+    gtag("config", "AW-18161547185");
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preconnect" href="https://www.googletagmanager.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/ai-support-widget.css" />
+
+  <style>
+    :root{--bg1:#040814;--bg2:#0a1733;--bg3:#112657;--panel:rgba(8,15,34,.94);--line:rgba(126,166,255,.18);--lineStrong:rgba(126,166,255,.38);--text:#f5f8ff;--muted:#adbbde;--soft:#dce8ff;--blue:#6aa7ff;--cyan:#73f4ff;--green:#7cffc7;--gold:#ffd978;--danger:#ff7e90;--ink:#04101c;--shadow:0 24px 80px rgba(0,0,0,.45);--shadowSoft:0 14px 34px rgba(0,0,0,.25);--radiusXL:32px;--navH:88px;--maxw:1260px;--safeBottom:env(safe-area-inset-bottom)}
+    *{box-sizing:border-box;margin:0;padding:0}
+    html{scroll-behavior:smooth;background:var(--bg1)}
+    body{font-family:"Inter",system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--text);min-height:100vh;overflow-x:hidden;padding-bottom:calc(var(--navH) + var(--safeBottom) + 22px);background:radial-gradient(circle at top left,rgba(106,167,255,.18),transparent 25%),radial-gradient(circle at top right,rgba(115,244,255,.1),transparent 22%),radial-gradient(circle at center bottom,rgba(124,255,199,.08),transparent 28%),linear-gradient(180deg,var(--bg1),var(--bg2) 48%,var(--bg3))}
+    body::before{content:"";position:fixed;inset:0;pointer-events:none;background:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:52px 52px;mask-image:linear-gradient(to bottom,rgba(0,0,0,.86),transparent 78%);z-index:0}
+    body.high-contrast{--bg1:#000;--bg2:#020617;--bg3:#020617;--panel:rgba(0,0,0,.97);--text:#fff;--muted:#e2e8f0;--line:rgba(255,255,255,.36);--lineStrong:rgba(255,255,255,.72)}
+    body.large-text{font-size:18px}
+    body.reduced-motion *,body.reduced-motion *::before,body.reduced-motion *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+    a{color:inherit;text-decoration:none}
+    button,input,select,textarea,a{font:inherit;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+    button{border:0;background:none;color:inherit;cursor:pointer}
+    button:disabled{opacity:.58;cursor:not-allowed;transform:none!important;filter:none!important}
+    img{max-width:100%;display:block}
+    .shell{width:min(var(--maxw),calc(100% - 32px));margin:0 auto;position:relative;z-index:1}
+    .skip-link{position:absolute;left:16px;top:-120px;padding:12px 16px;border-radius:999px;background:var(--cyan);color:var(--ink);font-weight:900;z-index:99999;transition:.16s ease}
+    .skip-link:focus{top:14px}
+    .topbar{position:relative;z-index:50;background:rgba(4,8,20,.84);border-bottom:1px solid rgba(255,255,255,.08);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+    .topbar-inner{min-height:104px;display:flex;align-items:center;justify-content:space-between;gap:18px;padding:16px 0}
+    .brand{display:flex;align-items:center;gap:18px;min-width:0}
+    .brand-mark{width:72px;height:72px;border-radius:22px;display:grid;place-items:center;background:linear-gradient(135deg,var(--cyan),var(--blue));box-shadow:0 14px 32px rgba(106,167,255,.3);flex:0 0 auto;color:var(--ink);font-size:1.45rem;font-weight:900;overflow:hidden}
+    .brand-mark img{width:100%;height:100%;object-fit:cover}
+    .brand-fallback{width:100%;height:100%;display:grid;place-items:center;background:linear-gradient(135deg,var(--cyan),var(--blue));color:var(--ink);font-weight:950}
+    .brand-copy{min-width:0;max-width:720px}
+    .brand-copy h1{font-size:clamp(1.35rem,3vw,2rem);font-weight:900;line-height:1.1;letter-spacing:-.03em}
+    .brand-copy p{margin-top:8px;color:var(--muted);font-size:1rem;line-height:1.45}
+    .nav{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap}
+    .nav a{min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:10px 16px;border-radius:999px;color:var(--muted);border:1px solid transparent;font-size:.93rem;font-weight:800;transition:.18s ease}
+    .nav a:hover,.nav a:focus-visible{color:var(--text);border-color:rgba(255,255,255,.1);background:rgba(255,255,255,.05)}
+    .nav .cta{color:var(--ink);background:linear-gradient(135deg,var(--cyan),var(--blue));box-shadow:0 14px 34px rgba(106,167,255,.24)}
+    .utility-panel{margin:18px auto 0;padding:16px;border-radius:24px;background:rgba(4,10,28,.72);border:1px solid rgba(255,255,255,.07);box-shadow:var(--shadowSoft);display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center}
+    .utility-panel strong{display:block;color:var(--cyan);font-weight:900;margin-bottom:4px}
+    .utility-panel span{display:block;color:var(--muted);line-height:1.5;font-size:.92rem}
+    .utility-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end}
+    .utility-btn{min-height:42px;padding:0 14px;border-radius:999px;border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.045);color:var(--text);font-weight:850;transition:.18s ease}
+    .utility-btn.active,.utility-btn:hover{background:linear-gradient(135deg,var(--cyan),var(--blue));color:var(--ink);border-color:transparent}
+    .hero{padding:34px 0 20px}
+    .hero-shell{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(360px,.92fr);gap:24px;align-items:start}
+    .card{position:relative;overflow:hidden;background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.012)),linear-gradient(180deg,rgba(12,22,50,.86),rgba(5,11,28,.98));border:1px solid var(--line);border-radius:var(--radiusXL);box-shadow:var(--shadow)}
+    .hero-card,.section-card,.why-card,.cta-card,.spotlight-card,.application-card{padding:36px}
+    .hero-card::before,.application-card::before{content:"";position:absolute;right:-90px;top:-90px;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(115,244,255,.18),transparent 68%);pointer-events:none}
+    .application-card::before{right:-120px;top:-120px;width:280px;height:280px;background:radial-gradient(circle,rgba(115,244,255,.14),transparent 70%)}
+    .hero-content,.application-card>*{position:relative;z-index:2}
+    .eyebrow{display:inline-flex;align-items:center;gap:10px;padding:8px 14px;border-radius:999px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);color:var(--cyan);font-size:.8rem;font-weight:900;letter-spacing:.06em;text-transform:uppercase;margin-bottom:20px}
+    .hero-card h2{font-size:clamp(2rem,4.5vw,3.2rem);font-weight:900;line-height:1.06;letter-spacing:-.04em;max-width:820px;margin-bottom:18px}
+    .hero-card p,.section-head p,.feature-card p,.why-card p,.faq-item span,.stat-card span,.process-card span,.spotlight-card p,.trust-pill,.preview-copy,.field small,.consent-text,.muted{color:var(--muted);line-height:1.65}
+    .hero-card p{font-size:1.05rem;max-width:760px}
+    .hero-actions,.preview-actions,.application-actions{display:flex;flex-wrap:wrap;gap:14px;margin-top:28px}
+    .application-actions{margin-top:22px}
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:54px;padding:0 24px;border-radius:16px;font-weight:900;font-size:15px;border:1px solid transparent;cursor:pointer;text-align:center;transition:.18s ease}
+    .btn:hover,.btn:focus-visible{transform:translateY(-2px);filter:brightness(1.04)}
+    .btn-primary{color:var(--ink);background:linear-gradient(135deg,var(--cyan),var(--blue));box-shadow:0 18px 40px rgba(106,167,255,.25)}
+    .btn-secondary{color:var(--text);background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.08)}
+    .btn-gold{color:#fff;background:linear-gradient(135deg,#0070ba,#154670);box-shadow:0 18px 40px rgba(0,112,186,.25)}
+    .impact-strip,.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+    .impact-strip{margin-top:20px}
+    .impact-mini,.feature-card,.stat-card,.trust-pill,.process-card,.status-box,.faq-item{background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.01));border:1px solid rgba(255,255,255,.06);box-shadow:var(--shadowSoft);border-radius:22px;padding:22px}
+    .impact-mini strong,.feature-card h4,.trust-pill strong,.process-card strong,.status-box strong,.faq-item strong{display:block;color:var(--text);font-weight:900;margin-bottom:8px}
+    .impact-mini span,.status-box span{color:var(--muted);line-height:1.5;font-size:.94rem}
+    .sticky-box{position:sticky;top:24px;display:grid;gap:20px}
+    .trust-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:20px}
+    .link-preview{margin-top:20px;padding:24px;border-radius:24px;border:1px solid rgba(255,255,255,.08);background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02)),linear-gradient(135deg,rgba(115,244,255,.06),rgba(106,167,255,.06));box-shadow:var(--shadowSoft)}
+    .preview-badge{display:inline-flex;margin-bottom:14px;padding:6px 12px;border-radius:999px;background:rgba(0,112,186,.15);border:1px solid rgba(0,112,186,.3);color:var(--blue);font-size:.78rem;font-weight:900;text-transform:uppercase}
+    .preview-title{margin-bottom:10px;font-size:1.3rem;line-height:1.25;font-weight:900}
+    .section{padding:20px 0}
+    .section-head{margin-bottom:24px}
+    .section-head h3,.why-card h3,.cta-copy h3,.spotlight-card h3,.application-card h3{font-size:clamp(1.45rem,2.5vw,2rem);font-weight:900;letter-spacing:-.03em;margin-bottom:8px}
+    .feature-icon{width:54px;height:54px;border-radius:16px;display:grid;place-items:center;margin-bottom:18px;font-size:1.4rem;background:linear-gradient(135deg,rgba(115,244,255,.18),rgba(106,167,255,.14));border:1px solid rgba(115,244,255,.14)}
+    .stats-shell,.process-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:24px}
+    .stat-card strong,.process-card strong{color:var(--cyan);font-size:1.2rem}
+    .why-shell{display:grid;grid-template-columns:1.05fr .95fr;gap:24px}
+    .why-list{list-style:none;display:grid;gap:14px}
+    .why-list li{display:flex;gap:12px;color:var(--muted);line-height:1.6}
+    .why-list li::before{content:"";width:10px;height:10px;border-radius:50%;background:linear-gradient(135deg,var(--green),var(--cyan));box-shadow:0 0 16px rgba(124,255,199,.45);margin-top:7px;flex:0 0 auto}
+    .cta-card{display:grid;grid-template-columns:1.1fr .9fr;gap:24px;align-items:center}
+    .cta-actions{display:flex;flex-direction:column;gap:12px}
+    .eligibility-banner{display:flex;align-items:center;gap:12px;padding:18px;border-radius:20px;margin-bottom:18px;background:linear-gradient(135deg,rgba(124,255,199,.08),rgba(115,244,255,.08));border:1px solid rgba(115,244,255,.15)}
+    .eligibility-icon{width:54px;height:54px;border-radius:16px;display:grid;place-items:center;background:linear-gradient(135deg,rgba(124,255,199,.18),rgba(115,244,255,.18));font-size:1.4rem;flex:0 0 auto}
+    .eligibility-banner strong{display:block;margin-bottom:4px;font-size:.95rem}
+    .eligibility-banner span{display:block;color:var(--muted);line-height:1.55;font-size:.88rem}
+    .application-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;align-items:start}
+    .application-progress{position:sticky;top:24px;display:grid;gap:12px}
+    .progress-panel{padding:20px;border-radius:24px;border:1px solid rgba(255,255,255,.07);background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.014)),rgba(4,10,28,.7);box-shadow:var(--shadowSoft)}
+    .progress-panel h4{font-size:1rem;font-weight:900;margin-bottom:8px}
+    .progress-panel p{color:var(--muted);line-height:1.55;font-size:.9rem}
+    .progress-steps{display:grid;gap:10px;margin-top:16px}
+    .progress-step{display:flex;align-items:flex-start;gap:10px;padding:12px;border-radius:16px;border:1px solid rgba(255,255,255,.055);background:rgba(255,255,255,.025)}
+    .progress-dot{width:18px;height:18px;min-width:18px;margin-top:2px;border-radius:999px;border:2px solid rgba(115,244,255,.5);background:rgba(115,244,255,.08)}
+    .progress-step.active{border-color:rgba(115,244,255,.26);background:rgba(115,244,255,.06)}
+    .progress-step.active .progress-dot{background:linear-gradient(135deg,var(--cyan),var(--blue));box-shadow:0 0 18px rgba(115,244,255,.28)}
+    .progress-step strong{display:block;font-size:.86rem;margin-bottom:3px}
+    .progress-step span{display:block;color:var(--muted);line-height:1.45;font-size:.78rem}
+    .form-section{padding:22px;border-radius:24px;border:1px solid rgba(255,255,255,.065);background:rgba(255,255,255,.025);margin-top:18px}
+    .form-section:first-of-type{margin-top:0}
+    .form-section-title{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px}
+    .form-section-title h4{font-size:1rem;font-weight:950}
+    .form-section-title span{padding:6px 10px;border-radius:999px;color:var(--cyan);background:rgba(115,244,255,.09);border:1px solid rgba(115,244,255,.16);font-size:.72rem;font-weight:900;white-space:nowrap}
+    .field{display:grid;gap:8px;min-width:0;margin-top:16px}
+    .field label{color:var(--soft);font-weight:900;font-size:.94rem}
+    .field input,.field select,.field textarea{width:100%;min-height:54px;padding:15px 16px;border-radius:16px;border:1px solid rgba(126,166,255,.32);background:rgba(2,8,20,.78);color:var(--text);outline:none;font-size:1rem;transition:.18s ease}
+    .field textarea{resize:vertical;min-height:132px}
+    .field input::placeholder,.field textarea::placeholder{color:rgba(173,187,222,.62)}
+    .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--cyan);box-shadow:0 0 0 4px rgba(115,244,255,.11)}
+    .field input[type="file"]{padding:14px;cursor:pointer;background:rgba(255,255,255,.04)}
+    .field small{display:block;color:var(--muted);line-height:1.55;font-size:.84rem}
+    .choice-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:16px}
+    .choice{position:relative;cursor:pointer;display:block}
+    .choice input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;z-index:2}
+    .choice-card{min-height:124px;border-radius:20px;padding:16px;border:1px solid rgba(126,166,255,.2);background:rgba(255,255,255,.032);transition:.18s ease}
+    .choice-card strong{display:block;margin-bottom:7px;color:var(--text);font-weight:900}
+    .choice-card span{display:block;color:var(--muted);line-height:1.5;font-size:.86rem}
+    .choice input:checked + .choice-card{border-color:rgba(115,244,255,.5);background:rgba(115,244,255,.07);box-shadow:0 0 0 4px rgba(115,244,255,.08)}
+    .status-box{margin-top:18px}
+    .consent-row{display:flex;align-items:flex-start;gap:13px;margin-top:18px;padding:16px;border-radius:18px;border:1px solid rgba(126,166,255,.22);background:rgba(255,255,255,.035);cursor:pointer}
+    .consent-row input{width:22px;height:22px;margin-top:2px;flex:0 0 auto;accent-color:var(--cyan)}
+    .copy-status{display:none;margin-top:16px;padding:14px 16px;border-radius:16px;font-size:.92rem;line-height:1.5;border:1px solid transparent}
+    .copy-status.show{display:block}.copy-status.ok{background:rgba(124,255,199,.10);border-color:rgba(124,255,199,.20);color:var(--green)}.copy-status.err{background:rgba(255,126,144,.12);border-color:rgba(255,126,144,.24);color:#ffd4dc}.copy-status.info{background:rgba(115,244,255,.10);border-color:rgba(115,244,255,.20);color:var(--cyan)}
+    .invalid{border-color:var(--danger)!important;box-shadow:0 0 0 4px rgba(255,126,144,.12)!important}
+    .upload-preview{display:grid;gap:10px;margin-top:14px}
+    .upload-item{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)}
+    .upload-item span{color:var(--muted);font-size:.84rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .upload-item strong{color:var(--cyan);font-size:.8rem}
+    .review-panel,.application-summary{display:none;margin-top:20px;padding:20px;border-radius:22px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.08)}
+    .review-panel.show,.application-summary.show{display:block}
+    .review-panel h4{margin-bottom:14px;font-size:1rem;font-weight:900}
+    .review-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+    .review-item{padding:12px;border-radius:14px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)}
+    .review-item label{display:block;color:var(--cyan);font-size:.72rem;font-weight:900;text-transform:uppercase;margin-bottom:4px}
+    .review-item span,.application-summary span{display:block;color:var(--soft);line-height:1.45;font-size:.88rem;word-break:break-word}
+    .application-summary strong{display:block;margin-bottom:8px;color:var(--cyan);font-weight:900}
+    .faq-grid{display:grid;gap:16px}
+    .footer{margin-top:30px;padding:30px 0 calc(120px + env(safe-area-inset-bottom));border-top:1px solid rgba(255,255,255,.08);background:rgba(0,0,0,.18)}
+    .footer-row{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;color:var(--muted)}
+    .footer-links{display:flex;flex-wrap:wrap;gap:16px}.footer-links a:hover{color:var(--cyan)}
+    .bottom-nav{position:fixed;left:0;right:0;bottom:0;height:var(--navH);display:grid;grid-template-columns:repeat(5,1fr);background:rgba(4,8,20,.96);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-top:1px solid rgba(255,255,255,.08);z-index:999;padding-bottom:env(safe-area-inset-bottom)}
+    .nav-btn{display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.82rem;color:var(--muted)}.nav-btn.active{color:var(--cyan)}.nav-btn:hover{color:var(--text)}
+    @media(max-width:1200px){.hero-shell,.why-shell,.cta-card,.application-grid{grid-template-columns:1fr}.application-progress,.sticky-box{position:static}}
+    @media(max-width:900px){.utility-panel{grid-template-columns:1fr}.utility-actions{justify-content:flex-start}.grid-3,.impact-strip,.stats-shell,.process-grid,.trust-grid,.choice-grid{grid-template-columns:1fr}.topbar-inner{flex-direction:column;align-items:flex-start}.nav{width:100%;justify-content:flex-start}}
+    @media(max-width:640px){.shell{width:min(100% - 20px,var(--maxw))}.hero-card,.section-card,.application-card,.spotlight-card,.why-card,.cta-card{padding:22px}.brand{align-items:flex-start}.brand-mark{width:60px;height:60px}.hero-actions,.preview-actions,.application-actions{flex-direction:column}.hero-actions .btn,.preview-actions .btn,.application-actions .btn{width:100%}.bottom-nav{height:82px}}
+  </style>
+</head>
+
+<body>
+  <a href="#mainContent" class="skip-link">Skip to content</a>
+
+  <header class="topbar">
+    <div class="shell topbar-inner">
+      <a href="foundation.html" class="brand">
+        <div class="brand-mark">
+          <img src="/images/foundation-logo.png" alt="HTAF Logo" onerror="this.style.display='none';this.parentNode.innerHTML='<div class=&quot;brand-fallback&quot;>HT</div>';" />
+        </div>
+        <div class="brand-copy">
+          <h1>Harvey Transportation Assistance Foundation</h1>
+          <p>Transportation Access • Community Impact • Mobility Support</p>
+        </div>
+      </a>
+
+      <nav class="nav">
+        <a href="foundation.html">Home</a>
+        <a href="#apply">Apply</a>
+        <a href="#faq">FAQ</a>
+        <a href="support.html">Support</a>
+        <a class="cta" target="_blank" rel="noopener noreferrer" href="https://www.paypal.com/us/fundraiser/charity/5906918">Donate</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="shell utility-panel">
+    <div>
+      <strong>Accessibility & Applicant Support</strong>
+      <span>Use the display controls below, save a draft, print your application, or open Harvey AI Support for help.</span>
+    </div>
+    <div class="utility-actions">
+      <button class="utility-btn" type="button" id="contrastBtn">High Contrast</button>
+      <button class="utility-btn" type="button" id="textBtn">Larger Text</button>
+      <button class="utility-btn" type="button" id="motionBtn">Reduce Motion</button>
+    </div>
+  </div>
+
+  <main id="mainContent">
+    <section class="hero">
+      <div class="shell hero-shell">
+        <section class="card hero-card">
+          <div class="hero-content">
+            <div class="eyebrow">Tennessee Transportation Assistance Application</div>
+            <h2>Apply for transportation assistance through HTAF.</h2>
+            <p>Harvey Transportation Assistance Foundation helps eligible Tennessee residents access healthcare, employment, education, disability services, veteran resources, senior support, and essential transportation needs.</p>
+            <div class="hero-actions">
+              <a href="#apply" class="btn btn-primary">Start Application</a>
+              <a href="foundation.html" class="btn btn-secondary">Return To Foundation</a>
+            </div>
+
+            <section class="impact-strip">
+              <article class="impact-mini"><strong>Medical Transportation</strong><span>Healthcare appointments, treatment, and pharmacy access.</span></article>
+              <article class="impact-mini"><strong>Employment Access</strong><span>Workforce participation and interview transportation.</span></article>
+              <article class="impact-mini"><strong>Community Mobility</strong><span>Supporting transportation access across Tennessee.</span></article>
+            </section>
+          </div>
+        </section>
+
+        <aside>
+          <div class="sticky-box">
+            <section class="card spotlight-card">
+              <h3>Eligibility Overview</h3>
+              <p>Applications are reviewed using transportation need, supporting documentation, funding availability, and overall program eligibility.</p>
+              <div class="trust-grid">
+                <div class="trust-pill"><strong>Tennessee Residents</strong>Priority consideration for Tennessee applicants.</div>
+                <div class="trust-pill"><strong>Program Review</strong>Every request receives individual review.</div>
+                <div class="trust-pill"><strong>Documentation</strong>Supporting records may speed processing.</div>
+                <div class="trust-pill"><strong>Funding Dependent</strong>Assistance depends on available resources.</div>
+              </div>
+              <div class="link-preview">
+                <div class="preview-badge">HTAF Program Portal</div>
+                <h4 class="preview-title">Before You Apply</h4>
+                <p class="preview-copy">Prepare transportation details, appointment information, destination addresses, and supporting documentation.</p>
+              </div>
+            </section>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section" id="apply">
+      <div class="shell">
+        <div class="application-grid">
+          <section class="card application-card">
+            <div class="eligibility-banner">
+              <div class="eligibility-icon">🚐</div>
+              <div><strong>Transportation Assistance Request</strong><span>Complete all required sections to submit your application.</span></div>
+            </div>
+
+            <div class="section-head">
+              <h3>Transportation Assistance Application</h3>
+              <p>Submit a transportation assistance request directly to Harvey Transportation Assistance Foundation.</p>
+            </div>
+
+            <form id="htafApplicationForm">
+              <div class="form-section">
+                <div class="form-section-title"><h4>Applicant Information</h4><span>Required</span></div>
+                <div class="grid-3">
+                  <div class="field"><label for="firstName">First Name *</label><input id="firstName" type="text" required placeholder="First Name" /></div>
+                  <div class="field"><label for="lastName">Last Name *</label><input id="lastName" type="text" required placeholder="Last Name" /></div>
+                  <div class="field"><label for="email">Email *</label><input id="email" type="email" required placeholder="you@example.com" /></div>
+                  <div class="field"><label for="phone">Phone *</label><input id="phone" type="tel" required placeholder="(615) 555-5555" /></div>
+                  <div class="field"><label for="county">County *</label><input id="county" type="text" required placeholder="Davidson County" /></div>
+                  <div class="field"><label for="city">City *</label><input id="city" type="text" required placeholder="Nashville" /></div>
+                </div>
+              </div>
+
+              <div class="form-section">
+                <div class="form-section-title"><h4>Transportation Program</h4><span>Select One</span></div>
+                <div class="choice-grid">
+                  <label class="choice"><input type="radio" name="program" value="medical" checked /><div class="choice-card"><strong>Medical Transportation</strong><span>Healthcare appointments, treatment, pharmacy access.</span></div></label>
+                  <label class="choice"><input type="radio" name="program" value="employment" /><div class="choice-card"><strong>Employment Transportation</strong><span>Interviews, training, workforce access.</span></div></label>
+                  <label class="choice"><input type="radio" name="program" value="education" /><div class="choice-card"><strong>Education Transportation</strong><span>School, certification, training programs.</span></div></label>
+                  <label class="choice"><input type="radio" name="program" value="community" /><div class="choice-card"><strong>Community Assistance</strong><span>Essential transportation and mobility support.</span></div></label>
+                </div>
+              </div>
+
+              <div class="form-section">
+                <div class="form-section-title"><h4>Transportation Request</h4><span>Ride Details</span></div>
+                <div class="grid-3">
+                  <div class="field"><label for="pickupCity">Pickup City *</label><input id="pickupCity" type="text" required placeholder="Pickup City" /></div>
+                  <div class="field"><label for="destination">Destination *</label><input id="destination" type="text" required placeholder="Hospital, School, Employer" /></div>
+                  <div class="field"><label for="rideDate">Ride Date Needed *</label><input id="rideDate" type="date" required /></div>
+                </div>
+                <div class="field"><label for="transportationNeed">Transportation Need *</label><textarea id="transportationNeed" required placeholder="Describe the transportation need and how assistance will support healthcare, education, employment, disability access, or other essential needs."></textarea></div>
+              </div>
+
+              <div class="form-section">
+                <div class="form-section-title"><h4>Household Information</h4><span>Optional</span></div>
+                <div class="grid-3">
+                  <div class="field"><label for="applicantType">Applicant Type</label><select id="applicantType"><option value="">Select Applicant Type</option><option value="self">Self</option><option value="parent">Parent / Guardian</option><option value="caregiver">Caregiver</option><option value="caseworker">Case Worker</option><option value="socialworker">Social Worker</option></select></div>
+                  <div class="field"><label for="householdSize">Household Size</label><input id="householdSize" type="number" min="1" max="20" placeholder="Number of Household Members" /></div>
+                  <div class="field"><label for="monthlyIncome">Monthly Income</label><input id="monthlyIncome" type="number" placeholder="Monthly Household Income" /></div>
+                </div>
+              </div>
+
+              <div class="form-section">
+                <div class="form-section-title"><h4>Supporting Documentation</h4><span>Upload Files</span></div>
+                <div class="field">
+                  <label for="supportingDocs">Upload Documents</label>
+                  <input id="supportingDocs" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.doc,.docx" />
+                  <small>Medical appointment confirmations, TennCare documentation, disability verification, veteran records, employment verification, school enrollment documents, referral letters, or supporting records.</small>
+                </div>
+                <div id="uploadPreview" class="upload-preview"></div>
+              </div>
+
+              <div class="form-section">
+                <div class="form-section-title"><h4>Applicant Certification</h4><span>Required</span></div>
+                <div class="status-box"><strong>Certification Statement</strong><span>By submitting this application, you certify that all information provided is accurate and complete to the best of your knowledge. Submission does not guarantee transportation assistance and all applications remain subject to review, eligibility, documentation verification, funding availability, and organizational capacity.</span></div>
+                <label class="consent-row"><input id="consent" type="checkbox" required /><span class="consent-text">I certify that the information provided is accurate and authorize Harvey Transportation Assistance Foundation to review my request.</span></label>
+              </div>
+
+              <div id="reviewPanel" class="review-panel"><h4>Application Review</h4><div id="reviewGrid" class="review-grid"></div></div>
+              <div id="applicationSummary" class="application-summary"></div>
+              <div id="applicationStatus" class="copy-status"></div>
+
+              <div class="application-actions">
+                <button type="submit" class="btn btn-primary">Submit Application</button>
+                <button type="button" class="btn btn-secondary" onclick="saveDraftApplication()">Save Draft</button>
+                <button type="button" class="btn btn-gold" onclick="previewApplication()">Review Application</button>
+                <button type="button" class="btn btn-secondary" onclick="printApplication()">Print Application</button>
+              </div>
+            </form>
+          </section>
+
+          <aside class="application-progress">
+            <div class="progress-panel">
+              <h4>Application Progress</h4>
+              <p>Complete each section to prepare your HTAF transportation assistance request for submission.</p>
+              <div class="progress-steps">
+                <div class="progress-step active" id="stepApplicant"><div class="progress-dot"></div><div><strong>Applicant Information</strong><span>Contact and residency details.</span></div></div>
+                <div class="progress-step" id="stepProgram"><div class="progress-dot"></div><div><strong>Program Selection</strong><span>Transportation assistance category.</span></div></div>
+                <div class="progress-step" id="stepRequest"><div class="progress-dot"></div><div><strong>Transportation Request</strong><span>Ride destination and need.</span></div></div>
+                <div class="progress-step" id="stepDocuments"><div class="progress-dot"></div><div><strong>Documentation</strong><span>Supporting verification records.</span></div></div>
+                <div class="progress-step" id="stepSubmit"><div class="progress-dot"></div><div><strong>Submit Application</strong><span>Review and send request.</span></div></div>
+              </div>
+            </div>
+
+            <div class="progress-panel">
+              <h4>HTAF Assistance Areas</h4>
+              <p>Transportation programs currently focus on:</p>
+              <ul class="why-list">
+                <li>Medical Transportation</li>
+                <li>Employment Access</li>
+                <li>Education Support</li>
+                <li>Senior Mobility</li>
+                <li>Disability Transportation</li>
+                <li>Veteran Transportation</li>
+              </ul>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="shell">
+        <section class="card section-card">
+          <div class="section-head"><h3>Program Categories</h3><p>Transportation assistance requests are categorized to help HTAF allocate resources and coordinate transportation services efficiently.</p></div>
+          <div class="grid-3">
+            <article class="feature-card"><div class="feature-icon">🏥</div><h4>Medical Transportation</h4><p>Doctor appointments, dialysis, treatment, rehabilitation, counseling, and pharmacy access.</p></article>
+            <article class="feature-card"><div class="feature-icon">💼</div><h4>Employment Access</h4><p>Interviews, onboarding, workforce training, and employment transportation.</p></article>
+            <article class="feature-card"><div class="feature-icon">🎓</div><h4>Education Access</h4><p>School transportation, certification programs, and workforce education.</p></article>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="shell">
+        <section class="card section-card">
+          <div class="section-head"><h3>Application Review Process</h3><p>Every application follows a structured review process to ensure fairness, accountability, and responsible stewardship of resources.</p></div>
+          <div class="process-grid">
+            <div class="process-card"><strong>Step 1</strong><span>Submit transportation assistance request.</span></div>
+            <div class="process-card"><strong>Step 2</strong><span>HTAF reviews eligibility and documentation.</span></div>
+            <div class="process-card"><strong>Step 3</strong><span>Additional verification may be requested.</span></div>
+            <div class="process-card"><strong>Step 4</strong><span>Approved requests move to scheduling.</span></div>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="shell">
+        <section class="card section-card">
+          <div class="section-head"><h3>Application Dashboard</h3><p>Monitor local draft and application activity on this device.</p></div>
+          <div class="stats-shell">
+            <div class="stat-card"><strong id="totalApplications">0</strong><span>Applications Submitted</span></div>
+            <div class="stat-card"><strong id="pendingApplications">0</strong><span>Pending Review</span></div>
+            <div class="stat-card"><strong id="approvedApplications">0</strong><span>Approved Requests</span></div>
+            <div class="stat-card"><strong id="scheduledRides">0</strong><span>Scheduled Rides</span></div>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section class="section" id="faq">
+      <div class="shell">
+        <section class="card section-card">
+          <div class="section-head"><h3>Frequently Asked Questions</h3></div>
+          <div class="faq-grid">
+            <div class="faq-item"><strong>Does submitting an application guarantee assistance?</strong><span>No. Assistance depends on eligibility, documentation, transportation availability, and funding resources.</span></div>
+            <div class="faq-item"><strong>Who can apply?</strong><span>Tennessee residents seeking transportation support for essential needs may apply.</span></div>
+            <div class="faq-item"><strong>What documentation may be required?</strong><span>Appointment confirmations, TennCare records, employment verification, disability documentation, school enrollment, and other supporting records may be requested.</span></div>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="shell footer-row">
+      <div>© 2026 Harvey Transportation Assistance Foundation</div>
+      <div class="footer-links">
+        <a href="foundation.html">Foundation</a>
+        <a href="support.html">Support</a>
+        <a href="privacy.html">Privacy</a>
+        <a href="terms.html">Terms</a>
+      </div>
+    </div>
+  </footer>
+
+  <nav class="bottom-nav" aria-label="Bottom Navigation">
+    <button class="nav-btn" onclick="window.location.href='index.html'">Home</button>
+    <button class="nav-btn active" type="button">Apply</button>
+    <button class="nav-btn" onclick="window.location.href='foundation.html'">Foundation</button>
+    <button class="nav-btn" onclick="window.location.href='support.html'">Support</button>
+    <button class="nav-btn" onclick="openHarveyAiChat()">AI Help</button>
+  </nav>
+
+  <script src="/ai-support-widget.js"></script>
+  <script>
+    window.HARVEY_API_BASE = window.location.origin && window.location.origin.includes("http") ? window.location.origin : "";
+    window.HARVEY_AI_CONTEXT = {
+      page: "htaf_application",
+      organization: "Harvey Transportation Assistance Foundation",
+      state: "Tennessee",
+      endpoint: "/api/foundation/apply"
+    };
+
+    const APPLICATION_STORAGE_KEY = "htaf_application_draft_v4";
+    const applicationForm = document.getElementById("htafApplicationForm");
+    const applicationStatus = document.getElementById("applicationStatus");
+    const applicationSummary = document.getElementById("applicationSummary");
+    const reviewPanel = document.getElementById("reviewPanel");
+    const reviewGrid = document.getElementById("reviewGrid");
+    const uploadPreview = document.getElementById("uploadPreview");
+    const uploadInput = document.getElementById("supportingDocs");
+
+    function setBodyClass(className, storageKey, buttonId){
+      document.body.classList.toggle(className);
+      const active = document.body.classList.contains(className);
+      localStorage.setItem(storageKey, active ? "1" : "0");
+      document.getElementById(buttonId)?.classList.toggle("active", active);
+    }
+
+    function restoreDisplaySettings(){
+      [["high-contrast","htaf_high_contrast","contrastBtn"],["large-text","htaf_large_text","textBtn"],["reduced-motion","htaf_reduced_motion","motionBtn"]].forEach(([cls,key,btn])=>{
+        if(localStorage.getItem(key)==="1"){
+          document.body.classList.add(cls);
+          document.getElementById(btn)?.classList.add("active");
+        }
+      });
+    }
+
+    function showApplicationStatus(message,type="ok"){
+      if(!applicationStatus) return;
+      applicationStatus.textContent=message;
+      applicationStatus.className="copy-status show "+type;
+      clearTimeout(showApplicationStatus.timer);
+      showApplicationStatus.timer=setTimeout(()=>{applicationStatus.className="copy-status";},6000);
+    }
+
+    function getSelectedProgram(){
+      const selected=document.querySelector('input[name="program"]:checked');
+      return selected ? selected.value : "medical";
+    }
+
+    function getApplicationData(){
+      return {
+        first_name:document.getElementById("firstName")?.value?.trim()||"",
+        last_name:document.getElementById("lastName")?.value?.trim()||"",
+        email:document.getElementById("email")?.value?.trim()||"",
+        phone:document.getElementById("phone")?.value?.trim()||"",
+        county:document.getElementById("county")?.value?.trim()||"",
+        city:document.getElementById("city")?.value?.trim()||"",
+        program_type:getSelectedProgram(),
+        pickup_city:document.getElementById("pickupCity")?.value?.trim()||"",
+        destination:document.getElementById("destination")?.value?.trim()||"",
+        ride_date:document.getElementById("rideDate")?.value||"",
+        transportation_need:document.getElementById("transportationNeed")?.value?.trim()||"",
+        applicant_type:document.getElementById("applicantType")?.value||"",
+        household_size:document.getElementById("householdSize")?.value||"",
+        monthly_income:document.getElementById("monthlyIncome")?.value||"",
+        document_count:uploadInput?.files?.length||0,
+        document_names:Array.from(uploadInput?.files||[]).map(file=>file.name),
+        submitted_at:new Date().toISOString(),
+        source:"htaf-application.html"
+      };
+    }
+
+    function validateApplication(){
+      let valid=true;
+      ["firstName","lastName","email","phone","county","city","pickupCity","destination","rideDate","transportationNeed"].forEach(id=>{
+        const field=document.getElementById(id);
+        if(!field) return;
+        field.classList.remove("invalid");
+        if(!String(field.value).trim()){
+          field.classList.add("invalid");
+          valid=false;
+        }
+      });
+      const consent=document.getElementById("consent");
+      if(!consent?.checked) valid=false;
+      if(!valid) showApplicationStatus("Please complete all required fields and certification before submitting.","err");
+      return valid;
+    }
+
+    function saveDraftApplication(){
+      try{
+        localStorage.setItem(APPLICATION_STORAGE_KEY,JSON.stringify(getApplicationData()));
+        showApplicationStatus("Application draft saved successfully on this device.","info");
+        trackFoundationIntent("application_draft_saved");
+      }catch(error){
+        showApplicationStatus("Unable to save draft on this device.","err");
+      }
+    }
+
+    function loadDraftApplication(){
+      try{
+        const raw=localStorage.getItem(APPLICATION_STORAGE_KEY);
+        if(!raw) return;
+        const draft=JSON.parse(raw);
+        const map={first_name:"firstName",last_name:"lastName",email:"email",phone:"phone",county:"county",city:"city",pickup_city:"pickupCity",destination:"destination",ride_date:"rideDate",transportation_need:"transportationNeed",applicant_type:"applicantType",household_size:"householdSize",monthly_income:"monthlyIncome"};
+        Object.entries(map).forEach(([key,id])=>{
+          const field=document.getElementById(id);
+          if(field) field.value=draft[key]||"";
+        });
+        const program=document.querySelector(`input[name="program"][value="${draft.program_type}"]`);
+        if(program) program.checked=true;
+        updateProgressTracker();
+      }catch(error){
+        console.warn("Unable to load HTAF draft:",error);
+      }
+    }
+
+    function renderUploadPreview(){
+      if(!uploadPreview||!uploadInput) return;
+      uploadPreview.innerHTML="";
+      Array.from(uploadInput.files||[]).forEach(file=>{
+        const item=document.createElement("div");
+        item.className="upload-item";
+        item.innerHTML=`<span>${escapeHtml(file.name)}</span><strong>${Math.ceil(file.size/1024)} KB</strong>`;
+        uploadPreview.appendChild(item);
+      });
+      updateProgressTracker();
+    }
+
+    function previewApplication(){
+      const payload=getApplicationData();
+      if(!reviewPanel||!reviewGrid) return;
+      const rows=[
+        ["Applicant",`${payload.first_name} ${payload.last_name}`],
+        ["Email",payload.email],
+        ["Phone",payload.phone],
+        ["County",payload.county],
+        ["City",payload.city],
+        ["Program",payload.program_type],
+        ["Pickup City",payload.pickup_city],
+        ["Destination",payload.destination],
+        ["Ride Date",payload.ride_date],
+        ["Documents",String(payload.document_count)],
+        ["Transportation Need",payload.transportation_need]
+      ];
+      reviewGrid.innerHTML=rows.map(([label,value])=>`<div class="review-item"><label>${escapeHtml(label)}</label><span>${escapeHtml(value||"Not provided")}</span></div>`).join("");
+      reviewPanel.classList.add("show");
+      showApplicationStatus("Review generated. Confirm everything looks correct before submitting.","info");
+      updateProgressTracker();
+    }
+
+    function renderApplicationSummary(payload){
+      if(!applicationSummary) return;
+      applicationSummary.innerHTML=`<strong>Application Summary</strong><span>Applicant: ${escapeHtml(payload.first_name)} ${escapeHtml(payload.last_name)}</span><span>Program: ${escapeHtml(payload.program_type)}</span><span>Destination: ${escapeHtml(payload.destination)}</span><span>Requested Date: ${escapeHtml(payload.ride_date)}</span>`;
+      applicationSummary.classList.add("show");
+    }
+
+    async function submitApplication(payload){
+      const response=await fetch(`${window.HARVEY_API_BASE||""}/api/foundation/apply`,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify(payload)
+      });
+      if(!response.ok) throw new Error("Application submission failed.");
+      return response.json();
+    }
+
+    function updateDashboardCounters(){
+      const stored=Number(localStorage.getItem("htaf_total_applications")||"0");
+      const total=document.getElementById("totalApplications");
+      const pending=document.getElementById("pendingApplications");
+      const approved=document.getElementById("approvedApplications");
+      const scheduled=document.getElementById("scheduledRides");
+      if(total) total.textContent=stored;
+      if(pending) pending.textContent=stored;
+      if(approved) approved.textContent="0";
+      if(scheduled) scheduled.textContent="0";
+    }
+
+    function incrementApplicationCounter(){
+      const current=Number(localStorage.getItem("htaf_total_applications")||"0");
+      localStorage.setItem("htaf_total_applications",String(current+1));
+      updateDashboardCounters();
+    }
+
+    function updateProgressTracker(){
+      const firstName=document.getElementById("firstName")?.value?.trim();
+      const lastName=document.getElementById("lastName")?.value?.trim();
+      const pickup=document.getElementById("pickupCity")?.value?.trim();
+      const destination=document.getElementById("destination")?.value?.trim();
+      const need=document.getElementById("transportationNeed")?.value?.trim();
+      const docs=uploadInput?.files?.length||0;
+      const consent=document.getElementById("consent")?.checked;
+      document.getElementById("stepApplicant")?.classList.toggle("active",Boolean(firstName&&lastName));
+      document.getElementById("stepProgram")?.classList.add("active");
+      document.getElementById("stepRequest")?.classList.toggle("active",Boolean(pickup&&destination&&need));
+      document.getElementById("stepDocuments")?.classList.toggle("active",docs>0);
+      document.getElementById("stepSubmit")?.classList.toggle("active",Boolean(consent));
+    }
+
+    function printApplication(){window.print();}
+
+    function trackFoundationIntent(eventName,params={}){
+      try{
+        if(typeof gtag==="function"){
+          gtag("event",eventName,{event_category:"htaf_application",event_label:eventName,page_location:window.location.href,...params});
+        }
+      }catch(error){}
+    }
+
+    function openHarveyAiChat(){
+      try{
+        trackFoundationIntent("ai_support_open");
+        if(window.HarveyAI&&typeof window.HarveyAI.open==="function"){
+          window.HarveyAI.open();
+          return;
+        }
+        const root=document.getElementById("harvey-ai-chat-root");
+        if(root){
+          const toggle=root.querySelector("[data-harvey-ai-open]")||root.querySelector(".harvey-ai-launch")||root.querySelector("button");
+          if(toggle?.click){toggle.click();return;}
+        }
+      }catch(error){}
+      window.location.href="support.html";
+    }
+
+    function escapeHtml(value){
+      return String(value||"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
+    }
+
+    uploadInput?.addEventListener("change",renderUploadPreview);
+    document.querySelectorAll("input,select,textarea").forEach(field=>{
+      field.addEventListener("input",updateProgressTracker);
+      field.addEventListener("change",updateProgressTracker);
+    });
+
+    document.getElementById("contrastBtn")?.addEventListener("click",()=>setBodyClass("high-contrast","htaf_high_contrast","contrastBtn"));
+    document.getElementById("textBtn")?.addEventListener("click",()=>setBodyClass("large-text","htaf_large_text","textBtn"));
+    document.getElementById("motionBtn")?.addEventListener("click",()=>setBodyClass("reduced-motion","htaf_reduced_motion","motionBtn"));
+
+    if(applicationForm){
+      applicationForm.addEventListener("submit",async event=>{
+        event.preventDefault();
+        if(!validateApplication()) return;
+
+        const submitButton=applicationForm.querySelector('button[type="submit"]');
+        const originalText=submitButton.textContent;
+
+        try{
+          submitButton.disabled=true;
+          submitButton.textContent="Submitting...";
+          const payload=getApplicationData();
+          renderApplicationSummary(payload);
+          await submitApplication(payload);
+          localStorage.removeItem(APPLICATION_STORAGE_KEY);
+          applicationForm.reset();
+          if(uploadPreview) uploadPreview.innerHTML="";
+          incrementApplicationCounter();
+          updateProgressTracker();
+          showApplicationStatus("Application submitted successfully. HTAF will review your transportation assistance request.","ok");
+          trackFoundationIntent("application_submitted",{program_type:payload.program_type,county:payload.county});
+        }catch(error){
+          console.error(error);
+          saveDraftApplication();
+          showApplicationStatus("Submission unavailable right now. Your draft has been saved locally. Server J needs POST /api/foundation/apply enabled.","err");
+        }finally{
+          submitButton.disabled=false;
+          submitButton.textContent=originalText;
+        }
+      });
+    }
+
+    window.addEventListener("load",()=>{
+      restoreDisplaySettings();
+      loadDraftApplication();
+      updateDashboardCounters();
+      updateProgressTracker();
+      trackFoundationIntent("htaf_application_page_view");
+      setTimeout(()=>{
+        if(!document.getElementById("harvey-ai-chat-root")){
+          const root=document.createElement("div");
+          root.id="harvey-ai-chat-root";
+          document.body.appendChild(root);
+        }
+      },80);
+    });
+  </script>
+</body>
+</html>
