@@ -1,1161 +1,2314 @@
 <!DOCTYPE html>
-<html lang="en">
+
+<html lang="en" dir="ltr">
+
 <head>
+
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
-  <title>Harvey Transportation Assistance Foundation | Tennessee Transportation Assistance</title>
+  <meta
 
-  <meta name="description" content="Harvey Transportation Assistance Foundation helps remove transportation barriers for medical appointments, seniors, disability access, veterans, employment, education, and essential mobility across Tennessee." />
+    name="viewport"
+
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+
+  />
+
+  <title>
+
+    Harvey Transportation Assistance Foundation | Apply for Transportation Assistance
+
+  </title>
+
+  <meta
+
+    name="description"
+
+    content="Apply for Harvey Transportation Assistance Foundation transportation assistance for medical appointments, seniors, disability access, veterans, employment, education, and essential mobility across Tennessee."
+
+  />
+
   <meta name="theme-color" content="#0b1530" />
+
   <meta name="robots" content="index, follow" />
 
   <meta property="og:title" content="Harvey Transportation Assistance Foundation" />
-  <meta property="og:description" content="Helping remove transportation barriers for healthcare, work, school, veterans, seniors, disability access, and essential community mobility." />
-  <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://harvey-taxi-app-2.onrender.com/foundation.html" />
 
-  <!-- Google Ads Tag -->
+  <meta
+
+    property="og:description"
+
+    content="Apply for transportation assistance through Harvey Transportation Assistance Foundation."
+
+  />
+
+  <meta property="og:type" content="website" />
+
+  <meta
+
+    property="og:url"
+
+    content="https://harvey-taxi-app-2.onrender.com/foundation.html"
+
+  />
+
   <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18161547185"></script>
+
   <script>
+
     window.dataLayer = window.dataLayer || [];
+
     function gtag(){ dataLayer.push(arguments); }
+
     gtag("js", new Date());
+
     gtag("config", "AW-18161547185");
+
   </script>
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
+
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
   <link rel="preconnect" href="https://www.googletagmanager.com" />
+
   <link rel="preconnect" href="https://www.paypal.com" />
 
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link
+
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+
+    rel="stylesheet"
+
+  />
+
   <link rel="stylesheet" href="/ai-support-widget.css" />
 
   <style>
+
     :root {
-      --bg1:#040814;
-      --bg2:#0a1733;
-      --bg3:#112657;
-      --panel:rgba(8,15,34,.92);
-      --line:rgba(126,166,255,.18);
-      --lineStrong:rgba(126,166,255,.35);
-      --text:#f5f8ff;
-      --muted:#adbbde;
-      --blue:#6aa7ff;
-      --cyan:#73f4ff;
-      --green:#7cffc7;
-      --gold:#ffd978;
-      --ink:#04101c;
-      --shadow:0 24px 80px rgba(0,0,0,.45);
-      --shadowSoft:0 14px 34px rgba(0,0,0,.25);
-      --radiusXL:32px;
-      --navH:88px;
-      --maxw:1260px;
+
+      --bg1: #040814;
+
+      --bg2: #0a1733;
+
+      --bg3: #112657;
+
+      --panel: rgba(8, 15, 34, 0.92);
+
+      --panel2: rgba(12, 22, 50, 0.88);
+
+      --glass: rgba(255, 255, 255, 0.045);
+
+      --line: rgba(126, 166, 255, 0.18);
+
+      --lineStrong: rgba(126, 166, 255, 0.35);
+
+      --text: #f5f8ff;
+
+      --muted: #adbbde;
+
+      --soft: #dce8ff;
+
+      --blue: #6aa7ff;
+
+      --cyan: #73f4ff;
+
+      --green: #7cffc7;
+
+      --gold: #ffd978;
+
+      --danger: #ff7e90;
+
+      --ink: #04101c;
+
+      --shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+
+      --shadowSoft: 0 14px 34px rgba(0, 0, 0, 0.25);
+
+      --radiusXL: 32px;
+
+      --radiusLG: 24px;
+
+      --navH: 88px;
+
+      --maxw: 1260px;
+
+      --safeTop: env(safe-area-inset-top);
+
+      --safeBottom: env(safe-area-inset-bottom);
+
     }
 
     * {
-      box-sizing:border-box;
-      margin:0;
-      padding:0;
+
+      box-sizing: border-box;
+
+      margin: 0;
+
+      padding: 0;
+
     }
 
     html {
-      scroll-behavior:smooth;
-      -webkit-font-smoothing:antialiased;
+
+      scroll-behavior: smooth;
+
+      -webkit-font-smoothing: antialiased;
+
+      background: var(--bg1);
+
     }
 
     body {
-      font-family:"Inter",system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-      color:var(--text);
-      min-height:100vh;
-      overflow-x:hidden;
-      padding-bottom:calc(var(--navH) + env(safe-area-inset-bottom) + 22px);
+
+      font-family:
+
+        "Inter",
+
+        system-ui,
+
+        -apple-system,
+
+        BlinkMacSystemFont,
+
+        "Segoe UI",
+
+        sans-serif;
+
+      color: var(--text);
+
+      min-height: 100vh;
+
+      overflow-x: hidden;
+
+      padding-bottom: calc(var(--navH) + var(--safeBottom) + 22px);
+
       background:
-        radial-gradient(circle at top left,rgba(106,167,255,.18),transparent 25%),
-        radial-gradient(circle at top right,rgba(115,244,255,.10),transparent 22%),
-        radial-gradient(circle at center bottom,rgba(124,255,199,.08),transparent 28%),
-        linear-gradient(180deg,var(--bg1),var(--bg2) 48%,var(--bg3));
+
+        radial-gradient(circle at top left, rgba(106, 167, 255, 0.18), transparent 25%),
+
+        radial-gradient(circle at top right, rgba(115, 244, 255, 0.10), transparent 22%),
+
+        radial-gradient(circle at center bottom, rgba(124, 255, 199, 0.08), transparent 28%),
+
+        linear-gradient(180deg, var(--bg1), var(--bg2) 48%, var(--bg3));
+
     }
 
     body::before {
-      content:"";
-      position:fixed;
-      inset:0;
-      pointer-events:none;
+
+      content: "";
+
+      position: fixed;
+
+      inset: 0;
+
+      pointer-events: none;
+
       background:
-        radial-gradient(circle at 20% 10%,rgba(115,244,255,.06),transparent 22%),
-        radial-gradient(circle at 80% 20%,rgba(106,167,255,.06),transparent 20%);
-      z-index:0;
+
+        linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+
+        linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+
+      background-size: 52px 52px;
+
+      mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.86), transparent 78%);
+
+      z-index: 0;
+
+    }
+
+    body.high-contrast {
+
+      --bg1: #000000;
+
+      --bg2: #020617;
+
+      --bg3: #020617;
+
+      --panel: rgba(0, 0, 0, 0.96);
+
+      --panel2: rgba(0, 0, 0, 0.96);
+
+      --text: #ffffff;
+
+      --muted: #e2e8f0;
+
+      --line: rgba(255, 255, 255, 0.36);
+
+      --lineStrong: rgba(255, 255, 255, 0.72);
+
+    }
+
+    body.large-text {
+
+      font-size: 18px;
+
+    }
+
+    body.reduced-motion *,
+
+    body.reduced-motion *::before,
+
+    body.reduced-motion *::after {
+
+      animation: none !important;
+
+      transition: none !important;
+
+      scroll-behavior: auto !important;
+
     }
 
     a {
-      color:inherit;
-      text-decoration:none;
+
+      color: inherit;
+
+      text-decoration: none;
+
     }
 
     button,
+
+    input,
+
+    select,
+
+    textarea,
+
     a {
-      -webkit-tap-highlight-color:transparent;
-      touch-action:manipulation;
+
+      font: inherit;
+
+      -webkit-tap-highlight-color: transparent;
+
+      touch-action: manipulation;
+
     }
 
     button {
-      font-family:inherit;
-      border:0;
-      background:none;
-      color:inherit;
-      cursor:pointer;
+
+      border: 0;
+
+      background: none;
+
+      color: inherit;
+
+      cursor: pointer;
+
+    }
+
+    button:disabled {
+
+      opacity: 0.58;
+
+      cursor: not-allowed;
+
+      transform: none !important;
+
+      filter: none !important;
+
     }
 
     img {
-      max-width:100%;
-      display:block;
+
+      max-width: 100%;
+
+      display: block;
+
+    }
+
+    .hidden {
+
+      display: none !important;
+
     }
 
     .shell {
-      width:min(var(--maxw),calc(100% - 32px));
-      margin:0 auto;
-      position:relative;
-      z-index:1;
+
+      width: min(var(--maxw), calc(100% - 32px));
+
+      margin: 0 auto;
+
+      position: relative;
+
+      z-index: 1;
+
+    }
+
+    .skip-link {
+
+      position: absolute;
+
+      left: 16px;
+
+      top: -120px;
+
+      padding: 12px 16px;
+
+      border-radius: 999px;
+
+      background: var(--cyan);
+
+      color: var(--ink);
+
+      font-weight: 900;
+
+      z-index: 99999;
+
+      transition: 0.16s ease;
+
+    }
+
+    .skip-link:focus {
+
+      top: 14px;
+
     }
 
     .topbar {
-      position:relative;
-      z-index:50;
-      background:rgba(4,8,20,.84);
-      border-bottom:1px solid rgba(255,255,255,.08);
-      backdrop-filter:blur(20px);
-      -webkit-backdrop-filter:blur(20px);
+
+      position: relative;
+
+      z-index: 50;
+
+      background: rgba(4, 8, 20, 0.84);
+
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+
+      backdrop-filter: blur(20px);
+
+      -webkit-backdrop-filter: blur(20px);
+
     }
 
     .topbar-inner {
-      min-height:104px;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:18px;
-      padding:16px 0;
+
+      min-height: 104px;
+
+      display: flex;
+
+      align-items: center;
+
+      justify-content: space-between;
+
+      gap: 18px;
+
+      padding: 16px 0;
+
     }
 
     .brand {
-      display:flex;
-      align-items:center;
-      gap:18px;
-      min-width:0;
+
+      display: flex;
+
+      align-items: center;
+
+      gap: 18px;
+
+      min-width: 0;
+
     }
 
     .brand-mark {
-      width:72px;
-      height:72px;
-      border-radius:22px;
-      display:grid;
-      place-items:center;
-      background:linear-gradient(135deg,var(--cyan),var(--blue));
-      box-shadow:0 14px 32px rgba(106,167,255,.3);
-      flex:0 0 auto;
-      color:var(--ink);
-      font-size:1.45rem;
-      font-weight:900;
-      letter-spacing:.04em;
-      overflow:hidden;
+
+      width: 72px;
+
+      height: 72px;
+
+      border-radius: 22px;
+
+      display: grid;
+
+      place-items: center;
+
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+
+      box-shadow: 0 14px 32px rgba(106, 167, 255, 0.3);
+
+      flex: 0 0 auto;
+
+      color: var(--ink);
+
+      font-size: 1.45rem;
+
+      font-weight: 900;
+
+      letter-spacing: 0.04em;
+
+      overflow: hidden;
+
     }
 
     .brand-mark img {
-      width:100%;
-      height:100%;
-      object-fit:cover;
+
+      width: 100%;
+
+      height: 100%;
+
+      object-fit: cover;
+
+    }
+
+    .brand-fallback {
+
+      width: 100%;
+
+      height: 100%;
+
+      display: grid;
+
+      place-items: center;
+
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+
+      color: var(--ink);
+
+      font-weight: 950;
+
     }
 
     .brand-copy {
-      min-width:0;
-      max-width:720px;
+
+      min-width: 0;
+
+      max-width: 720px;
+
     }
 
     .brand-copy h1 {
-      font-size:clamp(1.35rem,3vw,2rem);
-      font-weight:900;
-      line-height:1.1;
-      letter-spacing:-.03em;
+
+      font-size: clamp(1.35rem, 3vw, 2rem);
+
+      font-weight: 900;
+
+      line-height: 1.1;
+
+      letter-spacing: -0.03em;
+
     }
 
     .brand-copy p {
-      margin-top:8px;
-      color:var(--muted);
-      font-size:1rem;
-      line-height:1.45;
+
+      margin-top: 8px;
+
+      color: var(--muted);
+
+      font-size: 1rem;
+
+      line-height: 1.45;
+
     }
 
     .nav {
-      display:flex;
-      align-items:center;
-      justify-content:flex-end;
-      gap:10px;
-      flex-wrap:wrap;
+
+      display: flex;
+
+      align-items: center;
+
+      justify-content: flex-end;
+
+      gap: 10px;
+
+      flex-wrap: wrap;
+
     }
 
     .nav a {
-      min-height:44px;
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      padding:10px 16px;
-      border-radius:999px;
-      color:var(--muted);
-      border:1px solid transparent;
-      font-size:.93rem;
-      font-weight:800;
+
+      min-height: 44px;
+
+      display: inline-flex;
+
+      align-items: center;
+
+      justify-content: center;
+
+      padding: 10px 16px;
+
+      border-radius: 999px;
+
+      color: var(--muted);
+
+      border: 1px solid transparent;
+
+      font-size: 0.93rem;
+
+      font-weight: 800;
+
     }
 
-    .nav a:hover {
-      color:var(--text);
-      border-color:rgba(255,255,255,.10);
-      background:rgba(255,255,255,.05);
+    .nav a:hover,
+
+    .nav a:focus-visible {
+
+      color: var(--text);
+
+      border-color: rgba(255, 255, 255, 0.10);
+
+      background: rgba(255, 255, 255, 0.05);
+
     }
 
     .nav .cta {
-      color:var(--ink);
-      background:linear-gradient(135deg,var(--cyan),var(--blue));
-      box-shadow:0 14px 34px rgba(106,167,255,.24);
-    }
 
-    .hero {
-      padding:34px 0 20px;
+      color: var(--ink);
+
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+
+      box-shadow: 0 14px 34px rgba(106, 167, 255, 0.24);
+
+    }    .hero {
+
+      padding: 34px 0 20px;
+
     }
 
     .hero-shell {
-      display:grid;
-      grid-template-columns:minmax(0,1.15fr) minmax(340px,.85fr);
-      gap:24px;
-      align-items:start;
+
+      display: grid;
+
+      grid-template-columns: minmax(0, 1.08fr) minmax(360px, 0.92fr);
+
+      gap: 24px;
+
+      align-items: start;
+
     }
 
     .card {
-      position:relative;
-      overflow:hidden;
+
+      position: relative;
+
+      overflow: hidden;
+
       background:
-        linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.012)),
-        linear-gradient(180deg,rgba(12,22,50,.86),rgba(5,11,28,.98));
-      border:1px solid var(--line);
-      border-radius:var(--radiusXL);
-      box-shadow:var(--shadow);
+
+        linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.012)),
+
+        linear-gradient(180deg, rgba(12, 22, 50, 0.86), rgba(5, 11, 28, 0.98));
+
+      border: 1px solid var(--line);
+
+      border-radius: var(--radiusXL);
+
+      box-shadow: var(--shadow);
+
     }
 
     .hero-card,
+
     .section-card,
+
     .why-card,
+
     .cta-card,
-    .spotlight-card {
-      padding:36px;
+
+    .spotlight-card,
+
+    .application-card {
+
+      padding: 36px;
+
     }
 
     .hero-card::before {
-      content:"";
-      position:absolute;
-      right:-90px;
-      top:-90px;
-      width:260px;
-      height:260px;
-      border-radius:50%;
-      background:radial-gradient(circle,rgba(115,244,255,.18),transparent 68%);
-      pointer-events:none;
+
+      content: "";
+
+      position: absolute;
+
+      right: -90px;
+
+      top: -90px;
+
+      width: 260px;
+
+      height: 260px;
+
+      border-radius: 50%;
+
+      background: radial-gradient(circle, rgba(115, 244, 255, 0.18), transparent 68%);
+
+      pointer-events: none;
+
     }
 
     .hero-content {
-      position:relative;
-      z-index:2;
+
+      position: relative;
+
+      z-index: 2;
+
     }
 
     .eyebrow {
-      display:inline-flex;
-      align-items:center;
-      gap:10px;
-      padding:8px 14px;
-      border-radius:999px;
-      background:rgba(255,255,255,.04);
-      border:1px solid rgba(255,255,255,.08);
-      color:var(--cyan);
-      font-size:.8rem;
-      font-weight:900;
-      letter-spacing:.06em;
-      text-transform:uppercase;
-      margin-bottom:20px;
+
+      display: inline-flex;
+
+      align-items: center;
+
+      gap: 10px;
+
+      padding: 8px 14px;
+
+      border-radius: 999px;
+
+      background: rgba(255, 255, 255, 0.04);
+
+      border: 1px solid rgba(255, 255, 255, 0.08);
+
+      color: var(--cyan);
+
+      font-size: 0.8rem;
+
+      font-weight: 900;
+
+      letter-spacing: 0.06em;
+
+      text-transform: uppercase;
+
+      margin-bottom: 20px;
+
     }
 
     .hero-card h2 {
-      font-size:clamp(2rem,4.5vw,3.2rem);
-      font-weight:900;
-      line-height:1.06;
-      letter-spacing:-.04em;
-      max-width:820px;
-      margin-bottom:18px;
+
+      font-size: clamp(2rem, 4.5vw, 3.2rem);
+
+      font-weight: 900;
+
+      line-height: 1.06;
+
+      letter-spacing: -0.04em;
+
+      max-width: 820px;
+
+      margin-bottom: 18px;
+
     }
 
     .hero-card p,
+
     .section-head p,
+
     .feature-card p,
+
     .why-card p,
+
     .faq-item span,
+
     .stat-card span,
+
     .process-card span,
+
     .spotlight-card p,
+
     .trust-pill,
-    .preview-copy {
-      color:var(--muted);
-      line-height:1.65;
+
+    .preview-copy,
+
+    .field small,
+
+    .consent-text,
+
+    .muted {
+
+      color: var(--muted);
+
+      line-height: 1.65;
+
     }
 
     .hero-card p {
-      font-size:1.05rem;
-      max-width:760px;
+
+      font-size: 1.05rem;
+
+      max-width: 760px;
+
     }
 
     .hero-actions,
+
     .preview-actions {
-      display:flex;
-      flex-wrap:wrap;
-      gap:14px;
-      margin-top:28px;
+
+      display: flex;
+
+      flex-wrap: wrap;
+
+      gap: 14px;
+
+      margin-top: 28px;
+
     }
 
     .btn {
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      gap:10px;
-      min-height:54px;
-      padding:0 24px;
-      border-radius:16px;
-      font-weight:900;
-      font-size:15px;
-      border:1px solid transparent;
-      cursor:pointer;
-      text-align:center;
-      position:relative;
-      z-index:5;
+
+      display: inline-flex;
+
+      align-items: center;
+
+      justify-content: center;
+
+      gap: 10px;
+
+      min-height: 54px;
+
+      padding: 0 24px;
+
+      border-radius: 16px;
+
+      font-weight: 900;
+
+      font-size: 15px;
+
+      border: 1px solid transparent;
+
+      cursor: pointer;
+
+      text-align: center;
+
+      position: relative;
+
+      z-index: 5;
+
+      transition: 0.18s ease;
+
+    }
+
+    .btn:hover,
+
+    .btn:focus-visible {
+
+      transform: translateY(-2px);
+
+      filter: brightness(1.04);
+
     }
 
     .btn-primary {
-      color:var(--ink);
-      background:linear-gradient(135deg,var(--cyan),var(--blue));
-      box-shadow:0 18px 40px rgba(106,167,255,.25);
+
+      color: var(--ink);
+
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+
+      box-shadow: 0 18px 40px rgba(106, 167, 255, 0.25);
+
     }
 
     .btn-secondary {
-      color:var(--text);
-      background:rgba(255,255,255,.04);
-      border-color:rgba(255,255,255,.08);
+
+      color: var(--text);
+
+      background: rgba(255, 255, 255, 0.04);
+
+      border-color: rgba(255, 255, 255, 0.08);
+
     }
 
     .btn-gold {
-      color:#fff;
-      background:linear-gradient(135deg,#0070ba,#154670);
-      box-shadow:0 18px 40px rgba(0,112,186,.25);
+
+      color: #ffffff;
+
+      background: linear-gradient(135deg, #0070ba, #154670);
+
+      box-shadow: 0 18px 40px rgba(0, 112, 186, 0.25);
+
+    }
+
+    .btn-danger {
+
+      color: #30070d;
+
+      background: linear-gradient(135deg, #ff9cad, #ff7e90);
+
     }
 
     .impact-strip,
+
     .grid-3 {
-      display:grid;
-      grid-template-columns:repeat(3,1fr);
-      gap:16px;
+
+      display: grid;
+
+      grid-template-columns: repeat(3, 1fr);
+
+      gap: 16px;
+
     }
 
     .impact-strip {
-      margin-top:20px;
+
+      margin-top: 20px;
+
     }
 
     .impact-mini,
+
     .feature-card,
+
     .stat-card,
+
     .trust-pill,
+
     .faq-item,
-    .process-card {
-      background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.01));
-      border:1px solid rgba(255,255,255,.06);
-      box-shadow:var(--shadowSoft);
-      border-radius:22px;
-      padding:22px;
+
+    .process-card,
+
+    .status-box {
+
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
+
+      border: 1px solid rgba(255, 255, 255, 0.06);
+
+      box-shadow: var(--shadowSoft);
+
+      border-radius: 22px;
+
+      padding: 22px;
+
     }
 
     .impact-mini strong,
+
     .feature-card h4,
+
     .faq-item strong,
+
     .trust-pill strong,
-    .process-card strong {
-      display:block;
-      color:var(--text);
-      font-weight:900;
-      margin-bottom:8px;
+
+    .process-card strong,
+
+    .status-box strong {
+
+      display: block;
+
+      color: var(--text);
+
+      font-weight: 900;
+
+      margin-bottom: 8px;
+
     }
 
-    .impact-mini span {
-      color:var(--muted);
-      line-height:1.5;
-      font-size:.94rem;
+    .impact-mini span,
+
+    .status-box span {
+
+      color: var(--muted);
+
+      line-height: 1.5;
+
+      font-size: 0.94rem;
+
     }
 
     .sticky-box {
-      position:sticky;
-      top:24px;
-      display:grid;
-      gap:20px;
+
+      position: sticky;
+
+      top: 24px;
+
+      display: grid;
+
+      gap: 20px;
+
     }
 
     .trust-grid {
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:12px;
-      margin-top:20px;
+
+      display: grid;
+
+      grid-template-columns: 1fr 1fr;
+
+      gap: 12px;
+
+      margin-top: 20px;
+
     }
 
     .link-preview {
-      margin-top:20px;
-      padding:24px;
-      border-radius:24px;
-      border:1px solid rgba(255,255,255,.08);
+
+      margin-top: 20px;
+
+      padding: 24px;
+
+      border-radius: 24px;
+
+      border: 1px solid rgba(255, 255, 255, 0.08);
+
       background:
-        linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02)),
-        linear-gradient(135deg,rgba(115,244,255,.06),rgba(106,167,255,.06));
-      box-shadow:var(--shadowSoft);
+
+        linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)),
+
+        linear-gradient(135deg, rgba(115, 244, 255, 0.06), rgba(106, 167, 255, 0.06));
+
+      box-shadow: var(--shadowSoft);
+
     }
 
     .preview-badge {
-      display:inline-flex;
-      margin-bottom:14px;
-      padding:6px 12px;
-      border-radius:999px;
-      background:rgba(0,112,186,.15);
-      border:1px solid rgba(0,112,186,.3);
-      color:var(--blue);
-      font-size:.78rem;
-      font-weight:900;
-      text-transform:uppercase;
+
+      display: inline-flex;
+
+      margin-bottom: 14px;
+
+      padding: 6px 12px;
+
+      border-radius: 999px;
+
+      background: rgba(0, 112, 186, 0.15);
+
+      border: 1px solid rgba(0, 112, 186, 0.3);
+
+      color: var(--blue);
+
+      font-size: 0.78rem;
+
+      font-weight: 900;
+
+      text-transform: uppercase;
+
     }
 
     .preview-title {
-      margin-bottom:10px;
-      font-size:1.3rem;
-      line-height:1.25;
-      font-weight:900;
+
+      margin-bottom: 10px;
+
+      font-size: 1.3rem;
+
+      line-height: 1.25;
+
+      font-weight: 900;
+
     }
 
     .preview-link {
-      display:block;
-      width:100%;
-      padding:14px;
-      border-radius:14px;
-      background:rgba(255,255,255,.04);
-      border:1px solid rgba(255,255,255,.08);
-      color:var(--cyan);
-      word-break:break-all;
-      font-size:.88rem;
-      font-weight:700;
-      margin-top:16px;
+
+      display: block;
+
+      width: 100%;
+
+      padding: 14px;
+
+      border-radius: 14px;
+
+      background: rgba(255, 255, 255, 0.04);
+
+      border: 1px solid rgba(255, 255, 255, 0.08);
+
+      color: var(--cyan);
+
+      word-break: break-all;
+
+      font-size: 0.88rem;
+
+      font-weight: 700;
+
+      margin-top: 16px;
+
     }
 
     .btn-compact {
-      min-height:48px;
-      padding:0 20px;
-      border-radius:14px;
-      font-size:.92rem;
+
+      min-height: 48px;
+
+      padding: 0 20px;
+
+      border-radius: 14px;
+
+      font-size: 0.92rem;
+
     }
 
     .section {
-      padding:20px 0;
+
+      padding: 20px 0;
+
     }
 
     .section-head {
-      margin-bottom:24px;
+
+      margin-bottom: 24px;
+
     }
 
     .section-head h3,
+
     .why-card h3,
-    .cta-copy h3 {
-      font-size:clamp(1.45rem,2.5vw,2rem);
-      font-weight:900;
-      letter-spacing:-.03em;
-      margin-bottom:8px;
+
+    .cta-copy h3,
+
+    .spotlight-card h3,
+
+    .application-card h3 {
+
+      font-size: clamp(1.45rem, 2.5vw, 2rem);
+
+      font-weight: 900;
+
+      letter-spacing: -0.03em;
+
+      margin-bottom: 8px;
+
     }
 
     .feature-icon {
-      width:54px;
-      height:54px;
-      border-radius:16px;
-      display:grid;
-      place-items:center;
-      margin-bottom:18px;
-      font-size:1.4rem;
-      background:linear-gradient(135deg,rgba(115,244,255,.18),rgba(106,167,255,.14));
-      border:1px solid rgba(115,244,255,.14);
+
+      width: 54px;
+
+      height: 54px;
+
+      border-radius: 16px;
+
+      display: grid;
+
+      place-items: center;
+
+      margin-bottom: 18px;
+
+      font-size: 1.4rem;
+
+      background: linear-gradient(135deg, rgba(115, 244, 255, 0.18), rgba(106, 167, 255, 0.14));
+
+      border: 1px solid rgba(115, 244, 255, 0.14);
+
     }
 
     .stats-shell,
+
     .process-grid {
-      display:grid;
-      grid-template-columns:repeat(4,1fr);
-      gap:16px;
-      margin-top:24px;
+
+      display: grid;
+
+      grid-template-columns: repeat(4, 1fr);
+
+      gap: 16px;
+
+      margin-top: 24px;
+
     }
 
     .stat-card strong,
+
     .process-card strong {
-      color:var(--cyan);
-      font-size:1.2rem;
+
+      color: var(--cyan);
+
+      font-size: 1.2rem;
+
     }
 
     .program-actions {
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:10px;
-      margin-top:18px;
+
+      display: grid;
+
+      grid-template-columns: 1fr 1fr;
+
+      gap: 10px;
+
+      margin-top: 18px;
+
     }
 
     .program-actions .btn {
-      min-height:44px;
-      padding:0 14px;
-      border-radius:13px;
-      font-size:.86rem;
+
+      min-height: 44px;
+
+      padding: 0 14px;
+
+      border-radius: 13px;
+
+      font-size: 0.86rem;
+
     }
 
     .why-shell {
-      display:grid;
-      grid-template-columns:1.05fr .95fr;
-      gap:24px;
+
+      display: grid;
+
+      grid-template-columns: 1.05fr 0.95fr;
+
+      gap: 24px;
+
     }
 
     .why-list {
-      list-style:none;
-      display:grid;
-      gap:14px;
+
+      list-style: none;
+
+      display: grid;
+
+      gap: 14px;
+
     }
 
     .why-list li {
-      display:flex;
-      gap:12px;
-      color:var(--muted);
-      line-height:1.6;
+
+      display: flex;
+
+      gap: 12px;
+
+      color: var(--muted);
+
+      line-height: 1.6;
+
     }
 
     .why-list li::before {
-      content:"";
-      width:10px;
-      height:10px;
-      border-radius:50%;
-      background:linear-gradient(135deg,var(--green),var(--cyan));
-      box-shadow:0 0 16px rgba(124,255,199,.45);
-      margin-top:7px;
-      flex:0 0 auto;
+
+      content: "";
+
+      width: 10px;
+
+      height: 10px;
+
+      border-radius: 50%;
+
+      background: linear-gradient(135deg, var(--green), var(--cyan));
+
+      box-shadow: 0 0 16px rgba(124, 255, 199, 0.45);
+
+      margin-top: 7px;
+
+      flex: 0 0 auto;
+
     }
 
     .faq-grid {
-      display:grid;
-      gap:16px;
+
+      display: grid;
+
+      gap: 16px;
+
     }
 
     .cta-card {
-      display:grid;
-      grid-template-columns:1.1fr .9fr;
-      gap:24px;
-      align-items:center;
+
+      display: grid;
+
+      grid-template-columns: 1.1fr 0.9fr;
+
+      gap: 24px;
+
+      align-items: center;
+
     }
 
     .cta-actions {
-      display:flex;
-      flex-direction:column;
-      gap:12px;
+
+      display: flex;
+
+      flex-direction: column;
+
+      gap: 12px;
+
+    }<section class="section" id="apply"><section class="card application-card">
+
+  <div class="section-head">
+    <h3>Transportation Assistance Application Portal</h3>
+
+    <p>
+      Submit a transportation assistance request directly to
+      Harvey Transportation Assistance Foundation.
+      Applications are reviewed based on program eligibility,
+      funding availability, transportation need, and supporting
+      documentation.
+    </p>
+  </div>
+
+  <form id="htafApplicationForm">
+
+    <div class="grid-3">
+
+      <div class="field">
+        <label>First Name *</label>
+        <input
+          type="text"
+          id="firstName"
+          required
+          placeholder="First Name"
+        />
+      </div>
+
+      <div class="field">
+        <label>Last Name *</label>
+        <input
+          type="text"
+          id="lastName"
+          required
+          placeholder="Last Name"
+        />
+      </div>
+
+      <div class="field">
+        <label>Email *</label>
+        <input
+          type="email"
+          id="email"
+          required
+          placeholder="you@example.com"
+        />
+      </div>
+
+      <div class="field">
+        <label>Phone *</label>
+        <input
+          type="tel"
+          id="phone"
+          required
+          placeholder="(615) 555-5555"
+        />
+      </div>
+
+      <div class="field">
+        <label>County *</label>
+        <input
+          type="text"
+          id="county"
+          required
+          placeholder="Davidson County"
+        />
+      </div>
+
+      <div class="field">
+        <label>City *</label>
+        <input
+          type="text"
+          id="city"
+          required
+          placeholder="Nashville"
+        />
+      </div>
+
+    </div>
+
+    <div class="field">
+      <label>Transportation Program *</label>
+
+      <select id="programType" required>
+        <option value="">
+          Select Program
+        </option>
+
+        <option value="medical">
+          Medical Transportation
+        </option>
+
+        <option value="employment">
+          Employment Transportation
+        </option>
+
+        <option value="veteran">
+          Veteran Transportation
+        </option>
+
+        <option value="senior">
+          Senior Mobility
+        </option>
+
+        <option value="disability">
+          Disability Transportation
+        </option>
+
+        <option value="education">
+          Education Transportation
+        </option>
+
+        <option value="general">
+          General Assistance
+        </option>
+      </select>
+    </div>
+
+    <div class="grid-3">
+
+      <div class="field">
+        <label>Pickup City *</label>
+
+        <input
+          type="text"
+          id="pickupCity"
+          required
+          placeholder="Pickup City"
+        />
+      </div>
+
+      <div class="field">
+        <label>Destination *</label>
+
+        <input
+          type="text"
+          id="destination"
+          required
+          placeholder="Clinic, Employer, School"
+        />
+      </div>
+
+      <div class="field">
+        <label>Ride Date Needed *</label>
+
+        <input
+          type="date"
+          id="rideDate"
+          required
+        />
+      </div>
+
+    </div>
+
+    <div class="field">
+      <label>
+        Explain Transportation Need *
+      </label>
+
+      <textarea
+        id="transportationNeed"
+        rows="6"
+        required
+        placeholder="Describe why transportation assistance is needed..."
+      ></textarea>
+    </div>
+
+    <div class="field">
+      <label>
+        Upload Supporting Documentation
+      </label>
+
+      <input
+        type="file"
+        id="supportingDocs"
+        multiple
+        accept=".pdf,.png,.jpg,.jpeg"
+      />
+
+      <small>
+        Appointment letters, disability documentation,
+        veteran paperwork, employment verification,
+        school documentation, etc.
+      </small>
+    </div>
+
+    <div class="status-box">
+      <strong>
+        Applicant Certification
+      </strong>
+
+      <span>
+        By submitting this application, you certify
+        the information provided is accurate and
+        understand submission does not guarantee
+        transportation assistance.
+      </span>
+    </div>
+
+    <label class="consent-row">
+
+      <input
+        type="checkbox"
+        id="consent"
+        required
+      />
+
+      <span class="consent-text">
+        I agree to the certification above.
+      </span>
+
+    </label>
+
+    <div class="hero-actions">
+
+      <button
+        type="submit"
+        class="btn btn-primary"
+      >
+        Submit Application
+      </button>
+
+      <button
+        type="button"
+        class="btn btn-secondary"
+        onclick="saveDraftApplication()"
+      >
+        Save Draft
+      </button>
+
+    </div>
+
+    <div
+      id="applicationStatus"
+      class="copy-status"
+    ></div>
+
+  </form>
+
+</section>    .field {
+
+      display: grid;
+
+      gap: 8px;
+
+      min-width: 0;
+
+      margin-top: 16px;
+
+    }
+
+    .field label {
+
+      color: var(--soft);
+
+      font-weight: 900;
+
+      font-size: 0.94rem;
+
+    }
+
+    .field input,
+
+    .field select,
+
+    .field textarea {
+
+      width: 100%;
+
+      min-height: 54px;
+
+      padding: 15px 16px;
+
+      border-radius: 16px;
+
+      border: 1px solid rgba(126, 166, 255, 0.32);
+
+      background: rgba(2, 8, 20, 0.78);
+
+      color: var(--text);
+
+      outline: none;
+
+      font-size: 1rem;
+
+      transition: 0.18s ease;
+
+    }
+
+    .field textarea {
+
+      resize: vertical;
+
+      min-height: 132px;
+
+    }
+
+    .field input::placeholder,
+
+    .field textarea::placeholder {
+
+      color: rgba(173, 187, 222, 0.62);
+
+    }
+
+    .field input:focus,
+
+    .field select:focus,
+
+    .field textarea:focus {
+
+      border-color: var(--cyan);
+
+      box-shadow: 0 0 0 4px rgba(115, 244, 255, 0.11);
+
+    }
+
+    .field input[type="file"] {
+
+      padding: 14px;
+
+      background: rgba(255, 255, 255, 0.04);
+
+      cursor: pointer;
+
+    }
+
+    .field small {
+
+      display: block;
+
+      color: var(--muted);
+
+      line-height: 1.55;
+
+      font-size: 0.84rem;
+
+    }
+
+    .consent-row {
+
+      display: flex;
+
+      align-items: flex-start;
+
+      gap: 13px;
+
+      margin-top: 18px;
+
+      padding: 16px;
+
+      border-radius: 18px;
+
+      border: 1px solid rgba(126, 166, 255, 0.22);
+
+      background: rgba(255, 255, 255, 0.035);
+
+      cursor: pointer;
+
+    }
+
+    .consent-row input {
+
+      width: 22px;
+
+      height: 22px;
+
+      margin-top: 2px;
+
+      accent-color: var(--cyan);
+
+      flex: 0 0 auto;
+
+    }
+
+    .consent-text {
+
+      font-size: 0.92rem;
+
+      font-weight: 800;
+
+    }
+
+    .application-card form {
+
+      margin-top: 8px;
+
+    }
+
+    .application-card .grid-3 {
+
+      align-items: start;
+
+    }
+
+    .application-card .hero-actions {
+
+      margin-top: 22px;
+
     }
 
     .copy-status {
-      display:none;
-      padding:12px 14px;
-      border-radius:14px;
-      font-size:.9rem;
-      line-height:1.5;
-      border:1px solid transparent;
-      margin-top:14px;
+
+      display: none;
+
+      padding: 14px 16px;
+
+      border-radius: 16px;
+
+      font-size: 0.92rem;
+
+      line-height: 1.5;
+
+      border: 1px solid transparent;
+
+      margin-top: 16px;
+
     }
 
     .copy-status.show {
-      display:block;
+
+      display: block;
+
     }
 
     .copy-status.ok {
-      background:rgba(124,255,199,.1);
-      border-color:rgba(124,255,199,.18);
-      color:var(--green);
+
+      background: rgba(124, 255, 199, 0.10);
+
+      border-color: rgba(124, 255, 199, 0.20);
+
+      color: var(--green);
+
     }
 
     .copy-status.err {
-      background:rgba(255,142,162,.1);
-      border-color:rgba(255,142,162,.18);
-      color:#ffcad4;
+
+      background: rgba(255, 126, 144, 0.12);
+
+      border-color: rgba(255, 126, 144, 0.24);
+
+      color: #ffd4dc;
+
     }
 
-    .bottom-nav {
-      position:fixed;
-      left:0;
-      right:0;
-      bottom:0;
-      min-height:calc(var(--navH) + env(safe-area-inset-bottom));
-      background:rgba(6,12,26,.96);
-      backdrop-filter:blur(20px);
-      -webkit-backdrop-filter:blur(20px);
-      border-top:1px solid rgba(255,255,255,.08);
-      display:flex;
-      justify-content:space-around;
-      align-items:flex-start;
-      padding:12px 8px calc(12px + env(safe-area-inset-bottom));
-      z-index:80;
+    .copy-status.info {
+
+      background: rgba(115, 244, 255, 0.10);
+
+      border-color: rgba(115, 244, 255, 0.20);
+
+      color: var(--cyan);
+
     }
 
-    .nav-btn {
-      color:var(--muted);
-      font-size:13px;
-      font-weight:900;
-      padding:10px;
-      border-radius:14px;
-      min-height:48px;
-      min-width:64px;
+    .application-card input.invalid,
+
+    .application-card select.invalid,
+
+    .application-card textarea.invalid {
+
+      border-color: var(--danger);
+
+      box-shadow: 0 0 0 4px rgba(255, 126, 144, 0.12);
+
     }
 
-    .nav-btn.active {
-      color:white;
-      background:rgba(255,255,255,.06);
+    .application-summary {
+
+      margin-top: 20px;
+
+      display: none;
+
+      padding: 18px;
+
+      border-radius: 20px;
+
+      border: 1px solid rgba(115, 244, 255, 0.20);
+
+      background: rgba(115, 244, 255, 0.055);
+
     }
 
-    .footer {
-      padding:40px 0 calc(40px + var(--navH));
+    .application-summary.show {
+
+      display: block;
+
     }
 
-    .footer-row {
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:18px;
-      flex-wrap:wrap;
-      color:var(--muted);
-      font-size:.92rem;
+    .application-summary strong {
+
+      display: block;
+
+      margin-bottom: 8px;
+
+      color: var(--cyan);
+
+      font-weight: 900;
+
     }
 
-    .footer-links {
-      display:flex;
-      gap:16px;
-      flex-wrap:wrap;
+    .application-summary span {
+
+      display: block;
+
+      color: var(--muted);
+
+      line-height: 1.55;
+
+      font-size: 0.92rem;
+
     }
 
-    @media(max-width:1080px) {
-      .hero-shell,
-      .why-shell,
-      .cta-card {
-        grid-template-columns:1fr;
+    @media(max-width: 900px) {
+
+      .application-card .grid-3 {
+
+        grid-template-columns: 1fr;
+
       }
 
-      .sticky-box {
-        position:static;
-      }
-
-      .stats-shell,
-      .process-grid {
-        grid-template-columns:1fr 1fr;
-      }
     }
 
-    @media(max-width:900px) {
-      .nav {
-        display:none;
+    @media(max-width: 640px) {
+
+      .field {
+
+        margin-top: 14px;
+
       }
 
-      .grid-3,
-      .impact-strip,
-      .trust-grid {
-        grid-template-columns:1fr;
+      .field input,
+
+      .field select,
+
+      .field textarea {
+
+        min-height: 52px;
+
+        font-size: 16px;
+
       }
 
-      .topbar-inner {
-        justify-content:flex-start;
+      .consent-row {
+
+        padding: 14px;
+
       }
+
+    }/* ==========================================
+
+   HTAF APPLICATION PORTAL
+
+   ========================================== */
+
+const APPLICATION_STORAGE_KEY =
+
+  "htaf_application_draft_v1";
+
+const applicationForm =
+
+  document.getElementById(
+
+    "htafApplicationForm"
+
+  );
+
+const applicationStatus =
+
+  document.getElementById(
+
+    "applicationStatus"
+
+  );
+
+function showApplicationStatus(
+
+  message,
+
+  type = "ok"
+
+) {
+
+  if (!applicationStatus) return;
+
+  applicationStatus.textContent =
+
+    message;
+
+  applicationStatus.className =
+
+    "copy-status show " + type;
+
+  window.clearTimeout(
+
+    showApplicationStatus._timer
+
+  );
+
+  showApplicationStatus._timer =
+
+    window.setTimeout(() => {
+
+      applicationStatus.className =
+
+        "copy-status";
+
+      applicationStatus.textContent = "";
+
+    }, 5000);
+
+}
+
+function getApplicationData() {
+
+  return {
+
+    first_name:
+
+      document.getElementById(
+
+        "firstName"
+
+      )?.value?.trim() || "",
+
+    last_name:
+
+      document.getElementById(
+
+        "lastName"
+
+      )?.value?.trim() || "",
+
+    email:
+
+      document.getElementById(
+
+        "email"
+
+      )?.value?.trim() || "",
+
+    phone:
+
+      document.getElementById(
+
+        "phone"
+
+      )?.value?.trim() || "",
+
+    county:
+
+      document.getElementById(
+
+        "county"
+
+      )?.value?.trim() || "",
+
+    city:
+
+      document.getElementById(
+
+        "city"
+
+      )?.value?.trim() || "",
+
+    program_type:
+
+      document.getElementById(
+
+        "programType"
+
+      )?.value || "",
+
+    pickup_city:
+
+      document.getElementById(
+
+        "pickupCity"
+
+      )?.value?.trim() || "",
+
+    destination:
+
+      document.getElementById(
+
+        "destination"
+
+      )?.value?.trim() || "",
+
+    ride_date:
+
+      document.getElementById(
+
+        "rideDate"
+
+      )?.value || "",
+
+    transportation_need:
+
+      document.getElementById(
+
+        "transportationNeed"
+
+      )?.value?.trim() || "",
+
+    submitted_at:
+
+      new Date().toISOString()
+
+  };
+
+}
+
+function validateApplication() {
+
+  let valid = true;
+
+  const fields = [
+
+    "firstName",
+
+    "lastName",
+
+    "email",
+
+    "phone",
+
+    "county",
+
+    "city",
+
+    "programType",
+
+    "pickupCity",
+
+    "destination",
+
+    "rideDate",
+
+    "transportationNeed"
+
+  ];
+
+  fields.forEach((id) => {
+
+    const el =
+
+      document.getElementById(id);
+
+    if (!el) return;
+
+    el.classList.remove("invalid");
+
+    if (!String(el.value).trim()) {
+
+      valid = false;
+
+      el.classList.add("invalid");
+
     }
 
-    @media(max-width:640px) {
-      .shell {
-        width:min(var(--maxw),calc(100% - 24px));
-      }
+  });
 
-      .topbar-inner {
-        min-height:auto;
-        padding:18px 0;
-      }
+  const consent =
 
-      .brand {
-        align-items:flex-start;
-        gap:14px;
-        width:100%;
-      }
+    document.getElementById(
 
-      .brand-mark {
-        width:64px;
-        height:64px;
-        border-radius:20px;
-        font-size:1.3rem;
-      }
+      "consent"
 
-      .brand-copy h1 {
-        font-size:1.48rem;
-        line-height:1.16;
-        letter-spacing:-.035em;
-      }
+    );
 
-      .brand-copy p {
-        white-space:normal;
-        font-size:.98rem;
-        line-height:1.45;
-        max-width:270px;
-      }
+  if (!consent?.checked) {
 
-      .hero {
-        padding-top:24px;
-      }
+    valid = false;
 
-      .hero-card,
-      .spotlight-card,
-      .section-card,
-      .why-card,
-      .cta-card {
-        padding:24px;
-        border-radius:24px;
-      }
+  }
 
-      .hero-card h2 {
-        font-size:2.15rem;
-        line-height:1.08;
-      }
+  if (!valid) {
 
-      .hero-card p {
-        font-size:1rem;
-      }
+    showApplicationStatus(
 
-      .hero-actions,
-      .preview-actions {
-        flex-direction:column;
-      }
+      "Please complete all required fields.",
 
-      .btn {
-        width:100%;
-      }
+      "err"
 
-      .program-actions {
-        grid-template-columns:1fr;
-      }
+    );
 
-      .stats-shell,
-      .process-grid {
-        grid-template-columns:1fr;
-      }
+  }
 
-      .bottom-nav {
-        justify-content:flex-start;
-        overflow-x:auto;
-        gap:6px;
-      }
+  return valid;
 
-      .nav-btn {
-        flex:0 0 auto;
-      }
+}
+
+function saveDraftApplication() {
+
+  try {
+
+    const payload =
+
+      getApplicationData();
+
+    localStorage.setItem(
+
+      APPLICATION_STORAGE_KEY,
+
+      JSON.stringify(payload)
+
+    );
+
+    showApplicationStatus(
+
+      "Application draft saved.",
+
+      "info"
+
+    );
+
+    trackFoundationIntent(
+
+      "application_draft_saved"
+
+    );
+
+  } catch (error) {
+
+    showApplicationStatus(
+
+      "Unable to save draft.",
+
+      "err"
+
+    );
+
+  }
+
+}
+
+function loadDraftApplication() {
+
+  try {
+
+    const raw =
+
+      localStorage.getItem(
+
+        APPLICATION_STORAGE_KEY
+
+      );
+
+    if (!raw) return;
+
+    const draft =
+
+      JSON.parse(raw);
+
+    document.getElementById(
+
+      "firstName"
+
+    ).value =
+
+      draft.first_name || "";
+
+    document.getElementById(
+
+      "lastName"
+
+    ).value =
+
+      draft.last_name || "";
+
+    document.getElementById(
+
+      "email"
+
+    ).value =
+
+      draft.email || "";
+
+    document.getElementById(
+
+      "phone"
+
+    ).value =
+
+      draft.phone || "";
+
+    document.getElementById(
+
+      "county"
+
+    ).value =
+
+      draft.county || "";
+
+    document.getElementById(
+
+      "city"
+
+    ).value =
+
+      draft.city || "";
+
+    document.getElementById(
+
+      "programType"
+
+    ).value =
+
+      draft.program_type || "";
+
+    document.getElementById(
+
+      "pickupCity"
+
+    ).value =
+
+      draft.pickup_city || "";
+
+    document.getElementById(
+
+      "destination"
+
+    ).value =
+
+      draft.destination || "";
+
+    document.getElementById(
+
+      "rideDate"
+
+    ).value =
+
+      draft.ride_date || "";
+
+    document.getElementById(
+
+      "transportationNeed"
+
+    ).value =
+
+      draft.transportation_need || "";
+
+  } catch (error) {
+
+    console.warn(error);
+
+  }
+
+}
+
+async function submitApplication(
+
+  payload
+
+) {
+
+  const response = await fetch(
+
+    `${window.HARVEY_API_BASE}/api/foundation/apply`,
+
+    {
+
+      method: "POST",
+
+      headers: {
+
+        "Content-Type":
+
+          "application/json"
+
+      },
+
+      body: JSON.stringify(
+
+        payload
+
+      )
+
     }
-  </style>
-</head>
 
-<body>
-  <header class="topbar">
-    <div class="shell topbar-inner">
-      <a href="index.html" class="brand" aria-label="Harvey Taxi home">
-        <div class="brand-mark">
-          <img
-            src="/images/foundation-logo.png"
-            alt="Harvey Transportation Assistance Foundation Logo"
-            onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=&quot;brand-fallback&quot;>HT</div>';"
-          />
-        </div>
+  );
 
-        <div class="brand-copy">
-          <h1>Harvey Transportation Assistance Foundation</h1>
-          <p>Transportation Access • Community Impact • Mobility Support</p>
-        </div>
-      </a>
+  if (!response.ok) {
 
-      <nav class="nav" aria-label="Primary navigation">
-        <a href="index.html">Home</a>
-        <a href="#impact">Impact</a>
-        <a href="#programs">Programs</a>
-        <a href="#apply">Apply</a>
-        <a href="#process">How It Works</a>
-        <a href="#faq">FAQ</a>
-        <a href="support.html">Support</a>
-        <a href="#donate" class="cta">Donate</a>
-      </nav>
-    </div>
-  </header>
+    throw new Error(
 
-  <main>
-    <section class="hero">
-      <div class="shell hero-shell">
-        <div>
-          <section class="card hero-card">
-            <div class="hero-content">
-              <div class="eyebrow">Tennessee Transportation Assistance Initiative</div>
+      "Application submission failed."
 
-              <h2>Transportation should never be the reason someone misses opportunity.</h2>
+    );
 
-              <p>
-                Harvey Transportation Assistance Foundation helps remove transportation barriers for individuals and families facing challenges accessing healthcare, employment, education, veteran services, senior mobility, disability access, and essential community support.
-              </p>
+  }
 
-              <div class="hero-actions">
-                <a href="#apply" class="btn btn-primary">Apply for Assistance</a>
-                <a href="#programs" class="btn btn-secondary">View Programs</a>
-                <a href="https://www.paypal.com/us/fundraiser/charity/5906918" target="_blank" rel="noopener noreferrer" class="btn btn-gold">
-                  💙 Donate via PayPal Giving Fund
-                </a>
-              </div>
-            </div>
-          </section>
+  return response.json();
 
-          <section class="impact-strip">
-            <article class="impact-mini">
-              <strong>Medical rides</strong>
-              <span>Healthcare visits, treatment, pharmacy needs, and appointments.</span>
-            </article>
+}
 
-            <article class="impact-mini">
-              <strong>Senior, disability & veteran support</strong>
-              <span>Essential transportation for people facing mobility barriers.</span>
-            </article>
+if (applicationForm) {
 
-            <article class="impact-mini">
-              <strong>Employment access</strong>
-              <span>Transportation to interviews, job training, orientation, and work.</span>
-            </article>
-          </section>
-        </div>
+  applicationForm.addEventListener(
 
-        <aside>
-          <div class="sticky-box">
-            <section class="card spotlight-card" id="donate">
-              <h3>Support Transportation Access</h3>
+    "submit",
 
-              <p>
-                Your donation helps support transportation assistance programs built around intake, eligibility review, ride coordination, provider verification, and ride tracking.
-              </p>
+    async (event) => {
 
-              <div class="trust-grid">
-                <div class="trust-pill"><strong>Official Programs</strong>HTAF-100 through HTAF-800.</div>
-                <div class="trust-pill"><strong>Secure Giving</strong>PayPal Giving Fund donation portal.</div>
-                <div class="trust-pill"><strong>Ride Support</strong>Eligible transportation coordination.</div>
-                <div class="trust-pill"><strong>Grant Ready</strong>Tracking and reporting structure.</div>
-              </div>
+      event.preventDefault();
 
-              <div class="link-preview">
-                <div class="preview-badge">Verified PayPal Giving Fund</div>
-                <h4 class="preview-title">Donate securely today</h4>
-                <p class="preview-copy">Every contribution supports transportation assistance programs designed to improve mobility and access throughout Tennessee.</p>
+      if (
 
-                <a class="preview-link" href="https://www.paypal.com/us/fundraiser/charity/5906918" target="_blank" rel="noopener noreferrer">
-                  https://www.paypal.com/us/fundraiser/charity/5906918
-                </a>
+        !validateApplication()
 
-                <div class="preview-actions">
-                  <a href="https://www.paypal.com/us/fundraiser/charity/5906918" target="_blank" rel="noopener noreferrer" class="btn btn-gold btn-compact">Donate Now</a>
-                  <button class="btn btn-secondary btn-compact" type="button" onclick="copyDonationLink()">Copy Link</button>
-                </div>
-              </div>
+      ) {
 
-              <div id="copyStatus" class="copy-status"></div>
-            </section>
-          </div>
-        </aside>
-      </div>
-    </section>
+        return;
 
-    <section class="section" id="apply">
-      <div class="shell">
-        <section class="card section-card">
-          <div class="section-head">
-            <h3>Apply for Transportation Assistance</h3>
-            <p>Choose the program that best fits your need. If you are unsure, start with the rider intake application.</p>
-          </div>
+      }
 
-          <div class="grid-3">
-            <article class="feature-card">
-              <div class="feature-icon">📝</div>
-              <h4>Start General Intake</h4>
-              <p>Begin with HTAF-100 Rider Intake & Eligibility for review.</p>
-              <div class="program-actions">
-                <a class="btn btn-primary" href="htaf-100-intake.html">Apply Online</a>
-                <a class="btn btn-secondary" href="/forms/HTAF-100-rider-intake.pdf">PDF Form</a>
-              </div>
-            </article>
+      const submitButton =
 
-            <article class="feature-card">
-              <div class="feature-icon">🏥</div>
-              <h4>Medical Ride Assistance</h4>
-              <p>Apply for help reaching approved medical appointments or treatment.</p>
-              <div class="program-actions">
-                <a class="btn btn-primary" href="htaf-200-medical.html">Apply Online</a>
-                <a class="btn btn-secondary" href="/forms/HTAF-200-medical-transportation.pdf">PDF Form</a>
-              </div>
-            </article>
+        applicationForm.querySelector(
 
-            <article class="feature-card">
-              <div class="feature-icon">💼</div>
-              <h4>Employment Transportation</h4>
-              <p>Apply for transportation help for job interviews, training, or work access.</p>
-              <div class="program-actions">
-                <a class="btn btn-primary" href="htaf-600-employment.html">Apply Online</a>
-                <a class="btn btn-secondary" href="/forms/HTAF-600-employment-transportation.pdf">PDF Form</a>
-              </div>
-            </article>
-          </div>
-        </section>
-      </div>
-    </section>
+          'button[type="submit"]'
 
-    <section class="section" id="impact">
-      <div class="shell">
-        <section class="card section-card">
-          <div class="section-head">
-            <h3>Community Impact Areas</h3>
-            <p>Transportation access affects healthcare, employment, education, senior independence, disability access, veteran support, and essential daily mobility.</p>
-          </div>
+        );
 
-          <div class="grid-3">
-            <article class="feature-card"><div class="feature-icon">🏥</div><h4>Medical Transportation</h4><p>Helping eligible individuals reach healthcare appointments, treatment facilities, pharmacies, and wellness services.</p></article>
-            <article class="feature-card"><div class="feature-icon">👵</div><h4>Senior Mobility</h4><p>Supporting seniors who need reliable transportation for care, essential needs, community services, and independence.</p></article>
-            <article class="feature-card"><div class="feature-icon">♿</div><h4>Disability Transportation</h4><p>Helping individuals with disabilities and mobility limitations access approved transportation assistance.</p></article>
-            <article class="feature-card"><div class="feature-icon">🇺🇸</div><h4>Veteran Assistance</h4><p>Supporting veterans with transportation access to healthcare, services, employment, and community resources.</p></article>
-            <article class="feature-card"><div class="feature-icon">💼</div><h4>Employment Mobility</h4><p>Helping people reach job interviews, workforce training, orientation, employment services, and work opportunities.</p></article>
-            <article class="feature-card"><div class="feature-icon">📋</div><h4>Program Tracking</h4><p>Monthly ride tracking and provider verification support responsible program administration and future grant reporting.</p></article>
-          </div>
-        </section>
-      </div>
-    </section>
+      const originalText =
 
-    <section class="section" id="programs">
-      <div class="shell">
-        <section class="card section-card">
-          <div class="section-head">
-            <h3>Official Assistance Programs</h3>
-            <p>Structured transportation assistance programs aligned with the Harvey Transportation Assistance Foundation mission.</p>
-          </div>
+        submitButton.textContent;
 
-          <div class="grid-3">
-            <article class="feature-card"><div class="feature-icon">📝</div><h4>HTAF-100 Rider Intake & Eligibility</h4><p>Initial intake, eligibility review, applicant certification, and transportation assistance determination.</p></article>
-            <article class="feature-card"><div class="feature-icon">🏥</div><h4>HTAF-200 Medical Transportation</h4><p>Transportation assistance for medical appointments, treatment, healthcare providers, and pharmacy access.</p></article>
-            <article class="feature-card"><div class="feature-icon">👵</div><h4>HTAF-300 Senior Mobility</h4><p>Transportation assistance helping seniors maintain independence and reach essential services.</p></article>
-            <article class="feature-card"><div class="feature-icon">♿</div><h4>HTAF-400 Disability Transportation</h4><p>Transportation support for individuals with disabilities and mobility challenges.</p></article>
-            <article class="feature-card"><div class="feature-icon">🇺🇸</div><h4>HTAF-500 Veteran Transportation</h4><p>Transportation assistance for veterans accessing healthcare, services, employment, and resources.</p></article>
-            <article class="feature-card"><div class="feature-icon">💼</div><h4>HTAF-600 Employment Transportation</h4><p>Transportation assistance helping individuals reach job opportunities and workforce programs.</p></article>
-            <article class="feature-card"><div class="feature-icon">✅</div><h4>HTAF-700 Medical Provider Verification</h4><p>Provider verification supporting medical transportation eligibility and documentation.</p></article>
-            <article class="feature-card"><div class="feature-icon">📊</div><h4>HTAF-800 Monthly Ride Tracking</h4><p>Ride tracking for program administration, reporting, compliance review, and grant readiness.</p></article>
-            <article class="feature-card"><div class="feature-icon">🚗</div><h4>Ride Coordination Support</h4><p>Approved transportation tools may support eligible rides when funding is available.</p></article>
-          </div>
-        </section>
-      </div>
-    </section>
-
-    <section class="section" id="process">
-      <div class="shell">
-        <section class="card section-card">
-          <div class="section-head">
-            <h3>How Assistance Works</h3>
-            <p>The assistance process directs transportation resources toward eligible individuals while supporting responsible program administration.</p>
-          </div>
-
-          <div class="process-grid">
-            <div class="process-card"><strong>Step 1</strong><span>Complete rider intake and eligibility application.</span></div>
-            <div class="process-card"><strong>Step 2</strong><span>Submit eligibility details and program need statement.</span></div>
-            <div class="process-card"><strong>Step 3</strong><span>Foundation reviews program fit, verification, and available support.</span></div>
-            <div class="process-card"><strong>Step 4</strong><span>Approved ride assistance is coordinated and tracked.</span></div>
-          </div>
-        </section>
-      </div>
-    </section>
-
-    <section class="section" id="why-give">
-      <div class="shell why-shell">
-        <section class="card why-card">
-          <h3>Why Give?</h3>
-          <ul class="why-list">
-            <li>Help remove transportation barriers for individuals and families.</li>
-            <li>Support access to healthcare, employment, education, and essential services.</li>
-            <li>Strengthen transportation-focused community assistance.</li>
-            <li>Support senior mobility, disability access, and veteran transportation needs.</li>
-            <li>Help build a grant-ready transportation assistance infrastructure.</li>
-          </ul>
-        </section>
-
-        <section class="card why-card">
-          <h3>Our Mission</h3>
-          <p>
-            Harvey Transportation Assistance Foundation exists to reduce transportation-related hardship by helping connect people with care, services, work opportunities, education, and community resources that improve quality of life.
-          </p>
-        </section>
-      </div>
-    </section>
-
-    <section class="section" id="faq">
-      <div class="shell">
-        <section class="card section-card">
-          <div class="section-head">
-            <h3>Frequently Asked Questions</h3>
-            <p>Common questions from applicants, supporters, donors, partners, and community members.</p>
-          </div>
-
-          <div class="faq-grid">
-            <article class="faq-item"><strong>What programs does the foundation support?</strong><span>Medical, senior, disability, veteran, employment, intake, provider verification, and ride tracking programs.</span></article>
-            <article class="faq-item"><strong>Who may be eligible?</strong><span>Eligibility may include seniors, people with disabilities, veterans, low-income applicants, Medicaid recipients, and others with transportation need.</span></article>
-            <article class="faq-item"><strong>How can I support the foundation?</strong><span>Donations can be made securely through the PayPal Giving Fund donation portal.</span></article>
-            <article class="faq-item"><strong>Is the foundation separate from Harvey Taxi?</strong><span>Yes. The foundation is a nonprofit-focused mission and remains separate from for-profit taxi platform operations.</span></article>
-          </div>
-        </section>
-      </div>
-    </section>
-
-    <section class="section">
-      <div class="shell">
-        <section class="card cta-card">
-          <div class="cta-copy">
-            <h3>Every donation helps someone move forward.</h3>
-            <p>Join the mission to reduce transportation barriers and create access to healthcare, employment, education, senior mobility, disability support, veteran resources, and essential services.</p>
-          </div>
-
-          <div class="cta-actions">
-            <a href="#apply" class="btn btn-primary">Apply for Assistance</a>
-            <a href="https://www.paypal.com/us/fundraiser/charity/5906918" target="_blank" rel="noopener noreferrer" class="btn btn-gold">💙 Donate Securely</a>
-            <button class="btn btn-secondary" type="button" onclick="openHarveyAiChat()">Ask AI Support</button>
-          </div>
-        </section>
-      </div>
-    </section>
-  </main>
-
-  <footer class="footer">
-    <div class="shell footer-row">
-      <div>© 2026 Harvey Transportation Assistance Foundation</div>
-
-      <div class="footer-links">
-        <a href="index.html">Home</a>
-        <a href="support.html">Support</a>
-        <a href="privacy.html">Privacy</a>
-        <a href="terms.html">Terms</a>
-        <a href="https://www.paypal.com/us/fundraiser/charity/5906918" target="_blank" rel="noopener noreferrer">Donate</a>
-      </div>
-    </div>
-  </footer>
-
-  <nav class="bottom-nav" aria-label="Foundation bottom navigation">
-    <button class="nav-btn" type="button" onclick="window.location.href='index.html'">Home</button>
-    <button class="nav-btn" type="button" onclick="window.location.href='request-ride.html?mode=driver'">Rides</button>
-    <button class="nav-btn active" type="button">Foundation</button>
-    <button class="nav-btn" type="button" onclick="window.location.href='support.html'">Support</button>
-    <button class="nav-btn" type="button" onclick="openHarveyAiChat()">AI Help</button>
-  </nav>
-
-  <script src="/ai-support-widget.js"></script>
-
-  <script>
-    const DONATION_LINK = "https://www.paypal.com/us/fundraiser/charity/5906918";
-    const copyStatusEl = document.getElementById("copyStatus");
-
-    window.HARVEY_API_BASE =
-      window.location.origin && window.location.origin.includes("http")
-        ? window.location.origin
-        : "";
-
-    window.HARVEY_AI_CONTEXT = {
-      page: "foundation",
-      organization: "Harvey Transportation Assistance Foundation",
-      mission: "Transportation assistance for medical, senior, disability, veteran, employment, school, and essential mobility needs.",
-      donationUrl: DONATION_LINK
-    };
-
-    function trackFoundationIntent(eventName, params = {}) {
       try {
-        if (typeof gtag === "function") {
-          gtag("event", eventName, {
-            event_category: "foundation_engagement",
-            event_label: eventName,
-            page_location: window.location.href,
-            ...params
-          });
-        }
-      } catch (error) {}
-    }
 
-    document.querySelectorAll('a[href*="paypal.com/us/fundraiser/charity/5906918"]').forEach((link) => {
-      link.addEventListener("click", function () {
-        trackFoundationIntent("donation_intent");
-      });
-    });
+        submitButton.disabled =
 
-    function showCopyStatus(message, ok = true) {
-      if (!copyStatusEl) return;
+          true;
 
-      copyStatusEl.textContent = message;
-      copyStatusEl.className = "copy-status show " + (ok ? "ok" : "err");
+        submitButton.textContent =
 
-      window.clearTimeout(showCopyStatus._timer);
-      showCopyStatus._timer = window.setTimeout(() => {
-        copyStatusEl.className = "copy-status";
-        copyStatusEl.textContent = "";
-      }, 2500);
-    }
+          "Submitting...";
 
-    async function copyDonationLink() {
-      try {
-        await navigator.clipboard.writeText(DONATION_LINK);
-        showCopyStatus("Donation link copied successfully.");
-        trackFoundationIntent("donation_link_copied");
+        const payload =
+
+          getApplicationData();
+
+        await submitApplication(
+
+          payload
+
+        );
+
+        localStorage.removeItem(
+
+          APPLICATION_STORAGE_KEY
+
+        );
+
+        applicationForm.reset();
+
+        showApplicationStatus(
+
+          "Application submitted successfully. HTAF will review your request.",
+
+          "ok"
+
+        );
+
+        trackFoundationIntent(
+
+          "application_submitted"
+
+        );
+
       } catch (error) {
-        showCopyStatus("Unable to copy automatically. Please copy the link manually.", false);
+
+        console.error(error);
+
+        showApplicationStatus(
+
+          "Submission unavailable. Please try again later.",
+
+          "err"
+
+        );
+
+      } finally {
+
+        submitButton.disabled =
+
+          false;
+
+        submitButton.textContent =
+
+          originalText;
+
       }
+
     }
 
-    function openHarveyAiChat() {
-      try {
-        if (window.HarveyAI && typeof window.HarveyAI.open === "function") {
-          window.HarveyAI.open();
-          return;
-        }
+  );
 
-        const root = document.getElementById("harvey-ai-chat-root");
+}
 
-        if (root) {
-          const toggle =
-            root.querySelector("[data-harvey-ai-open]") ||
-            root.querySelector(".harvey-ai-launch") ||
-            root.querySelector("button");
+window.addEventListener(
 
-          if (toggle && typeof toggle.click === "function") {
-            toggle.click();
-            return;
-          }
-        }
-      } catch (error) {}
+  "load",
 
-      window.location.href = "support.html";
-    }
+  loadDraftApplication
 
-    window.addEventListener("load", function () {
-      trackFoundationIntent("foundation_page_view");
-
-      window.setTimeout(function () {
-        if (!document.getElementById("harvey-ai-chat-root")) {
-          const root = document.createElement("div");
-          root.id = "harvey-ai-chat-root";
-          document.body.appendChild(root);
-        }
-      }, 80);
-    });
-  </script>
-</body>
-</html>
+);
