@@ -1,0 +1,4353 @@
+<!DOCTYPE html>
+
+<html lang="en" dir="ltr">
+
+<head>
+
+  <meta charset="UTF-8" />
+
+  <meta
+
+    name="viewport"
+
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+
+  />
+
+  <title>HTAF Admin Operations | Harvey Transportation Assistance Foundation</title>
+
+  <meta
+
+    name="description"
+
+    content="HTAF admin operations dashboard for transportation assistance applications, approvals, document requests, ride scheduling, and reporting."
+
+  />
+
+  <meta name="robots" content="noindex, nofollow" />
+
+  <meta name="theme-color" content="#050b18" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+  <link
+
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+
+    rel="stylesheet"
+
+  />
+
+  <link rel="stylesheet" href="/ai-support-widget.css" />
+
+  <style>
+
+    :root {
+
+      --bg1:#030712;
+
+      --bg2:#071426;
+
+      --bg3:#0f2a4d;
+
+      --panel:rgba(7,14,32,.94);
+
+      --panel2:rgba(11,24,52,.9);
+
+      --glass:rgba(255,255,255,.045);
+
+      --line:rgba(126,166,255,.18);
+
+      --lineStrong:rgba(126,166,255,.36);
+
+      --text:#f6f9ff;
+
+      --muted:#aebde2;
+
+      --soft:#dce8ff;
+
+      --cyan:#73f4ff;
+
+      --blue:#6aa7ff;
+
+      --green:#7cffc7;
+
+      --gold:#ffd978;
+
+      --red:#ff7e90;
+
+      --purple:#a78bfa;
+
+      --orange:#ffb86b;
+
+      --ink:#04101c;
+
+      --shadow:0 24px 80px rgba(0,0,0,.45);
+
+      --shadowSoft:0 14px 34px rgba(0,0,0,.25);
+
+      --radiusXL:30px;
+
+      --radiusLG:22px;
+
+      --navH:86px;
+
+      --maxw:1440px;
+
+      --safeBottom:env(safe-area-inset-bottom);
+
+    }
+
+    * {
+
+      box-sizing:border-box;
+
+      margin:0;
+
+      padding:0;
+
+    }
+
+    html {
+
+      scroll-behavior:smooth;
+
+      -webkit-font-smoothing:antialiased;
+
+      background:var(--bg1);
+
+    }
+
+    body {
+
+      min-height:100vh;
+
+      overflow-x:hidden;
+
+      color:var(--text);
+
+      font-family:
+
+        "Inter",
+
+        system-ui,
+
+        -apple-system,
+
+        BlinkMacSystemFont,
+
+        "Segoe UI",
+
+        sans-serif;
+
+      padding-bottom:
+
+        calc(var(--navH) + var(--safeBottom) + 18px);
+
+      background:
+
+        radial-gradient(circle at top left,rgba(115,244,255,.14),transparent 24%),
+
+        radial-gradient(circle at top right,rgba(106,167,255,.14),transparent 24%),
+
+        radial-gradient(circle at center bottom,rgba(124,255,199,.07),transparent 32%),
+
+        linear-gradient(180deg,var(--bg1),var(--bg2) 52%,var(--bg3));
+
+    }
+
+    body::before {
+
+      content:"";
+
+      position:fixed;
+
+      inset:0;
+
+      pointer-events:none;
+
+      background:
+
+        linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),
+
+        linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
+
+      background-size:52px 52px;
+
+      mask-image:linear-gradient(to bottom,rgba(0,0,0,.86),transparent 78%);
+
+      z-index:0;
+
+    }
+
+    a {
+
+      color:inherit;
+
+      text-decoration:none;
+
+    }
+
+    button,
+
+    input,
+
+    select,
+
+    textarea,
+
+    a {
+
+      font:inherit;
+
+      -webkit-tap-highlight-color:transparent;
+
+      touch-action:manipulation;
+
+    }
+
+    button {
+
+      border:0;
+
+      background:none;
+
+      color:inherit;
+
+      cursor:pointer;
+
+    }
+
+    button:disabled {
+
+      opacity:.55;
+
+      cursor:not-allowed;
+
+    }
+
+    .hidden {
+
+      display:none !important;
+
+    }
+
+    .shell {
+
+      width:min(var(--maxw),calc(100% - 28px));
+
+      margin:0 auto;
+
+      position:relative;
+
+      z-index:1;
+
+    }
+
+    .topbar {
+
+      position:sticky;
+
+      top:0;
+
+      z-index:80;
+
+      background:rgba(3,7,18,.86);
+
+      border-bottom:1px solid rgba(255,255,255,.08);
+
+      backdrop-filter:blur(20px);
+
+      -webkit-backdrop-filter:blur(20px);
+
+    }
+
+    .topbar-inner {
+
+      min-height:94px;
+
+      display:flex;
+
+      align-items:center;
+
+      justify-content:space-between;
+
+      gap:18px;
+
+      padding:14px 0;
+
+    }
+
+    .brand {
+
+      display:flex;
+
+      align-items:center;
+
+      gap:16px;
+
+      min-width:0;
+
+    }
+
+    .brand-mark {
+
+      width:66px;
+
+      height:66px;
+
+      border-radius:21px;
+
+      display:grid;
+
+      place-items:center;
+
+      background:linear-gradient(135deg,var(--cyan),var(--blue));
+
+      color:var(--ink);
+
+      font-weight:950;
+
+      font-size:1.2rem;
+
+      box-shadow:0 14px 34px rgba(106,167,255,.28);
+
+      flex:0 0 auto;
+
+    }
+
+    .brand-copy {
+
+      min-width:0;
+
+    }
+
+    .brand-copy h1 {
+
+      font-size:clamp(1.25rem,2.6vw,1.9rem);
+
+      line-height:1.1;
+
+      letter-spacing:-.035em;
+
+      font-weight:950;
+
+    }
+
+    .brand-copy p {
+
+      margin-top:6px;
+
+      color:var(--muted);
+
+      font-size:.94rem;
+
+      line-height:1.45;
+
+    }
+
+    .top-actions {
+
+      display:flex;
+
+      align-items:center;
+
+      justify-content:flex-end;
+
+      gap:10px;
+
+      flex-wrap:wrap;
+
+    }
+
+    .btn {
+
+      min-height:46px;
+
+      display:inline-flex;
+
+      align-items:center;
+
+      justify-content:center;
+
+      gap:9px;
+
+      padding:0 18px;
+
+      border-radius:14px;
+
+      font-weight:900;
+
+      font-size:.92rem;
+
+      border:1px solid transparent;
+
+      transition:.18s ease;
+
+      white-space:nowrap;
+
+    }
+
+    .btn:hover,
+
+    .btn:focus-visible {
+
+      transform:translateY(-2px);
+
+      filter:brightness(1.05);
+
+    }
+
+    .btn-primary {
+
+      color:var(--ink);
+
+      background:linear-gradient(135deg,var(--cyan),var(--blue));
+
+      box-shadow:0 14px 34px rgba(106,167,255,.24);
+
+    }
+
+    .btn-secondary {
+
+      color:var(--text);
+
+      background:rgba(255,255,255,.045);
+
+      border-color:rgba(255,255,255,.08);
+
+    }
+
+    .btn-danger {
+
+      color:#35070d;
+
+      background:linear-gradient(135deg,#ff9cad,#ff7e90);
+
+    }
+
+    .btn-success {
+
+      color:#032014;
+
+      background:linear-gradient(135deg,var(--green),var(--cyan));
+
+    }
+
+    .btn-gold {
+
+      color:#211500;
+
+      background:linear-gradient(135deg,#ffe9a6,var(--gold));
+
+    }    .hero {
+
+      padding:28px 0 16px;
+
+    }
+
+    .hero-grid {
+
+      display:grid;
+
+      grid-template-columns:minmax(0,1.1fr) minmax(340px,.9fr);
+
+      gap:20px;
+
+      align-items:start;
+
+    }
+
+    .card {
+
+      position:relative;
+
+      overflow:hidden;
+
+      border-radius:var(--radiusXL);
+
+      border:1px solid var(--line);
+
+      background:
+
+        linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.015)),
+
+        linear-gradient(180deg,rgba(11,24,52,.9),rgba(4,10,28,.98));
+
+      box-shadow:var(--shadow);
+
+    }
+
+    .hero-card,
+
+    .panel-card,
+
+    .queue-card,
+
+    .detail-card,
+
+    .metric-card {
+
+      padding:26px;
+
+    }
+
+    .hero-card::before {
+
+      content:"";
+
+      position:absolute;
+
+      right:-100px;
+
+      top:-100px;
+
+      width:260px;
+
+      height:260px;
+
+      border-radius:50%;
+
+      background:radial-gradient(circle,rgba(115,244,255,.17),transparent 70%);
+
+      pointer-events:none;
+
+    }
+
+    .eyebrow {
+
+      display:inline-flex;
+
+      align-items:center;
+
+      gap:9px;
+
+      margin-bottom:16px;
+
+      padding:8px 13px;
+
+      border-radius:999px;
+
+      border:1px solid rgba(255,255,255,.08);
+
+      background:rgba(255,255,255,.04);
+
+      color:var(--cyan);
+
+      font-size:.78rem;
+
+      font-weight:950;
+
+      letter-spacing:.065em;
+
+      text-transform:uppercase;
+
+    }
+
+    .hero-card h2 {
+
+      position:relative;
+
+      z-index:2;
+
+      max-width:820px;
+
+      font-size:clamp(2rem,4vw,3.1rem);
+
+      line-height:1.05;
+
+      letter-spacing:-.045em;
+
+      font-weight:950;
+
+      margin-bottom:14px;
+
+    }
+
+    .hero-card p,
+
+    .panel-copy,
+
+    .metric-card span,
+
+    .queue-meta,
+
+    .detail-muted,
+
+    .empty-state p {
+
+      color:var(--muted);
+
+      line-height:1.6;
+
+    }
+
+    .hero-card p {
+
+      position:relative;
+
+      z-index:2;
+
+      font-size:1.02rem;
+
+      max-width:780px;
+
+    }
+
+    .hero-actions {
+
+      position:relative;
+
+      z-index:2;
+
+      display:flex;
+
+      flex-wrap:wrap;
+
+      gap:12px;
+
+      margin-top:22px;
+
+    }
+
+    .metrics-grid {
+
+      display:grid;
+
+      grid-template-columns:repeat(4,minmax(0,1fr));
+
+      gap:14px;
+
+      margin-top:18px;
+
+    }
+
+    .metric-card {
+
+      border-radius:24px;
+
+      background:
+
+        linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.012));
+
+      border:1px solid rgba(255,255,255,.07);
+
+      box-shadow:var(--shadowSoft);
+
+      min-height:132px;
+
+    }
+
+    .metric-card strong {
+
+      display:block;
+
+      font-size:2rem;
+
+      line-height:1;
+
+      color:var(--cyan);
+
+      font-weight:950;
+
+      margin-bottom:10px;
+
+    }
+
+    .metric-card span {
+
+      display:block;
+
+      font-size:.9rem;
+
+    }
+
+    .metric-card small {
+
+      display:inline-flex;
+
+      margin-top:12px;
+
+      padding:6px 10px;
+
+      border-radius:999px;
+
+      color:var(--green);
+
+      background:rgba(124,255,199,.09);
+
+      border:1px solid rgba(124,255,199,.16);
+
+      font-weight:900;
+
+      font-size:.72rem;
+
+    }
+
+    .ops-layout {
+
+      display:grid;
+
+      grid-template-columns:minmax(0,1fr) 420px;
+
+      gap:20px;
+
+      align-items:start;
+
+      padding:16px 0;
+
+    }
+
+    .queue-card,
+
+    .detail-card {
+
+      min-height:520px;
+
+    }
+
+    .section-head {
+
+      display:flex;
+
+      align-items:flex-start;
+
+      justify-content:space-between;
+
+      gap:14px;
+
+      margin-bottom:18px;
+
+    }
+
+    .section-head h3 {
+
+      font-size:clamp(1.25rem,2.2vw,1.75rem);
+
+      line-height:1.15;
+
+      letter-spacing:-.035em;
+
+      font-weight:950;
+
+    }
+
+    .section-head p {
+
+      margin-top:6px;
+
+      color:var(--muted);
+
+      line-height:1.55;
+
+      font-size:.94rem;
+
+    }
+
+    .toolbar {
+
+      display:grid;
+
+      grid-template-columns:minmax(0,1fr) 170px 150px;
+
+      gap:12px;
+
+      margin-bottom:18px;
+
+    }
+
+    .input,
+
+    .select,
+
+    .textarea {
+
+      width:100%;
+
+      min-height:48px;
+
+      padding:13px 14px;
+
+      border-radius:15px;
+
+      border:1px solid rgba(126,166,255,.28);
+
+      background:rgba(2,8,20,.72);
+
+      color:var(--text);
+
+      outline:none;
+
+      transition:.18s ease;
+
+    }
+
+    .textarea {
+
+      min-height:110px;
+
+      resize:vertical;
+
+    }
+
+    .input::placeholder,
+
+    .textarea::placeholder {
+
+      color:rgba(174,189,226,.64);
+
+    }
+
+    .input:focus,
+
+    .select:focus,
+
+    .textarea:focus {
+
+      border-color:var(--cyan);
+
+      box-shadow:0 0 0 4px rgba(115,244,255,.1);
+
+    }
+
+    .queue-list {
+
+      display:grid;
+
+      gap:12px;
+
+      max-height:680px;
+
+      overflow:auto;
+
+      padding-right:4px;
+
+    }
+
+    .queue-item {
+
+      width:100%;
+
+      text-align:left;
+
+      display:grid;
+
+      grid-template-columns:minmax(0,1fr) auto;
+
+      gap:12px;
+
+      padding:16px;
+
+      border-radius:20px;
+
+      border:1px solid rgba(255,255,255,.07);
+
+      background:rgba(255,255,255,.032);
+
+      transition:.18s ease;
+
+    }
+
+    .queue-item:hover,
+
+    .queue-item.active {
+
+      border-color:rgba(115,244,255,.32);
+
+      background:rgba(115,244,255,.055);
+
+      transform:translateY(-2px);
+
+    }
+
+    .queue-main strong {
+
+      display:block;
+
+      font-weight:950;
+
+      line-height:1.25;
+
+      margin-bottom:7px;
+
+      color:var(--text);
+
+    }
+
+    .queue-meta {
+
+      display:flex;
+
+      flex-wrap:wrap;
+
+      gap:8px;
+
+      font-size:.82rem;
+
+    }
+
+    .pill,
+
+    .status-pill {
+
+      display:inline-flex;
+
+      align-items:center;
+
+      justify-content:center;
+
+      gap:7px;
+
+      min-height:28px;
+
+      padding:5px 10px;
+
+      border-radius:999px;
+
+      font-size:.74rem;
+
+      font-weight:950;
+
+      white-space:nowrap;
+
+      border:1px solid transparent;
+
+    }
+
+    .pill {
+
+      color:var(--cyan);
+
+      background:rgba(115,244,255,.09);
+
+      border-color:rgba(115,244,255,.15);
+
+    }
+
+    .status-submitted {
+
+      color:var(--cyan);
+
+      background:rgba(115,244,255,.1);
+
+      border-color:rgba(115,244,255,.18);
+
+    }
+
+    .status-under_review {
+
+      color:var(--gold);
+
+      background:rgba(255,217,120,.1);
+
+      border-color:rgba(255,217,120,.18);
+
+    }
+
+    .status-pending_documents {
+
+      color:var(--orange);
+
+      background:rgba(255,184,107,.1);
+
+      border-color:rgba(255,184,107,.2);
+
+    }
+
+    .status-approved {
+
+      color:var(--green);
+
+      background:rgba(124,255,199,.1);
+
+      border-color:rgba(124,255,199,.2);
+
+    }
+
+    .status-denied {
+
+      color:var(--red);
+
+      background:rgba(255,126,144,.12);
+
+      border-color:rgba(255,126,144,.24);
+
+    }
+
+    .status-scheduled {
+
+      color:var(--purple);
+
+      background:rgba(167,139,250,.12);
+
+      border-color:rgba(167,139,250,.24);
+
+    }
+
+    .status-completed {
+
+      color:#dbeafe;
+
+      background:rgba(219,234,254,.09);
+
+      border-color:rgba(219,234,254,.18);
+
+    }    .detail-grid {
+
+      display:grid;
+
+      gap:14px;
+
+    }
+
+    .detail-row {
+
+      display:grid;
+
+      grid-template-columns:130px minmax(0,1fr);
+
+      gap:12px;
+
+      padding:13px 0;
+
+      border-bottom:1px solid rgba(255,255,255,.07);
+
+    }
+
+    .detail-row:last-child {
+
+      border-bottom:0;
+
+    }
+
+    .detail-label {
+
+      color:var(--cyan);
+
+      font-size:.75rem;
+
+      font-weight:950;
+
+      text-transform:uppercase;
+
+      letter-spacing:.04em;
+
+    }
+
+    .detail-value {
+
+      color:var(--soft);
+
+      line-height:1.5;
+
+      word-break:break-word;
+
+    }
+
+    .detail-actions {
+
+      display:grid;
+
+      grid-template-columns:repeat(2,minmax(0,1fr));
+
+      gap:10px;
+
+      margin-top:18px;
+
+    }
+
+    .detail-actions .btn {
+
+      min-height:44px;
+
+      padding:0 12px;
+
+      font-size:.84rem;
+
+    }
+
+    .notes-panel {
+
+      margin-top:18px;
+
+      padding:16px;
+
+      border-radius:20px;
+
+      border:1px solid rgba(255,255,255,.07);
+
+      background:rgba(255,255,255,.03);
+
+    }
+
+    .notes-panel label {
+
+      display:block;
+
+      margin-bottom:8px;
+
+      color:var(--soft);
+
+      font-weight:900;
+
+      font-size:.9rem;
+
+    }
+
+    .empty-state,
+
+    .loading-state {
+
+      display:grid;
+
+      place-items:center;
+
+      min-height:360px;
+
+      padding:30px;
+
+      text-align:center;
+
+    }
+
+    .empty-icon {
+
+      width:76px;
+
+      height:76px;
+
+      display:grid;
+
+      place-items:center;
+
+      margin:0 auto 16px;
+
+      border-radius:24px;
+
+      background:rgba(115,244,255,.08);
+
+      border:1px solid rgba(115,244,255,.18);
+
+      font-size:2rem;
+
+    }
+
+    .empty-state h4,
+
+    .loading-state h4 {
+
+      font-size:1.15rem;
+
+      font-weight:950;
+
+      margin-bottom:8px;
+
+    }
+
+    .status-banner {
+
+      display:none;
+
+      margin:14px 0;
+
+      padding:14px 16px;
+
+      border-radius:18px;
+
+      border:1px solid transparent;
+
+      line-height:1.5;
+
+      font-weight:800;
+
+    }
+
+    .status-banner.show {
+
+      display:block;
+
+    }
+
+    .status-banner.ok {
+
+      color:var(--green);
+
+      background:rgba(124,255,199,.09);
+
+      border-color:rgba(124,255,199,.2);
+
+    }
+
+    .status-banner.err {
+
+      color:#ffd4dc;
+
+      background:rgba(255,126,144,.11);
+
+      border-color:rgba(255,126,144,.24);
+
+    }
+
+    .status-banner.info {
+
+      color:var(--cyan);
+
+      background:rgba(115,244,255,.09);
+
+      border-color:rgba(115,244,255,.2);
+
+    }
+
+    .modal-backdrop {
+
+      position:fixed;
+
+      inset:0;
+
+      display:none;
+
+      place-items:center;
+
+      z-index:99999;
+
+      padding:20px;
+
+      background:rgba(0,0,0,.68);
+
+      backdrop-filter:blur(16px);
+
+      -webkit-backdrop-filter:blur(16px);
+
+    }
+
+    .modal-backdrop.show {
+
+      display:grid;
+
+    }
+
+    .modal {
+
+      width:min(620px,100%);
+
+      border-radius:28px;
+
+      border:1px solid rgba(255,255,255,.09);
+
+      background:
+
+        linear-gradient(180deg,rgba(15,30,64,.98),rgba(4,10,28,.99));
+
+      box-shadow:var(--shadow);
+
+      overflow:hidden;
+
+    }
+
+    .modal-head {
+
+      display:flex;
+
+      align-items:flex-start;
+
+      justify-content:space-between;
+
+      gap:14px;
+
+      padding:22px;
+
+      border-bottom:1px solid rgba(255,255,255,.08);
+
+    }
+
+    .modal-head h3 {
+
+      font-size:1.25rem;
+
+      font-weight:950;
+
+      letter-spacing:-.03em;
+
+    }
+
+    .modal-head p {
+
+      margin-top:6px;
+
+      color:var(--muted);
+
+      line-height:1.5;
+
+      font-size:.92rem;
+
+    }
+
+    .modal-close {
+
+      width:40px;
+
+      height:40px;
+
+      border-radius:14px;
+
+      display:grid;
+
+      place-items:center;
+
+      background:rgba(255,255,255,.06);
+
+      border:1px solid rgba(255,255,255,.08);
+
+      font-weight:950;
+
+    }
+
+    .modal-body {
+
+      padding:22px;
+
+      display:grid;
+
+      gap:14px;
+
+    }
+
+    .modal-actions {
+
+      display:flex;
+
+      justify-content:flex-end;
+
+      gap:10px;
+
+      flex-wrap:wrap;
+
+      padding:0 22px 22px;
+
+    }
+
+    .bottom-nav {
+
+      position:fixed;
+
+      left:0;
+
+      right:0;
+
+      bottom:0;
+
+      height:var(--navH);
+
+      display:grid;
+
+      grid-template-columns:repeat(5,1fr);
+
+      background:rgba(3,7,18,.96);
+
+      backdrop-filter:blur(18px);
+
+      -webkit-backdrop-filter:blur(18px);
+
+      border-top:1px solid rgba(255,255,255,.08);
+
+      z-index:999;
+
+      padding-bottom:env(safe-area-inset-bottom);
+
+    }
+
+    .nav-btn {
+
+      display:flex;
+
+      align-items:center;
+
+      justify-content:center;
+
+      font-weight:850;
+
+      font-size:.8rem;
+
+      color:var(--muted);
+
+      transition:.18s ease;
+
+      text-align:center;
+
+      padding:8px;
+
+    }
+
+    .nav-btn.active {
+
+      color:var(--cyan);
+
+    }
+
+    .nav-btn:hover {
+
+      color:var(--text);
+
+    }
+
+    .footer {
+
+      padding:28px 0 calc(112px + env(safe-area-inset-bottom));
+
+      color:var(--muted);
+
+      border-top:1px solid rgba(255,255,255,.08);
+
+      margin-top:26px;
+
+      background:rgba(0,0,0,.16);
+
+    }
+
+    .footer-row {
+
+      display:flex;
+
+      align-items:center;
+
+      justify-content:space-between;
+
+      gap:16px;
+
+      flex-wrap:wrap;
+
+      font-size:.9rem;
+
+    }
+
+    .footer-links {
+
+      display:flex;
+
+      gap:14px;
+
+      flex-wrap:wrap;
+
+    }
+
+    .footer-links a:hover {
+
+      color:var(--cyan);
+
+    }
+
+    @media(max-width:1180px) {
+
+      .hero-grid,
+
+      .ops-layout {
+
+        grid-template-columns:1fr;
+
+      }
+
+      .metrics-grid {
+
+        grid-template-columns:repeat(2,1fr);
+
+      }
+
+      .detail-card {
+
+        min-height:auto;
+
+      }
+
+    }
+
+    @media(max-width:850px) {
+
+      .topbar-inner {
+
+        flex-direction:column;
+
+        align-items:flex-start;
+
+      }
+
+      .top-actions {
+
+        width:100%;
+
+        justify-content:flex-start;
+
+      }
+
+      .toolbar {
+
+        grid-template-columns:1fr;
+
+      }
+
+      .metrics-grid {
+
+        grid-template-columns:1fr;
+
+      }
+
+      .detail-row {
+
+        grid-template-columns:1fr;
+
+        gap:6px;
+
+      }
+
+      .detail-actions {
+
+        grid-template-columns:1fr;
+
+      }
+
+    }
+
+    @media(max-width:640px) {
+
+      .shell {
+
+        width:min(100% - 20px,var(--maxw));
+
+      }
+
+      .brand {
+
+        align-items:flex-start;
+
+      }
+
+      .brand-mark {
+
+        width:58px;
+
+        height:58px;
+
+        border-radius:18px;
+
+      }
+
+      .hero-card,
+
+      .panel-card,
+
+      .queue-card,
+
+      .detail-card,
+
+      .metric-card {
+
+        padding:20px;
+
+        border-radius:24px;
+
+      }
+
+      .hero-actions,
+
+      .modal-actions {
+
+        flex-direction:column;
+
+      }
+
+      .hero-actions .btn,
+
+      .modal-actions .btn {
+
+        width:100%;
+
+      }
+
+      .queue-item {
+
+        grid-template-columns:1fr;
+
+      }
+
+      .bottom-nav {
+
+        height:82px;
+
+      }
+
+    }
+
+  </style>
+
+</head>
+
+<body>
+
+  <header class="topbar">
+
+    <div class="shell topbar-inner">
+
+      <a href="admin-home.html" class="brand" aria-label="Admin home">
+
+        <div class="brand-mark">HTAF</div>
+
+        <div class="brand-copy">
+
+          <h1>HTAF Admin Operations</h1>
+
+          <p>Application Review • Approvals • Scheduling • Reporting</p>
+
+        </div>
+
+      </a>
+
+      <div class="top-actions">
+
+        <button class="btn btn-secondary" type="button" onclick="refreshApplications()">
+
+          Refresh Queue
+
+        </button>
+
+        <button class="btn btn-secondary" type="button" onclick="exportApplicationsCsv()">
+
+          Export CSV
+
+        </button>
+
+        <a class="btn btn-primary" href="admin-home.html">
+
+          Admin Home
+
+        </a>
+
+      </div>
+
+    </div>
+
+  </header>  <main>
+
+    <section class="hero">
+
+      <div class="shell hero-grid">
+
+        <section class="card hero-card">
+
+          <div class="eyebrow">
+
+            HTAF Phase 11 Operations
+
+          </div>
+
+          <h2>
+
+            Manage transportation assistance applications from one admin dashboard.
+
+          </h2>
+
+          <p>
+
+            Review HTAF applications, approve or deny requests, ask applicants
+
+            for missing documents, prepare ride scheduling, and export grant-ready
+
+            reporting data for program operations.
+
+          </p>
+
+          <div class="hero-actions">
+
+            <button
+
+              class="btn btn-primary"
+
+              type="button"
+
+              onclick="refreshApplications()"
+
+            >
+
+              Load Applications
+
+            </button>
+
+            <button
+
+              class="btn btn-success"
+
+              type="button"
+
+              onclick="setQueueFilter('submitted')"
+
+            >
+
+              New Submissions
+
+            </button>
+
+            <button
+
+              class="btn btn-gold"
+
+              type="button"
+
+              onclick="setQueueFilter('approved')"
+
+            >
+
+              Approved Queue
+
+            </button>
+
+          </div>
+
+        </section>
+
+        <aside class="card panel-card">
+
+          <div class="section-head">
+
+            <div>
+
+              <h3>Operations Status</h3>
+
+              <p>
+
+                This dashboard connects to Server J HTAF admin endpoints.
+
+              </p>
+
+            </div>
+
+          </div>
+
+          <div id="opsStatusBanner" class="status-banner info show">
+
+            Loading HTAF operations status...
+
+          </div>
+
+          <div class="detail-grid">
+
+            <div class="detail-row">
+
+              <div class="detail-label">API Route</div>
+
+              <div class="detail-value">/api/admin/foundation/applications</div>
+
+            </div>
+
+            <div class="detail-row">
+
+              <div class="detail-label">Table</div>
+
+              <div class="detail-value">htaf_applications</div>
+
+            </div>
+
+            <div class="detail-row">
+
+              <div class="detail-label">Mode</div>
+
+              <div class="detail-value">Admin Review / Operations</div>
+
+            </div>
+
+            <div class="detail-row">
+
+              <div class="detail-label">Security</div>
+
+              <div class="detail-value">Requires Server J admin authorization</div>
+
+            </div>
+
+          </div>
+
+        </aside>
+
+      </div>
+
+    </section>
+
+    <section class="section">
+
+      <div class="shell">
+
+        <div class="metrics-grid">
+
+          <article class="metric-card">
+
+            <strong id="metricTotal">0</strong>
+
+            <span>Total Applications</span>
+
+            <small>All HTAF requests</small>
+
+          </article>
+
+          <article class="metric-card">
+
+            <strong id="metricSubmitted">0</strong>
+
+            <span>New Submissions</span>
+
+            <small>Needs review</small>
+
+          </article>
+
+          <article class="metric-card">
+
+            <strong id="metricApproved">0</strong>
+
+            <span>Approved</span>
+
+            <small>Ready for scheduling</small>
+
+          </article>
+
+          <article class="metric-card">
+
+            <strong id="metricPendingDocs">0</strong>
+
+            <span>Pending Documents</span>
+
+            <small>Applicant follow-up</small>
+
+          </article>
+
+        </div>
+
+      </div>
+
+    </section>
+
+    <section class="section">
+
+      <div class="shell ops-layout">
+
+        <section class="card queue-card">
+
+          <div class="section-head">
+
+            <div>
+
+              <h3>Application Approval Queue</h3>
+
+              <p>
+
+                Search, filter, and select HTAF applications for review.
+
+              </p>
+
+            </div>
+
+            <span id="queueCount" class="pill">
+
+              0 records
+
+            </span>
+
+          </div>
+
+          <div id="queueStatusBanner" class="status-banner"></div>
+
+          <div class="toolbar">
+
+            <input
+
+              id="searchInput"
+
+              class="input"
+
+              type="search"
+
+              placeholder="Search by name, code, county, email, program..."
+
+              autocomplete="off"
+
+            />
+
+            <select id="statusFilter" class="select">
+
+              <option value="">All Statuses</option>
+
+              <option value="submitted">Submitted</option>
+
+              <option value="under_review">Under Review</option>
+
+              <option value="pending_documents">Pending Documents</option>
+
+              <option value="approved">Approved</option>
+
+              <option value="denied">Denied</option>
+
+              <option value="scheduled">Scheduled</option>
+
+              <option value="completed">Completed</option>
+
+            </select>
+
+            <select id="programFilter" class="select">
+
+              <option value="">All Programs</option>
+
+              <option value="medical">Medical</option>
+
+              <option value="employment">Employment</option>
+
+              <option value="education">Education</option>
+
+              <option value="senior">Senior</option>
+
+              <option value="disability">Disability</option>
+
+              <option value="veteran">Veteran</option>
+
+              <option value="community">Community</option>
+
+              <option value="general">General</option>
+
+            </select>
+
+          </div>
+
+          <div id="queueList" class="queue-list">
+
+            <div class="loading-state">
+
+              <div>
+
+                <div class="empty-icon">⏳</div>
+
+                <h4>Loading applications...</h4>
+
+                <p>
+
+                  The HTAF application queue will appear here.
+
+                </p>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </section>
+
+        <aside class="card detail-card">
+
+          <div class="section-head">
+
+            <div>
+
+              <h3>Application Detail</h3>
+
+              <p>
+
+                Select an application to review applicant information,
+
+                request documents, update status, or prepare scheduling.
+
+              </p>
+
+            </div>
+
+          </div>
+
+          <div id="detailStatusBanner" class="status-banner"></div>
+
+          <div id="applicationDetail">
+
+            <div class="empty-state">
+
+              <div>
+
+                <div class="empty-icon">📋</div>
+
+                <h4>No application selected</h4>
+
+                <p>
+
+                  Choose an application from the queue to open review tools.
+
+                </p>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </aside>
+
+      </div>
+
+    </section>        <div
+
+          id="requestDocsModal"
+
+          class="modal-backdrop"
+
+        >
+
+          <div class="modal">
+
+            <div class="modal-head">
+
+              <div>
+
+                <h3>Request Additional Documents</h3>
+
+                <p>
+
+                  Send a document request to the applicant and
+
+                  move the application into Pending Documents.
+
+                </p>
+
+              </div>
+
+              <button
+
+                class="modal-close"
+
+                onclick="closeRequestDocsModal()"
+
+              >
+
+                ✕
+
+              </button>
+
+            </div>
+
+            <div class="modal-body">
+
+              <div class="field">
+
+                <label>
+
+                  Document Request Message
+
+                </label>
+
+                <textarea
+
+                  id="documentRequestMessage"
+
+                  class="textarea"
+
+                  placeholder="Example: Please provide appointment confirmation, TennCare verification, disability documentation, employment verification, or other supporting records."
+
+                ></textarea>
+
+              </div>
+
+            </div>
+
+            <div class="modal-actions">
+
+              <button
+
+                class="btn btn-secondary"
+
+                onclick="closeRequestDocsModal()"
+
+              >
+
+                Cancel
+
+              </button>
+
+              <button
+
+                class="btn btn-primary"
+
+                onclick="submitDocumentRequest()"
+
+              >
+
+                Send Request
+
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+
+        <div
+
+          id="scheduleRideModal"
+
+          class="modal-backdrop"
+
+        >
+
+          <div class="modal">
+
+            <div class="modal-head">
+
+              <div>
+
+                <h3>Schedule Transportation</h3>
+
+                <p>
+
+                  Create an approved ride request for HTAF operations.
+
+                </p>
+
+              </div>
+
+              <button
+
+                class="modal-close"
+
+                onclick="closeScheduleModal()"
+
+              >
+
+                ✕
+
+              </button>
+
+            </div>
+
+            <div class="modal-body">
+
+              <div class="field">
+
+                <label>
+
+                  Pickup Address
+
+                </label>
+
+                <input
+
+                  id="schedulePickup"
+
+                  class="input"
+
+                  type="text"
+
+                  placeholder="Pickup Address"
+
+                />
+
+              </div>
+
+              <div class="field">
+
+                <label>
+
+                  Destination Address
+
+                </label>
+
+                <input
+
+                  id="scheduleDestination"
+
+                  class="input"
+
+                  type="text"
+
+                  placeholder="Destination"
+
+                />
+
+              </div>
+
+              <div class="field">
+
+                <label>
+
+                  Scheduled Date & Time
+
+                </label>
+
+                <input
+
+                  id="scheduleDateTime"
+
+                  class="input"
+
+                  type="datetime-local"
+
+                />
+
+              </div>
+
+              <div class="field">
+
+                <label>
+
+                  Notes
+
+                </label>
+
+                <textarea
+
+                  id="scheduleNotes"
+
+                  class="textarea"
+
+                  placeholder="Driver instructions, transportation notes, appointment information..."
+
+                ></textarea>
+
+              </div>
+
+            </div>
+
+            <div class="modal-actions">
+
+              <button
+
+                class="btn btn-secondary"
+
+                onclick="closeScheduleModal()"
+
+              >
+
+                Cancel
+
+              </button>
+
+              <button
+
+                class="btn btn-success"
+
+                onclick="createScheduledRide()"
+
+              >
+
+                Schedule Ride
+
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </main>
+
+      <footer class="footer">
+
+        <div class="shell footer-row">
+
+          <div>
+
+            © 2026 Harvey Transportation Assistance Foundation
+
+            • Phase 11 Operations Dashboard
+
+          </div>
+
+          <div class="footer-links">
+
+            <a href="admin-home.html">
+
+              Admin Home
+
+            </a>
+
+            <a href="foundation.html">
+
+              Foundation
+
+            </a>
+
+            <a href="support.html">
+
+              Support
+
+            </a>
+
+            <a href="analytics.html">
+
+              Analytics
+
+            </a>
+
+          </div>
+
+        </div>
+
+      </footer>
+
+      <nav
+
+        class="bottom-nav"
+
+        aria-label="Admin Navigation"
+
+      >
+
+        <button
+
+          class="nav-btn"
+
+          onclick="window.location.href='admin-home.html'"
+
+        >
+
+          Home
+
+        </button>
+
+        <button
+
+          class="nav-btn active"
+
+        >
+
+          HTAF
+
+        </button>
+
+        <button
+
+          class="nav-btn"
+
+          onclick="window.location.href='drivers.html'"
+
+        >
+
+          Drivers
+
+        </button>
+
+        <button
+
+          class="nav-btn"
+
+          onclick="window.location.href='rides.html'"
+
+        >
+
+          Rides
+
+        </button>
+
+        <button
+
+          class="nav-btn"
+
+          onclick="window.location.href='analytics.html'"
+
+        >
+
+          Reports
+
+        </button>
+
+      </nav>
+
+      <script>
+
+      const HTAF_API =
+
+        `${window.location.origin}`;
+
+      let applications = [];
+
+      let filteredApplications = [];
+
+      let selectedApplication = null;
+
+      function showBanner(
+
+        elementId,
+
+        message,
+
+        type = "info"
+
+      ) {
+
+        const banner =
+
+          document.getElementById(
+
+            elementId
+
+          );
+
+        if (!banner) return;
+
+        banner.className =
+
+          `status-banner show ${type}`;
+
+        banner.textContent =
+
+          message;
+
+      }
+
+      function hideBanner(
+
+        elementId
+
+      ) {
+
+        const banner =
+
+          document.getElementById(
+
+            elementId
+
+          );
+
+        if (!banner) return;
+
+        banner.className =
+
+          "status-banner";
+
+      }
+
+      function getStatusClass(
+
+        status
+
+      ) {
+
+        return `status-pill status-${status}`;
+
+      }
+
+      function formatStatus(
+
+        status
+
+      ) {
+
+        return String(status || "")
+
+          .replaceAll("_", " ")
+
+          .replace(/\b\w/g, c => c.toUpperCase());
+
+      }
+
+      function formatDate(
+
+        value
+
+      ) {
+
+        if (!value) return "—";
+
+        try {
+
+          return new Date(value)
+
+            .toLocaleString();
+
+        } catch {
+
+          return value;
+
+        }
+
+      }      async function apiRequest(
+
+        path,
+
+        options = {}
+
+      ) {
+
+        const response =
+
+          await fetch(
+
+            `${HTAF_API}${path}`,
+
+            {
+
+              credentials: "include",
+
+              headers: {
+
+                "Content-Type": "application/json",
+
+                ...(options.headers || {})
+
+              },
+
+              ...options
+
+            }
+
+          );
+
+        let payload = null;
+
+        try {
+
+          payload = await response.json();
+
+        } catch {
+
+          payload = null;
+
+        }
+
+        if (!response.ok || payload?.ok === false) {
+
+          throw new Error(
+
+            payload?.error ||
+
+            payload?.message ||
+
+            `Request failed with status ${response.status}`
+
+          );
+
+        }
+
+        return payload;
+
+      }
+
+      async function refreshApplications() {
+
+        showBanner(
+
+          "queueStatusBanner",
+
+          "Loading HTAF applications...",
+
+          "info"
+
+        );
+
+        showBanner(
+
+          "opsStatusBanner",
+
+          "Connecting to Server J HTAF operations route...",
+
+          "info"
+
+        );
+
+        try {
+
+          const status =
+
+            document.getElementById("statusFilter")?.value || "";
+
+          const query =
+
+            status
+
+              ? `?status=${encodeURIComponent(status)}`
+
+              : "";
+
+          const payload =
+
+            await apiRequest(
+
+              `/api/admin/foundation/applications${query}`
+
+            );
+
+          applications =
+
+            Array.isArray(payload.applications)
+
+              ? payload.applications
+
+              : [];
+
+          showBanner(
+
+            "opsStatusBanner",
+
+            `Connected. ${applications.length} HTAF applications loaded.`,
+
+            "ok"
+
+          );
+
+          hideBanner(
+
+            "queueStatusBanner"
+
+          );
+
+          applyFilters();
+
+        } catch (error) {
+
+          console.error(error);
+
+          showBanner(
+
+            "opsStatusBanner",
+
+            "Unable to load HTAF applications. Verify admin login, Server J route, and requireAdmin authorization.",
+
+            "err"
+
+          );
+
+          showBanner(
+
+            "queueStatusBanner",
+
+            error.message,
+
+            "err"
+
+          );
+
+          applications = [];
+
+          filteredApplications = [];
+
+          updateMetrics();
+
+          renderQueue();
+
+        }
+
+      }
+
+      function setQueueFilter(
+
+        status
+
+      ) {
+
+        const statusFilter =
+
+          document.getElementById(
+
+            "statusFilter"
+
+          );
+
+        if (statusFilter) {
+
+          statusFilter.value =
+
+            status || "";
+
+        }
+
+        refreshApplications();
+
+      }
+
+      function normalizeText(
+
+        value
+
+      ) {
+
+        return String(value || "")
+
+          .toLowerCase()
+
+          .trim();
+
+      }
+
+      function applicationSearchText(
+
+        application
+
+      ) {
+
+        return [
+
+          application.application_code,
+
+          application.first_name,
+
+          application.last_name,
+
+          application.email,
+
+          application.phone,
+
+          application.county,
+
+          application.city,
+
+          application.program_type,
+
+          application.status,
+
+          application.destination,
+
+          application.transportation_need
+
+        ]
+
+          .map(normalizeText)
+
+          .join(" ");
+
+      }
+
+      function applyFilters() {
+
+        const search =
+
+          normalizeText(
+
+            document.getElementById(
+
+              "searchInput"
+
+            )?.value || ""
+
+          );
+
+        const status =
+
+          normalizeText(
+
+            document.getElementById(
+
+              "statusFilter"
+
+            )?.value || ""
+
+          );
+
+        const program =
+
+          normalizeText(
+
+            document.getElementById(
+
+              "programFilter"
+
+            )?.value || ""
+
+          );
+
+        filteredApplications =
+
+          applications.filter((application) => {
+
+            const searchOk =
+
+              !search ||
+
+              applicationSearchText(application)
+
+                .includes(search);
+
+            const statusOk =
+
+              !status ||
+
+              normalizeText(application.status) === status;
+
+            const programOk =
+
+              !program ||
+
+              normalizeText(application.program_type) === program;
+
+            return searchOk && statusOk && programOk;
+
+          });
+
+        updateMetrics();
+
+        renderQueue();
+
+      }
+
+      function countByStatus(
+
+        status
+
+      ) {
+
+        return applications.filter(
+
+          application =>
+
+            normalizeText(application.status) === status
+
+        ).length;
+
+      }
+
+      function updateMetrics() {
+
+        const total =
+
+          applications.length;
+
+        const submitted =
+
+          countByStatus("submitted");
+
+        const approved =
+
+          countByStatus("approved");
+
+        const pendingDocs =
+
+          countByStatus("pending_documents");
+
+        const metricTotal =
+
+          document.getElementById("metricTotal");
+
+        const metricSubmitted =
+
+          document.getElementById("metricSubmitted");
+
+        const metricApproved =
+
+          document.getElementById("metricApproved");
+
+        const metricPendingDocs =
+
+          document.getElementById("metricPendingDocs");
+
+        if (metricTotal) {
+
+          metricTotal.textContent =
+
+            total;
+
+        }
+
+        if (metricSubmitted) {
+
+          metricSubmitted.textContent =
+
+            submitted;
+
+        }
+
+        if (metricApproved) {
+
+          metricApproved.textContent =
+
+            approved;
+
+        }
+
+        if (metricPendingDocs) {
+
+          metricPendingDocs.textContent =
+
+            pendingDocs;
+
+        }
+
+        const queueCount =
+
+          document.getElementById(
+
+            "queueCount"
+
+          );
+
+        if (queueCount) {
+
+          queueCount.textContent =
+
+            `${filteredApplications.length} records`;
+
+        }
+
+      }
+
+      function renderQueue() {
+
+        const list =
+
+          document.getElementById(
+
+            "queueList"
+
+          );
+
+        if (!list) return;
+
+        if (!filteredApplications.length) {
+
+          list.innerHTML = `
+
+            <div class="empty-state">
+
+              <div>
+
+                <div class="empty-icon">🗂️</div>
+
+                <h4>No applications found</h4>
+
+                <p>
+
+                  Try changing filters or refreshing the queue.
+
+                </p>
+
+              </div>
+
+            </div>
+
+          `;
+
+          return;
+
+        }
+
+        list.innerHTML =
+
+          filteredApplications
+
+            .map((application) => {
+
+              const active =
+
+                selectedApplication?.id === application.id
+
+                  ? "active"
+
+                  : "";
+
+              const applicantName =
+
+                `${application.first_name || ""} ${application.last_name || ""}`.trim()
+
+                || "Unnamed Applicant";
+
+              return `
+
+                <button
+
+                  class="queue-item ${active}"
+
+                  type="button"
+
+                  onclick="selectApplication('${application.id}')"
+
+                >
+
+                  <div class="queue-main">
+
+                    <strong>
+
+                      ${escapeHtml(applicantName)}
+
+                    </strong>
+
+                    <div class="queue-meta">
+
+                      <span class="pill">
+
+                        ${escapeHtml(application.application_code || "No Code")}
+
+                      </span>
+
+                      <span class="pill">
+
+                        ${escapeHtml(application.program_type || "program")}
+
+                      </span>
+
+                      <span class="pill">
+
+                        ${escapeHtml(application.county || "county")}
+
+                      </span>
+
+                    </div>
+
+                  </div>
+
+                  <span class="${getStatusClass(application.status)}">
+
+                    ${escapeHtml(formatStatus(application.status))}
+
+                  </span>
+
+                </button>
+
+              `;
+
+            })
+
+            .join("");
+
+      }
+
+      function escapeHtml(
+
+        value
+
+      ) {
+
+        return String(value ?? "")
+
+          .replaceAll("&", "&amp;")
+
+          .replaceAll("<", "&lt;")
+
+          .replaceAll(">", "&gt;")
+
+          .replaceAll('"', "&quot;")
+
+          .replaceAll("'", "&#039;");
+
+      }      function selectApplication(
+
+        applicationId
+
+      ) {
+
+        selectedApplication =
+
+          applications.find(
+
+            application =>
+
+              String(application.id) === String(applicationId)
+
+          ) || null;
+
+        renderQueue();
+
+        renderApplicationDetail();
+
+        hideBanner(
+
+          "detailStatusBanner"
+
+        );
+
+      }
+
+      function detailRow(
+
+        label,
+
+        value
+
+      ) {
+
+        return `
+
+          <div class="detail-row">
+
+            <div class="detail-label">
+
+              ${escapeHtml(label)}
+
+            </div>
+
+            <div class="detail-value">
+
+              ${escapeHtml(value || "—")}
+
+            </div>
+
+          </div>
+
+        `;
+
+      }
+
+      function renderApplicationDetail() {
+
+        const detail =
+
+          document.getElementById(
+
+            "applicationDetail"
+
+          );
+
+        if (!detail) return;
+
+        if (!selectedApplication) {
+
+          detail.innerHTML = `
+
+            <div class="empty-state">
+
+              <div>
+
+                <div class="empty-icon">📋</div>
+
+                <h4>No application selected</h4>
+
+                <p>
+
+                  Choose an application from the queue
+
+                  to open review tools.
+
+                </p>
+
+              </div>
+
+            </div>
+
+          `;
+
+          return;
+
+        }
+
+        const app =
+
+          selectedApplication;
+
+        const applicantName =
+
+          `${app.first_name || ""} ${app.last_name || ""}`.trim()
+
+          || "Unnamed Applicant";
+
+        detail.innerHTML = `
+
+          <div class="detail-grid">
+
+            <span class="${getStatusClass(app.status)}">
+
+              ${escapeHtml(formatStatus(app.status))}
+
+            </span>
+
+            ${detailRow("Application Code", app.application_code)}
+
+            ${detailRow("Applicant", applicantName)}
+
+            ${detailRow("Email", app.email)}
+
+            ${detailRow("Phone", app.phone)}
+
+            ${detailRow("County", app.county)}
+
+            ${detailRow("City", app.city)}
+
+            ${detailRow("Applicant Type", app.applicant_type)}
+
+            ${detailRow("Household Size", app.household_size)}
+
+            ${detailRow("Monthly Income", app.monthly_income)}
+
+            ${detailRow("Program", app.program_type)}
+
+            ${detailRow("Pickup City", app.pickup_city)}
+
+            ${detailRow("Destination", app.destination)}
+
+            ${detailRow("Ride Date", app.ride_date)}
+
+            ${detailRow("Submitted", formatDate(app.created_at || app.submitted_at))}
+
+            ${detailRow("Updated", formatDate(app.updated_at))}
+
+            ${detailRow("Transportation Need", app.transportation_need)}
+
+            ${detailRow("Admin Notes", app.notes)}
+
+            <div class="notes-panel">
+
+              <label for="adminNotes">
+
+                Admin Notes
+
+              </label>
+
+              <textarea
+
+                id="adminNotes"
+
+                class="textarea"
+
+                placeholder="Add review notes, eligibility comments, document requirements, scheduling details..."
+
+              >${escapeHtml(app.notes || "")}</textarea>
+
+            </div>
+
+            <div class="detail-actions">
+
+              <button
+
+                class="btn btn-secondary"
+
+                type="button"
+
+                onclick="updateSelectedStatus('under_review')"
+
+              >
+
+                Mark Under Review
+
+              </button>
+
+              <button
+
+                class="btn btn-success"
+
+                type="button"
+
+                onclick="updateSelectedStatus('approved')"
+
+              >
+
+                Approve
+
+              </button>
+
+              <button
+
+                class="btn btn-danger"
+
+                type="button"
+
+                onclick="updateSelectedStatus('denied')"
+
+              >
+
+                Deny
+
+              </button>
+
+              <button
+
+                class="btn btn-gold"
+
+                type="button"
+
+                onclick="openRequestDocsModal()"
+
+              >
+
+                Request Documents
+
+              </button>
+
+              <button
+
+                class="btn btn-primary"
+
+                type="button"
+
+                onclick="openScheduleModal()"
+
+              >
+
+                Schedule Ride
+
+              </button>
+
+              <button
+
+                class="btn btn-secondary"
+
+                type="button"
+
+                onclick="saveAdminNotes()"
+
+              >
+
+                Save Notes
+
+              </button>
+
+            </div>
+
+          </div>
+
+        `;
+
+      }
+
+      async function updateApplication(
+
+        id,
+
+        update
+
+      ) {
+
+        const payload =
+
+          await apiRequest(
+
+            `/api/admin/foundation/applications/${encodeURIComponent(id)}`,
+
+            {
+
+              method: "PATCH",
+
+              body: JSON.stringify(update)
+
+            }
+
+          );
+
+        return payload.application;
+
+      }
+
+      async function updateSelectedStatus(
+
+        status
+
+      ) {
+
+        if (!selectedApplication) {
+
+          showBanner(
+
+            "detailStatusBanner",
+
+            "Select an application first.",
+
+            "err"
+
+          );
+
+          return;
+
+        }
+
+        try {
+
+          showBanner(
+
+            "detailStatusBanner",
+
+            `Updating status to ${formatStatus(status)}...`,
+
+            "info"
+
+          );
+
+          const notes =
+
+            document.getElementById("adminNotes")?.value || "";
+
+          const updated =
+
+            await updateApplication(
+
+              selectedApplication.id,
+
+              {
+
+                status,
+
+                notes
+
+              }
+
+            );
+
+          selectedApplication =
+
+            updated;
+
+          applications =
+
+            applications.map(application =>
+
+              application.id === updated.id
+
+                ? updated
+
+                : application
+
+            );
+
+          showBanner(
+
+            "detailStatusBanner",
+
+            `Application updated to ${formatStatus(status)}.`,
+
+            "ok"
+
+          );
+
+          applyFilters();
+
+          renderApplicationDetail();
+
+        } catch (error) {
+
+          console.error(error);
+
+          showBanner(
+
+            "detailStatusBanner",
+
+            error.message ||
+
+              "Unable to update application.",
+
+            "err"
+
+          );
+
+        }
+
+      }
+
+      async function saveAdminNotes() {
+
+        if (!selectedApplication) {
+
+          showBanner(
+
+            "detailStatusBanner",
+
+            "Select an application first.",
+
+            "err"
+
+          );
+
+          return;
+
+        }
+
+        try {
+
+          const notes =
+
+            document.getElementById("adminNotes")?.value || "";
+
+          showBanner(
+
+            "detailStatusBanner",
+
+            "Saving admin notes...",
+
+            "info"
+
+          );
+
+          const updated =
+
+            await updateApplication(
+
+              selectedApplication.id,
+
+              {
+
+                status:
+
+                  selectedApplication.status,
+
+                notes
+
+              }
+
+            );
+
+          selectedApplication =
+
+            updated;
+
+          applications =
+
+            applications.map(application =>
+
+              application.id === updated.id
+
+                ? updated
+
+                : application
+
+            );
+
+          showBanner(
+
+            "detailStatusBanner",
+
+            "Admin notes saved.",
+
+            "ok"
+
+          );
+
+          applyFilters();
+
+          renderApplicationDetail();
+
+        } catch (error) {
+
+          console.error(error);
+
+          showBanner(
+
+            "detailStatusBanner",
+
+            error.message ||
+
+              "Unable to save notes.",
+
+            "err"
+
+          );
+
+        }
+
+      }      function openRequestDocsModal() {
+
+        if (!selectedApplication) {
+
+          showBanner(
+
+            "detailStatusBanner",
+
+            "Select an application before requesting documents.",
+
+            "err"
+
+          );
+
+          return;
+
+        }
+
+        const modal =
+
+          document.getElementById("requestDocsModal");
+
+        const message =
+
+          document.getElementById("documentRequestMessage");
+
+        if (message) {
+
+          message.value =
+
+            "Please provide additional supporting documentation for your HTAF transportation assistance request.";
+
+        }
+
+        modal?.classList.add("show");
+
+      }
+
+      function closeRequestDocsModal() {
+
+        document
+
+          .getElementById("requestDocsModal")
+
+          ?.classList.remove("show");
+
+      }
+
+      async function submitDocumentRequest() {
+
+        if (!selectedApplication) return;
+
+        const message =
+
+          document.getElementById("documentRequestMessage")?.value?.trim() ||
+
+          "Additional supporting documentation requested.";
+
+        try {
+
+          showBanner(
+
+            "detailStatusBanner",
+
+            "Sending document request...",
+
+            "info"
+
+          );
+
+          const notes =
+
+            [
+
+              selectedApplication.notes || "",
+
+              "",
+
+              `Document Request: ${message}`
+
+            ]
+
+              .join("\n")
+
+              .trim();
+
+          const updated =
+
+            await updateApplication(
+
+              selectedApplication.id,
+
+              {
+
+                status: "pending_documents",
+
+                notes
+
+              }
+
+            );
+
+          selectedApplication = updated;
+
+          applications =
+
+            applications.map(application =>
+
+              application.id === updated.id
+
+                ? updated
+
+                : application
+
+            );
+
+          closeRequestDocsModal();
+
+          showBanner(
+
+            "detailStatusBanner",
+
+            "Document request recorded and status changed to Pending Documents.",
+
+            "ok"
+
+          );
+
+          applyFilters();
+
+          renderApplicationDetail();
+
+        } catch (error) {
+
+          console.error(error);
+
+          showBanner(
+
+            "detailStatusBanner",
+
+            error.message ||
+
+              "Unable to request documents.",
+
+            "err"
+
+          );
+
+        }
+
+      }
+
+      function openScheduleModal() {
+
+        if (!selectedApplication) {
+
+          showBanner(
+
+            "detailStatusBanner",
+
+            "Select an approved application before scheduling.",
+
+            "err"
+
+          );
+
+          return;
+
+        }
+
+        const modal =
+
+          document.getElementById("scheduleRideModal");
+
+        document.getElementById("scheduleDestination").value =
+
+          selectedApplication.destination || "";
+
+        document.getElementById("schedulePickup").value =
+
+          selectedApplication.pickup_city || "";
+
+        modal?.classList.add("show");
+
+      }
+
+      function closeScheduleModal() {
+
+        document
+
+          .getElementById("scheduleRideModal")
+
+          ?.classList.remove("show");
+
+      }
+
+      async function createScheduledRide() {
+
+        if (!selectedApplication) return;
+
+        const pickup =
+
+          document.getElementById("schedulePickup")?.value?.trim();
+
+        const destination =
+
+          document.getElementById("scheduleDestination")?.value?.trim();
+
+        const scheduledAt =
+
+          document.getElementById("scheduleDateTime")?.value;
+
+        const scheduleNotes =
+
+          document.getElementById("scheduleNotes")?.value?.trim();
+
+        if (!pickup || !destination || !scheduledAt) {
+
+          showBanner(
+
+            "detailStatusBanner",
+
+            "Pickup, destination, and scheduled time are required.",
+
+            "err"
+
+          );
+
+          return;
+
+        }
+
+        try {
+
+          showBanner(
+
+            "detailStatusBanner",
+
+            "Creating scheduled HTAF ride...",
+
+            "info"
+
+          );
+
+          /*
+
+            Server J Phase 11 can later connect this to:
+
+            POST /api/admin/foundation/applications/:id/schedule
+
+          */
+
+          const notes =
+
+            [
+
+              selectedApplication.notes || "",
+
+              "",
+
+              "Scheduled Ride:",
+
+              `Pickup: ${pickup}`,
+
+              `Destination: ${destination}`,
+
+              `Scheduled At: ${scheduledAt}`,
+
+              scheduleNotes ? `Notes: ${scheduleNotes}` : ""
+
+            ]
+
+              .join("\n")
+
+              .trim();
+
+          const updated =
+
+            await updateApplication(
+
+              selectedApplication.id,
+
+              {
+
+                status: "scheduled",
+
+                notes
+
+              }
+
+            );
+
+          selectedApplication =
+
+            updated;
+
+          applications =
+
+            applications.map(application =>
+
+              application.id === updated.id
+
+                ? updated
+
+                : application
+
+            );
+
+          closeScheduleModal();
+
+          showBanner(
+
+            "detailStatusBanner",
+
+            "Ride scheduling details saved and application marked Scheduled.",
+
+            "ok"
+
+          );
+
+          applyFilters();
+
+          renderApplicationDetail();
+
+        } catch (error) {
+
+          console.error(error);
+
+          showBanner(
+
+            "detailStatusBanner",
+
+            error.message ||
+
+              "Unable to save scheduled ride.",
+
+            "err"
+
+          );
+
+        }
+
+      }
+
+      function exportApplicationsCsv() {
+
+        const rows =
+
+          filteredApplications.length
+
+            ? filteredApplications
+
+            : applications;
+
+        if (!rows.length) {
+
+          showBanner(
+
+            "queueStatusBanner",
+
+            "No applications available to export.",
+
+            "err"
+
+          );
+
+          return;
+
+        }
+
+        const columns = [
+
+          "application_code",
+
+          "status",
+
+          "program_type",
+
+          "first_name",
+
+          "last_name",
+
+          "email",
+
+          "phone",
+
+          "county",
+
+          "city",
+
+          "pickup_city",
+
+          "destination",
+
+          "ride_date",
+
+          "applicant_type",
+
+          "household_size",
+
+          "monthly_income",
+
+          "created_at",
+
+          "updated_at"
+
+        ];
+
+        const csv =
+
+          [
+
+            columns.join(","),
+
+            ...rows.map(application =>
+
+              columns
+
+                .map(column =>
+
+                  csvEscape(application[column])
+
+                )
+
+                .join(",")
+
+            )
+
+          ]
+
+            .join("\n");
+
+        const blob =
+
+          new Blob(
+
+            [csv],
+
+            { type: "text/csv;charset=utf-8;" }
+
+          );
+
+        const url =
+
+          URL.createObjectURL(blob);
+
+        const a =
+
+          document.createElement("a");
+
+        a.href = url;
+
+        a.download =
+
+          `htaf-applications-${new Date().toISOString().slice(0,10)}.csv`;
+
+        document.body.appendChild(a);
+
+        a.click();
+
+        document.body.removeChild(a);
+
+        URL.revokeObjectURL(url);
+
+        showBanner(
+
+          "queueStatusBanner",
+
+          "CSV export downloaded.",
+
+          "ok"
+
+        );
+
+      }
+
+      function csvEscape(value) {
+
+        const text =
+
+          String(value ?? "");
+
+        if (
+
+          text.includes(",") ||
+
+          text.includes('"') ||
+
+          text.includes("\n")
+
+        ) {
+
+          return `"${text.replaceAll('"', '""')}"`;
+
+        }
+
+        return text;
+
+      }      function openHarveyAiChat() {
+
+        try {
+
+          if (
+
+            window.HarveyAI &&
+
+            typeof window.HarveyAI.open === "function"
+
+          ) {
+
+            window.HarveyAI.open();
+
+            return;
+
+          }
+
+          const root =
+
+            document.getElementById(
+
+              "harvey-ai-chat-root"
+
+            );
+
+          if (root) {
+
+            const toggle =
+
+              root.querySelector(
+
+                "[data-harvey-ai-open]"
+
+              ) ||
+
+              root.querySelector(
+
+                ".harvey-ai-launch"
+
+              ) ||
+
+              root.querySelector("button");
+
+            if (toggle?.click) {
+
+              toggle.click();
+
+              return;
+
+            }
+
+          }
+
+        } catch (error) {
+
+          console.warn(
+
+            "AI support open failed:",
+
+            error
+
+          );
+
+        }
+
+        window.location.href =
+
+          "support.html";
+
+      }
+
+      function setupEventListeners() {
+
+        const searchInput =
+
+          document.getElementById(
+
+            "searchInput"
+
+          );
+
+        const statusFilter =
+
+          document.getElementById(
+
+            "statusFilter"
+
+          );
+
+        const programFilter =
+
+          document.getElementById(
+
+            "programFilter"
+
+          );
+
+        if (searchInput) {
+
+          searchInput.addEventListener(
+
+            "input",
+
+            applyFilters
+
+          );
+
+        }
+
+        if (statusFilter) {
+
+          statusFilter.addEventListener(
+
+            "change",
+
+            refreshApplications
+
+          );
+
+        }
+
+        if (programFilter) {
+
+          programFilter.addEventListener(
+
+            "change",
+
+            applyFilters
+
+          );
+
+        }
+
+        document.addEventListener(
+
+          "keydown",
+
+          (event) => {
+
+            if (event.key === "Escape") {
+
+              closeRequestDocsModal();
+
+              closeScheduleModal();
+
+            }
+
+            if (
+
+              event.key.toLowerCase() === "r" &&
+
+              (event.ctrlKey || event.metaKey)
+
+            ) {
+
+              event.preventDefault();
+
+              refreshApplications();
+
+            }
+
+          }
+
+        );
+
+        document
+
+          .getElementById("requestDocsModal")
+
+          ?.addEventListener(
+
+            "click",
+
+            (event) => {
+
+              if (
+
+                event.target.id ===
+
+                "requestDocsModal"
+
+              ) {
+
+                closeRequestDocsModal();
+
+              }
+
+            }
+
+          );
+
+        document
+
+          .getElementById("scheduleRideModal")
+
+          ?.addEventListener(
+
+            "click",
+
+            (event) => {
+
+              if (
+
+                event.target.id ===
+
+                "scheduleRideModal"
+
+              ) {
+
+                closeScheduleModal();
+
+              }
+
+            }
+
+          );
+
+      }
+
+      function setupAiContext() {
+
+        window.HARVEY_AI_CONTEXT = {
+
+          page: "admin_htaf_operations",
+
+          organization:
+
+            "Harvey Transportation Assistance Foundation",
+
+          module:
+
+            "Phase 11 Admin Operations Dashboard",
+
+          routes: [
+
+            "/api/admin/foundation/applications",
+
+            "/api/admin/foundation/applications/:id"
+
+          ],
+
+          capabilities: [
+
+            "application review",
+
+            "approve deny",
+
+            "request documents",
+
+            "schedule rides",
+
+            "export CSV",
+
+            "grant reporting"
+
+          ]
+
+        };
+
+        setTimeout(() => {
+
+          if (
+
+            !document.getElementById(
+
+              "harvey-ai-chat-root"
+
+            )
+
+          ) {
+
+            const root =
+
+              document.createElement("div");
+
+            root.id =
+
+              "harvey-ai-chat-root";
+
+            document.body.appendChild(root);
+
+          }
+
+        }, 80);
+
+      }
+
+      async function initializeDashboard() {
+
+        setupAiContext();
+
+        setupEventListeners();
+
+        showBanner(
+
+          "opsStatusBanner",
+
+          "Initializing HTAF operations dashboard...",
+
+          "info"
+
+        );
+
+        try {
+
+          await refreshApplications();
+
+        } catch (error) {
+
+          console.warn(
+
+            "Initial load failed:",
+
+            error
+
+          );
+
+        }
+
+      }
+
+      window.addEventListener(
+
+        "load",
+
+        initializeDashboard
+
+      );
+
+      </script>
+
+      <script src="/ai-support-widget.js"></script>
+
+    </body>
+
+    </html>
