@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 
 <html lang="en" dir="ltr">
 
@@ -14,9 +14,9 @@
 
   />
 
-  <title>
+  <title data-i18n="metaTitle">
 
-    Harvey Taxi | Safe Tennessee Rides, Driver Access, AI Support, HTAF, and Mobility Services
+    Harvey Taxi | Safe Tennessee Rides, Driver Access, Delivery, AI Support, and Foundation Mobility
 
   </title>
 
@@ -24,13 +24,13 @@
 
     name="description"
 
-    content="Harvey Taxi Service LLC helps Tennessee riders request safe rides, connect with qualified drivers, access Harvey AI support, explore HTAF transportation assistance, and future mobility services."
+    content="Harvey Taxi Service LLC helps Tennessee riders request safe rides, connect with qualified drivers, access AI live support, and explore driver, delivery, foundation, and future mobility services."
 
   />
 
   <meta name="theme-color" content="#07111f" />
 
-  <meta name="robots" content="index, follow" />
+  <!-- Google tag -->
 
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-814LXYV9DN"></script>
 
@@ -38,7 +38,11 @@
 
     window.dataLayer = window.dataLayer || [];
 
-    function gtag(){ window.dataLayer.push(arguments); }
+    function gtag() {
+
+      window.dataLayer.push(arguments);
+
+    }
 
     gtag("js", new Date());
 
@@ -48,155 +52,167 @@
 
   </script>
 
-  <link rel="stylesheet" href="/ai-support-widget.css" />
-
   <style>
 
     :root {
 
-      --bg1:#040814;
+      --bg1: #040814;
 
-      --bg2:#091126;
+      --bg2: #091126;
 
-      --bg3:#101935;
+      --bg3: #101935;
 
-      --panel:rgba(10,17,38,.92);
+      --panel: rgba(10, 17, 38, 0.92);
 
-      --panel2:rgba(14,22,48,.78);
+      --panel2: rgba(14, 22, 48, 0.78);
 
-      --glass:rgba(255,255,255,.045);
+      --glass: rgba(255, 255, 255, 0.045);
 
-      --line:rgba(122,162,255,.16);
+      --line: rgba(122, 162, 255, 0.16);
 
-      --line-strong:rgba(122,162,255,.34);
+      --line-strong: rgba(122, 162, 255, 0.34);
 
-      --text:#f4f7ff;
+      --text: #f4f7ff;
 
-      --muted:#aab8de;
+      --muted: #aab8de;
 
-      --blue:#5ea0ff;
+      --blue: #5ea0ff;
 
-      --cyan:#63f5ff;
+      --cyan: #63f5ff;
 
-      --green:#6dffb3;
+      --green: #6dffb3;
 
-      --gold:#ffd76a;
+      --gold: #ffd76a;
 
-      --violet:#8c83ff;
+      --violet: #8c83ff;
 
-      --red:#ff6b6b;
+      --red: #ff6b6b;
 
-      --ink:#07121f;
+      --ink: #07121f;
 
-      --shadow:0 22px 80px rgba(0,0,0,.38);
+      --shadow: 0 22px 80px rgba(0, 0, 0, 0.38);
 
-      --shadow-soft:0 12px 34px rgba(0,0,0,.25);
+      --shadow-soft: 0 12px 34px rgba(0, 0, 0, 0.25);
 
-      --radius-xl:30px;
+      --radius-xl: 30px;
 
-      --radius-lg:22px;
+      --radius-lg: 22px;
 
-      --max:1220px;
+      --max: 1220px;
 
-      --nav-h:76px;
+      --nav-h: 76px;
 
-      --safe-bottom:env(safe-area-inset-bottom);
+      --safe-bottom: env(safe-area-inset-bottom);
 
     }
 
     * {
 
-      box-sizing:border-box;
+      box-sizing: border-box;
 
-      margin:0;
+      margin: 0;
 
-      padding:0;
+      padding: 0;
 
     }
 
     html {
 
-      scroll-behavior:smooth;
+      scroll-behavior: smooth;
 
-      min-height:100%;
+      min-height: 100%;
 
-      background:var(--bg1);
-
-      -webkit-font-smoothing:antialiased;
+      background: var(--bg1);
 
     }
 
     body {
 
-      font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+      font-family:
 
-      color:var(--text);
+        Inter,
 
-      min-height:100vh;
+        ui-sans-serif,
 
-      overflow-x:hidden;
+        system-ui,
 
-      padding-bottom:calc(var(--nav-h) + var(--safe-bottom) + 28px);
+        -apple-system,
+
+        BlinkMacSystemFont,
+
+        "Segoe UI",
+
+        Arial,
+
+        sans-serif;
+
+      color: var(--text);
 
       background:
 
-        radial-gradient(circle at top left,rgba(99,245,255,.13),transparent 30%),
+        radial-gradient(circle at top left, rgba(99, 245, 255, 0.13), transparent 30%),
 
-        radial-gradient(circle at top right,rgba(94,160,255,.13),transparent 30%),
+        radial-gradient(circle at top right, rgba(94, 160, 255, 0.13), transparent 30%),
 
-        radial-gradient(circle at 50% 110%,rgba(109,255,179,.08),transparent 26%),
+        radial-gradient(circle at 50% 110%, rgba(109, 255, 179, 0.08), transparent 26%),
 
-        linear-gradient(160deg,var(--bg1),var(--bg2) 48%,var(--bg3));
+        linear-gradient(160deg, var(--bg1), var(--bg2) 48%, var(--bg3));
+
+      min-height: 100vh;
+
+      overflow-x: hidden;
+
+      padding-bottom: calc(var(--nav-h) + var(--safe-bottom) + 28px);
 
     }
 
     body::before {
 
-      content:"";
+      content: "";
 
-      position:fixed;
+      position: fixed;
 
-      inset:0;
+      inset: 0;
 
-      pointer-events:none;
+      pointer-events: none;
 
       background-image:
 
-        linear-gradient(rgba(255,255,255,.022) 1px,transparent 1px),
+        linear-gradient(rgba(255, 255, 255, 0.022) 1px, transparent 1px),
 
-        linear-gradient(90deg,rgba(255,255,255,.022) 1px,transparent 1px);
+        linear-gradient(90deg, rgba(255, 255, 255, 0.022) 1px, transparent 1px);
 
-      background-size:52px 52px;
+      background-size: 52px 52px;
 
-      mask-image:linear-gradient(to bottom,rgba(0,0,0,.9),transparent 78%);
+      mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), transparent 78%);
 
-      z-index:0;
+      z-index: 0;
 
     }
 
     body.high-contrast {
 
-      --bg1:#000;
+      --bg1: #000000;
 
-      --bg2:#020617;
+      --bg2: #020617;
 
-      --bg3:#020617;
+      --bg3: #020617;
 
-      --panel:rgba(0,0,0,.96);
+      --panel: rgba(0, 0, 0, 0.96);
 
-      --text:#fff;
+      --text: #ffffff;
 
-      --muted:#e2e8f0;
+      --muted: #e2e8f0;
 
-      --line:rgba(255,255,255,.38);
+      --line: rgba(255, 255, 255, 0.38);
 
-      --line-strong:rgba(255,255,255,.7);
+      --line-strong: rgba(255, 255, 255, 0.7);
 
     }
 
     body.large-text {
 
-      font-size:18px;
+      font-size: 18px;
 
     }
 
@@ -206,19 +222,25 @@
 
     body.reduced-motion *::after {
 
-      animation:none !important;
+      animation: none !important;
 
-      transition:none !important;
+      transition: none !important;
 
-      scroll-behavior:auto !important;
+      scroll-behavior: auto !important;
+
+    }
+
+    [dir="rtl"] body {
+
+      text-align: right;
 
     }
 
     a {
 
-      color:inherit;
+      color: inherit;
 
-      text-decoration:none;
+      text-decoration: none;
 
     }
 
@@ -232,11 +254,11 @@
 
     textarea {
 
-      font:inherit;
+      font: inherit;
 
-      -webkit-tap-highlight-color:transparent;
+      -webkit-tap-highlight-color: transparent;
 
-      touch-action:manipulation;
+      touch-action: manipulation;
 
     }
 
@@ -248,137 +270,137 @@
 
     textarea {
 
-      border:none;
+      border: none;
 
-      outline:none;
+      outline: none;
 
     }
 
     button {
 
-      cursor:pointer;
+      cursor: pointer;
 
     }
 
     button:disabled {
 
-      cursor:not-allowed;
+      cursor: not-allowed;
 
-      opacity:.6;
+      opacity: 0.6;
 
     }
 
     .shell {
 
-      max-width:var(--max);
+      max-width: var(--max);
 
-      margin:auto;
+      margin: auto;
 
-      padding:20px 16px;
+      padding: 20px 16px;
 
-      position:relative;
+      position: relative;
 
-      z-index:1;
+      z-index: 1;
 
     }
 
     .skip-link {
 
-      position:absolute;
+      position: absolute;
 
-      left:16px;
+      left: 16px;
 
-      top:-120px;
+      top: -120px;
 
-      padding:12px 16px;
+      padding: 12px 16px;
 
-      border-radius:999px;
+      border-radius: 999px;
 
-      background:var(--cyan);
+      background: var(--cyan);
 
-      color:var(--ink);
+      color: var(--ink);
 
-      font-weight:900;
+      font-weight: 900;
 
-      z-index:99999;
+      z-index: 99999;
 
-      transition:.16s ease;
+      transition: 0.16s ease;
 
     }
 
     .skip-link:focus {
 
-      top:14px;
+      top: 14px;
 
     }
 
     .language-panel {
 
-      margin-bottom:18px;
+      margin-bottom: 18px;
 
-      padding:18px;
+      padding: 18px;
 
-      border-radius:26px;
+      border-radius: 26px;
 
       background:
 
-        linear-gradient(135deg,rgba(99,245,255,.08),rgba(94,160,255,.04)),
+        linear-gradient(135deg, rgba(99,245,255,.08), rgba(94,160,255,.04)),
 
         rgba(7,12,28,.88);
 
-      border:1px solid var(--line);
+      border: 1px solid var(--line);
 
-      box-shadow:var(--shadow-soft);
+      box-shadow: var(--shadow-soft);
 
-      display:grid;
+      display: grid;
 
-      grid-template-columns:1fr auto;
+      grid-template-columns: 1fr auto;
 
-      gap:16px;
+      gap: 16px;
 
-      align-items:center;
+      align-items: center;
 
-      backdrop-filter:blur(16px);
+      backdrop-filter: blur(16px);
 
-      -webkit-backdrop-filter:blur(16px);
+      -webkit-backdrop-filter: blur(16px);
 
     }
 
     .language-copy strong {
 
-      display:block;
+      display: block;
 
-      color:var(--cyan);
+      color: var(--cyan);
 
-      font-size:14px;
+      font-size: 14px;
 
-      margin-bottom:4px;
+      margin-bottom: 4px;
 
-      font-weight:900;
+      font-weight: 900;
 
     }
 
     .language-copy span {
 
-      color:var(--muted);
+      color: var(--muted);
 
-      font-size:13px;
+      font-size: 13px;
 
-      line-height:1.6;
+      line-height: 1.6;
 
     }
 
     .language-controls {
 
-      display:flex;
+      display: flex;
 
-      flex-wrap:wrap;
+      flex-wrap: wrap;
 
-      gap:10px;
+      gap: 10px;
 
-      justify-content:flex-end;
+      justify-content: flex-end;
 
-      align-items:center;
+      align-items: center;
 
     }
 
@@ -386,175 +408,175 @@
 
     .access-btn {
 
-      min-height:46px;
+      min-height: 46px;
 
-      padding:0 16px;
+      padding: 0 16px;
 
-      border-radius:999px;
+      border-radius: 999px;
 
-      background:rgba(255,255,255,.06);
+      background: rgba(255,255,255,.06);
 
-      color:#fff;
+      color: #fff;
 
-      border:1px solid var(--line);
+      border: 1px solid var(--line);
 
-      font-weight:850;
+      font-weight: 850;
 
-      transition:.18s ease;
+      transition: .18s ease;
 
     }
 
     .select-control option {
 
-      color:#07121f;
+      color: #07121f;
 
-      background:#fff;
+      background: #ffffff;
 
     }
 
     .access-btn.active {
 
-      background:linear-gradient(135deg,var(--cyan),var(--blue));
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
 
-      color:var(--ink);
+      color: var(--ink);
 
-      border:none;
+      border: none;
 
     }
 
     .topbar {
 
-      position:sticky;
+      position: sticky;
 
-      top:12px;
+      top: 12px;
 
-      z-index:100;
+      z-index: 100;
 
-      display:flex;
+      display: flex;
 
-      justify-content:space-between;
+      justify-content: space-between;
 
-      align-items:center;
+      align-items: center;
 
-      gap:14px;
+      gap: 14px;
 
-      padding:14px 22px;
+      padding: 14px 22px;
 
-      margin-bottom:24px;
+      margin-bottom: 24px;
 
-      border-radius:999px;
+      border-radius: 999px;
 
-      background:rgba(7,12,28,.88);
+      background: rgba(7,12,28,.88);
 
-      border:1px solid rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.08);
 
-      backdrop-filter:blur(20px);
+      backdrop-filter: blur(20px);
 
-      -webkit-backdrop-filter:blur(20px);
+      -webkit-backdrop-filter: blur(20px);
 
-      box-shadow:var(--shadow);
+      box-shadow: var(--shadow);
 
     }
 
     .brand-wrap {
 
-      display:flex;
+      display: flex;
 
-      align-items:center;
+      align-items: center;
 
-      gap:12px;
+      gap: 12px;
 
-      min-width:0;
+      min-width: 0;
 
     }
 
     .logo-mark {
 
-      width:48px;
+      width: 48px;
 
-      height:48px;
+      height: 48px;
 
-      border-radius:16px;
+      border-radius: 16px;
 
-      display:grid;
+      display: grid;
 
-      place-items:center;
+      place-items: center;
 
-      background:linear-gradient(135deg,var(--cyan),var(--blue));
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
 
-      color:var(--ink);
+      color: var(--ink);
 
-      font-size:15px;
+      font-size: 15px;
 
-      font-weight:950;
+      font-weight: 950;
 
-      box-shadow:0 0 26px rgba(99,245,255,.28);
+      box-shadow: 0 0 26px rgba(99,245,255,.28);
 
-      flex-shrink:0;
+      flex-shrink: 0;
 
     }
 
     .brand-stack {
 
-      display:flex;
+      display: flex;
 
-      flex-direction:column;
+      flex-direction: column;
 
-      min-width:0;
+      min-width: 0;
 
     }
 
     .brand {
 
-      font-size:15px;
+      font-size: 15px;
 
-      font-weight:950;
+      font-weight: 950;
 
-      letter-spacing:.14em;
+      letter-spacing: .14em;
 
-      white-space:nowrap;
+      white-space: nowrap;
 
     }
 
     .brand-sub {
 
-      color:var(--muted);
+      color: var(--muted);
 
-      font-size:11px;
+      font-size: 11px;
 
-      white-space:nowrap;
+      white-space: nowrap;
 
     }
 
     .top-links {
 
-      display:flex;
+      display: flex;
 
-      align-items:center;
+      align-items: center;
 
-      gap:8px;
+      gap: 8px;
 
     }
 
     .top-link {
 
-      padding:10px 16px;
+      padding: 10px 16px;
 
-      border-radius:999px;
+      border-radius: 999px;
 
-      background:rgba(255,255,255,.025);
+      background: rgba(255,255,255,.025);
 
-      border:1px solid rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.05);
 
-      color:var(--muted);
+      color: var(--muted);
 
-      font-size:13px;
+      font-size: 13px;
 
-      font-weight:850;
+      font-weight: 850;
 
-      transition:.18s ease;
+      transition: .18s ease;
 
-      white-space:nowrap;
+      white-space: nowrap;
 
     }
 
@@ -562,2557 +584,6223 @@
 
     .top-link:focus-visible {
 
-      color:#fff;
+      color: #fff;
 
-      border-color:rgba(255,255,255,.15);
+      border-color: rgba(255,255,255,.15);
 
-      background:rgba(255,255,255,.08);
+      background: rgba(255,255,255,.08);
 
-      transform:translateY(-1px);
+      transform: translateY(-1px);
 
     }
 
     .top-link.cta {
 
-      background:linear-gradient(135deg,var(--cyan),var(--blue));
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
 
-      color:var(--ink);
+      color: var(--ink);
 
-      border:none;
+      border: none;
 
-      box-shadow:0 10px 24px rgba(94,160,255,.25);
+      box-shadow: 0 10px 24px rgba(94,160,255,.25);
 
-    }/* ==========================
+    }    .announce {
 
-   PLATFORM LOADED BANNER
+      margin-bottom: 24px;
 
-========================== */
+      padding: 18px 22px;
 
-.platform-banner {
+      border-radius: 24px;
 
-  position: fixed;
+      border: 1px solid rgba(99,245,255,.15);
 
-  top: 18px;
+      background:
 
-  left: 50%;
+        linear-gradient(135deg, rgba(99,245,255,.10), rgba(94,160,255,.05)),
 
-  transform: translateX(-50%);
+        rgba(255,255,255,.02);
 
-  width: min(760px, calc(100vw - 24px));
+      display: flex;
 
-  z-index: 99999;
+      justify-content: space-between;
 
-  background:
+      align-items: center;
 
-    linear-gradient(
+      gap: 18px;
 
-      135deg,
+      box-shadow: var(--shadow-soft);
 
-      #63f5ff,
+    }
 
-      #5ea0ff
+    .announce-copy strong {
+
+      display: block;
+
+      color: var(--cyan);
+
+      margin-bottom: 5px;
+
+      font-size: 15px;
+
+      font-weight: 900;
+
+    }
+
+    .announce-copy span {
+
+      display: block;
+
+      color: var(--muted);
+
+      font-size: 14px;
+
+      line-height: 1.6;
+
+    }
+
+    .inclusive-strip {
+
+      margin-bottom: 24px;
+
+      padding: 20px 24px;
+
+      border-radius: 24px;
+
+      background:
+
+        linear-gradient(135deg, rgba(255,215,106,.08), rgba(99,245,255,.05)),
+
+        rgba(255,255,255,.02);
+
+      border: 1px solid rgba(255,215,106,.18);
+
+      box-shadow: var(--shadow-soft);
+
+    }
+
+    .inclusive-strip strong {
+
+      display: block;
+
+      color: var(--gold);
+
+      margin-bottom: 6px;
+
+      font-size: 16px;
+
+    }
+
+    .inclusive-strip p {
+
+      color: var(--muted);
+
+      line-height: 1.7;
+
+      font-size: 14px;
+
+    }
+
+    .hero {
+
+      position: relative;
+
+      border-radius: 36px;
+
+      border: 1px solid var(--line);
+
+      background:
+
+        linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.014)),
+
+        var(--panel);
+
+      box-shadow: var(--shadow);
+
+      padding: clamp(24px, 4vw, 44px);
+
+      margin-bottom: 24px;
+
+      overflow: hidden;
+
+      isolation: isolate;
+
+    }
+
+    .hero::before {
+
+      content: "";
+
+      position: absolute;
+
+      inset: -1px;
+
+      background:
+
+        radial-gradient(circle at 16% 0%, rgba(99,245,255,.16), transparent 34%),
+
+        radial-gradient(circle at 86% 12%, rgba(140,131,255,.18), transparent 34%),
+
+        radial-gradient(circle at 50% 105%, rgba(109,255,179,.10), transparent 30%);
+
+      pointer-events: none;
+
+      z-index: -1;
+
+    }
+
+    .hero::after {
+
+      content: "";
+
+      position: absolute;
+
+      width: 520px;
+
+      height: 520px;
+
+      right: -210px;
+
+      top: -210px;
+
+      border-radius: 999px;
+
+      background: radial-gradient(circle, rgba(99,245,255,.13), transparent 68%);
+
+      pointer-events: none;
+
+    }
+
+    .hero > * {
+
+      position: relative;
+
+      z-index: 1;
+
+    }
+
+    .hero-grid {
+
+      display: grid;
+
+      grid-template-columns: minmax(0, 1.15fr) minmax(320px, .85fr);
+
+      gap: 34px;
+
+      align-items: start;
+
+    }
+
+    .hero-badge {
+
+      display: inline-flex;
+
+      align-items: center;
+
+      gap: 9px;
+
+      padding: 9px 16px;
+
+      border-radius: 999px;
+
+      margin-bottom: 20px;
+
+      color: var(--cyan);
+
+      background: rgba(99,245,255,.065);
+
+      border: 1px solid rgba(99,245,255,.24);
+
+      font-size: 12px;
+
+      font-weight: 950;
+
+      letter-spacing: .08em;
+
+      text-transform: uppercase;
+
+    }
+
+    .hero-badge::before {
+
+      content: "";
+
+      width: 9px;
+
+      height: 9px;
+
+      border-radius: 999px;
+
+      background: var(--green);
+
+      box-shadow:
+
+        0 0 0 6px rgba(109,255,179,.12),
+
+        0 0 18px rgba(109,255,179,.35);
+
+    }
+
+    .hero-title {
+
+      max-width: 860px;
+
+      font-size: clamp(2.55rem, 5.7vw, 4.35rem);
+
+      line-height: 1.02;
+
+      letter-spacing: -.06em;
+
+      margin-bottom: 18px;
+
+      font-weight: 1000;
+
+    }
+
+    .gradient-text {
+
+      background: linear-gradient(135deg, #ffffff, var(--cyan), var(--blue));
+
+      -webkit-background-clip: text;
+
+      background-clip: text;
+
+      color: transparent;
+
+    }
+
+    .hero-copy {
+
+      max-width: 780px;
+
+      color: var(--muted);
+
+      line-height: 1.78;
+
+      font-size: 16.5px;
+
+      margin-bottom: 28px;
+
+    }
+
+    .action-container {
+
+      position: relative;
+
+      background:
+
+        linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.018)),
+
+        rgba(4,8,20,.62);
+
+      border: 1px solid rgba(255,255,255,.075);
+
+      padding: 24px;
+
+      border-radius: 24px;
+
+      margin-bottom: 28px;
+
+      box-shadow:
+
+        inset 0 1px 0 rgba(255,255,255,.04),
+
+        0 18px 50px rgba(0,0,0,.22);
+
+    }
+
+    .action-container h4 {
+
+      font-size: 13px;
+
+      text-transform: uppercase;
+
+      letter-spacing: .12em;
+
+      color: var(--muted);
+
+      margin-bottom: 14px;
+
+      font-weight: 950;
+
+    }
+
+    .primary-actions {
+
+      display: grid;
+
+      grid-template-columns: 1fr 1fr;
+
+      gap: 12px;
+
+      margin-bottom: 14px;
+
+    }
+
+    .secondary-actions,
+
+    .actions {
+
+      display: flex;
+
+      flex-wrap: wrap;
+
+      gap: 10px;
+
+    }
+
+    .secondary-actions .btn {
+
+      flex: 1;
+
+      min-width: 150px;
+
+    }
+
+    .btn {
+
+      position: relative;
+
+      padding: 14px 20px;
+
+      border-radius: 16px;
+
+      border: 1px solid var(--line);
+
+      background: rgba(255,255,255,.045);
+
+      color: white;
+
+      font-weight: 900;
+
+      transition: .18s ease;
+
+      display: inline-flex;
+
+      align-items: center;
+
+      justify-content: center;
+
+      gap: 8px;
+
+      min-height: 54px;
+
+      text-align: center;
+
+      overflow: hidden;
+
+    }
+
+    .btn::after {
+
+      content: "";
+
+      position: absolute;
+
+      inset: 0;
+
+      background: linear-gradient(120deg, transparent, rgba(255,255,255,.12), transparent);
+
+      transform: translateX(-120%);
+
+      transition: .45s ease;
+
+      pointer-events: none;
+
+    }
+
+    .btn:hover::after {
+
+      transform: translateX(120%);
+
+    }
+
+    .btn:hover,
+
+    .btn:focus-visible {
+
+      transform: translateY(-2px);
+
+      background: rgba(255,255,255,.085);
+
+      border-color: var(--line-strong);
+
+    }
+
+    .btn.primary {
+
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+
+      color: var(--ink);
+
+      border: none;
+
+      box-shadow: 0 14px 34px rgba(94,160,255,.25);
+
+    }
+
+    .btn.success {
+
+      background: linear-gradient(135deg, var(--green), #89ffd0);
+
+      color: #062014;
+
+      border: none;
+
+    }
+
+    .btn.autonomous {
+
+      background: rgba(140,131,255,.15);
+
+      color: #d8d6ff;
+
+      border: 1px solid rgba(140,131,255,.34);
+
+    }
+
+    .btn.foundation {
+
+      background: linear-gradient(135deg, var(--gold), #ffe9a1);
+
+      color: #2b2200;
+
+      border: none;
+
+    }
+
+    .btn.danger {
+
+      background: linear-gradient(135deg, #ff8585, #ff5f5f);
+
+      color: #2c0606;
+
+      border: none;
+
+    }
+
+    .btn.ghost {
+
+      background: transparent;
+
+      border-color: rgba(255,255,255,.13);
+
+    }
+
+    .pilot-tag {
+
+      display: inline-flex;
+
+      align-items: center;
+
+      padding: 2px 7px;
+
+      border-radius: 5px;
+
+      font-size: 10px;
+
+      font-weight: 950;
+
+      background: var(--violet);
+
+      color: #fff;
+
+      letter-spacing: .05em;
+
+    }
+
+    .hero-points {
+
+      display: grid;
+
+      grid-template-columns: repeat(2, 1fr);
+
+      gap: 12px;
+
+    }
+
+    .hero-point {
+
+      padding: 17px;
+
+      border-radius: 18px;
+
+      background:
+
+        linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.015));
+
+      border: 1px solid rgba(255,255,255,.06);
+
+      color: var(--muted);
+
+      font-size: 14px;
+
+      line-height: 1.58;
+
+      transition: .18s ease;
+
+    }
+
+    .hero-point:hover {
+
+      transform: translateY(-2px);
+
+      border-color: var(--line-strong);
+
+      background: rgba(255,255,255,.045);
+
+    }
+
+    .hero-point strong {
+
+      display: block;
+
+      color: #fff;
+
+      margin-bottom: 6px;
+
+      font-size: 15px;
+
+    }
+
+    .hero-side {
+
+      display: flex;
+
+      flex-direction: column;
+
+      gap: 16px;
+
+    }
+
+    .status-card,
+
+    .foundation-card,
+
+    .community-card {
+
+      padding: 24px;
+
+      border-radius: 24px;
+
+      border: 1px solid rgba(255,255,255,.07);
+
+      background:
+
+        linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.015));
+
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+
+    }
+
+    .foundation-card {
+
+      background:
+
+        linear-gradient(180deg, rgba(255,215,106,.08), rgba(255,255,255,.015));
+
+      border-color: rgba(255,215,106,.2);
+
+    }
+
+    .community-card {
+
+      background:
+
+        linear-gradient(180deg, rgba(140,131,255,.09), rgba(255,255,255,.015));
+
+      border-color: rgba(140,131,255,.22);
+
+    }
+
+    .eyebrow {
+
+      display: inline-flex;
+
+      margin-bottom: 8px;
+
+      color: var(--cyan);
+
+      font-size: 11px;
+
+      font-weight: 950;
+
+      letter-spacing: .08em;
+
+      text-transform: uppercase;
+
+    }
+
+    .foundation-card .eyebrow {
+
+      color: var(--gold);
+
+    }
+
+    .community-card .eyebrow {
+
+      color: #c9c8ff;
+
+    }
+
+    .status-card h3,
+
+    .foundation-card h3,
+
+    .community-card h3 {
+
+      font-size: 20px;
+
+      margin-bottom: 12px;
+
+      letter-spacing: -.02em;
+
+    }
+
+    .status-card p,
+
+    .foundation-card p,
+
+    .community-card p {
+
+      color: var(--muted);
+
+      line-height: 1.65;
+
+      font-size: 14px;
+
+    }    .status-list {
+
+      display: grid;
+
+      gap: 10px;
+
+      margin-top: 16px;
+
+    }
+
+    .status-item {
+
+      display: flex;
+
+      justify-content: space-between;
+
+      align-items: center;
+
+      gap: 12px;
+
+      padding: 13px 16px;
+
+      border-radius: 15px;
+
+      background: rgba(255,255,255,.025);
+
+      border: 1px solid rgba(255,255,255,.05);
+
+      transition: .18s ease;
+
+    }
+
+    .status-item:hover {
+
+      background: rgba(255,255,255,.045);
+
+      border-color: var(--line-strong);
+
+    }
+
+    .status-item span {
+
+      font-size: 14px;
+
+      font-weight: 850;
+
+    }
+
+    .status-pill {
+
+      padding: 5px 11px;
+
+      border-radius: 999px;
+
+      font-size: 11px;
+
+      font-weight: 950;
+
+      background: rgba(109,255,179,.12);
+
+      color: var(--green);
+
+      white-space: nowrap;
+
+    }
+
+    .status-pill.info {
+
+      background: rgba(99,245,255,.12);
+
+      color: var(--cyan);
+
+    }
+
+    .status-pill.pilot {
+
+      background: rgba(140,131,255,.16);
+
+      color: #d5d3ff;
+
+    }
+
+    .status-pill.build {
+
+      background: rgba(255,215,106,.14);
+
+      color: var(--gold);
+
+    }
+
+    .mini-stats {
+
+      display: grid;
+
+      grid-template-columns: repeat(4,1fr);
+
+      gap: 16px;
+
+      margin-top: 24px;
+
+    }
+
+    .mini-stat {
+
+      padding: 22px;
+
+      border-radius: 20px;
+
+      border: 1px solid rgba(255,255,255,.06);
+
+      background:
+
+        linear-gradient(
+
+          180deg,
+
+          rgba(255,255,255,.04),
+
+          rgba(255,255,255,.015)
+
+        );
+
+      transition: .18s ease;
+
+    }
+
+    .mini-stat:hover {
+
+      transform: translateY(-3px);
+
+      border-color: var(--line-strong);
+
+      background: rgba(255,255,255,.05);
+
+    }
+
+    .mini-stat strong {
+
+      display: block;
+
+      font-size: 17px;
+
+      color: #fff;
+
+      margin-bottom: 8px;
+
+    }
+
+    .mini-stat span {
+
+      color: var(--muted);
+
+      font-size: 13px;
+
+      line-height: 1.65;
+
+    }
+
+    .support-callout {
+
+      margin-top: 24px;
+
+      display: flex;
+
+      justify-content: space-between;
+
+      align-items: center;
+
+      gap: 18px;
+
+      padding: 22px 24px;
+
+      border-radius: 22px;
+
+      border: 1px solid rgba(109,255,179,.18);
+
+      background:
+
+        linear-gradient(
+
+          135deg,
+
+          rgba(109,255,179,.06),
+
+          rgba(99,245,255,.03)
+
+        );
+
+      box-shadow:
+
+        inset 0 1px 0 rgba(255,255,255,.04);
+
+    }
+
+    .support-callout strong {
+
+      display: block;
+
+      color: var(--green);
+
+      margin-bottom: 5px;
+
+      font-size: 16px;
+
+      font-weight: 950;
+
+    }
+
+    .support-callout span {
+
+      color: var(--muted);
+
+      font-size: 14px;
+
+      line-height: 1.65;
+
+    }
+
+    .section {
+
+      margin-top: 24px;
+
+      background: var(--panel);
+
+      padding: 34px;
+
+      border-radius: var(--radius-xl);
+
+      border: 1px solid var(--line);
+
+      box-shadow: var(--shadow);
+
+      position: relative;
+
+      overflow: hidden;
+
+    }
+
+    .section::before {
+
+      content: "";
+
+      position: absolute;
+
+      inset: 0;
+
+      background:
+
+        radial-gradient(
+
+          circle at top right,
+
+          rgba(99,245,255,.05),
+
+          transparent 40%
+
+        );
+
+      pointer-events: none;
+
+    }
+
+    .section-header {
+
+      margin-bottom: 26px;
+
+      position: relative;
+
+      z-index: 1;
+
+    }
+
+    .section h2 {
+
+      font-size: 30px;
+
+      margin-bottom: 8px;
+
+      letter-spacing: -.03em;
+
+      font-weight: 950;
+
+    }
+
+    .lead {
+
+      color: var(--muted);
+
+      line-height: 1.75;
+
+      font-size: 15px;
+
+      max-width: 860px;
+
+    }
+
+    .grid {
+
+      display: grid;
+
+      grid-template-columns: repeat(3,1fr);
+
+      gap: 16px;
+
+    }
+
+    .card,
+
+    .highlight,
+
+    .list-item,
+
+    .service-card {
+
+      border: 1px solid rgba(255,255,255,.05);
+
+      background: rgba(255,255,255,.02);
+
+    }
+
+    .card {
+
+      padding: 22px;
+
+      border-radius: 20px;
+
+      transition: .18s ease;
+
+      position: relative;
+
+      overflow: hidden;
+
+    }
+
+    .card::after {
+
+      content: "";
+
+      position: absolute;
+
+      inset: 0;
+
+      background:
+
+        linear-gradient(
+
+          120deg,
+
+          transparent,
+
+          rgba(255,255,255,.05),
+
+          transparent
+
+        );
+
+      transform: translateX(-120%);
+
+      transition: .5s ease;
+
+    }
+
+    .card:hover::after {
+
+      transform: translateX(120%);
+
+    }
+
+    .card:hover {
+
+      transform: translateY(-4px);
+
+      border-color: var(--line-strong);
+
+      background: rgba(255,255,255,.045);
+
+    }
+
+    .card strong {
+
+      display: block;
+
+      margin-bottom: 8px;
+
+      font-size: 16px;
+
+      color: #fff;
+
+      font-weight: 900;
+
+    }
+
+    .card span {
+
+      display: block;
+
+      color: var(--muted);
+
+      font-size: 14px;
+
+      line-height: 1.65;
+
+    }
+
+    .info-grid {
+
+      display: grid;
+
+      grid-template-columns: 1.1fr .9fr;
+
+      gap: 18px;
+
+      margin-top: 18px;
+
+    }
+
+    .highlight {
+
+      padding: 26px;
+
+      border-radius: 22px;
+
+      background:
+
+        linear-gradient(
+
+          180deg,
+
+          rgba(255,255,255,.05),
+
+          rgba(255,255,255,.02)
+
+        );
+
+    }
+
+    .highlight h3 {
+
+      margin-bottom: 12px;
+
+      font-size: 21px;
+
+      font-weight: 950;
+
+    }
+
+    .highlight p {
+
+      color: var(--muted);
+
+      line-height: 1.75;
+
+      font-size: 14px;
+
+    }
+
+    .pill-row {
+
+      display: flex;
+
+      flex-wrap: wrap;
+
+      gap: 8px;
+
+      margin-top: 18px;
+
+    }
+
+    .pill {
+
+      padding: 7px 13px;
+
+      border-radius: 999px;
+
+      background: rgba(255,255,255,.045);
+
+      border: 1px solid rgba(255,255,255,.06);
+
+      color: var(--muted);
+
+      font-size: 12px;
+
+      font-weight: 800;
+
+    }
+
+    .list {
+
+      display: grid;
+
+      gap: 12px;
+
+    }
+
+    .list-item {
+
+      padding: 18px;
+
+      border-radius: 16px;
+
+      transition: .18s ease;
+
+    }
+
+    .list-item:hover {
+
+      border-color: var(--line-strong);
+
+      background: rgba(255,255,255,.04);
+
+    }
+
+    .list-item strong {
+
+      display: block;
+
+      margin-bottom: 5px;
+
+      font-size: 15px;
+
+      font-weight: 900;
+
+    }
+
+    .list-item span {
+
+      display: block;
+
+      color: var(--muted);
+
+      font-size: 13px;
+
+      line-height: 1.65;
+
+      overflow-wrap: anywhere;
+
+    }    .service-row {
+
+      display: grid;
+
+      grid-template-columns: repeat(4, 1fr);
+
+      gap: 17px;
+
+    }
+
+    .service-card {
+
+      padding: 24px;
+
+      border-radius: 22px;
+
+      display: flex;
+
+      flex-direction: column;
+
+      justify-content: space-between;
+
+      min-height: 260px;
+
+      transition: .2s ease;
+
+      background:
+
+        linear-gradient(
+
+          180deg,
+
+          rgba(255,255,255,.04),
+
+          rgba(255,255,255,.015)
+
+        );
+
+    }
+
+    .service-card:hover {
+
+      transform: translateY(-4px);
+
+      border-color: var(--line-strong);
+
+      background: rgba(255,255,255,.045);
+
+    }
+
+    .service-card h3 {
+
+      margin-bottom: 9px;
+
+      font-size: 18px;
+
+      color: #fff;
+
+      letter-spacing: -.02em;
+
+      font-weight: 950;
+
+    }
+
+    .service-card p {
+
+      color: var(--muted);
+
+      line-height: 1.65;
+
+      font-size: 14px;
+
+      margin-bottom: 20px;
+
+      flex-grow: 1;
+
+    }
+
+    .service-card .btn {
+
+      width: 100%;
+
+    }
+
+    .coverage-grid {
+
+      display: grid;
+
+      grid-template-columns: repeat(4, 1fr);
+
+      gap: 17px;
+
+    }
+
+    .coverage-card {
+
+      padding: 24px;
+
+      border-radius: 22px;
+
+      text-align: center;
+
+      border: 1px solid rgba(255,255,255,.06);
+
+      background:
+
+        linear-gradient(
+
+          180deg,
+
+          rgba(255,255,255,.035),
+
+          rgba(255,255,255,.012)
+
+        );
+
+      transition: .18s ease;
+
+    }
+
+    .coverage-card:hover {
+
+      transform: translateY(-3px);
+
+      border-color: var(--line-strong);
+
+      background: rgba(255,255,255,.045);
+
+    }
+
+    .coverage-card strong {
+
+      display: block;
+
+      font-size: 18px;
+
+      margin-bottom: 8px;
+
+      color: #fff;
+
+      font-weight: 950;
+
+    }
+
+    .coverage-card span {
+
+      display: block;
+
+      color: var(--muted);
+
+      font-size: 13px;
+
+      line-height: 1.65;
+
+    }
+
+    .language-support-grid {
+
+      display: grid;
+
+      grid-template-columns: repeat(4, 1fr);
+
+      gap: 17px;
+
+      margin-top: 20px;
+
+    }
+
+    .language-card {
+
+      padding: 22px;
+
+      border-radius: 20px;
+
+      text-align: center;
+
+      border: 1px solid rgba(99,245,255,.14);
+
+      background:
+
+        linear-gradient(
+
+          180deg,
+
+          rgba(99,245,255,.045),
+
+          rgba(255,255,255,.012)
+
+        );
+
+      transition: .18s ease;
+
+    }
+
+    .language-card:hover {
+
+      transform: translateY(-3px);
+
+      border-color: rgba(99,245,255,.32);
+
+      background: rgba(99,245,255,.06);
+
+    }
+
+    .language-card h4 {
+
+      color: var(--cyan);
+
+      margin-bottom: 8px;
+
+      font-size: 16px;
+
+      font-weight: 950;
+
+    }
+
+    .language-card p {
+
+      color: var(--muted);
+
+      font-size: 13px;
+
+      line-height: 1.6;
+
+    }
+
+    .community-grid {
+
+      display: grid;
+
+      grid-template-columns: repeat(3, 1fr);
+
+      gap: 17px;
+
+      margin-top: 18px;
+
+    }
+
+    .community-card-box {
+
+      padding: 23px;
+
+      border-radius: 22px;
+
+      border: 1px solid rgba(255,255,255,.06);
+
+      background:
+
+        linear-gradient(
+
+          180deg,
+
+          rgba(255,255,255,.035),
+
+          rgba(255,255,255,.012)
+
+        );
+
+      transition: .18s ease;
+
+    }
+
+    .community-card-box:hover {
+
+      transform: translateY(-3px);
+
+      border-color: var(--line-strong);
+
+      background: rgba(255,255,255,.045);
+
+    }
+
+    .community-card-box h4 {
+
+      color: #fff;
+
+      margin-bottom: 8px;
+
+      font-size: 16px;
+
+      font-weight: 950;
+
+    }
+
+    .community-card-box p {
+
+      color: var(--muted);
+
+      font-size: 14px;
+
+      line-height: 1.65;
+
+    }
+
+    .footer {
+
+      margin-top: 24px;
+
+      padding: 32px;
+
+      border-radius: var(--radius-xl);
+
+      border: 1px solid var(--line);
+
+      background:
+
+        linear-gradient(
+
+          180deg,
+
+          rgba(255,255,255,.04),
+
+          rgba(255,255,255,.014)
+
+        ),
+
+        var(--panel);
+
+      display: flex;
+
+      justify-content: space-between;
+
+      align-items: center;
+
+      flex-wrap: wrap;
+
+      gap: 24px;
+
+      box-shadow: var(--shadow);
+
+    }
+
+    .footer-title {
+
+      display: block;
+
+      margin-bottom: 6px;
+
+      font-weight: 950;
+
+      font-size: 16px;
+
+    }
+
+    .footer p {
+
+      color: var(--muted);
+
+      font-size: 14px;
+
+      line-height: 1.65;
+
+      max-width: 660px;
+
+    }    .bottom-nav {
+
+      position: fixed;
+
+      left: 0;
+
+      right: 0;
+
+      bottom: 0;
+
+      height: calc(var(--nav-h) + env(safe-area-inset-bottom));
+
+      background: rgba(6,12,26,.96);
+
+      backdrop-filter: blur(24px);
+
+      -webkit-backdrop-filter: blur(24px);
+
+      border-top: 1px solid rgba(255,255,255,.08);
+
+      display: flex;
+
+      justify-content: space-around;
+
+      align-items: center;
+
+      padding:
+
+        0 8px
+
+        env(safe-area-inset-bottom)
+
+        8px;
+
+      z-index: 100;
+
+      box-shadow:
+
+        0 -10px 30px rgba(0,0,0,.35);
+
+    }
+
+    .nav-btn {
+
+      color: var(--muted);
+
+      background: transparent;
+
+      font-size: 11px;
+
+      font-weight: 850;
+
+      padding: 10px 12px;
+
+      border-radius: 14px;
+
+      display: flex;
+
+      flex-direction: column;
+
+      align-items: center;
+
+      gap: 5px;
+
+      min-width: 70px;
+
+      transition: .16s ease;
+
+    }
+
+    .nav-btn.active,
+
+    .nav-btn:hover,
+
+    .nav-btn:focus-visible {
+
+      color: var(--cyan);
+
+      background: rgba(99,245,255,.08);
+
+    }
+
+    .modal-overlay {
+
+      position: fixed;
+
+      inset: 0;
+
+      background: rgba(4,8,20,.88);
+
+      backdrop-filter: blur(14px);
+
+      -webkit-backdrop-filter: blur(14px);
+
+      display: flex;
+
+      justify-content: center;
+
+      align-items: center;
+
+      z-index: 99999;
+
+      padding: 20px;
+
+      animation: fadeIn .22s ease;
+
+    }
+
+    .modal-card {
+
+      width: 100%;
+
+      max-width: 540px;
+
+      padding: 34px;
+
+      border-radius: 28px;
+
+      background:
+
+        linear-gradient(
+
+          160deg,
+
+          #091126,
+
+          #101935
+
+        );
+
+      border: 1px solid rgba(122,162,255,.25);
+
+      box-shadow:
+
+        0 25px 60px rgba(0,0,0,.55);
+
+      text-align: center;
+
+    }
+
+    .modal-card h3 {
+
+      font-size: 24px;
+
+      font-weight: 950;
+
+      margin-bottom: 12px;
+
+      color: #fff;
+
+    }
+
+    .modal-card p {
+
+      color: var(--muted);
+
+      line-height: 1.75;
+
+      font-size: 14px;
+
+      margin-bottom: 22px;
+
+    }
+
+    @keyframes fadeIn {
+
+      from {
+
+        opacity: 0;
+
+      }
+
+      to {
+
+        opacity: 1;
+
+      }
+
+    }
+
+    /* ==========================================
+
+       HARVEY AI SUPPORT UPGRADE
+
+       ========================================== */
+
+    #harvey-ai-chat-root {
+
+      position: fixed;
+
+      z-index: 9998;
+
+    }
+
+    .harvey-ai-launch {
+
+      position: fixed;
+
+      right: 22px;
+
+      bottom: 100px;
+
+      width: 70px;
+
+      height: 70px;
+
+      border-radius: 999px;
+
+      border: none;
+
+      cursor: pointer;
+
+      background:
+
+        linear-gradient(
+
+          135deg,
+
+          var(--cyan),
+
+          var(--blue)
+
+        );
+
+      color: var(--ink);
+
+      font-size: 28px;
+
+      font-weight: 900;
+
+      box-shadow:
+
+        0 16px 40px rgba(94,160,255,.35);
+
+      animation: aiPulse 2.5s infinite;
+
+    }
+
+    @keyframes aiPulse {
+
+      0% {
+
+        transform: scale(1);
+
+      }
+
+      50% {
+
+        transform: scale(1.06);
+
+      }
+
+      100% {
+
+        transform: scale(1);
+
+      }
+
+    }
+
+    .harvey-ai-window {
+
+      position: fixed;
+
+      right: 20px;
+
+      bottom: 185px;
+
+      width: 420px;
+
+      max-width: calc(100vw - 24px);
+
+      height: 620px;
+
+      border-radius: 26px;
+
+      overflow: hidden;
+
+      border: 1px solid rgba(99,245,255,.18);
+
+      background:
+
+        linear-gradient(
+
+          180deg,
+
+          rgba(9,17,38,.98),
+
+          rgba(4,8,20,.98)
+
+        );
+
+      box-shadow:
+
+        0 30px 80px rgba(0,0,0,.55);
+
+      display: flex;
+
+      flex-direction: column;
+
+    }
+
+    .harvey-ai-header {
+
+      padding: 18px;
+
+      background:
+
+        linear-gradient(
+
+          135deg,
+
+          var(--cyan),
+
+          var(--blue)
+
+        );
+
+      color: var(--ink);
+
+      font-weight: 950;
+
+      display: flex;
+
+      justify-content: space-between;
+
+      align-items: center;
+
+    }
+
+    .harvey-ai-body {
+
+      flex: 1;
+
+      overflow-y: auto;
+
+      padding: 18px;
+
+      display: flex;
+
+      flex-direction: column;
+
+      gap: 12px;
+
+    }
+
+    .harvey-ai-message {
+
+      padding: 14px;
+
+      border-radius: 16px;
+
+      max-width: 88%;
+
+      line-height: 1.6;
+
+      font-size: 14px;
+
+    }
+
+    .harvey-ai-message.bot {
+
+      background: rgba(99,245,255,.08);
+
+      border: 1px solid rgba(99,245,255,.14);
+
+      color: #fff;
+
+      align-self: flex-start;
+
+    }
+
+    .harvey-ai-message.user {
+
+      background: rgba(94,160,255,.12);
+
+      border: 1px solid rgba(94,160,255,.18);
+
+      color: #fff;
+
+      align-self: flex-end;
+
+    }
+
+    .harvey-ai-footer {
+
+      padding: 14px;
+
+      border-top: 1px solid rgba(255,255,255,.06);
+
+      display: flex;
+
+      gap: 10px;
+
+    }
+
+    .harvey-ai-input {
+
+      flex: 1;
+
+      border-radius: 14px;
+
+      border: 1px solid rgba(255,255,255,.08);
+
+      background: rgba(255,255,255,.04);
+
+      color: white;
+
+      padding: 12px 14px;
+
+      outline: none;
+
+    }
+
+    .harvey-ai-send {
+
+      min-width: 90px;
+
+      border-radius: 14px;
+
+      border: none;
+
+      background:
+
+        linear-gradient(
+
+          135deg,
+
+          var(--green),
+
+          #89ffd0
+
+        );
+
+      color: #052014;
+
+      font-weight: 900;
+
+      cursor: pointer;
+
+    }    /* ==========================================
+
+       FINAL RESPONSIVE + MOBILE STABILITY
+
+       ========================================== */
+
+    @media (max-width: 1180px) {
+
+      .hero-grid,
+
+      .info-grid {
+
+        grid-template-columns: 1fr;
+
+      }
+
+      .service-row,
+
+      .mini-stats,
+
+      .coverage-grid,
+
+      .language-support-grid {
+
+        grid-template-columns: repeat(2, 1fr);
+
+      }
+
+      .hero-side {
+
+        display: grid;
+
+        grid-template-columns: repeat(3, 1fr);
+
+      }
+
+    }
+
+    @media (max-width: 900px) {
+
+      .language-panel {
+
+        grid-template-columns: 1fr;
+
+      }
+
+      .language-controls {
+
+        justify-content: flex-start;
+
+      }
+
+      .topbar {
+
+        position: relative;
+
+        top: 0;
+
+        border-radius: 26px;
+
+        align-items: flex-start;
+
+        flex-direction: column;
+
+      }
+
+      .top-links {
+
+        width: 100%;
+
+        overflow-x: auto;
+
+        padding-bottom: 4px;
+
+        scrollbar-width: none;
+
+      }
+
+      .top-links::-webkit-scrollbar {
+
+        display: none;
+
+      }
+
+      .top-link {
+
+        flex: 0 0 auto;
+
+      }
+
+      .grid,
+
+      .community-grid {
+
+        grid-template-columns: repeat(2, 1fr);
+
+      }
+
+      .hero-side {
+
+        grid-template-columns: 1fr;
+
+      }
+
+      .announce,
+
+      .support-callout,
+
+      .footer {
+
+        align-items: flex-start;
+
+      }
+
+    }
+
+    @media (max-width: 650px) {
+
+      body {
+
+        padding-bottom:
+
+          calc(var(--nav-h) + env(safe-area-inset-bottom) + 22px);
+
+      }
+
+      .shell {
+
+        padding: 14px 12px;
+
+      }
+
+      .language-panel,
+
+      .announce,
+
+      .inclusive-strip,
+
+      .hero,
+
+      .section,
+
+      .footer {
+
+        border-radius: 24px;
+
+      }
+
+      .language-controls,
+
+      .language-controls select,
+
+      .language-controls button {
+
+        width: 100%;
+
+      }
+
+      .select-control,
+
+      .access-btn {
+
+        width: 100%;
+
+        justify-content: center;
+
+      }
+
+      .topbar {
+
+        padding: 16px;
+
+      }
+
+      .brand-wrap {
+
+        width: 100%;
+
+      }
+
+      .brand-sub {
+
+        white-space: normal;
+
+        line-height: 1.35;
+
+      }
+
+      .top-links {
+
+        display: grid;
+
+        grid-auto-flow: column;
+
+        grid-auto-columns: max-content;
+
+        gap: 8px;
+
+      }
+
+      .announce,
+
+      .support-callout,
+
+      .footer {
+
+        flex-direction: column;
+
+      }
+
+      .announce .btn,
+
+      .support-callout .btn,
+
+      .footer .actions,
+
+      .footer .actions .btn,
+
+      .actions .btn {
+
+        width: 100%;
+
+      }
+
+      .hero {
+
+        padding: 24px;
+
+      }
+
+      .hero-title {
+
+        font-size: 32px;
+
+        line-height: 1.08;
+
+      }
+
+      .hero-copy {
+
+        font-size: 15px;
+
+      }
+
+      .primary-actions,
+
+      .hero-points,
+
+      .grid,
+
+      .service-row,
+
+      .mini-stats,
+
+      .coverage-grid,
+
+      .language-support-grid,
+
+      .community-grid {
+
+        grid-template-columns: 1fr;
+
+      }
+
+      .action-container {
+
+        padding: 18px;
+
+      }
+
+      .secondary-actions {
+
+        flex-direction: column;
+
+      }
+
+      .secondary-actions .btn {
+
+        width: 100%;
+
+      }
+
+      .service-card {
+
+        min-height: auto;
+
+      }
+
+      .section {
+
+        padding: 24px;
+
+      }
+
+      .section h2 {
+
+        font-size: 25px;
+
+      }
+
+      .coverage-card,
+
+      .language-card,
+
+      .community-card-box {
+
+        text-align: left;
+
+      }
+
+      [dir="rtl"] .coverage-card,
+
+      [dir="rtl"] .language-card,
+
+      [dir="rtl"] .community-card-box {
+
+        text-align: right;
+
+      }
+
+      .footer {
+
+        padding: 24px;
+
+      }
+
+      .bottom-nav {
+
+        overflow-x: auto;
+
+        justify-content: space-between;
+
+      }
+
+      .nav-btn {
+
+        min-width: 64px;
+
+      }
+
+      .harvey-ai-launch {
+
+        right: 16px;
+
+        bottom: 96px;
+
+        width: 62px;
+
+        height: 62px;
+
+        font-size: 25px;
+
+      }
+
+      .harvey-ai-window {
+
+        left: 12px;
+
+        right: 12px;
+
+        bottom: 170px;
+
+        width: auto;
+
+        height: min(620px, calc(100vh - 210px));
+
+      }
+
+    }
+
+    @media (max-width: 390px) {
+
+      .hero-title {
+
+        font-size: 29px;
+
+      }
+
+      .btn {
+
+        padding-left: 14px;
+
+        padding-right: 14px;
+
+        font-size: 14px;
+
+      }
+
+      .top-link {
+
+        padding: 9px 13px;
+
+        font-size: 12px;
+
+      }
+
+      .nav-btn {
+
+        font-size: 10px;
+
+        padding-left: 7px;
+
+        padding-right: 7px;
+
+      }
+
+    }
+
+  </style>
+
+</head><body>
+
+  <a href="#main-content" class="skip-link" data-i18n="skipContent">
+
+    Skip to content
+
+  </a>
+
+  <div class="shell">
+
+    <!-- LANGUAGE + ACCESSIBILITY -->
+
+    <section
+
+      class="language-panel"
+
+      aria-label="Language and accessibility preferences"
+
+    >
+
+      <div class="language-copy">
+
+        <strong data-i18n="languageTitle">
+
+          Language & Accessibility
+
+        </strong>
+
+        <span data-i18n="languageCopy">
+
+          Harvey Taxi welcomes every rider, driver, family,
+
+          culture, and community.
+
+        </span>
+
+      </div>
+
+      <div class="language-controls">
+
+        <select
+
+          id="language-select"
+
+          class="select-control"
+
+          aria-label="Choose language"
+
+        >
+
+          <option value="en">English</option>
+
+          <option value="es">Español</option>
+
+          <option value="fr">Français</option>
+
+          <option value="ar">العربية</option>
+
+          <option value="sw">Kiswahili</option>
+
+          <option value="zh">中文</option>
+
+          <option value="hi">हिन्दी</option>
+
+          <option value="pt">Português</option>
+
+          <option value="ht">Kreyòl Ayisyen</option>
+
+          <option value="yo">Yorùbá</option>
+
+        </select>
+
+        <button
+
+          id="contrast-toggle"
+
+          class="access-btn"
+
+          type="button"
+
+          data-i18n="contrastBtn"
+
+        >
+
+          High Contrast
+
+        </button>
+
+        <button
+
+          id="text-toggle"
+
+          class="access-btn"
+
+          type="button"
+
+          data-i18n="largeTextBtn"
+
+        >
+
+          Larger Text
+
+        </button>
+
+        <button
+
+          id="motion-toggle"
+
+          class="access-btn"
+
+          type="button"
+
+          data-i18n="motionBtn"
+
+        >
+
+          Reduce Motion
+
+        </button>
+
+      </div>
+
+    </section>
+
+    <!-- TOP NAV -->
+
+    <header class="topbar">
+
+      <a
+
+        class="brand-wrap"
+
+        href="index.html"
+
+        aria-label="Harvey Taxi Home"
+
+        data-track="home_brand"
+
+      >
+
+        <div class="logo-mark">
+
+          HT
+
+        </div>
+
+        <div class="brand-stack">
+
+          <div class="brand">
+
+            HARVEY TAXI
+
+          </div>
+
+          <div
+
+            class="brand-sub"
+
+            data-i18n="brandSub"
+
+          >
+
+            Tennessee Mobility Platform
+
+          </div>
+
+        </div>
+
+      </a>
+
+      <nav class="top-links">
+
+        <a
+
+          class="top-link"
+
+          href="#how-it-works"
+
+          data-track="nav_how"
+
+          data-i18n="navHow"
+
+        >
+
+          How It Works
+
+        </a>
+
+        <a
+
+          class="top-link"
+
+          href="#safety"
+
+          data-track="nav_safety"
+
+          data-i18n="navSafety"
+
+        >
+
+          Safety
+
+        </a>
+
+        <a
+
+          class="top-link"
+
+          href="#services"
+
+          data-track="nav_services"
+
+          data-i18n="navServices"
+
+        >
+
+          Services
+
+        </a>
+
+        <a
+
+          class="top-link"
+
+          href="foundation.html"
+
+          data-track="foundation_nav"
+
+          data-i18n="navFoundation"
+
+        >
+
+          Foundation
+
+        </a>
+
+        <a
+
+          class="top-link"
+
+          href="settings.html"
+
+          data-track="settings_nav"
+
+          data-i18n="navSettings"
+
+        >
+
+          ⚙ Settings
+
+        </a>
+
+        <a
+
+          class="top-link cta"
+
+          href="request-ride.html?mode=driver"
+
+          data-intent="request_ride_start"
+
+          data-i18n="navBook"
+
+        >
+
+          Book Ride
+
+        </a>
+
+      </nav>
+
+    </header>
+
+    <!-- ANNOUNCEMENT -->
+
+    <section class="announce">
+
+      <div class="announce-copy">
+
+        <strong data-i18n="announceTitle">
+
+          Harvey Taxi Code Blue Platform
+
+        </strong>
+
+        <span data-i18n="announceCopy">
+
+          Tennessee rides, future delivery,
+
+          driver opportunities, foundation support,
+
+          AI assistance, and autonomous pilot
+
+          technologies in one ecosystem.
+
+        </span>
+
+      </div>
+
+      <a
+
+        class="btn success"
+
+        href="request-ride.html?mode=driver"
+
+        data-intent="request_ride_start"
+
+        data-i18n="requestRide"
+
+      >
+
+        Request Ride
+
+      </a>
+
+    </section>
+
+    <!-- INCLUSION STRIP -->
+
+    <section class="inclusive-strip">
+
+      <strong data-i18n="inclusiveTitle">
+
+        Built for every community.
+
+      </strong>
+
+      <p data-i18n="inclusiveCopy">
+
+        Harvey Taxi respects all ethnicities,
+
+        cultures, languages, families, seniors,
+
+        workers, students, people with disabilities,
+
+        immigrants, visitors, and underserved
+
+        communities seeking safe transportation access.
+
+      </p>
+
+    </section>
+
+    <main id="main-content">
+
+      <!-- HERO -->
+
+      <section class="hero">
+
+        <div class="hero-grid">
+
+          <div>
+
+            <div
+
+              class="hero-badge"
+
+              data-i18n="heroBadge"
+
+            >
+
+              VERIFIED OPERATIONS • LIVE SUPPORT
+
+            </div>
+
+            <h1 class="hero-title">
+
+              <span data-i18n="heroTitleA">
+
+                Tennessee Transportation
+
+              </span>
+
+              <span
+
+                class="gradient-text"
+
+                data-i18n="heroTitleB"
+
+              >
+
+                Reimagined
+
+              </span>
+
+            </h1>
+
+            <p
+
+              class="hero-copy"
+
+              data-i18n="heroCopy"
+
+            >
+
+              Harvey Taxi combines rider access,
+
+              driver opportunities,
+
+              transportation assistance,
+
+              AI support, and future mobility
+
+              services into one connected
+
+              Tennessee platform.
+
+            </p>
+
+            <div class="action-container">
+
+              <h4 data-i18n="startJourney">
+
+                Start Your Journey
+
+              </h4>
+
+              <div class="primary-actions">
+
+                <a
+
+                  class="btn primary"
+
+                  href="request-ride.html?mode=driver"
+
+                  data-intent="request_ride_start"
+
+                  data-i18n="requestRideEmoji"
+
+                >
+
+                  🚖 Request Ride
+
+                </a>
+
+                <a
+
+                  class="btn success"
+
+                  href="driver-signup.html"
+
+                  data-intent="driver_signup_start"
+
+                  data-i18n="becomeDriver"
+
+                >
+
+                  🤝 Become A Driver
+
+                </a>
+
+              </div>
+
+              <div class="secondary-actions">
+
+                <a
+
+                  class="btn ghost"
+
+                  href="rider-signup.html"
+
+                  data-intent="rider_signup_start"
+
+                  data-i18n="riderSignup"
+
+                >
+
+                  Rider Signup
+
+                </a>
+
+                <a
+
+                  class="btn autonomous"
+
+                  href="request-ride.html?mode=autonomous"
+
+                >
+
+                  <span data-i18n="autonomous">
+
+                    🤖 Autonomous
+
+                  </span>
+
+                  <span
+
+                    class="pilot-tag"
+
+                    data-i18n="pilot"
+
+                  >
+
+                    PILOT
+
+                  </span>
+
+                </a>
+
+                <a
+
+                  class="btn foundation"
+
+                  href="foundation.html"
+
+                  data-track="foundation_button"
+
+                  data-i18n="foundationEmoji"
+
+                >
+
+                  ❤️ Foundation
+
+                </a>
+
+              </div>
+
+            </div>            <!-- HERO FEATURE POINTS -->
+
+            <div class="hero-points">
+
+              <div class="hero-point">
+
+                <strong data-i18n="point1Title">
+
+                  Approval Based Access
+
+                </strong>
+
+                <span data-i18n="point1Body">
+
+                  Riders and drivers move through
+
+                  structured onboarding and
+
+                  approval workflows.
+
+                </span>
+
+              </div>
+
+              <div class="hero-point">
+
+                <strong data-i18n="point2Title">
+
+                  AI Support System
+
+                </strong>
+
+                <span data-i18n="point2Body">
+
+                  Built-in support helps riders,
+
+                  drivers, and community members
+
+                  find answers instantly.
+
+                </span>
+
+              </div>
+
+              <div class="hero-point">
+
+                <strong data-i18n="point3Title">
+
+                  Driver Opportunity
+
+                </strong>
+
+                <span data-i18n="point3Body">
+
+                  Create income opportunities
+
+                  while supporting local
+
+                  transportation needs.
+
+                </span>
+
+              </div>
+
+              <div class="hero-point">
+
+                <strong data-i18n="point4Title">
+
+                  Community Mobility
+
+                </strong>
+
+                <span data-i18n="point4Body">
+
+                  Transportation assistance
+
+                  initiatives support access
+
+                  to work, education,
+
+                  and healthcare.
+
+                </span>
+
+              </div>
+
+            </div>
+
+          </div>
+
+          <!-- RIGHT HERO SIDEBAR -->
+
+          <aside class="hero-side">
+
+            <!-- PLATFORM STATUS -->
+
+            <div class="status-card">
+
+              <div
+
+                class="eyebrow"
+
+                data-i18n="platformStatus"
+
+              >
+
+                Platform Status
+
+              </div>
+
+              <h3 data-i18n="liveOverview">
+
+                Live System Overview
+
+              </h3>
+
+              <p data-i18n="liveOverviewCopy">
+
+                Active services are clearly
+
+                separated from pilot and
+
+                future services.
+
+              </p>
+
+              <div class="status-list">
+
+                <div class="status-item">
+
+                  <span data-i18n="driverRides">
+
+                    Driver Rides
+
+                  </span>
+
+                  <div class="status-pill">
+
+                    LIVE
+
+                  </div>
+
+                </div>
+
+                <div class="status-item">
+
+                  <span data-i18n="aiSupport">
+
+                    AI Support
+
+                  </span>
+
+                  <div class="status-pill info">
+
+                    ONLINE
+
+                  </div>
+
+                </div>
+
+                <div class="status-item">
+
+                  <span data-i18n="autonomousHub">
+
+                    Autonomous Hub
+
+                  </span>
+
+                  <div class="status-pill pilot">
+
+                    PILOT
+
+                  </div>
+
+                </div>
+
+                <div class="status-item">
+
+                  <span data-i18n="foodDelivery">
+
+                    Food Delivery
+
+                  </span>
+
+                  <div class="status-pill build">
+
+                    BUILDING
+
+                  </div>
+
+                </div>
+
+                <div class="status-item">
+
+                  <span data-i18n="groceryDelivery">
+
+                    Grocery Delivery
+
+                  </span>
+
+                  <div class="status-pill build">
+
+                    BUILDING
+
+                  </div>
+
+                </div>
+
+              </div>
+
+            </div>
+
+            <!-- FOUNDATION CARD -->
+
+            <div class="foundation-card">
+
+              <div
+
+                class="eyebrow"
+
+                data-i18n="communityImpact"
+
+              >
+
+                Community Impact
+
+              </div>
+
+              <h3 data-i18n="foundationTitle">
+
+                Harvey Transportation
+
+                Assistance Foundation
+
+              </h3>
+
+              <p data-i18n="foundationCopy">
+
+                Helping remove transportation
+
+                barriers for medical visits,
+
+                employment, education,
+
+                and essential mobility needs.
+
+              </p>
+
+              <div style="margin-top:16px;">
+
+                <a
+
+                  class="btn foundation"
+
+                  href="foundation.html"
+
+                  style="width:100%;"
+
+                  data-i18n="exploreFoundation"
+
+                >
+
+                  Explore Foundation
+
+                </a>
+
+              </div>
+
+            </div>
+
+            <!-- COMMUNITY CARD -->
+
+            <div class="community-card">
+
+              <div class="eyebrow">
+
+                Global Communities
+
+              </div>
+
+              <h3>
+
+                Everyone Welcome
+
+              </h3>
+
+              <p>
+
+                Harvey Taxi welcomes riders,
+
+                drivers, families, immigrants,
+
+                visitors, students, seniors,
+
+                veterans, healthcare patients,
+
+                and communities from every
+
+                background and culture.
+
+              </p>
+
+            </div>
+
+          </aside>
+
+        </div>
+
+        <!-- MINI STATS -->
+
+        <div class="mini-stats">
+
+          <div class="mini-stat">
+
+            <strong data-i18n="stat1Title">
+
+              Smart Dispatch
+
+            </strong>
+
+            <span data-i18n="stat1Body">
+
+              Driver matching and mission
+
+              based ride assignments.
+
+            </span>
+
+          </div>
+
+          <div class="mini-stat">
+
+            <strong data-i18n="stat2Title">
+
+              Verified Access
+
+            </strong>
+
+            <span data-i18n="stat2Body">
+
+              Rider and driver onboarding
+
+              built around approval workflows.
+
+            </span>
+
+          </div>
+
+          <div class="mini-stat">
+
+            <strong data-i18n="stat3Title">
+
+              Multi-Service Vision
+
+            </strong>
+
+            <span data-i18n="stat3Body">
+
+              Transportation, delivery,
+
+              and mobility assistance
+
+              under one platform.
+
+            </span>
+
+          </div>
+
+          <div class="mini-stat">
+
+            <strong data-i18n="stat4Title">
+
+              Tennessee Focus
+
+            </strong>
+
+            <span data-i18n="stat4Body">
+
+              Local growth with plans
+
+              for statewide expansion.
+
+            </span>
+
+          </div>
+
+        </div>
+
+        <!-- AI SUPPORT RESTORED -->
+
+        <div class="support-callout">
+
+          <div>
+
+            <strong data-i18n="supportTitle">
+
+              Need Help Right Now?
+
+            </strong>
+
+            <span data-i18n="supportCopy">
+
+              Open Harvey AI Support
+
+              for rider help,
+
+              driver onboarding,
+
+              account questions,
+
+              or foundation assistance.
+
+            </span>
+
+          </div>
+
+          <button
+
+            class="btn success"
+
+            onclick="openHarveyAiChat();"
+
+            data-i18n="openAiSupport"
+
+          >
+
+            Open AI Support
+
+          </button>
+
+        </div>
+
+      </section>      <!-- GLOBAL LANGUAGE SUPPORT -->
+
+      <section class="section">
+
+        <div class="section-header">
+
+          <h2 data-i18n="globalLanguageTitle">
+
+            Global Language Support
+
+          </h2>
+
+          <p class="lead" data-i18n="globalLanguageLead">
+
+            Harvey Taxi is designed to support multilingual communities,
+
+            diverse cultures, and inclusive transportation access.
+
+          </p>
+
+        </div>
+
+        <div class="language-support-grid">
+
+          <div class="language-card">
+
+            <h4>English</h4>
+
+            <p data-i18n="languageEnglish">
+
+              Primary operational language.
+
+            </p>
+
+          </div>
+
+          <div class="language-card">
+
+            <h4>Español</h4>
+
+            <p data-i18n="languageSpanish">
+
+              Spanish rider and driver support.
+
+            </p>
+
+          </div>
+
+          <div class="language-card">
+
+            <h4>Français</h4>
+
+            <p data-i18n="languageFrench">
+
+              French accessibility support.
+
+            </p>
+
+          </div>
+
+          <div class="language-card">
+
+            <h4>العربية</h4>
+
+            <p data-i18n="languageArabic">
+
+              Arabic right-to-left support.
+
+            </p>
+
+          </div>
+
+          <div class="language-card">
+
+            <h4>Kiswahili</h4>
+
+            <p data-i18n="languageSwahili">
+
+              East African community support.
+
+            </p>
+
+          </div>
+
+          <div class="language-card">
+
+            <h4>中文</h4>
+
+            <p data-i18n="languageChinese">
+
+              Chinese language accessibility.
+
+            </p>
+
+          </div>
+
+          <div class="language-card">
+
+            <h4>हिन्दी</h4>
+
+            <p data-i18n="languageHindi">
+
+              Hindi language support.
+
+            </p>
+
+          </div>
+
+          <div class="language-card">
+
+            <h4>Português</h4>
+
+            <p data-i18n="languagePortuguese">
+
+              Portuguese language support.
+
+            </p>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- COMMUNITY INCLUSION -->
+
+      <section class="section">
+
+        <div class="section-header">
+
+          <h2 data-i18n="communityInclusionTitle">
+
+            Community Inclusion
+
+          </h2>
+
+          <p class="lead" data-i18n="communityInclusionLead">
+
+            Transportation should remain accessible,
+
+            respectful, and welcoming to everyone.
+
+          </p>
+
+        </div>
+
+        <div class="community-grid">
+
+          <div class="community-card-box">
+
+            <h4 data-i18n="familiesTitle">
+
+              Families & Children
+
+            </h4>
+
+            <p data-i18n="familiesBody">
+
+              Transportation supporting families,
+
+              caregivers, and children.
+
+            </p>
+
+          </div>
+
+          <div class="community-card-box">
+
+            <h4 data-i18n="seniorsTitle">
+
+              Seniors
+
+            </h4>
+
+            <p data-i18n="seniorsBody">
+
+              Mobility assistance and transportation
+
+              access for older adults.
+
+            </p>
+
+          </div>
+
+          <div class="community-card-box">
+
+            <h4 data-i18n="studentsTitle">
+
+              Students
+
+            </h4>
+
+            <p data-i18n="studentsBody">
+
+              Transportation helping students access
+
+              schools, colleges, and training.
+
+            </p>
+
+          </div>
+
+          <div class="community-card-box">
+
+            <h4 data-i18n="healthcareAccessTitle">
+
+              Healthcare Access
+
+            </h4>
+
+            <p data-i18n="healthcareAccessBody">
+
+              Transportation supporting healthcare,
+
+              wellness, and medical appointments.
+
+            </p>
+
+          </div>
+
+          <div class="community-card-box">
+
+            <h4 data-i18n="workersTitle">
+
+              Workers
+
+            </h4>
+
+            <p data-i18n="workersBody">
+
+              Transportation helping people reach
+
+              employment opportunities.
+
+            </p>
+
+          </div>
+
+          <div class="community-card-box">
+
+            <h4 data-i18n="visitorsTitle">
+
+              Visitors & New Residents
+
+            </h4>
+
+            <p data-i18n="visitorsBody">
+
+              Accessible transportation for travelers,
+
+              newcomers, and visitors.
+
+            </p>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- HOW IT WORKS -->
+
+      <section
+
+        class="section"
+
+        id="how-it-works"
+
+      >
+
+        <div class="section-header">
+
+          <h2 data-i18n="howTitle">
+
+            How Harvey Taxi Works
+
+          </h2>
+
+          <p class="lead" data-i18n="howLead">
+
+            A cleaner transportation flow from signup to dispatch.
+
+          </p>
+
+        </div>
+
+        <div class="grid">
+
+          <div class="card">
+
+            <strong data-i18n="how1Title">
+
+              1. Create Account
+
+            </strong>
+
+            <span data-i18n="how1Body">
+
+              Start as a rider or driver.
+
+            </span>
+
+          </div>
+
+          <div class="card">
+
+            <strong data-i18n="how2Title">
+
+              2. Verification
+
+            </strong>
+
+            <span data-i18n="how2Body">
+
+              Complete onboarding requirements.
+
+            </span>
+
+          </div>
+
+          <div class="card">
+
+            <strong data-i18n="how3Title">
+
+              3. Request Ride
+
+            </strong>
+
+            <span data-i18n="how3Body">
+
+              Enter trip details and preferences.
+
+            </span>
+
+          </div>
+
+          <div class="card">
+
+            <strong data-i18n="how4Title">
+
+              4. Driver Match
+
+            </strong>
+
+            <span data-i18n="how4Body">
+
+              Connect with the best available driver.
+
+            </span>
+
+          </div>
+
+          <div class="card">
+
+            <strong data-i18n="how5Title">
+
+              5. Complete Trip
+
+            </strong>
+
+            <span data-i18n="how5Body">
+
+              Ride safely with support available.
+
+            </span>
+
+          </div>
+
+          <div class="card">
+
+            <strong data-i18n="how6Title">
+
+              6. Rate Experience
+
+            </strong>
+
+            <span data-i18n="how6Body">
+
+              Help improve platform quality.
+
+            </span>
+
+          </div>
+
+        </div>
+
+      </section>      <!-- SAFETY & TRUST -->
+
+      <section
+
+        class="section"
+
+        id="safety"
+
+      >
+
+        <div class="section-header">
+
+          <h2 data-i18n="safetyTitle">
+
+            Safety & Trust
+
+          </h2>
+
+          <p class="lead" data-i18n="safetyLead">
+
+            Harvey Taxi is built around accountability,
+
+            onboarding, support, verification,
+
+            and safer mobility.
+
+          </p>
+
+        </div>
+
+        <div class="info-grid">
+
+          <div class="highlight">
+
+            <h3 data-i18n="accountabilityTitle">
+
+              Designed For Accountability
+
+            </h3>
+
+            <p data-i18n="accountabilityCopy">
+
+              Harvey Taxi separates rider,
+
+              driver, support, and foundation
+
+              workflows to create a cleaner,
+
+              more transparent experience.
+
+            </p>
+
+            <div class="pill-row">
+
+              <div class="pill">
+
+                Driver Approval
+
+              </div>
+
+              <div class="pill">
+
+                Rider Approval
+
+              </div>
+
+              <div class="pill">
+
+                Live Support
+
+              </div>
+
+              <div class="pill">
+
+                Trip Tracking
+
+              </div>
+
+              <div class="pill">
+
+                Mission Dispatch
+
+              </div>
+
+              <div class="pill">
+
+                Identity Verification
+
+              </div>
+
+            </div>
+
+          </div>
+
+          <div class="list">
+
+            <div class="list-item">
+
+              <strong>
+
+                Verified Drivers
+
+              </strong>
+
+              <span>
+
+                Driver onboarding may include
+
+                identity verification,
+
+                documentation review,
+
+                and platform approval.
+
+              </span>
+
+            </div>
+
+            <div class="list-item">
+
+              <strong>
+
+                Support Access
+
+              </strong>
+
+              <span>
+
+                Harvey AI and support tools
+
+                help riders and drivers
+
+                receive guidance when needed.
+
+              </span>
+
+            </div>
+
+            <div class="list-item">
+
+              <strong>
+
+                Future Ready Platform
+
+              </strong>
+
+              <span>
+
+                Architecture designed for
+
+                transportation, delivery,
+
+                logistics, and future mobility.
+
+              </span>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- SERVICES HUB -->
+
+      <section
+
+        class="section"
+
+        id="services"
+
+      >
+
+        <div class="section-header">
+
+          <h2 data-i18n="servicesTitle">
+
+            Harvey Platform Services
+
+          </h2>
+
+          <p class="lead" data-i18n="servicesLead">
+
+            Transportation remains the primary
+
+            active service while logistics,
+
+            delivery, and autonomous features
+
+            continue development.
+
+          </p>
+
+        </div>
+
+        <div class="service-row">
+
+          <!-- RIDE SERVICE -->
+
+          <div class="service-card">
+
+            <div>
+
+              <h3>
+
+                🚖 Standard Driver Ride
+
+              </h3>
+
+              <p>
+
+                Request rides through the active
+
+                Harvey Taxi transportation platform.
+
+              </p>
+
+            </div>
+
+            <a
+
+              class="btn primary"
+
+              href="request-ride.html?mode=driver"
+
+              data-intent="service_standard_ride"
+
+            >
+
+              Book Ride
+
+            </a>
+
+          </div>
+
+          <!-- AUTONOMOUS -->
+
+          <div class="service-card">
+
+            <div>
+
+              <h3>
+
+                🤖 Autonomous Pilot
+
+              </h3>
+
+              <p>
+
+                Explore future autonomous ride
+
+                experiences through Harvey Taxi's
+
+                pilot initiative.
+
+              </p>
+
+            </div>
+
+            <a
+
+              class="btn autonomous"
+
+              href="request-ride.html?mode=autonomous"
+
+            >
+
+              Open Pilot
+
+            </a>
+
+          </div>
+
+          <!-- FOOD -->
+
+          <div class="service-card">
+
+            <div>
+
+              <h3>
+
+                🍔 Food Delivery
+
+              </h3>
+
+              <p>
+
+                Future Harvey Logistics
+
+                delivery ecosystem supporting
+
+                restaurants and local businesses.
+
+              </p>
+
+            </div>
+
+            <button
+
+              class="btn primary"
+
+              onclick="showUnderConstruction('Food Delivery')"
+
+            >
+
+              Coming Soon
+
+            </button>
+
+          </div>
+
+          <!-- GROCERY -->
+
+          <div class="service-card">
+
+            <div>
+
+              <h3>
+
+                🛒 Grocery Delivery
+
+              </h3>
+
+              <p>
+
+                Grocery delivery workflows
+
+                designed for future
+
+                Tennessee logistics expansion.
+
+              </p>
+
+            </div>
+
+            <a
+
+              class="btn success"
+
+              href="grocery-delivery.html"
+
+            >
+
+              Open Grocery
+
+            </a>
+
+          </div>
+
+        </div>
+
+        <!-- PLATFORM HUBS -->
+
+        <div
+
+          class="grid"
+
+          style="margin-top:16px;"
+
+        >
+
+          <a
+
+            class="card"
+
+            href="driver-dashboard.html"
+
+          >
+
+            <strong>
+
+              Driver Dashboard
+
+            </strong>
+
+            <span>
+
+              Availability, earnings,
+
+              missions, dispatch,
+
+              and driver tools.
+
+            </span>
+
+          </a>
+
+          <a
+
+            class="card"
+
+            href="rider-dashboard.html"
+
+          >
+
+            <strong>
+
+              Rider Dashboard
+
+            </strong>
+
+            <span>
+
+              Ride activity,
+
+              account readiness,
+
+              and trip history.
+
+            </span>
+
+          </a>
+
+          <a
+
+            class="card"
+
+            href="support.html"
+
+          >
+
+            <strong>
+
+              Harvey Support Center
+
+            </strong>
+
+            <span>
+
+              Rider, driver,
+
+              payment, foundation,
+
+              and account support.
+
+            </span>
+
+          </a>
+
+          <a
+
+            class="card"
+
+            href="foundation.html"
+
+          >
+
+            <strong>
+
+              Foundation Hub
+
+            </strong>
+
+            <span>
+
+              Transportation assistance
+
+              applications, donations,
+
+              and community programs.
+
+            </span>
+
+          </a>
+
+          <a
+
+            class="card"
+
+            href="settings.html"
+
+          >
+
+            <strong>
+
+              Settings Center
+
+            </strong>
+
+            <span>
+
+              Accessibility,
+
+              battery optimization,
+
+              safety settings,
+
+              and account tools.
+
+            </span>
+
+          </a>
+
+          <a
+
+            class="card"
+
+            href="driver-signup.html"
+
+          >
+
+            <strong>
+
+              Driver Signup
+
+            </strong>
+
+            <span>
+
+              Begin the Harvey Taxi
+
+              driver onboarding process.
+
+            </span>
+
+          </a>
+
+        </div>
+
+      </section>      <!-- TENNESSEE COVERAGE -->
+
+      <section class="section">
+
+        <div class="section-header">
+
+          <h2 data-i18n="coverageTitle">
+
+            Tennessee Coverage Focus
+
+          </h2>
+
+          <p class="lead" data-i18n="coverageLead">
+
+            Harvey Taxi is focused on Tennessee mobility
+
+            with a Nashville-first growth strategy and
+
+            future statewide expansion.
+
+          </p>
+
+        </div>
+
+        <div class="coverage-grid">
+
+          <div class="coverage-card">
+
+            <strong>
+
+              Nashville
+
+            </strong>
+
+            <span>
+
+              Primary operating market and
+
+              transportation launch region.
+
+            </span>
+
+          </div>
+
+          <div class="coverage-card">
+
+            <strong>
+
+              Davidson County
+
+            </strong>
+
+            <span>
+
+              Early growth, rider support,
+
+              and driver onboarding focus.
+
+            </span>
+
+          </div>
+
+          <div class="coverage-card">
+
+            <strong>
+
+              Airport Access
+
+            </strong>
+
+            <span>
+
+              BNA transportation support,
+
+              travel routes, and airport trips.
+
+            </span>
+
+          </div>
+
+          <div class="coverage-card">
+
+            <strong>
+
+              Statewide Expansion
+
+            </strong>
+
+            <span>
+
+              Long-term Tennessee mobility
+
+              expansion strategy.
+
+            </span>
+
+          </div>
+
+        </div>
+
+        <!-- FUTURE EXPANSION -->
+
+        <div
+
+          class="grid"
+
+          style="margin-top:20px;"
+
+        >
+
+          <div class="card">
+
+            <strong>
+
+              Middle Tennessee
+
+            </strong>
+
+            <span>
+
+              Nashville, Murfreesboro,
+
+              Smyrna, Franklin,
+
+              and surrounding areas.
+
+            </span>
+
+          </div>
+
+          <div class="card">
+
+            <strong>
+
+              East Tennessee
+
+            </strong>
+
+            <span>
+
+              Future support for Knoxville,
+
+              Chattanooga,
+
+              and regional transportation.
+
+            </span>
+
+          </div>
+
+          <div class="card">
+
+            <strong>
+
+              West Tennessee
+
+            </strong>
+
+            <span>
+
+              Long-term service planning
+
+              including Memphis
+
+              transportation corridors.
+
+            </span>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- COMPANY & COMMUNITY SUPPORT -->
+
+      <section class="section">
+
+        <div class="section-header">
+
+          <h2 data-i18n="companyTitle">
+
+            Company & Community Support
+
+          </h2>
+
+          <p class="lead" data-i18n="companyLead">
+
+            Harvey Taxi Service LLC connects
+
+            transportation, technology,
+
+            driver opportunity,
+
+            logistics innovation,
+
+            and community mobility assistance.
+
+          </p>
+
+        </div>
+
+        <div class="info-grid">
+
+          <!-- COMPANY SIDE -->
+
+          <div class="highlight">
+
+            <h3>
+
+              Harvey Taxi Service LLC
+
+            </h3>
+
+            <p>
+
+              Harvey Taxi is building a
+
+              technology-enabled transportation
+
+              ecosystem focused on safer rides,
+
+              driver opportunities,
+
+              AI-powered support,
+
+              future logistics,
+
+              and mobility innovation.
+
+            </p>
+
+            <div class="pill-row">
+
+              <div class="pill">
+
+                Safe Rides
+
+              </div>
+
+              <div class="pill">
+
+                Driver Opportunity
+
+              </div>
+
+              <div class="pill">
+
+                AI Support
+
+              </div>
+
+              <div class="pill">
+
+                Community Mobility
+
+              </div>
+
+              <div class="pill">
+
+                Logistics
+
+              </div>
+
+              <div class="pill">
+
+                Future Mobility
+
+              </div>
+
+            </div>
+
+          </div>
+
+          <!-- CONTACTS -->
+
+          <div class="list">
+
+            <div class="list-item">
+
+              <strong>
+
+                Support Email
+
+              </strong>
+
+              <span>
+
+                support@harveytaxiservice.com
+
+              </span>
+
+            </div>
+
+            <div class="list-item">
+
+              <strong>
+
+                Administrative Contact
+
+              </strong>
+
+              <span>
+
+                williebee@harveytaxiservice.com
+
+              </span>
+
+            </div>
+
+            <div class="list-item">
+
+              <strong>
+
+                Driver Opportunities
+
+              </strong>
+
+              <span>
+
+                Apply through the Harvey Taxi
+
+                driver onboarding process.
+
+              </span>
+
+            </div>
+
+            <div class="list-item">
+
+              <strong>
+
+                Foundation Mission
+
+              </strong>
+
+              <span>
+
+                Transportation assistance for
+
+                healthcare, employment,
+
+                education, and essential needs.
+
+              </span>
+
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- QUICK ACTIONS -->
+
+        <div
+
+          class="actions"
+
+          style="margin-top:18px;"
+
+        >
+
+          <a
+
+            class="btn ghost"
+
+            href="privacy.html"
+
+          >
+
+            Privacy Policy
+
+          </a>
+
+          <a
+
+            class="btn ghost"
+
+            href="terms.html"
+
+          >
+
+            Terms of Service
+
+          </a>
+
+          <a
+
+            class="btn ghost"
+
+            href="settings.html"
+
+          >
+
+            Settings
+
+          </a>
+
+          <a
+
+            class="btn success"
+
+            href="support.html"
+
+          >
+
+            Support Center
+
+          </a>
+
+          <a
+
+            class="btn foundation"
+
+            href="foundation.html"
+
+          >
+
+            Foundation Hub
+
+          </a>
+
+        </div>
+
+        <!-- FOUNDATION SPOTLIGHT -->
+
+        <div
+
+          class="support-callout"
+
+          style="margin-top:24px;"
+
+        >
+
+          <div>
+
+            <strong>
+
+              Harvey Transportation
+
+              Assistance Foundation
+
+            </strong>
+
+            <span>
+
+              Supporting transportation access
+
+              for healthcare appointments,
+
+              employment opportunities,
+
+              education programs,
+
+              and essential mobility needs
+
+              throughout Tennessee.
+
+            </span>
+
+          </div>
+
+          <a
+
+            class="btn foundation"
+
+            href="foundation.html"
+
+          >
+
+            Explore Foundation
+
+          </a>
+
+        </div>
+
+      </section>      <!-- APP ECOSYSTEM SECTION -->
+
+      <section class="section">
+
+        <div class="section-header">
+
+          <h2>
+
+            Harvey Taxi Ecosystem
+
+          </h2>
+
+          <p class="lead">
+
+            Transportation, logistics,
+
+            driver opportunity,
+
+            community mobility,
+
+            and future innovation
+
+            connected through one platform.
+
+          </p>
+
+        </div>
+
+        <div class="grid">
+
+          <div class="card">
+
+            <strong>
+
+              📱 Mobile Platform
+
+            </strong>
+
+            <span>
+
+              Access Harvey Taxi services
+
+              directly from your smartphone.
+
+            </span>
+
+          </div>
+
+          <div class="card">
+
+            <strong>
+
+              🚖 Transportation
+
+            </strong>
+
+            <span>
+
+              Safe transportation access
+
+              through Harvey Taxi.
+
+            </span>
+
+          </div>
+
+          <div class="card">
+
+            <strong>
+
+              🤝 Driver Opportunity
+
+            </strong>
+
+            <span>
+
+              Create earning opportunities
+
+              while serving communities.
+
+            </span>
+
+          </div>
+
+          <div class="card">
+
+            <strong>
+
+              ❤️ Foundation Support
+
+            </strong>
+
+            <span>
+
+              Transportation assistance
+
+              through HTAF programs.
+
+            </span>
+
+          </div>
+
+          <div class="card">
+
+            <strong>
+
+              🧠 AI Assistance
+
+            </strong>
+
+            <span>
+
+              Intelligent support for riders,
+
+              drivers, and partners.
+
+            </span>
+
+          </div>
+
+          <div class="card">
+
+            <strong>
+
+              🚀 Future Mobility
+
+            </strong>
+
+            <span>
+
+              Autonomous and logistics
+
+              innovation initiatives.
+
+            </span>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- ELITE FOOTER -->
+
+      <footer class="footer">
+
+        <div>
+
+          <span class="footer-title">
+
+            Harvey Taxi Service LLC
+
+          </span>
+
+          <p>
+
+            Tennessee transportation,
+
+            driver opportunities,
+
+            AI support,
+
+            future logistics,
+
+            autonomous mobility initiatives,
+
+            and community transportation
+
+            assistance through the
+
+            Harvey Transportation
+
+            Assistance Foundation.
+
+          </p>
+
+        </div>
+
+        <div class="actions">
+
+          <a
+
+            class="btn ghost"
+
+            href="privacy.html"
+
+          >
+
+            Privacy
+
+          </a>
+
+          <a
+
+            class="btn ghost"
+
+            href="terms.html"
+
+          >
+
+            Terms
+
+          </a>
+
+          <a
+
+            class="btn ghost"
+
+            href="settings.html"
+
+          >
+
+            Settings
+
+          </a>
+
+          <a
+
+            class="btn success"
+
+            href="support.html"
+
+          >
+
+            Support
+
+          </a>
+
+          <a
+
+            class="btn foundation"
+
+            href="foundation.html"
+
+          >
+
+            Foundation
+
+          </a>
+
+        </div>
+
+      </footer>
+
+    </main>
+
+  </div>
+
+  <!-- ELITE MOBILE NAVIGATION -->
+
+  <nav
+
+    class="bottom-nav"
+
+    aria-label="Bottom Navigation"
+
+  >
+
+    <button
+
+      class="nav-btn active"
+
+      onclick="safeGo('index.html','bottom_home')"
+
+    >
+
+      <span>
+
+        🏠 Home
+
+      </span>
+
+    </button>
+
+    <button
+
+      class="nav-btn"
+
+      onclick="safeGo('request-ride.html?mode=driver','bottom_trip')"
+
+    >
+
+      <span>
+
+        🚖 Trips
+
+      </span>
+
+    </button>
+
+    <button
+
+      class="nav-btn"
+
+      onclick="safeGo('foundation.html','bottom_foundation')"
+
+    >
+
+      <span>
+
+        ❤️ HTAF
+
+      </span>
+
+    </button>
+
+    <button
+
+      class="nav-btn"
+
+      onclick="safeGo('driver-dashboard.html','bottom_driver')"
+
+    >
+
+      <span>
+
+        🤝 Driver
+
+      </span>
+
+    </button>
+
+    <button
+
+      class="nav-btn"
+
+      onclick="safeGo('settings.html','bottom_settings')"
+
+    >
+
+      <span>
+
+        ⚙ Settings
+
+      </span>
+
+    </button>
+
+  </nav>
+
+  <!-- AI ROOT -->
+
+  <div id="harvey-ai-chat-root"></div>
+
+  <!-- AI SUPPORT WIDGET -->
+
+  <script src="/ai-support-widget.js"></script>
+
+  <!-- APP INITIALIZATION PLACEHOLDER -->
+
+  <script>
+
+    document.addEventListener(
+
+      "DOMContentLoaded",
+
+      function () {
+
+        console.log(
+
+          "Harvey Taxi Platform Initialized"
+
+        );
+
+      }
 
     );
 
-  border-radius: 34px;
+  </script>
 
-  padding: 24px;
+</body>
 
-  color: #07121f;
+</html>
 
-  box-shadow:
+``  <!-- COMPLETE CODE BLUE JAVASCRIPT UPGRADE -->
 
-    0 25px 60px rgba(0,0,0,.35);
+  <script>
 
-  display: flex;
+    const HARVEY_APP_VERSION = "index-code-blue-v13-ai-recovery";
 
-  justify-content: space-between;
+    window.HARVEY_API_BASE =
 
-  align-items: center;
+      window.location.origin &&
 
-  gap: 18px;
+      window.location.origin.includes("http")
 
-}
+        ? window.location.origin
 
-.platform-banner-title {
+        : "https://harvey-taxi-app-2.onrender.com";
 
-  font-size: 20px;
+    const STORAGE_KEYS = {
 
-  font-weight: 1000;
+      language: "harvey_language",
 
-  line-height: 1.2;
+      highContrast: "harvey_high_contrast",
 
-}
+      largeText: "harvey_large_text",
 
-.platform-banner-sub {
+      reducedMotion: "harvey_reduced_motion",
 
-  margin-top: 6px;
+      preferredDriver: "harvey_preferred_driver_id",
 
-  font-size: 15px;
+      notifications: "harvey_notifications_enabled"
 
-  font-weight: 800;
+    };
 
-}
+    function safeGo(path, eventName) {
 
-.platform-banner-close {
+      trackHarveyEvent(eventName || "navigation_click", {
 
-  width: 64px;
+        destination: path
 
-  height: 64px;
+      });
 
-  border-radius: 999px;
+      window.location.href = path;
 
-  background: #07121f;
+    }
 
-  color: white;
+    function trackHarveyEvent(eventName, params = {}) {
 
-  font-size: 32px;
+      try {
 
-  font-weight: 900;
+        if (typeof gtag === "function") {
 
-  flex-shrink: 0;
+          gtag("event", eventName, {
 
-}
+            app_name: "Harvey Taxi",
 
-/* ==========================
+            page_location: window.location.href,
 
-   ANNOUNCEMENT BAR
+            app_version: HARVEY_APP_VERSION,
 
-========================== */
+            ...params
 
-.announce {
+          });
 
-  margin-bottom: 24px;
+        }
 
-  padding: 24px;
+      } catch (error) {
 
-  border-radius: 30px;
+        console.warn("Tracking failed:", error);
 
-  background:
+      }
 
-    linear-gradient(
+    }
 
-      135deg,
+    function safeStorageGet(key, fallback = "") {
 
-      rgba(99,245,255,.10),
+      try {
 
-      rgba(94,160,255,.05)
+        return localStorage.getItem(key) || fallback;
 
-    ),
+      } catch {
 
-    rgba(255,255,255,.02);
+        return fallback;
 
-  border: 1px solid rgba(99,245,255,.18);
+      }
 
-  display: flex;
+    }
 
-  justify-content: space-between;
+    function safeStorageSet(key, value) {
 
-  align-items: center;
+      try {
 
-  gap: 20px;
+        localStorage.setItem(key, String(value));
 
-  box-shadow: var(--shadow-soft);
+      } catch {}
 
-}
+    }
 
-.announce-copy strong {
+    function safeStorageRemove(key) {
 
-  display: block;
+      try {
 
-  color: var(--cyan);
+        localStorage.removeItem(key);
 
-  margin-bottom: 6px;
+      } catch {}
 
-  font-size: 20px;
+    }
 
-  font-weight: 950;
+    function ensureAiRoot() {
 
-}
+      let root = document.getElementById("harvey-ai-chat-root");
 
-.announce-copy span {
+      if (!root) {
 
-  display: block;
+        root = document.createElement("div");
 
-  color: var(--muted);
+        root.id = "harvey-ai-chat-root";
 
-  line-height: 1.75;
+        document.body.appendChild(root);
 
-  font-size: 15px;
+      }
 
-}
+      return root;
 
-/* ==========================
+    }
 
-   HERO
+    function injectAiFallbackButton() {
 
-========================== */
+      if (document.getElementById("harvey-ai-fallback-button")) {
 
-.hero {
+        return;
 
-  position: relative;
+      }
 
-  border-radius: 36px;
+      const button = document.createElement("button");
 
-  border: 1px solid var(--line);
+      button.id = "harvey-ai-fallback-button";
 
-  background:
+      button.type = "button";
 
-    linear-gradient(
+      button.innerHTML = "💬 Harvey AI";
 
-      180deg,
+      button.style.position = "fixed";
 
-      rgba(255,255,255,.055),
+      button.style.right = "18px";
 
-      rgba(255,255,255,.014)
+      button.style.bottom = "calc(92px + env(safe-area-inset-bottom))";
 
-    ),
+      button.style.zIndex = "9998";
 
-    var(--panel);
+      button.style.border = "0";
 
-  padding: clamp(28px,4vw,48px);
+      button.style.borderRadius = "999px";
 
-  overflow: hidden;
+      button.style.padding = "14px 18px";
 
-  box-shadow: var(--shadow);
+      button.style.fontWeight = "900";
 
-}
+      button.style.color = "#07121f";
 
-.hero::before {
+      button.style.background = "linear-gradient(135deg,#63f5ff,#5ea0ff)";
 
-  content:"";
+      button.style.boxShadow = "0 18px 42px rgba(0,0,0,.35)";
 
-  position:absolute;
+      button.addEventListener("click", openHarveyAiChat);
 
-  inset:-1px;
+      document.body.appendChild(button);
 
-  background:
+    }
 
-    radial-gradient(
+    function openHarveyAiChat() {
 
-      circle at 10% 0%,
+      trackHarveyEvent("ai_support_open");
 
-      rgba(99,245,255,.18),
+      try {
 
-      transparent 36%
+        ensureAiRoot();
 
-    ),
+        if (
 
-    radial-gradient(
+          window.HarveyAI &&
 
-      circle at 90% 0%,
+          typeof window.HarveyAI.open === "function"
 
-      rgba(94,160,255,.18),
+        ) {
 
-      transparent 34%
+          window.HarveyAI.open();
 
-    );
+          return;
 
-  pointer-events:none;
+        }
 
-}
+        const root = document.getElementById("harvey-ai-chat-root");
 
-.hero-grid {
+        const launcher =
 
-  display:grid;
+          root?.querySelector("[data-harvey-ai-open]") ||
 
-  grid-template-columns:
+          root?.querySelector(".harvey-ai-launch") ||
 
-    minmax(0,1.15fr)
+          root?.querySelector("button");
 
-    minmax(360px,.85fr);
+        if (launcher && typeof launcher.click === "function") {
 
-  gap:38px;
+          launcher.click();
 
-}
+          return;
 
-.hero-badge {
+        }
 
-  display:inline-flex;
+        showAiFallbackPanel();
 
-  align-items:center;
+      } catch (error) {
 
-  gap:10px;
+        showAiFallbackPanel();
 
-  padding:10px 18px;
+      }
 
-  border-radius:999px;
+    }
 
-  background:
+    function showAiFallbackPanel() {
 
-    rgba(99,245,255,.08);
+      const existing = document.getElementById("harvey-ai-fallback-panel");
 
-  border:
+      if (existing) {
 
-    1px solid rgba(99,245,255,.24);
+        existing.remove();
 
-  color: var(--cyan);
+      }
 
-  font-size: 12px;
+      const panel = document.createElement("div");
 
-  font-weight: 950;
+      panel.id = "harvey-ai-fallback-panel";
 
-  letter-spacing: .08em;
+      panel.style.position = "fixed";
 
-  text-transform: uppercase;
+      panel.style.right = "18px";
 
-  margin-bottom: 20px;
+      panel.style.bottom = "calc(150px + env(safe-area-inset-bottom))";
 
-}
+      panel.style.width = "min(390px, calc(100vw - 28px))";
 
-.hero-badge::before {
+      panel.style.zIndex = "9999";
 
-  content:"";
+      panel.style.borderRadius = "24px";
 
-  width:10px;
+      panel.style.border = "1px solid rgba(122,162,255,.35)";
 
-  height:10px;
+      panel.style.background = "linear-gradient(160deg,#091126,#101935)";
 
-  border-radius:999px;
+      panel.style.boxShadow = "0 25px 60px rgba(0,0,0,.48)";
 
-  background: var(--green);
+      panel.style.padding = "20px";
 
-  box-shadow:
+      panel.style.color = "#f4f7ff";
 
-    0 0 0 6px rgba(109,255,179,.14),
+      panel.innerHTML = `
 
-    0 0 18px rgba(109,255,179,.34);
+        <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;">
 
-}
+          <div>
 
-.hero-title {
+            <strong style="display:block;font-size:18px;margin-bottom:6px;">
 
-  font-size:
+              Harvey AI Support
 
-    clamp(
+            </strong>
 
-      2.8rem,
+            <span style="display:block;color:#aab8de;font-size:14px;line-height:1.6;">
 
-      5.8vw,
+              The AI widget file may still be loading. You can open the support center now or keep this fallback button active.
 
-      4.5rem
+            </span>
 
-    );
+          </div>
 
-  line-height: 1.02;
+          <button
 
-  letter-spacing: -.06em;
+            type="button"
 
-  margin-bottom: 18px;
+            id="close-ai-fallback"
 
-  font-weight: 1000;
+            style="background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.12);border-radius:999px;width:36px;height:36px;font-weight:900;"
 
-}
+          >
 
-.gradient-text {
+            ×
 
-  background:
+          </button>
 
-    linear-gradient(
+        </div>
 
-      135deg,
+        <div style="display:grid;gap:10px;margin-top:16px;">
 
-      #ffffff,
+          <a
 
-      var(--cyan),
+            href="support.html"
 
-      var(--blue)
+            style="display:flex;justify-content:center;align-items:center;text-decoration:none;border-radius:16px;min-height:48px;background:linear-gradient(135deg,#6dffb3,#89ffd0);color:#062014;font-weight:900;"
 
-    );
+          >
 
-  -webkit-background-clip:text;
+            Open Support Center
 
-  background-clip:text;
+          </a>
 
-  color:transparent;
+          <button
 
-}
+            type="button"
 
-.hero-copy {
+            id="retry-ai-widget"
 
-  max-width: 760px;
+            style="border-radius:16px;min-height:48px;background:rgba(255,255,255,.06);color:#fff;border:1px solid rgba(255,255,255,.12);font-weight:900;"
 
-  color: var(--muted);
+          >
 
-  font-size: 17px;
+            Retry AI Widget
 
-  line-height: 1.85;
+          </button>
 
-  margin-bottom: 28px;
+        </div>
 
-}
+      `;
 
-/* ==========================
+      document.body.appendChild(panel);
 
-   ACTION CENTER
+      document
 
-========================== */
+        .getElementById("close-ai-fallback")
 
-.action-container {
+        ?.addEventListener("click", () => panel.remove());
 
-  background:
+      document
 
-    linear-gradient(
+        .getElementById("retry-ai-widget")
 
-      180deg,
+        ?.addEventListener("click", () => {
 
-      rgba(255,255,255,.05),
+          panel.remove();
 
-      rgba(255,255,255,.02)
+          reloadAiWidget();
 
-    );
+        });
 
-  border:
+    }
 
-    1px solid rgba(255,255,255,.08);
+    function reloadAiWidget() {
 
-  border-radius: 26px;
+      ensureAiRoot();
 
-  padding: 24px;
+      const existingScript = document.querySelector(
 
-  margin-bottom: 26px;
+        'script[src="/ai-support-widget.js"]'
 
-}
+      );
 
-.action-container h4 {
+      if (existingScript) {
 
-  font-size: 12px;
+        existingScript.remove();
 
-  text-transform: uppercase;
+      }
 
-  letter-spacing: .12em;
+      const script = document.createElement("script");
 
-  color: var(--muted);
+      script.src = `/ai-support-widget.js?v=${Date.now()}`;
 
-  margin-bottom: 14px;
+      script.async = true;
 
-  font-weight: 950;
+      script.onload = () => {
 
-}
+        trackHarveyEvent("ai_widget_reloaded");
 
-.primary-actions {
+        setTimeout(openHarveyAiChat, 350);
 
-  display:grid;
+      };
 
-  grid-template-columns:1fr 1fr;
+      script.onerror = () => {
 
-  gap:12px;
+        trackHarveyEvent("ai_widget_reload_failed");
 
-  margin-bottom:14px;
+        showAiFallbackPanel();
 
-}
+      };
 
-.secondary-actions {
+      document.body.appendChild(script);
 
-  display:flex;
+    }
 
-  flex-wrap:wrap;
+    function restoreAccessibilitySettings() {
 
-  gap:10px;
+      const settings = [
 
-}
+        {
 
-.secondary-actions .btn {
+          key: STORAGE_KEYS.highContrast,
 
-  flex:1;
+          className: "high-contrast",
 
-  min-width:150px;
+          buttonId: "contrast-toggle"
 
-}
+        },
 
-/* ==========================
+        {
 
-   BUTTON SYSTEM
+          key: STORAGE_KEYS.largeText,
 
-========================== */
+          className: "large-text",
 
-.btn {
+          buttonId: "text-toggle"
 
-  min-height: 56px;
+        },
 
-  padding: 14px 20px;
+        {
 
-  border-radius: 18px;
+          key: STORAGE_KEYS.reducedMotion,
 
-  display:flex;
+          className: "reduced-motion",
 
-  align-items:center;
+          buttonId: "motion-toggle"
 
-  justify-content:center;
+        }
 
-  gap:8px;
+      ];
 
-  font-weight: 900;
+      settings.forEach((item) => {
 
-  transition:.18s ease;
+        const active = safeStorageGet(item.key) === "1";
 
-  text-align:center;
+        document.body.classList.toggle(item.className, active);
 
-}
+        document
 
-.btn:hover {
+          .getElementById(item.buttonId)
 
-  transform: translateY(-2px);
-
-}
-
-.btn.primary {
-
-  background:
-
-    linear-gradient(
-
-      135deg,
-
-      var(--cyan),
-
-      var(--blue)
-
-    );
-
-  color: var(--ink);
-
-  box-shadow:
-
-    0 16px 40px rgba(94,160,255,.25);
-
-}
-
-.btn.success {
-
-  background:
-
-    linear-gradient(
-
-      135deg,
-
-      var(--green),
-
-      #89ffd0
-
-    );
-
-  color:#062014;
-
-}
-
-.btn.foundation {
-
-  background:
-
-    linear-gradient(
-
-      135deg,
-
-      var(--gold),
-
-      #ffe9a1
-
-    );
-
-  color:#2c2200;
-
-}
-
-.btn.autonomous {
-
-  background:
-
-    rgba(140,131,255,.15);
-
-  border:
-
-    1px solid rgba(140,131,255,.30);
-
-  color:#ddd9ff;
-
-}
-
-.btn.ghost {
-
-  background: transparent;
-
-  border:
-
-    1px solid rgba(255,255,255,.12);
-
-  color:#fff;
-
-}/* ==========================
-
-   HERO FEATURE POINTS
-
-========================== */
-
-.hero-points {
-
-  display: grid;
-
-  grid-template-columns: repeat(2, 1fr);
-
-  gap: 12px;
-
-}
-
-.hero-point {
-
-  padding: 18px;
-
-  border-radius: 20px;
-
-  background:
-
-    linear-gradient(
-
-      180deg,
-
-      rgba(255,255,255,.04),
-
-      rgba(255,255,255,.015)
-
-    );
-
-  border: 1px solid rgba(255,255,255,.06);
-
-  color: var(--muted);
-
-  font-size: 14px;
-
-  line-height: 1.6;
-
-  transition: .18s ease;
-
-}
-
-.hero-point:hover {
-
-  transform: translateY(-2px);
-
-  border-color: var(--line-strong);
-
-  background: rgba(255,255,255,.045);
-
-}
-
-.hero-point strong {
-
-  display: block;
-
-  color: #fff;
-
-  margin-bottom: 6px;
-
-  font-size: 15px;
-
-  font-weight: 950;
-
-}
-
-/* ==========================
-
-   HERO SIDEBAR
-
-========================== */
-
-.hero-side {
-
-  display: flex;
-
-  flex-direction: column;
-
-  gap: 16px;
-
-}
-
-.status-card,
-
-.foundation-card,
-
-.community-card {
-
-  padding: 24px;
-
-  border-radius: 26px;
-
-  border: 1px solid rgba(255,255,255,.07);
-
-  background:
-
-    linear-gradient(
-
-      180deg,
-
-      rgba(255,255,255,.04),
-
-      rgba(255,255,255,.015)
-
-    );
-
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
-
-}
-
-.foundation-card {
-
-  background:
-
-    linear-gradient(
-
-      180deg,
-
-      rgba(255,215,106,.09),
-
-      rgba(255,255,255,.015)
-
-    );
-
-  border-color: rgba(255,215,106,.22);
-
-}
-
-.community-card {
-
-  background:
-
-    linear-gradient(
-
-      180deg,
-
-      rgba(140,131,255,.10),
-
-      rgba(255,255,255,.015)
-
-    );
-
-  border-color: rgba(140,131,255,.24);
-
-}
-
-.eyebrow {
-
-  display: inline-flex;
-
-  margin-bottom: 8px;
-
-  color: var(--cyan);
-
-  font-size: 11px;
-
-  font-weight: 950;
-
-  letter-spacing: .08em;
-
-  text-transform: uppercase;
-
-}
-
-.foundation-card .eyebrow {
-
-  color: var(--gold);
-
-}
-
-.community-card .eyebrow {
-
-  color: #c9c8ff;
-
-}
-
-.status-card h3,
-
-.foundation-card h3,
-
-.community-card h3 {
-
-  font-size: 20px;
-
-  margin-bottom: 12px;
-
-  letter-spacing: -.02em;
-
-  font-weight: 950;
-
-}
-
-.status-card p,
-
-.foundation-card p,
-
-.community-card p {
-
-  color: var(--muted);
-
-  line-height: 1.65;
-
-  font-size: 14px;
-
-}
-
-/* ==========================
-
-   STATUS SYSTEM
-
-========================== */
-
-.status-list {
-
-  display: grid;
-
-  gap: 10px;
-
-  margin-top: 16px;
-
-}
-
-.status-item {
-
-  display: flex;
-
-  justify-content: space-between;
-
-  align-items: center;
-
-  gap: 12px;
-
-  padding: 13px 16px;
-
-  border-radius: 16px;
-
-  background: rgba(255,255,255,.025);
-
-  border: 1px solid rgba(255,255,255,.05);
-
-  transition: .18s ease;
-
-}
-
-.status-item:hover {
-
-  background: rgba(255,255,255,.045);
-
-  border-color: var(--line-strong);
-
-}
-
-.status-item span {
-
-  font-size: 14px;
-
-  font-weight: 850;
-
-}
-
-.status-pill {
-
-  padding: 5px 11px;
-
-  border-radius: 999px;
-
-  font-size: 11px;
-
-  font-weight: 950;
-
-  white-space: nowrap;
-
-  background: rgba(109,255,179,.12);
-
-  color: var(--green);
-
-}
-
-.status-pill.info {
-
-  background: rgba(99,245,255,.12);
-
-  color: var(--cyan);
-
-}
-
-.status-pill.pilot {
-
-  background: rgba(140,131,255,.16);
-
-  color: #d5d3ff;
-
-}
-
-.status-pill.build {
-
-  background: rgba(255,215,106,.14);
-
-  color: var(--gold);
-
-}
-
-/* ==========================
-
-   MINI STATS
-
-========================== */
-
-.mini-stats {
-
-  display: grid;
-
-  grid-template-columns: repeat(4, 1fr);
-
-  gap: 16px;
-
-  margin-top: 24px;
-
-}
-
-.mini-stat {
-
-  padding: 22px;
-
-  border-radius: 22px;
-
-  border: 1px solid rgba(255,255,255,.06);
-
-  background:
-
-    linear-gradient(
-
-      180deg,
-
-      rgba(255,255,255,.04),
-
-      rgba(255,255,255,.015)
-
-    );
-
-  transition: .18s ease;
-
-}
-
-.mini-stat:hover {
-
-  transform: translateY(-3px);
-
-  border-color: var(--line-strong);
-
-  background: rgba(255,255,255,.05);
-
-}
-
-.mini-stat strong {
-
-  display: block;
-
-  font-size: 17px;
-
-  color: #fff;
-
-  margin-bottom: 8px;
-
-  font-weight: 950;
-
-}
-
-.mini-stat span {
-
-  color: var(--muted);
-
-  font-size: 13px;
-
-  line-height: 1.65;
-
-}
-
-/* ==========================
-
-   SUPPORT CALLOUT
-
-   This stays. This is NOT the duplicate AI bubble.
-
-========================== */
-
-.support-callout {
-
-  margin-top: 24px;
-
-  display: flex;
-
-  justify-content: space-between;
-
-  align-items: center;
-
-  gap: 18px;
-
-  padding: 22px 24px;
-
-  border-radius: 24px;
-
-  border: 1px solid rgba(109,255,179,.18);
-
-  background:
-
-    linear-gradient(
-
-      135deg,
-
-      rgba(109,255,179,.06),
-
-      rgba(99,245,255,.03)
-
-    );
-
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
-
-}
-
-.support-callout strong {
-
-  display: block;
-
-  color: var(--green);
-
-  margin-bottom: 5px;
-
-  font-size: 16px;
-
-  font-weight: 950;
-
-}
-
-.support-callout span {
-
-  color: var(--muted);
-
-  font-size: 14px;
-
-  line-height: 1.65;
-
-}
-
-/* ==========================
-
-   MAIN SECTION SYSTEM
-
-========================== */
-
-.section {
-
-  position: relative;
-
-  margin-top: 24px;
-
-  padding: 34px;
-
-  border-radius: var(--radius-xl);
-
-  background: var(--panel);
-
-  border: 1px solid var(--line);
-
-  box-shadow: var(--shadow);
-
-  overflow: hidden;
-
-}
-
-.section::before {
-
-  content: "";
-
-  position: absolute;
-
-  inset: 0;
-
-  background:
-
-    radial-gradient(
-
-      circle at top right,
-
-      rgba(99,245,255,.05),
-
-      transparent 40%
-
-    );
-
-  pointer-events: none;
-
-}
-
-.section-header {
-
-  position: relative;
-
-  z-index: 1;
-
-  margin-bottom: 26px;
-
-}
-
-.section h2 {
-
-  font-size: 30px;
-
-  margin-bottom: 8px;
-
-  letter-spacing: -.03em;
-
-  font-weight: 950;
-
-}
-
-.lead {
-
-  max-width: 860px;
-
-  color: var(--muted);
-
-  line-height: 1.75;
-
-  font-size: 15px;
-
-}
-
-/* ==========================
-
-   GRID + CARDS
-
-========================== */
-
-.grid {
-
-  display: grid;
-
-  grid-template-columns: repeat(3, 1fr);
-
-  gap: 16px;
-
-}
-
-.info-grid {
-
-  display: grid;
-
-  grid-template-columns: 1.1fr .9fr;
-
-  gap: 18px;
-
-  margin-top: 18px;
-
-}
-
-.card,
-
-.highlight,
-
-.list-item,
-
-.service-card {
-
-  border: 1px solid rgba(255,255,255,.05);
-
-  background: rgba(255,255,255,.02);
-
-}
-
-.card {
-
-  position: relative;
-
-  overflow: hidden;
-
-  padding: 22px;
-
-  border-radius: 22px;
-
-  transition: .18s ease;
-
-}
-
-.card:hover {
-
-  transform: translateY(-4px);
-
-  border-color: var(--line-strong);
-
-  background: rgba(255,255,255,.045);
-
-}
-
-.card strong {
-
-  display: block;
-
-  margin-bottom: 8px;
-
-  font-size: 16px;
-
-  color: white;
-
-  font-weight: 950;
-
-}
-
-.card span {
-
-  display: block;
-
-  color: var(--muted);
-
-  font-size: 14px;
-
-  line-height: 1.65;
-
-}
-
-/* ==========================
-
-   SINGLE AI WIDGET CONTROL
-
-   This is the correction for the duplicate AI box.
-
-========================== */
-
-#harvey-ai-chat-root {
-
-  position: fixed;
-
-  z-index: 9998;
-
-}
-
-/* Keep only external widget launcher.
-
-   Do not style or create a second fallback launcher. */
-
-.harvey-ai-launch {
-
-  right: 18px !important;
-
-  bottom: calc(96px + env(safe-area-inset-bottom)) !important;
-
-  z-index: 9998 !important;
-
-}
-
-.harvey-ai-window {
-
-  z-index: 9999 !important;
-
-}/* ==========================
-
-   HIGHLIGHT PANEL
-
-========================== */
-
-.highlight {
-
-  padding: 26px;
-
-  border-radius: 24px;
-
-  background:
-
-    linear-gradient(
-
-      180deg,
-
-      rgba(255,255,255,.05),
-
-      rgba(255,255,255,.02)
-
-    );
-
-}
-
-.highlight h3 {
-
-  margin-bottom: 12px;
-
-  font-size: 21px;
-
-  font-weight: 950;
-
-}
-
-.highlight p {
-
-  color: var(--muted);
-
-  line-height: 1.75;
-
-  font-size: 14px;
-
-}
-
-/* ==========================
-
-   PILLS
-
-========================== */
-
-.pill-row {
-
-  display: flex;
-
-  flex-wrap: wrap;
-
-  gap: 8px;
-
-  margin-top: 18px;
-
-}
-
-.pill {
-
-  padding: 7px 13px;
-
-  border-radius: 999px;
-
-  background: rgba(255,255,255,.045);
-
-  border: 1px solid rgba(255,255,255,.06);
-
-  color: var(--muted);
-
-  font-size: 12px;
-
-  font-weight: 850;
-
-}
-
-/* ==========================
-
-   LISTS
-
-========================== */
-
-.list {
-
-  display: grid;
-
-  gap: 12px;
-
-}
-
-.list-item {
-
-  padding: 18px;
-
-  border-radius: 18px;
-
-  transition: .18s ease;
-
-}
-
-.list-item:hover {
-
-  border-color: var(--line-strong);
-
-  background: rgba(255,255,255,.04);
-
-}
-
-.list-item strong {
-
-  display: block;
-
-  margin-bottom: 5px;
-
-  font-size: 15px;
-
-  font-weight: 950;
-
-}
-
-.list-item span {
-
-  display: block;
-
-  color: var(--muted);
-
-  font-size: 13px;
-
-  line-height: 1.65;
-
-  overflow-wrap: anywhere;
-
-}
-
-/* ==========================
-
-   SERVICE CARDS
-
-========================== */
-
-.service-row {
-
-  display: grid;
-
-  grid-template-columns: repeat(4, 1fr);
-
-  gap: 17px;
-
-}
-
-.service-card {
-
-  min-height: 260px;
-
-  padding: 24px;
-
-  border-radius: 24px;
-
-  display: flex;
-
-  flex-direction: column;
-
-  justify-content: space-between;
-
-  background:
-
-    linear-gradient(
-
-      180deg,
-
-      rgba(255,255,255,.04),
-
-      rgba(255,255,255,.015)
-
-    );
-
-  transition: .2s ease;
-
-}
-
-.service-card:hover {
-
-  transform: translateY(-4px);
-
-  border-color: var(--line-strong);
-
-  background: rgba(255,255,255,.045);
-
-}
-
-.service-card h3 {
-
-  margin-bottom: 9px;
-
-  font-size: 18px;
-
-  color: #fff;
-
-  letter-spacing: -.02em;
-
-  font-weight: 950;
-
-}
-
-.service-card p {
-
-  color: var(--muted);
-
-  line-height: 1.65;
-
-  font-size: 14px;
-
-  margin-bottom: 20px;
-
-  flex-grow: 1;
-
-}
-
-.service-card .btn {
-
-  width: 100%;
-
-}
-
-/* ==========================
-
-   COVERAGE GRID
-
-========================== */
-
-.coverage-grid {
-
-  display: grid;
-
-  grid-template-columns: repeat(4, 1fr);
-
-  gap: 17px;
-
-}
-
-.coverage-card {
-
-  padding: 24px;
-
-  border-radius: 24px;
-
-  text-align: center;
-
-  border: 1px solid rgba(255,255,255,.06);
-
-  background:
-
-    linear-gradient(
-
-      180deg,
-
-      rgba(255,255,255,.035),
-
-      rgba(255,255,255,.012)
-
-    );
-
-  transition: .18s ease;
-
-}
-
-.coverage-card:hover {
-
-  transform: translateY(-3px);
-
-  border-color: var(--line-strong);
-
-  background: rgba(255,255,255,.045);
-
-}
-
-.coverage-card strong {
-
-  display: block;
-
-  font-size: 18px;
-
-  margin-bottom: 8px;
-
-  color: #fff;
-
-  font-weight: 950;
-
-}
-
-.coverage-card span {
-
-  display: block;
-
-  color: var(--muted);
-
-  font-size: 13px;
-
-  line-height: 1.65;
-
-}
-
-/* ==========================
-
-   LANGUAGE SUPPORT GRID
-
-========================== */
-
-.language-support-grid {
-
-  display: grid;
-
-  grid-template-columns: repeat(4, 1fr);
-
-  gap: 17px;
-
-  margin-top: 20px;
-
-}
-
-.language-card {
-
-  padding: 22px;
-
-  border-radius: 22px;
-
-  text-align: center;
-
-  border: 1px solid rgba(99,245,255,.14);
-
-  background:
-
-    linear-gradient(
-
-      180deg,
-
-      rgba(99,245,255,.045),
-
-      rgba(255,255,255,.012)
-
-    );
-
-  transition: .18s ease;
-
-}
-
-.language-card:hover {
-
-  transform: translateY(-3px);
-
-  border-color: rgba(99,245,255,.32);
-
-  background: rgba(99,245,255,.06);
-
-}
-
-.language-card h4 {
-
-  color: var(--cyan);
-
-  margin-bottom: 8px;
-
-  font-size: 16px;
-
-  font-weight: 950;
-
-}
-
-.language-card p {
-
-  color: var(--muted);
-
-  font-size: 13px;
-
-  line-height: 1.6;
-
-}
-
-/* ==========================
-
-   COMMUNITY GRID
-
-========================== */
-
-.community-grid {
-
-  display: grid;
-
-  grid-template-columns: repeat(3, 1fr);
-
-  gap: 17px;
-
-  margin-top: 18px;
-
-}
-
-.community-card-box {
-
-  padding: 23px;
-
-  border-radius: 24px;
-
-  border: 1px solid rgba(255,255,255,.06);
-
-  background:
-
-    linear-gradient(
-
-      180deg,
-
-      rgba(255,255,255,.035),
-
-      rgba(255,255,255,.012)
-
-    );
-
-  transition: .18s ease;
-
-}
-
-.community-card-box:hover {
-
-  transform: translateY(-3px);
-
-  border-color: var(--line-strong);
-
-  background: rgba(255,255,255,.045);
-
-}
-
-.community-card-box h4 {
-
-  color: #fff;
-
-  margin-bottom: 8px;
-
-  font-size: 16px;
-
-  font-weight: 950;
-
-}
-
-.community-card-box p {
-
-  color: var(--muted);
-
-  font-size: 14px;
-
-  line-height: 1.65;
-
-}
-
-/* ==========================
-
-   FOOTER
-
-========================== */
-
-.footer {
-
-  margin-top: 24px;
-
-  padding: 32px;
-
-  border-radius: var(--radius-xl);
-
-  border: 1px solid var(--line);
-
-  background:
-
-    linear-gradient(
-
-      180deg,
-
-      rgba(255,255,255,.04),
-
-      rgba(255,255,255,.014)
-
-    ),
-
-    var(--panel);
-
-  display: flex;
-
-  justify-content: space-between;
-
-  align-items: center;
-
-  flex-wrap: wrap;
-
-  gap: 24px;
-
-  box-shadow: var(--shadow);
-
-}
-
-.footer-title {
-
-  display: block;
-
-  margin-bottom: 6px;
-
-  font-weight: 950;
-
-  font-size: 16px;
-
-}
-
-.footer p {
-
-  color: var(--muted);
-
-  font-size: 14px;
-
-  line-height: 1.65;
-
-  max-width: 660px;
-
-}
-
-/* ==========================
-
-   BOTTOM NAV
-
-========================== */
-
-.bottom-nav {
-
-  position: fixed;
-
-  left: 0;
-
-  right: 0;
-
-  bottom: 0;
-
-  height: calc(var(--nav-h) + env(safe-area-inset-bottom));
-
-  background: rgba(6,12,26,.96);
-
-  backdrop-filter: blur(24px);
-
-  -webkit-backdrop-filter: blur(24px);
-
-  border-top: 1px solid rgba(255,255,255,.08);
-
-  display: flex;
-
-  justify-content: space-around;
-
-  align-items: center;
-
-  padding:
-
-    0 8px
-
-    env(safe-area-inset-bottom)
-
-    8px;
-
-  z-index: 100;
-
-  box-shadow: 0 -10px 30px rgba(0,0,0,.35);
-
-}
-
-.nav-btn {
-
-  color: var(--muted);
-
-  background: transparent;
-
-  font-size: 11px;
-
-  font-weight: 850;
-
-  padding: 10px 12px;
-
-  border-radius: 14px;
-
-  display: flex;
-
-  flex-direction: column;
-
-  align-items: center;
-
-  gap: 5px;
-
-  min-width: 70px;
-
-  transition: .16s ease;
-
-}
-
-.nav-btn.active,
-
-.nav-btn:hover,
-
-.nav-btn:focus-visible {
-
-  color: var(--cyan);
-
-  background: rgba(99,245,255,.08);
-
-}
-
-/* ==========================
-
-   RESPONSIVE
-
-========================== */
-
-@media (max-width: 1180px) {
-
-  .hero-grid,
-
-  .info-grid {
-
-    grid-template-columns: 1fr;
-
-  }
-
-  .service-row,
-
-  .mini-stats,
-
-  .coverage-grid,
-
-  .language-support-grid {
-
-    grid-template-columns: repeat(2, 1fr);
-
-  }
-
-  .hero-side {
-
-    display: grid;
-
-    grid-template-columns: repeat(3, 1fr);
-
-  }
-
-}
-
-@media (max-width: 900px) {
-
-  .language-panel {
-
-    grid-template-columns: 1fr;
-
-  }
-
-  .language-controls {
-
-    justify-content: flex-start;
-
-  }
-
-  .topbar {
-
-    position: relative;
-
-    top: 0;
-
-    border-radius: 26px;
-
-    align-items: flex-start;
-
-    flex-direction: column;
-
-  }
-
-  .top-links {
-
-    width: 100%;
-
-    overflow-x: auto;
-
-    padding-bottom: 4px;
-
-    scrollbar-width: none;
-
-  }
-
-  .top-links::-webkit-scrollbar {
-
-    display: none;
-
-  }
-
-  .top-link {
-
-    flex: 0 0 auto;
-
-  }
-
-  .grid,
-
-  .community-grid {
-
-    grid-template-columns: repeat(2, 1fr);
-
-  }
-
-  .hero-side {
-
-    grid-template-columns: 1fr;
-
-  }
-
-  .announce,
-
-  .support-callout,
-
-  .footer {
-
-    align-items: flex-start;
-
-  }
-
-}/* ==========================================
-
-   HARVEY TAXI CODE BLUE CORE
-
-========================================== */
-
-const HARVEY_APP = {
-
-  version: "14.0.0",
-
-  initialized: false,
-
-  aiLoaded: false,
-
-  platformReady: false
-
-};
-
-const STORAGE_KEYS = {
-
-  language: "harvey_language",
-
-  highContrast: "harvey_high_contrast",
-
-  largeText: "harvey_large_text",
-
-  reducedMotion: "harvey_reduced_motion",
-
-  notifications: "harvey_notifications"
-
-};
-
-window.HARVEY_API_BASE =
-
-  window.location.origin &&
-
-  window.location.origin.includes("http")
-
-    ? window.location.origin
-
-    : "https://harvey-taxi-app-2.onrender.com";
-
-/* ==========================================
-
-   STORAGE HELPERS
-
-========================================== */
-
-function storageGet(key, fallback = "") {
-
-  try {
-
-    return localStorage.getItem(key) || fallback;
-
-  } catch {
-
-    return fallback;
-
-  }
-
-}
-
-function storageSet(key, value) {
-
-  try {
-
-    localStorage.setItem(key, value);
-
-  } catch {}
-
-}
-
-/* ==========================================
-
-   ANALYTICS
-
-========================================== */
-
-function track(eventName, data = {}) {
-
-  try {
-
-    if (typeof gtag === "function") {
-
-      gtag("event", eventName, {
-
-        app_name: "Harvey Taxi",
-
-        app_version: HARVEY_APP.version,
-
-        page_location: location.href,
-
-        ...data
+          ?.classList.toggle("active", active);
 
       });
 
     }
 
-  } catch (error) {
+    function toggleAccessibility(className, key, button) {
 
-    console.warn(error);
+      const active = !document.body.classList.contains(className);
 
-  }
+      document.body.classList.toggle(className, active);
 
-}
+      button?.classList.toggle("active", active);
 
-/* ==========================================
+      safeStorageSet(key, active ? "1" : "0");
 
-   NAVIGATION
+      trackHarveyEvent("accessibility_toggle", {
 
-========================================== */
+        setting: key,
 
-function safeGo(url, eventName) {
+        active
 
-  track(
-
-    eventName || "navigation",
-
-    {
-
-      destination: url
+      });
 
     }
 
-  );
+    function bindAccessibilityButtons() {
 
-  location.href = url;
+      document
 
-}
+        .getElementById("contrast-toggle")
 
-window.safeGo = safeGo;
+        ?.addEventListener("click", function () {
 
-/* ==========================================
+          toggleAccessibility(
 
-   ACCESSIBILITY
+            "high-contrast",
 
-========================================== */
+            STORAGE_KEYS.highContrast,
 
-function restoreAccessibility() {
+            this
 
-  const highContrast =
+          );
 
-    storageGet(
+        });
 
-      STORAGE_KEYS.highContrast
+      document
 
-    ) === "1";
+        .getElementById("text-toggle")
 
-  const largeText =
+        ?.addEventListener("click", function () {
 
-    storageGet(
+          toggleAccessibility(
 
-      STORAGE_KEYS.largeText
+            "large-text",
 
-    ) === "1";
+            STORAGE_KEYS.largeText,
 
-  const reducedMotion =
+            this
 
-    storageGet(
+          );
 
-      STORAGE_KEYS.reducedMotion
+        });
 
-    ) === "1";
+      document
 
-  document.body.classList.toggle(
+        .getElementById("motion-toggle")
 
-    "high-contrast",
+        ?.addEventListener("click", function () {
 
-    highContrast
+          toggleAccessibility(
 
-  );
+            "reduced-motion",
 
-  document.body.classList.toggle(
+            STORAGE_KEYS.reducedMotion,
 
-    "large-text",
+            this
 
-    largeText
+          );
 
-  );
-
-  document.body.classList.toggle(
-
-    "reduced-motion",
-
-    reducedMotion
-
-  );
-
-}
-
-function toggleSetting(
-
-  className,
-
-  storageKey,
-
-  button
-
-) {
-
-  const active =
-
-    !document.body.classList.contains(
-
-      className
-
-    );
-
-  document.body.classList.toggle(
-
-    className,
-
-    active
-
-  );
-
-  button.classList.toggle(
-
-    "active",
-
-    active
-
-  );
-
-  storageSet(
-
-    storageKey,
-
-    active ? "1" : "0"
-
-  );
-
-  track(
-
-    "accessibility_changed",
-
-    {
-
-      setting: storageKey,
-
-      active
+        });
 
     }
 
-  );
+    function detectDevicePerformance() {
 
-}
+      const memory = navigator.deviceMemory || 4;
 
-function bindAccessibility() {
+      const cores = navigator.hardwareConcurrency || 4;
 
-  document
+      const connection =
 
-    .getElementById(
+        navigator.connection ||
 
-      "contrast-toggle"
+        navigator.webkitConnection ||
 
-    )
+        navigator.mozConnection;
 
-    ?.addEventListener(
+      const saveData = Boolean(connection?.saveData);
 
-      "click",
+      const slowConnection =
 
-      function () {
+        ["slow-2g", "2g", "3g"].includes(connection?.effectiveType);
 
-        toggleSetting(
+      return {
 
-          "high-contrast",
+        lowPower: memory <= 2 || cores <= 2 || saveData || slowConnection,
 
-          STORAGE_KEYS.highContrast,
+        memory,
 
-          this
+        cores,
 
-        );
+        saveData,
 
-      }
+        effectiveType: connection?.effectiveType || "unknown"
 
-    );
-
-  document
-
-    .getElementById(
-
-      "text-toggle"
-
-    )
-
-    ?.addEventListener(
-
-      "click",
-
-      function () {
-
-        toggleSetting(
-
-          "large-text",
-
-          STORAGE_KEYS.largeText,
-
-          this
-
-        );
-
-      }
-
-    );
-
-  document
-
-    .getElementById(
-
-      "motion-toggle"
-
-    )
-
-    ?.addEventListener(
-
-      "click",
-
-      function () {
-
-        toggleSetting(
-
-          "reduced-motion",
-
-          STORAGE_KEYS.reducedMotion,
-
-          this
-
-        );
-
-      }
-
-    );
-
-}
-
-/* ==========================================
-
-   BATTERY OPTIMIZER
-
-========================================== */
-
-function batteryOptimizer() {
-
-  const memory =
-
-    navigator.deviceMemory || 4;
-
-  const cores =
-
-    navigator.hardwareConcurrency || 4;
-
-  const connection =
-
-    navigator.connection;
-
-  const saveData =
-
-    connection?.saveData || false;
-
-  const slowConnection =
-
-    ["2g", "3g", "slow-2g"]
-
-      .includes(
-
-        connection?.effectiveType
-
-      );
-
-  const lowPower =
-
-    memory <= 2 ||
-
-    cores <= 2 ||
-
-    saveData ||
-
-    slowConnection;
-
-  if (lowPower) {
-
-    document.body.classList.add(
-
-      "reduced-motion"
-
-    );
-
-    storageSet(
-
-      STORAGE_KEYS.reducedMotion,
-
-      "1"
-
-    );
-
-  }
-
-  track(
-
-    "battery_optimizer",
-
-    {
-
-      lowPower,
-
-      memory,
-
-      cores
+      };
 
     }
 
-  );
+    function applyBatteryOptimizer() {
 
-}
+      const performance = detectDevicePerformance();
 
-window.applyBatteryOptimizer =
+      if (performance.lowPower) {
 
-  batteryOptimizer;
+        document.body.classList.add("reduced-motion");
 
-/* ==========================================
+        safeStorageSet(STORAGE_KEYS.reducedMotion, "1");
 
-   AI SUPPORT
+        document
 
-========================================== */
+          .getElementById("motion-toggle")
 
-function openHarveyAiChat() {
+          ?.classList.add("active");
 
-  track("ai_open");
+      }
+
+      trackHarveyEvent("battery_optimizer_checked", performance);
+
+    }
+
+    function requestNotificationPermission() {
+
+      if (!("Notification" in window)) {
+
+        return;
+
+      }
+
+      if (Notification.permission === "default") {
+
+        Notification.requestPermission().then((permission) => {
+
+          safeStorageSet(
+
+            STORAGE_KEYS.notifications,
+
+            permission === "granted" ? "1" : "0"
+
+          );
+
+          trackHarveyEvent("notification_permission", {
+
+            permission
+
+          });
+
+        });
+
+      }
+
+    }
+
+    function showLocalNotification(title, body) {
+
+      try {
+
+        if (
+
+          "Notification" in window &&
+
+          Notification.permission === "granted"
+
+        ) {
+
+          new Notification(title, {
+
+            body,
+
+            icon: "/icon-192.png"
+
+          });
+
+        }
+
+      } catch {}
+
+    }
+
+    async function fetchPlatformStatus() {
+
+      try {
+
+        const response = await fetch(
+
+          `${window.HARVEY_API_BASE}/api/health`,
+
+          {
+
+            cache: "no-store"
+
+          }
+
+        );
+
+        if (!response.ok) {
+
+          throw new Error("Health check failed");
+
+        }
+
+        const data = await response.json();
+
+        trackHarveyEvent("platform_health_ok", {
+
+          ok: true
+
+        });
+
+        return data;
+
+      } catch (error) {
+
+        trackHarveyEvent("platform_health_failed", {
+
+          message: error.message
+
+        });
+
+        return null;
+
+      }
+
+    }
+
+    function bindIntentTracking() {
+
+      document.addEventListener("click", function (event) {
+
+        const intentTarget = event.target.closest("[data-intent]");
+
+        const trackTarget = event.target.closest("[data-track]");
+
+        if (intentTarget) {
+
+          trackHarveyEvent(intentTarget.dataset.intent, {
+
+            event_category: "lead_intent"
+
+          });
+
+          return;
+
+        }
+
+        if (trackTarget) {
+
+          trackHarveyEvent(trackTarget.dataset.track);
+
+        }
+
+      });
+
+    }
+
+    function bindLanguageSelector() {
+
+      const select = document.getElementById("language-select");
+
+      const saved = safeStorageGet(STORAGE_KEYS.language, "en");
+
+      if (select) {
+
+        select.value = TRANSLATIONS?.[saved] ? saved : "en";
+
+        select.addEventListener("change", function () {
+
+          if (typeof applyLanguage === "function") {
+
+            applyLanguage(this.value);
+
+          }
+
+        });
+
+      }
+
+      if (typeof applyLanguage === "function") {
+
+        applyLanguage(saved);
+
+      }
+
+    }
+
+    function injectQuickSettingsPanel() {
+
+      if (document.getElementById("quick-settings-panel")) {
+
+        return;
+
+      }
+
+      const panel = document.createElement("section");
+
+      panel.id = "quick-settings-panel";
+
+      panel.className = "section";
+
+      panel.innerHTML = `
+
+        <div class="section-header">
+
+          <h2>Quick App Controls</h2>
+
+          <p class="lead">
+
+            Fast access to support, settings, battery optimization, notifications, and account safety.
+
+          </p>
+
+        </div>
+
+        <div class="grid">
+
+          <button class="card" type="button" onclick="openHarveyAiChat();">
+
+            <strong>💬 Open AI Chat</strong>
+
+            <span>Launch Harvey AI Support or fallback support panel.</span>
+
+          </button>
+
+          <button class="card" type="button" onclick="applyBatteryOptimizer();">
+
+            <strong>🔋 Battery Optimizer</strong>
+
+            <span>Reduce motion and optimize performance for lower-power devices.</span>
+
+          </button>
+
+          <button class="card" type="button" onclick="requestNotificationPermission();">
+
+            <strong>🔔 Notifications</strong>
+
+            <span>Allow important ride, driver, and support alerts.</span>
+
+          </button>
+
+          <a class="card" href="settings.html">
+
+            <strong>⚙ Settings</strong>
+
+            <span>Open app settings, accessibility, and preferences.</span>
+
+          </a>
+
+          <a class="card" href="delete-account.html">
+
+            <strong>🗑 Delete Account</strong>
+
+            <span>Request account deletion or data removal.</span>
+
+          </a>
+
+          <a class="card" href="support.html">
+
+            <strong>🛟 Support Center</strong>
+
+            <span>Open Harvey Taxi support for help.</span>
+
+          </a>
+
+        </div>
+
+      `;
+
+      const main = document.getElementById("main-content");
+
+      if (main) {
+
+        main.appendChild(panel);
+
+      }
+
+    }
+
+    function initializeHarveyHomePage() {
+
+      ensureAiRoot();
+
+      injectAiFallbackButton();
+
+      bindIntentTracking();
+
+      bindLanguageSelector();
+
+      bindAccessibilityButtons();
+
+      restoreAccessibilitySettings();
+
+      applyBatteryOptimizer();
+
+      injectQuickSettingsPanel();
+
+      fetchPlatformStatus();
+
+      trackHarveyEvent("page_view_home", {
+
+        initialized: true
+
+      });
+
+      setTimeout(() => {
+
+        ensureAiRoot();
+
+        if (
+
+          !window.HarveyAI &&
+
+          !document.querySelector(".harvey-ai-launch")
+
+        ) {
+
+          injectAiFallbackButton();
+
+        }
+
+      }, 1000);
+
+    }
+
+    window.openHarveyAiChat = openHarveyAiChat;
+
+    window.safeGo = safeGo;
+
+    window.applyBatteryOptimizer = applyBatteryOptimizer;
+
+    window.requestNotificationPermission = requestNotificationPermission;
+
+    window.showLocalNotification = showLocalNotification;
+
+    document.addEventListener(
+
+      "DOMContentLoaded",
+
+      initializeHarveyHomePage
+
+    );
+
+  </script><!-- PART 14 -->
+
+<script>
+
+async function registerHarveyServiceWorker() {
 
   try {
 
-    if (
-
-      window.HarveyAI &&
-
-      typeof window.HarveyAI.open
-
-      === "function"
-
-    ) {
-
-      window.HarveyAI.open();
+    if (!("serviceWorker" in navigator)) {
 
       return;
 
     }
 
-    const launcher =
+    const registration =
 
-      document.querySelector(
+      await navigator.serviceWorker.register(
 
-        ".harvey-ai-launch"
-
-      );
-
-    if (launcher) {
-
-      launcher.click();
-
-      return;
-
-    }
-
-    location.href =
-
-      "support.html";
-
-  } catch {
-
-    location.href =
-
-      "support.html";
-
-  }
-
-}
-
-window.openHarveyAiChat =
-
-  openHarveyAiChat;
-
-/* ==========================================
-
-   AI HEALTH CHECK
-
-   NO DUPLICATE BUTTONS
-
-========================================== */
-
-function monitorAI() {
-
-  setInterval(() => {
-
-    const loaded =
-
-      document.querySelector(
-
-        ".harvey-ai-launch"
-
-      ) ||
-
-      window.HarveyAI;
-
-    HARVEY_APP.aiLoaded =
-
-      Boolean(loaded);
-
-  }, 10000);
-
-}
-
-/* ==========================================
-
-   PLATFORM HEALTH
-
-========================================== */
-
-async function fetchPlatformHealth() {
-
-  try {
-
-    const response =
-
-      await fetch(
-
-        `${window.HARVEY_API_BASE}/api/health`,
+        "/service-worker.js",
 
         {
 
-          cache: "no-store"
+          scope: "/"
 
         }
 
       );
 
-    if (!response.ok) {
+    trackHarveyEvent(
 
-      throw new Error(
-
-        "health failed"
-
-      );
-
-    }
-
-    const data =
-
-      await response.json();
-
-    HARVEY_APP.platformReady =
-
-      true;
-
-    track(
-
-      "health_ok"
-
-    );
-
-    return data;
-
-  } catch (error) {
-
-    HARVEY_APP.platformReady =
-
-      false;
-
-    track(
-
-      "health_failed",
+      "service_worker_registered",
 
       {
 
-        message:
-
-          error.message
+        scope: registration.scope
 
       }
 
     );
 
-    return null;
+  } catch (error) {
+
+    trackHarveyEvent(
+
+      "service_worker_failed",
+
+      {
+
+        message: error.message
+
+      }
+
+    );
 
   }
 
-}/* ==========================================
+}
 
-   WELCOME BANNER
+function monitorConnectionStatus() {
 
-========================================== */
+  function updateStatus() {
+
+    const online = navigator.onLine;
+
+    trackHarveyEvent(
+
+      online
+
+        ? "internet_online"
+
+        : "internet_offline"
+
+    );
+
+    if (!online) {
+
+      showLocalNotification(
+
+        "Harvey Taxi Offline",
+
+        "Connection lost. Some features may be unavailable."
+
+      );
+
+    }
+
+  }
+
+  window.addEventListener(
+
+    "online",
+
+    updateStatus
+
+  );
+
+  window.addEventListener(
+
+    "offline",
+
+    updateStatus
+
+  );
+
+  updateStatus();
+
+}
+
+function startAiHealthMonitor() {
+
+  let aiFailures = 0;
+
+  setInterval(() => {
+
+    const aiLoaded =
+
+      window.HarveyAI ||
+
+      document.querySelector(".harvey-ai-launch") ||
+
+      document.querySelector(
+
+        "#harvey-ai-chat-root button"
+
+      );
+
+    if (aiLoaded) {
+
+      aiFailures = 0;
+
+      return;
+
+    }
+
+    aiFailures++;
+
+    if (aiFailures >= 3) {
+
+      injectAiFallbackButton();
+
+      trackHarveyEvent(
+
+        "ai_auto_recovery_triggered"
+
+      );
+
+      aiFailures = 0;
+
+    }
+
+  }, 15000);
+
+}
+
+function startPlatformHeartbeat() {
+
+  setInterval(async () => {
+
+    try {
+
+      const status =
+
+        await fetchPlatformStatus();
+
+      if (!status) {
+
+        return;
+
+      }
+
+      trackHarveyEvent(
+
+        "heartbeat_ok"
+
+      );
+
+    } catch (error) {
+
+      trackHarveyEvent(
+
+        "heartbeat_failed",
+
+        {
+
+          message: error.message
+
+        }
+
+      );
+
+    }
+
+  }, 300000);
+
+}
 
 function createWelcomeBanner() {
 
@@ -3120,7 +6808,7 @@ function createWelcomeBanner() {
 
     sessionStorage.getItem(
 
-      "harvey_banner_seen"
+      "harvey_welcome_seen"
 
     ) === "1"
 
@@ -3132,7 +6820,7 @@ function createWelcomeBanner() {
 
   sessionStorage.setItem(
 
-    "harvey_banner_seen",
+    "harvey_welcome_seen",
 
     "1"
 
@@ -3142,45 +6830,111 @@ function createWelcomeBanner() {
 
     document.createElement("div");
 
-  banner.className =
+  banner.style.position = "fixed";
 
-    "platform-banner";
+  banner.style.top = "20px";
 
-  banner.id =
+  banner.style.left = "50%";
 
-    "harvey-platform-banner";
+  banner.style.transform =
+
+    "translateX(-50%)";
+
+  banner.style.zIndex = "99999";
+
+  banner.style.maxWidth = "540px";
+
+  banner.style.width =
+
+    "calc(100vw - 24px)";
+
+  banner.style.padding = "18px";
+
+  banner.style.borderRadius = "20px";
+
+  banner.style.background =
+
+    "linear-gradient(135deg,#63f5ff,#5ea0ff)";
+
+  banner.style.color = "#07121f";
+
+  banner.style.fontWeight = "900";
+
+  banner.style.boxShadow =
+
+    "0 20px 50px rgba(0,0,0,.35)";
 
   banner.innerHTML = `
 
-    <div>
+    <div
 
-      <div class="platform-banner-title">
+      style="
 
-        Harvey Taxi Platform Online
+        display:flex;
 
-      </div>
+        justify-content:space-between;
 
-      <div class="platform-banner-sub">
+        gap:12px;
 
-        Tennessee Mobility • AI Support • Driver Access • HTAF
+        align-items:center;
 
-      </div>
-
-    </div>
-
-    <button
-
-      class="platform-banner-close"
-
-      id="close-platform-banner"
-
-      type="button"
+      "
 
     >
 
-      ×
+      <div>
 
-    </button>
+        Harvey Taxi Platform Loaded
+
+        <div
+
+          style="
+
+            margin-top:6px;
+
+            font-size:13px;
+
+            font-weight:700;
+
+          "
+
+        >
+
+          AI Support • Driver Access • Foundation • Tennessee Mobility
+
+        </div>
+
+      </div>
+
+      <button
+
+        id="close-welcome-banner"
+
+        style="
+
+          border:none;
+
+          background:#07121f;
+
+          color:white;
+
+          width:38px;
+
+          height:38px;
+
+          border-radius:999px;
+
+          font-weight:900;
+
+        "
+
+      >
+
+        ×
+
+      </button>
+
+    </div>
 
   `;
 
@@ -3194,7 +6948,7 @@ function createWelcomeBanner() {
 
     .getElementById(
 
-      "close-platform-banner"
+      "close-welcome-banner"
 
     )
 
@@ -3214,1129 +6968,31 @@ function createWelcomeBanner() {
 
 }
 
-/* ==========================================
+function initializeCodeBlueRecovery() {
 
-   NOTIFICATIONS
+  registerHarveyServiceWorker();
 
-========================================== */
+  monitorConnectionStatus();
 
-async function enableNotifications() {
-
-  if (
-
-    !("Notification" in window)
-
-  ) {
-
-    return false;
-
-  }
-
-  if (
-
-    Notification.permission ===
-
-    "granted"
-
-  ) {
-
-    return true;
-
-  }
-
-  const permission =
-
-    await Notification.requestPermission();
-
-  storageSet(
-
-    STORAGE_KEYS.notifications,
-
-    permission === "granted"
-
-      ? "1"
-
-      : "0"
-
-  );
-
-  track(
-
-    "notification_permission",
-
-    {
-
-      permission
-
-    }
-
-  );
-
-  return (
-
-    permission === "granted"
-
-  );
-
-}
-
-window.requestNotificationPermission =
-
-  enableNotifications;
-
-function showNotification(
-
-  title,
-
-  body
-
-) {
-
-  try {
-
-    if (
-
-      Notification.permission !==
-
-      "granted"
-
-    ) {
-
-      return;
-
-    }
-
-    new Notification(
-
-      title,
-
-      {
-
-        body,
-
-        icon: "/icon-192.png"
-
-      }
-
-    );
-
-  } catch {}
-
-}
-
-window.showLocalNotification =
-
-  showNotification;
-
-/* ==========================================
-
-   INTERNET MONITOR
-
-========================================== */
-
-function monitorConnection() {
-
-  function update() {
-
-    const online =
-
-      navigator.onLine;
-
-    track(
-
-      online
-
-        ? "internet_online"
-
-        : "internet_offline"
-
-    );
-
-    if (!online) {
-
-      showNotification(
-
-        "Harvey Taxi Offline",
-
-        "Internet connection lost."
-
-      );
-
-    }
-
-  }
-
-  window.addEventListener(
-
-    "online",
-
-    update
-
-  );
-
-  window.addEventListener(
-
-    "offline",
-
-    update
-
-  );
-
-  update();
-
-}
-
-/* ==========================================
-
-   LANGUAGE ENGINE
-
-========================================== */
-
-const TRANSLATIONS = {
-
-  en: {
-
-    requestRide:
-
-      "Request Ride",
-
-    support:
-
-      "Support",
-
-    foundation:
-
-      "Foundation"
-
-  },
-
-  es: {
-
-    requestRide:
-
-      "Solicitar Viaje",
-
-    support:
-
-      "Soporte",
-
-    foundation:
-
-      "Fundación"
-
-  },
-
-  fr: {
-
-    requestRide:
-
-      "Réserver",
-
-    support:
-
-      "Assistance",
-
-    foundation:
-
-      "Fondation"
-
-  }
-
-};
-
-function applyLanguage(
-
-  language
-
-) {
-
-  const selectedLanguage =
-
-    TRANSLATIONS[language]
-
-      ? language
-
-      : "en";
-
-  storageSet(
-
-    STORAGE_KEYS.language,
-
-    selectedLanguage
-
-  );
-
-  document.documentElement.lang =
-
-    selectedLanguage;
-
-  document.documentElement.dir =
-
-    selectedLanguage === "ar"
-
-      ? "rtl"
-
-      : "ltr";
-
-  const elements =
-
-    document.querySelectorAll(
-
-      "[data-i18n]"
-
-    );
-
-  elements.forEach(
-
-    (element) => {
-
-      const key =
-
-        element.dataset.i18n;
-
-      const value =
-
-        TRANSLATIONS[
-
-          selectedLanguage
-
-        ]?.[key];
-
-      if (
-
-        typeof value ===
-
-        "string"
-
-      ) {
-
-        element.textContent =
-
-          value;
-
-      }
-
-    }
-
-  );
-
-  track(
-
-    "language_changed",
-
-    {
-
-      language:
-
-        selectedLanguage
-
-    }
-
-  );
-
-}
-
-window.applyLanguage =
-
-  applyLanguage;
-
-function initializeLanguage() {
-
-  const selector =
-
-    document.getElementById(
-
-      "language-select"
-
-    );
-
-  const savedLanguage =
-
-    storageGet(
-
-      STORAGE_KEYS.language,
-
-      "en"
-
-    );
-
-  if (selector) {
-
-    selector.value =
-
-      savedLanguage;
-
-    selector.addEventListener(
-
-      "change",
-
-      function () {
-
-        applyLanguage(
-
-          this.value
-
-        );
-
-      }
-
-    );
-
-  }
-
-  applyLanguage(
-
-    savedLanguage
-
-  );
-
-}
-
-/* ==========================================
-
-   SERVICE WORKER
-
-========================================== */
-
-async function registerServiceWorker() {
-
-  try {
-
-    if (
-
-      !(
-
-        "serviceWorker"
-
-        in navigator
-
-      )
-
-    ) {
-
-      return;
-
-    }
-
-    const registration =
-
-      await navigator
-
-        .serviceWorker
-
-        .register(
-
-          "/service-worker.js",
-
-          {
-
-            scope: "/"
-
-          }
-
-        );
-
-    track(
-
-      "service_worker_registered",
-
-      {
-
-        scope:
-
-          registration.scope
-
-      }
-
-    );
-
-  } catch (error) {
-
-    track(
-
-      "service_worker_failed",
-
-      {
-
-        message:
-
-          error.message
-
-      }
-
-    );
-
-  }
-
-}
-
-/* ==========================================
-
-   QUICK SETTINGS PANEL
-
-========================================== */
-
-function injectQuickSettingsPanel() {
-
-  if (
-
-    document.getElementById(
-
-      "quick-settings-panel"
-
-    )
-
-  ) {
-
-    return;
-
-  }
-
-  const section =
-
-    document.createElement(
-
-      "section"
-
-    );
-
-  section.id =
-
-    "quick-settings-panel";
-
-  section.className =
-
-    "section";
-
-  section.innerHTML = `
-
-    <div class="section-header">
-
-      <h2>
-
-        Quick Controls
-
-      </h2>
-
-      <p class="lead">
-
-        Fast access to Harvey Taxi tools.
-
-      </p>
-
-    </div>
-
-    <div class="grid">
-
-      <button
-
-        class="card"
-
-        onclick="openHarveyAiChat();"
-
-      >
-
-        <strong>
-
-          💬 AI Support
-
-        </strong>
-
-        <span>
-
-          Open Harvey AI support.
-
-        </span>
-
-      </button>
-
-      <button
-
-        class="card"
-
-        onclick="applyBatteryOptimizer();"
-
-      >
-
-        <strong>
-
-          🔋 Battery Optimizer
-
-        </strong>
-
-        <span>
-
-          Optimize device performance.
-
-        </span>
-
-      </button>
-
-      <button
-
-        class="card"
-
-        onclick="requestNotificationPermission();"
-
-      >
-
-        <strong>
-
-          🔔 Notifications
-
-        </strong>
-
-        <span>
-
-          Enable important alerts.
-
-        </span>
-
-      </button>
-
-      <a
-
-        href="settings.html"
-
-        class="card"
-
-      >
-
-        <strong>
-
-          ⚙ Settings
-
-        </strong>
-
-        <span>
-
-          Manage account settings.
-
-        </span>
-
-      </a>
-
-      <a
-
-        href="support.html"
-
-        class="card"
-
-      >
-
-        <strong>
-
-          🛟 Support
-
-        </strong>
-
-        <span>
-
-          Open support center.
-
-        </span>
-
-      </a>
-
-      <a
-
-        href="foundation.html"
-
-        class="card"
-
-      >
-
-        <strong>
-
-          ❤️ HTAF
-
-        </strong>
-
-        <span>
-
-          Open foundation portal.
-
-        </span>
-
-      </a>
-
-    </div>
-
-  `;
-
-  document
-
-    .getElementById(
-
-      "main-content"
-
-    )
-
-    ?.appendChild(
-
-      section
-
-    );
-
-}/* ==========================================
-
-   UNDER CONSTRUCTION MODAL
-
-========================================== */
-
-function showUnderConstruction(
-
-  serviceName = "This service"
-
-) {
-
-  const existing =
-
-    document.getElementById(
-
-      "under-construction-modal"
-
-    );
-
-  if (existing) {
-
-    existing.remove();
-
-  }
-
-  const modal =
-
-    document.createElement("div");
-
-  modal.id =
-
-    "under-construction-modal";
-
-  modal.className =
-
-    "modal-overlay";
-
-  modal.innerHTML = `
-
-    <div class="modal-card">
-
-      <h3>
-
-        ${serviceName} Is Coming Soon
-
-      </h3>
-
-      <p>
-
-        Harvey Taxi is currently building this feature
-
-        as part of the long-term platform roadmap.
-
-      </p>
-
-      <button
-
-        class="btn primary"
-
-        type="button"
-
-        id="close-under-construction"
-
-      >
-
-        Got It
-
-      </button>
-
-    </div>
-
-  `;
-
-  document.body.appendChild(
-
-    modal
-
-  );
-
-  document
-
-    .getElementById(
-
-      "close-under-construction"
-
-    )
-
-    ?.addEventListener(
-
-      "click",
-
-      () => modal.remove()
-
-    );
-
-}
-
-window.showUnderConstruction =
-
-  showUnderConstruction;
-
-/* ==========================================
-
-   INTENT TRACKING
-
-========================================== */
-
-function bindIntentTracking() {
-
-  document.addEventListener(
-
-    "click",
-
-    function (event) {
-
-      const intentTarget =
-
-        event.target.closest(
-
-          "[data-intent]"
-
-        );
-
-      const trackTarget =
-
-        event.target.closest(
-
-          "[data-track]"
-
-        );
-
-      if (intentTarget) {
-
-        track(
-
-          intentTarget.dataset.intent,
-
-          {
-
-            event_category:
-
-              "lead_intent"
-
-          }
-
-        );
-
-        return;
-
-      }
-
-      if (trackTarget) {
-
-        track(
-
-          trackTarget.dataset.track
-
-        );
-
-      }
-
-    }
-
-  );
-
-}
-
-/* ==========================================
-
-   PLATFORM HEARTBEAT
-
-========================================== */
-
-function startPlatformHeartbeat() {
-
-  fetchPlatformHealth();
-
-  setInterval(
-
-    () => {
-
-      fetchPlatformHealth();
-
-    },
-
-    300000
-
-  );
-
-}
-
-/* ==========================================
-
-   SINGLE AI SANITIZER
-
-   Removes old duplicate fallback AI buttons if cached.
-
-========================================== */
-
-function sanitizeOldAiDuplicates() {
-
-  document
-
-    .querySelectorAll(
-
-      "#harvey-ai-fallback-button, #harvey-ai-fallback-panel"
-
-    )
-
-    .forEach(
-
-      (node) => node.remove()
-
-    );
-
-  const roots =
-
-    document.querySelectorAll(
-
-      "#harvey-ai-chat-root"
-
-    );
-
-  roots.forEach(
-
-    (root, index) => {
-
-      if (index > 0) {
-
-        root.remove();
-
-      }
-
-    }
-
-  );
-
-}
-
-/* ==========================================
-
-   ACTIVE AI ROOT
-
-========================================== */
-
-function ensureAiRoot() {
-
-  sanitizeOldAiDuplicates();
-
-  let root =
-
-    document.getElementById(
-
-      "harvey-ai-chat-root"
-
-    );
-
-  if (!root) {
-
-    root =
-
-      document.createElement(
-
-        "div"
-
-      );
-
-    root.id =
-
-      "harvey-ai-chat-root";
-
-    document.body.appendChild(
-
-      root
-
-    );
-
-  }
-
-  return root;
-
-}
-
-/* ==========================================
-
-   BUTTON STATE RESTORE
-
-========================================== */
-
-function restoreAccessibilityButtonStates() {
-
-  document
-
-    .getElementById(
-
-      "contrast-toggle"
-
-    )
-
-    ?.classList.toggle(
-
-      "active",
-
-      storageGet(
-
-        STORAGE_KEYS.highContrast
-
-      ) === "1"
-
-    );
-
-  document
-
-    .getElementById(
-
-      "text-toggle"
-
-    )
-
-    ?.classList.toggle(
-
-      "active",
-
-      storageGet(
-
-        STORAGE_KEYS.largeText
-
-      ) === "1"
-
-    );
-
-  document
-
-    .getElementById(
-
-      "motion-toggle"
-
-    )
-
-    ?.classList.toggle(
-
-      "active",
-
-      storageGet(
-
-        STORAGE_KEYS.reducedMotion
-
-      ) === "1"
-
-    );
-
-}
-
-/* ==========================================
-
-   APP INITIALIZATION
-
-========================================== */
-
-function initializeHarveyTaxiHome() {
-
-  if (
-
-    HARVEY_APP.initialized
-
-  ) {
-
-    return;
-
-  }
-
-  HARVEY_APP.initialized =
-
-    true;
-
-  ensureAiRoot();
-
-  sanitizeOldAiDuplicates();
-
-  bindIntentTracking();
-
-  bindAccessibility();
-
-  restoreAccessibility();
-
-  restoreAccessibilityButtonStates();
-
-  initializeLanguage();
-
-  batteryOptimizer();
-
-  monitorConnection();
-
-  monitorAI();
-
-  injectQuickSettingsPanel();
+  startAiHealthMonitor();
 
   startPlatformHeartbeat();
 
-  registerServiceWorker();
-
   createWelcomeBanner();
 
-  track(
+  trackHarveyEvent(
 
-    "harvey_home_initialized",
-
-    {
-
-      single_ai:
-
-        true,
-
-      banner:
-
-        true
-
-    }
-
-  );
-
-  setTimeout(
-
-    sanitizeOldAiDuplicates,
-
-    500
-
-  );
-
-  setTimeout(
-
-    sanitizeOldAiDuplicates,
-
-    1500
+    "code_blue_recovery_loaded"
 
   );
 
 }
-
-document.addEventListener(
-
-  "DOMContentLoaded",
-
-  initializeHarveyTaxiHome
-
-);
 
 window.addEventListener(
 
   "load",
 
-  () => {
-
-    ensureAiRoot();
-
-    sanitizeOldAiDuplicates();
-
-  }
+  initializeCodeBlueRecovery
 
 );
 
