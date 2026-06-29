@@ -1,6999 +1,2162 @@
- <!DOCTYPE html>
-
+<!DOCTYPE html>
 <html lang="en" dir="ltr">
-
 <head>
-
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Harvey Taxi | Tennessee Mobility Platform – Rides, Drivers, AI Support &amp; Foundation</title>
+  <meta name="description" content="Harvey Taxi Service LLC helps Tennessee riders request safe rides, connect with qualified drivers, access AI live support, and explore driver, delivery, foundation, and future mobility services." />
+  <meta name="theme-color" content="#040814" />
 
-  <meta
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Harvey Taxi | Tennessee Mobility Platform" />
+  <meta property="og:description" content="Rides, driver access, AI support, delivery, and community foundation — one Tennessee platform." />
+  <meta property="og:url" content="https://harveytaxiservice.com/" />
+  <meta property="og:image" content="https://harveytaxiservice.com/og-image.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Harvey Taxi | Tennessee Mobility Platform" />
+  <meta name="twitter:description" content="Rides, driver access, AI support, and community foundation — one Tennessee platform." />
 
-    name="viewport"
+  <!-- Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "LocalBusiness",
+    "name": "Harvey Taxi Service LLC",
+    "url": "https://harveytaxiservice.com",
+    "description": "Tennessee mobility platform combining rideshare, NEMT, AI support, and community transportation assistance.",
+    "areaServed": "Tennessee",
+    "email": "support@harveytaxiservice.com",
+    "sameAs": ["https://apps.apple.com/us/app/harvey-taxi-mobile"]
+  }
+  </script>
 
-    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
-
-  />
-
-  <title data-i18n="metaTitle">
-
-    Harvey Taxi | Safe Tennessee Rides, Driver Access, Delivery, AI Support, and Foundation Mobility
-
-  </title>
-
-  <meta
-
-    name="description"
-
-    content="Harvey Taxi Service LLC helps Tennessee riders request safe rides, connect with qualified drivers, access AI live support, and explore driver, delivery, foundation, and future mobility services."
-
-  />
-
-  <meta name="theme-color" content="#07111f" />
-
-  <!-- Google tag -->
-
+  <!-- Google Analytics -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-814LXYV9DN"></script>
-
   <script>
-
     window.dataLayer = window.dataLayer || [];
-
-    function gtag() {
-
-      window.dataLayer.push(arguments);
-
-    }
-
+    function gtag() { window.dataLayer.push(arguments); }
     gtag("js", new Date());
-
     gtag("config", "G-814LXYV9DN");
-
     gtag("config", "AW-17088105743");
-
   </script>
 
   <style>
-
+    /* ============================================================
+       DESIGN TOKENS
+       ============================================================ */
     :root {
+      --bg1: #030810;
+      --bg2: #070f22;
+      --bg3: #0c1630;
+      --panel: rgba(7,12,28,0.94);
+      --panel2: rgba(10,17,38,0.80);
+      --glass: rgba(255,255,255,0.04);
+      --glass-hover: rgba(255,255,255,0.07);
+      --line: rgba(100,150,255,0.14);
+      --line-strong: rgba(100,150,255,0.32);
+      --text: #eef2ff;
+      --muted: #8fa3cc;
+      --muted2: #6a85b0;
 
-      --bg1: #040814;
+      /* Brand palette */
+      --cyan: #5df5ff;
+      --cyan-dim: rgba(93,245,255,0.12);
+      --blue: #5090ff;
+      --blue-dim: rgba(80,144,255,0.12);
+      --green: #4dffa4;
+      --green-dim: rgba(77,255,164,0.10);
+      --gold: #ffc84a;
+      --gold-dim: rgba(255,200,74,0.10);
+      --violet: #9080ff;
+      --violet-dim: rgba(144,128,255,0.12);
+      --red: #ff6060;
+      --ink: #050c1a;
 
-      --bg2: #091126;
+      /* Gradients */
+      --grad-cyan: linear-gradient(135deg, var(--cyan), var(--blue));
+      --grad-green: linear-gradient(135deg, var(--green), #7dffd4);
+      --grad-gold: linear-gradient(135deg, var(--gold), #ffeaa0);
+      --grad-violet: linear-gradient(135deg, var(--violet), #c0b8ff);
 
-      --bg3: #101935;
+      /* Shadows */
+      --shadow-xl: 0 28px 90px rgba(0,0,0,0.55);
+      --shadow-lg: 0 16px 48px rgba(0,0,0,0.38);
+      --shadow-md: 0 8px 28px rgba(0,0,0,0.28);
+      --shadow-cyan: 0 12px 36px rgba(80,144,255,0.22);
+      --shadow-green: 0 12px 32px rgba(77,255,164,0.18);
+      --shadow-gold: 0 12px 32px rgba(255,200,74,0.18);
 
-      --panel: rgba(10, 17, 38, 0.92);
+      /* Typography */
+      --font-display: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
 
-      --panel2: rgba(14, 22, 48, 0.78);
+      /* Spacing */
+      --radius-2xl: 32px;
+      --radius-xl: 24px;
+      --radius-lg: 18px;
+      --radius-md: 14px;
+      --radius-sm: 10px;
+      --radius-pill: 999px;
+      --max: 1260px;
+      --nav-h: 72px;
+      --safe-b: env(safe-area-inset-bottom);
 
-      --glass: rgba(255, 255, 255, 0.045);
-
-      --line: rgba(122, 162, 255, 0.16);
-
-      --line-strong: rgba(122, 162, 255, 0.34);
-
-      --text: #f4f7ff;
-
-      --muted: #aab8de;
-
-      --blue: #5ea0ff;
-
-      --cyan: #63f5ff;
-
-      --green: #6dffb3;
-
-      --gold: #ffd76a;
-
-      --violet: #8c83ff;
-
-      --red: #ff6b6b;
-
-      --ink: #07121f;
-
-      --shadow: 0 22px 80px rgba(0, 0, 0, 0.38);
-
-      --shadow-soft: 0 12px 34px rgba(0, 0, 0, 0.25);
-
-      --radius-xl: 30px;
-
-      --radius-lg: 22px;
-
-      --max: 1220px;
-
-      --nav-h: 76px;
-
-      --safe-bottom: env(safe-area-inset-bottom);
-
+      /* Transitions */
+      --ease: cubic-bezier(0.22, 1, 0.36, 1);
+      --dur: 0.22s;
     }
 
-    * {
+    /* ============================================================
+       RESET + BASE
+       ============================================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-      box-sizing: border-box;
-
-      margin: 0;
-
-      padding: 0;
-
-    }
-
-    html {
-
-      scroll-behavior: smooth;
-
-      min-height: 100%;
-
-      background: var(--bg1);
-
-    }
+    html { scroll-behavior: smooth; min-height: 100%; background: var(--bg1); }
 
     body {
-
-      font-family:
-
-        Inter,
-
-        ui-sans-serif,
-
-        system-ui,
-
-        -apple-system,
-
-        BlinkMacSystemFont,
-
-        "Segoe UI",
-
-        Arial,
-
-        sans-serif;
-
+      font-family: var(--font-display);
       color: var(--text);
-
-      background:
-
-        radial-gradient(circle at top left, rgba(99, 245, 255, 0.13), transparent 30%),
-
-        radial-gradient(circle at top right, rgba(94, 160, 255, 0.13), transparent 30%),
-
-        radial-gradient(circle at 50% 110%, rgba(109, 255, 179, 0.08), transparent 26%),
-
-        linear-gradient(160deg, var(--bg1), var(--bg2) 48%, var(--bg3));
-
       min-height: 100vh;
-
       overflow-x: hidden;
-
-      padding-bottom: calc(var(--nav-h) + var(--safe-bottom) + 28px);
-
+      padding-bottom: calc(var(--nav-h) + var(--safe-b) + 32px);
+      background:
+        radial-gradient(ellipse 80% 60% at 0% 0%, rgba(93,245,255,0.09) 0%, transparent 55%),
+        radial-gradient(ellipse 60% 40% at 100% 5%, rgba(80,144,255,0.11) 0%, transparent 50%),
+        radial-gradient(ellipse 50% 30% at 50% 100%, rgba(77,255,164,0.06) 0%, transparent 45%),
+        linear-gradient(165deg, var(--bg1) 0%, var(--bg2) 45%, var(--bg3) 100%);
     }
 
+    /* Grid overlay */
     body::before {
-
       content: "";
-
       position: fixed;
-
       inset: 0;
-
       pointer-events: none;
-
-      background-image:
-
-        linear-gradient(rgba(255, 255, 255, 0.022) 1px, transparent 1px),
-
-        linear-gradient(90deg, rgba(255, 255, 255, 0.022) 1px, transparent 1px);
-
-      background-size: 52px 52px;
-
-      mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), transparent 78%);
-
       z-index: 0;
-
+      background-image:
+        linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+      background-size: 56px 56px;
+      mask-image: linear-gradient(to bottom, rgba(0,0,0,0.85), transparent 70%);
     }
 
+    /* Accessibility modes */
     body.high-contrast {
-
-      --bg1: #000000;
-
-      --bg2: #020617;
-
-      --bg3: #020617;
-
-      --panel: rgba(0, 0, 0, 0.96);
-
-      --text: #ffffff;
-
-      --muted: #e2e8f0;
-
-      --line: rgba(255, 255, 255, 0.38);
-
-      --line-strong: rgba(255, 255, 255, 0.7);
-
+      --bg1: #000; --bg2: #020614; --bg3: #020614;
+      --panel: rgba(0,0,0,0.97); --text: #fff; --muted: #dce4f5;
+      --line: rgba(255,255,255,0.36); --line-strong: rgba(255,255,255,0.65);
     }
-
-    body.large-text {
-
-      font-size: 18px;
-
+    body.large-text { font-size: 18px; }
+    body.reduced-motion *, body.reduced-motion *::before, body.reduced-motion *::after {
+      animation: none !important; transition: none !important; scroll-behavior: auto !important;
     }
+    [dir="rtl"] body { text-align: right; }
 
-    body.reduced-motion *,
-
-    body.reduced-motion *::before,
-
-    body.reduced-motion *::after {
-
-      animation: none !important;
-
-      transition: none !important;
-
-      scroll-behavior: auto !important;
-
-    }
-
-    [dir="rtl"] body {
-
-      text-align: right;
-
-    }
-
-    a {
-
-      color: inherit;
-
-      text-decoration: none;
-
-    }
-
-    button,
-
-    a,
-
-    select,
-
-    input,
-
-    textarea {
-
+    a { color: inherit; text-decoration: none; }
+    button, a, select, input, textarea {
       font: inherit;
-
       -webkit-tap-highlight-color: transparent;
-
       touch-action: manipulation;
-
     }
+    button, select, input, textarea { border: none; outline: none; }
+    button { cursor: pointer; }
+    button:disabled { cursor: not-allowed; opacity: 0.55; }
+    img { display: block; max-width: 100%; }
 
-    button,
-
-    select,
-
-    input,
-
-    textarea {
-
-      border: none;
-
-      outline: none;
-
-    }
-
-    button {
-
-      cursor: pointer;
-
-    }
-
-    button:disabled {
-
-      cursor: not-allowed;
-
-      opacity: 0.6;
-
-    }
-
+    /* ============================================================
+       LAYOUT
+       ============================================================ */
     .shell {
-
       max-width: var(--max);
-
-      margin: auto;
-
-      padding: 20px 16px;
-
+      margin: 0 auto;
+      padding: 20px 18px;
       position: relative;
-
       z-index: 1;
-
     }
 
+    /* Skip link */
     .skip-link {
-
       position: absolute;
-
-      left: 16px;
-
-      top: -120px;
-
-      padding: 12px 16px;
-
-      border-radius: 999px;
-
+      left: 18px;
+      top: -130px;
+      padding: 12px 20px;
+      border-radius: var(--radius-pill);
       background: var(--cyan);
-
       color: var(--ink);
-
       font-weight: 900;
-
+      font-size: 14px;
       z-index: 99999;
-
-      transition: 0.16s ease;
-
+      transition: top 0.18s var(--ease);
     }
-
-    .skip-link:focus {
-
-      top: 14px;
-
-    }
-
-    .language-panel {
-
-      margin-bottom: 18px;
-
-      padding: 18px;
-
-      border-radius: 26px;
-
-      background:
-
-        linear-gradient(135deg, rgba(99,245,255,.08), rgba(94,160,255,.04)),
-
-        rgba(7,12,28,.88);
-
-      border: 1px solid var(--line);
-
-      box-shadow: var(--shadow-soft);
-
-      display: grid;
-
-      grid-template-columns: 1fr auto;
-
-      gap: 16px;
-
-      align-items: center;
-
-      backdrop-filter: blur(16px);
-
-      -webkit-backdrop-filter: blur(16px);
-
-    }
-
-    .language-copy strong {
-
-      display: block;
-
-      color: var(--cyan);
-
-      font-size: 14px;
-
-      margin-bottom: 4px;
-
-      font-weight: 900;
-
-    }
-
-    .language-copy span {
-
-      color: var(--muted);
-
-      font-size: 13px;
-
-      line-height: 1.6;
-
-    }
-
-    .language-controls {
-
-      display: flex;
-
-      flex-wrap: wrap;
-
-      gap: 10px;
-
-      justify-content: flex-end;
-
-      align-items: center;
-
-    }
-
-    .select-control,
-
-    .access-btn {
-
-      min-height: 46px;
-
-      padding: 0 16px;
-
-      border-radius: 999px;
-
-      background: rgba(255,255,255,.06);
-
-      color: #fff;
-
-      border: 1px solid var(--line);
-
-      font-weight: 850;
-
-      transition: .18s ease;
-
-    }
-
-    .select-control option {
-
-      color: #07121f;
-
-      background: #ffffff;
-
-    }
-
-    .access-btn.active {
-
-      background: linear-gradient(135deg, var(--cyan), var(--blue));
-
-      color: var(--ink);
-
-      border: none;
-
-    }
-
-    .topbar {
-
-      position: sticky;
-
-      top: 12px;
-
-      z-index: 100;
-
-      display: flex;
-
-      justify-content: space-between;
-
-      align-items: center;
-
-      gap: 14px;
-
-      padding: 14px 22px;
-
-      margin-bottom: 24px;
-
-      border-radius: 999px;
-
-      background: rgba(7,12,28,.88);
-
-      border: 1px solid rgba(255,255,255,.08);
-
-      backdrop-filter: blur(20px);
-
-      -webkit-backdrop-filter: blur(20px);
-
-      box-shadow: var(--shadow);
-
-    }
-
-    .brand-wrap {
-
-      display: flex;
-
-      align-items: center;
-
-      gap: 12px;
-
-      min-width: 0;
-
-    }
-
-    .logo-mark {
-
-      width: 48px;
-
-      height: 48px;
-
-      border-radius: 16px;
-
-      display: grid;
-
-      place-items: center;
-
-      background: linear-gradient(135deg, var(--cyan), var(--blue));
-
-      color: var(--ink);
-
-      font-size: 15px;
-
-      font-weight: 950;
-
-      box-shadow: 0 0 26px rgba(99,245,255,.28);
-
-      flex-shrink: 0;
-
-    }
-
-    .brand-stack {
-
-      display: flex;
-
-      flex-direction: column;
-
-      min-width: 0;
-
-    }
-
-    .brand {
-
-      font-size: 15px;
-
-      font-weight: 950;
-
-      letter-spacing: .14em;
-
-      white-space: nowrap;
-
-    }
-
-    .brand-sub {
-
-      color: var(--muted);
-
-      font-size: 11px;
-
-      white-space: nowrap;
-
-    }
-
-    .top-links {
-
-      display: flex;
-
-      align-items: center;
-
-      gap: 8px;
-
-    }
-
-    .top-link {
-
-      padding: 10px 16px;
-
-      border-radius: 999px;
-
-      background: rgba(255,255,255,.025);
-
-      border: 1px solid rgba(255,255,255,.05);
-
-      color: var(--muted);
-
-      font-size: 13px;
-
-      font-weight: 850;
-
-      transition: .18s ease;
-
-      white-space: nowrap;
-
-    }
-
-    .top-link:hover,
-
-    .top-link:focus-visible {
-
-      color: #fff;
-
-      border-color: rgba(255,255,255,.15);
-
-      background: rgba(255,255,255,.08);
-
-      transform: translateY(-1px);
-
-    }
-
-    .top-link.cta {
-
-      background: linear-gradient(135deg, var(--cyan), var(--blue));
-
-      color: var(--ink);
-
-      border: none;
-
-      box-shadow: 0 10px 24px rgba(94,160,255,.25);
-
-    }    .announce {
-
-      margin-bottom: 24px;
-
+    .skip-link:focus { top: 16px; }
+
+    /* ============================================================
+       LANGUAGE + ACCESSIBILITY PANEL
+       ============================================================ */
+    .lang-panel {
+      margin-bottom: 20px;
       padding: 18px 22px;
-
-      border-radius: 24px;
-
-      border: 1px solid rgba(99,245,255,.15);
-
-      background:
-
-        linear-gradient(135deg, rgba(99,245,255,.10), rgba(94,160,255,.05)),
-
-        rgba(255,255,255,.02);
-
-      display: flex;
-
-      justify-content: space-between;
-
-      align-items: center;
-
-      gap: 18px;
-
-      box-shadow: var(--shadow-soft);
-
-    }
-
-    .announce-copy strong {
-
-      display: block;
-
-      color: var(--cyan);
-
-      margin-bottom: 5px;
-
-      font-size: 15px;
-
-      font-weight: 900;
-
-    }
-
-    .announce-copy span {
-
-      display: block;
-
-      color: var(--muted);
-
-      font-size: 14px;
-
-      line-height: 1.6;
-
-    }
-
-    .inclusive-strip {
-
-      margin-bottom: 24px;
-
-      padding: 20px 24px;
-
-      border-radius: 24px;
-
-      background:
-
-        linear-gradient(135deg, rgba(255,215,106,.08), rgba(99,245,255,.05)),
-
-        rgba(255,255,255,.02);
-
-      border: 1px solid rgba(255,215,106,.18);
-
-      box-shadow: var(--shadow-soft);
-
-    }
-
-    .inclusive-strip strong {
-
-      display: block;
-
-      color: var(--gold);
-
-      margin-bottom: 6px;
-
-      font-size: 16px;
-
-    }
-
-    .inclusive-strip p {
-
-      color: var(--muted);
-
-      line-height: 1.7;
-
-      font-size: 14px;
-
-    }
-
-    .hero {
-
-      position: relative;
-
-      border-radius: 36px;
-
+      border-radius: var(--radius-xl);
+      background: rgba(7,14,32,0.88);
       border: 1px solid var(--line);
-
-      background:
-
-        linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.014)),
-
-        var(--panel);
-
-      box-shadow: var(--shadow);
-
-      padding: clamp(24px, 4vw, 44px);
-
-      margin-bottom: 24px;
-
-      overflow: hidden;
-
-      isolation: isolate;
-
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 18px;
+      flex-wrap: wrap;
+    }
+    .lang-panel-copy { min-width: 0; }
+    .lang-panel-copy strong {
+      display: block;
+      color: var(--cyan);
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: 0.06em;
+      margin-bottom: 3px;
+    }
+    .lang-panel-copy span { color: var(--muted); font-size: 13px; }
+    .lang-controls { display: flex; flex-wrap: wrap; gap: 9px; align-items: center; }
+    .lang-select {
+      height: 42px;
+      padding: 0 14px;
+      border-radius: var(--radius-pill);
+      background: rgba(255,255,255,0.055);
+      color: var(--text);
+      border: 1px solid var(--line);
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      transition: border-color var(--dur) var(--ease);
+    }
+    .lang-select:hover { border-color: var(--line-strong); }
+    .lang-select option { color: #07121f; background: #fff; }
+    .access-btn {
+      height: 42px;
+      padding: 0 14px;
+      border-radius: var(--radius-pill);
+      background: rgba(255,255,255,0.055);
+      color: var(--text);
+      border: 1px solid var(--line);
+      font-weight: 700;
+      font-size: 13px;
+      transition: all var(--dur) var(--ease);
+      white-space: nowrap;
+    }
+    .access-btn:hover { background: rgba(255,255,255,0.09); border-color: var(--line-strong); }
+    .access-btn.active {
+      background: var(--grad-cyan);
+      color: var(--ink);
+      border: none;
     }
 
-    .hero::before {
-
-      content: "";
-
-      position: absolute;
-
-      inset: -1px;
-
-      background:
-
-        radial-gradient(circle at 16% 0%, rgba(99,245,255,.16), transparent 34%),
-
-        radial-gradient(circle at 86% 12%, rgba(140,131,255,.18), transparent 34%),
-
-        radial-gradient(circle at 50% 105%, rgba(109,255,179,.10), transparent 30%);
-
-      pointer-events: none;
-
-      z-index: -1;
-
+    /* ============================================================
+       TOP NAVIGATION
+       ============================================================ */
+    .topbar {
+      position: sticky;
+      top: 12px;
+      z-index: 200;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 12px 20px;
+      margin-bottom: 22px;
+      border-radius: var(--radius-pill);
+      background: rgba(5,10,24,0.92);
+      border: 1px solid rgba(255,255,255,0.075);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      box-shadow: var(--shadow-xl);
     }
-
-    .hero::after {
-
-      content: "";
-
-      position: absolute;
-
-      width: 520px;
-
-      height: 520px;
-
-      right: -210px;
-
-      top: -210px;
-
-      border-radius: 999px;
-
-      background: radial-gradient(circle, rgba(99,245,255,.13), transparent 68%);
-
-      pointer-events: none;
-
+    .brand-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+      flex-shrink: 0;
     }
+    .logo-mark {
+      width: 46px;
+      height: 46px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      background: var(--grad-cyan);
+      color: var(--ink);
+      font-size: 14px;
+      font-weight: 950;
+      letter-spacing: 0.04em;
+      box-shadow: 0 0 28px rgba(93,245,255,0.30);
+      flex-shrink: 0;
+    }
+    .brand-stack { display: flex; flex-direction: column; min-width: 0; }
+    .brand { font-size: 14px; font-weight: 950; letter-spacing: 0.16em; white-space: nowrap; }
+    .brand-sub { color: var(--muted2); font-size: 11px; white-space: nowrap; margin-top: 1px; }
+    .top-links { display: flex; align-items: center; gap: 7px; }
+    .top-link {
+      padding: 9px 15px;
+      border-radius: var(--radius-pill);
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.055);
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+      transition: all var(--dur) var(--ease);
+      white-space: nowrap;
+    }
+    .top-link:hover, .top-link:focus-visible {
+      color: var(--text);
+      border-color: var(--line-strong);
+      background: rgba(255,255,255,0.07);
+      transform: translateY(-1px);
+    }
+    .top-link:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+    .top-link.cta {
+      background: var(--grad-cyan);
+      color: var(--ink);
+      border: none;
+      font-weight: 900;
+      box-shadow: var(--shadow-cyan);
+    }
+    .top-link.cta:hover { transform: translateY(-2px); box-shadow: 0 16px 40px rgba(80,144,255,0.32); }
 
-    .hero > * {
+    /* ============================================================
+       ANNOUNCEMENT BANNER
+       ============================================================ */
+    .announce {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+      margin-bottom: 18px;
+      padding: 18px 24px;
+      border-radius: var(--radius-xl);
+      background: linear-gradient(135deg, rgba(93,245,255,0.08), rgba(80,144,255,0.05));
+      border: 1px solid rgba(93,245,255,0.16);
+      box-shadow: var(--shadow-md);
+    }
+    .announce-copy strong { display: block; color: var(--cyan); font-size: 15px; font-weight: 900; margin-bottom: 4px; }
+    .announce-copy span { color: var(--muted); font-size: 14px; line-height: 1.6; }
 
+    /* ============================================================
+       INCLUSION STRIP
+       ============================================================ */
+    .inclusion-strip {
+      margin-bottom: 22px;
+      padding: 18px 24px;
+      border-radius: var(--radius-xl);
+      background: linear-gradient(135deg, rgba(255,200,74,0.07), rgba(77,255,164,0.04));
+      border: 1px solid rgba(255,200,74,0.16);
+    }
+    .inclusion-strip strong { display: block; color: var(--gold); font-size: 15px; font-weight: 900; margin-bottom: 6px; }
+    .inclusion-strip p { color: var(--muted); font-size: 14px; line-height: 1.72; }
+
+    /* ============================================================
+       HERO
+       ============================================================ */
+    .hero {
       position: relative;
-
-      z-index: 1;
-
+      border-radius: var(--radius-2xl);
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015)), var(--panel);
+      box-shadow: var(--shadow-xl);
+      padding: clamp(28px, 4vw, 52px);
+      margin-bottom: 22px;
+      overflow: hidden;
+      isolation: isolate;
+    }
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: -1px;
+      background:
+        radial-gradient(circle at 14% 0%, rgba(93,245,255,0.14), transparent 32%),
+        radial-gradient(circle at 88% 10%, rgba(144,128,255,0.15), transparent 32%),
+        radial-gradient(circle at 50% 108%, rgba(77,255,164,0.08), transparent 28%);
+      pointer-events: none;
+      z-index: -1;
+    }
+    .hero::after {
+      content: "";
+      position: absolute;
+      width: 600px;
+      height: 600px;
+      right: -240px;
+      top: -240px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(93,245,255,0.10), transparent 65%);
+      pointer-events: none;
+      z-index: -1;
     }
 
     .hero-grid {
-
       display: grid;
-
-      grid-template-columns: minmax(0, 1.15fr) minmax(320px, .85fr);
-
-      gap: 34px;
-
+      grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.8fr);
+      gap: 40px;
       align-items: start;
-
     }
 
+    /* Live Badge with animated rings */
     .hero-badge {
-
       display: inline-flex;
-
       align-items: center;
-
-      gap: 9px;
-
-      padding: 9px 16px;
-
-      border-radius: 999px;
-
-      margin-bottom: 20px;
-
+      gap: 10px;
+      padding: 10px 18px;
+      border-radius: var(--radius-pill);
+      margin-bottom: 22px;
       color: var(--cyan);
-
-      background: rgba(99,245,255,.065);
-
-      border: 1px solid rgba(99,245,255,.24);
-
-      font-size: 12px;
-
+      background: rgba(93,245,255,0.06);
+      border: 1px solid rgba(93,245,255,0.22);
+      font-size: 11px;
       font-weight: 950;
-
-      letter-spacing: .08em;
-
+      letter-spacing: 0.1em;
       text-transform: uppercase;
-
     }
-
-    .hero-badge::before {
-
-      content: "";
-
-      width: 9px;
-
-      height: 9px;
-
-      border-radius: 999px;
-
+    .live-pulse {
+      position: relative;
+      width: 10px;
+      height: 10px;
+      flex-shrink: 0;
+    }
+    .live-pulse-dot {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
       background: var(--green);
-
-      box-shadow:
-
-        0 0 0 6px rgba(109,255,179,.12),
-
-        0 0 18px rgba(109,255,179,.35);
-
+      box-shadow: 0 0 8px var(--green);
+    }
+    .live-pulse-ring {
+      position: absolute;
+      inset: -4px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(77,255,164,0.5);
+      animation: pulseRing 2s infinite var(--ease);
+    }
+    .live-pulse-ring:nth-child(2) { animation-delay: 0.7s; inset: -8px; }
+    @keyframes pulseRing {
+      0% { opacity: 1; transform: scale(0.6); }
+      100% { opacity: 0; transform: scale(1.7); }
     }
 
     .hero-title {
-
-      max-width: 860px;
-
-      font-size: clamp(2.55rem, 5.7vw, 4.35rem);
-
-      line-height: 1.02;
-
-      letter-spacing: -.06em;
-
-      margin-bottom: 18px;
-
+      font-size: clamp(2.6rem, 5.5vw, 4.4rem);
+      line-height: 1.01;
+      letter-spacing: -0.06em;
+      margin-bottom: 20px;
       font-weight: 1000;
-
     }
-
     .gradient-text {
-
-      background: linear-gradient(135deg, #ffffff, var(--cyan), var(--blue));
-
+      background: linear-gradient(135deg, #ffffff 10%, var(--cyan) 55%, var(--blue) 100%);
       -webkit-background-clip: text;
-
       background-clip: text;
-
       color: transparent;
-
     }
-
     .hero-copy {
-
-      max-width: 780px;
-
       color: var(--muted);
-
-      line-height: 1.78;
-
-      font-size: 16.5px;
-
-      margin-bottom: 28px;
-
+      font-size: 16px;
+      line-height: 1.82;
+      margin-bottom: 30px;
+      max-width: 540px;
     }
 
-    .action-container {
-
-      position: relative;
-
-      background:
-
-        linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.018)),
-
-        rgba(4,8,20,.62);
-
-      border: 1px solid rgba(255,255,255,.075);
-
+    /* Action container */
+    .action-box {
+      background: rgba(4,8,22,0.65);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: var(--radius-xl);
       padding: 24px;
-
-      border-radius: 24px;
-
-      margin-bottom: 28px;
-
-      box-shadow:
-
-        inset 0 1px 0 rgba(255,255,255,.04),
-
-        0 18px 50px rgba(0,0,0,.22);
-
+      margin-bottom: 30px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), var(--shadow-md);
     }
-
-    .action-container h4 {
-
-      font-size: 13px;
-
+    .action-box-label {
+      font-size: 11px;
       text-transform: uppercase;
-
-      letter-spacing: .12em;
-
-      color: var(--muted);
-
-      margin-bottom: 14px;
-
-      font-weight: 950;
-
+      letter-spacing: 0.12em;
+      color: var(--muted2);
+      margin-bottom: 16px;
+      font-weight: 800;
     }
-
     .primary-actions {
-
       display: grid;
-
       grid-template-columns: 1fr 1fr;
-
       gap: 12px;
-
-      margin-bottom: 14px;
-
+      margin-bottom: 12px;
     }
+    .secondary-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+    .secondary-actions .btn { flex: 1; min-width: 140px; }
 
-    .secondary-actions,
-
-    .actions {
-
-      display: flex;
-
-      flex-wrap: wrap;
-
-      gap: 10px;
-
-    }
-
-    .secondary-actions .btn {
-
-      flex: 1;
-
-      min-width: 150px;
-
-    }
-
+    /* ============================================================
+       BUTTON SYSTEM
+       ============================================================ */
     .btn {
-
       position: relative;
-
       padding: 14px 20px;
-
-      border-radius: 16px;
-
+      border-radius: var(--radius-md);
       border: 1px solid var(--line);
-
-      background: rgba(255,255,255,.045);
-
-      color: white;
-
-      font-weight: 900;
-
-      transition: .18s ease;
-
+      background: rgba(255,255,255,0.045);
+      color: var(--text);
+      font-weight: 800;
+      font-size: 14px;
+      transition: all var(--dur) var(--ease);
       display: inline-flex;
-
       align-items: center;
-
       justify-content: center;
-
       gap: 8px;
-
-      min-height: 54px;
-
+      min-height: 52px;
       text-align: center;
-
       overflow: hidden;
-
+      cursor: pointer;
     }
-
     .btn::after {
-
       content: "";
-
       position: absolute;
-
       inset: 0;
-
-      background: linear-gradient(120deg, transparent, rgba(255,255,255,.12), transparent);
-
+      background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.10), transparent 70%);
       transform: translateX(-120%);
-
-      transition: .45s ease;
-
+      transition: 0.5s var(--ease);
       pointer-events: none;
-
     }
+    .btn:hover::after { transform: translateX(120%); }
+    .btn:hover, .btn:focus-visible { transform: translateY(-2px); background: rgba(255,255,255,0.08); border-color: var(--line-strong); }
+    .btn:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+    .btn:active { transform: translateY(0); }
 
-    .btn:hover::after {
-
-      transform: translateX(120%);
-
-    }
-
-    .btn:hover,
-
-    .btn:focus-visible {
-
-      transform: translateY(-2px);
-
-      background: rgba(255,255,255,.085);
-
-      border-color: var(--line-strong);
-
-    }
-
-    .btn.primary {
-
-      background: linear-gradient(135deg, var(--cyan), var(--blue));
-
-      color: var(--ink);
-
-      border: none;
-
-      box-shadow: 0 14px 34px rgba(94,160,255,.25);
-
-    }
-
-    .btn.success {
-
-      background: linear-gradient(135deg, var(--green), #89ffd0);
-
-      color: #062014;
-
-      border: none;
-
-    }
-
-    .btn.autonomous {
-
-      background: rgba(140,131,255,.15);
-
-      color: #d8d6ff;
-
-      border: 1px solid rgba(140,131,255,.34);
-
-    }
-
-    .btn.foundation {
-
-      background: linear-gradient(135deg, var(--gold), #ffe9a1);
-
-      color: #2b2200;
-
-      border: none;
-
-    }
-
-    .btn.danger {
-
-      background: linear-gradient(135deg, #ff8585, #ff5f5f);
-
-      color: #2c0606;
-
-      border: none;
-
-    }
-
-    .btn.ghost {
-
-      background: transparent;
-
-      border-color: rgba(255,255,255,.13);
-
-    }
+    .btn.primary { background: var(--grad-cyan); color: var(--ink); border: none; box-shadow: var(--shadow-cyan); }
+    .btn.primary:hover { box-shadow: 0 18px 42px rgba(80,144,255,0.32); }
+    .btn.success { background: var(--grad-green); color: #04200e; border: none; box-shadow: var(--shadow-green); }
+    .btn.success:hover { box-shadow: 0 18px 42px rgba(77,255,164,0.28); }
+    .btn.foundation { background: var(--grad-gold); color: #241600; border: none; box-shadow: var(--shadow-gold); }
+    .btn.autonomous { background: rgba(144,128,255,0.13); color: #d4d0ff; border: 1px solid rgba(144,128,255,0.30); }
+    .btn.ghost { background: transparent; border-color: rgba(255,255,255,0.10); color: var(--muted); }
+    .btn.ghost:hover { color: var(--text); border-color: rgba(255,255,255,0.22); background: rgba(255,255,255,0.04); }
+    .btn.danger { background: linear-gradient(135deg, #ff7070, #ff4040); color: #2c0000; border: none; }
 
     .pilot-tag {
-
       display: inline-flex;
-
       align-items: center;
-
       padding: 2px 7px;
-
       border-radius: 5px;
-
-      font-size: 10px;
-
+      font-size: 9px;
       font-weight: 950;
-
       background: var(--violet);
-
       color: #fff;
-
-      letter-spacing: .05em;
-
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
     }
 
+    /* ============================================================
+       HERO POINTS
+       ============================================================ */
     .hero-points {
-
       display: grid;
-
       grid-template-columns: repeat(2, 1fr);
-
       gap: 12px;
-
     }
-
     .hero-point {
-
-      padding: 17px;
-
-      border-radius: 18px;
-
-      background:
-
-        linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.015));
-
-      border: 1px solid rgba(255,255,255,.06);
-
+      padding: 18px;
+      border-radius: var(--radius-lg);
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.055);
       color: var(--muted);
-
       font-size: 14px;
-
-      line-height: 1.58;
-
-      transition: .18s ease;
-
+      line-height: 1.6;
+      transition: all var(--dur) var(--ease);
     }
+    .hero-point:hover { transform: translateY(-2px); border-color: var(--line-strong); background: rgba(255,255,255,0.05); }
+    .hero-point strong { display: block; color: var(--text); font-size: 14px; font-weight: 800; margin-bottom: 5px; }
 
-    .hero-point:hover {
+    /* ============================================================
+       HERO SIDEBAR
+       ============================================================ */
+    .hero-side { display: flex; flex-direction: column; gap: 16px; }
 
-      transform: translateY(-2px);
-
-      border-color: var(--line-strong);
-
-      background: rgba(255,255,255,.045);
-
-    }
-
-    .hero-point strong {
-
-      display: block;
-
-      color: #fff;
-
-      margin-bottom: 6px;
-
-      font-size: 15px;
-
-    }
-
-    .hero-side {
-
-      display: flex;
-
-      flex-direction: column;
-
-      gap: 16px;
-
-    }
-
-    .status-card,
-
-    .foundation-card,
-
-    .community-card {
-
+    .side-card {
       padding: 24px;
-
-      border-radius: 24px;
-
-      border: 1px solid rgba(255,255,255,.07);
-
-      background:
-
-        linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.015));
-
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
-
+      border-radius: var(--radius-xl);
+      border: 1px solid rgba(255,255,255,0.065);
+      background: linear-gradient(180deg, rgba(255,255,255,0.038), rgba(255,255,255,0.014));
     }
-
-    .foundation-card {
-
-      background:
-
-        linear-gradient(180deg, rgba(255,215,106,.08), rgba(255,255,255,.015));
-
-      border-color: rgba(255,215,106,.2);
-
+    .side-card.gold {
+      background: linear-gradient(160deg, rgba(255,200,74,0.08), rgba(255,255,255,0.014));
+      border-color: rgba(255,200,74,0.18);
     }
-
-    .community-card {
-
-      background:
-
-        linear-gradient(180deg, rgba(140,131,255,.09), rgba(255,255,255,.015));
-
-      border-color: rgba(140,131,255,.22);
-
+    .side-card.violet {
+      background: linear-gradient(160deg, rgba(144,128,255,0.09), rgba(255,255,255,0.014));
+      border-color: rgba(144,128,255,0.20);
     }
 
     .eyebrow {
-
-      display: inline-flex;
-
+      display: block;
       margin-bottom: 8px;
-
-      color: var(--cyan);
-
-      font-size: 11px;
-
-      font-weight: 950;
-
-      letter-spacing: .08em;
-
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: 0.10em;
       text-transform: uppercase;
-
+      color: var(--cyan);
     }
+    .side-card.gold .eyebrow { color: var(--gold); }
+    .side-card.violet .eyebrow { color: #c4beff; }
+    .side-card h3 { font-size: 19px; font-weight: 900; margin-bottom: 10px; letter-spacing: -0.02em; color: var(--text); }
+    .side-card p { color: var(--muted); line-height: 1.66; font-size: 13.5px; }
 
-    .foundation-card .eyebrow {
-
-      color: var(--gold);
-
-    }
-
-    .community-card .eyebrow {
-
-      color: #c9c8ff;
-
-    }
-
-    .status-card h3,
-
-    .foundation-card h3,
-
-    .community-card h3 {
-
-      font-size: 20px;
-
-      margin-bottom: 12px;
-
-      letter-spacing: -.02em;
-
-    }
-
-    .status-card p,
-
-    .foundation-card p,
-
-    .community-card p {
-
-      color: var(--muted);
-
-      line-height: 1.65;
-
-      font-size: 14px;
-
-    }    .status-list {
-
-      display: grid;
-
-      gap: 10px;
-
-      margin-top: 16px;
-
-    }
-
+    /* Status list */
+    .status-list { display: grid; gap: 9px; margin-top: 16px; }
     .status-item {
-
       display: flex;
-
       justify-content: space-between;
-
       align-items: center;
-
       gap: 12px;
-
-      padding: 13px 16px;
-
-      border-radius: 15px;
-
-      background: rgba(255,255,255,.025);
-
-      border: 1px solid rgba(255,255,255,.05);
-
-      transition: .18s ease;
-
+      padding: 12px 14px;
+      border-radius: var(--radius-md);
+      background: rgba(255,255,255,0.024);
+      border: 1px solid rgba(255,255,255,0.045);
+      transition: all var(--dur) var(--ease);
     }
-
-    .status-item:hover {
-
-      background: rgba(255,255,255,.045);
-
-      border-color: var(--line-strong);
-
-    }
-
-    .status-item span {
-
-      font-size: 14px;
-
-      font-weight: 850;
-
-    }
-
+    .status-item:hover { background: rgba(255,255,255,0.04); border-color: var(--line-strong); }
+    .status-item span { font-size: 13px; font-weight: 700; color: var(--text); }
     .status-pill {
-
-      padding: 5px 11px;
-
-      border-radius: 999px;
-
-      font-size: 11px;
-
-      font-weight: 950;
-
-      background: rgba(109,255,179,.12);
-
-      color: var(--green);
-
+      padding: 4px 10px;
+      border-radius: var(--radius-pill);
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: 0.05em;
       white-space: nowrap;
-
     }
+    .status-pill.live { background: rgba(77,255,164,0.12); color: var(--green); }
+    .status-pill.online { background: rgba(93,245,255,0.12); color: var(--cyan); }
+    .status-pill.pilot { background: rgba(144,128,255,0.14); color: #ccc8ff; }
+    .status-pill.building { background: rgba(255,200,74,0.12); color: var(--gold); }
 
-    .status-pill.info {
-
-      background: rgba(99,245,255,.12);
-
-      color: var(--cyan);
-
-    }
-
-    .status-pill.pilot {
-
-      background: rgba(140,131,255,.16);
-
-      color: #d5d3ff;
-
-    }
-
-    .status-pill.build {
-
-      background: rgba(255,215,106,.14);
-
-      color: var(--gold);
-
-    }
-
+    /* ============================================================
+       MINI STATS
+       ============================================================ */
     .mini-stats {
-
       display: grid;
-
-      grid-template-columns: repeat(4,1fr);
-
-      gap: 16px;
-
-      margin-top: 24px;
-
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-top: 30px;
     }
-
     .mini-stat {
-
-      padding: 22px;
-
-      border-radius: 20px;
-
-      border: 1px solid rgba(255,255,255,.06);
-
-      background:
-
-        linear-gradient(
-
-          180deg,
-
-          rgba(255,255,255,.04),
-
-          rgba(255,255,255,.015)
-
-        );
-
-      transition: .18s ease;
-
+      padding: 22px 20px;
+      border-radius: var(--radius-xl);
+      border: 1px solid rgba(255,255,255,0.055);
+      background: linear-gradient(180deg, rgba(255,255,255,0.038), rgba(255,255,255,0.012));
+      transition: all var(--dur) var(--ease);
     }
+    .mini-stat:hover { transform: translateY(-3px); border-color: var(--line-strong); background: rgba(255,255,255,0.05); }
+    .mini-stat strong { display: block; font-size: 16px; font-weight: 900; color: var(--text); margin-bottom: 7px; }
+    .mini-stat span { color: var(--muted); font-size: 13px; line-height: 1.6; }
 
-    .mini-stat:hover {
-
-      transform: translateY(-3px);
-
-      border-color: var(--line-strong);
-
-      background: rgba(255,255,255,.05);
-
-    }
-
-    .mini-stat strong {
-
-      display: block;
-
-      font-size: 17px;
-
-      color: #fff;
-
-      margin-bottom: 8px;
-
-    }
-
-    .mini-stat span {
-
-      color: var(--muted);
-
-      font-size: 13px;
-
-      line-height: 1.65;
-
-    }
-
+    /* ============================================================
+       SUPPORT CALLOUT
+       ============================================================ */
     .support-callout {
-
-      margin-top: 24px;
-
       display: flex;
-
       justify-content: space-between;
-
       align-items: center;
-
-      gap: 18px;
-
-      padding: 22px 24px;
-
-      border-radius: 22px;
-
-      border: 1px solid rgba(109,255,179,.18);
-
-      background:
-
-        linear-gradient(
-
-          135deg,
-
-          rgba(109,255,179,.06),
-
-          rgba(99,245,255,.03)
-
-        );
-
-      box-shadow:
-
-        inset 0 1px 0 rgba(255,255,255,.04);
-
+      gap: 20px;
+      margin-top: 24px;
+      padding: 22px 26px;
+      border-radius: var(--radius-xl);
+      border: 1px solid rgba(77,255,164,0.16);
+      background: linear-gradient(135deg, rgba(77,255,164,0.055), rgba(93,245,255,0.03));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
     }
+    .support-callout strong { display: block; color: var(--green); font-size: 15px; font-weight: 900; margin-bottom: 5px; }
+    .support-callout span { color: var(--muted); font-size: 14px; line-height: 1.65; }
 
-    .support-callout strong {
-
-      display: block;
-
-      color: var(--green);
-
-      margin-bottom: 5px;
-
-      font-size: 16px;
-
-      font-weight: 950;
-
-    }
-
-    .support-callout span {
-
-      color: var(--muted);
-
-      font-size: 14px;
-
-      line-height: 1.65;
-
-    }
-
+    /* ============================================================
+       SECTIONS
+       ============================================================ */
     .section {
-
-      margin-top: 24px;
-
+      margin-top: 22px;
+      padding: 36px;
+      border-radius: var(--radius-2xl);
+      border: 1px solid var(--line);
       background: var(--panel);
-
-      padding: 34px;
-
-      border-radius: var(--radius-xl);
-
-      border: 1px solid var(--line);
-
-      box-shadow: var(--shadow);
-
+      box-shadow: var(--shadow-xl);
       position: relative;
-
       overflow: hidden;
-
     }
-
     .section::before {
-
       content: "";
-
       position: absolute;
-
       inset: 0;
-
-      background:
-
-        radial-gradient(
-
-          circle at top right,
-
-          rgba(99,245,255,.05),
-
-          transparent 40%
-
-        );
-
+      background: radial-gradient(ellipse at top right, rgba(93,245,255,0.04), transparent 45%);
       pointer-events: none;
-
     }
+    .section-hd { margin-bottom: 28px; position: relative; z-index: 1; }
+    .section-hd h2 { font-size: clamp(22px, 3vw, 30px); font-weight: 950; letter-spacing: -0.03em; margin-bottom: 8px; }
+    .lead { color: var(--muted); line-height: 1.76; font-size: 15px; max-width: 820px; }
 
-    .section-header {
+    /* ============================================================
+       CARD GRID SYSTEM
+       ============================================================ */
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .grid-info { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 20px; margin-top: 20px; }
 
-      margin-bottom: 26px;
-
-      position: relative;
-
-      z-index: 1;
-
-    }
-
-    .section h2 {
-
-      font-size: 30px;
-
-      margin-bottom: 8px;
-
-      letter-spacing: -.03em;
-
-      font-weight: 950;
-
-    }
-
-    .lead {
-
-      color: var(--muted);
-
-      line-height: 1.75;
-
-      font-size: 15px;
-
-      max-width: 860px;
-
-    }
-
-    .grid {
-
-      display: grid;
-
-      grid-template-columns: repeat(3,1fr);
-
-      gap: 16px;
-
-    }
-
-    .card,
-
-    .highlight,
-
-    .list-item,
-
-    .service-card {
-
-      border: 1px solid rgba(255,255,255,.05);
-
-      background: rgba(255,255,255,.02);
-
-    }
-
+    /* Generic card */
     .card {
-
       padding: 22px;
-
-      border-radius: 20px;
-
-      transition: .18s ease;
-
-      position: relative;
-
-      overflow: hidden;
-
-    }
-
-    .card::after {
-
-      content: "";
-
-      position: absolute;
-
-      inset: 0;
-
-      background:
-
-        linear-gradient(
-
-          120deg,
-
-          transparent,
-
-          rgba(255,255,255,.05),
-
-          transparent
-
-        );
-
-      transform: translateX(-120%);
-
-      transition: .5s ease;
-
-    }
-
-    .card:hover::after {
-
-      transform: translateX(120%);
-
-    }
-
-    .card:hover {
-
-      transform: translateY(-4px);
-
-      border-color: var(--line-strong);
-
-      background: rgba(255,255,255,.045);
-
-    }
-
-    .card strong {
-
-      display: block;
-
-      margin-bottom: 8px;
-
-      font-size: 16px;
-
-      color: #fff;
-
-      font-weight: 900;
-
-    }
-
-    .card span {
-
-      display: block;
-
-      color: var(--muted);
-
-      font-size: 14px;
-
-      line-height: 1.65;
-
-    }
-
-    .info-grid {
-
-      display: grid;
-
-      grid-template-columns: 1.1fr .9fr;
-
-      gap: 18px;
-
-      margin-top: 18px;
-
-    }
-
-    .highlight {
-
-      padding: 26px;
-
-      border-radius: 22px;
-
-      background:
-
-        linear-gradient(
-
-          180deg,
-
-          rgba(255,255,255,.05),
-
-          rgba(255,255,255,.02)
-
-        );
-
-    }
-
-    .highlight h3 {
-
-      margin-bottom: 12px;
-
-      font-size: 21px;
-
-      font-weight: 950;
-
-    }
-
-    .highlight p {
-
-      color: var(--muted);
-
-      line-height: 1.75;
-
-      font-size: 14px;
-
-    }
-
-    .pill-row {
-
-      display: flex;
-
-      flex-wrap: wrap;
-
-      gap: 8px;
-
-      margin-top: 18px;
-
-    }
-
-    .pill {
-
-      padding: 7px 13px;
-
-      border-radius: 999px;
-
-      background: rgba(255,255,255,.045);
-
-      border: 1px solid rgba(255,255,255,.06);
-
-      color: var(--muted);
-
-      font-size: 12px;
-
-      font-weight: 800;
-
-    }
-
-    .list {
-
-      display: grid;
-
-      gap: 12px;
-
-    }
-
-    .list-item {
-
-      padding: 18px;
-
-      border-radius: 16px;
-
-      transition: .18s ease;
-
-    }
-
-    .list-item:hover {
-
-      border-color: var(--line-strong);
-
-      background: rgba(255,255,255,.04);
-
-    }
-
-    .list-item strong {
-
-      display: block;
-
-      margin-bottom: 5px;
-
-      font-size: 15px;
-
-      font-weight: 900;
-
-    }
-
-    .list-item span {
-
-      display: block;
-
-      color: var(--muted);
-
-      font-size: 13px;
-
-      line-height: 1.65;
-
-      overflow-wrap: anywhere;
-
-    }    .service-row {
-
-      display: grid;
-
-      grid-template-columns: repeat(4, 1fr);
-
-      gap: 17px;
-
-    }
-
-    .service-card {
-
-      padding: 24px;
-
-      border-radius: 22px;
-
-      display: flex;
-
-      flex-direction: column;
-
-      justify-content: space-between;
-
-      min-height: 260px;
-
-      transition: .2s ease;
-
-      background:
-
-        linear-gradient(
-
-          180deg,
-
-          rgba(255,255,255,.04),
-
-          rgba(255,255,255,.015)
-
-        );
-
-    }
-
-    .service-card:hover {
-
-      transform: translateY(-4px);
-
-      border-color: var(--line-strong);
-
-      background: rgba(255,255,255,.045);
-
-    }
-
-    .service-card h3 {
-
-      margin-bottom: 9px;
-
-      font-size: 18px;
-
-      color: #fff;
-
-      letter-spacing: -.02em;
-
-      font-weight: 950;
-
-    }
-
-    .service-card p {
-
-      color: var(--muted);
-
-      line-height: 1.65;
-
-      font-size: 14px;
-
-      margin-bottom: 20px;
-
-      flex-grow: 1;
-
-    }
-
-    .service-card .btn {
-
-      width: 100%;
-
-    }
-
-    .coverage-grid {
-
-      display: grid;
-
-      grid-template-columns: repeat(4, 1fr);
-
-      gap: 17px;
-
-    }
-
-    .coverage-card {
-
-      padding: 24px;
-
-      border-radius: 22px;
-
-      text-align: center;
-
-      border: 1px solid rgba(255,255,255,.06);
-
-      background:
-
-        linear-gradient(
-
-          180deg,
-
-          rgba(255,255,255,.035),
-
-          rgba(255,255,255,.012)
-
-        );
-
-      transition: .18s ease;
-
-    }
-
-    .coverage-card:hover {
-
-      transform: translateY(-3px);
-
-      border-color: var(--line-strong);
-
-      background: rgba(255,255,255,.045);
-
-    }
-
-    .coverage-card strong {
-
-      display: block;
-
-      font-size: 18px;
-
-      margin-bottom: 8px;
-
-      color: #fff;
-
-      font-weight: 950;
-
-    }
-
-    .coverage-card span {
-
-      display: block;
-
-      color: var(--muted);
-
-      font-size: 13px;
-
-      line-height: 1.65;
-
-    }
-
-    .language-support-grid {
-
-      display: grid;
-
-      grid-template-columns: repeat(4, 1fr);
-
-      gap: 17px;
-
-      margin-top: 20px;
-
-    }
-
-    .language-card {
-
-      padding: 22px;
-
-      border-radius: 20px;
-
-      text-align: center;
-
-      border: 1px solid rgba(99,245,255,.14);
-
-      background:
-
-        linear-gradient(
-
-          180deg,
-
-          rgba(99,245,255,.045),
-
-          rgba(255,255,255,.012)
-
-        );
-
-      transition: .18s ease;
-
-    }
-
-    .language-card:hover {
-
-      transform: translateY(-3px);
-
-      border-color: rgba(99,245,255,.32);
-
-      background: rgba(99,245,255,.06);
-
-    }
-
-    .language-card h4 {
-
-      color: var(--cyan);
-
-      margin-bottom: 8px;
-
-      font-size: 16px;
-
-      font-weight: 950;
-
-    }
-
-    .language-card p {
-
-      color: var(--muted);
-
-      font-size: 13px;
-
-      line-height: 1.6;
-
-    }
-
-    .community-grid {
-
-      display: grid;
-
-      grid-template-columns: repeat(3, 1fr);
-
-      gap: 17px;
-
-      margin-top: 18px;
-
-    }
-
-    .community-card-box {
-
-      padding: 23px;
-
-      border-radius: 22px;
-
-      border: 1px solid rgba(255,255,255,.06);
-
-      background:
-
-        linear-gradient(
-
-          180deg,
-
-          rgba(255,255,255,.035),
-
-          rgba(255,255,255,.012)
-
-        );
-
-      transition: .18s ease;
-
-    }
-
-    .community-card-box:hover {
-
-      transform: translateY(-3px);
-
-      border-color: var(--line-strong);
-
-      background: rgba(255,255,255,.045);
-
-    }
-
-    .community-card-box h4 {
-
-      color: #fff;
-
-      margin-bottom: 8px;
-
-      font-size: 16px;
-
-      font-weight: 950;
-
-    }
-
-    .community-card-box p {
-
-      color: var(--muted);
-
-      font-size: 14px;
-
-      line-height: 1.65;
-
-    }
-
-    .footer {
-
-      margin-top: 24px;
-
-      padding: 32px;
-
       border-radius: var(--radius-xl);
-
-      border: 1px solid var(--line);
-
-      background:
-
-        linear-gradient(
-
-          180deg,
-
-          rgba(255,255,255,.04),
-
-          rgba(255,255,255,.014)
-
-        ),
-
-        var(--panel);
-
-      display: flex;
-
-      justify-content: space-between;
-
-      align-items: center;
-
-      flex-wrap: wrap;
-
-      gap: 24px;
-
-      box-shadow: var(--shadow);
-
+      border: 1px solid rgba(255,255,255,0.05);
+      background: linear-gradient(180deg, rgba(255,255,255,0.032), rgba(255,255,255,0.012));
+      transition: all var(--dur) var(--ease);
+      position: relative;
+      overflow: hidden;
     }
-
-    .footer-title {
-
-      display: block;
-
-      margin-bottom: 6px;
-
-      font-weight: 950;
-
-      font-size: 16px;
-
-    }
-
-    .footer p {
-
-      color: var(--muted);
-
-      font-size: 14px;
-
-      line-height: 1.65;
-
-      max-width: 660px;
-
-    }    .bottom-nav {
-
-      position: fixed;
-
-      left: 0;
-
-      right: 0;
-
-      bottom: 0;
-
-      height: calc(var(--nav-h) + env(safe-area-inset-bottom));
-
-      background: rgba(6,12,26,.96);
-
-      backdrop-filter: blur(24px);
-
-      -webkit-backdrop-filter: blur(24px);
-
-      border-top: 1px solid rgba(255,255,255,.08);
-
-      display: flex;
-
-      justify-content: space-around;
-
-      align-items: center;
-
-      padding:
-
-        0 8px
-
-        env(safe-area-inset-bottom)
-
-        8px;
-
-      z-index: 100;
-
-      box-shadow:
-
-        0 -10px 30px rgba(0,0,0,.35);
-
-    }
-
-    .nav-btn {
-
-      color: var(--muted);
-
-      background: transparent;
-
-      font-size: 11px;
-
-      font-weight: 850;
-
-      padding: 10px 12px;
-
-      border-radius: 14px;
-
-      display: flex;
-
-      flex-direction: column;
-
-      align-items: center;
-
-      gap: 5px;
-
-      min-width: 70px;
-
-      transition: .16s ease;
-
-    }
-
-    .nav-btn.active,
-
-    .nav-btn:hover,
-
-    .nav-btn:focus-visible {
-
-      color: var(--cyan);
-
-      background: rgba(99,245,255,.08);
-
-    }
-
-    .modal-overlay {
-
-      position: fixed;
-
+    .card::after {
+      content: "";
+      position: absolute;
       inset: 0;
-
-      background: rgba(4,8,20,.88);
-
-      backdrop-filter: blur(14px);
-
-      -webkit-backdrop-filter: blur(14px);
-
-      display: flex;
-
-      justify-content: center;
-
-      align-items: center;
-
-      z-index: 99999;
-
-      padding: 20px;
-
-      animation: fadeIn .22s ease;
-
+      background: linear-gradient(110deg, transparent 35%, rgba(255,255,255,0.06), transparent 65%);
+      transform: translateX(-130%);
+      transition: 0.55s var(--ease);
     }
+    .card:hover::after { transform: translateX(130%); }
+    .card:hover { transform: translateY(-3px); border-color: var(--line-strong); background: rgba(255,255,255,0.048); }
+    .card strong { display: block; font-size: 15px; font-weight: 800; color: var(--text); margin-bottom: 8px; }
+    .card span, .card p { display: block; color: var(--muted); font-size: 13.5px; line-height: 1.66; }
 
-    .modal-card {
-
-      width: 100%;
-
-      max-width: 540px;
-
-      padding: 34px;
-
-      border-radius: 28px;
-
-      background:
-
-        linear-gradient(
-
-          160deg,
-
-          #091126,
-
-          #101935
-
-        );
-
-      border: 1px solid rgba(122,162,255,.25);
-
-      box-shadow:
-
-        0 25px 60px rgba(0,0,0,.55);
-
-      text-align: center;
-
+    /* Highlight panel */
+    .highlight {
+      padding: 28px;
+      border-radius: var(--radius-xl);
+      border: 1px solid rgba(255,255,255,0.06);
+      background: linear-gradient(180deg, rgba(255,255,255,0.046), rgba(255,255,255,0.016));
     }
+    .highlight h3 { font-size: 20px; font-weight: 900; margin-bottom: 12px; letter-spacing: -0.02em; }
+    .highlight p { color: var(--muted); line-height: 1.76; font-size: 14px; }
 
-    .modal-card h3 {
-
-      font-size: 24px;
-
-      font-weight: 950;
-
-      margin-bottom: 12px;
-
-      color: #fff;
-
+    /* List items */
+    .list-items { display: grid; gap: 11px; }
+    .list-item {
+      padding: 17px 20px;
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(255,255,255,0.05);
+      background: rgba(255,255,255,0.018);
+      transition: all var(--dur) var(--ease);
     }
+    .list-item:hover { border-color: var(--line-strong); background: rgba(255,255,255,0.038); }
+    .list-item strong { display: block; font-size: 14px; font-weight: 800; margin-bottom: 5px; color: var(--text); }
+    .list-item span { display: block; color: var(--muted); font-size: 13px; line-height: 1.65; overflow-wrap: anywhere; }
 
-    .modal-card p {
-
+    /* Pill row */
+    .pill-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+    .pill {
+      padding: 6px 13px;
+      border-radius: var(--radius-pill);
+      background: rgba(255,255,255,0.045);
+      border: 1px solid rgba(255,255,255,0.065);
       color: var(--muted);
-
-      line-height: 1.75;
-
-      font-size: 14px;
-
-      margin-bottom: 22px;
-
+      font-size: 12px;
+      font-weight: 700;
     }
 
-    @keyframes fadeIn {
-
-      from {
-
-        opacity: 0;
-
-      }
-
-      to {
-
-        opacity: 1;
-
-      }
-
+    /* Service cards */
+    .service-card {
+      padding: 26px;
+      border-radius: var(--radius-xl);
+      border: 1px solid rgba(255,255,255,0.055);
+      background: linear-gradient(180deg, rgba(255,255,255,0.038), rgba(255,255,255,0.012));
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 250px;
+      transition: all var(--dur) var(--ease);
     }
+    .service-card:hover { transform: translateY(-4px); border-color: var(--line-strong); background: rgba(255,255,255,0.05); }
+    .service-card h3 { font-size: 18px; font-weight: 900; color: var(--text); letter-spacing: -0.02em; margin-bottom: 10px; }
+    .service-card p { color: var(--muted); line-height: 1.66; font-size: 13.5px; margin-bottom: 20px; flex-grow: 1; }
+    .service-card .btn { width: 100%; }
 
-    /* ==========================================
+    /* Coverage / language / community cards */
+    .tile {
+      padding: 22px;
+      border-radius: var(--radius-xl);
+      text-align: center;
+      border: 1px solid rgba(255,255,255,0.055);
+      background: linear-gradient(180deg, rgba(255,255,255,0.032), rgba(255,255,255,0.010));
+      transition: all var(--dur) var(--ease);
+    }
+    .tile:hover { transform: translateY(-3px); border-color: var(--line-strong); background: rgba(255,255,255,0.048); }
+    .tile strong { display: block; font-size: 17px; font-weight: 900; color: var(--text); margin-bottom: 8px; }
+    .tile span { display: block; color: var(--muted); font-size: 13px; line-height: 1.65; }
 
-       HARVEY AI SUPPORT UPGRADE
+    /* Language tiles */
+    .lang-tile {
+      padding: 22px;
+      border-radius: var(--radius-xl);
+      text-align: center;
+      border: 1px solid rgba(93,245,255,0.12);
+      background: linear-gradient(180deg, rgba(93,245,255,0.04), rgba(255,255,255,0.010));
+      transition: all var(--dur) var(--ease);
+    }
+    .lang-tile:hover { transform: translateY(-3px); border-color: rgba(93,245,255,0.28); background: rgba(93,245,255,0.07); }
+    .lang-tile h4 { color: var(--cyan); font-size: 15px; font-weight: 900; margin-bottom: 7px; }
+    .lang-tile p { color: var(--muted); font-size: 13px; line-height: 1.6; }
 
-       ========================================== */
+    /* Community tiles */
+    .community-tile {
+      padding: 22px;
+      border-radius: var(--radius-xl);
+      border: 1px solid rgba(255,255,255,0.055);
+      background: linear-gradient(180deg, rgba(255,255,255,0.032), rgba(255,255,255,0.010));
+      transition: all var(--dur) var(--ease);
+    }
+    .community-tile:hover { transform: translateY(-3px); border-color: var(--line-strong); background: rgba(255,255,255,0.048); }
+    .community-tile h4 { font-size: 15px; font-weight: 800; color: var(--text); margin-bottom: 7px; }
+    .community-tile p { color: var(--muted); font-size: 13.5px; line-height: 1.66; }
 
-    #harvey-ai-chat-root {
+    /* ============================================================
+       FOOTER
+       ============================================================ */
+    .footer {
+      margin-top: 22px;
+      padding: 34px;
+      border-radius: var(--radius-2xl);
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,0.038), rgba(255,255,255,0.012)), var(--panel);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 26px;
+      box-shadow: var(--shadow-xl);
+    }
+    .footer-title { display: block; font-weight: 900; font-size: 16px; margin-bottom: 7px; }
+    .footer p { color: var(--muted); font-size: 14px; line-height: 1.7; max-width: 580px; }
+    .footer-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 
+    /* ============================================================
+       BOTTOM NAV
+       ============================================================ */
+    .bottom-nav {
       position: fixed;
-
-      z-index: 9998;
-
+      left: 0; right: 0; bottom: 0;
+      height: calc(var(--nav-h) + env(safe-area-inset-bottom));
+      background: rgba(4,8,22,0.96);
+      backdrop-filter: blur(26px);
+      -webkit-backdrop-filter: blur(26px);
+      border-top: 1px solid rgba(255,255,255,0.07);
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding: 0 8px env(safe-area-inset-bottom) 8px;
+      z-index: 100;
+      box-shadow: 0 -8px 28px rgba(0,0,0,0.38);
     }
-
-    .harvey-ai-launch {
-
-      position: fixed;
-
-      right: 22px;
-
-      bottom: 100px;
-
-      width: 70px;
-
-      height: 70px;
-
-      border-radius: 999px;
-
+    .nav-btn {
+      color: var(--muted2);
+      background: transparent;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 10px 14px;
+      border-radius: var(--radius-md);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+      min-width: 68px;
+      transition: all var(--dur) var(--ease);
       border: none;
-
-      cursor: pointer;
-
-      background:
-
-        linear-gradient(
-
-          135deg,
-
-          var(--cyan),
-
-          var(--blue)
-
-        );
-
-      color: var(--ink);
-
-      font-size: 28px;
-
-      font-weight: 900;
-
-      box-shadow:
-
-        0 16px 40px rgba(94,160,255,.35);
-
-      animation: aiPulse 2.5s infinite;
-
     }
+    .nav-btn svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+    .nav-btn.active, .nav-btn:hover, .nav-btn:focus-visible { color: var(--cyan); background: rgba(93,245,255,0.08); }
+    .nav-btn:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
 
-    @keyframes aiPulse {
+    /* ============================================================
+       MODALS
+       ============================================================ */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(3,6,18,0.90);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 99999;
+      padding: 20px;
+      animation: fadeIn 0.22s var(--ease);
+    }
+    .modal-card {
+      width: 100%;
+      max-width: 520px;
+      padding: 36px;
+      border-radius: 28px;
+      background: linear-gradient(160deg, #07111f, #0e1b38);
+      border: 1px solid rgba(100,150,255,0.22);
+      box-shadow: 0 30px 70px rgba(0,0,0,0.60);
+      text-align: center;
+    }
+    .modal-card h3 { font-size: 22px; font-weight: 950; margin-bottom: 12px; }
+    .modal-card p { color: var(--muted); line-height: 1.76; font-size: 14px; margin-bottom: 24px; }
 
-      0% {
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-        transform: scale(1);
+    /* ============================================================
+       HARVEY AI CHAT
+       ============================================================ */
+    #harvey-ai-chat-root { position: fixed; z-index: 9998; }
 
-      }
-
-      50% {
-
-        transform: scale(1.06);
-
-      }
-
-      100% {
-
-        transform: scale(1);
-
-      }
-
+    .harvey-ai-fab {
+      position: fixed;
+      right: 22px;
+      bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 14px);
+      width: 68px;
+      height: 68px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      background: var(--grad-cyan);
+      color: var(--ink);
+      font-size: 26px;
+      font-weight: 900;
+      box-shadow: 0 14px 38px rgba(80,144,255,0.38);
+      display: grid;
+      place-items: center;
+      transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+      animation: fabPulse 3s ease-in-out infinite;
+      z-index: 9997;
+    }
+    .harvey-ai-fab:hover { transform: scale(1.08); box-shadow: 0 18px 48px rgba(80,144,255,0.48); }
+    @keyframes fabPulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
     }
 
     .harvey-ai-window {
-
       position: fixed;
-
-      right: 20px;
-
-      bottom: 185px;
-
+      right: 18px;
+      bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 88px);
       width: 420px;
-
-      max-width: calc(100vw - 24px);
-
-      height: 620px;
-
+      max-width: calc(100vw - 22px);
+      height: 600px;
       border-radius: 26px;
-
       overflow: hidden;
-
-      border: 1px solid rgba(99,245,255,.18);
-
-      background:
-
-        linear-gradient(
-
-          180deg,
-
-          rgba(9,17,38,.98),
-
-          rgba(4,8,20,.98)
-
-        );
-
-      box-shadow:
-
-        0 30px 80px rgba(0,0,0,.55);
-
+      border: 1px solid rgba(93,245,255,0.18);
+      background: linear-gradient(180deg, rgba(8,15,36,0.99), rgba(3,7,18,0.99));
+      box-shadow: var(--shadow-xl);
       display: flex;
-
       flex-direction: column;
-
+      animation: fadeIn 0.22s var(--ease);
     }
-
     .harvey-ai-header {
-
-      padding: 18px;
-
-      background:
-
-        linear-gradient(
-
-          135deg,
-
-          var(--cyan),
-
-          var(--blue)
-
-        );
-
+      padding: 16px 20px;
+      background: var(--grad-cyan);
       color: var(--ink);
-
-      font-weight: 950;
-
-      display: flex;
-
-      justify-content: space-between;
-
-      align-items: center;
-
-    }
-
-    .harvey-ai-body {
-
-      flex: 1;
-
-      overflow-y: auto;
-
-      padding: 18px;
-
-      display: flex;
-
-      flex-direction: column;
-
-      gap: 12px;
-
-    }
-
-    .harvey-ai-message {
-
-      padding: 14px;
-
-      border-radius: 16px;
-
-      max-width: 88%;
-
-      line-height: 1.6;
-
-      font-size: 14px;
-
-    }
-
-    .harvey-ai-message.bot {
-
-      background: rgba(99,245,255,.08);
-
-      border: 1px solid rgba(99,245,255,.14);
-
-      color: #fff;
-
-      align-self: flex-start;
-
-    }
-
-    .harvey-ai-message.user {
-
-      background: rgba(94,160,255,.12);
-
-      border: 1px solid rgba(94,160,255,.18);
-
-      color: #fff;
-
-      align-self: flex-end;
-
-    }
-
-    .harvey-ai-footer {
-
-      padding: 14px;
-
-      border-top: 1px solid rgba(255,255,255,.06);
-
-      display: flex;
-
-      gap: 10px;
-
-    }
-
-    .harvey-ai-input {
-
-      flex: 1;
-
-      border-radius: 14px;
-
-      border: 1px solid rgba(255,255,255,.08);
-
-      background: rgba(255,255,255,.04);
-
-      color: white;
-
-      padding: 12px 14px;
-
-      outline: none;
-
-    }
-
-    .harvey-ai-send {
-
-      min-width: 90px;
-
-      border-radius: 14px;
-
-      border: none;
-
-      background:
-
-        linear-gradient(
-
-          135deg,
-
-          var(--green),
-
-          #89ffd0
-
-        );
-
-      color: #052014;
-
       font-weight: 900;
-
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 15px;
+      flex-shrink: 0;
+    }
+    .harvey-ai-header-left { display: flex; align-items: center; gap: 10px; }
+    .harvey-ai-header-icon { font-size: 20px; }
+    .harvey-ai-close-btn {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: rgba(0,0,0,0.15);
+      border: none;
+      color: var(--ink);
+      font-size: 18px;
+      font-weight: 900;
+      display: grid;
+      place-items: center;
       cursor: pointer;
+      transition: background var(--dur) var(--ease);
+    }
+    .harvey-ai-close-btn:hover { background: rgba(0,0,0,0.28); }
+    .harvey-ai-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      scroll-behavior: smooth;
+    }
+    .harvey-ai-body::-webkit-scrollbar { width: 4px; }
+    .harvey-ai-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 2px; }
+    .ai-msg {
+      padding: 14px 16px;
+      border-radius: 18px;
+      max-width: 87%;
+      line-height: 1.62;
+      font-size: 14px;
+      animation: msgIn 0.2s var(--ease);
+    }
+    @keyframes msgIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    .ai-msg.bot {
+      background: rgba(93,245,255,0.07);
+      border: 1px solid rgba(93,245,255,0.13);
+      color: var(--text);
+      align-self: flex-start;
+      border-bottom-left-radius: 5px;
+    }
+    .ai-msg.user {
+      background: rgba(80,144,255,0.10);
+      border: 1px solid rgba(80,144,255,0.18);
+      color: var(--text);
+      align-self: flex-end;
+      border-bottom-right-radius: 5px;
+    }
+    .ai-typing {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 14px 16px;
+      background: rgba(93,245,255,0.07);
+      border: 1px solid rgba(93,245,255,0.13);
+      border-radius: 18px;
+      border-bottom-left-radius: 5px;
+      align-self: flex-start;
+      max-width: 80px;
+    }
+    .ai-typing span {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--cyan);
+      animation: typingDot 1.2s ease-in-out infinite;
+    }
+    .ai-typing span:nth-child(2) { animation-delay: 0.2s; }
+    .ai-typing span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes typingDot {
+      0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+      40% { transform: scale(1); opacity: 1; }
+    }
+    .harvey-ai-footer {
+      padding: 14px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      display: flex;
+      gap: 9px;
+      flex-shrink: 0;
+    }
+    .harvey-ai-input {
+      flex: 1;
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      padding: 12px 14px;
+      font-size: 14px;
+      transition: border-color var(--dur) var(--ease);
+    }
+    .harvey-ai-input:focus { border-color: rgba(93,245,255,0.30); outline: none; }
+    .harvey-ai-input::placeholder { color: var(--muted2); }
+    .harvey-ai-send {
+      min-width: 72px;
+      border-radius: var(--radius-md);
+      border: none;
+      background: var(--grad-green);
+      color: #04200e;
+      font-weight: 900;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all var(--dur) var(--ease);
+    }
+    .harvey-ai-send:hover { transform: translateY(-1px); box-shadow: var(--shadow-green); }
+    .harvey-ai-send:disabled { opacity: 0.55; transform: none; }
 
-    }    /* ==========================================
+    /* ============================================================
+       QUICK SETTINGS (injected)
+       ============================================================ */
+    #quick-settings-panel { position: relative; z-index: 1; }
 
-       FINAL RESPONSIVE + MOBILE STABILITY
-
-       ========================================== */
-
-    @media (max-width: 1180px) {
-
-      .hero-grid,
-
-      .info-grid {
-
-        grid-template-columns: 1fr;
-
-      }
-
-      .service-row,
-
-      .mini-stats,
-
-      .coverage-grid,
-
-      .language-support-grid {
-
-        grid-template-columns: repeat(2, 1fr);
-
-      }
-
-      .hero-side {
-
-        display: grid;
-
-        grid-template-columns: repeat(3, 1fr);
-
-      }
-
+    /* ============================================================
+       TOAST / WELCOME BANNER
+       ============================================================ */
+    .welcome-banner {
+      position: fixed;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 99999;
+      max-width: 520px;
+      width: calc(100vw - 24px);
+      padding: 16px 20px;
+      border-radius: var(--radius-xl);
+      background: var(--grad-cyan);
+      color: var(--ink);
+      font-weight: 800;
+      font-size: 14px;
+      box-shadow: var(--shadow-xl);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      animation: slideDown 0.35s var(--ease);
+    }
+    @keyframes slideDown { from { opacity: 0; transform: translateX(-50%) translateY(-20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+    .welcome-banner-sub { font-size: 12px; font-weight: 600; margin-top: 4px; opacity: 0.75; }
+    .welcome-close {
+      border: none;
+      background: rgba(0,0,0,0.14);
+      color: var(--ink);
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      font-weight: 900;
+      font-size: 17px;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      flex-shrink: 0;
     }
 
-    @media (max-width: 900px) {
-
-      .language-panel {
-
-        grid-template-columns: 1fr;
-
-      }
-
-      .language-controls {
-
-        justify-content: flex-start;
-
-      }
-
-      .topbar {
-
-        position: relative;
-
-        top: 0;
-
-        border-radius: 26px;
-
-        align-items: flex-start;
-
-        flex-direction: column;
-
-      }
-
-      .top-links {
-
-        width: 100%;
-
-        overflow-x: auto;
-
-        padding-bottom: 4px;
-
-        scrollbar-width: none;
-
-      }
-
-      .top-links::-webkit-scrollbar {
-
-        display: none;
-
-      }
-
-      .top-link {
-
-        flex: 0 0 auto;
-
-      }
-
-      .grid,
-
-      .community-grid {
-
-        grid-template-columns: repeat(2, 1fr);
-
-      }
-
-      .hero-side {
-
-        grid-template-columns: 1fr;
-
-      }
-
-      .announce,
-
-      .support-callout,
-
-      .footer {
-
-        align-items: flex-start;
-
-      }
-
+    /* ============================================================
+       RESPONSIVE
+       ============================================================ */
+    @media (max-width: 1100px) {
+      .hero-grid { grid-template-columns: 1fr; }
+      .hero-side { display: grid; grid-template-columns: repeat(3, 1fr); }
+      .mini-stats { grid-template-columns: repeat(2, 1fr); }
+      .grid-4 { grid-template-columns: repeat(2, 1fr); }
+      .grid-info { grid-template-columns: 1fr; }
     }
-
-    @media (max-width: 650px) {
-
-      body {
-
-        padding-bottom:
-
-          calc(var(--nav-h) + env(safe-area-inset-bottom) + 22px);
-
-      }
-
-      .shell {
-
-        padding: 14px 12px;
-
-      }
-
-      .language-panel,
-
-      .announce,
-
-      .inclusive-strip,
-
-      .hero,
-
-      .section,
-
-      .footer {
-
-        border-radius: 24px;
-
-      }
-
-      .language-controls,
-
-      .language-controls select,
-
-      .language-controls button {
-
-        width: 100%;
-
-      }
-
-      .select-control,
-
-      .access-btn {
-
-        width: 100%;
-
-        justify-content: center;
-
-      }
-
-      .topbar {
-
-        padding: 16px;
-
-      }
-
-      .brand-wrap {
-
-        width: 100%;
-
-      }
-
-      .brand-sub {
-
-        white-space: normal;
-
-        line-height: 1.35;
-
-      }
-
-      .top-links {
-
-        display: grid;
-
-        grid-auto-flow: column;
-
-        grid-auto-columns: max-content;
-
-        gap: 8px;
-
-      }
-
-      .announce,
-
-      .support-callout,
-
-      .footer {
-
-        flex-direction: column;
-
-      }
-
-      .announce .btn,
-
-      .support-callout .btn,
-
-      .footer .actions,
-
-      .footer .actions .btn,
-
-      .actions .btn {
-
-        width: 100%;
-
-      }
-
-      .hero {
-
-        padding: 24px;
-
-      }
-
-      .hero-title {
-
-        font-size: 32px;
-
-        line-height: 1.08;
-
-      }
-
-      .hero-copy {
-
-        font-size: 15px;
-
-      }
-
-      .primary-actions,
-
-      .hero-points,
-
-      .grid,
-
-      .service-row,
-
-      .mini-stats,
-
-      .coverage-grid,
-
-      .language-support-grid,
-
-      .community-grid {
-
+    @media (max-width: 860px) {
+      .lang-panel { flex-direction: column; align-items: flex-start; }
+      .lang-controls { width: 100%; }
+      .topbar { position: relative; top: 0; border-radius: var(--radius-xl); flex-direction: column; align-items: flex-start; }
+      .top-links { width: 100%; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+      .top-links::-webkit-scrollbar { display: none; }
+      .top-link { flex-shrink: 0; }
+      .grid-3 { grid-template-columns: repeat(2, 1fr); }
+      .hero-side { grid-template-columns: 1fr; }
+      .announce, .support-callout, .footer { align-items: flex-start; }
+    }
+    @media (max-width: 640px) {
+      body { padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 24px); }
+      .shell { padding: 14px 12px; }
+      .section { padding: 24px 20px; border-radius: var(--radius-xl); }
+      .hero { padding: 24px; border-radius: var(--radius-xl); }
+      .hero-title { font-size: 30px; letter-spacing: -0.04em; }
+      .hero-copy { font-size: 14.5px; }
+      .primary-actions, .hero-points, .grid-3, .grid-4, .mini-stats {
         grid-template-columns: 1fr;
-
       }
-
-      .action-container {
-
-        padding: 18px;
-
-      }
-
-      .secondary-actions {
-
-        flex-direction: column;
-
-      }
-
-      .secondary-actions .btn {
-
-        width: 100%;
-
-      }
-
-      .service-card {
-
-        min-height: auto;
-
-      }
-
-      .section {
-
-        padding: 24px;
-
-      }
-
-      .section h2 {
-
-        font-size: 25px;
-
-      }
-
-      .coverage-card,
-
-      .language-card,
-
-      .community-card-box {
-
-        text-align: left;
-
-      }
-
-      [dir="rtl"] .coverage-card,
-
-      [dir="rtl"] .language-card,
-
-      [dir="rtl"] .community-card-box {
-
-        text-align: right;
-
-      }
-
-      .footer {
-
-        padding: 24px;
-
-      }
-
-      .bottom-nav {
-
-        overflow-x: auto;
-
-        justify-content: space-between;
-
-      }
-
-      .nav-btn {
-
-        min-width: 64px;
-
-      }
-
-      .harvey-ai-launch {
-
-        right: 16px;
-
-        bottom: 96px;
-
-        width: 62px;
-
-        height: 62px;
-
-        font-size: 25px;
-
-      }
-
-      .harvey-ai-window {
-
-        left: 12px;
-
-        right: 12px;
-
-        bottom: 170px;
-
-        width: auto;
-
-        height: min(620px, calc(100vh - 210px));
-
-      }
-
+      .secondary-actions { flex-direction: column; }
+      .secondary-actions .btn { width: 100%; }
+      .announce, .support-callout, .footer { flex-direction: column; }
+      .announce .btn, .support-callout .btn { width: 100%; }
+      .footer-actions .btn { flex: 1; min-width: 120px; }
+      .footer { padding: 24px; border-radius: var(--radius-xl); }
+      .harvey-ai-window { left: 10px; right: 10px; bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 10px); width: auto; height: min(600px, calc(100vh - 160px)); }
+      .harvey-ai-fab { right: 16px; width: 60px; height: 60px; font-size: 22px; }
+      .tile, .lang-tile, .community-tile { text-align: left; }
+      [dir="rtl"] .tile, [dir="rtl"] .lang-tile, [dir="rtl"] .community-tile { text-align: right; }
+      .lang-panel { border-radius: var(--radius-xl); }
+      .announce, .inclusion-strip { border-radius: var(--radius-xl); }
     }
-
-    @media (max-width: 390px) {
-
-      .hero-title {
-
-        font-size: 29px;
-
-      }
-
-      .btn {
-
-        padding-left: 14px;
-
-        padding-right: 14px;
-
-        font-size: 14px;
-
-      }
-
-      .top-link {
-
-        padding: 9px 13px;
-
-        font-size: 12px;
-
-      }
-
-      .nav-btn {
-
-        font-size: 10px;
-
-        padding-left: 7px;
-
-        padding-right: 7px;
-
-      }
-
+    @media (max-width: 380px) {
+      .hero-title { font-size: 26px; }
+      .btn { font-size: 13px; padding-left: 14px; padding-right: 14px; }
+      .top-link { padding: 8px 12px; font-size: 12px; }
+      .nav-btn { font-size: 10px; min-width: 56px; padding: 9px 8px; }
     }
-
   </style>
+</head>
 
-</head><body>
-
-  <a href="#main-content" class="skip-link" data-i18n="skipContent">
-
-    Skip to content
-
-  </a>
+<body>
+  <a href="#main-content" class="skip-link" data-i18n="skipContent">Skip to content</a>
 
   <div class="shell">
 
     <!-- LANGUAGE + ACCESSIBILITY -->
-
-    <section
-
-      class="language-panel"
-
-      aria-label="Language and accessibility preferences"
-
-    >
-
-      <div class="language-copy">
-
-        <strong data-i18n="languageTitle">
-
-          Language & Accessibility
-
-        </strong>
-
-        <span data-i18n="languageCopy">
-
-          Harvey Taxi welcomes every rider, driver, family,
-
-          culture, and community.
-
-        </span>
-
+    <section class="lang-panel" aria-label="Language and accessibility preferences">
+      <div class="lang-panel-copy">
+        <strong data-i18n="languageTitle">Language &amp; Accessibility</strong>
+        <span data-i18n="languageCopy">Harvey Taxi welcomes every rider, driver, family, culture, and community.</span>
       </div>
-
-      <div class="language-controls">
-
-        <select
-
-          id="language-select"
-
-          class="select-control"
-
-          aria-label="Choose language"
-
-        >
-
-          <option value="en">English</option>
-
-          <option value="es">Español</option>
-
-          <option value="fr">Français</option>
-
-          <option value="ar">العربية</option>
-
-          <option value="sw">Kiswahili</option>
-
-          <option value="zh">中文</option>
-
-          <option value="hi">हिन्दी</option>
-
-          <option value="pt">Português</option>
-
-          <option value="ht">Kreyòl Ayisyen</option>
-
-          <option value="yo">Yorùbá</option>
-
+      <div class="lang-controls">
+        <select id="language-select" class="lang-select" aria-label="Choose language">
+          <option value="en">🌐 English</option>
+          <option value="es">🌐 Español</option>
+          <option value="fr">🌐 Français</option>
+          <option value="ar">🌐 العربية</option>
+          <option value="sw">🌐 Kiswahili</option>
+          <option value="zh">🌐 中文</option>
+          <option value="hi">🌐 हिन्दी</option>
+          <option value="pt">🌐 Português</option>
+          <option value="ht">🌐 Kreyòl Ayisyen</option>
+          <option value="yo">🌐 Yorùbá</option>
         </select>
-
-        <button
-
-          id="contrast-toggle"
-
-          class="access-btn"
-
-          type="button"
-
-          data-i18n="contrastBtn"
-
-        >
-
-          High Contrast
-
-        </button>
-
-        <button
-
-          id="text-toggle"
-
-          class="access-btn"
-
-          type="button"
-
-          data-i18n="largeTextBtn"
-
-        >
-
-          Larger Text
-
-        </button>
-
-        <button
-
-          id="motion-toggle"
-
-          class="access-btn"
-
-          type="button"
-
-          data-i18n="motionBtn"
-
-        >
-
-          Reduce Motion
-
-        </button>
-
+        <button id="contrast-toggle" class="access-btn" type="button" data-i18n="contrastBtn">High Contrast</button>
+        <button id="text-toggle" class="access-btn" type="button" data-i18n="largeTextBtn">Larger Text</button>
+        <button id="motion-toggle" class="access-btn" type="button" data-i18n="motionBtn">Reduce Motion</button>
       </div>
-
     </section>
 
     <!-- TOP NAV -->
-
     <header class="topbar">
-
-      <a
-
-        class="brand-wrap"
-
-        href="index.html"
-
-        aria-label="Harvey Taxi Home"
-
-        data-track="home_brand"
-
-      >
-
-        <div class="logo-mark">
-
-          HT
-
-        </div>
-
+      <a class="brand-wrap" href="index.html" aria-label="Harvey Taxi Home" data-track="home_brand">
+        <div class="logo-mark" aria-hidden="true">HT</div>
         <div class="brand-stack">
-
-          <div class="brand">
-
-            HARVEY TAXI
-
-          </div>
-
-          <div
-
-            class="brand-sub"
-
-            data-i18n="brandSub"
-
-          >
-
-            Tennessee Mobility Platform
-
-          </div>
-
+          <div class="brand">HARVEY TAXI</div>
+          <div class="brand-sub" data-i18n="brandSub">Tennessee Mobility Platform</div>
         </div>
-
       </a>
-
-      <nav class="top-links">
-
-        <a
-
-          class="top-link"
-
-          href="#how-it-works"
-
-          data-track="nav_how"
-
-          data-i18n="navHow"
-
-        >
-
-          How It Works
-
-        </a>
-
-        <a
-
-          class="top-link"
-
-          href="#safety"
-
-          data-track="nav_safety"
-
-          data-i18n="navSafety"
-
-        >
-
-          Safety
-
-        </a>
-
-        <a
-
-          class="top-link"
-
-          href="#services"
-
-          data-track="nav_services"
-
-          data-i18n="navServices"
-
-        >
-
-          Services
-
-        </a>
-
-        <a
-
-          class="top-link"
-
-          href="foundation.html"
-
-          data-track="foundation_nav"
-
-          data-i18n="navFoundation"
-
-        >
-
-          Foundation
-
-        </a>
-
-        <a
-
-          class="top-link"
-
-          href="settings.html"
-
-          data-track="settings_nav"
-
-          data-i18n="navSettings"
-
-        >
-
-          ⚙ Settings
-
-        </a>
-
-        <a
-
-          class="top-link cta"
-
-          href="request-ride.html?mode=driver"
-
-          data-intent="request_ride_start"
-
-          data-i18n="navBook"
-
-        >
-
-          Book Ride
-
-        </a>
-
+      <nav class="top-links" aria-label="Primary navigation">
+        <a class="top-link" href="#how-it-works" data-i18n="navHow">How It Works</a>
+        <a class="top-link" href="#safety" data-i18n="navSafety">Safety</a>
+        <a class="top-link" href="#services" data-i18n="navServices">Services</a>
+        <a class="top-link" href="foundation.html" data-track="foundation_nav" data-i18n="navFoundation">Foundation</a>
+        <a class="top-link" href="settings.html" data-track="settings_nav" data-i18n="navSettings">⚙ Settings</a>
+        <a class="top-link cta" href="request-ride.html?mode=driver" data-intent="request_ride_start" data-i18n="navBook">Book Ride</a>
       </nav>
-
     </header>
 
     <!-- ANNOUNCEMENT -->
-
-    <section class="announce">
-
+    <section class="announce" role="region" aria-label="Platform announcement">
       <div class="announce-copy">
-
-        <strong data-i18n="announceTitle">
-
-          Harvey Taxi Code Blue Platform
-
-        </strong>
-
-        <span data-i18n="announceCopy">
-
-          Tennessee rides, future delivery,
-
-          driver opportunities, foundation support,
-
-          AI assistance, and autonomous pilot
-
-          technologies in one ecosystem.
-
-        </span>
-
+        <strong data-i18n="announceTitle">Harvey Taxi Code Blue Platform</strong>
+        <span data-i18n="announceCopy">Tennessee rides, delivery, driver opportunities, foundation support, AI assistance, and autonomous pilot — one ecosystem.</span>
       </div>
-
-      <a
-
-        class="btn success"
-
-        href="request-ride.html?mode=driver"
-
-        data-intent="request_ride_start"
-
-        data-i18n="requestRide"
-
-      >
-
-        Request Ride
-
-      </a>
-
+      <a class="btn success" href="request-ride.html?mode=driver" data-intent="request_ride_start" data-i18n="requestRide">Request Ride</a>
     </section>
 
     <!-- INCLUSION STRIP -->
-
-    <section class="inclusive-strip">
-
-      <strong data-i18n="inclusiveTitle">
-
-        Built for every community.
-
-      </strong>
-
-      <p data-i18n="inclusiveCopy">
-
-        Harvey Taxi respects all ethnicities,
-
-        cultures, languages, families, seniors,
-
-        workers, students, people with disabilities,
-
-        immigrants, visitors, and underserved
-
-        communities seeking safe transportation access.
-
-      </p>
-
+    <section class="inclusion-strip" role="region" aria-label="Community inclusion">
+      <strong data-i18n="inclusiveTitle">Built for every community.</strong>
+      <p data-i18n="inclusiveCopy">Harvey Taxi respects all ethnicities, cultures, languages, families, seniors, workers, students, people with disabilities, immigrants, visitors, and underserved communities seeking safe transportation access.</p>
     </section>
 
     <main id="main-content">
 
       <!-- HERO -->
-
-      <section class="hero">
-
+      <section class="hero" aria-labelledby="hero-heading">
         <div class="hero-grid">
 
+          <!-- LEFT -->
           <div>
-
-            <div
-
-              class="hero-badge"
-
-              data-i18n="heroBadge"
-
-            >
-
-              VERIFIED OPERATIONS • LIVE SUPPORT
-
+            <div class="hero-badge" aria-label="Platform live status" data-i18n="heroBadge">
+              <span class="live-pulse" aria-hidden="true">
+                <span class="live-pulse-dot"></span>
+                <span class="live-pulse-ring"></span>
+                <span class="live-pulse-ring"></span>
+              </span>
+              VERIFIED OPERATIONS · LIVE SUPPORT
             </div>
 
-            <h1 class="hero-title">
-
-              <span data-i18n="heroTitleA">
-
-                Tennessee Transportation
-
-              </span>
-
-              <span
-
-                class="gradient-text"
-
-                data-i18n="heroTitleB"
-
-              >
-
-                Reimagined
-
-              </span>
-
+            <h1 class="hero-title" id="hero-heading">
+              <span data-i18n="heroTitleA">Tennessee Transportation</span><br>
+              <span class="gradient-text" data-i18n="heroTitleB">Reimagined</span>
             </h1>
 
-            <p
-
-              class="hero-copy"
-
-              data-i18n="heroCopy"
-
-            >
-
-              Harvey Taxi combines rider access,
-
-              driver opportunities,
-
-              transportation assistance,
-
-              AI support, and future mobility
-
-              services into one connected
-
-              Tennessee platform.
-
+            <p class="hero-copy" data-i18n="heroCopy">
+              Harvey Taxi combines rider access, driver opportunities, transportation assistance, AI support, and future mobility services into one connected Tennessee platform.
             </p>
 
-            <div class="action-container">
-
-              <h4 data-i18n="startJourney">
-
-                Start Your Journey
-
-              </h4>
-
+            <div class="action-box" role="group" aria-labelledby="action-box-label">
+              <div class="action-box-label" id="action-box-label" data-i18n="startJourney">Start Your Journey</div>
               <div class="primary-actions">
-
-                <a
-
-                  class="btn primary"
-
-                  href="request-ride.html?mode=driver"
-
-                  data-intent="request_ride_start"
-
-                  data-i18n="requestRideEmoji"
-
-                >
-
-                  🚖 Request Ride
-
-                </a>
-
-                <a
-
-                  class="btn success"
-
-                  href="driver-signup.html"
-
-                  data-intent="driver_signup_start"
-
-                  data-i18n="becomeDriver"
-
-                >
-
-                  🤝 Become A Driver
-
-                </a>
-
+                <a class="btn primary" href="request-ride.html?mode=driver" data-intent="request_ride_start" data-i18n="requestRideEmoji">🚖 Request Ride</a>
+                <a class="btn success" href="driver-signup.html" data-intent="driver_signup_start" data-i18n="becomeDriver">🤝 Become A Driver</a>
               </div>
-
               <div class="secondary-actions">
-
-                <a
-
-                  class="btn ghost"
-
-                  href="rider-signup.html"
-
-                  data-intent="rider_signup_start"
-
-                  data-i18n="riderSignup"
-
-                >
-
-                  Rider Signup
-
+                <a class="btn ghost" href="rider-signup.html" data-intent="rider_signup_start" data-i18n="riderSignup">Rider Signup</a>
+                <a class="btn autonomous" href="request-ride.html?mode=autonomous">
+                  <span data-i18n="autonomous">🤖 Autonomous</span>
+                  <span class="pilot-tag" data-i18n="pilot">PILOT</span>
                 </a>
-
-                <a
-
-                  class="btn autonomous"
-
-                  href="request-ride.html?mode=autonomous"
-
-                >
-
-                  <span data-i18n="autonomous">
-
-                    🤖 Autonomous
-
-                  </span>
-
-                  <span
-
-                    class="pilot-tag"
-
-                    data-i18n="pilot"
-
-                  >
-
-                    PILOT
-
-                  </span>
-
-                </a>
-
-                <a
-
-                  class="btn foundation"
-
-                  href="foundation.html"
-
-                  data-track="foundation_button"
-
-                  data-i18n="foundationEmoji"
-
-                >
-
-                  ❤️ Foundation
-
-                </a>
-
+                <a class="btn foundation" href="foundation.html" data-track="foundation_button" data-i18n="foundationEmoji">❤️ Foundation</a>
               </div>
-
-            </div>            <!-- HERO FEATURE POINTS -->
-
-            <div class="hero-points">
-
-              <div class="hero-point">
-
-                <strong data-i18n="point1Title">
-
-                  Approval Based Access
-
-                </strong>
-
-                <span data-i18n="point1Body">
-
-                  Riders and drivers move through
-
-                  structured onboarding and
-
-                  approval workflows.
-
-                </span>
-
-              </div>
-
-              <div class="hero-point">
-
-                <strong data-i18n="point2Title">
-
-                  AI Support System
-
-                </strong>
-
-                <span data-i18n="point2Body">
-
-                  Built-in support helps riders,
-
-                  drivers, and community members
-
-                  find answers instantly.
-
-                </span>
-
-              </div>
-
-              <div class="hero-point">
-
-                <strong data-i18n="point3Title">
-
-                  Driver Opportunity
-
-                </strong>
-
-                <span data-i18n="point3Body">
-
-                  Create income opportunities
-
-                  while supporting local
-
-                  transportation needs.
-
-                </span>
-
-              </div>
-
-              <div class="hero-point">
-
-                <strong data-i18n="point4Title">
-
-                  Community Mobility
-
-                </strong>
-
-                <span data-i18n="point4Body">
-
-                  Transportation assistance
-
-                  initiatives support access
-
-                  to work, education,
-
-                  and healthcare.
-
-                </span>
-
-              </div>
-
             </div>
 
+            <!-- HERO POINTS -->
+            <div class="hero-points">
+              <div class="hero-point">
+                <strong data-i18n="point1Title">Approval-Based Access</strong>
+                <span data-i18n="point1Body">Riders and drivers move through structured onboarding and approval workflows.</span>
+              </div>
+              <div class="hero-point">
+                <strong data-i18n="point2Title">AI Support System</strong>
+                <span data-i18n="point2Body">Built-in support helps riders, drivers, and community members find answers instantly.</span>
+              </div>
+              <div class="hero-point">
+                <strong data-i18n="point3Title">Driver Opportunity</strong>
+                <span data-i18n="point3Body">Create income opportunities while supporting local transportation needs.</span>
+              </div>
+              <div class="hero-point">
+                <strong data-i18n="point4Title">Community Mobility</strong>
+                <span data-i18n="point4Body">Transportation assistance supports access to work, education, and healthcare.</span>
+              </div>
+            </div>
           </div>
 
-          <!-- RIGHT HERO SIDEBAR -->
+          <!-- RIGHT SIDEBAR -->
+          <aside class="hero-side" aria-label="Platform status and foundation">
 
-          <aside class="hero-side">
-
-            <!-- PLATFORM STATUS -->
-
-            <div class="status-card">
-
-              <div
-
-                class="eyebrow"
-
-                data-i18n="platformStatus"
-
-              >
-
-                Platform Status
-
+            <!-- STATUS CARD -->
+            <div class="side-card">
+              <span class="eyebrow" data-i18n="platformStatus">Platform Status</span>
+              <h3 data-i18n="liveOverview">Live System Overview</h3>
+              <p data-i18n="liveOverviewCopy">Active services clearly separated from pilot and future services.</p>
+              <div class="status-list" role="list">
+                <div class="status-item" role="listitem">
+                  <span data-i18n="driverRides">Driver Rides</span>
+                  <div class="status-pill live">LIVE</div>
+                </div>
+                <div class="status-item" role="listitem">
+                  <span data-i18n="aiSupport">AI Support</span>
+                  <div class="status-pill online">ONLINE</div>
+                </div>
+                <div class="status-item" role="listitem">
+                  <span data-i18n="autonomousHub">Autonomous Hub</span>
+                  <div class="status-pill pilot">PILOT</div>
+                </div>
+                <div class="status-item" role="listitem">
+                  <span data-i18n="foodDelivery">Food Delivery</span>
+                  <div class="status-pill building">BUILDING</div>
+                </div>
+                <div class="status-item" role="listitem">
+                  <span data-i18n="groceryDelivery">Grocery Delivery</span>
+                  <div class="status-pill building">BUILDING</div>
+                </div>
               </div>
-
-              <h3 data-i18n="liveOverview">
-
-                Live System Overview
-
-              </h3>
-
-              <p data-i18n="liveOverviewCopy">
-
-                Active services are clearly
-
-                separated from pilot and
-
-                future services.
-
-              </p>
-
-              <div class="status-list">
-
-                <div class="status-item">
-
-                  <span data-i18n="driverRides">
-
-                    Driver Rides
-
-                  </span>
-
-                  <div class="status-pill">
-
-                    LIVE
-
-                  </div>
-
-                </div>
-
-                <div class="status-item">
-
-                  <span data-i18n="aiSupport">
-
-                    AI Support
-
-                  </span>
-
-                  <div class="status-pill info">
-
-                    ONLINE
-
-                  </div>
-
-                </div>
-
-                <div class="status-item">
-
-                  <span data-i18n="autonomousHub">
-
-                    Autonomous Hub
-
-                  </span>
-
-                  <div class="status-pill pilot">
-
-                    PILOT
-
-                  </div>
-
-                </div>
-
-                <div class="status-item">
-
-                  <span data-i18n="foodDelivery">
-
-                    Food Delivery
-
-                  </span>
-
-                  <div class="status-pill build">
-
-                    BUILDING
-
-                  </div>
-
-                </div>
-
-                <div class="status-item">
-
-                  <span data-i18n="groceryDelivery">
-
-                    Grocery Delivery
-
-                  </span>
-
-                  <div class="status-pill build">
-
-                    BUILDING
-
-                  </div>
-
-                </div>
-
-              </div>
-
             </div>
 
             <!-- FOUNDATION CARD -->
-
-            <div class="foundation-card">
-
-              <div
-
-                class="eyebrow"
-
-                data-i18n="communityImpact"
-
-              >
-
-                Community Impact
-
-              </div>
-
-              <h3 data-i18n="foundationTitle">
-
-                Harvey Transportation
-
-                Assistance Foundation
-
-              </h3>
-
-              <p data-i18n="foundationCopy">
-
-                Helping remove transportation
-
-                barriers for medical visits,
-
-                employment, education,
-
-                and essential mobility needs.
-
-              </p>
-
+            <div class="side-card gold">
+              <span class="eyebrow" data-i18n="communityImpact">Community Impact</span>
+              <h3 data-i18n="foundationTitle">Harvey Transportation Assistance Foundation</h3>
+              <p data-i18n="foundationCopy">Removing transportation barriers for medical visits, employment, education, and essential mobility needs.</p>
               <div style="margin-top:16px;">
-
-                <a
-
-                  class="btn foundation"
-
-                  href="foundation.html"
-
-                  style="width:100%;"
-
-                  data-i18n="exploreFoundation"
-
-                >
-
-                  Explore Foundation
-
-                </a>
-
+                <a class="btn foundation" href="foundation.html" style="width:100%;" data-i18n="exploreFoundation">Explore Foundation</a>
               </div>
-
             </div>
 
             <!-- COMMUNITY CARD -->
-
-            <div class="community-card">
-
-              <div class="eyebrow">
-
-                Global Communities
-
-              </div>
-
-              <h3>
-
-                Everyone Welcome
-
-              </h3>
-
-              <p>
-
-                Harvey Taxi welcomes riders,
-
-                drivers, families, immigrants,
-
-                visitors, students, seniors,
-
-                veterans, healthcare patients,
-
-                and communities from every
-
-                background and culture.
-
-              </p>
-
+            <div class="side-card violet">
+              <span class="eyebrow">Global Communities</span>
+              <h3>Everyone Welcome</h3>
+              <p>Harvey Taxi welcomes riders, drivers, families, immigrants, visitors, students, seniors, veterans, healthcare patients, and communities from every background and culture.</p>
             </div>
 
           </aside>
-
         </div>
 
         <!-- MINI STATS -->
-
         <div class="mini-stats">
-
           <div class="mini-stat">
-
-            <strong data-i18n="stat1Title">
-
-              Smart Dispatch
-
-            </strong>
-
-            <span data-i18n="stat1Body">
-
-              Driver matching and mission
-
-              based ride assignments.
-
-            </span>
-
+            <strong data-i18n="stat1Title">Smart Dispatch</strong>
+            <span data-i18n="stat1Body">Driver matching and mission-based ride assignments.</span>
           </div>
-
           <div class="mini-stat">
-
-            <strong data-i18n="stat2Title">
-
-              Verified Access
-
-            </strong>
-
-            <span data-i18n="stat2Body">
-
-              Rider and driver onboarding
-
-              built around approval workflows.
-
-            </span>
-
+            <strong data-i18n="stat2Title">Verified Access</strong>
+            <span data-i18n="stat2Body">Rider and driver onboarding built around approval workflows.</span>
           </div>
-
           <div class="mini-stat">
-
-            <strong data-i18n="stat3Title">
-
-              Multi-Service Vision
-
-            </strong>
-
-            <span data-i18n="stat3Body">
-
-              Transportation, delivery,
-
-              and mobility assistance
-
-              under one platform.
-
-            </span>
-
+            <strong data-i18n="stat3Title">Multi-Service Vision</strong>
+            <span data-i18n="stat3Body">Transportation, delivery, and mobility assistance under one platform.</span>
           </div>
-
           <div class="mini-stat">
-
-            <strong data-i18n="stat4Title">
-
-              Tennessee Focus
-
-            </strong>
-
-            <span data-i18n="stat4Body">
-
-              Local growth with plans
-
-              for statewide expansion.
-
-            </span>
-
+            <strong data-i18n="stat4Title">Tennessee Focus</strong>
+            <span data-i18n="stat4Body">Local growth with plans for statewide expansion.</span>
           </div>
-
         </div>
 
-        <!-- AI SUPPORT RESTORED -->
-
+        <!-- AI SUPPORT CALLOUT -->
         <div class="support-callout">
-
           <div>
-
-            <strong data-i18n="supportTitle">
-
-              Need Help Right Now?
-
-            </strong>
-
-            <span data-i18n="supportCopy">
-
-              Open Harvey AI Support
-
-              for rider help,
-
-              driver onboarding,
-
-              account questions,
-
-              or foundation assistance.
-
-            </span>
-
+            <strong data-i18n="supportTitle">Need Help Right Now?</strong>
+            <span data-i18n="supportCopy">Open Harvey AI Support for rider help, driver onboarding, account questions, or foundation assistance.</span>
           </div>
-
-          <button
-
-            class="btn success"
-
-            onclick="openHarveyAiChat();"
-
-            data-i18n="openAiSupport"
-
-          >
-
-            Open AI Support
-
-          </button>
-
+          <button class="btn success" onclick="openHarveyAiChat();" data-i18n="openAiSupport">Open AI Support</button>
         </div>
 
-      </section>      <!-- GLOBAL LANGUAGE SUPPORT -->
+      </section>
 
-      <section class="section">
-
-        <div class="section-header">
-
-          <h2 data-i18n="globalLanguageTitle">
-
-            Global Language Support
-
-          </h2>
-
-          <p class="lead" data-i18n="globalLanguageLead">
-
-            Harvey Taxi is designed to support multilingual communities,
-
-            diverse cultures, and inclusive transportation access.
-
-          </p>
-
+      <!-- GLOBAL LANGUAGE SUPPORT -->
+      <section class="section" aria-labelledby="lang-heading">
+        <div class="section-hd">
+          <h2 id="lang-heading" data-i18n="globalLanguageTitle">Global Language Support</h2>
+          <p class="lead" data-i18n="globalLanguageLead">Harvey Taxi supports multilingual communities, diverse cultures, and inclusive transportation access.</p>
         </div>
-
-        <div class="language-support-grid">
-
-          <div class="language-card">
-
-            <h4>English</h4>
-
-            <p data-i18n="languageEnglish">
-
-              Primary operational language.
-
-            </p>
-
-          </div>
-
-          <div class="language-card">
-
-            <h4>Español</h4>
-
-            <p data-i18n="languageSpanish">
-
-              Spanish rider and driver support.
-
-            </p>
-
-          </div>
-
-          <div class="language-card">
-
-            <h4>Français</h4>
-
-            <p data-i18n="languageFrench">
-
-              French accessibility support.
-
-            </p>
-
-          </div>
-
-          <div class="language-card">
-
-            <h4>العربية</h4>
-
-            <p data-i18n="languageArabic">
-
-              Arabic right-to-left support.
-
-            </p>
-
-          </div>
-
-          <div class="language-card">
-
-            <h4>Kiswahili</h4>
-
-            <p data-i18n="languageSwahili">
-
-              East African community support.
-
-            </p>
-
-          </div>
-
-          <div class="language-card">
-
-            <h4>中文</h4>
-
-            <p data-i18n="languageChinese">
-
-              Chinese language accessibility.
-
-            </p>
-
-          </div>
-
-          <div class="language-card">
-
-            <h4>हिन्दी</h4>
-
-            <p data-i18n="languageHindi">
-
-              Hindi language support.
-
-            </p>
-
-          </div>
-
-          <div class="language-card">
-
-            <h4>Português</h4>
-
-            <p data-i18n="languagePortuguese">
-
-              Portuguese language support.
-
-            </p>
-
-          </div>
-
+        <div class="grid-4">
+          <div class="lang-tile"><h4>English</h4><p data-i18n="languageEnglish">Primary operational language.</p></div>
+          <div class="lang-tile"><h4>Español</h4><p data-i18n="languageSpanish">Spanish rider and driver support.</p></div>
+          <div class="lang-tile"><h4>Français</h4><p data-i18n="languageFrench">French accessibility support.</p></div>
+          <div class="lang-tile"><h4>العربية</h4><p data-i18n="languageArabic">Arabic right-to-left support.</p></div>
+          <div class="lang-tile"><h4>Kiswahili</h4><p data-i18n="languageSwahili">East African community support.</p></div>
+          <div class="lang-tile"><h4>中文</h4><p data-i18n="languageChinese">Chinese language accessibility.</p></div>
+          <div class="lang-tile"><h4>हिन्दी</h4><p data-i18n="languageHindi">Hindi language support.</p></div>
+          <div class="lang-tile"><h4>Português</h4><p data-i18n="languagePortuguese">Portuguese language support.</p></div>
         </div>
-
       </section>
 
       <!-- COMMUNITY INCLUSION -->
-
-      <section class="section">
-
-        <div class="section-header">
-
-          <h2 data-i18n="communityInclusionTitle">
-
-            Community Inclusion
-
-          </h2>
-
-          <p class="lead" data-i18n="communityInclusionLead">
-
-            Transportation should remain accessible,
-
-            respectful, and welcoming to everyone.
-
-          </p>
-
+      <section class="section" aria-labelledby="community-heading">
+        <div class="section-hd">
+          <h2 id="community-heading" data-i18n="communityInclusionTitle">Community Inclusion</h2>
+          <p class="lead" data-i18n="communityInclusionLead">Transportation should remain accessible, respectful, and welcoming to everyone.</p>
         </div>
-
-        <div class="community-grid">
-
-          <div class="community-card-box">
-
-            <h4 data-i18n="familiesTitle">
-
-              Families & Children
-
-            </h4>
-
-            <p data-i18n="familiesBody">
-
-              Transportation supporting families,
-
-              caregivers, and children.
-
-            </p>
-
-          </div>
-
-          <div class="community-card-box">
-
-            <h4 data-i18n="seniorsTitle">
-
-              Seniors
-
-            </h4>
-
-            <p data-i18n="seniorsBody">
-
-              Mobility assistance and transportation
-
-              access for older adults.
-
-            </p>
-
-          </div>
-
-          <div class="community-card-box">
-
-            <h4 data-i18n="studentsTitle">
-
-              Students
-
-            </h4>
-
-            <p data-i18n="studentsBody">
-
-              Transportation helping students access
-
-              schools, colleges, and training.
-
-            </p>
-
-          </div>
-
-          <div class="community-card-box">
-
-            <h4 data-i18n="healthcareAccessTitle">
-
-              Healthcare Access
-
-            </h4>
-
-            <p data-i18n="healthcareAccessBody">
-
-              Transportation supporting healthcare,
-
-              wellness, and medical appointments.
-
-            </p>
-
-          </div>
-
-          <div class="community-card-box">
-
-            <h4 data-i18n="workersTitle">
-
-              Workers
-
-            </h4>
-
-            <p data-i18n="workersBody">
-
-              Transportation helping people reach
-
-              employment opportunities.
-
-            </p>
-
-          </div>
-
-          <div class="community-card-box">
-
-            <h4 data-i18n="visitorsTitle">
-
-              Visitors & New Residents
-
-            </h4>
-
-            <p data-i18n="visitorsBody">
-
-              Accessible transportation for travelers,
-
-              newcomers, and visitors.
-
-            </p>
-
-          </div>
-
+        <div class="grid-3" style="margin-top:4px;">
+          <div class="community-tile"><h4 data-i18n="familiesTitle">Families &amp; Children</h4><p data-i18n="familiesBody">Transportation supporting families, caregivers, and children.</p></div>
+          <div class="community-tile"><h4 data-i18n="seniorsTitle">Seniors</h4><p data-i18n="seniorsBody">Mobility assistance and transportation access for older adults.</p></div>
+          <div class="community-tile"><h4 data-i18n="studentsTitle">Students</h4><p data-i18n="studentsBody">Transportation helping students access schools, colleges, and training.</p></div>
+          <div class="community-tile"><h4 data-i18n="healthcareAccessTitle">Healthcare Access</h4><p data-i18n="healthcareAccessBody">Transportation supporting healthcare, wellness, and medical appointments.</p></div>
+          <div class="community-tile"><h4 data-i18n="workersTitle">Workers</h4><p data-i18n="workersBody">Transportation helping people reach employment opportunities.</p></div>
+          <div class="community-tile"><h4 data-i18n="visitorsTitle">Visitors &amp; New Residents</h4><p data-i18n="visitorsBody">Accessible transportation for travelers, newcomers, and visitors.</p></div>
         </div>
-
       </section>
 
       <!-- HOW IT WORKS -->
-
-      <section
-
-        class="section"
-
-        id="how-it-works"
-
-      >
-
-        <div class="section-header">
-
-          <h2 data-i18n="howTitle">
-
-            How Harvey Taxi Works
-
-          </h2>
-
-          <p class="lead" data-i18n="howLead">
-
-            A cleaner transportation flow from signup to dispatch.
-
-          </p>
-
+      <section class="section" id="how-it-works" aria-labelledby="how-heading">
+        <div class="section-hd">
+          <h2 id="how-heading" data-i18n="howTitle">How Harvey Taxi Works</h2>
+          <p class="lead" data-i18n="howLead">A cleaner transportation flow from signup to dispatch.</p>
         </div>
-
-        <div class="grid">
-
-          <div class="card">
-
-            <strong data-i18n="how1Title">
-
-              1. Create Account
-
-            </strong>
-
-            <span data-i18n="how1Body">
-
-              Start as a rider or driver.
-
-            </span>
-
-          </div>
-
-          <div class="card">
-
-            <strong data-i18n="how2Title">
-
-              2. Verification
-
-            </strong>
-
-            <span data-i18n="how2Body">
-
-              Complete onboarding requirements.
-
-            </span>
-
-          </div>
-
-          <div class="card">
-
-            <strong data-i18n="how3Title">
-
-              3. Request Ride
-
-            </strong>
-
-            <span data-i18n="how3Body">
-
-              Enter trip details and preferences.
-
-            </span>
-
-          </div>
-
-          <div class="card">
-
-            <strong data-i18n="how4Title">
-
-              4. Driver Match
-
-            </strong>
-
-            <span data-i18n="how4Body">
-
-              Connect with the best available driver.
-
-            </span>
-
-          </div>
-
-          <div class="card">
-
-            <strong data-i18n="how5Title">
-
-              5. Complete Trip
-
-            </strong>
-
-            <span data-i18n="how5Body">
-
-              Ride safely with support available.
-
-            </span>
-
-          </div>
-
-          <div class="card">
-
-            <strong data-i18n="how6Title">
-
-              6. Rate Experience
-
-            </strong>
-
-            <span data-i18n="how6Body">
-
-              Help improve platform quality.
-
-            </span>
-
-          </div>
-
+        <div class="grid-3">
+          <div class="card"><strong data-i18n="how1Title">1. Create Account</strong><span data-i18n="how1Body">Start as a rider or driver.</span></div>
+          <div class="card"><strong data-i18n="how2Title">2. Verification</strong><span data-i18n="how2Body">Complete onboarding requirements.</span></div>
+          <div class="card"><strong data-i18n="how3Title">3. Request Ride</strong><span data-i18n="how3Body">Enter trip details and preferences.</span></div>
+          <div class="card"><strong data-i18n="how4Title">4. Driver Match</strong><span data-i18n="how4Body">Connect with the best available driver.</span></div>
+          <div class="card"><strong data-i18n="how5Title">5. Complete Trip</strong><span data-i18n="how5Body">Ride safely with support available.</span></div>
+          <div class="card"><strong data-i18n="how6Title">6. Rate Experience</strong><span data-i18n="how6Body">Help improve platform quality.</span></div>
         </div>
+      </section>
 
-      </section>      <!-- SAFETY & TRUST -->
-
-      <section
-
-        class="section"
-
-        id="safety"
-
-      >
-
-        <div class="section-header">
-
-          <h2 data-i18n="safetyTitle">
-
-            Safety & Trust
-
-          </h2>
-
-          <p class="lead" data-i18n="safetyLead">
-
-            Harvey Taxi is built around accountability,
-
-            onboarding, support, verification,
-
-            and safer mobility.
-
-          </p>
-
+      <!-- SAFETY & TRUST -->
+      <section class="section" id="safety" aria-labelledby="safety-heading">
+        <div class="section-hd">
+          <h2 id="safety-heading" data-i18n="safetyTitle">Safety &amp; Trust</h2>
+          <p class="lead" data-i18n="safetyLead">Harvey Taxi is built around accountability, onboarding, support, verification, and safer mobility.</p>
         </div>
-
-        <div class="info-grid">
-
+        <div class="grid-info">
           <div class="highlight">
-
-            <h3 data-i18n="accountabilityTitle">
-
-              Designed For Accountability
-
-            </h3>
-
-            <p data-i18n="accountabilityCopy">
-
-              Harvey Taxi separates rider,
-
-              driver, support, and foundation
-
-              workflows to create a cleaner,
-
-              more transparent experience.
-
-            </p>
-
+            <h3 data-i18n="accountabilityTitle">Designed For Accountability</h3>
+            <p data-i18n="accountabilityCopy">Harvey Taxi separates rider, driver, support, and foundation workflows to create a cleaner, more transparent experience.</p>
             <div class="pill-row">
-
-              <div class="pill">
-
-                Driver Approval
-
-              </div>
-
-              <div class="pill">
-
-                Rider Approval
-
-              </div>
-
-              <div class="pill">
-
-                Live Support
-
-              </div>
-
-              <div class="pill">
-
-                Trip Tracking
-
-              </div>
-
-              <div class="pill">
-
-                Mission Dispatch
-
-              </div>
-
-              <div class="pill">
-
-                Identity Verification
-
-              </div>
-
+              <div class="pill">Driver Approval</div>
+              <div class="pill">Rider Approval</div>
+              <div class="pill">Live Support</div>
+              <div class="pill">Trip Tracking</div>
+              <div class="pill">Mission Dispatch</div>
+              <div class="pill">Identity Verification</div>
             </div>
-
           </div>
-
-          <div class="list">
-
+          <div class="list-items">
             <div class="list-item">
-
-              <strong>
-
-                Verified Drivers
-
-              </strong>
-
-              <span>
-
-                Driver onboarding may include
-
-                identity verification,
-
-                documentation review,
-
-                and platform approval.
-
-              </span>
-
+              <strong>Verified Drivers</strong>
+              <span>Driver onboarding may include identity verification, documentation review, and platform approval.</span>
             </div>
-
             <div class="list-item">
-
-              <strong>
-
-                Support Access
-
-              </strong>
-
-              <span>
-
-                Harvey AI and support tools
-
-                help riders and drivers
-
-                receive guidance when needed.
-
-              </span>
-
+              <strong>Support Access</strong>
+              <span>Harvey AI and support tools help riders and drivers receive guidance when needed.</span>
             </div>
-
             <div class="list-item">
-
-              <strong>
-
-                Future Ready Platform
-
-              </strong>
-
-              <span>
-
-                Architecture designed for
-
-                transportation, delivery,
-
-                logistics, and future mobility.
-
-              </span>
-
+              <strong>Future-Ready Platform</strong>
+              <span>Architecture designed for transportation, delivery, logistics, and future mobility.</span>
             </div>
-
           </div>
-
         </div>
-
       </section>
 
       <!-- SERVICES HUB -->
-
-      <section
-
-        class="section"
-
-        id="services"
-
-      >
-
-        <div class="section-header">
-
-          <h2 data-i18n="servicesTitle">
-
-            Harvey Platform Services
-
-          </h2>
-
-          <p class="lead" data-i18n="servicesLead">
-
-            Transportation remains the primary
-
-            active service while logistics,
-
-            delivery, and autonomous features
-
-            continue development.
-
-          </p>
-
+      <section class="section" id="services" aria-labelledby="services-heading">
+        <div class="section-hd">
+          <h2 id="services-heading" data-i18n="servicesTitle">Harvey Platform Services</h2>
+          <p class="lead" data-i18n="servicesLead">Transportation is the primary active service while logistics, delivery, and autonomous features continue development.</p>
         </div>
-
-        <div class="service-row">
-
-          <!-- RIDE SERVICE -->
-
+        <div class="grid-4">
           <div class="service-card">
-
             <div>
-
-              <h3>
-
-                🚖 Standard Driver Ride
-
-              </h3>
-
-              <p>
-
-                Request rides through the active
-
-                Harvey Taxi transportation platform.
-
-              </p>
-
+              <h3>🚖 Standard Driver Ride</h3>
+              <p>Request rides through the active Harvey Taxi transportation platform.</p>
             </div>
-
-            <a
-
-              class="btn primary"
-
-              href="request-ride.html?mode=driver"
-
-              data-intent="service_standard_ride"
-
-            >
-
-              Book Ride
-
-            </a>
-
+            <a class="btn primary" href="request-ride.html?mode=driver" data-intent="service_standard_ride">Book Ride</a>
           </div>
-
-          <!-- AUTONOMOUS -->
-
           <div class="service-card">
-
             <div>
-
-              <h3>
-
-                🤖 Autonomous Pilot
-
-              </h3>
-
-              <p>
-
-                Explore future autonomous ride
-
-                experiences through Harvey Taxi's
-
-                pilot initiative.
-
-              </p>
-
+              <h3>🤖 Autonomous Pilot</h3>
+              <p>Explore future autonomous ride experiences through Harvey Taxi's pilot initiative.</p>
             </div>
-
-            <a
-
-              class="btn autonomous"
-
-              href="request-ride.html?mode=autonomous"
-
-            >
-
-              Open Pilot
-
-            </a>
-
+            <a class="btn autonomous" href="request-ride.html?mode=autonomous">Open Pilot</a>
           </div>
-
-          <!-- FOOD -->
-
           <div class="service-card">
-
             <div>
-
-              <h3>
-
-                🍔 Food Delivery
-
-              </h3>
-
-              <p>
-
-                Future Harvey Logistics
-
-                delivery ecosystem supporting
-
-                restaurants and local businesses.
-
-              </p>
-
+              <h3>🍔 Food Delivery</h3>
+              <p>Future Harvey Logistics delivery ecosystem supporting restaurants and local businesses.</p>
             </div>
-
-            <button
-
-              class="btn primary"
-
-              onclick="showUnderConstruction('Food Delivery')"
-
-            >
-
-              Coming Soon
-
-            </button>
-
+            <button class="btn ghost" onclick="showUnderConstruction('Food Delivery')">Coming Soon</button>
           </div>
-
-          <!-- GROCERY -->
-
           <div class="service-card">
-
             <div>
-
-              <h3>
-
-                🛒 Grocery Delivery
-
-              </h3>
-
-              <p>
-
-                Grocery delivery workflows
-
-                designed for future
-
-                Tennessee logistics expansion.
-
-              </p>
-
+              <h3>🛒 Grocery Delivery</h3>
+              <p>Grocery delivery workflows designed for future Tennessee logistics expansion.</p>
             </div>
-
-            <a
-
-              class="btn success"
-
-              href="grocery-delivery.html"
-
-            >
-
-              Open Grocery
-
-            </a>
-
+            <a class="btn success" href="grocery-delivery.html">Open Grocery</a>
           </div>
-
         </div>
 
         <!-- PLATFORM HUBS -->
-
-        <div
-
-          class="grid"
-
-          style="margin-top:16px;"
-
-        >
-
-          <a
-
-            class="card"
-
-            href="driver-dashboard.html"
-
-          >
-
-            <strong>
-
-              Driver Dashboard
-
-            </strong>
-
-            <span>
-
-              Availability, earnings,
-
-              missions, dispatch,
-
-              and driver tools.
-
-            </span>
-
-          </a>
-
-          <a
-
-            class="card"
-
-            href="rider-dashboard.html"
-
-          >
-
-            <strong>
-
-              Rider Dashboard
-
-            </strong>
-
-            <span>
-
-              Ride activity,
-
-              account readiness,
-
-              and trip history.
-
-            </span>
-
-          </a>
-
-          <a
-
-            class="card"
-
-            href="support.html"
-
-          >
-
-            <strong>
-
-              Harvey Support Center
-
-            </strong>
-
-            <span>
-
-              Rider, driver,
-
-              payment, foundation,
-
-              and account support.
-
-            </span>
-
-          </a>
-
-          <a
-
-            class="card"
-
-            href="foundation.html"
-
-          >
-
-            <strong>
-
-              Foundation Hub
-
-            </strong>
-
-            <span>
-
-              Transportation assistance
-
-              applications, donations,
-
-              and community programs.
-
-            </span>
-
-          </a>
-
-          <a
-
-            class="card"
-
-            href="settings.html"
-
-          >
-
-            <strong>
-
-              Settings Center
-
-            </strong>
-
-            <span>
-
-              Accessibility,
-
-              battery optimization,
-
-              safety settings,
-
-              and account tools.
-
-            </span>
-
-          </a>
-
-          <a
-
-            class="card"
-
-            href="driver-signup.html"
-
-          >
-
-            <strong>
-
-              Driver Signup
-
-            </strong>
-
-            <span>
-
-              Begin the Harvey Taxi
-
-              driver onboarding process.
-
-            </span>
-
-          </a>
-
+        <div class="grid-3" style="margin-top:16px;">
+          <a class="card" href="driver-dashboard.html"><strong>Driver Dashboard</strong><span>Availability, earnings, missions, dispatch, and driver tools.</span></a>
+          <a class="card" href="rider-dashboard.html"><strong>Rider Dashboard</strong><span>Ride activity, account readiness, and trip history.</span></a>
+          <a class="card" href="support.html"><strong>Harvey Support Center</strong><span>Rider, driver, payment, foundation, and account support.</span></a>
+          <a class="card" href="foundation.html"><strong>Foundation Hub</strong><span>Transportation assistance applications, donations, and community programs.</span></a>
+          <a class="card" href="settings.html"><strong>Settings Center</strong><span>Accessibility, battery optimization, safety settings, and account tools.</span></a>
+          <a class="card" href="driver-signup.html"><strong>Driver Signup</strong><span>Begin the Harvey Taxi driver onboarding process.</span></a>
         </div>
+      </section>
 
-      </section>      <!-- TENNESSEE COVERAGE -->
-
-      <section class="section">
-
-        <div class="section-header">
-
-          <h2 data-i18n="coverageTitle">
-
-            Tennessee Coverage Focus
-
-          </h2>
-
-          <p class="lead" data-i18n="coverageLead">
-
-            Harvey Taxi is focused on Tennessee mobility
-
-            with a Nashville-first growth strategy and
-
-            future statewide expansion.
-
-          </p>
-
+      <!-- TENNESSEE COVERAGE -->
+      <section class="section" aria-labelledby="coverage-heading">
+        <div class="section-hd">
+          <h2 id="coverage-heading" data-i18n="coverageTitle">Tennessee Coverage Focus</h2>
+          <p class="lead" data-i18n="coverageLead">Harvey Taxi is focused on Tennessee mobility with a Nashville-first growth strategy and future statewide expansion.</p>
         </div>
-
-        <div class="coverage-grid">
-
-          <div class="coverage-card">
-
-            <strong>
-
-              Nashville
-
-            </strong>
-
-            <span>
-
-              Primary operating market and
-
-              transportation launch region.
-
-            </span>
-
-          </div>
-
-          <div class="coverage-card">
-
-            <strong>
-
-              Davidson County
-
-            </strong>
-
-            <span>
-
-              Early growth, rider support,
-
-              and driver onboarding focus.
-
-            </span>
-
-          </div>
-
-          <div class="coverage-card">
-
-            <strong>
-
-              Airport Access
-
-            </strong>
-
-            <span>
-
-              BNA transportation support,
-
-              travel routes, and airport trips.
-
-            </span>
-
-          </div>
-
-          <div class="coverage-card">
-
-            <strong>
-
-              Statewide Expansion
-
-            </strong>
-
-            <span>
-
-              Long-term Tennessee mobility
-
-              expansion strategy.
-
-            </span>
-
-          </div>
-
+        <div class="grid-4">
+          <div class="tile"><strong>Nashville</strong><span>Primary operating market and transportation launch region.</span></div>
+          <div class="tile"><strong>Davidson County</strong><span>Early growth, rider support, and driver onboarding focus.</span></div>
+          <div class="tile"><strong>Airport Access</strong><span>BNA transportation support, travel routes, and airport trips.</span></div>
+          <div class="tile"><strong>Statewide Expansion</strong><span>Long-term Tennessee mobility expansion strategy.</span></div>
         </div>
-
-        <!-- FUTURE EXPANSION -->
-
-        <div
-
-          class="grid"
-
-          style="margin-top:20px;"
-
-        >
-
-          <div class="card">
-
-            <strong>
-
-              Middle Tennessee
-
-            </strong>
-
-            <span>
-
-              Nashville, Murfreesboro,
-
-              Smyrna, Franklin,
-
-              and surrounding areas.
-
-            </span>
-
-          </div>
-
-          <div class="card">
-
-            <strong>
-
-              East Tennessee
-
-            </strong>
-
-            <span>
-
-              Future support for Knoxville,
-
-              Chattanooga,
-
-              and regional transportation.
-
-            </span>
-
-          </div>
-
-          <div class="card">
-
-            <strong>
-
-              West Tennessee
-
-            </strong>
-
-            <span>
-
-              Long-term service planning
-
-              including Memphis
-
-              transportation corridors.
-
-            </span>
-
-          </div>
-
+        <div class="grid-3" style="margin-top:16px;">
+          <div class="card"><strong>Middle Tennessee</strong><span>Nashville, Murfreesboro, Smyrna, Franklin, and surrounding areas.</span></div>
+          <div class="card"><strong>East Tennessee</strong><span>Future support for Knoxville, Chattanooga, and regional transportation.</span></div>
+          <div class="card"><strong>West Tennessee</strong><span>Long-term service planning including Memphis transportation corridors.</span></div>
         </div>
-
       </section>
 
       <!-- COMPANY & COMMUNITY SUPPORT -->
-
-      <section class="section">
-
-        <div class="section-header">
-
-          <h2 data-i18n="companyTitle">
-
-            Company & Community Support
-
-          </h2>
-
-          <p class="lead" data-i18n="companyLead">
-
-            Harvey Taxi Service LLC connects
-
-            transportation, technology,
-
-            driver opportunity,
-
-            logistics innovation,
-
-            and community mobility assistance.
-
-          </p>
-
+      <section class="section" aria-labelledby="company-heading">
+        <div class="section-hd">
+          <h2 id="company-heading" data-i18n="companyTitle">Company &amp; Community Support</h2>
+          <p class="lead" data-i18n="companyLead">Harvey Taxi Service LLC connects transportation, technology, driver opportunity, logistics innovation, and community mobility assistance.</p>
         </div>
-
-        <div class="info-grid">
-
-          <!-- COMPANY SIDE -->
-
+        <div class="grid-info">
           <div class="highlight">
-
-            <h3>
-
-              Harvey Taxi Service LLC
-
-            </h3>
-
-            <p>
-
-              Harvey Taxi is building a
-
-              technology-enabled transportation
-
-              ecosystem focused on safer rides,
-
-              driver opportunities,
-
-              AI-powered support,
-
-              future logistics,
-
-              and mobility innovation.
-
-            </p>
-
+            <h3>Harvey Taxi Service LLC</h3>
+            <p>Harvey Taxi is building a technology-enabled transportation ecosystem focused on safer rides, driver opportunities, AI-powered support, future logistics, and mobility innovation.</p>
             <div class="pill-row">
-
-              <div class="pill">
-
-                Safe Rides
-
-              </div>
-
-              <div class="pill">
-
-                Driver Opportunity
-
-              </div>
-
-              <div class="pill">
-
-                AI Support
-
-              </div>
-
-              <div class="pill">
-
-                Community Mobility
-
-              </div>
-
-              <div class="pill">
-
-                Logistics
-
-              </div>
-
-              <div class="pill">
-
-                Future Mobility
-
-              </div>
-
+              <div class="pill">Safe Rides</div>
+              <div class="pill">Driver Opportunity</div>
+              <div class="pill">AI Support</div>
+              <div class="pill">Community Mobility</div>
+              <div class="pill">Logistics</div>
+              <div class="pill">Future Mobility</div>
             </div>
-
           </div>
-
-          <!-- CONTACTS -->
-
-          <div class="list">
-
-            <div class="list-item">
-
-              <strong>
-
-                Support Email
-
-              </strong>
-
-              <span>
-
-                support@harveytaxiservice.com
-
-              </span>
-
-            </div>
-
-            <div class="list-item">
-
-              <strong>
-
-                Administrative Contact
-
-              </strong>
-
-              <span>
-
-                williebee@harveytaxiservice.com
-
-              </span>
-
-            </div>
-
-            <div class="list-item">
-
-              <strong>
-
-                Driver Opportunities
-
-              </strong>
-
-              <span>
-
-                Apply through the Harvey Taxi
-
-                driver onboarding process.
-
-              </span>
-
-            </div>
-
-            <div class="list-item">
-
-              <strong>
-
-                Foundation Mission
-
-              </strong>
-
-              <span>
-
-                Transportation assistance for
-
-                healthcare, employment,
-
-                education, and essential needs.
-
-              </span>
-
-            </div>
-
+          <div class="list-items">
+            <div class="list-item"><strong>Support Email</strong><span>support@harveytaxiservice.com</span></div>
+            <div class="list-item"><strong>Administrative Contact</strong><span>williebee@harveytaxiservice.com</span></div>
+            <div class="list-item"><strong>Driver Opportunities</strong><span>Apply through the Harvey Taxi driver onboarding process.</span></div>
+            <div class="list-item"><strong>Foundation Mission</strong><span>Transportation assistance for healthcare, employment, education, and essential needs.</span></div>
           </div>
-
         </div>
-
-        <!-- QUICK ACTIONS -->
-
-        <div
-
-          class="actions"
-
-          style="margin-top:18px;"
-
-        >
-
-          <a
-
-            class="btn ghost"
-
-            href="privacy.html"
-
-          >
-
-            Privacy Policy
-
-          </a>
-
-          <a
-
-            class="btn ghost"
-
-            href="terms.html"
-
-          >
-
-            Terms of Service
-
-          </a>
-
-          <a
-
-            class="btn ghost"
-
-            href="settings.html"
-
-          >
-
-            Settings
-
-          </a>
-
-          <a
-
-            class="btn success"
-
-            href="support.html"
-
-          >
-
-            Support Center
-
-          </a>
-
-          <a
-
-            class="btn foundation"
-
-            href="foundation.html"
-
-          >
-
-            Foundation Hub
-
-          </a>
-
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:20px;">
+          <a class="btn ghost" href="privacy.html">Privacy Policy</a>
+          <a class="btn ghost" href="terms.html">Terms of Service</a>
+          <a class="btn ghost" href="settings.html">Settings</a>
+          <a class="btn success" href="support.html">Support Center</a>
+          <a class="btn foundation" href="foundation.html">Foundation Hub</a>
         </div>
-
-        <!-- FOUNDATION SPOTLIGHT -->
-
-        <div
-
-          class="support-callout"
-
-          style="margin-top:24px;"
-
-        >
-
+        <div class="support-callout" style="margin-top:24px;">
           <div>
-
-            <strong>
-
-              Harvey Transportation
-
-              Assistance Foundation
-
-            </strong>
-
-            <span>
-
-              Supporting transportation access
-
-              for healthcare appointments,
-
-              employment opportunities,
-
-              education programs,
-
-              and essential mobility needs
-
-              throughout Tennessee.
-
-            </span>
-
+            <strong>Harvey Transportation Assistance Foundation</strong>
+            <span>Supporting transportation access for healthcare appointments, employment opportunities, education programs, and essential mobility needs throughout Tennessee.</span>
           </div>
-
-          <a
-
-            class="btn foundation"
-
-            href="foundation.html"
-
-          >
-
-            Explore Foundation
-
-          </a>
-
+          <a class="btn foundation" href="foundation.html">Explore Foundation</a>
         </div>
-
-      </section>      <!-- APP ECOSYSTEM SECTION -->
-
-      <section class="section">
-
-        <div class="section-header">
-
-          <h2>
-
-            Harvey Taxi Ecosystem
-
-          </h2>
-
-          <p class="lead">
-
-            Transportation, logistics,
-
-            driver opportunity,
-
-            community mobility,
-
-            and future innovation
-
-            connected through one platform.
-
-          </p>
-
-        </div>
-
-        <div class="grid">
-
-          <div class="card">
-
-            <strong>
-
-              📱 Mobile Platform
-
-            </strong>
-
-            <span>
-
-              Access Harvey Taxi services
-
-              directly from your smartphone.
-
-            </span>
-
-          </div>
-
-          <div class="card">
-
-            <strong>
-
-              🚖 Transportation
-
-            </strong>
-
-            <span>
-
-              Safe transportation access
-
-              through Harvey Taxi.
-
-            </span>
-
-          </div>
-
-          <div class="card">
-
-            <strong>
-
-              🤝 Driver Opportunity
-
-            </strong>
-
-            <span>
-
-              Create earning opportunities
-
-              while serving communities.
-
-            </span>
-
-          </div>
-
-          <div class="card">
-
-            <strong>
-
-              ❤️ Foundation Support
-
-            </strong>
-
-            <span>
-
-              Transportation assistance
-
-              through HTAF programs.
-
-            </span>
-
-          </div>
-
-          <div class="card">
-
-            <strong>
-
-              🧠 AI Assistance
-
-            </strong>
-
-            <span>
-
-              Intelligent support for riders,
-
-              drivers, and partners.
-
-            </span>
-
-          </div>
-
-          <div class="card">
-
-            <strong>
-
-              🚀 Future Mobility
-
-            </strong>
-
-            <span>
-
-              Autonomous and logistics
-
-              innovation initiatives.
-
-            </span>
-
-          </div>
-
-        </div>
-
       </section>
 
-      <!-- ELITE FOOTER -->
+      <!-- APP ECOSYSTEM -->
+      <section class="section" aria-labelledby="ecosystem-heading">
+        <div class="section-hd">
+          <h2 id="ecosystem-heading">Harvey Taxi Ecosystem</h2>
+          <p class="lead">Transportation, logistics, driver opportunity, community mobility, and future innovation — connected through one platform.</p>
+        </div>
+        <div class="grid-3">
+          <div class="card"><strong>📱 Mobile Platform</strong><span>Access Harvey Taxi services directly from your smartphone. Live on the Apple App Store.</span></div>
+          <div class="card"><strong>🚖 Transportation</strong><span>Safe transportation access through Harvey Taxi's verified driver network.</span></div>
+          <div class="card"><strong>🤝 Driver Opportunity</strong><span>Create earning opportunities while serving communities across Tennessee.</span></div>
+          <div class="card"><strong>❤️ Foundation Support</strong><span>Transportation assistance through HTAF programs and community initiatives.</span></div>
+          <div class="card"><strong>🧠 AI Assistance</strong><span>Intelligent support for riders, drivers, and community partners.</span></div>
+          <div class="card"><strong>🚀 Future Mobility</strong><span>Autonomous and logistics innovation initiatives in active development.</span></div>
+        </div>
+      </section>
 
+      <!-- FOOTER -->
       <footer class="footer">
-
         <div>
-
-          <span class="footer-title">
-
-            Harvey Taxi Service LLC
-
-          </span>
-
-          <p>
-
-            Tennessee transportation,
-
-            driver opportunities,
-
-            AI support,
-
-            future logistics,
-
-            autonomous mobility initiatives,
-
-            and community transportation
-
-            assistance through the
-
-            Harvey Transportation
-
-            Assistance Foundation.
-
-          </p>
-
+          <span class="footer-title">Harvey Taxi Service LLC</span>
+          <p>Tennessee transportation, driver opportunities, AI support, future logistics, autonomous mobility initiatives, and community transportation assistance through the Harvey Transportation Assistance Foundation.</p>
         </div>
-
-        <div class="actions">
-
-          <a
-
-            class="btn ghost"
-
-            href="privacy.html"
-
-          >
-
-            Privacy
-
-          </a>
-
-          <a
-
-            class="btn ghost"
-
-            href="terms.html"
-
-          >
-
-            Terms
-
-          </a>
-
-          <a
-
-            class="btn ghost"
-
-            href="settings.html"
-
-          >
-
-            Settings
-
-          </a>
-
-          <a
-
-            class="btn success"
-
-            href="support.html"
-
-          >
-
-            Support
-
-          </a>
-
-          <a
-
-            class="btn foundation"
-
-            href="foundation.html"
-
-          >
-
-            Foundation
-
-          </a>
-
+        <div class="footer-actions">
+          <a class="btn ghost" href="privacy.html">Privacy</a>
+          <a class="btn ghost" href="terms.html">Terms</a>
+          <a class="btn ghost" href="settings.html">Settings</a>
+          <a class="btn success" href="support.html">Support</a>
+          <a class="btn foundation" href="foundation.html">Foundation</a>
         </div>
-
       </footer>
 
     </main>
-
   </div>
 
-  <!-- ELITE MOBILE NAVIGATION -->
-
-  <nav
-
-    class="bottom-nav"
-
-    aria-label="Bottom Navigation"
-
-  >
-
-    <button
-
-      class="nav-btn active"
-
-      onclick="safeGo('index.html','bottom_home')"
-
-    >
-
-      <span>
-
-        🏠 Home
-
-      </span>
-
+  <!-- BOTTOM NAV -->
+  <nav class="bottom-nav" aria-label="Bottom navigation">
+    <button class="nav-btn active" onclick="safeGo('index.html','bottom_home')" aria-label="Home" aria-current="page">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.5z"/><path d="M9 21V12h6v9"/></svg>
+      Home
     </button>
-
-    <button
-
-      class="nav-btn"
-
-      onclick="safeGo('request-ride.html?mode=driver','bottom_trip')"
-
-    >
-
-      <span>
-
-        🚖 Trips
-
-      </span>
-
+    <button class="nav-btn" onclick="safeGo('request-ride.html?mode=driver','bottom_trip')" aria-label="Trips">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+      Trips
     </button>
-
-    <button
-
-      class="nav-btn"
-
-      onclick="safeGo('foundation.html','bottom_foundation')"
-
-    >
-
-      <span>
-
-        ❤️ HTAF
-
-      </span>
-
+    <button class="nav-btn" onclick="safeGo('foundation.html','bottom_foundation')" aria-label="Foundation">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      HTAF
     </button>
-
-    <button
-
-      class="nav-btn"
-
-      onclick="safeGo('driver-dashboard.html','bottom_driver')"
-
-    >
-
-      <span>
-
-        🤝 Driver
-
-      </span>
-
+    <button class="nav-btn" onclick="safeGo('driver-dashboard.html','bottom_driver')" aria-label="Driver dashboard">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Driver
     </button>
-
-    <button
-
-      class="nav-btn"
-
-      onclick="safeGo('settings.html','bottom_settings')"
-
-    >
-
-      <span>
-
-        ⚙ Settings
-
-      </span>
-
+    <button class="nav-btn" onclick="safeGo('settings.html','bottom_settings')" aria-label="Settings">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Settings
     </button>
-
   </nav>
 
-  <!-- AI ROOT -->
+  <!-- AI FAB (fallback, visible if widget not loaded) -->
+  <button class="harvey-ai-fab" id="harvey-ai-fab" onclick="openHarveyAiChat();" aria-label="Open Harvey AI Support">💬</button>
 
-  <div id="harvey-ai-chat-root"></div>
+  <!-- AI Chat Window (built-in, no external dependency) -->
+  <div id="harvey-ai-window" class="harvey-ai-window" style="display:none;" role="dialog" aria-label="Harvey AI Support" aria-modal="true">
+    <div class="harvey-ai-header">
+      <div class="harvey-ai-header-left">
+        <span class="harvey-ai-header-icon" aria-hidden="true">🧠</span>
+        <div>
+          <div style="font-size:15px;font-weight:900;">Harvey AI Support</div>
+          <div style="font-size:11px;font-weight:600;opacity:0.75;">Powered by Claude · Harvey Taxi</div>
+        </div>
+      </div>
+      <button class="harvey-ai-close-btn" onclick="closeHarveyAiChat();" aria-label="Close AI Support">×</button>
+    </div>
+    <div class="harvey-ai-body" id="harvey-ai-body" aria-live="polite">
+      <div class="ai-msg bot">Hi! I'm Harvey AI, your Tennessee mobility assistant. I can help with rides, driver questions, foundation support, account help, and more. How can I assist you today?</div>
+    </div>
+    <div class="harvey-ai-footer">
+      <input id="harvey-ai-input" class="harvey-ai-input" type="text" placeholder="Ask about rides, drivers, foundation..." aria-label="Message Harvey AI" maxlength="400" />
+      <button id="harvey-ai-send" class="harvey-ai-send" onclick="sendHarveyAiMessage();" aria-label="Send message">Send</button>
+    </div>
+  </div>
 
-  <!-- AI SUPPORT WIDGET -->
+  <!-- UNDER CONSTRUCTION MODAL PLACEHOLDER -->
+  <div id="modal-root"></div>
 
-  <script src="/ai-support-widget.js"></script>
+  <!-- AI widget (optional external) -->
+  <script src="/ai-support-widget.js" onerror="console.warn('AI widget not available — using built-in chat')"></script>
 
-  <!-- APP INITIALIZATION PLACEHOLDER -->
-
+  <!-- ============================================================
+       ALL APP JS — single block, correct declaration order
+       ============================================================ -->
   <script>
+    /* ---- Constants declared first so every function below can reference them ---- */
+    const HARVEY_APP_VERSION = "index-code-blue-v14";
 
-    document.addEventListener(
-
-      "DOMContentLoaded",
-
-      function () {
-
-        console.log(
-
-          "Harvey Taxi Platform Initialized"
-
-        );
-
-      }
-
-    );
-
-  </script>
-
-</body>
-
-</html>
-
-``  <!-- COMPLETE CODE BLUE JAVASCRIPT UPGRADE -->
-
-  <script>
-
-    const HARVEY_APP_VERSION = "index-code-blue-v13-ai-recovery";
-
-    window.HARVEY_API_BASE =
-
-      window.location.origin &&
-
-      window.location.origin.includes("http")
-
-        ? window.location.origin
-
-        : "https://harvey-taxi-app-2.onrender.com";
+    window.HARVEY_API_BASE = (window.location.origin && window.location.origin.includes("http"))
+      ? window.location.origin
+      : "https://harvey-taxi-app-2.onrender.com";
 
     const STORAGE_KEYS = {
-
-      language: "harvey_language",
-
-      highContrast: "harvey_high_contrast",
-
-      largeText: "harvey_large_text",
-
+      language:      "harvey_language",
+      highContrast:  "harvey_high_contrast",
+      largeText:     "harvey_large_text",
       reducedMotion: "harvey_reduced_motion",
-
-      preferredDriver: "harvey_preferred_driver_id",
-
       notifications: "harvey_notifications_enabled"
-
     };
 
-    function safeGo(path, eventName) {
+    const TRANSLATIONS = {
+      en: {
+        metaTitle: "Harvey Taxi | Safe Tennessee Rides, Driver Access, Delivery, AI Support, and Foundation Mobility",
+        skipContent: "Skip to content",
+        languageTitle: "Language & Accessibility",
+        languageCopy: "Harvey Taxi welcomes every rider, driver, family, culture, and community.",
+        contrastBtn: "High Contrast",
+        largeTextBtn: "Larger Text",
+        motionBtn: "Reduce Motion",
+        brandSub: "Tennessee Mobility Platform",
+        navHow: "How It Works",
+        navSafety: "Safety",
+        navServices: "Services",
+        navFoundation: "Foundation",
+        navSettings: "⚙ Settings",
+        navBook: "Book Ride",
+        announceTitle: "Harvey Taxi Code Blue Platform",
+        announceCopy: "Tennessee rides, delivery, driver opportunities, foundation support, AI assistance, and autonomous pilot — one ecosystem.",
+        requestRide: "Request Ride",
+        inclusiveTitle: "Built for every community.",
+        inclusiveCopy: "Harvey Taxi respects all ethnicities, cultures, languages, families, seniors, workers, students, people with disabilities, immigrants, visitors, and underserved communities seeking safe transportation access.",
+        heroBadge: "VERIFIED OPERATIONS · LIVE SUPPORT",
+        heroTitleA: "Tennessee Transportation",
+        heroTitleB: "Reimagined",
+        heroCopy: "Harvey Taxi combines rider access, driver opportunities, transportation assistance, AI support, and future mobility services into one connected Tennessee platform.",
+        startJourney: "Start Your Journey",
+        requestRideEmoji: "🚖 Request Ride",
+        becomeDriver: "🤝 Become A Driver",
+        riderSignup: "Rider Signup",
+        autonomous: "🤖 Autonomous",
+        pilot: "PILOT",
+        foundationEmoji: "❤️ Foundation",
+        point1Title: "Approval-Based Access",
+        point1Body: "Riders and drivers move through structured onboarding and approval workflows.",
+        point2Title: "AI Support System",
+        point2Body: "Built-in support helps riders, drivers, and community members find answers instantly.",
+        point3Title: "Driver Opportunity",
+        point3Body: "Create income opportunities while supporting local transportation needs.",
+        point4Title: "Community Mobility",
+        point4Body: "Transportation assistance supports access to work, education, and healthcare.",
+        platformStatus: "Platform Status",
+        liveOverview: "Live System Overview",
+        liveOverviewCopy: "Active services clearly separated from pilot and future services.",
+        driverRides: "Driver Rides",
+        aiSupport: "AI Support",
+        autonomousHub: "Autonomous Hub",
+        foodDelivery: "Food Delivery",
+        groceryDelivery: "Grocery Delivery",
+        communityImpact: "Community Impact",
+        foundationTitle: "Harvey Transportation Assistance Foundation",
+        foundationCopy: "Removing transportation barriers for medical visits, employment, education, and essential mobility needs.",
+        exploreFoundation: "Explore Foundation",
+        stat1Title: "Smart Dispatch",
+        stat1Body: "Driver matching and mission-based ride assignments.",
+        stat2Title: "Verified Access",
+        stat2Body: "Rider and driver onboarding built around approval workflows.",
+        stat3Title: "Multi-Service Vision",
+        stat3Body: "Transportation, delivery, and mobility assistance under one platform.",
+        stat4Title: "Tennessee Focus",
+        stat4Body: "Local growth with plans for statewide expansion.",
+        supportTitle: "Need Help Right Now?",
+        supportCopy: "Open Harvey AI Support for rider help, driver onboarding, account questions, or foundation assistance.",
+        openAiSupport: "Open AI Support",
+        globalLanguageTitle: "Global Language Support",
+        globalLanguageLead: "Harvey Taxi supports multilingual communities, diverse cultures, and inclusive transportation access.",
+        languageEnglish: "Primary operational language.",
+        languageSpanish: "Spanish rider and driver support.",
+        languageFrench: "French accessibility support.",
+        languageArabic: "Arabic right-to-left support.",
+        languageSwahili: "East African community support.",
+        languageChinese: "Chinese language accessibility.",
+        languageHindi: "Hindi language support.",
+        languagePortuguese: "Portuguese language support.",
+        communityInclusionTitle: "Community Inclusion",
+        communityInclusionLead: "Transportation should remain accessible, respectful, and welcoming to everyone.",
+        familiesTitle: "Families & Children",
+        familiesBody: "Transportation supporting families, caregivers, and children.",
+        seniorsTitle: "Seniors",
+        seniorsBody: "Mobility assistance and transportation access for older adults.",
+        studentsTitle: "Students",
+        studentsBody: "Transportation helping students access schools, colleges, and training.",
+        healthcareAccessTitle: "Healthcare Access",
+        healthcareAccessBody: "Transportation supporting healthcare, wellness, and medical appointments.",
+        workersTitle: "Workers",
+        workersBody: "Transportation helping people reach employment opportunities.",
+        visitorsTitle: "Visitors & New Residents",
+        visitorsBody: "Accessible transportation for travelers, newcomers, and visitors.",
+        howTitle: "How Harvey Taxi Works",
+        howLead: "A cleaner transportation flow from signup to dispatch.",
+        how1Title: "1. Create Account",
+        how1Body: "Start as a rider or driver.",
+        how2Title: "2. Verification",
+        how2Body: "Complete onboarding requirements.",
+        how3Title: "3. Request Ride",
+        how3Body: "Enter trip details and preferences.",
+        how4Title: "4. Driver Match",
+        how4Body: "Connect with the best available driver.",
+        how5Title: "5. Complete Trip",
+        how5Body: "Ride safely with support available.",
+        how6Title: "6. Rate Experience",
+        how6Body: "Help improve platform quality.",
+        safetyTitle: "Safety & Trust",
+        safetyLead: "Harvey Taxi is built around accountability, onboarding, support, verification, and safer mobility.",
+        accountabilityTitle: "Designed For Accountability",
+        accountabilityCopy: "Harvey Taxi separates rider, driver, support, and foundation workflows to create a cleaner, more transparent experience.",
+        servicesTitle: "Harvey Platform Services",
+        servicesLead: "Transportation is the primary active service while logistics, delivery, and autonomous features continue development.",
+        coverageTitle: "Tennessee Coverage Focus",
+        coverageLead: "Harvey Taxi is focused on Tennessee mobility with a Nashville-first growth strategy and future statewide expansion.",
+        companyTitle: "Company & Community Support",
+        companyLead: "Harvey Taxi Service LLC connects transportation, technology, driver opportunity, logistics innovation, and community mobility assistance.",
+      },
+      es: {
+        metaTitle: "Harvey Taxi | Viajes Seguros en Tennessee, Conductores, Entrega, IA y Fundación",
+        skipContent: "Ir al contenido",
+        languageTitle: "Idioma y Accesibilidad",
+        languageCopy: "Harvey Taxi da la bienvenida a todos los pasajeros, conductores, familias, culturas y comunidades.",
+        contrastBtn: "Alto Contraste",
+        largeTextBtn: "Texto Grande",
+        motionBtn: "Reducir Movimiento",
+        brandSub: "Plataforma de Movilidad Tennessee",
+        navHow: "Cómo Funciona",
+        navSafety: "Seguridad",
+        navServices: "Servicios",
+        navFoundation: "Fundación",
+        navSettings: "⚙ Configuración",
+        navBook: "Reservar Viaje",
+        announceTitle: "Plataforma Code Blue de Harvey Taxi",
+        announceCopy: "Viajes en Tennessee, entrega, oportunidades para conductores, apoyo de la fundación, asistencia de IA y piloto autónomo.",
+        requestRide: "Solicitar Viaje",
+        inclusiveTitle: "Construido para cada comunidad.",
+        inclusiveCopy: "Harvey Taxi respeta todas las etnias, culturas, idiomas, familias, personas mayores, trabajadores, estudiantes, personas con discapacidades, inmigrantes, visitantes y comunidades desatendidas.",
+        heroBadge: "OPERACIONES VERIFICADAS · SOPORTE EN VIVO",
+        heroTitleA: "Transporte en Tennessee",
+        heroTitleB: "Reimaginado",
+        heroCopy: "Harvey Taxi combina acceso para pasajeros, oportunidades para conductores, asistencia de transporte, soporte de IA y servicios de movilidad futura en una plataforma Tennessee.",
+        startJourney: "Comienza Tu Viaje",
+        requestRideEmoji: "🚖 Solicitar Viaje",
+        becomeDriver: "🤝 Ser Conductor",
+        riderSignup: "Registro de Pasajero",
+        autonomous: "🤖 Autónomo",
+        pilot: "PILOTO",
+        foundationEmoji: "❤️ Fundación",
+        supportTitle: "¿Necesitas Ayuda Ahora?",
+        supportCopy: "Abre el Soporte de IA Harvey para ayuda con viajes, incorporación de conductores, preguntas de cuenta o asistencia de la fundación.",
+        openAiSupport: "Abrir Soporte IA",
+      },
+      fr: {
+        metaTitle: "Harvey Taxi | Trajets Sûrs au Tennessee, Conducteurs, Livraison, IA et Fondation",
+        skipContent: "Aller au contenu",
+        languageTitle: "Langue et Accessibilité",
+        languageCopy: "Harvey Taxi accueille chaque passager, conducteur, famille, culture et communauté.",
+        contrastBtn: "Contraste Élevé",
+        largeTextBtn: "Texte Agrandi",
+        motionBtn: "Réduire le Mouvement",
+        brandSub: "Plateforme de Mobilité Tennessee",
+        navHow: "Comment ça marche",
+        navSafety: "Sécurité",
+        navServices: "Services",
+        navFoundation: "Fondation",
+        navSettings: "⚙ Paramètres",
+        navBook: "Réserver",
+        announceTitle: "Plateforme Code Blue Harvey Taxi",
+        announceCopy: "Trajets Tennessee, livraison, opportunités conducteurs, soutien de la fondation, assistance IA et pilote autonome.",
+        requestRide: "Demander un Trajet",
+        inclusiveTitle: "Construit pour chaque communauté.",
+        inclusiveCopy: "Harvey Taxi respecte toutes les ethnies, cultures, langues, familles, aînés, travailleurs, étudiants, personnes handicapées, immigrants, visiteurs et communautés mal desservies.",
+        heroBadge: "OPÉRATIONS VÉRIFIÉES · SUPPORT EN DIRECT",
+        heroTitleA: "Transport au Tennessee",
+        heroTitleB: "Réinventé",
+        heroCopy: "Harvey Taxi combine accès passagers, opportunités conducteurs, assistance transport, support IA et services de mobilité future en une plateforme Tennessee.",
+        startJourney: "Commencez Votre Voyage",
+        requestRideEmoji: "🚖 Demander un Trajet",
+        becomeDriver: "🤝 Devenir Conducteur",
+        riderSignup: "Inscription Passager",
+        autonomous: "🤖 Autonome",
+        pilot: "PILOTE",
+        foundationEmoji: "❤️ Fondation",
+        supportTitle: "Besoin d'aide maintenant ?",
+        supportCopy: "Ouvrez le support IA Harvey pour l'aide aux passagers, l'intégration des conducteurs, les questions de compte ou l'assistance de la fondation.",
+        openAiSupport: "Ouvrir le Support IA",
+      },
+      ar: {
+        metaTitle: "Harvey Taxi | رحلات تينيسي الآمنة، السائقون، التوصيل، دعم الذكاء الاصطناعي والمؤسسة",
+        skipContent: "تخطى إلى المحتوى",
+        languageTitle: "اللغة وإمكانية الوصول",
+        languageCopy: "هارفي تاكسي يرحب بكل راكب، سائق، عائلة، ثقافة ومجتمع.",
+        contrastBtn: "تباين عالٍ",
+        largeTextBtn: "نص أكبر",
+        motionBtn: "تقليل الحركة",
+        brandSub: "منصة التنقل في تينيسي",
+        navHow: "كيف يعمل",
+        navSafety: "السلامة",
+        navServices: "الخدمات",
+        navFoundation: "المؤسسة",
+        navSettings: "⚙ الإعدادات",
+        navBook: "حجز رحلة",
+        announceTitle: "منصة هارفي تاكسي Code Blue",
+        announceCopy: "رحلات تينيسي، التوصيل، فرص السائقين، دعم المؤسسة، مساعدة الذكاء الاصطناعي والطيار الذاتي.",
+        requestRide: "طلب رحلة",
+        inclusiveTitle: "مبني لكل مجتمع.",
+        inclusiveCopy: "هارفي تاكسي يحترم جميع الأعراق والثقافات واللغات والعائلات وكبار السن والعمال والطلاب وذوي الإعاقات والمهاجرين والزوار والمجتمعات المحرومة.",
+        heroBadge: "عمليات موثقة · دعم مباشر",
+        heroTitleA: "النقل في تينيسي",
+        heroTitleB: "معاد تصوره",
+        heroCopy: "يجمع هارفي تاكسي وصول الركاب وفرص السائقين ومساعدة النقل ودعم الذكاء الاصطناعي وخدمات التنقل المستقبلية في منصة تينيسي واحدة.",
+        startJourney: "ابدأ رحلتك",
+        requestRideEmoji: "🚖 طلب رحلة",
+        becomeDriver: "🤝 كن سائقاً",
+        riderSignup: "تسجيل الراكب",
+        autonomous: "🤖 ذاتي",
+        pilot: "تجريبي",
+        foundationEmoji: "❤️ المؤسسة",
+        supportTitle: "هل تحتاج مساعدة الآن؟",
+        supportCopy: "افتح دعم الذكاء الاصطناعي هارفي للمساعدة في الرحلات وتأهيل السائقين وأسئلة الحساب أو مساعدة المؤسسة.",
+        openAiSupport: "فتح دعم الذكاء الاصطناعي",
+      }
+    };
 
-      trackHarveyEvent(eventName || "navigation_click", {
+    /* ---- Utilities ---- */
+    function safeGet(key, fallback = "") { try { return localStorage.getItem(key) || fallback; } catch { return fallback; } }
+    function safeSet(key, val) { try { localStorage.setItem(key, String(val)); } catch {} }
 
-        destination: path
-
-      });
-
-      window.location.href = path;
-
-    }
-
-    function trackHarveyEvent(eventName, params = {}) {
-
+    function trackEvent(name, params = {}) {
       try {
-
         if (typeof gtag === "function") {
-
-          gtag("event", eventName, {
-
-            app_name: "Harvey Taxi",
-
-            page_location: window.location.href,
-
-            app_version: HARVEY_APP_VERSION,
-
-            ...params
-
-          });
-
+          gtag("event", name, { app_name: "Harvey Taxi", app_version: HARVEY_APP_VERSION, page_location: location.href, ...params });
         }
-
-      } catch (error) {
-
-        console.warn("Tracking failed:", error);
-
-      }
-
-    }
-
-    function safeStorageGet(key, fallback = "") {
-
-      try {
-
-        return localStorage.getItem(key) || fallback;
-
-      } catch {
-
-        return fallback;
-
-      }
-
-    }
-
-    function safeStorageSet(key, value) {
-
-      try {
-
-        localStorage.setItem(key, String(value));
-
       } catch {}
-
     }
 
-    function safeStorageRemove(key) {
-
-      try {
-
-        localStorage.removeItem(key);
-
-      } catch {}
-
+    function safeGo(path, event) {
+      trackEvent(event || "navigation_click", { destination: path });
+      window.location.href = path;
     }
 
-    function ensureAiRoot() {
+    /* ---- i18n ---- */
+    function applyLanguage(lang) {
+      const dict = TRANSLATIONS[lang] || TRANSLATIONS.en;
+      document.querySelectorAll("[data-i18n]").forEach(el => {
+        const key = el.dataset.i18n;
+        if (dict[key] === undefined) return;
 
-      let root = document.getElementById("harvey-ai-chat-root");
-
-      if (!root) {
-
-        root = document.createElement("div");
-
-        root.id = "harvey-ai-chat-root";
-
-        document.body.appendChild(root);
-
-      }
-
-      return root;
-
-    }
-
-    function injectAiFallbackButton() {
-
-      if (document.getElementById("harvey-ai-fallback-button")) {
-
-        return;
-
-      }
-
-      const button = document.createElement("button");
-
-      button.id = "harvey-ai-fallback-button";
-
-      button.type = "button";
-
-      button.innerHTML = "💬 Harvey AI";
-
-      button.style.position = "fixed";
-
-      button.style.right = "18px";
-
-      button.style.bottom = "calc(92px + env(safe-area-inset-bottom))";
-
-      button.style.zIndex = "9998";
-
-      button.style.border = "0";
-
-      button.style.borderRadius = "999px";
-
-      button.style.padding = "14px 18px";
-
-      button.style.fontWeight = "900";
-
-      button.style.color = "#07121f";
-
-      button.style.background = "linear-gradient(135deg,#63f5ff,#5ea0ff)";
-
-      button.style.boxShadow = "0 18px 42px rgba(0,0,0,.35)";
-
-      button.addEventListener("click", openHarveyAiChat);
-
-      document.body.appendChild(button);
-
-    }
-
-    function openHarveyAiChat() {
-
-      trackHarveyEvent("ai_support_open");
-
-      try {
-
-        ensureAiRoot();
-
-        if (
-
-          window.HarveyAI &&
-
-          typeof window.HarveyAI.open === "function"
-
-        ) {
-
-          window.HarveyAI.open();
-
+        // If the element has no child ELEMENTS (pure text node), safe to set textContent
+        if (el.children.length === 0) {
+          el.textContent = dict[key];
           return;
-
         }
 
-        const root = document.getElementById("harvey-ai-chat-root");
-
-        const launcher =
-
-          root?.querySelector("[data-harvey-ai-open]") ||
-
-          root?.querySelector(".harvey-ai-launch") ||
-
-          root?.querySelector("button");
-
-        if (launcher && typeof launcher.click === "function") {
-
-          launcher.click();
-
-          return;
-
+        // Element has child elements (e.g. <a> with emoji + <span class="pilot-tag">)
+        // Find and update the first direct text node only — leave child elements alone
+        const textNode = Array.from(el.childNodes).find(n => n.nodeType === Node.TEXT_NODE && n.textContent.trim());
+        if (textNode) {
+          textNode.textContent = dict[key];
+        } else {
+          // No direct text node — safe to set textContent (no child elements would be lost)
+          el.textContent = dict[key];
         }
-
-        showAiFallbackPanel();
-
-      } catch (error) {
-
-        showAiFallbackPanel();
-
-      }
-
-    }
-
-    function showAiFallbackPanel() {
-
-      const existing = document.getElementById("harvey-ai-fallback-panel");
-
-      if (existing) {
-
-        existing.remove();
-
-      }
-
-      const panel = document.createElement("div");
-
-      panel.id = "harvey-ai-fallback-panel";
-
-      panel.style.position = "fixed";
-
-      panel.style.right = "18px";
-
-      panel.style.bottom = "calc(150px + env(safe-area-inset-bottom))";
-
-      panel.style.width = "min(390px, calc(100vw - 28px))";
-
-      panel.style.zIndex = "9999";
-
-      panel.style.borderRadius = "24px";
-
-      panel.style.border = "1px solid rgba(122,162,255,.35)";
-
-      panel.style.background = "linear-gradient(160deg,#091126,#101935)";
-
-      panel.style.boxShadow = "0 25px 60px rgba(0,0,0,.48)";
-
-      panel.style.padding = "20px";
-
-      panel.style.color = "#f4f7ff";
-
-      panel.innerHTML = `
-
-        <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;">
-
-          <div>
-
-            <strong style="display:block;font-size:18px;margin-bottom:6px;">
-
-              Harvey AI Support
-
-            </strong>
-
-            <span style="display:block;color:#aab8de;font-size:14px;line-height:1.6;">
-
-              The AI widget file may still be loading. You can open the support center now or keep this fallback button active.
-
-            </span>
-
-          </div>
-
-          <button
-
-            type="button"
-
-            id="close-ai-fallback"
-
-            style="background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.12);border-radius:999px;width:36px;height:36px;font-weight:900;"
-
-          >
-
-            ×
-
-          </button>
-
-        </div>
-
-        <div style="display:grid;gap:10px;margin-top:16px;">
-
-          <a
-
-            href="support.html"
-
-            style="display:flex;justify-content:center;align-items:center;text-decoration:none;border-radius:16px;min-height:48px;background:linear-gradient(135deg,#6dffb3,#89ffd0);color:#062014;font-weight:900;"
-
-          >
-
-            Open Support Center
-
-          </a>
-
-          <button
-
-            type="button"
-
-            id="retry-ai-widget"
-
-            style="border-radius:16px;min-height:48px;background:rgba(255,255,255,.06);color:#fff;border:1px solid rgba(255,255,255,.12);font-weight:900;"
-
-          >
-
-            Retry AI Widget
-
-          </button>
-
-        </div>
-
-      `;
-
-      document.body.appendChild(panel);
-
-      document
-
-        .getElementById("close-ai-fallback")
-
-        ?.addEventListener("click", () => panel.remove());
-
-      document
-
-        .getElementById("retry-ai-widget")
-
-        ?.addEventListener("click", () => {
-
-          panel.remove();
-
-          reloadAiWidget();
-
-        });
-
-    }
-
-    function reloadAiWidget() {
-
-      ensureAiRoot();
-
-      const existingScript = document.querySelector(
-
-        'script[src="/ai-support-widget.js"]'
-
-      );
-
-      if (existingScript) {
-
-        existingScript.remove();
-
-      }
-
-      const script = document.createElement("script");
-
-      script.src = `/ai-support-widget.js?v=${Date.now()}`;
-
-      script.async = true;
-
-      script.onload = () => {
-
-        trackHarveyEvent("ai_widget_reloaded");
-
-        setTimeout(openHarveyAiChat, 350);
-
-      };
-
-      script.onerror = () => {
-
-        trackHarveyEvent("ai_widget_reload_failed");
-
-        showAiFallbackPanel();
-
-      };
-
-      document.body.appendChild(script);
-
-    }
-
-    function restoreAccessibilitySettings() {
-
-      const settings = [
-
-        {
-
-          key: STORAGE_KEYS.highContrast,
-
-          className: "high-contrast",
-
-          buttonId: "contrast-toggle"
-
-        },
-
-        {
-
-          key: STORAGE_KEYS.largeText,
-
-          className: "large-text",
-
-          buttonId: "text-toggle"
-
-        },
-
-        {
-
-          key: STORAGE_KEYS.reducedMotion,
-
-          className: "reduced-motion",
-
-          buttonId: "motion-toggle"
-
-        }
-
-      ];
-
-      settings.forEach((item) => {
-
-        const active = safeStorageGet(item.key) === "1";
-
-        document.body.classList.toggle(item.className, active);
-
-        document
-
-          .getElementById(item.buttonId)
-
-          ?.classList.toggle("active", active);
-
       });
-
-    }
-
-    function toggleAccessibility(className, key, button) {
-
-      const active = !document.body.classList.contains(className);
-
-      document.body.classList.toggle(className, active);
-
-      button?.classList.toggle("active", active);
-
-      safeStorageSet(key, active ? "1" : "0");
-
-      trackHarveyEvent("accessibility_toggle", {
-
-        setting: key,
-
-        active
-
-      });
-
-    }
-
-    function bindAccessibilityButtons() {
-
-      document
-
-        .getElementById("contrast-toggle")
-
-        ?.addEventListener("click", function () {
-
-          toggleAccessibility(
-
-            "high-contrast",
-
-            STORAGE_KEYS.highContrast,
-
-            this
-
-          );
-
-        });
-
-      document
-
-        .getElementById("text-toggle")
-
-        ?.addEventListener("click", function () {
-
-          toggleAccessibility(
-
-            "large-text",
-
-            STORAGE_KEYS.largeText,
-
-            this
-
-          );
-
-        });
-
-      document
-
-        .getElementById("motion-toggle")
-
-        ?.addEventListener("click", function () {
-
-          toggleAccessibility(
-
-            "reduced-motion",
-
-            STORAGE_KEYS.reducedMotion,
-
-            this
-
-          );
-
-        });
-
-    }
-
-    function detectDevicePerformance() {
-
-      const memory = navigator.deviceMemory || 4;
-
-      const cores = navigator.hardwareConcurrency || 4;
-
-      const connection =
-
-        navigator.connection ||
-
-        navigator.webkitConnection ||
-
-        navigator.mozConnection;
-
-      const saveData = Boolean(connection?.saveData);
-
-      const slowConnection =
-
-        ["slow-2g", "2g", "3g"].includes(connection?.effectiveType);
-
-      return {
-
-        lowPower: memory <= 2 || cores <= 2 || saveData || slowConnection,
-
-        memory,
-
-        cores,
-
-        saveData,
-
-        effectiveType: connection?.effectiveType || "unknown"
-
-      };
-
-    }
-
-    function applyBatteryOptimizer() {
-
-      const performance = detectDevicePerformance();
-
-      if (performance.lowPower) {
-
-        document.body.classList.add("reduced-motion");
-
-        safeStorageSet(STORAGE_KEYS.reducedMotion, "1");
-
-        document
-
-          .getElementById("motion-toggle")
-
-          ?.classList.add("active");
-
-      }
-
-      trackHarveyEvent("battery_optimizer_checked", performance);
-
-    }
-
-    function requestNotificationPermission() {
-
-      if (!("Notification" in window)) {
-
-        return;
-
-      }
-
-      if (Notification.permission === "default") {
-
-        Notification.requestPermission().then((permission) => {
-
-          safeStorageSet(
-
-            STORAGE_KEYS.notifications,
-
-            permission === "granted" ? "1" : "0"
-
-          );
-
-          trackHarveyEvent("notification_permission", {
-
-            permission
-
-          });
-
-        });
-
-      }
-
-    }
-
-    function showLocalNotification(title, body) {
-
-      try {
-
-        if (
-
-          "Notification" in window &&
-
-          Notification.permission === "granted"
-
-        ) {
-
-          new Notification(title, {
-
-            body,
-
-            icon: "/icon-192.png"
-
-          });
-
-        }
-
-      } catch {}
-
-    }
-
-    async function fetchPlatformStatus() {
-
-      try {
-
-        const response = await fetch(
-
-          `${window.HARVEY_API_BASE}/api/health`,
-
-          {
-
-            cache: "no-store"
-
-          }
-
-        );
-
-        if (!response.ok) {
-
-          throw new Error("Health check failed");
-
-        }
-
-        const data = await response.json();
-
-        trackHarveyEvent("platform_health_ok", {
-
-          ok: true
-
-        });
-
-        return data;
-
-      } catch (error) {
-
-        trackHarveyEvent("platform_health_failed", {
-
-          message: error.message
-
-        });
-
-        return null;
-
-      }
-
-    }
-
-    function bindIntentTracking() {
-
-      document.addEventListener("click", function (event) {
-
-        const intentTarget = event.target.closest("[data-intent]");
-
-        const trackTarget = event.target.closest("[data-track]");
-
-        if (intentTarget) {
-
-          trackHarveyEvent(intentTarget.dataset.intent, {
-
-            event_category: "lead_intent"
-
-          });
-
-          return;
-
-        }
-
-        if (trackTarget) {
-
-          trackHarveyEvent(trackTarget.dataset.track);
-
-        }
-
-      });
-
+      document.documentElement.lang = lang;
+      document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+      safeSet(STORAGE_KEYS.language, lang);
+      trackEvent("language_changed", { lang });
     }
 
     function bindLanguageSelector() {
+      const sel = document.getElementById("language-select");
+      if (!sel) return;
+      const saved = safeGet(STORAGE_KEYS.language, "en");
+      sel.value = TRANSLATIONS[saved] ? saved : "en";
+      sel.addEventListener("change", function () { applyLanguage(this.value); });
+      applyLanguage(sel.value);
+    }
 
-      const select = document.getElementById("language-select");
+    /* ---- Accessibility ---- */
+    function toggleClass(className, key, btn) {
+      const on = !document.body.classList.contains(className);
+      document.body.classList.toggle(className, on);
+      btn?.classList.toggle("active", on);
+      safeSet(key, on ? "1" : "0");
+      trackEvent("accessibility_toggle", { setting: className, active: on });
+    }
 
-      const saved = safeStorageGet(STORAGE_KEYS.language, "en");
+    function restoreAccessibility() {
+      const map = [
+        { key: STORAGE_KEYS.highContrast, cls: "high-contrast", id: "contrast-toggle" },
+        { key: STORAGE_KEYS.largeText,    cls: "large-text",    id: "text-toggle"     },
+        { key: STORAGE_KEYS.reducedMotion,cls: "reduced-motion",id: "motion-toggle"   }
+      ];
+      map.forEach(({ key, cls, id }) => {
+        const on = safeGet(key) === "1";
+        document.body.classList.toggle(cls, on);
+        document.getElementById(id)?.classList.toggle("active", on);
+      });
+    }
 
-      if (select) {
+    function bindAccessibility() {
+      document.getElementById("contrast-toggle")?.addEventListener("click", function () { toggleClass("high-contrast", STORAGE_KEYS.highContrast, this); });
+      document.getElementById("text-toggle")?.addEventListener("click", function () { toggleClass("large-text", STORAGE_KEYS.largeText, this); });
+      document.getElementById("motion-toggle")?.addEventListener("click", function () { toggleClass("reduced-motion", STORAGE_KEYS.reducedMotion, this); });
+    }
 
-        select.value = TRANSLATIONS?.[saved] ? saved : "en";
+    /* ---- Battery / performance optimizer ---- */
+    function applyBatteryOptimizer() {
+      const mem = navigator.deviceMemory || 4;
+      const cores = navigator.hardwareConcurrency || 4;
+      const conn = navigator.connection || navigator.webkitConnection || navigator.mozConnection;
+      const lowPower = mem <= 2 || cores <= 2 || Boolean(conn?.saveData) || ["slow-2g","2g","3g"].includes(conn?.effectiveType);
+      if (lowPower) {
+        document.body.classList.add("reduced-motion");
+        safeSet(STORAGE_KEYS.reducedMotion, "1");
+        document.getElementById("motion-toggle")?.classList.add("active");
+      }
+      trackEvent("battery_optimizer_checked", { lowPower, mem, cores, effectiveType: conn?.effectiveType || "unknown" });
+    }
 
-        select.addEventListener("change", function () {
+    /* ---- Notification permission ---- */
+    function requestNotificationPermission() {
+      if (!("Notification" in window) || Notification.permission !== "default") return;
+      Notification.requestPermission().then(perm => {
+        safeSet(STORAGE_KEYS.notifications, perm === "granted" ? "1" : "0");
+        trackEvent("notification_permission", { perm });
+      });
+    }
 
-          if (typeof applyLanguage === "function") {
+    function showLocalNotification(title, body) {
+      try { if ("Notification" in window && Notification.permission === "granted") new Notification(title, { body, icon: "/icon-192.png" }); } catch {}
+    }
 
-            applyLanguage(this.value);
+    /* ---- Platform health ---- */
+    async function fetchPlatformStatus() {
+      try {
+        const res = await fetch(`${window.HARVEY_API_BASE}/api/health`, { cache: "no-store" });
+        if (!res.ok) throw new Error("Health check failed");
+        const data = await res.json();
+        trackEvent("platform_health_ok");
+        return data;
+      } catch (err) {
+        trackEvent("platform_health_failed", { message: err.message });
+        return null;
+      }
+    }
 
-          }
+    /* ---- Under construction modal ---- */
+    function showUnderConstruction(name) {
+      const root = document.getElementById("modal-root");
+      root.innerHTML = `
+        <div class="modal-overlay" onclick="if(event.target===this)closeModal()" role="dialog" aria-modal="true" aria-label="${name} coming soon">
+          <div class="modal-card">
+            <h3>🚧 ${name} — Coming Soon</h3>
+            <p>This service is currently in development. Harvey Taxi is building a full logistics and delivery ecosystem for Tennessee communities. Stay tuned!</p>
+            <button class="btn primary" onclick="closeModal();" style="width:100%;">Got It</button>
+          </div>
+        </div>`;
+      trackEvent("under_construction_view", { feature: name });
+    }
 
+    function closeModal() {
+      document.getElementById("modal-root").innerHTML = "";
+    }
+
+    /* ---- AI Chat (built-in, Claude API via widget or inline fallback) ---- */
+    let aiChatOpen = false;
+    const aiConversation = [];
+
+    function openHarveyAiChat() {
+      trackEvent("ai_support_open");
+      // Try external widget first
+      if (window.HarveyAI && typeof window.HarveyAI.open === "function") {
+        window.HarveyAI.open(); return;
+      }
+      const win = document.getElementById("harvey-ai-window");
+      if (!win) return;
+      win.style.display = "flex";
+      aiChatOpen = true;
+      document.getElementById("harvey-ai-input")?.focus();
+      // Hide FAB while window is open
+      const fab = document.getElementById("harvey-ai-fab");
+      if (fab) fab.style.display = "none";
+    }
+
+    function closeHarveyAiChat() {
+      const win = document.getElementById("harvey-ai-window");
+      if (win) win.style.display = "none";
+      aiChatOpen = false;
+      const fab = document.getElementById("harvey-ai-fab");
+      if (fab) fab.style.display = "";
+    }
+
+    function appendAiMessage(text, role) {
+      const body = document.getElementById("harvey-ai-body");
+      if (!body) return;
+      const msg = document.createElement("div");
+      msg.className = `ai-msg ${role}`;
+      msg.textContent = text;
+      body.appendChild(msg);
+      body.scrollTop = body.scrollHeight;
+    }
+
+    function showAiTyping() {
+      const body = document.getElementById("harvey-ai-body");
+      if (!body) return null;
+      const t = document.createElement("div");
+      t.className = "ai-typing";
+      t.id = "ai-typing-indicator";
+      t.innerHTML = "<span></span><span></span><span></span>";
+      body.appendChild(t);
+      body.scrollTop = body.scrollHeight;
+      return t;
+    }
+
+    async function sendHarveyAiMessage() {
+      const input = document.getElementById("harvey-ai-input");
+      const sendBtn = document.getElementById("harvey-ai-send");
+      if (!input) return;
+      const text = input.value.trim();
+      if (!text) return;
+
+      input.value = "";
+      sendBtn.disabled = true;
+      appendAiMessage(text, "user");
+      aiConversation.push({ role: "user", content: text });
+
+      const typing = showAiTyping();
+      trackEvent("ai_message_sent", { length: text.length });
+
+      try {
+        const response = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "claude-sonnet-4-6",
+            max_tokens: 1000,
+            system: "You are Harvey AI, the intelligent support assistant for Harvey Taxi Service LLC — a Tennessee mobility platform based in Nashville. You help riders, drivers, and community members with: requesting rides, driver onboarding and requirements, foundation (HTAF) transportation assistance, account issues, app navigation, and general questions about the platform. Keep responses concise, friendly, and action-oriented. Harvey Taxi is built by Willie Harvey IV and serves Tennessee communities including seniors, veterans, and underserved populations. The platform includes rideshare, NEMT services, a 501(c)(3) nonprofit foundation, AI support, food delivery (coming soon), grocery delivery (coming soon), and an autonomous pilot program. Always be warm, helpful, and community-focused.",
+            messages: aiConversation
+          })
         });
 
+        typing?.remove();
+
+        if (!response.ok) throw new Error(`API error ${response.status}`);
+        const data = await response.json();
+        const reply = data.content?.map(b => b.text || "").filter(Boolean).join("\n") || "I'm here to help! For immediate assistance, please visit our support center at support.harveytaxiservice.com.";
+
+        appendAiMessage(reply, "bot");
+        aiConversation.push({ role: "assistant", content: reply });
+        trackEvent("ai_message_received");
+      } catch (err) {
+        typing?.remove();
+        appendAiMessage("I'm having trouble connecting right now. Please visit our support center or email support@harveytaxiservice.com for immediate help.", "bot");
+        trackEvent("ai_message_error", { message: err.message });
+      } finally {
+        sendBtn.disabled = false;
+        input.focus();
       }
-
-      if (typeof applyLanguage === "function") {
-
-        applyLanguage(saved);
-
-      }
-
     }
 
-    function injectQuickSettingsPanel() {
-
-      if (document.getElementById("quick-settings-panel")) {
-
-        return;
-
-      }
-
-      const panel = document.createElement("section");
-
-      panel.id = "quick-settings-panel";
-
-      panel.className = "section";
-
-      panel.innerHTML = `
-
-        <div class="section-header">
-
-          <h2>Quick App Controls</h2>
-
-          <p class="lead">
-
-            Fast access to support, settings, battery optimization, notifications, and account safety.
-
-          </p>
-
-        </div>
-
-        <div class="grid">
-
-          <button class="card" type="button" onclick="openHarveyAiChat();">
-
-            <strong>💬 Open AI Chat</strong>
-
-            <span>Launch Harvey AI Support or fallback support panel.</span>
-
-          </button>
-
-          <button class="card" type="button" onclick="applyBatteryOptimizer();">
-
-            <strong>🔋 Battery Optimizer</strong>
-
-            <span>Reduce motion and optimize performance for lower-power devices.</span>
-
-          </button>
-
-          <button class="card" type="button" onclick="requestNotificationPermission();">
-
-            <strong>🔔 Notifications</strong>
-
-            <span>Allow important ride, driver, and support alerts.</span>
-
-          </button>
-
-          <a class="card" href="settings.html">
-
-            <strong>⚙ Settings</strong>
-
-            <span>Open app settings, accessibility, and preferences.</span>
-
-          </a>
-
-          <a class="card" href="delete-account.html">
-
-            <strong>🗑 Delete Account</strong>
-
-            <span>Request account deletion or data removal.</span>
-
-          </a>
-
-          <a class="card" href="support.html">
-
-            <strong>🛟 Support Center</strong>
-
-            <span>Open Harvey Taxi support for help.</span>
-
-          </a>
-
-        </div>
-
-      `;
-
-      const main = document.getElementById("main-content");
-
-      if (main) {
-
-        main.appendChild(panel);
-
-      }
-
-    }
-
-    function initializeHarveyHomePage() {
-
-      ensureAiRoot();
-
-      injectAiFallbackButton();
-
-      bindIntentTracking();
-
-      bindLanguageSelector();
-
-      bindAccessibilityButtons();
-
-      restoreAccessibilitySettings();
-
-      applyBatteryOptimizer();
-
-      injectQuickSettingsPanel();
-
-      fetchPlatformStatus();
-
-      trackHarveyEvent("page_view_home", {
-
-        initialized: true
-
+    /* ---- Intent tracking ---- */
+    function bindIntentTracking() {
+      document.addEventListener("click", function (e) {
+        const intent = e.target.closest("[data-intent]");
+        const track = e.target.closest("[data-track]");
+        if (intent) { trackEvent(intent.dataset.intent, { event_category: "lead_intent" }); return; }
+        if (track) { trackEvent(track.dataset.track); }
       });
-
-      setTimeout(() => {
-
-        ensureAiRoot();
-
-        if (
-
-          !window.HarveyAI &&
-
-          !document.querySelector(".harvey-ai-launch")
-
-        ) {
-
-          injectAiFallbackButton();
-
-        }
-
-      }, 1000);
-
     }
 
-    window.openHarveyAiChat = openHarveyAiChat;
-
-    window.safeGo = safeGo;
-
-    window.applyBatteryOptimizer = applyBatteryOptimizer;
-
-    window.requestNotificationPermission = requestNotificationPermission;
-
-    window.showLocalNotification = showLocalNotification;
-
-    document.addEventListener(
-
-      "DOMContentLoaded",
-
-      initializeHarveyHomePage
-
-    );
-
-  </script><!-- PART 14 -->
-
-<script>
-
-async function registerHarveyServiceWorker() {
-
-  try {
-
-    if (!("serviceWorker" in navigator)) {
-
-      return;
-
-    }
-
-    const registration =
-
-      await navigator.serviceWorker.register(
-
-        "/service-worker.js",
-
-        {
-
-          scope: "/"
-
-        }
-
-      );
-
-    trackHarveyEvent(
-
-      "service_worker_registered",
-
-      {
-
-        scope: registration.scope
-
-      }
-
-    );
-
-  } catch (error) {
-
-    trackHarveyEvent(
-
-      "service_worker_failed",
-
-      {
-
-        message: error.message
-
-      }
-
-    );
-
-  }
-
-}
-
-function monitorConnectionStatus() {
-
-  function updateStatus() {
-
-    const online = navigator.onLine;
-
-    trackHarveyEvent(
-
-      online
-
-        ? "internet_online"
-
-        : "internet_offline"
-
-    );
-
-    if (!online) {
-
-      showLocalNotification(
-
-        "Harvey Taxi Offline",
-
-        "Connection lost. Some features may be unavailable."
-
-      );
-
-    }
-
-  }
-
-  window.addEventListener(
-
-    "online",
-
-    updateStatus
-
-  );
-
-  window.addEventListener(
-
-    "offline",
-
-    updateStatus
-
-  );
-
-  updateStatus();
-
-}
-
-function startAiHealthMonitor() {
-
-  let aiFailures = 0;
-
-  setInterval(() => {
-
-    const aiLoaded =
-
-      window.HarveyAI ||
-
-      document.querySelector(".harvey-ai-launch") ||
-
-      document.querySelector(
-
-        "#harvey-ai-chat-root button"
-
-      );
-
-    if (aiLoaded) {
-
-      aiFailures = 0;
-
-      return;
-
-    }
-
-    aiFailures++;
-
-    if (aiFailures >= 3) {
-
-      injectAiFallbackButton();
-
-      trackHarveyEvent(
-
-        "ai_auto_recovery_triggered"
-
-      );
-
-      aiFailures = 0;
-
-    }
-
-  }, 15000);
-
-}
-
-function startPlatformHeartbeat() {
-
-  setInterval(async () => {
-
-    try {
-
-      const status =
-
-        await fetchPlatformStatus();
-
-      if (!status) {
-
-        return;
-
-      }
-
-      trackHarveyEvent(
-
-        "heartbeat_ok"
-
-      );
-
-    } catch (error) {
-
-      trackHarveyEvent(
-
-        "heartbeat_failed",
-
-        {
-
-          message: error.message
-
-        }
-
-      );
-
-    }
-
-  }, 300000);
-
-}
-
-function createWelcomeBanner() {
-
-  if (
-
-    sessionStorage.getItem(
-
-      "harvey_welcome_seen"
-
-    ) === "1"
-
-  ) {
-
-    return;
-
-  }
-
-  sessionStorage.setItem(
-
-    "harvey_welcome_seen",
-
-    "1"
-
-  );
-
-  const banner =
-
-    document.createElement("div");
-
-  banner.style.position = "fixed";
-
-  banner.style.top = "20px";
-
-  banner.style.left = "50%";
-
-  banner.style.transform =
-
-    "translateX(-50%)";
-
-  banner.style.zIndex = "99999";
-
-  banner.style.maxWidth = "540px";
-
-  banner.style.width =
-
-    "calc(100vw - 24px)";
-
-  banner.style.padding = "18px";
-
-  banner.style.borderRadius = "20px";
-
-  banner.style.background =
-
-    "linear-gradient(135deg,#63f5ff,#5ea0ff)";
-
-  banner.style.color = "#07121f";
-
-  banner.style.fontWeight = "900";
-
-  banner.style.boxShadow =
-
-    "0 20px 50px rgba(0,0,0,.35)";
-
-  banner.innerHTML = `
-
-    <div
-
-      style="
-
-        display:flex;
-
-        justify-content:space-between;
-
-        gap:12px;
-
-        align-items:center;
-
-      "
-
-    >
-
-      <div>
-
-        Harvey Taxi Platform Loaded
-
-        <div
-
-          style="
-
-            margin-top:6px;
-
-            font-size:13px;
-
-            font-weight:700;
-
-          "
-
-        >
-
-          AI Support • Driver Access • Foundation • Tennessee Mobility
-
+    /* ---- Quick settings panel ---- */
+    function injectQuickSettingsPanel() {
+      if (document.getElementById("quick-settings-panel")) return;
+      const panel = document.createElement("section");
+      panel.id = "quick-settings-panel";
+      panel.className = "section";
+      panel.setAttribute("aria-labelledby", "qs-heading");
+      panel.innerHTML = `
+        <div class="section-hd">
+          <h2 id="qs-heading">Quick App Controls</h2>
+          <p class="lead">Fast access to support, settings, battery optimization, notifications, and account safety.</p>
         </div>
-
-      </div>
-
-      <button
-
-        id="close-welcome-banner"
-
-        style="
-
-          border:none;
-
-          background:#07121f;
-
-          color:white;
-
-          width:38px;
-
-          height:38px;
-
-          border-radius:999px;
-
-          font-weight:900;
-
-        "
-
-      >
-
-        ×
-
-      </button>
-
-    </div>
-
-  `;
-
-  document.body.appendChild(
-
-    banner
-
-  );
-
-  document
-
-    .getElementById(
-
-      "close-welcome-banner"
-
-    )
-
-    ?.addEventListener(
-
-      "click",
-
-      () => banner.remove()
-
-    );
-
-  setTimeout(() => {
-
-    banner.remove();
-
-  }, 8000);
-
-}
-
-function initializeCodeBlueRecovery() {
-
-  registerHarveyServiceWorker();
-
-  monitorConnectionStatus();
-
-  startAiHealthMonitor();
-
-  startPlatformHeartbeat();
-
-  createWelcomeBanner();
-
-  trackHarveyEvent(
-
-    "code_blue_recovery_loaded"
-
-  );
-
-}
-
-window.addEventListener(
-
-  "load",
-
-  initializeCodeBlueRecovery
-
-);
-
-</script>
+        <div class="grid-3">
+          <button class="card" type="button" onclick="openHarveyAiChat();" style="text-align:left;cursor:pointer;">
+            <strong>💬 Open AI Chat</strong><span>Launch Harvey AI Support instantly.</span>
+          </button>
+          <button class="card" type="butto
