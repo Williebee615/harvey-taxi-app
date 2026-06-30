@@ -6,6 +6,14 @@
   <title>Harvey Taxi | Tennessee Mobility Platform – Rides, Drivers, AI Support &amp; Foundation</title>
   <meta name="description" content="Harvey Taxi Service LLC helps Tennessee riders request safe rides, connect with qualified drivers, access AI live support, and explore driver, delivery, foundation, and future mobility services." />
   <meta name="theme-color" content="#040814" />
+  <meta name="robots" content="index, follow" />
+  <meta name="application-name" content="Harvey Taxi" />
+  <meta name="apple-mobile-web-app-title" content="Harvey Taxi" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/icon-192.png" />
+  <link rel="icon" href="/favicon.ico" sizes="any" />
 
   <!-- Open Graph -->
   <meta property="og:type" content="website" />
@@ -27,6 +35,10 @@
     "description": "Tennessee mobility platform combining rideshare, NEMT, AI support, and community transportation assistance.",
     "areaServed": "Tennessee",
     "email": "support@harveytaxiservice.com",
+    "founder": {
+      "@type": "Person",
+      "name": "Willie Harvey IV"
+    },
     "sameAs": ["https://apps.apple.com/us/app/harvey-taxi-mobile"]
   }
   </script>
@@ -1662,7 +1674,7 @@
        ============================================================ -->
   <script>
     /* ---- Constants declared first so every function below can reference them ---- */
-    const HARVEY_APP_VERSION = "index-code-blue-v14";
+    const HARVEY_APP_VERSION = "index-code-blue-v15";
 
     window.HARVEY_API_BASE = (window.location.origin && window.location.origin.includes("http"))
       ? window.location.origin
@@ -3141,27 +3153,53 @@
       });
     }
 
-    /* ---- INIT ---- */
-    function init() {
-      bindLanguageSelector();
-      restoreAccessibility();
-      bindAccessibility();
-      applyBatteryOptimizer();
-      bindIntentTracking();
-      injectQuickSettingsPanel();
-      bindAiKeyboard();
-      fetchPlatformStatus();
+    /* ---- Defensive init wrapper: one failing subsystem can no longer
+       silently break every function that was queued to run after it ---- */
+    function runStep(label, fn) {
+      try {
+        fn();
+      } catch (err) {
+        console.error(`[Harvey Taxi] Step failed: ${label}`, err);
+        trackEvent("init_step_failed", { step: label, message: err?.message || String(err) });
+      }
+    }
+
+    function safeInit() {
+      runStep("bindLanguageSelector", bindLanguageSelector);
+      runStep("restoreAccessibility", restoreAccessibility);
+      runStep("bindAccessibility", bindAccessibility);
+      runStep("applyBatteryOptimizer", applyBatteryOptimizer);
+      runStep("bindIntentTracking", bindIntentTracking);
+      runStep("injectQuickSettingsPanel", injectQuickSettingsPanel);
+      runStep("bindAiKeyboard", bindAiKeyboard);
+      runStep("fetchPlatformStatus", fetchPlatformStatus);
       trackEvent("page_view_home", { initialized: true, version: HARVEY_APP_VERSION });
     }
 
-    function initLoad() {
-      registerServiceWorker();
-      monitorConnection();
-      startAiHealthMonitor();
-      startHeartbeat();
-      showWelcomeBanner();
-      trackEvent("code_blue_v14_loaded");
+    function safeInitLoad() {
+      runStep("registerServiceWorker", registerServiceWorker);
+      runStep("monitorConnection", monitorConnection);
+      runStep("startAiHealthMonitor", startAiHealthMonitor);
+      runStep("startHeartbeat", startHeartbeat);
+      runStep("showWelcomeBanner", showWelcomeBanner);
+      trackEvent("code_blue_v15_loaded");
     }
+
+    // Global safety net: catch otherwise-silent runtime errors and
+    // unhandled promise rejections so they surface in analytics instead
+    // of vanishing (the exact failure mode that broke buttons before).
+    window.addEventListener("error", (event) => {
+      trackEvent("uncaught_error", {
+        message: event?.message || "unknown",
+        source: event?.filename || "unknown",
+        line: event?.lineno || 0
+      });
+    });
+    window.addEventListener("unhandledrejection", (event) => {
+      trackEvent("unhandled_promise_rejection", {
+        reason: event?.reason?.message || String(event?.reason || "unknown")
+      });
+    });
 
     // Expose globals
     window.safeGo = safeGo;
@@ -3174,8 +3212,8 @@
     window.showUnderConstruction = showUnderConstruction;
     window.closeModal = closeModal;
 
-    document.addEventListener("DOMContentLoaded", init);
-    window.addEventListener("load", initLoad);
+    document.addEventListener("DOMContentLoaded", safeInit);
+    window.addEventListener("load", safeInitLoad);
   </script>
 
 </body>
