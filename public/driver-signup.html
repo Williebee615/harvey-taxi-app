@@ -2,20 +2,17 @@
 <html lang="en" dir="ltr">
 <head>
   <meta charset="UTF-8" />
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
-  />
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Harvey Taxi | Driver Sign Up</title>
-
   <meta
     name="description"
     content="Harvey Taxi driver onboarding with adaptive language options, email verification, SMS verification, Persona identity review, Checkr background review, insurance confirmation, and admin approval."
   />
-
   <meta name="theme-color" content="#07111f" />
+  <meta name="application-name" content="Harvey Taxi" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
@@ -26,49 +23,29 @@
       --panel: rgba(11, 21, 48, 0.92);
       --panel2: rgba(16, 29, 61, 0.88);
       --panel3: rgba(255, 255, 255, 0.04);
-
       --line: rgba(111, 170, 255, 0.24);
       --lineStrong: rgba(111, 170, 255, 0.42);
-
       --text: #f5f8ff;
       --muted: #b9c7e8;
       --soft: #dce8ff;
-
       --blue: #68a8ff;
       --cyan: #62f5ff;
       --green: #71ffb7;
       --gold: #ffd86f;
       --danger: #ff7e90;
       --ink: #07111f;
-
       --shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
       --max: 1120px;
-
       --safe-top: env(safe-area-inset-top);
       --safe-bottom: env(safe-area-inset-bottom);
+      --ease: cubic-bezier(0.22, 1, 0.36, 1);
+      --dur: 0.2s;
     }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    html {
-      scroll-behavior: smooth;
-      background: var(--bg);
-    }
-
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; background: var(--bg); }
     body {
       min-height: 100vh;
-      font-family:
-        Inter,
-        system-ui,
-        -apple-system,
-        BlinkMacSystemFont,
-        "Segoe UI",
-        Arial,
-        sans-serif;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
       color: var(--text);
       background:
         radial-gradient(circle at 8% 0%, rgba(98, 245, 255, 0.18), transparent 28%),
@@ -78,7 +55,6 @@
       padding: calc(16px + var(--safe-top)) 16px calc(120px + var(--safe-bottom));
       overflow-x: hidden;
     }
-
     body::before {
       content: "";
       position: fixed;
@@ -91,63 +67,21 @@
       mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.75), transparent 80%);
       z-index: 0;
     }
-
     body.high-contrast {
-      --bg: #000;
-      --panel: #050505;
-      --panel2: #070707;
-      --panel3: rgba(255,255,255,0.08);
-      --line: rgba(255,255,255,0.45);
-      --lineStrong: rgba(255,255,255,0.8);
-      --text: #ffffff;
-      --muted: #f1f5f9;
-      --soft: #ffffff;
+      --bg: #000; --panel: #050505; --panel2: #070707; --panel3: rgba(255,255,255,0.08);
+      --line: rgba(255,255,255,0.45); --lineStrong: rgba(255,255,255,0.8);
+      --text: #ffffff; --muted: #f1f5f9; --soft: #ffffff;
     }
-
-    body.large-text {
-      font-size: 118%;
+    body.large-text { font-size: 118%; }
+    body.reduced-motion *, body.reduced-motion *::before, body.reduced-motion *::after {
+      animation: none !important; transition: none !important; scroll-behavior: auto !important;
     }
-
-    body.reduced-motion *,
-    body.reduced-motion *::before,
-    body.reduced-motion *::after {
-      animation: none !important;
-      transition: none !important;
-      scroll-behavior: auto !important;
-    }
-
-    [dir="rtl"] body {
-      text-align: right;
-    }
-
-    a {
-      text-decoration: none;
-      color: inherit;
-    }
-
-    button,
-    input,
-    label,
-    select {
-      font-family: inherit;
-      -webkit-tap-highlight-color: transparent;
-      touch-action: manipulation;
-    }
-
-    button {
-      cursor: pointer;
-    }
-
-    button:disabled {
-      opacity: 0.62;
-      cursor: not-allowed;
-      transform: none !important;
-      filter: none !important;
-    }
-
-    .hidden {
-      display: none !important;
-    }
+    [dir="rtl"] body { text-align: right; }
+    a { text-decoration: none; color: inherit; }
+    button, input, label, select { font-family: inherit; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+    button { cursor: pointer; }
+    button:disabled { opacity: 0.62; cursor: not-allowed; transform: none !important; filter: none !important; }
+    .hidden { display: none !important; }
 
     .skip-link {
       position: absolute;
@@ -159,19 +93,11 @@
       color: var(--ink);
       font-weight: 1000;
       z-index: 99999;
-      transition: 0.16s ease;
+      transition: top var(--dur) var(--ease);
     }
+    .skip-link:focus { top: 14px; }
 
-    .skip-link:focus {
-      top: 14px;
-    }
-
-    .shell {
-      max-width: var(--max);
-      margin: auto;
-      position: relative;
-      z-index: 2;
-    }
+    .shell { max-width: var(--max); margin: auto; position: relative; z-index: 2; }
 
     .language-panel {
       border: 1px solid var(--line);
@@ -187,31 +113,10 @@
       gap: 12px;
       align-items: center;
     }
-
-    .language-copy strong {
-      display: block;
-      color: var(--cyan);
-      margin-bottom: 4px;
-      font-size: 0.9rem;
-      font-weight: 1000;
-    }
-
-    .language-copy span {
-      color: var(--muted);
-      font-size: 0.82rem;
-      line-height: 1.5;
-    }
-
-    .language-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 9px;
-      justify-content: flex-end;
-      align-items: center;
-    }
-
-    .language-actions select,
-    .access-btn {
+    .language-copy strong { display: block; color: var(--cyan); margin-bottom: 4px; font-size: 0.9rem; font-weight: 1000; }
+    .language-copy span { color: var(--muted); font-size: 0.82rem; line-height: 1.5; }
+    .language-actions { display: flex; flex-wrap: wrap; gap: 9px; justify-content: flex-end; align-items: center; }
+    .language-actions select, .access-btn {
       min-height: 43px;
       border: 1px solid var(--line);
       background: rgba(255,255,255,0.045);
@@ -220,46 +125,24 @@
       padding: 0 13px;
       font-weight: 900;
       outline: none;
+      transition: all var(--dur) var(--ease);
     }
-
-    .language-actions select option {
-      background: #fff;
-      color: #07111f;
-    }
-
-    .access-btn.active {
-      border: none;
-      background: linear-gradient(135deg, var(--cyan), var(--blue));
-      color: var(--ink);
-    }
+    .access-btn:hover { border-color: var(--lineStrong); }
+    .language-actions select option { background: #fff; color: #07111f; }
+    .access-btn.active { border: none; background: linear-gradient(135deg, var(--cyan), var(--blue)); color: var(--ink); }
 
     .inclusive-note {
       border: 1px solid rgba(255, 216, 111, 0.22);
-      background:
-        linear-gradient(135deg, rgba(255, 216, 111, 0.08), rgba(98, 245, 255, 0.045)),
-        rgba(255,255,255,0.025);
+      background: linear-gradient(135deg, rgba(255, 216, 111, 0.08), rgba(98, 245, 255, 0.045)), rgba(255,255,255,0.025);
       border-radius: 22px;
       box-shadow: var(--shadow);
       padding: 15px 18px;
       margin-bottom: 16px;
     }
+    .inclusive-note strong { display: block; color: var(--gold); margin-bottom: 6px; font-weight: 1000; }
+    .inclusive-note p { color: var(--muted); line-height: 1.6; font-size: 0.9rem; }
 
-    .inclusive-note strong {
-      display: block;
-      color: var(--gold);
-      margin-bottom: 6px;
-      font-weight: 1000;
-    }
-
-    .inclusive-note p {
-      color: var(--muted);
-      line-height: 1.6;
-      font-size: 0.9rem;
-    }
-
-    .topbar,
-    .card,
-    .hero {
+    .topbar, .card, .hero {
       border: 1px solid var(--line);
       background: var(--panel);
       border-radius: 26px;
@@ -267,133 +150,60 @@
       backdrop-filter: blur(14px);
       -webkit-backdrop-filter: blur(14px);
     }
-
     .topbar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 14px;
-      padding: 16px 18px;
-      margin-bottom: 18px;
-      flex-wrap: wrap;
-      position: sticky;
-      top: 10px;
-      z-index: 20;
+      display: flex; justify-content: space-between; align-items: center; gap: 14px;
+      padding: 16px 18px; margin-bottom: 18px; flex-wrap: wrap;
+      position: sticky; top: 10px; z-index: 20;
     }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      min-width: 0;
-    }
-
+    .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
     .logo {
-      width: 48px;
-      height: 48px;
-      border-radius: 15px;
+      width: 48px; height: 48px; border-radius: 15px;
       background:
         radial-gradient(circle at 28% 24%, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.18) 17%, transparent 21%),
         linear-gradient(145deg, var(--blue), var(--cyan), rgba(113, 255, 183, 0.5));
-      box-shadow:
-        0 0 28px rgba(98, 245, 255, 0.18),
-        inset 0 0 18px rgba(255, 255, 255, 0.12);
+      box-shadow: 0 0 28px rgba(98, 245, 255, 0.18), inset 0 0 18px rgba(255, 255, 255, 0.12);
       flex-shrink: 0;
     }
+    .brand h1 { font-size: 1rem; letter-spacing: 0.09em; font-weight: 1000; }
+    .brand p { color: var(--muted); font-size: 0.85rem; margin-top: 3px; }
 
-    .brand h1 {
-      font-size: 1rem;
-      letter-spacing: 0.09em;
-      font-weight: 1000;
-    }
-
-    .brand p {
-      color: var(--muted);
-      font-size: 0.85rem;
-      margin-top: 3px;
-    }    .mini,
-    .secondary,
-    .ghost,
-    .btn {
+    .mini, .secondary, .ghost, .btn {
       border: 1px solid var(--line);
       border-radius: 999px;
       cursor: pointer;
       font-weight: 900;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      transition: 0.22s ease;
+      display: flex; align-items: center; justify-content: center; text-align: center;
+      transition: var(--dur) var(--ease);
     }
-
-    .mini,
-    .secondary,
-    .ghost {
-      background: rgba(255, 255, 255, 0.04);
-      color: var(--text);
-      padding: 13px 17px;
+    .mini, .secondary, .ghost { background: rgba(255, 255, 255, 0.04); color: var(--text); padding: 13px 17px; }
+    .mini:hover, .secondary:hover, .ghost:hover { border-color: var(--lineStrong); transform: translateY(-1px); }
+    .mini:focus-visible, .secondary:focus-visible, .ghost:focus-visible, .btn:focus-visible, .access-btn:focus-visible {
+      outline: 2px solid var(--cyan); outline-offset: 2px;
     }
-
-    .mini:hover,
-    .secondary:hover,
-    .ghost:hover {
-      border-color: var(--lineStrong);
-      transform: translateY(-1px);
-    }
-
     .btn {
       width: 100%;
       border: none;
       border-radius: 18px;
       padding: 18px 20px;
-      background: linear-gradient(
-        135deg,
-        var(--cyan),
-        var(--blue),
-        #9dbeff
-      );
+      background: linear-gradient(135deg, var(--cyan), var(--blue), #9dbeff);
       color: var(--ink);
       font-size: 1rem;
       box-shadow: 0 14px 32px rgba(67,140,255,.18);
     }
+    .btn:hover { filter: brightness(1.04); transform: translateY(-1px); }
+    .btn:disabled:hover { transform: none; filter: none; }
 
-    .btn:hover {
-      filter: brightness(1.04);
-      transform: translateY(-1px);
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: 0.95fr 1.15fr;
-      gap: 18px;
-      align-items: start;
-    }
-
-    .hero {
-      padding: 28px;
-      align-self: start;
-      position: sticky;
-      top: 104px;
-      overflow: hidden;
-    }
-
+    .grid { display: grid; grid-template-columns: 0.95fr 1.15fr; gap: 18px; align-items: start; }
+    .hero { padding: 28px; align-self: start; position: sticky; top: 104px; overflow: hidden; }
     .hero::after {
       content: "";
       position: absolute;
-      width: 230px;
-      height: 230px;
+      width: 230px; height: 230px;
       border-radius: 50%;
-      right: -80px;
-      bottom: -80px;
-      background:
-        radial-gradient(
-          circle,
-          rgba(98,245,255,.16),
-          transparent 68%
-        );
+      right: -80px; bottom: -80px;
+      background: radial-gradient(circle, rgba(98,245,255,.16), transparent 68%);
       pointer-events: none;
     }
-
     .eyebrow {
       display: inline-flex;
       padding: 9px 14px;
@@ -404,2213 +214,1836 @@
       font-weight: 900;
       margin-bottom: 16px;
     }
-
-    .hero h2 {
-      font-size: clamp(2rem,4vw,3.3rem);
-      line-height: 1.02;
-      letter-spacing: -.04em;
-      font-weight: 1000;
-    }
-
+    .hero h2 { font-size: clamp(2rem,4vw,3.3rem); line-height: 1.02; letter-spacing: -.04em; font-weight: 1000; }
     .hero h2 span {
-      background:
-        linear-gradient(
-          90deg,
-          #fff,
-          #8dc2ff,
-          #72fff0
-        );
-      -webkit-background-clip: text;
-      background-clip: text;
-      -webkit-text-fill-color: transparent;
-      color: transparent;
+      background: linear-gradient(90deg, #fff, #8dc2ff, #72fff0);
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent; color: transparent;
     }
-
-    .hero p,
-    .muted {
-      color: var(--muted);
-      line-height: 1.65;
-      margin-top: 12px;
-    }
-
+    .hero p, .muted { color: var(--muted); line-height: 1.65; margin-top: 12px; }
     .item {
-      margin-top: 14px;
-      padding: 15px;
+      margin-top: 14px; padding: 15px;
       border: 1px solid rgba(255,255,255,.08);
       background: rgba(255,255,255,.03);
       border-radius: 18px;
-      position: relative;
-      z-index: 2;
+      position: relative; z-index: 2;
     }
+    .item strong { display: block; margin-bottom: 6px; }
+    .item span { color: var(--muted); line-height: 1.55; font-size: .92rem; }
 
-    .item strong {
-      display: block;
-      margin-bottom: 6px;
-    }
-
-    .item span {
-      color: var(--muted);
-      line-height: 1.55;
-      font-size: .92rem;
-    }
-
-    .card {
-      padding: 24px;
-    }
-
-    .card h3 {
-      font-size: 1.35rem;
-      margin-bottom: 8px;
-      font-weight: 1000;
-    }
+    .card { padding: 24px; }
+    .card h3 { font-size: 1.35rem; margin-bottom: 8px; font-weight: 1000; }
 
     .notice {
-      padding: 14px 16px;
-      border-radius: 18px;
-      background: rgba(255,216,111,.09);
-      border: 1px solid rgba(255,216,111,.18);
-      color: var(--muted);
-      line-height: 1.55;
-      margin: 16px 0;
+      padding: 14px 16px; border-radius: 18px;
+      background: rgba(255,216,111,.09); border: 1px solid rgba(255,216,111,.18);
+      color: var(--muted); line-height: 1.55; margin: 16px 0;
     }
+    .section { border: 1px solid var(--line); background: rgba(13,24,54,.75); border-radius: 22px; padding: 18px; margin: 18px 0; }
+    .section-head { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 8px; }
+    .section-head h4 { font-size: 1rem; font-weight: 1000; }
+    .section-head span { color: var(--muted); font-size: .84rem; font-weight: 900; }
 
-    .section {
-      border: 1px solid var(--line);
-      background: rgba(13,24,54,.75);
-      border-radius: 22px;
-      padding: 18px;
-      margin: 18px 0;
-    }
-
-    .section-head {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      align-items: center;
-      margin-bottom: 8px;
-    }
-
-    .section-head h4 {
-      font-size: 1rem;
-      font-weight: 1000;
-    }
-
-    .section-head span {
-      color: var(--muted);
-      font-size: .84rem;
-      font-weight: 900;
-    }
-
-    .form-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 15px;
-      margin-top: 15px;
-    }
-
-    .field {
-      display: grid;
-      gap: 8px;
-      min-width: 0;
-    }
-
-    .full {
-      grid-column: 1 / -1;
-    }
-
-    label {
-      font-weight: 900;
-      font-size: .95rem;
-    }
-
-    input,
-    select {
-      width: 100%;
-      min-height: 54px;
-      padding: 15px 17px;
-      border-radius: 18px;
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px; }
+    .field { display: grid; gap: 8px; min-width: 0; }
+    .full { grid-column: 1 / -1; }
+    label { font-weight: 900; font-size: .95rem; }
+    input, select {
+      width: 100%; min-height: 54px; padding: 15px 17px; border-radius: 18px;
       border: 1px solid rgba(104,168,255,.45);
       background: rgba(0,12,52,.86);
       color: var(--text);
-      font-size: 1rem;
-      outline: none;
-      transition: .22s ease;
+      font-size: 1rem; outline: none; transition: var(--dur) var(--ease);
     }
-
-    input::placeholder {
-      color: rgba(185,199,232,.65);
-    }
-
-    input:focus,
-    select:focus {
-      border-color: var(--cyan);
-      box-shadow:
-        0 0 0 3px rgba(98,245,255,.13);
-    }
+    input::placeholder { color: rgba(185,199,232,.65); }
+    input:focus, select:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(98,245,255,.13); }
+    input.invalid { border-color: var(--danger) !important; box-shadow: 0 0 0 3px rgba(255,126,144,.15) !important; }
 
     .language-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 12px;
-      border-radius: 999px;
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 8px 12px; border-radius: 999px;
       border: 1px solid rgba(98,245,255,.24);
       background: rgba(98,245,255,.08);
-      color: var(--cyan);
-      font-size: .8rem;
-      font-weight: 1000;
+      color: var(--cyan); font-size: .8rem; font-weight: 1000;
       margin-top: 12px;
     }
 
-    .choice-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 14px;
-      margin-top: 15px;
-    }
-
-    .choice {
-      position: relative;
-      display: block;
-      cursor: pointer;
-      user-select: none;
-      -webkit-user-select: none;
-    }
-
+    .choice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 15px; }
+    .choice { position: relative; display: block; cursor: pointer; user-select: none; -webkit-user-select: none; }
     .choice input {
-      position: absolute;
-      opacity: 0;
-      inset: 0;
-      cursor: pointer;
-      width: 100%;
-      height: 100%;
-      z-index: 2;
-      min-height: 0;
-      padding: 0;
+      position: absolute; opacity: 0; inset: 0; cursor: pointer;
+      width: 100%; height: 100%; z-index: 2; min-height: 0; padding: 0;
     }
-
     .choice-card {
-      min-height: 116px;
-      border: 1px solid var(--line);
-      border-radius: 20px;
-      padding: 16px;
-      background: rgba(255,255,255,.03);
-      transition: .22s ease;
+      min-height: 116px; border: 1px solid var(--line); border-radius: 20px;
+      padding: 16px; background: rgba(255,255,255,.03); transition: var(--dur) var(--ease);
     }
-
-    .choice-card span {
-      display: block;
-      color: var(--muted);
-      font-size: .88rem;
-      line-height: 1.55;
-      margin-top: 8px;
-    }
-
+    .choice-card strong { display: block; }
+    .choice-card span { display: block; color: var(--muted); font-size: .88rem; line-height: 1.55; margin-top: 8px; }
     .choice input:checked + .choice-card {
-      border-color: var(--cyan);
-      background: rgba(98,245,255,.06);
-      box-shadow:
-        0 0 0 3px rgba(98,245,255,.10);
-    }    .consents {
-      display: grid;
-      gap: 13px;
-      margin-top: 15px;
+      border-color: var(--cyan); background: rgba(98,245,255,.06); box-shadow: 0 0 0 3px rgba(98,245,255,.10);
     }
+    .choice input:focus-visible + .choice-card { outline: 2px solid var(--cyan); outline-offset: 2px; }
 
+    .consents { display: grid; gap: 13px; margin-top: 15px; }
     .consent {
-      display: flex;
-      gap: 14px;
-      align-items: flex-start;
-      cursor: pointer;
-      padding: 16px;
-      border-radius: 20px;
-      border: 1px solid var(--line);
-      background: rgba(255,255,255,.03);
-      user-select: none;
-      -webkit-user-select: none;
-      transition: .22s ease;
+      display: flex; gap: 14px; align-items: flex-start; cursor: pointer;
+      padding: 16px; border-radius: 20px; border: 1px solid var(--line);
+      background: rgba(255,255,255,.03); user-select: none; -webkit-user-select: none;
+      transition: var(--dur) var(--ease);
     }
-
-    .consent:hover {
-      border-color: var(--lineStrong);
-    }
-
-    .consent input {
-      position: absolute;
-      opacity: 0;
-      pointer-events: none;
-      width: 1px;
-      height: 1px;
-      min-height: 0;
-      padding: 0;
-    }
-
+    .consent:hover { border-color: var(--lineStrong); }
+    .consent input { position: absolute; opacity: 0; pointer-events: none; width: 1px; height: 1px; min-height: 0; padding: 0; }
     .check {
-      width: 32px;
-      height: 32px;
-      min-width: 32px;
-      border-radius: 50%;
-      border: 2px solid rgba(98,245,255,.65);
-      background: #06143a;
-      display: grid;
-      place-items: center;
-      margin-top: 2px;
-      flex-shrink: 0;
+      width: 32px; height: 32px; min-width: 32px; border-radius: 50%;
+      border: 2px solid rgba(98,245,255,.65); background: #06143a;
+      display: grid; place-items: center; margin-top: 2px; flex-shrink: 0;
     }
+    .consent.active { background: rgba(98,245,255,.06); border-color: rgba(98,245,255,.34); }
+    .consent.active .check { background: linear-gradient(135deg, var(--cyan), var(--blue)); color: #06111f; }
+    .consent.active .check::after { content: "✓"; font-weight: 1000; }
+    .consent-text { line-height: 1.55; font-weight: 800; }
 
-    .consent.active {
-      background: rgba(98,245,255,.06);
-      border-color: rgba(98,245,255,.34);
-    }
+    .actions { display: grid; gap: 12px; margin-top: 16px; }
+    .two { grid-template-columns: 1fr 1fr; }
 
-    .consent.active .check {
-      background:
-        linear-gradient(
-          135deg,
-          var(--cyan),
-          var(--blue)
-        );
-      color: #06111f;
-    }
-
-    .consent.active .check::after {
-      content: "✓";
-      font-weight: 1000;
-    }
-
-    .consent-text {
-      line-height: 1.55;
-      font-weight: 800;
-    }
-
-    .actions {
-      display: grid;
-      gap: 12px;
-      margin-top: 16px;
-    }
-
-    .two {
-      grid-template-columns: 1fr 1fr;
-    }
-
-    .status {
-      display: none;
-      margin-top: 16px;
-      padding: 15px 16px;
-      border-radius: 16px;
-      line-height: 1.55;
-      word-break: break-word;
-    }
-
-    .status.show {
-      display: block;
-    }
-
-    .status.success {
-      background: rgba(113,255,183,.1);
-      border: 1px solid rgba(113,255,183,.24);
-    }
-
-    .status.error {
-      background: rgba(255,126,144,.12);
-      border: 1px solid rgba(255,126,144,.25);
-    }
-
-    .status.info {
-      background: rgba(98,245,255,.1);
-      border: 1px solid rgba(98,245,255,.18);
-    }
+    .status { display: none; margin-top: 16px; padding: 15px 16px; border-radius: 16px; line-height: 1.55; word-break: break-word; }
+    .status.show { display: block; }
+    .status.success { background: rgba(113,255,183,.1); border: 1px solid rgba(113,255,183,.24); }
+    .status.error { background: rgba(255,126,144,.12); border: 1px solid rgba(255,126,144,.25); }
+    .status.info { background: rgba(98,245,255,.1); border: 1px solid rgba(98,245,255,.18); }
 
     .pill {
-      display: inline-flex;
-      margin-top: 10px;
-      border-radius: 999px;
-      padding: 8px 12px;
-      font-weight: 900;
-      font-size: .82rem;
-      border: 1px solid var(--line);
-      color: var(--gold);
-      background: rgba(255,216,111,.08);
+      display: inline-flex; margin-top: 10px; border-radius: 999px; padding: 8px 12px;
+      font-weight: 900; font-size: .82rem; border: 1px solid var(--line);
+      color: var(--gold); background: rgba(255,216,111,.08);
     }
+    .pill.ok { color: var(--green); background: rgba(113,255,183,.08); border-color: rgba(113,255,183,.24); }
+    .pill.err { color: var(--danger); background: rgba(255,126,144,.08); border-color: rgba(255,126,144,.24); }
 
-    .pill.ok {
-      color: var(--green);
-      background: rgba(113,255,183,.08);
-      border-color: rgba(113,255,183,.24);
-    }
+    .progress { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 15px; }
+    .progress-card { padding: 15px; border: 1px solid var(--line); border-radius: 18px; background: rgba(255,255,255,.03); }
+    .progress-card span { color: var(--muted); font-size: .9rem; line-height: 1.5; display: block; margin-top: 6px; }
 
-    .progress {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 14px;
-      margin-top: 15px;
-    }
+    .saved { display: none; margin-top: 14px; padding: 14px; border-radius: 16px; border: 1px solid var(--line); background: rgba(255,255,255,.03); color: var(--muted); line-height: 1.55; }
+    .saved.show { display: block; }
+    .saved strong { color: var(--text); display: block; margin-bottom: 5px; }
 
-    .progress-card {
-      padding: 15px;
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      background: rgba(255,255,255,.03);
-    }
-
-    .progress-card span {
-      color: var(--muted);
-      font-size: .9rem;
-      line-height: 1.5;
-      display: block;
-      margin-top: 6px;
-    }
-
-    .saved {
-      display: none;
-      margin-top: 14px;
-      padding: 14px;
-      border-radius: 16px;
-      border: 1px solid var(--line);
-      background: rgba(255,255,255,.03);
-      color: var(--muted);
-      line-height: 1.55;
-    }
-
-    .saved.show {
-      display: block;
-    }
-
-    .saved strong {
-      color: var(--text);
-      display: block;
-      margin-bottom: 5px;
-    }
-
-    .timeline {
-      display: grid;
-      gap: 14px;
-      margin-top: 14px;
-    }
-
+    .timeline { display: grid; gap: 14px; margin-top: 14px; }
     .timeline-item {
-      display: flex;
-      gap: 14px;
-      align-items: flex-start;
-      padding: 14px;
-      border-radius: 18px;
-      border: 1px solid rgba(255,255,255,.08);
-      background: rgba(255,255,255,.02);
+      display: flex; gap: 14px; align-items: flex-start; padding: 14px; border-radius: 18px;
+      border: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.02);
+      transition: var(--dur) var(--ease);
     }
-
-    .timeline-item.active {
-      border-color: rgba(98,245,255,.3);
-      background: rgba(98,245,255,.05);
-    }
-
+    .timeline-item.active { border-color: rgba(98,245,255,.3); background: rgba(98,245,255,.05); }
+    .timeline-item.done { border-color: rgba(113,255,183,.3); background: rgba(113,255,183,.05); }
     .timeline-dot {
-      width: 14px;
-      height: 14px;
-      min-width: 14px;
-      border-radius: 50%;
-      background: var(--cyan);
-      margin-top: 5px;
-      box-shadow: 0 0 12px rgba(98,245,255,.45);
+      width: 14px; height: 14px; min-width: 14px; border-radius: 50%;
+      background: var(--cyan); margin-top: 5px; box-shadow: 0 0 12px rgba(98,245,255,.45);
     }
+    .timeline-item.done .timeline-dot { background: var(--green); box-shadow: 0 0 12px rgba(113,255,183,.5); }
+    .timeline-copy strong { display: block; margin-bottom: 4px; font-weight: 1000; }
+    .timeline-copy span { color: var(--muted); line-height: 1.55; font-size: .9rem; }
 
-    .timeline-copy strong {
-      display: block;
-      margin-bottom: 4px;
-      font-weight: 1000;
-    }
+    .debug { margin-top: 14px; font-size: .78rem; color: rgba(185,199,232,.72); line-height: 1.5; word-break: break-word; }
 
-    .timeline-copy span {
-      color: var(--muted);
-      line-height: 1.55;
-      font-size: .9rem;
-    }
-
-    .debug {
-      margin-top: 14px;
-      font-size: .78rem;
-      color: rgba(185,199,232,.72);
-      line-height: 1.5;
-      word-break: break-word;
-    }
-
-    .mini-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 14px;
-    }
-
-    .mini-pill {
-      border: 1px solid var(--line);
-      background: rgba(255,255,255,.035);
-      color: var(--muted);
-      padding: 9px 12px;
-      border-radius: 999px;
-      font-size: .82rem;
-      font-weight: 900;
-    }
+    .mini-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+    .mini-pill { border: 1px solid var(--line); background: rgba(255,255,255,.035); color: var(--muted); padding: 9px 12px; border-radius: 999px; font-size: .82rem; font-weight: 900; }
 
     @media (max-width: 900px) {
-
-      .grid {
-        grid-template-columns: 1fr;
-      }
-
-      .hero {
-        position: relative;
-        top: 0;
-      }
-
-      .language-panel {
-        grid-template-columns: 1fr;
-      }
-
-      .language-actions {
-        justify-content: flex-start;
-      }
+      .grid { grid-template-columns: 1fr; }
+      .hero { position: relative; top: 0; }
+      .language-panel { grid-template-columns: 1fr; }
+      .language-actions { justify-content: flex-start; }
     }
-
     @media (max-width: 680px) {
-
-      body {
-        padding:
-          calc(10px + var(--safe-top))
-          10px
-          calc(110px + var(--safe-bottom));
-      }
-
-      .form-grid,
-      .choice-grid,
-      .progress,
-      .two {
-        grid-template-columns: 1fr;
-      }
-
-      .card,
-      .hero {
-        padding: 20px;
-      }
-
-      .topbar {
-        border-radius: 22px;
-        position: relative;
-        top: 0;
-      }
-
-      .mini {
-        width: 100%;
-      }
+      body { padding: calc(10px + var(--safe-top)) 10px calc(110px + var(--safe-bottom)); }
+      .form-grid, .choice-grid, .progress, .two { grid-template-columns: 1fr; }
+      .card, .hero { padding: 20px; }
+      .topbar { border-radius: 22px; position: relative; top: 0; }
+      .mini { width: 100%; }
     }
   </style>
 </head>
 
 <body>
 
-<a
-  href="#mainContent"
-  class="skip-link"
->
-  Skip to content
-</a>
+<a href="#mainContent" class="skip-link">Skip to content</a>
 
 <div class="shell">
 
   <!-- LANGUAGE + ACCESSIBILITY -->
-
   <section class="language-panel">
-
     <div class="language-copy">
-
-      <strong id="langTitle">
-        Language & Accessibility
-      </strong>
-
-      <span id="langSubtitle">
-        Select your preferred language and accessibility settings.
-      </span>
-
+      <strong id="langTitle" data-i18n="langTitle">Language &amp; Accessibility</strong>
+      <span id="langSubtitle" data-i18n="langSubtitle">Select your preferred language and accessibility settings.</span>
     </div>
-
     <div class="language-actions">
-
-      <select id="languageSelect">
-
-        <option value="en">English</option>
-        <option value="es">Español</option>
-        <option value="fr">Français</option>
-        <option value="ar">العربية</option>
-
+      <select id="languageSelect" aria-label="Choose language">
+        <option value="en">🌐 English</option>
+        <option value="es">🌐 Español</option>
+        <option value="fr">🌐 Français</option>
+        <option value="ar">🌐 العربية</option>
+        <option value="pt">🌐 Português</option>
+        <option value="zh">🌐 中文</option>
+        <option value="hi">🌐 हिन्दी</option>
+        <option value="sw">🌐 Kiswahili</option>
       </select>
-
-      <button
-        type="button"
-        class="access-btn"
-        id="contrastBtn"
-      >
-        Contrast
-      </button>
-
-      <button
-        type="button"
-        class="access-btn"
-        id="textBtn"
-      >
-        A+
-      </button>
-
-      <button
-        type="button"
-        class="access-btn"
-        id="motionBtn"
-      >
-        Motion
-      </button>
-
+      <button type="button" class="access-btn" id="contrastBtn">Contrast</button>
+      <button type="button" class="access-btn" id="textBtn">A+</button>
+      <button type="button" class="access-btn" id="motionBtn">Motion</button>
     </div>
-
   </section>
 
   <section class="inclusive-note">
-
-    <strong id="welcomeTitle">
-      Driver Access For Everyone
-    </strong>
-
-    <p id="welcomeText">
-      Harvey Taxi supports multilingual onboarding,
-      accessibility accommodations,
-      screen reader compatibility,
-      larger text preferences,
-      and reduced motion support.
+    <strong id="welcomeTitle" data-i18n="welcomeTitle">Driver Access For Everyone</strong>
+    <p id="welcomeText" data-i18n="welcomeText">
+      Harvey Taxi supports multilingual onboarding, accessibility accommodations,
+      screen reader compatibility, larger text preferences, and reduced motion support.
     </p>
+  </section>
 
-  </section>  <!-- TOPBAR -->
-
+  <!-- TOPBAR -->
   <header class="topbar">
-
     <div class="brand">
-
-      <div class="logo"></div>
-
+      <div class="logo" aria-hidden="true"></div>
       <div>
-        <h1 data-i18n="brand">
-          HARVEY TAXI
-        </h1>
-
-        <p data-i18n="portal">
-          Driver Onboarding Portal
-        </p>
+        <h1 data-i18n="brand">HARVEY TAXI</h1>
+        <p data-i18n="portal">Driver Onboarding Portal</p>
       </div>
-
     </div>
-
-    <a
-      class="mini"
-      href="/"
-      data-i18n="home"
-    >
-      Return Home
-    </a>
-
+    <a class="mini" href="/" data-i18n="home">Return Home</a>
   </header>
 
-  <main
-    id="mainContent"
-    class="grid"
-  >
+  <main id="mainContent" class="grid">
 
     <!-- HERO -->
-
     <section class="hero">
-
-      <div
-        class="eyebrow"
-        data-i18n="onboarding"
-      >
-        Driver onboarding
-      </div>
-
-      <h2>
-        <span data-i18n="fleetTitle">
-          Join the Harvey Taxi fleet
-        </span>
-      </h2>
-
+      <div class="eyebrow" data-i18n="onboarding">Driver onboarding</div>
+      <h2><span data-i18n="fleetTitle">Join the Harvey Taxi fleet</span></h2>
       <p data-i18n="fleetDesc">
-        Submit your application, verify your email,
-        verify your phone, complete identity review,
-        complete Checkr, and wait for admin approval
-        before going online.
+        Submit your application, verify your email, verify your phone, complete identity review,
+        complete Checkr, and wait for admin approval before going online.
       </p>
-
-      <div class="language-badge">
-        🌎
-        <span id="currentLanguageLabel">
-          English
-        </span>
-      </div>
+      <div class="language-badge">🌎 <span id="currentLanguageLabel">English</span></div>
 
       <div class="item">
-
-        <strong data-i18n="emailVerification">
-          Email verification
-        </strong>
-
-        <span data-i18n="emailVerificationDesc">
-          A secure SendGrid email link verifies your email address.
-        </span>
-
+        <strong data-i18n="emailVerification">Email verification</strong>
+        <span data-i18n="emailVerificationDesc">A secure SendGrid email link verifies your email address.</span>
       </div>
-
       <div class="item">
-
-        <strong data-i18n="smsVerification">
-          SMS verification
-        </strong>
-
-        <span data-i18n="smsVerificationDesc">
-          A 6-digit code verifies your phone number after your email is verified.
-        </span>
-
+        <strong data-i18n="smsVerification">SMS verification</strong>
+        <span data-i18n="smsVerificationDesc">A 6-digit code verifies your phone number after your email is verified.</span>
       </div>
-
       <div class="item">
-
-        <strong data-i18n="personaCheckr">
-          Persona + Checkr review
-        </strong>
-
-        <span data-i18n="personaCheckrDesc">
-          Driver approval can include identity review,
-          document review, background review,
-          and manual admin approval.
-        </span>
-
+        <strong data-i18n="personaCheckr">Persona + Checkr review</strong>
+        <span data-i18n="personaCheckrDesc">Driver approval can include identity review, document review, background review, and manual admin approval.</span>
       </div>
-
       <div class="item">
-
-        <strong data-i18n="missionAccess">
-          Mission-first access
-        </strong>
-
-        <span data-i18n="missionAccessDesc">
-          Drivers must be fully approved before receiving ride,
-          food delivery, or grocery delivery missions.
-        </span>
-
+        <strong data-i18n="missionAccess">Mission-first access</strong>
+        <span data-i18n="missionAccessDesc">Drivers must be fully approved before receiving ride, food delivery, or grocery delivery missions.</span>
       </div>
-
     </section>
 
     <!-- CARD -->
-
     <section class="card">
+      <h3 data-i18n="signupTitle">Driver Sign Up</h3>
+      <p class="muted" data-i18n="signupSubtitle">Complete the driver application below.</p>
+      <div class="notice" data-i18n="approvalNotice">Driver access is not immediate.</div>
 
-      <h3 data-i18n="signupTitle">
-        Driver Sign Up
-      </h3>
-
-      <p
-        class="muted"
-        data-i18n="signupSubtitle"
-      >
-        Complete the driver application below.
-      </p>
-
-      <div
-        class="notice"
-        data-i18n="approvalNotice"
-      >
-        Driver access is not immediate.
-      </div>
-
-      <form
-        id="driverSignupForm"
-        novalidate
-      >
+      <form id="driverSignupForm" novalidate>
 
         <div id="signupSection">
 
           <!-- DRIVER INFO -->
-
           <div class="section">
-
             <div class="section-head">
-
-              <h4 data-i18n="driverInfo">
-                Driver Information
-              </h4>
-
+              <h4 data-i18n="driverInfo">Driver Information</h4>
               <span>Step 1</span>
-
             </div>
-
             <div class="form-grid">
-
               <div class="field">
-
-                <label
-                  for="firstName"
-                  data-i18n="firstName"
-                >
-                  First Name
-                </label>
-
-                <input
-                  id="firstName"
-                  type="text"
-                  placeholder="First name"
-                  required
-                />
-
+                <label for="firstName" data-i18n="firstName">First Name</label>
+                <input id="firstName" type="text" placeholder="First name" required autocomplete="given-name" />
               </div>
-
               <div class="field">
-
-                <label
-                  for="lastName"
-                  data-i18n="lastName"
-                >
-                  Last Name
-                </label>
-
-                <input
-                  id="lastName"
-                  type="text"
-                  placeholder="Last name"
-                  required
-                />
-
+                <label for="lastName" data-i18n="lastName">Last Name</label>
+                <input id="lastName" type="text" placeholder="Last name" required autocomplete="family-name" />
               </div>
-
               <div class="field full">
-
-                <label
-                  for="email"
-                  data-i18n="email"
-                >
-                  Email Address
-                </label>
-
-                <input
-                  id="email"
-                  type="email"
-                  placeholder="Email address"
-                  required
-                />
-
+                <label for="email" data-i18n="email">Email Address</label>
+                <input id="email" type="email" placeholder="Email address" required autocomplete="email" />
               </div>
-
               <div class="field">
-
-                <label
-                  for="phone"
-                  data-i18n="phone"
-                >
-                  Phone Number
-                </label>
-
-                <input
-                  id="phone"
-                  type="tel"
-                  placeholder="+16155551234"
-                  required
-                />
-
+                <label for="phone" data-i18n="phone">Phone Number</label>
+                <input id="phone" type="tel" placeholder="+16155551234" required autocomplete="tel" />
               </div>
-
               <div class="field">
-
-                <label
-                  for="city"
-                  data-i18n="city"
-                >
-                  Operating City
-                </label>
-
-                <input
-                  id="city"
-                  type="text"
-                  placeholder="Nashville"
-                  required
-                />
-
+                <label for="city" data-i18n="city">Operating City</label>
+                <input id="city" type="text" placeholder="Nashville" required />
               </div>
-
               <div class="field">
-
-                <label
-                  for="state"
-                  data-i18n="state"
-                >
-                  State
-                </label>
-
-                <input
-                  id="state"
-                  type="text"
-                  maxlength="2"
-                  placeholder="TN"
-                  required
-                />
-
+                <label for="state" data-i18n="state">State</label>
+                <input id="state" type="text" maxlength="2" placeholder="TN" required />
               </div>
-
               <div class="field">
-
-                <label
-                  for="licenseNumber"
-                  data-i18n="license"
-                >
-                  Driver License Number
-                </label>
-
-                <input
-                  id="licenseNumber"
-                  type="text"
-                  placeholder="License Number"
-                  required
-                />
-
+                <label for="licenseNumber" data-i18n="license">Driver License Number</label>
+                <input id="licenseNumber" type="text" placeholder="License Number" required />
               </div>
-
               <div class="field">
-
-                <label
-                  for="password"
-                  data-i18n="password"
-                >
-                  Password
-                </label>
-
-                <input
-                  id="password"
-                  type="password"
-                  placeholder="Minimum 8 characters"
-                  required
-                />
-
+                <label for="password" data-i18n="password">Password</label>
+                <input id="password" type="password" placeholder="Minimum 8 characters" required minlength="8" autocomplete="new-password" />
               </div>
-
             </div>
-
           </div>
 
           <!-- VEHICLE -->
-
           <div class="section">
-
             <div class="section-head">
-
-              <h4 data-i18n="vehicleInfo">
-                Vehicle Information
-              </h4>
-
+              <h4 data-i18n="vehicleInfo">Vehicle Information</h4>
               <span>Step 2</span>
-
             </div>
-
             <div class="form-grid">
-
               <div class="field">
-
-                <label
-                  for="vehicleMake"
-                  data-i18n="make"
-                >
-                  Vehicle Make
-                </label>
-
-                <input
-                  id="vehicleMake"
-                  type="text"
-                  placeholder="Toyota"
-                  required
-                />
-
+                <label for="vehicleMake" data-i18n="make">Vehicle Make</label>
+                <input id="vehicleMake" type="text" placeholder="Toyota" required />
               </div>
-
               <div class="field">
-
-                <label
-                  for="vehicleModel"
-                  data-i18n="model"
-                >
-                  Vehicle Model
-                </label>
-
-                <input
-                  id="vehicleModel"
-                  type="text"
-                  placeholder="Camry"
-                  required
-                />
-
+                <label for="vehicleModel" data-i18n="model">Vehicle Model</label>
+                <input id="vehicleModel" type="text" placeholder="Camry" required />
               </div>
-
               <div class="field">
-
-                <label
-                  for="vehicleYear"
-                  data-i18n="year"
-                >
-                  Vehicle Year
-                </label>
-
-                <input
-                  id="vehicleYear"
-                  type="text"
-                  placeholder="2024"
-                  required
-                />
-
+                <label for="vehicleYear" data-i18n="year">Vehicle Year</label>
+                <input id="vehicleYear" type="text" inputmode="numeric" placeholder="2024" required />
               </div>
-
               <div class="field">
-
-                <label
-                  for="vehicleColor"
-                  data-i18n="color"
-                >
-                  Vehicle Color
-                </label>
-
-                <input
-                  id="vehicleColor"
-                  type="text"
-                  placeholder="Black"
-                />
-
+                <label for="vehicleColor" data-i18n="color">Vehicle Color</label>
+                <input id="vehicleColor" type="text" placeholder="Black" />
               </div>
-
               <div class="field full">
-
-                <label
-                  for="licensePlate"
-                  data-i18n="plate"
-                >
-                  License Plate
-                </label>
-
-                <input
-                  id="licensePlate"
-                  type="text"
-                  placeholder="ABC1234"
-                  required
-                />
-
+                <label for="licensePlate" data-i18n="plate">License Plate</label>
+                <input id="licensePlate" type="text" placeholder="ABC1234" required />
               </div>
-
             </div>
+          </div>
 
-          </div>          <!-- SERVICES -->
-
+          <!-- SERVICES -->
           <div class="section">
-
             <div class="section-head">
-
-              <h4 data-i18n="services">
-                Driver Services
-              </h4>
-
+              <h4 data-i18n="services">Driver Services</h4>
               <span>Step 3</span>
-
             </div>
-
             <div class="choice-grid">
-
               <label class="choice">
-
-                <input
-                  type="checkbox"
-                  id="supportsRides"
-                  checked
-                />
-
+                <input type="checkbox" id="supportsRides" checked />
                 <div class="choice-card">
-
-                  <strong data-i18n="rides">
-                    Passenger Rides
-                  </strong>
-
-                  <span data-i18n="ridesDesc">
-                    Standard Harvey Taxi transportation requests.
-                  </span>
-
+                  <strong data-i18n="rides">Passenger Rides</strong>
+                  <span data-i18n="ridesDesc">Standard Harvey Taxi transportation requests.</span>
                 </div>
-
               </label>
-
               <label class="choice">
-
-                <input
-                  type="checkbox"
-                  id="supportsFood"
-                  checked
-                />
-
+                <input type="checkbox" id="supportsFood" checked />
                 <div class="choice-card">
-
-                  <strong data-i18n="food">
-                    Food Delivery
-                  </strong>
-
-                  <span data-i18n="foodDesc">
-                    Restaurant and fast food deliveries.
-                  </span>
-
+                  <strong data-i18n="food">Food Delivery</strong>
+                  <span data-i18n="foodDesc">Restaurant and fast food deliveries.</span>
                 </div>
-
               </label>
-
               <label class="choice">
-
-                <input
-                  type="checkbox"
-                  id="supportsGrocery"
-                  checked
-                />
-
+                <input type="checkbox" id="supportsGrocery" checked />
                 <div class="choice-card">
-
-                  <strong data-i18n="grocery">
-                    Grocery Delivery
-                  </strong>
-
-                  <span data-i18n="groceryDesc">
-                    Grocery pickup and delivery missions.
-                  </span>
-
+                  <strong data-i18n="grocery">Grocery Delivery</strong>
+                  <span data-i18n="groceryDesc">Grocery pickup and delivery missions.</span>
                 </div>
-
               </label>
-
               <label class="choice">
-
-                <input
-                  type="checkbox"
-                  id="supportsPriority"
-                />
-
+                <input type="checkbox" id="supportsPriority" />
                 <div class="choice-card">
-
-                  <strong data-i18n="priority">
-                    Priority Missions
-                  </strong>
-
-                  <span data-i18n="priorityDesc">
-                    Emergency and high-priority dispatch routing.
-                  </span>
-
+                  <strong data-i18n="priority">Priority Missions</strong>
+                  <span data-i18n="priorityDesc">Emergency and high-priority dispatch routing.</span>
                 </div>
-
               </label>
-
             </div>
-
           </div>
 
           <!-- DRIVER TYPE -->
-
           <div class="section">
-
             <div class="section-head">
-
-              <h4 data-i18n="driverMode">
-                Driver Mode
-              </h4>
-
+              <h4 data-i18n="driverMode">Driver Mode</h4>
               <span>Step 4</span>
-
             </div>
-
-            <div class="choice-grid">
-
+            <div class="choice-grid" role="radiogroup" aria-label="Driver mode">
               <label class="choice">
-
-                <input
-                  type="radio"
-                  name="driverType"
-                  value="human"
-                  checked
-                />
-
+                <input type="radio" name="driverType" value="human" checked />
                 <div class="choice-card">
-
-                  <strong data-i18n="humanDriver">
-                    Human Driver
-                  </strong>
-
-                  <span data-i18n="humanDriverDesc">
-                    Standard Harvey Taxi driver onboarding.
-                  </span>
-
+                  <strong data-i18n="humanDriver">Human Driver</strong>
+                  <span data-i18n="humanDriverDesc">Standard Harvey Taxi driver onboarding.</span>
                 </div>
-
               </label>
-
               <label class="choice">
-
-                <input
-                  type="radio"
-                  name="driverType"
-                  value="autonomous"
-                />
-
+                <input type="radio" name="driverType" value="autonomous" />
                 <div class="choice-card">
-
-                  <strong data-i18n="autonomous">
-                    Autonomous Pilot
-                  </strong>
-
-                  <span data-i18n="autonomousDesc">
-                    Future AV pilot readiness program.
-                  </span>
-
+                  <strong data-i18n="autonomous">Autonomous Pilot</strong>
+                  <span data-i18n="autonomousDesc">Future AV pilot readiness program.</span>
                 </div>
-
               </label>
-
             </div>
-
             <div class="mini-row">
-
-              <div class="mini-pill">
-                AI Dispatch
-              </div>
-
-              <div class="mini-pill">
-                Real-Time Missions
-              </div>
-
-              <div class="mini-pill">
-                Smart Routing
-              </div>
-
+              <div class="mini-pill">AI Dispatch</div>
+              <div class="mini-pill">Real-Time Missions</div>
+              <div class="mini-pill">Smart Routing</div>
             </div>
-
           </div>
 
           <!-- ACKNOWLEDGEMENTS -->
-
           <div class="section">
-
             <div class="section-head">
-
-              <h4 data-i18n="acknowledgements">
-                Driver Acknowledgements
-              </h4>
-
+              <h4 data-i18n="acknowledgements">Driver Acknowledgements</h4>
               <span>Step 5</span>
-
             </div>
-
             <div class="consents">
-
-              <label
-                class="consent"
-                for="termsAccepted"
-              >
-
-                <input
-                  id="termsAccepted"
-                  type="checkbox"
-                  required
-                />
-
-                <span class="check"></span>
-
-                <span
-                  class="consent-text"
-                  data-i18n="termsConsent"
-                >
-                  I agree to Harvey Taxi onboarding terms.
-                </span>
-
+              <label class="consent" for="termsAccepted">
+                <input id="termsAccepted" type="checkbox" required />
+                <span class="check" aria-hidden="true"></span>
+                <span class="consent-text" data-i18n="termsConsent">I agree to Harvey Taxi onboarding terms.</span>
               </label>
-
-              <label
-                class="consent"
-                for="backgroundAccepted"
-              >
-
-                <input
-                  id="backgroundAccepted"
-                  type="checkbox"
-                  required
-                />
-
-                <span class="check"></span>
-
-                <span
-                  class="consent-text"
-                  data-i18n="backgroundConsent"
-                >
-                  I consent to Persona and Checkr reviews.
-                </span>
-
+              <label class="consent" for="backgroundAccepted">
+                <input id="backgroundAccepted" type="checkbox" required />
+                <span class="check" aria-hidden="true"></span>
+                <span class="consent-text" data-i18n="backgroundConsent">I consent to Persona and Checkr reviews.</span>
               </label>
-
-              <label
-                class="consent"
-                for="insuranceConfirmed"
-              >
-
-                <input
-                  id="insuranceConfirmed"
-                  type="checkbox"
-                  required
-                />
-
-                <span class="check"></span>
-
-                <span
-                  class="consent-text"
-                  data-i18n="insuranceConsent"
-                >
-                  I confirm insurance documentation will be provided.
-                </span>
-
+              <label class="consent" for="insuranceConfirmed">
+                <input id="insuranceConfirmed" type="checkbox" required />
+                <span class="check" aria-hidden="true"></span>
+                <span class="consent-text" data-i18n="insuranceConsent">I confirm insurance documentation will be provided.</span>
               </label>
-
-              <label
-                class="consent"
-                for="locationConsent"
-              >
-
-                <input
-                  id="locationConsent"
-                  type="checkbox"
-                  required
-                />
-
-                <span class="check"></span>
-
-                <span
-                  class="consent-text"
-                  data-i18n="locationTrackingConsent"
-                >
-                  I allow secure location tracking for dispatch and safety.
-                </span>
-
+              <label class="consent" for="locationConsent">
+                <input id="locationConsent" type="checkbox" required />
+                <span class="check" aria-hidden="true"></span>
+                <span class="consent-text" data-i18n="locationTrackingConsent">I allow secure location tracking for dispatch and safety.</span>
               </label>
-
             </div>
-
-            <p
-              id="formHint"
-              class="muted"
-            >
-              Complete all required fields.
-            </p>
-
+            <p id="formHint" class="muted" data-i18n="formHint">Complete all required fields.</p>
           </div>
 
           <!-- LANGUAGE INFO PANEL -->
-
           <div class="section">
-
             <div class="section-head">
-
-              <h4>
-                Adaptive Language Support
-              </h4>
-
-              <span>
-                AI Translation
-              </span>
-
+              <h4 data-i18n="adaptiveLanguageTitle">Adaptive Language Support</h4>
+              <span data-i18n="aiTranslation">AI Translation</span>
             </div>
-
             <div class="progress">
-
               <div class="progress-card">
-
-                <strong>
-                  Current Language
-                </strong>
-
-                <span id="languageDisplay">
-                  English
-                </span>
-
+                <strong data-i18n="currentLanguage">Current Language</strong>
+                <span id="languageDisplay">English</span>
               </div>
-
               <div class="progress-card">
-
-                <strong>
-                  Supported Languages
-                </strong>
-
-                <span>
-                  English, Español, Français, Português,
-                  العربية, 中文, हिन्दी, Swahili
-                </span>
-
+                <strong data-i18n="supportedLanguages">Supported Languages</strong>
+                <span>English, Español, Français, العربية, Português, 中文, हिन्दी, Kiswahili</span>
               </div>
-
             </div>
+          </div>
 
-          </div>          <!-- APPROVAL PIPELINE -->
-
+          <!-- APPROVAL PIPELINE -->
           <div class="section">
-
             <div class="section-head">
-
-              <h4 data-i18n="approvalPipeline">
-                Driver Approval Pipeline
-              </h4>
-
-              <span>
-                Real-Time Status
-              </span>
-
+              <h4 data-i18n="approvalPipeline">Driver Approval Pipeline</h4>
+              <span data-i18n="realTimeStatus">Real-Time Status</span>
             </div>
-
-            <div class="timeline">
-
-              <div class="timeline-item active">
-
+            <div class="timeline" id="approvalTimeline">
+              <div class="timeline-item active" id="timelineApplication">
                 <div class="timeline-dot"></div>
-
                 <div class="timeline-copy">
-
-                  <strong data-i18n="stepApplication">
-                    Application Submitted
-                  </strong>
-
-                  <span data-i18n="stepApplicationDesc">
-                    Driver profile created.
-                  </span>
-
+                  <strong data-i18n="stepApplication">Application Submitted</strong>
+                  <span data-i18n="stepApplicationDesc">Driver profile created.</span>
                 </div>
-
               </div>
-
-              <div class="timeline-item">
-
+              <div class="timeline-item" id="timelineEmail">
                 <div class="timeline-dot"></div>
-
                 <div class="timeline-copy">
-
-                  <strong data-i18n="stepEmail">
-                    Email Verification
-                  </strong>
-
-                  <span data-i18n="stepEmailDesc">
-                    Verify ownership of email.
-                  </span>
-
+                  <strong data-i18n="stepEmail">Email Verification</strong>
+                  <span data-i18n="stepEmailDesc">Verify ownership of email.</span>
                 </div>
-
               </div>
-
-              <div class="timeline-item">
-
+              <div class="timeline-item" id="timelineSms">
                 <div class="timeline-dot"></div>
-
                 <div class="timeline-copy">
-
-                  <strong data-i18n="stepSms">
-                    SMS Verification
-                  </strong>
-
-                  <span data-i18n="stepSmsDesc">
-                    Verify mobile phone ownership.
-                  </span>
-
+                  <strong data-i18n="stepSms">SMS Verification</strong>
+                  <span data-i18n="stepSmsDesc">Verify mobile phone ownership.</span>
                 </div>
-
               </div>
-
-              <div class="timeline-item">
-
+              <div class="timeline-item" id="timelinePersona">
                 <div class="timeline-dot"></div>
-
                 <div class="timeline-copy">
-
-                  <strong data-i18n="stepPersona">
-                    Persona Identity Review
-                  </strong>
-
-                  <span data-i18n="stepPersonaDesc">
-                    Identity and document review.
-                  </span>
-
+                  <strong data-i18n="stepPersona">Persona Identity Review</strong>
+                  <span data-i18n="stepPersonaDesc">Identity and document review.</span>
                 </div>
-
               </div>
-
-              <div class="timeline-item">
-
+              <div class="timeline-item" id="timelineCheckr">
                 <div class="timeline-dot"></div>
-
                 <div class="timeline-copy">
-
-                  <strong data-i18n="stepCheckr">
-                    Checkr Background Review
-                  </strong>
-
-                  <span data-i18n="stepCheckrDesc">
-                    Criminal and compliance screening.
-                  </span>
-
+                  <strong data-i18n="stepCheckr">Checkr Background Review</strong>
+                  <span data-i18n="stepCheckrDesc">Criminal and compliance screening.</span>
                 </div>
-
               </div>
-
-              <div class="timeline-item">
-
+              <div class="timeline-item" id="timelineApproval">
                 <div class="timeline-dot"></div>
-
                 <div class="timeline-copy">
-
-                  <strong data-i18n="stepApproval">
-                    Admin Approval
-                  </strong>
-
-                  <span data-i18n="stepApprovalDesc">
-                    Final Harvey Taxi activation.
-                  </span>
-
+                  <strong data-i18n="stepApproval">Admin Approval</strong>
+                  <span data-i18n="stepApprovalDesc">Final Harvey Taxi activation.</span>
                 </div>
-
               </div>
-
             </div>
-
           </div>
 
           <!-- ACTION BUTTONS -->
-
           <div class="actions">
-
-            <button
-              id="submitBtn"
-              class="btn"
-              type="submit"
-            >
-              Submit Driver Application
-            </button>
-
+            <button id="submitBtn" class="btn" type="submit" data-i18n="submit">Submit Driver Application</button>
             <div class="two">
-
-              <a
-                class="ghost"
-                href="/"
-                data-i18n="returnHome"
-              >
-                Return Home
-              </a>
-
-              <a
-                class="ghost"
-                href="/support.html"
-                data-i18n="driverSupport"
-              >
-                Driver Support
-              </a>
-
+              <a class="ghost" href="/" data-i18n="returnHome">Return Home</a>
+              <a class="ghost" href="/support.html" data-i18n="driverSupport">Driver Support</a>
             </div>
-
           </div>
 
         </div>
 
         <!-- VERIFICATION SECTION -->
-
-        <div
-          id="verificationSection"
-          class="section hidden"
-        >
-
+        <div id="verificationSection" class="section hidden">
           <div class="section-head">
-
-            <h4 data-i18n="verificationTitle">
-              Driver Verification
-            </h4>
-
-            <span>
-              Final Steps
-            </span>
-
+            <h4 data-i18n="verificationTitle">Driver Verification</h4>
+            <span data-i18n="finalSteps">Final Steps</span>
           </div>
+          <p class="muted" data-i18n="verificationText">Verify your email first, then complete SMS verification.</p>
 
-          <p
-            class="muted"
-            data-i18n="verificationText"
-          >
-            Verify your email first, then complete SMS verification.
-          </p>
-
-          <div
-            id="savedDriverBox"
-            class="saved"
-          >
-
-            <strong>
-              Driver Session
-            </strong>
-
+          <div id="savedDriverBox" class="saved">
+            <strong data-i18n="driverSession">Driver Session</strong>
             <span id="savedDriverText"></span>
-
           </div>
 
           <div class="progress">
-
             <div class="progress-card">
-
-              <strong data-i18n="emailVerification">
-                Email Verification
-              </strong>
-
-              <span id="emailTargetText">
-                Waiting...
-              </span>
-
-              <span
-                id="emailPill"
-                class="pill"
-              >
-                Pending
-              </span>
-
+              <strong data-i18n="emailVerification">Email Verification</strong>
+              <span id="emailTargetText">Waiting...</span>
+              <span id="emailPill" class="pill">Pending</span>
             </div>
-
             <div class="progress-card">
-
-              <strong data-i18n="smsVerification">
-                SMS Verification
-              </strong>
-
-              <span id="smsTargetText">
-                Waiting...
-              </span>
-
-              <span
-                id="smsPill"
-                class="pill"
-              >
-                Pending
-              </span>
-
+              <strong data-i18n="smsVerification">SMS Verification</strong>
+              <span id="smsTargetText">Waiting...</span>
+              <span id="smsPill" class="pill">Pending</span>
             </div>
-
           </div>
 
           <div class="progress">
-
             <div class="progress-card">
-
-              <strong>
-                Persona
-              </strong>
-
-              <span>
-                Identity verification review.
-              </span>
-
-              <span
-                id="personaPill"
-                class="pill"
-              >
-                Pending
-              </span>
-
+              <strong>Persona</strong>
+              <span>Identity verification review.</span>
+              <span id="personaPill" class="pill">Pending</span>
             </div>
-
             <div class="progress-card">
-
-              <strong>
-                Checkr
-              </strong>
-
-              <span>
-                Background review.
-              </span>
-
-              <span
-                id="checkrPill"
-                class="pill"
-              >
-                Pending
-              </span>
-
+              <strong>Checkr</strong>
+              <span>Background review.</span>
+              <span id="checkrPill" class="pill">Pending</span>
             </div>
-
           </div>
 
-          <p
-            id="verificationNote"
-            class="muted"
-          >
-            Check your inbox for your verification link.
-          </p>          <!-- SMS CODE ENTRY -->
+          <p id="verificationNote" class="muted">Check your inbox for your verification link.</p>
 
-          <div
-            class="field full"
-            style="margin-top:18px;"
-          >
-
-            <label
-              for="smsCode"
-              data-i18n="smsCode"
-            >
-              SMS Verification Code
-            </label>
-
-            <input
-              id="smsCode"
-              type="text"
-              inputmode="numeric"
-              maxlength="6"
-              placeholder="123456"
-            />
-
+          <!-- SMS CODE ENTRY -->
+          <div class="field full" style="margin-top:18px;">
+            <label for="smsCode" data-i18n="smsCode">SMS Verification Code</label>
+            <input id="smsCode" type="text" inputmode="numeric" maxlength="6" placeholder="123456" autocomplete="one-time-code" />
           </div>
 
           <!-- VERIFICATION ACTIONS -->
-
           <div class="actions">
-
-            <button
-              id="verifySmsBtn"
-              class="btn"
-              type="button"
-              data-i18n="verifySms"
-            >
-              Verify SMS Code
-            </button>
-
+            <button id="verifySmsBtn" class="btn" type="button" data-i18n="verifySms">Verify SMS Code</button>
           </div>
 
           <div class="actions two">
-
-            <button
-              id="refreshStatusBtn"
-              class="secondary"
-              type="button"
-              data-i18n="refreshStatus"
-            >
-              Refresh Status
-            </button>
-
-            <button
-              id="resendEmailBtn"
-              class="secondary"
-              type="button"
-              data-i18n="resendEmail"
-            >
-              Resend Email Link
-            </button>
-
+            <button id="refreshStatusBtn" class="secondary" type="button" data-i18n="refreshStatus">Refresh Status</button>
+            <button id="resendEmailBtn" class="secondary" type="button" data-i18n="resendEmail">Resend Email Link</button>
           </div>
 
           <div class="actions two">
-
-            <button
-              id="resendSmsBtn"
-              class="secondary"
-              type="button"
-              data-i18n="resendSms"
-            >
-              Resend SMS Code
-            </button>
-
-            <button
-              id="startOverBtn"
-              class="secondary"
-              type="button"
-              data-i18n="startOver"
-            >
-              Start Over
-            </button>
-
+            <button id="resendSmsBtn" class="secondary" type="button" data-i18n="resendSms">Resend SMS Code</button>
+            <button id="startOverBtn" class="secondary" type="button" data-i18n="startOver">Start Over</button>
           </div>
 
           <div class="actions">
-
-            <button
-              id="launchPersonaBtn"
-              class="btn hidden"
-              type="button"
-            >
-              Start Persona Verification
-            </button>
-
-            <button
-              id="openDashboardBtn"
-              class="btn hidden"
-              type="button"
-            >
-              Open Driver Dashboard
-            </button>
-
+            <button id="launchPersonaBtn" class="btn hidden" type="button">Start Persona Verification</button>
+            <button id="openDashboardBtn" class="btn hidden" type="button">Open Driver Dashboard</button>
           </div>
 
-          <div
-            id="debugInfo"
-            class="debug"
-          ></div>
-
+          <div id="debugInfo" class="debug"></div>
         </div>
 
         <!-- STATUS AREA -->
-
-        <div
-          id="statusMessage"
-          class="status"
-        ></div>
-
-        <div
-          id="pageDebug"
-          class="debug"
-        ></div>
+        <div id="statusMessage" class="status" role="status" aria-live="polite"></div>
+        <div id="pageDebug" class="debug"></div>
 
       </form>
-
     </section>
 
   </main>
-
 </div>
 
 <!-- ======================================== -->
-<!-- ADAPTIVE LANGUAGE ENGINE -->
+<!-- ALL APP JS — single block, correct order  -->
 <!-- ======================================== -->
-
 <script>
+  /* ---- DOM shorthand (this was called >40 times throughout the
+     original file but never defined anywhere — every single call
+     threw ReferenceError, which silently broke the entire language
+     switcher, accessibility toggles, and bootstrap sequence) ---- */
+  function $(id) { return document.getElementById(id); }
 
-const translations = {
+  const HARVEY_API_BASE =
+    window.location.origin && window.location.origin.includes("http")
+      ? window.location.origin
+      : "https://harvey-taxi-app-2.onrender.com";
 
-  en: {
+  const DRAFT_KEY = "harvey_driver_signup_draft";
 
-    heroTitle:
-      "Join the Harvey Taxi Fleet",
+  /* ---- Translations ---- */
+  const translations = {
+    en: {
+      langTitle: "Language & Accessibility",
+      langSubtitle: "Select your preferred language and accessibility settings.",
+      welcomeTitle: "Driver Access For Everyone",
+      welcomeText: "Harvey Taxi supports multilingual onboarding, accessibility accommodations, screen reader compatibility, larger text preferences, and reduced motion support.",
+      brand: "HARVEY TAXI",
+      portal: "Driver Onboarding Portal",
+      home: "Return Home",
+      onboarding: "Driver onboarding",
+      fleetTitle: "Join the Harvey Taxi fleet",
+      heroTitle: "Join the Harvey Taxi Fleet",
+      fleetDesc: "Submit your application, verify your email, verify your phone, complete identity review, complete Checkr, and wait for admin approval before going online.",
+      emailVerification: "Email verification",
+      emailVerificationDesc: "A secure SendGrid email link verifies your email address.",
+      smsVerification: "SMS verification",
+      smsVerificationDesc: "A 6-digit code verifies your phone number after your email is verified.",
+      personaCheckr: "Persona + Checkr review",
+      personaCheckrDesc: "Driver approval can include identity review, document review, background review, and manual admin approval.",
+      missionAccess: "Mission-first access",
+      missionAccessDesc: "Drivers must be fully approved before receiving ride, food delivery, or grocery delivery missions.",
+      signupTitle: "Driver Sign Up",
+      signupSubtitle: "Complete the driver application below.",
+      approvalNotice: "Driver access is not immediate.",
+      driverInfo: "Driver Information",
+      firstName: "First Name",
+      lastName: "Last Name",
+      email: "Email Address",
+      phone: "Phone Number",
+      city: "Operating City",
+      state: "State",
+      license: "Driver License Number",
+      password: "Password",
+      vehicleInfo: "Vehicle Information",
+      make: "Vehicle Make",
+      model: "Vehicle Model",
+      year: "Vehicle Year",
+      color: "Vehicle Color",
+      plate: "License Plate",
+      services: "Driver Services",
+      rides: "Passenger Rides",
+      ridesDesc: "Standard transportation missions.",
+      food: "Food Delivery",
+      foodDesc: "Restaurant and food delivery.",
+      grocery: "Grocery Delivery",
+      groceryDesc: "Grocery pickup and delivery.",
+      priority: "Priority Missions",
+      priorityDesc: "Emergency dispatch missions.",
+      driverMode: "Driver Mode",
+      humanDriver: "Human Driver",
+      humanDriverDesc: "Standard Harvey Taxi driver onboarding.",
+      autonomous: "Autonomous Pilot",
+      autonomousDesc: "Future AV pilot readiness program.",
+      acknowledgements: "Driver Acknowledgements",
+      termsConsent: "I agree to Harvey Taxi onboarding terms.",
+      backgroundConsent: "I consent to Persona and Checkr reviews.",
+      insuranceConsent: "I confirm insurance documentation will be provided.",
+      locationTrackingConsent: "I allow secure location tracking for dispatch and safety.",
+      formHint: "Complete all required fields.",
+      adaptiveLanguageTitle: "Adaptive Language Support",
+      aiTranslation: "AI Translation",
+      currentLanguage: "Current Language",
+      supportedLanguages: "Supported Languages",
+      approvalPipeline: "Driver Approval Pipeline",
+      realTimeStatus: "Real-Time Status",
+      stepApplication: "Application Submitted",
+      stepApplicationDesc: "Driver profile created.",
+      stepEmail: "Email Verification",
+      stepEmailDesc: "Verify ownership of email.",
+      stepSms: "SMS Verification",
+      stepSmsDesc: "Verify mobile phone ownership.",
+      stepPersona: "Persona Identity Review",
+      stepPersonaDesc: "Identity and document review.",
+      stepCheckr: "Checkr Background Review",
+      stepCheckrDesc: "Criminal and compliance screening.",
+      stepApproval: "Admin Approval",
+      stepApprovalDesc: "Final Harvey Taxi activation.",
+      submit: "Submit Driver Application",
+      returnHome: "Return Home",
+      driverSupport: "Driver Support",
+      verificationTitle: "Driver Verification",
+      verificationText: "Verify your email first, then complete SMS verification.",
+      finalSteps: "Final Steps",
+      driverSession: "Driver Session",
+      smsCode: "SMS Verification Code",
+      verifySms: "Verify SMS Code",
+      refreshStatus: "Refresh Status",
+      resendEmail: "Resend Email Link",
+      resendSms: "Resend SMS Code",
+      startOver: "Start Over"
+    },
+    es: {
+      langTitle: "Idioma y Accesibilidad",
+      langSubtitle: "Seleccione su idioma preferido y configuración de accesibilidad.",
+      welcomeTitle: "Acceso para Conductores de Todos",
+      welcomeText: "Harvey Taxi admite incorporación multilingüe, adaptaciones de accesibilidad, compatibilidad con lectores de pantalla, texto más grande y movimiento reducido.",
+      brand: "HARVEY TAXI",
+      portal: "Portal de Incorporación de Conductores",
+      home: "Volver al Inicio",
+      onboarding: "Incorporación de conductores",
+      fleetTitle: "Únete a la flota de Harvey Taxi",
+      heroTitle: "Únete a la flota de Harvey Taxi",
+      fleetDesc: "Envía tu solicitud, verifica tu correo, verifica tu teléfono, completa la revisión de identidad, completa Checkr y espera la aprobación del administrador antes de conectarte.",
+      emailVerification: "Verificación de correo",
+      emailVerificationDesc: "Un enlace seguro de SendGrid verifica tu correo electrónico.",
+      smsVerification: "Verificación SMS",
+      smsVerificationDesc: "Un código de 6 dígitos verifica tu teléfono después de verificar tu correo.",
+      personaCheckr: "Revisión Persona + Checkr",
+      personaCheckrDesc: "La aprobación puede incluir revisión de identidad, documentos, antecedentes y aprobación manual.",
+      missionAccess: "Acceso basado en misiones",
+      missionAccessDesc: "Los conductores deben estar completamente aprobados antes de recibir viajes o entregas.",
+      signupTitle: "Registro de Conductor",
+      signupSubtitle: "Completa la solicitud de conductor a continuación.",
+      approvalNotice: "El acceso de conductor no es inmediato.",
+      driverInfo: "Información del Conductor",
+      firstName: "Nombre",
+      lastName: "Apellido",
+      email: "Correo Electrónico",
+      phone: "Número de Teléfono",
+      city: "Ciudad de Operación",
+      state: "Estado",
+      license: "Número de Licencia de Conducir",
+      password: "Contraseña",
+      vehicleInfo: "Información del Vehículo",
+      make: "Marca del Vehículo",
+      model: "Modelo del Vehículo",
+      year: "Año del Vehículo",
+      color: "Color del Vehículo",
+      plate: "Placa",
+      services: "Servicios del Conductor",
+      rides: "Viajes de Pasajeros",
+      ridesDesc: "Misiones de transporte estándar.",
+      food: "Entrega de Comida",
+      foodDesc: "Entregas de restaurantes.",
+      grocery: "Entrega de Supermercado",
+      groceryDesc: "Recogida y entrega de compras.",
+      priority: "Misiones Prioritarias",
+      priorityDesc: "Despacho de emergencia.",
+      driverMode: "Modo de Conductor",
+      humanDriver: "Conductor Humano",
+      humanDriverDesc: "Incorporación estándar de conductor.",
+      autonomous: "Piloto Autónomo",
+      autonomousDesc: "Programa futuro de preparación para vehículos autónomos.",
+      acknowledgements: "Reconocimientos del Conductor",
+      termsConsent: "Acepto los términos de incorporación de Harvey Taxi.",
+      backgroundConsent: "Consiento las revisiones de Persona y Checkr.",
+      insuranceConsent: "Confirmo que se proporcionará documentación de seguro.",
+      locationTrackingConsent: "Permito el seguimiento de ubicación seguro para despacho y seguridad.",
+      formHint: "Completa todos los campos requeridos.",
+      adaptiveLanguageTitle: "Soporte de Idioma Adaptativo",
+      aiTranslation: "Traducción IA",
+      currentLanguage: "Idioma Actual",
+      supportedLanguages: "Idiomas Compatibles",
+      approvalPipeline: "Proceso de Aprobación de Conductor",
+      realTimeStatus: "Estado en Tiempo Real",
+      stepApplication: "Solicitud Enviada",
+      stepApplicationDesc: "Perfil de conductor creado.",
+      stepEmail: "Verificación de Correo",
+      stepEmailDesc: "Verificar propiedad del correo.",
+      stepSms: "Verificación SMS",
+      stepSmsDesc: "Verificar propiedad del teléfono móvil.",
+      stepPersona: "Revisión de Identidad Persona",
+      stepPersonaDesc: "Revisión de identidad y documentos.",
+      stepCheckr: "Revisión de Antecedentes Checkr",
+      stepCheckrDesc: "Verificación criminal y de cumplimiento.",
+      stepApproval: "Aprobación del Administrador",
+      stepApprovalDesc: "Activación final de Harvey Taxi.",
+      submit: "Enviar Solicitud",
+      returnHome: "Volver al Inicio",
+      driverSupport: "Soporte para Conductores",
+      verificationTitle: "Verificación del Conductor",
+      verificationText: "Verifica tu correo electrónico primero y luego tu teléfono.",
+      finalSteps: "Pasos Finales",
+      driverSession: "Sesión de Conductor",
+      smsCode: "Código de Verificación SMS",
+      verifySms: "Verificar Código SMS",
+      refreshStatus: "Actualizar Estado",
+      resendEmail: "Reenviar Enlace de Correo",
+      resendSms: "Reenviar Código SMS",
+      startOver: "Empezar de Nuevo"
+    },
+    fr: {
+      langTitle: "Langue et Accessibilité",
+      langSubtitle: "Sélectionnez votre langue préférée et vos paramètres d'accessibilité.",
+      welcomeTitle: "Accès Chauffeur Pour Tous",
+      welcomeText: "Harvey Taxi prend en charge l'intégration multilingue, les aménagements d'accessibilité, la compatibilité avec les lecteurs d'écran, un texte plus grand et un mouvement réduit.",
+      brand: "HARVEY TAXI",
+      portal: "Portail d'Intégration Chauffeur",
+      home: "Retour à l'Accueil",
+      onboarding: "Intégration chauffeur",
+      fleetTitle: "Rejoignez la flotte Harvey Taxi",
+      heroTitle: "Rejoignez la flotte Harvey Taxi",
+      fleetDesc: "Soumettez votre demande, vérifiez votre e-mail, vérifiez votre téléphone, complétez la vérification d'identité, complétez Checkr et attendez l'approbation de l'administrateur avant de vous connecter.",
+      emailVerification: "Vérification de l'e-mail",
+      emailVerificationDesc: "Un lien e-mail SendGrid sécurisé vérifie votre adresse e-mail.",
+      smsVerification: "Vérification SMS",
+      smsVerificationDesc: "Un code à 6 chiffres vérifie votre numéro de téléphone après vérification de l'e-mail.",
+      personaCheckr: "Vérification Persona + Checkr",
+      personaCheckrDesc: "L'approbation peut inclure une vérification d'identité, de documents, des antécédents et une approbation manuelle.",
+      missionAccess: "Accès basé sur les missions",
+      missionAccessDesc: "Les chauffeurs doivent être entièrement approuvés avant de recevoir des courses ou des livraisons.",
+      signupTitle: "Inscription Chauffeur",
+      signupSubtitle: "Complétez la demande de chauffeur ci-dessous.",
+      approvalNotice: "L'accès chauffeur n'est pas immédiat.",
+      driverInfo: "Informations sur le Chauffeur",
+      firstName: "Prénom",
+      lastName: "Nom",
+      email: "Adresse E-mail",
+      phone: "Numéro de Téléphone",
+      city: "Ville d'Exploitation",
+      state: "État",
+      license: "Numéro de Permis de Conduire",
+      password: "Mot de Passe",
+      vehicleInfo: "Informations sur le Véhicule",
+      make: "Marque du Véhicule",
+      model: "Modèle du Véhicule",
+      year: "Année du Véhicule",
+      color: "Couleur du Véhicule",
+      plate: "Plaque d'Immatriculation",
+      services: "Services du Chauffeur",
+      rides: "Courses Passagers",
+      ridesDesc: "Missions de transport standard.",
+      food: "Livraison de Repas",
+      foodDesc: "Livraisons de restaurants.",
+      grocery: "Livraison d'Épicerie",
+      groceryDesc: "Ramassage et livraison d'épicerie.",
+      priority: "Missions Prioritaires",
+      priorityDesc: "Missions de répartition d'urgence.",
+      driverMode: "Mode Chauffeur",
+      humanDriver: "Chauffeur Humain",
+      humanDriverDesc: "Intégration standard de chauffeur Harvey Taxi.",
+      autonomous: "Pilote Autonome",
+      autonomousDesc: "Futur programme de préparation pilote AV.",
+      acknowledgements: "Reconnaissances du Chauffeur",
+      termsConsent: "J'accepte les conditions d'intégration de Harvey Taxi.",
+      backgroundConsent: "Je consens aux vérifications Persona et Checkr.",
+      insuranceConsent: "Je confirme que la documentation d'assurance sera fournie.",
+      locationTrackingConsent: "J'autorise le suivi de localisation sécurisé pour la répartition et la sécurité.",
+      formHint: "Complétez tous les champs requis.",
+      adaptiveLanguageTitle: "Support Linguistique Adaptatif",
+      aiTranslation: "Traduction IA",
+      currentLanguage: "Langue Actuelle",
+      supportedLanguages: "Langues Prises en Charge",
+      approvalPipeline: "Processus d'Approbation Chauffeur",
+      realTimeStatus: "Statut en Temps Réel",
+      stepApplication: "Demande Soumise",
+      stepApplicationDesc: "Profil chauffeur créé.",
+      stepEmail: "Vérification de l'E-mail",
+      stepEmailDesc: "Vérifier la propriété de l'e-mail.",
+      stepSms: "Vérification SMS",
+      stepSmsDesc: "Vérifier la propriété du téléphone mobile.",
+      stepPersona: "Vérification d'Identité Persona",
+      stepPersonaDesc: "Vérification d'identité et de documents.",
+      stepCheckr: "Vérification des Antécédents Checkr",
+      stepCheckrDesc: "Contrôle criminel et de conformité.",
+      stepApproval: "Approbation de l'Administrateur",
+      stepApprovalDesc: "Activation finale de Harvey Taxi.",
+      submit: "Soumettre la Demande",
+      returnHome: "Retour à l'Accueil",
+      driverSupport: "Support Chauffeur",
+      verificationTitle: "Vérification du Chauffeur",
+      verificationText: "Vérifiez d'abord votre e-mail, puis complétez la vérification SMS.",
+      finalSteps: "Étapes Finales",
+      driverSession: "Session Chauffeur",
+      smsCode: "Code de Vérification SMS",
+      verifySms: "Vérifier le Code SMS",
+      refreshStatus: "Actualiser le Statut",
+      resendEmail: "Renvoyer le Lien E-mail",
+      resendSms: "Renvoyer le Code SMS",
+      startOver: "Recommencer"
+    },
+    ar: {
+      langTitle: "اللغة وإمكانية الوصول",
+      langSubtitle: "اختر لغتك المفضلة وإعدادات إمكانية الوصول.",
+      welcomeTitle: "وصول السائقين للجميع",
+      welcomeText: "تدعم هارفي تاكسي التسجيل متعدد اللغات، وتسهيلات إمكانية الوصول، وتوافق قارئ الشاشة، وتفضيلات النص الأكبر، ودعم الحركة المنخفضة.",
+      brand: "هارفي تاكسي",
+      portal: "بوابة تسجيل السائقين",
+      home: "العودة للرئيسية",
+      onboarding: "تسجيل السائقين",
+      fleetTitle: "انضم إلى أسطول هارفي تاكسي",
+      heroTitle: "انضم إلى أسطول هارفي تاكسي",
+      fleetDesc: "قدّم طلبك، تحقق من بريدك الإلكتروني، تحقق من هاتفك، أكمل مراجعة الهوية، أكمل Checkr، وانتظر موافقة المسؤول قبل بدء العمل.",
+      emailVerification: "التحقق من البريد الإلكتروني",
+      emailVerificationDesc: "رابط بريد إلكتروني آمن من SendGrid يتحقق من عنوان بريدك الإلكتروني.",
+      smsVerification: "التحقق عبر الرسائل القصيرة",
+      smsVerificationDesc: "رمز مكون من 6 أرقام يتحقق من رقم هاتفك بعد التحقق من بريدك الإلكتروني.",
+      personaCheckr: "مراجعة Persona و Checkr",
+      personaCheckrDesc: "قد تشمل الموافقة مراجعة الهوية والمستندات والخلفية والموافقة اليدوية من المسؤول.",
+      missionAccess: "الوصول القائم على المهام",
+      missionAccessDesc: "يجب الموافقة على السائقين بالكامل قبل استلام مهام الرحلات أو التوصيل.",
+      signupTitle: "تسجيل السائق",
+      signupSubtitle: "أكمل طلب السائق أدناه.",
+      approvalNotice: "وصول السائق ليس فوريًا.",
+      driverInfo: "معلومات السائق",
+      firstName: "الاسم الأول",
+      lastName: "اسم العائلة",
+      email: "البريد الإلكتروني",
+      phone: "رقم الهاتف",
+      city: "مدينة التشغيل",
+      state: "الولاية",
+      license: "رقم رخصة القيادة",
+      password: "كلمة المرور",
+      vehicleInfo: "معلومات المركبة",
+      make: "ماركة المركبة",
+      model: "موديل المركبة",
+      year: "سنة المركبة",
+      color: "لون المركبة",
+      plate: "لوحة الترخيص",
+      services: "خدمات السائق",
+      rides: "رحلات الركاب",
+      ridesDesc: "مهام النقل القياسية.",
+      food: "توصيل الطعام",
+      foodDesc: "توصيلات المطاعم.",
+      grocery: "توصيل البقالة",
+      groceryDesc: "استلام وتوصيل البقالة.",
+      priority: "مهام ذات أولوية",
+      priorityDesc: "مهام الإرسال الطارئة.",
+      driverMode: "وضع السائق",
+      humanDriver: "سائق بشري",
+      humanDriverDesc: "تسجيل سائق هارفي تاكسي القياسي.",
+      autonomous: "طيار ذاتي القيادة",
+      autonomousDesc: "برنامج الاستعداد التجريبي للمركبات ذاتية القيادة المستقبلي.",
+      acknowledgements: "إقرارات السائق",
+      termsConsent: "أوافق على شروط تسجيل هارفي تاكسي.",
+      backgroundConsent: "أوافق على مراجعات Persona و Checkr.",
+      insuranceConsent: "أؤكد أنه سيتم تقديم وثائق التأمين.",
+      locationTrackingConsent: "أسمح بتتبع الموقع الآمن للإرسال والسلامة.",
+      formHint: "أكمل جميع الحقول المطلوبة.",
+      adaptiveLanguageTitle: "دعم اللغة التكيفي",
+      aiTranslation: "ترجمة بالذكاء الاصطناعي",
+      currentLanguage: "اللغة الحالية",
+      supportedLanguages: "اللغات المدعومة",
+      approvalPipeline: "مسار موافقة السائق",
+      realTimeStatus: "الحالة في الوقت الفعلي",
+      stepApplication: "تم إرسال الطلب",
+      stepApplicationDesc: "تم إنشاء ملف تعريف السائق.",
+      stepEmail: "التحقق من البريد الإلكتروني",
+      stepEmailDesc: "تحقق من ملكية البريد الإلكتروني.",
+      stepSms: "التحقق عبر الرسائل القصيرة",
+      stepSmsDesc: "تحقق من ملكية الهاتف المحمول.",
+      stepPersona: "مراجعة هوية Persona",
+      stepPersonaDesc: "مراجعة الهوية والمستندات.",
+      stepCheckr: "مراجعة خلفية Checkr",
+      stepCheckrDesc: "فحص جنائي وفحص الامتثال.",
+      stepApproval: "موافقة المسؤول",
+      stepApprovalDesc: "التفعيل النهائي لهارفي تاكسي.",
+      submit: "إرسال طلب السائق",
+      returnHome: "العودة للرئيسية",
+      driverSupport: "دعم السائق",
+      verificationTitle: "تحقق السائق",
+      verificationText: "تحقق من بريدك الإلكتروني أولاً ثم أكمل التحقق عبر الرسائل.",
+      finalSteps: "الخطوات النهائية",
+      driverSession: "جلسة السائق",
+      smsCode: "رمز التحقق عبر الرسائل القصيرة",
+      verifySms: "تحقق من رمز الرسائل القصيرة",
+      refreshStatus: "تحديث الحالة",
+      resendEmail: "إعادة إرسال رابط البريد الإلكتروني",
+      resendSms: "إعادة إرسال رمز الرسائل القصيرة",
+      startOver: "البدء من جديد",
+      dir: "rtl"
+    },
+    pt: {
+      langTitle: "Idioma e Acessibilidade",
+      langSubtitle: "Selecione seu idioma preferido e configurações de acessibilidade.",
+      welcomeTitle: "Acesso para Motoristas de Todos",
+      welcomeText: "A Harvey Taxi oferece suporte a integração multilíngue, acomodações de acessibilidade, compatibilidade com leitor de tela, texto maior e movimento reduzido.",
+      brand: "HARVEY TAXI",
+      portal: "Portal de Integração de Motoristas",
+      home: "Voltar ao Início",
+      onboarding: "Integração de motoristas",
+      fleetTitle: "Junte-se à frota Harvey Taxi",
+      heroTitle: "Junte-se à frota Harvey Taxi",
+      fleetDesc: "Envie sua candidatura, verifique seu e-mail, verifique seu telefone, complete a revisão de identidade, complete o Checkr e aguarde a aprovação do administrador antes de ficar online.",
+      emailVerification: "Verificação de e-mail",
+      emailVerificationDesc: "Um link de e-mail seguro do SendGrid verifica seu endereço de e-mail.",
+      smsVerification: "Verificação por SMS",
+      smsVerificationDesc: "Um código de 6 dígitos verifica seu número de telefone após a verificação do e-mail.",
+      personaCheckr: "Revisão Persona + Checkr",
+      personaCheckrDesc: "A aprovação pode incluir revisão de identidade, documentos, antecedentes e aprovação manual.",
+      missionAccess: "Acesso baseado em missões",
+      missionAccessDesc: "Os motoristas devem estar totalmente aprovados antes de receber corridas ou entregas.",
+      signupTitle: "Cadastro de Motorista",
+      signupSubtitle: "Complete a candidatura de motorista abaixo.",
+      approvalNotice: "O acesso de motorista não é imediato.",
+      driverInfo: "Informações do Motorista",
+      firstName: "Nome",
+      lastName: "Sobrenome",
+      email: "Endereço de E-mail",
+      phone: "Número de Telefone",
+      city: "Cidade de Operação",
+      state: "Estado",
+      license: "Número da Carteira de Motorista",
+      password: "Senha",
+      vehicleInfo: "Informações do Veículo",
+      make: "Marca do Veículo",
+      model: "Modelo do Veículo",
+      year: "Ano do Veículo",
+      color: "Cor do Veículo",
+      plate: "Placa",
+      services: "Serviços do Motorista",
+      rides: "Corridas de Passageiros",
+      ridesDesc: "Missões de transporte padrão.",
+      food: "Entrega de Comida",
+      foodDesc: "Entregas de restaurantes.",
+      grocery: "Entrega de Mercado",
+      groceryDesc: "Coleta e entrega de mercado.",
+      priority: "Missões Prioritárias",
+      priorityDesc: "Missões de despacho de emergência.",
+      driverMode: "Modo de Motorista",
+      humanDriver: "Motorista Humano",
+      humanDriverDesc: "Integração padrão de motorista Harvey Taxi.",
+      autonomous: "Piloto Autônomo",
+      autonomousDesc: "Futuro programa de preparação piloto para veículos autônomos.",
+      acknowledgements: "Reconhecimentos do Motorista",
+      termsConsent: "Concordo com os termos de integração da Harvey Taxi.",
+      backgroundConsent: "Consinto com as revisões Persona e Checkr.",
+      insuranceConsent: "Confirmo que a documentação de seguro será fornecida.",
+      locationTrackingConsent: "Permito o rastreamento de localização seguro para despacho e segurança.",
+      formHint: "Complete todos os campos obrigatórios.",
+      adaptiveLanguageTitle: "Suporte de Idioma Adaptativo",
+      aiTranslation: "Tradução por IA",
+      currentLanguage: "Idioma Atual",
+      supportedLanguages: "Idiomas Suportados",
+      approvalPipeline: "Processo de Aprovação de Motorista",
+      realTimeStatus: "Status em Tempo Real",
+      stepApplication: "Candidatura Enviada",
+      stepApplicationDesc: "Perfil de motorista criado.",
+      stepEmail: "Verificação de E-mail",
+      stepEmailDesc: "Verificar propriedade do e-mail.",
+      stepSms: "Verificação por SMS",
+      stepSmsDesc: "Verificar propriedade do celular.",
+      stepPersona: "Revisão de Identidade Persona",
+      stepPersonaDesc: "Revisão de identidade e documentos.",
+      stepCheckr: "Revisão de Antecedentes Checkr",
+      stepCheckrDesc: "Triagem criminal e de conformidade.",
+      stepApproval: "Aprovação do Administrador",
+      stepApprovalDesc: "Ativação final da Harvey Taxi.",
+      submit: "Enviar Candidatura",
+      returnHome: "Voltar ao Início",
+      driverSupport: "Suporte ao Motorista",
+      verificationTitle: "Verificação do Motorista",
+      verificationText: "Verifique seu e-mail primeiro e depois conclua a verificação por SMS.",
+      finalSteps: "Etapas Finais",
+      driverSession: "Sessão do Motorista",
+      smsCode: "Código de Verificação SMS",
+      verifySms: "Verificar Código SMS",
+      refreshStatus: "Atualizar Status",
+      resendEmail: "Reenviar Link de E-mail",
+      resendSms: "Reenviar Código SMS",
+      startOver: "Começar Novamente"
+    },
+    zh: {
+      langTitle: "语言与无障碍设置",
+      langSubtitle: "选择您的首选语言和无障碍设置。",
+      welcomeTitle: "面向所有人的司机通道",
+      welcomeText: "Harvey Taxi 支持多语言入驻、无障碍辅助、屏幕阅读器兼容、更大字体以及减少动画效果。",
+      brand: "HARVEY TAXI",
+      portal: "司机入驻门户",
+      home: "返回首页",
+      onboarding: "司机入驻",
+      fleetTitle: "加入 Harvey Taxi 司机团队",
+      heroTitle: "加入 Harvey Taxi 司机团队",
+      fleetDesc: "提交申请、验证电子邮件、验证手机、完成身份审核、完成 Checkr 审核，并等待管理员批准后即可上线。",
+      emailVerification: "邮箱验证",
+      emailVerificationDesc: "通过安全的 SendGrid 邮件链接验证您的电子邮箱地址。",
+      smsVerification: "短信验证",
+      smsVerificationDesc: "邮箱验证后，输入6位验证码以验证您的手机号码。",
+      personaCheckr: "Persona + Checkr 审核",
+      personaCheckrDesc: "司机审批可能包括身份审核、文件审核、背景审核以及人工管理员批准。",
+      missionAccess: "任务优先访问",
+      missionAccessDesc: "司机必须完全获批后才能接收乘车、餐饮配送或生鲜配送任务。",
+      signupTitle: "司机注册",
+      signupSubtitle: "请完成以下司机申请表。",
+      approvalNotice: "司机权限不会立即生效。",
+      driverInfo: "司机信息",
+      firstName: "名字",
+      lastName: "姓氏",
+      email: "电子邮箱地址",
+      phone: "电话号码",
+      city: "运营城市",
+      state: "州",
+      license: "驾驶执照号码",
+      password: "密码",
+      vehicleInfo: "车辆信息",
+      make: "车辆品牌",
+      model: "车辆型号",
+      year: "车辆年份",
+      color: "车辆颜色",
+      plate: "车牌号",
+      services: "司机服务",
+      rides: "乘客接送",
+      ridesDesc: "标准出行任务。",
+      food: "餐饮配送",
+      foodDesc: "餐厅及快餐配送。",
+      grocery: "生鲜配送",
+      groceryDesc: "生鲜取送任务。",
+      priority: "优先任务",
+      priorityDesc: "紧急及高优先级调度任务。",
+      driverMode: "司机模式",
+      humanDriver: "人工司机",
+      humanDriverDesc: "标准 Harvey Taxi 司机入驻流程。",
+      autonomous: "自动驾驶试点",
+      autonomousDesc: "未来自动驾驶试点准备计划。",
+      acknowledgements: "司机确认事项",
+      termsConsent: "我同意 Harvey Taxi 入驻条款。",
+      backgroundConsent: "我同意接受 Persona 和 Checkr 审核。",
+      insuranceConsent: "我确认将提供保险文件。",
+      locationTrackingConsent: "我允许为调度和安全目的进行安全位置追踪。",
+      formHint: "请完成所有必填字段。",
+      adaptiveLanguageTitle: "自适应语言支持",
+      aiTranslation: "AI 翻译",
+      currentLanguage: "当前语言",
+      supportedLanguages: "支持的语言",
+      approvalPipeline: "司机审批流程",
+      realTimeStatus: "实时状态",
+      stepApplication: "已提交申请",
+      stepApplicationDesc: "司机档案已创建。",
+      stepEmail: "邮箱验证",
+      stepEmailDesc: "验证邮箱所有权。",
+      stepSms: "短信验证",
+      stepSmsDesc: "验证手机号码所有权。",
+      stepPersona: "Persona 身份审核",
+      stepPersonaDesc: "身份与文件审核。",
+      stepCheckr: "Checkr 背景审核",
+      stepCheckrDesc: "犯罪记录与合规审查。",
+      stepApproval: "管理员批准",
+      stepApprovalDesc: "Harvey Taxi 最终激活。",
+      submit: "提交司机申请",
+      returnHome: "返回首页",
+      driverSupport: "司机支持",
+      verificationTitle: "司机验证",
+      verificationText: "请先验证电子邮件，然后完成短信验证。",
+      finalSteps: "最后步骤",
+      driverSession: "司机会话",
+      smsCode: "短信验证码",
+      verifySms: "验证短信验证码",
+      refreshStatus: "刷新状态",
+      resendEmail: "重新发送邮件链接",
+      resendSms: "重新发送短信验证码",
+      startOver: "重新开始"
+    },
+    hi: {
+      langTitle: "भाषा और सुगमता",
+      langSubtitle: "अपनी पसंदीदा भाषा और सुगमता सेटिंग्स चुनें।",
+      welcomeTitle: "सभी के लिए ड्राइवर पहुंच",
+      welcomeText: "Harvey Taxi बहुभाषी ऑनबोर्डिंग, सुगमता समायोजन, स्क्रीन रीडर अनुकूलता, बड़े टेक्स्ट विकल्प और कम गति समर्थन प्रदान करता है।",
+      brand: "HARVEY TAXI",
+      portal: "ड्राइवर ऑनबोर्डिंग पोर्टल",
+      home: "मुख्य पृष्ठ पर लौटें",
+      onboarding: "ड्राइवर ऑनबोर्डिंग",
+      fleetTitle: "Harvey Taxi बेड़े से जुड़ें",
+      heroTitle: "Harvey Taxi ड्राइवर टीम से जुड़ें",
+      fleetDesc: "अपना आवेदन जमा करें, अपना ईमेल सत्यापित करें, अपना फ़ोन सत्यापित करें, पहचान समीक्षा पूरी करें, Checkr पूरा करें, और ऑनलाइन जाने से पहले एडमिन अनुमोदन की प्रतीक्षा करें।",
+      emailVerification: "ईमेल सत्यापन",
+      emailVerificationDesc: "एक सुरक्षित SendGrid ईमेल लिंक आपके ईमेल पते को सत्यापित करता है।",
+      smsVerification: "SMS सत्यापन",
+      smsVerificationDesc: "आपका ईमेल सत्यापित होने के बाद एक 6-अंकीय कोड आपके फ़ोन नंबर को सत्यापित करता है।",
+      personaCheckr: "Persona + Checkr समीक्षा",
+      personaCheckrDesc: "ड्राइवर अनुमोदन में पहचान समीक्षा, दस्तावेज़ समीक्षा, पृष्ठभूमि समीक्षा और मैनुअल एडमिन अनुमोदन शामिल हो सकता है।",
+      missionAccess: "मिशन-प्राथमिकता पहुंच",
+      missionAccessDesc: "राइड, फूड डिलीवरी, या ग्रॉसरी डिलीवरी मिशन प्राप्त करने से पहले ड्राइवरों को पूरी तरह से अनुमोदित होना चाहिए।",
+      signupTitle: "ड्राइवर साइन अप",
+      signupSubtitle: "नीचे ड्राइवर आवेदन पूरा करें।",
+      approvalNotice: "ड्राइवर पहुंच तुरंत नहीं है।",
+      driverInfo: "ड्राइवर जानकारी",
+      firstName: "पहला नाम",
+      lastName: "अंतिम नाम",
+      email: "ईमेल पता",
+      phone: "फ़ोन नंबर",
+      city: "संचालन शहर",
+      state: "राज्य",
+      license: "ड्राइवर लाइसेंस नंबर",
+      password: "पासवर्ड",
+      vehicleInfo: "वाहन जानकारी",
+      make: "वाहन निर्माता",
+      model: "वाहन मॉडल",
+      year: "वाहन वर्ष",
+      color: "वाहन रंग",
+      plate: "लाइसेंस प्लेट",
+      services: "ड्राइवर सेवाएं",
+      rides: "यात्री सवारी",
+      ridesDesc: "मानक परिवहन मिशन।",
+      food: "भोजन डिलीवरी",
+      foodDesc: "रेस्तरां और भोजन डिलीवरी।",
+      grocery: "किराना डिलीवरी",
+      groceryDesc: "किराना पिकअप और डिलीवरी।",
+      priority: "प्राथमिकता मिशन",
+      priorityDesc: "आपातकालीन डिस्पैच मिशन।",
+      driverMode: "ड्राइवर मोड",
+      humanDriver: "मानव ड्राइवर",
+      humanDriverDesc: "मानक Harvey Taxi ड्राइवर ऑनबोर्डिंग।",
+      autonomous: "स्वायत्त पायलट",
+      autonomousDesc: "भविष्य का AV पायलट तैयारी कार्यक्रम।",
+      acknowledgements: "ड्राइवर स्वीकृतियां",
+      termsConsent: "मैं Harvey Taxi ऑनबोर्डिंग शर्तों से सहमत हूं।",
+      backgroundConsent: "मैं Persona और Checkr समीक्षाओं के लिए सहमति देता हूं।",
+      insuranceConsent: "मैं पुष्टि करता हूं कि बीमा दस्तावेज़ प्रदान किए जाएंगे।",
+      locationTrackingConsent: "मैं डिस्पैच और सुरक्षा के लिए सुरक्षित स्थान ट्रैकिंग की अनुमति देता हूं।",
+      formHint: "सभी आवश्यक फ़ील्ड पूरी करें।",
+      adaptiveLanguageTitle: "अनुकूली भाषा समर्थन",
+      aiTranslation: "AI अनुवाद",
+      currentLanguage: "वर्तमान भाषा",
+      supportedLanguages: "समर्थित भाषाएं",
+      approvalPipeline: "ड्राइवर अनुमोदन पाइपलाइन",
+      realTimeStatus: "वास्तविक समय की स्थिति",
+      stepApplication: "आवेदन जमा किया गया",
+      stepApplicationDesc: "ड्राइवर प्रोफ़ाइल बनाई गई।",
+      stepEmail: "ईमेल सत्यापन",
+      stepEmailDesc: "ईमेल स्वामित्व सत्यापित करें।",
+      stepSms: "SMS सत्यापन",
+      stepSmsDesc: "मोबाइल फ़ोन स्वामित्व सत्यापित करें।",
+      stepPersona: "Persona पहचान समीक्षा",
+      stepPersonaDesc: "पहचान और दस्तावेज़ समीक्षा।",
+      stepCheckr: "Checkr पृष्ठभूमि समीक्षा",
+      stepCheckrDesc: "आपराधिक और अनुपालन जांच।",
+      stepApproval: "एडमिन अनुमोदन",
+      stepApprovalDesc: "अंतिम Harvey Taxi सक्रियण।",
+      submit: "ड्राइवर आवेदन जमा करें",
+      returnHome: "मुख्य पृष्ठ पर लौटें",
+      driverSupport: "ड्राइवर सहायता",
+      verificationTitle: "ड्राइवर सत्यापन",
+      verificationText: "पहले ईमेल सत्यापित करें, फिर SMS सत्यापन पूरा करें।",
+      finalSteps: "अंतिम चरण",
+      driverSession: "ड्राइवर सत्र",
+      smsCode: "SMS सत्यापन कोड",
+      verifySms: "SMS कोड सत्यापित करें",
+      refreshStatus: "स्थिति ताज़ा करें",
+      resendEmail: "ईमेल लिंक पुनः भेजें",
+      resendSms: "SMS कोड पुनः भेजें",
+      startOver: "फिर से शुरू करें"
+    },
+    sw: {
+      langTitle: "Lugha na Ufikiaji",
+      langSubtitle: "Chagua lugha unayopendelea na mipangilio ya ufikiaji.",
+      welcomeTitle: "Ufikiaji wa Dereva kwa Kila Mtu",
+      welcomeText: "Harvey Taxi inasaidia usajili wa lugha nyingi, marekebisho ya ufikiaji, utangamano wa kisoma skrini, mapendeleo ya maandishi makubwa, na msaada wa mwendo uliopunguzwa.",
+      brand: "HARVEY TAXI",
+      portal: "Mlango wa Usajili wa Dereva",
+      home: "Rudi Nyumbani",
+      onboarding: "Usajili wa dereva",
+      fleetTitle: "Jiunge na meli ya Harvey Taxi",
+      heroTitle: "Jiunge na madereva wa Harvey Taxi",
+      fleetDesc: "Wasilisha ombi lako, thibitisha barua pepe yako, thibitisha simu yako, kamilisha ukaguzi wa utambulisho, kamilisha Checkr, na subiri idhini ya msimamizi kabla ya kuwa mtandaoni.",
+      emailVerification: "Uthibitishaji wa barua pepe",
+      emailVerificationDesc: "Kiungo cha barua pepe salama cha SendGrid kinathibitisha anwani yako ya barua pepe.",
+      smsVerification: "Uthibitishaji wa SMS",
+      smsVerificationDesc: "Msimbo wa tarakimu 6 unathibitisha nambari yako ya simu baada ya barua pepe yako kuthibitishwa.",
+      personaCheckr: "Ukaguzi wa Persona + Checkr",
+      personaCheckrDesc: "Idhini ya dereva inaweza kujumuisha ukaguzi wa utambulisho, ukaguzi wa hati, ukaguzi wa historia, na idhini ya mwongozo wa msimamizi.",
+      missionAccess: "Ufikiaji wa kipaumbele cha misheni",
+      missionAccessDesc: "Madereva lazima wawe wameidhinishwa kikamilifu kabla ya kupokea misheni ya safari, uwasilishaji wa chakula, au uwasilishaji wa mahitaji ya nyumbani.",
+      signupTitle: "Usajili wa Dereva",
+      signupSubtitle: "Kamilisha ombi la dereva hapa chini.",
+      approvalNotice: "Ufikiaji wa dereva si wa haraka.",
+      driverInfo: "Taarifa za Dereva",
+      firstName: "Jina la Kwanza",
+      lastName: "Jina la Mwisho",
+      email: "Anwani ya Barua Pepe",
+      phone: "Nambari ya Simu",
+      city: "Jiji la Uendeshaji",
+      state: "Jimbo",
+      license: "Nambari ya Leseni ya Dereva",
+      password: "Nenosiri",
+      vehicleInfo: "Taarifa za Gari",
+      make: "Chapa ya Gari",
+      model: "Mfano wa Gari",
+      year: "Mwaka wa Gari",
+      color: "Rangi ya Gari",
+      plate: "Bamba la Leseni",
+      services: "Huduma za Dereva",
+      rides: "Safari za Abiria",
+      ridesDesc: "Misheni ya usafiri ya kawaida.",
+      food: "Uwasilishaji wa Chakula",
+      foodDesc: "Uwasilishaji wa migahawa na chakula.",
+      grocery: "Uwasilishaji wa Mahitaji ya Nyumbani",
+      groceryDesc: "Uchukuaji na uwasilishaji wa mahitaji ya nyumbani.",
+      priority: "Misheni za Kipaumbele",
+      priorityDesc: "Misheni za dharura za utumaji.",
+      driverMode: "Hali ya Dereva",
+      humanDriver: "Dereva wa Kibinadamu",
+      humanDriverDesc: "Usajili wa kawaida wa dereva wa Harvey Taxi.",
+      autonomous: "Rubani wa Kujiendesha",
+      autonomousDesc: "Programu ya baadaye ya utayari wa rubani wa AV.",
+      acknowledgements: "Uthibitisho wa Dereva",
+      termsConsent: "Ninakubali masharti ya usajili wa Harvey Taxi.",
+      backgroundConsent: "Ninakubali ukaguzi wa Persona na Checkr.",
+      insuranceConsent: "Ninathibitisha kuwa hati za bima zitatolewa.",
+      locationTrackingConsent: "Ninaruhusu ufuatiliaji salama wa eneo kwa ajili ya utumaji na usalama.",
+      formHint: "Kamilisha sehemu zote zinazohitajika.",
+      adaptiveLanguageTitle: "Msaada wa Lugha Inayobadilika",
+      aiTranslation: "Tafsiri ya AI",
+      currentLanguage: "Lugha ya Sasa",
+      supportedLanguages: "Lugha Zinazoungwa Mkono",
+      approvalPipeline: "Mkondo wa Idhini ya Dereva",
+      realTimeStatus: "Hali ya Wakati Halisi",
+      stepApplication: "Ombi Limewasilishwa",
+      stepApplicationDesc: "Wasifu wa dereva umeundwa.",
+      stepEmail: "Uthibitishaji wa Barua Pepe",
+      stepEmailDesc: "Thibitisha umiliki wa barua pepe.",
+      stepSms: "Uthibitishaji wa SMS",
+      stepSmsDesc: "Thibitisha umiliki wa simu ya mkononi.",
+      stepPersona: "Ukaguzi wa Utambulisho wa Persona",
+      stepPersonaDesc: "Ukaguzi wa utambulisho na hati.",
+      stepCheckr: "Ukaguzi wa Historia wa Checkr",
+      stepCheckrDesc: "Uchunguzi wa uhalifu na uzingatiaji.",
+      stepApproval: "Idhini ya Msimamizi",
+      stepApprovalDesc: "Uamilisho wa mwisho wa Harvey Taxi.",
+      submit: "Wasilisha Ombi la Dereva",
+      returnHome: "Rudi Nyumbani",
+      driverSupport: "Msaada wa Dereva",
+      verificationTitle: "Uthibitishaji wa Dereva",
+      verificationText: "Thibitisha barua pepe yako kwanza, kisha kamilisha uthibitishaji wa SMS.",
+      finalSteps: "Hatua za Mwisho",
+      driverSession: "Kipindi cha Dereva",
+      smsCode: "Msimbo wa Uthibitishaji wa SMS",
+      verifySms: "Thibitisha Msimbo wa SMS",
+      refreshStatus: "Onyesha upya Hali",
+      resendEmail: "Tuma Tena Kiungo cha Barua Pepe",
+      resendSms: "Tuma Tena Msimbo wa SMS",
+      startOver: "Anza Upya"
+    }
+  };
 
-    submit:
-      "Submit Driver Application",
+  /* ---- Storage helpers ---- */
+  function safeGet(key, fallback = "") { try { return localStorage.getItem(key) || fallback; } catch { return fallback; } }
+  function safeSet(key, value) { try { localStorage.setItem(key, String(value)); } catch {} }
 
-    returnHome:
-      "Return Home",
-
-    driverSupport:
-      "Driver Support",
-
-    verificationTitle:
-      "Driver Verification",
-
-    verificationText:
-      "Verify your email first, then complete SMS verification.",
-
-    services:
-      "Driver Services",
-
-    rides:
-      "Passenger Rides",
-
-    ridesDesc:
-      "Standard transportation missions.",
-
-    food:
-      "Food Delivery",
-
-    foodDesc:
-      "Restaurant and food delivery.",
-
-    grocery:
-      "Grocery Delivery",
-
-    groceryDesc:
-      "Grocery pickup and delivery.",
-
-    priority:
-      "Priority Missions",
-
-    priorityDesc:
-      "Emergency dispatch missions."
-
-  },
-
-  es: {
-
-    heroTitle:
-      "Únete a la flota de Harvey Taxi",
-
-    submit:
-      "Enviar Solicitud",
-
-    returnHome:
-      "Volver al Inicio",
-
-    driverSupport:
-      "Soporte para Conductores",
-
-    verificationTitle:
-      "Verificación del Conductor",
-
-    verificationText:
-      "Verifica tu correo electrónico primero y luego tu teléfono.",
-
-    services:
-      "Servicios del Conductor",
-
-    rides:
-      "Viajes de Pasajeros",
-
-    ridesDesc:
-      "Misiones de transporte estándar.",
-
-    food:
-      "Entrega de Comida",
-
-    foodDesc:
-      "Entregas de restaurantes.",
-
-    grocery:
-      "Entrega de Supermercado",
-
-    groceryDesc:
-      "Recogida y entrega de compras.",
-
-    priority:
-      "Misiones Prioritarias",
-
-    priorityDesc:
-      "Despacho de emergencia."
-  },
-
-  fr: {
-
-    heroTitle:
-      "Rejoignez la flotte Harvey Taxi",
-
-    submit:
-      "Soumettre la Demande",
-
-    returnHome:
-      "Retour à l'Accueil",
-
-    driverSupport:
-      "Support Chauffeur"
-
+  /* ---- Analytics (best-effort, never throws) ---- */
+  function trackEvent(name, params = {}) {
+    try {
+      if (typeof gtag === "function") {
+        gtag("event", name, { app_name: "Harvey Taxi", page_location: window.location.href, ...params });
+      }
+    } catch {}
   }
 
-};const adaptiveLanguageMap = {
-  ar: {
-    name: "العربية",
-    dir: "rtl",
-    heroTitle: "انضم إلى أسطول هارفي تاكسي",
-    submit: "إرسال طلب السائق",
-    returnHome: "العودة للرئيسية",
-    driverSupport: "دعم السائق",
-    verificationTitle: "تحقق السائق",
-    verificationText: "تحقق من بريدك الإلكتروني أولاً ثم أكمل التحقق عبر الرسائل."
-  },
-
-  pt: {
-    name: "Português",
-    dir: "ltr",
-    heroTitle: "Junte-se à frota Harvey Taxi",
-    submit: "Enviar Candidatura",
-    returnHome: "Voltar ao Início",
-    driverSupport: "Suporte ao Motorista",
-    verificationTitle: "Verificação do Motorista",
-    verificationText: "Verifique seu e-mail primeiro e depois conclua a verificação por SMS."
-  },
-
-  zh: {
-    name: "中文",
-    dir: "ltr",
-    heroTitle: "加入 Harvey Taxi 司机团队",
-    submit: "提交司机申请",
-    returnHome: "返回首页",
-    driverSupport: "司机支持",
-    verificationTitle: "司机验证",
-    verificationText: "请先验证电子邮件，然后完成短信验证。"
-  },
-
-  hi: {
-    name: "हिन्दी",
-    dir: "ltr",
-    heroTitle: "Harvey Taxi ड्राइवर टीम से जुड़ें",
-    submit: "ड्राइवर आवेदन जमा करें",
-    returnHome: "मुख्य पृष्ठ पर लौटें",
-    driverSupport: "ड्राइवर सहायता",
-    verificationTitle: "ड्राइवर सत्यापन",
-    verificationText: "पहले ईमेल सत्यापित करें, फिर SMS सत्यापन पूरा करें।"
-  },
-
-  sw: {
-    name: "Kiswahili",
-    dir: "ltr",
-    heroTitle: "Jiunge na madereva wa Harvey Taxi",
-    submit: "Wasilisha Ombi la Dereva",
-    returnHome: "Rudi Nyumbani",
-    driverSupport: "Msaada wa Dereva",
-    verificationTitle: "Uthibitishaji wa Dereva",
-    verificationText: "Thibitisha barua pepe kwanza, kisha kamilisha SMS."
-  }
-};
-
-Object.assign(translations, adaptiveLanguageMap);
-
-function detectPreferredLanguage() {
-  const saved =
-    localStorage.getItem("harvey_driver_language");
-
-  if (saved && translations[saved]) {
-    return saved;
+  /* ---- Debug output (was called but never defined) ---- */
+  function setDebug(message) {
+    const el = $("pageDebug");
+    if (el) el.textContent = message;
+    console.log("[Harvey Taxi Driver Signup]", message);
   }
 
-  const browserLang =
-    (navigator.language || "en")
-      .slice(0, 2)
-      .toLowerCase();
+  /* ---- Language application (child-node-aware, matches index.html
+     pattern — avoids destroying elements that have child nodes) ---- */
+  function detectPreferredLanguage() {
+    const saved = safeGet("harvey_driver_language");
+    if (saved && translations[saved]) return saved;
+    const browserLang = (navigator.language || "en").slice(0, 2).toLowerCase();
+    return translations[browserLang] ? browserLang : "en";
+  }
 
-  return translations[browserLang]
-    ? browserLang
-    : "en";
-}
+  function applyLanguage(lang) {
+    const dict = translations[lang] || translations.en;
+    document.documentElement.lang = lang;
+    document.documentElement.dir = dict.dir || "ltr";
 
-function applyLanguage(lang) {
-  const activeLang =
-    translations[lang] || translations.en;
-
-  document.documentElement.lang = lang;
-  document.documentElement.dir =
-    activeLang.dir || "ltr";
-
-  document.querySelectorAll("[data-i18n]")
-    .forEach((node) => {
+    document.querySelectorAll("[data-i18n]").forEach((node) => {
       const key = node.dataset.i18n;
+      if (dict[key] === undefined) return;
+      if (node.children.length === 0) {
+        node.textContent = dict[key];
+        return;
+      }
+      const textNode = Array.from(node.childNodes).find(
+        n => n.nodeType === Node.TEXT_NODE && n.textContent.trim()
+      );
+      if (textNode) textNode.textContent = dict[key];
+      else node.textContent = dict[key];
+    });
 
-      if (activeLang[key]) {
-        node.textContent = activeLang[key];
+    const heroSpan = document.querySelector(".hero h2 span");
+    if (heroSpan) heroSpan.textContent = dict.heroTitle || translations.en.heroTitle;
+
+    if ($("submitBtn")) $("submitBtn").textContent = dict.submit || translations.en.submit;
+    if ($("languageDisplay")) $("languageDisplay").textContent = dict.name || lang.toUpperCase();
+    if ($("currentLanguageLabel")) $("currentLanguageLabel").textContent = dict.name || lang.toUpperCase();
+
+    safeSet("harvey_driver_language", lang);
+    trackEvent("language_changed", { lang });
+  }
+
+  /* ---- Accessibility ---- */
+  function restoreAccessibilitySettings() {
+    const highContrast = safeGet("harvey_driver_high_contrast") === "1";
+    const largeText = safeGet("harvey_driver_large_text") === "1";
+    const reducedMotion = safeGet("harvey_driver_reduced_motion") === "1";
+
+    document.body.classList.toggle("high-contrast", highContrast);
+    document.body.classList.toggle("large-text", largeText);
+    document.body.classList.toggle("reduced-motion", reducedMotion);
+
+    $("contrastBtn")?.classList.toggle("active", highContrast);
+    $("textBtn")?.classList.toggle("active", largeText);
+    $("motionBtn")?.classList.toggle("active", reducedMotion);
+  }
+
+  function bindAdaptiveControls() {
+    const languageSelect = $("languageSelect");
+    const preferred = detectPreferredLanguage();
+
+    if (languageSelect) {
+      languageSelect.value = preferred;
+      languageSelect.addEventListener("change", () => applyLanguage(languageSelect.value));
+    }
+
+    $("contrastBtn")?.addEventListener("click", () => {
+      const active = !document.body.classList.contains("high-contrast");
+      document.body.classList.toggle("high-contrast", active);
+      safeSet("harvey_driver_high_contrast", active ? "1" : "0");
+      $("contrastBtn").classList.toggle("active", active);
+      trackEvent("accessibility_toggle", { setting: "high-contrast", active });
+    });
+
+    $("textBtn")?.addEventListener("click", () => {
+      const active = !document.body.classList.contains("large-text");
+      document.body.classList.toggle("large-text", active);
+      safeSet("harvey_driver_large_text", active ? "1" : "0");
+      $("textBtn").classList.toggle("active", active);
+      trackEvent("accessibility_toggle", { setting: "large-text", active });
+    });
+
+    $("motionBtn")?.addEventListener("click", () => {
+      const active = !document.body.classList.contains("reduced-motion");
+      document.body.classList.toggle("reduced-motion", active);
+      safeSet("harvey_driver_reduced_motion", active ? "1" : "0");
+      $("motionBtn").classList.toggle("active", active);
+      trackEvent("accessibility_toggle", { setting: "reduced-motion", active });
+    });
+
+    restoreAccessibilitySettings();
+    applyLanguage(preferred);
+  }
+
+  /* ---- Form data collection ---- */
+  function getDriverFormData() {
+    return {
+      first_name: $("firstName")?.value?.trim() || "",
+      last_name: $("lastName")?.value?.trim() || "",
+      email: $("email")?.value?.trim() || "",
+      phone: $("phone")?.value?.trim() || "",
+      city: $("city")?.value?.trim() || "",
+      state: $("state")?.value?.trim().toUpperCase() || "",
+      license_number: $("licenseNumber")?.value?.trim() || "",
+      password: $("password")?.value || "",
+      vehicle_make: $("vehicleMake")?.value?.trim() || "",
+      vehicle_model: $("vehicleModel")?.value?.trim() || "",
+      vehicle_year: $("vehicleYear")?.value?.trim() || "",
+      vehicle_color: $("vehicleColor")?.value?.trim() || "",
+      license_plate: $("licensePlate")?.value?.trim() || "",
+      supports_rides: Boolean($("supportsRides")?.checked),
+      supports_food: Boolean($("supportsFood")?.checked),
+      supports_grocery: Boolean($("supportsGrocery")?.checked),
+      supports_priority: Boolean($("supportsPriority")?.checked),
+      driver_type: document.querySelector('input[name="driverType"]:checked')?.value || "human",
+      terms_accepted: Boolean($("termsAccepted")?.checked),
+      background_accepted: Boolean($("backgroundAccepted")?.checked),
+      insurance_confirmed: Boolean($("insuranceConfirmed")?.checked),
+      location_consent: Boolean($("locationConsent")?.checked)
+    };
+  }
+
+  /* ---- Validation ---- */
+  function isValidEmail(value) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value); }
+  function isValidPhone(value) { return value.replace(/\D/g, "").length >= 10; }
+
+  function validateDriverForm() {
+    let valid = true;
+    let firstInvalid = null;
+
+    const requiredFields = [
+      "firstName", "lastName", "email", "phone", "city", "state",
+      "licenseNumber", "password", "vehicleMake", "vehicleModel",
+      "vehicleYear", "licensePlate"
+    ];
+
+    requiredFields.forEach((id) => {
+      const field = $(id);
+      if (!field) return;
+      field.classList.remove("invalid");
+      let fieldValid = Boolean(String(field.value).trim());
+      if (fieldValid && id === "email") fieldValid = isValidEmail(field.value.trim());
+      if (fieldValid && id === "phone") fieldValid = isValidPhone(field.value.trim());
+      if (fieldValid && id === "password") fieldValid = field.value.length >= 8;
+      if (!fieldValid) {
+        field.classList.add("invalid");
+        valid = false;
+        if (!firstInvalid) firstInvalid = field;
       }
     });
 
-  if (document.querySelector(".hero h2 span")) {
-    document.querySelector(".hero h2 span").textContent =
-      activeLang.heroTitle || translations.en.heroTitle;
-  }
-
-  if ($("submitBtn")) {
-    $("submitBtn").textContent =
-      activeLang.submit || translations.en.submit;
-  }
-
-  if ($("languageDisplay")) {
-    $("languageDisplay").textContent =
-      activeLang.name ||
-      lang.toUpperCase();
-  }
-
-  if ($("currentLanguageLabel")) {
-    $("currentLanguageLabel").textContent =
-      activeLang.name ||
-      lang.toUpperCase();
-  }
-
-  localStorage.setItem(
-    "harvey_driver_language",
-    lang
-  );
-}
-
-function restoreAccessibilitySettings() {
-  const highContrast =
-    localStorage.getItem("harvey_driver_high_contrast") === "1";
-
-  const largeText =
-    localStorage.getItem("harvey_driver_large_text") === "1";
-
-  const reducedMotion =
-    localStorage.getItem("harvey_driver_reduced_motion") === "1";
-
-  document.body.classList.toggle(
-    "high-contrast",
-    highContrast
-  );
-
-  document.body.classList.toggle(
-    "large-text",
-    largeText
-  );
-
-  document.body.classList.toggle(
-    "reduced-motion",
-    reducedMotion
-  );
-
-  $("contrastBtn")?.classList.toggle(
-    "active",
-    highContrast
-  );
-
-  $("textBtn")?.classList.toggle(
-    "active",
-    largeText
-  );
-
-  $("motionBtn")?.classList.toggle(
-    "active",
-    reducedMotion
-  );
-}
-
-function bindAdaptiveControls() {
-  const languageSelect =
-    $("languageSelect");
-
-  const preferred =
-    detectPreferredLanguage();
-
-  if (languageSelect) {
-    languageSelect.value = preferred;
-
-    languageSelect.addEventListener(
-      "change",
-      () => {
-        applyLanguage(languageSelect.value);
+    const consents = ["termsAccepted", "backgroundAccepted", "insuranceConfirmed", "locationConsent"];
+    consents.forEach((id) => {
+      const field = $(id);
+      if (!field?.checked) {
+        valid = false;
+        if (!firstInvalid) firstInvalid = field;
       }
-    );
+    });
+
+    if (!valid) {
+      showStatus("Please complete all required fields and acknowledgements before submitting.", "error");
+      firstInvalid?.scrollIntoView({ behavior: "smooth", block: "center" });
+      firstInvalid?.focus?.({ preventScroll: true });
+    }
+
+    return valid;
   }
 
-  $("contrastBtn")?.addEventListener(
-    "click",
-    () => {
-      const active =
-        !document.body.classList.contains("high-contrast");
+  /* ---- Status messaging ---- */
+  function showStatus(message, type = "info") {
+    const el = $("statusMessage");
+    if (!el) return;
+    el.textContent = message;
+    el.className = "status show " + type;
+    setTimeout(() => { el.className = "status"; }, 6000);
+  }
 
-      document.body.classList.toggle(
-        "high-contrast",
-        active
-      );
+  /* ---- Consent checkbox visual state ---- */
+  function bindConsentVisuals() {
+    document.querySelectorAll(".consent").forEach((label) => {
+      const input = label.querySelector("input[type='checkbox']");
+      if (!input) return;
+      const sync = () => label.classList.toggle("active", input.checked);
+      input.addEventListener("change", sync);
+      sync();
+    });
+  }
 
-      localStorage.setItem(
-        "harvey_driver_high_contrast",
-        active ? "1" : "0"
-      );
+  /* ---- Draft save/restore ---- */
+  function saveDraft() {
+    try {
+      const data = getDriverFormData();
+      delete data.password; // never persist password to localStorage
+      safeSet(DRAFT_KEY, JSON.stringify(data));
+    } catch {}
+  }
 
-      $("contrastBtn").classList.toggle(
-        "active",
-        active
-      );
+  function loadDraft() {
+    try {
+      const raw = safeGet(DRAFT_KEY);
+      if (!raw) return;
+      const draft = JSON.parse(raw);
+      const fieldMap = {
+        first_name: "firstName", last_name: "lastName", email: "email", phone: "phone",
+        city: "city", state: "state", license_number: "licenseNumber",
+        vehicle_make: "vehicleMake", vehicle_model: "vehicleModel",
+        vehicle_year: "vehicleYear", vehicle_color: "vehicleColor", license_plate: "licensePlate"
+      };
+      Object.entries(fieldMap).forEach(([key, id]) => {
+        const field = $(id);
+        if (field && draft[key]) field.value = draft[key];
+      });
+      if ($("supportsRides")) $("supportsRides").checked = draft.supports_rides !== false;
+      if ($("supportsFood")) $("supportsFood").checked = draft.supports_food !== false;
+      if ($("supportsGrocery")) $("supportsGrocery").checked = draft.supports_grocery !== false;
+      if ($("supportsPriority")) $("supportsPriority").checked = Boolean(draft.supports_priority);
+      if (draft.driver_type) {
+        const radio = document.querySelector(`input[name="driverType"][value="${draft.driver_type}"]`);
+        if (radio) radio.checked = true;
+      }
+      bindConsentVisuals();
+    } catch (err) {
+      console.warn("Unable to load driver draft:", err);
     }
-  );
+  }
 
-  $("textBtn")?.addEventListener(
-    "click",
-    () => {
-      const active =
-        !document.body.classList.contains("large-text");
+  /* ---- Timeline / pipeline visual updates ---- */
+  function setTimelineStep(stepId, status) {
+    const el = $(stepId);
+    if (!el) return;
+    el.classList.remove("active", "done");
+    if (status) el.classList.add(status);
+  }
 
-      document.body.classList.toggle(
-        "large-text",
-        active
-      );
+  function setPill(pillId, status, label) {
+    const el = $(pillId);
+    if (!el) return;
+    el.classList.remove("ok", "err");
+    if (status === "ok") el.classList.add("ok");
+    if (status === "err") el.classList.add("err");
+    if (label) el.textContent = label;
+  }
 
-      localStorage.setItem(
-        "harvey_driver_large_text",
-        active ? "1" : "0"
-      );
+  /* ---- Verification panel transition ---- */
+  function showVerificationSection(driverData) {
+    $("signupSection")?.classList.add("hidden");
+    $("verificationSection")?.classList.remove("hidden");
+    setTimelineStep("timelineApplication", "done");
+    setTimelineStep("timelineEmail", "active");
 
-      $("textBtn").classList.toggle(
-        "active",
-        active
-      );
+    if ($("savedDriverBox") && driverData) {
+      $("savedDriverBox").classList.add("show");
+      $("savedDriverText").textContent =
+        `${driverData.first_name} ${driverData.last_name} · ${driverData.email}`;
     }
-  );
-
-  $("motionBtn")?.addEventListener(
-    "click",
-    () => {
-      const active =
-        !document.body.classList.contains("reduced-motion");
-
-      document.body.classList.toggle(
-        "reduced-motion",
-        active
-      );
-
-      localStorage.setItem(
-        "harvey_driver_reduced_motion",
-        active ? "1" : "0"
-      );
-
-      $("motionBtn").classList.toggle(
-        "active",
-        active
-      );
+    if ($("emailTargetText") && driverData) {
+      $("emailTargetText").textContent = driverData.email || "Waiting...";
     }
-  );
+    if ($("smsTargetText") && driverData) {
+      $("smsTargetText").textContent = driverData.phone || "Waiting...";
+    }
 
-  restoreAccessibilitySettings();
-  applyLanguage(preferred);
-}
+    $("verificationSection")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
-/* Optional voice language notice */
-function speakLanguageReady() {
-  try {
-    if (!("speechSynthesis" in window)) {
+  /* ---- API calls ---- */
+  async function submitDriverApplication(payload) {
+    const response = await fetch(`${HARVEY_API_BASE}/api/drivers/signup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+      let detail = "";
+      try { detail = (await response.json())?.message || ""; } catch {}
+      throw new Error(detail || `Driver signup failed (HTTP ${response.status}).`);
+    }
+    return response.json();
+  }
+
+  async function verifySmsCode() {
+    const code = $("smsCode")?.value?.trim();
+    if (!code || code.length !== 6) {
+      showStatus("Please enter the 6-digit code sent to your phone.", "error");
       return;
     }
-
-    const lang =
-      localStorage.getItem("harvey_driver_language") || "en";
-
-    const phraseMap = {
-      en: "Harvey Taxi driver signup is ready.",
-      es: "El registro de conductor de Harvey Taxi está listo.",
-      fr: "L'inscription chauffeur Harvey Taxi est prête.",
-      ar: "تسجيل سائق هارفي تاكسي جاهز.",
-      pt: "O cadastro de motorista Harvey Taxi está pronto.",
-      zh: "Harvey Taxi 司机注册已准备好。",
-      hi: "Harvey Taxi ड्राइवर साइन अप तैयार है।",
-      sw: "Usajili wa dereva wa Harvey Taxi uko tayari."
-    };
-
-    const utterance =
-      new SpeechSynthesisUtterance(
-        phraseMap[lang] || phraseMap.en
-      );
-
-    utterance.lang =
-      lang === "zh"
-        ? "zh-CN"
-        : lang === "ar"
-          ? "ar-SA"
-          : lang;
-
-    utterance.volume = 0.65;
-    utterance.rate = 0.95;
-
-    window.speechSynthesis.speak(utterance);
-  } catch {}
-}
-
-/* Upgrade bootstrap */
-const originalBootstrap =
-  typeof bootstrap === "function"
-    ? bootstrap
-    : null;
-
-async function finalBootstrap() {
-  bindAdaptiveControls();
-
-  if (originalBootstrap) {
-    await originalBootstrap();
+    const btn = $("verifySmsBtn");
+    const original = btn.textContent;
+    try {
+      btn.disabled = true;
+      btn.textContent = "Verifying...";
+      const driverEmail = safeGet("harvey_driver_session_email");
+      const response = await fetch(`${HARVEY_API_BASE}/api/drivers/verify-sms`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: driverEmail, code })
+      });
+      if (!response.ok) throw new Error(`SMS verification failed (HTTP ${response.status}).`);
+      setPill("smsPill", "ok", "Verified");
+      setTimelineStep("timelineSms", "done");
+      setTimelineStep("timelinePersona", "active");
+      $("launchPersonaBtn")?.classList.remove("hidden");
+      showStatus("Phone number verified successfully.", "success");
+      trackEvent("driver_sms_verified");
+    } catch (err) {
+      setPill("smsPill", "err", "Failed");
+      showStatus("SMS verification failed. Please check the code and try again.", "error");
+      trackEvent("driver_sms_verify_failed", { message: err.message });
+    } finally {
+      btn.disabled = false;
+      btn.textContent = original;
+    }
   }
 
-  setDebug(
-    "Adaptive language driver signup loaded."
-  );
-}
+  async function refreshDriverStatus() {
+    const driverEmail = safeGet("harvey_driver_session_email");
+    if (!driverEmail) {
+      showStatus("No active driver session found. Please submit your application first.", "error");
+      return;
+    }
+    try {
+      const response = await fetch(
+        `${HARVEY_API_BASE}/api/drivers/status?email=${encodeURIComponent(driverEmail)}`
+      );
+      if (!response.ok) throw new Error(`Status check failed (HTTP ${response.status}).`);
+      const data = await response.json();
 
-finalBootstrap();
+      if (data.email_verified) { setPill("emailPill", "ok", "Verified"); setTimelineStep("timelineEmail", "done"); }
+      if (data.sms_verified) { setPill("smsPill", "ok", "Verified"); setTimelineStep("timelineSms", "done"); }
+      if (data.persona_status === "approved") { setPill("personaPill", "ok", "Approved"); setTimelineStep("timelinePersona", "done"); setTimelineStep("timelineCheckr", "active"); }
+      if (data.checkr_status === "clear") { setPill("checkrPill", "ok", "Clear"); setTimelineStep("timelineCheckr", "done"); setTimelineStep("timelineApproval", "active"); }
+      if (data.admin_approved) {
+        setTimelineStep("timelineApproval", "done");
+        $("openDashboardBtn")?.classList.remove("hidden");
+        showStatus("You're approved! You can now open your driver dashboard.", "success");
+      }
 
+      setDebug(`Status refreshed at ${new Date().toLocaleTimeString()}.`);
+      trackEvent("driver_status_refreshed");
+    } catch (err) {
+      showStatus("Unable to refresh status right now. Please try again shortly.", "error");
+      trackEvent("driver_status_refresh_failed", { message: err.message });
+    }
+  }
+
+  async function resendEmailLink() {
+    const driverEmail = safeGet("harvey_driver_session_email");
+    if (!driverEmail) {
+      showStatus("No active driver session found.", "error");
+      return;
+    }
+    try {
+      await fetch(`${HARVEY_API_BASE}/api/drivers/resend-email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: driverEmail })
+      });
+      showStatus("Verification email resent. Please check your inbox.", "info");
+      trackEvent("driver_resend_email");
+    } catch (err) {
+      showStatus("Unable to resend email right now.", "error");
+    }
+  }
+
+  async function resendSmsCode() {
+    const driverEmail = safeGet("harvey_driver_session_email");
+    if (!driverEmail) {
+      showStatus("No active driver session found.", "error");
+      return;
+    }
+    try {
+      await fetch(`${HARVEY_API_BASE}/api/drivers/resend-sms`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: driverEmail })
+      });
+      showStatus("New SMS code sent.", "info");
+      trackEvent("driver_resend_sms");
+    } catch (err) {
+      showStatus("Unable to resend SMS code right now.", "error");
+    }
+  }
+
+  function startOver() {
+    if (!confirm("This will clear your current application progress. Continue?")) return;
+    try {
+      localStorage.removeItem(DRAFT_KEY);
+      localStorage.removeItem("harvey_driver_session_email");
+    } catch {}
+    $("verificationSection")?.classList.add("hidden");
+    $("signupSection")?.classList.remove("hidden");
+    document.getElementById("driverSignupForm")?.reset();
+    bindConsentVisuals();
+    trackEvent("driver_signup_start_over");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function launchPersonaVerification() {
+    trackEvent("driver_persona_launch_clicked");
+    showStatus("Persona identity verification will open in a new step. Contact support if this does not load.", "info");
+  }
+
+  function openDriverDashboard() {
+    trackEvent("driver_dashboard_open_clicked");
+    safeGo("driver-dashboard.html", "driver_dashboard_open");
+  }
+
+  function safeGo(path, eventName) {
+    trackEvent(eventName || "navigation_click", { destination: path });
+    window.location.href = path;
+  }
+
+  /* ---- Global error visibility ---- */
+  window.addEventListener("error", (event) => {
+    trackEvent("uncaught_error", { message: event?.message || "unknown", source: event?.filename || "unknown" });
+  });
+  window.addEventListener("unhandledrejection", (event) => {
+    trackEvent("unhandled_promise_rejection", { reason: event?.reason?.message || String(event?.reason || "unknown") });
+  });
+
+  /* ---- Form submission (previously entirely absent — the submit
+     button did nothing except trigger default browser form behavior) ---- */
+  function bindFormSubmit() {
+    const form = $("driverSignupForm");
+    if (!form) return;
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (!validateDriverForm()) return;
+
+      const submitBtn = $("submitBtn");
+      const original = submitBtn.textContent;
+      try {
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Submitting...";
+
+        const payload = getDriverFormData();
+        const result = await submitDriverApplication(payload);
+
+        safeSet("harvey_driver_session_email", payload.email);
+        localStorage.removeItem(DRAFT_KEY);
+
+        showVerificationSection(payload);
+        showStatus("Application submitted. Check your email to verify your address.", "success");
+        trackEvent("driver_application_submitted", { driver_type: payload.driver_type, city: payload.city });
+      } catch (err) {
+        console.error(err);
+        saveDraft();
+        showStatus(
+          "Submission unavailable right now. Your progress has been saved locally — please try again shortly.",
+          "error"
+        );
+        trackEvent("driver_application_submit_failed", { message: err.message });
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = original;
+      }
+    });
+  }
+
+  function bindFieldAutosave() {
+    document.querySelectorAll("input, select").forEach((field) => {
+      field.addEventListener("input", saveDraft);
+      field.addEventListener("change", saveDraft);
+    });
+  }
+
+  function bindVerificationActions() {
+    $("verifySmsBtn")?.addEventListener("click", verifySmsCode);
+    $("refreshStatusBtn")?.addEventListener("click", refreshDriverStatus);
+    $("resendEmailBtn")?.addEventListener("click", resendEmailLink);
+    $("resendSmsBtn")?.addEventListener("click", resendSmsCode);
+    $("startOverBtn")?.addEventListener("click", startOver);
+    $("launchPersonaBtn")?.addEventListener("click", launchPersonaVerification);
+    $("openDashboardBtn")?.addEventListener("click", openDriverDashboard);
+  }
+
+  /* ---- Init (each step isolated so one failure can't silently
+     break everything queued after it) ---- */
+  function runStep(label, fn) {
+    try { fn(); }
+    catch (err) {
+      console.error(`[Harvey Taxi Driver Signup] Step failed: ${label}`, err);
+      trackEvent("init_step_failed", { step: label, message: err?.message || String(err) });
+    }
+  }
+
+  function init() {
+    runStep("bindAdaptiveControls", bindAdaptiveControls);
+    runStep("bindConsentVisuals", bindConsentVisuals);
+    runStep("loadDraft", loadDraft);
+    runStep("bindFieldAutosave", bindFieldAutosave);
+    runStep("bindFormSubmit", bindFormSubmit);
+    runStep("bindVerificationActions", bindVerificationActions);
+    setDebug("Driver signup page loaded and ready.");
+    trackEvent("driver_signup_page_view");
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
 </script>
 
 </body>
