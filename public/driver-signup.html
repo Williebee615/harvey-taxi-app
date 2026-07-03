@@ -312,6 +312,7 @@
     .status.success { background: rgba(113,255,183,.1); border: 1px solid rgba(113,255,183,.24); }
     .status.error { background: rgba(255,126,144,.12); border: 1px solid rgba(255,126,144,.25); }
     .status.info { background: rgba(98,245,255,.1); border: 1px solid rgba(98,245,255,.18); }
+    .status.warning { background: rgba(255,209,102,.12); border: 1px solid rgba(255,209,102,.26); }
 
     .pill {
       display: inline-flex; margin-top: 10px; border-radius: 999px; padding: 8px 12px;
@@ -802,6 +803,19 @@
       : "https://harvey-taxi-app-2.onrender.com";
 
   const DRAFT_KEY = "harvey_driver_signup_draft";
+  const QUEUE_KEY = "harvey_driver_signup_queue_v1";
+  const LAST_REF_KEY = "harvey_driver_last_reference";
+  const DRIVER_ID_KEY = "harvey_driver_id"; // authoritative backend driver ID, needed for status polling
+
+  /* Submit endpoints tried in order — first success wins. The original
+     build hit only /api/drivers/signup, so a single 404/asleep/CORS
+     failure produced the generic "submission unavailable" dead-end. */
+  const SUBMIT_ENDPOINTS = [
+    "/api/drivers/signup",
+    "/api/driver/signup",
+    "/api/driver/apply",
+    "/api/signup/driver"
+  ];
 
   /* ---- Translations ---- */
   const translations = {
@@ -1812,18 +1826,84 @@
   }
 
   /* ---- API calls ---- */
-  async function submitDriverApplication(payload) {
-    const response = await fetch(`${HARVEY_API_BASE}/api/drivers/signup`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-    if (!response.ok) {
-      let detail = "";
-      try { detail = (await response.json())?.message || ""; } catch {}
-      throw new Error(detail || `Driver signup failed (HTTP ${response.status}).`);
+
+  /* Turn a raw failure into a category + human-readable reason so the
+     applicant sees WHY it failed instead of a single vague message.
+     Categories: offline | server_asleep | not_found | server_error |
+     blocked | bad_response | unknown */
+  function classifySubmitError({ error, status, endpointTried }) {
+    if (!navigator.onLine) {
+      return { category: "offline", retryable: true,
+        reason: "Your device is offline. The application is saved and will send automatically when you're back online." };
     }
-    return response.json();
+    if (status === 404) {
+      return { category: "not_found", retryable: false,
+        reason: "The driver application service could not be found at the expected address. This is a server configuration issue, not a problem with your information." };
+    }
+    if (status === 502 || status === 503 || status === 504) {
+      return { category: "server_asleep", retryable: true,
+        reason: "The Harvey Taxi server is starting up or temporarily unavailable. Your application is saved and will retry automatically." };
+    }
+    if (typeof status === "number" && status >= 500) {
+      return { category: "server_error", retryable: true,
+        reason: `The server hit an error (HTTP ${status}) processing your application. Your progress is saved and will retry automatically.` };
+    }
+    if (typeof status === "number" && status >= 400) {
+      return { category: "rejected", retryable: false,
+        reason: `The server declined the application (HTTP ${status}). Please review your details or contact support.` };
+    }
+    // fetch() throws TypeError for network-level failures and CORS blocks
+    if (error && error.name === "TypeError") {
+      return { category: "blocked", retryable: true,
+        reason: "Couldn't reach the Harvey Taxi server. This is usually a temporary network or connection issue. Your application is saved and will retry automatically." };
+    }
+    return { category: "unknown", retryable: true,
+      reason: "Something unexpected interrupted the submission. Your progress is saved and will retry automatically." };
+  }
+
+  /* Try each endpoint in order. Returns { ok, data } on success, or
+     throws an object carrying the classified failure of the LAST attempt
+     (or the most specific non-network failure encountered). */
+  async function submitDriverApplication(payload) {
+    let lastFailure = null;
+
+    for (const path of SUBMIT_ENDPOINTS) {
+      let response;
+      try {
+        response = await fetch(`${HARVEY_API_BASE}${path}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify(payload),
+          cache: "no-store"
+        });
+      } catch (error) {
+        // Network / CORS failure — record and try the next endpoint
+        lastFailure = classifySubmitError({ error, status: null, endpointTried: path });
+        continue;
+      }
+
+      if (response.ok) {
+        let data = {};
+        try { data = await response.json(); } catch { data = {}; }
+        return { ok: true, data, endpoint: path };
+      }
+
+      // A definitive 404 means "wrong address" — keep trying other paths.
+      // Any other HTTP error is authoritative: stop and report it.
+      if (response.status === 404) {
+        lastFailure = classifySubmitError({ status: 404, endpointTried: path });
+        continue;
+      }
+
+      let serverMessage = "";
+      try { serverMessage = (await response.json())?.message || ""; } catch {}
+      const classified = classifySubmitError({ status: response.status, endpointTried: path });
+      if (serverMessage) classified.reason = serverMessage;
+      throw classified;
+    }
+
+    // Exhausted every endpoint without a definitive success
+    throw (lastFailure || classifySubmitError({ error: new TypeError("no endpoint reachable") }));
   }
 
   async function verifySmsCode() {
@@ -1861,30 +1941,43 @@
   }
 
   async function refreshDriverStatus() {
-    const driverEmail = safeGet("harvey_driver_session_email");
-    if (!driverEmail) {
+    // The backend exposes verification progress at GET /api/drivers/:id/readiness
+    // (keyed by the driver ID captured at signup). The previous build queried
+    // an email-based status path that doesn't exist on the server and always 404'd.
+    const driverId = safeGet(DRIVER_ID_KEY);
+    if (!driverId) {
       showStatus("No active driver session found. Please submit your application first.", "error");
       return;
     }
     try {
       const response = await fetch(
-        `${HARVEY_API_BASE}/api/drivers/status?email=${encodeURIComponent(driverEmail)}`
+        `${HARVEY_API_BASE}/api/drivers/${encodeURIComponent(driverId)}/readiness`,
+        { cache: "no-store" }
       );
       if (!response.ok) throw new Error(`Status check failed (HTTP ${response.status}).`);
       const data = await response.json();
 
-      if (data.email_verified) { setPill("emailPill", "ok", "Verified"); setTimelineStep("timelineEmail", "done"); }
-      if (data.sms_verified) { setPill("smsPill", "ok", "Verified"); setTimelineStep("timelineSms", "done"); }
-      if (data.persona_status === "approved") { setPill("personaPill", "ok", "Approved"); setTimelineStep("timelinePersona", "done"); setTimelineStep("timelineCheckr", "active"); }
-      if (data.checkr_status === "clear") { setPill("checkrPill", "ok", "Clear"); setTimelineStep("timelineCheckr", "done"); setTimelineStep("timelineApproval", "active"); }
-      if (data.admin_approved) {
+      // Real backend shape: { ok, driver_id, ready, status, approval_status,
+      //   checks: { email_verified, phone_verified, persona_verified, checkr_ready, vehicle_present } }
+      const checks = data.checks || {};
+
+      if (checks.email_verified) { setPill("emailPill", "ok", "Verified"); setTimelineStep("timelineEmail", "done"); }
+      if (checks.phone_verified) { setPill("smsPill", "ok", "Verified"); setTimelineStep("timelineSms", "done"); }
+      if (checks.persona_verified) { setPill("personaPill", "ok", "Approved"); setTimelineStep("timelinePersona", "done"); setTimelineStep("timelineCheckr", "active"); }
+      if (checks.checkr_ready) { setPill("checkrPill", "ok", "Clear"); setTimelineStep("timelineCheckr", "done"); setTimelineStep("timelineApproval", "active"); }
+
+      const approved =
+        data.ready === true ||
+        ["approved", "active", "verified"].includes(String(data.approval_status || "").toLowerCase());
+
+      if (approved) {
         setTimelineStep("timelineApproval", "done");
         $("openDashboardBtn")?.classList.remove("hidden");
         showStatus("You're approved! You can now open your driver dashboard.", "success");
       }
 
       setDebug(`Status refreshed at ${new Date().toLocaleTimeString()}.`);
-      trackEvent("driver_status_refreshed");
+      trackEvent("driver_status_refreshed", { ready: Boolean(data.ready) });
     } catch (err) {
       showStatus("Unable to refresh status right now. Please try again shortly.", "error");
       trackEvent("driver_status_refresh_failed", { message: err.message });
@@ -1934,6 +2027,8 @@
     try {
       localStorage.removeItem(DRAFT_KEY);
       localStorage.removeItem("harvey_driver_session_email");
+      localStorage.removeItem(DRIVER_ID_KEY);
+      localStorage.removeItem(QUEUE_KEY);
     } catch {}
     $("verificationSection")?.classList.add("hidden");
     $("signupSection")?.classList.remove("hidden");
@@ -1966,6 +2061,111 @@
     trackEvent("unhandled_promise_rejection", { reason: event?.reason?.message || String(event?.reason || "unknown") });
   });
 
+  /* ---- Local application reference ----
+     NOTE: this is a CLIENT-SIDE tracking reference so the applicant has
+     something to quote to support while the submission is queued/retrying.
+     It is NOT the authoritative application ID — when the backend accepts
+     the application and returns its own id, that server value takes over. */
+  function generateLocalReference() {
+    const year = new Date().getFullYear();
+    const rand = Math.random().toString(36).slice(2, 8).toUpperCase();
+    return `HTX-DRV-${year}-${rand}`;
+  }
+
+  function resolveApplicationId(serverData, localRef) {
+    // The backend's /api/drivers/signup returns { ok, driver: { id, ... }, next_steps }.
+    // The authoritative driver ID lives at serverData.driver.id — check that FIRST,
+    // then fall back to the flatter shapes, then the local reference.
+    return (
+      serverData?.driver?.id ||
+      serverData?.driver?.driver_id ||
+      serverData?.application_id ||
+      serverData?.applicationId ||
+      serverData?.id ||
+      serverData?.driver_id ||
+      localRef
+    );
+  }
+
+  /* Persist the real backend driver ID so status polling (which needs the
+     ID, not the email) can hit /api/drivers/:id/readiness afterward. */
+  function resolveDriverId(serverData) {
+    return (
+      serverData?.driver?.id ||
+      serverData?.driver?.driver_id ||
+      serverData?.driver_id ||
+      serverData?.id ||
+      ""
+    );
+  }
+
+  /* ---- Persistent progress line (does not auto-clear like showStatus) ---- */
+  function setSubmitProgress(message, type = "info") {
+    const el = $("statusMessage");
+    if (!el) return;
+    el.textContent = message;
+    el.className = "status show " + type;
+  }
+
+  /* ---- Offline / failed-submission queue ---- */
+  function queueApplication(payload, localRef) {
+    try {
+      const record = { payload, localRef, queued_at: new Date().toISOString() };
+      safeSet(QUEUE_KEY, JSON.stringify(record));
+    } catch {}
+  }
+  function getQueuedApplication() {
+    try { const raw = safeGet(QUEUE_KEY); return raw ? JSON.parse(raw) : null; }
+    catch { return null; }
+  }
+  function clearQueuedApplication() {
+    try { localStorage.removeItem(QUEUE_KEY); } catch {}
+  }
+
+  let isFlushingQueue = false;
+
+  /* Attempt to send a previously queued application. Runs on page load and
+     whenever connectivity is restored. Silent when there's nothing queued. */
+  async function flushQueuedApplication(trigger = "manual") {
+    if (isFlushingQueue) return;
+    const queued = getQueuedApplication();
+    if (!queued || !queued.payload) return;
+    if (!navigator.onLine) return;
+
+    isFlushingQueue = true;
+    trackEvent("driver_queue_flush_attempt", { trigger });
+    try {
+      const { data } = await submitDriverApplication(queued.payload);
+      const appId = resolveApplicationId(data, queued.localRef);
+      const driverId = resolveDriverId(data);
+      clearQueuedApplication();
+      safeSet(LAST_REF_KEY, appId);
+      if (driverId) safeSet(DRIVER_ID_KEY, driverId);
+      safeSet("harvey_driver_session_email", queued.payload.email);
+      localStorage.removeItem(DRAFT_KEY);
+
+      showVerificationSection(queued.payload);
+      setSubmitProgress(`Application submitted successfully. Reference: ${appId}. Check your email to verify your address.`, "success");
+      trackEvent("driver_queue_flush_success", { trigger });
+    } catch (failure) {
+      // Still failing — leave it queued for the next connectivity event
+      trackEvent("driver_queue_flush_failed", { trigger, category: failure?.category || "unknown" });
+    } finally {
+      isFlushingQueue = false;
+    }
+  }
+
+  /* Auto-retry when the browser regains connectivity */
+  function registerConnectivityRetry() {
+    window.addEventListener("online", () => {
+      const queued = getQueuedApplication();
+      if (queued) {
+        setSubmitProgress("Connection restored — resending your saved application…", "info");
+        flushQueuedApplication("online_event");
+      }
+    });
+  }
+
   /* ---- Form submission (previously entirely absent — the submit
      button did nothing except trigger default browser form behavior) ---- */
   function bindFormSubmit() {
@@ -1977,27 +2177,77 @@
 
       const submitBtn = $("submitBtn");
       const original = submitBtn.textContent;
+      const payload = getDriverFormData();
+      const localRef = generateLocalReference();
+
       try {
         submitBtn.disabled = true;
-        submitBtn.textContent = "Submitting...";
 
-        const payload = getDriverFormData();
-        const result = await submitDriverApplication(payload);
+        // Stage 1: saving locally (instant, always succeeds)
+        submitBtn.textContent = "Saving…";
+        setSubmitProgress("Saving your application…", "info");
+        saveDraft();
 
+        // If offline, don't even attempt the network — queue immediately
+        if (!navigator.onLine) {
+          queueApplication(payload, localRef);
+          setSubmitProgress(
+            `You're offline right now, so your application is saved (reference ${localRef}) and will send automatically the moment you're back online.`,
+            "warning"
+          );
+          trackEvent("driver_application_queued_offline", { localRef });
+          return;
+        }
+
+        // Stage 2: uploading / submitting
+        submitBtn.textContent = "Submitting…";
+        setSubmitProgress("Uploading your application to Harvey Taxi…", "info");
+
+        const { data, endpoint } = await submitDriverApplication(payload);
+        const appId = resolveApplicationId(data, localRef);
+        const driverId = resolveDriverId(data);
+
+        // Success
+        clearQueuedApplication();
+        safeSet(LAST_REF_KEY, appId);
+        if (driverId) safeSet(DRIVER_ID_KEY, driverId);
         safeSet("harvey_driver_session_email", payload.email);
         localStorage.removeItem(DRAFT_KEY);
 
         showVerificationSection(payload);
-        showStatus("Application submitted. Check your email to verify your address.", "success");
-        trackEvent("driver_application_submitted", { driver_type: payload.driver_type, city: payload.city });
-      } catch (err) {
-        console.error(err);
-        saveDraft();
-        showStatus(
-          "Submission unavailable right now. Your progress has been saved locally — please try again shortly.",
-          "error"
+        setSubmitProgress(
+          `Application submitted successfully. Reference: ${appId}. Check your email to verify your address.`,
+          "success"
         );
-        trackEvent("driver_application_submit_failed", { message: err.message });
+        trackEvent("driver_application_submitted", {
+          driver_type: payload.driver_type, city: payload.city, endpoint, application_id: appId
+        });
+      } catch (failure) {
+        // failure is the classified object from submitDriverApplication
+        console.error("Driver submission failed:", failure);
+        saveDraft();
+
+        const retryable = failure?.retryable !== false;
+        const reason = failure?.reason || "Submission could not be completed right now.";
+
+        if (retryable) {
+          // Queue it so the connectivity listener can auto-resend
+          queueApplication(payload, localRef);
+          setSubmitProgress(
+            `${reason} Your reference is ${localRef}.`,
+            failure?.category === "offline" ? "warning" : "error"
+          );
+        } else {
+          // Non-retryable (e.g. 404 config error, 4xx rejection): don't queue silently,
+          // but keep the draft and give an honest, specific reason.
+          setSubmitProgress(`${reason} Your details are saved locally (reference ${localRef}).`, "error");
+        }
+
+        trackEvent("driver_application_submit_failed", {
+          category: failure?.category || "unknown",
+          retryable,
+          localRef
+        });
       } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = original;
@@ -2039,6 +2289,16 @@
     runStep("bindFieldAutosave", bindFieldAutosave);
     runStep("bindFormSubmit", bindFormSubmit);
     runStep("bindVerificationActions", bindVerificationActions);
+    runStep("registerConnectivityRetry", registerConnectivityRetry);
+
+    // If a prior submission was queued (offline or server-down), try it now.
+    runStep("flushQueuedApplication", () => {
+      if (getQueuedApplication()) {
+        setSubmitProgress("You have a saved application from earlier — attempting to send it now…", "info");
+        flushQueuedApplication("page_load");
+      }
+    });
+
     setDebug("Driver signup page loaded and ready.");
     trackEvent("driver_signup_page_view");
   }
