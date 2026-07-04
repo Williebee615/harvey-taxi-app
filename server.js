@@ -5496,695 +5496,7 @@ app.get(
 
   })
 
-);
-
-/* =========================================================
-
-   RIDER READINESS
-
-   Additive read-only route. Wraps the existing getRiderReadiness()
-   helper and returns the same envelope shape as the driver readiness
-   route so the rider-signup page can poll approval progress. Mirrors
-   GET /api/drivers/:id/readiness. Changes no existing route.
-
-========================================================= */
-
-app.get(
-
-  "/api/riders/:id/readiness",
-
-  asyncRoute(async (req, res) => {
-
-    const riderId =
-
-      cleanString(
-
-        req.params.id,
-
-        100
-
-      );
-
-    if (!riderId) {
-
-      return fail(
-
-        res,
-
-        "Rider id required.",
-
-        400
-
-      );
-
-    }
-
-    const result =
-
-      await getRiderReadiness(riderId);
-
-    if (result && result.reason === "Rider profile not found.") {
-
-      return fail(
-
-        res,
-
-        "Rider not found.",
-
-        404
-
-      );
-
-    }
-
-    const rider =
-
-      result.rider || {};
-
-    return ok(res, {
-
-      rider_id:
-
-        rider.id || riderId,
-
-      ready:
-
-        Boolean(result.ready),
-
-      status:
-
-        rider.status || null,
-
-      approval_status:
-
-        rider.approval_status || null,
-
-      checks:
-
-        result.checks || {}
-
-    });
-
-  })
-
-);
-
-/* =========================================================
-
-   ACCOUNT DELETION REQUEST (SOFT-FLAG)
-
-   Additive route. Does NOT hard-delete any record. It stamps a
-   deletion_requested_at timestamp (and reason) on the rider or
-   driver row for later admin review, preserving audit logs, trip
-   history, payments, and dispute records. Hard deletion, if ever
-   desired, is a separate admin-reviewed action. Changes no existing
-   route.
-
-========================================================= */
-
-app.post(
-
-  "/api/account/delete-request",
-
-  asyncRoute(async (req, res) => {
-
-    const missing =
-
-      requireBody(req, [
-
-        "email"
-
-      ]);
-
-    if (missing.length) {
-
-      return fail(
-
-        res,
-
-        "Missing required account deletion fields.",
-
-        400,
-
-        { missing }
-
-      );
-
-    }
-
-    const email =
-
-      cleanEmail(req.body.email);
-
-    const accountType =
-
-      normalizeRole(req.body.account_type || "rider");
-
-    const reason =
-
-      cleanString(req.body.reason || "", 500);
-
-    const table =
-
-      accountType === "driver"
-
-        ? "drivers"
-
-        : "riders";
-
-    const now =
-
-      nowIso();
-
-    // Locate the account by email without exposing whether it exists.
-    const { data: account, error: lookupError } =
-
-      await supabase
-
-        .from(table)
-
-        .select("id, email")
-
-        .eq("email", email)
-
-        .maybeSingle();
-
-    if (lookupError) {
-
-      throw lookupError;
-
-    }
-
-    // Always respond success-shaped so this endpoint can't be used to
-    // enumerate which emails have accounts. If nothing matched, we simply
-    // record nothing and return the same acknowledgement.
-    if (account && account.id) {
-
-      const { error: updateError } =
-
-        await supabase
-
-          .from(table)
-
-          .update({
-
-            deletion_requested: true,
-
-            deletion_requested_at:
-
-              now,
-
-            deletion_reason:
-
-              reason || null,
-
-            updated_at:
-
-              now
-
-          })
-
-          .eq("id", account.id);
-
-      if (updateError) {
-
-        throw updateError;
-
-      }
-
-      auditLog({
-
-        actor_type:
-
-          accountType,
-
-        actor_id:
-
-          account.id,
-
-        action:
-
-          "account_deletion_requested",
-
-        entity_type:
-
-          accountType,
-
-        entity_id:
-
-          account.id,
-
-        metadata: {
-
-          reason:
-
-            reason || null
-
-        },
-
-        req
-
-      }).catch(() => {});
-
-    }
-
-    return ok(
-
-      res,
-
-      {
-
-        requested:
-
-          true,
-
-        message:
-
-          "Your account deletion request has been received. Our team will confirm by email before any data is removed."
-
-      },
-
-      202
-
-    );
-
-  })
-
-);
-
-/* =========================================================
-
-   ADMIN — ACCOUNT DELETION REVIEW
-
-   Three additive admin routes that complete the soft-delete
-   lifecycle started by POST /api/account/delete-request:
-
-     GET   /api/admin/account-deletions
-             List all rider + driver rows currently flagged
-             deletion_requested = true, for admin review.
-
-     POST  /api/admin/account-deletions/:type/:id/approve
-             Hard-delete the flagged account after admin review.
-             This is the ONLY route that physically removes an
-             account row, and only an admin can call it.
-
-     POST  /api/admin/account-deletions/:type/:id/deny
-             Clear the soft-flag, restoring the account.
-
-   All three are admin-guarded (requireAdmin) and audit-logged.
-   None touch any existing route.
-
-========================================================= */
-
-app.get(
-
-  "/api/admin/account-deletions",
-
-  requireAdmin,
-
-  asyncRoute(async (req, res) => {
-
-    const limit =
-
-      envNumber(
-
-        "ADMIN_LIST_LIMIT",
-
-        200
-
-      );
-
-    const { data: riders, error: riderError } =
-
-      await supabase
-
-        .from("riders")
-
-        .select("id, first_name, last_name, email, deletion_requested_at, deletion_reason, status, approval_status")
-
-        .eq("deletion_requested", true)
-
-        .order("deletion_requested_at", {
-
-          ascending: false
-
-        })
-
-        .limit(limit);
-
-    if (riderError) {
-
-      throw riderError;
-
-    }
-
-    const { data: drivers, error: driverError } =
-
-      await supabase
-
-        .from("drivers")
-
-        .select("id, first_name, last_name, email, deletion_requested_at, deletion_reason, status, approval_status")
-
-        .eq("deletion_requested", true)
-
-        .order("deletion_requested_at", {
-
-          ascending: false
-
-        })
-
-        .limit(limit);
-
-    if (driverError) {
-
-      throw driverError;
-
-    }
-
-    return ok(res, {
-
-      riders:
-
-        (riders || []).map((r) => ({
-
-          ...r,
-
-          account_type:
-
-            "rider"
-
-        })),
-
-      drivers:
-
-        (drivers || []).map((d) => ({
-
-          ...d,
-
-          account_type:
-
-            "driver"
-
-        })),
-
-      total:
-
-        (riders ? riders.length : 0) +
-
-        (drivers ? drivers.length : 0)
-
-    });
-
-  })
-
-);
-
-app.post(
-
-  "/api/admin/account-deletions/:type/:id/approve",
-
-  requireAdmin,
-
-  asyncRoute(async (req, res) => {
-
-    const accountType =
-
-      normalizeRole(req.params.type);
-
-    const accountId =
-
-      cleanString(
-
-        req.params.id,
-
-        100
-
-      );
-
-    const table =
-
-      accountType === "driver"
-
-        ? "drivers"
-
-        : "riders";
-
-    // Confirm the account exists AND was actually flagged for deletion,
-    // so this route can never hard-delete an account that never requested it.
-    const { data: account, error: lookupError } =
-
-      await supabase
-
-        .from(table)
-
-        .select("id, email, deletion_requested")
-
-        .eq("id", accountId)
-
-        .maybeSingle();
-
-    if (lookupError) {
-
-      throw lookupError;
-
-    }
-
-    if (!account || !account.id) {
-
-      return fail(
-
-        res,
-
-        "Account not found.",
-
-        404
-
-      );
-
-    }
-
-    if (!account.deletion_requested) {
-
-      return fail(
-
-        res,
-
-        "This account has no pending deletion request. Hard-delete is only permitted after a deletion request.",
-
-        409
-
-      );
-
-    }
-
-    const { error: deleteError } =
-
-      await supabase
-
-        .from(table)
-
-        .delete()
-
-        .eq("id", accountId);
-
-    if (deleteError) {
-
-      throw deleteError;
-
-    }
-
-    auditLog({
-
-      actor_type:
-
-        "admin",
-
-      actor_id:
-
-        req.admin.email,
-
-      action:
-
-        "account_deletion_approved",
-
-      entity_type:
-
-        accountType,
-
-      entity_id:
-
-        accountId,
-
-      metadata: {
-
-        email:
-
-          account.email
-
-      },
-
-      req
-
-    }).catch(() => {});
-
-    return ok(res, {
-
-      deleted:
-
-        true,
-
-      account_type:
-
-        accountType,
-
-      id:
-
-        accountId,
-
-      message:
-
-        "Account permanently deleted."
-
-    });
-
-  })
-
-);
-
-app.post(
-
-  "/api/admin/account-deletions/:type/:id/deny",
-
-  requireAdmin,
-
-  asyncRoute(async (req, res) => {
-
-    const accountType =
-
-      normalizeRole(req.params.type);
-
-    const accountId =
-
-      cleanString(
-
-        req.params.id,
-
-        100
-
-      );
-
-    const table =
-
-      accountType === "driver"
-
-        ? "drivers"
-
-        : "riders";
-
-    const { data, error } =
-
-      await supabase
-
-        .from(table)
-
-        .update({
-
-          deletion_requested:
-
-            false,
-
-          deletion_requested_at:
-
-            null,
-
-          deletion_reason:
-
-            null,
-
-          updated_at:
-
-            nowIso()
-
-        })
-
-        .eq("id", accountId)
-
-        .select("id, email")
-
-        .maybeSingle();
-
-    if (error) {
-
-      throw error;
-
-    }
-
-    if (!data || !data.id) {
-
-      return fail(
-
-        res,
-
-        "Account not found.",
-
-        404
-
-      );
-
-    }
-
-    auditLog({
-
-      actor_type:
-
-        "admin",
-
-      actor_id:
-
-        req.admin.email,
-
-      action:
-
-        "account_deletion_denied",
-
-      entity_type:
-
-        accountType,
-
-      entity_id:
-
-        accountId,
-
-      req
-
-    }).catch(() => {});
-
-    return ok(res, {
-
-      restored:
-
-        true,
-
-      account_type:
-
-        accountType,
-
-      id:
-
-        accountId,
-
-      message:
-
-        "Deletion request cleared. The account has been restored."
-
-    });
-
-  })
-
-);
-
-/* =========================================================
+);/* =========================================================
 
    PART 6 — RIDE ESTIMATES, PAYMENT, DISPATCH
 
@@ -8488,4 +7800,4842 @@ async function createDriverEarning({
 
   if (error) {
 
-    consol
+    console.error(
+
+      "❌ Driver earning insert failed:",
+
+      error.message
+
+    );
+
+  }
+
+  return earning;
+
+}
+
+/* =========================================================
+
+   DRIVER COMPLETE RIDE
+
+========================================================= */
+
+app.post(
+
+  "/api/driver/rides/:rideId/complete",
+
+  asyncRoute(async (req, res) => {
+
+    const rideId =
+
+      cleanString(
+
+        req.params.rideId,
+
+        100
+
+      );
+
+    const driverId =
+
+      cleanString(
+
+        req.body.driver_id,
+
+        100
+
+      );
+
+    const ride =
+
+      await getRideOrFail(rideId);
+
+    await ensureAssignedDriver(
+
+      ride,
+
+      driverId
+
+    );
+
+    const paymentResult =
+
+      await captureRidePayment(ride);
+
+    const earning =
+
+      await createDriverEarning({
+
+        ride,
+
+        driverId
+
+      });
+
+    await supabase
+
+      .from("rides")
+
+      .update({
+
+        status:
+
+          RIDE_STATUS.COMPLETED,
+
+        completed_at:
+
+          nowIso(),
+
+        payment_captured:
+
+          Boolean(paymentResult),
+
+        updated_at:
+
+          nowIso()
+
+      })
+
+      .eq("id", rideId);
+
+    auditLog({
+
+      actor_type:
+
+        "driver",
+
+      actor_id:
+
+        driverId,
+
+      action:
+
+        "ride_completed",
+
+      entity_type:
+
+        "ride",
+
+      entity_id:
+
+        rideId,
+
+      metadata: {
+
+        earning,
+
+        payment_captured:
+
+          Boolean(paymentResult)
+
+      },
+
+      req
+
+    }).catch(() => {});
+
+    return ok(res, {
+
+      ride_id:
+
+        rideId,
+
+      status:
+
+        RIDE_STATUS.COMPLETED,
+
+      earning,
+
+      payment_captured:
+
+        Boolean(paymentResult)
+
+    });
+
+  })
+
+);
+
+/* =========================================================
+
+   DRIVER LOCATION
+
+========================================================= */
+
+app.post(
+
+  "/api/driver/location",
+
+  asyncRoute(async (req, res) => {
+
+    const driverId =
+
+      cleanString(
+
+        req.body.driver_id,
+
+        100
+
+      );
+
+    if (!driverId) {
+
+      return fail(
+
+        res,
+
+        "driver_id required",
+
+        400
+
+      );
+
+    }
+
+    await supabase
+
+      .from("drivers")
+
+      .update({
+
+        current_lat:
+
+          Number(req.body.latitude),
+
+        current_lng:
+
+          Number(req.body.longitude),
+
+        heading:
+
+          Number(req.body.heading || 0),
+
+        speed:
+
+          Number(req.body.speed || 0),
+
+        last_seen_at:
+
+          nowIso(),
+
+        updated_at:
+
+          nowIso()
+
+      })
+
+      .eq("id", driverId);
+
+    return ok(res, {
+
+      updated:
+
+        true
+
+    });
+
+  })
+
+);
+
+/* =========================================================
+
+   DRIVER ONLINE/OFFLINE
+
+========================================================= */
+
+app.post(
+
+  "/api/driver/status",
+
+  asyncRoute(async (req, res) => {
+
+    const driverId =
+
+      cleanString(
+
+        req.body.driver_id,
+
+        100
+
+      );
+
+    if (!driverId) {
+
+      return fail(
+
+        res,
+
+        "driver_id required.",
+
+        400
+
+      );
+
+    }
+
+    const online =
+
+      Boolean(req.body.online);
+
+    await supabase
+
+      .from("drivers")
+
+      .update({
+
+        online,
+
+        last_seen_at:
+
+          nowIso(),
+
+        updated_at:
+
+          nowIso()
+
+      })
+
+      .eq("id", driverId);
+
+    auditLog({
+
+      actor_type:
+
+        "driver",
+
+      actor_id:
+
+        driverId,
+
+      action:
+
+        online
+
+          ? "driver_online"
+
+          : "driver_offline",
+
+      req
+
+    }).catch(() => {});
+
+    return ok(res, {
+
+      online
+
+    });
+
+  })
+
+);
+
+/* =========================================================
+
+   DRIVER ACTIVE MISSIONS
+
+========================================================= */
+
+app.get(
+
+  "/api/driver/:driverId/missions",
+
+  asyncRoute(async (req, res) => {
+
+    const driverId =
+
+      cleanString(
+
+        req.params.driverId,
+
+        100
+
+      );
+
+    const { data, error } =
+
+      await supabase
+
+        .from("rides")
+
+        .select("*")
+
+        .eq("driver_id", driverId)
+
+        .in("status", [
+
+          RIDE_STATUS.DRIVER_ASSIGNED,
+
+          RIDE_STATUS.DRIVER_ENROUTE,
+
+          RIDE_STATUS.ARRIVED,
+
+          RIDE_STATUS.IN_PROGRESS
+
+        ])
+
+        .order("created_at", {
+
+          ascending: false
+
+        });
+
+    if (error) {
+
+      throw error;
+
+    }
+
+    return ok(res, {
+
+      missions:
+
+        data || []
+
+    });
+
+  })
+
+);
+
+/* =========================================================
+
+   DRIVER HISTORY
+
+========================================================= */
+
+app.get(
+
+  "/api/driver/:driverId/history",
+
+  asyncRoute(async (req, res) => {
+
+    const driverId =
+
+      cleanString(
+
+        req.params.driverId,
+
+        100
+
+      );
+
+    const { data, error } =
+
+      await supabase
+
+        .from("rides")
+
+        .select("*")
+
+        .eq("driver_id", driverId)
+
+        .eq("status", RIDE_STATUS.COMPLETED)
+
+        .order("completed_at", {
+
+          ascending: false
+
+        })
+
+        .limit(100);
+
+    if (error) {
+
+      throw error;
+
+    }
+
+    return ok(res, {
+
+      history:
+
+        data || []
+
+    });
+
+  })
+
+);
+
+/* =========================================================
+
+   DRIVER EARNINGS
+
+========================================================= */
+
+app.get(
+
+  "/api/driver/:driverId/earnings",
+
+  asyncRoute(async (req, res) => {
+
+    const driverId =
+
+      cleanString(
+
+        req.params.driverId,
+
+        100
+
+      );
+
+    const { data, error } =
+
+      await supabase
+
+        .from("driver_earnings")
+
+        .select("*")
+
+        .eq("driver_id", driverId);
+
+    if (error) {
+
+      throw error;
+
+    }
+
+    const total =
+
+      (data || []).reduce(
+
+        (sum, item) =>
+
+          sum + Number(item.net_amount || 0),
+
+        0
+
+      );
+
+    return ok(res, {
+
+      total_earnings:
+
+        Number(total.toFixed(2)),
+
+      records:
+
+        data || []
+
+    });
+
+  })
+
+);/* =========================================================
+
+   PART 8 — ADMIN OPERATIONS + SSE STREAM + HTAF SCHEDULING
+
+========================================================= */
+
+const sseClients = new Map();
+
+function sendSse(clientId, event, data) {
+
+  const client =
+
+    sseClients.get(clientId);
+
+  if (!client) return;
+
+  client.write(
+
+    `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`
+
+  );
+
+}
+
+function broadcastSse(event, data) {
+
+  for (const clientId of sseClients.keys()) {
+
+    sendSse(clientId, event, data);
+
+  }
+
+}
+
+/* =========================================================
+
+   ADMIN SSE STREAM
+
+========================================================= */
+
+app.get(
+
+  "/api/admin/stream",
+
+  requireAdmin,
+
+  asyncRoute(async (req, res) => {
+
+    const clientId =
+
+      makeId("SSE");
+
+    res.setHeader(
+
+      "Content-Type",
+
+      "text/event-stream"
+
+    );
+
+    res.setHeader(
+
+      "Cache-Control",
+
+      "no-cache"
+
+    );
+
+    res.setHeader(
+
+      "Connection",
+
+      "keep-alive"
+
+    );
+
+    res.flushHeaders?.();
+
+    sseClients.set(
+
+      clientId,
+
+      res
+
+    );
+
+    sendSse(
+
+      clientId,
+
+      "connected",
+
+      {
+
+        client_id:
+
+          clientId,
+
+        connected_at:
+
+          nowIso()
+
+      }
+
+    );
+
+    const heartbeat =
+
+      setInterval(() => {
+
+        sendSse(
+
+          clientId,
+
+          "heartbeat",
+
+          {
+
+            at:
+
+              nowIso()
+
+          }
+
+        );
+
+      }, 25_000);
+
+    req.on(
+
+      "close",
+
+      () => {
+
+        clearInterval(
+
+          heartbeat
+
+        );
+
+        sseClients.delete(
+
+          clientId
+
+        );
+
+      }
+
+    );
+
+  })
+
+);
+
+/* =========================================================
+
+   ADMIN OVERVIEW
+
+========================================================= */
+
+async function safeCount(table) {
+
+  try {
+
+    const { count, error } =
+
+      await supabase
+
+        .from(table)
+
+        .select("id", {
+
+          count: "exact",
+
+          head: true
+
+        });
+
+    if (error) {
+
+      return {
+
+        table,
+
+        count: 0,
+
+        error: error.message
+
+      };
+
+    }
+
+    return {
+
+      table,
+
+      count: count || 0
+
+    };
+
+  } catch (error) {
+
+    return {
+
+      table,
+
+      count: 0,
+
+      error: error.message
+
+    };
+
+  }
+
+}
+
+app.get(
+
+  "/api/admin/overview",
+
+  requireAdmin,
+
+  asyncRoute(async (req, res) => {
+
+    const results =
+
+      await Promise.all([
+
+        safeCount("riders"),
+
+        safeCount("drivers"),
+
+        safeCount("rides"),
+
+        safeCount("htaf_applications"),
+
+        safeCount("driver_offers"),
+
+        safeCount("driver_earnings")
+
+      ]);
+
+    const overview =
+
+      results.reduce(
+
+        (acc, item) => {
+
+          acc[item.table] =
+
+            item.count;
+
+          if (item.error) {
+
+            acc[`${item.table}_error`] =
+
+              item.error;
+
+          }
+
+          return acc;
+
+        },
+
+        {}
+
+      );
+
+    return ok(res, {
+
+      overview: {
+
+        ...overview,
+
+        server_time:
+
+          nowIso(),
+
+        environment:
+
+          NODE_ENV
+
+      }
+
+    });
+
+  })
+
+);
+
+/* =========================================================
+
+   ADMIN RIDES LIST
+
+========================================================= */
+
+app.get(
+
+  "/api/admin/rides",
+
+  requireAdmin,
+
+  asyncRoute(async (req, res) => {
+
+    const status =
+
+      cleanString(
+
+        req.query.status,
+
+        80
+
+      );
+
+    let query =
+
+      supabase
+
+        .from("rides")
+
+        .select("*")
+
+        .order("created_at", {
+
+          ascending: false
+
+        })
+
+        .limit(
+
+          envNumber(
+
+            "ADMIN_LIST_LIMIT",
+
+            200
+
+          )
+
+        );
+
+    if (status) {
+
+      query =
+
+        query.eq(
+
+          "status",
+
+          status
+
+        );
+
+    }
+
+    const { data, error } =
+
+      await query;
+
+    if (error) {
+
+      throw error;
+
+    }
+
+    return ok(res, {
+
+      rides:
+
+        data || []
+
+    });
+
+  })
+
+);
+
+/* =========================================================
+
+   ADMIN UPDATE RIDE STATUS
+
+========================================================= */
+
+app.patch(
+
+  "/api/admin/rides/:id/status",
+
+  requireAdmin,
+
+  asyncRoute(async (req, res) => {
+
+    const rideId =
+
+      cleanString(
+
+        req.params.id,
+
+        100
+
+      );
+
+    const status =
+
+      cleanString(
+
+        req.body.status,
+
+        80
+
+      );
+
+    const allowed =
+
+      Object.values(RIDE_STATUS);
+
+    if (!allowed.includes(status)) {
+
+      return fail(
+
+        res,
+
+        "Invalid ride status.",
+
+        400,
+
+        { allowed }
+
+      );
+
+    }
+
+    const { data, error } =
+
+      await supabase
+
+        .from("rides")
+
+        .update({
+
+          status,
+
+          admin_note:
+
+            cleanString(
+
+              req.body.note,
+
+              1000
+
+            ),
+
+          updated_at:
+
+            nowIso()
+
+        })
+
+        .eq("id", rideId)
+
+        .select()
+
+        .single();
+
+    if (error) {
+
+      throw error;
+
+    }
+
+    auditLog({
+
+      actor_type:
+
+        "admin",
+
+      actor_id:
+
+        req.admin.email,
+
+      action:
+
+        "admin_ride_status_updated",
+
+      entity_type:
+
+        "ride",
+
+      entity_id:
+
+        rideId,
+
+      metadata: {
+
+        status,
+
+        note:
+
+          req.body.note || null
+
+      },
+
+      req
+
+    }).catch(() => {});
+
+    broadcastSse(
+
+      "ride_updated",
+
+      { ride: data }
+
+    );
+
+    return ok(res, {
+
+      ride:
+
+        data
+
+    });
+
+  })
+
+);
+
+/* =========================================================
+
+   ADMIN ASSIGN DRIVER
+
+========================================================= */
+
+app.post(
+
+  "/api/admin/rides/:id/assign-driver",
+
+  requireAdmin,
+
+  asyncRoute(async (req, res) => {
+
+    const rideId =
+
+      cleanString(
+
+        req.params.id,
+
+        100
+
+      );
+
+    const driverId =
+
+      cleanString(
+
+        req.body.driver_id,
+
+        100
+
+      );
+
+    if (!driverId) {
+
+      return fail(
+
+        res,
+
+        "driver_id required.",
+
+        400
+
+      );
+
+    }
+
+    const driver =
+
+      await getDriverOrFail(driverId);
+
+    const { data, error } =
+
+      await supabase
+
+        .from("rides")
+
+        .update({
+
+          driver_id:
+
+            driver.id,
+
+          current_driver_id:
+
+            driver.id,
+
+          status:
+
+            RIDE_STATUS.DRIVER_ASSIGNED,
+
+          dispatch_status:
+
+            "admin_assigned",
+
+          assigned_by_admin:
+
+            true,
+
+          assigned_at:
+
+            nowIso(),
+
+          updated_at:
+
+            nowIso()
+
+        })
+
+        .eq("id", rideId)
+
+        .select()
+
+        .single();
+
+    if (error) {
+
+      throw error;
+
+    }
+
+    auditLog({
+
+      actor_type:
+
+        "admin",
+
+      actor_id:
+
+        req.admin.email,
+
+      action:
+
+        "admin_driver_assigned",
+
+      entity_type:
+
+        "ride",
+
+      entity_id:
+
+        rideId,
+
+      metadata: {
+
+        driver_id:
+
+          driverId
+
+      },
+
+      req
+
+    }).catch(() => {});
+
+    broadcastSse(
+
+      "ride_assigned",
+
+      {
+
+        ride:
+
+          data,
+
+        driver
+
+      }
+
+    );
+
+    return ok(res, {
+
+      ride:
+
+        data,
+
+      driver
+
+    });
+
+  })
+
+);
+
+/* =========================================================
+
+   ADMIN DRIVERS LIST
+
+========================================================= */
+
+app.get(
+
+  "/api/admin/drivers",
+
+  requireAdmin,
+
+  asyncRoute(async (req, res) => {
+
+    const status =
+
+      cleanString(
+
+        req.query.status,
+
+        80
+
+      );
+
+    let query =
+
+      supabase
+
+        .from("drivers")
+
+        .select("*")
+
+        .order("created_at", {
+
+          ascending: false
+
+        })
+
+        .limit(
+
+          envNumber(
+
+            "ADMIN_LIST_LIMIT",
+
+            200
+
+          )
+
+        );
+
+    if (status) {
+
+      query =
+
+        query.eq(
+
+          "status",
+
+          status
+
+        );
+
+    }
+
+    const { data, error } =
+
+      await query;
+
+    if (error) {
+
+      throw error;
+
+    }
+
+    return ok(res, {
+
+      drivers:
+
+        data || []
+
+    });
+
+  })
+
+);
+
+/* =========================================================
+
+   ADMIN RIDERS LIST
+
+========================================================= */
+
+app.get(
+
+  "/api/admin/riders",
+
+  requireAdmin,
+
+  asyncRoute(async (req, res) => {
+
+    const status =
+
+      cleanString(
+
+        req.query.status,
+
+        80
+
+      );
+
+    let query =
+
+      supabase
+
+        .from("riders")
+
+        .select("*")
+
+        .order("created_at", {
+
+          ascending: false
+
+        })
+
+        .limit(
+
+          envNumber(
+
+            "ADMIN_LIST_LIMIT",
+
+            200
+
+          )
+
+        );
+
+    if (status) {
+
+      query =
+
+        query.eq(
+
+          "status",
+
+          status
+
+        );
+
+    }
+
+    const { data, error } =
+
+      await query;
+
+    if (error) {
+
+      throw error;
+
+    }
+
+    return ok(res, {
+
+      riders:
+
+        data || []
+
+    });
+
+  })
+
+);
+
+/* =========================================================
+
+   ADMIN APPROVE DRIVER
+
+========================================================= */
+
+app.patch(
+
+  "/api/admin/drivers/:id/approve",
+
+  requireAdmin,
+
+  asyncRoute(async (req, res) => {
+
+    const driverId =
+
+      cleanString(
+
+        req.params.id,
+
+        100
+
+      );
+
+    const { data, error } =
+
+      await supabase
+
+        .from("drivers")
+
+        .update({
+
+          status:
+
+            "active",
+
+          approval_status:
+
+            "approved",
+
+          online:
+
+            false,
+
+          approved_at:
+
+            nowIso(),
+
+          updated_at:
+
+            nowIso()
+
+        })
+
+        .eq("id", driverId)
+
+        .select()
+
+        .single();
+
+    if (error) {
+
+      throw error;
+
+    }
+
+    auditLog({
+
+      actor_type:
+
+        "admin",
+
+      actor_id:
+
+        req.admin.email,
+
+      action:
+
+        "driver_approved",
+
+      entity_type:
+
+        "driver",
+
+      entity_id:
+
+        driverId,
+
+      req
+
+    }).catch(() => {});
+
+    broadcastSse(
+
+      "driver_approved",
+
+      {
+
+        driver:
+
+          data
+
+      }
+
+    );
+
+    return ok(res, {
+
+      driver:
+
+        data
+
+    });
+
+  })
+
+);
+
+/* =========================================================
+
+   ADMIN REJECT DRIVER
+
+========================================================= */
+
+app.patch(
+
+  "/api/admin/drivers/:id/reject",
+
+  requireAdmin,
+
+  asyncRoute(async (req, res) => {
+
+    const driverId =
+
+      cleanString(
+
+        req.params.id,
+
+        100
+
+      );
+
+    const reason =
+
+      cleanString(
+
+        req.body.reason,
+
+        1000
+
+      );
+
+    const { data, error } =
+
+      await supabase
+
+        .from("drivers")
+
+        .update({
+
+          status:
+
+            "rejected",
+
+          approval_status:
+
+            "rejected",
+
+          rejection_reason:
+
+            reason,
+
+          updated_at:
+
+            nowIso()
+
+        })
+
+        .eq("id", driverId)
+
+        .select()
+
+        .single();
+
+    if (error) {
+
+      throw error;
+
+    }
+
+    auditLog({
+
+      actor_type:
+
+        "admin",
+
+      actor_id:
+
+        req.admin.email,
+
+      action:
+
+        "driver_rejected",
+
+      entity_type:
+
+        "driver",
+
+      entity_id:
+
+        driverId,
+
+      metadata: {
+
+        reason
+
+      },
+
+      req
+
+    }).catch(() => {});
+
+    broadcastSse(
+
+      "driver_rejected",
+
+      {
+
+        driver:
+
+          data
+
+      }
+
+    );
+
+    return ok(res, {
+
+      driver:
+
+        data
+
+    });
+
+  })
+
+);
+
+/* =========================================================
+
+   ADMIN APPROVE RIDER
+
+========================================================= */
+
+app.patch(
+
+  "/api/admin/riders/:id/approve",
+
+  requireAdmin,
+
+  asyncRoute(async (req, res) => {
+
+    const riderId =
+
+      cleanString(
+
+        req.params.id,
+
+        100
+
+      );
+
+    const { data, error } =
+
+      await supabase
+
+        .from("riders")
+
+        .update({
+
+          status:
+
+            "active",
+
+          approval_status:
+
+            "approved",
+
+          approved_at:
+
+            nowIso(),
+
+          updated_at:
+
+            nowIso()
+
+        })
+
+        .eq("id", riderId)
+
+        .select()
+
+        .single();
+
+    if (error) {
+
+      throw error;
+
+    }
+
+    auditLog({
+
+      actor_type:
+
+        "admin",
+
+      actor_id:
+
+        req.admin.email,
+
+      action:
+
+        "rider_approved",
+
+      entity_type:
+
+        "rider",
+
+      entity_id:
+
+        riderId,
+
+      req
+
+    }).catch(() => {});
+
+    broadcastSse(
+
+      "rider_approved",
+
+      {
+
+        rider:
+
+          data
+
+      }
+
+    );
+
+    return ok(res, {
+
+      rider:
+
+        data
+
+    });
+
+  })
+
+);
+
+/* =========================================================
+
+   ADMIN AUDIT LOGS
+
+========================================================= */
+
+app.get(
+
+  "/api/admin/audit-logs",
+
+  requireAdmin,
+
+  asyncRoute(async (req, res) => {
+
+    const { data, error } =
+
+      await supabase
+
+        .from("audit_logs")
+
+        .select("*")
+
+        .order("created_at", {
+
+          ascending: false
+
+        })
+
+        .limit(
+
+          envNumber(
+
+            "AUDIT_LOG_LIMIT",
+
+            300
+
+          )
+
+        );
+
+    if (error) {
+
+      throw error;
+
+    }
+
+    return ok(res, {
+
+      logs:
+
+        data || []
+
+    });
+
+  })
+
+);
+
+/* =========================================================
+
+   ADMIN CREATE HTAF RIDE
+
+========================================================= */
+
+app.post(
+
+  "/api/admin/foundation/applications/:id/create-ride",
+
+  requireAdmin,
+
+  asyncRoute(async (req, res) => {
+
+    const applicationId =
+
+      cleanString(
+
+        req.params.id,
+
+        100
+
+      );
+
+    const { data: application, error } =
+
+      await supabase
+
+        .from("htaf_applications")
+
+        .select("*")
+
+        .eq("id", applicationId)
+
+        .single();
+
+    if (error || !application) {
+
+      return fail(
+
+        res,
+
+        "HTAF application not found.",
+
+        404
+
+      );
+
+    }
+
+    const estimate =
+
+      calculateRideEstimate({
+
+        miles:
+
+          Number(req.body.miles || 0),
+
+        minutes:
+
+          Number(req.body.minutes || 0),
+
+        ride_type:
+
+          "foundation"
+
+      });
+
+    const now =
+
+      nowIso();
+
+    const ride = {
+
+      id:
+
+        makeId("RIDE"),
+
+      rider_id:
+
+        null,
+
+      htaf_application_id:
+
+        application.id,
+
+      rider_name:
+
+        `${application.first_name} ${application.last_name}`,
+
+      rider_phone:
+
+        application.phone,
+
+      pickup:
+
+        cleanString(
+
+          req.body.pickup ||
+
+          application.pickup_city,
+
+          500
+
+        ),
+
+      destination:
+
+        cleanString(
+
+          req.body.destination ||
+
+          application.destination,
+
+          500
+
+        ),
+
+      ride_type:
+
+        "foundation",
+
+      scheduled_for:
+
+        req.body.scheduled_for ||
+
+        application.ride_date ||
+
+        null,
+
+      status:
+
+        RIDE_STATUS.PAYMENT_AUTHORIZED,
+
+      dispatch_status:
+
+        "foundation_authorized",
+
+      estimate_total:
+
+        estimate.total,
+
+      driver_payout:
+
+        estimate.driver_payout,
+
+      platform_fee:
+
+        estimate.platform_fee,
+
+      miles:
+
+        estimate.miles,
+
+      minutes:
+
+        estimate.minutes,
+
+      notes:
+
+        `HTAF application ${application.application_code}`,
+
+      created_at:
+
+        now,
+
+      updated_at:
+
+        now
+
+    };
+
+    const { data: createdRide, error: rideError } =
+
+      await supabase
+
+        .from("rides")
+
+        .insert(ride)
+
+        .select()
+
+        .single();
+
+    if (rideError) {
+
+      throw rideError;
+
+    }
+
+    await supabase
+
+      .from("htaf_applications")
+
+      .update({
+
+        status:
+
+          HTAF_STATUS.SCHEDULED,
+
+        ride_id:
+
+          createdRide.id,
+
+        updated_at:
+
+          nowIso()
+
+      })
+
+      .eq("id", applicationId);
+
+    auditLog({
+
+      actor_type:
+
+        "admin",
+
+      actor_id:
+
+        req.admin.email,
+
+      action:
+
+        "htaf_application_converted_to_ride",
+
+      entity_type:
+
+        "htaf_application",
+
+      entity_id:
+
+        applicationId,
+
+      metadata: {
+
+        ride_id:
+
+          createdRide.id
+
+      },
+
+      req
+
+    }).catch(() => {});
+
+    broadcastSse(
+
+      "htaf_ride_created",
+
+      {
+
+        application_id:
+
+          applicationId,
+
+        ride:
+
+          createdRide
+
+      }
+
+    );
+
+    return ok(res, {
+
+      ride:
+
+        createdRide,
+
+      application_id:
+
+        applicationId
+
+    });
+
+  })
+
+);
+
+/* =========================================================
+
+   PAUSE / RESUME DISPATCH
+
+========================================================= */
+
+app.post(
+
+  "/api/admin/system/pause-dispatch",
+
+  requireAdmin,
+
+  asyncRoute(async (req, res) => {
+
+    const reason =
+
+      cleanString(
+
+        req.body.reason,
+
+        1000
+
+      );
+
+    await supabase
+
+      .from("system_flags")
+
+      .upsert({
+
+        key:
+
+          "dispatch_paused",
+
+        value:
+
+          "true",
+
+        reason,
+
+        updated_at:
+
+          nowIso()
+
+      });
+
+    auditLog({
+
+      actor_type:
+
+        "admin",
+
+      actor_id:
+
+        req.admin.email,
+
+      action:
+
+        "dispatch_paused",
+
+      metadata: {
+
+        reason
+
+      },
+
+      req
+
+    }).catch(() => {});
+
+    broadcastSse(
+
+      "dispatch_paused",
+
+      {
+
+        reason,
+
+        at:
+
+          nowIso()
+
+      }
+
+    );
+
+    return ok(res, {
+
+      dispatch_paused:
+
+        true,
+
+      reason
+
+    });
+
+  })
+
+);
+
+app.post(
+
+  "/api/admin/system/resume-dispatch",
+
+  requireAdmin,
+
+  asyncRoute(async (req, res) => {
+
+    await supabase
+
+      .from("system_flags")
+
+      .upsert({
+
+        key:
+
+          "dispatch_paused",
+
+        value:
+
+          "false",
+
+        reason:
+
+          null,
+
+        updated_at:
+
+          nowIso()
+
+      });
+
+    auditLog({
+
+      actor_type:
+
+        "admin",
+
+      actor_id:
+
+        req.admin.email,
+
+      action:
+
+        "dispatch_resumed",
+
+      req
+
+    }).catch(() => {});
+
+    broadcastSse(
+
+      "dispatch_resumed",
+
+      {
+
+        at:
+
+          nowIso()
+
+      }
+
+    );
+
+    return ok(res, {
+
+      dispatch_paused:
+
+        false
+
+    });
+
+  })
+
+);/* =========================================================
+
+   PART 9 — SAFETY, COMPLIANCE, TWILIO VERIFY, STRIPE
+
+========================================================= */
+
+/* =========================================================
+
+   DRIVER COMPLIANCE
+
+========================================================= */
+
+async function getDriverCompliance(driverId) {
+
+  const { data, error } =
+
+    await supabase
+
+      .from("drivers")
+
+      .select(
+
+        "id, email_verified, phone_verified, checkr_status, persona_status, persona_verified, insurance_status, license_status, approval_status"
+
+      )
+
+      .eq("id", driverId)
+
+      .maybeSingle();
+
+  if (error || !data) {
+
+    return {
+
+      eligible: false,
+
+      reason: "Driver not found.",
+
+      details: null
+
+    };
+
+  }
+
+  const checks = {
+
+    email_verified:
+
+      Boolean(data.email_verified),
+
+    phone_verified:
+
+      Boolean(data.phone_verified),
+
+    persona_ready:
+
+      !ENABLE_PERSONA ||
+
+      Boolean(data.persona_verified) ||
+
+      ["verified", "approved", "completed"].includes(
+
+        String(data.persona_status || "").toLowerCase()
+
+      ),
+
+    checkr_ready:
+
+      !ENABLE_CHECKR ||
+
+      ["clear", "complete", "completed", "eligible_for_review"].includes(
+
+        String(data.checkr_status || "").toLowerCase()
+
+      ),
+
+    insurance_ready:
+
+      !data.insurance_status ||
+
+      ["approved", "verified", "active"].includes(
+
+        String(data.insurance_status || "").toLowerCase()
+
+      ),
+
+    license_ready:
+
+      !data.license_status ||
+
+      ["approved", "verified", "active"].includes(
+
+        String(data.license_status || "").toLowerCase()
+
+      ),
+
+    approval_ready:
+
+      ["approved"].includes(
+
+        String(data.approval_status || "").toLowerCase()
+
+      )
+
+  };
+
+  const eligible =
+
+    Object.values(checks).every(Boolean);
+
+  return {
+
+    eligible,
+
+    checks,
+
+    details: data
+
+  };
+
+}
+
+app.get(
+
+  "/api/admin/compliance/audit",
+
+  requireAdmin,
+
+  asyncRoute(async (req, res) => {
+
+    const { data, error } =
+
+      await supabase
+
+        .from("drivers")
+
+        .select(
+
+          "id, first_name, last_name, email, email_verified, phone_verified, checkr_status, persona_status, persona_verified, insurance_status, license_status, approval_status, status, created_at"
+
+        )
+
+        .order("created_at", {
+
+          ascending: false
+
+        });
+
+    if (error) {
+
+      throw error;
+
+    }
+
+    const compliance =
+
+      (data || []).map((driver) => {
+
+        const checks = {
+
+          email_verified:
+
+            Boolean(driver.email_verified),
+
+          phone_verified:
+
+            Boolean(driver.phone_verified),
+
+          persona_ready:
+
+            !ENABLE_PERSONA ||
+
+            Boolean(driver.persona_verified) ||
+
+            ["verified", "approved", "completed"].includes(
+
+              String(driver.persona_status || "").toLowerCase()
+
+            ),
+
+          checkr_ready:
+
+            !ENABLE_CHECKR ||
+
+            ["clear", "complete", "completed", "eligible_for_review"].includes(
+
+              String(driver.checkr_status || "").toLowerCase()
+
+            ),
+
+          approval_ready:
+
+            driver.approval_status === "approved"
+
+        };
+
+        return {
+
+          ...driver,
+
+          compliance_ready:
+
+            Object.values(checks).every(Boolean),
+
+          checks
+
+        };
+
+      });
+
+    return ok(res, {
+
+      compliance
+
+    });
+
+  })
+
+);
+
+/* =========================================================
+
+   SAFETY 911 ALERT
+
+========================================================= */
+
+app.post(
+
+  "/api/safety/911",
+
+  asyncRoute(async (req, res) => {
+
+    const rideId =
+
+      cleanString(req.body.ride_id, 100);
+
+    const riderId =
+
+      cleanString(req.body.rider_id, 100);
+
+    const emergency = {
+
+      id:
+
+        makeId("SOS"),
+
+      ride_id:
+
+        rideId || null,
+
+      rider_id:
+
+        riderId || null,
+
+      latitude:
+
+        req.body.latitude !== undefined
+
+          ? Number(req.body.latitude)
+
+          : null,
+
+      longitude:
+
+        req.body.longitude !== undefined
+
+          ? Number(req.body.longitude)
+
+          : null,
+
+      message:
+
+        cleanString(req.body.message, 1000),
+
+      status:
+
+        "active",
+
+      created_at:
+
+        nowIso(),
+
+      updated_at:
+
+        nowIso()
+
+    };
+
+    const { data, error } =
+
+      await supabase
+
+        .from("emergency_alerts")
+
+        .insert(emergency)
+
+        .select()
+
+        .single();
+
+    if (error) {
+
+      console.error(
+
+        "❌ Emergency alert insert failed:",
+
+        error.message
+
+      );
+
+      return fail(
+
+        res,
+
+        "Emergency alert could not be recorded.",
+
+        500
+
+      );
+
+    }
+
+    broadcastSse(
+
+      "emergency_alert",
+
+      data
+
+    );
+
+    auditLog({
+
+      actor_type:
+
+        "rider",
+
+      actor_id:
+
+        riderId,
+
+      action:
+
+        "911_alert",
+
+      entity_type:
+
+        "emergency_alert",
+
+      entity_id:
+
+        data.id,
+
+      metadata:
+
+        data,
+
+      req
+
+    }).catch(() => {});
+
+    return ok(res, {
+
+      emergency_id:
+
+        data.id,
+
+      dispatched:
+
+        true,
+
+      message:
+
+        "Emergency alert recorded. If this is an immediate emergency, call 911 directly."
+
+    });
+
+  })
+
+);
+
+/* =========================================================
+
+   SAFETY REPORT
+
+========================================================= */
+
+app.post(
+
+  "/api/safety/report",
+
+  asyncRoute(async (req, res) => {
+
+    const missing =
+
+      requireBody(req, [
+
+        "category",
+
+        "description"
+
+      ]);
+
+    if (missing.length) {
+
+      return fail(
+
+        res,
+
+        "Missing safety report fields.",
+
+        400,
+
+        { missing }
+
+      );
+
+    }
+
+    const report = {
+
+      id:
+
+        makeId("SAFE"),
+
+      ride_id:
+
+        cleanString(req.body.ride_id, 100) || null,
+
+      submitted_by:
+
+        cleanString(req.body.user_id, 100) || null,
+
+      submitted_by_type:
+
+        cleanString(req.body.user_type, 40) || null,
+
+      category:
+
+        cleanString(req.body.category, 100),
+
+      description:
+
+        cleanString(req.body.description, 5000),
+
+      status:
+
+        "open",
+
+      created_at:
+
+        nowIso(),
+
+      updated_at:
+
+        nowIso()
+
+    };
+
+    const { data, error } =
+
+      await supabase
+
+        .from("safety_reports")
+
+        .insert(report)
+
+        .select()
+
+        .single();
+
+    if (error) {
+
+      throw error;
+
+    }
+
+    broadcastSse(
+
+      "safety_report",
+
+      data
+
+    );
+
+    auditLog({
+
+      action:
+
+        "safety_report_created",
+
+      entity_type:
+
+        "safety_report",
+
+      entity_id:
+
+        data.id,
+
+      metadata: {
+
+        category:
+
+          data.category
+
+      },
+
+      req
+
+    }).catch(() => {});
+
+    return ok(
+
+      res,
+
+      { report: data },
+
+      201
+
+    );
+
+  })
+
+);
+
+/* =========================================================
+
+   TWILIO VERIFY SEND CODE
+
+========================================================= */
+
+app.post(
+
+  "/api/auth/send-sms-code",
+
+  asyncRoute(async (req, res) => {
+
+    const phone =
+
+      cleanPhone(req.body.phone);
+
+    if (!phone) {
+
+      return fail(
+
+        res,
+
+        "Phone required.",
+
+        400
+
+      );
+
+    }
+
+    if (!twilioClient) {
+
+      return fail(
+
+        res,
+
+        "SMS verification is not configured.",
+
+        503
+
+      );
+
+    }
+
+    if (!TWILIO_VERIFY_SERVICE_SID) {
+
+      console.error(
+
+        "❌ TWILIO_VERIFY_SERVICE_SID is not set."
+
+      );
+
+      return fail(
+
+        res,
+
+        "SMS verification service is not configured.",
+
+        503
+
+      );
+
+    }
+
+    const verification =
+
+      await twilioClient.verify
+
+        .services(TWILIO_VERIFY_SERVICE_SID)
+
+        .verifications
+
+        .create({
+
+          to: phone,
+
+          channel: "sms"
+
+        });
+
+    auditLog({
+
+      action:
+
+        "sms_verify_code_sent",
+
+      metadata: {
+
+        phone
+
+      },
+
+      req
+
+    }).catch(() => {});
+
+    return ok(res, {
+
+      sid:
+
+        verification.sid,
+
+      status:
+
+        verification.status
+
+    });
+
+  })
+
+);
+
+/* =========================================================
+
+   TWILIO VERIFY CONFIRM CODE
+
+========================================================= */
+
+app.post(
+
+  "/api/auth/verify-sms-code",
+
+  asyncRoute(async (req, res) => {
+
+    const phone =
+
+      cleanPhone(req.body.phone);
+
+    const code =
+
+      cleanString(req.body.code, 20);
+
+    if (!phone || !code) {
+
+      return fail(
+
+        res,
+
+        "Phone and code required.",
+
+        400
+
+      );
+
+    }
+
+    if (!twilioClient) {
+
+      return fail(
+
+        res,
+
+        "SMS verification is not configured.",
+
+        503
+
+      );
+
+    }
+
+    if (!TWILIO_VERIFY_SERVICE_SID) {
+
+      return fail(
+
+        res,
+
+        "SMS verification service is not configured.",
+
+        503
+
+      );
+
+    }
+
+    const check =
+
+      await twilioClient.verify
+
+        .services(TWILIO_VERIFY_SERVICE_SID)
+
+        .verificationChecks
+
+        .create({
+
+          to: phone,
+
+          code
+
+        });
+
+    const approved =
+
+      check.status === "approved";
+
+    if (approved) {
+
+      await Promise.allSettled([
+
+        supabase
+
+          .from("riders")
+
+          .update({
+
+            phone_verified:
+
+              true,
+
+            updated_at:
+
+              nowIso()
+
+          })
+
+          .eq("phone", phone),
+
+        supabase
+
+          .from("drivers")
+
+          .update({
+
+            phone_verified:
+
+              true,
+
+            updated_at:
+
+              nowIso()
+
+          })
+
+          .eq("phone", phone)
+
+      ]);
+
+    }
+
+    auditLog({
+
+      action:
+
+        "sms_verify_code_checked",
+
+      metadata: {
+
+        phone,
+
+        approved
+
+      },
+
+      req
+
+    }).catch(() => {});
+
+    return ok(res, {
+
+      approved,
+
+      status:
+
+        check.status
+
+    });
+
+  })
+
+);
+
+/* =========================================================
+
+   STRIPE WEBHOOK
+
+========================================================= */
+
+app.post(
+
+  "/api/stripe/webhook",
+
+  express.raw({
+
+    type: "application/json",
+
+    limit: RAW_WEBHOOK_LIMIT
+
+  }),
+
+  asyncRoute(async (req, res) => {
+
+    if (
+
+      !stripe ||
+
+      !STRIPE_WEBHOOK_SECRET
+
+    ) {
+
+      return fail(
+
+        res,
+
+        "Stripe webhook not configured.",
+
+        503
+
+      );
+
+    }
+
+    const signature =
+
+      req.headers["stripe-signature"];
+
+    let event;
+
+    try {
+
+      event =
+
+        stripe.webhooks.constructEvent(
+
+          req.body,
+
+          signature,
+
+          STRIPE_WEBHOOK_SECRET
+
+        );
+
+    } catch (error) {
+
+      console.error(
+
+        "❌ Stripe signature failed:",
+
+        error.message
+
+      );
+
+      return fail(
+
+        res,
+
+        "Invalid Stripe signature.",
+
+        400
+
+      );
+
+    }
+
+    const object =
+
+      event.data?.object || {};
+
+    if (
+
+      event.type ===
+
+      "payment_intent.succeeded"
+
+    ) {
+
+      await Promise.allSettled([
+
+        supabase
+
+          .from("rides")
+
+          .update({
+
+            payment_status:
+
+              "succeeded",
+
+            payment_captured:
+
+              true,
+
+            updated_at:
+
+              nowIso()
+
+          })
+
+          .eq(
+
+            "payment_intent_id",
+
+            object.id
+
+          ),
+
+        supabase
+
+          .from("deliveries")
+
+          .update({
+
+            payment_status:
+
+              "succeeded",
+
+            payment_captured:
+
+              true,
+
+            updated_at:
+
+              nowIso()
+
+          })
+
+          .eq(
+
+            "payment_intent_id",
+
+            object.id
+
+          )
+
+      ]);
+
+    }
+
+    if (
+
+      event.type ===
+
+      "payment_intent.amount_capturable_updated"
+
+    ) {
+
+      await Promise.allSettled([
+
+        supabase
+
+          .from("rides")
+
+          .update({
+
+            payment_status:
+
+              "authorized",
+
+            status:
+
+              RIDE_STATUS.PAYMENT_AUTHORIZED,
+
+            updated_at:
+
+              nowIso()
+
+          })
+
+          .eq(
+
+            "payment_intent_id",
+
+            object.id
+
+          ),
+
+        supabase
+
+          .from("deliveries")
+
+          .update({
+
+            payment_status:
+
+              "authorized",
+
+            updated_at:
+
+              nowIso()
+
+          })
+
+          .eq(
+
+            "payment_intent_id",
+
+            object.id
+
+          )
+
+      ]);
+
+    }
+
+    if (
+
+      event.type ===
+
+      "payment_intent.payment_failed" ||
+
+      event.type ===
+
+      "payment_intent.canceled"
+
+    ) {
+
+      await Promise.allSettled([
+
+        supabase
+
+          .from("rides")
+
+          .update({
+
+            payment_status:
+
+              "failed",
+
+            status:
+
+              RIDE_STATUS.FAILED,
+
+            updated_at:
+
+              nowIso()
+
+          })
+
+          .eq(
+
+            "payment_intent_id",
+
+            object.id
+
+          ),
+
+        supabase
+
+          .from("deliveries")
+
+          .update({
+
+            payment_status:
+
+              "failed",
+
+            updated_at:
+
+              nowIso()
+
+          })
+
+          .eq(
+
+            "payment_intent_id",
+
+            object.id
+
+          )
+
+      ]);
+
+    }
+
+    auditLog({
+
+      action:
+
+        "stripe_webhook_received",
+
+      entity_type:
+
+        "stripe",
+
+      entity_id:
+
+        object.id || event.id,
+
+      metadata: {
+
+        event_type:
+
+          event.type
+
+      }
+
+    }).catch(() => {});
+
+    broadcastSse(
+
+      "stripe_event",
+
+      {
+
+        type:
+
+          event.type,
+
+        object_id:
+
+          object.id,
+
+        at:
+
+          nowIso()
+
+      }
+
+    );
+
+    return ok(res, {
+
+      received:
+
+        true
+
+    });
+
+  })
+
+);/* =========================================================
+
+   PART 10A — HEALTH, SYSTEM STATUS, AI SUPPORT, CONFIG CHECK
+
+========================================================= */
+
+/* =========================================================
+
+   SYSTEM FLAGS
+
+========================================================= */
+
+async function getSystemFlag(key, fallback = "false") {
+
+  try {
+
+    const { data, error } =
+
+      await supabase
+
+        .from("system_flags")
+
+        .select("*")
+
+        .eq("key", key)
+
+        .maybeSingle();
+
+    if (error) {
+
+      return fallback;
+
+    }
+
+    return data?.value ?? fallback;
+
+  } catch {
+
+    return fallback;
+
+  }
+
+}
+
+/* =========================================================
+
+   BASIC HEALTH
+
+========================================================= */
+
+app.get(
+
+  "/health",
+
+  asyncRoute(async (req, res) => {
+
+    return ok(res, {
+
+      service:
+
+        "harvey-taxi-server-j",
+
+      status:
+
+        "healthy",
+
+      environment:
+
+        NODE_ENV,
+
+      time:
+
+        nowIso()
+
+    });
+
+  })
+
+);
+
+/* =========================================================
+
+   API HEALTH
+
+========================================================= */
+
+app.get(
+
+  "/api/health",
+
+  asyncRoute(async (req, res) => {
+
+    let database = "unknown";
+
+    let preflight = null;
+
+    try {
+
+      const { error } =
+
+        await supabase
+
+          .from("system_flags")
+
+          .select("key")
+
+          .limit(1);
+
+      database =
+
+        error ? "error" : "connected";
+
+    } catch {
+
+      database = "error";
+
+    }
+
+    try {
+
+      preflight =
+
+        await checkRequiredTables();
+
+    } catch (error) {
+
+      preflight = {
+
+        error:
+
+          error.message
+
+      };
+
+    }
+
+    return ok(res, {
+
+      service:
+
+        "harvey-taxi-server-j",
+
+      status:
+
+        database === "connected"
+
+          ? "healthy"
+
+          : "degraded",
+
+      database,
+
+      preflight,
+
+      integrations: {
+
+        supabase:
+
+          Boolean(
+
+            SUPABASE_URL &&
+
+            SUPABASE_SERVICE_ROLE_KEY
+
+          ),
+
+        stripe:
+
+          Boolean(stripe),
+
+        sendgrid:
+
+          Boolean(
+
+            sgMail &&
+
+            SENDGRID_API_KEY
+
+          ),
+
+        twilio:
+
+          Boolean(twilioClient),
+
+        persona:
+
+          Boolean(PERSONA_API_KEY),
+
+        checkr:
+
+          Boolean(CHECKR_API_KEY),
+
+        openai:
+
+          Boolean(openai)
+
+      },
+
+      features: {
+
+        rider_approval_gate:
+
+          ENABLE_RIDER_APPROVAL_GATE,
+
+        payment_gate:
+
+          ENABLE_PAYMENT_GATE,
+
+        auto_redispatch:
+
+          ENABLE_AUTO_REDISPATCH,
+
+        delivery:
+
+          ENABLE_DELIVERY,
+
+        food_delivery:
+
+          ENABLE_FOOD_DELIVERY,
+
+        grocery_delivery:
+
+          ENABLE_GROCERY_DELIVERY,
+
+        htaf_applications:
+
+          ENABLE_HTAF_APPLICATIONS
+
+      },
+
+      time:
+
+        nowIso()
+
+    });
+
+  })
+
+);
+
+/* =========================================================
+
+   SYSTEM STATUS
+
+========================================================= */
+
+app.get(
+
+  "/api/system/status",
+
+  asyncRoute(async (req, res) => {
+
+    const dispatchPaused =
+
+      await getSystemFlag(
+
+        "dispatch_paused",
+
+        "false"
+
+      );
+
+    return ok(res, {
+
+      dispatch_paused:
+
+        dispatchPaused === "true",
+
+      server_time:
+
+        nowIso(),
+
+      app_base_url:
+
+        APP_BASE_URL,
+
+      environment:
+
+        NODE_ENV
+
+    });
+
+  })
+
+);
+
+/* =========================================================
+
+   ADMIN CONFIG CHECK
+
+   Does not expose secret values.
+
+========================================================= */
+
+app.get(
+
+  "/api/admin/config-check",
+
+  requireAdmin,
+
+  asyncRoute(async (req, res) => {
+
+    const htafSchema =
+
+      await inspectHtafSchema();
+
+    return ok(res, {
+
+      environment:
+
+        NODE_ENV,
+
+      required: {
+
+        SUPABASE_URL:
+
+          Boolean(SUPABASE_URL),
+
+        SUPABASE_SERVICE_ROLE_KEY:
+
+          Boolean(SUPABASE_SERVICE_ROLE_KEY)
+
+      },
+
+      integrations: {
+
+        SENDGRID_API_KEY:
+
+          Boolean(SENDGRID_API_KEY),
+
+        TWILIO_ACCOUNT_SID:
+
+          Boolean(TWILIO_ACCOUNT_SID),
+
+        TWILIO_AUTH_TOKEN:
+
+          Boolean(TWILIO_AUTH_TOKEN),
+
+        TWILIO_FROM_NUMBER:
+
+          Boolean(TWILIO_FROM_NUMBER),
+
+        TWILIO_VERIFY_SERVICE_SID:
+
+          Boolean(TWILIO_VERIFY_SERVICE_SID),
+
+        STRIPE_SECRET_KEY:
+
+          Boolean(STRIPE_SECRET_KEY),
+
+        STRIPE_WEBHOOK_SECRET:
+
+          Boolean(STRIPE_WEBHOOK_SECRET),
+
+        PERSONA_API_KEY:
+
+          Boolean(PERSONA_API_KEY),
+
+        PERSONA_WEBHOOK_SECRET:
+
+          Boolean(PERSONA_WEBHOOK_SECRET),
+
+        PERSONA_TEMPLATE_ID_RIDER:
+
+          Boolean(PERSONA_TEMPLATE_ID_RIDER),
+
+        PERSONA_TEMPLATE_ID_DRIVER:
+
+          Boolean(PERSONA_TEMPLATE_ID_DRIVER),
+
+        CHECKR_API_KEY:
+
+          Boolean(CHECKR_API_KEY),
+
+        CHECKR_WEBHOOK_SECRET:
+
+          Boolean(CHECKR_WEBHOOK_SECRET),
+
+        OPENAI_API_KEY:
+
+          Boolean(OPENAI_API_KEY)
+
+      },
+
+      toggles: {
+
+        ENABLE_REAL_EMAIL,
+
+        ENABLE_REAL_SMS,
+
+        ENABLE_PERSONA,
+
+        ENABLE_CHECKR,
+
+        ENABLE_AI_SUPPORT,
+
+        ENABLE_PAYMENT_GATE,
+
+        ENABLE_RIDER_APPROVAL_GATE,
+
+        ENABLE_AUTO_REDISPATCH,
+
+        ENABLE_DELIVERY,
+
+        ENABLE_FOOD_DELIVERY,
+
+        ENABLE_GROCERY_DELIVERY,
+
+        ENABLE_HTAF_APPLICATIONS
+
+      },
+
+      htaf_schema:
+
+        htafSchema
+
+    });
+
+  })
+
+);
+
+/* =========================================================
+
+   AI SUPPORT
+
+========================================================= */
+
+app.post(
+
+  "/api/ai/support",
+
+  rateLimit({
+
+    windowMs:
+
+      60_000,
+
+    max:
+
+      20,
+
+    keyPrefix:
+
+      "ai_support"
+
+  }),
+
+  asyncRoute(async (req, res) => {
+
+    const message =
+
+      cleanString(
+
+        req.body.message,
+
+        4000
+
+      );
+
+    const page =
+
+      cleanString(
+
+        req.body.page,
+
+        120
+
+      );
+
+    const role =
+
+      cleanString(
+
+        req.body.role,
+
+        60
+
+      );
+
+    if (!message) {
+
+      return fail(
+
+        res,
+
+        "Message required.",
+
+        400
+
+      );
+
+    }
+
+    if (!openai) {
+
+      return ok(res, {
+
+        reply:
+
+          "Harvey AI Support is currently limited. Please contact support for help.",
+
+        fallback:
+
+          true,
+
+        support_email:
+
+          SUPPORT_EMAIL
+
+      });
+
+    }
+
+    let completion;
+
+    try {
+
+      completion =
+
+        await openai.chat.completions.create({
+
+          model:
+
+            OPENAI_MODEL,
+
+          messages: [
+
+            {
+
+              role:
+
+                "system",
+
+              content:
+
+                [
+
+                  "You are Harvey Taxi and Harvey Transportation Assistance Foundation support.",
+
+                  "Help riders, drivers, HTAF applicants, donors, and community partners.",
+
+                  "Be clear, concise, and safe.",
+
+                  "Do not promise guaranteed approval, guaranteed transportation assistance, payments, legal outcomes, medical outcomes, or emergency response.",
+
+                  "For emergencies, tell the user to call 911 directly."
+
+                ].join(" ")
+
+            },
+
+            {
+
+              role:
+
+                "user",
+
+              content:
+
+                `Page: ${page}\nRole: ${role}\n\nUser message: ${message}`
+
+            }
+
+          ],
+
+          temperature:
+
+            0.3
+
+        });
+
+    } catch (error) {
+
+      console.error(
+
+        "❌ OpenAI support failed:",
+
+        error.message
+
+      );
+
+      return ok(res, {
+
+        reply:
+
+          "Harvey AI Support is having trouble right now. Please try again or contact support.",
+
+        fallback:
+
+          true,
+
+        support_email:
+
+          SUPPORT_EMAIL
+
+      });
+
+    }
+
+    const reply =
+
+      completion
+
+        .choices?.[0]
+
+        ?.message
+
+        ?.content ||
+
+      "I'm here to help. Please try again.";
+
+    auditLog({
+
+      action:
+
+        "ai_support_message",
+
+      metadata: {
+
+        page,
+
+        role,
+
+        length:
+
+          message.length
+
+      },
+
+      req
+
+    }).catch(() => {});
+
+    return ok(res, {
+
+      reply
+
+    });
+
+  })
+
+);/* =========================================================
+
+   PART 10B — STATIC ROUTES, ERROR HANDLING, BOOT SEQUENCE
+
+========================================================= */
+
+/* =========================================================
+
+   STATIC PAGE ROUTES
+
+========================================================= */
+
+function sendStaticPage(res, fileName) {
+
+  return res.sendFile(
+
+    path.join(PUBLIC_DIR, fileName)
+
+  );
+
+}
+
+app.get(
+
+  "/",
+
+  (req, res) =>
+
+    sendStaticPage(
+
+      res,
+
+      "index.html"
+
+    )
+
+);
+
+app.get(
+
+  "/foundation",
+
+  (req, res) =>
+
+    sendStaticPage(
+
+      res,
+
+      "foundation.html"
+
+    )
+
+);
+
+app.get(
+
+  "/foundation.html",
+
+  (req, res) =>
+
+    sendStaticPage(
+
+      res,
+
+      "foundation.html"
+
+    )
+
+);
+
+app.get(
+
+  "/htaf-application",
+
+  (req, res) =>
+
+    sendStaticPage(
+
+      res,
+
+      "htaf-application.html"
+
+    )
+
+);
+
+app.get(
+
+  "/htaf-application.html",
+
+  (req, res) =>
+
+    sendStaticPage(
+
+      res,
+
+      "htaf-application.html"
+
+    )
+
+);
+
+app.get(
+
+  "/request-ride",
+
+  (req, res) =>
+
+    sendStaticPage(
+
+      res,
+
+      "request-ride.html"
+
+    )
+
+);
+
+app.get(
+
+  "/request-ride.html",
+
+  (req, res) =>
+
+    sendStaticPage(
+
+      res,
+
+      "request-ride.html"
+
+    )
+
+);
+
+app.get(
+
+  "/support",
+
+  (req, res) =>
+
+    sendStaticPage(
+
+      res,
+
+      "support.html"
+
+    )
+
+);
+
+app.get(
+
+  "/support.html",
+
+  (req, res) =>
+
+    sendStaticPage(
+
+      res,
+
+      "support.html"
+
+    )
+
+);
+
+app.get(
+
+  "/settings",
+
+  (req, res) =>
+
+    sendStaticPage(
+
+      res,
+
+      "settings.html"
+
+    )
+
+);
+
+app.get(
+
+  "/settings.html",
+
+  (req, res) =>
+
+    sendStaticPage(
+
+      res,
+
+      "settings.html"
+
+    )
+
+);
+
+app.get(
+
+  "/rider-dashboard",
+
+  (req, res) =>
+
+    sendStaticPage(
+
+      res,
+
+      "rider-dashboard.html"
+
+    )
+
+);
+
+app.get(
+
+  "/rider-dashboard.html",
+
+  (req, res) =>
+
+    sendStaticPage(
+
+      res,
+
+      "rider-dashboard.html"
+
+    )
+
+);
+
+app.get(
+
+  "/driver-dashboard",
+
+  (req, res) =>
+
+    sendStaticPage(
+
+      res,
+
+      "driver-dashboard.html"
+
+    )
+
+);
+
+app.get(
+
+  "/driver-dashboard.html",
+
+  (req, res) =>
+
+    sendStaticPage(
+
+      res,
+
+      "driver-dashboard.html"
+
+    )
+
+);
+
+app.get(
+
+  "/driver-signup",
+
+  (req, res) =>
+
+    sendStaticPage(
+
+      res,
+
+      "driver-signup.html"
+
+    )
+
+);
+
+app.get(
+
+  "/driver-signup.html",
+
+  (req, res) =>
+
+    sendStaticPage(
+
+      res,
+
+      "driver-signup.html"
+
+    )
+
+);
+
+app.get(
+
+  "/rider-signup",
+
+  (req, res) =>
+
+    sendStaticPage(
+
+      res,
+
+      "rider-signup.html"
+
+    )
+
+);
+
+app.get(
+
+  "/rider-signup.html",
+
+  (req, res) =>
+
+    sendStaticPage(
+
+      res,
+
+      "rider-signup.html"
+
+    )
+
+);
+
+app.get(
+
+  "/admin-htaf",
+
+  (req, res) =>
+
+    sendStaticPage(
+
+      res,
+
+      "admin-htaf.html"
+
+    )
+
+);
+
+app.get(
+
+  "/admin-htaf.html",
+
+  (req, res) =>
+
+    sendStaticPage(
+
+      res,
+
+      "admin-htaf.html"
+
+    )
+
+);
+
+/* =========================================================
+
+   API 404 HANDLER
+
+========================================================= */
+
+app.use(
+
+  "/api",
+
+  (req, res) => {
+
+    return fail(
+
+      res,
+
+      `API route not found: ${req.method} ${req.originalUrl}`,
+
+      404
+
+    );
+
+  }
+
+);
+
+/* =========================================================
+
+   APP FALLBACK 404
+
+========================================================= */
+
+app.use(
+
+  (req, res) => {
+
+    return res
+
+      .status(404)
+
+      .sendFile(
+
+        path.join(
+
+          PUBLIC_DIR,
+
+          "index.html"
+
+        )
+
+      );
+
+  }
+
+);
+
+/* =========================================================
+
+   GLOBAL ERROR HANDLER
+
+========================================================= */
+
+app.use(
+
+  (error, req, res, next) => {
+
+    console.error(
+
+      "❌ SERVER ERROR:",
+
+      {
+
+        message:
+
+          error.message,
+
+        stack:
+
+          IS_PRODUCTION
+
+            ? undefined
+
+            : error.stack,
+
+        path:
+
+          req.originalUrl,
+
+        method:
+
+          req.method
+
+      }
+
+    );
+
+    auditLog({
+
+      action:
+
+        "server_error",
+
+      entity_type:
+
+        "server",
+
+      metadata: {
+
+        message:
+
+          error.message,
+
+        path:
+
+          req.originalUrl,
+
+        method:
+
+          req.method
+
+      },
+
+      req
+
+    }).catch(() => {});
+
+    return fail(
+
+      res,
+
+      IS_PRODUCTION
+
+        ? "Internal server error."
+
+        : error.message,
+
+      500
+
+    );
+
+  }
+
+);
+
+/* =========================================================
+
+   PROCESS SAFETY
+
+========================================================= */
+
+process.on(
+
+  "unhandledRejection",
+
+  (reason) => {
+
+    console.error(
+
+      "❌ UNHANDLED REJECTION:",
+
+      reason
+
+    );
+
+  }
+
+);
+
+process.on(
+
+  "uncaughtException",
+
+  (error) => {
+
+    console.error(
+
+      "❌ UNCAUGHT EXCEPTION:",
+
+      error
+
+    );
+
+  }
+
+);
+
+/* =========================================================
+
+   GRACEFUL SHUTDOWN
+
+========================================================= */
+
+function gracefulShutdown(signal) {
+
+  console.log(
+
+    `🛑 ${signal} received. Shutting down Harvey Taxi Server J...`
+
+  );
+
+  for (const clientId of sseClients.keys()) {
+
+    sendSse(
+
+      clientId,
+
+      "server_shutdown",
+
+      {
+
+        signal,
+
+        at:
+
+          nowIso()
+
+      }
+
+    );
+
+  }
+
+  server.close(() => {
+
+    console.log(
+
+      "✅ HTTP server closed."
+
+    );
+
+    process.exit(0);
+
+  });
+
+  setTimeout(() => {
+
+    console.warn(
+
+      "⚠️ Forced shutdown after timeout."
+
+    );
+
+    process.exit(1);
+
+  }, 10_000).unref();
+
+}
+
+process.on(
+
+  "SIGTERM",
+
+  () => gracefulShutdown("SIGTERM")
+
+);
+
+process.on(
+
+  "SIGINT",
+
+  () => gracefulShutdown("SIGINT")
+
+);
+
+/* =========================================================
+
+   BOOT VALIDATION
+
+========================================================= */
+
+async function bootValidation() {
+
+  console.log(
+
+    "🔎 Running Harvey Taxi boot validation..."
+
+  );
+
+  const tableStatus =
+
+    await checkRequiredTables();
+
+  const htafStatus =
+
+    await inspectHtafSchema();
+
+  console.log(
+
+    "📊 Supabase table status:",
+
+    tableStatus
+
+  );
+
+  console.log(
+
+    "📊 HTAF schema status:",
+
+    htafStatus
+
+  );
+
+  if (!htafStatus.ok) {
+
+    console.warn(
+
+      "⚠️ HTAF schema is not fully ready. /api/foundation/apply may fail until Supabase columns match the server payload."
+
+    );
+
+  }
+
+  return {
+
+    tableStatus,
+
+    htafStatus
+
+  };
+
+}
+
+/* =========================================================
+
+   START SERVER
+
+========================================================= */
+
+async function startServer() {
+
+  try {
+
+    await bootValidation();
+
+  } catch (error) {
+
+    console.warn(
+
+      "⚠️ Boot validation completed with warnings:",
+
+      error.message
+
+    );
+
+  }
+
+  server.listen(
+
+    PORT,
+
+    "0.0.0.0",
+
+    () => {
+
+      console.log(
+
+        "================================================="
+
+      );
+
+      console.log(
+
+        "🚕 HARVEY TAXI SERVER J ONLINE"
+
+      );
+
+      console.log(
+
+        `🌎 Environment: ${NODE_ENV}`
+
+      );
+
+      console.log(
+
+        `🔌 Port: ${PORT}`
+
+      );
+
+      console.log(
+
+        `🏠 App URL: ${APP_BASE_URL}`
+
+      );
+
+      console.log(
+
+        `🧾 HTAF Applications: ${ENABLE_HTAF_APPLICATIONS ? "ON" : "OFF"}`
+
+      );
+
+      console.log(
+
+        `💳 Stripe: ${stripe ? "ON" : "OFF"}`
+
+      );
+
+      console.log(
+
+        `📧 SendGrid: ${sgMail && SENDGRID_API_KEY ? "ON" : "OFF"}`
+
+      );
+
+      console.log(
+
+        `📲 Twilio: ${twilioClient ? "ON" : "OFF"}`
+
+      );
+
+      console.log(
+
+        `🪪 Persona: ${PERSONA_API_KEY ? "ON" : "OFF"}`
+
+      );
+
+      console.log(
+
+        `🛡️ Checkr: ${CHECKR_API_KEY ? "ON" : "OFF"}`
+
+      );
+
+      console.log(
+
+        `🤖 AI Support: ${openai ? "ON" : "OFF"}`
+
+      );
+
+      console.log(
+
+        "================================================="
+
+      );
+
+    }
+
+  );
+
+}
+
+startServer();
