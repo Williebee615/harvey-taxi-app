@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Harvey Taxi — Admin · Account Deletion Requests</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="theme-color" content="#07111f" />
+  <style>
+    :root {
+      --bg1: #040814; --bg2: #091126; --bg3: #101935;
+      --panel: rgba(10, 17, 38, 0.94); --panel2: rgba(15, 23, 52, 0.86);
+      --line: rgba(122, 162, 255, 0.16); --line-strong: rgba(122, 162, 255, 0.30);
+      --text: #f4f7ff; --muted: #aab8de;
+      --blue: #5ea0ff; --cyan: #63f5ff; --green: #6dffb3;
+      --danger: #ff7e97; --danger2: #ff4d6d; --gold: #ffd76a;
+      --ink: #07121f;
+      --shadow: 0 20px 70px rgba(0,0,0,.4); --shadow-soft: 0 10px 30px rgba(0,0,0,.26);
+      --radius: 24px; --max: 1180px;
+      --ease: cubic-bezier(.22,1,.36,1); --dur: .18s;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; background: var(--bg1); }
+    body {
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+      color: var(--text); min-height: 100vh; overflow-x: hidden;
+      padding: calc(20px + env(safe-area-inset-top)) 16px calc(40px + env(safe-area-inset-bottom));
+      background:
+        radial-gradient(circle at top left, rgba(99,245,255,.12), transparent 28%),
+        radial-gradient(circle at top right, rgba(94,160,255,.10), transparent 24%),
+        linear-gradient(160deg, var(--bg1), var(--bg2) 50%, var(--bg3));
+    }
+    a { color: inherit; text-decoration: none; }
+    button, input { font: inherit; }
+    button { cursor: pointer; border: none; }
+    .shell { max-width: var(--max); margin: auto; }
+
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+      padding: 14px 18px; border: 1px solid var(--line); border-radius: 999px;
+      background: rgba(7,12,28,.78); box-shadow: var(--shadow-soft); margin-bottom: 18px;
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    }
+    .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .dot { width: 12px; height: 12px; border-radius: 999px; background: linear-gradient(135deg, var(--cyan), var(--blue)); box-shadow: 0 0 18px rgba(99,245,255,.55); flex-shrink: 0; }
+    .brand strong { font-size: 14px; font-weight: 900; letter-spacing: .12em; white-space: nowrap; }
+    .brand span { display: block; color: var(--muted); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+    .top-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .chip { padding: 10px 14px; border-radius: 999px; border: 1px solid var(--line); background: rgba(255,255,255,.04); color: var(--text); font-weight: 800; font-size: .82rem; transition: var(--dur) var(--ease); }
+    .chip:hover { background: rgba(255,255,255,.08); border-color: var(--line-strong); }
+
+    .hero { background: linear-gradient(180deg, rgba(17,31,66,.88), rgba(8,16,35,.92)); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow); margin-bottom: 18px; }
+    .hero h1 { font-size: clamp(1.6rem, 4vw, 2.3rem); letter-spacing: -.03em; margin-bottom: 8px; }
+    .hero p { color: var(--muted); line-height: 1.6; max-width: 760px; }
+
+    .auth-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 18px; padding: 14px; border-radius: 16px; background: rgba(255,255,255,.03); border: 1px solid var(--line); }
+    .auth-bar label { color: var(--muted); font-size: .74rem; font-weight: 900; letter-spacing: .05em; text-transform: uppercase; }
+    .auth-bar input { flex: 1; min-width: 200px; min-height: 46px; border-radius: 12px; border: 1px solid var(--line); background: rgba(4,8,20,.6); color: var(--text); padding: 0 14px; outline: none; }
+    .auth-bar input:focus { border-color: rgba(99,245,255,.4); box-shadow: 0 0 0 3px rgba(99,245,255,.08); }
+
+    .btn { min-height: 46px; padding: 0 18px; border-radius: 14px; font-weight: 900; font-size: .86rem; display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: var(--dur) var(--ease); border: 1px solid transparent; }
+    .btn:hover { transform: translateY(-1px); }
+    .btn.primary { background: linear-gradient(135deg, var(--cyan), var(--blue)); color: var(--ink); }
+    .btn.ghost { background: rgba(255,255,255,.05); border-color: var(--line); color: var(--text); }
+    .btn.danger { background: rgba(255,77,109,.14); border-color: rgba(255,77,109,.4); color: #ffc7d1; }
+    .btn.approve { background: linear-gradient(135deg, var(--green), #a8ffd8); color: #062116; }
+    .btn:disabled { opacity: .55; cursor: wait; transform: none; }
+
+    .notice { display: none; margin: 16px 0; padding: 14px 16px; border-radius: 14px; font-weight: 700; line-height: 1.5; border: 1px solid transparent; }
+    .notice.show { display: block; animation: fade .25s ease; }
+    .notice.success { color: var(--green); background: rgba(109,255,179,.09); border-color: rgba(109,255,179,.22); }
+    .notice.error { color: #ffc7d1; background: rgba(255,77,109,.10); border-color: rgba(255,77,109,.26); }
+    .notice.info { color: var(--cyan); background: rgba(99,245,255,.08); border-color: rgba(99,245,255,.2); }
+    @keyframes fade { from { opacity: 0; transform: translateY(4px);} to { opacity: 1; transform: none; } }
+
+    .toolbar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+    .count-pill { padding: 8px 14px; border-radius: 999px; background: rgba(99,245,255,.1); border: 1px solid rgba(99,245,255,.2); color: var(--cyan); font-weight: 900; font-size: .82rem; }
+
+    .card-grid { display: grid; gap: 14px; }
+    .req-card { border: 1px solid var(--line); border-radius: 20px; background: var(--panel); box-shadow: var(--shadow-soft); padding: 18px; display: grid; gap: 14px; }
+    .req-head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: flex-start; }
+    .req-who strong { display: block; font-size: 1.05rem; margin-bottom: 4px; }
+    .req-who span { display: block; color: var(--muted); font-size: .85rem; word-break: break-word; }
+    .type-badge { padding: 6px 12px; border-radius: 999px; font-size: .74rem; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; }
+    .type-badge.rider { background: rgba(99,245,255,.12); color: var(--cyan); border: 1px solid rgba(99,245,255,.22); }
+    .type-badge.driver { background: rgba(255,215,106,.12); color: var(--gold); border: 1px solid rgba(255,215,106,.22); }
+
+    .req-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+    .meta-box { padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,.025); border: 1px solid rgba(255,255,255,.06); }
+    .meta-box label { display: block; color: var(--muted); font-size: .68rem; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 5px; }
+    .meta-box div { font-size: .88rem; line-height: 1.5; word-break: break-word; }
+    .req-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .req-actions .btn { flex: 1; min-width: 150px; }
+
+    .empty, .loading { text-align: center; padding: 60px 20px; color: var(--muted); }
+    .empty strong, .loading strong { display: block; color: var(--text); font-size: 1.1rem; margin-bottom: 8px; }
+    .spinner { width: 34px; height: 34px; margin: 0 auto 16px; border: 3px solid rgba(255,255,255,.12); border-top-color: var(--cyan); border-radius: 50%; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 620px) {
+      .topbar { flex-direction: column; align-items: flex-start; }
+      .req-actions .btn { flex: 1 1 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+
+    <header class="topbar">
+      <div class="brand">
+        <div class="dot" aria-hidden="true"></div>
+        <div>
+          <strong>HARVEY TAXI</strong>
+          <span>Admin · Account Deletions</span>
+        </div>
+      </div>
+      <div class="top-actions">
+        <a class="chip" href="admin-home.html">← Admin Home</a>
+        <button class="chip" type="button" id="refreshBtn">↻ Refresh</button>
+      </div>
+    </header>
+
+    <section class="hero">
+      <h1>Account Deletion Requests</h1>
+      <p>
+        Review rider and driver accounts that have requested deletion. Approving permanently
+        removes the account. Denying clears the request and restores the account. Every action
+        is recorded in the admin audit log.
+      </p>
+
+      <div class="auth-bar">
+        <label for="tokenInput">Admin Token</label>
+        <input id="tokenInput" type="password" placeholder="x-admin-token value" autocomplete="off" />
+        <button class="btn primary" type="button" id="saveTokenBtn">Save &amp; Load</button>
+      </div>
+    </section>
+
+    <div id="notice" class="notice" role="status" aria-live="polite"></div>
+
+    <div class="toolbar">
+      <span class="count-pill" id="countPill">0 pending</span>
+    </div>
+
+    <div id="content">
+      <div class="loading">
+        <div class="spinner"></div>
+        <strong>Enter your admin token to load requests</strong>
+        Your token is stored locally on this device only.
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    "use strict";
+
+    const API_BASE =
+      window.location.origin && window.location.origin.startsWith("http")
+        ? window.location.origin
+        : "https://harvey-taxi-app-2.onrender.com";
+
+    const TOKEN_KEY = "harvey_admin_token";
+
+    const els = {
+      token: document.getElementById("tokenInput"),
+      saveToken: document.getElementById("saveTokenBtn"),
+      refresh: document.getElementById("refreshBtn"),
+      notice: document.getElementById("notice"),
+      content: document.getElementById("content"),
+      count: document.getElementById("countPill")
+    };
+
+    function getToken() {
+      try { return localStorage.getItem(TOKEN_KEY) || ""; } catch { return ""; }
+    }
+    function setToken(v) {
+      try { localStorage.setItem(TOKEN_KEY, v); } catch {}
+    }
+
+    function showNotice(msg, type = "info") {
+      els.notice.textContent = msg;
+      els.notice.className = "notice show " + type;
+      if (type === "success" || type === "info") {
+        setTimeout(() => { els.notice.className = "notice"; }, 6000);
+      }
+    }
+
+    function authHeaders() {
+      const token = getToken();
+      const headers = { "Content-Type": "application/json", "Accept": "application/json" };
+      if (token) headers["x-admin-token"] = token;
+      return headers;
+    }
+
+    function escapeHtml(v) {
+      return String(v ?? "")
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+    }
+
+    function formatDate(iso) {
+      if (!iso) return "—";
+      try {
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return escapeHtml(iso);
+        return d.toLocaleString(undefined, {
+          year: "numeric", month: "short", day: "numeric",
+          hour: "2-digit", minute: "2-digit"
+        });
+      } catch { return escapeHtml(iso); }
+    }
+
+    function renderLoading() {
+      els.content.innerHTML =
+        '<div class="loading"><div class="spinner"></div><strong>Loading deletion requests…</strong></div>';
+    }
+
+    function renderEmpty() {
+      els.content.innerHTML =
+        '<div class="empty"><strong>No pending deletion requests</strong>All clear — nothing is currently awaiting review.</div>';
+      els.count.textContent = "0 pending";
+    }
+
+    function renderError(message) {
+      els.content.innerHTML =
+        '<div class="empty"><strong>Unable to load requests</strong>' + escapeHtml(message) + "</div>";
+    }
+
+    function cardHtml(item) {
+      const type = item.account_type === "driver" ? "driver" : "rider";
+      const name = [item.first_name, item.last_name].filter(Boolean).join(" ") || "(no name on file)";
+      return `
+        <div class="req-card" data-id="${escapeHtml(item.id)}" data-type="${escapeHtml(type)}">
+          <div class="req-head">
+            <div class="req-who">
+              <strong>${escapeHtml(name)}</strong>
+              <span>${escapeHtml(item.email || "—")}</span>
+            </div>
+            <span class="type-badge ${type}">${type}</span>
+          </div>
+          <div class="req-meta">
+            <div class="meta-box">
+              <label>Account ID</label>
+              <div>${escapeHtml(item.id)}</div>
+            </div>
+            <div class="meta-box">
+              <label>Requested</label>
+              <div>${formatDate(item.deletion_requested_at)}</div>
+            </div>
+            <div class="meta-box">
+              <label>Current Status</label>
+              <div>${escapeHtml(item.approval_status || item.status || "—")}</div>
+            </div>
+            <div class="meta-box">
+              <label>Reason</label>
+              <div>${escapeHtml(item.deletion_reason || "No reason provided")}</div>
+            </div>
+          </div>
+          <div class="req-actions">
+            <button class="btn approve" type="button" data-action="approve">Approve Delete</button>
+            <button class="btn ghost" type="button" data-action="deny">Deny &amp; Restore</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderList(riders, drivers) {
+      const all = [...(riders || []), ...(drivers || [])];
+      all.sort((a, b) => {
+        const ta = new Date(a.deletion_requested_at || 0).getTime();
+        const tb = new Date(b.deletion_requested_at || 0).getTime();
+        return tb - ta;
+      });
+
+      if (!all.length) { renderEmpty(); return; }
+
+      els.count.textContent = `${all.length} pending`;
+      els.content.innerHTML = '<div class="card-grid">' + all.map(cardHtml).join("") + "</div>";
+
+      els.content.querySelectorAll("[data-action]").forEach((btn) => {
+        btn.addEventListener("click", onActionClick);
+      });
+    }
+
+    async function loadRequests() {
+      if (!getToken()) {
+        showNotice("Enter and save your admin token first.", "error");
+        return;
+      }
+      renderLoading();
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/account-deletions`, {
+          method: "GET",
+          headers: authHeaders(),
+          cache: "no-store"
+        });
+        if (res.status === 401) {
+          renderError("Admin authorization failed. Check your token.");
+          showNotice("Authorization failed (401). Verify your admin token.", "error");
+          return;
+        }
+        if (!res.ok) throw new Error(`Request failed (HTTP ${res.status})`);
+        const data = await res.json();
+        renderList(data.riders || [], data.drivers || []);
+        showNotice(`Loaded ${data.total ?? 0} pending request(s).`, "info");
+      } catch (err) {
+        renderError(err.message || "Network error");
+        showNotice("Failed to load requests: " + (err.message || "network error"), "error");
+      }
+    }
+
+    async function onActionClick(e) {
+      const btn = e.currentTarget;
+      const card = btn.closest(".req-card");
+      if (!card) return;
+      const id = card.dataset.id;
+      const type = card.dataset.type;
+      const action = btn.dataset.action;
+
+      const isApprove = action === "approve";
+      const confirmMsg = isApprove
+        ? `Permanently delete this ${type} account?\n\nID: ${id}\n\nThis cannot be undone.`
+        : `Deny the deletion request and restore this ${type} account?`;
+      if (!window.confirm(confirmMsg)) return;
+
+      // Disable both buttons on this card during the request
+      card.querySelectorAll("button").forEach((b) => { b.disabled = true; });
+      const originalText = btn.textContent;
+      btn.textContent = isApprove ? "Deleting…" : "Restoring…";
+
+      const endpoint = isApprove
+        ? `${API_BASE}/api/admin/account-deletions/${encodeURIComponent(type)}/${encodeURIComponent(id)}/approve`
+        : `${API_BASE}/api/admin/account-deletions/${encodeURIComponent(type)}/${encodeURIComponent(id)}/deny`;
+
+      try {
+        const res = await fetch(endpoint, { method: "POST", headers: authHeaders() });
+        if (res.status === 401) {
+          showNotice("Authorization failed (401). Verify your admin token.", "error");
+          card.querySelectorAll("button").forEach((b) => { b.disabled = false; });
+          btn.textContent = originalText;
+          return;
+        }
+        if (res.status === 409) {
+          showNotice("This account no longer has a pending deletion request.", "error");
+          await loadRequests();
+          return;
+        }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        showNotice(
+          isApprove
+            ? `Account ${id} permanently deleted.`
+            : `Deletion request cleared — ${type} account ${id} restored.`,
+          "success"
+        );
+        // Refresh the list after a successful action
+        await loadRequests();
+      } catch (err) {
+        showNotice(`Action failed: ${err.message || "network error"}`, "error");
+        card.querySelectorAll("button").forEach((b) => { b.disabled = false; });
+        btn.textContent = originalText;
+      }
+    }
+
+    // Wire up controls
+    els.saveToken.addEventListener("click", () => {
+      const v = els.token.value.trim();
+      if (!v) { showNotice("Please enter your admin token.", "error"); return; }
+      setToken(v);
+      showNotice("Token saved on this device.", "success");
+      loadRequests();
+    });
+
+    els.refresh.addEventListener("click", loadRequests);
+
+    els.token.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") els.saveToken.click();
+    });
+
+    // On load: if a token is already stored, prefill (masked) and auto-load
+    (function init() {
+      const existing = getToken();
+      if (existing) {
+        els.token.value = existing;
+        loadRequests();
+      }
+    })();
+  </script>
+</body>
+</html>
