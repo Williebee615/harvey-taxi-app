@@ -708,6 +708,38 @@
 
     }
 
+    .section {
+
+      margin-bottom:22px;
+
+    }
+
+    .field {
+
+      display:flex;
+
+      flex-direction:column;
+
+      gap:7px;
+
+      margin-bottom:14px;
+
+    }
+
+    .field label {
+
+      font-size:0.78rem;
+
+      font-weight:800;
+
+      letter-spacing:0.04em;
+
+      text-transform:uppercase;
+
+      opacity:0.75;
+
+    }
+
     .section-head {
 
       display:flex;
@@ -3312,6 +3344,34 @@
 
       }
 
+      async function createFoundationRide(
+
+        id,
+
+        rideDetails
+
+      ) {
+
+        const payload =
+
+          await apiRequest(
+
+            `/api/admin/foundation/applications/${encodeURIComponent(id)}/create-ride`,
+
+            {
+
+              method: "POST",
+
+              body: JSON.stringify(rideDetails)
+
+            }
+
+          );
+
+        return payload;
+
+      }
+
       async function updateSelectedStatus(
 
         status
@@ -3761,12 +3821,20 @@
           );
 
           /*
-
-            Server J Phase 11 can later connect this to:
-
-            POST /api/admin/foundation/applications/:id/schedule
-
+            Create the real dispatchable foundation ride via the server route
+            POST /api/admin/foundation/applications/:id/create-ride, then mark
+            the application scheduled. Previously this only flipped status and
+            wrote details into notes, so no actual ride entered dispatch.
           */
+          await createFoundationRide(
+            selectedApplication.id,
+            {
+              pickup,
+              destination,
+              scheduled_for: scheduledAt,
+              notes: scheduleNotes || ""
+            }
+          );
 
           const notes =
 
