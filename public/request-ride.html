@@ -1898,20 +1898,28 @@
       ENDPOINTS: {
         health: "/api/health",
 
-        riderLookup: "/api/riders/lookup",
-        riderStatus: "/api/rider/status",
-        riderApproval: "/api/rider/approval-status",
+        // Rider approval/status: the real server route is GET /api/riders/:id/readiness
+        // (keyed by rider ID in the URL). These are used by buildReadinessUrl() below.
+        riderReadiness: "/api/riders", // + "/:id/readiness"
 
-        fareEstimate: "/api/fare-estimate",
-        estimateRide: "/api/estimate-ride",
+        // Fare estimate: real route is POST /api/rides/estimate
+        rideEstimate: "/api/rides/estimate",
 
-        authorizePayment: "/api/payments/authorize",
+        // Payment intent (Stripe) then authorize:
+        paymentIntent: "/api/rides/payment-intent",       // POST
+        authorizeRide: "/api/rides",                       // + "/:id/authorize" (POST)
 
-        requestRide: "/api/request-ride",
+        // Ride request: real route is POST /api/rides/request
+        requestRide: "/api/rides/request"
 
-        rideStatus: "/api/rides/status",
-        currentRide: "/api/rider/current-ride"
+        // NOTE: the previous build also called /api/rides/status and
+        // /api/rider/current-ride — neither exists on the server. Current-ride
+        // tracking is handled by the rider dashboard; this page does not poll them.
       },
+
+      // Helper paths that need an ID injected at call time:
+      // readiness:  `${ENDPOINTS.riderReadiness}/${riderId}/readiness`
+      // authorize:  `${ENDPOINTS.authorizeRide}/${rideId}/authorize`
 
       STORAGE_KEYS: {
         riderId: "harvey_rider_id",
@@ -2729,23 +2737,27 @@
         name: state.rider.name
       };
 
-      const endpointsToTry = [
-        CONFIG.ENDPOINTS.riderApproval,
-        CONFIG.ENDPOINTS.riderStatus,
-        CONFIG.ENDPOINTS.riderLookup
-      ];
+      // The real server route is GET /api/riders/:id/readiness, keyed by rider ID.
+      // If we don't yet have a rider ID, we can't check readiness — prompt the
+      // rider to sign up / sign in first rather than calling a non-existent lookup.
+      const riderId = state.rider.id || readStorage(CONFIG.STORAGE_KEYS.riderId);
 
       try {
         let data = null;
         let lastError = null;
 
-        for (const endpoint of endpointsToTry) {
+        if (riderId) {
+          const readinessUrl =
+            `${CONFIG.ENDPOINTS.riderReadiness}/${encodeURIComponent(riderId)}/readiness`;
           try {
-            data = await apiPost(endpoint, payload);
-            break;
+            data = await apiFetch(readinessUrl, { method: "GET" });
           } catch (error) {
             lastError = error;
           }
+        } else {
+          lastError = new Error(
+            "No rider ID found. Please sign up or sign in as a rider first."
+          );
         }
 
         if (!data && lastError) {
@@ -2756,7 +2768,7 @@
           normalizeApprovalPayload(data);
 
         state.rider.id =
-          normalized.id || state.rider.id;
+          normalized.id || riderId || state.rider.id;
 
         state.rider.status =
           normalized.status;
@@ -2894,7 +2906,19 @@
 
         source: "request-ride.html",
         client_version:
-          "code-blue-request-ride-v2"
+          "code-blue-request-ride-v2",
+        // Feed distance/duration to the server's fare calculator. These come from
+        // the Google Maps route once computed; if not yet available they're 0 and
+        // the server returns a base estimate. Both snake_case and the server's
+        // alternate field names are sent for compatibility.
+        miles:
+          Number(state.estimate.distanceMiles || state.estimate.distance || 0),
+        distance_miles:
+          Number(state.estimate.distanceMiles || state.estimate.distance || 0),
+        minutes:
+          Number(state.estimate.durationMinutes || state.estimate.duration || 0),
+        duration_minutes:
+          Number(state.estimate.durationMinutes || state.estimate.duration || 0)
       };
     }
 
@@ -3011,8 +3035,7 @@
         buildTripPayload();
 
       const endpointsToTry = [
-        CONFIG.ENDPOINTS.fareEstimate,
-        CONFIG.ENDPOINTS.estimateRide
+        CONFIG.ENDPOINTS.rideEstimate
       ];
 
       try {
@@ -3245,9 +3268,16 @@
       };
 
       try {
+        // Real route: POST /api/rides/:id/authorize — needs the ride ID in the URL.
+        const rideId = state.ride.rideId || readStorage(CONFIG.STORAGE_KEYS.lastRideId);
+        if (!rideId) {
+          throw new Error("No ride to authorize yet. Please request the ride first.");
+        }
+        const authorizeUrl =
+          `${CONFIG.ENDPOINTS.authorizeRide}/${encodeURIComponent(rideId)}/authorize`;
         const data =
           await apiPost(
-            CONFIG.ENDPOINTS.authorizePayment,
+            authorizeUrl,
             payload
           );
 
@@ -3592,10 +3622,10 @@
           readStorage(CONFIG.STORAGE_KEYS.riderEmail)
       };
 
-      const endpointsToTry = [
-        CONFIG.ENDPOINTS.rideStatus,
-        CONFIG.ENDPOINTS.currentRide
-      ];
+      // NOTE: the server has no rider-facing ride-status polling route
+      // (/api/rides/status and /api/rider/current-ride do not exist). Live trip
+      // tracking is handled by the rider dashboard. Avoid calling dead endpoints.
+      const endpointsToTry = [];
 
       try {
         let data = null;
@@ -3612,6 +3642,11 @@
 
         if (!data && lastError) {
           throw lastError;
+        }
+
+        if (!data) {
+          // No server polling available — keep local state and exit quietly.
+          return;
         }
 
         const normalized =
