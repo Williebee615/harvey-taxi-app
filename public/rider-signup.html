@@ -1379,7 +1379,7 @@
       rider?.approval_status || rider?.verification_status || rider?.status ||
       data?.approval_status || data?.status || "pending";
     const approved =
-      data?.approved === true || rider?.approved === true || rider?.is_approved === true ||
+      data?.approved === true || data?.ready === true || rider?.approved === true || rider?.is_approved === true ||
       ["approved", "active", "verified"].includes(String(approvalStatus).toLowerCase());
 
     return {
@@ -1578,10 +1578,11 @@
     setButtonLoading(checkBtn, true, "Checking Status...", "Check Rider Status");
 
     try {
+      // Real server route: GET /api/riders/:id/readiness (keyed by rider ID).
+      // The previous status paths (/api/rider/:id/status etc.) don't exist and
+      // always 404'd, so status could never load. This uses the real one.
       const attempts = [
-        () => api(`/api/rider/${encodeURIComponent(riderId)}/status`),
-        () => api(`/api/riders/${encodeURIComponent(riderId)}/status`),
-        () => api("/api/rider/status", { method: "POST", body: JSON.stringify({ rider_id: riderId }) })
+        () => api(`/api/riders/${encodeURIComponent(riderId)}/readiness`)
       ];
 
       let data = null;
