@@ -1648,6 +1648,12 @@
 
         </button>
 
+        <button class="btn btn-secondary" type="button" onclick="signOutAdmin()">
+
+          Sign Out
+
+        </button>
+
         <a class="btn btn-primary" href="admin-home.html">
 
           Admin Home
@@ -2390,6 +2396,104 @@
 
         `${window.location.origin}`;
 
+      /* =========================================================
+
+         ADMIN AUTH GATE
+
+         requireAdmin on Server J expects one of:
+
+           - x-admin-token: ADMIN_API_TOKEN
+
+           - x-admin-email + x-admin-password
+
+         We store the token in sessionStorage and attach it
+
+         to every admin API request.
+
+      ========================================================= */
+
+      const ADMIN_TOKEN_KEY = "htaf_admin_token";
+
+      function getAdminToken() {
+
+        try {
+
+          return sessionStorage.getItem(ADMIN_TOKEN_KEY) || "";
+
+        } catch {
+
+          return "";
+
+        }
+
+      }
+
+      function setAdminToken(token) {
+
+        try {
+
+          if (token) {
+
+            sessionStorage.setItem(ADMIN_TOKEN_KEY, token);
+
+          } else {
+
+            sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+
+          }
+
+        } catch {}
+
+      }
+
+      function ensureAdminToken() {
+
+        let token = getAdminToken();
+
+        if (!token) {
+
+          token = window.prompt(
+
+            "Enter HTAF Admin Token to access operations dashboard:"
+
+          );
+
+          if (token) {
+
+            token = token.trim();
+
+            setAdminToken(token);
+
+          }
+
+        }
+
+        return token || "";
+
+      }
+
+      function clearAdminToken() {
+
+        setAdminToken("");
+
+      }
+
+      function signOutAdmin() {
+
+        clearAdminToken();
+
+        window.location.reload();
+
+      }
+
+      function adminAuthHeaders() {
+
+        const token = getAdminToken();
+
+        return token ? { "x-admin-token": token } : {};
+
+      }
+
       let applications = [];
 
       let filteredApplications = [];
@@ -2514,6 +2618,8 @@
 
                 "Content-Type": "application/json",
 
+                ...adminAuthHeaders(),
+
                 ...(options.headers || {})
 
               },
@@ -2537,6 +2643,12 @@
         }
 
         if (!response.ok || payload?.ok === false) {
+
+          if (response.status === 401 || response.status === 403) {
+
+            clearAdminToken();
+
+          }
 
           throw new Error(
 
@@ -4385,6 +4497,24 @@
           "info"
 
         );
+
+        const token = ensureAdminToken();
+
+        if (!token) {
+
+          showBanner(
+
+            "opsStatusBanner",
+
+            "Admin token required. Refresh the page and enter your HTAF Admin Token to continue.",
+
+            "err"
+
+          );
+
+          return;
+
+        }
 
         try {
 
