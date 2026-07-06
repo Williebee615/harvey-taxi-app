@@ -1610,11 +1610,247 @@
 
     }
 
+    .login-overlay {
+
+      position:fixed;
+
+      inset:0;
+
+      z-index:999;
+
+      display:flex;
+
+      align-items:center;
+
+      justify-content:center;
+
+      padding:20px;
+
+      background:rgba(3,7,18,.86);
+
+      backdrop-filter:blur(14px);
+
+      -webkit-backdrop-filter:blur(14px);
+
+    }
+
+    .login-card {
+
+      width:min(420px,100%);
+
+      padding:34px 28px;
+
+      border-radius:var(--radiusXL);
+
+      border:1px solid var(--lineStrong);
+
+      background:
+
+        linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.015)),
+
+        linear-gradient(180deg,rgba(11,24,52,.94),rgba(4,10,28,.99));
+
+      box-shadow:var(--shadow);
+
+      text-align:center;
+
+    }
+
+    .login-mark {
+
+      width:64px;
+
+      height:64px;
+
+      margin:0 auto 16px;
+
+      border-radius:19px;
+
+      display:grid;
+
+      place-items:center;
+
+      background:linear-gradient(135deg,var(--cyan),var(--blue));
+
+      color:var(--ink);
+
+      font-weight:950;
+
+      font-size:1.05rem;
+
+      box-shadow:0 14px 34px rgba(106,167,255,.28);
+
+    }
+
+    .login-card h2 {
+
+      font-size:1.6rem;
+
+      font-weight:950;
+
+      letter-spacing:-.03em;
+
+    }
+
+    .login-sub {
+
+      margin-top:8px;
+
+      color:var(--muted);
+
+      font-size:.9rem;
+
+      line-height:1.5;
+
+    }
+
+    .login-label {
+
+      display:block;
+
+      text-align:left;
+
+      margin:18px 0 7px;
+
+      font-size:.82rem;
+
+      font-weight:800;
+
+      letter-spacing:.03em;
+
+      text-transform:uppercase;
+
+      color:var(--soft);
+
+    }
+
+    .login-input {
+
+      width:100%;
+
+      min-height:50px;
+
+      padding:0 15px;
+
+      border-radius:14px;
+
+      border:1px solid var(--line);
+
+      background:rgba(255,255,255,.04);
+
+      color:var(--text);
+
+      font-size:1rem;
+
+      outline:none;
+
+      transition:.16s ease;
+
+    }
+
+    .login-input:focus {
+
+      border-color:var(--cyan);
+
+      background:rgba(115,244,255,.06);
+
+    }
+
+    .login-submit {
+
+      width:100%;
+
+      margin-top:24px;
+
+      min-height:52px;
+
+      font-size:1rem;
+
+    }
+
+    .login-error {
+
+      margin-top:16px;
+
+      padding:12px 14px;
+
+      border-radius:12px;
+
+      border:1px solid rgba(255,126,144,.4);
+
+      background:rgba(255,126,144,.1);
+
+      color:var(--red);
+
+      font-size:.9rem;
+
+      font-weight:700;
+
+      line-height:1.45;
+
+      text-align:left;
+
+    }
+
   </style>
 
 </head>
 
 <body>
+
+  <div id="adminLoginOverlay" class="login-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+
+    <div class="login-card">
+
+      <div class="login-mark">HTAF</div>
+
+      <h2 id="loginTitle">Admin Sign In</h2>
+
+      <p class="login-sub">Harvey Transportation Assistance Foundation — Operations</p>
+
+      <div id="loginError" class="login-error hidden"></div>
+
+      <label class="login-label" for="loginEmail">Admin Email</label>
+
+      <input
+
+        id="loginEmail"
+
+        class="login-input"
+
+        type="email"
+
+        autocomplete="username"
+
+        placeholder="williebee@harveytaxiservice.com"
+
+      />
+
+      <label class="login-label" for="loginPassword">Password</label>
+
+      <input
+
+        id="loginPassword"
+
+        class="login-input"
+
+        type="password"
+
+        autocomplete="current-password"
+
+        placeholder="••••••••••••"
+
+      />
+
+      <button id="loginSubmit" class="btn btn-primary login-submit" type="button">
+
+        Sign In
+
+      </button>
+
+    </div>
+
+  </div>
 
   <header class="topbar">
 
@@ -2398,99 +2634,269 @@
 
       /* =========================================================
 
-         ADMIN AUTH GATE
+         ADMIN AUTH — SERVER SESSION
 
-         requireAdmin on Server J expects one of:
+         Login posts email+password to /api/admin/login, which
 
-           - x-admin-token: ADMIN_API_TOKEN
+         sets an HttpOnly signed session cookie. No admin
 
-           - x-admin-email + x-admin-password
+         credential or token is ever stored in the browser.
 
-         We store the token in sessionStorage and attach it
+         Every admin request uses credentials:"include" so the
 
-         to every admin API request.
+         cookie rides along automatically.
 
       ========================================================= */
 
-      const ADMIN_TOKEN_KEY = "htaf_admin_token";
-
-      function getAdminToken() {
+      async function checkAdminSession() {
 
         try {
 
-          return sessionStorage.getItem(ADMIN_TOKEN_KEY) || "";
+          const response = await fetch(
 
-        } catch {
+            `${HTAF_API}/api/admin/session`,
 
-          return "";
-
-        }
-
-      }
-
-      function setAdminToken(token) {
-
-        try {
-
-          if (token) {
-
-            sessionStorage.setItem(ADMIN_TOKEN_KEY, token);
-
-          } else {
-
-            sessionStorage.removeItem(ADMIN_TOKEN_KEY);
-
-          }
-
-        } catch {}
-
-      }
-
-      function ensureAdminToken() {
-
-        let token = getAdminToken();
-
-        if (!token) {
-
-          token = window.prompt(
-
-            "Enter HTAF Admin Token to access operations dashboard:"
+            { credentials: "include" }
 
           );
 
-          if (token) {
+          const payload = await response.json();
 
-            token = token.trim();
+          return !!payload?.authenticated;
 
-            setAdminToken(token);
+        } catch {
 
-          }
+          return false;
 
         }
 
-        return token || "";
+      }
+
+      async function adminLogin(email, password) {
+
+        const response = await fetch(
+
+          `${HTAF_API}/api/admin/login`,
+
+          {
+
+            method: "POST",
+
+            credentials: "include",
+
+            headers: {
+
+              "Content-Type": "application/json"
+
+            },
+
+            body: JSON.stringify({ email, password })
+
+          }
+
+        );
+
+        let payload = null;
+
+        try {
+
+          payload = await response.json();
+
+        } catch {
+
+          payload = null;
+
+        }
+
+        if (!response.ok || payload?.ok === false) {
+
+          throw new Error(
+
+            payload?.error ||
+
+            payload?.message ||
+
+            `Login failed with status ${response.status}`
+
+          );
+
+        }
+
+        return payload;
 
       }
 
-      function clearAdminToken() {
+      async function signOutAdmin() {
 
-        setAdminToken("");
+        try {
 
-      }
+          await fetch(
 
-      function signOutAdmin() {
+            `${HTAF_API}/api/admin/logout`,
 
-        clearAdminToken();
+            {
+
+              method: "POST",
+
+              credentials: "include"
+
+            }
+
+          );
+
+        } catch {}
 
         window.location.reload();
 
       }
 
-      function adminAuthHeaders() {
+      function showLoginOverlay(message) {
 
-        const token = getAdminToken();
+        const overlay =
 
-        return token ? { "x-admin-token": token } : {};
+          document.getElementById("adminLoginOverlay");
+
+        if (!overlay) return;
+
+        overlay.classList.remove("hidden");
+
+        const errorBox =
+
+          document.getElementById("loginError");
+
+        if (errorBox) {
+
+          if (message) {
+
+            errorBox.textContent = message;
+
+            errorBox.classList.remove("hidden");
+
+          } else {
+
+            errorBox.textContent = "";
+
+            errorBox.classList.add("hidden");
+
+          }
+
+        }
+
+        const emailField =
+
+          document.getElementById("loginEmail");
+
+        if (emailField && !emailField.value) {
+
+          emailField.focus();
+
+        }
+
+      }
+
+      function hideLoginOverlay() {
+
+        const overlay =
+
+          document.getElementById("adminLoginOverlay");
+
+        if (overlay) {
+
+          overlay.classList.add("hidden");
+
+        }
+
+      }
+
+      function setupLoginOverlay() {
+
+        const submit =
+
+          document.getElementById("loginSubmit");
+
+        const emailField =
+
+          document.getElementById("loginEmail");
+
+        const passwordField =
+
+          document.getElementById("loginPassword");
+
+        async function handleLogin() {
+
+          const email =
+
+            (emailField?.value || "").trim();
+
+          const password =
+
+            passwordField?.value || "";
+
+          if (!email || !password) {
+
+            showLoginOverlay(
+
+              "Enter both your admin email and password."
+
+            );
+
+            return;
+
+          }
+
+          submit.disabled = true;
+
+          const original = submit.textContent;
+
+          submit.textContent = "Signing in...";
+
+          try {
+
+            await adminLogin(email, password);
+
+            if (passwordField) passwordField.value = "";
+
+            hideLoginOverlay();
+
+            await loadDashboardData();
+
+          } catch (error) {
+
+            showLoginOverlay(
+
+              error.message ||
+
+                "Sign in failed. Check your credentials and try again."
+
+            );
+
+          } finally {
+
+            submit.disabled = false;
+
+            submit.textContent = original;
+
+          }
+
+        }
+
+        submit?.addEventListener("click", handleLogin);
+
+        [emailField, passwordField].forEach(field => {
+
+          field?.addEventListener("keydown", (event) => {
+
+            if (event.key === "Enter") {
+
+              event.preventDefault();
+
+              handleLogin();
+
+            }
+
+          });
+
+        });
 
       }
 
@@ -2618,8 +3024,6 @@
 
                 "Content-Type": "application/json",
 
-                ...adminAuthHeaders(),
-
                 ...(options.headers || {})
 
               },
@@ -2646,7 +3050,11 @@
 
           if (response.status === 401 || response.status === 403) {
 
-            clearAdminToken();
+            showLoginOverlay(
+
+              "Your admin session expired. Please sign in again."
+
+            );
 
           }
 
@@ -4482,39 +4890,17 @@
 
       }
 
-      async function initializeDashboard() {
-
-        setupAiContext();
-
-        setupEventListeners();
+      async function loadDashboardData() {
 
         showBanner(
 
           "opsStatusBanner",
 
-          "Initializing HTAF operations dashboard...",
+          "Loading HTAF operations dashboard...",
 
           "info"
 
         );
-
-        const token = ensureAdminToken();
-
-        if (!token) {
-
-          showBanner(
-
-            "opsStatusBanner",
-
-            "Admin token required. Refresh the page and enter your HTAF Admin Token to continue.",
-
-            "err"
-
-          );
-
-          return;
-
-        }
 
         try {
 
@@ -4531,6 +4917,40 @@
           );
 
         }
+
+      }
+
+      async function initializeDashboard() {
+
+        setupAiContext();
+
+        setupEventListeners();
+
+        setupLoginOverlay();
+
+        showBanner(
+
+          "opsStatusBanner",
+
+          "Checking admin session...",
+
+          "info"
+
+        );
+
+        const authenticated = await checkAdminSession();
+
+        if (!authenticated) {
+
+          showLoginOverlay();
+
+          return;
+
+        }
+
+        hideLoginOverlay();
+
+        await loadDashboardData();
 
       }
 
