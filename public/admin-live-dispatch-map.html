@@ -1256,10 +1256,30 @@
       }
     }
 
+    // Admin authentication — every /api/admin/* route on the server requires
+    // requireAdmin (x-admin-token header). Without this, all calls return 401.
+    const ADMIN_TOKEN_KEY = "harvey_admin_token";
+    function getAdminToken() {
+      try { return localStorage.getItem(ADMIN_TOKEN_KEY) || ""; } catch { return ""; }
+    }
+    function setAdminToken(v) {
+      try { localStorage.setItem(ADMIN_TOKEN_KEY, v); } catch {}
+    }
+    function ensureAdminToken() {
+      let t = getAdminToken();
+      if (!t) {
+        t = window.prompt("Enter admin token to load the dispatch console:") || "";
+        if (t) setAdminToken(t.trim());
+      }
+      return getAdminToken();
+    }
+
     async function api(path, options = {}) {
+      const token = getAdminToken();
       const response = await fetch(path, {
         headers: {
           "Content-Type": "application/json",
+          ...(token ? { "x-admin-token": token } : {}),
           ...(options.headers || {})
         },
         ...options
@@ -1267,6 +1287,9 @@
 
       const data = await readJsonSafe(response);
 
+      if (response.status === 401) {
+        throw new Error("Admin authorization failed. Check your admin token.");
+      }
       if (!response.ok) {
         throw new Error(data.message || data.error || "Request failed.");
       }
@@ -1617,26 +1640,20 @@
 
     async function loadRides() {
       return tryEndpoints([
-        () => api("/api/admin/dashboard-data"),
-        () => api("/api/admin/dashboard"),
-        () => api("/api/rides"),
+        () => api("/api/admin/overview"),
         () => api("/api/admin/rides")
       ]);
     }
 
     async function loadDrivers() {
       return tryEndpoints([
-        () => api("/api/admin/drivers"),
-        () => api("/api/drivers"),
-        () => api("/api/driver/fleet")
+        () => api("/api/admin/drivers")
       ]);
     }
 
     async function loadAlerts() {
       return tryEndpoints([
-        () => api("/api/admin/security-events"),
-        () => api("/api/admin/alerts"),
-        () => api("/api/security/events")
+        () => api("/api/admin/audit-logs")
       ]);
     }
 
@@ -1726,13 +1743,10 @@
         return;
       }
 
+      // Real route: POST /api/admin/rides/:id/assign-driver
       await performRideAction("Dispatch assignment", [
         {
-          path: `/api/admin/run-dispatch/${encodeURIComponent(getRideId(ride))}`,
-          body: () => ({})
-        },
-        {
-          path: `/api/admin/run-dispatch-brain/${encodeURIComponent(getRideId(ride))}`,
+          path: `/api/admin/rides/${encodeURIComponent(getRideId(ride))}/assign-driver`,
           body: () => ({})
         }
       ]);
@@ -1741,51 +1755,38 @@
     async function reassignDriver() {
       await performRideAction("Reassignment", [
         {
-          path: `/api/admin/run-dispatch/${encodeURIComponent(getRideId(getSelectedRide()))}`,
-          body: () => ({ force_reassign: true, reassign: true })
-        },
-        {
-          path: `/api/admin/run-dispatch-brain/${encodeURIComponent(getRideId(getSelectedRide()))}`,
+          path: `/api/admin/rides/${encodeURIComponent(getRideId(getSelectedRide()))}/assign-driver`,
           body: () => ({ force_reassign: true, reassign: true })
         }
       ]);
     }
 
     async function markArrived() {
+      // Real route: POST /api/driver/rides/:rideId/arrived
       await performRideAction("Mark arrived", [
         {
-          path: `/api/rides/${encodeURIComponent(getRideId(getSelectedRide()))}/arriving`,
+          path: `/api/driver/rides/${encodeURIComponent(getRideId(getSelectedRide()))}/arrived`,
           body: () => ({})
-        },
-        {
-          path: `/api/mission/arrived`,
-          body: (rideId) => ({ mission_id: rideId, ride_id: rideId })
         }
       ]);
     }
 
     async function startTrip() {
+      // Real route: POST /api/driver/rides/:rideId/start
       await performRideAction("Start trip", [
         {
-          path: `/api/rides/${encodeURIComponent(getRideId(getSelectedRide()))}/start`,
+          path: `/api/driver/rides/${encodeURIComponent(getRideId(getSelectedRide()))}/start`,
           body: () => ({})
-        },
-        {
-          path: `/api/mission/start-trip`,
-          body: (rideId) => ({ mission_id: rideId, ride_id: rideId })
         }
       ]);
     }
 
     async function completeTrip() {
+      // Real route: POST /api/driver/rides/:rideId/complete
       await performRideAction("Complete trip", [
         {
-          path: `/api/rides/${encodeURIComponent(getRideId(getSelectedRide()))}/complete`,
+          path: `/api/driver/rides/${encodeURIComponent(getRideId(getSelectedRide()))}/complete`,
           body: () => ({})
-        },
-        {
-          path: `/api/mission/complete`,
-          body: (rideId) => ({ mission_id: rideId, ride_id: rideId })
         }
       ]);
     }
@@ -1891,6 +1892,7 @@
     });
 
     setupFilters();
+    ensureAdminToken();
     refreshAll(false);
     startAutoRefresh();
   </script>
