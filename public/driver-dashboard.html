@@ -1093,6 +1093,28 @@
       lastAddress: "harvey_driver_last_address"
     };
 
+    // ---- Real backend integration ----
+    const API_BASE =
+      window.location.origin && window.location.origin.startsWith("http")
+        ? window.location.origin
+        : "https://harvey-taxi-app-2.onrender.com";
+
+    async function apiRequest(path, options = {}) {
+      const res = await fetch(`${API_BASE}${path}`, {
+        headers: { "Content-Type": "application/json", "Accept": "application/json", ...(options.headers || {}) },
+        cache: "no-store",
+        ...options
+      });
+      let data = null;
+      try { data = await res.json(); } catch { data = {}; }
+      if (!res.ok || data.ok === false) {
+        throw new Error(data.error || data.message || `Request failed (${res.status})`);
+      }
+      return data;
+    }
+    const apiGet = (path) => apiRequest(path, { method: "GET" });
+    const apiPost = (path, body) => apiRequest(path, { method: "POST", body: JSON.stringify(body || {}) });
+
     // Reactivity & UI Sync State
     const state = {
       driverId: localStorage.getItem(STORAGE.driverId) || localStorage.getItem(STORAGE.driverIdAlt) || "",
@@ -1233,26 +1255,25 @@
 
     // Direct Simulated Auth Fallback Process
     function handleEmailLogin() {
+      // Note: the Harvey Taxi server does not expose an email/password driver
+      // login route. Drivers receive their driver ID at signup (stored as
+      // harvey_driver_id). This screen resolves the session from that stored ID
+      // or a manually pasted driver ID, then loads real data for it.
       const email = el.emailInput.value.trim();
-      const password = el.passInput.value.trim();
-
-      if (!email || !password) {
-        return showMessage(el.loginMsg, "Please fill out all credential blocks.", "err");
+      const manualId = (el.manualIdInput && el.manualIdInput.value.trim()) || "";
+      const storedId = localStorage.getItem(STORAGE.driverId) || localStorage.getItem(STORAGE.driverIdAlt) || "";
+      const driverId = manualId || storedId;
+      if (!driverId) {
+        return showMessage(el.loginMsg,
+          "Enter your Driver ID (from your approved driver signup) to load your dashboard.", "err");
       }
-
-      showMessage(el.loginMsg, "Contacting secure gateway...", "ok");
-      el.loginBtn.disabled = true;
-
-      // Deterministic fallback structural generation
-      setTimeout(() => {
-        el.loginBtn.disabled = false;
-        const generatedId = "drv_" + Math.random().toString(36).substring(2, 11);
+      if (email) {
         state.driverEmail = email;
         localStorage.setItem(STORAGE.driverEmail, email);
-        bootstrapDashboardSession(generatedId);
-      }, 900);
+      }
+      showMessage(el.loginMsg, "Loading your Harvey Taxi driver dashboard...", "ok");
+      bootstrapDashboardSession(driverId);
     }
-
     function bootstrapDashboardSession(driverId) {
       state.driverId = driverId;
       localStorage.setItem(STORAGE.driverId, driverId);
@@ -1311,87 +1332,80 @@
     }
 
     // Unified Central Telemetry Parser 
-    function fetchFreshDashboardState(isManualRefresh = false) {
+    async function fetchFreshDashboardState(isManualRefresh = false) {
       if (state.isBusy) return;
-      state.isBusy = true;
-      
-      if (isManualRefresh) {
-        showMessage(el.globalMsg, "Synchronizing architecture layers...", "ok");
+      if (!state.driverId) {
+        showMessage(el.globalMsg, "No driver session. Please sign in with your driver ID.", "warn");
+        return;
       }
-
-      // Generation logic creating realistic business scenarios
-      setTimeout(() => {
-        state.isBusy = false;
-        
-        // Build Profile Payload structure if missing
-        if (!state.driver) {
+      state.isBusy = true;
+      if (isManualRefresh) {
+        showMessage(el.globalMsg, "Refreshing from Harvey Taxi...", "ok");
+      }
+      try {
+        try {
+          const readiness = await apiGet(`/api/drivers/${encodeURIComponent(state.driverId)}/readiness`);
+          const d = readiness.driver || {};
           state.driver = {
-            id: state.driverId,
-            name: "Marcus Miller",
-            email: state.driverEmail || "m.miller@harveytaxi.io",
-            phone: "+1 (615) 555-0198",
-            location: "Nashville-Davidson Metro",
-            vehicle: "2024 Tesla Model Y (Midnight Silver)",
-            driverType: "Hybrid Fleet Operator",
-            backgroundStatus: "Verified Pass",
-            lastKnownAddress: el.driverAddress.value || "401 Church St, Nashville, TN 37219",
+            id: d.id || state.driverId,
+            name: [d.first_name, d.last_name].filter(Boolean).join(" ") || "Driver",
+            email: d.email || state.driverEmail || "",
+            phone: d.phone || "",
+            location: [d.city, d.state].filter(Boolean).join(", "),
+            vehicle: [d.vehicle_year, d.vehicle_make, d.vehicle_model].filter(Boolean).join(" "),
+            driverType: "Harvey Taxi Driver",
+            backgroundStatus: (readiness.checks && readiness.checks.checkr_ready) ? "Passed" : "Pending",
+            lastKnownAddress: el.driverAddress ? el.driverAddress.value : "",
             capabilities: { rides: true, food: true, grocery: true },
-            status: el.availStatus.value || "available",
-            mode: el.availMode.value || "driver",
-            completedCount: parseInt(el.statCompleted.textContent) || 142
+            status: d.online ? "available" : "offline",
+            mode: d.mode || "driver",
+            approved: readiness.ready === true,
+            completedCount: Number(d.total_trips || 0)
           };
-          
-          // Prefill Form elements on initialization
-          el.availStatus.value = state.driver.status;
-          el.availMode.value = state.driver.mode;
-          el.driverAddress.value = state.driver.lastKnownAddress;
+          if (el.availStatus) el.availStatus.value = state.driver.status;
+          if (el.availMode) el.availMode.value = state.driver.mode;
+        } catch (e) {
+          showMessage(el.globalMsg, "Could not load driver profile: " + e.message, "warn");
         }
-
-        // Periodic simulated dispatch offer generation (if available and clear)
-        if (!state.mission && state.driver.status === "available" && Math.random() > 0.35) {
-          const isLogisticsJob = Math.random() > 0.4;
-          const serviceType = isLogisticsJob ? (Math.random() > 0.5 ? "food" : "grocery") : "ride";
-          
-          state.mission = generateSimulatedMission(serviceType);
-          showMessage(el.globalMsg, `New incoming ${serviceType.toUpperCase()} offer payload pushed!`, "ok");
+        try {
+          const missionsResp = await apiGet(`/api/driver/${encodeURIComponent(state.driverId)}/missions`);
+          const missions = missionsResp.missions || [];
+          state.mission = missions.length ? normalizeMission(missions[0]) : null;
+        } catch (e) {
+          state.mission = null;
         }
-
+        try {
+          const earn = await apiGet(`/api/driver/${encodeURIComponent(state.driverId)}/earnings`);
+          state.earningsTotal = Number(earn.total_earnings || 0);
+          state.earnings = earn.records || [];
+        } catch (e) {
+          state.earningsTotal = 0;
+          state.earnings = [];
+        }
         syncStateToDOM();
         if (isManualRefresh) {
           showMessage(el.globalMsg, "Dashboard up to date.", "ok");
         }
-      }, 600);
-    }
-
-    function generateSimulatedMission(type) {
-      const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      if (type === "ride") {
-        return {
-          id: "msn_" + Math.random().toString(36).substring(2, 7),
-          type: "ride",
-          status: "offered",
-          payout: 24.50,
-          notes: "Passenger tracking active. ADA service animal certified.",
-          pickupAddress: "Bridgestone Arena (601 Broadway)",
-          dropoffAddress: "Gaylord Opryland Resort (2800 Opryland Dr)",
-          eta: "14 mins",
-          meta: { customer: "Sarah K.", rating: "4.92 ★" }
-        };
-      } else {
-        const isFood = type === "food";
-        return {
-          id: "msn_" + Math.random().toString(36).substring(2, 7),
-          type: type,
-          status: "offered",
-          payout: isFood ? 16.25 : 32.80,
-          notes: isFood ? "Insulated thermal courier bag required." : "Leave-at-door requested. Check substitution list.",
-          pickupAddress: isFood ? "Prince's Hot Chicken (5814 Nolensville Pk)" : "Whole Foods Market (1202 Broadway)",
-          dropoffAddress: isFood ? "12 South Residential Zone" : "Vanderbilt University Towers",
-          eta: isFood ? "22 mins" : "45 mins",
-          meta: { vendor: isFood ? "Prince's Hot Chicken" : "Whole Foods Hub", items: isFood ? "2 Items (Combo #3 Medium)" : "9 Items (Batch #A4)" }
-        };
+      } catch (err) {
+        showMessage(el.globalMsg, "Refresh failed: " + err.message, "err");
+      } finally {
+        state.isBusy = false;
       }
     }
+    function normalizeMission(ride) {
+      if (!ride) return null;
+      return {
+        id: ride.id || ride.ride_id || "",
+        rideId: ride.id || ride.ride_id || "",
+        serviceType: ride.ride_type || ride.service_type || "ride",
+        status: ride.status || "assigned",
+        pickup: ride.pickup || ride.pickup_address || "",
+        destination: ride.destination || ride.destination_address || "",
+        fare: Number(ride.fare || ride.estimate_total || 0),
+        raw: ride
+      };
+    }
+    // (simulated mission generator removed — dashboard now uses real dispatch data)
 
     // Dynamic Reactive Component Synchronization Engine
     function syncStateToDOM() {
@@ -1600,73 +1614,60 @@
     }
 
     // Comprehensive Lifecycle Workflow Engine
-    function executeWorkflowAction(action) {
+    async function executeWorkflowAction(action) {
       if (!state.mission) return;
-      
       const m = state.mission;
-      showMessage(el.missionMsg, `Registering logistics action: ${action.toUpperCase()}...`, "ok");
-
-      setTimeout(() => {
+      const driverId = state.driverId;
+      const rideId = m.rideId || m.id;
+      const offerId = m.offerId || m.id;
+      showMessage(el.missionMsg, `Submitting: ${action.toUpperCase()}...`, "ok");
+      try {
         switch (action) {
           case "reject":
+            await apiPost(`/api/driver/offers/${encodeURIComponent(offerId)}/decline`, { driver_id: driverId });
             state.mission = null;
-            if (state.driver) state.driver.status = "available";
-            showMessage(el.missionMsg, "Mission offer rejected. Re-entering standby pool.", "ok");
+            showMessage(el.missionMsg, "Offer declined. Back in the pool.", "ok");
             break;
-
           case "accept":
+            await apiPost(`/api/driver/offers/${encodeURIComponent(offerId)}/accept`, { driver_id: driverId });
             m.status = "accepted";
-            if (state.driver) state.driver.status = "busy";
-            showMessage(el.missionMsg, "Mission accepted. Complete transit tracking phases.", "ok");
+            showMessage(el.missionMsg, "Mission accepted.", "ok");
             break;
-
-          // Traditional Passenger Ride Lifecycles
           case "enroute":
-            m.status = "enroute";
-            showMessage(el.missionMsg, "Telemetry navigation routing to passenger pickup point.", "ok");
+          case "enroute_store":
+          case "enroute_customer":
+            await apiPost(`/api/driver/rides/${encodeURIComponent(rideId)}/enroute`, { driver_id: driverId });
+            m.status = action;
+            showMessage(el.missionMsg, "En route.", "ok");
             break;
           case "arrived":
-            m.status = "arrived";
-            showMessage(el.missionMsg, "Notification pushed to passenger. Standby timer activated.", "ok");
+          case "arrived_store":
+          case "arrived_customer":
+            await apiPost(`/api/driver/rides/${encodeURIComponent(rideId)}/arrived`, { driver_id: driverId });
+            m.status = action;
+            showMessage(el.missionMsg, "Marked arrived.", "ok");
             break;
           case "start":
+          case "picked_up":
+            await apiPost(`/api/driver/rides/${encodeURIComponent(rideId)}/start`, { driver_id: driverId });
             m.status = "started";
-            showMessage(el.missionMsg, "Trip tracking locked. In-transit liability coverage live.", "ok");
+            showMessage(el.missionMsg, "Trip started.", "ok");
             break;
           case "complete":
-            finalizeMissionPayout(m);
-            break;
-
-          // Multi-point Logistics Delivery Lifecycles
-          case "enroute_store":
-            m.status = "enroute_store";
-            showMessage(el.missionMsg, "Routing to vendor platform coordinate targets.", "ok");
-            break;
-          case "arrived_store":
-            m.status = "arrived_store";
-            showMessage(el.missionMsg, "Vendor check-in code submitted. Collect order contents.", "ok");
-            break;
-          case "picked_up":
-            m.status = "picked_up";
-            showMessage(el.missionMsg, "Cargo integrity confirmed. Routing to dropoff point.", "ok");
-            break;
-          case "enroute_customer":
-            m.status = "enroute_customer";
-            showMessage(el.missionMsg, "In transit to customer delivery address.", "ok");
-            break;
-          case "arrived_customer":
-            m.status = "arrived_customer";
-            showMessage(el.missionMsg, "Arrived at customer perimeter. Verify delivery drop location.", "ok");
-            break;
           case "complete_delivery":
-            finalizeMissionPayout(m);
+            await apiPost(`/api/driver/rides/${encodeURIComponent(rideId)}/complete`, { driver_id: driverId });
+            showMessage(el.missionMsg, "Trip completed.", "ok");
+            state.mission = null;
+            await fetchFreshDashboardState(false);
             break;
+          default:
+            showMessage(el.missionMsg, "Unknown action.", "warn");
         }
-
         syncStateToDOM();
-      }, 400);
+      } catch (err) {
+        showMessage(el.missionMsg, "Action failed: " + err.message, "err");
+      }
     }
-
     function finalizeMissionPayout(m) {
       // Commit mission transaction values directly to session balance ledger
       const jobReceipt = {
@@ -1689,33 +1690,43 @@
     }
 
     // Persistent Form Modifications Data Binding Layer
-    function handleSaveAvailabilityForm() {
+    async function handleSaveAvailabilityForm() {
       if (!state.driver) {
-        return showMessage(el.availMsg, "No driver loaded to associate availability modifications.", "err");
+        return showMessage(el.availMsg, "No driver loaded.", "err");
       }
-
-      state.driver.status = el.availStatus.value;
+      const targetStatus = el.availStatus.value;
+      state.driver.status = targetStatus;
       state.driver.mode = el.availMode.value;
-      state.driver.lastKnownAddress = el.driverAddress.value.trim() || "Metro Area";
-      
+      state.driver.lastKnownAddress = el.driverAddress.value.trim() || "";
       localStorage.setItem(STORAGE.lastAddress, state.driver.lastKnownAddress);
-      
-      showMessage(el.availMsg, "Availability configuration state committed.", "ok");
+      try {
+        await apiPost("/api/driver/status", {
+          driver_id: state.driverId,
+          online: targetStatus === "available"
+        });
+        showMessage(el.availMsg, "Availability saved.", "ok");
+      } catch (err) {
+        showMessage(el.availMsg, "Could not save availability: " + err.message, "err");
+      }
       syncStateToDOM();
     }
-
-    function quickUpdateAvailability(targetStatus) {
+    async function quickUpdateAvailability(targetStatus) {
       if (!state.driver) {
-        return showMessage(el.globalMsg, "Load profile before toggling availability layers.", "err");
+        return showMessage(el.globalMsg, "Load profile first.", "err");
       }
-      
       state.driver.status = targetStatus;
       el.availStatus.value = targetStatus;
-      
-      showMessage(el.globalMsg, `Telemetry status changed to ${targetStatus.toUpperCase()}`, "ok");
+      try {
+        await apiPost("/api/driver/status", {
+          driver_id: state.driverId,
+          online: targetStatus === "available"
+        });
+        showMessage(el.globalMsg, `Status: ${targetStatus.toUpperCase()}`, "ok");
+      } catch (err) {
+        showMessage(el.globalMsg, "Status update failed: " + err.message, "err");
+      }
       syncStateToDOM();
     }
-
     // DOM Utilities & Dynamic Output Printers
     function showMessage(targetBox, message, type = "ok") {
       if (!targetBox) return;
