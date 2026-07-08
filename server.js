@@ -140,6 +140,32 @@ const ADMIN_PASSWORD = env("ADMIN_PASSWORD", "");
 
 const ADMIN_API_TOKEN = env("ADMIN_API_TOKEN") || env("HARVEY_ADMIN_TOKEN");
 
+/* Admin session (HttpOnly cookie) config.
+
+   SESSION_SECRET falls back to ADMIN_API_TOKEN or ADMIN_PASSWORD so
+
+   sessions still work if a dedicated secret is not set, but setting a
+
+   dedicated ADMIN_SESSION_SECRET in Render is strongly recommended. */
+
+const ADMIN_SESSION_SECRET =
+
+  env("ADMIN_SESSION_SECRET") ||
+
+  env("SESSION_SECRET") ||
+
+  ADMIN_API_TOKEN ||
+
+  ADMIN_PASSWORD ||
+
+  "";
+
+const ADMIN_SESSION_COOKIE = "htaf_admin_session";
+
+const ADMIN_SESSION_TTL_HOURS =
+
+  envNumber("ADMIN_SESSION_TTL_HOURS", 12);
+
 const ENABLE_REAL_EMAIL = envBool("ENABLE_REAL_EMAIL", true);
 
 const ENABLE_REAL_SMS = envBool("ENABLE_REAL_SMS", false);
@@ -182,7 +208,19 @@ const REQUIRED_TABLES = [
 
   "audit_logs",
 
-  "system_flags"
+  "system_flags",
+
+  "verification_codes",
+
+  "driver_offers",
+
+  "driver_earnings",
+
+  "emergency_alerts",
+
+  "safety_reports",
+
+  "deliveries"
 
 ];
 
@@ -498,7 +536,7 @@ const RAW_WEBHOOK_PATHS = new Set([
 
 app.use((req, res, next) => {
 
-  if (RAW_WEBHOOK_PATHS.has(req.originalUrl)) {
+  if (RAW_WEBHOOK_PATHS.has(req.path)) {
 
     return next();
 
@@ -544,6 +582,126 @@ app.use(
 
 const memoryRateLimit = new Map();
 
+/* =========================================================
+
+   OPTIONAL REDIS (Upstash REST) FOR RATE LIMITING
+
+   Uses Upstash's REST API via fetch, so NO extra npm
+
+   dependency is required. If the env vars are absent, the
+
+   limiter transparently falls back to the in-memory Map
+
+   (single-instance behavior, unchanged from before).
+
+   Set in Render:
+
+     UPSTASH_REDIS_REST_URL
+
+     UPSTASH_REDIS_REST_TOKEN
+
+========================================================= */
+
+const UPSTASH_REDIS_REST_URL = env("UPSTASH_REDIS_REST_URL");
+
+const UPSTASH_REDIS_REST_TOKEN = env("UPSTASH_REDIS_REST_TOKEN");
+
+const REDIS_ENABLED =
+
+  Boolean(
+
+    UPSTASH_REDIS_REST_URL &&
+
+    UPSTASH_REDIS_REST_TOKEN
+
+  );
+
+if (REDIS_ENABLED) {
+
+  console.log("✅ Upstash Redis rate limiting active");
+
+} else {
+
+  console.warn("⚠️ Redis not configured — using in-memory rate limiter (single instance)");
+
+}
+
+/* Run a Redis command through the Upstash REST API.
+
+   Returns null on any failure so callers can fall back. */
+
+async function upstashCommand(args) {
+
+  if (!REDIS_ENABLED) return null;
+
+  try {
+
+    const response =
+
+      await fetch(UPSTASH_REDIS_REST_URL, {
+
+        method: "POST",
+
+        headers: {
+
+          Authorization:
+
+            `Bearer ${UPSTASH_REDIS_REST_TOKEN}`,
+
+          "Content-Type": "application/json"
+
+        },
+
+        body: JSON.stringify(args)
+
+      });
+
+    if (!response.ok) {
+
+      return null;
+
+    }
+
+    const json =
+
+      await response.json().catch(() => null);
+
+    return json?.result ?? null;
+
+  } catch {
+
+    return null;
+
+  }
+
+}
+
+/* Fixed-window counter in Redis: INCR then set EXPIRE on
+
+   first hit. Returns the current count, or null on failure. */
+
+async function redisRateHit(key, windowSeconds) {
+
+  const count =
+
+    await upstashCommand(["INCR", key]);
+
+  if (count === null) {
+
+    return null;
+
+  }
+
+  if (Number(count) === 1) {
+
+    await upstashCommand(["EXPIRE", key, String(windowSeconds)]);
+
+  }
+
+  return Number(count);
+
+}
+
 function getClientIp(req) {
 
   return (
@@ -572,11 +730,53 @@ function rateLimit({
 
 } = {}) {
 
-  return (req, res, next) => {
+  const windowSeconds =
+
+    Math.ceil(windowMs / 1000);
+
+  return async (req, res, next) => {
 
     const ip = getClientIp(req);
 
     const key = `${keyPrefix}:${ip}`;
+
+    // Try Redis first (scales across instances).
+
+    if (REDIS_ENABLED) {
+
+      const redisCount =
+
+        await redisRateHit(
+
+          `ratelimit:${key}`,
+
+          windowSeconds
+
+        );
+
+      if (redisCount !== null) {
+
+        if (redisCount > max) {
+
+          return fail(
+
+            res,
+
+            "Too many requests. Please wait and try again.",
+
+            429
+
+          );
+
+        }
+
+        return next();
+
+      }
+
+      // Redis failed this call — fall through to memory.
+
+    }
 
     const now = Date.now();
 
@@ -705,6 +905,110 @@ function asyncRoute(handler) {
     ).catch(next);
 
   };
+
+}
+
+/* =========================================================
+
+   CURSOR (KEYSET) PAGINATION
+
+   Encodes the last row's (created_at, id) into an opaque
+
+   base64 cursor. Keyset pagination stays fast no matter how
+
+   deep the list grows, unlike OFFSET. Backward compatible:
+
+   with no cursor, returns the first page and a next_cursor.
+
+========================================================= */
+
+function encodeCursor(row) {
+
+  if (!row) return null;
+
+  const payload = {
+
+    c: row.created_at,
+
+    i: row.id
+
+  };
+
+  return Buffer
+
+    .from(JSON.stringify(payload))
+
+    .toString("base64url");
+
+}
+
+function decodeCursor(cursor) {
+
+  if (!cursor) return null;
+
+  try {
+
+    const json =
+
+      Buffer
+
+        .from(String(cursor), "base64url")
+
+        .toString("utf8");
+
+    const parsed = JSON.parse(json);
+
+    if (!parsed || !parsed.c || !parsed.i) {
+
+      return null;
+
+    }
+
+    return { created_at: parsed.c, id: parsed.i };
+
+  } catch {
+
+    return null;
+
+  }
+
+}
+
+function getPageLimit(req, fallback = 50, cap = 200) {
+
+  const requested =
+
+    Number(req.query.limit);
+
+  if (!Number.isFinite(requested) || requested <= 0) {
+
+    return fallback;
+
+  }
+
+  return Math.min(Math.floor(requested), cap);
+
+}
+
+/* Applies descending keyset pagination to a Supabase query
+
+   on (created_at, id). Returns the modified query. */
+
+function applyCursor(query, cursor) {
+
+  if (!cursor) return query;
+
+  // created_at < cursor.created_at
+
+  //   OR (created_at = cursor.created_at AND id < cursor.id)
+
+  return query.or(
+
+    `created_at.lt.${cursor.created_at},` +
+
+    `and(created_at.eq.${cursor.created_at},id.lt.${cursor.id})`
+
+  );
 
 }
 
@@ -984,6 +1288,242 @@ async function requireUser(req, res, next) {
 
 }
 
+/* =========================================================
+
+   ADMIN SESSION (HttpOnly signed cookie)
+
+   Token format: base64url(payloadJson).hmacHex
+
+   payload = { sub, email, iat, exp }
+
+========================================================= */
+
+function base64UrlEncode(input) {
+
+  return Buffer.from(input)
+
+    .toString("base64")
+
+    .replace(/\+/g, "-")
+
+    .replace(/\//g, "_")
+
+    .replace(/=+$/, "");
+
+}
+
+function base64UrlDecode(input) {
+
+  const pad =
+
+    input.length % 4 === 0
+
+      ? ""
+
+      : "=".repeat(4 - (input.length % 4));
+
+  const normalized =
+
+    input.replace(/-/g, "+").replace(/_/g, "/") + pad;
+
+  return Buffer.from(normalized, "base64").toString("utf8");
+
+}
+
+function signAdminSession(email) {
+
+  if (!ADMIN_SESSION_SECRET) {
+
+    return "";
+
+  }
+
+  const now = Date.now();
+
+  const payload = {
+
+    sub: "htaf-admin",
+
+    email: cleanEmail(email) || cleanEmail(ADMIN_EMAIL),
+
+    iat: now,
+
+    exp: now + ADMIN_SESSION_TTL_HOURS * 60 * 60 * 1000
+
+  };
+
+  const encoded =
+
+    base64UrlEncode(JSON.stringify(payload));
+
+  const sig =
+
+    crypto
+
+      .createHmac("sha256", ADMIN_SESSION_SECRET)
+
+      .update(encoded)
+
+      .digest("hex");
+
+  return `${encoded}.${sig}`;
+
+}
+
+function verifyAdminSession(token) {
+
+  if (!token || !ADMIN_SESSION_SECRET) {
+
+    return null;
+
+  }
+
+  const parts = String(token).split(".");
+
+  if (parts.length !== 2) {
+
+    return null;
+
+  }
+
+  const [encoded, sig] = parts;
+
+  const expected =
+
+    crypto
+
+      .createHmac("sha256", ADMIN_SESSION_SECRET)
+
+      .update(encoded)
+
+      .digest("hex");
+
+  if (!timingSafeEqualString(sig, expected)) {
+
+    return null;
+
+  }
+
+  let payload = null;
+
+  try {
+
+    payload = JSON.parse(base64UrlDecode(encoded));
+
+  } catch {
+
+    return null;
+
+  }
+
+  if (!payload || typeof payload.exp !== "number") {
+
+    return null;
+
+  }
+
+  if (Date.now() > payload.exp) {
+
+    return null;
+
+  }
+
+  return payload;
+
+}
+
+function parseCookies(req) {
+
+  const header = req.headers.cookie || "";
+
+  const out = {};
+
+  header.split(";").forEach(part => {
+
+    const idx = part.indexOf("=");
+
+    if (idx === -1) return;
+
+    const key = part.slice(0, idx).trim();
+
+    const val = part.slice(idx + 1).trim();
+
+    if (key) {
+
+      out[key] = decodeURIComponent(val);
+
+    }
+
+  });
+
+  return out;
+
+}
+
+function readAdminSessionCookie(req) {
+
+  const cookies = parseCookies(req);
+
+  return verifyAdminSession(cookies[ADMIN_SESSION_COOKIE]);
+
+}
+
+function setAdminSessionCookie(res, token) {
+
+  const maxAge =
+
+    ADMIN_SESSION_TTL_HOURS * 60 * 60;
+
+  const attrs = [
+
+    `${ADMIN_SESSION_COOKIE}=${encodeURIComponent(token)}`,
+
+    "Path=/",
+
+    "HttpOnly",
+
+    "SameSite=Lax",
+
+    `Max-Age=${maxAge}`
+
+  ];
+
+  if (IS_PRODUCTION) {
+
+    attrs.push("Secure");
+
+  }
+
+  res.append("Set-Cookie", attrs.join("; "));
+
+}
+
+function clearAdminSessionCookie(res) {
+
+  const attrs = [
+
+    `${ADMIN_SESSION_COOKIE}=`,
+
+    "Path=/",
+
+    "HttpOnly",
+
+    "SameSite=Lax",
+
+    "Max-Age=0"
+
+  ];
+
+  if (IS_PRODUCTION) {
+
+    attrs.push("Secure");
+
+  }
+
+  res.append("Set-Cookie", attrs.join("; "));
+
+}
+
 function requireAdmin(req, res, next) {
 
   const headerToken =
@@ -1060,6 +1600,24 @@ function requireAdmin(req, res, next) {
 
   }
 
+  const session = readAdminSessionCookie(req);
+
+  if (session) {
+
+    req.admin = {
+
+      id: "session-admin",
+
+      email: session.email || ADMIN_EMAIL,
+
+      method: "admin_session"
+
+    };
+
+    return next();
+
+  }
+
   return fail(
 
     res,
@@ -1069,6 +1627,204 @@ function requireAdmin(req, res, next) {
     401
 
   );
+
+}
+
+/* =========================================================
+
+   DRIVER AUTH
+
+   Drivers are Supabase Auth users. We verify the bearer
+
+   token, then resolve the driver row by email (the field
+
+   stored at signup). The resolved row is attached as
+
+   req.driver so routes NEVER trust a client-supplied
+
+   driver_id. An admin token/session may also act on behalf
+
+   of a driver by passing driver_id (for ops tooling).
+
+========================================================= */
+
+async function requireDriver(req, res, next) {
+
+  try {
+
+    // Allow admin override for internal ops tooling.
+
+    const adminSession = readAdminSessionCookie(req);
+
+    const adminHeaderToken =
+
+      req.headers["x-admin-token"] ||
+
+      req.headers["x-harvey-admin-token"];
+
+    const isAdmin =
+
+      adminSession ||
+
+      (ADMIN_API_TOKEN &&
+
+        adminHeaderToken &&
+
+        timingSafeEqualString(
+
+          adminHeaderToken,
+
+          ADMIN_API_TOKEN
+
+        ));
+
+    if (isAdmin) {
+
+      const overrideId =
+
+        cleanString(
+
+          req.body?.driver_id ||
+
+            req.params?.driverId ||
+
+            req.query?.driver_id,
+
+          100
+
+        );
+
+      if (!overrideId) {
+
+        return fail(
+
+          res,
+
+          "Admin driver action requires driver_id.",
+
+          400
+
+        );
+
+      }
+
+      const { data: adminDriver, error: adminErr } =
+
+        await supabase
+
+          .from("drivers")
+
+          .select("*")
+
+          .eq("id", overrideId)
+
+          .single();
+
+      if (adminErr || !adminDriver) {
+
+        return fail(
+
+          res,
+
+          "Driver not found.",
+
+          404
+
+        );
+
+      }
+
+      req.driver = adminDriver;
+
+      req.driverAuthMethod = "admin_override";
+
+      return next();
+
+    }
+
+    const user =
+
+      await getUserFromRequest(req);
+
+    if (!user) {
+
+      return fail(
+
+        res,
+
+        "Driver authentication required.",
+
+        401
+
+      );
+
+    }
+
+    const email =
+
+      cleanEmail(user.email);
+
+    if (!email) {
+
+      return fail(
+
+        res,
+
+        "Authenticated account has no email on file.",
+
+        403
+
+      );
+
+    }
+
+    const { data: driver, error } =
+
+      await supabase
+
+        .from("drivers")
+
+        .select("*")
+
+        .eq("email", email)
+
+        .single();
+
+    if (error || !driver) {
+
+      return fail(
+
+        res,
+
+        "No driver profile is linked to this account.",
+
+        403
+
+      );
+
+    }
+
+    req.driver = driver;
+
+    req.user = user;
+
+    req.driverAuthMethod = "supabase_user";
+
+    return next();
+
+  } catch (err) {
+
+    return fail(
+
+      res,
+
+      "Driver authorization failed.",
+
+      401
+
+    );
+
+  }
 
 }
 
@@ -1380,15 +2136,15 @@ function haversineMiles(
 
 const BASE_FARE = envNumber("BASE_FARE", 5);
 
-const PER_MILE_RATE = envNumber("PER_MILE_RATE", 2.25);
+const PER_MILE_RATE = envNumber("PER_MILE_RATE", 0.90);
 
 const PER_MINUTE_RATE = envNumber("PER_MINUTE_RATE", 0.35);
 
-const BOOKING_FEE = envNumber("BOOKING_FEE", 2.5);
+const BOOKING_FEE = envNumber("BOOKING_FEE", 2.00);
 
 const MINIMUM_FARE = envNumber("MINIMUM_FARE", 8);
 
-const DRIVER_PAYOUT_PERCENT = envNumber("DRIVER_PAYOUT_PERCENT", 0.78);
+const DRIVER_PAYOUT_PERCENT = envNumber("DRIVER_PAYOUT_PERCENT", 0.70);
 
 function calculateRideEstimate({
 
@@ -1612,21 +2368,101 @@ async function inspectHtafSchema() {
 
       : null;
 
-    const knownColumns = sample
+    let knownColumns;
 
-      ? Object.keys(sample)
+    let missing;
 
-      : HTAF_REQUIRED_COLUMNS;
+    if (sample) {
 
-    const missing = sample
+      // A row exists: its keys are authoritative.
 
-      ? HTAF_REQUIRED_COLUMNS.filter(
+      knownColumns = Object.keys(sample);
 
-          (column) => !knownColumns.includes(column)
+      missing = HTAF_REQUIRED_COLUMNS.filter(
 
-        )
+        (column) => !knownColumns.includes(column)
 
-      : [];
+      );
+
+    } else {
+
+      // Empty table: we cannot infer columns from a row, so
+
+      // verify each required column directly. PostgREST returns
+
+      // an error (code 42703) naming any column that does not
+
+      // exist, letting us detect real absence rather than
+
+      // assuming the schema is correct.
+
+      const columnCheck =
+
+        await supabase
+
+          .from("htaf_applications")
+
+          .select(
+
+            HTAF_REQUIRED_COLUMNS.join(",")
+
+          )
+
+          .limit(1);
+
+      if (columnCheck.error) {
+
+        // Try to extract the offending column name from the
+
+        // error; fall back to marking all as unverified.
+
+        const msg =
+
+          columnCheck.error.message || "";
+
+        const named =
+
+          HTAF_REQUIRED_COLUMNS.filter(
+
+            (column) =>
+
+              msg.includes(`'${column}'`) ||
+
+              msg.includes(`"${column}"`) ||
+
+              msg.includes(` ${column} `)
+
+          );
+
+        missing =
+
+          named.length
+
+            ? named
+
+            : [...HTAF_REQUIRED_COLUMNS];
+
+        knownColumns =
+
+          HTAF_REQUIRED_COLUMNS.filter(
+
+            (c) => !missing.includes(c)
+
+          );
+
+      } else {
+
+        // The explicit select of all required columns succeeded
+
+        // against an empty table, which confirms they all exist.
+
+        knownColumns = [...HTAF_REQUIRED_COLUMNS];
+
+        missing = [];
+
+      }
+
+    }
 
     htafSchemaStatus = {
 
@@ -1637,6 +2473,8 @@ async function inspectHtafSchema() {
       missing,
 
       columns: knownColumns,
+
+      empty_table: !sample,
 
       checked_at: nowIso()
 
@@ -2392,6 +3230,174 @@ app.get(
 
 /* =========================================================
 
+   ADMIN AUTH — LOGIN / LOGOUT / SESSION
+
+   Sets an HttpOnly signed session cookie so no admin
+
+   credential or token needs to live in browser storage.
+
+========================================================= */
+
+app.post(
+
+  "/api/admin/login",
+
+  asyncRoute(async (req, res) => {
+
+    if (!ADMIN_SESSION_SECRET) {
+
+      return fail(
+
+        res,
+
+        "Admin sessions are not configured on the server. Set ADMIN_SESSION_SECRET (or ADMIN_API_TOKEN) in the environment.",
+
+        500
+
+      );
+
+    }
+
+    if (!ADMIN_PASSWORD) {
+
+      return fail(
+
+        res,
+
+        "Admin password login is not configured on the server. Set ADMIN_PASSWORD in the environment.",
+
+        500
+
+      );
+
+    }
+
+    const email =
+
+      cleanEmail(req.body?.email);
+
+    const password =
+
+      String(req.body?.password || "");
+
+    const emailOk =
+
+      email === cleanEmail(ADMIN_EMAIL);
+
+    const passwordOk =
+
+      timingSafeEqualString(password, ADMIN_PASSWORD);
+
+    if (!emailOk || !passwordOk) {
+
+      await auditLog({
+
+        actor_type: "admin",
+
+        actor_id: email || "unknown",
+
+        action: "admin_login_failed"
+
+      });
+
+      return fail(
+
+        res,
+
+        "Invalid admin email or password.",
+
+        401
+
+      );
+
+    }
+
+    const token = signAdminSession(email);
+
+    setAdminSessionCookie(res, token);
+
+    await auditLog({
+
+      actor_type: "admin",
+
+      actor_id: email,
+
+      action: "admin_login_success"
+
+    });
+
+    return ok(res, {
+
+      admin: {
+
+        email,
+
+        expiresInHours: ADMIN_SESSION_TTL_HOURS
+
+      }
+
+    });
+
+  })
+
+);
+
+app.post(
+
+  "/api/admin/logout",
+
+  asyncRoute(async (req, res) => {
+
+    clearAdminSessionCookie(res);
+
+    return ok(res, {
+
+      loggedOut: true
+
+    });
+
+  })
+
+);
+
+app.get(
+
+  "/api/admin/session",
+
+  asyncRoute(async (req, res) => {
+
+    const session = readAdminSessionCookie(req);
+
+    if (!session) {
+
+      return ok(res, {
+
+        authenticated: false
+
+      });
+
+    }
+
+    return ok(res, {
+
+      authenticated: true,
+
+      admin: {
+
+        email: session.email,
+
+        expiresAt: session.exp
+
+      }
+
+    });
+
+  })
+
+);
+
+/* =========================================================
+
    HTAF ADMIN LIST
 
 ========================================================= */
@@ -2414,6 +3420,22 @@ app.get(
 
       );
 
+    const limit =
+
+      getPageLimit(
+
+        req,
+
+        envNumber("ADMIN_LIST_LIMIT", 200),
+
+        500
+
+      );
+
+    const cursor =
+
+      decodeCursor(req.query.cursor);
+
     let query =
 
       supabase
@@ -2428,7 +3450,17 @@ app.get(
 
           { ascending: false }
 
-        );
+        )
+
+        .order(
+
+          "id",
+
+          { ascending: false }
+
+        )
+
+        .limit(limit);
 
     if (status) {
 
@@ -2444,6 +3476,8 @@ app.get(
 
     }
 
+    query = applyCursor(query, cursor);
+
     const { data, error } =
 
       await query;
@@ -2454,11 +3488,31 @@ app.get(
 
     }
 
+    const rows = data || [];
+
+    const next_cursor =
+
+      rows.length === limit
+
+        ? encodeCursor(rows[rows.length - 1])
+
+        : null;
+
     return ok(res, {
 
       applications:
 
-        data || []
+        rows,
+
+      page: {
+
+        limit,
+
+        count: rows.length,
+
+        next_cursor
+
+      }
 
     });
 
@@ -4918,41 +5972,11 @@ app.post(
 
   "/api/checkr/start",
 
+  requireDriver,
+
   asyncRoute(async (req, res) => {
 
-    const missing =
-
-      requireBody(req, [
-
-        "driver_id"
-
-      ]);
-
-    if (missing.length) {
-
-      return fail(
-
-        res,
-
-        "Missing driver_id.",
-
-        400,
-
-        { missing }
-
-      );
-
-    }
-
-    const driverId =
-
-      cleanString(
-
-        req.body.driver_id,
-
-        100
-
-      );
+    const driverId = req.driver.id;
 
     const { data: driver, error } =
 
@@ -5656,9 +6680,107 @@ async function findAvailableDrivers({
 
   radius_miles = envNumber("DRIVER_SEARCH_RADIUS_MILES", 25),
 
-  limit = envNumber("MAX_DISPATCH_ATTEMPTS", 5)
+  limit = envNumber("MAX_DISPATCH_ATTEMPTS", 5),
+
+  exclude_driver_ids = []
 
 }) {
+
+  const excludeSet =
+
+    new Set(
+
+      (exclude_driver_ids || [])
+
+        .filter(Boolean)
+
+        .map(String)
+
+    );
+
+  // Preferred path: PostGIS RPC does the distance filter in the
+
+  // database and returns only the nearest drivers. Requires the
+
+  // nearest_drivers() function from the scalability migration.
+
+  // If the RPC is absent or errors, we fall back to the original
+
+  // in-Node calculation so dispatch never breaks.
+
+  if (
+
+    Number.isFinite(Number(pickup_lat)) &&
+
+    Number.isFinite(Number(pickup_lng))
+
+  ) {
+
+    try {
+
+      const { data: rpcData, error: rpcError } =
+
+        await supabase.rpc("nearest_drivers", {
+
+          p_lat: Number(pickup_lat),
+
+          p_lng: Number(pickup_lng),
+
+          p_radius_miles: Number(radius_miles),
+
+          p_limit: Number(limit) + excludeSet.size + 5
+
+        });
+
+      if (!rpcError && Array.isArray(rpcData)) {
+
+        return rpcData
+
+          .filter(
+
+            (d) => !excludeSet.has(String(d.id))
+
+          )
+
+          .map((d) => ({
+
+            ...d,
+
+            distance_miles:
+
+              d.distance_miles ??
+
+              (d.distance_meters
+
+                ? Number(
+
+                    (d.distance_meters / 1609.34).toFixed(2)
+
+                  )
+
+                : null)
+
+          }))
+
+          .slice(0, limit);
+
+      }
+
+    } catch (rpcErr) {
+
+      console.warn(
+
+        "⚠️ nearest_drivers RPC unavailable, using Node fallback:",
+
+        rpcErr.message
+
+      );
+
+    }
+
+  }
+
+  // Fallback: original in-Node distance computation.
 
   const { data, error } =
 
@@ -5683,6 +6805,8 @@ async function findAvailableDrivers({
   }
 
   return (data || [])
+
+    .filter((driver) => !excludeSet.has(String(driver.id)))
 
     .map((driver) => {
 
@@ -5866,6 +6990,46 @@ async function createDriverOffer({
 
 async function dispatchRide(ride) {
 
+  // Exclude drivers who already received an offer for this ride
+
+  // (declined, expired, or still pending) so we never re-offer
+
+  // the same ride to a driver who already saw it.
+
+  let excludeDriverIds = [];
+
+  try {
+
+    const { data: priorOffers } =
+
+      await supabase
+
+        .from("driver_offers")
+
+        .select("driver_id")
+
+        .eq("ride_id", ride.id);
+
+    excludeDriverIds =
+
+      (priorOffers || [])
+
+        .map((o) => o.driver_id)
+
+        .filter(Boolean);
+
+  } catch (offerLookupErr) {
+
+    console.warn(
+
+      "⚠️ Could not load prior offers for redispatch exclusion:",
+
+      offerLookupErr.message
+
+    );
+
+  }
+
   const drivers =
 
     await findAvailableDrivers({
@@ -5876,7 +7040,11 @@ async function dispatchRide(ride) {
 
       pickup_lng:
 
-        ride.pickup_lng
+        ride.pickup_lng,
+
+      exclude_driver_ids:
+
+        excludeDriverIds
 
     });
 
@@ -5917,6 +7085,94 @@ async function dispatchRide(ride) {
   const firstDriver =
 
     drivers[0];
+
+  // Preferred path: single atomic RPC creates the offer AND
+
+  // updates the ride under a row lock, so two concurrent
+
+  // dispatch attempts cannot race or overwrite each other.
+
+  // Requires dispatch_ride_atomic() from the scalability
+
+  // migration. Falls back to the two-step flow if absent.
+
+  try {
+
+    const { data: rpcResult, error: rpcError } =
+
+      await supabase.rpc("dispatch_ride_atomic", {
+
+        p_ride_id: ride.id,
+
+        p_driver_id: firstDriver.id,
+
+        p_expires_seconds:
+
+          envNumber("DISPATCH_TIMEOUT_SECONDS", 30)
+
+      });
+
+    if (!rpcError && rpcResult) {
+
+      const result =
+
+        Array.isArray(rpcResult)
+
+          ? rpcResult[0]
+
+          : rpcResult;
+
+      if (result && result.offer_id) {
+
+        return {
+
+          dispatched: true,
+
+          offer: {
+
+            id: result.offer_id,
+
+            ride_id: ride.id,
+
+            driver_id: firstDriver.id
+
+          },
+
+          driver: firstDriver,
+
+          atomic: true
+
+        };
+
+      }
+
+    }
+
+    if (rpcError) {
+
+      console.warn(
+
+        "⚠️ dispatch_ride_atomic RPC unavailable, using two-step fallback:",
+
+        rpcError.message
+
+      );
+
+    }
+
+  } catch (rpcErr) {
+
+    console.warn(
+
+      "⚠️ dispatch_ride_atomic threw, using two-step fallback:",
+
+      rpcErr.message
+
+    );
+
+  }
+
+  // Fallback: original non-atomic two-step flow.
 
   const offer =
 
@@ -6740,6 +7996,216 @@ app.post(
 
       );
 
+    if (!paymentIntentId) {
+
+      return fail(
+
+        res,
+
+        "A payment_intent_id is required to authorize this ride.",
+
+        400
+
+      );
+
+    }
+
+    /* ---- Stripe verification ----
+
+       Never trust a client-supplied intent id. Retrieve it and
+
+       confirm it is genuinely authorized, matches this ride's
+
+       fare, and is not already bound to a different ride. */
+
+    if (stripe) {
+
+      let intent;
+
+      try {
+
+        intent =
+
+          await stripe.paymentIntents.retrieve(paymentIntentId);
+
+      } catch (stripeErr) {
+
+        console.error(
+
+          "❌ PaymentIntent retrieve failed:",
+
+          stripeErr.message
+
+        );
+
+        return fail(
+
+          res,
+
+          "Payment could not be verified with Stripe.",
+
+          402
+
+        );
+
+      }
+
+      // Must be authorized (manual capture) or already captured.
+
+      const authorizedStatuses = new Set([
+
+        "requires_capture",
+
+        "succeeded"
+
+      ]);
+
+      if (!authorizedStatuses.has(intent.status)) {
+
+        return fail(
+
+          res,
+
+          `Payment is not authorized (status: ${intent.status}).`,
+
+          402
+
+        );
+
+      }
+
+      // Amount must match the ride's fare (in cents).
+
+      const expectedCents =
+
+        Math.round(Number(ride.estimate_total || 0) * 100);
+
+      if (
+
+        expectedCents > 0 &&
+
+        Number(intent.amount) !== expectedCents
+
+      ) {
+
+        return fail(
+
+          res,
+
+          "Payment amount does not match the ride fare.",
+
+          402,
+
+          IS_PRODUCTION
+
+            ? {}
+
+            : {
+
+                expected_cents: expectedCents,
+
+                intent_cents: intent.amount
+
+              }
+
+        );
+
+      }
+
+      // Must not already belong to a different ride.
+
+      const boundRide =
+
+        intent.metadata?.ride_id;
+
+      if (
+
+        boundRide &&
+
+        boundRide !== rideId
+
+      ) {
+
+        return fail(
+
+          res,
+
+          "This payment is already associated with another ride.",
+
+          409
+
+        );
+
+      }
+
+      // Optional: confirm the intent's rider matches the ride's rider.
+
+      const intentRider =
+
+        intent.metadata?.rider_id;
+
+      if (
+
+        intentRider &&
+
+        ride.rider_id &&
+
+        intentRider !== String(ride.rider_id)
+
+      ) {
+
+        return fail(
+
+          res,
+
+          "This payment does not belong to this rider.",
+
+          403
+
+        );
+
+      }
+
+      // Bind the intent to this ride so it can't be reused elsewhere.
+
+      if (boundRide !== rideId) {
+
+        try {
+
+          await stripe.paymentIntents.update(
+
+            paymentIntentId,
+
+            {
+
+              metadata: {
+
+                ...(intent.metadata || {}),
+
+                ride_id: rideId
+
+              }
+
+            }
+
+          );
+
+        } catch (bindErr) {
+
+          console.warn(
+
+            "⚠️ Could not bind ride_id to intent:",
+
+            bindErr.message
+
+          );
+
+        }
+
+      }
+
+    }
+
     await supabase
 
       .from("rides")
@@ -6852,6 +8318,8 @@ app.post(
 
   "/api/driver/offers/:offerId/accept",
 
+  requireDriver,
+
   asyncRoute(async (req, res) => {
 
     const offerId =
@@ -6864,15 +8332,7 @@ app.post(
 
       );
 
-    const driverId =
-
-      cleanString(
-
-        req.body.driver_id,
-
-        100
-
-      );
+    const driverId = req.driver.id;
 
     const { data: offer, error } =
 
@@ -7053,6 +8513,8 @@ app.post(
 app.post(
 
   "/api/driver/offers/:offerId/decline",
+
+  requireDriver,
 
   asyncRoute(async (req, res) => {
 
@@ -7372,6 +8834,8 @@ app.post(
 
   "/api/driver/rides/:rideId/enroute",
 
+  requireDriver,
+
   asyncRoute(async (req, res) => {
 
     const rideId =
@@ -7384,15 +8848,7 @@ app.post(
 
       );
 
-    const driverId =
-
-      cleanString(
-
-        req.body.driver_id,
-
-        100
-
-      );
+    const driverId = req.driver.id;
 
     const ride =
 
@@ -7480,6 +8936,8 @@ app.post(
 
   "/api/driver/rides/:rideId/arrived",
 
+  requireDriver,
+
   asyncRoute(async (req, res) => {
 
     const rideId =
@@ -7492,15 +8950,7 @@ app.post(
 
       );
 
-    const driverId =
-
-      cleanString(
-
-        req.body.driver_id,
-
-        100
-
-      );
+    const driverId = req.driver.id;
 
     const ride =
 
@@ -7588,6 +9038,8 @@ app.post(
 
   "/api/driver/rides/:rideId/start",
 
+  requireDriver,
+
   asyncRoute(async (req, res) => {
 
     const rideId =
@@ -7600,15 +9052,7 @@ app.post(
 
       );
 
-    const driverId =
-
-      cleanString(
-
-        req.body.driver_id,
-
-        100
-
-      );
+    const driverId = req.driver.id;
 
     const ride =
 
@@ -7824,6 +9268,8 @@ app.post(
 
   "/api/driver/rides/:rideId/complete",
 
+  requireDriver,
+
   asyncRoute(async (req, res) => {
 
     const rideId =
@@ -7836,15 +9282,7 @@ app.post(
 
       );
 
-    const driverId =
-
-      cleanString(
-
-        req.body.driver_id,
-
-        100
-
-      );
+    const driverId = req.driver.id;
 
     const ride =
 
@@ -7966,17 +9404,11 @@ app.post(
 
   "/api/driver/location",
 
+  requireDriver,
+
   asyncRoute(async (req, res) => {
 
-    const driverId =
-
-      cleanString(
-
-        req.body.driver_id,
-
-        100
-
-      );
+    const driverId = req.driver.id;
 
     if (!driverId) {
 
@@ -8048,17 +9480,11 @@ app.post(
 
   "/api/driver/status",
 
+  requireDriver,
+
   asyncRoute(async (req, res) => {
 
-    const driverId =
-
-      cleanString(
-
-        req.body.driver_id,
-
-        100
-
-      );
+    const driverId = req.driver.id;
 
     if (!driverId) {
 
@@ -8140,17 +9566,11 @@ app.get(
 
   "/api/driver/:driverId/missions",
 
+  requireDriver,
+
   asyncRoute(async (req, res) => {
 
-    const driverId =
-
-      cleanString(
-
-        req.params.driverId,
-
-        100
-
-      );
+    const driverId = req.driver.id;
 
     const { data, error } =
 
@@ -8208,17 +9628,11 @@ app.get(
 
   "/api/driver/:driverId/history",
 
+  requireDriver,
+
   asyncRoute(async (req, res) => {
 
-    const driverId =
-
-      cleanString(
-
-        req.params.driverId,
-
-        100
-
-      );
+    const driverId = req.driver.id;
 
     const { data, error } =
 
@@ -8268,17 +9682,11 @@ app.get(
 
   "/api/driver/:driverId/earnings",
 
+  requireDriver,
+
   asyncRoute(async (req, res) => {
 
-    const driverId =
-
-      cleanString(
-
-        req.params.driverId,
-
-        100
-
-      );
+    const driverId = req.driver.id;
 
     const { data, error } =
 
@@ -8482,6 +9890,34 @@ app.get(
 
 ========================================================= */
 
+/* =========================================================
+
+   ADMIN OVERVIEW CACHE
+
+   Exact table counts get expensive as data grows. Cache the
+
+   assembled overview for a short TTL so repeated admin polls
+
+   don't re-run six exact counts each time. In-memory (per
+
+   instance) — acceptable for admin metrics; move to Redis if
+
+   you later need it shared across instances.
+
+========================================================= */
+
+const OVERVIEW_CACHE_TTL_MS =
+
+  envNumber("OVERVIEW_CACHE_TTL_SECONDS", 60) * 1000;
+
+let overviewCache = {
+
+  data: null,
+
+  expiresAt: 0
+
+};
+
 async function safeCount(table) {
 
   try {
@@ -8546,6 +9982,50 @@ app.get(
 
   asyncRoute(async (req, res) => {
 
+    const forceRefresh =
+
+      ["1", "true", "yes"].includes(
+
+        String(req.query.refresh || "").toLowerCase()
+
+      );
+
+    const now = Date.now();
+
+    if (
+
+      !forceRefresh &&
+
+      overviewCache.data &&
+
+      now < overviewCache.expiresAt
+
+    ) {
+
+      return ok(res, {
+
+        overview: {
+
+          ...overviewCache.data,
+
+          server_time:
+
+            nowIso(),
+
+          environment:
+
+            NODE_ENV,
+
+          cached:
+
+            true
+
+        }
+
+      });
+
+    }
+
     const results =
 
       await Promise.all([
@@ -8590,6 +10070,14 @@ app.get(
 
       );
 
+    overviewCache = {
+
+      data: overview,
+
+      expiresAt: now + OVERVIEW_CACHE_TTL_MS
+
+    };
+
     return ok(res, {
 
       overview: {
@@ -8602,7 +10090,11 @@ app.get(
 
         environment:
 
-          NODE_ENV
+          NODE_ENV,
+
+        cached:
+
+          false
 
       }
 
@@ -8636,6 +10128,22 @@ app.get(
 
       );
 
+    const limit =
+
+      getPageLimit(
+
+        req,
+
+        envNumber("ADMIN_LIST_LIMIT", 200),
+
+        500
+
+      );
+
+    const cursor =
+
+      decodeCursor(req.query.cursor);
+
     let query =
 
       supabase
@@ -8650,17 +10158,13 @@ app.get(
 
         })
 
-        .limit(
+        .order("id", {
 
-          envNumber(
+          ascending: false
 
-            "ADMIN_LIST_LIMIT",
+        })
 
-            200
-
-          )
-
-        );
+        .limit(limit);
 
     if (status) {
 
@@ -8676,6 +10180,8 @@ app.get(
 
     }
 
+    query = applyCursor(query, cursor);
+
     const { data, error } =
 
       await query;
@@ -8686,11 +10192,31 @@ app.get(
 
     }
 
+    const rows = data || [];
+
+    const next_cursor =
+
+      rows.length === limit
+
+        ? encodeCursor(rows[rows.length - 1])
+
+        : null;
+
     return ok(res, {
 
       rides:
 
-        data || []
+        rows,
+
+      page: {
+
+        limit,
+
+        count: rows.length,
+
+        next_cursor
+
+      }
 
     });
 
@@ -9036,6 +10562,22 @@ app.get(
 
       );
 
+    const limit =
+
+      getPageLimit(
+
+        req,
+
+        envNumber("ADMIN_LIST_LIMIT", 200),
+
+        500
+
+      );
+
+    const cursor =
+
+      decodeCursor(req.query.cursor);
+
     let query =
 
       supabase
@@ -9050,17 +10592,13 @@ app.get(
 
         })
 
-        .limit(
+        .order("id", {
 
-          envNumber(
+          ascending: false
 
-            "ADMIN_LIST_LIMIT",
+        })
 
-            200
-
-          )
-
-        );
+        .limit(limit);
 
     if (status) {
 
@@ -9076,6 +10614,8 @@ app.get(
 
     }
 
+    query = applyCursor(query, cursor);
+
     const { data, error } =
 
       await query;
@@ -9086,11 +10626,31 @@ app.get(
 
     }
 
+    const rows = data || [];
+
+    const next_cursor =
+
+      rows.length === limit
+
+        ? encodeCursor(rows[rows.length - 1])
+
+        : null;
+
     return ok(res, {
 
       drivers:
 
-        data || []
+        rows,
+
+      page: {
+
+        limit,
+
+        count: rows.length,
+
+        next_cursor
+
+      }
 
     });
 
@@ -9122,6 +10682,22 @@ app.get(
 
       );
 
+    const limit =
+
+      getPageLimit(
+
+        req,
+
+        envNumber("ADMIN_LIST_LIMIT", 200),
+
+        500
+
+      );
+
+    const cursor =
+
+      decodeCursor(req.query.cursor);
+
     let query =
 
       supabase
@@ -9136,17 +10712,13 @@ app.get(
 
         })
 
-        .limit(
+        .order("id", {
 
-          envNumber(
+          ascending: false
 
-            "ADMIN_LIST_LIMIT",
+        })
 
-            200
-
-          )
-
-        );
+        .limit(limit);
 
     if (status) {
 
@@ -9162,6 +10734,8 @@ app.get(
 
     }
 
+    query = applyCursor(query, cursor);
+
     const { data, error } =
 
       await query;
@@ -9172,11 +10746,31 @@ app.get(
 
     }
 
+    const rows = data || [];
+
+    const next_cursor =
+
+      rows.length === limit
+
+        ? encodeCursor(rows[rows.length - 1])
+
+        : null;
+
     return ok(res, {
 
       riders:
 
-        data || []
+        rows,
+
+      page: {
+
+        limit,
+
+        count: rows.length,
+
+        next_cursor
+
+      }
 
     });
 
@@ -9560,9 +11154,25 @@ app.get(
 
   asyncRoute(async (req, res) => {
 
-    const { data, error } =
+    const limit =
 
-      await supabase
+      getPageLimit(
+
+        req,
+
+        envNumber("AUDIT_LOG_LIMIT", 300),
+
+        500
+
+      );
+
+    const cursor =
+
+      decodeCursor(req.query.cursor);
+
+    let query =
+
+      supabase
 
         .from("audit_logs")
 
@@ -9574,17 +11184,19 @@ app.get(
 
         })
 
-        .limit(
+        .order("id", {
 
-          envNumber(
+          ascending: false
 
-            "AUDIT_LOG_LIMIT",
+        })
 
-            300
+        .limit(limit);
 
-          )
+    query = applyCursor(query, cursor);
 
-        );
+    const { data, error } =
+
+      await query;
 
     if (error) {
 
@@ -9592,11 +11204,31 @@ app.get(
 
     }
 
+    const rows = data || [];
+
+    const next_cursor =
+
+      rows.length === limit
+
+        ? encodeCursor(rows[rows.length - 1])
+
+        : null;
+
     return ok(res, {
 
       logs:
 
-        data || []
+        rows,
+
+      page: {
+
+        limit,
+
+        count: rows.length,
+
+        next_cursor
+
+      }
 
     });
 
