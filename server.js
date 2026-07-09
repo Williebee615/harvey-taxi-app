@@ -13260,6 +13260,58 @@ app.get(
 
 ========================================================= */
 
+/* Safe, read-only status lookups for Harvey AI.
+
+   Returns ONLY non-sensitive status fields — never names,
+
+   emails, phones, addresses, or any personal data. Used to
+
+   let the AI answer "what's the status of HTAF-XXXX?" without
+
+   exposing anything private. */
+
+async function aiLookupHtafStatus(code) {
+
+  const clean = cleanString(code, 80);
+
+  if (!clean) return null;
+
+  const { data, error } =
+
+    await supabase
+
+      .from("htaf_applications")
+
+      .select("application_code, status, program_type, created_at, updated_at")
+
+      .eq("application_code", clean)
+
+      .maybeSingle();
+
+  if (error || !data) return null;
+
+  return data;
+
+}
+
+/* Detects an application code like HTAF-YYYYMMDD-XXXXXX in the
+
+   user's message so the AI can offer a real status. */
+
+function extractHtafCode(text) {
+
+  const match =
+
+    String(text || "")
+
+      .toUpperCase()
+
+      .match(/HTAF-\d{8}-[A-Z0-9]{4,8}/);
+
+  return match ? match[0] : null;
+
+}
+
 app.post(
 
   "/api/ai/support",
@@ -13312,6 +13364,46 @@ app.post(
 
       );
 
+    // Level 1: conversation memory. The frontend sends the
+
+    // recent turns as history: [{role:"user"|"assistant", content}].
+
+    // We cap it to the last 10 turns to control token cost.
+
+    const rawHistory =
+
+      Array.isArray(req.body.history)
+
+        ? req.body.history
+
+        : [];
+
+    const history =
+
+      rawHistory
+
+        .slice(-10)
+
+        .filter(
+
+          (m) =>
+
+            m &&
+
+            (m.role === "user" || m.role === "assistant") &&
+
+            typeof m.content === "string"
+
+        )
+
+        .map((m) => ({
+
+          role: m.role,
+
+          content: cleanString(m.content, 4000)
+
+        }));
+
     if (!message) {
 
       return fail(
@@ -13343,6 +13435,52 @@ app.post(
           SUPPORT_EMAIL
 
       });
+
+    }
+
+    // Level 3: safe read-only status lookup. If the user's
+
+    // message contains an HTAF application code, fetch its
+
+    // non-sensitive status and give it to the model as context.
+
+    let lookupContext = "";
+
+    const htafCode =
+
+      extractHtafCode(message);
+
+    if (htafCode) {
+
+      const status =
+
+        await aiLookupHtafStatus(htafCode);
+
+      if (status) {
+
+        lookupContext =
+
+          `\n\n== LIVE LOOKUP RESULT (verified from database, safe to share) ==\n` +
+
+          `Application ${status.application_code}: status "${status.status}", ` +
+
+          `program "${status.program_type}", ` +
+
+          `submitted ${String(status.created_at).slice(0, 10)}, ` +
+
+          `last updated ${String(status.updated_at).slice(0, 10)}. ` +
+
+          `Explain this status plainly. Do NOT promise approval or a timeline.`;
+
+      } else {
+
+        lookupContext =
+
+          `\n\n== LIVE LOOKUP RESULT ==\n` +
+
+          `No application was found for code ${htafCode}. Ask the person to double-check the code, or direct them to support.`;
+
+      }
 
     }
 
@@ -13396,15 +13534,25 @@ app.post(
                   "1. Answer only from the information above; never invent eligibility, prices, timelines, hours, phone numbers, or policies.",
                   "2. Never promise approval, a ride, a price, a wait time, or eligibility.",
                   "3. Never collect sensitive data in chat (SSN, full card numbers, passwords, detailed medical info); direct people to the secure application or support.",
-                  "4. You have no access to any individual's account, application, payment, or dispute records; say so and direct them to support at support@harveytaxiservice.com.",
+                  "4. You can check the STATUS of an HTAF application only when the person provides its application code (format HTAF-XXXXXXXX-XXXX) and a live lookup result is included below. You have NO access to accounts, payments, disputes, personal details, driver files, or anything not explicitly given to you. For anything beyond a provided HTAF status lookup, direct people to support at support@harveytaxiservice.com.",
                   "5. Stay in scope (Harvey Taxi and HTAF only); politely redirect unrelated questions.",
                   "6. For any medical emergency or immediate danger, tell the person to call 911. You are not an emergency service.",
-                  "7. Be warm, plain, and brief. Many users are seniors, veterans, or people in difficult circumstances — short sentences, no jargon, kindness first.",
-                  "8. Never reveal internal operations, admin procedures, or system details."
-                ].join("\n")
+                  "7. Be warm, plain, and brief. Many users are seniors, veterans, or people in difficult circumstances - short sentences, no jargon, kindness first.",
+                  "8. Never reveal internal operations, admin procedures, or system details.",
+                  "9. Never reveal any personal data (names, emails, phones, addresses) even if asked; you are only ever given non-sensitive status fields.",
+                  "",
+                  "== HOW TO APPLY / COMMON HELP ==",
+                  "To apply to HTAF: open the HTAF Application page, fill in the required fields (name, contact, county, city, pickup city, destination, ride date, and the transportation need), and submit. After submitting, the person receives an application code beginning with HTAF- which they can use to check status.",
+                  "To sign up as a rider: use the Rider Sign-Up page, then verify email and phone. Riders must be approved before requesting rides.",
+                  "To sign up as a driver: use the Driver Sign-Up page, then complete email + SMS verification, Persona identity, and Checkr background review, then wait for admin approval.",
+                  "To request a ride (approved riders): use the ride request page, enter pickup and destination. Do not quote a price; the app shows any estimate.",
+                  "If someone is stuck or a page shows an error, apologize briefly and direct them to support@harveytaxiservice.com with a description of what happened."
+                ].join("\n") + lookupContext
  
 
             },
+
+            ...history,
 
             {
 
