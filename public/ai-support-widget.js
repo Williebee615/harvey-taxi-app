@@ -748,12 +748,42 @@
     }
 
     function buildPayload(messageText) {
+      var current = String(messageText || "").trim();
+
+      // Build conversation history for AI memory: convert stored
+      // messages to the {role, content} format the backend expects.
+      // The current user message was already pushed to state.messages
+      // before this runs, so drop the trailing user turn that matches
+      // it to avoid sending the same message twice. Cap to 10 turns.
+      var msgs = (state.messages || []).filter(function (m) {
+        return m &&
+          (m.role === "user" || m.role === "assistant") &&
+          m.text &&
+          String(m.text).trim().length > 0;
+      });
+
+      if (msgs.length &&
+          msgs[msgs.length - 1].role === "user" &&
+          String(msgs[msgs.length - 1].text).trim() === current) {
+        msgs = msgs.slice(0, -1);
+      }
+
+      var history = msgs
+        .slice(-10)
+        .map(function (m) {
+          return {
+            role: m.role,
+            content: String(m.text).trim()
+          };
+        });
+
       return {
-        message: String(messageText || "").trim(),
+        message: current,
         page: PAGE_CONTEXT,
         rider_id: state.riderId || null,
         driver_id: state.driverId || null,
         ride_id: state.rideId || null,
+        history: history,
         source: "widget",
         foundation_url: CONFIG.foundationUrl,
         donation_url: CONFIG.donationUrl
