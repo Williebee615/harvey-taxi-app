@@ -140,9 +140,36 @@
           </div>
         </div>
         <div class="actions">
-          <button class="success" id="saveAdminBtn">Save Admin Access</button>
+          <button class="primary" id="adminLoginBtn">Sign In</button>
+          <button class="success" id="saveAdminBtn">Save Access</button>
           <button class="neutral" id="checkHealthBtn">Check Health</button>
         </div>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <div>
+            <div class="title">System Controls</div>
+            <div class="sub">Pause or resume ride dispatch platform-wide.</div>
+          </div>
+          <span class="badge blue" id="dispatchStateBadge">—</span>
+        </div>
+        <div class="actions">
+          <button class="danger" id="pauseDispatchBtn">Pause Dispatch</button>
+          <button class="success" id="resumeDispatchBtn">Resume Dispatch</button>
+          <button class="neutral" id="refreshSystemBtn">Refresh Status</button>
+        </div>
+        <div id="systemStatusInfo" class="item-sub" style="margin-top:12px;"></div>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <div>
+            <div class="title">Account Deletion Requests</div>
+            <div class="sub">Review and finalize driver deletion requests (App Store compliance).</div>
+          </div>
+        </div>
+        <div class="list" id="deletionRequestsList"><div class="empty">Loading deletion requests...</div></div>
       </section>
 
       <section class="card">
@@ -219,12 +246,21 @@ function showResult(msg){els.result.style.display="block";els.error.style.displa
 function showError(msg){els.error.style.display="block";els.result.style.display="none";els.error.innerHTML=esc(msg);}
 function statusClass(s){s=String(s||"").toLowerCase(); if(["active","approved","completed","succeeded"].includes(s))return"ok"; if(["failed","rejected","cancelled","denied"].includes(s))return"bad"; if(["pending","submitted","under_review","payment_required"].some(x=>s.includes(x)))return"warn"; return"blue";}
 function adminHeaders(){
-  const email = localStorage.getItem("harvey_admin_email") || $("adminEmail").value.trim();
-  const password = localStorage.getItem("harvey_admin_password") || $("adminPassword").value;
-  return { "Content-Type":"application/json", "x-admin-email":email, "x-admin-password":password };
+  // Prefer the signed session cookie (set by /api/admin/login). Fall back to
+  // header credentials for backward compatibility if no session is active.
+  const email = localStorage.getItem("harvey_admin_email") || ($("adminEmail")?$("adminEmail").value.trim():"");
+  const password = localStorage.getItem("harvey_admin_password") || ($("adminPassword")?$("adminPassword").value:"");
+  const h = { "Content-Type":"application/json" };
+  if (email) h["x-admin-email"] = email;
+  if (password) h["x-admin-password"] = password;
+  return h;
 }
 async function api(path, options={}){
-  const res = await fetch(API_BASE + path, { ...options, headers:{...adminHeaders(), ...(options.headers||{})} });
+  const res = await fetch(API_BASE + path, {
+    ...options,
+    credentials: "include",
+    headers:{...adminHeaders(), ...(options.headers||{})}
+  });
   const data = await res.json().catch(()=>({}));
   if(!res.ok || data.ok === false) throw new Error(data.error || data.message || `Request failed ${res.status}`);
   return data;
@@ -233,7 +269,33 @@ async function safeApi(path, fallback){
   try{return await api(path)}catch(e){console.warn(path,e.message);return fallback}
 }
 
+// Session login: posts to /api/admin/login, which sets an HttpOnly cookie.
+async function adminLogin(){
+  const email = $("adminEmail").value.trim();
+  const password = $("adminPassword").value;
+  if(!email || !password){ showError("Enter admin email and password."); return; }
+  try{
+    const res = await fetch(API_BASE + "/api/admin/login", {
+      method:"POST",
+      credentials:"include",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok || data.ok === false) throw new Error(data.error || data.message || `Login failed ${res.status}`);
+    // Session cookie is set; we don't need to store the password anymore.
+    localStorage.setItem("harvey_admin_email", email);
+    localStorage.removeItem("harvey_admin_password");
+    $("adminPassword").value = "";
+    showResult("Signed in. Loading dashboard...");
+    loadDashboard();
+  }catch(e){
+    showError("Login failed: " + e.message);
+  }
+}
+
 function saveAdmin(){
+  // Kept for fallback: store header credentials on this device.
   localStorage.setItem("harvey_admin_email",$("adminEmail").value.trim());
   localStorage.setItem("harvey_admin_password",$("adminPassword").value);
   showResult("Admin access saved on this device.");
@@ -279,6 +341,10 @@ async function loadDashboard(){
     renderDrivers(pendingDrivers);
     renderRides();
     renderHTAF(state.htaf);
+
+    // Load the new admin panels (non-blocking).
+    refreshSystemStatus();
+    loadDeletionRequests();
   }catch(err){
     showError(err.message);
   }
@@ -372,15 +438,91 @@ function toggleAuto(){
   $("toggleAutoRefreshBtn").textContent = `Auto Refresh: ${state.auto ? "On" : "Off"}`;
 }
 
+/* -------- System Controls: dispatch pause -------- */
+async function refreshSystemStatus(){
+  try{
+    const data = await api("/api/system/status");
+    const paused = data.dispatch_paused === true;
+    const badge = $("dispatchStateBadge");
+    badge.textContent = paused ? "PAUSED" : "ACTIVE";
+    badge.className = "badge " + (paused ? "warn" : "ok");
+    $("systemStatusInfo").innerHTML =
+      `Dispatch is currently <strong>${paused ? "PAUSED" : "ACTIVE"}</strong>.` +
+      (data.server_time ? `<br><span class="item-sub">As of ${esc(String(data.server_time).slice(0,19).replace("T"," "))}</span>` : "");
+  }catch(e){
+    $("systemStatusInfo").innerHTML = `<span style="color:#ff7e97">Could not load system status: ${esc(e.message)}</span>`;
+  }
+}
+async function setDispatchPaused(paused){
+  try{
+    const path = paused
+      ? "/api/admin/system/pause-dispatch"
+      : "/api/admin/system/resume-dispatch";
+    await api(path, {
+      method:"POST",
+      body: JSON.stringify(paused ? { reason: "Paused from admin dashboard" } : {})
+    });
+    showResult(`Dispatch ${paused ? "paused" : "resumed"}.`);
+    refreshSystemStatus();
+  }catch(e){
+    showError((paused ? "Pause" : "Resume") + " failed: " + e.message);
+  }
+}
+
+/* -------- Account Deletion Requests -------- */
+async function loadDeletionRequests(){
+  const box = $("deletionRequestsList");
+  try{
+    const data = await safeApi("/api/admin/deletion-requests?status=pending", { requests: [] });
+    const reqs = data.requests || [];
+    if(!reqs.length){
+      box.innerHTML = `<div class="empty">No pending deletion requests.</div>`;
+      return;
+    }
+    box.innerHTML = reqs.map(r=>`
+      <div class="item">
+        <div class="item-title">${esc(r.user_type || "user").toUpperCase()} — ${esc(r.user_id)}</div>
+        <div class="item-sub">Requested ${esc(String(r.requested_at||"").slice(0,19).replace("T"," "))}${r.reason ? " • Reason: " + esc(r.reason) : ""}</div>
+        <div class="actions">
+          <button class="success" onclick="approveDeletion('${esc(r.request_id)}')">Approve &amp; Anonymize</button>
+          <button class="danger" onclick="rejectDeletion('${esc(r.request_id)}')">Reject &amp; Restore</button>
+        </div>
+      </div>
+    `).join("");
+  }catch(e){
+    box.innerHTML = `<div class="empty">Could not load deletion requests: ${esc(e.message)}</div>`;
+  }
+}
+async function approveDeletion(id){
+  if(!confirm("Approve this deletion? The account will be anonymized and this cannot be undone.")) return;
+  try{
+    await api(`/api/admin/deletion-requests/${encodeURIComponent(id)}/approve`, { method:"POST", body: JSON.stringify({}) });
+    showResult("Deletion approved and account anonymized.");
+    loadDeletionRequests();
+  }catch(e){ showError("Approve failed: " + e.message); }
+}
+async function rejectDeletion(id){
+  const notes = prompt("Reason for rejecting (optional):") || "";
+  try{
+    await api(`/api/admin/deletion-requests/${encodeURIComponent(id)}/reject`, { method:"POST", body: JSON.stringify({ admin_notes: notes }) });
+    showResult("Deletion rejected and account access restored.");
+    loadDeletionRequests();
+  }catch(e){ showError("Reject failed: " + e.message); }
+}
+
 document.querySelectorAll(".tab").forEach(btn=>{
   btn.onclick=()=>{document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));btn.classList.add("active");state.filter=btn.dataset.filter;renderRides();}
 });
+$("adminLoginBtn").onclick=adminLogin;
 $("saveAdminBtn").onclick=saveAdmin;
 $("checkHealthBtn").onclick=checkHealth;
 $("refreshBtn").onclick=loadDashboard;
 $("manualRefreshBtn").onclick=loadDashboard;
 $("toggleAutoRefreshBtn").onclick=toggleAuto;
 $("loadFinanceBtn").onclick=loadFinance;
+$("pauseDispatchBtn").onclick=()=>setDispatchPaused(true);
+$("resumeDispatchBtn").onclick=()=>setDispatchPaused(false);
+$("refreshSystemBtn").onclick=refreshSystemStatus;
 $("runAiBrainBtn").onclick=runAI;
 $("quickAiReviewBtn").onclick=()=>{els.aiInput.value="Review current Harvey Taxi admin data: riders, drivers, rides, HTAF applications, revenue, and urgent operational risks.";runAI();}
 $("clearAiBrainBtn").onclick=()=>{els.aiInput.value="";els.aiResult.innerHTML="";};
