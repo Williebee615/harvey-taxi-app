@@ -166,6 +166,30 @@ const ADMIN_SESSION_TTL_HOURS =
 
   envNumber("ADMIN_SESSION_TTL_HOURS", 12);
 
+/* Driver session: signed token issued after OTP verification,
+
+   reused by the driver dashboard. Shares the admin secret
+
+   fallback chain if a dedicated one is not set. */
+
+const DRIVER_SESSION_SECRET =
+
+  env("DRIVER_SESSION_SECRET") ||
+
+  env("ADMIN_SESSION_SECRET") ||
+
+  env("SESSION_SECRET") ||
+
+  ADMIN_API_TOKEN ||
+
+  ADMIN_PASSWORD ||
+
+  "";
+
+const DRIVER_SESSION_TTL_HOURS =
+
+  envNumber("DRIVER_SESSION_TTL_HOURS", 24);
+
 const ENABLE_REAL_EMAIL = envBool("ENABLE_REAL_EMAIL", true);
 
 const ENABLE_REAL_SMS = envBool("ENABLE_REAL_SMS", false);
@@ -1432,6 +1456,86 @@ function verifyAdminSession(token) {
 
 }
 
+/* -------- DRIVER SESSION (signed token) -------- */
+
+function signDriverSession(driverId) {
+
+  if (!DRIVER_SESSION_SECRET) return "";
+
+  const now = Date.now();
+
+  const payload = {
+
+    sub: "harvey-driver",
+
+    driver_id: String(driverId),
+
+    iat: now,
+
+    exp: now + DRIVER_SESSION_TTL_HOURS * 60 * 60 * 1000
+
+  };
+
+  const encoded =
+
+    base64UrlEncode(JSON.stringify(payload));
+
+  const sig =
+
+    crypto
+
+      .createHmac("sha256", DRIVER_SESSION_SECRET)
+
+      .update(encoded)
+
+      .digest("hex");
+
+  return `${encoded}.${sig}`;
+
+}
+
+function verifyDriverSession(token) {
+
+  if (!token || !DRIVER_SESSION_SECRET) return null;
+
+  const parts = String(token).split(".");
+
+  if (parts.length !== 2) return null;
+
+  const [encoded, sig] = parts;
+
+  const expected =
+
+    crypto
+
+      .createHmac("sha256", DRIVER_SESSION_SECRET)
+
+      .update(encoded)
+
+      .digest("hex");
+
+  if (!timingSafeEqualString(sig, expected)) return null;
+
+  let payload = null;
+
+  try {
+
+    payload = JSON.parse(base64UrlDecode(encoded));
+
+  } catch {
+
+    return null;
+
+  }
+
+  if (!payload || typeof payload.exp !== "number") return null;
+
+  if (Date.now() > payload.exp) return null;
+
+  return payload;
+
+}
+
 function parseCookies(req) {
 
   const header = req.headers.cookie || "";
@@ -1652,6 +1756,74 @@ async function requireDriver(req, res, next) {
 
   try {
 
+    // Preferred path: a signed driver session token (from the
+
+    // driver dashboard's OTP login). Verify it and load the driver.
+
+    const driverToken =
+
+      req.headers["x-driver-token"];
+
+    if (driverToken) {
+
+      const session =
+
+        verifyDriverSession(driverToken);
+
+      if (!session) {
+
+        return fail(
+
+          res,
+
+          "Your driver session has expired. Please sign in again.",
+
+          401
+
+        );
+
+      }
+
+      const { data: sessDriver, error: sessErr } =
+
+        await supabase
+
+          .from("drivers")
+
+          .select("*")
+
+          .eq("id", session.driver_id)
+
+          .single();
+
+      if (sessErr || !sessDriver) {
+
+        return fail(res, "Driver not found.", 404);
+
+      }
+
+      if (sessDriver.access_revoked === true) {
+
+        return fail(
+
+          res,
+
+          "This account has been deleted or its access has been revoked.",
+
+          403
+
+        );
+
+      }
+
+      req.driver = sessDriver;
+
+      req.driverAuthMethod = "driver_session";
+
+      return next();
+
+    }
+
     // Allow admin override for internal ops tooling.
 
     const adminSession = readAdminSessionCookie(req);
@@ -1797,6 +1969,20 @@ async function requireDriver(req, res, next) {
         res,
 
         "No driver profile is linked to this account.",
+
+        403
+
+      );
+
+    }
+
+    if (driver.access_revoked === true) {
+
+      return fail(
+
+        res,
+
+        "This account has been deleted or its access has been revoked.",
 
         403
 
@@ -4308,6 +4494,214 @@ app.post(
 
 /* =========================================================
 
+   DRIVER SESSION LOGIN (OTP -> signed token)
+
+   The driver dashboard uses this to authenticate:
+
+   1) start: driver_id -> sends an SMS code to the driver's phone
+
+   2) verify: driver_id + code -> returns a signed driver token
+
+========================================================= */
+
+app.post(
+
+  "/api/driver/session/start",
+
+  asyncRoute(async (req, res) => {
+
+    const driverId =
+
+      cleanString(req.body.driver_id, 100);
+
+    if (!driverId) {
+
+      return fail(res, "driver_id is required.", 400);
+
+    }
+
+    const { data: driver, error } =
+
+      await supabase
+
+        .from("drivers")
+
+        .select("id, phone, access_revoked")
+
+        .eq("id", driverId)
+
+        .maybeSingle();
+
+    if (error || !driver) {
+
+      return fail(res, "Driver not found.", 404);
+
+    }
+
+    if (driver.access_revoked === true) {
+
+      return fail(res, "This account's access has been revoked.", 403);
+
+    }
+
+    if (!driver.phone) {
+
+      return fail(res, "No phone number on file for this driver.", 400);
+
+    }
+
+    const { code } =
+
+      await createVerificationRecord({
+
+        channel: "sms",
+
+        destination: driver.phone,
+
+        purpose: "driver_login",
+
+        user_type: "driver",
+
+        metadata: { driver_id: driverId }
+
+      });
+
+    await sendSms({
+
+      to: driver.phone,
+
+      body: `Your Harvey Taxi driver login code is ${code}. It expires in ${VERIFY_TTL_MINUTES} minutes.`
+
+    });
+
+    // Return the masked phone so the UI can show where the code went.
+
+    const masked =
+
+      driver.phone.replace(/.(?=.{4})/g, "•");
+
+    return ok(res, {
+
+      sent: true,
+
+      phone_hint: masked,
+
+      expires_in_minutes: VERIFY_TTL_MINUTES
+
+    });
+
+  })
+
+);
+
+app.post(
+
+  "/api/driver/session/verify",
+
+  asyncRoute(async (req, res) => {
+
+    const driverId =
+
+      cleanString(req.body.driver_id, 100);
+
+    const code =
+
+      cleanString(req.body.code, 20);
+
+    if (!driverId || !code) {
+
+      return fail(res, "driver_id and code are required.", 400);
+
+    }
+
+    const { data: driver, error } =
+
+      await supabase
+
+        .from("drivers")
+
+        .select("id, phone, access_revoked")
+
+        .eq("id", driverId)
+
+        .maybeSingle();
+
+    if (error || !driver) {
+
+      return fail(res, "Driver not found.", 404);
+
+    }
+
+    if (driver.access_revoked === true) {
+
+      return fail(res, "This account's access has been revoked.", 403);
+
+    }
+
+    const verification =
+
+      await verifyCode({
+
+        channel: "sms",
+
+        destination: driver.phone,
+
+        code,
+
+        purpose: "driver_login"
+
+      });
+
+    if (!verification.ok) {
+
+      return fail(res, verification.reason || "Invalid code.", 400);
+
+    }
+
+    if (!DRIVER_SESSION_SECRET) {
+
+      return fail(
+
+        res,
+
+        "Driver sessions are not configured on the server.",
+
+        500
+
+      );
+
+    }
+
+    const token = signDriverSession(driverId);
+
+    auditLog({
+
+      actor_type: "driver",
+
+      actor_id: driverId,
+
+      action: "driver_login_success",
+
+      req
+
+    }).catch(() => {});
+
+    return ok(res, {
+
+      driver_token: token,
+
+      driver_id: driverId,
+
+      expires_in_hours: DRIVER_SESSION_TTL_HOURS
+
+    });
+
+  })
+
+);
+
+/* =========================================================
+
    DRIVER SIGNUP
 
 ========================================================= */
@@ -6596,6 +6990,18 @@ async function getRiderReadiness(riderId) {
 
   }
 
+  if (rider.access_revoked === true) {
+
+    return {
+
+      ready: false,
+
+      reason: "This account has been deleted or its access has been revoked."
+
+    };
+
+  }
+
   if (!ENABLE_RIDER_APPROVAL_GATE) {
 
     return {
@@ -6989,6 +7395,48 @@ async function createDriverOffer({
 ========================================================= */
 
 async function dispatchRide(ride) {
+
+  // Respect the admin dispatch pause. When dispatch is paused,
+
+  // do NOT create offers or assign drivers — mark the ride as
+
+  // waiting so it can be dispatched once dispatch resumes.
+
+  const dispatchPaused =
+
+    await getSystemFlag("dispatch_paused", "false");
+
+  if (dispatchPaused === "true") {
+
+    await supabase
+
+      .from("rides")
+
+      .update({
+
+        dispatch_status:
+
+          "paused",
+
+        updated_at:
+
+          nowIso()
+
+      })
+
+      .eq("id", ride.id);
+
+    return {
+
+      dispatched: false,
+
+      paused: true,
+
+      reason: "Dispatch is currently paused by an administrator."
+
+    };
+
+  }
 
   // Exclude drivers who already received an offer for this ride
 
@@ -11690,7 +12138,689 @@ app.post(
 
   })
 
-);/* =========================================================
+);
+
+/* =========================================================
+
+   ACCOUNT DELETION (App Store compliant)
+
+   - Riders: immediate self-service delete (OTP-confirmed).
+
+   - Drivers: request revokes access now; admin reviews,
+
+     then anonymization is finalized.
+
+   Operational records (rides, payments, earnings, audit,
+
+   safety, HTAF) are RETAINED but stripped of personal data.
+
+========================================================= */
+
+/* Anonymize a rider or driver row in place. Removes personal
+
+   identity data, revokes access, marks deleted. Keeps the row
+
+   so financial/operational foreign keys remain intact. */
+
+async function anonymizeAccount({
+
+  table,
+
+  id,
+
+  reason = null,
+
+  deletedBy = "self"
+
+}) {
+
+  const now = nowIso();
+
+  const scrub = {
+
+    first_name: "Deleted",
+
+    last_name: "User",
+
+    email: `deleted+${id}@harveytaxiservice.invalid`,
+
+    phone: null,
+
+    access_revoked: true,
+
+    status: "deleted",
+
+    deleted_at: now,
+
+    deleted_reason: reason ? cleanString(reason, 500) : null,
+
+    deleted_by: cleanString(deletedBy, 120),
+
+    updated_at: now
+
+  };
+
+  const { error } =
+
+    await supabase
+
+      .from(table)
+
+      .update(scrub)
+
+      .eq("id", id);
+
+  if (error) {
+
+    throw error;
+
+  }
+
+  // Strip personal name/phone snapshots from ride records for
+
+  // this user, keeping the operational/financial row intact.
+
+  if (table === "riders") {
+
+    await supabase
+
+      .from("rides")
+
+      .update({
+
+        rider_name: "Deleted User",
+
+        rider_phone: null,
+
+        updated_at: now
+
+      })
+
+      .eq("rider_id", id);
+
+  }
+
+  return true;
+
+}
+
+/* -------- RIDER: immediate self-service deletion -------- */
+
+app.post(
+
+  "/api/account/rider/delete",
+
+  asyncRoute(async (req, res) => {
+
+    const riderId =
+
+      cleanString(req.body.rider_id, 100);
+
+    const phone =
+
+      cleanPhone(req.body.phone);
+
+    const code =
+
+      cleanString(req.body.code, 20);
+
+    const reason =
+
+      cleanString(req.body.reason, 500);
+
+    if (!riderId || !phone || !code) {
+
+      return fail(
+
+        res,
+
+        "rider_id, phone, and a verification code are required to delete your account.",
+
+        400
+
+      );
+
+    }
+
+    // Confirm identity via OTP (same mechanism as signup verify).
+
+    const verification =
+
+      await verifyCode({
+
+        channel: "sms",
+
+        destination: phone,
+
+        code,
+
+        purpose: "account_deletion"
+
+      });
+
+    if (!verification.ok) {
+
+      return fail(
+
+        res,
+
+        verification.reason || "Verification failed.",
+
+        400
+
+      );
+
+    }
+
+    // Ensure the rider exists and the phone matches.
+
+    const { data: rider, error } =
+
+      await supabase
+
+        .from("riders")
+
+        .select("id, phone")
+
+        .eq("id", riderId)
+
+        .maybeSingle();
+
+    if (error || !rider) {
+
+      return fail(res, "Rider account not found.", 404);
+
+    }
+
+    try {
+
+      await anonymizeAccount({
+
+        table: "riders",
+
+        id: riderId,
+
+        reason,
+
+        deletedBy: "rider_self"
+
+      });
+
+    } catch (delErr) {
+
+      console.error("❌ Rider deletion failed:", delErr.message);
+
+      return fail(res, "Account deletion could not be completed.", 500);
+
+    }
+
+    // Record the completed deletion for the audit trail.
+
+    const requestId = makeId("DEL");
+
+    await supabase
+
+      .from("deletion_requests")
+
+      .insert({
+
+        request_id: requestId,
+
+        user_type: "rider",
+
+        user_id: riderId,
+
+        status: "completed",
+
+        reason,
+
+        requested_at: nowIso(),
+
+        completed_at: nowIso(),
+
+        reviewed_by: "self_service"
+
+      });
+
+    auditLog({
+
+      actor_type: "rider",
+
+      actor_id: riderId,
+
+      action: "account_deleted",
+
+      entity_type: "rider",
+
+      entity_id: riderId,
+
+      metadata: { self_service: true },
+
+      req
+
+    }).catch(() => {});
+
+    return ok(res, {
+
+      deleted: true,
+
+      message: "Your account has been deleted and your personal information removed."
+
+    });
+
+  })
+
+);
+
+/* -------- DRIVER: request deletion (revokes access now) -------- */
+
+app.post(
+
+  "/api/account/driver/delete-request",
+
+  requireDriver,
+
+  asyncRoute(async (req, res) => {
+
+    const driverId = req.driver.id;
+
+    const reason =
+
+      cleanString(req.body.reason, 500);
+
+    // Immediately revoke login access (anonymization waits for review).
+
+    await supabase
+
+      .from("drivers")
+
+      .update({
+
+        access_revoked: true,
+
+        status: "deletion_pending",
+
+        updated_at: nowIso()
+
+      })
+
+      .eq("id", driverId);
+
+    const requestId = makeId("DEL");
+
+    const { error } =
+
+      await supabase
+
+        .from("deletion_requests")
+
+        .insert({
+
+          request_id: requestId,
+
+          user_type: "driver",
+
+          user_id: driverId,
+
+          status: "pending",
+
+          reason,
+
+          requested_at: nowIso()
+
+        });
+
+    if (error) {
+
+      throw error;
+
+    }
+
+    auditLog({
+
+      actor_type: "driver",
+
+      actor_id: driverId,
+
+      action: "account_deletion_requested",
+
+      entity_type: "driver",
+
+      entity_id: driverId,
+
+      metadata: { request_id: requestId },
+
+      req
+
+    }).catch(() => {});
+
+    return ok(res, {
+
+      request_id: requestId,
+
+      status: "pending",
+
+      message: "Your deletion request was received and your account access has been disabled. An administrator will finalize the deletion after review."
+
+    });
+
+  })
+
+);
+
+/* -------- ADMIN: list deletion requests -------- */
+
+app.get(
+
+  "/api/admin/deletion-requests",
+
+  requireAdmin,
+
+  asyncRoute(async (req, res) => {
+
+    const status =
+
+      cleanString(req.query.status, 40) || "pending";
+
+    const limit =
+
+      getPageLimit(req, 100, 300);
+
+    const cursor =
+
+      decodeCursor(req.query.cursor);
+
+    let query =
+
+      supabase
+
+        .from("deletion_requests")
+
+        .select("*")
+
+        .eq("status", status)
+
+        .order("requested_at", { ascending: false })
+
+        .order("request_id", { ascending: false })
+
+        .limit(limit);
+
+    if (cursor) {
+
+      query = query.or(
+
+        `requested_at.lt.${cursor.created_at},` +
+
+        `and(requested_at.eq.${cursor.created_at},request_id.lt.${cursor.id})`
+
+      );
+
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+
+    const rows = data || [];
+
+    const last = rows[rows.length - 1];
+
+    const next_cursor =
+
+      rows.length === limit && last
+
+        ? encodeCursor({ created_at: last.requested_at, id: last.request_id })
+
+        : null;
+
+    return ok(res, {
+
+      requests: rows,
+
+      page: { limit, count: rows.length, next_cursor }
+
+    });
+
+  })
+
+);
+
+/* -------- ADMIN: approve (finalize) driver deletion -------- */
+
+app.post(
+
+  "/api/admin/deletion-requests/:id/approve",
+
+  requireAdmin,
+
+  asyncRoute(async (req, res) => {
+
+    const requestId =
+
+      cleanString(req.params.id, 100);
+
+    const notes =
+
+      cleanString(req.body.admin_notes, 1000);
+
+    const { data: request, error } =
+
+      await supabase
+
+        .from("deletion_requests")
+
+        .select("*")
+
+        .eq("request_id", requestId)
+
+        .maybeSingle();
+
+    if (error || !request) {
+
+      return fail(res, "Deletion request not found.", 404);
+
+    }
+
+    if (request.status !== "pending") {
+
+      return fail(res, `Request is already ${request.status}.`, 409);
+
+    }
+
+    const table =
+
+      request.user_type === "driver" ? "drivers" : "riders";
+
+    try {
+
+      await anonymizeAccount({
+
+        table,
+
+        id: request.user_id,
+
+        reason: request.reason,
+
+        deletedBy: `admin:${req.admin.email}`
+
+      });
+
+    } catch (delErr) {
+
+      console.error("❌ Deletion finalize failed:", delErr.message);
+
+      return fail(res, "Anonymization could not be completed.", 500);
+
+    }
+
+    await supabase
+
+      .from("deletion_requests")
+
+      .update({
+
+        status: "completed",
+
+        approved_at: nowIso(),
+
+        completed_at: nowIso(),
+
+        reviewed_by: req.admin.email,
+
+        admin_notes: notes
+
+      })
+
+      .eq("request_id", requestId);
+
+    auditLog({
+
+      actor_type: "admin",
+
+      actor_id: req.admin.email,
+
+      action: "account_deletion_completed",
+
+      entity_type: request.user_type,
+
+      entity_id: request.user_id,
+
+      metadata: { request_id: requestId },
+
+      req
+
+    }).catch(() => {});
+
+    return ok(res, {
+
+      request_id: requestId,
+
+      status: "completed",
+
+      message: "Account anonymized and deletion finalized."
+
+    });
+
+  })
+
+);
+
+/* -------- ADMIN: reject deletion (restores access) -------- */
+
+app.post(
+
+  "/api/admin/deletion-requests/:id/reject",
+
+  requireAdmin,
+
+  asyncRoute(async (req, res) => {
+
+    const requestId =
+
+      cleanString(req.params.id, 100);
+
+    const notes =
+
+      cleanString(req.body.admin_notes, 1000);
+
+    const { data: request, error } =
+
+      await supabase
+
+        .from("deletion_requests")
+
+        .select("*")
+
+        .eq("request_id", requestId)
+
+        .maybeSingle();
+
+    if (error || !request) {
+
+      return fail(res, "Deletion request not found.", 404);
+
+    }
+
+    if (request.status !== "pending") {
+
+      return fail(res, `Request is already ${request.status}.`, 409);
+
+    }
+
+    // Deletion is NOT happening, so restore the account's access.
+
+    const table =
+
+      request.user_type === "driver" ? "drivers" : "riders";
+
+    await supabase
+
+      .from(table)
+
+      .update({
+
+        access_revoked: false,
+
+        status: "active",
+
+        updated_at: nowIso()
+
+      })
+
+      .eq("id", request.user_id);
+
+    await supabase
+
+      .from("deletion_requests")
+
+      .update({
+
+        status: "rejected",
+
+        rejected_at: nowIso(),
+
+        reviewed_by: req.admin.email,
+
+        admin_notes: notes
+
+      })
+
+      .eq("request_id", requestId);
+
+    auditLog({
+
+      actor_type: "admin",
+
+      actor_id: req.admin.email,
+
+      action: "account_deletion_rejected",
+
+      entity_type: request.user_type,
+
+      entity_id: request.user_id,
+
+      metadata: { request_id: requestId },
+
+      req
+
+    }).catch(() => {});
+
+    return ok(res, {
+
+      request_id: requestId,
+
+      status: "rejected",
+
+      message: "Deletion request rejected and account access restored."
+
+    });
+
+  })
+
+);
+
+/* =========================================================
 
    PART 9 — SAFETY, COMPLIANCE, TWILIO VERIFY, STRIPE
 
