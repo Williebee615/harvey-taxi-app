@@ -927,24 +927,21 @@
 
     <div class="grid">
       <section class="glass card span-4">
-        <h3>Load Driver Dashboard</h3>
-        <p class="sub">Sign in by driver email, or recover your session securely with your persistent ID.</p>
-        
-        <div class="field">
-          <label for="driverEmail">Driver Email</label>
-          <input id="driverEmail" class="input" type="email" placeholder="driver@email.com" autocomplete="email" autocapitalize="off" />
-        </div>
-        <div class="field">
-          <label for="driverPassword">Password</label>
-          <input id="driverPassword" class="input" type="password" placeholder="••••••••" autocomplete="current-password" />
-        </div>
-        <button class="btn btn-primary" id="driverLoginBtn" type="button" style="width: 100%;">Load Dashboard</button>
+        <h3>Driver Sign In</h3>
+        <p class="sub">Enter your Driver ID, get a one-time code by text, and sign in securely.</p>
 
-        <div class="field" style="margin-top:20px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 16px;">
-          <label for="driverIdManual">Or Driver ID</label>
-          <input id="driverIdManual" class="input mono" type="text" placeholder="Paste structural driver ID" />
+        <div class="field">
+          <label for="driverIdManual">Driver ID</label>
+          <input id="driverIdManual" class="input mono" type="text" placeholder="Paste your driver ID (from signup)" />
         </div>
-        <button class="btn btn-secondary" id="loadByIdBtn" type="button" style="width: 100%;">Load by Driver ID</button>
+        <button class="btn btn-secondary" id="sendCodeBtn" type="button" style="width: 100%;">Send Login Code</button>
+
+        <div class="field" id="codeField" style="margin-top:16px; display:none;">
+          <label for="driverCode">SMS Code</label>
+          <input id="driverCode" class="input mono" type="text" inputmode="numeric" placeholder="6-digit code" autocomplete="one-time-code" />
+        </div>
+        <button class="btn btn-primary" id="verifyCodeBtn" type="button" style="width: 100%; display:none;">Verify &amp; Sign In</button>
+
         <div id="loginMsg" class="msg"></div>
       </section>
 
@@ -1090,8 +1087,19 @@
       driverIdAlt: "harveyDriverId",
       driverEmail: "harvey_driver_email",
       driverProfile: "harvey_driver_profile",
-      lastAddress: "harvey_driver_last_address"
+      lastAddress: "harvey_driver_last_address",
+      driverToken: "harvey_driver_token"
     };
+
+    function getDriverToken() {
+      try { return localStorage.getItem(STORAGE.driverToken) || ""; } catch { return ""; }
+    }
+    function setDriverToken(token) {
+      try {
+        if (token) localStorage.setItem(STORAGE.driverToken, token);
+        else localStorage.removeItem(STORAGE.driverToken);
+      } catch {}
+    }
 
     // ---- Real backend integration ----
     const API_BASE =
@@ -1100,14 +1108,24 @@
         : "https://harvey-taxi-app-2.onrender.com";
 
     async function apiRequest(path, options = {}) {
+      const token = getDriverToken();
       const res = await fetch(`${API_BASE}${path}`, {
-        headers: { "Content-Type": "application/json", "Accept": "application/json", ...(options.headers || {}) },
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          ...(token ? { "x-driver-token": token } : {}),
+          ...(options.headers || {})
+        },
         cache: "no-store",
         ...options
       });
       let data = null;
       try { data = await res.json(); } catch { data = {}; }
       if (!res.ok || data.ok === false) {
+        // A 401 means the driver session expired — prompt re-login.
+        if (res.status === 401) {
+          setDriverToken("");
+        }
         throw new Error(data.error || data.message || `Request failed (${res.status})`);
       }
       return data;
@@ -1131,11 +1149,11 @@
 
     // Cache Core DOM Elements Safely
     const el = {
-      emailInput: document.getElementById("driverEmail"),
-      passInput: document.getElementById("driverPassword"),
       manualIdInput: document.getElementById("driverIdManual"),
-      loginBtn: document.getElementById("driverLoginBtn"),
-      loadByIdBtn: document.getElementById("loadByIdBtn"),
+      codeInput: document.getElementById("driverCode"),
+      codeField: document.getElementById("codeField"),
+      sendCodeBtn: document.getElementById("sendCodeBtn"),
+      verifyCodeBtn: document.getElementById("verifyCodeBtn"),
       logoutBtn: document.getElementById("logoutBtn"),
       refreshBtn: document.getElementById("refreshAllBtn"),
       goAvailableBtn: document.getElementById("goAvailableBtn"),
@@ -1213,22 +1231,20 @@
     // System Initialization Entrypoint
     window.addEventListener("DOMContentLoaded", () => {
       initEventListeners();
-      if (state.driverId) {
+      // Only auto-load if we have BOTH a driver ID and a valid session token.
+      if (state.driverId && getDriverToken()) {
         el.manualIdInput.value = state.driverId;
         bootstrapDashboardSession(state.driverId);
       } else {
+        if (state.driverId) el.manualIdInput.value = state.driverId;
         renderMockActivities(true);
       }
     });
 
     function initEventListeners() {
-      el.loginBtn.addEventListener("click", handleEmailLogin);
-      el.loadByIdBtn.addEventListener("click", () => {
-        const inputId = el.manualIdInput.value.trim();
-        if (!inputId) return showMessage(el.loginMsg, "Provide a valid Driver ID asset", "err");
-        bootstrapDashboardSession(inputId);
-      });
-      
+      el.sendCodeBtn.addEventListener("click", handleSendCode);
+      el.verifyCodeBtn.addEventListener("click", handleVerifyCode);
+
       el.logoutBtn.addEventListener("click", clearDashboardSession);
       el.refreshBtn.addEventListener("click", () => fetchFreshDashboardState(true));
       
@@ -1253,26 +1269,50 @@
       el.completeDeliveryBtn.addEventListener("click", () => executeWorkflowAction("complete_delivery"));
     }
 
-    // Direct Simulated Auth Fallback Process
-    function handleEmailLogin() {
-      // Note: the Harvey Taxi server does not expose an email/password driver
-      // login route. Drivers receive their driver ID at signup (stored as
-      // harvey_driver_id). This screen resolves the session from that stored ID
-      // or a manually pasted driver ID, then loads real data for it.
-      const email = el.emailInput.value.trim();
-      const manualId = (el.manualIdInput && el.manualIdInput.value.trim()) || "";
-      const storedId = localStorage.getItem(STORAGE.driverId) || localStorage.getItem(STORAGE.driverIdAlt) || "";
-      const driverId = manualId || storedId;
+    // Step 1: request an SMS login code for this driver ID.
+    async function handleSendCode() {
+      const driverId = el.manualIdInput.value.trim();
       if (!driverId) {
-        return showMessage(el.loginMsg,
-          "Enter your Driver ID (from your approved driver signup) to load your dashboard.", "err");
+        return showMessage(el.loginMsg, "Enter your Driver ID first.", "err");
       }
-      if (email) {
-        state.driverEmail = email;
-        localStorage.setItem(STORAGE.driverEmail, email);
+      el.sendCodeBtn.disabled = true;
+      showMessage(el.loginMsg, "Sending login code...", "ok");
+      try {
+        const resp = await apiPost("/api/driver/session/start", { driver_id: driverId });
+        el.codeField.style.display = "";
+        el.verifyCodeBtn.style.display = "";
+        el.codeInput.focus();
+        showMessage(el.loginMsg,
+          `Code sent to ${resp.phone_hint || "your phone"}. Enter it below.`, "ok");
+      } catch (err) {
+        showMessage(el.loginMsg, "Could not send code: " + err.message, "err");
+      } finally {
+        el.sendCodeBtn.disabled = false;
       }
-      showMessage(el.loginMsg, "Loading your Harvey Taxi driver dashboard...", "ok");
-      bootstrapDashboardSession(driverId);
+    }
+
+    // Step 2: verify the code, store the token, then load the dashboard.
+    async function handleVerifyCode() {
+      const driverId = el.manualIdInput.value.trim();
+      const code = el.codeInput.value.trim();
+      if (!driverId || !code) {
+        return showMessage(el.loginMsg, "Enter the code that was texted to you.", "err");
+      }
+      el.verifyCodeBtn.disabled = true;
+      showMessage(el.loginMsg, "Verifying...", "ok");
+      try {
+        const resp = await apiPost("/api/driver/session/verify", { driver_id: driverId, code });
+        setDriverToken(resp.driver_token || "");
+        showMessage(el.loginMsg, "Signed in. Loading your dashboard...", "ok");
+        el.codeField.style.display = "none";
+        el.verifyCodeBtn.style.display = "none";
+        el.codeInput.value = "";
+        bootstrapDashboardSession(driverId);
+      } catch (err) {
+        showMessage(el.loginMsg, "Verification failed: " + err.message, "err");
+      } finally {
+        el.verifyCodeBtn.disabled = false;
+      }
     }
     function bootstrapDashboardSession(driverId) {
       state.driverId = driverId;
@@ -1302,8 +1342,10 @@
 
       el.snapDriverId.textContent = "Not loaded";
       el.manualIdInput.value = "";
-      el.emailInput.value = "";
-      el.passInput.value = "";
+      if (el.codeInput) el.codeInput.value = "";
+      if (el.codeField) el.codeField.style.display = "none";
+      if (el.verifyCodeBtn) el.verifyCodeBtn.style.display = "none";
+      setDriverToken("");
       
       resetProfileDOM();
       renderMockActivities(true);
