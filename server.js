@@ -10552,6 +10552,113 @@ app.get(
 
 );
 
+app.get(
+  "/api/admin/metrics",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const now = new Date();
+    const startOfTodayUtc = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+    ).toISOString();
+
+    // Exact count with no row transfer (head:true). Returns count or an error string.
+    async function countWhere(table, build) {
+      let q = supabase.from(table).select("*", { count: "exact", head: true });
+      if (build) q = build(q);
+      const { count, error } = await q;
+      return error ? { count: null, error: error.message } : { count: count || 0 };
+    }
+
+    const ACTIVE_RIDE_STATUSES = [
+      RIDE_STATUS.AWAITING_DRIVER,
+      RIDE_STATUS.DRIVER_ASSIGNED,
+      RIDE_STATUS.DRIVER_ENROUTE,
+      RIDE_STATUS.ARRIVED,
+      RIDE_STATUS.IN_PROGRESS
+    ];
+
+    const [
+      ridesToday,
+      ridesActive,
+      ridesCompletedToday,
+      dispatchQueue,
+      driversOnline,
+      driversTotal,
+      htafToday
+    ] = await Promise.all([
+      countWhere("rides", (q) => q.gte("created_at", startOfTodayUtc)),
+      countWhere("rides", (q) => q.in("status", ACTIVE_RIDE_STATUSES)),
+      countWhere("rides", (q) =>
+        q.eq("status", RIDE_STATUS.COMPLETED).gte("created_at", startOfTodayUtc)
+      ),
+      countWhere("rides", (q) => q.eq("status", RIDE_STATUS.AWAITING_DRIVER)),
+      countWhere("drivers", (q) => q.eq("online", true)),
+      countWhere("drivers", null),
+      countWhere("htaf_applications", (q) => q.gte("created_at", startOfTodayUtc))
+    ]);
+
+    // Earnings today: sum over today's rows (admin-only, low volume).
+    let earningsToday = { net_total: 0, ride_count: 0, error: null };
+    {
+      const { data, error } = await supabase
+        .from("driver_earnings")
+        .select("net_amount, gross_amount")
+        .gte("created_at", startOfTodayUtc);
+      if (error) {
+        earningsToday.error = error.message;
+      } else {
+        earningsToday.ride_count = data.length;
+        earningsToday.net_total = data.reduce(
+          (sum, r) => sum + Number(r.net_amount || r.gross_amount || 0),
+          0
+        );
+        earningsToday.net_total = Math.round(earningsToday.net_total * 100) / 100;
+      }
+    }
+
+    // HTAF breakdown by status (dynamic — no hardcoded status strings).
+    let htafByStatus = {};
+    let htafTotal = 0;
+    {
+      const { data, error } = await supabase
+        .from("htaf_applications")
+        .select("status");
+      if (!error && Array.isArray(data)) {
+        htafTotal = data.length;
+        htafByStatus = data.reduce((acc, r) => {
+          const k = r.status || "unknown";
+          acc[k] = (acc[k] || 0) + 1;
+          return acc;
+        }, {});
+      }
+    }
+
+    return ok(res, {
+      metrics: {
+        generated_at: nowIso(),
+        window: "today = UTC midnight to now",
+        environment: NODE_ENV,
+        rides: {
+          today: ridesToday.count,
+          active: ridesActive.count,
+          completed_today: ridesCompletedToday.count,
+          dispatch_queue: dispatchQueue.count
+        },
+        drivers: {
+          online: driversOnline.count,
+          total: driversTotal.count
+        },
+        earnings_today: earningsToday,
+        htaf: {
+          today: htafToday.count,
+          total: htafTotal,
+          by_status: htafByStatus
+        }
+      }
+    });
+  })
+);
+
 /* =========================================================
 
    ADMIN RIDES LIST
