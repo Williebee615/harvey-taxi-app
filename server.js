@@ -14443,200 +14443,163 @@ function extractHtafCode(text) {
 }
 
 app.post(
-
   "/api/ai/support",
-
-  rateLimit({
-
-    windowMs:
-
-      60_000,
-
-    max:
-
-      20,
-
-    keyPrefix:
-
-      "ai_support"
-
-  }),
-
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "ai_support" }),
   asyncRoute(async (req, res) => {
+    const message = cleanString(req.body.message, 4000);
+    const page = cleanString(req.body.page, 120);
+    const role = cleanString(req.body.role, 60);
 
-    const message =
-
-      cleanString(
-
-        req.body.message,
-
-        4000
-
-      );
-
-    const page =
-
-      cleanString(
-
-        req.body.page,
-
-        120
-
-      );
-
-    const role =
-
-      cleanString(
-
-        req.body.role,
-
-        60
-
-      );
-
-    // Level 1: conversation memory. The frontend sends the
-
-    // recent turns as history: [{role:"user"|"assistant", content}].
-
-    // We cap it to the last 10 turns to control token cost.
-
-    const rawHistory =
-
-      Array.isArray(req.body.history)
-
-        ? req.body.history
-
-        : [];
-
-    const history =
-
-      rawHistory
-
-        .slice(-10)
-
-        .filter(
-
-          (m) =>
-
-            m &&
-
-            (m.role === "user" || m.role === "assistant") &&
-
-            typeof m.content === "string"
-
-        )
-
-        .map((m) => ({
-
-          role: m.role,
-
-          content: cleanString(m.content, 4000)
-
-        }));
+    // Conversation memory: last 10 valid turns from the frontend.
+    const rawHistory = Array.isArray(req.body.history) ? req.body.history : [];
+    const history = rawHistory
+      .slice(-10)
+      .filter(
+        (m) =>
+          m &&
+          (m.role === "user" || m.role === "assistant") &&
+          typeof m.content === "string"
+      )
+      .map((m) => ({ role: m.role, content: cleanString(m.content, 4000) }));
 
     if (!message) {
-
-      return fail(
-
-        res,
-
-        "Message required.",
-
-        400
-
-      );
-
+      return fail(res, "Message required.", 400);
     }
 
     if (!openai) {
-
       return ok(res, {
-
         reply:
-
           "Harvey AI Support is currently limited. Please contact support for help.",
-
-        fallback:
-
-          true,
-
-        support_email:
-
-          SUPPORT_EMAIL
-
+        fallback: true,
+        support_email: SUPPORT_EMAIL
       });
-
     }
 
-    // Level 3: safe read-only status lookup. If the user's
+    // Formal tool-calling: the model decides when to look up an HTAF status,
+    // reusing the existing read-only aiLookupHtafStatus() helper. To add more
+    // tools later (ride status, fare estimate), add a schema here and a case
+    // in runTool() — the loop below does not change.
+    const AI_TOOLS = [
+      {
+        type: "function",
+        function: {
+          name: "lookup_htaf_status",
+          description:
+            "Look up the status of an HTAF application by its application code. " +
+            "Call this ONLY when the person provides an application code in the " +
+            "format HTAF-YYYYMMDD-XXXX (for example HTAF-20260214-9F3A). Returns " +
+            "non-sensitive status fields only. Never promise approval or a timeline.",
+          parameters: {
+            type: "object",
+            properties: {
+              application_code: {
+                type: "string",
+                description: "The HTAF application code, format HTAF-YYYYMMDD-XXXX."
+              }
+            },
+            required: ["application_code"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "lookup_ride_status",
+          description:
+            "Look up the status of a ride by its ride code. Call this ONLY when the " +
+            "person provides a ride code in the format RIDE-XXXXXXXXXX (for example " +
+            "RIDE-9F3A2B7C10). Returns only the ride's status, type, and timing — " +
+            "never an address, price, fare, driver name, or phone number.",
+          parameters: {
+            type: "object",
+            properties: {
+              ride_code: {
+                type: "string",
+                description: "The ride code, format RIDE-XXXXXXXXXX."
+              }
+            },
+            required: ["ride_code"]
+          }
+        }
+      }
+    ];
 
-    // message contains an HTAF application code, fetch its
-
-    // non-sensitive status and give it to the model as context.
-
-    let lookupContext = "";
-
-    const htafCode =
-
-      extractHtafCode(message);
-
-    if (htafCode) {
-
-      const status =
-
-        await aiLookupHtafStatus(htafCode);
-
-      if (status) {
-
-        lookupContext =
-
-          `\n\n== LIVE LOOKUP RESULT (verified from database, safe to share) ==\n` +
-
-          `Application ${status.application_code}: status "${status.status}", ` +
-
-          `program "${status.program_type}", ` +
-
-          `submitted ${String(status.created_at).slice(0, 10)}, ` +
-
-          `last updated ${String(status.updated_at).slice(0, 10)}. ` +
-
-          `Explain this status plainly. Do NOT promise approval or a timeline.`;
-
-      } else {
-
-        lookupContext =
-
-          `\n\n== LIVE LOOKUP RESULT ==\n` +
-
-          `No application was found for code ${htafCode}. Ask the person to double-check the code, or direct them to support.`;
-
+    async function runTool(name, args) {
+      if (name === "lookup_htaf_status") {
+        const code = cleanString(args && args.application_code, 80);
+        if (!code || !/HTAF-\d{8}-[A-Z0-9]{4,8}/.test(code.toUpperCase())) {
+          return {
+            error:
+              "No valid HTAF application code provided. Ask the person for a code " +
+              "in the format HTAF-YYYYMMDD-XXXX."
+          };
+        }
+        const status = await aiLookupHtafStatus(code);
+        if (!status) {
+          return {
+            found: false,
+            message:
+              "No application found for code " + code + ". Ask them to double-check " +
+              "it, or direct them to support."
+          };
+        }
+        return {
+          found: true,
+          application_code: status.application_code,
+          status: status.status,
+          program_type: status.program_type,
+          submitted: String(status.created_at).slice(0, 10),
+          last_updated: String(status.updated_at).slice(0, 10),
+          guidance:
+            "Explain this status plainly and kindly. Do NOT promise approval or a timeline."
+        };
       }
 
+      if (name === "lookup_ride_status") {
+        const code = cleanString(args && args.ride_code, 80);
+        if (!code || !/^RIDE-[A-F0-9]{6,12}$/.test(code.toUpperCase())) {
+          return {
+            error:
+              "No valid ride code provided. Ask the person for a code in the " +
+              "format RIDE-XXXXXXXXXX."
+          };
+        }
+        const { data, error } = await supabase
+          .from("rides")
+          .select(
+            "status, dispatch_status, ride_type, scheduled_for, created_at, updated_at"
+          )
+          .eq("id", code.toUpperCase())
+          .maybeSingle();
+        if (error || !data) {
+          return {
+            found: false,
+            message:
+              "No ride found for code " + code + ". Ask them to double-check it, " +
+              "or direct them to support."
+          };
+        }
+        return {
+          found: true,
+          status: data.status,
+          dispatch_status: data.dispatch_status,
+          ride_type: data.ride_type,
+          scheduled_for: data.scheduled_for
+            ? String(data.scheduled_for).slice(0, 16)
+            : null,
+          requested: String(data.created_at).slice(0, 16),
+          last_updated: String(data.updated_at).slice(0, 16),
+          guidance:
+            "Explain the ride status plainly. Do NOT reveal or invent any address, " +
+            "price, fare, driver name, or phone number, and do NOT promise an arrival time."
+        };
+      }
+
+      return { error: "Unknown tool: " + name };
     }
 
-    let completion;
-
-    try {
-
-      completion =
-
-        await openai.chat.completions.create({
-
-          model:
-
-            OPENAI_MODEL,
-
-          messages: [
-
-            {
-
-              role:
-
-                "system",
-
-              content:
-
-                 [
+    const systemContent =
+      [
                   "You are Harvey AI, the support assistant for Harvey Taxi Service LLC and the Harvey Transportation Assistance Foundation (HTAF). Answer ONLY from the approved information below. If something is not covered here, do not guess — direct the person to support at support@harveytaxiservice.com.",
                   "",
                   "== COMPANY ==",
@@ -14677,104 +14640,80 @@ app.post(
                   "To sign up as a driver: use the Driver Sign-Up page, then complete email + SMS verification, Persona identity, and Checkr background review, then wait for admin approval.",
                   "To request a ride (approved riders): use the ride request page, enter pickup and destination. Do not quote a price; the app shows any estimate.",
                   "If someone is stuck or a page shows an error, apologize briefly and direct them to support@harveytaxiservice.com with a description of what happened."
-                ].join("\n") + lookupContext
- 
+                ].join("\n") +
+      "\n\nTOOL NOTE: You have two lookup tools. When a person gives an HTAF " +
+      "application code (HTAF-YYYYMMDD-XXXX), call lookup_htaf_status. When a person " +
+      "gives a ride code (RIDE-XXXXXXXXXX), call lookup_ride_status. Call a tool to " +
+      "fetch the real status instead of waiting for it to be provided. All rules " +
+      "above still apply — never promise approval, a timeline, or an arrival time, " +
+      "and never reveal an address, fare, name, or phone number.";
 
-            },
+    const messages = [
+      { role: "system", content: systemContent },
+      ...history,
+      {
+        role: "user",
+        content: "Page: " + page + "\nRole: " + role + "\n\nUser message: " + message
+      }
+    ];
 
-            ...history,
+    const MAX_TURNS = 4; // hard cap so a confused exchange cannot loop / run up cost
+    let reply = "I'm here to help. Please try again.";
 
-            {
-
-              role:
-
-                "user",
-
-              content:
-
-                `Page: ${page}\nRole: ${role}\n\nUser message: ${message}`
-
-            }
-
-          ],
-
-          temperature:
-
-            0.3
-
+    try {
+      for (let turn = 0; turn < MAX_TURNS; turn++) {
+        const completion = await openai.chat.completions.create({
+          model: OPENAI_MODEL,
+          messages,
+          tools: AI_TOOLS,
+          temperature: 0.3
         });
 
+        const msg = completion.choices?.[0]?.message;
+        if (!msg) break;
+        messages.push(msg); // push assistant turn BEFORE any tool results
+
+        if (!msg.tool_calls || msg.tool_calls.length === 0) {
+          reply = msg.content || reply;
+          break;
+        }
+
+        for (const call of msg.tool_calls) {
+          let args = {};
+          try {
+            args = JSON.parse(call.function.arguments || "{}");
+          } catch {
+            args = {};
+          }
+          const result = await runTool(call.function.name, args);
+          messages.push({
+            role: "tool",
+            tool_call_id: call.id,
+            content: JSON.stringify(result)
+          });
+        }
+      }
     } catch (error) {
-
-      console.error(
-
-        "❌ OpenAI support failed:",
-
-        error.message
-
-      );
-
+      console.error("❌ OpenAI support failed:", error.message);
       return ok(res, {
-
         reply:
-
           "Harvey AI Support is having trouble right now. Please try again or contact support.",
-
-        fallback:
-
-          true,
-
-        support_email:
-
-          SUPPORT_EMAIL
-
+        fallback: true,
+        support_email: SUPPORT_EMAIL
       });
-
     }
 
-    const reply =
-
-      completion
-
-        .choices?.[0]
-
-        ?.message
-
-        ?.content ||
-
-      "I'm here to help. Please try again.";
-
     auditLog({
-
-      action:
-
-        "ai_support_message",
-
-      metadata: {
-
-        page,
-
-        role,
-
-        length:
-
-          message.length
-
-      },
-
+      action: "ai_support_message",
+      metadata: { page, role, length: message.length },
       req
-
     }).catch(() => {});
 
-    return ok(res, {
-
-      reply
-
-    });
-
+    return ok(res, { reply });
   })
+);
 
-);/* =========================================================
+/* =========================================================
 
    PART 10B — STATIC ROUTES, ERROR HANDLING, BOOT SEQUENCE
 
