@@ -7239,6 +7239,33 @@ async function getRiderReadiness(riderId) {
 
 }
 
+/* Exposes getRiderReadiness() over HTTP. request-ride.html and the
+   mobile app both call GET /api/riders/:id/readiness before allowing
+   a ride request — this route previously did not exist, so every
+   readiness check 404'd and blocked riders from booking. */
+app.get(
+  "/api/riders/:id/readiness",
+  asyncRoute(async (req, res) => {
+    const riderId = cleanString(req.params.id, 100);
+    const readiness = await getRiderReadiness(riderId);
+
+    if (!readiness.rider) {
+      return fail(res, readiness.reason || "Rider not found.", 404);
+    }
+
+    return ok(res, {
+      rider_id: readiness.rider.id,
+      ready: readiness.ready,
+      approved: readiness.ready,
+      verified: readiness.ready,
+      status: readiness.rider.status,
+      approval_status: readiness.rider.approval_status,
+      checks: readiness.checks || {},
+      reason: readiness.reason || null
+    });
+  })
+);
+
 /* =========================================================
 
    DRIVER SEARCH
