@@ -1796,21 +1796,7 @@
     }
 
     function goDelivery(type) {
-      const params = new URLSearchParams();
-
-      params.set("service_type", type);
-
-      if (state.riderId) {
-        params.set("rider_id", state.riderId);
-      }
-
-      const page =
-        type === "grocery"
-          ? "request-grocery.html"
-          : "request-food.html";
-
-      window.location.href =
-        `${page}?${params.toString()}`;
+      goRide(type === "grocery" ? "grocery" : "food");
     }
 
     function quickDestination(label, address) {

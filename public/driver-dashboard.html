@@ -1436,14 +1436,27 @@
     }
     function normalizeMission(ride) {
       if (!ride) return null;
+      const pickupAddress = ride.pickup || ride.pickup_address || "";
+      const dropoffAddress = ride.destination || ride.destination_address || "";
       return {
         id: ride.id || ride.ride_id || "",
         rideId: ride.id || ride.ride_id || "",
-        serviceType: ride.ride_type || ride.service_type || "ride",
+        offerId: ride.offer_id || ride.id || ride.ride_id || "",
+        type: ride.ride_type || ride.service_type || "standard",
         status: ride.status || "assigned",
-        pickup: ride.pickup || ride.pickup_address || "",
-        destination: ride.destination || ride.destination_address || "",
+        pickup: pickupAddress,
+        destination: dropoffAddress,
+        pickupAddress,
+        dropoffAddress,
         fare: Number(ride.fare || ride.estimate_total || 0),
+        payout: Number(ride.driver_payout || ride.fare || ride.estimate_total || 0),
+        notes: ride.notes || "No notes provided",
+        eta: ride.eta || "Calculating...",
+        meta: {
+          customer: ride.rider_name || "Rider",
+          vendor: pickupAddress || "Pickup location",
+          items: ride.notes || "See notes"
+        },
         raw: ride
       };
     }
@@ -1555,8 +1568,8 @@
       }
 
       const m = state.mission;
-      const isRide = m.type === "ride";
-      
+      const isRide = !["food", "grocery", "delivery"].includes(m.type);
+
       let badgeClass = "pill-blue";
       if (m.status === "offered") badgeClass = "pill-gold";
       if (m.status === "active" || m.status === "picked_up") badgeClass = "pill-green";
@@ -1564,7 +1577,7 @@
       let entityContextTemplate = "";
       if (isRide) {
         entityContextTemplate = `
-          <div class="detail-row"><span>Passenger</span><strong>${m.meta.customer} (${m.meta.rating})</strong></div>
+          <div class="detail-row"><span>Passenger</span><strong>${m.meta.customer}</strong></div>
         `;
       } else {
         entityContextTemplate = `
@@ -1578,7 +1591,7 @@
           <div class="mission-head">
             <div>
               <span class="eyebrow" style="padding: 4px 8px; font-size: 0.75rem; margin-bottom: 6px;">
-                ${m.type.toUpperCase()} PACKAGE #${m.id}
+                ${m.type.toUpperCase()} ${isRide ? "RIDE" : "DELIVERY"} #${m.id}
               </span>
               <h4 style="font-size: 1.1rem; margin-top: 4px;">Est. Return: $${m.payout.toFixed(2)}</h4>
             </div>
@@ -1621,7 +1634,9 @@
       el.acceptBtn.disabled = !isOffered;
       el.rejectBtn.disabled = !isOffered;
 
-      if (m.type === "ride") {
+      const isDelivery = ["food", "grocery", "delivery"].includes(m.type);
+
+      if (!isDelivery) {
         el.rideActions.classList.remove("hidden");
         el.deliveryActions.classList.add("hidden");
 
