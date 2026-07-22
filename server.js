@@ -130,6 +130,12 @@ const APP_BASE_URL =
    CANONICAL_HOST if the canonical domain ever changes. */
 const CANONICAL_HOST = env("CANONICAL_HOST", "harveytaxiservice.com");
 
+/* Off by default: flip to true in the environment once CANONICAL_HOST is
+   confirmed resolving correctly. Until then, redirecting the Render
+   hostname there would send live traffic into a domain that doesn't
+   work yet. */
+const ENABLE_CANONICAL_REDIRECT = envBool("ENABLE_CANONICAL_REDIRECT", false);
+
 const PUBLIC_DIR = path.join(__dirname, "public");
 
 const SUPPORT_EMAIL =
@@ -448,16 +454,19 @@ app.disable("x-powered-by");
 
    CANONICAL DOMAIN REDIRECT
 
-   Sends browsers on the Render-assigned hostname (or any other
-   non-canonical host) to CANONICAL_HOST instead. API routes are
-   excluded so direct API callers (mobile clients, local dev
-   pointed at the deployed backend, webhooks) are never redirected.
+   Sends browsers on the Render-assigned hostname to CANONICAL_HOST
+   instead. API routes are excluded so direct API callers (mobile
+   clients, local dev pointed at the deployed backend, webhooks) are
+   never redirected. Gated behind ENABLE_CANONICAL_REDIRECT (default
+   off) — set it to true once CANONICAL_HOST is confirmed resolving.
 
 ========================================================= */
 
 app.use((req, res, next) => {
 
   if (
+
+    ENABLE_CANONICAL_REDIRECT &&
 
     IS_PRODUCTION &&
 
