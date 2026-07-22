@@ -8385,6 +8385,10 @@ app.post(
 
       nowIso();
 
+    const isDelivery =
+
+      rideType === "food" || rideType === "grocery";
+
     const ride = {
 
       id:
@@ -8413,7 +8417,10 @@ app.post(
 
         ),
 
-      pickup:
+      // NOTE: the rides table has no "pickup"/"destination" columns —
+      // only pickup_address/dropoff_address. Writing to the old names
+      // here used to make every ride request fail at insert time.
+      pickup_address:
 
         cleanString(
 
@@ -8423,7 +8430,7 @@ app.post(
 
         ),
 
-      destination:
+      dropoff_address:
 
         cleanString(
 
@@ -8441,11 +8448,11 @@ app.post(
 
         req.body.pickup_lng || null,
 
-      destination_lat:
+      dropoff_lat:
 
         req.body.destination_lat || null,
 
-      destination_lng:
+      dropoff_lng:
 
         req.body.destination_lng || null,
 
@@ -8453,21 +8460,11 @@ app.post(
 
         rideType,
 
-      scheduled_for:
+      scheduled_time:
 
         req.body.scheduled_for || null,
 
-      preferred_driver_id:
-
-        cleanString(
-
-          req.body.preferred_driver_id,
-
-          100
-
-        ) || null,
-
-      payment_intent_id:
+      payment_id:
 
         cleanString(
 
@@ -8487,7 +8484,7 @@ app.post(
 
           : "ready_to_dispatch",
 
-      estimate_total:
+      estimated_fare:
 
         estimate.total,
 
@@ -8495,15 +8492,23 @@ app.post(
 
         estimate.driver_payout,
 
-      platform_fee:
+      estimated_platform_fee:
 
         estimate.platform_fee,
 
-      miles:
+      estimated_distance_miles:
 
         estimate.miles,
 
-      minutes:
+      estimated_duration_minutes:
+
+        estimate.minutes,
+
+      miles_estimate:
+
+        estimate.miles,
+
+      minutes_estimate:
 
         estimate.minutes,
 
@@ -8516,6 +8521,51 @@ app.post(
           1000
 
         ),
+
+      // Delivery-only fields (food/grocery). Left null for passenger rides.
+      merchant_name:
+
+        isDelivery
+
+          ? cleanString(req.body.merchant_name, 180)
+
+          : null,
+
+      item_count:
+
+        isDelivery && req.body.item_count
+
+          ? Math.max(1, Math.floor(Number(req.body.item_count)))
+
+          : null,
+
+      pickup_instructions:
+
+        isDelivery
+
+          ? cleanString(req.body.pickup_instructions, 500)
+
+          : null,
+
+      delivery_instructions:
+
+        isDelivery
+
+          ? cleanString(req.body.delivery_instructions, 500)
+
+          : null,
+
+      delivery_pin:
+
+        isDelivery
+
+          ? String(Math.floor(1000 + Math.random() * 9000))
+
+          : null,
+
+      delivery_stage:
+
+        isDelivery ? "order_accepted" : null,
 
       created_at:
 
@@ -8703,7 +8753,7 @@ app.post(
 
         req.body.payment_intent_id ||
 
-        ride.payment_intent_id,
+        ride.payment_id,
 
         200
 
@@ -8791,7 +8841,7 @@ app.post(
 
       const expectedCents =
 
-        Math.round(Number(ride.estimate_total || 0) * 100);
+        Math.round(Number(ride.estimated_fare || 0) * 100);
 
       if (
 
@@ -8925,7 +8975,7 @@ app.post(
 
       .update({
 
-        payment_intent_id:
+        payment_id:
 
           paymentIntentId,
 
@@ -8949,7 +8999,7 @@ app.post(
 
       ...ride,
 
-      payment_intent_id:
+      payment_id:
 
         paymentIntentId,
 
@@ -9965,7 +10015,7 @@ async function captureRidePayment(ride) {
 
     !stripe ||
 
-    !ride.payment_intent_id
+    !ride.payment_id
 
   ) {
 
@@ -9981,7 +10031,7 @@ async function captureRidePayment(ride) {
 
       .capture(
 
-        ride.payment_intent_id
+        ride.payment_id
 
       );
 
@@ -12438,7 +12488,7 @@ app.post(
 
         application.phone,
 
-      pickup:
+      pickup_address:
 
         cleanString(
 
@@ -12450,7 +12500,7 @@ app.post(
 
         ),
 
-      destination:
+      dropoff_address:
 
         cleanString(
 
@@ -12466,7 +12516,7 @@ app.post(
 
         "foundation",
 
-      scheduled_for:
+      scheduled_time:
 
         req.body.scheduled_for ||
 
@@ -12482,7 +12532,7 @@ app.post(
 
         "foundation_authorized",
 
-      estimate_total:
+      estimated_fare:
 
         estimate.total,
 
@@ -12490,15 +12540,23 @@ app.post(
 
         estimate.driver_payout,
 
-      platform_fee:
+      estimated_platform_fee:
 
         estimate.platform_fee,
 
-      miles:
+      estimated_distance_miles:
 
         estimate.miles,
 
-      minutes:
+      estimated_duration_minutes:
+
+        estimate.minutes,
+
+      miles_estimate:
+
+        estimate.miles,
+
+      minutes_estimate:
 
         estimate.minutes,
 
@@ -14368,65 +14426,33 @@ app.post(
 
     ) {
 
-      await Promise.allSettled([
+      await supabase
 
-        supabase
+        .from("rides")
 
-          .from("rides")
+        .update({
 
-          .update({
+          payment_status:
 
-            payment_status:
+            "succeeded",
 
-              "succeeded",
+          payment_captured:
 
-            payment_captured:
+            true,
 
-              true,
+          updated_at:
 
-            updated_at:
+            nowIso()
 
-              nowIso()
+        })
 
-          })
+        .eq(
 
-          .eq(
+          "payment_id",
 
-            "payment_intent_id",
+          object.id
 
-            object.id
-
-          ),
-
-        supabase
-
-          .from("deliveries")
-
-          .update({
-
-            payment_status:
-
-              "succeeded",
-
-            payment_captured:
-
-              true,
-
-            updated_at:
-
-              nowIso()
-
-          })
-
-          .eq(
-
-            "payment_intent_id",
-
-            object.id
-
-          )
-
-      ]);
+        );
 
     }
 
@@ -14438,61 +14464,33 @@ app.post(
 
     ) {
 
-      await Promise.allSettled([
+      await supabase
 
-        supabase
+        .from("rides")
 
-          .from("rides")
+        .update({
 
-          .update({
+          payment_status:
 
-            payment_status:
+            "authorized",
 
-              "authorized",
+          status:
 
-            status:
+            RIDE_STATUS.PAYMENT_AUTHORIZED,
 
-              RIDE_STATUS.PAYMENT_AUTHORIZED,
+          updated_at:
 
-            updated_at:
+            nowIso()
 
-              nowIso()
+        })
 
-          })
+        .eq(
 
-          .eq(
+          "payment_id",
 
-            "payment_intent_id",
+          object.id
 
-            object.id
-
-          ),
-
-        supabase
-
-          .from("deliveries")
-
-          .update({
-
-            payment_status:
-
-              "authorized",
-
-            updated_at:
-
-              nowIso()
-
-          })
-
-          .eq(
-
-            "payment_intent_id",
-
-            object.id
-
-          )
-
-      ]);
+        );
 
     }
 
@@ -14508,61 +14506,33 @@ app.post(
 
     ) {
 
-      await Promise.allSettled([
+      await supabase
 
-        supabase
+        .from("rides")
 
-          .from("rides")
+        .update({
 
-          .update({
+          payment_status:
 
-            payment_status:
+            "failed",
 
-              "failed",
+          status:
 
-            status:
+            RIDE_STATUS.FAILED,
 
-              RIDE_STATUS.FAILED,
+          updated_at:
 
-            updated_at:
+            nowIso()
 
-              nowIso()
+        })
 
-          })
+        .eq(
 
-          .eq(
+          "payment_id",
 
-            "payment_intent_id",
+          object.id
 
-            object.id
-
-          ),
-
-        supabase
-
-          .from("deliveries")
-
-          .update({
-
-            payment_status:
-
-              "failed",
-
-            updated_at:
-
-              nowIso()
-
-          })
-
-          .eq(
-
-            "payment_intent_id",
-
-            object.id
-
-          )
-
-      ]);
+        );
 
     }
 
