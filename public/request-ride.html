@@ -936,6 +936,59 @@
       letter-spacing: 0.3em;
     }
 
+    .delivery-proof-box {
+      margin-top: 4px;
+      text-align: center;
+    }
+
+    .delivery-proof-box span {
+      display: block;
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      margin-bottom: 6px;
+    }
+
+    .delivery-proof-img {
+      max-width: 100%;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+    }
+
+    .delivery-timeline {
+      display: grid;
+      gap: 2px;
+    }
+
+    .timeline-step {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 4px;
+      font-size: 0.85rem;
+      opacity: 0.45;
+    }
+
+    .timeline-step.done,
+    .timeline-step.active {
+      opacity: 1;
+    }
+
+    .timeline-step.active {
+      font-weight: 800;
+      color: var(--accent, #63f5ff);
+    }
+
+    .timeline-emoji {
+      font-size: 1rem;
+      width: 22px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .timeline-label {
+      min-width: 0;
+    }
+
     .trip-timeline {
       margin-top: 18px;
       display: grid;
@@ -1804,9 +1857,10 @@
 
             <!-- DELIVERY ORDER DETAILS (food/grocery orders only) -->
             <div id="deliveryOrderCard" class="delivery-order-card hidden">
-              <div class="delivery-order-row">
-                <span>Order Status</span>
-                <strong id="deliveryStageText">—</strong>
+              <div id="deliveryTimeline" class="delivery-timeline"></div>
+              <div class="delivery-order-row hidden" id="deliveryTrackingRow">
+                <span>Live Tracking</span>
+                <strong id="deliveryTrackingText">—</strong>
               </div>
               <div class="delivery-order-row">
                 <span>Merchant / Store</span>
@@ -1827,6 +1881,10 @@
               <div class="delivery-pin-box" id="deliveryPinBox">
                 <span>Give this PIN to your driver at delivery</span>
                 <strong id="deliveryPinText">—</strong>
+              </div>
+              <div class="delivery-proof-box hidden" id="deliveryProofBox">
+                <span>Delivery Photo</span>
+                <img id="deliveryProofImg" class="delivery-proof-img" alt="Delivery confirmation photo" />
               </div>
             </div>
 
@@ -2329,7 +2387,9 @@
       driverContactLink: $("driverContactLink"),
 
       deliveryOrderCard: $("deliveryOrderCard"),
-      deliveryStageText: $("deliveryStageText"),
+      deliveryTimeline: $("deliveryTimeline"),
+      deliveryTrackingRow: $("deliveryTrackingRow"),
+      deliveryTrackingText: $("deliveryTrackingText"),
       deliveryMerchantText: $("deliveryMerchantText"),
       deliveryItemCountText: $("deliveryItemCountText"),
       deliveryPickupInstructionsRow: $("deliveryPickupInstructionsRow"),
@@ -2338,6 +2398,8 @@
       deliveryInstructionsText: $("deliveryInstructionsText"),
       deliveryPinBox: $("deliveryPinBox"),
       deliveryPinText: $("deliveryPinText"),
+      deliveryProofBox: $("deliveryProofBox"),
+      deliveryProofImg: $("deliveryProofImg"),
 
       liveStatusText: $("liveStatusText"),
 
@@ -2513,7 +2575,71 @@
       }
     }
 
-    function updateDeliveryInfo(delivery) {
+    const DELIVERY_TIMELINE_STEPS = [
+      { emoji: "📝", label: "Order submitted" },
+      { emoji: "🧭", label: "Driver assigned" },
+      { emoji: "🚗", label: "Driver heading to merchant" },
+      { emoji: "📍", label: "Driver arrived at merchant" },
+      { emoji: "📦", label: "Order picked up" },
+      { emoji: "🚗", label: "Driver heading to you" },
+      { emoji: "📍", label: "Driver nearby" },
+      { emoji: "✅", label: "Delivered" }
+    ];
+
+    function computeDeliveryStepIndex(status, delivery) {
+      const stage = delivery?.stage || "order_accepted";
+
+      if (stage === "delivered") return 7;
+      if (stage === "arrived_customer") return 6;
+      if (stage === "enroute_customer") return 5;
+      if (stage === "picked_up") return 4;
+      if (stage === "arrived_store" || stage === "waiting_for_order") return 3;
+      if (stage === "enroute_store") return 2;
+
+      const driverAssignedStatuses = [
+        "driver_assigned", "driver_enroute", "arrived", "in_progress", "completed"
+      ];
+
+      return driverAssignedStatuses.includes(status) ? 1 : 0;
+    }
+
+    function renderDeliveryTimeline(status, delivery) {
+      if (!els.deliveryTimeline) return;
+
+      const currentIndex = computeDeliveryStepIndex(status, delivery);
+      const isDead = status === "cancelled" || status === "failed";
+
+      els.deliveryTimeline.innerHTML = DELIVERY_TIMELINE_STEPS.map((step, i) => {
+        const stepState = isDead ? "pending" : (i < currentIndex ? "done" : i === currentIndex ? "active" : "pending");
+        return `
+          <div class="timeline-step ${stepState}">
+            <span class="timeline-emoji">${step.emoji}</span>
+            <span class="timeline-label">${step.label}</span>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function updateTrackingInfo(tracking) {
+      if (!els.deliveryTrackingRow || !els.deliveryTrackingText) return;
+
+      if (!tracking) {
+        els.deliveryTrackingRow.classList.add("hidden");
+        return;
+      }
+
+      const targetLabel =
+        tracking.target === "store" ? "the store" :
+        tracking.target === "customer" ? "you" :
+        "your destination";
+
+      els.deliveryTrackingText.textContent =
+        `~${tracking.distance_miles} mi from ${targetLabel} • ~${tracking.eta_minutes} min (estimate)`;
+
+      els.deliveryTrackingRow.classList.remove("hidden");
+    }
+
+    function updateDeliveryInfo(status, delivery) {
       if (!els.deliveryOrderCard) return;
 
       if (!delivery) {
@@ -2523,10 +2649,7 @@
 
       els.deliveryOrderCard.classList.remove("hidden");
 
-      if (els.deliveryStageText) {
-        els.deliveryStageText.textContent =
-          delivery.stage_label || "Order accepted";
-      }
+      renderDeliveryTimeline(status, delivery);
 
       if (els.deliveryMerchantText) {
         els.deliveryMerchantText.textContent =
@@ -2557,11 +2680,20 @@
       }
 
       if (els.deliveryPinBox && els.deliveryPinText) {
-        if (delivery.pin && delivery.stage !== "delivered") {
+        if (delivery.pin && delivery.stage !== "delivered" && delivery.delivery_handoff !== "leave_at_door") {
           els.deliveryPinText.textContent = delivery.pin;
           els.deliveryPinBox.classList.remove("hidden");
         } else {
           els.deliveryPinBox.classList.add("hidden");
+        }
+      }
+
+      if (els.deliveryProofBox && els.deliveryProofImg) {
+        if (delivery.proof_url) {
+          els.deliveryProofImg.src = delivery.proof_url;
+          els.deliveryProofBox.classList.remove("hidden");
+        } else {
+          els.deliveryProofBox.classList.add("hidden");
         }
       }
     }
@@ -3109,7 +3241,9 @@
       setDispatchState("Standby");
 
       updateDriverInfo(null);
-      updateDeliveryInfo(null);
+      updateDeliveryInfo(null, null);
+      updateTrackingInfo(null);
+      stopRideStream();
 
       setTimeline(
         "approval",
@@ -4100,6 +4234,8 @@
             CONFIG.STORAGE_KEYS.lastRideId,
             state.ride.rideId
           );
+
+          startRideStream(state.ride.rideId);
         }
 
         setBadge("Requested");
@@ -4199,7 +4335,12 @@
           normalized.raw;
 
         updateDriverInfo(data.driver);
-        updateDeliveryInfo(data.delivery);
+        updateDeliveryInfo(data.status, data.delivery);
+        updateTrackingInfo(data.tracking);
+
+        if (["completed", "cancelled", "failed"].includes(data.status)) {
+          stopRideStream();
+        }
 
         setBadge("Status Updated");
 
@@ -4238,6 +4379,65 @@
           false
         );
       }
+    }
+
+    // --- Live ride/delivery tracking (SSE with polling fallback) ---
+    // The server pushes a "stage" event on every driver-status-transition
+    // route and a "location" event on every driver GPS ping. Either one
+    // just means "something changed, refetch the full status" rather than
+    // carrying the computed tracking payload itself, so the distance/ETA
+    // math stays in one place (the server).
+    let rideEventSource = null;
+    let ridePollingIntervalId = null;
+
+    function startRideStream(rideId) {
+      stopRideStream();
+      if (!rideId) return;
+
+      if (typeof EventSource === "undefined") {
+        startRidePolling(rideId);
+        return;
+      }
+
+      try {
+        rideEventSource = new EventSource(
+          `/api/rides/${encodeURIComponent(rideId)}/stream`
+        );
+
+        rideEventSource.addEventListener("stage", () => refreshRideStatus());
+        rideEventSource.addEventListener("location", () => refreshRideStatus());
+
+        rideEventSource.onerror = () => {
+          stopRideStream();
+          startRidePolling(rideId);
+        };
+      } catch (err) {
+        startRidePolling(rideId);
+      }
+    }
+
+    function startRidePolling(rideId) {
+      stopRidePolling();
+      if (!rideId) return;
+
+      ridePollingIntervalId = setInterval(() => {
+        refreshRideStatus();
+      }, 10000);
+    }
+
+    function stopRidePolling() {
+      if (ridePollingIntervalId) {
+        clearInterval(ridePollingIntervalId);
+        ridePollingIntervalId = null;
+      }
+    }
+
+    function stopRideStream() {
+      if (rideEventSource) {
+        rideEventSource.close();
+        rideEventSource = null;
+      }
+      stopRidePolling();
     }
 
     function canUseGoogleMaps() {
@@ -4603,6 +4803,9 @@
           "dispatch",
           "Previous ride request found on this device."
         );
+
+        refreshRideStatus();
+        startRideStream(state.ride.rideId);
       }
     }
 

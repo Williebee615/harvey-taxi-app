@@ -1081,6 +1081,10 @@
           <input id="deliveryPinInput" type="text" inputmode="numeric" maxlength="4" placeholder="PIN" autocomplete="off" />
           <button class="btn btn-success" id="completeDeliveryBtn" type="button" disabled>Confirm Delivery</button>
         </div>
+        <div id="photoProofRow" class="pin-entry-row hidden">
+          <input id="deliveryProofPhotoInput" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" />
+          <button class="btn btn-success" id="completeDeliveryPhotoBtn" type="button" disabled>Confirm Delivery (Photo)</button>
+        </div>
         <div id="missionMsg" class="msg"></div>
       </section>
 
@@ -1297,6 +1301,9 @@
       completeDeliveryBtn: document.getElementById("completeDeliveryBtn"),
       pinEntryRow: document.getElementById("pinEntryRow"),
       deliveryPinInput: document.getElementById("deliveryPinInput"),
+      photoProofRow: document.getElementById("photoProofRow"),
+      deliveryProofPhotoInput: document.getElementById("deliveryProofPhotoInput"),
+      completeDeliveryPhotoBtn: document.getElementById("completeDeliveryPhotoBtn"),
       
       // Notification Layers
       loginMsg: document.getElementById("loginMsg"),
@@ -1354,6 +1361,9 @@
 
       el.photoInput.addEventListener("change", handlePhotoSelected);
       el.uploadPhotoBtn.addEventListener("click", handlePhotoUpload);
+
+      el.completeDeliveryPhotoBtn.addEventListener("click", () => executeWorkflowAction("complete_delivery"));
+      el.deliveryProofPhotoInput.addEventListener("change", handleDeliveryProofPhotoSelected);
     }
 
     const DEFAULT_PHOTO =
@@ -1407,6 +1417,31 @@
         showMessage(el.photoMsg, "Upload failed: " + err.message, "err");
         el.uploadPhotoBtn.disabled = false;
       }
+    }
+
+    let selectedDeliveryProofDataUrl = null;
+
+    function handleDeliveryProofPhotoSelected() {
+      const file = el.deliveryProofPhotoInput.files && el.deliveryProofPhotoInput.files[0];
+      selectedDeliveryProofDataUrl = null;
+      el.completeDeliveryPhotoBtn.disabled = true;
+      if (!file) return;
+
+      if (file.size > 5 * 1024 * 1024) {
+        showMessage(el.missionMsg, "Photo is too large. Maximum size is 5MB.", "err");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        selectedDeliveryProofDataUrl = reader.result;
+        el.completeDeliveryPhotoBtn.disabled = !state.canCompleteDelivery;
+        showMessage(el.missionMsg, "Photo ready to confirm delivery.", "ok");
+      };
+      reader.onerror = () => {
+        showMessage(el.missionMsg, "Could not read that photo. Please try another.", "err");
+      };
+      reader.readAsDataURL(file);
     }
 
     // Step 1: request an SMS login code for this driver ID.
@@ -1470,6 +1505,7 @@
 
     function clearDashboardSession() {
       stopLivePollingSync();
+      stopLocationTracking();
       Object.keys(STORAGE).forEach(key => localStorage.removeItem(STORAGE[key]));
       state.driverId = "";
       state.driverEmail = "";
@@ -1570,6 +1606,7 @@
           state.earnings = [];
         }
         syncStateToDOM();
+        syncLocationTrackingState();
         if (isManualRefresh) {
           showMessage(el.globalMsg, "Dashboard up to date.", "ok");
         }
@@ -1579,6 +1616,93 @@
         state.isBusy = false;
       }
     }
+
+    // --- Live GPS reporting ---
+    // Reports the driver's position while an active mission is underway so
+    // riders can see a live distance/ETA (and, once Google Maps is
+    // configured, a moving pin). Uses watchPosition for freshness but only
+    // POSTs at a throttled interval, and stops automatically when there's
+    // no active mission, the driver goes offline, on logout, or after the
+    // tab has been hidden for a while.
+    let geoWatchId = null;
+    let lastLocationSentAt = 0;
+    let hiddenTrackingTimeoutId = null;
+    const LOCATION_SEND_INTERVAL_MS = 12000;
+    const HIDDEN_STOP_TRACKING_MS = 5 * 60 * 1000;
+
+    function shouldTrackLocation() {
+      return Boolean(
+        state.driverId &&
+        state.mission &&
+        state.driver &&
+        state.driver.status !== "offline"
+      );
+    }
+
+    function startLocationTracking() {
+      if (geoWatchId !== null) return;
+      if (!navigator.geolocation) return;
+      if (!shouldTrackLocation()) return;
+
+      geoWatchId = navigator.geolocation.watchPosition(
+        handleLocationTick,
+        (err) => console.warn("Location tracking error:", err.message),
+        { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
+      );
+    }
+
+    function stopLocationTracking() {
+      if (geoWatchId !== null && navigator.geolocation) {
+        navigator.geolocation.clearWatch(geoWatchId);
+      }
+      geoWatchId = null;
+    }
+
+    function syncLocationTrackingState() {
+      if (shouldTrackLocation()) {
+        startLocationTracking();
+      } else {
+        stopLocationTracking();
+      }
+    }
+
+    async function handleLocationTick(position) {
+      if (!shouldTrackLocation()) {
+        stopLocationTracking();
+        return;
+      }
+
+      const now = Date.now();
+      if (now - lastLocationSentAt < LOCATION_SEND_INTERVAL_MS) return;
+      lastLocationSentAt = now;
+
+      try {
+        await apiPost("/api/driver/location", {
+          driver_id: state.driverId,
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          heading: position.coords.heading || 0,
+          speed: position.coords.speed || 0,
+          accuracy: position.coords.accuracy || null
+        });
+      } catch (err) {
+        // Best-effort; a missed location ping isn't worth surfacing to the driver.
+      }
+    }
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        hiddenTrackingTimeoutId = setTimeout(() => {
+          stopLocationTracking();
+        }, HIDDEN_STOP_TRACKING_MS);
+      } else {
+        if (hiddenTrackingTimeoutId) {
+          clearTimeout(hiddenTrackingTimeoutId);
+          hiddenTrackingTimeoutId = null;
+        }
+        syncLocationTrackingState();
+      }
+    });
     function escapeHtml(value) {
       if (value === null || value === undefined || value === "") return "";
       return String(value).replace(/[&<>"']/g, (c) => ({
@@ -1633,7 +1757,8 @@
               merchantName: ride.merchant_name || "",
               itemCount: ride.item_count || null,
               pickupInstructions: ride.pickup_instructions || "",
-              deliveryInstructions: ride.delivery_instructions || ""
+              deliveryInstructions: ride.delivery_instructions || "",
+              handoff: ride.delivery_handoff || "hand_to_customer"
             }
           : null,
         raw: ride
@@ -1730,11 +1855,15 @@
       el.deliveryActions.classList.add("hidden");
       el.pinEntryRow.classList.add("hidden");
       el.deliveryPinInput.value = "";
+      el.photoProofRow.classList.add("hidden");
+      el.deliveryProofPhotoInput.value = "";
+      selectedDeliveryProofDataUrl = null;
 
       // Disable child layout arrays completely
       Array.from(el.rideActions.querySelectorAll("button")).forEach(b => b.disabled = true);
       Array.from(el.deliveryActions.querySelectorAll("button")).forEach(b => b.disabled = true);
       el.completeDeliveryBtn.disabled = true;
+      el.completeDeliveryPhotoBtn.disabled = true;
     }
 
     // Dynamic Mission Component Template Factory
@@ -1836,6 +1965,7 @@
         el.rideActions.classList.remove("hidden");
         el.deliveryActions.classList.add("hidden");
         el.pinEntryRow.classList.add("hidden");
+        el.photoProofRow.classList.add("hidden");
 
         const isActive = m.status === "accepted";
         const isEnRoute = m.status === "enroute";
@@ -1850,7 +1980,6 @@
         // Logistics Flow Control (Food / Grocery Delivery)
         el.rideActions.classList.add("hidden");
         el.deliveryActions.classList.remove("hidden");
-        el.pinEntryRow.classList.remove("hidden");
 
         const isAccepted = m.status === "accepted";
         const isEnRouteStore = m.status === "enroute_store";
@@ -1858,6 +1987,7 @@
         const isPickedUp = m.status === "picked_up";
         const isEnRouteCust = m.status === "enroute_customer";
         const isArrivedCust = m.status === "arrived_customer";
+        const isLeaveAtDoor = (m.delivery?.handoff || "hand_to_customer") === "leave_at_door";
 
         el.toStoreBtn.disabled = !isAccepted;
         el.arrivedStoreBtn.disabled = !isEnRouteStore;
@@ -1866,9 +1996,17 @@
         el.arrivedCustomerBtn.disabled = !isEnRouteCust;
 
         state.canCompleteDelivery = isArrivedCust;
+
+        el.pinEntryRow.classList.toggle("hidden", isLeaveAtDoor);
+        el.photoProofRow.classList.toggle("hidden", !isLeaveAtDoor);
+
         el.deliveryPinInput.disabled = !isArrivedCust;
         el.completeDeliveryBtn.disabled =
           !isArrivedCust || el.deliveryPinInput.value.trim().length !== 4;
+
+        el.deliveryProofPhotoInput.disabled = !isArrivedCust;
+        el.completeDeliveryPhotoBtn.disabled =
+          !isArrivedCust || !selectedDeliveryProofDataUrl;
       }
     }
 
@@ -1931,17 +2069,32 @@
             await fetchFreshDashboardState(false);
             break;
           case "complete_delivery": {
-            const pin = el.deliveryPinInput.value.trim();
-            if (pin.length !== 4) {
-              showMessage(el.missionMsg, "Enter the customer's 4-digit delivery PIN.", "warn");
-              return;
+            const isLeaveAtDoor = (m.delivery?.handoff || "hand_to_customer") === "leave_at_door";
+
+            if (isLeaveAtDoor) {
+              if (!selectedDeliveryProofDataUrl) {
+                showMessage(el.missionMsg, "Take a photo of the delivery before confirming.", "warn");
+                return;
+              }
+              await apiPost(`/api/driver/rides/${encodeURIComponent(rideId)}/complete`, {
+                driver_id: driverId,
+                delivery_photo: selectedDeliveryProofDataUrl
+              });
+            } else {
+              const pin = el.deliveryPinInput.value.trim();
+              if (pin.length !== 4) {
+                showMessage(el.missionMsg, "Enter the customer's 4-digit delivery PIN.", "warn");
+                return;
+              }
+              await apiPost(`/api/driver/rides/${encodeURIComponent(rideId)}/complete`, {
+                driver_id: driverId,
+                delivery_pin: pin
+              });
             }
-            await apiPost(`/api/driver/rides/${encodeURIComponent(rideId)}/complete`, {
-              driver_id: driverId,
-              delivery_pin: pin
-            });
+
             showMessage(el.missionMsg, "Delivery confirmed.", "ok");
             state.mission = null;
+            selectedDeliveryProofDataUrl = null;
             await fetchFreshDashboardState(false);
             break;
           }
@@ -2011,6 +2164,7 @@
         showMessage(el.globalMsg, "Status update failed: " + err.message, "err");
       }
       syncStateToDOM();
+      syncLocationTrackingState();
     }
     // DOM Utilities & Dynamic Output Printers
     function showMessage(targetBox, message, type = "ok") {
