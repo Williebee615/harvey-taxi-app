@@ -13,7 +13,7 @@ import {
   View
 } from "react-native";
 
-const API_BASE = "https://harvey-taxi-app-2.onrender.com";
+const API_BASE = "https://harveytaxiservice.com";
 
 function normalizeYear(value) {
   return String(value || "").replace(/\D/g, "").slice(0, 4);

@@ -124,6 +124,12 @@ const APP_BASE_URL =
 
   `http://localhost:${PORT}`;
 
+/* Canonical public domain for the platform. Any request that arrives on a
+   different host (e.g. the Render-assigned hostname) is 301-redirected here,
+   except API routes — see the redirect middleware below. Override with
+   CANONICAL_HOST if the canonical domain ever changes. */
+const CANONICAL_HOST = env("CANONICAL_HOST", "harveytaxiservice.com");
+
 const PUBLIC_DIR = path.join(__dirname, "public");
 
 const SUPPORT_EMAIL =
@@ -437,6 +443,41 @@ if (OpenAI && OPENAI_API_KEY && ENABLE_AI_SUPPORT) {
 app.set("trust proxy", 1);
 
 app.disable("x-powered-by");
+
+/* =========================================================
+
+   CANONICAL DOMAIN REDIRECT
+
+   Sends browsers on the Render-assigned hostname (or any other
+   non-canonical host) to CANONICAL_HOST instead. API routes are
+   excluded so direct API callers (mobile clients, local dev
+   pointed at the deployed backend, webhooks) are never redirected.
+
+========================================================= */
+
+app.use((req, res, next) => {
+
+  if (
+
+    IS_PRODUCTION &&
+
+    req.hostname &&
+
+    req.hostname !== CANONICAL_HOST &&
+
+    req.hostname.endsWith(".onrender.com") &&
+
+    !req.path.startsWith("/api/")
+
+  ) {
+
+    return res.redirect(301, `https://${CANONICAL_HOST}${req.originalUrl}`);
+
+  }
+
+  next();
+
+});
 
 const JSON_LIMIT = env("JSON_LIMIT", "2mb");
 

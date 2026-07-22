@@ -7,7 +7,7 @@ export default function App() {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
       <WebView
-        source={{ uri: 'https://harvey-taxi-app-2.onrender.com' }}
+        source={{ uri: 'https://harveytaxiservice.com' }}
         style={{ flex: 1 }}
         javaScriptEnabled
         domStorageEnabled

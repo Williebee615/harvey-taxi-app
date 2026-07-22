@@ -1,6 +1,6 @@
 import { Platform } from "react-native";
 
-const FALLBACK_RENDER_URL = "https://harvey-taxi-app-2.onrender.com";
+const FALLBACK_API_URL = "https://harveytaxiservice.com";
 
 function normalizeBaseUrl(url) {
   return String(url || "").trim().replace(/\/+$/, "");
@@ -21,10 +21,10 @@ function getBaseUrl() {
       return normalizeBaseUrl("http://10.0.2.2:10000");
     }
 
-    return normalizeBaseUrl(FALLBACK_RENDER_URL);
+    return normalizeBaseUrl(FALLBACK_API_URL);
   }
 
-  return normalizeBaseUrl(FALLBACK_RENDER_URL);
+  return normalizeBaseUrl(FALLBACK_API_URL);
 }
 
 export const API_BASE_URL = getBaseUrl();
