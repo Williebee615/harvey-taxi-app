@@ -848,6 +848,60 @@
       margin-top: 2px;
     }
 
+    .driver-contact-link {
+      display: inline-block;
+      margin-top: 6px;
+      color: var(--accent, #63f5ff);
+      font-weight: 700;
+      font-size: 0.85rem;
+      text-decoration: underline;
+    }
+
+    .delivery-order-card {
+      margin-top: 14px;
+      display: grid;
+      gap: 8px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.04);
+      border-radius: 18px;
+      padding: 14px 16px;
+    }
+
+    .delivery-order-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 0.88rem;
+    }
+
+    .delivery-order-row span {
+      color: var(--text-muted);
+    }
+
+    .delivery-order-row strong {
+      text-align: right;
+    }
+
+    .delivery-pin-box {
+      margin-top: 4px;
+      text-align: center;
+      border: 1px dashed var(--accent, #63f5ff);
+      border-radius: 14px;
+      padding: 10px 12px;
+    }
+
+    .delivery-pin-box span {
+      display: block;
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      margin-bottom: 4px;
+    }
+
+    .delivery-pin-box strong {
+      font-size: 1.6rem;
+      letter-spacing: 0.3em;
+    }
+
     .trip-timeline {
       margin-top: 18px;
       display: grid;
@@ -1627,6 +1681,35 @@
                 <span>Your Driver</span>
                 <strong id="driverNameText">—</strong>
                 <span id="driverVehicleText">—</span>
+                <a id="driverContactLink" class="driver-contact-link hidden" href="#">Call Driver</a>
+              </div>
+            </div>
+
+            <!-- DELIVERY ORDER DETAILS (food/grocery orders only) -->
+            <div id="deliveryOrderCard" class="delivery-order-card hidden">
+              <div class="delivery-order-row">
+                <span>Order Status</span>
+                <strong id="deliveryStageText">—</strong>
+              </div>
+              <div class="delivery-order-row">
+                <span>Merchant / Store</span>
+                <strong id="deliveryMerchantText">—</strong>
+              </div>
+              <div class="delivery-order-row">
+                <span>Items</span>
+                <strong id="deliveryItemCountText">—</strong>
+              </div>
+              <div class="delivery-order-row" id="deliveryPickupInstructionsRow">
+                <span>Pickup Instructions</span>
+                <strong id="deliveryPickupInstructionsText">—</strong>
+              </div>
+              <div class="delivery-order-row" id="deliveryInstructionsRow">
+                <span>Delivery Instructions</span>
+                <strong id="deliveryInstructionsText">—</strong>
+              </div>
+              <div class="delivery-pin-box" id="deliveryPinBox">
+                <span>Give this PIN to your driver at delivery</span>
+                <strong id="deliveryPinText">—</strong>
               </div>
             </div>
 
@@ -2099,6 +2182,18 @@
       driverPhoto: $("driverPhoto"),
       driverNameText: $("driverNameText"),
       driverVehicleText: $("driverVehicleText"),
+      driverContactLink: $("driverContactLink"),
+
+      deliveryOrderCard: $("deliveryOrderCard"),
+      deliveryStageText: $("deliveryStageText"),
+      deliveryMerchantText: $("deliveryMerchantText"),
+      deliveryItemCountText: $("deliveryItemCountText"),
+      deliveryPickupInstructionsRow: $("deliveryPickupInstructionsRow"),
+      deliveryPickupInstructionsText: $("deliveryPickupInstructionsText"),
+      deliveryInstructionsRow: $("deliveryInstructionsRow"),
+      deliveryInstructionsText: $("deliveryInstructionsText"),
+      deliveryPinBox: $("deliveryPinBox"),
+      deliveryPinText: $("deliveryPinText"),
 
       liveStatusText: $("liveStatusText"),
 
@@ -2262,6 +2357,68 @@
             '<path d="M8 52c3-12 13-19 20-19s17 7 20 19" fill="#475569"/>' +
             "</svg>"
           );
+      }
+
+      if (els.driverContactLink) {
+        if (driver.phone) {
+          els.driverContactLink.href = `tel:${driver.phone}`;
+          els.driverContactLink.classList.remove("hidden");
+        } else {
+          els.driverContactLink.classList.add("hidden");
+        }
+      }
+    }
+
+    function updateDeliveryInfo(delivery) {
+      if (!els.deliveryOrderCard) return;
+
+      if (!delivery) {
+        els.deliveryOrderCard.classList.add("hidden");
+        return;
+      }
+
+      els.deliveryOrderCard.classList.remove("hidden");
+
+      if (els.deliveryStageText) {
+        els.deliveryStageText.textContent =
+          delivery.stage_label || "Order accepted";
+      }
+
+      if (els.deliveryMerchantText) {
+        els.deliveryMerchantText.textContent =
+          delivery.merchant_name || "—";
+      }
+
+      if (els.deliveryItemCountText) {
+        els.deliveryItemCountText.textContent =
+          delivery.item_count ? `${delivery.item_count} item(s)` : "—";
+      }
+
+      if (els.deliveryPickupInstructionsRow && els.deliveryPickupInstructionsText) {
+        if (delivery.pickup_instructions) {
+          els.deliveryPickupInstructionsText.textContent = delivery.pickup_instructions;
+          els.deliveryPickupInstructionsRow.classList.remove("hidden");
+        } else {
+          els.deliveryPickupInstructionsRow.classList.add("hidden");
+        }
+      }
+
+      if (els.deliveryInstructionsRow && els.deliveryInstructionsText) {
+        if (delivery.delivery_instructions) {
+          els.deliveryInstructionsText.textContent = delivery.delivery_instructions;
+          els.deliveryInstructionsRow.classList.remove("hidden");
+        } else {
+          els.deliveryInstructionsRow.classList.add("hidden");
+        }
+      }
+
+      if (els.deliveryPinBox && els.deliveryPinText) {
+        if (delivery.pin && delivery.stage !== "delivered") {
+          els.deliveryPinText.textContent = delivery.pin;
+          els.deliveryPinBox.classList.remove("hidden");
+        } else {
+          els.deliveryPinBox.classList.add("hidden");
+        }
       }
     }
 
@@ -2639,6 +2796,7 @@
       setDispatchState("Standby");
 
       updateDriverInfo(null);
+      updateDeliveryInfo(null);
 
       setTimeline(
         "approval",
@@ -3708,6 +3866,7 @@
           normalized.raw;
 
         updateDriverInfo(data.driver);
+        updateDeliveryInfo(data.delivery);
 
         setBadge("Status Updated");
 

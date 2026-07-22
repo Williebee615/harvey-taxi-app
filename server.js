@@ -1252,6 +1252,52 @@ function normalizeRideType(value) {
 
 }
 
+function isDeliveryRideType(rideType) {
+
+  return rideType === "food" || rideType === "grocery";
+
+}
+
+const DELIVERY_STAGE = {
+
+  ORDER_ACCEPTED: "order_accepted",
+
+  ENROUTE_STORE: "enroute_store",
+
+  ARRIVED_STORE: "arrived_store",
+
+  WAITING_FOR_ORDER: "waiting_for_order",
+
+  PICKED_UP: "picked_up",
+
+  ENROUTE_CUSTOMER: "enroute_customer",
+
+  ARRIVED_CUSTOMER: "arrived_customer",
+
+  DELIVERED: "delivered"
+
+};
+
+const DELIVERY_STAGE_LABELS = {
+
+  order_accepted: "Order accepted",
+
+  enroute_store: "Driver en route to store",
+
+  arrived_store: "Driver at store",
+
+  waiting_for_order: "Waiting for order",
+
+  picked_up: "Order picked up",
+
+  enroute_customer: "Driver en route to you",
+
+  arrived_customer: "Driver has arrived",
+
+  delivered: "Delivered"
+
+};
+
 function requireBody(req, fields = []) {
 
   const missing = [];
@@ -8387,7 +8433,7 @@ app.post(
 
     const isDelivery =
 
-      rideType === "food" || rideType === "grocery";
+      isDeliveryRideType(rideType);
 
     const ride = {
 
@@ -8565,7 +8611,7 @@ app.post(
 
       delivery_stage:
 
-        isDelivery ? "order_accepted" : null,
+        isDelivery ? DELIVERY_STAGE.ORDER_ACCEPTED : null,
 
       created_at:
 
@@ -9097,11 +9143,15 @@ app.get(
 
         "id, status, ride_type, pickup_address, dropoff_address, " +
 
-        "driver_id, driver_name, driver_vehicle, " +
+        "driver_id, driver_name, driver_vehicle, driver_phone, " +
 
         "driver_eta_to_pickup_minutes, driver_distance_to_pickup_miles, " +
 
-        "estimated_fare, created_at, updated_at"
+        "estimated_fare, created_at, updated_at, " +
+
+        "delivery_stage, delivery_pin, merchant_name, item_count, " +
+
+        "pickup_instructions, delivery_instructions, delivered_at"
 
       )
 
@@ -9133,6 +9183,8 @@ app.get(
 
     }
 
+    const isDelivery = isDeliveryRideType(ride.ride_type);
+
     return ok(res, {
 
       id: ride.id,
@@ -9161,7 +9213,35 @@ app.get(
 
             vehicle: ride.driver_vehicle,
 
+            phone: ride.driver_phone,
+
             photo_url: driverPhotoUrl
+
+          }
+
+        : null,
+
+      delivery: isDelivery
+
+        ? {
+
+            stage: ride.delivery_stage,
+
+            stage_label:
+
+              DELIVERY_STAGE_LABELS[ride.delivery_stage] || null,
+
+            pin: ride.delivery_pin,
+
+            merchant_name: ride.merchant_name,
+
+            item_count: ride.item_count,
+
+            pickup_instructions: ride.pickup_instructions,
+
+            delivery_instructions: ride.delivery_instructions,
+
+            delivered_at: ride.delivered_at
 
           }
 
@@ -9749,7 +9829,13 @@ app.post(
 
         updated_at:
 
-          nowIso()
+          nowIso(),
+
+        ...(isDeliveryRideType(ride.ride_type)
+
+          ? { delivery_stage: DELIVERY_STAGE.ENROUTE_STORE }
+
+          : {})
 
       })
 
@@ -9851,7 +9937,13 @@ app.post(
 
         updated_at:
 
-          nowIso()
+          nowIso(),
+
+        ...(isDeliveryRideType(ride.ride_type)
+
+          ? { delivery_stage: DELIVERY_STAGE.ARRIVED_STORE }
+
+          : {})
 
       })
 
@@ -9892,6 +9984,118 @@ app.post(
       status:
 
         RIDE_STATUS.ARRIVED
+
+    });
+
+  })
+
+);
+
+/* =========================================================
+
+   DRIVER WAITING FOR ORDER (delivery only)
+
+========================================================= */
+
+app.post(
+
+  "/api/driver/rides/:rideId/waiting-for-order",
+
+  requireDriver,
+
+  asyncRoute(async (req, res) => {
+
+    const rideId =
+
+      cleanString(
+
+        req.params.rideId,
+
+        100
+
+      );
+
+    const driverId = req.driver.id;
+
+    const ride =
+
+      await getRideOrFail(rideId);
+
+    await ensureAssignedDriver(
+
+      ride,
+
+      driverId
+
+    );
+
+    if (!isDeliveryRideType(ride.ride_type)) {
+
+      return fail(
+
+        res,
+
+        "This action is only available for delivery orders.",
+
+        400
+
+      );
+
+    }
+
+    await supabase
+
+      .from("rides")
+
+      .update({
+
+        delivery_stage:
+
+          DELIVERY_STAGE.WAITING_FOR_ORDER,
+
+        updated_at:
+
+          nowIso()
+
+      })
+
+      .eq("id", rideId);
+
+    auditLog({
+
+      actor_type:
+
+        "driver",
+
+      actor_id:
+
+        driverId,
+
+      action:
+
+        "driver_waiting_for_order",
+
+      entity_type:
+
+        "ride",
+
+      entity_id:
+
+        rideId,
+
+      req
+
+    }).catch(() => {});
+
+    return ok(res, {
+
+      ride_id:
+
+        rideId,
+
+      delivery_stage:
+
+        DELIVERY_STAGE.WAITING_FOR_ORDER
 
     });
 
@@ -9953,7 +10157,13 @@ app.post(
 
         updated_at:
 
-          nowIso()
+          nowIso(),
+
+        ...(isDeliveryRideType(ride.ride_type)
+
+          ? { delivery_stage: DELIVERY_STAGE.PICKED_UP }
+
+          : {})
 
       })
 
@@ -9994,6 +10204,230 @@ app.post(
       status:
 
         RIDE_STATUS.IN_PROGRESS
+
+    });
+
+  })
+
+);
+
+/* =========================================================
+
+   DRIVER ENROUTE TO CUSTOMER (delivery only)
+
+========================================================= */
+
+app.post(
+
+  "/api/driver/rides/:rideId/enroute-customer",
+
+  requireDriver,
+
+  asyncRoute(async (req, res) => {
+
+    const rideId =
+
+      cleanString(
+
+        req.params.rideId,
+
+        100
+
+      );
+
+    const driverId = req.driver.id;
+
+    const ride =
+
+      await getRideOrFail(rideId);
+
+    await ensureAssignedDriver(
+
+      ride,
+
+      driverId
+
+    );
+
+    if (!isDeliveryRideType(ride.ride_type)) {
+
+      return fail(
+
+        res,
+
+        "This action is only available for delivery orders.",
+
+        400
+
+      );
+
+    }
+
+    await supabase
+
+      .from("rides")
+
+      .update({
+
+        delivery_stage:
+
+          DELIVERY_STAGE.ENROUTE_CUSTOMER,
+
+        updated_at:
+
+          nowIso()
+
+      })
+
+      .eq("id", rideId);
+
+    auditLog({
+
+      actor_type:
+
+        "driver",
+
+      actor_id:
+
+        driverId,
+
+      action:
+
+        "driver_enroute_customer",
+
+      entity_type:
+
+        "ride",
+
+      entity_id:
+
+        rideId,
+
+      req
+
+    }).catch(() => {});
+
+    return ok(res, {
+
+      ride_id:
+
+        rideId,
+
+      delivery_stage:
+
+        DELIVERY_STAGE.ENROUTE_CUSTOMER
+
+    });
+
+  })
+
+);
+
+/* =========================================================
+
+   DRIVER ARRIVED AT CUSTOMER (delivery only)
+
+========================================================= */
+
+app.post(
+
+  "/api/driver/rides/:rideId/arrived-customer",
+
+  requireDriver,
+
+  asyncRoute(async (req, res) => {
+
+    const rideId =
+
+      cleanString(
+
+        req.params.rideId,
+
+        100
+
+      );
+
+    const driverId = req.driver.id;
+
+    const ride =
+
+      await getRideOrFail(rideId);
+
+    await ensureAssignedDriver(
+
+      ride,
+
+      driverId
+
+    );
+
+    if (!isDeliveryRideType(ride.ride_type)) {
+
+      return fail(
+
+        res,
+
+        "This action is only available for delivery orders.",
+
+        400
+
+      );
+
+    }
+
+    await supabase
+
+      .from("rides")
+
+      .update({
+
+        delivery_stage:
+
+          DELIVERY_STAGE.ARRIVED_CUSTOMER,
+
+        updated_at:
+
+          nowIso()
+
+      })
+
+      .eq("id", rideId);
+
+    auditLog({
+
+      actor_type:
+
+        "driver",
+
+      actor_id:
+
+        driverId,
+
+      action:
+
+        "driver_arrived_customer",
+
+      entity_type:
+
+        "ride",
+
+      entity_id:
+
+        rideId,
+
+      req
+
+    }).catch(() => {});
+
+    return ok(res, {
+
+      ride_id:
+
+        rideId,
+
+      delivery_stage:
+
+        DELIVERY_STAGE.ARRIVED_CUSTOMER
 
     });
 
@@ -10167,6 +10601,42 @@ app.post(
 
     );
 
+    if (isDeliveryRideType(ride.ride_type)) {
+
+      const suppliedPin =
+
+        cleanString(
+
+          req.body.delivery_pin,
+
+          10
+
+        );
+
+      if (
+
+        !suppliedPin ||
+
+        !ride.delivery_pin ||
+
+        suppliedPin !== ride.delivery_pin
+
+      ) {
+
+        return fail(
+
+          res,
+
+          "Incorrect delivery PIN. Ask the customer for their delivery PIN.",
+
+          400
+
+        );
+
+      }
+
+    }
+
     const paymentResult =
 
       await captureRidePayment(ride);
@@ -10201,7 +10671,19 @@ app.post(
 
         updated_at:
 
-          nowIso()
+          nowIso(),
+
+        ...(isDeliveryRideType(ride.ride_type)
+
+          ? {
+
+              delivery_stage: DELIVERY_STAGE.DELIVERED,
+
+              delivered_at: nowIso()
+
+            }
+
+          : {})
 
       })
 

@@ -550,6 +550,24 @@
       margin-top: 12px;
     }
 
+    .contact-link {
+      color: var(--gold, #f5c563);
+      text-decoration: underline;
+    }
+
+    .pin-entry-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-top: 10px;
+    }
+
+    .pin-entry-row input {
+      max-width: 140px;
+      letter-spacing: 2px;
+      font-weight: 700;
+    }
+
     .stack {
       display: grid;
       gap: 12px;
@@ -1058,7 +1076,10 @@
           <button class="btn btn-primary" id="pickedUpBtn" type="button" disabled>Items Picked Up</button>
           <button class="btn btn-warn" id="toCustomerBtn" type="button" disabled>En Route Drop</button>
           <button class="btn btn-success" id="arrivedCustomerBtn" type="button" disabled>Arrived Drop</button>
-          <button class="btn btn-success" id="completeDeliveryBtn" type="button" disabled>Complete Mission</button>
+        </div>
+        <div id="pinEntryRow" class="pin-entry-row hidden">
+          <input id="deliveryPinInput" type="text" inputmode="numeric" maxlength="4" placeholder="PIN" autocomplete="off" />
+          <button class="btn btn-success" id="completeDeliveryBtn" type="button" disabled>Confirm Delivery</button>
         </div>
         <div id="missionMsg" class="msg"></div>
       </section>
@@ -1192,7 +1213,8 @@
       earnings: [],
       dashboard: null,
       isBusy: false,
-      pollingInterval: null
+      pollingInterval: null,
+      canCompleteDelivery: false
     };
 
     // Cache Core DOM Elements Safely
@@ -1273,6 +1295,8 @@
       toCustomerBtn: document.getElementById("toCustomerBtn"),
       arrivedCustomerBtn: document.getElementById("arrivedCustomerBtn"),
       completeDeliveryBtn: document.getElementById("completeDeliveryBtn"),
+      pinEntryRow: document.getElementById("pinEntryRow"),
+      deliveryPinInput: document.getElementById("deliveryPinInput"),
       
       // Notification Layers
       loginMsg: document.getElementById("loginMsg"),
@@ -1322,6 +1346,11 @@
       el.toCustomerBtn.addEventListener("click", () => executeWorkflowAction("enroute_customer"));
       el.arrivedCustomerBtn.addEventListener("click", () => executeWorkflowAction("arrived_customer"));
       el.completeDeliveryBtn.addEventListener("click", () => executeWorkflowAction("complete_delivery"));
+      el.deliveryPinInput.addEventListener("input", () => {
+        el.deliveryPinInput.value = el.deliveryPinInput.value.replace(/\D/g, "").slice(0, 4);
+        el.completeDeliveryBtn.disabled =
+          !state.canCompleteDelivery || el.deliveryPinInput.value.length !== 4;
+      });
 
       el.photoInput.addEventListener("change", handlePhotoSelected);
       el.uploadPhotoBtn.addEventListener("click", handlePhotoUpload);
@@ -1550,29 +1579,63 @@
         state.isBusy = false;
       }
     }
+    function escapeHtml(value) {
+      if (value === null || value === undefined || value === "") return "";
+      return String(value).replace(/[&<>"']/g, (c) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      })[c]);
+    }
+
+    function deriveMissionStatus(ride, isDelivery) {
+      if (isDelivery) {
+        const stage = ride.delivery_stage || "order_accepted";
+        if (stage === "order_accepted") return "accepted";
+        if (stage === "waiting_for_order") return "arrived_store";
+        return stage;
+      }
+      const map = {
+        driver_assigned: "accepted",
+        driver_enroute: "enroute",
+        arrived: "arrived",
+        in_progress: "started"
+      };
+      return map[ride.status] || ride.status || "assigned";
+    }
+
     function normalizeMission(ride) {
       if (!ride) return null;
-      const pickupAddress = ride.pickup || ride.pickup_address || "";
-      const dropoffAddress = ride.destination || ride.destination_address || "";
+      const pickupAddress = ride.pickup_address || ride.pickup || "";
+      const dropoffAddress = ride.dropoff_address || ride.destination || "";
+      const rideType = ride.ride_type || ride.service_type || "standard";
+      const isDelivery = ["food", "grocery"].includes(rideType);
       return {
         id: ride.id || ride.ride_id || "",
         rideId: ride.id || ride.ride_id || "",
         offerId: ride.offer_id || ride.id || ride.ride_id || "",
-        type: ride.ride_type || ride.service_type || "standard",
-        status: ride.status || "assigned",
+        type: rideType,
+        status: deriveMissionStatus(ride, isDelivery),
         pickup: pickupAddress,
         destination: dropoffAddress,
         pickupAddress,
         dropoffAddress,
-        fare: Number(ride.fare || ride.estimate_total || 0),
-        payout: Number(ride.driver_payout || ride.fare || ride.estimate_total || 0),
+        fare: Number(ride.estimated_fare || ride.fare || 0),
+        payout: Number(ride.driver_payout || ride.estimated_fare || ride.fare || 0),
         notes: ride.notes || "No notes provided",
         eta: ride.eta || "Calculating...",
         meta: {
           customer: ride.rider_name || "Rider",
-          vendor: pickupAddress || "Pickup location",
-          items: ride.notes || "See notes"
+          customerPhone: ride.rider_phone || "",
+          vendor: ride.merchant_name || pickupAddress || "Pickup location",
+          items: ride.item_count ? `${ride.item_count} item(s)` : (ride.notes || "See notes")
         },
+        delivery: isDelivery
+          ? {
+              merchantName: ride.merchant_name || "",
+              itemCount: ride.item_count || null,
+              pickupInstructions: ride.pickup_instructions || "",
+              deliveryInstructions: ride.delivery_instructions || ""
+            }
+          : null,
         raw: ride
       };
     }
@@ -1665,10 +1728,13 @@
       el.rejectBtn.disabled = true;
       el.rideActions.classList.remove("hidden");
       el.deliveryActions.classList.add("hidden");
-      
+      el.pinEntryRow.classList.add("hidden");
+      el.deliveryPinInput.value = "";
+
       // Disable child layout arrays completely
       Array.from(el.rideActions.querySelectorAll("button")).forEach(b => b.disabled = true);
       Array.from(el.deliveryActions.querySelectorAll("button")).forEach(b => b.disabled = true);
+      el.completeDeliveryBtn.disabled = true;
     }
 
     // Dynamic Mission Component Template Factory
@@ -1691,6 +1757,9 @@
 
       const m = state.mission;
       const isRide = !["food", "grocery", "delivery"].includes(m.type);
+      const contactLink = m.meta.customerPhone
+        ? `<a class="contact-link" href="tel:${escapeHtml(m.meta.customerPhone)}">Call ${isRide ? "Passenger" : "Customer"}</a>`
+        : "—";
 
       let badgeClass = "pill-blue";
       if (m.status === "offered") badgeClass = "pill-gold";
@@ -1699,12 +1768,17 @@
       let entityContextTemplate = "";
       if (isRide) {
         entityContextTemplate = `
-          <div class="detail-row"><span>Passenger</span><strong>${m.meta.customer}</strong></div>
+          <div class="detail-row"><span>Passenger</span><strong>${escapeHtml(m.meta.customer)}</strong></div>
+          <div class="detail-row"><span>Contact</span><strong>${contactLink}</strong></div>
         `;
       } else {
         entityContextTemplate = `
-          <div class="detail-row"><span>Distribution Hub</span><strong>${m.meta.vendor}</strong></div>
-          <div class="detail-row"><span>Manifest Load</span><strong>${m.meta.items}</strong></div>
+          <div class="detail-row"><span>Merchant / Store</span><strong>${escapeHtml(m.delivery?.merchantName) || "—"}</strong></div>
+          <div class="detail-row"><span>Customer</span><strong>${escapeHtml(m.meta.customer)}</strong></div>
+          <div class="detail-row"><span>Item Count</span><strong>${escapeHtml(m.delivery?.itemCount) || "—"}</strong></div>
+          <div class="detail-row"><span>Pickup Instructions</span><strong>${escapeHtml(m.delivery?.pickupInstructions) || "None"}</strong></div>
+          <div class="detail-row"><span>Delivery Instructions</span><strong>${escapeHtml(m.delivery?.deliveryInstructions) || "None"}</strong></div>
+          <div class="detail-row"><span>Contact</span><strong>${contactLink}</strong></div>
         `;
       }
 
@@ -1725,7 +1799,7 @@
               <div class="route-icon pickup">A</div>
               <div class="route-copy">
                 <strong>Origin Point (Pickup)</strong>
-                <span>${m.pickupAddress}</span>
+                <span>${escapeHtml(m.pickupAddress)}</span>
               </div>
             </div>
             <div style="border-left: 2px dashed rgba(255,255,255,0.15); height: 16px; margin-left: 16px;"></div>
@@ -1733,15 +1807,15 @@
               <div class="route-icon dropoff">B</div>
               <div class="route-copy">
                 <strong>Destination Point (Dropoff)</strong>
-                <span>${m.dropoffAddress}</span>
+                <span>${escapeHtml(m.dropoffAddress)}</span>
               </div>
             </div>
           </div>
 
           <div class="detail-list" style="margin-top: 14px;">
             ${entityContextTemplate}
-            <div class="detail-row"><span>Estimated Duration</span><strong>${m.eta}</strong></div>
-            <div class="detail-row"><span>Instructions</span><strong>${m.notes}</strong></div>
+            <div class="detail-row"><span>Estimated Duration</span><strong>${escapeHtml(m.eta)}</strong></div>
+            <div class="detail-row"><span>Instructions</span><strong>${escapeHtml(m.notes)}</strong></div>
           </div>
         </div>
       `;
@@ -1761,6 +1835,7 @@
       if (!isDelivery) {
         el.rideActions.classList.remove("hidden");
         el.deliveryActions.classList.add("hidden");
+        el.pinEntryRow.classList.add("hidden");
 
         const isActive = m.status === "accepted";
         const isEnRoute = m.status === "enroute";
@@ -1775,6 +1850,7 @@
         // Logistics Flow Control (Food / Grocery Delivery)
         el.rideActions.classList.add("hidden");
         el.deliveryActions.classList.remove("hidden");
+        el.pinEntryRow.classList.remove("hidden");
 
         const isAccepted = m.status === "accepted";
         const isEnRouteStore = m.status === "enroute_store";
@@ -1788,7 +1864,11 @@
         el.pickedUpBtn.disabled = !isArrivedStore;
         el.toCustomerBtn.disabled = !isPickedUp;
         el.arrivedCustomerBtn.disabled = !isEnRouteCust;
-        el.completeDeliveryBtn.disabled = !isArrivedCust;
+
+        state.canCompleteDelivery = isArrivedCust;
+        el.deliveryPinInput.disabled = !isArrivedCust;
+        el.completeDeliveryBtn.disabled =
+          !isArrivedCust || el.deliveryPinInput.value.trim().length !== 4;
       }
     }
 
@@ -1814,31 +1894,57 @@
             break;
           case "enroute":
           case "enroute_store":
-          case "enroute_customer":
             await apiPost(`/api/driver/rides/${encodeURIComponent(rideId)}/enroute`, { driver_id: driverId });
             m.status = action;
             showMessage(el.missionMsg, "En route.", "ok");
             break;
+          case "enroute_customer":
+            await apiPost(`/api/driver/rides/${encodeURIComponent(rideId)}/enroute-customer`, { driver_id: driverId });
+            m.status = "enroute_customer";
+            showMessage(el.missionMsg, "En route to customer.", "ok");
+            break;
           case "arrived":
           case "arrived_store":
-          case "arrived_customer":
             await apiPost(`/api/driver/rides/${encodeURIComponent(rideId)}/arrived`, { driver_id: driverId });
             m.status = action;
             showMessage(el.missionMsg, "Marked arrived.", "ok");
             break;
+          case "arrived_customer":
+            await apiPost(`/api/driver/rides/${encodeURIComponent(rideId)}/arrived-customer`, { driver_id: driverId });
+            m.status = "arrived_customer";
+            showMessage(el.missionMsg, "Marked arrived at customer.", "ok");
+            break;
           case "start":
-          case "picked_up":
             await apiPost(`/api/driver/rides/${encodeURIComponent(rideId)}/start`, { driver_id: driverId });
             m.status = "started";
             showMessage(el.missionMsg, "Trip started.", "ok");
             break;
+          case "picked_up":
+            await apiPost(`/api/driver/rides/${encodeURIComponent(rideId)}/start`, { driver_id: driverId });
+            m.status = "picked_up";
+            showMessage(el.missionMsg, "Order picked up.", "ok");
+            break;
           case "complete":
-          case "complete_delivery":
             await apiPost(`/api/driver/rides/${encodeURIComponent(rideId)}/complete`, { driver_id: driverId });
             showMessage(el.missionMsg, "Trip completed.", "ok");
             state.mission = null;
             await fetchFreshDashboardState(false);
             break;
+          case "complete_delivery": {
+            const pin = el.deliveryPinInput.value.trim();
+            if (pin.length !== 4) {
+              showMessage(el.missionMsg, "Enter the customer's 4-digit delivery PIN.", "warn");
+              return;
+            }
+            await apiPost(`/api/driver/rides/${encodeURIComponent(rideId)}/complete`, {
+              driver_id: driverId,
+              delivery_pin: pin
+            });
+            showMessage(el.missionMsg, "Delivery confirmed.", "ok");
+            state.mission = null;
+            await fetchFreshDashboardState(false);
+            break;
+          }
           default:
             showMessage(el.missionMsg, "Unknown action.", "warn");
         }
