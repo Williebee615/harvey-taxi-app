@@ -14,6 +14,7 @@
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icon-192.png" />
   <link rel="icon" href="/favicon.ico" sizes="any" />
+  <link rel="stylesheet" href="/ai-support-widget.css" />
 
   <!-- Open Graph -->
   <meta property="og:type" content="website" />
@@ -680,6 +681,26 @@
     .support-callout strong { display: block; color: var(--green); font-size: 15px; font-weight: 900; margin-bottom: 5px; }
     .support-callout span { color: var(--muted); font-size: 14px; line-height: 1.65; }
 
+    .medical-callout {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+      margin-bottom: 22px;
+      padding: 20px 24px;
+      border-radius: var(--radius-xl);
+      border: 1px solid rgba(255,200,74,0.28);
+      background: linear-gradient(135deg, rgba(255,200,74,0.10), rgba(255,200,74,0.03));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+    }
+    .medical-callout strong { display: block; color: var(--gold); font-size: 16px; font-weight: 900; margin-bottom: 5px; }
+    .medical-callout span { color: var(--muted); font-size: 14px; line-height: 1.6; }
+    .medical-callout .btn { flex-shrink: 0; }
+    @media (max-width: 640px) {
+      .medical-callout { flex-direction: column; align-items: flex-start; }
+      .medical-callout .btn { width: 100%; }
+    }
+
     /* ============================================================
        SECTIONS
        ============================================================ */
@@ -914,171 +935,6 @@
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
     /* ============================================================
-       HARVEY AI CHAT
-       ============================================================ */
-    #harvey-ai-chat-root { position: fixed; z-index: 9998; }
-
-    .harvey-ai-fab {
-      position: fixed;
-      right: 22px;
-      bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 14px);
-      width: 68px;
-      height: 68px;
-      border-radius: 50%;
-      border: none;
-      cursor: pointer;
-      background: var(--grad-cyan);
-      color: var(--ink);
-      font-size: 26px;
-      font-weight: 900;
-      box-shadow: 0 14px 38px rgba(80,144,255,0.38);
-      display: grid;
-      place-items: center;
-      transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
-      animation: fabPulse 3s ease-in-out infinite;
-      z-index: 9997;
-    }
-    .harvey-ai-fab:hover { transform: scale(1.08); box-shadow: 0 18px 48px rgba(80,144,255,0.48); }
-    @keyframes fabPulse {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.05); }
-    }
-
-    .harvey-ai-window {
-      position: fixed;
-      right: 18px;
-      bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 88px);
-      width: 420px;
-      max-width: calc(100vw - 22px);
-      height: 600px;
-      border-radius: 26px;
-      overflow: hidden;
-      border: 1px solid rgba(93,245,255,0.18);
-      background: linear-gradient(180deg, rgba(8,15,36,0.99), rgba(3,7,18,0.99));
-      box-shadow: var(--shadow-xl);
-      display: flex;
-      flex-direction: column;
-      animation: fadeIn 0.22s var(--ease);
-    }
-    .harvey-ai-header {
-      padding: 16px 20px;
-      background: var(--grad-cyan);
-      color: var(--ink);
-      font-weight: 900;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 15px;
-      flex-shrink: 0;
-    }
-    .harvey-ai-header-left { display: flex; align-items: center; gap: 10px; }
-    .harvey-ai-header-icon { font-size: 20px; }
-    .harvey-ai-close-btn {
-      width: 32px; height: 32px;
-      border-radius: 50%;
-      background: rgba(0,0,0,0.15);
-      border: none;
-      color: var(--ink);
-      font-size: 18px;
-      font-weight: 900;
-      display: grid;
-      place-items: center;
-      cursor: pointer;
-      transition: background var(--dur) var(--ease);
-    }
-    .harvey-ai-close-btn:hover { background: rgba(0,0,0,0.28); }
-    .harvey-ai-body {
-      flex: 1;
-      overflow-y: auto;
-      padding: 18px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      scroll-behavior: smooth;
-    }
-    .harvey-ai-body::-webkit-scrollbar { width: 4px; }
-    .harvey-ai-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 2px; }
-    .ai-msg {
-      padding: 14px 16px;
-      border-radius: 18px;
-      max-width: 87%;
-      line-height: 1.62;
-      font-size: 14px;
-      animation: msgIn 0.2s var(--ease);
-    }
-    @keyframes msgIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-    .ai-msg.bot {
-      background: rgba(93,245,255,0.07);
-      border: 1px solid rgba(93,245,255,0.13);
-      color: var(--text);
-      align-self: flex-start;
-      border-bottom-left-radius: 5px;
-    }
-    .ai-msg.user {
-      background: rgba(80,144,255,0.10);
-      border: 1px solid rgba(80,144,255,0.18);
-      color: var(--text);
-      align-self: flex-end;
-      border-bottom-right-radius: 5px;
-    }
-    .ai-typing {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      padding: 14px 16px;
-      background: rgba(93,245,255,0.07);
-      border: 1px solid rgba(93,245,255,0.13);
-      border-radius: 18px;
-      border-bottom-left-radius: 5px;
-      align-self: flex-start;
-      max-width: 80px;
-    }
-    .ai-typing span {
-      width: 7px; height: 7px;
-      border-radius: 50%;
-      background: var(--cyan);
-      animation: typingDot 1.2s ease-in-out infinite;
-    }
-    .ai-typing span:nth-child(2) { animation-delay: 0.2s; }
-    .ai-typing span:nth-child(3) { animation-delay: 0.4s; }
-    @keyframes typingDot {
-      0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
-      40% { transform: scale(1); opacity: 1; }
-    }
-    .harvey-ai-footer {
-      padding: 14px;
-      border-top: 1px solid rgba(255,255,255,0.06);
-      display: flex;
-      gap: 9px;
-      flex-shrink: 0;
-    }
-    .harvey-ai-input {
-      flex: 1;
-      border-radius: var(--radius-md);
-      border: 1px solid rgba(255,255,255,0.08);
-      background: rgba(255,255,255,0.04);
-      color: var(--text);
-      padding: 12px 14px;
-      font-size: 14px;
-      transition: border-color var(--dur) var(--ease);
-    }
-    .harvey-ai-input:focus { border-color: rgba(93,245,255,0.30); outline: none; }
-    .harvey-ai-input::placeholder { color: var(--muted2); }
-    .harvey-ai-send {
-      min-width: 72px;
-      border-radius: var(--radius-md);
-      border: none;
-      background: var(--grad-green);
-      color: #04200e;
-      font-weight: 900;
-      font-size: 14px;
-      cursor: pointer;
-      transition: all var(--dur) var(--ease);
-    }
-    .harvey-ai-send:hover { transform: translateY(-1px); box-shadow: var(--shadow-green); }
-    .harvey-ai-send:disabled { opacity: 0.55; transform: none; }
-
-    /* ============================================================
        QUICK SETTINGS (injected)
        ============================================================ */
     #quick-settings-panel { position: relative; z-index: 1; }
@@ -1160,8 +1016,6 @@
       .announce .btn, .support-callout .btn { width: 100%; }
       .footer-actions .btn { flex: 1; min-width: 120px; }
       .footer { padding: 24px; border-radius: var(--radius-xl); }
-      .harvey-ai-window { left: 10px; right: 10px; bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 10px); width: auto; height: min(600px, calc(100vh - 160px)); }
-      .harvey-ai-fab { right: 16px; width: 60px; height: 60px; font-size: 22px; }
       .tile, .lang-tile, .community-tile { text-align: left; }
       [dir="rtl"] .tile, [dir="rtl"] .lang-tile, [dir="rtl"] .community-tile { text-align: right; }
       .lang-panel { border-radius: var(--radius-xl); }
@@ -1248,6 +1102,16 @@
 
           <!-- LEFT -->
           <div>
+            <!-- MEDICAL RIDE ENTRY POINT — separate from rideshare/driver CTAs below,
+                 for hospital-referred patients (e.g. Vanderbilt) landing on this page. -->
+            <div class="medical-callout">
+              <div>
+                <strong data-i18n="medicalCalloutTitle">Need a ride to a medical appointment?</strong>
+                <span data-i18n="medicalCalloutCopy">Harvey Transportation Assistance Foundation (HTAF) provides transportation assistance for medical visits — separate from the rideshare app below.</span>
+              </div>
+              <a class="btn foundation" href="foundation.html" data-intent="medical_ride_entry" data-i18n="medicalCalloutCta">❤️ Request Medical Transportation</a>
+            </div>
+
             <div class="hero-badge" aria-label="Platform live status" data-i18n="heroBadge">
               <span class="live-pulse" aria-hidden="true">
                 <span class="live-pulse-dot"></span>
@@ -1639,30 +1503,6 @@
     </button>
   </nav>
 
-  <!-- AI FAB (fallback, visible if widget not loaded) -->
-  <button class="harvey-ai-fab" id="harvey-ai-fab" onclick="openHarveyAiChat();" aria-label="Open Harvey AI Support">💬</button>
-
-  <!-- AI Chat Window (built-in, no external dependency) -->
-  <div id="harvey-ai-window" class="harvey-ai-window" style="display:none;" role="dialog" aria-label="Harvey AI Support" aria-modal="true">
-    <div class="harvey-ai-header">
-      <div class="harvey-ai-header-left">
-        <span class="harvey-ai-header-icon" aria-hidden="true">🧠</span>
-        <div>
-          <div style="font-size:15px;font-weight:900;">Harvey AI Support</div>
-          <div style="font-size:11px;font-weight:600;opacity:0.75;">Powered by Claude · Harvey Taxi</div>
-        </div>
-      </div>
-      <button class="harvey-ai-close-btn" onclick="closeHarveyAiChat();" aria-label="Close AI Support">×</button>
-    </div>
-    <div class="harvey-ai-body" id="harvey-ai-body" aria-live="polite">
-      <div class="ai-msg bot">Hi! I'm Harvey AI, your Tennessee mobility assistant. I can help with rides, driver questions, foundation support, account help, and more. How can I assist you today?</div>
-    </div>
-    <div class="harvey-ai-footer">
-      <input id="harvey-ai-input" class="harvey-ai-input" type="text" placeholder="Ask about rides, drivers, foundation..." aria-label="Message Harvey AI" maxlength="400" />
-      <button id="harvey-ai-send" class="harvey-ai-send" onclick="sendHarveyAiMessage();" aria-label="Send message">Send</button>
-    </div>
-  </div>
-
   <!-- UNDER CONSTRUCTION MODAL PLACEHOLDER -->
   <div id="modal-root"></div>
 
@@ -1678,7 +1518,7 @@
 
     window.HARVEY_API_BASE = (window.location.origin && window.location.origin.includes("http"))
       ? window.location.origin
-      : "https://harvey-taxi-app-2.onrender.com";
+      : "https://harveytaxiservice.com";
 
     const STORAGE_KEYS = {
       language:      "harvey_language",
@@ -1709,6 +1549,9 @@
         requestRide: "Request Ride",
         inclusiveTitle: "Built for every community.",
         inclusiveCopy: "Harvey Taxi respects all ethnicities, cultures, languages, families, seniors, workers, students, people with disabilities, immigrants, visitors, and underserved communities seeking safe transportation access.",
+        medicalCalloutTitle: "Need a ride to a medical appointment?",
+        medicalCalloutCopy: "Harvey Transportation Assistance Foundation (HTAF) provides transportation assistance for medical visits — separate from the rideshare app below.",
+        medicalCalloutCta: "❤️ Request Medical Transportation",
         heroBadge: "VERIFIED OPERATIONS · LIVE SUPPORT",
         heroTitleA: "Tennessee Transportation",
         heroTitleB: "Reimagined",
@@ -2943,99 +2786,20 @@
       document.getElementById("modal-root").innerHTML = "";
     }
 
-    /* ---- AI Chat (built-in, Claude API via widget or inline fallback) ---- */
-    let aiChatOpen = false;
-    const aiConversation = [];
-
+    /* ---- AI Chat: delegates to the server-backed widget (ai-support-widget.js),
+       which calls /api/ai/support. No client-side model calls happen on this page. ---- */
     function openHarveyAiChat() {
       trackEvent("ai_support_open");
-      // Try external widget first
       if (window.HarveyAI && typeof window.HarveyAI.open === "function") {
-        window.HarveyAI.open(); return;
+        window.HarveyAI.open();
+        return;
       }
-      const win = document.getElementById("harvey-ai-window");
-      if (!win) return;
-      win.style.display = "flex";
-      aiChatOpen = true;
-      document.getElementById("harvey-ai-input")?.focus();
-      // Hide FAB while window is open
-      const fab = document.getElementById("harvey-ai-fab");
-      if (fab) fab.style.display = "none";
+      window.location.href = "support.html";
     }
 
     function closeHarveyAiChat() {
-      const win = document.getElementById("harvey-ai-window");
-      if (win) win.style.display = "none";
-      aiChatOpen = false;
-      const fab = document.getElementById("harvey-ai-fab");
-      if (fab) fab.style.display = "";
-    }
-
-    function appendAiMessage(text, role) {
-      const body = document.getElementById("harvey-ai-body");
-      if (!body) return;
-      const msg = document.createElement("div");
-      msg.className = `ai-msg ${role}`;
-      msg.textContent = text;
-      body.appendChild(msg);
-      body.scrollTop = body.scrollHeight;
-    }
-
-    function showAiTyping() {
-      const body = document.getElementById("harvey-ai-body");
-      if (!body) return null;
-      const t = document.createElement("div");
-      t.className = "ai-typing";
-      t.id = "ai-typing-indicator";
-      t.innerHTML = "<span></span><span></span><span></span>";
-      body.appendChild(t);
-      body.scrollTop = body.scrollHeight;
-      return t;
-    }
-
-    async function sendHarveyAiMessage() {
-      const input = document.getElementById("harvey-ai-input");
-      const sendBtn = document.getElementById("harvey-ai-send");
-      if (!input) return;
-      const text = input.value.trim();
-      if (!text) return;
-
-      input.value = "";
-      sendBtn.disabled = true;
-      appendAiMessage(text, "user");
-      aiConversation.push({ role: "user", content: text });
-
-      const typing = showAiTyping();
-      trackEvent("ai_message_sent", { length: text.length });
-
-      try {
-        const response = await fetch("https://api.anthropic.com/v1/messages", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model: "claude-sonnet-4-6",
-            max_tokens: 1000,
-            system: "You are Harvey AI, the intelligent support assistant for Harvey Taxi Service LLC — a Tennessee mobility platform based in Nashville. You help riders, drivers, and community members with: requesting rides, driver onboarding and requirements, foundation (HTAF) transportation assistance, account issues, app navigation, and general questions about the platform. Keep responses concise, friendly, and action-oriented. Harvey Taxi is built by Willie Harvey IV and serves Tennessee communities including seniors, veterans, and underserved populations. The platform includes rideshare, NEMT services, a 501(c)(3) nonprofit foundation, AI support, food delivery (coming soon), grocery delivery (coming soon), and an autonomous pilot program. Always be warm, helpful, and community-focused.",
-            messages: aiConversation
-          })
-        });
-
-        typing?.remove();
-
-        if (!response.ok) throw new Error(`API error ${response.status}`);
-        const data = await response.json();
-        const reply = data.content?.map(b => b.text || "").filter(Boolean).join("\n") || "I'm here to help! For immediate assistance, please visit our support center at support.harveytaxiservice.com.";
-
-        appendAiMessage(reply, "bot");
-        aiConversation.push({ role: "assistant", content: reply });
-        trackEvent("ai_message_received");
-      } catch (err) {
-        typing?.remove();
-        appendAiMessage("I'm having trouble connecting right now. Please visit our support center or email support@harveytaxiservice.com for immediate help.", "bot");
-        trackEvent("ai_message_error", { message: err.message });
-      } finally {
-        sendBtn.disabled = false;
-        input.focus();
+      if (window.HarveyAI && typeof window.HarveyAI.close === "function") {
+        window.HarveyAI.close();
       }
     }
 
@@ -3108,7 +2872,7 @@
       let totalChecks = 0;
       const timer = setInterval(() => {
         totalChecks++;
-        const loaded = window.HarveyAI || document.querySelector(".harvey-ai-launch") || document.querySelector("#harvey-ai-window");
+        const loaded = window.HarveyAI || document.querySelector(".harvey-ai-launch");
         if (loaded) { failures = 0; if (totalChecks >= 5) { clearInterval(timer); } return; }
         failures++;
         if (failures >= 3) {
@@ -3146,13 +2910,6 @@
       setTimeout(() => { banner?.remove(); }, 7000);
     }
 
-    /* ---- Keyboard navigation for AI chat ---- */
-    function bindAiKeyboard() {
-      document.getElementById("harvey-ai-input")?.addEventListener("keydown", function(e) {
-        if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendHarveyAiMessage(); }
-      });
-    }
-
     /* ---- Defensive init wrapper: one failing subsystem can no longer
        silently break every function that was queued to run after it ---- */
     function runStep(label, fn) {
@@ -3171,7 +2928,6 @@
       runStep("applyBatteryOptimizer", applyBatteryOptimizer);
       runStep("bindIntentTracking", bindIntentTracking);
       runStep("injectQuickSettingsPanel", injectQuickSettingsPanel);
-      runStep("bindAiKeyboard", bindAiKeyboard);
       runStep("fetchPlatformStatus", fetchPlatformStatus);
       trackEvent("page_view_home", { initialized: true, version: HARVEY_APP_VERSION });
     }
@@ -3205,7 +2961,6 @@
     window.safeGo = safeGo;
     window.openHarveyAiChat = openHarveyAiChat;
     window.closeHarveyAiChat = closeHarveyAiChat;
-    window.sendHarveyAiMessage = sendHarveyAiMessage;
     window.applyBatteryOptimizer = applyBatteryOptimizer;
     window.requestNotificationPermission = requestNotificationPermission;
     window.showLocalNotification = showLocalNotification;

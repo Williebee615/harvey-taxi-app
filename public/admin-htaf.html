@@ -2906,6 +2906,8 @@
 
       let selectedApplication = null;
 
+      let lastTriage = null;
+
       function showBanner(
 
         elementId,
@@ -3584,6 +3586,8 @@
 
           ) || null;
 
+        lastTriage = null;
+
         renderQueue();
 
         renderApplicationDetail();
@@ -3742,7 +3746,16 @@
 
             </div>
 
+            <div id="triagePanel" class="notes-panel hidden"></div>
+
             <div class="detail-actions">
+              <button
+                class="btn btn-gold"
+                type="button"
+                onclick="runAiTriage()"
+              >
+                AI Triage
+              </button>
 
               <button
 
@@ -3834,6 +3847,79 @@
 
         `;
 
+        renderTriagePanel();
+
+      }
+
+      function renderTriagePanel() {
+        const panel = document.getElementById("triagePanel");
+        if (!panel) return;
+        if (!lastTriage) {
+          panel.classList.add("hidden");
+          panel.innerHTML = "";
+          return;
+        }
+        panel.classList.remove("hidden");
+        if (!lastTriage.available) {
+          panel.innerHTML = `
+            <label>AI Triage</label>
+            <p class="detail-muted">${escapeHtml(lastTriage.reason || "AI triage is unavailable.")}</p>
+          `;
+          return;
+        }
+        const flagsHtml = lastTriage.flags.length
+          ? lastTriage.flags.map(f => `<span class="pill">${escapeHtml(f)}</span>`).join(" ")
+          : `<span class="detail-muted">No flags.</span>`;
+        panel.innerHTML = `
+          <label>AI Triage Suggestion (review before acting)</label>
+          <p style="margin-bottom:10px;">${escapeHtml(lastTriage.summary)}</p>
+          <div style="margin-bottom:10px;">${flagsHtml}</div>
+          <p class="detail-muted" style="margin-bottom:10px;">
+            Suggested: <strong>${escapeHtml(formatStatus(lastTriage.recommendation))}</strong>
+            — ${escapeHtml(lastTriage.reasoning)}
+          </p>
+          <button class="btn btn-secondary" type="button" onclick="applyTriageToNotes()">
+            Insert Into Notes
+          </button>
+        `;
+      }
+
+      async function runAiTriage() {
+        if (!selectedApplication) {
+          showBanner("detailStatusBanner", "Select an application first.", "err");
+          return;
+        }
+        try {
+          showBanner("detailStatusBanner", "Running AI triage...", "info");
+          const payload = await apiRequest(
+            `/api/admin/foundation/applications/${encodeURIComponent(selectedApplication.id)}/triage`,
+            { method: "POST" }
+          );
+          lastTriage = payload.triage;
+          renderTriagePanel();
+          hideBanner("detailStatusBanner");
+        } catch (error) {
+          console.error(error);
+          showBanner(
+            "detailStatusBanner",
+            error.message || "AI triage failed.",
+            "err"
+          );
+        }
+      }
+
+      function applyTriageToNotes() {
+        if (!lastTriage || !lastTriage.available) return;
+        const notesField = document.getElementById("adminNotes");
+        if (!notesField) return;
+        const addition = [
+          "AI Triage Suggestion:",
+          lastTriage.summary,
+          lastTriage.flags.length ? `Flags: ${lastTriage.flags.join(", ")}` : "",
+          `Recommendation: ${formatStatus(lastTriage.recommendation)}`,
+          lastTriage.reasoning
+        ].filter(Boolean).join("\n");
+        notesField.value = [notesField.value || "", "", addition].join("\n").trim();
       }
 
       async function updateApplication(

@@ -366,44 +366,6 @@
     .nav-btn.active { color: white; background: rgba(255, 255, 255, 0.06); }
     .nav-btn:hover, .nav-btn:focus-visible { color: var(--cyan); outline: none; }
 
-    /* ============================================================
-       HARVEY AI CHAT WIDGET (NEW — referenced but never built)
-       ============================================================ */
-    .harvey-ai-fab {
-      position: fixed; right: 22px; bottom: calc(var(--bottomNavH) + env(safe-area-inset-bottom) + 14px);
-      width: 64px; height: 64px; border-radius: 50%; border: none; cursor: pointer;
-      background: linear-gradient(135deg, var(--cyan), var(--blue)); color: var(--ink);
-      font-size: 24px; font-weight: 900; box-shadow: 0 14px 36px rgba(94,160,255,.38);
-      display: grid; place-items: center; transition: transform var(--dur) var(--ease);
-      animation: settingsFabPulse 3s ease-in-out infinite; z-index: 9997;
-    }
-    .harvey-ai-fab:hover { transform: scale(1.08); }
-    @keyframes settingsFabPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
-    .harvey-ai-window {
-      position: fixed; right: 18px; bottom: calc(var(--bottomNavH) + env(safe-area-inset-bottom) + 88px);
-      width: 400px; max-width: calc(100vw - 22px); height: 560px;
-      border-radius: 26px; overflow: hidden; border: 1px solid rgba(99,245,255,.18);
-      background: linear-gradient(180deg, rgba(8,15,36,.99), rgba(4,8,20,.99));
-      box-shadow: var(--shadow); display: flex; flex-direction: column;
-      animation: settingsFadeIn .22s var(--ease); z-index: 9998;
-    }
-    @keyframes settingsFadeIn { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform:none; } }
-    .harvey-ai-header { padding: 16px 20px; background: linear-gradient(135deg, var(--cyan), var(--blue)); color: var(--ink); font-weight: 900; display: flex; justify-content: space-between; align-items: center; font-size: 15px; flex-shrink: 0; }
-    .harvey-ai-close-btn { width: 32px; height: 32px; border-radius: 50%; background: rgba(0,0,0,.15); border: none; color: var(--ink); font-size: 18px; font-weight: 900; display: grid; place-items: center; cursor: pointer; }
-    .harvey-ai-body { flex: 1; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
-    .ai-msg { padding: 14px 16px; border-radius: 18px; max-width: 87%; line-height: 1.6; font-size: 14px; }
-    .ai-msg.bot { background: rgba(99,245,255,.07); border: 1px solid rgba(99,245,255,.13); align-self: flex-start; border-bottom-left-radius: 5px; }
-    .ai-msg.user { background: rgba(94,160,255,.10); border: 1px solid rgba(94,160,255,.18); align-self: flex-end; border-bottom-right-radius: 5px; }
-    .ai-typing { display: flex; align-items: center; gap: 5px; padding: 14px 16px; background: rgba(99,245,255,.07); border: 1px solid rgba(99,245,255,.13); border-radius: 18px; border-bottom-left-radius: 5px; align-self: flex-start; max-width: 80px; }
-    .ai-typing span { width: 7px; height: 7px; border-radius: 50%; background: var(--cyan); animation: settingsTypingDot 1.2s ease-in-out infinite; }
-    .ai-typing span:nth-child(2) { animation-delay: .2s; }
-    .ai-typing span:nth-child(3) { animation-delay: .4s; }
-    @keyframes settingsTypingDot { 0%,80%,100% { transform: scale(.6); opacity:.4; } 40% { transform: scale(1); opacity:1; } }
-    .harvey-ai-footer { padding: 14px; border-top: 1px solid rgba(255,255,255,.06); display: flex; gap: 9px; flex-shrink: 0; }
-    .harvey-ai-input { flex: 1; border-radius: 14px; border: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.04); color: var(--text); padding: 12px 14px; font-size: 14px; }
-    .harvey-ai-send { min-width: 68px; border-radius: 14px; border: none; background: linear-gradient(135deg, var(--green), #9dffd8); color: #04200e; font-weight: 900; font-size: 14px; cursor: pointer; }
-    .harvey-ai-send:disabled { opacity: .55; }
-
     @media(max-width: 1020px) {
       .two-col, .status-grid, .account-stat-grid, .support-grid { grid-template-columns: 1fr 1fr; }
     }
@@ -421,8 +383,6 @@
       .bottom-nav { min-height: calc(82px + env(safe-area-inset-bottom)); }
       .access-panel { flex-direction: column; align-items: flex-start; }
       .access-controls { width: 100%; }
-      .harvey-ai-window { left: 10px; right: 10px; bottom: calc(var(--bottomNavH) + env(safe-area-inset-bottom) + 10px); width: auto; height: min(560px, calc(100vh - 160px)); }
-      .harvey-ai-fab { right: 16px; width: 58px; height: 58px; font-size: 22px; }
     }
   </style>
 </head>
@@ -767,29 +727,7 @@
     <button class="nav-btn active" aria-current="page" data-i18n="navSettings">Settings</button>
   </nav>
 
-  <!-- AI FAB + Chat Window -->
-  <button class="harvey-ai-fab" id="harvey-ai-fab" onclick="openHarveyAiChat();" aria-label="Open Harvey AI Support">💬</button>
-
-  <div id="harvey-ai-window" class="harvey-ai-window" style="display:none;" role="dialog" aria-label="Harvey AI Support" aria-modal="true">
-    <div class="harvey-ai-header">
-      <div style="display:flex;align-items:center;gap:10px;">
-        <span aria-hidden="true">🧠</span>
-        <div>
-          <div style="font-size:15px;font-weight:900;">Harvey AI Support</div>
-          <div style="font-size:11px;font-weight:600;opacity:0.75;">Settings Help</div>
-        </div>
-      </div>
-      <button class="harvey-ai-close-btn" onclick="closeHarveyAiChat();" aria-label="Close AI Support">×</button>
-    </div>
-    <div class="harvey-ai-body" id="harvey-ai-body" aria-live="polite">
-      <div class="ai-msg bot">Hi! I'm Harvey AI. I can help explain any setting on this page, walk you through account deletion, or answer privacy questions. How can I help?</div>
-    </div>
-    <div class="harvey-ai-footer">
-      <input id="harvey-ai-input" class="harvey-ai-input" type="text" placeholder="Ask about settings..." aria-label="Message Harvey AI" maxlength="400" />
-      <button id="harvey-ai-send" class="harvey-ai-send" onclick="sendHarveyAiMessage();" aria-label="Send message">Send</button>
-    </div>
-  </div>
-
+  <!-- AI chat mount point (populated by ai-support-widget.js) -->
   <div id="harvey-ai-chat-root"></div>
 
   <script>
@@ -800,7 +738,7 @@
     const HARVEY_API_BASE =
       window.location.origin && window.location.origin.includes("http")
         ? window.location.origin
-        : "https://harvey-taxi-app-2.onrender.com";
+        : "https://harveytaxiservice.com";
 
     const SETTINGS_KEY = "harvey_settings_v1";
     const AUDIT_KEY = "harvey_settings_audit_v1";
@@ -1132,118 +1070,22 @@
     }
 
     /* ============================================================
-       AI CHAT
+       AI CHAT: delegates to the server-backed widget (ai-support-widget.js),
+       which calls /api/ai/support. No client-side model calls happen here.
        ============================================================ */
-    function ensureAiRoot() {
-      let root = document.getElementById("harvey-ai-chat-root");
-      if (!root) {
-        root = document.createElement("div");
-        root.id = "harvey-ai-chat-root";
-        document.body.appendChild(root);
-      }
-      return root;
-    }
-
     function openHarveyAiChat() {
       trackSettingsEvent("ai_support_open");
-      try {
-        if (window.HarveyAI && typeof window.HarveyAI.open === "function") {
-          window.HarveyAI.open();
-          return;
-        }
-        const win = document.getElementById("harvey-ai-window");
-        const fab = document.getElementById("harvey-ai-fab");
-        if (win) {
-          win.style.display = "flex";
-          if (fab) fab.style.display = "none";
-          setTimeout(() => document.getElementById("harvey-ai-input")?.focus(), 50);
-          return;
-        }
-      } catch (err) {
-        trackSettingsEvent("ai_chat_open_failed", { message: err?.message });
+      if (window.HarveyAI && typeof window.HarveyAI.open === "function") {
+        window.HarveyAI.open();
+        return;
       }
+      window.location.href = "support.html";
     }
 
     function closeHarveyAiChat() {
-      const win = document.getElementById("harvey-ai-window");
-      const fab = document.getElementById("harvey-ai-fab");
-      if (win) win.style.display = "none";
-      if (fab) fab.style.display = "grid";
-    }
-
-    const settingsAiConversation = [];
-
-    function appendAiMessage(text, role) {
-      const body = document.getElementById("harvey-ai-body");
-      if (!body) return;
-      const msg = document.createElement("div");
-      msg.className = `ai-msg ${role}`;
-      msg.textContent = text;
-      body.appendChild(msg);
-      body.scrollTop = body.scrollHeight;
-    }
-
-    function showAiTyping() {
-      const body = document.getElementById("harvey-ai-body");
-      if (!body) return null;
-      const t = document.createElement("div");
-      t.className = "ai-typing";
-      t.innerHTML = "<span></span><span></span><span></span>";
-      body.appendChild(t);
-      body.scrollTop = body.scrollHeight;
-      return t;
-    }
-
-    async function sendHarveyAiMessage() {
-      const input = document.getElementById("harvey-ai-input");
-      const sendBtn = document.getElementById("harvey-ai-send");
-      if (!input) return;
-      const text = input.value.trim();
-      if (!text) return;
-
-      input.value = "";
-      sendBtn.disabled = true;
-      appendAiMessage(text, "user");
-      settingsAiConversation.push({ role: "user", content: text });
-
-      const typing = showAiTyping();
-      trackSettingsEvent("ai_message_sent", { length: text.length });
-
-      try {
-        const response = await fetch("https://api.anthropic.com/v1/messages", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model: "claude-sonnet-4-6",
-            max_tokens: 1000,
-            system: "You are Harvey AI, helping people understand Harvey Taxi's settings page in Tennessee. Help explain battery optimization, precise location settings, notification controls, privacy and security practices (no full card numbers stored, payments tokenized via Stripe), and the account deletion process (irreversible, active rides/payments/missions must be resolved first). Be warm and concise.",
-            messages: settingsAiConversation
-          })
-        });
-
-        typing?.remove();
-        if (!response.ok) throw new Error(`API error ${response.status}`);
-        const data = await response.json();
-        const reply = data.content?.map(b => b.text || "").filter(Boolean).join("\n") ||
-          "I'm here to help. Please try again or contact support.";
-
-        appendAiMessage(reply, "bot");
-        settingsAiConversation.push({ role: "assistant", content: reply });
-        trackSettingsEvent("ai_message_received");
-      } catch (err) {
-        typing?.remove();
-        appendAiMessage("I'm having trouble connecting right now. Please try again shortly.", "bot");
-        trackSettingsEvent("ai_message_error", { message: err.message });
-      } finally {
-        sendBtn.disabled = false;
-        input.focus();
+      if (window.HarveyAI && typeof window.HarveyAI.close === "function") {
+        window.HarveyAI.close();
       }
-    }
-
-    function bindAiKeyboard() {
-      document.getElementById("harvey-ai-input")?.addEventListener("keydown", function (e) {
-        if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendHarveyAiMessage(); }
-      });
     }
 
     /* ============================================================
@@ -1442,8 +1284,6 @@
       runStep("bindLanguageSelector", bindLanguageSelector);
       runStep("restoreAccessibility", restoreAccessibility);
       runStep("bindAccessibility", bindAccessibility);
-      runStep("bindAiKeyboard", bindAiKeyboard);
-      runStep("ensureAiRoot", ensureAiRoot);
       runStep("restoreSavedSettings", restoreSavedSettings);
       runStep("bindStatTriggers", bindStatTriggers);
       runStep("updateSettingsStats", updateSettingsStats);
@@ -1455,10 +1295,10 @@
     window.requestAccountDeletion = requestAccountDeletion;
     window.openHarveyAiChat = openHarveyAiChat;
     window.closeHarveyAiChat = closeHarveyAiChat;
-    window.sendHarveyAiMessage = sendHarveyAiMessage;
     window.safeGo = safeGo;
 
     document.addEventListener("DOMContentLoaded", performStateHydration);
   </script>
+  <script src="/ai-support-widget.js" onerror="console.warn('AI widget script failed to load — AI Help button will fall back to support.html')"></script>
 </body>
 </html>

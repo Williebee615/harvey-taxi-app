@@ -12,7 +12,7 @@ import {
   View
 } from "react-native";
 
-const API_BASE_URL = "https://harvey-taxi-app-2.onrender.com";
+const API_BASE_URL = "https://harveytaxiservice.com";
 
 export default function RiderDashboardScreen({
   riderId,

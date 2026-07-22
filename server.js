@@ -124,6 +124,18 @@ const APP_BASE_URL =
 
   `http://localhost:${PORT}`;
 
+/* Canonical public domain for the platform. Any request that arrives on a
+   different host (e.g. the Render-assigned hostname) is 301-redirected here,
+   except API routes — see the redirect middleware below. Override with
+   CANONICAL_HOST if the canonical domain ever changes. */
+const CANONICAL_HOST = env("CANONICAL_HOST", "harveytaxiservice.com");
+
+/* Off by default: flip to true in the environment once CANONICAL_HOST is
+   confirmed resolving correctly. Until then, redirecting the Render
+   hostname there would send live traffic into a domain that doesn't
+   work yet. */
+const ENABLE_CANONICAL_REDIRECT = envBool("ENABLE_CANONICAL_REDIRECT", false);
+
 const PUBLIC_DIR = path.join(__dirname, "public");
 
 const SUPPORT_EMAIL =
@@ -437,6 +449,44 @@ if (OpenAI && OPENAI_API_KEY && ENABLE_AI_SUPPORT) {
 app.set("trust proxy", 1);
 
 app.disable("x-powered-by");
+
+/* =========================================================
+
+   CANONICAL DOMAIN REDIRECT
+
+   Sends browsers on the Render-assigned hostname to CANONICAL_HOST
+   instead. API routes are excluded so direct API callers (mobile
+   clients, local dev pointed at the deployed backend, webhooks) are
+   never redirected. Gated behind ENABLE_CANONICAL_REDIRECT (default
+   off) — set it to true once CANONICAL_HOST is confirmed resolving.
+
+========================================================= */
+
+app.use((req, res, next) => {
+
+  if (
+
+    ENABLE_CANONICAL_REDIRECT &&
+
+    IS_PRODUCTION &&
+
+    req.hostname &&
+
+    req.hostname !== CANONICAL_HOST &&
+
+    req.hostname.endsWith(".onrender.com") &&
+
+    !req.path.startsWith("/api/")
+
+  ) {
+
+    return res.redirect(301, `https://${CANONICAL_HOST}${req.originalUrl}`);
+
+  }
+
+  next();
+
+});
 
 const JSON_LIMIT = env("JSON_LIMIT", "2mb");
 
@@ -3888,7 +3938,133 @@ app.get(
 
   })
 
-);/* =========================================================
+);
+
+/* =========================================================
+   HTAF AI TRIAGE
+   Admin only. Asks OpenAI to summarize an application, flag
+   anything unusual or incomplete, and suggest a next action.
+   This never writes to the database or auto-changes status —
+   it only returns a suggestion for the admin to review. The
+   admin applies it (or not) via the existing notes/status
+   endpoints, so the human always makes the final call.
+========================================================= */
+
+const HTAF_TRIAGE_RECOMMENDATIONS = [
+  "approve",
+  "deny",
+  "request_info",
+  "review"
+];
+
+async function triageHtafApplication(application) {
+  if (!openai) {
+    return {
+      available: false,
+      reason: "AI triage is not configured on the server (OPENAI_API_KEY missing)."
+    };
+  }
+
+  const facts = {
+    application_code: application.application_code,
+    status: application.status,
+    program_type: application.program_type,
+    applicant_type: application.applicant_type,
+    county: application.county,
+    city: application.city,
+    pickup_city: application.pickup_city,
+    destination: application.destination,
+    ride_date: application.ride_date,
+    household_size: application.household_size,
+    monthly_income: application.monthly_income,
+    transportation_need: application.transportation_need,
+    existing_notes: application.notes || null,
+    submitted_at: application.created_at
+  };
+
+  const systemContent = [
+    "You are an assistant helping a human reviewer triage HTAF (Harvey Transportation Assistance Foundation) applications for transportation assistance.",
+    "You NEVER approve or deny anything yourself — you only summarize the application and suggest a recommendation for a human admin, who makes the final decision.",
+    "Be factual and concise. Do not invent facts that are not in the application data. Do not assume eligibility rules beyond what is provided.",
+    "Flag things like: missing or vague transportation_need, an implausible or inconsistent household_size/monthly_income, a ride_date in the past, a destination/pickup_city outside Nashville or Davidson County (service area), or anything that looks incomplete.",
+    "Respond ONLY with a JSON object of this exact shape: " +
+      '{"summary": string, "flags": string[], "recommendation": "approve" | "deny" | "request_info" | "review", "reasoning": string}',
+    '"recommendation" must be exactly one of: approve, deny, request_info, review. Use "review" whenever you are not confident.',
+    "Keep summary to 2-3 sentences. Keep flags short (a few words each); return an empty array if nothing stands out."
+  ].join(" ");
+
+  const completion = await openai.chat.completions.create({
+    model: OPENAI_MODEL,
+    temperature: 0.2,
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: systemContent },
+      { role: "user", content: JSON.stringify(facts) }
+    ]
+  });
+
+  const raw = completion.choices?.[0]?.message?.content || "{}";
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    parsed = {};
+  }
+
+  const recommendation = HTAF_TRIAGE_RECOMMENDATIONS.includes(parsed.recommendation)
+    ? parsed.recommendation
+    : "review";
+
+  return {
+    available: true,
+    summary: cleanString(parsed.summary, 1000) || "No summary returned.",
+    flags: Array.isArray(parsed.flags)
+      ? parsed.flags.map((f) => cleanString(f, 200)).filter(Boolean).slice(0, 10)
+      : [],
+    recommendation,
+    reasoning: cleanString(parsed.reasoning, 1000) || ""
+  };
+}
+
+app.post(
+  "/api/admin/foundation/applications/:id/triage",
+  requireAdmin,
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "htaf_triage" }),
+  asyncRoute(async (req, res) => {
+    const id = cleanString(req.params.id, 80);
+    const { data: application, error } = await supabase
+      .from("htaf_applications")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (error || !application) {
+      return fail(res, "Application not found.", 404);
+    }
+
+    let triage;
+    try {
+      triage = await triageHtafApplication(application);
+    } catch (aiError) {
+      console.error("❌ HTAF AI triage failed:", aiError.message);
+      return fail(res, "AI triage is temporarily unavailable. Please try again.", 502);
+    }
+
+    auditLog({
+      actor_type: "admin",
+      actor_id: req.admin.email,
+      action: "htaf_application_ai_triaged",
+      entity_type: "htaf_application",
+      entity_id: application.id,
+      metadata: { recommendation: triage.recommendation || null },
+      req
+    }).catch(() => {});
+
+    return ok(res, { triage });
+  })
+);
+
+/* =========================================================
 
    PART 4 — AUTH, RIDER/DRIVER ONBOARDING, VERIFICATION
 
@@ -7071,6 +7247,33 @@ async function getRiderReadiness(riderId) {
   };
 
 }
+
+/* Exposes getRiderReadiness() over HTTP. request-ride.html and the
+   mobile app both call GET /api/riders/:id/readiness before allowing
+   a ride request — this route previously did not exist, so every
+   readiness check 404'd and blocked riders from booking. */
+app.get(
+  "/api/riders/:id/readiness",
+  asyncRoute(async (req, res) => {
+    const riderId = cleanString(req.params.id, 100);
+    const readiness = await getRiderReadiness(riderId);
+
+    if (!readiness.rider) {
+      return fail(res, readiness.reason || "Rider not found.", 404);
+    }
+
+    return ok(res, {
+      rider_id: readiness.rider.id,
+      ready: readiness.ready,
+      approved: readiness.ready,
+      verified: readiness.ready,
+      status: readiness.rider.status,
+      approval_status: readiness.rider.approval_status,
+      checks: readiness.checks || {},
+      reason: readiness.reason || null
+    });
+  })
+);
 
 /* =========================================================
 
