@@ -620,6 +620,23 @@ const LARGE_BODY_PATHS = new Set([
 
 ]);
 
+// The delivery-complete route also accepts a base64 delivery-proof photo
+// for leave-at-door orders, but its path includes a variable :rideId
+// segment, so it can't live in the literal-match Set above.
+const LARGE_BODY_PATH_PATTERNS = [
+
+  /^\/api\/driver\/rides\/[^/]+\/complete$/
+
+];
+
+function isLargeBodyPath(path) {
+
+  if (LARGE_BODY_PATHS.has(path)) return true;
+
+  return LARGE_BODY_PATH_PATTERNS.some((pattern) => pattern.test(path));
+
+}
+
 app.use((req, res, next) => {
 
   if (RAW_WEBHOOK_PATHS.has(req.path)) {
@@ -628,7 +645,7 @@ app.use((req, res, next) => {
 
   }
 
-  const limit = LARGE_BODY_PATHS.has(req.path)
+  const limit = isLargeBodyPath(req.path)
 
     ? LARGE_JSON_LIMIT
 
@@ -2388,6 +2405,206 @@ async function sendSms({
 
 }
 
+function buildDriverRideFields(driver) {
+
+  return {
+
+    driver_name:
+
+      [driver.first_name, driver.last_name].filter(Boolean).join(" ") ||
+
+      driver.name ||
+
+      driver.full_name ||
+
+      "Driver",
+
+    driver_vehicle:
+
+      [driver.vehicle_year, driver.vehicle_make, driver.vehicle_model]
+
+        .filter(Boolean)
+
+        .join(" "),
+
+    driver_phone: driver.phone || driver.phone_number || null
+
+  };
+
+}
+
+const RIDE_STAGE_MESSAGES = {
+
+  order_submitted: {
+
+    sms: (ride) =>
+
+      `Harvey Taxi: We've received your ${isDeliveryRideType(ride.ride_type) ? "order" : "ride request"}. We'll text you updates as it moves along.`,
+
+    subject: "Request Received"
+
+  },
+
+  driver_assigned: {
+
+    sms: (ride) =>
+
+      `Harvey Taxi: ${ride.driver_name || "A driver"} has been assigned to your ${isDeliveryRideType(ride.ride_type) ? "order" : "ride"}.`,
+
+    subject: "Driver Assigned"
+
+  },
+
+  enroute_pickup: {
+
+    sms: () => `Harvey Taxi: Your driver is on the way to pick you up.`,
+
+    subject: "Driver En Route"
+
+  },
+
+  arrived_pickup: {
+
+    sms: () => `Harvey Taxi: Your driver has arrived at your pickup location.`,
+
+    subject: "Driver Arrived"
+
+  },
+
+  ride_started: {
+
+    sms: () => `Harvey Taxi: Your ride is underway. Have a safe trip!`,
+
+    subject: "Ride Started"
+
+  },
+
+  ride_completed: {
+
+    sms: () => `Harvey Taxi: Your ride is complete. Thanks for riding with Harvey Taxi!`,
+
+    subject: "Ride Complete"
+
+  },
+
+  enroute_store: {
+
+    sms: (ride) =>
+
+      `Harvey Taxi: Your driver is heading to ${ride.merchant_name || "the store"} to pick up your order.`,
+
+    subject: "Driver Heading to Store"
+
+  },
+
+  arrived_store: {
+
+    sms: (ride) =>
+
+      `Harvey Taxi: Your driver has arrived at ${ride.merchant_name || "the store"}.`,
+
+    subject: "Driver at Store"
+
+  },
+
+  picked_up: {
+
+    sms: () => `Harvey Taxi: Your order has been picked up and is on its way to you.`,
+
+    subject: "Order Picked Up"
+
+  },
+
+  enroute_customer: {
+
+    sms: () => `Harvey Taxi: Your driver is on the way to you.`,
+
+    subject: "Driver Heading Your Way"
+
+  },
+
+  arrived_customer: {
+
+    sms: (ride) =>
+
+      `Harvey Taxi: Your driver has arrived.` +
+
+      (ride.delivery_handoff === "hand_to_customer"
+
+        ? " Please have your delivery PIN ready."
+
+        : " Your order will be left at your door."),
+
+    subject: "Driver Has Arrived"
+
+  },
+
+  delivered: {
+
+    sms: () => `Harvey Taxi: Your order has been delivered. Thanks for using Harvey Taxi!`,
+
+    subject: "Delivered"
+
+  }
+
+};
+
+// Best-effort stage-change notification over SMS/email. Never throws —
+// a notification failure should never break the ride/delivery action
+// that triggered it. Silently no-ops when Twilio/SendGrid aren't
+// configured, same as sendSms()/sendEmail() do individually.
+async function notifyRideStage(ride, stageKey) {
+
+  try {
+
+    const template = RIDE_STAGE_MESSAGES[stageKey];
+
+    if (!template) return;
+
+    const body = template.sms(ride);
+
+    if (ride.rider_phone) {
+
+      await sendSms({ to: ride.rider_phone, body }).catch(() => {});
+
+    }
+
+    if (ride.rider_id) {
+
+      const { data: rider } = await supabase
+
+        .from("riders")
+
+        .select("email")
+
+        .eq("id", ride.rider_id)
+
+        .maybeSingle();
+
+      if (rider?.email) {
+
+        await sendEmail({
+
+          to: rider.email,
+
+          subject: `Harvey Taxi - ${template.subject}`,
+
+          html: `<p>${body}</p>`
+
+        }).catch(() => {});
+
+      }
+
+    }
+
+  } catch (err) {
+
+    console.error("⚠️ notifyRideStage failed:", err.message);
+
+  }
+
+}
+
 /* =========================================================
 
    DISTANCE + PRICING
@@ -2433,6 +2650,11 @@ function haversineMiles(
   return 2 * R * Math.asin(Math.sqrt(a));
 
 }
+
+// Straight-line (haversine) distance divided by an assumed average speed.
+// This is a rough estimate, not a real driving-route ETA — accurate
+// turn-by-turn ETAs require the Google Directions/Distance Matrix API.
+const ASSUMED_DELIVERY_SPEED_MPH = envNumber("ASSUMED_DELIVERY_SPEED_MPH", 22);
 
 const BASE_FARE = envNumber("BASE_FARE", 5);
 
@@ -8693,6 +8915,8 @@ app.post(
 
     }
 
+    notifyRideStage(data, "order_submitted").catch(() => {});
+
     let dispatch = null;
 
     if (
@@ -9169,6 +9393,8 @@ app.get(
 
         "id, status, ride_type, pickup_address, dropoff_address, " +
 
+        "pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, " +
+
         "driver_id, driver_name, driver_vehicle, driver_phone, " +
 
         "driver_eta_to_pickup_minutes, driver_distance_to_pickup_miles, " +
@@ -9179,7 +9405,7 @@ app.get(
 
         "pickup_instructions, delivery_instructions, delivered_at, " +
 
-        "delivery_handoff, tip_amount"
+        "delivery_handoff, tip_amount, delivery_proof_url"
 
       )
 
@@ -9195,13 +9421,15 @@ app.get(
 
     let driverPhotoUrl = null;
 
+    let driverLocation = null;
+
     if (ride.driver_id) {
 
       const { data: driver } = await supabase
 
         .from("drivers")
 
-        .select("photo_url")
+        .select("photo_url, current_lat, current_lng, last_seen_at, location_accuracy_meters")
 
         .eq("id", ride.driver_id)
 
@@ -9209,9 +9437,105 @@ app.get(
 
       driverPhotoUrl = driver?.photo_url || null;
 
+      if (driver && driver.current_lat !== null && driver.current_lng !== null) {
+
+        const ageSeconds = driver.last_seen_at
+
+          ? (Date.now() - new Date(driver.last_seen_at).getTime()) / 1000
+
+          : Infinity;
+
+        driverLocation = {
+
+          lat: driver.current_lat,
+
+          lng: driver.current_lng,
+
+          accuracy_meters: driver.location_accuracy_meters,
+
+          last_seen_at: driver.last_seen_at,
+
+          stale: ageSeconds > 180
+
+        };
+
+      }
+
     }
 
     const isDelivery = isDeliveryRideType(ride.ride_type);
+
+    let tracking = null;
+
+    if (driverLocation && !driverLocation.stale) {
+
+      let target = null;
+
+      let targetLabel = null;
+
+      if (
+
+        ride.status === RIDE_STATUS.DRIVER_ENROUTE ||
+
+        ride.status === RIDE_STATUS.ARRIVED
+
+      ) {
+
+        target = { lat: ride.pickup_lat, lng: ride.pickup_lng };
+
+        targetLabel = isDelivery ? "store" : "pickup";
+
+      } else if (ride.status === RIDE_STATUS.IN_PROGRESS) {
+
+        target = { lat: ride.dropoff_lat, lng: ride.dropoff_lng };
+
+        targetLabel = isDelivery ? "customer" : "destination";
+
+      }
+
+      if (
+
+        target &&
+
+        Number.isFinite(Number(target.lat)) &&
+
+        Number.isFinite(Number(target.lng))
+
+      ) {
+
+        const distanceMiles = haversineMiles(
+
+          driverLocation.lat,
+
+          driverLocation.lng,
+
+          Number(target.lat),
+
+          Number(target.lng)
+
+        );
+
+        tracking = {
+
+          target: targetLabel,
+
+          distance_miles: Math.round(distanceMiles * 10) / 10,
+
+          eta_minutes: Math.max(
+
+            1,
+
+            Math.round((distanceMiles / ASSUMED_DELIVERY_SPEED_MPH) * 60)
+
+          ),
+
+          is_estimate: true
+
+        };
+
+      }
+
+    }
 
     return ok(res, {
 
@@ -9233,6 +9557,8 @@ app.get(
 
       updated_at: ride.updated_at,
 
+      tracking,
+
       driver: ride.driver_id
 
         ? {
@@ -9243,7 +9569,9 @@ app.get(
 
             phone: ride.driver_phone,
 
-            photo_url: driverPhotoUrl
+            photo_url: driverPhotoUrl,
+
+            location: driverLocation
 
           }
 
@@ -9273,7 +9601,9 @@ app.get(
 
             delivery_handoff: ride.delivery_handoff,
 
-            tip_amount: ride.tip_amount
+            tip_amount: ride.tip_amount,
+
+            proof_url: ride.delivery_proof_url
 
           }
 
@@ -9399,7 +9729,11 @@ app.post(
 
       .eq("id", offerId);
 
-    await supabase
+    const acceptingDriver = await getDriverOrFail(offer.driver_id);
+
+    const driverRideFields = buildDriverRideFields(acceptingDriver);
+
+    const { data: assignedRide } = await supabase
 
       .from("rides")
 
@@ -9421,6 +9755,8 @@ app.post(
 
           offer.driver_id,
 
+        ...driverRideFields,
+
         accepted_at:
 
           nowIso(),
@@ -9431,7 +9767,25 @@ app.post(
 
       })
 
-      .eq("id", offer.ride_id);
+      .eq("id", offer.ride_id)
+
+      .select()
+
+      .single();
+
+    if (assignedRide) {
+
+      notifyRideStage(assignedRide, "driver_assigned").catch(() => {});
+
+      broadcastRideSse(offer.ride_id, "stage", {
+
+        status: RIDE_STATUS.DRIVER_ASSIGNED,
+
+        driver: driverRideFields
+
+      });
+
+    }
 
     auditLog({
 
@@ -9873,6 +10227,24 @@ app.post(
 
       .eq("id", rideId);
 
+    const enrouteIsDelivery = isDeliveryRideType(ride.ride_type);
+
+    notifyRideStage(
+
+      ride,
+
+      enrouteIsDelivery ? "enroute_store" : "enroute_pickup"
+
+    ).catch(() => {});
+
+    broadcastRideSse(rideId, "stage", {
+
+      status: RIDE_STATUS.DRIVER_ENROUTE,
+
+      delivery_stage: enrouteIsDelivery ? DELIVERY_STAGE.ENROUTE_STORE : null
+
+    });
+
     auditLog({
 
       actor_type:
@@ -9980,6 +10352,24 @@ app.post(
       })
 
       .eq("id", rideId);
+
+    const arrivedIsDelivery = isDeliveryRideType(ride.ride_type);
+
+    notifyRideStage(
+
+      ride,
+
+      arrivedIsDelivery ? "arrived_store" : "arrived_pickup"
+
+    ).catch(() => {});
+
+    broadcastRideSse(rideId, "stage", {
+
+      status: RIDE_STATUS.ARRIVED,
+
+      delivery_stage: arrivedIsDelivery ? DELIVERY_STAGE.ARRIVED_STORE : null
+
+    });
 
     auditLog({
 
@@ -10093,6 +10483,12 @@ app.post(
 
       .eq("id", rideId);
 
+    broadcastRideSse(rideId, "stage", {
+
+      delivery_stage: DELIVERY_STAGE.WAITING_FOR_ORDER
+
+    });
+
     auditLog({
 
       actor_type:
@@ -10200,6 +10596,24 @@ app.post(
       })
 
       .eq("id", rideId);
+
+    const startIsDelivery = isDeliveryRideType(ride.ride_type);
+
+    notifyRideStage(
+
+      ride,
+
+      startIsDelivery ? "picked_up" : "ride_started"
+
+    ).catch(() => {});
+
+    broadcastRideSse(rideId, "stage", {
+
+      status: RIDE_STATUS.IN_PROGRESS,
+
+      delivery_stage: startIsDelivery ? DELIVERY_STAGE.PICKED_UP : null
+
+    });
 
     auditLog({
 
@@ -10313,6 +10727,14 @@ app.post(
 
       .eq("id", rideId);
 
+    notifyRideStage(ride, "enroute_customer").catch(() => {});
+
+    broadcastRideSse(rideId, "stage", {
+
+      delivery_stage: DELIVERY_STAGE.ENROUTE_CUSTOMER
+
+    });
+
     auditLog({
 
       actor_type:
@@ -10424,6 +10846,14 @@ app.post(
       })
 
       .eq("id", rideId);
+
+    notifyRideStage(ride, "arrived_customer").catch(() => {});
+
+    broadcastRideSse(rideId, "stage", {
+
+      delivery_stage: DELIVERY_STAGE.ARRIVED_CUSTOMER
+
+    });
 
     auditLog({
 
@@ -10633,37 +11063,123 @@ app.post(
 
     );
 
+    let deliveryProofUrl = null;
+
     if (isDeliveryRideType(ride.ride_type)) {
 
-      const suppliedPin =
+      if (ride.delivery_handoff === "leave_at_door") {
 
-        cleanString(
+        const decoded = decodeBase64Image(req.body.delivery_photo);
 
-          req.body.delivery_pin,
+        if (!decoded) {
 
-          10
+          return fail(
 
-        );
+            res,
 
-      if (
+            "A delivery photo is required to confirm a leave-at-door delivery.",
 
-        !suppliedPin ||
+            400
 
-        !ride.delivery_pin ||
+          );
 
-        suppliedPin !== ride.delivery_pin
+        }
 
-      ) {
+        if (decoded.buffer.length > DRIVER_PHOTO_MAX_BYTES) {
 
-        return fail(
+          return fail(
 
-          res,
+            res,
 
-          "Incorrect delivery PIN. Ask the customer for their delivery PIN.",
+            "Delivery photo is too large. Maximum size is 5MB.",
 
-          400
+            400
 
-        );
+          );
+
+        }
+
+        const proofPath = `${rideId}.${decoded.extension}`;
+
+        const { error: proofUploadError } =
+
+          await supabase.storage
+
+            .from("delivery-proof-photos")
+
+            .upload(proofPath, decoded.buffer, {
+
+              contentType: decoded.mimeType,
+
+              upsert: true
+
+            });
+
+        if (proofUploadError) {
+
+          console.error(
+
+            "❌ Delivery proof photo upload failed:",
+
+            proofUploadError.message
+
+          );
+
+          return fail(
+
+            res,
+
+            "Photo upload failed. Please try again.",
+
+            502
+
+          );
+
+        }
+
+        const { data: proofPublicUrlData } =
+
+          supabase.storage
+
+            .from("delivery-proof-photos")
+
+            .getPublicUrl(proofPath);
+
+        deliveryProofUrl = `${proofPublicUrlData.publicUrl}?v=${Date.now()}`;
+
+      } else {
+
+        const suppliedPin =
+
+          cleanString(
+
+            req.body.delivery_pin,
+
+            10
+
+          );
+
+        if (
+
+          !suppliedPin ||
+
+          !ride.delivery_pin ||
+
+          suppliedPin !== ride.delivery_pin
+
+        ) {
+
+          return fail(
+
+            res,
+
+            "Incorrect delivery PIN. Ask the customer for their delivery PIN.",
+
+            400
+
+          );
+
+        }
 
       }
 
@@ -10711,7 +11227,13 @@ app.post(
 
               delivery_stage: DELIVERY_STAGE.DELIVERED,
 
-              delivered_at: nowIso()
+              delivered_at: nowIso(),
+
+              ...(deliveryProofUrl
+
+                ? { delivery_proof_url: deliveryProofUrl }
+
+                : {})
 
             }
 
@@ -10720,6 +11242,24 @@ app.post(
       })
 
       .eq("id", rideId);
+
+    const completeIsDelivery = isDeliveryRideType(ride.ride_type);
+
+    notifyRideStage(
+
+      ride,
+
+      completeIsDelivery ? "delivered" : "ride_completed"
+
+    ).catch(() => {});
+
+    broadcastRideSse(rideId, "stage", {
+
+      status: RIDE_STATUS.COMPLETED,
+
+      delivery_stage: completeIsDelivery ? DELIVERY_STAGE.DELIVERED : null
+
+    });
 
     auditLog({
 
@@ -10785,6 +11325,10 @@ app.post(
 
 ========================================================= */
 
+const LOCATION_UPDATE_MIN_INTERVAL_MS = 5000;
+
+const lastLocationUpdateAt = new Map(); // driverId -> ms timestamp
+
 app.post(
 
   "/api/driver/location",
@@ -10795,13 +11339,27 @@ app.post(
 
     const driverId = req.driver.id;
 
-    if (!driverId) {
+    const lat = Number(req.body.latitude);
+
+    const lng = Number(req.body.longitude);
+
+    if (
+
+      !Number.isFinite(lat) ||
+
+      !Number.isFinite(lng) ||
+
+      lat < -90 || lat > 90 ||
+
+      lng < -180 || lng > 180
+
+    ) {
 
       return fail(
 
         res,
 
-        "driver_id required",
+        "A valid latitude/longitude is required.",
 
         400
 
@@ -10809,45 +11367,111 @@ app.post(
 
     }
 
+    const nowMs = Date.now();
+
+    const lastUpdateMs = lastLocationUpdateAt.get(driverId) || 0;
+
+    if (nowMs - lastUpdateMs < LOCATION_UPDATE_MIN_INTERVAL_MS) {
+
+      return ok(res, { updated: false, throttled: true });
+
+    }
+
+    lastLocationUpdateAt.set(driverId, nowMs);
+
+    const { data: activeRide } = await supabase
+
+      .from("rides")
+
+      .select("id")
+
+      .eq("driver_id", driverId)
+
+      .in("status", [
+
+        RIDE_STATUS.DRIVER_ASSIGNED,
+
+        RIDE_STATUS.DRIVER_ENROUTE,
+
+        RIDE_STATUS.ARRIVED,
+
+        RIDE_STATUS.IN_PROGRESS
+
+      ])
+
+      .order("updated_at", { ascending: false })
+
+      .limit(1)
+
+      .maybeSingle();
+
+    if (!activeRide) {
+
+      return fail(
+
+        res,
+
+        "No active mission to track location for.",
+
+        409
+
+      );
+
+    }
+
+    const rawAccuracy = Number(req.body.accuracy);
+
+    const accuracy = Number.isFinite(rawAccuracy) ? rawAccuracy : null;
+
+    const heading = Number(req.body.heading || 0);
+
+    const speed = Number(req.body.speed || 0);
+
     await supabase
 
       .from("drivers")
 
       .update({
 
-        current_lat:
+        current_lat: lat,
 
-          Number(req.body.latitude),
+        current_lng: lng,
 
-        current_lng:
+        heading,
 
-          Number(req.body.longitude),
+        speed,
 
-        heading:
+        location_accuracy_meters: accuracy,
 
-          Number(req.body.heading || 0),
+        last_seen_at: nowIso(),
 
-        speed:
-
-          Number(req.body.speed || 0),
-
-        last_seen_at:
-
-          nowIso(),
-
-        updated_at:
-
-          nowIso()
+        updated_at: nowIso()
 
       })
 
       .eq("id", driverId);
 
+    broadcastRideSse(activeRide.id, "location", {
+
+      lat,
+
+      lng,
+
+      heading,
+
+      speed,
+
+      accuracy_meters: accuracy,
+
+      last_seen_at: nowIso()
+
+    });
+
     return ok(res, {
 
-      updated:
+      updated: true,
 
-        true
+      tracking_ride_id: activeRide.id
 
     });
 
@@ -10867,7 +11491,7 @@ app.post(
 
 const DRIVER_PHOTO_MAX_BYTES = 5 * 1024 * 1024;
 
-const DRIVER_PHOTO_MIME_EXTENSIONS = {
+const IMAGE_MIME_EXTENSIONS = {
 
   "image/jpeg": "jpg",
 
@@ -10876,6 +11500,30 @@ const DRIVER_PHOTO_MIME_EXTENSIONS = {
   "image/webp": "webp"
 
 };
+
+function decodeBase64Image(dataUrl) {
+
+  const match = String(dataUrl || "").match(
+
+    /^data:(image\/(?:jpeg|png|webp));base64,(.+)$/
+
+  );
+
+  if (!match) return null;
+
+  const [, mimeType, base64Data] = match;
+
+  return {
+
+    mimeType,
+
+    extension: IMAGE_MIME_EXTENSIONS[mimeType],
+
+    buffer: Buffer.from(base64Data, "base64")
+
+  };
+
+}
 
 app.post(
 
@@ -10887,13 +11535,9 @@ app.post(
 
     const dataUrl = String(req.body.photo || req.body.image || "");
 
-    const match = dataUrl.match(
+    const decoded = decodeBase64Image(dataUrl);
 
-      /^data:(image\/(?:jpeg|png|webp));base64,(.+)$/
-
-    );
-
-    if (!match) {
+    if (!decoded) {
 
       return fail(
 
@@ -10907,9 +11551,7 @@ app.post(
 
     }
 
-    const [, mimeType, base64Data] = match;
-
-    const buffer = Buffer.from(base64Data, "base64");
+    const { mimeType, buffer } = decoded;
 
     if (buffer.length > DRIVER_PHOTO_MAX_BYTES) {
 
@@ -10925,9 +11567,7 @@ app.post(
 
     }
 
-    const extension = DRIVER_PHOTO_MIME_EXTENSIONS[mimeType];
-
-    const path = `${req.driver.id}.${extension}`;
+    const path = `${req.driver.id}.${decoded.extension}`;
 
     const { error: uploadError } =
 
@@ -11328,6 +11968,121 @@ function broadcastSse(event, data) {
   }
 
 }
+
+/* =========================================================
+
+   RIDE-SCOPED SSE (rider-facing live delivery tracking)
+
+   Separate from the admin firehose above: clients subscribe to
+   a single ride_id and only receive events for that ride.
+
+========================================================= */
+
+const rideSseClients = new Map(); // rideId -> Map(clientId -> res)
+
+function addRideSseClient(rideId, clientId, res) {
+
+  if (!rideSseClients.has(rideId)) {
+
+    rideSseClients.set(rideId, new Map());
+
+  }
+
+  rideSseClients.get(rideId).set(clientId, res);
+
+}
+
+function removeRideSseClient(rideId, clientId) {
+
+  const clients = rideSseClients.get(rideId);
+
+  if (!clients) return;
+
+  clients.delete(clientId);
+
+  if (clients.size === 0) {
+
+    rideSseClients.delete(rideId);
+
+  }
+
+}
+
+function broadcastRideSse(rideId, event, data) {
+
+  const clients = rideSseClients.get(rideId);
+
+  if (!clients) return;
+
+  const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+
+  for (const res of clients.values()) {
+
+    try {
+
+      res.write(payload);
+
+    } catch {
+
+      // Client likely disconnected; the close handler will clean it up.
+
+    }
+
+  }
+
+}
+
+app.get(
+
+  "/api/rides/:id/stream",
+
+  asyncRoute(async (req, res) => {
+
+    const rideId = cleanString(req.params.id, 100);
+
+    const { data: ride } = await supabase
+
+      .from("rides")
+
+      .select("id")
+
+      .eq("id", rideId)
+
+      .maybeSingle();
+
+    if (!ride) {
+
+      return fail(res, "Ride not found.", 404);
+
+    }
+
+    const clientId = makeId("RIDESSE");
+
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.flushHeaders?.();
+
+    addRideSseClient(rideId, clientId, res);
+
+    res.write(`event: connected\ndata: ${JSON.stringify({ ride_id: rideId })}\n\n`);
+
+    const heartbeat = setInterval(() => {
+      try {
+        res.write(`event: heartbeat\ndata: ${JSON.stringify({ at: nowIso() })}\n\n`);
+      } catch {
+        clearInterval(heartbeat);
+      }
+    }, 25_000);
+
+    req.on("close", () => {
+      clearInterval(heartbeat);
+      removeRideSseClient(rideId, clientId);
+    });
+
+  })
+
+);
 
 /* =========================================================
 
@@ -12096,6 +12851,8 @@ app.post(
 
       await getDriverOrFail(driverId);
 
+    const driverRideFields = buildDriverRideFields(driver);
+
     const { data, error } =
 
       await supabase
@@ -12128,6 +12885,8 @@ app.post(
 
             nowIso(),
 
+          ...driverRideFields,
+
           updated_at:
 
             nowIso()
@@ -12145,6 +12904,16 @@ app.post(
       throw error;
 
     }
+
+    notifyRideStage(data, "driver_assigned").catch(() => {});
+
+    broadcastRideSse(rideId, "stage", {
+
+      status: RIDE_STATUS.DRIVER_ASSIGNED,
+
+      driver: driverRideFields
+
+    });
 
     auditLog({
 
