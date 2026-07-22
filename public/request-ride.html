@@ -848,6 +848,40 @@
       margin-top: 2px;
     }
 
+    .merchant-quick-picks {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .merchant-chip {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.04);
+      color: inherit;
+      border-radius: 999px;
+      padding: 7px 14px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .merchant-chip:hover,
+    .merchant-chip.active {
+      border-color: rgba(70, 240, 255, 0.55);
+      background: rgba(70, 240, 255, 0.1);
+    }
+
+    .merchant-selected-badge {
+      margin-top: 8px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .merchant-selected-badge strong {
+      color: inherit;
+    }
+
     .driver-contact-link {
       display: inline-block;
       margin-top: 6px;
@@ -1438,10 +1472,38 @@
 
             </div>
 
+            <!-- MERCHANT PICKER (food/grocery only) -->
+            <div id="merchantPickerBlock" class="field hidden">
+
+              <label for="merchantSearchInput" id="merchantPickerLabel">
+                Restaurant or Store
+              </label>
+
+              <div id="merchantQuickPicks" class="merchant-quick-picks"></div>
+
+              <div class="input-wrap">
+                <input
+                  id="merchantSearchInput"
+                  type="text"
+                  autocomplete="off"
+                  placeholder="Search for a restaurant or store..."
+                />
+              </div>
+
+              <div id="merchantSelectedBadge" class="merchant-selected-badge hidden">
+                Selected: <strong id="merchantSelectedName">—</strong>
+              </div>
+
+              <small id="merchantPickerHint">
+                Type a business name, or tap a quick pick above.
+              </small>
+
+            </div>
+
             <!-- PICKUP -->
             <div class="field">
 
-              <label for="pickupAddress">
+              <label for="pickupAddress" id="pickupAddressLabel">
                 Pickup Location
               </label>
 
@@ -1504,7 +1566,7 @@
               </div>
 
             </div>            <!-- SERVICE SETTINGS -->
-            <div class="three-col">
+            <div class="three-col" id="passengerServiceSettings">
 
               <div class="field">
 
@@ -1618,8 +1680,63 @@
 
             </div>
 
+            <!-- DELIVERY ORDER DETAILS (food/grocery input only) -->
+            <div id="orderDetailsBlock" class="hidden">
+
+              <div class="two-col">
+
+                <div class="field">
+                  <label for="orderItemCount">Number of Items / Bags</label>
+                  <input
+                    id="orderItemCount"
+                    type="number"
+                    min="1"
+                    step="1"
+                    placeholder="e.g. 3"
+                  />
+                </div>
+
+                <div class="field">
+                  <label for="orderTipAmount">Tip (optional)</label>
+                  <input
+                    id="orderTipAmount"
+                    type="number"
+                    min="0"
+                    step="0.50"
+                    placeholder="$0.00"
+                  />
+                </div>
+
+              </div>
+
+              <div class="field">
+                <label for="orderPickupInstructions">Pickup Instructions (for your driver, at the store)</label>
+                <textarea
+                  id="orderPickupInstructions"
+                  placeholder="Order name, counter vs. drive-thru, curbside pickup spot..."
+                ></textarea>
+              </div>
+
+              <div class="field">
+                <label for="orderDeliveryInstructions">Delivery Instructions (at your address)</label>
+                <textarea
+                  id="orderDeliveryInstructions"
+                  placeholder="Gate code, apartment number, where to leave the order..."
+                ></textarea>
+              </div>
+
+              <div class="field">
+                <label for="orderHandoff">Delivery Handoff</label>
+                <select id="orderHandoff">
+                  <option value="hand_to_customer">Hand directly to me</option>
+                  <option value="leave_at_door">Leave at my door</option>
+                </select>
+              </div>
+
+            </div>
+
             <!-- NOTES -->
-            <div class="field">
+            <div class="field" id="passengerNotesBlock">
 
               <label for="rideNotes">
                 Ride Notes
@@ -1993,13 +2110,14 @@
       const script = document.createElement("script");
 
       script.src =
-        `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}`;
+        `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&libraries=places`;
 
       script.async = true;
       script.defer = true;
 
       script.onload = () => {
         window.__HARVEY_MAPS_ENABLED__ = true;
+        window.dispatchEvent(new Event("harvey-maps-ready"));
       };
 
       script.onerror = () => {
@@ -2125,7 +2243,15 @@
         instance: null,
         marker: null,
         loaded: false
-      }
+      },
+
+      merchant: {
+        name: "",
+        lat: null,
+        lng: null
+      },
+
+      merchantAutocomplete: null
     };    const $ = (id) => document.getElementById(id);
 
     const els = {
@@ -2147,13 +2273,31 @@
       riderEmail: $("riderEmail"),
 
       pickupAddress: $("pickupAddress"),
+      pickupAddressLabel: $("pickupAddressLabel"),
       destinationAddress: $("destinationAddress"),
 
+      passengerServiceSettings: $("passengerServiceSettings"),
       rideType: $("rideType"),
       passengerCount: $("passengerCount"),
       servicePriority: $("servicePriority"),
       scheduledTime: $("scheduledTime"),
+      passengerNotesBlock: $("passengerNotesBlock"),
       rideNotes: $("rideNotes"),
+
+      merchantPickerBlock: $("merchantPickerBlock"),
+      merchantPickerLabel: $("merchantPickerLabel"),
+      merchantQuickPicks: $("merchantQuickPicks"),
+      merchantSearchInput: $("merchantSearchInput"),
+      merchantSelectedBadge: $("merchantSelectedBadge"),
+      merchantSelectedName: $("merchantSelectedName"),
+      merchantPickerHint: $("merchantPickerHint"),
+
+      orderDetailsBlock: $("orderDetailsBlock"),
+      orderItemCount: $("orderItemCount"),
+      orderTipAmount: $("orderTipAmount"),
+      orderPickupInstructions: $("orderPickupInstructions"),
+      orderDeliveryInstructions: $("orderDeliveryInstructions"),
+      orderHandoff: $("orderHandoff"),
 
       detectLocationBtn: $("detectLocationBtn"),
       checkRiderBtn: $("checkRiderBtn"),
@@ -2563,41 +2707,201 @@
 
       setBadge(copy.badge);
 
+      const isDelivery = nextMode === "food" || nextMode === "grocery";
+
       if (nextMode === "food") {
         if (els.destinationAddress) {
           els.destinationAddress.placeholder =
-            "Restaurant address and delivery destination";
+            "Your delivery address";
         }
 
-        if (els.rideNotes) {
-          els.rideNotes.placeholder =
-            "Restaurant name, order details, pickup instructions, delivery notes...";
+        if (els.pickupAddressLabel) {
+          els.pickupAddressLabel.textContent = "Restaurant Pickup Address";
+        }
+
+        if (els.merchantPickerLabel) {
+          els.merchantPickerLabel.textContent = "Restaurant";
+        }
+
+        if (els.merchantSearchInput) {
+          els.merchantSearchInput.placeholder =
+            "Search for a restaurant...";
         }
       } else if (nextMode === "grocery") {
         if (els.destinationAddress) {
           els.destinationAddress.placeholder =
-            "Store address and delivery destination";
+            "Your delivery address";
         }
 
-        if (els.rideNotes) {
-          els.rideNotes.placeholder =
-            "Store name, grocery list, delivery instructions, substitutions...";
+        if (els.pickupAddressLabel) {
+          els.pickupAddressLabel.textContent = "Grocery Store Pickup Address";
+        }
+
+        if (els.merchantPickerLabel) {
+          els.merchantPickerLabel.textContent = "Grocery Store";
+        }
+
+        if (els.merchantSearchInput) {
+          els.merchantSearchInput.placeholder =
+            "Search for a grocery store...";
         }
       } else {
         if (els.destinationAddress) {
           els.destinationAddress.placeholder = "Enter destination";
         }
 
-        if (els.rideNotes) {
-          els.rideNotes.placeholder =
-            "Gate code, pickup details, accessibility needs, or special notes...";
+        if (els.pickupAddressLabel) {
+          els.pickupAddressLabel.textContent = "Pickup Location";
         }
+      }
+
+      if (els.rideNotes) {
+        els.rideNotes.placeholder =
+          "Gate code, pickup details, accessibility needs, or special notes...";
+      }
+
+      toggleHidden(els.passengerServiceSettings, isDelivery);
+      toggleHidden(els.passengerNotesBlock, isDelivery);
+      toggleHidden(els.merchantPickerBlock, !isDelivery);
+      toggleHidden(els.orderDetailsBlock, !isDelivery);
+
+      if (isDelivery) {
+        renderMerchantQuickPicks(nextMode);
+        initMerchantAutocomplete();
+      } else {
+        state.merchant.name = "";
+        state.merchant.lat = null;
+        state.merchant.lng = null;
+        if (els.merchantSearchInput) els.merchantSearchInput.value = "";
+        if (els.merchantSelectedBadge) els.merchantSelectedBadge.classList.add("hidden");
       }
 
       resetEstimateAndPayment(
         "Request mode changed. Please get a fresh fare estimate."
       );
     }
+
+    function toggleHidden(el, hidden) {
+      if (!el) return;
+      el.classList.toggle("hidden", Boolean(hidden));
+    }
+
+    const MERCHANT_QUICK_PICKS = {
+      food: ["McDonald's", "Chick-fil-A", "Taco Bell", "Wendy's", "Waffle House"],
+      grocery: ["Walmart", "Kroger", "Aldi", "Publix", "Costco"]
+    };
+
+    function renderMerchantQuickPicks(mode) {
+      if (!els.merchantQuickPicks) return;
+      const picks = MERCHANT_QUICK_PICKS[mode] || [];
+      els.merchantQuickPicks.innerHTML = "";
+
+      picks.forEach((name) => {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "merchant-chip";
+        chip.textContent = name;
+        chip.addEventListener("click", () => selectQuickPickMerchant(name));
+        els.merchantQuickPicks.appendChild(chip);
+      });
+    }
+
+    function selectQuickPickMerchant(name) {
+      state.merchant.name = name;
+
+      if (els.merchantSearchInput) {
+        els.merchantSearchInput.value = name;
+      }
+
+      showMerchantSelected(name);
+
+      if (els.merchantPickerHint) {
+        els.merchantPickerHint.textContent =
+          "Now confirm the exact pickup address for this location below.";
+      }
+
+      Array.from(els.merchantQuickPicks?.querySelectorAll(".merchant-chip") || []).forEach((chip) => {
+        chip.classList.toggle("active", chip.textContent === name);
+      });
+    }
+
+    function showMerchantSelected(name) {
+      if (!els.merchantSelectedBadge || !els.merchantSelectedName) return;
+
+      if (!name) {
+        els.merchantSelectedBadge.classList.add("hidden");
+        return;
+      }
+
+      els.merchantSelectedName.textContent = name;
+      els.merchantSelectedBadge.classList.remove("hidden");
+    }
+
+    function canUsePlacesAutocomplete() {
+      return Boolean(
+        window.__HARVEY_MAPS_ENABLED__ &&
+        window.google &&
+        window.google.maps &&
+        window.google.maps.places
+      );
+    }
+
+    function initMerchantAutocomplete() {
+      if (state.merchantAutocomplete || !els.merchantSearchInput) return;
+      if (!canUsePlacesAutocomplete()) return;
+
+      try {
+        const autocomplete = new google.maps.places.Autocomplete(
+          els.merchantSearchInput,
+          { types: ["establishment"], fields: ["name", "formatted_address", "geometry"] }
+        );
+
+        if (state.pickup.latitude !== null && state.pickup.longitude !== null) {
+          const center = new google.maps.LatLng(state.pickup.latitude, state.pickup.longitude);
+          const circle = new google.maps.Circle({ center, radius: 15000 });
+          autocomplete.setBounds(circle.getBounds());
+        }
+
+        autocomplete.addListener("place_changed", () => {
+          const place = autocomplete.getPlace();
+          if (!place || !place.name) return;
+
+          state.merchant.name = place.name;
+          state.merchant.lat = place.geometry?.location?.lat() ?? null;
+          state.merchant.lng = place.geometry?.location?.lng() ?? null;
+
+          if (els.pickupAddress && place.formatted_address) {
+            els.pickupAddress.value = place.formatted_address;
+            state.pickup.address = place.formatted_address;
+          }
+
+          if (state.merchant.lat !== null && state.merchant.lng !== null) {
+            state.pickup.latitude = state.merchant.lat;
+            state.pickup.longitude = state.merchant.lng;
+            state.pickup.source = "merchant_search";
+          }
+
+          showMerchantSelected(place.name);
+
+          if (els.merchantPickerHint) {
+            els.merchantPickerHint.textContent =
+              "Pickup address filled in automatically. You can edit it below if needed.";
+          }
+        });
+
+        state.merchantAutocomplete = autocomplete;
+      } catch (err) {
+        // Places failed to initialize (e.g. billing/quota issue upstream).
+        // Manual search-box typing and quick picks still work without it.
+        state.merchantAutocomplete = null;
+      }
+    }
+
+    window.addEventListener("harvey-maps-ready", () => {
+      if (state.mode === "food" || state.mode === "grocery") {
+        initMerchantAutocomplete();
+      }
+    });
 
     function syncRiderFromForm() {
       state.rider.name = safeTrim(els.riderName?.value);
@@ -2676,6 +2980,15 @@
 
       if (!state.destination.address || state.destination.address.length < 3) {
         return "Please enter your destination.";
+      }
+
+      if (
+        (state.mode === "food" || state.mode === "grocery") &&
+        !safeTrim(state.merchant.name)
+      ) {
+        return state.mode === "food"
+          ? "Please select or enter the restaurant name."
+          : "Please select or enter the grocery store name.";
       }
 
       if (
@@ -3129,7 +3442,9 @@
             : state.mode,
 
         ride_type:
-          els.rideType?.value || "standard",
+          state.mode === "food" || state.mode === "grocery"
+            ? state.mode
+            : (els.rideType?.value || "standard"),
 
         passenger_count:
           Number(els.passengerCount?.value || 1),
@@ -3145,6 +3460,24 @@
 
         specialInstructions:
           safeTrim(els.rideNotes?.value),
+
+        merchant_name:
+          safeTrim(state.merchant.name),
+
+        item_count:
+          Number(els.orderItemCount?.value) || null,
+
+        pickup_instructions:
+          safeTrim(els.orderPickupInstructions?.value),
+
+        delivery_instructions:
+          safeTrim(els.orderDeliveryInstructions?.value),
+
+        delivery_handoff:
+          els.orderHandoff?.value || "hand_to_customer",
+
+        tip_amount:
+          Number(els.orderTipAmount?.value) || null,
 
         source: "request-ride.html",
         client_version:
@@ -4196,7 +4529,12 @@
         els.passengerCount,
         els.servicePriority,
         els.scheduledTime,
-        els.rideNotes
+        els.rideNotes,
+        els.orderItemCount,
+        els.orderTipAmount,
+        els.orderPickupInstructions,
+        els.orderDeliveryInstructions,
+        els.orderHandoff
       ].forEach((field) => {
         field?.addEventListener("input", () => {
           resetEstimateAndPayment(
@@ -4209,6 +4547,15 @@
             "Trip details changed. Please get a fresh estimate."
           );
         });
+      });
+
+      els.merchantSearchInput?.addEventListener("input", () => {
+        state.merchant.name = safeTrim(els.merchantSearchInput.value);
+        showMerchantSelected(state.merchant.name);
+
+        resetEstimateAndPayment(
+          "Trip details changed. Please get a fresh estimate."
+        );
       });
 
       [

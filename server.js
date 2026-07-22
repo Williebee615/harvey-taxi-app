@@ -8613,6 +8613,32 @@ app.post(
 
         isDelivery ? DELIVERY_STAGE.ORDER_ACCEPTED : null,
 
+      delivery_handoff:
+
+        isDelivery
+
+          ? (["leave_at_door", "hand_to_customer"].includes(
+
+              cleanString(req.body.delivery_handoff, 30)
+
+            )
+
+              ? cleanString(req.body.delivery_handoff, 30)
+
+              : "hand_to_customer")
+
+          : null,
+
+      tip_amount:
+
+        Number.isFinite(Number(req.body.tip_amount)) &&
+
+        Number(req.body.tip_amount) > 0
+
+          ? Math.min(500, Math.round(Number(req.body.tip_amount) * 100) / 100)
+
+          : null,
+
       created_at:
 
         now,
@@ -9151,7 +9177,9 @@ app.get(
 
         "delivery_stage, delivery_pin, merchant_name, item_count, " +
 
-        "pickup_instructions, delivery_instructions, delivered_at"
+        "pickup_instructions, delivery_instructions, delivered_at, " +
+
+        "delivery_handoff, tip_amount"
 
       )
 
@@ -9241,7 +9269,11 @@ app.get(
 
             delivery_instructions: ride.delivery_instructions,
 
-            delivered_at: ride.delivered_at
+            delivered_at: ride.delivered_at,
+
+            delivery_handoff: ride.delivery_handoff,
+
+            tip_amount: ride.tip_amount
 
           }
 
