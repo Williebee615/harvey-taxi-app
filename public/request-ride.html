@@ -801,6 +801,53 @@
       letter-spacing: -0.04em;
     }
 
+    .driver-info-card {
+      margin-top: 14px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.04);
+      border-radius: 18px;
+      padding: 14px 16px;
+    }
+
+    .driver-photo {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      object-fit: cover;
+      flex-shrink: 0;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.06);
+    }
+
+    .driver-info-copy {
+      min-width: 0;
+    }
+
+    .driver-info-copy span:first-child {
+      display: block;
+      color: var(--text-muted);
+      font-size: 0.72rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 4px;
+    }
+
+    .driver-info-copy strong {
+      display: block;
+      font-size: 1.02rem;
+    }
+
+    .driver-info-copy span#driverVehicleText {
+      display: block;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      margin-top: 2px;
+    }
+
     .trip-timeline {
       margin-top: 18px;
       display: grid;
@@ -1573,6 +1620,16 @@
 
             </div>
 
+            <!-- DRIVER INFO (shown once a driver is assigned) -->
+            <div id="driverInfoCard" class="driver-info-card hidden">
+              <img id="driverPhoto" class="driver-photo" alt="Your driver" />
+              <div class="driver-info-copy">
+                <span>Your Driver</span>
+                <strong id="driverNameText">—</strong>
+                <span id="driverVehicleText">—</span>
+              </div>
+            </div>
+
             <!-- ACTIONS -->
             <div class="actions">
 
@@ -2038,6 +2095,11 @@
       durationText: $("durationText"),
       dispatchStateText: $("dispatchStateText"),
 
+      driverInfoCard: $("driverInfoCard"),
+      driverPhoto: $("driverPhoto"),
+      driverNameText: $("driverNameText"),
+      driverVehicleText: $("driverVehicleText"),
+
       liveStatusText: $("liveStatusText"),
 
       approvalTimelineText: $("approvalTimelineText"),
@@ -2168,6 +2230,38 @@
     function setDispatchState(message) {
       if (els.dispatchStateText) {
         els.dispatchStateText.textContent = message;
+      }
+    }
+
+    function updateDriverInfo(driver) {
+      if (!els.driverInfoCard) return;
+
+      if (!driver) {
+        els.driverInfoCard.classList.add("hidden");
+        return;
+      }
+
+      els.driverInfoCard.classList.remove("hidden");
+
+      if (els.driverNameText) {
+        els.driverNameText.textContent = driver.name || "Assigned driver";
+      }
+
+      if (els.driverVehicleText) {
+        els.driverVehicleText.textContent = driver.vehicle || "Vehicle details pending";
+      }
+
+      if (els.driverPhoto) {
+        els.driverPhoto.src =
+          driver.photo_url ||
+          "data:image/svg+xml;utf8," +
+          encodeURIComponent(
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56">' +
+            '<rect width="56" height="56" rx="28" fill="#1e293b"/>' +
+            '<circle cx="28" cy="22" r="10" fill="#475569"/>' +
+            '<path d="M8 52c3-12 13-19 20-19s17 7 20 19" fill="#475569"/>' +
+            "</svg>"
+          );
       }
     }
 
@@ -2543,6 +2637,8 @@
       }
 
       setDispatchState("Standby");
+
+      updateDriverInfo(null);
 
       setTimeline(
         "approval",
@@ -3593,49 +3689,11 @@
 
       clearNotice();
 
-      const payload = {
-        ride_id: rideId,
-        rideId,
-
-        rider_id:
-          state.rider.id ||
-          readStorage(CONFIG.STORAGE_KEYS.riderId),
-
-        riderId:
-          state.rider.id ||
-          readStorage(CONFIG.STORAGE_KEYS.riderId),
-
-        email:
-          state.rider.email ||
-          readStorage(CONFIG.STORAGE_KEYS.riderEmail)
-      };
-
-      // NOTE: the server has no rider-facing ride-status polling route
-      // (/api/rides/status and /api/rider/current-ride do not exist). Live trip
-      // tracking is handled by the rider dashboard. Avoid calling dead endpoints.
-      const endpointsToTry = [];
-
       try {
-        let data = null;
-        let lastError = null;
-
-        for (const endpoint of endpointsToTry) {
-          try {
-            data = await apiPost(endpoint, payload);
-            break;
-          } catch (error) {
-            lastError = error;
-          }
-        }
-
-        if (!data && lastError) {
-          throw lastError;
-        }
-
-        if (!data) {
-          // No server polling available — keep local state and exit quietly.
-          return;
-        }
+        const data = await apiFetch(
+          `/api/rides/${encodeURIComponent(rideId)}/status`,
+          { method: "GET" }
+        );
 
         const normalized =
           normalizeRidePayload(data);
@@ -3648,6 +3706,8 @@
 
         state.ride.raw =
           normalized.raw;
+
+        updateDriverInfo(data.driver);
 
         setBadge("Status Updated");
 
