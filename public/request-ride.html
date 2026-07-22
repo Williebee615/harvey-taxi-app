@@ -464,7 +464,7 @@
 
     .map-meta {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 10px;
       margin-top: 12px;
     }
@@ -1213,17 +1213,9 @@
             <div class="map-meta">
 
               <div class="map-meta-box">
-                <span>Latitude</span>
+                <span>Live Address</span>
 
-                <strong id="latitudeText">
-                  Pending
-                </strong>
-              </div>
-
-              <div class="map-meta-box">
-                <span>Longitude</span>
-
-                <strong id="longitudeText">
+                <strong id="liveAddressText">
                   Pending
                 </strong>
               </div>
@@ -1959,7 +1951,8 @@
         latitude: null,
         longitude: null,
         accuracy: null,
-        source: "manual"
+        source: "manual",
+        addressLookupFailed: false
       },
 
       destination: {
@@ -2037,8 +2030,7 @@
       pickupMap: $("pickupMap"),
       mapFallback: $("mapFallback"),
 
-      latitudeText: $("latitudeText"),
-      longitudeText: $("longitudeText"),
+      liveAddressText: $("liveAddressText"),
       accuracyText: $("accuracyText"),
 
       fareEstimateText: $("fareEstimateText"),
@@ -2194,18 +2186,14 @@
     }
 
     function updateLocationMeta() {
-      if (els.latitudeText) {
-        els.latitudeText.textContent =
-          state.pickup.latitude === null
-            ? "Pending"
-            : Number(state.pickup.latitude).toFixed(6);
-      }
-
-      if (els.longitudeText) {
-        els.longitudeText.textContent =
-          state.pickup.longitude === null
-            ? "Pending"
-            : Number(state.pickup.longitude).toFixed(6);
+      if (els.liveAddressText) {
+        els.liveAddressText.textContent =
+          safeTrim(state.pickup.address) ||
+          (state.pickup.addressLookupFailed
+            ? "Unavailable — enter address manually"
+            : state.pickup.latitude === null
+              ? "Pending"
+              : "Resolving address...");
       }
 
       if (els.accuracyText) {
@@ -3709,6 +3697,36 @@
       );
     }
 
+    let geocoder = null;
+
+    function reverseGeocode(lat, lng) {
+      if (
+        !window.__HARVEY_MAPS_ENABLED__ ||
+        !window.google ||
+        !window.google.maps ||
+        !window.google.maps.Geocoder
+      ) {
+        return Promise.resolve(null);
+      }
+
+      if (!geocoder) {
+        geocoder = new window.google.maps.Geocoder();
+      }
+
+      return new Promise((resolve) => {
+        geocoder.geocode(
+          { location: { lat, lng } },
+          (results, status) => {
+            if (status === "OK" && results && results[0]) {
+              resolve(results[0].formatted_address);
+            } else {
+              resolve(null);
+            }
+          }
+        );
+      });
+    }
+
     function hideMapFallback() {
       if (els.mapFallback) {
         els.mapFallback.classList.add("hidden");
@@ -3799,7 +3817,7 @@
       );
 
       navigator.geolocation.getCurrentPosition(
-        (position) => {
+        async (position) => {
           state.pickup.latitude =
             position.coords.latitude;
 
@@ -3812,31 +3830,52 @@
           state.pickup.source =
             "browser_geolocation";
 
-          if (
-            els.pickupAddress &&
-            !safeTrim(els.pickupAddress.value)
-          ) {
-            els.pickupAddress.value =
-              "Current GPS Location";
-          }
-
-          if (els.locationStatusText) {
-            els.locationStatusText.textContent =
-              `Precise location captured with ~${Math.round(
-                state.pickup.accuracy || 0
-              )}m accuracy. Confirm pickup before dispatch.`;
-          }
+          state.pickup.addressLookupFailed = false;
 
           updateLocationMeta();
           initOrUpdateMap();
 
-          resetEstimateAndPayment(
-            "Precise location captured. Please get a fresh fare estimate."
+          const liveAddress = await reverseGeocode(
+            state.pickup.latitude,
+            state.pickup.longitude
           );
 
-          showNotice(
-            "Precise pickup location captured. Confirm the pickup address before dispatch.",
-            "success"
+          if (liveAddress) {
+            state.pickup.address = liveAddress;
+
+            if (els.pickupAddress) {
+              els.pickupAddress.value = liveAddress;
+            }
+
+            if (els.locationStatusText) {
+              els.locationStatusText.textContent =
+                `Live address captured (~${Math.round(
+                  state.pickup.accuracy || 0
+                )}m accuracy). Confirm pickup before dispatch.`;
+            }
+
+            showNotice(
+              "Live pickup address captured. Confirm it before dispatch.",
+              "success"
+            );
+          } else {
+            state.pickup.addressLookupFailed = true;
+
+            if (els.locationStatusText) {
+              els.locationStatusText.textContent =
+                "GPS location captured, but a live address could not be looked up. Please type your exact pickup address.";
+            }
+
+            showNotice(
+              "GPS location captured. Please type your exact pickup address to continue.",
+              "warning"
+            );
+          }
+
+          updateLocationMeta();
+
+          resetEstimateAndPayment(
+            "Pickup location updated. Please get a fresh fare estimate."
           );
 
           setBusy(
