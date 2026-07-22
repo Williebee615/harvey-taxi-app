@@ -608,6 +608,18 @@ const RAW_WEBHOOK_PATHS = new Set([
 
 ]);
 
+/* Base64-encoded image uploads inflate to ~4/3 their raw size, so the
+   default JSON_LIMIT (2mb) isn't enough for a photo upload. Give these
+   specific paths a larger, dedicated body limit instead of raising the
+   limit globally. */
+const LARGE_JSON_LIMIT = env("LARGE_JSON_LIMIT", "8mb");
+
+const LARGE_BODY_PATHS = new Set([
+
+  "/api/driver/photo"
+
+]);
+
 app.use((req, res, next) => {
 
   if (RAW_WEBHOOK_PATHS.has(req.path)) {
@@ -616,9 +628,15 @@ app.use((req, res, next) => {
 
   }
 
+  const limit = LARGE_BODY_PATHS.has(req.path)
+
+    ? LARGE_JSON_LIMIT
+
+    : JSON_LIMIT;
+
   return express.json({
 
-    limit: JSON_LIMIT
+    limit
 
   })(req, res, next);
 
@@ -7084,7 +7102,51 @@ app.get(
 
         driver.approval_status,
 
-      checks
+      checks,
+
+      // Curated, client-safe subset of the driver row for the driver
+      // dashboard's profile card. Never spread the raw row here — it
+      // also carries password/verification-code hashes and internal
+      // Persona/Checkr payloads that must never reach the browser.
+      driver: {
+
+        id: driver.id,
+
+        first_name: driver.first_name,
+
+        last_name: driver.last_name,
+
+        email: driver.email,
+
+        phone: driver.phone,
+
+        city: driver.city,
+
+        state: driver.state,
+
+        vehicle_make: driver.vehicle_make,
+
+        vehicle_model: driver.vehicle_model,
+
+        vehicle_year: driver.vehicle_year,
+
+        license_plate: driver.license_plate,
+
+        online: Boolean(driver.online || driver.is_online),
+
+        mode: driver.mode || "driver",
+
+        total_trips: driver.total_trips,
+
+        rating: driver.rating,
+
+        photo_url: driver.photo_url || null,
+
+        supports_food_delivery: driver.supports_food_delivery,
+
+        supports_grocery_delivery: driver.supports_grocery_delivery
+
+      }
 
     });
 
@@ -8953,7 +9015,115 @@ app.post(
 
   })
 
-);/* =========================================================
+);
+
+/* =========================================================
+
+   RIDE STATUS (RIDER-FACING)
+
+   Public by ride ID (ride IDs are not sequential/guessable),
+   matching the existing /api/foundation/status/:code pattern.
+   Returns ride status plus assigned driver name, vehicle, and
+   live photo_url once a driver has been assigned. This route
+   did not previously exist — request-ride.html's
+   refreshRideStatus() had an intentionally empty endpoint list
+   because there was nothing to call.
+
+========================================================= */
+
+app.get(
+
+  "/api/rides/:id/status",
+
+  asyncRoute(async (req, res) => {
+
+    const rideId = cleanString(req.params.id, 100);
+
+    const { data: ride, error } = await supabase
+
+      .from("rides")
+
+      .select(
+
+        "id, status, ride_type, pickup_address, dropoff_address, " +
+
+        "driver_id, driver_name, driver_vehicle, " +
+
+        "driver_eta_to_pickup_minutes, driver_distance_to_pickup_miles, " +
+
+        "estimated_fare, created_at, updated_at"
+
+      )
+
+      .eq("id", rideId)
+
+      .maybeSingle();
+
+    if (error || !ride) {
+
+      return fail(res, "Ride not found.", 404);
+
+    }
+
+    let driverPhotoUrl = null;
+
+    if (ride.driver_id) {
+
+      const { data: driver } = await supabase
+
+        .from("drivers")
+
+        .select("photo_url")
+
+        .eq("id", ride.driver_id)
+
+        .maybeSingle();
+
+      driverPhotoUrl = driver?.photo_url || null;
+
+    }
+
+    return ok(res, {
+
+      id: ride.id,
+
+      status: ride.status,
+
+      ride_type: ride.ride_type,
+
+      pickup_address: ride.pickup_address,
+
+      destination_address: ride.dropoff_address,
+
+      eta_minutes: ride.driver_eta_to_pickup_minutes,
+
+      distance_miles: ride.driver_distance_to_pickup_miles,
+
+      estimated_fare: ride.estimated_fare,
+
+      updated_at: ride.updated_at,
+
+      driver: ride.driver_id
+
+        ? {
+
+            name: ride.driver_name,
+
+            vehicle: ride.driver_vehicle,
+
+            photo_url: driverPhotoUrl
+
+          }
+
+        : null
+
+    });
+
+  })
+
+);
+
+/* =========================================================
 
    PART 7 — DRIVER OFFERS + DRIVER MISSION PIPELINE
 
@@ -10114,6 +10284,186 @@ app.post(
       updated:
 
         true
+
+    });
+
+  })
+
+);
+
+/* =========================================================
+
+   DRIVER PHOTO UPLOAD
+
+   Accepts a base64 data URL, uploads it to the public
+   driver-photos storage bucket, and stores the public URL on
+   the driver row so it can be shown to riders during a trip.
+
+========================================================= */
+
+const DRIVER_PHOTO_MAX_BYTES = 5 * 1024 * 1024;
+
+const DRIVER_PHOTO_MIME_EXTENSIONS = {
+
+  "image/jpeg": "jpg",
+
+  "image/png": "png",
+
+  "image/webp": "webp"
+
+};
+
+app.post(
+
+  "/api/driver/photo",
+
+  requireDriver,
+
+  asyncRoute(async (req, res) => {
+
+    const dataUrl = String(req.body.photo || req.body.image || "");
+
+    const match = dataUrl.match(
+
+      /^data:(image\/(?:jpeg|png|webp));base64,(.+)$/
+
+    );
+
+    if (!match) {
+
+      return fail(
+
+        res,
+
+        "Photo must be a base64 data URL (image/jpeg, image/png, or image/webp).",
+
+        400
+
+      );
+
+    }
+
+    const [, mimeType, base64Data] = match;
+
+    const buffer = Buffer.from(base64Data, "base64");
+
+    if (buffer.length > DRIVER_PHOTO_MAX_BYTES) {
+
+      return fail(
+
+        res,
+
+        "Photo is too large. Maximum size is 5MB.",
+
+        400
+
+      );
+
+    }
+
+    const extension = DRIVER_PHOTO_MIME_EXTENSIONS[mimeType];
+
+    const path = `${req.driver.id}.${extension}`;
+
+    const { error: uploadError } =
+
+      await supabase.storage
+
+        .from("driver-photos")
+
+        .upload(path, buffer, {
+
+          contentType: mimeType,
+
+          upsert: true
+
+        });
+
+    if (uploadError) {
+
+      console.error(
+
+        "❌ Driver photo upload failed:",
+
+        uploadError.message
+
+      );
+
+      return fail(
+
+        res,
+
+        "Photo upload failed. Please try again.",
+
+        502
+
+      );
+
+    }
+
+    const { data: publicUrlData } =
+
+      supabase.storage
+
+        .from("driver-photos")
+
+        .getPublicUrl(path);
+
+    // Cache-bust so riders immediately see a re-uploaded photo instead
+    // of a stale cached copy at the same stable URL.
+    const photoUrl =
+
+      `${publicUrlData.publicUrl}?v=${Date.now()}`;
+
+    const { error: updateError } =
+
+      await supabase
+
+        .from("drivers")
+
+        .update({
+
+          photo_url: photoUrl,
+
+          updated_at: nowIso()
+
+        })
+
+        .eq("id", req.driver.id);
+
+    if (updateError) {
+
+      return fail(
+
+        res,
+
+        "Photo uploaded but saving to profile failed.",
+
+        500
+
+      );
+
+    }
+
+    auditLog({
+
+      actor_type: "driver",
+
+      actor_id: req.driver.id,
+
+      action: "driver_photo_uploaded",
+
+      entity_type: "driver",
+
+      entity_id: req.driver.id,
+
+      req
+
+    }).catch(() => {});
+
+    return ok(res, {
+
+      photo_url: photoUrl
 
     });
 

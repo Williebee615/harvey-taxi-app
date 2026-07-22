@@ -562,6 +562,43 @@
       margin-bottom: 14px;
     }
 
+    .photo-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .profile-photo {
+      width: 84px;
+      height: 84px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.05);
+      flex-shrink: 0;
+    }
+
+    .photo-controls {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .photo-controls input[type="file"] {
+      display: block;
+      margin: 8px 0;
+      font-size: 0.85rem;
+      color: inherit;
+    }
+
+    @media (max-width: 640px) {
+      .photo-row {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+      }
+    }
+
     .cap-card {
       padding: 14px;
       border-radius: 18px;
@@ -948,7 +985,18 @@
       <section class="glass card span-8">
         <h3>Driver Profile + Service Capabilities</h3>
         <p class="sub">Profile verification status, assigned equipment rules, and background telemetry matching fields.</p>
-        
+
+        <div class="photo-row">
+          <img id="profilePhotoPreview" class="profile-photo" alt="Driver photo" />
+          <div class="photo-controls">
+            <label class="sub" for="profilePhotoInput">Driver Photo</label>
+            <p class="mini-note">Shown to riders during a trip so they can identify you. JPEG, PNG, or WebP, up to 5MB.</p>
+            <input id="profilePhotoInput" type="file" accept="image/jpeg,image/png,image/webp" />
+            <button class="btn btn-primary" id="uploadPhotoBtn" type="button" disabled>Upload Photo</button>
+            <div id="photoMsg" class="msg"></div>
+          </div>
+        </div>
+
         <div class="service-caps">
           <div class="cap-card" id="capRidesBox">
             <strong id="capRides">Rides</strong>
@@ -1190,7 +1238,13 @@
       profType: document.getElementById("profileDriverType"),
       profBg: document.getElementById("profileBackground"),
       profAddress: document.getElementById("profileLastAddress"),
-      
+
+      // Profile Photo
+      photoPreview: document.getElementById("profilePhotoPreview"),
+      photoInput: document.getElementById("profilePhotoInput"),
+      uploadPhotoBtn: document.getElementById("uploadPhotoBtn"),
+      photoMsg: document.getElementById("photoMsg"),
+
       // Service Caps
       capRides: document.getElementById("capRides"),
       capFood: document.getElementById("capFood"),
@@ -1242,6 +1296,7 @@
     });
 
     function initEventListeners() {
+      el.photoPreview.src = DEFAULT_PHOTO;
       el.sendCodeBtn.addEventListener("click", handleSendCode);
       el.verifyCodeBtn.addEventListener("click", handleVerifyCode);
 
@@ -1267,6 +1322,62 @@
       el.toCustomerBtn.addEventListener("click", () => executeWorkflowAction("enroute_customer"));
       el.arrivedCustomerBtn.addEventListener("click", () => executeWorkflowAction("arrived_customer"));
       el.completeDeliveryBtn.addEventListener("click", () => executeWorkflowAction("complete_delivery"));
+
+      el.photoInput.addEventListener("change", handlePhotoSelected);
+      el.uploadPhotoBtn.addEventListener("click", handlePhotoUpload);
+    }
+
+    const DEFAULT_PHOTO =
+      "data:image/svg+xml;utf8," +
+      encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 84 84">' +
+        '<rect width="84" height="84" rx="42" fill="#1e293b"/>' +
+        '<circle cx="42" cy="33" r="16" fill="#475569"/>' +
+        '<path d="M12 78c4-18 20-28 30-28s26 10 30 28" fill="#475569"/>' +
+        "</svg>"
+      );
+
+    let selectedPhotoDataUrl = null;
+
+    function handlePhotoSelected() {
+      const file = el.photoInput.files && el.photoInput.files[0];
+      selectedPhotoDataUrl = null;
+      el.uploadPhotoBtn.disabled = true;
+      if (!file) return;
+
+      if (file.size > 5 * 1024 * 1024) {
+        showMessage(el.photoMsg, "Photo is too large. Maximum size is 5MB.", "err");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        selectedPhotoDataUrl = reader.result;
+        el.photoPreview.src = selectedPhotoDataUrl;
+        el.uploadPhotoBtn.disabled = false;
+        showMessage(el.photoMsg, "Photo ready to upload.", "ok");
+      };
+      reader.onerror = () => {
+        showMessage(el.photoMsg, "Could not read that file. Please try another photo.", "err");
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function handlePhotoUpload() {
+      if (!selectedPhotoDataUrl) return;
+      el.uploadPhotoBtn.disabled = true;
+      showMessage(el.photoMsg, "Uploading photo...", "ok");
+      try {
+        const resp = await apiPost("/api/driver/photo", { photo: selectedPhotoDataUrl });
+        if (state.driver) state.driver.photoUrl = resp.photo_url;
+        el.photoPreview.src = resp.photo_url;
+        selectedPhotoDataUrl = null;
+        el.photoInput.value = "";
+        showMessage(el.photoMsg, "Photo updated. Riders will see this on their next trip.", "ok");
+      } catch (err) {
+        showMessage(el.photoMsg, "Upload failed: " + err.message, "err");
+        el.uploadPhotoBtn.disabled = false;
+      }
     }
 
     // Step 1: request an SMS login code for this driver ID.
@@ -1398,11 +1509,16 @@
             driverType: "Harvey Taxi Driver",
             backgroundStatus: (readiness.checks && readiness.checks.checkr_ready) ? "Passed" : "Pending",
             lastKnownAddress: el.driverAddress ? el.driverAddress.value : "",
-            capabilities: { rides: true, food: true, grocery: true },
+            capabilities: {
+              rides: true,
+              food: d.supports_food_delivery !== false,
+              grocery: d.supports_grocery_delivery !== false
+            },
             status: d.online ? "available" : "offline",
             mode: d.mode || "driver",
             approved: readiness.ready === true,
-            completedCount: Number(d.total_trips || 0)
+            completedCount: Number(d.total_trips || 0),
+            photoUrl: d.photo_url || ""
           };
           if (el.availStatus) el.availStatus.value = state.driver.status;
           if (el.availMode) el.availMode.value = state.driver.mode;
@@ -1499,8 +1615,9 @@
       el.profType.textContent = state.driver.driverType;
       el.profBg.textContent = state.driver.backgroundStatus;
       el.profAddress.textContent = state.driver.lastKnownAddress;
+      el.photoPreview.src = state.driver.photoUrl || DEFAULT_PHOTO;
 
-      // Update Service Capability Highlights 
+      // Update Service Capability Highlights
       toggleActiveBox(el.capRidesBox, state.driver.capabilities.rides);
       toggleActiveBox(el.capFoodBox, state.driver.capabilities.food);
       toggleActiveBox(el.capGroceryBox, state.driver.capabilities.grocery);
@@ -1536,6 +1653,11 @@
       el.capRidesBox.classList.remove("active-cap");
       el.capFoodBox.classList.remove("active-cap");
       el.capGroceryBox.classList.remove("active-cap");
+
+      el.photoPreview.src = DEFAULT_PHOTO;
+      el.photoInput.value = "";
+      el.uploadPhotoBtn.disabled = true;
+      selectedPhotoDataUrl = null;
     }
 
     function stopWorkflowVisibilities() {
