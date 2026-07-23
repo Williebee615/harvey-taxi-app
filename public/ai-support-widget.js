@@ -883,6 +883,42 @@
       };
     }
 
+    // Applies the open_ride_workflow action: prefills the ride/food/grocery
+    // request page and jumps there for review. This only ever navigates and
+    // fills in form fields — it never submits a request or authorizes a
+    // payment on its own; the person still has to review and continue.
+    function handleOpenRideWorkflowAction(action) {
+      try {
+        const isOnRequestRide = /\/request-ride\.html/i.test(window.location.pathname);
+
+        if (action.service === "htaf") {
+          // HTAF has its own application-and-approval flow, not a
+          // request-ride.html mode, so there's nothing to pre-fill there yet.
+          if (!isOnRequestRide) {
+            window.location.href = "/htaf-application.html";
+          }
+          return;
+        }
+
+        if (isOnRequestRide) {
+          window.dispatchEvent(
+            new CustomEvent("harvey:ai-open-workflow", { detail: action })
+          );
+          return;
+        }
+
+        const params = new URLSearchParams();
+        params.set("mode", action.service);
+        if (action.destination) params.set("ai_destination", action.destination);
+        if (action.pickup) params.set("ai_pickup", action.pickup);
+        if (action.scheduled_time) params.set("ai_scheduled_time", action.scheduled_time);
+
+        window.location.href = "/request-ride.html?" + params.toString();
+      } catch (err) {
+        console.error("Harvey AI widget: failed to apply open_ride_workflow action", err);
+      }
+    }
+
     async function sendMessage(text) {
       const trimmed = String(text || "").trim();
       if (!trimmed || state.isLoading) return;
@@ -924,6 +960,10 @@
           CONFIG.assistantMeta,
           { card: maybeBuildLocalCard(trimmed, reply) }
         );
+
+        if (data && data.action && data.action.type === "open_ride_workflow") {
+          handleOpenRideWorkflowAction(data.action);
+        }
       } catch (error) {
         console.error("Harvey Taxi AI widget error:", error);
 
