@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Harvey Taxi — Mobility OS (Prototype)</title>
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<style>
+  :root{
+    --cyan:#63f5ff; --blue:#5ea0ff; --green:#6dffb3; --gold:#ffd76a; --danger:#ff7e97;
+    --glass-bg:rgba(16,24,48,.52); --glass-bg-2:rgba(255,255,255,.05);
+    --glass-line:rgba(148,180,255,.22); --glass-shadow:0 24px 70px rgba(0,0,0,.45);
+    --text:#f4f7ff; --muted:#aab8de; --radius:24px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;
+    color:var(--text); min-height:100vh; overflow-x:hidden;
+    background:linear-gradient(160deg,#040814,#0a1126 48%,#101935);
+    transition:background 1.4s ease;
+    padding-bottom:140px;
+  }
+  /* Time-of-day dynamic backgrounds */
+  body.tod-morning{background:
+    radial-gradient(circle at 15% 0%,rgba(255,214,150,.20),transparent 45%),
+    radial-gradient(circle at 85% 10%,rgba(99,245,255,.14),transparent 40%),
+    linear-gradient(160deg,#0d1220,#151b30 48%,#1c2440);}
+  body.tod-afternoon{background:
+    radial-gradient(circle at 20% 0%,rgba(99,245,255,.18),transparent 45%),
+    radial-gradient(circle at 80% 0%,rgba(94,160,255,.16),transparent 42%),
+    linear-gradient(160deg,#071022,#0d1830 48%,#122040);}
+  body.tod-evening{background:
+    radial-gradient(circle at 20% 0%,rgba(255,158,120,.16),transparent 45%),
+    radial-gradient(circle at 80% 5%,rgba(159,140,255,.18),transparent 42%),
+    linear-gradient(160deg,#0a0a18,#160f2c 48%,#20153c);}
+  body.tod-night{background:
+    radial-gradient(circle at 25% 0%,rgba(94,160,255,.12),transparent 45%),
+    radial-gradient(circle at 75% 15%,rgba(109,255,179,.08),transparent 42%),
+    linear-gradient(160deg,#03050d,#070b18 48%,#0a0f20);}
+
+  a{color:inherit;text-decoration:none}
+  button{font:inherit;border:0;cursor:pointer;color:inherit;background:none}
+
+  .glass{
+    background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.015)),var(--glass-bg);
+    backdrop-filter:blur(18px) saturate(140%);
+    -webkit-backdrop-filter:blur(18px) saturate(140%);
+    border:1px solid var(--glass-line);
+    border-radius:var(--radius);
+    box-shadow:var(--glass-shadow);
+  }
+
+  .proto-banner{
+    text-align:center; font-size:.78rem; font-weight:700; letter-spacing:.02em;
+    color:#062018; background:linear-gradient(90deg,var(--gold),#fff2c2);
+    padding:9px 14px;
+  }
+  .proto-banner a{text-decoration:underline; font-weight:900;}
+
+  .shell{max-width:1180px;margin:0 auto;padding:16px 16px 0;}
+
+  /* ---------------- Mission Control header ---------------- */
+  .mission-control{
+    position:sticky; top:12px; z-index:30; padding:14px 16px; margin-bottom:18px;
+    display:grid; grid-template-columns:repeat(5,1fr); gap:10px;
+  }
+  .mc-chip{
+    display:flex; flex-direction:column; gap:4px; padding:10px 12px; border-radius:16px;
+    background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08);
+  }
+  .mc-chip .mc-icon{font-size:1.1rem; line-height:1;}
+  .mc-chip .mc-label{font-size:.66rem; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:800;}
+  .mc-chip .mc-value{font-size:.92rem; font-weight:800;}
+  .mc-chip.mc-disconnected .mc-value{color:var(--muted); font-weight:700; font-size:.8rem;}
+  .mc-chip.mc-live{position:relative;}
+  .mc-chip.mc-live::after{
+    content:""; position:absolute; top:10px; right:10px; width:7px; height:7px; border-radius:50%;
+    background:var(--green); box-shadow:0 0 0 0 rgba(109,255,179,.6);
+    animation:pulseDot 2.2s ease-out infinite;
+  }
+  @keyframes pulseDot{
+    0%{box-shadow:0 0 0 0 rgba(109,255,179,.55)}
+    70%{box-shadow:0 0 0 9px rgba(109,255,179,0)}
+    100%{box-shadow:0 0 0 0 rgba(109,255,179,0)}
+  }
+
+  /* ---------------- Hero / greeting ---------------- */
+  .hero-row{display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:20px; flex-wrap:wrap;}
+  .greeting{max-width:60ch;}
+  .greeting .eyebrow{color:var(--cyan); font-weight:900; font-size:.74rem; letter-spacing:.14em; text-transform:uppercase; margin-bottom:6px;}
+  .greeting h1{font-size:clamp(1.5rem,3.4vw,2.1rem); line-height:1.15; font-weight:900;}
+  .greeting p{color:var(--muted); margin-top:6px; font-size:.94rem; line-height:1.55;}
+
+  /* ---------------- Service cards ---------------- */
+  .service-grid{
+    display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-bottom:22px;
+  }
+  .service-card{
+    padding:22px 16px; text-align:center; cursor:pointer;
+    transition:transform .25s cubic-bezier(.2,.9,.3,1.3), border-color .25s ease, box-shadow .25s ease;
+    position:relative; overflow:hidden;
+  }
+  .service-card::before{
+    content:""; position:absolute; inset:0; opacity:0; transition:opacity .3s ease;
+    background:radial-gradient(circle at 50% 0%,rgba(99,245,255,.22),transparent 70%);
+  }
+  .service-card:hover{transform:translateY(-6px); border-color:rgba(99,245,255,.5);}
+  .service-card:hover::before{opacity:1;}
+  .service-card.active{border-color:var(--cyan); box-shadow:0 0 0 1px rgba(99,245,255,.4), var(--glass-shadow);}
+  .service-card .sc-emoji{font-size:2.1rem; display:block; margin-bottom:10px;}
+  .service-card .sc-label{font-weight:900; font-size:.96rem;}
+  .service-card .sc-sub{color:var(--muted); font-size:.72rem; margin-top:4px;}
+  .service-card.soon{opacity:.55; cursor:not-allowed;}
+  .service-card.soon:hover{transform:none; border-color:var(--glass-line);}
+  .service-card.soon:hover::before{opacity:0;}
+  .service-card .sc-badge{
+    position:absolute; top:10px; right:10px; font-size:.6rem; font-weight:900; letter-spacing:.05em;
+    text-transform:uppercase; padding:3px 8px; border-radius:999px;
+    background:rgba(255,215,106,.16); color:var(--gold); border:1px solid rgba(255,215,106,.3);
+  }
+
+  /* ---------------- Ride lifecycle + driver card ---------------- */
+  .two-col{display:grid; grid-template-columns:1.1fr .9fr; gap:16px; margin-bottom:20px;}
+  .panel{padding:20px;}
+  .panel h3{font-size:1rem; font-weight:900; margin-bottom:4px;}
+  .panel .sub{color:var(--muted); font-size:.82rem; margin-bottom:16px;}
+
+  .lifecycle-step{
+    display:flex; align-items:center; gap:12px; padding:10px 6px; opacity:.4; transition:opacity .35s ease, transform .35s ease;
+  }
+  .lifecycle-step.done{opacity:1;}
+  .lifecycle-step.active{opacity:1; transform:scale(1.02);}
+  .lifecycle-step .ls-icon{
+    width:34px; height:34px; border-radius:50%; display:grid; place-items:center; flex-shrink:0;
+    background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); font-size:1rem;
+  }
+  .lifecycle-step.done .ls-icon{background:rgba(109,255,179,.16); border-color:rgba(109,255,179,.4);}
+  .lifecycle-step.active .ls-icon{background:rgba(99,245,255,.18); border-color:var(--cyan); box-shadow:0 0 16px rgba(99,245,255,.35);}
+  .lifecycle-step .ls-label{font-weight:800; font-size:.88rem;}
+  .lifecycle-actions{margin-top:12px; display:flex; gap:10px;}
+  .btn{
+    padding:10px 16px; border-radius:14px; font-weight:900; font-size:.84rem;
+    background:rgba(255,255,255,.06); border:1px solid var(--glass-line);
+    transition:transform .15s ease, background .2s ease;
+  }
+  .btn:hover{transform:translateY(-1px); background:rgba(255,255,255,.1);}
+  .btn.primary{background:linear-gradient(90deg,var(--blue),var(--cyan)); color:#061325; border:none;}
+  .btn.gold{background:linear-gradient(90deg,var(--gold),#fff0b2); color:#382900; border:none;}
+
+  .driver-card-demo{display:flex; gap:14px; align-items:center;}
+  .driver-photo-ring{
+    width:76px; height:76px; border-radius:50%; flex-shrink:0; display:grid; place-items:center;
+    background:linear-gradient(135deg,var(--cyan),var(--blue)); padding:3px;
+  }
+  .driver-photo-ring img{width:100%; height:100%; border-radius:50%; object-fit:cover; display:block; background:#0d1626;}
+  .driver-meta strong{font-size:1.02rem; display:block;}
+  .driver-meta .dv-line{color:var(--muted); font-size:.8rem; margin-top:2px;}
+  .driver-rating{color:var(--gold); font-weight:900; font-size:.86rem; margin-top:4px;}
+  .driver-badges{display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;}
+  .pill-badge{
+    font-size:.68rem; font-weight:900; padding:5px 10px; border-radius:999px;
+    background:rgba(109,255,179,.12); color:var(--green); border:1px solid rgba(109,255,179,.28);
+  }
+  .driver-actions{display:flex; gap:8px; margin-top:14px;}
+
+  /* ---------------- Bottom sheet ---------------- */
+  .sheet-scrim{
+    position:fixed; inset:0; background:rgba(3,6,14,.55); backdrop-filter:blur(2px);
+    opacity:0; pointer-events:none; transition:opacity .3s ease; z-index:40;
+  }
+  .sheet-scrim.open{opacity:1; pointer-events:auto;}
+  .bottom-sheet{
+    position:fixed; left:0; right:0; bottom:0; z-index:41; max-width:640px; margin:0 auto;
+    transform:translateY(100%); transition:transform .38s cubic-bezier(.2,.85,.25,1);
+    border-bottom-left-radius:0; border-bottom-right-radius:0; max-height:82vh; overflow-y:auto;
+    padding:20px 20px 26px;
+  }
+  .bottom-sheet.open{transform:translateY(0);}
+  .sheet-handle{width:44px; height:5px; border-radius:99px; background:rgba(255,255,255,.2); margin:0 auto 16px;}
+  .sheet-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;}
+  .sheet-head h3{font-size:1.05rem; font-weight:900;}
+  .sheet-close{font-size:1.3rem; color:var(--muted); padding:4px 8px;}
+  .sheet-field{display:grid; gap:6px; margin-bottom:12px;}
+  .sheet-field label{font-size:.78rem; font-weight:800; color:var(--muted);}
+  .sheet-field input, .sheet-field select, .sheet-field textarea{
+    width:100%; padding:11px 13px; border-radius:14px; border:1px solid rgba(255,255,255,.12);
+    background:rgba(255,255,255,.05); color:var(--text); outline:0; font:inherit;
+  }
+  .sheet-field textarea{min-height:70px; resize:vertical;}
+
+  /* ---------------- Greeting bubble (AI teaser) ---------------- */
+  .ai-teaser{
+    position:fixed; right:20px; bottom:20px; z-index:50; max-width:260px;
+    padding:14px 16px; cursor:pointer; animation:floatBubble 4.5s ease-in-out infinite;
+  }
+  .ai-teaser .at-eyebrow{font-size:.66rem; font-weight:900; color:var(--cyan); text-transform:uppercase; letter-spacing:.08em; margin-bottom:4px;}
+  .ai-teaser .at-text{font-size:.86rem; font-weight:700; line-height:1.4;}
+  @keyframes floatBubble{0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)}}
+
+  .footer-note{text-align:center; color:var(--muted); font-size:.78rem; margin-top:26px; padding-bottom:10px;}
+
+  @media (max-width:980px){
+    .mission-control{grid-template-columns:repeat(3,1fr);}
+    .service-grid{grid-template-columns:repeat(3,1fr);}
+    .two-col{grid-template-columns:1fr;}
+  }
+  @media (max-width:620px){
+    .mission-control{grid-template-columns:repeat(2,1fr);}
+    .service-grid{grid-template-columns:repeat(2,1fr);}
+  }
+</style>
+</head>
+<body>
+
+<div class="proto-banner">
+  🧪 Prototype — demonstrates the "Mobility OS" concept only. Not linked from the live app.
+  Real ride requests still go through <a href="/request-ride.html">request-ride.html</a>.
+</div>
+
+<div class="shell">
+
+  <!-- MISSION CONTROL HEADER -->
+  <section class="mission-control glass" id="missionControl">
+    <div class="mc-chip">
+      <span class="mc-icon">📍</span>
+      <span class="mc-label">Location</span>
+      <span class="mc-value" id="mcLocation">Locating…</span>
+    </div>
+    <div class="mc-chip mc-live" id="mcDriversChip">
+      <span class="mc-icon">🚗</span>
+      <span class="mc-label">Drivers Nearby</span>
+      <span class="mc-value" id="mcDrivers">—</span>
+    </div>
+    <div class="mc-chip mc-live" id="mcWaitChip">
+      <span class="mc-icon">⏱</span>
+      <span class="mc-label">Average Wait</span>
+      <span class="mc-value" id="mcWait">—</span>
+    </div>
+    <div class="mc-chip mc-disconnected">
+      <span class="mc-icon">🌤</span>
+      <span class="mc-label">Weather</span>
+      <span class="mc-value">Not connected</span>
+    </div>
+    <div class="mc-chip mc-disconnected">
+      <span class="mc-icon">🚦</span>
+      <span class="mc-label">Traffic</span>
+      <span class="mc-value">Not connected</span>
+    </div>
+  </section>
+
+  <!-- GREETING -->
+  <section class="hero-row">
+    <div class="greeting">
+      <div class="eyebrow">Harvey Taxi · Mobility OS</div>
+      <h1 id="greetingText">Good day. Where would you like to go?</h1>
+      <p>One tap into rides, food, groceries, or HTAF transportation support — no separate pages, no long forms.</p>
+    </div>
+  </section>
+
+  <!-- SERVICE CARDS -->
+  <section class="service-grid" id="serviceGrid">
+    <div class="service-card glass" data-service="ride">
+      <span class="sc-emoji">🚕</span>
+      <span class="sc-label">Ride</span>
+      <span class="sc-sub">Standard &amp; priority</span>
+    </div>
+    <div class="service-card glass" data-service="food">
+      <span class="sc-emoji">🍔</span>
+      <span class="sc-label">Food</span>
+      <span class="sc-sub">Restaurant delivery</span>
+    </div>
+    <div class="service-card glass" data-service="grocery">
+      <span class="sc-emoji">🛒</span>
+      <span class="sc-label">Grocery</span>
+      <span class="sc-sub">Store delivery</span>
+    </div>
+    <div class="service-card glass" data-service="htaf">
+      <span class="sc-emoji">❤️</span>
+      <span class="sc-label">HTAF</span>
+      <span class="sc-sub">Assisted transportation</span>
+    </div>
+    <div class="service-card glass soon" data-service="autonomous">
+      <span class="sc-badge">Coming Soon</span>
+      <span class="sc-emoji">🤖</span>
+      <span class="sc-label">Autonomous</span>
+      <span class="sc-sub">Pilot program</span>
+    </div>
+  </section>
+
+  <div class="two-col">
+    <!-- RIDE LIFECYCLE DEMO -->
+    <section class="panel glass">
+      <h3>Ride Lifecycle</h3>
+      <div class="sub">Demo only — steps through the stages a real ride goes through after you request one.</div>
+      <div id="lifecycleSteps"></div>
+      <div class="lifecycle-actions">
+        <button class="btn primary" id="lifecycleNextBtn">Simulate Next Stage</button>
+        <button class="btn" id="lifecycleResetBtn">Reset</button>
+      </div>
+    </section>
+
+    <!-- DRIVER PROFILE CARD DEMO -->
+    <section class="panel glass">
+      <h3>Your Driver</h3>
+      <div class="sub">Sample card — appears for real once a driver is assigned to your trip.</div>
+      <div class="driver-card-demo">
+        <div class="driver-photo-ring">
+          <img id="driverDemoPhoto" alt="Sample driver" />
+        </div>
+        <div class="driver-meta">
+          <strong>Marcus J.</strong>
+          <div class="dv-line">Toyota Camry · Silver · HT-4471</div>
+          <div class="driver-rating">★★★★★ 4.97</div>
+        </div>
+      </div>
+      <div class="driver-badges">
+        <span class="pill-badge">✅ Background Verified</span>
+        <span class="pill-badge" id="driverEtaBadge">⏱ Arriving in 6 min</span>
+      </div>
+      <div class="driver-actions">
+        <button class="btn primary">📞 Call</button>
+        <button class="btn">💬 Message</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="footer-note">
+    Harvey Taxi Service LLC — Mobility OS prototype. Weather and traffic require an external
+    data source that isn't configured yet; nearby-driver and average-wait numbers above are
+    real, live counts from the platform.
+  </div>
+
+</div>
+
+<!-- BOTTOM SHEET -->
+<div class="sheet-scrim" id="sheetScrim"></div>
+<div class="bottom-sheet glass" id="bottomSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-head">
+    <h3 id="sheetTitle">Request a Ride</h3>
+    <button class="sheet-close" id="sheetCloseBtn">✕</button>
+  </div>
+  <div id="sheetFields"></div>
+  <button class="btn gold" id="sheetSubmitBtn" style="width:100%;margin-top:6px;">Continue on request-ride.html</button>
+</div>
+
+<!-- AI GREETING TEASER (opens the real AI widget below) -->
+<div class="ai-teaser glass" id="aiTeaser">
+  <div class="at-eyebrow">Harvey AI</div>
+  <div class="at-text" id="aiTeaserText">Good day! Need a ride, food, or groceries? Ask me anything.</div>
+</div>
+
+<!-- Real AI assistant, same backend-connected widget used elsewhere in the app -->
+<script src="/ai-support-widget.js" onerror="console.warn('AI widget failed to load')"></script>
+
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+
+  const DEFAULT_PHOTO =
+    "data:image/svg+xml;utf8," +
+    encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 76 76">' +
+      '<rect width="76" height="76" rx="38" fill="#0d1626"/>' +
+      '<circle cx="38" cy="30" r="14" fill="#33507a"/>' +
+      '<path d="M10 70c4-16 18-25 28-25s24 9 28 25" fill="#33507a"/>' +
+      "</svg>"
+    );
+
+  /* ---------------- Time-of-day background + greeting ---------------- */
+  function timeOfDayBucket(hour) {
+    if (hour >= 5 && hour < 11) return "morning";
+    if (hour >= 11 && hour < 17) return "afternoon";
+    if (hour >= 17 && hour < 21) return "evening";
+    return "night";
+  }
+
+  function applyTimeOfDay() {
+    const hour = new Date().getHours();
+    const bucket = timeOfDayBucket(hour);
+    document.body.classList.remove("tod-morning", "tod-afternoon", "tod-evening", "tod-night");
+    document.body.classList.add("tod-" + bucket);
+
+    const greetings = {
+      morning: "Good morning. Where would you like to go?",
+      afternoon: "Good afternoon. Where would you like to go?",
+      evening: "Good evening. Where would you like to go?",
+      night: "Still up? Harvey Taxi is here whenever you need us."
+    };
+    const teasers = {
+      morning: "Good morning! Need a ride to start the day?",
+      afternoon: "Good afternoon! Need groceries? I can help find nearby stores.",
+      evening: "Good evening! Dinner delivered, or a ride home?",
+      night: "Up late? I can help you get home safely."
+    };
+    $("greetingText").textContent = greetings[bucket];
+    $("aiTeaserText").textContent = teasers[bucket];
+  }
+
+  applyTimeOfDay();
+  setInterval(applyTimeOfDay, 5 * 60 * 1000);
+
+  /* ---------------- Current location (best-effort, no key required) ---------------- */
+  function updateLocationChip() {
+    if (!navigator.geolocation) {
+      $("mcLocation").textContent = "Unavailable";
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude.toFixed(3);
+        const lng = pos.coords.longitude.toFixed(3);
+        $("mcLocation").textContent = `${lat}, ${lng}`;
+      },
+      () => {
+        $("mcLocation").textContent = "Permission denied";
+      },
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 }
+    );
+  }
+  updateLocationChip();
+
+  /* ---------------- Real live counts: nearby drivers + avg wait ---------------- */
+  async function refreshMissionControlCounts() {
+    try {
+      const res = await fetch("/api/public/mission-control");
+      const data = await res.json();
+      if (!res.ok || data.ok === false) throw new Error(data.error || "request failed");
+
+      $("mcDrivers").textContent =
+        data.online_drivers != null ? data.online_drivers : "—";
+      $("mcWait").textContent =
+        data.avg_wait_minutes != null ? `${data.avg_wait_minutes} min` : "No active rides";
+    } catch (err) {
+      $("mcDriversChip").classList.remove("mc-live");
+      $("mcWaitChip").classList.remove("mc-live");
+      $("mcDrivers").textContent = "Unavailable";
+      $("mcWait").textContent = "Unavailable";
+    }
+  }
+  refreshMissionControlCounts();
+  setInterval(refreshMissionControlCounts, 20000);
+
+  /* ---------------- Ride lifecycle demo ---------------- */
+  const LIFECYCLE_STEPS = [
+    { icon: "✓", label: "Driver Found" },
+    { icon: "🚗", label: "Driver En Route" },
+    { icon: "📍", label: "Driver Arrived" },
+    { icon: "🛣", label: "Trip Started" },
+    { icon: "🏁", label: "Destination Reached" }
+  ];
+  let lifecycleIndex = -1;
+
+  function renderLifecycle() {
+    $("lifecycleSteps").innerHTML = LIFECYCLE_STEPS.map((step, i) => {
+      const state = i < lifecycleIndex ? "done" : i === lifecycleIndex ? "active" : "";
+      return `
+        <div class="lifecycle-step ${state}">
+          <span class="ls-icon">${step.icon}</span>
+          <span class="ls-label">${step.label}</span>
+        </div>
+      `;
+    }).join("");
+
+    $("lifecycleNextBtn").disabled = lifecycleIndex >= LIFECYCLE_STEPS.length - 1;
+    $("lifecycleNextBtn").textContent =
+      lifecycleIndex >= LIFECYCLE_STEPS.length - 1 ? "Trip Complete" : "Simulate Next Stage";
+  }
+
+  $("lifecycleNextBtn").addEventListener("click", () => {
+    if (lifecycleIndex < LIFECYCLE_STEPS.length - 1) {
+      lifecycleIndex++;
+      renderLifecycle();
+    }
+  });
+  $("lifecycleResetBtn").addEventListener("click", () => {
+    lifecycleIndex = -1;
+    renderLifecycle();
+  });
+  renderLifecycle();
+  $("driverDemoPhoto").src = DEFAULT_PHOTO;
+
+  /* ---------------- Bottom sheet: service switcher ---------------- */
+  const SHEET_CONTENT = {
+    ride: {
+      title: "Request a Ride",
+      fields: [
+        { label: "Pickup Location", type: "text", placeholder: "Enter pickup address" },
+        { label: "Destination", type: "text", placeholder: "Enter destination" },
+        { label: "Driver Type", type: "select", options: ["Standard", "Priority", "Premium"] },
+        { label: "Schedule", type: "text", placeholder: "Now, or pick a time" }
+      ]
+    },
+    food: {
+      title: "Order Food Delivery",
+      fields: [
+        { label: "Restaurant / Merchant", type: "text", placeholder: "Search for a restaurant" },
+        { label: "Order Items", type: "textarea", placeholder: "What are you ordering?" },
+        { label: "Delivery Instructions", type: "text", placeholder: "Gate code, apartment number..." },
+        { label: "Tip", type: "text", placeholder: "$0.00" }
+      ]
+    },
+    grocery: {
+      title: "Order Grocery Delivery",
+      fields: [
+        { label: "Store", type: "text", placeholder: "Search for a grocery store" },
+        { label: "Shopping Notes", type: "textarea", placeholder: "List items or special requests" },
+        { label: "Delivery Preference", type: "select", options: ["Hand to me", "Leave at door"] }
+      ]
+    },
+    htaf: {
+      title: "HTAF Assisted Transportation",
+      fields: [
+        { label: "Reason for Transportation", type: "select", options: ["Medical appointment", "Work", "School", "Essential errand"] },
+        { label: "Pickup Location", type: "text", placeholder: "Enter pickup address" },
+        { label: "Destination", type: "text", placeholder: "Enter destination" }
+      ]
+    },
+    autonomous: {
+      title: "Autonomous Pilot — Coming Soon",
+      fields: []
+    }
+  };
+
+  function fieldHtml(field) {
+    if (field.type === "select") {
+      return `
+        <div class="sheet-field">
+          <label>${field.label}</label>
+          <select>${field.options.map((o) => `<option>${o}</option>`).join("")}</select>
+        </div>
+      `;
+    }
+    if (field.type === "textarea") {
+      return `
+        <div class="sheet-field">
+          <label>${field.label}</label>
+          <textarea placeholder="${field.placeholder || ""}"></textarea>
+        </div>
+      `;
+    }
+    return `
+      <div class="sheet-field">
+        <label>${field.label}</label>
+        <input type="text" placeholder="${field.placeholder || ""}" />
+      </div>
+    `;
+  }
+
+  function openSheet(service) {
+    const content = SHEET_CONTENT[service];
+    if (!content) return;
+
+    $("sheetTitle").textContent = content.title;
+    $("sheetFields").innerHTML = content.fields.length
+      ? content.fields.map(fieldHtml).join("")
+      : `<p style="color:var(--muted);font-size:.88rem;line-height:1.6;">
+           Autonomous Pilot is a clearly labeled future service. There's nothing to
+           configure yet — check back as this becomes available in your area.
+         </p>`;
+
+    $("sheetSubmitBtn").style.display = content.fields.length ? "block" : "none";
+    $("sheetSubmitBtn").dataset.service = service;
+
+    $("bottomSheet").classList.add("open");
+    $("sheetScrim").classList.add("open");
+
+    document.querySelectorAll(".service-card").forEach((card) => {
+      card.classList.toggle("active", card.dataset.service === service);
+    });
+  }
+
+  function closeSheet() {
+    $("bottomSheet").classList.remove("open");
+    $("sheetScrim").classList.remove("open");
+    document.querySelectorAll(".service-card").forEach((card) => card.classList.remove("active"));
+  }
+
+  document.querySelectorAll(".service-card").forEach((card) => {
+    card.addEventListener("click", () => {
+      if (card.classList.contains("soon")) {
+        openSheet("autonomous");
+        return;
+      }
+      openSheet(card.dataset.service);
+    });
+  });
+
+  $("sheetCloseBtn").addEventListener("click", closeSheet);
+  $("sheetScrim").addEventListener("click", closeSheet);
+
+  $("sheetSubmitBtn").addEventListener("click", () => {
+    const service = $("sheetSubmitBtn").dataset.service;
+    // HTAF has its own real application flow (approval happens before a ride
+    // is ever scheduled), so it doesn't route through request-ride.html like
+    // the other three services do.
+    const destinations = {
+      ride: "/request-ride.html?mode=driver",
+      food: "/request-ride.html?mode=food",
+      grocery: "/request-ride.html?mode=grocery",
+      htaf: "/htaf-application.html"
+    };
+    window.location.href = destinations[service] || "/request-ride.html";
+  });
+
+  /* ---------------- AI teaser bubble opens the real widget ---------------- */
+  $("aiTeaser").addEventListener("click", () => {
+    const trigger = document.querySelector("#harvey-ai-chat-root button, #harvey-ai-chat-root [role='button']");
+    if (trigger) {
+      trigger.click();
+    } else {
+      showLater();
+    }
+    function showLater() {
+      setTimeout(() => {
+        const btn = document.querySelector("#harvey-ai-chat-root button");
+        if (btn) btn.click();
+      }, 300);
+    }
+  });
+})();
+</script>
+
+</body>
+</html>
