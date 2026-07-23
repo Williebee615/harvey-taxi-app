@@ -8205,6 +8205,14 @@ async function dispatchRide(ride) {
 
       if (result && result.offer_id) {
 
+        sendPushNotification({
+          ownerType: "driver",
+          ownerId: firstDriver.id,
+          title: "New Ride Request",
+          body: `Pickup: ${ride.pickup_address || "See app for details"}`,
+          url: "/driver-dashboard.html"
+        }).catch(() => {});
+
         return {
 
           dispatched: true,
@@ -8306,6 +8314,14 @@ async function dispatchRide(ride) {
     })
 
     .eq("id", ride.id);
+
+  sendPushNotification({
+    ownerType: "driver",
+    ownerId: firstDriver.id,
+    title: "New Ride Request",
+    body: `Pickup: ${ride.pickup_address || "See app for details"}`,
+    url: "/driver-dashboard.html"
+  }).catch(() => {});
 
   return {
 
@@ -13281,6 +13297,14 @@ app.post(
     }
 
     notifyRideStage(data, "driver_assigned").catch(() => {});
+
+    sendPushNotification({
+      ownerType: "driver",
+      ownerId: driver.id,
+      title: "Ride Assigned",
+      body: `You've been assigned a ride. Pickup: ${data.pickup_address || "See app for details"}`,
+      url: "/driver-dashboard.html"
+    }).catch(() => {});
 
     broadcastRideSse(rideId, "stage", {
 
