@@ -664,6 +664,41 @@
     .mini-stat span { color: var(--muted); font-size: 13px; line-height: 1.6; }
 
     /* ============================================================
+       MISSION CONTROL / TODAY'S MOBILITY (real live data)
+       ============================================================ */
+    .mini-stat.mc-live { position: relative; border-color: rgba(77,255,164,0.22); }
+    .mini-stat.mc-live .mc-dot {
+      position: absolute; top: 18px; right: 18px; width: 8px; height: 8px; border-radius: 50%;
+      background: var(--green); box-shadow: 0 0 8px var(--green);
+    }
+    .mini-stat.mc-live .mc-dot::after {
+      content: ""; position: absolute; inset: -5px; border-radius: 50%;
+      border: 1.5px solid rgba(77,255,164,0.5); animation: pulseRing 2s infinite var(--ease);
+    }
+    .mini-stat.mc-pending { opacity: 0.72; }
+    .mini-stat.mc-pending strong { color: var(--muted); }
+
+    /* ============================================================
+       AI TEASER BUBBLE
+       ============================================================ */
+    .ai-teaser-bubble {
+      position: fixed; right: 20px; bottom: 20px; z-index: 500; max-width: 250px;
+      padding: 14px 16px; border-radius: var(--radius-xl);
+      background: linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.02)), var(--panel2);
+      border: 1px solid rgba(93,245,255,0.28); box-shadow: var(--shadow-cyan);
+      cursor: pointer; animation: aiTeaserFloat 4.5s ease-in-out infinite;
+      backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    }
+    .ai-teaser-bubble:hover { border-color: var(--cyan); }
+    .ai-teaser-bubble .at-eyebrow {
+      font-size: 10px; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--cyan); margin-bottom: 4px;
+    }
+    .ai-teaser-bubble .at-text { font-size: 13.5px; font-weight: 700; line-height: 1.4; color: var(--text); }
+    @keyframes aiTeaserFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+    @media (max-width: 640px) { .ai-teaser-bubble { left: 16px; right: 16px; max-width: none; bottom: 16px; } }
+
+    /* ============================================================
        SUPPORT CALLOUT
        ============================================================ */
     .support-callout {
@@ -1088,6 +1123,34 @@
       <a class="btn success" href="request-ride.html?mode=driver" data-intent="request_ride_start" data-i18n="requestRide">Request Ride</a>
     </section>
 
+    <!-- TODAY'S MOBILITY (Mission Control live snapshot) -->
+    <section class="section" id="mission-control" aria-label="Live platform snapshot" style="margin-top:0; padding:28px 32px;">
+      <div class="section-hd" style="margin-bottom:18px;">
+        <h2 style="font-size:20px;">Today's Mobility</h2>
+        <p class="lead">A live snapshot of what's moving on Harvey Taxi right now.</p>
+      </div>
+      <div class="grid-4" id="missionControlGrid">
+        <div class="mini-stat mc-live" id="mcDriversTile">
+          <span class="mc-dot" aria-hidden="true"></span>
+          <strong id="mcDriversValue">—</strong>
+          <span>🚕 Drivers Nearby</span>
+        </div>
+        <div class="mini-stat mc-live" id="mcWaitTile">
+          <span class="mc-dot" aria-hidden="true"></span>
+          <strong id="mcWaitValue">—</strong>
+          <span>⏱ Average Pickup</span>
+        </div>
+        <div class="mini-stat">
+          <strong>❤️ Available</strong>
+          <span>HTAF Assisted Rides</span>
+        </div>
+        <div class="mini-stat mc-pending">
+          <strong>Coming Soon</strong>
+          <span>🍔 Restaurants &amp; 🛒 Grocery stores nearby — live counts activate once nearby-store search is connected</span>
+        </div>
+      </div>
+    </section>
+
     <!-- INCLUSION STRIP -->
     <section class="inclusion-strip" role="region" aria-label="Community inclusion">
       <strong data-i18n="inclusiveTitle">Built for every community.</strong>
@@ -1371,6 +1434,13 @@
             </div>
             <a class="btn success" href="request-ride.html?mode=grocery">Order Groceries</a>
           </div>
+          <div class="service-card">
+            <div>
+              <h3>❤️ HTAF Transportation</h3>
+              <p>Assisted transportation for medical visits, work, and essential needs — application and approval required.</p>
+            </div>
+            <a class="btn foundation" href="htaf-application.html" data-intent="service_htaf_apply">Apply for HTAF</a>
+          </div>
         </div>
 
         <!-- PLATFORM HUBS -->
@@ -1505,6 +1575,14 @@
 
   <!-- UNDER CONSTRUCTION MODAL PLACEHOLDER -->
   <div id="modal-root"></div>
+
+  <!-- AI TEASER BUBBLE — opens the same real, server-backed AI widget as the
+       "Open AI Support" button above (openHarveyAiChat()), just a friendlier
+       time-of-day-aware entry point. -->
+  <div class="ai-teaser-bubble" id="aiTeaserBubble" role="button" tabindex="0" aria-label="Open Harvey AI Support">
+    <div class="at-eyebrow">Harvey AI</div>
+    <div class="at-text" id="aiTeaserText">Need a ride? Ask me anything.</div>
+  </div>
 
   <!-- AI widget (optional external) -->
   <script src="/ai-support-widget.js" onerror="console.warn('AI widget not available — using built-in chat')"></script>
@@ -2768,6 +2846,50 @@
       }
     }
 
+    /* ---- Today's Mobility: real live counts, no fabricated numbers ---- */
+    async function refreshMissionControl() {
+      const driversTile = document.getElementById("mcDriversTile");
+      const waitTile = document.getElementById("mcWaitTile");
+      const driversValue = document.getElementById("mcDriversValue");
+      const waitValue = document.getElementById("mcWaitValue");
+      if (!driversValue || !waitValue) return;
+
+      try {
+        const res = await fetch(`${window.HARVEY_API_BASE}/api/public/mission-control`, { cache: "no-store" });
+        const data = await res.json();
+        if (!res.ok || data.ok === false) throw new Error(data.error || "request failed");
+
+        driversValue.textContent = data.online_drivers != null ? data.online_drivers : "0";
+        waitValue.textContent = data.avg_wait_minutes != null ? `${data.avg_wait_minutes} min` : "No active rides";
+      } catch (err) {
+        if (driversTile) driversTile.classList.remove("mc-live");
+        if (waitTile) waitTile.classList.remove("mc-live");
+        driversValue.textContent = "Unavailable";
+        waitValue.textContent = "Unavailable";
+      }
+    }
+
+    /* ---- AI teaser bubble: time-of-day greeting, opens the real AI widget ---- */
+    function initAiTeaser() {
+      const bubble = document.getElementById("aiTeaserBubble");
+      const textEl = document.getElementById("aiTeaserText");
+      if (!bubble || !textEl) return;
+
+      const hour = new Date().getHours();
+      const greeting =
+        hour >= 5 && hour < 11 ? "Good morning! Need a ride to start the day?" :
+        hour >= 11 && hour < 17 ? "Good afternoon! Need groceries? I can help find nearby stores." :
+        hour >= 17 && hour < 21 ? "Good evening! Dinner delivered, or a ride home?" :
+        "Up late? I can help you get home safely.";
+      textEl.textContent = greeting;
+
+      const open = () => openHarveyAiChat();
+      bubble.addEventListener("click", open);
+      bubble.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); }
+      });
+    }
+
     /* ---- Under construction modal ---- */
     function showUnderConstruction(name) {
       const root = document.getElementById("modal-root");
@@ -2929,6 +3051,9 @@
       runStep("bindIntentTracking", bindIntentTracking);
       runStep("injectQuickSettingsPanel", injectQuickSettingsPanel);
       runStep("fetchPlatformStatus", fetchPlatformStatus);
+      runStep("refreshMissionControl", refreshMissionControl);
+      runStep("initAiTeaser", initAiTeaser);
+      setInterval(() => runStep("refreshMissionControl", refreshMissionControl), 20000);
       trackEvent("page_view_home", { initialized: true, version: HARVEY_APP_VERSION });
     }
 
