@@ -116,8 +116,40 @@
     <div class="stat"><div class="k">HTAF Apps</div><div class="v" id="htafCount">0</div></div>
     <div class="stat"><div class="k">Online Drivers</div><div class="v" id="onlineDriversCount">0</div></div>
     <div class="stat"><div class="k">Completed Rides</div><div class="v" id="completedRidesCount">0</div></div>
-    <div class="stat"><div class="k">Revenue</div><div class="v" id="revenueCount">$0.00</div></div>
+    <div class="stat"><div class="k">All-Time Revenue</div><div class="v" id="revenueCount">$0.00</div></div>
     <div class="stat"><div class="k">Server</div><div class="v" id="serverStatus">Checking</div></div>
+  </section>
+
+  <section class="card" id="opsOverviewCard">
+    <div class="card-head">
+      <div>
+        <div class="title">Operations Overview</div>
+        <div class="sub">Live snapshot across taxi, food, grocery, and HTAF services.</div>
+      </div>
+      <span class="item-sub" id="opsGeneratedAt">—</span>
+    </div>
+
+    <div class="item-grid">
+      <div class="box"><div class="k">Active Riders</div><div class="v" id="opsActiveRiders">0</div></div>
+      <div class="box"><div class="k">Online Drivers</div><div class="v" id="opsOnlineDrivers">0</div></div>
+      <div class="box"><div class="k">Avg ETA (active rides)</div><div class="v" id="opsAvgEta">—</div></div>
+      <div class="box"><div class="k">Today's Revenue</div><div class="v" id="opsTodayRevenue">$0.00</div></div>
+    </div>
+
+    <div class="card-head" style="margin-top:4px;margin-bottom:8px;">
+      <div class="title" style="font-size:.92rem;">In Progress by Service</div>
+    </div>
+    <div class="item-grid">
+      <div class="box"><div class="k">Taxi</div><div class="v" id="opsTaxiActive">0</div></div>
+      <div class="box"><div class="k">Food Delivery</div><div class="v" id="opsFoodActive">0</div></div>
+      <div class="box"><div class="k">Grocery Delivery</div><div class="v" id="opsGroceryActive">0</div></div>
+      <div class="box"><div class="k">HTAF Rides</div><div class="v" id="opsHtafActive">0</div></div>
+    </div>
+
+    <div class="card-head" style="margin-top:4px;margin-bottom:8px;">
+      <div class="title" style="font-size:.92rem;">Integration Health</div>
+    </div>
+    <div class="actions" id="opsHealthBadges"></div>
   </section>
 
   <main class="grid">
@@ -309,13 +341,16 @@ async function checkHealth(){
 
 async function loadDashboard(){
   try{
-    const [overview, riders, drivers, rides, htaf] = await Promise.all([
+    const [overview, riders, drivers, rides, htaf, opsOverview] = await Promise.all([
       safeApi("/api/admin/overview",{overview:{}}),
       safeApi("/api/admin/riders",{riders:[]}),
       safeApi("/api/admin/drivers",{drivers:[]}),
       safeApi("/api/admin/rides",{rides:[]}),
-      safeApi("/api/admin/foundation/applications",{applications:[]})
+      safeApi("/api/admin/foundation/applications",{applications:[]}),
+      safeApi("/api/admin/operations-overview",{overview:null})
     ]);
+
+    renderOpsOverview(opsOverview.overview);
 
     state.riders = riders.riders || [];
     state.drivers = drivers.drivers || [];
@@ -348,6 +383,40 @@ async function loadDashboard(){
   }catch(err){
     showError(err.message);
   }
+}
+
+function renderOpsOverview(overview){
+  if(!overview){
+    $("opsGeneratedAt").textContent = "Unavailable";
+    return;
+  }
+
+  $("opsGeneratedAt").textContent = "As of " + esc(String(overview.generated_at||"").slice(11,19)) + " UTC";
+  $("opsActiveRiders").textContent = overview.active_riders ?? 0;
+  $("opsOnlineDrivers").textContent = overview.online_drivers ?? 0;
+  $("opsAvgEta").textContent = overview.avg_eta_minutes != null ? `${overview.avg_eta_minutes} min` : "—";
+  $("opsTodayRevenue").textContent = money(overview.today?.revenue);
+
+  const rip = overview.rides_in_progress || {};
+  $("opsTaxiActive").textContent = rip.taxi ?? 0;
+  $("opsFoodActive").textContent = rip.food ?? 0;
+  $("opsGroceryActive").textContent = rip.grocery ?? 0;
+  $("opsHtafActive").textContent = rip.htaf ?? 0;
+
+  const health = overview.integration_health || {};
+  const labels = { supabase:"Supabase", stripe:"Stripe", sendgrid:"SendGrid", twilio:"Twilio" };
+  // Supabase gets a real connectivity check; Stripe/SendGrid/Twilio only
+  // report whether they're configured with an API key, not that the
+  // provider is currently reachable. Label each badge accordingly so
+  // "OK" doesn't imply the same depth of check across all four.
+  const checkQualifier = { connectivity:"connected", configured:"configured" };
+  $("opsHealthBadges").innerHTML = Object.keys(labels).map(key=>{
+    const entry = health[key] || {};
+    const healthy = entry.healthy === true;
+    const qualifier = checkQualifier[entry.check] || "status";
+    const stateLabel = healthy ? qualifier : `not ${entry.check === "connectivity" ? "connected" : "configured"}`;
+    return `<span class="badge ${healthy ? "ok" : "bad"}" title="${entry.check === "connectivity" ? "Live connectivity check" : "Configuration check only — not a live reachability test"}">${labels[key]}: ${stateLabel}</span>`;
+  }).join("");
 }
 
 function renderRiders(items){
