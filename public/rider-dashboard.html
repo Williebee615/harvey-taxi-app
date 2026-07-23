@@ -979,6 +979,14 @@
               Request groceries with pickup, dropoff, items, payment, and dispatch support.
             </span>
           </button>
+
+          <button class="launch-card" type="button" data-action="htaf">
+            <div class="launch-icon">🩺</div>
+            <strong>HTAF Medical Ride</strong>
+            <span>
+              Request nonprofit transportation support through the Harvey Taxi Assistance Foundation.
+            </span>
+          </button>
         </div>
       </div>
     </section>    <!-- RIDER STATUS -->
@@ -1175,6 +1183,20 @@
 
             <span>
               Request grocery pickup and delivery.
+            </span>
+          </button>
+
+          <button
+            class="service-card"
+            type="button"
+            data-action="htaf"
+          >
+            <div class="service-icon">🩺</div>
+
+            <strong>HTAF medical ride</strong>
+
+            <span>
+              Nonprofit transportation support through the Foundation.
             </span>
           </button>
 
@@ -1774,6 +1796,10 @@
       window.location.href = "driver-dashboard.html";
     }
 
+    function goHtaf() {
+      window.location.href = "htaf-application.html";
+    }
+
     function goRide(mode = "driver") {
       const params = new URLSearchParams();
 
@@ -2341,6 +2367,10 @@
 
         case "driver":
           goDriver();
+          break;
+
+        case "htaf":
+          goHtaf();
           break;
 
         default:

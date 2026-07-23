@@ -1,169 +1,37 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Live Trip</title>
-
-<style>
-body{
-margin:0;
-font-family:Arial;
-background:#0b0f1a;
-color:white;
-}
-
-.header{
-padding:20px;
-font-size:22px;
-font-weight:600;
-}
-
-#map{
-height:60vh;
-width:100%;
-}
-
-.card{
-padding:20px;
-}
-
-.status{
-background:#111827;
-padding:15px;
-border-radius:12px;
-margin-top:10px;
-}
-
-.driver{
-font-size:18px;
-font-weight:600;
-}
-
-.eta{
-color:#10b981;
-margin-top:5px;
-}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Harvey Taxi — Rider Dashboard</title>
+  <meta name="robots" content="noindex, follow" />
+  <meta http-equiv="refresh" content="0; url=/rider-dashboard.html" />
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #040814;
+      color: #f4f7ff;
+      font-family: Inter, system-ui, -apple-system, sans-serif;
+      text-align: center;
+      padding: 24px;
+    }
+    a {
+      color: #63f5ff;
+      font-weight: 800;
+    }
+  </style>
+  <script>
+    window.location.replace("/rider-dashboard.html");
+  </script>
 </head>
-
 <body>
-
-<div class="header">
-Live Trip
-</div>
-
-<div id="map"></div>
-
-<div class="card">
-
-<div class="status">
-<div class="driver">Driver en route</div>
-<div class="eta" id="eta">Calculating ETA...</div>
-</div>
-
-</div>
-
-<script>
-let map
-let driverMarker
-let riderMarker
-
-function initMap(){
-
-const pickup = { lat:36.1627, lng:-86.7816 }
-const driver = { lat:36.1727, lng:-86.7916 }
-
-map = new google.maps.Map(document.getElementById("map"),{
-zoom:13,
-center:pickup,
-styles:[
-{elementType:"geometry",stylers:[{color:"#0b0f1a"}]},
-{elementType:"labels.text.stroke",stylers:[{color:"#0b0f1a"}]},
-{elementType:"labels.text.fill",stylers:[{color:"#8ec5ff"}]}
-]
-})
-
-riderMarker = new google.maps.Marker({
-position:pickup,
-map,
-label:"R",
-})
-
-driverMarker = new google.maps.Marker({
-position:driver,
-map,
-label:"D",
-})
-
-drawRoute(pickup,driver)
-simulateDriver()
-}
-
-function drawRoute(origin,destination){
-const directionsService = new google.maps.DirectionsService()
-
-const directionsRenderer = new google.maps.DirectionsRenderer({
-suppressMarkers:true,
-polylineOptions:{
-strokeColor:"#10b981",
-strokeWeight:5
-}
-})
-
-directionsRenderer.setMap(map)
-
-directionsService.route({
-origin,
-destination,
-travelMode:"DRIVING"
-},(result,status)=>{
-if(status==="OK"){
-directionsRenderer.setDirections(result)
-
-const leg = result.routes[0].legs[0]
-document.getElementById("eta").innerText =
-"ETA: "+leg.duration.text
-}
-})
-}
-
-function simulateDriver(){
-setInterval(()=>{
-let pos = driverMarker.getPosition()
-
-let lat = pos.lat() - 0.001
-let lng = pos.lng() + 0.001
-
-driverMarker.setPosition({lat,lng})
-
-drawRoute(riderMarker.getPosition(),{lat,lng})
-
-},4000)
-}
-
-
-/* SECURE GOOGLE MAPS LOADER */
-async function loadGoogleMaps(){
-try{
-const res = await fetch("/api/maps-key")
-const data = await res.json()
-
-const script = document.createElement("script")
-script.src =
-`https://maps.googleapis.com/maps/api/js?key=${data.key}&callback=initMap`
-script.async = true
-script.defer = true
-
-document.body.appendChild(script)
-
-}catch(err){
-console.error("Maps failed to load",err)
-}
-}
-
-loadGoogleMaps()
-
-</script>
-
+  <p>
+    Redirecting to your <a href="/rider-dashboard.html">Harvey Taxi Rider Dashboard</a>...
+  </p>
 </body>
 </html>
