@@ -9617,6 +9617,58 @@ app.get(
 
 /* =========================================================
 
+   PUBLIC MISSION CONTROL SNAPSHOT
+
+   Small, non-sensitive aggregate counts (no PII, no per-user
+   data) for rider-facing "live platform status" UI: online
+   driver count and average ETA across active rides. Public
+   by design, same trust tier as /api/foundation/status/:code.
+
+========================================================= */
+
+app.get(
+  "/api/public/mission-control",
+  rateLimit({ windowMs: 60_000, max: 60, keyPrefix: "mission_control" }),
+  asyncRoute(async (req, res) => {
+    const ACTIVE_STATUSES = [
+      RIDE_STATUS.AWAITING_DRIVER,
+      RIDE_STATUS.DRIVER_ASSIGNED,
+      RIDE_STATUS.DRIVER_ENROUTE,
+      RIDE_STATUS.ARRIVED,
+      RIDE_STATUS.IN_PROGRESS
+    ];
+
+    const [driversOnline, activeRidesResult] = await Promise.all([
+      countWhere("drivers", (q) => q.eq("online", true)),
+      supabase
+        .from("rides")
+        .select("driver_eta_to_pickup_minutes")
+        .in("status", ACTIVE_STATUSES)
+    ]);
+
+    const activeRides = activeRidesResult.data || [];
+    let etaSum = 0;
+    let etaCount = 0;
+
+    for (const ride of activeRides) {
+      const eta = Number(ride.driver_eta_to_pickup_minutes);
+      if (Number.isFinite(eta) && eta > 0) {
+        etaSum += eta;
+        etaCount++;
+      }
+    }
+
+    return ok(res, {
+      online_drivers: driversOnline.count,
+      avg_wait_minutes:
+        etaCount > 0 ? Math.round((etaSum / etaCount) * 10) / 10 : null,
+      generated_at: nowIso()
+    });
+  })
+);
+
+/* =========================================================
+
    PART 7 — DRIVER OFFERS + DRIVER MISSION PIPELINE
 
 ========================================================= */
