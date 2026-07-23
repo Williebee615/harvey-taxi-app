@@ -38,6 +38,10 @@ let OpenAI = null;
 
 try { OpenAI = require("openai"); } catch {}
 
+let webpush = null;
+
+try { webpush = require("web-push"); } catch {}
+
 const app = express();
 
 const server = http.createServer(app);
@@ -430,6 +434,34 @@ const CHECKR_WEBHOOK_SECRET = env("CHECKR_WEBHOOK_SECRET");
 // but it still shouldn't be hardcoded into a file committed to git, so it's
 // served from this env var through GET /api/maps-key instead.
 const GOOGLE_MAPS_BROWSER_KEY = env("GOOGLE_MAPS_BROWSER_KEY");
+
+/* =========================================================
+
+   WEB PUSH (VAPID)
+
+========================================================= */
+
+const VAPID_PUBLIC_KEY = env("VAPID_PUBLIC_KEY");
+
+const VAPID_PRIVATE_KEY = env("VAPID_PRIVATE_KEY");
+
+const VAPID_SUBJECT = env("VAPID_SUBJECT", "mailto:support@harveytaxiservice.com");
+
+let pushEnabled = false;
+
+if (webpush && VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+
+  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+
+  pushEnabled = true;
+
+  console.log("✅ Web push active");
+
+} else {
+
+  console.warn("⚠️ Web push inactive (no VAPID keys configured)");
+
+}
 
 const OPENAI_API_KEY = env("OPENAI_API_KEY");
 
@@ -2560,6 +2592,53 @@ const RIDE_STAGE_MESSAGES = {
 // a notification failure should never break the ride/delivery action
 // that triggered it. Silently no-ops when Twilio/SendGrid aren't
 // configured, same as sendSms()/sendEmail() do individually.
+// Best-effort browser push. Never throws — same resilience contract as
+// sendSms()/sendEmail(). Cleans up subscriptions the push service reports
+// as gone (404/410) so a stale endpoint doesn't get retried forever.
+async function sendPushNotification({ ownerType, ownerId, title, body, url }) {
+
+  if (!pushEnabled || !ownerId) return;
+
+  try {
+
+    const { data: subs, error } = await supabase
+      .from("push_subscriptions")
+      .select("id, endpoint, p256dh, auth")
+      .eq("owner_type", ownerType)
+      .eq("owner_id", ownerId);
+
+    if (error || !subs || !subs.length) return;
+
+    const payload = JSON.stringify({ title, body, url: url || "/" });
+
+    await Promise.allSettled(
+      subs.map(async (sub) => {
+        try {
+          await webpush.sendNotification(
+            { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+            payload
+          );
+
+          await supabase
+            .from("push_subscriptions")
+            .update({ last_used_at: nowIso() })
+            .eq("id", sub.id);
+        } catch (err) {
+          if (err && (err.statusCode === 404 || err.statusCode === 410)) {
+            await supabase
+              .from("push_subscriptions")
+              .delete()
+              .eq("id", sub.id)
+              .catch(() => {});
+          }
+        }
+      })
+    );
+  } catch (err) {
+    console.error("⚠️ sendPushNotification failed:", err.message);
+  }
+}
+
 async function notifyRideStage(ride, stageKey) {
 
   try {
@@ -2601,6 +2680,20 @@ async function notifyRideStage(ride, stageKey) {
         }).catch(() => {});
 
       }
+
+      sendPushNotification({
+
+        ownerType: "rider",
+
+        ownerId: ride.rider_id,
+
+        title: `Harvey Taxi - ${template.subject}`,
+
+        body,
+
+        url: "/request-ride.html"
+
+      }).catch(() => {});
 
     }
 
@@ -9645,6 +9738,89 @@ app.get(
 
 /* =========================================================
 
+   WEB PUSH — VAPID KEY + SUBSCRIBE/UNSUBSCRIBE
+
+   The VAPID public key is not secret (it's embedded in every
+   subscribe call the browser makes to the push service), so
+   it's served the same way as the Maps key: from an env var,
+   never hardcoded into a committed file.
+
+========================================================= */
+
+app.get(
+  "/api/push/vapid-public-key",
+  rateLimit({ windowMs: 60_000, max: 60, keyPrefix: "push_vapid_key" }),
+  asyncRoute(async (req, res) => {
+    return ok(res, { key: pushEnabled ? VAPID_PUBLIC_KEY : "" });
+  })
+);
+
+app.post(
+  "/api/push/subscribe",
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "push_subscribe" }),
+  asyncRoute(async (req, res) => {
+    if (!pushEnabled) {
+      return fail(res, "Push notifications are not configured yet.", 503);
+    }
+
+    const ownerType = cleanString(req.body.owner_type, 20);
+    const ownerId = cleanString(req.body.owner_id, 100);
+    const subscription = req.body.subscription;
+
+    if (!["rider", "driver"].includes(ownerType) || !ownerId) {
+      return fail(res, "A valid owner_type (rider or driver) and owner_id are required.", 400);
+    }
+
+    const endpoint = cleanString(subscription?.endpoint, 500);
+    const p256dh = cleanString(subscription?.keys?.p256dh, 200);
+    const auth = cleanString(subscription?.keys?.auth, 200);
+
+    if (!endpoint || !p256dh || !auth) {
+      return fail(res, "A valid push subscription is required.", 400);
+    }
+
+    const { error } = await supabase
+      .from("push_subscriptions")
+      .upsert(
+        {
+          id: makeId("PUSH"),
+          owner_type: ownerType,
+          owner_id: ownerId,
+          endpoint,
+          p256dh,
+          auth,
+          user_agent: cleanString(req.headers["user-agent"], 300) || null,
+          last_used_at: nowIso()
+        },
+        { onConflict: "endpoint" }
+      );
+
+    if (error) {
+      throw error;
+    }
+
+    return ok(res, { subscribed: true });
+  })
+);
+
+app.post(
+  "/api/push/unsubscribe",
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "push_unsubscribe" }),
+  asyncRoute(async (req, res) => {
+    const endpoint = cleanString(req.body.endpoint, 500);
+
+    if (!endpoint) {
+      return fail(res, "endpoint is required.", 400);
+    }
+
+    await supabase.from("push_subscriptions").delete().eq("endpoint", endpoint);
+
+    return ok(res, { unsubscribed: true });
+  })
+);
+
+/* =========================================================
+
    PUBLIC MISSION CONTROL SNAPSHOT
 
    Small, non-sensitive aggregate counts (no PII, no per-user
@@ -16268,7 +16444,11 @@ app.get(
 
         openai:
 
-          Boolean(openai)
+          Boolean(openai),
+
+        web_push:
+
+          pushEnabled
 
       },
 
@@ -16458,7 +16638,15 @@ app.get(
 
         GOOGLE_MAPS_BROWSER_KEY:
 
-          Boolean(GOOGLE_MAPS_BROWSER_KEY)
+          Boolean(GOOGLE_MAPS_BROWSER_KEY),
+
+        VAPID_PUBLIC_KEY:
+
+          Boolean(VAPID_PUBLIC_KEY),
+
+        VAPID_PRIVATE_KEY:
+
+          Boolean(VAPID_PRIVATE_KEY)
 
       },
 
