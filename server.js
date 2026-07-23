@@ -9673,6 +9673,16 @@ app.get(
 
       updated_at: ride.updated_at,
 
+      pickup_location:
+        Number.isFinite(Number(ride.pickup_lat)) && Number.isFinite(Number(ride.pickup_lng))
+          ? { lat: Number(ride.pickup_lat), lng: Number(ride.pickup_lng) }
+          : null,
+
+      destination_location:
+        Number.isFinite(Number(ride.dropoff_lat)) && Number.isFinite(Number(ride.dropoff_lng))
+          ? { lat: Number(ride.dropoff_lat), lng: Number(ride.dropoff_lng) }
+          : null,
+
       tracking,
 
       driver: ride.driver_id
