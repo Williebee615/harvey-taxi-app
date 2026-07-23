@@ -12294,6 +12294,14 @@ async function safeCount(table) {
 
 }
 
+// Exact count with no row transfer (head:true). Returns count or an error string.
+async function countWhere(table, build) {
+  let q = supabase.from(table).select("*", { count: "exact", head: true });
+  if (build) q = build(q);
+  const { count, error } = await q;
+  return error ? { count: null, error: error.message } : { count: count || 0 };
+}
+
 app.get(
 
   "/api/admin/overview",
@@ -12433,14 +12441,6 @@ app.get(
       Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
     ).toISOString();
 
-    // Exact count with no row transfer (head:true). Returns count or an error string.
-    async function countWhere(table, build) {
-      let q = supabase.from(table).select("*", { count: "exact", head: true });
-      if (build) q = build(q);
-      const { count, error } = await q;
-      return error ? { count: null, error: error.message } : { count: count || 0 };
-    }
-
     const ACTIVE_RIDE_STATUSES = [
       RIDE_STATUS.AWAITING_DRIVER,
       RIDE_STATUS.DRIVER_ASSIGNED,
@@ -12525,6 +12525,125 @@ app.get(
           today: htafToday.count,
           total: htafTotal,
           by_status: htafByStatus
+        }
+      }
+    });
+  })
+);
+
+/* =========================================================
+
+   ADMIN OPERATIONS OVERVIEW
+
+   Single aggregation endpoint for the admin-dashboard.html
+   operations panel: service-type breakdown of in-progress
+   rides (taxi/food/grocery/HTAF), active riders/drivers,
+   today's completed rides + revenue, average ETA across
+   active rides, and integration health for Supabase/Stripe/
+   SendGrid/Twilio.
+
+========================================================= */
+
+app.get(
+  "/api/admin/operations-overview",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const now = new Date();
+    const startOfTodayUtc = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+    ).toISOString();
+
+    const ACTIVE_STATUSES = [
+      RIDE_STATUS.AWAITING_DRIVER,
+      RIDE_STATUS.DRIVER_ASSIGNED,
+      RIDE_STATUS.DRIVER_ENROUTE,
+      RIDE_STATUS.ARRIVED,
+      RIDE_STATUS.IN_PROGRESS
+    ];
+
+    const [
+      activeRidesResult,
+      driversOnline,
+      completedTodayResult,
+      databaseCheck
+    ] = await Promise.all([
+      supabase
+        .from("rides")
+        .select("ride_type, rider_id, driver_eta_to_pickup_minutes")
+        .in("status", ACTIVE_STATUSES),
+      countWhere("drivers", (q) => q.eq("online", true)),
+      supabase
+        .from("rides")
+        .select("estimated_fare")
+        .eq("status", RIDE_STATUS.COMPLETED)
+        .gte("created_at", startOfTodayUtc),
+      supabase.from("system_flags").select("key").limit(1)
+    ]);
+
+    const activeRides = activeRidesResult.data || [];
+
+    const ridesInProgress = { taxi: 0, food: 0, grocery: 0, htaf: 0 };
+    const activeRiderIds = new Set();
+    let etaSum = 0;
+    let etaCount = 0;
+
+    for (const ride of activeRides) {
+      if (ride.ride_type === "food") ridesInProgress.food++;
+      else if (ride.ride_type === "grocery") ridesInProgress.grocery++;
+      else if (ride.ride_type === "foundation") ridesInProgress.htaf++;
+      else ridesInProgress.taxi++;
+
+      if (ride.rider_id) activeRiderIds.add(ride.rider_id);
+
+      const eta = Number(ride.driver_eta_to_pickup_minutes);
+      if (Number.isFinite(eta) && eta > 0) {
+        etaSum += eta;
+        etaCount++;
+      }
+    }
+
+    const completedTodayRows = completedTodayResult.data || [];
+    const revenueToday = completedTodayRows.reduce(
+      (sum, r) => sum + Number(r.estimated_fare || 0),
+      0
+    );
+
+    return ok(res, {
+      overview: {
+        generated_at: nowIso(),
+        active_riders: activeRiderIds.size,
+        online_drivers: driversOnline.count,
+        rides_in_progress: ridesInProgress,
+        today: {
+          completed_rides: completedTodayRows.length,
+          revenue: Math.round(revenueToday * 100) / 100
+        },
+        avg_eta_minutes:
+          etaCount > 0
+            ? Math.round((etaSum / etaCount) * 10) / 10
+            : null,
+        // Supabase gets a real connectivity check (a live query above).
+        // Stripe/SendGrid/Twilio only report whether the client library was
+        // initialized with an API key, not that the provider is currently
+        // reachable — "check" tells the dashboard which kind it's showing
+        // so the badges don't imply a uniform depth of health check.
+        integration_health: {
+          supabase: {
+            healthy: !databaseCheck.error,
+            check: "connectivity"
+          },
+          stripe: {
+            healthy: Boolean(stripe),
+            check: "configured"
+          },
+          sendgrid: {
+            healthy: Boolean(sgMail && SENDGRID_API_KEY),
+            check: "configured"
+          },
+          twilio: {
+            healthy: Boolean(twilioClient),
+            check: "configured"
+          }
         }
       }
     });
