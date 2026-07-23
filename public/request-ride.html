@@ -344,6 +344,108 @@
       box-shadow: 0 18px 50px rgba(77, 163, 255, 0.16);
     }
 
+    .mode-step-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 26px;
+      margin-bottom: -8px;
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--cyan);
+    }
+
+    .mode-step-label .step-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: rgba(70, 240, 255, 0.16);
+      color: var(--cyan);
+      font-size: 0.68rem;
+    }
+
+    /* ============================================================
+       GUIDED MISSION WIZARD (Step 2: Trip Details, Step 3: Review)
+       Step 1 (choose a service) is the mode-grid above, in place —
+       relocating it risked destabilizing the left column layout for
+       no real benefit, so it's just labeled as Step 1 instead.
+       ============================================================ */
+    .wizard-progress {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 22px;
+    }
+
+    .wizard-progress-step {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: var(--text-muted);
+      transition: color 180ms ease;
+    }
+
+    .wizard-progress-step .wp-dot {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-size: 0.76rem;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--line);
+      color: var(--text-muted);
+      transition: all 180ms ease;
+    }
+
+    .wizard-progress-step.done .wp-dot {
+      background: rgba(56, 224, 143, 0.16);
+      border-color: rgba(56, 224, 143, 0.4);
+      color: var(--green);
+    }
+
+    .wizard-progress-step.current .wp-dot {
+      background: linear-gradient(180deg, var(--blue), var(--cyan));
+      border-color: transparent;
+      color: #04101f;
+      box-shadow: 0 0 0 4px rgba(70, 240, 255, 0.14);
+    }
+
+    .wizard-progress-step.current { color: var(--text-main); }
+
+    .wizard-progress-line {
+      flex: 1;
+      height: 2px;
+      background: var(--line);
+      border-radius: 2px;
+    }
+
+    .wizard-step { display: none; }
+    .wizard-step.active {
+      display: grid;
+      gap: 18px;
+      animation: wizardStepIn 260ms ease;
+    }
+
+    @keyframes wizardStepIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .wizard-nav {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 4px;
+    }
+
     .status-stack {
       display: grid;
       gap: 12px;
@@ -1236,6 +1338,10 @@
             </p>
 
             <!-- MODES -->
+            <div class="mode-step-label">
+              <span class="step-num">1</span>
+              <span>Step 1 of 3 &middot; Choose a Service</span>
+            </div>
             <div class="mode-grid">
 
               <button
@@ -1460,6 +1566,27 @@
             id="rideForm"
             class="form-grid"
           >
+
+            <!-- WIZARD PROGRESS -->
+            <div class="wizard-progress" id="wizardProgress">
+              <div class="wizard-progress-step done" data-progress-step="1">
+                <span class="wp-dot">✓</span>
+                <span>Service</span>
+              </div>
+              <div class="wizard-progress-line"></div>
+              <div class="wizard-progress-step current" data-progress-step="2">
+                <span class="wp-dot">2</span>
+                <span>Trip Details</span>
+              </div>
+              <div class="wizard-progress-line"></div>
+              <div class="wizard-progress-step" data-progress-step="3">
+                <span class="wp-dot">3</span>
+                <span>Review &amp; Confirm</span>
+              </div>
+            </div>
+
+            <!-- STEP 2: TELL US WHERE -->
+            <div class="wizard-step active" data-step="2" id="wizardStep2">
 
             <!-- RIDER -->
             <div class="two-col">
@@ -1807,6 +1934,26 @@
 
             </div>
 
+            <!-- STEP 2 NAV -->
+            <div class="wizard-nav">
+              <span></span>
+              <button type="button" class="primary-btn" id="wizardStep2ContinueBtn">
+                Continue to Review →
+              </button>
+            </div>
+
+            </div>
+            <!-- END STEP 2 -->
+
+            <!-- STEP 3: REVIEW & CONFIRM -->
+            <div class="wizard-step" data-step="3" id="wizardStep3">
+
+            <div class="wizard-nav" style="justify-content:flex-start;">
+              <button type="button" class="ghost-btn" id="wizardStep3BackBtn">
+                ← Back to Trip Details
+              </button>
+            </div>
+
             <!-- DETAILS -->
             <div class="details">
 
@@ -1999,6 +2146,9 @@
               </div>
 
             </div>
+
+            </div>
+            <!-- END STEP 3 -->
 
           </form>
 
@@ -2356,6 +2506,12 @@
       orderPickupInstructions: $("orderPickupInstructions"),
       orderDeliveryInstructions: $("orderDeliveryInstructions"),
       orderHandoff: $("orderHandoff"),
+
+      wizardStep2: $("wizardStep2"),
+      wizardStep3: $("wizardStep3"),
+      wizardProgress: $("wizardProgress"),
+      wizardStep2ContinueBtn: $("wizardStep2ContinueBtn"),
+      wizardStep3BackBtn: $("wizardStep3BackBtn"),
 
       detectLocationBtn: $("detectLocationBtn"),
       checkRiderBtn: $("checkRiderBtn"),
@@ -3189,6 +3345,42 @@
       }
     }
 
+    // --- Guided mission wizard: Step 1 (choose a service) is the mode-grid
+    // above, always visible. Steps 2-3 live inside the form and are gated
+    // by the same validation the old single-page form already used before
+    // allowing submission - advancing a step just runs that check earlier.
+    function goToWizardStep(step) {
+      if (els.wizardStep2) {
+        els.wizardStep2.classList.toggle("active", step === 2);
+      }
+
+      if (els.wizardStep3) {
+        els.wizardStep3.classList.toggle("active", step === 3);
+      }
+
+      if (els.wizardProgress) {
+        els.wizardProgress.querySelectorAll(".wizard-progress-step").forEach((el) => {
+          const n = Number(el.dataset.progressStep);
+          el.classList.remove("done", "current");
+          const dot = el.querySelector(".wp-dot");
+
+          if (n < step) {
+            el.classList.add("done");
+            if (dot) dot.textContent = "✓";
+          } else if (n === step) {
+            el.classList.add("current");
+            if (dot) dot.textContent = String(n);
+          } else if (dot) {
+            dot.textContent = String(n);
+          }
+        });
+      }
+
+      if (els.wizardProgress) {
+        els.wizardProgress.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
+
     function resetEntireFlow() {
       clearNotice();
 
@@ -3268,6 +3460,8 @@
         "Request flow reset successfully.",
         "success"
       );
+
+      goToWizardStep(2);
     }
 
     async function apiFetch(path, options = {}) {
@@ -4678,6 +4872,27 @@
         button.addEventListener("click", () => {
           applyMode(button.dataset.mode);
         });
+      });
+
+      els.wizardStep2ContinueBtn?.addEventListener("click", () => {
+        const riderError = validateRiderFields();
+        if (riderError) {
+          showNotice(riderError, "warning");
+          return;
+        }
+
+        const tripError = validateTripFields();
+        if (tripError) {
+          showNotice(tripError, "warning");
+          return;
+        }
+
+        clearNotice();
+        goToWizardStep(3);
+      });
+
+      els.wizardStep3BackBtn?.addEventListener("click", () => {
+        goToWizardStep(2);
       });
 
       els.detectLocationBtn?.addEventListener(
