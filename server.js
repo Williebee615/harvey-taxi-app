@@ -16605,8 +16605,60 @@ app.post(
             required: ["ride_code"]
           }
         }
+      },
+      {
+        type: "function",
+        function: {
+          name: "open_ride_workflow",
+          description:
+            "Call this when the person clearly wants to START a new ride, food delivery, " +
+            "grocery delivery, or HTAF-assisted transportation request right now, or wants to " +
+            "schedule one for later — for example 'take me to the airport', 'order Walmart " +
+            "groceries', 'I need a ride to my doctor's appointment', 'schedule a ride for " +
+            "tomorrow at 8am'. This does NOT book, dispatch, or charge anything. It only opens " +
+            "the request page with the service and any known details pre-filled so the person " +
+            "can review and submit it themselves. Do not call this for status questions or " +
+            "general questions — only for a clear intent to start a new request.",
+          parameters: {
+            type: "object",
+            properties: {
+              service: {
+                type: "string",
+                enum: ["ride", "food", "grocery", "htaf"],
+                description:
+                  "ride = standard passenger ride. food = restaurant delivery. grocery = " +
+                  "grocery store delivery. htaf = HTAF-assisted transportation (medical " +
+                  "appointments, essential needs)."
+              },
+              destination: {
+                type: "string",
+                description:
+                  "The destination in the person's own words (e.g. 'the airport', 'Walmart " +
+                  "on Charlotte Pike'). Omit if not mentioned."
+              },
+              pickup: {
+                type: "string",
+                description:
+                  "The pickup location if mentioned. Omit if not mentioned — most riders use " +
+                  "their current location."
+              },
+              scheduled_time: {
+                type: "string",
+                description:
+                  "The requested time in the person's own words (e.g. 'tomorrow at 8am', 'in " +
+                  "20 minutes'). Omit if they want it now."
+              }
+            },
+            required: ["service"]
+          }
+        }
       }
     ];
+
+    // Set by runTool() when open_ride_workflow is called, and attached to
+    // the HTTP response below so the frontend can act on it (navigate /
+    // prefill). Only ever holds our own cleaned values, never raw model output.
+    let capturedAction = null;
 
     async function runTool(name, args) {
       if (name === "lookup_htaf_status") {
@@ -16679,6 +16731,39 @@ app.post(
         };
       }
 
+      if (name === "open_ride_workflow") {
+        const service = ["ride", "food", "grocery", "htaf"].includes(args?.service)
+          ? args.service
+          : "ride";
+        const destination = cleanString(args?.destination, 200) || null;
+        const pickup = cleanString(args?.pickup, 200) || null;
+        const scheduledTime = cleanString(args?.scheduled_time, 100) || null;
+
+        // Same cleaned values used for both the tool result (fed back to the
+        // model) and the action attached to the HTTP response (read by the
+        // frontend) — the frontend never sees raw, unvalidated model output.
+        capturedAction = {
+          type: "open_ride_workflow",
+          service,
+          destination,
+          pickup,
+          scheduled_time: scheduledTime
+        };
+
+        return {
+          opened: true,
+          service,
+          destination,
+          pickup,
+          scheduled_time: scheduledTime,
+          guidance:
+            "Tell the person you've opened and pre-filled the " + service + " request for " +
+            "them to review. Make clear they still need to check the details and tap " +
+            "Continue / Request themselves — you have NOT booked, dispatched, or charged " +
+            "anything."
+        };
+      }
+
       return { error: "Unknown tool: " + name };
     }
 
@@ -16688,8 +16773,8 @@ app.post(
                   "",
                   "== COMPANY ==",
                   "Harvey Taxi Service LLC is a transportation technology company founded by Willie Harvey IV, headquartered in Nashville, Tennessee. Mission: provide safe, reliable, technology-driven transportation while creating earning opportunities for drivers and expanding transportation access through innovation and community partnerships. Core values: Safety, Respect, Accountability, Accessibility, Innovation, Community, Transparency, Professionalism.",
-                  "Currently available: rider accounts, driver accounts, ride requests, driver onboarding, AI support, and HTAF applications.",
-                  "Planned / NOT yet available (describe as 'planned' or 'in development', never as available): grocery delivery, restaurant delivery, Harvey Logistics, scheduled medical transportation expansion, autonomous pilot, fleet partnerships, business and corporate transportation.",
+                  "Currently available: rider accounts, driver accounts, ride requests (including scheduled rides for later), food delivery, grocery delivery, driver onboarding, AI support, and HTAF applications. Food and grocery delivery are pilot features — describe them as available now, but note they may be limited by driver/merchant coverage in the person's area.",
+                  "Planned / NOT yet available (describe as 'planned' or 'in development', never as available): Harvey Logistics, fleet partnerships, business and corporate transportation. Autonomous Pilot exists in the app as a clearly labeled, opt-in pilot experience — describe it as an early pilot, not a fully available service.",
                   "Service area: currently Nashville and Davidson County, Tennessee. Statewide Tennessee expansion is planned. Do not tell a person their area is covered unless it is Nashville or Davidson County; otherwise suggest they contact support to confirm.",
                   "Support email: support@harveytaxiservice.com. Do NOT state business hours, website, or a support phone number — those are not yet provided, so never invent them.",
                   "",
@@ -16709,7 +16794,7 @@ app.post(
                   "",
                   "== RULES (always) ==",
                   "1. Answer only from the information above; never invent eligibility, prices, timelines, hours, phone numbers, or policies.",
-                  "2. Never promise approval, a ride, a price, a wait time, or eligibility.",
+                  "2. Never promise approval, a ride, a price, a wait time, or eligibility. Calling open_ride_workflow only pre-fills the request page for the person to review — it never books, dispatches, or charges anything, so never say a ride/order has been booked, confirmed, or dispatched.",
                   "3. Never collect sensitive data in chat (SSN, full card numbers, passwords, detailed medical info); direct people to the secure application or support.",
                   "4. You can check the STATUS of an HTAF application only when the person provides its application code (format HTAF-XXXXXXXX-XXXX) and a live lookup result is included below. You have NO access to accounts, payments, disputes, personal details, driver files, or anything not explicitly given to you. For anything beyond a provided HTAF status lookup, direct people to support at support@harveytaxiservice.com.",
                   "5. Stay in scope (Harvey Taxi and HTAF only); politely redirect unrelated questions.",
@@ -16725,12 +16810,20 @@ app.post(
                   "To request a ride (approved riders): use the ride request page, enter pickup and destination. Do not quote a price; the app shows any estimate.",
                   "If someone is stuck or a page shows an error, apologize briefly and direct them to support@harveytaxiservice.com with a description of what happened."
                 ].join("\n") +
-      "\n\nTOOL NOTE: You have two lookup tools. When a person gives an HTAF " +
+      "\n\nTOOL NOTE: You have three tools. When a person gives an HTAF " +
       "application code (HTAF-YYYYMMDD-XXXX), call lookup_htaf_status. When a person " +
       "gives a ride code (RIDE-XXXXXXXXXX), call lookup_ride_status. Call a tool to " +
       "fetch the real status instead of waiting for it to be provided. All rules " +
       "above still apply — never promise approval, a timeline, or an arrival time, " +
-      "and never reveal an address, fare, name, or phone number.";
+      "and never reveal an address, fare, name, or phone number." +
+      "\n\nWhen a person clearly wants to start a new ride, food order, grocery order, " +
+      "or HTAF transportation request — now or scheduled for later — call " +
+      "open_ride_workflow with whatever service/destination/pickup/time they mentioned. " +
+      "After calling it, tell them plainly that you've opened and pre-filled the request " +
+      "for them to review, and that they still need to check the details and tap " +
+      "Continue/Request themselves. NEVER say the ride or order has been booked, " +
+      "confirmed, dispatched, or paid for — you are not able to do any of that, only " +
+      "open the page with details filled in.";
 
     const messages = [
       { role: "system", content: systemContent },
@@ -16789,11 +16882,11 @@ app.post(
 
     auditLog({
       action: "ai_support_message",
-      metadata: { page, role, length: message.length },
+      metadata: { page, role, length: message.length, action: capturedAction?.type || null },
       req
     }).catch(() => {});
 
-    return ok(res, { reply });
+    return ok(res, { reply, action: capturedAction });
   })
 );
 

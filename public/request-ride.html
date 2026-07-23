@@ -2617,6 +2617,17 @@
       }
     }
 
+    // Unlike getQueryParam(), this preserves case — needed for free-text
+    // values like an AI-prefilled destination ("Nashville International
+    // Airport") that shouldn't be forced to lowercase in a visible field.
+    function getRawQueryParam(name) {
+      try {
+        return new URLSearchParams(window.location.search).get(name) || "";
+      } catch (error) {
+        return "";
+      }
+    }
+
     function isValidEmail(email) {
       return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(safeTrim(email));
     }
@@ -3239,6 +3250,22 @@
       const storedMode = readStorage(CONFIG.STORAGE_KEYS.requestMode);
 
       applyMode(queryMode || storedMode || CONFIG.DEFAULT_MODE);
+
+      // Harvey AI dispatcher: mode above is already applied, so this only
+      // carries the free-text fields the assistant picked up from the
+      // person's message (see ai-support-widget.js's open_ride_workflow
+      // handling).
+      const aiDestination = getRawQueryParam("ai_destination");
+      const aiPickup = getRawQueryParam("ai_pickup");
+      const aiScheduledTime = getRawQueryParam("ai_scheduled_time");
+
+      if (aiDestination || aiPickup || aiScheduledTime) {
+        applyAiPrefill({
+          destination: aiDestination,
+          pickup: aiPickup,
+          scheduled_time: aiScheduledTime
+        });
+      }
     }    function validateRiderFields() {
       syncRiderFromForm();
 
@@ -3380,6 +3407,50 @@
         els.wizardProgress.scrollIntoView({ behavior: "smooth", block: "start" });
       }
     }
+
+    // Applies a Harvey AI "open_ride_workflow" action: switches mode and
+    // fills in whatever fields were mentioned, then jumps to Step 2 for the
+    // rider to review. This only ever fills in form fields and changes the
+    // visible step — it never advances to Step 3, submits the request, or
+    // authorizes payment. The rider always has to tap Continue themselves.
+    function applyAiPrefill(detail) {
+      if (!detail) return;
+
+      const hasAnything = Boolean(
+        detail.service || detail.destination || detail.pickup || detail.scheduled_time
+      );
+      if (!hasAnything) return;
+
+      if (detail.service && detail.service !== "htaf") {
+        applyMode(detail.service);
+      }
+
+      if (detail.destination && els.destinationAddress) {
+        els.destinationAddress.value = detail.destination;
+        state.destination.address = detail.destination;
+      }
+
+      if (detail.pickup && els.pickupAddress) {
+        els.pickupAddress.value = detail.pickup;
+        state.pickup.address = detail.pickup;
+      }
+
+      goToWizardStep(2);
+
+      const scheduleNote = detail.scheduled_time
+        ? ` You mentioned "${detail.scheduled_time}" — please set the exact date and time below.`
+        : "";
+
+      showNotice(
+        "Harvey AI pre-filled this request from your message. Review the details below, then continue when ready." +
+          scheduleNote,
+        "success"
+      );
+    }
+
+    window.addEventListener("harvey:ai-open-workflow", (event) => {
+      applyAiPrefill(event.detail);
+    });
 
     function resetEntireFlow() {
       clearNotice();
