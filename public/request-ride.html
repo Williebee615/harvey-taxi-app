@@ -2049,6 +2049,14 @@
               <button
                 type="button"
                 class="secondary-btn"
+                id="enablePushBtn"
+              >
+                🔔 Enable Ride Notifications
+              </button>
+
+              <button
+                type="button"
+                class="secondary-btn"
                 id="estimateBtn"
               >
                 Get Fare Estimate
@@ -2527,6 +2535,7 @@
 
       detectLocationBtn: $("detectLocationBtn"),
       checkRiderBtn: $("checkRiderBtn"),
+      enablePushBtn: $("enablePushBtn"),
       estimateBtn: $("estimateBtn"),
       authorizePaymentBtn: $("authorizePaymentBtn"),
       requestRideBtn: $("requestRideBtn"),
@@ -3814,7 +3823,83 @@
       } finally {
         setBusy(els.checkRiderBtn, false);
       }
-    }    function buildTripPayload() {
+    }
+
+    // --- Browser push opt-in ---
+    // Subscribes this browser to push notifications for this specific
+    // rider, so ride-stage updates (driver assigned, arrived, etc.) can
+    // reach them even when this tab isn't open. Requires state.rider.id to
+    // already be known, which happens after a successful rider-approval
+    // check above.
+    function urlBase64ToUint8Array(base64String) {
+      const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+      const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+      const rawData = window.atob(base64);
+      const output = new Uint8Array(rawData.length);
+      for (let i = 0; i < rawData.length; i++) {
+        output[i] = rawData.charCodeAt(i);
+      }
+      return output;
+    }
+
+    async function enablePushNotifications() {
+      if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+        showNotice("Push notifications aren't supported in this browser.", "warning");
+        return;
+      }
+
+      if (!state.rider.id) {
+        showNotice(
+          "Please tap \"Check Rider Approval\" first so Harvey Taxi knows who to notify.",
+          "warning"
+        );
+        return;
+      }
+
+      setBusy(els.enablePushBtn, true, "Enabling...");
+
+      try {
+        const permission = await Notification.requestPermission();
+        if (permission !== "granted") {
+          showNotice("Notification permission was not granted.", "warning");
+          return;
+        }
+
+        const keyRes = await fetch("/api/push/vapid-public-key");
+        const keyData = await keyRes.json();
+
+        if (!keyData?.key) {
+          showNotice("Push notifications aren't configured on the server yet.", "warning");
+          return;
+        }
+
+        const registration = await navigator.serviceWorker.register("/service-worker.js", {
+          scope: "/"
+        });
+
+        const subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(keyData.key)
+        });
+
+        await apiPost("/api/push/subscribe", {
+          owner_type: "rider",
+          owner_id: state.rider.id,
+          subscription: subscription.toJSON()
+        });
+
+        showNotice("Ride update notifications enabled for this browser.", "success");
+      } catch (error) {
+        showNotice(
+          "Could not enable notifications: " + (error?.message || "unknown error"),
+          "warning"
+        );
+      } finally {
+        setBusy(els.enablePushBtn, false);
+      }
+    }
+
+    function buildTripPayload() {
       syncRiderFromForm();
       syncTripFromForm();
 
@@ -4986,6 +5071,11 @@
       els.checkRiderBtn?.addEventListener(
         "click",
         checkRiderApproval
+      );
+
+      els.enablePushBtn?.addEventListener(
+        "click",
+        enablePushNotifications
       );
 
       els.estimateBtn?.addEventListener(
