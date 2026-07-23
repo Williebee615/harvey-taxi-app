@@ -424,6 +424,13 @@ const CHECKR_API_KEY = env("CHECKR_API_KEY");
 
 const CHECKR_WEBHOOK_SECRET = env("CHECKR_WEBHOOK_SECRET");
 
+// Browser-restricted Google Maps/Places key. Safe to hand to the client —
+// it's designed to be embedded in page requests and protected by HTTP
+// referrer restrictions in Google Cloud Console, not by keeping it secret —
+// but it still shouldn't be hardcoded into a file committed to git, so it's
+// served from this env var through GET /api/maps-key instead.
+const GOOGLE_MAPS_BROWSER_KEY = env("GOOGLE_MAPS_BROWSER_KEY");
+
 const OPENAI_API_KEY = env("OPENAI_API_KEY");
 
 const OPENAI_MODEL = env("OPENAI_MODEL", "gpt-4o-mini");
@@ -9617,6 +9624,27 @@ app.get(
 
 /* =========================================================
 
+   GOOGLE MAPS BROWSER KEY
+
+   Serves the browser-restricted Maps/Places key from an env
+   var instead of it being hardcoded into a static HTML file
+   committed to git. request-ride.html falls back to this when
+   its <meta name="google-maps-browser-key"> tag is empty.
+   Returns an empty key (never an error) when unconfigured, so
+   the page's own graceful-degradation logic takes over.
+
+========================================================= */
+
+app.get(
+  "/api/maps-key",
+  rateLimit({ windowMs: 60_000, max: 60, keyPrefix: "maps_key" }),
+  asyncRoute(async (req, res) => {
+    return ok(res, { key: GOOGLE_MAPS_BROWSER_KEY || "" });
+  })
+);
+
+/* =========================================================
+
    PUBLIC MISSION CONTROL SNAPSHOT
 
    Small, non-sensitive aggregate counts (no PII, no per-user
@@ -16426,7 +16454,11 @@ app.get(
 
         OPENAI_API_KEY:
 
-          Boolean(OPENAI_API_KEY)
+          Boolean(OPENAI_API_KEY),
+
+        GOOGLE_MAPS_BROWSER_KEY:
+
+          Boolean(GOOGLE_MAPS_BROWSER_KEY)
 
       },
 
