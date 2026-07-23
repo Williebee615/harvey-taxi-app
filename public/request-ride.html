@@ -2300,15 +2300,27 @@
 
   <!-- GOOGLE MAPS -->
   <script>
-    (() => {
+    (async () => {
       const meta = document.querySelector(
         'meta[name="google-maps-browser-key"]'
       );
 
-      const key =
+      let key =
         meta?.getAttribute("content") ||
         window.GOOGLE_MAPS_API_KEY ||
         "";
+
+      // No key hardcoded on the page — ask the server, which reads it from
+      // an env var instead of a value committed to this static HTML file.
+      if (!key) {
+        try {
+          const res = await fetch("/api/maps-key");
+          const data = await res.json();
+          key = data?.key || "";
+        } catch (err) {
+          key = "";
+        }
+      }
 
       if (!key) {
         window.__HARVEY_MAPS_ENABLED__ = false;
