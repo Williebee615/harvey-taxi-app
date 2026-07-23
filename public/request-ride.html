@@ -906,12 +906,35 @@
     .driver-info-card {
       margin-top: 14px;
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       gap: 14px;
       border: 1px solid var(--line);
       background: rgba(255,255,255,0.04);
       border-radius: 18px;
       padding: 14px 16px;
+    }
+
+    .driver-tracking {
+      flex-basis: 100%;
+      margin-top: 4px;
+    }
+
+    .driver-tracking-text {
+      display: block;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .live-tracking-map {
+      position: relative;
+      width: 100%;
+      height: 200px;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.03);
     }
 
     .driver-photo {
@@ -2000,6 +2023,11 @@
                 <span id="driverVehicleText">—</span>
                 <a id="driverContactLink" class="driver-contact-link hidden" href="#">Call Driver</a>
               </div>
+
+              <div id="driverTracking" class="driver-tracking hidden">
+                <span id="driverTrackingText" class="driver-tracking-text">—</span>
+                <div id="liveTrackingMap" class="live-tracking-map hidden"></div>
+              </div>
             </div>
 
             <!-- DELIVERY ORDER DETAILS (food/grocery orders only) -->
@@ -2473,6 +2501,13 @@
         loaded: false
       },
 
+      trackingMap: {
+        instance: null,
+        driverMarker: null,
+        targetMarker: null,
+        line: null
+      },
+
       merchant: {
         name: "",
         lat: null,
@@ -2562,6 +2597,9 @@
       driverNameText: $("driverNameText"),
       driverVehicleText: $("driverVehicleText"),
       driverContactLink: $("driverContactLink"),
+      driverTracking: $("driverTracking"),
+      driverTrackingText: $("driverTrackingText"),
+      liveTrackingMap: $("liveTrackingMap"),
 
       deliveryOrderCard: $("deliveryOrderCard"),
       deliveryTimeline: $("deliveryTimeline"),
@@ -2808,23 +2846,127 @@
       }).join("");
     }
 
-    function updateTrackingInfo(tracking) {
-      if (!els.deliveryTrackingRow || !els.deliveryTrackingText) return;
-
-      if (!tracking) {
-        els.deliveryTrackingRow.classList.add("hidden");
-        return;
-      }
-
+    function trackingSummaryText(tracking) {
       const targetLabel =
         tracking.target === "store" ? "the store" :
         tracking.target === "customer" ? "you" :
+        tracking.target === "pickup" ? "your pickup" :
         "your destination";
 
-      els.deliveryTrackingText.textContent =
-        `~${tracking.distance_miles} mi from ${targetLabel} • ~${tracking.eta_minutes} min (estimate)`;
+      return `~${tracking.distance_miles} mi from ${targetLabel} • ~${tracking.eta_minutes} min (estimate)`;
+    }
 
-      els.deliveryTrackingRow.classList.remove("hidden");
+    function updateTrackingInfo(tracking) {
+      if (els.deliveryTrackingRow && els.deliveryTrackingText) {
+        if (!tracking) {
+          els.deliveryTrackingRow.classList.add("hidden");
+        } else {
+          els.deliveryTrackingText.textContent = trackingSummaryText(tracking);
+          els.deliveryTrackingRow.classList.remove("hidden");
+        }
+      }
+
+      if (els.driverTracking && els.driverTrackingText) {
+        if (!tracking) {
+          els.driverTracking.classList.add("hidden");
+        } else {
+          els.driverTrackingText.textContent = trackingSummaryText(tracking);
+          els.driverTracking.classList.remove("hidden");
+        }
+      }
+    }
+
+    // Live tracking map: plots the driver's last-reported GPS position
+    // and the current leg's target (pickup or destination) once a driver
+    // is assigned and en route/in progress. Distinct from #pickupMap,
+    // which is only used to confirm the rider's own pickup point before
+    // a ride exists. Uses a straight dashed line between the two points
+    // rather than a routed path — that's an honest "as the crow flies"
+    // connector, not a claim about the driver's actual road route.
+    function updateLiveTrackingMap(data) {
+      if (!els.liveTrackingMap) return;
+
+      const tracking = data?.tracking;
+      const driverLoc = data?.driver?.location;
+
+      const targetLoc =
+        tracking?.target === "store" || tracking?.target === "pickup"
+          ? data?.pickup_location
+          : data?.destination_location;
+
+      const canRender =
+        window.__HARVEY_MAPS_ENABLED__ &&
+        window.google?.maps &&
+        tracking &&
+        driverLoc &&
+        Number.isFinite(Number(driverLoc.lat)) &&
+        Number.isFinite(Number(driverLoc.lng)) &&
+        targetLoc &&
+        Number.isFinite(Number(targetLoc.lat)) &&
+        Number.isFinite(Number(targetLoc.lng));
+
+      if (!canRender) {
+        els.liveTrackingMap.classList.add("hidden");
+        return;
+      }
+
+      els.liveTrackingMap.classList.remove("hidden");
+
+      const driverPos = { lat: Number(driverLoc.lat), lng: Number(driverLoc.lng) };
+      const targetPos = { lat: Number(targetLoc.lat), lng: Number(targetLoc.lng) };
+      const targetTitle =
+        tracking.target === "store" ? "Store" :
+        tracking.target === "customer" ? "You" :
+        tracking.target === "pickup" ? "Pickup" :
+        "Destination";
+
+      const tm = state.trackingMap;
+
+      if (!tm.instance) {
+        tm.instance = new google.maps.Map(els.liveTrackingMap, {
+          center: driverPos,
+          zoom: 13,
+          disableDefaultUI: true,
+          zoomControl: true,
+          streetViewControl: false,
+          mapTypeControl: false,
+          fullscreenControl: true
+        });
+
+        tm.driverMarker = new google.maps.Marker({
+          position: driverPos,
+          map: tm.instance,
+          title: "Your driver",
+          icon: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png"
+        });
+
+        tm.targetMarker = new google.maps.Marker({
+          position: targetPos,
+          map: tm.instance,
+          title: targetTitle
+        });
+
+        tm.line = new google.maps.Polyline({
+          path: [driverPos, targetPos],
+          strokeOpacity: 0,
+          icons: [{
+            icon: { path: "M 0,-1 0,1", strokeOpacity: 0.55, scale: 3 },
+            offset: "0",
+            repeat: "12px"
+          }],
+          map: tm.instance
+        });
+      } else {
+        tm.driverMarker.setPosition(driverPos);
+        tm.targetMarker.setPosition(targetPos);
+        tm.targetMarker.setTitle(targetTitle);
+        tm.line.setPath([driverPos, targetPos]);
+      }
+
+      const bounds = new google.maps.LatLngBounds();
+      bounds.extend(driverPos);
+      bounds.extend(targetPos);
+      tm.instance.fitBounds(bounds, 40);
     }
 
     function updateDeliveryInfo(status, delivery) {
@@ -3527,6 +3669,7 @@
       updateDriverInfo(null);
       updateDeliveryInfo(null, null);
       updateTrackingInfo(null);
+      updateLiveTrackingMap(null);
       stopRideStream();
 
       setTimeline(
@@ -4699,6 +4842,7 @@
         updateDriverInfo(data.driver);
         updateDeliveryInfo(data.status, data.delivery);
         updateTrackingInfo(data.tracking);
+        updateLiveTrackingMap(data);
 
         if (["completed", "cancelled", "failed"].includes(data.status)) {
           stopRideStream();
