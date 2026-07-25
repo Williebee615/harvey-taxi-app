@@ -7526,31 +7526,15 @@ app.get(
 
 ========================================================= */
 
-const RIDE_STATUS = {
-
-  DRAFT: "draft",
-
-  PAYMENT_REQUIRED: "payment_required",
-
-  PAYMENT_AUTHORIZED: "payment_authorized",
-
-  AWAITING_DRIVER: "awaiting_driver_acceptance",
-
-  DRIVER_ASSIGNED: "driver_assigned",
-
-  DRIVER_ENROUTE: "driver_enroute",
-
-  ARRIVED: "arrived",
-
-  IN_PROGRESS: "in_progress",
-
-  COMPLETED: "completed",
-
-  CANCELLED: "cancelled",
-
-  FAILED: "failed"
-
-};
+// RIDE_STATUS, shouldDispatchRideNow, and the sweepScheduledRides
+// orchestrator live in lib/rideDispatch.js — kept dependency-free (no
+// Supabase/env vars) so Jest can test the scheduled-ride dispatch decision
+// and retry/reclaim logic directly without booting the whole server.
+const {
+  RIDE_STATUS,
+  shouldDispatchRideNow,
+  sweepScheduledRides
+} = require("./lib/rideDispatch");
 
 /* =========================================================
 
@@ -8337,6 +8321,83 @@ async function dispatchRide(ride) {
 
 /* =========================================================
 
+   SCHEDULED-RIDE SWEEP — SUPABASE ADAPTERS
+
+   The actual retry/skip/reclaim orchestration lives in
+   sweepScheduledRides() (lib/rideDispatch.js), so it's unit-testable
+   without a database. These three functions are the only pieces that
+   talk to Supabase, wired into that orchestrator via the
+   setInterval() call near startup below.
+
+   The OR filter in both findDueScheduledRides and claimScheduledRide
+   ("dispatch_status = ready_to_dispatch, OR dispatch_status =
+   dispatching with a claim older than the lease cutoff") is what lets
+   a stale claim get reclaimed if a process dies between claiming a
+   ride and finishing dispatchRide() — a plain try/catch can't cover
+   that case since nothing runs to reset the ride when the process
+   itself is gone.
+
+========================================================= */
+
+function scheduledDispatchClaimFilter(cutoffIso) {
+  return (
+    `dispatch_status.eq.ready_to_dispatch,` +
+    `and(dispatch_status.eq.dispatching,dispatch_claimed_at.lt.${cutoffIso})`
+  );
+}
+
+async function findDueScheduledRides(nowDate, cutoffDate) {
+  const { data, error } = await supabase
+    .from("rides")
+    .select("*")
+    .eq("status", RIDE_STATUS.PAYMENT_AUTHORIZED)
+    .not("scheduled_time", "is", null)
+    .lte("scheduled_time", nowDate.toISOString())
+    .or(scheduledDispatchClaimFilter(cutoffDate.toISOString()));
+
+  if (error) throw error;
+
+  return data || [];
+}
+
+async function claimScheduledRide(rideId, cutoffDate) {
+  const { data, error } = await supabase
+    .from("rides")
+    .update({
+      dispatch_status: "dispatching",
+      dispatch_claimed_at: nowIso(),
+      updated_at: nowIso()
+    })
+    .eq("id", rideId)
+    // Re-verify ride status here, not just dispatch_status — if the ride's
+    // status changed after the findDueScheduledRides query above (e.g. a
+    // future cancellation feature), this claim now correctly fails instead
+    // of dispatching a ride that's no longer payment-authorized.
+    .eq("status", RIDE_STATUS.PAYMENT_AUTHORIZED)
+    .or(scheduledDispatchClaimFilter(cutoffDate.toISOString()))
+    .select()
+    .maybeSingle();
+
+  if (error) throw error;
+
+  return data || null;
+}
+
+async function resetScheduledRideForRetry(rideId) {
+  const { error } = await supabase
+    .from("rides")
+    .update({
+      dispatch_status: "ready_to_dispatch",
+      dispatch_claimed_at: null,
+      updated_at: nowIso()
+    })
+    .eq("id", rideId);
+
+  if (error) throw error;
+}
+
+/* =========================================================
+
    RIDE ESTIMATE API
 
 ========================================================= */
@@ -9035,21 +9096,18 @@ app.post(
 
     let dispatch = null;
 
-    if (
-
-      status === RIDE_STATUS.PAYMENT_AUTHORIZED &&
-
-      // Was `!ride.scheduled_for` — the rides table (and the object built
-      // just above) only has a scheduled_time column, so that check always
-      // read undefined and every scheduled ride dispatched immediately
-      // instead of being held for its requested time.
-      !ride.scheduled_time
-
-    ) {
+    if (shouldDispatchRideNow(data)) {
 
       dispatch =
 
         await dispatchRide(data);
+
+    } else if (data.scheduled_time) {
+
+      console.log(
+        `⏳ Ride ${data.id} held for scheduled dispatch at ${data.scheduled_time}. ` +
+        `sweepScheduledRides() will pick it up once that time arrives.`
+      );
 
     }
 
@@ -9425,13 +9483,30 @@ app.post(
 
     };
 
-    const dispatch =
+    // This route used to dispatch unconditionally on payment authorization,
+    // regardless of scheduled_time — a second occurrence of the same bug
+    // fixed on the ride-creation route above. A rider who scheduled a ride
+    // but hadn't authorized payment yet at creation time would still get
+    // dispatched immediately the moment they authorized payment.
+    let dispatch = null;
 
-      await dispatchRide(
+    if (shouldDispatchRideNow(updatedRide)) {
 
-        updatedRide
+      dispatch =
 
+        await dispatchRide(
+
+          updatedRide
+
+        );
+
+    } else if (updatedRide.scheduled_time) {
+
+      console.log(
+        `⏳ Ride ${updatedRide.id} authorized but held for scheduled dispatch at ${updatedRide.scheduled_time}.`
       );
+
+    }
 
     auditLog({
 
@@ -17937,6 +18012,20 @@ async function startServer() {
         "================================================="
 
       );
+
+      // Picks up rides held by shouldDispatchRideNow() once their
+      // scheduled_time arrives. Runs once immediately (in case rides came
+      // due while the server was restarting/deploying) and then every 60s.
+      const runScheduledSweep = () =>
+        sweepScheduledRides({
+          findDueRides: findDueScheduledRides,
+          claimRide: claimScheduledRide,
+          resetRide: resetScheduledRideForRetry,
+          dispatchRide
+        });
+
+      runScheduledSweep();
+      setInterval(runScheduledSweep, 60_000);
 
     }
 
