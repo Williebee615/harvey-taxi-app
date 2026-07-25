@@ -962,6 +962,56 @@
       letter-spacing: -0.04em;
     }
 
+    .fare-breakdown {
+      margin-top: 14px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.03);
+      border-radius: 18px;
+      padding: 6px 16px;
+    }
+
+    .fare-breakdown-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 9px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      font-size: 0.86rem;
+    }
+
+    .fare-breakdown-row:last-of-type {
+      border-bottom: none;
+    }
+
+    .fare-breakdown-row span {
+      color: var(--text-muted);
+    }
+
+    .fare-breakdown-row strong {
+      font-weight: 800;
+    }
+
+    .fare-breakdown-total {
+      border-top: 1px solid var(--line);
+      border-bottom: none;
+      margin-top: 2px;
+      padding-top: 12px;
+    }
+
+    .fare-breakdown-total span,
+    .fare-breakdown-total strong {
+      color: var(--text-main);
+      font-size: 0.98rem;
+      font-weight: 900;
+    }
+
+    .fare-breakdown-note {
+      margin: 0 0 10px;
+      color: var(--text-muted);
+      font-size: 0.76rem;
+    }
+
     .driver-info-card {
       margin-top: 14px;
       display: flex;
@@ -1511,6 +1561,19 @@
 
                 <span>
                   Standard ride request with a human driver.
+                </span>
+              </button>
+
+              <button
+                type="button"
+                class="mode-chip"
+                id="modeAirportBtn"
+                data-mode="airport"
+              >
+                <strong>Airport Ride</strong>
+
+                <span>
+                  Ride to or from the airport, with a flat airport surcharge.
                 </span>
               </button>
 
@@ -2183,6 +2246,41 @@
 
             </div>
 
+            <!-- FARE BREAKDOWN -->
+            <div id="fareBreakdown" class="fare-breakdown hidden">
+              <div class="fare-breakdown-row">
+                <span>Base Fare</span>
+                <strong id="breakdownBaseFare">—</strong>
+              </div>
+              <div class="fare-breakdown-row">
+                <span>Distance Charge</span>
+                <strong id="breakdownDistanceCharge">—</strong>
+              </div>
+              <div class="fare-breakdown-row">
+                <span>Time Charge</span>
+                <strong id="breakdownTimeCharge">—</strong>
+              </div>
+              <div class="fare-breakdown-row">
+                <span>Booking Fee</span>
+                <strong id="breakdownBookingFee">—</strong>
+              </div>
+              <div class="fare-breakdown-row hidden" id="breakdownDiscountRow">
+                <span>Discount</span>
+                <strong id="breakdownDiscount">—</strong>
+              </div>
+              <div class="fare-breakdown-row hidden" id="breakdownSurchargeRow">
+                <span>Surcharge</span>
+                <strong id="breakdownSurcharge">—</strong>
+              </div>
+              <div class="fare-breakdown-row fare-breakdown-total">
+                <span>Total</span>
+                <strong id="breakdownTotal">—</strong>
+              </div>
+              <p id="breakdownMinimumNote" class="fare-breakdown-note hidden">
+                Minimum fare applied.
+              </p>
+            </div>
+
             <div class="actions">
               <button
                 type="button"
@@ -2724,7 +2822,10 @@
       },
 
       destination: {
-        address: ""
+        address: "",
+        latitude: null,
+        longitude: null,
+        source: "manual"
       },
 
       estimate: {
@@ -2732,6 +2833,16 @@
         fare: null,
         distance: null,
         duration: null,
+        // The real trip distance/duration (from Google's Distance Matrix,
+        // once both pickup and destination have coordinates). These are
+        // what buildTripPayload() actually sends to the server — see
+        // ensureTripDistance(). Kept distinct from distance/duration
+        // above, which are just display strings echoed back from the
+        // server's estimate response.
+        distanceMiles: null,
+        durationMinutes: null,
+        distanceKnown: false,
+        breakdown: null,
         raw: null
       },
 
@@ -2768,7 +2879,9 @@
         lng: null
       },
 
-      merchantAutocomplete: null
+      merchantAutocomplete: null,
+      pickupAutocomplete: null,
+      destinationAutocomplete: null
     };    const $ = (id) => document.getElementById(id);
 
     const els = {
@@ -2865,6 +2978,18 @@
       fareEstimateText: $("fareEstimateText"),
       distanceText: $("distanceText"),
       durationText: $("durationText"),
+
+      fareBreakdown: $("fareBreakdown"),
+      breakdownBaseFare: $("breakdownBaseFare"),
+      breakdownDistanceCharge: $("breakdownDistanceCharge"),
+      breakdownTimeCharge: $("breakdownTimeCharge"),
+      breakdownBookingFee: $("breakdownBookingFee"),
+      breakdownDiscountRow: $("breakdownDiscountRow"),
+      breakdownDiscount: $("breakdownDiscount"),
+      breakdownSurchargeRow: $("breakdownSurchargeRow"),
+      breakdownSurcharge: $("breakdownSurcharge"),
+      breakdownTotal: $("breakdownTotal"),
+      breakdownMinimumNote: $("breakdownMinimumNote"),
       dispatchStateText: $("dispatchStateText"),
 
       driverInfoCard: $("driverInfoCard"),
@@ -2921,6 +3046,68 @@
         style: "currency",
         currency: "USD"
       });
+    }
+
+    // Shows the real line-item breakdown from calculateRideEstimate()
+    // (base fare, distance charge, time charge, booking fee, any
+    // discount/surcharge) instead of just the lump total that used to be
+    // the only number a rider ever saw before authorizing payment.
+    function renderFareBreakdown(breakdown) {
+      if (!els.fareBreakdown) return;
+
+      if (!breakdown) {
+        els.fareBreakdown.classList.add("hidden");
+        return;
+      }
+
+      els.fareBreakdown.classList.remove("hidden");
+
+      if (els.breakdownBaseFare) {
+        els.breakdownBaseFare.textContent = money(breakdown.baseFare);
+      }
+
+      if (els.breakdownDistanceCharge) {
+        els.breakdownDistanceCharge.textContent = money(breakdown.distanceCharge);
+      }
+
+      if (els.breakdownTimeCharge) {
+        els.breakdownTimeCharge.textContent = money(breakdown.timeCharge);
+      }
+
+      if (els.breakdownBookingFee) {
+        els.breakdownBookingFee.textContent = money(breakdown.bookingFee);
+      }
+
+      const hasDiscount = Number(breakdown.discountAmount) > 0;
+
+      if (els.breakdownDiscountRow) {
+        els.breakdownDiscountRow.classList.toggle("hidden", !hasDiscount);
+      }
+
+      if (els.breakdownDiscount) {
+        els.breakdownDiscount.textContent = `-${money(breakdown.discountAmount)}`;
+      }
+
+      const hasSurcharge = Number(breakdown.surchargeAmount) > 0;
+
+      if (els.breakdownSurchargeRow) {
+        els.breakdownSurchargeRow.classList.toggle("hidden", !hasSurcharge);
+      }
+
+      if (els.breakdownSurcharge) {
+        els.breakdownSurcharge.textContent = money(breakdown.surchargeAmount);
+      }
+
+      if (els.breakdownTotal) {
+        els.breakdownTotal.textContent = money(state.estimate.fare);
+      }
+
+      if (els.breakdownMinimumNote) {
+        els.breakdownMinimumNote.classList.toggle(
+          "hidden",
+          !breakdown.minimumFareApplied
+        );
+      }
     }
 
     function readStorage(key) {
@@ -3402,7 +3589,7 @@
     function normalizeMode(mode) {
       const clean = safeLower(mode);
 
-      if (["driver", "autonomous", "food", "grocery"].includes(clean)) {
+      if (["driver", "airport", "autonomous", "food", "grocery"].includes(clean)) {
         return clean;
       }
 
@@ -3435,6 +3622,22 @@
         badge: "Dispatch Ready",
         pickupLabel: "Pickup Location",
         destinationPlaceholder: "Enter destination",
+        merchantLabel: null,
+        merchantPlaceholder: null,
+        merchantErrorText: null
+      },
+
+      airport: {
+        rideType: "airport",
+        isDelivery: false,
+        eyebrow: "AIRPORT DISPATCH",
+        title: "Request an Airport Ride",
+        copy: "Airport rides include a flat airport surcharge in addition to the standard fare, shown in the fare breakdown before you authorize payment.",
+        cardTitle: "Airport Ride Request",
+        cardCopy: "Complete the secure Harvey Taxi airport ride request flow below.",
+        badge: "Airport Ready",
+        pickupLabel: "Pickup Location",
+        destinationPlaceholder: "Enter destination (airport or address)",
         merchantLabel: null,
         merchantPlaceholder: null,
         merchantErrorText: null
@@ -3726,7 +3929,189 @@
       if (state.mode === "food" || state.mode === "grocery") {
         initMerchantAutocomplete();
       }
+
+      initAddressAutocompletes();
     });
+
+    // Wires real Places Autocomplete onto the plain pickup/destination text
+    // fields (distinct from initMerchantAutocomplete() above, which only
+    // searches for restaurants/stores). Every rider-facing service —
+    // taxi, food, grocery — routes pickup/destination through these same
+    // two inputs, so binding it once here covers all of them.
+    function bindAddressAutocomplete(inputEl, target, stateKey) {
+      if (!inputEl || state[stateKey] || !canUsePlacesAutocomplete()) return;
+
+      try {
+        const autocomplete = new google.maps.places.Autocomplete(
+          inputEl,
+          { fields: ["formatted_address", "geometry"] }
+        );
+
+        autocomplete.addListener("place_changed", () => {
+          const place = autocomplete.getPlace();
+          const lat = place?.geometry?.location?.lat() ?? null;
+          const lng = place?.geometry?.location?.lng() ?? null;
+
+          if (lat === null || lng === null) return;
+
+          target.latitude = lat;
+          target.longitude = lng;
+          target.source = "autocomplete";
+
+          if (place.formatted_address) {
+            inputEl.value = place.formatted_address;
+            target.address = place.formatted_address;
+          }
+
+          resetEstimateAndPayment(
+            "Trip details changed. Please get a fresh estimate."
+          );
+        });
+
+        state[stateKey] = autocomplete;
+      } catch (err) {
+        // Places failed to initialize (e.g. billing/quota issue upstream).
+        // Manual typing + the forward-geocode fallback in
+        // ensureTripDistance() below still work without it.
+        state[stateKey] = null;
+      }
+    }
+
+    function initAddressAutocompletes() {
+      bindAddressAutocomplete(els.pickupAddress, state.pickup, "pickupAutocomplete");
+      bindAddressAutocomplete(els.destinationAddress, state.destination, "destinationAutocomplete");
+    }
+
+    // A manual keystroke in either field invalidates whatever coordinates
+    // were previously captured for it (from Autocomplete, geolocation, or
+    // a prior geocode) — otherwise a rider who picks a suggestion and then
+    // edits the text further would silently keep pricing against the old,
+    // no-longer-displayed address. Programmatic value changes (Autocomplete
+    // selection, "Use My Location") don't fire "input", so this only
+    // triggers on real typing.
+    els.pickupAddress?.addEventListener("input", () => {
+      state.pickup.latitude = null;
+      state.pickup.longitude = null;
+      state.pickup.source = "manual";
+    });
+
+    els.destinationAddress?.addEventListener("input", () => {
+      state.destination.latitude = null;
+      state.destination.longitude = null;
+      state.destination.source = "manual";
+    });
+
+    // Forward-geocodes a free-typed address string into coordinates —
+    // the fallback for when a rider types an address and tabs away
+    // without picking an Autocomplete suggestion.
+    function geocodeAddressString(address) {
+      if (
+        !window.__HARVEY_MAPS_ENABLED__ ||
+        !window.google ||
+        !window.google.maps ||
+        !window.google.maps.Geocoder ||
+        !safeTrim(address)
+      ) {
+        return Promise.resolve(null);
+      }
+
+      if (!geocoder) {
+        geocoder = new window.google.maps.Geocoder();
+      }
+
+      return new Promise((resolve) => {
+        geocoder.geocode({ address }, (results, status) => {
+          if (status === "OK" && results && results[0]?.geometry?.location) {
+            resolve({
+              lat: results[0].geometry.location.lat(),
+              lng: results[0].geometry.location.lng()
+            });
+          } else {
+            resolve(null);
+          }
+        });
+      });
+    }
+
+    async function ensureEndpointCoordinates(target, addressEl) {
+      if (target.latitude !== null && target.longitude !== null) {
+        return true;
+      }
+
+      const address = safeTrim(addressEl?.value || target.address);
+
+      if (!address) return false;
+
+      const geocoded = await geocodeAddressString(address);
+
+      if (!geocoded) return false;
+
+      target.latitude = geocoded.lat;
+      target.longitude = geocoded.lng;
+      target.source = "geocoded";
+
+      return true;
+    }
+
+    // Computes the real driving distance/duration between pickup and
+    // destination via Google's Distance Matrix, storing the result on
+    // state.estimate.distanceMiles/durationMinutes — the exact fields
+    // buildTripPayload() sends to the server. Before this existed, nothing
+    // in the app ever set those two fields, so every fare estimate was
+    // silently computed as a 0-mile, 0-minute trip and always landed on
+    // the flat minimum fare, no matter how long the ride actually was.
+    async function ensureTripDistance() {
+      if (state.estimate.distanceKnown) {
+        return true;
+      }
+
+      const hasPickup = await ensureEndpointCoordinates(state.pickup, els.pickupAddress);
+      const hasDestination = await ensureEndpointCoordinates(state.destination, els.destinationAddress);
+
+      if (!hasPickup || !hasDestination) {
+        return false;
+      }
+
+      if (
+        !window.__HARVEY_MAPS_ENABLED__ ||
+        !window.google ||
+        !window.google.maps ||
+        !window.google.maps.DistanceMatrixService
+      ) {
+        return false;
+      }
+
+      return new Promise((resolve) => {
+        const service = new google.maps.DistanceMatrixService();
+
+        service.getDistanceMatrix(
+          {
+            origins: [{ lat: state.pickup.latitude, lng: state.pickup.longitude }],
+            destinations: [{ lat: state.destination.latitude, lng: state.destination.longitude }],
+            travelMode: google.maps.TravelMode.DRIVING,
+            unitSystem: google.maps.UnitSystem.IMPERIAL
+          },
+          (response, status) => {
+            const element = response?.rows?.[0]?.elements?.[0];
+
+            if (status !== "OK" || !element || element.status !== "OK") {
+              resolve(false);
+              return;
+            }
+
+            state.estimate.distanceMiles =
+              Number((element.distance.value / 1609.34).toFixed(2));
+
+            state.estimate.durationMinutes =
+              Number((element.duration.value / 60).toFixed(1));
+
+            state.estimate.distanceKnown = true;
+
+            resolve(true);
+          }
+        );
+      });
+    }
 
     function syncRiderFromForm() {
       state.rider.name = safeTrim(els.riderName?.value);
@@ -3881,6 +4266,10 @@
         fare: null,
         distance: null,
         duration: null,
+        distanceMiles: null,
+        durationMinutes: null,
+        distanceKnown: false,
+        breakdown: null,
         raw: null
       };
 
@@ -3902,6 +4291,8 @@
       if (els.durationText) {
         els.durationText.textContent = "Pending";
       }
+
+      renderFareBreakdown(null);
 
       if (els.authorizePaymentBtn) {
         els.authorizePaymentBtn.disabled = true;
@@ -4636,6 +5027,11 @@
           ""
         );
 
+      const numOrNull = (value) => {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : null;
+      };
+
       return {
         fare:
           Number.isFinite(fare)
@@ -4644,6 +5040,19 @@
 
         distance,
         duration,
+
+        // Line items from calculateRideEstimate()'s breakdown — used to
+        // show a real itemized fare preview instead of just the total.
+        breakdown: {
+          baseFare: numOrNull(estimate.base_fare),
+          distanceCharge: numOrNull(estimate.distance_charge),
+          timeCharge: numOrNull(estimate.time_charge),
+          bookingFee: numOrNull(estimate.booking_fee),
+          discountAmount: numOrNull(estimate.discount_amount),
+          surchargeAmount: numOrNull(estimate.surcharge_amount),
+          minimumFareApplied: Boolean(estimate.minimum_fare_applied)
+        },
+
         raw: data
       };
     }
@@ -4684,6 +5093,26 @@
       );
 
       clearNotice();
+
+      setLiveStatus(
+        "Calculating trip distance..."
+      );
+
+      // Resolves real driving distance/duration between pickup and
+      // destination via Google Maps before asking the server for a fare.
+      // Without this, the server always priced the trip as 0 miles/0
+      // minutes (silently landing on the flat minimum fare no matter how
+      // long the trip actually was) — nothing ever populated
+      // state.estimate.distanceMiles/durationMinutes before now.
+      const distanceKnown = await ensureTripDistance();
+
+      if (!distanceKnown) {
+        showNotice(
+          "Couldn't calculate a precise route distance right now, so this estimate uses the minimum fare. " +
+            "The final fare will reflect the actual trip.",
+          "warning"
+        );
+      }
 
       setLiveStatus(
         "Calculating fare estimate..."
@@ -4736,8 +5165,13 @@
         state.estimate.duration =
           normalized.duration;
 
+        state.estimate.breakdown =
+          normalized.breakdown;
+
         state.estimate.raw =
           normalized.raw;
+
+        renderFareBreakdown(normalized.breakdown);
 
         if (els.fareEstimateText) {
           els.fareEstimateText.textContent =
@@ -5902,6 +6336,7 @@
       updateLocationMeta();
       initOrUpdateMap();
       initStripeElements();
+      initAddressAutocompletes();
 
       setLiveStatus(
         "Complete the form and start with rider approval."

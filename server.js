@@ -2792,32 +2792,35 @@ function calculateRideEstimate({
 
     Math.max(0, toNumber(minutes));
 
+  // Line items are tracked individually (rather than folded straight into
+  // one running "subtotal" variable) so the client can show a real,
+  // itemized fare breakdown instead of a single lump total — and so the
+  // discount/surcharge dollar amounts below are exact, not re-derived by
+  // subtracting two totals later.
+  const base_fare = BASE_FARE;
+  const distance_charge = safeMiles * PER_MILE_RATE;
+  const time_charge = safeMinutes * PER_MINUTE_RATE;
+  const booking_fee = BOOKING_FEE;
+
   let subtotal =
+    base_fare + distance_charge + time_charge + booking_fee;
 
-    BASE_FARE +
-
-    safeMiles * PER_MILE_RATE +
-
-    safeMinutes * PER_MINUTE_RATE +
-
-    BOOKING_FEE;
+  let discount_amount = 0;
 
   if (
-
     ride_type === "medical" ||
-
     ride_type === "foundation"
-
   ) {
-
-    subtotal *= 0.95;
-
+    const discounted = subtotal * 0.95;
+    discount_amount = subtotal - discounted;
+    subtotal = discounted;
   }
 
+  let surcharge_amount = 0;
+
   if (ride_type === "airport") {
-
-    subtotal += 5;
-
+    surcharge_amount = 5;
+    subtotal += surcharge_amount;
   }
 
   const total =
@@ -2835,6 +2838,20 @@ function calculateRideEstimate({
     minutes: Number(safeMinutes.toFixed(0)),
 
     currency: "USD",
+
+    base_fare: Number(base_fare.toFixed(2)),
+
+    distance_charge: Number(distance_charge.toFixed(2)),
+
+    time_charge: Number(time_charge.toFixed(2)),
+
+    booking_fee: Number(booking_fee.toFixed(2)),
+
+    discount_amount: Number(discount_amount.toFixed(2)),
+
+    surcharge_amount: Number(surcharge_amount.toFixed(2)),
+
+    minimum_fare_applied: total > Number(subtotal.toFixed(2)),
 
     total: Number(total.toFixed(2)),
 
