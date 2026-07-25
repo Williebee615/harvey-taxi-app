@@ -456,6 +456,67 @@
       color: var(--muted);
     }
 
+    .place-card-wrap {
+      position: relative;
+    }
+
+    .place-remove {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(8, 14, 30, 0.85);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1;
+      display: grid;
+      place-items: center;
+      z-index: 2;
+    }
+
+    .place-remove:hover {
+      color: var(--danger);
+      border-color: rgba(255, 126, 151, 0.3);
+    }
+
+    .mini-track-map {
+      width: 100%;
+      height: 200px;
+      border-radius: 18px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      overflow: hidden;
+      margin-top: 4px;
+    }
+
+    .mini-track-map.hidden {
+      display: none;
+    }
+
+    .notification-feed {
+      display: grid;
+      gap: 10px;
+    }
+
+    .notification-item {
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 13px;
+      color: var(--soft);
+      line-height: 1.5;
+    }
+
+    .notification-item time {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      margin-top: 4px;
+    }
+
     .services-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -1027,11 +1088,49 @@
           </div>
         </div>
 
+        <div class="trip-meta" id="activeRequestDeliveryMeta" style="display:none;">
+          <div class="meta-card">
+            <small>Delivery Stage</small>
+            <span id="activeRequestDeliveryStage">—</span>
+          </div>
+
+          <div class="meta-card">
+            <small>Delivery PIN</small>
+            <span id="activeRequestDeliveryPin">—</span>
+          </div>
+
+          <div class="meta-card">
+            <small>Merchant</small>
+            <span id="activeRequestDeliveryMerchant">—</span>
+          </div>
+        </div>
+
+        <div class="mini-track-map hidden" id="activeRequestMap"></div>
+
         <div class="actions">
           <button class="btn primary" type="button" id="openLiveTrackingBtn">
             Open Live Tracking
           </button>
         </div>
+      </div>
+    </section>
+
+    <!-- SCHEDULED RIDES -->
+    <section class="section" id="scheduledSection" style="display:none;">
+      <div class="section-header">
+        <div>
+          <h2>Upcoming scheduled rides</h2>
+
+          <p>
+            Rides you've booked ahead of time, ordered by pickup time.
+          </p>
+        </div>
+      </div>
+
+      <div id="scheduledList" class="list"></div>
+
+      <div id="scheduledEmpty" class="empty" style="display:none;">
+        No upcoming scheduled rides.
       </div>
     </section>
 
@@ -1108,42 +1207,7 @@
           <button
             class="place-card"
             type="button"
-            data-place="home"
-          >
-            <div class="place-icon">🏠</div>
-
-            <div class="place-copy">
-              <strong>Home</strong>
-              <span>
-                Saved home shortcut support coming soon.
-              </span>
-            </div>
-
-            <div class="place-arrow">›</div>
-          </button>
-
-          <button
-            class="place-card"
-            type="button"
-            data-place="work"
-          >
-            <div class="place-icon">💼</div>
-
-            <div class="place-copy">
-              <strong>Work</strong>
-              <span>
-                Saved work shortcut support coming soon.
-              </span>
-            </div>
-
-            <div class="place-arrow">›</div>
-          </button>
-
-          <button
-            class="place-card"
-            type="button"
-            data-place="airport"
-            data-address="1 Terminal Dr, Nashville, TN"
+            data-launch-address="1 Terminal Dr, Nashville, TN"
           >
             <div class="place-icon">✈️</div>
 
@@ -1158,6 +1222,32 @@
           </button>
 
         </div>
+
+        <div id="savedPlacesList" class="places" style="margin-top:12px;"></div>
+
+        <div id="savedPlacesEmpty" class="empty" style="display:none;margin-top:12px;">
+          No saved places yet. Add one below.
+        </div>
+
+        <form class="mini-form" id="addPlaceForm">
+          <input
+            id="newPlaceLabel"
+            type="text"
+            placeholder="Label (e.g. Home, Work, Mom's house)"
+            maxlength="60"
+          />
+
+          <input
+            id="newPlaceAddress"
+            type="text"
+            placeholder="Full address"
+            maxlength="300"
+          />
+
+          <button class="btn primary" type="submit">
+            Add saved place
+          </button>
+        </form>
 
       </section>
 
@@ -1246,6 +1336,107 @@
             </span>
           </button>
 
+          <button
+            class="service-card"
+            type="button"
+            data-action="airport"
+          >
+            <div class="service-icon">✈️</div>
+
+            <strong>Airport ride</strong>
+
+            <span>
+              Request a ride with a flat airport surcharge.
+            </span>
+          </button>
+
+          <button
+            class="service-card"
+            type="button"
+            data-action="scheduled"
+          >
+            <div class="service-icon">🗓️</div>
+
+            <strong>Schedule a ride</strong>
+
+            <span>
+              Book a pickup time in advance.
+            </span>
+          </button>
+
+        </div>
+
+      </section>
+
+    </div>
+
+    <!-- GRID 2 -->
+    <div class="grid">
+
+      <!-- NOTIFICATIONS -->
+      <section class="section">
+
+        <div class="section-header">
+          <div>
+            <h2>Notifications</h2>
+
+            <p>
+              Get alerted the moment your ride or delivery status changes.
+            </p>
+          </div>
+        </div>
+
+        <div id="notificationStatus" class="notice" style="display:none;"></div>
+
+        <div class="actions" style="margin-bottom:16px;">
+          <button class="btn success" type="button" id="enablePushBtn">
+            Enable Ride Alerts
+          </button>
+        </div>
+
+        <div id="notificationFeed" class="notification-feed"></div>
+
+        <div id="notificationFeedEmpty" class="empty">
+          No recent notifications. Status changes on your active ride or
+          delivery will show up here.
+        </div>
+
+      </section>
+
+      <!-- HTAF STATUS -->
+      <section class="section">
+
+        <div class="section-header">
+          <div>
+            <h2>HTAF application status</h2>
+
+            <p>
+              Your most recent Harvey Taxi Assistance Foundation application.
+            </p>
+          </div>
+        </div>
+
+        <div id="htafStatusCard">
+          <div class="empty" id="htafStatusEmpty">
+            No HTAF application found for your account email yet.
+          </div>
+
+          <div class="trip-card" id="htafStatusDetail" style="display:none;">
+            <div class="trip-top">
+              <div>
+                <div class="trip-title" id="htafStatusProgram">—</div>
+                <div class="trip-sub" id="htafStatusCode">—</div>
+              </div>
+
+              <div class="trip-status" id="htafStatusPill">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="actions" style="margin-top:16px;">
+          <button class="btn primary" type="button" data-action="htaf">
+            Start New Application
+          </button>
         </div>
 
       </section>
@@ -1575,8 +1766,16 @@
       tab: "rides",
       loading: false,
       activeRequest: null,
-      activeRequestPollId: null
+      activeRequestPollId: null,
+      activeRequestLastStatus: "",
+      savedPlaces: [],
+      trackingMap: { instance: null, driverMarker: null, targetMarker: null, line: null },
+      mapsEnabled: false,
+      htafApplication: null
     };
+
+    const NOTIFICATION_FEED_KEY = "harvey_rider_notification_feed";
+    const NOTIFICATION_FEED_MAX = 10;
 
     const els = {
       heroTitle: document.getElementById("heroTitle"),
@@ -1598,11 +1797,37 @@
       activeRequestDriver: document.getElementById("activeRequestDriver"),
       activeRequestIdText: document.getElementById("activeRequestIdText"),
       openLiveTrackingBtn: document.getElementById("openLiveTrackingBtn"),
+      activeRequestDeliveryMeta: document.getElementById("activeRequestDeliveryMeta"),
+      activeRequestDeliveryStage: document.getElementById("activeRequestDeliveryStage"),
+      activeRequestDeliveryPin: document.getElementById("activeRequestDeliveryPin"),
+      activeRequestDeliveryMerchant: document.getElementById("activeRequestDeliveryMerchant"),
+      activeRequestMap: document.getElementById("activeRequestMap"),
+
+      scheduledSection: document.getElementById("scheduledSection"),
+      scheduledList: document.getElementById("scheduledList"),
+      scheduledEmpty: document.getElementById("scheduledEmpty"),
 
       statusApproval: document.getElementById("statusApproval"),
       statusRideAccess: document.getElementById("statusRideAccess"),
       statusDeliveryAccess: document.getElementById("statusDeliveryAccess"),
       statusRiderId: document.getElementById("statusRiderId"),
+
+      savedPlacesList: document.getElementById("savedPlacesList"),
+      savedPlacesEmpty: document.getElementById("savedPlacesEmpty"),
+      addPlaceForm: document.getElementById("addPlaceForm"),
+      newPlaceLabel: document.getElementById("newPlaceLabel"),
+      newPlaceAddress: document.getElementById("newPlaceAddress"),
+
+      notificationStatus: document.getElementById("notificationStatus"),
+      enablePushBtn: document.getElementById("enablePushBtn"),
+      notificationFeed: document.getElementById("notificationFeed"),
+      notificationFeedEmpty: document.getElementById("notificationFeedEmpty"),
+
+      htafStatusEmpty: document.getElementById("htafStatusEmpty"),
+      htafStatusDetail: document.getElementById("htafStatusDetail"),
+      htafStatusProgram: document.getElementById("htafStatusProgram"),
+      htafStatusCode: document.getElementById("htafStatusCode"),
+      htafStatusPill: document.getElementById("htafStatusPill"),
 
       activityLoading: document.getElementById("activityLoading"),
       activityList: document.getElementById("activityList"),
@@ -1886,27 +2111,20 @@
       goRide(type === "grocery" ? "grocery" : "food");
     }
 
-    function quickDestination(label, address) {
-      if (!address) {
-        showSystemNotice(
-          `${label} saved-place editing will be added in the next frontend phase.`,
-          "success"
-        );
-
-        return;
-      }
-
+    // ride_type=scheduled is read by request-ride.html's
+    // hydrateFromStorage() to preselect the "Scheduled Ride" option in
+    // the wizard's Ride Type dropdown.
+    function goScheduled() {
       const params = new URLSearchParams();
 
       params.set("mode", "driver");
-      params.set("destination", address);
+      params.set("ride_type", "scheduled");
 
       if (state.riderId) {
         params.set("rider_id", state.riderId);
       }
 
-      window.location.href =
-        `request-ride.html?${params.toString()}`;
+      window.location.href = `request-ride.html?${params.toString()}`;
     }
 
     function renderRider() {
@@ -2084,8 +2302,76 @@
 
       renderRider();
       renderActivity();
+      renderScheduledRides();
 
       els.activityLoading.style.display = "none";
+    }
+
+    // Scheduled rides: derived entirely from state.rides (already fetched
+    // by loadHistory() above) rather than a dedicated endpoint —
+    // RIDER_HISTORY_COLUMNS already selects scheduled_time, so there's
+    // nothing new to fetch, just a client-side filter for "still ahead of
+    // us" rides.
+    function renderScheduledRides() {
+      if (!els.scheduledSection || !els.scheduledList) return;
+
+      const now = Date.now();
+
+      const upcoming = state.rides
+        .filter((ride) => {
+          if (!ride.scheduled_time) return false;
+          if (TERMINAL_STATUSES.includes(String(ride.status || "").toLowerCase())) return false;
+          const when = new Date(ride.scheduled_time).getTime();
+          return Number.isFinite(when) && when > now;
+        })
+        .sort((a, b) => new Date(a.scheduled_time) - new Date(b.scheduled_time));
+
+      if (!upcoming.length) {
+        els.scheduledSection.style.display = "none";
+        return;
+      }
+
+      els.scheduledSection.style.display = "block";
+      els.scheduledEmpty.style.display = "none";
+      els.scheduledList.innerHTML = "";
+
+      upcoming.forEach((ride) => {
+        const when = new Date(ride.scheduled_time);
+        const whenText = Number.isNaN(when.getTime())
+          ? "Pickup time pending"
+          : when.toLocaleString(undefined, {
+              weekday: "short",
+              month: "short",
+              day: "numeric",
+              hour: "numeric",
+              minute: "2-digit"
+            });
+
+        const card = document.createElement("div");
+        card.className = "trip-card";
+        card.innerHTML = `
+          <div class="trip-top">
+            <div>
+              <div class="trip-title">${escapeHtml(whenText)}</div>
+              <div class="trip-sub">
+                ${escapeHtml(normalizeItemPickup(ride))} → ${escapeHtml(normalizeItemDropoff(ride))}
+              </div>
+            </div>
+
+            <div class="trip-status ${statusClass(ride.status)}">
+              ${escapeHtml(human(ride.status || "scheduled"))}
+            </div>
+          </div>
+
+          <div class="actions">
+            <button class="btn ghost" type="button" data-manage-ride="${escapeHtml(normalizeItemId(ride))}">
+              Manage
+            </button>
+          </div>
+        `;
+
+        els.scheduledList.appendChild(card);
+      });
     }
 
     function normalizeItemTitle(item, isDelivery) {
@@ -2337,8 +2623,445 @@
         };
       }
 
+      if (els.activeRequestDeliveryMeta) {
+        if (isDelivery && data.delivery) {
+          els.activeRequestDeliveryMeta.style.display = "grid";
+
+          if (els.activeRequestDeliveryStage) {
+            els.activeRequestDeliveryStage.textContent =
+              data.delivery.stage_label || human(data.delivery.stage || "pending");
+          }
+
+          if (els.activeRequestDeliveryPin) {
+            els.activeRequestDeliveryPin.textContent = data.delivery.pin || "—";
+          }
+
+          if (els.activeRequestDeliveryMerchant) {
+            els.activeRequestDeliveryMerchant.textContent = data.delivery.merchant_name || "—";
+          }
+        } else {
+          els.activeRequestDeliveryMeta.style.display = "none";
+        }
+      }
+
+      renderActiveRequestMap(data);
+      recordStatusNotification(data);
+
       if (els.activeRequestSection) {
         els.activeRequestSection.style.display = "block";
+      }
+    }
+
+    // Inline live-tracking map, mirroring request-ride.html's
+    // updateLiveTrackingMap() at a much smaller scope — same "straight
+    // line between driver and current target" honesty (not a routed
+    // path), just rendered directly on the dashboard instead of only
+    // behind the "Open Live Tracking" deep link.
+    function renderActiveRequestMap(data) {
+      if (!els.activeRequestMap) return;
+
+      const tracking = data?.tracking;
+      const driverLoc = data?.driver?.location;
+
+      const targetLoc =
+        tracking?.target === "store" || tracking?.target === "pickup"
+          ? data?.pickup_location
+          : data?.destination_location;
+
+      const canRender =
+        state.mapsEnabled &&
+        window.google?.maps &&
+        tracking &&
+        driverLoc &&
+        Number.isFinite(Number(driverLoc.lat)) &&
+        Number.isFinite(Number(driverLoc.lng)) &&
+        targetLoc &&
+        Number.isFinite(Number(targetLoc.lat)) &&
+        Number.isFinite(Number(targetLoc.lng));
+
+      if (!canRender) {
+        els.activeRequestMap.classList.add("hidden");
+        return;
+      }
+
+      els.activeRequestMap.classList.remove("hidden");
+
+      const driverPos = { lat: Number(driverLoc.lat), lng: Number(driverLoc.lng) };
+      const targetPos = { lat: Number(targetLoc.lat), lng: Number(targetLoc.lng) };
+      const tm = state.trackingMap;
+
+      if (!tm.instance) {
+        tm.instance = new google.maps.Map(els.activeRequestMap, {
+          center: driverPos,
+          zoom: 13,
+          disableDefaultUI: true,
+          zoomControl: true,
+          streetViewControl: false,
+          mapTypeControl: false
+        });
+
+        tm.driverMarker = new google.maps.Marker({
+          position: driverPos,
+          map: tm.instance,
+          title: "Your driver",
+          icon: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png"
+        });
+
+        tm.targetMarker = new google.maps.Marker({
+          position: targetPos,
+          map: tm.instance
+        });
+
+        tm.line = new google.maps.Polyline({
+          path: [driverPos, targetPos],
+          strokeOpacity: 0,
+          icons: [{
+            icon: { path: "M 0,-1 0,1", strokeOpacity: 0.55, scale: 3 },
+            offset: "0",
+            repeat: "12px"
+          }],
+          map: tm.instance
+        });
+      } else {
+        tm.driverMarker.setPosition(driverPos);
+        tm.targetMarker.setPosition(targetPos);
+        tm.line.setPath([driverPos, targetPos]);
+      }
+
+      const bounds = new google.maps.LatLngBounds();
+      bounds.extend(driverPos);
+      bounds.extend(targetPos);
+      tm.instance.fitBounds(bounds, 40);
+    }
+
+    async function loadGoogleMaps() {
+      try {
+        const res = await fetch(`${apiBase()}/api/maps-key`);
+        const data = await res.json();
+
+        if (!data?.key) return;
+
+        const script = document.createElement("script");
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(data.key)}`;
+        script.async = true;
+        script.onload = () => { state.mapsEnabled = true; };
+        document.head.appendChild(script);
+      } catch {}
+    }
+
+    // ---- Notifications: in-page feed + browser push ----
+
+    function loadNotificationFeed() {
+      try {
+        return JSON.parse(localStorage.getItem(NOTIFICATION_FEED_KEY) || "[]");
+      } catch {
+        return [];
+      }
+    }
+
+    function pushNotificationFeed(message) {
+      const feed = loadNotificationFeed();
+      feed.unshift({ message, at: new Date().toISOString() });
+
+      try {
+        localStorage.setItem(
+          NOTIFICATION_FEED_KEY,
+          JSON.stringify(feed.slice(0, NOTIFICATION_FEED_MAX))
+        );
+      } catch {}
+
+      renderNotificationFeed();
+    }
+
+    function renderNotificationFeed() {
+      if (!els.notificationFeed) return;
+
+      const feed = loadNotificationFeed();
+
+      if (!feed.length) {
+        els.notificationFeed.innerHTML = "";
+        if (els.notificationFeedEmpty) els.notificationFeedEmpty.style.display = "block";
+        return;
+      }
+
+      if (els.notificationFeedEmpty) els.notificationFeedEmpty.style.display = "none";
+
+      els.notificationFeed.innerHTML = feed
+        .map(
+          (item) => `
+            <div class="notification-item">
+              ${escapeHtml(item.message)}
+              <time>${escapeHtml(new Date(item.at).toLocaleString())}</time>
+            </div>
+          `
+        )
+        .join("");
+    }
+
+    // In-page record of every real status change on the active request,
+    // so status updates are visible even without push permission granted
+    // (push, below, covers the same events when the tab isn't open).
+    function recordStatusNotification(data) {
+      const status = String(data?.status || "").toLowerCase();
+
+      if (!status || status === state.activeRequestLastStatus) return;
+
+      state.activeRequestLastStatus = status;
+      pushNotificationFeed(`${human(data.ride_type || "Ride")} is now ${human(status)}.`);
+    }
+
+    function showNotificationStatus(message, type) {
+      if (!els.notificationStatus) return;
+
+      els.notificationStatus.style.display = "block";
+      els.notificationStatus.className = `notice ${type === "danger" ? "danger" : "success"}`;
+      els.notificationStatus.textContent = message;
+    }
+
+    function urlBase64ToUint8Array(base64String) {
+      const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+      const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+      const rawData = window.atob(base64);
+      const output = new Uint8Array(rawData.length);
+
+      for (let i = 0; i < rawData.length; i++) {
+        output[i] = rawData.charCodeAt(i);
+      }
+
+      return output;
+    }
+
+    // Reuses the exact push_subscriptions/VAPID infrastructure already
+    // built for index.html and driver-dashboard.html — the server already
+    // sends push to ownerType "rider" on ride-stage changes
+    // (notifyRideStage()); this was the only missing piece.
+    async function enablePushNotifications() {
+      if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+        showNotificationStatus("Push notifications aren't supported in this browser.", "danger");
+        return;
+      }
+
+      if (!state.riderId) {
+        showNotificationStatus("Please sign in with your rider account first.", "danger");
+        return;
+      }
+
+      if (els.enablePushBtn) els.enablePushBtn.disabled = true;
+
+      try {
+        const permission = await Notification.requestPermission();
+
+        if (permission !== "granted") {
+          showNotificationStatus("Notification permission was not granted.", "danger");
+          return;
+        }
+
+        const keyRes = await fetch(`${apiBase()}/api/push/vapid-public-key`);
+        const keyData = await keyRes.json();
+
+        if (!keyData?.key) {
+          showNotificationStatus("Push notifications aren't configured on the server yet.", "danger");
+          return;
+        }
+
+        const registration = await navigator.serviceWorker.register("/service-worker.js", { scope: "/" });
+
+        const subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(keyData.key)
+        });
+
+        await requestJson("/api/push/subscribe", {
+          method: "POST",
+          body: JSON.stringify({
+            owner_type: "rider",
+            owner_id: state.riderId,
+            subscription: subscription.toJSON()
+          })
+        });
+
+        showNotificationStatus("Ride alert notifications enabled for this browser.", "success");
+      } catch (error) {
+        showNotificationStatus(
+          "Could not enable notifications: " + (error?.message || "unknown error"),
+          "danger"
+        );
+      } finally {
+        if (els.enablePushBtn) els.enablePushBtn.disabled = false;
+      }
+    }
+
+    // ---- Saved places ----
+
+    async function loadSavedPlaces() {
+      if (!state.riderId) {
+        state.savedPlaces = [];
+        renderSavedPlaces();
+        return;
+      }
+
+      try {
+        const data = await requestJson(
+          `/api/rider/saved-places?riderId=${encodeURIComponent(state.riderId)}`
+        );
+
+        state.savedPlaces = Array.isArray(data.places) ? data.places : [];
+      } catch (error) {
+        console.log("Saved places unavailable:", error.message);
+        state.savedPlaces = [];
+      }
+
+      renderSavedPlaces();
+    }
+
+    function renderSavedPlaces() {
+      if (!els.savedPlacesList) return;
+
+      if (!state.savedPlaces.length) {
+        els.savedPlacesList.innerHTML = "";
+        if (els.savedPlacesEmpty) els.savedPlacesEmpty.style.display = "block";
+        return;
+      }
+
+      if (els.savedPlacesEmpty) els.savedPlacesEmpty.style.display = "none";
+
+      els.savedPlacesList.innerHTML = state.savedPlaces
+        .map(
+          (place) => `
+            <div class="place-card-wrap">
+              <button class="place-card" type="button" data-launch-address="${escapeHtml(place.address)}">
+                <div class="place-icon">${escapeHtml(place.icon || "📍")}</div>
+
+                <div class="place-copy">
+                  <strong>${escapeHtml(place.label)}</strong>
+                  <span>${escapeHtml(place.address)}</span>
+                </div>
+
+                <div class="place-arrow">›</div>
+              </button>
+
+              <button
+                class="place-remove"
+                type="button"
+                data-remove-place="${escapeHtml(place.id)}"
+                aria-label="Remove ${escapeHtml(place.label)}"
+              >✕</button>
+            </div>
+          `
+        )
+        .join("");
+    }
+
+    async function addSavedPlace(event) {
+      event.preventDefault();
+
+      const label = safe(els.newPlaceLabel?.value);
+      const address = safe(els.newPlaceAddress?.value);
+
+      if (!label || !address) {
+        showSystemNotice("Please enter both a label and an address.", "danger");
+        return;
+      }
+
+      if (!state.riderId) {
+        showSystemNotice("Please sign in before saving a place.", "danger");
+        return;
+      }
+
+      try {
+        await requestJson("/api/rider/saved-places", {
+          method: "POST",
+          body: JSON.stringify({ riderId: state.riderId, label, address })
+        });
+
+        if (els.newPlaceLabel) els.newPlaceLabel.value = "";
+        if (els.newPlaceAddress) els.newPlaceAddress.value = "";
+
+        await loadSavedPlaces();
+        showSystemNotice("Saved place added.", "success");
+      } catch (error) {
+        showSystemNotice(error.message || "Could not save this place.", "danger");
+      }
+    }
+
+    async function removeSavedPlace(id) {
+      if (!id || !state.riderId) return;
+
+      try {
+        await requestJson(
+          `/api/rider/saved-places/${encodeURIComponent(id)}?riderId=${encodeURIComponent(state.riderId)}`,
+          { method: "DELETE" }
+        );
+
+        await loadSavedPlaces();
+      } catch (error) {
+        showSystemNotice(error.message || "Could not remove this place.", "danger");
+      }
+    }
+
+    // ai_destination is the same query param request-ride.html's
+    // hydrateFromStorage() already reads and feeds through
+    // applyAiPrefill() — reusing it here (instead of the old, never-read
+    // "destination" param the previous decorative Saved Places cards
+    // used) is what actually makes a saved place prefill the wizard.
+    function launchPlace(address) {
+      if (!address) return;
+
+      const params = new URLSearchParams();
+      params.set("mode", "driver");
+      params.set("ai_destination", address);
+
+      if (state.riderId) {
+        params.set("rider_id", state.riderId);
+      }
+
+      window.location.href = `request-ride.html?${params.toString()}`;
+    }
+
+    // ---- HTAF application status ----
+
+    async function loadHtafStatus() {
+      const email = state.riderProfile?.email;
+
+      if (!email) return;
+
+      try {
+        const data = await requestJson(
+          `/api/foundation/applications/by-email?email=${encodeURIComponent(email)}`
+        );
+
+        state.htafApplication = data.application || null;
+      } catch (error) {
+        console.log("HTAF status unavailable:", error.message);
+        state.htafApplication = null;
+      }
+
+      renderHtafStatus();
+    }
+
+    function renderHtafStatus() {
+      const application = state.htafApplication;
+
+      if (!application) {
+        if (els.htafStatusEmpty) els.htafStatusEmpty.style.display = "block";
+        if (els.htafStatusDetail) els.htafStatusDetail.style.display = "none";
+        return;
+      }
+
+      if (els.htafStatusEmpty) els.htafStatusEmpty.style.display = "none";
+      if (els.htafStatusDetail) els.htafStatusDetail.style.display = "grid";
+
+      if (els.htafStatusProgram) {
+        els.htafStatusProgram.textContent = human(application.program_type || "HTAF application");
+      }
+
+      if (els.htafStatusCode) {
+        els.htafStatusCode.textContent = `Application ${application.application_code || "—"}`;
+      }
+
+      if (els.htafStatusPill) {
+        els.htafStatusPill.className = `trip-status ${statusClass(application.status)}`;
+        els.htafStatusPill.textContent = human(application.status || "submitted");
       }
     }
 
@@ -2493,6 +3216,8 @@
       hideSystemNotice();
       await loadRiderStatus();
       await loadHistory();
+      await loadSavedPlaces();
+      await loadHtafStatus();
 
       showSystemNotice(
         "Dashboard refreshed successfully.",
@@ -2539,6 +3264,14 @@
           goHtaf();
           break;
 
+        case "airport":
+          goRide("airport");
+          break;
+
+        case "scheduled":
+          goScheduled();
+          break;
+
         default:
           break;
       }
@@ -2557,17 +3290,6 @@
         });
       });
 
-      document.querySelectorAll("[data-place]").forEach((button) => {
-        button.addEventListener("click", () => {
-          const label =
-            button.dataset.place === "airport"
-              ? "BNA Airport"
-              : human(button.dataset.place);
-
-          quickDestination(label, button.dataset.address || "");
-        });
-      });
-
       document.addEventListener("click", (event) => {
         const tipButton = event.target.closest("[data-tip-id]");
 
@@ -2576,8 +3298,34 @@
             tipButton.dataset.tipId,
             tipButton.dataset.tipType
           );
+          return;
+        }
+
+        const launchButton = event.target.closest("[data-launch-address]");
+
+        if (launchButton) {
+          launchPlace(launchButton.dataset.launchAddress || "");
+          return;
+        }
+
+        const removeButton = event.target.closest("[data-remove-place]");
+
+        if (removeButton) {
+          removeSavedPlace(removeButton.dataset.removePlace || "");
+          return;
+        }
+
+        const manageButton = event.target.closest("[data-manage-ride]");
+
+        if (manageButton) {
+          window.location.href =
+            `request-ride.html?ride_id=${encodeURIComponent(manageButton.dataset.manageRide || "")}&mode=driver`;
         }
       });
+
+      els.addPlaceForm?.addEventListener("submit", addSavedPlace);
+
+      els.enablePushBtn?.addEventListener("click", enablePushNotifications);
 
       document
         .getElementById("personaBtn")
@@ -2598,11 +3346,15 @@
 
     async function boot() {
       bindEvents();
+      renderNotificationFeed();
+      loadGoogleMaps();
 
       try {
         await loadRiderStatus();
         await loadHistory();
         await loadActiveRequest();
+        await loadSavedPlaces();
+        await loadHtafStatus();
       } catch (error) {
         console.log("Dashboard boot warning:", error.message);
 
