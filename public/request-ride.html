@@ -789,6 +789,26 @@
       box-shadow: 0 0 0 4px rgba(70, 240, 255, 0.08);
     }
 
+    .card-element-wrap {
+      padding: 14px;
+      transition: 180ms ease;
+    }
+
+    .card-element-wrap.StripeElement--focus {
+      border-color: rgba(70, 240, 255, 0.55);
+      box-shadow: 0 0 0 4px rgba(70, 240, 255, 0.08);
+    }
+
+    .card-element-wrap.StripeElement--invalid {
+      border-color: rgba(255, 92, 122, 0.55);
+    }
+
+    .card-errors {
+      color: var(--red);
+      font-size: 0.78rem;
+      min-height: 1em;
+    }
+
     .two-col {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -940,6 +960,56 @@
       display: block;
       font-size: 1.08rem;
       letter-spacing: -0.04em;
+    }
+
+    .fare-breakdown {
+      margin-top: 14px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.03);
+      border-radius: 18px;
+      padding: 6px 16px;
+    }
+
+    .fare-breakdown-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 9px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      font-size: 0.86rem;
+    }
+
+    .fare-breakdown-row:last-of-type {
+      border-bottom: none;
+    }
+
+    .fare-breakdown-row span {
+      color: var(--text-muted);
+    }
+
+    .fare-breakdown-row strong {
+      font-weight: 800;
+    }
+
+    .fare-breakdown-total {
+      border-top: 1px solid var(--line);
+      border-bottom: none;
+      margin-top: 2px;
+      padding-top: 12px;
+    }
+
+    .fare-breakdown-total span,
+    .fare-breakdown-total strong {
+      color: var(--text-main);
+      font-size: 0.98rem;
+      font-weight: 900;
+    }
+
+    .fare-breakdown-note {
+      margin: 0 0 10px;
+      color: var(--text-muted);
+      font-size: 0.76rem;
     }
 
     .driver-info-card {
@@ -1491,6 +1561,19 @@
 
                 <span>
                   Standard ride request with a human driver.
+                </span>
+              </button>
+
+              <button
+                type="button"
+                class="mode-chip"
+                id="modeAirportBtn"
+                data-mode="airport"
+              >
+                <strong>Airport Ride</strong>
+
+                <span>
+                  Ride to or from the airport, with a flat airport surcharge.
                 </span>
               </button>
 
@@ -2163,6 +2246,49 @@
 
             </div>
 
+            <!-- FARE BREAKDOWN -->
+            <div id="fareBreakdown" class="fare-breakdown hidden">
+              <div class="fare-breakdown-row" id="breakdownBaseFareRow">
+                <span>Base Fare</span>
+                <strong id="breakdownBaseFare">—</strong>
+              </div>
+              <div class="fare-breakdown-row" id="breakdownDistanceChargeRow">
+                <span>Distance Charge</span>
+                <strong id="breakdownDistanceCharge">—</strong>
+              </div>
+              <div class="fare-breakdown-row" id="breakdownTimeChargeRow">
+                <span>Time Charge</span>
+                <strong id="breakdownTimeCharge">—</strong>
+              </div>
+              <div class="fare-breakdown-row hidden" id="breakdownDeliveryFeeRow">
+                <span>Delivery Fee</span>
+                <strong id="breakdownDeliveryFee">—</strong>
+              </div>
+              <div class="fare-breakdown-row hidden" id="breakdownDeliveryDistanceChargeRow">
+                <span>Delivery Distance Charge</span>
+                <strong id="breakdownDeliveryDistanceCharge">—</strong>
+              </div>
+              <div class="fare-breakdown-row">
+                <span>Booking Fee</span>
+                <strong id="breakdownBookingFee">—</strong>
+              </div>
+              <div class="fare-breakdown-row hidden" id="breakdownDiscountRow">
+                <span>Discount</span>
+                <strong id="breakdownDiscount">—</strong>
+              </div>
+              <div class="fare-breakdown-row hidden" id="breakdownSurchargeRow">
+                <span>Surcharge</span>
+                <strong id="breakdownSurcharge">—</strong>
+              </div>
+              <div class="fare-breakdown-row fare-breakdown-total">
+                <span>Total</span>
+                <strong id="breakdownTotal">—</strong>
+              </div>
+              <p id="breakdownMinimumNote" class="fare-breakdown-note hidden">
+                Minimum fare applied.
+              </p>
+            </div>
+
             <div class="actions">
               <button
                 type="button"
@@ -2188,6 +2314,15 @@
 
             <!-- STAGE: PAYMENT & APPROVAL -->
             <div class="wizard-step" data-stage="payment" id="wizardStagePayment">
+
+            <!-- CARD DETAILS -->
+            <div class="field">
+              <label for="cardElementContainer">Card Details</label>
+              <div class="input-wrap card-element-wrap" id="cardElementContainer">
+                <!-- Stripe Elements mounts the real card field here. -->
+              </div>
+              <small id="cardElementErrors" class="card-errors" role="alert"></small>
+            </div>
 
             <!-- ACTIONS -->
             <div class="actions">
@@ -2590,6 +2725,12 @@
     })();
   </script>
 
+  <!-- STRIPE.JS — publishable key only, safe to load unconditionally.
+       The main controller script below checks whether Stripe actually
+       initialized (a real key came back from /api/stripe-key) before
+       trying to use it. -->
+  <script src="https://js.stripe.com/v3/"></script>
+
   <!-- MAIN CONTROLLER -->
   <script>
     /**
@@ -2620,6 +2761,7 @@
         // Payment intent (Stripe) then authorize:
         paymentIntent: "/api/rides/payment-intent",       // POST
         authorizeRide: "/api/rides",                       // + "/:id/authorize" (POST)
+        stripeKey: "/api/stripe-key",                       // GET
 
         // Ride request: real route is POST /api/rides/request
         requestRide: "/api/rides/request"
@@ -2688,7 +2830,10 @@
       },
 
       destination: {
-        address: ""
+        address: "",
+        latitude: null,
+        longitude: null,
+        source: "manual"
       },
 
       estimate: {
@@ -2696,6 +2841,16 @@
         fare: null,
         distance: null,
         duration: null,
+        // The real trip distance/duration (from Google's Distance Matrix,
+        // once both pickup and destination have coordinates). These are
+        // what buildTripPayload() actually sends to the server — see
+        // ensureTripDistance(). Kept distinct from distance/duration
+        // above, which are just display strings echoed back from the
+        // server's estimate response.
+        distanceMiles: null,
+        durationMinutes: null,
+        distanceKnown: false,
+        breakdown: null,
         raw: null
       },
 
@@ -2703,6 +2858,11 @@
         authorized: false,
         paymentId: "",
         clientSecret: "",
+        // Generated once per trip configuration (see
+        // getOrCreateIdempotencyKey()) and reused across retries of the
+        // same fare, so a network retry or accidental double-click can't
+        // create two PaymentIntents for the same trip.
+        idempotencyKey: "",
         raw: null
       },
 
@@ -2732,7 +2892,9 @@
         lng: null
       },
 
-      merchantAutocomplete: null
+      merchantAutocomplete: null,
+      pickupAutocomplete: null,
+      destinationAutocomplete: null
     };    const $ = (id) => document.getElementById(id);
 
     const els = {
@@ -2810,6 +2972,8 @@
       enablePushBtn: $("enablePushBtn"),
       estimateBtn: $("estimateBtn"),
       authorizePaymentBtn: $("authorizePaymentBtn"),
+      cardElementContainer: $("cardElementContainer"),
+      cardElementErrors: $("cardElementErrors"),
       requestRideBtn: $("requestRideBtn"),
       resetFlowBtn: $("resetFlowBtn"),
       refreshStatusBtn: $("refreshStatusBtn"),
@@ -2827,6 +2991,25 @@
       fareEstimateText: $("fareEstimateText"),
       distanceText: $("distanceText"),
       durationText: $("durationText"),
+
+      fareBreakdown: $("fareBreakdown"),
+      breakdownBaseFareRow: $("breakdownBaseFareRow"),
+      breakdownBaseFare: $("breakdownBaseFare"),
+      breakdownDistanceChargeRow: $("breakdownDistanceChargeRow"),
+      breakdownDistanceCharge: $("breakdownDistanceCharge"),
+      breakdownTimeChargeRow: $("breakdownTimeChargeRow"),
+      breakdownTimeCharge: $("breakdownTimeCharge"),
+      breakdownDeliveryFeeRow: $("breakdownDeliveryFeeRow"),
+      breakdownDeliveryFee: $("breakdownDeliveryFee"),
+      breakdownDeliveryDistanceChargeRow: $("breakdownDeliveryDistanceChargeRow"),
+      breakdownDeliveryDistanceCharge: $("breakdownDeliveryDistanceCharge"),
+      breakdownBookingFee: $("breakdownBookingFee"),
+      breakdownDiscountRow: $("breakdownDiscountRow"),
+      breakdownDiscount: $("breakdownDiscount"),
+      breakdownSurchargeRow: $("breakdownSurchargeRow"),
+      breakdownSurcharge: $("breakdownSurcharge"),
+      breakdownTotal: $("breakdownTotal"),
+      breakdownMinimumNote: $("breakdownMinimumNote"),
       dispatchStateText: $("dispatchStateText"),
 
       driverInfoCard: $("driverInfoCard"),
@@ -2883,6 +3066,102 @@
         style: "currency",
         currency: "USD"
       });
+    }
+
+    // Shows the real line-item breakdown from calculateRideEstimate()
+    // (base fare, distance charge, time charge, booking fee, any
+    // discount/surcharge) instead of just the lump total that used to be
+    // the only number a rider ever saw before authorizing payment.
+    function renderFareBreakdown(breakdown) {
+      if (!els.fareBreakdown) return;
+
+      if (!breakdown) {
+        els.fareBreakdown.classList.add("hidden");
+        return;
+      }
+
+      els.fareBreakdown.classList.remove("hidden");
+
+      // Food/grocery use a distinct delivery-fee model (no passenger base
+      // fare, no time charge — a delivery isn't charged for drive time the
+      // way a passenger ride is) — show whichever set of rows actually
+      // applies instead of always showing all of them.
+      const isDelivery = Boolean(breakdown.isDelivery);
+
+      if (els.breakdownBaseFareRow) {
+        els.breakdownBaseFareRow.classList.toggle("hidden", isDelivery);
+      }
+
+      if (els.breakdownDistanceChargeRow) {
+        els.breakdownDistanceChargeRow.classList.toggle("hidden", isDelivery);
+      }
+
+      if (els.breakdownTimeChargeRow) {
+        els.breakdownTimeChargeRow.classList.toggle("hidden", isDelivery);
+      }
+
+      if (els.breakdownDeliveryFeeRow) {
+        els.breakdownDeliveryFeeRow.classList.toggle("hidden", !isDelivery);
+      }
+
+      if (els.breakdownDeliveryDistanceChargeRow) {
+        els.breakdownDeliveryDistanceChargeRow.classList.toggle("hidden", !isDelivery);
+      }
+
+      if (els.breakdownBaseFare) {
+        els.breakdownBaseFare.textContent = money(breakdown.baseFare);
+      }
+
+      if (els.breakdownDistanceCharge) {
+        els.breakdownDistanceCharge.textContent = money(breakdown.distanceCharge);
+      }
+
+      if (els.breakdownTimeCharge) {
+        els.breakdownTimeCharge.textContent = money(breakdown.timeCharge);
+      }
+
+      if (els.breakdownDeliveryFee) {
+        els.breakdownDeliveryFee.textContent = money(breakdown.deliveryFee);
+      }
+
+      if (els.breakdownDeliveryDistanceCharge) {
+        els.breakdownDeliveryDistanceCharge.textContent = money(breakdown.deliveryDistanceCharge);
+      }
+
+      if (els.breakdownBookingFee) {
+        els.breakdownBookingFee.textContent = money(breakdown.bookingFee);
+      }
+
+      const hasDiscount = Number(breakdown.discountAmount) > 0;
+
+      if (els.breakdownDiscountRow) {
+        els.breakdownDiscountRow.classList.toggle("hidden", !hasDiscount);
+      }
+
+      if (els.breakdownDiscount) {
+        els.breakdownDiscount.textContent = `-${money(breakdown.discountAmount)}`;
+      }
+
+      const hasSurcharge = Number(breakdown.surchargeAmount) > 0;
+
+      if (els.breakdownSurchargeRow) {
+        els.breakdownSurchargeRow.classList.toggle("hidden", !hasSurcharge);
+      }
+
+      if (els.breakdownSurcharge) {
+        els.breakdownSurcharge.textContent = money(breakdown.surchargeAmount);
+      }
+
+      if (els.breakdownTotal) {
+        els.breakdownTotal.textContent = money(state.estimate.fare);
+      }
+
+      if (els.breakdownMinimumNote) {
+        els.breakdownMinimumNote.classList.toggle(
+          "hidden",
+          !breakdown.minimumFareApplied
+        );
+      }
     }
 
     function readStorage(key) {
@@ -3364,7 +3643,7 @@
     function normalizeMode(mode) {
       const clean = safeLower(mode);
 
-      if (["driver", "autonomous", "food", "grocery"].includes(clean)) {
+      if (["driver", "airport", "autonomous", "food", "grocery"].includes(clean)) {
         return clean;
       }
 
@@ -3397,6 +3676,22 @@
         badge: "Dispatch Ready",
         pickupLabel: "Pickup Location",
         destinationPlaceholder: "Enter destination",
+        merchantLabel: null,
+        merchantPlaceholder: null,
+        merchantErrorText: null
+      },
+
+      airport: {
+        rideType: "airport",
+        isDelivery: false,
+        eyebrow: "AIRPORT DISPATCH",
+        title: "Request an Airport Ride",
+        copy: "Airport rides include a flat airport surcharge in addition to the standard fare, shown in the fare breakdown before you authorize payment.",
+        cardTitle: "Airport Ride Request",
+        cardCopy: "Complete the secure Harvey Taxi airport ride request flow below.",
+        badge: "Airport Ready",
+        pickupLabel: "Pickup Location",
+        destinationPlaceholder: "Enter destination (airport or address)",
         merchantLabel: null,
         merchantPlaceholder: null,
         merchantErrorText: null
@@ -3688,7 +3983,189 @@
       if (state.mode === "food" || state.mode === "grocery") {
         initMerchantAutocomplete();
       }
+
+      initAddressAutocompletes();
     });
+
+    // Wires real Places Autocomplete onto the plain pickup/destination text
+    // fields (distinct from initMerchantAutocomplete() above, which only
+    // searches for restaurants/stores). Every rider-facing service —
+    // taxi, food, grocery — routes pickup/destination through these same
+    // two inputs, so binding it once here covers all of them.
+    function bindAddressAutocomplete(inputEl, target, stateKey) {
+      if (!inputEl || state[stateKey] || !canUsePlacesAutocomplete()) return;
+
+      try {
+        const autocomplete = new google.maps.places.Autocomplete(
+          inputEl,
+          { fields: ["formatted_address", "geometry"] }
+        );
+
+        autocomplete.addListener("place_changed", () => {
+          const place = autocomplete.getPlace();
+          const lat = place?.geometry?.location?.lat() ?? null;
+          const lng = place?.geometry?.location?.lng() ?? null;
+
+          if (lat === null || lng === null) return;
+
+          target.latitude = lat;
+          target.longitude = lng;
+          target.source = "autocomplete";
+
+          if (place.formatted_address) {
+            inputEl.value = place.formatted_address;
+            target.address = place.formatted_address;
+          }
+
+          resetEstimateAndPayment(
+            "Trip details changed. Please get a fresh estimate."
+          );
+        });
+
+        state[stateKey] = autocomplete;
+      } catch (err) {
+        // Places failed to initialize (e.g. billing/quota issue upstream).
+        // Manual typing + the forward-geocode fallback in
+        // ensureTripDistance() below still work without it.
+        state[stateKey] = null;
+      }
+    }
+
+    function initAddressAutocompletes() {
+      bindAddressAutocomplete(els.pickupAddress, state.pickup, "pickupAutocomplete");
+      bindAddressAutocomplete(els.destinationAddress, state.destination, "destinationAutocomplete");
+    }
+
+    // A manual keystroke in either field invalidates whatever coordinates
+    // were previously captured for it (from Autocomplete, geolocation, or
+    // a prior geocode) — otherwise a rider who picks a suggestion and then
+    // edits the text further would silently keep pricing against the old,
+    // no-longer-displayed address. Programmatic value changes (Autocomplete
+    // selection, "Use My Location") don't fire "input", so this only
+    // triggers on real typing.
+    els.pickupAddress?.addEventListener("input", () => {
+      state.pickup.latitude = null;
+      state.pickup.longitude = null;
+      state.pickup.source = "manual";
+    });
+
+    els.destinationAddress?.addEventListener("input", () => {
+      state.destination.latitude = null;
+      state.destination.longitude = null;
+      state.destination.source = "manual";
+    });
+
+    // Forward-geocodes a free-typed address string into coordinates —
+    // the fallback for when a rider types an address and tabs away
+    // without picking an Autocomplete suggestion.
+    function geocodeAddressString(address) {
+      if (
+        !window.__HARVEY_MAPS_ENABLED__ ||
+        !window.google ||
+        !window.google.maps ||
+        !window.google.maps.Geocoder ||
+        !safeTrim(address)
+      ) {
+        return Promise.resolve(null);
+      }
+
+      if (!geocoder) {
+        geocoder = new window.google.maps.Geocoder();
+      }
+
+      return new Promise((resolve) => {
+        geocoder.geocode({ address }, (results, status) => {
+          if (status === "OK" && results && results[0]?.geometry?.location) {
+            resolve({
+              lat: results[0].geometry.location.lat(),
+              lng: results[0].geometry.location.lng()
+            });
+          } else {
+            resolve(null);
+          }
+        });
+      });
+    }
+
+    async function ensureEndpointCoordinates(target, addressEl) {
+      if (target.latitude !== null && target.longitude !== null) {
+        return true;
+      }
+
+      const address = safeTrim(addressEl?.value || target.address);
+
+      if (!address) return false;
+
+      const geocoded = await geocodeAddressString(address);
+
+      if (!geocoded) return false;
+
+      target.latitude = geocoded.lat;
+      target.longitude = geocoded.lng;
+      target.source = "geocoded";
+
+      return true;
+    }
+
+    // Computes the real driving distance/duration between pickup and
+    // destination via Google's Distance Matrix, storing the result on
+    // state.estimate.distanceMiles/durationMinutes — the exact fields
+    // buildTripPayload() sends to the server. Before this existed, nothing
+    // in the app ever set those two fields, so every fare estimate was
+    // silently computed as a 0-mile, 0-minute trip and always landed on
+    // the flat minimum fare, no matter how long the ride actually was.
+    async function ensureTripDistance() {
+      if (state.estimate.distanceKnown) {
+        return true;
+      }
+
+      const hasPickup = await ensureEndpointCoordinates(state.pickup, els.pickupAddress);
+      const hasDestination = await ensureEndpointCoordinates(state.destination, els.destinationAddress);
+
+      if (!hasPickup || !hasDestination) {
+        return false;
+      }
+
+      if (
+        !window.__HARVEY_MAPS_ENABLED__ ||
+        !window.google ||
+        !window.google.maps ||
+        !window.google.maps.DistanceMatrixService
+      ) {
+        return false;
+      }
+
+      return new Promise((resolve) => {
+        const service = new google.maps.DistanceMatrixService();
+
+        service.getDistanceMatrix(
+          {
+            origins: [{ lat: state.pickup.latitude, lng: state.pickup.longitude }],
+            destinations: [{ lat: state.destination.latitude, lng: state.destination.longitude }],
+            travelMode: google.maps.TravelMode.DRIVING,
+            unitSystem: google.maps.UnitSystem.IMPERIAL
+          },
+          (response, status) => {
+            const element = response?.rows?.[0]?.elements?.[0];
+
+            if (status !== "OK" || !element || element.status !== "OK") {
+              resolve(false);
+              return;
+            }
+
+            state.estimate.distanceMiles =
+              Number((element.distance.value / 1609.34).toFixed(2));
+
+            state.estimate.durationMinutes =
+              Number((element.duration.value / 60).toFixed(1));
+
+            state.estimate.distanceKnown = true;
+
+            resolve(true);
+          }
+        );
+      });
+    }
 
     function syncRiderFromForm() {
       state.rider.name = safeTrim(els.riderName?.value);
@@ -3843,6 +4320,10 @@
         fare: null,
         distance: null,
         duration: null,
+        distanceMiles: null,
+        durationMinutes: null,
+        distanceKnown: false,
+        breakdown: null,
         raw: null
       };
 
@@ -3850,6 +4331,7 @@
         authorized: false,
         paymentId: "",
         clientSecret: "",
+        idempotencyKey: "",
         raw: null
       };
 
@@ -3864,6 +4346,8 @@
       if (els.durationText) {
         els.durationText.textContent = "Pending";
       }
+
+      renderFareBreakdown(null);
 
       if (els.authorizePaymentBtn) {
         els.authorizePaymentBtn.disabled = true;
@@ -4018,6 +4502,7 @@
         authorized: false,
         paymentId: "",
         clientSecret: "",
+        idempotencyKey: "",
         raw: null
       };
 
@@ -4460,6 +4945,18 @@
         pickup_longitude: state.pickup.longitude,
         pickup_accuracy: state.pickup.accuracy,
 
+        // The server's ride-creation route reads pickup_lat/pickup_lng and
+        // destination_lat/destination_lng specifically (see server.js) —
+        // pickup_latitude/pickup_longitude above are a different, unread
+        // name kept only for any other consumer. Neither pickup nor
+        // destination coordinates were ever actually reaching the rides
+        // table before this: pickup used the wrong field names, and
+        // destination wasn't sent at all.
+        pickup_lat: state.pickup.latitude,
+        pickup_lng: state.pickup.longitude,
+        destination_lat: state.destination.latitude,
+        destination_lng: state.destination.longitude,
+
         requestedMode: state.mode,
         requested_mode: state.mode,
 
@@ -4598,6 +5095,11 @@
           ""
         );
 
+      const numOrNull = (value) => {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : null;
+      };
+
       return {
         fare:
           Number.isFinite(fare)
@@ -4606,6 +5108,22 @@
 
         distance,
         duration,
+
+        // Line items from calculateRideEstimate()'s breakdown — used to
+        // show a real itemized fare preview instead of just the total.
+        breakdown: {
+          isDelivery: Boolean(estimate.is_delivery),
+          baseFare: numOrNull(estimate.base_fare),
+          distanceCharge: numOrNull(estimate.distance_charge),
+          timeCharge: numOrNull(estimate.time_charge),
+          deliveryFee: numOrNull(estimate.delivery_fee),
+          deliveryDistanceCharge: numOrNull(estimate.delivery_distance_charge),
+          bookingFee: numOrNull(estimate.booking_fee),
+          discountAmount: numOrNull(estimate.discount_amount),
+          surchargeAmount: numOrNull(estimate.surcharge_amount),
+          minimumFareApplied: Boolean(estimate.minimum_fare_applied)
+        },
+
         raw: data
       };
     }
@@ -4646,6 +5164,50 @@
       );
 
       clearNotice();
+
+      setLiveStatus(
+        "Calculating trip distance..."
+      );
+
+      // Resolves real driving distance/duration between pickup and
+      // destination via Google Maps before asking the server for a fare.
+      // Without this, the server always priced the trip as 0 miles/0
+      // minutes (silently landing on the flat minimum fare no matter how
+      // long the trip actually was) — nothing ever populated
+      // state.estimate.distanceMiles/durationMinutes before now.
+      //
+      // This is a hard stop, not a warning: a real long trip that silently
+      // fell back to the minimum fare would undercharge the rider (and
+      // underpay the driver) with no visible sign anything went wrong.
+      // Better to block and ask the rider to fix the address than to
+      // guess a fare that might be badly wrong.
+      const distanceKnown = await ensureTripDistance();
+
+      if (!distanceKnown) {
+        setBadge("Distance Unavailable");
+
+        setDispatchState("Distance Unavailable");
+
+        setTimeline(
+          "dispatch",
+          "Couldn't determine the trip distance."
+        );
+
+        setLiveStatus(
+          "Couldn't determine the trip distance."
+        );
+
+        showNotice(
+          "We couldn't calculate a route distance for this trip. Please double-check the pickup and " +
+            "destination addresses (try selecting a suggestion from the dropdown), then try again. " +
+            "If this keeps happening, contact support — we don't want to guess at your fare.",
+          "error"
+        );
+
+        setBusy(els.estimateBtn, false);
+
+        return false;
+      }
 
       setLiveStatus(
         "Calculating fare estimate..."
@@ -4698,8 +5260,13 @@
         state.estimate.duration =
           normalized.duration;
 
+        state.estimate.breakdown =
+          normalized.breakdown;
+
         state.estimate.raw =
           normalized.raw;
+
+        renderFareBreakdown(normalized.breakdown);
 
         if (els.fareEstimateText) {
           els.fareEstimateText.textContent =
@@ -4778,65 +5345,83 @@
       }
     }
 
-    function normalizePaymentPayload(data) {
-      const payment =
-        data?.payment ||
-        data?.authorization ||
-        data?.payment_intent ||
-        data?.paymentIntent ||
-        data?.data ||
-        data ||
-        {};
+    // ---- Stripe Elements: real card collection ----
+    // Loaded via the <script src="https://js.stripe.com/v3/"> tag in <head>.
+    // stripeClient/stripeCardElement stay null (and the card field shows a
+    // fallback message) if Stripe.js failed to load or the server has no
+    // publishable key configured — authorizePayment() below checks for
+    // this and fails clearly instead of silently doing nothing, which is
+    // what happened before this existed at all.
+    let stripeClient = null;
+    let stripeCardElement = null;
 
-      const paymentId =
-        pickFirstValue(
-          payment,
-          [
-            "id",
-            "payment_id",
-            "paymentId",
-            "payment_intent_id",
-            "paymentIntentId",
-            "authorization_id",
-            "authorizationId"
-          ],
-          ""
-        );
+    async function initStripeElements() {
+      if (!els.cardElementContainer) return;
 
-      const clientSecret =
-        pickFirstValue(
-          payment,
-          [
-            "client_secret",
-            "clientSecret"
-          ],
-          ""
-        );
+      if (typeof Stripe === "undefined") {
+        els.cardElementContainer.textContent =
+          "Card payments are temporarily unavailable. Please contact support.";
+        return;
+      }
 
-      const authorized =
-        data?.authorized === true ||
-        data?.ok === true ||
-        payment?.authorized === true ||
-        [
-          "authorized",
-          "requires_capture",
-          "succeeded",
-          "approved"
-        ].includes(
-          safeLower(payment?.status)
-        );
+      try {
+        const res = await fetch(CONFIG.ENDPOINTS.stripeKey);
+        const data = await res.json();
+        const key = data?.key || "";
 
-      return {
-        authorized: Boolean(
-          authorized ||
-            paymentId ||
-            clientSecret
-        ),
+        if (!key) {
+          els.cardElementContainer.textContent =
+            "Card payments are not configured yet. Please contact support.";
+          return;
+        }
 
-        paymentId,
-        clientSecret,
-        raw: data
-      };
+        stripeClient = Stripe(key);
+        const elements = stripeClient.elements();
+
+        stripeCardElement = elements.create("card", {
+          style: {
+            base: {
+              color: "#f8fbff",
+              fontFamily: "Inter, system-ui, sans-serif",
+              fontSize: "15px",
+              "::placeholder": { color: "rgba(184, 199, 230, 0.55)" }
+            },
+            invalid: {
+              color: "#ff5c7a",
+              iconColor: "#ff5c7a"
+            }
+          }
+        });
+
+        stripeCardElement.mount("#cardElementContainer");
+
+        stripeCardElement.on("change", (event) => {
+          if (els.cardElementErrors) {
+            els.cardElementErrors.textContent = event.error ? event.error.message : "";
+          }
+        });
+      } catch (err) {
+        stripeClient = null;
+        stripeCardElement = null;
+        els.cardElementContainer.textContent =
+          "Unable to load the card payment form. Please refresh the page or contact support.";
+      }
+    }
+
+    // One key per trip configuration, reused across retries of the same
+    // fare (resetEstimateAndPayment()/resetEntireFlow() clear it whenever
+    // trip details actually change) — lets Stripe collapse a network
+    // retry or an accidental double-click into a single PaymentIntent
+    // instead of creating two.
+    function getOrCreateIdempotencyKey() {
+      if (!state.payment.idempotencyKey) {
+        state.payment.idempotencyKey =
+          typeof crypto !== "undefined" && crypto.randomUUID
+            ? crypto.randomUUID()
+            : `idem-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      }
+
+      return state.payment.idempotencyKey;
     }
 
     async function authorizePayment() {
@@ -4857,6 +5442,14 @@
         }
       }
 
+      if (!stripeClient || !stripeCardElement) {
+        showNotice(
+          "Card payments are not available right now. Please refresh the page or contact support.",
+          "error"
+        );
+        return false;
+      }
+
       setBusy(
         els.authorizePaymentBtn,
         true,
@@ -4865,93 +5458,89 @@
 
       clearNotice();
 
+      if (els.cardElementErrors) {
+        els.cardElementErrors.textContent = "";
+      }
+
       setLiveStatus(
-        "Authorizing payment..."
+        "Creating payment authorization..."
       );
 
       setTimeline(
         "payment",
-        "Authorizing payment before dispatch..."
+        "Creating payment authorization..."
       );
 
-      const payload = {
-        ...buildTripPayload(),
-
-        estimate:
-          state.estimate.raw,
-
-        estimated_fare:
-          state.estimate.fare,
-
-        estimatedFare:
-          state.estimate.fare,
-
-        amount:
-          state.estimate.fare,
-
-        currency: "usd"
-      };
-
       try {
-        // Real route: POST /api/rides/:id/authorize — needs the ride ID in the URL.
-        const rideId = state.ride.rideId || readStorage(CONFIG.STORAGE_KEYS.lastRideId);
-        if (!rideId) {
-          throw new Error("No ride to authorize yet. Please request the ride first.");
+        // Step 1: create a Stripe PaymentIntent sized to the current
+        // estimate. No ride exists yet at this point in the flow — the
+        // ride is only created once the rider hits "Request Dispatch" on
+        // the Dispatch stage — so this route is deliberately ride-
+        // independent, keyed off the trip's miles/minutes/ride_type
+        // instead of a ride ID.
+        const intentData = await apiPost(
+          CONFIG.ENDPOINTS.paymentIntent,
+          {
+            ...buildTripPayload(),
+            idempotency_key: getOrCreateIdempotencyKey()
+          }
+        );
+
+        const clientSecret = intentData?.client_secret;
+
+        if (!clientSecret) {
+          throw new Error("Payment could not be initialized. Please try again.");
         }
-        const authorizeUrl =
-          `${CONFIG.ENDPOINTS.authorizeRide}/${encodeURIComponent(rideId)}/authorize`;
-        const data =
-          await apiPost(
-            authorizeUrl,
-            payload
+
+        setLiveStatus(
+          "Confirming card with Stripe..."
+        );
+
+        setTimeline(
+          "payment",
+          "Confirming card details with Stripe..."
+        );
+
+        // Step 2: actually authorize (manual-capture hold) the card the
+        // rider entered into the real Card Element mounted above. This
+        // step was missing entirely before — the PaymentIntent used to
+        // be created and then immediately abandoned, so it never left
+        // "requires_payment_method" and every authorization attempt
+        // failed with no way for the rider to ever enter a card.
+        const result = await stripeClient.confirmCardPayment(clientSecret, {
+          payment_method: {
+            card: stripeCardElement,
+            billing_details: {
+              name: state.rider.name || undefined
+            }
+          }
+        });
+
+        if (result.error) {
+          throw new Error(result.error.message || "Card payment failed.");
+        }
+
+        const intent = result.paymentIntent;
+
+        const authorized =
+          Boolean(intent) &&
+          ["requires_capture", "succeeded"].includes(intent.status);
+
+        if (!authorized) {
+          throw new Error(
+            `Payment is not authorized (status: ${intent?.status || "unknown"}).`
           );
+        }
 
-        const normalized =
-          normalizePaymentPayload(data);
+        state.payment.authorized = true;
+        state.payment.paymentId = intent.id;
+        state.payment.clientSecret = clientSecret;
+        state.payment.raw = intent;
 
-        state.payment.authorized =
-          normalized.authorized;
-
-        state.payment.paymentId =
-          normalized.paymentId;
-
-        state.payment.clientSecret =
-          normalized.clientSecret;
-
-        state.payment.raw =
-          normalized.raw;
-
-        if (
+        writeStorage(
+          CONFIG.STORAGE_KEYS.lastPaymentId,
           state.payment.paymentId
-        ) {
-          writeStorage(
-            CONFIG.STORAGE_KEYS.lastPaymentId,
-            state.payment.paymentId
-          );
-        }
-
-        if (
-          !state.payment.authorized &&
-          CONFIG.REQUIRE_PAYMENT_AUTHORIZATION
-        ) {
-          setBadge("Payment Needed");
-
-          setTimeline(
-            "payment",
-            "Payment authorization is required before dispatch."
-          );
-
-          setLiveStatus(
-            "Payment authorization required."
-          );
-
-          showNotice(
-            "Payment was not authorized.",
-            "warning"
-          );
-
-          return false;
-        }
+        );
 
         if (els.requestRideBtn) {
           els.requestRideBtn.disabled = false;
@@ -4975,6 +5564,8 @@
 
         return true;
       } catch (error) {
+        state.payment.authorized = false;
+
         setBadge("Payment Failed");
 
         setTimeline(
@@ -4985,6 +5576,11 @@
         setLiveStatus(
           "Payment authorization failed."
         );
+
+        if (els.cardElementErrors) {
+          els.cardElementErrors.textContent =
+            error?.message || "Payment authorization failed.";
+        }
 
         showNotice(
           error?.message ||
@@ -5117,14 +5713,16 @@
         state.payment.paymentId ||
         readStorage(CONFIG.STORAGE_KEYS.lastPaymentId);
 
+      // Deliberately no payment_intent_id here. Sending it would make the
+      // server mark this ride payment_authorized (and dispatch it) right
+      // at creation — then /api/rides/:id/authorize below would try to
+      // dispatch it a second time. The ride is created in
+      // payment_required status instead; the authorize call right after
+      // is the one place that validates the Stripe-confirmed amount
+      // against this ride's real fare, binds the PaymentIntent so it
+      // can't be reused on a different ride, and finally dispatches it.
       const payload = {
         ...buildTripPayload(),
-
-        payment_id: paymentId,
-        paymentId,
-
-        payment_authorized: state.payment.authorized,
-        paymentAuthorized: state.payment.authorized,
 
         estimate: state.estimate.raw,
         estimated_fare: state.estimate.fare,
@@ -5162,6 +5760,36 @@
             CONFIG.STORAGE_KEYS.activeRequestMode,
             state.mode
           );
+
+          if (CONFIG.REQUIRE_PAYMENT_AUTHORIZATION && paymentId) {
+            try {
+              await apiPost(
+                `${CONFIG.ENDPOINTS.authorizeRide}/${encodeURIComponent(state.ride.rideId)}/authorize`,
+                { payment_intent_id: paymentId }
+              );
+            } catch (finalizeError) {
+              setBadge("Payment Failed");
+              setDispatchState("Failed");
+
+              setTimeline(
+                "dispatch",
+                `Ride ${state.ride.rideId} was created, but payment could not be finalized.`
+              );
+
+              setLiveStatus(
+                "Payment could not be finalized for this ride."
+              );
+
+              showNotice(
+                (finalizeError?.message || "Payment could not be finalized.") +
+                  ` Your ride ID is ${state.ride.rideId} — contact support if this persists.`,
+                "error"
+              );
+
+              setBusy(els.requestRideBtn, false);
+              return false;
+            }
+          }
 
           startRideStream(state.ride.rideId);
         }
@@ -5821,6 +6449,8 @@
       bindEvents();
       updateLocationMeta();
       initOrUpdateMap();
+      initStripeElements();
+      initAddressAutocompletes();
 
       setLiveStatus(
         "Complete the form and start with rider approval."

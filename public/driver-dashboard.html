@@ -1517,6 +1517,7 @@
       state.ride = null;
       state.delivery = null;
       state.earnings = [];
+      state.earningsTotal = 0;
       state.dashboard = null;
 
       el.snapDriverId.textContent = "Not loaded";
@@ -1780,10 +1781,16 @@
       el.statMode.textContent = state.driver.mode === "autonomous" ? "Autonomous" : "Human Driver";
       el.statService.textContent = state.mission ? state.mission.type.toUpperCase() : "NONE";
 
-      // Calculate Running Totals dynamically from active state array
-      const initialTotal = 348.20;
-      const computedTotal = initialTotal + state.earnings.reduce((acc, curr) => acc + curr.amount, 0);
-      el.statEarnings.textContent = `$${computedTotal.toFixed(2)}`;
+      // state.earningsTotal comes straight from GET /api/driver/:driverId/earnings
+      // (server-side sum of driver_earnings.total_earning) — the real ledger,
+      // not a client-reconstructed running total. There used to be a
+      // hardcoded $348.20 baseline here on top of a reduce() over
+      // state.earnings that assumed a .amount field real driver_earnings
+      // rows don't have (they have total_earning) — harmless only because
+      // the ledger's inserts were silently failing, so state.earnings was
+      // always empty. Now that the ledger actually records rows, that
+      // reduce would have produced NaN.
+      el.statEarnings.textContent = `$${Number(state.earningsTotal || 0).toFixed(2)}`;
 
       // Synchronize Status Snapshot Row Indicators
       updatePillUI(el.snapApproval, "Approved", "pill-green");
@@ -2109,26 +2116,6 @@
         showMessage(el.missionMsg, "Action failed: " + err.message, "err");
       }
     }
-    function finalizeMissionPayout(m) {
-      // Commit mission transaction values directly to session balance ledger
-      const jobReceipt = {
-        id: m.id,
-        type: m.type,
-        amount: m.payout,
-        destination: m.dropoffAddress,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      };
-
-      state.earnings.unshift(jobReceipt);
-      if (state.driver) {
-        state.driver.completedCount++;
-        state.driver.status = "available";
-      }
-
-      state.mission = null;
-      showMessage(el.missionMsg, `Mission successfully closed out! credited +$${jobReceipt.amount.toFixed(2)}`, "ok");
-      appendEarningsItemToDOM(jobReceipt);
-    }
 
     // Persistent Form Modifications Data Binding Layer
     async function handleSaveAvailabilityForm() {
@@ -2240,30 +2227,6 @@
       setTimeout(() => {
         targetBox.classList.remove("show");
       }, 5000);
-    }
-
-    function appendEarningsItemToDOM(job) {
-      const emptyState = el.activityList.querySelector(".activity-item h4");
-      if (emptyState && emptyState.textContent.includes("Waiting for driver load")) {
-        el.activityList.innerHTML = "";
-      }
-
-      const div = document.createElement("div");
-      div.className = "activity-item";
-      div.style.borderLeft = "4px solid var(--green)";
-      
-      div.innerHTML = `
-        <div class="activity-content">
-          <h4>${job.type.toUpperCase()} COMPLETION (#${job.id})</h4>
-          <p>${job.destination}</p>
-        </div>
-        <div class="activity-meta">
-          <div class="activity-earn">+$${job.amount.toFixed(2)}</div>
-          <div class="muted" style="font-size:0.8rem;">${job.time}</div>
-        </div>
-      `;
-
-      el.activityList.insertBefore(div, el.activityList.firstChild);
     }
 
     function renderMockActivities(isCleanPlaceholder = false) {
