@@ -15096,6 +15096,73 @@ app.post(
 
 /* =========================================================
 
+   AUTONOMOUS PILOT V1 — FEATURE FLAG
+
+   Ships off by default (seeded 'false' by the schema migration).
+   This is the first of several pilot subsystems being built behind
+   this flag — provider adapter, lifecycle engine, rider disclosure
+   flow, and admin operations panel are separate, later phases. Until
+   an admin explicitly enables it, dispatchRide() must keep treating
+   "autonomous" ride_type exactly as it does today (no different
+   behavior yet) — the flag exists to gate the NEW pilot-specific
+   behavior being added on top, not to change anything retroactively.
+
+========================================================= */
+
+async function autonomousPilotEnabled() {
+  return (await getSystemFlag("autonomous_pilot_enabled", "false")) === "true";
+}
+
+app.post(
+  "/api/admin/system/enable-autonomous-pilot",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    await supabase
+      .from("system_flags")
+      .upsert({
+        key: "autonomous_pilot_enabled",
+        value: "true",
+        reason: cleanString(req.body.reason, 1000),
+        updated_at: nowIso()
+      });
+
+    auditLog({
+      actor_type: "admin",
+      actor_id: req.admin.email,
+      action: "autonomous_pilot_enabled",
+      req
+    }).catch(() => {});
+
+    return ok(res, { autonomous_pilot_enabled: true });
+  })
+);
+
+app.post(
+  "/api/admin/system/disable-autonomous-pilot",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    await supabase
+      .from("system_flags")
+      .upsert({
+        key: "autonomous_pilot_enabled",
+        value: "false",
+        reason: cleanString(req.body.reason, 1000),
+        updated_at: nowIso()
+      });
+
+    auditLog({
+      actor_type: "admin",
+      actor_id: req.admin.email,
+      action: "autonomous_pilot_disabled",
+      req
+    }).catch(() => {});
+
+    return ok(res, { autonomous_pilot_enabled: false });
+  })
+);
+
+/* =========================================================
+
    ACCOUNT DELETION (App Store compliant)
 
    - Riders: immediate self-service delete (OTP-confirmed).
