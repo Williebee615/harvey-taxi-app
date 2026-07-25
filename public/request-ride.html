@@ -344,6 +344,45 @@
       box-shadow: 0 18px 50px rgba(77, 163, 255, 0.16);
     }
 
+    /* Once the rider confirms a service (see confirmService() in the
+       controller script), the grid stays visible for context but stops
+       accepting input until they explicitly tap "Change service." */
+    .mode-grid.locked .mode-chip {
+      pointer-events: none;
+      opacity: 0.55;
+    }
+
+    .mode-grid.locked .mode-chip.active {
+      opacity: 1;
+    }
+
+    .service-confirm-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .change-service-link {
+      display: none;
+      border: none;
+      background: none;
+      color: var(--cyan);
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 6px 0;
+    }
+
+    .mode-grid.locked ~ .service-confirm-row .change-service-link {
+      display: inline-block;
+    }
+
+    .mode-grid.locked ~ .service-confirm-row .confirm-service-btn {
+      display: none;
+    }
+
     .mode-step-label {
       display: flex;
       align-items: center;
@@ -1292,6 +1331,16 @@
       .map-shell {
         min-height: 240px;
       }
+
+      .wizard-progress-step span:not(.wp-dot) {
+        display: none;
+      }
+
+      .wizard-progress-step .wp-dot {
+        width: 20px;
+        height: 20px;
+        font-size: 0.66rem;
+      }
     }
   </style>
 </head>
@@ -1363,9 +1412,9 @@
             <!-- MODES -->
             <div class="mode-step-label">
               <span class="step-num">1</span>
-              <span>Step 1 of 3 &middot; Choose a Service</span>
+              <span>Step 1 of 7 &middot; Choose a Service</span>
             </div>
-            <div class="mode-grid">
+            <div class="mode-grid" id="modeGrid">
 
               <button
                 type="button"
@@ -1419,6 +1468,16 @@
                 </span>
               </button>
 
+            </div>
+
+            <div class="service-confirm-row">
+              <span></span>
+              <button type="button" class="mini-btn confirm-service-btn" id="confirmServiceBtn">
+                Confirm Service &rarr;
+              </button>
+              <button type="button" class="change-service-link" id="changeServiceBtn">
+                Change service
+              </button>
             </div>
 
             <!-- STATUS -->
@@ -1584,32 +1643,61 @@
             class="notice"
           ></div>
 
+          <!-- SHOWN UNTIL A SERVICE IS CONFIRMED ON THE LEFT -->
+          <div id="serviceNotConfirmedNotice" class="map-fallback-card">
+            <strong>Choose a service to begin</strong>
+            <span>
+              Pick Driver Ride, Autonomous Pilot, Food Delivery, or Groceries
+              on the left, then tap "Confirm Service" to start your request.
+            </span>
+          </div>
+
           <!-- FORM -->
           <form
             id="rideForm"
-            class="form-grid"
+            class="form-grid hidden"
           >
 
             <!-- WIZARD PROGRESS -->
             <div class="wizard-progress" id="wizardProgress">
-              <div class="wizard-progress-step done" data-progress-step="1">
+              <div class="wizard-progress-step done" data-progress-stage="confirm">
                 <span class="wp-dot">✓</span>
                 <span>Service</span>
               </div>
               <div class="wizard-progress-line"></div>
-              <div class="wizard-progress-step current" data-progress-step="2">
+              <div class="wizard-progress-step current" data-progress-stage="pickup">
                 <span class="wp-dot">2</span>
-                <span>Trip Details</span>
+                <span>Pickup</span>
               </div>
               <div class="wizard-progress-line"></div>
-              <div class="wizard-progress-step" data-progress-step="3">
+              <div class="wizard-progress-step" data-progress-stage="destination">
                 <span class="wp-dot">3</span>
-                <span>Review &amp; Confirm</span>
+                <span>Destination</span>
+              </div>
+              <div class="wizard-progress-line"></div>
+              <div class="wizard-progress-step" data-progress-stage="details">
+                <span class="wp-dot">4</span>
+                <span>Details</span>
+              </div>
+              <div class="wizard-progress-line"></div>
+              <div class="wizard-progress-step" data-progress-stage="review">
+                <span class="wp-dot">5</span>
+                <span>Review</span>
+              </div>
+              <div class="wizard-progress-line"></div>
+              <div class="wizard-progress-step" data-progress-stage="payment">
+                <span class="wp-dot">6</span>
+                <span>Payment</span>
+              </div>
+              <div class="wizard-progress-line"></div>
+              <div class="wizard-progress-step" data-progress-stage="dispatch">
+                <span class="wp-dot">7</span>
+                <span>Dispatch</span>
               </div>
             </div>
 
-            <!-- STEP 2: TELL US WHERE -->
-            <div class="wizard-step active" data-step="2" id="wizardStep2">
+            <!-- STAGE: PICKUP / MERCHANT -->
+            <div class="wizard-step" data-stage="pickup" id="wizardStagePickup">
 
             <!-- RIDER -->
             <div class="two-col">
@@ -1750,6 +1838,20 @@
 
             </div>
 
+            <!-- STAGE NAV: PICKUP -->
+            <div class="wizard-nav">
+              <span></span>
+              <button type="button" class="primary-btn" id="stagePickupContinueBtn">
+                Continue to Destination &rarr;
+              </button>
+            </div>
+
+            </div>
+            <!-- END STAGE: PICKUP -->
+
+            <!-- STAGE: DESTINATION -->
+            <div class="wizard-step" data-stage="destination" id="wizardStageDestination">
+
             <!-- DESTINATION -->
             <div class="field">
 
@@ -1768,8 +1870,26 @@
 
               </div>
 
-            </div>            <!-- SERVICE SETTINGS -->
-            <div class="three-col" id="passengerServiceSettings">
+            </div>
+
+            <!-- STAGE NAV: DESTINATION -->
+            <div class="wizard-nav">
+              <button type="button" class="ghost-btn" id="stageDestinationBackBtn">
+                &larr; Back to Pickup
+              </button>
+              <button type="button" class="primary-btn" id="stageDestinationContinueBtn">
+                Continue to Details &rarr;
+              </button>
+            </div>
+
+            </div>
+            <!-- END STAGE: DESTINATION -->
+
+            <!-- STAGE: REQUEST DETAILS -->
+            <div class="wizard-step" data-stage="details" id="wizardStageDetails">
+
+            <!-- SERVICE SETTINGS -->
+            <div class="two-col" id="passengerServiceSettings">
 
               <div class="field">
 
@@ -1781,14 +1901,6 @@
 
                   <option value="standard">
                     Standard Ride
-                  </option>
-
-                  <option value="priority">
-                    Priority Pickup
-                  </option>
-
-                  <option value="premium">
-                    Premium Ride
                   </option>
 
                   <option value="scheduled">
@@ -1825,30 +1937,6 @@
 
                   <option value="5">
                     5+ Passengers
-                  </option>
-
-                </select>
-
-              </div>
-
-              <div class="field">
-
-                <label for="servicePriority">
-                  Service Priority
-                </label>
-
-                <select id="servicePriority">
-
-                  <option value="normal">
-                    Normal
-                  </option>
-
-                  <option value="high">
-                    High Priority
-                  </option>
-
-                  <option value="vip">
-                    VIP Priority
                   </option>
 
                 </select>
@@ -1957,25 +2045,21 @@
 
             </div>
 
-            <!-- STEP 2 NAV -->
+            <!-- STAGE NAV: DETAILS -->
             <div class="wizard-nav">
-              <span></span>
-              <button type="button" class="primary-btn" id="wizardStep2ContinueBtn">
+              <button type="button" class="ghost-btn" id="stageDetailsBackBtn">
+                ← Back to Destination
+              </button>
+              <button type="button" class="primary-btn" id="stageDetailsContinueBtn">
                 Continue to Review →
               </button>
             </div>
 
             </div>
-            <!-- END STEP 2 -->
+            <!-- END STAGE: REQUEST DETAILS -->
 
-            <!-- STEP 3: REVIEW & CONFIRM -->
-            <div class="wizard-step" data-step="3" id="wizardStep3">
-
-            <div class="wizard-nav" style="justify-content:flex-start;">
-              <button type="button" class="ghost-btn" id="wizardStep3BackBtn">
-                ← Back to Trip Details
-              </button>
-            </div>
+            <!-- STAGE: REVIEW & PRICING -->
+            <div class="wizard-step" data-stage="review" id="wizardStageReview">
 
             <!-- DETAILS -->
             <div class="details">
@@ -2013,6 +2097,123 @@
               </div>
 
             </div>
+
+            <div class="actions">
+              <button
+                type="button"
+                class="secondary-btn"
+                id="estimateBtn"
+              >
+                Get Fare Estimate
+              </button>
+            </div>
+
+            <!-- STAGE NAV: REVIEW -->
+            <div class="wizard-nav">
+              <button type="button" class="ghost-btn" id="stageReviewBackBtn">
+                ← Back to Details
+              </button>
+              <button type="button" class="primary-btn" id="stageReviewContinueBtn">
+                Continue to Payment →
+              </button>
+            </div>
+
+            </div>
+            <!-- END STAGE: REVIEW & PRICING -->
+
+            <!-- STAGE: PAYMENT & APPROVAL -->
+            <div class="wizard-step" data-stage="payment" id="wizardStagePayment">
+
+            <!-- ACTIONS -->
+            <div class="actions">
+
+              <button
+                type="button"
+                class="secondary-btn"
+                id="checkRiderBtn"
+              >
+                Check Rider Approval
+              </button>
+
+              <button
+                type="button"
+                class="secondary-btn"
+                id="enablePushBtn"
+              >
+                🔔 Enable Ride Notifications
+              </button>
+
+              <button
+                type="button"
+                class="secondary-btn"
+                id="authorizePaymentBtn"
+                disabled
+              >
+                Authorize Payment
+              </button>
+
+            </div>
+
+            <!-- TIMELINE -->
+            <div class="trip-timeline">
+
+              <div class="timeline-item">
+
+                <div class="timeline-icon">
+                  👤
+                </div>
+
+                <div>
+
+                  <strong>
+                    Rider Approval
+                  </strong>
+
+                  <span id="approvalTimelineText">
+                    Waiting for rider approval verification.
+                  </span>
+
+                </div>
+
+              </div>
+
+              <div class="timeline-item">
+
+                <div class="timeline-icon">
+                  💳
+                </div>
+
+                <div>
+
+                  <strong>
+                    Payment Authorization
+                  </strong>
+
+                  <span id="paymentTimelineText">
+                    Payment authorization has not started yet.
+                  </span>
+
+                </div>
+
+              </div>
+
+            </div>
+
+            <!-- STAGE NAV: PAYMENT -->
+            <div class="wizard-nav">
+              <button type="button" class="ghost-btn" id="stagePaymentBackBtn">
+                ← Back to Review
+              </button>
+              <button type="button" class="primary-btn" id="stagePaymentContinueBtn">
+                Continue to Dispatch →
+              </button>
+            </div>
+
+            </div>
+            <!-- END STAGE: PAYMENT & APPROVAL -->
+
+            <!-- STAGE: DISPATCH -->
+            <div class="wizard-step" data-stage="dispatch" id="wizardStageDispatch">
 
             <!-- DRIVER INFO (shown once a driver is assigned) -->
             <div id="driverInfoCard" class="driver-info-card hidden">
@@ -2067,39 +2268,6 @@
             <div class="actions">
 
               <button
-                type="button"
-                class="secondary-btn"
-                id="checkRiderBtn"
-              >
-                Check Rider Approval
-              </button>
-
-              <button
-                type="button"
-                class="secondary-btn"
-                id="enablePushBtn"
-              >
-                🔔 Enable Ride Notifications
-              </button>
-
-              <button
-                type="button"
-                class="secondary-btn"
-                id="estimateBtn"
-              >
-                Get Fare Estimate
-              </button>
-
-              <button
-                type="button"
-                class="secondary-btn"
-                id="authorizePaymentBtn"
-                disabled
-              >
-                Authorize Payment
-              </button>
-
-              <button
                 type="submit"
                 class="primary-btn"
                 id="requestRideBtn"
@@ -2124,46 +2292,6 @@
               <div class="timeline-item">
 
                 <div class="timeline-icon">
-                  👤
-                </div>
-
-                <div>
-
-                  <strong>
-                    Rider Approval
-                  </strong>
-
-                  <span id="approvalTimelineText">
-                    Waiting for rider approval verification.
-                  </span>
-
-                </div>
-
-              </div>
-
-              <div class="timeline-item">
-
-                <div class="timeline-icon">
-                  💳
-                </div>
-
-                <div>
-
-                  <strong>
-                    Payment Authorization
-                  </strong>
-
-                  <span id="paymentTimelineText">
-                    Payment authorization has not started yet.
-                  </span>
-
-                </div>
-
-              </div>
-
-              <div class="timeline-item">
-
-                <div class="timeline-icon">
                   🚕
                 </div>
 
@@ -2183,8 +2311,16 @@
 
             </div>
 
+            <!-- STAGE NAV: DISPATCH -->
+            <div class="wizard-nav">
+              <button type="button" class="ghost-btn" id="stageDispatchBackBtn">
+                ← Back to Payment
+              </button>
+              <span></span>
             </div>
-            <!-- END STEP 3 -->
+
+            </div>
+            <!-- END STAGE: DISPATCH -->
 
           </form>
 
@@ -2436,7 +2572,17 @@
         lastRideId: "harvey_last_ride_id",
         lastPaymentId: "harvey_last_payment_id",
 
-        requestMode: "harvey_request_mode"
+        requestMode: "harvey_request_mode",
+
+        // Written only at the moment a dispatch request succeeds, read by
+        // the dashboard's active-request card. Deliberately separate from
+        // lastRideId: lastRideId is used by the status-refresh/SSE helpers
+        // for "whatever ride we last touched," activeRequestId is the
+        // dashboard's "this is the thing to show me." Reuses the storage
+        // key rider-dashboard.html already declared for this
+        // (CONFIG.STORAGE_KEYS.activeRideId) but never had a writer for.
+        activeRequestId: "harvey_active_ride_id",
+        activeRequestMode: "harvey_active_request_mode"
       },
 
       REQUIRE_RIDER_APPROVAL: true,
@@ -2449,6 +2595,8 @@
 
     const state = {
       mode: CONFIG.DEFAULT_MODE,
+      modeLocked: false,
+      stage: "confirm",
 
       rider: {
         id: "",
@@ -2542,7 +2690,6 @@
       passengerServiceSettings: $("passengerServiceSettings"),
       rideType: $("rideType"),
       passengerCount: $("passengerCount"),
-      servicePriority: $("servicePriority"),
       scheduledTime: $("scheduledTime"),
       passengerNotesBlock: $("passengerNotesBlock"),
       rideNotes: $("rideNotes"),
@@ -2562,11 +2709,31 @@
       orderDeliveryInstructions: $("orderDeliveryInstructions"),
       orderHandoff: $("orderHandoff"),
 
-      wizardStep2: $("wizardStep2"),
-      wizardStep3: $("wizardStep3"),
+      rideForm: $("rideForm"),
+      modeGrid: $("modeGrid"),
+      serviceNotConfirmedNotice: $("serviceNotConfirmedNotice"),
+      confirmServiceBtn: $("confirmServiceBtn"),
+      changeServiceBtn: $("changeServiceBtn"),
+
       wizardProgress: $("wizardProgress"),
-      wizardStep2ContinueBtn: $("wizardStep2ContinueBtn"),
-      wizardStep3BackBtn: $("wizardStep3BackBtn"),
+
+      wizardStagePickup: $("wizardStagePickup"),
+      wizardStageDestination: $("wizardStageDestination"),
+      wizardStageDetails: $("wizardStageDetails"),
+      wizardStageReview: $("wizardStageReview"),
+      wizardStagePayment: $("wizardStagePayment"),
+      wizardStageDispatch: $("wizardStageDispatch"),
+
+      stagePickupContinueBtn: $("stagePickupContinueBtn"),
+      stageDestinationBackBtn: $("stageDestinationBackBtn"),
+      stageDestinationContinueBtn: $("stageDestinationContinueBtn"),
+      stageDetailsBackBtn: $("stageDetailsBackBtn"),
+      stageDetailsContinueBtn: $("stageDetailsContinueBtn"),
+      stageReviewBackBtn: $("stageReviewBackBtn"),
+      stageReviewContinueBtn: $("stageReviewContinueBtn"),
+      stagePaymentBackBtn: $("stagePaymentBackBtn"),
+      stagePaymentContinueBtn: $("stagePaymentContinueBtn"),
+      stageDispatchBackBtn: $("stageDispatchBackBtn"),
 
       detectLocationBtn: $("detectLocationBtn"),
       checkRiderBtn: $("checkRiderBtn"),
@@ -3086,57 +3253,93 @@
       return CONFIG.DEFAULT_MODE;
     }
 
+    // Single source of truth for everything that varies by service type.
+    // Replaces the old scattered if(mode==="food") / else if(mode==="grocery")
+    // chains that used to live inside applyMode() and buildTripPayload() —
+    // each of those had its own slightly-different branching, which is how
+    // the ride_type/service_type mismatch happened. Every mode-dependent
+    // decision in the file should read from here, not re-derive its own logic.
+    const MODE_CONFIG = {
+      driver: {
+        rideType: "standard",
+        isDelivery: false,
+        eyebrow: "LIVE DISPATCH + LOCATION INTELLIGENCE",
+        title: "Request Your Ride",
+        copy: "Harvey Taxi connects approved riders with drivers, dispatch systems, precise pickup support, payment authorization, and ride lifecycle updates.",
+        cardTitle: "Ride Request",
+        cardCopy: "Complete the secure Harvey Taxi ride request flow below.",
+        badge: "Dispatch Ready",
+        pickupLabel: "Pickup Location",
+        destinationPlaceholder: "Enter destination",
+        merchantLabel: null,
+        merchantPlaceholder: null,
+        merchantErrorText: null
+      },
+
+      autonomous: {
+        rideType: "autonomous",
+        isDelivery: false,
+        eyebrow: "AUTONOMOUS PILOT MODE",
+        title: "Request Autonomous Pilot",
+        copy: "This mode is clearly labeled for Harvey Taxi autonomous pilot development and AV-ready future operations.",
+        cardTitle: "Autonomous Pilot Request",
+        cardCopy: "Submit a clearly labeled autonomous pilot request where operationally available.",
+        badge: "Pilot Mode",
+        pickupLabel: "Pickup Location",
+        destinationPlaceholder: "Enter destination",
+        merchantLabel: null,
+        merchantPlaceholder: null,
+        merchantErrorText: null
+      },
+
+      food: {
+        rideType: "food",
+        isDelivery: true,
+        eyebrow: "FOOD DELIVERY ACCESS",
+        title: "Request Food Delivery",
+        copy: "Harvey Taxi delivery expansion can support food pickup and delivery through the same secure request foundation.",
+        cardTitle: "Food Delivery Request",
+        cardCopy: "Use this flow for food delivery if your backend supports unified service requests.",
+        badge: "Food Delivery",
+        pickupLabel: "Restaurant Pickup Address",
+        destinationPlaceholder: "Your delivery address",
+        merchantLabel: "Restaurant",
+        merchantPlaceholder: "Search for a restaurant...",
+        merchantErrorText: "Please select or enter the restaurant name."
+      },
+
+      grocery: {
+        rideType: "grocery",
+        isDelivery: true,
+        eyebrow: "GROCERY DELIVERY ACCESS",
+        title: "Request Groceries",
+        copy: "Harvey Taxi grocery support expands mobility assistance into essential household access.",
+        cardTitle: "Grocery Delivery Request",
+        cardCopy: "Use this flow for grocery delivery if your backend supports unified service requests.",
+        badge: "Groceries",
+        pickupLabel: "Grocery Store Pickup Address",
+        destinationPlaceholder: "Your delivery address",
+        merchantLabel: "Grocery Store",
+        merchantPlaceholder: "Search for a grocery store...",
+        merchantErrorText: "Please select or enter the grocery store name."
+      }
+    };
+
     function getModeContent(mode) {
-      const content = {
-        driver: {
-          eyebrow: "LIVE DISPATCH + LOCATION INTELLIGENCE",
-          title: "Request Your Ride",
-          copy:
-            "Harvey Taxi connects approved riders with drivers, dispatch systems, precise pickup support, payment authorization, and ride lifecycle updates.",
-          cardTitle: "Ride Request",
-          cardCopy: "Complete the secure Harvey Taxi ride request flow below.",
-          badge: "Dispatch Ready"
-        },
-
-        autonomous: {
-          eyebrow: "AUTONOMOUS PILOT MODE",
-          title: "Request Autonomous Pilot",
-          copy:
-            "This mode is clearly labeled for Harvey Taxi autonomous pilot development and AV-ready future operations.",
-          cardTitle: "Autonomous Pilot Request",
-          cardCopy:
-            "Submit a clearly labeled autonomous pilot request where operationally available.",
-          badge: "Pilot Mode"
-        },
-
-        food: {
-          eyebrow: "FOOD DELIVERY ACCESS",
-          title: "Request Food Delivery",
-          copy:
-            "Harvey Taxi delivery expansion can support food pickup and delivery through the same secure request foundation.",
-          cardTitle: "Food Delivery Request",
-          cardCopy:
-            "Use this flow for food delivery if your backend supports unified service requests.",
-          badge: "Food Delivery"
-        },
-
-        grocery: {
-          eyebrow: "GROCERY DELIVERY ACCESS",
-          title: "Request Groceries",
-          copy:
-            "Harvey Taxi grocery support expands mobility assistance into essential household access.",
-          cardTitle: "Grocery Delivery Request",
-          cardCopy:
-            "Use this flow for grocery delivery if your backend supports unified service requests.",
-          badge: "Groceries"
-        }
-      };
-
-      return content[mode] || content.driver;
+      return MODE_CONFIG[mode] || MODE_CONFIG.driver;
     }
 
     function applyMode(mode) {
       const nextMode = normalizeMode(mode);
+
+      // Once the rider has moved past the service-confirmation stage, the
+      // mode is locked — see confirmService()/changeService(). Anything
+      // that tries to call applyMode() after that point (a stray click, a
+      // stale event) is a no-op instead of silently resetting the flow.
+      if (state.modeLocked && nextMode !== state.mode) {
+        return;
+      }
+
       const copy = getModeContent(nextMode);
 
       state.mode = nextMode;
@@ -3169,51 +3372,23 @@
 
       setBadge(copy.badge);
 
-      const isDelivery = nextMode === "food" || nextMode === "grocery";
+      const isDelivery = copy.isDelivery;
 
-      if (nextMode === "food") {
-        if (els.destinationAddress) {
-          els.destinationAddress.placeholder =
-            "Your delivery address";
-        }
+      if (els.destinationAddress) {
+        els.destinationAddress.placeholder = copy.destinationPlaceholder;
+      }
 
-        if (els.pickupAddressLabel) {
-          els.pickupAddressLabel.textContent = "Restaurant Pickup Address";
-        }
+      if (els.pickupAddressLabel) {
+        els.pickupAddressLabel.textContent = copy.pickupLabel;
+      }
 
+      if (isDelivery) {
         if (els.merchantPickerLabel) {
-          els.merchantPickerLabel.textContent = "Restaurant";
+          els.merchantPickerLabel.textContent = copy.merchantLabel;
         }
 
         if (els.merchantSearchInput) {
-          els.merchantSearchInput.placeholder =
-            "Search for a restaurant...";
-        }
-      } else if (nextMode === "grocery") {
-        if (els.destinationAddress) {
-          els.destinationAddress.placeholder =
-            "Your delivery address";
-        }
-
-        if (els.pickupAddressLabel) {
-          els.pickupAddressLabel.textContent = "Grocery Store Pickup Address";
-        }
-
-        if (els.merchantPickerLabel) {
-          els.merchantPickerLabel.textContent = "Grocery Store";
-        }
-
-        if (els.merchantSearchInput) {
-          els.merchantSearchInput.placeholder =
-            "Search for a grocery store...";
-        }
-      } else {
-        if (els.destinationAddress) {
-          els.destinationAddress.placeholder = "Enter destination";
-        }
-
-        if (els.pickupAddressLabel) {
-          els.pickupAddressLabel.textContent = "Pickup Location";
+          els.merchantSearchInput.placeholder = copy.merchantPlaceholder;
         }
       }
 
@@ -3241,6 +3416,30 @@
       resetEstimateAndPayment(
         "Request mode changed. Please get a fresh fare estimate."
       );
+    }
+
+    // Stage 1 (service confirmation) gate. Locking the mode here — rather
+    // than leaving the mode-grid clickable for the rest of the flow — is
+    // the fix for the old bug where a stray tap on a mode chip mid-review
+    // would silently wipe an already-authorized payment.
+    function confirmService() {
+      state.modeLocked = true;
+
+      if (els.modeGrid) {
+        els.modeGrid.classList.add("locked");
+      }
+
+      goToStage("pickup");
+    }
+
+    function changeService() {
+      state.modeLocked = false;
+
+      if (els.modeGrid) {
+        els.modeGrid.classList.remove("locked");
+      }
+
+      goToStage("confirm");
     }
 
     function toggleHidden(el, hidden) {
@@ -3449,26 +3648,36 @@
       return "";
     }
 
-    function validateTripFields() {
+    // Split from the old single validateTripFields() so each wizard stage
+    // can gate on exactly the fields it's responsible for, instead of one
+    // combined check that only ever ran once at the very end.
+    function validatePickupFields() {
       syncTripFromForm();
 
       if (!state.pickup.address || state.pickup.address.length < 3) {
         return "Please enter your pickup location.";
       }
 
+      const modeConfig = getModeContent(state.mode);
+
+      if (modeConfig.isDelivery && !safeTrim(state.merchant.name)) {
+        return modeConfig.merchantErrorText;
+      }
+
+      return "";
+    }
+
+    function validateDestinationFields() {
+      syncTripFromForm();
+
       if (!state.destination.address || state.destination.address.length < 3) {
         return "Please enter your destination.";
       }
 
-      if (
-        (state.mode === "food" || state.mode === "grocery") &&
-        !safeTrim(state.merchant.name)
-      ) {
-        return state.mode === "food"
-          ? "Please select or enter the restaurant name."
-          : "Please select or enter the grocery store name.";
-      }
+      return "";
+    }
 
+    function validateDetailsFields() {
       if (
         els.rideType?.value === "scheduled" &&
         !els.scheduledTime?.value
@@ -3490,6 +3699,16 @@
       }
 
       return "";
+    }
+
+    // Final safety net run at actual submission time (requestDispatch),
+    // regardless of which stage gates already passed on the way here.
+    function validateTripFields() {
+      return (
+        validatePickupFields() ||
+        validateDestinationFields() ||
+        validateDetailsFields()
+      );
     }
 
     function resetEstimateAndPayment(reason) {
@@ -3539,43 +3758,82 @@
     // above, always visible. Steps 2-3 live inside the form and are gated
     // by the same validation the old single-page form already used before
     // allowing submission - advancing a step just runs that check earlier.
-    function goToWizardStep(step) {
-      if (els.wizardStep2) {
-        els.wizardStep2.classList.toggle("active", step === 2);
+    // The seven stages of a request, in order. "confirm" lives outside the
+    // <form> (it's the mode-grid in the left column); everything else is a
+    // .wizard-step inside the form. Kept as one ordered list so the
+    // progress bar, "done"/"current" state, and stage lookups all derive
+    // from a single source instead of each maintaining their own count.
+    const STAGES = [
+      "confirm",
+      "pickup",
+      "destination",
+      "details",
+      "review",
+      "payment",
+      "dispatch"
+    ];
+
+    const STAGE_ELEMENTS = {
+      pickup: "wizardStagePickup",
+      destination: "wizardStageDestination",
+      details: "wizardStageDetails",
+      review: "wizardStageReview",
+      payment: "wizardStagePayment",
+      dispatch: "wizardStageDispatch"
+    };
+
+    function goToStage(stageId) {
+      if (!STAGES.includes(stageId)) return;
+
+      state.stage = stageId;
+
+      const isConfirm = stageId === "confirm";
+
+      if (els.rideForm) {
+        els.rideForm.classList.toggle("hidden", isConfirm);
       }
 
-      if (els.wizardStep3) {
-        els.wizardStep3.classList.toggle("active", step === 3);
+      if (els.serviceNotConfirmedNotice) {
+        els.serviceNotConfirmedNotice.classList.toggle("hidden", !isConfirm);
       }
+
+      Object.entries(STAGE_ELEMENTS).forEach(([id, elKey]) => {
+        const el = els[elKey];
+        if (el) el.classList.toggle("active", id === stageId);
+      });
+
+      const currentIndex = STAGES.indexOf(stageId);
 
       if (els.wizardProgress) {
         els.wizardProgress.querySelectorAll(".wizard-progress-step").forEach((el) => {
-          const n = Number(el.dataset.progressStep);
+          const stageName = el.dataset.progressStage;
+          const n = STAGES.indexOf(stageName);
           el.classList.remove("done", "current");
           const dot = el.querySelector(".wp-dot");
 
-          if (n < step) {
+          if (n < currentIndex) {
             el.classList.add("done");
             if (dot) dot.textContent = "✓";
-          } else if (n === step) {
+          } else if (n === currentIndex) {
             el.classList.add("current");
-            if (dot) dot.textContent = String(n);
+            if (dot) dot.textContent = String(n + 1);
           } else if (dot) {
-            dot.textContent = String(n);
+            dot.textContent = String(n + 1);
           }
         });
-      }
 
-      if (els.wizardProgress) {
-        els.wizardProgress.scrollIntoView({ behavior: "smooth", block: "start" });
+        if (!isConfirm) {
+          els.wizardProgress.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
       }
     }
 
     // Applies a Harvey AI "open_ride_workflow" action: switches mode and
-    // fills in whatever fields were mentioned, then jumps to Step 2 for the
-    // rider to review. This only ever fills in form fields and changes the
-    // visible step — it never advances to Step 3, submits the request, or
-    // authorizes payment. The rider always has to tap Continue themselves.
+    // fills in whatever fields were mentioned, then jumps to the pickup
+    // stage for the rider to review. This only ever fills in form fields
+    // and changes the visible stage — it never advances past pickup,
+    // submits the request, or authorizes payment. The rider always has to
+    // tap Continue themselves at every stage after this.
     function applyAiPrefill(detail) {
       if (!detail) return;
 
@@ -3585,6 +3843,10 @@
       if (!hasAnything) return;
 
       if (detail.service && detail.service !== "htaf") {
+        // A fresh AI-driven service mention is treated as deliberate user
+        // intent, so it's allowed to override an already-locked mode —
+        // unlike a stray mode-grid click, which applyMode() blocks.
+        state.modeLocked = false;
         applyMode(detail.service);
       }
 
@@ -3598,7 +3860,7 @@
         state.pickup.address = detail.pickup;
       }
 
-      goToWizardStep(2);
+      confirmService();
 
       const scheduleNote = detail.scheduled_time
         ? ` You mentioned "${detail.scheduled_time}" — please set the exact date and time below.`
@@ -3696,7 +3958,7 @@
         "success"
       );
 
-      goToWizardStep(2);
+      goToStage("pickup");
     }
 
     async function apiFetch(path, options = {}) {
@@ -4080,17 +4342,26 @@
             ? "ride"
             : state.mode,
 
-        ride_type:
-          state.mode === "food" || state.mode === "grocery"
-            ? state.mode
-            : (els.rideType?.value || "standard"),
+        // ride_type is the field server.js actually keys dispatch/delivery
+        // behavior off of (see isDeliveryRideType()), so it comes straight
+        // from MODE_CONFIG instead of the passenger "Ride Type" dropdown.
+        // That dropdown used to double as ride_type for driver/autonomous
+        // mode, but its "Priority Pickup"/"Premium Ride" options were never
+        // in the server's allowed-values list and silently collapsed to
+        // "standard" — removed from the UI for the same reason.
+        ride_type: MODE_CONFIG[state.mode]?.rideType || "standard",
 
         passenger_count:
           Number(els.passengerCount?.value || 1),
 
-        service_priority:
-          els.servicePriority?.value || "normal",
-
+        // NOTE: the server's ride-creation route reads req.body.scheduled_for
+        // (see server.js), not scheduled_time — sending scheduled_time here
+        // meant every "Scheduled Ride" silently dispatched immediately
+        // instead of being held for the chosen time. scheduled_time is kept
+        // too for any older/alternate consumers, but scheduled_for is the
+        // one that actually holds dispatch.
+        scheduled_for:
+          els.scheduledTime?.value || null,
         scheduled_time:
           els.scheduledTime?.value || null,
 
@@ -4740,6 +5011,18 @@
             state.ride.rideId
           );
 
+          // The dashboard's active-request card reads these two keys to
+          // know what to show and where "Open Live Tracking" should point.
+          writeStorage(
+            CONFIG.STORAGE_KEYS.activeRequestId,
+            state.ride.rideId
+          );
+
+          writeStorage(
+            CONFIG.STORAGE_KEYS.activeRequestMode,
+            state.mode
+          );
+
           startRideStream(state.ride.rideId);
         }
 
@@ -4755,12 +5038,12 @@
 
         setLiveStatus(
           state.ride.rideId
-            ? `Ride request submitted. Ride ID: ${state.ride.rideId}`
-            : "Ride request submitted. Open your dashboard for updates."
+            ? `Ride request submitted. Ride ID: ${state.ride.rideId}. Returning to your dashboard...`
+            : "Ride request submitted. Returning to your dashboard..."
         );
 
         showNotice(
-          "Dispatch request submitted successfully. Open your rider dashboard for live updates.",
+          "Dispatch request submitted successfully. Returning to your rider dashboard for live updates.",
           "success"
         );
 
@@ -4768,6 +5051,14 @@
           els.requestRideBtn.disabled = true;
           els.requestRideBtn.textContent = "Dispatch Requested";
         }
+
+        // Give the rider a moment to see the confirmation, then hand off
+        // to rider-dashboard.html, which is now the one place that shows
+        // "what's my active request" — per the rebuild, this page's job
+        // ends at successful dispatch.
+        setTimeout(() => {
+          window.location.href = CONFIG.DASHBOARD_URL;
+        }, 1800);
 
         return true;
       } catch (error) {
@@ -5186,25 +5477,97 @@
         });
       });
 
-      els.wizardStep2ContinueBtn?.addEventListener("click", () => {
+      els.confirmServiceBtn?.addEventListener("click", confirmService);
+      els.changeServiceBtn?.addEventListener("click", changeService);
+
+      // STAGE: PICKUP -> DESTINATION
+      els.stagePickupContinueBtn?.addEventListener("click", () => {
         const riderError = validateRiderFields();
         if (riderError) {
           showNotice(riderError, "warning");
           return;
         }
 
-        const tripError = validateTripFields();
-        if (tripError) {
-          showNotice(tripError, "warning");
+        const pickupError = validatePickupFields();
+        if (pickupError) {
+          showNotice(pickupError, "warning");
           return;
         }
 
         clearNotice();
-        goToWizardStep(3);
+        goToStage("destination");
       });
 
-      els.wizardStep3BackBtn?.addEventListener("click", () => {
-        goToWizardStep(2);
+      // STAGE: DESTINATION -> PICKUP / DETAILS
+      els.stageDestinationBackBtn?.addEventListener("click", () => {
+        goToStage("pickup");
+      });
+
+      els.stageDestinationContinueBtn?.addEventListener("click", () => {
+        const destinationError = validateDestinationFields();
+        if (destinationError) {
+          showNotice(destinationError, "warning");
+          return;
+        }
+
+        clearNotice();
+        goToStage("details");
+      });
+
+      // STAGE: DETAILS -> DESTINATION / REVIEW
+      els.stageDetailsBackBtn?.addEventListener("click", () => {
+        goToStage("destination");
+      });
+
+      els.stageDetailsContinueBtn?.addEventListener("click", () => {
+        const detailsError = validateDetailsFields();
+        if (detailsError) {
+          showNotice(detailsError, "warning");
+          return;
+        }
+
+        clearNotice();
+        goToStage("review");
+      });
+
+      // STAGE: REVIEW -> DETAILS / PAYMENT
+      els.stageReviewBackBtn?.addEventListener("click", () => {
+        goToStage("details");
+      });
+
+      els.stageReviewContinueBtn?.addEventListener("click", () => {
+        if (!state.estimate.ready) {
+          showNotice("Please get a fare estimate before continuing.", "warning");
+          return;
+        }
+
+        clearNotice();
+        goToStage("payment");
+      });
+
+      // STAGE: PAYMENT -> REVIEW / DISPATCH
+      els.stagePaymentBackBtn?.addEventListener("click", () => {
+        goToStage("review");
+      });
+
+      els.stagePaymentContinueBtn?.addEventListener("click", () => {
+        if (CONFIG.REQUIRE_RIDER_APPROVAL && !state.rider.approved) {
+          showNotice("Please check rider approval before continuing.", "warning");
+          return;
+        }
+
+        if (CONFIG.REQUIRE_PAYMENT_AUTHORIZATION && !state.payment.authorized) {
+          showNotice("Please authorize payment before continuing.", "warning");
+          return;
+        }
+
+        clearNotice();
+        goToStage("dispatch");
+      });
+
+      // STAGE: DISPATCH -> PAYMENT
+      els.stageDispatchBackBtn?.addEventListener("click", () => {
+        goToStage("payment");
       });
 
       els.detectLocationBtn?.addEventListener(
@@ -5259,7 +5622,6 @@
         els.destinationAddress,
         els.rideType,
         els.passengerCount,
-        els.servicePriority,
         els.scheduledTime,
         els.rideNotes,
         els.orderItemCount,
@@ -5326,18 +5688,32 @@
       setDispatchState("Standby");
       setBadge(getModeContent(state.mode).badge);
 
-      if (state.ride.rideId) {
+      // Deep link from rider-dashboard.html's "Open Live Tracking" button
+      // (?ride_id=RIDE-XXXX&mode=food). This is the only path that jumps
+      // straight to live tracking now — boot() used to auto-resume
+      // whatever ride was last touched from localStorage, which meant
+      // opening a *new* request in a different mode would show the
+      // *previous* unrelated ride's driver card underneath it.
+      const trackRideId = getRawQueryParam("ride_id");
+
+      if (trackRideId) {
+        state.ride.rideId = trackRideId;
+        confirmService();
+        goToStage("dispatch");
+
         setLiveStatus(
-          "A previous ride request was found. You can refresh the status below."
+          `Tracking ride ${trackRideId}.`
         );
 
         setTimeline(
           "dispatch",
-          "Previous ride request found on this device."
+          `Tracking ride ${trackRideId}.`
         );
 
         refreshRideStatus();
-        startRideStream(state.ride.rideId);
+        startRideStream(trackRideId);
+      } else {
+        goToStage("confirm");
       }
     }
 
