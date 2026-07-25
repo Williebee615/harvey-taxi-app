@@ -989,7 +989,53 @@
           </button>
         </div>
       </div>
-    </section>    <!-- RIDER STATUS -->
+    </section>
+
+    <!-- ACTIVE REQUEST -->
+    <section class="section" id="activeRequestSection" style="display:none;">
+      <div class="section-header">
+        <div>
+          <h2>Active request</h2>
+          <p>Your current ride or delivery, live.</p>
+        </div>
+      </div>
+
+      <div class="trip-card">
+        <div class="trip-top">
+          <div>
+            <div class="trip-title" id="activeRequestTitle">—</div>
+            <div class="trip-sub" id="activeRequestSub">—</div>
+          </div>
+
+          <div class="trip-status" id="activeRequestStatusPill">—</div>
+        </div>
+
+        <div class="trip-meta">
+          <div class="meta-card">
+            <small>ETA</small>
+            <span id="activeRequestEta">—</span>
+          </div>
+
+          <div class="meta-card">
+            <small>Driver</small>
+            <span id="activeRequestDriver">Not yet assigned</span>
+          </div>
+
+          <div class="meta-card">
+            <small>Request ID</small>
+            <span id="activeRequestIdText">—</span>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="btn primary" type="button" id="openLiveTrackingBtn">
+            Open Live Tracking
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIDER STATUS -->
     <section class="section">
       <div class="section-header">
         <div>
@@ -1513,7 +1559,11 @@
         riderId: "harvey_rider_id",
         riderEmail: "harvey_rider_email",
         riderProfile: "harvey_rider_profile",
-        activeRideId: "harvey_active_ride_id"
+        activeRideId: "harvey_active_ride_id",
+        // Written by request-ride.html right after a successful dispatch
+        // (see its CONFIG.STORAGE_KEYS.activeRequestMode) so this card
+        // knows which service type it's showing without re-deriving it.
+        activeRequestMode: "harvey_active_request_mode"
       }
     };
 
@@ -1523,7 +1573,9 @@
       rides: [],
       deliveries: [],
       tab: "rides",
-      loading: false
+      loading: false,
+      activeRequest: null,
+      activeRequestPollId: null
     };
 
     const els = {
@@ -1537,6 +1589,15 @@
 
       approvalNotice: document.getElementById("approvalNotice"),
       systemNotice: document.getElementById("systemNotice"),
+
+      activeRequestSection: document.getElementById("activeRequestSection"),
+      activeRequestTitle: document.getElementById("activeRequestTitle"),
+      activeRequestSub: document.getElementById("activeRequestSub"),
+      activeRequestStatusPill: document.getElementById("activeRequestStatusPill"),
+      activeRequestEta: document.getElementById("activeRequestEta"),
+      activeRequestDriver: document.getElementById("activeRequestDriver"),
+      activeRequestIdText: document.getElementById("activeRequestIdText"),
+      openLiveTrackingBtn: document.getElementById("openLiveTrackingBtn"),
 
       statusApproval: document.getElementById("statusApproval"),
       statusRideAccess: document.getElementById("statusRideAccess"),
@@ -2213,6 +2274,118 @@
       });
     }
 
+    // Active request card: reads the ride ID request-ride.html writes on a
+    // successful dispatch and polls the same public-by-ride-ID status route
+    // request-ride.html itself uses, rather than the rider-history endpoints
+    // above (which the dashboard already falls back gracefully from when
+    // they're unavailable).
+    const ACTIVE_REQUEST_POLL_MS = 15000;
+    const TERMINAL_STATUSES = ["completed", "cancelled", "failed"];
+
+    function clearActiveRequest() {
+      try {
+        localStorage.removeItem(CONFIG.STORAGE_KEYS.activeRideId);
+        localStorage.removeItem(CONFIG.STORAGE_KEYS.activeRequestMode);
+      } catch {}
+
+      state.activeRequest = null;
+
+      if (els.activeRequestSection) {
+        els.activeRequestSection.style.display = "none";
+      }
+
+      if (state.activeRequestPollId) {
+        clearInterval(state.activeRequestPollId);
+        state.activeRequestPollId = null;
+      }
+    }
+
+    function renderActiveRequest(data, mode) {
+      state.activeRequest = data;
+
+      const isDelivery = data.ride_type === "food" || data.ride_type === "grocery";
+
+      if (els.activeRequestTitle) {
+        els.activeRequestTitle.textContent = human(
+          data.ride_type || mode || "ride"
+        ) + (isDelivery ? " delivery" : " ride");
+      }
+
+      if (els.activeRequestSub) {
+        els.activeRequestSub.textContent =
+          `${data.pickup_address || "Pickup pending"} → ${data.destination_address || "Destination pending"}`;
+      }
+
+      if (els.activeRequestStatusPill) {
+        els.activeRequestStatusPill.className = `trip-status ${statusClass(data.status)}`;
+        els.activeRequestStatusPill.textContent = human(data.status || "pending");
+      }
+
+      if (els.activeRequestEta) {
+        els.activeRequestEta.textContent = data.tracking?.eta_minutes
+          ? `~${data.tracking.eta_minutes} min (estimate)`
+          : (data.eta_minutes ? `~${data.eta_minutes} min (estimate)` : "Pending");
+      }
+
+      if (els.activeRequestDriver) {
+        els.activeRequestDriver.textContent = data.driver?.name
+          ? `${data.driver.name}${data.driver.vehicle ? " • " + data.driver.vehicle : ""}`
+          : "Not yet assigned";
+      }
+
+      if (els.activeRequestIdText) {
+        els.activeRequestIdText.textContent = data.id || "—";
+      }
+
+      if (els.openLiveTrackingBtn) {
+        els.openLiveTrackingBtn.onclick = () => {
+          window.location.href =
+            `request-ride.html?ride_id=${encodeURIComponent(data.id)}&mode=${encodeURIComponent(mode || "driver")}`;
+        };
+      }
+
+      if (els.activeRequestSection) {
+        els.activeRequestSection.style.display = "block";
+      }
+    }
+
+    async function loadActiveRequest() {
+      let rideId = "";
+      let mode = "driver";
+
+      try {
+        rideId = localStorage.getItem(CONFIG.STORAGE_KEYS.activeRideId) || "";
+        mode = localStorage.getItem(CONFIG.STORAGE_KEYS.activeRequestMode) || "driver";
+      } catch {}
+
+      if (!rideId) {
+        clearActiveRequest();
+        return;
+      }
+
+      try {
+        const data = await requestJson(
+          `/api/rides/${encodeURIComponent(rideId)}/status`
+        );
+
+        if (TERMINAL_STATUSES.includes(String(data.status || "").toLowerCase())) {
+          clearActiveRequest();
+          return;
+        }
+
+        renderActiveRequest(data, mode);
+
+        if (!state.activeRequestPollId) {
+          state.activeRequestPollId = setInterval(loadActiveRequest, ACTIVE_REQUEST_POLL_MS);
+        }
+      } catch (error) {
+        // Ride not found (deleted, wrong ID, etc.) — clear it rather than
+        // leaving a permanently-broken card showing.
+        console.log("Active request unavailable:", error.message);
+        clearActiveRequest();
+      }
+    }
+
     async function startPersona() {
       if (!state.riderId && !state.riderProfile?.email) {
         showSystemNotice(
@@ -2436,6 +2609,7 @@
       try {
         await loadRiderStatus();
         await loadHistory();
+        await loadActiveRequest();
       } catch (error) {
         console.log("Dashboard boot warning:", error.message);
 

@@ -9039,7 +9039,11 @@ app.post(
 
       status === RIDE_STATUS.PAYMENT_AUTHORIZED &&
 
-      !ride.scheduled_for
+      // Was `!ride.scheduled_for` — the rides table (and the object built
+      // just above) only has a scheduled_time column, so that check always
+      // read undefined and every scheduled ride dispatched immediately
+      // instead of being held for its requested time.
+      !ride.scheduled_time
 
     ) {
 
@@ -16957,7 +16961,7 @@ app.post(
         const { data, error } = await supabase
           .from("rides")
           .select(
-            "status, dispatch_status, ride_type, scheduled_for, created_at, updated_at"
+            "status, dispatch_status, ride_type, scheduled_time, created_at, updated_at"
           )
           .eq("id", code.toUpperCase())
           .maybeSingle();
@@ -16974,8 +16978,8 @@ app.post(
           status: data.status,
           dispatch_status: data.dispatch_status,
           ride_type: data.ride_type,
-          scheduled_for: data.scheduled_for
-            ? String(data.scheduled_for).slice(0, 16)
+          scheduled_for: data.scheduled_time
+            ? String(data.scheduled_time).slice(0, 16)
             : null,
           requested: String(data.created_at).slice(0, 16),
           last_updated: String(data.updated_at).slice(0, 16),
