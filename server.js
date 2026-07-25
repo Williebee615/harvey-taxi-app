@@ -10181,6 +10181,154 @@ app.get(
 
 /* =========================================================
 
+   RIDER-SCOPED SAVED PLACES
+
+   Quick-launch destinations (Home, Work, custom) for the rider
+   dashboard. Same trust model as the rider-history routes above:
+   riderId is client-supplied, not session-verified (there is no
+   rider auth session anywhere in this app yet), so these routes
+   only ever read/write rows scoped to whatever riderId the caller
+   passes, same as every other rider-scoped route.
+
+========================================================= */
+
+app.get(
+  "/api/rider/saved-places",
+  rateLimit({ windowMs: 60_000, max: 60, keyPrefix: "saved_places_list" }),
+  asyncRoute(async (req, res) => {
+    const riderId = cleanString(req.query.riderId || req.query.rider_id, 100);
+
+    if (!riderId) {
+      return fail(res, "riderId is required.", 400);
+    }
+
+    const { data, error } = await supabase
+      .from("saved_places")
+      .select("id, label, address, lat, lng, icon, created_at")
+      .eq("rider_id", riderId)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      throw error;
+    }
+
+    return ok(res, { places: data || [] });
+  })
+);
+
+app.post(
+  "/api/rider/saved-places",
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "saved_places_create" }),
+  asyncRoute(async (req, res) => {
+    const riderId = cleanString(req.body.riderId || req.body.rider_id, 100);
+    const label = cleanString(req.body.label, 60);
+    const address = cleanString(req.body.address, 300);
+    const icon = cleanString(req.body.icon, 8) || "📍";
+    const lat = Number(req.body.lat);
+    const lng = Number(req.body.lng);
+
+    if (!riderId || !label || !address) {
+      return fail(res, "riderId, label, and address are required.", 400);
+    }
+
+    const place = {
+      id: makeId("PLACE"),
+      rider_id: riderId,
+      label,
+      address,
+      lat: Number.isFinite(lat) ? lat : null,
+      lng: Number.isFinite(lng) ? lng : null,
+      icon,
+      created_at: nowIso(),
+      updated_at: nowIso()
+    };
+
+    const { error } = await supabase.from("saved_places").insert(place);
+
+    if (error) {
+      throw error;
+    }
+
+    return ok(res, { place }, 201);
+  })
+);
+
+app.delete(
+  "/api/rider/saved-places/:id",
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "saved_places_delete" }),
+  asyncRoute(async (req, res) => {
+    const id = cleanString(req.params.id, 100);
+    const riderId = cleanString(req.query.riderId || req.query.rider_id, 100);
+
+    if (!id || !riderId) {
+      return fail(res, "riderId is required.", 400);
+    }
+
+    // Same 404-either-way ownership check as /api/rider/rides/:rideId —
+    // never confirm a place ID exists to a caller supplying a different
+    // riderId.
+    const { data: existing } = await supabase
+      .from("saved_places")
+      .select("id, rider_id")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (!existing || existing.rider_id !== riderId) {
+      return fail(res, "Saved place not found.", 404);
+    }
+
+    const { error } = await supabase.from("saved_places").delete().eq("id", id);
+
+    if (error) {
+      throw error;
+    }
+
+    return ok(res, { deleted: true });
+  })
+);
+
+/* =========================================================
+
+   HTAF APPLICATION STATUS BY EMAIL
+
+   htaf_applications has no rider_id column — applications are
+   keyed by contact email/phone, not by rider account (there is no
+   link between the two anywhere in the schema). This lets the
+   rider dashboard find "do I have an HTAF application, and what's
+   its status" using the one identifier it already has (the
+   rider's own email), exposing nothing beyond what the existing
+   public /api/foundation/status/:code route already exposes.
+
+========================================================= */
+
+app.get(
+  "/api/foundation/applications/by-email",
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "htaf_status_by_email" }),
+  asyncRoute(async (req, res) => {
+    const email = cleanString(req.query.email, 200);
+
+    if (!email || !email.includes("@")) {
+      return fail(res, "A valid email is required.", 400);
+    }
+
+    const { data, error } = await supabase
+      .from("htaf_applications")
+      .select("application_code, status, program_type, created_at, updated_at")
+      .ilike("email", email)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    return ok(res, { application: data || null });
+  })
+);
+
+/* =========================================================
+
    PART 7 — DRIVER OFFERS + DRIVER MISSION PIPELINE
 
 ========================================================= */

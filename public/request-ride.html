@@ -4216,6 +4216,18 @@
 
       applyMode(queryMode || storedMode || CONFIG.DEFAULT_MODE);
 
+      // Deep link from rider-dashboard.html's "Scheduled" quick-action
+      // tile (?ride_type=scheduled) — preselects the Ride Type dropdown
+      // so the rider lands straight on "Scheduled Ride" instead of
+      // having to notice and change it themselves. scheduledRideBlock is
+      // always visible (no show/hide listener on rideType), so setting
+      // the value here is enough.
+      const queryRideType = getRawQueryParam("ride_type");
+
+      if (queryRideType === "scheduled" && els.rideType) {
+        els.rideType.value = "scheduled";
+      }
+
       // Harvey AI dispatcher: mode above is already applied, so this only
       // carries the free-text fields the assistant picked up from the
       // person's message (see ai-support-widget.js's open_ride_workflow
