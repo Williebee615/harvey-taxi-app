@@ -155,6 +155,15 @@ const CANONICAL_HOST = env("CANONICAL_HOST", "harveytaxiservice.com");
    work yet. */
 const ENABLE_CANONICAL_REDIRECT = envBool("ENABLE_CANONICAL_REDIRECT", false);
 
+/* Second public-facing domain for the Harvey Transportation Assistance
+   Foundation. Requests to this host's root path serve foundation.html
+   as the homepage instead of the taxi app's index.html — every other
+   path on this domain (assets, /api/*, other pages) is unaffected, it
+   just shares the same app and static files. Override with
+   FOUNDATION_HOST if the domain ever changes. */
+const FOUNDATION_HOST = env("FOUNDATION_HOST", "harveytransportationfoundation.com");
+const FOUNDATION_HOSTS = new Set([FOUNDATION_HOST, `www.${FOUNDATION_HOST}`]);
+
 const PUBLIC_DIR = path.join(__dirname, "public");
 
 const SUPPORT_EMAIL =
@@ -542,6 +551,34 @@ app.use((req, res, next) => {
 
     return res.redirect(301, `https://${CANONICAL_HOST}${req.originalUrl}`);
 
+  }
+
+  next();
+
+});
+
+/* =========================================================
+
+   HTAF DOMAIN HOMEPAGE
+
+   Requests that arrive on FOUNDATION_HOST get foundation.html at the
+   root path instead of the taxi app's index.html -- everything else
+   (assets, /api/*, other pages) is served identically regardless of
+   which domain the request came in on, since both domains point at
+   this same app. Must run before express.static, which would
+   otherwise already resolve "/" to index.html first.
+
+========================================================= */
+
+app.use((req, res, next) => {
+
+  if (
+    req.method === "GET" &&
+    req.path === "/" &&
+    req.hostname &&
+    FOUNDATION_HOSTS.has(req.hostname)
+  ) {
+    return res.sendFile(path.join(PUBLIC_DIR, "foundation.html"));
   }
 
   next();
