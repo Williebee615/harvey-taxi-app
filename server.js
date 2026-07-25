@@ -9616,6 +9616,8 @@ app.get(
 
     let driverPhotoUrl = null;
 
+    let driverVerified = false;
+
     let driverLocation = null;
 
     if (ride.driver_id) {
@@ -9624,13 +9626,17 @@ app.get(
 
         .from("drivers")
 
-        .select("photo_url, current_lat, current_lng, last_seen_at, location_accuracy_meters")
+        .select("photo_url, approval_status, current_lat, current_lng, last_seen_at, location_accuracy_meters")
 
         .eq("id", ride.driver_id)
 
         .maybeSingle();
 
       driverPhotoUrl = driver?.photo_url || null;
+
+      // Real signal, not decorative: only true once the driver has cleared
+      // Harvey Taxi's approval flow (identity/insurance/license checks).
+      driverVerified = driver?.approval_status === "approved";
 
       if (driver && driver.current_lat !== null && driver.current_lng !== null) {
 
@@ -9775,6 +9781,8 @@ app.get(
             phone: ride.driver_phone,
 
             photo_url: driverPhotoUrl,
+
+            verified: driverVerified,
 
             location: driverLocation
 
