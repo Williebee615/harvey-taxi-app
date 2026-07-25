@@ -9822,6 +9822,166 @@ app.get(
 
 /* =========================================================
 
+   RIDER-SCOPED HISTORY API
+
+   Canonical replacement for /api/rider/history, /api/rides/status,
+   and /api/delivery/status — three endpoints rider-dashboard.html
+   has called since it was built, none of which have ever existed
+   server-side. The dashboard's Activity tab has been silently empty
+   this whole time (it degrades gracefully, so nothing looked broken).
+
+   Every route here requires riderId and filters/verifies against it
+   server-side — unlike /api/rides/:id/status above, which is
+   intentionally public-by-unguessable-ID for the in-flight tracking
+   view. A rider's history is different: it's worth actually enforcing
+   ownership rather than relying on ID obscurity, so a ride ID leaked
+   or guessed some other way can't be used to read someone else's
+   trip history through this API.
+
+========================================================= */
+
+// Curated column list — deliberately not select("*"). The rides table
+// carries a lot of internal/operational columns (admin_note,
+// pricing_snapshot, dispatch internals, etc.) that have no business
+// reaching a rider-facing response.
+const RIDER_HISTORY_COLUMNS =
+  "id, rider_id, status, ride_type, requested_mode, service_type, " +
+  "pickup_address, dropoff_address, " +
+  "driver_name, driver_vehicle, driver_phone, " +
+  "estimated_fare, final_fare, tip_amount, " +
+  "scheduled_time, created_at, updated_at, completed_at, cancelled_at, " +
+  "delivery_stage, delivery_pin, merchant_name, item_count, " +
+  "pickup_instructions, delivery_instructions, delivered_at, delivery_proof_url";
+
+// "Active" vs "completed" here means "still open" vs "finished" — a
+// cancelled or failed ride counts as finished/historical, same as a
+// successfully completed one. This is a different grouping than the
+// ACTIVE_STATUSES used elsewhere for "a driver is actively working this
+// ride right now" (that one excludes payment_required/payment_authorized,
+// which are still very much "active" from the rider's point of view).
+const RIDER_HISTORY_TERMINAL_STATUSES = [
+  RIDE_STATUS.COMPLETED,
+  RIDE_STATUS.CANCELLED,
+  RIDE_STATUS.FAILED
+];
+
+// Returns null (having already written the response) when riderId is
+// missing, so callers must check for that before using the result —
+// never { rows, next_cursor } and a sent response at the same time.
+async function listRiderRequests(req, res, { deliveryOnly }) {
+  const riderId = cleanString(
+    req.query.riderId || req.query.rider_id,
+    100
+  );
+
+  if (!riderId) {
+    fail(res, "riderId is required.", 400);
+    return null;
+  }
+
+  const status = cleanString(req.query.status, 20).toLowerCase();
+  const limit = getPageLimit(req, 25, 100);
+  const cursor = decodeCursor(req.query.cursor);
+
+  let query = supabase
+    .from("rides")
+    .select(RIDER_HISTORY_COLUMNS)
+    .eq("rider_id", riderId)
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(limit);
+
+  query = deliveryOnly
+    ? query.in("ride_type", ["food", "grocery"])
+    : query.not("ride_type", "in", "(food,grocery)");
+
+  if (status === "active") {
+    query = query.not(
+      "status",
+      "in",
+      `(${RIDER_HISTORY_TERMINAL_STATUSES.join(",")})`
+    );
+  } else if (status === "completed") {
+    query = query.in("status", RIDER_HISTORY_TERMINAL_STATUSES);
+  }
+
+  query = applyCursor(query, cursor);
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw error;
+  }
+
+  const rows = data || [];
+
+  const next_cursor =
+    rows.length === limit
+      ? encodeCursor(rows[rows.length - 1])
+      : null;
+
+  return { rows, next_cursor };
+}
+
+app.get(
+  "/api/rider/rides",
+  asyncRoute(async (req, res) => {
+    const result = await listRiderRequests(req, res, { deliveryOnly: false });
+
+    if (!result) return;
+
+    return ok(res, { rides: result.rows, next_cursor: result.next_cursor });
+  })
+);
+
+app.get(
+  "/api/rider/deliveries",
+  asyncRoute(async (req, res) => {
+    const result = await listRiderRequests(req, res, { deliveryOnly: true });
+
+    if (!result) return;
+
+    return ok(res, { deliveries: result.rows, next_cursor: result.next_cursor });
+  })
+);
+
+app.get(
+  "/api/rider/rides/:rideId",
+  asyncRoute(async (req, res) => {
+    const rideId = cleanString(req.params.rideId, 100);
+
+    const riderId = cleanString(
+      req.query.riderId || req.query.rider_id,
+      100
+    );
+
+    if (!riderId) {
+      return fail(res, "riderId is required.", 400);
+    }
+
+    const { data: ride, error } = await supabase
+      .from("rides")
+      .select(RIDER_HISTORY_COLUMNS)
+      .eq("id", rideId)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    // Same 404 whether the ride doesn't exist or belongs to a different
+    // rider — never confirm a ride ID exists to a caller who can't prove
+    // they own it.
+    if (!ride || ride.rider_id !== riderId) {
+      return fail(res, "Ride not found.", 404);
+    }
+
+    return ok(res, { ride });
+  })
+);
+
+/* =========================================================
+
    GOOGLE MAPS BROWSER KEY
 
    Serves the browser-restricted Maps/Places key from an env
