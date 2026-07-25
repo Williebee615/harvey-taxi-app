@@ -2790,6 +2790,18 @@ const {
   DRIVER_PAYOUT_PERCENT,
   calculateRideEstimate
 } = require("./lib/pricing");
+
+// Rider-only verification helpers, extracted so the mapping from a
+// rider row to phone/persona/identity verification booleans is
+// unit-tested against the real riders schema in one place. See
+// lib/riderVerification.js for why this exists — riders and drivers
+// use different column names for the same concepts, and rider code
+// was incorrectly reading the driver-shaped columns.
+const {
+  isRiderPhoneVerified,
+  isRiderPersonaVerified,
+  buildRiderSignupRecord
+} = require("./lib/riderVerification");
 /* =========================================================
 
    PART 3 — HTAF FOUNDATION APPLICATION SYSTEM
@@ -4854,94 +4866,50 @@ app.post(
 
     }
 
-    const now =
-
-      nowIso();
-
-    const rider = {
-
-      id:
-
-        makeId("RIDER"),
-
-      first_name:
-
-        cleanString(req.body.first_name, 120),
-
-      last_name:
-
-        cleanString(req.body.last_name, 120),
-
-      email:
-
-        cleanEmail(req.body.email),
-
-      phone:
-
-        cleanPhone(req.body.phone),
-
-      city:
-
-        cleanString(req.body.city, 120),
-
-      state:
-
-        cleanString(req.body.state || "TN", 40),
-
-      status:
-
-        ENABLE_RIDER_APPROVAL_GATE
-
-          ? "pending_verification"
-
-          : "active",
-
-      approval_status:
-
-        ENABLE_RIDER_APPROVAL_GATE
-
-          ? "pending"
-
-          : "approved",
-
-      email_verified:
-
-        false,
-
-      phone_verified:
-
-        false,
-
-      persona_verified:
-
-        false,
-
-      created_at:
-
-        now,
-
-      updated_at:
-
-        now
-
-    };
+    const rider = buildRiderSignupRecord({
+      id: makeId("RIDER"),
+      firstName: cleanString(req.body.first_name, 120),
+      lastName: cleanString(req.body.last_name, 120),
+      email: cleanEmail(req.body.email),
+      phone: cleanPhone(req.body.phone),
+      city: cleanString(req.body.city, 120),
+      state: cleanString(req.body.state || "TN", 40),
+      approvalGateEnabled: ENABLE_RIDER_APPROVAL_GATE,
+      now: nowIso()
+    });
 
     const { data, error } =
-
       await supabase
-
         .from("riders")
-
         .insert(rider)
-
         .select()
-
         .single();
 
     if (error) {
+      // Never leak Supabase/schema error details to the browser — log
+      // the real error server-side against a request ID the client can
+      // reference, and return a generic, safe error code instead.
+      const requestId = makeId("SIGNUPERR");
 
-      throw error;
+      console.error(`⚠️ Rider signup failed [${requestId}]:`, error.message);
 
+      auditLog({
+        actor_type: "rider",
+        action: "rider_signup_failed",
+        entity_type: "rider",
+        metadata: { request_id: requestId, reason: error.message, email: rider.email },
+        req
+      }).catch(() => {});
+
+      return fail(
+        res,
+        "RIDER_SIGNUP_FAILED",
+        500,
+        {
+          message: "We could not create your rider account. Please try again.",
+          request_id: requestId
+        }
+      );
     }
 
     auditLog({
@@ -5976,13 +5944,17 @@ app.post(
 
     await Promise.allSettled([
 
+      // riders has no phone_verified column -- sms_verified is the
+      // real one (see lib/riderVerification.js). This used to silently
+      // no-op via Promise.allSettled, so rider phone verification never
+      // actually persisted.
       supabase
 
         .from("riders")
 
         .update({
 
-          phone_verified:
+          sms_verified:
 
             true,
 
@@ -6584,6 +6556,11 @@ app.post(
 
       await Promise.allSettled([
 
+        // riders has no persona_verified column -- persona_status alone
+        // is the source of truth there (isRiderPersonaVerified() reads
+        // it). Bundling persona_verified into this update used to make
+        // the entire riders update fail, so persona_status silently
+        // never updated for riders either.
         supabase
 
           .from("riders")
@@ -6593,10 +6570,6 @@ app.post(
             persona_status:
 
               status,
-
-            persona_verified:
-
-              approved,
 
             updated_at:
 
@@ -7633,15 +7606,20 @@ async function getRiderReadiness(riderId) {
 
       Boolean(rider.email_verified),
 
+    // rider.phone_verified / rider.persona_verified never exist on a
+    // real riders row (those columns are drivers-only) -- reading them
+    // directly here made `ready` permanently false for every rider.
+    // isRiderPhoneVerified()/isRiderPersonaVerified() read the columns
+    // riders actually have (sms_verified, persona_status).
     phone_verified:
 
-      Boolean(rider.phone_verified),
+      isRiderPhoneVerified(rider),
 
     persona_verified:
 
       ENABLE_PERSONA
 
-        ? Boolean(rider.persona_verified)
+        ? isRiderPersonaVerified(rider)
 
         : true,
 
@@ -17589,13 +17567,16 @@ app.post(
 
       await Promise.allSettled([
 
+        // riders has no phone_verified column -- see
+        // lib/riderVerification.js and the SMS-confirm route above for
+        // the same fix.
         supabase
 
           .from("riders")
 
           .update({
 
-            phone_verified:
+            sms_verified:
 
               true,
 
