@@ -7492,7 +7492,38 @@ const {
 // before ever calling findAvailableDrivers() — see lib/pilotLifecycle.js
 // for why this lives outside rides.status entirely. Also dependency-free,
 // same pattern as lib/rideDispatch.js above.
-const { canEnterHumanDispatch } = require("./lib/pilotLifecycle");
+const {
+  PILOT_STATUS,
+  AVAILABILITY_RESULT,
+  PILOT_DISCLOSURE_VERSION,
+  PILOT_DISCLOSURE_POINTS,
+  canEnterHumanDispatch,
+  findMatchingPilotZone,
+  evaluatePilotAvailability,
+  evaluateAutonomousPilotCreation,
+  buildAutonomousPilotRideFields,
+  isDuplicatePilotRequest,
+  buildPilotStatusResponse
+} = require("./lib/pilotLifecycle");
+
+const { getPilotProvider } = require("./lib/pilotProvider");
+
+// Shared I/O helper: loads every currently-active pilot zone. Used by
+// both the eligibility-preview route and real ride creation, so a zone
+// admins deactivate takes effect identically in both places.
+async function fetchActivePilotZones() {
+  const { data, error } = await supabase
+    .from("autonomous_pilot_zones")
+    .select("*")
+    .eq("active", true);
+
+  if (error) {
+    console.error("⚠️ Could not load autonomous pilot zones:", error.message);
+    return [];
+  }
+
+  return data || [];
+}
 
 // Records one row in autonomous_pilot_events (see the schema migration).
 // Never throws — an audit-log failure must not block the dispatch
@@ -8724,6 +8755,132 @@ app.post(
 
 /* =========================================================
 
+   AUTONOMOUS PILOT — PUBLIC CONFIG, ELIGIBILITY, STATUS
+
+   Public/rider-facing surface of the pilot. All three routes are
+   deliberately narrow about what they expose — see
+   buildPilotStatusResponse() and the response shapes below for what's
+   intentionally left out (zone geometry, provider internals, event
+   metadata).
+
+========================================================= */
+
+app.get(
+  "/api/autonomous-pilot/config",
+  rateLimit({ windowMs: 60_000, max: 60, keyPrefix: "pilot_config" }),
+  asyncRoute(async (req, res) => {
+    const enabled = await autonomousPilotEnabled();
+
+    return ok(res, {
+      enabled,
+      disclosure_version: PILOT_DISCLOSURE_VERSION,
+      disclosure_points: PILOT_DISCLOSURE_POINTS,
+      // Human fallback is always a possible outcome of the manual_operations
+      // adapter in V1 — this describes the program's general capability,
+      // not any specific request's result (that's what /eligibility and
+      // /rides/:rideId/status are for).
+      human_fallback_available: true,
+      availability_language:
+        "Autonomous Pilot is a limited-availability program operating only in approved service zones during their configured hours. A human-operated Harvey Taxi may be substituted at any time, and the pilot may be temporarily paused by Harvey Taxi."
+    });
+  })
+);
+
+app.post(
+  "/api/autonomous-pilot/eligibility",
+  rateLimit({ windowMs: 60_000, max: 30, keyPrefix: "pilot_eligibility" }),
+  asyncRoute(async (req, res) => {
+    const pickup = { lat: Number(req.body.pickup_lat), lng: Number(req.body.pickup_lng) };
+    const destination = { lat: Number(req.body.destination_lat), lng: Number(req.body.destination_lng) };
+
+    if (![pickup.lat, pickup.lng, destination.lat, destination.lng].every(Number.isFinite)) {
+      return fail(res, "Valid pickup and destination coordinates are required.", 400);
+    }
+
+    // Accepted and would be forwarded into a real capability check —
+    // there is no such check under manual_operations (no real vehicle
+    // inventory to match against), so this never turns an otherwise
+    // ineligible/unavailable result into an automatic approval. See
+    // the safety requirement against auto-approving needs a vehicle
+    // can't support.
+    const accessibilityNeeds = cleanString(req.body.accessibility_needs, 500) || null;
+
+    const pilotEnabled = await autonomousPilotEnabled();
+
+    if (!pilotEnabled) {
+      return ok(res, { result: AVAILABILITY_RESULT.PILOT_PAUSED });
+    }
+
+    const zones = await fetchActivePilotZones();
+    const matchedZone = findMatchingPilotZone(zones, pickup, destination);
+
+    if (!matchedZone) {
+      return ok(res, { result: AVAILABILITY_RESULT.OUTSIDE_ZONE });
+    }
+
+    // autonomous_pilot_zones has no per-zone provider column (V1 has
+    // exactly one provider) — always manual_operations for now.
+    const provider = getPilotProvider("manual_operations");
+    const providerAvailability = await provider.checkAvailability({
+      zoneId: matchedZone.id,
+      pickup,
+      destination,
+      accessibilityNeeds
+    });
+
+    const evaluation = evaluatePilotAvailability({
+      pilotEnabled,
+      matchedZone,
+      providerAvailability
+    });
+
+    return ok(res, {
+      result: evaluation.result,
+      zone_id: matchedZone.id,
+      zone_name: matchedZone.name
+    });
+  })
+);
+
+app.get(
+  "/api/autonomous-pilot/rides/:rideId/status",
+  rateLimit({ windowMs: 60_000, max: 60, keyPrefix: "pilot_ride_status" }),
+  asyncRoute(async (req, res) => {
+    const rideId = cleanString(req.params.rideId, 100);
+    const riderId = cleanString(req.query.riderId || req.query.rider_id, 100);
+
+    if (!rideId || !riderId) {
+      return fail(res, "riderId is required.", 400);
+    }
+
+    const { data: ride, error } = await supabase
+      .from("rides")
+      .select(
+        "id, rider_id, autonomous_pilot, pilot_status, pilot_provider, pilot_vehicle_id, " +
+        "human_fallback_allowed, human_fallback_reason, pilot_consent_at, boarding_confirmed_at, " +
+        "created_at, updated_at"
+      )
+      .eq("id", rideId)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    // Same 404-either-way ownership check used elsewhere in this file
+    // (e.g. /api/rider/rides/:rideId) — never confirm a ride ID exists
+    // to a caller supplying a different riderId, and never expose a
+    // non-pilot ride through the pilot-specific status route.
+    if (!ride || ride.rider_id !== riderId || !ride.autonomous_pilot) {
+      return fail(res, "Autonomous pilot ride not found.", 404);
+    }
+
+    return ok(res, buildPilotStatusResponse(ride));
+  })
+);
+
+/* =========================================================
+
    RIDE REQUEST
 
 ========================================================= */
@@ -8811,6 +8968,95 @@ app.post(
         req.body.ride_type
 
       );
+
+    // Autonomous Pilot requests reuse this exact same route, the same
+    // pricing below, and the same payment/dispatch flow that follows —
+    // there is no second booking path. The only thing that differs is
+    // this validation block and the pilot_* fields added to the insert
+    // further down.
+    const isAutonomousPilotRequest = rideType === "autonomous";
+    let pilotZone = null;
+    let duplicatePilotRide = null;
+
+    if (isAutonomousPilotRequest) {
+
+      const pickupPoint = {
+        lat: Number(req.body.pickup_lat),
+        lng: Number(req.body.pickup_lng)
+      };
+
+      const destinationPoint = {
+        lat: Number(req.body.destination_lat),
+        lng: Number(req.body.destination_lng)
+      };
+
+      const pilotEnabled = await autonomousPilotEnabled();
+
+      const zones = pilotEnabled ? await fetchActivePilotZones() : [];
+
+      const matchedZone = pilotEnabled
+        ? findMatchingPilotZone(zones, pickupPoint, destinationPoint)
+        : null;
+
+      const pilotDecision = evaluateAutonomousPilotCreation({
+        pilotEnabled,
+        consent:
+          req.body.pilot_consent === true ||
+          req.body.pilot_consent === "true",
+        disclosureVersion: cleanString(req.body.pilot_disclosure_version, 40),
+        currentDisclosureVersion: PILOT_DISCLOSURE_VERSION,
+        matchedZone
+      });
+
+      if (!pilotDecision.ok) {
+        return fail(res, pilotDecision.error, 422, {
+          pilot_result: pilotDecision.pilot_result
+        });
+      }
+
+      pilotZone = pilotDecision.zone;
+
+      // Duplicate-submission guard: a double-click or network retry
+      // reuses the same still-pending pilot request instead of
+      // creating a second one.
+      if (riderId) {
+
+        const { data: recentPilotRides } = await supabase
+          .from("rides")
+          .select("*")
+          .eq("rider_id", riderId)
+          .eq("autonomous_pilot", true)
+          .eq("pilot_status", PILOT_STATUS.REQUESTED)
+          .order("created_at", { ascending: false })
+          .limit(1);
+
+        const candidate = (recentPilotRides || [])[0] || null;
+
+        if (
+          isDuplicatePilotRequest({
+            existingRide: candidate,
+            riderId,
+            pickup: pickupPoint,
+            destination: destinationPoint
+          })
+        ) {
+          duplicatePilotRide = candidate;
+        }
+      }
+    }
+
+    if (duplicatePilotRide) {
+      return ok(
+        res,
+        {
+          ride: duplicatePilotRide,
+          estimate: duplicatePilotRide.pricing_snapshot || null,
+          dispatch: null,
+          reused: true
+        },
+        200
+      );
+    }
 
     const estimate =
 
@@ -9091,7 +9337,20 @@ app.post(
 
       updated_at:
 
-        now
+        now,
+
+      // Only present for a validated, consented, in-zone Autonomous
+      // Pilot request (see the validation block above) — every field
+      // here defaults to its neutral value (false/null) on the rides
+      // table already, so a non-pilot ride is completely unaffected by
+      // spreading an empty object here.
+      ...(isAutonomousPilotRequest
+        ? buildAutonomousPilotRideFields({
+            zone: pilotZone,
+            disclosureVersion: PILOT_DISCLOSURE_VERSION,
+            consentAt: now
+          })
+        : {})
 
     };
 
@@ -9140,6 +9399,20 @@ app.post(
     }
 
     notifyRideStage(data, "order_submitted").catch(() => {});
+
+    if (isAutonomousPilotRequest) {
+      logAutonomousPilotEvent({
+        ride_id: data.id,
+        event_type: "pilot_requested",
+        pilot_status: PILOT_STATUS.REQUESTED,
+        actor_type: "rider",
+        actor_id: riderId || null,
+        metadata: {
+          zone_id: pilotZone.id,
+          accessibility_needs: cleanString(req.body.accessibility_needs, 500) || null
+        }
+      }).catch(() => {});
+    }
 
     let dispatch = null;
 
