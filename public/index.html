@@ -159,6 +159,13 @@
       --panel: rgba(0,0,0,0.97); --text: #fff; --muted: #dce4f5;
       --line: rgba(255,255,255,0.36); --line-strong: rgba(255,255,255,0.65);
     }
+
+    /* Time-of-day background: overrides just the gradient stops so the
+       existing body background/grid-overlay formulas adapt automatically. */
+    body.tod-morning { --bg1: #0d1220; --bg2: #151b30; --bg3: #1c2440; }
+    body.tod-afternoon { --bg1: #071022; --bg2: #0d1830; --bg3: #122040; }
+    body.tod-evening { --bg1: #0a0a18; --bg2: #160f2c; --bg3: #20153c; }
+    body.tod-night { --bg1: #030810; --bg2: #070f22; --bg3: #0c1630; }
     body.large-text { font-size: 18px; }
     body.reduced-motion *, body.reduced-motion *::before, body.reduced-motion *::after {
       animation: none !important; transition: none !important; scroll-behavior: auto !important;
@@ -679,6 +686,60 @@
     .mini-stat.mc-pending strong { color: var(--muted); }
 
     /* ============================================================
+       MISSION CONTROL — sticky glass chip bar (live platform snapshot)
+       ============================================================ */
+    .mc-bar {
+      position: sticky;
+      top: 90px;
+      z-index: 190;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+      padding: 14px 18px;
+      margin-bottom: 22px;
+      border-radius: var(--radius-xl);
+      background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.015)), var(--panel2);
+      border: 1px solid var(--line);
+      backdrop-filter: blur(20px) saturate(140%);
+      -webkit-backdrop-filter: blur(20px) saturate(140%);
+      box-shadow: var(--shadow-lg);
+    }
+    .mc-chip {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      padding: 8px 10px;
+      border-radius: var(--radius-md);
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      position: relative;
+      min-width: 0;
+    }
+    .mc-chip .mc-icon { font-size: 16px; line-height: 1; }
+    .mc-chip .mc-label {
+      font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em;
+      color: var(--muted); font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .mc-chip .mc-value { font-size: 14px; font-weight: 900; color: var(--text); }
+    .mc-chip.mc-chip-pending { opacity: 0.65; }
+    .mc-chip.mc-chip-pending .mc-value { color: var(--muted); font-weight: 700; font-size: 12px; }
+    .mc-chip.mc-live { border-color: rgba(77,255,164,0.25); }
+    .mc-chip.mc-live .mc-dot {
+      position: absolute; top: 10px; right: 10px; width: 7px; height: 7px; border-radius: 50%;
+      background: var(--green); box-shadow: 0 0 8px var(--green);
+    }
+    .mc-chip.mc-live .mc-dot::after {
+      content: ""; position: absolute; inset: -5px; border-radius: 50%;
+      border: 1.5px solid rgba(77,255,164,0.5); animation: pulseRing 2s infinite var(--ease);
+    }
+    @media (max-width: 860px) {
+      .mc-bar { position: static; grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 640px) {
+      .mc-bar { grid-template-columns: repeat(2, 1fr); padding: 12px 14px; }
+    }
+
+    /* ============================================================
        AI TEASER BUBBLE
        ============================================================ */
     .ai-teaser-bubble {
@@ -1124,30 +1185,33 @@
     </section>
 
     <!-- TODAY'S MOBILITY (Mission Control live snapshot) -->
-    <section class="section" id="mission-control" aria-label="Live platform snapshot" style="margin-top:0; padding:28px 32px;">
-      <div class="section-hd" style="margin-bottom:18px;">
-        <h2 style="font-size:20px;">Today's Mobility</h2>
-        <p class="lead">A live snapshot of what's moving on Harvey Taxi right now.</p>
+    <section class="mc-bar" id="mission-control" aria-label="Live platform snapshot">
+      <div class="mc-chip mc-live" id="mcDriversTile">
+        <span class="mc-dot" aria-hidden="true"></span>
+        <span class="mc-icon" aria-hidden="true">🚕</span>
+        <span class="mc-label">Drivers Nearby</span>
+        <span class="mc-value" id="mcDriversValue">—</span>
       </div>
-      <div class="grid-4" id="missionControlGrid">
-        <div class="mini-stat mc-live" id="mcDriversTile">
-          <span class="mc-dot" aria-hidden="true"></span>
-          <strong id="mcDriversValue">—</strong>
-          <span>🚕 Drivers Nearby</span>
-        </div>
-        <div class="mini-stat mc-live" id="mcWaitTile">
-          <span class="mc-dot" aria-hidden="true"></span>
-          <strong id="mcWaitValue">—</strong>
-          <span>⏱ Average Pickup</span>
-        </div>
-        <div class="mini-stat">
-          <strong>❤️ Available</strong>
-          <span>HTAF Assisted Rides</span>
-        </div>
-        <div class="mini-stat mc-pending">
-          <strong>Coming Soon</strong>
-          <span>🍔 Restaurants &amp; 🛒 Grocery stores nearby — live counts activate once nearby-store search is connected</span>
-        </div>
+      <div class="mc-chip mc-live" id="mcWaitTile">
+        <span class="mc-dot" aria-hidden="true"></span>
+        <span class="mc-icon" aria-hidden="true">⏱</span>
+        <span class="mc-label">Average Pickup</span>
+        <span class="mc-value" id="mcWaitValue">—</span>
+      </div>
+      <div class="mc-chip">
+        <span class="mc-icon" aria-hidden="true">❤️</span>
+        <span class="mc-label">HTAF Assisted Rides</span>
+        <span class="mc-value">Available</span>
+      </div>
+      <div class="mc-chip mc-chip-pending">
+        <span class="mc-icon" aria-hidden="true">🍔🛒</span>
+        <span class="mc-label">Restaurants &amp; Grocery</span>
+        <span class="mc-value">Coming Soon</span>
+      </div>
+      <div class="mc-chip mc-chip-pending">
+        <span class="mc-icon" aria-hidden="true">🚦</span>
+        <span class="mc-label">Traffic</span>
+        <span class="mc-value">Not connected</span>
       </div>
     </section>
 
@@ -2869,18 +2933,39 @@
       }
     }
 
+    /* ---- Shared time-of-day bucket: drives both the background gradient
+       (initTimeOfDay) and the AI teaser greeting (initAiTeaser) off one clock. ---- */
+    function timeOfDayBucket(hour) {
+      if (hour >= 5 && hour < 11) return "morning";
+      if (hour >= 11 && hour < 17) return "afternoon";
+      if (hour >= 17 && hour < 21) return "evening";
+      return "night";
+    }
+
+    /* ---- Time-of-day background: swaps body.tod-* so --bg1/--bg2/--bg3 shift. ---- */
+    function initTimeOfDay() {
+      const applyBucket = () => {
+        const bucket = timeOfDayBucket(new Date().getHours());
+        document.body.classList.remove("tod-morning", "tod-afternoon", "tod-evening", "tod-night");
+        document.body.classList.add("tod-" + bucket);
+      };
+      applyBucket();
+      setInterval(applyBucket, 5 * 60 * 1000);
+    }
+
     /* ---- AI teaser bubble: time-of-day greeting, opens the real AI widget ---- */
     function initAiTeaser() {
       const bubble = document.getElementById("aiTeaserBubble");
       const textEl = document.getElementById("aiTeaserText");
       if (!bubble || !textEl) return;
 
-      const hour = new Date().getHours();
-      const greeting =
-        hour >= 5 && hour < 11 ? "Good morning! Need a ride to start the day?" :
-        hour >= 11 && hour < 17 ? "Good afternoon! Need groceries? I can help find nearby stores." :
-        hour >= 17 && hour < 21 ? "Good evening! Dinner delivered, or a ride home?" :
-        "Up late? I can help you get home safely.";
+      const bucket = timeOfDayBucket(new Date().getHours());
+      const greeting = {
+        morning: "Good morning! Need a ride to start the day?",
+        afternoon: "Good afternoon! Need groceries? I can help find nearby stores.",
+        evening: "Good evening! Dinner delivered, or a ride home?",
+        night: "Up late? I can help you get home safely."
+      }[bucket];
       textEl.textContent = greeting;
 
       const open = () => openHarveyAiChat();
@@ -3044,6 +3129,7 @@
     }
 
     function safeInit() {
+      runStep("initTimeOfDay", initTimeOfDay);
       runStep("bindLanguageSelector", bindLanguageSelector);
       runStep("restoreAccessibility", restoreAccessibility);
       runStep("bindAccessibility", bindAccessibility);
