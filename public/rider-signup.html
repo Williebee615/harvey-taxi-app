@@ -1024,7 +1024,11 @@
     });
     const data = await safeJson(response);
     if (!response.ok || data.ok === false || data.success === false) {
-      throw new Error(data.error || data.message || `Request failed (${response.status})`);
+      // message is the human-readable text; error is a machine-readable
+      // code (e.g. "RIDER_SIGNUP_FAILED") meant for support reference,
+      // not display -- prefer message so the user sees the friendly
+      // text instead of the raw code.
+      throw new Error(data.message || data.error || `Request failed (${response.status})`);
     }
     return data;
   }
@@ -1300,19 +1304,13 @@
 
     try {
       const body = buildSignupBody(payload);
-      const signupAttempts = [
-        () => api("/api/rider/signup", { method: "POST", body: JSON.stringify(body) }),
-        () => api("/api/riders/signup", { method: "POST", body: JSON.stringify(body) }),
-        () => api("/api/signup/rider", { method: "POST", body: JSON.stringify(body) })
-      ];
-
-      let data = null;
-      let lastError = null;
-      for (const attempt of signupAttempts) {
-        try { data = await attempt(); if (data) break; }
-        catch (error) { lastError = error; }
-      }
-      if (!data) throw (lastError || new Error("Unable to create rider account."));
+      // POST /api/riders/signup is the only rider signup route the
+      // server actually implements. This used to also guess at
+      // /api/rider/signup and /api/signup/rider (neither exists), and
+      // because the loop always ran every attempt, a later 404 from one
+      // of those nonexistent URLs would overwrite -- and hide -- a real,
+      // useful error returned by the real endpoint.
+      const data = await api("/api/riders/signup", { method: "POST", body: JSON.stringify(body) });
 
       const rider = normalizeRiderFromResponse(data, payload);
       saveRiderProfile(rider);
