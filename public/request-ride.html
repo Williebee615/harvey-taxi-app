@@ -1154,7 +1154,7 @@
 
     .delivery-timeline {
       display: grid;
-      gap: 2px;
+      gap: 4px;
     }
 
     .timeline-step {
@@ -1164,6 +1164,7 @@
       padding: 6px 4px;
       font-size: 0.85rem;
       opacity: 0.45;
+      transition: opacity 0.35s ease, transform 0.35s ease;
     }
 
     .timeline-step.done,
@@ -1174,17 +1175,47 @@
     .timeline-step.active {
       font-weight: 800;
       color: var(--accent, #63f5ff);
+      transform: scale(1.02);
     }
 
     .timeline-emoji {
-      font-size: 1rem;
-      width: 22px;
-      text-align: center;
+      font-size: 0.92rem;
+      width: 28px;
+      height: 28px;
       flex-shrink: 0;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .timeline-step.done .timeline-emoji {
+      background: rgba(77,255,164,0.16);
+      border-color: rgba(77,255,164,0.4);
+    }
+
+    .timeline-step.active .timeline-emoji {
+      background: rgba(99,245,255,0.18);
+      border-color: var(--accent, #63f5ff);
+      animation: timelineGlow 2s ease-in-out infinite;
+    }
+
+    @keyframes timelineGlow {
+      0%, 100% { box-shadow: 0 0 8px rgba(99,245,255,0.35); }
+      50% { box-shadow: 0 0 18px rgba(99,245,255,0.65); }
     }
 
     .timeline-label {
       min-width: 0;
+    }
+
+    .timeline-caption {
+      display: block;
+      margin-top: 8px;
+      color: var(--text-muted);
+      font-size: 0.8rem;
     }
 
     .trip-timeline {
@@ -2332,13 +2363,15 @@
                   🚕
                 </div>
 
-                <div>
+                <div style="min-width:0; flex:1;">
 
                   <strong>
                     Dispatch Lifecycle
                   </strong>
 
-                  <span id="dispatchTimelineText">
+                  <div id="rideLifecycleSteps" class="delivery-timeline" style="margin-top:6px;"></div>
+
+                  <span id="dispatchTimelineText" class="timeline-caption">
                     Dispatch request has not been submitted yet.
                   </span>
 
@@ -2808,6 +2841,7 @@
 
       deliveryOrderCard: $("deliveryOrderCard"),
       deliveryTimeline: $("deliveryTimeline"),
+      rideLifecycleSteps: $("rideLifecycleSteps"),
       deliveryTrackingRow: $("deliveryTrackingRow"),
       deliveryTrackingText: $("deliveryTrackingText"),
       deliveryMerchantText: $("deliveryMerchantText"),
@@ -3051,6 +3085,50 @@
       const isDead = status === "cancelled" || status === "failed";
 
       els.deliveryTimeline.innerHTML = DELIVERY_TIMELINE_STEPS.map((step, i) => {
+        const stepState = isDead ? "pending" : (i < currentIndex ? "done" : i === currentIndex ? "active" : "pending");
+        return `
+          <div class="timeline-step ${stepState}">
+            <span class="timeline-emoji">${step.emoji}</span>
+            <span class="timeline-label">${step.label}</span>
+          </div>
+        `;
+      }).join("");
+    }
+
+    const RIDE_LIFECYCLE_STEPS = [
+      { emoji: "📝", label: "Request submitted" },
+      { emoji: "🧭", label: "Driver assigned" },
+      { emoji: "🚗", label: "Driver en route" },
+      { emoji: "📍", label: "Driver arrived" },
+      { emoji: "🚕", label: "Trip in progress" },
+      { emoji: "🏁", label: "Trip completed" }
+    ];
+
+    function computeRideStepIndex(status) {
+      if (status === "completed") return 5;
+      if (status === "in_progress") return 4;
+      if (status === "arrived") return 3;
+      if (status === "driver_enroute") return 2;
+      if (status === "driver_assigned") return 1;
+      return 0;
+    }
+
+    // Plain (non-delivery) rides only — delivery orders already get a more
+    // detailed stepper (merchant/pickup/customer legs) from
+    // renderDeliveryTimeline(), so this stays empty when `delivery` is set
+    // rather than showing two competing lifecycles for the same ride.
+    function renderRideLifecycle(status, delivery) {
+      if (!els.rideLifecycleSteps) return;
+
+      if (delivery || !status) {
+        els.rideLifecycleSteps.innerHTML = "";
+        return;
+      }
+
+      const currentIndex = computeRideStepIndex(status);
+      const isDead = status === "cancelled" || status === "failed";
+
+      els.rideLifecycleSteps.innerHTML = RIDE_LIFECYCLE_STEPS.map((step, i) => {
         const stepState = isDead ? "pending" : (i < currentIndex ? "done" : i === currentIndex ? "active" : "pending");
         return `
           <div class="timeline-step ${stepState}">
@@ -3978,6 +4056,7 @@
 
       updateDriverInfo(null);
       updateDeliveryInfo(null, null);
+      renderRideLifecycle(null, null);
       updateTrackingInfo(null);
       updateLiveTrackingMap(null);
       stopRideStream();
@@ -5193,6 +5272,7 @@
 
         updateDriverInfo(data.driver);
         updateDeliveryInfo(data.status, data.delivery);
+        renderRideLifecycle(data.status, data.delivery);
         updateTrackingInfo(data.tracking);
         updateLiveTrackingMap(data);
 
