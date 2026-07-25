@@ -2129,30 +2129,39 @@
       );
     }
 
+    // Returns the first argument that isn't null/undefined, unlike `||`
+    // chains which would also skip a legitimate 0 (a genuine $0.00 fare).
+    function firstDefined(...values) {
+      for (const value of values) {
+        if (value !== null && value !== undefined) return value;
+      }
+      return undefined;
+    }
+
     function normalizeItemAmount(item, isDelivery) {
       // /api/rider/rides and /api/rider/deliveries both return estimated_fare
       // and final_fare regardless of ride type (food/grocery orders are rows
       // in the same rides table) - check those first, ahead of the older
       // field names kept here for compatibility with any other source.
       if (isDelivery) {
-        return (
-          item.final_fare ||
-          item.estimated_fare ||
-          item.total ||
-          item.total_amount ||
-          item.estimated_total ||
-          item.amount ||
+        return firstDefined(
+          item.final_fare,
+          item.estimated_fare,
+          item.total,
+          item.total_amount,
+          item.estimated_total,
+          item.amount,
           item.delivery_total
         );
       }
 
-      return (
-        item.final_fare ||
-        item.estimated_fare ||
-        item.fare_total ||
-        item.final_total ||
-        item.estimated_total ||
-        item.fare ||
+      return firstDefined(
+        item.final_fare,
+        item.estimated_fare,
+        item.fare_total,
+        item.final_total,
+        item.estimated_total,
+        item.fare,
         item.amount
       );
     }

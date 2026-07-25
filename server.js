@@ -9830,13 +9830,28 @@ app.get(
    server-side. The dashboard's Activity tab has been silently empty
    this whole time (it degrades gracefully, so nothing looked broken).
 
-   Every route here requires riderId and filters/verifies against it
-   server-side — unlike /api/rides/:id/status above, which is
+   Every route here requires riderId and filters/checks rows against
+   it server-side — unlike /api/rides/:id/status above, which is
    intentionally public-by-unguessable-ID for the in-flight tracking
-   view. A rider's history is different: it's worth actually enforcing
-   ownership rather than relying on ID obscurity, so a ride ID leaked
-   or guessed some other way can't be used to read someone else's
-   trip history through this API.
+   view. That's an improvement over trusting ID obscurity alone: a
+   ride ID leaked or guessed some other way can't be used to pull a
+   different rider's history through THIS api as long as their real
+   riderId isn't also known.
+
+   IMPORTANT — this is consistency-checking, not authentication.
+   riderId is a client-supplied parameter, not derived from any
+   session/token/cookie — because no rider authentication exists
+   anywhere in this codebase (unlike admin's JWT session or driver's
+   SMS-verified token). These routes verify "does this ride's stored
+   rider_id match the riderId the caller claims," which stops a stray
+   or malformed ID from returning someone else's rows, but it does NOT
+   stop a caller who has actually obtained/guessed a real riderId from
+   reading that rider's full history. Closing that gap for real would
+   mean building rider authentication (most naturally an SMS-OTP
+   session, mirroring the existing driver token pattern) across the
+   whole app, not just these three routes — out of scope here, but
+   don't describe this API as "ownership-verified" in the sense of
+   proven identity; it isn't, yet.
 
 ========================================================= */
 
@@ -9891,9 +9906,15 @@ async function listRiderRequests(req, res, { deliveryOnly }) {
     .order("id", { ascending: false })
     .limit(limit);
 
+  // `ride_type NOT IN (...)` alone would silently drop legacy rows where
+  // ride_type is NULL — SQL's three-valued logic means a NULL comparison
+  // is never TRUE, so it can't satisfy a plain NOT IN filter either way.
+  // Those older rows predate the food/grocery feature, so they're
+  // unambiguously plain rides, not deliveries — include them explicitly
+  // rather than let them vanish from the rider's own ride list.
   query = deliveryOnly
     ? query.in("ride_type", ["food", "grocery"])
-    : query.not("ride_type", "in", "(food,grocery)");
+    : query.or("ride_type.is.null,ride_type.not.in.(food,grocery)");
 
   if (status === "active") {
     query = query.not(
@@ -9969,9 +9990,11 @@ app.get(
       throw error;
     }
 
-    // Same 404 whether the ride doesn't exist or belongs to a different
-    // rider — never confirm a ride ID exists to a caller who can't prove
-    // they own it.
+    // Same 404 whether the ride doesn't exist or its rider_id doesn't
+    // match the supplied riderId — never confirm a ride ID exists to a
+    // caller supplying a different riderId. (See the module header above:
+    // this checks consistency against a client-supplied riderId, not an
+    // authenticated identity — there's no rider session to check against.)
     if (!ride || ride.rider_id !== riderId) {
       return fail(res, "Ride not found.", 404);
     }
