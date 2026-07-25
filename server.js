@@ -9830,6 +9830,12 @@ app.get(
    server-side. The dashboard's Activity tab has been silently empty
    this whole time (it degrades gracefully, so nothing looked broken).
 
+   Gated behind the "rider_history_enabled" system flag, defaulted
+   off (see riderHistoryEnabled() and the enable/disable admin routes
+   near PAUSE/RESUME DISPATCH) — until real rider authentication
+   exists, this is unauthenticated-identity data. See the IMPORTANT
+   note below before turning it on.
+
    Every route here requires riderId and filters/checks rows against
    it server-side — unlike /api/rides/:id/status above, which is
    intentionally public-by-unguessable-ID for the in-flight tracking
@@ -9880,10 +9886,20 @@ const RIDER_HISTORY_TERMINAL_STATUSES = [
   RIDE_STATUS.FAILED
 ];
 
+async function riderHistoryEnabled() {
+  return (await getSystemFlag("rider_history_enabled", "false")) === "true";
+}
+
 // Returns null (having already written the response) when riderId is
-// missing, so callers must check for that before using the result —
-// never { rows, next_cursor } and a sent response at the same time.
+// missing or the feature is disabled, so callers must check for that
+// before using the result — never { rows, next_cursor } and a sent
+// response at the same time.
 async function listRiderRequests(req, res, { deliveryOnly }) {
+  if (!(await riderHistoryEnabled())) {
+    fail(res, "Rider history is not yet available.", 403);
+    return null;
+  }
+
   const riderId = cleanString(
     req.query.riderId || req.query.rider_id,
     100
@@ -9969,6 +9985,10 @@ app.get(
 app.get(
   "/api/rider/rides/:rideId",
   asyncRoute(async (req, res) => {
+    if (!(await riderHistoryEnabled())) {
+      return fail(res, "Rider history is not yet available.", 403);
+    }
+
     const rideId = cleanString(req.params.rideId, 100);
 
     const riderId = cleanString(
@@ -14810,6 +14830,68 @@ app.post(
 
   })
 
+);
+
+/* =========================================================
+
+   RIDER HISTORY — ENABLE / DISABLE
+
+   The GET /api/rider/rides, /api/rider/rides/:rideId, and
+   /api/rider/deliveries routes (see RIDER-SCOPED HISTORY API
+   above) are gated behind this flag, defaulted off, because
+   riderId there is a client-supplied parameter with no rider
+   authentication behind it yet (see that section's comments).
+   Flip this on once that's an acceptable risk to carry, or once
+   real rider authentication ships.
+
+========================================================= */
+
+app.post(
+  "/api/admin/system/enable-rider-history",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    await supabase
+      .from("system_flags")
+      .upsert({
+        key: "rider_history_enabled",
+        value: "true",
+        reason: cleanString(req.body.reason, 1000),
+        updated_at: nowIso()
+      });
+
+    auditLog({
+      actor_type: "admin",
+      actor_id: req.admin.email,
+      action: "rider_history_enabled",
+      req
+    }).catch(() => {});
+
+    return ok(res, { rider_history_enabled: true });
+  })
+);
+
+app.post(
+  "/api/admin/system/disable-rider-history",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    await supabase
+      .from("system_flags")
+      .upsert({
+        key: "rider_history_enabled",
+        value: "false",
+        reason: null,
+        updated_at: nowIso()
+      });
+
+    auditLog({
+      actor_type: "admin",
+      actor_id: req.admin.email,
+      action: "rider_history_disabled",
+      req
+    }).catch(() => {});
+
+    return ok(res, { rider_history_enabled: false });
+  })
 );
 
 /* =========================================================
