@@ -7530,9 +7530,15 @@ async function fetchActivePilotZones() {
 // decision it's recording. Kept minimal here; the fuller pilot
 // lifecycle write-path (eligibility checks, reservations, etc.) is
 // built out in a later phase.
+//
+// Supabase query failures resolve with an { error } object rather than
+// throwing, so a naive try/catch around a bare .insert() call never
+// actually catches anything — the insert can fail silently forever.
+// Checking `error` explicitly is what makes this genuinely
+// best-effort (logged and reported back) instead of silently no-op.
 async function logAutonomousPilotEvent({ ride_id, event_type, pilot_status = null, actor_type, actor_id = null, metadata = {} }) {
   try {
-    await supabase.from("autonomous_pilot_events").insert({
+    const { error } = await supabase.from("autonomous_pilot_events").insert({
       ride_id,
       event_type,
       pilot_status,
@@ -7540,8 +7546,16 @@ async function logAutonomousPilotEvent({ ride_id, event_type, pilot_status = nul
       actor_id,
       metadata
     });
+
+    if (error) {
+      console.error("⚠️ logAutonomousPilotEvent insert failed:", error.message);
+      return { logged: false, reason: error.message };
+    }
+
+    return { logged: true };
   } catch (err) {
     console.error("⚠️ logAutonomousPilotEvent failed:", err.message);
+    return { logged: false, reason: err.message };
   }
 }
 
@@ -9018,17 +9032,34 @@ app.post(
 
       // Duplicate-submission guard: a double-click or network retry
       // reuses the same still-pending pilot request instead of
-      // creating a second one.
+      // creating a second one. select() is narrowed to exactly what
+      // isDuplicatePilotRequest() compares against plus what the
+      // curated reused-ride response below needs — never select("*")
+      // here, since that row (or fields derived from it) reaches the
+      // client, and "*" would include pricing/dispatch/admin columns
+      // that don't belong in a rider-facing response.
       if (riderId) {
 
-        const { data: recentPilotRides } = await supabase
+        const { data: recentPilotRides, error: duplicateLookupError } = await supabase
           .from("rides")
-          .select("*")
+          .select(
+            "id, rider_id, status, pilot_status, autonomous_pilot, " +
+            "pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, " +
+            "pricing_snapshot, created_at"
+          )
           .eq("rider_id", riderId)
           .eq("autonomous_pilot", true)
           .eq("pilot_status", PILOT_STATUS.REQUESTED)
           .order("created_at", { ascending: false })
           .limit(1);
+
+        // A failed duplicate-check must not silently fall through to
+        // creating a possibly-second ride — fail closed and let the
+        // rider retry, rather than risk a double booking the check
+        // itself couldn't rule out.
+        if (duplicateLookupError) {
+          throw duplicateLookupError;
+        }
 
         const candidate = (recentPilotRides || [])[0] || null;
 
@@ -9049,7 +9080,11 @@ app.post(
       return ok(
         res,
         {
-          ride: duplicatePilotRide,
+          ride: {
+            id: duplicatePilotRide.id,
+            status: duplicatePilotRide.status,
+            pilot_status: duplicatePilotRide.pilot_status
+          },
           estimate: duplicatePilotRide.pricing_snapshot || null,
           dispatch: null,
           reused: true
@@ -15400,7 +15435,7 @@ app.post(
   "/api/admin/system/enable-rider-history",
   requireAdmin,
   asyncRoute(async (req, res) => {
-    await supabase
+    const { error } = await supabase
       .from("system_flags")
       .upsert({
         key: "rider_history_enabled",
@@ -15408,6 +15443,10 @@ app.post(
         reason: cleanString(req.body.reason, 1000),
         updated_at: nowIso()
       });
+
+    if (error) {
+      throw error;
+    }
 
     auditLog({
       actor_type: "admin",
@@ -15424,7 +15463,7 @@ app.post(
   "/api/admin/system/disable-rider-history",
   requireAdmin,
   asyncRoute(async (req, res) => {
-    await supabase
+    const { error } = await supabase
       .from("system_flags")
       .upsert({
         key: "rider_history_enabled",
@@ -15432,6 +15471,10 @@ app.post(
         reason: null,
         updated_at: nowIso()
       });
+
+    if (error) {
+      throw error;
+    }
 
     auditLog({
       actor_type: "admin",
@@ -15467,7 +15510,7 @@ app.post(
   "/api/admin/system/enable-autonomous-pilot",
   requireAdmin,
   asyncRoute(async (req, res) => {
-    await supabase
+    const { error } = await supabase
       .from("system_flags")
       .upsert({
         key: "autonomous_pilot_enabled",
@@ -15475,6 +15518,10 @@ app.post(
         reason: cleanString(req.body.reason, 1000),
         updated_at: nowIso()
       });
+
+    if (error) {
+      throw error;
+    }
 
     auditLog({
       actor_type: "admin",
@@ -15491,7 +15538,7 @@ app.post(
   "/api/admin/system/disable-autonomous-pilot",
   requireAdmin,
   asyncRoute(async (req, res) => {
-    await supabase
+    const { error } = await supabase
       .from("system_flags")
       .upsert({
         key: "autonomous_pilot_enabled",
@@ -15499,6 +15546,10 @@ app.post(
         reason: cleanString(req.body.reason, 1000),
         updated_at: nowIso()
       });
+
+    if (error) {
+      throw error;
+    }
 
     auditLog({
       actor_type: "admin",
