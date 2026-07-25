@@ -78,7 +78,22 @@ function envBool(name, fallback = false) {
 
 function envNumber(name, fallback) {
 
-  const value = Number(env(name));
+  // env(name) alone defaults to "" when unset, and Number("") is 0 (not
+  // NaN) — so checking Number.isFinite() on that result can never catch
+  // the unset case, and this used to silently return 0 instead of
+  // `fallback` for every env-configurable number in the app (session
+  // TTLs, dispatch limits, and — most seriously — every pricing rate:
+  // BASE_FARE, PER_MILE_RATE, BOOKING_FEE, MINIMUM_FARE,
+  // DRIVER_PAYOUT_PERCENT). Checking the raw env var directly, before any
+  // string-to-number coercion, is what actually distinguishes "unset" from
+  // "explicitly set to 0".
+  const raw = process.env[name];
+
+  if (raw === undefined || raw === null || String(raw).trim() === "") {
+    return fallback;
+  }
+
+  const value = Number(raw);
 
   return Number.isFinite(value) ? value : fallback;
 
@@ -2762,106 +2777,20 @@ function haversineMiles(
 // turn-by-turn ETAs require the Google Directions/Distance Matrix API.
 const ASSUMED_DELIVERY_SPEED_MPH = envNumber("ASSUMED_DELIVERY_SPEED_MPH", 22);
 
-const BASE_FARE = envNumber("BASE_FARE", 5);
-
-const PER_MILE_RATE = envNumber("PER_MILE_RATE", 0.90);
-
-const PER_MINUTE_RATE = envNumber("PER_MINUTE_RATE", 0.35);
-
-const BOOKING_FEE = envNumber("BOOKING_FEE", 2.00);
-
-const MINIMUM_FARE = envNumber("MINIMUM_FARE", 8);
-
-const DRIVER_PAYOUT_PERCENT = envNumber("DRIVER_PAYOUT_PERCENT", 0.70);
-
-function calculateRideEstimate({
-
-  miles = 0,
-
-  minutes = 0,
-
-  ride_type = "standard"
-
-}) {
-
-  const safeMiles =
-
-    Math.max(0, toNumber(miles));
-
-  const safeMinutes =
-
-    Math.max(0, toNumber(minutes));
-
-  // Line items are tracked individually (rather than folded straight into
-  // one running "subtotal" variable) so the client can show a real,
-  // itemized fare breakdown instead of a single lump total — and so the
-  // discount/surcharge dollar amounts below are exact, not re-derived by
-  // subtracting two totals later.
-  const base_fare = BASE_FARE;
-  const distance_charge = safeMiles * PER_MILE_RATE;
-  const time_charge = safeMinutes * PER_MINUTE_RATE;
-  const booking_fee = BOOKING_FEE;
-
-  let subtotal =
-    base_fare + distance_charge + time_charge + booking_fee;
-
-  let discount_amount = 0;
-
-  if (
-    ride_type === "medical" ||
-    ride_type === "foundation"
-  ) {
-    const discounted = subtotal * 0.95;
-    discount_amount = subtotal - discounted;
-    subtotal = discounted;
-  }
-
-  let surcharge_amount = 0;
-
-  if (ride_type === "airport") {
-    surcharge_amount = 5;
-    subtotal += surcharge_amount;
-  }
-
-  const total =
-
-    Math.max(MINIMUM_FARE, subtotal);
-
-  const driver_payout =
-
-    total * DRIVER_PAYOUT_PERCENT;
-
-  return {
-
-    miles: Number(safeMiles.toFixed(2)),
-
-    minutes: Number(safeMinutes.toFixed(0)),
-
-    currency: "USD",
-
-    base_fare: Number(base_fare.toFixed(2)),
-
-    distance_charge: Number(distance_charge.toFixed(2)),
-
-    time_charge: Number(time_charge.toFixed(2)),
-
-    booking_fee: Number(booking_fee.toFixed(2)),
-
-    discount_amount: Number(discount_amount.toFixed(2)),
-
-    surcharge_amount: Number(surcharge_amount.toFixed(2)),
-
-    minimum_fare_applied: total > Number(subtotal.toFixed(2)),
-
-    total: Number(total.toFixed(2)),
-
-    driver_payout: Number(driver_payout.toFixed(2)),
-
-    platform_fee: Number((total - driver_payout).toFixed(2)),
-
-  };
-
-}/* =========================================================
+// Single centralized pricing engine — taxi, scheduled, airport, and HTAF
+// rides all call the same calculateRideEstimate(), extracted to
+// lib/pricing.js so it's unit-testable without booting the whole server
+// (see lib/pricing.test.js). No service calculates its own fare here.
+const {
+  BASE_FARE,
+  PER_MILE_RATE,
+  PER_MINUTE_RATE,
+  BOOKING_FEE,
+  MINIMUM_FARE,
+  DRIVER_PAYOUT_PERCENT,
+  calculateRideEstimate
+} = require("./lib/pricing");
+/* =========================================================
 
    PART 3 — HTAF FOUNDATION APPLICATION SYSTEM
 
@@ -8573,6 +8502,15 @@ app.post(
 
       );
 
+    // Client-generated, per-attempt key (regenerated whenever trip details
+    // change) — lets Stripe collapse a network retry or an accidental
+    // double-click into the same PaymentIntent instead of creating two.
+    const idempotencyKey =
+      cleanString(
+        req.body.idempotency_key,
+        100
+      );
+
     let paymentIntent;
 
     try {
@@ -8623,7 +8561,7 @@ app.post(
 
           }
 
-        });
+        }, idempotencyKey ? { idempotencyKey } : undefined);
 
     } catch (error) {
 
@@ -8963,6 +8901,15 @@ app.post(
       estimated_platform_fee:
 
         estimate.platform_fee,
+
+      // Persists the full itemized breakdown (base fare, distance charge,
+      // time charge, booking fee, discount, surcharge) so line items like
+      // the airport surcharge are recorded on the ride itself, not just
+      // returned transiently in the estimate response. Reuses an existing
+      // jsonb column that nothing else was writing to.
+      pricing_snapshot:
+
+        estimate,
 
       estimated_distance_miles:
 
@@ -11578,13 +11525,28 @@ async function createDriverEarning({
 
 }) {
 
-  const payout =
-
+  // NOTE: this used to insert/select gross_amount and net_amount, which
+  // are not real columns on driver_earnings (the actual schema is
+  // gross_fare/driver_base_earning/tip_amount/total_earning) — every
+  // insert was silently failing (the error was only console.error'd, never
+  // surfaced), so no driver has ever actually had an earning recorded
+  // here. Fixed to match the real table.
+  const driverBaseEarning =
     Number(
-
       ride.driver_payout || 0
-
     );
+
+  // Tips are 100% the driver's — folded into total_earning here (at
+  // completion) rather than into driver_payout (computed pre-trip by
+  // calculateRideEstimate), since a percentage split should never apply
+  // to a tip.
+  const tipAmount =
+    Number(
+      ride.tip_amount || 0
+    );
+
+  const totalEarning =
+    driverBaseEarning + tipAmount;
 
   const earning = {
 
@@ -11600,17 +11562,45 @@ async function createDriverEarning({
 
       driverId,
 
-    gross_amount:
+    rider_id:
 
-      payout,
+      ride.rider_id || null,
 
-    net_amount:
+    gross_fare:
 
-      payout,
+      Number(ride.estimated_fare || 0),
+
+    driver_base_earning:
+
+      driverBaseEarning,
+
+    tip_amount:
+
+      tipAmount,
+
+    total_earning:
+
+      totalEarning,
+
+    payout_amount:
+
+      totalEarning,
+
+    currency:
+
+      "USD",
 
     status:
 
       "earned",
+
+    earning_status:
+
+      "earned",
+
+    payment_id:
+
+      ride.payment_id || null,
 
     created_at:
 
@@ -12532,7 +12522,9 @@ app.get(
 
         (sum, item) =>
 
-          sum + Number(item.net_amount || 0),
+          // total_earning is the real column (driver_base_earning + tip);
+          // net_amount doesn't exist on this table and always summed to 0.
+          sum + Number(item.total_earning || 0),
 
         0
 
@@ -13089,16 +13081,19 @@ app.get(
     // Earnings today: sum over today's rows (admin-only, low volume).
     let earningsToday = { net_total: 0, ride_count: 0, error: null };
     {
+      // total_earning/gross_fare are the real columns — net_amount/
+      // gross_amount don't exist on this table and made this query error
+      // on every call (silently swallowed into earningsToday.error).
       const { data, error } = await supabase
         .from("driver_earnings")
-        .select("net_amount, gross_amount")
+        .select("total_earning, gross_fare")
         .gte("created_at", startOfTodayUtc);
       if (error) {
         earningsToday.error = error.message;
       } else {
         earningsToday.ride_count = data.length;
         earningsToday.net_total = data.reduce(
-          (sum, r) => sum + Number(r.net_amount || r.gross_amount || 0),
+          (sum, r) => sum + Number(r.total_earning || r.gross_fare || 0),
           0
         );
         earningsToday.net_total = Math.round(earningsToday.net_total * 100) / 100;
@@ -14570,6 +14565,10 @@ app.post(
       estimated_platform_fee:
 
         estimate.platform_fee,
+
+      pricing_snapshot:
+
+        estimate,
 
       estimated_distance_miles:
 

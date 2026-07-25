@@ -2850,6 +2850,11 @@
         authorized: false,
         paymentId: "",
         clientSecret: "",
+        // Generated once per trip configuration (see
+        // getOrCreateIdempotencyKey()) and reused across retries of the
+        // same fare, so a network retry or accidental double-click can't
+        // create two PaymentIntents for the same trip.
+        idempotencyKey: "",
         raw: null
       },
 
@@ -4277,6 +4282,7 @@
         authorized: false,
         paymentId: "",
         clientSecret: "",
+        idempotencyKey: "",
         raw: null
       };
 
@@ -4447,6 +4453,7 @@
         authorized: false,
         paymentId: "",
         clientSecret: "",
+        idempotencyKey: "",
         raw: null
       };
 
@@ -4889,6 +4896,18 @@
         pickup_longitude: state.pickup.longitude,
         pickup_accuracy: state.pickup.accuracy,
 
+        // The server's ride-creation route reads pickup_lat/pickup_lng and
+        // destination_lat/destination_lng specifically (see server.js) —
+        // pickup_latitude/pickup_longitude above are a different, unread
+        // name kept only for any other consumer. Neither pickup nor
+        // destination coordinates were ever actually reaching the rides
+        // table before this: pickup used the wrong field names, and
+        // destination wasn't sent at all.
+        pickup_lat: state.pickup.latitude,
+        pickup_lng: state.pickup.longitude,
+        destination_lat: state.destination.latitude,
+        destination_lng: state.destination.longitude,
+
         requestedMode: state.mode,
         requested_mode: state.mode,
 
@@ -5104,14 +5123,38 @@
       // minutes (silently landing on the flat minimum fare no matter how
       // long the trip actually was) — nothing ever populated
       // state.estimate.distanceMiles/durationMinutes before now.
+      //
+      // This is a hard stop, not a warning: a real long trip that silently
+      // fell back to the minimum fare would undercharge the rider (and
+      // underpay the driver) with no visible sign anything went wrong.
+      // Better to block and ask the rider to fix the address than to
+      // guess a fare that might be badly wrong.
       const distanceKnown = await ensureTripDistance();
 
       if (!distanceKnown) {
-        showNotice(
-          "Couldn't calculate a precise route distance right now, so this estimate uses the minimum fare. " +
-            "The final fare will reflect the actual trip.",
-          "warning"
+        setBadge("Distance Unavailable");
+
+        setDispatchState("Distance Unavailable");
+
+        setTimeline(
+          "dispatch",
+          "Couldn't determine the trip distance."
         );
+
+        setLiveStatus(
+          "Couldn't determine the trip distance."
+        );
+
+        showNotice(
+          "We couldn't calculate a route distance for this trip. Please double-check the pickup and " +
+            "destination addresses (try selecting a suggestion from the dropdown), then try again. " +
+            "If this keeps happening, contact support — we don't want to guess at your fare.",
+          "error"
+        );
+
+        setBusy(els.estimateBtn, false);
+
+        return false;
       }
 
       setLiveStatus(
@@ -5313,6 +5356,22 @@
       }
     }
 
+    // One key per trip configuration, reused across retries of the same
+    // fare (resetEstimateAndPayment()/resetEntireFlow() clear it whenever
+    // trip details actually change) — lets Stripe collapse a network
+    // retry or an accidental double-click into a single PaymentIntent
+    // instead of creating two.
+    function getOrCreateIdempotencyKey() {
+      if (!state.payment.idempotencyKey) {
+        state.payment.idempotencyKey =
+          typeof crypto !== "undefined" && crypto.randomUUID
+            ? crypto.randomUUID()
+            : `idem-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      }
+
+      return state.payment.idempotencyKey;
+    }
+
     async function authorizePayment() {
       const tripError =
         validateTripFields();
@@ -5369,7 +5428,10 @@
         // instead of a ride ID.
         const intentData = await apiPost(
           CONFIG.ENDPOINTS.paymentIntent,
-          buildTripPayload()
+          {
+            ...buildTripPayload(),
+            idempotency_key: getOrCreateIdempotencyKey()
+          }
         );
 
         const clientSecret = intentData?.client_secret;
