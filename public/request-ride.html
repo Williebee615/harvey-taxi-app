@@ -789,6 +789,26 @@
       box-shadow: 0 0 0 4px rgba(70, 240, 255, 0.08);
     }
 
+    .card-element-wrap {
+      padding: 14px;
+      transition: 180ms ease;
+    }
+
+    .card-element-wrap.StripeElement--focus {
+      border-color: rgba(70, 240, 255, 0.55);
+      box-shadow: 0 0 0 4px rgba(70, 240, 255, 0.08);
+    }
+
+    .card-element-wrap.StripeElement--invalid {
+      border-color: rgba(255, 92, 122, 0.55);
+    }
+
+    .card-errors {
+      color: var(--red);
+      font-size: 0.78rem;
+      min-height: 1em;
+    }
+
     .two-col {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -2189,6 +2209,15 @@
             <!-- STAGE: PAYMENT & APPROVAL -->
             <div class="wizard-step" data-stage="payment" id="wizardStagePayment">
 
+            <!-- CARD DETAILS -->
+            <div class="field">
+              <label for="cardElementContainer">Card Details</label>
+              <div class="input-wrap card-element-wrap" id="cardElementContainer">
+                <!-- Stripe Elements mounts the real card field here. -->
+              </div>
+              <small id="cardElementErrors" class="card-errors" role="alert"></small>
+            </div>
+
             <!-- ACTIONS -->
             <div class="actions">
 
@@ -2590,6 +2619,12 @@
     })();
   </script>
 
+  <!-- STRIPE.JS — publishable key only, safe to load unconditionally.
+       The main controller script below checks whether Stripe actually
+       initialized (a real key came back from /api/stripe-key) before
+       trying to use it. -->
+  <script src="https://js.stripe.com/v3/"></script>
+
   <!-- MAIN CONTROLLER -->
   <script>
     /**
@@ -2620,6 +2655,7 @@
         // Payment intent (Stripe) then authorize:
         paymentIntent: "/api/rides/payment-intent",       // POST
         authorizeRide: "/api/rides",                       // + "/:id/authorize" (POST)
+        stripeKey: "/api/stripe-key",                       // GET
 
         // Ride request: real route is POST /api/rides/request
         requestRide: "/api/rides/request"
@@ -2810,6 +2846,8 @@
       enablePushBtn: $("enablePushBtn"),
       estimateBtn: $("estimateBtn"),
       authorizePaymentBtn: $("authorizePaymentBtn"),
+      cardElementContainer: $("cardElementContainer"),
+      cardElementErrors: $("cardElementErrors"),
       requestRideBtn: $("requestRideBtn"),
       resetFlowBtn: $("resetFlowBtn"),
       refreshStatusBtn: $("refreshStatusBtn"),
@@ -4778,65 +4816,67 @@
       }
     }
 
-    function normalizePaymentPayload(data) {
-      const payment =
-        data?.payment ||
-        data?.authorization ||
-        data?.payment_intent ||
-        data?.paymentIntent ||
-        data?.data ||
-        data ||
-        {};
+    // ---- Stripe Elements: real card collection ----
+    // Loaded via the <script src="https://js.stripe.com/v3/"> tag in <head>.
+    // stripeClient/stripeCardElement stay null (and the card field shows a
+    // fallback message) if Stripe.js failed to load or the server has no
+    // publishable key configured — authorizePayment() below checks for
+    // this and fails clearly instead of silently doing nothing, which is
+    // what happened before this existed at all.
+    let stripeClient = null;
+    let stripeCardElement = null;
 
-      const paymentId =
-        pickFirstValue(
-          payment,
-          [
-            "id",
-            "payment_id",
-            "paymentId",
-            "payment_intent_id",
-            "paymentIntentId",
-            "authorization_id",
-            "authorizationId"
-          ],
-          ""
-        );
+    async function initStripeElements() {
+      if (!els.cardElementContainer) return;
 
-      const clientSecret =
-        pickFirstValue(
-          payment,
-          [
-            "client_secret",
-            "clientSecret"
-          ],
-          ""
-        );
+      if (typeof Stripe === "undefined") {
+        els.cardElementContainer.textContent =
+          "Card payments are temporarily unavailable. Please contact support.";
+        return;
+      }
 
-      const authorized =
-        data?.authorized === true ||
-        data?.ok === true ||
-        payment?.authorized === true ||
-        [
-          "authorized",
-          "requires_capture",
-          "succeeded",
-          "approved"
-        ].includes(
-          safeLower(payment?.status)
-        );
+      try {
+        const res = await fetch(CONFIG.ENDPOINTS.stripeKey);
+        const data = await res.json();
+        const key = data?.key || "";
 
-      return {
-        authorized: Boolean(
-          authorized ||
-            paymentId ||
-            clientSecret
-        ),
+        if (!key) {
+          els.cardElementContainer.textContent =
+            "Card payments are not configured yet. Please contact support.";
+          return;
+        }
 
-        paymentId,
-        clientSecret,
-        raw: data
-      };
+        stripeClient = Stripe(key);
+        const elements = stripeClient.elements();
+
+        stripeCardElement = elements.create("card", {
+          style: {
+            base: {
+              color: "#f8fbff",
+              fontFamily: "Inter, system-ui, sans-serif",
+              fontSize: "15px",
+              "::placeholder": { color: "rgba(184, 199, 230, 0.55)" }
+            },
+            invalid: {
+              color: "#ff5c7a",
+              iconColor: "#ff5c7a"
+            }
+          }
+        });
+
+        stripeCardElement.mount("#cardElementContainer");
+
+        stripeCardElement.on("change", (event) => {
+          if (els.cardElementErrors) {
+            els.cardElementErrors.textContent = event.error ? event.error.message : "";
+          }
+        });
+      } catch (err) {
+        stripeClient = null;
+        stripeCardElement = null;
+        els.cardElementContainer.textContent =
+          "Unable to load the card payment form. Please refresh the page or contact support.";
+      }
     }
 
     async function authorizePayment() {
@@ -4857,6 +4897,14 @@
         }
       }
 
+      if (!stripeClient || !stripeCardElement) {
+        showNotice(
+          "Card payments are not available right now. Please refresh the page or contact support.",
+          "error"
+        );
+        return false;
+      }
+
       setBusy(
         els.authorizePaymentBtn,
         true,
@@ -4865,93 +4913,86 @@
 
       clearNotice();
 
+      if (els.cardElementErrors) {
+        els.cardElementErrors.textContent = "";
+      }
+
       setLiveStatus(
-        "Authorizing payment..."
+        "Creating payment authorization..."
       );
 
       setTimeline(
         "payment",
-        "Authorizing payment before dispatch..."
+        "Creating payment authorization..."
       );
 
-      const payload = {
-        ...buildTripPayload(),
-
-        estimate:
-          state.estimate.raw,
-
-        estimated_fare:
-          state.estimate.fare,
-
-        estimatedFare:
-          state.estimate.fare,
-
-        amount:
-          state.estimate.fare,
-
-        currency: "usd"
-      };
-
       try {
-        // Real route: POST /api/rides/:id/authorize — needs the ride ID in the URL.
-        const rideId = state.ride.rideId || readStorage(CONFIG.STORAGE_KEYS.lastRideId);
-        if (!rideId) {
-          throw new Error("No ride to authorize yet. Please request the ride first.");
+        // Step 1: create a Stripe PaymentIntent sized to the current
+        // estimate. No ride exists yet at this point in the flow — the
+        // ride is only created once the rider hits "Request Dispatch" on
+        // the Dispatch stage — so this route is deliberately ride-
+        // independent, keyed off the trip's miles/minutes/ride_type
+        // instead of a ride ID.
+        const intentData = await apiPost(
+          CONFIG.ENDPOINTS.paymentIntent,
+          buildTripPayload()
+        );
+
+        const clientSecret = intentData?.client_secret;
+
+        if (!clientSecret) {
+          throw new Error("Payment could not be initialized. Please try again.");
         }
-        const authorizeUrl =
-          `${CONFIG.ENDPOINTS.authorizeRide}/${encodeURIComponent(rideId)}/authorize`;
-        const data =
-          await apiPost(
-            authorizeUrl,
-            payload
+
+        setLiveStatus(
+          "Confirming card with Stripe..."
+        );
+
+        setTimeline(
+          "payment",
+          "Confirming card details with Stripe..."
+        );
+
+        // Step 2: actually authorize (manual-capture hold) the card the
+        // rider entered into the real Card Element mounted above. This
+        // step was missing entirely before — the PaymentIntent used to
+        // be created and then immediately abandoned, so it never left
+        // "requires_payment_method" and every authorization attempt
+        // failed with no way for the rider to ever enter a card.
+        const result = await stripeClient.confirmCardPayment(clientSecret, {
+          payment_method: {
+            card: stripeCardElement,
+            billing_details: {
+              name: state.rider.name || undefined
+            }
+          }
+        });
+
+        if (result.error) {
+          throw new Error(result.error.message || "Card payment failed.");
+        }
+
+        const intent = result.paymentIntent;
+
+        const authorized =
+          Boolean(intent) &&
+          ["requires_capture", "succeeded"].includes(intent.status);
+
+        if (!authorized) {
+          throw new Error(
+            `Payment is not authorized (status: ${intent?.status || "unknown"}).`
           );
+        }
 
-        const normalized =
-          normalizePaymentPayload(data);
+        state.payment.authorized = true;
+        state.payment.paymentId = intent.id;
+        state.payment.clientSecret = clientSecret;
+        state.payment.raw = intent;
 
-        state.payment.authorized =
-          normalized.authorized;
-
-        state.payment.paymentId =
-          normalized.paymentId;
-
-        state.payment.clientSecret =
-          normalized.clientSecret;
-
-        state.payment.raw =
-          normalized.raw;
-
-        if (
+        writeStorage(
+          CONFIG.STORAGE_KEYS.lastPaymentId,
           state.payment.paymentId
-        ) {
-          writeStorage(
-            CONFIG.STORAGE_KEYS.lastPaymentId,
-            state.payment.paymentId
-          );
-        }
-
-        if (
-          !state.payment.authorized &&
-          CONFIG.REQUIRE_PAYMENT_AUTHORIZATION
-        ) {
-          setBadge("Payment Needed");
-
-          setTimeline(
-            "payment",
-            "Payment authorization is required before dispatch."
-          );
-
-          setLiveStatus(
-            "Payment authorization required."
-          );
-
-          showNotice(
-            "Payment was not authorized.",
-            "warning"
-          );
-
-          return false;
-        }
+        );
 
         if (els.requestRideBtn) {
           els.requestRideBtn.disabled = false;
@@ -4975,6 +5016,8 @@
 
         return true;
       } catch (error) {
+        state.payment.authorized = false;
+
         setBadge("Payment Failed");
 
         setTimeline(
@@ -4985,6 +5028,11 @@
         setLiveStatus(
           "Payment authorization failed."
         );
+
+        if (els.cardElementErrors) {
+          els.cardElementErrors.textContent =
+            error?.message || "Payment authorization failed.";
+        }
 
         showNotice(
           error?.message ||
@@ -5117,14 +5165,16 @@
         state.payment.paymentId ||
         readStorage(CONFIG.STORAGE_KEYS.lastPaymentId);
 
+      // Deliberately no payment_intent_id here. Sending it would make the
+      // server mark this ride payment_authorized (and dispatch it) right
+      // at creation — then /api/rides/:id/authorize below would try to
+      // dispatch it a second time. The ride is created in
+      // payment_required status instead; the authorize call right after
+      // is the one place that validates the Stripe-confirmed amount
+      // against this ride's real fare, binds the PaymentIntent so it
+      // can't be reused on a different ride, and finally dispatches it.
       const payload = {
         ...buildTripPayload(),
-
-        payment_id: paymentId,
-        paymentId,
-
-        payment_authorized: state.payment.authorized,
-        paymentAuthorized: state.payment.authorized,
 
         estimate: state.estimate.raw,
         estimated_fare: state.estimate.fare,
@@ -5162,6 +5212,36 @@
             CONFIG.STORAGE_KEYS.activeRequestMode,
             state.mode
           );
+
+          if (CONFIG.REQUIRE_PAYMENT_AUTHORIZATION && paymentId) {
+            try {
+              await apiPost(
+                `${CONFIG.ENDPOINTS.authorizeRide}/${encodeURIComponent(state.ride.rideId)}/authorize`,
+                { payment_intent_id: paymentId }
+              );
+            } catch (finalizeError) {
+              setBadge("Payment Failed");
+              setDispatchState("Failed");
+
+              setTimeline(
+                "dispatch",
+                `Ride ${state.ride.rideId} was created, but payment could not be finalized.`
+              );
+
+              setLiveStatus(
+                "Payment could not be finalized for this ride."
+              );
+
+              showNotice(
+                (finalizeError?.message || "Payment could not be finalized.") +
+                  ` Your ride ID is ${state.ride.rideId} — contact support if this persists.`,
+                "error"
+              );
+
+              setBusy(els.requestRideBtn, false);
+              return false;
+            }
+          }
 
           startRideStream(state.ride.rideId);
         }
@@ -5821,6 +5901,7 @@
       bindEvents();
       updateLocationMeta();
       initOrUpdateMap();
+      initStripeElements();
 
       setLiveStatus(
         "Complete the form and start with rider approval."

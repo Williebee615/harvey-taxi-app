@@ -388,6 +388,12 @@ const STRIPE_SECRET_KEY = env("STRIPE_SECRET_KEY");
 
 const STRIPE_WEBHOOK_SECRET = env("STRIPE_WEBHOOK_SECRET");
 
+// Not secret — this is the key Stripe.js needs in the browser to collect
+// card details. Served through GET /api/stripe-key the same way
+// GOOGLE_MAPS_BROWSER_KEY is served through /api/maps-key, so it never has
+// to be hardcoded or committed to git.
+const STRIPE_PUBLISHABLE_KEY = env("STRIPE_PUBLISHABLE_KEY");
+
 let stripe = null;
 
 if (Stripe && STRIPE_SECRET_KEY) {
@@ -10049,6 +10055,28 @@ app.get(
   rateLimit({ windowMs: 60_000, max: 60, keyPrefix: "maps_key" }),
   asyncRoute(async (req, res) => {
     return ok(res, { key: GOOGLE_MAPS_BROWSER_KEY || "" });
+  })
+);
+
+/* =========================================================
+
+   STRIPE PUBLISHABLE KEY
+
+   Serves the Stripe publishable key the same way /api/maps-key
+   serves the Maps key — an env var instead of a hardcoded value
+   in a static HTML file. request-ride.html uses this to load
+   Stripe.js and collect real card details before authorizing a
+   ride's payment. Returns an empty key (never an error) when
+   unconfigured, so the page can show a graceful "payments not
+   available" state instead of a broken card form.
+
+========================================================= */
+
+app.get(
+  "/api/stripe-key",
+  rateLimit({ windowMs: 60_000, max: 60, keyPrefix: "stripe_key" }),
+  asyncRoute(async (req, res) => {
+    return ok(res, { key: STRIPE_PUBLISHABLE_KEY || "" });
   })
 );
 
