@@ -132,7 +132,7 @@
         <div class="card-head">
           <div>
             <div class="title">Admin Access</div>
-            <div class="sub">Same credentials as the main admin dashboard.</div>
+            <div class="sub">Same credentials as the main admin dashboard. Password is never stored — sign in each session.</div>
           </div>
         </div>
         <div class="settings">
@@ -147,7 +147,7 @@
         </div>
         <div class="actions">
           <button class="primary" id="adminLoginBtn">Sign In</button>
-          <button class="success" id="saveAdminBtn">Save Access</button>
+          <button class="success" id="saveAdminBtn">Remember Email</button>
         </div>
       </section>
 
@@ -226,9 +226,14 @@ function statusClass(s){
   return "blue";
 }
 
+// The password is never read from or written to localStorage — only the
+// live input field value is used, so it exists in memory for this page
+// load only. Real auth is the signed session cookie set by
+// /api/admin/login; this header is just a fallback for a request made
+// before that cookie exists (e.g. before the admin has clicked Sign In).
 function adminHeaders(){
   const email = localStorage.getItem("harvey_admin_email") || ($("adminEmail")?$("adminEmail").value.trim():"");
-  const password = localStorage.getItem("harvey_admin_password") || ($("adminPassword")?$("adminPassword").value:"");
+  const password = $("adminPassword") ? $("adminPassword").value : "";
   const h = { "Content-Type":"application/json" };
   if (email) h["x-admin-email"] = email;
   if (password) h["x-admin-password"] = password;
@@ -267,10 +272,11 @@ async function adminLogin(){
     loadAll();
   }catch(e){ showError("Login failed: " + e.message); }
 }
+// Only the email is persisted — deliberately never the password. Sign In
+// is what establishes real, revocable access (the session cookie).
 function saveAdmin(){
   localStorage.setItem("harvey_admin_email",$("adminEmail").value.trim());
-  localStorage.setItem("harvey_admin_password",$("adminPassword").value);
-  showResult("Admin access saved on this device.");
+  showResult("Admin email saved on this device. Sign in each session — the password is never stored.");
 }
 
 /* ---- Flag control ---- */
@@ -336,10 +342,15 @@ function actionsForRide(r){
   } else if (s === "vehicle_reserved"){
     btns.push(`<button class="gold" onclick="offerFallback('${esc(r.id)}')">Offer Human Fallback</button>`);
     btns.push(`<button class="danger" onclick="cancelReservation('${esc(r.id)}')">Cancel Reservation</button>`);
-  } else if (["vehicle_enroute","vehicle_arrived","boarding_confirmation","trip_in_progress"].includes(s)){
+  } else if (["vehicle_enroute","vehicle_arrived","boarding_confirmation"].includes(s)){
     btns.push(`<button class="gold" onclick="offerFallback('${esc(r.id)}')">Offer Human Fallback</button>`);
     btns.push(`<button class="danger" onclick="cancelReservation('${esc(r.id)}')">Cancel Reservation</button>`);
   }
+  // trip_in_progress deliberately has no fallback/cancel controls — the
+  // lifecycle graph (lib/pilotLifecycle.js PILOT_TRANSITIONS) only allows
+  // TRIP_IN_PROGRESS -> TRIP_COMPLETED once a trip is actually underway.
+  // Escalate is still safe here: it only logs an event, it never attempts
+  // a status transition.
   if (!["trip_completed","cancelled"].includes(s)){
     btns.push(`<button class="neutral" onclick="escalateRide('${esc(r.id)}')">Escalate to Support</button>`);
   }
@@ -477,7 +488,6 @@ $("enablePilotBtn").onclick = enablePilot;
 $("disablePilotBtn").onclick = disablePilot;
 
 $("adminEmail").value = localStorage.getItem("harvey_admin_email") || "";
-$("adminPassword").value = localStorage.getItem("harvey_admin_password") || "";
 
 loadAll();
 </script>
