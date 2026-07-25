@@ -2248,17 +2248,25 @@
 
             <!-- FARE BREAKDOWN -->
             <div id="fareBreakdown" class="fare-breakdown hidden">
-              <div class="fare-breakdown-row">
+              <div class="fare-breakdown-row" id="breakdownBaseFareRow">
                 <span>Base Fare</span>
                 <strong id="breakdownBaseFare">—</strong>
               </div>
-              <div class="fare-breakdown-row">
+              <div class="fare-breakdown-row" id="breakdownDistanceChargeRow">
                 <span>Distance Charge</span>
                 <strong id="breakdownDistanceCharge">—</strong>
               </div>
-              <div class="fare-breakdown-row">
+              <div class="fare-breakdown-row" id="breakdownTimeChargeRow">
                 <span>Time Charge</span>
                 <strong id="breakdownTimeCharge">—</strong>
+              </div>
+              <div class="fare-breakdown-row hidden" id="breakdownDeliveryFeeRow">
+                <span>Delivery Fee</span>
+                <strong id="breakdownDeliveryFee">—</strong>
+              </div>
+              <div class="fare-breakdown-row hidden" id="breakdownDeliveryDistanceChargeRow">
+                <span>Delivery Distance Charge</span>
+                <strong id="breakdownDeliveryDistanceCharge">—</strong>
               </div>
               <div class="fare-breakdown-row">
                 <span>Booking Fee</span>
@@ -2985,9 +2993,16 @@
       durationText: $("durationText"),
 
       fareBreakdown: $("fareBreakdown"),
+      breakdownBaseFareRow: $("breakdownBaseFareRow"),
       breakdownBaseFare: $("breakdownBaseFare"),
+      breakdownDistanceChargeRow: $("breakdownDistanceChargeRow"),
       breakdownDistanceCharge: $("breakdownDistanceCharge"),
+      breakdownTimeChargeRow: $("breakdownTimeChargeRow"),
       breakdownTimeCharge: $("breakdownTimeCharge"),
+      breakdownDeliveryFeeRow: $("breakdownDeliveryFeeRow"),
+      breakdownDeliveryFee: $("breakdownDeliveryFee"),
+      breakdownDeliveryDistanceChargeRow: $("breakdownDeliveryDistanceChargeRow"),
+      breakdownDeliveryDistanceCharge: $("breakdownDeliveryDistanceCharge"),
       breakdownBookingFee: $("breakdownBookingFee"),
       breakdownDiscountRow: $("breakdownDiscountRow"),
       breakdownDiscount: $("breakdownDiscount"),
@@ -3067,6 +3082,32 @@
 
       els.fareBreakdown.classList.remove("hidden");
 
+      // Food/grocery use a distinct delivery-fee model (no passenger base
+      // fare, no time charge — a delivery isn't charged for drive time the
+      // way a passenger ride is) — show whichever set of rows actually
+      // applies instead of always showing all of them.
+      const isDelivery = Boolean(breakdown.isDelivery);
+
+      if (els.breakdownBaseFareRow) {
+        els.breakdownBaseFareRow.classList.toggle("hidden", isDelivery);
+      }
+
+      if (els.breakdownDistanceChargeRow) {
+        els.breakdownDistanceChargeRow.classList.toggle("hidden", isDelivery);
+      }
+
+      if (els.breakdownTimeChargeRow) {
+        els.breakdownTimeChargeRow.classList.toggle("hidden", isDelivery);
+      }
+
+      if (els.breakdownDeliveryFeeRow) {
+        els.breakdownDeliveryFeeRow.classList.toggle("hidden", !isDelivery);
+      }
+
+      if (els.breakdownDeliveryDistanceChargeRow) {
+        els.breakdownDeliveryDistanceChargeRow.classList.toggle("hidden", !isDelivery);
+      }
+
       if (els.breakdownBaseFare) {
         els.breakdownBaseFare.textContent = money(breakdown.baseFare);
       }
@@ -3077,6 +3118,14 @@
 
       if (els.breakdownTimeCharge) {
         els.breakdownTimeCharge.textContent = money(breakdown.timeCharge);
+      }
+
+      if (els.breakdownDeliveryFee) {
+        els.breakdownDeliveryFee.textContent = money(breakdown.deliveryFee);
+      }
+
+      if (els.breakdownDeliveryDistanceCharge) {
+        els.breakdownDeliveryDistanceCharge.textContent = money(breakdown.deliveryDistanceCharge);
       }
 
       if (els.breakdownBookingFee) {
@@ -5063,9 +5112,12 @@
         // Line items from calculateRideEstimate()'s breakdown — used to
         // show a real itemized fare preview instead of just the total.
         breakdown: {
+          isDelivery: Boolean(estimate.is_delivery),
           baseFare: numOrNull(estimate.base_fare),
           distanceCharge: numOrNull(estimate.distance_charge),
           timeCharge: numOrNull(estimate.time_charge),
+          deliveryFee: numOrNull(estimate.delivery_fee),
+          deliveryDistanceCharge: numOrNull(estimate.delivery_distance_charge),
           bookingFee: numOrNull(estimate.booking_fee),
           discountAmount: numOrNull(estimate.discount_amount),
           surchargeAmount: numOrNull(estimate.surcharge_amount),
