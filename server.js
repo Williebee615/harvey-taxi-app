@@ -8829,6 +8829,20 @@ app.post(
     const matchedZone = findMatchingPilotZone(zones, pickup, destination);
 
     if (!matchedZone) {
+      // No ride exists at this point (this is a pre-submission preview),
+      // so there's nothing to attach an autonomous_pilot_events row to —
+      // audit_logs (entity_id is a nullable free-text field, not an FK)
+      // is what actually lets this be recorded, which is what makes it
+      // visible to the admin panel's "service-zone violations" list.
+      auditLog({
+        actor_type: "rider",
+        actor_id: cleanString(req.body.rider_id, 100) || null,
+        action: "autonomous_pilot_zone_violation",
+        entity_type: "pilot_eligibility_check",
+        metadata: { pickup, destination },
+        req
+      }).catch(() => {});
+
       return ok(res, { result: AVAILABILITY_RESULT.OUTSIDE_ZONE });
     }
 
@@ -8890,6 +8904,54 @@ app.get(
     }
 
     return ok(res, buildPilotStatusResponse(ride));
+  })
+);
+
+app.post(
+  "/api/autonomous-pilot/rides/:rideId/request-assistance",
+  rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "pilot_request_assistance" }),
+  asyncRoute(async (req, res) => {
+    const rideId = cleanString(req.params.rideId, 100);
+    const riderId = cleanString(req.body.rider_id || req.body.riderId, 100);
+    const reason = cleanString(req.body.reason, 500) || null;
+
+    if (!rideId || !riderId) {
+      return fail(res, "riderId is required.", 400);
+    }
+
+    const { data: ride, error } = await supabase
+      .from("rides")
+      .select("id, rider_id, autonomous_pilot, pilot_status, pilot_provider")
+      .eq("id", rideId)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    if (!ride || ride.rider_id !== riderId || !ride.autonomous_pilot) {
+      return fail(res, "Autonomous pilot ride not found.", 404);
+    }
+
+    // manual_operations has no channel to a real vehicle — this routes
+    // to human_support rather than claiming to relay a command. See
+    // lib/pilotProvider.js.
+    const provider = getPilotProvider(ride.pilot_provider || "manual_operations");
+    const result = await provider.requestRemoteAssistance({ reservationId: rideId, reason });
+
+    logAutonomousPilotEvent({
+      ride_id: rideId,
+      event_type: "remote_assistance_requested",
+      pilot_status: ride.pilot_status,
+      actor_type: "rider",
+      actor_id: riderId,
+      metadata: { reason, routed_to: result.routed_to }
+    }).catch(() => {});
+
+    return ok(res, {
+      requested: true,
+      routed_to: result.routed_to,
+      message:
+        "Your request has been sent to Harvey Taxi support. If this is an emergency, call 911 immediately."
+    });
   })
 );
 
@@ -9023,6 +9085,21 @@ app.post(
       });
 
       if (!pilotDecision.ok) {
+        if (pilotDecision.pilot_result === AVAILABILITY_RESULT.OUTSIDE_ZONE) {
+          // No ride is created on this path, so there's nothing to
+          // attach an autonomous_pilot_events row to — audit_logs
+          // (entity_id is nullable free text, not an FK) is what makes
+          // this visible to the admin panel's zone-violations list.
+          auditLog({
+            actor_type: "rider",
+            actor_id: riderId || null,
+            action: "autonomous_pilot_zone_violation",
+            entity_type: "pilot_ride_request",
+            metadata: { pickup: pickupPoint, destination: destinationPoint },
+            req
+          }).catch(() => {});
+        }
+
         return fail(res, pilotDecision.error, 422, {
           pilot_result: pilotDecision.pilot_result
         });
@@ -15559,6 +15636,554 @@ app.post(
     }).catch(() => {});
 
     return ok(res, { autonomous_pilot_enabled: false });
+  })
+);
+
+/* =========================================================
+
+   ADMIN — AUTONOMOUS PILOT OPERATIONS PANEL
+
+   Controls an already-functioning lifecycle (the pilot_status state
+   machine in lib/pilotLifecycle.js, the manual_operations provider
+   adapter, and dispatchRide()'s existing human-fallback guard) rather
+   than defining new backend behavior here — every action below is a
+   thin, audited wrapper around functions that already exist and are
+   already unit-tested.
+
+========================================================= */
+
+const PILOT_STATUS_GROUPS = {
+  pending_eligibility: [PILOT_STATUS.REQUESTED, PILOT_STATUS.ELIGIBILITY_CHECK],
+  waitlisted: [PILOT_STATUS.WAITLISTED],
+  reserved: [PILOT_STATUS.VEHICLE_RESERVED],
+  active: [
+    PILOT_STATUS.VEHICLE_ENROUTE,
+    PILOT_STATUS.VEHICLE_ARRIVED,
+    PILOT_STATUS.BOARDING_CONFIRMATION,
+    PILOT_STATUS.TRIP_IN_PROGRESS
+  ],
+  fallback: [PILOT_STATUS.HUMAN_FALLBACK_OFFERED],
+  completed: [PILOT_STATUS.TRIP_COMPLETED],
+  cancelled: [PILOT_STATUS.CANCELLED]
+};
+
+// Shared I/O + validation for every admin action below: loads the ride,
+// confirms it's actually a pilot ride, validates the transition against
+// the same pure lib/pilotLifecycle.js state machine the dispatch guard
+// and ride-creation route already use, applies the update, then writes
+// both an autonomous_pilot_events row and a general audit_logs entry.
+// Never throws for an expected failure (missing ride, invalid
+// transition) — callers check `ok` and respond accordingly.
+async function transitionPilotRide({ rideId, toStatus, adminEmail, eventType, extraFields = {}, metadata = {}, req }) {
+  const { data: ride, error: fetchError } = await supabase
+    .from("rides")
+    .select("*")
+    .eq("id", rideId)
+    .maybeSingle();
+
+  if (fetchError) {
+    throw fetchError;
+  }
+
+  if (!ride || !ride.autonomous_pilot) {
+    return { ok: false, status: 404, error: "Autonomous pilot ride not found." };
+  }
+
+  const transition = transitionPilotStatus(ride.pilot_status, toStatus);
+
+  if (!transition.ok) {
+    return { ok: false, status: 409, error: transition.error };
+  }
+
+  const { data: updatedRide, error: updateError } = await supabase
+    .from("rides")
+    .update({
+      pilot_status: toStatus,
+      updated_at: nowIso(),
+      ...extraFields
+    })
+    .eq("id", rideId)
+    .select()
+    .single();
+
+  if (updateError) {
+    throw updateError;
+  }
+
+  logAutonomousPilotEvent({
+    ride_id: rideId,
+    event_type: eventType,
+    pilot_status: toStatus,
+    actor_type: "admin",
+    actor_id: adminEmail,
+    metadata
+  }).catch(() => {});
+
+  auditLog({
+    actor_type: "admin",
+    actor_id: adminEmail,
+    action: eventType,
+    entity_type: "ride",
+    entity_id: rideId,
+    metadata,
+    req
+  }).catch(() => {});
+
+  return { ok: true, ride: updatedRide };
+}
+
+// ---- Visibility ----
+
+app.get(
+  "/api/admin/autonomous-pilot/overview",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const enabled = await autonomousPilotEnabled();
+
+    const counts = {};
+
+    for (const [key, statuses] of Object.entries(PILOT_STATUS_GROUPS)) {
+      const { count, error } = await supabase
+        .from("rides")
+        .select("id", { count: "exact", head: true })
+        .eq("autonomous_pilot", true)
+        .in("pilot_status", statuses);
+
+      if (error) throw error;
+
+      counts[key] = count || 0;
+    }
+
+    const startOfToday = new Date();
+    startOfToday.setUTCHours(0, 0, 0, 0);
+
+    const { count: zoneViolationsToday, error: violationsError } = await supabase
+      .from("audit_logs")
+      .select("id", { count: "exact", head: true })
+      .eq("action", "autonomous_pilot_zone_violation")
+      .gte("created_at", startOfToday.toISOString());
+
+    if (violationsError) throw violationsError;
+
+    const { data: oldestPending } = await supabase
+      .from("rides")
+      .select("created_at")
+      .eq("autonomous_pilot", true)
+      .in("pilot_status", [...PILOT_STATUS_GROUPS.pending_eligibility, ...PILOT_STATUS_GROUPS.waitlisted])
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    const oldestPendingAgeMinutes = oldestPending?.created_at
+      ? Math.round((Date.now() - new Date(oldestPending.created_at).getTime()) / 60000)
+      : null;
+
+    return ok(res, {
+      enabled,
+      // manual_operations has no real API to be "down" — it's always
+      // operational by definition. This is where a real provider's
+      // actual health check would be reported once one is integrated.
+      provider: { name: "manual_operations", operational: true, simulated: true },
+      counts,
+      zone_violations_today: zoneViolationsToday || 0,
+      oldest_pending_age_minutes: oldestPendingAgeMinutes
+    });
+  })
+);
+
+app.get(
+  "/api/admin/autonomous-pilot/rides",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const category = cleanString(req.query.category, 40);
+    const statuses = PILOT_STATUS_GROUPS[category] || null;
+
+    if (category && !statuses) {
+      return fail(res, `Unknown category "${category}".`, 400, {
+        valid_categories: Object.keys(PILOT_STATUS_GROUPS)
+      });
+    }
+
+    const limit = getPageLimit(req, 50, 200);
+    const cursor = decodeCursor(req.query.cursor);
+
+    let query = supabase
+      .from("rides")
+      .select(
+        "id, rider_id, rider_name, pickup_address, dropoff_address, pilot_status, " +
+        "pilot_zone_id, pilot_provider, pilot_vehicle_id, human_fallback_allowed, " +
+        "human_fallback_reason, estimated_fare, created_at, updated_at"
+      )
+      .eq("autonomous_pilot", true)
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(limit);
+
+    if (statuses) {
+      query = query.in("pilot_status", statuses);
+    }
+
+    query = applyCursor(query, cursor);
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+
+    const rows = data || [];
+    const next_cursor = rows.length === limit ? encodeCursor(rows[rows.length - 1]) : null;
+
+    return ok(res, {
+      rides: rows,
+      page: { limit, count: rows.length, next_cursor }
+    });
+  })
+);
+
+app.get(
+  "/api/admin/autonomous-pilot/zone-violations",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const limit = getPageLimit(req, 50, 200);
+    const cursor = decodeCursor(req.query.cursor);
+
+    let query = supabase
+      .from("audit_logs")
+      .select("id, actor_type, actor_id, metadata, created_at")
+      .eq("action", "autonomous_pilot_zone_violation")
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(limit);
+
+    query = applyCursor(query, cursor);
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+
+    const rows = data || [];
+    const next_cursor = rows.length === limit ? encodeCursor(rows[rows.length - 1]) : null;
+
+    return ok(res, {
+      violations: rows,
+      page: { limit, count: rows.length, next_cursor }
+    });
+  })
+);
+
+app.get(
+  "/api/admin/autonomous-pilot/events",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const rideId = cleanString(req.query.rideId || req.query.ride_id, 100);
+    const eventType = cleanString(req.query.event_type, 60);
+    const limit = getPageLimit(req, 50, 200);
+    const cursor = decodeCursor(req.query.cursor);
+
+    let query = supabase
+      .from("autonomous_pilot_events")
+      .select("id, ride_id, event_type, pilot_status, actor_type, actor_id, metadata, created_at")
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(limit);
+
+    if (rideId) query = query.eq("ride_id", rideId);
+    if (eventType) query = query.eq("event_type", eventType);
+
+    query = applyCursor(query, cursor);
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+
+    const rows = data || [];
+    const next_cursor = rows.length === limit ? encodeCursor(rows[rows.length - 1]) : null;
+
+    return ok(res, {
+      events: rows,
+      page: { limit, count: rows.length, next_cursor }
+    });
+  })
+);
+
+// ---- Actions ----
+
+app.post(
+  "/api/admin/autonomous-pilot/rides/:rideId/approve",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const rideId = cleanString(req.params.rideId, 100);
+
+    const result = await transitionPilotRide({
+      rideId,
+      toStatus: PILOT_STATUS.WAITLISTED,
+      adminEmail: req.admin.email,
+      eventType: "pilot_request_approved",
+      req
+    });
+
+    if (!result.ok) {
+      return fail(res, result.error, result.status);
+    }
+
+    return ok(res, { ride_id: rideId, pilot_status: result.ride.pilot_status });
+  })
+);
+
+app.post(
+  "/api/admin/autonomous-pilot/rides/:rideId/reject",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const rideId = cleanString(req.params.rideId, 100);
+    const reason = cleanString(req.body.reason, 500) || null;
+
+    const result = await transitionPilotRide({
+      rideId,
+      toStatus: PILOT_STATUS.CANCELLED,
+      adminEmail: req.admin.email,
+      eventType: "pilot_request_rejected",
+      extraFields: { admin_note: reason },
+      metadata: { reason },
+      req
+    });
+
+    if (!result.ok) {
+      return fail(res, result.error, result.status);
+    }
+
+    return ok(res, { ride_id: rideId, pilot_status: result.ride.pilot_status });
+  })
+);
+
+app.post(
+  "/api/admin/autonomous-pilot/rides/:rideId/assign-vehicle",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const rideId = cleanString(req.params.rideId, 100);
+    const vehicleId = cleanString(req.body.vehicle_id, 100);
+    const providerReservationId = cleanString(req.body.provider_reservation_id, 100) || null;
+    const notes = cleanString(req.body.notes, 500) || null;
+
+    if (!vehicleId) {
+      return fail(res, "vehicle_id is required — manual_operations never invents one.", 400);
+    }
+
+    const { data: ride, error: fetchError } = await supabase
+      .from("rides")
+      .select("*")
+      .eq("id", rideId)
+      .maybeSingle();
+
+    if (fetchError) throw fetchError;
+
+    if (!ride || !ride.autonomous_pilot) {
+      return fail(res, "Autonomous pilot ride not found.", 404);
+    }
+
+    const transitionCheck = transitionPilotStatus(ride.pilot_status, PILOT_STATUS.VEHICLE_RESERVED);
+
+    if (!transitionCheck.ok) {
+      return fail(res, transitionCheck.error, 409);
+    }
+
+    const provider = getPilotProvider(ride.pilot_provider || "manual_operations");
+    const reservation = await provider.reserveVehicle({
+      rideId,
+      vehicleId,
+      providerReservationId,
+      notes
+    });
+
+    // One MUTABLE row per ride (unique on ride_id, see the schema
+    // migration + review) — upsert so a retry updates the existing row
+    // instead of failing on the unique constraint.
+    const { error: reservationError } = await supabase
+      .from("autonomous_provider_reservations")
+      .upsert(
+        {
+          id: makeId("PILOTRES"),
+          ride_id: rideId,
+          provider: reservation.provider,
+          provider_reservation_id: reservation.provider_reservation_id,
+          vehicle_id: reservation.vehicle_id,
+          status: "reserved",
+          reserved_at: reservation.reserved_at,
+          metadata: { notes, simulated: reservation.simulated === true },
+          updated_at: nowIso()
+        },
+        { onConflict: "ride_id" }
+      );
+
+    if (reservationError) throw reservationError;
+
+    const { data: updatedRide, error: updateError } = await supabase
+      .from("rides")
+      .update({
+        pilot_status: PILOT_STATUS.VEHICLE_RESERVED,
+        pilot_vehicle_id: vehicleId,
+        updated_at: nowIso()
+      })
+      .eq("id", rideId)
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
+
+    logAutonomousPilotEvent({
+      ride_id: rideId,
+      event_type: "vehicle_assigned",
+      pilot_status: PILOT_STATUS.VEHICLE_RESERVED,
+      actor_type: "admin",
+      actor_id: req.admin.email,
+      metadata: { vehicle_id: vehicleId, simulated: reservation.simulated === true }
+    }).catch(() => {});
+
+    auditLog({
+      actor_type: "admin",
+      actor_id: req.admin.email,
+      action: "autonomous_pilot_vehicle_assigned",
+      entity_type: "ride",
+      entity_id: rideId,
+      metadata: { vehicle_id: vehicleId },
+      req
+    }).catch(() => {});
+
+    return ok(res, {
+      ride_id: rideId,
+      pilot_status: updatedRide.pilot_status,
+      vehicle_id: updatedRide.pilot_vehicle_id,
+      simulated: reservation.simulated === true
+    });
+  })
+);
+
+app.post(
+  "/api/admin/autonomous-pilot/rides/:rideId/offer-fallback",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const rideId = cleanString(req.params.rideId, 100);
+    const reason = cleanString(req.body.reason, 500) || "no_vehicle_available";
+
+    const result = await transitionPilotRide({
+      rideId,
+      toStatus: PILOT_STATUS.HUMAN_FALLBACK_OFFERED,
+      adminEmail: req.admin.email,
+      eventType: "human_fallback_offered",
+      extraFields: { human_fallback_allowed: true, human_fallback_reason: reason },
+      metadata: { reason },
+      req
+    });
+
+    if (!result.ok) {
+      return fail(res, result.error, result.status);
+    }
+
+    // human_fallback_allowed is now true, so dispatchRide()'s existing
+    // guard (phase 3) will let this ride through to the normal driver
+    // pool — re-calling the same function every ride already goes
+    // through, not a parallel dispatch path.
+    const dispatch = await dispatchRide(result.ride).catch((err) => {
+      console.error("⚠️ dispatchRide after fallback offer failed:", err.message);
+      return null;
+    });
+
+    return ok(res, {
+      ride_id: rideId,
+      pilot_status: result.ride.pilot_status,
+      dispatch
+    });
+  })
+);
+
+app.post(
+  "/api/admin/autonomous-pilot/rides/:rideId/cancel-reservation",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const rideId = cleanString(req.params.rideId, 100);
+    const reason = cleanString(req.body.reason, 500) || null;
+
+    const { data: reservation } = await supabase
+      .from("autonomous_provider_reservations")
+      .select("*")
+      .eq("ride_id", rideId)
+      .maybeSingle();
+
+    if (reservation) {
+      const provider = getPilotProvider(reservation.provider || "manual_operations");
+
+      await provider.cancelReservation({ reservationId: reservation.id }).catch(() => {});
+
+      await supabase
+        .from("autonomous_provider_reservations")
+        .update({ status: "cancelled", cancelled_at: nowIso(), updated_at: nowIso() })
+        .eq("ride_id", rideId);
+    }
+
+    // "Cancel a pilot reservation" is treated as cancelling this pilot
+    // request outright (not a return-to-waitlist) — the lifecycle state
+    // machine has no reserved->waitlisted transition (a real-world
+    // regression like a vehicle falling through would need its own
+    // reviewed transition, not one added quietly here), and the rider
+    // can submit a fresh request if the pilot is still eligible.
+    const result = await transitionPilotRide({
+      rideId,
+      toStatus: PILOT_STATUS.CANCELLED,
+      adminEmail: req.admin.email,
+      eventType: "pilot_reservation_cancelled",
+      extraFields: { admin_note: reason },
+      metadata: { reason },
+      req
+    });
+
+    if (!result.ok) {
+      return fail(res, result.error, result.status);
+    }
+
+    return ok(res, { ride_id: rideId, pilot_status: result.ride.pilot_status });
+  })
+);
+
+app.post(
+  "/api/admin/autonomous-pilot/rides/:rideId/escalate",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const rideId = cleanString(req.params.rideId, 100);
+    const reason = cleanString(req.body.reason, 500) || null;
+
+    const { data: ride, error } = await supabase
+      .from("rides")
+      .select("id, autonomous_pilot, pilot_status")
+      .eq("id", rideId)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    if (!ride || !ride.autonomous_pilot) {
+      return fail(res, "Autonomous pilot ride not found.", 404);
+    }
+
+    logAutonomousPilotEvent({
+      ride_id: rideId,
+      event_type: "escalated_to_support",
+      pilot_status: ride.pilot_status,
+      actor_type: "admin",
+      actor_id: req.admin.email,
+      metadata: { reason }
+    }).catch(() => {});
+
+    auditLog({
+      actor_type: "admin",
+      actor_id: req.admin.email,
+      action: "autonomous_pilot_escalated",
+      entity_type: "ride",
+      entity_id: rideId,
+      metadata: { reason },
+      req
+    }).catch(() => {});
+
+    // Honest scope: this flags the request for human follow-up — there
+    // is no dedicated support-ticketing system to create a real ticket
+    // in. It surfaces via the admin panel's recent-events list.
+    return ok(res, { ride_id: rideId, escalated: true });
   })
 );
 

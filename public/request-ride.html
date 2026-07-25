@@ -2557,6 +2557,17 @@
                 here reflect Harvey Taxi's manual operations process, not live vehicle telemetry,
                 unless a real autonomous fleet provider is connected and clearly identified above.
               </p>
+
+              <div class="mini-list">
+                <button type="button" id="requestPilotAssistanceBtn">
+                  Request Human Assistance
+                </button>
+              </div>
+              <p id="pilotAssistanceResult" class="hidden" style="margin-top: 8px; font-size: 0.85rem; color: var(--text-soft);"></p>
+              <p style="margin-top: 10px; font-size: 0.78rem; color: var(--text-soft);">
+                This connects you with a human operator — it does not control the vehicle.
+                Harvey Taxi is not an emergency service. For emergencies, call 911 immediately.
+              </p>
             </div>
 
             <!-- DELIVERY ORDER DETAILS (food/grocery orders only) -->
@@ -2896,7 +2907,8 @@
         // "/:rideId/status?riderId=..." appended at call time.
         pilotConfig: "/api/autonomous-pilot/config",             // GET
         pilotEligibility: "/api/autonomous-pilot/eligibility",   // POST
-        pilotRideStatus: "/api/autonomous-pilot/rides"           // + "/:rideId/status" (GET)
+        pilotRideStatus: "/api/autonomous-pilot/rides",          // + "/:rideId/status" (GET)
+        pilotRequestAssistance: "/api/autonomous-pilot/rides"    // + "/:rideId/request-assistance" (POST)
 
         // NOTE: the previous build also called /api/rides/status and
         // /api/rider/current-ride — neither exists on the server. Current-ride
@@ -3134,6 +3146,8 @@
       pilotVehicleText: $("pilotVehicleText"),
       pilotFallbackRow: $("pilotFallbackRow"),
       pilotFallbackText: $("pilotFallbackText"),
+      requestPilotAssistanceBtn: $("requestPilotAssistanceBtn"),
+      pilotAssistanceResult: $("pilotAssistanceResult"),
 
       detectLocationBtn: $("detectLocationBtn"),
       checkRiderBtn: $("checkRiderBtn"),
@@ -4855,6 +4869,50 @@
       };
 
       return labels[status] || status || "Unknown";
+    }
+
+    // Connects the rider to a human operator for their pilot request. This
+    // never claims to control or redirect the vehicle itself — the backend
+    // route only logs the request and routes it to human support.
+    async function requestPilotAssistance() {
+      if (!isAutonomousMode() || !state.ride.rideId) return;
+
+      const btn = els.requestPilotAssistanceBtn;
+      const resultEl = els.pilotAssistanceResult;
+      const reason = window.prompt(
+        "Briefly describe what you need help with (optional):"
+      ) || "";
+
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = "Contacting support...";
+      }
+
+      try {
+        const data = await apiPost(
+          `${CONFIG.ENDPOINTS.pilotRequestAssistance}/${encodeURIComponent(state.ride.rideId)}/request-assistance`,
+          { reason }
+        );
+
+        if (resultEl) {
+          resultEl.classList.remove("hidden");
+          resultEl.textContent =
+            data.message || "Request sent. A human operator has been notified.";
+        }
+      } catch (error) {
+        if (resultEl) {
+          resultEl.classList.remove("hidden");
+          resultEl.textContent =
+            "Could not reach support automatically: " +
+            error.message +
+            ". If this is urgent, call 911 or use the Safety Notice contacts below.";
+        }
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = "Request Human Assistance";
+        }
+      }
     }
 
     // --- Guided mission wizard: Step 1 (choose a service) is the mode-grid
@@ -6976,6 +7034,8 @@
         state.pilot.accessibilityNeeds = els.pilotAccessibilityNeeds.value;
         resetPilotEligibility();
       });
+
+      els.requestPilotAssistanceBtn?.addEventListener("click", requestPilotAssistance);
 
       els.pilotConsentCheckbox?.addEventListener("change", () => {
         state.pilot.consentAccepted = els.pilotConsentCheckbox.checked === true;

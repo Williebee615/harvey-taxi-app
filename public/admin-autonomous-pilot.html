@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
+  <title>Harvey Taxi — Autonomous Pilot Operations</title>
+  <meta name="theme-color" content="#07111f" />
+
+  <style>
+    :root{
+      --bg:#040814;--panel:rgba(10,17,38,.94);--panel2:rgba(255,255,255,.04);
+      --line:rgba(122,162,255,.18);--text:#f4f7ff;--muted:#aab8de;
+      --cyan:#63f5ff;--blue:#5ea0ff;--green:#6dffb3;--gold:#ffd76a;--danger:#ff7e97;--purple:#c3a6ff;
+      --shadow:0 22px 70px rgba(0,0,0,.38);--radius:24px;--max:1480px;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{
+      min-height:100vh;font-family:Inter,Arial,sans-serif;color:var(--text);
+      background:
+        radial-gradient(circle at top left,rgba(99,245,255,.13),transparent 28%),
+        radial-gradient(circle at top right,rgba(94,160,255,.12),transparent 28%),
+        linear-gradient(160deg,#040814,#0a1126 48%,#101935);
+      padding-bottom:40px;
+    }
+    a{color:inherit;text-decoration:none}
+    button,input,textarea,select{font:inherit}
+    button{border:0;cursor:pointer;border-radius:14px;padding:11px 14px;font-weight:900;transition:.18s ease}
+    button:hover{transform:translateY(-1px)}
+    button:disabled{opacity:.55;cursor:not-allowed;transform:none}
+    .shell{max-width:var(--max);margin:auto;padding:18px 14px}
+    .topbar,.hero,.card,.stat{
+      background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.015)),var(--panel);
+      border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)
+    }
+    .topbar{position:sticky;top:12px;z-index:20;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px;margin-bottom:16px;flex-wrap:wrap}
+    .brand-wrap{display:flex;align-items:center;gap:12px}
+    .logo{width:50px;height:50px;border-radius:16px;display:grid;place-items:center;background:linear-gradient(135deg,var(--purple),var(--blue),var(--cyan));color:#061325;font-weight:950}
+    .brand{font-size:1.18rem;font-weight:950}.brand span{color:var(--cyan)}
+    .sub{color:var(--muted);font-size:.9rem;line-height:1.5;margin-top:4px}
+    .top-actions,.actions,.hero-actions,.tabs{display:flex;flex-wrap:wrap;gap:10px}
+    .top-btn,.neutral{background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--text)}
+    .primary{background:linear-gradient(90deg,var(--blue),var(--cyan));color:#061325}
+    .success{background:linear-gradient(90deg,var(--cyan),var(--green));color:#061b17}
+    .danger{background:linear-gradient(90deg,var(--danger),#ffb1bc);color:#2a0a12}
+    .gold{background:linear-gradient(90deg,var(--gold),#fff0b2);color:#382900}
+    .purple{background:linear-gradient(90deg,var(--purple),var(--blue));color:#0e0a26}
+    .hero{padding:22px;margin-bottom:16px}
+    .hero h1{font-size:clamp(1.5rem,4vw,2.2rem);line-height:1.1;margin-bottom:8px}
+    .hero p{color:var(--muted);line-height:1.6;max-width:90ch}.hero-actions{margin-top:16px}
+    .sim-banner{display:flex;gap:10px;align-items:center;margin-top:14px;padding:12px 14px;border-radius:16px;background:rgba(255,215,106,.1);border:1px solid rgba(255,215,106,.25);color:#ffe9b0;font-weight:750;font-size:.88rem;line-height:1.5}
+    .result,.error{display:none;margin-bottom:14px;padding:14px 16px;border-radius:18px;line-height:1.55;font-weight:750;word-break:break-word}
+    .result{background:rgba(109,255,179,.09);border:1px solid rgba(109,255,179,.22);color:#dffff0}
+    .error{background:rgba(255,126,151,.09);border:1px solid rgba(255,126,151,.22);color:#ffd9e1}
+    .stats{display:grid;grid-template-columns:repeat(9,1fr);gap:12px;margin-bottom:16px}
+    .stat{padding:14px}.k{color:var(--muted);font-size:.76rem;margin-bottom:6px}.v{font-size:1.05rem;font-weight:950}
+    .stat.tabbable{cursor:pointer}
+    .stat.tabbable.active{border-color:var(--cyan)}
+    .grid{display:grid;grid-template-columns:.85fr 1.4fr;gap:16px}.stack{display:grid;gap:16px}
+    .card{padding:18px}.card-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap;margin-bottom:14px}
+    .title{font-weight:950;font-size:1.05rem}
+    .input,textarea{width:100%;min-height:46px;padding:12px 14px;border-radius:14px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:var(--text);outline:0}
+    .field{display:grid;gap:8px;margin-bottom:10px}.field label{font-weight:850;color:var(--muted);font-size:.86rem}
+    .settings{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .list{display:grid;gap:12px}.item{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:18px;padding:14px}
+    .item-top{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+    .item-title{font-weight:950;line-height:1.35}.item-sub{color:var(--muted);font-size:.9rem;line-height:1.5;word-break:break-word}
+    .badge{display:inline-flex;padding:7px 11px;border-radius:999px;font-size:.72rem;font-weight:950;text-transform:uppercase;border:1px solid transparent;white-space:nowrap}
+    .ok{background:rgba(109,255,179,.12);color:var(--green);border-color:rgba(109,255,179,.2)}
+    .warn{background:rgba(255,215,106,.13);color:var(--gold);border-color:rgba(255,215,106,.2)}
+    .bad{background:rgba(255,126,151,.13);color:var(--danger);border-color:rgba(255,126,151,.2)}
+    .blue{background:rgba(94,160,255,.13);color:var(--blue);border-color:rgba(94,160,255,.2)}
+    .grey{background:rgba(255,255,255,.08);color:var(--muted);border-color:rgba(255,255,255,.14)}
+    .item-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:10px}
+    .box{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:14px;padding:10px}
+    .empty{padding:18px;border:1px dashed var(--line);border-radius:18px;text-align:center;color:var(--muted);line-height:1.5}
+    .tab{background:rgba(255,255,255,.04);border:1px solid var(--line);color:var(--muted);border-radius:999px}
+    .tab.active{background:linear-gradient(90deg,var(--cyan),var(--blue));color:#061325}
+    .footer{text-align:center;color:var(--muted);font-size:.86rem;margin-top:20px}
+    @media(max-width:1200px){.stats{grid-template-columns:repeat(3,1fr)}.grid,.item-grid,.settings{grid-template-columns:1fr}}
+    @media(max-width:720px){.topbar{align-items:flex-start}.top-actions a,.top-actions button,.hero-actions button,.actions button{width:100%}.stats{grid-template-columns:repeat(2,1fr)}}
+  </style>
+</head>
+
+<body>
+<div class="shell">
+  <header class="topbar">
+    <div class="brand-wrap">
+      <div class="logo">AP</div>
+      <div>
+        <div class="brand">Autonomous <span>Pilot</span> Operations</div>
+        <div class="sub">Code Blue — controlled AV request &amp; dispatch pilot (manual_operations)</div>
+      </div>
+    </div>
+    <div class="top-actions">
+      <a class="top-btn" href="/admin-home.html">Admin Home</a>
+      <a class="top-btn" href="/admin-dashboard.html">Main Dashboard</a>
+      <button class="top-btn" id="refreshBtn">Refresh</button>
+    </div>
+  </header>
+
+  <section class="hero">
+    <h1>Autonomous Pilot Control</h1>
+    <p>This panel controls an already-audited, already-tested lifecycle. It does not itself define pilot behavior — every action here is a thin, audit-logged wrapper around the same state machine, provider adapter, and dispatch guard used by the rider-facing flow.</p>
+    <div class="hero-actions">
+      <span class="badge blue" id="pilotFlagBadge">Loading…</span>
+      <span class="badge" id="providerBadge">Provider —</span>
+      <button class="success" id="enablePilotBtn">Enable Pilot</button>
+      <button class="danger" id="disablePilotBtn">Pause Pilot</button>
+      <button class="primary" id="manualRefreshBtn">Refresh</button>
+    </div>
+    <div class="sim-banner">⚠ manual_operations is the only provider connected. Vehicle assignment, location, and reservation confirmations are simulated / human-entered — nothing here reflects a real autonomous vehicle in motion.</div>
+  </section>
+
+  <div class="result" id="resultBox"></div>
+  <div class="error" id="errorBox"></div>
+
+  <section class="stats" id="statsGrid">
+    <div class="stat tabbable" data-cat="all"><div class="k">All Pilot Rides</div><div class="v" id="statAll">0</div></div>
+    <div class="stat tabbable" data-cat="pending_eligibility"><div class="k">Pending Eligibility</div><div class="v" id="statPending">0</div></div>
+    <div class="stat tabbable" data-cat="waitlisted"><div class="k">Waitlisted</div><div class="v" id="statWaitlisted">0</div></div>
+    <div class="stat tabbable" data-cat="reserved"><div class="k">Vehicle Reserved</div><div class="v" id="statReserved">0</div></div>
+    <div class="stat tabbable" data-cat="active"><div class="k">Active Trips</div><div class="v" id="statActive">0</div></div>
+    <div class="stat tabbable" data-cat="fallback"><div class="k">Human Fallback</div><div class="v" id="statFallback">0</div></div>
+    <div class="stat tabbable" data-cat="completed"><div class="k">Completed</div><div class="v" id="statCompleted">0</div></div>
+    <div class="stat"><div class="k">Zone Violations Today</div><div class="v" id="statZoneViolations">0</div></div>
+    <div class="stat"><div class="k">Oldest Pending</div><div class="v" id="statOldestPending">—</div></div>
+  </section>
+
+  <main class="grid">
+    <div class="stack">
+      <section class="card">
+        <div class="card-head">
+          <div>
+            <div class="title">Admin Access</div>
+            <div class="sub">Same credentials as the main admin dashboard.</div>
+          </div>
+        </div>
+        <div class="settings">
+          <div class="field">
+            <label>Admin Email</label>
+            <input id="adminEmail" class="input" type="email" placeholder="admin@harveytaxiservice.com" />
+          </div>
+          <div class="field">
+            <label>Admin Password</label>
+            <input id="adminPassword" class="input" type="password" placeholder="Admin password" />
+          </div>
+        </div>
+        <div class="actions">
+          <button class="primary" id="adminLoginBtn">Sign In</button>
+          <button class="success" id="saveAdminBtn">Save Access</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <div>
+            <div class="title">Pilot Flag &amp; Health</div>
+            <div class="sub">Defaults OFF. Enabling here does not change zones or hours.</div>
+          </div>
+        </div>
+        <div id="flagStatusInfo" class="item-sub"></div>
+      </section>
+
+      <section class="card">
+        <div class="card-head"><div><div class="title">Zone Violations</div><div class="sub">Requests rejected for being outside approved pilot zones.</div></div></div>
+        <div class="list" id="zoneViolationsList"><div class="empty">Loading…</div></div>
+      </section>
+
+      <section class="card">
+        <div class="card-head"><div><div class="title">Recent Pilot Events</div><div class="sub">Audit trail of lifecycle transitions and admin actions.</div></div></div>
+        <div class="list" id="eventsList"><div class="empty">Loading…</div></div>
+      </section>
+    </div>
+
+    <div class="stack">
+      <section class="card">
+        <div class="card-head">
+          <div><div class="title">Pilot Requests</div><div class="sub">Approve, assign, offer fallback, or cancel — every action is audit-logged.</div></div>
+        </div>
+        <div class="tabs" id="categoryTabs">
+          <button class="tab active" data-cat="all">All</button>
+          <button class="tab" data-cat="pending_eligibility">Pending</button>
+          <button class="tab" data-cat="waitlisted">Waitlisted</button>
+          <button class="tab" data-cat="reserved">Reserved</button>
+          <button class="tab" data-cat="active">Active</button>
+          <button class="tab" data-cat="fallback">Fallback</button>
+          <button class="tab" data-cat="completed">Completed</button>
+          <button class="tab" data-cat="cancelled">Cancelled</button>
+        </div>
+        <div class="list" id="ridesList"><div class="empty">Loading pilot requests…</div></div>
+      </section>
+    </div>
+  </main>
+
+  <div class="footer">Harvey Taxi Service LLC • Autonomous Pilot V1 — controlled request &amp; dispatch pilot, not real autonomous driving capability</div>
+</div>
+
+<script>
+const API_BASE = window.HARVEY_API_BASE || window.location.origin;
+const state = { category: "all" };
+
+const $ = id => document.getElementById(id);
+const els = {
+  result: $("resultBox"), error: $("errorBox"),
+  rides: $("ridesList"), violations: $("zoneViolationsList"), events: $("eventsList")
+};
+
+function esc(v){return String(v ?? "").replace(/[&<>"']/g,m=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;" }[m]));}
+function money(v){return v == null ? "—" : "$" + Number(v || 0).toFixed(2);}
+function showResult(msg){els.result.style.display="block";els.error.style.display="none";els.result.innerHTML=esc(msg);}
+function showError(msg){els.error.style.display="block";els.result.style.display="none";els.error.innerHTML=esc(msg);}
+function fmtTime(v){return v ? String(v).slice(0,19).replace("T"," ") + " UTC" : "—";}
+
+const STATUS_LABELS = {
+  pilot_requested: "Requested", eligibility_check: "Eligibility Check", waitlisted: "Waitlisted",
+  vehicle_reserved: "Vehicle Reserved", vehicle_enroute: "Vehicle En Route", vehicle_arrived: "Vehicle Arrived",
+  boarding_confirmation: "Boarding", trip_in_progress: "Trip In Progress", trip_completed: "Trip Completed",
+  human_fallback_offered: "Human Fallback Offered", cancelled: "Cancelled"
+};
+function humanizeStatus(s){ return STATUS_LABELS[s] || s || "unknown"; }
+function statusClass(s){
+  if (["trip_completed"].includes(s)) return "ok";
+  if (["cancelled"].includes(s)) return "bad";
+  if (["waitlisted","pilot_requested","eligibility_check"].includes(s)) return "warn";
+  if (["human_fallback_offered"].includes(s)) return "purple-badge blue";
+  return "blue";
+}
+
+function adminHeaders(){
+  const email = localStorage.getItem("harvey_admin_email") || ($("adminEmail")?$("adminEmail").value.trim():"");
+  const password = localStorage.getItem("harvey_admin_password") || ($("adminPassword")?$("adminPassword").value:"");
+  const h = { "Content-Type":"application/json" };
+  if (email) h["x-admin-email"] = email;
+  if (password) h["x-admin-password"] = password;
+  return h;
+}
+async function api(path, options={}){
+  const res = await fetch(API_BASE + path, {
+    ...options,
+    credentials: "include",
+    headers:{...adminHeaders(), ...(options.headers||{})}
+  });
+  const data = await res.json().catch(()=>({}));
+  if(!res.ok || data.ok === false) throw new Error(data.error || data.message || `Request failed ${res.status}`);
+  return data;
+}
+async function safeApi(path, fallback){
+  try{return await api(path)}catch(e){console.warn(path,e.message);return fallback}
+}
+
+async function adminLogin(){
+  const email = $("adminEmail").value.trim();
+  const password = $("adminPassword").value;
+  if(!email || !password){ showError("Enter admin email and password."); return; }
+  try{
+    const res = await fetch(API_BASE + "/api/admin/login", {
+      method:"POST", credentials:"include",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok || data.ok === false) throw new Error(data.error || data.message || `Login failed ${res.status}`);
+    localStorage.setItem("harvey_admin_email", email);
+    localStorage.removeItem("harvey_admin_password");
+    $("adminPassword").value = "";
+    showResult("Signed in. Loading pilot operations...");
+    loadAll();
+  }catch(e){ showError("Login failed: " + e.message); }
+}
+function saveAdmin(){
+  localStorage.setItem("harvey_admin_email",$("adminEmail").value.trim());
+  localStorage.setItem("harvey_admin_password",$("adminPassword").value);
+  showResult("Admin access saved on this device.");
+}
+
+/* ---- Flag control ---- */
+async function loadOverview(){
+  try{
+    const data = await api("/api/admin/autonomous-pilot/overview");
+    const badge = $("pilotFlagBadge");
+    badge.textContent = data.enabled ? "PILOT ENABLED" : "PILOT PAUSED (default)";
+    badge.className = "badge " + (data.enabled ? "ok" : "warn");
+
+    const provBadge = $("providerBadge");
+    provBadge.textContent = `Provider: ${data.provider.name}${data.provider.simulated ? " (simulated)" : ""}`;
+    provBadge.className = "badge " + (data.provider.operational ? "grey" : "bad");
+
+    const c = data.counts || {};
+    $("statAll").textContent = Object.values(c).reduce((s,n)=>s+(n||0),0);
+    $("statPending").textContent = c.pending_eligibility || 0;
+    $("statWaitlisted").textContent = c.waitlisted || 0;
+    $("statReserved").textContent = c.reserved || 0;
+    $("statActive").textContent = c.active || 0;
+    $("statFallback").textContent = c.fallback || 0;
+    $("statCompleted").textContent = c.completed || 0;
+    $("statZoneViolations").textContent = data.zone_violations_today || 0;
+    $("statOldestPending").textContent = data.oldest_pending_age_minutes != null ? `${data.oldest_pending_age_minutes} min` : "—";
+
+    $("flagStatusInfo").innerHTML =
+      `Pilot is currently <strong>${data.enabled ? "ENABLED" : "PAUSED"}</strong>.<br>` +
+      `<span class="item-sub">Provider: ${esc(data.provider.name)} — ${data.provider.operational ? "operational" : "unavailable"}${data.provider.simulated ? " (all data simulated/manual)" : ""}.</span><br>` +
+      `<span class="item-sub">${data.zone_violations_today || 0} zone violation(s) logged today. Oldest pending/waitlisted request: ${data.oldest_pending_age_minutes != null ? data.oldest_pending_age_minutes + " min old" : "none pending"}.</span>`;
+  }catch(e){
+    $("flagStatusInfo").innerHTML = `<span style="color:#ff7e97">Could not load overview: ${esc(e.message)}</span>`;
+  }
+}
+async function enablePilot(){
+  const reason = prompt("Reason for enabling the autonomous pilot (recommended):") || "";
+  try{
+    await api("/api/admin/system/enable-autonomous-pilot", { method:"POST", body: JSON.stringify({ reason }) });
+    showResult("Autonomous pilot enabled.");
+    loadAll();
+  }catch(e){ showError("Enable failed: " + e.message); }
+}
+async function disablePilot(){
+  if(!confirm("Pause the autonomous pilot? No new pilot requests will be accepted while paused.")) return;
+  const reason = prompt("Reason for pausing (optional):") || "";
+  try{
+    await api("/api/admin/system/disable-autonomous-pilot", { method:"POST", body: JSON.stringify({ reason }) });
+    showResult("Autonomous pilot paused.");
+    loadAll();
+  }catch(e){ showError("Pause failed: " + e.message); }
+}
+
+/* ---- Rides list ---- */
+function actionsForRide(r){
+  const s = r.pilot_status;
+  const btns = [];
+  if (["pilot_requested","eligibility_check"].includes(s)){
+    btns.push(`<button class="success" onclick="approveRide('${esc(r.id)}')">Approve</button>`);
+    btns.push(`<button class="danger" onclick="rejectRide('${esc(r.id)}')">Reject</button>`);
+  } else if (s === "waitlisted"){
+    btns.push(`<button class="primary" onclick="assignVehicle('${esc(r.id)}')">Assign Vehicle</button>`);
+    btns.push(`<button class="gold" onclick="offerFallback('${esc(r.id)}')">Offer Human Fallback</button>`);
+    btns.push(`<button class="danger" onclick="rejectRide('${esc(r.id)}')">Reject</button>`);
+  } else if (s === "vehicle_reserved"){
+    btns.push(`<button class="gold" onclick="offerFallback('${esc(r.id)}')">Offer Human Fallback</button>`);
+    btns.push(`<button class="danger" onclick="cancelReservation('${esc(r.id)}')">Cancel Reservation</button>`);
+  } else if (["vehicle_enroute","vehicle_arrived","boarding_confirmation","trip_in_progress"].includes(s)){
+    btns.push(`<button class="gold" onclick="offerFallback('${esc(r.id)}')">Offer Human Fallback</button>`);
+    btns.push(`<button class="danger" onclick="cancelReservation('${esc(r.id)}')">Cancel Reservation</button>`);
+  }
+  if (!["trip_completed","cancelled"].includes(s)){
+    btns.push(`<button class="neutral" onclick="escalateRide('${esc(r.id)}')">Escalate to Support</button>`);
+  }
+  return btns.join("");
+}
+
+function renderRides(items){
+  els.rides.innerHTML = items.length ? items.map(r => `
+    <div class="item">
+      <div class="item-top">
+        <div><div class="item-title">${esc(r.rider_name || r.rider_id || "Rider")}</div><div class="item-sub">${esc(r.pickup_address || "--")} → ${esc(r.dropoff_address || "--")}</div></div>
+        <span class="badge ${statusClass(r.pilot_status)}">${esc(humanizeStatus(r.pilot_status))}</span>
+      </div>
+      <div class="item-grid">
+        <div class="box"><div class="k">Ride ID</div><div class="v" style="font-size:.82rem;">${esc(r.id)}</div></div>
+        <div class="box"><div class="k">Fare Estimate</div><div class="v">${money(r.estimated_fare)}</div></div>
+        <div class="box"><div class="k">Vehicle</div><div class="v">${esc(r.pilot_vehicle_id || "Unassigned")}</div></div>
+        <div class="box"><div class="k">Human Fallback</div><div class="v">${r.human_fallback_allowed ? "Allowed" : "Not offered"}${r.human_fallback_reason ? " — " + esc(r.human_fallback_reason) : ""}</div></div>
+      </div>
+      <div class="item-sub" style="margin-bottom:10px;">Requested ${fmtTime(r.created_at)} • Updated ${fmtTime(r.updated_at)}</div>
+      <div class="actions">${actionsForRide(r) || '<span class="item-sub">No actions available — terminal status.</span>'}</div>
+    </div>`).join("") : `<div class="empty">No pilot requests in this category.</div>`;
+}
+
+async function loadRides(){
+  try{
+    const q = state.category === "all" ? "" : `?category=${encodeURIComponent(state.category)}&limit=50`;
+    const path = state.category === "all" ? "/api/admin/autonomous-pilot/rides?limit=50" : `/api/admin/autonomous-pilot/rides${q}`;
+    const data = await safeApi(path, { rides: [] });
+    renderRides(data.rides || []);
+  }catch(e){
+    els.rides.innerHTML = `<div class="empty">Could not load pilot requests: ${esc(e.message)}</div>`;
+  }
+}
+
+async function approveRide(id){
+  try{ await api(`/api/admin/autonomous-pilot/rides/${encodeURIComponent(id)}/approve`, { method:"POST", body:"{}" }); showResult("Pilot request approved and moved to waitlist."); loadAll(); }
+  catch(e){ showError("Approve failed: " + e.message); }
+}
+async function rejectRide(id){
+  if(!confirm("Reject this pilot request? This cancels it.")) return;
+  const reason = prompt("Reason for rejection (optional):") || "";
+  try{ await api(`/api/admin/autonomous-pilot/rides/${encodeURIComponent(id)}/reject`, { method:"POST", body: JSON.stringify({ reason }) }); showResult("Pilot request rejected."); loadAll(); }
+  catch(e){ showError("Reject failed: " + e.message); }
+}
+async function assignVehicle(id){
+  const vehicleId = prompt("Vehicle ID to assign (manual_operations requires a real ID — nothing is auto-generated):");
+  if(!vehicleId) return;
+  const notes = prompt("Notes (optional):") || "";
+  try{
+    await api(`/api/admin/autonomous-pilot/rides/${encodeURIComponent(id)}/assign-vehicle`, {
+      method:"POST", body: JSON.stringify({ vehicle_id: vehicleId, notes })
+    });
+    showResult("Vehicle assigned (simulated reservation under manual_operations).");
+    loadAll();
+  }catch(e){ showError("Assign vehicle failed: " + e.message); }
+}
+async function offerFallback(id){
+  if(!confirm("Offer human-driver fallback for this pilot request? This allows it into the normal driver dispatch pool.")) return;
+  const reason = prompt("Reason (optional):") || "";
+  try{
+    const data = await api(`/api/admin/autonomous-pilot/rides/${encodeURIComponent(id)}/offer-fallback`, { method:"POST", body: JSON.stringify({ reason }) });
+    showResult("Human fallback offered." + (data.dispatch ? " Dispatch re-run against the normal driver pool." : ""));
+    loadAll();
+  }catch(e){ showError("Offer fallback failed: " + e.message); }
+}
+async function cancelReservation(id){
+  if(!confirm("Cancel this pilot reservation? This cancels the pilot request outright; the rider would need to submit a fresh request.")) return;
+  const reason = prompt("Reason (optional):") || "";
+  try{ await api(`/api/admin/autonomous-pilot/rides/${encodeURIComponent(id)}/cancel-reservation`, { method:"POST", body: JSON.stringify({ reason }) }); showResult("Reservation cancelled."); loadAll(); }
+  catch(e){ showError("Cancel failed: " + e.message); }
+}
+async function escalateRide(id){
+  const reason = prompt("What should human support follow up on?") || "";
+  try{ await api(`/api/admin/autonomous-pilot/rides/${encodeURIComponent(id)}/escalate`, { method:"POST", body: JSON.stringify({ reason }) }); showResult("Escalated for human follow-up (flagged in events — no separate ticketing system exists)."); loadAll(); }
+  catch(e){ showError("Escalate failed: " + e.message); }
+}
+
+/* ---- Zone violations ---- */
+function renderViolations(items){
+  els.violations.innerHTML = items.length ? items.slice(0,20).map(v => `
+    <div class="item">
+      <div class="item-top">
+        <div class="item-title">${esc(v.actor_id || "rider")}</div>
+        <span class="badge bad">Outside Zone</span>
+      </div>
+      <div class="item-sub">${fmtTime(v.created_at)}${v.metadata && v.metadata.pickup_lat != null ? ` • (${v.metadata.pickup_lat}, ${v.metadata.pickup_lng})` : ""}</div>
+    </div>`).join("") : `<div class="empty">No zone violations logged.</div>`;
+}
+async function loadViolations(){
+  const data = await safeApi("/api/admin/autonomous-pilot/zone-violations?limit=20", { violations: [] });
+  renderViolations(data.violations || []);
+}
+
+/* ---- Recent events ---- */
+function renderEvents(items){
+  els.events.innerHTML = items.length ? items.slice(0,20).map(ev => `
+    <div class="item">
+      <div class="item-top">
+        <div class="item-title">${esc(ev.event_type)}</div>
+        <span class="badge blue">${esc(humanizeStatus(ev.pilot_status))}</span>
+      </div>
+      <div class="item-sub">${fmtTime(ev.created_at)} • by ${esc(ev.actor_type)}${ev.actor_id ? " (" + esc(ev.actor_id) + ")" : ""} • ride ${esc(ev.ride_id)}</div>
+    </div>`).join("") : `<div class="empty">No pilot events logged yet.</div>`;
+}
+async function loadEvents(){
+  const data = await safeApi("/api/admin/autonomous-pilot/events?limit=20", { events: [] });
+  renderEvents(data.events || []);
+}
+
+async function loadAll(){
+  await Promise.all([loadOverview(), loadRides(), loadViolations(), loadEvents()]);
+}
+
+document.querySelectorAll(".tab").forEach(btn=>{
+  btn.onclick = () => {
+    document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    state.category = btn.dataset.cat;
+    loadRides();
+  };
+});
+document.querySelectorAll(".stat.tabbable").forEach(stat=>{
+  stat.onclick = () => {
+    const tab = document.querySelector(`.tab[data-cat="${stat.dataset.cat}"]`);
+    if (tab) tab.click();
+  };
+});
+
+$("adminLoginBtn").onclick = adminLogin;
+$("saveAdminBtn").onclick = saveAdmin;
+$("refreshBtn").onclick = loadAll;
+$("manualRefreshBtn").onclick = loadAll;
+$("enablePilotBtn").onclick = enablePilot;
+$("disablePilotBtn").onclick = disablePilot;
+
+$("adminEmail").value = localStorage.getItem("harvey_admin_email") || "";
+$("adminPassword").value = localStorage.getItem("harvey_admin_password") || "";
+
+loadAll();
+</script>
+</body>
+</html>
