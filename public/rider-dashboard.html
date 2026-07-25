@@ -2048,67 +2048,44 @@
         return;
       }
 
-      try {
-        const data = await requestJson(
-          `/api/rider/history?riderId=${encodeURIComponent(state.riderId)}`
-        );
+      // The canonical rider-scoped routes (each rider-ownership-checked
+      // server-side, not just "any ID works"). Older /api/rider/history,
+      // /api/rides/status, /api/delivery/status calls used to live here —
+      // none of those three routes have ever existed server-side, so this
+      // tab was silently empty for every rider until now.
+      const [ridesResult, deliveriesResult] = await Promise.allSettled([
+        requestJson(`/api/rider/rides?riderId=${encodeURIComponent(state.riderId)}&limit=25`),
+        requestJson(`/api/rider/deliveries?riderId=${encodeURIComponent(state.riderId)}&limit=25`)
+      ]);
 
-        state.rides = Array.isArray(data.rides)
-          ? data.rides
+      if (ridesResult.status === "fulfilled") {
+        state.rides = Array.isArray(ridesResult.value.rides)
+          ? ridesResult.value.rides
           : [];
-
-        state.deliveries = Array.isArray(data.deliveries)
-          ? data.deliveries
-          : [];
-
-      } catch (error) {
-        console.log("Unified history unavailable:", error.message);
-
-        try {
-          const ridesData = await requestJson(
-            `/api/rides/status?riderId=${encodeURIComponent(state.riderId)}`
-          );
-
-          state.rides = Array.isArray(ridesData.rides)
-            ? ridesData.rides
-            : Array.isArray(ridesData.data)
-              ? ridesData.data
-              : [];
-
-        } catch (rideError) {
-          console.log("Ride fallback unavailable:", rideError.message);
-          state.rides = [];
-        }
-
-        try {
-          const deliveryData = await requestJson(
-            `/api/delivery/status?riderId=${encodeURIComponent(state.riderId)}`
-          );
-
-          state.deliveries = Array.isArray(deliveryData.deliveries)
-            ? deliveryData.deliveries
-            : Array.isArray(deliveryData.orders)
-              ? deliveryData.orders
-              : Array.isArray(deliveryData.data)
-                ? deliveryData.data
-                : [];
-
-        } catch (deliveryError) {
-          console.log("Delivery fallback unavailable:", deliveryError.message);
-          state.deliveries = [];
-        }
-      } finally {
-        els.heroRideCount.textContent =
-          String(state.rides.length);
-
-        els.heroDeliveryCount.textContent =
-          String(state.deliveries.length);
-
-        renderRider();
-        renderActivity();
-
-        els.activityLoading.style.display = "none";
+      } else {
+        console.log("Rides unavailable:", ridesResult.reason?.message);
+        state.rides = [];
       }
+
+      if (deliveriesResult.status === "fulfilled") {
+        state.deliveries = Array.isArray(deliveriesResult.value.deliveries)
+          ? deliveriesResult.value.deliveries
+          : [];
+      } else {
+        console.log("Deliveries unavailable:", deliveriesResult.reason?.message);
+        state.deliveries = [];
+      }
+
+      els.heroRideCount.textContent =
+        String(state.rides.length);
+
+      els.heroDeliveryCount.textContent =
+        String(state.deliveries.length);
+
+      renderRider();
+      renderActivity();
+
+      els.activityLoading.style.display = "none";
     }
 
     function normalizeItemTitle(item, isDelivery) {
@@ -2152,23 +2129,39 @@
       );
     }
 
+    // Returns the first argument that isn't null/undefined, unlike `||`
+    // chains which would also skip a legitimate 0 (a genuine $0.00 fare).
+    function firstDefined(...values) {
+      for (const value of values) {
+        if (value !== null && value !== undefined) return value;
+      }
+      return undefined;
+    }
+
     function normalizeItemAmount(item, isDelivery) {
+      // /api/rider/rides and /api/rider/deliveries both return estimated_fare
+      // and final_fare regardless of ride type (food/grocery orders are rows
+      // in the same rides table) - check those first, ahead of the older
+      // field names kept here for compatibility with any other source.
       if (isDelivery) {
-        return (
-          item.total ||
-          item.total_amount ||
-          item.estimated_total ||
-          item.amount ||
+        return firstDefined(
+          item.final_fare,
+          item.estimated_fare,
+          item.total,
+          item.total_amount,
+          item.estimated_total,
+          item.amount,
           item.delivery_total
         );
       }
 
-      return (
-        item.fare_total ||
-        item.final_total ||
-        item.estimated_total ||
-        item.estimated_fare ||
-        item.fare ||
+      return firstDefined(
+        item.final_fare,
+        item.estimated_fare,
+        item.fare_total,
+        item.final_total,
+        item.estimated_total,
+        item.fare,
         item.amount
       );
     }

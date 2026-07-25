@@ -9822,6 +9822,209 @@ app.get(
 
 /* =========================================================
 
+   RIDER-SCOPED HISTORY API
+
+   Canonical replacement for /api/rider/history, /api/rides/status,
+   and /api/delivery/status — three endpoints rider-dashboard.html
+   has called since it was built, none of which have ever existed
+   server-side. The dashboard's Activity tab has been silently empty
+   this whole time (it degrades gracefully, so nothing looked broken).
+
+   Gated behind the "rider_history_enabled" system flag, defaulted
+   off (see riderHistoryEnabled() and the enable/disable admin routes
+   near PAUSE/RESUME DISPATCH) — until real rider authentication
+   exists, this is unauthenticated-identity data. See the IMPORTANT
+   note below before turning it on.
+
+   Every route here requires riderId and filters/checks rows against
+   it server-side — unlike /api/rides/:id/status above, which is
+   intentionally public-by-unguessable-ID for the in-flight tracking
+   view. That's an improvement over trusting ID obscurity alone: a
+   ride ID leaked or guessed some other way can't be used to pull a
+   different rider's history through THIS api as long as their real
+   riderId isn't also known.
+
+   IMPORTANT — this is consistency-checking, not authentication.
+   riderId is a client-supplied parameter, not derived from any
+   session/token/cookie — because no rider authentication exists
+   anywhere in this codebase (unlike admin's JWT session or driver's
+   SMS-verified token). These routes verify "does this ride's stored
+   rider_id match the riderId the caller claims," which stops a stray
+   or malformed ID from returning someone else's rows, but it does NOT
+   stop a caller who has actually obtained/guessed a real riderId from
+   reading that rider's full history. Closing that gap for real would
+   mean building rider authentication (most naturally an SMS-OTP
+   session, mirroring the existing driver token pattern) across the
+   whole app, not just these three routes — out of scope here, but
+   don't describe this API as "ownership-verified" in the sense of
+   proven identity; it isn't, yet.
+
+========================================================= */
+
+// Curated column list — deliberately not select("*"). The rides table
+// carries a lot of internal/operational columns (admin_note,
+// pricing_snapshot, dispatch internals, etc.) that have no business
+// reaching a rider-facing response.
+const RIDER_HISTORY_COLUMNS =
+  "id, rider_id, status, ride_type, requested_mode, service_type, " +
+  "pickup_address, dropoff_address, " +
+  "driver_name, driver_vehicle, driver_phone, " +
+  "estimated_fare, final_fare, tip_amount, " +
+  "scheduled_time, created_at, updated_at, completed_at, cancelled_at, " +
+  "delivery_stage, delivery_pin, merchant_name, item_count, " +
+  "pickup_instructions, delivery_instructions, delivered_at, delivery_proof_url";
+
+// "Active" vs "completed" here means "still open" vs "finished" — a
+// cancelled or failed ride counts as finished/historical, same as a
+// successfully completed one. This is a different grouping than the
+// ACTIVE_STATUSES used elsewhere for "a driver is actively working this
+// ride right now" (that one excludes payment_required/payment_authorized,
+// which are still very much "active" from the rider's point of view).
+const RIDER_HISTORY_TERMINAL_STATUSES = [
+  RIDE_STATUS.COMPLETED,
+  RIDE_STATUS.CANCELLED,
+  RIDE_STATUS.FAILED
+];
+
+async function riderHistoryEnabled() {
+  return (await getSystemFlag("rider_history_enabled", "false")) === "true";
+}
+
+// Returns null (having already written the response) when riderId is
+// missing or the feature is disabled, so callers must check for that
+// before using the result — never { rows, next_cursor } and a sent
+// response at the same time.
+async function listRiderRequests(req, res, { deliveryOnly }) {
+  if (!(await riderHistoryEnabled())) {
+    fail(res, "Rider history is not yet available.", 403);
+    return null;
+  }
+
+  const riderId = cleanString(
+    req.query.riderId || req.query.rider_id,
+    100
+  );
+
+  if (!riderId) {
+    fail(res, "riderId is required.", 400);
+    return null;
+  }
+
+  const status = cleanString(req.query.status, 20).toLowerCase();
+  const limit = getPageLimit(req, 25, 100);
+  const cursor = decodeCursor(req.query.cursor);
+
+  let query = supabase
+    .from("rides")
+    .select(RIDER_HISTORY_COLUMNS)
+    .eq("rider_id", riderId)
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(limit);
+
+  // `ride_type NOT IN (...)` alone would silently drop legacy rows where
+  // ride_type is NULL — SQL's three-valued logic means a NULL comparison
+  // is never TRUE, so it can't satisfy a plain NOT IN filter either way.
+  // Those older rows predate the food/grocery feature, so they're
+  // unambiguously plain rides, not deliveries — include them explicitly
+  // rather than let them vanish from the rider's own ride list.
+  query = deliveryOnly
+    ? query.in("ride_type", ["food", "grocery"])
+    : query.or("ride_type.is.null,ride_type.not.in.(food,grocery)");
+
+  if (status === "active") {
+    query = query.not(
+      "status",
+      "in",
+      `(${RIDER_HISTORY_TERMINAL_STATUSES.join(",")})`
+    );
+  } else if (status === "completed") {
+    query = query.in("status", RIDER_HISTORY_TERMINAL_STATUSES);
+  }
+
+  query = applyCursor(query, cursor);
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw error;
+  }
+
+  const rows = data || [];
+
+  const next_cursor =
+    rows.length === limit
+      ? encodeCursor(rows[rows.length - 1])
+      : null;
+
+  return { rows, next_cursor };
+}
+
+app.get(
+  "/api/rider/rides",
+  asyncRoute(async (req, res) => {
+    const result = await listRiderRequests(req, res, { deliveryOnly: false });
+
+    if (!result) return;
+
+    return ok(res, { rides: result.rows, next_cursor: result.next_cursor });
+  })
+);
+
+app.get(
+  "/api/rider/deliveries",
+  asyncRoute(async (req, res) => {
+    const result = await listRiderRequests(req, res, { deliveryOnly: true });
+
+    if (!result) return;
+
+    return ok(res, { deliveries: result.rows, next_cursor: result.next_cursor });
+  })
+);
+
+app.get(
+  "/api/rider/rides/:rideId",
+  asyncRoute(async (req, res) => {
+    if (!(await riderHistoryEnabled())) {
+      return fail(res, "Rider history is not yet available.", 403);
+    }
+
+    const rideId = cleanString(req.params.rideId, 100);
+
+    const riderId = cleanString(
+      req.query.riderId || req.query.rider_id,
+      100
+    );
+
+    if (!riderId) {
+      return fail(res, "riderId is required.", 400);
+    }
+
+    const { data: ride, error } = await supabase
+      .from("rides")
+      .select(RIDER_HISTORY_COLUMNS)
+      .eq("id", rideId)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    // Same 404 whether the ride doesn't exist or its rider_id doesn't
+    // match the supplied riderId — never confirm a ride ID exists to a
+    // caller supplying a different riderId. (See the module header above:
+    // this checks consistency against a client-supplied riderId, not an
+    // authenticated identity — there's no rider session to check against.)
+    if (!ride || ride.rider_id !== riderId) {
+      return fail(res, "Ride not found.", 404);
+    }
+
+    return ok(res, { ride });
+  })
+);
+
+/* =========================================================
+
    GOOGLE MAPS BROWSER KEY
 
    Serves the browser-restricted Maps/Places key from an env
@@ -14627,6 +14830,68 @@ app.post(
 
   })
 
+);
+
+/* =========================================================
+
+   RIDER HISTORY — ENABLE / DISABLE
+
+   The GET /api/rider/rides, /api/rider/rides/:rideId, and
+   /api/rider/deliveries routes (see RIDER-SCOPED HISTORY API
+   above) are gated behind this flag, defaulted off, because
+   riderId there is a client-supplied parameter with no rider
+   authentication behind it yet (see that section's comments).
+   Flip this on once that's an acceptable risk to carry, or once
+   real rider authentication ships.
+
+========================================================= */
+
+app.post(
+  "/api/admin/system/enable-rider-history",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    await supabase
+      .from("system_flags")
+      .upsert({
+        key: "rider_history_enabled",
+        value: "true",
+        reason: cleanString(req.body.reason, 1000),
+        updated_at: nowIso()
+      });
+
+    auditLog({
+      actor_type: "admin",
+      actor_id: req.admin.email,
+      action: "rider_history_enabled",
+      req
+    }).catch(() => {});
+
+    return ok(res, { rider_history_enabled: true });
+  })
+);
+
+app.post(
+  "/api/admin/system/disable-rider-history",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    await supabase
+      .from("system_flags")
+      .upsert({
+        key: "rider_history_enabled",
+        value: "false",
+        reason: null,
+        updated_at: nowIso()
+      });
+
+    auditLog({
+      actor_type: "admin",
+      actor_id: req.admin.email,
+      action: "rider_history_disabled",
+      req
+    }).catch(() => {});
+
+    return ok(res, { rider_history_enabled: false });
+  })
 );
 
 /* =========================================================
