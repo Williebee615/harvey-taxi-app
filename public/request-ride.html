@@ -2862,6 +2862,12 @@
       return safeTrim(phone).replace(/[^\d+]/g, "");
     }
 
+    function isValidScheduledInput(value) {
+      if (!value) return false;
+      const parsed = new Date(value);
+      return !Number.isNaN(parsed.getTime());
+    }
+
     function setBusy(button, isBusy, busyText) {
       if (!button) return;
 
@@ -4360,10 +4366,23 @@
         // instead of being held for the chosen time. scheduled_time is kept
         // too for any older/alternate consumers, but scheduled_for is the
         // one that actually holds dispatch.
+        //
+        // The <input type="datetime-local"> value has no timezone info -
+        // it's the rider's own local wall-clock time. Converting it with
+        // `new Date(...)` HERE, in the browser, correctly interprets it
+        // against the rider's real timezone and produces an unambiguous
+        // UTC instant. The server's scheduled-ride sweep compares against
+        // its own clock (UTC), so sending a naive string would silently
+        // shift the dispatch time by the gap between the rider's timezone
+        // and the server's.
         scheduled_for:
-          els.scheduledTime?.value || null,
+          isValidScheduledInput(els.scheduledTime?.value)
+            ? new Date(els.scheduledTime.value).toISOString()
+            : null,
         scheduled_time:
-          els.scheduledTime?.value || null,
+          isValidScheduledInput(els.scheduledTime?.value)
+            ? new Date(els.scheduledTime.value).toISOString()
+            : null,
 
         notes:
           safeTrim(els.rideNotes?.value),

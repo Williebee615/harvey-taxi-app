@@ -7526,31 +7526,10 @@ app.get(
 
 ========================================================= */
 
-const RIDE_STATUS = {
-
-  DRAFT: "draft",
-
-  PAYMENT_REQUIRED: "payment_required",
-
-  PAYMENT_AUTHORIZED: "payment_authorized",
-
-  AWAITING_DRIVER: "awaiting_driver_acceptance",
-
-  DRIVER_ASSIGNED: "driver_assigned",
-
-  DRIVER_ENROUTE: "driver_enroute",
-
-  ARRIVED: "arrived",
-
-  IN_PROGRESS: "in_progress",
-
-  COMPLETED: "completed",
-
-  CANCELLED: "cancelled",
-
-  FAILED: "failed"
-
-};
+// RIDE_STATUS and shouldDispatchRideNow live in lib/rideDispatch.js — kept
+// dependency-free (no Supabase/env vars) so Jest can test the scheduled-ride
+// dispatch decision directly without booting the whole server.
+const { RIDE_STATUS, shouldDispatchRideNow } = require("./lib/rideDispatch");
 
 /* =========================================================
 
@@ -8337,6 +8316,77 @@ async function dispatchRide(ride) {
 
 /* =========================================================
 
+   SCHEDULED-RIDE SWEEP
+
+   Runs on an interval (see setInterval() near startup below).
+   Finds rides that were held back by shouldDispatchRideNow()
+   because their scheduled_time was in the future, and dispatches
+   any whose time has now arrived. Claims each ride with a
+   conditional update (dispatch_status must still be
+   "ready_to_dispatch") before dispatching it, so a ride can't be
+   double-dispatched if this ever runs on more than one instance
+   or two ticks overlap.
+
+========================================================= */
+
+async function sweepScheduledRides() {
+  try {
+    const nowIsoStr = nowIso();
+
+    const { data: dueRides, error } = await supabase
+      .from("rides")
+      .select("*")
+      .eq("status", RIDE_STATUS.PAYMENT_AUTHORIZED)
+      .eq("dispatch_status", "ready_to_dispatch")
+      .not("scheduled_time", "is", null)
+      .lte("scheduled_time", nowIsoStr);
+
+    if (error) {
+      console.error("⚠️ sweepScheduledRides query failed:", error.message);
+      return;
+    }
+
+    if (!dueRides || !dueRides.length) return;
+
+    for (const ride of dueRides) {
+      const { data: claimed, error: claimError } = await supabase
+        .from("rides")
+        .update({
+          dispatch_status: "dispatching",
+          updated_at: nowIso()
+        })
+        .eq("id", ride.id)
+        .eq("dispatch_status", "ready_to_dispatch")
+        .select()
+        .maybeSingle();
+
+      if (claimError || !claimed) {
+        // Already claimed by another tick, or the ride's state changed
+        // (e.g. the rider cancelled) between the query above and now.
+        continue;
+      }
+
+      console.log(
+        `🕐 sweepScheduledRides: ride ${claimed.id} was scheduled for ` +
+        `${claimed.scheduled_time} and is now due — dispatching.`
+      );
+
+      try {
+        await dispatchRide(claimed);
+      } catch (dispatchErr) {
+        console.error(
+          `⚠️ sweepScheduledRides dispatch failed for ${claimed.id}:`,
+          dispatchErr.message
+        );
+      }
+    }
+  } catch (err) {
+    console.error("⚠️ sweepScheduledRides failed:", err.message);
+  }
+}
+
+/* =========================================================
+
    RIDE ESTIMATE API
 
 ========================================================= */
@@ -9035,21 +9085,18 @@ app.post(
 
     let dispatch = null;
 
-    if (
-
-      status === RIDE_STATUS.PAYMENT_AUTHORIZED &&
-
-      // Was `!ride.scheduled_for` — the rides table (and the object built
-      // just above) only has a scheduled_time column, so that check always
-      // read undefined and every scheduled ride dispatched immediately
-      // instead of being held for its requested time.
-      !ride.scheduled_time
-
-    ) {
+    if (shouldDispatchRideNow(data)) {
 
       dispatch =
 
         await dispatchRide(data);
+
+    } else if (data.scheduled_time) {
+
+      console.log(
+        `⏳ Ride ${data.id} held for scheduled dispatch at ${data.scheduled_time}. ` +
+        `sweepScheduledRides() will pick it up once that time arrives.`
+      );
 
     }
 
@@ -9425,13 +9472,30 @@ app.post(
 
     };
 
-    const dispatch =
+    // This route used to dispatch unconditionally on payment authorization,
+    // regardless of scheduled_time — a second occurrence of the same bug
+    // fixed on the ride-creation route above. A rider who scheduled a ride
+    // but hadn't authorized payment yet at creation time would still get
+    // dispatched immediately the moment they authorized payment.
+    let dispatch = null;
 
-      await dispatchRide(
+    if (shouldDispatchRideNow(updatedRide)) {
 
-        updatedRide
+      dispatch =
 
+        await dispatchRide(
+
+          updatedRide
+
+        );
+
+    } else if (updatedRide.scheduled_time) {
+
+      console.log(
+        `⏳ Ride ${updatedRide.id} authorized but held for scheduled dispatch at ${updatedRide.scheduled_time}.`
       );
+
+    }
 
     auditLog({
 
@@ -17937,6 +18001,12 @@ async function startServer() {
         "================================================="
 
       );
+
+      // Picks up rides held by shouldDispatchRideNow() once their
+      // scheduled_time arrives. Runs once immediately (in case rides came
+      // due while the server was restarting/deploying) and then every 60s.
+      sweepScheduledRides();
+      setInterval(sweepScheduledRides, 60_000);
 
     }
 
