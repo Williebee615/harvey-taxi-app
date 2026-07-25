@@ -730,6 +730,52 @@
       color: #d6ebff;
     }
 
+    .disclosure-list {
+      margin: 10px 0 16px;
+      padding-left: 20px;
+      font-size: 0.84rem;
+      line-height: 1.6;
+      color: var(--text-soft);
+    }
+
+    .disclosure-list li {
+      margin-bottom: 6px;
+    }
+
+    .consent-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin: 14px 0;
+    }
+
+    .consent-row input[type="checkbox"] {
+      margin-top: 3px;
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      accent-color: var(--accent, #4da3ff);
+    }
+
+    .consent-row label {
+      font-size: 0.86rem;
+      line-height: 1.5;
+    }
+
+    .pilot-simulated-tag {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 209, 102, 0.4);
+      background: rgba(255, 209, 102, 0.1);
+      color: #fff0c4;
+      margin-left: 8px;
+    }
+
     .form-grid {
       position: relative;
       z-index: 1;
@@ -2193,6 +2239,52 @@
 
             </div>
 
+            <!-- AUTONOMOUS PILOT DISCLOSURE + CONSENT (autonomous mode only) -->
+            <div id="pilotDisclosureBlock" class="hidden">
+
+              <div class="field">
+
+                <label>
+                  Autonomous Pilot Disclosure
+                  <span id="pilotDisclosureLoadingTag" class="pilot-simulated-tag">Loading…</span>
+                </label>
+
+                <ul id="pilotDisclosureList" class="disclosure-list"></ul>
+
+                <div id="pilotConfigErrorNotice" class="notice error"></div>
+
+                <div id="pilotPausedNotice" class="notice warning"></div>
+
+              </div>
+
+              <div class="field">
+                <label for="pilotAccessibilityNeeds">
+                  Accessibility or assistance needs (optional)
+                </label>
+
+                <textarea
+                  id="pilotAccessibilityNeeds"
+                  placeholder="Let us know about any accessibility or assistance needs. This is collected for Harvey Taxi's review — it is not a guarantee that a specific vehicle can accommodate every need."
+                ></textarea>
+
+                <small>
+                  Harvey Taxi is not an emergency service.
+                  For emergencies, call 911 immediately.
+                </small>
+              </div>
+
+              <div class="consent-row">
+                <input type="checkbox" id="pilotConsentCheckbox" disabled />
+                <label for="pilotConsentCheckbox">
+                  I have read and accept the Autonomous Pilot disclosure above, including that
+                  availability is limited, service is restricted to approved zones, the vehicle
+                  may be remotely supervised, a human-operated Harvey Taxi may be substituted at
+                  any time, and this service is not for emergencies.
+                </label>
+              </div>
+
+            </div>
+
             <!-- STAGE NAV: DETAILS -->
             <div class="wizard-nav">
               <button type="button" class="ghost-btn" id="stageDetailsBackBtn">
@@ -2287,6 +2379,11 @@
               <p id="breakdownMinimumNote" class="fare-breakdown-note hidden">
                 Minimum fare applied.
               </p>
+            </div>
+
+            <!-- AUTONOMOUS PILOT AVAILABILITY (autonomous mode only) -->
+            <div id="pilotAvailabilityCard" class="hidden">
+              <div id="pilotAvailabilityResult" class="notice"></div>
             </div>
 
             <div class="actions">
@@ -2432,6 +2529,34 @@
                 <span id="driverTrackingText" class="driver-tracking-text">—</span>
                 <div id="liveTrackingMap" class="live-tracking-map hidden"></div>
               </div>
+            </div>
+
+            <!-- AUTONOMOUS PILOT STATUS (autonomous mode only) -->
+            <div id="pilotStatusCard" class="delivery-order-card hidden">
+              <div class="delivery-order-row">
+                <span>Pilot Status</span>
+                <strong id="pilotStatusText">—</strong>
+              </div>
+              <div class="delivery-order-row">
+                <span>Operating Mode</span>
+                <strong id="pilotProviderText">
+                  Manual Operations
+                  <span class="pilot-simulated-tag">Simulated</span>
+                </strong>
+              </div>
+              <div class="delivery-order-row hidden" id="pilotVehicleRow">
+                <span>Vehicle</span>
+                <strong id="pilotVehicleText">—</strong>
+              </div>
+              <div class="delivery-order-row hidden" id="pilotFallbackRow">
+                <span>Human Fallback</span>
+                <strong id="pilotFallbackText">—</strong>
+              </div>
+              <p style="margin-top: 10px; font-size: 0.8rem; color: var(--text-soft);">
+                Autonomous Pilot is a controlled pilot program. Vehicle and provider details shown
+                here reflect Harvey Taxi's manual operations process, not live vehicle telemetry,
+                unless a real autonomous fleet provider is connected and clearly identified above.
+              </p>
             </div>
 
             <!-- DELIVERY ORDER DETAILS (food/grocery orders only) -->
@@ -2764,7 +2889,14 @@
         stripeKey: "/api/stripe-key",                       // GET
 
         // Ride request: real route is POST /api/rides/request
-        requestRide: "/api/rides/request"
+        requestRide: "/api/rides/request",
+
+        // Autonomous Pilot — public config, eligibility preview, and the
+        // rider-safe per-ride status endpoint. pilotRideStatus needs
+        // "/:rideId/status?riderId=..." appended at call time.
+        pilotConfig: "/api/autonomous-pilot/config",             // GET
+        pilotEligibility: "/api/autonomous-pilot/eligibility",   // POST
+        pilotRideStatus: "/api/autonomous-pilot/rides"           // + "/:rideId/status" (GET)
 
         // NOTE: the previous build also called /api/rides/status and
         // /api/rider/current-ride — neither exists on the server. Current-ride
@@ -2894,7 +3026,26 @@
 
       merchantAutocomplete: null,
       pickupAutocomplete: null,
-      destinationAutocomplete: null
+      destinationAutocomplete: null,
+
+      // Autonomous Pilot disclosure/consent/eligibility. Entirely
+      // separate from state.estimate/state.payment — consent is about
+      // accepting the disclosure (tied to disclosureVersion, not to
+      // any specific trip), while eligibility is tied to the current
+      // pickup/destination and must be invalidated whenever they
+      // change. See resetPilotEligibility() / resetPilotConsent().
+      pilot: {
+        configLoaded: false,
+        configFailed: false,
+        enabled: false,
+        disclosureVersion: "",
+        disclosurePoints: [],
+        consentAccepted: false,
+        accessibilityNeeds: "",
+        eligibilityChecked: false,
+        eligibilityResult: null,
+        eligibilityZoneName: ""
+      }
     };    const $ = (id) => document.getElementById(id);
 
     const els = {
@@ -2966,6 +3117,23 @@
       stagePaymentBackBtn: $("stagePaymentBackBtn"),
       stagePaymentContinueBtn: $("stagePaymentContinueBtn"),
       stageDispatchBackBtn: $("stageDispatchBackBtn"),
+
+      pilotDisclosureBlock: $("pilotDisclosureBlock"),
+      pilotDisclosureLoadingTag: $("pilotDisclosureLoadingTag"),
+      pilotDisclosureList: $("pilotDisclosureList"),
+      pilotConfigErrorNotice: $("pilotConfigErrorNotice"),
+      pilotPausedNotice: $("pilotPausedNotice"),
+      pilotAccessibilityNeeds: $("pilotAccessibilityNeeds"),
+      pilotConsentCheckbox: $("pilotConsentCheckbox"),
+      pilotAvailabilityCard: $("pilotAvailabilityCard"),
+      pilotAvailabilityResult: $("pilotAvailabilityResult"),
+      pilotStatusCard: $("pilotStatusCard"),
+      pilotStatusText: $("pilotStatusText"),
+      pilotProviderText: $("pilotProviderText"),
+      pilotVehicleRow: $("pilotVehicleRow"),
+      pilotVehicleText: $("pilotVehicleText"),
+      pilotFallbackRow: $("pilotFallbackRow"),
+      pilotFallbackText: $("pilotFallbackText"),
 
       detectLocationBtn: $("detectLocationBtn"),
       checkRiderBtn: $("checkRiderBtn"),
@@ -3049,6 +3217,15 @@
 
     function safeTrim(value) {
       return String(value || "").trim();
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
     }
 
     function safeLower(value) {
@@ -3837,6 +4014,19 @@
       resetEstimateAndPayment(
         "Request mode changed. Please get a fresh fare estimate."
       );
+
+      // Consent is scoped to being in Autonomous Pilot mode. Leaving it
+      // clears any accepted consent/loaded config; entering it always
+      // fetches a fresh config (never reuses a stale in-memory value)
+      // so the disclosure version a rider consents to can never be
+      // stale relative to what the server currently has on file.
+      if (nextMode === "autonomous") {
+        loadPilotConfig();
+      } else {
+        resetPilotConsent();
+      }
+
+      renderPilotDisclosure();
     }
 
     // Stage 1 (service confirmation) gate. Locking the mode here — rather
@@ -4313,6 +4503,20 @@
         }
       }
 
+      if (isAutonomousMode()) {
+        if (!state.pilot.configLoaded) {
+          return "Please wait for the Autonomous Pilot disclosure to load before continuing.";
+        }
+
+        if (!state.pilot.enabled) {
+          return "Autonomous Pilot is temporarily paused. Please choose a different service to continue.";
+        }
+
+        if (!state.pilot.consentAccepted) {
+          return "Please review and accept the Autonomous Pilot disclosure before continuing.";
+        }
+      }
+
       return "";
     }
 
@@ -4374,6 +4578,283 @@
       if (reason) {
         setLiveStatus(reason);
       }
+
+      // Trip details changing (address, schedule, etc.) always
+      // invalidates a prior eligibility result — it was computed
+      // against the old pickup/destination. Consent itself is left
+      // alone here: it's about accepting the disclosure, not about any
+      // particular trip. A no-op for non-autonomous modes.
+      resetPilotEligibility();
+    }
+
+    // ---- Autonomous Pilot: disclosure, consent, eligibility ----
+
+    function isAutonomousMode() {
+      return state.mode === "autonomous";
+    }
+
+    // Consent is scoped to being in Autonomous Pilot mode at all — switching
+    // to a different service means re-entering autonomous mode later must
+    // show the disclosure and collect consent again, not silently reuse
+    // whatever was accepted in an earlier session on this same page load.
+    function resetPilotConsent() {
+      state.pilot.configLoaded = false;
+      state.pilot.configFailed = false;
+      state.pilot.enabled = false;
+      state.pilot.disclosureVersion = "";
+      state.pilot.disclosurePoints = [];
+      state.pilot.consentAccepted = false;
+      state.pilot.accessibilityNeeds = "";
+
+      if (els.pilotAccessibilityNeeds) {
+        els.pilotAccessibilityNeeds.value = "";
+      }
+
+      if (els.pilotConsentCheckbox) {
+        els.pilotConsentCheckbox.checked = false;
+        els.pilotConsentCheckbox.disabled = true;
+      }
+
+      resetPilotEligibility();
+    }
+
+    function resetPilotEligibility() {
+      state.pilot.eligibilityChecked = false;
+      state.pilot.eligibilityResult = null;
+      state.pilot.eligibilityZoneName = "";
+
+      if (els.pilotAvailabilityCard) {
+        els.pilotAvailabilityCard.classList.add("hidden");
+      }
+
+      if (els.pilotAvailabilityResult) {
+        els.pilotAvailabilityResult.className = "notice";
+        els.pilotAvailabilityResult.textContent = "";
+      }
+    }
+
+    function renderPilotDisclosure() {
+      if (!els.pilotDisclosureBlock) return;
+
+      els.pilotDisclosureBlock.classList.toggle("hidden", !isAutonomousMode());
+
+      if (!isAutonomousMode()) return;
+
+      if (els.pilotDisclosureLoadingTag) {
+        els.pilotDisclosureLoadingTag.classList.toggle("hidden", state.pilot.configLoaded || state.pilot.configFailed);
+      }
+
+      if (els.pilotDisclosureList) {
+        els.pilotDisclosureList.innerHTML = (state.pilot.disclosurePoints || [])
+          .map((point) => `<li>${escapeHtml(point)}</li>`)
+          .join("");
+      }
+
+      if (els.pilotConfigErrorNotice) {
+        if (state.pilot.configFailed) {
+          els.pilotConfigErrorNotice.className = "notice show error";
+          els.pilotConfigErrorNotice.textContent =
+            "We couldn't load the Autonomous Pilot disclosure. Please refresh and try again before requesting this service.";
+        } else {
+          els.pilotConfigErrorNotice.className = "notice";
+          els.pilotConfigErrorNotice.textContent = "";
+        }
+      }
+
+      if (els.pilotPausedNotice) {
+        if (state.pilot.configLoaded && !state.pilot.enabled) {
+          els.pilotPausedNotice.className = "notice show warning";
+          els.pilotPausedNotice.textContent =
+            "Autonomous Pilot is temporarily paused by Harvey Taxi. You can still continue with a human-operated ride from the service selection screen.";
+        } else {
+          els.pilotPausedNotice.className = "notice";
+          els.pilotPausedNotice.textContent = "";
+        }
+      }
+
+      // The checkbox stays disabled until the disclosure has actually
+      // loaded successfully — a rider must never be able to consent to
+      // text that failed to load.
+      if (els.pilotConsentCheckbox) {
+        els.pilotConsentCheckbox.disabled = !state.pilot.configLoaded;
+      }
+    }
+
+    async function loadPilotConfig() {
+      state.pilot.configLoaded = false;
+      state.pilot.configFailed = false;
+      renderPilotDisclosure();
+
+      try {
+        const data = await apiFetch(CONFIG.ENDPOINTS.pilotConfig, { method: "GET" });
+
+        state.pilot.enabled = data?.enabled === true;
+        state.pilot.disclosureVersion = safeTrim(data?.disclosure_version || "");
+        state.pilot.disclosurePoints = Array.isArray(data?.disclosure_points)
+          ? data.disclosure_points
+          : [];
+        state.pilot.configLoaded = true;
+      } catch (error) {
+        state.pilot.configFailed = true;
+        console.log("Autonomous Pilot config unavailable:", error.message);
+      }
+
+      renderPilotDisclosure();
+    }
+
+    // Maps the server's five honest availability outcomes to distinct,
+    // truthful copy — never implies live vehicle availability under
+    // manual_operations, and never silently treats "outside_zone" or
+    // "pilot_paused" as anything other than a hard stop.
+    const PILOT_RESULT_COPY = {
+      vehicle_available: {
+        type: "success",
+        text: "An Autonomous Pilot vehicle may be available for this trip. Harvey Taxi will confirm assignment after you request the ride."
+      },
+      waitlisted: {
+        type: "info",
+        text: "This trip is inside an Autonomous Pilot service zone. Your request will be reviewed and a vehicle assigned manually — this is not an instant automatic booking."
+      },
+      human_fallback_offered: {
+        type: "warning",
+        text: "An autonomous vehicle isn't available for this trip right now. A human-operated Harvey Taxi can be offered instead."
+      },
+      outside_zone: {
+        type: "error",
+        text: "This trip falls outside Harvey Taxi's Autonomous Pilot service zones. Please choose a different service to continue."
+      },
+      pilot_paused: {
+        type: "warning",
+        text: "Autonomous Pilot is temporarily paused by Harvey Taxi. Please choose a different service to continue."
+      }
+    };
+
+    function pilotEligibilityAllowsProceeding() {
+      return (
+        state.pilot.eligibilityChecked &&
+        ["vehicle_available", "waitlisted", "human_fallback_offered"].includes(
+          state.pilot.eligibilityResult
+        )
+      );
+    }
+
+    function renderPilotAvailability() {
+      if (!els.pilotAvailabilityCard || !els.pilotAvailabilityResult) return;
+
+      if (!isAutonomousMode() || !state.pilot.eligibilityChecked) {
+        els.pilotAvailabilityCard.classList.add("hidden");
+        return;
+      }
+
+      const copy =
+        PILOT_RESULT_COPY[state.pilot.eligibilityResult] || {
+          type: "warning",
+          text: "Availability couldn't be determined for this trip."
+        };
+
+      els.pilotAvailabilityCard.classList.remove("hidden");
+      els.pilotAvailabilityResult.className = `notice show ${copy.type}`;
+      els.pilotAvailabilityResult.textContent = copy.text;
+    }
+
+    // Called only once real pickup/destination coordinates are known
+    // (from ensureTripDistance(), inside getFareEstimate()) — never
+    // fired against manually-typed addresses that haven't resolved to
+    // real coordinates yet.
+    async function runPilotEligibilityCheck() {
+      if (!isAutonomousMode()) return;
+
+      try {
+        const data = await apiPost(CONFIG.ENDPOINTS.pilotEligibility, {
+          pickup_lat: state.pickup.latitude,
+          pickup_lng: state.pickup.longitude,
+          destination_lat: state.destination.latitude,
+          destination_lng: state.destination.longitude,
+          accessibility_needs: safeTrim(state.pilot.accessibilityNeeds || "")
+        });
+
+        state.pilot.eligibilityChecked = true;
+        state.pilot.eligibilityResult = data?.result || null;
+        state.pilot.eligibilityZoneName = safeTrim(data?.zone_name || "");
+      } catch (error) {
+        state.pilot.eligibilityChecked = true;
+        state.pilot.eligibilityResult = null;
+        console.log("Autonomous Pilot eligibility check failed:", error.message);
+      }
+
+      renderPilotAvailability();
+    }
+
+    // Rider-safe pilot status, polled only from
+    // GET /api/autonomous-pilot/rides/:rideId/status — never inferred
+    // from /api/rides/:id/status or any other endpoint.
+    async function loadPilotStatus(rideId) {
+      if (!isAutonomousMode() || !rideId || !state.rider.id) return;
+
+      try {
+        const data = await apiFetch(
+          `${CONFIG.ENDPOINTS.pilotRideStatus}/${encodeURIComponent(rideId)}/status?riderId=${encodeURIComponent(state.rider.id)}`,
+          { method: "GET" }
+        );
+
+        renderPilotStatus(data);
+      } catch (error) {
+        console.log("Autonomous Pilot status unavailable:", error.message);
+      }
+    }
+
+    function renderPilotStatus(data) {
+      if (!els.pilotStatusCard || !data) return;
+
+      els.pilotStatusCard.classList.remove("hidden");
+
+      if (els.pilotStatusText) {
+        els.pilotStatusText.textContent = humanizePilotStatus(data.pilot_status);
+      }
+
+      if (els.pilotProviderText) {
+        els.pilotProviderText.innerHTML = data.simulated
+          ? 'Manual Operations <span class="pilot-simulated-tag">Simulated</span>'
+          : escapeHtml(data.provider || "Unknown");
+      }
+
+      if (els.pilotVehicleRow && els.pilotVehicleText) {
+        if (data.vehicle?.vehicle_id) {
+          els.pilotVehicleRow.classList.remove("hidden");
+          els.pilotVehicleText.textContent = data.vehicle.vehicle_id;
+        } else {
+          els.pilotVehicleRow.classList.add("hidden");
+        }
+      }
+
+      if (els.pilotFallbackRow && els.pilotFallbackText) {
+        if (data.human_fallback_allowed) {
+          els.pilotFallbackRow.classList.remove("hidden");
+          els.pilotFallbackText.textContent = data.human_fallback_reason
+            ? `Offered — ${data.human_fallback_reason}`
+            : "Offered";
+        } else {
+          els.pilotFallbackRow.classList.add("hidden");
+        }
+      }
+    }
+
+    function humanizePilotStatus(status) {
+      const labels = {
+        pilot_requested: "Request received",
+        eligibility_check: "Checking eligibility",
+        waitlisted: "Waitlisted — pending manual review",
+        vehicle_reserved: "Vehicle reserved",
+        vehicle_enroute: "Vehicle en route",
+        vehicle_arrived: "Vehicle arrived",
+        boarding_confirmation: "Awaiting boarding confirmation",
+        trip_in_progress: "Trip in progress",
+        trip_completed: "Trip completed",
+        human_fallback_offered: "Human driver offered",
+        cancelled: "Cancelled"
+      };
+
+      return labels[status] || status || "Unknown";
     }
 
     // --- Guided mission wizard: Step 1 (choose a service) is the mode-grid
@@ -4581,6 +5062,8 @@
         "Request flow reset successfully.",
         "success"
       );
+
+      resetPilotEligibility();
 
       goToStage("pickup");
     }
@@ -5052,7 +5535,18 @@
         minutes:
           Number(state.estimate.durationMinutes || state.estimate.duration || 0),
         duration_minutes:
-          Number(state.estimate.durationMinutes || state.estimate.duration || 0)
+          Number(state.estimate.durationMinutes || state.estimate.duration || 0),
+
+        // Autonomous Pilot only — server.js's /api/rides/request ignores
+        // these entirely for every other ride_type. pilot_disclosure_version
+        // comes from state.pilot.disclosureVersion, which is only ever set
+        // from the /api/autonomous-pilot/config response (loadPilotConfig())
+        // — never a hardcoded browser constant, so a stale version here
+        // reliably gets rejected server-side as "disclosure_version_stale"
+        // instead of silently succeeding.
+        pilot_consent: state.pilot.consentAccepted === true,
+        pilot_disclosure_version: state.pilot.disclosureVersion || "",
+        accessibility_needs: safeTrim(state.pilot.accessibilityNeeds || "")
       };
     }
 
@@ -5219,6 +5713,15 @@
         setBusy(els.estimateBtn, false);
 
         return false;
+      }
+
+      // Real pickup/destination coordinates are now guaranteed to exist
+      // (ensureTripDistance() just confirmed it) — this is the earliest
+      // and only point an Autonomous Pilot eligibility check should
+      // fire. Never runs against manually-typed addresses that haven't
+      // resolved to real coordinates.
+      if (isAutonomousMode()) {
+        await runPilotEligibilityCheck();
       }
 
       setLiveStatus(
@@ -5691,6 +6194,18 @@
         }
       }
 
+      // Defense in depth: validateTripFields() above already requires
+      // consent, but eligibility is checked separately (inside
+      // getFareEstimate()) and isn't part of that validator. Re-checked
+      // here so a request can never be submitted for a trip that was
+      // outside the zone or paused, even if something upstream of this
+      // point behaved unexpectedly.
+      if (isAutonomousMode() && !pilotEligibilityAllowsProceeding()) {
+        const copy = PILOT_RESULT_COPY[state.pilot.eligibilityResult];
+        showNotice(copy ? copy.text : "This trip isn't eligible for Autonomous Pilot right now.", "error");
+        return false;
+      }
+
       if (
         CONFIG.REQUIRE_PAYMENT_AUTHORIZATION &&
         !state.payment.authorized
@@ -5915,6 +6430,12 @@
         renderRideLifecycle(data.status, data.delivery);
         updateTrackingInfo(data.tracking);
         updateLiveTrackingMap(data);
+
+        // Pilot-specific state comes exclusively from the rider-safe
+        // pilot status endpoint — never inferred from this generic ride
+        // status response, which knows nothing about pilot_status,
+        // provider, or vehicle assignment.
+        loadPilotStatus(state.ride.rideId);
 
         if (["completed", "cancelled", "failed"].includes(data.status)) {
           stopRideStream();
@@ -6322,6 +6843,19 @@
           return;
         }
 
+        if (isAutonomousMode()) {
+          if (!state.pilot.eligibilityChecked) {
+            showNotice("Please get a fare estimate to check Autonomous Pilot availability before continuing.", "warning");
+            return;
+          }
+
+          if (!pilotEligibilityAllowsProceeding()) {
+            const copy = PILOT_RESULT_COPY[state.pilot.eligibilityResult];
+            showNotice(copy ? copy.text : "This trip isn't eligible for Autonomous Pilot right now.", "error");
+            return;
+          }
+        }
+
         clearNotice();
         goToStage("payment");
       });
@@ -6431,6 +6965,20 @@
         resetEstimateAndPayment(
           "Trip details changed. Please get a fresh estimate."
         );
+      });
+
+      // Accessibility needs are collected for Harvey Taxi's review, not
+      // matched against real vehicle capability (manual_operations has
+      // none to check) — changing them invalidates a stale eligibility
+      // result without forcing a full fare/payment reset, since they
+      // don't affect price.
+      els.pilotAccessibilityNeeds?.addEventListener("input", () => {
+        state.pilot.accessibilityNeeds = els.pilotAccessibilityNeeds.value;
+        resetPilotEligibility();
+      });
+
+      els.pilotConsentCheckbox?.addEventListener("change", () => {
+        state.pilot.consentAccepted = els.pilotConsentCheckbox.checked === true;
       });
 
       [
