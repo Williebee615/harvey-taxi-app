@@ -7488,6 +7488,32 @@ const {
   sweepScheduledRides
 } = require("./lib/rideDispatch");
 
+// canEnterHumanDispatch is the single gate dispatchRide() below checks
+// before ever calling findAvailableDrivers() — see lib/pilotLifecycle.js
+// for why this lives outside rides.status entirely. Also dependency-free,
+// same pattern as lib/rideDispatch.js above.
+const { canEnterHumanDispatch } = require("./lib/pilotLifecycle");
+
+// Records one row in autonomous_pilot_events (see the schema migration).
+// Never throws — an audit-log failure must not block the dispatch
+// decision it's recording. Kept minimal here; the fuller pilot
+// lifecycle write-path (eligibility checks, reservations, etc.) is
+// built out in a later phase.
+async function logAutonomousPilotEvent({ ride_id, event_type, pilot_status = null, actor_type, actor_id = null, metadata = {} }) {
+  try {
+    await supabase.from("autonomous_pilot_events").insert({
+      ride_id,
+      event_type,
+      pilot_status,
+      actor_type,
+      actor_id,
+      metadata
+    });
+  } catch (err) {
+    console.error("⚠️ logAutonomousPilotEvent failed:", err.message);
+  }
+}
+
 /* =========================================================
 
    RIDER READINESS
@@ -7964,6 +7990,57 @@ async function createDriverOffer({
 ========================================================= */
 
 async function dispatchRide(ride) {
+
+  // Autonomous pilot requests must never enter the normal human-driver
+  // offer pool unless the system has explicitly transitioned them to
+  // human fallback (human_fallback_allowed). Checked first, ahead of
+  // the admin dispatch-pause check below, because this is a permanent
+  // property of the ride itself, not a temporary global admin state —
+  // and unlike a paused dispatch, resuming dispatch later must never
+  // cause this ride to fall through into findAvailableDrivers().
+  //
+  // Inert today: nothing sets rides.autonomous_pilot to true yet (that
+  // wiring is a later phase, gated behind autonomous_pilot_enabled), so
+  // this can never fire against a real ride until that phase ships.
+  if (ride.autonomous_pilot && !canEnterHumanDispatch(ride)) {
+
+    await supabase
+
+      .from("rides")
+
+      .update({
+
+        dispatch_status:
+
+          "autonomous_pilot_hold",
+
+        updated_at:
+
+          nowIso()
+
+      })
+
+      .eq("id", ride.id);
+
+    logAutonomousPilotEvent({
+      ride_id: ride.id,
+      event_type: "human_dispatch_blocked",
+      pilot_status: ride.pilot_status || null,
+      actor_type: "system",
+      metadata: { reason: "autonomous_pilot ride without human_fallback_allowed" }
+    }).catch(() => {});
+
+    return {
+
+      dispatched: false,
+
+      autonomous_pilot_hold: true,
+
+      reason: "This is an autonomous pilot request and cannot enter standard driver dispatch until human fallback is explicitly offered."
+
+    };
+
+  }
 
   // Respect the admin dispatch pause. When dispatch is paused,
 
