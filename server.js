@@ -602,9 +602,6 @@ app.use((req, res, next) => {
 
 const TAXI_SITEMAP_PATHS = [
   "/",
-  "/request-ride.html",
-  "/request-food.html",
-  "/request-groceries.html",
   "/driver-signup.html",
   "/rider-signup.html",
   "/htaf-application.html",
@@ -2805,7 +2802,7 @@ async function notifyRideStage(ride, stageKey) {
 
         body,
 
-        url: "/request-ride.html"
+        url: "/rider-dashboard.html"
 
       }).catch(() => {});
 
