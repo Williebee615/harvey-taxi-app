@@ -585,6 +585,60 @@ app.use((req, res, next) => {
 
 });
 
+/* =========================================================
+
+   SITEMAP.XML
+
+   Both public domains share this app, but each needs its own
+   sitemap (different page sets, different absolute URLs) -- so this
+   is a route, not a static file in public/, and picks its content by
+   request hostname the same way the homepage routing above does.
+   Only real, linked, public marketing/informational pages are
+   listed; dashboards, auth, payment, live-tracking, and internal
+   test/prototype pages are deliberately left out (see robots.txt for
+   the corresponding Disallow rules).
+
+========================================================= */
+
+const TAXI_SITEMAP_PATHS = [
+  "/",
+  "/request-ride.html",
+  "/request-food.html",
+  "/request-groceries.html",
+  "/driver-signup.html",
+  "/rider-signup.html",
+  "/htaf-application.html",
+  "/support.html",
+  "/privacy.html",
+  "/terms.html"
+];
+
+const FOUNDATION_SITEMAP_PATHS = [
+  "/",
+  "/support.html",
+  "/privacy.html",
+  "/terms.html"
+];
+
+function buildSitemapXml(host, urlPaths) {
+  const urls = urlPaths
+    .map((urlPath) => `  <url><loc>https://${host}${urlPath}</loc></url>`)
+    .join("\n");
+
+  return (
+    `<?xml version="1.0" encoding="UTF-8"?>\n` +
+    `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`
+  );
+}
+
+app.get("/sitemap.xml", (req, res) => {
+  const isFoundation = req.hostname && FOUNDATION_HOSTS.has(req.hostname);
+  const host = isFoundation ? FOUNDATION_HOST : CANONICAL_HOST;
+  const urlPaths = isFoundation ? FOUNDATION_SITEMAP_PATHS : TAXI_SITEMAP_PATHS;
+
+  res.type("application/xml").send(buildSitemapXml(host, urlPaths));
+});
+
 const JSON_LIMIT = env("JSON_LIMIT", "2mb");
 
 const RAW_WEBHOOK_LIMIT = env("RAW_WEBHOOK_LIMIT", "2mb");
