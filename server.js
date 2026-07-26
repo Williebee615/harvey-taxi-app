@@ -2895,6 +2895,15 @@ const {
   isRiderPersonaVerified,
   buildRiderSignupRecord
 } = require("./lib/riderVerification");
+
+// Saved payment method helpers — see lib/riderPayments.js for why the
+// Stripe Customer/PaymentMethod payload building lives outside server.js.
+const {
+  buildStripeCustomerPayload,
+  mapPaymentMethodsForClient,
+  buildPaymentIntentAttachmentFields,
+  ownsPaymentMethod
+} = require("./lib/riderPayments");
 /* =========================================================
 
    PART 3 — HTAF FOUNDATION APPLICATION SYSTEM
@@ -8509,6 +8518,173 @@ app.post(
 
 /* =========================================================
 
+   RIDER SAVED PAYMENT METHODS
+
+   riders.stripe_customer_id already exists on the live schema (see
+   RIDERS_TABLE_COLUMNS in lib/riderVerification.js) but was never wired
+   up to anything — every ride payment created a brand-new, one-off
+   PaymentIntent with no notion of a saved card. This creates a real
+   Stripe Customer per rider (lazily, on first use) so a card entered at
+   signup or during a ride request can be reused on later rides.
+
+========================================================= */
+
+async function getOrCreateStripeCustomer(rider) {
+  if (rider.stripe_customer_id) {
+    return rider.stripe_customer_id;
+  }
+
+  const customer = await stripe.customers.create(
+    buildStripeCustomerPayload({
+      riderId: rider.id,
+      email: rider.email || undefined,
+      name:
+        rider.full_name ||
+        [rider.first_name, rider.last_name].filter(Boolean).join(" ") ||
+        undefined
+    })
+  );
+
+  const { error } = await supabase
+    .from("riders")
+    .update({ stripe_customer_id: customer.id })
+    .eq("id", rider.id);
+
+  if (error) {
+    throw error;
+  }
+
+  return customer.id;
+}
+
+app.post(
+  "/api/rider/payment-methods/setup-intent",
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "payment_setup_intent" }),
+  asyncRoute(async (req, res) => {
+    if (!stripe) {
+      return fail(res, "Payments are not configured.", 503);
+    }
+
+    const riderId = cleanString(req.body.rider_id || req.body.riderId, 100);
+
+    if (!riderId) {
+      return fail(res, "rider_id is required.", 400);
+    }
+
+    const { data: rider, error } = await supabase
+      .from("riders")
+      .select("id, email, first_name, last_name, full_name, stripe_customer_id")
+      .eq("id", riderId)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    if (!rider) {
+      return fail(res, "Rider not found.", 404);
+    }
+
+    const customerId = await getOrCreateStripeCustomer(rider);
+
+    const setupIntent = await stripe.setupIntents.create({
+      customer: customerId,
+      payment_method_types: ["card"]
+    });
+
+    return ok(res, { client_secret: setupIntent.client_secret });
+  })
+);
+
+app.get(
+  "/api/rider/payment-methods",
+  rateLimit({ windowMs: 60_000, max: 60, keyPrefix: "payment_methods_list" }),
+  asyncRoute(async (req, res) => {
+    const riderId = cleanString(req.query.riderId || req.query.rider_id, 100);
+
+    if (!riderId) {
+      return fail(res, "riderId is required.", 400);
+    }
+
+    if (!stripe) {
+      return ok(res, { payment_methods: [] });
+    }
+
+    const { data: rider, error } = await supabase
+      .from("riders")
+      .select("id, stripe_customer_id")
+      .eq("id", riderId)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    if (!rider || !rider.stripe_customer_id) {
+      return ok(res, { payment_methods: [] });
+    }
+
+    const methods = await stripe.paymentMethods.list({
+      customer: rider.stripe_customer_id,
+      type: "card"
+    });
+
+    return ok(res, { payment_methods: mapPaymentMethodsForClient(methods.data) });
+  })
+);
+
+app.delete(
+  "/api/rider/payment-methods/:paymentMethodId",
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "payment_methods_delete" }),
+  asyncRoute(async (req, res) => {
+    if (!stripe) {
+      return fail(res, "Payments are not configured.", 503);
+    }
+
+    const paymentMethodId = cleanString(req.params.paymentMethodId, 100);
+    const riderId = cleanString(req.query.riderId || req.query.rider_id, 100);
+
+    if (!paymentMethodId || !riderId) {
+      return fail(res, "riderId is required.", 400);
+    }
+
+    const { data: rider, error } = await supabase
+      .from("riders")
+      .select("id, stripe_customer_id")
+      .eq("id", riderId)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    if (!rider || !rider.stripe_customer_id) {
+      return fail(res, "Payment method not found.", 404);
+    }
+
+    let paymentMethod;
+
+    try {
+      paymentMethod = await stripe.paymentMethods.retrieve(paymentMethodId);
+    } catch {
+      return fail(res, "Payment method not found.", 404);
+    }
+
+    // Same 404-either-way ownership check used by /api/rider/saved-places
+    // — never confirm a payment method ID exists to a caller supplying a
+    // different riderId.
+    if (!ownsPaymentMethod(paymentMethod, rider.stripe_customer_id)) {
+      return fail(res, "Payment method not found.", 404);
+    }
+
+    await stripe.paymentMethods.detach(paymentMethodId);
+
+    return ok(res, { deleted: true });
+  })
+);
+
+/* =========================================================
+
    RIDE PAYMENT INTENT
 
 ========================================================= */
@@ -8582,6 +8758,57 @@ app.post(
         100
       );
 
+    const riderId = cleanString(req.body.rider_id, 100);
+    const paymentMethodId = cleanString(req.body.payment_method_id, 100);
+    const saveCard = Boolean(req.body.save_card);
+
+    // Attach an existing saved card, or mark a freshly entered one for
+    // future reuse, by resolving the rider's Stripe Customer first. Both
+    // branches require a real riderId — a request with neither
+    // payment_method_id nor save_card (the pre-existing, one-off-card
+    // path) skips this entirely and behaves exactly as before.
+    let attachmentFields = {};
+
+    if (riderId && (paymentMethodId || saveCard)) {
+      const { data: rider, error: riderError } = await supabase
+        .from("riders")
+        .select("id, email, first_name, last_name, full_name, stripe_customer_id")
+        .eq("id", riderId)
+        .maybeSingle();
+
+      if (riderError) {
+        throw riderError;
+      }
+
+      if (rider) {
+        if (paymentMethodId) {
+          let paymentMethod;
+
+          try {
+            paymentMethod = await stripe.paymentMethods.retrieve(paymentMethodId);
+          } catch {
+            return fail(res, "Saved payment method not found.", 404);
+          }
+
+          if (!ownsPaymentMethod(paymentMethod, rider.stripe_customer_id)) {
+            return fail(res, "Saved payment method not found.", 404);
+          }
+
+          attachmentFields = buildPaymentIntentAttachmentFields({
+            stripeCustomerId: rider.stripe_customer_id,
+            paymentMethodId
+          });
+        } else {
+          const stripeCustomerId = await getOrCreateStripeCustomer(rider);
+
+          attachmentFields = buildPaymentIntentAttachmentFields({
+            stripeCustomerId,
+            saveCard: true
+          });
+        }
+      }
+    }
+
     let paymentIntent;
 
     try {
@@ -8609,6 +8836,8 @@ app.post(
               true
 
           },
+
+          ...attachmentFields,
 
           metadata: {
 

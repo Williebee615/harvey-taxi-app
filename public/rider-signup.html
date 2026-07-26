@@ -329,6 +329,19 @@
     .small-btn:hover { background: rgba(255, 255, 255, 0.07); }
     .small-btn:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
 
+    .payment-method-card {
+      margin-top: 14px; padding: 16px; border-radius: 18px;
+      background: rgba(255, 255, 255, 0.035); border: 1px solid var(--line);
+      display: none;
+    }
+    .payment-method-card strong { display: block; margin-bottom: 4px; font-size: 0.92rem; color: var(--text); }
+    .payment-method-card p { margin: 0 0 12px; color: var(--muted); font-size: 0.85rem; line-height: 1.5; }
+    .payment-card-element-wrap {
+      padding: 12px 14px; border-radius: 14px; border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.04); margin-bottom: 8px;
+    }
+    .payment-card-errors { color: var(--danger); font-size: 0.78rem; min-height: 1em; display: block; margin-bottom: 8px; }
+
     .consent-box { display: grid; gap: 10px; margin: 14px 0 0; }
     .consent-row {
       display: flex; gap: 12px; align-items: flex-start; border: 1px solid var(--line);
@@ -531,6 +544,19 @@
         <div class="rider-id-value" id="savedRiderIdValue">--</div>
       </div>
 
+      <div class="payment-method-card" id="paymentMethodCard">
+        <strong>Add a Payment Method (Optional)</strong>
+        <p>Save a card now so it's ready to select the next time you request a ride. You can skip this and add a card later from the ride request screen.</p>
+        <div class="payment-card-element-wrap" id="signupCardElementContainer">
+          <!-- Stripe Elements mounts the real card field here. -->
+        </div>
+        <small class="payment-card-errors" id="signupCardErrors" role="alert"></small>
+        <div class="small-actions">
+          <button class="small-btn" id="savePaymentMethodBtn" type="button">Save Card</button>
+          <button class="small-btn" id="skipPaymentMethodBtn" type="button">Skip for Now</button>
+        </div>
+      </div>
+
       <div class="small-actions">
         <button class="small-btn" id="continueBtn" type="button" data-i18n="continueToDashboard">Continue to Rider Dashboard</button>
         <button class="small-btn" id="clearSavedBtn" type="button" data-i18n="clearSession">Clear Saved Rider Session</button>
@@ -602,6 +628,11 @@
 <!-- AI chat mount point (populated by ai-support-widget.js) -->
 <div id="harvey-ai-chat-root"></div>
 
+<!-- STRIPE.JS — publishable key only, safe to load unconditionally. The
+     controller script below checks whether Stripe actually initialized
+     (a real key came back from /api/stripe-key) before trying to use it. -->
+<script src="https://js.stripe.com/v3/"></script>
+
 <script>
   /* ============================================================
      CONSTANTS
@@ -633,6 +664,11 @@
   const resultBox = document.getElementById("resultBox");
   const errorBox = document.getElementById("errorBox");
   const infoBox = document.getElementById("infoBox");
+  const paymentMethodCard = document.getElementById("paymentMethodCard");
+  const signupCardElementContainer = document.getElementById("signupCardElementContainer");
+  const signupCardErrors = document.getElementById("signupCardErrors");
+  const savePaymentMethodBtn = document.getElementById("savePaymentMethodBtn");
+  const skipPaymentMethodBtn = document.getElementById("skipPaymentMethodBtn");
   const accountText = document.getElementById("accountText");
   const accountTag = document.getElementById("accountTag");
   const documentText = document.getElementById("documentText");
@@ -1334,13 +1370,19 @@
           Approved rider detected.<br><br>
           Continue to your <a class="next-link" href="/rider-dashboard.html?riderId=${encodeURIComponent(rider.id)}">Rider Dashboard</a>.
         `);
-        setTimeout(() => { goToDashboard(rider.id); }, 1400);
       } else {
         showBox(infoBox, `
           Rider account created successfully.<br><br>
           Use <strong>Check Rider Status</strong> to monitor your approval status before requesting rides.
         `);
       }
+
+      // Card entry is optional and independent of approval status — a
+      // pending rider can still pre-add a card. No auto-redirect to the
+      // dashboard here anymore (there used to be one for approved riders)
+      // so this card has time to actually be seen and used; "Skip for
+      // Now" and "Continue to Rider Dashboard" both remain available.
+      showPaymentMethodCard(rider.id);
     } catch (error) {
       showBox(errorBox, `
         <strong>Rider signup failed.</strong><br><br>
@@ -1352,6 +1394,131 @@
       setButtonLoading(signupBtn, false, "", "Create Rider Account");
     }
   }
+
+  /* ------------------------------------- */
+  /* PAYMENT METHOD (OPTIONAL, AT SIGNUP) */
+  /* ------------------------------------- */
+
+  let signupStripeClient = null;
+  let signupCardElement = null;
+  let signupPaymentRiderId = "";
+
+  async function initSignupStripeElements() {
+    if (!signupCardElementContainer || signupStripeClient) return;
+
+    if (typeof Stripe === "undefined") {
+      signupCardElementContainer.textContent =
+        "Card payments are temporarily unavailable. You can add a card later.";
+      return;
+    }
+
+    try {
+      const res = await api("/api/stripe-key");
+      const key = res?.key || "";
+
+      if (!key) {
+        signupCardElementContainer.textContent =
+          "Card payments are not configured yet. You can add a card later.";
+        return;
+      }
+
+      signupStripeClient = Stripe(key);
+      const elements = signupStripeClient.elements();
+
+      signupCardElement = elements.create("card", {
+        style: {
+          base: {
+            color: "#f4f7ff",
+            fontFamily: "Inter, system-ui, sans-serif",
+            fontSize: "15px",
+            "::placeholder": { color: "rgba(184, 199, 230, 0.55)" }
+          },
+          invalid: { color: "#ff7e97", iconColor: "#ff7e97" }
+        }
+      });
+
+      signupCardElement.mount("#signupCardElementContainer");
+
+      signupCardElement.on("change", (event) => {
+        if (signupCardErrors) {
+          signupCardErrors.textContent = event.error ? event.error.message : "";
+        }
+      });
+    } catch (err) {
+      signupStripeClient = null;
+      signupCardElement = null;
+      signupCardElementContainer.textContent =
+        "Unable to load the card payment form. You can add a card later.";
+    }
+  }
+
+  function showPaymentMethodCard(riderId) {
+    if (!paymentMethodCard || !riderId) return;
+
+    signupPaymentRiderId = riderId;
+    paymentMethodCard.style.display = "block";
+    initSignupStripeElements();
+  }
+
+  function hidePaymentMethodCard() {
+    if (paymentMethodCard) {
+      paymentMethodCard.style.display = "none";
+    }
+  }
+
+  async function savePaymentMethod() {
+    if (!signupStripeClient || !signupCardElement) {
+      showBox(errorBox, "Card payments are not available right now. You can add a card later from the ride request screen.");
+      return;
+    }
+
+    if (!signupPaymentRiderId) {
+      return;
+    }
+
+    setButtonLoading(savePaymentMethodBtn, true, "Saving Card...", "Save Card");
+
+    if (signupCardErrors) {
+      signupCardErrors.textContent = "";
+    }
+
+    try {
+      const setupData = await api("/api/rider/payment-methods/setup-intent", {
+        method: "POST",
+        body: JSON.stringify({ rider_id: signupPaymentRiderId })
+      });
+
+      const clientSecret = setupData?.client_secret;
+      if (!clientSecret) {
+        throw new Error("Could not start card setup. Please try again.");
+      }
+
+      const result = await signupStripeClient.confirmCardSetup(clientSecret, {
+        payment_method: { card: signupCardElement }
+      });
+
+      if (result.error) {
+        throw new Error(result.error.message || "Card could not be saved.");
+      }
+
+      trackEvent("rider_signup_payment_method_saved", {});
+      hidePaymentMethodCard();
+      showBox(infoBox, `
+        Payment method saved.<br><br>
+        Continue to your <a class="next-link" href="/rider-dashboard.html?riderId=${encodeURIComponent(signupPaymentRiderId)}">Rider Dashboard</a>.
+      `);
+    } catch (error) {
+      if (signupCardErrors) {
+        signupCardErrors.textContent = error.message || "Card could not be saved.";
+      }
+      trackEvent("rider_signup_payment_method_failed", { message: error.message });
+    } finally {
+      setButtonLoading(savePaymentMethodBtn, false, "", "Save Card");
+    }
+  }
+
+  savePaymentMethodBtn?.addEventListener("click", savePaymentMethod);
+  skipPaymentMethodBtn?.addEventListener("click", hidePaymentMethodCard);
 
   /* ------------------------------------- */
   /* RIDER STATUS */
