@@ -615,6 +615,8 @@ const TAXI_SITEMAP_PATHS = [
 
 const FOUNDATION_SITEMAP_PATHS = [
   "/",
+  "/contact.html",
+  "/leadership.html",
   "/support.html",
   "/privacy.html",
   "/terms.html"
