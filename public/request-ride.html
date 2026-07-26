@@ -809,6 +809,43 @@
       min-height: 1em;
     }
 
+    .saved-cards-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .saved-card-option {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.03);
+      cursor: pointer;
+      font-size: 0.92rem;
+    }
+
+    .saved-card-option:has(input:checked) {
+      border-color: rgba(70, 240, 255, 0.55);
+      background: rgba(70, 240, 255, 0.08);
+    }
+
+    .saved-card-option input {
+      accent-color: rgb(70, 240, 255);
+    }
+
+    .save-card-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+      font-size: 0.85rem;
+      color: var(--muted, #b8c7e6);
+      cursor: pointer;
+    }
+
     .two-col {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -2315,13 +2352,23 @@
             <!-- STAGE: PAYMENT & APPROVAL -->
             <div class="wizard-step" data-stage="payment" id="wizardStagePayment">
 
+            <!-- SAVED CARDS -->
+            <div class="field" id="savedCardsField" hidden>
+              <label id="savedCardsLabel">Payment Method</label>
+              <div id="savedCardsList" class="saved-cards-list"></div>
+            </div>
+
             <!-- CARD DETAILS -->
-            <div class="field">
+            <div class="field" id="newCardField">
               <label for="cardElementContainer">Card Details</label>
               <div class="input-wrap card-element-wrap" id="cardElementContainer">
                 <!-- Stripe Elements mounts the real card field here. -->
               </div>
               <small id="cardElementErrors" class="card-errors" role="alert"></small>
+              <label class="save-card-row" id="saveCardRow" hidden>
+                <input type="checkbox" id="saveCardCheckbox" />
+                <span>Save this card for future rides</span>
+              </label>
             </div>
 
             <!-- ACTIONS -->
@@ -2762,6 +2809,7 @@
         paymentIntent: "/api/rides/payment-intent",       // POST
         authorizeRide: "/api/rides",                       // + "/:id/authorize" (POST)
         stripeKey: "/api/stripe-key",                       // GET
+        paymentMethods: "/api/rider/payment-methods",       // GET, DELETE + "/:id"
 
         // Ride request: real route is POST /api/rides/request
         requestRide: "/api/rides/request"
@@ -2863,7 +2911,13 @@
         // same fare, so a network retry or accidental double-click can't
         // create two PaymentIntents for the same trip.
         idempotencyKey: "",
-        raw: null
+        raw: null,
+        // Saved cards fetched from GET /api/rider/payment-methods.
+        // selectedMethodId === "new" means "use the Card Element below"
+        // (the original, only behavior before saved cards existed).
+        savedMethods: [],
+        selectedMethodId: "new",
+        saveNewCard: false
       },
 
       ride: {
@@ -2974,6 +3028,11 @@
       authorizePaymentBtn: $("authorizePaymentBtn"),
       cardElementContainer: $("cardElementContainer"),
       cardElementErrors: $("cardElementErrors"),
+      savedCardsField: $("savedCardsField"),
+      savedCardsList: $("savedCardsList"),
+      newCardField: $("newCardField"),
+      saveCardRow: $("saveCardRow"),
+      saveCardCheckbox: $("saveCardCheckbox"),
       requestRideBtn: $("requestRideBtn"),
       resetFlowBtn: $("resetFlowBtn"),
       refreshStatusBtn: $("refreshStatusBtn"),
@@ -4344,8 +4403,19 @@
         paymentId: "",
         clientSecret: "",
         idempotencyKey: "",
-        raw: null
+        raw: null,
+        // Saved cards themselves don't depend on trip details — keep the
+        // fetched list, just reset which one is selected.
+        savedMethods: state.payment.savedMethods || [],
+        selectedMethodId: "new",
+        saveNewCard: false
       };
+
+      if (els.saveCardCheckbox) {
+        els.saveCardCheckbox.checked = false;
+      }
+
+      renderSavedCards();
 
       if (els.fareEstimateText) {
         els.fareEstimateText.textContent = "Pending";
@@ -4515,8 +4585,17 @@
         paymentId: "",
         clientSecret: "",
         idempotencyKey: "",
-        raw: null
+        raw: null,
+        savedMethods: state.payment.savedMethods || [],
+        selectedMethodId: "new",
+        saveNewCard: false
       };
+
+      if (els.saveCardCheckbox) {
+        els.saveCardCheckbox.checked = false;
+      }
+
+      renderSavedCards();
 
       state.ride = {
         requested: false,
@@ -4789,6 +4868,8 @@
             CONFIG.STORAGE_KEYS.riderId,
             state.rider.id
           );
+
+          loadSavedPaymentMethods();
         }
 
         if (
@@ -5358,6 +5439,90 @@
       }
     }
 
+    // ---- Saved payment methods ----
+    // GET /api/rider/payment-methods returns [] for a rider with no saved
+    // Stripe Customer yet, so this degrades to "just the Card Element"
+    // (the only behavior that existed before saved cards did) whenever
+    // there's no rider ID yet, the request fails, or there are no saved
+    // cards on file.
+    async function loadSavedPaymentMethods() {
+      if (!state.rider.id || !els.savedCardsList) return;
+
+      try {
+        const data = await apiFetch(
+          `${CONFIG.ENDPOINTS.paymentMethods}?riderId=${encodeURIComponent(state.rider.id)}`,
+          { method: "GET" }
+        );
+
+        state.payment.savedMethods = Array.isArray(data?.payment_methods)
+          ? data.payment_methods
+          : [];
+      } catch (err) {
+        state.payment.savedMethods = [];
+      }
+
+      renderSavedCards();
+    }
+
+    function selectPaymentMethod(methodId) {
+      state.payment.selectedMethodId = methodId;
+
+      const usingNewCard = methodId === "new";
+
+      if (els.newCardField) {
+        els.newCardField.hidden = !usingNewCard;
+      }
+
+      if (els.saveCardRow) {
+        els.saveCardRow.hidden = !usingNewCard || state.payment.savedMethods.length === 0;
+      }
+    }
+
+    function renderSavedCards() {
+      if (!els.savedCardsList || !els.savedCardsField) return;
+
+      const methods = state.payment.savedMethods;
+
+      if (!methods.length) {
+        els.savedCardsField.hidden = true;
+        selectPaymentMethod("new");
+        return;
+      }
+
+      els.savedCardsField.hidden = false;
+
+      const cardLabel = (method) =>
+        `${(method.brand || "card").toUpperCase()} •••• ${method.last4 || "----"}` +
+        (method.exp_month && method.exp_year ? ` (exp ${method.exp_month}/${method.exp_year})` : "");
+
+      const optionsHtml = methods
+        .map(
+          (method) => `
+            <label class="saved-card-option">
+              <input type="radio" name="savedPaymentMethod" value="${method.id}" />
+              <span>${cardLabel(method)}</span>
+            </label>
+          `
+        )
+        .join("") +
+        `
+          <label class="saved-card-option">
+            <input type="radio" name="savedPaymentMethod" value="new" checked />
+            <span>Use a new card</span>
+          </label>
+        `;
+
+      els.savedCardsList.innerHTML = optionsHtml;
+
+      els.savedCardsList.querySelectorAll('input[name="savedPaymentMethod"]').forEach((input) => {
+        input.addEventListener("change", (event) => {
+          selectPaymentMethod(event.target.value);
+        });
+      });
+
+      selectPaymentMethod("new");
+    }
+
     // ---- Stripe Elements: real card collection ----
     // Loaded via the <script src="https://js.stripe.com/v3/"> tag in <head>.
     // stripeClient/stripeCardElement stay null (and the card field shows a
@@ -5455,7 +5620,11 @@
         }
       }
 
-      if (!stripeClient || !stripeCardElement) {
+      const usingSavedCard =
+        Boolean(state.payment.selectedMethodId) &&
+        state.payment.selectedMethodId !== "new";
+
+      if (!stripeClient || (!usingSavedCard && !stripeCardElement)) {
         showNotice(
           "Card payments are not available right now. Please refresh the page or contact support.",
           "error"
@@ -5495,7 +5664,9 @@
           CONFIG.ENDPOINTS.paymentIntent,
           {
             ...buildTripPayload(),
-            idempotency_key: getOrCreateIdempotencyKey()
+            idempotency_key: getOrCreateIdempotencyKey(),
+            payment_method_id: usingSavedCard ? state.payment.selectedMethodId : null,
+            save_card: !usingSavedCard && Boolean(els.saveCardCheckbox?.checked)
           }
         );
 
@@ -5514,20 +5685,26 @@
           "Confirming card details with Stripe..."
         );
 
-        // Step 2: actually authorize (manual-capture hold) the card the
-        // rider entered into the real Card Element mounted above. This
-        // step was missing entirely before — the PaymentIntent used to
-        // be created and then immediately abandoned, so it never left
-        // "requires_payment_method" and every authorization attempt
-        // failed with no way for the rider to ever enter a card.
-        const result = await stripeClient.confirmCardPayment(clientSecret, {
-          payment_method: {
-            card: stripeCardElement,
-            billing_details: {
-              name: state.rider.name || undefined
-            }
-          }
-        });
+        // Step 2: actually authorize (manual-capture hold) the card. A
+        // saved card is already attached to the PaymentIntent server-side
+        // (see payment_method_id above), so confirming it needs no
+        // second argument here — only a brand-new card, entered into the
+        // real Card Element mounted above, needs to be passed explicitly.
+        // This step was missing entirely before saved cards existed — the
+        // PaymentIntent used to be created and then immediately
+        // abandoned, so it never left "requires_payment_method" and every
+        // authorization attempt failed with no way for the rider to ever
+        // enter a card.
+        const result = usingSavedCard
+          ? await stripeClient.confirmCardPayment(clientSecret)
+          : await stripeClient.confirmCardPayment(clientSecret, {
+              payment_method: {
+                card: stripeCardElement,
+                billing_details: {
+                  name: state.rider.name || undefined
+                }
+              }
+            });
 
         if (result.error) {
           throw new Error(result.error.message || "Card payment failed.");
@@ -5574,6 +5751,10 @@
           "Payment authorization completed successfully.",
           "success"
         );
+
+        if (!usingSavedCard && els.saveCardCheckbox?.checked) {
+          loadSavedPaymentMethods();
+        }
 
         return true;
       } catch (error) {
@@ -6463,6 +6644,7 @@
       updateLocationMeta();
       initOrUpdateMap();
       initStripeElements();
+      loadSavedPaymentMethods();
       initAddressAutocompletes();
 
       setLiveStatus(
