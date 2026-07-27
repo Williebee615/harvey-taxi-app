@@ -58,7 +58,6 @@
       if (path.includes("rider-dashboard")) return "rider";
       if (path.includes("driver-signup")) return "driver";
       if (path.includes("driver-dashboard")) return "driver";
-      if (path.includes("request-ride")) return "request";
       if (path.includes("support")) return "support";
       if (path.includes("admin")) return "admin";
       if (path.includes("index") || path === "/" || path.endsWith("/")) return "general";
@@ -201,7 +200,7 @@
 
       const pageSpecific = {
         general: [
-          { label: "Request Ride", action: "link", href: "request-ride.html?mode=driver" },
+          { label: "Request Ride", action: "link", href: "rider-dashboard.html?mode=driver" },
           { label: "Driver Signup", action: "link", href: "driver-signup.html" },
           { label: "Ask About Pilot", action: "message", message: "What is autonomous pilot mode?" }
         ],
