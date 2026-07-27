@@ -602,9 +602,6 @@ app.use((req, res, next) => {
 
 const TAXI_SITEMAP_PATHS = [
   "/",
-  "/request-ride.html",
-  "/request-food.html",
-  "/request-groceries.html",
   "/driver-signup.html",
   "/rider-signup.html",
   "/htaf-application.html",
@@ -2805,7 +2802,7 @@ async function notifyRideStage(ride, stageKey) {
 
         body,
 
-        url: "/request-ride.html"
+        url: "/rider-dashboard.html"
 
       }).catch(() => {});
 
@@ -18093,36 +18090,45 @@ app.get(
 
 );
 
+function redirectToDashboard(res, query) {
+  const params = new URLSearchParams(query);
+  const qs = params.toString();
+  return res.redirect(301, `/rider-dashboard.html${qs ? `?${qs}` : ""}`);
+}
+
+// request-ride.html, request-food.html, and request-groceries.html were
+// deleted — the wizard they used to serve now lives entirely inside
+// rider-dashboard.html (#rideWizardOverlay). These routes exist only so
+// old bookmarks, push-notification links, and search-engine results
+// still land somewhere useful instead of 404ing.
 app.get(
-
   "/request-ride",
-
-  (req, res) =>
-
-    sendStaticPage(
-
-      res,
-
-      "request-ride.html"
-
-    )
-
+  (req, res) => redirectToDashboard(res, req.query)
 );
 
 app.get(
-
   "/request-ride.html",
+  (req, res) => redirectToDashboard(res, req.query)
+);
 
-  (req, res) =>
+app.get(
+  "/request-food",
+  (req, res) => redirectToDashboard(res, { ...req.query, mode: "food" })
+);
 
-    sendStaticPage(
+app.get(
+  "/request-food.html",
+  (req, res) => redirectToDashboard(res, { ...req.query, mode: "food" })
+);
 
-      res,
+app.get(
+  "/request-groceries",
+  (req, res) => redirectToDashboard(res, { ...req.query, mode: "grocery" })
+);
 
-      "request-ride.html"
-
-    )
-
+app.get(
+  "/request-groceries.html",
+  (req, res) => redirectToDashboard(res, { ...req.query, mode: "grocery" })
 );
 
 app.get(
