@@ -18002,14 +18002,6 @@ app.post(
 
 function sendStaticPage(res, fileName) {
 
-  // TEMPORARY DIAGNOSTIC (see issue: rider redirected to stale
-  // request-ride.html after the rider-dashboard.html merge): forces
-  // every hop between origin and browser to revalidate instead of
-  // reusing a cached copy, so we can rule out an edge/CDN cache
-  // serving pre-merge HTML. Revert once the caching layer is confirmed
-  // as the cause (or ruled out).
-  res.set("Cache-Control", "no-store");
-
   return res.sendFile(
 
     path.join(PUBLIC_DIR, fileName)
