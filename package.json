@@ -10,7 +10,9 @@
 
     "start": "node server.js",
 
-    "test": "jest"
+    "test": "jest",
+
+    "test:e2e": "playwright test"
 
   },
 
@@ -42,7 +44,15 @@
 
   "devDependencies": {
 
+    "@playwright/test": "^1.62.0",
+
     "jest": "^30.4.2"
+
+  },
+
+  "jest": {
+
+    "testPathIgnorePatterns": ["/node_modules/", "<rootDir>/tests/e2e/"]
 
   }
 
