@@ -8,164 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&family=IBM+Plex+Mono:wght@400;500;600&family=Public+Sans:wght@400;500;700&display=swap" rel="stylesheet">
-<style>
-  :root{
-    --ink:#0A1A2B;
-    --ink-2:#12293F;
-    --signal:#2C6BE0;
-    --amber:#F5A623;
-    --paper:#F6F7F4;
-    --slate:#5D7185;
-    --line:rgba(255,255,255,.14);
-    --line-dark:rgba(10,26,43,.14);
-    --display:'Archivo',system-ui,sans-serif;
-    --body:'Public Sans',system-ui,sans-serif;
-    --mono:'IBM Plex Mono',ui-monospace,monospace;
-    --pad:clamp(20px,5vw,64px);
-  }
-  *{box-sizing:border-box}
-  html{scroll-behavior:smooth}
-  body{
-    margin:0;background:var(--paper);color:var(--ink);
-    font-family:var(--body);font-size:17px;line-height:1.6;
-    -webkit-font-smoothing:antialiased;
-  }
-  h1,h2,h3{font-family:var(--display);font-weight:800;letter-spacing:-.02em;line-height:1.02;margin:0}
-  a{color:inherit}
-  .wrap{max-width:1120px;margin:0 auto;padding:0 var(--pad)}
-  .eyebrow{
-    font-family:var(--mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;
-    color:var(--signal);margin:0 0 14px
-  }
-  .btn{
-    display:inline-block;font-family:var(--display);font-weight:800;text-decoration:none;
-    padding:15px 26px;border-radius:2px;font-size:15px;letter-spacing:.01em;
-    transition:transform .15s ease, background .15s ease;
-  }
-  .btn:hover{transform:translateY(-2px)}
-  .btn-amber{background:var(--amber);color:#1A1204}
-  .btn-line{border:1.5px solid currentColor}
-  .btn:focus-visible,a:focus-visible,button:focus-visible{outline:3px solid var(--amber);outline-offset:3px}
-
-  /* ---- Nav ---- */
-  header{background:var(--ink);color:#fff;position:sticky;top:0;z-index:50}
-  .nav{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0}
-  .brand{display:flex;align-items:center;gap:11px;text-decoration:none;color:#fff}
-  .mark{
-    width:34px;height:34px;flex:0 0 34px;border-radius:50%;background:var(--signal);
-    display:grid;place-items:center;font-family:var(--display);font-weight:800;font-size:15px;color:#fff
-  }
-  .brand b{font-family:var(--display);font-size:15px;line-height:1.1;display:block}
-  .brand span{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;color:#8FB3E4;text-transform:uppercase}
-  .nav-links{display:none;gap:26px;font-size:14.5px}
-  .nav-links a{text-decoration:none;opacity:.82}
-  .nav-links a:hover{opacity:1;color:var(--amber)}
-  .nav .btn{padding:11px 18px;font-size:13.5px}
-  @media(min-width:900px){.nav-links{display:flex}}
-
-  /* ---- Hero ---- */
-  .hero{background:var(--ink);color:#fff;padding:clamp(48px,8vw,88px) 0 0}
-  .hero h1{
-    font-size:clamp(38px,7.4vw,78px);max-width:16ch;
-  }
-  .hero h1 em{font-style:normal;color:var(--amber)}
-  .hero p.lede{max-width:52ch;color:#C6D5E4;font-size:clamp(17px,2.1vw,20px);margin:22px 0 30px}
-  .hero-cta{display:flex;flex-wrap:wrap;gap:12px}
-
-  /* ---- Departure board (signature) ---- */
-  .board{
-    margin-top:clamp(44px,7vw,72px);border-top:1px solid var(--line);
-    background:linear-gradient(180deg,#081524,#0A1A2B);
-  }
-  .board-head{
-    display:flex;justify-content:space-between;align-items:baseline;
-    font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
-    color:#7E97AE;padding:18px 0 12px
-  }
-  .row{
-    display:grid;grid-template-columns:74px 1fr auto;gap:14px;align-items:center;
-    padding:15px 0;border-top:1px solid var(--line);
-    opacity:0;transform:translateY(8px);
-    animation:flip .5s ease forwards;
-  }
-  .row:nth-child(1){animation-delay:.15s}
-  .row:nth-child(2){animation-delay:.3s}
-  .row:nth-child(3){animation-delay:.45s}
-  .row:nth-child(4){animation-delay:.6s}
-  .row:nth-child(5){animation-delay:.75s}
-  @keyframes flip{to{opacity:1;transform:none}}
-  .row .time{font-family:var(--mono);font-size:14px;color:var(--amber);font-weight:500}
-  .row .dest{font-family:var(--display);font-weight:600;font-size:clamp(16px,2.4vw,21px);color:#fff}
-  .row .dest small{display:block;font-family:var(--body);font-weight:400;font-size:13.5px;color:#8FA6BB;letter-spacing:0}
-  .row .status{
-    font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;
-    color:#0A1A2B;background:var(--signal);padding:5px 9px;border-radius:2px;white-space:nowrap
-  }
-  .row .status.gap{background:transparent;color:#F5A623;border:1px solid rgba(245,166,35,.5)}
-  .board-foot{
-    font-family:var(--mono);font-size:11.5px;color:#7E97AE;padding:16px 0 26px;border-top:1px solid var(--line);
-    letter-spacing:.04em
-  }
-  @media(prefers-reduced-motion:reduce){
-    .row{animation:none;opacity:1;transform:none}
-    html{scroll-behavior:auto}
-    .btn:hover{transform:none}
-  }
-
-  /* ---- Sections ---- */
-  section{padding:clamp(56px,8vw,104px) 0}
-  .sec-title{font-size:clamp(29px,4.6vw,46px);max-width:20ch}
-  .sec-intro{max-width:58ch;color:var(--slate);margin-top:18px;font-size:17.5px}
-
-  .grid{display:grid;gap:26px;margin-top:clamp(34px,5vw,54px)}
-  @media(min-width:760px){.grid.three{grid-template-columns:repeat(3,1fr)}.grid.two{grid-template-columns:1fr 1fr}}
-  .card{border-top:2px solid var(--ink);padding-top:20px}
-  .card h3{font-size:20px;margin-bottom:9px}
-  .card p{margin:0;color:var(--slate);font-size:16px}
-  .card .tag{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--signal);display:block;margin-bottom:12px}
-
-  /* ---- Platform band ---- */
-  .band{background:var(--ink-2);color:#fff}
-  .band .sec-intro{color:#B9CBDC}
-  .band .card{border-top-color:var(--signal)}
-  .band .card p{color:#A9BCCD}
-  .steps{counter-reset:s}
-  .step{display:grid;grid-template-columns:44px 1fr;gap:18px;padding:22px 0;border-top:1px solid var(--line)}
-  .step-n{font-family:var(--mono);font-size:13px;color:var(--amber);padding-top:4px}
-  .step h3{font-size:19px;margin-bottom:6px}
-  .step p{margin:0;color:#A9BCCD;font-size:16px}
-
-  /* ---- Split / involve ---- */
-  .split{display:grid;gap:34px}
-  @media(min-width:860px){.split{grid-template-columns:1fr 1fr;gap:60px;align-items:start}}
-  ul.plain{list-style:none;padding:0;margin:22px 0 0}
-  ul.plain li{padding:13px 0;border-top:1px solid var(--line-dark);font-size:16.5px}
-  ul.plain li b{font-family:var(--display)}
-
-  /* ---- Donate ---- */
-  .donate{background:var(--amber);color:#1A1204}
-  .donate .sec-intro{color:#4A3810}
-  .amounts{display:flex;flex-wrap:wrap;gap:10px;margin:28px 0 26px}
-  .amt{
-    background:#1A1204;color:var(--amber);font-family:var(--mono);font-size:14px;
-    padding:12px 16px;border-radius:2px;text-decoration:none
-  }
-  .amt b{display:block;font-family:var(--display);font-size:19px;color:#fff;margin-bottom:2px}
-
-  /* ---- Contact / footer ---- */
-  footer{background:var(--ink);color:#fff;padding:clamp(52px,7vw,84px) 0 34px}
-  .fgrid{display:grid;gap:32px}
-  @media(min-width:760px){.fgrid{grid-template-columns:1.4fr 1fr 1fr}}
-  footer h3{font-size:17px;margin-bottom:14px}
-  footer a{color:#C6D5E4;text-decoration:none;display:block;padding:5px 0;font-size:15.5px}
-  footer a:hover{color:var(--amber)}
-  .legal{
-    margin-top:44px;padding-top:22px;border-top:1px solid var(--line);
-    font-family:var(--mono);font-size:11.5px;color:#7E97AE;letter-spacing:.04em;line-height:1.9
-  }
-  .skip{position:absolute;left:-9999px}
-  .skip:focus{left:16px;top:12px;position:fixed;background:var(--amber);color:#1A1204;padding:11px 18px;z-index:99;border-radius:2px}
-</style>
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
@@ -173,31 +16,31 @@
 
 <header>
   <div class="wrap nav">
-    <a class="brand" href="#top">
+    <a class="brand" href="index.html">
       <span class="mark" aria-hidden="true">H</span>
       <span><b>Harvey Transportation</b><span>Assistance Foundation</span></span>
     </a>
     <nav class="nav-links" aria-label="Main">
-      <a href="#mission">Mission</a>
-      <a href="#programs">Programs</a>
-      <a href="#platform">How it works</a>
-      <a href="#involved">Get involved</a>
-      <a href="#contact">Contact</a>
+      <a href="index.html" aria-current="page">Home</a>
+      <a href="mission.html">Mission</a>
+      <a href="programs.html">Programs</a>
+      <a href="get-involved.html">Get involved</a>
+      <a href="contact.html">Contact</a>
     </nav>
-    <a class="btn btn-amber" href="#donate">Sponsor a ride</a>
+    <a class="btn btn-amber" href="donate.html">Donate</a>
   </div>
 </header>
 
 <main id="main">
 
-<div class="hero" id="top">
+<div class="hero">
   <div class="wrap">
     <p class="eyebrow">Nashville · Davidson County · 501(c)(3)</p>
     <h1>A missed ride is a missed <em>dialysis appointment.</em></h1>
     <p class="lede">Harvey Transportation Assistance Foundation removes the transportation barrier for seniors, people with disabilities, and low-income families across Middle Tennessee — so the appointment, the shift, and the school day actually happen.</p>
     <div class="hero-cta">
-      <a class="btn btn-amber" href="#request">Request a ride</a>
-      <a class="btn btn-line" href="#donate">Sponsor a ride</a>
+      <a class="btn btn-amber" href="contact.html#request-a-ride">Request a ride</a>
+      <a class="btn btn-line" href="donate.html">Donate</a>
     </div>
   </div>
 
@@ -242,23 +85,12 @@
     <h2 class="sec-title">Transportation is the barrier that hides behind every other barrier.</h2>
     <p class="sec-intro">People do not miss treatment because they do not want care. They miss it because the ride fell through. Harvey Transportation Assistance Foundation is a Nashville nonprofit that pays for and coordinates the trips our neighbors cannot otherwise make — to healthcare, to work, to school, and to food.</p>
 
-    <div class="grid three">
-      <div class="card">
-        <span class="tag">Who we serve</span>
-        <h3>Seniors aging in place</h3>
-        <p>Older adults living independently without a vehicle, a driver's license, or family close enough to help.</p>
-      </div>
-      <div class="card">
-        <span class="tag">Who we serve</span>
-        <h3>People with disabilities</h3>
-        <p>Riders who need accessible vehicles, door-through-door assistance, or trips paratransit cannot schedule in time.</p>
-      </div>
-      <div class="card">
-        <span class="tag">Who we serve</span>
-        <h3>Low-income working families</h3>
-        <p>Households where a broken-down car means a lost shift, and a lost shift means a lost job.</p>
-      </div>
+    <div class="statement">
+      <p class="eyebrow">Mission statement</p>
+      <p>Harvey Transportation Assistance Foundation exists to remove the transportation barrier that keeps seniors, people with disabilities, and low-income families in Middle Tennessee from reaching healthcare, employment, education, and essential needs.</p>
     </div>
+
+    <p style="margin-top:26px"><a class="btn btn-line" href="mission.html">Read our full mission and who we serve →</a></p>
   </div>
 </section>
 
@@ -279,53 +111,9 @@
         <h3>Job access and reverse commute</h3>
         <p>Rides to shifts that start before or end after fixed-route service, and to worksites outside the transit network.</p>
       </div>
-      <div class="card">
-        <span class="tag">Essential needs</span>
-        <h3>Groceries and social services</h3>
-        <p>Trips to food access points, benefits appointments, pharmacies, and community programs.</p>
-      </div>
-      <div class="card">
-        <span class="tag">Community</span>
-        <h3>Partner and referral rides</h3>
-        <p>Trips requested on a client's behalf by clinics, case managers, shelters, and community organizations.</p>
-      </div>
     </div>
-  </div>
-</section>
 
-<section id="platform">
-  <div class="wrap">
-    <p class="eyebrow">How it works</p>
-    <h2 class="sec-title">We don't run a garage. We run the dispatch.</h2>
-    <p class="sec-intro">The Foundation operates a mobility-management model: instead of buying and maintaining a fleet, we coordinate trips through vetted transportation network providers and contracted drivers on the Code Blue Platform. More of every dollar reaches the road, and capacity scales with need instead of with parking spaces.</p>
-
-    <div class="steps">
-      <div class="step"><span class="step-n">01</span><div><h3>A trip is requested</h3><p>By the rider, a family member, or a partner clinic or case manager.</p></div></div>
-      <div class="step"><span class="step-n">02</span><div><h3>Eligibility is confirmed</h3><p>We verify the trip fits a funded program and the rider's access needs — including accessible vehicle requirements.</p></div></div>
-      <div class="step"><span class="step-n">03</span><div><h3>Dispatch assigns the ride</h3><p>The Code Blue Platform routes the trip to a background-checked driver or a contracted network provider.</p></div></div>
-      <div class="step"><span class="step-n">04</span><div><h3>The trip is subsidized and recorded</h3><p>The rider pays nothing or a reduced fare. The trip is logged for program reporting and funder accountability.</p></div></div>
-    </div>
-  </div>
-</section>
-
-<section id="request" style="background:#fff">
-  <div class="wrap split">
-    <div>
-      <p class="eyebrow">Request a ride</p>
-      <h2 class="sec-title">Need a ride, or arranging one for someone else?</h2>
-      <p class="sec-intro">Tell us the appointment, the address, and the access needs. We will confirm whether the trip can be covered before you have to worry about it. Requests can be made by riders, family members, or referring organizations.</p>
-      <p style="margin-top:26px">
-        <a class="btn btn-amber" href="mailto:harveytransportationfoundation@gmail.com?subject=Ride%20request">Email a ride request</a>
-      </p>
-    </div>
-    <div>
-      <ul class="plain">
-        <li><b>Give as much notice as you can.</b> Recurring treatment schedules are easiest for us to cover.</li>
-        <li><b>Tell us about access needs.</b> Wheelchair, walker, oxygen, service animal, or a companion riding along.</li>
-        <li><b>Referring an client?</b> Case managers and clinic staff can request on a client's behalf.</li>
-        <li><b>Service area.</b> Nashville and Davidson County, with select trips in surrounding counties.</li>
-      </ul>
-    </div>
+    <p style="margin-top:26px"><a class="btn btn-line" href="programs.html">See all programs and how dispatch works →</a></p>
   </div>
 </section>
 
@@ -333,27 +121,8 @@
   <div class="wrap">
     <p class="eyebrow">Get involved</p>
     <h2 class="sec-title">Three ways to move someone.</h2>
-
-    <div class="grid three">
-      <div class="card">
-        <span class="tag">Drivers</span>
-        <h3>Drive for the Foundation</h3>
-        <p>Background-checked drivers with their own vehicle can take subsidized trips through the platform. Accessible-vehicle owners especially needed.</p>
-        <p style="margin-top:16px"><a href="mailto:harveytransportationfoundation@gmail.com?subject=Driver%20interest" style="color:var(--signal);font-weight:700">Apply to drive →</a></p>
-      </div>
-      <div class="card">
-        <span class="tag">Employers &amp; funders</span>
-        <h3>Sponsor a route</h3>
-        <p>Corporate sponsors can fund a specific trip type — dialysis mornings, third-shift commutes — and receive reporting on the trips their support covered.</p>
-        <p style="margin-top:16px"><a href="mailto:harveytransportationfoundation@gmail.com?subject=Corporate%20sponsorship" style="color:var(--signal);font-weight:700">Request the prospectus →</a></p>
-      </div>
-      <div class="card">
-        <span class="tag">Organizations</span>
-        <h3>Refer your clients</h3>
-        <p>Clinics, shelters, senior centers, and social service agencies can set up a referral pathway to request trips directly.</p>
-        <p style="margin-top:16px"><a href="mailto:harveytransportationfoundation@gmail.com?subject=Partner%20referral%20pathway" style="color:var(--signal);font-weight:700">Become a partner →</a></p>
-      </div>
-    </div>
+    <p class="sec-intro">Drive for us, sponsor a route, or refer your clients. Every path puts one more person in a seat.</p>
+    <p style="margin-top:26px"><a class="btn btn-line" href="get-involved.html">See how to get involved →</a></p>
   </div>
 </section>
 
@@ -362,41 +131,36 @@
     <p class="eyebrow" style="color:#1A1204">Donate</p>
     <h2 class="sec-title">A donation here is not abstract. It is a seat.</h2>
     <p class="sec-intro">Harvey Transportation Assistance Foundation is a registered 501(c)(3). Contributions are tax-deductible to the extent allowed by law.</p>
-
-    <div class="amounts">
-      <a class="amt" href="https://www.paypal.com/us/fundraiser/charity/5906918"><b>$25</b>One local trip</a>
-      <a class="amt" href="https://www.paypal.com/us/fundraiser/charity/5906918"><b>$75</b>A week of dialysis rides</a>
-      <a class="amt" href="https://www.paypal.com/us/fundraiser/charity/5906918"><b>$300</b>A month of commutes</a>
-      <a class="amt" href="https://www.paypal.com/us/fundraiser/charity/5906918"><b>Other</b>Choose an amount</a>
-    </div>
-
-    <a class="btn" style="background:#1A1204;color:var(--amber)" href="https://www.paypal.com/us/fundraiser/charity/5906918">Give now</a>
+    <a class="btn" style="background:#1A1204;color:var(--amber);margin-top:10px" href="donate.html">See donation options</a>
   </div>
 </section>
 
 </main>
 
-<footer id="contact">
+<footer>
   <div class="wrap">
     <div class="fgrid">
       <div>
         <h3>Harvey Transportation Assistance Foundation</h3>
         <p style="color:#A9BCCD;max-width:38ch;margin:0 0 16px">Removing transportation barriers across Nashville and Davidson County, Tennessee.</p>
+        <address>
+          1617 Lebanon Pike<br>
+          Nashville, TN 37210
+        </address>
         <a href="mailto:harveytransportationfoundation@gmail.com">harveytransportationfoundation@gmail.com</a>
       </div>
       <div>
         <h3>Explore</h3>
-        <a href="#mission">Mission</a>
-        <a href="#programs">Programs</a>
-        <a href="#platform">How it works</a>
-        <a href="#request">Request a ride</a>
+        <a href="index.html">Home</a>
+        <a href="mission.html">Mission</a>
+        <a href="programs.html">Programs</a>
+        <a href="get-involved.html">Get involved</a>
       </div>
       <div>
         <h3>Support</h3>
-        <a href="#donate">Donate</a>
-        <a href="#involved">Drive with us</a>
-        <a href="#involved">Corporate sponsorship</a>
-        <a href="#involved">Partner referrals</a>
+        <a href="donate.html">Donate</a>
+        <a href="contact.html#request-a-ride">Request a ride</a>
+        <a href="contact.html">Contact</a>
       </div>
     </div>
 
