@@ -159,6 +159,13 @@
       --panel: rgba(0,0,0,0.97); --text: #fff; --muted: #dce4f5;
       --line: rgba(255,255,255,0.36); --line-strong: rgba(255,255,255,0.65);
     }
+
+    /* Time-of-day background: overrides just the gradient stops so the
+       existing body background/grid-overlay formulas adapt automatically. */
+    body.tod-morning { --bg1: #0d1220; --bg2: #151b30; --bg3: #1c2440; }
+    body.tod-afternoon { --bg1: #071022; --bg2: #0d1830; --bg3: #122040; }
+    body.tod-evening { --bg1: #0a0a18; --bg2: #160f2c; --bg3: #20153c; }
+    body.tod-night { --bg1: #030810; --bg2: #070f22; --bg3: #0c1630; }
     body.large-text { font-size: 18px; }
     body.reduced-motion *, body.reduced-motion *::before, body.reduced-motion *::after {
       animation: none !important; transition: none !important; scroll-behavior: auto !important;
@@ -664,6 +671,95 @@
     .mini-stat span { color: var(--muted); font-size: 13px; line-height: 1.6; }
 
     /* ============================================================
+       MISSION CONTROL / TODAY'S MOBILITY (real live data)
+       ============================================================ */
+    .mini-stat.mc-live { position: relative; border-color: rgba(77,255,164,0.22); }
+    .mini-stat.mc-live .mc-dot {
+      position: absolute; top: 18px; right: 18px; width: 8px; height: 8px; border-radius: 50%;
+      background: var(--green); box-shadow: 0 0 8px var(--green);
+    }
+    .mini-stat.mc-live .mc-dot::after {
+      content: ""; position: absolute; inset: -5px; border-radius: 50%;
+      border: 1.5px solid rgba(77,255,164,0.5); animation: pulseRing 2s infinite var(--ease);
+    }
+    .mini-stat.mc-pending { opacity: 0.72; }
+    .mini-stat.mc-pending strong { color: var(--muted); }
+
+    /* ============================================================
+       MISSION CONTROL — sticky glass chip bar (live platform snapshot)
+       ============================================================ */
+    .mc-bar {
+      position: sticky;
+      top: 90px;
+      z-index: 190;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+      padding: 14px 18px;
+      margin-bottom: 22px;
+      border-radius: var(--radius-xl);
+      background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.015)), var(--panel2);
+      border: 1px solid var(--line);
+      backdrop-filter: blur(20px) saturate(140%);
+      -webkit-backdrop-filter: blur(20px) saturate(140%);
+      box-shadow: var(--shadow-lg);
+    }
+    .mc-chip {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      padding: 8px 10px;
+      border-radius: var(--radius-md);
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      position: relative;
+      min-width: 0;
+    }
+    .mc-chip .mc-icon { font-size: 16px; line-height: 1; }
+    .mc-chip .mc-label {
+      font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em;
+      color: var(--muted); font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .mc-chip .mc-value { font-size: 14px; font-weight: 900; color: var(--text); }
+    .mc-chip.mc-chip-pending { opacity: 0.65; }
+    .mc-chip.mc-chip-pending .mc-value { color: var(--muted); font-weight: 700; font-size: 12px; }
+    .mc-chip.mc-live { border-color: rgba(77,255,164,0.25); }
+    .mc-chip.mc-live .mc-dot {
+      position: absolute; top: 10px; right: 10px; width: 7px; height: 7px; border-radius: 50%;
+      background: var(--green); box-shadow: 0 0 8px var(--green);
+    }
+    .mc-chip.mc-live .mc-dot::after {
+      content: ""; position: absolute; inset: -5px; border-radius: 50%;
+      border: 1.5px solid rgba(77,255,164,0.5); animation: pulseRing 2s infinite var(--ease);
+    }
+    @media (max-width: 860px) {
+      .mc-bar { position: static; grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 640px) {
+      .mc-bar { grid-template-columns: repeat(2, 1fr); padding: 12px 14px; }
+    }
+
+    /* ============================================================
+       AI TEASER BUBBLE
+       ============================================================ */
+    .ai-teaser-bubble {
+      position: fixed; right: 20px; bottom: 20px; z-index: 500; max-width: 250px;
+      padding: 14px 16px; border-radius: var(--radius-xl);
+      background: linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.02)), var(--panel2);
+      border: 1px solid rgba(93,245,255,0.28); box-shadow: var(--shadow-cyan);
+      cursor: pointer; animation: aiTeaserFloat 4.5s ease-in-out infinite;
+      backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    }
+    .ai-teaser-bubble:hover { border-color: var(--cyan); }
+    .ai-teaser-bubble .at-eyebrow {
+      font-size: 10px; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--cyan); margin-bottom: 4px;
+    }
+    .ai-teaser-bubble .at-text { font-size: 13.5px; font-weight: 700; line-height: 1.4; color: var(--text); }
+    @keyframes aiTeaserFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+    @media (max-width: 640px) { .ai-teaser-bubble { left: 16px; right: 16px; max-width: none; bottom: 16px; } }
+
+    /* ============================================================
        SUPPORT CALLOUT
        ============================================================ */
     .support-callout {
@@ -1075,7 +1171,7 @@
         <a class="top-link" href="#services" data-i18n="navServices">Services</a>
         <a class="top-link" href="foundation.html" data-track="foundation_nav" data-i18n="navFoundation">Foundation</a>
         <a class="top-link" href="settings.html" data-track="settings_nav" data-i18n="navSettings">⚙ Settings</a>
-        <a class="top-link cta" href="request-ride.html?mode=driver" data-intent="request_ride_start" data-i18n="navBook">Book Ride</a>
+        <a class="top-link cta" href="rider-dashboard.html?mode=driver" data-intent="request_ride_start" data-i18n="navBook">Book Ride</a>
       </nav>
     </header>
 
@@ -1085,7 +1181,38 @@
         <strong data-i18n="announceTitle">Harvey Taxi Code Blue Platform</strong>
         <span data-i18n="announceCopy">Tennessee rides, delivery, driver opportunities, foundation support, AI assistance, and autonomous pilot — one ecosystem.</span>
       </div>
-      <a class="btn success" href="request-ride.html?mode=driver" data-intent="request_ride_start" data-i18n="requestRide">Request Ride</a>
+      <a class="btn success" href="rider-dashboard.html?mode=driver" data-intent="request_ride_start" data-i18n="requestRide">Request Ride</a>
+    </section>
+
+    <!-- TODAY'S MOBILITY (Mission Control live snapshot) -->
+    <section class="mc-bar" id="mission-control" aria-label="Live platform snapshot">
+      <div class="mc-chip mc-live" id="mcDriversTile">
+        <span class="mc-dot" aria-hidden="true"></span>
+        <span class="mc-icon" aria-hidden="true">🚕</span>
+        <span class="mc-label">Drivers Nearby</span>
+        <span class="mc-value" id="mcDriversValue">—</span>
+      </div>
+      <div class="mc-chip mc-live" id="mcWaitTile">
+        <span class="mc-dot" aria-hidden="true"></span>
+        <span class="mc-icon" aria-hidden="true">⏱</span>
+        <span class="mc-label">Average Pickup</span>
+        <span class="mc-value" id="mcWaitValue">—</span>
+      </div>
+      <div class="mc-chip">
+        <span class="mc-icon" aria-hidden="true">❤️</span>
+        <span class="mc-label">HTAF Assisted Rides</span>
+        <span class="mc-value">Available</span>
+      </div>
+      <div class="mc-chip mc-chip-pending">
+        <span class="mc-icon" aria-hidden="true">🍔🛒</span>
+        <span class="mc-label">Restaurants &amp; Grocery</span>
+        <span class="mc-value">Coming Soon</span>
+      </div>
+      <div class="mc-chip mc-chip-pending">
+        <span class="mc-icon" aria-hidden="true">🚦</span>
+        <span class="mc-label">Traffic</span>
+        <span class="mc-value">Not connected</span>
+      </div>
     </section>
 
     <!-- INCLUSION STRIP -->
@@ -1133,12 +1260,12 @@
             <div class="action-box" role="group" aria-labelledby="action-box-label">
               <div class="action-box-label" id="action-box-label" data-i18n="startJourney">Start Your Journey</div>
               <div class="primary-actions">
-                <a class="btn primary" href="request-ride.html?mode=driver" data-intent="request_ride_start" data-i18n="requestRideEmoji">🚖 Request Ride</a>
+                <a class="btn primary" href="rider-dashboard.html?mode=driver" data-intent="request_ride_start" data-i18n="requestRideEmoji">🚖 Request Ride</a>
                 <a class="btn success" href="driver-signup.html" data-intent="driver_signup_start" data-i18n="becomeDriver">🤝 Become A Driver</a>
               </div>
               <div class="secondary-actions">
                 <a class="btn ghost" href="rider-signup.html" data-intent="rider_signup_start" data-i18n="riderSignup">Rider Signup</a>
-                <a class="btn autonomous" href="request-ride.html?mode=autonomous">
+                <a class="btn autonomous" href="rider-dashboard.html?mode=autonomous">
                   <span data-i18n="autonomous">🤖 Autonomous</span>
                   <span class="pilot-tag" data-i18n="pilot">PILOT</span>
                 </a>
@@ -1348,28 +1475,35 @@
               <h3>🚖 Standard Driver Ride</h3>
               <p>Request rides through the active Harvey Taxi transportation platform.</p>
             </div>
-            <a class="btn primary" href="request-ride.html?mode=driver" data-intent="service_standard_ride">Book Ride</a>
+            <a class="btn primary" href="rider-dashboard.html?mode=driver" data-intent="service_standard_ride">Book Ride</a>
           </div>
           <div class="service-card">
             <div>
               <h3>🤖 Autonomous Pilot</h3>
               <p>Explore future autonomous ride experiences through Harvey Taxi's pilot initiative.</p>
             </div>
-            <a class="btn autonomous" href="request-ride.html?mode=autonomous">Open Pilot</a>
+            <a class="btn autonomous" href="rider-dashboard.html?mode=autonomous">Open Pilot</a>
           </div>
           <div class="service-card">
             <div>
               <h3>🍔 Food Delivery</h3>
               <p>Pilot food pickup and delivery through the same secure Harvey Taxi request and dispatch flow.</p>
             </div>
-            <a class="btn success" href="request-ride.html?mode=food">Order Food</a>
+            <a class="btn success" href="rider-dashboard.html?mode=food">Order Food</a>
           </div>
           <div class="service-card">
             <div>
               <h3>🛒 Grocery Delivery</h3>
               <p>Pilot grocery pickup and delivery through the same secure Harvey Taxi request and dispatch flow.</p>
             </div>
-            <a class="btn success" href="request-ride.html?mode=grocery">Order Groceries</a>
+            <a class="btn success" href="rider-dashboard.html?mode=grocery">Order Groceries</a>
+          </div>
+          <div class="service-card">
+            <div>
+              <h3>❤️ HTAF Transportation</h3>
+              <p>Assisted transportation for medical visits, work, and essential needs — application and approval required.</p>
+            </div>
+            <a class="btn foundation" href="htaf-application.html" data-intent="service_htaf_apply">Apply for HTAF</a>
           </div>
         </div>
 
@@ -1485,7 +1619,7 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.5z"/><path d="M9 21V12h6v9"/></svg>
       Home
     </button>
-    <button class="nav-btn" onclick="safeGo('request-ride.html?mode=driver','bottom_trip')" aria-label="Trips">
+    <button class="nav-btn" onclick="safeGo('rider-dashboard.html?mode=driver','bottom_trip')" aria-label="Trips">
       <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
       Trips
     </button>
@@ -1505,6 +1639,14 @@
 
   <!-- UNDER CONSTRUCTION MODAL PLACEHOLDER -->
   <div id="modal-root"></div>
+
+  <!-- AI TEASER BUBBLE — opens the same real, server-backed AI widget as the
+       "Open AI Support" button above (openHarveyAiChat()), just a friendlier
+       time-of-day-aware entry point. -->
+  <div class="ai-teaser-bubble" id="aiTeaserBubble" role="button" tabindex="0" aria-label="Open Harvey AI Support">
+    <div class="at-eyebrow">Harvey AI</div>
+    <div class="at-text" id="aiTeaserText">Need a ride? Ask me anything.</div>
+  </div>
 
   <!-- AI widget (optional external) -->
   <script src="/ai-support-widget.js" onerror="console.warn('AI widget not available — using built-in chat')"></script>
@@ -2768,6 +2910,71 @@
       }
     }
 
+    /* ---- Today's Mobility: real live counts, no fabricated numbers ---- */
+    async function refreshMissionControl() {
+      const driversTile = document.getElementById("mcDriversTile");
+      const waitTile = document.getElementById("mcWaitTile");
+      const driversValue = document.getElementById("mcDriversValue");
+      const waitValue = document.getElementById("mcWaitValue");
+      if (!driversValue || !waitValue) return;
+
+      try {
+        const res = await fetch(`${window.HARVEY_API_BASE}/api/public/mission-control`, { cache: "no-store" });
+        const data = await res.json();
+        if (!res.ok || data.ok === false) throw new Error(data.error || "request failed");
+
+        driversValue.textContent = data.online_drivers != null ? data.online_drivers : "0";
+        waitValue.textContent = data.avg_wait_minutes != null ? `${data.avg_wait_minutes} min` : "No active rides";
+      } catch (err) {
+        if (driversTile) driversTile.classList.remove("mc-live");
+        if (waitTile) waitTile.classList.remove("mc-live");
+        driversValue.textContent = "Unavailable";
+        waitValue.textContent = "Unavailable";
+      }
+    }
+
+    /* ---- Shared time-of-day bucket: drives both the background gradient
+       (initTimeOfDay) and the AI teaser greeting (initAiTeaser) off one clock. ---- */
+    function timeOfDayBucket(hour) {
+      if (hour >= 5 && hour < 11) return "morning";
+      if (hour >= 11 && hour < 17) return "afternoon";
+      if (hour >= 17 && hour < 21) return "evening";
+      return "night";
+    }
+
+    /* ---- Time-of-day background: swaps body.tod-* so --bg1/--bg2/--bg3 shift. ---- */
+    function initTimeOfDay() {
+      const applyBucket = () => {
+        const bucket = timeOfDayBucket(new Date().getHours());
+        document.body.classList.remove("tod-morning", "tod-afternoon", "tod-evening", "tod-night");
+        document.body.classList.add("tod-" + bucket);
+      };
+      applyBucket();
+      setInterval(applyBucket, 5 * 60 * 1000);
+    }
+
+    /* ---- AI teaser bubble: time-of-day greeting, opens the real AI widget ---- */
+    function initAiTeaser() {
+      const bubble = document.getElementById("aiTeaserBubble");
+      const textEl = document.getElementById("aiTeaserText");
+      if (!bubble || !textEl) return;
+
+      const bucket = timeOfDayBucket(new Date().getHours());
+      const greeting = {
+        morning: "Good morning! Need a ride to start the day?",
+        afternoon: "Good afternoon! Need groceries? I can help find nearby stores.",
+        evening: "Good evening! Dinner delivered, or a ride home?",
+        night: "Up late? I can help you get home safely."
+      }[bucket];
+      textEl.textContent = greeting;
+
+      const open = () => openHarveyAiChat();
+      bubble.addEventListener("click", open);
+      bubble.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); }
+      });
+    }
+
     /* ---- Under construction modal ---- */
     function showUnderConstruction(name) {
       const root = document.getElementById("modal-root");
@@ -2922,6 +3129,7 @@
     }
 
     function safeInit() {
+      runStep("initTimeOfDay", initTimeOfDay);
       runStep("bindLanguageSelector", bindLanguageSelector);
       runStep("restoreAccessibility", restoreAccessibility);
       runStep("bindAccessibility", bindAccessibility);
@@ -2929,6 +3137,9 @@
       runStep("bindIntentTracking", bindIntentTracking);
       runStep("injectQuickSettingsPanel", injectQuickSettingsPanel);
       runStep("fetchPlatformStatus", fetchPlatformStatus);
+      runStep("refreshMissionControl", refreshMissionControl);
+      runStep("initAiTeaser", initAiTeaser);
+      setInterval(() => runStep("refreshMissionControl", refreshMissionControl), 20000);
       trackEvent("page_view_home", { initialized: true, version: HARVEY_APP_VERSION });
     }
 

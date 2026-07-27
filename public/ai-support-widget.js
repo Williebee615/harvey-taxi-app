@@ -58,7 +58,6 @@
       if (path.includes("rider-dashboard")) return "rider";
       if (path.includes("driver-signup")) return "driver";
       if (path.includes("driver-dashboard")) return "driver";
-      if (path.includes("request-ride")) return "request";
       if (path.includes("support")) return "support";
       if (path.includes("admin")) return "admin";
       if (path.includes("index") || path === "/" || path.endsWith("/")) return "general";
@@ -201,7 +200,7 @@
 
       const pageSpecific = {
         general: [
-          { label: "Request Ride", action: "link", href: "request-ride.html?mode=driver" },
+          { label: "Request Ride", action: "link", href: "rider-dashboard.html?mode=driver" },
           { label: "Driver Signup", action: "link", href: "driver-signup.html" },
           { label: "Ask About Pilot", action: "message", message: "What is autonomous pilot mode?" }
         ],
@@ -883,6 +882,46 @@
       };
     }
 
+    // Applies the open_ride_workflow action: prefills the ride/food/grocery
+    // request wizard and brings it into view. This only ever navigates and
+    // fills in form fields — it never submits a request or authorizes a
+    // payment on its own; the person still has to review and continue.
+    function handleOpenRideWorkflowAction(action) {
+      try {
+        if (action.service === "htaf") {
+          // HTAF has its own application-and-approval flow, not a ride
+          // wizard mode, so there's nothing to pre-fill there yet.
+          window.location.href = "/htaf-application.html";
+          return;
+        }
+
+        const params = {
+          mode: action.service,
+          ai_destination: action.destination || undefined,
+          ai_pickup: action.pickup || undefined,
+          ai_scheduled_time: action.scheduled_time || undefined
+        };
+
+        // The ride wizard lives inside rider-dashboard.html — if it's
+        // already loaded (we're on that page right now, whether or not
+        // the wizard overlay itself is currently open), open it in place
+        // instead of navigating away and losing the current page state.
+        if (window.HarveyRideWizard && typeof window.HarveyRideWizard.open === "function") {
+          window.HarveyRideWizard.open(params);
+          return;
+        }
+
+        const search = new URLSearchParams();
+        Object.entries(params).forEach(([key, value]) => {
+          if (value) search.set(key, value);
+        });
+
+        window.location.href = "/rider-dashboard.html?" + search.toString();
+      } catch (err) {
+        console.error("Harvey AI widget: failed to apply open_ride_workflow action", err);
+      }
+    }
+
     async function sendMessage(text) {
       const trimmed = String(text || "").trim();
       if (!trimmed || state.isLoading) return;
@@ -924,6 +963,10 @@
           CONFIG.assistantMeta,
           { card: maybeBuildLocalCard(trimmed, reply) }
         );
+
+        if (data && data.action && data.action.type === "open_ride_workflow") {
+          handleOpenRideWorkflowAction(data.action);
+        }
       } catch (error) {
         console.error("Harvey Taxi AI widget error:", error);
 

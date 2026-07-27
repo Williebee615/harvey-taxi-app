@@ -902,7 +902,7 @@
       <nav class="nav">
         <a href="/">Home</a>
         <a href="/driver-signup.html">Driver Sign Up</a>
-        <a href="/request-ride.html">Request Ride</a>
+        <a href="/rider-dashboard.html">Request Ride</a>
         <a href="/admin-dashboard.html">Admin</a>
         <button id="logoutBtn" type="button">Logout</button>
       </nav>
@@ -923,6 +923,7 @@
             <button class="btn btn-primary" id="refreshAllBtn" type="button">Refresh Dashboard</button>
             <button class="btn btn-secondary" id="goAvailableBtn" type="button">Go Available</button>
             <button class="btn btn-secondary" id="goOfflineBtn" type="button">Go Offline</button>
+            <button class="btn btn-secondary" id="enablePushBtn" type="button">🔔 Enable Ride Alerts</button>
           </div>
           <div id="globalMsg" class="msg"></div>
         </div>
@@ -1232,6 +1233,7 @@
       refreshBtn: document.getElementById("refreshAllBtn"),
       goAvailableBtn: document.getElementById("goAvailableBtn"),
       goOfflineBtn: document.getElementById("goOfflineBtn"),
+      enablePushBtn: document.getElementById("enablePushBtn"),
       saveAvailBtn: document.getElementById("saveAvailabilityBtn"),
       
       // Status Snapshot Pills
@@ -1336,6 +1338,7 @@
       
       el.goAvailableBtn.addEventListener("click", () => quickUpdateAvailability("available"));
       el.goOfflineBtn.addEventListener("click", () => quickUpdateAvailability("offline"));
+      el.enablePushBtn?.addEventListener("click", enablePushNotifications);
       el.saveAvailBtn.addEventListener("click", handleSaveAvailabilityForm);
 
       // Workflow Actions Route
@@ -1514,6 +1517,7 @@
       state.ride = null;
       state.delivery = null;
       state.earnings = [];
+      state.earningsTotal = 0;
       state.dashboard = null;
 
       el.snapDriverId.textContent = "Not loaded";
@@ -1777,10 +1781,16 @@
       el.statMode.textContent = state.driver.mode === "autonomous" ? "Autonomous" : "Human Driver";
       el.statService.textContent = state.mission ? state.mission.type.toUpperCase() : "NONE";
 
-      // Calculate Running Totals dynamically from active state array
-      const initialTotal = 348.20;
-      const computedTotal = initialTotal + state.earnings.reduce((acc, curr) => acc + curr.amount, 0);
-      el.statEarnings.textContent = `$${computedTotal.toFixed(2)}`;
+      // state.earningsTotal comes straight from GET /api/driver/:driverId/earnings
+      // (server-side sum of driver_earnings.total_earning) — the real ledger,
+      // not a client-reconstructed running total. There used to be a
+      // hardcoded $348.20 baseline here on top of a reduce() over
+      // state.earnings that assumed a .amount field real driver_earnings
+      // rows don't have (they have total_earning) — harmless only because
+      // the ledger's inserts were silently failing, so state.earnings was
+      // always empty. Now that the ledger actually records rows, that
+      // reduce would have produced NaN.
+      el.statEarnings.textContent = `$${Number(state.earningsTotal || 0).toFixed(2)}`;
 
       // Synchronize Status Snapshot Row Indicators
       updatePillUI(el.snapApproval, "Approved", "pill-green");
@@ -2106,26 +2116,6 @@
         showMessage(el.missionMsg, "Action failed: " + err.message, "err");
       }
     }
-    function finalizeMissionPayout(m) {
-      // Commit mission transaction values directly to session balance ledger
-      const jobReceipt = {
-        id: m.id,
-        type: m.type,
-        amount: m.payout,
-        destination: m.dropoffAddress,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      };
-
-      state.earnings.unshift(jobReceipt);
-      if (state.driver) {
-        state.driver.completedCount++;
-        state.driver.status = "available";
-      }
-
-      state.mission = null;
-      showMessage(el.missionMsg, `Mission successfully closed out! credited +$${jobReceipt.amount.toFixed(2)}`, "ok");
-      appendEarningsItemToDOM(jobReceipt);
-    }
 
     // Persistent Form Modifications Data Binding Layer
     async function handleSaveAvailabilityForm() {
@@ -2166,6 +2156,68 @@
       syncStateToDOM();
       syncLocationTrackingState();
     }
+
+    function urlBase64ToUint8Array(base64String) {
+      const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+      const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+      const rawData = window.atob(base64);
+      const output = new Uint8Array(rawData.length);
+      for (let i = 0; i < rawData.length; i++) {
+        output[i] = rawData.charCodeAt(i);
+      }
+      return output;
+    }
+
+    async function enablePushNotifications() {
+      if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+        showMessage(el.globalMsg, "Push notifications aren't supported in this browser.", "warn");
+        return;
+      }
+
+      if (!state.driverId) {
+        showMessage(el.globalMsg, "Please sign in with your driver ID first.", "warn");
+        return;
+      }
+
+      if (el.enablePushBtn) el.enablePushBtn.disabled = true;
+
+      try {
+        const permission = await Notification.requestPermission();
+        if (permission !== "granted") {
+          showMessage(el.globalMsg, "Notification permission was not granted.", "warn");
+          return;
+        }
+
+        const keyRes = await fetch(`${API_BASE}/api/push/vapid-public-key`);
+        const keyData = await keyRes.json();
+
+        if (!keyData?.key) {
+          showMessage(el.globalMsg, "Push notifications aren't configured on the server yet.", "warn");
+          return;
+        }
+
+        const registration = await navigator.serviceWorker.register("/service-worker.js", {
+          scope: "/"
+        });
+
+        const subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(keyData.key)
+        });
+
+        await apiPost("/api/push/subscribe", {
+          owner_type: "driver",
+          owner_id: state.driverId,
+          subscription: subscription.toJSON()
+        });
+
+        showMessage(el.globalMsg, "Ride alert notifications enabled for this browser.", "ok");
+      } catch (error) {
+        showMessage(el.globalMsg, "Could not enable notifications: " + (error?.message || "unknown error"), "err");
+      } finally {
+        if (el.enablePushBtn) el.enablePushBtn.disabled = false;
+      }
+    }
     // DOM Utilities & Dynamic Output Printers
     function showMessage(targetBox, message, type = "ok") {
       if (!targetBox) return;
@@ -2175,30 +2227,6 @@
       setTimeout(() => {
         targetBox.classList.remove("show");
       }, 5000);
-    }
-
-    function appendEarningsItemToDOM(job) {
-      const emptyState = el.activityList.querySelector(".activity-item h4");
-      if (emptyState && emptyState.textContent.includes("Waiting for driver load")) {
-        el.activityList.innerHTML = "";
-      }
-
-      const div = document.createElement("div");
-      div.className = "activity-item";
-      div.style.borderLeft = "4px solid var(--green)";
-      
-      div.innerHTML = `
-        <div class="activity-content">
-          <h4>${job.type.toUpperCase()} COMPLETION (#${job.id})</h4>
-          <p>${job.destination}</p>
-        </div>
-        <div class="activity-meta">
-          <div class="activity-earn">+$${job.amount.toFixed(2)}</div>
-          <div class="muted" style="font-size:0.8rem;">${job.time}</div>
-        </div>
-      `;
-
-      el.activityList.insertBefore(div, el.activityList.firstChild);
     }
 
     function renderMockActivities(isCleanPlaceholder = false) {
