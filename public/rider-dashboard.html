@@ -4414,6 +4414,9 @@
   <!-- GOOGLE MAPS -->
   </div>
 
+  <!-- Shared rider-request helpers (API base resolution) used by both the
+       wizard IIFE below and the dashboard's own script further down. -->
+  <script src="/harvey-request-shared.js"></script>
 
   <script>
   (function () {
@@ -4427,10 +4430,7 @@
      */
 
     const CONFIG = {
-      API_BASE:
-        window.HARVEY_API_BASE ||
-        window.location.origin ||
-        "https://harveytaxiservice.com",
+      API_BASE: window.resolveHarveyApiBase(),
 
       DASHBOARD_URL: "/rider-dashboard.html",
 
@@ -8438,14 +8438,7 @@
      */
 
     const CONFIG = {
-      API_BASE:
-        window.HARVEY_API_BASE ||
-        (
-          window.location.hostname.includes("onrender.com") ||
-          window.location.hostname.includes("harveytaxiservice")
-        )
-          ? ""
-          : "https://harveytaxiservice.com",
+      API_BASE: window.resolveHarveyApiBase(),
 
       STORAGE_KEYS: {
         riderId: "harvey_rider_id",

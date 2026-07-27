@@ -2901,6 +2901,14 @@ const {
   buildPaymentIntentAttachmentFields,
   ownsPaymentMethod
 } = require("./lib/riderPayments");
+
+// request-ride.html, request-food.html, and request-groceries.html were
+// deleted — see lib/riderRequestRedirects.js for why their old routes
+// still need to redirect to rider-dashboard.html.
+const {
+  LEGACY_RIDER_REQUEST_ROUTES,
+  buildLegacyRedirectTarget
+} = require("./lib/riderRequestRedirects");
 /* =========================================================
 
    PART 3 — HTAF FOUNDATION APPLICATION SYSTEM
@@ -18090,46 +18098,18 @@ app.get(
 
 );
 
-function redirectToDashboard(res, query) {
-  const params = new URLSearchParams(query);
-  const qs = params.toString();
-  return res.redirect(301, `/rider-dashboard.html${qs ? `?${qs}` : ""}`);
-}
-
 // request-ride.html, request-food.html, and request-groceries.html were
 // deleted — the wizard they used to serve now lives entirely inside
 // rider-dashboard.html (#rideWizardOverlay). These routes exist only so
 // old bookmarks, push-notification links, and search-engine results
-// still land somewhere useful instead of 404ing.
-app.get(
-  "/request-ride",
-  (req, res) => redirectToDashboard(res, req.query)
-);
-
-app.get(
-  "/request-ride.html",
-  (req, res) => redirectToDashboard(res, req.query)
-);
-
-app.get(
-  "/request-food",
-  (req, res) => redirectToDashboard(res, { ...req.query, mode: "food" })
-);
-
-app.get(
-  "/request-food.html",
-  (req, res) => redirectToDashboard(res, { ...req.query, mode: "food" })
-);
-
-app.get(
-  "/request-groceries",
-  (req, res) => redirectToDashboard(res, { ...req.query, mode: "grocery" })
-);
-
-app.get(
-  "/request-groceries.html",
-  (req, res) => redirectToDashboard(res, { ...req.query, mode: "grocery" })
-);
+// still land somewhere useful instead of 404ing. Redirect targets are
+// computed by lib/riderRequestRedirects.js so this registration and its
+// regression tests share one source of truth.
+for (const { path: legacyPath, mode } of LEGACY_RIDER_REQUEST_ROUTES) {
+  app.get(legacyPath, (req, res) =>
+    res.redirect(301, buildLegacyRedirectTarget(mode, req.query))
+  );
+}
 
 app.get(
 
