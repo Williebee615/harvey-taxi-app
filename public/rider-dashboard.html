@@ -4414,7 +4414,7 @@
   <!-- GOOGLE MAPS -->
   </div>
 
-
+  <script src="rider-routing.js"></script>
   <script>
   (function () {
     "use strict";
@@ -8895,8 +8895,15 @@
         els.heroTitle.textContent =
           "Finish rider setup to continue.";
 
-        els.heroText.textContent =
-          "Your rider session was not found. Sign up or restore your rider profile before requesting rides or delivery.";
+        // The signup link carries the requested mode through so a signed-out
+        // deep link (e.g. ?mode=food) comes back here in the same mode once
+        // the rider has signed up or restored their profile, instead of
+        // dropping them on the plain dashboard.
+        const requestedMode = getRawQueryParam("mode") || "driver";
+        const signupHref = window.RiderRouting.signupUrlForMode(requestedMode);
+
+        els.heroText.innerHTML =
+          `Your rider session was not found. <a href="${signupHref}">Sign up or restore your rider profile</a> before requesting rides or delivery.`;
 
         renderRider();
         return;
@@ -10061,22 +10068,21 @@
         );
       }
 
-      // Auto-open the merged ride wizard only when arriving with an
-      // existing ride_id — resuming/tracking an active ride from a push
-      // notification or a deep link. A bare `mode` (e.g. from index.html's
-      // service cards or the AI widget) used to auto-open the wizard too,
-      // covering the block on new bookings, but that meant the dashboard
-      // itself was never visible first. Now those links land on the
-      // dashboard, and its own quick-action tiles (data-action="ride"/
-      // "food"/"grocery"/etc.) open the wizard with the intended mode
-      // when tapped.
+      // Auto-open the merged ride wizard when arriving with a mode or
+      // ride_id already in the URL — covers direct links (index.html's
+      // service cards, the AI widget, push notifications), the redirect
+      // straight out of rider-signup.html after a successful signup, and
+      // resuming/tracking an already-active ride. A bare dashboard visit
+      // (no params) never auto-opens it, so returning riders always see
+      // the dashboard first — see RiderRouting.shouldAutoOpenWizard.
       const initialParams = new URLSearchParams(window.location.search);
+      const initialMode = initialParams.get("mode");
       const initialRideId = initialParams.get("ride_id");
 
-      if (initialRideId) {
+      if (window.RiderRouting.shouldAutoOpenWizard({ mode: initialMode, ride_id: initialRideId })) {
         window.HarveyRideWizard.open({
-          mode: initialParams.get("mode") || "driver",
-          ride_id: initialRideId,
+          mode: initialMode || "driver",
+          ride_id: initialRideId || undefined,
           ride_type: initialParams.get("ride_type") || undefined,
           ai_destination: initialParams.get("ai_destination") || undefined
         });

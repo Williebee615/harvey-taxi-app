@@ -632,6 +632,7 @@
      controller script below checks whether Stripe actually initialized
      (a real key came back from /api/stripe-key) before trying to use it. -->
 <script src="https://js.stripe.com/v3/"></script>
+<script src="/rider-routing.js"></script>
 
 <script>
   /* ============================================================
@@ -1365,24 +1366,27 @@
           : "Your rider account was created, but ride access remains approval-gated."}
       `);
 
-      if (rider.approved) {
-        showBox(infoBox, `
-          Approved rider detected.<br><br>
-          Continue to your <a class="next-link" href="/rider-dashboard.html?riderId=${encodeURIComponent(rider.id)}">Rider Dashboard</a>.
-        `);
-      } else {
-        showBox(infoBox, `
-          Rider account created successfully.<br><br>
-          Use <strong>Check Rider Status</strong> to monitor your approval status before requesting rides.
-        `);
-      }
+      const requestedMode = getRequestedMode();
+      const dashboardUrl = window.RiderRouting.postSignupDashboardUrl(requestedMode);
 
-      // Card entry is optional and independent of approval status — a
-      // pending rider can still pre-add a card. No auto-redirect to the
-      // dashboard here anymore (there used to be one for approved riders)
-      // so this card has time to actually be seen and used; "Skip for
-      // Now" and "Continue to Rider Dashboard" both remain available.
-      showPaymentMethodCard(rider.id);
+      showBox(infoBox, `
+        Rider account created successfully.<br><br>
+        Taking you to your <a class="next-link" href="${dashboardUrl}">Rider Dashboard</a>
+        to request a ride now...
+      `);
+
+      // Send every newly signed-up rider straight into the full
+      // ride-request wizard on rider-dashboard.html (preserving the mode
+      // they were originally trying to reach), rather than leaving them on
+      // this page. This replaces the old "no auto-redirect, so the
+      // optional payment card has time to be seen" behavior — the wizard
+      // itself has its own payment-authorization step, so a still-pending
+      // rider isn't stuck without a way to add a card. A short delay keeps
+      // the confirmation above visible for a moment before navigating.
+      trackEvent("rider_signup_redirect_to_dashboard", { approved: rider.approved, mode: requestedMode });
+      window.setTimeout(() => {
+        window.location.href = dashboardUrl;
+      }, 900);
     } catch (error) {
       showBox(errorBox, `
         <strong>Rider signup failed.</strong><br><br>
@@ -1598,6 +1602,16 @@
   /* ------------------------------------- */
   /* NAVIGATION */
   /* ------------------------------------- */
+
+  // The mode this signup was reached for (e.g. rider-dashboard.html
+  // redirected here with ?mode=food because a signed-out rider tried to
+  // order food) — defaults to a standard driver ride so a plain
+  // rider-signup.html visit still lands somewhere sensible after signup.
+  function getRequestedMode() {
+    return window.RiderRouting.resolveRequestedMode({
+      mode: new URLSearchParams(window.location.search).get("mode")
+    });
+  }
 
   function goToDashboard(riderId) {
     const target = riderId ? `/rider-dashboard.html?riderId=${encodeURIComponent(riderId)}` : "/rider-dashboard.html";
