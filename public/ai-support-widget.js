@@ -884,36 +884,40 @@
     }
 
     // Applies the open_ride_workflow action: prefills the ride/food/grocery
-    // request page and jumps there for review. This only ever navigates and
+    // request wizard and brings it into view. This only ever navigates and
     // fills in form fields — it never submits a request or authorizes a
     // payment on its own; the person still has to review and continue.
     function handleOpenRideWorkflowAction(action) {
       try {
-        const isOnRequestRide = /\/request-ride\.html/i.test(window.location.pathname);
-
         if (action.service === "htaf") {
-          // HTAF has its own application-and-approval flow, not a
-          // request-ride.html mode, so there's nothing to pre-fill there yet.
-          if (!isOnRequestRide) {
-            window.location.href = "/htaf-application.html";
-          }
+          // HTAF has its own application-and-approval flow, not a ride
+          // wizard mode, so there's nothing to pre-fill there yet.
+          window.location.href = "/htaf-application.html";
           return;
         }
 
-        if (isOnRequestRide) {
-          window.dispatchEvent(
-            new CustomEvent("harvey:ai-open-workflow", { detail: action })
-          );
+        const params = {
+          mode: action.service,
+          ai_destination: action.destination || undefined,
+          ai_pickup: action.pickup || undefined,
+          ai_scheduled_time: action.scheduled_time || undefined
+        };
+
+        // The ride wizard lives inside rider-dashboard.html — if it's
+        // already loaded (we're on that page right now, whether or not
+        // the wizard overlay itself is currently open), open it in place
+        // instead of navigating away and losing the current page state.
+        if (window.HarveyRideWizard && typeof window.HarveyRideWizard.open === "function") {
+          window.HarveyRideWizard.open(params);
           return;
         }
 
-        const params = new URLSearchParams();
-        params.set("mode", action.service);
-        if (action.destination) params.set("ai_destination", action.destination);
-        if (action.pickup) params.set("ai_pickup", action.pickup);
-        if (action.scheduled_time) params.set("ai_scheduled_time", action.scheduled_time);
+        const search = new URLSearchParams();
+        Object.entries(params).forEach(([key, value]) => {
+          if (value) search.set(key, value);
+        });
 
-        window.location.href = "/request-ride.html?" + params.toString();
+        window.location.href = "/rider-dashboard.html?" + search.toString();
       } catch (err) {
         console.error("Harvey AI widget: failed to apply open_ride_workflow action", err);
       }
