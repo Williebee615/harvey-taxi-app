@@ -140,3 +140,141 @@ available from this environment.
 drift are fixed and confirmed: a real rider signup succeeded end-to-end
 from the live production domain, verified independently against the
 database. This incident is closed.
+
+---
+
+## 2026-07-28 — Ignored driver offers never expire or redispatch
+
+**Found during**: the AI Dispatch Commander audit (see
+`docs/ai-dispatch-commander-architecture.md` §1.2), then isolated and
+fixed as a standalone production-reliability hotfix per explicit
+instruction, ahead of and separate from any dispatch-scoring/surge/
+forecasting work.
+
+### Code defect — RESOLVED
+
+`driver_offers.expires_at` was written on every offer
+(`createDriverOffer()`, `server.js`) but never read again anywhere in
+the codebase. A driver who neither accepted nor declined an offer left
+the ride stuck in `dispatch_status: "offer_sent"` indefinitely — there
+was no automatic recovery, and the rider had no way to know anything
+had gone wrong.
+
+**Fix, all behind one rollback-able flag:**
+
+- `lib/offerExpiry.js` — a new, pure, dependency-injected
+  `sweepExpiredOffers()` orchestrator, same shape as the existing
+  `sweepScheduledRides()` in `lib/rideDispatch.js`: finds pending offers
+  past `expires_at`, atomically claims each one (`UPDATE driver_offers
+  SET status='expired' WHERE id=? AND status='pending'`), and — only for
+  the offer(s) it actually won the claim on — puts the ride back into a
+  redispatchable state and calls the existing `dispatchRide()`,
+  respecting `MAX_DISPATCH_ATTEMPTS` exactly the way decline-triggered
+  redispatch already does (mirrors `server.js`'s existing
+  `/api/driver/offers/:offerId/decline` logic rather than inventing a
+  new redispatch path).
+- **Concurrency safety**: the atomic conditional update
+  (`.eq("status", "pending")`) is the entire mechanism preventing two
+  server instances — or two sweep ticks, or a sweep racing a driver's
+  own accept/decline tap — from redispatching the same ride twice. Only
+  one caller ever sees a non-null claim result; everyone else sees
+  `null` and skips.
+- **Accept and decline routes hardened with the same pattern.** Both
+  previously read an offer, then unconditionally wrote a new status —
+  a TOCTOU race where an offer could be accepted or declined a moment
+  after it had already expired. Both now perform the same atomic
+  conditional update (`.eq("status", "pending")`) and check whether it
+  actually matched a row before proceeding:
+  - **Accept** now fails safely with a specific `409 "This offer has
+    expired."` (or a generic "already responded to" message) instead of
+    silently assigning a ride whose offer had already timed out.
+  - **Decline** now returns a soft `{ declined: false, reason:
+    "already resolved" }` instead of re-running redispatch logic for a
+    ride the expiry sweep (or a duplicate request) already claimed
+    responsibility for — this is what prevents a ride from being
+    offered to two drivers at once via two different code paths.
+- **Feature flag, off by default**: `offer_expiry_sweep_enabled`
+  (`system_flags`, same fail-safe helper already used for
+  `dispatch_paused`/`rider_history_enabled`). The sweep runs every 15
+  seconds but does nothing unless the flag is explicitly turned on —
+  flip it off at any time, with no deploy, if it misbehaves in
+  production. The accept/decline atomic-guard hardening ships
+  unconditionally, since it's a pure correctness fix with no behavior
+  change on the success path.
+
+### Regression tests
+
+`lib/offerExpiry.test.js` — 9 tests against the orchestrator, explicitly
+covering the five scenarios requested: an **ignored** offer past expiry
+gets claimed and redispatches (respecting `MAX_DISPATCH_ATTEMPTS`, which
+has its own dedicated test); an already-**accepted** offer is skipped,
+not touched; an already-**declined** offer is skipped, not touched; two
+**concurrently processed** claims on the same offer result in exactly
+one redispatch, never two; plus edge cases (missing ride, a
+`dispatchRide()` throw being recorded as a failure rather than crashing
+the sweep, a query failure returning an empty result instead of
+throwing, and multiple due offers processed independently in one pass).
+103/103 tests passing repo-wide.
+
+### Launch impact
+
+**Non-blocking, and intentionally not yet live in production** — the
+fix ships behind `offer_expiry_sweep_enabled`, defaulted off, so merging
+this does not change production dispatch behavior until the flag is
+explicitly turned on. Recommend enabling it in a low-traffic window and
+watching `dispatch_status: "redispatching"`/`"max_attempts_reached"`
+rates before broad rollout.
+
+---
+
+## 2026-07-28 — No rider cancellation endpoint exists (scoped, not fixed)
+
+**Found during**: the same dispatch-engine audit. Recorded here as a
+**separate operational defect** per explicit instruction — deliberately
+not bundled with the offer-timeout hotfix above, and not implemented in
+this pass.
+
+### Defect
+
+`RIDE_STATUS.CANCELLED` is defined in `lib/rideDispatch.js` and is
+already referenced by the rider-history "finished rides" filter
+(`server.js`), but **no route in this codebase ever sets a ride to
+`cancelled`** — there is no cancel endpoint of any kind, for riders or
+drivers, today. A rider who wants to back out of a ride currently has no
+supported way to do so through the app.
+
+### Why this matters for dispatch reliability specifically
+
+The AI Dispatch Commander plan's Phase 1 (repositioning recommendations,
+scoring, ETA accuracy) implicitly assumes the system can tell a
+completed ride from one that simply never resolved. Without
+cancellation, a rider who gives up and leaves leaves that ride sitting
+in whatever state it was last in — `awaiting_driver_acceptance`,
+`driver_assigned`, etc. — indistinguishable from a ride still genuinely
+in progress, which would skew any future demand/repositioning signal
+built on ride outcomes.
+
+### Scope (not yet decided or built)
+
+At minimum, a rider-facing cancel endpoint needs to decide, explicitly:
+
+- Which ride states are cancellable (before driver assignment only? up
+  to pickup? never after `in_progress`?).
+- Whether a cancellation fee or partial charge applies once a driver has
+  been dispatched or has arrived, and how that interacts with the
+  existing Stripe payment-intent flow.
+- What happens to a `driver_offers` row and an assigned driver when the
+  ride underneath them is cancelled mid-offer or mid-assignment —
+  notification, and whether it counts against that driver's acceptance
+  stats.
+- Whether HTAF (`foundation`) rides need different cancellation rules
+  given they're tied to an approved application, not a self-service
+  booking.
+
+### Launch impact
+
+**Not blocking Phase 1 of AI Dispatch Commander or the offer-timeout
+hotfix above**, but a real, separate product gap worth prioritizing on
+its own — not as part of dispatch intelligence work. No implementation
+has started; this section exists to record the defect and its open
+questions, not to propose an answer.

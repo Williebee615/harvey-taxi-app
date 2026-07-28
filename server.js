@@ -7562,6 +7562,11 @@ const {
   sweepScheduledRides
 } = require("./lib/rideDispatch");
 
+// Offer-timeout enforcement — see lib/offerExpiry.js. driver_offers.expires_at
+// was previously written on every offer and never read again, so a driver
+// who neither accepted nor declined left the ride stuck indefinitely.
+const { sweepExpiredOffers } = require("./lib/offerExpiry");
+
 /* =========================================================
 
    RIDER READINESS
@@ -8425,6 +8430,107 @@ async function resetScheduledRideForRetry(rideId) {
     .eq("id", rideId);
 
   if (error) throw error;
+}
+
+/* =========================================================
+
+   OFFER-EXPIRY SWEEP — SUPABASE ADAPTERS
+
+   The claim/redispatch/max-attempts orchestration lives in
+   sweepExpiredOffers() (lib/offerExpiry.js), so it's unit-testable
+   without a database. These are the only pieces that talk to Supabase,
+   wired into that orchestrator via the setInterval() call near startup
+   below, gated by the offer_expiry_sweep_enabled system flag so this
+   can be rolled back instantly without a deploy if it misbehaves.
+
+   claimExpiredOffer's conditional .eq("status", "pending") is the whole
+   concurrency-safety mechanism: two server instances (or two sweep
+   ticks) racing on the same expired offer, or a sweep racing against a
+   driver tapping accept/decline at nearly the same moment, can only
+   ever have one caller see a non-null result back. Everyone else sees
+   null and skips — see lib/offerExpiry.js's header comment for the
+   full reasoning.
+
+========================================================= */
+
+async function findExpiredPendingOffers(nowDate) {
+  const { data, error } = await supabase
+    .from("driver_offers")
+    .select("*")
+    .eq("status", "pending")
+    .lt("expires_at", nowDate.toISOString());
+
+  if (error) throw error;
+
+  return data || [];
+}
+
+async function claimExpiredOffer(offerId) {
+  const { data, error } = await supabase
+    .from("driver_offers")
+    .update({
+      status: "expired",
+      responded_at: nowIso(),
+      updated_at: nowIso()
+    })
+    .eq("id", offerId)
+    .eq("status", "pending")
+    .select()
+    .maybeSingle();
+
+  if (error) throw error;
+
+  return data || null;
+}
+
+async function getRideForExpiredOffer(rideId) {
+  const { data } = await supabase
+    .from("rides")
+    .select("*")
+    .eq("id", rideId)
+    .maybeSingle();
+
+  return data || null;
+}
+
+async function markRideRedispatchingForExpiry(rideId, nextAttempt) {
+  await supabase
+    .from("rides")
+    .update({
+      dispatch_attempts: nextAttempt,
+      current_driver_id: null,
+      current_offer_id: null,
+      dispatch_status: "redispatching",
+      updated_at: nowIso()
+    })
+    .eq("id", rideId);
+}
+
+async function markRideMaxAttemptsReachedForExpiry(rideId) {
+  await supabase
+    .from("rides")
+    .update({
+      status: RIDE_STATUS.FAILED,
+      dispatch_status: "max_attempts_reached",
+      updated_at: nowIso()
+    })
+    .eq("id", rideId);
+}
+
+async function runOfferExpirySweep() {
+  const enabled = await getSystemFlag("offer_expiry_sweep_enabled", "false");
+
+  if (enabled !== "true") return;
+
+  await sweepExpiredOffers({
+    findExpiredOffers: findExpiredPendingOffers,
+    claimExpiredOffer,
+    getRide: getRideForExpiredOffer,
+    markRideRedispatching: markRideRedispatchingForExpiry,
+    markRideMaxAttemptsReached: markRideMaxAttemptsReachedForExpiry,
+    dispatchRide,
+    maxAttempts: envNumber("MAX_DISPATCH_ATTEMPTS", 5)
+  });
 }
 
 /* =========================================================
@@ -10718,27 +10824,39 @@ app.post(
 
     }
 
-    await supabase
+    // Atomic conditional update: the .eq("status", "pending") guard means
+    // this only succeeds if the offer was still pending at the moment of
+    // the write. If the offer_expiry_sweep (lib/offerExpiry.js) or a
+    // duplicate request already changed its status in the gap between the
+    // read above and this write, updatedOffer comes back null and this
+    // request fails safely instead of accepting an offer that's already
+    // expired or been resolved elsewhere.
+    const { data: updatedOffer } =
+      await supabase
+        .from("driver_offers")
+        .update({
+          status: "accepted",
+          responded_at: nowIso(),
+          updated_at: nowIso()
+        })
+        .eq("id", offerId)
+        .eq("status", "pending")
+        .select()
+        .maybeSingle();
 
-      .from("driver_offers")
+    if (!updatedOffer) {
+      const wasExpired =
+        offer.expires_at &&
+        new Date(offer.expires_at).getTime() <= Date.now();
 
-      .update({
-
-        status:
-
-          "accepted",
-
-        responded_at:
-
-          nowIso(),
-
-        updated_at:
-
-          nowIso()
-
-      })
-
-      .eq("id", offerId);
+      return fail(
+        res,
+        wasExpired
+          ? "This offer has expired."
+          : "This offer is no longer available. It may have already been responded to.",
+        409
+      );
+    }
 
     const acceptingDriver = await getDriverOrFail(offer.driver_id);
 
@@ -10912,31 +11030,34 @@ app.post(
 
     }
 
-    await supabase
+    // Atomic conditional update — same pattern and reasoning as the accept
+    // route above. If the offer_expiry_sweep already claimed this offer as
+    // expired (or a duplicate decline request beat this one to it) in the
+    // gap between the read above and this write, updatedOffer comes back
+    // null. That means whoever DID win the claim is already responsible
+    // for redispatching this ride, so this request must not also
+    // redispatch it — doing so would offer the ride to two drivers at
+    // once from two different code paths.
+    const { data: updatedOffer } =
+      await supabase
+        .from("driver_offers")
+        .update({
+          status: "declined",
+          decline_reason: reason,
+          responded_at: nowIso(),
+          updated_at: nowIso()
+        })
+        .eq("id", offerId)
+        .eq("status", "pending")
+        .select()
+        .maybeSingle();
 
-      .from("driver_offers")
-
-      .update({
-
-        status:
-
-          "declined",
-
-        decline_reason:
-
-          reason,
-
-        responded_at:
-
-          nowIso(),
-
-        updated_at:
-
-          nowIso()
-
-      })
-
-      .eq("id", offerId);
+    if (!updatedOffer) {
+      return ok(res, {
+        declined: false,
+        reason: "This offer was already resolved (expired or already responded to)."
+      });
+    }
 
     auditLog({
 
@@ -18746,6 +18867,14 @@ async function startServer() {
 
       runScheduledSweep();
       setInterval(runScheduledSweep, 60_000);
+
+      // Enforces driver_offers.expires_at (see lib/offerExpiry.js) — off by
+      // default via the offer_expiry_sweep_enabled system flag so this can
+      // be rolled back instantly without a deploy. Checked every 15s, well
+      // under the default 30s offer window, so an ignored offer is caught
+      // and redispatched promptly.
+      runOfferExpirySweep();
+      setInterval(runOfferExpirySweep, 15_000);
 
     }
 
