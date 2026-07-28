@@ -46,68 +46,73 @@ Regression test: `lib/corsOrigins.test.js` (11 tests), including one
 specifically for `APP_BASE_URL` resolving to Render's own URL — the
 exact condition later confirmed in production boot logs below.
 
-### Configuration drift — OPEN
+### Configuration drift — RESOLVED 2026-07-28, one pending confirmation
 
-Render's boot log for this service shows:
+Render's boot log at the time this was first reported showed:
 
 ```
 🏠 App URL: https://harvey-taxi-app-2.onrender.com
 ==> Available at your primary URL https://harveytransportationfoundation.com + 4 more domains
 ```
 
-`APP_BASE_URL` is resolving to Render's auto-assigned URL, not
-`https://harveytaxiservice.com`, and Render considers the *foundation*
-domain — not the taxi domain — this service's primary URL. Root cause:
-`server.js`'s resolution order is
-`PUBLIC_APP_URL → APP_BASE_URL → RENDER_EXTERNAL_URL → localhost`, and
-neither `PUBLIC_APP_URL` nor `APP_BASE_URL` is set in Render's
-environment configuration for this service, so it falls through to
-Render's own URL.
+`APP_BASE_URL` was resolving to Render's auto-assigned URL, not
+`https://harveytaxiservice.com`. Root cause: `server.js`'s resolution
+order is `PUBLIC_APP_URL → APP_BASE_URL → RENDER_EXTERNAL_URL →
+localhost`, and neither `PUBLIC_APP_URL` nor `APP_BASE_URL` was set in
+Render's environment configuration for this service.
 
-**Required action** (Render dashboard — no tool in this environment has
-access to Render's control plane, so this cannot be set by the agent):
+**Action taken**: `PUBLIC_APP_URL=https://harveytaxiservice.com` was set
+in Render's environment and the service redeployed. The fresh boot log
+confirms it took effect:
 
-1. Render dashboard → harvey-taxi-app service → Environment.
-2. Add `PUBLIC_APP_URL=https://harveytaxiservice.com`.
-3. Save; let Render redeploy (or trigger a manual deploy).
+```
+🏠 App URL: https://harveytaxiservice.com
+```
 
-This matters independently of the CORS fix: `APP_BASE_URL` is very
-likely read elsewhere in the app beyond the origin allowlist (redirects,
-generated links, any callback/webhook URLs built from it) — anything
-keying off it is silently inheriting the wrong domain until this is
-corrected. PR #59 makes the CORS check resilient to this drift; it does
-not eliminate the drift itself.
+Separate, non-blocking note: Render's deploy output still reports
+`Available at your primary URL https://harveytransportationfoundation.com`.
+This is a distinct Render dashboard setting (which custom domain Render
+considers "primary" for that service) — unrelated to `PUBLIC_APP_URL`/
+`APP_BASE_URL` or to the CORS fix. Cosmetic; does not affect
+`isAllowedOrigin()`, redirects, or anything read from `APP_BASE_URL` in
+the app itself. Left open only as an optional cleanup item, not tracked
+as part of this incident's launch impact.
 
-**Verification checklist** (run after `PUBLIC_APP_URL` is set and the
-service redeploys):
+**Verification checklist**:
 
-- [ ] Render boot log shows `🏠 App URL: https://harveytaxiservice.com`
-- [ ] `APP_BASE_URL` resolves to `https://harveytaxiservice.com`
-- [ ] Request from `https://harveytaxiservice.com` — accepted
-- [ ] Request from `https://www.harveytaxiservice.com` — accepted
-- [ ] Request from the foundation domain — accepted
-- [ ] Request from the foundation domain's `www.` variant — accepted
-- [ ] Request from an unrelated/unknown origin — still blocked
-- [ ] Rider signup succeeds end-to-end from the live production domain
+- [x] Render boot log shows `🏠 App URL: https://harveytaxiservice.com` — confirmed 2026-07-28
+- [x] `APP_BASE_URL` resolves to `https://harveytaxiservice.com` — confirmed via the boot log above
+- [ ] Request from `https://harveytaxiservice.com` — accepted (pending a real signup attempt)
+- [ ] Request from `https://www.harveytaxiservice.com` — accepted (pending)
+- [ ] Request from the foundation domain — accepted (pending)
+- [ ] Request from the foundation domain's `www.` variant — accepted (pending)
+- [ ] Request from an unrelated/unknown origin — still blocked (pending)
+- [ ] Rider signup succeeds end-to-end from the live production domain (pending)
+
+Checked Supabase's `api` logs after the redeploy: no `POST
+/rest/v1/riders` yet, only routine `GET /rest/v1/riders?select=*&limit=1`
+health-check-style queries and unrelated ride/audit-log traffic. This is
+neutral, not a defect signal — nobody has attempted a rider signup since
+the redeploy, so there's no request yet to confirm against. The
+remaining checklist items close as soon as a real signup is attempted
+and either succeeds (expected) or surfaces something to investigate.
 
 **What this agent can / cannot verify directly**: no Render API or
-dashboard access in this environment — cannot set `PUBLIC_APP_URL` or
-pull a fresh boot log independently. This environment's own network
-policy also blocks outbound requests to `harveytaxiservice.com`, so the
-live-domain checks above cannot be run from here either. Supabase log
-and schema access *is* available, so once a real signup is attempted
-after the fix, a successful `POST /rest/v1/riders` in Supabase's `api`
-logs can serve as independent, corroborating evidence alongside
-whatever's observed directly against the live site.
+dashboard access in this environment — the `PUBLIC_APP_URL` change and
+the fresh boot log above were both supplied by the user, not pulled
+independently. This environment's own network policy also blocks
+outbound requests to `harveytaxiservice.com`, so the live-domain checks
+above cannot be run from here. Supabase log and schema access *is*
+available and was used to confirm no request has reached the database
+yet; the same check can confirm a successful insert once a real signup
+is attempted.
 
 ### Launch impact
 
-**Conditional / non-blocking**, contingent on the verification checklist
-above passing. PR #59 already covers the fallback case even before
-`PUBLIC_APP_URL` is corrected, so the code defect does not block launch
-on its own. If post-fix smoke testing confirms rider signup and
-authenticated requests succeed from the live production domain, this
-incident does not block launch — only the `PUBLIC_APP_URL` environment
-cleanup remains open, tracked here until closed. If verification surfaces
-a remaining defect, escalate before launch rather than closing this
-entry.
+**Non-blocking.** Both the code defect and the configuration drift are
+now addressed. The only remaining item is confirming a real end-to-end
+signup succeeds from the live domain, which is expected to pass given
+the boot log confirmation above — this entry stays open only until that
+confirmation lands, not because of any known outstanding defect. If a
+real signup attempt surfaces something unexpected, escalate immediately
+rather than treating this as closed.
