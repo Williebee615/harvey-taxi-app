@@ -650,20 +650,18 @@ const ALLOWED_ORIGINS = env("ALLOWED_ORIGINS", "")
 
   .filter(Boolean);
 
+// CORS origin allow-list — see lib/corsOrigins.js for why this platform's
+// multiple public domains need more than a single exact-match origin.
+const { isAllowedOrigin: isAllowedOriginPure } = require("./lib/corsOrigins");
+
 function isAllowedOrigin(origin) {
-
-  if (!origin) return true;
-
-  if (!IS_PRODUCTION) return true;
-
-  if (ALLOWED_ORIGINS.length === 0) {
-
-    return origin === APP_BASE_URL;
-
-  }
-
-  return ALLOWED_ORIGINS.includes(origin);
-
+  return isAllowedOriginPure(origin, {
+    isProduction: IS_PRODUCTION,
+    configuredOrigins: ALLOWED_ORIGINS,
+    appBaseUrl: APP_BASE_URL,
+    canonicalHost: CANONICAL_HOST,
+    foundationHost: FOUNDATION_HOST
+  });
 }
 
 app.use((req, res, next) => {
