@@ -9,10 +9,15 @@ closed together just because the code is fixed.
 
 ---
 
-## 2026-07-28 — Rider signup 500 ("Internal server error.")
+## 2026-07-28 — Rider signup 500 ("Internal server error.") — CLOSED
 
 **Reported**: Rider onboarding failing with "Rider signup failed.
 Internal server error." on `POST /api/riders/signup`.
+
+**Status**: Resolved and confirmed in production. Code defect fixed
+(PR #59), configuration drift fixed (`PUBLIC_APP_URL` set in Render),
+and a real end-to-end rider signup succeeded on the live domain,
+independently verified against the database.
 
 ### Code defect — RESOLVED (PR #59, merged to `main` as `b5a60ec`)
 
@@ -82,37 +87,56 @@ as part of this incident's launch impact.
 
 - [x] Render boot log shows `🏠 App URL: https://harveytaxiservice.com` — confirmed 2026-07-28
 - [x] `APP_BASE_URL` resolves to `https://harveytaxiservice.com` — confirmed via the boot log above
-- [ ] Request from `https://harveytaxiservice.com` — accepted (pending a real signup attempt)
-- [ ] Request from `https://www.harveytaxiservice.com` — accepted (pending)
-- [ ] Request from the foundation domain — accepted (pending)
-- [ ] Request from the foundation domain's `www.` variant — accepted (pending)
-- [ ] Request from an unrelated/unknown origin — still blocked (pending)
-- [ ] Rider signup succeeds end-to-end from the live production domain (pending)
+- [x] Request from `https://harveytaxiservice.com` — accepted — confirmed 2026-07-28 by a real rider signup completed on that exact domain (see evidence below)
+- [ ] Request from `https://www.harveytaxiservice.com` — accepted (not independently attempted; covered by `lib/corsOrigins.test.js`)
+- [ ] Request from the foundation domain — accepted (not independently attempted; covered by `lib/corsOrigins.test.js`)
+- [ ] Request from the foundation domain's `www.` variant — accepted (not independently attempted; covered by `lib/corsOrigins.test.js`)
+- [ ] Request from an unrelated/unknown origin — still blocked (not independently attempted; covered by `lib/corsOrigins.test.js`)
+- [x] Rider signup succeeds end-to-end from the live production domain — **CONFIRMED 2026-07-28**
 
-Checked Supabase's `api` logs after the redeploy: no `POST
-/rest/v1/riders` yet, only routine `GET /rest/v1/riders?select=*&limit=1`
-health-check-style queries and unrelated ride/audit-log traffic. This is
-neutral, not a defect signal — nobody has attempted a rider signup since
-the redeploy, so there's no request yet to confirm against. The
-remaining checklist items close as soon as a real signup is attempted
-and either succeeds (expected) or surfaces something to investigate.
+**Evidence**: a real rider signed up from `harveytaxiservice.com` and the
+app returned "Rider account created successfully" with
+`Rider ID: RIDER-7DCDBAA6E2`, `Status: Pending`,
+`Verification Type: Driver License` (screenshots on file). Independently
+verified against the live database:
+
+```sql
+select id, first_name, last_name, email, phone, city, state, status, approval_status, created_at
+from riders where id = 'RIDER-7DCDBAA6E2';
+-- {"id":"RIDER-7DCDBAA6E2", ..., "status":"pending_verification",
+--   "approval_status":"pending", "created_at":"2026-07-28 15:23:46.606+00"}
+```
+
+The row exists, matches the screenshot exactly, and the account is
+correctly `pending_verification` / `pending` per the approval-gate
+design (`ENABLE_RIDER_APPROVAL_GATE`) — not auto-approved, as intended.
+
+The remaining four checklist items (www variant, foundation domain and
+its www variant, unrelated-origin rejection) were not independently
+attempted against the live site, but are locked in by the 11 tests in
+`lib/corsOrigins.test.js` added in PR #59, so they are not treated as
+open risk — just not separately smoke-tested against production traffic.
+
+**Non-incident note**: the same screenshots show "Unable to load the
+card payment form. You can add a card later." during the optional
+add-payment-method step. This is expected, not a defect — the Render
+boot log shows `💳 Stripe: OFF` for this service, so the card form
+correctly cannot load while Stripe is disabled. Not tracked as part of
+this incident.
 
 **What this agent can / cannot verify directly**: no Render API or
 dashboard access in this environment — the `PUBLIC_APP_URL` change and
-the fresh boot log above were both supplied by the user, not pulled
-independently. This environment's own network policy also blocks
-outbound requests to `harveytaxiservice.com`, so the live-domain checks
-above cannot be run from here. Supabase log and schema access *is*
-available and was used to confirm no request has reached the database
-yet; the same check can confirm a successful insert once a real signup
-is attempted.
+the boot logs were supplied by the user, not pulled independently. This
+environment's own network policy also blocks outbound requests to
+`harveytaxiservice.com`, so no check in this incident was run by
+directly hitting the live site from here — the rider-signup confirmation
+above was verified by cross-referencing the user's screenshot against an
+independent Supabase database query, which is the strongest evidence
+available from this environment.
 
 ### Launch impact
 
-**Non-blocking.** Both the code defect and the configuration drift are
-now addressed. The only remaining item is confirming a real end-to-end
-signup succeeds from the live domain, which is expected to pass given
-the boot log confirmation above — this entry stays open only until that
-confirmation lands, not because of any known outstanding defect. If a
-real signup attempt surfaces something unexpected, escalate immediately
-rather than treating this as closed.
+**RESOLVED, non-blocking.** Both the code defect and the configuration
+drift are fixed and confirmed: a real rider signup succeeded end-to-end
+from the live production domain, verified independently against the
+database. This incident is closed.
