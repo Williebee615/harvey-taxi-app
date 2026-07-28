@@ -5884,7 +5884,20 @@
       const storedName = readStorage(CONFIG.STORAGE_KEYS.riderName);
       const storedPhone = readStorage(CONFIG.STORAGE_KEYS.riderPhone);
       const storedEmail = readStorage(CONFIG.STORAGE_KEYS.riderEmail);
-      const storedRiderId = readStorage(CONFIG.STORAGE_KEYS.riderId);
+      // rider-signup.html saves the new rider's ID under "harveyRiderId"
+      // (plus "riderId"/"rider_id" aliases), not CONFIG.STORAGE_KEYS.riderId
+      // ("harvey_rider_id") — so a rider who just signed up and opens this
+      // wizard without a ?riderId= link falls through every alias here
+      // instead of the single key this used to check alone, which was
+      // producing "No rider ID found" for a rider who had, in fact, just
+      // signed up.
+      const storedRiderId =
+        getRawQueryParam("riderId") ||
+        getRawQueryParam("rider_id") ||
+        readStorage(CONFIG.STORAGE_KEYS.riderId) ||
+        readStorage("riderId") ||
+        readStorage("rider_id") ||
+        readStorage("harveyRiderId");
       const storedRideId = readStorage(CONFIG.STORAGE_KEYS.lastRideId);
 
       if (els.riderName && storedName) {
