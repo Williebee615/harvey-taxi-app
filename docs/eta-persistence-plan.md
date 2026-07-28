@@ -37,20 +37,31 @@ based on an actual road route.
 
 ## 2. What "done" means
 
-Two distinct, sequenced improvements — not one:
+Two distinct, sequenced improvements, **independently controllable —
+revised per explicit instruction not to share one switch:**
 
-1. **Persistence** (must ship first): write real ETA/distance values to
-   the existing columns, at the moments they're actually known, instead
-   of computing them fresh on every poll and throwing the result away.
-2. **Accuracy** (approved with conditions): replace the straight-line
-   Haversine approximation with a real routing API for the persisted
-   values, since a straight line under-estimates real driving distance/
-   time, sometimes substantially in a city with a river, highways, or a
-   one-way grid.
+1. **Persistence** (`dispatch_eta_persistence_enabled`): write ETA/
+   distance values to the existing columns, at the moments they're
+   actually known, using the existing free Haversine + assumed-speed
+   calculation. This is a pure correctness improvement with no external
+   dependency and no cost — it can ship and be validated in production
+   entirely on its own.
+2. **Accuracy** (`dispatch_route_api_enabled`): once persistence is
+   validated, separately enable a real routing API as the *source* of
+   those same values instead of Haversine, for closer-to-real
+   distance/time in a city with a river, highways, or a one-way grid.
 
-Both ship behind one flag; accuracy is not gated separately, since a
-Haversine-only "persistence" step alone would just be persisting a
-number that's already known to be wrong.
+**Why two flags, not one:** ETA persistence is a low-risk, no-dependency
+correctness fix — it should be shippable and provable on its own,
+without taking on Google API cost or availability risk just to prove
+the write-path works. Enabling `dispatch_route_api_enabled` requires
+`dispatch_eta_persistence_enabled` to already be on (the routing API
+only ever supplies a *value* for the same write path; it never runs
+independently) but the reverse is not true — persistence works
+correctly, permanently, with the routing flag left off. Quotas,
+billing limits, caching, and fallback behavior (§4) are verified before
+`dispatch_route_api_enabled` is ever turned on, entirely separately
+from the persistence rollout.
 
 ---
 
@@ -84,10 +95,15 @@ flow), so no new vendor relationship, just a new server-side call.
 
 **Cost controls, all required per your approval:**
 
-- **Feature flag**: `dispatch_route_api_enabled` (`system_flags`,
-  default `false`). Off means every ETA/distance write uses the existing
-  free Haversine + assumed-speed calculation — the persistence work in
-  §3 does not depend on this flag being on.
+- **Independent feature flags** (revised): `dispatch_eta_persistence_enabled`
+  gates whether ETA/distance get written at all (default `false` until
+  validated, then intended to stay on permanently using Haversine).
+  `dispatch_route_api_enabled` separately gates whether the routing API
+  supplies the value instead of Haversine (default `false`, only ever
+  meaningful once persistence is already on). Turning the routing flag
+  off — independent of persistence — reverts every future write to the
+  free Haversine calculation immediately, with zero effect on whether
+  ETAs get persisted at all.
 - **Caching**: the 5-second location-update throttle already in
   `POST /api/driver/location` means a routing call can never happen more
   than once per 5 seconds per driver, for free. On top of that, skip the
@@ -102,14 +118,14 @@ flow), so no new vendor relationship, just a new server-side call.
      directly in the Google Cloud console for this API — the source of
      truth, outside this app's control, so a bug in our own counting
      logic can never cause unbounded spend.
-  2. *App-side circuit breaker*: a lightweight daily/monthly call
-     counter (a single row in `system_flags` or a tiny dedicated table,
-     incremented per successful call) checked before each routing call.
-     Once a configured threshold is hit, the app proactively falls back
-     to Haversine for the rest of the period — this is what turns "the
-     provider rejects the call" (an error, mid-dispatch, at the worst
-     possible moment) into "the app quietly degrades to the free
-     approximation" (no user-facing failure at all).
+  2. *App-side circuit breaker*: a concurrency-safe call counter (design
+     in §5.1 — **not** a plain `system_flags` read-then-write, which is
+     not atomic and would undercount under concurrent requests) checked
+     after each routing call. Once a configured threshold is hit, the
+     app proactively falls back to Haversine for the rest of the period
+     — this is what turns "the provider rejects the call" (an error,
+     mid-dispatch, at the worst possible moment) into "the app quietly
+     degrades to the free approximation" (no user-facing failure at all).
 - **Fallback, always**: any routing-API error (timeout, quota
   exhausted, malformed response) falls back to the existing Haversine +
   assumed-speed calculation for that single write — an ETA is always
@@ -128,21 +144,78 @@ flow), so no new vendor relationship, just a new server-side call.
 **No new columns or tables required for basic persistence** — both
 target columns already exist in production, confirmed above.
 
-**Two small, optional additions, both purely additive:**
+**Two small, additive schema items:**
 
-1. `system_flags` row: `dispatch_route_api_enabled` (`value: 'false'`
-   by default) — no schema change, just a new row in an existing table,
-   same as every other flag in this codebase.
-2. A small usage-counter mechanism for the app-side circuit breaker in
-   §4. Simplest option: reuse `system_flags` itself — a row like
-   `route_api_calls_this_month` with `value` as a numeric string,
-   reset by a scheduled job or checked-and-rolled-over on read. This
-   avoids a new table entirely. If finer-grained data (per-day
-   breakdown, error rate over time) turns out to be wanted later, a
-   dedicated small table is a natural follow-up — not proposed here
-   since it isn't needed for the basic circuit-breaker behavior.
+1. Two `system_flags` rows: `dispatch_eta_persistence_enabled` and
+   `dispatch_route_api_enabled` (both `value: 'false'` by default) — no
+   schema change, just two new rows in an existing table, same as every
+   other flag in this codebase.
+2. A dedicated `usage_counters` table for the routing-API circuit
+   breaker — **not** a `system_flags` row, per §5.1 below.
 
-**No index proposed.** Both target columns are only ever written
+### 5.1 Concurrency-safe usage counter (revised — plain `system_flags` reuse rejected)
+
+The original draft of this plan proposed reusing a `system_flags` row
+as a call counter, read-then-incremented from the app. **That's wrong
+and has been dropped**: a plain read-then-write from application code
+is not atomic. Two concurrent routing-API calls can both read the same
+count, both compute `count + 1` in the app, and both write the same
+incremented value back — one increment is silently lost. For a
+cost-control mechanism specifically, undercounting is the one failure
+mode that defeats the entire point: usage could exceed the intended cap
+while the counter still shows it under.
+
+**Recommended design**: a small dedicated table, incremented via a
+single atomic SQL statement (Postgres's row-level locking makes
+`INSERT ... ON CONFLICT DO UPDATE SET count = count + 1` safe under
+concurrency in a way a client-side read-then-write can never be — this
+is the same class of guarantee `dispatch_ride_atomic` already relies on
+elsewhere in this codebase):
+
+```sql
+create table if not exists usage_counters (
+  key text primary key,
+  count bigint not null default 0,
+  updated_at timestamptz not null default now()
+);
+
+create or replace function increment_usage_counter(p_key text)
+returns bigint
+language sql
+as $$
+  insert into usage_counters (key, count, updated_at)
+  values (p_key, 1, now())
+  on conflict (key) do update
+    set count = usage_counters.count + 1,
+        updated_at = now()
+  returning count;
+$$;
+```
+
+Called from the app as `supabase.rpc('increment_usage_counter', { p_key })`
+— one round trip, atomic, no read-then-write race possible. Keying by a
+year-month string (e.g. `route_api_calls_2026-07`) gives monthly
+rollover for free: a new month is simply a new key, no separate reset
+job or cron needed.
+
+**Check-after-increment, not check-then-increment**: the app increments
+first, then compares the returned count to the configured cap. This
+means the single call that crosses the cap still goes through once (a
+1-call overshoot, not a hard stop mid-request), and every call after
+that correctly sees "over cap" and falls back to Haversine. This
+tolerance is intentional — the provider-side billing budget (§4) is the
+real hard backstop, so the app-side breaker only needs to be a reliable
+*soft* limit, not a perfectly race-free hard gate. **Fail-closed on
+counter error**: if the `increment_usage_counter` call itself fails for
+any reason (network blip, etc.), treat that as "assume over cap" and
+fall back to Haversine for that request — a missed accurate ETA is
+always preferable to an uncontrolled-cost failure mode.
+
+**No index proposed** beyond the table's own primary key (`key`) —
+lookups are always by exact key, no range scans or aggregation across
+rows.
+
+Separately, both target columns from §1 are only ever written
 per-row (by `id`, already the primary key) and read as part of a
 `SELECT *`/specific-row fetch, not filtered or aggregated on at scale
 today. If a future need arises to query/aggregate across many rows by
@@ -153,25 +226,31 @@ straightforward follow-up index proposal once the columns are actually
 populated and that use case is real — proposing it speculatively now
 would be premature.
 
-**Rollback plan**: turning `dispatch_route_api_enabled` off reverts
-every future write to the free Haversine calculation immediately, no
-deploy needed. If the persistence work itself needs to be rolled back
-entirely (not just the routing-API accuracy piece), the columns simply
-stop being written — they're nullable with no default, so leaving them
-unwritten again is a fully safe, zero-migration rollback. No destructive
-schema change is proposed at any point in this plan, so there is
-nothing to reverse at the database level either way.
+**Rollback plan**: the two flags roll back independently. Turning
+`dispatch_route_api_enabled` off alone reverts every future write to
+the free Haversine calculation immediately, with persistence itself
+uninterrupted. Turning `dispatch_eta_persistence_enabled` off stops
+writing to the two columns entirely — they're nullable with no default,
+so leaving them unwritten again is a fully safe, zero-migration
+rollback for the whole feature. No destructive schema change is
+proposed at any point in this plan (the `usage_counters` table and its
+one RPC function are additive and can simply go unused if rolled back),
+so there is nothing to reverse at the database level either way.
 
-**RLS impact**: none. This plan writes to existing columns via the
-existing service-role Supabase client already used for every other
-write in `server.js` — no new table, no new row-level security policy
-surface.
+**RLS impact**: none. This plan writes to existing columns and one new
+table via the existing service-role Supabase client already used for
+every other write in `server.js` — `usage_counters` is written only by
+the `increment_usage_counter` RPC, called server-side with the same
+service-role credentials as everything else, no new row-level security
+policy surface, no client-facing access to it at all.
 
 **Storage/query impact**: negligible. Two `numeric` columns per ride
 row, already provisioned; write frequency matches the existing
 location-ping cadence (already happening, already rate-limited) — this
 adds two field writes to an update that's already occurring, not a new
-write pattern.
+write pattern. `usage_counters` stays at one row per month for the
+lifetime of this feature — trivial storage, and lookups are always a
+single primary-key hit.
 
 ---
 
@@ -179,11 +258,12 @@ write pattern.
 
 | Item | Work | Estimate |
 |---|---|---|
-| Persistence (Haversine-based, flag off) | Write ETA/distance at offer creation and on each location ping | 1–2 days |
-| Routing API integration | Provider call, movement-threshold caching, fallback-on-error | 3–4 days |
-| Cost controls | App-side circuit breaker counter + provider-side budget setup (the latter is a console configuration step, not code) | 1–2 days |
+| Persistence (`dispatch_eta_persistence_enabled`, Haversine-based) | Write ETA/distance at offer creation and on each location ping | 1–2 days |
+| `usage_counters` table + `increment_usage_counter` RPC | Migration + one small SQL function (§5.1) | <1 day |
+| Routing API integration (`dispatch_route_api_enabled`) | Provider call, movement-threshold caching, fallback-on-error | 3–4 days |
+| Cost controls | Wire the atomic counter into the routing-call path + provider-side budget setup (the latter is a console configuration step, not code) | 1 day |
 | Monitoring | Audit-log entries + a small addition to the admin overview dashboard | 1 day |
-| **Total** | | **~1–1.5 weeks** |
+| **Total** | | **~1–1.5 weeks** (persistence alone: ~2–3 days and independently shippable) |
 
 ---
 
