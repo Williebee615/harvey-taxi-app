@@ -7565,7 +7565,7 @@ const {
 // Offer-timeout enforcement — see lib/offerExpiry.js. driver_offers.expires_at
 // was previously written on every offer and never read again, so a driver
 // who neither accepted nor declined left the ride stuck indefinitely.
-const { sweepExpiredOffers } = require("./lib/offerExpiry");
+const { sweepExpiredOffers, sweepStuckRedispatches } = require("./lib/offerExpiry");
 
 /* =========================================================
 
@@ -8501,6 +8501,12 @@ async function markRideRedispatchingForExpiry(rideId, nextAttempt) {
       current_driver_id: null,
       current_offer_id: null,
       dispatch_status: "redispatching",
+      // Stamped here so sweepStuckRedispatches() below can tell how long
+      // this ride has been sitting in "redispatching" — if dispatchRide()
+      // never completes (throws, or the process dies mid-call), this
+      // timestamp is what lets a later sweep recognize the claim as
+      // abandoned and retry it, instead of the ride staying stuck forever.
+      dispatch_claimed_at: nowIso(),
       updated_at: nowIso()
     })
     .eq("id", rideId);
@@ -8530,6 +8536,63 @@ async function runOfferExpirySweep() {
     markRideMaxAttemptsReached: markRideMaxAttemptsReachedForExpiry,
     dispatchRide,
     maxAttempts: envNumber("MAX_DISPATCH_ATTEMPTS", 5)
+  });
+}
+
+/* =========================================================
+
+   STUCK-REDISPATCH RECOVERY — SUPABASE ADAPTERS
+
+   Protects both the offer-expiry sweep above AND the pre-existing
+   decline-triggered redispatch (POST /api/driver/offers/:offerId/decline)
+   from leaving a ride stranded in dispatch_status "redispatching" if
+   dispatchRide() ever throws or the process dies before it finishes —
+   see sweepStuckRedispatches() in lib/offerExpiry.js for the full
+   reasoning. Deliberately NOT gated behind offer_expiry_sweep_enabled:
+   the decline path's exposure is existing, always-on production
+   behavior independent of that flag, so this safety net runs
+   unconditionally, same as the accept/decline atomic-guard hardening.
+
+========================================================= */
+
+const STUCK_REDISPATCH_LEASE_MS = 90 * 1000;
+
+async function findStuckRedispatchingRides(cutoffDate) {
+  const { data, error } = await supabase
+    .from("rides")
+    .select("*")
+    .eq("dispatch_status", "redispatching")
+    .lt("dispatch_claimed_at", cutoffDate.toISOString());
+
+  if (error) throw error;
+
+  return data || [];
+}
+
+async function claimStuckRedispatchingRide(rideId, cutoffDate) {
+  const { data, error } = await supabase
+    .from("rides")
+    .update({
+      dispatch_claimed_at: nowIso(),
+      updated_at: nowIso()
+    })
+    .eq("id", rideId)
+    .eq("dispatch_status", "redispatching")
+    .lt("dispatch_claimed_at", cutoffDate.toISOString())
+    .select()
+    .maybeSingle();
+
+  if (error) throw error;
+
+  return data || null;
+}
+
+async function runStuckRedispatchRecovery() {
+  await sweepStuckRedispatches({
+    findStuckRides: findStuckRedispatchingRides,
+    claimStuckRide: claimStuckRedispatchingRide,
+    dispatchRide,
+    leaseMs: STUCK_REDISPATCH_LEASE_MS
   });
 }
 
@@ -11152,6 +11215,14 @@ app.post(
               dispatch_status:
 
                 "redispatching",
+
+              // Stamped so runStuckRedispatchRecovery() (server.js, near
+              // startup) can recover this ride if the dispatchRide() call
+              // below throws or the process dies before it finishes —
+              // see lib/offerExpiry.js's sweepStuckRedispatches().
+              dispatch_claimed_at:
+
+                nowIso(),
 
               updated_at:
 
@@ -18875,6 +18946,14 @@ async function startServer() {
       // and redispatched promptly.
       runOfferExpirySweep();
       setInterval(runOfferExpirySweep, 15_000);
+
+      // Recovers a ride stuck in dispatch_status "redispatching" if
+      // dispatchRide() never completed (see lib/offerExpiry.js). Always
+      // on, not flag-gated — protects the pre-existing decline-triggered
+      // redispatch path too, which has the same exposure independent of
+      // offer_expiry_sweep_enabled.
+      runStuckRedispatchRecovery();
+      setInterval(runStuckRedispatchRecovery, 30_000);
 
     }
 
