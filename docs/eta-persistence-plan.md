@@ -1,7 +1,10 @@
 # ETA Persistence — Implementation Plan & Migration Proposal
 
-Status: **proposal — planning only, no code written yet**
-Authorized scope: this document only. Per instruction, no live scoring,
+Status: **implemented, not yet enabled** — code and migration are merged;
+`dispatch_eta_persistence_enabled` and `dispatch_route_api_enabled` are both
+still `false` in production (no `system_flags` row exists for either, so
+`getSystemFlag()`'s fallback applies). See §8 for what shipped and §9 for
+the deployment/rollout checklist. Per instruction, no live scoring,
 repositioning, surge, forecasting, fraud models, autonomous dispatch, or
 cancellation endpoint work is included or implied here.
 
@@ -274,4 +277,245 @@ forecasting, no fraud detection, no autonomous dispatch, no
 cancellation endpoint. This plan is scoped exclusively to making the two
 existing ETA/distance columns real, with the routing-API accuracy
 improvement approved separately with the cost-control conditions above.
+
+---
+
+## 8. What actually shipped
+
+Implementation follows the design above exactly, with one scope
+clarification made explicit during implementation (see 8.3).
+
+### 8.1 New files
+
+- **`lib/etaEstimation.js`** — the pure, dependency-injected orchestrator.
+  Same shape as `lib/rideDispatch.js`/`lib/offerExpiry.js`: no Supabase, no
+  env vars, no network calls, so the decision logic is unit-testable
+  without a database.
+  - `haversineEta()` — the free fallback (distance ÷ assumed speed).
+  - `resolveEtaEstimate()` — the full decision: if `routeApiEnabled` is
+    false, returns the Haversine estimate immediately (no cache read, no
+    counter increment, no network call). If true: checks the
+    movement-threshold cache first; on a cache miss, atomically increments
+    the usage counter, compares the returned count to `quotaLimit`
+    (check-after-increment, per §5.1), and only then calls the routing API
+    under a timeout — falling back to Haversine on *any* failure at *any*
+    step (counter error, quota exceeded, timeout, HTTP error, malformed
+    response).
+  - `computeAndPersistEta()` — wraps `resolveEtaEstimate()` with the actual
+    persistence write, and guarantees it never throws: a failed estimate or
+    a failed write is logged and swallowed, never propagated.
+  - `pruneStaleCacheEntries()` — bounds the in-memory route cache described
+    below.
+- **`lib/etaEstimation.test.js`** — 14 tests covering all nine required
+  scenarios (flag off; initial persistence; location-update refresh;
+  movement-threshold cache; routing API success; routing API timeout;
+  routing API error; routing API malformed response; quota reached, both
+  the reject-over-cap and allow-the-crossing-call cases; counter-error
+  fail-closed; database write failure; concurrent usage-counter increments
+  with no lost updates).
+- **`supabase/migrations/20260729004834_add_usage_counters.sql`** — the
+  `usage_counters` table and `increment_usage_counter()` RPC from §5.1,
+  applied to production. Purely additive; verified live with a manual
+  two-call round trip (`1`, then `2`) before this PR, then the test row was
+  deleted. Confirmed no `system_flags` row exists yet for either
+  `dispatch_eta_persistence_enabled`, `dispatch_route_api_enabled`, or
+  `offer_expiry_sweep_enabled` — all three still resolve to `"false"` via
+  `getSystemFlag()`'s fallback.
+
+### 8.2 `server.js` wiring
+
+- A new "ETA / DISTANCE-TO-PICKUP PERSISTENCE" section (near the
+  `lib/offerExpiry.js` require) holds the Supabase/provider adapters:
+  `callGoogleRoutesApi()` (Google Routes API `computeRoutes`, server-side —
+  distinct from the existing client-side `GOOGLE_MAPS_BROWSER_KEY`; reads a
+  new `GOOGLE_ROUTES_API_KEY` env var that is **not required** for
+  persistence and is not currently set), `incrementRouteApiUsageCounter()`
+  (calls the new RPC, keyed by `route_api_calls_YYYY-MM` for free monthly
+  rollover), `persistRideEtaToPickup()` (the actual `UPDATE rides SET
+  driver_eta_to_pickup_minutes = …, driver_distance_to_pickup_miles = …`),
+  and `persistPickupEtaBestEffort()` (reads both flags via `getSystemFlag`,
+  wires all of the above into `computeAndPersistEta()`, and adds one more
+  layer of try/catch on top so a bug in the flag lookups themselves still
+  can't escape into a caller).
+- **Write point 1 (offer creation)**: `persistPickupEtaBestEffort()` is
+  called, fire-and-forget (`.catch(() => {})`, never awaited), from both
+  branches of `dispatchRide()` — the `dispatch_ride_atomic` RPC success path
+  and the two-step fallback path — right after the existing
+  `sendPushNotification()` call, using `firstDriver.current_lat/current_lng`
+  and `ride.pickup_lat/pickup_lng`.
+- **Write point 2 (location ping)**: `POST /api/driver/location`'s
+  `activeRide` query now also selects `status, pickup_lat, pickup_lng`.
+  When (and only when) `activeRide.status` is `driver_assigned`,
+  `driver_enroute`, or `arrived`, `persistPickupEtaBestEffort()` is called
+  the same fire-and-forget way, using the just-reported `lat`/`lng`. No new
+  route, no new client change, no change to the existing 5-second
+  per-driver throttle.
+- **In-memory route cache**: `etaRouteCache` (a plain `Map`, keyed by ride
+  id) backs the movement-threshold cache. It is per-server-instance, not
+  shared across Render instances or restarts — a soft cost optimization,
+  not a correctness mechanism, and explicitly documented as such in the
+  code. It stays empty for as long as `dispatch_route_api_enabled` is
+  false. A `setInterval` every 10 minutes calls `pruneStaleCacheEntries()`
+  (1-hour max age) so it can't grow unbounded once the routing flag is
+  eventually turned on.
+- **Nothing else changed.** `GET /api/rides/:id/status`'s existing
+  transient, non-persisted `tracking` estimate (used once a ride is
+  `in_progress`, i.e. already picked up, tracking toward the *dropoff*) is
+  untouched — see 8.3 for why.
+
+### 8.3 Scope clarification made during implementation: "to pickup" only
+
+The two target columns are named `driver_eta_to_pickup_minutes` and
+`driver_distance_to_pickup_miles` — their meaning is specifically
+*eta/distance to pickup*, not a general-purpose live-tracking value. This
+implementation therefore only ever writes them during a ride's pre-pickup
+phase: at offer creation, and on location pings while the ride's status is
+`driver_assigned`, `driver_enroute`, or `arrived`. Once a ride reaches
+`in_progress` (the driver has already picked up and is now headed to
+drop-off), no further writes to these columns occur — continuing to write
+them would silently redefine what the column means without a schema
+change, the same category of correctness issue already avoided elsewhere
+in this codebase (e.g. the `system_flags`-as-counter rejection in §5.1).
+This matches your "**on eligible driver location updates**" phrasing
+directly: eligibility is exactly this pre-pickup status check. The existing
+`in_progress` transient tracking estimate in `GET /api/rides/:id/status`
+already serves the dropoff-bound phase and needed no changes. A future
+"ETA to dropoff" persistence feature, using its own columns, would be a
+natural, separately-scoped follow-up — not implied or started here.
+
+### 8.4 Verification performed
+
+- `npx jest` — 122/122 tests passing repo-wide (108 pre-existing + 14 new).
+- `node -c server.js` — syntax check passes.
+- Migration applied live via Supabase MCP; `increment_usage_counter()`
+  round-tripped correctly (`1`, then `2` on a second call against the same
+  key) before the test key was deleted.
+- Confirmed via live query that no `system_flags` row exists for either new
+  flag or for `offer_expiry_sweep_enabled` — all three remain off.
+
+---
+
+## 9. Deployment & rollout checklist
+
+**Both flags stay `false` after this PR merges.** Nothing below is
+executed as part of this change — it's the procedure for when a future,
+separate instruction authorizes enabling either flag.
+
+### 9.1 Enabling persistence (`dispatch_eta_persistence_enabled`)
+
+This is the low-risk step: pure Haversine math, no external dependency, no
+cost. Enable SQL (upsert, matching the existing flag-toggle convention):
+
+```sql
+insert into system_flags (key, value, reason, updated_at)
+values (
+  'dispatch_eta_persistence_enabled',
+  'true',
+  'Enable free Haversine ETA/distance-to-pickup persistence',
+  now()
+)
+on conflict (key) do update
+  set value = 'true',
+      reason = excluded.reason,
+      updated_at = now();
+```
+
+Disable / rollback (instant, no deploy):
+
+```sql
+insert into system_flags (key, value, reason, updated_at)
+values (
+  'dispatch_eta_persistence_enabled',
+  'false',
+  'Rollback: disable ETA persistence',
+  now()
+)
+on conflict (key) do update
+  set value = 'false',
+      reason = excluded.reason,
+      updated_at = now();
+```
+
+**Pre-enable checks:**
+- Confirm the deploy carrying this PR is healthy (clean boot log, schema
+  checks `ok`, no elevated error rate) — same bar as every prior rollout in
+  this sequence.
+- Confirm `driver_eta_to_pickup_minutes`/`driver_distance_to_pickup_miles`
+  are still nullable with no default (they are — §1) so there is nothing
+  to migrate before flipping the flag.
+
+**Observation queries** (run periodically during the observation window):
+
+```sql
+-- Are writes happening at all?
+select count(*) filter (where driver_eta_to_pickup_minutes is not null) as with_eta,
+       count(*) as total
+from rides
+where status in ('driver_assigned','driver_enroute','arrived')
+  and updated_at > now() - interval '1 hour';
+
+-- Sanity range check — minutes should be small positive numbers, not
+-- nulls, zeros, or absurd outliers.
+select min(driver_eta_to_pickup_minutes), max(driver_eta_to_pickup_minutes),
+       avg(driver_eta_to_pickup_minutes)
+from rides
+where driver_eta_to_pickup_minutes is not null
+  and updated_at > now() - interval '1 hour';
+```
+
+- Application logs: watch for `⚠️ computeAndPersistEta` or
+  `⚠️ persistPickupEtaBestEffort` warnings — expected to be silent/rare;
+  a sustained stream indicates a Supabase write problem, not a routing
+  problem (the routing flag is still off).
+
+**Success threshold:** after a low-traffic observation window (recommend
+starting with off-peak hours, same pattern as the offer-expiry sweep
+rollout), `with_eta` should climb toward `total` for active pre-pickup
+rides, values should be in a sane range (roughly 0–60 minutes for
+in-city trips), and there should be no increase in dispatch or
+location-update error rates or latency.
+
+**Rollback trigger:** any sustained `⚠️ computeAndPersistEta`/
+`⚠️ persistPickupEtaBestEffort` error stream, any measurable latency
+increase on `POST /api/driver/location` or dispatch, or nulls/garbage
+values in the observation queries above → run the disable SQL. Because the
+columns are nullable with no default and every write is fire-and-forget
+and independently wrapped, disabling the flag fully reverts behavior with
+no data cleanup required.
+
+### 9.2 Enabling the routing API (`dispatch_route_api_enabled`) — separate, later decision
+
+**Requires `dispatch_eta_persistence_enabled` already on and observed
+healthy.** Also requires, before this is ever considered:
+- `GOOGLE_ROUTES_API_KEY` configured in the environment (currently unset —
+  `callGoogleRoutesApi()` throws immediately if it's missing, so turning
+  this flag on without a key fails closed to Haversine, not to an error).
+- A provider-side billing budget/quota configured directly in the Google
+  Cloud console (§4) — the real hard cost backstop, independent of this
+  app's own counting.
+- Agreement on `ROUTE_API_MONTHLY_QUOTA` (defaults to `20000`/month if
+  unset) as the app-side soft cap.
+
+Enable / disable SQL (same upsert pattern as 9.1, key
+`dispatch_route_api_enabled`). Observation should additionally track:
+
+```sql
+select key, count, updated_at
+from usage_counters
+where key = 'route_api_calls_' || to_char(now(), 'YYYY-MM');
+```
+
+against `ROUTE_API_MONTHLY_QUOTA`, plus the routing-specific log lines
+(`routing API call failed`, `quota reached`) to gauge fallback rate. This
+is explicitly out of scope to enable as part of this change — it's
+recorded here only so the procedure exists when it's separately
+authorized.
+
+### 9.3 Not part of this rollout
+
+`offer_expiry_sweep_enabled` remains a separate, independent flag with its
+own separate enable/disable procedure — see
+`docs/offer-expiry-sweep-rollout.md`. Enabling one does not require or
+imply enabling the other; they protect different parts of the dispatch
+pipeline and were deliberately kept on independent switches.
 Implementation does not begin until this plan is approved.

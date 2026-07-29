@@ -7569,6 +7569,187 @@ const { sweepExpiredOffers, sweepStuckRedispatches } = require("./lib/offerExpir
 
 /* =========================================================
 
+   ETA / DISTANCE-TO-PICKUP PERSISTENCE — SUPABASE ADAPTERS
+
+   See docs/eta-persistence-plan.md. The estimate logic itself (Haversine
+   fallback, routing-API circuit breaker, movement-threshold cache) lives in
+   lib/etaEstimation.js so it's unit-testable without a database or network
+   access; everything below is the Supabase/routing-provider glue, wired in
+   at the two write points: offer creation (dispatchRide(), below) and
+   driver location updates (POST /api/driver/location).
+
+   Two independent flags, per your explicit instruction that persistence and
+   paid routing accuracy must not share one switch:
+     dispatch_eta_persistence_enabled — write ETA/distance at all (Haversine,
+       no external dependency, no cost).
+     dispatch_route_api_enabled — let a paid routing API supply the value
+       instead of Haversine. Only meaningful once persistence is already on.
+   Both default to "false" via getSystemFlag's fallback (no system_flags row
+   exists for either yet — same convention as offer_expiry_sweep_enabled).
+   This module does not enable either flag.
+
+========================================================= */
+
+const {
+  computeAndPersistEta,
+  pruneStaleCacheEntries
+} = require("./lib/etaEstimation");
+
+const GOOGLE_ROUTES_API_KEY = env("GOOGLE_ROUTES_API_KEY");
+const ROUTE_API_TIMEOUT_MS = envNumber("ROUTE_API_TIMEOUT_MS", 4000);
+const ROUTE_API_MONTHLY_QUOTA = envNumber("ROUTE_API_MONTHLY_QUOTA", 20000);
+const ROUTE_API_MOVEMENT_THRESHOLD_MILES = envNumber("ROUTE_API_MOVEMENT_THRESHOLD_MILES", 0.03);
+
+// In-memory only, per server instance — a soft cost optimization, not a
+// correctness mechanism. Worst case with multiple instances (or a restart)
+// is simply an extra routing-API call, still bounded by the usage-counter
+// circuit breaker below. Pruned periodically by the interval near startup
+// so a ride that never returns for a second estimate doesn't sit in memory
+// forever; empty and unused while dispatch_route_api_enabled stays off.
+const etaRouteCache = new Map();
+const ETA_ROUTE_CACHE_MAX_AGE_MS = 60 * 60 * 1000;
+
+async function callGoogleRoutesApi({ fromLat, fromLng, toLat, toLng }) {
+  if (!GOOGLE_ROUTES_API_KEY) {
+    // No key configured — never attempt the call even if the flag is on, so
+    // flipping dispatch_route_api_enabled without also configuring a key
+    // fails closed to Haversine instead of erroring on every request.
+    throw new Error("GOOGLE_ROUTES_API_KEY is not configured");
+  }
+
+  const response = await fetch(
+    "https://routes.googleapis.com/directions/v2:computeRoutes",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": GOOGLE_ROUTES_API_KEY,
+        "X-Goog-FieldMask": "routes.duration,routes.distanceMeters"
+      },
+      body: JSON.stringify({
+        origin: { location: { latLng: { latitude: fromLat, longitude: fromLng } } },
+        destination: { location: { latLng: { latitude: toLat, longitude: toLng } } },
+        travelMode: "DRIVE"
+      })
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Google Routes API responded ${response.status}`);
+  }
+
+  const data = await response.json();
+  const route = data?.routes?.[0];
+
+  if (!route || !Number.isFinite(Number(route.distanceMeters)) || !route.duration) {
+    throw new Error("Google Routes API returned no usable route");
+  }
+
+  const durationSeconds = parseFloat(String(route.duration).replace("s", ""));
+
+  return {
+    distanceMiles: Math.round((Number(route.distanceMeters) / 1609.34) * 100) / 100,
+    etaMinutes: Math.max(1, Math.round(durationSeconds / 60))
+  };
+}
+
+async function incrementRouteApiUsageCounter() {
+  // Monthly key gives free rollover — a new month is just a new row, no
+  // separate reset job needed. Requires the increment_usage_counter() RPC
+  // (see supabase/migrations/20260729004834_add_usage_counters.sql).
+  const monthKey = `route_api_calls_${new Date().toISOString().slice(0, 7)}`;
+  const { data, error } = await supabase.rpc("increment_usage_counter", {
+    p_key: monthKey
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return Number(Array.isArray(data) ? data[0] : data);
+}
+
+// Writes the ride's "eta to pickup" columns — only ever called for the
+// pre-pickup phase of a ride (offer creation, and location pings while
+// status is driver_assigned/driver_enroute/arrived). Once a ride reaches
+// in_progress (already picked up), these "to pickup" columns are no longer
+// meaningful; the existing transient (non-persisted) tracking estimate in
+// GET /api/rides/:id/status already covers that dropoff-bound phase and is
+// left untouched by this feature.
+async function persistRideEtaToPickup(rideId, estimate) {
+  const { error } = await supabase
+    .from("rides")
+    .update({
+      driver_eta_to_pickup_minutes: estimate.etaMinutes,
+      driver_distance_to_pickup_miles: estimate.distanceMiles
+    })
+    .eq("id", rideId);
+
+  if (error) {
+    throw error;
+  }
+}
+
+// Shared by both dispatchRide() write paths (the dispatch_ride_atomic RPC
+// and the two-step fallback, below) and by the driver-location-update
+// route. Guaranteed not to throw — see computeAndPersistEta() — so a bug or
+// outage here can never block ride creation, dispatch, or a GPS update.
+async function persistPickupEtaBestEffort({
+  rideId,
+  driverLat,
+  driverLng,
+  pickupLat,
+  pickupLng
+}) {
+  if (
+    !rideId ||
+    !Number.isFinite(Number(driverLat)) ||
+    !Number.isFinite(Number(driverLng)) ||
+    !Number.isFinite(Number(pickupLat)) ||
+    !Number.isFinite(Number(pickupLng))
+  ) {
+    return null;
+  }
+
+  try {
+    const [persistenceEnabled, routeApiEnabled] = await Promise.all([
+      getSystemFlag("dispatch_eta_persistence_enabled", "false"),
+      getSystemFlag("dispatch_route_api_enabled", "false")
+    ]);
+
+    return await computeAndPersistEta({
+      persistenceEnabled: persistenceEnabled === "true",
+      routeApiEnabled: routeApiEnabled === "true",
+      fromLat: Number(driverLat),
+      fromLng: Number(driverLng),
+      toLat: Number(pickupLat),
+      toLng: Number(pickupLng),
+      speedMph: ASSUMED_DELIVERY_SPEED_MPH,
+      getCachedRoute: () => etaRouteCache.get(rideId) || null,
+      setCachedRoute: (entry) => etaRouteCache.set(rideId, entry),
+      incrementUsageCounter: incrementRouteApiUsageCounter,
+      quotaLimit: ROUTE_API_MONTHLY_QUOTA,
+      callRouteApi: callGoogleRoutesApi,
+      timeoutMs: ROUTE_API_TIMEOUT_MS,
+      movementThresholdMiles: ROUTE_API_MOVEMENT_THRESHOLD_MILES,
+      persistEta: (estimate) => persistRideEtaToPickup(rideId, estimate),
+      logError: (...args) => console.error(...args)
+    });
+  } catch (err) {
+    // computeAndPersistEta already catches its own internal failures; this
+    // is an extra guard so a bug in the flag lookups above (outside that
+    // function) still can't propagate into a dispatch or GPS-update route.
+    console.error("⚠️ persistPickupEtaBestEffort unexpected failure:", err.message);
+    return null;
+  }
+}
+
+setInterval(() => {
+  pruneStaleCacheEntries(etaRouteCache, { maxAgeMs: ETA_ROUTE_CACHE_MAX_AGE_MS });
+}, 10 * 60 * 1000);
+
+/* =========================================================
+
    RIDER READINESS
 
 ========================================================= */
@@ -8233,6 +8414,16 @@ async function dispatchRide(ride) {
           url: "/driver-dashboard.html"
         }).catch(() => {});
 
+        // Fire-and-forget: never delays the dispatch response, and
+        // computeAndPersistEta() already guarantees it can't throw.
+        persistPickupEtaBestEffort({
+          rideId: ride.id,
+          driverLat: firstDriver.current_lat,
+          driverLng: firstDriver.current_lng,
+          pickupLat: ride.pickup_lat,
+          pickupLng: ride.pickup_lng
+        }).catch(() => {});
+
         return {
 
           dispatched: true,
@@ -8341,6 +8532,14 @@ async function dispatchRide(ride) {
     title: "New Ride Request",
     body: `Pickup: ${ride.pickup_address || "See app for details"}`,
     url: "/driver-dashboard.html"
+  }).catch(() => {});
+
+  persistPickupEtaBestEffort({
+    rideId: ride.id,
+    driverLat: firstDriver.current_lat,
+    driverLng: firstDriver.current_lng,
+    pickupLat: ride.pickup_lat,
+    pickupLng: ride.pickup_lng
   }).catch(() => {});
 
   return {
@@ -12629,7 +12828,7 @@ app.post(
 
       .from("rides")
 
-      .select("id")
+      .select("id, status, pickup_lat, pickup_lng")
 
       .eq("driver_id", driverId)
 
@@ -12696,6 +12895,27 @@ app.post(
       })
 
       .eq("id", driverId);
+
+    // "Eligible" location update, per the ETA-persistence plan: still in the
+    // pre-pickup phase (rides.driver_eta_to_pickup_minutes/
+    // driver_distance_to_pickup_miles mean exactly that — eta *to pickup*).
+    // Once in_progress (already picked up), those columns stop applying;
+    // the existing transient tracking estimate in GET /api/rides/:id/status
+    // already covers the dropoff-bound phase and is untouched here.
+    // Fire-and-forget: never delays this GPS-update response.
+    if (
+      activeRide.status === RIDE_STATUS.DRIVER_ASSIGNED ||
+      activeRide.status === RIDE_STATUS.DRIVER_ENROUTE ||
+      activeRide.status === RIDE_STATUS.ARRIVED
+    ) {
+      persistPickupEtaBestEffort({
+        rideId: activeRide.id,
+        driverLat: lat,
+        driverLng: lng,
+        pickupLat: activeRide.pickup_lat,
+        pickupLng: activeRide.pickup_lng
+      }).catch(() => {});
+    }
 
     broadcastRideSse(activeRide.id, "location", {
 
