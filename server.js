@@ -2899,7 +2899,7 @@ const {
   buildPaymentIntentAttachmentFields,
   ownsPaymentMethod,
   decideInitialRideStatus,
-  verifyPaymentIntentForRide
+  authorizePaymentIntentForRide
 } = require("./lib/riderPayments");
 
 // Harvey AI's system prompt for /api/ai/support — see
@@ -9930,9 +9930,15 @@ app.post(
 
     }
 
+    // Verifies, and — when needed — binds the intent to this ride via
+    // Stripe so it can't be reused elsewhere. A bind failure is treated as
+    // a hard failure, not a warning: an intent that verified cleanly but
+    // couldn't be bound is not yet safe against reuse on a different
+    // ride, so authorization must not proceed to mark this ride
+    // PAYMENT_AUTHORIZED in that case.
     const verification =
 
-      verifyPaymentIntentForRide({
+      await authorizePaymentIntentForRide({
 
         stripeConfigured: Boolean(stripe),
 
@@ -9942,7 +9948,27 @@ app.post(
 
         rideId,
 
-        exposeDetails: !IS_PRODUCTION
+        exposeDetails: !IS_PRODUCTION,
+
+        bindPaymentIntentToRide: () =>
+
+          stripe.paymentIntents.update(
+
+            paymentIntentId,
+
+            {
+
+              metadata: {
+
+                ...(intent?.metadata || {}),
+
+                ride_id: rideId
+
+              }
+
+            }
+
+          )
 
       });
 
@@ -9959,44 +9985,6 @@ app.post(
         verification.extra
 
       );
-
-    }
-
-    // Bind the intent to this ride so it can't be reused elsewhere.
-
-    if (verification.needsBinding) {
-
-      try {
-
-        await stripe.paymentIntents.update(
-
-          paymentIntentId,
-
-          {
-
-            metadata: {
-
-              ...(intent.metadata || {}),
-
-              ride_id: rideId
-
-            }
-
-          }
-
-        );
-
-      } catch (bindErr) {
-
-        console.warn(
-
-          "⚠️ Could not bind ride_id to intent:",
-
-          bindErr.message
-
-        );
-
-      }
 
     }
 

@@ -356,6 +356,39 @@ implemented in `lib/riderPayments.js` (`decideInitialRideStatus`,
   a different ride (reuse prevention), and rider match — each an
   independently unit-tested branch in `lib/riderPayments.test.js`.
 
+**Round 2 — three more fail-closed corrections, found on review before
+merge (the reviewer couldn't file this as a GitHub review since the PR
+belongs to the same account that opened it, so it came back as plain
+instructions instead):**
+
+- **Binding failure now blocks authorization.** The first version logged
+  a warning and continued to `PAYMENT_AUTHORIZED` if
+  `stripe.paymentIntents.update()` (writing `ride_id` into the intent's
+  metadata) failed — meaning the reuse-prevention guarantee wasn't
+  actually established before dispatch proceeded. `authorizePaymentIntentForRide()`
+  (new, wraps `verifyPaymentIntentForRide()`) now returns
+  `502 "Could not secure this payment against reuse. Please try again."`
+  and does not authorize when binding fails. The Stripe call itself is
+  injected (`bindPaymentIntentToRide`) so the failure path is
+  unit-tested without a live Stripe account, same dependency-injected
+  shape as `sweepExpiredOffers()`/`sweepScheduledRides()`.
+- **Currency is now required, not merely checked when present.** A real
+  Stripe PaymentIntent always has a currency; a missing one now fails the
+  same as a mismatched one (`intent.currency !== RIDE_PAYMENT_CURRENCY`,
+  not `intent.currency && ...`).
+- **Rider binding is now mandatory whenever the ride has an identified
+  rider.** The first version only rejected a rider mismatch when
+  `metadata.rider_id` was *present* — an attacker could create their own
+  real, paid PaymentIntent with no `rider_id` in its metadata at all and
+  use it to authorize any other rider's named ride, since an unbound
+  intent also passes the ride-binding check. Deliberately **not** made
+  unconditional, though: `POST /api/rides/request` has always supported
+  an anonymous ride request (see the `if (riderId)` optional readiness
+  check there, unrelated to and predating this fix) — a ride created that
+  way has no identified rider to bind a payment against, so the rider
+  check still only applies when `ride.rider_id` is set. Locked in with a
+  dedicated test for each side of that boundary.
+
 **HTAF/Foundation rides — resolved, not carved out.** The original
 scoping note above asked whether HTAF/Foundation rides might need a
 legitimate no-payment path. Traced `lib/pricing.js`: `ride_type ===
