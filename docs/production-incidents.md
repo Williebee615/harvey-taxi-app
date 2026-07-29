@@ -281,7 +281,7 @@ questions, not to propose an answer.
 
 ---
 
-## 2026-07-29 — Ride authorization accepts an unverified `payment_intent_id` when Stripe is unavailable — OPEN, HIGH PRIORITY
+## 2026-07-29 — Ride authorization accepts an unverified `payment_intent_id` when Stripe is unavailable — FIX IMPLEMENTED, PENDING REVIEW/MERGE/DEPLOY
 
 **Found during**: preparing a controlled production test of
 `dispatch_eta_persistence_enabled` (see
@@ -290,7 +290,7 @@ reaches `payment_authorized` in order to plan a safe test, found that the
 real, currently-deployed authorization path does not actually require a
 verified payment under today's configuration.
 
-### Code defect — NOT FIXED (intentionally, per instruction, during this test)
+### Code defect — FIX IMPLEMENTED, not yet merged/deployed
 
 `POST /api/rides/request` (`server.js`) only checks
 `ENABLE_PAYMENT_GATE && !req.body.payment_intent_id` — any **non-empty,
@@ -329,34 +329,89 @@ designed and separately-approved admin test-ride mechanism — is required
 before any dispatch-triggering request is made). This defect is logged
 here specifically so it isn't forgotten once that test concludes.
 
-### Scope of a fix (not decided or built)
+### The fix
 
-At minimum, a fix needs to decide:
+Both open questions from the original scoping are resolved as follows,
+implemented in `lib/riderPayments.js` (`decideInitialRideStatus`,
+`verifyPaymentIntentForRide`) and wired into `server.js`:
 
-- Whether `POST /api/rides/request` should ever accept a client-supplied
-  `payment_intent_id` as sufficient for `PAYMENT_AUTHORIZED` without a
-  round trip to Stripe, or whether that route should always land on
-  `PAYMENT_REQUIRED` and force every ride through `/api/rides/:id
-  /authorize`'s (real, but currently conditional) verification.
-- What `POST /api/rides/:id/authorize` should do when `stripe` is null —
-  today's silent "skip verification, authorize anyway" is the actual
-  defect. The safe default is almost certainly the opposite: refuse to
-  authorize (return an explicit "payments are not configured" error,
-  matching the existing pattern already used by
-  `POST /api/rides/payment-intent`) rather than silently trusting an
-  unverified client-supplied string.
-- Whether any legitimate no-payment path should exist at all (e.g. HTAF/
-  Foundation rides, which may not go through Stripe by design) and, if
-  so, how it's distinguished from a regular ride request rather than
-  relying on the same `payment_intent_id` field with no verification.
+- `POST /api/rides/request` no longer treats a client-supplied
+  `payment_intent_id` as sufficient for `PAYMENT_AUTHORIZED` under any
+  circumstance. Every ride created while `ENABLE_PAYMENT_GATE` is on
+  lands in `PAYMENT_REQUIRED`, full stop — `decideInitialRideStatus()`
+  doesn't even read the field for that decision. `payment_id` itself is
+  now only populated at creation when the payment gate is explicitly off
+  (an ops-level flag, not client input); a gated ride starts with no
+  `payment_id` at all and gets one only from a verified `/authorize`
+  call.
+- `POST /api/rides/:id/authorize` now fails closed when `stripe` is
+  null — `verifyPaymentIntentForRide()` checks `stripeConfigured` before
+  anything else and returns a `503 "Payments are not configured. This
+  ride cannot be authorized right now."` rather than ever silently
+  authorizing. The rest of the verification (previously only reachable
+  when `stripe` existed) is now the *only* way to reach
+  `PAYMENT_AUTHORIZED` for a gated ride: intent status
+  (`requires_capture`/`succeeded`), currency (newly added — the previous
+  version checked amount but not currency), amount, not already bound to
+  a different ride (reuse prevention), and rider match — each an
+  independently unit-tested branch in `lib/riderPayments.test.js`.
+
+**Round 2 — three more fail-closed corrections, found on review before
+merge (the reviewer couldn't file this as a GitHub review since the PR
+belongs to the same account that opened it, so it came back as plain
+instructions instead):**
+
+- **Binding failure now blocks authorization.** The first version logged
+  a warning and continued to `PAYMENT_AUTHORIZED` if
+  `stripe.paymentIntents.update()` (writing `ride_id` into the intent's
+  metadata) failed — meaning the reuse-prevention guarantee wasn't
+  actually established before dispatch proceeded. `authorizePaymentIntentForRide()`
+  (new, wraps `verifyPaymentIntentForRide()`) now returns
+  `502 "Could not secure this payment against reuse. Please try again."`
+  and does not authorize when binding fails. The Stripe call itself is
+  injected (`bindPaymentIntentToRide`) so the failure path is
+  unit-tested without a live Stripe account, same dependency-injected
+  shape as `sweepExpiredOffers()`/`sweepScheduledRides()`.
+- **Currency is now required, not merely checked when present.** A real
+  Stripe PaymentIntent always has a currency; a missing one now fails the
+  same as a mismatched one (`intent.currency !== RIDE_PAYMENT_CURRENCY`,
+  not `intent.currency && ...`).
+- **Rider binding is now mandatory whenever the ride has an identified
+  rider.** The first version only rejected a rider mismatch when
+  `metadata.rider_id` was *present* — an attacker could create their own
+  real, paid PaymentIntent with no `rider_id` in its metadata at all and
+  use it to authorize any other rider's named ride, since an unbound
+  intent also passes the ride-binding check. Deliberately **not** made
+  unconditional, though: `POST /api/rides/request` has always supported
+  an anonymous ride request (see the `if (riderId)` optional readiness
+  check there, unrelated to and predating this fix) — a ride created that
+  way has no identified rider to bind a payment against, so the rider
+  check still only applies when `ride.rider_id` is set. Locked in with a
+  dedicated test for each side of that boundary.
+
+**HTAF/Foundation rides — resolved, not carved out.** The original
+scoping note above asked whether HTAF/Foundation rides might need a
+legitimate no-payment path. Traced `lib/pricing.js`: `ride_type ===
+"foundation"` (and `"medical"`) only applies a 5% discount to the
+eligible fare — there is no `$0`/free/sponsored ride path anywhere in
+this codebase, and `/api/foundation/apply` /
+`/api/foundation/status/:code` are the HTAF *application* approval
+workflow, entirely separate from ride creation. Every ride, including
+`ride_type: "foundation"`, is created through the single
+`POST /api/rides/request` route and has a real, non-zero fare. There is
+therefore no existing sponsored-ride bypass to preserve, and this fix
+correctly applies to Foundation rides identically to every other ride
+type — no exemption was added.
 
 ### Launch impact
 
-**High priority, not yet fixed.** This is a real authorization gap in
-the currently deployed production app, independent of the ETA-
-persistence or offer-expiry work in progress. It does not block or
-relate to `dispatch_eta_persistence_enabled` (which is enabled and safe
-regardless of how a ride reaches dispatch). Recommend prioritizing a fix
-immediately after the current controlled-test sequence concludes,
-scoped and reviewed on its own — not bundled with ETA persistence,
-offer-expiry, or any dispatch-intelligence work.
+**High priority. Fix implemented and unit-tested, but not yet merged to
+`main` or deployed** — held per instruction pending review. Once merged
+and deployed, this closes a real authorization gap in the currently
+deployed production app that is independent of the ETA-persistence or
+offer-expiry work in progress; it does not block or relate to
+`dispatch_eta_persistence_enabled` (which is enabled and safe regardless
+of how a ride reaches dispatch). Recommend merging and deploying this fix
+on its own, ahead of any further dispatch-activation work, exactly as
+originally recommended — not bundled with ETA persistence, offer-expiry,
+or any dispatch-intelligence work.

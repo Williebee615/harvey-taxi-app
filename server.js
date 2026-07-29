@@ -2897,7 +2897,9 @@ const {
   buildStripeCustomerPayload,
   mapPaymentMethodsForClient,
   buildPaymentIntentAttachmentFields,
-  ownsPaymentMethod
+  ownsPaymentMethod,
+  decideInitialRideStatus,
+  authorizePaymentIntentForRide
 } = require("./lib/riderPayments");
 
 // Harvey AI's system prompt for /api/ai/support — see
@@ -9436,23 +9438,19 @@ app.post(
 
       });
 
-    let status =
+    // A client-supplied payment_intent_id is never trusted as proof of
+    // payment here — see lib/riderPayments.js. Only POST
+    // /api/rides/:id/authorize, after retrieving and verifying the intent
+    // with Stripe, may move a paid ride to PAYMENT_AUTHORIZED.
+    const status =
 
-      RIDE_STATUS.PAYMENT_AUTHORIZED;
+      decideInitialRideStatus({
 
-    if (
+        enablePaymentGate: ENABLE_PAYMENT_GATE,
 
-      ENABLE_PAYMENT_GATE &&
+        paymentIntentId: req.body.payment_intent_id
 
-      !req.body.payment_intent_id
-
-    ) {
-
-      status =
-
-        RIDE_STATUS.PAYMENT_REQUIRED;
-
-    }
+      });
 
     const now =
 
@@ -9537,15 +9535,17 @@ app.post(
 
         req.body.scheduled_for || null,
 
+      // Only ever populated here when the payment gate itself is off
+      // (an explicit ops-level decision, not client input) — a paid ride
+      // starts with no payment_id and gets one only from a verified
+      // /authorize call, never from what the client claimed at creation.
       payment_id:
 
-        cleanString(
+        status === RIDE_STATUS.PAYMENT_AUTHORIZED
 
-          req.body.payment_intent_id,
+          ? cleanString(req.body.payment_intent_id, 200) || null
 
-          200
-
-        ) || null,
+          : null,
 
       status,
 
@@ -9886,15 +9886,19 @@ app.post(
 
     /* ---- Stripe verification ----
 
-       Never trust a client-supplied intent id. Retrieve it and
+       Never trust a client-supplied intent id, and never authorize a ride
+       when there is no way to verify one. This route used to skip the
+       entire verification block below whenever the module-level `stripe`
+       client was null (Stripe unconfigured) and authorize anyway using
+       whatever the client sent — see docs/production-incidents.md,
+       "Ride authorization accepts an unverified payment_intent_id when
+       Stripe is unavailable." verifyPaymentIntentForRide() fails closed on
+       stripeConfigured: false before any other check — no Stripe client
+       means no authorization, full stop. */
 
-       confirm it is genuinely authorized, matches this ride's
-
-       fare, and is not already bound to a different ride. */
+    let intent = null;
 
     if (stripe) {
-
-      let intent;
 
       try {
 
@@ -9924,129 +9928,31 @@ app.post(
 
       }
 
-      // Must be authorized (manual capture) or already captured.
+    }
 
-      const authorizedStatuses = new Set([
+    // Verifies, and — when needed — binds the intent to this ride via
+    // Stripe so it can't be reused elsewhere. A bind failure is treated as
+    // a hard failure, not a warning: an intent that verified cleanly but
+    // couldn't be bound is not yet safe against reuse on a different
+    // ride, so authorization must not proceed to mark this ride
+    // PAYMENT_AUTHORIZED in that case.
+    const verification =
 
-        "requires_capture",
+      await authorizePaymentIntentForRide({
 
-        "succeeded"
+        stripeConfigured: Boolean(stripe),
 
-      ]);
+        intent,
 
-      if (!authorizedStatuses.has(intent.status)) {
+        ride,
 
-        return fail(
+        rideId,
 
-          res,
+        exposeDetails: !IS_PRODUCTION,
 
-          `Payment is not authorized (status: ${intent.status}).`,
+        bindPaymentIntentToRide: () =>
 
-          402
-
-        );
-
-      }
-
-      // Amount must match the ride's fare (in cents).
-
-      const expectedCents =
-
-        Math.round(Number(ride.estimated_fare || 0) * 100);
-
-      if (
-
-        expectedCents > 0 &&
-
-        Number(intent.amount) !== expectedCents
-
-      ) {
-
-        return fail(
-
-          res,
-
-          "Payment amount does not match the ride fare.",
-
-          402,
-
-          IS_PRODUCTION
-
-            ? {}
-
-            : {
-
-                expected_cents: expectedCents,
-
-                intent_cents: intent.amount
-
-              }
-
-        );
-
-      }
-
-      // Must not already belong to a different ride.
-
-      const boundRide =
-
-        intent.metadata?.ride_id;
-
-      if (
-
-        boundRide &&
-
-        boundRide !== rideId
-
-      ) {
-
-        return fail(
-
-          res,
-
-          "This payment is already associated with another ride.",
-
-          409
-
-        );
-
-      }
-
-      // Optional: confirm the intent's rider matches the ride's rider.
-
-      const intentRider =
-
-        intent.metadata?.rider_id;
-
-      if (
-
-        intentRider &&
-
-        ride.rider_id &&
-
-        intentRider !== String(ride.rider_id)
-
-      ) {
-
-        return fail(
-
-          res,
-
-          "This payment does not belong to this rider.",
-
-          403
-
-        );
-
-      }
-
-      // Bind the intent to this ride so it can't be reused elsewhere.
-
-      if (boundRide !== rideId) {
-
-        try {
-
-          await stripe.paymentIntents.update(
+          stripe.paymentIntents.update(
 
             paymentIntentId,
 
@@ -10054,7 +9960,7 @@ app.post(
 
               metadata: {
 
-                ...(intent.metadata || {}),
+                ...(intent?.metadata || {}),
 
                 ride_id: rideId
 
@@ -10062,21 +9968,23 @@ app.post(
 
             }
 
-          );
+          )
 
-        } catch (bindErr) {
+      });
 
-          console.warn(
+    if (!verification.ok) {
 
-            "⚠️ Could not bind ride_id to intent:",
+      return fail(
 
-            bindErr.message
+        res,
 
-          );
+        verification.error,
 
-        }
+        verification.statusCode,
 
-      }
+        verification.extra
+
+      );
 
     }
 
