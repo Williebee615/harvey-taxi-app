@@ -278,3 +278,85 @@ hotfix above**, but a real, separate product gap worth prioritizing on
 its own — not as part of dispatch intelligence work. No implementation
 has started; this section exists to record the defect and its open
 questions, not to propose an answer.
+
+---
+
+## 2026-07-29 — Ride authorization accepts an unverified `payment_intent_id` when Stripe is unavailable — OPEN, HIGH PRIORITY
+
+**Found during**: preparing a controlled production test of
+`dispatch_eta_persistence_enabled` (see
+`docs/production-verification-package.md`). While tracing how a ride
+reaches `payment_authorized` in order to plan a safe test, found that the
+real, currently-deployed authorization path does not actually require a
+verified payment under today's configuration.
+
+### Code defect — NOT FIXED (intentionally, per instruction, during this test)
+
+`POST /api/rides/request` (`server.js`) only checks
+`ENABLE_PAYMENT_GATE && !req.body.payment_intent_id` — any **non-empty,
+client-supplied string** in `payment_intent_id` is sufficient to set
+`status: PAYMENT_AUTHORIZED` and trigger `dispatchRide()` immediately,
+with no call to Stripe to confirm the id refers to a real, authorized
+payment.
+
+`POST /api/rides/:id/authorize` has the same gap in a different shape:
+it does attempt real Stripe verification (`stripe.paymentIntents
+.retrieve()`, status/amount/binding checks) — but **only if the module-
+level `stripe` client is non-null**. In this environment, `stripe` is
+`null` because Stripe isn't configured (boot log: `💳 Stripe: OFF`), so
+the entire verification block is skipped and the route falls straight
+through to marking the ride `PAYMENT_AUTHORIZED` and dispatching it,
+using whatever `payment_intent_id` string was supplied — again with no
+verification against Stripe, because there is currently no Stripe
+client to verify against.
+
+**Net effect as currently deployed**: any caller who can reach either of
+these public, unauthenticated routes can move a ride to
+`PAYMENT_AUTHORIZED` and trigger a real driver dispatch by supplying an
+arbitrary string as `payment_intent_id` — no payment method, no charge,
+no Stripe account, no authentication of any kind required. This is true
+today, independent of anything related to ETA persistence.
+
+### Why this wasn't exploited to complete the ETA-persistence test
+
+Explicit instruction during the ETA-persistence controlled-test planning
+was to **not** use a placeholder/fake `payment_intent_id` to reach
+`dispatch_ride()`, specifically because doing so would exercise this
+exact gap against production. The test was redirected to a UI-driven
+approach instead (the human operator uses the real rider/driver
+interfaces; a real payment path — Stripe test-mode keys, or a properly
+designed and separately-approved admin test-ride mechanism — is required
+before any dispatch-triggering request is made). This defect is logged
+here specifically so it isn't forgotten once that test concludes.
+
+### Scope of a fix (not decided or built)
+
+At minimum, a fix needs to decide:
+
+- Whether `POST /api/rides/request` should ever accept a client-supplied
+  `payment_intent_id` as sufficient for `PAYMENT_AUTHORIZED` without a
+  round trip to Stripe, or whether that route should always land on
+  `PAYMENT_REQUIRED` and force every ride through `/api/rides/:id
+  /authorize`'s (real, but currently conditional) verification.
+- What `POST /api/rides/:id/authorize` should do when `stripe` is null —
+  today's silent "skip verification, authorize anyway" is the actual
+  defect. The safe default is almost certainly the opposite: refuse to
+  authorize (return an explicit "payments are not configured" error,
+  matching the existing pattern already used by
+  `POST /api/rides/payment-intent`) rather than silently trusting an
+  unverified client-supplied string.
+- Whether any legitimate no-payment path should exist at all (e.g. HTAF/
+  Foundation rides, which may not go through Stripe by design) and, if
+  so, how it's distinguished from a regular ride request rather than
+  relying on the same `payment_intent_id` field with no verification.
+
+### Launch impact
+
+**High priority, not yet fixed.** This is a real authorization gap in
+the currently deployed production app, independent of the ETA-
+persistence or offer-expiry work in progress. It does not block or
+relate to `dispatch_eta_persistence_enabled` (which is enabled and safe
+regardless of how a ride reaches dispatch). Recommend prioritizing a fix
+immediately after the current controlled-test sequence concludes,
+scoped and reviewed on its own — not bundled with ETA persistence,
+offer-expiry, or any dispatch-intelligence work.
