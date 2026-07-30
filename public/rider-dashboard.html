@@ -4234,13 +4234,14 @@
 
             <!-- HTAF DONATION PROMPT (optional, shown after a request is submitted) -->
             <div id="htafDonationCard" class="htaf-donation-card hidden">
-              <strong>Support Harvey Taxi Foundation</strong>
+              <strong>Support Transportation Access Through HTAF</strong>
               <p>
-                Your request is in! Harvey Taxi Foundation (HTAF) is a
-                501(c)(3) nonprofit that helps Nashville-area residents get
-                to medical appointments and other essential trips they
-                couldn't otherwise afford. If you're able, consider a small
-                donation.
+                Your ride request has been submitted successfully. Harvey
+                Transportation Assistance Foundation (HTAF) is a separate
+                501(c)(3) public charity that helps eligible Nashville-area
+                residents access medical appointments, employment,
+                education, and other essential services. Donations are
+                optional and will not affect your ride or service.
               </p>
               <div class="htaf-donation-actions">
                 <a
@@ -4253,7 +4254,7 @@
                   Donate to HTAF
                 </a>
                 <button type="button" class="ghost-btn" id="htafDonationSkipBtn">
-                  No Thanks, Continue to Dashboard
+                  No Thanks — Continue to Dashboard
                 </button>
               </div>
             </div>
@@ -7727,7 +7728,8 @@
 
         // Optional HTAF donation prompt replaces the old unconditional
         // 1.8s auto-redirect here — the rider gets a moment to consider a
-        // donation to Harvey Taxi Foundation (routed through its existing
+        // donation to Harvey Transportation Assistance Foundation (HTAF),
+        // routed through its existing
         // PayPal fundraiser; see foundation.html) before moving on, rather
         // than being swept to the dashboard before they could ever see it.
         // "No Thanks" and clicking "Donate to HTAF" (opens in a new tab)
