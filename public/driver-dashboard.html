@@ -1487,9 +1487,15 @@
       el.startCheckrBtn.disabled = true;
       showMessage(el.verificationMsg, "Starting your background check...", "ok");
       try {
+        // The server is the source of truth on whether this is a brand
+        // new invitation or an existing one being resumed (see
+        // decideCheckrStartAction in lib/driverCompliance.js) -- a
+        // double-click or a retry must not open two Checkr invitations,
+        // so we always show its message rather than assuming success
+        // meant "new invitation created."
         const resp = await apiPost("/api/checkr/start", {});
-        showMessage(el.verificationMsg, "Background check invitation sent. Continue below to finish it.", "ok");
-        if (resp.invitation && resp.invitation.invitation_url) {
+        showMessage(el.verificationMsg, resp.message || "Background check invitation sent. Continue below to finish it.", "ok");
+        if (resp.invitation && resp.invitation.invitation_url && !resp.reused) {
           window.open(resp.invitation.invitation_url, "_blank", "noopener");
         }
         await fetchFreshDashboardState(false);
@@ -1505,8 +1511,8 @@
       el.startPersonaBtn.disabled = true;
       showMessage(el.verificationMsg, "Starting identity verification...", "ok");
       try {
-        await apiPost("/api/persona/inquiry", { user_type: "driver", user_id: state.driverId });
-        showMessage(el.verificationMsg, "Identity verification started. This page updates automatically once it's complete.", "ok");
+        const resp = await apiPost("/api/persona/inquiry", { user_type: "driver", user_id: state.driverId });
+        showMessage(el.verificationMsg, resp.message || "Identity verification started. This page updates automatically once it's complete.", "ok");
         await fetchFreshDashboardState(false);
       } catch (e) {
         showMessage(el.verificationMsg, "Could not start identity verification: " + e.message, "err");

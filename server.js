@@ -2943,6 +2943,8 @@ const { HARVEY_AI_SYSTEM_PROMPT } = require("./lib/harveyAiSystemPrompt");
 // separately-authorized actions.
 const {
   computeDriverReadiness,
+  decideCheckrStartAction,
+  decidePersonaStartAction,
   parseDriverOnlineRequest,
   evaluateDriverStatusChange,
   buildOrdinaryApprovalUpdate,
@@ -6426,6 +6428,61 @@ app.post(
 
     }
 
+    // Idempotency: a double-click, a second tab, or a retry after a slow
+    // response must not create a second Persona inquiry for the same
+    // driver.
+    if (authenticatedDriver) {
+
+      const startDecision =
+
+        decidePersonaStartAction(authenticatedDriver);
+
+      if (startDecision.action === "already_verified") {
+
+        return ok(res, {
+
+          message:
+
+            "Your identity verification is already complete.",
+
+          persona_status:
+
+            startDecision.persona_status
+
+        });
+
+      }
+
+      if (startDecision.action === "reuse") {
+
+        return ok(res, {
+
+          inquiry: {
+
+            id: startDecision.inquiry_id,
+
+            attributes: {
+
+              status: startDecision.persona_status
+
+            }
+
+          },
+
+          reused:
+
+            true,
+
+          message:
+
+            "Resuming your existing identity verification."
+
+        });
+
+      }
+
+    }
+
     let inquiry;
 
     try {
@@ -7107,6 +7164,53 @@ app.post(
         404
 
       );
+
+    }
+
+    // Idempotency: a double-click, a second tab, or a retry after a slow
+    // response must not create a second Checkr candidate/invitation for
+    // the same driver.
+    const startDecision =
+
+      decideCheckrStartAction(driver);
+
+    if (startDecision.action === "already_clear") {
+
+      return ok(res, {
+
+        message:
+
+          "Your background check is already complete.",
+
+        checkr_status:
+
+          startDecision.checkr_status
+
+      });
+
+    }
+
+    if (startDecision.action === "reuse") {
+
+      return ok(res, {
+
+        invitation: {
+
+          invitation_url:
+
+            startDecision.invitation_url
+
+        },
+
+        reused:
+
+          true,
+
+        message:
+
+          "Continuing your existing background check invitation."
+
+      });
 
     }
 
