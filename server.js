@@ -5168,9 +5168,13 @@ app.post(
 
         .maybeSingle();
 
-    // A query error (bad column, connection issue) is not the same fact
-    // as "no driver with this id" -- collapsing both into one message
-    // previously hid a missing-column bug behind a misleading 404.
+    // A query error (bad column, connection issue, RLS problem) is not
+    // the same fact as "no driver with this id" -- collapsing both into
+    // "Driver not found" previously hid a missing-column bug behind a
+    // misleading 404 and made it impossible to tell a real outage from a
+    // bad driver_id. Log the actual error so a schema mismatch like that
+    // is immediately visible in the server logs instead of only showing
+    // up as silent login failures.
     if (error) {
 
       console.error(
