@@ -2943,6 +2943,7 @@ const { HARVEY_AI_SYSTEM_PROMPT } = require("./lib/harveyAiSystemPrompt");
 // separately-authorized actions.
 const {
   computeDriverReadiness,
+  parseDriverOnlineRequest,
   evaluateDriverStatusChange,
   buildOrdinaryApprovalUpdate,
   validateComplianceOverrideRequest,
@@ -13075,9 +13076,27 @@ app.post(
 
     }
 
+    const parsedOnline =
+
+      parseDriverOnlineRequest(req.body.online);
+
+    if (!parsedOnline.ok) {
+
+      return fail(
+
+        res,
+
+        parsedOnline.error,
+
+        400
+
+      );
+
+    }
+
     const online =
 
-      Boolean(req.body.online);
+      parsedOnline.online;
 
     // Going online is a safety-relevant transition: a driver must not be
     // able to force it via a direct API call regardless of what the
@@ -13152,25 +13171,33 @@ app.post(
 
     }
 
-    await supabase
+    const { error: updateError } =
 
-      .from("drivers")
+      await supabase
 
-      .update({
+        .from("drivers")
 
-        online,
+        .update({
 
-        last_seen_at:
+          online,
 
-          nowIso(),
+          last_seen_at:
 
-        updated_at:
+            nowIso(),
 
-          nowIso()
+          updated_at:
 
-      })
+            nowIso()
 
-      .eq("id", driverId);
+        })
+
+        .eq("id", driverId);
+
+    if (updateError) {
+
+      throw updateError;
+
+    }
 
     auditLog({
 

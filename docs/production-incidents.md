@@ -717,6 +717,27 @@ directly: an unverified driver cannot go online; a driver with a
 pending/failed Checkr result cannot go online; a driver missing vehicle
 data cannot go online even if every other check passes; a fully ready
 driver can go online; and a driver that fails every check can still go
-offline. `node -c server.js` passes; full suite: 171/171 tests passing.
+offline.
 
 No production driver records or flags were changed by this fix.
+
+### Follow-up (same PR, pre-merge review): loose boolean parsing and an unchecked update
+
+Two more issues were found reviewing this fix before merge:
+
+- The route read `Boolean(req.body.online)`, which treats any nonempty
+  value as `true` — a request body of `{"online": "false"}` (a JSON
+  string, not a boolean) would have been taken as going online. Fixed
+  with a new pure validator, `parseDriverOnlineRequest()`
+  (`lib/driverCompliance.js`), which requires an actual JSON boolean and
+  rejects anything else (strings, numbers, `null`, a missing value) with
+  `400`.
+- The driver `.update()` call ignored the Supabase result and returned
+  `{online}` regardless of whether the write actually succeeded. Fixed
+  to capture `error` from the update and `throw` it, so a database
+  failure surfaces as an error response instead of a false-success reply.
+
+New tests cover `parseDriverOnlineRequest()` directly: the strings
+`"false"` and `"true"` are both rejected (not coerced), as are `null`,
+`1`, `0`, and a missing value; actual booleans `true`/`false` are
+accepted. `node -c server.js` passes; full suite: 175/175 tests passing.
