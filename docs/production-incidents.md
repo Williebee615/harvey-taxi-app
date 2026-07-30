@@ -741,3 +741,123 @@ New tests cover `parseDriverOnlineRequest()` directly: the strings
 `"false"` and `"true"` are both rejected (not coerced), as are `null`,
 `1`, `0`, and a missing value; actual booleans `true`/`false` are
 accepted. `node -c server.js` passes; full suite: 175/175 tests passing.
+
+## 2026-07-30 — Driver onboarding now actually starts Checkr, and closes a Persona spoofing gap found along the way
+
+**The actual engineering priority flagged in the two entries above**:
+`POST /api/persona/inquiry` and `POST /api/checkr/start` have worked
+server-side the whole time, but no page in `public/` ever called either
+one, so "pending" verification was never real turnaround time — nothing
+ever started the check.
+
+### Fix: driver-dashboard.html now starts a real Checkr background check
+
+Added a "Verification & Background Check" panel to `driver-dashboard.html`
+that renders the same checks `computeDriverReadiness()` already reports
+(email, phone, Checkr, vehicle, and Persona when enabled) as pass/pending
+pills, and adds a real "Start Background Check" button that calls
+`POST /api/checkr/start`. Once Checkr returns an invitation, the panel
+shows a "Continue Background Check" link to the real Checkr hosted form
+(`checkr_invitation_url`) instead of the start button, so a driver who
+starts the flow and comes back later can resume it rather than re-
+triggering a new invitation. `GET /api/drivers/:id/readiness` now
+returns `checkr_status`, `checkr_invitation_url`, and `persona_status`
+in its already-curated, client-safe `driver` object so the dashboard has
+what it needs without exposing the raw row.
+
+Persona is wired the same way (a "Start Identity Verification" button
+calling `POST /api/persona/inquiry`), but the button only renders when
+`GET /api/config/public` reports `persona_enabled: true` — Persona is
+currently off in production, so nothing changes there yet; the button
+will appear automatically once it's turned on.
+
+### Security gap found and fixed while wiring this up: `/api/persona/inquiry` trusted a client-supplied `user_id`
+
+While wiring the driver dashboard to actually call this route, found
+that it took `user_id` directly from the request body with **no
+authentication at all** — any caller who knew (or guessed) another
+driver's id could trigger a Persona inquiry against that driver's
+record, and the identity fields (name/email/phone) used to open the
+inquiry also came straight from the request body, so the inquiry
+wouldn't even necessarily be checking the right person. Nothing called
+this route before this PR, so nothing in production was exploiting it,
+but it was about to become live-reachable from the dashboard.
+
+Fixed for the driver path specifically: the route now authenticates the
+caller as a driver (the same driver-session check `requireDriver` uses)
+and requires the authenticated driver's id to match the requested
+`user_id`; the identity fields sent to Persona now come from the
+driver's own record, never the request body. The rider path (`user_type:
+"rider"`) is unchanged and still has this gap — nothing calls it today
+and building the rider Persona flow is out of scope here, but it's
+called out explicitly so it isn't mistaken for already fixed.
+
+### Scope still open
+
+- The rider-side `/api/persona/inquiry` authentication gap noted above.
+- A driver-facing way to see *why* a Checkr result came back
+  unsuccessful (Checkr's own dashboard has this; nothing surfaces it
+  here yet) rather than an indefinite "pending" pill.
+- Running the real applicants (Juan Ruiz Ortiz, Francisco Garcia Ruiz,
+  and the labeled duplicate rows) through this flow now that it exists.
+  Per direction: the prepared outreach should go out now, without asking
+  them to restart until this flow is confirmed working end-to-end in
+  production — this session has no SendGrid/Twilio credentials or
+  outbound network access to actually send that outreach, so it still
+  has to be sent from the real production environment.
+
+`node -c server.js` passes; full suite: 175/175 tests passing. This PR
+does not touch any production driver or rider records.
+
+### Follow-up (same PR, pre-merge review): idempotent start actions
+
+Reviewer feedback: a double-click, two open tabs, or a retry after a
+slow response must not create a second Checkr candidate/invitation or a
+second Persona inquiry for the same driver. Added
+`decideCheckrStartAction()` and `decidePersonaStartAction()`
+(`lib/driverCompliance.js`), each a pure function over the driver's
+current row that decides one of three outcomes before either route
+calls out to Checkr/Persona at all:
+
+- **already done** (`checkr_status`/`persona_status` already in the
+  passing set) — return that status, no API call.
+- **reuse** (an invitation/inquiry id already exists) — return the
+  existing `checkr_invitation_url` / Persona inquiry id, no new API call.
+- **create** — proceed exactly as before.
+
+`driver-dashboard.html` now displays the server's own message for the
+result (`resp.message`) instead of assuming a click always means "just
+created a new one," and only opens the Checkr hosted-form tab
+automatically on an actual new invitation, not a reused one.
+
+New tests in `lib/driverCompliance.test.js` cover both decision
+functions directly: creates when nothing exists yet, reuses when an
+invitation/inquiry id is already on file, and reports already-done for
+every passing status value. Full suite: 182/182 tests passing.
+
+### Required manual validation before merge (not run in this sandbox — no live Supabase/Checkr/Persona credentials or network access here)
+
+Per review, before merging PR #79:
+
+1. A signed-in driver clicks Start Background Check; the backend creates
+   exactly one Checkr invitation for that authenticated driver.
+2. The hosted Checkr link opens successfully.
+3. Returning from Checkr leaves the driver in the expected pending state.
+4. A real webhook updates the driver's verification fields.
+5. The readiness endpoint reflects the webhook result.
+6. `POST /api/driver/status` still refuses `online: true` until every
+   readiness requirement is satisfied.
+7. After readiness is satisfied, the driver can successfully go online.
+8. Repeated button clicks don't create duplicate Checkr invitations or
+   duplicate Persona inquiries (the idempotency fix above is meant to
+   guarantee this — needs live confirmation).
+
+### Before inviting the stuck applicants back
+
+Per direction, do not send the outreach until all of the following are
+true: PR #79 has passed the manual validation above; the deployment is
+live; a fresh test driver has completed the full Checkr/Persona flow;
+the readiness gate clears automatically from a verified webhook result;
+and going online succeeds only after readiness is complete. Juan Ruiz
+Ortiz and Francisco Garcia Ruiz should not be told to retry until all of
+this is proven end-to-end in production.

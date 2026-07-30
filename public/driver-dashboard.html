@@ -1043,6 +1043,27 @@
         </div>
       </section>
 
+      <section class="glass card span-8" id="verificationSection">
+        <h3>Verification &amp; Background Check</h3>
+        <p class="sub">Every item below must be complete before you can go online and receive rides. The server checks this independently — going online is blocked until it does.</p>
+
+        <div class="detail-list">
+          <div class="detail-row"><span>Email Verified</span><strong id="checkEmailVerified" class="pill pill-blue">—</strong></div>
+          <div class="detail-row"><span>Phone Verified</span><strong id="checkPhoneVerified" class="pill pill-blue">—</strong></div>
+          <div class="detail-row" id="checkPersonaRow"><span>Identity Verification</span><strong id="checkPersonaVerified" class="pill pill-blue">—</strong></div>
+          <div class="detail-row"><span>Background Check</span><strong id="checkCheckrReady" class="pill pill-blue">—</strong></div>
+          <div class="detail-row"><span>Vehicle Info on File</span><strong id="checkVehiclePresent" class="pill pill-blue">—</strong></div>
+        </div>
+
+        <div class="hero-actions">
+          <button class="btn btn-primary" id="startCheckrBtn" type="button" style="display:none;">Start Background Check</button>
+          <a class="btn btn-primary" id="continueCheckrLink" href="#" target="_blank" rel="noopener noreferrer" style="display:none;">Continue Background Check</a>
+          <button class="btn btn-primary" id="startPersonaBtn" type="button" style="display:none;">Start Identity Verification</button>
+        </div>
+
+        <div id="verificationMsg" class="msg"></div>
+      </section>
+
       <section class="glass card span-7">
         <h3>Current Mission Package</h3>
         <p class="sub">Transparent upstream payloads. Confirm financial estimates before confirming workflow steps.</p>
@@ -1212,6 +1233,8 @@
       driverId: localStorage.getItem(STORAGE.driverId) || localStorage.getItem(STORAGE.driverIdAlt) || "",
       driverEmail: localStorage.getItem(STORAGE.driverEmail) || "",
       driver: null,
+      checks: null,
+      personaEnabled: false,
       mission: null,
       ride: null,
       delivery: null,
@@ -1267,6 +1290,18 @@
       profBg: document.getElementById("profileBackground"),
       profAddress: document.getElementById("profileLastAddress"),
 
+      // Verification panel
+      checkEmailVerified: document.getElementById("checkEmailVerified"),
+      checkPhoneVerified: document.getElementById("checkPhoneVerified"),
+      checkPersonaRow: document.getElementById("checkPersonaRow"),
+      checkPersonaVerified: document.getElementById("checkPersonaVerified"),
+      checkCheckrReady: document.getElementById("checkCheckrReady"),
+      checkVehiclePresent: document.getElementById("checkVehiclePresent"),
+      startCheckrBtn: document.getElementById("startCheckrBtn"),
+      continueCheckrLink: document.getElementById("continueCheckrLink"),
+      startPersonaBtn: document.getElementById("startPersonaBtn"),
+      verificationMsg: document.getElementById("verificationMsg"),
+
       // Profile Photo
       photoPreview: document.getElementById("profilePhotoPreview"),
       photoInput: document.getElementById("profilePhotoInput"),
@@ -1318,6 +1353,7 @@
     // System Initialization Entrypoint
     window.addEventListener("DOMContentLoaded", () => {
       initEventListeners();
+      loadPublicConfig();
       // Only auto-load if we have BOTH a driver ID and a valid session token.
       if (state.driverId && getDriverToken()) {
         el.manualIdInput.value = state.driverId;
@@ -1340,6 +1376,9 @@
       el.goOfflineBtn.addEventListener("click", () => quickUpdateAvailability("offline"));
       el.enablePushBtn?.addEventListener("click", enablePushNotifications);
       el.saveAvailBtn.addEventListener("click", handleSaveAvailabilityForm);
+
+      el.startCheckrBtn.addEventListener("click", handleStartBackgroundCheck);
+      el.startPersonaBtn.addEventListener("click", handleStartIdentityVerification);
 
       // Workflow Actions Route
       el.acceptBtn.addEventListener("click", () => executeWorkflowAction("accept"));
@@ -1367,6 +1406,119 @@
 
       el.completeDeliveryPhotoBtn.addEventListener("click", () => executeWorkflowAction("complete_delivery"));
       el.deliveryProofPhotoInput.addEventListener("change", handleDeliveryProofPhotoSelected);
+    }
+
+    // Whether Persona identity verification is turned on server-side --
+    // it's currently off in production, so the button stays hidden until
+    // it's enabled rather than showing an action that will just fail.
+    async function loadPublicConfig() {
+      try {
+        const config = await apiGet("/api/config/public");
+        state.personaEnabled = Boolean(config.persona_enabled);
+      } catch {
+        state.personaEnabled = false;
+      }
+      renderVerificationPanel();
+    }
+
+    // Renders the verification checklist and the Checkr/Persona action
+    // buttons from the latest readiness checks + driver status fields.
+    // This is what actually starts the real background/identity checks --
+    // computeDriverReadiness() on the server is what ultimately decides
+    // whether the driver can go online, this panel just gives them a way
+    // to clear it instead of being stuck on an indefinite "pending".
+    function renderVerificationPanel() {
+      const checks = state.checks || {};
+      const driver = state.driver || {};
+
+      const setCheckPill = (pillEl, passed) => {
+        if (!pillEl) return;
+        pillEl.className = `pill ${passed ? "pill-green" : "pill-gold"}`;
+        pillEl.textContent = passed ? "Passed" : "Pending";
+      };
+
+      setCheckPill(el.checkEmailVerified, checks.email_verified === true);
+      setCheckPill(el.checkPhoneVerified, checks.phone_verified === true);
+      setCheckPill(el.checkCheckrReady, checks.checkr_ready === true);
+      setCheckPill(el.checkVehiclePresent, checks.vehicle_present === true);
+
+      if (el.checkPersonaRow) {
+        el.checkPersonaRow.style.display = state.personaEnabled ? "" : "none";
+      }
+      if (state.personaEnabled) {
+        setCheckPill(el.checkPersonaVerified, checks.persona_verified === true);
+      }
+
+      // Background check: show "Start" only when nothing is in flight and
+      // it hasn't passed yet; show "Continue" (the real Checkr hosted
+      // form link) once an invitation exists; hide both once it's clear.
+      const checkrReady = checks.checkr_ready === true;
+      const checkrStatus = (driver.checkrStatus || "").toLowerCase();
+      if (checkrReady) {
+        el.startCheckrBtn.style.display = "none";
+        el.continueCheckrLink.style.display = "none";
+      } else if (checkrStatus === "invited" && driver.checkrInvitationUrl) {
+        el.startCheckrBtn.style.display = "none";
+        el.continueCheckrLink.style.display = "";
+        el.continueCheckrLink.href = driver.checkrInvitationUrl;
+      } else {
+        el.startCheckrBtn.style.display = "";
+        el.continueCheckrLink.style.display = "none";
+      }
+
+      // Identity verification: hidden entirely while Persona is disabled
+      // server-side (it is, in production, as of this writing).
+      if (!state.personaEnabled) {
+        el.startPersonaBtn.style.display = "none";
+      } else if (checks.persona_verified === true) {
+        el.startPersonaBtn.style.display = "none";
+      } else {
+        el.startPersonaBtn.style.display = "";
+        const personaInFlight = ["pending", "created", "started", "needs_review"]
+          .includes((driver.personaStatus || "").toLowerCase());
+        el.startPersonaBtn.textContent = personaInFlight
+          ? "Identity Verification Pending — Retry"
+          : "Start Identity Verification";
+      }
+    }
+
+    async function handleStartBackgroundCheck() {
+      if (!state.driverId) return;
+      el.startCheckrBtn.disabled = true;
+      showMessage(el.verificationMsg, "Starting your background check...", "ok");
+      try {
+        // The server is the source of truth on whether this is a brand
+        // new invitation or an existing one being resumed (see
+        // decideCheckrStartAction in lib/driverCompliance.js) -- a
+        // double-click or a retry must not open two Checkr invitations,
+        // so we always show its message rather than assuming success
+        // meant "new invitation created."
+        const resp = await apiPost("/api/checkr/start", {});
+        showMessage(el.verificationMsg, resp.message || "Background check invitation sent. Continue below to finish it.", "ok");
+        if (resp.invitation && resp.invitation.invitation_url && !resp.reused) {
+          window.open(resp.invitation.invitation_url, "_blank", "noopener");
+        }
+        await fetchFreshDashboardState(false);
+      } catch (e) {
+        showMessage(el.verificationMsg, "Could not start background check: " + e.message, "err");
+      } finally {
+        el.startCheckrBtn.disabled = false;
+      }
+    }
+
+    async function handleStartIdentityVerification() {
+      if (!state.driverId) return;
+      el.startPersonaBtn.disabled = true;
+      showMessage(el.verificationMsg, "Starting identity verification...", "ok");
+      try {
+        const resp = await apiPost("/api/persona/inquiry", { user_type: "driver", user_id: state.driverId });
+        showMessage(el.verificationMsg, resp.message || "Identity verification started. This page updates automatically once it's complete.", "ok");
+        await fetchFreshDashboardState(false);
+      } catch (e) {
+        showMessage(el.verificationMsg, "Could not start identity verification: " + e.message, "err");
+      } finally {
+        el.startPersonaBtn.disabled = false;
+      }
     }
 
     const DEFAULT_PHOTO =
@@ -1587,10 +1739,15 @@
             mode: d.mode || "driver",
             approved: readiness.ready === true,
             completedCount: Number(d.total_trips || 0),
-            photoUrl: d.photo_url || ""
+            photoUrl: d.photo_url || "",
+            checkrStatus: d.checkr_status || null,
+            checkrInvitationUrl: d.checkr_invitation_url || null,
+            personaStatus: d.persona_status || null
           };
+          state.checks = readiness.checks || null;
           if (el.availStatus) el.availStatus.value = state.driver.status;
           if (el.availMode) el.availMode.value = state.driver.mode;
+          renderVerificationPanel();
         } catch (e) {
           showMessage(el.globalMsg, "Could not load driver profile: " + e.message, "warn");
         }
