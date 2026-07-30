@@ -583,19 +583,60 @@ applicants. Revised before merge to:
   directly by the route, instead of being duplicated inline — what's
   unit-tested is what actually runs.
 
-`lib/driverCompliance.test.js` (21 tests) covers: ordinary approval
+`lib/driverCompliance.test.js` (22 tests) covers: ordinary approval
 cannot set or clear Checkr/Persona/contact fields; a driver stays not
 ready while any required check is incomplete; approval_status alone
 (without the other checks) is insufficient; a real webhook-confirmed
 pass makes a driver ready once every other requirement is also met; a
 pending/failed Checkr result can't be satisfied by anything other than
-an accepted status, including through the ordinary approval route; and
+an accepted status, including through the ordinary approval route;
 every compliance-override path rejects non-elevated auth, a missing/
-short reason, or a missing documentation-review confirmation.
+short reason, or a missing documentation-review confirmation; and (see
+below) an audit-log failure can never leave an override applied without
+its audit record.
 
 The specific test driver hit during this session (`DRV-85708D8A35`) was
 unblocked directly via a one-off Supabase update, documented as a one-
 time testing exception — not the production approval model.
+
+### Follow-up fix: an override could previously "succeed" without its audit record
+
+On a second review, both override routes above were found to still call
+`auditLog(...).catch(() => {})` after updating the driver — a plain
+`.update()` call followed by a separate, best-effort audit write. If the
+audit insert failed for any reason, the driver-side change had already
+committed: a compliance override could mark `checkr_status: "clear"` (or
+a contact-verification override could mark `email_verified: true`) with
+no accountable record of who did it, why, or when. For an action whose
+entire justification is "high-risk, so it must be audited," best-effort
+auditing defeats the purpose.
+
+Fixed by replacing the two-step update-then-audit pattern with a single
+atomic Postgres function per override
+(`supabase/migrations/20260730180000_add_driver_override_atomic_functions.sql`
+— `apply_driver_contact_verification_override` and
+`apply_driver_compliance_override`), each doing the driver `UPDATE` and
+the `audit_logs` `INSERT` inside one `plpgsql` transaction. Both routes
+now call these via `supabase.rpc(...)` through two new orchestrator
+functions in `lib/driverCompliance.js`
+(`applyContactVerificationOverride`, `applyComplianceOverride`) instead
+of the old separate calls — there is now exactly one call site per
+override, so "the override applied" and "the override was audited" are
+a single atomic fact. If the RPC fails (including the audit insert
+failing and rolling back the whole transaction), the route returns `502`
+and no driver row is changed; the previously-exported pure builders
+(`buildContactVerificationOverrideUpdate`, `buildComplianceOverrideUpdate`)
+were removed since they no longer represent what actually runs.
+
+New tests in `lib/driverCompliance.test.js` cover both orchestrator
+functions with an injected/mocked `callRpc`: a successful call returns
+the updated driver; a failed call (simulating the audit insert failing
+inside the transaction) returns `{ok: false}` with no driver data; and
+exactly one RPC call is made per request, proving there is no separate
+fallback path that could apply the driver change outside the atomic
+transaction. The migration was also verified live against Supabase by
+calling it with a nonexistent driver ID and confirming it raises and
+leaves no `audit_logs` row behind.
 
 ### Scope still open (not built)
 
@@ -625,9 +666,14 @@ time testing exception — not the production approval model.
   accepts `online: true` from the driver with **no readiness check at
   all** — found while reviewing this fix. `computeDriverReadiness()`
   gates what the dashboard *displays*, not what the server actually
-  *allows*. This should be closed as part of the onboarding-flow work
-  above, not patched separately, since "only allow online once readiness
-  actually clears" is the same requirement either way.
+  *allows*, so a modified client can set `online: true` directly
+  regardless of what the dashboard shows. On review this was called out
+  as a direct server-side safety bypass that should not wait for the
+  onboarding UI work above — closing it is now the immediate next,
+  separate, focused fix: reject `online: true` unless
+  `computeDriverReadiness()` returns `ready: true`, returning the failed
+  checks; requests to go offline must always remain allowed regardless of
+  readiness.
 
 ### Launch impact
 

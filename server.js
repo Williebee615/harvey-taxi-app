@@ -2944,9 +2944,9 @@ const { HARVEY_AI_SYSTEM_PROMPT } = require("./lib/harveyAiSystemPrompt");
 const {
   computeDriverReadiness,
   buildOrdinaryApprovalUpdate,
-  buildContactVerificationOverrideUpdate,
   validateComplianceOverrideRequest,
-  buildComplianceOverrideUpdate
+  applyContactVerificationOverride,
+  applyComplianceOverride
 } = require("./lib/driverCompliance");
 /* =========================================================
 
@@ -14924,87 +14924,87 @@ app.patch(
 
     }
 
-    const { data, error } =
+    // Applies the driver update and writes the audit_logs row inside a
+    // single atomic database transaction (see apply_driver_contact_
+    // verification_override() in supabase/migrations) -- this override
+    // must never report success unless its audit record actually
+    // persisted, so there is deliberately no separate, fallible
+    // auditLog(...).catch(() => {}) call after a successful update here.
+    const result =
 
-      await supabase
+      await applyContactVerificationOverride({
 
-        .from("drivers")
+        callRpc:
 
-        .update(
+          (name, params) =>
 
-          buildContactVerificationOverrideUpdate({
-
-            emailVerified,
-
-            phoneVerified,
-
-            now: nowIso()
-
-          })
-
-        )
-
-        .eq("id", driverId)
-
-        .select()
-
-        .single();
-
-    if (error) {
-
-      throw error;
-
-    }
-
-    auditLog({
-
-      actor_type:
-
-        "admin",
-
-      actor_id:
-
-        req.admin.email,
-
-      action:
-
-        "driver_contact_verification_override",
-
-      entity_type:
-
-        "driver",
-
-      entity_id:
+            supabase.rpc(name, params),
 
         driverId,
 
-      metadata: {
+        emailVerified,
 
-        reason,
+        phoneVerified,
 
-        email_verified:
+        actorType:
 
-          emailVerified,
+          "admin",
 
-        phone_verified:
+        actorId:
 
-          phoneVerified,
+          req.admin.email,
 
-        admin_auth_method:
+        action:
 
-          req.admin.method
+          "driver_contact_verification_override",
 
-      },
+        metadata: {
 
-      req
+          reason,
 
-    }).catch(() => {});
+          email_verified:
+
+            emailVerified,
+
+          phone_verified:
+
+            phoneVerified,
+
+          admin_auth_method:
+
+            req.admin.method
+
+        },
+
+        ipAddress:
+
+          getClientIp(req),
+
+        userAgent:
+
+          req.headers["user-agent"] || null
+
+      });
+
+    if (!result.ok) {
+
+      return fail(
+
+        res,
+
+        result.error,
+
+        result.statusCode
+
+      );
+
+    }
 
     return ok(res, {
 
       driver:
 
-        data
+        result.driver
 
     });
 
@@ -15123,91 +15123,89 @@ app.patch(
 
       );
 
-    const { data, error } =
+    // Same atomic-or-nothing guarantee as the contact-verification
+    // override above -- this action can make a ride dispatch to a driver
+    // with no real background check on file, so it must never report
+    // success unless its audit record actually persisted alongside it.
+    const result =
 
-      await supabase
+      await applyComplianceOverride({
 
-        .from("drivers")
+        callRpc:
 
-        .update(
+          (name, params) =>
 
-          buildComplianceOverrideUpdate({
-
-            checkrStatus,
-
-            personaVerified,
-
-            now: nowIso()
-
-          })
-
-        )
-
-        .eq("id", driverId)
-
-        .select()
-
-        .single();
-
-    if (error) {
-
-      throw error;
-
-    }
-
-    auditLog({
-
-      actor_type:
-
-        "admin",
-
-      actor_id:
-
-        req.admin.email,
-
-      action:
-
-        "driver_compliance_override",
-
-      entity_type:
-
-        "driver",
-
-      entity_id:
+            supabase.rpc(name, params),
 
         driverId,
 
-      metadata: {
+        checkrStatus,
 
-        reason,
+        personaVerified,
 
-        reviewed_documentation:
+        actorType:
 
-          true,
+          "admin",
 
-        checkr_status:
+        actorId:
 
-          checkrStatus,
+          req.admin.email,
 
-        persona_verified:
+        action:
 
-          personaVerified,
+          "driver_compliance_override",
 
-        admin_auth_method:
+        metadata: {
 
-          req.admin.method
+          reason,
 
-      },
+          reviewed_documentation:
 
-      req
+            true,
 
-    }).catch(() => {});
+          checkr_status:
+
+            checkrStatus,
+
+          persona_verified:
+
+            personaVerified,
+
+          admin_auth_method:
+
+            req.admin.method
+
+        },
+
+        ipAddress:
+
+          getClientIp(req),
+
+        userAgent:
+
+          req.headers["user-agent"] || null
+
+      });
+
+    if (!result.ok) {
+
+      return fail(
+
+        res,
+
+        result.error,
+
+        result.statusCode
+
+      );
+
+    }
 
     return ok(res, {
 
       driver:
 
-        data
+        result.driver
 
     });
 
