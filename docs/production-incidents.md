@@ -545,34 +545,89 @@ safety claim, not a testing convenience — do not do this in bulk as a
 shortcut. Once the real Checkr-start flow is fixed, these existing rows
 are exactly who should be run through it first.
 
-### Fix — partial, in progress
+### Fix — revised: administrative approval and compliance are now separate, separately-authorized actions
 
-`PATCH /api/admin/drivers/:id/approve` had the identical shape of bug as
-the rider approve route: it only ever set `status`/`approval_status`/
-`online`/`approved_at`, never the verification/background-check fields
-`GET /api/drivers/:id/readiness` actually checks. It now also sets
-`email_verified: true, phone_verified: true, persona_verified: true,
-checkr_status: "clear"` — an explicit "admin vouches for this driver"
-action, same reasoning as the rider fix. This is appropriate for a
-trusted, manually-reviewed approval; it is not a substitute for a real
-Checkr check on an unreviewed applicant.
+The first version of this fix (see PR history) made
+`PATCH /api/admin/drivers/:id/approve` also set `email_verified: true,
+phone_verified: true, persona_verified: true, checkr_status: "clear"`
+automatically. **On review, that was correctly rejected as too broad**:
+it would let an ordinary admin approval represent that a real background
+check and identity verification had happened, even when neither one had
+— exactly the false-safety-claim risk already flagged above for the real
+applicants. Revised before merge to:
 
-The specific test driver hit during this session
-(`DRV-85708D8A35`) was unblocked directly via a one-off Supabase update
-so testing could continue immediately.
+- `PATCH /api/admin/drivers/:id/approve` now only ever sets what
+  `buildOrdinaryApprovalUpdate()` (`lib/driverCompliance.js`) returns:
+  `status`, `approval_status`, `approved_at`, `online: false`,
+  `updated_at`. It never touches `email_verified`, `phone_verified`,
+  `persona_verified`, or `checkr_status`.
+- `checkr_status`/`persona_verified` may now only change via the real,
+  signature-verified Checkr/Persona webhook handlers (already correct —
+  see the `persona_webhook_received`/`checkr_webhook_received` handlers,
+  which write these exact fields from verified third-party events), or
+  via the new `PATCH /api/admin/drivers/:id/compliance-override`, which
+  requires **elevated admin authorization** (the pre-shared `admin_token`
+  method specifically — `requireElevatedAdmin()`, stricter than ordinary
+  `requireAdmin()`), a written reason of meaningful length, and an
+  explicit `reviewed_documentation: true` confirmation. Every use is
+  audit-logged with the reason, the fields changed, and the auth method
+  used.
+- `email_verified`/`phone_verified` may now only change via ordinary
+  approval leaving them untouched, or via the new
+  `PATCH /api/admin/drivers/:id/contact-verification-override`, which
+  requires a written reason (ordinary `requireAdmin` is sufficient here —
+  contact verification doesn't carry the same safety weight as a
+  background check) and is also audit-logged.
+- `GET /api/drivers/:id/readiness`'s check logic was extracted into
+  `computeDriverReadiness()` in the same lib module and is now called
+  directly by the route, instead of being duplicated inline — what's
+  unit-tested is what actually runs.
+
+`lib/driverCompliance.test.js` (21 tests) covers: ordinary approval
+cannot set or clear Checkr/Persona/contact fields; a driver stays not
+ready while any required check is incomplete; approval_status alone
+(without the other checks) is insufficient; a real webhook-confirmed
+pass makes a driver ready once every other requirement is also met; a
+pending/failed Checkr result can't be satisfied by anything other than
+an accepted status, including through the ordinary approval route; and
+every compliance-override path rejects non-elevated auth, a missing/
+short reason, or a missing documentation-review confirmation.
+
+The specific test driver hit during this session (`DRV-85708D8A35`) was
+unblocked directly via a one-off Supabase update, documented as a one-
+time testing exception — not the production approval model.
 
 ### Scope still open (not built)
 
-- Wiring driver-signup.html (or wherever onboarding continues) to
-  actually call `/api/persona/inquiry` and `/api/checkr/start`.
+- **The actual engineering priority now**: wire driver onboarding to
+  really call `/api/persona/inquiry` and `/api/checkr/start`, show
+  progress/errors to the driver, and rely on the real webhook results
+  (now that ordinary approval can no longer substitute for them) to let
+  `computeDriverReadiness()` actually clear. May land as a separate PR.
 - A driver-facing way to see and act on Persona/Checkr results (retry,
   see failure reasons) rather than an indefinite "pending".
-- Deciding what to do with the real stuck applicants found above —
-  contact them, re-run them through a fixed flow, or otherwise resolve
-  the backlog — once a real flow exists.
+- Handling the backlog of real stuck applicants — not a code change.
+  Process: preserve every original application row (no deletes/merges);
+  group duplicate signups by person and label which one is the active
+  record versus a duplicate (a data-labeling pass, not an approval
+  decision); contact the real applicants (Juan Ruiz Ortiz, Francisco
+  Garcia Ruiz) with an honest explanation that a technical issue
+  prevented verification from starting, inviting them back once the real
+  flow ships — without requesting identity documents by ordinary email
+  or text; run the actual Persona/Checkr flow on them before either goes
+  online. None of this was done automatically — see the labeling/outreach
+  notes recorded separately for what was actually sent, to whom, and
+  when.
 - Same admin-panel consolidation work noted in the rider-side entry above
   (`admin-verification.html` also has broken driver-approve/reject calls
   to `/api/admin/approve-driver/:id` — same nonexistent-URL pattern).
+- `POST /api/driver/status` (the real "go online" toggle) currently
+  accepts `online: true` from the driver with **no readiness check at
+  all** — found while reviewing this fix. `computeDriverReadiness()`
+  gates what the dashboard *displays*, not what the server actually
+  *allows*. This should be closed as part of the onboarding-flow work
+  above, not patched separately, since "only allow online once readiness
+  actually clears" is the same requirement either way.
 
 ### Launch impact
 
