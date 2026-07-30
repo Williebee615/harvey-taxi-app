@@ -741,3 +741,70 @@ New tests cover `parseDriverOnlineRequest()` directly: the strings
 `"false"` and `"true"` are both rejected (not coerced), as are `null`,
 `1`, `0`, and a missing value; actual booleans `true`/`false` are
 accepted. `node -c server.js` passes; full suite: 175/175 tests passing.
+
+## 2026-07-30 — Driver onboarding now actually starts Checkr, and closes a Persona spoofing gap found along the way
+
+**The actual engineering priority flagged in the two entries above**:
+`POST /api/persona/inquiry` and `POST /api/checkr/start` have worked
+server-side the whole time, but no page in `public/` ever called either
+one, so "pending" verification was never real turnaround time — nothing
+ever started the check.
+
+### Fix: driver-dashboard.html now starts a real Checkr background check
+
+Added a "Verification & Background Check" panel to `driver-dashboard.html`
+that renders the same checks `computeDriverReadiness()` already reports
+(email, phone, Checkr, vehicle, and Persona when enabled) as pass/pending
+pills, and adds a real "Start Background Check" button that calls
+`POST /api/checkr/start`. Once Checkr returns an invitation, the panel
+shows a "Continue Background Check" link to the real Checkr hosted form
+(`checkr_invitation_url`) instead of the start button, so a driver who
+starts the flow and comes back later can resume it rather than re-
+triggering a new invitation. `GET /api/drivers/:id/readiness` now
+returns `checkr_status`, `checkr_invitation_url`, and `persona_status`
+in its already-curated, client-safe `driver` object so the dashboard has
+what it needs without exposing the raw row.
+
+Persona is wired the same way (a "Start Identity Verification" button
+calling `POST /api/persona/inquiry`), but the button only renders when
+`GET /api/config/public` reports `persona_enabled: true` — Persona is
+currently off in production, so nothing changes there yet; the button
+will appear automatically once it's turned on.
+
+### Security gap found and fixed while wiring this up: `/api/persona/inquiry` trusted a client-supplied `user_id`
+
+While wiring the driver dashboard to actually call this route, found
+that it took `user_id` directly from the request body with **no
+authentication at all** — any caller who knew (or guessed) another
+driver's id could trigger a Persona inquiry against that driver's
+record, and the identity fields (name/email/phone) used to open the
+inquiry also came straight from the request body, so the inquiry
+wouldn't even necessarily be checking the right person. Nothing called
+this route before this PR, so nothing in production was exploiting it,
+but it was about to become live-reachable from the dashboard.
+
+Fixed for the driver path specifically: the route now authenticates the
+caller as a driver (the same driver-session check `requireDriver` uses)
+and requires the authenticated driver's id to match the requested
+`user_id`; the identity fields sent to Persona now come from the
+driver's own record, never the request body. The rider path (`user_type:
+"rider"`) is unchanged and still has this gap — nothing calls it today
+and building the rider Persona flow is out of scope here, but it's
+called out explicitly so it isn't mistaken for already fixed.
+
+### Scope still open
+
+- The rider-side `/api/persona/inquiry` authentication gap noted above.
+- A driver-facing way to see *why* a Checkr result came back
+  unsuccessful (Checkr's own dashboard has this; nothing surfaces it
+  here yet) rather than an indefinite "pending" pill.
+- Running the real applicants (Juan Ruiz Ortiz, Francisco Garcia Ruiz,
+  and the labeled duplicate rows) through this flow now that it exists.
+  Per direction: the prepared outreach should go out now, without asking
+  them to restart until this flow is confirmed working end-to-end in
+  production — this session has no SendGrid/Twilio credentials or
+  outbound network access to actually send that outreach, so it still
+  has to be sent from the real production environment.
+
+`node -c server.js` passes; full suite: 175/175 tests passing. This PR
+does not touch any production driver or rider records.

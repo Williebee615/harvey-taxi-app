@@ -6326,21 +6326,20 @@ app.post(
 
   asyncRoute(async (req, res) => {
 
+    // A driver's identity fields come from their own authenticated
+    // record (see below), not the request body, so only user_type/
+    // user_id are required on that path. The rider path is unchanged.
+    const requiredFields =
+
+      cleanString(req.body.user_type, 20).toLowerCase() === "driver"
+
+        ? ["user_type", "user_id"]
+
+        : ["user_type", "user_id", "email", "first_name", "last_name"];
+
     const missing =
 
-      requireBody(req, [
-
-        "user_type",
-
-        "user_id",
-
-        "email",
-
-        "first_name",
-
-        "last_name"
-
-      ]);
+      requireBody(req, requiredFields);
 
     if (missing.length) {
 
@@ -6382,6 +6381,51 @@ app.post(
 
     }
 
+    // For a driver-initiated inquiry, the caller's identity and target
+    // record must be the same authenticated driver -- otherwise any
+    // caller who knew another driver's id could trigger (and have their
+    // own name/email attached to) that driver's identity verification.
+    // requireDriver() is invoked inline rather than as route middleware
+    // because this route also serves the (separate, not-yet-built) rider
+    // flow, which does not carry a driver session.
+    let authenticatedDriver = null;
+
+    if (userType === "driver") {
+
+      await requireDriver(req, res, () => {
+
+        authenticatedDriver = req.driver;
+
+      });
+
+      if (!authenticatedDriver) {
+
+        return;
+
+      }
+
+      if (
+
+        cleanString(req.body.user_id, 100) !==
+
+        authenticatedDriver.id
+
+      ) {
+
+        return fail(
+
+          res,
+
+          "You may only start Persona verification for your own driver account.",
+
+          403
+
+        );
+
+      }
+
+    }
+
     let inquiry;
 
     try {
@@ -6396,23 +6440,48 @@ app.post(
 
           user_id:
 
-            cleanString(req.body.user_id, 100),
+            authenticatedDriver
 
+              ? authenticatedDriver.id
+
+              : cleanString(req.body.user_id, 100),
+
+          // For a driver, identity fields come from the authenticated
+          // driver record, never the request body -- the whole point of
+          // Persona verification is confirming who this person actually
+          // is, so the name/email/phone it verifies against can't be
+          // client-supplied.
           email:
 
-            cleanEmail(req.body.email),
+            authenticatedDriver
+
+              ? authenticatedDriver.email
+
+              : cleanEmail(req.body.email),
 
           phone:
 
-            cleanPhone(req.body.phone),
+            authenticatedDriver
+
+              ? authenticatedDriver.phone
+
+              : cleanPhone(req.body.phone),
 
           first_name:
 
-            cleanString(req.body.first_name, 120),
+            authenticatedDriver
+
+              ? authenticatedDriver.first_name
+
+              : cleanString(req.body.first_name, 120),
 
           last_name:
 
-            cleanString(req.body.last_name, 120)
+            authenticatedDriver
+
+              ? authenticatedDriver.last_name
+
+              : cleanString(req.body.last_name, 120)
 
         });
 
@@ -6452,6 +6521,14 @@ app.post(
 
         : "riders";
 
+    const resolvedUserId =
+
+      authenticatedDriver
+
+        ? authenticatedDriver.id
+
+        : cleanString(req.body.user_id, 100);
+
     await supabase
 
       .from(table)
@@ -6476,7 +6553,7 @@ app.post(
 
         "id",
 
-        cleanString(req.body.user_id, 100)
+        resolvedUserId
 
       );
 
@@ -6488,7 +6565,7 @@ app.post(
 
       actor_id:
 
-        req.body.user_id,
+        resolvedUserId,
 
       action:
 
@@ -6500,7 +6577,7 @@ app.post(
 
       entity_id:
 
-        req.body.user_id,
+        resolvedUserId,
 
       metadata: {
 
@@ -7537,7 +7614,17 @@ app.get(
 
         supports_food_delivery: driver.supports_food_delivery,
 
-        supports_grocery_delivery: driver.supports_grocery_delivery
+        supports_grocery_delivery: driver.supports_grocery_delivery,
+
+        // Status/link fields the dashboard needs to render its own
+        // verification progress and let the driver resume an
+        // in-progress Checkr flow -- these are the driver's own status
+        // strings and invitation link, not internal payloads.
+        checkr_status: driver.checkr_status || null,
+
+        checkr_invitation_url: driver.checkr_invitation_url || null,
+
+        persona_status: driver.persona_status || null
 
       }
 
