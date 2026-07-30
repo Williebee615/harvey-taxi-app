@@ -14997,6 +14997,14 @@ app.patch(
 
       );
 
+    // getRiderReadiness() requires email_verified AND sms_verified AND
+    // status/approval_status to all be true (Object.values(checks).
+    // every(Boolean)) -- setting only status/approval_status here used to
+    // mean an admin approval could never actually unblock a rider from
+    // booking, since the email/SMS checks stayed false regardless. This
+    // route is an explicit "admin vouches for this rider" action, so it
+    // now sets both verification flags too, same as completing the real
+    // verification flow would.
     const { data, error } =
 
       await supabase
@@ -15016,6 +15024,14 @@ app.patch(
           approved_at:
 
             nowIso(),
+
+          email_verified:
+
+            true,
+
+          sms_verified:
+
+            true,
 
           updated_at:
 

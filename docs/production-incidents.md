@@ -415,3 +415,88 @@ of how a ride reaches dispatch). Recommend merging and deploying this fix
 on its own, ahead of any further dispatch-activation work, exactly as
 originally recommended — not bundled with ETA persistence, offer-expiry,
 or any dispatch-intelligence work.
+
+**Status update**: merged and deployed. Confirmed live in a real end-to-end
+test on 2026-07-30 with live Stripe keys.
+
+---
+
+## 2026-07-30 — No working path exists for a rider to complete verification and become eligible to book — OPEN, HIGH PRIORITY
+
+**Found during**: a real end-to-end smoke test (real rider signup, real
+Stripe payment, real ride request). A rider created back on 2026-04-12
+(`willieharvey813@gmail.com`) hit "Your rider profile is not approved
+yet" at the payment stage of the request-ride wizard.
+
+### The gate itself is correct
+
+`getRiderReadiness()` (`server.js`) requires `email_verified`,
+phone/SMS-verified, `persona_verified` (bypassed to `true` while Persona
+is disabled), and `status_ready` to all be true
+(`Object.values(checks).every(Boolean)`). This rider genuinely had
+`email_verified: false` and `sms_verified: false` in the database — the
+gate correctly blocked booking. The defect is that there has never been
+any way for that to become true.
+
+### Three compounding gaps
+
+1. **No rider-facing email verification page exists.** The verification
+   email (`server.js`, around the `/api/verify/email/start` handler)
+   links to `${APP_BASE_URL}/verify-email.html` — that file does not
+   exist anywhere in `public/`. The link 404s.
+2. **No rider-facing SMS verification UI exists anywhere.** The backend
+   routes (`/api/verify/sms/start`, `/api/verify/sms/confirm`) are fully
+   implemented, but no page in `public/` ever calls them — there is no
+   "enter the code we texted you" screen for riders.
+3. **The admin manual-approval UI is also broken, in two different ways,
+   on two different pages.** `public/admin-rider-approval.html` calls
+   `POST /api/admin/approve-rider`; `public/admin-verification.html`
+   calls `POST /api/admin/approve-rider/:id`. Neither matches the real
+   route, `PATCH /api/admin/riders/:id/approve`, so both 404 for admins
+   too. Neither page sends the `x-admin-token`/`x-admin-email`+
+   `x-admin-password` headers `requireAdmin` requires, so fixing only the
+   URL would still leave them non-functional. Separately, the real route
+   only ever set `status`/`approval_status` — never `email_verified`/
+   `sms_verified` — so even a correctly-authenticated admin approval
+   would not have satisfied `getRiderReadiness()` on its own.
+
+**Net effect**: independent of payment, Stripe, or dispatch, there has
+been no self-service or admin path for any real rider to ever become
+eligible to book a ride.
+
+### Fix — partial, in progress
+
+`PATCH /api/admin/riders/:id/approve` now also sets `email_verified:
+true, sms_verified: true` when an admin approves a rider — an explicit
+"admin vouches for this rider" action, matching what completing the real
+verification flow would set. This is a real, durable fix for *that*
+route, but it doesn't yet solve how an admin reaches it (both existing
+admin pages are still broken/unauthenticated) or give riders a
+self-service path at all.
+
+The specific rider from this test (`c5fb73da-2c17-4521-9e0c-eefcb46ffe0b`)
+was unblocked directly via a one-off Supabase update so testing could
+continue immediately, pending this fix's deploy.
+
+### Scope still open (not built)
+
+- A real `verify-email.html` page.
+- A real rider-facing SMS verification screen (enter code, confirm).
+- A single, consolidated, properly-authenticated admin rider-approval
+  page — `admin-rider-approval.html` and `admin-verification.html` both
+  need real auth wiring (matching whatever pattern `admin-dashboard.html`
+  /`admin-login.html` already use) or should be consolidated into one
+  working page rather than left as two broken duplicates.
+- A rider-reject route (`PATCH /api/admin/riders/:id/reject`) doesn't
+  exist at all, unlike the equivalent driver route — `riders.rejection_
+  reason`/`rejected_at` columns already exist, so this is a small,
+  symmetric addition whenever the admin page work happens.
+
+### Launch impact
+
+**High priority.** This blocks the core product — a real rider has never
+had a working path to book a ride — independent of and more fundamental
+than the payment-authorization work above. The approve-route fix here is
+a small, low-risk, immediate partial mitigation; the self-service
+verification UI and admin-panel consolidation are separate, larger pieces
+of work that should be scoped and prioritized on their own.
