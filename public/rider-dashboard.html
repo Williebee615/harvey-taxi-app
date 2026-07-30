@@ -2159,6 +2159,35 @@
       text-align: center;
     }
 
+    #rideWizardOverlay .htaf-donation-card {
+      margin-top: 14px;
+      display: grid;
+      gap: 10px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.04);
+      border-radius: 18px;
+      padding: 14px 16px;
+    }
+
+    #rideWizardOverlay .htaf-donation-card p {
+      margin: 0;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    #rideWizardOverlay .htaf-donation-actions {
+      display: grid;
+      gap: 8px;
+    }
+
+    #rideWizardOverlay .htaf-donation-actions .primary-btn,
+    #rideWizardOverlay .htaf-donation-actions .ghost-btn {
+      text-decoration: none;
+      text-align: center;
+      display: block;
+    }
+
     #rideWizardOverlay .delivery-proof-box span {
       display: block;
       color: var(--text-muted);
@@ -4203,6 +4232,33 @@
               </div>
             </div>
 
+            <!-- HTAF DONATION PROMPT (optional, shown after a request is submitted) -->
+            <div id="htafDonationCard" class="htaf-donation-card hidden">
+              <strong>Support Transportation Access Through HTAF</strong>
+              <p>
+                Your ride request has been submitted successfully. Harvey
+                Transportation Assistance Foundation (HTAF) is a separate
+                501(c)(3) public charity that helps eligible Nashville-area
+                residents access medical appointments, employment,
+                education, and other essential services. Donations are
+                optional and will not affect your ride or service.
+              </p>
+              <div class="htaf-donation-actions">
+                <a
+                  href="https://www.paypal.com/us/fundraiser/charity/5906918"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="primary-btn"
+                  id="htafDonateLink"
+                >
+                  Donate to HTAF
+                </a>
+                <button type="button" class="ghost-btn" id="htafDonationSkipBtn">
+                  No Thanks — Continue to Dashboard
+                </button>
+              </div>
+            </div>
+
             <!-- ACTIONS -->
             <div class="actions">
 
@@ -4709,6 +4765,10 @@
       breakdownTotal: $("breakdownTotal"),
       breakdownMinimumNote: $("breakdownMinimumNote"),
       dispatchStateText: $("dispatchStateText"),
+
+      htafDonationCard: $("htafDonationCard"),
+      htafDonateLink: $("htafDonateLink"),
+      htafDonationSkipBtn: $("htafDonationSkipBtn"),
 
       driverInfoCard: $("driverInfoCard"),
       driverPhoto: $("driverPhoto"),
@@ -7652,12 +7712,12 @@
 
         setLiveStatus(
           state.ride.rideId
-            ? `Ride request submitted. Ride ID: ${state.ride.rideId}. Returning to your dashboard...`
-            : "Ride request submitted. Returning to your dashboard..."
+            ? `Ride request submitted. Ride ID: ${state.ride.rideId}.`
+            : "Ride request submitted."
         );
 
         showNotice(
-          "Dispatch request submitted successfully. Returning to your rider dashboard for live updates.",
+          "Dispatch request submitted successfully.",
           "success"
         );
 
@@ -7666,13 +7726,21 @@
           els.requestRideBtn.textContent = "Dispatch Requested";
         }
 
-        // Give the rider a moment to see the confirmation, then hand off
-        // to rider-dashboard.html, which is now the one place that shows
-        // "what's my active request" — per the rebuild, this page's job
-        // ends at successful dispatch.
-        setTimeout(() => {
-          window.location.href = CONFIG.DASHBOARD_URL;
-        }, 1800);
+        // Optional HTAF donation prompt replaces the old unconditional
+        // 1.8s auto-redirect here — the rider gets a moment to consider a
+        // donation to Harvey Transportation Assistance Foundation (HTAF),
+        // routed through its existing
+        // PayPal fundraiser; see foundation.html) before moving on, rather
+        // than being swept to the dashboard before they could ever see it.
+        // "No Thanks" and clicking "Donate to HTAF" (opens in a new tab)
+        // both continue on to the dashboard from here.
+        if (els.htafDonationCard) {
+          els.htafDonationCard.classList.remove("hidden");
+        } else {
+          setTimeout(() => {
+            window.location.href = CONFIG.DASHBOARD_URL;
+          }, 1800);
+        }
 
         return true;
       } catch (error) {
@@ -8224,6 +8292,25 @@
         "click",
         () => {
           window.location.href = CONFIG.DASHBOARD_URL;
+        }
+      );
+
+      els.htafDonationSkipBtn?.addEventListener(
+        "click",
+        () => {
+          window.location.href = CONFIG.DASHBOARD_URL;
+        }
+      );
+
+      // The link itself opens the PayPal fundraiser in a new tab via its
+      // own target="_blank" href — this listener just continues this tab
+      // on to the dashboard afterward, same as "No Thanks" does.
+      els.htafDonateLink?.addEventListener(
+        "click",
+        () => {
+          setTimeout(() => {
+            window.location.href = CONFIG.DASHBOARD_URL;
+          }, 400);
         }
       );
 
