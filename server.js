@@ -2013,6 +2013,37 @@ function requireAdmin(req, res, next) {
 
 }
 
+// Stricter than requireAdmin(): only the pre-shared-secret admin_token
+// method qualifies, not an ordinary admin_password/admin_session login.
+// Reserved for actions that can make a driver dispatch-eligible without
+// a real background check having run — see lib/driverCompliance.js.
+function requireElevatedAdmin(req, res, next) {
+
+  requireAdmin(req, res, () => {
+
+    // requireAdmin only ever invokes this callback after successfully
+    // authenticating and setting req.admin — a failure calls fail(res, ...)
+    // itself and never reaches here.
+    if (req.admin?.method !== "admin_token") {
+
+      return fail(
+
+        res,
+
+        "Elevated admin authorization is required for this action.",
+
+        403
+
+      );
+
+    }
+
+    return next();
+
+  });
+
+}
+
 /* =========================================================
 
    DRIVER AUTH
@@ -2905,6 +2936,18 @@ const {
 // Harvey AI's system prompt for /api/ai/support — see
 // lib/harveyAiSystemPrompt.js for why this lives outside server.js.
 const { HARVEY_AI_SYSTEM_PROMPT } = require("./lib/harveyAiSystemPrompt");
+
+// Driver readiness / compliance decision logic — see
+// lib/driverCompliance.js for why administrative approval and compliance
+// verification (Checkr/Persona) are deliberately kept as separate,
+// separately-authorized actions.
+const {
+  computeDriverReadiness,
+  buildOrdinaryApprovalUpdate,
+  validateComplianceOverrideRequest,
+  applyContactVerificationOverride,
+  applyComplianceOverride
+} = require("./lib/driverCompliance");
 /* =========================================================
 
    PART 3 — HTAF FOUNDATION APPLICATION SYSTEM
@@ -7414,73 +7457,25 @@ app.get(
 
     }
 
-    const checks = {
+    const { ready, checks } =
 
-      email_verified:
+      computeDriverReadiness(
 
-        Boolean(driver.email_verified),
+        driver,
 
-      phone_verified:
+        {
 
-        Boolean(driver.phone_verified),
+          enablePersona:
 
-      persona_verified:
+            ENABLE_PERSONA,
 
-        ENABLE_PERSONA
+          enableCheckr:
 
-          ? Boolean(driver.persona_verified)
+            ENABLE_CHECKR
 
-          : true,
+        }
 
-      checkr_ready:
-
-        ENABLE_CHECKR
-
-          ? [
-
-              "clear",
-
-              "complete",
-
-              "completed",
-
-              "eligible_for_review"
-
-            ].includes(
-
-              String(
-
-                driver.checkr_status ||
-
-                driver.approval_status ||
-
-                ""
-
-              ).toLowerCase()
-
-            )
-
-          : true,
-
-      vehicle_present:
-
-        Boolean(
-
-          driver.vehicle_make &&
-
-          driver.vehicle_model &&
-
-          driver.vehicle_year
-
-        )
-
-    };
-
-    const ready =
-
-      Object.values(checks)
-
-        .every(Boolean);
+      );
 
     return ok(res, {
 
@@ -14749,35 +14744,30 @@ app.patch(
 
       );
 
+    // Administrative approval and compliance verification are
+    // deliberately two different, separately-authorized actions -- see
+    // lib/driverCompliance.js. This route only ever touches the fields
+    // buildOrdinaryApprovalUpdate() returns (status/approval_status/
+    // approved_at/online) and never fabricates a Checkr or Persona
+    // result. checkr_status and persona_verified only ever change via
+    // the real webhook handlers (verified third-party events) or the
+    // explicit, elevated, audited PATCH .../compliance-override route
+    // below.
     const { data, error } =
 
       await supabase
 
         .from("drivers")
 
-        .update({
+        .update(
 
-          status:
+          buildOrdinaryApprovalUpdate({
 
-            "active",
+            now: nowIso()
 
-          approval_status:
+          })
 
-            "approved",
-
-          online:
-
-            false,
-
-          approved_at:
-
-            nowIso(),
-
-          updated_at:
-
-            nowIso()
-
-        })
+        )
 
         .eq("id", driverId)
 
@@ -14836,6 +14826,386 @@ app.patch(
       driver:
 
         data
+
+    });
+
+  })
+
+);
+
+/* =========================================================
+
+   ADMIN MANUAL CONTACT-VERIFICATION OVERRIDE (DRIVER)
+
+   A human admin attesting they directly confirmed a driver's phone
+   number or email address outside the normal SMS/email code flow.
+   Separate from ordinary approval (which never touches these fields —
+   see above) and separate from the compliance override below, which
+   requires elevated authorization. This one only requires a written
+   reason and ordinary admin auth.
+
+========================================================= */
+
+app.patch(
+
+  "/api/admin/drivers/:id/contact-verification-override",
+
+  requireAdmin,
+
+  asyncRoute(async (req, res) => {
+
+    const driverId =
+
+      cleanString(
+
+        req.params.id,
+
+        100
+
+      );
+
+    const reason =
+
+      cleanString(
+
+        req.body.reason,
+
+        1000
+
+      );
+
+    if (!reason) {
+
+      return fail(
+
+        res,
+
+        "A written reason is required for a manual contact-verification override.",
+
+        400
+
+      );
+
+    }
+
+    const emailVerified =
+
+      typeof req.body.email_verified === "boolean"
+
+        ? req.body.email_verified
+
+        : undefined;
+
+    const phoneVerified =
+
+      typeof req.body.phone_verified === "boolean"
+
+        ? req.body.phone_verified
+
+        : undefined;
+
+    if (
+
+      emailVerified === undefined &&
+
+      phoneVerified === undefined
+
+    ) {
+
+      return fail(
+
+        res,
+
+        "At least one of email_verified or phone_verified must be provided.",
+
+        400
+
+      );
+
+    }
+
+    // Applies the driver update and writes the audit_logs row inside a
+    // single atomic database transaction (see apply_driver_contact_
+    // verification_override() in supabase/migrations) -- this override
+    // must never report success unless its audit record actually
+    // persisted, so there is deliberately no separate, fallible
+    // auditLog(...).catch(() => {}) call after a successful update here.
+    const result =
+
+      await applyContactVerificationOverride({
+
+        callRpc:
+
+          (name, params) =>
+
+            supabase.rpc(name, params),
+
+        driverId,
+
+        emailVerified,
+
+        phoneVerified,
+
+        actorType:
+
+          "admin",
+
+        actorId:
+
+          req.admin.email,
+
+        action:
+
+          "driver_contact_verification_override",
+
+        metadata: {
+
+          reason,
+
+          email_verified:
+
+            emailVerified,
+
+          phone_verified:
+
+            phoneVerified,
+
+          admin_auth_method:
+
+            req.admin.method
+
+        },
+
+        ipAddress:
+
+          getClientIp(req),
+
+        userAgent:
+
+          req.headers["user-agent"] || null
+
+      });
+
+    if (!result.ok) {
+
+      return fail(
+
+        res,
+
+        result.error,
+
+        result.statusCode
+
+      );
+
+    }
+
+    return ok(res, {
+
+      driver:
+
+        result.driver
+
+    });
+
+  })
+
+);
+
+/* =========================================================
+
+   ADMIN MANUAL COMPLIANCE OVERRIDE (DRIVER)
+
+   The only way to set checkr_status or persona_verified other than a
+   real, signature-verified Checkr/Persona webhook event. Requires
+   elevated admin authorization (the pre-shared admin_token method, not
+   an ordinary password/session login), a written reason of meaningful
+   length, and an explicit confirmation that the administrator reviewed
+   equivalent documentation. This exists for genuinely exceptional,
+   manually-reviewed cases -- it must never become how ordinary approvals
+   are handled.
+
+========================================================= */
+
+app.patch(
+
+  "/api/admin/drivers/:id/compliance-override",
+
+  requireElevatedAdmin,
+
+  asyncRoute(async (req, res) => {
+
+    const driverId =
+
+      cleanString(
+
+        req.params.id,
+
+        100
+
+      );
+
+    const validation =
+
+      validateComplianceOverrideRequest({
+
+        authMethod:
+
+          req.admin.method,
+
+        reason:
+
+          req.body.reason,
+
+        reviewedDocumentation:
+
+          req.body.reviewed_documentation
+
+      });
+
+    if (!validation.ok) {
+
+      return fail(
+
+        res,
+
+        validation.error,
+
+        validation.statusCode
+
+      );
+
+    }
+
+    const checkrStatus =
+
+      req.body.checkr_status !== undefined
+
+        ? cleanString(req.body.checkr_status, 50)
+
+        : undefined;
+
+    const personaVerified =
+
+      typeof req.body.persona_verified === "boolean"
+
+        ? req.body.persona_verified
+
+        : undefined;
+
+    if (
+
+      checkrStatus === undefined &&
+
+      personaVerified === undefined
+
+    ) {
+
+      return fail(
+
+        res,
+
+        "At least one of checkr_status or persona_verified must be provided.",
+
+        400
+
+      );
+
+    }
+
+    const reason =
+
+      cleanString(
+
+        req.body.reason,
+
+        1000
+
+      );
+
+    // Same atomic-or-nothing guarantee as the contact-verification
+    // override above -- this action can make a ride dispatch to a driver
+    // with no real background check on file, so it must never report
+    // success unless its audit record actually persisted alongside it.
+    const result =
+
+      await applyComplianceOverride({
+
+        callRpc:
+
+          (name, params) =>
+
+            supabase.rpc(name, params),
+
+        driverId,
+
+        checkrStatus,
+
+        personaVerified,
+
+        actorType:
+
+          "admin",
+
+        actorId:
+
+          req.admin.email,
+
+        action:
+
+          "driver_compliance_override",
+
+        metadata: {
+
+          reason,
+
+          reviewed_documentation:
+
+            true,
+
+          checkr_status:
+
+            checkrStatus,
+
+          persona_verified:
+
+            personaVerified,
+
+          admin_auth_method:
+
+            req.admin.method
+
+        },
+
+        ipAddress:
+
+          getClientIp(req),
+
+        userAgent:
+
+          req.headers["user-agent"] || null
+
+      });
+
+    if (!result.ok) {
+
+      return fail(
+
+        res,
+
+        result.error,
+
+        result.statusCode
+
+      );
+
+    }
+
+    return ok(res, {
+
+      driver:
+
+        result.driver
 
     });
 
