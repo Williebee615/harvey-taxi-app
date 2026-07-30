@@ -14749,6 +14749,16 @@ app.patch(
 
       );
 
+    // GET /api/drivers/:id/readiness requires email_verified AND
+    // phone_verified AND persona_verified (bypassed while Persona is
+    // disabled) AND checkr_ready (real gate -- Checkr is enabled) to all
+    // be true before a driver can go online. Setting only status/
+    // approval_status here used to mean an admin approval could never
+    // actually unblock a driver, since the verification/background-check
+    // fields stayed unset regardless -- the same class of gap fixed for
+    // riders in PATCH /api/admin/riders/:id/approve. This route is an
+    // explicit "admin vouches for this driver" action, so it now sets
+    // those fields too.
     const { data, error } =
 
       await supabase
@@ -14772,6 +14782,22 @@ app.patch(
           approved_at:
 
             nowIso(),
+
+          email_verified:
+
+            true,
+
+          phone_verified:
+
+            true,
+
+          persona_verified:
+
+            true,
+
+          checkr_status:
+
+            "clear",
 
           updated_at:
 

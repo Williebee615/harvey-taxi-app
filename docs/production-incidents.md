@@ -500,3 +500,84 @@ than the payment-authorization work above. The approve-route fix here is
 a small, low-risk, immediate partial mitigation; the self-service
 verification UI and admin-panel consolidation are separate, larger pieces
 of work that should be scoped and prioritized on their own.
+
+---
+
+## 2026-07-30 — Same gap on the driver side: no working path to complete Persona/Checkr verification, and real applicants are stuck — OPEN, HIGH PRIORITY
+
+**Found during**: the same live smoke test, continuing on to the driver
+side. Hit "Persona and Checkr verification... pending" that never
+resolved.
+
+### The real gate
+
+`GET /api/drivers/:id/readiness` (the one `driver-dashboard.html` actually
+reads — a separate, dead function `getDriverCompliance()` also exists
+lower in the file and is never called by anything) requires
+`email_verified`, `phone_verified`, `persona_verified` (bypassed to `true`
+while `ENABLE_PERSONA` is off), `checkr_ready` (real gate — `ENABLE_CHECKR`
+is on), and `vehicle_present` all true.
+
+### The gap
+
+`POST /api/persona/inquiry` and `POST /api/checkr/start` are both fully
+implemented and work. **No page in `public/` ever calls either one.**
+Exactly like the rider-side finding above, "pending" isn't real-world
+background-check turnaround time — nothing ever starts the check in the
+first place.
+
+### This has been blocking real people, not just test accounts
+
+Querying `drivers` by `created_at` surfaced multiple **real-looking**
+driver applications, going back to **2026-07-10**, all stuck in the exact
+same unresolvable state (`checkr_status: "not_started"`,
+`email_verified: false`, `phone_verified: false`, `approval_status`
+already `"approved"`): Juan Ruiz Ortiz (3 duplicate signup attempts),
+Francisco Garcia Ruiz (2 duplicate attempts), and 3 duplicate attempts
+under the account owner's own name. The repeated duplicate signups per
+person are themselves a symptom — each applicant likely re-signed up
+after getting stuck, with no way to know why.
+
+**These real applicants were deliberately left untouched.** Unlike a
+one-off test account, marking a real stranger's `checkr_status` as
+`"clear"` without an actual background check having run would be a false
+safety claim, not a testing convenience — do not do this in bulk as a
+shortcut. Once the real Checkr-start flow is fixed, these existing rows
+are exactly who should be run through it first.
+
+### Fix — partial, in progress
+
+`PATCH /api/admin/drivers/:id/approve` had the identical shape of bug as
+the rider approve route: it only ever set `status`/`approval_status`/
+`online`/`approved_at`, never the verification/background-check fields
+`GET /api/drivers/:id/readiness` actually checks. It now also sets
+`email_verified: true, phone_verified: true, persona_verified: true,
+checkr_status: "clear"` — an explicit "admin vouches for this driver"
+action, same reasoning as the rider fix. This is appropriate for a
+trusted, manually-reviewed approval; it is not a substitute for a real
+Checkr check on an unreviewed applicant.
+
+The specific test driver hit during this session
+(`DRV-85708D8A35`) was unblocked directly via a one-off Supabase update
+so testing could continue immediately.
+
+### Scope still open (not built)
+
+- Wiring driver-signup.html (or wherever onboarding continues) to
+  actually call `/api/persona/inquiry` and `/api/checkr/start`.
+- A driver-facing way to see and act on Persona/Checkr results (retry,
+  see failure reasons) rather than an indefinite "pending".
+- Deciding what to do with the real stuck applicants found above —
+  contact them, re-run them through a fixed flow, or otherwise resolve
+  the backlog — once a real flow exists.
+- Same admin-panel consolidation work noted in the rider-side entry above
+  (`admin-verification.html` also has broken driver-approve/reject calls
+  to `/api/admin/approve-driver/:id` — same nonexistent-URL pattern).
+
+### Launch impact
+
+**High priority — and time-sensitive in a way the rider-side gap wasn't**:
+real people have been trying to become drivers for this platform for
+close to three weeks with no way to succeed. Recommend deciding soon
+whether/how to reach out to the applicants found here, independent of
+when the underlying UI fix ships.
