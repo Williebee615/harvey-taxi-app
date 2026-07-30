@@ -2943,6 +2943,8 @@ const { HARVEY_AI_SYSTEM_PROMPT } = require("./lib/harveyAiSystemPrompt");
 // separately-authorized actions.
 const {
   computeDriverReadiness,
+  parseDriverOnlineRequest,
+  evaluateDriverStatusChange,
   buildOrdinaryApprovalUpdate,
   validateComplianceOverrideRequest,
   applyContactVerificationOverride,
@@ -13074,29 +13076,128 @@ app.post(
 
     }
 
+    const parsedOnline =
+
+      parseDriverOnlineRequest(req.body.online);
+
+    if (!parsedOnline.ok) {
+
+      return fail(
+
+        res,
+
+        parsedOnline.error,
+
+        400
+
+      );
+
+    }
+
     const online =
 
-      Boolean(req.body.online);
+      parsedOnline.online;
 
-    await supabase
+    // Going online is a safety-relevant transition: a driver must not be
+    // able to force it via a direct API call regardless of what the
+    // dashboard displays, so readiness is re-checked against the live
+    // driver record here rather than trusted from the client. Going
+    // offline carries no such risk and must always be allowed —
+    // evaluateDriverStatusChange() only runs the readiness check when
+    // requestedOnline is true.
+    if (online) {
 
-      .from("drivers")
+      const { data: driver, error: driverError } =
 
-      .update({
+        await supabase
 
-        online,
+          .from("drivers")
 
-        last_seen_at:
+          .select("*")
 
-          nowIso(),
+          .eq("id", driverId)
 
-        updated_at:
+          .single();
 
-          nowIso()
+      if (driverError || !driver) {
 
-      })
+        return fail(
 
-      .eq("id", driverId);
+          res,
+
+          "Driver not found.",
+
+          404
+
+        );
+
+      }
+
+      const { allowed, checks } =
+
+        evaluateDriverStatusChange({
+
+          driver,
+
+          requestedOnline:
+
+            online,
+
+          enablePersona:
+
+            ENABLE_PERSONA,
+
+          enableCheckr:
+
+            ENABLE_CHECKR
+
+        });
+
+      if (!allowed) {
+
+        return fail(
+
+          res,
+
+          "You cannot go online until verification is complete.",
+
+          403,
+
+          { checks }
+
+        );
+
+      }
+
+    }
+
+    const { error: updateError } =
+
+      await supabase
+
+        .from("drivers")
+
+        .update({
+
+          online,
+
+          last_seen_at:
+
+            nowIso(),
+
+          updated_at:
+
+            nowIso()
+
+        })
+
+        .eq("id", driverId);
+
+    if (updateError) {
+
+      throw updateError;
+
+    }
 
     auditLog({
 

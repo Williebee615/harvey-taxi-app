@@ -682,3 +682,62 @@ real people have been trying to become drivers for this platform for
 close to three weeks with no way to succeed. Recommend deciding soon
 whether/how to reach out to the applicants found here, independent of
 when the underlying UI fix ships.
+
+## 2026-07-30 — POST /api/driver/status accepted `online: true` with no server-side readiness check — FIXED
+
+**Found while reviewing the fix above.** `computeDriverReadiness()` (and
+the route that reports it, `GET /api/drivers/:id/readiness`) only ever
+gated what `driver-dashboard.html` *displayed*. The actual "go online"
+endpoint, `POST /api/driver/status`, took `online` straight from the
+request body and wrote it to the driver row with no check at all. A
+driver who never completed Persona/Checkr — or a modified client
+ignoring the dashboard entirely — could call this endpoint directly and
+receive ride dispatches with no real identity or background check on
+file. This is a direct server-side authorization bypass, independent of
+whatever the onboarding UI does or doesn't enforce.
+
+### Fix
+
+`POST /api/driver/status` now loads the driver record and runs
+`evaluateDriverStatusChange()` (new, `lib/driverCompliance.js`) whenever
+`online: true` is requested. That function only runs
+`computeDriverReadiness()` when going online is being requested — a
+request to go offline is always allowed regardless of readiness, since
+there's no safety reason to block it. A request to go online while any
+required check is incomplete is rejected with `403` and the specific
+failed checks returned, matching what `/readiness` already reports.
+
+This was deliberately not bundled with the still-open onboarding-UI work
+(wiring real Persona/Checkr start calls into the driver-facing pages) —
+the backend must refuse an unready driver regardless of whether the UI
+in front of it is fixed yet.
+
+New tests in `lib/driverCompliance.test.js` cover `evaluateDriverStatusChange()`
+directly: an unverified driver cannot go online; a driver with a
+pending/failed Checkr result cannot go online; a driver missing vehicle
+data cannot go online even if every other check passes; a fully ready
+driver can go online; and a driver that fails every check can still go
+offline.
+
+No production driver records or flags were changed by this fix.
+
+### Follow-up (same PR, pre-merge review): loose boolean parsing and an unchecked update
+
+Two more issues were found reviewing this fix before merge:
+
+- The route read `Boolean(req.body.online)`, which treats any nonempty
+  value as `true` — a request body of `{"online": "false"}` (a JSON
+  string, not a boolean) would have been taken as going online. Fixed
+  with a new pure validator, `parseDriverOnlineRequest()`
+  (`lib/driverCompliance.js`), which requires an actual JSON boolean and
+  rejects anything else (strings, numbers, `null`, a missing value) with
+  `400`.
+- The driver `.update()` call ignored the Supabase result and returned
+  `{online}` regardless of whether the write actually succeeded. Fixed
+  to capture `error` from the update and `throw` it, so a database
+  failure surfaces as an error response instead of a false-success reply.
+
+New tests cover `parseDriverOnlineRequest()` directly: the strings
+`"false"` and `"true"` are both rejected (not coerced), as are `null`,
+`1`, `0`, and a missing value; actual booleans `true`/`false` are
+accepted. `node -c server.js` passes; full suite: 175/175 tests passing.
