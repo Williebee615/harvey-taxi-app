@@ -2943,6 +2943,7 @@ const { HARVEY_AI_SYSTEM_PROMPT } = require("./lib/harveyAiSystemPrompt");
 // separately-authorized actions.
 const {
   computeDriverReadiness,
+  evaluateDriverStatusChange,
   buildOrdinaryApprovalUpdate,
   validateComplianceOverrideRequest,
   applyContactVerificationOverride,
@@ -13077,6 +13078,79 @@ app.post(
     const online =
 
       Boolean(req.body.online);
+
+    // Going online is a safety-relevant transition: a driver must not be
+    // able to force it via a direct API call regardless of what the
+    // dashboard displays, so readiness is re-checked against the live
+    // driver record here rather than trusted from the client. Going
+    // offline carries no such risk and must always be allowed —
+    // evaluateDriverStatusChange() only runs the readiness check when
+    // requestedOnline is true.
+    if (online) {
+
+      const { data: driver, error: driverError } =
+
+        await supabase
+
+          .from("drivers")
+
+          .select("*")
+
+          .eq("id", driverId)
+
+          .single();
+
+      if (driverError || !driver) {
+
+        return fail(
+
+          res,
+
+          "Driver not found.",
+
+          404
+
+        );
+
+      }
+
+      const { allowed, checks } =
+
+        evaluateDriverStatusChange({
+
+          driver,
+
+          requestedOnline:
+
+            online,
+
+          enablePersona:
+
+            ENABLE_PERSONA,
+
+          enableCheckr:
+
+            ENABLE_CHECKR
+
+        });
+
+      if (!allowed) {
+
+        return fail(
+
+          res,
+
+          "You cannot go online until verification is complete.",
+
+          403,
+
+          { checks }
+
+        );
+
+      }
+
+    }
 
     await supabase
 
