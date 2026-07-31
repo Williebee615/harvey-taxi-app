@@ -991,3 +991,45 @@ The operator should also clear/rotate the admin password if it was ever
 saved via the old "Save Access" button on a device they don't fully
 trust, since it would have been sitting in that browser's localStorage in
 plaintext until this fix's cleanup step ran there.
+
+## 2026-07-31 — `ENABLE_PERSONA` defaults to `true` with no way to tell from the boot log — blocked every driver from going online
+
+### Report
+
+Discovered live-diagnosing PR #79 validation: a driver (`DRV-85708D8A35`)
+with email/phone verified, Checkr `clear`, and a vehicle on file still
+got `403 "You cannot go online until verification is complete."` from
+`POST /api/driver/status`.
+
+### Root cause
+
+`ENABLE_PERSONA = envBool("ENABLE_PERSONA", true)` (`server.js`) defaults
+to `true` when the env var is unset. `computeDriverReadiness()`
+(`lib/driverCompliance.js`) only treats `persona_verified` as satisfied
+when `!enablePersona` or a real Persona verification has landed. With no
+Persona onboarding flow live yet, `enablePersona` staying `true` by
+default meant no driver could ever satisfy that check, regardless of
+every other field being correct — the readiness computation itself was
+working exactly as designed; the gate was just switched on with nothing
+able to turn it off.
+
+This was made harder to diagnose than it should have been by the boot
+log's `🪪 Persona: OFF` line, which looks like it's reporting the same
+thing but actually reflects `Boolean(PERSONA_API_KEY)` — a completely
+different variable (whether the API key is configured, not whether the
+readiness gate requires it). The log said "OFF" the entire time the gate
+was "ON."
+
+### Fix
+
+No code change to the gate itself — this is a configuration decision,
+not a defect, so the fix is setting `ENABLE_PERSONA=false` in Render's
+environment until a real Persona onboarding flow exists.
+
+Added a second boot log line (next to the existing `PERSONA_API_KEY`
+line) that prints `ENABLE_PERSONA`'s actual value, explicitly labeled as
+the thing that gates going online, so this ambiguity can't recur:
+`🪪 Persona verification required to go online (ENABLE_PERSONA): ON/OFF`.
+
+`node -c server.js` passes; full suite: 175/175 tests passing (log-line
+addition only, no logic changed).
