@@ -173,7 +173,7 @@
         </div>
         <div class="actions">
           <button class="primary" id="adminLoginBtn">Sign In</button>
-          <button class="success" id="saveAdminBtn">Save Access</button>
+          <button class="success" id="saveAdminBtn">Remember Email</button>
           <button class="neutral" id="checkHealthBtn">Check Health</button>
         </div>
       </section>
@@ -295,10 +295,14 @@ function showResult(msg){els.result.style.display="block";els.error.style.displa
 function showError(msg){els.error.style.display="block";els.result.style.display="none";els.error.innerHTML=esc(msg);}
 function statusClass(s){s=String(s||"").toLowerCase(); if(["active","approved","completed","succeeded"].includes(s))return"ok"; if(["failed","rejected","cancelled","denied"].includes(s))return"bad"; if(["pending","submitted","under_review","payment_required"].some(x=>s.includes(x)))return"warn"; return"blue";}
 function adminHeaders(){
-  // Prefer the signed session cookie (set by /api/admin/login). Fall back to
-  // header credentials for backward compatibility if no session is active.
-  const email = localStorage.getItem("harvey_admin_email") || ($("adminEmail")?$("adminEmail").value.trim():"");
-  const password = localStorage.getItem("harvey_admin_password") || ($("adminPassword")?$("adminPassword").value:"");
+  // Prefer the signed session cookie (set by /api/admin/login) — sent
+  // automatically via credentials:"include" in api(). The header fields
+  // below are a same-pageview fallback only: they read whatever is
+  // currently typed into the login fields, never anything from
+  // localStorage. The password must never be persisted client-side —
+  // see saveAdmin() below for why.
+  const email = $("adminEmail")?$("adminEmail").value.trim():"";
+  const password = $("adminPassword")?$("adminPassword").value:"";
   const h = { "Content-Type":"application/json" };
   if (email) h["x-admin-email"] = email;
   if (password) h["x-admin-password"] = password;
@@ -344,10 +348,17 @@ async function adminLogin(){
 }
 
 function saveAdmin(){
-  // Kept for fallback: store header credentials on this device.
+  // Only the email is persisted -- it's already public (see the
+  // "Administrative Contact" line in the homepage footer). The password
+  // must never be written to localStorage: this page loads unauthenticated
+  // (loadDashboard() runs on open, before any sign-in), so anything stored
+  // here sits in plaintext, auto-fills the password field on every future
+  // visit, and gets replayed as a header on every request -- effectively
+  // a permanent, invisible sign-in for anyone with access to this
+  // browser. Use "Sign In" for real authentication; it sets a proper
+  // HttpOnly session cookie instead.
   localStorage.setItem("harvey_admin_email",$("adminEmail").value.trim());
-  localStorage.setItem("harvey_admin_password",$("adminPassword").value);
-  showResult("Admin access saved on this device.");
+  showResult("Admin email remembered on this device. Use Sign In to authenticate.");
 }
 
 async function checkHealth(){
@@ -642,7 +653,14 @@ $("quickAiReviewBtn").onclick=()=>{els.aiInput.value="Review current Harvey Taxi
 $("clearAiBrainBtn").onclick=()=>{els.aiInput.value="";els.aiResult.innerHTML="";};
 
 $("adminEmail").value = localStorage.getItem("harvey_admin_email") || "";
-$("adminPassword").value = localStorage.getItem("harvey_admin_password") || "";
+
+// One-time cleanup: earlier builds of this page stored the raw admin
+// password in localStorage and auto-filled it into the password field on
+// load, so it (and everything it unlocks) was exposed to anyone with
+// access to this browser before the operator ever clicked Sign In.
+// Purge it here so any device that already has it stops carrying it
+// forward.
+localStorage.removeItem("harvey_admin_password");
 
 loadDashboard();
 setInterval(()=>{ if(state.auto && !document.hidden) loadDashboard(); }, 10000);
