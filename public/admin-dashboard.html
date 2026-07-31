@@ -232,6 +232,22 @@
         <div class="card-head"><div><div class="title">Pending Drivers</div><div class="sub">Approve drivers after verification and background readiness.</div></div></div>
         <div class="list" id="pendingDriversList"><div class="empty">Loading drivers...</div></div>
       </section>
+
+      <section class="card">
+        <div class="card-head">
+          <div><div class="title">Active Riders</div><div class="sub">Already-approved riders.</div></div>
+          <span class="item-sub" id="activeRidersCount">0</span>
+        </div>
+        <div class="list" id="activeRidersList"><div class="empty">Loading riders...</div></div>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <div><div class="title">Active Drivers</div><div class="sub">Already-approved drivers.</div></div>
+          <span class="item-sub" id="activeDriversCount">0</span>
+        </div>
+        <div class="list" id="activeDriversList"><div class="empty">Loading drivers...</div></div>
+      </section>
     </div>
 
     <div class="stack">
@@ -269,7 +285,8 @@ const $ = id => document.getElementById(id);
 const els = {
   result:$("resultBox"), error:$("errorBox"), riders:$("pendingRidersList"),
   drivers:$("pendingDriversList"), rides:$("ridesList"), htaf:$("htafList"),
-  financial:$("financialList"), aiInput:$("aiCommandInput"), aiResult:$("aiBrainResult")
+  financial:$("financialList"), aiInput:$("aiCommandInput"), aiResult:$("aiBrainResult"),
+  activeRiders:$("activeRidersList"), activeDrivers:$("activeDriversList")
 };
 
 function esc(v){return String(v ?? "").replace(/[&<>"']/g,m=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;" }[m]));}
@@ -357,14 +374,20 @@ async function loadDashboard(){
     state.rides = rides.rides || [];
     state.htaf = htaf.applications || [];
 
-    const pendingRiders = state.riders.filter(r=>!["active","approved"].includes(String(r.status||r.approval_status).toLowerCase()));
-    const pendingDrivers = state.drivers.filter(d=>!["active","approved"].includes(String(d.status).toLowerCase()) || d.approval_status !== "approved");
+    const riderIsActive = r=>["active","approved"].includes(String(r.status||r.approval_status).toLowerCase());
+    const driverIsActive = d=>["active","approved"].includes(String(d.status).toLowerCase()) && d.approval_status === "approved";
+    const pendingRiders = state.riders.filter(r=>!riderIsActive(r));
+    const pendingDrivers = state.drivers.filter(d=>!driverIsActive(d));
+    const activeRiders = state.riders.filter(riderIsActive);
+    const activeDrivers = state.drivers.filter(driverIsActive);
     const completed = state.rides.filter(r=>String(r.status).toLowerCase()==="completed");
     const online = state.drivers.filter(d=>d.online === true);
     const revenue = state.rides.reduce((s,r)=>s + Number(r.estimate_total || r.total || 0),0);
 
     $("pendingRidersCount").textContent = pendingRiders.length;
     $("pendingDriversCount").textContent = pendingDrivers.length;
+    $("activeRidersCount").textContent = activeRiders.length;
+    $("activeDriversCount").textContent = activeDrivers.length;
     $("ridesCount").textContent = state.rides.length;
     $("htafCount").textContent = state.htaf.length;
     $("onlineDriversCount").textContent = online.length;
@@ -374,6 +397,8 @@ async function loadDashboard(){
 
     renderRiders(pendingRiders);
     renderDrivers(pendingDrivers);
+    renderActiveRiders(activeRiders);
+    renderActiveDrivers(activeDrivers);
     renderRides();
     renderHTAF(state.htaf);
 
@@ -439,6 +464,26 @@ function renderDrivers(items){
       </div>
       <div class="actions"><button class="success" onclick="approveDriver('${esc(d.id)}')">Approve Driver</button></div>
     </div>`).join("") : `<div class="empty">No pending drivers.</div>`;
+}
+
+function renderActiveRiders(items){
+  els.activeRiders.innerHTML = items.length ? items.slice(0,50).map(r=>`
+    <div class="item">
+      <div class="item-top">
+        <div><div class="item-title">${esc(r.first_name)} ${esc(r.last_name)}</div><div class="item-sub">${esc(r.email)} • ${esc(r.phone)}</div></div>
+        <span class="badge ${statusClass(r.status)}">${esc(r.status || r.approval_status || "active")}</span>
+      </div>
+    </div>`).join("") : `<div class="empty">No active riders yet.</div>`;
+}
+
+function renderActiveDrivers(items){
+  els.activeDrivers.innerHTML = items.length ? items.slice(0,50).map(d=>`
+    <div class="item">
+      <div class="item-top">
+        <div><div class="item-title">${esc(d.first_name)} ${esc(d.last_name)}</div><div class="item-sub">${esc(d.email)} • Checkr: ${esc(d.checkr_status || "not started")}</div></div>
+        <span class="badge ${d.online ? "ok" : "blue"}">${d.online ? "Online" : "Offline"}</span>
+      </div>
+    </div>`).join("") : `<div class="empty">No active drivers yet.</div>`;
 }
 
 function renderRides(){

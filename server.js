@@ -13201,6 +13201,85 @@ app.post(
 
 /* =========================================================
 
+   RIDER PHOTO UPLOAD
+
+   Same shape as the driver photo route above, uploaded to the
+   rider-photos bucket instead, so a driver can identify their
+   rider on arrival the same way a rider can already identify
+   their driver. Rider routes in this app aren't behind a session
+   auth middleware (see /api/rider/saved-places, /api/rider/rides)
+   — riderId is a client-supplied identifier, not a bug specific
+   to this route.
+
+========================================================= */
+
+app.post(
+  "/api/rider/photo",
+  asyncRoute(async (req, res) => {
+    const riderId = cleanString(req.body.riderId || req.body.rider_id, 100);
+
+    if (!riderId) {
+      return fail(res, "riderId is required.", 400);
+    }
+
+    const dataUrl = String(req.body.photo || req.body.image || "");
+    const decoded = decodeBase64Image(dataUrl);
+
+    if (!decoded) {
+      return fail(
+        res,
+        "Photo must be a base64 data URL (image/jpeg, image/png, or image/webp).",
+        400
+      );
+    }
+
+    const { mimeType, buffer } = decoded;
+
+    if (buffer.length > DRIVER_PHOTO_MAX_BYTES) {
+      return fail(res, "Photo is too large. Maximum size is 5MB.", 400);
+    }
+
+    const path = `${riderId}.${decoded.extension}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("rider-photos")
+      .upload(path, buffer, { contentType: mimeType, upsert: true });
+
+    if (uploadError) {
+      console.error("❌ Rider photo upload failed:", uploadError.message);
+      return fail(res, "Photo upload failed. Please try again.", 502);
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from("rider-photos")
+      .getPublicUrl(path);
+
+    const photoUrl = `${publicUrlData.publicUrl}?v=${Date.now()}`;
+
+    const { error: updateError } = await supabase
+      .from("riders")
+      .update({ photo_url: photoUrl, updated_at: nowIso() })
+      .eq("id", riderId);
+
+    if (updateError) {
+      return fail(res, "Photo uploaded but saving to profile failed.", 500);
+    }
+
+    auditLog({
+      actor_type: "rider",
+      actor_id: riderId,
+      action: "rider_photo_uploaded",
+      entity_type: "rider",
+      entity_id: riderId,
+      req
+    }).catch(() => {});
+
+    return ok(res, { photo_url: photoUrl });
+  })
+);
+
+/* =========================================================
+
    DRIVER ONLINE/OFFLINE
 
 ========================================================= */
