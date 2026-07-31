@@ -917,3 +917,77 @@ applied to the `to` field in both the `verifications.create()` and
 suite: 175/175 tests passing (no dedicated unit test added for this
 one-line helper, consistent with `cleanPhone`/`cleanEmail` themselves
 being untested inline utilities in this file).
+
+## 2026-07-31 — Admin dashboard persisted the raw admin password in localStorage, auto-filled and auto-replayed on every visit — FIXED
+
+### Report
+
+Reported directly by the operator after the Admin entry point was moved
+from the driver dashboard nav onto the public homepage footer (making it
+more likely to be opened on a shared/unlocked device): "my admin info is
+expose before sign in."
+
+### Root cause
+
+`public/admin-dashboard.html` has always had two separate credential
+paths:
+
+- **`adminLogin()`** (the "Sign In" button) — posts to `/api/admin/login`,
+  which sets a proper `HttpOnly`, `SameSite=Lax`, `Secure`-in-production
+  session cookie (`htaf_admin_session`). This path was already correct —
+  it explicitly cleared any stored password after a successful login.
+- **`saveAdmin()`** (the "Save Access" button) — a legacy fallback that
+  wrote **both** the admin email *and the raw plaintext password* to
+  `localStorage`, with no expiry.
+
+On every page load, regardless of which path had last been used, the
+page:
+
+1. Pre-filled the password `<input>` from `localStorage.getItem
+   ("harvey_admin_password")` — so the real admin password sat visible
+   in the DOM (and readable via DevTools) on every visit, before any
+   sign-in action.
+2. `adminHeaders()` read that same stored password and attached it as an
+   `x-admin-password` header on every API call `loadDashboard()` fires
+   automatically on page load (and every 10s after via the auto-refresh
+   timer) — meaning a device that had ever clicked "Save Access" was
+   permanently, silently authenticated on every future visit to the
+   page, with no explicit sign-in step at all.
+
+The server-side gate (`requireAdmin()` in `server.js`, checked on every
+`/api/admin/*` route) was never the problem — it correctly rejects
+requests with no valid token, password, or session cookie. The exposure
+was entirely client-side: a real credential, replayed automatically,
+stored with no protection beyond ordinary `localStorage`.
+
+### Fix
+
+- `saveAdmin()` no longer writes the password to `localStorage` at all —
+  it now persists only the email (already public: it's the
+  "Administrative Contact" address listed in the homepage footer). The
+  button was relabeled "Remember Email" to match.
+- `adminHeaders()` no longer reads `harvey_admin_password` from
+  `localStorage` under any circumstance — the header fallback now only
+  ever reflects whatever is live in the password `<input>` for the
+  current pageview.
+- The password `<input>` is no longer pre-filled from storage on load.
+- Added a one-time cleanup (`localStorage.removeItem("harvey_admin_password")`
+  on every page load) so any device that already has the old value
+  purges it going forward — this remediates already-affected browsers,
+  not just prevents new exposure.
+
+The `HttpOnly` session-cookie login path (`adminLogin()` /
+`/api/admin/login`) is unchanged and remains the only way this page
+authenticates a real session going forward.
+
+`node -c server.js` not applicable (frontend-only change); the page's
+inline `<script>` was verified to parse with `new Function(...)`; full
+suite: 175/175 tests passing (no new pure logic to unit-test — this is a
+client-side storage/DOM change).
+
+### Scope note
+
+The operator should also clear/rotate the admin password if it was ever
+saved via the old "Save Access" button on a device they don't fully
+trust, since it would have been sitting in that browser's localStorage in
+plaintext until this fix's cleanup step ran there.
