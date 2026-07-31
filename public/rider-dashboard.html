@@ -697,6 +697,52 @@
       border: none;
     }
 
+    .photo-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .profile-photo {
+      width: 84px;
+      height: 84px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.05);
+      flex-shrink: 0;
+    }
+
+    .photo-controls {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .photo-controls input[type="file"] {
+      display: block;
+      margin: 8px 0;
+      font-size: 0.85rem;
+      color: inherit;
+    }
+
+    .photo-msg {
+      font-size: 13px;
+      font-weight: 700;
+      min-height: 1em;
+    }
+
+    .photo-msg.ok { color: var(--green); }
+    .photo-msg.err { color: var(--danger); }
+
+    @media (max-width: 640px) {
+      .photo-row {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+      }
+    }
+
     .pill.warn {
       background: rgba(255, 215, 106, 0.12);
       color: var(--gold);
@@ -3034,6 +3080,17 @@
           <p id="accountCopy">
             Your rider profile loads here.
           </p>
+
+          <div class="photo-row">
+            <img id="profilePhotoPreview" class="profile-photo" alt="Rider photo" />
+            <div class="photo-controls">
+              <label for="profilePhotoInput"><strong>Profile Photo</strong></label>
+              <small>Shown to your driver during a trip so they can identify you. JPEG, PNG, or WebP, up to 5MB.</small>
+              <input id="profilePhotoInput" type="file" accept="image/jpeg,image/png,image/webp" />
+              <button class="btn ghost" id="uploadPhotoBtn" type="button" disabled>Upload Photo</button>
+              <div id="photoMsg" class="photo-msg"></div>
+            </div>
+          </div>
 
           <div
             id="accountPills"
@@ -8638,6 +8695,11 @@
       accountCopy: document.getElementById("accountCopy"),
       accountPills: document.getElementById("accountPills"),
 
+      photoPreview: document.getElementById("profilePhotoPreview"),
+      photoInput: document.getElementById("profilePhotoInput"),
+      uploadPhotoBtn: document.getElementById("uploadPhotoBtn"),
+      photoMsg: document.getElementById("photoMsg"),
+
       quickSupportSubject: document.getElementById("quickSupportSubject"),
       quickSupportMessage: document.getElementById("quickSupportMessage")
     };    function safe(value) {
@@ -8942,6 +9004,10 @@
 
       els.statusRiderId.textContent =
         state.riderId || "—";
+
+      if (els.photoPreview) {
+        els.photoPreview.src = rider.photo_url || DEFAULT_RIDER_PHOTO;
+      }
 
       els.accountTitle.textContent = name;
 
@@ -10136,6 +10202,80 @@
       document
         .getElementById("sendSupportBtn")
         ?.addEventListener("click", sendSupportRequest);
+
+      els.photoInput?.addEventListener("change", handlePhotoSelected);
+      els.uploadPhotoBtn?.addEventListener("click", handlePhotoUpload);
+    }
+
+    const DEFAULT_RIDER_PHOTO =
+      "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23223'/%3E%3Ccircle cx='50' cy='38' r='18' fill='%23556'/%3E%3Cellipse cx='50' cy='86' rx='32' ry='24' fill='%23556'/%3E%3C/svg%3E";
+
+    let selectedRiderPhotoDataUrl = null;
+
+    function showPhotoMessage(message, type) {
+      if (!els.photoMsg) return;
+      els.photoMsg.textContent = message;
+      els.photoMsg.className = `photo-msg ${type === "err" ? "err" : "ok"}`;
+    }
+
+    function handlePhotoSelected() {
+      const file = els.photoInput.files && els.photoInput.files[0];
+      selectedRiderPhotoDataUrl = null;
+      els.uploadPhotoBtn.disabled = true;
+
+      if (!file) return;
+
+      if (file.size > 5 * 1024 * 1024) {
+        showPhotoMessage("Photo is too large. Maximum size is 5MB.", "err");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        selectedRiderPhotoDataUrl = reader.result;
+        els.photoPreview.src = selectedRiderPhotoDataUrl;
+        els.uploadPhotoBtn.disabled = false;
+        showPhotoMessage("Photo ready to upload.", "ok");
+      };
+      reader.onerror = () => {
+        showPhotoMessage("Could not read that file. Please try another photo.", "err");
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function handlePhotoUpload() {
+      if (!selectedRiderPhotoDataUrl) return;
+
+      if (!state.riderId) {
+        showPhotoMessage("Sign in with your rider account before uploading a photo.", "err");
+        return;
+      }
+
+      els.uploadPhotoBtn.disabled = true;
+      showPhotoMessage("Uploading photo...", "ok");
+
+      try {
+        const resp = await requestJson("/api/rider/photo", {
+          method: "POST",
+          body: JSON.stringify({
+            riderId: state.riderId,
+            photo: selectedRiderPhotoDataUrl
+          })
+        });
+
+        if (state.riderProfile) {
+          state.riderProfile.photo_url = resp.photo_url;
+          saveRider(state.riderProfile);
+        }
+
+        els.photoPreview.src = resp.photo_url;
+        selectedRiderPhotoDataUrl = null;
+        els.photoInput.value = "";
+        showPhotoMessage("Photo updated. Your driver will see this on your next trip.", "ok");
+      } catch (error) {
+        showPhotoMessage("Upload failed: " + error.message, "err");
+        els.uploadPhotoBtn.disabled = false;
+      }
     }
 
     async function boot() {
