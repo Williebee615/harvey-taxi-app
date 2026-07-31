@@ -1337,6 +1337,20 @@ function cleanPhone(value) {
 
 }
 
+// Twilio Verify rejects a phone number that isn't strict E.164 (a
+// leading "+") with error 60436/68004 -- unlike the plain Messaging API,
+// which tolerates a bare "1XXXXXXXXXX" like the ones already stored on
+// existing driver rows. Only prepends "+"; never reformats digits, so a
+// number that's already E.164 (or already has "+") passes through
+// unchanged.
+function toE164(phone) {
+
+  const digits = cleanPhone(phone);
+
+  return digits.startsWith("+") ? digits : `+${digits}`;
+
+}
+
 function toNumber(value, fallback = 0) {
 
   const number = Number(value);
@@ -5249,7 +5263,7 @@ app.post(
 
           .create({
 
-            to: driver.phone,
+            to: toE164(driver.phone),
 
             channel: "sms"
 
@@ -5397,7 +5411,7 @@ app.post(
 
           .create({
 
-            to: driver.phone,
+            to: toE164(driver.phone),
 
             code
 

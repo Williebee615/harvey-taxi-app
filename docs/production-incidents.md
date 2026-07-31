@@ -897,3 +897,23 @@ completing its toll-free verification remains a valid follow-up if it's
 ever needed for other outbound SMS (delivery notifications, etc.) that
 aren't a "verification code" use case, but is no longer a blocker for
 driver login.
+
+### Follow-up (same day): Twilio Verify rejected the driver's stored phone number
+
+Switching to Twilio Verify surfaced a second, immediate issue: driver
+login failed again, this time with `"Could not send a login code right
+now."` (the route's own 502, meaning the Twilio API call itself threw).
+
+Root cause: driver phone numbers are stored without a leading `+` (e.g.
+`16156366201`). Twilio's plain Messaging API tolerated that format, but
+**Twilio Verify does not** — it requires strict E.164 and rejects
+anything else with errors like 60436 ("Recipient invalid or not
+provided"), 68004, or 60404, all pointing at the same "not E.164" cause.
+
+Fixed with a new `toE164()` helper in `server.js` (next to `cleanPhone`)
+that prepends `+` only when it's missing, never reformats digits, and is
+applied to the `to` field in both the `verifications.create()` and
+`verificationChecks.create()` calls. `node -c server.js` passes; full
+suite: 175/175 tests passing (no dedicated unit test added for this
+one-line helper, consistent with `cleanPhone`/`cleanEmail` themselves
+being untested inline utilities in this file).
