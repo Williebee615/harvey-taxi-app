@@ -741,3 +741,69 @@ New tests cover `parseDriverOnlineRequest()` directly: the strings
 `"false"` and `"true"` are both rejected (not coerced), as are `null`,
 `1`, `0`, and a missing value; actual booleans `true`/`false` are
 accepted. `node -c server.js` passes; full suite: 175/175 tests passing.
+
+## 2026-07-31 — Driver OTP login codes never reached the phone — toll-free SMS not verified — FIXED
+
+**Found continuing live validation, after the missing-columns hotfix
+above unblocked "Send Login Code" itself.** The request succeeded and
+the app showed the SMS-code entry screen, but no text ever arrived.
+
+### Root cause
+
+Confirmed directly in Twilio's message log (not the account dashboard's
+"Health Score" widget, which is unrelated to real send status and
+misleadingly showed "No data yet" even though sends were happening):
+every attempt showed status `Undelivered` with **error 30032: "Toll-Free
+Number Has Not Been Verified."** `TWILIO_FROM_NUMBER` (`+18447950299`)
+is a toll-free number that had never completed Twilio's toll-free
+verification process — a compliance step required before a toll-free
+number can send application-to-person SMS, separate from (and in
+addition to) A2P 10DLC for regular long codes.
+
+### Fix
+
+Per Twilio's own guidance ("If you're only using \[a number\] to send
+user verification text messages, you can use Twilio Verify rather than
+registering for A2P 10DLC/toll-free verification"), switched driver
+login specifically to **Twilio Verify** instead of the toll-free number:
+
+- A new Twilio Verify Service was created (SMS channel only) and its SID
+  set as `TWILIO_VERIFY_SERVICE_SID` in Render — this repo already had
+  an unrelated, unused Verify integration (`/api/auth/send-sms-code`)
+  that confirmed the pattern works; driver login now uses the same
+  Twilio product, independently.
+- `POST /api/driver/session/start` now calls
+  `twilioClient.verify.services(...).verifications.create({to, channel:
+  "sms"})` instead of the homegrown `createVerificationRecord` +
+  `sendSms` path. `POST /api/driver/session/verify` now calls
+  `.verificationChecks.create({to, code})` instead of `verifyCode()`.
+  Both routes fail closed (`503`) if `TWILIO_VERIFY_SERVICE_SID` isn't
+  configured, rather than silently falling back to the broken path.
+- The `createVerificationRecord`/`verifyCode`/`sendSms` functions are
+  unchanged and still used by every other verification flow (rider
+  email/SMS self-verification) — this switch is scoped to driver login
+  only.
+- Same query-error-vs-not-found distinction as the migration hotfix
+  above was carried into these rewritten routes directly (a DB error
+  logs server-side and returns `500`, distinct from an actual `404`
+  missing driver or `403` revoked account).
+
+Also fixed, incidentally found while diagnosing this: the original route
+always responded `sent: true` regardless of whether `sendSms()` actually
+sent anything (it didn't check the return value at all) — the rewritten
+route now reflects Twilio Verify's own `status === "pending"` in the
+response instead of a hardcoded value.
+
+`node -c server.js` passes; full suite: 175/175 tests passing (no new
+pure logic to unit-test here; this is Twilio SDK orchestration, same
+category as the pre-existing, already-untested `/api/auth/send-sms-code`
+route). Live-diagnosed against real Twilio message logs and a real
+Twilio Verify Service, not simulated.
+
+### Scope note
+
+`TWILIO_FROM_NUMBER`/the toll-free number itself was left as-is —
+completing its toll-free verification remains a valid follow-up if it's
+ever needed for other outbound SMS (delivery notifications, etc.) that
+aren't a "verification code" use case, but is no longer a blocker for
+driver login.

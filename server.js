@@ -5128,7 +5128,13 @@ app.post(
 
    The driver dashboard uses this to authenticate:
 
-   1) start: driver_id -> sends an SMS code to the driver's phone
+   1) start: driver_id -> sends an SMS code to the driver's phone via
+      Twilio Verify (not the homegrown createVerificationRecord/sendSms
+      path other verification flows use -- see docs/production-
+      incidents.md: raw SMS from this account's toll-free number failed
+      with error 30032, "Toll-Free Number Has Not Been Verified." Twilio
+      Verify's default sender is exempt from that requirement for
+      verification-code use cases, which is exactly what this is.)
 
    2) verify: driver_id + code -> returns a signed driver token
 
@@ -5162,7 +5168,32 @@ app.post(
 
         .maybeSingle();
 
-    if (error || !driver) {
+    // A query error (bad column, connection issue) is not the same fact
+    // as "no driver with this id" -- collapsing both into one message
+    // previously hid a missing-column bug behind a misleading 404.
+    if (error) {
+
+      console.error(
+
+        "❌ Driver session start: driver lookup failed:",
+
+        error.message
+
+      );
+
+      return fail(
+
+        res,
+
+        "A server error occurred. Please try again.",
+
+        500
+
+      );
+
+    }
+
+    if (!driver) {
 
       return fail(res, "Driver not found.", 404);
 
@@ -5180,29 +5211,67 @@ app.post(
 
     }
 
-    const { code } =
+    if (!twilioClient || !TWILIO_VERIFY_SERVICE_SID) {
 
-      await createVerificationRecord({
+      console.error(
 
-        channel: "sms",
+        "❌ Driver session start: Twilio Verify is not configured."
 
-        destination: driver.phone,
+      );
 
-        purpose: "driver_login",
+      return fail(
 
-        user_type: "driver",
+        res,
 
-        metadata: { driver_id: driverId }
+        "Driver sign-in is not available right now. Please try again later.",
 
-      });
+        503
 
-    await sendSms({
+      );
 
-      to: driver.phone,
+    }
 
-      body: `Your Harvey Taxi driver login code is ${code}. It expires in ${VERIFY_TTL_MINUTES} minutes.`
+    let verification;
 
-    });
+    try {
+
+      verification =
+
+        await twilioClient.verify
+
+          .services(TWILIO_VERIFY_SERVICE_SID)
+
+          .verifications
+
+          .create({
+
+            to: driver.phone,
+
+            channel: "sms"
+
+          });
+
+    } catch (err) {
+
+      console.error(
+
+        "❌ Driver session start: Twilio Verify send failed:",
+
+        err.message
+
+      );
+
+      return fail(
+
+        res,
+
+        "Could not send a login code right now. Please try again.",
+
+        502
+
+      );
+
+    }
 
     // Return the masked phone so the UI can show where the code went.
 
@@ -5212,11 +5281,9 @@ app.post(
 
     return ok(res, {
 
-      sent: true,
+      sent: verification.status === "pending",
 
-      phone_hint: masked,
-
-      expires_in_minutes: VERIFY_TTL_MINUTES
+      phone_hint: masked
 
     });
 
@@ -5256,7 +5323,31 @@ app.post(
 
         .maybeSingle();
 
-    if (error || !driver) {
+    // Same distinction as /session/start: a query error is not "no such
+    // driver" and must not be reported as one.
+    if (error) {
+
+      console.error(
+
+        "❌ Driver session verify: driver lookup failed:",
+
+        error.message
+
+      );
+
+      return fail(
+
+        res,
+
+        "A server error occurred. Please try again.",
+
+        500
+
+      );
+
+    }
+
+    if (!driver) {
 
       return fail(res, "Driver not found.", 404);
 
@@ -5268,23 +5359,67 @@ app.post(
 
     }
 
-    const verification =
+    if (!twilioClient || !TWILIO_VERIFY_SERVICE_SID) {
 
-      await verifyCode({
+      console.error(
 
-        channel: "sms",
+        "❌ Driver session verify: Twilio Verify is not configured."
 
-        destination: driver.phone,
+      );
 
-        code,
+      return fail(
 
-        purpose: "driver_login"
+        res,
 
-      });
+        "Driver sign-in is not available right now. Please try again later.",
 
-    if (!verification.ok) {
+        503
 
-      return fail(res, verification.reason || "Invalid code.", 400);
+      );
+
+    }
+
+    let check;
+
+    try {
+
+      check =
+
+        await twilioClient.verify
+
+          .services(TWILIO_VERIFY_SERVICE_SID)
+
+          .verificationChecks
+
+          .create({
+
+            to: driver.phone,
+
+            code
+
+          });
+
+    } catch (err) {
+
+      // Twilio throws (rather than returning a non-"approved" status)
+      // when there is no pending verification at all -- e.g. it already
+      // expired or was already used. Treat that the same as a wrong
+      // code: don't leak which case it was.
+      console.error(
+
+        "❌ Driver session verify: Twilio Verify check failed:",
+
+        err.message
+
+      );
+
+      return fail(res, "Invalid or expired code.", 400);
+
+    }
+
+    if (check.status !== "approved") {
+
+      return fail(res, "Invalid or expired code.", 400);
 
     }
 
