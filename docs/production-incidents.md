@@ -742,6 +742,96 @@ New tests cover `parseDriverOnlineRequest()` directly: the strings
 `1`, `0`, and a missing value; actual booleans `true`/`false` are
 accepted. `node -c server.js` passes; full suite: 175/175 tests passing.
 
+## 2026-07-31 — Every driver OTP login failed with "Driver not found" — missing schema columns — FIXED
+
+**Found starting live validation of PR #79**: signing in as a real,
+existing driver (`DRV-85708D8A35` — confirmed present in the `drivers`
+table with a valid phone number) failed with `Could not send code:
+Driver not found.` This wasn't specific to that driver — it affected
+**every** driver, platform-wide.
+
+### Root cause
+
+`POST /api/driver/session/start` and `POST /api/driver/session/verify`
+both run:
+
+```js
+.select("id, phone, access_revoked")
+```
+
+`access_revoked` does not exist as a column on the `drivers` table in
+the live database — confirmed directly against
+`information_schema.columns`. Selecting a nonexistent column makes
+Postgres return a query error, which both routes' `if (error ||
+!driver)` check silently collapsed into the same generic `"Driver not
+found."` 404 used for an actually-missing driver — hiding a schema bug
+behind a message that looked like an account problem.
+
+Checked whether this was schema drift between `drivers` and `riders`
+(since `rider.access_revoked` is also referenced, at the rider-side
+readiness gate): it wasn't. **Neither table** had `access_revoked`,
+`deleted_at`, `deleted_reason`, or `deleted_by`, despite both being
+referenced by real, intentional code:
+
+- `access_revoked` is set `true` the instant a driver or rider requests
+  account deletion (`POST /api/account/driver/delete-request` and the
+  rider equivalent) — immediately locking the account out of login while
+  the deletion itself waits on admin review — and set back to `false` if
+  the request is later rejected.
+- `deleted_at` / `deleted_reason` / `deleted_by` are written by
+  `anonymizeAccount()` once a deletion is finalized.
+
+No migration in `supabase/migrations/` ever created these columns — this
+is a missing migration for a real, coded feature, not schema drift and
+not obsolete/dead code to remove.
+
+### Fix
+
+`supabase/migrations/20260731000000_add_account_revocation_columns.sql`
+adds `access_revoked boolean not null default false`, `deleted_at
+timestamptz`, `deleted_reason text`, and `deleted_by text` to both
+`drivers` and `riders`. Applied directly to the live database and
+verified: the exact query that previously errored (`select id, phone,
+access_revoked, deleted_at, deleted_reason, deleted_by from drivers
+where id = 'DRV-85708D8A35'`) now returns the row cleanly with
+`access_revoked: false`.
+
+Also fixed the error handling that hid this: both `/session/start` and
+`/session/verify` now distinguish a real query error from a genuinely
+missing driver. A query error is logged server-side
+(`console.error("❌ Driver session start: driver lookup failed:",
+error.message)`) and returns `500` ("A server error occurred. Please
+try again."); only `!driver` with no error returns `404` ("Driver not
+found."); `access_revoked === true` still returns `403`. A future schema
+mismatch like this one will now show up immediately in the server logs
+instead of only manifesting as silent login failures.
+
+### Scope deliberately left alone (documented, not fixed, to keep this hotfix isolated)
+
+- `requireDriver()` (the token-based auth middleware used by nearly
+  every other driver route) has the same "any error → 404 Driver not
+  found" pattern in three places. It wasn't broken by this specific bug
+  (it uses `select("*")`, which doesn't error on a missing column), and
+  it's a much higher-blast-radius, used-everywhere code path. Same class
+  of issue, deliberately not touched here — a candidate for a future,
+  separately-reviewed pass.
+- `POST /api/account/driver/delete-request` writes `access_revoked: true`
+  via `.update(...)` without checking the result's `error`. Before this
+  migration, that update was silently failing on every call (the column
+  didn't exist), meaning a driver's access was never actually revoked
+  when they requested deletion, while the route still reported success.
+  The migration fixes the underlying column, so this call now succeeds
+  going forward, but the unchecked-error pattern itself is unchanged and
+  could silently fail again for some other reason later — flagged here,
+  not fixed in this hotfix.
+
+`node -c server.js` passes; full suite: 175/175 tests passing (no new
+pure logic introduced here to unit-test; this is a schema fix plus
+inline route error-handling). Live-verified against Supabase directly,
+not just locally.
+
+Once this deploys, PR #79 live validation can resume — this was blocking step 1 (a driver signing in) of that checklist.
+
 ## 2026-07-31 — Driver OTP login codes never reached the phone — toll-free SMS not verified — FIXED
 
 **Found continuing live validation, after the missing-columns hotfix
