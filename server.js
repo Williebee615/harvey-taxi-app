@@ -3148,6 +3148,7 @@ const {
   applyRiderSessionVersionIncrement,
   buildLogoutOutcome,
   resolveRiderAuthOutcome,
+  buildRiderSessionBootstrap,
   phoneLast10: riderPhoneLast10,
   phoneToE164US: riderPhoneToE164,
   selectExactlyOneActiveRider,
@@ -5727,6 +5728,24 @@ app.post(
     }
 
     return ok(res, outcome.body);
+  })
+);
+
+// Session bootstrap (P0 remediation PR #2a, docs/security-remediation/
+// pr-02a-rider-client-auth.md). requireRider-protected: the client calls
+// this once on load (and again right after a successful verify) to learn
+// its actual authenticated identity from the server, instead of trusting
+// whatever riderId happens to be sitting in localStorage/the URL. The
+// response is deliberately narrow -- see buildRiderSessionBootstrap in
+// lib/riderAuth.js for the exact, tested allow-list; this route must
+// never grow to just `ok(res, { rider: req.rider })`.
+app.get(
+  "/api/rider/session",
+  requireRider,
+  asyncRoute(async (req, res) => {
+    const readiness = await getRiderReadiness(req.rider.id);
+
+    return ok(res, buildRiderSessionBootstrap({ rider: req.rider, readiness }));
   })
 );
 
