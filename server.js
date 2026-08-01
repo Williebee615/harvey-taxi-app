@@ -19750,7 +19750,21 @@ async function startServer() {
 
       console.log(
 
-        `🪪 Persona: ${PERSONA_API_KEY ? "ON" : "OFF"}`
+        `🪪 Persona API key configured: ${PERSONA_API_KEY ? "ON" : "OFF"}`
+
+      );
+
+      // Distinct from the line above on purpose: PERSONA_API_KEY presence
+      // just means the API key is configured. ENABLE_PERSONA is the gate
+      // that actually decides whether computeDriverReadiness() requires a
+      // real Persona verification before a driver can go online -- it
+      // defaults to true even with no key configured, which previously
+      // blocked every driver from ever going online with no way to tell
+      // why from this log alone (the line above read "OFF" the whole
+      // time, which looked like the opposite problem).
+      console.log(
+
+        `🪪 Persona verification required to go online (ENABLE_PERSONA): ${ENABLE_PERSONA ? "ON" : "OFF"}`
 
       );
 
