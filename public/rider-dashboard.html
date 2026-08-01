@@ -1109,6 +1109,15 @@
     }
 
     #rideWizardOverlay .topbar {
+      /* Overrides the dashboard's own .topbar { position: sticky; top:
+         14px; z-index: 50; ... } rule below — this element shares that
+         class name, and CSS specificity is resolved per property, so
+         without an explicit position here the sticky/top/z-index/
+         backdrop-filter from the lower-specificity global rule still
+         applied, leaving a frosted "Harvey Taxi" header pinned over the
+         wizard's own scrolling content instead of scrolling away with
+         it. */
+      position: static;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -1590,9 +1599,12 @@
     #rideWizardOverlay .map-meta-box strong {
       display: block;
       font-size: 0.84rem;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      /* A long resolved address used to be cut off with an ellipsis and
+         no way to see the rest of it. Wrapping instead means the rider
+         can always read the exact address Harvey Taxi resolved. */
+      white-space: normal;
+      overflow-wrap: break-word;
+      word-break: break-word;
     }    #rideWizardOverlay .ride-card {
       padding: 22px;
       position: relative;
@@ -1711,6 +1723,38 @@
       color: var(--text-muted);
       font-size: 0.74rem;
       line-height: 1.45;
+    }
+
+    /* Concise, field-scoped error shown right next to the address that
+       actually failed (pickup or destination) — replaces the old pattern
+       of one large generic error banner repeated across every later
+       wizard stage. */
+    #rideWizardOverlay .field-error {
+      display: block;
+      color: var(--red);
+      font-size: 0.78rem;
+      font-weight: 700;
+      line-height: 1.4;
+    }
+
+    #rideWizardOverlay .field-error[hidden] {
+      display: none;
+    }
+
+    #rideWizardOverlay .route-recovery-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 4px 0 18px;
+    }
+
+    #rideWizardOverlay .route-recovery-actions[hidden] {
+      display: none;
+    }
+
+    #rideWizardOverlay .route-recovery-actions .mini-btn {
+      width: auto;
+      flex: 1 1 auto;
     }
 
     #rideWizardOverlay .input-wrap {
@@ -2490,6 +2534,15 @@
       #rideWizardOverlay #pickupMap,
       #rideWizardOverlay .map-shell {
         min-height: 240px;
+      }
+
+      /* When there's no live map to show (no GPS fix yet / Maps not
+         configured), the empty standby card doesn't need the same
+         height a real map does — shrinking it keeps more of the actual
+         wizard step, error state, and correction buttons on-screen
+         without scrolling. */
+      #rideWizardOverlay .map-shell.is-standby {
+        min-height: 132px;
       }
 
       #rideWizardOverlay .wizard-progress-step span:not(.wp-dot) {
@@ -3519,7 +3572,7 @@
 
             </div>
 
-            <div class="map-shell">
+            <div class="map-shell is-standby">
 
               <!-- LIVE MAP -->
               <div id="pickupMap"></div>
@@ -3781,6 +3834,13 @@
 
               </div>
 
+              <span
+                id="pickupAddressError"
+                class="field-error"
+                role="alert"
+                hidden
+              ></span>
+
               <!-- GPS STATUS -->
               <div class="gps-status">
 
@@ -3829,6 +3889,13 @@
                 />
 
               </div>
+
+              <span
+                id="destinationAddressError"
+                class="field-error"
+                role="alert"
+                hidden
+              ></span>
 
             </div>
 
@@ -4111,12 +4178,33 @@
               </button>
             </div>
 
+            <!-- Shown only when distance/fare couldn't be calculated.
+                 Lets the rider fix the specific address that failed (their
+                 entered info is preserved — goToStage() doesn't clear
+                 anything) or retry the same route without re-typing
+                 anything. -->
+            <div
+              id="routeRecoveryActions"
+              class="route-recovery-actions"
+              hidden
+            >
+              <button type="button" class="mini-btn" id="editPickupBtn">
+                Edit Pickup
+              </button>
+              <button type="button" class="mini-btn" id="editDestinationBtn">
+                Edit Destination
+              </button>
+              <button type="button" class="mini-btn" id="retryRouteBtn">
+                Retry Route
+              </button>
+            </div>
+
             <!-- STAGE NAV: REVIEW -->
             <div class="wizard-nav">
               <button type="button" class="ghost-btn" id="stageReviewBackBtn">
                 ← Back to Details
               </button>
-              <button type="button" class="primary-btn" id="stageReviewContinueBtn">
+              <button type="button" class="primary-btn" id="stageReviewContinueBtn" disabled>
                 Continue to Payment →
               </button>
             </div>
@@ -4226,7 +4314,7 @@
               <button type="button" class="ghost-btn" id="stagePaymentBackBtn">
                 ← Back to Review
               </button>
-              <button type="button" class="primary-btn" id="stagePaymentContinueBtn">
+              <button type="button" class="primary-btn" id="stagePaymentContinueBtn" disabled>
                 Continue to Dispatch →
               </button>
             </div>
@@ -4555,6 +4643,11 @@
         // Fare estimate: real route is POST /api/rides/estimate
         rideEstimate: "/api/rides/estimate",
 
+        // Sanitized, best-effort report of a client-side Google Maps
+        // routing failure — logged server-side for diagnosis, never used
+        // to price anything.
+        routeFailure: "/api/rides/route-failure",
+
         // Payment intent (Stripe) then authorize:
         paymentIntent: "/api/rides/payment-intent",       // POST
         authorizeRide: "/api/rides",                       // + "/:id/authorize" (POST)
@@ -4649,7 +4742,15 @@
         durationMinutes: null,
         distanceKnown: false,
         breakdown: null,
-        raw: null
+        raw: null,
+        // Server-signed quote token from POST /api/rides/estimate (see
+        // lib/rideQuote.js). Payment-intent and ride-request must present
+        // this exact token — the server ignores any miles/minutes/fare
+        // resubmitted alongside it and prices strictly from what's frozen
+        // inside the token. Cleared on every reset so a stale quote for a
+        // trip the rider has since changed can never be reused.
+        token: null,
+        tokenExpiresAt: null
       },
 
       payment: {
@@ -4721,7 +4822,13 @@
 
       pickupAddress: $("pickupAddress"),
       pickupAddressLabel: $("pickupAddressLabel"),
+      pickupAddressError: $("pickupAddressError"),
       destinationAddress: $("destinationAddress"),
+      destinationAddressError: $("destinationAddressError"),
+      routeRecoveryActions: $("routeRecoveryActions"),
+      editPickupBtn: $("editPickupBtn"),
+      editDestinationBtn: $("editDestinationBtn"),
+      retryRouteBtn: $("retryRouteBtn"),
 
       passengerServiceSettings: $("passengerServiceSettings"),
       rideType: $("rideType"),
@@ -4793,6 +4900,7 @@
 
       pickupMap: $("pickupMap"),
       mapFallback: $("mapFallback"),
+      mapShell: document.querySelector("#rideWizardOverlay .map-shell"),
 
       liveAddressText: $("liveAddressText"),
       accuracyText: $("accuracyText"),
@@ -5833,6 +5941,8 @@
           resetEstimateAndPayment(
             "Trip details changed. Please get a fresh estimate."
           );
+
+          scheduleRouteRecalc(0);
         });
 
         state[stateKey] = autocomplete;
@@ -5927,25 +6037,38 @@
     // in the app ever set those two fields, so every fare estimate was
     // silently computed as a 0-mile, 0-minute trip and always landed on
     // the flat minimum fare, no matter how long the ride actually was.
+    //
+    // Returns a structured result instead of a bare boolean so callers can
+    // show a concise error next to the specific address that failed
+    // (field: "pickup" | "destination" | "route" | "maps") instead of one
+    // generic "something went wrong" banner repeated at every later stage.
     async function ensureTripDistance() {
       if (state.estimate.distanceKnown) {
-        return true;
-      }
-
-      const hasPickup = await ensureEndpointCoordinates(state.pickup, els.pickupAddress);
-      const hasDestination = await ensureEndpointCoordinates(state.destination, els.destinationAddress);
-
-      if (!hasPickup || !hasDestination) {
-        return false;
+        return { ok: true };
       }
 
       if (
         !window.__HARVEY_MAPS_ENABLED__ ||
         !window.google ||
-        !window.google.maps ||
-        !window.google.maps.DistanceMatrixService
+        !window.google.maps
       ) {
-        return false;
+        return { ok: false, field: null, reason: "maps_unavailable" };
+      }
+
+      const hasPickup = await ensureEndpointCoordinates(state.pickup, els.pickupAddress);
+
+      if (!hasPickup) {
+        return { ok: false, field: "pickup", reason: "pickup_geocode_failed" };
+      }
+
+      const hasDestination = await ensureEndpointCoordinates(state.destination, els.destinationAddress);
+
+      if (!hasDestination) {
+        return { ok: false, field: "destination", reason: "destination_geocode_failed" };
+      }
+
+      if (!window.google.maps.DistanceMatrixService) {
+        return { ok: false, field: null, reason: "maps_unavailable" };
       }
 
       return new Promise((resolve) => {
@@ -5962,7 +6085,12 @@
             const element = response?.rows?.[0]?.elements?.[0];
 
             if (status !== "OK" || !element || element.status !== "OK") {
-              resolve(false);
+              resolve({
+                ok: false,
+                field: "route",
+                reason: "distance_matrix_failed",
+                detail: `${status}/${element?.status || "no_element"}`
+              });
               return;
             }
 
@@ -5974,10 +6102,163 @@
 
             state.estimate.distanceKnown = true;
 
-            resolve(true);
+            resolve({ ok: true });
           }
         );
       });
+    }
+
+    // Best-effort, silent report of a client-side Google Maps routing
+    // failure so it shows up in Render logs (see logRouteCalculationFailure
+    // in server.js) — never blocks the UI and never surfaces its own
+    // errors to the rider.
+    function reportRouteFailure(reason, detail) {
+      try {
+        apiPost(CONFIG.ENDPOINTS.routeFailure, {
+          reason: String(reason || "unknown").slice(0, 60),
+          detail: detail ? String(detail).slice(0, 120) : undefined,
+          mode: state.mode
+        }).catch(() => {});
+      } catch {
+        // Reporting the failure must never itself become a failure the
+        // rider sees.
+      }
+    }
+
+    function setFieldError(el, message) {
+      if (!el) return;
+      el.textContent = message;
+      el.hidden = false;
+    }
+
+    function clearFieldError(el) {
+      if (!el) return;
+      el.textContent = "";
+      el.hidden = true;
+    }
+
+    function clearRouteFailure() {
+      clearFieldError(els.pickupAddressError);
+      clearFieldError(els.destinationAddressError);
+
+      if (els.routeRecoveryActions) {
+        els.routeRecoveryActions.hidden = true;
+      }
+    }
+
+    // "No valid route + no verified fare = no payment and no dispatch."
+    // These two Continue buttons are the only path from Review into
+    // Payment and from Payment into Dispatch, so reactively disabling
+    // them here — rather than only checking on click — means a rider
+    // can never even attempt to advance while state.estimate.ready is
+    // false, instead of discovering that on click via a warning notice.
+    // authorizePaymentBtn/requestRideBtn have their own, slightly
+    // different enabling rules (requestRideBtn also depends on whether
+    // payment authorization is required/completed) and are left as-is.
+    function syncActionAvailability() {
+      const ready = Boolean(state.estimate.ready);
+
+      if (els.stageReviewContinueBtn) {
+        els.stageReviewContinueBtn.disabled = !ready;
+      }
+
+      if (els.stagePaymentContinueBtn) {
+        els.stagePaymentContinueBtn.disabled = !ready;
+      }
+    }
+
+    // Renders ensureTripDistance()'s structured failure as a concise error
+    // next to the address that actually failed (or a short generic notice
+    // when the failure isn't tied to one specific field), plus the Edit
+    // Pickup / Edit Destination / Retry Route recovery actions — replacing
+    // the old pattern of one large "we couldn't calculate a route..."
+    // paragraph repeated across every later wizard stage.
+    function showRouteFailure(result) {
+      setBadge("Distance Unavailable");
+      setDispatchState("Distance Unavailable");
+
+      setTimeline(
+        "dispatch",
+        "Couldn't determine the trip distance."
+      );
+
+      setLiveStatus(
+        "Couldn't determine the trip distance."
+      );
+
+      clearFieldError(els.pickupAddressError);
+      clearFieldError(els.destinationAddressError);
+
+      let message =
+        "We couldn't calculate a route for this trip right now. Please try again in a moment or contact support.";
+
+      if (result.field === "pickup") {
+        setFieldError(
+          els.pickupAddressError,
+          "We couldn't locate this pickup address. Try selecting a suggestion from the dropdown, or adjust it."
+        );
+        message = "Check your pickup address below, then retry.";
+      } else if (result.field === "destination") {
+        setFieldError(
+          els.destinationAddressError,
+          "We couldn't locate this destination address. Try selecting a suggestion from the dropdown, or adjust it."
+        );
+        message = "Check your destination address below, then retry.";
+      } else if (result.field === "route") {
+        message = "We couldn't find a driving route between these two addresses. Please double-check both, then retry.";
+      }
+
+      showNotice(message, "error");
+
+      if (els.routeRecoveryActions) {
+        els.routeRecoveryActions.hidden = false;
+      }
+
+      reportRouteFailure(result.reason, result.detail);
+    }
+
+    // Auto-recalculates the route in the background after: a GPS pickup
+    // fix, a Places suggestion selected for either field, or the rider
+    // tabbing away from a manually-typed address — so a bad address (or a
+    // corrected one) surfaces its concise error/success immediately
+    // instead of waiting for the rider to reach the review stage and
+    // press "Get Fare Estimate" again. Debounced so a burst of programmatic
+    // updates (e.g. Places setting both value and coordinates) only
+    // triggers one Distance Matrix call.
+    let routeRecalcTimer = null;
+
+    function scheduleRouteRecalc(delayMs) {
+      if (routeRecalcTimer) {
+        clearTimeout(routeRecalcTimer);
+      }
+
+      routeRecalcTimer = setTimeout(() => {
+        routeRecalcTimer = null;
+        attemptBackgroundRouteRecalc();
+      }, delayMs);
+    }
+
+    async function attemptBackgroundRouteRecalc() {
+      if (!safeTrim(state.pickup.address) || !safeTrim(state.destination.address)) {
+        return;
+      }
+
+      if (state.estimate.distanceKnown) {
+        return;
+      }
+
+      const result = await ensureTripDistance();
+
+      if (!result.ok) {
+        showRouteFailure(result);
+        return;
+      }
+
+      clearRouteFailure();
+
+      setLiveStatus(
+        "Trip route recalculated. Get a fresh fare estimate to continue."
+      );
     }
 
     function syncRiderFromForm() {
@@ -6162,7 +6443,9 @@
         durationMinutes: null,
         distanceKnown: false,
         breakdown: null,
-        raw: null
+        raw: null,
+        token: null,
+        tokenExpiresAt: null
       };
 
       state.payment = {
@@ -6206,6 +6489,9 @@
         els.requestRideBtn.disabled = true;
       }
 
+      clearRouteFailure();
+      syncActionAvailability();
+
       setDispatchState("Standby");
 
       if (reason) {
@@ -6241,6 +6527,29 @@
       dispatch: "wizardStageDispatch"
     };
 
+    // Whether a stage the rider has already passed actually satisfies its
+    // own requirement, not just "the rider clicked past it." Pickup and
+    // destination need a resolved coordinate, not just typed text; review
+    // needs a real fare estimate. Without this, the progress bar showed a
+    // green checkmark on every earlier step purely from stage navigation,
+    // even when route calculation had never actually succeeded for that
+    // step's own address.
+    function isStageComplete(stageName) {
+      if (stageName === "pickup") {
+        return state.pickup.latitude !== null && state.pickup.longitude !== null;
+      }
+
+      if (stageName === "destination") {
+        return state.destination.latitude !== null && state.destination.longitude !== null;
+      }
+
+      if (stageName === "review") {
+        return Boolean(state.estimate.ready);
+      }
+
+      return true;
+    }
+
     function goToStage(stageId) {
       if (!STAGES.includes(stageId)) return;
 
@@ -6270,9 +6579,11 @@
           el.classList.remove("done", "current");
           const dot = el.querySelector(".wp-dot");
 
-          if (n < currentIndex) {
+          if (n < currentIndex && isStageComplete(stageName)) {
             el.classList.add("done");
             if (dot) dot.textContent = "✓";
+          } else if (n < currentIndex) {
+            if (dot) dot.textContent = String(n + 1);
           } else if (n === currentIndex) {
             el.classList.add("current");
             if (dot) dot.textContent = String(n + 1);
@@ -6901,7 +7212,14 @@
         minutes:
           Number(state.estimate.durationMinutes || state.estimate.duration || 0),
         duration_minutes:
-          Number(state.estimate.durationMinutes || state.estimate.duration || 0)
+          Number(state.estimate.durationMinutes || state.estimate.duration || 0),
+
+        // Server-signed quote from POST /api/rides/estimate. The server
+        // ignores every field above (miles/minutes/pickup/destination/
+        // ride_type) once this is present and verified — they only ever
+        // priced anything at estimate time; payment-intent and ride-
+        // request price strictly from what's frozen inside this token.
+        estimate_token: state.estimate.token || null
       };
     }
 
@@ -7042,33 +7360,17 @@
       // underpay the driver) with no visible sign anything went wrong.
       // Better to block and ask the rider to fix the address than to
       // guess a fare that might be badly wrong.
-      const distanceKnown = await ensureTripDistance();
+      const routeResult = await ensureTripDistance();
 
-      if (!distanceKnown) {
-        setBadge("Distance Unavailable");
-
-        setDispatchState("Distance Unavailable");
-
-        setTimeline(
-          "dispatch",
-          "Couldn't determine the trip distance."
-        );
-
-        setLiveStatus(
-          "Couldn't determine the trip distance."
-        );
-
-        showNotice(
-          "We couldn't calculate a route distance for this trip. Please double-check the pickup and " +
-            "destination addresses (try selecting a suggestion from the dropdown), then try again. " +
-            "If this keeps happening, contact support — we don't want to guess at your fare.",
-          "error"
-        );
+      if (!routeResult.ok) {
+        showRouteFailure(routeResult);
 
         setBusy(els.estimateBtn, false);
 
         return false;
       }
+
+      clearRouteFailure();
 
       setLiveStatus(
         "Calculating fare estimate..."
@@ -7127,6 +7429,17 @@
         state.estimate.raw =
           normalized.raw;
 
+        // The server-signed quote this fare is only good against — see
+        // buildTripPayload()'s estimate_token field. A response with no
+        // token (e.g. an older server build) leaves this null, which
+        // payment-intent/ride-request will then correctly refuse rather
+        // than silently trusting an unverified fare.
+        state.estimate.token =
+          data?.estimate_token || null;
+
+        state.estimate.tokenExpiresAt =
+          data?.quote_expires_at || null;
+
         renderFareBreakdown(normalized.breakdown);
 
         if (els.fareEstimateText) {
@@ -7160,6 +7473,9 @@
         ) {
           els.requestRideBtn.disabled = false;
         }
+
+        clearRouteFailure();
+        syncActionAvailability();
 
         setDispatchState("Estimate Ready");
 
@@ -8018,11 +8334,17 @@
       if (els.mapFallback) {
         els.mapFallback.classList.add("hidden");
       }
+      if (els.mapShell) {
+        els.mapShell.classList.remove("is-standby");
+      }
     }
 
     function showMapFallback() {
       if (els.mapFallback) {
         els.mapFallback.classList.remove("hidden");
+      }
+      if (els.mapShell) {
+        els.mapShell.classList.add("is-standby");
       }
     }
 
@@ -8165,6 +8487,8 @@
             "Pickup location updated. Please get a fresh fare estimate."
           );
 
+          scheduleRouteRecalc(0);
+
           setBusy(
             els.detectLocationBtn,
             false
@@ -8219,7 +8543,14 @@
       els.changeServiceBtn?.addEventListener("click", changeService);
 
       // STAGE: PICKUP -> DESTINATION
-      els.stagePickupContinueBtn?.addEventListener("click", () => {
+      // Requires an actual resolved coordinate for the pickup address, not
+      // just typed text — a rider can type something Google Maps can't
+      // geocode at all, and the old validation only checked string length.
+      // Catching that here, right where the rider entered the address,
+      // means the concise error shows up next to the specific field that
+      // failed instead of surfacing later as one generic "Distance
+      // Unavailable" block on the review stage.
+      els.stagePickupContinueBtn?.addEventListener("click", async () => {
         const riderError = validateRiderFields();
         if (riderError) {
           showNotice(riderError, "warning");
@@ -8232,7 +8563,23 @@
           return;
         }
 
+        clearFieldError(els.pickupAddressError);
         clearNotice();
+        setBusy(els.stagePickupContinueBtn, true, "Checking address...");
+
+        const resolved = await ensureEndpointCoordinates(state.pickup, els.pickupAddress);
+
+        setBusy(els.stagePickupContinueBtn, false);
+
+        if (!resolved) {
+          setFieldError(
+            els.pickupAddressError,
+            "We couldn't locate this pickup address. Try selecting a suggestion from the dropdown, or adjust it."
+          );
+          reportRouteFailure("pickup_geocode_failed");
+          return;
+        }
+
         goToStage("destination");
       });
 
@@ -8241,14 +8588,30 @@
         goToStage("pickup");
       });
 
-      els.stageDestinationContinueBtn?.addEventListener("click", () => {
+      els.stageDestinationContinueBtn?.addEventListener("click", async () => {
         const destinationError = validateDestinationFields();
         if (destinationError) {
           showNotice(destinationError, "warning");
           return;
         }
 
+        clearFieldError(els.destinationAddressError);
         clearNotice();
+        setBusy(els.stageDestinationContinueBtn, true, "Checking address...");
+
+        const resolved = await ensureEndpointCoordinates(state.destination, els.destinationAddress);
+
+        setBusy(els.stageDestinationContinueBtn, false);
+
+        if (!resolved) {
+          setFieldError(
+            els.destinationAddressError,
+            "We couldn't locate this destination address. Try selecting a suggestion from the dropdown, or adjust it."
+          );
+          reportRouteFailure("destination_geocode_failed");
+          return;
+        }
+
         goToStage("details");
       });
 
@@ -8281,6 +8644,25 @@
 
         clearNotice();
         goToStage("payment");
+      });
+
+      // Route-failure recovery actions (shown next to "Get Fare Estimate"
+      // only while distance/fare is unavailable). Navigating back to fix
+      // an address preserves everything the rider already entered —
+      // goToStage() only toggles which step is visible, it never clears
+      // state.
+      els.editPickupBtn?.addEventListener("click", () => {
+        clearRouteFailure();
+        goToStage("pickup");
+      });
+
+      els.editDestinationBtn?.addEventListener("click", () => {
+        clearRouteFailure();
+        goToStage("destination");
+      });
+
+      els.retryRouteBtn?.addEventListener("click", () => {
+        getFareEstimate();
       });
 
       // STAGE: PAYMENT -> REVIEW / DISPATCH
@@ -8409,6 +8791,26 @@
         );
       });
 
+      // Clear a field's own error the moment the rider starts correcting
+      // it (the address-invalidating "input" listeners above already null
+      // out its coordinates), and auto-recalculate once they tab away —
+      // debounced so it fires once per edit, not once per keystroke.
+      els.pickupAddress?.addEventListener("input", () => {
+        clearFieldError(els.pickupAddressError);
+      });
+
+      els.destinationAddress?.addEventListener("input", () => {
+        clearFieldError(els.destinationAddressError);
+      });
+
+      els.pickupAddress?.addEventListener("blur", () => {
+        scheduleRouteRecalc(500);
+      });
+
+      els.destinationAddress?.addEventListener("blur", () => {
+        scheduleRouteRecalc(500);
+      });
+
       [
         els.riderName,
         els.riderPhone,
@@ -8440,6 +8842,7 @@
       initStripeElements();
       loadSavedPaymentMethods();
       initAddressAutocompletes();
+      syncActionAvailability();
 
       setLiveStatus(
         "Complete the form and start with rider approval."
