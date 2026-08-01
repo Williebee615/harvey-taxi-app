@@ -3147,6 +3147,7 @@ const {
   shouldRenewSession,
   applyRiderSessionVersionIncrement,
   buildLogoutOutcome,
+  resolveRiderAuthOutcome,
   phoneLast10: riderPhoneLast10,
   phoneToE164US: riderPhoneToE164,
   selectExactlyOneActiveRider,
@@ -3154,6 +3155,81 @@ const {
   hashIdentifier,
   hashLoginDestination
 } = require("./lib/riderAuth");
+
+// requireRider — P0 remediation PR #1 (docs/p0-security-remediation-plan.md).
+// Not yet applied to any route: this only establishes the middleware and
+// its session-validation logic. Wiring it into rider-owned routes (and
+// removing the client-supplied-riderId trust those routes currently use
+// instead) is PR #2, deliberately kept separate so this foundational
+// piece can be reviewed and merged on its own.
+//
+// Mirrors requireDriver's split above (IO here, decision in a pure lib
+// function) but reads the cookie-based rider session instead of an
+// x-driver-token header, and enforces the CSRF header (see
+// hasRiderClientHeader above) on state-changing requests -- GET requests
+// don't carry a body a forged cross-site form/fetch could use to change
+// state, so only non-GET methods require it, matching this cookie
+// design's own stated rationale.
+async function requireRider(req, res, next) {
+  try {
+    if (req.method !== "GET" && !hasRiderClientHeader(req)) {
+      return fail(res, "This request could not be verified.", 403);
+    }
+
+    if (!RIDER_SESSION_SECRET) {
+      console.error("❌ requireRider: RIDER_SESSION_SECRET is not configured.");
+      return fail(res, "Rider authentication is not available right now.", 503);
+    }
+
+    const token = readRiderSessionCookie(req);
+    const verification = token
+      ? verifyRiderSession({ token, secret: RIDER_SESSION_SECRET })
+      : { ok: false, reason: "no_session" };
+
+    let riderRow = null;
+
+    if (verification.ok) {
+      const { data, error } = await supabase
+        .from("riders")
+        .select("*")
+        .eq("id", verification.riderId)
+        .maybeSingle();
+
+      if (error) {
+        console.error("❌ requireRider: failed to load rider row:", error);
+        return fail(res, "Something went wrong verifying your session.", 500);
+      }
+
+      riderRow = data || null;
+    }
+
+    const outcome = resolveRiderAuthOutcome({ verification, riderRow });
+
+    if (!outcome.ok) {
+      return fail(res, outcome.message, outcome.statusCode);
+    }
+
+    req.rider = riderRow;
+    req.riderAuthMethod = "rider_session";
+
+    if (outcome.shouldRenew) {
+      const freshToken = signRiderSession({
+        riderId: riderRow.id,
+        sessionVersion: Number.isInteger(riderRow.session_version) ? riderRow.session_version : 0,
+        secret: RIDER_SESSION_SECRET,
+        ttlHours: RIDER_SESSION_TTL_HOURS
+      });
+
+      setRiderSessionCookie(res, freshToken);
+    }
+
+    return next();
+  } catch (err) {
+    console.error("❌ requireRider unexpected error:", err);
+    return fail(res, "Something went wrong verifying your session.", 500);
+  }
+}
+
 /* =========================================================
 
    PART 3 — HTAF FOUNDATION APPLICATION SYSTEM
