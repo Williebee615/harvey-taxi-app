@@ -3066,7 +3066,8 @@ const {
   BOOKING_FEE,
   MINIMUM_FARE,
   DRIVER_PAYOUT_PERCENT,
-  calculateRideEstimate
+  calculateRideEstimate,
+  hasValidTripDistance
 } = require("./lib/pricing");
 
 // Rider-only verification helpers, extracted so the mapping from a
@@ -9443,7 +9444,70 @@ async function runStuckRedispatchRecovery() {
 
    RIDE ESTIMATE API
 
+   "No valid route + no verified fare = no payment and no dispatch."
+   rider-dashboard.html already refuses to call any of these three routes
+   until Google Maps has resolved a real driving distance client-side
+   (see ensureTripDistance() there) -- but that is only a client-side
+   gate. hasValidTripDistance() (lib/pricing.js) is the server-side half:
+   a direct call to /api/rides/estimate, /api/rides/payment-intent, or
+   /api/rides/request with no miles (or miles<=0) is rejected outright
+   instead of falling through to calculateRideEstimate()'s own
+   miles=0/minutes=0 defaults, which would silently price a real trip at
+   the flat minimum fare.
+
 ========================================================= */
+
+// Logs a route-calculation failure server-side (Render logs + audit_logs)
+// without ever putting the underlying Google Maps status, quota, or
+// billing detail in a response body a rider can see. source is "client"
+// for failures reported by rider-dashboard.html's own Google Maps calls
+// (see POST /api/rides/route-failure below) and "server" for this fail-
+// closed guard rejecting a request outright.
+function logRouteCalculationFailure({ reason, detail, source, req }) {
+  console.error(
+    `[route-calculation-failed] source=${source} reason=${reason}` +
+      (detail ? ` detail=${detail}` : "")
+  );
+
+  auditLog({
+    action: "route_calculation_failed",
+    metadata: { reason, detail, source },
+    req
+  }).catch(() => {});
+}
+
+const ROUTE_FAILURE_REASONS = new Set([
+  "maps_unavailable",
+  "pickup_geocode_failed",
+  "destination_geocode_failed",
+  "distance_matrix_failed",
+  "maps_script_failed",
+  "unknown"
+]);
+
+app.post(
+
+  "/api/rides/route-failure",
+
+  rateLimit({ windowMs: 60_000, max: 30, keyPrefix: "route_failure_report" }),
+
+  asyncRoute(async (req, res) => {
+
+    const rawReason = cleanString(req.body.reason, 60);
+    const reason = ROUTE_FAILURE_REASONS.has(rawReason) ? rawReason : "unknown";
+    const detail = cleanString(req.body.detail, 120) || undefined;
+
+    logRouteCalculationFailure({ reason, detail, source: "client", req });
+
+    // Deliberately generic and always-success: this endpoint exists so we
+    // can see real failures in Render logs, not so a rider-controlled
+    // request body can learn anything about our Google Maps
+    // configuration or quota state.
+    return ok(res, { logged: true });
+
+  })
+
+);
 
 app.post(
 
@@ -9474,6 +9538,23 @@ app.post(
         0
 
       );
+
+    if (!hasValidTripDistance({ miles, minutes })) {
+
+      logRouteCalculationFailure({
+        reason: "estimate_missing_distance",
+        detail: `miles=${req.body.miles ?? req.body.distance_miles ?? "unset"}`,
+        source: "server",
+        req
+      });
+
+      return fail(
+        res,
+        "We couldn't verify a route distance for this trip. Please get a fresh route estimate before continuing.",
+        400
+      );
+
+    }
 
     const rideType =
 
@@ -9726,6 +9807,26 @@ app.post(
 
     }
 
+    const paymentIntentMiles = Number(req.body.miles || 0);
+    const paymentIntentMinutes = Number(req.body.minutes || 0);
+
+    if (!hasValidTripDistance({ miles: paymentIntentMiles, minutes: paymentIntentMinutes })) {
+
+      logRouteCalculationFailure({
+        reason: "payment_intent_missing_distance",
+        detail: `miles=${req.body.miles ?? "unset"}`,
+        source: "server",
+        req
+      });
+
+      return fail(
+        res,
+        "We couldn't verify a route distance for this trip. Please get a fresh route estimate before continuing.",
+        400
+      );
+
+    }
+
     const rideType =
 
       normalizeRideType(
@@ -9738,13 +9839,9 @@ app.post(
 
       calculateRideEstimate({
 
-        miles:
+        miles: paymentIntentMiles,
 
-          Number(req.body.miles || 0),
-
-        minutes:
-
-          Number(req.body.minutes || 0),
+        minutes: paymentIntentMinutes,
 
         ride_type:
 
@@ -10038,6 +10135,26 @@ app.post(
 
     }
 
+    const requestMiles = Number(req.body.miles || req.body.distance_miles || 0);
+    const requestMinutes = Number(req.body.minutes || req.body.duration_minutes || 0);
+
+    if (!hasValidTripDistance({ miles: requestMiles, minutes: requestMinutes })) {
+
+      logRouteCalculationFailure({
+        reason: "request_missing_distance",
+        detail: `miles=${req.body.miles ?? req.body.distance_miles ?? "unset"}`,
+        source: "server",
+        req
+      });
+
+      return fail(
+        res,
+        "We couldn't verify a route distance for this trip. Please get a fresh route estimate before continuing.",
+        400
+      );
+
+    }
+
     const rideType =
 
       normalizeRideType(
@@ -10050,29 +10167,9 @@ app.post(
 
       calculateRideEstimate({
 
-        miles:
+        miles: requestMiles,
 
-          Number(
-
-            req.body.miles ||
-
-            req.body.distance_miles ||
-
-            0
-
-          ),
-
-        minutes:
-
-          Number(
-
-            req.body.minutes ||
-
-            req.body.duration_minutes ||
-
-            0
-
-          ),
+        minutes: requestMinutes,
 
         ride_type:
 
