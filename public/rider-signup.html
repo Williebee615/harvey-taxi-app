@@ -1365,6 +1365,32 @@
           : "Your rider account was created, but ride access remains approval-gated."}
       `);
 
+      // P0 remediation PR 2a (docs/security-remediation/pr-02a-rider-client-auth.md):
+      // account creation alone must never grant dashboard access -- that
+      // was the exact "silent login from a signup response" the approved
+      // scope explicitly forbids. The rider still has to prove control of
+      // the phone/email they just entered via a real OTP, through the
+      // same sign-in gate the dashboard now has. Nothing rider-owned
+      // (readiness, payment setup, saved places, history) is called here
+      // or on the dashboard until that session exists -- see
+      // bootstrapRiderSession()/runAuthenticatedBoot() in
+      // rider-dashboard.html.
+      //
+      // Gated behind the same rider_auth_ui_enabled rollout flag the
+      // dashboard's sign-in gate itself checks: with no staging
+      // environment to validate real SMS/email OTP delivery before merge,
+      // this keeps the ENTIRE signup-to-dashboard flow byte-for-byte
+      // identical to its pre-PR-2a behavior (including the payment-method
+      // card and direct dashboard link below) until an admin has
+      // confirmed delivery works and deliberately flips the flag on.
+      if (await isRiderAuthUiEnabled()) {
+        handOffToRiderVerification({
+          channel: "phone",
+          destination: payload.phone
+        });
+        return;
+      }
+
       if (rider.approved) {
         showBox(infoBox, `
           Approved rider detected.<br><br>
@@ -1393,6 +1419,54 @@
       isCreatingAccount = false;
       setButtonLoading(signupBtn, false, "", "Create Rider Account");
     }
+  }
+
+  /* ------------------------------------- */
+  /* SIGNUP -> OTP HANDOFF (P0 remediation PR 2a) */
+  /* ------------------------------------- */
+
+  // sessionStorage, not a URL query param: the phone/email are read once
+  // by rider-dashboard.html's boot() and immediately cleared (see there),
+  // so they never sit in browser history, a referrer header, or a shared
+  // link the way a query-string value would.
+  const PENDING_AUTH_CHANNEL_KEY = "harvey_pending_auth_channel";
+  const PENDING_AUTH_DESTINATION_KEY = "harvey_pending_auth_destination";
+
+  // Same rollout flag rider-dashboard.html's boot() reads. Defaults to
+  // false (the flag's own server-side default, and this function's
+  // fail-safe on any network/parse error) so an outage of this one
+  // config check can never accidentally turn the new handoff on --
+  // only an explicit admin flip can do that.
+  async function isRiderAuthUiEnabled() {
+    try {
+      const data = await api("/api/rider/auth-ui-config");
+      return data?.enabled === true;
+    } catch {
+      return false;
+    }
+  }
+
+  function handOffToRiderVerification({ channel, destination }) {
+    try {
+      sessionStorage.setItem(PENDING_AUTH_CHANNEL_KEY, channel);
+      sessionStorage.setItem(PENDING_AUTH_DESTINATION_KEY, destination || "");
+    } catch {
+      // sessionStorage unavailable (private browsing, etc.) -- the
+      // dashboard's sign-in gate still works, it just won't be
+      // pre-filled/auto-sent; the rider enters their number manually.
+    }
+
+    showBox(infoBox, `
+      Rider account created.<br><br>
+      One more step: verify your ${channel === "phone" ? "phone number" : "email address"}
+      to sign in. We're taking you there now.
+    `);
+
+    trackEvent("rider_signup_handoff_to_verification", { channel });
+
+    setTimeout(() => {
+      window.location.href = "/rider-dashboard.html";
+    }, 1200);
   }
 
   /* ------------------------------------- */

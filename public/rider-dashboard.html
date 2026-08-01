@@ -9786,6 +9786,28 @@
     // continuity elsewhere on this page during this migration, per the
     // approved PR 2a scope). Any non-2xx here always means "show the
     // sign-in gate," regardless of what's cached locally.
+    // Rollout switch for the sign-in gate itself (P0 remediation PR 2a,
+    // docs/security-remediation/pr-02a-rider-client-auth.md) -- separate
+    // from the future rider_auth_enforced flag (server-side route
+    // enforcement, PR 2b). Defaults to false on any error, same as the
+    // flag's own server-side default, so a network hiccup on this one
+    // check can never accidentally turn the new gate on for someone who
+    // shouldn't see it yet.
+    async function isRiderAuthUiEnabled() {
+      try {
+        const response = await fetch(`${apiBase()}/api/rider/auth-ui-config`);
+
+        if (!response.ok) {
+          return false;
+        }
+
+        const data = await response.json();
+        return data?.enabled === true;
+      } catch {
+        return false;
+      }
+    }
+
     async function bootstrapRiderSession() {
       let response;
 
@@ -9867,6 +9889,56 @@
 
       resetAuthStep();
       showAuthOverlay();
+    }
+
+    // Reads and immediately clears the one-time handoff rider-signup.html
+    // leaves in sessionStorage (see handOffToRiderVerification there) --
+    // read-once by design, so a later reload of this same tab doesn't
+    // silently re-populate/re-send a code the rider never asked for.
+    // Deliberately sessionStorage, not a URL query param: keeps the
+    // phone/email out of browser history and referrer headers.
+    const PENDING_AUTH_CHANNEL_KEY = "harvey_pending_auth_channel";
+    const PENDING_AUTH_DESTINATION_KEY = "harvey_pending_auth_destination";
+
+    function consumePendingSignupAuth() {
+      let channel = null;
+      let destination = "";
+
+      try {
+        channel = sessionStorage.getItem(PENDING_AUTH_CHANNEL_KEY);
+        destination = sessionStorage.getItem(PENDING_AUTH_DESTINATION_KEY) || "";
+        sessionStorage.removeItem(PENDING_AUTH_CHANNEL_KEY);
+        sessionStorage.removeItem(PENDING_AUTH_DESTINATION_KEY);
+      } catch {
+        return null;
+      }
+
+      if ((channel !== "phone" && channel !== "email") || !destination) {
+        return null;
+      }
+
+      return { channel, destination };
+    }
+
+    // Sends a rider fresh off signup straight into the code-entry step of
+    // the same OTP flow the dashboard already uses -- never issues a
+    // session from the signup response, the destination string, or a
+    // rider ID alone; this only pre-fills the destination and fires the
+    // real session/start request, exactly like clicking "Send code"
+    // manually would.
+    async function tryAutoStartSignupVerification() {
+      const pending = consumePendingSignupAuth();
+
+      if (!pending) {
+        return;
+      }
+
+      setAuthChannel(pending.channel);
+
+      const input = pending.channel === "phone" ? authEls.phoneInput : authEls.emailInput;
+      input.value = pending.destination;
+
+      await requestLoginCode();
     }
 
     function bindAuthEvents() {
@@ -11294,10 +11366,28 @@
       renderNotificationFeed();
       loadGoogleMaps();
 
+      const authUiEnabled = await isRiderAuthUiEnabled();
+
+      if (!authUiEnabled) {
+        // Rollout flag off (the default): fall back to this page's
+        // pre-PR-2a boot behavior untouched -- loadRiderStatus() already
+        // falls back to getStoredRiderId()/getStoredRiderProfile() when
+        // state.riderId/riderProfile haven't been set by a bootstrap
+        // check, exactly as it did before this PR. This lets the whole
+        // PR ship to production inert until an admin has confirmed real
+        // SMS/email OTP delivery works and deliberately flips
+        // rider_auth_ui_enabled on. See
+        // docs/security-remediation/pr-02a-rider-client-auth.md.
+        hideAuthOverlay();
+        await runAuthenticatedBoot();
+        return;
+      }
+
       const bootstrap = await bootstrapRiderSession();
 
       if (!bootstrap.ok) {
         showAuthOverlay();
+        await tryAutoStartSignupVerification();
         return;
       }
 

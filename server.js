@@ -3149,6 +3149,7 @@ const {
   buildLogoutOutcome,
   resolveRiderAuthOutcome,
   buildRiderSessionBootstrap,
+  buildRiderVerificationFieldUpdate,
   phoneLast10: riderPhoneLast10,
   phoneToE164US: riderPhoneToE164,
   selectExactlyOneActiveRider,
@@ -5582,6 +5583,7 @@ app.post(
     const invalidCode = () => fail(res, "Invalid or expired code.", 400);
 
     let rider = null;
+    const verifiedChannel = rawPhone ? "phone" : "email";
 
     if (rawPhone) {
       if (!twilioClient || !TWILIO_VERIFY_SERVICE_SID) {
@@ -5647,6 +5649,31 @@ app.post(
 
     if (rider.access_revoked === true || rider.deleted_at) {
       return fail(res, "This account's access has been revoked.", 403);
+    }
+
+    // A successful Twilio Verify check (phone) or verifyCode result
+    // (email) above is itself proof the rider currently controls that
+    // exact destination -- record only the one channel actually proven,
+    // never both, and never before the checks above have already
+    // returned invalidCode()/403 for every failure path. Non-blocking:
+    // a rider who successfully authenticated must not be locked out of
+    // their own login because this side-effect write failed.
+    const verificationUpdate = buildRiderVerificationFieldUpdate({ channel: verifiedChannel, rider });
+
+    if (verificationUpdate) {
+      const { error: verificationUpdateError } = await supabase
+        .from("riders")
+        .update(verificationUpdate)
+        .eq("id", rider.id);
+
+      if (verificationUpdateError) {
+        console.error(
+          "❌ Rider session verify: failed to record channel verification:",
+          verificationUpdateError.message
+        );
+      } else {
+        Object.assign(rider, verificationUpdate);
+      }
     }
 
     const sessionVersion = Number.isInteger(rider.session_version) ? rider.session_version : 0;
@@ -5746,6 +5773,28 @@ app.get(
     const readiness = await getRiderReadiness(req.rider.id);
 
     return ok(res, buildRiderSessionBootstrap({ rider: req.rider, readiness }));
+  })
+);
+
+// Rollout switch for the sign-in gate itself (P0 remediation PR 2a,
+// docs/security-remediation/pr-02a-rider-client-auth.md) -- deliberately
+// separate from the future rider_auth_enforced flag (PR 2b), which
+// controls whether the *server* rejects unauthenticated requests to
+// rider-owned routes. This one only controls whether the *client* shows
+// the new sign-in gate at all. Defaulted off: with no staging
+// environment available to validate real SMS/email OTP delivery before
+// merge, this lets the code ship to production inert (rider-dashboard.html
+// falls back to its pre-PR-2a boot behavior untouched) until an admin
+// deliberately flips it on -- a narrowly controlled rollout instead of
+// gating every rider's dashboard on unverified OTP delivery. Public and
+// unauthenticated on purpose: the client needs to read this before it
+// has any session to prove, and "is this UI feature on" isn't sensitive.
+app.get(
+  "/api/rider/auth-ui-config",
+  asyncRoute(async (req, res) => {
+    const enabled = (await getSystemFlag("rider_auth_ui_enabled", "false")) === "true";
+
+    return ok(res, { enabled });
   })
 );
 
@@ -17285,6 +17334,70 @@ app.post(
     }).catch(() => {});
 
     return ok(res, { rider_history_enabled: false });
+  })
+);
+
+/* =========================================================
+
+   RIDER SIGN-IN UI — ENABLE / DISABLE
+
+   Controls whether rider-dashboard.html shows the real OTP sign-in gate
+   at all (P0 remediation PR 2a, docs/security-remediation/
+   pr-02a-rider-client-auth.md), read via the public
+   GET /api/rider/auth-ui-config route. Defaulted off so this can ship to
+   production inert -- rider-dashboard.html falls back to its pre-PR-2a
+   boot behavior untouched -- until an admin has confirmed real SMS/email
+   OTP delivery works and deliberately flips this on. Separate from the
+   future rider_auth_enforced flag (PR 2b), which controls server-side
+   route enforcement, not this client-side gate.
+
+========================================================= */
+
+app.post(
+  "/api/admin/system/enable-rider-auth-ui",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    await supabase
+      .from("system_flags")
+      .upsert({
+        key: "rider_auth_ui_enabled",
+        value: "true",
+        reason: cleanString(req.body.reason, 1000),
+        updated_at: nowIso()
+      });
+
+    auditLog({
+      actor_type: "admin",
+      actor_id: req.admin.email,
+      action: "rider_auth_ui_enabled",
+      req
+    }).catch(() => {});
+
+    return ok(res, { rider_auth_ui_enabled: true });
+  })
+);
+
+app.post(
+  "/api/admin/system/disable-rider-auth-ui",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    await supabase
+      .from("system_flags")
+      .upsert({
+        key: "rider_auth_ui_enabled",
+        value: "false",
+        reason: null,
+        updated_at: nowIso()
+      });
+
+    auditLog({
+      actor_type: "admin",
+      actor_id: req.admin.email,
+      action: "rider_auth_ui_disabled",
+      req
+    }).catch(() => {});
+
+    return ok(res, { rider_auth_ui_enabled: false });
   })
 );
 
