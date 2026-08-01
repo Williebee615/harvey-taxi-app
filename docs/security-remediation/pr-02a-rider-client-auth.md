@@ -273,3 +273,16 @@ no config change. Two independent rollback layers:
 - [ ] Confirm `rider_auth_enforced` remains off/unset in production (PR 2b's
       flag, not introduced by this PR, but worth confirming it doesn't
       exist yet from an earlier partial rollout).
+
+## Controlled live validation
+
+Full pre-enable checklist, step-by-step validation procedure, and
+evidence log: see
+[`docs/security-remediation/pr-02a-live-validation-runbook.md`](./pr-02a-live-validation-runbook.md).
+Live-verified as of this writing (queried the production Supabase
+project directly): `rider_auth_ui_enabled` and `rider_auth_enforced` both
+currently resolve to `false` (no row exists for either key in
+`system_flags`, and `getSystemFlag` fails closed to `"false"` on both a
+missing row and a query error). Everything else in that checklist
+(Twilio/SendGrid health, Render deploy, real OTP delivery, browser-based
+checks) requires ops/QA access this session doesn't have.

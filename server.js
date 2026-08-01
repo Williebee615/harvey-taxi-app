@@ -3150,6 +3150,7 @@ const {
   resolveRiderAuthOutcome,
   buildRiderSessionBootstrap,
   buildRiderVerificationFieldUpdate,
+  buildAuthUiConfigResponse,
   phoneLast10: riderPhoneLast10,
   phoneToE164US: riderPhoneToE164,
   selectExactlyOneActiveRider,
@@ -5794,7 +5795,7 @@ app.get(
   asyncRoute(async (req, res) => {
     const enabled = (await getSystemFlag("rider_auth_ui_enabled", "false")) === "true";
 
-    return ok(res, { enabled });
+    return ok(res, buildAuthUiConfigResponse({ enabled }));
   })
 );
 
