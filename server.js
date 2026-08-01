@@ -230,6 +230,27 @@ const DRIVER_SESSION_TTL_HOURS =
 
   envNumber("DRIVER_SESSION_TTL_HOURS", 24);
 
+// Rider session: deliberately NO fallback chain, unlike
+// DRIVER_SESSION_SECRET above. Approved requirement
+// (docs/rider-auth-design-proposal.md decisions): RIDER_SESSION_SECRET
+// must be configured before this app issues a single rider session --
+// reusing the admin or driver secret here would mean a leak of either
+// one compromises rider sessions too, and silently falling back to "no
+// secret" would mean signRiderSession()/verifyRiderSession() simply
+// refuse to operate (see lib/riderAuth.js), which every rider-session
+// route below checks explicitly and fails closed with a 503 rather
+// than guessing at a substitute secret.
+const RIDER_SESSION_SECRET = env("RIDER_SESSION_SECRET", "");
+
+const RIDER_SESSION_TTL_HOURS = envNumber("RIDER_SESSION_TTL_HOURS", 72);
+
+// Dedicated, short, login-specific OTP expiry -- distinct from
+// EMAIL_VERIFY_TTL_HOURS, which is scoped to self-service account email
+// verification (a much longer-lived link a rider might not open right
+// away). A login code left valid for hours is an unnecessarily long
+// window for an attacker who intercepts or guesses it.
+const RIDER_LOGIN_EMAIL_TTL_MINUTES = envNumber("RIDER_LOGIN_EMAIL_TTL_MINUTES", 10);
+
 const ENABLE_REAL_EMAIL = envBool("ENABLE_REAL_EMAIL", true);
 
 const ENABLE_REAL_SMS = envBool("ENABLE_REAL_SMS", false);
@@ -977,13 +998,23 @@ function getClientIp(req) {
 
 }
 
+// keyFn is an optional override for what identifies "one caller" --
+// every existing call site omits it and keeps the original IP-only
+// behavior. It exists so a route can *also* apply a second, independent
+// limit keyed by something other than IP (e.g. a hashed login
+// destination -- see riderLoginDestinationKey below), which an IP-only
+// limiter can't express: a single attacker rotating IPs against one
+// phone number, or one shared IP (an office, a NAT) targeting many
+// different destinations, need their own dimension.
 function rateLimit({
 
   windowMs = 60_000,
 
   max = 60,
 
-  keyPrefix = "global"
+  keyPrefix = "global",
+
+  keyFn
 
 } = {}) {
 
@@ -993,9 +1024,9 @@ function rateLimit({
 
   return async (req, res, next) => {
 
-    const ip = getClientIp(req);
+    const identity = keyFn ? keyFn(req) : getClientIp(req);
 
-    const key = `${keyPrefix}:${ip}`;
+    const key = `${keyPrefix}:${identity}`;
 
     // Try Redis first (scales across instances).
 
@@ -1919,6 +1950,120 @@ function clearAdminSessionCookie(res) {
 
   res.append("Set-Cookie", attrs.join("; "));
 
+}
+
+/* =========================================================
+
+   RIDER SESSION COOKIE
+
+   Approved design (docs/rider-auth-design-proposal.md, decision #1):
+   HttpOnly + Secure-in-production + SameSite=Lax + Path=/, never a
+   bearer token in localStorage. Mirrors the admin session cookie above
+   exactly in shape, with its own name/secret/TTL.
+
+========================================================= */
+
+const RIDER_SESSION_COOKIE = "harvey_rider_session";
+
+// CSRF mitigation for the cookie-based design (decision #1): a
+// cross-origin fetch() that sets a custom header triggers a CORS
+// preflight, which isAllowedOrigin()'s strict allow-list already
+// rejects for any origin not on it -- so requiring this header on
+// every state-changing rider request closes the classic
+// cookie-auto-attached CSRF vector without a separate token scheme.
+const RIDER_CLIENT_HEADER = "x-requested-with";
+const RIDER_CLIENT_HEADER_VALUE = "harvey-rider-app";
+
+function hasRiderClientHeader(req) {
+  return req.headers[RIDER_CLIENT_HEADER] === RIDER_CLIENT_HEADER_VALUE;
+}
+
+function setRiderSessionCookie(res, token, ttlHours = RIDER_SESSION_TTL_HOURS) {
+  const maxAge = Math.round(ttlHours * 60 * 60);
+
+  const attrs = [
+    `${RIDER_SESSION_COOKIE}=${encodeURIComponent(token)}`,
+    "Path=/",
+    "HttpOnly",
+    "SameSite=Lax",
+    `Max-Age=${maxAge}`
+  ];
+
+  if (IS_PRODUCTION) {
+    attrs.push("Secure");
+  }
+
+  res.append("Set-Cookie", attrs.join("; "));
+}
+
+function clearRiderSessionCookie(res) {
+  const attrs = [`${RIDER_SESSION_COOKIE}=`, "Path=/", "HttpOnly", "SameSite=Lax", "Max-Age=0"];
+
+  if (IS_PRODUCTION) {
+    attrs.push("Secure");
+  }
+
+  res.append("Set-Cookie", attrs.join("; "));
+}
+
+function readRiderSessionCookie(req) {
+  const cookies = parseCookies(req);
+  return cookies[RIDER_SESSION_COOKIE] || "";
+}
+
+// riderPhoneLast10/riderPhoneToE164 above are lib/riderAuth.js's
+// phoneLast10/phoneToE164US, imported under their original server.js
+// names so every existing call site below is unchanged -- see that
+// module for why rider phone lookups need this normalization (real,
+// confirmed format drift in the live riders table).
+
+// A duplicate phone across two rider rows, or a longer malformed value
+// that merely *ends* in the same 10 digits, means an ilike suffix match
+// can return more than one row -- and did, live, once tested against
+// this table (see PR #91 review). .maybeSingle() would throw on >1 row;
+// picking data[0] would silently authenticate as the wrong rider. This
+// loads every row the ilike prefilter could plausibly match and hands
+// the raw candidate list to lib/riderAuth.js's
+// selectExactlyOneActiveRider, which deterministically narrows to an
+// exact-normalized-match, active, non-revoked row and proceeds only
+// when exactly one remains -- see that function for the full rationale.
+// The ambiguity-resolution *decision* lives in the unit-tested lib
+// function; this wrapper is only the live Supabase fetch around it.
+async function findExactlyOneActiveRiderByPhone(rawPhone) {
+  const last10 = riderPhoneLast10(rawPhone);
+
+  if (!last10) {
+    return { rider: null, matchCount: 0 };
+  }
+
+  const { data, error } = await supabase.from("riders").select("*").ilike("phone", `%${last10}`);
+
+  if (error) {
+    console.error("❌ Rider phone lookup failed:", error.message);
+    return { rider: null, matchCount: 0 };
+  }
+
+  const result = selectExactlyOneActiveRider(data, last10);
+
+  if (result.matchCount > 1) {
+    console.error(
+      `❌ Rider phone lookup ambiguous: ${result.matchCount} active riders share the same normalized phone number.`
+    );
+  }
+
+  return result;
+}
+
+// Rate-limit key for the destination dimension (decision requirement:
+// both an IP limit and a separate per-destination limit) -- delegates
+// the actual normalize-and-hash decision to lib/riderAuth.js's
+// hashLoginDestination so it's unit-tested directly; this wrapper only
+// pulls the raw fields off the request.
+function riderLoginDestinationKey(req) {
+  return hashLoginDestination({
+    phone: cleanString(req.body?.phone, 32),
+    email: cleanEmail(req.body?.email)
+  });
 }
 
 function requireAdmin(req, res, next) {
@@ -2964,6 +3109,25 @@ const {
   applyContactVerificationOverride,
   applyComplianceOverride
 } = require("./lib/driverCompliance");
+
+// Rider session logic (sign/verify/revocation-check) lives in lib/riderAuth.js,
+// unlike the driver session functions below (signDriverSession/
+// verifyDriverSession), which are inline and untested -- see
+// docs/rider-auth-design-proposal.md for the full design.
+const {
+  signRiderSession,
+  verifyRiderSession,
+  isSessionVersionCurrent,
+  shouldRenewSession,
+  applyRiderSessionVersionIncrement,
+  buildLogoutOutcome,
+  phoneLast10: riderPhoneLast10,
+  phoneToE164US: riderPhoneToE164,
+  selectExactlyOneActiveRider,
+  resolveVerificationTtlMinutes,
+  hashIdentifier,
+  hashLoginDestination
+} = require("./lib/riderAuth");
 /* =========================================================
 
    PART 3 — HTAF FOUNDATION APPLICATION SYSTEM
@@ -4614,16 +4778,6 @@ function futureIsoMinutes(minutes) {
 
 }
 
-function futureIsoHours(hours) {
-
-  return new Date(
-
-    Date.now() + hours * 60 * 60_000
-
-  ).toISOString();
-
-}
-
 function normalizeRole(value) {
 
   const role =
@@ -4660,6 +4814,13 @@ function normalizeRole(value) {
 
 ========================================================= */
 
+// ttlMinutes and codeType are optional overrides -- every existing
+// caller (self-service email/SMS verification) omits both and gets the
+// original behavior unchanged: a long hex link-token + hour-scale TTL
+// for email, a 6-digit code + minute-scale TTL for SMS. Rider login
+// needs a *typeable* code on both channels (matching the driver-login
+// and SMS UX) and a short, login-appropriate expiry regardless of
+// channel -- see RIDER_LOGIN_EMAIL_TTL_MINUTES below.
 async function createVerificationRecord({
 
   channel,
@@ -4670,7 +4831,11 @@ async function createVerificationRecord({
 
   user_type,
 
-  metadata = {}
+  metadata = {},
+
+  ttlMinutes,
+
+  codeType
 
 }) {
 
@@ -4680,19 +4845,22 @@ async function createVerificationRecord({
 
   const code =
 
-    isEmail
+    codeType === "numeric" || !isEmail
 
-      ? crypto.randomBytes(24).toString("hex")
+      ? makeOtpCode()
 
-      : makeOtpCode();
+      : crypto.randomBytes(24).toString("hex");
 
   const expires_at =
 
-    isEmail
-
-      ? futureIsoHours(EMAIL_VERIFY_TTL_HOURS)
-
-      : futureIsoMinutes(VERIFY_TTL_MINUTES);
+    futureIsoMinutes(
+      resolveVerificationTtlMinutes({
+        isEmail,
+        ttlMinutes,
+        emailVerifyTtlHours: EMAIL_VERIFY_TTL_HOURS,
+        verifyTtlMinutes: VERIFY_TTL_MINUTES
+      })
+    );
 
   const record = {
 
@@ -5134,6 +5302,330 @@ app.post(
 
   })
 
+);
+
+/* =========================================================
+
+   RIDER SESSION LOGIN (OTP -> HttpOnly cookie session)
+
+   Approved design (docs/rider-auth-design-proposal.md). Three routes:
+   start (send a code), verify (check the code, issue the session
+   cookie), logout (invalidate it). This PR only adds these routes --
+   it does not protect or migrate any existing /api/rider/* route, and
+   does not touch the rider_auth_enforced flag. That's deliberately
+   separate, later work.
+
+   Phone -> Twilio Verify (the same TWILIO_VERIFY_SERVICE_SID already
+   live from the driver-login hotfix), kept completely separate from
+   email -> the existing createVerificationRecord/verifyCode +
+   SendGrid path (purpose: "rider_login", its own scope, never sharing
+   rows with self-service email verification's own codes).
+
+========================================================= */
+
+// Never reveals whether a phone/email matches a real rider -- every
+// path returns this exact same shape. The one channel-specific
+// difference (SMS vs. email) is intentional: it's what channel the
+// rider themselves chose by which field they submitted, not a leak
+// about whether an account exists.
+const RIDER_SESSION_START_RESPONSE = { sent: true };
+
+// Both the IP dimension and the destination dimension are required
+// (review requirement): an IP-only limit misses one attacker rotating
+// IPs against a single phone number; a destination-only limit misses
+// one IP spraying many destinations. keyFn is undefined for the IP
+// limiter (rateLimit's own default), and riderLoginDestinationKey for
+// the second.
+app.post(
+  "/api/rider/session/start",
+  rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "rider_session_start_ip" }),
+  rateLimit({
+    windowMs: 10 * 60_000,
+    max: 3,
+    keyPrefix: "rider_session_start_dest",
+    keyFn: riderLoginDestinationKey
+  }),
+  asyncRoute(async (req, res) => {
+    if (!RIDER_SESSION_SECRET) {
+      console.error("❌ Rider session start: RIDER_SESSION_SECRET is not configured.");
+      return fail(res, "Rider sign-in is not available right now. Please try again later.", 503);
+    }
+
+    if (!hasRiderClientHeader(req)) {
+      return fail(res, "This request could not be verified.", 403);
+    }
+
+    const rawPhone = cleanString(req.body.phone, 32);
+    const rawEmail = cleanEmail(req.body.email);
+
+    if (!rawPhone && !rawEmail) {
+      return fail(res, "phone or email is required.", 400);
+    }
+
+    if (rawPhone) {
+      if (!twilioClient || !TWILIO_VERIFY_SERVICE_SID) {
+        console.error("❌ Rider session start: Twilio Verify is not configured.");
+        return fail(res, "Rider sign-in is not available right now. Please try again later.", 503);
+      }
+
+      // Exactly-one-active-match only -- see findExactlyOneActiveRiderByPhone
+      // for why the old .ilike(...).maybeSingle() lookup was unsafe
+      // against this table's real, confirmed duplicate/malformed phone
+      // data. Zero or multiple matches both fall through silently to
+      // the same generic response as "no match" -- ambiguity is never
+      // guessed at, and is never visible to the client either way.
+      const { rider } = await findExactlyOneActiveRiderByPhone(rawPhone);
+
+      if (rider) {
+        const e164 = riderPhoneToE164(rider.phone);
+
+        if (e164) {
+          try {
+            await twilioClient.verify
+              .services(TWILIO_VERIFY_SERVICE_SID)
+              .verifications.create({ to: e164, channel: "sms" });
+          } catch (err) {
+            console.error("❌ Rider session start: Twilio Verify send failed:", err.message);
+          }
+        }
+      }
+
+      // actor_id is a one-way hash, never the raw phone number -- audit
+      // logs must not become a store of rider PII for every login
+      // attempt, including ones for numbers that aren't even real
+      // accounts.
+      auditLog({
+        actor_type: "rider",
+        actor_id: hashIdentifier(riderPhoneLast10(rawPhone) || rawPhone),
+        action: "rider_login_started",
+        metadata: { channel: "sms" },
+        req
+      }).catch(() => {});
+
+      return ok(res, RIDER_SESSION_START_RESPONSE);
+    }
+
+    const email = rawEmail;
+
+    const { data: rider, error } = await supabase
+      .from("riders")
+      .select("id, access_revoked, deleted_at")
+      .eq("email", email)
+      .maybeSingle();
+
+    if (error) {
+      console.error("❌ Rider session start: rider lookup failed:", error.message);
+    } else if (rider && rider.access_revoked !== true && !rider.deleted_at) {
+      try {
+        const { code } = await createVerificationRecord({
+          channel: "email",
+          destination: email,
+          purpose: "rider_login",
+          user_type: "rider",
+          metadata: { requested_from: "web" },
+          ttlMinutes: RIDER_LOGIN_EMAIL_TTL_MINUTES,
+          codeType: "numeric"
+        });
+
+        await sendEmail({
+          to: email,
+          subject: "Your Harvey Taxi sign-in code",
+          text: `Your Harvey Taxi sign-in code is ${code}. It expires in ${RIDER_LOGIN_EMAIL_TTL_MINUTES} minutes.`
+        });
+      } catch (err) {
+        console.error("❌ Rider session start: email OTP send failed:", err.message);
+      }
+    }
+
+    auditLog({
+      actor_type: "rider",
+      actor_id: hashIdentifier(email),
+      action: "rider_login_started",
+      metadata: { channel: "email" },
+      req
+    }).catch(() => {});
+
+    return ok(res, RIDER_SESSION_START_RESPONSE);
+  })
+);
+
+app.post(
+  "/api/rider/session/verify",
+  rateLimit({ windowMs: 60_000, max: 15, keyPrefix: "rider_session_verify_ip" }),
+  rateLimit({
+    windowMs: 10 * 60_000,
+    max: 10,
+    keyPrefix: "rider_session_verify_dest",
+    keyFn: riderLoginDestinationKey
+  }),
+  asyncRoute(async (req, res) => {
+    if (!RIDER_SESSION_SECRET) {
+      console.error("❌ Rider session verify: RIDER_SESSION_SECRET is not configured.");
+      return fail(res, "Rider sign-in is not available right now. Please try again later.", 503);
+    }
+
+    if (!hasRiderClientHeader(req)) {
+      return fail(res, "This request could not be verified.", 403);
+    }
+
+    const rawPhone = cleanString(req.body.phone, 32);
+    const rawEmail = cleanEmail(req.body.email);
+    const code = cleanString(req.body.code, 12);
+
+    if ((!rawPhone && !rawEmail) || !code) {
+      return fail(res, "phone or email and code are required.", 400);
+    }
+
+    const invalidCode = () => fail(res, "Invalid or expired code.", 400);
+
+    let rider = null;
+
+    if (rawPhone) {
+      if (!twilioClient || !TWILIO_VERIFY_SERVICE_SID) {
+        return invalidCode();
+      }
+
+      // Same deterministic, exactly-one-match rule as session/start --
+      // a duplicate or ambiguous phone must never let verify guess
+      // which rider to sign in as.
+      const { rider: candidate } = await findExactlyOneActiveRiderByPhone(rawPhone);
+
+      if (!candidate) {
+        return invalidCode();
+      }
+
+      const e164 = riderPhoneToE164(candidate.phone);
+
+      if (!e164) {
+        return invalidCode();
+      }
+
+      let check;
+      try {
+        check = await twilioClient.verify
+          .services(TWILIO_VERIFY_SERVICE_SID)
+          .verificationChecks.create({ to: e164, code });
+      } catch (err) {
+        console.error("❌ Rider session verify: Twilio Verify check failed:", err.message);
+        return invalidCode();
+      }
+
+      if (check.status !== "approved") {
+        return invalidCode();
+      }
+
+      rider = candidate;
+    } else {
+      const email = rawEmail;
+
+      const result = await verifyCode({
+        channel: "email",
+        destination: email,
+        code,
+        purpose: "rider_login"
+      });
+
+      if (!result.ok) {
+        return invalidCode();
+      }
+
+      const { data: candidate, error: lookupError } = await supabase
+        .from("riders")
+        .select("*")
+        .eq("email", email)
+        .maybeSingle();
+
+      if (lookupError || !candidate) {
+        return invalidCode();
+      }
+
+      rider = candidate;
+    }
+
+    if (rider.access_revoked === true || rider.deleted_at) {
+      return fail(res, "This account's access has been revoked.", 403);
+    }
+
+    const sessionVersion = Number.isInteger(rider.session_version) ? rider.session_version : 0;
+
+    const token = signRiderSession({
+      riderId: rider.id,
+      sessionVersion,
+      secret: RIDER_SESSION_SECRET,
+      ttlHours: RIDER_SESSION_TTL_HOURS
+    });
+
+    setRiderSessionCookie(res, token);
+
+    auditLog({
+      actor_type: "rider",
+      actor_id: rider.id,
+      action: "rider_login_succeeded",
+      req
+    }).catch(() => {});
+
+    return ok(res, { rider_id: rider.id });
+  })
+);
+
+app.post(
+  "/api/rider/session/logout",
+  asyncRoute(async (req, res) => {
+    if (!hasRiderClientHeader(req)) {
+      return fail(res, "This request could not be verified.", 403);
+    }
+
+    const token = readRiderSessionCookie(req);
+    const verification =
+      token && RIDER_SESSION_SECRET ? verifyRiderSession({ token, secret: RIDER_SESSION_SECRET }) : null;
+
+    // verifyRiderSession only exposes riderId once a token's signature
+    // has actually been verified (see lib/riderAuth.js) -- an expired
+    // or issued-in-future token still carries a trustworthy riderId and
+    // *should* still be logged out for real (its session_version bump
+    // invalidates it even more thoroughly than a client-side cookie
+    // clear would); an unsigned/tampered/malformed token, or no token
+    // at all, must never be allowed to name a victim to force-log-out.
+    const hadTrustedRiderId = Boolean(verification?.riderId);
+
+    let rpcSucceeded = false;
+
+    if (hadTrustedRiderId) {
+      const result = await applyRiderSessionVersionIncrement({
+        callRpc: (name, params) => supabase.rpc(name, params),
+        riderId: verification.riderId,
+        actorType: "rider",
+        actorId: verification.riderId,
+        action: "rider_logout",
+        metadata: {},
+        ipAddress: getClientIp(req),
+        userAgent: req.headers["user-agent"] || null
+      });
+
+      rpcSucceeded = result.ok;
+
+      if (!result.ok) {
+        console.error("❌ Rider logout: session_version increment failed:", result.error);
+      }
+    }
+
+    // The local cookie is cleared unconditionally, regardless of which
+    // branch buildLogoutOutcome takes below -- the browser making this
+    // request is signed out either way. What varies is whether the
+    // *server-side*, every-device revocation is confirmed: a copied or
+    // stolen cookie must not be treated as still logged in when it
+    // isn't, but this response must also never claim that revocation
+    // succeeded when it didn't (see buildLogoutOutcome).
+    clearRiderSessionCookie(res);
+
+    const outcome = buildLogoutOutcome({ hadTrustedRiderId, rpcSucceeded });
+
+    if (outcome.statusCode !== 200) {
+      return fail(res, outcome.body.error, outcome.statusCode, outcome.body);
+    }
+
+    return ok(res, outcome.body);
+  })
 );
 
 /* =========================================================
