@@ -3070,6 +3070,31 @@ const {
   hasValidTripDistance
 } = require("./lib/pricing");
 
+// Server-issued ride quote token: hasValidTripDistance() above only
+// proves a request carried a positive miles/minutes pair, not that the
+// distance is genuine -- a direct caller could submit {miles: 0.1,
+// minutes: 1} for an actual 20-mile trip and that guard alone would
+// accept it. signRideQuote()/verifyRideQuote()/quoteMatchesSubmission()
+// freeze the computed fare and every input it depends on into a signed
+// token at estimate time, so payment-intent and ride-request can charge
+// exactly what was quoted instead of trusting client-resubmitted numbers.
+// See lib/rideQuote.js and docs/route-verification-requirement.md.
+const {
+  signRideQuote,
+  resolveRideQuote
+} = require("./lib/rideQuote");
+
+// No fallback chain, same reasoning as RIDER_SESSION_SECRET below: a
+// deployment that hasn't set this explicitly should have quote issuance
+// (and therefore payment/dispatch) fail closed with a 503, not silently
+// sign quotes with a guessed or shared secret.
+const RIDE_QUOTE_SECRET = env("RIDE_QUOTE_SECRET", "");
+
+// Short-lived on purpose: long enough for a rider to review pricing and
+// authorize payment in one sitting, short enough that a leaked/observed
+// token is useless for pricing a *different*, later trip.
+const RIDE_QUOTE_TTL_MINUTES = envNumber("RIDE_QUOTE_TTL_MINUTES", 15);
+
 // Rider-only verification helpers, extracted so the mapping from a
 // rider row to phone/persona/identity verification booleans is
 // unit-tested against the real riders schema in one place. See
@@ -9463,17 +9488,32 @@ async function runStuckRedispatchRecovery() {
 // for failures reported by rider-dashboard.html's own Google Maps calls
 // (see POST /api/rides/route-failure below) and "server" for this fail-
 // closed guard rejecting a request outright.
-function logRouteCalculationFailure({ reason, detail, source, req }) {
+//
+// Deliberately narrow about what gets logged: reason and mode are always
+// checked against an allow-list before reaching here (see
+// ROUTE_FAILURE_REASONS/ROUTE_FAILURE_MODES and sanitizeRouteFailureDetail
+// below), and detail is either one of this app's own short enum strings
+// (quote rejection reasons) or a Google status-code-shaped value -- never
+// a free-form string a rider's request body could stuff a full address,
+// phone number, email, or exact coordinate into. request_id is generated
+// here, not accepted from the client, so it can be handed back to a rider
+// for support correlation without that ID itself being a forgeable input.
+function logRouteCalculationFailure({ reason, detail, source, mode, req }) {
+  const requestId = makeId("ROUTEFAIL");
+
   console.error(
-    `[route-calculation-failed] source=${source} reason=${reason}` +
+    `[route-calculation-failed] request_id=${requestId} source=${source} reason=${reason}` +
+      (mode ? ` mode=${mode}` : "") +
       (detail ? ` detail=${detail}` : "")
   );
 
   auditLog({
     action: "route_calculation_failed",
-    metadata: { reason, detail, source },
+    metadata: { request_id: requestId, reason, detail, source, mode },
     req
   }).catch(() => {});
+
+  return requestId;
 }
 
 const ROUTE_FAILURE_REASONS = new Set([
@@ -9485,6 +9525,140 @@ const ROUTE_FAILURE_REASONS = new Set([
   "unknown"
 ]);
 
+// rider-dashboard.html's MODE_CONFIG keys -- the only "coarse operational
+// context" this endpoint accepts, and only as an allow-listed enum, never
+// free text.
+const ROUTE_FAILURE_MODES = new Set([
+  "driver",
+  "airport",
+  "autonomous",
+  "food",
+  "grocery"
+]);
+
+// The only free-form-shaped value this endpoint will actually store:
+// Google Maps status codes (e.g. "ZERO_RESULTS", "OVER_QUERY_LIMIT") and
+// this app's own "<DistanceMatrix status>/<element status>" pairing --
+// both all-caps words/underscores, never containing spaces, letters
+// forming an address, digits forming a phone number, or an "@". Anything
+// that doesn't match this shape is dropped rather than logged, since a
+// request body's "detail" field is otherwise entirely rider-controlled
+// free text.
+const ROUTE_FAILURE_DETAIL_PATTERN = /^[A-Z0-9_]{1,40}(\/[A-Z0-9_]{1,40})?$/;
+
+function sanitizeRouteFailureDetail(rawDetail) {
+  const value = cleanString(rawDetail, 80);
+  return value && ROUTE_FAILURE_DETAIL_PATTERN.test(value) ? value : undefined;
+}
+
+// The one place a raw client-submitted number (miles) is ever mentioned in
+// a log line -- constrained to "looks like a number" or a fixed marker so
+// a client that sent a string instead (accidentally or otherwise) can
+// never smuggle arbitrary text into a log through this field.
+function sanitizeNumericLogValue(value) {
+  if (value === undefined || value === null || value === "") {
+    return "unset";
+  }
+
+  const stringValue = String(value);
+  return /^-?\d+(\.\d+)?$/.test(stringValue) ? stringValue.slice(0, 20) : "invalid";
+}
+
+// Pulls the one coordinate pair per endpoint every one of
+// estimate/payment-intent/request actually needs out of req.body, however
+// the client happened to name it. Returns null for an endpoint whose
+// coordinates are missing or non-finite -- never a guessed {lat: 0, lng:
+// 0} default, which would otherwise look like a real (and very wrong)
+// place on the map.
+function parseCoordPair(lat, lng) {
+  const parsedLat = Number(lat);
+  const parsedLng = Number(lng);
+
+  if (!Number.isFinite(parsedLat) || !Number.isFinite(parsedLng)) {
+    return null;
+  }
+
+  return { lat: parsedLat, lng: parsedLng };
+}
+
+function extractTripCoords(body) {
+  return {
+    pickup: parseCoordPair(body?.pickup_lat, body?.pickup_lng),
+    destination: parseCoordPair(body?.destination_lat, body?.destination_lng)
+  };
+}
+
+// Reasons resolveRideQuote() (lib/rideQuote.js) can return that mean "the
+// token itself is bad" (missing/malformed/wrong-secret/expired) as
+// opposed to "the token is fine but this submission doesn't match it"
+// (wrong rider/service/pickup/destination) -- used only to pick which of
+// two rider-facing messages to show below; both are treated identically
+// as a hard rejection.
+const QUOTE_TOKEN_INVALID_REASONS = new Set([
+  "missing_token",
+  "malformed",
+  "bad_signature",
+  "expired"
+]);
+
+// The single gate both /api/rides/payment-intent and /api/rides/request
+// go through before touching money or dispatching anything. Requires a
+// signature-valid, unexpired estimate_token (see lib/rideQuote.js) AND
+// that this specific request -- its ride_type, pickup, destination, and
+// rider -- still matches exactly what that token was issued for.
+// Client-submitted miles, minutes, fare, or fee fields are never read by
+// either caller once this returns a quote: pricing comes exclusively
+// from quote.estimate/quote.miles/quote.minutes from here on -- and
+// resolveRideQuote()'s own signature has no parameter for any of those
+// values, so there is nothing for a resubmitted number to even influence.
+//
+// Sends the (sanitized, PII-free) failure response itself and returns
+// null on any failure, so callers can just `if (!quote) return;`.
+function verifyAndConsumeRideQuote(req, res) {
+  if (!RIDE_QUOTE_SECRET) {
+    fail(res, "Ride quotes are not configured.", 503);
+    return null;
+  }
+
+  const token = cleanString(req.body.estimate_token, 4000);
+
+  if (!token) {
+    logRouteCalculationFailure({ reason: "quote_missing", source: "server", req });
+    fail(
+      res,
+      "A current fare quote is required. Please get a fresh route estimate before continuing.",
+      400
+    );
+    return null;
+  }
+
+  const result = resolveRideQuote({
+    token,
+    secret: RIDE_QUOTE_SECRET,
+    rideType: normalizeRideType(req.body.ride_type),
+    riderId: cleanString(req.body.rider_id || req.body.riderId, 100) || null,
+    ...extractTripCoords(req.body)
+  });
+
+  if (!result.ok) {
+    logRouteCalculationFailure({
+      reason: "quote_rejected",
+      detail: result.reason,
+      source: "server",
+      req
+    });
+
+    const message = QUOTE_TOKEN_INVALID_REASONS.has(result.reason)
+      ? "Your fare quote has expired or could not be verified. Please get a fresh route estimate."
+      : "This trip no longer matches your fare quote. Please get a fresh route estimate.";
+
+    fail(res, message, 400);
+    return null;
+  }
+
+  return result.quote;
+}
+
 app.post(
 
   "/api/rides/route-failure",
@@ -9495,15 +9669,19 @@ app.post(
 
     const rawReason = cleanString(req.body.reason, 60);
     const reason = ROUTE_FAILURE_REASONS.has(rawReason) ? rawReason : "unknown";
-    const detail = cleanString(req.body.detail, 120) || undefined;
+    const detail = sanitizeRouteFailureDetail(req.body.detail);
+    const rawMode = cleanString(req.body.mode, 30);
+    const mode = ROUTE_FAILURE_MODES.has(rawMode) ? rawMode : undefined;
 
-    logRouteCalculationFailure({ reason, detail, source: "client", req });
+    const requestId = logRouteCalculationFailure({ reason, detail, mode, source: "client", req });
 
     // Deliberately generic and always-success: this endpoint exists so we
     // can see real failures in Render logs, not so a rider-controlled
     // request body can learn anything about our Google Maps
-    // configuration or quota state.
-    return ok(res, { logged: true });
+    // configuration or quota state. request_id is handed back only so a
+    // rider who contacts support has something to reference -- it names
+    // nothing about them or their trip on its own.
+    return ok(res, { logged: true, request_id: requestId });
 
   })
 
@@ -9543,7 +9721,7 @@ app.post(
 
       logRouteCalculationFailure({
         reason: "estimate_missing_distance",
-        detail: `miles=${req.body.miles ?? req.body.distance_miles ?? "unset"}`,
+        detail: `miles=${sanitizeNumericLogValue(req.body.miles ?? req.body.distance_miles)}`,
         source: "server",
         req
       });
@@ -9554,6 +9732,38 @@ app.post(
         400
       );
 
+    }
+
+    // A quote is only meaningful if it's actually bound to a place -- an
+    // estimate with no pickup/destination coordinates has nothing for
+    // quoteMatchesSubmission() to compare a later payment/request against,
+    // so it could never be redeemed anyway. Reject it here rather than
+    // signing a token that would just fail every future verification.
+    const { pickup, destination } = extractTripCoords(req.body);
+
+    if (!pickup || !destination) {
+
+      logRouteCalculationFailure({
+        reason: "estimate_missing_coordinates",
+        source: "server",
+        req
+      });
+
+      return fail(
+        res,
+        "We couldn't verify a route distance for this trip. Please get a fresh route estimate before continuing.",
+        400
+      );
+
+    }
+
+    // Quote issuance is a hard requirement, not a nice-to-have: without a
+    // configured secret there is no way to later prove the fare a rider
+    // pays matches the fare they were quoted, so this must fail closed
+    // exactly like Stripe/Twilio "not configured" responses elsewhere in
+    // this file, rather than returning a fare nobody can actually redeem.
+    if (!RIDE_QUOTE_SECRET) {
+      return fail(res, "Ride quotes are not configured.", 503);
     }
 
     const rideType =
@@ -9578,6 +9788,22 @@ app.post(
 
       });
 
+    const riderId = cleanString(req.body.rider_id || req.body.riderId, 100) || null;
+
+    const estimateToken = signRideQuote({
+      rideType,
+      miles,
+      minutes,
+      pickup,
+      destination,
+      riderId,
+      estimate,
+      secret: RIDE_QUOTE_SECRET,
+      ttlMinutes: RIDE_QUOTE_TTL_MINUTES
+    });
+
+    const quoteExpiresAt = new Date(Date.now() + RIDE_QUOTE_TTL_MINUTES * 60 * 1000).toISOString();
+
     auditLog({
 
       action:
@@ -9600,7 +9826,15 @@ app.post(
 
     return ok(res, {
 
-      estimate
+      estimate,
+
+      // Honest about what this token actually proves: the numbers inside
+      // it were computed by the browser's own Google Maps Distance Matrix
+      // call, not independently verified by the server against a routing
+      // provider. See docs/route-verification-requirement.md.
+      quote_source: "browser_calculated",
+      estimate_token: estimateToken,
+      quote_expires_at: quoteExpiresAt
 
     });
 
@@ -9807,47 +10041,14 @@ app.post(
 
     }
 
-    const paymentIntentMiles = Number(req.body.miles || 0);
-    const paymentIntentMinutes = Number(req.body.minutes || 0);
+    const quote = verifyAndConsumeRideQuote(req, res);
 
-    if (!hasValidTripDistance({ miles: paymentIntentMiles, minutes: paymentIntentMinutes })) {
-
-      logRouteCalculationFailure({
-        reason: "payment_intent_missing_distance",
-        detail: `miles=${req.body.miles ?? "unset"}`,
-        source: "server",
-        req
-      });
-
-      return fail(
-        res,
-        "We couldn't verify a route distance for this trip. Please get a fresh route estimate before continuing.",
-        400
-      );
-
+    if (!quote) {
+      return;
     }
 
-    const rideType =
-
-      normalizeRideType(
-
-        req.body.ride_type
-
-      );
-
-    const estimate =
-
-      calculateRideEstimate({
-
-        miles: paymentIntentMiles,
-
-        minutes: paymentIntentMinutes,
-
-        ride_type:
-
-          rideType
-
-      });
+    const rideType = quote.ride_type;
+    const estimate = quote.estimate;
 
     const amountCents =
 
@@ -10135,47 +10336,14 @@ app.post(
 
     }
 
-    const requestMiles = Number(req.body.miles || req.body.distance_miles || 0);
-    const requestMinutes = Number(req.body.minutes || req.body.duration_minutes || 0);
+    const quote = verifyAndConsumeRideQuote(req, res);
 
-    if (!hasValidTripDistance({ miles: requestMiles, minutes: requestMinutes })) {
-
-      logRouteCalculationFailure({
-        reason: "request_missing_distance",
-        detail: `miles=${req.body.miles ?? req.body.distance_miles ?? "unset"}`,
-        source: "server",
-        req
-      });
-
-      return fail(
-        res,
-        "We couldn't verify a route distance for this trip. Please get a fresh route estimate before continuing.",
-        400
-      );
-
+    if (!quote) {
+      return;
     }
 
-    const rideType =
-
-      normalizeRideType(
-
-        req.body.ride_type
-
-      );
-
-    const estimate =
-
-      calculateRideEstimate({
-
-        miles: requestMiles,
-
-        minutes: requestMinutes,
-
-        ride_type:
-
-          rideType
-
-      });
+    const rideType = quote.ride_type;
+    const estimate = quote.estimate;
 
     // A client-supplied payment_intent_id is never trusted as proof of
     // payment here — see lib/riderPayments.js. Only POST
@@ -10250,21 +10418,25 @@ app.post(
 
         ),
 
+      // Sourced from the verified quote, not req.body, now that one
+      // exists — quoteMatchesSubmission() already confirmed these equal
+      // what the client submitted (within rounding), so the quote's
+      // values are the canonical, server-trusted copy from here on.
       pickup_lat:
 
-        req.body.pickup_lat || null,
+        quote.pickup.lat,
 
       pickup_lng:
 
-        req.body.pickup_lng || null,
+        quote.pickup.lng,
 
       dropoff_lat:
 
-        req.body.destination_lat || null,
+        quote.destination.lat,
 
       dropoff_lng:
 
-        req.body.destination_lng || null,
+        quote.destination.lng,
 
       ride_type:
 

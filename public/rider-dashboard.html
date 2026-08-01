@@ -4742,7 +4742,15 @@
         durationMinutes: null,
         distanceKnown: false,
         breakdown: null,
-        raw: null
+        raw: null,
+        // Server-signed quote token from POST /api/rides/estimate (see
+        // lib/rideQuote.js). Payment-intent and ride-request must present
+        // this exact token — the server ignores any miles/minutes/fare
+        // resubmitted alongside it and prices strictly from what's frozen
+        // inside the token. Cleared on every reset so a stale quote for a
+        // trip the rider has since changed can never be reused.
+        token: null,
+        tokenExpiresAt: null
       },
 
       payment: {
@@ -6435,7 +6443,9 @@
         durationMinutes: null,
         distanceKnown: false,
         breakdown: null,
-        raw: null
+        raw: null,
+        token: null,
+        tokenExpiresAt: null
       };
 
       state.payment = {
@@ -7202,7 +7212,14 @@
         minutes:
           Number(state.estimate.durationMinutes || state.estimate.duration || 0),
         duration_minutes:
-          Number(state.estimate.durationMinutes || state.estimate.duration || 0)
+          Number(state.estimate.durationMinutes || state.estimate.duration || 0),
+
+        // Server-signed quote from POST /api/rides/estimate. The server
+        // ignores every field above (miles/minutes/pickup/destination/
+        // ride_type) once this is present and verified — they only ever
+        // priced anything at estimate time; payment-intent and ride-
+        // request price strictly from what's frozen inside this token.
+        estimate_token: state.estimate.token || null
       };
     }
 
@@ -7411,6 +7428,17 @@
 
         state.estimate.raw =
           normalized.raw;
+
+        // The server-signed quote this fare is only good against — see
+        // buildTripPayload()'s estimate_token field. A response with no
+        // token (e.g. an older server build) leaves this null, which
+        // payment-intent/ride-request will then correctly refuse rather
+        // than silently trusting an unverified fare.
+        state.estimate.token =
+          data?.estimate_token || null;
+
+        state.estimate.tokenExpiresAt =
+          data?.quote_expires_at || null;
 
         renderFareBreakdown(normalized.breakdown);
 
