@@ -4615,7 +4615,7 @@
   <!-- GOOGLE MAPS -->
   </div>
 
-
+  <script src="rider-routing.js"></script>
   <script>
   (function () {
     "use strict";
@@ -9461,8 +9461,15 @@
         els.heroTitle.textContent =
           "Finish rider setup to continue.";
 
-        els.heroText.textContent =
-          "Your rider session was not found. Sign up or restore your rider profile before requesting rides or delivery.";
+        // The signup link carries the requested mode through so a signed-out
+        // deep link (e.g. ?mode=food) comes back here in the same mode once
+        // the rider has signed up or restored their profile, instead of
+        // dropping them on the plain dashboard.
+        const requestedMode = getRawQueryParam("mode") || "driver";
+        const signupHref = window.RiderRouting.signupUrlForMode(requestedMode);
+
+        els.heroText.innerHTML =
+          `Your rider session was not found. <a href="${signupHref}">Sign up or restore your rider profile</a> before requesting rides or delivery.`;
 
         renderRider();
         return;
@@ -10703,15 +10710,16 @@
 
       // Auto-open the merged ride wizard when arriving with a mode or
       // ride_id already in the URL — covers direct links (index.html's
-      // service cards, the AI widget, push notifications) and the
-      // now-retired request-ride.html/request-food.html/
-      // request-groceries.html redirect stubs, which forward their own
-      // query string here unchanged.
+      // service cards, the AI widget, push notifications), the redirect
+      // straight out of rider-signup.html after a successful signup, and
+      // resuming/tracking an already-active ride. A bare dashboard visit
+      // (no params) never auto-opens it, so returning riders always see
+      // the dashboard first — see RiderRouting.shouldAutoOpenWizard.
       const initialParams = new URLSearchParams(window.location.search);
       const initialMode = initialParams.get("mode");
       const initialRideId = initialParams.get("ride_id");
 
-      if (initialMode || initialRideId) {
+      if (window.RiderRouting.shouldAutoOpenWizard({ mode: initialMode, ride_id: initialRideId })) {
         window.HarveyRideWizard.open({
           mode: initialMode || "driver",
           ride_id: initialRideId || undefined,
