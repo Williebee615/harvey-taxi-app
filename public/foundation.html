@@ -15,6 +15,14 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="manifest" href="/manifest.json" />
+  <!-- Canonical is HTAF's own domain, not harveytaxiservice.com --
+       this page is HTAF's homepage (server.js serves it at "/" for
+       FOUNDATION_HOSTS) and matches the "url" already declared in the
+       NGO structured data below. It's also reachable at
+       harveytaxiservice.com/foundation.html and other static paths
+       since express.static isn't domain-restricted, so this tag is
+       what tells search engines which URL is the real one. -->
+  <link rel="canonical" href="https://harveytransportationfoundation.com/" />
   <meta property="og:title" content="Harvey Transportation Assistance Foundation" />
   <meta
     property="og:description"
@@ -23,7 +31,7 @@
   <meta property="og:type" content="website" />
   <meta
     property="og:url"
-    content="https://harveytaxiservice.com/foundation.html"
+    content="https://harveytransportationfoundation.com/"
   />
   <script type="application/ld+json">
   {
