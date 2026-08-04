@@ -3151,6 +3151,7 @@ const {
   buildRiderSessionBootstrap,
   buildRiderVerificationFieldUpdate,
   buildAuthUiConfigResponse,
+  resolveEnforcedRiderId,
   phoneLast10: riderPhoneLast10,
   phoneToE164US: riderPhoneToE164,
   selectExactlyOneActiveRider,
@@ -3231,6 +3232,35 @@ async function requireRider(req, res, next) {
     console.error("❌ requireRider unexpected error:", err);
     return fail(res, "Something went wrong verifying your session.", 500);
   }
+}
+
+// P0 remediation PR 2b (docs/security-remediation/pr-02b-rider-route-enforcement.md).
+// Defaulted off, same pattern as rider_history_enabled/rider_auth_ui_enabled:
+// getSystemFlag's own fallback means a missing row or a query error both
+// resolve to "not enforced" -- never accidentally fail open into being
+// enforced, and never accidentally fail closed into blocking every rider
+// if the flag check itself breaks.
+async function riderAuthEnforced() {
+  return (await getSystemFlag("rider_auth_enforced", "false")) === "true";
+}
+
+// The actual rollout mechanism for every route migrated in PR 2b: while
+// rider_auth_enforced is off (the default), this is a pure passthrough --
+// req.rider is never set, and the wrapped route behaves exactly as it did
+// before PR 2b, client-supplied riderId included. Once the flag is
+// flipped on, this delegates to requireRider for real, and every migrated
+// route below is written to then use req.rider.id exclusively and ignore
+// whatever riderId/rider_id the client also sent -- see
+// resolveEnforcedRiderId in lib/riderAuth.js for that exact decision,
+// unit-tested there. This split (a flag-checking wrapper here, a pure
+// identity-resolution function in lib/) mirrors requireRider's own split
+// from resolveRiderAuthOutcome, for the same reason.
+async function requireRiderIfEnforced(req, res, next) {
+  if (await riderAuthEnforced()) {
+    return requireRider(req, res, next);
+  }
+
+  return next();
 }
 
 /* =========================================================
@@ -17399,6 +17429,72 @@ app.post(
     }).catch(() => {});
 
     return ok(res, { rider_auth_ui_enabled: false });
+  })
+);
+
+/* =========================================================
+
+   RIDER ROUTE AUTHORIZATION ENFORCEMENT — ENABLE / DISABLE
+
+   P0 remediation PR 2b (docs/security-remediation/pr-02b-rider-route-enforcement.md).
+   Controls whether requireRiderIfEnforced actually calls requireRider (on)
+   or is a no-op passthrough (off, the default) for every route migrated
+   in PR 2b -- readiness, rider-scoped ride/delivery history, saved
+   places, and profile photo upload. Distinct from rider_auth_ui_enabled
+   (PR 2a, client-side sign-in gate) and from rider_history_enabled
+   (whether the history routes exist at all): this flag is specifically
+   "once a request does carry req.rider, do these routes actually use it
+   instead of the client-supplied riderId." Per your explicit instruction,
+   do not enable this until the authenticated client flow (PR 2a) is
+   confirmed live and validated.
+
+========================================================= */
+
+app.post(
+  "/api/admin/system/enable-rider-auth-enforced",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    await supabase
+      .from("system_flags")
+      .upsert({
+        key: "rider_auth_enforced",
+        value: "true",
+        reason: cleanString(req.body.reason, 1000),
+        updated_at: nowIso()
+      });
+
+    auditLog({
+      actor_type: "admin",
+      actor_id: req.admin.email,
+      action: "rider_auth_enforced_enabled",
+      req
+    }).catch(() => {});
+
+    return ok(res, { rider_auth_enforced: true });
+  })
+);
+
+app.post(
+  "/api/admin/system/disable-rider-auth-enforced",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    await supabase
+      .from("system_flags")
+      .upsert({
+        key: "rider_auth_enforced",
+        value: "false",
+        reason: null,
+        updated_at: nowIso()
+      });
+
+    auditLog({
+      actor_type: "admin",
+      actor_id: req.admin.email,
+      action: "rider_auth_enforced_disabled",
+      req
+    }).catch(() => {});
+
+    return ok(res, { rider_auth_enforced: false });
   })
 );
 
