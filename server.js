@@ -8727,11 +8727,28 @@ async function getRiderReadiness(riderId) {
 /* Exposes getRiderReadiness() over HTTP. request-ride.html and the
    mobile app both call GET /api/riders/:id/readiness before allowing
    a ride request — this route previously did not exist, so every
-   readiness check 404'd and blocked riders from booking. */
+   readiness check 404'd and blocked riders from booking.
+
+   P0 remediation PR 2b: while rider_auth_enforced is off (the
+   default), :id is trusted exactly as before -- this is the known,
+   still-open P0-1 finding, not fixed by this flag being off. Once
+   enabled, an authenticated rider's own session identity always wins
+   over :id (see resolveEnforcedRiderId in lib/riderAuth.js); :id is
+   then ignored, not compared against and rejected -- this route
+   becomes "get MY OWN readiness," full stop. rider-signup.html calls
+   this immediately post-signup with no session yet (see
+   docs/security-remediation/pr-02a-rider-client-auth.md's "known
+   gaps") -- that call will start failing once this flag is on, which
+   is a signup-flow decision to make before enabling it, not a bug in
+   this route. */
 app.get(
   "/api/riders/:id/readiness",
+  requireRiderIfEnforced,
   asyncRoute(async (req, res) => {
-    const riderId = cleanString(req.params.id, 100);
+    const riderId = resolveEnforcedRiderId({
+      authenticatedRiderId: req.rider?.id,
+      clientSuppliedRiderId: cleanString(req.params.id, 100)
+    });
     const readiness = await getRiderReadiness(riderId);
 
     if (!readiness.rider) {
@@ -11533,16 +11550,21 @@ async function riderHistoryEnabled() {
 // missing or the feature is disabled, so callers must check for that
 // before using the result — never { rows, next_cursor } and a sent
 // response at the same time.
+//
+// P0 remediation PR 2b: req.rider is only ever set when
+// requireRiderIfEnforced actually ran requireRider (rider_auth_enforced
+// on) -- while it's off, this falls through to the pre-PR-2b,
+// client-supplied riderId exactly as before, the still-open P0-1 finding.
 async function listRiderRequests(req, res, { deliveryOnly }) {
   if (!(await riderHistoryEnabled())) {
     fail(res, "Rider history is not yet available.", 403);
     return null;
   }
 
-  const riderId = cleanString(
-    req.query.riderId || req.query.rider_id,
-    100
-  );
+  const riderId = resolveEnforcedRiderId({
+    authenticatedRiderId: req.rider?.id,
+    clientSuppliedRiderId: cleanString(req.query.riderId || req.query.rider_id, 100)
+  });
 
   if (!riderId) {
     fail(res, "riderId is required.", 400);
@@ -11601,6 +11623,7 @@ async function listRiderRequests(req, res, { deliveryOnly }) {
 
 app.get(
   "/api/rider/rides",
+  requireRiderIfEnforced,
   asyncRoute(async (req, res) => {
     const result = await listRiderRequests(req, res, { deliveryOnly: false });
 
@@ -11612,6 +11635,7 @@ app.get(
 
 app.get(
   "/api/rider/deliveries",
+  requireRiderIfEnforced,
   asyncRoute(async (req, res) => {
     const result = await listRiderRequests(req, res, { deliveryOnly: true });
 
@@ -11623,6 +11647,7 @@ app.get(
 
 app.get(
   "/api/rider/rides/:rideId",
+  requireRiderIfEnforced,
   asyncRoute(async (req, res) => {
     if (!(await riderHistoryEnabled())) {
       return fail(res, "Rider history is not yet available.", 403);
@@ -11630,10 +11655,10 @@ app.get(
 
     const rideId = cleanString(req.params.rideId, 100);
 
-    const riderId = cleanString(
-      req.query.riderId || req.query.rider_id,
-      100
-    );
+    const riderId = resolveEnforcedRiderId({
+      authenticatedRiderId: req.rider?.id,
+      clientSuppliedRiderId: cleanString(req.query.riderId || req.query.rider_id, 100)
+    });
 
     if (!riderId) {
       return fail(res, "riderId is required.", 400);
@@ -11650,10 +11675,11 @@ app.get(
     }
 
     // Same 404 whether the ride doesn't exist or its rider_id doesn't
-    // match the supplied riderId — never confirm a ride ID exists to a
-    // caller supplying a different riderId. (See the module header above:
-    // this checks consistency against a client-supplied riderId, not an
-    // authenticated identity — there's no rider session to check against.)
+    // match riderId — never confirm a ride ID exists to a caller who
+    // doesn't own it. Once rider_auth_enforced is on, riderId here is the
+    // authenticated session's own id (see resolveEnforcedRiderId above),
+    // so this becomes a real ownership check, not just self-consistency
+    // against whatever the client claimed.
     if (!ride || ride.rider_id !== riderId) {
       return fail(res, "Ride not found.", 404);
     }
