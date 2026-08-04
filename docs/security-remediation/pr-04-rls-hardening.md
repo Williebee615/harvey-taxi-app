@@ -366,24 +366,41 @@ applied in this PR.
 
 ## Post-merge verification (2026-08-04 21:22 UTC)
 
-**Production deployment health:** CI on the merge commit (`6c6bfd43`)
-passed (`node -c server.js`, `npm test` — confirmed via GitHub Actions,
-run succeeded). The PR branch's head commit also had a successful Vercel
-deployment status ("Deployment has completed") before merge. **This
-session could not directly confirm the live production URL is serving
-correctly post-merge**: outbound HTTPS from this session to
-`harveytaxiservice.com` is blocked by this environment's network egress
-policy (`gateway answered 403 to CONNECT (policy denial or upstream
-failure)`, confirmed via both a direct `curl` and `WebFetch` — this is
-an environment restriction, not an application error). This session also
-has no authorized Vercel API access to query deployment status directly
-(the Vercel MCP connector requires authorization this session doesn't
-have). If you want this checked directly by me in the future, connecting
-the Vercel connector would let me query deployment status without
-needing raw HTTPS egress to the app domain. In the meantime, the DB-level
-checks below (which don't depend on network egress) are the strongest
-evidence available from this session that the merge didn't break
-anything live.
+**Production deployment health — CORRECTED 2026-08-04:** the original
+version of this section cited a successful Vercel commit status
+("Deployment has completed") as production-deployment evidence. That
+was imprecise and has been corrected: **this application's live
+production service has historically run on Render** (`harvey-taxi-app-2`
+or equivalent), not Vercel. The Vercel status reflects only a Vercel
+build/preview deployment tied to this GitHub repo's CI integration — it
+is evidence the code builds and a Vercel-hosted preview came up clean,
+**not** evidence that the actual production Render service redeployed
+successfully. Those are two different platforms and the earlier framing
+incorrectly implied the Vercel check stood in for the Render one.
+
+**Actual state:** CI on the merge commit (`6c6bfd43`) passed
+(`node -c server.js`, `npm test`, confirmed via GitHub Actions). Vercel
+build/preview status was green on the pre-merge head commit (build
+evidence only). **A Render boot log or deploy status has not been
+obtained and full production-deployment confirmation is still
+outstanding** — this session has no Render access (no MCP connector, no
+outbound HTTPS to the app domain; see below) and cannot check this
+itself. If Render auto-deploys on push to `main` (as most Render web
+services do), a deploy should have kicked off at merge time, but neither
+its outcome nor the live app's post-deploy health has been confirmed by
+this session. Treat this as **open** until a Render boot log or
+dashboard deploy status is checked directly.
+
+This session also could not directly confirm the live production URL is
+serving correctly post-merge by hitting it: outbound HTTPS from this
+session to `harveytaxiservice.com` is blocked by this environment's
+network egress policy (`gateway answered 403 to CONNECT (policy denial
+or upstream failure)`, confirmed via both a direct `curl` and
+`WebFetch` — this is an environment restriction, not an application
+error). In the meantime, the DB-level checks below (which don't depend
+on network egress) are the strongest evidence available from this
+session that the merge didn't break anything live at the database layer
+— they say nothing about Render's deploy outcome specifically.
 
 **Database state re-verified against production, unchanged from
 pre-merge (expected — these were direct DB migrations, not deploy-time
