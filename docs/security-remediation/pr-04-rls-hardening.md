@@ -1,5 +1,10 @@
 # P0 Remediation — PR 4: RLS Hardening (riders, usage_counters, preferred_drivers, spatial_ref_sys)
 
+**Merged:** GitHub PR #98, 2026-08-04 21:21 UTC (merge commit `6c6bfd43`).
+CI (`node -c server.js`, `npm test`) passed on the merge commit. See
+"Post-merge verification" below for what was re-confirmed against
+production after merge.
+
 Status — this PR does **not** resolve every database privilege finding
 in scope; it resolves four of five, with the fifth explicitly tracked as
 open:
@@ -171,7 +176,11 @@ was applied.
 
 ## Residual risk: spatial_ref_sys — OPEN / BLOCKED, owner-level remediation required
 
-**File:** `supabase/migrations/20260804210200_spatial_ref_sys_privilege_hardening.sql`
+**File:** `supabase/migrations/20260804210200_spatial_ref_sys_privilege_hardening_OWNER_ACTION_REQUIRED_NOT_APPLIED.sql`
+(renamed post-merge specifically so its filename alone makes clear this
+is an intended, owner-required migration that has **not** taken effect
+in production — a future auditor should not assume every committed
+migration file has already been applied just because it's committed.)
 
 Per explicit decision: do not enable RLS on this table (PostGIS-extension-
 owned system table; custom RLS on it risks compatibility/upgrade
@@ -354,6 +363,49 @@ required (it currently isn't, per the same zero-client-side-Supabase-
 usage grep finding used throughout this remediation program), and if
 not, revoke `EXECUTE` from `anon`/`authenticated`/`PUBLIC` there too. Not
 applied in this PR.
+
+## Post-merge verification (2026-08-04 21:22 UTC)
+
+**Production deployment health:** CI on the merge commit (`6c6bfd43`)
+passed (`node -c server.js`, `npm test` — confirmed via GitHub Actions,
+run succeeded). The PR branch's head commit also had a successful Vercel
+deployment status ("Deployment has completed") before merge. **This
+session could not directly confirm the live production URL is serving
+correctly post-merge**: outbound HTTPS from this session to
+`harveytaxiservice.com` is blocked by this environment's network egress
+policy (`gateway answered 403 to CONNECT (policy denial or upstream
+failure)`, confirmed via both a direct `curl` and `WebFetch` — this is
+an environment restriction, not an application error). This session also
+has no authorized Vercel API access to query deployment status directly
+(the Vercel MCP connector requires authorization this session doesn't
+have). If you want this checked directly by me in the future, connecting
+the Vercel connector would let me query deployment status without
+needing raw HTTPS egress to the app domain. In the meantime, the DB-level
+checks below (which don't depend on network egress) are the strongest
+evidence available from this session that the merge didn't break
+anything live.
+
+**Database state re-verified against production, unchanged from
+pre-merge (expected — these were direct DB migrations, not deploy-time
+changes, so the merge itself doesn't alter them; this confirms nothing
+else touched the DB in between):**
+
+| Check | Result |
+|---|---|
+| `riders` — mis-scoped PUBLIC policy remains absent | Confirmed — `pg_policies` shows only `deny_all_riders` + `service_role_riders` |
+| `riders` — `service_role_riders` remains present | Confirmed, `roles={service_role}`, `cmd=ALL`, `qual=true` |
+| `usage_counters` — RLS remains enabled | Confirmed, `pg_class.relrowsecurity = true` |
+| `preferred_drivers` — RLS remains enabled | Confirmed, `pg_class.relrowsecurity = true` |
+| `increment_usage_counter(text)` — executable only by approved backend roles | Confirmed, `EXECUTE` held only by `postgres`/`service_role` |
+
+**Backend smoke test, usage-counter path (rolled back, no data
+persisted):**
+- `service_role` calling `increment_usage_counter('post-merge-smoke-test')` → succeeds, returns incremented count. Backend path healthy post-merge.
+- `anon` calling the same RPC → `permission denied for function increment_usage_counter`. Still correctly denied post-merge.
+
+`spatial_ref_sys` was not re-checked here since its state is already
+known and unchanged (see "Residual risk" above) — nothing in this merge
+could have changed it.
 
 ## What this PR does not touch
 
