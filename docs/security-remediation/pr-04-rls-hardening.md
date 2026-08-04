@@ -1,0 +1,282 @@
+# P0 Remediation — PR 4: RLS Hardening (riders, usage_counters, preferred_drivers, spatial_ref_sys)
+
+Status: **riders and usage_counters/preferred_drivers fixes are applied to
+production and verified. The spatial_ref_sys write-access fix could not
+be applied from this session — see "Known blocker" below. Nothing in
+this PR was tested on a Supabase branch first: branch creation
+(`list_branches`) failed reproducibly in this environment
+(`InternalServerErrorException: Project reference is missing when
+validating permissions`), confirmed twice. Per explicit approval, each
+migration was instead applied directly to production, one at a time,
+with before-state capture, a syntax-checked rollback prepared first,
+immediate post-apply verification, and a stop-and-report on the first
+unexpected result.**
+
+## Trigger
+
+A Supabase automated security-advisory email (03 Aug 2026) flagged
+`rls_disabled_in_public` (CRITICAL, "Table publicly accessible") for
+this project. The advisor linter listed 2 tables; a direct
+`pg_class.relrowsecurity` query found a 3rd (`preferred_drivers`) the
+linter cache had missed. All three were already-tracked baseline
+findings from `docs/production-hardening-phase1-audit.md`, not new.
+Investigation found the riders-table issue (separately already
+identified as P0-8 in the remediation plan) is the only one with real
+data exposure; the other three are empty or non-sensitive reference
+data. Scope was expanded per owner instruction to fold all four into
+one RLS-hardening PR, riders as the primary P0 change and the other
+three as a lower-risk subsection, explicitly not to be treated
+identically to each other (application tables vs. PostGIS system
+table).
+
+## Migration 1 — riders (P0, primary): DROP the mis-scoped PUBLIC policy
+
+**File:** `supabase/migrations/20260804210000_fix_riders_public_policy.sql`
+
+The bug: `riders` had 3 RLS policies — `deny_all_riders`
+(roles={public}, cmd=ALL, `USING (false)`), `service_role_riders`
+(roles={service_role}, cmd=ALL, `USING (true)`, correctly scoped), and
+`"Allow service role full access"` (roles={public}, cmd=ALL,
+`USING (true) WITH CHECK (true)`) — mis-scoped despite its name: `public`
+in `pg_policies.roles` means *every* role, not just `service_role`.
+Because RLS permissive policies are OR'd together, this one policy alone
+granted every role, including `anon`/`authenticated`, unconditional
+read/write access to every rider row, overriding `deny_all_riders`.
+
+**Before state** (captured 2026-08-04 21:02:23 UTC):
+
+| policy | roles | cmd | qual |
+|---|---|---|---|
+| `Allow service role full access` | `{public}` | ALL | `true` |
+| `deny_all_riders` | `{public}` | ALL | `false` |
+| `service_role_riders` | `{service_role}` | ALL | `true` |
+
+Table grants: only `postgres`/`service_role` hold table-level grants on
+`riders` — `anon`/`authenticated` have none. (The exposure was purely
+the RLS policy; not compounded by table-grant misconfiguration.)
+
+**Applied:** 21:03:25 UTC. `drop policy if exists "Allow service role full access" on public.riders;`
+
+**After state:** only `deny_all_riders` and `service_role_riders` remain.
+
+**Verification (live, role-switched via `SET LOCAL ROLE`, all in
+rolled-back transactions):**
+
+| Test | Result |
+|---|---|
+| `anon` SELECT | `permission denied for table riders` (denied at both the table-grant layer and RLS) |
+| `anon` INSERT | `permission denied for table riders` |
+| `authenticated` SELECT | `permission denied for table riders` |
+| `service_role` SELECT | succeeds, returns real data (11 rows) — backend unaffected |
+
+**Rollback:**
+- **Normal rollback (preferred):** none needed. `service_role_riders`
+  was never touched by this migration and already provides full backend
+  access on its own — there is nothing to restore for the backend path.
+- **Last-resort historical reversal (requires separate explicit
+  authorization — do NOT run without it):**
+  ```sql
+  create policy "Allow service role full access" on public.riders
+    as permissive for all to public using (true) with check (true);
+  ```
+  This recreates the P0 exposure. Syntax-checked via dry-run
+  (transaction rolled back) before migration 1 was applied.
+
+## Migration 2 — usage_counters + preferred_drivers: enable RLS, service-role-only
+
+**File:** `supabase/migrations/20260804210100_enable_rls_usage_counters_preferred_drivers.sql`
+
+Both are application tables (not PostGIS system tables), both confirmed
+empty. Grep across `server.js` and `public/` confirmed: `usage_counters`
+is touched only by `increment_usage_counter()`, called from exactly one
+site (`server.js:8506`, backend service-role client); `preferred_drivers`
+has zero application code references anywhere. The app does not depend
+on direct `anon`/`authenticated` REST access to either table.
+
+**Before state** (captured 2026-08-04 21:05:27 UTC):
+
+- `usage_counters`: `relrowsecurity=false`, 0 policies. Table grants:
+  `anon`/`authenticated` hold `SELECT`/`INSERT`/`UPDATE`/`DELETE`/
+  `TRUNCATE` directly — live-exploitable while RLS was disabled.
+- `preferred_drivers`: `relrowsecurity=false`, 0 policies. Table grants:
+  only `postgres`/`service_role` — no `anon`/`authenticated` grants
+  existed, so this table's gap was defense-in-depth, not a currently
+  open hole.
+- `increment_usage_counter(text)`: confirmed `SECURITY INVOKER`
+  (`pg_proc.prosecdef = false`) — does not bypass RLS. `EXECUTE` held by
+  `PUBLIC`, `anon`, `authenticated`, `postgres`, `service_role`.
+
+**Applied:** 21:06:06 UTC.
+```sql
+alter table public.usage_counters enable row level security;
+create policy "service_role_usage_counters" on public.usage_counters
+  as permissive for all to service_role using (true) with check (true);
+create policy "deny_all_usage_counters" on public.usage_counters
+  as permissive for all to public using (false);
+
+alter table public.preferred_drivers enable row level security;
+create policy "service_role_preferred_drivers" on public.preferred_drivers
+  as permissive for all to service_role using (true) with check (true);
+create policy "deny_all_preferred_drivers" on public.preferred_drivers
+  as permissive for all to public using (false);
+
+revoke execute on function public.increment_usage_counter(text)
+  from public, anon, authenticated;
+```
+The `EXECUTE` revoke was done as a mandatory defense-in-depth step even
+though the function is invoker-rights (so RLS alone already blocks a
+direct anon/authenticated call) — only the backend ever needs to call
+it, and unrestricted `EXECUTE` served no purpose.
+
+**After state:** both tables `relrowsecurity=true` with the
+`service_role_X`/`deny_all_X` pair. `increment_usage_counter` `EXECUTE`
+held only by `postgres`/`service_role`.
+
+**Verification (live, rolled back):**
+
+| Test | Result |
+|---|---|
+| `anon` SELECT `usage_counters` | 0 rows (RLS-filtered; table grant untouched, RLS denies) |
+| `anon` INSERT `usage_counters` | `new row violates row-level security policy` |
+| `anon` EXECUTE `increment_usage_counter()` | `permission denied for function increment_usage_counter` |
+| `anon` SELECT `preferred_drivers` | `permission denied for table preferred_drivers` (no grant ever existed) |
+| `service_role` SELECT both tables | succeeds (0 rows each — both still empty, unaffected) |
+| `service_role` EXECUTE `increment_usage_counter()` | succeeds, returns incremented count |
+
+**Rollback (independent per table):**
+```sql
+-- usage_counters
+drop policy if exists "deny_all_usage_counters" on public.usage_counters;
+drop policy if exists "service_role_usage_counters" on public.usage_counters;
+alter table public.usage_counters disable row level security;
+grant execute on function public.increment_usage_counter(text) to public, anon, authenticated;
+
+-- preferred_drivers
+drop policy if exists "deny_all_preferred_drivers" on public.preferred_drivers;
+drop policy if exists "service_role_preferred_drivers" on public.preferred_drivers;
+alter table public.preferred_drivers disable row level security;
+```
+Syntax-checked via dry-run (transaction rolled back) before migration 2
+was applied.
+
+## Migration 3 — spatial_ref_sys: NOT ENABLING RLS, privilege hardening only — **BLOCKED, not applied**
+
+**File:** `supabase/migrations/20260804210200_spatial_ref_sys_privilege_hardening.sql`
+
+Per explicit decision: do not enable RLS on this table (PostGIS-extension-
+owned system table; custom RLS on it risks compatibility/upgrade
+problems). The intended fix was privilege-only: keep public `SELECT`
+(required — `nearest_drivers()`, `SECURITY INVOKER`, has `EXECUTE`
+granted to `anon`/`authenticated` and performs `ST_Distance`/`ST_DWithin`
+geography calculations that PostGIS resolves against `spatial_ref_sys`
+under the invoking role), and revoke `INSERT`/`UPDATE`/`DELETE`/
+`TRUNCATE` from `anon`/`authenticated`/`PUBLIC`, which were left open
+from the extension's default table-creation grants.
+
+**Before state** (captured 2026-08-04 21:07:40 UTC): `PUBLIC` had
+`SELECT`; `anon`/`authenticated` additionally held `INSERT`/`UPDATE`/
+`DELETE`/`TRUNCATE`/`REFERENCES`/`TRIGGER` directly.
+
+**Applied (attempted):** 21:08:15 UTC. `apply_migration` reported
+`{"success":true}`.
+
+### Known blocker — the migration did not actually take effect
+
+Re-querying `information_schema.table_privileges` immediately after
+showed `anon`/`authenticated` **still** holding `INSERT`/`UPDATE`/
+`DELETE`/`TRUNCATE` — unchanged from before. Root cause, confirmed via
+`pg_class.relacl`:
+
+```
+supabase_admin=arwdDxtm/supabase_admin
+postgres=arwdDxtm/supabase_admin
+anon=arwdDxtm/supabase_admin
+authenticated=arwdDxtm/supabase_admin
+service_role=arwdDxtm/supabase_admin
+=r/supabase_admin
+```
+
+`spatial_ref_sys` is owned by `supabase_admin` (`pg_roles.rolsuper =
+true`), a role internal to Supabase's managed platform. Every grant on
+this table — including `postgres`'s own — was made **by**
+`supabase_admin`, with no `WITH GRANT OPTION` (no `*` in the ACL). This
+session's DB connection runs as `postgres`, which:
+- is not a superuser (`rolsuper = false`, confirmed via `pg_roles`)
+- is not a member of `supabase_admin` (confirmed via `pg_auth_members` —
+  `postgres` is a member of `pg_monitor`, `pg_signal_backend`,
+  `pg_read_all_data`, `pg_create_subscription`, `anon`, `authenticated`,
+  `service_role`, `authenticator`, `supabase_realtime_admin`,
+  `supabase_privileged_role` — not `supabase_admin`)
+- cannot `SET ROLE supabase_admin` (`permission denied to set role
+  "supabase_admin"`, confirmed live)
+
+A Postgres `REVOKE` issued by a role that is neither the object owner
+nor holds grant option on that privilege **succeeds as a silent no-op
+with a warning**, not an error — which is exactly why the tool reported
+success while nothing changed. This is a real, structural privilege
+boundary in this Supabase project, not a retryable failure.
+
+**Current state:** unchanged from before this PR. `spatial_ref_sys`
+still grants `anon`/`authenticated` `INSERT`/`UPDATE`/`DELETE`/
+`TRUNCATE` directly. `SELECT` was already public before this migration,
+so read behavior is unaffected either way — nothing regressed, but the
+write-access gap identified in scoping remains open.
+
+**Options going forward (owner decision pending, not yet made):**
+1. Accept as a documented residual risk — low real-world severity (the
+   table is non-sensitive public reference data; the exposure is
+   integrity/write, not confidentiality), close it later via a Supabase
+   support request if full closure is required.
+2. A `BEFORE INSERT/UPDATE/DELETE/TRUNCATE` trigger rejecting writes
+   from non-privileged roles is technically possible (`postgres` does
+   hold `TRIGGER` privilege on this table per the ACL above), but this
+   is a different, more invasive mechanism than the REVOKE/GRANT
+   originally approved, and adds a custom object to an extension-owned
+   table — the exact category of risk this migration was designed to
+   avoid. Not implemented; would need separate explicit authorization.
+
+## Compatibility verification performed (spatial_ref_sys, independent of the blocker above)
+
+These checks were run to answer "does PostGIS/geospatial need public
+SELECT on spatial_ref_sys" regardless of whether the write-side fix
+could be applied — the answer is yes, confirmed:
+
+- `nearest_drivers(p_lat, p_lng, p_radius_miles, p_limit)`: `SECURITY
+  INVOKER`, `EXECUTE` granted to `PUBLIC`/`anon`/`authenticated`/
+  `postgres`/`service_role`. Uses `ST_Distance`/`ST_DWithin`/
+  `ST_SetSRID`/`ST_MakePoint` against SRID 4326 on `drivers.geog`
+  (`geography` type).
+- `drivers` table already has correct RLS (`deny_all_drivers` +
+  `service_role_drivers`), so even though `anon` could invoke
+  `nearest_drivers()` directly today, the underlying driver read returns
+  zero rows for `anon` — no live PII leak via this path regardless of
+  the spatial_ref_sys question.
+- Live check (rolled back): `anon`, via `SET LOCAL ROLE`, can read
+  `spatial_ref_sys` row for SRID 4326 (`srtext is not null` → `true`).
+  This confirms the read side must stay public for compatibility, which
+  is why RLS-with-deny-all was never on the table for this table in the
+  first place — only a write-side fix was ever in scope.
+
+## Separate finding, explicitly out of scope for this PR
+
+`nearest_drivers()` and `increment_usage_counter()` both have `EXECUTE`
+granted to `anon`/`authenticated`/`PUBLIC`, broader than the application
+needs (only the backend service-role client calls either one — confirmed
+by grep). `increment_usage_counter`'s grant was tightened in migration 2
+above per the explicit mandatory-check instruction; `nearest_drivers`'s
+was not touched. Per the instruction not to combine unrelated
+route/function-authorization changes into this PR, `nearest_drivers`'s
+`EXECUTE` grant is flagged here as a **follow-up requiring a separate
+decision**: is direct anon/browser invocation of this RPC intentionally
+required (it currently isn't, per the same zero-client-side-Supabase-
+usage grep finding used throughout this remediation program), and if
+not, revoke `EXECUTE` from `anon`/`authenticated`/`PUBLIC` there too. Not
+applied in this PR.
+
+## What this PR does not touch
+
+Payment methods (P0-2, PR 3), Persona (P0-3, PR 5), push subscriptions
+(P0-6, PR 6), safety endpoints (P0-5, PR 7), driver-offer decline
+ownership (PR 8), secrets/session hardening (PR 9), and no unrelated
+schema cleanup or route-authorization changes, per explicit scope
+instruction.
