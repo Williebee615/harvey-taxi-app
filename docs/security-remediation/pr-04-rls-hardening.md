@@ -1,16 +1,26 @@
 # P0 Remediation — PR 4: RLS Hardening (riders, usage_counters, preferred_drivers, spatial_ref_sys)
 
-Status: **riders and usage_counters/preferred_drivers fixes are applied to
-production and verified. The spatial_ref_sys write-access fix could not
-be applied from this session — see "Known blocker" below. Nothing in
-this PR was tested on a Supabase branch first: branch creation
-(`list_branches`) failed reproducibly in this environment
+Status — this PR does **not** resolve every database privilege finding
+in scope; it resolves four of five, with the fifth explicitly tracked as
+open:
+
+| Item | Status |
+|---|---|
+| `riders` PUBLIC policy | **FIXED and verified** |
+| `usage_counters` RLS | **FIXED and verified** |
+| `preferred_drivers` RLS | **FIXED and verified** |
+| Associated RPC grants (`increment_usage_counter`) | **FIXED and verified** |
+| `spatial_ref_sys` write privileges (INSERT/UPDATE/DELETE/TRUNCATE) | **OPEN / BLOCKED — owner-level remediation required** |
+
+Nothing in this PR was tested on a Supabase branch first: branch
+creation (`list_branches`) failed reproducibly in this environment
 (`InternalServerErrorException: Project reference is missing when
 validating permissions`), confirmed twice. Per explicit approval, each
 migration was instead applied directly to production, one at a time,
 with before-state capture, a syntax-checked rollback prepared first,
 immediate post-apply verification, and a stop-and-report on the first
-unexpected result.**
+unexpected result. That stop-and-report is exactly what happened on the
+fifth item — see "Residual risk: spatial_ref_sys" below.
 
 ## Trigger
 
@@ -159,7 +169,7 @@ alter table public.preferred_drivers disable row level security;
 Syntax-checked via dry-run (transaction rolled back) before migration 2
 was applied.
 
-## Migration 3 — spatial_ref_sys: NOT ENABLING RLS, privilege hardening only — **BLOCKED, not applied**
+## Residual risk: spatial_ref_sys — OPEN / BLOCKED, owner-level remediation required
 
 **File:** `supabase/migrations/20260804210200_spatial_ref_sys_privilege_hardening.sql`
 
@@ -222,18 +232,90 @@ still grants `anon`/`authenticated` `INSERT`/`UPDATE`/`DELETE`/
 so read behavior is unaffected either way — nothing regressed, but the
 write-access gap identified in scoping remains open.
 
-**Options going forward (owner decision pending, not yet made):**
-1. Accept as a documented residual risk — low real-world severity (the
-   table is non-sensitive public reference data; the exposure is
-   integrity/write, not confidentiality), close it later via a Supabase
-   support request if full closure is required.
-2. A `BEFORE INSERT/UPDATE/DELETE/TRUNCATE` trigger rejecting writes
-   from non-privileged roles is technically possible (`postgres` does
-   hold `TRIGGER` privilege on this table per the ACL above), but this
-   is a different, more invasive mechanism than the REVOKE/GRANT
-   originally approved, and adds a custom object to an extension-owned
-   table — the exact category of risk this migration was designed to
-   avoid. Not implemented; would need separate explicit authorization.
+### Decision: no application-level workaround was used
+
+No trigger, wrapper trigger, event trigger, mutation-blocking rule, or
+any other application-level mechanism was added to `spatial_ref_sys`,
+and none should be. A `BEFORE INSERT/UPDATE/DELETE/TRUNCATE` trigger
+rejecting writes from non-privileged roles is technically possible
+(`postgres` does hold `TRIGGER` privilege on this table per the ACL
+above) — it was deliberately rejected as an approach:
+
+- A trigger only intercepts writes *after* they reach the table; it does
+  not correct the underlying privilege model, which remains
+  misconfigured regardless. `pg_class.relacl` would still show
+  `anon`/`authenticated` holding `INSERT`/`UPDATE`/`DELETE`/`TRUNCATE` —
+  a future audit or advisor scan would still flag it.
+- Privileged or extension-internal operations (PostGIS upgrades,
+  `pg_dump`/restore, Supabase's own platform maintenance against this
+  table) could behave differently around a custom trigger than around
+  native grants, in ways that aren't fully predictable from outside the
+  extension's own code.
+- `spatial_ref_sys` is owned and managed by `supabase_admin` as part of
+  the PostGIS extension. Adding custom behavior to an extension-owned
+  system table is a larger, less-understood operational risk than the
+  residual issue it would be working around.
+- The residual issue itself is bounded: it is a database-integrity
+  concern (unauthorized write/truncate of public coordinate-reference
+  data), not exposure of Harvey Taxi rider or driver data. `riders`,
+  `usage_counters`, and `preferred_drivers` — the tables that actually
+  hold or could hold application/PII data — are fully fixed and
+  verified in this PR. That should not be held back waiting on an
+  extension-owned permission that requires platform-administrator
+  intervention.
+
+**Summary of facts for this residual-risk item, as required for
+tracking:**
+
+- `spatial_ref_sys` contains public coordinate-reference-system data
+  (PostGIS/PROJ definitions), not Harvey Taxi rider or driver data.
+- Public `SELECT` is required/expected for PostGIS compatibility —
+  confirmed live (`anon` can read the SRID 4326 row) and structurally
+  needed by `nearest_drivers()` (see compatibility verification below).
+- Unnecessary write grants (`INSERT`/`UPDATE`/`DELETE`/`TRUNCATE` to
+  `anon`/`authenticated`/`PUBLIC`) remain present, unchanged from before
+  this PR.
+- The current database role (`postgres`, this session's connection)
+  cannot revoke them: it is not the table owner and holds no grant
+  option on grants made by `supabase_admin`.
+- The attempted `REVOKE` (21:08:15 UTC) made **no effective permission
+  change** — confirmed by re-querying `table_privileges` immediately
+  after and by inspecting `pg_class.relacl` directly.
+- No trigger or other workaround was used to compensate.
+- Remediation requires either a Supabase support request (asking
+  Supabase to perform the revoke as/via the owning `supabase_admin`
+  role) or direct execution by a role with sufficient privilege over
+  `supabase_admin`-owned objects.
+
+### Supabase support request (drafted, not yet submitted — no tool in this session can open Supabase support tickets)
+
+This needs to be filed by a human via the Supabase dashboard support
+form (dashboard.supabase.com → this project → Support), since no MCP
+tool available in this session submits support tickets. Suggested text:
+
+> **Subject:** Request to revoke default write grants on
+> `public.spatial_ref_sys` (project `harvey-taxi-app`,
+> `orgahzncmzptljapqffj`)
+>
+> Our security review found that `public.spatial_ref_sys` grants
+> `INSERT`, `UPDATE`, `DELETE`, and `TRUNCATE` to the `anon` and
+> `authenticated` roles (and `PUBLIC`), left over from the PostGIS
+> extension's default table-creation grants. We'd like these write
+> privileges removed while **preserving `SELECT` for `PUBLIC`/`anon`/
+> `authenticated`**, since our application relies on public read access
+> to this table for PostGIS geography compatibility (SRID lookups used
+> by geography-type distance calculations).
+>
+> We attempted `REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON
+> public.spatial_ref_sys FROM PUBLIC, anon, authenticated;` ourselves and
+> confirmed via `pg_class.relacl` that it had no effect: the table is
+> owned by `supabase_admin`, and our `postgres` role holds no grant
+> option on `supabase_admin`'s grants, so the REVOKE silently no-ops.
+> Could you perform this revoke (or grant our project's `postgres` role
+> the necessary privilege to do so ourselves)?
+
+Tracked as an open follow-up dependency for this PR — not blocking the
+two application-table fixes from merging.
 
 ## Compatibility verification performed (spatial_ref_sys, independent of the blocker above)
 
