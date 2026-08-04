@@ -1,5 +1,16 @@
 # P0 Remediation — PR 2a: Rider Client Authentication Wiring
 
+**Live validation: reported PASS by the repository owner** (all items in
+`docs/security-remediation/pr-02a-live-validation-runbook.md` sections
+3-4 — SMS/email OTP, signup handoff, cookie/session_version behavior,
+RIDER_SESSION_SECRET/Twilio/SendGrid operational status). This session
+could not independently observe any of that live behavior (no browser,
+phone, inbox, or Render/Twilio/SendGrid access) — the runbook records it
+explicitly as an owner attestation, not a session-verified result.
+Merged on that basis. `rider_auth_ui_enabled` remains controlled
+(QA/off) pending a post-merge smoke test of the actual merged deploy,
+per the sign-off checklist.
+
 Status: **client-side sign-in gate only, shipped inert.** `requireRider`
 is still not wired into any existing rider-owned data route
 (`/api/rider/rides`, `/api/rider/saved-places`, `/api/rider/payment-methods`,
