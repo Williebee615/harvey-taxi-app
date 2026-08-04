@@ -381,26 +381,85 @@ incorrectly implied the Vercel check stood in for the Render one.
 **Actual state:** CI on the merge commit (`6c6bfd43`) passed
 (`node -c server.js`, `npm test`, confirmed via GitHub Actions). Vercel
 build/preview status was green on the pre-merge head commit (build
-evidence only). **A Render boot log or deploy status has not been
-obtained and full production-deployment confirmation is still
-outstanding** — this session has no Render access (no MCP connector, no
-outbound HTTPS to the app domain; see below) and cannot check this
-itself. If Render auto-deploys on push to `main` (as most Render web
-services do), a deploy should have kicked off at merge time, but neither
-its outcome nor the live app's post-deploy health has been confirmed by
-this session. Treat this as **open** until a Render boot log or
-dashboard deploy status is checked directly.
+evidence only, not a Render production signal).
 
-This session also could not directly confirm the live production URL is
-serving correctly post-merge by hitting it: outbound HTTPS from this
-session to `harveytaxiservice.com` is blocked by this environment's
-network egress policy (`gateway answered 403 to CONNECT (policy denial
-or upstream failure)`, confirmed via both a direct `curl` and
-`WebFetch` — this is an environment restriction, not an application
-error). In the meantime, the DB-level checks below (which don't depend
-on network egress) are the strongest evidence available from this
-session that the merge didn't break anything live at the database layer
-— they say nothing about Render's deploy outcome specifically.
+This session still could not directly confirm the live production URL
+by hitting it: outbound HTTPS from this session to
+`harveytaxiservice.com` is blocked by this environment's network egress
+policy (`gateway answered 403 to CONNECT (policy denial or upstream
+failure)`, confirmed via both a direct `curl` and `WebFetch` — an
+environment restriction, not an application error). This session has no
+Render account access either.
+
+### Render production-deployment evidence — owner-provided, 2026-08-04
+
+The production-deployment evidence gap above is now closed via a Render
+boot log the repository owner pasted directly into this session
+(**owner-provided, not fetched or independently observed by this
+session** — same framing used throughout this remediation program for
+anything requiring Render/Twilio/SendGrid/browser access this session
+doesn't have). Relevant lines, quoted exactly as provided, timestamped
+2026-08-04T21:25:50–57Z:
+
+```
+📊 HTAF schema status: { checked: true, ok: true, missing: [], ... empty_table: false, checked_at: '2026-08-04T21:25:50.769Z' }
+=================================================
+🚕 HARVEY TAXI SERVER J ONLINE
+🌎 Environment: production
+🔌 Port: 10000
+🏠 App URL: https://harveytaxiservice.com
+🧾 HTAF Applications: ON
+💳 Stripe: ON
+📧 SendGrid: ON
+📲 Twilio: ON
+🪪 Persona API key configured: OFF
+🪪 Persona verification required to go online (ENABLE_PERSONA): ON
+🛡️ Checkr: ON
+🤖 AI Support: ON
+=================================================
+==> Your service is live 🎉
+==> Available at your primary URL https://harveytransportationfoundation.com + 4 more domains
+```
+
+(Several other per-table schema checks preceding the HTAF one — e.g.
+`driver_offers: 'ok'`, `driver_earnings: 'ok'`, `emergency_alerts: 'ok'`,
+`safety_reports: 'ok'`, `deliveries: 'ok'` — were also present in what
+was pasted; omitted here for brevity, all `'ok'`.)
+
+**What this closes:**
+- Production environment started successfully (`Environment: production`, server banner printed, no startup errors visible in what was pasted).
+- Schema checks passed (HTAF schema `ok: true`, `missing: []`, `empty_table: false`; other tables checked `'ok'`).
+- Render itself reports the service live (`==> Your service is live 🎉`).
+- The app's own configured `App URL` is `https://harveytaxiservice.com`, confirmed from the app's own startup log line, not inferred.
+- Stripe, SendGrid, Twilio, and Checkr all report `ON` (configured) in this boot.
+- **Production is confirmed hosted on Render, not Vercel** — this is unambiguously a Render deploy log (`==>` lines are Render's own deploy-runner output), settling the conflation corrected above.
+
+**One nuance worth flagging, not glossing over:** Render's own line says
+the service is "Available at your primary URL
+`https://harveytransportationfoundation.com` + 4 more domains" — the
+app's *internal* `App URL` config reports `harveytaxiservice.com`, but
+Render's *primary* routing domain shown in this log is a different,
+related domain (`harveytransportationfoundation.com`, presumably the
+HTAF nonprofit side of this project). `harveytaxiservice.com` is very
+likely one of the "4 more domains" Render lists but didn't enumerate in
+what was pasted — this wasn't confirmed line-by-line. Doesn't affect any
+conclusion above, since the app's own log independently confirms its
+configured URL; noting it only so nobody later assumes
+`harveytaxiservice.com` was Render's stated primary domain when the
+pasted log actually shows a different one in that specific line.
+
+**Separate, real finding surfaced by this same log — logged here and in
+`docs/production-hardening-phase1-audit.md` §1/§7 (P0 item #2):**
+`ENABLE_PERSONA` is `ON` while `Persona API key configured` is `OFF`.
+This is a live, currently-active production misconfiguration, confirmed
+by direct evidence rather than inference — it blocks every driver from
+completing Persona verification and therefore from going online. This
+is outside PR 4/PR 98's scope (RLS hardening) and needs its own
+independent fix (a Render env-var correction), not bundled into this PR
+or any rider-auth PR.
+
+The DB-level checks below remain independently valid regardless of the
+above — they were never dependent on Render/network access.
 
 **Database state re-verified against production, unchanged from
 pre-merge (expected — these were direct DB migrations, not deploy-time

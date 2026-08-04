@@ -11,7 +11,7 @@
 
 Harvey Taxi Mobile is a single Node/Express application (`server.js`, ~19,700 lines) serving 47 static HTML pages and 124 API routes, backed by a Supabase Postgres project (45 tables, 17 committed migrations) and Stripe/Twilio/SendGrid/Checkr/Persona integrations. It is **not yet production-ready for general public launch**. The core dispatch, payment, and compliance logic is real and mostly sound — this is not a prototype — but three categories of blocker remain open:
 
-1. **An active, unresolved onboarding blocker.** `ENABLE_PERSONA` defaults to `true` with no real Persona flow live, which has been blocking every driver from going online. A fix was identified and a Render env-var change was requested of the operator; **[UNTESTED]** whether it has taken effect — no confirmation received yet that a real driver can go online in production.
+1. **An active, unresolved onboarding blocker — CONFIRMED STILL LIVE 2026-08-04.** `ENABLE_PERSONA` defaults to `true` with no real Persona flow live, which has been blocking every driver from going online. A fix was identified and a Render env-var change was requested of the operator; this was previously **[UNTESTED]**. It is now confirmed, via an owner-provided Render boot log (production, 2026-08-04T21:25:50Z, quoted in full in `docs/security-remediation/pr-04-rls-hardening.md`'s "Render production-deployment evidence" section): `🪪 Persona API key configured: OFF` while `🪪 Persona verification required to go online (ENABLE_PERSONA): ON`. The requested fix has **not** taken effect — this remains a live, active blocker preventing every driver from going online, confirmed by direct evidence rather than inference. Needs a Render env-var correction independent of anything else in this document.
 2. **No rider-side authentication.** Every `/api/rider/*` route identifies the rider purely by a client-supplied `riderId` in the request body/query — there is no session token, cookie, or password check anywhere in the rider API surface. Any client that knows (or guesses/enumerates) a rider ID can read or write that rider's saved places, payment methods, ride history, and now their profile photo.
 3. **A meaningful amount of test/prototype debris sitting in the production repo and production database**, including two rider/driver "QA" records with **live `active`/`approved` status** that are currently indistinguishable from real users in the admin dashboard, and roughly a dozen orphaned or duplicate HTML pages (see §3).
 
@@ -237,7 +237,7 @@ No flow above should be treated as "production ready" on the strength of this do
 
 **P0 — active exposure, fix before anything else:**
 1. Rider API has no session authentication (§5.1) — every `/api/rider/*` route.
-2. Confirm `ENABLE_PERSONA=false` actually took effect in Render (§1) — currently blocking all driver onboarding.
+2. ~~Confirm `ENABLE_PERSONA=false` actually took effect in Render (§1)~~ **CONFIRMED NOT TAKEN EFFECT, 2026-08-04** — Render boot log shows `ENABLE_PERSONA: ON` with `Persona API key configured: OFF`. Still currently blocking all driver onboarding; still open, now with direct evidence instead of inference.
 
 **P1 — required before public launch:**
 3. Remove unused `nodemailer` dependency (high-severity CVE, zero-risk removal).
