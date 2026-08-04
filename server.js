@@ -14181,17 +14181,24 @@ app.post(
    Same shape as the driver photo route above, uploaded to the
    rider-photos bucket instead, so a driver can identify their
    rider on arrival the same way a rider can already identify
-   their driver. Rider routes in this app aren't behind a session
-   auth middleware (see /api/rider/saved-places, /api/rider/rides)
-   — riderId is a client-supplied identifier, not a bug specific
-   to this route.
+   their driver. P0 remediation PR 2b: while rider_auth_enforced is
+   off (the default), riderId is client-supplied exactly as before --
+   the still-open P0-1 finding. Once enabled, riderId comes
+   exclusively from the authenticated session (see
+   resolveEnforcedRiderId in lib/riderAuth.js) and the client-supplied
+   value is ignored outright -- a rider can then only ever overwrite
+   their own photo, never another rider's.
 
 ========================================================= */
 
 app.post(
   "/api/rider/photo",
+  requireRiderIfEnforced,
   asyncRoute(async (req, res) => {
-    const riderId = cleanString(req.body.riderId || req.body.rider_id, 100);
+    const riderId = resolveEnforcedRiderId({
+      authenticatedRiderId: req.rider?.id,
+      clientSuppliedRiderId: cleanString(req.body.riderId || req.body.rider_id, 100)
+    });
 
     if (!riderId) {
       return fail(res, "riderId is required.", 400);
