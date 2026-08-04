@@ -2556,6 +2556,173 @@
       }
     }
 
+    /* ===== Rider sign-in gate (P0 remediation PR 2a) =====
+       Full-screen until a verified session exists -- see
+       docs/security-remediation/pr-02a-rider-client-auth.md. Visible by
+       default (not [hidden]) so there's no flash of dashboard content
+       before the bootstrap check resolves; boot() hides it only after
+       GET /api/rider/session confirms a real session. */
+    #riderAuthOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background:
+        radial-gradient(circle at top left, rgba(99, 245, 255, 0.14), transparent 30%),
+        radial-gradient(circle at top right, rgba(94, 160, 255, 0.12), transparent 28%),
+        linear-gradient(160deg, var(--bg1), var(--bg2) 50%, var(--bg3));
+      overflow-y: auto;
+    }
+
+    #riderAuthOverlay[hidden] {
+      display: none;
+    }
+
+    #riderAuthOverlay .auth-card {
+      width: 100%;
+      max-width: 380px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      padding: 24px 22px;
+    }
+
+    #riderAuthOverlay .auth-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    #riderAuthOverlay .auth-tabs {
+      display: flex;
+      gap: 6px;
+      background: var(--panel3);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 4px;
+      margin-bottom: 16px;
+    }
+
+    #riderAuthOverlay .auth-tab {
+      flex: 1;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+
+    #riderAuthOverlay .auth-tab.active {
+      background: var(--blue);
+      color: var(--ink);
+      font-weight: 600;
+    }
+
+    #riderAuthOverlay .auth-label {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    #riderAuthOverlay .auth-input {
+      width: 100%;
+      background: var(--panel3);
+      border: 1px solid var(--line);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 1rem;
+      margin-bottom: 12px;
+    }
+
+    #riderAuthOverlay .auth-input:focus {
+      outline: none;
+      border-color: var(--line-strong);
+    }
+
+    #riderAuthOverlay .auth-btn {
+      width: 100%;
+      background: var(--blue);
+      color: var(--ink);
+      border: none;
+      border-radius: 10px;
+      padding: 13px 14px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    #riderAuthOverlay .auth-btn:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+
+    #riderAuthOverlay .auth-error {
+      color: var(--danger);
+      font-size: 0.85rem;
+      margin-top: 10px;
+    }
+
+    #riderAuthOverlay .auth-footnote {
+      color: var(--muted);
+      font-size: 0.8rem;
+      margin-top: 14px;
+      text-align: center;
+    }
+
+    #riderAuthOverlay .auth-footnote a {
+      color: var(--cyan);
+    }
+
+    #riderAuthOverlay .auth-sent-to {
+      color: var(--soft);
+      font-size: 0.85rem;
+      margin-bottom: 12px;
+    }
+
+    #riderAuthOverlay .auth-links {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+
+    #riderAuthOverlay .auth-link {
+      background: none;
+      border: none;
+      color: var(--cyan);
+      font-size: 0.8rem;
+      cursor: pointer;
+      padding: 4px 0;
+    }
+
+    #riderAuthOverlay .auth-link:disabled {
+      color: var(--muted);
+      cursor: default;
+    }
+
+    #riderAuthOverlay .auth-status {
+      color: var(--muted);
+      font-size: 0.8rem;
+      text-align: center;
+      margin-top: 14px;
+    }
+
+    @media (max-width: 480px) {
+      #riderAuthOverlay .auth-card {
+        padding: 20px 16px;
+      }
+    }
+
   </style>
 </head>
 
@@ -2577,6 +2744,7 @@
         <button class="top-chip" type="button" data-action="home">Home</button>
         <button class="top-chip" type="button" data-action="support">Support</button>
         <button class="top-chip" type="button" data-action="ride">Book</button>
+        <button class="top-chip" type="button" id="riderLogoutBtn">Sign out</button>
       </div>
     </header>
 
@@ -3343,6 +3511,49 @@
     </button>
 
   </nav>
+
+  <!-- ===== Rider sign-in gate (P0 remediation PR 2a) — visible until a
+       real, server-verified session exists. See
+       docs/security-remediation/pr-02a-rider-client-auth.md ===== -->
+  <div id="riderAuthOverlay">
+    <div class="auth-card">
+      <div class="auth-brand">
+        <div class="logo-dot"></div>
+        <div>
+          <div class="brand">HARVEY TAXI</div>
+          <div class="brand-sub">Sign in to your rider account</div>
+        </div>
+      </div>
+
+      <div class="auth-tabs" role="tablist">
+        <button type="button" class="auth-tab active" id="authTabPhone" data-channel="phone">Phone</button>
+        <button type="button" class="auth-tab" id="authTabEmail" data-channel="email">Email</button>
+      </div>
+
+      <form id="authStartForm" class="auth-step">
+        <label class="auth-label" for="authPhoneInput" id="authDestLabel">Mobile number</label>
+        <input id="authPhoneInput" type="tel" inputmode="tel" autocomplete="tel" placeholder="(615) 555-0100" class="auth-input" />
+        <input id="authEmailInput" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com" class="auth-input" hidden />
+        <button type="submit" class="auth-btn" id="authStartBtn">Send code</button>
+        <p class="auth-error" id="authStartError" hidden></p>
+        <p class="auth-footnote">New to Harvey Taxi? <a href="rider-signup.html">Create an account</a></p>
+      </form>
+
+      <form id="authVerifyForm" class="auth-step" hidden>
+        <p class="auth-sent-to" id="authSentTo"></p>
+        <label class="auth-label" for="authCodeInput">Enter the code</label>
+        <input id="authCodeInput" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="12" class="auth-input" />
+        <button type="submit" class="auth-btn" id="authVerifyBtn">Verify &amp; sign in</button>
+        <p class="auth-error" id="authVerifyError" hidden></p>
+        <div class="auth-links">
+          <button type="button" class="auth-link" id="authResendBtn">Resend code</button>
+          <button type="button" class="auth-link" id="authBackBtn">Use a different number/email</button>
+        </div>
+      </form>
+
+      <p class="auth-status" id="authStatusMsg" hidden></p>
+    </div>
+  </div>
 
   <!-- ===== Merged from request-ride.html: full booking/payment/tracking wizard, hidden by default, opened via window.HarveyRideWizard.open({mode, ride_id}) ===== -->
   <div id="rideWizardOverlay" hidden>
@@ -9333,6 +9544,427 @@
       return data;
     }
 
+    /* =========================================================
+       RIDER CLIENT AUTHENTICATION (P0 remediation PR 2a)
+
+       Real OTP-backed sign-in against the existing
+       /api/rider/session/start|verify|logout routes and the new
+       GET /api/rider/session bootstrap endpoint (server.js,
+       requireRider-protected). This replaces implicit trust in a
+       stored/URL-supplied rider ID as proof of identity -- see
+       docs/security-remediation/pr-02a-rider-client-auth.md.
+
+       Deliberately does NOT yet change how the rest of this page
+       fetches rides/saved-places/etc: those routes aren't
+       requireRider-protected until PR 2b (rider_auth_enforced flag),
+       so this PR's job is only the sign-in gate and the identity
+       bootstrap, not migrating every existing fetch.
+    ========================================================= */
+    const RIDER_CLIENT_HEADER_NAME = "X-Requested-With";
+    const RIDER_CLIENT_HEADER_VALUE = "harvey-rider-app";
+    const AUTH_RESEND_COOLDOWN_SECONDS = 30;
+
+    const authState = {
+      channel: "phone",
+      destination: "",
+      resendTimer: null,
+      resendRemaining: 0
+    };
+
+    const authEls = {
+      overlay: document.getElementById("riderAuthOverlay"),
+      tabPhone: document.getElementById("authTabPhone"),
+      tabEmail: document.getElementById("authTabEmail"),
+      destLabel: document.getElementById("authDestLabel"),
+      phoneInput: document.getElementById("authPhoneInput"),
+      emailInput: document.getElementById("authEmailInput"),
+      startForm: document.getElementById("authStartForm"),
+      startBtn: document.getElementById("authStartBtn"),
+      startError: document.getElementById("authStartError"),
+      verifyForm: document.getElementById("authVerifyForm"),
+      verifyBtn: document.getElementById("authVerifyBtn"),
+      verifyError: document.getElementById("authVerifyError"),
+      codeInput: document.getElementById("authCodeInput"),
+      sentTo: document.getElementById("authSentTo"),
+      resendBtn: document.getElementById("authResendBtn"),
+      backBtn: document.getElementById("authBackBtn"),
+      logoutBtn: document.getElementById("riderLogoutBtn")
+    };
+
+    function showAuthOverlay() {
+      authEls.overlay.hidden = false;
+    }
+
+    function hideAuthOverlay() {
+      authEls.overlay.hidden = true;
+    }
+
+    function setAuthChannel(channel) {
+      authState.channel = channel;
+      authEls.tabPhone.classList.toggle("active", channel === "phone");
+      authEls.tabEmail.classList.toggle("active", channel === "email");
+      authEls.phoneInput.hidden = channel !== "phone";
+      authEls.emailInput.hidden = channel !== "email";
+      authEls.destLabel.textContent = channel === "phone" ? "Mobile number" : "Email address";
+      authEls.destLabel.setAttribute("for", channel === "phone" ? "authPhoneInput" : "authEmailInput");
+    }
+
+    function showAuthError(el, message) {
+      el.textContent = message;
+      el.hidden = false;
+    }
+
+    function clearAuthError(el) {
+      el.hidden = true;
+      el.textContent = "";
+    }
+
+    function resetAuthStep() {
+      authEls.startForm.hidden = false;
+      authEls.verifyForm.hidden = true;
+      clearAuthError(authEls.startError);
+      clearAuthError(authEls.verifyError);
+      clearInterval(authState.resendTimer);
+      authState.resendRemaining = 0;
+      authEls.resendBtn.disabled = false;
+      authEls.resendBtn.textContent = "Resend code";
+    }
+
+    // Deliberately its own fetch wrapper, not requestJson: every rider
+    // session-auth route requires the CSRF header (see hasRiderClientHeader
+    // in server.js) whether or not this call succeeds, and never throws on
+    // a non-2xx response -- the caller needs the status code itself
+    // (403 access-revoked vs. 400 invalid-code read differently) rather
+    // than a single generic thrown Error.
+    async function authRequest(path, body) {
+      let response;
+
+      try {
+        response = await fetch(`${apiBase()}${path}`, {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            [RIDER_CLIENT_HEADER_NAME]: RIDER_CLIENT_HEADER_VALUE
+          },
+          body: JSON.stringify(body || {})
+        });
+      } catch {
+        return { httpOk: false, status: 0, data: {} };
+      }
+
+      const text = await response.text();
+      let data = {};
+
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        data = {};
+      }
+
+      return { httpOk: response.ok, status: response.status, data };
+    }
+
+    function updateResendLabel() {
+      authEls.resendBtn.textContent = `Resend code (${authState.resendRemaining}s)`;
+    }
+
+    function startResendCooldown() {
+      authState.resendRemaining = AUTH_RESEND_COOLDOWN_SECONDS;
+      authEls.resendBtn.disabled = true;
+      updateResendLabel();
+
+      clearInterval(authState.resendTimer);
+      authState.resendTimer = setInterval(() => {
+        authState.resendRemaining -= 1;
+
+        if (authState.resendRemaining <= 0) {
+          clearInterval(authState.resendTimer);
+          authEls.resendBtn.disabled = false;
+          authEls.resendBtn.textContent = "Resend code";
+          return;
+        }
+
+        updateResendLabel();
+      }, 1000);
+    }
+
+    // Shared by both the "Send code" submit and the "Resend code" button --
+    // the server side is identical either way (session/start), and always
+    // returns the same generic {sent:true} shape whether or not the
+    // destination matches a real rider (no-enumeration by design, see
+    // server.js RIDER_SESSION_START_RESPONSE), so the client's job is just
+    // to move to the code-entry step and start the resend cooldown.
+    async function requestLoginCode() {
+      clearAuthError(authEls.startError);
+
+      const destination =
+        authState.channel === "phone"
+          ? safe(authEls.phoneInput.value)
+          : safe(authEls.emailInput.value);
+
+      if (!destination) {
+        showAuthError(
+          authEls.startError,
+          authState.channel === "phone" ? "Enter your mobile number." : "Enter your email address."
+        );
+        return;
+      }
+
+      authEls.startBtn.disabled = true;
+      authEls.startBtn.textContent = "Sending…";
+
+      try {
+        const body = authState.channel === "phone" ? { phone: destination } : { email: destination };
+        const { httpOk } = await authRequest("/api/rider/session/start", body);
+
+        if (!httpOk) {
+          showAuthError(authEls.startError, "We couldn't send a code right now. Please try again in a moment.");
+          return;
+        }
+
+        authState.destination = destination;
+        authEls.sentTo.textContent = `We sent a code to ${destination}.`;
+
+        authEls.startForm.hidden = true;
+        authEls.verifyForm.hidden = false;
+        authEls.codeInput.value = "";
+        authEls.codeInput.focus();
+        clearAuthError(authEls.verifyError);
+        startResendCooldown();
+      } catch {
+        showAuthError(authEls.startError, "We couldn't send a code right now. Please try again in a moment.");
+      } finally {
+        authEls.startBtn.disabled = false;
+        authEls.startBtn.textContent = "Send code";
+      }
+    }
+
+    async function handleAuthVerify(event) {
+      event.preventDefault();
+      clearAuthError(authEls.verifyError);
+
+      const code = safe(authEls.codeInput.value);
+
+      if (!code) {
+        showAuthError(authEls.verifyError, "Enter the code we sent you.");
+        return;
+      }
+
+      authEls.verifyBtn.disabled = true;
+      authEls.verifyBtn.textContent = "Verifying…";
+
+      try {
+        const body =
+          authState.channel === "phone"
+            ? { phone: authState.destination, code }
+            : { email: authState.destination, code };
+
+        const { httpOk, status } = await authRequest("/api/rider/session/verify", body);
+
+        if (!httpOk) {
+          if (status === 403) {
+            showAuthError(authEls.verifyError, "This account's access has been revoked. Contact support for help.");
+          } else {
+            showAuthError(authEls.verifyError, "That code is invalid or has expired. Please try again or resend.");
+          }
+          return;
+        }
+
+        await completeSignIn();
+      } catch {
+        showAuthError(authEls.verifyError, "That code is invalid or has expired. Please try again or resend.");
+      } finally {
+        authEls.verifyBtn.disabled = false;
+        authEls.verifyBtn.textContent = "Verify & sign in";
+      }
+    }
+
+    // The single source of truth for "is there a real, verified rider
+    // session right now" -- never derived from localStorage/URL params
+    // (see getStoredRiderId, kept only for non-authoritative UI
+    // continuity elsewhere on this page during this migration, per the
+    // approved PR 2a scope). Any non-2xx here always means "show the
+    // sign-in gate," regardless of what's cached locally.
+    // Rollout switch for the sign-in gate itself (P0 remediation PR 2a,
+    // docs/security-remediation/pr-02a-rider-client-auth.md) -- separate
+    // from the future rider_auth_enforced flag (server-side route
+    // enforcement, PR 2b). Defaults to false on any error, same as the
+    // flag's own server-side default, so a network hiccup on this one
+    // check can never accidentally turn the new gate on for someone who
+    // shouldn't see it yet.
+    async function isRiderAuthUiEnabled() {
+      try {
+        const response = await fetch(`${apiBase()}/api/rider/auth-ui-config`);
+
+        if (!response.ok) {
+          return false;
+        }
+
+        const data = await response.json();
+        return data?.enabled === true;
+      } catch {
+        return false;
+      }
+    }
+
+    async function bootstrapRiderSession() {
+      let response;
+
+      try {
+        response = await fetch(`${apiBase()}/api/rider/session`, {
+          credentials: "include"
+        });
+      } catch {
+        return { ok: false, status: 0 };
+      }
+
+      if (!response.ok) {
+        return { ok: false, status: response.status };
+      }
+
+      let data;
+
+      try {
+        data = await response.json();
+      } catch {
+        return { ok: false, status: response.status };
+      }
+
+      if (!data || data.ok === false || !data.rider_id) {
+        return { ok: false, status: response.status };
+      }
+
+      state.riderId = data.rider_id;
+      state.riderProfile = {
+        id: data.rider_id,
+        first_name: data.first_name,
+        last_name: data.last_name,
+        approval_status: data.approval_status
+      };
+
+      // Non-authoritative UI continuity only (other code on this page
+      // still reads this key directly during the migration) -- never
+      // treated as proof of identity by this bootstrap check itself,
+      // which always re-verifies against the server on every page load.
+      saveStorage(CONFIG.STORAGE_KEYS.riderId, data.rider_id);
+
+      return { ok: true, data };
+    }
+
+    async function completeSignIn() {
+      const bootstrap = await bootstrapRiderSession();
+
+      if (!bootstrap.ok) {
+        showAuthError(authEls.verifyError, "Signed in, but we couldn't load your profile. Please try again.");
+        return;
+      }
+
+      hideAuthOverlay();
+      resetAuthStep();
+      await runAuthenticatedBoot();
+    }
+
+    async function handleLogout() {
+      if (authEls.logoutBtn) {
+        authEls.logoutBtn.disabled = true;
+      }
+
+      try {
+        await authRequest("/api/rider/session/logout", {});
+      } catch {
+        // Fall through -- the client forgets its own state below even if
+        // the server-side revocation call didn't reach the network; the
+        // HttpOnly cookie itself is cleared by the route's response when
+        // it does reach it.
+      }
+
+      clearRiderSession();
+      state.riderId = "";
+      state.riderProfile = null;
+
+      if (authEls.logoutBtn) {
+        authEls.logoutBtn.disabled = false;
+      }
+
+      resetAuthStep();
+      showAuthOverlay();
+    }
+
+    // Reads and immediately clears the one-time handoff rider-signup.html
+    // leaves in sessionStorage (see handOffToRiderVerification there) --
+    // read-once by design, so a later reload of this same tab doesn't
+    // silently re-populate/re-send a code the rider never asked for.
+    // Deliberately sessionStorage, not a URL query param: keeps the
+    // phone/email out of browser history and referrer headers.
+    const PENDING_AUTH_CHANNEL_KEY = "harvey_pending_auth_channel";
+    const PENDING_AUTH_DESTINATION_KEY = "harvey_pending_auth_destination";
+
+    function consumePendingSignupAuth() {
+      let channel = null;
+      let destination = "";
+
+      try {
+        channel = sessionStorage.getItem(PENDING_AUTH_CHANNEL_KEY);
+        destination = sessionStorage.getItem(PENDING_AUTH_DESTINATION_KEY) || "";
+        sessionStorage.removeItem(PENDING_AUTH_CHANNEL_KEY);
+        sessionStorage.removeItem(PENDING_AUTH_DESTINATION_KEY);
+      } catch {
+        return null;
+      }
+
+      if ((channel !== "phone" && channel !== "email") || !destination) {
+        return null;
+      }
+
+      return { channel, destination };
+    }
+
+    // Sends a rider fresh off signup straight into the code-entry step of
+    // the same OTP flow the dashboard already uses -- never issues a
+    // session from the signup response, the destination string, or a
+    // rider ID alone; this only pre-fills the destination and fires the
+    // real session/start request, exactly like clicking "Send code"
+    // manually would.
+    async function tryAutoStartSignupVerification() {
+      const pending = consumePendingSignupAuth();
+
+      if (!pending) {
+        return;
+      }
+
+      setAuthChannel(pending.channel);
+
+      const input = pending.channel === "phone" ? authEls.phoneInput : authEls.emailInput;
+      input.value = pending.destination;
+
+      await requestLoginCode();
+    }
+
+    function bindAuthEvents() {
+      authEls.tabPhone.addEventListener("click", () => setAuthChannel("phone"));
+      authEls.tabEmail.addEventListener("click", () => setAuthChannel("email"));
+
+      authEls.startForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        requestLoginCode();
+      });
+
+      authEls.verifyForm.addEventListener("submit", handleAuthVerify);
+
+      authEls.resendBtn.addEventListener("click", () => {
+        if (!authEls.resendBtn.disabled) {
+          requestLoginCode();
+        }
+      });
+
+      authEls.backBtn.addEventListener("click", resetAuthStep);
+
+      if (authEls.logoutBtn) {
+        authEls.logoutBtn.addEventListener("click", handleLogout);
+      }
+    }
+
     function goHome() {
       window.location.href = "index.html";
     }
@@ -9447,8 +10079,14 @@
     }
 
     async function loadRiderStatus() {
-      state.riderId = getStoredRiderId();
-      state.riderProfile = getStoredRiderProfile();
+      // state.riderId/riderProfile may already be set by
+      // bootstrapRiderSession() (server-verified, via GET
+      // /api/rider/session) by the time this runs -- that value must win.
+      // getStoredRiderId()/getStoredRiderProfile() (localStorage/URL) are
+      // only a fallback for anything this migration hasn't reached yet,
+      // never allowed to override an already-authenticated identity.
+      state.riderId = state.riderId || getStoredRiderId();
+      state.riderProfile = state.riderProfile || getStoredRiderProfile();
 
       if (state.riderProfile) {
         renderRider();
@@ -10681,11 +11319,11 @@
       }
     }
 
-    async function boot() {
-      bindEvents();
-      renderNotificationFeed();
-      loadGoogleMaps();
-
+    // The rest of boot() (rides, deliveries, saved places, HTAF status,
+    // the deep-link auto-open) only ever runs once bootstrapRiderSession()
+    // has confirmed a real session -- either at initial load or right
+    // after completeSignIn(). See the PR 2a auth block above.
+    async function runAuthenticatedBoot() {
       try {
         await loadRiderStatus();
         await loadHistory();
@@ -10719,6 +11357,42 @@
           ai_destination: initialParams.get("ai_destination") || undefined
         });
       }
+    }
+
+    async function boot() {
+      bindEvents();
+      bindAuthEvents();
+      setAuthChannel("phone");
+      renderNotificationFeed();
+      loadGoogleMaps();
+
+      const authUiEnabled = await isRiderAuthUiEnabled();
+
+      if (!authUiEnabled) {
+        // Rollout flag off (the default): fall back to this page's
+        // pre-PR-2a boot behavior untouched -- loadRiderStatus() already
+        // falls back to getStoredRiderId()/getStoredRiderProfile() when
+        // state.riderId/riderProfile haven't been set by a bootstrap
+        // check, exactly as it did before this PR. This lets the whole
+        // PR ship to production inert until an admin has confirmed real
+        // SMS/email OTP delivery works and deliberately flips
+        // rider_auth_ui_enabled on. See
+        // docs/security-remediation/pr-02a-rider-client-auth.md.
+        hideAuthOverlay();
+        await runAuthenticatedBoot();
+        return;
+      }
+
+      const bootstrap = await bootstrapRiderSession();
+
+      if (!bootstrap.ok) {
+        showAuthOverlay();
+        await tryAutoStartSignupVerification();
+        return;
+      }
+
+      hideAuthOverlay();
+      await runAuthenticatedBoot();
     }
 
     document.addEventListener("DOMContentLoaded", boot);
