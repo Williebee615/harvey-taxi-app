@@ -11871,19 +11871,23 @@ app.get(
    RIDER-SCOPED SAVED PLACES
 
    Quick-launch destinations (Home, Work, custom) for the rider
-   dashboard. Same trust model as the rider-history routes above:
-   riderId is client-supplied, not session-verified (there is no
-   rider auth session anywhere in this app yet), so these routes
-   only ever read/write rows scoped to whatever riderId the caller
-   passes, same as every other rider-scoped route.
+   dashboard. P0 remediation PR 2b: while rider_auth_enforced is off
+   (the default), riderId is client-supplied exactly as before -- the
+   still-open P0-1 finding. Once enabled, riderId comes exclusively
+   from the authenticated session (see resolveEnforcedRiderId in
+   lib/riderAuth.js) and the client-supplied value is ignored outright.
 
 ========================================================= */
 
 app.get(
   "/api/rider/saved-places",
+  requireRiderIfEnforced,
   rateLimit({ windowMs: 60_000, max: 60, keyPrefix: "saved_places_list" }),
   asyncRoute(async (req, res) => {
-    const riderId = cleanString(req.query.riderId || req.query.rider_id, 100);
+    const riderId = resolveEnforcedRiderId({
+      authenticatedRiderId: req.rider?.id,
+      clientSuppliedRiderId: cleanString(req.query.riderId || req.query.rider_id, 100)
+    });
 
     if (!riderId) {
       return fail(res, "riderId is required.", 400);
@@ -11905,9 +11909,13 @@ app.get(
 
 app.post(
   "/api/rider/saved-places",
+  requireRiderIfEnforced,
   rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "saved_places_create" }),
   asyncRoute(async (req, res) => {
-    const riderId = cleanString(req.body.riderId || req.body.rider_id, 100);
+    const riderId = resolveEnforcedRiderId({
+      authenticatedRiderId: req.rider?.id,
+      clientSuppliedRiderId: cleanString(req.body.riderId || req.body.rider_id, 100)
+    });
     const label = cleanString(req.body.label, 60);
     const address = cleanString(req.body.address, 300);
     const icon = cleanString(req.body.icon, 8) || "📍";
@@ -11942,18 +11950,23 @@ app.post(
 
 app.delete(
   "/api/rider/saved-places/:id",
+  requireRiderIfEnforced,
   rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "saved_places_delete" }),
   asyncRoute(async (req, res) => {
     const id = cleanString(req.params.id, 100);
-    const riderId = cleanString(req.query.riderId || req.query.rider_id, 100);
+    const riderId = resolveEnforcedRiderId({
+      authenticatedRiderId: req.rider?.id,
+      clientSuppliedRiderId: cleanString(req.query.riderId || req.query.rider_id, 100)
+    });
 
     if (!id || !riderId) {
       return fail(res, "riderId is required.", 400);
     }
 
     // Same 404-either-way ownership check as /api/rider/rides/:rideId —
-    // never confirm a place ID exists to a caller supplying a different
-    // riderId.
+    // never confirm a place ID exists to a caller who doesn't own it.
+    // Once rider_auth_enforced is on, riderId here is the authenticated
+    // session's own id, so this becomes a real ownership check.
     const { data: existing } = await supabase
       .from("saved_places")
       .select("id, rider_id")
