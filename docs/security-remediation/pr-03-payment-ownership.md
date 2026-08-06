@@ -1,14 +1,32 @@
 # P0 Remediation — PR 3: Payment Method & Stripe Ownership
 
-Status: **ships inert, behind the same `rider_auth_enforced` flag as PR
-2b (default off).** This PR is stacked on the still-open PR 2b branch
-(`security/pr2b-rider-route-enforcement`, GitHub PR #97) specifically to
-reuse its `requireRiderIfEnforced`/`resolveEnforcedRiderId` mechanism
-rather than duplicating it — per your instruction to reuse the existing
-middleware and shared ownership helpers, this PR introduces no new
-middleware, no new flag, and no new identity-resolution logic. **This PR
-should not be merged before PR 2b merges** (or the two merged together);
-it depends on PR 2b's commits being present.
+Status: **HELD — do not merge.** Ships inert, behind the same
+`rider_auth_enforced` flag as PR 2b (default off), but "inert while off"
+is not itself grounds to merge. Per explicit instruction, the approved
+merge order is:
+
+1. Complete the real rider-auth UI live validation (task #214 — open,
+   external).
+2. Resolve the signup → OTP → authenticated payment setup flow — **PR
+   2c** (`docs/security-remediation/pr-02c-signup-session-handoff.md`),
+   an independent prerequisite, not stacked on this PR or PR 2b.
+3. Merge and smoke-test PR 2b (`security/pr2b-rider-route-enforcement`,
+   GitHub PR #97).
+4. **Retarget this PR to `main`** (it is currently stacked on PR 2b's
+   branch specifically to reuse its `requireRiderIfEnforced`/
+   `resolveEnforcedRiderId` mechanism rather than duplicating it — that
+   dependency is real, but merging PR 2b and PR 3 "together just because
+   both are inert" is explicitly rejected: it would make the audit trail
+   and rollback sequence harder to manage than treating them as
+   genuinely separate, sequentially-reviewed changes).
+5. Review the resulting payment-only diff once retargeted.
+6. Merge this PR, keeping `rider_auth_enforced=false`.
+7. Build the ride-ownership PR (PR 4).
+8. Enable enforcement only after all dependent ownership routes and
+   clients are validated.
+
+This PR itself introduces no new middleware, no new flag, and no new
+identity-resolution logic — it reuses PR 2b's exactly, per instruction.
 
 ## Scope — payment ownership and Stripe authorization only
 
@@ -172,10 +190,22 @@ signup-handoff question.
 | The `apiFetch` CSRF-header fix doesn't break any existing call site | **Likely** | Additive header, same pattern already proven safe by PR 2b's identical fix to `requestJson()`. Not exhaustively re-tested against every one of `apiFetch`/`apiPost`'s call sites by hand. |
 | Once enabled, these 4 routes can no longer be used to view/attach/detach another rider's payment methods, or create a PaymentIntent misattributed to another rider | **Confirmed (mechanism), Unverified (live end-to-end)** | Same honest limitation as above — requires live validation with a real session cookie against a real deployment, the same gated next step every prior PR in this series has needed. |
 
+## Six required proofs, tracked explicitly (per review, before this PR can merge)
+
+| # | Requirement | Status | Test |
+|---|---|---|---|
+| 1 | Unauthenticated SetupIntent creation is rejected when enforcement is on | **Unverified end-to-end, partial proof at the logic layer** | `"1. unauthenticated identity resolves to no rider id, which the route's existing guard rejects"` — this codebase has no integration-test harness, so an actual unauthenticated HTTP request can't be exercised in CI. What's proven: no identity resolves to no rider id, which is what the route's own `if (!riderId)` guard rejects on. The `requireRiderIfEnforced`/`requireRider` middleware rejection itself (401/403 before the handler even runs) is not exercised by any test in this codebase and requires live validation. |
+| 2 | Rider A cannot list, attach, detach, or charge Rider B's payment method | **Confirmed** | `"2. Rider A cannot attach, detach, or charge..."` + `"2b. Rider A cannot list Rider B's payment methods..."` |
+| 3 | Client-supplied rider/customer identity has no authorization effect | **Confirmed** | `"3. client-supplied rider identity has no effect on resolution once authenticated"` — 6 different claimed values, all ignored once authenticated. |
+| 4 | A new signup completes OTP before card setup | **Confirmed by code-path tracing (PR 2c), Unverified end-to-end** | No Jest test — this is a UI flow, not pure logic. Closed by PR 2c (`docs/security-remediation/pr-02c-signup-session-handoff.md`), which removes the pre-session card-setup feature entirely rather than testing around it. Recorded as a pointer in the test file rather than a fabricated assertion. |
+| 5 | The authenticated rider's Stripe customer is used | **Confirmed** | `"5. the resolved (authenticated) rider's own customer id is what the route would use..."` |
+| 6 | Existing behavior remains unchanged while enforcement is off | **Confirmed** | `"6. with no authenticated identity (flag off / requireRiderIfEnforced passthrough), the client-supplied value is trusted exactly as before this PR"` |
+
 ## Regression tests
 
-`lib/riderPayments.test.js` — added `describe("PR 3 — payment-route
-IDOR/cross-account composition")`, 7 new tests:
+`lib/riderPayments.test.js` — two new `describe` blocks:
+
+**`"PR 3 — payment-route IDOR/cross-account composition"`, 7 tests:**
 
 1. IDOR attempt — attacker claims the victim's riderId; once enforced,
    the authenticated identity wins and the victim's card is unreachable
@@ -197,15 +227,21 @@ IDOR/cross-account composition")`, 7 new tests:
 7. Negative — `ownsPaymentMethod` never throws and never defaults to
    `true` on missing/malformed input.
 
+**`"PR 3 — six required proofs (named per review checklist)"`, 6
+tests:** one per the table above, deliberately overlapping the suite
+above in places — duplication here is for audit clarity (an unambiguous
+1:1 mapping from requirement to test), not because the underlying
+behavior was otherwise untested.
+
 No pure logic in `resolveEnforcedRiderId`, `ownsPaymentMethod`, or
 `verifyPaymentIntentForRide` themselves was re-tested — all three
 already have exhaustive, passing coverage from PR 2b and PR #70/#72
 respectively. Duplicating that coverage here would contradict your
 "reuse rather than duplicate" instruction; what's new is proving the
-*composition*, which is what the 7 tests above do.
+*composition*, which is what the 13 tests above do.
 
-Full suite: `npx jest` — **357/357 passing** (13 suites, up from 350 —
-7 new). `node -c server.js` clean. Both `rider-dashboard.html`
+Full suite: `npx jest` — **363/363 passing** (13 suites, up from 350 —
+13 new). `node -c server.js` clean. Both `rider-dashboard.html`
 `<script>` blocks `node --check`ed clean.
 
 ## Rollback plan
