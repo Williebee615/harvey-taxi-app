@@ -830,3 +830,17 @@ pattern PR 2a's runbook (and its current open gate) already established.
   in Stripe (likely yes for agencies/nonprofits, flagged in §4.7,
   needs confirmation before implementation since it changes the
   Checkout/Billing integration shape for that tier specifically).
+
+---
+
+## 14. Referral system — companion document
+
+Referral and rewards architecture (rider-to-rider, driver-to-driver,
+Business/Healthcare partner, HTAF community-partner, and admin
+promotional-campaign programs) is specified as a separate companion
+document rather than folded into this one, given its size and its own
+distinct fraud-model requirements: **`docs/referral-system-architecture.md`**.
+Same status — planning only, not implemented — and it inherits this
+document's gates (§0, §12) plus its own additional ones (identity/
+payment/ride-status trustworthiness and a dedicated privacy/anti-fraud
+review), specified in that document's own §16.
