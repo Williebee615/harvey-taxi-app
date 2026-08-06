@@ -59,8 +59,9 @@ no existing routes modified, no launch timeline.
 - **Driver-to-driver program**: architecture fully specified below
   (§4), reward **amount intentionally left undetermined** pending
   acquisition-budget/driver-economics analysis — a finance/growth
-  decision, not an engineering one. The qualification gate (Checkr +
-  Persona + admin approval + N completed rides + zero fraud flags) is
+  decision, not an engineering one. The qualification gate (a real pass
+  of the shared driver-readiness evaluator, whatever it currently
+  requires + admin approval + N completed rides + zero fraud flags) is
   not deferred — that's a fixed security requirement regardless of
   reward amount, specified now so it's correct whenever the amount is
   set.
@@ -142,41 +143,112 @@ money moves rather than after.
 
 ## 4. Driver-to-driver referral lifecycle
 
-### 4.1 Flow (matches your spec exactly, all steps required, none optional)
+### 4.1 Flow — driven by the shared readiness policy, not a hardcoded vendor list
 
-A driver reward does not qualify until the referred applicant:
+**Correction from an earlier draft of this document, per review:** driver
+referral qualification must **not** hardcode "Checkr and Persona" as
+fixed, permanent steps. Compliance vendors are policy, not architecture
+— this codebase already treats them that way
+(`lib/driverCompliance.js`'s `computeDriverReadiness(driver, {
+enablePersona, enableCheckr })` takes both as parameters, not
+constants), and the referral system must follow the same discipline
+rather than inventing its own, second definition of "what makes a
+driver ready."
+
+**The referral qualification check calls the same shared readiness
+evaluator used to decide whether a driver may go online —
+`computeDriverReadiness()` — it does not reimplement or duplicate that
+logic.** Concretely, a driver reward does not qualify until the referred
+applicant:
 
 1. Completes signup.
-2. **Passes** both Checkr and Persona verification (reuses existing
-   driver compliance infrastructure and its existing
-   `apply_driver_compliance_override`/verification-status columns — no
-   new verification mechanism, only a new *qualification check* that
-   reads those existing statuses).
+2. `computeDriverReadiness()` (or whatever it evolves into) returns
+   ready, evaluated with the **same flags currently governing go-online
+   eligibility in production** at evaluation time — meaning, per
+   provider:
+   - **Checkr must pass when background checks are currently required**
+     (`enableCheckr` true at evaluation time).
+   - **Persona must pass only when `ENABLE_PERSONA` is enabled *and*
+     Persona is currently an approved readiness requirement** — not
+     permanently mandatory. If Persona is disabled (as it structurally
+     can be — see task #215, the current production
+     `ENABLE_PERSONA`/API-key mismatch, which is exactly the kind of
+     state this design must not silently break against), the referral
+     evaluator must not require it either, because it isn't requiring it
+     of any other driver.
+   - **Any future required compliance provider** (added to
+     `computeDriverReadiness()` later) **is automatically included**,
+     because the referral system calls that function rather than
+     enumerating providers itself — there's nothing here to update when
+     policy changes.
 3. Is administratively approved (reuses existing driver-approval admin
    route pattern).
 4. Completes a **configurable** number of legitimate rides (program
    config, not hardcoded — recommend starting around 10–20 completed
-   rides as a strawman, explicitly flagged as an open decision, §16).
+   rides as a strawman, explicitly flagged as an open decision, §21).
 5. Has **no** fraud, duplicate-account, or payment-abuse flags open
    against them at evaluation time.
+
+**A manual compliance override counts toward readiness only when it was
+applied through the existing atomic, audited override path**
+(`apply_driver_compliance_override`, `lib/driverCompliance.js`'s
+`validateComplianceOverrideRequest`/override RPC) — never a raw status
+edit. This isn't a new rule for referrals specifically; it's inherited
+automatically by calling the shared evaluator, which already only
+recognizes overrides applied that way.
 
 **Never awarded merely because an application was submitted** —
 structurally enforced the same way as §3.1: `referral_qualifications`
 for a driver-program attribution cannot reach `qualified` status without
-passing through `checkr_passed` + `persona_passed` + `admin_approved` +
-`ride_count_met` + `fraud_clear` sub-states, each independently
+`driver_ready` (§4.1 step 2, evaluated via the shared function) +
+`admin_approved` + `ride_count_met` + `fraud_clear`, each independently
 evaluated and logged (`referral_events`), not a single boolean anyone
 can flip.
 
-### 4.2 State machine
+### 4.2 Qualification snapshot — flag changes must not rewrite history
+
+Because readiness policy (which providers are required, whether Persona
+is enabled) can change over time, `referral_qualifications` for the
+driver program stores a **snapshot at evaluation time**, not just a
+final boolean — see `readiness_snapshot` in §9.4. It records:
+
+- Which checks were required at evaluation time (i.e., the
+  `enablePersona`/`enableCheckr`-equivalent flags as they stood then).
+- Which provider results satisfied each required check.
+- The timestamp of evaluation.
+- Whether an approved override (§4.1) was used, and for which check.
+- A **readiness-policy version** identifier — so if
+  `computeDriverReadiness()`'s logic itself changes later (not just its
+  flags), old snapshots remain interpretable against the policy version
+  that actually produced them.
+
+**Turning `ENABLE_PERSONA` (or any other readiness flag) on or off after
+a qualification was already evaluated must never retroactively alter
+that stored snapshot.** A driver who qualified under yesterday's policy
+stays qualified under yesterday's recorded evidence; only *new*
+evaluations use *current* flags. This is what makes the "Persona only
+required when it's actually required" rule safe rather than a fraud
+vector — nobody can qualify a driver today, wait for Persona to be
+toggled off, and claim that driver was never subject to it after the
+fact, because the snapshot already fixed what was actually evaluated at
+the time.
+
+### 4.3 State machine
 
 ```
-qualification (driver program): applicant_signed_up -> checkr_pending -> checkr_passed
-    -> persona_pending -> persona_passed -> admin_review_pending -> admin_approved
+qualification (driver program): applicant_signed_up -> readiness_pending
+    -> readiness_evaluated (computeDriverReadiness() result + snapshot recorded)
+    -> admin_review_pending -> admin_approved
     -> rides_in_progress (n of N) -> fraud_clear_check -> qualified
-    -> [disqualified_checkr_failed | disqualified_persona_failed | disqualified_admin_rejected
+    -> [disqualified_not_ready | disqualified_admin_rejected
         | disqualified_fraud | frozen_pending_fraud_review]
 ```
+
+`readiness_evaluated` deliberately does not branch into per-provider
+states (no more `checkr_passed`/`persona_passed` as separate states) —
+provider composition is `computeDriverReadiness()`'s concern, not this
+state machine's; the referral system only needs to know "ready, per
+current policy, snapshotted" or "not ready," plus everything after that.
 
 `frozen_pending_fraud_review` is a distinct state from `disqualified` —
 a fraud flag pauses progress toward qualification without permanently
@@ -398,10 +470,11 @@ Same RLS discipline as every table added in PR #98/#99: RLS enabled,
 |---|---|
 | `id` | PK |
 | `attribution_id` | FK |
-| `qualifying_event_type` | program-specific (`first_paid_ride`, `checkr_persona_admin_rides_fraud_clear`, `partner_admin_approved`, etc.) |
+| `qualifying_event_type` | program-specific (`first_paid_ride`, `driver_readiness_admin_rides_fraud_clear`, `partner_admin_approved`, etc.) |
 | `qualifying_event_ref` | e.g. `ride_id`, nullable per event type |
-| `status` | see the state machines in §3.2/§4.2 |
+| `status` | see the state machines in §3.2/§4.3 |
 | `holdback_until` | nullable, §3.2/§8.9 |
+| `readiness_snapshot` | **driver program only**, jsonb — per §4.2: which checks were required at evaluation time, which provider results satisfied each, the evaluation timestamp, whether an approved override was used (and for which check), and the readiness-policy version. Immutable once written — a later policy/flag change never edits an existing row's snapshot, only affects *future* evaluations. |
 | `evaluated_at` | |
 
 ### 9.5 `referral_rewards`
@@ -416,6 +489,7 @@ Same RLS discipline as every table added in PR #98/#99: RLS enabled,
 | `amount_or_benefit` | jsonb (credit cents, discount %, trial days — shape depends on `reward_type`) |
 | `cash_withdrawable` | bool, default `false` (§7) |
 | `status` | `pending` \| `issued` \| `redeemed` \| `reversed` \| `expired` |
+| `idempotency_key` | **unique constraint**, per §13.11 — deterministically derived from `(recipient_id, attribution_id, program_id)` (one reward row per recipient per attribution per reward rule), so a retried issuance attempt (webhook redelivery, retried admin action, retried background job) upserts against the same row instead of creating a second one. |
 | `issued_at`, `reversed_at`, `reversed_reason`, `expires_at` | |
 
 ### 9.6 `referral_events` (audit log)
@@ -507,7 +581,7 @@ truth for credit balances, not Stripe.**
 
 ---
 
-## 11. Qualification state machine — see §3.2 (rider) and §4.2 (driver)
+## 11. Qualification state machine — see §3.2 (rider) and §4.3 (driver)
 
 Business/Healthcare/HTAF partner qualification (§5) is simpler and
 mostly admin-driven: `attributed -> admin_review_pending ->
@@ -530,9 +604,11 @@ addresses it (not a restatement of the requirement):
 | One person referring themselves through another identity | Best-effort via device/payment-method fingerprint linking across accounts — **stated honestly as never fully solvable** (an industry-wide limitation, not specific to this design); backstopped by velocity-based fraud flags (§9.7 `velocity_abuse`) and admin review, not claimed as a hard guarantee. |
 | Rewards from canceled/refunded/chargeback/fraudulent rides | §8.9 — holdback window + qualification re-check + post-issuance reversal path (§13.5). |
 | Referral loops | Attribution-time graph check: reject (or flag) an attribution if the new account is already an ancestor of the referring code's owner in the attribution graph — not just a pairwise "did A refer B and B refer A" check, since loops can be longer than two hops. |
-| Fabricated driver applications | §4.1 — qualification requires real Checkr pass + real Persona pass + real admin approval + real completed rides, each independently verified against existing systems, never inferred from application submission alone. |
+| Fabricated driver applications | §4.1 — qualification requires a real `computeDriverReadiness()` pass (whatever providers are actually required by current policy, never a hardcoded pair) + real admin approval + real completed rides, each independently verified against existing systems, never inferred from application submission alone. |
 | Unauthorized admin reward adjustments | Every admin-initiated change goes through `requireAdmin` + a mandatory reason field + a `referral_events` row — no reward-affecting route accepts an unaudited direct write. |
 | Client-supplied reward amounts or qualification status | No reward-affecting route's accepted request schema includes an amount or status field at all — not merely validated server-side, structurally absent from what the client can send. All amounts come from `reward_rule_config`; all statuses are computed from DB state by server-side evaluation logic. |
+| Retried reward issuance (webhook redelivery, retried admin action, retried job) issuing the same reward twice | §13.11 — `referral_rewards.idempotency_key` unique constraint per `(recipient, attribution, reward rule)`; issuance is an upsert against that key, not a blind insert. |
+| Free-credit cycling between two accounts (a ride funded entirely by promotional/referral credit itself triggering a new reward) | §13.12 — a ride paid entirely via referral/promotional credit does not count as a qualifying "paid ride" unless the specific program's config expressly allows it; default is off. |
 
 ### 12.1 Identity boundary — the same rule as PR #99, restated for referrals specifically
 
@@ -632,6 +708,44 @@ payment) is a non-engineering question for your accountant/legal
 counsel** — flagged explicitly rather than assumed, since getting this
 wrong has real compliance consequences distinct from anything this
 document can resolve technically.
+
+### 13.11 Idempotency — one reward per recipient, per attribution, per reward rule, no matter how many times issuance is attempted
+
+Added per review as a required safeguard, not optional. `referral_rewards`
+carries a **unique constraint** on `idempotency_key` (§9.5), derived
+deterministically from `(recipient_id, attribution_id, program_id)` —
+issuance is always an upsert against that key. This covers every retry
+path this system has: a Stripe webhook redelivering the same event, a
+background qualification-evaluation job retrying after a transient
+failure, or an admin resubmitting a comp/reward action that appeared to
+fail. None of these can produce a second reward row for the same
+recipient/attribution/program combination — the second attempt finds the
+existing row and no-ops (or, for genuinely new information, updates the
+existing row rather than inserting a sibling).
+
+### 13.12 A credit-funded ride must not itself generate a new reward, unless a program explicitly allows it
+
+Added per review as a required safeguard, not optional. The qualifying
+"first eligible paid ride" (§3.1, §8.9) and any ride-count-based driver
+qualification (§4.1) must check **how the ride was actually paid for**,
+not just that it completed and wasn't refunded. **A ride paid entirely
+out of promotional/referral credit does not, by default, count as a
+qualifying paid ride for triggering a further reward.** Without this,
+two accounts could cycle referral credit back and forth — A refers B, B
+"pays" for a ride entirely with the signup credit A's referral generated,
+that ride qualifies A's reward, and the pattern repeats without either
+account ever spending real money, which is exactly the kind of
+self-funding loop a referral program exists to avoid paying for.
+
+This is a `reward_rule_config` flag (`allow_credit_funded_qualifying_ride`,
+default `false`), not a hardcoded blanket ban, because there may be
+legitimate cases where a partially credit-subsidized ride should still
+count (e.g., a rider who redeemed a modest promotional credit on an
+otherwise normally-paid ride) — the qualification check needs to
+evaluate the ride's actual payment composition (real payment method
+amount vs. credit amount) against the program's own threshold, not treat
+"credit was involved at all" and "credit paid for the entire ride" as
+the same question.
 
 ---
 
