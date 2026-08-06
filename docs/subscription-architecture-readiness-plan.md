@@ -6,17 +6,34 @@ any part of this exists. This document is the design deliverable
 requested before any implementation begins.
 
 **Hard gate, stated up front and repeated at the end of this document:**
-implementation of anything in this plan **must not start** until the
-current P0 security roadmap is closed and rider-auth is fully validated —
-specifically: `rider_auth_enforced` is turned on and live-validated (the
-PR #95/PR 2b gate currently open, tracked as task #214), PR 3 (payment
-ownership) is complete, and PR 4's residual `spatial_ref_sys` item is
-resolved or explicitly accepted as long-term risk. Subscriptions add a
-second, higher-value payment-and-identity surface on top of the rider-auth
-system this program is still in the middle of hardening — building it
-before that foundation is solid would mean repeating the exact class of
-IDOR mistake this whole remediation program exists to fix, on a surface
-with recurring billing attached. See §9 for the full security review.
+implementation of anything in this plan **must not start** until:
+- `rider_auth_enforced` is turned on and live-validated (the PR #95/PR 2b
+  gate currently open, tracked as task #214);
+- rider and organization ownership controls (§9.1, §9.2) are in place;
+- payment-method and Stripe-customer ownership enforcement (PR 3) is
+  complete;
+- Stripe webhook signature verification and idempotency (§2.4, §9.4) are
+  implemented as designed;
+- the relevant P0 authorization fixes this gate depends on are closed.
+
+Subscriptions add a second, higher-value payment-and-identity surface on
+top of the rider-auth system this program is still in the middle of
+hardening — building it before that foundation is solid would mean
+repeating the exact class of IDOR mistake this whole remediation program
+exists to fix, on a surface with recurring billing attached. See §9 for
+the full security review.
+
+**Explicitly not a blocker for this gate:** PR 4's residual
+`spatial_ref_sys` write-grant issue (task #213). That finding is about an
+extension-owned PostGIS system table's write privileges — it has no
+relationship to rider identity, subscription ownership, Stripe billing,
+or entitlement logic, and gating subscription work on it would conflate
+a real but unrelated infrastructure-hardening item with the rider-auth
+foundation subscriptions actually depend on. It stays open, tracked, and
+required for broader production-hardening/SOC 2 readiness (§9.6 still
+applies the same RLS discipline to every *new* table this plan
+introduces) — it just doesn't independently block subscription
+development once the items above are actually secure.
 
 ---
 
@@ -53,10 +70,11 @@ distinction drives the data model in §4.
 - **Billing:** monthly or annual (annual at a discount), card via Stripe.
 - **Candidate entitlements** (final list is a product decision, not a
   security one — flagged as configurable, see §5): waived per-ride
-  booking fee, priority dispatch weighting, free cancellation window
-  extension, faster support-channel routing, one free HTAF donation
-  match per month (ties into the existing HTAF donation-prompt backlog
-  item, task #172).
+  booking fee, a dispatch **scoring preference** (see §1.5's guardrail —
+  not "priority dispatch" in the sense of overriding anything), free
+  cancellation window extension, faster support-channel routing, one
+  free HTAF donation match per month (ties into the existing HTAF
+  donation-prompt backlog item, task #172).
 - **Analogy in existing code:** closest existing precedent is the
   `rider_history_enabled`/`rider_auth_ui_enabled` style of per-rider
   gated behavior, except entitlement now depends on paid state, not a
@@ -91,6 +109,13 @@ distinction drives the data model in §4.
   tier accepts its first real healthcare-organization customer, not just
   before this tier's code ships. Flagged as a non-engineering blocker,
   separate from and in addition to the P0 security gate above.
+- **Naming/marketing guardrail — see §1.5, not optional:** this tier is
+  "compliance-aware," never marketed or documented as "HIPAA compliant"
+  until the legal review, a real signed BAA, data minimization, access
+  controls, retention rules, and operational safeguards referenced above
+  are actually in place. "Compliance-aware" describes intent and
+  architecture; "HIPAA compliant" is a legal/operational claim this plan
+  has no basis to make yet.
 - **Candidate entitlements:** recurring/scheduled appointment rides,
   patient-roster management (org-side), caregiver-notification hooks,
   audit-friendly ride logs for compliance reporting.
@@ -112,6 +137,37 @@ distinction drives the data model in §4.
   not instead of, the existing one-off HTAF application/ride-request
   flow — it's an additional funding mechanism (ongoing sponsored
   subscription vs. one-time approved ride), not a replacement.
+
+### 1.5 Marketing and entitlement-language guardrails — apply to every tier above
+
+Two constraints on how any tier's benefits are named, documented, or
+marketed, added per explicit review feedback on this plan:
+
+- **Never "HIPAA compliant."** The Healthcare tier (§1.3) is
+  "compliance-aware" — everywhere in product copy, sales material, this
+  document, and any future implementation doc — until legal review, a
+  real signed BAA, data minimization, access controls, retention rules,
+  and operational safeguards are all actually complete and verified.
+  "HIPAA compliant" is a specific legal/operational claim about a
+  completed state, not an architecture intent, and this plan does not
+  put this app in a position to make that claim.
+- **No subscription tier may promise guaranteed priority over emergency,
+  safety, accessibility, or HTAF eligibility rules.** Any
+  dispatch-related entitlement (the Rider Plus candidate entitlement in
+  §1.1, and anything similar in Business/Healthcare) means, at most, an
+  approved scoring preference applied only when operationally and
+  legally appropriate — never a guarantee that a paying rider's request
+  is served ahead of an emergency, a safety-flagged situation, an
+  accessibility-required dispatch, or an HTAF-eligibility-driven
+  assignment. "Priority dispatch" as a marketing phrase is avoided in
+  favor of language like "dispatch scoring preference" precisely to
+  avoid implying a guarantee this system must never actually provide.
+  Whatever the entitlement resolver (§5.1) eventually implements here
+  needs to structurally enforce this — the scoring preference must be
+  one input the existing dispatch/matching logic weighs, never a bypass
+  of emergency/safety/accessibility/HTAF-eligibility logic, and that
+  constraint belongs in that feature's own design review when it's
+  actually built, not assumed to fall out of this plan automatically.
 
 ---
 
@@ -419,7 +475,9 @@ this app uses to answer "what is this rider allowed to do." It:
   `subscriptions`, never from anything the client asserts about its own
   org membership.
 - Returns a plain entitlement set (e.g.,
-  `{ waivedBookingFee: true, priorityDispatch: true, ... }`), never the
+  `{ waivedBookingFee: true, dispatchScoringPreference: true, ... }` —
+  named per §1.5's guardrail, not `priorityDispatch`, so the field name
+  itself doesn't imply a guarantee the system must never make), never the
   raw tier name alone — call sites check specific entitlements, not
   `tier === "rider_plus"` string comparisons scattered through the
   codebase, so entitlement definitions can change per-tier without
@@ -730,8 +788,13 @@ pattern PR 2a's runbook (and its current open gate) already established.
 ## 12. Sequencing and rollout (high-level, not a sprint plan)
 
 1. **Blocked until:** PR 2b's `rider_auth_enforced` live-validated (task
-   #214), PR 3 (payment ownership) complete, PR 4's `spatial_ref_sys`
-   item resolved or explicitly accepted (task #213).
+   #214); rider and organization ownership controls (§9.1, §9.2) in
+   place; PR 3 (payment ownership) complete; Stripe webhook signature
+   verification and idempotency (§2.4, §9.4) implemented as designed.
+   **Not a blocker:** PR 4's `spatial_ref_sys` item (task #213) — open,
+   tracked, required for broader production-hardening/SOC 2 readiness,
+   but unrelated to rider identity, subscription ownership, billing, or
+   entitlements (see §0).
 2. Schema migrations (§4) — written and reviewed with the same
    before/after evidence discipline as PR #98, applied to production
    only after Supabase branch-testing is confirmed available or an
