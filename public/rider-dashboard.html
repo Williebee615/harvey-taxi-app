@@ -6956,8 +6956,19 @@
     async function apiFetch(path, options = {}) {
       const url = `${CONFIG.API_BASE}${path}`;
 
+      // Sent unconditionally, same as requestJson() below (PR 2b) —
+      // harmless on GET, which requireRider never checks, and required
+      // on every other method once rider_auth_enforced is on. Without
+      // this, apiPost()/apiFetch() call sites (payment-intent creation,
+      // saved-payment-method lookups, and everything else routed through
+      // this helper) would start failing the moment enforcement turns on
+      // — the same class of self-inflicted outage PR 2b caught and fixed
+      // for requestJson(), just in this file's other fetch helper, which
+      // that pass didn't touch. See docs/security-remediation/
+      // pr-03-payment-ownership.md.
       const headers = {
         "Content-Type": "application/json",
+        [RIDER_CLIENT_HEADER_NAME]: RIDER_CLIENT_HEADER_VALUE,
         ...(options.headers || {})
       };
 

@@ -10077,13 +10077,17 @@ async function getOrCreateStripeCustomer(rider) {
 
 app.post(
   "/api/rider/payment-methods/setup-intent",
+  requireRiderIfEnforced,
   rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "payment_setup_intent" }),
   asyncRoute(async (req, res) => {
     if (!stripe) {
       return fail(res, "Payments are not configured.", 503);
     }
 
-    const riderId = cleanString(req.body.rider_id || req.body.riderId, 100);
+    const riderId = resolveEnforcedRiderId({
+      authenticatedRiderId: req.rider?.id,
+      clientSuppliedRiderId: cleanString(req.body.rider_id || req.body.riderId, 100)
+    });
 
     if (!riderId) {
       return fail(res, "rider_id is required.", 400);
@@ -10116,9 +10120,13 @@ app.post(
 
 app.get(
   "/api/rider/payment-methods",
+  requireRiderIfEnforced,
   rateLimit({ windowMs: 60_000, max: 60, keyPrefix: "payment_methods_list" }),
   asyncRoute(async (req, res) => {
-    const riderId = cleanString(req.query.riderId || req.query.rider_id, 100);
+    const riderId = resolveEnforcedRiderId({
+      authenticatedRiderId: req.rider?.id,
+      clientSuppliedRiderId: cleanString(req.query.riderId || req.query.rider_id, 100)
+    });
 
     if (!riderId) {
       return fail(res, "riderId is required.", 400);
@@ -10153,6 +10161,7 @@ app.get(
 
 app.delete(
   "/api/rider/payment-methods/:paymentMethodId",
+  requireRiderIfEnforced,
   rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "payment_methods_delete" }),
   asyncRoute(async (req, res) => {
     if (!stripe) {
@@ -10160,7 +10169,10 @@ app.delete(
     }
 
     const paymentMethodId = cleanString(req.params.paymentMethodId, 100);
-    const riderId = cleanString(req.query.riderId || req.query.rider_id, 100);
+    const riderId = resolveEnforcedRiderId({
+      authenticatedRiderId: req.rider?.id,
+      clientSuppliedRiderId: cleanString(req.query.riderId || req.query.rider_id, 100)
+    });
 
     if (!paymentMethodId || !riderId) {
       return fail(res, "riderId is required.", 400);
@@ -10211,6 +10223,8 @@ app.post(
 
   "/api/rides/payment-intent",
 
+  requireRiderIfEnforced,
+
   asyncRoute(async (req, res) => {
 
     if (
@@ -10259,7 +10273,10 @@ app.post(
         100
       );
 
-    const riderId = cleanString(req.body.rider_id, 100);
+    const riderId = resolveEnforcedRiderId({
+      authenticatedRiderId: req.rider?.id,
+      clientSuppliedRiderId: cleanString(req.body.rider_id, 100)
+    });
     const paymentMethodId = cleanString(req.body.payment_method_id, 100);
     const saveCard = Boolean(req.body.save_card);
 
@@ -10350,15 +10367,18 @@ app.post(
 
               rideType,
 
+            // Same resolved identity used above to look up the rider and
+            // check payment-method ownership — not a second, independent
+            // read of req.body.rider_id. Before this change those were two
+            // separate reads of the same untrusted client field; keeping
+            // them in sync was incidental, not guaranteed. This is what
+            // authorizePaymentIntentForRide() (lib/riderPayments.js) later
+            // trusts as "the payment's rider" when a ride authorizes
+            // against this intent — see docs/security-remediation/
+            // pr-03-payment-ownership.md for the full chain.
             rider_id:
 
-              cleanString(
-
-                req.body.rider_id,
-
-                100
-
-              )
+              riderId
 
           }
 
@@ -10404,13 +10424,7 @@ app.post(
 
       actor_id:
 
-        cleanString(
-
-          req.body.rider_id,
-
-          100
-
-        ),
+        riderId,
 
       metadata: {
 
