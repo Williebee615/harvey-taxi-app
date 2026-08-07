@@ -6,6 +6,44 @@ discipline as the other PRs here, and because the admin PII/authorization
 audit this repair deliberately excludes will land in this same family
 later.
 
+## Review round 2 (before merge/migration)
+
+Two corrections requested on the first pass, both applied to the same
+migration file before it was ever run against production:
+
+1. **EXECUTE was not locked down.** Postgres functions inherit `PUBLIC`
+   execute by default, so without an explicit `revoke`,
+   `create_htaf_ride_atomic` — an admin-only operation — would have been
+   directly callable by `anon`/`authenticated` via PostgREST RPC,
+   bypassing `requireAdmin` entirely. Added `revoke execute ... from
+   public, anon, authenticated` + `grant execute ... to service_role`
+   using the function's exact 19-argument signature. Left the function
+   `SECURITY INVOKER` (the default) rather than `SECURITY DEFINER` — its
+   only caller is already the service-role client, which has full table
+   access on its own, so there's no reason for it to run with elevated
+   owner privileges.
+2. **The `existing` check was one-sided.** It only checked
+   "does `application.ride_id` point at a row that exists" — it never
+   checked that the ride found that way actually points back at this
+   application via `ride.htaf_application_id`. A corrupted or one-sided
+   link (e.g. a ride manually reassigned to a different application)
+   would have been silently accepted as a legitimate existing ride.
+   Added the reverse check: if the ride exists but
+   `ride.htaf_application_id is distinct from application.id`, the
+   outcome is now `inconsistent` / `ride_application_link_mismatch`
+   instead of `existing`.
+
+Both changes are in
+`supabase/migrations/20260806120000_htaf_ride_idempotency.sql`; the
+`ride_application_link_mismatch` reason is covered by a new test in
+`lib/htafOperations.test.js` (`resolveCreateRideOutcome` fails closed
+with 409 for it, same as the other `inconsistent` reasons). Full suite:
+358/358 passing after this round.
+
+See "Production verification" below for the fresh pre-migration
+duplicate check, the applied migration, and the live permission/behavior
+checks run before merge.
+
 ## The problem, precisely
 
 Screenshots showed the admin dashboard listing 4 real HTAF applications

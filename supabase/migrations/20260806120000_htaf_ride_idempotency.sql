@@ -20,7 +20,19 @@
 --
 -- Idempotent: safe to re-run against an environment where this has
 -- already been applied (index uses IF NOT EXISTS, function uses
--- CREATE OR REPLACE).
+-- CREATE OR REPLACE, and the REVOKE/GRANT EXECUTE statements are
+-- naturally idempotent).
+--
+-- Review round 2 additions (same date): the RPC is EXECUTE-revoked from
+-- public/anon/authenticated and granted only to service_role (functions
+-- otherwise inherit PUBLIC execute by default -- this one is an
+-- admin-only operation and must only be reachable through the backend's
+-- service-role client). The 'existing' branch now also checks the
+-- relationship in both directions -- an application's ride_id pointing
+-- at a real ride is no longer accepted as 'existing' unless that ride's
+-- own htaf_application_id points back at the same application; a
+-- one-sided/corrupted link returns 'inconsistent' /
+-- 'ride_application_link_mismatch' instead of being silently trusted.
 
 -- ============================================================
 -- 1. Database-level backstop: a ride can never be linked from more
@@ -53,17 +65,33 @@ create unique index if not exists rides_htaf_application_id_unique
 --    Returns exactly one row describing what happened:
 --      outcome = 'created'      -> a new ride was made; `ride` is it.
 --      outcome = 'existing'     -> the application already had a valid
---                                   ride_id; `ride` is that existing ride,
---                                   nothing new was created.
+--                                   ride_id, AND that ride points back at
+--                                   this same application (checked both
+--                                   ways -- see reason
+--                                   'ride_application_link_mismatch'
+--                                   below for the one-sided case); `ride`
+--                                   is that existing ride, nothing new
+--                                   was created.
 --      outcome = 'not_found'    -> no application with that id.
 --      outcome = 'inconsistent' -> the application's own state doesn't
---                                   make sense (a ride_id pointing at a
---                                   ride that no longer exists, or a
---                                   status already at/past 'scheduled'
---                                   with no ride_id at all) -- returned
---                                   as a fact for the caller to surface
---                                   to an admin, never guessed at or
---                                   silently repaired here.
+--                                   make sense, returned as a fact for
+--                                   the caller to surface to an admin,
+--                                   never guessed at or silently repaired
+--                                   here. reason is one of:
+--                                     ride_id_not_found          -> the
+--                                       application's ride_id points at a
+--                                       ride row that no longer exists.
+--                                     ride_application_link_mismatch -> the
+--                                       ride the application's ride_id
+--                                       points at exists, but that ride's
+--                                       own htaf_application_id does not
+--                                       point back at this application (a
+--                                       one-sided or corrupted link --
+--                                       never silently accepted as
+--                                       'existing').
+--                                     status_ahead_of_ride_id -> status is
+--                                       already at/past 'scheduled' with
+--                                       no ride_id at all.
 -- ============================================================
 
 create or replace function public.create_htaf_ride_atomic(
@@ -108,13 +136,18 @@ begin
   if v_application.ride_id is not null then
     select * into v_existing_ride from public.rides where id = v_application.ride_id;
 
-    if found then
-      return query select 'existing'::text, null::text, v_existing_ride;
-      return;
-    else
+    if not found then
       return query select 'inconsistent'::text, 'ride_id_not_found'::text, null::public.rides;
       return;
     end if;
+
+    if v_existing_ride.htaf_application_id is distinct from v_application.id then
+      return query select 'inconsistent'::text, 'ride_application_link_mismatch'::text, null::public.rides;
+      return;
+    end if;
+
+    return query select 'existing'::text, null::text, v_existing_ride;
+    return;
   end if;
 
   if v_application.status in ('scheduled', 'completed') then
@@ -148,3 +181,28 @@ begin
   return query select 'created'::text, null::text, v_new_ride;
 end;
 $function$;
+
+-- ============================================================
+-- 3. Lock down EXECUTE. Postgres functions otherwise inherit PUBLIC
+--    execute privileges by default, which would let anon/authenticated
+--    call this admin-only operation directly via PostgREST/RPC, bypassing
+--    requireAdmin entirely. Only the backend's service-role client calls
+--    this function (server.js's POST /api/admin/foundation/applications/
+--    :id/create-ride, itself gated by requireAdmin), so no other role
+--    should be able to execute it at all.
+--
+--    Deliberately SECURITY INVOKER (the default -- not redeclared as
+--    SECURITY DEFINER above): this function does not need to run with
+--    elevated owner privileges, since the only caller is already the
+--    service_role client, which has full table access on its own.
+-- ============================================================
+
+revoke execute on function public.create_htaf_ride_atomic(
+  text,text,text,text,text,text,text,text,text,text,
+  numeric,numeric,numeric,jsonb,numeric,numeric,numeric,numeric,text
+) from public, anon, authenticated;
+
+grant execute on function public.create_htaf_ride_atomic(
+  text,text,text,text,text,text,text,text,text,text,
+  numeric,numeric,numeric,jsonb,numeric,numeric,numeric,numeric,text
+) to service_role;
