@@ -3150,7 +3150,15 @@ const {
   buildHtafTriageFacts
 } = require("./lib/htafOperations");
 
-const { ADMIN_DRIVERS_LIST_FIELDS, ADMIN_RIDERS_LIST_FIELDS } = require("./lib/adminDirectory");
+const {
+  ADMIN_DRIVERS_LIST_FIELDS,
+  ADMIN_RIDERS_LIST_FIELDS,
+  ADMIN_RIDES_LIST_FIELDS,
+  ADMIN_RIDE_MUTATION_FIELDS,
+  ADMIN_DRIVER_MUTATION_FIELDS,
+  ADMIN_RIDER_MUTATION_FIELDS,
+  ADMIN_AUDIT_LOGS_LIST_FIELDS
+} = require("./lib/adminDirectory");
 
 // Rider session logic (sign/verify/revocation-check) lives in lib/riderAuth.js,
 // unlike the driver session functions below (signDriverSession/
@@ -15602,7 +15610,7 @@ app.get(
 
         .from("rides")
 
-        .select("*")
+        .select(ADMIN_RIDES_LIST_FIELDS.join(","))
 
         .order("created_at", {
 
@@ -15758,7 +15766,7 @@ app.patch(
 
         .eq("id", rideId)
 
-        .select()
+        .select(ADMIN_RIDE_MUTATION_FIELDS.join(","))
 
         .single();
 
@@ -15920,7 +15928,16 @@ app.post(
 
         .eq("id", rideId)
 
-        .select()
+        // notifyRideStage() (below) needs rider_id/rider_phone/ride_type
+        // to actually notify the rider, and the push-notification body
+        // needs pickup_address -- both real, server-side-only uses, not
+        // response fields. ride/driver in the SSE broadcast and the HTTP
+        // response below are built from ADMIN_RIDE_MUTATION_FIELDS only,
+        // never from this row directly, so those two internal-use fields
+        // never leave the server.
+        .select(
+          [...ADMIN_RIDE_MUTATION_FIELDS, "rider_id", "rider_phone", "ride_type", "pickup_address"].join(",")
+        )
 
         .single();
 
@@ -15929,6 +15946,16 @@ app.post(
       throw error;
 
     }
+
+    const rideSummary = {
+      id: data.id,
+      status: data.status,
+      dispatch_status: data.dispatch_status,
+      driver_id: data.driver_id,
+      updated_at: data.updated_at
+    };
+
+    const driverSummary = { id: driver.id, ...driverRideFields };
 
     notifyRideStage(data, "driver_assigned").catch(() => {});
 
@@ -15990,9 +16017,11 @@ app.post(
 
         ride:
 
-          data,
+          rideSummary,
 
-        driver
+        driver:
+
+          driverSummary
 
       }
 
@@ -16002,9 +16031,11 @@ app.post(
 
       ride:
 
-        data,
+        rideSummary,
 
-      driver
+      driver:
+
+        driverSummary
 
     });
 
@@ -16303,7 +16334,7 @@ app.patch(
 
         .eq("id", driverId)
 
-        .select()
+        .select(ADMIN_DRIVER_MUTATION_FIELDS.join(","))
 
         .single();
 
@@ -16807,7 +16838,7 @@ app.patch(
 
         .eq("id", driverId)
 
-        .select()
+        .select(ADMIN_DRIVER_MUTATION_FIELDS.join(","))
 
         .single();
 
@@ -16943,7 +16974,7 @@ app.patch(
 
         .eq("id", riderId)
 
-        .select()
+        .select(ADMIN_RIDER_MUTATION_FIELDS.join(","))
 
         .single();
 
@@ -17041,7 +17072,7 @@ app.get(
 
         .from("audit_logs")
 
-        .select("*")
+        .select(ADMIN_AUDIT_LOGS_LIST_FIELDS.join(","))
 
         .order("created_at", {
 
@@ -17273,6 +17304,13 @@ app.post(
 
     if (outcome.created) {
 
+      // The full outcome.ride row (from the create_htaf_ride RPC) carries
+      // rider_name/rider_phone -- fine for the direct HTTP response below
+      // to the one admin who just performed this action on this specific
+      // application, but not for an unscoped broadcast to every connected
+      // admin socket. The SSE event only needs enough to know a ride now
+      // exists for this application; full detail is available through
+      // GET /api/admin/rides's own allow-list.
       broadcastSse(
 
         "htaf_ride_created",
@@ -17286,6 +17324,8 @@ app.post(
           ride:
 
             outcome.ride
+              ? { id: outcome.ride.id, status: outcome.ride.status }
+              : null
 
         }
 
