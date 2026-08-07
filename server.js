@@ -3146,7 +3146,8 @@ const {
   HTAF_EXPORT_COLUMNS,
   buildHtafExportCsv,
   resolveHtafExportRequest,
-  resolveHtafExportDelivery
+  resolveHtafExportDelivery,
+  buildHtafTriageFacts
 } = require("./lib/htafOperations");
 
 // Rider session logic (sign/verify/revocation-check) lives in lib/riderAuth.js,
@@ -4947,20 +4948,58 @@ app.get(
 );
 
 /* =========================================================
-   HTAF AI TRIAGE
-   Admin only. Asks OpenAI to summarize an application, flag
-   anything unusual or incomplete, and suggest a next action.
-   This never writes to the database or auto-changes status —
-   it only returns a suggestion for the admin to review. The
-   admin applies it (or not) via the existing notes/status
-   endpoints, so the human always makes the final call.
+   HTAF AI TRIAGE — privacy-hardened (docs/security-remediation/
+   htaf-ai-triage-privacy-hardening.md)
+
+   Admin only. Asks OpenAI to summarize an application's OPERATIONAL
+   completeness/consistency and suggest a next processing step. This
+   never writes to the database or auto-changes status — it only
+   returns a suggestion for the admin to review, inserted into notes
+   (or not) via the existing notes/status endpoints. The human always
+   makes the final call.
+
+   GUARDRAILS (all enforced in code, not just stated here):
+   - Advisory only. The AI never approves, denies, or takes any action
+     itself — buildHtafTriageFacts()/this route never write to
+     htaf_applications, and the recommendation vocabulary below
+     (ready_for_review / request_info / priority_review /
+     data_inconsistency) is deliberately operational-categorization
+     language, not an eligibility decision. "approve"/"deny" were
+     removed from the vocabulary entirely in this hardening pass —
+     triage helps a human prioritize and spot incomplete data; it does
+     not decide who qualifies for HTAF assistance or make any medical
+     judgment. That eligibility/medical-judgment boundary is a policy
+     choice, not a technical limitation of the model — it's enforced by
+     never asking the model for that judgment and never having the
+     vocabulary to express one.
+   - The AI is never given a protected or sensitive trait to reason
+     about (see buildHtafTriageFacts(), lib/htafOperations.js, for the
+     full field-by-field classification) and is explicitly instructed
+     not to let program_type or any other field function as a proxy for
+     one.
+   - Human admin makes the final decision — the recommendation is only
+     ever inserted into notes for a human to read; nothing here changes
+     status automatically.
+   - No claim of HIPAA-compliant processing is made anywhere in this
+     code or its documentation — sending even minimized, coarse
+     categorical data to a third-party model is a data-sharing decision
+     an organization handling health-adjacent information should have
+     its own legal/compliance review for, independent of this PR
+     (this codebase already carries a standing HIPAA/BAA legal-review
+     TODO from earlier work; this hardening reduces exposure, it does
+     not resolve that TODO).
+   - Auditable without storing unnecessary applicant PII: the audit log
+     for every triage call now includes the exact `facts_sent` payload
+     (see below) — safe to store because buildHtafTriageFacts()'s
+     allow-list guarantees, and tests enforce, that it never contains
+     PII in the first place.
 ========================================================= */
 
 const HTAF_TRIAGE_RECOMMENDATIONS = [
-  "approve",
-  "deny",
+  "ready_for_review",
   "request_info",
-  "review"
+  "priority_review",
+  "data_inconsistency"
 ];
 
 async function triageHtafApplication(application) {
@@ -4971,31 +5010,24 @@ async function triageHtafApplication(application) {
     };
   }
 
-  const facts = {
-    application_code: application.application_code,
-    status: application.status,
-    program_type: application.program_type,
-    applicant_type: application.applicant_type,
-    county: application.county,
-    city: application.city,
-    pickup_city: application.pickup_city,
-    destination: application.destination,
-    ride_date: application.ride_date,
-    household_size: application.household_size,
-    monthly_income: application.monthly_income,
-    transportation_need: application.transportation_need,
-    existing_notes: application.notes || null,
-    submitted_at: application.created_at
-  };
+  // The ONLY facts about this application that leave this server. See
+  // buildHtafTriageFacts() (lib/htafOperations.js) for the allow-list
+  // and its tests for proof that no name, email, phone, application
+  // code, street address, exact income, exact household size, or raw
+  // free-text description can reach this payload even if present on
+  // `application`.
+  const facts = buildHtafTriageFacts(application);
 
   const systemContent = [
     "You are an assistant helping a human reviewer triage HTAF (Harvey Transportation Assistance Foundation) applications for transportation assistance.",
-    "You NEVER approve or deny anything yourself — you only summarize the application and suggest a recommendation for a human admin, who makes the final decision.",
-    "Be factual and concise. Do not invent facts that are not in the application data. Do not assume eligibility rules beyond what is provided.",
-    "Flag things like: missing or vague transportation_need, an implausible or inconsistent household_size/monthly_income, a ride_date in the past, a destination/pickup_city outside Nashville or Davidson County (service area), or anything that looks incomplete.",
+    "This is advisory only. You never approve, deny, or take any action yourself — you only summarize the structured facts given and suggest one operational next-step category. A human admin always makes the final decision, including any eligibility or medical judgment, which is never your job.",
+    "You have NOT been given the applicant's name, contact information, exact income, exact household size, or any address/free-text description — only coarse operational categories, bands, and booleans. Do not guess, infer, or assume any of that missing information, and do not ask for it.",
+    "Never let program_type or any other field function as a proxy for a protected or sensitive characteristic (e.g. disability, medical condition, immigration status, race, religion) in your summary, flags, or recommendation. Evaluate only the operational completeness and internal consistency of the data given.",
+    "Be factual and concise. Do not invent facts that are not in the data. Do not assume or apply any HTAF eligibility rule — none has been given to you.",
+    "Flag things like: transportation_need_detail is \"missing\", an inconsistent household_size_band/monthly_income_band pairing, a ride_date in the past, pickup_in_service_area or destination_in_service_area being false, or anything else that looks operationally incomplete.",
     "Respond ONLY with a JSON object of this exact shape: " +
-      '{"summary": string, "flags": string[], "recommendation": "approve" | "deny" | "request_info" | "review", "reasoning": string}',
-    '"recommendation" must be exactly one of: approve, deny, request_info, review. Use "review" whenever you are not confident.',
+      '{"summary": string, "flags": string[], "recommendation": "ready_for_review" | "request_info" | "priority_review" | "data_inconsistency", "reasoning": string}',
+    '"recommendation" must be exactly one of: ready_for_review, request_info, priority_review, data_inconsistency. Use "ready_for_review" whenever nothing stands out or you are not confident anything is wrong.',
     "Keep summary to 2-3 sentences. Keep flags short (a few words each); return an empty array if nothing stands out."
   ].join(" ");
 
@@ -5019,7 +5051,7 @@ async function triageHtafApplication(application) {
 
   const recommendation = HTAF_TRIAGE_RECOMMENDATIONS.includes(parsed.recommendation)
     ? parsed.recommendation
-    : "review";
+    : "ready_for_review";
 
   return {
     available: true,
@@ -5028,7 +5060,8 @@ async function triageHtafApplication(application) {
       ? parsed.flags.map((f) => cleanString(f, 200)).filter(Boolean).slice(0, 10)
       : [],
     recommendation,
-    reasoning: cleanString(parsed.reasoning, 1000) || ""
+    reasoning: cleanString(parsed.reasoning, 1000) || "",
+    facts_sent: facts
   };
 }
 
@@ -5056,13 +5089,21 @@ app.post(
       return fail(res, "AI triage is temporarily unavailable. Please try again.", 502);
     }
 
+    // facts_sent is safe to log in full -- it's the same minimized,
+    // PII-free object buildHtafTriageFacts() guarantees and tests
+    // enforce -- giving a complete, auditable record of exactly what
+    // was sent to OpenAI for this call, without ever storing the
+    // applicant PII that record would otherwise need to reference.
     auditLog({
       actor_type: "admin",
       actor_id: req.admin.email,
       action: "htaf_application_ai_triaged",
       entity_type: "htaf_application",
       entity_id: application.id,
-      metadata: { recommendation: triage.recommendation || null },
+      metadata: {
+        recommendation: triage.recommendation || null,
+        facts_sent: triage.facts_sent || null
+      },
       req
     }).catch(() => {});
 
