@@ -3150,6 +3150,8 @@ const {
   buildHtafTriageFacts
 } = require("./lib/htafOperations");
 
+const { ADMIN_DRIVERS_LIST_FIELDS, ADMIN_RIDERS_LIST_FIELDS } = require("./lib/adminDirectory");
+
 // Rider session logic (sign/verify/revocation-check) lives in lib/riderAuth.js,
 // unlike the driver session functions below (signDriverSession/
 // verifyDriverSession), which are inline and untested -- see
@@ -16056,7 +16058,7 @@ app.get(
 
         .from("drivers")
 
-        .select("*")
+        .select(ADMIN_DRIVERS_LIST_FIELDS.join(","))
 
         .order("created_at", {
 
@@ -16176,7 +16178,7 @@ app.get(
 
         .from("riders")
 
-        .select("*")
+        .select(ADMIN_RIDERS_LIST_FIELDS.join(","))
 
         .order("created_at", {
 
