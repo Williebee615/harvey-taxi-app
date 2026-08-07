@@ -6,6 +6,44 @@ and the unaudited bulk CSV export). Scoped exactly as agreed; the
 AI-triage privacy work, admin RBAC redesign, and trusted-proxy/
 rate-limit hardening remain separate, later projects.
 
+## Review round 2 (before merge)
+
+Two corrections requested, both specific to the export route — the
+list/detail/PATCH design was approved as-is:
+
+1. **The export's audit log was fire-and-forget.** It called
+   `auditLog({...}).catch(() => {})` and sent the CSV immediately,
+   regardless of whether the audit write actually succeeded. Since
+   `auditLog()` never throws on a failed insert — it always resolves,
+   with `{logged: false, error}` on failure — the `.catch()` never even
+   ran; the export shipped the CSV unconditionally. That's the exact
+   failure mode this PR exists to prevent: an audit-write failure would
+   have still handed the admin the full PII export. Fixed by awaiting
+   `auditLog(...)` and gating delivery on its resolved outcome via a
+   new pure function, `resolveHtafExportDelivery(auditResult)`
+   (`lib/htafOperations.js`) — the CSV headers/body are only written to
+   the response if `auditResult.logged === true`. On failure: 500,
+   the CSV is never sent, and only the audit-write's own error (a
+   Supabase error object — message/code/details/hint, no applicant
+   data) is logged server-side. Same principle already used for driver
+   compliance overrides: a sensitive administrative action must not
+   succeed without its required audit evidence.
+2. **The export query itself still used `select("*")`.** Even though
+   `buildHtafExportCsv` only reads the 17 `HTAF_EXPORT_COLUMNS`,
+   Supabase was asked for every column, including the four dead ones
+   the audit identified. Changed to
+   `.select(HTAF_EXPORT_COLUMNS.join(","))` — the server itself now
+   never receives a column the export doesn't use, keeping data
+   minimization true end-to-end rather than just at the point where the
+   CSV is assembled.
+
+Four new tests in `lib/htafOperations.test.js`'s
+`resolveHtafExportDelivery` describe block cover the fail-closed
+guarantee directly, including the case that matters most: `auditLog()`
+resolving with `{logged: false}` (its actual failure shape, not a
+thrown exception) must block delivery. Full suite: 381/381 passing
+after this round.
+
 ## The problem (restated from the audit)
 
 `GET /api/admin/foundation/applications` used `select("*")`, shipping

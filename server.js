@@ -3143,8 +3143,10 @@ const {
   HTAF_ADMIN_LIST_FIELDS,
   HTAF_ADMIN_DETAIL_FIELDS,
   HTAF_ADMIN_PATCH_RESPONSE_FIELDS,
+  HTAF_EXPORT_COLUMNS,
   buildHtafExportCsv,
-  resolveHtafExportRequest
+  resolveHtafExportRequest,
+  resolveHtafExportDelivery
 } = require("./lib/htafOperations");
 
 // Rider session logic (sign/verify/revocation-check) lives in lib/riderAuth.js,
@@ -4820,15 +4822,24 @@ app.patch(
      file is generated. This is deliberately not a fixed enum: the
      point is a real justification an auditor can read later, not a
      dropdown a UI can satisfy by always picking the first option.
-   - The file is built server-side (buildHtafExportCsv) from a
-     dedicated, full-width query -- the only place in this route family
-     that still reads the wide PII field set, and only because an
-     export is explicitly, deliberately a "give me everyone" action.
+   - The file is built server-side (buildHtafExportCsv) from a query
+     scoped to HTAF_EXPORT_COLUMNS -- not select("*") -- so Supabase
+     itself never sends this route a column the export doesn't use,
+     including the four dead ones the audit identified. This is the
+     only route in this family that reads the wide-but-still-explicit
+     PII field set, and only because an export is deliberately a "give
+     me everyone (matching these filters)" action.
    - Every export is audit-logged with actor, timestamp (implicit in
      the audit row), row_count, the stated reason, and whatever
-     status/program_type filter was applied -- so a bulk PII export
-     leaves exactly the kind of record every other admin action on this
-     page already leaves.
+     status/program_type filter was applied. This audit write is
+     fail-closed, the same principle already used for driver compliance
+     overrides: the CSV is never sent unless auditLog() actually
+     persisted the record. auditLog() itself never throws -- a failed
+     insert resolves as {logged: false, error}, not a rejection -- so
+     the gate has to check the resolved outcome, not wrap it in
+     try/catch. See resolveHtafExportDelivery() (lib/htafOperations.js)
+     for the (tested) decision, and its regression test for what
+     happens when the audit write fails.
 
 ========================================================= */
 
@@ -4844,7 +4855,7 @@ app.post(
 
     let query = supabase
       .from("htaf_applications")
-      .select("*")
+      .select(HTAF_EXPORT_COLUMNS.join(","))
       .order("created_at", { ascending: false });
 
     if (resolved.status) {
@@ -4864,7 +4875,7 @@ app.post(
     const rows = data || [];
     const csv = buildHtafExportCsv(rows);
 
-    auditLog({
+    const auditResult = await auditLog({
       actor_type: "admin",
       actor_id: req.admin.email,
       action: "htaf_applications_exported",
@@ -4879,7 +4890,20 @@ app.post(
         }
       },
       req
-    }).catch(() => {});
+    });
+
+    const delivery = resolveHtafExportDelivery(auditResult);
+
+    if (!delivery.ok) {
+      // Never log the CSV/rows here -- only the audit-write failure
+      // itself (a Supabase error object: message/code/details/hint),
+      // which carries no applicant data.
+      console.error(
+        "❌ HTAF export blocked: audit record could not be written.",
+        auditResult && auditResult.error
+      );
+      return fail(res, delivery.error, delivery.statusCode);
+    }
 
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader(
