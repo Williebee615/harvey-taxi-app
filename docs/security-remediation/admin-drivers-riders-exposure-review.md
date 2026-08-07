@@ -88,14 +88,16 @@ to which admin routes were subsequently called in that session.
 
 Querying `audit_logs` for `action in ('admin_login_success',
 'admin_login_failed')` across the full available range
-(2026-07-04 through 2026-08-07) returned 23 rows:
+(2026-07-04 through 2026-08-07), then re-run as an explicit `count(*)
+... group by action` to verify the totals independent of manually
+counting rows, returned **22 rows**:
 
-- **19 `admin_login_success` rows**, spanning 2026-07-08 through
+- **16 `admin_login_success` rows**, spanning 2026-07-08 through
   2026-08-07, all with `actor_id = "williebee@harveytaxiservice.com"`
   -- the configured admin email. This is consistent with one
   administrator logging in repeatedly (sometimes several times in a
   day) over roughly a month.
-- **4 `admin_login_failed` rows**:
+- **6 `admin_login_failed` rows**:
   - 2026-07-23 01:55:15 and 01:55:18 -- `actor_id =
     "admin@harveytaxi.com"`, a different address on a similar but
     distinct domain.
@@ -113,9 +115,9 @@ email/domain variant, then two attempts at the right address with a
 typo) rather than a distinct external actor -- but audit logs alone
 cannot prove that; there is no IP or session data to corroborate it.
 
-**No `actor_id` value outside these five (one correct address, three
-recognizable typos/variants of it, and no other identity) appears
-anywhere in the login audit trail.**
+**No `actor_id` value outside these three (the correct admin address
+plus two recognizable variants/typos of it) appears anywhere in the
+login audit trail.**
 
 ## 5. Conclusion
 
