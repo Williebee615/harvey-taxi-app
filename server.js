@@ -3138,7 +3138,8 @@ const {
 
 const {
   computeHtafPublicStats,
-  resolveCreateRideOutcome
+  resolveCreateRideOutcome,
+  resolveRiderHtafLookup
 } = require("./lib/htafOperations");
 
 // Rider session logic (sign/verify/revocation-check) lives in lib/riderAuth.js,
@@ -11989,32 +11990,48 @@ app.delete(
 
 /* =========================================================
 
-   HTAF APPLICATION STATUS BY EMAIL
+   HTAF APPLICATION STATUS — AUTHENTICATED RIDER SELF-LOOKUP
 
-   htaf_applications has no rider_id column — applications are
-   keyed by contact email/phone, not by rider account (there is no
-   link between the two anywhere in the schema). This lets the
-   rider dashboard find "do I have an HTAF application, and what's
-   its status" using the one identifier it already has (the
-   rider's own email), exposing nothing beyond what the existing
-   public /api/foundation/status/:code route already exposes.
+   Replaces the former public GET /api/foundation/applications/by-email
+   (docs/security-remediation/htaf-admin-pii-audit.md, finding 3):
+   that route took an arbitrary ?email= query param with no
+   authentication at all, so anyone on the internet could check whether
+   a given email address had ever submitted a charity transportation-
+   assistance application -- an enumeration/privacy risk independent of
+   which fields the response contained, since the existence fact itself
+   is sensitive. An email address is not a secret, unlike the
+   high-entropy application_code /api/foundation/status/:code requires
+   the caller to already possess.
+
+   This route requires a verified rider session (requireRider) and uses
+   ONLY req.rider.email -- the server's own record of who is logged in
+   -- never a client-supplied email. A rider can therefore only ever
+   look up their own application, never anyone else's; there is no
+   longer any public surface where an arbitrary email can be tested.
+   See resolveRiderHtafLookup() in lib/htafOperations.js for the
+   (tested) guarantee that no request-supplied value can stand in for
+   the session's own identity.
 
 ========================================================= */
 
 app.get(
-  "/api/foundation/applications/by-email",
-  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "htaf_status_by_email" }),
+  "/api/rider/htaf-application",
+  requireRider,
   asyncRoute(async (req, res) => {
-    const email = cleanString(req.query.email, 200);
+    const lookup = resolveRiderHtafLookup(req.rider);
 
-    if (!email || !email.includes("@")) {
-      return fail(res, "A valid email is required.", 400);
+    if (!lookup.ok) {
+      return fail(res, lookup.error, lookup.statusCode);
+    }
+
+    if (!lookup.email) {
+      return ok(res, { application: null });
     }
 
     const { data, error } = await supabase
       .from("htaf_applications")
       .select("application_code, status, program_type, created_at, updated_at")
-      .ilike("email", email)
+      .ilike("email", lookup.email)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
