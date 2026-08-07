@@ -44,6 +44,67 @@ See "Production verification" below for the fresh pre-migration
 duplicate check, the applied migration, and the live permission/behavior
 checks run before merge.
 
+## Production verification (migration applied 2026-08-07)
+
+Sequence followed, in order:
+
+1. **Fresh duplicate check immediately before applying** (the 2026-08-06
+   check above was by then historical evidence, not a guarantee nothing
+   had changed since):
+   ```sql
+   select htaf_application_id, count(*) from rides
+   where htaf_application_id is not null group by htaf_application_id
+   having count(*) > 1;
+   ```
+   → zero rows, same as before. Migration applied via
+   `mcp__Supabase__apply_migration` (`success: true`).
+2. **Unique partial index exists:**
+   `rides_htaf_application_id_unique` confirmed present via `pg_indexes`
+   — `CREATE UNIQUE INDEX ... ON public.rides USING btree
+   (htaf_application_id) WHERE (htaf_application_id IS NOT NULL)`.
+3. **Function exists and is SECURITY INVOKER:** confirmed via `pg_proc`
+   — `create_htaf_ride_atomic`, `prosecdef = false` (INVOKER, not
+   DEFINER), `language plpgsql`.
+4. **Only service_role can execute it:** confirmed via
+   `has_function_privilege(...)` for the function's exact signature —
+   `anon_can_execute = false`, `authenticated_can_execute = false`,
+   `service_role_can_execute = true`.
+5. **Behavior exercised live**, each case run as its own
+   `begin; ...; rollback;` block against real fixture rows prefixed
+   `TEST_HTAF_*`/`TEST_RIDE_*` so nothing could persist regardless of
+   outcome — no real HTAF application or ride was created for testing:
+   - `not_found`: called with a nonexistent application id (no fixture
+     needed — inherently a no-op) → `{outcome: "not_found", ride: null}`.
+   - `inconsistent` / `status_ahead_of_ride_id`: fixture application with
+     `status = 'scheduled'`, `ride_id = null` → confirmed.
+   - `inconsistent` / `ride_id_not_found`: fixture application with
+     `ride_id` pointing at a ride row that doesn't exist → confirmed.
+   - `inconsistent` / `ride_application_link_mismatch` (the round-2 fix):
+     fixture application A's `ride_id` pointing at a real fixture ride,
+     but that ride's own `htaf_application_id` pointing at a *different*
+     fixture application → confirmed returns `inconsistent` /
+     `ride_application_link_mismatch`, not `existing`.
+   - `existing`: fixture application whose `ride_id` points at a fixture
+     ride that correctly points back via `htaf_application_id` →
+     confirmed returns `existing` with that ride, nothing new created.
+   - `created`: fresh fixture application, `status = 'submitted'`,
+     `ride_id = null` → confirmed returns `created` with a new ride.
+   - Post-hoc check: `select count(*) from htaf_applications where id
+     like 'TEST_HTAF_%'` and the equivalent for `rides`/`TEST_RIDE_%`
+     both returned `0` after all five blocks ran — every rollback took
+     effect, real table counts (`htaf_applications` total, and rides
+     linked to any HTAF application) are unchanged from before this
+     verification pass.
+
+All five outcomes plus the permission lockdown are now **confirmed live
+in production**, not just by code review — this satisfies the concurrency/
+consistency design claims that the automated Jest suite alone could not
+exercise (see "What automated tests do not cover" above; the RPC's row
+lock under real concurrent connections still wasn't exercised, since
+that requires two simultaneous connections rather than sequential
+`begin/rollback` blocks, but every discriminated outcome the lock is
+meant to protect is now proven correct on the live function).
+
 ## The problem, precisely
 
 Screenshots showed the admin dashboard listing 4 real HTAF applications
