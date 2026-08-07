@@ -2648,16 +2648,23 @@ async function logAdminRbacShadowCheck(req, route, capability) {
 
   try {
 
+    // Fetches every admin_roles row rather than filtering server-side
+    // with .eq("email", email): the unique index from Phase 1's
+    // migration is on lower(email), not on email itself, so a stored
+    // value like "CaseWorker@HarveyTaxiService.com" would not match an
+    // exact-case-equality filter against the already-normalized lookup
+    // email. findAdminRoleRow() (lib/adminRbacShadow.js) does the
+    // actual case-insensitive match in JS. The table stays small (one
+    // row per admin identity), so fetching all of it per shadow check
+    // is not a scaling concern.
     const { data, error } = await supabase
       .from("admin_roles")
-      .select("role")
-      .eq("email", email)
-      .maybeSingle();
+      .select("email, role");
 
     if (error) {
       dbLookupFailed = true;
     } else {
-      roleRow = data;
+      roleRow = findAdminRoleRow(data, email);
     }
 
   } catch {
@@ -3237,6 +3244,7 @@ const {
 const {
   ROUTE_CAPABILITIES: RBAC_SHADOW_ROUTE_CAPABILITIES,
   resolveShadowRole,
+  findAdminRoleRow,
   computeWouldAllow: computeShadowWouldAllow,
   buildShadowLogEntry
 } = require("./lib/adminRbacShadow");

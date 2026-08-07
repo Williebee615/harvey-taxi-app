@@ -31,6 +31,29 @@ way -- but no shadow data will actually be recorded until the migration
 is applied. Please run it (via the Supabase dashboard, CLI, or by
 re-approving the MCP tool) before expecting to see any rows.
 
+## Round 2 fix: case-insensitive `admin_roles` email lookup
+
+The original version of this PR queried `admin_roles` with
+`.eq("email", email)` after normalizing the *lookup* email
+(trim + lowercase). Phase 1's migration only guarantees a unique index
+on `lower(email)` -- it never guarantees every **stored** `email`
+value is itself lowercase. A future row written as
+`CaseWorker@HarveyTaxiService.com` would never match an exact-case
+lookup of `caseworker@harveytaxiservice.com`, even though the unique
+index already treats those as one identity -- silently producing a
+`missing_row_*` shadow result for a real, existing role assignment.
+
+Fixed by fetching all `admin_roles` rows (`select("email, role")`, no
+filter -- the table stays small, one row per admin identity) and
+matching case-insensitively in JS via the new
+`findAdminRoleRow(rows, email)` (`lib/adminRbacShadow.js`), rather than
+pushing the case-fold into a database-level filter that would need its
+own wildcard-escaping to stay an exact match. Covered by 5 new tests in
+`lib/adminRbacShadow.test.js`, including the exact case from review:
+`CaseWorker@HarveyTaxiService.com` and
+`caseworker@harveytaxiservice.com` resolve to the same row regardless
+of which side is mixed-case.
+
 ## What this PR adds
 
 ### Representative route selection (7 routes, 6 capability areas)
@@ -131,14 +154,16 @@ the operational note above.
 
 ### `lib/adminRbacShadow.test.js`
 
-14 tests: the exact route/capability map for the representative mix,
-every branch of `resolveShadowRole()` (DB row found for both legacy and
-non-legacy admins, DB error with/without legacy fallback, missing row
-with/without legacy fallback, malformed row treated as missing --
-never as a crash or a silent allow), proof that DB-error and
-missing-row sources are always distinguishable from each other,
-`computeWouldAllow()` deny-on-null and delegation to `hasCapability()`,
-and `buildShadowLogEntry()`'s explicit allow-list (including the
+19 tests: the exact route/capability map for the representative mix,
+`findAdminRoleRow()`'s case-insensitive matching (including the exact
+mixed-case-vs-lowercase scenario from round-2 review), every branch of
+`resolveShadowRole()` (DB row found for both legacy and non-legacy
+admins, DB error with/without legacy fallback, missing row with/without
+legacy fallback, malformed row treated as missing -- never as a crash
+or a silent allow), proof that DB-error and missing-row sources are
+always distinguishable from each other, `computeWouldAllow()`
+deny-on-null and delegation to `hasCapability()`, and
+`buildShadowLogEntry()`'s explicit allow-list (including the
 adversarial-input test proving fake password/HTAF/request-body content
 never reaches the output).
 
@@ -156,8 +181,8 @@ never reaches the output).
 
 ## Testing
 
-- `lib/adminRbacShadow.test.js`: 14 tests, all passing.
-- Full suite: `npx jest` -- 17 suites, 450 tests, all passing.
+- `lib/adminRbacShadow.test.js`: 19 tests, all passing.
+- Full suite: `npx jest` -- 17 suites, 455 tests, all passing.
 - `node -c server.js` -- syntax check passes.
 - Migration written and committed; **live application pending** (see
   operational note above).
