@@ -4972,11 +4972,20 @@ app.get(
      choice, not a technical limitation of the model — it's enforced by
      never asking the model for that judgment and never having the
      vocabulary to express one.
-   - The AI is never given a protected or sensitive trait to reason
-     about (see buildHtafTriageFacts(), lib/htafOperations.js, for the
-     full field-by-field classification) and is explicitly instructed
-     not to let program_type or any other field function as a proxy for
-     one.
+   - The AI is not provided direct identifiers, exact financial
+     information, street-level location, medical narrative, or other
+     unnecessary sensitive details, and is prohibited from using
+     operational categories to infer protected or sensitive
+     characteristics (see buildHtafTriageFacts(), lib/htafOperations.js,
+     for the full field-by-field classification). This is deliberately
+     not phrased as "the payload contains nothing sensitive" —
+     program_type itself can sometimes imply a sensitive circumstance
+     (e.g. "medical", "disability"), and it is kept because triage needs
+     some operational category to be useful at all. Household size and
+     monthly income, which have no necessary operational function once
+     triage is limited to categorization/prioritization rather than
+     eligibility, are excluded entirely (not merely coarsened) for
+     exactly this reason.
    - Human admin makes the final decision — the recommendation is only
      ever inserted into notes for a human to read; nothing here changes
      status automatically.
@@ -5013,18 +5022,18 @@ async function triageHtafApplication(application) {
   // The ONLY facts about this application that leave this server. See
   // buildHtafTriageFacts() (lib/htafOperations.js) for the allow-list
   // and its tests for proof that no name, email, phone, application
-  // code, street address, exact income, exact household size, or raw
-  // free-text description can reach this payload even if present on
-  // `application`.
+  // code, street address, income (exact or banded), household size
+  // (exact or banded), or raw free-text description can reach this
+  // payload even if present on `application`.
   const facts = buildHtafTriageFacts(application);
 
   const systemContent = [
     "You are an assistant helping a human reviewer triage HTAF (Harvey Transportation Assistance Foundation) applications for transportation assistance.",
     "This is advisory only. You never approve, deny, or take any action yourself — you only summarize the structured facts given and suggest one operational next-step category. A human admin always makes the final decision, including any eligibility or medical judgment, which is never your job.",
-    "You have NOT been given the applicant's name, contact information, exact income, exact household size, or any address/free-text description — only coarse operational categories, bands, and booleans. Do not guess, infer, or assume any of that missing information, and do not ask for it.",
-    "Never let program_type or any other field function as a proxy for a protected or sensitive characteristic (e.g. disability, medical condition, immigration status, race, religion) in your summary, flags, or recommendation. Evaluate only the operational completeness and internal consistency of the data given.",
+    "You have NOT been given the applicant's name, contact information, exact or approximate income, exact or approximate household size, or any address/free-text description — only coarse operational categories and booleans. Do not guess, infer, or assume any of that missing information, and do not ask for it.",
+    "Never let program_type or any other field function as a proxy for a protected or sensitive characteristic (e.g. disability, medical condition, immigration status, race, religion) in your summary, flags, or recommendation.",
+    "Your evaluation is limited strictly to: missing operational information, service-area inconsistencies (pickup_in_service_area / destination_in_service_area / home_in_service_area being false), a ride_date in the past or otherwise invalid, missing or vague transportation_need_detail, and workflow/data inconsistencies (e.g. a status that doesn't match what the other fields suggest). You must NOT evaluate, comment on, or factor in financial need, household composition, medical need, or program eligibility of any kind — none of that has been given to you, and it is not your role even if it were.",
     "Be factual and concise. Do not invent facts that are not in the data. Do not assume or apply any HTAF eligibility rule — none has been given to you.",
-    "Flag things like: transportation_need_detail is \"missing\", an inconsistent household_size_band/monthly_income_band pairing, a ride_date in the past, pickup_in_service_area or destination_in_service_area being false, or anything else that looks operationally incomplete.",
     "Respond ONLY with a JSON object of this exact shape: " +
       '{"summary": string, "flags": string[], "recommendation": "ready_for_review" | "request_info" | "priority_review" | "data_inconsistency", "reasoning": string}',
     '"recommendation" must be exactly one of: ready_for_review, request_info, priority_review, data_inconsistency. Use "ready_for_review" whenever nothing stands out or you are not confident anything is wrong.',

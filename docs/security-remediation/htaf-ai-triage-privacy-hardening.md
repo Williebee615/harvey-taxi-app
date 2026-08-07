@@ -7,6 +7,43 @@ rate limiting, HTAF eligibility rules, OpenAI configuration generally,
 and any UI beyond what falls out naturally from the new response
 vocabulary are untouched.
 
+## Review round 2 (before merge)
+
+One correction: **`household_size_band` and `monthly_income_band` were
+removed entirely from `buildHtafTriageFacts()` and the prompt — not
+coarsened, excluded.** The first pass banded these instead of sending
+exact values, but once AI triage is explicitly limited to operational
+categorization/completeness/workflow prioritization rather than
+eligibility, income and household size have no necessary function in
+that scope at all — a coarse band still exposes socioeconomic
+information and still invites the model to reason about financial
+circumstances (the prompt had explicitly told it to flag "an
+inconsistent household_size_band/monthly_income_band pairing," which is
+exactly that kind of reasoning). No replacement financial/household
+proxy was added. The system prompt's evaluation scope is now stated as
+an explicit, closed list — missing operational information, service-area
+inconsistencies, past/invalid ride dates, missing/vague
+transportation-need detail, and workflow/data inconsistencies — with an
+explicit instruction that it must not evaluate financial need, household
+composition, medical need, or eligibility.
+
+Also reworded one code-comment claim per review: "the AI is never given
+a protected or sensitive trait" overstated the guarantee, since
+`program_type` itself can sometimes imply a sensitive circumstance (e.g.
+`medical`, `disability`) and is kept anyway because triage needs some
+operational category to function. The comment now reads: "The AI is not
+provided direct identifiers, exact financial information, street-level
+location, medical narrative, or other unnecessary sensitive details, and
+is prohibited from using operational categories to infer protected or
+sensitive characteristics" — a claim about what's excluded and what the
+model is instructed not to do, not a claim that the payload contains
+nothing sensitive at all.
+
+The marker-string regression test was strengthened to assert
+`household_size`/`monthly_income`, in any form (exact or banded), are
+absent from the payload's own keys, not just absent as substrings of the
+JSON. Full suite re-run: 389/389 passing after this round.
+
 ## Step 1: trace the exact object sent to OpenAI, before changing anything
 
 Read `triageHtafApplication()` (`server.js`, pre-change) directly. The
@@ -48,15 +85,15 @@ original design was sound. The rest is classified below.
 | `pickup_city` | Unnecessary/sensitive as raw text | Never included raw. Despite the label, this field is used elsewhere in this codebase (the create-ride route) as a fallback full pickup **address**, not just a city name — so passing it through as "just a city" would have been unsafe. Used only internally to derive `pickup_in_service_area` (boolean). |
 | `destination` | Unnecessary/sensitive as raw text | Never included raw. The form's own placeholder ("Hospital, School, Employer") shows this is a venue/destination name, not a city — e.g. a specific clinic name can itself reveal a medical condition. Used only internally to derive `destination_in_service_area` (boolean). |
 | `ride_date` | Necessary for triage | Kept as-is. A single future/past date has low re-identification risk on its own, and it's the field the original design already used for a real, useful check ("is this ride date in the past"). |
-| `household_size` | Useful but replaceable | Banded (`1`, `2-3`, `4-5`, `6+`) rather than sent as an exact count. |
-| `monthly_income` | Useful but replaceable | Banded into round $1,000 ranges (`under_1000` … `4000_or_more`). Deliberately not tied to any poverty-guideline multiplier or eligibility threshold — these bands exist only to give the model a magnitude signal, not to encode a policy this codebase doesn't otherwise define. |
+| `household_size` | Unnecessary/removable, not merely coarsen-able | **Excluded entirely (not banded — see review round 2).** Once triage is limited to operational categorization/completeness/prioritization rather than eligibility, household composition has no necessary function in that scope, and even a coarse band still exposes and invites reasoning about a socioeconomic circumstance. |
+| `monthly_income` | Unnecessary/removable, not merely coarsen-able | **Excluded entirely (not banded — see review round 2).** Same reasoning as `household_size`: no necessary operational function once eligibility judgment is out of scope, and a band is still financial information the model can reason about. |
 | `transportation_need` (free text) | Unnecessary/sensitive, removable as raw text | Never included raw — this is applicant-authored free text that can contain medical detail. Replaced with `transportation_need_detail`: `missing` / `brief` / `detailed`, preserving the original "flag a missing/vague need description" check via presence and rough length instead of content. |
 | `existing_notes` (`application.notes`) | Unnecessary/sensitive, removable as raw text | Never included raw. This is **admin-authored** free text with no schema constraint at all — an admin could have written anything into it, including medical detail they were personally told. Not called out explicitly in the original scope list, but excluded here under the same "no unnecessary free text" principle, since sending it served no clearly necessary triage purpose. Replaced with `has_prior_admin_notes` (boolean): does prior context exist, without revealing what it says. |
 | `submitted_at` (`created_at`) | Necessary, low-risk | Kept as-is — a timestamp doesn't reveal identity and is useful for staleness/ordering context. |
 
 **Result: no name, email, phone, application code, street address,
-exact income, exact household size, or unconstrained free text is ever
-sent to OpenAI for HTAF triage.**
+income (exact or banded), household size (exact or banded), or
+unconstrained free text is ever sent to OpenAI for HTAF triage.**
 
 ## Step 3: the minimized payload
 
@@ -72,8 +109,6 @@ parameter that could add a field back.
   status,                          // pass-through, closed operational state
   program_type,                    // pass-through, closed 8-value enum
   applicant_type,                  // normalized to known values or "unspecified"
-  household_size_band,             // "1" | "2-3" | "4-5" | "6+" | "unspecified"
-  monthly_income_band,             // "under_1000" ... "4000_or_more" | "unspecified"
   home_in_service_area,            // boolean|null, derived from county/city text
   pickup_in_service_area,          // boolean|null, derived from pickup_city text
   destination_in_service_area,     // boolean|null, derived from destination text
@@ -83,6 +118,9 @@ parameter that could add a field back.
   submitted_at                     // pass-through, a timestamp
 }
 ```
+
+No household-size or income field, exact or banded, appears anywhere in
+this object — there is no key for it at all.
 
 The service-area booleans are the one place this design goes slightly
 beyond simple removal: rather than just dropping the original "is this
@@ -140,12 +178,19 @@ not just in this doc:
   manually clicks "Insert Into Notes" and then a status/notes save —
   both pre-existing, human-driven actions this PR doesn't touch.
 - **The AI cannot approve, deny, or rank applicants based on protected
-  or sensitive traits.** Structurally enforced by never giving it a
-  protected trait to reason about (see the field classification above)
-  and by removing `approve`/`deny` from the vocabulary it can even
-  express (see Step 4). The system prompt additionally instructs it not
-  to let `program_type` (or anything else) function as a proxy for a
-  protected characteristic.
+  or sensitive traits.** Enforced by removing `approve`/`deny` from the
+  vocabulary it can even express (see Step 4) and by the code comment's
+  precise claim: "The AI is not provided direct identifiers, exact
+  financial information, street-level location, medical narrative, or
+  other unnecessary sensitive details, and is prohibited from using
+  operational categories to infer protected or sensitive
+  characteristics." That wording is deliberate — `program_type` itself
+  can sometimes imply a sensitive circumstance (e.g. `medical`,
+  `disability`) and is kept anyway because triage needs some
+  operational category to function, so claiming the payload contains
+  "nothing sensitive" would overstate the guarantee. The system prompt
+  additionally instructs the model not to let `program_type` (or
+  anything else) function as a proxy for a protected characteristic.
 - **Human admin makes the final decision.** Unchanged from the original
   design — the AI's output is a suggestion for a human to read and
   choose to act on or ignore.
@@ -175,12 +220,14 @@ three times a week, has MarkerCondition"`) and asserts those markers
 **cannot appear anywhere** in `JSON.stringify(buildHtafTriageFacts(...))`
 — proving the guarantee holds even when the forbidden data is present
 on the input, not just when it happens to be absent. Also covered:
-income/household bands compute correctly and never leak the exact
-number; the service-area booleans derive correctly from marker text
-that itself never appears in the output; an unrecognized/free-text
-`applicant_type` collapses to `"unspecified"` instead of passing
-through; and a fully empty application degrades to explicit
-`"unspecified"`/`"missing"`/`null` values rather than throwing.
+household size and monthly income — exact, banded, or under any key
+name — are absent from the payload's own keys entirely, not just
+absent as JSON substrings; the service-area booleans derive correctly
+from marker text that itself never appears in the output; an
+unrecognized/free-text `applicant_type` collapses to `"unspecified"`
+instead of passing through; and a fully empty application degrades to
+explicit `"unspecified"`/`"missing"`/`null` values rather than
+throwing.
 
 Full suite: **389/389 passing** (`npx jest`), no regressions. `node -c
 server.js` clean.
