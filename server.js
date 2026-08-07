@@ -3139,7 +3139,12 @@ const {
 const {
   computeHtafPublicStats,
   resolveCreateRideOutcome,
-  resolveRiderHtafLookup
+  resolveRiderHtafLookup,
+  HTAF_ADMIN_LIST_FIELDS,
+  HTAF_ADMIN_DETAIL_FIELDS,
+  HTAF_ADMIN_PATCH_RESPONSE_FIELDS,
+  buildHtafExportCsv,
+  resolveHtafExportRequest
 } = require("./lib/htafOperations");
 
 // Rider session logic (sign/verify/revocation-check) lives in lib/riderAuth.js,
@@ -4529,7 +4534,7 @@ app.get(
 
         .from("htaf_applications")
 
-        .select("*")
+        .select(HTAF_ADMIN_LIST_FIELDS.join(","))
 
         .order(
 
@@ -4605,6 +4610,44 @@ app.get(
 
   })
 
+);
+
+/* =========================================================
+
+   HTAF ADMIN DETAIL
+
+   Full applicant detail for exactly one application, fetched only
+   when an admin actually opens it -- the counterpart to the list
+   route above no longer shipping every field for every row (docs/
+   security-remediation/htaf-admin-data-minimization.md). Still
+   requireAdmin-gated; still an explicit allow-list, not select("*") --
+   review_notes/assigned_admin/client_version/source stay excluded here
+   too, since nothing in this codebase reads them.
+
+========================================================= */
+
+app.get(
+  "/api/admin/foundation/applications/:id",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const id = cleanString(req.params.id, 100);
+
+    const { data, error } = await supabase
+      .from("htaf_applications")
+      .select(HTAF_ADMIN_DETAIL_FIELDS.join(","))
+      .eq("id", id)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data) {
+      return fail(res, "HTAF application not found.", 404);
+    }
+
+    return ok(res, { application: data });
+  })
 );
 
 /* =========================================================
@@ -4709,7 +4752,7 @@ app.patch(
 
         .eq("id", id)
 
-        .select()
+        .select(HTAF_ADMIN_PATCH_RESPONSE_FIELDS.join(","))
 
         .single();
 
@@ -4757,6 +4800,94 @@ app.patch(
 
   })
 
+);
+
+/* =========================================================
+
+   HTAF ADMIN EXPORT (CSV)
+
+   Bulk PII export is materially different from opening one
+   application: it hands a caseworker's entire visible caseload --
+   name, email, phone, income, household size, addresses -- as a
+   downloadable file. Per docs/security-remediation/
+   htaf-admin-data-minimization.md, this is now a server-authorized,
+   audited action instead of the browser dumping whatever rows happen
+   to already be loaded client-side:
+
+   - requireAdmin-gated, same as every other HTAF admin route.
+   - Requires a non-empty, human-readable `reason` in the request body
+     (resolveHtafExportRequest) -- an admin must state why before the
+     file is generated. This is deliberately not a fixed enum: the
+     point is a real justification an auditor can read later, not a
+     dropdown a UI can satisfy by always picking the first option.
+   - The file is built server-side (buildHtafExportCsv) from a
+     dedicated, full-width query -- the only place in this route family
+     that still reads the wide PII field set, and only because an
+     export is explicitly, deliberately a "give me everyone" action.
+   - Every export is audit-logged with actor, timestamp (implicit in
+     the audit row), row_count, the stated reason, and whatever
+     status/program_type filter was applied -- so a bulk PII export
+     leaves exactly the kind of record every other admin action on this
+     page already leaves.
+
+========================================================= */
+
+app.post(
+  "/api/admin/foundation/applications/export",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const resolved = resolveHtafExportRequest(req.body || {});
+
+    if (!resolved.ok) {
+      return fail(res, resolved.error, resolved.statusCode);
+    }
+
+    let query = supabase
+      .from("htaf_applications")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (resolved.status) {
+      query = query.eq("status", resolved.status);
+    }
+
+    if (resolved.programType) {
+      query = query.eq("program_type", resolved.programType);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      throw error;
+    }
+
+    const rows = data || [];
+    const csv = buildHtafExportCsv(rows);
+
+    auditLog({
+      actor_type: "admin",
+      actor_id: req.admin.email,
+      action: "htaf_applications_exported",
+      entity_type: "htaf_application_export",
+      entity_id: null,
+      metadata: {
+        row_count: rows.length,
+        reason: resolved.reason,
+        filters: {
+          status: resolved.status,
+          program_type: resolved.programType
+        }
+      },
+      req
+    }).catch(() => {});
+
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="htaf-applications-${nowIso().slice(0, 10)}.csv"`
+    );
+    return res.status(200).send(csv);
+  })
 );
 
 /* =========================================================
