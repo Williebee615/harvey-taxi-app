@@ -3136,6 +3136,11 @@ const {
   applyComplianceOverride
 } = require("./lib/driverCompliance");
 
+const {
+  computeHtafPublicStats,
+  resolveCreateRideOutcome
+} = require("./lib/htafOperations");
+
 // Rider session logic (sign/verify/revocation-check) lives in lib/riderAuth.js,
 // unlike the driver session functions below (signDriverSession/
 // verifyDriverSession), which are inline and untested -- see
@@ -4238,6 +4243,70 @@ app.get(
     return ok(res, {
 
       application: data
+
+    });
+
+  })
+
+);
+
+/* =========================================================
+
+   HTAF PUBLIC STATISTICS
+
+   Read-only, public, no PII. Powers the "Application Dashboard"
+   widget on foundation.html. Returns aggregate integers only,
+   computed from the canonical HTAF_STATUS enum:
+
+     applications_submitted = all non-deleted HTAF applications
+     pending_review         = submitted, under_review, pending_documents
+     approved_requests      = approved
+     scheduled_rides        = scheduled
+
+   On any database error this returns 503 "unavailable" rather than
+   a fabricated 0 — a real zero and a broken query must never look
+   the same to the caller. Do not collapse the three pending-review
+   statuses into "submitted"; the UI labels them as separate metrics.
+
+========================================================= */
+
+app.get(
+
+  "/api/foundation/public-stats",
+
+  asyncRoute(async (req, res) => {
+
+    const { data, error } =
+
+      await supabase
+
+        .from("htaf_applications")
+
+        .select("status");
+
+    if (error) {
+
+      return fail(
+
+        res,
+
+        "HTAF statistics are temporarily unavailable.",
+
+        503
+
+      );
+
+    }
+
+    const stats =
+
+      computeHtafPublicStats((data || []).map((row) => row.status));
+
+    return ok(res, {
+
+      ...stats,
+
+      generated_at: nowIso()
 
     });
 
@@ -16876,161 +16945,49 @@ app.post(
 
       });
 
-    const now =
-
-      nowIso();
-
-    const ride = {
-
-      id:
-
-        makeId("RIDE"),
-
-      rider_id:
-
-        null,
-
-      htaf_application_id:
-
-        application.id,
-
-      rider_name:
-
-        `${application.first_name} ${application.last_name}`,
-
-      rider_phone:
-
-        application.phone,
-
-      pickup_address:
-
-        cleanString(
-
-          req.body.pickup ||
-
-          application.pickup_city,
-
-          500
-
-        ),
-
-      dropoff_address:
-
-        cleanString(
-
-          req.body.destination ||
-
-          application.destination,
-
-          500
-
-        ),
-
-      ride_type:
-
-        "foundation",
-
-      scheduled_time:
-
-        req.body.scheduled_for ||
-
-        application.ride_date ||
-
-        null,
-
-      status:
-
-        RIDE_STATUS.PAYMENT_AUTHORIZED,
-
-      dispatch_status:
-
-        "foundation_authorized",
-
-      estimated_fare:
-
-        estimate.total,
-
-      driver_payout:
-
-        estimate.driver_payout,
-
-      estimated_platform_fee:
-
-        estimate.platform_fee,
-
-      pricing_snapshot:
-
-        estimate,
-
-      estimated_distance_miles:
-
-        estimate.miles,
-
-      estimated_duration_minutes:
-
-        estimate.minutes,
-
-      miles_estimate:
-
-        estimate.miles,
-
-      minutes_estimate:
-
-        estimate.minutes,
-
-      notes:
-
-        `HTAF application ${application.application_code}`,
-
-      created_at:
-
-        now,
-
-      updated_at:
-
-        now
-
-    };
-
-    const { data: createdRide, error: rideError } =
-
-      await supabase
-
-        .from("rides")
-
-        .insert(ride)
-
-        .select()
-
-        .single();
-
-    if (rideError) {
-
-      throw rideError;
+    // The application is loaded above only to build the ride's field
+    // values (rider name/phone, pickup/dropoff, fare estimate). Whether
+    // a ride should actually be created — vs. returning an existing one
+    // or failing closed on an inconsistent state — is decided inside
+    // create_htaf_ride_atomic itself, under a row lock, so a retried
+    // request or an admin double-click cannot create two rides for the
+    // same application (see supabase/migrations/20260806120000_htaf_ride_idempotency.sql).
+    const candidateRideId = makeId("RIDE");
+
+    const { data: rpcRows, error: rpcError } =
+
+      await supabase.rpc("create_htaf_ride_atomic", {
+
+        p_application_id: applicationId,
+        p_ride_id: candidateRideId,
+        p_rider_name: `${application.first_name} ${application.last_name}`,
+        p_rider_phone: application.phone,
+        p_pickup_address: cleanString(req.body.pickup || application.pickup_city, 500),
+        p_dropoff_address: cleanString(req.body.destination || application.destination, 500),
+        p_ride_type: "foundation",
+        p_scheduled_time: req.body.scheduled_for || application.ride_date || null,
+        p_status: RIDE_STATUS.PAYMENT_AUTHORIZED,
+        p_dispatch_status: "foundation_authorized",
+        p_estimated_fare: estimate.total,
+        p_driver_payout: estimate.driver_payout,
+        p_estimated_platform_fee: estimate.platform_fee,
+        p_pricing_snapshot: estimate,
+        p_estimated_distance_miles: estimate.miles,
+        p_estimated_duration_minutes: estimate.minutes,
+        p_miles_estimate: estimate.miles,
+        p_minutes_estimate: estimate.minutes,
+        p_notes: `HTAF application ${application.application_code}`
+
+      });
+
+    if (rpcError) {
+
+      throw rpcError;
 
     }
 
-    await supabase
-
-      .from("htaf_applications")
-
-      .update({
-
-        status:
-
-          HTAF_STATUS.SCHEDULED,
-
-        ride_id:
-
-          createdRide.id,
-
-        updated_at:
-
-          nowIso()
-
-      })
-
-      .eq("id", applicationId);
+    const rpcResult = Array.isArray(rpcRows) ? rpcRows[0] : rpcRows;
+    const outcome = resolveCreateRideOutcome(rpcResult);
 
     auditLog({
 
@@ -17044,7 +17001,7 @@ app.post(
 
       action:
 
-        "htaf_application_converted_to_ride",
+        outcome.created ? "htaf_application_converted_to_ride" : "htaf_application_create_ride_" + (rpcResult && rpcResult.outcome ? rpcResult.outcome : "failed"),
 
       entity_type:
 
@@ -17058,7 +17015,15 @@ app.post(
 
         ride_id:
 
-          createdRide.id
+          outcome.ride ? outcome.ride.id : null,
+
+        outcome:
+
+          rpcResult && rpcResult.outcome,
+
+        reason:
+
+          outcome.reason || null
 
       },
 
@@ -17066,35 +17031,59 @@ app.post(
 
     }).catch(() => {});
 
-    broadcastSse(
+    if (outcome.error) {
 
-      "htaf_ride_created",
+      return fail(
 
-      {
+        res,
 
-        application_id:
+        outcome.error,
 
-          applicationId,
+        outcome.statusCode,
 
-        ride:
+        outcome.reason ? { reason: outcome.reason } : {}
 
-          createdRide
+      );
 
-      }
+    }
 
-    );
+    if (outcome.created) {
+
+      broadcastSse(
+
+        "htaf_ride_created",
+
+        {
+
+          application_id:
+
+            applicationId,
+
+          ride:
+
+            outcome.ride
+
+        }
+
+      );
+
+    }
 
     return ok(res, {
 
       ride:
 
-        createdRide,
+        outcome.ride,
 
       application_id:
 
-        applicationId
+        applicationId,
 
-    });
+      created:
+
+        outcome.created
+
+    }, outcome.statusCode);
 
   })
 
