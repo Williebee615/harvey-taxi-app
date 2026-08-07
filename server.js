@@ -2613,6 +2613,87 @@ async function auditLog({
 
 }
 
+// Admin RBAC Phase 2: shadow-mode authorization logging (docs/
+// security-remediation/admin-rbac-phase2-shadow-mode.md). Computes
+// what the proposed RBAC model *would* decide for this request and
+// records it -- it never denies, blocks, redirects, or otherwise
+// changes the response. Every call site uses
+// `logAdminRbacShadowCheck(req, route, capability).catch(() => {})`,
+// the same fire-and-forget pattern already used for auditLog() calls
+// throughout this file, so a slow or failing shadow check can never
+// affect a real admin request.
+//
+// Deliberately does NOT use resolveAdminRole() (lib/adminRbac.js) --
+// that function maps every one of today's three legacy auth methods
+// straight to super_admin, which is correct for Phase 1's no-lockout
+// guarantee but would make every shadow check here trivially
+// "would_allow: true" and produce no evidence about whether the
+// proposed role/capability model actually matches real usage. Instead
+// this looks up admin_roles by the authenticated email -- the email
+// requireAdmin() itself already resolved server-side (the env-var
+// admin identity, or the signed admin-session cookie's email), never
+// anything read from a request body/header/query parameter.
+async function logAdminRbacShadowCheck(req, route, capability) {
+
+  const admin = req.admin;
+
+  const email =
+    admin && typeof admin.email === "string" ? admin.email.trim().toLowerCase() : "";
+
+  const isLegacyAdmin =
+    !!email && email === String(ADMIN_EMAIL || "").trim().toLowerCase();
+
+  let dbLookupFailed = false;
+  let roleRow = null;
+
+  try {
+
+    // Fetches every admin_roles row rather than filtering server-side
+    // with .eq("email", email): the unique index from Phase 1's
+    // migration is on lower(email), not on email itself, so a stored
+    // value like "CaseWorker@HarveyTaxiService.com" would not match an
+    // exact-case-equality filter against the already-normalized lookup
+    // email. findAdminRoleRow() (lib/adminRbacShadow.js) does the
+    // actual case-insensitive match in JS. The table stays small (one
+    // row per admin identity), so fetching all of it per shadow check
+    // is not a scaling concern.
+    const { data, error } = await supabase
+      .from("admin_roles")
+      .select("email, role");
+
+    if (error) {
+      dbLookupFailed = true;
+    } else {
+      roleRow = findAdminRoleRow(data, email);
+    }
+
+  } catch {
+    dbLookupFailed = true;
+  }
+
+  const { role, source } = resolveShadowRole({ dbLookupFailed, roleRow, isLegacyAdmin });
+  const wouldAllow = computeShadowWouldAllow(role, capability);
+
+  const entry = buildShadowLogEntry({
+    admin,
+    route,
+    httpMethod: req.method,
+    capability,
+    role,
+    source,
+    wouldAllow
+  });
+
+  const { error: insertError } = await supabase.from("admin_rbac_shadow_log").insert(entry);
+
+  if (insertError) {
+    return { logged: false, error: insertError };
+  }
+
+  return { logged: true, wouldAllow, source };
+
+}
+
 /* =========================================================
 
    COMMUNICATION HELPERS
@@ -3159,6 +3240,14 @@ const {
   ADMIN_RIDER_MUTATION_FIELDS,
   ADMIN_AUDIT_LOGS_LIST_FIELDS
 } = require("./lib/adminDirectory");
+
+const {
+  ROUTE_CAPABILITIES: RBAC_SHADOW_ROUTE_CAPABILITIES,
+  resolveShadowRole,
+  findAdminRoleRow,
+  computeWouldAllow: computeShadowWouldAllow,
+  buildShadowLogEntry
+} = require("./lib/adminRbacShadow");
 
 // Rider session logic (sign/verify/revocation-check) lives in lib/riderAuth.js,
 // unlike the driver session functions below (signDriverSession/
@@ -4515,6 +4604,12 @@ app.get(
 
   asyncRoute(async (req, res) => {
 
+    logAdminRbacShadowCheck(
+      req,
+      "GET /api/admin/foundation/applications",
+      RBAC_SHADOW_ROUTE_CAPABILITIES["GET /api/admin/foundation/applications"]
+    ).catch(() => {});
+
     const status =
 
       cleanString(
@@ -4676,6 +4771,12 @@ app.patch(
   requireAdmin,
 
   asyncRoute(async (req, res) => {
+
+    logAdminRbacShadowCheck(
+      req,
+      "PATCH /api/admin/foundation/applications/:id",
+      RBAC_SHADOW_ROUTE_CAPABILITIES["PATCH /api/admin/foundation/applications/:id"]
+    ).catch(() => {});
 
     const id =
 
@@ -15846,6 +15947,12 @@ app.post(
 
   asyncRoute(async (req, res) => {
 
+    logAdminRbacShadowCheck(
+      req,
+      "POST /api/admin/rides/:id/assign-driver",
+      RBAC_SHADOW_ROUTE_CAPABILITIES["POST /api/admin/rides/:id/assign-driver"]
+    ).catch(() => {});
+
     const rideId =
 
       cleanString(
@@ -16297,6 +16404,12 @@ app.patch(
 
   asyncRoute(async (req, res) => {
 
+    logAdminRbacShadowCheck(
+      req,
+      "PATCH /api/admin/drivers/:id/approve",
+      RBAC_SHADOW_ROUTE_CAPABILITIES["PATCH /api/admin/drivers/:id/approve"]
+    ).catch(() => {});
+
     const driverId =
 
       cleanString(
@@ -16597,6 +16710,16 @@ app.patch(
   requireElevatedAdmin,
 
   asyncRoute(async (req, res) => {
+
+    // requireElevatedAdmin() (already stricter than plain
+    // requireAdmin -- token-method only) is this route's real,
+    // unchanged authority. The shadow check below is purely
+    // observational, same as every other instrumented route.
+    logAdminRbacShadowCheck(
+      req,
+      "PATCH /api/admin/drivers/:id/compliance-override",
+      RBAC_SHADOW_ROUTE_CAPABILITIES["PATCH /api/admin/drivers/:id/compliance-override"]
+    ).catch(() => {});
 
     const driverId =
 
@@ -17049,6 +17172,12 @@ app.get(
   requireAdmin,
 
   asyncRoute(async (req, res) => {
+
+    logAdminRbacShadowCheck(
+      req,
+      "GET /api/admin/audit-logs",
+      RBAC_SHADOW_ROUTE_CAPABILITIES["GET /api/admin/audit-logs"]
+    ).catch(() => {});
 
     const limit =
 
@@ -17611,6 +17740,12 @@ app.post(
   "/api/admin/system/enable-rider-auth-ui",
   requireAdmin,
   asyncRoute(async (req, res) => {
+    logAdminRbacShadowCheck(
+      req,
+      "POST /api/admin/system/enable-rider-auth-ui",
+      RBAC_SHADOW_ROUTE_CAPABILITIES["POST /api/admin/system/enable-rider-auth-ui"]
+    ).catch(() => {});
+
     await supabase
       .from("system_flags")
       .upsert({
