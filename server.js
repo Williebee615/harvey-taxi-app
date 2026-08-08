@@ -3264,6 +3264,7 @@ const {
   buildRiderSessionBootstrap,
   buildRiderVerificationFieldUpdate,
   buildAuthUiConfigResponse,
+  resolveEnforcedRiderId,
   phoneLast10: riderPhoneLast10,
   phoneToE164US: riderPhoneToE164,
   selectExactlyOneActiveRider,
@@ -3344,6 +3345,35 @@ async function requireRider(req, res, next) {
     console.error("❌ requireRider unexpected error:", err);
     return fail(res, "Something went wrong verifying your session.", 500);
   }
+}
+
+// P0 remediation PR 2b (docs/security-remediation/pr-02b-rider-route-enforcement.md).
+// Defaulted off, same pattern as rider_history_enabled/rider_auth_ui_enabled:
+// getSystemFlag's own fallback means a missing row or a query error both
+// resolve to "not enforced" -- never accidentally fail open into being
+// enforced, and never accidentally fail closed into blocking every rider
+// if the flag check itself breaks.
+async function riderAuthEnforced() {
+  return (await getSystemFlag("rider_auth_enforced", "false")) === "true";
+}
+
+// The actual rollout mechanism for every route migrated in PR 2b: while
+// rider_auth_enforced is off (the default), this is a pure passthrough --
+// req.rider is never set, and the wrapped route behaves exactly as it did
+// before PR 2b, client-supplied riderId included. Once the flag is
+// flipped on, this delegates to requireRider for real, and every migrated
+// route below is written to then use req.rider.id exclusively and ignore
+// whatever riderId/rider_id the client also sent -- see
+// resolveEnforcedRiderId in lib/riderAuth.js for that exact decision,
+// unit-tested there. This split (a flag-checking wrapper here, a pure
+// identity-resolution function in lib/) mirrors requireRider's own split
+// from resolveRiderAuthOutcome, for the same reason.
+async function requireRiderIfEnforced(req, res, next) {
+  if (await riderAuthEnforced()) {
+    return requireRider(req, res, next);
+  }
+
+  return next();
 }
 
 /* =========================================================
@@ -9083,11 +9113,28 @@ async function getRiderReadiness(riderId) {
 /* Exposes getRiderReadiness() over HTTP. request-ride.html and the
    mobile app both call GET /api/riders/:id/readiness before allowing
    a ride request — this route previously did not exist, so every
-   readiness check 404'd and blocked riders from booking. */
+   readiness check 404'd and blocked riders from booking.
+
+   P0 remediation PR 2b: while rider_auth_enforced is off (the
+   default), :id is trusted exactly as before -- this is the known,
+   still-open P0-1 finding, not fixed by this flag being off. Once
+   enabled, an authenticated rider's own session identity always wins
+   over :id (see resolveEnforcedRiderId in lib/riderAuth.js); :id is
+   then ignored, not compared against and rejected -- this route
+   becomes "get MY OWN readiness," full stop. rider-signup.html calls
+   this immediately post-signup with no session yet (see
+   docs/security-remediation/pr-02a-rider-client-auth.md's "known
+   gaps") -- that call will start failing once this flag is on, which
+   is a signup-flow decision to make before enabling it, not a bug in
+   this route. */
 app.get(
   "/api/riders/:id/readiness",
+  requireRiderIfEnforced,
   asyncRoute(async (req, res) => {
-    const riderId = cleanString(req.params.id, 100);
+    const riderId = resolveEnforcedRiderId({
+      authenticatedRiderId: req.rider?.id,
+      clientSuppliedRiderId: cleanString(req.params.id, 100)
+    });
     const readiness = await getRiderReadiness(riderId);
 
     if (!readiness.rider) {
@@ -11889,16 +11936,21 @@ async function riderHistoryEnabled() {
 // missing or the feature is disabled, so callers must check for that
 // before using the result — never { rows, next_cursor } and a sent
 // response at the same time.
+//
+// P0 remediation PR 2b: req.rider is only ever set when
+// requireRiderIfEnforced actually ran requireRider (rider_auth_enforced
+// on) -- while it's off, this falls through to the pre-PR-2b,
+// client-supplied riderId exactly as before, the still-open P0-1 finding.
 async function listRiderRequests(req, res, { deliveryOnly }) {
   if (!(await riderHistoryEnabled())) {
     fail(res, "Rider history is not yet available.", 403);
     return null;
   }
 
-  const riderId = cleanString(
-    req.query.riderId || req.query.rider_id,
-    100
-  );
+  const riderId = resolveEnforcedRiderId({
+    authenticatedRiderId: req.rider?.id,
+    clientSuppliedRiderId: cleanString(req.query.riderId || req.query.rider_id, 100)
+  });
 
   if (!riderId) {
     fail(res, "riderId is required.", 400);
@@ -11957,6 +12009,7 @@ async function listRiderRequests(req, res, { deliveryOnly }) {
 
 app.get(
   "/api/rider/rides",
+  requireRiderIfEnforced,
   asyncRoute(async (req, res) => {
     const result = await listRiderRequests(req, res, { deliveryOnly: false });
 
@@ -11968,6 +12021,7 @@ app.get(
 
 app.get(
   "/api/rider/deliveries",
+  requireRiderIfEnforced,
   asyncRoute(async (req, res) => {
     const result = await listRiderRequests(req, res, { deliveryOnly: true });
 
@@ -11979,6 +12033,7 @@ app.get(
 
 app.get(
   "/api/rider/rides/:rideId",
+  requireRiderIfEnforced,
   asyncRoute(async (req, res) => {
     if (!(await riderHistoryEnabled())) {
       return fail(res, "Rider history is not yet available.", 403);
@@ -11986,10 +12041,10 @@ app.get(
 
     const rideId = cleanString(req.params.rideId, 100);
 
-    const riderId = cleanString(
-      req.query.riderId || req.query.rider_id,
-      100
-    );
+    const riderId = resolveEnforcedRiderId({
+      authenticatedRiderId: req.rider?.id,
+      clientSuppliedRiderId: cleanString(req.query.riderId || req.query.rider_id, 100)
+    });
 
     if (!riderId) {
       return fail(res, "riderId is required.", 400);
@@ -12006,10 +12061,11 @@ app.get(
     }
 
     // Same 404 whether the ride doesn't exist or its rider_id doesn't
-    // match the supplied riderId — never confirm a ride ID exists to a
-    // caller supplying a different riderId. (See the module header above:
-    // this checks consistency against a client-supplied riderId, not an
-    // authenticated identity — there's no rider session to check against.)
+    // match riderId — never confirm a ride ID exists to a caller who
+    // doesn't own it. Once rider_auth_enforced is on, riderId here is the
+    // authenticated session's own id (see resolveEnforcedRiderId above),
+    // so this becomes a real ownership check, not just self-consistency
+    // against whatever the client claimed.
     if (!ride || ride.rider_id !== riderId) {
       return fail(res, "Ride not found.", 404);
     }
@@ -12201,19 +12257,23 @@ app.get(
    RIDER-SCOPED SAVED PLACES
 
    Quick-launch destinations (Home, Work, custom) for the rider
-   dashboard. Same trust model as the rider-history routes above:
-   riderId is client-supplied, not session-verified (there is no
-   rider auth session anywhere in this app yet), so these routes
-   only ever read/write rows scoped to whatever riderId the caller
-   passes, same as every other rider-scoped route.
+   dashboard. P0 remediation PR 2b: while rider_auth_enforced is off
+   (the default), riderId is client-supplied exactly as before -- the
+   still-open P0-1 finding. Once enabled, riderId comes exclusively
+   from the authenticated session (see resolveEnforcedRiderId in
+   lib/riderAuth.js) and the client-supplied value is ignored outright.
 
 ========================================================= */
 
 app.get(
   "/api/rider/saved-places",
+  requireRiderIfEnforced,
   rateLimit({ windowMs: 60_000, max: 60, keyPrefix: "saved_places_list" }),
   asyncRoute(async (req, res) => {
-    const riderId = cleanString(req.query.riderId || req.query.rider_id, 100);
+    const riderId = resolveEnforcedRiderId({
+      authenticatedRiderId: req.rider?.id,
+      clientSuppliedRiderId: cleanString(req.query.riderId || req.query.rider_id, 100)
+    });
 
     if (!riderId) {
       return fail(res, "riderId is required.", 400);
@@ -12235,9 +12295,13 @@ app.get(
 
 app.post(
   "/api/rider/saved-places",
+  requireRiderIfEnforced,
   rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "saved_places_create" }),
   asyncRoute(async (req, res) => {
-    const riderId = cleanString(req.body.riderId || req.body.rider_id, 100);
+    const riderId = resolveEnforcedRiderId({
+      authenticatedRiderId: req.rider?.id,
+      clientSuppliedRiderId: cleanString(req.body.riderId || req.body.rider_id, 100)
+    });
     const label = cleanString(req.body.label, 60);
     const address = cleanString(req.body.address, 300);
     const icon = cleanString(req.body.icon, 8) || "📍";
@@ -12272,18 +12336,23 @@ app.post(
 
 app.delete(
   "/api/rider/saved-places/:id",
+  requireRiderIfEnforced,
   rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "saved_places_delete" }),
   asyncRoute(async (req, res) => {
     const id = cleanString(req.params.id, 100);
-    const riderId = cleanString(req.query.riderId || req.query.rider_id, 100);
+    const riderId = resolveEnforcedRiderId({
+      authenticatedRiderId: req.rider?.id,
+      clientSuppliedRiderId: cleanString(req.query.riderId || req.query.rider_id, 100)
+    });
 
     if (!id || !riderId) {
       return fail(res, "riderId is required.", 400);
     }
 
     // Same 404-either-way ownership check as /api/rider/rides/:rideId —
-    // never confirm a place ID exists to a caller supplying a different
-    // riderId.
+    // never confirm a place ID exists to a caller who doesn't own it.
+    // Once rider_auth_enforced is on, riderId here is the authenticated
+    // session's own id, so this becomes a real ownership check.
     const { data: existing } = await supabase
       .from("saved_places")
       .select("id, rider_id")
@@ -14514,17 +14583,24 @@ app.post(
    Same shape as the driver photo route above, uploaded to the
    rider-photos bucket instead, so a driver can identify their
    rider on arrival the same way a rider can already identify
-   their driver. Rider routes in this app aren't behind a session
-   auth middleware (see /api/rider/saved-places, /api/rider/rides)
-   — riderId is a client-supplied identifier, not a bug specific
-   to this route.
+   their driver. P0 remediation PR 2b: while rider_auth_enforced is
+   off (the default), riderId is client-supplied exactly as before --
+   the still-open P0-1 finding. Once enabled, riderId comes
+   exclusively from the authenticated session (see
+   resolveEnforcedRiderId in lib/riderAuth.js) and the client-supplied
+   value is ignored outright -- a rider can then only ever overwrite
+   their own photo, never another rider's.
 
 ========================================================= */
 
 app.post(
   "/api/rider/photo",
+  requireRiderIfEnforced,
   asyncRoute(async (req, res) => {
-    const riderId = cleanString(req.body.riderId || req.body.rider_id, 100);
+    const riderId = resolveEnforcedRiderId({
+      authenticatedRiderId: req.rider?.id,
+      clientSuppliedRiderId: cleanString(req.body.riderId || req.body.rider_id, 100)
+    });
 
     if (!riderId) {
       return fail(res, "riderId is required.", 400);
@@ -17787,6 +17863,72 @@ app.post(
     }).catch(() => {});
 
     return ok(res, { rider_auth_ui_enabled: false });
+  })
+);
+
+/* =========================================================
+
+   RIDER ROUTE AUTHORIZATION ENFORCEMENT — ENABLE / DISABLE
+
+   P0 remediation PR 2b (docs/security-remediation/pr-02b-rider-route-enforcement.md).
+   Controls whether requireRiderIfEnforced actually calls requireRider (on)
+   or is a no-op passthrough (off, the default) for every route migrated
+   in PR 2b -- readiness, rider-scoped ride/delivery history, saved
+   places, and profile photo upload. Distinct from rider_auth_ui_enabled
+   (PR 2a, client-side sign-in gate) and from rider_history_enabled
+   (whether the history routes exist at all): this flag is specifically
+   "once a request does carry req.rider, do these routes actually use it
+   instead of the client-supplied riderId." Per your explicit instruction,
+   do not enable this until the authenticated client flow (PR 2a) is
+   confirmed live and validated.
+
+========================================================= */
+
+app.post(
+  "/api/admin/system/enable-rider-auth-enforced",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    await supabase
+      .from("system_flags")
+      .upsert({
+        key: "rider_auth_enforced",
+        value: "true",
+        reason: cleanString(req.body.reason, 1000),
+        updated_at: nowIso()
+      });
+
+    auditLog({
+      actor_type: "admin",
+      actor_id: req.admin.email,
+      action: "rider_auth_enforced_enabled",
+      req
+    }).catch(() => {});
+
+    return ok(res, { rider_auth_enforced: true });
+  })
+);
+
+app.post(
+  "/api/admin/system/disable-rider-auth-enforced",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    await supabase
+      .from("system_flags")
+      .upsert({
+        key: "rider_auth_enforced",
+        value: "false",
+        reason: null,
+        updated_at: nowIso()
+      });
+
+    auditLog({
+      actor_type: "admin",
+      actor_id: req.admin.email,
+      action: "rider_auth_enforced_disabled",
+      req
+    }).catch(() => {});
+
+    return ok(res, { rider_auth_enforced: false });
   })
 );
 

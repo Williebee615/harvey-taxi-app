@@ -9511,10 +9511,20 @@
     }
 
     async function requestJson(path, options = {}) {
+      // P0 remediation PR 2b: requireRider (via requireRiderIfEnforced)
+      // rejects every non-GET request without this header once
+      // rider_auth_enforced is on -- see hasRiderClientHeader in
+      // server.js. Harmless to send on GET too (the server only checks
+      // it for non-GET), so it's added unconditionally here rather than
+      // per-call, so every existing requestJson call site (saved places,
+      // photo upload, etc.) is already ready for that flag before it's
+      // ever flipped on, instead of silently 403ing for real riders the
+      // day it is.
       const response = await fetch(`${apiBase()}${path}`, {
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
+          [RIDER_CLIENT_HEADER_NAME]: RIDER_CLIENT_HEADER_VALUE,
           ...(options.headers || {})
         },
         ...options
