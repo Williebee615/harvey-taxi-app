@@ -10461,15 +10461,26 @@ async function getOrCreateStripeCustomer(rider) {
   return customer.id;
 }
 
+/* P0 remediation PR 3 (docs/security-remediation/pr-03-rider-payment-ownership.md):
+   while rider_auth_enforced is off (the default), rider_id is
+   client-supplied exactly as before -- the still-open P0-2 finding.
+   Once enabled, rider_id comes exclusively from the authenticated
+   session (see resolveEnforcedRiderId in lib/riderAuth.js) and the
+   client-supplied value is ignored outright, same as every other
+   route migrated in PR 2b. */
 app.post(
   "/api/rider/payment-methods/setup-intent",
+  requireRiderIfEnforced,
   rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "payment_setup_intent" }),
   asyncRoute(async (req, res) => {
     if (!stripe) {
       return fail(res, "Payments are not configured.", 503);
     }
 
-    const riderId = cleanString(req.body.rider_id || req.body.riderId, 100);
+    const riderId = resolveEnforcedRiderId({
+      authenticatedRiderId: req.rider?.id,
+      clientSuppliedRiderId: cleanString(req.body.rider_id || req.body.riderId, 100)
+    });
 
     if (!riderId) {
       return fail(res, "rider_id is required.", 400);
@@ -10500,11 +10511,18 @@ app.post(
   })
 );
 
+/* P0 remediation PR 3: same treatment as setup-intent above -- riderId
+   is client-supplied while rider_auth_enforced is off, session-derived
+   once it's on. */
 app.get(
   "/api/rider/payment-methods",
+  requireRiderIfEnforced,
   rateLimit({ windowMs: 60_000, max: 60, keyPrefix: "payment_methods_list" }),
   asyncRoute(async (req, res) => {
-    const riderId = cleanString(req.query.riderId || req.query.rider_id, 100);
+    const riderId = resolveEnforcedRiderId({
+      authenticatedRiderId: req.rider?.id,
+      clientSuppliedRiderId: cleanString(req.query.riderId || req.query.rider_id, 100)
+    });
 
     if (!riderId) {
       return fail(res, "riderId is required.", 400);
@@ -10537,8 +10555,17 @@ app.get(
   })
 );
 
+/* P0 remediation PR 3: same treatment as setup-intent above -- riderId
+   is client-supplied while rider_auth_enforced is off, session-derived
+   once it's on. This route also has the pre-existing
+   ownsPaymentMethod() ownership check below, unchanged -- that check
+   verifies the *payment method* belongs to the resolved rider's Stripe
+   customer, but never verified *who the caller is* on its own, which
+   is exactly the gap requireRiderIfEnforced/resolveEnforcedRiderId
+   closes once enabled. */
 app.delete(
   "/api/rider/payment-methods/:paymentMethodId",
+  requireRiderIfEnforced,
   rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "payment_methods_delete" }),
   asyncRoute(async (req, res) => {
     if (!stripe) {
@@ -10546,7 +10573,10 @@ app.delete(
     }
 
     const paymentMethodId = cleanString(req.params.paymentMethodId, 100);
-    const riderId = cleanString(req.query.riderId || req.query.rider_id, 100);
+    const riderId = resolveEnforcedRiderId({
+      authenticatedRiderId: req.rider?.id,
+      clientSuppliedRiderId: cleanString(req.query.riderId || req.query.rider_id, 100)
+    });
 
     if (!paymentMethodId || !riderId) {
       return fail(res, "riderId is required.", 400);
@@ -10593,9 +10623,21 @@ app.delete(
 
 ========================================================= */
 
+/* P0 remediation PR 3: while rider_auth_enforced is off (the default),
+   rider_id is client-supplied exactly as before -- the still-open
+   P0-2 finding. Once enabled, rider_id comes exclusively from the
+   authenticated session (see resolveEnforcedRiderId in
+   lib/riderAuth.js); the client-supplied value is ignored outright.
+   This route resolves riderId once, immediately below, and reuses
+   that single value everywhere else in the handler (attachment-fields
+   lookup, Stripe metadata, audit log) instead of re-reading
+   req.body.rider_id repeatedly -- so there is exactly one place this
+   route ever decides "whose payment is this." */
 app.post(
 
   "/api/rides/payment-intent",
+
+  requireRiderIfEnforced,
 
   asyncRoute(async (req, res) => {
 
@@ -10645,7 +10687,10 @@ app.post(
         100
       );
 
-    const riderId = cleanString(req.body.rider_id, 100);
+    const riderId = resolveEnforcedRiderId({
+      authenticatedRiderId: req.rider?.id,
+      clientSuppliedRiderId: cleanString(req.body.rider_id, 100)
+    });
     const paymentMethodId = cleanString(req.body.payment_method_id, 100);
     const saveCard = Boolean(req.body.save_card);
 
@@ -10738,13 +10783,7 @@ app.post(
 
             rider_id:
 
-              cleanString(
-
-                req.body.rider_id,
-
-                100
-
-              )
+              riderId
 
           }
 
@@ -10790,13 +10829,7 @@ app.post(
 
       actor_id:
 
-        cleanString(
-
-          req.body.rider_id,
-
-          100
-
-        ),
+        riderId,
 
       metadata: {
 
