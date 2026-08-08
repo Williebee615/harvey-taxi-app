@@ -1,9 +1,9 @@
 # Rider Matching Preferences — Architecture Proposal
-### (1) "Prefer a Woman Driver" and (2) Favorite Drivers / Preferred-Driver Matching
+### (1) "Prefer a Woman Driver", (2) Favorite Drivers / Preferred-Driver Matching, and (3) Direct Driver Requests
 
-**Status: PROPOSAL — NOT APPROVED, NOT IMPLEMENTED.** No code, schema, migration, feature flag, or production data has been touched for either feature described here. This document is the design deliverable requested before any implementation begins, and implementation must not start until this document (or a revised version of it) is explicitly approved.
+**Status: PROPOSAL — NOT APPROVED, NOT IMPLEMENTED.** No code, schema, migration, feature flag, or production data has been touched for any feature described here. This document is the design deliverable requested before any implementation begins, and implementation must not start until this document (or a revised version of it) is explicitly approved.
 
-**Relationship between the two features (per explicit instruction):** these are two separate rider preference systems with separate data, separate opt-in mechanics, and separate privacy postures. They are documented together, and share one dispatch scoring engine, because both ultimately answer the same question — "given a set of already-eligible drivers, which one should we offer the ride to first?" — and a single rider can have both active at once, which requires one combined precedence rule (§9). Neither feature is a prerequisite for the other; either could be built and shipped alone.
+**Relationship between the three features:** these are three separate rider-facing systems with separate data, separate opt-in mechanics, and separate privacy postures, documented together because they all ultimately touch the same question — "given a rider's relationship to Harvey Taxi's drivers, how should that affect who they get matched with?" Parts A and B (per the original request) are **scoring-only** — they influence ranking within an already-eligible candidate pool, feeding one shared dispatch scoring engine (Part C). Part D (added per explicit follow-up request, after Parts A–C were already drafted) is conceptually different in kind, not just in name: it is an **explicit, single-driver offer initiated by the rider**, not a ranking signal — a favorite-driver boost can make a driver *more likely* to be dispatched next; a direct request *asks that specific driver, and only that driver, and requires their explicit acceptance*. Parts A–C are preserved below exactly as originally written; Part D is new and self-contained, with integration points back into A–C called out explicitly rather than folded into their text.
 
 ---
 
@@ -175,7 +175,7 @@ Per the user's explicit follow-up instruction: this is a **separate preference l
 
 ## B.1 Relationship to the dormant `preferred_drivers` table
 
-The existing `preferred_drivers` table (RLS-hardened, empty, zero app code references — `supabase/migrations/20260804210100_...sql`) is the closest existing precedent for this feature's *shape*, but its exact column layout was not confirmed this session (Supabase MCP tool access was gated throughout — see §D). Two options exist:
+The existing `preferred_drivers` table (RLS-hardened, empty, zero app code references — `supabase/migrations/20260804210100_...sql`) is the closest existing precedent for this feature's *shape*, but its exact column layout was not confirmed this session (Supabase MCP tool access was gated throughout — see §F). Two options exist:
 
 - **(a) Repurpose it**, after confirming its actual columns match or can be migrated to match this proposal's `rider_favorite_drivers` shape (§B.3).
 - **(b) Leave it untouched and create a new `rider_favorite_drivers` table**, per the user's proposed name, treating the old table as genuinely dead schema to be cleaned up separately (or left alone) rather than repurposed.
@@ -245,10 +245,10 @@ Same shape as Part A's §A.5, and — per §C — the two compose in one combine
 
 When more than one of a rider's favorites appears in the eligible candidate array, rank among them (before applying the boost relative to non-favorites) using, in order of recommended weight:
 
-1. **Availability/eligibility** — already guaranteed by construction (only eligible candidates reach this function at all), but "not already handling another ride" specifically should be double-checked here if `findAvailableDrivers()`'s `online=true` doesn't already fully capture "currently mid-trip" — flagged as an open item to confirm against the exact meaning of the `online`/`status` columns (§D).
+1. **Availability/eligibility** — already guaranteed by construction (only eligible candidates reach this function at all), but "not already handling another ride" specifically should be double-checked here if `findAvailableDrivers()`'s `online=true` doesn't already fully capture "currently mid-trip" — flagged as an open item to confirm against the exact meaning of the `online`/`status` columns (§F).
 2. **Current distance/ETA** — reuse the same distance computation `findAvailableDrivers()` already produces; do not compute a second, inconsistent distance metric.
-3. **Recent acceptance/reliability** — if this codebase already tracks a driver reliability/acceptance-rate signal anywhere (not confirmed this session — flagged in §D), reuse it; otherwise this factor is deferred to a later iteration rather than inventing a new reliability metric as part of this proposal.
-4. **Existing dispatch score**, if `findAvailableDrivers()`/`nearest_drivers()` already computes one beyond raw distance (not confirmed this session, since `nearest_drivers()` is a live-only, uncommitted RPC — §D).
+3. **Recent acceptance/reliability** — if this codebase already tracks a driver reliability/acceptance-rate signal anywhere (not confirmed this session — flagged in §F), reuse it; otherwise this factor is deferred to a later iteration rather than inventing a new reliability metric as part of this proposal.
+4. **Existing dispatch score**, if `findAvailableDrivers()`/`nearest_drivers()` already computes one beyond raw distance (not confirmed this session, since `nearest_drivers()` is a live-only, uncommitted RPC — §F).
 5. **Rider-specific favorite relationship recency/strength** — lowest-weighted tiebreaker only (e.g., most-recently-favorited first), since the requirements don't call for a "favorite of favorites" ranking beyond a deterministic tiebreak.
 
 All weights configurable server-side (§C.3) — never hardcoded in frontend JavaScript, and never exposed to the client at all, since the client has no legitimate need to see or influence scoring weights.
@@ -322,11 +322,284 @@ Per the user's own example: **a favorite woman driver who is eligible and availa
 
 **All weights configurable and server-side** (e.g., stored in `system_flags` as numeric values, or a small dedicated config row, read by the combining function at dispatch time) — never hardcoded into frontend JavaScript, and never sent to or readable by any client, since the client has no legitimate reason to see scoring internals and exposing them would let a sufficiently motivated rider or driver reverse-engineer ways to game matching.
 
+**Interaction with Part D:** a Direct Driver Request (§D) is not a third input to this scoring function — it bypasses scoring entirely by construction, since it targets exactly one driver rather than ranking a pool. See §D.9 for the precedence rule when a rider has both a direct request and an active Part A preference outstanding at once.
+
 ---
 
-# PART D — Open items needing confirmation before implementation
+# PART D — Direct Driver Requests
 
-Carried over from the investigation phase, plus new ones surfaced while incorporating Part B:
+Added per explicit follow-up request, after Parts A–C were drafted. Parts A–C are unchanged above; this section is self-contained and calls out its few integration points back into them explicitly (§D.8, §D.9) rather than editing their text.
+
+## D.1 Scope and how this differs from Parts A–C
+
+Every feature above this point is a **scoring layer**: it never talks to one driver, it re-ranks a pool and lets the existing sequential offer/timeout/redispatch model in `dispatchRide()` carry on. A Direct Driver Request is different in kind: the rider is explicitly asking **one specific driver**, by name, to take **one specific ride**, and nothing is dispatched to anyone else unless that driver says no (or doesn't answer in time). **A direct request is not an assignment.** Creating one never puts a driver on a ride; only that driver's own explicit accept action does, and until they accept, the ride is not considered matched.
+
+This section treats a direct request as **a rider-initiated, single-target offer that — once accepted — becomes exactly the same kind of ride the existing dispatch system already produces**, per the explicit instruction to integrate with, not parallel, the existing ride lifecycle. It is not a second ride-matching product; it is a second *entry point* into the same one.
+
+## D.2 Existing systems this must be built on
+
+| Concern | Existing system | File / location |
+|---|---|---|
+| Rider identity/auth | `requireRider` | `server.js:3289` |
+| Driver identity/auth | `requireDriver` | used at `/api/driver/offers/:offerId/accept`, `.../decline` (`server.js:12377`, `12609`) |
+| The existing single-driver offer mechanism (closest precedent) | `driver_offers` table + accept/decline routes | `server.js:9380-9424`, `12377-12470`, `12609-12690` |
+| Offer expiry/timeout sweep | `lib/offerExpiry.js` | referenced at `server.js:8766`, `21161` |
+| Driver readiness | `computeDriverReadiness()` | `lib/driverCompliance.js` |
+| Driver eligibility filter (radius/online/active/approved) | `findAvailableDrivers()` | `server.js:9116` |
+| Ride lifecycle / scheduled dispatch | `dispatchRide()`, `sweepScheduledRides()` | `server.js:9432`, `lib/rideDispatch.js` |
+| Who a rider is even allowed to direct-request | `rider_favorite_drivers` (Part B) + ride history (rider-owned, via `/api/rider/rides`) | §B.3; `server.js` rider-history routes |
+| Rate limiting | `rateLimit({ windowMs, max, keyPrefix })` | `server.js:1009`, used ~15 places already |
+| Idempotency-key precedent | Stripe payment-intent creation | `server.js:10595-10704` |
+| Audit logging | `auditLog()` | used throughout admin/compliance routes this session |
+| **A concrete, currently-open gap this feature must not inherit** | `POST /api/driver/offers/:offerId/decline` performs **no ownership check** — unlike `.../accept`, which does check `offer.driver_id !== driverId` (`server.js:12435-12453`), decline (`server.js:12609-12690`) reads the offer and updates it by `id` alone, never comparing `offer.driver_id` to the authenticated `req.driver.id`. Confirmed by reading both routes this session. Tracked as pending backlog item **PR8** ("Driver offer /decline ownership check"). | `server.js:12609` |
+
+That last row matters directly: whatever accept/decline machinery Part D builds for direct requests must not copy today's decline route verbatim. See §D.12.
+
+## D.3 Who a rider can direct-request
+
+Per the explicit instruction, **no directory of private driver information** is exposed. The rider's "who can I request" list is built entirely from data the rider already legitimately has access to:
+
+1. **Favorite drivers** (Part B, `rider_favorite_drivers`) — surfaced first/most prominently, per instruction, since favoriting already proved a real prior relationship (§B.5's completed-ride gate).
+2. **Drivers from the rider's own ride history** — any driver who appears in the rider's own `/api/rider/rides` history, whether or not favorited. This is data the rider already owns and can already see (who drove them, when) — no new exposure.
+3. **Any other eligible driver, only if a future platform-policy decision explicitly permits driver discovery** — **not part of this design**. No driver search, browse, or lookup-by-name/photo/vehicle surface is proposed here. If Harvey Taxi later decides to allow requesting a driver with no prior relationship, that is its own product/policy/safety decision (likely with very different anti-harassment requirements than "a driver you already rode with") and should get its own review, not be smuggled in as a side effect of this design.
+
+The picker itself shows only what the rider already sees elsewhere today (name, photo, vehicle — the same fields already shown for an assigned driver) — never anything from §D.10's driver-controls table, §D.11's block list, or any compliance/verification field.
+
+## D.4 State machine
+
+```
+                 ┌───────────┐
+   rider creates │  pending  │
+   ─────────────>│           │
+                 └─────┬─────┘
+                       │
+        ┌──────────────┼───────────────┬───────────────┬───────────────┐
+        ▼              ▼               ▼               ▼               ▼
+   ┌─────────┐   ┌───────────┐   ┌──────────┐   ┌──────────┐   ┌─────────────┐
+   │accepted │   │ declined  │   │ expired  │   │ canceled │   │ unavailable │
+   └─────────┘   └───────────┘   └──────────┘   └──────────┘   └─────────────┘
+   driver said    driver said     no response    rider           eligibility
+   yes            no              in time         withdrew it     recheck failed
+                                                   before a        at creation
+                                                   response         OR accept time
+```
+
+- **`pending`** — created, driver notified, awaiting a response.
+- **`accepted`** — the driver explicitly accepted. This is the only state that causes anything to happen to the ride (§D.6).
+- **`declined`** — the driver explicitly said no. Terminal.
+- **`expired`** — no response within the request's TTL (§D.18's sweep, reusing `lib/offerExpiry.js`'s model). Terminal.
+- **`canceled`** — the *rider* withdrew the request before the driver responded. Terminal. (Distinct from `declined` for audit/reporting clarity — "the rider changed their mind" is a different fact than "the driver said no," and conflating them would make §D.10's driver-side decline-cooldown logic and any future abuse analysis harder to reason about.)
+- **`unavailable`** — the eligibility/readiness recheck (§D.5, §D.6) failed, either at creation (driver isn't currently eligible at all) or at accept time (driver became ineligible between creation and responding). Terminal. Deliberately a distinct state from `declined`, so "the driver said no" is never conflated with "the system determined this driver couldn't legally/safely take this ride" — the second is not a reflection on the driver at all, and the difference matters for §D.11's anti-harassment "one generic unavailable message" design (a rider must not be able to distinguish *which* of these actually happened, but the backend must still know internally, for its own correctness and audit trail).
+
+All transitions are **atomic conditional updates** (`.eq("status", "pending")` before writing a new status), the same pattern already used by the existing accept/decline routes (`server.js:12462-12481`, `12669-12681`) — whichever of "driver accepts," "driver declines," "rider cancels," or "the expiry sweep marks it expired" reaches the database first wins; every other concurrent attempt reads back a no-op and must handle that gracefully (§D.19).
+
+## D.5 Request creation — eligibility recheck #1
+
+When a rider creates a direct request (targeting an eligible ride they own, per `requireRider`, and a driver from §D.3's rider-owned candidate list):
+
+1. **Ownership/identity checks, all server-side:** the ride belongs to `req.rider.id`; the ride is in a dispatchable state (has already cleared payment authorization — see §D.12 — and has not already been assigned); the targeted driver id resolves to a real driver row.
+2. **Relationship check:** the targeted driver must actually be a current favorite (§B.3) or appear in the rider's own ride history (§D.3) — never trusted from the client beyond "which driver id are you asking for"; the server independently re-derives whether that relationship is real.
+3. **Block check (§D.11):** if a `driver_rider_blocks` row exists for this (driver, rider) pair, the request is rejected with the same generic message as any other "can't be requested right now" outcome (§D.11) — never a distinguishable "you're blocked" message.
+4. **Driver-controls check (§D.10):** if the driver has `accept_direct_requests = false`, or their `direct_request_audience` setting excludes this rider (e.g., "favorites only" and this rider isn't a current favorite of *this driver* — note this is symmetric-but-separate from the rider's own favorite list, see §D.10), reject with the same generic message.
+5. **Eligibility/readiness recheck, reusing existing logic, never re-implemented:** the driver must currently be `online/active/approved` (the same condition `findAvailableDrivers()` already checks) **and** pass `computeDriverReadiness()` — **this is the one place in this entire document where `computeDriverReadiness()` is actually invoked**, since a direct request, unlike ordinary dispatch, needs an affirmative answer about one named driver rather than "some driver in an already-filtered pool." Recommend factoring the existing eligibility conditions out of `findAvailableDrivers()` into a small reusable predicate (e.g. `isDriverEligibleForDispatch(driver)`) that both the pool query and this single-driver recheck call, rather than writing a second, potentially-drifting copy of the same rules.
+6. If all checks pass: insert a `direct_driver_requests` row (`pending`), notify the driver (push, mirroring the existing offer-created push pattern — subject to PR6's push-subscription-ownership status, §D.12), start the TTL clock.
+7. If any check fails: **do not create a row implying the driver was asked and failed to respond.** Recommend recording a minimal internal-only audit event (for rate-limiting and anti-abuse pattern detection, §D.11) without creating a user-visible `unavailable` row in this case — reserve the visible `unavailable` state for §D.6's post-creation recheck failure, where a row already exists and needs a terminal state. Respond to the rider with the same generic "this driver isn't available for a direct request right now" message used everywhere else in this section.
+
+## D.6 Acceptance — eligibility recheck #2, then join the existing ride lifecycle
+
+`POST /api/driver/direct-requests/:id/accept`, `requireDriver`, **with an explicit ownership check from day one** (`request.driver_id !== req.driver.id` → 403) — the exact check §D.2 confirmed is currently missing from the analogous decline route elsewhere in this codebase, not repeated here.
+
+1. Re-run the same eligibility/readiness predicate from §D.5 step 5. A driver can go offline, lose readiness, or start another ride between request-creation and this moment — this second check is not redundant, it's the whole reason "recheck at creation AND at accept" was required. If it now fails, atomically transition the request to `unavailable` instead of `accepted`, and notify the rider (generic messaging, §D.11) that this driver is no longer available, applying whatever fallback the rider configured (§D.7).
+2. If eligibility still holds: atomic conditional update `direct_driver_requests` row `pending → accepted` (`.eq("status", "pending")` guard, exactly like the existing accept route's pattern). If this returns no row (someone else already resolved it — rider canceled, TTL sweep expired it, race with a concurrent accept attempt that shouldn't be possible for a single-driver-target row but is still guarded defensively), return the same "already resolved" response the existing decline route already gives (`server.js:12683-12688`) rather than a confusing error.
+3. **Join the ride into the existing lifecycle, not a parallel one.** Recommend: acceptance performs the same operation ordinary dispatch performs when it successfully offers-and-would-assign a driver — i.e., create the corresponding `driver_offers` row for this (ride, driver) pair via the same insert path §0 already describes (`server.js:9380-9424`), immediately in an already-`accepted` state (since the driver's acceptance *is* the offer response, there is no separate pending-offer window to wait through), then let every downstream step (ride status transition, ETA persistence, push notification to the rider, payment capture flow) run through its existing, unmodified code path exactly as if ordinary `dispatchRide()` had produced this same offer. This is what "transition into the existing dispatch/ride lifecycle rather than a parallel ride system" means concretely: after this point, nothing about the ride's remaining lifecycle knows or cares that it arrived via a direct request instead of ordinary dispatch.
+4. The `direct_driver_requests` row keeps its own `accepted` status and a `resulting_offer_id` pointer to the `driver_offers` row it produced — purely for the rider-facing "you requested this driver, and they accepted" history/audit trail; it is not consulted again by ride logic after this point.
+
+**A distinct race from the one step 2 already guards: a driver reserves nothing merely by being the target of a pending request.** Nothing about creating a direct request (§D.5) changes that driver's state in any table `findAvailableDrivers()`/`dispatchRide()` reads — the driver remains fully visible to, and dispatchable by, ordinary dispatch for a *different* ride for the entire time a direct request sits `pending`. This is deliberate (a pending, unanswered request must never let a rider effectively take a driver off the market), but it means the same driver could receive an ordinary dispatch offer for Ride B while a direct request for Ride A is still pending, and could then attempt to accept both. **Only an authenticated driver's atomic acceptance action may ever establish an assignment — never the mere creation of a request** — and if a driver's direct-request acceptance (this route) and an ordinary `driver_offers` acceptance land at effectively the same moment for the same driver, exactly one must win. Recommend enforcing this the same way single-offer correctness is already enforced elsewhere in this codebase: a database-level constraint or transaction (e.g., a partial unique index or an explicit check-and-set within the same transaction as the acceptance write) guaranteeing a driver cannot simultaneously hold two `accepted`/active assignments, rather than relying on a pre-check in application code or any frontend state — a pre-check alone has exactly the same TOCTOU gap the `.eq("status", "pending")` conditional-update pattern already exists elsewhere in this document to close. This is called out explicitly as its own concurrency requirement (not fully solved by step 2's guard, which only protects the request row itself, not the driver's overall assignment state) and is tracked as an implementation-time requirement, not resolved by this document (§F).
+
+## D.7 Rider settings and fallback
+
+Two settings, mirroring Part B's pattern exactly and per the explicit instruction:
+
+- **"Request this driver first; if unavailable, continue with normal Harvey Taxi matching." — recommended default.** On decline, expiry, or `unavailable`, the ride automatically falls into ordinary `dispatchRide()` — including re-applying whatever Part A/Part B preferences the rider has active, per §D.9's precedence rule. No silent dead end: the rider is told the direct request didn't work out, and immediately sees normal matching pick up.
+- **"Wait for this driver"** (architect now, defer implementation if needed, per instruction) — a stronger mode where the ride does *not* fall through to normal dispatch on decline/expiry, but is left in a rider-visible "still trying" state offering to re-request the same driver, wait for the driver to become available again, or manually switch to normal matching. **Must have a configurable maximum wait/expiration and must never create an indefinitely pending ride** — recommend the same bounded-wait principle as §A.6's "continue waiting for a woman driver," including a hard ceiling after which the ride is forced into normal dispatch (with the rider notified, not silently overridden). Exact bound is a product decision, deferred to the same open-items list as §A.14 (see §F).
+
+## D.8 Favorite-driver integration
+
+Per the explicit instruction, these remain **two separate concepts that happen to share a source list**:
+
+- **Favorite preference (Part B) = a dispatch scoring boost** applied automatically to every matching ride, no driver consent step, never seen by the driver.
+- **Direct request (Part D) = an explicit, one-time offer to one named driver**, which that driver must actively accept, and which the driver can decline or opt out of entirely (§D.10).
+
+**A favorite relationship does not give the rider any right to that driver's time and does not bypass driver consent.** Concretely: favoriting a driver never auto-creates a direct request, never changes how §D.5's eligibility/consent checks are evaluated, and never lets a rider skip §D.10's driver-controls or §D.11's rate limits just because the target is a favorite. The only effect favoriting has on Part D is populating §D.3's "who can I request" list first/most prominently — nothing about the request-creation, acceptance, or abuse-control logic treats a favorite differently from a non-favorite driver drawn from ride history.
+
+## D.9 Interaction with "Prefer a woman driver" (Part A)
+
+**Deterministic rule, never a silent override of either preference:** a direct request targets exactly one driver by construction — there is no candidate pool for Part A's scoring function to reorder, so **Part A's preference simply does not apply to a direct request's initial attempt**, the same way it doesn't apply to any single-target action. This is a structural fact, not a policy choice to hide.
+
+**The rider must be told this, explicitly, at the point of creating a direct request if they also have "prefer a woman driver" active** — e.g., "You're requesting [driver] directly. Your 'prefer a woman driver' setting won't apply to this specific ride, since you've chosen a specific driver." This must **never** reveal the targeted driver's actual participation status in the Part A program (§A.4's "never exposed to riders" rule applies with full force here too) — the message is about the rider's *own setting* not applying to *this specific action*, not a statement about the driver.
+
+**On fallback (§D.7's default mode):** once a direct request resolves to declined/expired/unavailable and the ride falls through to ordinary `dispatchRide()`, Part A's preference (and Part B's favorite-boost, for any *other* favorites besides the one just directly requested) **reactivates normally** for that fallback dispatch — the rider's standing preferences were never disabled, only inapplicable to the one explicit ask that has now concluded.
+
+## D.10 Driver controls
+
+New `driver_direct_request_preferences` (one row per driver, default-inserted or defaulted at read time):
+
+- **`accept_direct_requests`** (boolean) — lets a driver disable this entire channel **without going offline for ordinary dispatch**, per the explicit instruction. Recommend default **true** (a rider can already only reach a driver they have a real prior relationship with, per §D.3 — the exposure is narrower than ordinary dispatch's "any nearby rider," which drivers already accept today), but this is a product judgment call worth revisiting; a more conservative default of **false** (opt-in) is equally defensible and should be an explicit decision before launch, not an implementation detail (tracked in §F).
+- **`direct_request_audience`** — enum: `all_eligible_previous_riders` | `favorites_only` | `nobody`. `nobody` is equivalent to `accept_direct_requests = false` and can be modeled as either a third enum value or a derived state from the boolean — implementation detail. "Favorites only" here means *the driver's own* notion of a favorite/repeat rider — this document does not currently propose a symmetric "driver favorites a rider" table; if the driver-side favoriting concept doesn't exist yet, recommend scoping v1's audience choice to `all_eligible_previous_riders` vs `nobody` only, and deferring `favorites_only` until (if) a driver-side favorite-rider concept is separately designed — not silently inventing one as a side effect of this table.
+- Route: `GET/PUT /api/driver/direct-request-preferences`, same driver self-service auth pattern as Part A's `/api/driver/women-driver-program`.
+
+**Decline and block:** a driver can decline any individual pending request (§D.4) with no obligation to accept anything. Separately, a driver can **block a specific rider from ever creating a future direct request to them** (§D.11's `driver_rider_blocks`) — a stronger, standing action distinct from a one-off decline, for a rider whose requests are unwanted or harassing.
+
+## D.11 Abuse controls
+
+- **Rate limits:** reuse `rateLimit({ windowMs, max, keyPrefix })` (`server.js:1009`) on the creation route, keyed by `rider_id` (e.g., a small `max` per hour/day — exact number is a product tuning decision, not a security one, tracked in §F).
+- **Duplicate-request prevention:** a partial unique constraint on `direct_driver_requests (rider_id, driver_id, ride_id) WHERE status = 'pending'` — a rider cannot have two simultaneous pending requests to the same driver for the same ride. Combined with an idempotency key (below), this also protects against double-submit from a flaky client.
+- **Decline cooldown:** after a driver declines a request from a given rider, reject a new request from that same rider to that same driver for a configurable cooldown window (server-side, checked against the most recent `declined`/`unavailable` row's `responded_at` — never a client-supplied "it's been long enough" claim) — prevents a declined rider from immediately re-asking the same driver on a loop.
+- **Expiration:** every `pending` request has a TTL; a sweep (reusing `lib/offerExpiry.js`'s interval/lease model rather than inventing a second one) transitions stale `pending` rows to `expired`.
+- **Rider/driver blocking:** `driver_rider_blocks` (§D.15) — a driver-initiated, one-directional block; once set, every future request-creation attempt from that rider to that driver is rejected identically to any other "unavailable" outcome (§D.5 step 3). Recommend **not** notifying the rider that they've been specifically blocked (vs. merely "unavailable right now") — that distinction is exactly the kind of information this design must not leak (below).
+- **Audit logging:** every creation, accept, decline, cancel, expiry, and block event goes through the existing `auditLog()` mechanism.
+- **Idempotency:** the creation route accepts an optional `idempotency_key` (mirroring the Stripe payment-intent pattern at `server.js:10595-10704`), with a unique constraint on `(rider_id, idempotency_key)`, so a retried client request can't create two rows.
+- **Anti-harassment / presence-probing prevention — the single most important control in this section:** a rider must never be able to use repeated direct-request attempts to determine an off-duty driver's real-time location, schedule, or online/offline status, or to distinguish "this driver is offline" from "this driver is busy" from "this driver opted out of direct requests" from "this driver blocked you specifically." **Every one of §D.5's rejection reasons (relationship check failed, blocked, driver controls exclude this rider, eligibility/readiness recheck failed) must produce the exact same generic rider-facing response** — e.g., "This driver isn't available for a direct request right now" — with no status code, timing, or copy difference a rider could use to distinguish them. This is the same principle already used for account-enumeration protection in `docs/rider-auth-design-proposal.md` §1.2 ("the same response whether or not the submitted phone/email matches a real rider") applied to a new surface. Rate limiting (above) further blunts any attempt to use volume/timing of repeated attempts as a side channel.
+- **Never expose:** exact off-duty location, personal phone number, personal email, home address, compliance/verification records (Persona/Checkr status, approval history), or another rider's activity (e.g., "this driver is currently busy with another rider" is too much detail — collapse it into the same generic "unavailable" message as everything else in this list).
+
+## D.12 Payment/security — explicit dependencies, verified against current code, not inherited from PR labels
+
+**Correction:** an earlier draft of this section characterized several dependencies as "Done" based on this session's PR-completion tracking. That was too strong. A merged PR is not the same fact as a live-enforced security property — a fix can be merged but flag-gated off, or the flag can be on while the enforcement code behind it was never actually merged. Per explicit instruction, this table instead distinguishes **code merged / migration applied / flag state / live enforcement verified / outstanding validation** for each dependency, and every row below was re-checked directly against the current `server.js` and this codebase's own operational docs on 2026-08-08, not inherited from the task tracker's labels.
+
+**Headline finding from that re-check: rider-owned resource ownership is not currently enforced on the payment surface, contradicting this session's own "PR3/PR2b: completed" task-tracker labels.** Specifically, direct reads of the current `server.js` this session found:
+
+- `requireRiderIfEnforced` / `resolveEnforcedRiderId` (the PR2b functions the codebase's own comments describe as gating rider-route ownership) **do not exist anywhere in `server.js`** — zero matches, confirmed by direct search. `docs/security-remediation/pr-02a-live-validation-runbook.md` independently corroborates this: as of its last recorded evidence (2026-08-04), "**PR 2b start gate — NOT satisfied, holding** ... PR #97 remains open and inert."
+- `POST /api/rider/payment-methods/setup-intent` (`server.js:10417-10454`), `GET /api/rider/payment-methods` (`server.js:10456-10489`), `DELETE /api/rider/payment-methods/:paymentMethodId` (`server.js:~10494-10539`), and `POST /api/rides/payment-intent` (`server.js:~10548-10601`) **all read `rider_id`/`riderId` directly from the request body or query string, with no `requireRider` middleware and no session verification of any kind**, confirmed by reading each route in full. The delete route's own comment even names the pattern: "Same 404-either-way ownership check used by `/api/rider/saved-places`" — the exact insecure, already-documented legacy pattern this whole security program exists to close, still live on the payment surface.
+- This is a **currently-live gap, not a historical one** — it means any caller who can guess or obtain a rider's id can today create a Stripe SetupIntent/PaymentIntent against that rider's Stripe customer, list their payment methods, or delete them, independent of any feature-flag state, since the enforcement code that would gate this was never actually merged.
+
+This finding is reported to the user directly, outside this document, given its severity — it is recorded here because Part D's design must not build on top of an inaccurate belief that this surface is already secured.
+
+| Dependency | Code merged | Migration applied | Flag state | Live enforcement verified | Outstanding validation |
+|---|---|---|---|---|---|
+| Rider session issuance (`requireRider`, OTP login, session cookie) | Yes — `requireRider` (`server.js:3289`), OTP routes (PR #95) | N/A (no new tables; `riders.session_version` column, per `rider-auth-design-proposal.md` §2.3) | `rider_auth_ui_enabled` — last **directly queried live** 2026-08-04, resolved to **no row / `false`** (`pr-02a-live-validation-runbook.md` §1); **not re-confirmed since** | **No** — the one completed real-user walkthrough recorded in `pr-02a-live-validation-runbook.md` §3–4 is explicitly an **owner attestation, not independently observed** by any session | Re-query `system_flags` for `rider_auth_ui_enabled`'s current live value immediately before any decision to build/enable Part D; do not assume it is still `false` (or still `true`) from a four-day-old reading. |
+| Rider-owned route ownership enforcement (PR2b: `requireRiderIfEnforced`/`resolveEnforcedRiderId`) | **No** — verified absent from current `server.js` by direct search, despite this session's task tracker marking "PR2b: completed" | N/A | `rider_auth_enforced` — last queried 2026-08-04, no row / `false`; **moot regardless of value, since the code it would gate isn't merged** | **No** | Resolve the task-tracker discrepancy first (confirm whether PR2b/PR #97 ever actually merged to `main`); until `requireRiderIfEnforced` exists and is wired onto rider-owned routes, treat rider-route ownership enforcement generally as **not implemented**, not merely "off." |
+| Payment/Stripe customer & payment-method ownership (task-tracker "PR3") | **Partially** — Stripe customer creation/reuse logic (`getOrCreateStripeCustomer`) and idempotency-key handling are merged and functioning; the frontend fetch-helper credential fix from `pr-02c-signup-session-handoff.md` is merged | N/A | N/A — no flag gates these specific routes | **No — verified NOT enforced** by direct code read this session (see headline finding above): `setup-intent`, `payment-methods` (GET/DELETE), and `/api/rides/payment-intent` all still trust a client-supplied `rider_id`/`riderId` | Add `requireRider` (or an equivalent session-derived identity check) to all four routes named above, replacing every client-supplied `rider_id`/`riderId` read with `req.rider.id`, and live-verify post-deploy — this is a pre-existing gap Part D does not create but must not build on top of as though it were closed. |
+| Rider RLS on `riders` table (PR4) | Yes | Yes — `supabase/migrations/20260804210000_fix_riders_public_policy.sql`, merged PR #98 | N/A (RLS, not a flag) | **Yes** — `pr-04-rls-hardening.md` records the migration applied directly to production with before/after verification | None outstanding for this specific item. **Caveat:** RLS protects against unauthenticated/anon direct-DB access; it does **not** protect against the application-layer gap above, since this codebase's backend connects as `service_role`, which bypasses RLS by design (the same posture used for every service-role-only table in this document) — RLS and the payment-route gap are two different layers and closing one does not close the other. |
+| Driver offer `/decline` ownership check (PR8) | **No** — confirmed still missing this session (§D.2) | N/A | N/A | **No** | Part D's own accept/decline routes (§D.6, §D.16) implement this check independently and correctly from their first line of code — they are specified not to be built by copying today's decline route. Recommend fixing PR8 on the existing route as its own independent, low-risk fix, so the same bug class isn't left open in one place while corrected in another. |
+| Push-subscription ownership (PR6) | **No** — pending backlog | N/A | N/A | **No** | Treat driver-side "new direct request" push notifications as best-effort only; the in-app pending-requests list, not push delivery, is Part D's authoritative source (§D.17). |
+| Persona inquiry ownership, safety-endpoint auth, secrets/session hardening (PR5, PR7, PR9) | **No** — pending backlog | N/A | N/A | **No** | No direct functional dependency identified for Part D specifically, but none of these should be assumed closed when reasoning about the overall security posture of the app Part D is being added to. |
+| Subscriptions/referrals interaction | Not investigated this session | — | — | — | Flagged in §F — confirm no discount/referral logic keys off "how a ride was matched" before implementation. |
+
+**Gate, stated plainly: Direct Driver Requests must not be enabled in production — regardless of how complete its own new code is — until every one of the following is independently, freshly true and verified, not merely believed true from a prior PR label:**
+1. Rider-owned route ownership enforcement (the PR2b class of fix) is actually merged to `main` and live-verified, including specifically on the payment routes named above.
+2. `rider_auth_ui_enabled`/`rider_auth_enforced` (or whatever flag(s) end up gating that enforcement) are confirmed, by a live query at decision time, to be in the intended state — not assumed from this document's 2026-08-08 snapshot.
+3. Part D's own PR8-equivalent ownership check is implemented and tested on its own accept/decline routes from day one.
+4. Fare calculation and payment authorization continue to run through the existing, unmodified quote/pricing pipeline for a direct-request-originated ride, with no new code path that could re-derive or bypass it.
+
+Fare calculation is identical regardless of matching mechanism — a direct request never produces a different quote or bypasses `lib/rideQuote.js`'s quote-integrity token, since acceptance only ever joins a ride that already went through the existing estimate/quote flow (§D.6 step 3).
+
+**Refund/completed-ride integrity:** unaffected by construction — once a direct request is accepted (§D.6 step 3), the ride is, from that point forward, indistinguishable from an ordinarily-dispatched ride to every downstream system (completion, payout, refund). No new completion/refund code path is proposed.
+
+## D.13 Scheduled rides
+
+A rider may direct-request a driver for a future scheduled ride. Recommend:
+
+- The request can be **created** well in advance (rider intent captured immediately), but the driver should not be asked to commit to something days out under the same eligibility snapshot used for on-demand requests — a driver's readiness/online status days from now is not knowable today.
+- Recommend the actual **notification-and-response window** open only as the scheduled ride approaches its dispatch time, reusing `sweepScheduledRides()`'s due-time mechanism (`lib/rideDispatch.js`) — i.e., a scheduled direct request sits in a "scheduled, not yet actionable" sub-state until the same due-time logic that triggers ordinary scheduled dispatch would fire, at which point §D.5's full eligibility recheck runs for the first time and the driver is actually notified.
+- **Acceptance is never represented as an unconditional guarantee.** The rider-facing copy for an accepted scheduled direct request should communicate that circumstances (illness, vehicle issue, emergency) can still change before pickup — the same residual uncertainty any scheduled assignment already carries today, not a new promise introduced by this feature.
+- **Fallback if the accepted driver becomes unavailable before pickup:** proactively notify the rider (not a silent failure discovered only at pickup time) and apply the rider's configured fallback (§D.7) — normal matching by default, with enough lead time before the scheduled pickup for ordinary dispatch to actually succeed, consistent with the existing scheduled-dispatch lease/retry model already in `lib/rideDispatch.js`.
+
+## D.14 HTAF
+
+Preserving §0/§A.8's finding exactly: HTAF rides bypass `dispatchRide()` entirely and are assigned manually by an admin. **Direct Driver Requests are not extended to HTAF rides in this design** — there is no automatic entry point for them to plug into (the same reason Part A's preference has no automatic HTAF effect). A future "HTAF rider wants to specifically request a driver" is **explicitly deferred as its own separate policy/product decision** requiring changes to the manual admin-assignment workflow itself, not an automatic consequence of shipping Part D.
+
+## D.15 Data model
+
+```sql
+CREATE TABLE direct_driver_requests (
+  id BIGSERIAL PRIMARY KEY,
+  ride_id UUID NOT NULL REFERENCES rides(id),
+  rider_id UUID NOT NULL REFERENCES riders(id),
+  driver_id UUID NOT NULL REFERENCES drivers(id),
+  status TEXT NOT NULL DEFAULT 'pending',   -- pending | accepted | declined | expired | canceled | unavailable
+  source TEXT NOT NULL,                      -- 'favorite' | 'ride_history' -- never 'discovery' until/unless §D.3's deferred policy decision changes this
+  resulting_offer_id UUID REFERENCES driver_offers(id),  -- set only on acceptance, §D.6 step 4
+  idempotency_key TEXT,
+  decline_reason TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  responded_at TIMESTAMPTZ,
+  expires_at TIMESTAMPTZ NOT NULL,
+  canceled_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- One pending request per (rider, driver, ride) at a time.
+CREATE UNIQUE INDEX direct_driver_requests_one_pending_idx
+  ON direct_driver_requests (rider_id, driver_id, ride_id)
+  WHERE status = 'pending';
+
+-- Idempotent retries.
+CREATE UNIQUE INDEX direct_driver_requests_idempotency_idx
+  ON direct_driver_requests (rider_id, idempotency_key)
+  WHERE idempotency_key IS NOT NULL;
+
+CREATE TABLE driver_direct_request_preferences (
+  driver_id UUID PRIMARY KEY REFERENCES drivers(id),
+  accept_direct_requests BOOLEAN NOT NULL DEFAULT true,   -- default is an open product decision, §F
+  direct_request_audience TEXT NOT NULL DEFAULT 'all_eligible_previous_riders',
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE driver_rider_blocks (
+  id BIGSERIAL PRIMARY KEY,
+  driver_id UUID NOT NULL REFERENCES drivers(id),
+  rider_id UUID NOT NULL REFERENCES riders(id),
+  reason TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (driver_id, rider_id)
+);
+```
+
+`rider_favorite_drivers` (Part B, §B.3) is **reused as-is**, not duplicated — §D.3's candidate list reads from it directly.
+
+**RLS posture:** all three tables enabled, no `anon`/`authenticated` policies — service-role only, identical posture to every other table in this document. A request row is meaningful to both the requesting rider and the targeted driver, but both sides only ever reach it through an Express route scoped by their own verified session (`req.rider.id` or `req.driver.id`), never a general "read rows where I'm involved" policy — consistent with this codebase's established pattern of enforcing scoping in the application layer against a fully locked-down table, not in SQL policies.
+
+**State-transition protection:** every write to `status` is the same atomic `.eq("status", "pending")` conditional-update pattern already used by the existing offer accept/decline routes — never a plain unconditional `UPDATE`.
+
+## D.16 API summary
+
+| Route | Method | Auth | Purpose |
+|---|---|---|---|
+| `/api/rider/direct-request-candidates?rideId=...` | GET | `requireRider` | §D.3's picker list (favorites first, then ride-history drivers) for a specific ride the rider owns |
+| `/api/rider/rides/:rideId/direct-requests` | POST | `requireRider` | Create a request (§D.5); accepts `driver_id`, optional `idempotency_key` |
+| `/api/rider/direct-requests/:id` | DELETE (or PATCH `status: canceled`) | `requireRider` | Cancel a pending request the rider created (§D.4) |
+| `/api/driver/direct-requests` | GET | `requireDriver` | List the authenticated driver's own pending/recent requests |
+| `/api/driver/direct-requests/:id/accept` | POST | `requireDriver` **+ explicit ownership check** | §D.6 |
+| `/api/driver/direct-requests/:id/decline` | POST | `requireDriver` **+ explicit ownership check** | Symmetric with accept; must not be built by copying today's ownership-check-less decline route (§D.2, §D.12) |
+| `/api/driver/direct-request-preferences` | GET/PUT | driver self-service auth | §D.10 |
+| `/api/driver/blocked-riders` (or `/:riderId`) | GET/POST/DELETE | driver self-service auth | §D.10's block/unblock |
+
+## D.17 UI flows (textual)
+
+- **Rider:** after selecting a ride's pickup/destination (or from ride-history/favorites screens), an option to "Request [driver] directly" appears for eligible candidates from §D.3. On tap, the rider sees the fallback-mode choice (§D.7, default pre-selected) and, if "prefer a woman driver" is active, the §D.9 disclosure. The ride then shows a distinct "Waiting for [driver] to respond" state until accept/decline/expiry, at which point it either becomes a normal in-progress ride (accepted) or transitions per the rider's fallback setting.
+- **Driver:** dashboard shows incoming direct requests distinctly from ordinary dispatch offers (different, clearly-labeled UI element — a driver should never confuse "a rider specifically asked for me" with "the system's nearest-driver algorithm picked me"), with accept/decline actions and, from a completed request or ride, an option to block that rider from future direct requests.
+- **Fallback (invisible mechanism, visible outcome to the rider):** declined/expired/unavailable → default mode hands off to ordinary `dispatchRide()` (with Part A/B preferences reactivated, §D.9) → rider sees normal matching proceed, told plainly that the direct request didn't work out.
+
+## D.18 Rollout, flags, and tests
+
+- **New flag:** `direct_driver_requests_enabled`, same `system_flags` pattern, **default OFF, independent of `women_driver_preference_enabled` and `favorite_driver_preference_enabled`** — per the explicit instruction that this is its own flag, not bundled with either scoring feature (they can be enabled/disabled in any combination).
+- **Shadow/inert rollout:** ship schema + the driver-preferences/block self-service routes first, fully inert (no way for a rider to actually create a request yet, mirroring the phased approach in the combined Implementation Sequence below) — lets drivers set their `accept_direct_requests`/audience preferences ahead of the feature actually going live, so the very first real request already respects real driver choices rather than everyone defaulting to whatever the schema default is at flip-the-flag time.
+- **Tests:**
+  - **IDOR:** Rider A cannot view, cancel, or otherwise act on Rider B's request; Driver A cannot accept/decline/view a request targeted at Driver B — including via the exact class of gap confirmed present in today's decline route (§D.2), explicitly tested against the *new* routes.
+  - **Spoofing:** a creation payload cannot claim a completed-ride/favorite relationship that doesn't actually exist server-side; cannot claim driver eligibility/readiness; cannot claim "identity" (gender/participation from Part A) about the driver as part of constructing the request.
+  - **Duplicate acceptance:** two near-simultaneous accept attempts on the same request — exactly one succeeds, the other gets the existing "already resolved" response, never a double-assigned ride.
+  - **Stale availability:** driver becomes ineligible between request creation and opening the accept screen — accept-time recheck (§D.6 step 1) correctly rejects into `unavailable` rather than accepting anyway.
+  - **Race conditions:** rider cancels at (near-)the same instant the driver accepts — the atomic conditional update means exactly one wins; the losing side's caller must handle a null/no-op result gracefully, not crash or double-process.
+  - **Blocked riders:** a blocked rider's creation attempt is rejected with the same generic message as any other unavailable outcome (§D.11) — not a distinguishable "blocked" response.
+  - **Expired requests:** the TTL sweep transitions stale `pending` rows and never leaves one pending indefinitely; a request cannot be accepted after its `expires_at`.
+  - **Payment bypass attempts:** accepting a direct request cannot start a ride whose payment was never authorized, and cannot produce a fare different from what the existing quote/pricing pipeline would have produced for the same ride.
+  - **Fallback dispatch:** declined/expired/unavailable + default fallback setting correctly hands the ride to ordinary `dispatchRide()`, with Part A/B preferences correctly reapplied per §D.9.
+
+---
+
+# PART F — Open items needing confirmation before implementation
+
+Carried over from the investigation phase, plus new ones surfaced while incorporating Parts B and D:
 
 1. `preferred_drivers`'s actual live columns were never confirmed this session (Supabase MCP tool access was gated by a recurring `MCP error -32003: MCP tool call requires approval` throughout this investigation) — moot for the recommended path (§B.1 option b, build fresh) but should still be confirmed/documented before any future decision to consolidate or drop the old table.
 2. Whether `online=true` on the `drivers` table already fully captures "not currently on another ride," or whether a separate mid-trip flag exists — needed to confirm §B.7 factor 1 isn't double-counting something `findAvailableDrivers()` already guarantees.
@@ -336,28 +609,35 @@ Carried over from the investigation phase, plus new ones surfaced while incorpor
 6. Whether a separate emergency-dispatch code path exists outside ordinary `dispatchRide()` (§A.6, A.14) — not conclusively located this session.
 7. Legal/policy review outcome for Part A (§A.10) — a hard gate independent of engineering readiness.
 8. Exact wait-bound decisions for Part A's "continue waiting" choice (§A.6, A.14) — product decisions, not engineering ones.
+9. **PR8 (driver offer `/decline` ownership check) resolution** (§D.2, §D.12) — a hard dependency to track, not necessarily to block on, since Part D's own routes are specified to implement the check independently regardless of PR8's status; but shipping both without ever fixing the original gap leaves a known bug live in production.
+10. Default value for `driver_direct_request_preferences.accept_direct_requests` (opt-in `false` vs. opt-out `true`, §D.10) — a product decision, not resolved in this document.
+11. Whether a driver-side "favorite/repeat rider" concept should exist at all, needed to make `direct_request_audience = 'favorites_only'` meaningful (§D.10) — not proposed elsewhere in this document; v1 may need to launch with only `all_eligible_previous_riders`/`nobody`.
+12. Exact TTL/expiration durations for a pending direct request, and the "wait for this driver" mode's maximum wait bound (§D.7, §D.13) — product decisions.
+13. Rate-limit and decline-cooldown thresholds (§D.11) — product/tuning decisions, not security decisions (the presence of the controls is the security requirement; the exact numbers are not).
+14. Whether any subscription/referral logic keys off "how a ride was matched" in a way Part D could interact with — not investigated this session (§D.12).
 
 ---
 
-# Implementation sequence (combined, both features)
+# Implementation sequence (combined, all three features)
 
-Recommend building and shipping independently, not as one big-bang PR — consistent with this session's established pattern of narrow, reviewable, individually-mergeable phases (e.g., the RBAC Phase 1/2 split):
+Recommend building and shipping independently, not as one big-bang PR — consistent with this session's established pattern of narrow, reviewable, individually-mergeable phases (e.g., the RBAC Phase 1/2 split). Parts A/B and Part D can proceed on independent tracks; Part D has no dependency on A/B shipping first (§D.1), only on the pending security-roadmap items it names explicitly (§D.12).
 
-1. **Schema-only PRs** (additive, RLS-hardened, no application code reads/writes them yet): `rider_preferences`, driver opt-in columns/table, `rider_favorite_drivers`. Independently reviewable and, like Phase 1 RBAC, safe to merge with zero behavioral effect.
-2. **Rider/driver self-service routes** (Part A §A.11, Part B §B.4) — CRUD only, no dispatch integration yet. Fully testable in isolation (§A.13/§B.10's non-dispatch tests).
-3. **Pure scoring functions** (`lib/matchingPreferences.js`) — built and unit-tested against synthetic candidate arrays, not yet wired into `dispatchRide()`. Mirrors this session's `lib/*.js` + `lib/*.test.js` discipline exactly.
-4. **Shadow-mode wiring into `dispatchRide()`** — compute what the reordering *would* produce, log it, but don't actually reorder the live array yet (both flags stay off; a separate shadow-logging flag could gate this if useful) — validates real-world signal (are there ever enough favorites/participating drivers in a given area to matter) before affecting real riders.
-5. **Enable behind flags**, one feature at a time (`favorite_driver_preference_enabled` first, since it has no legal-review gate; `women_driver_preference_enabled` only after §A.10's legal/policy sign-off), starting with a narrow rollout if this codebase's flag system supports partial rollout, otherwise a short monitored full rollout with an immediate rollback plan (§ below).
-6. **"Wait longer for a favorite driver" future mode** (§B.8) — explicitly deferred past v1, its own design pass later.
-7. **HTAF admin-assignment hint** (§A.8) — explicitly deferred past v1, its own design pass later.
+1. **Schema-only PRs** (additive, RLS-hardened, no application code reads/writes them yet): `rider_preferences`, driver opt-in columns/table, `rider_favorite_drivers` (Parts A/B); `direct_driver_requests`, `driver_direct_request_preferences`, `driver_rider_blocks` (Part D). Independently reviewable and, like Phase 1 RBAC, safe to merge with zero behavioral effect.
+2. **Rider/driver self-service routes** (Part A §A.11, Part B §B.4, Part D's preference/block routes §D.16) — CRUD only, no dispatch/request-creation integration yet. Fully testable in isolation.
+3. **Pure scoring functions** (`lib/matchingPreferences.js`, Parts A/B only — Part D has no scoring function, §D.1) — built and unit-tested against synthetic candidate arrays, not yet wired into `dispatchRide()`. Mirrors this session's `lib/*.js` + `lib/*.test.js` discipline exactly.
+4. **Fix PR8** (driver offer `/decline` ownership check, §D.2/§D.12) — recommend landing this independently-useful fix before or alongside Part D's own accept/decline routes, so the same class of bug isn't left open in one place while being correctly handled in another.
+5. **Shadow-mode wiring into `dispatchRide()`** (Parts A/B) — compute what the reordering *would* produce, log it, but don't actually reorder the live array yet — validates real-world signal before affecting real riders. (No equivalent shadow mode applies to Part D, whose "shadow" phase is instead the inert self-service-routes-only rollout in step 2/§D.18.)
+6. **Part D request-creation/accept/decline routes**, behind `direct_driver_requests_enabled` (default OFF) — independent of A/B's flags.
+7. **Enable behind flags**, one feature at a time (`favorite_driver_preference_enabled` first, since it has no legal-review gate; `women_driver_preference_enabled` only after §A.10's legal/policy sign-off; `direct_driver_requests_enabled` whenever its own testing/tuning — §F items 9-13 — is resolved, independent of the other two), starting with a narrow rollout if this codebase's flag system supports partial rollout, otherwise a short monitored full rollout with an immediate rollback plan (below).
+8. **Deferred past v1, each its own later design pass:** "Wait longer for a favorite driver" (§B.8); HTAF admin-assignment hint for Part A (§A.8); Part D's "wait for this driver" mode (§D.7); Part D driver-discovery beyond favorites/ride-history (§D.3); Part D's HTAF extension (§D.14).
 
 # Rollback strategy
 
-Both features are additive and flag-gated at every layer:
-- Disabling either `system_flags` entry immediately reverts dispatch to today's unmodified nearest-driver behavior — no code deploy needed for an emergency rollback, matching the existing `dispatch_paused`-style operational lever already in this codebase.
-- The pure scoring functions never mutate data — a rollback of the scoring step alone has zero data cleanup implications.
-- The new tables (`rider_preferences`, driver opt-in fields, `rider_favorite_drivers`) can remain in place harmlessly while flags are off; no destructive rollback is required at the schema layer even in a full feature abandonment scenario — they simply stop being read.
-- If a driver's or rider's stored preference/opt-in data itself needed to be purged (e.g., a driver fully rescinding consent, not just toggling off), that's a deletion of their own row(s), already covered by the "changeable/removable at any time" requirement (§A.3, §B.2) — not a schema rollback.
+All three features are additive and flag-gated at every layer:
+- Disabling any of the three independent `system_flags` entries (`women_driver_preference_enabled`, `favorite_driver_preference_enabled`, `direct_driver_requests_enabled`) immediately reverts that feature's behavior with no code deploy needed — matching the existing `dispatch_paused`-style operational lever already in this codebase. Disabling Part D specifically simply stops new requests from being creatable; it does not need to (and should not) forcibly cancel requests already in flight — those still resolve normally through accept/decline/expiry, since the driver_offers path they feed into is unaffected by the flag.
+- The pure scoring functions (Parts A/B) never mutate data — a rollback of the scoring step alone has zero data cleanup implications.
+- The new tables (`rider_preferences`, driver opt-in fields, `rider_favorite_drivers`, `direct_driver_requests`, `driver_direct_request_preferences`, `driver_rider_blocks`) can remain in place harmlessly while their flags are off; no destructive rollback is required at the schema layer even in a full feature abandonment scenario — they simply stop being read/written.
+- If a driver's or rider's stored preference/opt-in data itself needed to be purged (e.g., a driver fully rescinding consent, not just toggling off), that's a deletion of their own row(s), already covered by the "changeable/removable at any time" requirement (§A.3, §B.2) — not a schema rollback. A driver's `driver_rider_blocks` rows and `direct_driver_requests` history are similarly the driver's/rider's own data, deletable on request without affecting any other system.
 
 # Acceptance criteria
 
@@ -376,4 +656,15 @@ Both features are additive and flag-gated at every layer:
 - Ranking among multiple favorites is deterministic and covered by tests (§B.7).
 - Scoring weights are server-side-only and configurable without a frontend deploy.
 
-**Both:** full test suite green, `node -c server.js` clean, new `lib/*.test.js` coverage for every pure function, and this document's open items (Part D) either resolved or explicitly re-flagged as accepted risk before implementation begins.
+**Part D ships when:**
+- A rider can direct-request only a driver drawn from their own favorites or ride history (§D.3), never an arbitrary/discovered driver; cross-rider and cross-driver access (IDOR) is impossible (tested), including against the specific ownership-check gap already confirmed in today's decline route (§D.2).
+- Eligibility/readiness is independently rechecked at both creation and acceptance, reusing `computeDriverReadiness()` and the same eligibility predicate `findAvailableDrivers()` uses, never a duplicated/drifting copy of those rules (§D.5, §D.6).
+- Acceptance joins the ride into the existing dispatch/ride lifecycle (produces a normal `driver_offers`-backed ride) rather than a parallel one (§D.6).
+- Every "can't be requested right now" outcome (blocked, opted out, audience-excluded, ineligible) is indistinguishable to the rider, and rate limits/decline cooldowns/idempotency/expiry are all enforced server-side (§D.11) — no data exists for a rider to infer an off-duty driver's location, schedule, or specific reason for unavailability.
+- A driver can disable direct requests independent of going offline, and can block a specific rider from future requests (§D.10).
+- The default fallback mode correctly hands an unresolved direct request to ordinary dispatch, with Part A/B preferences correctly reapplied (§D.7, §D.9), and never creates an indefinitely pending ride.
+- Direct requests never bypass payment authorization, fare calculation, HTAF's manual-assignment-only posture, or any dependency named in §D.12 — and PR8 (or an equivalent independent fix in Part D's own routes) closes the ownership-check gap before launch.
+- **A direct request never reserves, exposes, or alters a driver's availability merely because a rider created it.** Only an authenticated driver's atomic acceptance action may establish an assignment (§D.6), and a concurrent normal-dispatch acceptance and direct-request acceptance for the same driver must have exactly one winner, enforced at the database/transaction level (a partial unique index or equivalent check-and-set within the acceptance write's own transaction) — never by a pre-check alone, and never by frontend state (§D.6).
+- Direct Driver Requests remains **blocked from production enablement** until every dependency in §D.12's gate is independently, freshly verified as actually enforced in production — not merely believed enforced from a prior PR label.
+
+**All three:** full test suite green, `node -c server.js` clean, new `lib/*.test.js` coverage for every pure function, and this document's open items (Part F) either resolved or explicitly re-flagged as accepted risk before implementation begins.
