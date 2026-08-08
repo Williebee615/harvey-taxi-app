@@ -6956,12 +6956,26 @@
     async function apiFetch(path, options = {}) {
       const url = `${CONFIG.API_BASE}${path}`;
 
+      // P0 remediation PR 3 (docs/security-remediation/pr-03-rider-payment-ownership.md):
+      // this is the fetch helper the payment flow (saved cards,
+      // PaymentIntent creation) actually uses, and until now it neither
+      // sent the session cookie (no credentials: "include") nor the
+      // x-requested-with header requireRider checks on non-GET requests
+      // -- so once rider_auth_enforced is ever turned on, every one of
+      // these calls would have started failing for real, legitimately
+      // signed-in riders (the same self-inflicted-outage risk PR 2b
+      // found and fixed for requestJson()). Both are added
+      // unconditionally, harmless while the flag stays off, so this
+      // call site is already ready before the flag is ever flipped
+      // instead of silently breaking payments the day it is.
       const headers = {
         "Content-Type": "application/json",
+        [RIDER_CLIENT_HEADER_NAME]: RIDER_CLIENT_HEADER_VALUE,
         ...(options.headers || {})
       };
 
       const response = await fetch(url, {
+        credentials: "include",
         ...options,
         headers
       });
