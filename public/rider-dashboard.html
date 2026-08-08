@@ -10933,14 +10933,15 @@
     // ---- HTAF application status ----
 
     async function loadHtafStatus() {
-      const email = state.riderProfile?.email;
-
-      if (!email) return;
-
+      // Looks up the signed-in rider's own HTAF application via their
+      // verified session -- the server never accepts a client-supplied
+      // email here (see /api/rider/htaf-application and
+      // resolveRiderHtafLookup in lib/htafOperations.js). Without a
+      // session (e.g. rider auth not yet enabled for this account) this
+      // 401s, which the catch below treats the same as "no application
+      // found" -- a safe, silent fallback rather than an error banner.
       try {
-        const data = await requestJson(
-          `/api/foundation/applications/by-email?email=${encodeURIComponent(email)}`
-        );
+        const data = await requestJson("/api/rider/htaf-application");
 
         state.htafApplication = data.application || null;
       } catch (error) {

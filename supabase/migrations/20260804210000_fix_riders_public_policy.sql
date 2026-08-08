@@ -1,0 +1,23 @@
+-- P0 RLS correction: riders table has a permissive PUBLIC-scoped policy
+-- ("Allow service role full access") that, despite its name, applies to
+-- role "public" (i.e. every role, not just service_role) with
+-- USING (true) / WITH CHECK (true). Because RLS permissive policies are
+-- OR'd together, this single policy silently overrides the existing
+-- deny_all_riders policy and grants anon/authenticated full read/write
+-- access to every rider row.
+--
+-- The correctly scoped policy (service_role_riders, role=service_role,
+-- USING (true)) already provides the backend's access. This migration
+-- removes only the mis-scoped policy; no other policy is touched.
+--
+-- Before state (captured 2026-08-04 ~21:00 UTC via pg_policies):
+--   "Allow service role full access" | roles={public}        | cmd=ALL | qual=true
+--   "deny_all_riders"                | roles={public}        | cmd=ALL | qual=false
+--   "service_role_riders"            | roles={service_role}  | cmd=ALL | qual=true
+--
+-- Expected after state: only deny_all_riders and service_role_riders
+-- remain, so anon/authenticated CRUD on riders is denied by
+-- deny_all_riders (no other permissive policy matches their role), and
+-- the backend (service_role) is unaffected.
+
+drop policy if exists "Allow service role full access" on public.riders;

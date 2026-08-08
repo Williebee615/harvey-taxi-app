@@ -2904,6 +2904,15 @@
 
       let filteredApplications = [];
 
+      // The queue list only ever carries the reduced field set (docs/
+      // security-remediation/htaf-admin-data-minimization.md) -- id,
+      // name, program, county, status. selectedApplicationId tracks
+      // which row is highlighted the instant it's clicked, independent
+      // of the detail fetch below; selectedApplication holds the FULL
+      // record (email, phone, income, notes, etc.) only once
+      // GET /api/admin/foundation/applications/:id resolves.
+      let selectedApplicationId = null;
+
       let selectedApplication = null;
 
       let lastTriage = null;
@@ -3222,6 +3231,13 @@
 
       }
 
+      // Restricted to the fields the (now-minimized) queue list actually
+      // carries -- email/phone/city/destination/transportation_need were
+      // dropped from the list response itself (docs/security-remediation/
+      // htaf-admin-data-minimization.md), so searching by them locally is
+      // no longer possible without re-fetching full PII for every row
+      // just to power a search box. Finding someone by email/phone now
+      // means opening their record from the queue directly.
       function applicationSearchText(
 
         application
@@ -3236,21 +3252,11 @@
 
           application.last_name,
 
-          application.email,
-
-          application.phone,
-
           application.county,
-
-          application.city,
 
           application.program_type,
 
-          application.status,
-
-          application.destination,
-
-          application.transportation_need
+          application.status
 
         ]
 
@@ -3480,7 +3486,7 @@
 
               const active =
 
-                selectedApplication?.id === application.id
+                selectedApplicationId === application.id
 
                   ? "active"
 
@@ -3570,21 +3576,20 @@
 
           .replaceAll("'", "&#039;");
 
-      }      function selectApplication(
+      }      // Detail fields (email, phone, income, notes, ...) are no longer
+      // present on the reduced queue-list objects, so opening one
+      // application now fetches its full record on demand instead of
+      // reading it out of the already-loaded list array (docs/
+      // security-remediation/htaf-admin-data-minimization.md).
+      async function selectApplication(
 
         applicationId
 
       ) {
 
-        selectedApplication =
+        selectedApplicationId = applicationId;
 
-          applications.find(
-
-            application =>
-
-              String(application.id) === String(applicationId)
-
-          ) || null;
+        selectedApplication = null;
 
         lastTriage = null;
 
@@ -3592,10 +3597,58 @@
 
         renderApplicationDetail();
 
-        hideBanner(
+        try {
 
-          "detailStatusBanner"
+          const payload =
+            await apiRequest(
+              `/api/admin/foundation/applications/${encodeURIComponent(applicationId)}`
+            );
 
+          if (selectedApplicationId !== applicationId) return;
+
+          selectedApplication = payload.application;
+
+          renderApplicationDetail();
+
+          hideBanner("detailStatusBanner");
+
+        } catch (error) {
+
+          console.error(error);
+
+          if (selectedApplicationId !== applicationId) return;
+
+          showBanner(
+            "detailStatusBanner",
+            error.message || "Unable to load application detail.",
+            "err"
+          );
+
+        }
+
+      }
+
+      // Applies a PATCH's minimal response ({id, status, notes,
+      // updated_at} -- see HTAF_ADMIN_PATCH_RESPONSE_FIELDS) without
+      // discarding the rest of the currently-open detail record, and
+      // updates only the one list-rendered field (status) on the
+      // matching queue row. Replacing either object wholesale with the
+      // minimal PATCH response would blank out every other field on
+      // screen.
+      function applyApplicationUpdate(updated) {
+
+        if (!updated) return;
+
+        if (selectedApplication && selectedApplication.id === updated.id) {
+
+          selectedApplication = { ...selectedApplication, ...updated };
+
+        }
+
+        applications = applications.map(application =>
+          application.id === updated.id
+            ? { ...application, status: updated.status }
+            : application
         );
 
       }
@@ -3644,8 +3697,16 @@
 
         if (!selectedApplication) {
 
-          detail.innerHTML = `
-
+          detail.innerHTML = selectedApplicationId
+            ? `
+              <div class="empty-state">
+                <div>
+                  <div class="empty-icon">⏳</div>
+                  <h4>Loading application...</h4>
+                </div>
+              </div>
+            `
+            : `
             <div class="empty-state">
 
               <div>
@@ -4032,21 +4093,7 @@
 
             );
 
-          selectedApplication =
-
-            updated;
-
-          applications =
-
-            applications.map(application =>
-
-              application.id === updated.id
-
-                ? updated
-
-                : application
-
-            );
+          applyApplicationUpdate(updated);
 
           showBanner(
 
@@ -4134,21 +4181,7 @@
 
             );
 
-          selectedApplication =
-
-            updated;
-
-          applications =
-
-            applications.map(application =>
-
-              application.id === updated.id
-
-                ? updated
-
-                : application
-
-            );
+          applyApplicationUpdate(updated);
 
           showBanner(
 
@@ -4482,21 +4515,7 @@
 
             );
 
-          selectedApplication =
-
-            updated;
-
-          applications =
-
-            applications.map(application =>
-
-              application.id === updated.id
-
-                ? updated
-
-                : application
-
-            );
+          applyApplicationUpdate(updated);
 
           closeScheduleModal();
 
@@ -4534,159 +4553,104 @@
 
       }
 
-      function exportApplicationsCsv() {
-
-        const rows =
-
-          filteredApplications.length
-
-            ? filteredApplications
-
-            : applications;
-
-        if (!rows.length) {
-
-          showBanner(
-
-            "queueStatusBanner",
-
-            "No applications available to export.",
-
-            "err"
-
-          );
-
-          return;
-
-        }
-
-        const columns = [
-
-          "application_code",
-
-          "status",
-
-          "program_type",
-
-          "first_name",
-
-          "last_name",
-
-          "email",
-
-          "phone",
-
-          "county",
-
-          "city",
-
-          "pickup_city",
-
-          "destination",
-
-          "ride_date",
-
-          "applicant_type",
-
-          "household_size",
-
-          "monthly_income",
-
-          "created_at",
-
-          "updated_at"
-
-        ];
-
-        const csv =
-
-          [
-
-            columns.join(","),
-
-            ...rows.map(application =>
-
-              columns
-
-                .map(column =>
-
-                  csvEscape(application[column])
-
-                )
-
-                .join(",")
-
-            )
-
-          ]
-
-            .join("\n");
-
-        const blob =
-
-          new Blob(
-
-            [csv],
-
-            { type: "text/csv;charset=utf-8;" }
-
-          );
-
-        const url =
-
-          URL.createObjectURL(blob);
-
-        const a =
-
-          document.createElement("a");
-
-        a.href = url;
-
-        a.download =
-
-          `htaf-applications-${new Date().toISOString().slice(0,10)}.csv`;
-
-        document.body.appendChild(a);
-
-        a.click();
-
-        document.body.removeChild(a);
-
-        URL.revokeObjectURL(url);
-
-        showBanner(
-
-          "queueStatusBanner",
-
-          "CSV export downloaded.",
-
-          "ok"
-
+      // Bulk PII export is materially different from opening one
+      // application, so it's now a server-authorized, audited action
+      // (docs/security-remediation/htaf-admin-data-minimization.md)
+      // instead of the browser dumping whatever rows it happened to
+      // already have loaded (which, post-minimization, would no longer
+      // even contain email/phone/income for the queue view anyway).
+      // The server requires -- and audits -- a stated reason before it
+      // will build the file at all.
+      async function exportApplicationsCsv() {
+
+        const reason = window.prompt(
+          "Bulk PII export -- state why you're exporting this data. " +
+          "This reason is recorded in the audit log alongside your " +
+          "admin account, the time, and the number of rows exported."
         );
 
-      }
-
-      function csvEscape(value) {
-
-        const text =
-
-          String(value ?? "");
-
-        if (
-
-          text.includes(",") ||
-
-          text.includes('"') ||
-
-          text.includes("\n")
-
-        ) {
-
-          return `"${text.replaceAll('"', '""')}"`;
-
+        if (reason === null) {
+          // Cancelled -- no request made, nothing to audit.
+          return;
         }
 
-        return text;
+        const trimmedReason = reason.trim();
+
+        if (!trimmedReason) {
+          showBanner(
+            "queueStatusBanner",
+            "An export reason is required.",
+            "err"
+          );
+          return;
+        }
+
+        const statusFilterValue =
+          document.getElementById("statusFilter")?.value || "";
+
+        const programFilterValue =
+          document.getElementById("programFilter")?.value || "";
+
+        try {
+
+          showBanner(
+            "queueStatusBanner",
+            "Preparing export...",
+            "info"
+          );
+
+          const response = await fetch(
+            `${HTAF_API}/api/admin/foundation/applications/export`,
+            {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                reason: trimmedReason,
+                status: statusFilterValue || undefined,
+                program_type: programFilterValue || undefined
+              })
+            }
+          );
+
+          if (!response.ok) {
+            let message = `Export failed with status ${response.status}`;
+            try {
+              const payload = await response.json();
+              message = payload?.error || payload?.message || message;
+            } catch {}
+            if (response.status === 401 || response.status === 403) {
+              showLoginOverlay(
+                "Your admin session expired. Please sign in again."
+              );
+            }
+            throw new Error(message);
+          }
+
+          const blob = await response.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `htaf-applications-${new Date().toISOString().slice(0, 10)}.csv`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+
+          showBanner(
+            "queueStatusBanner",
+            "CSV export downloaded and logged.",
+            "ok"
+          );
+
+        } catch (error) {
+          console.error(error);
+          showBanner(
+            "queueStatusBanner",
+            error.message || "Unable to export applications.",
+            "err"
+          );
+        }
 
       }      function openHarveyAiChat() {
 

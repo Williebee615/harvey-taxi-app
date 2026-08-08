@@ -2613,6 +2613,87 @@ async function auditLog({
 
 }
 
+// Admin RBAC Phase 2: shadow-mode authorization logging (docs/
+// security-remediation/admin-rbac-phase2-shadow-mode.md). Computes
+// what the proposed RBAC model *would* decide for this request and
+// records it -- it never denies, blocks, redirects, or otherwise
+// changes the response. Every call site uses
+// `logAdminRbacShadowCheck(req, route, capability).catch(() => {})`,
+// the same fire-and-forget pattern already used for auditLog() calls
+// throughout this file, so a slow or failing shadow check can never
+// affect a real admin request.
+//
+// Deliberately does NOT use resolveAdminRole() (lib/adminRbac.js) --
+// that function maps every one of today's three legacy auth methods
+// straight to super_admin, which is correct for Phase 1's no-lockout
+// guarantee but would make every shadow check here trivially
+// "would_allow: true" and produce no evidence about whether the
+// proposed role/capability model actually matches real usage. Instead
+// this looks up admin_roles by the authenticated email -- the email
+// requireAdmin() itself already resolved server-side (the env-var
+// admin identity, or the signed admin-session cookie's email), never
+// anything read from a request body/header/query parameter.
+async function logAdminRbacShadowCheck(req, route, capability) {
+
+  const admin = req.admin;
+
+  const email =
+    admin && typeof admin.email === "string" ? admin.email.trim().toLowerCase() : "";
+
+  const isLegacyAdmin =
+    !!email && email === String(ADMIN_EMAIL || "").trim().toLowerCase();
+
+  let dbLookupFailed = false;
+  let roleRow = null;
+
+  try {
+
+    // Fetches every admin_roles row rather than filtering server-side
+    // with .eq("email", email): the unique index from Phase 1's
+    // migration is on lower(email), not on email itself, so a stored
+    // value like "CaseWorker@HarveyTaxiService.com" would not match an
+    // exact-case-equality filter against the already-normalized lookup
+    // email. findAdminRoleRow() (lib/adminRbacShadow.js) does the
+    // actual case-insensitive match in JS. The table stays small (one
+    // row per admin identity), so fetching all of it per shadow check
+    // is not a scaling concern.
+    const { data, error } = await supabase
+      .from("admin_roles")
+      .select("email, role");
+
+    if (error) {
+      dbLookupFailed = true;
+    } else {
+      roleRow = findAdminRoleRow(data, email);
+    }
+
+  } catch {
+    dbLookupFailed = true;
+  }
+
+  const { role, source } = resolveShadowRole({ dbLookupFailed, roleRow, isLegacyAdmin });
+  const wouldAllow = computeShadowWouldAllow(role, capability);
+
+  const entry = buildShadowLogEntry({
+    admin,
+    route,
+    httpMethod: req.method,
+    capability,
+    role,
+    source,
+    wouldAllow
+  });
+
+  const { error: insertError } = await supabase.from("admin_rbac_shadow_log").insert(entry);
+
+  if (insertError) {
+    return { logged: false, error: insertError };
+  }
+
+  return { logged: true, wouldAllow, source };
+
+}
+
 /* =========================================================
 
    COMMUNICATION HELPERS
@@ -3135,6 +3216,38 @@ const {
   applyContactVerificationOverride,
   applyComplianceOverride
 } = require("./lib/driverCompliance");
+
+const {
+  computeHtafPublicStats,
+  resolveCreateRideOutcome,
+  resolveRiderHtafLookup,
+  HTAF_ADMIN_LIST_FIELDS,
+  HTAF_ADMIN_DETAIL_FIELDS,
+  HTAF_ADMIN_PATCH_RESPONSE_FIELDS,
+  HTAF_EXPORT_COLUMNS,
+  buildHtafExportCsv,
+  resolveHtafExportRequest,
+  resolveHtafExportDelivery,
+  buildHtafTriageFacts
+} = require("./lib/htafOperations");
+
+const {
+  ADMIN_DRIVERS_LIST_FIELDS,
+  ADMIN_RIDERS_LIST_FIELDS,
+  ADMIN_RIDES_LIST_FIELDS,
+  ADMIN_RIDE_MUTATION_FIELDS,
+  ADMIN_DRIVER_MUTATION_FIELDS,
+  ADMIN_RIDER_MUTATION_FIELDS,
+  ADMIN_AUDIT_LOGS_LIST_FIELDS
+} = require("./lib/adminDirectory");
+
+const {
+  ROUTE_CAPABILITIES: RBAC_SHADOW_ROUTE_CAPABILITIES,
+  resolveShadowRole,
+  findAdminRoleRow,
+  computeWouldAllow: computeShadowWouldAllow,
+  buildShadowLogEntry
+} = require("./lib/adminRbacShadow");
 
 // Rider session logic (sign/verify/revocation-check) lives in lib/riderAuth.js,
 // unlike the driver session functions below (signDriverSession/
@@ -4277,6 +4390,70 @@ app.get(
 
 /* =========================================================
 
+   HTAF PUBLIC STATISTICS
+
+   Read-only, public, no PII. Powers the "Application Dashboard"
+   widget on foundation.html. Returns aggregate integers only,
+   computed from the canonical HTAF_STATUS enum:
+
+     applications_submitted = all non-deleted HTAF applications
+     pending_review         = submitted, under_review, pending_documents
+     approved_requests      = approved
+     scheduled_rides        = scheduled
+
+   On any database error this returns 503 "unavailable" rather than
+   a fabricated 0 — a real zero and a broken query must never look
+   the same to the caller. Do not collapse the three pending-review
+   statuses into "submitted"; the UI labels them as separate metrics.
+
+========================================================= */
+
+app.get(
+
+  "/api/foundation/public-stats",
+
+  asyncRoute(async (req, res) => {
+
+    const { data, error } =
+
+      await supabase
+
+        .from("htaf_applications")
+
+        .select("status");
+
+    if (error) {
+
+      return fail(
+
+        res,
+
+        "HTAF statistics are temporarily unavailable.",
+
+        503
+
+      );
+
+    }
+
+    const stats =
+
+      computeHtafPublicStats((data || []).map((row) => row.status));
+
+    return ok(res, {
+
+      ...stats,
+
+      generated_at: nowIso()
+
+    });
+
+  })
+
+);
+
+/* =========================================================
+
    ADMIN AUTH — LOGIN / LOGOUT / SESSION
 
    Sets an HttpOnly signed session cookie so no admin
@@ -4457,6 +4634,12 @@ app.get(
 
   asyncRoute(async (req, res) => {
 
+    logAdminRbacShadowCheck(
+      req,
+      "GET /api/admin/foundation/applications",
+      RBAC_SHADOW_ROUTE_CAPABILITIES["GET /api/admin/foundation/applications"]
+    ).catch(() => {});
+
     const status =
 
       cleanString(
@@ -4489,7 +4672,7 @@ app.get(
 
         .from("htaf_applications")
 
-        .select("*")
+        .select(HTAF_ADMIN_LIST_FIELDS.join(","))
 
         .order(
 
@@ -4569,6 +4752,44 @@ app.get(
 
 /* =========================================================
 
+   HTAF ADMIN DETAIL
+
+   Full applicant detail for exactly one application, fetched only
+   when an admin actually opens it -- the counterpart to the list
+   route above no longer shipping every field for every row (docs/
+   security-remediation/htaf-admin-data-minimization.md). Still
+   requireAdmin-gated; still an explicit allow-list, not select("*") --
+   review_notes/assigned_admin/client_version/source stay excluded here
+   too, since nothing in this codebase reads them.
+
+========================================================= */
+
+app.get(
+  "/api/admin/foundation/applications/:id",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const id = cleanString(req.params.id, 100);
+
+    const { data, error } = await supabase
+      .from("htaf_applications")
+      .select(HTAF_ADMIN_DETAIL_FIELDS.join(","))
+      .eq("id", id)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data) {
+      return fail(res, "HTAF application not found.", 404);
+    }
+
+    return ok(res, { application: data });
+  })
+);
+
+/* =========================================================
+
    HTAF ADMIN UPDATE
 
 ========================================================= */
@@ -4580,6 +4801,12 @@ app.patch(
   requireAdmin,
 
   asyncRoute(async (req, res) => {
+
+    logAdminRbacShadowCheck(
+      req,
+      "PATCH /api/admin/foundation/applications/:id",
+      RBAC_SHADOW_ROUTE_CAPABILITIES["PATCH /api/admin/foundation/applications/:id"]
+    ).catch(() => {});
 
     const id =
 
@@ -4669,7 +4896,7 @@ app.patch(
 
         .eq("id", id)
 
-        .select()
+        .select(HTAF_ADMIN_PATCH_RESPONSE_FIELDS.join(","))
 
         .single();
 
@@ -4721,6 +4948,116 @@ app.patch(
 
 /* =========================================================
 
+   HTAF ADMIN EXPORT (CSV)
+
+   Bulk PII export is materially different from opening one
+   application: it hands a caseworker's entire visible caseload --
+   name, email, phone, income, household size, addresses -- as a
+   downloadable file. Per docs/security-remediation/
+   htaf-admin-data-minimization.md, this is now a server-authorized,
+   audited action instead of the browser dumping whatever rows happen
+   to already be loaded client-side:
+
+   - requireAdmin-gated, same as every other HTAF admin route.
+   - Requires a non-empty, human-readable `reason` in the request body
+     (resolveHtafExportRequest) -- an admin must state why before the
+     file is generated. This is deliberately not a fixed enum: the
+     point is a real justification an auditor can read later, not a
+     dropdown a UI can satisfy by always picking the first option.
+   - The file is built server-side (buildHtafExportCsv) from a query
+     scoped to HTAF_EXPORT_COLUMNS -- not select("*") -- so Supabase
+     itself never sends this route a column the export doesn't use,
+     including the four dead ones the audit identified. This is the
+     only route in this family that reads the wide-but-still-explicit
+     PII field set, and only because an export is deliberately a "give
+     me everyone (matching these filters)" action.
+   - Every export is audit-logged with actor, timestamp (implicit in
+     the audit row), row_count, the stated reason, and whatever
+     status/program_type filter was applied. This audit write is
+     fail-closed, the same principle already used for driver compliance
+     overrides: the CSV is never sent unless auditLog() actually
+     persisted the record. auditLog() itself never throws -- a failed
+     insert resolves as {logged: false, error}, not a rejection -- so
+     the gate has to check the resolved outcome, not wrap it in
+     try/catch. See resolveHtafExportDelivery() (lib/htafOperations.js)
+     for the (tested) decision, and its regression test for what
+     happens when the audit write fails.
+
+========================================================= */
+
+app.post(
+  "/api/admin/foundation/applications/export",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const resolved = resolveHtafExportRequest(req.body || {});
+
+    if (!resolved.ok) {
+      return fail(res, resolved.error, resolved.statusCode);
+    }
+
+    let query = supabase
+      .from("htaf_applications")
+      .select(HTAF_EXPORT_COLUMNS.join(","))
+      .order("created_at", { ascending: false });
+
+    if (resolved.status) {
+      query = query.eq("status", resolved.status);
+    }
+
+    if (resolved.programType) {
+      query = query.eq("program_type", resolved.programType);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      throw error;
+    }
+
+    const rows = data || [];
+    const csv = buildHtafExportCsv(rows);
+
+    const auditResult = await auditLog({
+      actor_type: "admin",
+      actor_id: req.admin.email,
+      action: "htaf_applications_exported",
+      entity_type: "htaf_application_export",
+      entity_id: null,
+      metadata: {
+        row_count: rows.length,
+        reason: resolved.reason,
+        filters: {
+          status: resolved.status,
+          program_type: resolved.programType
+        }
+      },
+      req
+    });
+
+    const delivery = resolveHtafExportDelivery(auditResult);
+
+    if (!delivery.ok) {
+      // Never log the CSV/rows here -- only the audit-write failure
+      // itself (a Supabase error object: message/code/details/hint),
+      // which carries no applicant data.
+      console.error(
+        "❌ HTAF export blocked: audit record could not be written.",
+        auditResult && auditResult.error
+      );
+      return fail(res, delivery.error, delivery.statusCode);
+    }
+
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="htaf-applications-${nowIso().slice(0, 10)}.csv"`
+    );
+    return res.status(200).send(csv);
+  })
+);
+
+/* =========================================================
+
    HTAF DIAGNOSTIC ROUTE
 
    Admin only.
@@ -4752,20 +5089,67 @@ app.get(
 );
 
 /* =========================================================
-   HTAF AI TRIAGE
-   Admin only. Asks OpenAI to summarize an application, flag
-   anything unusual or incomplete, and suggest a next action.
-   This never writes to the database or auto-changes status —
-   it only returns a suggestion for the admin to review. The
-   admin applies it (or not) via the existing notes/status
-   endpoints, so the human always makes the final call.
+   HTAF AI TRIAGE — privacy-hardened (docs/security-remediation/
+   htaf-ai-triage-privacy-hardening.md)
+
+   Admin only. Asks OpenAI to summarize an application's OPERATIONAL
+   completeness/consistency and suggest a next processing step. This
+   never writes to the database or auto-changes status — it only
+   returns a suggestion for the admin to review, inserted into notes
+   (or not) via the existing notes/status endpoints. The human always
+   makes the final call.
+
+   GUARDRAILS (all enforced in code, not just stated here):
+   - Advisory only. The AI never approves, denies, or takes any action
+     itself — buildHtafTriageFacts()/this route never write to
+     htaf_applications, and the recommendation vocabulary below
+     (ready_for_review / request_info / priority_review /
+     data_inconsistency) is deliberately operational-categorization
+     language, not an eligibility decision. "approve"/"deny" were
+     removed from the vocabulary entirely in this hardening pass —
+     triage helps a human prioritize and spot incomplete data; it does
+     not decide who qualifies for HTAF assistance or make any medical
+     judgment. That eligibility/medical-judgment boundary is a policy
+     choice, not a technical limitation of the model — it's enforced by
+     never asking the model for that judgment and never having the
+     vocabulary to express one.
+   - The AI is not provided direct identifiers, exact financial
+     information, street-level location, medical narrative, or other
+     unnecessary sensitive details, and is prohibited from using
+     operational categories to infer protected or sensitive
+     characteristics (see buildHtafTriageFacts(), lib/htafOperations.js,
+     for the full field-by-field classification). This is deliberately
+     not phrased as "the payload contains nothing sensitive" —
+     program_type itself can sometimes imply a sensitive circumstance
+     (e.g. "medical", "disability"), and it is kept because triage needs
+     some operational category to be useful at all. Household size and
+     monthly income, which have no necessary operational function once
+     triage is limited to categorization/prioritization rather than
+     eligibility, are excluded entirely (not merely coarsened) for
+     exactly this reason.
+   - Human admin makes the final decision — the recommendation is only
+     ever inserted into notes for a human to read; nothing here changes
+     status automatically.
+   - No claim of HIPAA-compliant processing is made anywhere in this
+     code or its documentation — sending even minimized, coarse
+     categorical data to a third-party model is a data-sharing decision
+     an organization handling health-adjacent information should have
+     its own legal/compliance review for, independent of this PR
+     (this codebase already carries a standing HIPAA/BAA legal-review
+     TODO from earlier work; this hardening reduces exposure, it does
+     not resolve that TODO).
+   - Auditable without storing unnecessary applicant PII: the audit log
+     for every triage call now includes the exact `facts_sent` payload
+     (see below) — safe to store because buildHtafTriageFacts()'s
+     allow-list guarantees, and tests enforce, that it never contains
+     PII in the first place.
 ========================================================= */
 
 const HTAF_TRIAGE_RECOMMENDATIONS = [
-  "approve",
-  "deny",
+  "ready_for_review",
   "request_info",
-  "review"
+  "priority_review",
+  "data_inconsistency"
 ];
 
 async function triageHtafApplication(application) {
@@ -4776,31 +5160,24 @@ async function triageHtafApplication(application) {
     };
   }
 
-  const facts = {
-    application_code: application.application_code,
-    status: application.status,
-    program_type: application.program_type,
-    applicant_type: application.applicant_type,
-    county: application.county,
-    city: application.city,
-    pickup_city: application.pickup_city,
-    destination: application.destination,
-    ride_date: application.ride_date,
-    household_size: application.household_size,
-    monthly_income: application.monthly_income,
-    transportation_need: application.transportation_need,
-    existing_notes: application.notes || null,
-    submitted_at: application.created_at
-  };
+  // The ONLY facts about this application that leave this server. See
+  // buildHtafTriageFacts() (lib/htafOperations.js) for the allow-list
+  // and its tests for proof that no name, email, phone, application
+  // code, street address, income (exact or banded), household size
+  // (exact or banded), or raw free-text description can reach this
+  // payload even if present on `application`.
+  const facts = buildHtafTriageFacts(application);
 
   const systemContent = [
     "You are an assistant helping a human reviewer triage HTAF (Harvey Transportation Assistance Foundation) applications for transportation assistance.",
-    "You NEVER approve or deny anything yourself — you only summarize the application and suggest a recommendation for a human admin, who makes the final decision.",
-    "Be factual and concise. Do not invent facts that are not in the application data. Do not assume eligibility rules beyond what is provided.",
-    "Flag things like: missing or vague transportation_need, an implausible or inconsistent household_size/monthly_income, a ride_date in the past, a destination/pickup_city outside Nashville or Davidson County (service area), or anything that looks incomplete.",
+    "This is advisory only. You never approve, deny, or take any action yourself — you only summarize the structured facts given and suggest one operational next-step category. A human admin always makes the final decision, including any eligibility or medical judgment, which is never your job.",
+    "You have NOT been given the applicant's name, contact information, exact or approximate income, exact or approximate household size, or any address/free-text description — only coarse operational categories and booleans. Do not guess, infer, or assume any of that missing information, and do not ask for it.",
+    "Never let program_type or any other field function as a proxy for a protected or sensitive characteristic (e.g. disability, medical condition, immigration status, race, religion) in your summary, flags, or recommendation.",
+    "Your evaluation is limited strictly to: missing operational information, service-area inconsistencies (pickup_in_service_area / destination_in_service_area / home_in_service_area being false), a ride_date in the past or otherwise invalid, missing or vague transportation_need_detail, and workflow/data inconsistencies (e.g. a status that doesn't match what the other fields suggest). You must NOT evaluate, comment on, or factor in financial need, household composition, medical need, or program eligibility of any kind — none of that has been given to you, and it is not your role even if it were.",
+    "Be factual and concise. Do not invent facts that are not in the data. Do not assume or apply any HTAF eligibility rule — none has been given to you.",
     "Respond ONLY with a JSON object of this exact shape: " +
-      '{"summary": string, "flags": string[], "recommendation": "approve" | "deny" | "request_info" | "review", "reasoning": string}',
-    '"recommendation" must be exactly one of: approve, deny, request_info, review. Use "review" whenever you are not confident.',
+      '{"summary": string, "flags": string[], "recommendation": "ready_for_review" | "request_info" | "priority_review" | "data_inconsistency", "reasoning": string}',
+    '"recommendation" must be exactly one of: ready_for_review, request_info, priority_review, data_inconsistency. Use "ready_for_review" whenever nothing stands out or you are not confident anything is wrong.',
     "Keep summary to 2-3 sentences. Keep flags short (a few words each); return an empty array if nothing stands out."
   ].join(" ");
 
@@ -4824,7 +5201,7 @@ async function triageHtafApplication(application) {
 
   const recommendation = HTAF_TRIAGE_RECOMMENDATIONS.includes(parsed.recommendation)
     ? parsed.recommendation
-    : "review";
+    : "ready_for_review";
 
   return {
     available: true,
@@ -4833,7 +5210,8 @@ async function triageHtafApplication(application) {
       ? parsed.flags.map((f) => cleanString(f, 200)).filter(Boolean).slice(0, 10)
       : [],
     recommendation,
-    reasoning: cleanString(parsed.reasoning, 1000) || ""
+    reasoning: cleanString(parsed.reasoning, 1000) || "",
+    facts_sent: facts
   };
 }
 
@@ -4861,13 +5239,21 @@ app.post(
       return fail(res, "AI triage is temporarily unavailable. Please try again.", 502);
     }
 
+    // facts_sent is safe to log in full -- it's the same minimized,
+    // PII-free object buildHtafTriageFacts() guarantees and tests
+    // enforce -- giving a complete, auditable record of exactly what
+    // was sent to OpenAI for this call, without ever storing the
+    // applicant PII that record would otherwise need to reference.
     auditLog({
       actor_type: "admin",
       actor_id: req.admin.email,
       action: "htaf_application_ai_triaged",
       entity_type: "htaf_application",
       entity_id: application.id,
-      metadata: { recommendation: triage.recommendation || null },
+      metadata: {
+        recommendation: triage.recommendation || null,
+        facts_sent: triage.facts_sent || null
+      },
       req
     }).catch(() => {});
 
@@ -11989,32 +12375,48 @@ app.delete(
 
 /* =========================================================
 
-   HTAF APPLICATION STATUS BY EMAIL
+   HTAF APPLICATION STATUS — AUTHENTICATED RIDER SELF-LOOKUP
 
-   htaf_applications has no rider_id column — applications are
-   keyed by contact email/phone, not by rider account (there is no
-   link between the two anywhere in the schema). This lets the
-   rider dashboard find "do I have an HTAF application, and what's
-   its status" using the one identifier it already has (the
-   rider's own email), exposing nothing beyond what the existing
-   public /api/foundation/status/:code route already exposes.
+   Replaces the former public GET /api/foundation/applications/by-email
+   (docs/security-remediation/htaf-admin-pii-audit.md, finding 3):
+   that route took an arbitrary ?email= query param with no
+   authentication at all, so anyone on the internet could check whether
+   a given email address had ever submitted a charity transportation-
+   assistance application -- an enumeration/privacy risk independent of
+   which fields the response contained, since the existence fact itself
+   is sensitive. An email address is not a secret, unlike the
+   high-entropy application_code /api/foundation/status/:code requires
+   the caller to already possess.
+
+   This route requires a verified rider session (requireRider) and uses
+   ONLY req.rider.email -- the server's own record of who is logged in
+   -- never a client-supplied email. A rider can therefore only ever
+   look up their own application, never anyone else's; there is no
+   longer any public surface where an arbitrary email can be tested.
+   See resolveRiderHtafLookup() in lib/htafOperations.js for the
+   (tested) guarantee that no request-supplied value can stand in for
+   the session's own identity.
 
 ========================================================= */
 
 app.get(
-  "/api/foundation/applications/by-email",
-  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "htaf_status_by_email" }),
+  "/api/rider/htaf-application",
+  requireRider,
   asyncRoute(async (req, res) => {
-    const email = cleanString(req.query.email, 200);
+    const lookup = resolveRiderHtafLookup(req.rider);
 
-    if (!email || !email.includes("@")) {
-      return fail(res, "A valid email is required.", 400);
+    if (!lookup.ok) {
+      return fail(res, lookup.error, lookup.statusCode);
+    }
+
+    if (!lookup.email) {
+      return ok(res, { application: null });
     }
 
     const { data, error } = await supabase
       .from("htaf_applications")
       .select("application_code, status, program_type, created_at, updated_at")
-      .ilike("email", email)
+      .ilike("email", lookup.email)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -15385,7 +15787,7 @@ app.get(
 
         .from("rides")
 
-        .select("*")
+        .select(ADMIN_RIDES_LIST_FIELDS.join(","))
 
         .order("created_at", {
 
@@ -15541,7 +15943,7 @@ app.patch(
 
         .eq("id", rideId)
 
-        .select()
+        .select(ADMIN_RIDE_MUTATION_FIELDS.join(","))
 
         .single();
 
@@ -15620,6 +16022,12 @@ app.post(
   requireAdmin,
 
   asyncRoute(async (req, res) => {
+
+    logAdminRbacShadowCheck(
+      req,
+      "POST /api/admin/rides/:id/assign-driver",
+      RBAC_SHADOW_ROUTE_CAPABILITIES["POST /api/admin/rides/:id/assign-driver"]
+    ).catch(() => {});
 
     const rideId =
 
@@ -15703,7 +16111,16 @@ app.post(
 
         .eq("id", rideId)
 
-        .select()
+        // notifyRideStage() (below) needs rider_id/rider_phone/ride_type
+        // to actually notify the rider, and the push-notification body
+        // needs pickup_address -- both real, server-side-only uses, not
+        // response fields. ride/driver in the SSE broadcast and the HTTP
+        // response below are built from ADMIN_RIDE_MUTATION_FIELDS only,
+        // never from this row directly, so those two internal-use fields
+        // never leave the server.
+        .select(
+          [...ADMIN_RIDE_MUTATION_FIELDS, "rider_id", "rider_phone", "ride_type", "pickup_address"].join(",")
+        )
 
         .single();
 
@@ -15712,6 +16129,16 @@ app.post(
       throw error;
 
     }
+
+    const rideSummary = {
+      id: data.id,
+      status: data.status,
+      dispatch_status: data.dispatch_status,
+      driver_id: data.driver_id,
+      updated_at: data.updated_at
+    };
+
+    const driverSummary = { id: driver.id, ...driverRideFields };
 
     notifyRideStage(data, "driver_assigned").catch(() => {});
 
@@ -15773,9 +16200,11 @@ app.post(
 
         ride:
 
-          data,
+          rideSummary,
 
-        driver
+        driver:
+
+          driverSummary
 
       }
 
@@ -15785,9 +16214,11 @@ app.post(
 
       ride:
 
-        data,
+        rideSummary,
 
-      driver
+      driver:
+
+        driverSummary
 
     });
 
@@ -15841,7 +16272,7 @@ app.get(
 
         .from("drivers")
 
-        .select("*")
+        .select(ADMIN_DRIVERS_LIST_FIELDS.join(","))
 
         .order("created_at", {
 
@@ -15961,7 +16392,7 @@ app.get(
 
         .from("riders")
 
-        .select("*")
+        .select(ADMIN_RIDERS_LIST_FIELDS.join(","))
 
         .order("created_at", {
 
@@ -16049,6 +16480,12 @@ app.patch(
 
   asyncRoute(async (req, res) => {
 
+    logAdminRbacShadowCheck(
+      req,
+      "PATCH /api/admin/drivers/:id/approve",
+      RBAC_SHADOW_ROUTE_CAPABILITIES["PATCH /api/admin/drivers/:id/approve"]
+    ).catch(() => {});
+
     const driverId =
 
       cleanString(
@@ -16086,7 +16523,7 @@ app.patch(
 
         .eq("id", driverId)
 
-        .select()
+        .select(ADMIN_DRIVER_MUTATION_FIELDS.join(","))
 
         .single();
 
@@ -16350,6 +16787,16 @@ app.patch(
 
   asyncRoute(async (req, res) => {
 
+    // requireElevatedAdmin() (already stricter than plain
+    // requireAdmin -- token-method only) is this route's real,
+    // unchanged authority. The shadow check below is purely
+    // observational, same as every other instrumented route.
+    logAdminRbacShadowCheck(
+      req,
+      "PATCH /api/admin/drivers/:id/compliance-override",
+      RBAC_SHADOW_ROUTE_CAPABILITIES["PATCH /api/admin/drivers/:id/compliance-override"]
+    ).catch(() => {});
+
     const driverId =
 
       cleanString(
@@ -16590,7 +17037,7 @@ app.patch(
 
         .eq("id", driverId)
 
-        .select()
+        .select(ADMIN_DRIVER_MUTATION_FIELDS.join(","))
 
         .single();
 
@@ -16726,7 +17173,7 @@ app.patch(
 
         .eq("id", riderId)
 
-        .select()
+        .select(ADMIN_RIDER_MUTATION_FIELDS.join(","))
 
         .single();
 
@@ -16802,6 +17249,12 @@ app.get(
 
   asyncRoute(async (req, res) => {
 
+    logAdminRbacShadowCheck(
+      req,
+      "GET /api/admin/audit-logs",
+      RBAC_SHADOW_ROUTE_CAPABILITIES["GET /api/admin/audit-logs"]
+    ).catch(() => {});
+
     const limit =
 
       getPageLimit(
@@ -16824,7 +17277,7 @@ app.get(
 
         .from("audit_logs")
 
-        .select("*")
+        .select(ADMIN_AUDIT_LOGS_LIST_FIELDS.join(","))
 
         .order("created_at", {
 
@@ -16952,161 +17405,49 @@ app.post(
 
       });
 
-    const now =
-
-      nowIso();
-
-    const ride = {
-
-      id:
-
-        makeId("RIDE"),
-
-      rider_id:
-
-        null,
-
-      htaf_application_id:
-
-        application.id,
-
-      rider_name:
-
-        `${application.first_name} ${application.last_name}`,
-
-      rider_phone:
-
-        application.phone,
-
-      pickup_address:
-
-        cleanString(
-
-          req.body.pickup ||
-
-          application.pickup_city,
-
-          500
-
-        ),
-
-      dropoff_address:
-
-        cleanString(
-
-          req.body.destination ||
-
-          application.destination,
-
-          500
-
-        ),
-
-      ride_type:
-
-        "foundation",
-
-      scheduled_time:
-
-        req.body.scheduled_for ||
-
-        application.ride_date ||
-
-        null,
-
-      status:
-
-        RIDE_STATUS.PAYMENT_AUTHORIZED,
-
-      dispatch_status:
-
-        "foundation_authorized",
-
-      estimated_fare:
-
-        estimate.total,
-
-      driver_payout:
-
-        estimate.driver_payout,
-
-      estimated_platform_fee:
-
-        estimate.platform_fee,
-
-      pricing_snapshot:
-
-        estimate,
-
-      estimated_distance_miles:
-
-        estimate.miles,
-
-      estimated_duration_minutes:
-
-        estimate.minutes,
-
-      miles_estimate:
-
-        estimate.miles,
-
-      minutes_estimate:
-
-        estimate.minutes,
-
-      notes:
-
-        `HTAF application ${application.application_code}`,
-
-      created_at:
-
-        now,
-
-      updated_at:
-
-        now
-
-    };
-
-    const { data: createdRide, error: rideError } =
-
-      await supabase
-
-        .from("rides")
-
-        .insert(ride)
-
-        .select()
-
-        .single();
-
-    if (rideError) {
-
-      throw rideError;
+    // The application is loaded above only to build the ride's field
+    // values (rider name/phone, pickup/dropoff, fare estimate). Whether
+    // a ride should actually be created — vs. returning an existing one
+    // or failing closed on an inconsistent state — is decided inside
+    // create_htaf_ride_atomic itself, under a row lock, so a retried
+    // request or an admin double-click cannot create two rides for the
+    // same application (see supabase/migrations/20260806120000_htaf_ride_idempotency.sql).
+    const candidateRideId = makeId("RIDE");
+
+    const { data: rpcRows, error: rpcError } =
+
+      await supabase.rpc("create_htaf_ride_atomic", {
+
+        p_application_id: applicationId,
+        p_ride_id: candidateRideId,
+        p_rider_name: `${application.first_name} ${application.last_name}`,
+        p_rider_phone: application.phone,
+        p_pickup_address: cleanString(req.body.pickup || application.pickup_city, 500),
+        p_dropoff_address: cleanString(req.body.destination || application.destination, 500),
+        p_ride_type: "foundation",
+        p_scheduled_time: req.body.scheduled_for || application.ride_date || null,
+        p_status: RIDE_STATUS.PAYMENT_AUTHORIZED,
+        p_dispatch_status: "foundation_authorized",
+        p_estimated_fare: estimate.total,
+        p_driver_payout: estimate.driver_payout,
+        p_estimated_platform_fee: estimate.platform_fee,
+        p_pricing_snapshot: estimate,
+        p_estimated_distance_miles: estimate.miles,
+        p_estimated_duration_minutes: estimate.minutes,
+        p_miles_estimate: estimate.miles,
+        p_minutes_estimate: estimate.minutes,
+        p_notes: `HTAF application ${application.application_code}`
+
+      });
+
+    if (rpcError) {
+
+      throw rpcError;
 
     }
 
-    await supabase
-
-      .from("htaf_applications")
-
-      .update({
-
-        status:
-
-          HTAF_STATUS.SCHEDULED,
-
-        ride_id:
-
-          createdRide.id,
-
-        updated_at:
-
-          nowIso()
-
-      })
-
-      .eq("id", applicationId);
+    const rpcResult = Array.isArray(rpcRows) ? rpcRows[0] : rpcRows;
+    const outcome = resolveCreateRideOutcome(rpcResult);
 
     auditLog({
 
@@ -17120,7 +17461,7 @@ app.post(
 
       action:
 
-        "htaf_application_converted_to_ride",
+        outcome.created ? "htaf_application_converted_to_ride" : "htaf_application_create_ride_" + (rpcResult && rpcResult.outcome ? rpcResult.outcome : "failed"),
 
       entity_type:
 
@@ -17134,7 +17475,15 @@ app.post(
 
         ride_id:
 
-          createdRide.id
+          outcome.ride ? outcome.ride.id : null,
+
+        outcome:
+
+          rpcResult && rpcResult.outcome,
+
+        reason:
+
+          outcome.reason || null
 
       },
 
@@ -17142,35 +17491,68 @@ app.post(
 
     }).catch(() => {});
 
-    broadcastSse(
+    if (outcome.error) {
 
-      "htaf_ride_created",
+      return fail(
 
-      {
+        res,
 
-        application_id:
+        outcome.error,
 
-          applicationId,
+        outcome.statusCode,
 
-        ride:
+        outcome.reason ? { reason: outcome.reason } : {}
 
-          createdRide
+      );
 
-      }
+    }
 
-    );
+    if (outcome.created) {
+
+      // The full outcome.ride row (from the create_htaf_ride RPC) carries
+      // rider_name/rider_phone -- fine for the direct HTTP response below
+      // to the one admin who just performed this action on this specific
+      // application, but not for an unscoped broadcast to every connected
+      // admin socket. The SSE event only needs enough to know a ride now
+      // exists for this application; full detail is available through
+      // GET /api/admin/rides's own allow-list.
+      broadcastSse(
+
+        "htaf_ride_created",
+
+        {
+
+          application_id:
+
+            applicationId,
+
+          ride:
+
+            outcome.ride
+              ? { id: outcome.ride.id, status: outcome.ride.status }
+              : null
+
+        }
+
+      );
+
+    }
 
     return ok(res, {
 
       ride:
 
-        createdRide,
+        outcome.ride,
 
       application_id:
 
-        applicationId
+        applicationId,
 
-    });
+      created:
+
+        outcome.created
+
+    }, outcome.statusCode);
 
   })
 
@@ -17434,6 +17816,12 @@ app.post(
   "/api/admin/system/enable-rider-auth-ui",
   requireAdmin,
   asyncRoute(async (req, res) => {
+    logAdminRbacShadowCheck(
+      req,
+      "POST /api/admin/system/enable-rider-auth-ui",
+      RBAC_SHADOW_ROUTE_CAPABILITIES["POST /api/admin/system/enable-rider-auth-ui"]
+    ).catch(() => {});
+
     await supabase
       .from("system_flags")
       .upsert({

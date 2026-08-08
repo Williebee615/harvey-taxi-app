@@ -1612,22 +1612,29 @@ async function submitApplication(payload) {
   return response.json();
 }
 
-function updateDashboardCounters() {
-  const stored = Number(localStorage.getItem("htaf_total_applications") || "0");
+async function refreshPublicStats() {
   const total = document.getElementById("totalApplications");
   const pending = document.getElementById("pendingApplications");
   const approved = document.getElementById("approvedApplications");
   const scheduled = document.getElementById("scheduledRides");
-  if (total) total.textContent = stored;
-  if (pending) pending.textContent = stored;
-  if (approved) approved.textContent = "0";
-  if (scheduled) scheduled.textContent = "0";
-}
+  const fields = [total, pending, approved, scheduled];
 
-function incrementApplicationCounter() {
-  const current = Number(localStorage.getItem("htaf_total_applications") || "0");
-  localStorage.setItem("htaf_total_applications", String(current + 1));
-  updateDashboardCounters();
+  try {
+    const response = await fetch(`${window.HARVEY_API_BASE || ""}/api/foundation/public-stats`);
+    if (!response.ok) throw new Error(`Public stats request failed (HTTP ${response.status}).`);
+    const data = await response.json();
+    if (!data || !data.ok) throw new Error("Public stats response was not ok.");
+
+    if (total) total.textContent = data.applications_submitted;
+    if (pending) pending.textContent = data.pending_review;
+    if (approved) approved.textContent = data.approved_requests;
+    if (scheduled) scheduled.textContent = data.scheduled_rides;
+  } catch (error) {
+    console.error(error);
+    fields.forEach((field) => {
+      if (field) field.textContent = "Unavailable";
+    });
+  }
 }
 
 function updateProgressTracker() {
@@ -2080,7 +2087,7 @@ if (applicationForm) {
       applicationForm.reset();
       if (uploadPreview) uploadPreview.innerHTML = "";
 
-      incrementApplicationCounter();
+      refreshPublicStats();
       showApplicationStatus(
         "Application submitted successfully. HTAF will review your transportation assistance request.",
         "ok"
@@ -2114,7 +2121,7 @@ window.addEventListener("load", () => {
   bindLanguageSelector();
   bindAccessibility();
   loadDraftApplication();
-  updateDashboardCounters();
+  refreshPublicStats();
   updateProgressTracker();
   trackFoundationIntent("htaf_application_page_view");
 });

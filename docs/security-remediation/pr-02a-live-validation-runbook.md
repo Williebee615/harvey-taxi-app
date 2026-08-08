@@ -91,5 +91,29 @@ by the owner as part of this same validation pass.
 - [x] Every item above reported passing by the repository owner (session-recorded, not independently observed).
 - [x] `docs/security-remediation/pr-02a-rider-client-auth.md` updated with a link/summary of this runbook's results.
 - [x] PR #95 merged.
-- [ ] `rider_auth_ui_enabled` left in its controlled (QA-only or off) state until the **merged** deploy is itself smoke-tested — a merge is a new deploy, not a continuation of the branch-preview one. **Still required post-merge — not satisfied by the branch-preview validation above.**
-- [ ] Only then: PR 2b begins, introducing `rider_auth_enforced` (default `false`) and migrating rider-owned routes in small groups, each with its own IDOR regression tests alongside it, per your instruction.
+- [~] **Merged-deploy smoke test — PARTIAL, re-assessed 2026-08-04.**
+  What this session actually verified against the merged `main` branch:
+  full test suite passing, `node -c server.js` clean, and a live query
+  confirming `rider_auth_ui_enabled`/`rider_auth_enforced` still resolve
+  to no row / `false` (re-confirmed again just now, 2026-08-04, alongside
+  the PR #98 work — no row exists for either key, `rider_history_enabled`
+  unaffected). **What this does NOT cover, and never has**: an actual
+  click-through of the real, deployed Render production service. This
+  session has no Render access and (confirmed today, working on PR #98)
+  no outbound HTTPS to the production domain either — both gaps predate
+  today and were not closed by the code/DB-level checks above. Per the
+  correction on PR #98's doc: a Vercel build/preview status is not
+  Render production-deployment evidence, and none has been obtained here
+  for PR #95 either. **This item stays open** until either (a) the owner
+  performs and reports a real post-merge click-through against the live
+  Render deployment specifically (not the branch-preview one already
+  reported in §3), or (b) this session gains a way to check Render
+  status directly.
+- [ ] **PR 2b start gate — NOT satisfied, holding.** PR 2b's own code
+  (`requireRiderIfEnforced`/`resolveEnforcedRiderId`, PR #97) was already
+  written and opened as an inert, unmerged PR before this gate was
+  properly closed — that was premature given the item above is still
+  open, and no further PR 2b action (merge, or enabling
+  `rider_auth_enforced`) will be taken until it is. PR #97 remains open
+  and inert; nothing about it needs to be undone, it just doesn't move
+  forward yet.

@@ -11,7 +11,7 @@
 
 Harvey Taxi Mobile is a single Node/Express application (`server.js`, ~19,700 lines) serving 47 static HTML pages and 124 API routes, backed by a Supabase Postgres project (45 tables, 17 committed migrations) and Stripe/Twilio/SendGrid/Checkr/Persona integrations. It is **not yet production-ready for general public launch**. The core dispatch, payment, and compliance logic is real and mostly sound — this is not a prototype — but three categories of blocker remain open:
 
-1. **An active, unresolved onboarding blocker.** `ENABLE_PERSONA` defaults to `true` with no real Persona flow live, which has been blocking every driver from going online. A fix was identified and a Render env-var change was requested of the operator; **[UNTESTED]** whether it has taken effect — no confirmation received yet that a real driver can go online in production.
+1. **An active, unresolved onboarding blocker — CONFIRMED STILL LIVE 2026-08-04.** `ENABLE_PERSONA` defaults to `true` with no real Persona flow live, which has been blocking every driver from going online. A fix was identified and a Render env-var change was requested of the operator; this was previously **[UNTESTED]**. It is now confirmed, via an owner-provided Render boot log (production, 2026-08-04T21:25:50Z, quoted in full in `docs/security-remediation/pr-04-rls-hardening.md`'s "Render production-deployment evidence" section): `🪪 Persona API key configured: OFF` while `🪪 Persona verification required to go online (ENABLE_PERSONA): ON`. The requested fix has **not** taken effect — this remains a live, active blocker preventing every driver from going online, confirmed by direct evidence rather than inference. Needs a Render env-var correction independent of anything else in this document.
 2. **No rider-side authentication.** Every `/api/rider/*` route identifies the rider purely by a client-supplied `riderId` in the request body/query — there is no session token, cookie, or password check anywhere in the rider API surface. Any client that knows (or guesses/enumerates) a rider ID can read or write that rider's saved places, payment methods, ride history, and now their profile photo.
 3. **A meaningful amount of test/prototype debris sitting in the production repo and production database**, including two rider/driver "QA" records with **live `active`/`approved` status** that are currently indistinguishable from real users in the admin dashboard, and roughly a dozen orphaned or duplicate HTML pages (see §3).
 
@@ -162,16 +162,30 @@ Every `/api/rider/*` and `/api/riders/*` route (payment methods, saved places, r
 
 **This is a P0** — it's an active IDOR (Insecure Direct Object Reference) across the entire rider-facing API surface, not a single endpoint. I did not build any new endpoint in this pattern without noting it was consistent with the existing (already-broken) convention — every rider PR I opened this session flagged this explicitly rather than silently treating it as normal.
 
-### 5.2 RLS gaps in Supabase (P1)
+### 5.2 RLS gaps in Supabase (P1) — **UPDATED 2026-08-04: mostly FIXED, see below**
 
-- `preferred_drivers`, `usage_counters` (application tables) and `spatial_ref_sys` (PostGIS system table) have RLS **disabled entirely** — exposed to `anon`/`authenticated` roles if anyone ever queries them via the public Supabase REST API directly (not just through your Express backend). Remediation SQL was already generated in an earlier session and is reproduced here for your decision — **not applied**, since enabling RLS with no policies would silently block all access if anything does query these tables directly:
+**Status as of PR #98 (merged 2026-08-04 21:21 UTC — see
+`docs/security-remediation/pr-04-rls-hardening.md` for full evidence):**
+
+| Finding | Status |
+|---|---|
+| `riders` `"Allow service role full access"` policy was scoped to `public` (every role), not just `service_role` — the `[ASSUMPTION, needs confirmation]` below was confirmed **false** | **FIXED and verified** — mis-scoped policy dropped, correctly-scoped `service_role_riders` policy left intact |
+| `usage_counters` RLS disabled | **FIXED and verified** — RLS enabled, `service_role_usage_counters`/`deny_all_usage_counters` policies added |
+| `preferred_drivers` RLS disabled | **FIXED and verified** — RLS enabled, `service_role_preferred_drivers`/`deny_all_preferred_drivers` policies added |
+| `increment_usage_counter()` `EXECUTE` grant (over-broad, held by `PUBLIC`/`anon`/`authenticated`) | **FIXED and verified** — revoked from all three, held only by `postgres`/`service_role` |
+| `spatial_ref_sys` RLS disabled / write grants to `anon`/`authenticated` | **OPEN / BLOCKED** — table is owned by `supabase_admin`; this project's `postgres` role has no grant option on `supabase_admin`'s grants and cannot revoke them. RLS was deliberately **not** enabled on this table (PostGIS-extension-owned; custom RLS risks compatibility/upgrade issues). A privilege-only fix (revoke write, keep public read) was attempted and confirmed to silently no-op. Remediation requires a Supabase support request or direct `supabase_admin` action — drafted, not yet submitted. No trigger or other application-level workaround was used or should be used. |
+
+Original findings below, preserved for record:
+
+- `preferred_drivers`, `usage_counters` (application tables) and `spatial_ref_sys` (PostGIS system table) had RLS **disabled entirely** — exposed to `anon`/`authenticated` roles if anyone ever queried them via the public Supabase REST API directly (not just through your Express backend). Remediation SQL was already generated in an earlier session and is reproduced here for record — this is the SQL that was actually applied for the first two tables (see the table above for what happened with the third):
   ```sql
   ALTER TABLE public.preferred_drivers ENABLE ROW LEVEL SECURITY;
   ALTER TABLE public.spatial_ref_sys ENABLE ROW LEVEL SECURITY;
   ALTER TABLE public.usage_counters ENABLE ROW LEVEL SECURITY;
   ```
+  (`spatial_ref_sys` was ultimately *not* given the `ENABLE ROW LEVEL SECURITY` treatment — see the status table above for why.)
 - The remaining 42 tables have RLS **enabled with zero policies** — this is actually the *safe* default (no policy + RLS on = no access at all for `anon`/`authenticated`; your backend uses the service-role key, which bypasses RLS entirely), but it means your entire authorization model lives in `server.js`'s own middleware, not in the database. That's a legitimate architecture choice, not a defect — flagging only so it's an explicit, confirmed decision rather than an assumption.
-- `riders` has one explicit policy, `"Allow service role full access"`, `USING(true)` — Supabase's linter flags any `USING(true)` policy as a warning by default. **[ASSUMPTION, needs confirmation]** this is very likely scoped to the `service_role` only (matching its name) and therefore fine, but I have not verified the policy's `roles` restriction directly — worth a 30-second confirmation query before considering this closed.
+- `riders` had one explicit policy, `"Allow service role full access"`, `USING(true)` — Supabase's linter flags any `USING(true)` policy as a warning by default. The `[ASSUMPTION, needs confirmation]` that this was scoped to `service_role` only was checked directly and found **false**: `pg_policies.roles` showed `{public}`, meaning every role, not just `service_role`. This was the P0 finding fixed above.
 
 ### 5.3 Dependency vulnerability (P1, one-line fix)
 
@@ -223,18 +237,18 @@ No flow above should be treated as "production ready" on the strength of this do
 
 **P0 — active exposure, fix before anything else:**
 1. Rider API has no session authentication (§5.1) — every `/api/rider/*` route.
-2. Confirm `ENABLE_PERSONA=false` actually took effect in Render (§1) — currently blocking all driver onboarding.
+2. ~~Confirm `ENABLE_PERSONA=false` actually took effect in Render (§1)~~ **CONFIRMED NOT TAKEN EFFECT, 2026-08-04** — Render boot log shows `ENABLE_PERSONA: ON` with `Persona API key configured: OFF`. Still currently blocking all driver onboarding; still open, now with direct evidence instead of inference.
 
 **P1 — required before public launch:**
 3. Remove unused `nodemailer` dependency (high-severity CVE, zero-risk removal).
 4. Fix or remove the two broken links: `tip-driver.html`, `delete-account.html` (§2.2).
-5. Decide and apply RLS on `preferred_drivers` / `usage_counters` (with real policies, not blind `ENABLE`).
+5. ~~Decide and apply RLS on `preferred_drivers` / `usage_counters` (with real policies, not blind `ENABLE`).~~ **FIXED 2026-08-04, PR #98** — real `service_role_X`/`deny_all_X` policies on both, plus RPC grant tightening. `spatial_ref_sys` remains **OPEN/BLOCKED** (owner-level action required — see §5.2).
 6. Confirm webhook secrets (Stripe/Checkr/Persona) are live-valid, not just present.
 7. Resolve the `PERSONA_TEMPLATE_ID_*` / `TWILIO_*_NUMBER` naming duplication (confirm which names are actually read live).
 8. Live-verify every flow marked `[UNTESTED]` in §6 — this is the largest remaining item, and mostly requires the operator's own click-through since I cannot reach production from this sandbox.
 
 **P2 — important hardening:**
-9. Confirm `riders`' `USING(true)` policy is scoped to `service_role` only.
+9. ~~Confirm `riders`' `USING(true)` policy is scoped to `service_role` only.~~ **RESOLVED 2026-08-04** — confirmed it was NOT (scoped to `public`, every role); fixed in PR #98 (see §5.2).
 10. Pin `search_path` on the 7 flagged Postgres functions.
 11. Confirm rate limiting is backed by Upstash Redis (shared) rather than in-process memory, if Render ever runs >1 instance.
 12. Consolidate the two feature-flag mechanisms (`system_flags` table vs. `ENABLE_*` env vars).

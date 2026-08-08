@@ -544,19 +544,6 @@
         <div class="rider-id-value" id="savedRiderIdValue">--</div>
       </div>
 
-      <div class="payment-method-card" id="paymentMethodCard">
-        <strong>Add a Payment Method (Optional)</strong>
-        <p>Save a card now so it's ready to select the next time you request a ride. You can skip this and add a card later from the ride request screen.</p>
-        <div class="payment-card-element-wrap" id="signupCardElementContainer">
-          <!-- Stripe Elements mounts the real card field here. -->
-        </div>
-        <small class="payment-card-errors" id="signupCardErrors" role="alert"></small>
-        <div class="small-actions">
-          <button class="small-btn" id="savePaymentMethodBtn" type="button">Save Card</button>
-          <button class="small-btn" id="skipPaymentMethodBtn" type="button">Skip for Now</button>
-        </div>
-      </div>
-
       <div class="small-actions">
         <button class="small-btn" id="continueBtn" type="button" data-i18n="continueToDashboard">Continue to Rider Dashboard</button>
         <button class="small-btn" id="clearSavedBtn" type="button" data-i18n="clearSession">Clear Saved Rider Session</button>
@@ -628,11 +615,6 @@
 <!-- AI chat mount point (populated by ai-support-widget.js) -->
 <div id="harvey-ai-chat-root"></div>
 
-<!-- STRIPE.JS — publishable key only, safe to load unconditionally. The
-     controller script below checks whether Stripe actually initialized
-     (a real key came back from /api/stripe-key) before trying to use it. -->
-<script src="https://js.stripe.com/v3/"></script>
-
 <script>
   /* ============================================================
      CONSTANTS
@@ -664,11 +646,6 @@
   const resultBox = document.getElementById("resultBox");
   const errorBox = document.getElementById("errorBox");
   const infoBox = document.getElementById("infoBox");
-  const paymentMethodCard = document.getElementById("paymentMethodCard");
-  const signupCardElementContainer = document.getElementById("signupCardElementContainer");
-  const signupCardErrors = document.getElementById("signupCardErrors");
-  const savePaymentMethodBtn = document.getElementById("savePaymentMethodBtn");
-  const skipPaymentMethodBtn = document.getElementById("skipPaymentMethodBtn");
   const accountText = document.getElementById("accountText");
   const accountTag = document.getElementById("accountTag");
   const documentText = document.getElementById("documentText");
@@ -1403,12 +1380,9 @@
         `);
       }
 
-      // Card entry is optional and independent of approval status — a
-      // pending rider can still pre-add a card. No auto-redirect to the
-      // dashboard here anymore (there used to be one for approved riders)
-      // so this card has time to actually be seen and used; "Skip for
-      // Now" and "Continue to Rider Dashboard" both remain available.
-      showPaymentMethodCard(rider.id);
+      // Payment methods are no longer offered on this page (see
+      // "PAYMENT METHOD AT SIGNUP -- REMOVED" below) — a rider can add
+      // a card once signed in, from the ride request flow.
     } catch (error) {
       showBox(errorBox, `
         <strong>Rider signup failed.</strong><br><br>
@@ -1470,130 +1444,30 @@
   }
 
   /* ------------------------------------- */
-  /* PAYMENT METHOD (OPTIONAL, AT SIGNUP) */
-  /* ------------------------------------- */
+  /* PAYMENT METHOD AT SIGNUP -- REMOVED (P0 remediation, prerequisite
+     for PR 3/PR 2b enablement).
 
-  let signupStripeClient = null;
-  let signupCardElement = null;
-  let signupPaymentRiderId = "";
+     This page used to offer "save a card now" immediately after account
+     creation, calling POST /api/rider/payment-methods/setup-intent
+     before any session existed -- via a fetch helper (api(), above)
+     that explicitly set credentials: "omit", so it never even attempted
+     to send a session cookie. That's the exact pattern this whole
+     remediation program exists to close: a rider-owned action taken
+     before the rider has proven who they are.
 
-  async function initSignupStripeElements() {
-    if (!signupCardElementContainer || signupStripeClient) return;
-
-    if (typeof Stripe === "undefined") {
-      signupCardElementContainer.textContent =
-        "Card payments are temporarily unavailable. You can add a card later.";
-      return;
-    }
-
-    try {
-      const res = await api("/api/stripe-key");
-      const key = res?.key || "";
-
-      if (!key) {
-        signupCardElementContainer.textContent =
-          "Card payments are not configured yet. You can add a card later.";
-        return;
-      }
-
-      signupStripeClient = Stripe(key);
-      const elements = signupStripeClient.elements();
-
-      signupCardElement = elements.create("card", {
-        style: {
-          base: {
-            color: "#f4f7ff",
-            fontFamily: "Inter, system-ui, sans-serif",
-            fontSize: "15px",
-            "::placeholder": { color: "rgba(184, 199, 230, 0.55)" }
-          },
-          invalid: { color: "#ff7e97", iconColor: "#ff7e97" }
-        }
-      });
-
-      signupCardElement.mount("#signupCardElementContainer");
-
-      signupCardElement.on("change", (event) => {
-        if (signupCardErrors) {
-          signupCardErrors.textContent = event.error ? event.error.message : "";
-        }
-      });
-    } catch (err) {
-      signupStripeClient = null;
-      signupCardElement = null;
-      signupCardElementContainer.textContent =
-        "Unable to load the card payment form. You can add a card later.";
-    }
-  }
-
-  function showPaymentMethodCard(riderId) {
-    if (!paymentMethodCard || !riderId) return;
-
-    signupPaymentRiderId = riderId;
-    paymentMethodCard.style.display = "block";
-    initSignupStripeElements();
-  }
-
-  function hidePaymentMethodCard() {
-    if (paymentMethodCard) {
-      paymentMethodCard.style.display = "none";
-    }
-  }
-
-  async function savePaymentMethod() {
-    if (!signupStripeClient || !signupCardElement) {
-      showBox(errorBox, "Card payments are not available right now. You can add a card later from the ride request screen.");
-      return;
-    }
-
-    if (!signupPaymentRiderId) {
-      return;
-    }
-
-    setButtonLoading(savePaymentMethodBtn, true, "Saving Card...", "Save Card");
-
-    if (signupCardErrors) {
-      signupCardErrors.textContent = "";
-    }
-
-    try {
-      const setupData = await api("/api/rider/payment-methods/setup-intent", {
-        method: "POST",
-        body: JSON.stringify({ rider_id: signupPaymentRiderId })
-      });
-
-      const clientSecret = setupData?.client_secret;
-      if (!clientSecret) {
-        throw new Error("Could not start card setup. Please try again.");
-      }
-
-      const result = await signupStripeClient.confirmCardSetup(clientSecret, {
-        payment_method: { card: signupCardElement }
-      });
-
-      if (result.error) {
-        throw new Error(result.error.message || "Card could not be saved.");
-      }
-
-      trackEvent("rider_signup_payment_method_saved", {});
-      hidePaymentMethodCard();
-      showBox(infoBox, `
-        Payment method saved.<br><br>
-        Continue to your <a class="next-link" href="/rider-dashboard.html?riderId=${encodeURIComponent(signupPaymentRiderId)}">Rider Dashboard</a>.
-      `);
-    } catch (error) {
-      if (signupCardErrors) {
-        signupCardErrors.textContent = error.message || "Card could not be saved.";
-      }
-      trackEvent("rider_signup_payment_method_failed", { message: error.message });
-    } finally {
-      setButtonLoading(savePaymentMethodBtn, false, "", "Save Card");
-    }
-  }
-
-  savePaymentMethodBtn?.addEventListener("click", savePaymentMethod);
-  skipPaymentMethodBtn?.addEventListener("click", hidePaymentMethodCard);
-
+     Per explicit instruction: no temporary unauthenticated exemption
+     for SetupIntent, and no auto-issued session just because signup
+     succeeded. The only route to a session is the real OTP flow
+     (isRiderAuthUiEnabled()/handOffToRiderVerification() above, and
+     rider-dashboard.html's bootstrapRiderSession()/runAuthenticatedBoot()
+     gate -- GET /api/rider/session confirms the session before any
+     rider-owned call, including payment methods, ever fires). Saving a
+     card is now only ever done from an authenticated context: the
+     rider dashboard's ride-request flow, whose fetch helper (apiFetch/
+     apiPost) sends both the session cookie and the CSRF header (PR 3).
+     A rider can still add a payment method -- just not from this
+     pre-session page. See docs/security-remediation/
+     pr-02c-signup-session-handoff.md. */
   /* ------------------------------------- */
   /* RIDER STATUS */
   /* ------------------------------------- */
