@@ -1,12 +1,25 @@
-# Consolidated Live-Validation Runbook — PR 2b (#97) + PR 3 (#115)
+# Consolidated Live-Validation Runbook — PR 2b (#97) + PR 3 (#115) + Ride-Creation Ownership (#118)
 
 ## Status
 
-`rider_auth_enforced` remains **`false`**. Both #97 and #115 are merged
-to `main` and shipped inert — merging the code closes zero real
+`rider_auth_enforced` remains **`false`**. #97, #115, and #118 are all
+merged to `main` and shipped inert — merging the code closes zero real
 authorization gaps by itself; only turning the flag on does. **No admin
 route was called while writing this document**, and it does not enable
 the flag.
+
+**Added since the previous revision:** #118 (task #240) wires the same
+`requireRiderIfEnforced`/`resolveEnforcedRiderId` mechanism onto
+`POST /api/rides/request`, closing a gap #115's own doc had explicitly
+named "PR 4: ride ownership" and scoped out. This was found while
+independently reviewing the now-closed PR #101 before closing it as
+superseded by #115. It matters here specifically because
+`verifyPaymentIntentForRide()` compares a PaymentIntent's
+`metadata.rider_id` (trustworthy since #115) against `ride.rider_id` —
+until #118, the *ride* side of that comparison was still whatever a
+client claimed at creation time. This runbook could not have proven
+ride-creation ownership before #118 landed, since `/api/rides/request`
+was outside #97's and #115's scope entirely.
 
 **Correction from the previous revision of this document:** an earlier
 draft said "do not enable until every item below is checked off,"
@@ -27,15 +40,15 @@ that validation finds.** Sections 3 and 4 below (the cross-rider and
 payment-ownership tests) are Phase B activities, performed *after*
 enabling, not gates the flag must pass to be turned on.
 
-**Why one consolidated runbook instead of two separate ones:** both PRs
-share the exact same flag and the exact same underlying mechanism
-(`requireRiderIfEnforced` + `resolveEnforcedRiderId`) — turning the flag
-on affects all 12 route-method combinations across 11 route paths (8
-route-method combinations across 7 paths from #97, 4 from #115) in one
-atomic action. Validating them one PR at a time would mean flipping the
-flag on and off multiple times against production, which is more
-disruptive and harder to reason about than one QA pass covering
-everything the flag actually controls.
+**Why one consolidated runbook instead of separate ones per PR:** all
+three PRs share the exact same flag and the exact same underlying
+mechanism (`requireRiderIfEnforced` + `resolveEnforcedRiderId`) —
+turning the flag on affects all 13 route-method combinations across 12
+route paths (8 route-method combinations across 7 paths from #97, 4
+from #115, 1 from #118) in one atomic action. Validating them one PR at
+a time would mean flipping the flag on and off multiple times against
+production, which is more disruptive and harder to reason about than
+one QA pass covering everything the flag actually controls.
 
 ## Environment boundary (same limitation as PR 2a's runbook)
 
@@ -52,7 +65,7 @@ runs it, not assumed complete because this document exists.
 
 ## Routes this flag controls once enabled
 
-12 route-method combinations across 11 route paths (`/api/rider/saved-places`
+13 route-method combinations across 12 route paths (`/api/rider/saved-places`
 is the one path with two methods gated by this flag — GET and POST):
 
 | # | Route | Method | Source PR |
@@ -69,6 +82,7 @@ is the one path with two methods gated by this flag — GET and POST):
 | 10 | `/api/rider/payment-methods` | GET | #115 |
 | 11 | `/api/rider/payment-methods/:paymentMethodId` | DELETE | #115 |
 | 12 | `/api/rides/payment-intent` | POST | #115 |
+| 13 | `/api/rides/request` | POST | #118 |
 
 ## QA accounts and financial-safety ground rules
 
@@ -114,8 +128,8 @@ can't be observed working yet; see the correction above).
 | Item | Status |
 |---|---|
 | **Freshly confirm `rider_auth_enforced` currently resolves to `false`.** Query `system_flags` directly, right before starting — do not rely on any earlier reading in this document's history. | **[requires a fresh live query]** |
-| **Confirm `rider_auth_ui_enabled` is `true` and the real OTP login flow has already passed live validation.** `requireRider` (which every route in the table above delegates to once enforced) only succeeds for a rider who has actually completed real sign-in through PR 2a's flow. If riders cannot sign in yet, enabling this flag doesn't protect anyone — it just breaks all 12 route-method combinations for every rider, since none of them would have a session to present. Confirm PR 2a's own runbook is fully closed, including its previously-open "Merged-deploy smoke test" and Render click-through items, before proceeding. | **[requires ops confirmation]** |
-| **Confirm the current deployment actually contains #97 and #115.** Check the Render deployment's commit SHA against `1644ebff020e112ac32adce8679ee2689277461a` (PR #97's merge commit) and `b6165109e8add83e23883b5652f23d571f18b8dd` (PR #115's merge commit) — the live deployment must be at or after both. | **[requires ops confirmation]** |
+| **Confirm `rider_auth_ui_enabled` is `true` and the real OTP login flow has already passed live validation.** `requireRider` (which every route in the table above delegates to once enforced) only succeeds for a rider who has actually completed real sign-in through PR 2a's flow. If riders cannot sign in yet, enabling this flag doesn't protect anyone — it just breaks all 13 route-method combinations for every rider, since none of them would have a session to present. Confirm PR 2a's own runbook is fully closed, including its previously-open "Merged-deploy smoke test" and Render click-through items, before proceeding. | **[requires ops confirmation]** |
+| **Confirm the current deployment actually contains #97, #115, and #118.** Check the Render deployment's commit SHA against `1644ebff020e112ac32adce8679ee2689277461a` (#97's merge commit), `b6165109e8add83e23883b5652f23d571f18b8dd` (#115's merge commit), and `4b84d13a0a6c6ec3d41258d1fba31eb81ce174cc` (#118's merge commit) — the live deployment must be at or after all three. | **[requires ops confirmation]** |
 | **Confirm legitimate Rider A session creation works today**, independent of this flag (real OTP sign-in against the live app, session cookie issued, `GET /api/rider/session` returns Rider A's identity). This is testing PR 2a, not this flag — but it must work before Phase B, since Phase B's very first step depends on it. | **[requires ops/QA]** |
 | **Verify Rider A, Rider B, and the QA revocation account are prepared** — each with the real phone/email, saved place, ride/delivery history, photo, and (for A and B) a saved payment method described above. | **[requires ops/QA]** |
 | **Verify the rollback path is reachable before you need it.** Confirm an admin can authenticate and successfully call `POST /api/admin/system/disable-rider-auth-enforced` (safe to call even while the flag is already `false` — it's an idempotent upsert to `"false"`) so there is no doubt the rollback mechanism itself works at the moment it might actually be needed. | **[requires ops confirmation]** |
@@ -141,21 +155,28 @@ ready to execute the rollback at the first sign of trouble.
    - Rider A's own saved places, ride/delivery history, and photo load
      correctly.
    - Rider A's own saved payment methods list correctly.
-   - Rider A's full payment flow works end-to-end: request a ride, see
-     the fare estimate, pay with a saved card, pay with a newly entered
-     card (with and without "save this card"), confirm the resulting
-     PaymentIntent authorizes normally and the ride proceeds. This
-     specifically exercises `apiFetch`'s `credentials`/CSRF-header
-     behavior added in #115 — a failure here indicates a gap in that
-     fix, not a problem with the flag itself.
+   - **Rider A's own ride request succeeds and creates a ride correctly
+     attributed to Rider A**: request a ride, confirm `POST
+     /api/rides/request` returns success, and confirm the created ride's
+     `rider_id` in the database is Rider A's own id (#118) — not just
+     that the request succeeded, but that ownership was recorded
+     correctly.
+   - Rider A's full payment flow works end-to-end, continuing from the
+     ride just created above: see the fare estimate, pay with a saved
+     card, pay with a newly entered card (with and without "save this
+     card"), confirm the resulting PaymentIntent authorizes normally and
+     the ride proceeds. This specifically exercises `apiFetch`'s
+     `credentials`/CSRF-header behavior added in #115 — a failure here
+     indicates a gap in that fix, not a problem with the flag itself.
    - **If any legitimate flow breaks: disable the flag immediately
      (`POST /api/admin/system/disable-rider-auth-enforced`) and stop.**
      Do not proceed to the attack tests below against a build that
      already can't serve its own legitimate riders — fix the
      regression, then restart this runbook from Phase A once fixed.
 4. **Only if step 3 passes completely**, perform the deliberate Rider A
-   → Rider B cross-rider tests (#97's routes, "identity substitution"
-   and "resource ownership" cases have different correct outcomes —
+   → Rider B cross-rider tests (#97's and #118's routes; "identity
+   substitution" and "resource ownership" cases have different correct
+   outcomes —
    see the table below, since a `401` on any of these usually means
    *authentication itself* broke, not that the IDOR fix "worked"):
 
@@ -168,12 +189,26 @@ ready to execute the rollback at the first sign of trouble.
    | `POST /api/rider/saved-places` | `riderId` set to Rider B | **200, but the created row's `rider_id` in the database is Rider A's**, never Rider B's — verify in the DB, not just the response. |
    | `DELETE /api/rider/saved-places/:id` | One of Rider B's real saved place ids, `riderId` also set to Rider B | **404**, and Rider B's place is confirmed still present in the DB afterward. |
    | `POST /api/rider/photo` | `riderId` set to Rider B | **200, but Rider A's own photo is what gets updated**; Rider B's photo is unchanged. |
+   | `POST /api/rides/request` | Rider A signed in, `rider_id` in the request body set to Rider B | **200, but the created ride's `rider_id` in the database is Rider A's**, never Rider B's (#118) — verify in the DB, not just the response, same as the saved-places POST row above. |
 
    A `401` on any of the rows above (rather than the outcome listed)
    means the *authentication* layer failed for Rider A's own valid
    session — a bug distinct from and more serious than an IDOR gap,
    and grounds for immediate rollback regardless of what the rest of
    the run shows.
+
+   **A distinct scenario `POST /api/rides/request` needs beyond the
+   identity-substitution row above: unauthenticated ride creation must
+   fail once enforcement is on.** Every row in the table assumes Rider A
+   has a valid session; this checks the case where there is no session
+   at all. With no cookie sent (a cleared/expired session, or a raw
+   direct API call), `POST /api/rides/request` must be rejected by
+   `requireRider` before the handler ever runs — not fall through to
+   creating a ride with `rider_id: null` or any client-supplied value.
+   This is the one route in this runbook where a truly unauthenticated
+   attempt is both realistic (a public-facing creation endpoint, unlike
+   the read/update routes above which already require knowing an
+   existing resource id) and worth checking on its own.
 
 5. **Perform the payment-ownership tests** (#115's routes), following
    the financial-safety rules above — no real charge is confirmed or
@@ -232,7 +267,7 @@ if any of the following occur, at any point during or after Phase B:**
   production logs.
 
 **No partial enablement.** `rider_auth_enforced` is a single flag
-covering all 12 route-method combinations at once; there is no way to
+covering all 13 route-method combinations at once; there is no way to
 enable it for only the routes that have been validated so far. If any
 single route in Phase B fails, the correct action is to roll back the
 whole flag, fix that specific route's wiring, and restart this runbook
