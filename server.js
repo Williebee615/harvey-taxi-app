@@ -10869,11 +10869,33 @@ app.post(
 
    RIDE REQUEST
 
+   P0 remediation (docs/security-remediation/pr-240-ride-request-ownership.md):
+   while rider_auth_enforced is off (the default), riderId is
+   client-supplied exactly as before -- the gap named PR 4 / "ride
+   ownership" in PR 3's (#115) own scope notes, and confirmed still
+   open when PR #101 was closed as superseded. Once enabled, riderId
+   comes exclusively from the authenticated session (see
+   resolveEnforcedRiderId in lib/riderAuth.js) and the client-supplied
+   value is ignored outright -- ride.rider_id (the value
+   verifyPaymentIntentForRide()'s rider-match check compares the
+   PaymentIntent's own now-trustworthy metadata.rider_id against, per
+   #115) becomes trustworthy for the first time here.
+
+   Deliberately unchanged: verifyAndConsumeRideQuote()'s own internal
+   quote-consistency check still reads req.body.rider_id/riderId
+   directly (server.js, ~line 10217) -- that's a "does this submission
+   match the quote token /api/rides/estimate already issued" check, a
+   different question from "who owns this ride," and #115 left that
+   same internal read untouched for the identical reason when fixing
+   /api/rides/payment-intent. Not this PR's scope to revisit.
+
 ========================================================= */
 
 app.post(
 
   "/api/rides/request",
+
+  requireRiderIfEnforced,
 
   asyncRoute(async (req, res) => {
 
@@ -10905,13 +10927,13 @@ app.post(
 
     const riderId =
 
-      cleanString(
+      resolveEnforcedRiderId({
 
-        req.body.rider_id,
+        authenticatedRiderId: req.rider?.id,
 
-        100
+        clientSuppliedRiderId: cleanString(req.body.rider_id, 100)
 
-      );
+      });
 
     if (riderId) {
 
