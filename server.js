@@ -3303,9 +3303,9 @@ const {
 // server.js only ever supplies it a freshly loaded database row, never
 // anything client-supplied.
 const {
-  isReviewAccountRow,
   resolveReviewLoginOutcome,
   resolveReviewSessionOutcome,
+  isValidatedReviewerSession,
   planReviewAwareDispatch,
   buildSimulatedPaymentIntentResponse
 } = require("./lib/reviewAccounts");
@@ -3419,6 +3419,72 @@ async function riderAuthEnforced() {
 // missing row or a query error both mean review access stays off.
 async function reviewAccountLoginEnabled() {
   return (await getSystemFlag("review_account_login_enabled", "false")) === "true";
+}
+
+// Resolves an authenticated Google Play reviewer rider session,
+// completely independent of rider_auth_enforced, requireRiderIfEnforced,
+// and any client-supplied rider_id/is_review_account/is_review_ride
+// field. Approved correction: simulated payment, review-ride creation,
+// and review dispatch must never activate just because a request
+// supplies or guesses the review rider's id -- they may only activate
+// for a request that actually carries a currently-valid session cookie
+// for that exact account. This re-derives identity from the rider
+// session cookie and a freshly loaded database row on every call,
+// reusing the identical verification (resolveRiderAuthOutcome) and
+// kill-switch check (isValidatedReviewerSession/
+// resolveReviewSessionOutcome, lib/reviewAccounts.js) that
+// requireRider applies on every other authenticated rider request --
+// so a session that wouldn't pass requireRider (expired, revoked, wrong
+// session_version) cannot pass this either, and disabling
+// review_account_login_enabled disables this path immediately too,
+// even for an otherwise still-valid session. Returns the rider row
+// (never null-but-truthy) only when every check passes; every caller
+// treats a falsy return as "not an authenticated reviewer," full stop
+// -- never as a reason to fall back to a client-supplied identity.
+//
+// Deliberately does not touch or depend on req.rider -- ordinary rider
+// authentication/authorization (requireRider, requireRiderIfEnforced,
+// resolveEnforcedRiderId) is completely unchanged by this function's
+// existence; it is an additional, independent check the two
+// review-aware routes run for themselves.
+async function resolveAuthenticatedReviewRider(req) {
+  if (!RIDER_SESSION_SECRET) {
+    return null;
+  }
+
+  // Same CSRF mitigation requireRider itself requires for non-GET
+  // requests (see hasRiderClientHeader) -- a reviewer session cookie is
+  // still a real, authenticated session, so it gets the same protection.
+  if (!hasRiderClientHeader(req)) {
+    return null;
+  }
+
+  const token = readRiderSessionCookie(req);
+
+  if (!token) {
+    return null;
+  }
+
+  const verification = verifyRiderSession({ token, secret: RIDER_SESSION_SECRET });
+
+  const { data: riderRow, error } = verification.ok
+    ? await supabase.from("riders").select("*").eq("id", verification.riderId).maybeSingle()
+    : { data: null, error: null };
+
+  if (error) {
+    console.error("❌ resolveAuthenticatedReviewRider: failed to load rider row:", error.message);
+    return null;
+  }
+
+  const riderAuthOk = resolveRiderAuthOutcome({ verification, riderRow }).ok;
+
+  const isReviewer = isValidatedReviewerSession({
+    riderAuthOk,
+    row: riderRow,
+    reviewLoginEnabled: await reviewAccountLoginEnabled()
+  });
+
+  return isReviewer ? riderRow : null;
 }
 
 // The actual rollout mechanism for every route migrated in PR 2b: while
@@ -10960,36 +11026,25 @@ app.post(
 
   asyncRoute(async (req, res) => {
 
-    const riderId = resolveEnforcedRiderId({
-      authenticatedRiderId: req.rider?.id,
-      clientSuppliedRiderId: cleanString(req.body.rider_id, 100)
-    });
+    // Option A (approved requirement, corrected): a Google Play review
+    // rider's ride NEVER calls live Stripe -- but per the required
+    // correction, this may ONLY activate for a request carrying a
+    // real, currently-valid session for the review rider account
+    // itself. resolveAuthenticatedReviewRider() re-derives identity
+    // from the session cookie and a freshly loaded database row; it
+    // never looks at req.body.rider_id or any other client-supplied
+    // field, so a request that merely names or guesses the review
+    // rider's id -- with no matching session -- falls straight through
+    // to the ordinary path below, exactly like any other rider_id
+    // would. Deliberately checked before the "Payments are not
+    // configured" guard below, so the simulated flow works the same
+    // whether or not Stripe/the payment gate is even configured in
+    // this environment. The quote is still verified and consumed
+    // normally so the reviewer sees the same real estimate/quote-token
+    // flow as anyone else; only the Stripe call itself is replaced.
+    const reviewerRider = await resolveAuthenticatedReviewRider(req);
 
-    // Option A (approved requirement): a Google Play review rider's
-    // ride NEVER calls live Stripe -- not paymentIntents.create(), not
-    // a customer/payment-method lookup, nothing. Resolved from a fresh
-    // database row keyed on the already-resolved riderId, never from
-    // anything the client asserted directly. Deliberately checked
-    // before the "Payments are not configured" guard below, so the
-    // simulated flow works the same whether or not Stripe/the payment
-    // gate is even configured in this environment -- reviewers must be
-    // able to exercise the full ride flow regardless of that ops-level
-    // setting. The quote is still verified and consumed normally so the
-    // reviewer sees the same real estimate/quote-token flow as anyone
-    // else; only the Stripe call itself is replaced.
-    let riderIsReviewAccount = false;
-
-    if (riderId) {
-      const { data: riderReviewRow } = await supabase
-        .from("riders")
-        .select("is_review_account")
-        .eq("id", riderId)
-        .maybeSingle();
-
-      riderIsReviewAccount = isReviewAccountRow(riderReviewRow);
-    }
-
-    if (riderIsReviewAccount) {
+    if (reviewerRider) {
       const quote = verifyAndConsumeRideQuote(req, res);
 
       if (!quote) {
@@ -11004,7 +11059,7 @@ app.post(
       auditLog({
         action: "review_payment_intent_simulated",
         actor_type: "rider",
-        actor_id: riderId,
+        actor_id: reviewerRider.id,
         metadata: {
           payment_intent_id: simulated.payment_intent_id,
           amount: quote.estimate.total
@@ -11014,6 +11069,11 @@ app.post(
 
       return ok(res, simulated);
     }
+
+    const riderId = resolveEnforcedRiderId({
+      authenticatedRiderId: req.rider?.id,
+      clientSuppliedRiderId: cleanString(req.body.rider_id, 100)
+    });
 
     if (
 
@@ -11295,9 +11355,21 @@ app.post(
 
     }
 
-    const riderId =
+    // Google Play reviewer-account identity (approved correction): may
+    // ONLY come from a real, currently-valid session for the review
+    // rider account itself -- resolveAuthenticatedReviewRider() never
+    // looks at req.body.rider_id or any other client-supplied field.
+    // When present, it deterministically wins over whatever rider_id
+    // the request body also claims, the same "authenticated identity
+    // always wins" rule resolveEnforcedRiderId already applies for the
+    // rider_auth_enforced case -- extended here unconditionally, since
+    // the reviewer path must stay session-gated regardless of that
+    // flag's value.
+    const reviewerRider = await resolveAuthenticatedReviewRider(req);
 
-      resolveEnforcedRiderId({
+    const riderId = reviewerRider
+      ? reviewerRider.id
+      : resolveEnforcedRiderId({
 
         authenticatedRiderId: req.rider?.id,
 
@@ -11339,24 +11411,18 @@ app.post(
 
     }
 
-    // Google Play reviewer-account flagging: resolved once, here, from
-    // a fresh database row -- never from anything client-supplied --
-    // and persisted onto the ride itself so every downstream consumer
-    // (dispatchRide()'s isolation, notifyRideStage()'s message
-    // suppression, the mission-control/operations-overview analytics
-    // exclusions) can filter on this one column instead of re-deriving
-    // review status from the rider on every read.
-    let isReviewRide = false;
-
-    if (riderId) {
-      const { data: riderReviewRow } = await supabase
-        .from("riders")
-        .select("is_review_account")
-        .eq("id", riderId)
-        .maybeSingle();
-
-      isReviewRide = isReviewAccountRow(riderReviewRow);
-    }
+    // Google Play reviewer-account flagging (approved correction): set
+    // ONLY from resolveAuthenticatedReviewRider()'s own result above --
+    // i.e. only when this exact request carried a real, currently-valid
+    // reviewer session -- never re-derived from riderId (which, while
+    // rider_auth_enforced is off, can be client-supplied) and never
+    // from any client-supplied is_review_ride field, which this route
+    // never reads in the first place. Persisted onto the ride itself so
+    // every downstream consumer (dispatchRide()'s isolation,
+    // notifyRideStage()'s message suppression, the mission-control/
+    // operations-overview analytics exclusions) can filter on this one
+    // column instead of re-deriving review status on every read.
+    const isReviewRide = Boolean(reviewerRider);
 
     const quote = verifyAndConsumeRideQuote(req, res);
 
