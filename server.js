@@ -673,7 +673,10 @@ const ALLOWED_ORIGINS = env("ALLOWED_ORIGINS", "")
 
 // CORS origin allow-list — see lib/corsOrigins.js for why this platform's
 // multiple public domains need more than a single exact-match origin.
-const { isAllowedOrigin: isAllowedOriginPure } = require("./lib/corsOrigins");
+const {
+  isAllowedOrigin: isAllowedOriginPure,
+  buildCorsRejectionError
+} = require("./lib/corsOrigins");
 
 function isAllowedOrigin(origin) {
   return isAllowedOriginPure(origin, {
@@ -684,6 +687,12 @@ function isAllowedOrigin(origin) {
     foundationHost: FOUNDATION_HOST
   });
 }
+
+// Render sets this automatically to the deployed commit SHA. Used only
+// as a diagnostic marker on rejected-CORS audit rows so a future
+// incident can confirm which build actually produced a given log line
+// without cross-checking Render's dashboard separately.
+const BUILD_SHA = env("RENDER_GIT_COMMIT", null);
 
 app.use((req, res, next) => {
 
@@ -749,7 +758,7 @@ app.use(
 
       return callback(
 
-        new Error("CORS origin blocked")
+        buildCorsRejectionError(origin, { buildSha: BUILD_SHA })
 
       );
 
@@ -21604,7 +21613,9 @@ app.use(
 
         method:
 
-          req.method
+          req.method,
+
+        ...(error.corsDiagnostics || {})
 
       },
 
