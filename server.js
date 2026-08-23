@@ -1006,6 +1006,30 @@ function getClientIp(req) {
 // limiter can't express: a single attacker rotating IPs against one
 // phone number, or one shared IP (an office, a NAT) targeting many
 // different destinations, need their own dimension.
+const { computeRetryAfterSeconds, buildRateLimitExceededLogEvent } = require("./lib/rateLimit");
+
+// Emits the exact sanitized event a rejected request produces (see
+// buildRateLimitExceededLogEvent, lib/rateLimit.js) and sets both the
+// standard Retry-After header and a retry_after_seconds JSON field on
+// the response, then sends the 429. Pulled out once so both the Redis
+// and in-memory branches below stay identical in what they tell the
+// client and what they log -- the only thing that differs between them
+// is how retryAfterSeconds is computed (an exact remaining-window
+// calculation for the in-memory path; Redis's TTL isn't exposed by
+// redisRateHit's current return value, so that branch uses the
+// configured window itself as a safe upper-bound approximation).
+function sendRateLimitExceeded(res, { keyPrefix, message, retryAfterSeconds }) {
+  console.log(
+    JSON.stringify(buildRateLimitExceededLogEvent({ keyPrefix, retryAfterSeconds }))
+  );
+
+  if (Number.isFinite(retryAfterSeconds)) {
+    res.set("Retry-After", String(retryAfterSeconds));
+  }
+
+  return fail(res, message, 429, { retry_after_seconds: retryAfterSeconds });
+}
+
 function rateLimit({
 
   windowMs = 60_000,
@@ -1014,7 +1038,9 @@ function rateLimit({
 
   keyPrefix = "global",
 
-  keyFn
+  keyFn,
+
+  message = "Too many requests. Please wait and try again."
 
 } = {}) {
 
@@ -1046,15 +1072,11 @@ function rateLimit({
 
         if (redisCount > max) {
 
-          return fail(
-
-            res,
-
-            "Too many requests. Please wait and try again.",
-
-            429
-
-          );
+          return sendRateLimitExceeded(res, {
+            keyPrefix,
+            message,
+            retryAfterSeconds: windowSeconds
+          });
 
         }
 
@@ -1092,15 +1114,11 @@ function rateLimit({
 
     if (current.count > max) {
 
-      return fail(
-
-        res,
-
-        "Too many requests. Please wait and try again.",
-
-        429
-
-      );
+      return sendRateLimitExceeded(res, {
+        keyPrefix,
+        message,
+        retryAfterSeconds: computeRetryAfterSeconds({ resetAt: current.resetAt, now })
+      });
 
     }
 
@@ -6771,14 +6789,30 @@ app.post(
 
 ========================================================= */
 
+// Shared, honest 429 wording for both review-login routes -- the
+// approved fix for the client-side bug where a rate-limit rejection
+// (429) was indistinguishable from a wrong password, because the
+// dashboard only special-cased a 503 and collapsed every other non-2xx
+// status into "Invalid reviewer credentials." The exact wait time is
+// also returned as retry_after_seconds (see sendRateLimitExceeded) so a
+// client can show a more precise countdown when it's available; this
+// text is what's shown either way.
+const REVIEW_LOGIN_RATE_LIMIT_MESSAGE = "Too many sign-in attempts. Wait 10 minutes and try again.";
+
 app.post(
   "/api/review/rider/login",
-  rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "review_rider_login_ip" }),
+  rateLimit({
+    windowMs: 60_000,
+    max: 10,
+    keyPrefix: "review_rider_login_ip",
+    message: REVIEW_LOGIN_RATE_LIMIT_MESSAGE
+  }),
   rateLimit({
     windowMs: 10 * 60_000,
     max: 5,
     keyPrefix: "review_rider_login_dest",
-    keyFn: (req) => hashIdentifier(cleanEmail(req.body.email) || "")
+    keyFn: (req) => hashIdentifier(cleanEmail(req.body.email) || ""),
+    message: REVIEW_LOGIN_RATE_LIMIT_MESSAGE
   }),
   asyncRoute(async (req, res) => {
     if (!hasRiderClientHeader(req)) {
@@ -6862,12 +6896,18 @@ app.post(
 
 app.post(
   "/api/review/driver/login",
-  rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "review_driver_login_ip" }),
+  rateLimit({
+    windowMs: 60_000,
+    max: 10,
+    keyPrefix: "review_driver_login_ip",
+    message: REVIEW_LOGIN_RATE_LIMIT_MESSAGE
+  }),
   rateLimit({
     windowMs: 10 * 60_000,
     max: 5,
     keyPrefix: "review_driver_login_dest",
-    keyFn: (req) => hashIdentifier(cleanEmail(req.body.email) || "")
+    keyFn: (req) => hashIdentifier(cleanEmail(req.body.email) || ""),
+    message: REVIEW_LOGIN_RATE_LIMIT_MESSAGE
   }),
   asyncRoute(async (req, res) => {
     if (!DRIVER_SESSION_SECRET) {
