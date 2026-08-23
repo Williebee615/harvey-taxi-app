@@ -3307,7 +3307,10 @@ const {
   resolveReviewSessionOutcome,
   isValidatedReviewerSession,
   planReviewAwareDispatch,
-  buildSimulatedPaymentIntentResponse
+  buildSimulatedPaymentIntentResponse,
+  resolveSystemFlagDiagnostics,
+  extractSupabaseProjectRef,
+  buildFlagDiagnosticLogEvent
 } = require("./lib/reviewAccounts");
 
 // requireRider — P0 remediation PR #1 (docs/p0-security-remediation-plan.md).
@@ -3419,6 +3422,51 @@ async function riderAuthEnforced() {
 // missing row or a query error both mean review access stays off.
 async function reviewAccountLoginEnabled() {
   return (await getSystemFlag("review_account_login_enabled", "false")) === "true";
+}
+
+// Diagnostic hotfix, scoped ONLY to review_account_login_enabled --
+// production incident: the flag read back true directly in Supabase
+// but the live reviewer-login routes kept returning "temporarily
+// disabled." getSystemFlag() itself performs no caching (confirmed by
+// its own code, a fresh query on every call), so the leading suspects
+// are the running service's Supabase project/credentials not being the
+// ones the flag was actually set in, or a stale deploy -- not an
+// in-process cache to invalidate. Deliberately does NOT change
+// getSystemFlag() itself (used by half a dozen unrelated flags) --
+// this duplicates its one query so every other flag check is
+// completely unaffected by this hotfix.
+//
+// Logs one sanitized line per call (see buildFlagDiagnosticLogEvent,
+// lib/reviewAccounts.js) containing: the flag name, whether the query
+// succeeded, whether a row was found, the normalized boolean outcome,
+// a Postgres error code/message on failure, and the Supabase project
+// reference parsed from SUPABASE_URL -- and nothing else. Never logs
+// SUPABASE_SERVICE_ROLE_KEY, any header, any cookie/session token, or
+// any reviewer credential -- none of those values are ever read by, or
+// passed into, this function.
+async function reviewAccountLoginEnabledWithDiagnostics() {
+  const { data, error } = await supabase
+    .from("system_flags")
+    .select("*")
+    .eq("key", "review_account_login_enabled")
+    .maybeSingle();
+
+  const diagnostics = resolveSystemFlagDiagnostics({ error, data, fallback: "false" });
+
+  console.log(
+    JSON.stringify(
+      buildFlagDiagnosticLogEvent({
+        flagKey: "review_account_login_enabled",
+        diagnostics,
+        supabaseProjectRef: extractSupabaseProjectRef(SUPABASE_URL)
+      })
+    )
+  );
+
+  return {
+    enabled: diagnostics.value === "true",
+    querySucceeded: diagnostics.querySucceeded
+  };
 }
 
 // Resolves an authenticated Google Play reviewer rider session,
@@ -6761,13 +6809,32 @@ app.post(
       return fail(res, "A server error occurred. Please try again.", 500);
     }
 
+    const flagState = await reviewAccountLoginEnabledWithDiagnostics();
+
     const outcome = resolveReviewLoginOutcome({
       row,
       password,
-      reviewLoginEnabled: await reviewAccountLoginEnabled()
+      reviewLoginEnabled: flagState.enabled,
+      flagQuerySucceeded: flagState.querySucceeded
     });
 
     if (!outcome.ok) {
+      // Non-enumerating audit trail for a rejected reviewer login --
+      // actor_id is a one-way hash of the submitted email, never the
+      // raw address, same convention as the real rider login-start
+      // route's failed-attempt logging. The public response above
+      // (outcome.message/statusCode) never varies by reason -- this is
+      // strictly for internal diagnosis of exactly the incident that
+      // motivated it (a flag that reads true in Supabase but false in
+      // the running service).
+      auditLog({
+        actor_type: "rider",
+        actor_id: hashIdentifier(email),
+        action: "review_rider_login_rejected",
+        metadata: { reason: outcome.reason },
+        req
+      }).catch(() => {});
+
       return fail(res, outcome.message, outcome.statusCode);
     }
 
@@ -6826,13 +6893,27 @@ app.post(
       return fail(res, "A server error occurred. Please try again.", 500);
     }
 
+    const flagState = await reviewAccountLoginEnabledWithDiagnostics();
+
     const outcome = resolveReviewLoginOutcome({
       row,
       password,
-      reviewLoginEnabled: await reviewAccountLoginEnabled()
+      reviewLoginEnabled: flagState.enabled,
+      flagQuerySucceeded: flagState.querySucceeded
     });
 
     if (!outcome.ok) {
+      // See POST /api/review/rider/login above for why this exists and
+      // what it deliberately never varies (the public response) vs.
+      // what it captures for diagnosis only (the reason code).
+      auditLog({
+        actor_type: "driver",
+        actor_id: hashIdentifier(email),
+        action: "review_driver_login_rejected",
+        metadata: { reason: outcome.reason },
+        req
+      }).catch(() => {});
+
       return fail(res, outcome.message, outcome.statusCode);
     }
 
