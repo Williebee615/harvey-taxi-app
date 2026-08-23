@@ -2285,6 +2285,21 @@ async function requireDriver(req, res, next) {
 
       }
 
+      // Google Play reviewer-account kill switch -- same re-check as
+      // requireRider, run on every authenticated request so disabling
+      // review_account_login_enabled immediately rejects an
+      // already-issued reviewer driver_token, not just new logins.
+      // sessDriver was just freshly loaded above from the token's own
+      // driver_id, never from anything the client asserted directly.
+      const reviewOutcome = resolveReviewSessionOutcome({
+        row: sessDriver,
+        reviewLoginEnabled: await reviewAccountLoginEnabled()
+      });
+
+      if (!reviewOutcome.ok) {
+        return fail(res, reviewOutcome.message, reviewOutcome.statusCode);
+      }
+
       req.driver = sessDriver;
 
       req.driverAuthMethod = "driver_session";
@@ -3029,13 +3044,21 @@ async function notifyRideStage(ride, stageKey) {
 
     const body = template.sms(ride);
 
-    if (ride.rider_phone) {
+    // Google Play reviewer-account message suppression (approved
+    // requirement): a review ride must never generate a real SMS/email
+    // -- ride.is_review_ride is set once at ride-creation time from the
+    // rider row's is_review_account column (see POST /api/rides/request),
+    // never re-derived here. Push notifications below are NOT suppressed
+    // -- they're in-app functionality the driver reviewer account needs
+    // to actually exercise the mission flow on their own device, not an
+    // external message to a real third party.
+    if (!ride.is_review_ride && ride.rider_phone) {
 
       await sendSms({ to: ride.rider_phone, body }).catch(() => {});
 
     }
 
-    if (ride.rider_id) {
+    if (!ride.is_review_ride && ride.rider_id) {
 
       const { data: rider } = await supabase
 
@@ -3273,6 +3296,20 @@ const {
   hashLoginDestination
 } = require("./lib/riderAuth");
 
+// Google Play reviewer-account support -- see docs/security-remediation/
+// (or the implementation report handed to the owner alongside this
+// change) for the full design. Every decision about what a review
+// account may do lives in lib/reviewAccounts.js as a pure function;
+// server.js only ever supplies it a freshly loaded database row, never
+// anything client-supplied.
+const {
+  isReviewAccountRow,
+  resolveReviewLoginOutcome,
+  resolveReviewSessionOutcome,
+  planReviewAwareDispatch,
+  buildSimulatedPaymentIntentResponse
+} = require("./lib/reviewAccounts");
+
 // requireRider — P0 remediation PR #1 (docs/p0-security-remediation-plan.md).
 // Not yet applied to any route: this only establishes the middleware and
 // its session-validation logic. Wiring it into rider-owned routes (and
@@ -3326,6 +3363,21 @@ async function requireRider(req, res, next) {
       return fail(res, outcome.message, outcome.statusCode);
     }
 
+    // Google Play reviewer-account kill switch: re-checked on every
+    // authenticated request, not just at login, so disabling
+    // review_account_login_enabled immediately rejects an
+    // already-issued reviewer session cookie rather than only blocking
+    // new logins. riderRow was just freshly loaded above -- this never
+    // trusts anything from the request itself.
+    const reviewOutcome = resolveReviewSessionOutcome({
+      row: riderRow,
+      reviewLoginEnabled: await reviewAccountLoginEnabled()
+    });
+
+    if (!reviewOutcome.ok) {
+      return fail(res, reviewOutcome.message, reviewOutcome.statusCode);
+    }
+
     req.rider = riderRow;
     req.riderAuthMethod = "rider_session";
 
@@ -3355,6 +3407,18 @@ async function requireRider(req, res, next) {
 // if the flag check itself breaks.
 async function riderAuthEnforced() {
   return (await getSystemFlag("rider_auth_enforced", "false")) === "true";
+}
+
+// The Google Play reviewer-account kill switch. Checked both at review
+// login (POST /api/review/rider|driver/login -- rejects a *new* login
+// outright) and inside requireRider/requireDriver on every subsequent
+// request (rejects an *already-issued* reviewer session immediately,
+// with no separate revocation list needed -- see
+// resolveReviewSessionOutcome in lib/reviewAccounts.js). Defaults to
+// "false", same fail-closed convention as every other flag here: a
+// missing row or a query error both mean review access stays off.
+async function reviewAccountLoginEnabled() {
+  return (await getSystemFlag("review_account_login_enabled", "false")) === "true";
 }
 
 // The actual rollout mechanism for every route migrated in PR 2b: while
@@ -6564,6 +6628,226 @@ app.post(
 
 /* =========================================================
 
+   GOOGLE PLAY REVIEWER ACCOUNT LOGIN
+
+   Two dedicated, non-production-identity accounts (one rider, one
+   driver) for Google's app reviewers. Deliberately password-based
+   rather than OTP: the approved requirement is that reviewer access
+   must never depend on delivering a code to a real phone/email, and
+   must remain reusable throughout review without contacting the
+   account owner. Both routes:
+     * are independent of rider_auth_ui_enabled / rider_auth_enforced --
+       reviewer login works the same regardless of that rollout's
+       current state, and this code never reads or writes that flag.
+     * are gated by their own kill switch, review_account_login_enabled
+       (default off -- see the migration and reviewAccountLoginEnabled()
+       above), checked here for new logins and again inside
+       requireRider/requireDriver on every later request.
+     * mint the exact same session artifact the real OTP login routes
+       do (signRiderSession + cookie / signDriverSession + bearer
+       token), so every existing dashboard, middleware, and route
+       downstream treats a reviewer session identically to a real one,
+       with review-specific behavior applied only where the DB row's
+       is_review_account column says so.
+     * resolve the account by email + is_review_account = true at the
+       query level, then re-confirm via resolveReviewLoginOutcome
+       (lib/reviewAccounts.js) -- an ordinary rider/driver's email can
+       never authenticate here even with a correct guess at a
+       password, since no ordinary row has review_password_hash set.
+
+========================================================= */
+
+app.post(
+  "/api/review/rider/login",
+  rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "review_rider_login_ip" }),
+  rateLimit({
+    windowMs: 10 * 60_000,
+    max: 5,
+    keyPrefix: "review_rider_login_dest",
+    keyFn: (req) => hashIdentifier(cleanEmail(req.body.email) || "")
+  }),
+  asyncRoute(async (req, res) => {
+    if (!hasRiderClientHeader(req)) {
+      return fail(res, "This request could not be verified.", 403);
+    }
+
+    if (!RIDER_SESSION_SECRET) {
+      console.error("❌ Review rider login: RIDER_SESSION_SECRET is not configured.");
+      return fail(res, "Rider authentication is not available right now.", 503);
+    }
+
+    const email = cleanEmail(req.body.email);
+    const password = typeof req.body.password === "string" ? req.body.password : "";
+
+    if (!email || !password) {
+      return fail(res, "email and password are required.", 400);
+    }
+
+    const { data: row, error } = await supabase
+      .from("riders")
+      .select("*")
+      .eq("email", email)
+      .eq("is_review_account", true)
+      .maybeSingle();
+
+    if (error) {
+      console.error("❌ Review rider login: lookup failed:", error.message);
+      return fail(res, "A server error occurred. Please try again.", 500);
+    }
+
+    const outcome = resolveReviewLoginOutcome({
+      row,
+      password,
+      reviewLoginEnabled: await reviewAccountLoginEnabled()
+    });
+
+    if (!outcome.ok) {
+      return fail(res, outcome.message, outcome.statusCode);
+    }
+
+    const sessionVersion = Number.isInteger(row.session_version) ? row.session_version : 0;
+
+    const token = signRiderSession({
+      riderId: row.id,
+      sessionVersion,
+      secret: RIDER_SESSION_SECRET,
+      ttlHours: RIDER_SESSION_TTL_HOURS
+    });
+
+    setRiderSessionCookie(res, token);
+
+    auditLog({
+      actor_type: "rider",
+      actor_id: row.id,
+      action: "review_rider_login_succeeded",
+      req
+    }).catch(() => {});
+
+    return ok(res, { rider_id: row.id });
+  })
+);
+
+app.post(
+  "/api/review/driver/login",
+  rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "review_driver_login_ip" }),
+  rateLimit({
+    windowMs: 10 * 60_000,
+    max: 5,
+    keyPrefix: "review_driver_login_dest",
+    keyFn: (req) => hashIdentifier(cleanEmail(req.body.email) || "")
+  }),
+  asyncRoute(async (req, res) => {
+    if (!DRIVER_SESSION_SECRET) {
+      return fail(res, "Driver sessions are not configured on the server.", 500);
+    }
+
+    const email = cleanEmail(req.body.email);
+    const password = typeof req.body.password === "string" ? req.body.password : "";
+
+    if (!email || !password) {
+      return fail(res, "email and password are required.", 400);
+    }
+
+    const { data: row, error } = await supabase
+      .from("drivers")
+      .select("*")
+      .eq("email", email)
+      .eq("is_review_account", true)
+      .maybeSingle();
+
+    if (error) {
+      console.error("❌ Review driver login: lookup failed:", error.message);
+      return fail(res, "A server error occurred. Please try again.", 500);
+    }
+
+    const outcome = resolveReviewLoginOutcome({
+      row,
+      password,
+      reviewLoginEnabled: await reviewAccountLoginEnabled()
+    });
+
+    if (!outcome.ok) {
+      return fail(res, outcome.message, outcome.statusCode);
+    }
+
+    const token = signDriverSession(row.id);
+
+    auditLog({
+      actor_type: "driver",
+      actor_id: row.id,
+      action: "review_driver_login_succeeded",
+      req
+    }).catch(() => {});
+
+    return ok(res, {
+      driver_token: token,
+      driver_id: row.id,
+      expires_in_hours: DRIVER_SESSION_TTL_HOURS
+    });
+  })
+);
+
+/* =========================================================
+
+   ADMIN: GOOGLE PLAY REVIEWER ACCOUNT LOGIN KILL SWITCH
+
+   Same upsert/audit pattern as enable/disable-rider-auth-enforced
+   above. Defaults off (see the migration) -- an admin must explicitly
+   enable this after the two review accounts, isolation controls, and
+   tests are verified, per the approved rollout requirement.
+
+========================================================= */
+
+app.post(
+  "/api/admin/system/enable-review-account-login",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    await supabase
+      .from("system_flags")
+      .upsert({
+        key: "review_account_login_enabled",
+        value: "true",
+        reason: cleanString(req.body.reason, 1000),
+        updated_at: nowIso()
+      });
+
+    auditLog({
+      actor_type: "admin",
+      actor_id: req.admin.email,
+      action: "review_account_login_enabled",
+      req
+    }).catch(() => {});
+
+    return ok(res, { review_account_login_enabled: true });
+  })
+);
+
+app.post(
+  "/api/admin/system/disable-review-account-login",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    await supabase
+      .from("system_flags")
+      .upsert({
+        key: "review_account_login_enabled",
+        value: "false",
+        reason: null,
+        updated_at: nowIso()
+      });
+
+    auditLog({
+      actor_type: "admin",
+      actor_id: req.admin.email,
+      action: "review_account_login_disabled",
+      req
+    }).catch(() => {});
+
+    return ok(res, { review_account_login_enabled: false });
+  })
+);
+
+/* =========================================================
+
    DRIVER SIGNUP
 
 ========================================================= */
@@ -8975,9 +9259,14 @@ async function persistPickupEtaBestEffort({
   }
 }
 
+// unref() so this background cache-pruning timer never by itself keeps
+// the process alive -- the real server already stays alive via
+// server.listen() in startServer(), and requiring this file as a module
+// without starting the server (the reviewer-account composition tests
+// in test/server.review-accounts.test.js) must be able to exit cleanly.
 setInterval(() => {
   pruneStaleCacheEntries(etaRouteCache, { maxAgeMs: ETA_ROUTE_CACHE_MAX_AGE_MS });
-}, 10 * 60 * 1000);
+}, 10 * 60 * 1000).unref();
 
 /* =========================================================
 
@@ -9560,23 +9849,53 @@ async function dispatchRide(ride) {
 
   }
 
-  const drivers =
+  // Google Play reviewer-account dispatch isolation (two-way, approved
+  // requirement): a review rider's ride may reach only the one paired
+  // review driver, and that review driver must never be a candidate for
+  // any real rider's ride. ride.is_review_ride is set once, at
+  // ride-creation time, from the rider row's is_review_account column
+  // (see POST /api/rides/request) -- never re-derived from anything
+  // client-supplied here. The review driver lookup is a single
+  // partial-indexed row read (at most one such driver ever exists) and
+  // costs nothing on the far more common non-review path.
+  const { data: reviewDriverRow } = await supabase
+    .from("drivers")
+    .select("id, online, current_lat, current_lng, is_review_account")
+    .eq("is_review_account", true)
+    .maybeSingle();
 
-    await findAvailableDrivers({
+  const dispatchPlan = planReviewAwareDispatch({
+    isReviewRide: Boolean(ride.is_review_ride),
+    reviewDriverId: reviewDriverRow?.id || null,
+    reviewDriverOnline: Boolean(reviewDriverRow?.online)
+  });
 
-      pickup_lat:
+  let drivers;
 
-        ride.pickup_lat,
+  if (dispatchPlan.bypassNormalMatching) {
+    drivers =
+      dispatchPlan.candidateDriverIds.length && reviewDriverRow
+        ? [reviewDriverRow]
+        : [];
+  } else {
+    drivers =
 
-      pickup_lng:
+      await findAvailableDrivers({
 
-        ride.pickup_lng,
+        pickup_lat:
 
-      exclude_driver_ids:
+          ride.pickup_lat,
 
-        excludeDriverIds
+        pickup_lng:
 
-    });
+          ride.pickup_lng,
+
+        exclude_driver_ids:
+
+          excludeDriverIds.concat(dispatchPlan.extraExcludeDriverIds)
+
+      });
+  }
 
   if (!drivers.length) {
 
@@ -10641,6 +10960,61 @@ app.post(
 
   asyncRoute(async (req, res) => {
 
+    const riderId = resolveEnforcedRiderId({
+      authenticatedRiderId: req.rider?.id,
+      clientSuppliedRiderId: cleanString(req.body.rider_id, 100)
+    });
+
+    // Option A (approved requirement): a Google Play review rider's
+    // ride NEVER calls live Stripe -- not paymentIntents.create(), not
+    // a customer/payment-method lookup, nothing. Resolved from a fresh
+    // database row keyed on the already-resolved riderId, never from
+    // anything the client asserted directly. Deliberately checked
+    // before the "Payments are not configured" guard below, so the
+    // simulated flow works the same whether or not Stripe/the payment
+    // gate is even configured in this environment -- reviewers must be
+    // able to exercise the full ride flow regardless of that ops-level
+    // setting. The quote is still verified and consumed normally so the
+    // reviewer sees the same real estimate/quote-token flow as anyone
+    // else; only the Stripe call itself is replaced.
+    let riderIsReviewAccount = false;
+
+    if (riderId) {
+      const { data: riderReviewRow } = await supabase
+        .from("riders")
+        .select("is_review_account")
+        .eq("id", riderId)
+        .maybeSingle();
+
+      riderIsReviewAccount = isReviewAccountRow(riderReviewRow);
+    }
+
+    if (riderIsReviewAccount) {
+      const quote = verifyAndConsumeRideQuote(req, res);
+
+      if (!quote) {
+        return;
+      }
+
+      const simulated = buildSimulatedPaymentIntentResponse({
+        id: makeId("REVIEWPAY"),
+        estimate: quote.estimate
+      });
+
+      auditLog({
+        action: "review_payment_intent_simulated",
+        actor_type: "rider",
+        actor_id: riderId,
+        metadata: {
+          payment_intent_id: simulated.payment_intent_id,
+          amount: quote.estimate.total
+        },
+        req
+      }).catch(() => {});
+
+      return ok(res, simulated);
+    }
+
     if (
 
       !stripe ||
@@ -10687,10 +11061,6 @@ app.post(
         100
       );
 
-    const riderId = resolveEnforcedRiderId({
-      authenticatedRiderId: req.rider?.id,
-      clientSuppliedRiderId: cleanString(req.body.rider_id, 100)
-    });
     const paymentMethodId = cleanString(req.body.payment_method_id, 100);
     const saveCard = Boolean(req.body.save_card);
 
@@ -10969,6 +11339,25 @@ app.post(
 
     }
 
+    // Google Play reviewer-account flagging: resolved once, here, from
+    // a fresh database row -- never from anything client-supplied --
+    // and persisted onto the ride itself so every downstream consumer
+    // (dispatchRide()'s isolation, notifyRideStage()'s message
+    // suppression, the mission-control/operations-overview analytics
+    // exclusions) can filter on this one column instead of re-deriving
+    // review status from the rider on every read.
+    let isReviewRide = false;
+
+    if (riderId) {
+      const { data: riderReviewRow } = await supabase
+        .from("riders")
+        .select("is_review_account")
+        .eq("id", riderId)
+        .maybeSingle();
+
+      isReviewRide = isReviewAccountRow(riderReviewRow);
+    }
+
     const quote = verifyAndConsumeRideQuote(req, res);
 
     if (!quote) {
@@ -11009,6 +11398,10 @@ app.post(
       rider_id:
 
         riderId || null,
+
+      is_review_ride:
+
+        isReviewRide,
 
       rider_name:
 
@@ -12278,12 +12671,16 @@ app.get(
       RIDE_STATUS.IN_PROGRESS
     ];
 
+    // Google Play reviewer-account exclusion (approved requirement):
+    // the review driver/rides must never count toward a public totals
+    // endpoint as genuine traffic.
     const [driversOnline, activeRidesResult] = await Promise.all([
-      countWhere("drivers", (q) => q.eq("online", true)),
+      countWhere("drivers", (q) => q.eq("online", true).eq("is_review_account", false)),
       supabase
         .from("rides")
         .select("driver_eta_to_pickup_minutes")
         .in("status", ACTIVE_STATUSES)
+        .eq("is_review_ride", false)
     ]);
 
     const activeRides = activeRidesResult.data || [];
@@ -15707,6 +16104,11 @@ app.get(
       RIDE_STATUS.IN_PROGRESS
     ];
 
+    // Google Play reviewer-account exclusion (approved requirement):
+    // the review driver/rides must never count toward operational or
+    // financial totals -- excluded at the query level on every branch
+    // below, not filtered out after the fact, so a future field added
+    // to this endpoint can't accidentally reintroduce them.
     const [
       activeRidesResult,
       driversOnline,
@@ -15716,12 +16118,14 @@ app.get(
       supabase
         .from("rides")
         .select("ride_type, rider_id, driver_eta_to_pickup_minutes")
-        .in("status", ACTIVE_STATUSES),
-      countWhere("drivers", (q) => q.eq("online", true)),
+        .in("status", ACTIVE_STATUSES)
+        .eq("is_review_ride", false),
+      countWhere("drivers", (q) => q.eq("online", true).eq("is_review_account", false)),
       supabase
         .from("rides")
         .select("estimated_fare")
         .eq("status", RIDE_STATUS.COMPLETED)
+        .eq("is_review_ride", false)
         .gte("created_at", startOfTodayUtc),
       supabase.from("system_flags").select("key").limit(1)
     ]);
@@ -21377,4 +21781,18 @@ async function startServer() {
 
 }
 
-startServer();
+// Only auto-start (and run bootValidation, register signal handlers,
+// open cron-style setIntervals, etc.) when this file is actually
+// launched directly (node server.js / npm start -- the only way it
+// runs in every deployed environment). Requiring it as a module -- the
+// only other caller, added for the Google Play reviewer-account
+// composition/integration tests in server.review-accounts.test.js --
+// must never also stand up a second real HTTP listener or duplicate
+// timers. Exporting `app` here changes nothing about production
+// behavior: it's inert unless something actually requires this file
+// instead of running it.
+if (require.main === module) {
+  startServer();
+}
+
+module.exports = { app };

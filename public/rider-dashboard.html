@@ -3537,6 +3537,7 @@
         <button type="submit" class="auth-btn" id="authStartBtn">Send code</button>
         <p class="auth-error" id="authStartError" hidden></p>
         <p class="auth-footnote">New to Harvey Taxi? <a href="rider-signup.html">Create an account</a></p>
+        <p class="auth-footnote"><button type="button" class="auth-link" id="authReviewToggleBtn">Google Play reviewer sign-in</button></p>
       </form>
 
       <form id="authVerifyForm" class="auth-step" hidden>
@@ -3549,6 +3550,20 @@
           <button type="button" class="auth-link" id="authResendBtn">Resend code</button>
           <button type="button" class="auth-link" id="authBackBtn">Use a different number/email</button>
         </div>
+      </form>
+
+      <!-- Google Play reviewer sign-in: a separate email+password form,
+           independent of the OTP flow above. Only ever functional for
+           the two dedicated review accounts (server-side rejects any
+           other email) -- see POST /api/review/rider/login. -->
+      <form id="authReviewForm" class="auth-step" hidden>
+        <label class="auth-label" for="authReviewEmail">Reviewer email</label>
+        <input id="authReviewEmail" type="email" inputmode="email" autocomplete="username" class="auth-input" />
+        <label class="auth-label" for="authReviewPassword">Reviewer password</label>
+        <input id="authReviewPassword" type="password" autocomplete="current-password" class="auth-input" />
+        <button type="submit" class="auth-btn" id="authReviewBtn">Sign in as reviewer</button>
+        <p class="auth-error" id="authReviewError" hidden></p>
+        <p class="auth-footnote"><button type="button" class="auth-link" id="authReviewBackBtn">Back to rider sign-in</button></p>
       </form>
 
       <p class="auth-status" id="authStatusMsg" hidden></p>
@@ -9612,7 +9627,14 @@
       sentTo: document.getElementById("authSentTo"),
       resendBtn: document.getElementById("authResendBtn"),
       backBtn: document.getElementById("authBackBtn"),
-      logoutBtn: document.getElementById("riderLogoutBtn")
+      logoutBtn: document.getElementById("riderLogoutBtn"),
+      reviewToggleBtn: document.getElementById("authReviewToggleBtn"),
+      reviewForm: document.getElementById("authReviewForm"),
+      reviewEmail: document.getElementById("authReviewEmail"),
+      reviewPassword: document.getElementById("authReviewPassword"),
+      reviewBtn: document.getElementById("authReviewBtn"),
+      reviewError: document.getElementById("authReviewError"),
+      reviewBackBtn: document.getElementById("authReviewBackBtn")
     };
 
     function showAuthOverlay() {
@@ -9965,6 +9987,62 @@
       await requestLoginCode();
     }
 
+    // Google Play reviewer sign-in: a separate email+password form (see
+    // authReviewForm in the HTML above), independent of the OTP flow
+    // above it. POST /api/review/rider/login mints the exact same
+    // session cookie a real OTP login does, so completeSignIn() below
+    // works unchanged for a reviewer session.
+    function showReviewForm() {
+      authEls.startForm.hidden = true;
+      authEls.reviewForm.hidden = false;
+      clearAuthError(authEls.reviewError);
+      authEls.reviewEmail.focus();
+    }
+
+    function hideReviewForm() {
+      authEls.reviewForm.hidden = true;
+      authEls.startForm.hidden = false;
+      clearAuthError(authEls.reviewError);
+      authEls.reviewEmail.value = "";
+      authEls.reviewPassword.value = "";
+    }
+
+    async function handleReviewSignIn(event) {
+      event.preventDefault();
+      clearAuthError(authEls.reviewError);
+
+      const email = safe(authEls.reviewEmail.value);
+      const password = safe(authEls.reviewPassword.value);
+
+      if (!email || !password) {
+        showAuthError(authEls.reviewError, "Enter the reviewer email and password.");
+        return;
+      }
+
+      authEls.reviewBtn.disabled = true;
+      authEls.reviewBtn.textContent = "Signing in…";
+
+      try {
+        const { httpOk, status } = await authRequest("/api/review/rider/login", { email, password });
+
+        if (!httpOk) {
+          const message =
+            status === 503
+              ? "Google Play review sign-in is temporarily disabled."
+              : "Invalid reviewer credentials.";
+          showAuthError(authEls.reviewError, message);
+          return;
+        }
+
+        await completeSignIn();
+      } catch {
+        showAuthError(authEls.reviewError, "Invalid reviewer credentials.");
+      } finally {
+        authEls.reviewBtn.disabled = false;
+        authEls.reviewBtn.textContent = "Sign in as reviewer";
+      }
+    }
+
     function bindAuthEvents() {
       authEls.tabPhone.addEventListener("click", () => setAuthChannel("phone"));
       authEls.tabEmail.addEventListener("click", () => setAuthChannel("email"));
@@ -9983,6 +10061,18 @@
       });
 
       authEls.backBtn.addEventListener("click", resetAuthStep);
+
+      if (authEls.reviewToggleBtn) {
+        authEls.reviewToggleBtn.addEventListener("click", showReviewForm);
+      }
+
+      if (authEls.reviewBackBtn) {
+        authEls.reviewBackBtn.addEventListener("click", hideReviewForm);
+      }
+
+      if (authEls.reviewForm) {
+        authEls.reviewForm.addEventListener("submit", handleReviewSignIn);
+      }
 
       if (authEls.logoutBtn) {
         authEls.logoutBtn.addEventListener("click", handleLogout);

@@ -998,6 +998,25 @@
         <button class="btn btn-primary" id="verifyCodeBtn" type="button" style="width: 100%; display:none;">Verify &amp; Sign In</button>
 
         <div id="loginMsg" class="msg"></div>
+
+        <button class="btn btn-secondary" id="reviewToggleBtn" type="button" style="width: 100%; margin-top: 12px;">Google Play reviewer sign-in</button>
+
+        <!-- Google Play reviewer sign-in: a separate email+password form,
+             independent of the Driver ID + SMS code flow above. Only ever
+             functional for the one dedicated review driver account
+             (server-side rejects any other email) -- see
+             POST /api/review/driver/login. -->
+        <div id="reviewLoginFields" style="display:none; margin-top:16px;">
+          <div class="field">
+            <label for="reviewEmail">Reviewer email</label>
+            <input id="reviewEmail" class="input" type="email" autocomplete="username" />
+          </div>
+          <div class="field" style="margin-top:12px;">
+            <label for="reviewPassword">Reviewer password</label>
+            <input id="reviewPassword" class="input" type="password" autocomplete="current-password" />
+          </div>
+          <button class="btn btn-primary" id="reviewSignInBtn" type="button" style="width: 100%; margin-top:12px;">Sign In as Reviewer</button>
+        </div>
       </section>
 
       <section class="glass card span-8">
@@ -1229,6 +1248,11 @@
       sendCodeBtn: document.getElementById("sendCodeBtn"),
       verifyCodeBtn: document.getElementById("verifyCodeBtn"),
       logoutBtn: document.getElementById("logoutBtn"),
+      reviewToggleBtn: document.getElementById("reviewToggleBtn"),
+      reviewLoginFields: document.getElementById("reviewLoginFields"),
+      reviewEmail: document.getElementById("reviewEmail"),
+      reviewPassword: document.getElementById("reviewPassword"),
+      reviewSignInBtn: document.getElementById("reviewSignInBtn"),
       refreshBtn: document.getElementById("refreshAllBtn"),
       goAvailableBtn: document.getElementById("goAvailableBtn"),
       goOfflineBtn: document.getElementById("goOfflineBtn"),
@@ -1331,6 +1355,17 @@
       el.photoPreview.src = DEFAULT_PHOTO;
       el.sendCodeBtn.addEventListener("click", handleSendCode);
       el.verifyCodeBtn.addEventListener("click", handleVerifyCode);
+
+      if (el.reviewToggleBtn) {
+        el.reviewToggleBtn.addEventListener("click", () => {
+          const showing = el.reviewLoginFields.style.display !== "none";
+          el.reviewLoginFields.style.display = showing ? "none" : "";
+        });
+      }
+
+      if (el.reviewSignInBtn) {
+        el.reviewSignInBtn.addEventListener("click", handleReviewSignIn);
+      }
 
       el.logoutBtn.addEventListener("click", clearDashboardSession);
       el.refreshBtn.addEventListener("click", () => fetchFreshDashboardState(true));
@@ -1491,6 +1526,35 @@
         el.verifyCodeBtn.disabled = false;
       }
     }
+    // Google Play reviewer sign-in: a separate email+password form,
+    // independent of the Driver ID + SMS code flow above. POST
+    // /api/review/driver/login returns the exact same driver_token
+    // shape as the real OTP verify route, so setDriverToken() +
+    // bootstrapDashboardSession() work unchanged for a reviewer session.
+    async function handleReviewSignIn() {
+      const email = el.reviewEmail.value.trim();
+      const password = el.reviewPassword.value;
+
+      if (!email || !password) {
+        return showMessage(el.loginMsg, "Enter the reviewer email and password.", "err");
+      }
+
+      el.reviewSignInBtn.disabled = true;
+      showMessage(el.loginMsg, "Signing in...", "ok");
+
+      try {
+        const resp = await apiPost("/api/review/driver/login", { email, password });
+        setDriverToken(resp.driver_token || "");
+        showMessage(el.loginMsg, "Signed in. Loading your dashboard...", "ok");
+        el.reviewPassword.value = "";
+        bootstrapDashboardSession(resp.driver_id);
+      } catch (err) {
+        showMessage(el.loginMsg, "Reviewer sign-in failed: " + err.message, "err");
+      } finally {
+        el.reviewSignInBtn.disabled = false;
+      }
+    }
+
     function bootstrapDashboardSession(driverId) {
       state.driverId = driverId;
       localStorage.setItem(STORAGE.driverId, driverId);
