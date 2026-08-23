@@ -10007,6 +10007,28 @@
       authEls.reviewPassword.value = "";
     }
 
+    // Mirrors lib/reviewAccounts.js's resolveReviewLoginClientMessage
+    // exactly -- see that module's tests for the source of truth this is
+    // written to match. Never distinguishes "account not found" from
+    // "wrong password" (both fall to the same generic message) -- same
+    // no-enumeration principle the server already applies.
+    function resolveReviewLoginMessage(status, retryAfterSeconds) {
+      if (status === 503) {
+        return "Google Play review sign-in is temporarily disabled.";
+      }
+
+      if (status === 429) {
+        if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0) {
+          const minutes = Math.max(1, Math.ceil(retryAfterSeconds / 60));
+          return `Too many sign-in attempts. Wait ${minutes} minute${minutes === 1 ? "" : "s"} and try again.`;
+        }
+
+        return "Too many sign-in attempts. Wait 10 minutes and try again.";
+      }
+
+      return "Invalid reviewer credentials.";
+    }
+
     async function handleReviewSignIn(event) {
       event.preventDefault();
       clearAuthError(authEls.reviewError);
@@ -10023,14 +10045,16 @@
       authEls.reviewBtn.textContent = "Signing in…";
 
       try {
-        const { httpOk, status } = await authRequest("/api/review/rider/login", { email, password });
+        const { httpOk, status, data } = await authRequest("/api/review/rider/login", { email, password });
 
         if (!httpOk) {
-          const message =
-            status === 503
-              ? "Google Play review sign-in is temporarily disabled."
-              : "Invalid reviewer credentials.";
-          showAuthError(authEls.reviewError, message);
+          // Mirrors lib/reviewAccounts.js's resolveReviewLoginClientMessage
+          // exactly (tested there) -- a static page can't require() that
+          // module, so this is written to match it byte-for-byte. Fixes
+          // the incident where a rate-limited attempt (429) looked
+          // identical to a wrong password, because only 503 was ever
+          // special-cased here.
+          showAuthError(authEls.reviewError, resolveReviewLoginMessage(status, data?.retry_after_seconds));
           return;
         }
 
