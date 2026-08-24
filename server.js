@@ -678,13 +678,25 @@ const {
   buildCorsRejectionError
 } = require("./lib/corsOrigins");
 
+// Render sets this automatically to this exact service's own assigned
+// hostname (e.g. "harvey-taxi-app-2.onrender.com") -- a bare hostname,
+// not a full URL, unlike RENDER_EXTERNAL_URL. Used only to add this one
+// specific origin to the default allow-list below; never a wildcard
+// pattern, so an unrelated *.onrender.com service is never accepted.
+// Confirmed necessary by production evidence: a same-origin request can
+// arrive with this exact Origin even while the page was loaded on the
+// custom domain, and APP_BASE_URL alone no longer covers it once
+// PUBLIC_APP_URL/APP_BASE_URL is pinned to the custom domain.
+const RENDER_EXTERNAL_HOSTNAME = env("RENDER_EXTERNAL_HOSTNAME", "");
+
 function isAllowedOrigin(origin) {
   return isAllowedOriginPure(origin, {
     isProduction: IS_PRODUCTION,
     configuredOrigins: ALLOWED_ORIGINS,
     appBaseUrl: APP_BASE_URL,
     canonicalHost: CANONICAL_HOST,
-    foundationHost: FOUNDATION_HOST
+    foundationHost: FOUNDATION_HOST,
+    renderExternalHostname: RENDER_EXTERNAL_HOSTNAME
   });
 }
 
