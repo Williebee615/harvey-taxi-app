@@ -580,26 +580,49 @@ app.use((req, res, next) => {
 
 /* =========================================================
 
-   HTAF DOMAIN HOMEPAGE
+   HTAF DOMAIN STATIC OVERRIDES
 
    Requests that arrive on FOUNDATION_HOST get foundation.html at the
-   root path instead of the taxi app's index.html -- everything else
+   root path instead of the taxi app's index.html, and get HTAF's own
+   privacy/terms pages instead of Harvey Taxi's -- everything else
    (assets, /api/*, other pages) is served identically regardless of
    which domain the request came in on, since both domains point at
    this same app. Must run before express.static, which would
-   otherwise already resolve "/" to index.html first.
+   otherwise already resolve these paths to the taxi app's own files
+   first.
 
 ========================================================= */
+
+// /privacy.html and /terms.html are the same URL on both public domains,
+// but must not be the same CONTENT: Harvey Taxi's own policy pages
+// (public/privacy.html, public/terms.html) describe a commercial
+// ride-hailing platform, while HTAF is a separate 501(c)(3) charity
+// whose application portal has no fares, drivers, or dispatch to
+// describe. Serves the HTAF-specific file (public/htaf-privacy.html,
+// public/htaf-terms.html) instead, only for FOUNDATION_HOSTS requests,
+// so the taxi domain's own policy pages are completely unaffected.
+const FOUNDATION_STATIC_OVERRIDES = new Map([
+  ["/privacy.html", "htaf-privacy.html"],
+  ["/terms.html", "htaf-terms.html"]
+]);
 
 app.use((req, res, next) => {
 
   if (
     req.method === "GET" &&
-    req.path === "/" &&
     req.hostname &&
     FOUNDATION_HOSTS.has(req.hostname)
   ) {
-    return res.sendFile(path.join(PUBLIC_DIR, "foundation.html"));
+
+    if (req.path === "/") {
+      return res.sendFile(path.join(PUBLIC_DIR, "foundation.html"));
+    }
+
+    const override = FOUNDATION_STATIC_OVERRIDES.get(req.path);
+    if (override) {
+      return res.sendFile(path.join(PUBLIC_DIR, override));
+    }
+
   }
 
   next();
@@ -635,7 +658,7 @@ const FOUNDATION_SITEMAP_PATHS = [
   "/",
   "/contact.html",
   "/leadership.html",
-  "/support.html",
+  "/htaf-application.html",
   "/privacy.html",
   "/terms.html"
 ];

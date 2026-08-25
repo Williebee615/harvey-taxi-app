@@ -3,20 +3,20 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Harvey Transportation Assistance Foundation | Apply for Transportation Assistance</title>
+  <title>Harvey Transportation Assistance Foundation | Tennessee 501(c)(3) Transportation Charity</title>
   <meta
     name="description"
-    content="Apply for Harvey Transportation Assistance Foundation transportation assistance for medical appointments, seniors, disability access, veterans, employment, education, and essential mobility across Tennessee."
+    content="Harvey Transportation Assistance Foundation (HTAF) is a Tennessee 501(c)(3) public charity that helps eligible residents access transportation for healthcare, employment, education, disability access, veterans, seniors, and essential community needs."
   />
   <meta name="theme-color" content="#0b1530" />
   <meta name="robots" content="index, follow" />
-  <meta name="application-name" content="Harvey Taxi" />
+  <meta name="application-name" content="HTAF" />
   <meta name="apple-mobile-web-app-title" content="HTAF" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="manifest" href="/manifest.json" />
-  <!-- Canonical is HTAF's own domain, not harveytaxiservice.com --
-       this page is HTAF's homepage (server.js serves it at "/" for
+  <!-- Canonical is HTAF's own domain, not harveytaxiservice.com -- this
+       page is HTAF's homepage (server.js serves it at "/" for
        FOUNDATION_HOSTS) and matches the "url" already declared in the
        NGO structured data below. It's also reachable at
        harveytaxiservice.com/foundation.html and other static paths
@@ -26,7 +26,7 @@
   <meta property="og:title" content="Harvey Transportation Assistance Foundation" />
   <meta
     property="og:description"
-    content="Apply for transportation assistance through Harvey Transportation Assistance Foundation."
+    content="A Tennessee 501(c)(3) public charity helping eligible residents access transportation for healthcare, employment, education, and essential community needs."
   />
   <meta property="og:type" content="website" />
   <meta
@@ -72,7 +72,6 @@
     href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
     rel="stylesheet"
   />
-  <link rel="stylesheet" href="/ai-support-widget.css" onerror="this.remove()" />
   <style>
     :root {
       --bg1: #040814;
@@ -166,7 +165,6 @@
       touch-action: manipulation;
     }
     button { border: 0; background: none; color: inherit; cursor: pointer; }
-    button:disabled { opacity: 0.58; cursor: not-allowed; transform: none !important; filter: none !important; }
     img { max-width: 100%; display: block; }
     .hidden { display: none !important; }
     .shell { width: min(var(--maxw), calc(100% - 32px)); margin: 0 auto; position: relative; z-index: 1; }
@@ -185,9 +183,6 @@
     }
     .skip-link:focus { top: 14px; }
 
-    /* ============================================================
-       LANGUAGE + ACCESSIBILITY PANEL (NEW — was entirely missing)
-       ============================================================ */
     .access-panel {
       margin: 14px auto 0;
       padding: 16px 18px;
@@ -225,8 +220,6 @@
       font-size: .82rem;
       transition: all var(--dur) var(--ease);
     }
-    select.access-btn { cursor: pointer; }
-    select.access-btn option { color: #04101c; background: #fff; }
     .access-btn:hover { background: rgba(255,255,255,.08); border-color: var(--lineStrong); }
     .access-btn.active {
       background: linear-gradient(135deg, var(--cyan), var(--blue));
@@ -323,7 +316,7 @@
       border-radius: var(--radiusXL);
       box-shadow: var(--shadow);
     }
-    .hero-card, .section-card, .why-card, .cta-card, .spotlight-card, .application-card { padding: 36px; }
+    .hero-card, .section-card, .why-card, .cta-card, .spotlight-card { padding: 36px; }
     .hero-card::before {
       content: "";
       position: absolute;
@@ -360,13 +353,12 @@
       margin-bottom: 18px;
     }
     .hero-card p, .section-head p, .feature-card p, .why-card p, .faq-item span,
-    .stat-card span, .process-card span, .spotlight-card p, .trust-pill, .preview-copy,
-    .field small, .consent-text, .muted {
+    .trust-pill, .preview-copy, .muted {
       color: var(--muted);
       line-height: 1.65;
     }
     .hero-card p { font-size: 1.05rem; max-width: 760px; }
-    .hero-actions, .preview-actions { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 28px; }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 28px; }
 
     .btn {
       display: inline-flex;
@@ -385,7 +377,6 @@
     }
     .btn:hover, .btn:focus-visible { transform: translateY(-2px); filter: brightness(1.04); }
     .btn:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
-    .btn:disabled:hover { transform: none; filter: none; }
     .btn-primary {
       color: var(--ink);
       background: linear-gradient(135deg, var(--cyan), var(--blue));
@@ -393,24 +384,23 @@
     }
     .btn-secondary { color: var(--text); background: rgba(255,255,255,.04); border-color: rgba(255,255,255,.08); }
     .btn-gold { color: #fff; background: linear-gradient(135deg,#0070ba,#154670); box-shadow: 0 18px 40px rgba(0,112,186,.25); }
-    .btn-danger { color: #30070d; background: linear-gradient(135deg,#ff9cad,#ff7e90); }
 
     .impact-strip, .grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
     .impact-strip { margin-top: 20px; }
-    .impact-mini, .feature-card, .stat-card, .trust-pill, .process-card, .status-box {
+    .impact-mini, .feature-card, .trust-pill {
       background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.01));
       border: 1px solid rgba(255,255,255,.06);
       box-shadow: var(--shadowSoft);
       border-radius: 22px;
       padding: 22px;
     }
-    .impact-mini strong, .feature-card h4, .trust-pill strong, .process-card strong, .status-box strong {
+    .impact-mini strong, .feature-card h4, .trust-pill strong {
       display: block;
       color: var(--text);
       font-weight: 900;
       margin-bottom: 8px;
     }
-    .impact-mini span, .status-box span { color: var(--muted); line-height: 1.5; font-size: .94rem; }
+    .impact-mini span { color: var(--muted); line-height: 1.5; font-size: .94rem; }
 
     .sticky-box { position: sticky; top: 24px; display: grid; gap: 20px; }
     .trust-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
@@ -439,23 +429,10 @@
     }
     .preview-title { margin-bottom: 10px; font-size: 1.3rem; line-height: 1.25; font-weight: 900; }
     .preview-copy { margin-bottom: 0; }
-    .preview-link {
-      display: block;
-      width: 100%;
-      padding: 14px;
-      border-radius: 14px;
-      background: rgba(255,255,255,.04);
-      border: 1px solid rgba(255,255,255,.08);
-      color: var(--cyan);
-      word-break: break-all;
-      font-size: .88rem;
-      font-weight: 700;
-      margin-top: 16px;
-    }
 
     .section { padding: 20px 0; }
     .section-head { margin-bottom: 24px; }
-    .section-head h3, .why-card h3, .cta-copy h3, .spotlight-card h3, .application-card h3 {
+    .section-head h3, .why-card h3, .cta-copy h3, .spotlight-card h3 {
       font-size: clamp(1.45rem,2.5vw,2rem);
       font-weight: 900;
       letter-spacing: -.03em;
@@ -472,8 +449,6 @@
       background: linear-gradient(135deg, rgba(115,244,255,.18), rgba(106,167,255,.14));
       border: 1px solid rgba(115,244,255,.14);
     }
-    .stats-shell, .process-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; margin-top: 24px; }
-    .stat-card strong, .process-card strong { color: var(--cyan); font-size: 1.2rem; }
 
     .why-shell { display: grid; grid-template-columns: 1.05fr .95fr; gap: 24px; }
     .why-list { list-style: none; display: grid; gap: 14px; }
@@ -492,287 +467,6 @@
     .cta-card { display: grid; grid-template-columns: 1.1fr .9fr; gap: 24px; align-items: center; }
     .cta-actions { display: flex; flex-direction: column; gap: 12px; }
 
-    .application-card { position: relative; }
-    .application-card::before {
-      content: "";
-      position: absolute;
-      right: -120px;
-      top: -120px;
-      width: 280px;
-      height: 280px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(115,244,255,.14), transparent 70%);
-      pointer-events: none;
-    }
-
-    .eligibility-banner {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 18px;
-      border-radius: 20px;
-      margin-bottom: 18px;
-      background: linear-gradient(135deg, rgba(124,255,199,.08), rgba(115,244,255,.08));
-      border: 1px solid rgba(115,244,255,.15);
-    }
-    .eligibility-icon {
-      width: 54px;
-      height: 54px;
-      border-radius: 16px;
-      display: grid;
-      place-items: center;
-      background: linear-gradient(135deg, rgba(124,255,199,.18), rgba(115,244,255,.18));
-      font-size: 1.4rem;
-      flex: 0 0 auto;
-    }
-    .eligibility-banner strong { display: block; margin-bottom: 4px; font-size: .95rem; }
-    .eligibility-banner span { display: block; color: var(--muted); line-height: 1.55; font-size: .88rem; }
-
-    .application-grid {
-      display: grid;
-      grid-template-columns: minmax(0,1fr) 340px;
-      gap: 20px;
-      align-items: start;
-    }
-    .application-progress { position: sticky; top: 24px; display: grid; gap: 12px; }
-    .progress-panel {
-      padding: 20px;
-      border-radius: 24px;
-      border: 1px solid rgba(255,255,255,.07);
-      background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.014)), rgba(4,10,28,.7);
-      box-shadow: var(--shadowSoft);
-    }
-    .progress-panel h4 { font-size: 1rem; font-weight: 900; margin-bottom: 8px; }
-    .progress-panel p { color: var(--muted); line-height: 1.55; font-size: .9rem; }
-    .progress-steps { display: grid; gap: 10px; margin-top: 16px; }
-    .progress-step {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      padding: 12px;
-      border-radius: 16px;
-      border: 1px solid rgba(255,255,255,.055);
-      background: rgba(255,255,255,.025);
-      transition: var(--dur) var(--ease);
-    }
-    .progress-dot {
-      width: 18px;
-      height: 18px;
-      min-width: 18px;
-      margin-top: 2px;
-      border-radius: 999px;
-      border: 2px solid rgba(115,244,255,.5);
-      background: rgba(115,244,255,.08);
-      transition: var(--dur) var(--ease);
-    }
-    .progress-step.active { border-color: rgba(115,244,255,.26); background: rgba(115,244,255,.06); }
-    .progress-step.active .progress-dot {
-      background: linear-gradient(135deg, var(--cyan), var(--blue));
-      box-shadow: 0 0 18px rgba(115,244,255,.28);
-    }
-    .progress-step strong { display: block; font-size: .86rem; margin-bottom: 3px; }
-    .progress-step span { display: block; color: var(--muted); line-height: 1.45; font-size: .78rem; }
-
-    /* ============================================================
-       FORM SECTION SYSTEM (NEW — was entirely undefined)
-       ============================================================ */
-    .form-section {
-      margin-top: 28px;
-      padding-top: 24px;
-      border-top: 1px solid rgba(255,255,255,.07);
-    }
-    .form-section:first-of-type { margin-top: 0; padding-top: 0; border-top: none; }
-    .form-section-title {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      gap: 12px;
-      margin-bottom: 4px;
-    }
-    .form-section-title h4 { font-size: 1.05rem; font-weight: 900; letter-spacing: -.01em; }
-    .form-section-title span {
-      flex-shrink: 0;
-      padding: 4px 10px;
-      border-radius: 999px;
-      background: rgba(115,244,255,.1);
-      border: 1px solid rgba(115,244,255,.2);
-      color: var(--cyan);
-      font-size: .72rem;
-      font-weight: 900;
-      letter-spacing: .04em;
-      text-transform: uppercase;
-    }
-
-    /* ============================================================
-       RADIO CHOICE CARDS (NEW — was entirely undefined)
-       ============================================================ */
-    .choice-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 12px;
-      margin-top: 16px;
-    }
-    .choice { display: block; cursor: pointer; }
-    .choice input { position: absolute; opacity: 0; width: 1px; height: 1px; }
-    .choice-card {
-      padding: 18px;
-      border-radius: 18px;
-      border: 1.5px solid rgba(255,255,255,.08);
-      background: rgba(255,255,255,.025);
-      transition: all var(--dur) var(--ease);
-      height: 100%;
-    }
-    .choice-card strong { display: block; font-size: .92rem; font-weight: 900; margin-bottom: 5px; color: var(--text); }
-    .choice-card span { display: block; color: var(--muted); font-size: .82rem; line-height: 1.5; }
-    .choice:hover .choice-card { border-color: rgba(115,244,255,.3); background: rgba(115,244,255,.04); }
-    .choice input:checked + .choice-card {
-      border-color: var(--cyan);
-      background: rgba(115,244,255,.08);
-      box-shadow: 0 0 0 3px rgba(115,244,255,.12);
-    }
-    .choice input:focus-visible + .choice-card { outline: 2px solid var(--cyan); outline-offset: 2px; }
-
-    .field { display: grid; gap: 8px; min-width: 0; margin-top: 16px; }
-    .field label { color: var(--soft); font-weight: 900; font-size: .94rem; }
-    .field input, .field select, .field textarea {
-      width: 100%;
-      min-height: 54px;
-      padding: 15px 16px;
-      border-radius: 16px;
-      border: 1px solid rgba(126,166,255,.32);
-      background: rgba(2,8,20,.78);
-      color: var(--text);
-      outline: none;
-      font-size: 1rem;
-      transition: var(--dur) var(--ease);
-    }
-    .field select {
-      appearance: none;
-      -webkit-appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9' viewBox='0 0 14 9' fill='none'%3E%3Cpath d='M1 1L7 7L13 1' stroke='%2373f4ff' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 18px center;
-      padding-right: 44px;
-    }
-    .field select option { color: #04101c; background: #fff; }
-    .field textarea { resize: vertical; min-height: 132px; }
-    .field input::placeholder, .field textarea::placeholder { color: rgba(173,187,222,.62); }
-    .field input:focus, .field select:focus, .field textarea:focus {
-      border-color: var(--cyan);
-      box-shadow: 0 0 0 4px rgba(115,244,255,.11);
-    }
-    .field input[type="file"] { padding: 14px; cursor: pointer; background: rgba(255,255,255,.04); }
-    .field small { display: block; color: var(--muted); line-height: 1.55; font-size: .84rem; }
-
-    /* ============================================================
-       UPLOAD PREVIEW (NEW — was entirely undefined)
-       ============================================================ */
-    .upload-preview { display: grid; gap: 8px; margin-top: 12px; }
-    .upload-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      padding: 10px 14px;
-      border-radius: 12px;
-      border: 1px solid rgba(115,244,255,.16);
-      background: rgba(115,244,255,.05);
-      font-size: .85rem;
-    }
-    .upload-item span { color: var(--text); font-weight: 700; word-break: break-all; }
-    .upload-item strong { color: var(--cyan); font-weight: 900; flex-shrink: 0; }
-    .upload-item.error { border-color: rgba(255,126,144,.3); background: rgba(255,126,144,.06); }
-    .upload-item.error strong { color: var(--danger); }
-
-    .status-box { margin-top: 18px; }
-    .consent-row {
-      display: flex;
-      align-items: flex-start;
-      gap: 13px;
-      margin-top: 18px;
-      padding: 16px;
-      border-radius: 18px;
-      border: 1px solid rgba(126,166,255,.22);
-      background: rgba(255,255,255,.035);
-      cursor: pointer;
-    }
-    .consent-row input { width: 22px; height: 22px; margin-top: 2px; flex: 0 0 auto; accent-color: var(--cyan); }
-    .consent-text { font-size: .92rem; font-weight: 800; }
-
-    .copy-status {
-      display: none;
-      margin-top: 16px;
-      padding: 14px 16px;
-      border-radius: 16px;
-      font-size: .92rem;
-      line-height: 1.5;
-      border: 1px solid transparent;
-    }
-    .copy-status.show { display: block; }
-    .copy-status.ok { background: rgba(124,255,199,.10); border-color: rgba(124,255,199,.20); color: var(--green); }
-    .copy-status.err { background: rgba(255,126,144,.12); border-color: rgba(255,126,144,.24); color: #ffd4dc; }
-    .copy-status.info { background: rgba(115,244,255,.10); border-color: rgba(115,244,255,.20); color: var(--cyan); }
-    .invalid { border-color: var(--danger) !important; box-shadow: 0 0 0 4px rgba(255,126,144,.12) !important; }
-
-    /* ============================================================
-       REVIEW PANEL (NEW — was entirely undefined)
-       ============================================================ */
-    .review-panel {
-      display: none;
-      margin-top: 22px;
-      padding: 20px;
-      border-radius: 20px;
-      border: 1px solid rgba(115,244,255,.18);
-      background: rgba(115,244,255,.04);
-    }
-    .review-panel.show { display: block; }
-    .review-panel h4 { font-size: 1rem; font-weight: 900; margin-bottom: 14px; color: var(--cyan); }
-    .review-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .review-item {
-      padding: 12px 14px;
-      border-radius: 12px;
-      background: rgba(255,255,255,.03);
-      border: 1px solid rgba(255,255,255,.06);
-    }
-    .review-item label {
-      display: block;
-      color: var(--muted);
-      font-size: .72rem;
-      font-weight: 900;
-      letter-spacing: .03em;
-      text-transform: uppercase;
-      margin-bottom: 4px;
-    }
-    .review-item span { display: block; color: var(--text); font-size: .9rem; font-weight: 700; word-break: break-word; }
-
-    .application-summary {
-      display: none;
-      margin-top: 20px;
-      padding: 18px;
-      border-radius: 20px;
-      border: 1px solid rgba(115,244,255,.20);
-      background: rgba(115,244,255,.055);
-    }
-    .application-summary.show { display: block; }
-    .application-summary strong { display: block; margin-bottom: 8px; color: var(--cyan); font-weight: 900; }
-    .application-summary span { display: block; color: var(--muted); line-height: 1.55; font-size: .92rem; }
-
-    /* ============================================================
-       FORM ACTION BUTTON ROW (NEW — was entirely undefined)
-       ============================================================ */
-    .application-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      margin-top: 28px;
-      padding-top: 24px;
-      border-top: 1px solid rgba(255,255,255,.07);
-    }
-    .application-actions .btn { flex: 1; min-width: 160px; }
-
-    /* ============================================================
-       FAQ GRID (NEW — was entirely undefined)
-       ============================================================ */
     .faq-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 4px; }
     .faq-item {
       padding: 20px;
@@ -817,14 +511,10 @@
       .hero-shell { grid-template-columns: 1fr; }
       .why-shell { grid-template-columns: 1fr; }
       .cta-card { grid-template-columns: 1fr; }
-      .application-grid { grid-template-columns: 1fr; }
-      .application-progress { position: static; }
     }
     @media(max-width:900px){
-      .grid-3, .impact-strip, .stats-shell, .process-grid, .faq-grid { grid-template-columns: 1fr; }
+      .grid-3, .impact-strip, .faq-grid { grid-template-columns: 1fr; }
       .trust-grid { grid-template-columns: 1fr; }
-      .choice-grid { grid-template-columns: 1fr; }
-      .review-grid { grid-template-columns: 1fr; }
       .topbar-inner { flex-direction: column; align-items: flex-start; }
       .nav { width: 100%; justify-content: flex-start; }
       .access-panel { flex-direction: column; align-items: flex-start; }
@@ -832,13 +522,11 @@
     }
     @media(max-width:640px){
       .shell { width: min(100% - 20px, var(--maxw)); }
-      .hero-card, .section-card, .application-card, .spotlight-card, .why-card, .cta-card { padding: 22px; }
+      .hero-card, .section-card, .why-card, .cta-card { padding: 22px; }
       .brand { align-items: flex-start; }
       .brand-mark { width: 60px; height: 60px; }
-      .hero-actions, .preview-actions { flex-direction: column; }
-      .hero-actions .btn, .preview-actions .btn { width: 100%; }
-      .application-actions { flex-direction: column; }
-      .application-actions .btn { width: 100%; }
+      .hero-actions { flex-direction: column; }
+      .hero-actions .btn { width: 100%; }
       .bottom-nav { height: 82px; }
       .access-btn { flex: 1; }
     }
@@ -865,39 +553,23 @@
     </a>
     <nav class="nav" aria-label="Primary navigation">
       <a href="foundation.html">Home</a>
-      <a href="#apply">Apply</a>
-      <a href="#faq">FAQ</a>
-      <a href="support.html">Support</a>
+      <a href="htaf-application.html">Apply</a>
+      <a href="leadership.html">Leadership</a>
       <a href="contact.html">Contact</a>
       <a class="cta" target="_blank" rel="noopener noreferrer" href="https://www.paypal.com/us/fundraiser/charity/5906918">Donate</a>
     </nav>
   </div>
 </header>
 
-<!-- LANGUAGE + ACCESSIBILITY PANEL — NEW: this page previously had neither
-     language switching nor accessibility controls, despite serving seniors,
-     disabled applicants, and non-English-speaking Tennessee communities -->
-<section class="shell access-panel" aria-label="Language and accessibility preferences">
+<section class="shell access-panel" aria-label="Accessibility preferences">
   <div class="access-panel-copy">
-    <strong data-i18n="languageTitle">Language &amp; Accessibility</strong>
-    <span data-i18n="languageCopy">Adjust display settings and choose your preferred language.</span>
+    <strong>Accessibility</strong>
+    <span>Adjust display settings for easier reading.</span>
   </div>
   <div class="access-controls">
-    <select id="language-select" class="access-btn" aria-label="Choose language" style="cursor:pointer;">
-      <option value="en">🌐 English</option>
-      <option value="es">🌐 Español</option>
-      <option value="fr">🌐 Français</option>
-      <option value="ar">🌐 العربية</option>
-      <option value="sw">🌐 Kiswahili</option>
-      <option value="zh">🌐 中文</option>
-      <option value="hi">🌐 हिन्दी</option>
-      <option value="pt">🌐 Português</option>
-      <option value="ht">🌐 Kreyòl Ayisyen</option>
-      <option value="yo">🌐 Yorùbá</option>
-    </select>
-    <button id="contrast-toggle" class="access-btn" type="button" data-i18n="contrastBtn">High Contrast</button>
-    <button id="text-toggle" class="access-btn" type="button" data-i18n="largeTextBtn">Larger Text</button>
-    <button id="motion-toggle" class="access-btn" type="button" data-i18n="motionBtn">Reduce Motion</button>
+    <button id="contrast-toggle" class="access-btn" type="button">High Contrast</button>
+    <button id="text-toggle" class="access-btn" type="button">Larger Text</button>
+    <button id="motion-toggle" class="access-btn" type="button">Reduce Motion</button>
   </div>
 </section>
 
@@ -907,19 +579,22 @@
   <div class="shell hero-shell">
     <section class="card hero-card">
       <div class="hero-content">
-        <div class="eyebrow" data-i18n="heroEyebrow">Tennessee Transportation Assistance Application</div>
-        <h2 data-i18n="heroTitle">Apply for transportation assistance through HTAF.</h2>
+        <div class="eyebrow">Tennessee 501(c)(3) Public Charity</div>
+        <h2>Removing transportation barriers for Tennesseans in need.</h2>
         <p>
-          <span data-i18n="heroCopy">Harvey Transportation Assistance Foundation helps eligible Tennessee residents access healthcare, employment, education, disability services, veteran resources, senior support, and essential transportation needs.</span>
+          Harvey Transportation Assistance Foundation (HTAF) helps eligible Tennessee residents
+          reach the healthcare, employment, education, and community resources they need, when a
+          lack of reliable transportation stands in the way.
         </p>
         <div class="hero-actions">
-          <a href="#apply" class="btn btn-primary" data-i18n="startApplication">Start Application</a>
-          <a href="foundation.html" class="btn btn-secondary" data-i18n="returnFoundation">Return To Foundation</a>
+          <a href="htaf-application.html" class="btn btn-primary">Apply For Assistance</a>
+          <a href="https://www.paypal.com/us/fundraiser/charity/5906918" target="_blank" rel="noopener noreferrer" class="btn btn-gold">Donate</a>
+          <a href="contact.html" class="btn btn-secondary">Contact HTAF</a>
         </div>
         <section class="impact-strip">
           <article class="impact-mini">
             <strong>Medical Transportation</strong>
-            <span>Healthcare appointments, treatment and pharmacy access.</span>
+            <span>Healthcare appointments, treatment, and pharmacy access.</span>
           </article>
           <article class="impact-mini">
             <strong>Employment Access</strong>
@@ -936,27 +611,25 @@
     <aside>
       <div class="sticky-box">
         <section class="card spotlight-card">
-          <h3 data-i18n="eligibilityOverview">Eligibility Overview</h3>
-          <p>
-            Applications are reviewed using transportation need, supporting documentation,
-            funding availability, and overall program eligibility.
-          </p>
+          <h3>Legal Identity</h3>
           <div class="trust-grid">
-            <div class="trust-pill"><strong>Tennessee Residents</strong>Priority consideration for Tennessee applicants.</div>
-            <div class="trust-pill"><strong>Program Review</strong>Every request receives individual review.</div>
-            <div class="trust-pill"><strong>Documentation</strong>Supporting records may speed processing.</div>
-            <div class="trust-pill"><strong>Funding Dependent</strong>Assistance depends on available resources.</div>
+            <div class="trust-pill"><strong>Organization</strong>Harvey Transportation Assistance Foundation ("HTAF")</div>
+            <div class="trust-pill"><strong>Status</strong>501(c)(3) public charity, IRC 170(b)(1)(A)(vi)</div>
+            <div class="trust-pill"><strong>EIN</strong>41-5115030</div>
+            <div class="trust-pill"><strong>Service Area</strong>Tennessee, statewide</div>
           </div>
           <div class="trust-pill" style="margin-top:12px;">
-            <strong>501(c)(3) Public Charity</strong>
-            Harvey Transportation Assistance Foundation is a registered 501(c)(3) public charity under IRC Section 170(b)(1)(A)(vi). EIN: 41-5115030.
+            <strong>Official Domain</strong>
+            harveytransportationfoundation.com is HTAF's official website. HTAF is a separate
+            501(c)(3) charitable organization and is not the same legal entity as Harvey Taxi
+            Service LLC, a Tennessee for-profit ride-hailing company.
           </div>
           <div class="link-preview">
-            <div class="preview-badge">HTAF Program Portal</div>
-            <h4 class="preview-title">Before You Apply</h4>
+            <div class="preview-badge">Address</div>
+            <h4 class="preview-title">1617 Lebanon Pike<br />Nashville, TN 37210</h4>
             <p class="preview-copy">
-              Prepare transportation details, appointment information, destination addresses,
-              and supporting documentation.
+              <a href="mailto:WillieHtaf@harveytransportationfoundation.com">WillieHtaf@harveytransportationfoundation.com</a><br />
+              <a href="tel:+16156366201">615-636-6201</a>
             </p>
           </div>
         </section>
@@ -965,272 +638,41 @@
   </div>
 </section>
 
-<section class="section" id="apply">
+<section class="section" id="mission">
   <div class="shell">
-    <div class="application-grid">
-      <section class="card application-card">
-        <div class="eligibility-banner">
-          <div class="eligibility-icon">🚐</div>
-          <div>
-            <strong>Transportation Assistance Request</strong>
-            <span>Complete all required sections to submit your application.</span>
-          </div>
-        </div>
-        <div class="section-head">
-          <h3 data-i18n="appFormTitle">Transportation Assistance Application</h3>
-          <p>Submit a transportation assistance request directly to Harvey Transportation Assistance Foundation.</p>
-        </div>
-
-        <form id="htafApplicationForm" novalidate>
-          <div class="form-section">
-            <div class="form-section-title">
-              <h4 data-i18n="sectionApplicant">Applicant Information</h4>
-              <span>Required</span>
-            </div>
-            <div class="grid-3">
-              <div class="field">
-                <label for="firstName">First Name *</label>
-                <input id="firstName" type="text" required placeholder="First Name" autocomplete="given-name" />
-              </div>
-              <div class="field">
-                <label for="lastName">Last Name *</label>
-                <input id="lastName" type="text" required placeholder="Last Name" autocomplete="family-name" />
-              </div>
-              <div class="field">
-                <label for="email">Email *</label>
-                <input id="email" type="email" required placeholder="you@example.com" autocomplete="email" />
-              </div>
-              <div class="field">
-                <label for="phone">Phone *</label>
-                <input id="phone" type="tel" required placeholder="(615) 555-5555" autocomplete="tel" />
-              </div>
-              <div class="field">
-                <label for="county">County *</label>
-                <input id="county" type="text" required placeholder="Davidson County" autocomplete="address-level2" />
-              </div>
-              <div class="field">
-                <label for="city">City *</label>
-                <input id="city" type="text" required placeholder="Nashville" autocomplete="address-level2" />
-              </div>
-            </div>
-          </div>
-
-          <div class="form-section">
-            <div class="form-section-title">
-              <h4 data-i18n="sectionProgram">Transportation Program</h4>
-              <span>Select One</span>
-            </div>
-            <div class="choice-grid" role="radiogroup" aria-label="Transportation program">
-              <label class="choice">
-                <input type="radio" name="program" value="medical" checked />
-                <div class="choice-card">
-                  <strong>Medical Transportation</strong>
-                  <span>Healthcare appointments, treatment, pharmacy access.</span>
-                </div>
-              </label>
-              <label class="choice">
-                <input type="radio" name="program" value="employment" />
-                <div class="choice-card">
-                  <strong>Employment Transportation</strong>
-                  <span>Interviews, training, workforce access.</span>
-                </div>
-              </label>
-              <label class="choice">
-                <input type="radio" name="program" value="education" />
-                <div class="choice-card">
-                  <strong>Education Transportation</strong>
-                  <span>School, certification, training programs.</span>
-                </div>
-              </label>
-              <label class="choice">
-                <input type="radio" name="program" value="community" />
-                <div class="choice-card">
-                  <strong>Community Assistance</strong>
-                  <span>Essential transportation and mobility support.</span>
-                </div>
-              </label>
-            </div>
-          </div>
-
-          <div class="form-section">
-            <div class="form-section-title">
-              <h4 data-i18n="sectionRequest">Transportation Request</h4>
-              <span>Ride Details</span>
-            </div>
-            <div class="grid-3">
-              <div class="field">
-                <label for="pickupCity">Pickup City *</label>
-                <input id="pickupCity" type="text" required placeholder="Pickup City" />
-              </div>
-              <div class="field">
-                <label for="destination">Destination *</label>
-                <input id="destination" type="text" required placeholder="Hospital, School, Employer" />
-              </div>
-              <div class="field">
-                <label for="rideDate">Ride Date Needed *</label>
-                <input id="rideDate" type="date" required />
-              </div>
-            </div>
-            <div class="field">
-              <label for="transportationNeed">Transportation Need *</label>
-              <textarea
-                id="transportationNeed"
-                required
-                placeholder="Describe the transportation need and how assistance will support healthcare, education, employment, disability access, or other essential needs."
-              ></textarea>
-            </div>
-          </div>
-
-          <div class="form-section">
-            <div class="form-section-title">
-              <h4 data-i18n="sectionHousehold">Household Information</h4>
-              <span>Optional</span>
-            </div>
-            <div class="grid-3">
-              <div class="field">
-                <label for="applicantType">Applicant Type</label>
-                <select id="applicantType">
-                  <option value="">Select Applicant Type</option>
-                  <option value="self">Self</option>
-                  <option value="parent">Parent / Guardian</option>
-                  <option value="caregiver">Caregiver</option>
-                  <option value="caseworker">Case Worker</option>
-                  <option value="socialworker">Social Worker</option>
-                </select>
-              </div>
-              <div class="field">
-                <label for="householdSize">Household Size</label>
-                <input id="householdSize" type="number" min="1" max="20" placeholder="Number of Household Members" />
-              </div>
-              <div class="field">
-                <label for="monthlyIncome">Monthly Income</label>
-                <input id="monthlyIncome" type="number" min="0" placeholder="Monthly Household Income" />
-              </div>
-            </div>
-          </div>
-
-          <div class="form-section">
-            <div class="form-section-title">
-              <h4 data-i18n="sectionDocs">Supporting Documentation</h4>
-              <span>Upload Files</span>
-            </div>
-            <div class="field">
-              <label for="supportingDocs">Upload Documents</label>
-              <input
-                id="supportingDocs"
-                type="file"
-                multiple
-                accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
-              />
-              <small>
-                Medical appointment confirmations, TennCare documentation, disability verification,
-                veteran records, employment verification, school enrollment documents, referral letters,
-                or supporting records. Up to 5 files, 10 MB each.
-              </small>
-            </div>
-            <div id="uploadPreview" class="upload-preview"></div>
-          </div>
-
-          <div class="form-section">
-            <div class="form-section-title">
-              <h4 data-i18n="sectionCertification">Applicant Certification</h4>
-              <span>Required</span>
-            </div>
-            <div class="status-box">
-              <strong>Certification Statement</strong>
-              <span>
-                By submitting this application, you certify that all information provided is accurate
-                and complete to the best of your knowledge. Submission does not guarantee transportation
-                assistance and all applications remain subject to review, eligibility, documentation
-                verification, funding availability, and organizational capacity.
-              </span>
-            </div>
-            <label class="consent-row">
-              <input id="consent" type="checkbox" required />
-              <span class="consent-text">
-                I certify that the information provided is accurate and authorize Harvey Transportation
-                Assistance Foundation to review my request.
-              </span>
-            </label>
-          </div>
-
-          <div id="reviewPanel" class="review-panel" aria-live="polite">
-            <h4>Application Review</h4>
-            <div id="reviewGrid" class="review-grid"></div>
-          </div>
-
-          <div id="applicationSummary" class="application-summary" aria-live="polite"></div>
-          <div id="applicationStatus" class="copy-status" role="status" aria-live="polite"></div>
-
-          <div class="application-actions">
-            <button type="submit" class="btn btn-primary" data-i18n="submitApp">Submit Application</button>
-            <button type="button" class="btn btn-secondary" onclick="saveDraftApplication()" data-i18n="saveDraft">Save Draft</button>
-            <button type="button" class="btn btn-gold" onclick="previewApplication()" data-i18n="reviewApp">Review Application</button>
-            <button type="button" class="btn btn-secondary" onclick="printApplication()" data-i18n="printApp">Print Application</button>
-          </div>
-        </form>
-      </section>
-
-      <aside class="application-progress">
-        <div class="progress-panel">
-          <h4>Application Progress</h4>
-          <p>Complete each section to prepare your HTAF transportation assistance request for submission.</p>
-          <div class="progress-steps">
-            <div class="progress-step active" id="stepApplicant">
-              <div class="progress-dot"></div>
-              <div><strong>Applicant Information</strong><span>Contact and residency details.</span></div>
-            </div>
-            <div class="progress-step" id="stepProgram">
-              <div class="progress-dot"></div>
-              <div><strong>Program Selection</strong><span>Transportation assistance category.</span></div>
-            </div>
-            <div class="progress-step" id="stepRequest">
-              <div class="progress-dot"></div>
-              <div><strong>Transportation Request</strong><span>Ride destination and need.</span></div>
-            </div>
-            <div class="progress-step" id="stepDocuments">
-              <div class="progress-dot"></div>
-              <div><strong>Documentation</strong><span>Supporting verification records.</span></div>
-            </div>
-            <div class="progress-step" id="stepSubmit">
-              <div class="progress-dot"></div>
-              <div><strong>Submit Application</strong><span>Review and send request.</span></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="progress-panel">
-          <h4>HTAF Assistance Areas</h4>
-          <p>Transportation programs currently focus on:</p>
-          <ul class="why-list">
-            <li>Medical Transportation</li>
-            <li>Employment Access</li>
-            <li>Education Support</li>
-            <li>Senior Mobility</li>
-            <li>Disability Transportation</li>
-            <li>Veteran Transportation</li>
-          </ul>
-        </div>
-      </aside>
-    </div>
+    <section class="card section-card">
+      <div class="section-head"><h3>Our Mission</h3></div>
+      <p>
+        Harvey Transportation Assistance Foundation (HTAF) is a 501(c)(3) public charity
+        established to remove transportation barriers that keep individuals and families from
+        reaching the healthcare, employment, education, and community resources they need.
+        Transportation is one of the most common — and most overlooked — obstacles standing
+        between Tennesseans and the services that support their health and independence. HTAF
+        exists to close that gap.
+      </p>
+      <p style="margin-top: 12px;">
+        As a registered 501(c)(3) public charity, HTAF relies on donations and community
+        partnerships to fund the transportation assistance it provides. Every application is
+        reviewed individually against program eligibility, supporting documentation, and
+        available funding — submitting an application is not a guarantee of assistance, but every
+        request receives real review.
+      </p>
+    </section>
   </div>
 </section>
 
-<section class="section">
+<section class="section" id="programs">
   <div class="shell">
     <section class="card section-card">
       <div class="section-head">
-        <h3 data-i18n="programCategories">Program Categories</h3>
-        <p>
-          Transportation assistance requests are categorized to help HTAF allocate resources
-          and coordinate transportation services efficiently.
-        </p>
+        <h3>Programs</h3>
+        <p>HTAF reviews transportation-assistance requests across the following categories.</p>
       </div>
       <div class="grid-3">
         <article class="feature-card">
           <div class="feature-icon">🏥</div>
           <h4>Medical Transportation</h4>
-          <p>Doctor appointments, dialysis, treatment, rehabilitation, counseling, and pharmacy access.</p>
+          <p>Doctor appointments, treatment, rehabilitation, counseling, and pharmacy access.</p>
         </article>
         <article class="feature-card">
           <div class="feature-icon">💼</div>
@@ -1242,87 +684,70 @@
           <h4>Education Access</h4>
           <p>School transportation, certification programs, and workforce education.</p>
         </article>
+        <article class="feature-card">
+          <div class="feature-icon">🧓</div>
+          <h4>Senior Mobility</h4>
+          <p>Transportation support for older Tennesseans maintaining independence.</p>
+        </article>
+        <article class="feature-card">
+          <div class="feature-icon">♿</div>
+          <h4>Disability Transportation</h4>
+          <p>Accessible transportation for residents with disabilities.</p>
+        </article>
+        <article class="feature-card">
+          <div class="feature-icon">🎖️</div>
+          <h4>Veteran Transportation</h4>
+          <p>Transportation support for Tennessee veterans.</p>
+        </article>
       </div>
     </section>
   </div>
 </section>
 
-<section class="section">
+<section class="section" id="governance">
   <div class="shell">
-    <section class="card section-card">
-      <div class="section-head">
-        <h3 data-i18n="reviewProcess">Application Review Process</h3>
-        <p>Every application follows a structured review process to ensure fairness, accountability, and responsible stewardship of resources.</p>
-      </div>
-      <div class="process-grid">
-        <div class="process-card"><strong>Step 1</strong><span>Submit transportation assistance request.</span></div>
-        <div class="process-card"><strong>Step 2</strong><span>HTAF reviews eligibility and documentation.</span></div>
-        <div class="process-card"><strong>Step 3</strong><span>Additional verification may be requested.</span></div>
-        <div class="process-card"><strong>Step 4</strong><span>Approved requests move to scheduling.</span></div>
-      </div>
-    </section>
-  </div>
-</section>
-
-<section class="section">
-  <div class="shell">
-    <section class="card section-card">
-      <div class="section-head">
-        <h3 data-i18n="appDashboard">Application Dashboard</h3>
-        <p>Monitor application activity and program metrics.</p>
-      </div>
-      <div class="stats-shell">
-        <div class="stat-card"><strong id="totalApplications">0</strong><span>Applications Submitted</span></div>
-        <div class="stat-card"><strong id="pendingApplications">0</strong><span>Pending Review</span></div>
-        <div class="stat-card"><strong id="approvedApplications">0</strong><span>Approved Requests</span></div>
-        <div class="stat-card"><strong id="scheduledRides">0</strong><span>Scheduled Rides</span></div>
-      </div>
-    </section>
-  </div>
-</section>
-
-<section class="section" id="about">
-  <div class="shell">
-    <section class="card section-card">
-      <div class="section-head"><h3>About HTAF</h3></div>
-      <p>
-        Harvey Transportation Assistance Foundation (HTAF) is a 501(c)(3) public charity
-        established to remove transportation barriers that keep individuals and families
-        from reaching the healthcare, employment, education, and community resources they
-        need. Transportation is one of the most common — and most overlooked — obstacles
-        standing between Tennesseans and the services that support their health and
-        independence. HTAF exists to close that gap.
-      </p>
-      <p>
-        HTAF serves eligible Tennessee residents statewide, with assistance programs
-        covering medical appointments, employment access, education, veterans, seniors,
-        individuals with disabilities, and essential community and emergency
-        transportation needs. Every application is reviewed individually against program
-        eligibility, supporting documentation, and available funding — submitting an
-        application is not a guarantee of assistance, but every request receives real
-        review.
-      </p>
-      <p>
-        As a registered 501(c)(3) public charity (EIN 41-5115030), HTAF relies on
-        donations and community partnerships to fund the transportation assistance it
-        provides.
-      </p>
-    </section>
+    <div class="why-shell">
+      <section class="card why-card">
+        <h3>Governance</h3>
+        <p style="color: var(--muted); margin-bottom: 14px;">
+          HTAF is governed by a volunteer Board of Directors responsible for the Foundation's
+          mission, finances, and program oversight. HTAF is not owned or controlled by, and does
+          not share governance with, any commercial transportation company.
+        </p>
+        <ul class="why-list">
+          <li>Board of Directors sets program policy and approves the annual budget.</li>
+          <li>Applications are reviewed under written eligibility criteria.</li>
+          <li>Funds are used for transportation assistance and reasonable program operating costs.</li>
+        </ul>
+        <div class="hero-actions" style="margin-top: 20px;">
+          <a href="leadership.html" class="btn btn-secondary">Meet The Board</a>
+        </div>
+      </section>
+      <section class="card why-card">
+        <h3>Nonprofit Status</h3>
+        <p style="color: var(--muted);">
+          Harvey Transportation Assistance Foundation is recognized by the IRS as a 501(c)(3)
+          public charity under IRC Section 170(b)(1)(A)(vi) (EIN 41-5115030). Donations to HTAF
+          may be tax-deductible to the extent allowed by law. Consult a tax advisor regarding your
+          specific circumstances.
+        </p>
+      </section>
+    </div>
   </div>
 </section>
 
 <section class="section" id="faq">
   <div class="shell">
     <section class="card section-card">
-      <div class="section-head"><h3 data-i18n="faqTitle">Frequently Asked Questions</h3></div>
+      <div class="section-head"><h3>Frequently Asked Questions</h3></div>
       <div class="faq-grid">
         <div class="faq-item">
           <strong>Does submitting an application guarantee assistance?</strong>
-          <span>No. Assistance depends on eligibility, documentation, transportation availability, and funding resources.</span>
+          <span>No. Applying does not guarantee approval, funding, transportation, or scheduling. Assistance depends on eligibility, documentation, transportation availability, and funding resources.</span>
         </div>
         <div class="faq-item">
           <strong>Who can apply?</strong>
-          <span>Tennessee residents seeking transportation support for essential needs.</span>
+          <span>Tennessee residents seeking transportation support for essential needs, or a parent, guardian, caregiver, or case worker applying on their behalf.</span>
         </div>
         <div class="faq-item">
           <strong>What documentation may be required?</strong>
@@ -1341,10 +766,10 @@
     </div>
     <div class="footer-links">
       <a href="foundation.html">Foundation</a>
-      <a href="foundation.html#about">About</a>
+      <a href="foundation.html#mission">About</a>
       <a href="leadership.html">Leadership</a>
       <a href="contact.html">Contact</a>
-      <a href="support.html">Support</a>
+      <a href="htaf-application.html">Apply</a>
       <a href="privacy.html">Privacy</a>
       <a href="terms.html">Terms</a>
     </div>
@@ -1352,314 +777,25 @@
 </footer>
 
 <nav class="bottom-nav" aria-label="Bottom Navigation">
-  <button class="nav-btn" onclick="safeGo('index.html','bottom_home')">Home</button>
-  <button class="nav-btn active" aria-current="page">Apply</button>
-  <button class="nav-btn" onclick="safeGo('foundation.html','bottom_foundation')">Foundation</button>
-  <button class="nav-btn" onclick="safeGo('support.html','bottom_support')">Support</button>
-  <button class="nav-btn" onclick="openHarveyAiChat()">AI Help</button>
+  <button class="nav-btn active" aria-current="page" onclick="safeGo('foundation.html','bottom_home')">Home</button>
+  <button class="nav-btn" onclick="safeGo('htaf-application.html','bottom_apply')">Apply</button>
+  <button class="nav-btn" onclick="safeGo('leadership.html','bottom_leadership')">Leadership</button>
+  <button class="nav-btn" onclick="safeGo('contact.html','bottom_contact')">Contact</button>
+  <button class="nav-btn" onclick="safeGo('mailto:WillieHtaf@harveytransportationfoundation.com','bottom_support')">Support</button>
 </nav>
 
-<!-- AI chat mount point (populated by ai-support-widget.js) -->
-<div id="harvey-ai-chat-root"></div>
-
-<script src="/ai-support-widget.js" onerror="console.warn('AI widget script failed to load — AI Help button will fall back to support.html')"></script>
 <script>
 window.HARVEY_AI_CONTEXT = {
-  page: "htaf_application",
+  page: "htaf_foundation_home",
   organization: "Harvey Transportation Assistance Foundation",
   state: "Tennessee"
 };
-
-const APPLICATION_STORAGE_KEY = "htaf_application_draft_v3";
-const MAX_UPLOAD_FILES = 5;
-const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB per file
-
-const applicationForm = document.getElementById("htafApplicationForm");
-const applicationStatus = document.getElementById("applicationStatus");
-const applicationSummary = document.getElementById("applicationSummary");
-const reviewPanel = document.getElementById("reviewPanel");
-const reviewGrid = document.getElementById("reviewGrid");
-const uploadPreview = document.getElementById("uploadPreview");
-const uploadInput = document.getElementById("supportingDocs");
-
-/* ---- Global error visibility (previously silent everywhere) ---- */
-window.addEventListener("error", (event) => {
-  trackFoundationIntent("uncaught_error", {
-    message: event?.message || "unknown",
-    source: event?.filename || "unknown"
-  });
-});
-window.addEventListener("unhandledrejection", (event) => {
-  trackFoundationIntent("unhandled_promise_rejection", {
-    reason: event?.reason?.message || String(event?.reason || "unknown")
-  });
-});
-
-function showApplicationStatus(message, type = "ok") {
-  if (!applicationStatus) return;
-  applicationStatus.textContent = message;
-  applicationStatus.className = "copy-status show " + type;
-  setTimeout(() => {
-    applicationStatus.className = "copy-status";
-  }, 5000);
-}
-
-function getSelectedProgram() {
-  const selected = document.querySelector('input[name="program"]:checked');
-  return selected ? selected.value : "medical";
-}
-
-function getApplicationData() {
-  return {
-    first_name: document.getElementById("firstName")?.value?.trim() || "",
-    last_name: document.getElementById("lastName")?.value?.trim() || "",
-    email: document.getElementById("email")?.value?.trim() || "",
-    phone: document.getElementById("phone")?.value?.trim() || "",
-    county: document.getElementById("county")?.value?.trim() || "",
-    city: document.getElementById("city")?.value?.trim() || "",
-    program_type: getSelectedProgram(),
-    pickup_city: document.getElementById("pickupCity")?.value?.trim() || "",
-    destination: document.getElementById("destination")?.value?.trim() || "",
-    ride_date: document.getElementById("rideDate")?.value || "",
-    transportation_need: document.getElementById("transportationNeed")?.value?.trim() || "",
-    applicant_type: document.getElementById("applicantType")?.value || "",
-    household_size: document.getElementById("householdSize")?.value || "",
-    monthly_income: document.getElementById("monthlyIncome")?.value || "",
-    document_count: uploadInput?.files?.length || 0,
-    submitted_at: new Date().toISOString()
-  };
-}
-
-/* ---- Email/phone format validation (previously only checked "non-empty") ---- */
-function isValidEmail(value) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-}
-function isValidPhone(value) {
-  const digits = value.replace(/\D/g, "");
-  return digits.length >= 10;
-}
-
-function validateApplication() {
-  let valid = true;
-  let firstInvalidField = null;
-
-  const requiredFields = [
-    "firstName", "lastName", "email", "phone", "county", "city",
-    "pickupCity", "destination", "rideDate", "transportationNeed"
-  ];
-
-  requiredFields.forEach((id) => {
-    const field = document.getElementById(id);
-    if (!field) return;
-    field.classList.remove("invalid");
-    let fieldValid = Boolean(String(field.value).trim());
-
-    if (fieldValid && id === "email") fieldValid = isValidEmail(field.value.trim());
-    if (fieldValid && id === "phone") fieldValid = isValidPhone(field.value.trim());
-
-    if (!fieldValid) {
-      field.classList.add("invalid");
-      valid = false;
-      if (!firstInvalidField) firstInvalidField = field;
-    }
-  });
-
-  const consent = document.getElementById("consent");
-  if (!consent?.checked) {
-    valid = false;
-    if (!firstInvalidField) firstInvalidField = consent;
-  }
-
-  if (!valid) {
-    showApplicationStatus(
-      "Please complete all required fields with valid information, and confirm the certification, before submitting.",
-      "err"
-    );
-    firstInvalidField?.scrollIntoView({ behavior: "smooth", block: "center" });
-    firstInvalidField?.focus({ preventScroll: true });
-  }
-
-  return valid;
-}
-
-function saveDraftApplication() {
-  try {
-    const data = getApplicationData();
-    localStorage.setItem(APPLICATION_STORAGE_KEY, JSON.stringify(data));
-    showApplicationStatus("Application draft saved successfully.", "info");
-    trackFoundationIntent("application_draft_saved");
-  } catch (error) {
-    showApplicationStatus("Unable to save draft on this device.", "err");
-    trackFoundationIntent("draft_save_failed", { message: error?.message });
-  }
-}
-
-function loadDraftApplication() {
-  try {
-    const raw = localStorage.getItem(APPLICATION_STORAGE_KEY);
-    if (!raw) return;
-    const draft = JSON.parse(raw);
-    const map = {
-      first_name: "firstName", last_name: "lastName", email: "email", phone: "phone",
-      county: "county", city: "city", pickup_city: "pickupCity", destination: "destination",
-      ride_date: "rideDate", transportation_need: "transportationNeed",
-      applicant_type: "applicantType", household_size: "householdSize", monthly_income: "monthlyIncome"
-    };
-    Object.entries(map).forEach(([key, id]) => {
-      const field = document.getElementById(id);
-      if (field) field.value = draft[key] || "";
-    });
-    const program = document.querySelector(`input[name="program"][value="${draft.program_type}"]`);
-    if (program) program.checked = true;
-    updateProgressTracker();
-  } catch (error) {
-    console.warn("Unable to load HTAF draft:", error);
-    trackFoundationIntent("draft_load_failed", { message: error?.message });
-  }
-}
-
-/* ---- Upload validation: enforces file count + size limits client-side
-   (previously unbounded, so a 50-file or 200MB attachment would silently
-   fail server-side with only a generic error shown to the applicant) ---- */
-function renderUploadPreview() {
-  if (!uploadPreview || !uploadInput) return;
-  uploadPreview.innerHTML = "";
-
-  const files = Array.from(uploadInput.files || []);
-  let hasError = false;
-
-  if (files.length > MAX_UPLOAD_FILES) {
-    hasError = true;
-    showApplicationStatus(
-      `Please select at most ${MAX_UPLOAD_FILES} files. You selected ${files.length}.`,
-      "err"
-    );
-  }
-
-  files.forEach((file) => {
-    const oversized = file.size > MAX_UPLOAD_SIZE_BYTES;
-    if (oversized) hasError = true;
-    const item = document.createElement("div");
-    item.className = "upload-item" + (oversized ? " error" : "");
-    const sizeKb = Math.ceil(file.size / 1024);
-    const sizeLabel = sizeKb > 1024 ? `${(sizeKb / 1024).toFixed(1)} MB` : `${sizeKb} KB`;
-    item.innerHTML = `
-      <span>${file.name}</span>
-      <strong>${oversized ? "Too large — " : ""}${sizeLabel}</strong>
-    `;
-    uploadPreview.appendChild(item);
-  });
-
-  if (hasError && files.some(f => f.size > MAX_UPLOAD_SIZE_BYTES)) {
-    showApplicationStatus(
-      `Each file must be under ${MAX_UPLOAD_SIZE_BYTES / 1024 / 1024} MB. Please remove or replace oversized files.`,
-      "err"
-    );
-  }
-
-  updateProgressTracker();
-}
-
-function previewApplication() {
-  const payload = getApplicationData();
-  if (!reviewPanel || !reviewGrid) return;
-  const rows = [
-    ["Applicant", `${payload.first_name} ${payload.last_name}`],
-    ["Email", payload.email],
-    ["Phone", payload.phone],
-    ["County", payload.county],
-    ["City", payload.city],
-    ["Program", payload.program_type],
-    ["Pickup City", payload.pickup_city],
-    ["Destination", payload.destination],
-    ["Ride Date", payload.ride_date],
-    ["Documents", String(payload.document_count)],
-    ["Transportation Need", payload.transportation_need]
-  ];
-  reviewGrid.innerHTML = rows.map(([label, value]) => `
-    <div class="review-item">
-      <label>${label}</label>
-      <span>${value || "Not provided"}</span>
-    </div>
-  `).join("");
-  reviewPanel.classList.add("show");
-  showApplicationStatus("Review generated. Confirm everything looks correct before submitting.", "info");
-  reviewPanel.scrollIntoView({ behavior: "smooth", block: "start" });
-  updateProgressTracker();
-}
-
-function renderApplicationSummary(payload) {
-  if (!applicationSummary) return;
-  applicationSummary.innerHTML = `
-    <strong>Application Summary</strong>
-    <span>Applicant: ${payload.first_name} ${payload.last_name}</span>
-    <span>Program: ${payload.program_type}</span>
-    <span>Destination: ${payload.destination}</span>
-    <span>Requested Date: ${payload.ride_date}</span>
-  `;
-  applicationSummary.classList.add("show");
-}
-
-async function submitApplication(payload) {
-  const response = await fetch(`${window.HARVEY_API_BASE || ""}/api/foundation/apply`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
-  if (!response.ok) {
-    throw new Error(`Application submission failed (HTTP ${response.status}).`);
-  }
-  return response.json();
-}
-
-async function refreshPublicStats() {
-  const total = document.getElementById("totalApplications");
-  const pending = document.getElementById("pendingApplications");
-  const approved = document.getElementById("approvedApplications");
-  const scheduled = document.getElementById("scheduledRides");
-  const fields = [total, pending, approved, scheduled];
-
-  try {
-    const response = await fetch(`${window.HARVEY_API_BASE || ""}/api/foundation/public-stats`);
-    if (!response.ok) throw new Error(`Public stats request failed (HTTP ${response.status}).`);
-    const data = await response.json();
-    if (!data || !data.ok) throw new Error("Public stats response was not ok.");
-
-    if (total) total.textContent = data.applications_submitted;
-    if (pending) pending.textContent = data.pending_review;
-    if (approved) approved.textContent = data.approved_requests;
-    if (scheduled) scheduled.textContent = data.scheduled_rides;
-  } catch (error) {
-    console.error(error);
-    fields.forEach((field) => {
-      if (field) field.textContent = "Unavailable";
-    });
-  }
-}
-
-function updateProgressTracker() {
-  const firstName = document.getElementById("firstName")?.value?.trim();
-  const lastName = document.getElementById("lastName")?.value?.trim();
-  const pickup = document.getElementById("pickupCity")?.value?.trim();
-  const destination = document.getElementById("destination")?.value?.trim();
-  const need = document.getElementById("transportationNeed")?.value?.trim();
-  const docs = uploadInput?.files?.length || 0;
-  const consent = document.getElementById("consent")?.checked;
-
-  document.getElementById("stepApplicant")?.classList.toggle("active", Boolean(firstName && lastName));
-  document.getElementById("stepProgram")?.classList.add("active");
-  document.getElementById("stepRequest")?.classList.toggle("active", Boolean(pickup && destination && need));
-  document.getElementById("stepDocuments")?.classList.toggle("active", docs > 0);
-  document.getElementById("stepSubmit")?.classList.toggle("active", Boolean(consent));
-}
-
-function printApplication() { window.print(); }
 
 function trackFoundationIntent(eventName, params = {}) {
   try {
     if (typeof gtag === "function") {
       gtag("event", eventName, {
-        event_category: "htaf_application",
+        event_category: "htaf_foundation",
         event_label: eventName,
         page_location: window.location.href,
         ...params
@@ -1675,343 +811,7 @@ function safeGo(path, eventName) {
   window.location.href = path;
 }
 
-/* ---- AI chat: delegates to the server-backed widget (ai-support-widget.js),
-   which calls /api/ai/support. No client-side model calls happen here. ---- */
-function openHarveyAiChat() {
-  trackFoundationIntent("ai_support_open");
-  if (window.HarveyAI && typeof window.HarveyAI.open === "function") {
-    window.HarveyAI.open();
-    return;
-  }
-  window.location.href = "support.html";
-}
-
-function closeHarveyAiChat() {
-  if (window.HarveyAI && typeof window.HarveyAI.close === "function") {
-    window.HarveyAI.close();
-  }
-}
-
-/* ---- Language system (NEW — was entirely missing on this page) ---- */
-    const HTAF_TRANSLATIONS = {
-      en: {
-        languageTitle: "Language & Accessibility",
-        languageCopy: "Adjust display settings and choose your preferred language.",
-        contrastBtn: "High Contrast",
-        largeTextBtn: "Larger Text",
-        motionBtn: "Reduce Motion",
-        heroEyebrow: "Tennessee Transportation Assistance Application",
-        heroTitle: "Apply for transportation assistance through HTAF.",
-        heroCopy: "Harvey Transportation Assistance Foundation helps eligible Tennessee residents access healthcare, employment, education, disability services, veteran resources, senior support, and essential transportation needs.",
-        startApplication: "Start Application",
-        returnFoundation: "Return To Foundation",
-        eligibilityOverview: "Eligibility Overview",
-        appFormTitle: "Transportation Assistance Application",
-        sectionApplicant: "Applicant Information",
-        sectionProgram: "Transportation Program",
-        sectionRequest: "Transportation Request",
-        sectionHousehold: "Household Information",
-        sectionDocs: "Supporting Documentation",
-        sectionCertification: "Applicant Certification",
-        submitApp: "Submit Application",
-        saveDraft: "Save Draft",
-        reviewApp: "Review Application",
-        printApp: "Print Application",
-        programCategories: "Program Categories",
-        reviewProcess: "Application Review Process",
-        appDashboard: "Application Dashboard",
-        faqTitle: "Frequently Asked Questions"
-      },
-      es: {
-        languageTitle: "Idioma y Accesibilidad",
-        languageCopy: "Ajuste la configuración de pantalla y elija su idioma preferido.",
-        contrastBtn: "Alto Contraste",
-        largeTextBtn: "Texto Grande",
-        motionBtn: "Reducir Movimiento",
-        heroEyebrow: "Solicitud de Asistencia de Transporte de Tennessee",
-        heroTitle: "Solicite asistencia de transporte a través de HTAF.",
-        heroCopy: "Harvey Transportation Assistance Foundation ayuda a los residentes elegibles de Tennessee a acceder a atención médica, empleo, educación, servicios para discapacitados, recursos para veteranos, apoyo para personas mayores y necesidades esenciales de transporte.",
-        startApplication: "Comenzar Solicitud",
-        returnFoundation: "Volver a la Fundación",
-        eligibilityOverview: "Resumen de Elegibilidad",
-        appFormTitle: "Solicitud de Asistencia de Transporte",
-        sectionApplicant: "Información del Solicitante",
-        sectionProgram: "Programa de Transporte",
-        sectionRequest: "Solicitud de Transporte",
-        sectionHousehold: "Información del Hogar",
-        sectionDocs: "Documentación de Respaldo",
-        sectionCertification: "Certificación del Solicitante",
-        submitApp: "Enviar Solicitud",
-        saveDraft: "Guardar Borrador",
-        reviewApp: "Revisar Solicitud",
-        printApp: "Imprimir Solicitud",
-        programCategories: "Categorías del Programa",
-        reviewProcess: "Proceso de Revisión de Solicitudes",
-        appDashboard: "Panel de Solicitudes",
-        faqTitle: "Preguntas Frecuentes"
-      },
-      fr: {
-        languageTitle: "Langue et Accessibilité",
-        languageCopy: "Ajustez les paramètres d'affichage et choisissez votre langue préférée.",
-        contrastBtn: "Contraste Élevé",
-        largeTextBtn: "Texte Agrandi",
-        motionBtn: "Réduire le Mouvement",
-        heroEyebrow: "Demande d'Assistance au Transport du Tennessee",
-        heroTitle: "Demandez une assistance au transport via HTAF.",
-        heroCopy: "Harvey Transportation Assistance Foundation aide les résidents éligibles du Tennessee à accéder aux soins de santé, à l'emploi, à l'éducation, aux services pour personnes handicapées, aux ressources pour anciens combattants, au soutien aux personnes âgées et aux besoins de transport essentiels.",
-        startApplication: "Commencer la Demande",
-        returnFoundation: "Retour à la Fondation",
-        eligibilityOverview: "Aperçu de l'Éligibilité",
-        appFormTitle: "Demande d'Assistance au Transport",
-        sectionApplicant: "Informations sur le Demandeur",
-        sectionProgram: "Programme de Transport",
-        sectionRequest: "Demande de Transport",
-        sectionHousehold: "Informations sur le Foyer",
-        sectionDocs: "Documents Justificatifs",
-        sectionCertification: "Certification du Demandeur",
-        submitApp: "Soumettre la Demande",
-        saveDraft: "Enregistrer le Brouillon",
-        reviewApp: "Examiner la Demande",
-        printApp: "Imprimer la Demande",
-        programCategories: "Catégories de Programme",
-        reviewProcess: "Processus d'Examen des Demandes",
-        appDashboard: "Tableau de Bord des Demandes",
-        faqTitle: "Questions Fréquemment Posées"
-      },
-      ar: {
-        languageTitle: "اللغة وإمكانية الوصول",
-        languageCopy: "اضبط إعدادات العرض واختر لغتك المفضلة.",
-        contrastBtn: "تباين عالٍ",
-        largeTextBtn: "نص أكبر",
-        motionBtn: "تقليل الحركة",
-        heroEyebrow: "طلب مساعدة النقل في تينيسي",
-        heroTitle: "تقدم بطلب للحصول على مساعدة النقل من خلال HTAF.",
-        heroCopy: "تساعد مؤسسة هارفي لمساعدة النقل سكان تينيسي المؤهلين في الوصول إلى الرعاية الصحية والتوظيف والتعليم وخدمات الإعاقة وموارد المحاربين القدامى ودعم كبار السن واحتياجات النقل الأساسية.",
-        startApplication: "ابدأ الطلب",
-        returnFoundation: "العودة إلى المؤسسة",
-        eligibilityOverview: "نظرة عامة على الأهلية",
-        appFormTitle: "طلب مساعدة النقل",
-        sectionApplicant: "معلومات مقدم الطلب",
-        sectionProgram: "برنامج النقل",
-        sectionRequest: "طلب النقل",
-        sectionHousehold: "معلومات الأسرة",
-        sectionDocs: "المستندات الداعمة",
-        sectionCertification: "شهادة مقدم الطلب",
-        submitApp: "إرسال الطلب",
-        saveDraft: "حفظ المسودة",
-        reviewApp: "مراجعة الطلب",
-        printApp: "طباعة الطلب",
-        programCategories: "فئات البرنامج",
-        reviewProcess: "عملية مراجعة الطلبات",
-        appDashboard: "لوحة معلومات الطلبات",
-        faqTitle: "الأسئلة الشائعة"
-      },
-      sw: {
-        languageTitle: "Lugha na Ufikiaji",
-        languageCopy: "Rekebisha mipangilio ya skrini na uchague lugha unayopendelea.",
-        contrastBtn: "Utofautishaji wa Juu",
-        largeTextBtn: "Maandishi Makubwa",
-        motionBtn: "Punguza Mwendo",
-        heroEyebrow: "Ombi la Msaada wa Usafiri wa Tennessee",
-        heroTitle: "Omba msaada wa usafiri kupitia HTAF.",
-        heroCopy: "Harvey Transportation Assistance Foundation husaidia wakazi wanaostahiki wa Tennessee kupata huduma za afya, ajira, elimu, huduma za ulemavu, rasilimali za maveterani, msaada wa wazee, na mahitaji muhimu ya usafiri.",
-        startApplication: "Anza Ombi",
-        returnFoundation: "Rudi kwa Wakfu",
-        eligibilityOverview: "Muhtasari wa Ustahiki",
-        appFormTitle: "Ombi la Msaada wa Usafiri",
-        sectionApplicant: "Taarifa za Mwombaji",
-        sectionProgram: "Programu ya Usafiri",
-        sectionRequest: "Ombi la Usafiri",
-        sectionHousehold: "Taarifa za Kaya",
-        sectionDocs: "Hati za Kuunga Mkono",
-        sectionCertification: "Uthibitisho wa Mwombaji",
-        submitApp: "Wasilisha Ombi",
-        saveDraft: "Hifadhi Rasimu",
-        reviewApp: "Kagua Ombi",
-        printApp: "Chapisha Ombi",
-        programCategories: "Aina za Programu",
-        reviewProcess: "Mchakato wa Kukagua Maombi",
-        appDashboard: "Dashibodi ya Maombi",
-        faqTitle: "Maswali Yanayoulizwa Mara kwa Mara"
-      },
-      zh: {
-        languageTitle: "语言与无障碍设置",
-        languageCopy: "调整显示设置并选择您的首选语言。",
-        contrastBtn: "高对比度",
-        largeTextBtn: "放大文字",
-        motionBtn: "减少动画",
-        heroEyebrow: "田纳西州交通援助申请",
-        heroTitle: "通过 HTAF 申请交通援助。",
-        heroCopy: "Harvey 交通援助基金会帮助符合条件的田纳西州居民获得医疗保健、就业、教育、残障服务、退伍军人资源、老年人支持以及基本出行需求方面的援助。",
-        startApplication: "开始申请",
-        returnFoundation: "返回基金会",
-        eligibilityOverview: "资格概述",
-        appFormTitle: "交通援助申请表",
-        sectionApplicant: "申请人信息",
-        sectionProgram: "交通援助项目",
-        sectionRequest: "交通需求申请",
-        sectionHousehold: "家庭信息",
-        sectionDocs: "支持文件",
-        sectionCertification: "申请人声明",
-        submitApp: "提交申请",
-        saveDraft: "保存草稿",
-        reviewApp: "查看申请",
-        printApp: "打印申请",
-        programCategories: "项目类别",
-        reviewProcess: "申请审核流程",
-        appDashboard: "申请仪表板",
-        faqTitle: "常见问题"
-      },
-      hi: {
-        languageTitle: "भाषा और सुगमता",
-        languageCopy: "डिस्प्ले सेटिंग्स समायोजित करें और अपनी पसंदीदा भाषा चुनें।",
-        contrastBtn: "उच्च कंट्रास्ट",
-        largeTextBtn: "बड़ा टेक्स्ट",
-        motionBtn: "गति कम करें",
-        heroEyebrow: "टेनेसी परिवहन सहायता आवेदन",
-        heroTitle: "HTAF के माध्यम से परिवहन सहायता के लिए आवेदन करें।",
-        heroCopy: "Harvey Transportation Assistance Foundation योग्य टेनेसी निवासियों को स्वास्थ्य सेवा, रोजगार, शिक्षा, विकलांगता सेवाओं, अनुभवी संसाधनों, वरिष्ठ सहायता और आवश्यक परिवहन आवश्यकताओं तक पहुंचने में मदद करता है।",
-        startApplication: "आवेदन शुरू करें",
-        returnFoundation: "फाउंडेशन पर वापस जाएं",
-        eligibilityOverview: "पात्रता अवलोकन",
-        appFormTitle: "परिवहन सहायता आवेदन",
-        sectionApplicant: "आवेदक जानकारी",
-        sectionProgram: "परिवहन कार्यक्रम",
-        sectionRequest: "परिवहन अनुरोध",
-        sectionHousehold: "घरेलू जानकारी",
-        sectionDocs: "सहायक दस्तावेज़",
-        sectionCertification: "आवेदक प्रमाणन",
-        submitApp: "आवेदन जमा करें",
-        saveDraft: "ड्राफ्ट सहेजें",
-        reviewApp: "आवेदन की समीक्षा करें",
-        printApp: "आवेदन प्रिंट करें",
-        programCategories: "कार्यक्रम श्रेणियां",
-        reviewProcess: "आवेदन समीक्षा प्रक्रिया",
-        appDashboard: "आवेदन डैशबोर्ड",
-        faqTitle: "अक्सर पूछे जाने वाले प्रश्न"
-      },
-      pt: {
-        languageTitle: "Idioma e Acessibilidade",
-        languageCopy: "Ajuste as configurações de exibição e escolha seu idioma preferido.",
-        contrastBtn: "Alto Contraste",
-        largeTextBtn: "Texto Ampliado",
-        motionBtn: "Reduzir Movimento",
-        heroEyebrow: "Solicitação de Assistência de Transporte do Tennessee",
-        heroTitle: "Solicite assistência de transporte através da HTAF.",
-        heroCopy: "A Harvey Transportation Assistance Foundation ajuda residentes elegíveis do Tennessee a acessar cuidados de saúde, emprego, educação, serviços para deficientes, recursos para veteranos, apoio a idosos e necessidades essenciais de transporte.",
-        startApplication: "Iniciar Solicitação",
-        returnFoundation: "Voltar à Fundação",
-        eligibilityOverview: "Visão Geral de Elegibilidade",
-        appFormTitle: "Solicitação de Assistência de Transporte",
-        sectionApplicant: "Informações do Solicitante",
-        sectionProgram: "Programa de Transporte",
-        sectionRequest: "Solicitação de Transporte",
-        sectionHousehold: "Informações Domiciliares",
-        sectionDocs: "Documentação de Apoio",
-        sectionCertification: "Certificação do Solicitante",
-        submitApp: "Enviar Solicitação",
-        saveDraft: "Salvar Rascunho",
-        reviewApp: "Revisar Solicitação",
-        printApp: "Imprimir Solicitação",
-        programCategories: "Categorias do Programa",
-        reviewProcess: "Processo de Revisão de Solicitações",
-        appDashboard: "Painel de Solicitações",
-        faqTitle: "Perguntas Frequentes"
-      },
-      ht: {
-        languageTitle: "Lang ak Aksesibilite",
-        languageCopy: "Ajiste paramèt afichaj yo epi chwazi lang ou pi pito a.",
-        contrastBtn: "Gwo Kontras",
-        largeTextBtn: "Tèks Pi Gwo",
-        motionBtn: "Diminye Mouvman",
-        heroEyebrow: "Aplikasyon Asistans Transpò Tennessee",
-        heroTitle: "Aplike pou asistans transpò atravè HTAF.",
-        heroCopy: "Harvey Transportation Assistance Foundation ede rezidan Tennessee ki kalifye yo jwenn aksè nan swen sante, travay, edikasyon, sèvis pou andikape, resous pou veteran, sipò pou granmoun aje, ak bezwen transpò esansyèl.",
-        startApplication: "Kòmanse Aplikasyon",
-        returnFoundation: "Retounen nan Fondasyon an",
-        eligibilityOverview: "Apèsi sou Kalifikasyon",
-        appFormTitle: "Aplikasyon Asistans Transpò",
-        sectionApplicant: "Enfòmasyon sou Aplikan an",
-        sectionProgram: "Pwogram Transpò",
-        sectionRequest: "Demann Transpò",
-        sectionHousehold: "Enfòmasyon sou Kay la",
-        sectionDocs: "Dokimantasyon ki Sipòte",
-        sectionCertification: "Sètifikasyon Aplikan an",
-        submitApp: "Soumèt Aplikasyon",
-        saveDraft: "Sove Bouyon",
-        reviewApp: "Revize Aplikasyon",
-        printApp: "Enprime Aplikasyon",
-        programCategories: "Kategori Pwogram",
-        reviewProcess: "Pwosesis Revizyon Aplikasyon",
-        appDashboard: "Tablodbò Aplikasyon",
-        faqTitle: "Kesyon yo Poze Souvan"
-      },
-      yo: {
-        languageTitle: "Èdè àti Ànfàní Wíwọlé",
-        languageCopy: "Ṣàtúnṣe àwọn ètò ìfihàn kí o sì yan èdè tí o fẹ́ràn jùlọ.",
-        contrastBtn: "Ìyàtọ̀ Gíga",
-        largeTextBtn: "Ọ̀rọ̀ Tí ó Tóbi",
-        motionBtn: "Dín Ìṣípòpadà Kù",
-        heroEyebrow: "Ìbéèrè Ìrànlọ́wọ́ Ìrìnnà Tennessee",
-        heroTitle: "Béèrè fún ìrànlọ́wọ́ ìrìnnà nípasẹ̀ HTAF.",
-        heroCopy: "Harvey Transportation Assistance Foundation ń ran àwọn olùgbé Tennessee tí ó yẹ lọ́wọ́ láti rí ìtọ́jú ìlera, iṣẹ́, ẹ̀kọ́, àwọn iṣẹ́ fún aláàbọ̀, àwọn ohun àmúṣọrọ̀ fún ológun tẹ́lẹ̀, ìrànlọ́wọ́ àgbàlagbà, àti àwọn àìní ìrìnnà pàtàkì.",
-        startApplication: "Bẹ̀rẹ̀ Ìbéèrè",
-        returnFoundation: "Padà sí Ìpilẹ̀ṣẹ̀",
-        eligibilityOverview: "Àkíyèsí Yíyẹ",
-        appFormTitle: "Ìbéèrè Ìrànlọ́wọ́ Ìrìnnà",
-        sectionApplicant: "Ìròyìn Olùbéèrè",
-        sectionProgram: "Ètò Ìrìnnà",
-        sectionRequest: "Ìbéèrè Ìrìnnà",
-        sectionHousehold: "Ìròyìn Ilé",
-        sectionDocs: "Àwọn Ìwé Àtìlẹyìn",
-        sectionCertification: "Ìjẹ́rìí Olùbéèrè",
-        submitApp: "Fi Ìbéèrè Ránṣẹ́",
-        saveDraft: "Fi Àkọsílẹ̀ Pamọ́",
-        reviewApp: "Ṣàyẹ̀wò Ìbéèrè",
-        printApp: "Tẹ Ìbéèrè Jade",
-        programCategories: "Àwọn Ẹ̀ka Ètò",
-        reviewProcess: "Ìlànà Ìṣàyẹ̀wò Ìbéèrè",
-        appDashboard: "Pátákó Ìbéèrè",
-        faqTitle: "Àwọn Ìbéèrè Tí A Sábà Béèrè"
-      }
-    };
-
-    function applyLanguage(lang) {
-      const dict = HTAF_TRANSLATIONS[lang] || HTAF_TRANSLATIONS.en;
-      document.querySelectorAll("[data-i18n]").forEach(el => {
-        const key = el.dataset.i18n;
-        if (dict[key] === undefined) return;
-
-        if (el.children.length === 0) {
-          el.textContent = dict[key];
-          return;
-        }
-
-        const textNode = Array.from(el.childNodes).find(
-          n => n.nodeType === Node.TEXT_NODE && n.textContent.trim()
-        );
-        if (textNode) {
-          textNode.textContent = dict[key];
-        } else {
-          el.textContent = dict[key];
-        }
-      });
-      document.documentElement.lang = lang;
-      document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
-      safeSet("htaf_language", lang);
-      trackFoundationIntent("language_changed", { lang });
-    }
-
-    function bindLanguageSelector() {
-      const sel = document.getElementById("language-select");
-      if (!sel) return;
-      const saved = safeGet("htaf_language", "en");
-      sel.value = HTAF_TRANSLATIONS[saved] ? saved : "en";
-      sel.addEventListener("change", function () { applyLanguage(this.value); });
-      applyLanguage(sel.value);
-    }
-
-/* ---- Accessibility bindings (page previously had none) ---- */
+/* ---- Accessibility bindings ---- */
 const A11Y_KEYS = {
   contrast: "harvey_high_contrast",
   largeText: "harvey_large_text",
@@ -2058,72 +858,10 @@ function bindAccessibility() {
   });
 }
 
-if (uploadInput) {
-  uploadInput.addEventListener("change", renderUploadPreview);
-}
-
-document.querySelectorAll("input, select, textarea").forEach((field) => {
-  field.addEventListener("input", updateProgressTracker);
-  field.addEventListener("change", updateProgressTracker);
-});
-
-if (applicationForm) {
-  applicationForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    if (!validateApplication()) return;
-
-    const submitButton = applicationForm.querySelector('button[type="submit"]');
-    const originalText = submitButton.textContent;
-
-    try {
-      submitButton.disabled = true;
-      submitButton.textContent = "Submitting...";
-
-      const payload = getApplicationData();
-      renderApplicationSummary(payload);
-      await submitApplication(payload);
-
-      localStorage.removeItem(APPLICATION_STORAGE_KEY);
-      applicationForm.reset();
-      if (uploadPreview) uploadPreview.innerHTML = "";
-
-      refreshPublicStats();
-      showApplicationStatus(
-        "Application submitted successfully. HTAF will review your transportation assistance request.",
-        "ok"
-      );
-      trackFoundationIntent("application_submitted", {
-        program_type: payload.program_type,
-        county: payload.county
-      });
-    } catch (error) {
-      console.error(error);
-      saveDraftApplication();
-      showApplicationStatus(
-        "Submission unavailable right now. Your draft has been saved locally. Please try again shortly or contact support.",
-        "err"
-      );
-      trackFoundationIntent("application_submit_failed", { message: error?.message });
-    } finally {
-      submitButton.disabled = false;
-      submitButton.textContent = originalText;
-    }
-  });
-}
-
 window.addEventListener("load", () => {
-  window.HARVEY_API_BASE =
-    window.location.origin && window.location.origin.includes("http")
-      ? window.location.origin
-      : "";
-
   restoreAccessibility();
-  bindLanguageSelector();
   bindAccessibility();
-  loadDraftApplication();
-  refreshPublicStats();
-  updateProgressTracker();
-  trackFoundationIntent("htaf_application_page_view");
+  trackFoundationIntent("htaf_foundation_home_view");
 });
 </script>
 </main>
