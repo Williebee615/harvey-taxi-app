@@ -89,3 +89,68 @@ describe("FOUNDATION_HOSTS static overrides -- /privacy.html and /terms.html", (
     expect(res.text).toContain("Contact HTAF");
   });
 });
+
+// FOUNDATION_HOSTS redirects: unlike privacy/terms, HTAF has no content
+// of its own to serve at /support.html or /index.html -- express.static
+// isn't domain-gated, so without this, a visitor on the HTAF domain
+// (or a relative link on an HTAF page, like the application page's own
+// bottom-nav) could land on Harvey Taxi's own support page or homepage.
+// Found live in production and reported back after the first round of
+// fixes -- the initial audit only searched for absolute
+// harveytaxiservice.com URLs and missed these relative ones.
+describe("FOUNDATION_HOSTS redirects -- /support.html and /index.html", () => {
+  test("the taxi domain's own support page is completely unaffected", async () => {
+    const res = await request(app).get("/support.html").set("Host", "harveytaxiservice.com");
+
+    expect(res.status).toBe(200);
+    expect(res.text).toContain("Harvey Taxi — Support");
+  });
+
+  test("the taxi domain's own homepage is completely unaffected", async () => {
+    const res = await request(app).get("/index.html").set("Host", "harveytaxiservice.com");
+
+    expect(res.status).toBe(200);
+    expect(res.text).toContain("Harvey Taxi");
+  });
+
+  test("the HTAF domain redirects /support.html to /contact.html instead of serving Harvey Taxi's support page", async () => {
+    const res = await request(app).get("/support.html").set("Host", "harveytransportationfoundation.com");
+
+    expect(res.status).toBe(301);
+    expect(res.headers.location).toBe("/contact.html");
+  });
+
+  test("the HTAF domain redirects /index.html to / instead of serving Harvey Taxi's homepage", async () => {
+    const res = await request(app).get("/index.html").set("Host", "harveytransportationfoundation.com");
+
+    expect(res.status).toBe(301);
+    expect(res.headers.location).toBe("/");
+  });
+
+  test("the www HTAF host also gets the /support.html redirect, not just the apex", async () => {
+    const res = await request(app).get("/support.html").set("Host", "www.harveytransportationfoundation.com");
+
+    expect(res.status).toBe(301);
+    expect(res.headers.location).toBe("/contact.html");
+  });
+});
+
+describe("htaf-application.html -- corrected cross-domain metadata and links", () => {
+  test("og:url and canonical both point at the HTAF domain, not the taxi domain", async () => {
+    const res = await request(app).get("/htaf-application.html").set("Host", "harveytransportationfoundation.com");
+
+    expect(res.status).toBe(200);
+    expect(res.text).toContain('href="https://harveytransportationfoundation.com/htaf-application.html"');
+    expect(res.text).toContain('content="https://harveytransportationfoundation.com/htaf-application.html"');
+    expect(res.text).not.toContain("https://harveytaxiservice.com");
+  });
+
+  test("no remaining link or navigation destination points at support.html or index.html", async () => {
+    const res = await request(app).get("/htaf-application.html").set("Host", "harveytransportationfoundation.com");
+
+    expect(res.text).not.toMatch(/href="support\.html"/);
+    expect(res.text).not.toMatch(/href="index\.html"/);
+    expect(res.text).not.toMatch(/location\.href=['"]support\.html['"]/);
+    expect(res.text).not.toMatch(/location\.href=['"]index\.html['"]/);
+  });
+});
