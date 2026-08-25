@@ -133,6 +133,48 @@ describe("FOUNDATION_HOSTS redirects -- /support.html and /index.html", () => {
     expect(res.status).toBe(301);
     expect(res.headers.location).toBe("/contact.html");
   });
+
+  // A third, separate Harvey Taxi privacy document (public/privacy-policy.html,
+  // distinct from public/privacy.html) that predates the /privacy.html
+  // override -- not linked from any HTAF page, but still directly
+  // reachable at this exact filename. Reported live: still showed
+  // "Harvey Taxi -- Privacy Policy" on the HTAF domain after the first
+  // two rounds of fixes.
+  test("the taxi domain's own separate privacy-policy.html is completely unaffected", async () => {
+    const res = await request(app).get("/privacy-policy.html").set("Host", "harveytaxiservice.com");
+
+    expect(res.status).toBe(200);
+    expect(res.text).toContain("Harvey Taxi — Privacy Policy");
+  });
+
+  test("the HTAF domain redirects /privacy-policy.html to the already-correct /privacy.html", async () => {
+    const res = await request(app).get("/privacy-policy.html").set("Host", "harveytransportationfoundation.com");
+
+    expect(res.status).toBe(301);
+    expect(res.headers.location).toBe("/privacy.html");
+  });
+
+  test("following that redirect lands on HTAF's own privacy policy, not Harvey Taxi's", async () => {
+    const res = await request(app).get("/privacy.html").set("Host", "harveytransportationfoundation.com");
+
+    expect(res.status).toBe(200);
+    expect(res.text).toContain("Privacy Policy — Harvey Transportation Assistance Foundation");
+    expect(res.text).not.toContain("Harvey Taxi");
+  });
+
+  test("the taxi domain's own app-review.html is completely unaffected", async () => {
+    const res = await request(app).get("/app-review.html").set("Host", "harveytaxiservice.com");
+
+    expect(res.status).toBe(200);
+    expect(res.text).toContain("Harvey Taxi — App Review Information");
+  });
+
+  test("the HTAF domain redirects /app-review.html to /contact.html", async () => {
+    const res = await request(app).get("/app-review.html").set("Host", "harveytransportationfoundation.com");
+
+    expect(res.status).toBe(301);
+    expect(res.headers.location).toBe("/contact.html");
+  });
 });
 
 describe("htaf-application.html -- corrected cross-domain metadata and links", () => {

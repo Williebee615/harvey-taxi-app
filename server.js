@@ -617,7 +617,18 @@ const FOUNDATION_STATIC_OVERRIDES = new Map([
 // there too -- both are fixed at the source alongside this redirect.
 const FOUNDATION_REDIRECTS = new Map([
   ["/support.html", "/contact.html"],
-  ["/index.html", "/"]
+  ["/index.html", "/"],
+  // A third, separate Harvey Taxi privacy document (distinct from
+  // public/privacy.html) that predates the /privacy.html override
+  // above -- not linked from any HTAF page, but still directly
+  // reachable at this exact filename since express.static isn't
+  // domain-gated. Redirects to the already-correctly-routed
+  // /privacy.html rather than needing a second HTAF-specific file.
+  ["/privacy-policy.html", "/privacy.html"],
+  // Harvey Taxi's own "how to review this app" page -- not linked from
+  // any HTAF page, but exactly the kind of URL a reviewer evaluating
+  // domain ownership might specifically look for.
+  ["/app-review.html", "/contact.html"]
 ]);
 
 app.use((req, res, next) => {
