@@ -606,6 +606,20 @@ const FOUNDATION_STATIC_OVERRIDES = new Map([
   ["/terms.html", "htaf-terms.html"]
 ]);
 
+// /support.html and /index.html are Harvey Taxi's own pages -- unlike
+// privacy/terms, HTAF doesn't need distinct content of its own at these
+// exact URLs, it already has an equivalent (contact.html, or the
+// homepage itself), so these redirect rather than serve a second copy.
+// Found live in production: express.static isn't domain-gated, so
+// FOUNDATION_HOSTS visitors could reach "Harvey Taxi -- Support" and
+// Harvey Taxi's own homepage directly, and relative links on HTAF's own
+// pages (e.g. a bottom-nav "Home" button linking to index.html) landed
+// there too -- both are fixed at the source alongside this redirect.
+const FOUNDATION_REDIRECTS = new Map([
+  ["/support.html", "/contact.html"],
+  ["/index.html", "/"]
+]);
+
 app.use((req, res, next) => {
 
   if (
@@ -616,6 +630,11 @@ app.use((req, res, next) => {
 
     if (req.path === "/") {
       return res.sendFile(path.join(PUBLIC_DIR, "foundation.html"));
+    }
+
+    const redirectTarget = FOUNDATION_REDIRECTS.get(req.path);
+    if (redirectTarget) {
+      return res.redirect(301, redirectTarget);
     }
 
     const override = FOUNDATION_STATIC_OVERRIDES.get(req.path);
