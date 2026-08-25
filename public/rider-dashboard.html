@@ -11505,33 +11505,48 @@
       renderNotificationFeed();
       loadGoogleMaps();
 
-      const authUiEnabled = await isRiderAuthUiEnabled();
+      // Always attempt the server-verified session check first,
+      // regardless of rider_auth_ui_enabled. That flag only controls
+      // whether an *unauthenticated* visitor sees the new sign-in
+      // overlay (see docs/security-remediation/pr-02a-rider-client-auth.md)
+      // -- it was never meant to gate whether an *already-valid* session
+      // gets recognized. With the flag off (the default), this used to
+      // skip bootstrapRiderSession() entirely and fall straight to
+      // loadRiderStatus()'s localStorage-only fallback -- silently
+      // ignoring a perfectly valid session cookie whenever
+      // riderId/riderProfile hadn't separately been cached on this
+      // device. That's the normal case for a password-authenticated
+      // Google Play reviewer session (never goes through the on-device
+      // signup flow that seeds those values), and can happen to a real
+      // rider too after clearing site data or switching devices --
+      // "Finish rider setup to continue" shown despite a valid,
+      // server-confirmed session.
+      const bootstrap = await bootstrapRiderSession();
 
-      if (!authUiEnabled) {
-        // Rollout flag off (the default): fall back to this page's
-        // pre-PR-2a boot behavior untouched -- loadRiderStatus() already
-        // falls back to getStoredRiderId()/getStoredRiderProfile() when
-        // state.riderId/riderProfile haven't been set by a bootstrap
-        // check, exactly as it did before this PR. This lets the whole
-        // PR ship to production inert until an admin has confirmed real
-        // SMS/email OTP delivery works and deliberately flips
-        // rider_auth_ui_enabled on. See
-        // docs/security-remediation/pr-02a-rider-client-auth.md.
+      if (bootstrap.ok) {
         hideAuthOverlay();
         await runAuthenticatedBoot();
         return;
       }
 
-      const bootstrap = await bootstrapRiderSession();
+      const authUiEnabled = await isRiderAuthUiEnabled();
 
-      if (!bootstrap.ok) {
-        showAuthOverlay();
-        await tryAutoStartSignupVerification();
+      if (!authUiEnabled) {
+        // Rollout flag off (the default): for anyone without a
+        // verified session, fall back to this page's pre-PR-2a boot
+        // behavior untouched -- loadRiderStatus() already falls back
+        // to getStoredRiderId()/getStoredRiderProfile() when
+        // state.riderId/riderProfile haven't been set by the bootstrap
+        // check above. This lets the whole PR ship to production inert
+        // until an admin has confirmed real SMS/email OTP delivery
+        // works and deliberately flips rider_auth_ui_enabled on.
+        hideAuthOverlay();
+        await runAuthenticatedBoot();
         return;
       }
 
-      hideAuthOverlay();
-      await runAuthenticatedBoot();
+      showAuthOverlay();
+      await tryAutoStartSignupVerification();
     }
 
     document.addEventListener("DOMContentLoaded", boot);
