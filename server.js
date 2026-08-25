@@ -628,7 +628,12 @@ const FOUNDATION_REDIRECTS = new Map([
   // Harvey Taxi's own "how to review this app" page -- not linked from
   // any HTAF page, but exactly the kind of URL a reviewer evaluating
   // domain ownership might specifically look for.
-  ["/app-review.html", "/contact.html"]
+  ["/app-review.html", "/contact.html"],
+  // Harvey Taxi's rider/driver account-deletion page -- HTAF applicants
+  // aren't Harvey Taxi riders or drivers and have no Harvey Taxi
+  // account to delete; keep this Google Play deletion-policy page
+  // scoped to the taxi domain the same way as everything above.
+  ["/delete-account.html", "/contact.html"]
 ]);
 
 app.use((req, res, next) => {
@@ -681,7 +686,8 @@ const TAXI_SITEMAP_PATHS = [
   "/htaf-application.html",
   "/support.html",
   "/privacy.html",
-  "/terms.html"
+  "/terms.html",
+  "/delete-account.html"
 ];
 
 const FOUNDATION_SITEMAP_PATHS = [
@@ -18654,13 +18660,21 @@ app.post(
 
 /* =========================================================
 
-   ACCOUNT DELETION (App Store compliant)
+   ACCOUNT DELETION (App Store / Google Play compliant)
 
    - Riders: immediate self-service delete (OTP-confirmed).
 
    - Drivers: request revokes access now; admin reviews,
 
      then anonymization is finalized.
+
+   Two entry points share this same logic: the in-app Settings page
+   (public/settings.html) and the public web deletion page
+   (public/delete-account.html, reachable without the app installed).
+   Both resolve the account from a phone number verified with a fresh
+   SMS one-time code -- never from a client-supplied id -- so neither
+   surface can be used to request deletion of an account that isn't
+   the requester's own.
 
    Operational records (rides, payments, earnings, audit,
 
@@ -18752,6 +18766,32 @@ async function anonymizeAccount({
 
   }
 
+  // Same snapshot-stripping for drivers -- rides carries its own
+  // driver_name/driver_phone columns (see POST /api/rides/:id/accept),
+  // separate from the drivers row scrubbed above, so a deleted
+  // driver's name and phone were otherwise left readable on every
+  // past ride indefinitely.
+
+  if (table === "drivers") {
+
+    await supabase
+
+      .from("rides")
+
+      .update({
+
+        driver_name: "Deleted Driver",
+
+        driver_phone: null,
+
+        updated_at: now
+
+      })
+
+      .eq("driver_id", id);
+
+  }
+
   return true;
 
 }
@@ -18763,10 +18803,6 @@ app.post(
   "/api/account/rider/delete",
 
   asyncRoute(async (req, res) => {
-
-    const riderId =
-
-      cleanString(req.body.rider_id, 100);
 
     const phone =
 
@@ -18780,13 +18816,13 @@ app.post(
 
       cleanString(req.body.reason, 500);
 
-    if (!riderId || !phone || !code) {
+    if (!phone || !code) {
 
       return fail(
 
         res,
 
-        "rider_id, phone, and a verification code are required to delete your account.",
+        "A phone number and a verification code are required to delete your account.",
 
         400
 
@@ -18794,8 +18830,11 @@ app.post(
 
     }
 
-    // Confirm identity via OTP (same mechanism as signup verify).
-
+    // Confirm identity via OTP (same mechanism as signup verify). The
+    // account to delete is resolved from THIS verified phone number
+    // below -- never from a client-supplied rider_id -- otherwise a
+    // caller could verify their own phone and still name someone
+    // else's rider_id, deleting an account that was never theirs.
     const verification =
 
       await verifyCode({
@@ -18824,8 +18863,6 @@ app.post(
 
     }
 
-    // Ensure the rider exists and the phone matches.
-
     const { data: rider, error } =
 
       await supabase
@@ -18834,15 +18871,17 @@ app.post(
 
         .select("id, phone")
 
-        .eq("id", riderId)
+        .eq("phone", phone)
 
         .maybeSingle();
 
     if (error || !rider) {
 
-      return fail(res, "Rider account not found.", 404);
+      return fail(res, "No rider account was found for that phone number.", 404);
 
     }
+
+    const riderId = rider.id;
 
     try {
 
@@ -18924,7 +18963,86 @@ app.post(
 
 );
 
-/* -------- DRIVER: request deletion (revokes access now) -------- */
+/* -------- DRIVER: request deletion (revokes access now) --------
+
+   Shared by both entry points below: the authenticated in-app route
+   (identity from the driver's own session) and the public,
+   OTP-verified route used by the web deletion page and the Settings
+   page's web-style fallback (identity from a verified phone number).
+   Both call this same helper -- one deletion system, two ways to
+   prove who you are, not two unrelated deletion systems. */
+
+async function submitDriverDeletionRequest({ driverId, reason, req }) {
+
+  // Immediately revoke login access (anonymization waits for review).
+
+  await supabase
+
+    .from("drivers")
+
+    .update({
+
+      access_revoked: true,
+
+      status: "deletion_pending",
+
+      updated_at: nowIso()
+
+    })
+
+    .eq("id", driverId);
+
+  const requestId = makeId("DEL");
+
+  const { error } =
+
+    await supabase
+
+      .from("deletion_requests")
+
+      .insert({
+
+        request_id: requestId,
+
+        user_type: "driver",
+
+        user_id: driverId,
+
+        status: "pending",
+
+        reason,
+
+        requested_at: nowIso()
+
+      });
+
+  if (error) {
+
+    throw error;
+
+  }
+
+  auditLog({
+
+    actor_type: "driver",
+
+    actor_id: driverId,
+
+    action: "account_deletion_requested",
+
+    entity_type: "driver",
+
+    entity_id: driverId,
+
+    metadata: { request_id: requestId },
+
+    req
+
+  }).catch(() => {});
+
+  return requestId;
+
+}
 
 app.post(
 
@@ -18940,71 +19058,107 @@ app.post(
 
       cleanString(req.body.reason, 500);
 
-    // Immediately revoke login access (anonymization waits for review).
+    const requestId = await submitDriverDeletionRequest({ driverId, reason, req });
 
-    await supabase
+    return ok(res, {
 
-      .from("drivers")
+      request_id: requestId,
 
-      .update({
+      status: "pending",
 
-        access_revoked: true,
+      message: "Your deletion request was received and your account access has been disabled. An administrator will finalize the deletion after review."
 
-        status: "deletion_pending",
+    });
 
-        updated_at: nowIso()
+  })
 
-      })
+);
 
-      .eq("id", driverId);
+/* -------- DRIVER: request deletion from the web, without an
+   app session (Google Play web-deletion requirement) -- identity is
+   proved with the same SMS one-time-code mechanism as everywhere
+   else in the app, and the driver is resolved from that verified
+   phone number, never from a client-supplied id. -------- */
 
-    const requestId = makeId("DEL");
+app.post(
 
-    const { error } =
+  "/api/account/driver/delete-request-public",
 
-      await supabase
+  asyncRoute(async (req, res) => {
 
-        .from("deletion_requests")
+    const phone =
 
-        .insert({
+      cleanPhone(req.body.phone);
 
-          request_id: requestId,
+    const code =
 
-          user_type: "driver",
+      cleanString(req.body.code, 20);
 
-          user_id: driverId,
+    const reason =
 
-          status: "pending",
+      cleanString(req.body.reason, 500);
 
-          reason,
+    if (!phone || !code) {
 
-          requested_at: nowIso()
+      return fail(
 
-        });
+        res,
 
-    if (error) {
+        "A phone number and a verification code are required to request account deletion.",
 
-      throw error;
+        400
+
+      );
 
     }
 
-    auditLog({
+    const verification =
 
-      actor_type: "driver",
+      await verifyCode({
 
-      actor_id: driverId,
+        channel: "sms",
 
-      action: "account_deletion_requested",
+        destination: phone,
 
-      entity_type: "driver",
+        code,
 
-      entity_id: driverId,
+        purpose: "account_deletion"
 
-      metadata: { request_id: requestId },
+      });
 
-      req
+    if (!verification.ok) {
 
-    }).catch(() => {});
+      return fail(
+
+        res,
+
+        verification.reason || "Verification failed.",
+
+        400
+
+      );
+
+    }
+
+    const { data: driver, error } =
+
+      await supabase
+
+        .from("drivers")
+
+        .select("id, phone")
+
+        .eq("phone", phone)
+
+        .maybeSingle();
+
+    if (error || !driver) {
+
+      return fail(res, "No driver account was found for that phone number.", 404);
+
+    }
+
+    const requestId = await submitDriverDeletionRequest({ driverId: driver.id, reason, req });
 
     return ok(res, {
 
