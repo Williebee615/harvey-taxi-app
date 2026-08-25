@@ -703,8 +703,15 @@
               <textarea id="deletionReason" placeholder="Help us understand why you're leaving (optional)"></textarea>
             </div>
             <div class="field">
-              <label for="deletionConfirmEmail" data-i18n="deletionConfirmLabel">Confirm Account Email</label>
-              <input id="deletionConfirmEmail" type="email" placeholder="Re-enter your account email to confirm" autocomplete="email" />
+              <label for="deletionPhone">Account Phone Number</label>
+              <input id="deletionPhone" type="tel" placeholder="Phone number on your account" autocomplete="tel" />
+            </div>
+            <div class="button-row">
+              <button class="btn" type="button" onclick="sendAccountDeletionCode()">Send Verification Code</button>
+            </div>
+            <div class="field">
+              <label for="deletionCode">Verification Code</label>
+              <input id="deletionCode" type="text" inputmode="numeric" placeholder="Enter the code we texted you" autocomplete="one-time-code" />
             </div>
           </div>
           <div class="button-row">
@@ -757,7 +764,7 @@
         "accountType", "accountEmail",
         "batteryOptimizerToggle", "preciseLocationToggle", "lowPowerWarningToggle",
         "tripNotificationsToggle", "driverMissionToggle", "marketingToggle",
-        "profileNotice", "deletionNotice", "deletionReason", "deletionConfirmEmail",
+        "profileNotice", "deletionNotice", "deletionReason", "deletionPhone", "deletionCode",
         "auditList", "syncStatus",
         "statPersona", "statBattery", "statLocation", "statSync"
       ];
@@ -1177,50 +1184,82 @@
     }
 
     /* ============================================================
-       ACCOUNT DELETION (NEW — was advertised in meta/hero copy
-       but had no actual UI or logic anywhere in the page)
+       ACCOUNT DELETION (previously advertised in meta/hero copy but
+       had no actual UI or logic anywhere in the page, and the logic
+       that WAS later added here posted to /api/account/delete-request,
+       an endpoint that has never existed on the server -- every
+       submission failed with a network/HTTP error, and the only
+       "identity verification" was a client-side string comparison
+       against a locally-typed email, not a real check against the
+       account at all. This now sends a real SMS one-time code and
+       verifies it server-side against the account's own phone number,
+       the same mechanism used everywhere else in the app (signup,
+       phone-change, etc.) and the same one the public web deletion
+       page at /delete-account.html uses -- both surfaces call the
+       same backend routes, not two parallel deletion systems.
        ============================================================ */
-    async function requestAccountDeletion() {
-      const reason = els.deletionReason?.value?.trim() || "";
-      const confirmEmail = els.deletionConfirmEmail?.value?.trim() || "";
-      const accountEmail = els.accountEmail?.value?.trim() || "";
+    async function sendAccountDeletionCode() {
+      const phone = els.deletionPhone?.value?.trim() || "";
+      const accountType = els.accountType?.value === "driver" ? "driver" : "rider";
 
-      if (!confirmEmail) {
-        dispatchNotice(els.deletionNotice, "Please confirm your account email before submitting a deletion request.", "error");
+      if (!phone) {
+        dispatchNotice(els.deletionNotice, "Enter the phone number on your account first.", "error");
         return;
       }
-      if (accountEmail && confirmEmail.toLowerCase() !== accountEmail.toLowerCase()) {
-        dispatchNotice(els.deletionNotice, "Confirmation email does not match the account email above.", "error");
+
+      try {
+        dispatchNotice(els.deletionNotice, "Sending verification code...", "info");
+        const response = await fetch(`${HARVEY_API_BASE}/api/verify/sms/start`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone, purpose: "account_deletion", user_type: accountType })
+        });
+        if (!response.ok) throw new Error(`Request failed (HTTP ${response.status})`);
+
+        dispatchNotice(els.deletionNotice, "Verification code sent. Enter it below, then request deletion.", "success");
+        trackSettingsEvent("account_deletion_code_sent", { account_type: accountType });
+      } catch (err) {
+        dispatchNotice(els.deletionNotice, "Unable to send a verification code right now. Please try again shortly.", "error");
+        trackSettingsEvent("account_deletion_code_failed", { message: err.message });
+      }
+    }
+
+    async function requestAccountDeletion() {
+      const reason = els.deletionReason?.value?.trim() || "";
+      const phone = els.deletionPhone?.value?.trim() || "";
+      const code = els.deletionCode?.value?.trim() || "";
+      const accountType = els.accountType?.value === "driver" ? "driver" : "rider";
+
+      if (!phone || !code) {
+        dispatchNotice(els.deletionNotice, "Enter your account phone number and the verification code we texted you.", "error");
         return;
       }
       if (!confirm("This will permanently request deletion of your Harvey Taxi account. This cannot be undone. Continue?")) {
         return;
       }
 
-      const payload = {
-        email: confirmEmail,
-        account_type: els.accountType?.value || "rider",
-        reason: reason || null,
-        requested_at: new Date().toISOString(),
-        source: "settings.html"
-      };
+      const endpoint =
+        accountType === "driver"
+          ? "/api/account/driver/delete-request-public"
+          : "/api/account/rider/delete";
 
       try {
         dispatchNotice(els.deletionNotice, "Submitting deletion request...", "info");
-        const response = await fetch(`${HARVEY_API_BASE}/api/account/delete-request`, {
+        const response = await fetch(`${HARVEY_API_BASE}${endpoint}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
+          body: JSON.stringify({ phone, code, reason: reason || null })
         });
-        if (!response.ok) throw new Error(`Request failed (HTTP ${response.status})`);
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || `Request failed (HTTP ${response.status})`);
 
-        dispatchNotice(els.deletionNotice, "Deletion request submitted. Our team will confirm by email before any data is removed.", "success");
-        addAuditEntry("Account Deletion Requested", `${payload.account_type} account — confirmation sent to ${confirmEmail}.`);
-        trackSettingsEvent("account_deletion_requested", { account_type: payload.account_type });
+        dispatchNotice(els.deletionNotice, data.message || "Your deletion request was submitted.", "success");
+        addAuditEntry("Account Deletion Requested", `${accountType} account — verified by phone.`);
+        trackSettingsEvent("account_deletion_requested", { account_type: accountType });
       } catch (err) {
         dispatchNotice(
           els.deletionNotice,
-          "Unable to submit your deletion request right now. Please try again shortly or contact support directly.",
+          err.message || "Unable to submit your deletion request right now. Please try again shortly or contact support directly.",
           "error"
         );
         trackSettingsEvent("account_deletion_failed", { message: err.message });
@@ -1293,6 +1332,7 @@
     window.commitSavedSettings = commitSavedSettings;
     window.runSettingsHealthCheck = runSettingsHealthCheck;
     window.requestAccountDeletion = requestAccountDeletion;
+    window.sendAccountDeletionCode = sendAccountDeletionCode;
     window.openHarveyAiChat = openHarveyAiChat;
     window.closeHarveyAiChat = closeHarveyAiChat;
     window.safeGo = safeGo;

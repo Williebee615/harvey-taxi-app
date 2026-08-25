@@ -16,7 +16,6 @@ Disallow: /pay.html
 Disallow: /payment.html
 Disallow: /login.html
 Disallow: /settings.html
-Disallow: /delete-account.html
 Disallow: /privacy-policy.html
 Disallow: /app-review.html
 Disallow: /mobility-os-prototype.html

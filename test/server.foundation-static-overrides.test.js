@@ -175,6 +175,31 @@ describe("FOUNDATION_HOSTS redirects -- /support.html and /index.html", () => {
     expect(res.status).toBe(301);
     expect(res.headers.location).toBe("/contact.html");
   });
+
+  // Google Play's account-deletion requirement: the deletion page is a
+  // Harvey Taxi rider/driver page, not an HTAF one -- HTAF applicants have
+  // no Harvey Taxi account to delete.
+  test("the taxi domain's own delete-account.html loads publicly, without authentication", async () => {
+    const res = await request(app).get("/delete-account.html").set("Host", "harveytaxiservice.com");
+
+    expect(res.status).toBe(200);
+    expect(res.text).toContain("Harvey Taxi");
+    expect(res.text).toContain("Delete Your Account");
+  });
+
+  test("the extensionless /delete-account URL also loads it, not a login page", async () => {
+    const res = await request(app).get("/delete-account").set("Host", "harveytaxiservice.com");
+
+    expect(res.status).toBe(200);
+    expect(res.text).toContain("Delete Your Account");
+  });
+
+  test("the HTAF domain redirects /delete-account.html to /contact.html", async () => {
+    const res = await request(app).get("/delete-account.html").set("Host", "harveytransportationfoundation.com");
+
+    expect(res.status).toBe(301);
+    expect(res.headers.location).toBe("/contact.html");
+  });
 });
 
 describe("htaf-application.html -- corrected cross-domain metadata and links", () => {
