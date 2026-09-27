@@ -13831,6 +13831,103 @@ async function ensureAssignedDriver(
 
 }
 
+// Shared by every simple, single-status-forward driver transition route
+// (enroute, arrived, start -- complete is handled separately, since it
+// also has to run the recoverable payment-capture/earnings workflow).
+// Centralizes the actual status write through claimRideTransition() (see
+// lib/rideLifecycle.js) instead of each route doing its own unconditional
+// `.update({status: X})` -- before this, none of these routes checked
+// the ride's current status at all, only "is this the assigned driver,"
+// so a stray or duplicate call could move a completed/failed ride
+// backward, or silently re-apply a transition that already happened.
+async function performDriverRideTransition({
+  req,
+  res,
+  rideId,
+  driverId,
+  fromStatus,
+  toStatus,
+  timestampField,
+  deliveryStage,
+  notifyStageKey,
+  notifyStageKeyDelivery,
+  auditAction
+}) {
+  let ride;
+
+  try {
+    ride = await getRideOrFail(rideId);
+  } catch (err) {
+    return fail(res, "Ride not found.", 404);
+  }
+
+  try {
+    await ensureAssignedDriver(ride, driverId);
+  } catch (err) {
+    return fail(res, err.message || "Driver is not assigned to this ride.", 403);
+  }
+
+  const isDelivery = isDeliveryRideType(ride.ride_type);
+
+  const patch = {
+    [timestampField]: nowIso(),
+    updated_at: nowIso(),
+    ...(isDelivery && deliveryStage ? { delivery_stage: deliveryStage } : {})
+  };
+
+  const claim = await claimRideTransition({
+    supabase,
+    rideId,
+    fromStatuses: [fromStatus],
+    toStatus,
+    patch
+  });
+
+  if (!claim.ok) {
+    if (claim.reason === "not_found") {
+      return fail(res, "Ride not found.", 404);
+    }
+
+    auditLog({
+      actor_type: "driver",
+      actor_id: driverId,
+      action: `${auditAction}_rejected`,
+      entity_type: "ride",
+      entity_id: rideId,
+      metadata: { attempted_from: fromStatus, attempted_to: toStatus, actual_status: claim.currentStatus },
+      req
+    }).catch(() => {});
+
+    return fail(
+      res,
+      `This ride can't move to that stage from its current status (${claim.currentStatus}).`,
+      409,
+      { current_status: claim.currentStatus }
+    );
+  }
+
+  notifyRideStage(ride, isDelivery ? notifyStageKeyDelivery : notifyStageKey).catch(() => {});
+
+  broadcastRideSse(rideId, "stage", {
+    status: toStatus,
+    delivery_stage: isDelivery && deliveryStage ? deliveryStage : null
+  });
+
+  auditLog({
+    actor_type: "driver",
+    actor_id: driverId,
+    action: auditAction,
+    entity_type: "ride",
+    entity_id: rideId,
+    req
+  }).catch(() => {});
+
+  return ok(res, {
+    ride_id: rideId,
+    status: toStatus
+  });
+}
+
 /* =========================================================
 
    DRIVER ENROUTE
@@ -13857,100 +13954,18 @@ app.post(
 
     const driverId = req.driver.id;
 
-    const ride =
-
-      await getRideOrFail(rideId);
-
-    await ensureAssignedDriver(
-
-      ride,
-
-      driverId
-
-    );
-
-    await supabase
-
-      .from("rides")
-
-      .update({
-
-        status:
-
-          RIDE_STATUS.DRIVER_ENROUTE,
-
-        enroute_at:
-
-          nowIso(),
-
-        updated_at:
-
-          nowIso(),
-
-        ...(isDeliveryRideType(ride.ride_type)
-
-          ? { delivery_stage: DELIVERY_STAGE.ENROUTE_STORE }
-
-          : {})
-
-      })
-
-      .eq("id", rideId);
-
-    const enrouteIsDelivery = isDeliveryRideType(ride.ride_type);
-
-    notifyRideStage(
-
-      ride,
-
-      enrouteIsDelivery ? "enroute_store" : "enroute_pickup"
-
-    ).catch(() => {});
-
-    broadcastRideSse(rideId, "stage", {
-
-      status: RIDE_STATUS.DRIVER_ENROUTE,
-
-      delivery_stage: enrouteIsDelivery ? DELIVERY_STAGE.ENROUTE_STORE : null
-
-    });
-
-    auditLog({
-
-      actor_type:
-
-        "driver",
-
-      actor_id:
-
-        driverId,
-
-      action:
-
-        "driver_enroute",
-
-      entity_type:
-
-        "ride",
-
-      entity_id:
-
-        rideId,
-
-      req
-
-    }).catch(() => {});
-
-    return ok(res, {
-
-      ride_id:
-
-        rideId,
-
-      status:
-
-        RIDE_STATUS.DRIVER_ENROUTE
-
+    return performDriverRideTransition({
+      req,
+      res,
+      rideId,
+      driverId,
+      fromStatus: RIDE_STATUS.DRIVER_ASSIGNED,
+      toStatus: RIDE_STATUS.DRIVER_ENROUTE,
+      timestampField: "enroute_at",
+      deliveryStage: DELIVERY_STAGE.ENROUTE_STORE,
+      notifyStageKey: "enroute_pickup",
+      notifyStageKeyDelivery: "enroute_store",
+      auditAction: "driver_enroute"
     });
 
   })
@@ -13983,100 +13998,18 @@ app.post(
 
     const driverId = req.driver.id;
 
-    const ride =
-
-      await getRideOrFail(rideId);
-
-    await ensureAssignedDriver(
-
-      ride,
-
-      driverId
-
-    );
-
-    await supabase
-
-      .from("rides")
-
-      .update({
-
-        status:
-
-          RIDE_STATUS.ARRIVED,
-
-        arrived_at:
-
-          nowIso(),
-
-        updated_at:
-
-          nowIso(),
-
-        ...(isDeliveryRideType(ride.ride_type)
-
-          ? { delivery_stage: DELIVERY_STAGE.ARRIVED_STORE }
-
-          : {})
-
-      })
-
-      .eq("id", rideId);
-
-    const arrivedIsDelivery = isDeliveryRideType(ride.ride_type);
-
-    notifyRideStage(
-
-      ride,
-
-      arrivedIsDelivery ? "arrived_store" : "arrived_pickup"
-
-    ).catch(() => {});
-
-    broadcastRideSse(rideId, "stage", {
-
-      status: RIDE_STATUS.ARRIVED,
-
-      delivery_stage: arrivedIsDelivery ? DELIVERY_STAGE.ARRIVED_STORE : null
-
-    });
-
-    auditLog({
-
-      actor_type:
-
-        "driver",
-
-      actor_id:
-
-        driverId,
-
-      action:
-
-        "driver_arrived",
-
-      entity_type:
-
-        "ride",
-
-      entity_id:
-
-        rideId,
-
-      req
-
-    }).catch(() => {});
-
-    return ok(res, {
-
-      ride_id:
-
-        rideId,
-
-      status:
-
-        RIDE_STATUS.ARRIVED
-
+    return performDriverRideTransition({
+      req,
+      res,
+      rideId,
+      driverId,
+      fromStatus: RIDE_STATUS.DRIVER_ENROUTE,
+      toStatus: RIDE_STATUS.ARRIVED,
+      timestampField: "arrived_at",
+      deliveryStage: DELIVERY_STAGE.ARRIVED_STORE,
+      notifyStageKey: "arrived_pickup",
+      notifyStageKeyDelivery: "arrived_store",
+      auditAction: "driver_arrived"
     });
 
   })
@@ -14227,100 +14160,18 @@ app.post(
 
     const driverId = req.driver.id;
 
-    const ride =
-
-      await getRideOrFail(rideId);
-
-    await ensureAssignedDriver(
-
-      ride,
-
-      driverId
-
-    );
-
-    await supabase
-
-      .from("rides")
-
-      .update({
-
-        status:
-
-          RIDE_STATUS.IN_PROGRESS,
-
-        trip_started_at:
-
-          nowIso(),
-
-        updated_at:
-
-          nowIso(),
-
-        ...(isDeliveryRideType(ride.ride_type)
-
-          ? { delivery_stage: DELIVERY_STAGE.PICKED_UP }
-
-          : {})
-
-      })
-
-      .eq("id", rideId);
-
-    const startIsDelivery = isDeliveryRideType(ride.ride_type);
-
-    notifyRideStage(
-
-      ride,
-
-      startIsDelivery ? "picked_up" : "ride_started"
-
-    ).catch(() => {});
-
-    broadcastRideSse(rideId, "stage", {
-
-      status: RIDE_STATUS.IN_PROGRESS,
-
-      delivery_stage: startIsDelivery ? DELIVERY_STAGE.PICKED_UP : null
-
-    });
-
-    auditLog({
-
-      actor_type:
-
-        "driver",
-
-      actor_id:
-
-        driverId,
-
-      action:
-
-        "ride_started",
-
-      entity_type:
-
-        "ride",
-
-      entity_id:
-
-        rideId,
-
-      req
-
-    }).catch(() => {});
-
-    return ok(res, {
-
-      ride_id:
-
-        rideId,
-
-      status:
-
-        RIDE_STATUS.IN_PROGRESS
-
+    return performDriverRideTransition({
+      req,
+      res,
+      rideId,
+      driverId,
+      fromStatus: RIDE_STATUS.ARRIVED,
+      toStatus: RIDE_STATUS.IN_PROGRESS,
+      timestampField: "trip_started_at",
+      deliveryStage: DELIVERY_STAGE.PICKED_UP,
+      notifyStageKey: "ride_started",
+      notifyStageKeyDelivery: "picked_up",
+      auditAction: "ride_started"
     });
 
   })
@@ -14573,48 +14424,122 @@ app.post(
 
 ========================================================= */
 
-async function captureRidePayment(ride) {
+// Recoverable payment-capture workflow (see lib/ridePaymentCapture.js for
+// the decision logic and idempotency-key derivation). Replaces the old
+// captureRidePayment(), which ran Stripe's capture with no idempotency
+// key and returned only a bare PaymentIntent-or-null -- a crash between
+// Stripe responding and the caller recording that fact was
+// unrecoverable, and there was nowhere durable a failure was ever
+// recorded (console.error only).
+//
+// Persists payment_status BEFORE calling Stripe (capture_pending, with
+// the idempotency key) and again after (captured/capture_failed) --
+// this is what makes a retry after an unknown-outcome crash safe: it
+// resumes from capture_pending using the SAME key, and Stripe returns
+// the original result instead of creating a second capture. Returns the
+// ride row as last persisted (not the pre-call snapshot), so the
+// caller always has current state regardless of which branch ran.
+async function captureRidePaymentIdempotent(ride, req = null) {
+  const decision = decideCaptureAction({
+    ride,
+    stripeConfigured: Boolean(ENABLE_PAYMENT_GATE && stripe)
+  });
 
-  if (
-
-    !ENABLE_PAYMENT_GATE ||
-
-    !stripe ||
-
-    !ride.payment_id
-
-  ) {
-
-    return null;
-
+  if (decision.action === "skip") {
+    return { outcome: ride.payment_status, ride, paymentIntent: null };
   }
+
+  if (decision.action === "not_required") {
+    const { data, error } = await supabase
+      .from("rides")
+      .update({
+        payment_status: CAPTURE_STATUS.NOT_REQUIRED,
+        updated_at: nowIso()
+      })
+      .eq("id", ride.id)
+      .select()
+      .maybeSingle();
+
+    if (error) {
+      console.error("❌ Failed to persist not_required payment_status:", error.message);
+    }
+
+    return { outcome: CAPTURE_STATUS.NOT_REQUIRED, ride: data || ride, paymentIntent: null };
+  }
+
+  const idempotencyKey = captureIdempotencyKey(ride.id);
+
+  const { error: pendingError } = await supabase
+    .from("rides")
+    .update({
+      payment_status: CAPTURE_STATUS.CAPTURE_PENDING,
+      payment_capture_idempotency_key: idempotencyKey,
+      payment_capture_attempted_at: nowIso(),
+      updated_at: nowIso()
+    })
+    .eq("id", ride.id);
+
+  if (pendingError) {
+    // Could not durably record that a capture attempt is starting --
+    // do not proceed to call Stripe without that marker in place, since
+    // a crash right after an unrecorded call would be unrecoverable.
+    console.error("❌ Failed to persist capture_pending before Stripe call:", pendingError.message);
+    return { outcome: CAPTURE_STATUS.CAPTURE_PENDING, ride, paymentIntent: null, error: pendingError.message };
+  }
+
+  let paymentIntent = null;
+  let captureError = null;
 
   try {
-
-    return await stripe
-
-      .paymentIntents
-
-      .capture(
-
-        ride.payment_id
-
-      );
-
+    paymentIntent = await stripe.paymentIntents.capture(
+      ride.payment_id,
+      {},
+      { idempotencyKey }
+    );
   } catch (error) {
+    captureError = error.message || String(error);
 
     console.error(
-
       "❌ Payment capture failed:",
-
-      error.message
-
+      captureError
     );
-
-    return null;
-
   }
 
+  const finalStatus = paymentIntent ? CAPTURE_STATUS.CAPTURED : CAPTURE_STATUS.CAPTURE_FAILED;
+
+  const { data: updatedRide, error: finalError } = await supabase
+    .from("rides")
+    .update({
+      payment_status: finalStatus,
+      payment_captured: Boolean(paymentIntent),
+      payment_capture_error: captureError,
+      updated_at: nowIso()
+    })
+    .eq("id", ride.id)
+    .select()
+    .maybeSingle();
+
+  if (finalError) {
+    console.error("❌ Failed to persist final capture status:", finalError.message);
+  }
+
+  if (!paymentIntent) {
+    // The persisted payment_status='capture_failed' above (queryable via
+    // GET /api/admin/rides?payment_status=capture_failed) is the durable,
+    // admin-readable record of this failure -- this audit entry is a
+    // secondary, best-effort trail, not the only place the failure is
+    // recorded.
+    auditLog({
+      actor_type: "system",
+      action: "ride_payment_capture_failed",
+      entity_type: "ride",
+      entity_id: ride.id,
+      metadata: { error: captureError, idempotency_key: idempotencyKey },
+      req
+    }).catch(() => {});
+  }
+
+  return { outcome: finalStatus, ride: updatedRide || ride, paymentIntent };
 }
 
 /* =========================================================
@@ -14623,20 +14548,16 @@ async function captureRidePayment(ride) {
 
 ========================================================= */
 
-async function createDriverEarning({
-
+// Idempotent: safe to call on every /complete attempt (first call or a
+// retry/resume after a crash), backed by the driver_earnings_ride_id_unique
+// constraint (see the driver-earnings-unique migration). A ride can never
+// end up with two earnings rows: a second insert attempt for the same
+// ride_id hits that constraint and this function returns the row that
+// already exists instead of erroring or creating a duplicate.
+async function upsertDriverEarningIdempotent({
   ride,
-
   driverId
-
 }) {
-
-  // NOTE: this used to insert/select gross_amount and net_amount, which
-  // are not real columns on driver_earnings (the actual schema is
-  // gross_fare/driver_base_earning/tip_amount/total_earning) — every
-  // insert was silently failing (the error was only console.error'd, never
-  // surfaced), so no driver has ever actually had an earning recorded
-  // here. Fixed to match the real table.
   const driverBaseEarning =
     Number(
       ride.driver_payout || 0
@@ -14714,27 +14635,58 @@ async function createDriverEarning({
 
   };
 
-  const { error } =
+  const { data: inserted, error } =
 
     await supabase
 
       .from("driver_earnings")
 
-      .insert(earning);
+      .insert(earning)
 
-  if (error) {
+      .select()
 
-    console.error(
+      .maybeSingle();
 
-      "❌ Driver earning insert failed:",
+  if (!error) {
 
-      error.message
-
-    );
+    return inserted || earning;
 
   }
 
-  return earning;
+  // 23505 = unique_violation. A controlled lookup by ride_id confirms
+  // this really was the expected idempotent-retry case (rather than
+  // trusting the error string alone) before treating it as success.
+  if (error.code === "23505") {
+
+    const { data: existing, error: lookupError } =
+
+      await supabase
+
+        .from("driver_earnings")
+
+        .select("*")
+
+        .eq("ride_id", ride.id)
+
+        .maybeSingle();
+
+    if (!lookupError && existing) {
+
+      return existing;
+
+    }
+
+  }
+
+  console.error(
+
+    "❌ Driver earning insert failed:",
+
+    error.message
+
+  );
+
+  throw error;
 
 }
 
@@ -14764,17 +14716,19 @@ app.post(
 
     const driverId = req.driver.id;
 
-    const ride =
+    let ride;
 
-      await getRideOrFail(rideId);
+    try {
+      ride = await getRideOrFail(rideId);
+    } catch (err) {
+      return fail(res, "Ride not found.", 404);
+    }
 
-    await ensureAssignedDriver(
-
-      ride,
-
-      driverId
-
-    );
+    try {
+      await ensureAssignedDriver(ride, driverId);
+    } catch (err) {
+      return fail(res, err.message || "Driver is not assigned to this ride.", 403);
+    }
 
     let deliveryProofUrl = null;
 
@@ -14898,63 +14852,93 @@ app.post(
 
     }
 
-    const paymentResult =
+    // Step 1: atomically claim trip-completion, OR -- on a retry/resume
+    // that finds the ride already completed -- fall through to resume
+    // the remaining steps rather than short-circuiting. "Already
+    // completed" is never treated as proof that capture and earnings
+    // also finished; see lib/ridePaymentCapture.js.
+    let completedRide;
 
-      await captureRidePayment(ride);
+    if (ride.status === RIDE_STATUS.IN_PROGRESS) {
 
+      const claim = await claimRideTransition({
+        supabase,
+        rideId,
+        fromStatuses: [RIDE_STATUS.IN_PROGRESS],
+        toStatus: RIDE_STATUS.COMPLETED,
+        patch: {
+          completed_at: nowIso(),
+          ...(isDeliveryRideType(ride.ride_type)
+            ? {
+                delivery_stage: DELIVERY_STAGE.DELIVERED,
+                delivered_at: nowIso(),
+                ...(deliveryProofUrl ? { delivery_proof_url: deliveryProofUrl } : {})
+              }
+            : {})
+        }
+      });
+
+      if (claim.ok) {
+        completedRide = claim.ride;
+      } else if (claim.reason === "not_found") {
+        return fail(res, "Ride not found.", 404);
+      } else if (claim.currentStatus === RIDE_STATUS.COMPLETED) {
+        // Lost the claim to a concurrent request that completed the
+        // trip a moment ago -- resume from there like any other retry.
+        completedRide = claim.ride;
+      } else {
+        auditLog({
+          actor_type: "driver",
+          actor_id: driverId,
+          action: "ride_completed_rejected",
+          entity_type: "ride",
+          entity_id: rideId,
+          metadata: { actual_status: claim.currentStatus },
+          req
+        }).catch(() => {});
+
+        return fail(
+          res,
+          `Ride cannot be completed from its current status (${claim.currentStatus}).`,
+          409,
+          { current_status: claim.currentStatus }
+        );
+      }
+
+    } else if (ride.status === RIDE_STATUS.COMPLETED) {
+      completedRide = ride;
+    } else {
+      return fail(
+        res,
+        `Ride cannot be completed from its current status (${ride.status}).`,
+        409,
+        { current_status: ride.status }
+      );
+    }
+
+    // Step 2: resume/attempt payment capture. Idempotent -- safe whether
+    // this is a true first pass or a resumed retry after any crash
+    // boundary (before capture, mid-capture, or after capture but before
+    // the result was recorded).
+    const captureResult =
+
+      await captureRidePaymentIdempotent(completedRide, req);
+
+    // Step 3: idempotent earnings upsert, unconditional on the capture
+    // outcome -- the driver did the work regardless of whether Harvey's
+    // own Stripe capture succeeded; a capture failure is a business/ops
+    // problem to reconcile separately (see the admin capture-failure
+    // queue), not something that should withhold the driver's own
+    // earning record.
     const earning =
 
-      await createDriverEarning({
+      await upsertDriverEarningIdempotent({
 
-        ride,
+        ride: captureResult.ride,
 
         driverId
 
       });
-
-    await supabase
-
-      .from("rides")
-
-      .update({
-
-        status:
-
-          RIDE_STATUS.COMPLETED,
-
-        completed_at:
-
-          nowIso(),
-
-        payment_captured:
-
-          Boolean(paymentResult),
-
-        updated_at:
-
-          nowIso(),
-
-        ...(isDeliveryRideType(ride.ride_type)
-
-          ? {
-
-              delivery_stage: DELIVERY_STAGE.DELIVERED,
-
-              delivered_at: nowIso(),
-
-              ...(deliveryProofUrl
-
-                ? { delivery_proof_url: deliveryProofUrl }
-
-                : {})
-
-            }
-
-          : {})
-
-      })
-
-      .eq("id", rideId);
 
     const completeIsDelivery = isDeliveryRideType(ride.ride_type);
 
@@ -15000,9 +14984,9 @@ app.post(
 
         earning,
 
-        payment_captured:
+        payment_status:
 
-          Boolean(paymentResult)
+          captureResult.outcome
 
       },
 
@@ -15022,9 +15006,13 @@ app.post(
 
       earning,
 
+      payment_status:
+
+        captureResult.outcome,
+
       payment_captured:
 
-        Boolean(paymentResult)
+        captureResult.outcome === CAPTURE_STATUS.CAPTURED
 
     });
 

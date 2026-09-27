@@ -12,7 +12,18 @@
 // whether or not the caller ever adds .single()/.maybeSingle(), matching
 // real supabase-js's own thenable query builder.
 
-function createFakeSupabase(seed = {}) {
+// `options.uniqueColumns`, e.g. { driver_earnings: ["ride_id"], rides:
+// ["quote_jti"] }, simulates a real UNIQUE constraint on plain insert()
+// (not upsert(), which already has its own conflict-handling path
+// below): a second insert whose value for that column matches an
+// existing row returns a Postgres-shaped 23505 (unique_violation) error
+// instead of silently succeeding, the same way the real database would.
+// A null/undefined value never collides, matching real UNIQUE semantics
+// (and how the corresponding production constraints are declared as
+// partial/nullable-aware indexes). Optional and additive -- omitting it
+// keeps every existing test's behavior unchanged.
+function createFakeSupabase(seed = {}, options = {}) {
+  const uniqueColumns = options.uniqueColumns || {};
   const state = {};
 
   for (const table of Object.keys(seed)) {
@@ -41,6 +52,33 @@ function createFakeSupabase(seed = {}) {
 
       if (pendingInsertRows) {
         const keyField = table === "system_flags" ? "key" : "id";
+
+        if (!isUpsert) {
+          const uniqueCols = uniqueColumns[table] || [];
+
+          for (const record of pendingInsertRows) {
+            for (const col of uniqueCols) {
+              const val = record[col];
+
+              if (val === null || val === undefined) {
+                continue;
+              }
+
+              const conflict = rows.find((r) => r[col] === val);
+
+              if (conflict) {
+                return {
+                  data: null,
+                  error: {
+                    code: "23505",
+                    message: `duplicate key value violates unique constraint "fake_${table}_${col}_unique"`,
+                    details: `Key (${col})=(${val}) already exists.`
+                  }
+                };
+              }
+            }
+          }
+        }
 
         const inserted = pendingInsertRows.map((record) => {
           const clean = { ...record };
