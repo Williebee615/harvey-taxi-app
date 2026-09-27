@@ -2,9 +2,15 @@
 // lib/rideQuote.js's quote.jti, and rides.quote_jti's unique index, as
 // wired into POST /api/rides/request. A replayed quote token (network
 // retry, a double-tapped "Request Ride" button, or a deliberate replay)
-// must return the original ride instead of creating a duplicate -- and
-// must never return a DIFFERENT rider's ride merely because a token/jti
-// collided.
+// must never create a second ride -- that guarantee is unconditional.
+// Whether the duplicate request's own RESPONSE may include the existing
+// ride's details is a separate, narrower question, decided only by a
+// real verified rider session (never a body-supplied rider_id, which is
+// a legacy, unauthenticated value while rider_auth_enforced is off --
+// the current production default and the state under test here, since
+// POST /api/rides/request deliberately does not require a session per
+// the compatibility finding: the live rider client has no working
+// session-issuing UI in production yet).
 
 process.env.NODE_ENV = "test";
 process.env.SUPABASE_URL = "http://localhost:54321";
@@ -17,7 +23,7 @@ process.env.ENABLE_PAYMENT_GATE = "false";
 process.env.ENABLE_RIDER_APPROVAL_GATE = "false";
 
 const { createFakeSupabase } = require("./fakeSupabase");
-const { makeRider, makeDriver } = require("./rideTestHelpers");
+const { makeRider, makeDriver, signTestRiderToken, riderAuthHeaders } = require("./rideTestHelpers");
 
 let mockSupabaseClient;
 
@@ -45,6 +51,8 @@ function resetState(seed) {
 
 const RIDER = makeRider({ id: "RIDER_1" });
 const OTHER_RIDER = makeRider({ id: "RIDER_2", email: "casey@example.test", phone: "+16155550102" });
+const riderToken = signTestRiderToken(RIDER.id, { sessionVersion: 0 });
+const otherRiderToken = signTestRiderToken(OTHER_RIDER.id, { sessionVersion: 0 });
 
 beforeEach(() => {
   resetState({
@@ -81,11 +89,12 @@ async function getQuoteToken(riderId) {
 }
 
 describe("POST /api/rides/request -- quote-token replay protection", () => {
-  test("a replayed token by the same rider returns the original ride, not a duplicate", async () => {
+  test("a replayed token WITH a verified matching session returns the original ride, not a duplicate", async () => {
     const token = await getQuoteToken(RIDER.id);
 
     const first = await request(app)
       .post("/api/rides/request")
+      .set(riderAuthHeaders(riderToken))
       .send({ ...TRIP_BODY_BASE, rider_id: RIDER.id, estimate_token: token });
 
     expect(first.status).toBe(201);
@@ -93,6 +102,7 @@ describe("POST /api/rides/request -- quote-token replay protection", () => {
 
     const second = await request(app)
       .post("/api/rides/request")
+      .set(riderAuthHeaders(riderToken))
       .send({ ...TRIP_BODY_BASE, rider_id: RIDER.id, estimate_token: token });
 
     expect(second.status).toBe(200);
@@ -103,7 +113,74 @@ describe("POST /api/rides/request -- quote-token replay protection", () => {
     expect(mockSupabaseClient._state.rides).toHaveLength(1);
   });
 
-  test("three rapid duplicate requests with the same token still produce exactly one ride", async () => {
+  test("a replayed token with NO session gets a generic 409, even though the body's rider_id matches the original ride's owner", async () => {
+    const token = await getQuoteToken(RIDER.id);
+
+    const first = await request(app)
+      .post("/api/rides/request")
+      .send({ ...TRIP_BODY_BASE, rider_id: RIDER.id, estimate_token: token });
+
+    expect(first.status).toBe(201);
+
+    // No session cookie at all on this second request -- only the
+    // matching body rider_id, which must not be treated as ownership.
+    const second = await request(app)
+      .post("/api/rides/request")
+      .send({ ...TRIP_BODY_BASE, rider_id: RIDER.id, estimate_token: token });
+
+    expect(second.status).toBe(409);
+    expect(second.body.error).toBe("This ride quote has already been used.");
+    expect(second.body.ride).toBeUndefined();
+    expect(second.body.replay).toBeUndefined();
+
+    // The unique constraint still did its job -- no second ride exists,
+    // even though the response revealed nothing about it.
+    expect(mockSupabaseClient._state.rides).toHaveLength(1);
+  });
+
+  test("a replayed token with a verified session for a DIFFERENT rider gets the same generic 409, no ride details leaked", async () => {
+    const token = await getQuoteToken(RIDER.id);
+
+    const first = await request(app)
+      .post("/api/rides/request")
+      .send({ ...TRIP_BODY_BASE, rider_id: RIDER.id, estimate_token: token });
+
+    expect(first.status).toBe(201);
+
+    // A real, valid session -- just not for the rider who owns this ride.
+    const second = await request(app)
+      .post("/api/rides/request")
+      .set(riderAuthHeaders(otherRiderToken))
+      .send({ ...TRIP_BODY_BASE, rider_id: RIDER.id, estimate_token: token });
+
+    expect(second.status).toBe(409);
+    expect(second.body.error).toBe("This ride quote has already been used.");
+    expect(second.body.ride).toBeUndefined();
+    expect(mockSupabaseClient._state.rides).toHaveLength(1);
+  });
+
+  test("three rapid duplicate requests with the same token and a verified session still produce exactly one ride", async () => {
+    const token = await getQuoteToken(RIDER.id);
+    const body = { ...TRIP_BODY_BASE, rider_id: RIDER.id, estimate_token: token };
+
+    const results = await Promise.all([
+      request(app).post("/api/rides/request").set(riderAuthHeaders(riderToken)).send(body),
+      request(app).post("/api/rides/request").set(riderAuthHeaders(riderToken)).send(body),
+      request(app).post("/api/rides/request").set(riderAuthHeaders(riderToken)).send(body)
+    ]);
+
+    // Exactly one request wins the real insert (201); the others racing
+    // against it land on the replay path (200) since all three carry the
+    // same verified session -- either way, all three succeed and agree
+    // on the same ride.
+    results.forEach((res) => expect([200, 201]).toContain(res.status));
+    expect(mockSupabaseClient._state.rides).toHaveLength(1);
+
+    const rideIds = new Set(results.map((res) => res.body.ride.id));
+    expect(rideIds.size).toBe(1);
+  });
+
+  test("three rapid duplicate requests with NO session still never create more than one ride, even though only one gets ride details back", async () => {
     const token = await getQuoteToken(RIDER.id);
     const body = { ...TRIP_BODY_BASE, rider_id: RIDER.id, estimate_token: token };
 
@@ -113,14 +190,14 @@ describe("POST /api/rides/request -- quote-token replay protection", () => {
       request(app).post("/api/rides/request").send(body)
     ]);
 
-    // Exactly one request wins the real insert (201); any others racing
-    // against it land on the replay path (200) -- either way, all three
-    // succeed and agree on the same ride.
-    results.forEach((res) => expect([200, 201]).toContain(res.status));
-    expect(mockSupabaseClient._state.rides).toHaveLength(1);
+    // Exactly one 201 (whichever won the insert); the rest are the
+    // generic 409, since none of them carry a session.
+    const created = results.filter((res) => res.status === 201);
+    const rejected = results.filter((res) => res.status === 409);
 
-    const rideIds = new Set(results.map((res) => res.body.ride.id));
-    expect(rideIds.size).toBe(1);
+    expect(created).toHaveLength(1);
+    expect(rejected).toHaveLength(2);
+    expect(mockSupabaseClient._state.rides).toHaveLength(1);
   });
 
   test("a fresh (unused) token from a new estimate always creates a new ride", async () => {

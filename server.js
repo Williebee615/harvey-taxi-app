@@ -3460,67 +3460,85 @@ const {
 // don't carry a body a forged cross-site form/fetch could use to change
 // state, so only non-GET methods require it, matching this cookie
 // design's own stated rationale.
+// The actual verification pipeline, factored out of requireRider so it
+// can also back resolveVerifiedRiderSession() below (an *optional*-
+// session variant used only where a route must keep working for a
+// sessionless caller, but a present, valid session's identity may be
+// trusted for something narrow -- see POST /api/rides/request's
+// quote-replay handling). Identical checks, identical order, as
+// requireRider always ran -- this refactor changes nothing about
+// requireRider's own behavior for any existing caller.
+async function verifyRiderSessionFromRequest(req) {
+  if (req.method !== "GET" && !hasRiderClientHeader(req)) {
+    return { ok: false, statusCode: 403, message: "This request could not be verified." };
+  }
+
+  if (!RIDER_SESSION_SECRET) {
+    console.error("❌ verifyRiderSessionFromRequest: RIDER_SESSION_SECRET is not configured.");
+    return { ok: false, statusCode: 503, message: "Rider authentication is not available right now." };
+  }
+
+  const token = readRiderSessionCookie(req);
+  const verification = token
+    ? verifyRiderSession({ token, secret: RIDER_SESSION_SECRET })
+    : { ok: false, reason: "no_session" };
+
+  let riderRow = null;
+
+  if (verification.ok) {
+    const { data, error } = await supabase
+      .from("riders")
+      .select("*")
+      .eq("id", verification.riderId)
+      .maybeSingle();
+
+    if (error) {
+      console.error("❌ verifyRiderSessionFromRequest: failed to load rider row:", error);
+      return { ok: false, statusCode: 500, message: "Something went wrong verifying your session." };
+    }
+
+    riderRow = data || null;
+  }
+
+  const outcome = resolveRiderAuthOutcome({ verification, riderRow });
+
+  if (!outcome.ok) {
+    return { ok: false, statusCode: outcome.statusCode, message: outcome.message };
+  }
+
+  // Google Play reviewer-account kill switch: re-checked on every
+  // authenticated request, not just at login, so disabling
+  // review_account_login_enabled immediately rejects an already-issued
+  // reviewer session cookie rather than only blocking new logins.
+  // riderRow was just freshly loaded above -- this never trusts anything
+  // from the request itself.
+  const reviewOutcome = resolveReviewSessionOutcome({
+    row: riderRow,
+    reviewLoginEnabled: await reviewAccountLoginEnabled()
+  });
+
+  if (!reviewOutcome.ok) {
+    return { ok: false, statusCode: reviewOutcome.statusCode, message: reviewOutcome.message };
+  }
+
+  return { ok: true, riderRow, shouldRenew: outcome.shouldRenew };
+}
+
 async function requireRider(req, res, next) {
   try {
-    if (req.method !== "GET" && !hasRiderClientHeader(req)) {
-      return fail(res, "This request could not be verified.", 403);
+    const result = await verifyRiderSessionFromRequest(req);
+
+    if (!result.ok) {
+      return fail(res, result.message, result.statusCode);
     }
 
-    if (!RIDER_SESSION_SECRET) {
-      console.error("❌ requireRider: RIDER_SESSION_SECRET is not configured.");
-      return fail(res, "Rider authentication is not available right now.", 503);
-    }
-
-    const token = readRiderSessionCookie(req);
-    const verification = token
-      ? verifyRiderSession({ token, secret: RIDER_SESSION_SECRET })
-      : { ok: false, reason: "no_session" };
-
-    let riderRow = null;
-
-    if (verification.ok) {
-      const { data, error } = await supabase
-        .from("riders")
-        .select("*")
-        .eq("id", verification.riderId)
-        .maybeSingle();
-
-      if (error) {
-        console.error("❌ requireRider: failed to load rider row:", error);
-        return fail(res, "Something went wrong verifying your session.", 500);
-      }
-
-      riderRow = data || null;
-    }
-
-    const outcome = resolveRiderAuthOutcome({ verification, riderRow });
-
-    if (!outcome.ok) {
-      return fail(res, outcome.message, outcome.statusCode);
-    }
-
-    // Google Play reviewer-account kill switch: re-checked on every
-    // authenticated request, not just at login, so disabling
-    // review_account_login_enabled immediately rejects an
-    // already-issued reviewer session cookie rather than only blocking
-    // new logins. riderRow was just freshly loaded above -- this never
-    // trusts anything from the request itself.
-    const reviewOutcome = resolveReviewSessionOutcome({
-      row: riderRow,
-      reviewLoginEnabled: await reviewAccountLoginEnabled()
-    });
-
-    if (!reviewOutcome.ok) {
-      return fail(res, reviewOutcome.message, reviewOutcome.statusCode);
-    }
-
-    req.rider = riderRow;
+    req.rider = result.riderRow;
     req.riderAuthMethod = "rider_session";
 
-    if (outcome.shouldRenew) {
+    if (result.shouldRenew) {
       const freshToken = signRiderSession({
-        riderId: riderRow.id,
-        sessionVersion: Number.isInteger(riderRow.session_version) ? riderRow.session_version : 0,
+        riderId: result.riderRow.id,
+        sessionVersion: Number.isInteger(result.riderRow.session_version) ? result.riderRow.session_version : 0,
         secret: RIDER_SESSION_SECRET,
         ttlHours: RIDER_SESSION_TTL_HOURS
       });
@@ -3532,6 +3550,26 @@ async function requireRider(req, res, next) {
   } catch (err) {
     console.error("❌ requireRider unexpected error:", err);
     return fail(res, "Something went wrong verifying your session.", 500);
+  }
+}
+
+// Optional-session variant: returns the verified rider row if this
+// request carries a real, currently-valid rider session, or null
+// otherwise -- never fails/rejects the request itself. For routes that
+// must keep working for a genuinely sessionless caller (like
+// POST /api/rides/request today, since the live rider client has no
+// session-issuing UI in production yet -- see the rider-auth rollout
+// notes), but where a session, if one IS present and valid, may be
+// trusted for a narrow purpose. Never renews the session cookie (no
+// side effect on a route that isn't primarily an authenticated
+// endpoint).
+async function resolveVerifiedRiderSession(req) {
+  try {
+    const result = await verifyRiderSessionFromRequest(req);
+    return result.ok ? result.riderRow : null;
+  } catch (err) {
+    console.error("❌ resolveVerifiedRiderSession unexpected error:", err);
+    return null;
   }
 }
 
@@ -12039,26 +12077,23 @@ app.post(
           : null,
 
       // Replay-protection identity: quote.jti is unique per signed quote
-      // (lib/rideQuote.js). rides.quote_jti carries a unique partial
-      // index (see the quote-jti-idempotency migration), so a second
-      // ride-creation attempt presenting the SAME still-valid token
-      // collides on that constraint instead of creating a duplicate ride
-      // -- handled below by a controlled lookup, not by parsing the
-      // error string.
+      // (lib/rideQuote.js), cryptographically random, generated only at
+      // /api/rides/estimate time and never client-suppliable. rides.
+      // quote_jti carries a unique partial index (see the
+      // quote-jti-idempotency migration), so a second ride-creation
+      // attempt presenting the SAME still-valid token can never create a
+      // second ride -- that guarantee is unconditional and does not
+      // depend on rider_auth_enforced at all.
       //
-      // Honest limitation: quoteMatchesSubmission() (lib/rideQuote.js)
-      // already requires this request's riderId to equal the quote's own
-      // embedded rider_id, so by the time this insert runs, the two
-      // already agree by construction -- the ownership check below is
-      // real defense-in-depth, not a NEW authentication boundary, under
-      // today's actual identity model (riderId here is
-      // resolveEnforcedRiderId()'s result, which is a genuine
-      // session-authenticated id only once rider_auth_enforced is
-      // turned on; while it's off -- the current production default --
-      // it's still the client-supplied value, same as every other
-      // rider-owned field on this route). It becomes a real
-      // authenticated-ownership guarantee automatically once that flag
-      // is on, with no further change needed here.
+      // What DOES depend on that flag is only whether the duplicate
+      // request's response may include the existing ride's details: see
+      // the unique-violation handling below, which resolves a real
+      // verified session (resolveVerifiedRiderSession) independently of
+      // `riderId` -- `riderId` a few lines up is resolveEnforcedRiderId()'s
+      // result, a LEGACY, UNAUTHENTICATED value (client-supplied
+      // rider_id/localStorage-cached id) while rider_auth_enforced is off
+      // (the current production default), and is never used to decide
+      // what a replay response reveals.
       quote_jti:
 
         quote.jti || null,
@@ -12101,35 +12136,55 @@ app.post(
 
             .maybeSingle();
 
-        if (!lookupError && existingRide && String(existingRide.rider_id || "") === String(riderId || "")) {
+        // Real duplicate-creation protection: the unique index on
+        // rides.quote_jti already guarantees the SECOND insert attempt
+        // above never created a second ride, regardless of anything
+        // below. What's decided here is only whether THIS response may
+        // include the existing ride's details.
+        //
+        // That decision is never based on riderId (resolveEnforcedRiderId's
+        // result) -- while rider_auth_enforced is off, riderId is a
+        // legacy, unauthenticated value read straight from the request
+        // body, and a matching body-supplied rider_id (or a matching
+        // value cached in the client's own localStorage) is not proof of
+        // who is actually asking. Only a real, currently-valid rider
+        // session (resolveVerifiedRiderSession -- the cookie, verified
+        // the same way requireRider verifies it) may unlock the replay
+        // response. No session, or a session that doesn't match the
+        // existing ride's own rider_id, gets the same generic 409 either
+        // way -- this must not leak whether a match failed versus no
+        // session existed at all.
+        if (!lookupError && existingRide) {
 
-          // Genuine idempotent replay of the same quote by the same
-          // (session- or client-identified) rider -- return the
-          // original ride's current state rather than creating a
-          // duplicate or erroring. Side effects (notification, dispatch)
-          // already ran on the original request and are not repeated.
-          auditLog({
-            actor_type: "rider",
-            actor_id: riderId || null,
-            action: "ride_request_replay_detected",
-            entity_type: "ride",
-            entity_id: existingRide.id,
-            req
-          }).catch(() => {});
+          const verifiedRider = await resolveVerifiedRiderSession(req);
 
-          return ok(res, {
-            ride: existingRide,
-            dispatch: null,
-            replay: true
-          });
+          if (verifiedRider && String(existingRide.rider_id || "") === String(verifiedRider.id)) {
+
+            auditLog({
+              actor_type: "rider",
+              actor_id: verifiedRider.id,
+              action: "ride_request_replay_detected",
+              entity_type: "ride",
+              entity_id: existingRide.id,
+              req
+            }).catch(() => {});
+
+            return ok(res, {
+              ride: existingRide,
+              dispatch: null,
+              replay: true
+            });
+
+          }
 
         }
 
-        // Either the lookup itself failed, or the existing ride belongs
-        // to a different rider than this request claims -- never return
-        // another rider's ride merely because a token/jti collided.
-        // Generic response on purpose: no detail about what exists.
-        return fail(res, "This ride request could not be completed.", 409);
+        // No verified session, a session that doesn't match, or the
+        // lookup itself failed -- never return ride details based on a
+        // body-supplied identity. Generic response on purpose: no detail
+        // about what exists, and no distinction between "already used"
+        // and "used by someone else."
+        return fail(res, "This ride quote has already been used.", 409);
 
       }
 
@@ -13105,6 +13160,18 @@ async function handleRideCancellation({ req, res, ride, actorType, actorId, reas
   });
 }
 
+// Protected by requireRider UNCONDITIONALLY -- not gated behind
+// rider_auth_enforced like the #97/#115/#118 route chain, because no
+// existing client calls this route today, so there is no legacy
+// unauthenticated behavior to preserve. This also means the route is
+// currently unusable by any real rider in production: no rider-facing
+// UI may call it (e.g. a "Cancel Ride" button on rider-dashboard.html
+// or request-ride.html) until real rider sessions actually exist,
+// which requires rider_auth_ui_enabled to be turned on and the OTP
+// sign-in flow to be live-validated first -- see
+// docs/security-remediation/code-blue-phase1-rider-auth-prerequisites.md.
+// Wiring a cancel button into the UI before then would 401 for every
+// rider, since none would have a session cookie to present.
 app.post(
   "/api/rides/:id/cancel",
   requireRider,
