@@ -150,7 +150,26 @@ function createFakeSupabase(seed = {}) {
 
   return {
     from: (table) => makeBuilder(table),
-    rpc: async () => ({ data: null, error: null }),
+    // dispatch_ride_atomic gets a distinct default: the fake has no real
+    // implementation of its atomic offer-creation/eligibility-recheck
+    // logic, so reporting it as errored (not merely "no data") is the
+    // honest default -- it makes dispatchRide() correctly exercise its
+    // two-step fallback path in any test that doesn't specifically care
+    // about the RPC's own behavior, the same way a genuinely
+    // missing/erroring RPC would in production. Tests that DO care about
+    // dispatch_ride_atomic's behavior (candidate loop, eligibility
+    // decline, etc.) override this per-test by reassigning
+    // mockSupabaseClient.rpc directly.
+    rpc: async (name) => {
+      if (name === "dispatch_ride_atomic") {
+        return {
+          data: null,
+          error: { message: "dispatch_ride_atomic is not implemented in the test fake" }
+        };
+      }
+
+      return { data: null, error: null };
+    },
     _state: state
   };
 }

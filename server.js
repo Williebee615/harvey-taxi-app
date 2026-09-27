@@ -9343,6 +9343,35 @@ const {
 // who neither accepted nor declined left the ride stuck indefinitely.
 const { sweepExpiredOffers, sweepStuckRedispatches } = require("./lib/offerExpiry");
 
+// Centralized ride-status transition table and the one atomic
+// claim-a-transition primitive every status-changing route should use.
+// See lib/rideLifecycle.js for the full transition graph.
+const { isValidTransition, claimRideTransition } = require("./lib/rideLifecycle");
+
+// Rider-cancellation policy and Stripe-void resumability decisions. Driver
+// *withdrawal* is a separate, simpler operation (see POST /api/driver/
+// rides/:rideId/withdraw below) and doesn't need this module.
+const {
+  CANCELLATION_PAYMENT_STATUS,
+  isCancellable,
+  hasAssignedDriver,
+  cancelPaymentIdempotencyKey,
+  decideCancelPaymentAction
+} = require("./lib/rideCancellation");
+
+// Recoverable payment-capture workflow for ride completion.
+const {
+  CAPTURE_STATUS,
+  captureIdempotencyKey,
+  decideCaptureAction
+} = require("./lib/ridePaymentCapture");
+
+// Busy-driver exclusion for the Node-side driver-matching fallback (the
+// nearest_drivers() RPC gets the equivalent SQL exclusion directly, plus
+// a real concurrency guarantee in dispatch_ride_atomic() -- see the
+// dispatch-functions-hardening migration).
+const { excludeBusyDrivers, getBusyDriverIds } = require("./lib/driverAvailability");
+
 /* =========================================================
 
    ETA / DISTANCE-TO-PICKUP PERSISTENCE — SUPABASE ADAPTERS
@@ -9818,23 +9847,29 @@ async function findAvailableDrivers({
 
   }
 
-  // Fallback: original in-Node distance computation.
+  // Fallback: original in-Node distance computation. Also excludes any
+  // driver already assigned to another active ride (driver_assigned/
+  // driver_enroute/arrived/in_progress) -- matching-time only, same as
+  // nearest_drivers()'s own exclusion; this fallback path has no
+  // equivalent to dispatch_ride_atomic()'s in-transaction re-check, so it
+  // cannot offer the same concurrency guarantee, only the same filter.
 
-  const { data, error } =
-
-    await supabase
-
+  const [{ data, error }, busyDriverIds] = await Promise.all([
+    supabase
       .from("drivers")
-
       .select("*")
-
       .eq("online", true)
-
       .eq("status", "active")
-
       .eq("approval_status", "approved")
-
-      .limit(50);
+      .limit(50),
+    getBusyDriverIds({ supabase }).catch((busyErr) => {
+      console.warn(
+        "⚠️ Could not load busy-driver ids for dispatch fallback filter:",
+        busyErr.message
+      );
+      return [];
+    })
+  ]);
 
   if (error) {
 
@@ -9842,7 +9877,7 @@ async function findAvailableDrivers({
 
   }
 
-  return (data || [])
+  return excludeBusyDrivers(data || [], busyDriverIds)
 
     .filter((driver) => !excludeSet.has(String(driver.id)))
 
@@ -10192,37 +10227,60 @@ async function dispatchRide(ride) {
 
   }
 
-  const firstDriver =
+  // Preferred path: dispatch_ride_atomic() creates the offer AND updates
+  // the ride, holding a driver-scoped advisory lock plus an in-transaction
+  // eligibility re-check (see the dispatch-functions-hardening migration)
+  // -- the actual concurrency guarantee, not merely the fact that
+  // `drivers` was already filtered to exclude busy drivers above.
+  //
+  // Tried once per candidate, in order: a `driver_no_longer_available`
+  // outcome is a normal, expected result of that re-check catching a
+  // driver who became ineligible between the matching query above and
+  // this call (e.g. a concurrent dispatch just assigned them elsewhere)
+  // -- the correct response is to try the NEXT candidate, never to fall
+  // back to the old two-step flow for that same driver, since the
+  // fallback has no equivalent re-check and would simply re-offer to the
+  // driver this call just correctly rejected.
+  //
+  // The two-step fallback below is reached only if the RPC itself is
+  // genuinely unavailable or errors outright (transport failure, RPC
+  // missing) -- a caller-level problem distinct from an ordinary
+  // per-candidate decline.
+  let rpcUnavailable = false;
 
-    drivers[0];
+  for (const candidate of drivers) {
 
-  // Preferred path: single atomic RPC creates the offer AND
+    try {
 
-  // updates the ride under a row lock, so two concurrent
+      const { data: rpcResult, error: rpcError } =
 
-  // dispatch attempts cannot race or overwrite each other.
+        await supabase.rpc("dispatch_ride_atomic", {
 
-  // Requires dispatch_ride_atomic() from the scalability
+          p_ride_id: ride.id,
 
-  // migration. Falls back to the two-step flow if absent.
+          p_driver_id: candidate.id,
 
-  try {
+          p_expires_seconds:
 
-    const { data: rpcResult, error: rpcError } =
+            envNumber("DISPATCH_TIMEOUT_SECONDS", 30)
 
-      await supabase.rpc("dispatch_ride_atomic", {
+        });
 
-        p_ride_id: ride.id,
+      if (rpcError) {
 
-        p_driver_id: firstDriver.id,
+        console.warn(
 
-        p_expires_seconds:
+          "⚠️ dispatch_ride_atomic RPC unavailable, using two-step fallback:",
 
-          envNumber("DISPATCH_TIMEOUT_SECONDS", 30)
+          rpcError.message
 
-      });
+        );
 
-    if (!rpcError && rpcResult) {
+        rpcUnavailable = true;
+
+        break;
+
+      }
 
       const result =
 
@@ -10232,11 +10290,11 @@ async function dispatchRide(ride) {
 
           : rpcResult;
 
-      if (result && result.offer_id) {
+      if (result && result.outcome === "created" && result.offer_id) {
 
         sendPushNotification({
           ownerType: "driver",
-          ownerId: firstDriver.id,
+          ownerId: candidate.id,
           title: "New Ride Request",
           body: `Pickup: ${ride.pickup_address || "See app for details"}`,
           url: "/driver-dashboard.html"
@@ -10246,8 +10304,8 @@ async function dispatchRide(ride) {
         // computeAndPersistEta() already guarantees it can't throw.
         persistPickupEtaBestEffort({
           rideId: ride.id,
-          driverLat: firstDriver.current_lat,
-          driverLng: firstDriver.current_lng,
+          driverLat: candidate.current_lat,
+          driverLng: candidate.current_lng,
           pickupLat: ride.pickup_lat,
           pickupLng: ride.pickup_lng
         }).catch(() => {});
@@ -10262,11 +10320,11 @@ async function dispatchRide(ride) {
 
             ride_id: ride.id,
 
-            driver_id: firstDriver.id
+            driver_id: candidate.id
 
           },
 
-          driver: firstDriver,
+          driver: candidate,
 
           atomic: true
 
@@ -10274,33 +10332,76 @@ async function dispatchRide(ride) {
 
       }
 
-    }
-
-    if (rpcError) {
-
       console.warn(
 
-        "⚠️ dispatch_ride_atomic RPC unavailable, using two-step fallback:",
+        `⚠️ dispatch_ride_atomic declined driver ${candidate.id} for ride ${ride.id}: ` +
 
-        rpcError.message
+        (result && result.outcome ? result.outcome : "no result")
 
       );
 
+    } catch (rpcErr) {
+
+      console.warn(
+
+        "⚠️ dispatch_ride_atomic threw, using two-step fallback:",
+
+        rpcErr.message
+
+      );
+
+      rpcUnavailable = true;
+
+      break;
+
     }
-
-  } catch (rpcErr) {
-
-    console.warn(
-
-      "⚠️ dispatch_ride_atomic threw, using two-step fallback:",
-
-      rpcErr.message
-
-    );
 
   }
 
-  // Fallback: original non-atomic two-step flow.
+  if (!rpcUnavailable) {
+
+    // The RPC itself is working -- every candidate was tried through it
+    // and none succeeded. Equivalent to no drivers being available.
+    await supabase
+
+      .from("rides")
+
+      .update({
+
+        status:
+
+          RIDE_STATUS.FAILED,
+
+        dispatch_status:
+
+          "no_drivers_available",
+
+        updated_at:
+
+          nowIso()
+
+      })
+
+      .eq("id", ride.id);
+
+    return {
+
+      dispatched: false,
+
+      reason: "No available drivers."
+
+    };
+
+  }
+
+  // Fallback: non-atomic two-step flow, reached only because the RPC
+  // itself was unavailable/erroring, not because a specific driver was
+  // declined. Uses only the first candidate, matching this fallback's
+  // pre-existing (pre-loop) behavior -- it has no eligibility re-check of
+  // its own to justify trying more than one.
+  const firstDriver =
+
+    drivers[0];
 
   const offer =
 
@@ -10320,39 +10421,58 @@ async function dispatchRide(ride) {
 
     });
 
-  await supabase
+  // current_driver_id does not exist as a column on rides (see the
+  // dispatch-functions-hardening migration's historical-record comment
+  // for the full explanation) -- this write used to be silently
+  // discarded by an unchecked update, along with every other field in
+  // this same call, since PostgREST rejects the whole statement when any
+  // referenced column doesn't exist. Dropped, and the write is now
+  // checked.
+  const { error: fallbackUpdateError } =
 
-    .from("rides")
+    await supabase
 
-    .update({
+      .from("rides")
 
-      status:
+      .update({
 
-        RIDE_STATUS.AWAITING_DRIVER,
+        status:
 
-      dispatch_status:
+          RIDE_STATUS.AWAITING_DRIVER,
 
-        "offer_sent",
+        dispatch_status:
 
-      current_offer_id:
+          "offer_sent",
 
-        offer.id,
+        current_offer_id:
 
-      current_driver_id:
+          offer.id,
 
-        firstDriver.id,
+        dispatch_attempts:
 
-      dispatch_attempts:
+          1,
 
-        1,
+        updated_at:
 
-      updated_at:
+          nowIso()
 
-        nowIso()
+      })
 
-    })
+      .eq("id", ride.id);
 
-    .eq("id", ride.id);
+  if (fallbackUpdateError) {
+
+    console.error(
+
+      "❌ Failed to update ride after fallback offer creation:",
+
+      fallbackUpdateError.message
+
+    );
+
+    throw fallbackUpdateError;
+
+  }
 
   sendPushNotification({
     ownerType: "driver",
