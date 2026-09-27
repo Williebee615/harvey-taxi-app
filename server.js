@@ -17224,9 +17224,40 @@ app.get(
 
 /* =========================================================
 
-   ADMIN UPDATE RIDE STATUS
+   ADMIN UPDATE RIDE STATUS (narrowly scoped)
+
+   Used to accept ANY RIDE_STATUS value with only an optional free-text
+   note and no Stripe-side consequence -- an admin could silently move a
+   ride to completed or cancelled without ever touching the associated
+   PaymentIntent, or "correct" a ride that was already completed/
+   cancelled. That's exactly the class of bug this phase is closing
+   everywhere else (lifecycle rules bypassed, payment operations skipped
+   silently), so this route no longer allows it either.
+
+   Narrowed to: a small, explicit allow-list of non-terminal, non-payment-
+   sensitive corrections (unsticking a ride that never dispatched, or
+   manually retrying dispatch on one that failed) -- nothing that touches
+   an assigned driver, an in-progress trip, or either terminal status.
+   completed and cancelled can be neither the source nor the destination
+   of a change made through this route, full stop. A reason is now
+   required, not optional.
+
+   Cancellation, payment/refund reconciliation, and any genuine
+   post-in_progress incident each have their own dedicated route (see
+   POST /api/rides/:id/cancel, POST /api/driver/rides/:rideId/withdraw,
+   POST /api/admin/payments/:rideId/reconcile, and
+   POST /api/admin/rides/:id/incident-resolve below) -- this route is not
+   a substitute for any of them.
 
 ========================================================= */
+
+const ADMIN_STATUS_ALLOWED_TRANSITIONS = Object.freeze({
+  [RIDE_STATUS.DRAFT]: [RIDE_STATUS.FAILED],
+  [RIDE_STATUS.PAYMENT_REQUIRED]: [RIDE_STATUS.FAILED],
+  [RIDE_STATUS.PAYMENT_AUTHORIZED]: [RIDE_STATUS.FAILED],
+  [RIDE_STATUS.AWAITING_DRIVER]: [RIDE_STATUS.FAILED],
+  [RIDE_STATUS.FAILED]: [RIDE_STATUS.AWAITING_DRIVER]
+});
 
 app.patch(
 
@@ -17256,61 +17287,74 @@ app.patch(
 
       );
 
-    const allowed =
+    const reason = cleanString(req.body.reason || req.body.note, 1000);
 
-      Object.values(RIDE_STATUS);
+    if (!reason) {
+      return fail(res, "A reason is required to change a ride's status.", 400);
+    }
 
-    if (!allowed.includes(status)) {
+    let ride;
+
+    try {
+      ride = await getRideOrFail(rideId);
+    } catch (err) {
+      return fail(res, "Ride not found.", 404);
+    }
+
+    const allowedTargets = ADMIN_STATUS_ALLOWED_TRANSITIONS[ride.status] || [];
+
+    if (!allowedTargets.includes(status)) {
+
+      auditLog({
+        actor_type: "admin",
+        actor_id: req.admin.email,
+        action: "admin_ride_status_update_rejected",
+        entity_type: "ride",
+        entity_id: rideId,
+        metadata: { attempted_status: status, current_status: ride.status, reason },
+        req
+      }).catch(() => {});
 
       return fail(
 
         res,
 
-        "Invalid ride status.",
+        `This route cannot move a ride from ${ride.status} to ${status}. ` +
+          `Use the dedicated cancellation, withdrawal, payment-reconciliation, or ` +
+          `incident-resolution operation instead.`,
 
-        400,
+        409,
 
-        { allowed }
+        { current_status: ride.status, allowed_targets: allowedTargets }
 
       );
 
     }
 
-    const { data, error } =
+    const claim = await claimRideTransition({
+      supabase,
+      rideId,
+      fromStatuses: [ride.status],
+      toStatus: status,
+      patch: {
+        admin_note: reason,
+        updated_at: nowIso()
+      }
+    });
 
-      await supabase
+    if (!claim.ok) {
 
-        .from("rides")
+      return fail(
 
-        .update({
+        res,
 
-          status,
+        `Ride status changed before this update could apply (now ${claim.currentStatus}).`,
 
-          admin_note:
+        409,
 
-            cleanString(
+        { current_status: claim.currentStatus }
 
-              req.body.note,
-
-              1000
-
-            ),
-
-          updated_at:
-
-            nowIso()
-
-        })
-
-        .eq("id", rideId)
-
-        .select(ADMIN_RIDE_MUTATION_FIELDS.join(","))
-
-        .single();
-
-    if (error) {
-
-      throw error;
+      );
 
     }
 
@@ -17338,11 +17382,11 @@ app.patch(
 
       metadata: {
 
+        from_status: ride.status,
+
         status,
 
-        note:
-
-          req.body.note || null
+        reason
 
       },
 
@@ -17350,11 +17394,19 @@ app.patch(
 
     }).catch(() => {});
 
+    // Field-minimized response/broadcast, same as this route always
+    // required (claimRideTransition's own return is the full row, since
+    // it's a generic shared primitive -- the minimization is applied
+    // here, at the one admin-facing call site that needs it).
+    const minimizedRide = Object.fromEntries(
+      ADMIN_RIDE_MUTATION_FIELDS.map((field) => [field, claim.ride[field]])
+    );
+
     broadcastSse(
 
       "ride_updated",
 
-      { ride: data }
+      { ride: minimizedRide }
 
     );
 
@@ -17362,12 +17414,229 @@ app.patch(
 
       ride:
 
-        data
+        minimizedRide
 
     });
 
   })
 
+);
+
+/* =========================================================
+
+   ADMIN PAYMENT RECONCILIATION (manual retry)
+
+   A single, general endpoint for both stuck failure modes this phase
+   introduces persisted state for -- a failed completion capture
+   (rides.payment_status = 'capture_failed') and a failed cancellation
+   void (rides.cancellation_payment_status = 'cancel_failed') -- rather
+   than two near-identical routes. Manual/admin-triggered only; nothing
+   in this phase retries either automatically.
+
+========================================================= */
+
+app.post(
+  "/api/admin/payments/:rideId/reconcile",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const rideId = cleanString(req.params.rideId, 100);
+
+    let ride;
+
+    try {
+      ride = await getRideOrFail(rideId);
+    } catch (err) {
+      return fail(res, "Ride not found.", 404);
+    }
+
+    const results = {};
+
+    if (ride.payment_status === CAPTURE_STATUS.CAPTURE_FAILED) {
+      const captureResult = await captureRidePaymentIdempotent(ride, req);
+      results.capture = captureResult.outcome;
+      ride = captureResult.ride;
+    }
+
+    if (ride.cancellation_payment_status === CANCELLATION_PAYMENT_STATUS.CANCEL_FAILED) {
+      const cancelResult = await reconcileCancellationPayment(ride, req);
+      results.cancellation = cancelResult.outcome;
+      ride = cancelResult.ride;
+    }
+
+    if (!Object.keys(results).length) {
+      return fail(
+        res,
+        "This ride has no failed payment or cancellation reconciliation to retry.",
+        400,
+        {
+          payment_status: ride.payment_status,
+          cancellation_payment_status: ride.cancellation_payment_status
+        }
+      );
+    }
+
+    auditLog({
+      actor_type: "admin",
+      actor_id: req.admin.email,
+      action: "admin_payment_reconciliation_retried",
+      entity_type: "ride",
+      entity_id: rideId,
+      metadata: results,
+      req
+    }).catch(() => {});
+
+    return ok(res, {
+      ride_id: rideId,
+      results,
+      payment_status: ride.payment_status,
+      cancellation_payment_status: ride.cancellation_payment_status
+    });
+  })
+);
+
+/* =========================================================
+
+   ADMIN INCIDENT RESOLUTION
+
+   The one narrowly-scoped, explicitly-authorized exception to "self-
+   service cancellation stops at in_progress." Requires a reason and
+   states explicitly what happens to payment -- there is no default, so
+   this can never silently perform or omit a Stripe operation. Not a
+   general-purpose status editor: resolution is exactly one of
+   'cancelled_by_incident' or 'force_completed_by_incident'.
+
+========================================================= */
+
+const INCIDENT_RESOLUTIONS = Object.freeze([
+  "cancelled_by_incident",
+  "force_completed_by_incident"
+]);
+
+const INCIDENT_PAYMENT_ACTIONS = Object.freeze(["capture", "void", "leave_pending"]);
+
+app.post(
+  "/api/admin/rides/:id/incident-resolve",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const rideId = cleanString(req.params.id, 100);
+    const reason = cleanString(req.body.reason, 1000);
+    const resolution = cleanString(req.body.resolution, 60);
+    const paymentAction = cleanString(req.body.payment_action, 30);
+
+    if (!reason) {
+      return fail(res, "A reason is required for an incident resolution.", 400);
+    }
+
+    if (!INCIDENT_RESOLUTIONS.includes(resolution)) {
+      return fail(res, "resolution must be one of: " + INCIDENT_RESOLUTIONS.join(", "), 400);
+    }
+
+    if (!INCIDENT_PAYMENT_ACTIONS.includes(paymentAction)) {
+      return fail(
+        res,
+        "payment_action is required and must be one of: " + INCIDENT_PAYMENT_ACTIONS.join(", "),
+        400
+      );
+    }
+
+    let ride;
+
+    try {
+      ride = await getRideOrFail(rideId);
+    } catch (err) {
+      return fail(res, "Ride not found.", 404);
+    }
+
+    if (ride.status === RIDE_STATUS.COMPLETED || ride.status === RIDE_STATUS.CANCELLED) {
+      return fail(
+        res,
+        `Ride is already terminal (${ride.status}); an incident resolution cannot change it.`,
+        409,
+        { current_status: ride.status }
+      );
+    }
+
+    const toStatus =
+      resolution === "cancelled_by_incident" ? RIDE_STATUS.CANCELLED : RIDE_STATUS.COMPLETED;
+
+    const claim = await claimRideTransition({
+      supabase,
+      rideId,
+      fromStatuses: [ride.status],
+      toStatus,
+      patch: {
+        [toStatus === RIDE_STATUS.CANCELLED ? "cancelled_at" : "completed_at"]: nowIso(),
+        ...(toStatus === RIDE_STATUS.CANCELLED
+          ? {
+              cancellation_reason: reason,
+              cancelled_by_type: "admin",
+              cancelled_by_id: req.admin.email
+            }
+          : {}),
+        admin_note: reason,
+        updated_at: nowIso()
+      }
+    });
+
+    if (!claim.ok) {
+      return fail(
+        res,
+        `Ride status changed before this resolution could apply (now ${claim.currentStatus}).`,
+        409,
+        { current_status: claim.currentStatus }
+      );
+    }
+
+    let paymentOutcome = "leave_pending";
+
+    if (paymentAction === "capture") {
+      const captureResult = await captureRidePaymentIdempotent(claim.ride, req);
+      paymentOutcome = captureResult.outcome;
+    } else if (paymentAction === "void") {
+      const cancelResult = await reconcileCancellationPayment(claim.ride, req);
+      paymentOutcome = cancelResult.outcome;
+    }
+
+    if (toStatus === RIDE_STATUS.CANCELLED && claim.ride.driver_id) {
+      sendPushNotification({
+        ownerType: "driver",
+        ownerId: claim.ride.driver_id,
+        title: "Ride Cancelled",
+        body: "This ride was cancelled by an administrator and is no longer assigned to you.",
+        url: "/driver-dashboard.html"
+      }).catch(() => {});
+    }
+
+    notifyRideStage(
+      ride,
+      toStatus === RIDE_STATUS.CANCELLED ? "ride_cancelled" : "ride_completed"
+    ).catch(() => {});
+
+    broadcastRideSse(rideId, "stage", { status: toStatus });
+
+    auditLog({
+      actor_type: "admin",
+      actor_id: req.admin.email,
+      action: "admin_ride_incident_resolved",
+      entity_type: "ride",
+      entity_id: rideId,
+      metadata: {
+        resolution,
+        reason,
+        payment_action: paymentAction,
+        payment_outcome: paymentOutcome,
+        from_status: ride.status
+      },
+      req
+    }).catch(() => {});
+
+    return ok(res, {
+      ride_id: rideId,
+      status: toStatus,
+      payment_action: paymentAction,
+      payment_outcome: paymentOutcome
+    });
+  })
 );
 
 /* =========================================================
