@@ -14986,10 +14986,11 @@ app.post(
 // the original result instead of creating a second capture. Returns the
 // ride row as last persisted (not the pre-call snapshot), so the
 // caller always has current state regardless of which branch ran.
-async function captureRidePaymentIdempotent(ride, req = null) {
+async function captureRidePaymentIdempotent(ride, req = null, { forceRetry = false } = {}) {
   const decision = decideCaptureAction({
     ride,
-    stripeConfigured: Boolean(ENABLE_PAYMENT_GATE && stripe)
+    stripeConfigured: Boolean(ENABLE_PAYMENT_GATE && stripe),
+    forceRetry
   });
 
   if (decision.action === "skip") {
@@ -17466,7 +17467,7 @@ app.post(
     const results = {};
 
     if (ride.payment_status === CAPTURE_STATUS.CAPTURE_FAILED) {
-      const captureResult = await captureRidePaymentIdempotent(ride, req);
+      const captureResult = await captureRidePaymentIdempotent(ride, req, { forceRetry: true });
       results.capture = captureResult.outcome;
       ride = captureResult.ride;
     }
