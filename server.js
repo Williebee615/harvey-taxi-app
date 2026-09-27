@@ -914,6 +914,20 @@ app.use(
 
 );
 
+// driver-missions.html retired: it called API routes that never existed
+// (GET /api/rides/:id, POST /api/driver/accept, POST /api/driver/reject,
+// POST /api/rides/:id/cancel before this phase) -- a second, broken
+// driver workflow competing with the one real, live client
+// (driver-dashboard.html, which correctly uses /api/driver/offers/:id/
+// accept|decline and /api/driver/rides/:id/enroute|arrived|start|
+// complete|withdraw). Not linked from any live page (confirmed), so this
+// redirect exists only to send an old bookmark or direct hit somewhere
+// useful rather than a dead page. Must run before express.static, which
+// would otherwise serve the file directly if it still existed on disk.
+app.get("/driver-missions.html", (req, res) => {
+  res.redirect(301, "/driver-dashboard.html");
+});
+
 app.use(
 
   express.static(PUBLIC_DIR, {
