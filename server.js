@@ -12024,6 +12024,31 @@ app.post(
 
           : null,
 
+      // Replay-protection identity: quote.jti is unique per signed quote
+      // (lib/rideQuote.js). rides.quote_jti carries a unique partial
+      // index (see the quote-jti-idempotency migration), so a second
+      // ride-creation attempt presenting the SAME still-valid token
+      // collides on that constraint instead of creating a duplicate ride
+      // -- handled below by a controlled lookup, not by parsing the
+      // error string.
+      //
+      // Honest limitation: quoteMatchesSubmission() (lib/rideQuote.js)
+      // already requires this request's riderId to equal the quote's own
+      // embedded rider_id, so by the time this insert runs, the two
+      // already agree by construction -- the ownership check below is
+      // real defense-in-depth, not a NEW authentication boundary, under
+      // today's actual identity model (riderId here is
+      // resolveEnforcedRiderId()'s result, which is a genuine
+      // session-authenticated id only once rider_auth_enforced is
+      // turned on; while it's off -- the current production default --
+      // it's still the client-supplied value, same as every other
+      // rider-owned field on this route). It becomes a real
+      // authenticated-ownership guarantee automatically once that flag
+      // is on, with no further change needed here.
+      quote_jti:
+
+        quote.jti || null,
+
       created_at:
 
         now,
@@ -12047,6 +12072,52 @@ app.post(
         .single();
 
     if (error) {
+
+      if (error.code === "23505" && ride.quote_jti) {
+
+        const { data: existingRide, error: lookupError } =
+
+          await supabase
+
+            .from("rides")
+
+            .select("*")
+
+            .eq("quote_jti", ride.quote_jti)
+
+            .maybeSingle();
+
+        if (!lookupError && existingRide && String(existingRide.rider_id || "") === String(riderId || "")) {
+
+          // Genuine idempotent replay of the same quote by the same
+          // (session- or client-identified) rider -- return the
+          // original ride's current state rather than creating a
+          // duplicate or erroring. Side effects (notification, dispatch)
+          // already ran on the original request and are not repeated.
+          auditLog({
+            actor_type: "rider",
+            actor_id: riderId || null,
+            action: "ride_request_replay_detected",
+            entity_type: "ride",
+            entity_id: existingRide.id,
+            req
+          }).catch(() => {});
+
+          return ok(res, {
+            ride: existingRide,
+            dispatch: null,
+            replay: true
+          });
+
+        }
+
+        // Either the lookup itself failed, or the existing ride belongs
+        // to a different rider than this request claims -- never return
+        // another rider's ride merely because a token/jti collided.
+        // Generic response on purpose: no detail about what exists.
+        return fail(res, "This ride request could not be completed.", 409);
+
+      }
 
       console.error(
 
