@@ -3071,6 +3071,33 @@ const RIDE_STAGE_MESSAGES = {
 
     subject: "Delivered"
 
+  },
+
+  // Added alongside the cancellation/withdrawal routes -- neither had any
+  // rider notification before (confirmed: no RIDE_STAGE_MESSAGES entry
+  // and no notifyRideStage call existed for either case).
+  ride_cancelled: {
+
+    sms: () => `Harvey Taxi: Your ride has been cancelled.`,
+
+    subject: "Ride Cancelled"
+
+  },
+
+  no_drivers_available: {
+
+    sms: () => `Harvey Taxi: We couldn't find an available driver for your request. It has been cancelled -- please try again.`,
+
+    subject: "No Drivers Available"
+
+  },
+
+  driver_reassigning: {
+
+    sms: () => `Harvey Taxi: Your driver became unavailable. We're finding you another driver now.`,
+
+    subject: "Finding a New Driver"
+
   }
 
 };
@@ -10217,6 +10244,8 @@ async function dispatchRide(ride) {
 
       .eq("id", ride.id);
 
+    notifyRideStage(ride, "no_drivers_available").catch(() => {});
+
     return {
 
       dispatched: false,
@@ -10383,6 +10412,8 @@ async function dispatchRide(ride) {
       })
 
       .eq("id", ride.id);
+
+    notifyRideStage(ride, "no_drivers_available").catch(() => {});
 
     return {
 
@@ -12689,6 +12720,437 @@ app.get(
 
   })
 
+);
+
+/* =========================================================
+
+   RIDE CANCELLATION (rider-initiated) AND DRIVER WITHDRAWAL
+
+   Two deliberately separate operations (approved policy):
+
+   - Rider cancels the ride: the whole ride ends (RIDE_STATUS.CANCELLED),
+     any assigned driver is released and notified, and any uncaptured
+     Stripe PaymentIntent is voided. No fee is charged in this phase --
+     the reconciliation state below is structured so a configurable
+     fee could be added later without a redesign, but nothing computes
+     or charges one now.
+   - Driver withdraws from an accepted ride: the ride is NOT cancelled --
+     it returns to dispatch (RIDE_STATUS.AWAITING_DRIVER) and is
+     redispatched excluding that driver, and the rider is notified their
+     driver became unavailable. Never touches payment at all.
+
+   Both require a real, unconditional session (requireRider /
+   requireDriver -- not gated behind rider_auth_enforced, since these are
+   brand-new routes with no legacy client depending on a weaker model)
+   and never trust a body-supplied rider_id/driver_id/cancelled_by_id for
+   ownership.
+
+   Self-service cancellation is only offered before a trip is
+   IN_PROGRESS; once underway, only an authorized admin incident
+   resolution can end it (see PATCH /api/admin/rides/:id/status's
+   narrowed scope and the dedicated incident-resolution route). completed
+   and cancelled are terminal -- neither can be reached from itself again
+   in a way that repeats a Stripe action (see reconcileCancellationPayment
+   below).
+
+========================================================= */
+
+// Resumable Stripe-void workflow for a cancelled ride, mirroring
+// captureRidePaymentIdempotent()'s structure exactly (see
+// lib/rideCancellation.js for the decision logic and idempotency-key
+// derivation). Persists cancellation_payment_status before AND after the
+// Stripe call so a repeated cancel request -- whether a genuine retry or
+// one that finds the ride already cancelled -- resumes reconciliation
+// instead of silently abandoning an authorized PaymentIntent. Never
+// reverses a PaymentIntent Stripe reports as already captured; that case
+// is marked cancel_failed with a reason pointing at the (not-yet-built)
+// refund/incident workflow, never auto-reversed.
+async function reconcileCancellationPayment(ride, req = null) {
+  const decision = decideCancelPaymentAction({ ride });
+
+  if (decision.action === "skip") {
+    return { outcome: ride.cancellation_payment_status, ride };
+  }
+
+  if (decision.action === "not_required" || !stripe) {
+    const { data, error } = await supabase
+      .from("rides")
+      .update({
+        cancellation_payment_status: CANCELLATION_PAYMENT_STATUS.NOT_REQUIRED,
+        updated_at: nowIso()
+      })
+      .eq("id", ride.id)
+      .select()
+      .maybeSingle();
+
+    if (error) {
+      console.error("❌ Failed to persist not_required cancellation_payment_status:", error.message);
+    }
+
+    return { outcome: CANCELLATION_PAYMENT_STATUS.NOT_REQUIRED, ride: data || ride };
+  }
+
+  const idempotencyKey = cancelPaymentIdempotencyKey(ride.id);
+
+  await supabase
+    .from("rides")
+    .update({
+      cancellation_payment_status: CANCELLATION_PAYMENT_STATUS.CANCEL_PENDING,
+      cancellation_payment_idempotency_key: idempotencyKey,
+      cancellation_payment_attempted_at: nowIso(),
+      updated_at: nowIso()
+    })
+    .eq("id", ride.id);
+
+  let intent;
+
+  try {
+    intent = await stripe.paymentIntents.retrieve(ride.payment_id);
+  } catch (retrieveErr) {
+    const { data } = await supabase
+      .from("rides")
+      .update({
+        cancellation_payment_status: CANCELLATION_PAYMENT_STATUS.CANCEL_FAILED,
+        cancellation_payment_error: retrieveErr.message || String(retrieveErr),
+        updated_at: nowIso()
+      })
+      .eq("id", ride.id)
+      .select()
+      .maybeSingle();
+
+    auditLog({
+      actor_type: "system",
+      action: "ride_cancellation_payment_reconcile_failed",
+      entity_type: "ride",
+      entity_id: ride.id,
+      metadata: { stage: "retrieve", error: retrieveErr.message },
+      req
+    }).catch(() => {});
+
+    return { outcome: CANCELLATION_PAYMENT_STATUS.CANCEL_FAILED, ride: data || ride };
+  }
+
+  if (intent.status === "succeeded") {
+    // Already captured -- never reverse via cancel. This must route to
+    // an explicit refund/incident workflow (not built in this phase),
+    // never an automatic reversal.
+    const { data } = await supabase
+      .from("rides")
+      .update({
+        cancellation_payment_status: CANCELLATION_PAYMENT_STATUS.CANCEL_FAILED,
+        cancellation_payment_error: "PaymentIntent already captured; requires an explicit refund, not a cancellation.",
+        updated_at: nowIso()
+      })
+      .eq("id", ride.id)
+      .select()
+      .maybeSingle();
+
+    auditLog({
+      actor_type: "system",
+      action: "ride_cancellation_requires_refund",
+      entity_type: "ride",
+      entity_id: ride.id,
+      metadata: { payment_intent_status: intent.status },
+      req
+    }).catch(() => {});
+
+    return { outcome: CANCELLATION_PAYMENT_STATUS.CANCEL_FAILED, ride: data || ride, requiresRefund: true };
+  }
+
+  let cancelError = null;
+
+  try {
+    await stripe.paymentIntents.cancel(ride.payment_id, {}, { idempotencyKey });
+  } catch (err) {
+    cancelError = err.message || String(err);
+    console.error("❌ Payment cancellation failed:", cancelError);
+  }
+
+  const finalStatus = cancelError
+    ? CANCELLATION_PAYMENT_STATUS.CANCEL_FAILED
+    : CANCELLATION_PAYMENT_STATUS.CANCELLED;
+
+  const { data: updatedRide, error: finalError } = await supabase
+    .from("rides")
+    .update({
+      cancellation_payment_status: finalStatus,
+      cancellation_payment_error: cancelError,
+      updated_at: nowIso()
+    })
+    .eq("id", ride.id)
+    .select()
+    .maybeSingle();
+
+  if (finalError) {
+    console.error("❌ Failed to persist final cancellation_payment_status:", finalError.message);
+  }
+
+  if (cancelError) {
+    auditLog({
+      actor_type: "system",
+      action: "ride_cancellation_payment_failed",
+      entity_type: "ride",
+      entity_id: ride.id,
+      metadata: { error: cancelError, idempotency_key: idempotencyKey },
+      req
+    }).catch(() => {});
+  }
+
+  return { outcome: finalStatus, ride: updatedRide || ride };
+}
+
+// Shared by the rider-cancel route (and available for an admin
+// incident-resolution "cancel" outcome later) -- driver *withdrawal* is
+// a separate, much simpler flow below that never calls this, since it
+// doesn't cancel the ride or touch payment at all.
+async function handleRideCancellation({ req, res, ride, actorType, actorId, reason }) {
+  // Idempotent path: already cancelled. Resume payment reconciliation if
+  // it's still pending/failed rather than silently abandoning it -- a
+  // repeated cancel request must not look like success while leaving an
+  // authorized PaymentIntent untouched.
+  if (ride.status === RIDE_STATUS.CANCELLED) {
+    const reconciled = await reconcileCancellationPayment(ride, req);
+
+    return ok(res, {
+      ride_id: ride.id,
+      status: RIDE_STATUS.CANCELLED,
+      cancellation_payment_status: reconciled.outcome
+    });
+  }
+
+  if (!isCancellable(ride.status)) {
+    if (ride.status === RIDE_STATUS.IN_PROGRESS) {
+      return fail(
+        res,
+        "This ride is already underway and can no longer be cancelled by the rider or driver. Contact support for an incident resolution.",
+        403
+      );
+    }
+
+    return fail(
+      res,
+      `This ride cannot be cancelled from its current status (${ride.status}).`,
+      409,
+      { current_status: ride.status }
+    );
+  }
+
+  const driverWasAssigned = hasAssignedDriver(ride.status);
+
+  const claim = await claimRideTransition({
+    supabase,
+    rideId: ride.id,
+    // The exact status just validated above, not the whole CANCELLABLE_STATUSES
+    // set -- avoids a TOCTOU window where a concurrent change lands the
+    // ride on a different (still technically cancellable) status than the
+    // one this request actually observed and reasoned about.
+    fromStatuses: [ride.status],
+    toStatus: RIDE_STATUS.CANCELLED,
+    patch: {
+      cancelled_at: nowIso(),
+      cancellation_reason: reason || null,
+      cancelled_by_type: actorType,
+      cancelled_by_id: actorId,
+      cancellation_payment_status: ride.payment_id
+        ? CANCELLATION_PAYMENT_STATUS.CANCEL_PENDING
+        : CANCELLATION_PAYMENT_STATUS.NOT_REQUIRED,
+      updated_at: nowIso()
+    }
+  });
+
+  let cancelledRide;
+
+  if (claim.ok) {
+    cancelledRide = claim.ride;
+  } else if (claim.reason === "not_found") {
+    return fail(res, "Ride not found.", 404);
+  } else if (claim.currentStatus === RIDE_STATUS.CANCELLED) {
+    // Raced with a concurrent cancel request -- resume reconciliation
+    // like any other idempotent retry, not an error.
+    const reconciled = await reconcileCancellationPayment(claim.ride, req);
+
+    return ok(res, {
+      ride_id: ride.id,
+      status: RIDE_STATUS.CANCELLED,
+      cancellation_payment_status: reconciled.outcome
+    });
+  } else {
+    return fail(
+      res,
+      `This ride cannot be cancelled from its current status (${claim.currentStatus}).`,
+      409,
+      { current_status: claim.currentStatus }
+    );
+  }
+
+  const reconciled = await reconcileCancellationPayment(cancelledRide, req);
+
+  if (driverWasAssigned && cancelledRide.driver_id) {
+    sendPushNotification({
+      ownerType: "driver",
+      ownerId: cancelledRide.driver_id,
+      title: "Ride Cancelled",
+      body: "This ride was cancelled and is no longer assigned to you.",
+      url: "/driver-dashboard.html"
+    }).catch(() => {});
+  }
+
+  notifyRideStage(ride, "ride_cancelled").catch(() => {});
+
+  broadcastRideSse(ride.id, "stage", { status: RIDE_STATUS.CANCELLED });
+
+  auditLog({
+    actor_type: actorType,
+    actor_id: actorId,
+    action: "ride_cancelled",
+    entity_type: "ride",
+    entity_id: ride.id,
+    metadata: {
+      reason: reason || null,
+      cancellation_payment_status: reconciled.outcome,
+      had_assigned_driver: driverWasAssigned
+    },
+    req
+  }).catch(() => {});
+
+  return ok(res, {
+    ride_id: ride.id,
+    status: RIDE_STATUS.CANCELLED,
+    cancellation_payment_status: reconciled.outcome
+  });
+}
+
+app.post(
+  "/api/rides/:id/cancel",
+  requireRider,
+  asyncRoute(async (req, res) => {
+    const rideId = cleanString(req.params.id, 100);
+    const reason = cleanString(req.body.reason, 500);
+
+    let ride;
+
+    try {
+      ride = await getRideOrFail(rideId);
+    } catch (err) {
+      return fail(res, "Ride not found.", 404);
+    }
+
+    // Ownership from the authenticated session only -- never a
+    // body-supplied rider_id/cancelled_by_id.
+    if (String(ride.rider_id || "") !== String(req.rider.id || "")) {
+      return fail(res, "You are not authorized to cancel this ride.", 403);
+    }
+
+    return handleRideCancellation({
+      req,
+      res,
+      ride,
+      actorType: "rider",
+      actorId: req.rider.id,
+      reason
+    });
+  })
+);
+
+/* -------- DRIVER WITHDRAWAL: releases the driver, does NOT cancel the
+   rider's request -- returns the ride to dispatch and redispatches
+   excluding this driver. -------- */
+
+app.post(
+  "/api/driver/rides/:rideId/withdraw",
+  requireDriver,
+  asyncRoute(async (req, res) => {
+    const rideId = cleanString(req.params.rideId, 100);
+    const driverId = req.driver.id;
+    const reason = cleanString(req.body.reason, 500);
+
+    let ride;
+
+    try {
+      ride = await getRideOrFail(rideId);
+    } catch (err) {
+      return fail(res, "Ride not found.", 404);
+    }
+
+    try {
+      await ensureAssignedDriver(ride, driverId);
+    } catch (err) {
+      return fail(res, err.message || "Driver is not assigned to this ride.", 403);
+    }
+
+    if (!hasAssignedDriver(ride.status)) {
+      if (ride.status === RIDE_STATUS.IN_PROGRESS) {
+        return fail(
+          res,
+          "This trip is already underway and can no longer be withdrawn from. Contact support for an incident resolution.",
+          403
+        );
+      }
+
+      return fail(
+        res,
+        `This ride cannot be withdrawn from its current status (${ride.status}).`,
+        409,
+        { current_status: ride.status }
+      );
+    }
+
+    const claim = await claimRideTransition({
+      supabase,
+      rideId,
+      fromStatuses: [ride.status],
+      toStatus: RIDE_STATUS.AWAITING_DRIVER,
+      patch: {
+        // Release the driver link only -- no availability, verification,
+        // or compliance state on the driver's own row is touched here.
+        driver_id: null,
+        driver_name: null,
+        driver_phone: null,
+        driver_vehicle: null,
+        current_offer_id: null,
+        updated_at: nowIso()
+      }
+    });
+
+    if (!claim.ok) {
+      if (claim.reason === "not_found") {
+        return fail(res, "Ride not found.", 404);
+      }
+
+      return fail(
+        res,
+        `This ride cannot be withdrawn from its current status (${claim.currentStatus}).`,
+        409,
+        { current_status: claim.currentStatus }
+      );
+    }
+
+    auditLog({
+      actor_type: "driver",
+      actor_id: driverId,
+      action: "driver_withdrew",
+      entity_type: "ride",
+      entity_id: rideId,
+      metadata: { reason: reason || null, withdrawn_from_status: ride.status },
+      req
+    }).catch(() => {});
+
+    notifyRideStage(claim.ride, "driver_reassigning").catch(() => {});
+
+    broadcastRideSse(rideId, "stage", { status: RIDE_STATUS.AWAITING_DRIVER });
+
+    // Redispatch immediately, excluding this driver (dispatchRide()
+    // already excludes any driver with a prior driver_offers row for
+    // this ride, which this withdrawing driver has).
+    dispatchRide(claim.ride).catch((err) => {
+      console.error("❌ Redispatch after driver withdrawal failed:", err.message);
+    });
+
+    return ok(res, {
+      ride_id: rideId,
+      status: RIDE_STATUS.AWAITING_DRIVER
+    });
+  })
 );
 
 /* =========================================================
