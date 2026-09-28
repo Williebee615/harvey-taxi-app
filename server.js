@@ -2313,7 +2313,21 @@ function requireElevatedAdmin(req, res, next) {
 
 ========================================================= */
 
-async function requireDriver(req, res, next) {
+// Authenticates the calling driver. requireDriver (used by most driver
+// routes) keeps the admin-token override for internal ops tooling;
+// requireDriverSelf is for actions only the driver may take themselves --
+// accepting or declining an offer -- and never honors admin credentials, so
+// an administrator can't act as a driver there. Admin intervention belongs
+// on the admin-only routes (e.g. POST /api/admin/rides/:id/assign-driver).
+function requireDriver(req, res, next) {
+  return authenticateDriver(req, res, next, { allowAdminOverride: true });
+}
+
+function requireDriverSelf(req, res, next) {
+  return authenticateDriver(req, res, next, { allowAdminOverride: false });
+}
+
+async function authenticateDriver(req, res, next, { allowAdminOverride }) {
 
   try {
 
@@ -2400,7 +2414,10 @@ async function requireDriver(req, res, next) {
 
     }
 
-    // Allow admin override for internal ops tooling.
+    // Admin override for internal ops tooling -- requireDriver only. Under
+    // requireDriverSelf, admin credentials are ignored and the request falls
+    // through to the Supabase-user check below, which fails with 401 unless
+    // the caller is itself an authenticated driver.
 
     const adminSession = readAdminSessionCookie(req);
 
@@ -2426,7 +2443,7 @@ async function requireDriver(req, res, next) {
 
         ));
 
-    if (isAdmin) {
+    if (isAdmin && allowAdminOverride) {
 
       const overrideId =
 
@@ -9338,6 +9355,15 @@ const {
   sweepScheduledRides
 } = require("./lib/rideDispatch");
 
+// Ride statuses a driver can still be assigned from via an offer accept.
+// A ride sitting in payment_authorized with a pending offer is included
+// because dispatch may not have recorded awaiting_driver_acceptance on the
+// ride row (see the dispatchRide() fallback).
+const ASSIGNABLE_RIDE_STATUSES = [
+  RIDE_STATUS.PAYMENT_AUTHORIZED,
+  RIDE_STATUS.AWAITING_DRIVER
+];
+
 // Offer-timeout enforcement — see lib/offerExpiry.js. driver_offers.expires_at
 // was previously written on every offer and never read again, so a driver
 // who neither accepted nor declined left the ride stuck indefinitely.
@@ -10301,6 +10327,18 @@ async function dispatchRide(ride) {
   }
 
   // Fallback: original non-atomic two-step flow.
+  //
+  // The offered driver lives only on the driver_offers row. rides.driver_id
+  // is the *assigned* driver and is written only when an offer is accepted
+  // (or an admin assigns) -- writing it here would let a driver who hasn't
+  // accepted pass ensureAssignedDriver() and expose their live location on
+  // the rider's tracking view. There is no current_driver_id or
+  // current_offer_id column on rides.
+  //
+  // dispatch_attempts is carried forward from the caller (the decline and
+  // expiry redispatch paths have already incremented it) rather than reset
+  // to 1, so MAX_DISPATCH_ATTEMPTS is actually reachable.
+  const attempt = Math.max(1, Number(ride.dispatch_attempts) || 1);
 
   const offer =
 
@@ -10314,13 +10352,11 @@ async function dispatchRide(ride) {
 
         firstDriver.id,
 
-      attempt:
-
-        1
+      attempt
 
     });
 
-  await supabase
+  const { data: offeredRide, error: offerRideUpdateError } = await supabase
 
     .from("rides")
 
@@ -10334,17 +10370,9 @@ async function dispatchRide(ride) {
 
         "offer_sent",
 
-      current_offer_id:
-
-        offer.id,
-
-      current_driver_id:
-
-        firstDriver.id,
-
       dispatch_attempts:
 
-        1,
+        attempt,
 
       updated_at:
 
@@ -10352,7 +10380,48 @@ async function dispatchRide(ride) {
 
     })
 
-    .eq("id", ride.id);
+    .eq("id", ride.id)
+
+    .select("id")
+
+    .maybeSingle();
+
+  if (offerRideUpdateError || !offeredRide) {
+
+    const reason = offerRideUpdateError
+      ? offerRideUpdateError.message
+      : "ride not found";
+
+    // Don't leave a live offer pointing at a ride that was never moved to
+    // awaiting_driver_acceptance: cancel it (only if still pending) before
+    // reporting the dispatch as failed. The driver is never notified.
+    const { error: cancelOfferError } = await supabase
+      .from("driver_offers")
+      .update({
+        status: "cancelled",
+        responded_at: nowIso(),
+        updated_at: nowIso()
+      })
+      .eq("id", offer.id)
+      .eq("status", "pending");
+
+    if (cancelOfferError) {
+      console.error(
+        "🚨 Dispatch fallback: could not cancel orphaned offer:",
+        { ride_id: ride.id, offer_id: offer.id, reason: cancelOfferError.message }
+      );
+    }
+
+    const dispatchError = new Error(
+      `Dispatch fallback could not record the offer on ride ${ride.id}: ${reason}`
+    );
+
+    dispatchError.rideId = ride.id;
+    dispatchError.offerId = offer.id;
+
+    throw dispatchError;
+
+  }
 
   sendPushNotification({
     ownerType: "driver",
@@ -10511,22 +10580,27 @@ async function claimExpiredOffer(offerId) {
 }
 
 async function getRideForExpiredOffer(rideId) {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("rides")
     .select("*")
     .eq("id", rideId)
     .maybeSingle();
 
+  if (error) throw error;
+
   return data || null;
 }
 
+// Both adapters below throw on a failed or no-op update so
+// sweepExpiredOffers() records the ride as failed and never goes on to
+// dispatchRide() after a ride write that didn't happen. There is no
+// current_driver_id/current_offer_id on rides; the expired offer itself
+// is already recorded on its driver_offers row.
 async function markRideRedispatchingForExpiry(rideId, nextAttempt) {
-  await supabase
+  const { data, error } = await supabase
     .from("rides")
     .update({
       dispatch_attempts: nextAttempt,
-      current_driver_id: null,
-      current_offer_id: null,
       dispatch_status: "redispatching",
       // Stamped here so sweepStuckRedispatches() below can tell how long
       // this ride has been sitting in "redispatching" — if dispatchRide()
@@ -10536,26 +10610,38 @@ async function markRideRedispatchingForExpiry(rideId, nextAttempt) {
       dispatch_claimed_at: nowIso(),
       updated_at: nowIso()
     })
-    .eq("id", rideId);
+    .eq("id", rideId)
+    .select("id")
+    .maybeSingle();
+
+  if (error) throw error;
+
+  if (!data) throw new Error(`Ride ${rideId} not found for redispatch.`);
 }
 
 async function markRideMaxAttemptsReachedForExpiry(rideId) {
-  await supabase
+  const { data, error } = await supabase
     .from("rides")
     .update({
       status: RIDE_STATUS.FAILED,
       dispatch_status: "max_attempts_reached",
       updated_at: nowIso()
     })
-    .eq("id", rideId);
+    .eq("id", rideId)
+    .select("id")
+    .maybeSingle();
+
+  if (error) throw error;
+
+  if (!data) throw new Error(`Ride ${rideId} not found for max-attempts update.`);
 }
 
 async function runOfferExpirySweep() {
   const enabled = await getSystemFlag("offer_expiry_sweep_enabled", "false");
 
-  if (enabled !== "true") return;
+  if (enabled !== "true") return null;
 
-  await sweepExpiredOffers({
+  return sweepExpiredOffers({
     findExpiredOffers: findExpiredPendingOffers,
     claimExpiredOffer,
     getRide: getRideForExpiredOffer,
@@ -13158,7 +13244,7 @@ app.post(
 
   "/api/driver/offers/:offerId/accept",
 
-  requireDriver,
+  requireDriverSelf,
 
   asyncRoute(async (req, res) => {
 
@@ -13184,9 +13270,17 @@ app.post(
 
         .eq("id", offerId)
 
-        .single();
+        .maybeSingle();
 
-    if (error || !offer) {
+    if (error) {
+
+      console.error("❌ Offer accept: offer lookup failed:", offerId, error.message);
+
+      return fail(res, "Could not accept this offer. Please try again.", 500);
+
+    }
+
+    if (!offer) {
 
       return fail(
 
@@ -13195,6 +13289,22 @@ app.post(
         "Offer not found.",
 
         404
+
+      );
+
+    }
+
+    // Ownership is checked before status so a driver can't learn anything
+    // about another driver's offer beyond the fact that it isn't theirs.
+    if (offer.driver_id !== driverId) {
+
+      return fail(
+
+        res,
+
+        "Offer does not belong to this driver.",
+
+        403
 
       );
 
@@ -13214,26 +13324,6 @@ app.post(
 
     }
 
-    if (
-
-      driverId &&
-
-      offer.driver_id !== driverId
-
-    ) {
-
-      return fail(
-
-        res,
-
-        "Offer does not belong to this driver.",
-
-        403
-
-      );
-
-    }
-
     // Atomic conditional update: the .eq("status", "pending") guard means
     // this only succeeds if the offer was still pending at the moment of
     // the write. If the offer_expiry_sweep (lib/offerExpiry.js) or a
@@ -13241,7 +13331,7 @@ app.post(
     // read above and this write, updatedOffer comes back null and this
     // request fails safely instead of accepting an offer that's already
     // expired or been resolved elsewhere.
-    const { data: updatedOffer } =
+    const { data: updatedOffer, error: offerUpdateError } =
       await supabase
         .from("driver_offers")
         .update({
@@ -13253,6 +13343,16 @@ app.post(
         .eq("status", "pending")
         .select()
         .maybeSingle();
+
+    if (offerUpdateError) {
+      console.error(
+        "❌ Offer accept: driver_offers update failed:",
+        offerId,
+        offerUpdateError.message
+      );
+
+      return fail(res, "Could not accept this offer. Please try again.", 500);
+    }
 
     if (!updatedOffer) {
       const wasExpired =
@@ -13268,11 +13368,91 @@ app.post(
       );
     }
 
-    const acceptingDriver = await getDriverOrFail(offer.driver_id);
+    // The offer was already flipped to "accepted" above. If the ride is not
+    // assigned below, move the offer out of "accepted" (only if it is still
+    // the "accepted" row this request wrote) so no accepted offer is left
+    // attached to an unassigned ride: back to "pending" after a transient
+    // failure, so the driver can retry or the offer-expiry sweep can
+    // redispatch it; to "cancelled" when the ride itself is no longer
+    // assignable, so nothing redispatches a cancelled/assigned ride.
+    //
+    // Returns true only if the offer is confirmed moved. If the
+    // revert itself fails, the offer is left "accepted" with no assigned
+    // ride -- that is surfaced to admins (critical audit_logs row plus an
+    // admin SSE event) for manual reconciliation. Only IDs are logged.
+    async function compensateAcceptedOffer(cause, targetStatus = "pending") {
+      const { data: reverted, error: revertError } = await supabase
+        .from("driver_offers")
+        .update({
+          status: targetStatus,
+          responded_at: targetStatus === "pending" ? null : nowIso(),
+          updated_at: nowIso()
+        })
+        .eq("id", offerId)
+        .eq("status", "accepted")
+        .select("id")
+        .maybeSingle();
+
+      if (!revertError && reverted) return true;
+
+      const reason = revertError ? revertError.message : "offer no longer in accepted state";
+
+      console.error(
+        "🚨 RECONCILIATION REQUIRED: offer left accepted without a ride assignment.",
+        { ride_id: offer.ride_id, offer_id: offerId, cause, reason }
+      );
+
+      const audit = await auditLog({
+        actor_type: "system",
+        actor_id: null,
+        action: "ride_offer_accept_compensation_failed",
+        entity_type: "ride",
+        entity_id: offer.ride_id,
+        metadata: {
+          severity: "critical",
+          requires_reconciliation: true,
+          offer_id: offerId,
+          driver_id: offer.driver_id,
+          cause,
+          reason
+        }
+      }).catch((auditErr) => ({ logged: false, reason: auditErr.message }));
+
+      if (!audit || audit.logged === false) {
+        console.error(
+          "🚨 RECONCILIATION REQUIRED (audit log write also failed):",
+          { ride_id: offer.ride_id, offer_id: offerId }
+        );
+      }
+
+      broadcastSse("dispatch_reconciliation_required", {
+        ride_id: offer.ride_id,
+        offer_id: offerId,
+        reason: "offer_accept_compensation_failed"
+      });
+
+      return false;
+    }
+
+    let acceptingDriver;
+
+    try {
+      acceptingDriver = await getDriverOrFail(offer.driver_id);
+    } catch (driverErr) {
+      await compensateAcceptedOffer("driver_lookup_failed");
+      throw driverErr;
+    }
 
     const driverRideFields = buildDriverRideFields(acceptingDriver);
 
-    const { data: assignedRide } = await supabase
+    // rides.driver_id is the canonical assigned-driver column. There is
+    // no current_driver_id/current_offer_id on rides -- writing either
+    // makes PostgREST reject the whole update.
+    //
+    // Conditional on the ride still being assignable: not already assigned
+    // to a driver, and not cancelled/completed/failed. A ride that no
+    // longer qualifies matches no row and is reported as a 409.
+    const { data: assignedRide, error: rideUpdateError } = await supabase
 
       .from("rides")
 
@@ -13290,10 +13470,6 @@ app.post(
 
           offer.driver_id,
 
-        current_driver_id:
-
-          offer.driver_id,
-
         ...driverRideFields,
 
         accepted_at:
@@ -13308,23 +13484,50 @@ app.post(
 
       .eq("id", offer.ride_id)
 
+      .is("driver_id", null)
+
+      .in("status", ASSIGNABLE_RIDE_STATUSES)
+
       .select()
 
-      .single();
+      .maybeSingle();
 
-    if (assignedRide) {
+    if (rideUpdateError) {
 
-      notifyRideStage(assignedRide, "driver_assigned").catch(() => {});
+      console.error(
+        "❌ Offer accept: ride assignment update failed:",
+        { ride_id: offer.ride_id, offer_id: offerId, reason: rideUpdateError.message }
+      );
 
-      broadcastRideSse(offer.ride_id, "stage", {
+      await compensateAcceptedOffer("ride_update_failed");
 
-        status: RIDE_STATUS.DRIVER_ASSIGNED,
-
-        driver: driverRideFields
-
-      });
+      return fail(res, "Could not assign this ride. Please try again.", 500);
 
     }
+
+    if (!assignedRide) {
+
+      const reverted = await compensateAcceptedOffer("ride_not_assignable", "cancelled");
+
+      if (!reverted) {
+
+        return fail(res, "Could not assign this ride. Please try again.", 500);
+
+      }
+
+      return fail(res, "This ride is no longer available.", 409);
+
+    }
+
+    notifyRideStage(assignedRide, "driver_assigned").catch(() => {});
+
+    broadcastRideSse(offer.ride_id, "stage", {
+
+      status: RIDE_STATUS.DRIVER_ASSIGNED,
+
+      driver: driverRideFields
+
+    });
 
     auditLog({
 
@@ -13390,7 +13593,7 @@ app.post(
 
   "/api/driver/offers/:offerId/decline",
 
-  requireDriver,
+  requireDriverSelf,
 
   asyncRoute(async (req, res) => {
 
@@ -13424,9 +13627,17 @@ app.post(
 
         .eq("id", offerId)
 
-        .single();
+        .maybeSingle();
 
-    if (error || !offer) {
+    if (error) {
+
+      console.error("❌ Offer decline: offer lookup failed:", offerId, error.message);
+
+      return fail(res, "Could not decline this offer. Please try again.", 500);
+
+    }
+
+    if (!offer) {
 
       return fail(
 
@@ -13440,6 +13651,23 @@ app.post(
 
     }
 
+    // Same ownership rule as accept: only the driver the offer was sent to
+    // (per the authenticated requireDriver identity, never the request
+    // body) may decline it.
+    if (offer.driver_id !== req.driver.id) {
+
+      return fail(
+
+        res,
+
+        "Offer does not belong to this driver.",
+
+        403
+
+      );
+
+    }
+
     // Atomic conditional update — same pattern and reasoning as the accept
     // route above. If the offer_expiry_sweep already claimed this offer as
     // expired (or a duplicate decline request beat this one to it) in the
@@ -13448,7 +13676,7 @@ app.post(
     // for redispatching this ride, so this request must not also
     // redispatch it — doing so would offer the ride to two drivers at
     // once from two different code paths.
-    const { data: updatedOffer } =
+    const { data: updatedOffer, error: offerUpdateError } =
       await supabase
         .from("driver_offers")
         .update({
@@ -13462,11 +13690,22 @@ app.post(
         .select()
         .maybeSingle();
 
+    if (offerUpdateError) {
+      console.error(
+        "❌ Offer decline: driver_offers update failed:",
+        offerId,
+        offerUpdateError.message
+      );
+
+      return fail(res, "Could not decline this offer. Please try again.", 500);
+    }
+
     if (!updatedOffer) {
-      return ok(res, {
-        declined: false,
-        reason: "This offer was already resolved (expired or already responded to)."
-      });
+      return fail(
+        res,
+        "This offer was already resolved (expired or already responded to).",
+        409
+      );
     }
 
     auditLog({
@@ -13507,7 +13746,7 @@ app.post(
 
     if (ENABLE_AUTO_REDISPATCH) {
 
-      const { data: ride } =
+      const { data: ride, error: rideLoadError } =
 
         await supabase
 
@@ -13517,7 +13756,19 @@ app.post(
 
           .eq("id", offer.ride_id)
 
-          .single();
+          .maybeSingle();
+
+      if (rideLoadError) {
+
+        console.error(
+          "❌ Offer decline: could not load ride for redispatch:",
+          offer.ride_id,
+          rideLoadError.message
+        );
+
+        return fail(res, "Offer declined, but the ride could not be redispatched.", 500);
+
+      }
 
       if (ride) {
 
@@ -13541,7 +13792,7 @@ app.post(
 
         if (attempts < maxAttempts) {
 
-          await supabase
+          const { error: redispatchUpdateError } = await supabase
 
             .from("rides")
 
@@ -13550,14 +13801,6 @@ app.post(
               dispatch_attempts:
 
                 attempts + 1,
-
-              current_driver_id:
-
-                null,
-
-              current_offer_id:
-
-                null,
 
               dispatch_status:
 
@@ -13579,6 +13822,18 @@ app.post(
 
             .eq("id", ride.id);
 
+          if (redispatchUpdateError) {
+
+            console.error(
+              "❌ Offer decline: ride redispatch update failed:",
+              ride.id,
+              redispatchUpdateError.message
+            );
+
+            return fail(res, "Offer declined, but the ride could not be redispatched.", 500);
+
+          }
+
           await dispatchRide({
 
             ...ride,
@@ -13591,7 +13846,7 @@ app.post(
 
         } else {
 
-          await supabase
+          const { error: maxAttemptsUpdateError } = await supabase
 
             .from("rides")
 
@@ -13612,6 +13867,18 @@ app.post(
             })
 
             .eq("id", ride.id);
+
+          if (maxAttemptsUpdateError) {
+
+            console.error(
+              "❌ Offer decline: ride max-attempts update failed:",
+              ride.id,
+              maxAttemptsUpdateError.message
+            );
+
+            return fail(res, "Offer declined, but the ride status could not be updated.", 500);
+
+          }
 
         }
 
@@ -16801,10 +17068,6 @@ app.post(
 
             driver.id,
 
-          current_driver_id:
-
-            driver.id,
-
           status:
 
             RIDE_STATUS.DRIVER_ASSIGNED,
@@ -16842,11 +17105,17 @@ app.post(
           [...ADMIN_RIDE_MUTATION_FIELDS, "rider_id", "rider_phone", "ride_type", "pickup_address"].join(",")
         )
 
-        .single();
+        .maybeSingle();
 
     if (error) {
 
       throw error;
+
+    }
+
+    if (!data) {
+
+      return fail(res, "Ride not found.", 404);
 
     }
 
@@ -22058,4 +22327,7 @@ if (require.main === module) {
   startServer();
 }
 
-module.exports = { app };
+// runOfferExpirySweep is exported only so tests can drive the real
+// Supabase adapters for the offer-expiry sweep; production runs it on the
+// interval set up under require.main === module below.
+module.exports = { app, runOfferExpirySweep };
