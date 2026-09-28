@@ -9,8 +9,12 @@
 // available) that the tests may create and drop databases on, e.g.
 //   HARVEY_TEST_DATABASE_URL=postgres://postgres@localhost:5432/postgres
 // Without it, the database suites are skipped (describeDb) so `npm test`
-// still runs everywhere. CI sets it (see .github/workflows/ci.yml).
-// Never point it at a Supabase project.
+// still runs in local environments that have no Postgres.
+//
+// CI must never skip: the db-functions job sets HARVEY_REQUIRE_DB_TESTS=1,
+// which turns a missing URL into a hard failure, and any setup problem
+// (unreachable server, PostGIS missing, a migration that doesn't apply)
+// fails the suite in beforeAll. Never point it at a Supabase project.
 
 const fs = require("fs");
 const path = require("path");
@@ -18,6 +22,14 @@ const crypto = require("crypto");
 const { Client } = require("pg");
 
 const ADMIN_URL = process.env.HARVEY_TEST_DATABASE_URL || "";
+
+const DB_TESTS_REQUIRED = process.env.HARVEY_REQUIRE_DB_TESTS === "1";
+
+if (DB_TESTS_REQUIRED && !ADMIN_URL) {
+  throw new Error(
+    "HARVEY_REQUIRE_DB_TESTS=1 but HARVEY_TEST_DATABASE_URL is not set: the database tests must run, not skip."
+  );
+}
 
 const describeDb = ADMIN_URL ? describe : describe.skip;
 
