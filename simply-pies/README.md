@@ -66,11 +66,41 @@ current pricing at vercel.com/pricing.
 3. **Add environment variables** (*Settings → Environment Variables*). See
    the table below.
 4. **Deploy**, then open `/kitchen` and sign in to confirm it works.
-5. **Add the domain** (*Settings → Domains*). Enter the domain, add the DNS
-   records Vercel shows at the domain registrar, and wait for the certificate.
-   Then set `PUBLIC_BASE_URL` to `https://<the domain>` and redeploy.
+5. **Add the domain** `hellosimplysteakandchickenpies.com` (see *Domain setup* below). Then set
+   `PUBLIC_BASE_URL` to `https://hellosimplysteakandchickenpies.com` and redeploy.
 6. **Connect Stripe** (see below). Place a test order with test keys first.
 7. **Update the Instagram bio link** to the new domain.
+
+## Domain setup
+
+The domain `hellosimplysteakandchickenpies.com` is registered with Squarespace Domains through
+Google Workspace, which also runs the business email. The steps below point
+the website at Vercel **without touching email**.
+
+1. **Verify the domain contact first.** Squarespace emails a verification
+   link after purchase. If it is not confirmed within 15 days, the domain is
+   suspended, which takes down both the website and email.
+2. In Vercel, open *Settings → Domains* and add `hellosimplysteakandchickenpies.com`. When asked, also
+   add `www.hellosimplysteakandchickenpies.com` and have it redirect to the main domain.
+3. Vercel then lists the DNS records to create, usually an **A** record for
+   the root (`@`) and a **CNAME** record for `www`. Use the exact values
+   Vercel shows, because they can differ between projects.
+4. Sign in to Squarespace Domains with the domain administrator account. Go
+   to *Domains → hellosimplysteakandchickenpies.com → DNS → DNS Settings* and add those records under
+   **Custom records**. If Squarespace already has default website records
+   for `@` or `www` (Squarespace website presets), remove those so they do
+   not conflict.
+5. **Do not change the nameservers, and do not delete the Google Workspace
+   records** (the MX records and any TXT verification records). Those
+   records carry the business email.
+6. Back in Vercel, wait until both domains show as valid. DNS changes can
+   take from a few minutes to a few hours. Vercel issues the HTTPS
+   certificate automatically.
+
+Customer-facing email: consider an alias such as `orders@` or `hello@` on
+this domain (created in the Google Workspace Admin console) rather than
+publishing the administrator sign-in address. Put it in `config.js` as
+`business.email`.
 
 ## Environment variables
 
@@ -93,9 +123,9 @@ than running unsafely. The reason appears in the Vercel function logs.
 1. Create or verify the Stripe account under the business's legal name.
 2. In the Dashboard under **Settings → Payment methods**, turn on Cards,
    Apple Pay and Google Pay. Checkout shows the wallets automatically on
-   supported devices. For Apple Pay, register the live domain when Stripe
-   asks for it.
-3. Under **Developers → Webhooks**, add `https://<your-domain>/api/stripe/webhook`
+   supported devices. Payment happens on Stripe's hosted checkout page, so
+   no Apple Pay domain registration is needed on this site.
+3. Under **Developers → Webhooks**, add `https://hellosimplysteakandchickenpies.com/api/stripe/webhook`
    with the events `checkout.session.completed`,
    `checkout.session.async_payment_succeeded` and `checkout.session.expired`.
    Copy the signing secret into `STRIPE_WEBHOOK_SECRET`.
