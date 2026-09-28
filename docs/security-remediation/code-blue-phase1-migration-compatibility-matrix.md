@@ -1,6 +1,6 @@
 # CODE BLUE Phase 1 — Migration Deployment-Compatibility Matrix
 
-Status: **analysis only. Nothing applied anywhere.** Covers the four
+Status: **analysis only. Nothing applied anywhere.** Covers the five
 migrations proposed for production in PR #130
 (`code-blue/dispatch-integrity-phase-1`), updated to reflect PR #131
 (`claude/driver-accept-hotfix-31s1mg`, a paired production hotfix PR),
@@ -40,7 +40,7 @@ head).
 
 ---
 
-## The four (five, in practice) migrations
+## The five migrations
 
 | # | Migration | What it does |
 |---|---|---|
@@ -48,7 +48,7 @@ head).
 | 2 | `20260927220100_rides_payment_capture_and_cancellation_columns.sql` | Adds payment-capture/cancellation-reconciliation columns + CHECK constraints to `rides`. |
 | 3 | `20260927220200_rides_quote_jti_idempotency.sql` | Adds `rides.quote_jti` (fixed this session) + unique partial index. |
 | 4 | `20260927220300_dispatch_functions_hardening.sql` | Corrected `dispatch_ride_atomic()`/`nearest_drivers()`, grant hardening. |
-| 4b | `20260927220400_accept_driver_offer_atomic.sql` (added by the paired hotfix work) | New transactional `accept_driver_offer_atomic()` RPC; `dispatch_ride_atomic()` result shape and grants live here too (same migration 4, corrected). |
+| 5 | `20260927220400_accept_driver_offer_atomic.sql` | New transactional `accept_driver_offer_atomic()` RPC, `service_role` only. `dispatch_ride_atomic()` and `nearest_drivers()` live in migration 4 (`20260927220300`), not here. |
 
 ---
 
@@ -87,16 +87,16 @@ head).
 | **Required order** | **Migration strictly before new-server deploy.** This is the tightest ordering constraint of the four: unlike Migration 2 (whose columns are read/written but don't block the insert itself if absent, since they're separate `.update()` calls after the ride exists), a missing `quote_jti` column breaks the *ride-creation insert itself* — the single most central write in the app. |
 | **Rolling-deploy overlap risk** | If any old-server instance is still receiving traffic after this migration applies, no risk (inert to old code). If any *new*-server instance receives traffic before this migration applies, every ride-creation request fails. On a Render rolling deploy, this means: **apply this migration, confirm it, only then begin the rolling deploy of new server code** — never the reverse, and never "apply migration and deploy simultaneously" without confirming the migration committed first. |
 
-### Migration 4/4b — `dispatch_ride_atomic()` / `nearest_drivers()` / `accept_driver_offer_atomic()`
+### Migrations 4 and 5 — `dispatch_ride_atomic()` / `nearest_drivers()` / `accept_driver_offer_atomic()`
 
 | | |
 |---|---|
 | **Old server before** | Calls `dispatch_ride_atomic()` expecting `table(offer_id text)`; the live function currently throws on every real invocation (the pre-existing `current_driver_id` bug), so old server has been running exclusively through its two-step fallback this whole time (see below for what "old server calling new RPC" actually does). Old server's accept route (`POST /api/driver/offers/:id/accept`) does its own direct `.update()` on `rides` including `current_driver_id`, unchecked — this is the bug PR #131 fixes at the code level, independent of any migration. |
-| **Old server after migration, before new code deploys** | **This is the one genuinely risky direction, analyzed in detail below.** |
-| **New server expects** | Calls `dispatch_ride_atomic()` and branches on `result.outcome` (`"created"` / `RIDE_LEVEL_DISPATCH_OUTCOMES` / anything else treated as a per-candidate decline); calls the new `accept_driver_offer_atomic()` RPC for accept (PR #131/#130 code). |
+| **Old server after migration, before new code deploys** | Safe. The old server reads only `result.offer_id`, which the new function still returns. A non-`created` outcome returns a null `offer_id`, so the old server uses its two-step fallback, exactly as it does today, when the live function errors on every call. Proven by the database test "the deployed server's call shape (reads only offer_id) still works". |
+| **New server expects** | `dispatch_ride_atomic()` with the `outcome` column (branching on `"created"` / `RIDE_LEVEL_DISPATCH_OUTCOMES` / anything else treated as a per-candidate decline), and **`accept_driver_offer_atomic()`, which must already exist: the #130 accept route has no fallback.** |
 | **Rollback after app code uses it** | `DROP FUNCTION`/recreate the old single-column-returning version would break the new code's `result.outcome` branching (falls to "declined, try next candidate" for every call, eventually marking every ride `no_drivers_available` incorrectly — see the return-shape proof below). Rollback path is redeploying old server code, not reverting the function. |
-| **Required order** | **New server code (#131, then #130) before this migration applies**, the opposite direction from Migrations 2 and 3 — detailed next. |
-| **Rolling-deploy overlap risk** | Real, and the reason the order is reversed relative to 2/3. See below. |
+| **Required order** | **Migrations 4 and 5 before the #130 server deploy**, the same direction as Migrations 2 and 3. |
+| **Rolling-deploy overlap risk** | None, provided the migrations have committed before any #130 server instance takes traffic. If the order is reversed, every accept returns 500 until migration 5 applies. |
 
 ---
 
@@ -149,11 +149,12 @@ line 661, **"the deployed server's call shape (reads only offer_id)
 still works"** — a real test against a real Postgres instance proving
 exactly this claim, not just static analysis.
 
-### The direction that actually matters: new server code against the OLD (currently-live) function
+### New server code against the OLD (currently-live) dispatch function
 
-This is the more important compatibility question for sequencing,
-since the approved order is new code first, migration second — meaning
-for some window, **new server.js code will call whatever
+The approved order (below) applies every migration before #130's server
+code deploys, so this situation should not arise. It is analyzed anyway,
+for dispatch only, in case the order is ever violated or a migration
+fails part-way: **new server.js code would call whatever
 `dispatch_ride_atomic()` is currently live**, which as of today's
 schema state throws a real Postgres error (`column current_driver_id
 does not exist`) inside the function body before ever returning a row
@@ -192,6 +193,12 @@ driver and eventually mark the ride `no_drivers_available` incorrectly
 does not apply to the actual function live in production today, verified
 directly rather than assumed.
 
+**This does not apply to accept.** The #130 accept route calls
+`accept_driver_offer_atomic()`, which doesn't exist before migration 5,
+and has no fallback. Running #130 server code before migration 5 would
+make every driver accept fail with a 500. For that reason, #130's server
+code must not be deployed before all five migrations have committed.
+
 ### Confirmed: no outside-service caller
 
 Searched this repo's client code (`public/`, `mobile/`, `src/`) and this
@@ -209,56 +216,48 @@ actually shipped it.
 
 ---
 
-## Required migration order (within the four/five)
+## Required migration order (five migrations)
 
-No inter-migration ordering dependency exists among 1, 2, 3, and 4 —
+No inter-migration ordering dependency exists among the five migrations —
 they touch disjoint objects (`driver_earnings`, `rides`'s payment
-columns, `rides.quote_jti`, and the two/three functions respectively)
-and none reads a column or object another one creates. They can apply
-in any order or in a single batch. The only real ordering constraints
-are each migration's own relationship to server code deployment,
-covered above and summarized next.
+columns, `rides.quote_jti`, the dispatch functions, and the accept
+function respectively) and none reads a column or object another one
+creates. Apply them in filename order. Each is single-application (see
+`test/db/pr130Migrations.db.test.js`), and CI applies all five, in
+filename order, against a production-mirror baseline. The only real
+ordering constraints are each migration's own relationship to server
+code deployment, covered above and summarized next.
 
 ## Required application deployment order
 
-1. **#131 merges first** (code-only hotfix: truthful accept/decline
-   errors, no nonexistent-column writes, `requireDriverSelf` auth) —
-   safe to deploy against the current, unmigrated production schema,
-   since it removes writes to columns that don't exist rather than
-   adding dependencies on columns that don't exist yet.
-2. **#130 rebases onto the new `main`** and is reviewed/approved
-   separately.
-3. Once #130 is approved: **apply Migrations 2 and 3 (the hard,
-   new-code-depends-on-these-columns migrations) before deploying #130's
-   server code** — the reverse of Migration 4's direction. Migration 1
-   has no ordering constraint either way.
-4. **Deploy #130's server code**, which is now safe to call the
-   still-old `dispatch_ride_atomic()`/accept path (falls back correctly,
-   per the return-shape proof above) if Migration 4 hasn't landed yet.
-5. **Apply Migration 4/4b** (the dispatch/accept RPC hardening) —
-   safe at any point after step 4, since the new server code is already
-   equipped to parse its outcome-based contract correctly.
+1. **Merge PR #131, deploy it, and smoke-test it.** It's code-only and
+   safe against the current schema.
+2. **Rebase PR #130 onto the new `main`**, review it and approve it.
+   Validate the migrations on a staging database.
+3. **Apply all five PR #130 migrations in filename order**, and confirm
+   each one committed. Each is compatible with the #131 server that will
+   be running:
+   - migrations 1–3 are purely additive;
+   - migration 2's payment-status check accepts every value that
+     server's webhook writes (fixed in `2cb4589`);
+   - migration 4 keeps `offer_id`, so that server's dispatch still works;
+   - migration 5 adds a function that server never calls.
+4. **Deploy PR #130's server code.**
+5. **Rollback:** redeploy the previous server code. Don't revert the
+   migrations; every one of them is compatible with the #131 server.
 
 ## Rolling-deployment overlap window (Render)
 
-Render's rolling deploy briefly runs old and new server instances
-side by side behind the same load balancer. Given the order above:
+With the order above, only two server versions ever overlap:
 
-- During the Migration 2/3 → deploy window: **old server instances
-  remain unaffected** by the new columns/index existing early (both
-  are purely additive and never read by old code) — safe overlap.
-- During the deploy → Migration 4/4b window: **both old and new server
-  instances may be receiving traffic simultaneously while the RPC is
-  still in its pre-hardening state** — per the return-shape proof, both
-  behave identically during this window (both fall back to the
-  two-step path on the live function's `current_driver_id` error),
-  so this overlap is safe specifically because of the corrected order,
-  not despite it. Reversing the order (migration before new-code
-  deploy) is what would make this window unsafe, since old-server
-  instances would then be calling the *new* RPC contract without
-  understanding `outcome`, hitting the same "misinterprets success as
-  decline" risk described above — this is exactly why #131/#130's own
-  approved order exists.
+- **During the migrations, the #131 server is running.** It's compatible
+  with the old and the new schema alike (shown in step 3).
+- **During the #130 rolling deploy, old #131 instances and new #130
+  instances both serve traffic against the fully migrated schema.** Both
+  work: #131 uses its checked two-step flows and #130 uses the RPCs.
+
+Reversing the order is not safe (new code before migration 5 breaks
+every accept).
 
 ---
 
