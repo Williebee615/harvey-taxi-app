@@ -116,13 +116,30 @@ describeDb("dispatch migrations against a live-schema Postgres", () => {
     };
   }
 
-  const LOSING_OUTCOMES = ["offer_not_pending", "ride_not_assignable", "driver_unavailable", "offer_expired"];
+  // The function's complete, allow-listed result shape. Anything else on
+  // the rides row (payment ids, pricing/route snapshots, locations,
+  // reconciliation and audit fields) must never be returned.
+  const RESULT_COLUMNS = [
+    "outcome",
+    "ride_id",
+    "offer_id",
+    "driver_id",
+    "ride_status",
+    "rider_id",
+    "rider_phone",
+    "ride_type",
+    "is_review_ride",
+    "driver_name",
+    "driver_vehicle",
+    "driver_phone"
+  ];
 
+  // A losing outcome carries nothing but the outcome itself.
   function expectNoRideDisclosure(result) {
-    expect(result.ride).toBeNull();
-    expect(result.ride_id).toBeNull();
-    expect(result.driver_id).toBeNull();
-    expect(result.offer_id).toBeNull();
+    expect(Object.keys(result).sort()).toEqual([...RESULT_COLUMNS].sort());
+    for (const col of RESULT_COLUMNS) {
+      if (col !== "outcome") expect(result[col]).toBeNull();
+    }
   }
 
   // ------------------------------------------------------------- happy path
@@ -137,8 +154,20 @@ describeDb("dispatch migrations against a live-schema Postgres", () => {
 
       const result = await accept(svc, "OFFER-A", "DRV-A");
 
-      expect(result).toMatchObject({ outcome: "accepted", ride_id: "RIDE-1", offer_id: "OFFER-A", driver_id: "DRV-A" });
-      expect(result.ride).toMatchObject({ id: "RIDE-1", driver_id: "DRV-A", status: "driver_assigned" });
+      expect(result).toEqual({
+        outcome: "accepted",
+        ride_id: "RIDE-1",
+        offer_id: "OFFER-A",
+        driver_id: "DRV-A",
+        ride_status: "driver_assigned",
+        rider_id: "RIDER-1",
+        rider_phone: null,
+        ride_type: null,
+        is_review_ride: false,
+        driver_name: "Dana DRV-A",
+        driver_vehicle: "2022 Toyota Camry",
+        driver_phone: "+15555550100"
+      });
 
       const r = await getRide("RIDE-1");
       expect(r.driver_id).toBe("DRV-A");
@@ -327,7 +356,22 @@ describeDb("dispatch migrations against a live-schema Postgres", () => {
 
       const retry = await accept(svc, "OFFER-A", "DRV-A");
 
-      expect(retry).toMatchObject({ outcome: "already_accepted", ride_id: "RIDE-1", driver_id: "DRV-A" });
+      // Only what the idempotent success response needs; no notification
+      // fields, so a retry can't be mistaken for a fresh assignment.
+      expect(retry).toEqual({
+        outcome: "already_accepted",
+        ride_id: "RIDE-1",
+        offer_id: "OFFER-A",
+        driver_id: "DRV-A",
+        ride_status: "driver_assigned",
+        rider_id: null,
+        rider_phone: null,
+        ride_type: null,
+        is_review_ride: null,
+        driver_name: null,
+        driver_vehicle: null,
+        driver_phone: null
+      });
       expect(await getRide("RIDE-1")).toEqual(rideAfterFirst);
       expect(await getOffer("OFFER-A")).toEqual(offerAfterFirst);
     });
@@ -456,6 +500,80 @@ describeDb("dispatch migrations against a live-schema Postgres", () => {
       expect(rows).toEqual([]);
     });
 
+    test("never returns payment, location, pricing or reconciliation fields from the rides row", async () => {
+      await driver("DRV-A");
+      await ride("RIDE-1", {
+        rider_phone: "+15555550199",
+        ride_type: "standard",
+        payment_id: "pi_SECRET_PAYMENT",
+        payment_status: "authorized",
+        pricing_snapshot: JSON.stringify({ secret: "PRICING_SECRET" }),
+        route_snapshot: JSON.stringify({ secret: "ROUTE_SECRET" }),
+        pickup_lat: 36.123456,
+        pickup_lng: -86.654321,
+        admin_note: "ADMIN_NOTE_SECRET",
+        delivery_pin: "9876",
+        public_code: "PUBLIC_CODE_SECRET"
+      });
+      await offer("OFFER-A", "RIDE-1", "DRV-A");
+
+      const result = await accept(svc, "OFFER-A", "DRV-A");
+
+      expect(result.outcome).toBe("accepted");
+      expect(Object.keys(result).sort()).toEqual([...RESULT_COLUMNS].sort());
+      const serialized = JSON.stringify(result);
+      for (const secret of [
+        "pi_SECRET_PAYMENT",
+        "authorized",
+        "PRICING_SECRET",
+        "ROUTE_SECRET",
+        "36.123456",
+        "-86.654321",
+        "ADMIN_NOTE_SECRET",
+        "9876",
+        "PUBLIC_CODE_SECRET"
+      ]) {
+        expect(serialized).not.toContain(secret);
+      }
+    });
+
+    test("objects created in public cannot shadow the built-ins the function uses", async () => {
+      await driver("DRV-A");
+      await driver("DRV-B");
+      await ride("RIDE-1");
+      await ride("RIDE-2", { status: "payment_authorized", dispatch_status: null });
+      await offer("OFFER-A", "RIDE-1", "DRV-A");
+
+      // Hostile look-alikes of the text = and || operators and of now().
+      // Under search_path (public, pg_catalog) these would be picked over
+      // the built-ins; under (pg_catalog, public) they must never run.
+      await admin.query(`
+        create function public.test_hijack_eq(text, text) returns boolean language plpgsql as $$
+        begin raise exception 'shadowed = operator was used'; end $$;
+        create operator public.= (leftarg = text, rightarg = text, function = public.test_hijack_eq);
+        create function public.test_hijack_cat(text, text) returns text language plpgsql as $$
+        begin raise exception 'shadowed || operator was used'; end $$;
+        create operator public.|| (leftarg = text, rightarg = text, function = public.test_hijack_cat);
+        create function public.now() returns timestamptz language plpgsql as $$
+        begin raise exception 'shadowed now() was used'; end $$;
+        grant execute on function public.test_hijack_eq(text, text), public.test_hijack_cat(text, text), public.now() to service_role;
+      `);
+      try {
+        expect((await accept(svc, "OFFER-A", "DRV-A")).outcome).toBe("accepted");
+        const dispatched = await svc.query("select * from public.dispatch_ride_atomic($1, $2, 30)", ["RIDE-2", "DRV-B"]);
+        expect(dispatched.rows[0].outcome).toBe("created");
+        await expect(svc.query("select * from public.nearest_drivers(36.16, -86.78, 25, 5)")).resolves.toBeDefined();
+      } finally {
+        await admin.query(`
+          drop operator public.= (text, text);
+          drop operator public.|| (text, text);
+          drop function public.test_hijack_eq(text, text);
+          drop function public.test_hijack_cat(text, text);
+          drop function public.now();
+        `);
+      }
+    });
+
     test("rejects null arguments with invalid_parameter_value", async () => {
       await expect(svc.query(ACCEPT, [null, "DRV-A"])).rejects.toMatchObject({ code: "22023" });
       await expect(svc.query(ACCEPT, ["OFFER-A", null])).rejects.toMatchObject({ code: "22023" });
@@ -504,7 +622,7 @@ describeDb("dispatch migrations against a live-schema Postgres", () => {
       expect(rows).toHaveLength(3);
       for (const row of rows) {
         expect(row.prosecdef).toBe(false);
-        expect(row.proconfig).toEqual(["search_path=public, pg_catalog"]);
+        expect(row.proconfig).toEqual(["search_path=pg_catalog, public"]);
       }
     });
   });

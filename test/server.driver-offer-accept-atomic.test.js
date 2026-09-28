@@ -122,34 +122,143 @@ function accept(driverId = DRIVER.id, body = {}) {
     .send(body);
 }
 
-const committedRide = () => ({
-  ...makeRide({ id: RIDE_ID }),
-  status: "driver_assigned",
-  dispatch_status: "accepted",
-  driver_id: DRIVER.id,
-  driver_name: "Morgan Blake",
-  driver_vehicle: "2020 Toyota Camry",
-  driver_phone: DRIVER.phone
-});
+const NULL_RESULT = {
+  ride_id: null,
+  offer_id: null,
+  driver_id: null,
+  ride_status: null,
+  rider_id: null,
+  rider_phone: null,
+  ride_type: null,
+  is_review_ride: null,
+  driver_name: null,
+  driver_vehicle: null,
+  driver_phone: null
+};
 
-const rpcRow = (outcome, withRide = false) => ({
-  data: [
-    withRide
-      ? { outcome, ride_id: RIDE_ID, offer_id: OFFER_ID, driver_id: DRIVER.id, ride: committedRide() }
-      : { outcome, ride_id: null, offer_id: null, driver_id: null, ride: null }
-  ],
-  error: null
-});
+// Shapes returned by accept_driver_offer_atomic() for each kind of outcome
+// (see the migration's result-column allow-list).
+function rpcRow(outcome) {
+  if (outcome === "accepted") {
+    return {
+      data: [{
+        outcome,
+        ride_id: RIDE_ID,
+        offer_id: OFFER_ID,
+        driver_id: DRIVER.id,
+        ride_status: "driver_assigned",
+        rider_id: RIDER.id,
+        rider_phone: RIDER.phone,
+        ride_type: "standard",
+        is_review_ride: false,
+        driver_name: "Morgan Blake",
+        driver_vehicle: "2020 Toyota Camry",
+        driver_phone: DRIVER.phone
+      }],
+      error: null
+    };
+  }
+
+  if (outcome === "already_accepted") {
+    return {
+      data: [{ ...NULL_RESULT, outcome, ride_id: RIDE_ID, offer_id: OFFER_ID, driver_id: DRIVER.id, ride_status: "driver_assigned" }],
+      error: null
+    };
+  }
+
+  return { data: [{ ...NULL_RESULT, outcome }], error: null };
+}
+
+const SUCCESS_BODY_KEYS = ["driver_id", "ok", "ride_id", "status"];
 
 describe("POST /api/driver/offers/:offerId/accept (accept_driver_offer_atomic)", () => {
   test("calls the RPC with the authenticated driver's id, never a body-supplied one", async () => {
-    rpcImpl = () => rpcRow("accepted", true);
+    rpcImpl = () => rpcRow("accepted");
 
     await accept(DRIVER.id, { driver_id: OTHER_DRIVER.id });
 
     expect(rpcCalls).toEqual([
       { name: "accept_driver_offer_atomic", params: { p_offer_id: OFFER_ID, p_driver_id: DRIVER.id } }
     ]);
+  });
+
+  test("a body-, query- or header-supplied driver id can never replace the session's driver", async () => {
+    rpcImpl = () => rpcRow("offer_not_found");
+
+    await request(server)
+      .post(`/api/driver/offers/${OFFER_ID}/accept?driver_id=${OTHER_DRIVER.id}`)
+      .set(driverAuthHeaders(signTestDriverToken(DRIVER.id)))
+      .set("x-driver-id", OTHER_DRIVER.id)
+      .send({ driver_id: OTHER_DRIVER.id, p_driver_id: OTHER_DRIVER.id, driverId: OTHER_DRIVER.id });
+
+    expect(rpcCalls).toHaveLength(1);
+    expect(rpcCalls[0].params).toEqual({ p_offer_id: OFFER_ID, p_driver_id: DRIVER.id });
+  });
+
+  test("a body driver id with no valid session (or a forged admin token) never reaches the RPC", async () => {
+    const noSession = await request(server)
+      .post(`/api/driver/offers/${OFFER_ID}/accept`)
+      .send({ driver_id: DRIVER.id });
+    const forgedAdmin = await request(server)
+      .post(`/api/driver/offers/${OFFER_ID}/accept`)
+      .set("x-admin-token", "not-the-admin-token")
+      .send({ driver_id: DRIVER.id });
+    const tamperedSession = await request(server)
+      .post(`/api/driver/offers/${OFFER_ID}/accept`)
+      .set(driverAuthHeaders(signTestDriverToken(DRIVER.id, { secret: "wrong-secret" })))
+      .send({ driver_id: DRIVER.id });
+
+    expect(noSession.status).toBe(401);
+    expect(forgedAdmin.status).toBe(401);
+    expect(tamperedSession.status).toBe(401);
+    expect(rpcCalls).toHaveLength(0);
+  });
+
+  test("the success response exposes only its allow-list -- no rider contact, payment or reconciliation fields", async () => {
+    // Even if the RPC result ever carried more (a future column, or a
+    // regression back to returning the whole ride), the response must not.
+    rpcImpl = () => {
+      const row = rpcRow("accepted");
+      Object.assign(row.data[0], {
+        payment_id: "pi_SECRET_PAYMENT",
+        payment_status: "authorized",
+        pricing_snapshot: { secret: "PRICING_SECRET" },
+        cancellation_payment_status: "RECONCILIATION_SECRET",
+        admin_note: "ADMIN_NOTE_SECRET",
+        pickup_lat: 36.123456,
+        ride: { payment_id: "pi_SECRET_PAYMENT" }
+      });
+      return row;
+    };
+
+    const res = await accept();
+    await settle();
+
+    expect(res.status).toBe(200);
+    expect(Object.keys(res.body).sort()).toEqual(SUCCESS_BODY_KEYS);
+    const body = JSON.stringify(res.body);
+    for (const secret of [
+      RIDER.id,
+      RIDER.phone,
+      DRIVER.phone,
+      "pi_SECRET_PAYMENT",
+      "authorized",
+      "PRICING_SECRET",
+      "RECONCILIATION_SECRET",
+      "ADMIN_NOTE_SECRET",
+      "36.123456"
+    ]) {
+      expect(body).not.toContain(secret);
+    }
+  });
+
+  test("the idempotent-replay response exposes only its allow-list", async () => {
+    rpcImpl = () => rpcRow("already_accepted");
+
+    const res = await accept();
+
+    expect(res.status).toBe(200);
+    expect(Object.keys(res.body).sort()).toEqual([...SUCCESS_BODY_KEYS, "idempotent_replay"].sort());
   });
 
   test("an unauthenticated request is rejected before the RPC is called", async () => {
@@ -160,7 +269,7 @@ describe("POST /api/driver/offers/:offerId/accept (accept_driver_offer_atomic)",
   });
 
   test("a committed accept returns 200 and notifies exactly once", async () => {
-    rpcImpl = () => rpcRow("accepted", true);
+    rpcImpl = () => rpcRow("accepted");
     const stream = await subscribeRideStream(RIDE_ID);
 
     const res = await accept();
@@ -174,11 +283,11 @@ describe("POST /api/driver/offers/:offerId/accept (accept_driver_offer_atomic)",
   });
 
   test("an idempotent retry returns the same 200 without notifying again", async () => {
-    rpcImpl = () => rpcRow("accepted", true);
+    rpcImpl = () => rpcRow("accepted");
     const stream = await subscribeRideStream(RIDE_ID);
     await accept();
 
-    rpcImpl = () => rpcRow("already_accepted", true);
+    rpcImpl = () => rpcRow("already_accepted");
     const retry = await accept();
     await settle();
 
@@ -217,7 +326,7 @@ describe("POST /api/driver/offers/:offerId/accept (accept_driver_offer_atomic)",
 
   test("a losing driver in a two-driver race gets 409 and only the winner triggers a notification", async () => {
     rpcImpl = (_name, params) =>
-      params.p_driver_id === DRIVER.id ? rpcRow("accepted", true) : rpcRow("offer_not_pending");
+      params.p_driver_id === DRIVER.id ? rpcRow("accepted") : rpcRow("offer_not_pending");
 
     const [winner, loser] = await Promise.all([accept(DRIVER.id), accept(OTHER_DRIVER.id)]);
     await settle();
@@ -252,7 +361,7 @@ describe("POST /api/driver/offers/:offerId/accept (accept_driver_offer_atomic)",
   });
 
   test("the route performs no table writes of its own -- the RPC owns every state change", async () => {
-    rpcImpl = () => rpcRow("accepted", true);
+    rpcImpl = () => rpcRow("accepted");
     const before = JSON.parse(JSON.stringify({
       rides: mockSupabaseClient._state.rides,
       driver_offers: mockSupabaseClient._state.driver_offers

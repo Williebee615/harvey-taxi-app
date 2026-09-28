@@ -118,9 +118,11 @@
 --   * lock order is ride row first, then the driver-scoped advisory lock
 --     -- the same order accept_driver_offer_atomic() uses, so the two
 --     functions can never deadlock against each other;
---   * every object reference is schema-qualified and search_path is
---     pinned to (public, pg_catalog) -- public is where PostGIS lives in
---     this project;
+--   * every application object reference is schema-qualified and
+--     search_path is pinned to (pg_catalog, public): built-ins resolve
+--     first, so nothing created in public can shadow them. PostGIS lives
+--     in public in this project; its functions, type and <-> operator are
+--     referenced explicitly as public.*;
 --   * SECURITY INVOKER (the default; unchanged). The only legitimate
 --     caller is the backend's service_role client.
 --
@@ -147,7 +149,7 @@ returns table (offer_id text, outcome text)
 language plpgsql
 volatile
 security invoker
-set search_path = public, pg_catalog
+set search_path = pg_catalog, public
 as $function$
 #variable_conflict use_column
 declare
@@ -305,7 +307,7 @@ returns table (
 language sql
 stable
 security invoker
-set search_path = public, pg_catalog
+set search_path = pg_catalog, public
 as $function$
   select
     d.id,

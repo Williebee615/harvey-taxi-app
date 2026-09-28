@@ -53,14 +53,24 @@
 --   driver_unavailable -- the driver holds another active ride or a
 --                        conflicting accepted offer, or is no longer
 --                        approved / has had access revoked
--- `ride` (jsonb) is returned only for accepted/already_accepted -- losing
--- callers get no ride data at all.
+-- Result columns are an explicit allow-list, never the whole rides row
+-- (which carries payment identifiers, pricing/route snapshots, locations,
+-- reconciliation and audit fields):
+--   * losing outcomes: only `outcome`; every other column is null.
+--   * already_accepted: outcome, ride_id, offer_id, driver_id, ride_status
+--     -- enough for the winning driver's idempotent success response.
+--   * accepted: the above plus exactly what server.js needs to notify the
+--     rider once (rider_id, rider_phone, ride_type, is_review_ride) and to
+--     describe the driver (driver_name, driver_vehicle, driver_phone).
+--     These stay server-side; the HTTP response is built from its own
+--     allow-list (ride_id, driver_id, status).
 --
 -- Security: SECURITY INVOKER (no SECURITY DEFINER: the only caller is the
 -- backend's service_role client, which already has the table privileges it
--- needs). search_path pinned; every object reference schema-qualified.
--- EXECUTE granted to service_role only, revoked from PUBLIC, anon and
--- authenticated.
+-- needs). search_path is pinned to (pg_catalog, public) so nothing created
+-- in public can shadow a built-in function or operator, and every
+-- application object is schema-qualified. EXECUTE granted to service_role
+-- only, revoked from PUBLIC, anon and authenticated.
 --
 -- Backward compatibility: this adds a new function and changes nothing the
 -- currently deployed server calls.
@@ -70,16 +80,23 @@ create or replace function public.accept_driver_offer_atomic(
   p_driver_id text
 )
 returns table (
-  outcome text,
-  ride_id text,
-  offer_id text,
-  driver_id text,
-  ride jsonb
+  outcome        text,
+  ride_id        text,
+  offer_id       text,
+  driver_id      text,
+  ride_status    text,
+  rider_id       text,
+  rider_phone    text,
+  ride_type      text,
+  is_review_ride boolean,
+  driver_name    text,
+  driver_vehicle text,
+  driver_phone   text
 )
 language plpgsql
 volatile
 security invoker
-set search_path = public, pg_catalog
+set search_path = pg_catalog, public
 as $function$
 #variable_conflict use_column
 declare
@@ -89,6 +106,9 @@ declare
   v_driver        public.drivers%rowtype;
   v_now           timestamptz := pg_catalog.now();
 begin
+  -- Every result column is an OUT parameter that starts null. A losing
+  -- outcome sets `outcome` alone and returns, so it can't disclose anything.
+
   if p_offer_id is null or p_driver_id is null then
     raise exception 'accept_driver_offer_atomic: p_offer_id and p_driver_id are required'
       using errcode = '22023';
@@ -100,7 +120,8 @@ begin
   where o.id = p_offer_id;
 
   if not found then
-    return query select 'offer_not_found'::text, null::text, null::text, null::text, null::jsonb;
+    outcome := 'offer_not_found';
+    return next;
     return;
   end if;
 
@@ -125,43 +146,55 @@ begin
   where o.id = p_offer_id;
 
   if not found then
-    return query select 'offer_not_found'::text, null::text, null::text, null::text, null::jsonb;
+    outcome := 'offer_not_found';
+    return next;
     return;
   end if;
 
   if v_offer.driver_id is distinct from p_driver_id then
-    return query select 'not_offer_owner'::text, null::text, null::text, null::text, null::jsonb;
+    outcome := 'not_offer_owner';
+    return next;
     return;
   end if;
 
   if v_offer.status = 'accepted' then
     -- Idempotent retry by the winning driver: the assignment this offer
-    -- produced is still in place. Nothing is written.
+    -- produced is still in place. Nothing is written, and nothing beyond
+    -- what the success response needs is returned.
     if v_ride.id is not null
        and v_ride.driver_id = p_driver_id
        and v_ride.status in ('driver_assigned', 'driver_enroute', 'arrived', 'in_progress') then
-      return query select 'already_accepted'::text, v_ride.id, v_offer.id, p_driver_id, pg_catalog.to_jsonb(v_ride);
+      outcome     := 'already_accepted';
+      ride_id     := v_ride.id;
+      offer_id    := v_offer.id;
+      driver_id   := p_driver_id;
+      ride_status := v_ride.status;
+      return next;
       return;
     end if;
 
-    return query select 'offer_not_pending'::text, null::text, null::text, null::text, null::jsonb;
+    outcome := 'offer_not_pending';
+    return next;
     return;
   end if;
 
   if v_offer.status <> 'pending' then
-    return query select 'offer_not_pending'::text, null::text, null::text, null::text, null::jsonb;
+    outcome := 'offer_not_pending';
+    return next;
     return;
   end if;
 
   if v_offer.expires_at is not null and v_offer.expires_at <= v_now then
-    return query select 'offer_expired'::text, null::text, null::text, null::text, null::jsonb;
+    outcome := 'offer_expired';
+    return next;
     return;
   end if;
 
   if v_ride.id is null
      or v_ride.driver_id is not null
      or v_ride.status not in ('payment_authorized', 'awaiting_driver_acceptance') then
-    return query select 'ride_not_assignable'::text, null::text, null::text, null::text, null::jsonb;
+    outcome := 'ride_not_assignable';
+    return next;
     return;
   end if;
 
@@ -179,7 +212,8 @@ begin
   if not found
      or v_driver.approval_status is distinct from 'approved'
      or coalesce(v_driver.access_revoked, false) then
-    return query select 'driver_unavailable'::text, null::text, null::text, null::text, null::jsonb;
+    outcome := 'driver_unavailable';
+    return next;
     return;
   end if;
 
@@ -202,7 +236,8 @@ begin
       and r.status not in ('completed', 'cancelled', 'failed')
       and (r.driver_id is null or r.driver_id = p_driver_id)
   ) then
-    return query select 'driver_unavailable'::text, null::text, null::text, null::text, null::jsonb;
+    outcome := 'driver_unavailable';
+    return next;
     return;
   end if;
 
@@ -239,15 +274,24 @@ begin
     where r.id = v_ride.id
     returning r.* into v_ride;
 
-  return query select 'accepted'::text, v_ride.id, v_offer.id, p_driver_id, pg_catalog.to_jsonb(v_ride);
+  outcome        := 'accepted';
+  ride_id        := v_ride.id;
+  offer_id       := v_offer.id;
+  driver_id      := p_driver_id;
+  ride_status    := v_ride.status;
+  rider_id       := v_ride.rider_id;
+  rider_phone    := v_ride.rider_phone;
+  ride_type      := v_ride.ride_type;
+  is_review_ride := v_ride.is_review_ride;
+  driver_name    := v_ride.driver_name;
+  driver_vehicle := v_ride.driver_vehicle;
+  driver_phone   := v_ride.driver_phone;
+  return next;
 end;
 $function$;
 
 comment on function public.accept_driver_offer_atomic(text, text) is
-  'Atomically accepts a pending driver offer: locks ride, offers and driver; re-checks eligibility; marks the offer accepted, supersedes competing pending offers, and assigns rides.driver_id. Returns (outcome, ride_id, offer_id, driver_id, ride). service_role only.';
+  'Atomically accepts a pending driver offer: locks ride, offers and driver; re-checks eligibility; marks the offer accepted, supersedes competing pending offers, and assigns rides.driver_id. Returns an allow-listed result row (never the full ride). service_role only.';
 
-revoke all on function public.accept_driver_offer_atomic(text, text)
-  from public, anon, authenticated;
-
-grant execute on function public.accept_driver_offer_atomic(text, text)
-  to service_role;
+REVOKE ALL ON FUNCTION public.accept_driver_offer_atomic(text, text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.accept_driver_offer_atomic(text, text) TO service_role;

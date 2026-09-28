@@ -13977,8 +13977,9 @@ app.post(
 
       );
 
-    // Always the authenticated requireDriver identity -- never a
-    // client-supplied driver_id.
+    // Always the identity requireDriver verified (the signed driver session,
+    // or requireDriver's own admin-authenticated ops override) -- never
+    // read from req.body here.
     const driverId = req.driver.id;
 
     // One transaction in the database: ride, offer and driver locks,
@@ -14023,24 +14024,38 @@ app.post(
 
     }
 
-    const assignedRide = result.ride || {};
-
     // Notify only for the call that actually committed the assignment. An
     // idempotent retry (already_accepted) returns the same success body
     // without a second rider notification, SSE event or audit entry.
+    //
+    // The RPC returns an allow-listed row (never the full rides row); the
+    // rider-contact fields below are used server-side for the notification
+    // only and never appear in the HTTP response.
     if (outcome === "accepted") {
 
-      notifyRideStage(assignedRide, "driver_assigned").catch(() => {});
+      const driverFields = {
+        driver_name: result.driver_name,
+        driver_vehicle: result.driver_vehicle,
+        driver_phone: result.driver_phone
+      };
+
+      notifyRideStage(
+        {
+          id: result.ride_id,
+          rider_id: result.rider_id,
+          rider_phone: result.rider_phone,
+          ride_type: result.ride_type,
+          is_review_ride: result.is_review_ride,
+          ...driverFields
+        },
+        "driver_assigned"
+      ).catch(() => {});
 
       broadcastRideSse(result.ride_id, "stage", {
 
         status: RIDE_STATUS.DRIVER_ASSIGNED,
 
-        driver: {
-          driver_name: assignedRide.driver_name,
-          driver_vehicle: assignedRide.driver_vehicle,
-          driver_phone: assignedRide.driver_phone
-        }
+        driver: driverFields
 
       });
 
