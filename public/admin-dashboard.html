@@ -158,10 +158,10 @@
         <div class="card-head">
           <div>
             <div class="title">Admin Access</div>
-            <div class="sub">Used for protected routes. Stored only on this device.</div>
+            <div class="sub" id="adminSessionStatus">Checking sign-in status...</div>
           </div>
         </div>
-        <div class="settings">
+        <div class="settings" id="adminLoginFields" style="display:none">
           <div class="field">
             <label>Admin Email</label>
             <input id="adminEmail" class="input" type="email" placeholder="williebee@harveytaxiservice.com" />
@@ -172,8 +172,9 @@
           </div>
         </div>
         <div class="actions">
-          <button class="primary" id="adminLoginBtn">Sign In</button>
-          <button class="success" id="saveAdminBtn">Remember Email</button>
+          <button class="primary" id="adminLoginBtn" style="display:none">Sign In</button>
+          <button class="success" id="saveAdminBtn" style="display:none">Remember Email</button>
+          <button class="danger" id="adminLogoutBtn" style="display:none">Sign Out</button>
           <button class="neutral" id="checkHealthBtn">Check Health</button>
         </div>
       </section>
@@ -279,7 +280,7 @@
 
 <script>
 const API_BASE = window.HARVEY_API_BASE || window.location.origin;
-const state = { auto:true, timer:null, filter:"all", riders:[], drivers:[], rides:[], htaf:[] };
+const state = { auto:true, timer:null, filter:"all", riders:[], drivers:[], rides:[], htaf:[], signedIn:false };
 
 const $ = id => document.getElementById(id);
 const els = {
@@ -340,11 +341,52 @@ async function adminLogin(){
     localStorage.setItem("harvey_admin_email", email);
     localStorage.removeItem("harvey_admin_password");
     $("adminPassword").value = "";
+    await refreshSession();
     showResult("Signed in. Loading dashboard...");
     loadDashboard();
   }catch(e){
     showError("Login failed: " + e.message);
   }
+}
+
+// The HttpOnly session cookie can't be read from script, so the server is
+// asked whether this browser is signed in. Admin data is only requested
+// while it is, and the page reloads (dropping everything rendered) as soon
+// as a session ends or expires.
+function setSignedIn(session){
+  const wasSignedIn = state.signedIn;
+  state.signedIn = Boolean(session && session.authenticated);
+  $("adminLoginFields").style.display = state.signedIn ? "none" : "";
+  $("adminLoginBtn").style.display = state.signedIn ? "none" : "";
+  $("saveAdminBtn").style.display = state.signedIn ? "none" : "";
+  $("adminLogoutBtn").style.display = state.signedIn ? "" : "none";
+  if (state.signedIn) {
+    const email = (session.admin && session.admin.email) || "admin";
+    const expires = session.admin && session.admin.expiresAt ? new Date(session.admin.expiresAt) : null;
+    $("adminSessionStatus").textContent = "Signed in as " + email +
+      (expires && !isNaN(expires) ? " · session expires " + expires.toLocaleString() : "") +
+      ". Sign out when finished.";
+  } else {
+    $("adminSessionStatus").textContent = "Signed out. Sign in to load admin data.";
+  }
+  if (wasSignedIn && !state.signedIn) window.location.reload();
+}
+async function refreshSession(){
+  try{
+    const res = await fetch(API_BASE + "/api/admin/session", { credentials:"include", cache:"no-store" });
+    const data = await res.json().catch(()=>({}));
+    setSignedIn(res.ok ? data : null);
+  }catch(e){
+    setSignedIn(null);
+  }
+  return state.signedIn;
+}
+async function adminLogout(){
+  try{
+    await fetch(API_BASE + "/api/admin/logout", { method:"POST", credentials:"include" });
+  }catch(e){}
+  $("adminPassword").value = "";
+  window.location.reload();
 }
 
 function saveAdmin(){
@@ -639,6 +681,7 @@ document.querySelectorAll(".tab").forEach(btn=>{
   btn.onclick=()=>{document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));btn.classList.add("active");state.filter=btn.dataset.filter;renderRides();}
 });
 $("adminLoginBtn").onclick=adminLogin;
+$("adminLogoutBtn").onclick=adminLogout;
 $("saveAdminBtn").onclick=saveAdmin;
 $("checkHealthBtn").onclick=checkHealth;
 $("refreshBtn").onclick=loadDashboard;
@@ -662,8 +705,12 @@ $("adminEmail").value = localStorage.getItem("harvey_admin_email") || "";
 // forward.
 localStorage.removeItem("harvey_admin_password");
 
-loadDashboard();
-setInterval(()=>{ if(state.auto && !document.hidden) loadDashboard(); }, 10000);
+refreshSession().then(signedIn=>{ if(signedIn) loadDashboard(); });
+setInterval(async ()=>{
+  if(document.hidden) return;
+  const signedIn = await refreshSession();
+  if(signedIn && state.auto) loadDashboard();
+}, 10000);
 </script>
 </body>
 </html>
