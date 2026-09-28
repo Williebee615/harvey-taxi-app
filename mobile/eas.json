@@ -2,6 +2,12 @@
   "build": {
     "production": {
       "autoIncrement": true
+    },
+    "ipad-simulator": {
+      "distribution": "internal",
+      "ios": {
+        "simulator": true
+      }
     }
   }
 }
