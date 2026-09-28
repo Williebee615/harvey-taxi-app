@@ -8,7 +8,7 @@
   const token = params.get('t');
   const query = `t=${encodeURIComponent(token || '')}`;
   let business = {};
-  let stream;
+  let polling = false;
   let pollTimer;
   let wakeLock;
   let latestStatus;
@@ -57,7 +57,6 @@
 
     if (active) rememberOrder(orderId, token); else forgetOrder();
     if (order.status === 'completed' || order.status === 'cancelled' || order.status === 'expired') stopLive();
-    if (order.status === 'pending_payment') schedulePoll(); else clearTimeout(pollTimer);
   }
 
   function renderPickup() {
@@ -81,29 +80,33 @@
     return (await res.json()).order;
   }
 
-  // While payment is confirming, the server checks Stripe on each fetch.
-  function schedulePoll() {
-    clearTimeout(pollTimer);
-    pollTimer = setTimeout(async () => {
-      try { render(await fetchOrder()); } catch (e) { schedulePoll(); }
-    }, 2500);
-  }
-
   function setLive(on) {
     $('live').className = on ? 'live-dot' : 'live-dot off';
     $('live').textContent = on ? 'Live' : 'Reconnecting';
   }
 
+  // Checks for updates every few seconds. While payment is confirming, the
+  // server also checks Stripe on each request.
+  async function poll() {
+    clearTimeout(pollTimer);
+    if (!polling) return;
+    try {
+      render(await fetchOrder());
+      setLive(true);
+    } catch (e) {
+      setLive(false);
+    }
+    if (polling) pollTimer = setTimeout(poll, latestStatus === 'pending_payment' ? 2500 : 4000);
+  }
+
   function startLive() {
-    stream = new EventSource(`/api/orders/${encodeURIComponent(orderId)}/events?${query}`);
-    stream.addEventListener('order', (e) => { setLive(true); render(JSON.parse(e.data)); });
-    stream.onopen = () => setLive(true);
-    stream.onerror = () => setLive(false);
+    polling = true;
+    pollTimer = setTimeout(poll, 2500);
   }
 
   function stopLive() {
-    if (stream) stream.close();
-    stream = null;
+    polling = false;
+    clearTimeout(pollTimer);
     $('live').hidden = true;
     if (wakeLock) wakeLock.release().catch(() => {});
     wakeLock = null;
@@ -111,7 +114,7 @@
 
   // Keep the screen on so the page stays live during the drive over.
   async function keepAwake() {
-    if (!('wakeLock' in navigator) || document.visibilityState !== 'visible' || !stream) return;
+    if (!('wakeLock' in navigator) || document.visibilityState !== 'visible' || !polling) return;
     try { wakeLock = await navigator.wakeLock.request('screen'); } catch (e) { /* not critical */ }
   }
 
@@ -147,6 +150,7 @@
     fetch('/api/config').then((r) => r.json()).then((c) => { business = c.business; renderPickup(); }).catch(() => {});
     try {
       render(await fetchOrder());
+      setLive(true);
     } catch (err) {
       forgetOrder();
       $('order-num').textContent = '';
@@ -160,7 +164,10 @@
       startLive();
       keepAwake();
     }
-    document.addEventListener('visibilitychange', keepAwake);
+    document.addEventListener('visibilitychange', () => {
+      keepAwake();
+      if (document.visibilityState === 'visible') poll(); // catch up after the phone was locked
+    });
   }
 
   init();

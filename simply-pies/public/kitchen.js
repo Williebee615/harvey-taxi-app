@@ -6,7 +6,7 @@
   let seeded = false;
   let soundOn = true;
   let audio;
-  let stream;
+  let pollTimer;
   let wakeLock;
   let alarmTimer;
   let titleTimer;
@@ -199,25 +199,32 @@
     }
   }
 
-  // ---- Live connection ---------------------------------------------------
-  function connect() {
-    stream = new EventSource('/api/kitchen/events');
-    stream.onopen = () => { $('live').className = 'k-live'; $('live').textContent = 'Live'; };
-    stream.onerror = async () => {
-      $('live').className = 'k-live off';
-      $('live').textContent = 'Reconnecting';
-      const res = await fetch('/api/kitchen/orders').catch(() => null);
-      if (res && res.status === 401) { stream.close(); show('login'); }
-    };
-    stream.addEventListener('snapshot', (e) => {
-      const list = JSON.parse(e.data);
+  // ---- Live updates ----------------------------------------------------
+  // Checks for new orders and arrivals every few seconds. Alerts fire for
+  // anything that changed since the last check, including after a dropped
+  // connection.
+  function setLive(on) {
+    $('live').className = on ? 'k-live' : 'k-live off';
+    $('live').textContent = on ? 'Live' : 'Reconnecting';
+  }
+
+  async function poll() {
+    clearTimeout(pollTimer);
+    try {
+      const res = await fetch('/api/kitchen/orders', { cache: 'no-store' });
+      if (res.status === 401) { show('login'); return; }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const { orders: list } = await res.json();
       const ids = new Set(list.map((o) => o.id));
       for (const id of [...orders.keys()]) if (!ids.has(id)) orders.delete(id);
-      for (const o of list) onUpdate(o); // after a reconnect, alerts fire for anything missed
+      for (const o of list) onUpdate(o);
       seeded = true;
+      setLive(true);
       render();
-    });
-    stream.addEventListener('order', (e) => { onUpdate(JSON.parse(e.data)); render(); });
+    } catch (err) {
+      setLive(false);
+    }
+    pollTimer = setTimeout(poll, 3000);
   }
 
   async function keepAwake() {
@@ -232,7 +239,8 @@
     keepAwake();
     document.addEventListener('visibilitychange', keepAwake);
     show('board');
-    connect();
+    poll();
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') poll(); });
     setInterval(render, 30000); // refresh the "x min ago" labels
   }
 

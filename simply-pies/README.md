@@ -15,7 +15,7 @@ has its own server, dependencies and deployment.
 | Image-led listings for the 5 pies (4-inch round, short crust base, rough puff top) | `config.js` menu, `public/images/` |
 | Cart and checkout, multiple quantities per flavor | Cart sheet on `/` |
 | Card, Apple Pay and Google Pay payments | Stripe Checkout (hosted, PCI-compliant) |
-| Live active order screen | `/order` (live updates, keeps the screen awake) |
+| Live active order screen | `/order` (updates every few seconds, keeps the screen awake) |
 | One-tap "I've Arrived" button | `/order` |
 | Kitchen dashboard for tablet or phone | `/kitchen` (New, Preparing, Ready, Finished) |
 | Distinct audio and visual arrival alerts | `/kitchen`: repeating alarm, red banner, flashing tab, system notification |
@@ -46,49 +46,81 @@ The server lists anything still missing each time it starts. Edit `config.js`:
    whether prepared food sales need tax collected. If they do, enable Stripe
    Tax or add a tax line.
 
+## Deploy to Vercel
+
+The app is ready for Vercel. The pages in `public/` are served from Vercel's
+CDN, and `api/index.js` runs the API as a serverless function. Orders are
+stored in Postgres because Vercel functions have no permanent disk.
+
+**Plan note:** Vercel's free Hobby plan is limited to non-commercial,
+personal use. A business that takes orders needs the **Pro** plan. Check
+current pricing at vercel.com/pricing.
+
+1. **Import the project.** In Vercel choose *Add New → Project*, import this
+   GitHub repository, and set **Root Directory** to `simply-pies`. Leave the
+   framework as *Other*. `vercel.json` sets the rest.
+2. **Add a database.** In the project open *Storage → Create Database* and
+   choose a Postgres provider such as Neon. Connect it to the project. This
+   adds `DATABASE_URL` automatically. The app creates its tables on first use.
+   Any Postgres works, including Supabase. Use the *pooled* connection string.
+3. **Add environment variables** (*Settings → Environment Variables*). See
+   the table below.
+4. **Deploy**, then open `/kitchen` and sign in to confirm it works.
+5. **Add the domain** (*Settings → Domains*). Enter the domain, add the DNS
+   records Vercel shows at the domain registrar, and wait for the certificate.
+   Then set `PUBLIC_BASE_URL` to `https://<the domain>` and redeploy.
+6. **Connect Stripe** (see below). Place a test order with test keys first.
+7. **Update the Instagram bio link** to the new domain.
+
 ## Environment variables
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
+| `DATABASE_URL` | Yes, on Vercel | Postgres connection string. Added by the Vercel storage integration. `POSTGRES_URL` is also accepted. |
 | `STRIPE_SECRET_KEY` | Yes, for live orders | Stripe secret key (`sk_live_...`, or `sk_test_...` for testing) |
 | `STRIPE_WEBHOOK_SECRET` | Recommended | Signing secret for the `/api/stripe/webhook` endpoint |
 | `KITCHEN_PASSCODE` | Yes | Passcode for the `/kitchen` dashboard. Use a long one. |
-| `SESSION_SECRET` | Yes, in production | Long random string that signs kitchen sign-ins |
+| `SESSION_SECRET` | Yes, in production | Long random string that signs kitchen sign-ins (for example, the output of `openssl rand -hex 32`) |
 | `PUBLIC_BASE_URL` | Recommended | e.g. `https://order.example.com`, used in Stripe return links |
-| `SIMPLY_PIES_DATA_DIR` | Optional | Where `orders.json` is stored (default `./data`) |
-| `PORT` | Optional | Default `3100` |
-| `DEMO_PAYMENTS` | Local only | `true` to take orders without payment |
+| `SIMPLY_PIES_DATA_DIR` | Local only | Where `orders.json` is kept when no database is set |
+| `DEMO_PAYMENTS` | Local only | `true` to take orders without payment. Refused in production. |
+
+If a required production setting is missing, the API refuses orders rather
+than running unsafely. The reason appears in the Vercel function logs.
 
 ### Stripe setup
 
 1. Create or verify the Stripe account under the business's legal name.
 2. In the Dashboard under **Settings → Payment methods**, turn on Cards,
    Apple Pay and Google Pay. Checkout shows the wallets automatically on
-   supported devices.
+   supported devices. For Apple Pay, register the live domain when Stripe
+   asks for it.
 3. Under **Developers → Webhooks**, add `https://<your-domain>/api/stripe/webhook`
    with the events `checkout.session.completed`,
    `checkout.session.async_payment_succeeded` and `checkout.session.expired`.
    Copy the signing secret into `STRIPE_WEBHOOK_SECRET`.
-4. Place a test order with `sk_test_...` keys and card `4242 4242 4242 4242`
-   before switching to live keys.
+4. Place a test order with `sk_test_...` keys and card `4242 4242 4242 4242`,
+   and confirm the webhook shows as delivered in Stripe. Then switch to live keys.
 
 The server prices every order from `config.js` and checks that the amount
-Stripe charged matches before an order reaches the kitchen. Cancelling an
-order on the dashboard does **not** refund it. Issue refunds in the Stripe
-Dashboard.
+Stripe charged matches before an order reaches the kitchen. If a webhook is
+delayed, the customer's order page also confirms payment with Stripe
+directly. Cancelling an order on the dashboard does **not** refund it. Issue
+refunds in the Stripe Dashboard.
 
-## Deployment notes
+### How live updates work
 
-- Any Node 20+ host works (Render, Railway, Fly.io and similar). Use root
-  directory `simply-pies`, build command `npm install` and start command
-  `npm start`.
-- Orders are saved to a JSON file. On hosts with temporary disks (such as
-  Render's default), attach a persistent disk and point
-  `SIMPLY_PIES_DATA_DIR` at it, or orders will be lost on redeploy. For
-  higher volume, move storage to a database (for example Supabase/Postgres).
-  `lib/orderStore.js` is the only file that would change.
-- Run a single instance. Live updates are held in memory.
-- Put the site on its own domain or subdomain and add it to the Instagram bio.
+The order page checks for updates every 4 seconds, and the kitchen dashboard
+every 3 seconds. This fits Vercel's serverless model and needs no extra
+service. A busy day with the kitchen dashboard open for 8 hours makes about
+10,000 requests, well within Vercel's included usage. Check your plan's
+limits if the dashboard runs around the clock.
+
+### Running elsewhere
+
+`npm start` runs the same app as a normal Node server (Render, Railway,
+Fly.io and similar). Without `DATABASE_URL` it saves orders to
+`data/orders.json`, which needs a persistent disk on those hosts.
 
 ## Kitchen dashboard tips
 
@@ -103,4 +135,7 @@ Dashboard.
 
 ```bash
 npx jest simply-pies   # from the repository root
+
+# Also run the API tests against a real Postgres database:
+SIMPLY_PIES_TEST_DATABASE_URL=postgres://... npx jest simply-pies --runInBand
 ```

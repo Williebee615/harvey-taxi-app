@@ -10,10 +10,11 @@
     "test": "jest"
   },
   "engines": {
-    "node": ">=20"
+    "node": "22.x"
   },
   "dependencies": {
     "express": "^4.21.2",
+    "pg": "^8.23.0",
     "stripe": "^22.3.2"
   },
   "devDependencies": {
