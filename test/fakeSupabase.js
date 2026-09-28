@@ -3,7 +3,8 @@
 // composition/integration tests (see
 // server.review-accounts.test.js). It supports exactly the query-builder
 // surface those routes/middleware actually call (select/eq/neq/in/gte/
-// order/limit/single/maybeSingle/insert/update/upsert, plus a no-op rpc)
+// order/limit/single/maybeSingle/insert/update/upsert, plus a no-op rpc;
+// is/gt/lt/lte were added for the driver-offer dispatch tests)
 // against a handful of in-memory tables -- it is deliberately not a
 // general-purpose Supabase mock, and does not model RLS, joins, or
 // Postgres error codes beyond a generic "not found" for .single().
@@ -11,6 +12,18 @@
 // Every builder stage is thenable (see `then` below) so `await` works
 // whether or not the caller ever adds .single()/.maybeSingle(), matching
 // real supabase-js's own thenable query builder.
+//
+// Optional `options` (used by the driver-offer dispatch tests, see
+// server.driver-offer-dispatch.test.js; every option defaults off so
+// existing callers are unaffected):
+//   - columns: { [table]: string[] } -- an update/insert that writes, or a
+//     select that reads, a column not in the list fails the way PostgREST
+//     does (PGRST204 / 42703) instead of silently succeeding, so a column
+//     the real schema does not have is caught in tests.
+//   - failUpdate: (table, patch) => error|null -- inject a failure for a
+//     specific update.
+//   - failSelect: (table) => error|null -- inject a failure for a read.
+// `_log` records every executed operation as { table, op, patch }.
 
 // `options.uniqueColumns`, e.g. { driver_earnings: ["ride_id"], rides:
 // ["quote_jti"] }, simulates a real UNIQUE constraint on plain insert()
@@ -25,6 +38,8 @@
 function createFakeSupabase(seed = {}, options = {}) {
   const uniqueColumns = options.uniqueColumns || {};
   const state = {};
+  const log = [];
+  const columns = options.columns || {};
 
   for (const table of Object.keys(seed)) {
     state[table] = seed[table].map((row) => ({ ...row }));
@@ -46,9 +61,51 @@ function createFakeSupabase(seed = {}, options = {}) {
     let isUpsert = false;
     let wantSingle = false;
     let wantMaybeSingle = false;
+    let selectedColumns = null;
+
+    function unknownColumnError(record) {
+      const allowed = columns[table];
+      if (!allowed) return null;
+      const bad = Object.keys(record).find((col) => !allowed.includes(col));
+      if (!bad) return null;
+      return {
+        code: "PGRST204",
+        message: `Could not find the '${bad}' column of '${table}' in the schema cache`
+      };
+    }
 
     async function exec() {
       const rows = ensureTable(table);
+      const op = pendingInsertRows ? "insert" : pendingUpdatePatch ? "update" : "select";
+      log.push({ table, op, patch: pendingUpdatePatch });
+
+      if (pendingInsertRows) {
+        const insertError = pendingInsertRows.map(unknownColumnError).find(Boolean);
+        if (insertError) return { data: null, error: insertError };
+      }
+
+      if (pendingUpdatePatch) {
+        const updateError =
+          unknownColumnError(pendingUpdatePatch) ||
+          (options.failUpdate && options.failUpdate(table, pendingUpdatePatch)) ||
+          null;
+        if (updateError) return { data: null, error: updateError };
+      }
+
+      if (selectedColumns && columns[table]) {
+        const bad = selectedColumns.find((col) => !columns[table].includes(col));
+        if (bad) {
+          return {
+            data: null,
+            error: { code: "42703", message: `column ${table}.${bad} does not exist` }
+          };
+        }
+      }
+
+      if (op === "select" && options.failSelect) {
+        const selectError = options.failSelect(table);
+        if (selectError) return { data: null, error: selectError };
+      }
 
       if (pendingInsertRows) {
         const keyField = table === "system_flags" ? "key" : "id";
@@ -129,7 +186,17 @@ function createFakeSupabase(seed = {}, options = {}) {
     }
 
     const builder = {
-      select() {
+      select(cols) {
+        if (typeof cols === "string" && cols.trim() !== "*") {
+          selectedColumns = cols
+            .split(",")
+            .map((c) => c.trim())
+            .filter((c) => c && c !== "*" && !c.includes("("));
+        }
+        return builder;
+      },
+      is(col, val) {
+        filters.push((row) => (row[col] === undefined ? null : row[col]) === val);
         return builder;
       },
       eq(col, val) {
@@ -146,6 +213,18 @@ function createFakeSupabase(seed = {}, options = {}) {
       },
       gte(col, val) {
         filters.push((row) => row[col] >= val);
+        return builder;
+      },
+      gt(col, val) {
+        filters.push((row) => row[col] > val);
+        return builder;
+      },
+      lt(col, val) {
+        filters.push((row) => row[col] < val);
+        return builder;
+      },
+      lte(col, val) {
+        filters.push((row) => row[col] <= val);
         return builder;
       },
       order() {
@@ -208,7 +287,8 @@ function createFakeSupabase(seed = {}, options = {}) {
 
       return { data: null, error: null };
     },
-    _state: state
+    _state: state,
+    _log: log
   };
 }
 

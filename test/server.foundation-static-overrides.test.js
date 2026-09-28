@@ -57,7 +57,10 @@ describe("FOUNDATION_HOSTS static overrides -- /privacy.html and /terms.html", (
 
     expect(res.status).toBe(200);
     expect(res.text).toContain("Privacy Policy — Harvey Transportation Assistance Foundation");
-    expect(res.text).not.toContain("Harvey Taxi Service LLC");
+    // HTAF's policy names Harvey Taxi Service LLC only in the approved
+    // separate-entity disclosure; it must never be Harvey Taxi's policy.
+    expect(res.text).not.toContain("Privacy Policy — Harvey Taxi Service LLC");
+    expect(res.text.replace(/\s+/g, " ")).toContain("Harvey Taxi Service LLC is a separate for-profit company");
   });
 
   test("the HTAF domain gets HTAF's own terms of use at the same URL", async () => {
@@ -65,7 +68,7 @@ describe("FOUNDATION_HOSTS static overrides -- /privacy.html and /terms.html", (
 
     expect(res.status).toBe(200);
     expect(res.text).toContain("Terms of Use — Harvey Transportation Assistance Foundation");
-    expect(res.text).not.toContain("Harvey Taxi Service LLC");
+    expect(res.text).not.toContain("Harvey Taxi Terms of Service");
   });
 
   test("the HTAF domain's terms of use clearly states applying is not a guarantee", async () => {
@@ -159,7 +162,7 @@ describe("FOUNDATION_HOSTS redirects -- /support.html and /index.html", () => {
 
     expect(res.status).toBe(200);
     expect(res.text).toContain("Privacy Policy — Harvey Transportation Assistance Foundation");
-    expect(res.text).not.toContain("Harvey Taxi");
+    expect(res.text).not.toContain("Privacy Policy — Harvey Taxi Service LLC");
   });
 
   test("the taxi domain's own app-review.html is completely unaffected", async () => {
