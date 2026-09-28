@@ -22,6 +22,20 @@
 -- Pre-migration production check (2026-09-27, read-only): rides table is
 -- currently empty (see the driver_earnings migration in this same
 -- batch), so there is nothing for this index to conflict with today.
+--
+-- CORRECTION (2026-09-27/28, read-only schema re-check before staging
+-- validation): rides.quote_jti does not exist as a column on the live
+-- schema at all -- confirmed via information_schema.columns, not
+-- assumed. No migration anywhere in this repo ever added it; the
+-- original version of this file created a unique index directly on a
+-- column that was never created, which would fail outright
+-- ("column quote_jti does not exist") the moment this migration was
+-- applied to any real database. The column add below fixes that. Same
+-- class of missing-column bug independently found and fixed for
+-- rides.current_offer_id in 20260927220300_dispatch_functions_hardening.sql.
+
+alter table public.rides
+  add column if not exists quote_jti text;
 
 create unique index if not exists rides_quote_jti_unique
   on public.rides (quote_jti)
