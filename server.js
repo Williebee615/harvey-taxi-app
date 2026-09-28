@@ -10140,6 +10140,14 @@ async function createDriverOffer({
 
 ========================================================= */
 
+// dispatch_ride_atomic() outcomes that describe the ride, not the
+// candidate driver (see the dispatch-functions-hardening migration).
+const RIDE_LEVEL_DISPATCH_OUTCOMES = new Set([
+  "ride_not_found",
+  "ride_not_dispatchable",
+  "ride_has_live_offer"
+]);
+
 async function dispatchRide(ride) {
 
   // Respect the admin dispatch pause. When dispatch is paused,
@@ -10413,6 +10421,22 @@ async function dispatchRide(ride) {
 
       }
 
+      // Ride-level outcomes: the ride itself can't take an offer right now
+      // (missing, already assigned/finished, or it already has a live
+      // offer). Trying another candidate can't change that, and the
+      // two-step fallback must not run either -- it would create a second
+      // live offer. Stop here without touching the ride.
+      if (result && RIDE_LEVEL_DISPATCH_OUTCOMES.has(result.outcome)) {
+        console.warn(
+          `⚠️ dispatch_ride_atomic did not dispatch ride ${ride.id}: ${result.outcome}`
+        );
+
+        return {
+          dispatched: false,
+          reason: result.outcome
+        };
+      }
+
       console.warn(
 
         `⚠️ dispatch_ride_atomic declined driver ${candidate.id} for ride ${ride.id}: ` +
@@ -10486,6 +10510,11 @@ async function dispatchRide(ride) {
 
     drivers[0];
 
+  // dispatch_attempts is carried forward from the caller (the decline and
+  // expiry redispatch paths have already incremented it), the same rule
+  // dispatch_ride_atomic() applies, rather than reset to 1.
+  const attempt = Math.max(1, Number(ride.dispatch_attempts) || 1);
+
   const offer =
 
     await createDriverOffer({
@@ -10498,19 +10527,15 @@ async function dispatchRide(ride) {
 
         firstDriver.id,
 
-      attempt:
-
-        1
+      attempt
 
     });
 
-  // current_driver_id does not exist as a column on rides (see the
-  // dispatch-functions-hardening migration's historical-record comment
-  // for the full explanation) -- this write used to be silently
-  // discarded by an unchecked update, along with every other field in
-  // this same call, since PostgREST rejects the whole statement when any
-  // referenced column doesn't exist. Dropped, and the write is now
-  // checked.
+  // Neither current_driver_id nor current_offer_id exists as a column on
+  // rides (see the dispatch-functions-hardening migration) -- writing
+  // either makes PostgREST reject the whole update. The offered driver is
+  // recorded on the driver_offers row only; rides.driver_id is written on
+  // accept, never on offer. The write is checked.
   const { error: fallbackUpdateError } =
 
     await supabase
@@ -10527,13 +10552,9 @@ async function dispatchRide(ride) {
 
           "offer_sent",
 
-        current_offer_id:
-
-          offer.id,
-
         dispatch_attempts:
 
-          1,
+          attempt,
 
         updated_at:
 
@@ -13259,7 +13280,6 @@ app.post(
         driver_name: null,
         driver_phone: null,
         driver_vehicle: null,
-        current_offer_id: null,
         updated_at: nowIso()
       }
     });
@@ -13275,6 +13295,46 @@ app.post(
         409,
         { current_status: claim.currentStatus }
       );
+    }
+
+    // Keep the invariant "no accepted offer without a matching ride
+    // assignment": the ride no longer has this driver, so their accepted
+    // offer for it is withdrawn. Otherwise accept_driver_offer_atomic()
+    // and dispatch_ride_atomic() would treat it as a conflicting accepted
+    // offer and block this driver from any future ride. The ride release
+    // above is already committed, so a failure here is surfaced for
+    // reconciliation rather than reported to the driver as a failed
+    // withdrawal.
+    const { error: withdrawOfferError } = await supabase
+      .from("driver_offers")
+      .update({ status: "withdrawn", updated_at: nowIso() })
+      .eq("ride_id", rideId)
+      .eq("driver_id", driverId)
+      .eq("status", "accepted");
+
+    if (withdrawOfferError) {
+      console.error(
+        "🚨 RECONCILIATION REQUIRED: withdrawn driver's accepted offer not updated.",
+        { ride_id: rideId, driver_id: driverId, reason: withdrawOfferError.message }
+      );
+
+      auditLog({
+        actor_type: "system",
+        action: "driver_withdraw_offer_update_failed",
+        entity_type: "ride",
+        entity_id: rideId,
+        metadata: {
+          severity: "critical",
+          requires_reconciliation: true,
+          driver_id: driverId,
+          reason: withdrawOfferError.message
+        }
+      }).catch(() => {});
+
+      broadcastSse("dispatch_reconciliation_required", {
+        ride_id: rideId,
+        reason: "driver_withdraw_offer_update_failed"
+      });
     }
 
     auditLog({
@@ -13888,6 +13948,17 @@ app.get(
 
 ========================================================= */
 
+// Outcome -> HTTP mapping for accept_driver_offer_atomic() (see the
+// 20260927220400 migration). Losing outcomes carry no ride data at all.
+const ACCEPT_OFFER_FAILURE_RESPONSES = {
+  offer_not_found: [404, "Offer not found."],
+  not_offer_owner: [403, "Offer does not belong to this driver."],
+  offer_expired: [409, "This offer has expired."],
+  offer_not_pending: [409, "This offer is no longer available. It may have already been responded to."],
+  ride_not_assignable: [409, "This ride is no longer available."],
+  driver_unavailable: [409, "You can't accept this offer right now."]
+};
+
 app.post(
 
   "/api/driver/offers/:offerId/accept",
@@ -13906,207 +13977,124 @@ app.post(
 
       );
 
+    // Always the authenticated requireDriver identity -- never a
+    // client-supplied driver_id.
     const driverId = req.driver.id;
 
-    const { data: offer, error } =
+    // One transaction in the database: ride, offer and driver locks,
+    // ownership/state/expiry/eligibility checks, then the offer accept,
+    // competing-offer supersede and rides.driver_id assignment commit
+    // together or not at all. There is no multi-step flow to compensate.
+    const { data, error } = await supabase.rpc("accept_driver_offer_atomic", {
+      p_offer_id: offerId,
+      p_driver_id: driverId
+    });
 
-      await supabase
+    if (error) {
 
-        .from("driver_offers")
-
-        .select("*")
-
-        .eq("id", offerId)
-
-        .single();
-
-    if (error || !offer) {
-
-      return fail(
-
-        res,
-
-        "Offer not found.",
-
-        404
-
+      console.error(
+        "❌ Offer accept: accept_driver_offer_atomic failed:",
+        { offer_id: offerId, reason: error.message }
       );
+
+      return fail(res, "Could not accept this offer. Please try again.", 500);
 
     }
 
-    if (offer.status !== "pending") {
+    const result = Array.isArray(data) ? data[0] : data;
+    const outcome = result && result.outcome;
 
-      return fail(
+    if (outcome !== "accepted" && outcome !== "already_accepted") {
 
-        res,
+      const failure = ACCEPT_OFFER_FAILURE_RESPONSES[outcome];
 
-        "Offer is no longer available.",
+      if (!failure) {
 
-        409
+        console.error(
+          "❌ Offer accept: unexpected accept_driver_offer_atomic outcome:",
+          { offer_id: offerId, outcome: outcome || null }
+        );
 
-      );
+        return fail(res, "Could not accept this offer. Please try again.", 500);
 
-    }
+      }
 
-    if (
-
-      driverId &&
-
-      offer.driver_id !== driverId
-
-    ) {
-
-      return fail(
-
-        res,
-
-        "Offer does not belong to this driver.",
-
-        403
-
-      );
+      return fail(res, failure[1], failure[0]);
 
     }
 
-    // Atomic conditional update: the .eq("status", "pending") guard means
-    // this only succeeds if the offer was still pending at the moment of
-    // the write. If the offer_expiry_sweep (lib/offerExpiry.js) or a
-    // duplicate request already changed its status in the gap between the
-    // read above and this write, updatedOffer comes back null and this
-    // request fails safely instead of accepting an offer that's already
-    // expired or been resolved elsewhere.
-    const { data: updatedOffer } =
-      await supabase
-        .from("driver_offers")
-        .update({
-          status: "accepted",
-          responded_at: nowIso(),
-          updated_at: nowIso()
-        })
-        .eq("id", offerId)
-        .eq("status", "pending")
-        .select()
-        .maybeSingle();
+    const assignedRide = result.ride || {};
 
-    if (!updatedOffer) {
-      const wasExpired =
-        offer.expires_at &&
-        new Date(offer.expires_at).getTime() <= Date.now();
-
-      return fail(
-        res,
-        wasExpired
-          ? "This offer has expired."
-          : "This offer is no longer available. It may have already been responded to.",
-        409
-      );
-    }
-
-    const acceptingDriver = await getDriverOrFail(offer.driver_id);
-
-    const driverRideFields = buildDriverRideFields(acceptingDriver);
-
-    const { data: assignedRide } = await supabase
-
-      .from("rides")
-
-      .update({
-
-        status:
-
-          RIDE_STATUS.DRIVER_ASSIGNED,
-
-        dispatch_status:
-
-          "accepted",
-
-        driver_id:
-
-          offer.driver_id,
-
-        current_driver_id:
-
-          offer.driver_id,
-
-        ...driverRideFields,
-
-        accepted_at:
-
-          nowIso(),
-
-        updated_at:
-
-          nowIso()
-
-      })
-
-      .eq("id", offer.ride_id)
-
-      .select()
-
-      .single();
-
-    if (assignedRide) {
+    // Notify only for the call that actually committed the assignment. An
+    // idempotent retry (already_accepted) returns the same success body
+    // without a second rider notification, SSE event or audit entry.
+    if (outcome === "accepted") {
 
       notifyRideStage(assignedRide, "driver_assigned").catch(() => {});
 
-      broadcastRideSse(offer.ride_id, "stage", {
+      broadcastRideSse(result.ride_id, "stage", {
 
         status: RIDE_STATUS.DRIVER_ASSIGNED,
 
-        driver: driverRideFields
+        driver: {
+          driver_name: assignedRide.driver_name,
+          driver_vehicle: assignedRide.driver_vehicle,
+          driver_phone: assignedRide.driver_phone
+        }
 
       });
 
+      auditLog({
+
+        actor_type:
+
+          "driver",
+
+        actor_id:
+
+          driverId,
+
+        action:
+
+          "ride_offer_accepted",
+
+        entity_type:
+
+          "ride",
+
+        entity_id:
+
+          result.ride_id,
+
+        metadata: {
+
+          offer_id:
+
+            offerId
+
+        },
+
+        req
+
+      }).catch(() => {});
+
     }
-
-    auditLog({
-
-      actor_type:
-
-        "driver",
-
-      actor_id:
-
-        offer.driver_id,
-
-      action:
-
-        "ride_offer_accepted",
-
-      entity_type:
-
-        "ride",
-
-      entity_id:
-
-        offer.ride_id,
-
-      metadata: {
-
-        offer_id:
-
-          offerId
-
-      },
-
-      req
-
-    }).catch(() => {});
 
     return ok(res, {
 
       ride_id:
 
-        offer.ride_id,
+        result.ride_id,
 
       driver_id:
 
-        offer.driver_id,
+        driverId,
 
       status:
 
-        RIDE_STATUS.DRIVER_ASSIGNED
+        RIDE_STATUS.DRIVER_ASSIGNED,
+
+      ...(outcome === "already_accepted" ? { idempotent_replay: true } : {})
 
     });
 

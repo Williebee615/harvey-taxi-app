@@ -30,3 +30,40 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+  # Exercises the dispatch migrations (dispatch_ride_atomic,
+  # nearest_drivers, accept_driver_offer_atomic) against a real Postgres
+  # with PostGIS, built from test/db/live-baseline.sql plus the actual
+  # migration files: locking/concurrency, atomicity, and execute grants.
+  # Postgres 17 matches the production project's major version.
+  db-functions:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgis/postgis:17-3.5
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run database tests
+        env:
+          HARVEY_TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+        run: npm run test:db

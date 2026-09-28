@@ -138,7 +138,7 @@ describe("findAvailableDrivers() Node fallback -- busy-driver exclusion", () => 
 });
 
 describe("dispatchRide() -- two-step fallback (RPC genuinely unavailable)", () => {
-  test("creates a real offer and correctly updates the ride, without the old current_driver_id bug", async () => {
+  test("creates a real offer and correctly updates the ride, writing no nonexistent rides columns", async () => {
     const driver = makeDriver({ id: "DRIVER_1", current_lat: 36.16, current_lng: -86.78 });
     mockSupabaseClient._state.drivers = [driver];
     // default rpc() already reports dispatch_ride_atomic as unavailable.
@@ -152,7 +152,12 @@ describe("dispatchRide() -- two-step fallback (RPC genuinely unavailable)", () =
     const newRide = mockSupabaseClient._state.rides.find((r) => r.id === res.body.ride.id);
     expect(newRide.status).toBe("awaiting_driver_acceptance");
     expect(newRide.dispatch_status).toBe("offer_sent");
-    expect(newRide.current_offer_id).toBeTruthy();
+    expect(newRide.dispatch_attempts).toBe(1);
+    // Neither column exists on the live rides table; the offer lives on
+    // driver_offers, and an offered driver is not an assigned driver.
+    expect(newRide).not.toHaveProperty("current_offer_id");
+    expect(newRide).not.toHaveProperty("current_driver_id");
+    expect(newRide.driver_id ?? null).toBeNull();
 
     const offers = mockSupabaseClient._state.driver_offers.filter((o) => o.ride_id === newRide.id);
     expect(offers).toHaveLength(1);
@@ -236,4 +241,30 @@ describe("dispatchRide() -- atomic RPC candidate-loop outcome branching", () => 
     // two-step fallback's own insert must not ALSO have run.
     expect(mockSupabaseClient._state.driver_offers).toHaveLength(0);
   });
+
+  test.each(["ride_has_live_offer", "ride_not_dispatchable", "ride_not_found"])(
+    "a ride-level %s outcome stops dispatch: no next candidate, no fallback offer, ride untouched",
+    async (outcome) => {
+      mockSupabaseClient._state.drivers = [
+        makeDriver({ id: "DRIVER_1", current_lat: 36.16, current_lng: -86.78 }),
+        makeDriver({ id: "DRIVER_2", email: "d2@example.test", current_lat: 36.16, current_lng: -86.78 })
+      ];
+      const calls = [];
+
+      mockSupabaseClient.rpc = (name, params) => {
+        if (name !== "dispatch_ride_atomic") return defaultRpc(name);
+        calls.push(params.p_driver_id);
+        return Promise.resolve({ data: [{ offer_id: null, outcome }], error: null });
+      };
+
+      const res = await requestRide();
+
+      expect(res.status).toBe(201);
+      expect(res.body.dispatch).toMatchObject({ dispatched: false, reason: outcome });
+      expect(calls).toHaveLength(1);
+      expect(mockSupabaseClient._state.driver_offers).toHaveLength(0);
+      const ride = mockSupabaseClient._state.rides.find((r) => r.id === res.body.ride.id);
+      expect(ride.status).not.toBe("failed");
+    }
+  );
 });

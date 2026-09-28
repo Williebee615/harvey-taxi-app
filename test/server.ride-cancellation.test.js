@@ -353,6 +353,27 @@ describe("POST /api/driver/rides/:rideId/withdraw -- separate from cancellation"
     expect(ride.driver_id).toBeNull();
     // Definitely not cancelled.
     expect(ride.status).not.toBe("cancelled");
+    expect(ride).not.toHaveProperty("current_offer_id");
+  });
+
+  test("withdraws the driver's accepted offer so no accepted offer outlives the assignment", async () => {
+    mockSupabaseClient._state.rides = [
+      makeRide({ status: "driver_assigned", rider_id: RIDER.id, driver_id: DRIVER.id, pickup_lat: 36.16, pickup_lng: -86.78 })
+    ];
+    mockSupabaseClient._state.driver_offers = [
+      { id: "OFFER-W1", ride_id: "RIDE_1", driver_id: DRIVER.id, status: "accepted" },
+      { id: "OFFER-OTHER", ride_id: "RIDE_1", driver_id: "SOMEONE_ELSE", status: "declined" }
+    ];
+
+    const res = await request(app)
+      .post("/api/driver/rides/RIDE_1/withdraw")
+      .set(driverAuthHeaders(driverToken))
+      .send({ reason: "vehicle issue" });
+
+    expect(res.status).toBe(200);
+    const offers = mockSupabaseClient._state.driver_offers;
+    expect(offers.find((o) => o.id === "OFFER-W1").status).toBe("withdrawn");
+    expect(offers.find((o) => o.id === "OFFER-OTHER").status).toBe("declined");
   });
 
   test("blocked once the trip is in_progress", async () => {
