@@ -135,14 +135,101 @@ mockSupabaseClient = new Proxy(
   }
 );
 
+const ASSIGNED_RIDE_STATUSES = ["driver_assigned", "driver_enroute", "arrived", "in_progress"];
+
+// In-memory port of public.accept_driver_offer_atomic (migration
+// 20260927220400), applied to the fake's state as one step -- the real
+// function commits the offer accept, competing-offer supersede and ride
+// assignment in a single transaction, so there is no partial state to
+// model. Its SQL, locking and concurrency are covered against real
+// PostgreSQL in test/db/acceptDriverOfferAtomic.db.test.js; this port
+// only lets the HTTP-level regression tests below run the real route.
+function acceptDriverOfferAtomic(state, { p_offer_id: offerId, p_driver_id: driverId }) {
+  const offers = state.driver_offers || [];
+  const rides = state.rides || [];
+  const found = offers.find((o) => o.id === offerId);
+  if (!found) return [{ outcome: "offer_not_found" }];
+  if (found.driver_id !== driverId) return [{ outcome: "not_offer_owner" }];
+
+  const theRide = rides.find((r) => r.id === found.ride_id);
+
+  if (found.status === "accepted") {
+    if (theRide && theRide.driver_id === driverId && ASSIGNED_RIDE_STATUSES.includes(theRide.status)) {
+      return [
+        { outcome: "already_accepted", ride_id: theRide.id, offer_id: found.id, driver_id: driverId, ride_status: theRide.status }
+      ];
+    }
+    return [{ outcome: "offer_not_pending" }];
+  }
+  if (found.status !== "pending") return [{ outcome: "offer_not_pending" }];
+  if (found.expires_at && new Date(found.expires_at).getTime() <= Date.now()) return [{ outcome: "offer_expired" }];
+  if (!theRide || theRide.driver_id || !["payment_authorized", "awaiting_driver_acceptance"].includes(theRide.status)) {
+    return [{ outcome: "ride_not_assignable" }];
+  }
+
+  const driver = (state.drivers || []).find((d) => d.id === driverId);
+  const busy =
+    rides.some((r) => r.driver_id === driverId && r.id !== theRide.id && ASSIGNED_RIDE_STATUSES.includes(r.status)) ||
+    offers.some((o) => {
+      if (o.driver_id !== driverId || o.status !== "accepted" || o.ride_id === theRide.id) return false;
+      const r = rides.find((x) => x.id === o.ride_id);
+      return !!r && !["completed", "cancelled", "failed"].includes(r.status) && (!r.driver_id || r.driver_id === driverId);
+    });
+  if (!driver || driver.approval_status !== "approved" || driver.access_revoked || busy) {
+    return [{ outcome: "driver_unavailable" }];
+  }
+
+  const now = new Date().toISOString();
+  Object.assign(found, { status: "accepted", responded_at: now, updated_at: now });
+  for (const o of offers) {
+    if (o.ride_id === theRide.id && o.id !== found.id && o.status === "pending") {
+      Object.assign(o, { status: "superseded", updated_at: now });
+    }
+  }
+  Object.assign(theRide, {
+    driver_id: driverId,
+    status: "driver_assigned",
+    dispatch_status: "accepted",
+    accepted_at: now,
+    driver_name: [driver.first_name, driver.last_name].filter(Boolean).join(" ") || "Driver",
+    driver_vehicle: [driver.vehicle_year, driver.vehicle_make, driver.vehicle_model].filter(Boolean).join(" "),
+    driver_phone: driver.phone || null,
+    updated_at: now
+  });
+
+  return [
+    {
+      outcome: "accepted",
+      ride_id: theRide.id,
+      offer_id: found.id,
+      driver_id: driverId,
+      ride_status: theRide.status,
+      rider_id: theRide.rider_id,
+      rider_phone: theRide.rider_phone || null,
+      ride_type: theRide.ride_type || null,
+      is_review_ride: theRide.is_review_ride || false,
+      driver_name: theRide.driver_name,
+      driver_vehicle: theRide.driver_vehicle,
+      driver_phone: theRide.driver_phone
+    }
+  ];
+}
+
+// options.acceptRpcResult: override the accept function's result, e.g.
+// { error } for a database failure or { data } for an unexpected outcome.
 function useFake(seed, options = {}) {
-  currentFake = createFakeSupabase(seed, { columns: LIVE_COLUMNS, ...options });
-  currentFake.rpc = jest.fn(async (fn) =>
-    fn === "dispatch_ride_atomic"
-      ? { data: null, error: LIVE_DISPATCH_RPC_ERROR }
-      : { data: null, error: null }
-  );
-  return currentFake;
+  const { acceptRpcResult, ...fakeOptions } = options;
+  currentFake = createFakeSupabase(seed, { columns: LIVE_COLUMNS, ...fakeOptions });
+  const fake = currentFake;
+  fake.rpc = jest.fn(async (fn, args) => {
+    if (fn === "dispatch_ride_atomic") return { data: null, error: LIVE_DISPATCH_RPC_ERROR };
+    if (fn === "accept_driver_offer_atomic") {
+      if (acceptRpcResult) return { data: null, error: null, ...acceptRpcResult };
+      return { data: acceptDriverOfferAtomic(fake._state, args), error: null };
+    }
+    return { data: null, error: null };
+  });
+  return fake;
 }
 
 // Same token format as signDriverSession() in server.js.
@@ -380,11 +467,23 @@ describe("POST /api/driver/offers/:offerId/accept", () => {
     expect(stream.events.filter((e) => e === "stage")).toHaveLength(1);
   });
 
-  test("a failed ride update returns 500, reverts the offer to pending, and sends no notification or SSE event", async () => {
-    const fake = useFake(fixture(), {
-      failUpdate: (table) => (table === "rides" ? DB_ERROR : null)
-    });
+  test("calls accept_driver_offer_atomic once with the session's driver id and writes nothing else", async () => {
+    const fake = useFake(fixture());
+
+    await acceptOffer();
+
+    const acceptCalls = fake.rpc.mock.calls.filter(([fn]) => fn === "accept_driver_offer_atomic");
+    expect(acceptCalls).toEqual([["accept_driver_offer_atomic", { p_offer_id: OFFER_ID, p_driver_id: DRIVER.id }]]);
+    // No separate offer or ride write: the assignment commits inside the
+    // one transaction, so there is no multi-step flow left to compensate.
+    expect(ridesUpdates(fake)).toHaveLength(0);
+    expect(fake._log.filter((e) => e.table === "driver_offers" && e.op === "update")).toHaveLength(0);
+  });
+
+  test("a database error returns 500, commits nothing, and sends no notification or SSE event", async () => {
+    const fake = useFake(fixture(), { acceptRpcResult: { error: DB_ERROR } });
     const stream = await subscribeRideStream(RIDE_ID);
+    jest.spyOn(console, "error").mockImplementation(() => {});
 
     const res = await acceptOffer();
     await settle();
@@ -398,11 +497,22 @@ describe("POST /api/driver/offers/:offerId/accept", () => {
     expect(stream.events).not.toContain("stage");
   });
 
+  test("an unexpected outcome returns 500 and never notifies", async () => {
+    const fake = useFake(fixture(), { acceptRpcResult: { data: [{ outcome: "something_new" }] } });
+    jest.spyOn(console, "error").mockImplementation(() => {});
+
+    const res = await acceptOffer();
+    await settle();
+
+    expect(res.status).toBe(500);
+    expect(riderNotificationCount(fake)).toBe(0);
+  });
+
   test.each([
     ["cancelled", { status: "cancelled" }],
     ["already assigned to another driver", { status: "driver_assigned", driver_id: OTHER_DRIVER.id }],
     ["completed", { status: "completed" }]
-  ])("a ride that is %s returns 409, cancels the offer, and leaves the ride untouched", async (_label, rideOverrides) => {
+  ])("a ride that is %s returns 409 and changes neither the ride nor the offer", async (_label, rideOverrides) => {
     const fake = useFake(fixture({ rideOverrides }));
     const before = { ...ride(fake) };
 
@@ -412,7 +522,7 @@ describe("POST /api/driver/offers/:offerId/accept", () => {
     expect(res.status).toBe(409);
     expect(res.body.ok).toBe(false);
     expect(ride(fake)).toEqual(before);
-    expect(offer(fake).status).toBe("cancelled");
+    expect(offer(fake).status).toBe("pending");
     expect(riderNotificationCount(fake)).toBe(0);
   });
 
@@ -423,106 +533,48 @@ describe("POST /api/driver/offers/:offerId/accept", () => {
     await settle();
 
     expect(res.status).toBe(409);
-    expect(offer(fake).status).toBe("cancelled");
+    expect(offer(fake).status).toBe("pending");
     expect(riderNotificationCount(fake)).toBe(0);
   });
 
-  describe("when the compensating offer revert itself fails", () => {
-    const failRideAndRevert = (table, patch) =>
-      table === "rides" || (table === "driver_offers" && patch.status !== "accepted") ? DB_ERROR : null;
-
-    test("returns 500, writes a critical reconciliation audit event, alerts admins, and never notifies", async () => {
-      const fake = useFake(fixture(), { failUpdate: failRideAndRevert });
-      const rideStream = await subscribeRideStream(RIDE_ID);
-      const adminStream = await subscribeAdminStream();
-      const errorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
-
-      const res = await acceptOffer();
-      await settle();
-
-      expect(res.status).toBe(500);
-      expect(res.body.ok).toBe(false);
-
-      const audit = fake._state.audit_logs.find((a) => a.action === "ride_offer_accept_compensation_failed");
-      expect(audit).toBeDefined();
-      expect(audit.entity_id).toBe(RIDE_ID);
-      expect(audit.metadata).toMatchObject({
-        severity: "critical",
-        requires_reconciliation: true,
-        offer_id: OFFER_ID,
-        cause: "ride_update_failed"
-      });
-
-      expect(adminStream.events).toContain("dispatch_reconciliation_required");
-
-      const reconciliationLog = errorSpy.mock.calls.find((args) => String(args[0]).includes("RECONCILIATION REQUIRED"));
-      expect(reconciliationLog).toBeDefined();
-      const logged = JSON.stringify(reconciliationLog);
-      expect(logged).toContain(RIDE_ID);
-      expect(logged).toContain(OFFER_ID);
-      expect(logged).not.toContain(RIDER.email);
-      expect(logged).not.toContain(RIDER.id);
-
-      expect(riderNotificationCount(fake)).toBe(0);
-      expect(rideStream.events).not.toContain("stage");
-    });
-
-    test("still returns 500 and logs loudly when the audit write also fails", async () => {
-      const fake = useFake(fixture(), { failUpdate: failRideAndRevert });
-      const originalFrom = fake.from.bind(fake);
-      fake.from = (table) => {
-        const builder = originalFrom(table);
-        if (table === "audit_logs") {
-          builder.insert = () => Promise.resolve({ data: null, error: DB_ERROR });
-        }
-        return builder;
-      };
-      const errorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
-
-      const res = await acceptOffer();
-      await settle();
-
-      expect(res.status).toBe(500);
-      expect(
-        errorSpy.mock.calls.some((args) => String(args[0]).includes("audit log write also failed"))
-      ).toBe(true);
-      expect(riderNotificationCount(fake)).toBe(0);
-    });
-
-    test("a ride that is no longer assignable returns 500 (not 409) if the offer cannot be cancelled", async () => {
-      const fake = useFake(fixture({ rideOverrides: { status: "cancelled" } }), {
-        failUpdate: (table, patch) => (table === "driver_offers" && patch.status === "cancelled" ? DB_ERROR : null)
-      });
-      jest.spyOn(console, "error").mockImplementation(() => {});
-
-      const res = await acceptOffer();
-      await settle();
-
-      expect(res.status).toBe(500);
-      expect(fake._state.audit_logs.some((a) => a.action === "ride_offer_accept_compensation_failed")).toBe(true);
-      expect(riderNotificationCount(fake)).toBe(0);
-    });
-  });
-
-  test("a failed offer update returns 500 and never touches the ride", async () => {
-    const fake = useFake(fixture(), {
-      failUpdate: (table) => (table === "driver_offers" ? DB_ERROR : null)
-    });
+  test("a driver already on another active ride gets 409 and nothing is assigned", async () => {
+    const seed = fixture();
+    seed.rides.push({ id: "RIDE-TEST0002", rider_id: RIDER.id, status: "in_progress", driver_id: DRIVER.id });
+    const fake = useFake(seed);
 
     const res = await acceptOffer();
     await settle();
 
-    expect(res.status).toBe(500);
-    expect(ridesUpdates(fake)).toHaveLength(0);
+    expect(res.status).toBe(409);
+    expect(ride(fake).driver_id).toBeNull();
+    expect(offer(fake).status).toBe("pending");
     expect(riderNotificationCount(fake)).toBe(0);
   });
 
-  test("a failed offer lookup returns 500, not 404", async () => {
-    useFake(fixture(), { failSelect: (table) => (table === "driver_offers" ? DB_ERROR : null) });
+  test("a retried accept of the driver's own assigned offer returns 200 without a second notification", async () => {
+    const fake = useFake(
+      fixture({
+        rideOverrides: { status: "driver_assigned", driver_id: DRIVER.id },
+        offerOverrides: { status: "accepted" }
+      })
+    );
+
+    const res = await acceptOffer();
+    await settle();
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ ok: true, ride_id: RIDE_ID, driver_id: DRIVER.id, idempotent_replay: true });
+    expect(riderNotificationCount(fake)).toBe(0);
+  });
+
+  test("the response carries no rider contact fields", async () => {
+    useFake(fixture({ rideOverrides: { rider_phone: "+15555550199" } }));
 
     const res = await acceptOffer();
 
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(200);
+    expect(JSON.stringify(res.body)).not.toContain("+15555550199");
+    expect(res.body).not.toHaveProperty("rider_id");
   });
 
   test("an unknown offer returns 404", async () => {
@@ -541,7 +593,7 @@ describe("POST /api/driver/offers/:offerId/accept", () => {
 
       expect(res.status).toBe(403);
       expect(offer(fake).status).toBe(status);
-      expect(ridesUpdates(fake)).toHaveLength(0);
+      expect(ride(fake).driver_id).toBeNull();
     }
   });
 
@@ -553,10 +605,19 @@ describe("POST /api/driver/offers/:offerId/accept", () => {
       const res = await acceptOffer();
 
       expect(res.status).toBe(409);
-      expect(ridesUpdates(fake)).toHaveLength(0);
+      expect(ride(fake).driver_id).toBeNull();
       expect(riderNotificationCount(fake)).toBe(0);
     }
   );
+
+  test("an offer past its expiry time returns 409 even while still pending", async () => {
+    const fake = useFake(fixture({ offerOverrides: { expires_at: new Date(Date.now() - 1000).toISOString() } }));
+
+    const res = await acceptOffer();
+
+    expect(res.status).toBe(409);
+    expect(ride(fake).driver_id).toBeNull();
+  });
 });
 
 describe("POST /api/driver/offers/:offerId/decline", () => {

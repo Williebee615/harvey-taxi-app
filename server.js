@@ -938,6 +938,20 @@ app.use(
 
 );
 
+// driver-missions.html retired: it called API routes that never existed
+// (GET /api/rides/:id, POST /api/driver/accept, POST /api/driver/reject,
+// POST /api/rides/:id/cancel before this phase) -- a second, broken
+// driver workflow competing with the one real, live client
+// (driver-dashboard.html, which correctly uses /api/driver/offers/:id/
+// accept|decline and /api/driver/rides/:id/enroute|arrived|start|
+// complete|withdraw). Not linked from any live page (confirmed), so this
+// redirect exists only to send an old bookmark or direct hit somewhere
+// useful rather than a dead page. Must run before express.static, which
+// would otherwise serve the file directly if it still existed on disk.
+app.get("/driver-missions.html", (req, res) => {
+  res.redirect(301, "/driver-dashboard.html");
+});
+
 app.use(
 
   express.static(PUBLIC_DIR, {
@@ -3112,6 +3126,33 @@ const RIDE_STAGE_MESSAGES = {
 
     subject: "Delivered"
 
+  },
+
+  // Added alongside the cancellation/withdrawal routes -- neither had any
+  // rider notification before (confirmed: no RIDE_STAGE_MESSAGES entry
+  // and no notifyRideStage call existed for either case).
+  ride_cancelled: {
+
+    sms: () => `Harvey Taxi: Your ride has been cancelled.`,
+
+    subject: "Ride Cancelled"
+
+  },
+
+  no_drivers_available: {
+
+    sms: () => `Harvey Taxi: We couldn't find an available driver for your request. It has been cancelled -- please try again.`,
+
+    subject: "No Drivers Available"
+
+  },
+
+  driver_reassigning: {
+
+    sms: () => `Harvey Taxi: Your driver became unavailable. We're finding you another driver now.`,
+
+    subject: "Finding a New Driver"
+
   }
 
 };
@@ -3460,67 +3501,85 @@ const {
 // don't carry a body a forged cross-site form/fetch could use to change
 // state, so only non-GET methods require it, matching this cookie
 // design's own stated rationale.
+// The actual verification pipeline, factored out of requireRider so it
+// can also back resolveVerifiedRiderSession() below (an *optional*-
+// session variant used only where a route must keep working for a
+// sessionless caller, but a present, valid session's identity may be
+// trusted for something narrow -- see POST /api/rides/request's
+// quote-replay handling). Identical checks, identical order, as
+// requireRider always ran -- this refactor changes nothing about
+// requireRider's own behavior for any existing caller.
+async function verifyRiderSessionFromRequest(req) {
+  if (req.method !== "GET" && !hasRiderClientHeader(req)) {
+    return { ok: false, statusCode: 403, message: "This request could not be verified." };
+  }
+
+  if (!RIDER_SESSION_SECRET) {
+    console.error("❌ verifyRiderSessionFromRequest: RIDER_SESSION_SECRET is not configured.");
+    return { ok: false, statusCode: 503, message: "Rider authentication is not available right now." };
+  }
+
+  const token = readRiderSessionCookie(req);
+  const verification = token
+    ? verifyRiderSession({ token, secret: RIDER_SESSION_SECRET })
+    : { ok: false, reason: "no_session" };
+
+  let riderRow = null;
+
+  if (verification.ok) {
+    const { data, error } = await supabase
+      .from("riders")
+      .select("*")
+      .eq("id", verification.riderId)
+      .maybeSingle();
+
+    if (error) {
+      console.error("❌ verifyRiderSessionFromRequest: failed to load rider row:", error);
+      return { ok: false, statusCode: 500, message: "Something went wrong verifying your session." };
+    }
+
+    riderRow = data || null;
+  }
+
+  const outcome = resolveRiderAuthOutcome({ verification, riderRow });
+
+  if (!outcome.ok) {
+    return { ok: false, statusCode: outcome.statusCode, message: outcome.message };
+  }
+
+  // Google Play reviewer-account kill switch: re-checked on every
+  // authenticated request, not just at login, so disabling
+  // review_account_login_enabled immediately rejects an already-issued
+  // reviewer session cookie rather than only blocking new logins.
+  // riderRow was just freshly loaded above -- this never trusts anything
+  // from the request itself.
+  const reviewOutcome = resolveReviewSessionOutcome({
+    row: riderRow,
+    reviewLoginEnabled: await reviewAccountLoginEnabled()
+  });
+
+  if (!reviewOutcome.ok) {
+    return { ok: false, statusCode: reviewOutcome.statusCode, message: reviewOutcome.message };
+  }
+
+  return { ok: true, riderRow, shouldRenew: outcome.shouldRenew };
+}
+
 async function requireRider(req, res, next) {
   try {
-    if (req.method !== "GET" && !hasRiderClientHeader(req)) {
-      return fail(res, "This request could not be verified.", 403);
+    const result = await verifyRiderSessionFromRequest(req);
+
+    if (!result.ok) {
+      return fail(res, result.message, result.statusCode);
     }
 
-    if (!RIDER_SESSION_SECRET) {
-      console.error("❌ requireRider: RIDER_SESSION_SECRET is not configured.");
-      return fail(res, "Rider authentication is not available right now.", 503);
-    }
-
-    const token = readRiderSessionCookie(req);
-    const verification = token
-      ? verifyRiderSession({ token, secret: RIDER_SESSION_SECRET })
-      : { ok: false, reason: "no_session" };
-
-    let riderRow = null;
-
-    if (verification.ok) {
-      const { data, error } = await supabase
-        .from("riders")
-        .select("*")
-        .eq("id", verification.riderId)
-        .maybeSingle();
-
-      if (error) {
-        console.error("❌ requireRider: failed to load rider row:", error);
-        return fail(res, "Something went wrong verifying your session.", 500);
-      }
-
-      riderRow = data || null;
-    }
-
-    const outcome = resolveRiderAuthOutcome({ verification, riderRow });
-
-    if (!outcome.ok) {
-      return fail(res, outcome.message, outcome.statusCode);
-    }
-
-    // Google Play reviewer-account kill switch: re-checked on every
-    // authenticated request, not just at login, so disabling
-    // review_account_login_enabled immediately rejects an
-    // already-issued reviewer session cookie rather than only blocking
-    // new logins. riderRow was just freshly loaded above -- this never
-    // trusts anything from the request itself.
-    const reviewOutcome = resolveReviewSessionOutcome({
-      row: riderRow,
-      reviewLoginEnabled: await reviewAccountLoginEnabled()
-    });
-
-    if (!reviewOutcome.ok) {
-      return fail(res, reviewOutcome.message, reviewOutcome.statusCode);
-    }
-
-    req.rider = riderRow;
+    req.rider = result.riderRow;
     req.riderAuthMethod = "rider_session";
 
-    if (outcome.shouldRenew) {
+    if (result.shouldRenew) {
       const freshToken = signRiderSession({
-        riderId: riderRow.id,
-        sessionVersion: Number.isInteger(riderRow.session_version) ? riderRow.session_version : 0,
+        riderId: result.riderRow.id,
+        sessionVersion: Number.isInteger(result.riderRow.session_version) ? result.riderRow.session_version : 0,
         secret: RIDER_SESSION_SECRET,
         ttlHours: RIDER_SESSION_TTL_HOURS
       });
@@ -3532,6 +3591,26 @@ async function requireRider(req, res, next) {
   } catch (err) {
     console.error("❌ requireRider unexpected error:", err);
     return fail(res, "Something went wrong verifying your session.", 500);
+  }
+}
+
+// Optional-session variant: returns the verified rider row if this
+// request carries a real, currently-valid rider session, or null
+// otherwise -- never fails/rejects the request itself. For routes that
+// must keep working for a genuinely sessionless caller (like
+// POST /api/rides/request today, since the live rider client has no
+// session-issuing UI in production yet -- see the rider-auth rollout
+// notes), but where a session, if one IS present and valid, may be
+// trusted for a narrow purpose. Never renews the session cookie (no
+// side effect on a route that isn't primarily an authenticated
+// endpoint).
+async function resolveVerifiedRiderSession(req) {
+  try {
+    const result = await verifyRiderSessionFromRequest(req);
+    return result.ok ? result.riderRow : null;
+  } catch (err) {
+    console.error("❌ resolveVerifiedRiderSession unexpected error:", err);
+    return null;
   }
 }
 
@@ -9379,19 +9458,39 @@ const {
   sweepScheduledRides
 } = require("./lib/rideDispatch");
 
-// Ride statuses a driver can still be assigned from via an offer accept.
-// A ride sitting in payment_authorized with a pending offer is included
-// because dispatch may not have recorded awaiting_driver_acceptance on the
-// ride row (see the dispatchRide() fallback).
-const ASSIGNABLE_RIDE_STATUSES = [
-  RIDE_STATUS.PAYMENT_AUTHORIZED,
-  RIDE_STATUS.AWAITING_DRIVER
-];
-
 // Offer-timeout enforcement — see lib/offerExpiry.js. driver_offers.expires_at
 // was previously written on every offer and never read again, so a driver
 // who neither accepted nor declined left the ride stuck indefinitely.
 const { sweepExpiredOffers, sweepStuckRedispatches } = require("./lib/offerExpiry");
+
+// Centralized ride-status transition table and the one atomic
+// claim-a-transition primitive every status-changing route should use.
+// See lib/rideLifecycle.js for the full transition graph.
+const { isValidTransition, claimRideTransition } = require("./lib/rideLifecycle");
+
+// Rider-cancellation policy and Stripe-void resumability decisions. Driver
+// *withdrawal* is a separate, simpler operation (see POST /api/driver/
+// rides/:rideId/withdraw below) and doesn't need this module.
+const {
+  CANCELLATION_PAYMENT_STATUS,
+  isCancellable,
+  hasAssignedDriver,
+  cancelPaymentIdempotencyKey,
+  decideCancelPaymentAction
+} = require("./lib/rideCancellation");
+
+// Recoverable payment-capture workflow for ride completion.
+const {
+  CAPTURE_STATUS,
+  captureIdempotencyKey,
+  decideCaptureAction
+} = require("./lib/ridePaymentCapture");
+
+// Busy-driver exclusion for the Node-side driver-matching fallback (the
+// nearest_drivers() RPC gets the equivalent SQL exclusion directly, plus
+// a real concurrency guarantee in dispatch_ride_atomic() -- see the
+// dispatch-functions-hardening migration).
+const { excludeBusyDrivers, getBusyDriverIds } = require("./lib/driverAvailability");
 
 /* =========================================================
 
@@ -9868,23 +9967,29 @@ async function findAvailableDrivers({
 
   }
 
-  // Fallback: original in-Node distance computation.
+  // Fallback: original in-Node distance computation. Also excludes any
+  // driver already assigned to another active ride (driver_assigned/
+  // driver_enroute/arrived/in_progress) -- matching-time only, same as
+  // nearest_drivers()'s own exclusion; this fallback path has no
+  // equivalent to dispatch_ride_atomic()'s in-transaction re-check, so it
+  // cannot offer the same concurrency guarantee, only the same filter.
 
-  const { data, error } =
-
-    await supabase
-
+  const [{ data, error }, busyDriverIds] = await Promise.all([
+    supabase
       .from("drivers")
-
       .select("*")
-
       .eq("online", true)
-
       .eq("status", "active")
-
       .eq("approval_status", "approved")
-
-      .limit(50);
+      .limit(50),
+    getBusyDriverIds({ supabase }).catch((busyErr) => {
+      console.warn(
+        "⚠️ Could not load busy-driver ids for dispatch fallback filter:",
+        busyErr.message
+      );
+      return [];
+    })
+  ]);
 
   if (error) {
 
@@ -9892,7 +9997,7 @@ async function findAvailableDrivers({
 
   }
 
-  return (data || [])
+  return excludeBusyDrivers(data || [], busyDriverIds)
 
     .filter((driver) => !excludeSet.has(String(driver.id)))
 
@@ -10076,6 +10181,14 @@ async function createDriverOffer({
 
 ========================================================= */
 
+// dispatch_ride_atomic() outcomes that describe the ride, not the
+// candidate driver (see the dispatch-functions-hardening migration).
+const RIDE_LEVEL_DISPATCH_OUTCOMES = new Set([
+  "ride_not_found",
+  "ride_not_dispatchable",
+  "ride_has_live_offer"
+]);
+
 async function dispatchRide(ride) {
 
   // Respect the admin dispatch pause. When dispatch is paused,
@@ -10232,6 +10345,8 @@ async function dispatchRide(ride) {
 
       .eq("id", ride.id);
 
+    notifyRideStage(ride, "no_drivers_available").catch(() => {});
+
     return {
 
       dispatched: false,
@@ -10242,37 +10357,60 @@ async function dispatchRide(ride) {
 
   }
 
-  const firstDriver =
+  // Preferred path: dispatch_ride_atomic() creates the offer AND updates
+  // the ride, holding a driver-scoped advisory lock plus an in-transaction
+  // eligibility re-check (see the dispatch-functions-hardening migration)
+  // -- the actual concurrency guarantee, not merely the fact that
+  // `drivers` was already filtered to exclude busy drivers above.
+  //
+  // Tried once per candidate, in order: a `driver_no_longer_available`
+  // outcome is a normal, expected result of that re-check catching a
+  // driver who became ineligible between the matching query above and
+  // this call (e.g. a concurrent dispatch just assigned them elsewhere)
+  // -- the correct response is to try the NEXT candidate, never to fall
+  // back to the old two-step flow for that same driver, since the
+  // fallback has no equivalent re-check and would simply re-offer to the
+  // driver this call just correctly rejected.
+  //
+  // The two-step fallback below is reached only if the RPC itself is
+  // genuinely unavailable or errors outright (transport failure, RPC
+  // missing) -- a caller-level problem distinct from an ordinary
+  // per-candidate decline.
+  let rpcUnavailable = false;
 
-    drivers[0];
+  for (const candidate of drivers) {
 
-  // Preferred path: single atomic RPC creates the offer AND
+    try {
 
-  // updates the ride under a row lock, so two concurrent
+      const { data: rpcResult, error: rpcError } =
 
-  // dispatch attempts cannot race or overwrite each other.
+        await supabase.rpc("dispatch_ride_atomic", {
 
-  // Requires dispatch_ride_atomic() from the scalability
+          p_ride_id: ride.id,
 
-  // migration. Falls back to the two-step flow if absent.
+          p_driver_id: candidate.id,
 
-  try {
+          p_expires_seconds:
 
-    const { data: rpcResult, error: rpcError } =
+            envNumber("DISPATCH_TIMEOUT_SECONDS", 30)
 
-      await supabase.rpc("dispatch_ride_atomic", {
+        });
 
-        p_ride_id: ride.id,
+      if (rpcError) {
 
-        p_driver_id: firstDriver.id,
+        console.warn(
 
-        p_expires_seconds:
+          "⚠️ dispatch_ride_atomic RPC unavailable, using two-step fallback:",
 
-          envNumber("DISPATCH_TIMEOUT_SECONDS", 30)
+          rpcError.message
 
-      });
+        );
 
-    if (!rpcError && rpcResult) {
+        rpcUnavailable = true;
+
+        break;
+
+      }
 
       const result =
 
@@ -10282,11 +10420,11 @@ async function dispatchRide(ride) {
 
           : rpcResult;
 
-      if (result && result.offer_id) {
+      if (result && result.outcome === "created" && result.offer_id) {
 
         sendPushNotification({
           ownerType: "driver",
-          ownerId: firstDriver.id,
+          ownerId: candidate.id,
           title: "New Ride Request",
           body: `Pickup: ${ride.pickup_address || "See app for details"}`,
           url: "/driver-dashboard.html"
@@ -10296,8 +10434,8 @@ async function dispatchRide(ride) {
         // computeAndPersistEta() already guarantees it can't throw.
         persistPickupEtaBestEffort({
           rideId: ride.id,
-          driverLat: firstDriver.current_lat,
-          driverLng: firstDriver.current_lng,
+          driverLat: candidate.current_lat,
+          driverLng: candidate.current_lng,
           pickupLat: ride.pickup_lat,
           pickupLng: ride.pickup_lng
         }).catch(() => {});
@@ -10312,11 +10450,11 @@ async function dispatchRide(ride) {
 
             ride_id: ride.id,
 
-            driver_id: firstDriver.id
+            driver_id: candidate.id
 
           },
 
-          driver: firstDriver,
+          driver: candidate,
 
           atomic: true
 
@@ -10324,34 +10462,95 @@ async function dispatchRide(ride) {
 
       }
 
-    }
+      // Ride-level outcomes: the ride itself can't take an offer right now
+      // (missing, already assigned/finished, or it already has a live
+      // offer). Trying another candidate can't change that, and the
+      // two-step fallback must not run either -- it would create a second
+      // live offer. Stop here without touching the ride.
+      if (result && RIDE_LEVEL_DISPATCH_OUTCOMES.has(result.outcome)) {
+        console.warn(
+          `⚠️ dispatch_ride_atomic did not dispatch ride ${ride.id}: ${result.outcome}`
+        );
 
-    if (rpcError) {
+        return {
+          dispatched: false,
+          reason: result.outcome
+        };
+      }
 
       console.warn(
 
-        "⚠️ dispatch_ride_atomic RPC unavailable, using two-step fallback:",
+        `⚠️ dispatch_ride_atomic declined driver ${candidate.id} for ride ${ride.id}: ` +
 
-        rpcError.message
+        (result && result.outcome ? result.outcome : "no result")
 
       );
 
+    } catch (rpcErr) {
+
+      console.warn(
+
+        "⚠️ dispatch_ride_atomic threw, using two-step fallback:",
+
+        rpcErr.message
+
+      );
+
+      rpcUnavailable = true;
+
+      break;
+
     }
-
-  } catch (rpcErr) {
-
-    console.warn(
-
-      "⚠️ dispatch_ride_atomic threw, using two-step fallback:",
-
-      rpcErr.message
-
-    );
 
   }
 
-  // Fallback: original non-atomic two-step flow.
-  //
+  if (!rpcUnavailable) {
+
+    // The RPC itself is working -- every candidate was tried through it
+    // and none succeeded. Equivalent to no drivers being available.
+    await supabase
+
+      .from("rides")
+
+      .update({
+
+        status:
+
+          RIDE_STATUS.FAILED,
+
+        dispatch_status:
+
+          "no_drivers_available",
+
+        updated_at:
+
+          nowIso()
+
+      })
+
+      .eq("id", ride.id);
+
+    notifyRideStage(ride, "no_drivers_available").catch(() => {});
+
+    return {
+
+      dispatched: false,
+
+      reason: "No available drivers."
+
+    };
+
+  }
+
+  // Fallback: non-atomic two-step flow, reached only because the RPC
+  // itself was unavailable/erroring, not because a specific driver was
+  // declined. Uses only the first candidate, matching this fallback's
+  // pre-existing (pre-loop) behavior -- it has no eligibility re-check of
+  // its own to justify trying more than one.
+  const firstDriver =
+
+    drivers[0];
+
   // The offered driver lives only on the driver_offers row. rides.driver_id
   // is the *assigned* driver and is written only when an offer is accepted
   // (or an admin assigns) -- writing it here would let a driver who hasn't
@@ -10360,8 +10559,8 @@ async function dispatchRide(ride) {
   // current_offer_id column on rides.
   //
   // dispatch_attempts is carried forward from the caller (the decline and
-  // expiry redispatch paths have already incremented it) rather than reset
-  // to 1, so MAX_DISPATCH_ATTEMPTS is actually reachable.
+  // expiry redispatch paths have already incremented it), the same rule
+  // dispatch_ride_atomic() applies, rather than reset to 1.
   const attempt = Math.max(1, Number(ride.dispatch_attempts) || 1);
 
   const offer =
@@ -11983,6 +12182,28 @@ app.post(
 
           : null,
 
+      // Replay-protection identity: quote.jti is unique per signed quote
+      // (lib/rideQuote.js), cryptographically random, generated only at
+      // /api/rides/estimate time and never client-suppliable. rides.
+      // quote_jti carries a unique partial index (see the
+      // quote-jti-idempotency migration), so a second ride-creation
+      // attempt presenting the SAME still-valid token can never create a
+      // second ride -- that guarantee is unconditional and does not
+      // depend on rider_auth_enforced at all.
+      //
+      // What DOES depend on that flag is only whether the duplicate
+      // request's response may include the existing ride's details: see
+      // the unique-violation handling below, which resolves a real
+      // verified session (resolveVerifiedRiderSession) independently of
+      // `riderId` -- `riderId` a few lines up is resolveEnforcedRiderId()'s
+      // result, a LEGACY, UNAUTHENTICATED value (client-supplied
+      // rider_id/localStorage-cached id) while rider_auth_enforced is off
+      // (the current production default), and is never used to decide
+      // what a replay response reveals.
+      quote_jti:
+
+        quote.jti || null,
+
       created_at:
 
         now,
@@ -12006,6 +12227,72 @@ app.post(
         .single();
 
     if (error) {
+
+      if (error.code === "23505" && ride.quote_jti) {
+
+        const { data: existingRide, error: lookupError } =
+
+          await supabase
+
+            .from("rides")
+
+            .select("*")
+
+            .eq("quote_jti", ride.quote_jti)
+
+            .maybeSingle();
+
+        // Real duplicate-creation protection: the unique index on
+        // rides.quote_jti already guarantees the SECOND insert attempt
+        // above never created a second ride, regardless of anything
+        // below. What's decided here is only whether THIS response may
+        // include the existing ride's details.
+        //
+        // That decision is never based on riderId (resolveEnforcedRiderId's
+        // result) -- while rider_auth_enforced is off, riderId is a
+        // legacy, unauthenticated value read straight from the request
+        // body, and a matching body-supplied rider_id (or a matching
+        // value cached in the client's own localStorage) is not proof of
+        // who is actually asking. Only a real, currently-valid rider
+        // session (resolveVerifiedRiderSession -- the cookie, verified
+        // the same way requireRider verifies it) may unlock the replay
+        // response. No session, or a session that doesn't match the
+        // existing ride's own rider_id, gets the same generic 409 either
+        // way -- this must not leak whether a match failed versus no
+        // session existed at all.
+        if (!lookupError && existingRide) {
+
+          const verifiedRider = await resolveVerifiedRiderSession(req);
+
+          if (verifiedRider && String(existingRide.rider_id || "") === String(verifiedRider.id)) {
+
+            auditLog({
+              actor_type: "rider",
+              actor_id: verifiedRider.id,
+              action: "ride_request_replay_detected",
+              entity_type: "ride",
+              entity_id: existingRide.id,
+              req
+            }).catch(() => {});
+
+            return ok(res, {
+              ride: existingRide,
+              dispatch: null,
+              replay: true
+            });
+
+          }
+
+        }
+
+        // No verified session, a session that doesn't match, or the
+        // lookup itself failed -- never return ride details based on a
+        // body-supplied identity. Generic response on purpose: no detail
+        // about what exists, and no distinction between "already used"
+        // and "used by someone else."
+        return fail(res, "This ride quote has already been used.", 409);
+
+      }
 
       console.error(
 
@@ -12683,6 +12970,488 @@ app.get(
 
 /* =========================================================
 
+   RIDE CANCELLATION (rider-initiated) AND DRIVER WITHDRAWAL
+
+   Two deliberately separate operations (approved policy):
+
+   - Rider cancels the ride: the whole ride ends (RIDE_STATUS.CANCELLED),
+     any assigned driver is released and notified, and any uncaptured
+     Stripe PaymentIntent is voided. No fee is charged in this phase --
+     the reconciliation state below is structured so a configurable
+     fee could be added later without a redesign, but nothing computes
+     or charges one now.
+   - Driver withdraws from an accepted ride: the ride is NOT cancelled --
+     it returns to dispatch (RIDE_STATUS.AWAITING_DRIVER) and is
+     redispatched excluding that driver, and the rider is notified their
+     driver became unavailable. Never touches payment at all.
+
+   Both require a real, unconditional session (requireRider /
+   requireDriver -- not gated behind rider_auth_enforced, since these are
+   brand-new routes with no legacy client depending on a weaker model)
+   and never trust a body-supplied rider_id/driver_id/cancelled_by_id for
+   ownership.
+
+   Self-service cancellation is only offered before a trip is
+   IN_PROGRESS; once underway, only an authorized admin incident
+   resolution can end it (see PATCH /api/admin/rides/:id/status's
+   narrowed scope and the dedicated incident-resolution route). completed
+   and cancelled are terminal -- neither can be reached from itself again
+   in a way that repeats a Stripe action (see reconcileCancellationPayment
+   below).
+
+========================================================= */
+
+// Resumable Stripe-void workflow for a cancelled ride, mirroring
+// captureRidePaymentIdempotent()'s structure exactly (see
+// lib/rideCancellation.js for the decision logic and idempotency-key
+// derivation). Persists cancellation_payment_status before AND after the
+// Stripe call so a repeated cancel request -- whether a genuine retry or
+// one that finds the ride already cancelled -- resumes reconciliation
+// instead of silently abandoning an authorized PaymentIntent. Never
+// reverses a PaymentIntent Stripe reports as already captured; that case
+// is marked cancel_failed with a reason pointing at the (not-yet-built)
+// refund/incident workflow, never auto-reversed.
+async function reconcileCancellationPayment(ride, req = null) {
+  const decision = decideCancelPaymentAction({ ride });
+
+  if (decision.action === "skip") {
+    return { outcome: ride.cancellation_payment_status, ride };
+  }
+
+  if (decision.action === "not_required" || !stripe) {
+    const { data, error } = await supabase
+      .from("rides")
+      .update({
+        cancellation_payment_status: CANCELLATION_PAYMENT_STATUS.NOT_REQUIRED,
+        updated_at: nowIso()
+      })
+      .eq("id", ride.id)
+      .select()
+      .maybeSingle();
+
+    if (error) {
+      console.error("❌ Failed to persist not_required cancellation_payment_status:", error.message);
+    }
+
+    return { outcome: CANCELLATION_PAYMENT_STATUS.NOT_REQUIRED, ride: data || ride };
+  }
+
+  const idempotencyKey = cancelPaymentIdempotencyKey(ride.id);
+
+  await supabase
+    .from("rides")
+    .update({
+      cancellation_payment_status: CANCELLATION_PAYMENT_STATUS.CANCEL_PENDING,
+      cancellation_payment_idempotency_key: idempotencyKey,
+      cancellation_payment_attempted_at: nowIso(),
+      updated_at: nowIso()
+    })
+    .eq("id", ride.id);
+
+  let intent;
+
+  try {
+    intent = await stripe.paymentIntents.retrieve(ride.payment_id);
+  } catch (retrieveErr) {
+    const { data } = await supabase
+      .from("rides")
+      .update({
+        cancellation_payment_status: CANCELLATION_PAYMENT_STATUS.CANCEL_FAILED,
+        cancellation_payment_error: retrieveErr.message || String(retrieveErr),
+        updated_at: nowIso()
+      })
+      .eq("id", ride.id)
+      .select()
+      .maybeSingle();
+
+    auditLog({
+      actor_type: "system",
+      action: "ride_cancellation_payment_reconcile_failed",
+      entity_type: "ride",
+      entity_id: ride.id,
+      metadata: { stage: "retrieve", error: retrieveErr.message },
+      req
+    }).catch(() => {});
+
+    return { outcome: CANCELLATION_PAYMENT_STATUS.CANCEL_FAILED, ride: data || ride };
+  }
+
+  if (intent.status === "succeeded") {
+    // Already captured -- never reverse via cancel. This must route to
+    // an explicit refund/incident workflow (not built in this phase),
+    // never an automatic reversal.
+    const { data } = await supabase
+      .from("rides")
+      .update({
+        cancellation_payment_status: CANCELLATION_PAYMENT_STATUS.CANCEL_FAILED,
+        cancellation_payment_error: "PaymentIntent already captured; requires an explicit refund, not a cancellation.",
+        updated_at: nowIso()
+      })
+      .eq("id", ride.id)
+      .select()
+      .maybeSingle();
+
+    auditLog({
+      actor_type: "system",
+      action: "ride_cancellation_requires_refund",
+      entity_type: "ride",
+      entity_id: ride.id,
+      metadata: { payment_intent_status: intent.status },
+      req
+    }).catch(() => {});
+
+    return { outcome: CANCELLATION_PAYMENT_STATUS.CANCEL_FAILED, ride: data || ride, requiresRefund: true };
+  }
+
+  let cancelError = null;
+
+  try {
+    await stripe.paymentIntents.cancel(ride.payment_id, {}, { idempotencyKey });
+  } catch (err) {
+    cancelError = err.message || String(err);
+    console.error("❌ Payment cancellation failed:", cancelError);
+  }
+
+  const finalStatus = cancelError
+    ? CANCELLATION_PAYMENT_STATUS.CANCEL_FAILED
+    : CANCELLATION_PAYMENT_STATUS.CANCELLED;
+
+  const { data: updatedRide, error: finalError } = await supabase
+    .from("rides")
+    .update({
+      cancellation_payment_status: finalStatus,
+      cancellation_payment_error: cancelError,
+      updated_at: nowIso()
+    })
+    .eq("id", ride.id)
+    .select()
+    .maybeSingle();
+
+  if (finalError) {
+    console.error("❌ Failed to persist final cancellation_payment_status:", finalError.message);
+  }
+
+  if (cancelError) {
+    auditLog({
+      actor_type: "system",
+      action: "ride_cancellation_payment_failed",
+      entity_type: "ride",
+      entity_id: ride.id,
+      metadata: { error: cancelError, idempotency_key: idempotencyKey },
+      req
+    }).catch(() => {});
+  }
+
+  return { outcome: finalStatus, ride: updatedRide || ride };
+}
+
+// Shared by the rider-cancel route (and available for an admin
+// incident-resolution "cancel" outcome later) -- driver *withdrawal* is
+// a separate, much simpler flow below that never calls this, since it
+// doesn't cancel the ride or touch payment at all.
+async function handleRideCancellation({ req, res, ride, actorType, actorId, reason }) {
+  // Idempotent path: already cancelled. Resume payment reconciliation if
+  // it's still pending/failed rather than silently abandoning it -- a
+  // repeated cancel request must not look like success while leaving an
+  // authorized PaymentIntent untouched.
+  if (ride.status === RIDE_STATUS.CANCELLED) {
+    const reconciled = await reconcileCancellationPayment(ride, req);
+
+    return ok(res, {
+      ride_id: ride.id,
+      status: RIDE_STATUS.CANCELLED,
+      cancellation_payment_status: reconciled.outcome
+    });
+  }
+
+  if (!isCancellable(ride.status)) {
+    if (ride.status === RIDE_STATUS.IN_PROGRESS) {
+      return fail(
+        res,
+        "This ride is already underway and can no longer be cancelled by the rider or driver. Contact support for an incident resolution.",
+        403
+      );
+    }
+
+    return fail(
+      res,
+      `This ride cannot be cancelled from its current status (${ride.status}).`,
+      409,
+      { current_status: ride.status }
+    );
+  }
+
+  const driverWasAssigned = hasAssignedDriver(ride.status);
+
+  const claim = await claimRideTransition({
+    supabase,
+    rideId: ride.id,
+    // The exact status just validated above, not the whole CANCELLABLE_STATUSES
+    // set -- avoids a TOCTOU window where a concurrent change lands the
+    // ride on a different (still technically cancellable) status than the
+    // one this request actually observed and reasoned about.
+    fromStatuses: [ride.status],
+    toStatus: RIDE_STATUS.CANCELLED,
+    patch: {
+      cancelled_at: nowIso(),
+      cancellation_reason: reason || null,
+      cancelled_by_type: actorType,
+      cancelled_by_id: actorId,
+      cancellation_payment_status: ride.payment_id
+        ? CANCELLATION_PAYMENT_STATUS.CANCEL_PENDING
+        : CANCELLATION_PAYMENT_STATUS.NOT_REQUIRED,
+      updated_at: nowIso()
+    }
+  });
+
+  let cancelledRide;
+
+  if (claim.ok) {
+    cancelledRide = claim.ride;
+  } else if (claim.reason === "not_found") {
+    return fail(res, "Ride not found.", 404);
+  } else if (claim.currentStatus === RIDE_STATUS.CANCELLED) {
+    // Raced with a concurrent cancel request -- resume reconciliation
+    // like any other idempotent retry, not an error.
+    const reconciled = await reconcileCancellationPayment(claim.ride, req);
+
+    return ok(res, {
+      ride_id: ride.id,
+      status: RIDE_STATUS.CANCELLED,
+      cancellation_payment_status: reconciled.outcome
+    });
+  } else {
+    return fail(
+      res,
+      `This ride cannot be cancelled from its current status (${claim.currentStatus}).`,
+      409,
+      { current_status: claim.currentStatus }
+    );
+  }
+
+  const reconciled = await reconcileCancellationPayment(cancelledRide, req);
+
+  if (driverWasAssigned && cancelledRide.driver_id) {
+    sendPushNotification({
+      ownerType: "driver",
+      ownerId: cancelledRide.driver_id,
+      title: "Ride Cancelled",
+      body: "This ride was cancelled and is no longer assigned to you.",
+      url: "/driver-dashboard.html"
+    }).catch(() => {});
+  }
+
+  notifyRideStage(ride, "ride_cancelled").catch(() => {});
+
+  broadcastRideSse(ride.id, "stage", { status: RIDE_STATUS.CANCELLED });
+
+  auditLog({
+    actor_type: actorType,
+    actor_id: actorId,
+    action: "ride_cancelled",
+    entity_type: "ride",
+    entity_id: ride.id,
+    metadata: {
+      reason: reason || null,
+      cancellation_payment_status: reconciled.outcome,
+      had_assigned_driver: driverWasAssigned
+    },
+    req
+  }).catch(() => {});
+
+  return ok(res, {
+    ride_id: ride.id,
+    status: RIDE_STATUS.CANCELLED,
+    cancellation_payment_status: reconciled.outcome
+  });
+}
+
+// Protected by requireRider UNCONDITIONALLY -- not gated behind
+// rider_auth_enforced like the #97/#115/#118 route chain, because no
+// existing client calls this route today, so there is no legacy
+// unauthenticated behavior to preserve. This also means the route is
+// currently unusable by any real rider in production: no rider-facing
+// UI may call it (e.g. a "Cancel Ride" button on rider-dashboard.html
+// or request-ride.html) until real rider sessions actually exist,
+// which requires rider_auth_ui_enabled to be turned on and the OTP
+// sign-in flow to be live-validated first -- see
+// docs/security-remediation/code-blue-phase1-rider-auth-prerequisites.md.
+// Wiring a cancel button into the UI before then would 401 for every
+// rider, since none would have a session cookie to present.
+app.post(
+  "/api/rides/:id/cancel",
+  requireRider,
+  asyncRoute(async (req, res) => {
+    const rideId = cleanString(req.params.id, 100);
+    const reason = cleanString(req.body.reason, 500);
+
+    let ride;
+
+    try {
+      ride = await getRideOrFail(rideId);
+    } catch (err) {
+      return fail(res, "Ride not found.", 404);
+    }
+
+    // Ownership from the authenticated session only -- never a
+    // body-supplied rider_id/cancelled_by_id.
+    if (String(ride.rider_id || "") !== String(req.rider.id || "")) {
+      return fail(res, "You are not authorized to cancel this ride.", 403);
+    }
+
+    return handleRideCancellation({
+      req,
+      res,
+      ride,
+      actorType: "rider",
+      actorId: req.rider.id,
+      reason
+    });
+  })
+);
+
+/* -------- DRIVER WITHDRAWAL: releases the driver, does NOT cancel the
+   rider's request -- returns the ride to dispatch and redispatches
+   excluding this driver. -------- */
+
+app.post(
+  "/api/driver/rides/:rideId/withdraw",
+  requireDriver,
+  asyncRoute(async (req, res) => {
+    const rideId = cleanString(req.params.rideId, 100);
+    const driverId = req.driver.id;
+    const reason = cleanString(req.body.reason, 500);
+
+    let ride;
+
+    try {
+      ride = await getRideOrFail(rideId);
+    } catch (err) {
+      return fail(res, "Ride not found.", 404);
+    }
+
+    try {
+      await ensureAssignedDriver(ride, driverId);
+    } catch (err) {
+      return fail(res, err.message || "Driver is not assigned to this ride.", 403);
+    }
+
+    if (!hasAssignedDriver(ride.status)) {
+      if (ride.status === RIDE_STATUS.IN_PROGRESS) {
+        return fail(
+          res,
+          "This trip is already underway and can no longer be withdrawn from. Contact support for an incident resolution.",
+          403
+        );
+      }
+
+      return fail(
+        res,
+        `This ride cannot be withdrawn from its current status (${ride.status}).`,
+        409,
+        { current_status: ride.status }
+      );
+    }
+
+    const claim = await claimRideTransition({
+      supabase,
+      rideId,
+      fromStatuses: [ride.status],
+      toStatus: RIDE_STATUS.AWAITING_DRIVER,
+      patch: {
+        // Release the driver link only -- no availability, verification,
+        // or compliance state on the driver's own row is touched here.
+        driver_id: null,
+        driver_name: null,
+        driver_phone: null,
+        driver_vehicle: null,
+        updated_at: nowIso()
+      }
+    });
+
+    if (!claim.ok) {
+      if (claim.reason === "not_found") {
+        return fail(res, "Ride not found.", 404);
+      }
+
+      return fail(
+        res,
+        `This ride cannot be withdrawn from its current status (${claim.currentStatus}).`,
+        409,
+        { current_status: claim.currentStatus }
+      );
+    }
+
+    // Keep the invariant "no accepted offer without a matching ride
+    // assignment": the ride no longer has this driver, so their accepted
+    // offer for it is withdrawn. Otherwise accept_driver_offer_atomic()
+    // and dispatch_ride_atomic() would treat it as a conflicting accepted
+    // offer and block this driver from any future ride. The ride release
+    // above is already committed, so a failure here is surfaced for
+    // reconciliation rather than reported to the driver as a failed
+    // withdrawal.
+    const { error: withdrawOfferError } = await supabase
+      .from("driver_offers")
+      .update({ status: "withdrawn", updated_at: nowIso() })
+      .eq("ride_id", rideId)
+      .eq("driver_id", driverId)
+      .eq("status", "accepted");
+
+    if (withdrawOfferError) {
+      console.error(
+        "🚨 RECONCILIATION REQUIRED: withdrawn driver's accepted offer not updated.",
+        { ride_id: rideId, driver_id: driverId, reason: withdrawOfferError.message }
+      );
+
+      auditLog({
+        actor_type: "system",
+        action: "driver_withdraw_offer_update_failed",
+        entity_type: "ride",
+        entity_id: rideId,
+        metadata: {
+          severity: "critical",
+          requires_reconciliation: true,
+          driver_id: driverId,
+          reason: withdrawOfferError.message
+        }
+      }).catch(() => {});
+
+      broadcastSse("dispatch_reconciliation_required", {
+        ride_id: rideId,
+        reason: "driver_withdraw_offer_update_failed"
+      });
+    }
+
+    auditLog({
+      actor_type: "driver",
+      actor_id: driverId,
+      action: "driver_withdrew",
+      entity_type: "ride",
+      entity_id: rideId,
+      metadata: { reason: reason || null, withdrawn_from_status: ride.status },
+      req
+    }).catch(() => {});
+
+    notifyRideStage(claim.ride, "driver_reassigning").catch(() => {});
+
+    broadcastRideSse(rideId, "stage", { status: RIDE_STATUS.AWAITING_DRIVER });
+
+    // Redispatch immediately, excluding this driver (dispatchRide()
+    // already excludes any driver with a prior driver_offers row for
+    // this ride, which this withdrawing driver has).
+    dispatchRide(claim.ride).catch((err) => {
+      console.error("❌ Redispatch after driver withdrawal failed:", err.message);
+    });
+
+    return ok(res, {
+      ride_id: rideId,
+      status: RIDE_STATUS.AWAITING_DRIVER
+    });
+  })
+);
+
+/* =========================================================
+
    RIDER-SCOPED HISTORY API
 
    Canonical replacement for /api/rider/history, /api/rides/status,
@@ -13264,6 +14033,17 @@ app.get(
 
 ========================================================= */
 
+// Outcome -> HTTP mapping for accept_driver_offer_atomic() (see the
+// 20260927220400 migration). Losing outcomes carry no ride data at all.
+const ACCEPT_OFFER_FAILURE_RESPONSES = {
+  offer_not_found: [404, "Offer not found."],
+  not_offer_owner: [403, "Offer does not belong to this driver."],
+  offer_expired: [409, "This offer has expired."],
+  offer_not_pending: [409, "This offer is no longer available. It may have already been responded to."],
+  ride_not_assignable: [409, "This ride is no longer available."],
+  driver_unavailable: [409, "You can't accept this offer right now."]
+};
+
 app.post(
 
   "/api/driver/offers/:offerId/accept",
@@ -13282,324 +14062,139 @@ app.post(
 
       );
 
+    // Always the identity requireDriver verified (the signed driver session,
+    // or requireDriver's own admin-authenticated ops override) -- never
+    // read from req.body here.
     const driverId = req.driver.id;
 
-    const { data: offer, error } =
-
-      await supabase
-
-        .from("driver_offers")
-
-        .select("*")
-
-        .eq("id", offerId)
-
-        .maybeSingle();
+    // One transaction in the database: ride, offer and driver locks,
+    // ownership/state/expiry/eligibility checks, then the offer accept,
+    // competing-offer supersede and rides.driver_id assignment commit
+    // together or not at all. There is no multi-step flow to compensate.
+    const { data, error } = await supabase.rpc("accept_driver_offer_atomic", {
+      p_offer_id: offerId,
+      p_driver_id: driverId
+    });
 
     if (error) {
 
-      console.error("❌ Offer accept: offer lookup failed:", offerId, error.message);
+      console.error(
+        "❌ Offer accept: accept_driver_offer_atomic failed:",
+        { offer_id: offerId, reason: error.message }
+      );
 
       return fail(res, "Could not accept this offer. Please try again.", 500);
 
     }
 
-    if (!offer) {
+    const result = Array.isArray(data) ? data[0] : data;
+    const outcome = result && result.outcome;
 
-      return fail(
+    if (outcome !== "accepted" && outcome !== "already_accepted") {
 
-        res,
+      const failure = ACCEPT_OFFER_FAILURE_RESPONSES[outcome];
 
-        "Offer not found.",
+      if (!failure) {
 
-        404
-
-      );
-
-    }
-
-    // Ownership is checked before status so a driver can't learn anything
-    // about another driver's offer beyond the fact that it isn't theirs.
-    if (offer.driver_id !== driverId) {
-
-      return fail(
-
-        res,
-
-        "Offer does not belong to this driver.",
-
-        403
-
-      );
-
-    }
-
-    if (offer.status !== "pending") {
-
-      return fail(
-
-        res,
-
-        "Offer is no longer available.",
-
-        409
-
-      );
-
-    }
-
-    // Atomic conditional update: the .eq("status", "pending") guard means
-    // this only succeeds if the offer was still pending at the moment of
-    // the write. If the offer_expiry_sweep (lib/offerExpiry.js) or a
-    // duplicate request already changed its status in the gap between the
-    // read above and this write, updatedOffer comes back null and this
-    // request fails safely instead of accepting an offer that's already
-    // expired or been resolved elsewhere.
-    const { data: updatedOffer, error: offerUpdateError } =
-      await supabase
-        .from("driver_offers")
-        .update({
-          status: "accepted",
-          responded_at: nowIso(),
-          updated_at: nowIso()
-        })
-        .eq("id", offerId)
-        .eq("status", "pending")
-        .select()
-        .maybeSingle();
-
-    if (offerUpdateError) {
-      console.error(
-        "❌ Offer accept: driver_offers update failed:",
-        offerId,
-        offerUpdateError.message
-      );
-
-      return fail(res, "Could not accept this offer. Please try again.", 500);
-    }
-
-    if (!updatedOffer) {
-      const wasExpired =
-        offer.expires_at &&
-        new Date(offer.expires_at).getTime() <= Date.now();
-
-      return fail(
-        res,
-        wasExpired
-          ? "This offer has expired."
-          : "This offer is no longer available. It may have already been responded to.",
-        409
-      );
-    }
-
-    // The offer was already flipped to "accepted" above. If the ride is not
-    // assigned below, move the offer out of "accepted" (only if it is still
-    // the "accepted" row this request wrote) so no accepted offer is left
-    // attached to an unassigned ride: back to "pending" after a transient
-    // failure, so the driver can retry or the offer-expiry sweep can
-    // redispatch it; to "cancelled" when the ride itself is no longer
-    // assignable, so nothing redispatches a cancelled/assigned ride.
-    //
-    // Returns true only if the offer is confirmed moved. If the
-    // revert itself fails, the offer is left "accepted" with no assigned
-    // ride -- that is surfaced to admins (critical audit_logs row plus an
-    // admin SSE event) for manual reconciliation. Only IDs are logged.
-    async function compensateAcceptedOffer(cause, targetStatus = "pending") {
-      const { data: reverted, error: revertError } = await supabase
-        .from("driver_offers")
-        .update({
-          status: targetStatus,
-          responded_at: targetStatus === "pending" ? null : nowIso(),
-          updated_at: nowIso()
-        })
-        .eq("id", offerId)
-        .eq("status", "accepted")
-        .select("id")
-        .maybeSingle();
-
-      if (!revertError && reverted) return true;
-
-      const reason = revertError ? revertError.message : "offer no longer in accepted state";
-
-      console.error(
-        "🚨 RECONCILIATION REQUIRED: offer left accepted without a ride assignment.",
-        { ride_id: offer.ride_id, offer_id: offerId, cause, reason }
-      );
-
-      const audit = await auditLog({
-        actor_type: "system",
-        actor_id: null,
-        action: "ride_offer_accept_compensation_failed",
-        entity_type: "ride",
-        entity_id: offer.ride_id,
-        metadata: {
-          severity: "critical",
-          requires_reconciliation: true,
-          offer_id: offerId,
-          driver_id: offer.driver_id,
-          cause,
-          reason
-        }
-      }).catch((auditErr) => ({ logged: false, reason: auditErr.message }));
-
-      if (!audit || audit.logged === false) {
         console.error(
-          "🚨 RECONCILIATION REQUIRED (audit log write also failed):",
-          { ride_id: offer.ride_id, offer_id: offerId }
+          "❌ Offer accept: unexpected accept_driver_offer_atomic outcome:",
+          { offer_id: offerId, outcome: outcome || null }
         );
+
+        return fail(res, "Could not accept this offer. Please try again.", 500);
+
       }
 
-      broadcastSse("dispatch_reconciliation_required", {
-        ride_id: offer.ride_id,
-        offer_id: offerId,
-        reason: "offer_accept_compensation_failed"
+      return fail(res, failure[1], failure[0]);
+
+    }
+
+    // Notify only for the call that actually committed the assignment. An
+    // idempotent retry (already_accepted) returns the same success body
+    // without a second rider notification, SSE event or audit entry.
+    //
+    // The RPC returns an allow-listed row (never the full rides row); the
+    // rider-contact fields below are used server-side for the notification
+    // only and never appear in the HTTP response.
+    if (outcome === "accepted") {
+
+      const driverFields = {
+        driver_name: result.driver_name,
+        driver_vehicle: result.driver_vehicle,
+        driver_phone: result.driver_phone
+      };
+
+      notifyRideStage(
+        {
+          id: result.ride_id,
+          rider_id: result.rider_id,
+          rider_phone: result.rider_phone,
+          ride_type: result.ride_type,
+          is_review_ride: result.is_review_ride,
+          ...driverFields
+        },
+        "driver_assigned"
+      ).catch(() => {});
+
+      broadcastRideSse(result.ride_id, "stage", {
+
+        status: RIDE_STATUS.DRIVER_ASSIGNED,
+
+        driver: driverFields
+
       });
 
-      return false;
-    }
+      auditLog({
 
-    let acceptingDriver;
+        actor_type:
 
-    try {
-      acceptingDriver = await getDriverOrFail(offer.driver_id);
-    } catch (driverErr) {
-      await compensateAcceptedOffer("driver_lookup_failed");
-      throw driverErr;
-    }
+          "driver",
 
-    const driverRideFields = buildDriverRideFields(acceptingDriver);
+        actor_id:
 
-    // rides.driver_id is the canonical assigned-driver column. There is
-    // no current_driver_id/current_offer_id on rides -- writing either
-    // makes PostgREST reject the whole update.
-    //
-    // Conditional on the ride still being assignable: not already assigned
-    // to a driver, and not cancelled/completed/failed. A ride that no
-    // longer qualifies matches no row and is reported as a 409.
-    const { data: assignedRide, error: rideUpdateError } = await supabase
+          driverId,
 
-      .from("rides")
+        action:
 
-      .update({
+          "ride_offer_accepted",
 
-        status:
+        entity_type:
 
-          RIDE_STATUS.DRIVER_ASSIGNED,
+          "ride",
 
-        dispatch_status:
+        entity_id:
 
-          "accepted",
+          result.ride_id,
 
-        driver_id:
+        metadata: {
 
-          offer.driver_id,
+          offer_id:
 
-        ...driverRideFields,
+            offerId
 
-        accepted_at:
+        },
 
-          nowIso(),
+        req
 
-        updated_at:
-
-          nowIso()
-
-      })
-
-      .eq("id", offer.ride_id)
-
-      .is("driver_id", null)
-
-      .in("status", ASSIGNABLE_RIDE_STATUSES)
-
-      .select()
-
-      .maybeSingle();
-
-    if (rideUpdateError) {
-
-      console.error(
-        "❌ Offer accept: ride assignment update failed:",
-        { ride_id: offer.ride_id, offer_id: offerId, reason: rideUpdateError.message }
-      );
-
-      await compensateAcceptedOffer("ride_update_failed");
-
-      return fail(res, "Could not assign this ride. Please try again.", 500);
+      }).catch(() => {});
 
     }
-
-    if (!assignedRide) {
-
-      const reverted = await compensateAcceptedOffer("ride_not_assignable", "cancelled");
-
-      if (!reverted) {
-
-        return fail(res, "Could not assign this ride. Please try again.", 500);
-
-      }
-
-      return fail(res, "This ride is no longer available.", 409);
-
-    }
-
-    notifyRideStage(assignedRide, "driver_assigned").catch(() => {});
-
-    broadcastRideSse(offer.ride_id, "stage", {
-
-      status: RIDE_STATUS.DRIVER_ASSIGNED,
-
-      driver: driverRideFields
-
-    });
-
-    auditLog({
-
-      actor_type:
-
-        "driver",
-
-      actor_id:
-
-        offer.driver_id,
-
-      action:
-
-        "ride_offer_accepted",
-
-      entity_type:
-
-        "ride",
-
-      entity_id:
-
-        offer.ride_id,
-
-      metadata: {
-
-        offer_id:
-
-          offerId
-
-      },
-
-      req
-
-    }).catch(() => {});
 
     return ok(res, {
 
       ride_id:
 
-        offer.ride_id,
+        result.ride_id,
 
       driver_id:
 
-        offer.driver_id,
+        driverId,
 
       status:
 
-        RIDE_STATUS.DRIVER_ASSIGNED
+        RIDE_STATUS.DRIVER_ASSIGNED,
+
+      ...(outcome === "already_accepted" ? { idempotent_replay: true } : {})
 
     });
 
@@ -14002,6 +14597,103 @@ async function ensureAssignedDriver(
 
 }
 
+// Shared by every simple, single-status-forward driver transition route
+// (enroute, arrived, start -- complete is handled separately, since it
+// also has to run the recoverable payment-capture/earnings workflow).
+// Centralizes the actual status write through claimRideTransition() (see
+// lib/rideLifecycle.js) instead of each route doing its own unconditional
+// `.update({status: X})` -- before this, none of these routes checked
+// the ride's current status at all, only "is this the assigned driver,"
+// so a stray or duplicate call could move a completed/failed ride
+// backward, or silently re-apply a transition that already happened.
+async function performDriverRideTransition({
+  req,
+  res,
+  rideId,
+  driverId,
+  fromStatus,
+  toStatus,
+  timestampField,
+  deliveryStage,
+  notifyStageKey,
+  notifyStageKeyDelivery,
+  auditAction
+}) {
+  let ride;
+
+  try {
+    ride = await getRideOrFail(rideId);
+  } catch (err) {
+    return fail(res, "Ride not found.", 404);
+  }
+
+  try {
+    await ensureAssignedDriver(ride, driverId);
+  } catch (err) {
+    return fail(res, err.message || "Driver is not assigned to this ride.", 403);
+  }
+
+  const isDelivery = isDeliveryRideType(ride.ride_type);
+
+  const patch = {
+    [timestampField]: nowIso(),
+    updated_at: nowIso(),
+    ...(isDelivery && deliveryStage ? { delivery_stage: deliveryStage } : {})
+  };
+
+  const claim = await claimRideTransition({
+    supabase,
+    rideId,
+    fromStatuses: [fromStatus],
+    toStatus,
+    patch
+  });
+
+  if (!claim.ok) {
+    if (claim.reason === "not_found") {
+      return fail(res, "Ride not found.", 404);
+    }
+
+    auditLog({
+      actor_type: "driver",
+      actor_id: driverId,
+      action: `${auditAction}_rejected`,
+      entity_type: "ride",
+      entity_id: rideId,
+      metadata: { attempted_from: fromStatus, attempted_to: toStatus, actual_status: claim.currentStatus },
+      req
+    }).catch(() => {});
+
+    return fail(
+      res,
+      `This ride can't move to that stage from its current status (${claim.currentStatus}).`,
+      409,
+      { current_status: claim.currentStatus }
+    );
+  }
+
+  notifyRideStage(ride, isDelivery ? notifyStageKeyDelivery : notifyStageKey).catch(() => {});
+
+  broadcastRideSse(rideId, "stage", {
+    status: toStatus,
+    delivery_stage: isDelivery && deliveryStage ? deliveryStage : null
+  });
+
+  auditLog({
+    actor_type: "driver",
+    actor_id: driverId,
+    action: auditAction,
+    entity_type: "ride",
+    entity_id: rideId,
+    req
+  }).catch(() => {});
+
+  return ok(res, {
+    ride_id: rideId,
+    status: toStatus
+  });
+}
+
 /* =========================================================
 
    DRIVER ENROUTE
@@ -14028,100 +14720,18 @@ app.post(
 
     const driverId = req.driver.id;
 
-    const ride =
-
-      await getRideOrFail(rideId);
-
-    await ensureAssignedDriver(
-
-      ride,
-
-      driverId
-
-    );
-
-    await supabase
-
-      .from("rides")
-
-      .update({
-
-        status:
-
-          RIDE_STATUS.DRIVER_ENROUTE,
-
-        enroute_at:
-
-          nowIso(),
-
-        updated_at:
-
-          nowIso(),
-
-        ...(isDeliveryRideType(ride.ride_type)
-
-          ? { delivery_stage: DELIVERY_STAGE.ENROUTE_STORE }
-
-          : {})
-
-      })
-
-      .eq("id", rideId);
-
-    const enrouteIsDelivery = isDeliveryRideType(ride.ride_type);
-
-    notifyRideStage(
-
-      ride,
-
-      enrouteIsDelivery ? "enroute_store" : "enroute_pickup"
-
-    ).catch(() => {});
-
-    broadcastRideSse(rideId, "stage", {
-
-      status: RIDE_STATUS.DRIVER_ENROUTE,
-
-      delivery_stage: enrouteIsDelivery ? DELIVERY_STAGE.ENROUTE_STORE : null
-
-    });
-
-    auditLog({
-
-      actor_type:
-
-        "driver",
-
-      actor_id:
-
-        driverId,
-
-      action:
-
-        "driver_enroute",
-
-      entity_type:
-
-        "ride",
-
-      entity_id:
-
-        rideId,
-
-      req
-
-    }).catch(() => {});
-
-    return ok(res, {
-
-      ride_id:
-
-        rideId,
-
-      status:
-
-        RIDE_STATUS.DRIVER_ENROUTE
-
+    return performDriverRideTransition({
+      req,
+      res,
+      rideId,
+      driverId,
+      fromStatus: RIDE_STATUS.DRIVER_ASSIGNED,
+      toStatus: RIDE_STATUS.DRIVER_ENROUTE,
+      timestampField: "enroute_at",
+      deliveryStage: DELIVERY_STAGE.ENROUTE_STORE,
+      notifyStageKey: "enroute_pickup",
+      notifyStageKeyDelivery: "enroute_store",
+      auditAction: "driver_enroute"
     });
 
   })
@@ -14154,100 +14764,18 @@ app.post(
 
     const driverId = req.driver.id;
 
-    const ride =
-
-      await getRideOrFail(rideId);
-
-    await ensureAssignedDriver(
-
-      ride,
-
-      driverId
-
-    );
-
-    await supabase
-
-      .from("rides")
-
-      .update({
-
-        status:
-
-          RIDE_STATUS.ARRIVED,
-
-        arrived_at:
-
-          nowIso(),
-
-        updated_at:
-
-          nowIso(),
-
-        ...(isDeliveryRideType(ride.ride_type)
-
-          ? { delivery_stage: DELIVERY_STAGE.ARRIVED_STORE }
-
-          : {})
-
-      })
-
-      .eq("id", rideId);
-
-    const arrivedIsDelivery = isDeliveryRideType(ride.ride_type);
-
-    notifyRideStage(
-
-      ride,
-
-      arrivedIsDelivery ? "arrived_store" : "arrived_pickup"
-
-    ).catch(() => {});
-
-    broadcastRideSse(rideId, "stage", {
-
-      status: RIDE_STATUS.ARRIVED,
-
-      delivery_stage: arrivedIsDelivery ? DELIVERY_STAGE.ARRIVED_STORE : null
-
-    });
-
-    auditLog({
-
-      actor_type:
-
-        "driver",
-
-      actor_id:
-
-        driverId,
-
-      action:
-
-        "driver_arrived",
-
-      entity_type:
-
-        "ride",
-
-      entity_id:
-
-        rideId,
-
-      req
-
-    }).catch(() => {});
-
-    return ok(res, {
-
-      ride_id:
-
-        rideId,
-
-      status:
-
-        RIDE_STATUS.ARRIVED
-
+    return performDriverRideTransition({
+      req,
+      res,
+      rideId,
+      driverId,
+      fromStatus: RIDE_STATUS.DRIVER_ENROUTE,
+      toStatus: RIDE_STATUS.ARRIVED,
+      timestampField: "arrived_at",
+      deliveryStage: DELIVERY_STAGE.ARRIVED_STORE,
+      notifyStageKey: "arrived_pickup",
+      notifyStageKeyDelivery: "arrived_store",
+      auditAction: "driver_arrived"
     });
 
   })
@@ -14398,100 +14926,18 @@ app.post(
 
     const driverId = req.driver.id;
 
-    const ride =
-
-      await getRideOrFail(rideId);
-
-    await ensureAssignedDriver(
-
-      ride,
-
-      driverId
-
-    );
-
-    await supabase
-
-      .from("rides")
-
-      .update({
-
-        status:
-
-          RIDE_STATUS.IN_PROGRESS,
-
-        trip_started_at:
-
-          nowIso(),
-
-        updated_at:
-
-          nowIso(),
-
-        ...(isDeliveryRideType(ride.ride_type)
-
-          ? { delivery_stage: DELIVERY_STAGE.PICKED_UP }
-
-          : {})
-
-      })
-
-      .eq("id", rideId);
-
-    const startIsDelivery = isDeliveryRideType(ride.ride_type);
-
-    notifyRideStage(
-
-      ride,
-
-      startIsDelivery ? "picked_up" : "ride_started"
-
-    ).catch(() => {});
-
-    broadcastRideSse(rideId, "stage", {
-
-      status: RIDE_STATUS.IN_PROGRESS,
-
-      delivery_stage: startIsDelivery ? DELIVERY_STAGE.PICKED_UP : null
-
-    });
-
-    auditLog({
-
-      actor_type:
-
-        "driver",
-
-      actor_id:
-
-        driverId,
-
-      action:
-
-        "ride_started",
-
-      entity_type:
-
-        "ride",
-
-      entity_id:
-
-        rideId,
-
-      req
-
-    }).catch(() => {});
-
-    return ok(res, {
-
-      ride_id:
-
-        rideId,
-
-      status:
-
-        RIDE_STATUS.IN_PROGRESS
-
+    return performDriverRideTransition({
+      req,
+      res,
+      rideId,
+      driverId,
+      fromStatus: RIDE_STATUS.ARRIVED,
+      toStatus: RIDE_STATUS.IN_PROGRESS,
+      timestampField: "trip_started_at",
+      deliveryStage: DELIVERY_STAGE.PICKED_UP,
+      notifyStageKey: "ride_started",
+      notifyStageKeyDelivery: "picked_up",
+      auditAction: "ride_started"
     });
 
   })
@@ -14744,48 +15190,123 @@ app.post(
 
 ========================================================= */
 
-async function captureRidePayment(ride) {
+// Recoverable payment-capture workflow (see lib/ridePaymentCapture.js for
+// the decision logic and idempotency-key derivation). Replaces the old
+// captureRidePayment(), which ran Stripe's capture with no idempotency
+// key and returned only a bare PaymentIntent-or-null -- a crash between
+// Stripe responding and the caller recording that fact was
+// unrecoverable, and there was nowhere durable a failure was ever
+// recorded (console.error only).
+//
+// Persists payment_status BEFORE calling Stripe (capture_pending, with
+// the idempotency key) and again after (captured/capture_failed) --
+// this is what makes a retry after an unknown-outcome crash safe: it
+// resumes from capture_pending using the SAME key, and Stripe returns
+// the original result instead of creating a second capture. Returns the
+// ride row as last persisted (not the pre-call snapshot), so the
+// caller always has current state regardless of which branch ran.
+async function captureRidePaymentIdempotent(ride, req = null, { forceRetry = false } = {}) {
+  const decision = decideCaptureAction({
+    ride,
+    stripeConfigured: Boolean(ENABLE_PAYMENT_GATE && stripe),
+    forceRetry
+  });
 
-  if (
-
-    !ENABLE_PAYMENT_GATE ||
-
-    !stripe ||
-
-    !ride.payment_id
-
-  ) {
-
-    return null;
-
+  if (decision.action === "skip") {
+    return { outcome: ride.payment_status, ride, paymentIntent: null };
   }
+
+  if (decision.action === "not_required") {
+    const { data, error } = await supabase
+      .from("rides")
+      .update({
+        payment_status: CAPTURE_STATUS.NOT_REQUIRED,
+        updated_at: nowIso()
+      })
+      .eq("id", ride.id)
+      .select()
+      .maybeSingle();
+
+    if (error) {
+      console.error("❌ Failed to persist not_required payment_status:", error.message);
+    }
+
+    return { outcome: CAPTURE_STATUS.NOT_REQUIRED, ride: data || ride, paymentIntent: null };
+  }
+
+  const idempotencyKey = captureIdempotencyKey(ride.id);
+
+  const { error: pendingError } = await supabase
+    .from("rides")
+    .update({
+      payment_status: CAPTURE_STATUS.CAPTURE_PENDING,
+      payment_capture_idempotency_key: idempotencyKey,
+      payment_capture_attempted_at: nowIso(),
+      updated_at: nowIso()
+    })
+    .eq("id", ride.id);
+
+  if (pendingError) {
+    // Could not durably record that a capture attempt is starting --
+    // do not proceed to call Stripe without that marker in place, since
+    // a crash right after an unrecorded call would be unrecoverable.
+    console.error("❌ Failed to persist capture_pending before Stripe call:", pendingError.message);
+    return { outcome: CAPTURE_STATUS.CAPTURE_PENDING, ride, paymentIntent: null, error: pendingError.message };
+  }
+
+  let paymentIntent = null;
+  let captureError = null;
 
   try {
-
-    return await stripe
-
-      .paymentIntents
-
-      .capture(
-
-        ride.payment_id
-
-      );
-
+    paymentIntent = await stripe.paymentIntents.capture(
+      ride.payment_id,
+      {},
+      { idempotencyKey }
+    );
   } catch (error) {
+    captureError = error.message || String(error);
 
     console.error(
-
       "❌ Payment capture failed:",
-
-      error.message
-
+      captureError
     );
-
-    return null;
-
   }
 
+  const finalStatus = paymentIntent ? CAPTURE_STATUS.CAPTURED : CAPTURE_STATUS.CAPTURE_FAILED;
+
+  const { data: updatedRide, error: finalError } = await supabase
+    .from("rides")
+    .update({
+      payment_status: finalStatus,
+      payment_captured: Boolean(paymentIntent),
+      payment_capture_error: captureError,
+      updated_at: nowIso()
+    })
+    .eq("id", ride.id)
+    .select()
+    .maybeSingle();
+
+  if (finalError) {
+    console.error("❌ Failed to persist final capture status:", finalError.message);
+  }
+
+  if (!paymentIntent) {
+    // The persisted payment_status='capture_failed' above (queryable via
+    // GET /api/admin/rides?payment_status=capture_failed) is the durable,
+    // admin-readable record of this failure -- this audit entry is a
+    // secondary, best-effort trail, not the only place the failure is
+    // recorded.
+    auditLog({
+      actor_type: "system",
+      action: "ride_payment_capture_failed",
+      entity_type: "ride",
+      entity_id: ride.id,
+      metadata: { error: captureError, idempotency_key: idempotencyKey },
+      req
+    }).catch(() => {});
+  }
+
+  return { outcome: finalStatus, ride: updatedRide || ride, paymentIntent };
 }
 
 /* =========================================================
@@ -14794,20 +15315,16 @@ async function captureRidePayment(ride) {
 
 ========================================================= */
 
-async function createDriverEarning({
-
+// Idempotent: safe to call on every /complete attempt (first call or a
+// retry/resume after a crash), backed by the driver_earnings_ride_id_unique
+// constraint (see the driver-earnings-unique migration). A ride can never
+// end up with two earnings rows: a second insert attempt for the same
+// ride_id hits that constraint and this function returns the row that
+// already exists instead of erroring or creating a duplicate.
+async function upsertDriverEarningIdempotent({
   ride,
-
   driverId
-
 }) {
-
-  // NOTE: this used to insert/select gross_amount and net_amount, which
-  // are not real columns on driver_earnings (the actual schema is
-  // gross_fare/driver_base_earning/tip_amount/total_earning) — every
-  // insert was silently failing (the error was only console.error'd, never
-  // surfaced), so no driver has ever actually had an earning recorded
-  // here. Fixed to match the real table.
   const driverBaseEarning =
     Number(
       ride.driver_payout || 0
@@ -14885,27 +15402,58 @@ async function createDriverEarning({
 
   };
 
-  const { error } =
+  const { data: inserted, error } =
 
     await supabase
 
       .from("driver_earnings")
 
-      .insert(earning);
+      .insert(earning)
 
-  if (error) {
+      .select()
 
-    console.error(
+      .maybeSingle();
 
-      "❌ Driver earning insert failed:",
+  if (!error) {
 
-      error.message
-
-    );
+    return inserted || earning;
 
   }
 
-  return earning;
+  // 23505 = unique_violation. A controlled lookup by ride_id confirms
+  // this really was the expected idempotent-retry case (rather than
+  // trusting the error string alone) before treating it as success.
+  if (error.code === "23505") {
+
+    const { data: existing, error: lookupError } =
+
+      await supabase
+
+        .from("driver_earnings")
+
+        .select("*")
+
+        .eq("ride_id", ride.id)
+
+        .maybeSingle();
+
+    if (!lookupError && existing) {
+
+      return existing;
+
+    }
+
+  }
+
+  console.error(
+
+    "❌ Driver earning insert failed:",
+
+    error.message
+
+  );
+
+  throw error;
 
 }
 
@@ -14935,17 +15483,19 @@ app.post(
 
     const driverId = req.driver.id;
 
-    const ride =
+    let ride;
 
-      await getRideOrFail(rideId);
+    try {
+      ride = await getRideOrFail(rideId);
+    } catch (err) {
+      return fail(res, "Ride not found.", 404);
+    }
 
-    await ensureAssignedDriver(
-
-      ride,
-
-      driverId
-
-    );
+    try {
+      await ensureAssignedDriver(ride, driverId);
+    } catch (err) {
+      return fail(res, err.message || "Driver is not assigned to this ride.", 403);
+    }
 
     let deliveryProofUrl = null;
 
@@ -15069,63 +15619,93 @@ app.post(
 
     }
 
-    const paymentResult =
+    // Step 1: atomically claim trip-completion, OR -- on a retry/resume
+    // that finds the ride already completed -- fall through to resume
+    // the remaining steps rather than short-circuiting. "Already
+    // completed" is never treated as proof that capture and earnings
+    // also finished; see lib/ridePaymentCapture.js.
+    let completedRide;
 
-      await captureRidePayment(ride);
+    if (ride.status === RIDE_STATUS.IN_PROGRESS) {
 
+      const claim = await claimRideTransition({
+        supabase,
+        rideId,
+        fromStatuses: [RIDE_STATUS.IN_PROGRESS],
+        toStatus: RIDE_STATUS.COMPLETED,
+        patch: {
+          completed_at: nowIso(),
+          ...(isDeliveryRideType(ride.ride_type)
+            ? {
+                delivery_stage: DELIVERY_STAGE.DELIVERED,
+                delivered_at: nowIso(),
+                ...(deliveryProofUrl ? { delivery_proof_url: deliveryProofUrl } : {})
+              }
+            : {})
+        }
+      });
+
+      if (claim.ok) {
+        completedRide = claim.ride;
+      } else if (claim.reason === "not_found") {
+        return fail(res, "Ride not found.", 404);
+      } else if (claim.currentStatus === RIDE_STATUS.COMPLETED) {
+        // Lost the claim to a concurrent request that completed the
+        // trip a moment ago -- resume from there like any other retry.
+        completedRide = claim.ride;
+      } else {
+        auditLog({
+          actor_type: "driver",
+          actor_id: driverId,
+          action: "ride_completed_rejected",
+          entity_type: "ride",
+          entity_id: rideId,
+          metadata: { actual_status: claim.currentStatus },
+          req
+        }).catch(() => {});
+
+        return fail(
+          res,
+          `Ride cannot be completed from its current status (${claim.currentStatus}).`,
+          409,
+          { current_status: claim.currentStatus }
+        );
+      }
+
+    } else if (ride.status === RIDE_STATUS.COMPLETED) {
+      completedRide = ride;
+    } else {
+      return fail(
+        res,
+        `Ride cannot be completed from its current status (${ride.status}).`,
+        409,
+        { current_status: ride.status }
+      );
+    }
+
+    // Step 2: resume/attempt payment capture. Idempotent -- safe whether
+    // this is a true first pass or a resumed retry after any crash
+    // boundary (before capture, mid-capture, or after capture but before
+    // the result was recorded).
+    const captureResult =
+
+      await captureRidePaymentIdempotent(completedRide, req);
+
+    // Step 3: idempotent earnings upsert, unconditional on the capture
+    // outcome -- the driver did the work regardless of whether Harvey's
+    // own Stripe capture succeeded; a capture failure is a business/ops
+    // problem to reconcile separately (see the admin capture-failure
+    // queue), not something that should withhold the driver's own
+    // earning record.
     const earning =
 
-      await createDriverEarning({
+      await upsertDriverEarningIdempotent({
 
-        ride,
+        ride: captureResult.ride,
 
         driverId
 
       });
-
-    await supabase
-
-      .from("rides")
-
-      .update({
-
-        status:
-
-          RIDE_STATUS.COMPLETED,
-
-        completed_at:
-
-          nowIso(),
-
-        payment_captured:
-
-          Boolean(paymentResult),
-
-        updated_at:
-
-          nowIso(),
-
-        ...(isDeliveryRideType(ride.ride_type)
-
-          ? {
-
-              delivery_stage: DELIVERY_STAGE.DELIVERED,
-
-              delivered_at: nowIso(),
-
-              ...(deliveryProofUrl
-
-                ? { delivery_proof_url: deliveryProofUrl }
-
-                : {})
-
-            }
-
-          : {})
-
-      })
-
-      .eq("id", rideId);
 
     const completeIsDelivery = isDeliveryRideType(ride.ride_type);
 
@@ -15171,9 +15751,9 @@ app.post(
 
         earning,
 
-        payment_captured:
+        payment_status:
 
-          Boolean(paymentResult)
+          captureResult.outcome
 
       },
 
@@ -15193,9 +15773,13 @@ app.post(
 
       earning,
 
+      payment_status:
+
+        captureResult.outcome,
+
       payment_captured:
 
-        Boolean(paymentResult)
+        captureResult.outcome === CAPTURE_STATUS.CAPTURED
 
     });
 
@@ -16874,9 +17458,40 @@ app.get(
 
 /* =========================================================
 
-   ADMIN UPDATE RIDE STATUS
+   ADMIN UPDATE RIDE STATUS (narrowly scoped)
+
+   Used to accept ANY RIDE_STATUS value with only an optional free-text
+   note and no Stripe-side consequence -- an admin could silently move a
+   ride to completed or cancelled without ever touching the associated
+   PaymentIntent, or "correct" a ride that was already completed/
+   cancelled. That's exactly the class of bug this phase is closing
+   everywhere else (lifecycle rules bypassed, payment operations skipped
+   silently), so this route no longer allows it either.
+
+   Narrowed to: a small, explicit allow-list of non-terminal, non-payment-
+   sensitive corrections (unsticking a ride that never dispatched, or
+   manually retrying dispatch on one that failed) -- nothing that touches
+   an assigned driver, an in-progress trip, or either terminal status.
+   completed and cancelled can be neither the source nor the destination
+   of a change made through this route, full stop. A reason is now
+   required, not optional.
+
+   Cancellation, payment/refund reconciliation, and any genuine
+   post-in_progress incident each have their own dedicated route (see
+   POST /api/rides/:id/cancel, POST /api/driver/rides/:rideId/withdraw,
+   POST /api/admin/payments/:rideId/reconcile, and
+   POST /api/admin/rides/:id/incident-resolve below) -- this route is not
+   a substitute for any of them.
 
 ========================================================= */
+
+const ADMIN_STATUS_ALLOWED_TRANSITIONS = Object.freeze({
+  [RIDE_STATUS.DRAFT]: [RIDE_STATUS.FAILED],
+  [RIDE_STATUS.PAYMENT_REQUIRED]: [RIDE_STATUS.FAILED],
+  [RIDE_STATUS.PAYMENT_AUTHORIZED]: [RIDE_STATUS.FAILED],
+  [RIDE_STATUS.AWAITING_DRIVER]: [RIDE_STATUS.FAILED],
+  [RIDE_STATUS.FAILED]: [RIDE_STATUS.AWAITING_DRIVER]
+});
 
 app.patch(
 
@@ -16906,61 +17521,74 @@ app.patch(
 
       );
 
-    const allowed =
+    const reason = cleanString(req.body.reason || req.body.note, 1000);
 
-      Object.values(RIDE_STATUS);
+    if (!reason) {
+      return fail(res, "A reason is required to change a ride's status.", 400);
+    }
 
-    if (!allowed.includes(status)) {
+    let ride;
+
+    try {
+      ride = await getRideOrFail(rideId);
+    } catch (err) {
+      return fail(res, "Ride not found.", 404);
+    }
+
+    const allowedTargets = ADMIN_STATUS_ALLOWED_TRANSITIONS[ride.status] || [];
+
+    if (!allowedTargets.includes(status)) {
+
+      auditLog({
+        actor_type: "admin",
+        actor_id: req.admin.email,
+        action: "admin_ride_status_update_rejected",
+        entity_type: "ride",
+        entity_id: rideId,
+        metadata: { attempted_status: status, current_status: ride.status, reason },
+        req
+      }).catch(() => {});
 
       return fail(
 
         res,
 
-        "Invalid ride status.",
+        `This route cannot move a ride from ${ride.status} to ${status}. ` +
+          `Use the dedicated cancellation, withdrawal, payment-reconciliation, or ` +
+          `incident-resolution operation instead.`,
 
-        400,
+        409,
 
-        { allowed }
+        { current_status: ride.status, allowed_targets: allowedTargets }
 
       );
 
     }
 
-    const { data, error } =
+    const claim = await claimRideTransition({
+      supabase,
+      rideId,
+      fromStatuses: [ride.status],
+      toStatus: status,
+      patch: {
+        admin_note: reason,
+        updated_at: nowIso()
+      }
+    });
 
-      await supabase
+    if (!claim.ok) {
 
-        .from("rides")
+      return fail(
 
-        .update({
+        res,
 
-          status,
+        `Ride status changed before this update could apply (now ${claim.currentStatus}).`,
 
-          admin_note:
+        409,
 
-            cleanString(
+        { current_status: claim.currentStatus }
 
-              req.body.note,
-
-              1000
-
-            ),
-
-          updated_at:
-
-            nowIso()
-
-        })
-
-        .eq("id", rideId)
-
-        .select(ADMIN_RIDE_MUTATION_FIELDS.join(","))
-
-        .single();
-
-    if (error) {
-
-      throw error;
+      );
 
     }
 
@@ -16988,11 +17616,11 @@ app.patch(
 
       metadata: {
 
+        from_status: ride.status,
+
         status,
 
-        note:
-
-          req.body.note || null
+        reason
 
       },
 
@@ -17000,11 +17628,19 @@ app.patch(
 
     }).catch(() => {});
 
+    // Field-minimized response/broadcast, same as this route always
+    // required (claimRideTransition's own return is the full row, since
+    // it's a generic shared primitive -- the minimization is applied
+    // here, at the one admin-facing call site that needs it).
+    const minimizedRide = Object.fromEntries(
+      ADMIN_RIDE_MUTATION_FIELDS.map((field) => [field, claim.ride[field]])
+    );
+
     broadcastSse(
 
       "ride_updated",
 
-      { ride: data }
+      { ride: minimizedRide }
 
     );
 
@@ -17012,12 +17648,229 @@ app.patch(
 
       ride:
 
-        data
+        minimizedRide
 
     });
 
   })
 
+);
+
+/* =========================================================
+
+   ADMIN PAYMENT RECONCILIATION (manual retry)
+
+   A single, general endpoint for both stuck failure modes this phase
+   introduces persisted state for -- a failed completion capture
+   (rides.payment_status = 'capture_failed') and a failed cancellation
+   void (rides.cancellation_payment_status = 'cancel_failed') -- rather
+   than two near-identical routes. Manual/admin-triggered only; nothing
+   in this phase retries either automatically.
+
+========================================================= */
+
+app.post(
+  "/api/admin/payments/:rideId/reconcile",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const rideId = cleanString(req.params.rideId, 100);
+
+    let ride;
+
+    try {
+      ride = await getRideOrFail(rideId);
+    } catch (err) {
+      return fail(res, "Ride not found.", 404);
+    }
+
+    const results = {};
+
+    if (ride.payment_status === CAPTURE_STATUS.CAPTURE_FAILED) {
+      const captureResult = await captureRidePaymentIdempotent(ride, req, { forceRetry: true });
+      results.capture = captureResult.outcome;
+      ride = captureResult.ride;
+    }
+
+    if (ride.cancellation_payment_status === CANCELLATION_PAYMENT_STATUS.CANCEL_FAILED) {
+      const cancelResult = await reconcileCancellationPayment(ride, req);
+      results.cancellation = cancelResult.outcome;
+      ride = cancelResult.ride;
+    }
+
+    if (!Object.keys(results).length) {
+      return fail(
+        res,
+        "This ride has no failed payment or cancellation reconciliation to retry.",
+        400,
+        {
+          payment_status: ride.payment_status,
+          cancellation_payment_status: ride.cancellation_payment_status
+        }
+      );
+    }
+
+    auditLog({
+      actor_type: "admin",
+      actor_id: req.admin.email,
+      action: "admin_payment_reconciliation_retried",
+      entity_type: "ride",
+      entity_id: rideId,
+      metadata: results,
+      req
+    }).catch(() => {});
+
+    return ok(res, {
+      ride_id: rideId,
+      results,
+      payment_status: ride.payment_status,
+      cancellation_payment_status: ride.cancellation_payment_status
+    });
+  })
+);
+
+/* =========================================================
+
+   ADMIN INCIDENT RESOLUTION
+
+   The one narrowly-scoped, explicitly-authorized exception to "self-
+   service cancellation stops at in_progress." Requires a reason and
+   states explicitly what happens to payment -- there is no default, so
+   this can never silently perform or omit a Stripe operation. Not a
+   general-purpose status editor: resolution is exactly one of
+   'cancelled_by_incident' or 'force_completed_by_incident'.
+
+========================================================= */
+
+const INCIDENT_RESOLUTIONS = Object.freeze([
+  "cancelled_by_incident",
+  "force_completed_by_incident"
+]);
+
+const INCIDENT_PAYMENT_ACTIONS = Object.freeze(["capture", "void", "leave_pending"]);
+
+app.post(
+  "/api/admin/rides/:id/incident-resolve",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const rideId = cleanString(req.params.id, 100);
+    const reason = cleanString(req.body.reason, 1000);
+    const resolution = cleanString(req.body.resolution, 60);
+    const paymentAction = cleanString(req.body.payment_action, 30);
+
+    if (!reason) {
+      return fail(res, "A reason is required for an incident resolution.", 400);
+    }
+
+    if (!INCIDENT_RESOLUTIONS.includes(resolution)) {
+      return fail(res, "resolution must be one of: " + INCIDENT_RESOLUTIONS.join(", "), 400);
+    }
+
+    if (!INCIDENT_PAYMENT_ACTIONS.includes(paymentAction)) {
+      return fail(
+        res,
+        "payment_action is required and must be one of: " + INCIDENT_PAYMENT_ACTIONS.join(", "),
+        400
+      );
+    }
+
+    let ride;
+
+    try {
+      ride = await getRideOrFail(rideId);
+    } catch (err) {
+      return fail(res, "Ride not found.", 404);
+    }
+
+    if (ride.status === RIDE_STATUS.COMPLETED || ride.status === RIDE_STATUS.CANCELLED) {
+      return fail(
+        res,
+        `Ride is already terminal (${ride.status}); an incident resolution cannot change it.`,
+        409,
+        { current_status: ride.status }
+      );
+    }
+
+    const toStatus =
+      resolution === "cancelled_by_incident" ? RIDE_STATUS.CANCELLED : RIDE_STATUS.COMPLETED;
+
+    const claim = await claimRideTransition({
+      supabase,
+      rideId,
+      fromStatuses: [ride.status],
+      toStatus,
+      patch: {
+        [toStatus === RIDE_STATUS.CANCELLED ? "cancelled_at" : "completed_at"]: nowIso(),
+        ...(toStatus === RIDE_STATUS.CANCELLED
+          ? {
+              cancellation_reason: reason,
+              cancelled_by_type: "admin",
+              cancelled_by_id: req.admin.email
+            }
+          : {}),
+        admin_note: reason,
+        updated_at: nowIso()
+      }
+    });
+
+    if (!claim.ok) {
+      return fail(
+        res,
+        `Ride status changed before this resolution could apply (now ${claim.currentStatus}).`,
+        409,
+        { current_status: claim.currentStatus }
+      );
+    }
+
+    let paymentOutcome = "leave_pending";
+
+    if (paymentAction === "capture") {
+      const captureResult = await captureRidePaymentIdempotent(claim.ride, req);
+      paymentOutcome = captureResult.outcome;
+    } else if (paymentAction === "void") {
+      const cancelResult = await reconcileCancellationPayment(claim.ride, req);
+      paymentOutcome = cancelResult.outcome;
+    }
+
+    if (toStatus === RIDE_STATUS.CANCELLED && claim.ride.driver_id) {
+      sendPushNotification({
+        ownerType: "driver",
+        ownerId: claim.ride.driver_id,
+        title: "Ride Cancelled",
+        body: "This ride was cancelled by an administrator and is no longer assigned to you.",
+        url: "/driver-dashboard.html"
+      }).catch(() => {});
+    }
+
+    notifyRideStage(
+      ride,
+      toStatus === RIDE_STATUS.CANCELLED ? "ride_cancelled" : "ride_completed"
+    ).catch(() => {});
+
+    broadcastRideSse(rideId, "stage", { status: toStatus });
+
+    auditLog({
+      actor_type: "admin",
+      actor_id: req.admin.email,
+      action: "admin_ride_incident_resolved",
+      entity_type: "ride",
+      entity_id: rideId,
+      metadata: {
+        resolution,
+        reason,
+        payment_action: paymentAction,
+        payment_outcome: paymentOutcome,
+        from_status: ride.status
+      },
+      req
+    }).catch(() => {});
+
+    return ok(res, {
+      ride_id: rideId,
+      status: toStatus,
+      payment_action: paymentAction,
+      payment_outcome: paymentOutcome
+    });
+  })
 );
 
 /* =========================================================

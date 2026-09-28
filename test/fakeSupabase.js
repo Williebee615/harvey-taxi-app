@@ -25,7 +25,18 @@
 //   - failSelect: (table) => error|null -- inject a failure for a read.
 // `_log` records every executed operation as { table, op, patch }.
 
+// `options.uniqueColumns`, e.g. { driver_earnings: ["ride_id"], rides:
+// ["quote_jti"] }, simulates a real UNIQUE constraint on plain insert()
+// (not upsert(), which already has its own conflict-handling path
+// below): a second insert whose value for that column matches an
+// existing row returns a Postgres-shaped 23505 (unique_violation) error
+// instead of silently succeeding, the same way the real database would.
+// A null/undefined value never collides, matching real UNIQUE semantics
+// (and how the corresponding production constraints are declared as
+// partial/nullable-aware indexes). Optional and additive -- omitting it
+// keeps every existing test's behavior unchanged.
 function createFakeSupabase(seed = {}, options = {}) {
+  const uniqueColumns = options.uniqueColumns || {};
   const state = {};
   const log = [];
   const columns = options.columns || {};
@@ -98,6 +109,33 @@ function createFakeSupabase(seed = {}, options = {}) {
 
       if (pendingInsertRows) {
         const keyField = table === "system_flags" ? "key" : "id";
+
+        if (!isUpsert) {
+          const uniqueCols = uniqueColumns[table] || [];
+
+          for (const record of pendingInsertRows) {
+            for (const col of uniqueCols) {
+              const val = record[col];
+
+              if (val === null || val === undefined) {
+                continue;
+              }
+
+              const conflict = rows.find((r) => r[col] === val);
+
+              if (conflict) {
+                return {
+                  data: null,
+                  error: {
+                    code: "23505",
+                    message: `duplicate key value violates unique constraint "fake_${table}_${col}_unique"`,
+                    details: `Key (${col})=(${val}) already exists.`
+                  }
+                };
+              }
+            }
+          }
+        }
 
         const inserted = pendingInsertRows.map((record) => {
           const clean = { ...record };
@@ -229,7 +267,26 @@ function createFakeSupabase(seed = {}, options = {}) {
 
   return {
     from: (table) => makeBuilder(table),
-    rpc: async () => ({ data: null, error: null }),
+    // dispatch_ride_atomic gets a distinct default: the fake has no real
+    // implementation of its atomic offer-creation/eligibility-recheck
+    // logic, so reporting it as errored (not merely "no data") is the
+    // honest default -- it makes dispatchRide() correctly exercise its
+    // two-step fallback path in any test that doesn't specifically care
+    // about the RPC's own behavior, the same way a genuinely
+    // missing/erroring RPC would in production. Tests that DO care about
+    // dispatch_ride_atomic's behavior (candidate loop, eligibility
+    // decline, etc.) override this per-test by reassigning
+    // mockSupabaseClient.rpc directly.
+    rpc: async (name) => {
+      if (name === "dispatch_ride_atomic") {
+        return {
+          data: null,
+          error: { message: "dispatch_ride_atomic is not implemented in the test fake" }
+        };
+      }
+
+      return { data: null, error: null };
+    },
     _state: state,
     _log: log
   };
