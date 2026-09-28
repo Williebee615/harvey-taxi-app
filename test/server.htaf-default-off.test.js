@@ -138,10 +138,53 @@ describe("with the flags unset (the default)", () => {
   });
 });
 
-describe("with the flags enabled", () => {
-  test("HTAF_RIDE_CREATION_ENABLED=true lets the request past the gate to the normal flow", async () => {
-    mockClient = createFakeSupabase({ htaf_applications: [], rides: [], audit_logs: [] });
+const RIDE_APPROVALS = {
+  HTAF_PROVIDER_AGREEMENT_REF: "AGR-TEST-001",
+  HTAF_CONFLICT_REVIEW_REF: "Board minutes test item 1",
+  HTAF_RIDE_TRANSFER_APPROVED_BY: "Test Board",
+  HTAF_RIDE_TRANSFER_APPROVED_AT: "2026-01-01"
+};
+const TRIAGE_APPROVALS = {
+  HTAF_AI_PRIVACY_REVIEW_REF: "PRIV-TEST-001",
+  HTAF_AI_TRIAGE_APPROVED_BY: "Test Reviewer",
+  HTAF_AI_TRIAGE_APPROVED_AT: "2026-01-01"
+};
+
+describe("with a flag set but no approval record", () => {
+  test.each([
+    ["create-ride", { HTAF_RIDE_CREATION_ENABLED: "true" }, "htaf_ride_creation_blocked"],
+    ["triage", { HTAF_AI_TRIAGE_ENABLED: "true", OPENAI_API_KEY: "sk-test-not-used" }, "htaf_ai_triage_blocked"]
+  ])("%s stays blocked and the audit row names the missing approvals", async (action, env, auditAction) => {
+    mockClient = createFakeSupabase(seed());
+    const app = loadApp(env);
+
+    const res = await post(app, action);
+    await settle();
+
+    expect(res.status).toBe(403);
+    expect(mockClient._log.filter((e) => e.table === "htaf_applications")).toEqual([]);
+    const audit = mockClient._state.audit_logs.find((a) => a.action === auditAction);
+    expect(audit.metadata.reason).toMatch(/^approval record incomplete: /);
+  });
+
+  test("the admin health detail lists the missing approvals", async () => {
+    mockClient = createFakeSupabase(seed());
     const app = loadApp({ HTAF_RIDE_CREATION_ENABLED: "true" });
+
+    const res = await request(app).get("/api/health").set("x-admin-token", process.env.ADMIN_API_TOKEN);
+
+    expect(res.body.features.htaf_ride_creation).toBe(false);
+    expect(res.body.htaf_activation.ride_creation).toMatchObject({
+      enabled: false,
+      missing_approvals: Object.keys(RIDE_APPROVALS)
+    });
+  });
+});
+
+describe("with a flag set and a complete approval record", () => {
+  test("create-ride passes the gate to the normal flow", async () => {
+    mockClient = createFakeSupabase({ htaf_applications: [], rides: [], audit_logs: [] });
+    const app = loadApp({ HTAF_RIDE_CREATION_ENABLED: "true", ...RIDE_APPROVALS });
 
     const res = await post(app, "create-ride");
 
@@ -150,9 +193,25 @@ describe("with the flags enabled", () => {
     expect(mockClient._log.some((e) => e.table === "htaf_applications")).toBe(true);
   });
 
-  test("HTAF_AI_TRIAGE_ENABLED=true without an AI provider key still fails closed", async () => {
+  test("a created ride's audit row carries the approval record that authorized it", async () => {
     mockClient = createFakeSupabase(seed());
-    const app = loadApp({ HTAF_AI_TRIAGE_ENABLED: "true", OPENAI_API_KEY: undefined });
+    mockClient.rpc = jest.fn(async () => ({
+      data: [{ outcome: "created", ride: { id: "RIDE-TEST-1" } }],
+      error: null
+    }));
+    const app = loadApp({ HTAF_RIDE_CREATION_ENABLED: "true", ...RIDE_APPROVALS });
+
+    const res = await post(app, "create-ride");
+    await settle();
+
+    expect(res.status).toBe(201);
+    const audit = mockClient._state.audit_logs.find((a) => a.action === "htaf_application_converted_to_ride");
+    expect(audit.metadata.approval).toEqual(RIDE_APPROVALS);
+  });
+
+  test("triage with approvals but no AI provider key still fails closed", async () => {
+    mockClient = createFakeSupabase(seed());
+    const app = loadApp({ HTAF_AI_TRIAGE_ENABLED: "true", OPENAI_API_KEY: undefined, ...TRIAGE_APPROVALS });
 
     const res = await post(app, "triage");
     await settle();
@@ -161,5 +220,15 @@ describe("with the flags enabled", () => {
     expect(mockClient._log.filter((e) => e.table === "htaf_applications")).toEqual([]);
     const audit = mockClient._state.audit_logs.find((a) => a.action === "htaf_ai_triage_blocked");
     expect(audit.metadata.reason).toBe("no AI provider configured");
+  });
+
+  test("the admin health detail shows the approval record in effect", async () => {
+    mockClient = createFakeSupabase(seed());
+    const app = loadApp({ HTAF_RIDE_CREATION_ENABLED: "true", ...RIDE_APPROVALS });
+
+    const res = await request(app).get("/api/health").set("x-admin-token", process.env.ADMIN_API_TOKEN);
+
+    expect(res.body.features.htaf_ride_creation).toBe(true);
+    expect(res.body.htaf_activation.ride_creation).toMatchObject({ enabled: true, approvals: RIDE_APPROVALS });
   });
 });

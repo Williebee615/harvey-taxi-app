@@ -274,10 +274,12 @@ const ENABLE_FOOD_DELIVERY = envBool("ENABLE_FOOD_DELIVERY", true);
 const ENABLE_GROCERY_DELIVERY = envBool("ENABLE_GROCERY_DELIVERY", true);
 
 const ENABLE_HTAF_APPLICATIONS = envBool("ENABLE_HTAF_APPLICATIONS", true);
-// Applicant data stays within HTAF until the provider agreement and board
-// approval are recorded and the operator explicitly enables this transfer.
-const HTAF_RIDE_CREATION_ENABLED = envBool("HTAF_RIDE_CREATION_ENABLED", false);
-const HTAF_AI_TRIAGE_ENABLED = envBool("HTAF_AI_TRIAGE_ENABLED", false);
+// HTAF ride creation (applicant data copied to a transportation
+// provider's rides) and HTAF AI triage (application facts sent to an AI
+// provider) are resolved after the AI client is created, below: each needs
+// its feature flag AND a complete approval record (lib/htafActivation.js,
+// docs/htaf-activation-checklist.md). The flag alone does nothing.
+const { resolveHtafActivation } = require("./lib/htafActivation");
 
 /* =========================================================
 
@@ -731,6 +733,10 @@ function buildSitemapXml(host, urlPaths) {
     `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`
   );
 }
+
+const HTAF_ACTIVATION = resolveHtafActivation(process.env, {
+  aiProviderConfigured: Boolean(openai)
+});
 
 app.get("/sitemap.xml", (req, res) => {
   const isFoundation = req.hostname && FOUNDATION_HOSTS.has(req.hostname);
@@ -5629,16 +5635,14 @@ app.post(
   requireAdmin,
   rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "htaf_triage" }),
   asyncRoute(async (req, res) => {
-    if (!HTAF_AI_TRIAGE_ENABLED || !openai) {
+    if (!HTAF_ACTIVATION.aiTriage.enabled) {
       auditLog({
         actor_type: "admin",
         actor_id: req.admin.email,
         action: "htaf_ai_triage_blocked",
         entity_type: "htaf_application",
         entity_id: cleanString(req.params.id, 80),
-        metadata: {
-          reason: !HTAF_AI_TRIAGE_ENABLED ? "HTAF_AI_TRIAGE_ENABLED is off" : "no AI provider configured"
-        },
+        metadata: { reason: HTAF_ACTIVATION.aiTriage.reason },
         req
       }).catch(() => {});
       return fail(res, "HTAF AI triage is disabled.", 403);
@@ -5675,7 +5679,8 @@ app.post(
       entity_id: application.id,
       metadata: {
         recommendation: triage.recommendation || null,
-        facts_sent: triage.facts_sent || null
+        facts_sent: triage.facts_sent || null,
+        approval: HTAF_ACTIVATION.aiTriage.approvals
       },
       req
     }).catch(() => {});
@@ -19249,7 +19254,7 @@ app.post(
   requireAdmin,
 
   asyncRoute(async (req, res) => {
-    if (!HTAF_RIDE_CREATION_ENABLED) {
+    if (!HTAF_ACTIVATION.rideCreation.enabled) {
       // IDs only: the blocked attempt is recorded without reading or
       // logging anything from the application itself.
       auditLog({
@@ -19258,7 +19263,7 @@ app.post(
         action: "htaf_ride_creation_blocked",
         entity_type: "htaf_application",
         entity_id: cleanString(req.params.id, 100),
-        metadata: { reason: "HTAF_RIDE_CREATION_ENABLED is off" },
+        metadata: { reason: HTAF_ACTIVATION.rideCreation.reason },
         req
       }).catch(() => {});
       return fail(res, "HTAF ride creation is paused pending an approved provider agreement.", 403);
@@ -19396,7 +19401,11 @@ app.post(
 
         reason:
 
-          outcome.reason || null
+          outcome.reason || null,
+
+        approval:
+
+          HTAF_ACTIVATION.rideCreation.approvals
 
       },
 
@@ -21814,15 +21823,33 @@ app.get(
 
       },
 
+      htaf_activation: {
+
+        ride_creation: {
+          enabled: HTAF_ACTIVATION.rideCreation.enabled,
+          reason: HTAF_ACTIVATION.rideCreation.reason,
+          missing_approvals: HTAF_ACTIVATION.rideCreation.missing,
+          approvals: HTAF_ACTIVATION.rideCreation.approvals
+        },
+
+        ai_triage: {
+          enabled: HTAF_ACTIVATION.aiTriage.enabled,
+          reason: HTAF_ACTIVATION.aiTriage.reason,
+          missing_approvals: HTAF_ACTIVATION.aiTriage.missing,
+          approvals: HTAF_ACTIVATION.aiTriage.approvals
+        }
+
+      },
+
       features: {
 
         htaf_ride_creation:
 
-          HTAF_RIDE_CREATION_ENABLED,
+          HTAF_ACTIVATION.rideCreation.enabled,
 
         htaf_ai_triage:
 
-          Boolean(HTAF_AI_TRIAGE_ENABLED && openai),
+          HTAF_ACTIVATION.aiTriage.enabled,
 
 
         rider_approval_gate:
@@ -23234,13 +23261,16 @@ async function startServer() {
 
       );
 
-      console.log(
-        `🚐 HTAF ride creation: ${HTAF_RIDE_CREATION_ENABLED ? "ON" : "OFF"}`
-      );
-
-      console.log(
-        `🧠 HTAF AI triage: ${HTAF_AI_TRIAGE_ENABLED && openai ? "ON" : "OFF"}`
-      );
+      for (const [label, state] of [
+        ["🚐 HTAF ride creation", HTAF_ACTIVATION.rideCreation],
+        ["🧠 HTAF AI triage", HTAF_ACTIVATION.aiTriage]
+      ]) {
+        // A flag set without its approval record is an operator error worth
+        // shouting about; a flag that is simply off is the normal state.
+        (state.requested && !state.enabled ? console.error : console.log)(
+          `${label}: ${state.enabled ? "ON" : "OFF"} (${state.reason})`
+        );
+      }
 
       console.log(
 
