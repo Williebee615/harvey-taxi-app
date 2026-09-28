@@ -35,10 +35,20 @@ const describeDb = ADMIN_URL ? describe : describe.skip;
 
 const ROOT = path.join(__dirname, "..", "..");
 
-const MIGRATIONS = [
-  "supabase/migrations/20260927220300_dispatch_functions_hardening.sql",
-  "supabase/migrations/20260927220400_accept_driver_offer_atomic.sql"
-];
+const MIGRATIONS_DIR = path.join(ROOT, "supabase", "migrations");
+
+// Every PR #130 migration: all files at or after the first one this PR
+// added, applied exactly once each, in filename (= timestamp) order. Files
+// before this cutoff are already applied in production and are represented
+// by test/db/live-baseline.sql instead.
+const PR130_FIRST_MIGRATION = "20260927220000";
+
+function pr130Migrations() {
+  return fs
+    .readdirSync(MIGRATIONS_DIR)
+    .filter((f) => f.endsWith(".sql") && f.slice(0, 14) >= PR130_FIRST_MIGRATION)
+    .sort();
+}
 
 function withDatabase(url, dbName) {
   const u = new URL(url);
@@ -56,21 +66,44 @@ async function adminQuery(sql) {
   }
 }
 
-// Creates an isolated database, applies the live baseline and then each
-// migration in its own transaction (as `supabase db push` does).
-async function createTestDatabase() {
+// Creates an isolated database, applies the live baseline, optionally runs
+// `seedBeforeMigrations` (synthetic rows only), then applies each PR #130
+// migration exactly once, in its own transaction (as `supabase db push`
+// does). Any SQL error -- a missing table/column/function/type/index/
+// extension, a constraint conflict, a permission or signature problem --
+// aborts setup with the failing file named, which fails the suite.
+async function createTestDatabase({ seedBeforeMigrations = null } = {}) {
   const dbName = `harvey_dispatch_${crypto.randomBytes(4).toString("hex")}`;
   await adminQuery(`create database ${dbName}`);
   const url = withDatabase(ADMIN_URL, dbName);
+
+  const appliedMigrations = [];
+  let baselineRowsAtLoad = null;
 
   const setup = new Client({ connectionString: url });
   await setup.connect();
   try {
     await setup.query(fs.readFileSync(path.join(__dirname, "live-baseline.sql"), "utf8"));
-    for (const file of MIGRATIONS) {
+
+    const { rows: baselineRowCounts } = await setup.query(`
+      select 'drivers' as t, count(*)::int as n from public.drivers
+      union all select 'rides', count(*)::int from public.rides
+      union all select 'driver_offers', count(*)::int from public.driver_offers
+      union all select 'driver_earnings', count(*)::int from public.driver_earnings`);
+    baselineRowsAtLoad = Object.fromEntries(baselineRowCounts.map((r) => [r.t, r.n]));
+
+    if (seedBeforeMigrations) await setup.query(seedBeforeMigrations);
+
+    for (const file of pr130Migrations()) {
       await setup.query("begin");
-      await setup.query(fs.readFileSync(path.join(ROOT, file), "utf8"));
+      try {
+        await setup.query(fs.readFileSync(path.join(MIGRATIONS_DIR, file), "utf8"));
+      } catch (err) {
+        await setup.query("rollback");
+        throw new Error(`migration ${file} failed: ${err.code || ""} ${err.message}`);
+      }
       await setup.query("commit");
+      appliedMigrations.push(file);
     }
   } finally {
     await setup.end();
@@ -93,7 +126,7 @@ async function createTestDatabase() {
     await adminQuery(`drop database if exists ${dbName} with (force)`);
   }
 
-  return { dbName, url, connect, drop };
+  return { dbName, url, connect, drop, appliedMigrations, baselineRowsAtLoad };
 }
 
 // Resolves once `count` other sessions are blocked waiting on a lock, so a
@@ -116,4 +149,4 @@ async function waitForLockWaiters(client, count, { timeoutMs = 5000 } = {}) {
   }
 }
 
-module.exports = { describeDb, createTestDatabase, waitForLockWaiters };
+module.exports = { describeDb, createTestDatabase, waitForLockWaiters, pr130Migrations, MIGRATIONS_DIR };

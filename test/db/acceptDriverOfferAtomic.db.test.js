@@ -25,7 +25,7 @@ describeDb("dispatch migrations against a live-schema Postgres", () => {
   });
 
   beforeEach(async () => {
-    await admin.query("truncate public.driver_offers, public.rides, public.drivers");
+    await admin.query("truncate public.driver_earnings, public.driver_offers, public.rides, public.drivers");
   });
 
   // ---------------------------------------------------------------- fixtures
@@ -506,7 +506,7 @@ describeDb("dispatch migrations against a live-schema Postgres", () => {
         rider_phone: "+15555550199",
         ride_type: "standard",
         payment_id: "pi_SECRET_PAYMENT",
-        payment_status: "authorized",
+        payment_status: "capture_failed",
         pricing_snapshot: JSON.stringify({ secret: "PRICING_SECRET" }),
         route_snapshot: JSON.stringify({ secret: "ROUTE_SECRET" }),
         pickup_lat: 36.123456,
@@ -524,7 +524,7 @@ describeDb("dispatch migrations against a live-schema Postgres", () => {
       const serialized = JSON.stringify(result);
       for (const secret of [
         "pi_SECRET_PAYMENT",
-        "authorized",
+        "capture_failed",
         "PRICING_SECRET",
         "ROUTE_SECRET",
         "36.123456",

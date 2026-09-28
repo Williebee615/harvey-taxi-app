@@ -4,9 +4,11 @@
 -- pg_attribute/pg_proc on the live project, 2026-09-28. NOT a migration;
 -- never applied to any Supabase environment.
 --
--- Mirrors: public.drivers / public.rides / public.driver_offers column
--- lists and types (primary keys only -- the live tables have no other
--- constraints), Supabase's anon/authenticated/service_role roles and its
+-- Mirrors: public.drivers / public.rides / public.driver_offers /
+-- public.driver_earnings column lists and types, their live constraints
+-- and secondary indexes (foreign keys to tables not mirrored here --
+-- payments, riders, autonomous_pilot_zones -- are omitted; no PR #130
+-- migration touches them), Supabase's anon/authenticated/service_role roles and its
 -- default function privileges, and the two dispatch functions exactly as
 -- deployed (including the live dispatch_ride_atomic's reference to the
 -- nonexistent rides.current_driver_id), with their live grants.
@@ -294,6 +296,58 @@ create table public.driver_offers (
   updated_at timestamp with time zone default now(),
   primary key (id)
 );
+
+-- public.driver_earnings, as live (columns, defaults, primary key, the
+-- status CHECK and the foreign keys to rides/drivers). Its live foreign
+-- keys to public.payments and public.riders are omitted because those
+-- tables are not mirrored here; no PR #130 migration touches them.
+create table public.driver_earnings (
+  id text not null,
+  ride_id text,
+  driver_id text,
+  rider_id text,
+  gross_fare numeric,
+  driver_base_earning numeric,
+  tip_amount numeric,
+  total_earning numeric,
+  earning_status text,
+  payout_id text,
+  created_at timestamp with time zone,
+  updated_at timestamp with time zone,
+  payout_amount numeric(10,2) default 0,
+  currency text default 'usd'::text,
+  status text default 'earned'::text,
+  payment_id text,
+  primary key (id),
+  constraint driver_earnings_status_check
+    check ((status = any (array['earned'::text, 'pending'::text, 'paid'::text, 'cancelled'::text]))),
+  constraint driver_earnings_ride_id_fkey
+    foreign key (ride_id) references public.rides(id) on delete set null,
+  constraint driver_earnings_driver_id_fkey
+    foreign key (driver_id) references public.drivers(id) on delete cascade
+);
+
+-- Live secondary indexes on rides and driver_earnings (pg_indexes).
+create index rides_status_idx on public.rides using btree (status);
+create index rides_rider_id_idx on public.rides using btree (rider_id);
+create index rides_driver_id_idx on public.rides using btree (driver_id);
+create index idx_rides_status on public.rides using btree (ride_status);
+create index idx_rides_driver on public.rides using btree (driver_id);
+create index rides_payment_id_idx on public.rides using btree (payment_id);
+create index idx_rides_dispatch_status on public.rides using btree (dispatch_status);
+create index idx_rides_assigned_driver_id on public.rides using btree (assigned_driver_id);
+create index idx_rides_requested_mode on public.rides using btree (requested_mode);
+create index idx_rides_created_at on public.rides using btree (created_at desc);
+create index idx_rides_rider_id on public.rides using btree (rider_id);
+create index idx_rides_driver_id on public.rides using btree (driver_id);
+create unique index rides_htaf_application_id_unique on public.rides using btree (htaf_application_id) where (htaf_application_id is not null);
+create index rides_is_review_ride_idx on public.rides using btree (is_review_ride) where (is_review_ride = true);
+create index idx_driver_earnings_driver_id on public.driver_earnings using btree (driver_id);
+create index idx_driver_earnings_ride_id on public.driver_earnings using btree (ride_id);
+create index idx_driver_earnings_rider_id on public.driver_earnings using btree (rider_id);
+create index idx_driver_earnings_payment_id on public.driver_earnings using btree (payment_id);
+create index idx_driver_earnings_status on public.driver_earnings using btree (status);
+create index idx_driver_earnings_created_at on public.driver_earnings using btree (created_at desc);
 
 -- Live definitions, verbatim from pg_get_functiondef().
 CREATE OR REPLACE FUNCTION public.dispatch_ride_atomic(p_ride_id text, p_driver_id text, p_expires_seconds integer DEFAULT 30)
