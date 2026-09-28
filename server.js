@@ -2302,6 +2302,21 @@ function requireAdmin(req, res, next) {
 
 }
 
+// requireAdmin() without sending a response: true only when the request
+// carries the same admin credentials requireAdmin() accepts. For routes
+// that are public but return extra detail to an authenticated admin.
+function isAdminRequest(req) {
+  let authorized = false;
+  const discard = {
+    status() { return discard; },
+    json() { return discard; }
+  };
+  requireAdmin(req, discard, () => {
+    authorized = true;
+  });
+  return authorized;
+}
+
 // Stricter than requireAdmin(): only the pre-shared-secret admin_token
 // method qualifies, not an ordinary admin_password/admin_session login.
 // Reserved for actions that can make a driver dispatch-eligible without
@@ -21650,6 +21665,36 @@ app.get(
     } catch {
 
       database = "error";
+
+    }
+
+    // Public callers (homepage, rider dashboard, uptime checks) only need
+    // up/down. Integration, feature-flag and table-preflight details
+    // describe the deployment's configuration and go only to an
+    // authenticated admin.
+    if (!isAdminRequest(req)) {
+
+      return ok(res, {
+
+        service:
+
+          "harvey-taxi-server-j",
+
+        status:
+
+          database === "connected"
+
+            ? "healthy"
+
+            : "degraded",
+
+        database,
+
+        time:
+
+          nowIso()
+
+      });
 
     }
 
