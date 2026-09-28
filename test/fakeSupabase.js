@@ -3,7 +3,8 @@
 // composition/integration tests (see
 // server.review-accounts.test.js). It supports exactly the query-builder
 // surface those routes/middleware actually call (select/eq/neq/in/gte/
-// order/limit/single/maybeSingle/insert/update/upsert, plus a no-op rpc)
+// order/limit/single/maybeSingle/insert/update/upsert, plus a no-op rpc;
+// is/gt/lt/lte were added for the driver-offer dispatch tests)
 // against a handful of in-memory tables -- it is deliberately not a
 // general-purpose Supabase mock, and does not model RLS, joins, or
 // Postgres error codes beyond a generic "not found" for .single().
@@ -15,10 +16,10 @@
 // Optional `options` (used by the driver-offer dispatch tests, see
 // server.driver-offer-dispatch.test.js; every option defaults off so
 // existing callers are unaffected):
-//   - columns: { [table]: string[] } -- an update/insert that writes a
-//     column not in the list fails the way PostgREST does (PGRST204)
-//     instead of silently succeeding, so a write to a column the real
-//     schema does not have is caught in tests.
+//   - columns: { [table]: string[] } -- an update/insert that writes, or a
+//     select that reads, a column not in the list fails the way PostgREST
+//     does (PGRST204 / 42703) instead of silently succeeding, so a column
+//     the real schema does not have is caught in tests.
 //   - failUpdate: (table, patch) => error|null -- inject a failure for a
 //     specific update.
 //   - failSelect: (table) => error|null -- inject a failure for a read.
@@ -49,6 +50,7 @@ function createFakeSupabase(seed = {}, options = {}) {
     let isUpsert = false;
     let wantSingle = false;
     let wantMaybeSingle = false;
+    let selectedColumns = null;
 
     function unknownColumnError(record) {
       const allowed = columns[table];
@@ -77,6 +79,16 @@ function createFakeSupabase(seed = {}, options = {}) {
           (options.failUpdate && options.failUpdate(table, pendingUpdatePatch)) ||
           null;
         if (updateError) return { data: null, error: updateError };
+      }
+
+      if (selectedColumns && columns[table]) {
+        const bad = selectedColumns.find((col) => !columns[table].includes(col));
+        if (bad) {
+          return {
+            data: null,
+            error: { code: "42703", message: `column ${table}.${bad} does not exist` }
+          };
+        }
       }
 
       if (op === "select" && options.failSelect) {
@@ -136,7 +148,17 @@ function createFakeSupabase(seed = {}, options = {}) {
     }
 
     const builder = {
-      select() {
+      select(cols) {
+        if (typeof cols === "string" && cols.trim() !== "*") {
+          selectedColumns = cols
+            .split(",")
+            .map((c) => c.trim())
+            .filter((c) => c && c !== "*" && !c.includes("("));
+        }
+        return builder;
+      },
+      is(col, val) {
+        filters.push((row) => (row[col] === undefined ? null : row[col]) === val);
         return builder;
       },
       eq(col, val) {
@@ -153,6 +175,18 @@ function createFakeSupabase(seed = {}, options = {}) {
       },
       gte(col, val) {
         filters.push((row) => row[col] >= val);
+        return builder;
+      },
+      gt(col, val) {
+        filters.push((row) => row[col] > val);
+        return builder;
+      },
+      lt(col, val) {
+        filters.push((row) => row[col] < val);
+        return builder;
+      },
+      lte(col, val) {
+        filters.push((row) => row[col] <= val);
         return builder;
       },
       order() {

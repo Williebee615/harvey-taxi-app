@@ -511,7 +511,7 @@ function renderRides(){
       </div>
       <div class="item-grid">
         <div class="box"><div class="k">Rider</div><div class="v">${esc(r.rider_name || r.rider_id || "--")}</div></div>
-        <div class="box"><div class="k">Driver</div><div class="v">${esc(r.driver_id || r.current_driver_id || "Unassigned")}</div></div>
+        <div class="box"><div class="k">Driver</div><div class="v">${esc(r.driver_id || "Unassigned")}</div></div>
         <div class="box"><div class="k">Total</div><div class="v">${money(r.estimate_total || r.total)}</div></div>
         <div class="box"><div class="k">Dispatch</div><div class="v">${esc(r.dispatch_status || "--")}</div></div>
       </div>
