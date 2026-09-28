@@ -28,6 +28,7 @@ process.env.RIDER_SESSION_SECRET = "test-rider-session-secret";
 process.env.DRIVER_SESSION_SECRET = "test-driver-session-secret";
 process.env.RIDE_QUOTE_SECRET = "test-ride-quote-secret";
 process.env.ADMIN_API_TOKEN = "test-admin-token";
+process.env.ADMIN_SESSION_SECRET = "test-admin-session-secret";
 process.env.NODE_ENV = "test";
 process.env.MAX_DISPATCH_ATTEMPTS = "5";
 
@@ -261,6 +262,101 @@ function expectNoNonexistentColumnWrites(fake) {
     expect(patch).not.toHaveProperty("assigned_driver_id");
   }
 }
+
+// Same token format as signAdminSession() in server.js: a genuine, valid
+// admin dashboard session cookie.
+function adminSessionCookie() {
+  const now = Date.now();
+  const encoded = Buffer.from(
+    JSON.stringify({ sub: "htaf-admin", email: "ops@example.test", iat: now, exp: now + 3_600_000 })
+  ).toString("base64url");
+  const sig = crypto
+    .createHmac("sha256", process.env.ADMIN_SESSION_SECRET)
+    .update(encoded)
+    .digest("hex");
+  return `htaf_admin_session=${encoded}.${sig}`;
+}
+
+describe("offer accept/decline require the driver's own session -- admin credentials never act as a driver", () => {
+  const ADMIN_CREDENTIALS = [
+    ["x-admin-token header", (r) => r.set("x-admin-token", process.env.ADMIN_API_TOKEN)],
+    ["x-harvey-admin-token header", (r) => r.set("x-harvey-admin-token", process.env.ADMIN_API_TOKEN)],
+    ["admin session cookie", (r) => r.set("Cookie", [adminSessionCookie()])]
+  ];
+
+  test.each(ADMIN_CREDENTIALS)(
+    "accept with a valid %s and a body driver_id is rejected and changes nothing",
+    async (_label, withAdmin) => {
+      const fake = useFake(fixture());
+
+      const res = await withAdmin(request(server).post(`/api/driver/offers/${OFFER_ID}/accept`)).send({
+        driver_id: DRIVER.id
+      });
+      await settle();
+
+      expect([401, 403]).toContain(res.status);
+      expect(res.body.ok).toBe(false);
+      expect(offer(fake).status).toBe("pending");
+      expect(ridesUpdates(fake)).toHaveLength(0);
+      expect(riderNotificationCount(fake)).toBe(0);
+    }
+  );
+
+  test.each(ADMIN_CREDENTIALS)(
+    "decline with a valid %s and a body driver_id is rejected and changes nothing",
+    async (_label, withAdmin) => {
+      const fake = useFake(fixture());
+
+      const res = await withAdmin(request(server).post(`/api/driver/offers/${OFFER_ID}/decline`)).send({
+        driver_id: DRIVER.id,
+        reason: "admin attempt"
+      });
+
+      expect([401, 403]).toContain(res.status);
+      expect(res.body.ok).toBe(false);
+      expect(offer(fake).status).toBe("pending");
+      expect(ridesUpdates(fake)).toHaveLength(0);
+      expect(offerInserts(fake)).toHaveLength(0);
+    }
+  );
+
+  test("admin credentials alongside a driver's own session act only as that driver", async () => {
+    const fake = useFake(fixture());
+
+    const res = await request(server)
+      .post(`/api/driver/offers/${OFFER_ID}/accept`)
+      .set("x-driver-token", driverToken(OTHER_DRIVER.id))
+      .set("x-admin-token", process.env.ADMIN_API_TOKEN)
+      .send({ driver_id: DRIVER.id });
+
+    // OTHER_DRIVER's session, DRIVER's offer: ownership check, not an admin bypass.
+    expect(res.status).toBe(403);
+    expect(offer(fake).status).toBe("pending");
+  });
+
+  test("a valid driver session still accepts and declines", async () => {
+    let fake = useFake(fixture());
+    const accepted = await acceptOffer();
+    expect(accepted.status).toBe(200);
+    expect(offer(fake).status).toBe("accepted");
+
+    fake = useFake(fixture({ dispatchAttempts: 5 }));
+    const declined = await declineOffer();
+    expect(declined.status).toBe(200);
+    expect(offer(fake).status).toBe("declined");
+  });
+
+  test("the admin ops override still works on other driver routes (change is scoped to accept/decline)", async () => {
+    useFake(fixture());
+
+    const res = await request(server)
+      .post("/api/driver/status")
+      .set("x-admin-token", process.env.ADMIN_API_TOKEN)
+      .send({ driver_id: DRIVER.id, online: false });
+
+    expect(res.status).toBe(200);
+  });
+});
 
 describe("POST /api/driver/offers/:offerId/accept", () => {
   test("assigns the ride via rides.driver_id against the live schema and notifies exactly once", async () => {

@@ -2313,7 +2313,21 @@ function requireElevatedAdmin(req, res, next) {
 
 ========================================================= */
 
-async function requireDriver(req, res, next) {
+// Authenticates the calling driver. requireDriver (used by most driver
+// routes) keeps the admin-token override for internal ops tooling;
+// requireDriverSelf is for actions only the driver may take themselves --
+// accepting or declining an offer -- and never honors admin credentials, so
+// an administrator can't act as a driver there. Admin intervention belongs
+// on the admin-only routes (e.g. POST /api/admin/rides/:id/assign-driver).
+function requireDriver(req, res, next) {
+  return authenticateDriver(req, res, next, { allowAdminOverride: true });
+}
+
+function requireDriverSelf(req, res, next) {
+  return authenticateDriver(req, res, next, { allowAdminOverride: false });
+}
+
+async function authenticateDriver(req, res, next, { allowAdminOverride }) {
 
   try {
 
@@ -2400,7 +2414,10 @@ async function requireDriver(req, res, next) {
 
     }
 
-    // Allow admin override for internal ops tooling.
+    // Admin override for internal ops tooling -- requireDriver only. Under
+    // requireDriverSelf, admin credentials are ignored and the request falls
+    // through to the Supabase-user check below, which fails with 401 unless
+    // the caller is itself an authenticated driver.
 
     const adminSession = readAdminSessionCookie(req);
 
@@ -2426,7 +2443,7 @@ async function requireDriver(req, res, next) {
 
         ));
 
-    if (isAdmin) {
+    if (isAdmin && allowAdminOverride) {
 
       const overrideId =
 
@@ -13227,7 +13244,7 @@ app.post(
 
   "/api/driver/offers/:offerId/accept",
 
-  requireDriver,
+  requireDriverSelf,
 
   asyncRoute(async (req, res) => {
 
@@ -13576,7 +13593,7 @@ app.post(
 
   "/api/driver/offers/:offerId/decline",
 
-  requireDriver,
+  requireDriverSelf,
 
   asyncRoute(async (req, res) => {
 
