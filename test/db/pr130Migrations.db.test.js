@@ -199,6 +199,59 @@ describeDb("PR #130 migrations applied to the production-mirror baseline", () =>
     }
   });
 
+  describe("rides_payment_status_check", () => {
+    const ALLOWED = ["pending", "authorized", "capture_pending", "captured", "succeeded", "capture_failed", "not_required", "failed"];
+
+    test("is defined with exactly the approved values and allows NULL", async () => {
+      const [row] = await q(
+        "select pg_get_constraintdef(oid) as def from pg_constraint where conrelid='public.rides'::regclass and conname='rides_payment_status_check'"
+      );
+      const listed = [...row.def.matchAll(/'([a-z_]+)'::text/g)].map((m) => m[1]);
+      expect(listed.sort()).toEqual([...ALLOWED].sort());
+      expect(row.def).toMatch(/\(payment_status IS NULL\) OR \(payment_status = ANY/);
+    });
+
+    test("accepts NULL and every legitimate application/webhook value", async () => {
+      await admin.query("begin");
+      try {
+        await admin.query("insert into public.rides (id, payment_status) values ('RIDE-PS-NULL', null)");
+        for (const value of ALLOWED) {
+          await admin.query("insert into public.rides (id, payment_status) values ($1, $2)", [`RIDE-PS-${value}`, value]);
+        }
+        const [{ n }] = await q("select count(*)::int as n from public.rides where id like 'RIDE-PS-%'");
+        expect(n).toBe(ALLOWED.length + 1);
+      } finally {
+        await admin.query("rollback");
+      }
+    });
+
+    test.each(["bogus", "", "AUTHORIZED", " succeeded", "refunded", "requires_capture", "paid"])(
+      "rejects the unknown value %p",
+      async (value) => {
+        await admin.query("begin");
+        try {
+          await expect(
+            admin.query("insert into public.rides (id, payment_status) values ('RIDE-PS-BAD', $1)", [value])
+          ).rejects.toMatchObject({ code: "23514" });
+        } finally {
+          await admin.query("rollback");
+        }
+      }
+    );
+
+    test("the webhook's own updates succeed against the constraint", async () => {
+      await admin.query("begin");
+      try {
+        await admin.query("insert into public.rides (id, payment_id) values ('RIDE-PS-WH', 'pi_wh')");
+        for (const value of ["authorized", "succeeded", "failed"]) {
+          await admin.query("update public.rides set payment_status = $1 where payment_id = 'pi_wh'", [value]);
+        }
+      } finally {
+        await admin.query("rollback");
+      }
+    });
+  });
+
   test("the reconciliation failure-queue partial indexes exist", async () => {
     const rows = await q(
       "select indexname from pg_indexes where schemaname='public' and indexname in ('rides_payment_capture_failed_idx','rides_cancellation_payment_failed_idx') order by 1"

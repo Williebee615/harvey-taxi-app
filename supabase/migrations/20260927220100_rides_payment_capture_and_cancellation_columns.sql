@@ -6,30 +6,57 @@
 -- ridePaymentCapture.js and lib/rideCancellation.js for the decision
 -- logic these columns back.
 --
--- rides.payment_status already exists (text, unconstrained, currently
--- only ever written by the Stripe webhook handler to 'failed') --
+-- rides.payment_status already exists (text, nullable, no default) --
 -- reused and now standardized with a CHECK constraint rather than adding
--- a parallel column, since nothing else in the codebase depends on its
--- current looseness.
+-- a parallel column. The allowed list is exactly the set of values the
+-- application writes today (inventory re-checked 2026-09-28 against
+-- main, #131 and this branch):
 --
--- Pre-migration production check (2026-09-27, read-only): `select
--- payment_status, count(*) from rides group by payment_status` returns
--- zero rows -- the rides table itself is currently empty (the live
--- dispatch pipeline has not yet processed a real ride), so there is no
--- existing value this CHECK constraint could reject today.
+--   NULL             no payment state recorded yet (new ride; the
+--                    capture decision treats it as a first attempt)
+--   pending          lib/ridePaymentCapture.js CAPTURE_STATUS.PENDING:
+--                    defined initial state, treated like NULL
+--   authorized       Stripe webhook payment_intent.amount_capturable_updated:
+--                    funds held on the manual-capture PaymentIntent, not
+--                    yet captured
+--   capture_pending  written by /complete just before calling Stripe
+--                    capture (crash-recovery marker)
+--   captured         /complete's own Stripe capture call succeeded
+--   succeeded        Stripe webhook payment_intent.succeeded: Stripe
+--                    confirms the funds were collected (after a manual
+--                    capture, or directly under automatic capture)
+--   capture_failed   /complete's capture call failed; admin
+--                    reconciliation queue
+--   not_required     nothing to capture (no payment_id / payment gate off)
+--   failed           Stripe webhook payment_intent.payment_failed /
+--                    payment_intent.canceled
+--
+-- 'authorized', 'succeeded' and 'failed' are written by the currently
+-- deployed server's webhook handler, so they must stay valid for as long
+-- as that server (or any later one) runs. Existing values are neither
+-- mapped nor rewritten; any other string is rejected.
+--
+-- Pre-migration production check (2026-09-27, re-checked 2026-09-28,
+-- read-only): the rides table is empty, no database function or trigger
+-- writes payment_status, and no constraint with this name or an
+-- equivalent definition exists, so there is no existing value this CHECK
+-- constraint could reject today.
+--
+-- Single-application: like the other versioned migrations, this file is
+-- applied once by the migration runner. Re-running it raises "already
+-- exists" for the two ADD CONSTRAINT statements rather than skipping.
 
 alter table public.rides
   add constraint rides_payment_status_check
   check (
     payment_status is null or payment_status in (
       'pending',
+      'authorized',
       'capture_pending',
       'captured',
+      'succeeded',
       'capture_failed',
       'not_required',
-      -- pre-existing value, written by the Stripe webhook on
-      -- payment_intent.payment_failed / .canceled -- kept for backward
-      -- compatibility with that handler rather than renamed here.
       'failed'
     )
   );
