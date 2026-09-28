@@ -19,7 +19,9 @@ process.env.RIDER_SESSION_SECRET = "test-rider-session-secret";
 process.env.DRIVER_SESSION_SECRET = "test-driver-session-secret";
 process.env.RIDE_QUOTE_SECRET = "test-ride-quote-secret";
 process.env.ADMIN_API_TOKEN = "test-admin-token";
+process.env.ADMIN_SESSION_SECRET = "test-admin-session-secret";
 
+const crypto = require("crypto");
 const http = require("http");
 const { createFakeSupabase } = require("./fakeSupabase");
 const { makeRider, makeDriver, makeRide, signTestDriverToken, driverAuthHeaders } = require("./rideTestHelpers");
@@ -372,5 +374,95 @@ describe("POST /api/driver/offers/:offerId/accept (accept_driver_offer_atomic)",
 
     expect(mockSupabaseClient._state.rides).toEqual(before.rides);
     expect(mockSupabaseClient._state.driver_offers).toEqual(before.driver_offers);
+  });
+});
+
+// Same token format as signAdminSession() in server.js: a genuine, valid
+// admin dashboard session cookie.
+function adminSessionCookie() {
+  const now = Date.now();
+  const encoded = Buffer.from(
+    JSON.stringify({ sub: "htaf-admin", email: "ops@example.test", iat: now, exp: now + 3_600_000 })
+  ).toString("base64url");
+  const sig = crypto.createHmac("sha256", process.env.ADMIN_SESSION_SECRET).update(encoded).digest("hex");
+  return `htaf_admin_session=${encoded}.${sig}`;
+}
+
+describe("offer accept/decline require the driver's own session -- admin credentials never act as a driver", () => {
+  const ADMIN_CREDENTIALS = [
+    ["x-admin-token header", (r) => r.set("x-admin-token", process.env.ADMIN_API_TOKEN)],
+    ["x-harvey-admin-token header", (r) => r.set("x-harvey-admin-token", process.env.ADMIN_API_TOKEN)],
+    ["admin session cookie", (r) => r.set("Cookie", [adminSessionCookie()])]
+  ];
+
+  const seedOffer = (overrides = {}) => {
+    mockSupabaseClient._state.driver_offers = [
+      { id: OFFER_ID, ride_id: RIDE_ID, driver_id: DRIVER.id, status: "pending", attempt: 1, ...overrides }
+    ];
+  };
+
+  test.each(ADMIN_CREDENTIALS)("accept with a valid %s and a body driver_id is rejected before the RPC", async (_label, withAdmin) => {
+    rpcImpl = () => rpcRow("accepted");
+
+    const res = await withAdmin(request(server).post(`/api/driver/offers/${OFFER_ID}/accept`)).send({ driver_id: DRIVER.id });
+    await settle();
+
+    expect([401, 403]).toContain(res.status);
+    expect(res.body.ok).toBe(false);
+    expect(rpcCalls).toHaveLength(0);
+    expect(riderNotifications()).toBe(0);
+  });
+
+  test.each(ADMIN_CREDENTIALS)("decline with a valid %s and a body driver_id is rejected and changes nothing", async (_label, withAdmin) => {
+    seedOffer();
+
+    const res = await withAdmin(request(server).post(`/api/driver/offers/${OFFER_ID}/decline`)).send({
+      driver_id: DRIVER.id,
+      reason: "admin attempt"
+    });
+
+    expect([401, 403]).toContain(res.status);
+    expect(res.body.ok).toBe(false);
+    expect(mockSupabaseClient._state.driver_offers[0].status).toBe("pending");
+  });
+
+  test("a valid driver session still accepts and declines", async () => {
+    rpcImpl = () => rpcRow("accepted");
+    expect((await accept()).status).toBe(200);
+
+    seedOffer();
+    mockSupabaseClient._state.rides[0].dispatch_attempts = 5;
+    const declined = await request(server)
+      .post(`/api/driver/offers/${OFFER_ID}/decline`)
+      .set(driverAuthHeaders(signTestDriverToken(DRIVER.id)))
+      .send({ reason: "too far" });
+
+    expect(declined.status).toBe(200);
+    expect(mockSupabaseClient._state.driver_offers[0].status).toBe("declined");
+  });
+
+  test("one driver cannot accept or decline another driver's offer", async () => {
+    rpcImpl = () => rpcRow("not_offer_owner");
+    const accepted = await accept(OTHER_DRIVER.id);
+    expect(accepted.status).toBe(403);
+    expect(rpcCalls[0].params.p_driver_id).toBe(OTHER_DRIVER.id);
+
+    seedOffer();
+    const declined = await request(server)
+      .post(`/api/driver/offers/${OFFER_ID}/decline`)
+      .set(driverAuthHeaders(signTestDriverToken(OTHER_DRIVER.id)))
+      .send({ driver_id: DRIVER.id, reason: "not mine" });
+
+    expect(declined.status).toBe(403);
+    expect(mockSupabaseClient._state.driver_offers[0].status).toBe("pending");
+  });
+
+  test("the admin ops override still works on other driver routes (change is scoped to accept/decline)", async () => {
+    const res = await request(server)
+      .post("/api/driver/status")
+      .set("x-admin-token", process.env.ADMIN_API_TOKEN)
+      .send({ driver_id: DRIVER.id, online: false });
+
+    expect(res.status).toBe(200);
   });
 });
