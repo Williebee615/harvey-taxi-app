@@ -13,7 +13,7 @@ const business = {
   tagline: 'Handmade pies, ready at the curb.',
   instagramHandle: null, // CONFIRM: e.g. 'simplypies' (no @)
   phone: null, // CONFIRM: customer contact number, e.g. '(615) 555-0100'
-  email: null, // CONFIRM: customer contact email
+  email: 'hello@hellosimplysteakandchickenpies.com',
   pickupAddress: null, // CONFIRM: full curbside pickup address
   pickupInstructions: null, // CONFIRM: e.g. 'Park in the marked spots out front.'
   hours: null, // CONFIRM: e.g. 'Fri–Sun, 11am–6pm'

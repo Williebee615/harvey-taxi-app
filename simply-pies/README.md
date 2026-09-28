@@ -39,7 +39,7 @@ The server lists anything still missing each time it starts. Edit `config.js`:
    `PRICES_CONFIRMED = true` once the real prices are in.
 2. **Pie descriptions.** The current lines are short drafts. Replace them
    with the real fillings and any allergen information.
-3. **Pickup address, pickup instructions, hours, phone, email and Instagram
+3. **Pickup address, pickup instructions, hours, phone and Instagram
    handle.** Blank fields are hidden on the site.
 4. **Photos:** see `public/images/README.md`.
 5. **Sales tax.** Totals do not include tax yet. Confirm with an accountant
@@ -97,10 +97,9 @@ the website at Vercel **without touching email**.
    take from a few minutes to a few hours. Vercel issues the HTTPS
    certificate automatically.
 
-Customer-facing email: consider an alias such as `orders@` or `hello@` on
-this domain (created in the Google Workspace Admin console) rather than
-publishing the administrator sign-in address. Put it in `config.js` as
-`business.email`.
+Customer-facing email: the site shows `hello@hellosimplysteakandchickenpies.com`
+(set in `config.js`). Make sure that address exists in Google Workspace, as
+an alias or group on the domain, so customer emails are delivered.
 
 ## Environment variables
 

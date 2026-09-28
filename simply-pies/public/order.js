@@ -70,6 +70,9 @@
     if (business.phone) {
       lines.push(`<p style="margin:0">Need help? <a href="tel:${escapeHtml(business.phone.replace(/[^\d+]/g, ''))}">${escapeHtml(business.phone)}</a></p>`);
     }
+    if (business.email) {
+      lines.push(`<p style="margin:0">Questions? <a href="mailto:${escapeHtml(business.email)}">${escapeHtml(business.email)}</a></p>`);
+    }
     $('pickup').innerHTML = lines.join('');
     $('pickup-card').hidden = lines.length === 0;
   }
