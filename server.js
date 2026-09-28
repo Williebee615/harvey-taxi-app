@@ -603,7 +603,23 @@ app.use((req, res, next) => {
 // so the taxi domain's own policy pages are completely unaffected.
 const FOUNDATION_STATIC_OVERRIDES = new Map([
   ["/privacy.html", "htaf-privacy.html"],
-  ["/terms.html", "htaf-terms.html"]
+  ["/terms.html", "htaf-terms.html"],
+  ["/service-providers.html", "htaf-service-providers.html"]
+]);
+
+// The HTAF legal pages' internal filenames. express.static isn't
+// domain-gated, so without this they would be served as-is on any host
+// (the taxi domain, preview deployments), and the canonical tag alone
+// doesn't stop a visitor from reading HTAF's policy on a Harvey Taxi
+// URL. On every host, including the foundation domain itself, these
+// redirect to the one canonical foundation-domain URL. That target is
+// served by FOUNDATION_STATIC_OVERRIDES above rather than redirected
+// again, so there is no loop. Harvey Taxi's own /privacy.html and
+// /terms.html on its own hosts are not in this map and are unaffected.
+const HTAF_LEGAL_CANONICAL_REDIRECTS = new Map([
+  ["/htaf-privacy.html", "/privacy.html"],
+  ["/htaf-terms.html", "/terms.html"],
+  ["/htaf-service-providers.html", "/service-providers.html"]
 ]);
 
 // /support.html and /index.html are Harvey Taxi's own pages -- unlike
@@ -632,6 +648,13 @@ const FOUNDATION_REDIRECTS = new Map([
 ]);
 
 app.use((req, res, next) => {
+
+  if (req.method === "GET" || req.method === "HEAD") {
+    const canonicalLegalPath = HTAF_LEGAL_CANONICAL_REDIRECTS.get(req.path);
+    if (canonicalLegalPath) {
+      return res.redirect(301, `https://${FOUNDATION_HOST}${canonicalLegalPath}`);
+    }
+  }
 
   if (
     req.method === "GET" &&
@@ -690,7 +713,8 @@ const FOUNDATION_SITEMAP_PATHS = [
   "/leadership.html",
   "/htaf-application.html",
   "/privacy.html",
-  "/terms.html"
+  "/terms.html",
+  "/service-providers.html"
 ];
 
 function buildSitemapXml(host, urlPaths) {

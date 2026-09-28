@@ -13,19 +13,9 @@
   <meta property="og:url" content="https://harveytransportationfoundation.com/htaf-application.html" />
   <link rel="canonical" href="https://harveytransportationfoundation.com/htaf-application.html" />
 
-  <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18161547185"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag("js", new Date());
-    gtag("config", "AW-18161547185");
-  </script>
-
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="preconnect" href="https://www.googletagmanager.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/ai-support-widget.css" />
 
   <style>
     :root{--bg1:#040814;--bg2:#0a1733;--bg3:#112657;--panel:rgba(8,15,34,.94);--line:rgba(126,166,255,.18);--lineStrong:rgba(126,166,255,.38);--text:#f5f8ff;--muted:#adbbde;--soft:#dce8ff;--blue:#6aa7ff;--cyan:#73f4ff;--green:#7cffc7;--gold:#ffd978;--danger:#ff7e90;--ink:#04101c;--shadow:0 24px 80px rgba(0,0,0,.45);--shadowSoft:0 14px 34px rgba(0,0,0,.25);--radiusXL:32px;--navH:88px;--maxw:1260px;--safeBottom:env(safe-area-inset-bottom)}
@@ -130,7 +120,6 @@
     .field textarea{resize:vertical;min-height:132px}
     .field input::placeholder,.field textarea::placeholder{color:rgba(173,187,222,.62)}
     .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--cyan);box-shadow:0 0 0 4px rgba(115,244,255,.11)}
-    .field input[type="file"]{padding:14px;cursor:pointer;background:rgba(255,255,255,.04)}
     .field small{display:block;color:var(--muted);line-height:1.55;font-size:.84rem}
     .choice-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:16px}
     .choice{position:relative;cursor:pointer;display:block}
@@ -145,10 +134,6 @@
     .copy-status{display:none;margin-top:16px;padding:14px 16px;border-radius:16px;font-size:.92rem;line-height:1.5;border:1px solid transparent}
     .copy-status.show{display:block}.copy-status.ok{background:rgba(124,255,199,.10);border-color:rgba(124,255,199,.20);color:var(--green)}.copy-status.err{background:rgba(255,126,144,.12);border-color:rgba(255,126,144,.24);color:#ffd4dc}.copy-status.info{background:rgba(115,244,255,.10);border-color:rgba(115,244,255,.20);color:var(--cyan)}
     .invalid{border-color:var(--danger)!important;box-shadow:0 0 0 4px rgba(255,126,144,.12)!important}
-    .upload-preview{display:grid;gap:10px;margin-top:14px}
-    .upload-item{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)}
-    .upload-item span{color:var(--muted);font-size:.84rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .upload-item strong{color:var(--cyan);font-size:.8rem}
     .review-panel,.application-summary{display:none;margin-top:20px;padding:20px;border-radius:22px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.08)}
     .review-panel.show,.application-summary.show{display:block}
     .review-panel h4{margin-bottom:14px;font-size:1rem;font-weight:900}
@@ -161,7 +146,7 @@
     .footer{margin-top:30px;padding:30px 0 calc(120px + env(safe-area-inset-bottom));border-top:1px solid rgba(255,255,255,.08);background:rgba(0,0,0,.18)}
     .footer-row{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;color:var(--muted)}
     .footer-links{display:flex;flex-wrap:wrap;gap:16px}.footer-links a:hover{color:var(--cyan)}
-    .bottom-nav{position:fixed;left:0;right:0;bottom:0;height:var(--navH);display:grid;grid-template-columns:repeat(5,1fr);background:rgba(4,8,20,.96);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-top:1px solid rgba(255,255,255,.08);z-index:999;padding-bottom:env(safe-area-inset-bottom)}
+    .bottom-nav{position:fixed;left:0;right:0;bottom:0;height:var(--navH);display:grid;grid-template-columns:repeat(4,1fr);background:rgba(4,8,20,.96);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-top:1px solid rgba(255,255,255,.08);z-index:999;padding-bottom:env(safe-area-inset-bottom)}
     .nav-btn{display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.82rem;color:var(--muted)}.nav-btn.active{color:var(--cyan)}.nav-btn:hover{color:var(--text)}
     @media(max-width:1200px){.hero-shell,.why-shell,.cta-card,.application-grid{grid-template-columns:1fr}.application-progress,.sticky-box{position:static}}
     @media(max-width:900px){.utility-panel{grid-template-columns:1fr}.utility-actions{justify-content:flex-start}.grid-3,.impact-strip,.stats-shell,.process-grid,.trust-grid,.choice-grid{grid-template-columns:1fr}.topbar-inner{flex-direction:column;align-items:flex-start}.nav{width:100%;justify-content:flex-start}}
@@ -197,7 +182,7 @@
   <div class="shell utility-panel">
     <div>
       <strong>Accessibility & Applicant Support</strong>
-      <span>Use the display controls below, save a draft, print your application, or open Harvey AI Support for help.</span>
+      <span>Use the display controls below, save a draft, or print your application. For help, <a href="contact.html">contact HTAF</a>.</span>
     </div>
     <div class="utility-actions">
       <button class="utility-btn" type="button" id="contrastBtn">High Contrast</button>
@@ -235,13 +220,13 @@
               <div class="trust-grid">
                 <div class="trust-pill"><strong>Tennessee Residents</strong>Priority consideration for Tennessee applicants.</div>
                 <div class="trust-pill"><strong>Program Review</strong>Every request receives individual review.</div>
-                <div class="trust-pill"><strong>Documentation</strong>Supporting records may speed processing.</div>
+                <div class="trust-pill"><strong>Documentation</strong>HTAF will contact you if supporting records are needed.</div>
                 <div class="trust-pill"><strong>Funding Dependent</strong>Assistance depends on available resources.</div>
               </div>
               <div class="link-preview">
                 <div class="preview-badge">HTAF Program Portal</div>
                 <h4 class="preview-title">Before You Apply</h4>
-                <p class="preview-copy">Prepare transportation details, appointment information, destination addresses, and supporting documentation.</p>
+                <p class="preview-copy">Prepare transportation details, appointment information, and destination addresses.</p>
               </div>
             </section>
           </div>
@@ -306,13 +291,8 @@
               </div>
 
               <div class="form-section">
-                <div class="form-section-title"><h4>Supporting Documentation</h4><span>Upload Files</span></div>
-                <div class="field">
-                  <label for="supportingDocs">Upload Documents</label>
-                  <input id="supportingDocs" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.doc,.docx" />
-                  <small>Medical appointment confirmations, TennCare documentation, disability verification, veteran records, employment verification, school enrollment documents, referral letters, or supporting records.</small>
-                </div>
-                <div id="uploadPreview" class="upload-preview"></div>
+                <div class="form-section-title"><h4>Supporting Documentation</h4><span>Not Collected Online</span></div>
+                <div class="status-box" id="documentsNotice"><strong>Do not upload documents</strong><span>Do not upload documents through this application. If supporting documentation is needed, HTAF will contact you with instructions for submitting it securely.</span></div>
               </div>
 
               <div class="form-section">
@@ -342,7 +322,6 @@
                 <div class="progress-step active" id="stepApplicant"><div class="progress-dot"></div><div><strong>Applicant Information</strong><span>Contact and residency details.</span></div></div>
                 <div class="progress-step" id="stepProgram"><div class="progress-dot"></div><div><strong>Program Selection</strong><span>Transportation assistance category.</span></div></div>
                 <div class="progress-step" id="stepRequest"><div class="progress-dot"></div><div><strong>Transportation Request</strong><span>Ride destination and need.</span></div></div>
-                <div class="progress-step" id="stepDocuments"><div class="progress-dot"></div><div><strong>Documentation</strong><span>Supporting verification records.</span></div></div>
                 <div class="progress-step" id="stepSubmit"><div class="progress-dot"></div><div><strong>Submit Application</strong><span>Review and send request.</span></div></div>
               </div>
             </div>
@@ -412,7 +391,7 @@
           <div class="faq-grid">
             <div class="faq-item"><strong>Does submitting an application guarantee assistance?</strong><span>No. Assistance depends on eligibility, documentation, transportation availability, and funding resources.</span></div>
             <div class="faq-item"><strong>Who can apply?</strong><span>Tennessee residents seeking transportation support for essential needs may apply.</span></div>
-            <div class="faq-item"><strong>What documentation may be required?</strong><span>Appointment confirmations, TennCare records, employment verification, disability documentation, school enrollment, and other supporting records may be requested.</span></div>
+            <div class="faq-item"><strong>What documentation may be required?</strong><span>HTAF may request supporting records, such as an appointment confirmation, after reviewing your application. Do not upload documents through this application. If supporting documentation is needed, HTAF will contact you with instructions for submitting it securely.</span></div>
           </div>
         </section>
       </div>
@@ -421,12 +400,13 @@
 
   <footer class="footer">
     <div class="shell footer-row">
-      <div>© 2026 Harvey Transportation Assistance Foundation</div>
+      <div>© 2026 Harvey Transportation Assistance Foundation · 501(c)(3) public charity · EIN 41-5115030</div>
       <div class="footer-links">
         <a href="foundation.html">Foundation</a>
         <a href="contact.html">Support</a>
-        <a href="privacy.html">Privacy</a>
-        <a href="terms.html">Terms</a>
+        <a href="https://harveytransportationfoundation.com/privacy.html">Privacy</a>
+        <a href="https://harveytransportationfoundation.com/terms.html">Terms</a>
+        <a href="https://harveytransportationfoundation.com/service-providers.html">Service Providers</a>
       </div>
     </div>
   </footer>
@@ -436,18 +416,10 @@
     <button class="nav-btn active" type="button">Apply</button>
     <button class="nav-btn" onclick="window.location.href='foundation.html'">Foundation</button>
     <button class="nav-btn" onclick="window.location.href='contact.html'">Support</button>
-    <button class="nav-btn" onclick="openHarveyAiChat()">AI Help</button>
   </nav>
 
-  <script src="/ai-support-widget.js"></script>
   <script>
     window.HARVEY_API_BASE = window.location.origin && window.location.origin.includes("http") ? window.location.origin : "";
-    window.HARVEY_AI_CONTEXT = {
-      page: "htaf_application",
-      organization: "Harvey Transportation Assistance Foundation",
-      state: "Tennessee",
-      endpoint: "/api/foundation/apply"
-    };
 
     const APPLICATION_STORAGE_KEY = "htaf_application_draft_v4";
     const applicationForm = document.getElementById("htafApplicationForm");
@@ -455,8 +427,6 @@
     const applicationSummary = document.getElementById("applicationSummary");
     const reviewPanel = document.getElementById("reviewPanel");
     const reviewGrid = document.getElementById("reviewGrid");
-    const uploadPreview = document.getElementById("uploadPreview");
-    const uploadInput = document.getElementById("supportingDocs");
 
     function setBodyClass(className, storageKey, buttonId){
       document.body.classList.toggle(className);
@@ -503,8 +473,6 @@
         applicant_type:document.getElementById("applicantType")?.value||"",
         household_size:document.getElementById("householdSize")?.value||"",
         monthly_income:document.getElementById("monthlyIncome")?.value||"",
-        document_count:uploadInput?.files?.length||0,
-        document_names:Array.from(uploadInput?.files||[]).map(file=>file.name),
         submitted_at:new Date().toISOString(),
         source:"htaf-application.html"
       };
@@ -531,7 +499,6 @@
       try{
         localStorage.setItem(APPLICATION_STORAGE_KEY,JSON.stringify(getApplicationData()));
         showApplicationStatus("Application draft saved successfully on this device.","info");
-        trackFoundationIntent("application_draft_saved");
       }catch(error){
         showApplicationStatus("Unable to save draft on this device.","err");
       }
@@ -555,18 +522,6 @@
       }
     }
 
-    function renderUploadPreview(){
-      if(!uploadPreview||!uploadInput) return;
-      uploadPreview.innerHTML="";
-      Array.from(uploadInput.files||[]).forEach(file=>{
-        const item=document.createElement("div");
-        item.className="upload-item";
-        item.innerHTML=`<span>${escapeHtml(file.name)}</span><strong>${Math.ceil(file.size/1024)} KB</strong>`;
-        uploadPreview.appendChild(item);
-      });
-      updateProgressTracker();
-    }
-
     function previewApplication(){
       const payload=getApplicationData();
       if(!reviewPanel||!reviewGrid) return;
@@ -580,7 +535,6 @@
         ["Pickup City",payload.pickup_city],
         ["Destination",payload.destination],
         ["Ride Date",payload.ride_date],
-        ["Documents",String(payload.document_count)],
         ["Transportation Need",payload.transportation_need]
       ];
       reviewGrid.innerHTML=rows.map(([label,value])=>`<div class="review-item"><label>${escapeHtml(label)}</label><span>${escapeHtml(value||"Not provided")}</span></div>`).join("");
@@ -629,46 +583,19 @@
       const pickup=document.getElementById("pickupCity")?.value?.trim();
       const destination=document.getElementById("destination")?.value?.trim();
       const need=document.getElementById("transportationNeed")?.value?.trim();
-      const docs=uploadInput?.files?.length||0;
       const consent=document.getElementById("consent")?.checked;
       document.getElementById("stepApplicant")?.classList.toggle("active",Boolean(firstName&&lastName));
       document.getElementById("stepProgram")?.classList.add("active");
       document.getElementById("stepRequest")?.classList.toggle("active",Boolean(pickup&&destination&&need));
-      document.getElementById("stepDocuments")?.classList.toggle("active",docs>0);
       document.getElementById("stepSubmit")?.classList.toggle("active",Boolean(consent));
     }
 
     function printApplication(){window.print();}
 
-    function trackFoundationIntent(eventName,params={}){
-      try{
-        if(typeof gtag==="function"){
-          gtag("event",eventName,{event_category:"htaf_application",event_label:eventName,page_location:window.location.href,...params});
-        }
-      }catch(error){}
-    }
-
-    function openHarveyAiChat(){
-      try{
-        trackFoundationIntent("ai_support_open");
-        if(window.HarveyAI&&typeof window.HarveyAI.open==="function"){
-          window.HarveyAI.open();
-          return;
-        }
-        const root=document.getElementById("harvey-ai-chat-root");
-        if(root){
-          const toggle=root.querySelector("[data-harvey-ai-open]")||root.querySelector(".harvey-ai-launch")||root.querySelector("button");
-          if(toggle?.click){toggle.click();return;}
-        }
-      }catch(error){}
-      window.location.href="contact.html";
-    }
-
     function escapeHtml(value){
       return String(value||"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
     }
 
-    uploadInput?.addEventListener("change",renderUploadPreview);
     document.querySelectorAll("input,select,textarea").forEach(field=>{
       field.addEventListener("input",updateProgressTracker);
       field.addEventListener("change",updateProgressTracker);
@@ -694,15 +621,13 @@
           await submitApplication(payload);
           localStorage.removeItem(APPLICATION_STORAGE_KEY);
           applicationForm.reset();
-          if(uploadPreview) uploadPreview.innerHTML="";
           incrementApplicationCounter();
           updateProgressTracker();
           showApplicationStatus("Application submitted successfully. HTAF will review your transportation assistance request.","ok");
-          trackFoundationIntent("application_submitted",{program_type:payload.program_type,county:payload.county});
         }catch(error){
           console.error(error);
           saveDraftApplication();
-          showApplicationStatus("Submission unavailable right now. Your draft has been saved locally. Server J needs POST /api/foundation/apply enabled.","err");
+          showApplicationStatus("Submission is unavailable right now. Your draft has been saved on this device. Please try again later or contact HTAF.","err");
         }finally{
           submitButton.disabled=false;
           submitButton.textContent=originalText;
@@ -715,14 +640,6 @@
       loadDraftApplication();
       updateDashboardCounters();
       updateProgressTracker();
-      trackFoundationIntent("htaf_application_page_view");
-      setTimeout(()=>{
-        if(!document.getElementById("harvey-ai-chat-root")){
-          const root=document.createElement("div");
-          root.id="harvey-ai-chat-root";
-          document.body.appendChild(root);
-        }
-      },80);
     });
   </script>
 </body>

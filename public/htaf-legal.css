@@ -1,0 +1,98 @@
+/* Shared styles for HTAF's legal pages (privacy, terms, service
+   providers). Kept separate from Harvey Taxi's stylesheets so the two
+   entities' pages never share presentation code. */
+:root {
+  --bg: #070b16;
+  --panel: #10182b;
+  --line: rgba(255,255,255,0.08);
+  --text: #f5f7ff;
+  --muted: #aeb9d6;
+  --blue: #63a4ff;
+  --green: #18c58f;
+  --gold: #ffd76a;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  background: linear-gradient(180deg, #050814 0%, #0b1224 100%);
+  color: var(--text);
+  line-height: 1.6;
+  overflow-wrap: break-word;
+}
+.wrap { max-width: 900px; margin: 0 auto; padding: 24px 16px 40px; }
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.brand { font-size: 22px; font-weight: 700; }
+.site-nav { display: flex; flex-wrap: wrap; gap: 8px; }
+.site-nav a {
+  text-decoration: none;
+  color: #fff;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--line);
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 14px;
+}
+.card {
+  background: rgba(16, 24, 43, 0.92);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 22px;
+  margin-bottom: 18px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.28);
+}
+h1, h2 { margin-top: 0; }
+h1 { font-size: 30px; margin-bottom: 8px; }
+h2 { color: #dce7ff; font-size: 20px; margin-bottom: 10px; }
+p, li, td, th { color: var(--muted); font-size: 15px; }
+ul { padding-left: 20px; margin: 8px 0; }
+li { margin-bottom: 6px; }
+a { color: var(--blue); }
+.effective { color: var(--green); font-weight: 700; margin-bottom: 14px; }
+.callout {
+  border: 1px solid rgba(255, 215, 106, 0.28);
+  background: rgba(255, 215, 106, 0.08);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-top: 10px;
+  font-weight: 700;
+  color: #ffe9ad;
+}
+.review-note {
+  display: inline-block;
+  background: rgba(255, 215, 106, 0.14);
+  color: var(--gold);
+  border: 1px solid rgba(255, 215, 106, 0.3);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12.5px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+.provider-list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.provider-list li {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin: 0;
+  background: rgba(255,255,255,0.02);
+}
+.provider-list strong { color: var(--text); display: block; }
+.site-footer {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 20px 16px 40px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 14px;
+}
+.site-footer p { margin: 0 0 10px; font-size: 14px; }
+.site-footer nav { display: flex; flex-wrap: wrap; gap: 14px; }

@@ -40,8 +40,6 @@
 
   />
 
-  <link rel="stylesheet" href="/ai-support-widget.css" />
-
   <style>
 
     :root {
@@ -4652,76 +4650,6 @@
           );
         }
 
-      }      function openHarveyAiChat() {
-
-        try {
-
-          if (
-
-            window.HarveyAI &&
-
-            typeof window.HarveyAI.open === "function"
-
-          ) {
-
-            window.HarveyAI.open();
-
-            return;
-
-          }
-
-          const root =
-
-            document.getElementById(
-
-              "harvey-ai-chat-root"
-
-            );
-
-          if (root) {
-
-            const toggle =
-
-              root.querySelector(
-
-                "[data-harvey-ai-open]"
-
-              ) ||
-
-              root.querySelector(
-
-                ".harvey-ai-launch"
-
-              ) ||
-
-              root.querySelector("button");
-
-            if (toggle?.click) {
-
-              toggle.click();
-
-              return;
-
-            }
-
-          }
-
-        } catch (error) {
-
-          console.warn(
-
-            "AI support open failed:",
-
-            error
-
-          );
-
-        }
-
-        window.location.href =
-
-          "support.html";
-
       }
 
       function setupEventListeners() {
@@ -4872,74 +4800,6 @@
 
       }
 
-      function setupAiContext() {
-
-        window.HARVEY_AI_CONTEXT = {
-
-          page: "admin_htaf_operations",
-
-          organization:
-
-            "Harvey Transportation Assistance Foundation",
-
-          module:
-
-            "Phase 11 Admin Operations Dashboard",
-
-          routes: [
-
-            "/api/admin/foundation/applications",
-
-            "/api/admin/foundation/applications/:id"
-
-          ],
-
-          capabilities: [
-
-            "application review",
-
-            "approve deny",
-
-            "request documents",
-
-            "schedule rides",
-
-            "export CSV",
-
-            "grant reporting"
-
-          ]
-
-        };
-
-        setTimeout(() => {
-
-          if (
-
-            !document.getElementById(
-
-              "harvey-ai-chat-root"
-
-            )
-
-          ) {
-
-            const root =
-
-              document.createElement("div");
-
-            root.id =
-
-              "harvey-ai-chat-root";
-
-            document.body.appendChild(root);
-
-          }
-
-        }, 80);
-
-      }
-
       async function loadDashboardData() {
 
         showBanner(
@@ -4971,8 +4831,6 @@
       }
 
       async function initializeDashboard() {
-
-        setupAiContext();
 
         setupEventListeners();
 
@@ -5013,8 +4871,6 @@
       );
 
       </script>
-
-      <script src="/ai-support-widget.js"></script>
 
     </body>
 
