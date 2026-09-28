@@ -11,9 +11,23 @@
 // Every builder stage is thenable (see `then` below) so `await` works
 // whether or not the caller ever adds .single()/.maybeSingle(), matching
 // real supabase-js's own thenable query builder.
+//
+// Optional `options` (used by the driver-offer dispatch tests, see
+// server.driver-offer-dispatch.test.js; every option defaults off so
+// existing callers are unaffected):
+//   - columns: { [table]: string[] } -- an update/insert that writes a
+//     column not in the list fails the way PostgREST does (PGRST204)
+//     instead of silently succeeding, so a write to a column the real
+//     schema does not have is caught in tests.
+//   - failUpdate: (table, patch) => error|null -- inject a failure for a
+//     specific update.
+//   - failSelect: (table) => error|null -- inject a failure for a read.
+// `_log` records every executed operation as { table, op, patch }.
 
-function createFakeSupabase(seed = {}) {
+function createFakeSupabase(seed = {}, options = {}) {
   const state = {};
+  const log = [];
+  const columns = options.columns || {};
 
   for (const table of Object.keys(seed)) {
     state[table] = seed[table].map((row) => ({ ...row }));
@@ -36,8 +50,39 @@ function createFakeSupabase(seed = {}) {
     let wantSingle = false;
     let wantMaybeSingle = false;
 
+    function unknownColumnError(record) {
+      const allowed = columns[table];
+      if (!allowed) return null;
+      const bad = Object.keys(record).find((col) => !allowed.includes(col));
+      if (!bad) return null;
+      return {
+        code: "PGRST204",
+        message: `Could not find the '${bad}' column of '${table}' in the schema cache`
+      };
+    }
+
     async function exec() {
       const rows = ensureTable(table);
+      const op = pendingInsertRows ? "insert" : pendingUpdatePatch ? "update" : "select";
+      log.push({ table, op, patch: pendingUpdatePatch });
+
+      if (pendingInsertRows) {
+        const insertError = pendingInsertRows.map(unknownColumnError).find(Boolean);
+        if (insertError) return { data: null, error: insertError };
+      }
+
+      if (pendingUpdatePatch) {
+        const updateError =
+          unknownColumnError(pendingUpdatePatch) ||
+          (options.failUpdate && options.failUpdate(table, pendingUpdatePatch)) ||
+          null;
+        if (updateError) return { data: null, error: updateError };
+      }
+
+      if (op === "select" && options.failSelect) {
+        const selectError = options.failSelect(table);
+        if (selectError) return { data: null, error: selectError };
+      }
 
       if (pendingInsertRows) {
         const keyField = table === "system_flags" ? "key" : "id";
@@ -151,7 +196,8 @@ function createFakeSupabase(seed = {}) {
   return {
     from: (table) => makeBuilder(table),
     rpc: async () => ({ data: null, error: null }),
-    _state: state
+    _state: state,
+    _log: log
   };
 }
 

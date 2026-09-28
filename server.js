@@ -13241,7 +13241,7 @@ app.post(
     // read above and this write, updatedOffer comes back null and this
     // request fails safely instead of accepting an offer that's already
     // expired or been resolved elsewhere.
-    const { data: updatedOffer } =
+    const { data: updatedOffer, error: offerUpdateError } =
       await supabase
         .from("driver_offers")
         .update({
@@ -13253,6 +13253,16 @@ app.post(
         .eq("status", "pending")
         .select()
         .maybeSingle();
+
+    if (offerUpdateError) {
+      console.error(
+        "❌ Offer accept: driver_offers update failed:",
+        offerId,
+        offerUpdateError.message
+      );
+
+      return fail(res, "Could not accept this offer. Please try again.", 500);
+    }
 
     if (!updatedOffer) {
       const wasExpired =
@@ -13268,11 +13278,46 @@ app.post(
       );
     }
 
-    const acceptingDriver = await getDriverOrFail(offer.driver_id);
+    // The offer was already flipped to "accepted" above. If the ride is not
+    // assigned below, put the offer back to "pending" (only if it is still
+    // the "accepted" row this request wrote) so the driver can retry --
+    // or the offer-expiry sweep can redispatch it -- instead of leaving an
+    // accepted offer attached to an unassigned ride.
+    async function revertAcceptedOffer() {
+      const { error: revertError } = await supabase
+        .from("driver_offers")
+        .update({
+          status: "pending",
+          responded_at: null,
+          updated_at: nowIso()
+        })
+        .eq("id", offerId)
+        .eq("status", "accepted");
+
+      if (revertError) {
+        console.error(
+          "❌ Offer accept: could not revert offer to pending:",
+          offerId,
+          revertError.message
+        );
+      }
+    }
+
+    let acceptingDriver;
+
+    try {
+      acceptingDriver = await getDriverOrFail(offer.driver_id);
+    } catch (driverErr) {
+      await revertAcceptedOffer();
+      throw driverErr;
+    }
 
     const driverRideFields = buildDriverRideFields(acceptingDriver);
 
-    const { data: assignedRide } = await supabase
+    // rides.driver_id is the canonical assigned-driver column. There is
+    // no current_driver_id/current_offer_id on rides -- writing either
+    // makes PostgREST reject the whole update.
+    const { data: assignedRide, error: rideUpdateError } = await supabase
 
       .from("rides")
 
@@ -13287,10 +13332,6 @@ app.post(
           "accepted",
 
         driver_id:
-
-          offer.driver_id,
-
-        current_driver_id:
 
           offer.driver_id,
 
@@ -13310,21 +13351,31 @@ app.post(
 
       .select()
 
-      .single();
+      .maybeSingle();
 
-    if (assignedRide) {
+    if (rideUpdateError || !assignedRide) {
 
-      notifyRideStage(assignedRide, "driver_assigned").catch(() => {});
+      console.error(
+        "❌ Offer accept: ride assignment update failed:",
+        offer.ride_id,
+        rideUpdateError ? rideUpdateError.message : "ride not found"
+      );
 
-      broadcastRideSse(offer.ride_id, "stage", {
+      await revertAcceptedOffer();
 
-        status: RIDE_STATUS.DRIVER_ASSIGNED,
-
-        driver: driverRideFields
-
-      });
+      return fail(res, "Could not assign this ride. Please try again.", 500);
 
     }
+
+    notifyRideStage(assignedRide, "driver_assigned").catch(() => {});
+
+    broadcastRideSse(offer.ride_id, "stage", {
+
+      status: RIDE_STATUS.DRIVER_ASSIGNED,
+
+      driver: driverRideFields
+
+    });
 
     auditLog({
 
@@ -13448,7 +13499,7 @@ app.post(
     // for redispatching this ride, so this request must not also
     // redispatch it — doing so would offer the ride to two drivers at
     // once from two different code paths.
-    const { data: updatedOffer } =
+    const { data: updatedOffer, error: offerUpdateError } =
       await supabase
         .from("driver_offers")
         .update({
@@ -13461,6 +13512,16 @@ app.post(
         .eq("status", "pending")
         .select()
         .maybeSingle();
+
+    if (offerUpdateError) {
+      console.error(
+        "❌ Offer decline: driver_offers update failed:",
+        offerId,
+        offerUpdateError.message
+      );
+
+      return fail(res, "Could not decline this offer. Please try again.", 500);
+    }
 
     if (!updatedOffer) {
       return ok(res, {
@@ -13507,7 +13568,7 @@ app.post(
 
     if (ENABLE_AUTO_REDISPATCH) {
 
-      const { data: ride } =
+      const { data: ride, error: rideLoadError } =
 
         await supabase
 
@@ -13517,7 +13578,19 @@ app.post(
 
           .eq("id", offer.ride_id)
 
-          .single();
+          .maybeSingle();
+
+      if (rideLoadError) {
+
+        console.error(
+          "❌ Offer decline: could not load ride for redispatch:",
+          offer.ride_id,
+          rideLoadError.message
+        );
+
+        return fail(res, "Offer declined, but the ride could not be redispatched.", 500);
+
+      }
 
       if (ride) {
 
@@ -13541,7 +13614,7 @@ app.post(
 
         if (attempts < maxAttempts) {
 
-          await supabase
+          const { error: redispatchUpdateError } = await supabase
 
             .from("rides")
 
@@ -13550,14 +13623,6 @@ app.post(
               dispatch_attempts:
 
                 attempts + 1,
-
-              current_driver_id:
-
-                null,
-
-              current_offer_id:
-
-                null,
 
               dispatch_status:
 
@@ -13579,6 +13644,18 @@ app.post(
 
             .eq("id", ride.id);
 
+          if (redispatchUpdateError) {
+
+            console.error(
+              "❌ Offer decline: ride redispatch update failed:",
+              ride.id,
+              redispatchUpdateError.message
+            );
+
+            return fail(res, "Offer declined, but the ride could not be redispatched.", 500);
+
+          }
+
           await dispatchRide({
 
             ...ride,
@@ -13591,7 +13668,7 @@ app.post(
 
         } else {
 
-          await supabase
+          const { error: maxAttemptsUpdateError } = await supabase
 
             .from("rides")
 
@@ -13612,6 +13689,18 @@ app.post(
             })
 
             .eq("id", ride.id);
+
+          if (maxAttemptsUpdateError) {
+
+            console.error(
+              "❌ Offer decline: ride max-attempts update failed:",
+              ride.id,
+              maxAttemptsUpdateError.message
+            );
+
+            return fail(res, "Offer declined, but the ride status could not be updated.", 500);
+
+          }
 
         }
 
@@ -16801,10 +16890,6 @@ app.post(
 
             driver.id,
 
-          current_driver_id:
-
-            driver.id,
-
           status:
 
             RIDE_STATUS.DRIVER_ASSIGNED,
@@ -16842,11 +16927,17 @@ app.post(
           [...ADMIN_RIDE_MUTATION_FIELDS, "rider_id", "rider_phone", "ride_type", "pickup_address"].join(",")
         )
 
-        .single();
+        .maybeSingle();
 
     if (error) {
 
       throw error;
+
+    }
+
+    if (!data) {
+
+      return fail(res, "Ride not found.", 404);
 
     }
 
