@@ -274,6 +274,11 @@ const ENABLE_FOOD_DELIVERY = envBool("ENABLE_FOOD_DELIVERY", true);
 const ENABLE_GROCERY_DELIVERY = envBool("ENABLE_GROCERY_DELIVERY", true);
 
 const ENABLE_HTAF_APPLICATIONS = envBool("ENABLE_HTAF_APPLICATIONS", true);
+// HTAF application records are only reachable by an admin whose role
+// carries the route's HTAF capability (#134). On by default; setting it
+// to false reverts to log-only (the decision is still recorded) and is
+// meant only as an emergency rollback.
+const HTAF_RBAC_ENFORCED = envBool("HTAF_RBAC_ENFORCED", true);
 
 /* =========================================================
 
@@ -2810,7 +2815,10 @@ async function auditLog({
 // requireAdmin() itself already resolved server-side (the env-var
 // admin identity, or the signed admin-session cookie's email), never
 // anything read from a request body/header/query parameter.
-async function logAdminRbacShadowCheck(req, route, capability) {
+// Resolves the admin_roles role for the identity requireAdmin() already
+// authenticated (never a request-supplied value). Shared by the shadow
+// logger below and by requireHtafCapability()'s enforcement.
+async function resolveAdminRoleForRequest(req) {
 
   const admin = req.admin;
 
@@ -2848,7 +2856,12 @@ async function logAdminRbacShadowCheck(req, route, capability) {
     dbLookupFailed = true;
   }
 
-  const { role, source } = resolveShadowRole({ dbLookupFailed, roleRow, isLegacyAdmin });
+  return resolveShadowRole({ dbLookupFailed, roleRow, isLegacyAdmin });
+}
+
+async function logAdminRbacShadowCheck(req, route, capability) {
+  const admin = req.admin;
+  const { role, source } = await resolveAdminRoleForRequest(req);
   const wouldAllow = computeShadowWouldAllow(role, capability);
 
   const entry = buildShadowLogEntry({
@@ -2869,6 +2882,53 @@ async function logAdminRbacShadowCheck(req, route, capability) {
 
   return { logged: true, wouldAllow, source };
 
+}
+
+// HTAF access separation (#134): runs after requireAdmin() on every HTAF
+// application route. An admin is let through only when their admin_roles
+// role grants the route's capability (lib/adminRbac.js: super_admin and
+// htaf_caseworker today). Harvey Taxi-only roles (dispatcher, support,
+// finance, compliance), unknown roles, and identities with no role row
+// are denied. If the role lookup fails, only the configured legacy admin
+// identity falls back to super_admin -- everyone else is denied.
+//
+// Every decision is recorded in admin_rbac_shadow_log (identity, route,
+// capability, role, allow/deny) -- never any application content.
+function requireHtafCapability(route, capability) {
+  return asyncRoute(async (req, res, next) => {
+    const { role, source } = await resolveAdminRoleForRequest(req);
+    const allowed = computeShadowWouldAllow(role, capability);
+
+    Promise.resolve(
+      supabase.from("admin_rbac_shadow_log").insert(
+        buildShadowLogEntry({
+          admin: req.admin,
+          route,
+          httpMethod: req.method,
+          capability,
+          role,
+          source,
+          wouldAllow: allowed
+        })
+      )
+    ).catch(() => {});
+
+    if (allowed || !HTAF_RBAC_ENFORCED) {
+      return next();
+    }
+
+    auditLog({
+      actor_type: "admin",
+      actor_id: req.admin && req.admin.email ? req.admin.email : null,
+      action: "htaf_access_denied",
+      entity_type: "route",
+      entity_id: route,
+      metadata: { capability, role: role || null, source },
+      req
+    }).catch(() => {});
+
+    return fail(res, "HTAF access requires an HTAF role.", 403);
+  });
 }
 
 /* =========================================================
@@ -5036,14 +5096,9 @@ app.get(
   "/api/admin/foundation/applications",
 
   requireAdmin,
+  requireHtafCapability("GET /api/admin/foundation/applications", "htaf.applications.read"),
 
   asyncRoute(async (req, res) => {
-
-    logAdminRbacShadowCheck(
-      req,
-      "GET /api/admin/foundation/applications",
-      RBAC_SHADOW_ROUTE_CAPABILITIES["GET /api/admin/foundation/applications"]
-    ).catch(() => {});
 
     const status =
 
@@ -5172,6 +5227,7 @@ app.get(
 app.get(
   "/api/admin/foundation/applications/:id",
   requireAdmin,
+  requireHtafCapability("GET /api/admin/foundation/applications/:id", "htaf.applications.read_detail"),
   asyncRoute(async (req, res) => {
     const id = cleanString(req.params.id, 100);
 
@@ -5204,14 +5260,9 @@ app.patch(
   "/api/admin/foundation/applications/:id",
 
   requireAdmin,
+  requireHtafCapability("PATCH /api/admin/foundation/applications/:id", "htaf.applications.update"),
 
   asyncRoute(async (req, res) => {
-
-    logAdminRbacShadowCheck(
-      req,
-      "PATCH /api/admin/foundation/applications/:id",
-      RBAC_SHADOW_ROUTE_CAPABILITIES["PATCH /api/admin/foundation/applications/:id"]
-    ).catch(() => {});
 
     const id =
 
@@ -5393,6 +5444,7 @@ app.patch(
 app.post(
   "/api/admin/foundation/applications/export",
   requireAdmin,
+  requireHtafCapability("POST /api/admin/foundation/applications/export", "htaf.applications.export"),
   asyncRoute(async (req, res) => {
     const resolved = resolveHtafExportRequest(req.body || {});
 
@@ -5474,6 +5526,7 @@ app.get(
   "/api/admin/foundation/schema-check",
 
   requireAdmin,
+  requireHtafCapability("GET /api/admin/foundation/schema-check", "htaf.applications.read"),
 
   asyncRoute(async (req, res) => {
 
@@ -5623,6 +5676,7 @@ async function triageHtafApplication(application) {
 app.post(
   "/api/admin/foundation/applications/:id/triage",
   requireAdmin,
+  requireHtafCapability("POST /api/admin/foundation/applications/:id/triage", "htaf.applications.triage"),
   rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "htaf_triage" }),
   asyncRoute(async (req, res) => {
     const id = cleanString(req.params.id, 80);
@@ -19229,6 +19283,7 @@ app.post(
   "/api/admin/foundation/applications/:id/create-ride",
 
   requireAdmin,
+  requireHtafCapability("POST /api/admin/foundation/applications/:id/create-ride", "htaf.rides.create"),
 
   asyncRoute(async (req, res) => {
 
