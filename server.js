@@ -274,6 +274,10 @@ const ENABLE_FOOD_DELIVERY = envBool("ENABLE_FOOD_DELIVERY", true);
 const ENABLE_GROCERY_DELIVERY = envBool("ENABLE_GROCERY_DELIVERY", true);
 
 const ENABLE_HTAF_APPLICATIONS = envBool("ENABLE_HTAF_APPLICATIONS", true);
+// Applicant data stays within HTAF until the provider agreement and board
+// approval are recorded and the operator explicitly enables this transfer.
+const HTAF_RIDE_CREATION_ENABLED = envBool("HTAF_RIDE_CREATION_ENABLED", false);
+const HTAF_AI_TRIAGE_ENABLED = envBool("HTAF_AI_TRIAGE_ENABLED", false);
 
 /* =========================================================
 
@@ -5625,6 +5629,9 @@ app.post(
   requireAdmin,
   rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "htaf_triage" }),
   asyncRoute(async (req, res) => {
+    if (!HTAF_AI_TRIAGE_ENABLED || !openai) {
+      return fail(res, "HTAF AI triage is disabled.", 403);
+    }
     const id = cleanString(req.params.id, 80);
     const { data: application, error } = await supabase
       .from("htaf_applications")
@@ -19231,6 +19238,9 @@ app.post(
   requireAdmin,
 
   asyncRoute(async (req, res) => {
+    if (!HTAF_RIDE_CREATION_ENABLED) {
+      return fail(res, "HTAF ride creation is paused pending an approved provider agreement.", 403);
+    }
 
     const applicationId =
 
