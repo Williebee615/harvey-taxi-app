@@ -207,6 +207,10 @@ function createFakeSupabase(seed = {}, options = {}) {
         filters.push((row) => row[col] !== val);
         return builder;
       },
+      is(col, val) {
+        filters.push((row) => row[col] === val);
+        return builder;
+      },
       in(col, arr) {
         filters.push((row) => arr.includes(row[col]));
         return builder;

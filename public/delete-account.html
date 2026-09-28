@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+  <title>Delete Your Account — Harvey Taxi Service LLC</title>
+
+  <meta
+    name="description"
+    content="How to delete your Harvey Taxi rider or driver account and request removal of your personal data, in the app or from the web. Operated by Harvey Taxi Service LLC."
+  />
+
+  <meta name="theme-color" content="#07111f" />
+  <link rel="canonical" href="https://harveytaxiservice.com/delete-account.html" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg1: #040814;
+      --bg2: #091126;
+      --bg3: #101935;
+      --panel: rgba(10, 17, 38, 0.93);
+      --line: rgba(122, 162, 255, 0.18);
+      --text: #f4f7ff;
+      --muted: #aab8de;
+      --blue: #5ea0ff;
+      --cyan: #63f5ff;
+      --green: #6dffb3;
+      --danger: #ff7e97;
+      --ink: #07121f;
+      --shadow: 0 20px 70px rgba(0, 0, 0, 0.4);
+      --radiusXL: 32px;
+      --radiusLG: 24px;
+      --maxw: 1100px;
+      --navH: 88px;
+      --topbarH: 84px;
+      --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html {
+      scroll-behavior: smooth;
+      min-height: 100%;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+      padding-bottom: calc(var(--navH) + env(safe-area-inset-bottom) + 20px);
+      background:
+        radial-gradient(circle at top left, rgba(99, 245, 255, 0.12), transparent 35%),
+        radial-gradient(circle at top right, rgba(94, 160, 255, 0.10), transparent 30%),
+        linear-gradient(160deg, var(--bg1), var(--bg2) 50%, var(--bg3));
+    }
+
+    .shell {
+      width: min(var(--maxw), calc(100% - 32px));
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+    }
+
+    .topbar {
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      background: rgba(7, 12, 28, 0.82);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .topbar-inner {
+      min-height: var(--topbarH);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 12px 0;
+    }
+
+    .brand { display: flex; align-items: center; gap: 12px; }
+
+    .logo-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      box-shadow: 0 0 14px rgba(99, 245, 255, 0.6);
+    }
+
+    .brand-copy h1 { font-size: 1.05rem; font-weight: 900; letter-spacing: 0.05em; }
+
+    .nav { display: flex; gap: 10px; }
+
+    .nav a {
+      padding: 10px 16px; border-radius: 999px; color: var(--muted);
+      font-size: .9rem; font-weight: 700; transition: var(--transition-fast);
+      border: 1px solid transparent;
+    }
+
+    .nav a:hover { color: var(--text); background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.08); }
+
+    .policy-container { padding: 40px 0; }
+
+    .card {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0)), var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radiusXL);
+      box-shadow: var(--shadow);
+      padding: 48px;
+      margin-bottom: 24px;
+    }
+
+    .policy-header { border-bottom: 1px solid rgba(255, 255, 255, 0.08); padding-bottom: 28px; margin-bottom: 32px; }
+
+    .eyebrow {
+      display: inline-flex; padding: 6px 12px; border-radius: 999px;
+      background: rgba(99, 245, 255, 0.06); border: 1px solid rgba(99, 245, 255, 0.2);
+      color: var(--cyan); font-size: .78rem; font-weight: 800; text-transform: uppercase;
+      letter-spacing: .05em; margin-bottom: 14px;
+    }
+
+    .policy-header h2 { font-size: clamp(1.8rem, 4vw, 2.6rem); font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 8px; }
+
+    .last-updated { font-size: 0.9rem; color: var(--muted); }
+
+    .policy-body { line-height: 1.75; font-size: 1.02rem; color: #e2e8f0; }
+    .policy-body h3 { font-size: 1.35rem; font-weight: 800; color: var(--text); margin: 32px 0 12px 0; letter-spacing: -0.01em; }
+    .policy-body p { margin-bottom: 18px; color: var(--muted); }
+    .policy-body ul { margin: 0 0 20px 24px; color: var(--muted); }
+    .policy-body li { margin-bottom: 8px; }
+
+    .notice-box {
+      margin: 24px 0; padding: 20px; border-radius: 16px;
+      background: rgba(99, 245, 255, 0.04); border: 1px solid rgba(99, 245, 255, 0.15);
+      color: #e1f0ff;
+    }
+    .notice-box strong { color: var(--cyan); display: block; margin-bottom: 4px; }
+
+    .danger-box {
+      margin: 24px 0; padding: 20px; border-radius: 16px;
+      background: rgba(255, 126, 151, 0.06); border: 1px solid rgba(255, 126, 151, 0.24);
+      color: #ffdde3;
+    }
+    .danger-box strong { color: var(--danger); display: block; margin-bottom: 4px; }
+
+    .field { margin-bottom: 18px; }
+    .field label { display: block; font-size: .85rem; font-weight: 800; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .04em; }
+    .field input, .field textarea, .field select {
+      width: 100%; padding: 14px 16px; border-radius: 12px;
+      background: rgba(4, 8, 20, 0.6); border: 1px solid var(--line); color: var(--text);
+      font: inherit; outline: none;
+    }
+    .field input:focus, .field textarea:focus, .field select:focus {
+      border-color: rgba(99, 245, 255, 0.4); box-shadow: 0 0 0 3px rgba(99, 245, 255, 0.08);
+    }
+    .field textarea { min-height: 90px; resize: vertical; }
+
+    .radio-row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .radio-pill {
+      display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 999px;
+      border: 1px solid var(--line); background: rgba(255,255,255,.03); cursor: pointer; font-weight: 700;
+    }
+    .radio-pill input { width: auto; accent-color: var(--cyan); }
+
+    .btn-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 14px 22px; border-radius: 14px; border: 1px solid var(--line);
+      background: rgba(255,255,255,.04); color: var(--text); font-weight: 800;
+      font-size: .95rem; cursor: pointer; transition: var(--transition-fast); min-height: 48px;
+    }
+    .btn:hover { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.2); }
+    .btn.primary { background: linear-gradient(135deg, var(--cyan), var(--blue)); color: var(--ink); border: none; }
+    .btn.danger { background: rgba(255,126,151,.12); border-color: rgba(255,126,151,.34); color: #ffc7d1; }
+
+    #deleteNotice {
+      margin-top: 16px; padding: 14px 16px; border-radius: 12px; font-weight: 700; display: none;
+    }
+    #deleteNotice.info { display: block; background: rgba(94,160,255,.1); border: 1px solid rgba(94,160,255,.3); color: #cfe2ff; }
+    #deleteNotice.success { display: block; background: rgba(109,255,179,.1); border: 1px solid rgba(109,255,179,.3); color: #d7ffe9; }
+    #deleteNotice.error { display: block; background: rgba(255,126,151,.1); border: 1px solid rgba(255,126,151,.3); color: #ffdde3; }
+
+    table.retention { width: 100%; border-collapse: collapse; margin: 12px 0 20px; }
+    table.retention th, table.retention td {
+      text-align: left; padding: 12px 14px; border-bottom: 1px solid rgba(255,255,255,.08);
+      color: var(--muted); font-size: .95rem; vertical-align: top;
+    }
+    table.retention th { color: var(--text); font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; }
+
+    .bottom-nav {
+      position: fixed; left: 0; right: 0; bottom: 0;
+      height: calc(var(--navH) + env(safe-area-inset-bottom));
+      background: rgba(6, 12, 26, 0.96); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex; justify-content: space-around; align-items: flex-start;
+      padding: 12px 8px calc(12px + env(safe-area-inset-bottom)); z-index: 80;
+    }
+
+    .nav-btn {
+      color: var(--muted); font-size: 13px; font-weight: 800; padding: 10px;
+      border-radius: 14px; min-height: 48px; min-width: 64px; background: none; border: none; cursor: pointer;
+    }
+    .nav-btn.active { color: white; background: rgba(255, 255, 255, 0.06); }
+
+    .footer { padding: 20px 0 calc(20px + var(--navH)); border-top: 1px solid rgba(255, 255, 255, 0.05); color: var(--muted); font-size: 0.9rem; }
+    .footer-inner { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+
+    @media(max-width: 768px) {
+      .topbar-inner { flex-direction: column; align-items: center; gap: 12px; }
+      .card { padding: 24px; border-radius: var(--radiusLG); }
+      .footer-inner { flex-direction: column; text-align: center; }
+      table.retention, table.retention thead, table.retention tbody, table.retention th, table.retention td, table.retention tr { display: block; }
+      table.retention th { display: none; }
+      table.retention td { border-bottom: none; padding: 4px 0; }
+      table.retention tr { padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid rgba(255,255,255,.08); }
+      table.retention td:first-child { font-weight: 800; color: var(--text); }
+    }
+
+    @media(max-width: 640px) {
+      .nav { display: none; }
+      .bottom-nav { justify-content: flex-start; overflow-x: auto; gap: 6px; }
+      .nav-btn { flex: 0 0 auto; }
+    }
+  </style>
+</head>
+
+<body>
+  <header class="topbar">
+    <div class="shell topbar-inner">
+      <a href="/" class="brand" style="text-decoration:none; color:inherit;">
+        <div class="logo-dot"></div>
+        <div class="brand-copy"><h1>HARVEY TAXI</h1></div>
+      </a>
+      <nav class="nav" aria-label="Primary navigation">
+        <a href="/">Home</a>
+        <a href="rider-dashboard.html">Book Ride</a>
+        <a href="privacy.html">Privacy</a>
+        <a href="support.html">Support</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="shell policy-container">
+    <article class="card">
+      <header class="policy-header">
+        <div class="eyebrow">Account &amp; Data Controls</div>
+        <h2>Delete Your Account</h2>
+        <div class="last-updated">Harvey Taxi Service LLC — Rider &amp; Driver Accounts</div>
+      </header>
+
+      <section class="policy-body">
+        <p>
+          This page explains how to permanently delete your <strong>Harvey Taxi</strong> rider or driver account,
+          operated by <strong>Harvey Taxi Service LLC</strong>, and what happens to your data when you do. It applies
+          to Harvey Taxi accounts only — it is not affiliated with, and does not delete, an application submitted to
+          the Harvey Transportation Assistance Foundation.
+        </p>
+
+        <h3>Option 1: Delete in the app</h3>
+        <p>
+          If you have the Harvey Taxi app installed, open it and go to <strong>Settings → Delete Account</strong>.
+          You'll be asked to verify your identity with a one-time code sent to the phone number on your account, then
+          confirm the deletion.
+        </p>
+
+        <h3>Option 2: Delete from the web (no app required)</h3>
+        <p>
+          You don't need the app installed to request deletion. Use the form below — it sends a one-time verification
+          code by SMS to the phone number on your account, then submits the deletion request to the same backend
+          system the app uses.
+        </p>
+
+        <div class="notice-box">
+          <strong>Identity verification required</strong>
+          To protect your account, we require a one-time code texted to the phone number already on file before any
+          deletion request is processed. We resolve your account from that verified phone number — no password,
+          authentication token, or other sensitive credential is ever entered on this page or included in its URL.
+        </div>
+
+        <div class="field">
+          <label>I am a</label>
+          <div class="radio-row">
+            <label class="radio-pill"><input type="radio" name="accountType" value="rider" checked /> Rider</label>
+            <label class="radio-pill"><input type="radio" name="accountType" value="driver" /> Driver</label>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="delPhone">Phone number on your account</label>
+          <input id="delPhone" type="tel" placeholder="e.g. (615) 555-0100" autocomplete="tel" />
+        </div>
+
+        <div class="field">
+          <label for="delReason">Reason for deletion (optional)</label>
+          <textarea id="delReason" placeholder="Help us understand why you're leaving (optional)"></textarea>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn" type="button" id="sendCodeBtn">Send Verification Code</button>
+        </div>
+
+        <div class="field" style="margin-top:18px;">
+          <label for="delCode">Verification code</label>
+          <input id="delCode" type="text" inputmode="numeric" placeholder="Enter the code we texted you" autocomplete="one-time-code" />
+        </div>
+
+        <div class="btn-row">
+          <button class="btn danger" type="button" id="submitDeleteBtn">Request Account Deletion</button>
+        </div>
+
+        <div id="deleteNotice" role="status" aria-live="polite"></div>
+
+        <h3>What happens after you request deletion</h3>
+        <ul>
+          <li>
+            <strong>Rider accounts:</strong> once your phone number is verified, your account is deleted immediately —
+            your name, email, and phone number are permanently removed from your account record and it is deactivated
+            right away.
+          </li>
+          <li>
+            <strong>Driver accounts:</strong> once your phone number is verified, your account access is disabled
+            immediately. Because driver accounts carry documents and payout records that our compliance team reviews
+            before finalizing, a member of our team then reviews the request and completes the permanent removal of
+            your personal information. We do not currently commit to a fixed number of days for that review, but
+            your ability to log in and drive is disabled as soon as your request is verified.
+          </li>
+        </ul>
+
+        <h3>What data is deleted</h3>
+        <p>Once your request is processed, the following personal information is permanently removed from your account record and from your past ride history:</p>
+        <ul>
+          <li>Your name, email address, and phone number</li>
+          <li>Your saved profile details and app preferences</li>
+          <li>Your name and phone number as they appeared on any past rides (replaced with a generic "Deleted User" / "Deleted Driver" placeholder)</li>
+        </ul>
+
+        <h3>What data is retained, and why</h3>
+        <p>
+          Deleting your account does not delete the underlying ride, payment, and safety records tied to it. We keep
+          these records, with your personal identifying information removed, because we're required to for legal,
+          tax, fraud-prevention, and safety reasons:
+        </p>
+        <table class="retention">
+          <thead>
+            <tr><th>Data</th><th>Why we keep it</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Ride records (route, fare, timestamps)</td>
+              <td>Financial recordkeeping, tax reporting, and resolving disputes about a specific trip</td>
+            </tr>
+            <tr>
+              <td>Payment and earnings records</td>
+              <td>Tax reporting obligations and accounting requirements for completed transactions and driver payouts</td>
+            </tr>
+            <tr>
+              <td>Audit logs and safety reports</td>
+              <td>Fraud prevention, platform safety investigations, and legal or regulatory recordkeeping</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          These retained records are stripped of your name, email, and phone number as described above — they remain
+          only as anonymized operational and financial records, not as an active, personally identifiable account.
+        </p>
+
+        <div class="danger-box">
+          <strong>This cannot be undone</strong>
+          Once your account has been deleted, we cannot restore your profile, saved preferences, or the personal
+          information removed from your ride history.
+        </div>
+
+        <p>
+          Questions about this process or your data? See our <a href="privacy.html">Privacy Policy</a> or
+          <a href="support.html">contact Harvey Taxi Support</a>.
+        </p>
+      </section>
+    </article>
+  </main>
+
+  <footer class="footer">
+    <div class="shell footer-inner">
+      <div>© Harvey Taxi Service LLC. All rights reserved.</div>
+      <div class="footer-links">
+        <a href="/">Home</a> &bull;
+        <a href="privacy.html">Privacy</a> &bull;
+        <a href="support.html">Support</a>
+      </div>
+    </div>
+  </footer>
+
+  <nav class="bottom-nav" aria-label="Bottom navigation">
+    <button class="nav-btn" type="button" onclick="window.location.href='/'">Home</button>
+    <button class="nav-btn" type="button" onclick="window.location.href='rider-dashboard.html'">Book</button>
+    <button class="nav-btn" type="button" onclick="window.location.href='privacy.html'">Privacy</button>
+    <button class="nav-btn active" type="button" onclick="window.location.reload()">Delete Account</button>
+  </nav>
+
+  <script>
+    (function () {
+      var HARVEY_API_BASE =
+        window.location.origin && window.location.origin.indexOf("http") === 0
+          ? window.location.origin
+          : "https://harveytaxiservice.com";
+
+      var notice = document.getElementById("deleteNotice");
+
+      function showNotice(message, kind) {
+        notice.textContent = message;
+        notice.className = kind || "info";
+      }
+
+      function getAccountType() {
+        var checked = document.querySelector('input[name="accountType"]:checked');
+        return checked && checked.value === "driver" ? "driver" : "rider";
+      }
+
+      document.getElementById("sendCodeBtn").addEventListener("click", function () {
+        var phone = document.getElementById("delPhone").value.trim();
+        var accountType = getAccountType();
+
+        if (!phone) {
+          showNotice("Enter the phone number on your account first.", "error");
+          return;
+        }
+
+        showNotice("Sending verification code...", "info");
+
+        fetch(HARVEY_API_BASE + "/api/verify/sms/start", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone: phone, purpose: "account_deletion", user_type: accountType })
+        })
+          .then(function (res) {
+            if (!res.ok) throw new Error("Request failed (HTTP " + res.status + ")");
+            return res.json();
+          })
+          .then(function () {
+            showNotice("Verification code sent. Enter it below, then request deletion.", "success");
+          })
+          .catch(function () {
+            showNotice("Unable to send a verification code right now. Please try again shortly.", "error");
+          });
+      });
+
+      document.getElementById("submitDeleteBtn").addEventListener("click", function () {
+        var phone = document.getElementById("delPhone").value.trim();
+        var code = document.getElementById("delCode").value.trim();
+        var reason = document.getElementById("delReason").value.trim();
+        var accountType = getAccountType();
+
+        if (!phone || !code) {
+          showNotice("Enter your account phone number and the verification code we texted you.", "error");
+          return;
+        }
+
+        if (!window.confirm("This will permanently request deletion of your Harvey Taxi account. This cannot be undone. Continue?")) {
+          return;
+        }
+
+        var endpoint =
+          accountType === "driver"
+            ? "/api/account/driver/delete-request-public"
+            : "/api/account/rider/delete";
+
+        showNotice("Submitting deletion request...", "info");
+
+        fetch(HARVEY_API_BASE + endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone: phone, code: code, reason: reason || null })
+        })
+          .then(function (res) {
+            return res.json().then(function (data) {
+              if (!res.ok) throw new Error(data.error || "Request failed (HTTP " + res.status + ")");
+              return data;
+            });
+          })
+          .then(function (data) {
+            showNotice(data.message || "Your deletion request was submitted.", "success");
+          })
+          .catch(function (err) {
+            showNotice(err.message || "Unable to submit your deletion request right now. Please try again shortly or contact support directly.", "error");
+          });
+      });
+    })();
+  </script>
+</body>
+</html>
