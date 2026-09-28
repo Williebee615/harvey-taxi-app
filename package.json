@@ -12,7 +12,7 @@
 
     "test": "jest",
 
-    "test:db": "jest test/db"
+    "test:db": "jest test/db --runInBand"
 
   },
 

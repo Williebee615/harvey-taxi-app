@@ -13,11 +13,21 @@
 -- deployed (including the live dispatch_ride_atomic's reference to the
 -- nonexistent rides.current_driver_id), with their live grants.
 
+-- Roles are cluster-wide, not per-database, so two test databases being
+-- built at the same time can race to create them: tolerate the loser.
 do $$
+declare
+  r record;
 begin
-  if not exists (select 1 from pg_roles where rolname = 'anon') then create role anon nologin; end if;
-  if not exists (select 1 from pg_roles where rolname = 'authenticated') then create role authenticated nologin; end if;
-  if not exists (select 1 from pg_roles where rolname = 'service_role') then create role service_role nologin bypassrls; end if;
+  for r in select * from (values ('anon', 'nologin'), ('authenticated', 'nologin'), ('service_role', 'nologin bypassrls')) v(name, opts) loop
+    if not exists (select 1 from pg_roles where rolname = r.name) then
+      begin
+        execute format('create role %I %s', r.name, r.opts);
+      exception when duplicate_object or unique_violation then
+        null;
+      end;
+    end if;
+  end loop;
 end
 $$;
 
