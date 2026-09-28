@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Your Order — Simply Steak and Chicken Pies</title>
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#fbf6ee">
+  <link rel="icon" href="logo.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="/">
+        <img class="brand-mark" src="logo.svg" alt="" width="40" height="40">
+        <span class="brand-name">Simply Steak<br>and Chicken Pies<small>Curbside pickup</small></span>
+      </a>
+      <span class="live-dot off" id="live">Connecting</span>
+    </div>
+  </header>
+
+  <main class="wrap order-shell" style="max-width: 560px">
+    <section class="card" aria-live="polite">
+      <p class="order-num" id="order-num">Loading your order…</p>
+      <h1 class="order-headline" id="headline">One moment</h1>
+      <p class="order-sub" id="subline"></p>
+      <ol class="tracker" id="tracker" hidden>
+        <li data-step="paid">Received</li>
+        <li data-step="preparing">Preparing</li>
+        <li data-step="ready">Ready</li>
+      </ol>
+    </section>
+
+    <section id="arrive-section" hidden>
+      <button class="arrive-btn" type="button" id="arrive-btn">
+        <span>I’ve Arrived<small>Tap when you’re parked outside</small></span>
+      </button>
+      <div class="field" style="margin-top: 12px">
+        <label for="arrival-note">Where are you parked? <span class="hint">(optional)</span></label>
+        <input id="arrival-note" maxlength="120" placeholder="e.g. Red Toyota by the front door">
+      </div>
+      <p class="form-error" id="arrive-error" role="alert"></p>
+    </section>
+
+    <section class="arrived-box" id="arrived-box" hidden>
+      <strong>We know you’re here</strong>
+      <span id="arrived-text">The kitchen has been notified and will bring your order out.</span>
+    </section>
+
+    <section class="card" id="summary-card" hidden>
+      <h2 class="section-title" style="font-size: 1.15rem">Order summary</h2>
+      <ul class="summary-list" id="summary"></ul>
+      <div class="summary-total"><span>Total paid</span><span id="summary-total"></span></div>
+    </section>
+
+    <section class="card" id="pickup-card" hidden>
+      <h2 class="section-title" style="font-size: 1.15rem">Pickup details</h2>
+      <div id="pickup"></div>
+    </section>
+
+    <p class="pay-note">Keep this page open until you have your pies. It updates automatically.</p>
+  </main>
+
+  <script src="shared.js"></script>
+  <script src="order.js"></script>
+</body>
+</html>

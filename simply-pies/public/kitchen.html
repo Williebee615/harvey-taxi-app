@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Kitchen Dashboard — Simply Pies</title>
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#1c130d">
+  <link rel="icon" href="logo.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="kitchen.css">
+</head>
+<body>
+  <div class="arrival-banner" id="arrival-banner" role="alert" hidden></div>
+
+  <header class="k-header">
+    <div class="k-brand"><img src="logo.svg" alt="" width="32" height="32"><span>Kitchen</span></div>
+    <div class="k-tools" id="tools" hidden>
+      <span class="k-live off" id="live">Connecting</span>
+      <button class="k-btn" type="button" id="sound-btn">Sound on</button>
+      <button class="k-btn k-btn-quiet" type="button" id="logout-btn">Sign out</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="k-login" id="login" hidden>
+      <form id="login-form">
+        <h1>Kitchen sign-in</h1>
+        <label for="passcode">Passcode</label>
+        <input id="passcode" type="password" autocomplete="current-password" required>
+        <p class="k-error" id="login-error" role="alert"></p>
+        <button class="k-btn k-btn-primary" type="submit">Start shift</button>
+      </form>
+    </section>
+
+    <section class="k-start" id="start" hidden>
+      <button class="k-btn k-btn-primary k-btn-huge" type="button" id="start-btn">Tap to start alerts</button>
+      <p>Browsers only play sounds after a tap. Keep this screen open and the device plugged in during service.</p>
+    </section>
+
+    <section class="k-board" id="board" hidden>
+      <div class="k-col" data-col="arrived"><h2>Customer outside <span class="k-count"></span></h2><div class="k-list"></div></div>
+      <div class="k-col" data-col="paid"><h2>New <span class="k-count"></span></h2><div class="k-list"></div></div>
+      <div class="k-col" data-col="preparing"><h2>Preparing <span class="k-count"></span></h2><div class="k-list"></div></div>
+      <div class="k-col" data-col="ready"><h2>Ready <span class="k-count"></span></h2><div class="k-list"></div></div>
+      <details class="k-col k-done" data-col="done"><summary><h2>Finished today <span class="k-count"></span></h2></summary><div class="k-list"></div></details>
+    </section>
+  </main>
+
+  <template id="card-tpl">
+    <article class="k-card">
+      <header>
+        <span class="k-num"></span>
+        <span class="k-time"></span>
+      </header>
+      <div class="k-arrived" hidden></div>
+      <p class="k-name"></p>
+      <ul class="k-items"></ul>
+      <p class="k-meta"></p>
+      <div class="k-actions"></div>
+    </article>
+  </template>
+
+  <script src="kitchen.js"></script>
+</body>
+</html>

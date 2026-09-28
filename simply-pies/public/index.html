@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Simply Steak and Chicken Pies — Order for Curbside Pickup</title>
+  <meta name="description" content="Order handmade 4-inch steak and chicken pies online and pick them up at the curb.">
+  <meta name="theme-color" content="#fbf6ee">
+  <meta property="og:title" content="Simply Steak and Chicken Pies">
+  <meta property="og:description" content="Handmade 4-inch pies. Order online, pick up at the curb.">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="logo.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="/">
+        <img class="brand-mark" src="logo.svg" alt="" width="40" height="40">
+        <span class="brand-name">Simply Steak<br>and Chicken Pies<small>Curbside pickup</small></span>
+      </a>
+      <a class="ig-link" id="ig-link" hidden target="_blank" rel="noopener"></a>
+    </div>
+  </header>
+
+  <main>
+    <div class="wrap" id="notices"></div>
+
+    <section class="hero wrap" aria-labelledby="hero-title">
+      <p class="eyebrow">Made by hand, baked to order</p>
+      <h1 id="hero-title">Proper pies,<br>ready at the curb.</h1>
+      <p class="lede">Order below, pay on your phone, and tap <strong>I’ve Arrived</strong> when you pull up. We’ll bring your pies out to you.</p>
+      <ul class="signature" id="signature"></ul>
+    </section>
+
+    <section class="section wrap" aria-labelledby="menu-title">
+      <h2 class="section-title" id="menu-title">The menu</h2>
+      <p class="section-sub">Every pie is a 4-inch round with a short crust base and a buttery rough puff pastry top.</p>
+      <div class="menu" id="menu" aria-live="polite"></div>
+    </section>
+
+    <section class="section wrap" aria-labelledby="how-title">
+      <h2 class="section-title" id="how-title">How curbside pickup works</h2>
+      <p class="section-sub">No app to download, and no need to leave your car.</p>
+      <ol class="steps">
+        <li><strong>Order and pay</strong><span>Pick your pies and pay by card, Apple Pay or Google Pay.</span></li>
+        <li><strong>Watch your order</strong><span>Keep the order page open. It updates live as we prepare and pack your pies.</span></li>
+        <li><strong>Tap “I’ve Arrived”</strong><span>When you pull up, tap the button and we’ll bring your order out.</span></li>
+      </ol>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap" id="footer"></div>
+  </footer>
+
+  <div class="cart-bar" id="cart-bar" hidden>
+    <button class="btn" id="open-cart" type="button">
+      <span><span class="count" id="cart-count">0</span>View order</span>
+      <span id="cart-total"></span>
+    </button>
+  </div>
+
+  <dialog class="sheet" id="cart-sheet" aria-labelledby="cart-title">
+    <div class="sheet-inner">
+      <div class="sheet-head">
+        <h2 id="cart-title">Your order</h2>
+        <button class="icon-btn" type="button" id="close-cart" aria-label="Close">✕</button>
+      </div>
+      <ul class="cart-lines" id="cart-lines"></ul>
+      <div class="totals"><span>Total</span><span id="sheet-total"></span></div>
+
+      <form id="checkout-form" novalidate>
+        <div class="field">
+          <label for="name">Name for the order</label>
+          <input id="name" name="name" autocomplete="name" required maxlength="60">
+        </div>
+        <div class="field">
+          <label for="phone">Mobile number <span class="hint">(in case we need to reach you)</span></label>
+          <input id="phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" required maxlength="30">
+        </div>
+        <div class="field">
+          <label for="vehicle">Your car <span class="hint">(optional: color, make)</span></label>
+          <input id="vehicle" name="vehicle" maxlength="80" placeholder="e.g. Silver Honda CR-V">
+        </div>
+        <div class="field">
+          <label for="notes">Notes <span class="hint">(optional)</span></label>
+          <textarea id="notes" name="notes" maxlength="280"></textarea>
+        </div>
+        <p class="form-error" id="form-error" role="alert"></p>
+        <button class="btn btn-gold btn-block" id="pay-btn" type="submit">Continue to secure payment</button>
+        <p class="pay-note" id="pay-note">Card, Apple Pay and Google Pay, processed securely by Stripe.</p>
+      </form>
+    </div>
+  </dialog>
+
+  <script src="shared.js"></script>
+  <script src="menu.js"></script>
+</body>
+</html>

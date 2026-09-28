@@ -1,0 +1,23 @@
+{
+  "name": "simply-pies",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Mobile ordering and curbside pickup for Simply Steak and Chicken Pies",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "DEMO_PAYMENTS=true KITCHEN_PASSCODE=kitchen node server.js",
+    "test": "jest"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "stripe": "^22.3.2"
+  },
+  "devDependencies": {
+    "jest": "^30.4.2",
+    "supertest": "^7.2.2"
+  }
+}
