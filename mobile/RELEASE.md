@@ -14,14 +14,25 @@ npx eas-cli build --platform ios --profile production
 ```
 
 - Marketing version: `expo.version` in `app.json` (currently `1.0.1`).
-- Build number: `expo.ios.buildNumber` (currently `10`). The `production`
-  profile has `autoIncrement: true`:
-  - if the EAS project manages versions remotely (`appVersionSource: remote`),
-    EAS assigns the next number after the last build (build 9);
-  - if it manages them locally, EAS bumps `buildNumber` in `app.json`; commit
-    that change.
-  Either way the new build number is higher than 9.
-- **Do not submit** until the clean-install matrix below passes on a release
+- Build number: managed by EAS (`cli.appVersionSource: "remote"` in
+  `eas.json`); the `production` profile auto-increments it. Build 10
+  (`bf85889d-7f63-4063-bace-685e2b8e9492`, commit `3e57b81`) is the first
+  build with this fix. `expo.ios.buildNumber` in `app.json` is ignored.
+- EAS project: `@williebee615/harvey-taxi`
+  (`ae7e5a71-4f7c-45d8-8b7e-e0ef4de507b2`).
+
+## TestFlight upload (private testing only)
+
+```sh
+npx eas-cli submit --platform ios --latest
+```
+
+`submit.production.ios.ascAppId` (`6761548295`) lets EAS upload with the saved
+App Store Connect API key without an Apple ID lookup. This uploads the build
+to App Store Connect for TestFlight; it does **not** submit it for App Review.
+Submitting for review is a separate, manual step in App Store Connect.
+
+- **Do not submit for App Review** until the clean-install matrix below passes on a release
   build.
 
 ## Clean-install verification on iPad (release build, not Expo Go)

@@ -31,6 +31,12 @@
         "backgroundColor": "#050816"
       }
     },
-    "backgroundColor": "#050816"
+    "backgroundColor": "#050816",
+    "owner": "williebee615",
+    "extra": {
+      "eas": {
+        "projectId": "ae7e5a71-4f7c-45d8-8b7e-e0ef4de507b2"
+      }
+    }
   }
 }
