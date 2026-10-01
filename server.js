@@ -3292,7 +3292,8 @@ async function notifyRideStage(ride, stageKey) {
 
         body,
 
-        url: "/rider-dashboard.html"
+        // Opens this ride\'s tracking screen, not a new booking.
+        url: `/rider-dashboard.html?screen=track&ride_id=${encodeURIComponent(ride.id)}`
 
       }).catch(() => {});
 
@@ -22681,10 +22682,13 @@ app.get(
 
 );
 
+// Old request pages were booking (or, with ride_id, tracking) links, so
+// they go straight to that screen. The dashboard itself never redirects,
+// so there is no loop.
 function redirectToDashboard(res, query) {
   const params = new URLSearchParams(query);
-  const qs = params.toString();
-  return res.redirect(301, `/rider-dashboard.html${qs ? `?${qs}` : ""}`);
+  params.set("screen", params.get("ride_id") ? "track" : "book");
+  return res.redirect(301, `/rider-dashboard.html?${params.toString()}`);
 }
 
 // request-ride.html, request-food.html, and request-groceries.html were
