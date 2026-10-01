@@ -59,6 +59,7 @@ function createFakeSupabase(seed = {}, options = {}) {
     let pendingInsertRows = null;
     let pendingUpdatePatch = null;
     let isUpsert = false;
+    let isDelete = false;
     let wantSingle = false;
     let wantMaybeSingle = false;
     let selectedColumns = null;
@@ -76,7 +77,7 @@ function createFakeSupabase(seed = {}, options = {}) {
 
     async function exec() {
       const rows = ensureTable(table);
-      const op = pendingInsertRows ? "insert" : pendingUpdatePatch ? "update" : "select";
+      const op = isDelete ? "delete" : pendingInsertRows ? "insert" : pendingUpdatePatch ? "update" : "select";
       log.push({ table, op, patch: pendingUpdatePatch });
 
       if (pendingInsertRows) {
@@ -105,6 +106,12 @@ function createFakeSupabase(seed = {}, options = {}) {
       if (op === "select" && options.failSelect) {
         const selectError = options.failSelect(table);
         if (selectError) return { data: null, error: selectError };
+      }
+
+      if (isDelete) {
+        const removed = applyFilters(rows, filters);
+        for (const row of removed) rows.splice(rows.indexOf(row), 1);
+        return { data: removed, error: null };
       }
 
       if (pendingInsertRows) {
@@ -279,6 +286,10 @@ function createFakeSupabase(seed = {}, options = {}) {
       },
       update(patch) {
         pendingUpdatePatch = patch;
+        return builder;
+      },
+      delete() {
+        isDelete = true;
         return builder;
       },
       upsert(record) {
