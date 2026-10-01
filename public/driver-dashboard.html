@@ -891,6 +891,10 @@
 <body>
   <div class="shell">
 
+    <div id="appReviewBanner" role="status" hidden style="position:sticky; top:0; z-index:50; margin:0 0 12px; padding:10px 14px; border-radius:12px; border:1px solid rgba(255,196,0,0.55); background:rgba(255,196,0,0.14); color:#ffe59a; font-weight:700; text-align:center;">
+      App Review mode — rides, payments and earnings are simulated. No real rider is picked up and no payout is made.
+    </div>
+
     <header class="topbar">
       <div class="brand">
         <div class="logo">HT</div>
@@ -999,9 +1003,9 @@
 
         <div id="loginMsg" class="msg"></div>
 
-        <button class="btn btn-secondary" id="reviewToggleBtn" type="button" style="width: 100%; margin-top: 12px;">Google Play reviewer sign-in</button>
+        <button class="btn btn-secondary" id="reviewToggleBtn" type="button" style="width: 100%; margin-top: 12px;">App Review Sign-In</button>
 
-        <!-- Google Play reviewer sign-in: a separate email+password form,
+        <!-- App Review sign-in: a separate email+password form,
              independent of the Driver ID + SMS code flow above. Only ever
              functional for the one dedicated review driver account
              (server-side rejects any other email) -- see
@@ -1526,7 +1530,7 @@
         el.verifyCodeBtn.disabled = false;
       }
     }
-    // Google Play reviewer sign-in: a separate email+password form,
+    // App Review sign-in: a separate email+password form,
     // independent of the Driver ID + SMS code flow above. POST
     // /api/review/driver/login returns the exact same driver_token
     // shape as the real OTP verify route, so setDriverToken() +
@@ -1581,6 +1585,7 @@
       state.delivery = null;
       state.earnings = [];
       state.earningsTotal = 0;
+      state.reviewMode = false;
       state.dashboard = null;
 
       el.snapDriverId.textContent = "Not loaded";
@@ -1668,6 +1673,9 @@
           const earn = await apiGet(`/api/driver/${encodeURIComponent(state.driverId)}/earnings`);
           state.earningsTotal = Number(earn.total_earnings || 0);
           state.earnings = earn.records || [];
+          // review_mode comes from the authenticated driver row (App
+          // Review accounts only) -- labels simulated earnings as such.
+          state.reviewMode = earn.review_mode === true;
         } catch (e) {
           state.earningsTotal = 0;
           state.earnings = [];
@@ -1853,7 +1861,15 @@
       // the ledger's inserts were silently failing, so state.earnings was
       // always empty. Now that the ledger actually records rows, that
       // reduce would have produced NaN.
-      el.statEarnings.textContent = `$${Number(state.earningsTotal || 0).toFixed(2)}`;
+      el.statEarnings.textContent = state.reviewMode
+        ? `$${Number(state.earningsTotal || 0).toFixed(2)} (simulated)`
+        : `$${Number(state.earningsTotal || 0).toFixed(2)}`;
+
+      const reviewBanner = document.getElementById("appReviewBanner");
+
+      if (reviewBanner) {
+        reviewBanner.hidden = state.reviewMode !== true;
+      }
 
       // Synchronize Status Snapshot Row Indicators
       updatePillUI(el.snapApproval, "Approved", "pill-green");

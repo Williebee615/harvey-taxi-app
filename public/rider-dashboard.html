@@ -2598,6 +2598,10 @@
       margin-bottom: 18px;
     }
 
+    #riderAuthOverlay .auth-tabs[hidden] {
+      display: none;
+    }
+
     #riderAuthOverlay .auth-tabs {
       display: flex;
       gap: 6px;
@@ -2696,6 +2700,44 @@
       flex-wrap: wrap;
     }
 
+    /* App Review mode: simulated-data banner and the signed-out
+       "App Review Sign-In" entry points. */
+    .app-review-banner {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      margin: 0 0 12px;
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 196, 0, 0.55);
+      background: rgba(255, 196, 0, 0.14);
+      color: #ffe59a;
+      font-size: 0.9rem;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .app-review-entry {
+      margin-top: 14px;
+      padding: 10px 16px;
+      border-radius: 999px;
+      border: 1px solid rgba(99, 245, 255, 0.45);
+      background: rgba(99, 245, 255, 0.08);
+      color: var(--cyan);
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .review-sim-note {
+      margin: 10px 0;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 196, 0, 0.55);
+      background: rgba(255, 196, 0, 0.12);
+      color: #ffe59a;
+      font-weight: 700;
+    }
+
     #riderAuthOverlay .auth-link {
       background: none;
       border: none;
@@ -2728,6 +2770,10 @@
 
 <body>
   <div class="shell">
+
+    <div class="app-review-banner" id="appReviewBanner" role="status" hidden>
+      App Review mode — rides, payments and earnings are simulated. No card is charged and no real driver is dispatched.
+    </div>
 
     <!-- TOPBAR -->
     <header class="topbar">
@@ -2764,6 +2810,13 @@
           payment readiness, active orders, trip history, tipping, and support
           from one futuristic dashboard.
         </p>
+
+        <!-- Shown only while signed out. Opens the existing reviewer
+             email+password form, which the server accepts only for the
+             flagged App Review accounts (POST /api/review/rider/login). -->
+        <button type="button" class="app-review-entry" id="heroReviewSignInBtn" hidden>
+          App Review Sign-In
+        </button>
 
         <div class="hero-stats">
           <div class="hero-stat">
@@ -3537,7 +3590,7 @@
         <button type="submit" class="auth-btn" id="authStartBtn">Send code</button>
         <p class="auth-error" id="authStartError" hidden></p>
         <p class="auth-footnote">New to Harvey Taxi? <a href="rider-signup.html">Create an account</a></p>
-        <p class="auth-footnote"><button type="button" class="auth-link" id="authReviewToggleBtn">Google Play reviewer sign-in</button></p>
+        <p class="auth-footnote"><button type="button" class="auth-link" id="authReviewToggleBtn">App Review Sign-In</button></p>
       </form>
 
       <form id="authVerifyForm" class="auth-step" hidden>
@@ -3552,7 +3605,7 @@
         </div>
       </form>
 
-      <!-- Google Play reviewer sign-in: a separate email+password form,
+      <!-- App Review sign-in: a separate email+password form,
            independent of the OTP flow above. Only ever functional for
            the two dedicated review accounts (server-side rejects any
            other email) -- see POST /api/review/rider/login. -->
@@ -3596,6 +3649,10 @@
 
           <a class="pill-link wizard-close-link" href="#" data-action="close-wizard">
             Close
+          </a>
+
+          <a class="pill-link" href="#" id="wizardReviewSignInLink" hidden>
+            App Review Sign-In
           </a>
 
           <a class="pill-link" href="/support.html">
@@ -4440,6 +4497,11 @@
 
             <!-- STAGE: PAYMENT & APPROVAL -->
             <div class="wizard-step" data-stage="payment" id="wizardStagePayment">
+
+            <!-- App Review accounts only: payment is simulated, no card. -->
+            <p class="review-sim-note" id="reviewPaymentNotice" hidden>
+              Simulated payment — App Review mode. No card is charged.
+            </p>
 
             <!-- SAVED CARDS -->
             <div class="field" id="savedCardsField" hidden>
@@ -6776,10 +6838,38 @@
       return true;
     }
 
+    // App Review accounts only (set by the dashboard script from the
+    // server-verified session, GET /api/rider/session's review_mode): the
+    // payment step is simulated, so the card form is replaced by a clear
+    // "no card is charged" notice. Ordinary riders are unaffected.
+    function isAppReviewMode() {
+      return window.HarveyReviewMode === true;
+    }
+
+    function applyReviewPaymentUi() {
+      const review = isAppReviewMode();
+      const notice = document.getElementById("reviewPaymentNotice");
+      const newCardField = document.getElementById("newCardField");
+
+      if (notice) notice.hidden = !review;
+      if (newCardField) newCardField.hidden = review;
+      if (review && els.savedCardsField) els.savedCardsField.hidden = true;
+
+      if (els.authorizePaymentBtn) {
+        els.authorizePaymentBtn.textContent = review
+          ? "Continue with simulated payment"
+          : "Authorize Payment";
+      }
+    }
+
     function goToStage(stageId) {
       if (!STAGES.includes(stageId)) return;
 
       state.stage = stageId;
+
+      if (stageId === "payment") {
+        applyReviewPaymentUi();
+      }
 
       const isConfirm = stageId === "confirm";
 
@@ -7943,6 +8033,34 @@
         }
       }
 
+      // App Review mode: no card, no Stripe call. The server creates a
+      // review ride already authorized with payment not_required, so
+      // there is nothing to authorize here.
+      if (isAppReviewMode()) {
+        state.payment.authorized = true;
+        state.payment.paymentId = "";
+        state.payment.simulated = true;
+
+        if (els.requestRideBtn) {
+          els.requestRideBtn.disabled = false;
+        }
+
+        setBadge("Simulated Payment");
+        setTimeline(
+          "payment",
+          "Simulated payment — App Review mode. No card is charged."
+        );
+        setLiveStatus(
+          "Simulated payment ready (App Review mode)."
+        );
+        showNotice(
+          "Simulated payment — App Review mode. No card is charged.",
+          "success"
+        );
+
+        return true;
+      }
+
       const usingSavedCard =
         Boolean(state.payment.selectedMethodId) &&
         state.payment.selectedMethodId !== "new";
@@ -8278,7 +8396,7 @@
             state.mode
           );
 
-          if (CONFIG.REQUIRE_PAYMENT_AUTHORIZATION && paymentId) {
+          if (CONFIG.REQUIRE_PAYMENT_AUTHORIZATION && paymentId && !isAppReviewMode()) {
             try {
               await apiPost(
                 `${CONFIG.ENDPOINTS.authorizeRide}/${encodeURIComponent(state.ride.rideId)}/authorize`,
@@ -8328,7 +8446,9 @@
         );
 
         showNotice(
-          "Dispatch request submitted successfully.",
+          isAppReviewMode()
+            ? "Dispatch request submitted (App Review mode: simulated ride and payment)."
+            : "Dispatch request submitted successfully.",
           "success"
         );
 
@@ -9666,6 +9786,7 @@
     }
 
     function resetAuthStep() {
+      setAuthTabsVisible(true);
       authEls.startForm.hidden = false;
       authEls.verifyForm.hidden = true;
       clearAuthError(authEls.startError);
@@ -9889,6 +10010,8 @@
         approval_status: data.approval_status
       };
 
+      setAppReviewMode(data.review_mode === true);
+
       // Non-authoritative UI continuity only (other code on this page
       // still reads this key directly during the migration) -- never
       // treated as proof of identity by this bootstrap check itself,
@@ -9908,6 +10031,8 @@
 
       hideAuthOverlay();
       resetAuthStep();
+      reviewEntryOpened = false;
+      setSignedOutReviewEntry(false);
       await runAuthenticatedBoot();
     }
 
@@ -9928,6 +10053,8 @@
       clearRiderSession();
       state.riderId = "";
       state.riderProfile = null;
+      setAppReviewMode(false);
+      setSignedOutReviewEntry(true);
 
       if (authEls.logoutBtn) {
         authEls.logoutBtn.disabled = false;
@@ -9987,12 +10114,68 @@
       await requestLoginCode();
     }
 
-    // Google Play reviewer sign-in: a separate email+password form (see
+    // App Review sign-in: a separate email+password form (see
     // authReviewForm in the HTML above), independent of the OTP flow
     // above it. POST /api/review/rider/login mints the exact same
     // session cookie a real OTP login does, so completeSignIn() below
     // works unchanged for a reviewer session.
+    // App Review mode (server-verified via GET /api/rider/session's
+    // review_mode, true only for the flagged review account): shows the
+    // "simulated" banner and lets the ride wizard skip the card step.
+    // Purely presentational -- the server decides what is simulated.
+    function setAppReviewMode(on) {
+      window.HarveyReviewMode = on === true;
+      document.body.classList.toggle("app-review-mode", window.HarveyReviewMode);
+
+      const banner = document.getElementById("appReviewBanner");
+
+      if (banner) {
+        banner.hidden = !window.HarveyReviewMode;
+      }
+    }
+
+    // Signed-out entry points to the existing reviewer form. Shown
+    // regardless of rider_auth_ui_enabled (which stays off): they open
+    // only the email+password form, which the server accepts solely for
+    // the flagged App Review accounts.
+    let reviewEntryOpened = false;
+
+    function setSignedOutReviewEntry(visible) {
+      ["heroReviewSignInBtn", "wizardReviewSignInLink"].forEach((id) => {
+        const el = document.getElementById(id);
+
+        if (el) {
+          el.hidden = !visible;
+        }
+      });
+    }
+
+    function openAppReviewSignIn(event) {
+      if (event) {
+        event.preventDefault();
+      }
+
+      if (window.HarveyRideWizard) {
+        window.HarveyRideWizard.close();
+      }
+
+      reviewEntryOpened = true;
+      resetAuthStep();
+      showAuthOverlay();
+      showReviewForm();
+    }
+
+    // The Phone/Email tabs belong to the OTP form only; hiding them while
+    // the reviewer form is open avoids implying it is a phone sign-in.
+    function setAuthTabsVisible(visible) {
+      const tabs = document.querySelector("#riderAuthOverlay .auth-tabs");
+      if (tabs) {
+        tabs.hidden = !visible;
+      }
+    }
+
     function showReviewForm() {
+      setAuthTabsVisible(false);
       authEls.startForm.hidden = true;
       authEls.reviewForm.hidden = false;
       clearAuthError(authEls.reviewError);
@@ -10000,6 +10183,23 @@
     }
 
     function hideReviewForm() {
+      // Opened from a signed-out App Review entry point: "Back" closes
+      // the overlay instead of dropping an ordinary visitor into the
+      // phone/email sign-in form, which isn't enabled for them yet.
+      if (reviewEntryOpened) {
+        reviewEntryOpened = false;
+        authEls.reviewEmail.value = "";
+        authEls.reviewPassword.value = "";
+        clearAuthError(authEls.reviewError);
+        authEls.reviewForm.hidden = true;
+        authEls.startForm.hidden = false;
+        setAuthTabsVisible(true);
+        hideAuthOverlay();
+        return;
+      }
+
+      setAuthTabsVisible(true);
+
       authEls.reviewForm.hidden = true;
       authEls.startForm.hidden = false;
       clearAuthError(authEls.reviewError);
@@ -10014,7 +10214,7 @@
     // no-enumeration principle the server already applies.
     function resolveReviewLoginMessage(status, retryAfterSeconds) {
       if (status === 503) {
-        return "Google Play review sign-in is temporarily disabled.";
+        return "App review sign-in is temporarily disabled.";
       }
 
       if (status === 429) {
@@ -10097,6 +10297,14 @@
       if (authEls.reviewForm) {
         authEls.reviewForm.addEventListener("submit", handleReviewSignIn);
       }
+
+      ["heroReviewSignInBtn", "wizardReviewSignInLink"].forEach((id) => {
+        const el = document.getElementById(id);
+
+        if (el) {
+          el.addEventListener("click", openAppReviewSignIn);
+        }
+      });
 
       if (authEls.logoutBtn) {
         authEls.logoutBtn.addEventListener("click", handleLogout);
@@ -10216,6 +10424,20 @@
       `;
     }
 
+    function rememberDefaultHeroCopy() {
+      if (els.heroTitle.dataset.defaultTitle === undefined) {
+        els.heroTitle.dataset.defaultTitle = els.heroTitle.textContent;
+        els.heroText.dataset.defaultText = els.heroText.textContent;
+      }
+    }
+
+    function restoreDefaultHeroCopy() {
+      if (els.heroTitle.dataset.defaultTitle !== undefined) {
+        els.heroTitle.textContent = els.heroTitle.dataset.defaultTitle;
+        els.heroText.textContent = els.heroText.dataset.defaultText;
+      }
+    }
+
     async function loadRiderStatus() {
       // state.riderId/riderProfile may already be set by
       // bootstrapRiderSession() (server-verified, via GET
@@ -10234,6 +10456,8 @@
         !state.riderId &&
         !state.riderProfile?.email
       ) {
+        rememberDefaultHeroCopy();
+
         els.heroTitle.textContent =
           "Finish rider setup to continue.";
 
@@ -10243,6 +10467,10 @@
         renderRider();
         return;
       }
+
+      // Signing in without a page reload (e.g. App Review Sign-In) must
+      // replace the signed-out "Finish rider setup" copy shown above.
+      restoreDefaultHeroCopy();
 
       const query = state.riderId
         ? `riderId=${encodeURIComponent(state.riderId)}`
@@ -11524,10 +11752,14 @@
       const bootstrap = await bootstrapRiderSession();
 
       if (bootstrap.ok) {
+        setSignedOutReviewEntry(false);
         hideAuthOverlay();
         await runAuthenticatedBoot();
         return;
       }
+
+      setAppReviewMode(false);
+      setSignedOutReviewEntry(true);
 
       const authUiEnabled = await isRiderAuthUiEnabled();
 

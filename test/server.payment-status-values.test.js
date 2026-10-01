@@ -159,7 +159,7 @@ describe("rides_payment_status_check allowed list", () => {
   test("covers every string literal server.js assigns to payment_status", () => {
     const source = fs.readFileSync(path.join(__dirname, "..", "server.js"), "utf8");
     const literals = [...source.matchAll(/\bpayment_status\s*:\s*"([a-z_]+)"/g)].map((m) => m[1]);
-    expect(new Set(literals)).toEqual(new Set(["succeeded", "authorized", "failed"]));
+    expect(new Set(literals)).toEqual(new Set(["succeeded", "authorized", "failed", "not_required"]));
     for (const value of literals) expectAllowed(value);
   });
 });
