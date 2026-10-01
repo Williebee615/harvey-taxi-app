@@ -3502,6 +3502,15 @@ const {
   buildFlagDiagnosticLogEvent
 } = require("./lib/reviewAccounts");
 
+const {
+  DELETION_STATUS,
+  DELETION_MODE,
+  REVIEW_DELETION_MESSAGE,
+  planAccountDeletion,
+  resolveAccountByVerifiedPhone,
+  isDeletionConfirmed
+} = require("./lib/accountDeletion");
+
 // requireRider — P0 remediation PR #1 (docs/p0-security-remediation-plan.md).
 // Not yet applied to any route: this only establishes the middleware and
 // its session-validation logic. Wiring it into rider-owned routes (and
@@ -19913,272 +19922,261 @@ async function anonymizeAccount({
 
   }
 
+  // Same for drivers: rides keeps its own driver_name/driver_phone
+  // snapshot, separate from the drivers row scrubbed above.
+  if (table === "drivers") {
+    await supabase
+      .from("rides")
+      .update({
+        driver_name: "Deleted Driver",
+        driver_phone: null,
+        updated_at: now
+      })
+      .eq("driver_id", id);
+  }
+
   return true;
 
 }
 
-/* -------- RIDER: immediate self-service deletion -------- */
-
-app.post(
-
-  "/api/account/rider/delete",
-
-  asyncRoute(async (req, res) => {
-
-    const riderId =
-
-      cleanString(req.body.rider_id, 100);
-
-    const phone =
-
-      cleanPhone(req.body.phone);
-
-    const code =
-
-      cleanString(req.body.code, 20);
-
-    const reason =
-
-      cleanString(req.body.reason, 500);
-
-    if (!riderId || !phone || !code) {
-
-      return fail(
-
-        res,
-
-        "rider_id, phone, and a verification code are required to delete your account.",
-
-        400
-
-      );
-
-    }
-
-    // Confirm identity via OTP (same mechanism as signup verify).
-
-    const verification =
-
-      await verifyCode({
-
-        channel: "sms",
-
-        destination: phone,
-
-        code,
-
-        purpose: "account_deletion"
-
-      });
-
-    if (!verification.ok) {
-
-      return fail(
-
-        res,
-
-        verification.reason || "Verification failed.",
-
-        400
-
-      );
-
-    }
-
-    // Ensure the rider exists and the phone matches.
-
-    const { data: rider, error } =
-
-      await supabase
-
-        .from("riders")
-
-        .select("id, phone")
-
-        .eq("id", riderId)
-
-        .maybeSingle();
-
-    if (error || !rider) {
-
-      return fail(res, "Rider account not found.", 404);
-
-    }
-
-    try {
-
-      await anonymizeAccount({
-
-        table: "riders",
-
-        id: riderId,
-
-        reason,
-
-        deletedBy: "rider_self"
-
-      });
-
-    } catch (delErr) {
-
-      console.error("❌ Rider deletion failed:", delErr.message);
-
-      return fail(res, "Account deletion could not be completed.", 500);
-
-    }
-
-    // Record the completed deletion for the audit trail.
-
-    const requestId = makeId("DEL");
-
+/* Designated App Review accounts: record the request and confirm it,
+   but keep the account (see lib/accountDeletion.js). Auditable through
+   both deletion_requests (status review_simulated, kept out of the
+   admin pending queue) and audit_logs. Never sends SMS. */
+async function recordReviewDeletionSimulation({ userType, userId, reason, verifiedBy, req }) {
+  const requestId = makeId("DEL");
+  const now = nowIso();
+  const { error } =
     await supabase
-
       .from("deletion_requests")
-
       .insert({
-
         request_id: requestId,
-
-        user_type: "rider",
-
-        user_id: riderId,
-
-        status: "completed",
-
+        user_type: userType,
+        user_id: userId,
+        status: DELETION_STATUS.REVIEW_SIMULATED,
         reason,
-
-        requested_at: nowIso(),
-
-        completed_at: nowIso(),
-
-        reviewed_by: "self_service"
-
+        requested_at: now,
+        completed_at: now,
+        reviewed_by: "app_review_simulation"
       });
+  if (error) {
+    console.error("❌ Review deletion simulation insert failed:", error.message);
+  }
+  await auditLog({
+    actor_type: userType,
+    actor_id: userId,
+    action: "account_deletion_review_simulated",
+    entity_type: userType,
+    entity_id: userId,
+    metadata: { request_id: requestId, verified_by: verifiedBy, account_preserved: true },
+    req
+  }).catch(() => {});
+  return requestId;
+}
 
+/* -------- RIDER: immediate self-service deletion --------
+   Identity comes from one of two places, never from a client-supplied
+   rider id:
+     - a valid rider session (in-app, signed in), plus typing DELETE;
+     - an SMS one-time code, with the account resolved from that
+       verified phone number (no session needed). */
+app.post(
+  "/api/account/rider/delete",
+  rateLimit({ windowMs: 10 * 60_000, max: 10, keyPrefix: "account_rider_delete_ip" }),
+  asyncRoute(async (req, res) => {
+    const reason =
+      cleanString(req.body.reason, 500);
+    const sessionRider =
+      await resolveVerifiedRiderSession(req);
+    let rider = null;
+    let verifiedBy = null;
+    if (sessionRider) {
+      if (!isDeletionConfirmed(req.body.confirm)) {
+        return fail(res, "Type DELETE to confirm account deletion.", 400);
+      }
+      rider = sessionRider;
+      verifiedBy = "rider_session";
+    } else {
+      const phone =
+        cleanPhone(req.body.phone);
+      const code =
+        cleanString(req.body.code, 20);
+      if (!phone || !code) {
+        return fail(
+          res,
+          "Sign in, or enter your account phone number and verification code, to delete your account.",
+          400
+        );
+      }
+      const verification =
+        await verifyCode({
+          channel: "sms",
+          destination: phone,
+          code,
+          purpose: "account_deletion"
+        });
+      if (!verification.ok) {
+        return fail(
+          res,
+          verification.reason || "Verification failed.",
+          400
+        );
+      }
+      const { data: rows, error } =
+        await supabase
+          .from("riders")
+          .select("id, phone, is_review_account")
+          .eq("phone", phone)
+          .limit(2);
+      if (error) {
+        throw error;
+      }
+      const match = resolveAccountByVerifiedPhone(rows);
+      if (!match.ok) {
+        return fail(res, match.message, match.statusCode);
+      }
+      rider = match.row;
+      verifiedBy = "sms_code";
+    }
+    const riderId = rider.id;
+    const plan = planAccountDeletion({ row: rider, userType: "rider" });
+    if (plan.mode === DELETION_MODE.REVIEW_SIMULATED) {
+      const requestId = await recordReviewDeletionSimulation({
+        userType: "rider",
+        userId: riderId,
+        reason,
+        verifiedBy,
+        req
+      });
+      return ok(res, {
+        deleted: false,
+        simulated: true,
+        request_id: requestId,
+        status: DELETION_STATUS.REVIEW_SIMULATED,
+        message: REVIEW_DELETION_MESSAGE
+      });
+    }
+    try {
+      await anonymizeAccount({
+        table: "riders",
+        id: riderId,
+        reason,
+        deletedBy: "rider_self"
+      });
+    } catch (delErr) {
+      console.error("❌ Rider deletion failed:", delErr.message);
+      return fail(res, "Account deletion could not be completed.", 500);
+    }
+    // Record the completed deletion for the audit trail. The account is
+    // already anonymized at this point, so a failed insert is logged
+    // rather than reported to the rider as a failed deletion.
+    const requestId = makeId("DEL");
+    const { error: recordError } =
+      await supabase
+        .from("deletion_requests")
+        .insert({
+          request_id: requestId,
+          user_type: "rider",
+          user_id: riderId,
+          status: DELETION_STATUS.COMPLETED,
+          reason,
+          requested_at: nowIso(),
+          completed_at: nowIso(),
+          reviewed_by: "self_service"
+        });
+    if (recordError) {
+      console.error("❌ Rider deletion record insert failed:", recordError.message);
+    }
     auditLog({
-
       actor_type: "rider",
-
       actor_id: riderId,
-
       action: "account_deleted",
-
       entity_type: "rider",
-
       entity_id: riderId,
-
-      metadata: { self_service: true },
-
+      metadata: { self_service: true, verified_by: verifiedBy, request_id: requestId },
       req
-
     }).catch(() => {});
-
+    if (sessionRider) {
+      clearRiderSessionCookie(res);
+    }
     return ok(res, {
-
       deleted: true,
-
+      request_id: requestId,
       message: "Your account has been deleted and your personal information removed."
-
     });
-
   })
-
 );
 
-/* -------- DRIVER: request deletion (revokes access now) -------- */
-
+/* -------- DRIVER: request deletion (revokes access now) --------
+   The driver's own session only (no admin override). The request is
+   recorded before access is revoked, so a failure never leaves a
+   driver locked out with no request on file. */
 app.post(
-
   "/api/account/driver/delete-request",
-
-  requireDriver,
-
+  requireDriverSelf,
   asyncRoute(async (req, res) => {
-
     const driverId = req.driver.id;
-
     const reason =
-
       cleanString(req.body.reason, 500);
-
-    // Immediately revoke login access (anonymization waits for review).
-
-    await supabase
-
-      .from("drivers")
-
-      .update({
-
-        access_revoked: true,
-
-        status: "deletion_pending",
-
-        updated_at: nowIso()
-
-      })
-
-      .eq("id", driverId);
-
-    const requestId = makeId("DEL");
-
-    const { error } =
-
-      await supabase
-
-        .from("deletion_requests")
-
-        .insert({
-
-          request_id: requestId,
-
-          user_type: "driver",
-
-          user_id: driverId,
-
-          status: "pending",
-
-          reason,
-
-          requested_at: nowIso()
-
-        });
-
-    if (error) {
-
-      throw error;
-
+    const plan = planAccountDeletion({ row: req.driver, userType: "driver" });
+    if (plan.mode === DELETION_MODE.REVIEW_SIMULATED) {
+      const requestId = await recordReviewDeletionSimulation({
+        userType: "driver",
+        userId: driverId,
+        reason,
+        verifiedBy: "driver_session",
+        req
+      });
+      return ok(res, {
+        request_id: requestId,
+        simulated: true,
+        status: DELETION_STATUS.REVIEW_SIMULATED,
+        message: REVIEW_DELETION_MESSAGE
+      });
     }
-
+    const requestId = makeId("DEL");
+    const { error } =
+      await supabase
+        .from("deletion_requests")
+        .insert({
+          request_id: requestId,
+          user_type: "driver",
+          user_id: driverId,
+          status: DELETION_STATUS.PENDING,
+          reason,
+          requested_at: nowIso()
+        });
+    if (error) {
+      throw error;
+    }
+    // Immediately revoke login access (anonymization waits for review).
+    const { error: revokeError } =
+      await supabase
+        .from("drivers")
+        .update({
+          access_revoked: true,
+          status: "deletion_pending",
+          updated_at: nowIso()
+        })
+        .eq("id", driverId);
+    if (revokeError) {
+      throw revokeError;
+    }
     auditLog({
-
       actor_type: "driver",
-
       actor_id: driverId,
-
       action: "account_deletion_requested",
-
       entity_type: "driver",
-
       entity_id: driverId,
-
       metadata: { request_id: requestId },
-
       req
-
     }).catch(() => {});
-
     return ok(res, {
-
       request_id: requestId,
-
-      status: "pending",
-
+      status: DELETION_STATUS.PENDING,
       message: "Your deletion request was received and your account access has been disabled. An administrator will finalize the deletion after review."
-
     });
-
   })
-
 );
 
 /* -------- ADMIN: list deletion requests -------- */
