@@ -274,6 +274,10 @@ const ENABLE_FOOD_DELIVERY = envBool("ENABLE_FOOD_DELIVERY", true);
 const ENABLE_GROCERY_DELIVERY = envBool("ENABLE_GROCERY_DELIVERY", true);
 
 const ENABLE_HTAF_APPLICATIONS = envBool("ENABLE_HTAF_APPLICATIONS", true);
+// Applicant data stays within HTAF until the provider agreement and board
+// approval are recorded and the operator explicitly enables this transfer.
+const HTAF_RIDE_CREATION_ENABLED = envBool("HTAF_RIDE_CREATION_ENABLED", false);
+const HTAF_AI_TRIAGE_ENABLED = envBool("HTAF_AI_TRIAGE_ENABLED", false);
 
 /* =========================================================
 
@@ -5637,6 +5641,20 @@ app.post(
   requireAdmin,
   rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "htaf_triage" }),
   asyncRoute(async (req, res) => {
+    if (!HTAF_AI_TRIAGE_ENABLED || !openai) {
+      auditLog({
+        actor_type: "admin",
+        actor_id: req.admin.email,
+        action: "htaf_ai_triage_blocked",
+        entity_type: "htaf_application",
+        entity_id: cleanString(req.params.id, 80),
+        metadata: {
+          reason: !HTAF_AI_TRIAGE_ENABLED ? "HTAF_AI_TRIAGE_ENABLED is off" : "no AI provider configured"
+        },
+        req
+      }).catch(() => {});
+      return fail(res, "HTAF AI triage is disabled.", 403);
+    }
     const id = cleanString(req.params.id, 80);
     const { data: application, error } = await supabase
       .from("htaf_applications")
@@ -19306,6 +19324,20 @@ app.post(
   requireAdmin,
 
   asyncRoute(async (req, res) => {
+    if (!HTAF_RIDE_CREATION_ENABLED) {
+      // IDs only: the blocked attempt is recorded without reading or
+      // logging anything from the application itself.
+      auditLog({
+        actor_type: "admin",
+        actor_id: req.admin.email,
+        action: "htaf_ride_creation_blocked",
+        entity_type: "htaf_application",
+        entity_id: cleanString(req.params.id, 100),
+        metadata: { reason: "HTAF_RIDE_CREATION_ENABLED is off" },
+        req
+      }).catch(() => {});
+      return fail(res, "HTAF ride creation is paused pending an approved provider agreement.", 403);
+    }
 
     const applicationId =
 
@@ -21848,6 +21880,15 @@ app.get(
 
       features: {
 
+        htaf_ride_creation:
+
+          HTAF_RIDE_CREATION_ENABLED,
+
+        htaf_ai_triage:
+
+          Boolean(HTAF_AI_TRIAGE_ENABLED && openai),
+
+
         rider_approval_gate:
 
           ENABLE_RIDER_APPROVAL_GATE,
@@ -23255,6 +23296,14 @@ async function startServer() {
 
         `🤖 AI Support: ${openai ? "ON" : "OFF"}`
 
+      );
+
+      console.log(
+        `🚐 HTAF ride creation: ${HTAF_RIDE_CREATION_ENABLED ? "ON" : "OFF"}`
+      );
+
+      console.log(
+        `🧠 HTAF AI triage: ${HTAF_AI_TRIAGE_ENABLED && openai ? "ON" : "OFF"}`
       );
 
       console.log(
