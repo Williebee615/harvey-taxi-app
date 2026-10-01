@@ -36,33 +36,61 @@
     return node;
   }
 
+  // Layout. Desktop: a panel above the launcher. Phones (<600px): a sheet
+  // that fills the visible viewport -- sized from window.visualViewport,
+  // so an open keyboard shrinks the sheet instead of covering the input.
+  // The 911 banner is a fixed row outside the scrolling message list. The
+  // launcher sits above any bottom navigation bar (measured, see
+  // bottomInset()) and is hidden while the assistant is open or the
+  // keyboard is up.
   var css =
-    ".hta-btn{position:fixed;left:16px;bottom:calc(88px + env(safe-area-inset-bottom,0px));z-index:9998;border:0;border-radius:999px;padding:12px 16px;background:#1d4ed8;color:#fff;font:600 14px/1 Inter,Arial,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.35);cursor:pointer}" +
-    ".hta-panel{position:fixed;left:16px;right:16px;bottom:calc(140px + env(safe-area-inset-bottom,0px));max-width:380px;max-height:min(70vh,calc(100vh - 170px));z-index:9999;display:none;flex-direction:column;background:#0d1630;color:#f4f7ff;border:1px solid rgba(122,162,255,.25);border-radius:16px;font:14px/1.45 Inter,Arial,sans-serif;box-shadow:0 20px 50px rgba(0,0,0,.45)}" +
+    ".hta-btn{position:fixed;left:16px;bottom:var(--hta-bottom,16px);z-index:9998;border:0;border-radius:999px;padding:12px 16px;background:#1d4ed8;color:#fff;font:600 14px/1 Inter,Arial,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.35);cursor:pointer}" +
+    ".hta-btn[hidden]{display:none}" +
+    ".hta-panel{position:fixed;left:16px;bottom:var(--hta-bottom,16px);width:380px;max-width:calc(100vw - 32px);height:min(560px,calc(var(--hta-vh,100vh) - var(--hta-bottom,16px) - 32px));z-index:9999;display:none;flex-direction:column;overflow:hidden;background:#0d1630;color:#f4f7ff;border:1px solid rgba(122,162,255,.25);border-radius:16px;font:14px/1.45 Inter,Arial,sans-serif;box-shadow:0 20px 50px rgba(0,0,0,.45)}" +
     ".hta-panel.open{display:flex}" +
-    ".hta-head,.hta-911,.hta-form{flex-shrink:0}" +
+    "@media (max-width:599px){.hta-panel{left:8px;right:8px;width:auto;max-width:none;top:calc(var(--hta-top,0px) + 8px + env(safe-area-inset-top,0px));bottom:auto;height:calc(var(--hta-vh,100vh) - 16px - env(safe-area-inset-top,0px));border-radius:14px}}" +
+    ".hta-head,.hta-911,.hta-form{flex:0 0 auto}" +
     ".hta-head{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid rgba(122,162,255,.18)}" +
-    ".hta-911{margin:10px 14px 4px;padding:8px 10px;border-radius:10px;background:#2e1019;border:1px solid rgba(255,126,151,.4);font-size:12.5px}" +
+    ".hta-911{margin:10px 14px;padding:8px 10px;border-radius:10px;background:#2e1019;border:1px solid rgba(255,126,151,.4);font-size:12.5px}" +
     ".hta-911 a{color:#ff9bb0;font-weight:700}" +
-    ".hta-log{flex:1 1 auto;min-height:0;overflow-y:auto;padding:10px 14px;display:flex;flex-direction:column;gap:8px}" +
-    ".hta-msg{padding:8px 10px;border-radius:12px;max-width:90%;white-space:pre-wrap}" +
+    ".hta-log{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:4px 14px 12px;display:flex;flex-direction:column;gap:8px;border-top:1px solid rgba(122,162,255,.12)}" +
+    ".hta-msg{padding:8px 10px;border-radius:12px;max-width:90%;white-space:pre-wrap;flex:0 0 auto}" +
     ".hta-me{align-self:flex-end;background:#1d4ed8}.hta-bot{align-self:flex-start;background:#16244a}" +
     ".hta-bot.hta-urgent{background:#4a1220;border:1px solid #ff7e97}" +
     ".hta-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}" +
-    ".hta-actions a,.hta-actions button{border:1px solid rgba(122,162,255,.35);background:#0a1228;color:#f4f7ff;border-radius:10px;padding:6px 10px;font:600 13px Inter,Arial,sans-serif;text-decoration:none;cursor:pointer}" +
+    ".hta-actions a,.hta-actions button{border:1px solid rgba(122,162,255,.35);background:#0a1228;color:#f4f7ff;border-radius:10px;padding:8px 10px;min-height:36px;font:600 13px Inter,Arial,sans-serif;text-decoration:none;cursor:pointer}" +
     ".hta-actions .hta-danger{background:#5a1426;border-color:#ff7e97}" +
-    ".hta-form{display:flex;gap:6px;padding:10px 14px;border-top:1px solid rgba(122,162,255,.18)}" +
-    ".hta-form input{flex:1;min-width:0;background:#0a1228;color:#f4f7ff;border:1px solid rgba(122,162,255,.25);border-radius:10px;padding:8px 10px;font:inherit}" +
-    ".hta-form button,.hta-close{background:#1d4ed8;color:#fff;border:0;border-radius:10px;padding:8px 12px;font:inherit;cursor:pointer}" +
-    ".hta-close{background:transparent;font-size:18px;padding:2px 8px}" +
+    ".hta-form{display:flex;gap:6px;padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));border-top:1px solid rgba(122,162,255,.18)}" +
+    ".hta-form input{flex:1;min-width:0;background:#0a1228;color:#f4f7ff;border:1px solid rgba(122,162,255,.25);border-radius:10px;padding:10px;font:16px Inter,Arial,sans-serif}" +
+    ".hta-form button,.hta-close{background:#1d4ed8;color:#fff;border:0;border-radius:10px;padding:8px 14px;font:inherit;cursor:pointer;min-height:40px}" +
+    ".hta-close{background:transparent;font-size:20px;padding:2px 10px;min-width:40px}" +
     ".hta-src{font-size:11px;color:#aab8de;margin-top:4px}";
+
+  // Height of anything fixed to the bottom of the screen (a page's bottom
+  // navigation), so the launcher sits above it rather than on top of it.
+  function bottomInset(ignore) {
+    var vh = window.innerHeight;
+    var inset = 0;
+    var nodes = document.body.querySelectorAll("nav, footer, [class*=bottom], [class*=tab-bar], [class*=tabbar], [id*=bottom]");
+    for (var i = 0; i < nodes.length; i++) {
+      var node = nodes[i];
+      if (ignore && ignore.indexOf(node) >= 0) continue;
+      var cs = window.getComputedStyle(node);
+      if (cs.position !== "fixed" && cs.position !== "sticky") continue;
+      if (cs.display === "none" || cs.visibility === "hidden") continue;
+      var r = node.getBoundingClientRect();
+      if (r.height <= 0 || r.height > vh * 0.4 || r.width < window.innerWidth * 0.5) continue;
+      if (Math.abs(r.bottom - vh) <= 2) inset = Math.max(inset, r.height);
+    }
+    return inset;
+  }
 
   function mount() {
     var style = el("style");
     style.textContent = css;
     document.head.appendChild(style);
 
-    var btn = el("button", { type: "button", class: "hta-btn", "aria-expanded": "false", "aria-controls": "htaPanel" }, "Harvey Assistant");
+    var btn = el("button", { type: "button", class: "hta-btn", "aria-expanded": "false", "aria-controls": "htaPanel", "data-testid": "hta-launcher" }, "Harvey Assistant");
     var panel = el("section", { id: "htaPanel", class: "hta-panel", role: "dialog", "aria-label": "Harvey Assistant" });
     var head = el("div", { class: "hta-head" });
     head.appendChild(el("strong", {}, "Harvey Assistant"));
@@ -84,12 +112,39 @@
     panel.appendChild(form);
     document.body.appendChild(panel);
     document.body.appendChild(btn);
+    var root = document.documentElement;
+    var keyboardOpen = false;
+
+    function layout() {
+      var vv = window.visualViewport;
+      var visible = vv ? vv.height : window.innerHeight;
+      // A visible viewport much shorter than the layout viewport means the
+      // on-screen keyboard is up.
+      keyboardOpen = Boolean(vv) && window.innerHeight - visible > 120;
+      root.style.setProperty("--hta-vh", visible + "px");
+      root.style.setProperty("--hta-top", (vv ? vv.offsetTop : 0) + "px");
+      root.style.setProperty("--hta-bottom", "calc(" + (bottomInset([panel, btn]) + 16) + "px + env(safe-area-inset-bottom, 0px))");
+      btn.hidden = panel.classList.contains("open") || keyboardOpen;
+    }
 
     function toggle(open) {
       panel.classList.toggle("open", open);
       btn.setAttribute("aria-expanded", String(open));
+      layout();
       if (open) input.focus();
+      else btn.focus();
     }
+    layout();
+    window.addEventListener("resize", layout);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", layout);
+      window.visualViewport.addEventListener("scroll", layout);
+    }
+    // Pages change their bottom bars as screens open and close.
+    setInterval(layout, 1500);
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && panel.classList.contains("open")) toggle(false);
+    });
     btn.addEventListener("click", function () { toggle(!panel.classList.contains("open")); });
     close.addEventListener("click", function () { toggle(false); });
 

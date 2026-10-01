@@ -1,10 +1,16 @@
 # Harvey Taxi AI Agent Manager
 
-Status: **implemented and off by default.** Every capability is behind a `system_flags` row that defaults to off. This release does not turn on any live autonomous operation.
+Status: **implemented, rules-only, off by default.** Every capability is behind a `system_flags` row that defaults to off. Automation stays off.
 
-The feature has **no dependency on OpenAI or Anthropic**. It needs no account or API key from either provider. It runs entirely on the Harvey Taxi rules engine. An optional, self-hosted, open-weight model can rephrase the rules engine's answers.
+**What this release is:**
+- rules-based rider and driver assistance;
+- dispatch recommendations for admins;
+- escalation of defined cases to a human;
+- optional, guarded automatic redispatch of stalled paid rides, which is off.
 
----
+**What it is not:** it does not handle every rider or driver decision. It answers a fixed set of questions from live data, and proposes actions that the rider or driver confirms in the existing screens. It never changes prices, payments, eligibility or ride status itself; the only exception is the guarded redispatch, which uses the existing dispatch function.
+
+It has **no dependency on OpenAI or Anthropic** and needs no account or key from either provider. The release runs **in rules-only mode**: no model host is needed or purchased. Optional model phrasing is documented in sections 5 and 6 for later.
 
 ## 1. What was inspected and reused
 
@@ -19,11 +25,18 @@ The feature has **no dependency on OpenAI or Anthropic**. It needs no account or
 | Safety | `POST /api/safety/911` (records an emergency alert) | The assistant shows **Call 911** and **Alert Harvey Taxi safety team** buttons. The second calls this existing route after the user confirms. |
 | Existing AI support (`/api/ai/support`, uses `OPENAI_API_KEY`) | Not used | The agent is fully independent of it. Neither depends on the other. |
 
-Inputs that **do not exist** in the live schema, which the agent therefore cannot honor yet:
-- rider preferences (such as favorite drivers or accessibility needs);
-- vehicle-type requirements (such as XL or wheelchair access).
+**Rider preferences and vehicle requirements: confirmed gaps** (I checked the repository and the live database on 2026-10-01):
 
-Recommendations report these as `unsupported_inputs`. Adding them is a separate product and schema decision.
+| Item | What exists | Used by any code? | Status |
+|---|---|---|---|
+| Favorite / preferred drivers | Table `preferred_drivers` (`id, rider_id, driver_id, nickname, is_active, …`), RLS-hardened | No (0 references in code) | **0 rows.** A design proposal (`docs/women-driver-preference-and-favorite-drivers-architecture.md`, *not approved*) says this table should **not** be reused. |
+| Driver preference score | `drivers.preferred_score` (numeric, default 0) | No | **0 of 28** drivers have a non-zero value. |
+| "Prefer a woman driver" | Proposal document only | — | Not built. |
+| Vehicle type / class (XL, wheelchair-accessible, seats, car seat, pets) | No column or table anywhere | — | **Absent.** Drivers have only make/model/year/colour/plate and `supports_rides` / `supports_food_delivery` / `supports_grocery_delivery`. |
+| Accessibility needs on a ride | No column; free-text `rides.notes` only | — | **Absent** as structured data. |
+| Ride types in use | `rides.ride_type`: only `standard` appears in production data | — | — |
+
+The recommender therefore uses the capability columns and reports `unsupported_inputs: ["rider_preferences", "vehicle_type_requirements"]`. It does **not** read `preferred_drivers` or `preferred_score`, because they hold no data and their use is unapproved. Adding these inputs is a separate product, privacy and schema decision.
 
 ## 2. Architecture
 
@@ -85,17 +98,29 @@ Recommendations report these as `unsupported_inputs`. Adding them is a separate 
   - **only the elevated admin token** can enable the automation flags.
 - If the flags cannot be read, the agent is off and automation is blocked (fail closed).
 
-### Transaction safety
-- **Duplicate prevention:** an automatic redispatch first claims the ride with a conditional update. The update requires:
+### Kill switch and stopping automation
+- **Who can use it:** any **authenticated** admin (admin session, admin password or admin token) can turn any agent flag off or engage the kill switch. Turning automation **on** additionally needs the admin token.
+- **Unauthenticated callers cannot change anything.** Every `/api/admin/*` route except sign-in, sign-out and session lookup has admin middleware. This is enforced by a test that enumerates all 50 admin routes. A second test checks that missing, wrong, empty and forged credentials (including a forged session cookie) all get 401 and leave the flags unchanged.
+- **Immediate, including queued work.**
+  - The agent re-reads its flags from the database **before every automated action**, not once per sweep. The remaining planned rides in a running sweep are dropped as soon as the kill switch is on, or automation is off, dispatch is paused, shadow mode is on, or the flags can't be read. This applies on every server instance at its next check.
+  - The 60-second interval only decides when a **new** sweep starts. It is not a delay before the kill switch takes effect.
+- **Between claim and dispatch:** if automation is stopped in that window, the ride is handed back exactly as it was (`dispatch_status` restored, claim cleared). Neither the agent nor the stuck-redispatch recovery will then dispatch it.
+- **Already running:** at most one `dispatchRide()` call per instance can already be in progress when the switch is engaged. It is the platform's own atomic dispatch; it completes or fails as a unit and is logged. No further action starts.
+- **Assistance:** the kill switch also stops assistance from the next request on, because each request reads the flags.
+
+### Transaction safety and duplicate protection
+- **In the database, not in memory.** The redispatch claim is a conditional update that requires:
   - `status = payment_authorized`;
   - `driver_id IS NULL`;
   - `updated_at` unchanged since the snapshot.
 
-  If anything else touched the ride, the claim fails and the agent skips the ride. A per-ride cooldown and an in-process single-flight guard add further protection. The tests cover concurrent runs and a ride that changes mid-run.
-- **Lifecycle:** the agent never writes ride status itself. `dispatchRide()` does, under its existing rules, and it still respects the `dispatch_paused` flag.
-- **Facts:**
-  - the agent never invents prices, ETAs, availability or completed actions;
-  - the output guard rejects any model reply that adds a number, claims an action was completed, adds a link or contact detail, or drops the 911 line.
+  Of any number of concurrent sweeps, on one instance or several, at most one claims a ride.
+- **Cooldown:** the claim stamps `rides.last_dispatch_at`, so the cooldown holds across instances and restarts.
+- **Exhausted rides:** these open one case with a deterministic id (`CASE-DISPATCH-<ride>`). The id is checked before opening, and duplicates are collapsed in the case list.
+- **Crash after the claim:** the existing stuck-redispatch recovery (`dispatch_status = redispatching` plus `dispatch_claimed_at`) picks the ride up.
+- **Verified outcome:** after an automated redispatch, the agent re-reads the ride and its offers, and logs what it observed (`verified`), rather than trusting the return value.
+- **Never written by the agent:** ride status (`dispatchRide()` owns it, and still respects `dispatch_paused`), prices, payments.
+- **Output guard:** rejects model text that adds numbers, claims an action was completed, adds links or contacts, or drops the 911 line.
 
 ### Accountability (`audit_logs`, action prefix `agent.`)
 | action | `metadata.record_type` | Meaning |
@@ -140,6 +165,16 @@ Flags are stored as `system_flags` rows and are all `false` or absent by default
 - `agent_kill_switch`
 
 Rules are stored as a JSON row with key `agent_rules`.
+
+### Model status shown to admins
+| Status | Meaning |
+|---|---|
+| **Disabled** | `AGENT_LLM_BASE_URL` / `AGENT_LLM_MODEL` not set. Rules-only, which is **this release's mode**. |
+| **Not checked** | A model is configured, but no health check has succeeded yet. Rule-based answers are used until one does. |
+| **Healthy** | `GET <base>/models` answered and lists the configured model. The time of the check is shown. Answering a chat request does **not** count as a health check. |
+| **Unreachable** | The last health check failed. Rule-based answers are in use. |
+
+A health check runs once at server start, and on demand from the admin page ("Check model now").
 
 ## 5. Model selection and licensing
 
@@ -190,16 +225,33 @@ The model must **not** run inside the existing web service. It would compete wit
 
 I have not purchased or provisioned any infrastructure.
 
-## 7. Rollout plan
+## 7. Rollout checklist
 
-| Phase | How to enable | Exit criteria |
-|---|---|---|
-| 0. Merge | Nothing to enable. All flags are off. The widget renders nothing, and recommendations are available to admins on request. | The deploy is healthy and booking and dispatch smoke tests pass. |
-| 1. Recommendations and assistance | Admin turns on **Rider & driver assistance**. Admins use **Recommend drivers**. | 2+ weeks: review `agent.decision` outcomes and cases, check that no ungrounded answers appear, and confirm emergency cases reach staff. |
-| 2. Shadow mode | Admin turns on **Shadow mode**. | 2+ weeks: compare each `agent.shadow_decision` with what dispatchers actually did. Agreement and safety are signed off in writing. |
-| 3. Narrow automation | The **elevated** admin turns on **Automation (master)** and **Automatic redispatch**, and turns shadow mode off. | Applies only to stalled paid rides with no live offer, through `dispatchRide()`, capped by the attempt and cooldown rules. Monitor `agent.action_executed`. |
+**Phase 0: merge (everything off)**
+- [ ] #152 merged first, or merged together with this PR. Assistant links target `?screen=book&mode=driver` and `?screen=track&ride_id=`, which work with and without #152; with #152 they open the separate booking and tracking screens.
+- [ ] Deploy. Confirm `GET /api/agent/status` shows `assist_available: false` and that the launcher does not appear on the rider or driver dashboards.
+- [ ] Confirm the admin page shows model status **Disabled** (rules-only).
+- [ ] Booking, payment and dispatch smoke tests pass, unchanged.
 
-Optional at any phase: deploy the model service and set `AGENT_LLM_*`. Remove the variables to go back to rules only.
+**Phase 1: assistance and recommendations (no automation)**
+- [ ] Turn on **Rider & driver assistance** from `/admin-agent.html`.
+- [ ] Phone checks on iOS and Android:
+  - the launcher sits above the bottom navigation;
+  - the 911 banner stays visible;
+  - the input stays above the keyboard;
+  - the launcher is hidden while the assistant is open.
+- [ ] Ask the assistant for an emergency, a refund and a dispute. Each opens a case, and the case appears in the admin queue.
+- [ ] Use **Recommend drivers** on a real stalled ride. Check the exclusion reasons against the driver records.
+- [ ] Two weeks of `agent.decision` review: no ungrounded answers, and no personal data in the logs.
+
+**Phase 2: shadow mode**
+- [ ] Turn on **Shadow mode**. For two or more weeks, compare each `agent.shadow_decision` with what dispatchers actually did.
+- [ ] Written sign-off on agreement and safety.
+
+**Phase 3: automation (not part of this release)**
+- [ ] Only after sign-off: the elevated admin enables **Automation** and **Automatic redispatch**, and turns shadow mode off.
+- [ ] Practise the kill switch: engage it with a stalled test ride queued, then confirm it is not dispatched and the ride is unchanged.
+- [ ] Monitor `agent.action_executed` and check its `verified` fields.
 
 ## 8. Rollback
 
@@ -216,6 +268,27 @@ Optional at any phase: deploy the model service and set `AGENT_LLM_*`. Remove th
 Booking, payment and dispatch never call the agent. They keep working with the agent off, killed, or with its model down. The test suite covers this.
 
 ## 9. Tests
-- `lib/agent/agent.test.js` (50 tests): flags and modes, rule validation, escalation boundaries, sanitizing and redaction, recommender eligibility and isolation, stalled-ride planning, the model client (unset or blocked hosts, timeout, HTTP errors, circuit breaker), the output guard, tool role and ownership checks, assistant behavior (confirmation gating, sessionless privacy, grounded fares, model fallback, database outage, prompt injection) and audit records.
-- `test/server.agent-manager.test.js` (37 tests, real Express routes): permissions on every admin route, elevated-only automation enablement, the kill switch, fail-closed flags, rider ownership, emergency and dispute cases, the read-only nature of recommendations, shadow mode making no writes, manual evaluation being shadow-only, a single redispatch under concurrent sweeps, a changed ride not being claimed, cooldown, pause and kill blocking automation, and attempt-exhausted rides escalating to a human. Runs with the model endpoint unreachable and no OpenAI or Anthropic variables set.
-- `test/agent-manager.browser.test.js` (5 tests, Playwright, skipped without a browser): the admin page on desktop and phone, the signed-out notice, rider status, cancel confirmation, the emergency flow, driver earnings, and the widget staying hidden when the flag is off.
+- **Everything, with Postgres 16 and Chromium** (`HARVEY_TEST_DATABASE_URL`, `HARVEY_REQUIRE_DB_TESTS=1`, Playwright): **55 suites, 1268 passed, 0 skipped, 0 failed.**
+- **CI-style, no database or browser:** 1153 passed, 115 skipped (the DB and browser suites).
+- **Combined with #152** (this branch applied on top of `claude/rider-dashboard-home`): **58 suites, 1300 passed, 0 skipped, 0 failed.**
+- `lib/agent/agent.test.js` (52): flags and modes, rules, escalation, sanitizing and redaction, recommender, stalled-ride planning, the model client and health check (disabled / not checked / healthy only with the model listed / unreachable), the output guard, scoped tools, assistant behavior and audit records.
+- `test/server.agent-manager.test.js` (37): routes, permissions, escalation cases, recommendations being read-only, shadow mode, gated automation, cooldown and pause.
+- `test/server.agent-safety.test.js` (19):
+  - every admin route is protected (enumerated);
+  - 6 kinds of missing or forged credentials on 8 agent admin routes;
+  - unauthenticated callers can't disable assistance or engage the kill switch;
+  - the kill switch stops queued rides mid-sweep, and a ride stopped between claim and dispatch is handed back unchanged;
+  - turning automation off, or a failed flag read, also stops queued work;
+  - two instances sweeping at once dispatch once;
+  - the cooldown survives a restart;
+  - one case per exhausted ride across instances;
+  - a crash after the claim is left for stuck-redispatch recovery;
+  - model status reads not checked, then unreachable.
+- `test/agent-manager.browser.test.js` (7, Playwright):
+  - admin page on desktop and phone, and the signed-out notice;
+  - rider status, cancel confirmation and the emergency flow;
+  - driver earnings;
+  - the launcher hidden when the flag is off;
+  - **phone layout:** the launcher doesn't overlap the bottom navigation and is hidden while the assistant is open; the 911 banner stays outside the scrolling list; the input stays on screen in a 390×480 viewport;
+  - **links:** "Track ride" goes to `?screen=track&ride_id=…`, and "Open booking" opens the booking screen.
+- **Screenshots** (`docs/screenshots/ai-agent-manager/`) use fixture data only. Every image carries a "TEST FIXTURE DATA" watermark and a "TEST DATA - NOT LIVE" tag; names and IDs are `TestDriver …` and `TEST-RIDE-…`. The admin page shows only what the admin API returns and contains no built-in sample data.

@@ -23034,8 +23034,8 @@ function agentAudit(entry, req = null) {
   return auditLog({ ...entry, req }).catch(() => {});
 }
 
-async function openAgentCase({ role, actorId, escalation, message, source, rideId = null }) {
-  const caseId = newAgentCaseId();
+async function openAgentCase({ role, actorId, escalation, message, source, rideId = null, caseId: fixedCaseId = null }) {
+  const caseId = fixedCaseId || newAgentCaseId();
   const entry = agentCaseOpenedEntry({ caseId, role, actorId, escalation, message, source });
   if (rideId) entry.metadata.ride_id = String(rideId);
   await agentAudit(entry);
@@ -23405,6 +23405,12 @@ app.post(
 // planned redispatch through the existing dispatchRide(), after an
 // optimistic claim that fails if anything else touched the ride.
 // forceShadow: an admin's manual "evaluate now" -- never executes.
+// Fresh read before each automated action (see the sweep below).
+async function agentAutomationStillAllowed() {
+  const state = await loadAgentState();
+  return state.ok && state.mode.auto_redispatch_enabled === true;
+}
+
 async function runAgentCoordinationSweep({ forceShadow = false } = {}) {
   if (agentSweepRunning) return { skipped: "already_running" };
   agentSweepRunning = true;
@@ -23421,16 +23427,28 @@ async function runAgentCoordinationSweep({ forceShadow = false } = {}) {
     for (const item of plan) {
       const ride = snapshot.rides.find((r) => String(r.id) === item.ride_id);
       if (item.decision === "escalate") {
+        // One case per ride, across instances and restarts: the case id is
+        // derived from the ride, and an existing case row is checked first.
         if (!agentEscalatedRides.has(item.ride_id)) {
+          const caseId = `CASE-DISPATCH-${item.ride_id}`.slice(0, 40);
+          const { data: existingCase } = await supabase
+            .from("audit_logs")
+            .select("id")
+            .eq("action", AGENT_ACTIONS.CASE_OPENED)
+            .eq("entity_id", caseId)
+            .limit(1);
+          if (!(existingCase || []).length) {
+            await openAgentCase({
+              role: "system",
+              actorId: null,
+              escalation: { category: "dispatch_exhausted", severity: "high" },
+              message: `Ride waiting after ${item.attempts} dispatch attempts; needs a dispatcher.`,
+              source: "coordination",
+              rideId: item.ride_id,
+              caseId
+            });
+          }
           agentEscalatedRides.add(item.ride_id);
-          await openAgentCase({
-            role: "system",
-            actorId: null,
-            escalation: { category: "dispatch_exhausted", severity: "high" },
-            message: `Ride waiting after ${item.attempts} dispatch attempts; needs a dispatcher.`,
-            source: "coordination",
-            rideId: item.ride_id
-          });
         }
         outcomes.push({ ...item, executed: false });
         continue;
@@ -23473,13 +23491,29 @@ async function runAgentCoordinationSweep({ forceShadow = false } = {}) {
         outcomes.push({ ...item, decision: "would_redispatch", candidate_driver_ids: candidateIds, executed: false });
         continue;
       }
-      // Automation path. The claim only succeeds if the ride is still paid,
-      // unassigned and unchanged since the snapshot; dispatch_status
-      // "redispatching" + dispatch_claimed_at hand any crash mid-dispatch
-      // to the existing stuck-redispatch recovery sweep.
+      // Automation path.
+      //
+      // Kill switch: the agent's state is re-read from the database before
+      // every action (not once per sweep), so engaging the kill switch, or
+      // turning any automation flag off, pausing dispatch or turning shadow
+      // mode on, stops the very next action on every server instance. The
+      // remaining planned items of this sweep are dropped, not executed.
+      if (!(await agentAutomationStillAllowed())) {
+        outcomes.push({ ...item, decision: "skipped", reason: "automation_stopped", executed: false });
+        break;
+      }
+      // Duplicate protection is in the database, not in this process: the
+      // claim only succeeds if the ride is still paid, unassigned and
+      // unchanged since the snapshot (updated_at), so of any number of
+      // concurrent sweeps -- here or on other instances -- at most one
+      // claims a ride. last_dispatch_at carries the cooldown across
+      // instances and restarts. dispatch_status "redispatching" +
+      // dispatch_claimed_at hand a crash mid-dispatch to the existing
+      // stuck-redispatch recovery.
+      const claimedAt = nowIso();
       const { data: claimedRows, error: claimError } = await supabase
         .from("rides")
-        .update({ dispatch_status: "redispatching", dispatch_claimed_at: nowIso(), updated_at: nowIso() })
+        .update({ dispatch_status: "redispatching", dispatch_claimed_at: claimedAt, last_dispatch_at: claimedAt, updated_at: claimedAt })
         .eq("id", item.ride_id)
         .eq("status", RIDE_STATUS.PAYMENT_AUTHORIZED)
         .is("driver_id", null)
@@ -23491,12 +23525,36 @@ async function runAgentCoordinationSweep({ forceShadow = false } = {}) {
         continue;
       }
       agentRedispatchHistory.set(item.ride_id, now);
+      // Last check between claim and dispatch. If automation was stopped in
+      // that window, hand the ride back exactly as it was (so neither this
+      // agent nor the stuck-redispatch recovery dispatches it) and stop.
+      if (!(await agentAutomationStillAllowed())) {
+        await supabase
+          .from("rides")
+          .update({ dispatch_status: item.previous_dispatch_status, dispatch_claimed_at: null })
+          .eq("id", item.ride_id)
+          .eq("dispatch_status", "redispatching")
+          .eq("dispatch_claimed_at", claimedAt);
+        outcomes.push({ ...item, decision: "skipped", reason: "automation_stopped", executed: false });
+        break;
+      }
       let dispatchResult;
       try {
         dispatchResult = await dispatchRide(claimed);
       } catch (err) {
         dispatchResult = { dispatched: false, reason: "dispatch_error" };
       }
+      // Verify against the database rather than trusting the return value.
+      const [{ data: afterRide }, { data: afterOffers }] = await Promise.all([
+        supabase.from("rides").select("id,status,dispatch_status,driver_id").eq("id", item.ride_id).maybeSingle(),
+        supabase.from("driver_offers").select("id,status").eq("ride_id", item.ride_id).eq("status", "pending")
+      ]);
+      const verified = {
+        ride_status: afterRide ? afterRide.status : null,
+        pending_offers: (afterOffers || []).length,
+        driver_assigned: Boolean(afterRide && afterRide.driver_id)
+      };
+      const dispatchedVerified = verified.pending_offers > 0 || verified.driver_assigned;
       await agentAudit({
         actor_type: "agent",
         actor_id: "agent-manager",
@@ -23508,12 +23566,14 @@ async function runAgentCoordinationSweep({ forceShadow = false } = {}) {
           policy: "coordination.redispatch_stalled",
           action: "redispatch_via_dispatchRide",
           reason: item.reason,
-          dispatched: Boolean(dispatchResult && dispatchResult.dispatched),
+          dispatched: dispatchedVerified,
+          reported_by_dispatch: Boolean(dispatchResult && dispatchResult.dispatched),
+          verified,
           dispatch_reason: dispatchResult && dispatchResult.reason ? String(dispatchResult.reason).slice(0, 120) : null,
           executed: true
         }
       });
-      outcomes.push({ ...item, decision: "redispatched", dispatched: Boolean(dispatchResult && dispatchResult.dispatched), executed: true });
+      outcomes.push({ ...item, decision: "redispatched", dispatched: dispatchedVerified, verified, executed: true });
     }
     return { mode: forceShadow ? "manual_shadow" : state.mode.mode, outcomes };
   } catch (err) {
@@ -23523,6 +23583,15 @@ async function runAgentCoordinationSweep({ forceShadow = false } = {}) {
     agentSweepRunning = false;
   }
 }
+
+app.post(
+  "/api/admin/agent/model/check",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    await agentLlm.healthCheck();
+    return ok(res, { model: agentLlm.status() });
+  })
+);
 
 app.post(
   "/api/admin/agent/evaluate",
@@ -24030,6 +24099,10 @@ async function startServer() {
       // offer_expiry_sweep_enabled.
       runStuckRedispatchRecovery();
       setInterval(runStuckRedispatchRecovery, 30_000);
+
+      // One real health check at boot so the admin page can say whether the
+      // optional self-hosted model is reachable (Disabled when unset).
+      agentLlm.healthCheck().catch(() => {});
 
       // AI Agent Manager coordination pass. Does nothing unless an admin
       // turns on shadow mode (records "would do" only) or, later and with

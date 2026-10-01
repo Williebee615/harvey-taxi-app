@@ -146,6 +146,7 @@
       </form>
       <h3>Conversational model</h3>
       <p class="muted" id="modelStatus"></p>
+      <button type="button" id="modelCheckBtn" hidden>Check model now</button>
     </section>
   </div>
 
@@ -302,9 +303,14 @@
       return `<label>${esc(label)}<input type="number" step="any" name="${esc(key)}" min="${min}" max="${max}" value="${esc(state.rules[key])}" /></label>`;
     }).join("");
     const m = state.model || {};
-    $("modelStatus").textContent = m.configured
-      ? `Self-hosted model "${m.model}" at ${m.host}. ${m.circuit_open ? "Unreachable: rule-based answers in use." : m.last_error ? `Last error: ${m.last_error}; rule-based answers used for that request.` : m.last_success_at ? `Last answered ${when(m.last_success_at)}.` : "Not used since the server started."}`
-      : `Not configured: rule-based answers only. ${m.problem || ""}`;
+    const HEALTH = {
+      disabled: "Disabled. No self-hosted model is configured; assistance uses rule-based answers only.",
+      not_checked: `Not checked. A model ("${m.model}" at ${m.host}) is configured but no health check has succeeded yet; rule-based answers are used until one does.`,
+      healthy: `Healthy: "${m.model}" at ${m.host} answered a health check ${when(m.last_checked_at)}.`,
+      unreachable: `Unreachable at the last check (${when(m.last_checked_at)}). Rule-based answers are in use.`
+    };
+    $("modelStatus").textContent = HEALTH[m.health] || HEALTH.disabled;
+    $("modelCheckBtn").hidden = !m.configured;
   }
 
   function renderDecisions() {
@@ -383,6 +389,10 @@
   });
   $("killBtn").addEventListener("click", () => setFlag("agent_kill_switch", true));
   $("refreshBtn").addEventListener("click", load);
+  $("modelCheckBtn").addEventListener("click", async () => {
+    try { await api("/api/admin/agent/model/check", { method: "POST", body: {} }); } catch (err) { toast(err.message); }
+    load();
+  });
   $("closeRecBtn").addEventListener("click", () => { $("recPanel").style.display = "none"; });
   $("rejectRecBtn").addEventListener("click", async () => {
     if (!currentRec) return;
