@@ -2610,6 +2610,56 @@
        default (not [hidden]) so there's no flash of dashboard content
        before the bootstrap check resolves; boot() hides it only after
        GET /api/rider/session confirms a real session. */
+    #authCheckRetry {
+      position: fixed;
+      inset: 0;
+      z-index: 10001;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+      background: rgba(4, 8, 20, 0.92);
+    }
+
+    #authCheckRetry[hidden] {
+      display: none;
+    }
+
+    #authCheckRetry .auth-card {
+      width: 100%;
+      max-width: 420px;
+      text-align: center;
+      display: grid;
+      gap: 12px;
+      padding: 24px 20px;
+      border-radius: 20px;
+      background: #0b1430;
+      border: 1px solid rgba(122, 162, 255, 0.28);
+      color: #f4f7ff;
+    }
+
+    #authCheckRetry h2 {
+      font-size: 1.2rem;
+    }
+
+    #authCheckRetry p {
+      color: #aab8de;
+      line-height: 1.5;
+    }
+
+    #authCheckRetry .auth-btn {
+      min-height: 44px;
+      border: 0;
+      border-radius: 12px;
+      background: linear-gradient(90deg, #2563eb, #22d3ee);
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    #authCheckRetry .auth-btn:disabled {
+      opacity: 0.6;
+    }
+
     #riderAuthOverlay {
       position: fixed;
       inset: 0;
@@ -3742,6 +3792,14 @@
   <!-- ===== Rider sign-in gate (P0 remediation PR 2a) — visible until a
        real, server-verified session exists. See
        docs/security-remediation/pr-02a-rider-client-auth.md ===== -->
+  <div id="authCheckRetry" role="alertdialog" aria-labelledby="authCheckRetryTitle" aria-describedby="authCheckRetryText" hidden>
+    <div class="auth-card">
+      <h2 id="authCheckRetryTitle">We couldn't check your sign-in</h2>
+      <p id="authCheckRetryText">Harvey Taxi is busy or your connection dropped, so we couldn't confirm whether you're signed in. Nothing has been changed. Please try again in a moment.</p>
+      <button type="button" class="auth-btn" id="authCheckRetryBtn">Try again</button>
+    </div>
+  </div>
+
   <div id="riderAuthOverlay">
     <div class="auth-card">
       <div class="auth-brand">
@@ -10039,32 +10097,58 @@
     // approved PR 2a scope). Any non-2xx here always means "show the
     // sign-in gate," regardless of what's cached locally.
     // Rollout switch for the sign-in gate itself (P0 remediation PR 2a,
-    // docs/security-remediation/pr-02a-rider-client-auth.md) -- separate
-    // from the future rider_auth_enforced flag (server-side route
-    // enforcement, PR 2b). Defaults to false on any error, same as the
-    // flag's own server-side default, so a network hiccup on this one
-    // check can never accidentally turn the new gate on for someone who
-    // shouldn't see it yet.
-    async function isRiderAuthUiEnabled() {
+    // docs/security-remediation/pr-02a-rider-client-auth.md). Returns
+    // "enabled" or "disabled" only when the server actually answered.
+    // A rate limit (429), timeout, network error, server error or
+    // malformed reply is "unavailable" -- never "disabled": treating a
+    // failed check as "sign-in is off" would let anyone who triggers a
+    // 429 skip the sign-in screen. The caller shows a retry state instead.
+    // Server-side route enforcement (requireRider, rider_auth_enforced)
+    // does not depend on this check at all.
+    const AUTH_CHECK_TIMEOUT_MS = 8000;
+
+    async function fetchWithTimeout(url, options = {}) {
+      const controller = typeof AbortController === "function" ? new AbortController() : null;
+      const timer = controller ? setTimeout(() => controller.abort(), AUTH_CHECK_TIMEOUT_MS) : null;
       try {
-        const response = await fetch(`${apiBase()}/api/rider/auth-ui-config`);
-
-        if (!response.ok) {
-          return false;
-        }
-
-        const data = await response.json();
-        return data?.enabled === true;
-      } catch {
-        return false;
+        return await fetch(url, controller ? { ...options, signal: controller.signal } : options);
+      } finally {
+        if (timer) clearTimeout(timer);
       }
+    }
+
+    async function checkRiderAuthUi() {
+      let response;
+      try {
+        response = await fetchWithTimeout(`${apiBase()}/api/rider/auth-ui-config`);
+      } catch {
+        return "unavailable";
+      }
+      if (!response.ok) {
+        return "unavailable";
+      }
+      let data;
+      try {
+        data = await response.json();
+      } catch {
+        return "unavailable";
+      }
+      if (!data || typeof data.enabled !== "boolean") {
+        return "unavailable";
+      }
+      return data.enabled ? "enabled" : "disabled";
+    }
+
+    // Statuses that mean "we could not find out", not "signed out".
+    function isTransientAuthStatus(status) {
+      return status === 0 || status === 408 || status === 429 || status >= 500;
     }
 
     async function bootstrapRiderSession() {
       let response;
 
       try {
-        response = await fetch(`${apiBase()}/api/rider/session`, {
+        response = await fetchWithTimeout(`${apiBase()}/api/rider/session`, {
           credentials: "include"
         });
       } catch {
@@ -11722,6 +11806,14 @@
       // rider too after clearing site data or switching devices --
       // "Finish rider setup to continue" shown despite a valid,
       // server-confirmed session.
+      await resolveRiderAccess();
+    }
+
+    // Decides what this visitor may see. Run at load and again from the
+    // "Try again" button; any answer that isn't a real server answer stops
+    // here with the retry state.
+    async function resolveRiderAccess() {
+      hideAuthCheckRetry();
       const bootstrap = await bootstrapRiderSession();
 
       if (bootstrap.ok) {
@@ -11731,20 +11823,25 @@
         return;
       }
 
+      if (isTransientAuthStatus(bootstrap.status)) {
+        showAuthCheckRetry();
+        return;
+      }
+
       setAppReviewMode(false);
       setSignedOutReviewEntry(true);
 
-      const authUiEnabled = await isRiderAuthUiEnabled();
+      const authUi = await checkRiderAuthUi();
 
-      if (!authUiEnabled) {
-        // Rollout flag off (the default): for anyone without a
-        // verified session, fall back to this page's pre-PR-2a boot
-        // behavior untouched -- loadRiderStatus() already falls back
-        // to getStoredRiderId()/getStoredRiderProfile() when
-        // state.riderId/riderProfile haven't been set by the bootstrap
-        // check above. This lets the whole PR ship to production inert
-        // until an admin has confirmed real SMS/email OTP delivery
-        // works and deliberately flips rider_auth_ui_enabled on.
+      if (authUi === "unavailable") {
+        showAuthCheckRetry();
+        return;
+      }
+
+      if (authUi === "disabled") {
+        // Rollout flag confirmed off by the server (the default): for
+        // anyone without a verified session, the page's pre-PR-2a boot
+        // behavior, untouched.
         hideAuthOverlay();
         await runAuthenticatedBoot();
         return;
@@ -11753,6 +11850,29 @@
       showAuthOverlay();
       await tryAutoStartSignupVerification();
     }
+
+    function showAuthCheckRetry() {
+      // Only the retry state is shown: not the sign-in form (we don't know
+      // yet whether it's needed) and not the rider experience.
+      hideAuthOverlay();
+      const panel = document.getElementById("authCheckRetry");
+      if (panel) panel.hidden = false;
+    }
+
+    function hideAuthCheckRetry() {
+      const panel = document.getElementById("authCheckRetry");
+      if (panel) panel.hidden = true;
+    }
+
+    const authCheckRetryBtn = document.getElementById("authCheckRetryBtn");
+    authCheckRetryBtn?.addEventListener("click", async () => {
+      authCheckRetryBtn.disabled = true;
+      try {
+        await resolveRiderAccess();
+      } finally {
+        authCheckRetryBtn.disabled = false;
+      }
+    });
 
     document.addEventListener("DOMContentLoaded", boot);
   </script>

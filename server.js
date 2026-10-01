@@ -487,6 +487,7 @@ const {
   describeGeoConfig,
   geoConfigLogLines
 } = require("./lib/geoConfig");
+const { resolvePerMinuteLimit } = require("./lib/rateLimitConfig");
 const { createMapboxClient, isFiniteCoord, ERROR: GEO_ERROR } = require("./lib/mapboxClient");
 const GEO_CONFIG = describeGeoConfig(process.env);
 const geoClient = createMapboxClient({ token: readGeoToken(process.env) });
@@ -1257,13 +1258,7 @@ app.use(
 
     windowMs: 60_000,
 
-    max: envNumber(
-
-      "API_RATE_LIMIT_PER_MINUTE",
-
-      120
-
-    ),
+    max: resolvePerMinuteLimit("API_RATE_LIMIT_PER_MINUTE", 120),
 
     keyPrefix: "api"
 
