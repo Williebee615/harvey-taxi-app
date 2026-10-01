@@ -516,6 +516,9 @@ const {
   summarizeCases: summarizeAgentCases
 } = require("./lib/agent/audit");
 const { planStalledRides: planAgentStalledRides, buildAlerts: buildAgentAlerts } = require("./lib/agent/coordinator");
+const { createOpsEngine, STATE_LABELS: OPS_STATE_LABELS } = require("./lib/ops/engine");
+const { createCaseStore: createOpsCaseStore } = require("./lib/ops/caseStore");
+const { transitionLocationEvidence } = require("./lib/ops/evidence");
 const { createMapboxClient, isFiniteCoord, ERROR: GEO_ERROR } = require("./lib/mapboxClient");
 const GEO_CONFIG = describeGeoConfig(process.env);
 const geoClient = createMapboxClient({ token: readGeoToken(process.env) });
@@ -14930,6 +14933,15 @@ async function performDriverRideTransition({
     action: auditAction,
     entity_type: "ride",
     entity_id: rideId,
+    // Evidence for later investigations (missed pickup, wrong location):
+    // how far the driver's last reported location was from the pickup (or
+    // drop-off) when they changed status, and how old that location was.
+    // Distances only; no coordinates are logged.
+    metadata: transitionLocationEvidence({
+      driver: req.driver,
+      ride,
+      target: toStatus === RIDE_STATUS.COMPLETED ? "dropoff" : "pickup"
+    }),
     req
   }).catch(() => {});
 
@@ -20157,8 +20169,11 @@ async function anonymizeAccount({
       .eq("driver_id", id);
   }
 
-  return true;
+  // Case memory belongs to the account: delete it with the account.
+  // (opsStore is defined later in this file; this only runs at request time.)
+  await opsStore.deleteForSubject(table === "drivers" ? "driver" : "rider", id).catch(() => 0);
 
+  return true;
 }
 
 /* Designated App Review accounts: record the request and confirm it,
@@ -23619,6 +23634,374 @@ app.get(
 
 
 /* =========================================================
+   OPERATIONS ASSISTANT (case reasoning, investigation, plans)
+   See docs/agent-operations.md. Builds on the AI Agent Manager above.
+   - Rider/driver case routes: off unless ops_assistant_enabled = "true".
+   - Admin investigation routes: read-only; available to admins.
+   - Executing an approved action: off unless ops_actions_enabled =
+     "true", and blocked by the agent kill switch and dispatch pause.
+   Nothing here runs on its own: every action needs a person's approval.
+========================================================= */
+const opsStore = createOpsCaseStore({ supabase });
+
+async function opsPolicyContext() {
+  const state = await loadAgentState();
+  const actionsEnabled = (await getSystemFlag("ops_actions_enabled", "false")) === "true";
+  return {
+    actionsEnabled: state.ok && actionsEnabled,
+    killSwitch: !state.ok || state.mode.kill_switch,
+    flags: { dispatch_paused: state.dispatchPaused }
+  };
+}
+
+async function opsFreeDriverCount(ride) {
+  try {
+    const [drivers, busyDriverIds, offers] = await Promise.all([
+      agentTools.invoke("admin_candidate_drivers", AGENT_ADMIN_ACTOR, {}),
+      getBusyDriverIds({ supabase }),
+      agentTools.invoke("admin_ride_offers", AGENT_ADMIN_ACTOR, { rideIds: [ride.id] })
+    ]);
+    const rec = recommendAgentDrivers({
+      ride,
+      drivers,
+      busyDriverIds,
+      offeredDriverIds: offers.map((o) => o.driver_id),
+      rules: { max_candidates: 10 },
+      complianceOptions: { enablePersona: ENABLE_PERSONA, enableCheckr: ENABLE_CHECKR }
+    });
+    return rec.eligible.length;
+  } catch {
+    return undefined;
+  }
+}
+
+// Approved redispatch: the same conditional claim as the coordinator, then
+// the existing dispatchRide(), then a fresh database read to verify.
+async function opsRedispatchExecutor({ evidence }) {
+  const ride = evidence.ride;
+  const claimedAt = nowIso();
+  const { data: rows, error } = await supabase
+    .from("rides")
+    .update({ dispatch_status: "redispatching", dispatch_claimed_at: claimedAt, last_dispatch_at: claimedAt, updated_at: claimedAt })
+    .eq("id", ride.id)
+    .eq("status", RIDE_STATUS.PAYMENT_AUTHORIZED)
+    .is("driver_id", null)
+    .eq("updated_at", ride.updated_at)
+    .select("id,status,pickup_address,pickup_lat,pickup_lng,ride_type,rider_id,rider_phone,is_review_ride,scheduled_time,dispatch_attempts");
+  if (error || !Array.isArray(rows) || !rows.length) {
+    return { executed: false, verified: false, reason: "ride_changed_since_investigation" };
+  }
+  let dispatchResult;
+  try {
+    dispatchResult = await dispatchRide(rows[0]);
+  } catch {
+    dispatchResult = { dispatched: false, reason: "dispatch_error" };
+  }
+  const [{ data: after }, { data: pending }] = await Promise.all([
+    supabase.from("rides").select("id,status,driver_id").eq("id", ride.id).maybeSingle(),
+    supabase.from("driver_offers").select("id").eq("ride_id", ride.id).eq("status", "pending")
+  ]);
+  const observed = {
+    ride_status: after ? after.status : null,
+    pending_offers: (pending || []).length,
+    driver_assigned: Boolean(after && after.driver_id)
+  };
+  const verified = observed.pending_offers > 0 || observed.driver_assigned;
+  return {
+    executed: true,
+    verified,
+    observed,
+    reason: verified ? null : String((dispatchResult && dispatchResult.reason) || "no_offer_created").slice(0, 120)
+  };
+}
+
+const opsEngine = createOpsEngine({
+  supabase,
+  store: opsStore,
+  policyContext: opsPolicyContext,
+  freeDriverCount: opsFreeDriverCount,
+  executors: { redispatch_ride: opsRedispatchExecutor },
+  activity: (entry) =>
+    auditLog({
+      actor_type: "agent",
+      actor_id: "ops-assistant",
+      action: entry.action,
+      entity_type: "ops_case",
+      entity_id: entry.entity_id || null,
+      metadata: entry.metadata || {}
+    }).catch(() => {})
+});
+
+function opsFail(res, err) {
+  if (err && err.code === "CASE_MEMORY_UNAVAILABLE") {
+    return res.status(503).json({ ok: false, error: "Case memory is not installed yet (migration pending).", code: err.code });
+  }
+  if (err && err.code === "CASE_CONFLICT") {
+    return res.status(409).json({ ok: false, error: err.message, code: err.code });
+  }
+  const status = err && Number.isInteger(err.status) ? err.status : 500;
+  return fail(res, status >= 500 ? "Operations assistant is temporarily unavailable." : err.message, status);
+}
+
+async function opsSubjectEnabled() {
+  return (await getSystemFlag("ops_assistant_enabled", "false")) === "true";
+}
+
+function opsAnswers(body) {
+  const out = {};
+  const raw = body && typeof body.answers === "object" && body.answers ? body.answers : {};
+  for (const key of ["which_ride", "amount_seen", "scheduled_time", "where_were_you", "delivery_what"]) {
+    if (typeof raw[key] === "string" && raw[key].trim()) out[key] = cleanString(raw[key], 300);
+  }
+  return out;
+}
+
+const opsRateLimit = rateLimit({ windowMs: 60_000, max: envNumber("OPS_CASES_PER_MINUTE", 10), keyPrefix: "ops_cases" });
+
+for (const role of ["rider", "driver"]) {
+  const auth = role === "rider" ? requireRider : requireDriverSelf;
+  const actorOf = (req) => (role === "rider" ? { role, id: String(req.rider.id) } : { role, id: String(req.driver.id) });
+
+  app.post(
+    `/api/ops/${role}/cases`,
+    opsRateLimit,
+    auth,
+    asyncRoute(async (req, res) => {
+      if (!(await opsSubjectEnabled())) return res.status(503).json({ ok: false, error: "The operations assistant is not available yet." });
+      const message = typeof req.body?.message === "string" ? req.body.message : "";
+      if (!message.trim()) return fail(res, "message required.", 400);
+      const actor = actorOf(req);
+      try {
+        const record = await opsEngine.openCase({ actor, message, rideId: cleanString(req.body?.ride_id, 64) || null });
+        return ok(res, { case: record.id ? opsStore.viewFor(actor, record) : opsSubjectViewOf(record), memory: Boolean(record.id) });
+      } catch (err) {
+        return opsFail(res, err);
+      }
+    })
+  );
+
+  app.get(
+    `/api/ops/${role}/cases/:id`,
+    auth,
+    asyncRoute(async (req, res) => {
+      if (!(await opsSubjectEnabled())) return res.status(503).json({ ok: false, error: "The operations assistant is not available yet." });
+      const actor = actorOf(req);
+      try {
+        const record = await opsEngine.refresh({ actor, caseId: cleanString(req.params.id, 40) });
+        return ok(res, { case: opsStore.viewFor(actor, record) });
+      } catch (err) {
+        return opsFail(res, err);
+      }
+    })
+  );
+
+  app.post(
+    `/api/ops/${role}/cases/:id/reply`,
+    opsRateLimit,
+    auth,
+    asyncRoute(async (req, res) => {
+      if (!(await opsSubjectEnabled())) return res.status(503).json({ ok: false, error: "The operations assistant is not available yet." });
+      const actor = actorOf(req);
+      try {
+        const record = await opsEngine.reply({
+          actor,
+          caseId: cleanString(req.params.id, 40),
+          answers: opsAnswers(req.body),
+          message: typeof req.body?.message === "string" && req.body.message.trim() ? req.body.message : null
+        });
+        return ok(res, { case: opsStore.viewFor(actor, record) });
+      } catch (err) {
+        return opsFail(res, err);
+      }
+    })
+  );
+}
+
+function opsSubjectViewOf(record) {
+  return { case_id: null, state: record.state, summary: record.summary.subject_summary, questions: record.summary.follow_ups || [], memory: false };
+}
+
+const OPS_ADMIN = (req) => ({ role: "admin", id: req.admin.email || "admin" });
+
+app.get(
+  "/api/admin/ops/overview",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const [state, cases, activity] = await Promise.all([
+      loadAgentState(),
+      opsStore.listForAdmin({ limit: 100 }).then((rows) => ({ rows, available: true }), (err) => ({ rows: [], available: false, error: err.code })),
+      supabase
+        .from("audit_logs")
+        .select("action,entity_type,entity_id,metadata,created_at")
+        .in("action", [
+          "ops.case_investigated",
+          "ops.case_opened",
+          "ops.case_updated",
+          "ops.action_approved",
+          "ops.action_blocked",
+          "ops.action_verified",
+          "ops.action_failed",
+          "ops.action_rejected",
+          "ops.case_resolved_by_staff",
+          AGENT_ACTIONS.EXECUTED,
+          AGENT_ACTIONS.SHADOW,
+          AGENT_ACTIONS.CASE_OPENED
+        ])
+        .order("created_at", { ascending: false })
+        .limit(60)
+    ]);
+    let live = null;
+    try {
+      const snapshot = await loadAgentSnapshot();
+      live = buildAgentAlerts({ ...snapshot, rules: state.rules, now: Date.now(), dispatchPaused: state.dispatchPaused, modelStatus: agentLlm.status() });
+    } catch {
+      live = null;
+    }
+    const counts = { investigating: 0, awaiting_confirmation: 0, resolved: 0, needs_human_review: 0 };
+    for (const c of cases.rows) counts[c.state] = (counts[c.state] || 0) + 1;
+    const queue = cases.rows.flatMap((c) =>
+      (c.queue || []).filter((q) => q.status === "awaiting_confirmation" || q.status === "executing").map((q) => ({ ...q, case_id: c.id, ride_id: c.ride_id }))
+    );
+    const policy = await opsPolicyContext();
+    return ok(res, {
+      memory_available: cases.available,
+      actions_enabled: policy.actionsEnabled,
+      kill_switch: policy.killSwitch,
+      agent_mode: state.mode.mode,
+      model: agentLlm.status(),
+      live,
+      case_counts: counts,
+      cases: cases.rows.map((c) => ({
+        id: c.id,
+        state: c.state,
+        state_label: OPS_STATE_LABELS[c.state] || c.state,
+        subject_role: c.subject_role,
+        ride_id: c.ride_id,
+        categories: c.categories,
+        decision_summary: c.summary && c.summary.decision_summary,
+        updated_at: c.updated_at
+      })),
+      queue,
+      activity: activity.data || []
+    });
+  })
+);
+
+app.get(
+  "/api/admin/ops/cases/:id",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    try {
+      const record = await opsEngine.refresh({ actor: OPS_ADMIN(req), caseId: cleanString(req.params.id, 40) });
+      return ok(res, { case: record });
+    } catch (err) {
+      return opsFail(res, err);
+    }
+  })
+);
+
+app.post(
+  "/api/admin/ops/cases",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const rideId = cleanString(req.body?.ride_id, 64);
+    const message = typeof req.body?.message === "string" && req.body.message.trim() ? req.body.message : "Investigate this ride.";
+    if (!rideId) return fail(res, "ride_id required.", 400);
+    try {
+      const actor = OPS_ADMIN(req);
+      const record = await opsEngine.openCase({ actor, subject: { role: "admin", id: actor.id }, message, rideId });
+      return ok(res, { case: record, memory: Boolean(record.id) });
+    } catch (err) {
+      return opsFail(res, err);
+    }
+  })
+);
+
+app.post(
+  "/api/admin/ops/cases/:id/reply",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    try {
+      const record = await opsEngine.reply({
+        actor: OPS_ADMIN(req),
+        caseId: cleanString(req.params.id, 40),
+        answers: opsAnswers(req.body),
+        message: typeof req.body?.message === "string" && req.body.message.trim() ? req.body.message : null
+      });
+      return ok(res, { case: record });
+    } catch (err) {
+      return opsFail(res, err);
+    }
+  })
+);
+
+app.post(
+  "/api/admin/ops/cases/:id/actions/:actionId/approve",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    try {
+      const { record, outcome } = await opsEngine.approveAction({
+        admin: OPS_ADMIN(req),
+        caseId: cleanString(req.params.id, 40),
+        actionId: cleanString(req.params.actionId, 10)
+      });
+      return ok(res, { case: record, outcome });
+    } catch (err) {
+      return opsFail(res, err);
+    }
+  })
+);
+
+app.post(
+  "/api/admin/ops/cases/:id/actions/:actionId/reject",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    try {
+      const record = await opsEngine.rejectAction({
+        admin: OPS_ADMIN(req),
+        caseId: cleanString(req.params.id, 40),
+        actionId: cleanString(req.params.actionId, 10),
+        note: req.body?.note
+      });
+      return ok(res, { case: record });
+    } catch (err) {
+      return opsFail(res, err);
+    }
+  })
+);
+
+const OPS_RESOLUTIONS = Object.freeze(["resolved", "refund_reviewed", "driver_coached", "no_action_needed", "referred_externally"]);
+
+app.post(
+  "/api/admin/ops/cases/:id/resolve",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const resolution = cleanString(req.body?.resolution, 40);
+    if (!OPS_RESOLUTIONS.includes(resolution)) return fail(res, `resolution must be one of: ${OPS_RESOLUTIONS.join(", ")}.`, 400);
+    try {
+      const record = await opsEngine.resolveByStaff({ admin: OPS_ADMIN(req), caseId: cleanString(req.params.id, 40), resolution, note: req.body?.note });
+      return ok(res, { case: record });
+    } catch (err) {
+      return opsFail(res, err);
+    }
+  })
+);
+
+app.post(
+  "/api/admin/ops/retention/purge",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    try {
+      return ok(res, { purged: await opsStore.purgeExpired() });
+    } catch (err) {
+      return opsFail(res, err);
+    }
+  })
+);
+
+app.get("/admin-operations", (req, res) => sendStaticPage(res, "admin-operations.html"));
+
+/* =========================================================
 
    API 404 HANDLER
 
@@ -24103,6 +24486,12 @@ async function startServer() {
       // One real health check at boot so the admin page can say whether the
       // optional self-hosted model is reachable (Disabled when unset).
       agentLlm.healthCheck().catch(() => {});
+
+      // Operations-assistant case memory retention (no-op until the
+      // agent_ops_cases migration is applied).
+      setInterval(() => {
+        opsStore.purgeExpired().catch(() => {});
+      }, 6 * 60 * 60_000);
 
       // AI Agent Manager coordination pass. Does nothing unless an admin
       // turns on shadow mode (records "would do" only) or, later and with
