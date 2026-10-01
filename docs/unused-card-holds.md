@@ -66,3 +66,22 @@ The rider notice changes to "has been cancelled" **only after** the server confi
 - Updating `payments` on capture and on ride-cancellation voids. The ride columns remain the source of truth for those workflows.
 - Holds created before this change have no payment record. Find them in the Stripe Dashboard; the sweep only sees recorded holds.
 - Stripe's own expiry of uncaptured authorizations, and the issuer's timing for removing a pending amount, are outside the app's control and are not promised to riders.
+
+## 5. Stripe test-mode validation (required before enabling)
+`test/stripe-test-mode.integration.test.js` runs this PR against **real Stripe test mode**. It is skipped unless `STRIPE_TEST_SECRET_KEY` is a test key (`sk_test_` / `rk_test_`), and it refuses to run with any other key.
+
+```
+STRIPE_TEST_SECRET_KEY=sk_test_... npx jest test/stripe-test-mode --runInBand
+```
+
+| Scenario | What must hold |
+|---|---|
+| Successful authorization | The Stripe hold is `requires_capture`; a `payments` row is bound to the ride; the ride is authorized; **exactly one** driver offer; the Stripe metadata names the ride. |
+| Declined card (`pm_card_chargeDeclined`) | 402. The ride stays `payment_required`, with no bound record and no offer. |
+| Duplicate and concurrent authorizations | Only 200 or 409 responses; **one** offer; a later repeat returns `already_authorized`. |
+| The same hold on a second ride | 409. The second ride is untouched. |
+| Abandoned hold released by its owner | It is `canceled` at Stripe and the record is `released`; a second release gets 409. |
+| A ride's payment | A release request gets 409, and the hold stays `requires_capture`. |
+| Simultaneous release and attachment (5 runs) | **Exactly one wins.** Either the ride is authorized with a live hold and the release is refused, or the hold is cancelled and the ride is neither authorized nor dispatched. Never both. |
+
+**Status: written, not yet run.** This build environment cannot reach `api.stripe.com` and has no Stripe test key. Run it on a machine with network access and a test key, supplied as an environment secret, never in chat or the repository. Paste the result into this PR before enabling `unused_hold_release_enabled`. Keep `unused_hold_sweep_enabled` off.

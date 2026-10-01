@@ -87,7 +87,8 @@ describeWithBrowser("Rider dashboard is home; booking is a separate screen", () 
       MAPBOX_ACCESS_TOKEN: TEST_TOKEN,
       // Every page load here comes from 127.0.0.1; the production
       // per-IP API limit would otherwise start answering 429 mid-suite.
-      API_RATE_LIMIT_PER_MINUTE: "100000"
+      API_RATE_LIMIT_PER_MINUTE: "100000",
+      HARVEY_ISOLATED_TEST: "1"
     };
     for (const name of ["CANONICAL_HOST", "FOUNDATION_HOST", "STRIPE_SECRET_KEY", "STRIPE_PUBLISHABLE_KEY"]) {
       delete process.env[name];

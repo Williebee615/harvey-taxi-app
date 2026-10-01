@@ -487,6 +487,7 @@ const {
   describeGeoConfig,
   geoConfigLogLines
 } = require("./lib/geoConfig");
+const { resolvePerMinuteLimit } = require("./lib/rateLimitConfig");
 const {
   PAYMENT_RECORD_STATUS,
   BINDABLE_RECORD_STATUSES,
@@ -23174,7 +23175,7 @@ async function releaseUnusedHold({ paymentIntentId, requester, trigger, req = nu
 
 app.post(
   "/api/payments/holds/:paymentIntentId/release",
-  rateLimit({ windowMs: 60_000, max: envNumber("UNUSED_HOLD_RELEASE_PER_MINUTE", 10), keyPrefix: "unused_hold_release" }),
+  rateLimit({ windowMs: 60_000, max: resolvePerMinuteLimit("UNUSED_HOLD_RELEASE_PER_MINUTE", 10), keyPrefix: "unused_hold_release" }),
   asyncRoute(async (req, res) => {
     if ((await getSystemFlag("unused_hold_release_enabled", "false")) !== "true") {
       return res.status(503).json({ ok: false, released: false, reason: "disabled" });

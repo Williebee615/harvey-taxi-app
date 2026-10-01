@@ -13,6 +13,7 @@ process.env.RIDE_QUOTE_SECRET = "test-ride-quote-secret";
 process.env.ADMIN_API_TOKEN = "test-admin-token";
 process.env.STRIPE_SECRET_KEY = "sk_test_fake";
 process.env.API_RATE_LIMIT_PER_MINUTE = "100000";
+process.env.HARVEY_ISOLATED_TEST = "1";
 process.env.UNUSED_HOLD_RELEASE_PER_MINUTE = "100000";
 
 const request = require("supertest");
