@@ -13,7 +13,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.harveytaxi.app",
+      "bundleIdentifier": "com.harveytaxiservice.app",
       "buildNumber": "10",
       "infoPlist": {
         "UISupportedInterfaceOrientations~ipad": [
