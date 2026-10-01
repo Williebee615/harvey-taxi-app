@@ -27,7 +27,7 @@ const STRIPE_MODE = KEY_IS_TEST ? "stripe_test_mode" : "simulated";
 
 const { startIsolatedEnvironment, stripOutboundCredentials } = require("./isolated/isolatedEnv");
 const { createStripeSimulator } = require("./isolated/stripeSimulator");
-const { makeRider, makeDriver, makeRide } = require("./rideTestHelpers");
+const { makeRider, makeDriver, makeRide, signTestRiderToken, signTestDriverToken, riderAuthHeaders, driverAuthHeaders } = require("./rideTestHelpers");
 
 const describeIsolated = RUN ? describe : describe.skip;
 jest.setTimeout(180000);
@@ -227,6 +227,88 @@ describeIsolated(`card flow in an isolated environment (Stripe: ${STRIPE_MODE})`
       expect(atStripe.status).toBe("canceled");
       expect(r.status).toBe("payment_required");
       expect(await pendingOffers()).toBe(0);
+    }
+  });
+  // The booking flow exactly as the rider dashboard drives it, through the
+  // server's own routes: estimate -> payment-intent -> (card confirmed, as
+  // Stripe.js would) -> ride request -> authorize -> test driver accepts ->
+  // rider cancels (the existing void workflow cancels the hold).
+  test("full booking flow through the server's routes, then rider cancellation voids the hold", async () => {
+    await reset([]);
+    const rider = riderAuthHeaders(signTestRiderToken("RIDER_1"));
+    const trip = {
+      pickup: "100 Main St", destination: "200 Elm St",
+      pickup_lat: 36.16, pickup_lng: -86.78, destination_lat: 36.17, destination_lng: -86.79,
+      ride_type: "standard", rider_id: "RIDER_1"
+    };
+
+    const estimate = await request(app).post("/api/rides/estimate").set(rider).send({ ...trip, miles: 5, minutes: 12 });
+    expect(estimate.status).toBe(200);
+    const body = { ...trip, miles: 5, minutes: 12, estimate_token: estimate.body.estimate_token };
+
+    const intentRes = await request(app).post("/api/rides/payment-intent").set(rider).send({ ...body, idempotency_key: "isolated-flow-1" });
+    expect(intentRes.status).toBe(200);
+    const piId = intentRes.body.payment_intent_id || intentRes.body.paymentIntentId || intentRes.body.id || String(intentRes.body.client_secret).split("_secret_")[0];
+    created.push(piId);
+    // The "created" record is written best effort after the response.
+    let createdRecord;
+    for (let i = 0; i < 50 && !createdRecord; i++) {
+      createdRecord = await paymentRow(piId);
+      if (!createdRecord) await new Promise((r) => setTimeout(r, 100));
+    }
+    expect(createdRecord).toMatchObject({ status: "created", rider_id: "RIDER_1", ride_id: null, client_secret: null });
+    await stripe.paymentIntents.confirm(piId, { payment_method: "pm_card_visa" });
+
+    const rideRes = await request(app).post("/api/rides/request").set(rider).send(body);
+    expect([200, 201]).toContain(rideRes.status);
+    const rideId = rideRes.body.ride?.id || rideRes.body.ride_id || rideRes.body.id;
+    expect((await rideRow(rideId)).status).toBe("payment_required");
+
+    const auth = await request(app).post(`/api/rides/${rideId}/authorize`).set(rider).send({ payment_intent_id: piId });
+    expect(auth.status).toBe(200);
+    expect(await paymentRow(piId)).toMatchObject({ status: "authorized", ride_id: rideId });
+    const offers = await q("select id, driver_id from public.driver_offers where ride_id = $1 and status = 'pending'", [rideId]);
+    expect(offers).toHaveLength(1);
+
+    const accepted = await request(app)
+      .post(`/api/driver/offers/${offers[0].id}/accept`)
+      .set(driverAuthHeaders(signTestDriverToken(offers[0].driver_id)))
+      .send({});
+    expect(accepted.status).toBe(200);
+    expect(await rideRow(rideId)).toMatchObject({ status: "driver_assigned", driver_id: offers[0].driver_id, payment_id: piId });
+
+    // A release request can never cancel the hold of a booked ride.
+    expect((await request(app).post(`/api/payments/holds/${piId}/release`).send({ client_secret: intentRes.body.client_secret })).status).toBe(409);
+    expect((await stripe.paymentIntents.retrieve(piId)).status).toBe("requires_capture");
+
+    const cancel = await request(app).post(`/api/rides/${rideId}/cancel`).set(rider).send({ reason: "isolated test" });
+    expect(cancel.status).toBe(200);
+    const after = await rideRow(rideId);
+    expect(after.status).toBe("cancelled");
+    expect((await stripe.paymentIntents.retrieve(piId)).status).toBe("canceled");
+    expect(after.cancellation_payment_status).toBe("cancelled");
+  });
+
+  // Two server instances (as with more than one production instance)
+  // sharing the same database: concurrent authorizations of one ride
+  // through different instances still dispatch exactly once.
+  test("two server instances racing the same authorization dispatch exactly once", async () => {
+    let app2;
+    jest.isolateModules(() => {
+      ({ app: app2 } = require("../server"));
+    });
+    for (let run = 0; run < 3; run++) {
+      await reset([ride()]);
+      const pi = await hold();
+      const results = await Promise.all([
+        request(app).post("/api/rides/RIDE_1/authorize").send({ payment_intent_id: pi.id }),
+        request(app2).post("/api/rides/RIDE_1/authorize").send({ payment_intent_id: pi.id }),
+        request(app).post("/api/rides/RIDE_1/authorize").send({ payment_intent_id: pi.id }),
+        request(app2).post("/api/rides/RIDE_1/authorize").send({ payment_intent_id: pi.id })
+      ]);
+      expect(results.every((r) => [200, 409].includes(r.status))).toBe(true);
+      expect(await pendingOffers()).toBe(1);
+      expect(Number((await q("select count(*) from public.payments where id = $1", [pi.id]))[0].count)).toBe(1);
     }
   });
 });

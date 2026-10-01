@@ -101,6 +101,8 @@ STRIPE_TEST_SECRET_KEY=sk_test_... npx jest test/stripe-test-mode --runInBand
 - SMS, email, web push, identity, background-check, AI, routing and Redis credentials are removed before the server loads. The suite asserts that the integrations report them as off.
 
 **Scenarios:**
+- **full booking flow through the server's own routes:** estimate → payment-intent (the `created` record) → card confirmed → ride request → authorize (record bound, one offer) → test driver accepts → a release attempt is refused → the rider cancels, and the existing void workflow cancels the hold;
+- **two server instances** sharing the database, racing one authorization (×3): exactly one dispatch and one payment record;
 - isolation;
 - the database enforces the foreign key;
 - successful authorization, with the payment record created and bound and **exactly one** offer to a test driver;
@@ -123,5 +125,12 @@ npx jest test/stripe-isolated --runInBand
 - Report back only the `Tests:` summary line and the names of any failing tests.
 
 **Status:**
-- **Simulated Stripe:** 14/14 passed locally against the real database, on three consecutive runs. CI's `db-functions` job now runs this mode on every push.
+- **Simulated Stripe:** 16/16 passed locally against the real database, on three consecutive runs. CI's `db-functions` job now runs this mode on every push.
 - **Stripe test mode:** not yet run. This build environment's network policy blocks `api.stripe.com`.
+
+### Scope of each suite (what a pass does and does not prove)
+| Suite | Stripe | Database | Proves | Does not prove |
+|---|---|---|---|---|
+| `test/stripe-test-mode.integration.test.js` | **Real test mode** | **Simulated** (in-memory) | The server handles real Stripe PaymentIntent states, declines, metadata and idempotent cancellation correctly | Real Postgres constraints or concurrency; the deployed booking flow |
+| `test/stripe-isolated.e2e.test.js` with a test key | **Real test mode** | **Real local Postgres** with production's schema, via PostgREST | All of the above, plus the foreign key, conditional writes, the dispatch and accept functions, and races across two server instances on one database | The deployed system: Supabase itself, Render, the browser and Stripe.js, webhooks, capture at trip end, and real network latency |
+| `test/stripe-isolated.e2e.test.js` without a key | Simulated | Real local Postgres | The database and dispatch side of the flow | Anything about real Stripe behaviour |
