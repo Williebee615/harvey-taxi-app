@@ -11,6 +11,18 @@
       "ios": {
         "simulator": true
       }
+    },
+    "android-test": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "android-play-internal": {
+      "autoIncrement": true,
+      "android": {
+        "buildType": "app-bundle"
+      }
     }
   },
   "submit": {
