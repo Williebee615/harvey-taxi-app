@@ -87,6 +87,13 @@ async function startServer({ token }) {
   return { server, mapbox, base: `http://${HOST}:${server.address().port}`, state: mockSupabaseClient._state };
 }
 
+// Pages keep connections open (keep-alive, the ride status stream), and
+// server.close() waits for them; drop them first so teardown can't hang.
+function stopServer(ctx) {
+  ctx.server.closeAllConnections();
+  return new Promise((resolve) => ctx.server.close(resolve));
+}
+
 describeWithBrowser("Rider booking wizard with Mapbox (mobile 390x844)", () => {
   let browser;
   let logSpies;
@@ -162,7 +169,7 @@ describeWithBrowser("Rider booking wizard with Mapbox (mobile 390x844)", () => {
     beforeAll(async () => {
       ctx = await startServer({ token: null });
     });
-    afterAll(() => new Promise((resolve) => ctx.server.close(resolve)));
+    afterAll(() => stopServer(ctx));
 
     test("clear temporary-unavailability message, address not blamed, nothing booked", async () => {
       const page = await newPage(ctx.base, "RIDER_REAL");
@@ -185,7 +192,7 @@ describeWithBrowser("Rider booking wizard with Mapbox (mobile 390x844)", () => {
       ctx = await startServer({ token: TEST_TOKEN });
     });
     beforeEach(() => ctx.mapbox.reset());
-    afterAll(() => new Promise((resolve) => ctx.server.close(resolve)));
+    afterAll(() => stopServer(ctx));
 
     test("Mapbox failing (token rejected): same clear message, address not blamed", async () => {
       const page = await newPage(ctx.base, "RIDER_REAL");
