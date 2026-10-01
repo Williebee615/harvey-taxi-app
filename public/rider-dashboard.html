@@ -9524,7 +9524,19 @@
         }));
       } else if (unusedHold) {
         window.dispatchEvent(new CustomEvent("harvey-booking-abandoned", {
-          detail: { heldPayment: !simulated }
+          detail: {
+            heldPayment: !simulated,
+            paymentIntentId: simulated ? "" : state.payment.paymentId || "",
+            clientSecret: simulated ? "" : state.payment.clientSecret || "",
+            // Called only after the server cancelled the hold: the wizard
+            // must not try to book with a cancelled authorization.
+            onReleased() {
+              state.payment.authorized = false;
+              state.payment.paymentId = "";
+              state.payment.clientSecret = "";
+              try { localStorage.removeItem(CONFIG.STORAGE_KEYS.lastPaymentId); } catch {}
+            }
+          }
         }));
       }
       __leavingAfterBooking = false;
@@ -11720,9 +11732,40 @@
       window.scrollTo({ top: 0 });
     });
 
+    // Asks the server to cancel the unused card hold. The notice changes
+    // only when the server confirms the cancellation; otherwise the
+    // "has not been used or cancelled" notice stays, which is still true.
+    async function releaseUnusedHold(detail) {
+      try {
+        const response = await fetch(
+          `/api/payments/holds/${encodeURIComponent(detail.paymentIntentId)}/release`,
+          {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json", "x-requested-with": "harvey-rider-app" },
+            body: JSON.stringify({ client_secret: detail.clientSecret })
+          }
+        );
+        const body = await response.json().catch(() => ({}));
+        if (response.ok && body.released === true) {
+          if (typeof detail.onReleased === "function") detail.onReleased();
+          showSystemNotice(
+            "Booking not completed: no ride was requested and your card was not charged. The temporary authorization hold on your card has been cancelled. Your bank decides when the pending amount disappears from your statement.",
+            "warning"
+          );
+        }
+      } catch {
+        // Keep the existing notice.
+      }
+    }
+
     // Left a booking before requesting it. Leaving never requests a ride,
     // charges a card or dispatches a driver; say so plainly.
     window.addEventListener("harvey-booking-abandoned", (event) => {
+      const detail = event.detail || {};
+      if (detail.heldPayment && detail.paymentIntentId && detail.clientSecret) {
+        releaseUnusedHold(detail);
+      }
       showSystemNotice(
         event.detail?.heldPayment
           ? "Booking not completed: no ride was requested and your card was not charged. A temporary authorization hold was placed on your card for this booking and has not been used or cancelled, so it may appear as pending. Your bank decides when a pending hold disappears. Contact Support if you need help with it."

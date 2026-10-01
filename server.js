@@ -487,6 +487,15 @@ const {
   describeGeoConfig,
   geoConfigLogLines
 } = require("./lib/geoConfig");
+const {
+  PAYMENT_RECORD_STATUS,
+  BINDABLE_RECORD_STATUSES,
+  DEFAULT_SWEEP_MIN_AGE_MS,
+  buildCreatedPaymentRecord,
+  buildAuthorizedPaymentRecord,
+  decideHoldRelease,
+  releaseIdempotencyKey
+} = require("./lib/unusedHolds");
 const { createMapboxClient, isFiniteCoord, ERROR: GEO_ERROR } = require("./lib/mapboxClient");
 const GEO_CONFIG = describeGeoConfig(process.env);
 const geoClient = createMapboxClient({ token: readGeoToken(process.env) });
@@ -11788,6 +11797,17 @@ app.post(
 
     }
 
+    // Best effort: the record lets an unused hold be found and released
+    // later. The ride's authorization step creates it if this fails.
+    if (riderId) {
+      recordCreatedPayment({
+        intent: paymentIntent,
+        riderId,
+        rideType,
+        stripeCustomerId: attachmentFields.customer || null
+      }).catch(() => {});
+    }
+
     auditLog({
 
       action:
@@ -12706,6 +12726,16 @@ app.post(
 
     }
 
+    // rides.payment_id is a foreign key to payments(id): the payment record
+    // must exist, bound to this ride, before the ride can reference it. The
+    // bind is a conditional write on the payments row, which is also what
+    // stops a concurrent unused-hold release from cancelling this payment
+    // (lib/unusedHolds.js).
+    const paymentBinding = await bindPaymentRecordToRide({ intent, ride });
+    if (!paymentBinding.ok) {
+      return fail(res, paymentBinding.error, paymentBinding.statusCode);
+    }
+
     // Conditional on the ride still awaiting payment, so two concurrent
     // calls can't both authorize (and dispatch) the same ride.
     const { data: authorizedRows, error: authorizeWriteError } = await supabase
@@ -12720,11 +12750,13 @@ app.post(
       .eq("status", RIDE_STATUS.PAYMENT_REQUIRED)
       .select("id");
 
-    if (authorizeWriteError) {
-      return fail(res, "This ride could not be authorized.", 500);
-    }
-
-    if (!Array.isArray(authorizedRows) || !authorizedRows.length) {
+    if (authorizeWriteError || !Array.isArray(authorizedRows) || !authorizedRows.length) {
+      // The ride was not authorized: hand the payment record back so the
+      // unused hold can still be released.
+      await unbindPaymentRecordFromRide({ paymentIntentId, rideId });
+      if (authorizeWriteError) {
+        return fail(res, "This ride could not be authorized.", 500);
+      }
       return fail(res, "This ride is not awaiting payment authorization.", 409);
     }
 
@@ -22971,6 +23003,244 @@ app.get(
 );
 
 /* =========================================================
+   PAYMENT RECORDS AND UNUSED CARD HOLDS
+   See lib/unusedHolds.js and docs/unused-card-holds.md.
+   - recordCreatedPayment(): payments row for a new PaymentIntent.
+   - bindPaymentRecordToRide(): makes rides.payment_id's foreign key
+     satisfiable and claims the hold for the ride.
+   - releaseUnusedHold(): cancels an uncaptured hold that never became a
+     ride, for its owner or the sweep. Both entry points are off unless
+     their system flag is "true".
+========================================================= */
+async function recordCreatedPayment({ intent, riderId, rideType, stripeCustomerId }) {
+  const { error } = await supabase
+    .from("payments")
+    .insert(buildCreatedPaymentRecord({ intent, riderId, rideType, stripeCustomerId }));
+  if (error && error.code !== "23505") {
+    console.warn("⚠️ Payment record not created:", error.code || "unknown");
+  }
+}
+
+async function bindPaymentRecordToRide({ intent, ride }) {
+  const record = buildAuthorizedPaymentRecord({ intent, ride });
+  const { error: insertError } = await supabase.from("payments").insert(record);
+  if (!insertError) {
+    return { ok: true };
+  }
+  if (insertError.code !== "23505") {
+    return { ok: false, error: "Payment could not be recorded. Please try again.", statusCode: 500 };
+  }
+  const { data: existing, error: readError } = await supabase
+    .from("payments")
+    .select("id,status,ride_id")
+    .eq("id", intent.id)
+    .maybeSingle();
+  if (readError || !existing) {
+    return { ok: false, error: "Payment could not be recorded. Please try again.", statusCode: 500 };
+  }
+  if (existing.ride_id && String(existing.ride_id) !== String(ride.id)) {
+    return { ok: false, error: "This payment is already associated with another ride.", statusCode: 409 };
+  }
+  if (!BINDABLE_RECORD_STATUSES.includes(existing.status)) {
+    return { ok: false, error: "This payment authorization is no longer available. Please book again.", statusCode: 409 };
+  }
+  const { id: _id, ...patch } = record;
+  const { data: bound, error: bindError } = await supabase
+    .from("payments")
+    .update({ ...patch, updated_at: nowIso() })
+    .eq("id", intent.id)
+    .in("status", BINDABLE_RECORD_STATUSES)
+    .select("id,ride_id");
+  if (bindError) {
+    return { ok: false, error: "Payment could not be recorded. Please try again.", statusCode: 500 };
+  }
+  const row = Array.isArray(bound) ? bound[0] : null;
+  if (!row || String(row.ride_id) !== String(ride.id)) {
+    return { ok: false, error: "This payment authorization is no longer available. Please book again.", statusCode: 409 };
+  }
+  return { ok: true };
+}
+
+async function unbindPaymentRecordFromRide({ paymentIntentId, rideId }) {
+  await supabase
+    .from("payments")
+    .update({ status: PAYMENT_RECORD_STATUS.CREATED, ride_id: null, updated_at: nowIso() })
+    .eq("id", paymentIntentId)
+    .eq("ride_id", rideId)
+    .eq("status", PAYMENT_RECORD_STATUS.AUTHORIZED)
+    .then(() => {}, () => {});
+}
+
+// Shared by the rider route and the sweep. Returns { released, reason, statusCode }.
+async function releaseUnusedHold({ paymentIntentId, requester, trigger, req = null }) {
+  let intent;
+  try {
+    intent = await stripe.paymentIntents.retrieve(paymentIntentId);
+  } catch {
+    return { released: false, reason: "intent_not_found", statusCode: 404 };
+  }
+  const [{ data: boundRides, error: ridesError }, { data: record, error: recordError }] = await Promise.all([
+    supabase.from("rides").select("id,status").eq("payment_id", paymentIntentId),
+    supabase.from("payments").select("id,status,ride_id,rider_id").eq("id", paymentIntentId).maybeSingle()
+  ]);
+  if (ridesError || recordError) {
+    return { released: false, reason: "data_unavailable", statusCode: 503 };
+  }
+  const decision = decideHoldRelease({
+    intent,
+    boundRideIds: (boundRides || []).map((r) => r.id),
+    record: record || null,
+    requester
+  });
+  if (!decision.release) {
+    const statusCode = decision.reason === "not_owner" || decision.reason === "not_a_harvey_taxi_payment" ? 404 : 409;
+    return { released: false, reason: decision.reason, statusCode };
+  }
+
+  // Claim the record. Exactly one of this claim and a ride's bind
+  // (bindPaymentRecordToRide) can succeed for the same PaymentIntent.
+  let claimed = false;
+  if (record) {
+    const { data: rows } = await supabase
+      .from("payments")
+      .update({ status: PAYMENT_RECORD_STATUS.RELEASE_PENDING, updated_at: nowIso() })
+      .eq("id", paymentIntentId)
+      .is("ride_id", null)
+      .in("status", [PAYMENT_RECORD_STATUS.CREATED, PAYMENT_RECORD_STATUS.RELEASE_FAILED])
+      .select("id");
+    claimed = Array.isArray(rows) && rows.length === 1;
+  } else {
+    const { error: insertError } = await supabase.from("payments").insert({
+      ...buildCreatedPaymentRecord({
+        intent,
+        riderId: intent.metadata?.rider_id || "unidentified",
+        rideType: intent.metadata?.ride_type || null
+      }),
+      status: PAYMENT_RECORD_STATUS.RELEASE_PENDING
+    });
+    claimed = !insertError;
+  }
+  if (!claimed) {
+    return { released: false, reason: "claimed_by_ride_or_release", statusCode: 409 };
+  }
+
+  // Belt and braces: a ride must never lose its payment.
+  const { data: lateRides } = await supabase.from("rides").select("id").eq("payment_id", paymentIntentId);
+  if ((lateRides || []).length) {
+    await supabase
+      .from("payments")
+      .update({ status: PAYMENT_RECORD_STATUS.CREATED, updated_at: nowIso() })
+      .eq("id", paymentIntentId)
+      .eq("status", PAYMENT_RECORD_STATUS.RELEASE_PENDING);
+    return { released: false, reason: "bound_to_ride", statusCode: 409 };
+  }
+
+  try {
+    await stripe.paymentIntents.cancel(
+      paymentIntentId,
+      { cancellation_reason: "abandoned" },
+      { idempotencyKey: releaseIdempotencyKey(paymentIntentId) }
+    );
+  } catch (err) {
+    await supabase
+      .from("payments")
+      .update({ status: PAYMENT_RECORD_STATUS.RELEASE_FAILED, failure_message: "stripe_cancel_failed", updated_at: nowIso() })
+      .eq("id", paymentIntentId);
+    console.warn("⚠️ Unused hold release failed at Stripe:", err && err.code ? err.code : "error");
+    return { released: false, reason: "stripe_cancel_failed", statusCode: 502 };
+  }
+
+  await supabase
+    .from("payments")
+    .update({
+      status: PAYMENT_RECORD_STATUS.RELEASED,
+      stripe_latest_status: "canceled",
+      canceled_at: nowIso(),
+      cancel_reason: decision.reason,
+      updated_at: nowIso()
+    })
+    .eq("id", paymentIntentId);
+  auditLog({
+    actor_type: requester.kind === "rider" ? "rider" : "system",
+    actor_id: requester.kind === "rider" ? requester.riderId || null : "unused-hold-sweep",
+    action: "unused_card_hold_released",
+    entity_type: "payment",
+    entity_id: paymentIntentId,
+    metadata: { reason: decision.reason, trigger, amount: Number(intent.amount || 0) / 100 },
+    req
+  }).catch(() => {});
+  return { released: true, reason: decision.reason, statusCode: 200 };
+}
+
+app.post(
+  "/api/payments/holds/:paymentIntentId/release",
+  rateLimit({ windowMs: 60_000, max: envNumber("UNUSED_HOLD_RELEASE_PER_MINUTE", 10), keyPrefix: "unused_hold_release" }),
+  asyncRoute(async (req, res) => {
+    if ((await getSystemFlag("unused_hold_release_enabled", "false")) !== "true") {
+      return res.status(503).json({ ok: false, released: false, reason: "disabled" });
+    }
+    if (!stripe) {
+      return res.status(503).json({ ok: false, released: false, reason: "payments_not_configured" });
+    }
+    const paymentIntentId = cleanString(req.params.paymentIntentId, 200);
+    if (!/^pi_[A-Za-z0-9_]+$/.test(paymentIntentId)) {
+      return fail(res, "Payment not found.", 404);
+    }
+    const rider = await resolveVerifiedRiderSession(req);
+    const result = await releaseUnusedHold({
+      paymentIntentId,
+      requester: {
+        kind: "rider",
+        riderId: rider ? String(rider.id) : null,
+        clientSecret: typeof req.body?.client_secret === "string" ? req.body.client_secret.slice(0, 300) : null
+      },
+      trigger: "rider_left_booking",
+      req
+    });
+    if (!result.released) {
+      // Ownership failures look like "not found" so a guessed id reveals nothing.
+      return res.status(result.statusCode).json({
+        ok: false,
+        released: false,
+        reason: result.statusCode === 404 ? "not_found" : result.reason
+      });
+    }
+    return ok(res, { released: true });
+  })
+);
+
+let unusedHoldSweepRunning = false;
+
+async function runUnusedHoldSweep({ minAgeMs = DEFAULT_SWEEP_MIN_AGE_MS, limit = 25 } = {}) {
+  if (unusedHoldSweepRunning || !stripe) return { skipped: true };
+  if ((await getSystemFlag("unused_hold_sweep_enabled", "false")) !== "true") return { skipped: true };
+  unusedHoldSweepRunning = true;
+  const result = { released: [], kept: [] };
+  try {
+    const cutoff = new Date(Date.now() - minAgeMs).toISOString();
+    const { data: candidates, error } = await supabase
+      .from("payments")
+      .select("id,created_at")
+      .in("status", [PAYMENT_RECORD_STATUS.CREATED, PAYMENT_RECORD_STATUS.RELEASE_FAILED])
+      .is("ride_id", null)
+      .lt("created_at", cutoff)
+      .limit(limit);
+    if (error) return result;
+    for (const row of candidates || []) {
+      const outcome = await releaseUnusedHold({
+        paymentIntentId: row.id,
+        requester: { kind: "sweep" },
+        trigger: "sweep"
+      });
+      (outcome.released ? result.released : result.kept).push({ id: row.id, reason: outcome.reason });
+    }
+    return result;
+  } finally {
+    unusedHoldSweepRunning = false;
+  }
+}
+
+/* =========================================================
 
    API 404 HANDLER
 
@@ -23448,6 +23718,12 @@ async function startServer() {
       runStuckRedispatchRecovery();
       setInterval(runStuckRedispatchRecovery, 30_000);
 
+      // Cancels uncaptured card holds that never became a ride. Off unless
+      // the unused_hold_sweep_enabled system flag is "true".
+      setInterval(() => {
+        runUnusedHoldSweep().catch(() => {});
+      }, 10 * 60_000);
+
     }
 
   );
@@ -23471,4 +23747,4 @@ if (require.main === module) {
 // runOfferExpirySweep is exported only so tests can drive the real
 // Supabase adapters for the offer-expiry sweep; production runs it on the
 // interval set up under require.main === module below.
-module.exports = { app, runOfferExpirySweep };
+module.exports = { app, runOfferExpirySweep, runUnusedHoldSweep };
