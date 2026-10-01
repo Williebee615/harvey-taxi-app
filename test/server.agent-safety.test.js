@@ -19,6 +19,7 @@ process.env.ADMIN_PASSWORD = "test-admin-password";
 process.env.ADMIN_SESSION_SECRET = "test-admin-session-secret";
 process.env.NODE_ENV = "test";
 process.env.API_RATE_LIMIT_PER_MINUTE = "100000";
+process.env.HARVEY_ISOLATED_TEST = "1";
 process.env.AGENT_LLM_BASE_URL = "http://127.0.0.1:9/v1";
 process.env.AGENT_LLM_MODEL = "test-open-weight-model";
 process.env.AGENT_LLM_TIMEOUT_MS = "800";

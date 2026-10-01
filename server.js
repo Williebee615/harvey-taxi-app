@@ -487,6 +487,7 @@ const {
   describeGeoConfig,
   geoConfigLogLines
 } = require("./lib/geoConfig");
+const { resolvePerMinuteLimit } = require("./lib/rateLimitConfig");
 
 // AI Agent Manager (docs/ai-agent-manager.md). No OpenAI/Anthropic
 // dependency: rules engine + optional self-hosted model.
@@ -23756,7 +23757,7 @@ function opsAnswers(body) {
   return out;
 }
 
-const opsRateLimit = rateLimit({ windowMs: 60_000, max: envNumber("OPS_CASES_PER_MINUTE", 10), keyPrefix: "ops_cases" });
+const opsRateLimit = rateLimit({ windowMs: 60_000, max: resolvePerMinuteLimit("OPS_CASES_PER_MINUTE", 10), keyPrefix: "ops_cases" });
 
 for (const role of ["rider", "driver"]) {
   const auth = role === "rider" ? requireRider : requireDriverSelf;

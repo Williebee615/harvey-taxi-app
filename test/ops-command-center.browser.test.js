@@ -13,6 +13,7 @@ process.env.RIDE_QUOTE_SECRET = "test-ride-quote-secret";
 process.env.ADMIN_API_TOKEN = "test-admin-token";
 process.env.ADMIN_EMAIL = "test-staff@example.test";
 process.env.API_RATE_LIMIT_PER_MINUTE = "100000";
+process.env.HARVEY_ISOLATED_TEST = "1";
 process.env.OPS_CASES_PER_MINUTE = "100000";
 delete process.env.CANONICAL_HOST;
 delete process.env.FOUNDATION_HOST;

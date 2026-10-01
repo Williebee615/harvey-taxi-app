@@ -20,6 +20,7 @@ Object.assign(process.env, {
   ADMIN_API_TOKEN: "demo-admin-token",
   ADMIN_EMAIL: "demo-admin@example.test",
   API_RATE_LIMIT_PER_MINUTE: "100000",
+  HARVEY_ISOLATED_TEST: "1",
   OPS_CASES_PER_MINUTE: "100000"
 });
 delete process.env.OPENAI_API_KEY;
