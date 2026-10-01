@@ -434,9 +434,8 @@ const STRIPE_SECRET_KEY = env("STRIPE_SECRET_KEY");
 const STRIPE_WEBHOOK_SECRET = env("STRIPE_WEBHOOK_SECRET");
 
 // Not secret — this is the key Stripe.js needs in the browser to collect
-// card details. Served through GET /api/stripe-key the same way
-// GOOGLE_MAPS_BROWSER_KEY is served through /api/maps-key, so it never has
-// to be hardcoded or committed to git.
+// card details. Served through GET /api/stripe-key, so it never has to be
+// hardcoded or committed to git.
 const STRIPE_PUBLISHABLE_KEY = env("STRIPE_PUBLISHABLE_KEY");
 
 let stripe = null;
@@ -479,23 +478,20 @@ const CHECKR_API_KEY = env("CHECKR_API_KEY");
 
 const CHECKR_WEBHOOK_SECRET = env("CHECKR_WEBHOOK_SECRET");
 
-// Browser-restricted Google Maps/Places key. Safe to hand to the client —
-// it's designed to be embedded in page requests and protected by HTTP
-// referrer restrictions in Google Cloud Console, not by keeping it secret —
-// but it still shouldn't be hardcoded into a file committed to git, so it's
-// served from this env var through GET /api/maps-key instead.
-const GOOGLE_MAPS_BROWSER_KEY = env("GOOGLE_MAPS_BROWSER_KEY");
-
-// Startup diagnostic for the Maps browser key: names and booleans only,
-// never the value (see lib/mapsConfig.js).
+// Mapbox powers address search, geocoding and driving distance/duration.
+// The token is read here, trimmed, and used only by server-side requests
+// (lib/mapboxClient.js); it is never sent to browsers, logged, or returned.
 const {
-  describeMapsConfig,
-  mapsConfigLogLines,
-  mapsKeyResponse
-} = require("./lib/mapsConfig");
-const MAPS_CONFIG = describeMapsConfig(process.env);
+  GEO_UNAVAILABLE_MESSAGE,
+  readGeoToken,
+  describeGeoConfig,
+  geoConfigLogLines
+} = require("./lib/geoConfig");
+const { createMapboxClient, isFiniteCoord, ERROR: GEO_ERROR } = require("./lib/mapboxClient");
+const GEO_CONFIG = describeGeoConfig(process.env);
+const geoClient = createMapboxClient({ token: readGeoToken(process.env) });
 {
-  const { level, lines } = mapsConfigLogLines(MAPS_CONFIG);
+  const { level, lines } = geoConfigLogLines(GEO_CONFIG);
   lines.forEach((line) => console[level](line));
 }
 
@@ -13766,44 +13762,138 @@ app.get(
 
 /* =========================================================
 
-   GOOGLE MAPS BROWSER KEY
+   ADDRESS SEARCH AND ROUTING (Mapbox, server-side)
 
-   Serves the browser-restricted Maps/Places key from an env
-   var instead of it being hardcoded into a static HTML file
-   committed to git. request-ride.html falls back to this when
-   its <meta name="google-maps-browser-key"> tag is empty.
-   When unconfigured it returns a 503 "maps_not_configured" error
-   (not { ok: true, key: "" }), and logs a rate-limited warning.
+   The browser never receives the Mapbox token: it calls these
+   routes and gets back only labels, coordinates and route
+   distance/duration. All are public (ordinary riders book
+   without a session) and rate-limited per IP, because each
+   call is billed by Mapbox.
+
+   Errors are deliberately plain: 503 geo_not_configured /
+   geo_unavailable (provider down, token rejected, timeout),
+   404 address_not_found, 422 no_route, 400 for bad input.
+   Logs carry the category and HTTP status only.
 
 ========================================================= */
 
-// Runtime diagnostic: a request for the Maps key while none is set logs a
-// warning at most once every 10 minutes (no key value, no request data).
-const MAPS_KEY_WARNING_INTERVAL_MS = 10 * 60_000;
-let lastMapsKeyWarningAt = 0;
+const GEO_WARNING_INTERVAL_MS = 10 * 60_000;
+const lastGeoWarningAt = new Map();
 
-function warnMapsKeyMissing(now = Date.now()) {
-  if (now - lastMapsKeyWarningAt < MAPS_KEY_WARNING_INTERVAL_MS) {
+// At most one warning per category every 10 minutes. Never logs the
+// request URL (it contains the token) or the provider's response body.
+function warnGeoProblem(category, status, now = Date.now()) {
+  if (now - (lastGeoWarningAt.get(category) || 0) < GEO_WARNING_INTERVAL_MS) {
     return false;
   }
-  lastMapsKeyWarningAt = now;
-  console.warn(
-    "⚠️ /api/maps-key requested but GOOGLE_MAPS_BROWSER_KEY is not set; " +
-      "address lookup and route-based fare estimates are unavailable."
-  );
+  lastGeoWarningAt.set(category, now);
+  if (category === GEO_ERROR.NOT_CONFIGURED) {
+    console.warn("⚠️ Address search requested but MAPBOX_ACCESS_TOKEN is not set; lookups and route estimates are unavailable.");
+  } else if (status === 401 || status === 403) {
+    console.warn(
+      `⚠️ Mapbox rejected a request (HTTP ${status}). Check that MAPBOX_ACCESS_TOKEN is valid and allowed to use ` +
+        "Geocoding and Directions; permanent geocoding also requires a credit card on the Mapbox account."
+    );
+  } else {
+    console.warn(`⚠️ Mapbox request failed (${category}${status ? `, HTTP ${status}` : ""}).`);
+  }
   return true;
 }
 
+function sendGeoFailure(res, outcome) {
+  if (outcome.error === GEO_ERROR.NOT_FOUND) {
+    return fail(res, "We couldn't find that address. Check it or pick a suggestion.", 404, { code: "address_not_found" });
+  }
+  if (outcome.error === GEO_ERROR.NO_ROUTE) {
+    return fail(res, "There is no driving route between these addresses.", 422, { code: "no_route" });
+  }
+  warnGeoProblem(outcome.error, outcome.status);
+  return fail(res, GEO_UNAVAILABLE_MESSAGE, 503, {
+    code: outcome.error === GEO_ERROR.NOT_CONFIGURED ? "geo_not_configured" : "geo_unavailable"
+  });
+}
+
+function parseCoord(value) {
+  if (!value || typeof value !== "object") return null;
+  const lat = Number(value.lat);
+  const lng = Number(value.lng);
+  return isFiniteCoord(lat, lng) ? { lat, lng } : null;
+}
+
+function cleanGeoQuery(value) {
+  const q = cleanString(value, 200);
+  return q.length >= 3 ? q : "";
+}
+
+// Whether address search is configured. Boolean only.
 app.get(
-  "/api/maps-key",
-  rateLimit({ windowMs: 60_000, max: 60, keyPrefix: "maps_key" }),
+  "/api/geo/status",
+  rateLimit({ windowMs: 60_000, max: 60, keyPrefix: "geo_status" }),
+  asyncRoute(async (req, res) => ok(res, { configured: GEO_CONFIG.configured }))
+);
+
+// Suggestions while typing. Temporary results: shown, never stored.
+app.get(
+  "/api/geo/suggest",
+  rateLimit({ windowMs: 60_000, max: 60, keyPrefix: "geo_suggest" }),
   asyncRoute(async (req, res) => {
-    const outcome = mapsKeyResponse(GOOGLE_MAPS_BROWSER_KEY);
-    if (outcome.status !== 200) {
-      warnMapsKeyMissing();
-      return fail(res, outcome.body.message, outcome.status, { code: outcome.body.code });
+    const q = cleanGeoQuery(req.query.q);
+    if (!q) {
+      return fail(res, "Type at least 3 characters.", 400, { code: "invalid_query" });
     }
-    return ok(res, outcome.body);
+    const near = parseCoord({ lat: req.query.lat, lng: req.query.lng });
+    const outcome = await geoClient.suggest(q, { near });
+    if (!outcome.ok) return sendGeoFailure(res, outcome);
+    return ok(res, { results: outcome.results });
+  })
+);
+
+// The address a ride is booked with (permanent result, may be stored).
+app.post(
+  "/api/geo/resolve",
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "geo_resolve" }),
+  asyncRoute(async (req, res) => {
+    const q = cleanGeoQuery(req.body?.query);
+    if (!q) {
+      return fail(res, "Enter an address of at least 3 characters.", 400, { code: "invalid_query" });
+    }
+    const outcome = await geoClient.resolve(q, { near: parseCoord(req.body?.near) });
+    if (!outcome.ok) return sendGeoFailure(res, outcome);
+    return ok(res, { place: outcome.place });
+  })
+);
+
+// "Use my location": street address for device coordinates.
+app.post(
+  "/api/geo/reverse",
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "geo_reverse" }),
+  asyncRoute(async (req, res) => {
+    const point = parseCoord(req.body);
+    if (!point) {
+      return fail(res, "Valid coordinates are required.", 400, { code: "invalid_coordinates" });
+    }
+    const outcome = await geoClient.reverse(point.lat, point.lng);
+    if (!outcome.ok) return sendGeoFailure(res, outcome);
+    return ok(res, { place: outcome.place });
+  })
+);
+
+// Driving distance and duration between two points.
+app.post(
+  "/api/geo/route",
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "geo_route" }),
+  asyncRoute(async (req, res) => {
+    const from = parseCoord(req.body?.from);
+    const to = parseCoord(req.body?.to);
+    if (!from || !to) {
+      return fail(res, "Valid pickup and destination coordinates are required.", 400, { code: "invalid_coordinates" });
+    }
+    const outcome = await geoClient.route(from, to);
+    if (!outcome.ok) return sendGeoFailure(res, outcome);
+    return ok(res, {
+      distance_miles: outcome.distance_miles,
+      duration_minutes: outcome.duration_minutes
+    });
   })
 );
 
@@ -13811,8 +13901,8 @@ app.get(
 
    STRIPE PUBLISHABLE KEY
 
-   Serves the Stripe publishable key the same way /api/maps-key
-   serves the Maps key — an env var instead of a hardcoded value
+   Serves the Stripe publishable key from an env var instead of
+   a hardcoded value
    in a static HTML file. request-ride.html uses this to load
    Stripe.js and collect real card details before authorizing a
    ride's payment. Returns an empty key (never an error) when
@@ -21879,9 +21969,9 @@ app.get(
 
           pushEnabled,
 
-        google_maps_browser_key:
+        mapbox:
 
-          MAPS_CONFIG.configured && MAPS_CONFIG.problems.length === 0
+          GEO_CONFIG.configured && GEO_CONFIG.problems.length === 0
 
       },
 
@@ -22069,9 +22159,9 @@ app.get(
 
           Boolean(OPENAI_API_KEY),
 
-        GOOGLE_MAPS_BROWSER_KEY:
+        MAPBOX_ACCESS_TOKEN:
 
-          Boolean(GOOGLE_MAPS_BROWSER_KEY),
+          GEO_CONFIG.configured,
 
         VAPID_PUBLIC_KEY:
 
