@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useReducer, useRef } from 'react';
-import { AppState, Linking, StatusBar, StyleSheet, View } from 'react-native';
+import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react';
+import { AppState, BackHandler, Linking, Platform, StatusBar, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 
@@ -17,11 +17,110 @@ import {
   startupReducer
 } from './src/startup';
 import { COLORS, ErrorScreen, LoadingScreen } from './src/StartupScreens';
+import {
+  CLOSE_WIZARD_SCRIPT,
+  LAUNCH_CHECK_TIMEOUT_MS,
+  PAGE_STATE_SCRIPT,
+  decideAndroidBack,
+  parseShellMessage,
+  resolveIncomingLink
+} from './src/navigation';
+
+// Launch check (see src/navigation.js): 'pending' until the home page
+// reports whether a signed-in rider is being sent to the dashboard,
+// 'redirecting' while that page loads, then 'done'. The loading screen
+// stays up until it is done, so a signed-in rider never sees the home
+// page flash before the dashboard.
+const LAUNCH = Object.freeze({ PENDING: 'pending', REDIRECTING: 'redirecting', DONE: 'done' });
+const REDIRECT_TIMEOUT_MS = 15000;
 
 export function HarveyTaxiShell() {
   const [state, dispatch] = useReducer(startupReducer, initialState);
   const stateRef = useRef(state);
   stateRef.current = state;
+  const [sourceUrl, setSourceUrl] = useState(START_URL);
+  const [launch, setLaunch] = useState(LAUNCH.PENDING);
+  const launchRef = useRef(launch);
+  launchRef.current = launch;
+  const webViewRef = useRef(null);
+  const pageRef = useRef(null);
+  const canGoBackRef = useRef(false);
+
+  // Opens a link (cold start or while running) in the WebView. An explicit
+  // booking/tracking/dashboard link always wins over the launch redirect.
+  const openLink = useCallback((rawUrl) => {
+    const target = resolveIncomingLink(rawUrl);
+    if (!target) return;
+    setLaunch(LAUNCH.DONE);
+    if (stateRef.current.phase === PHASE.READY && webViewRef.current) {
+      webViewRef.current.injectJavaScript(`window.location.assign(${JSON.stringify(target)}); true;`);
+    } else {
+      setSourceUrl(target);
+    }
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    Linking.getInitialURL()
+      .then((url) => {
+        if (active && url) openLink(url);
+      })
+      .catch(() => {});
+    const subscription = Linking.addEventListener('url', ({ url }) => openLink(url));
+    return () => {
+      active = false;
+      subscription?.remove?.();
+    };
+  }, [openLink]);
+
+  // Never hold the loading screen on the launch check for long: if the
+  // site doesn't answer, show whatever page loaded.
+  useEffect(() => {
+    if (launch === LAUNCH.DONE || state.phase !== PHASE.READY) return undefined;
+    const timer = setTimeout(
+      () => setLaunch(LAUNCH.DONE),
+      launch === LAUNCH.REDIRECTING ? REDIRECT_TIMEOUT_MS : LAUNCH_CHECK_TIMEOUT_MS
+    );
+    return () => clearTimeout(timer);
+  }, [launch, state.phase]);
+
+  // Android Back (hardware button or gesture). iOS has no Back button;
+  // there the WebView's edge-swipe gesture walks the same history.
+  useEffect(() => {
+    if (Platform.OS !== 'android') return undefined;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (stateRef.current.phase !== PHASE.READY || !webViewRef.current) return false;
+      const decision = decideAndroidBack({ page: pageRef.current, canGoBack: canGoBackRef.current });
+      if (decision === 'close-wizard') {
+        webViewRef.current.injectJavaScript(CLOSE_WIZARD_SCRIPT);
+        return true;
+      }
+      if (decision === 'go-back') {
+        webViewRef.current.goBack();
+        return true;
+      }
+      // Dashboard, home page, or nothing behind: the system default
+      // (leave the app), as at the top level of any Android app.
+      return false;
+    });
+    return () => subscription.remove();
+  }, []);
+
+  const onMessage = useCallback((event) => {
+    const message = parseShellMessage(event?.nativeEvent?.data);
+    if (!message) return;
+    if (message.type === 'page') {
+      pageRef.current = message;
+      return;
+    }
+    if (message.type === 'launch' && launchRef.current === LAUNCH.PENDING) {
+      setLaunch(message.result === 'redirect' ? LAUNCH.REDIRECTING : LAUNCH.DONE);
+    }
+  }, []);
+
+  const onNavigationStateChange = useCallback((navState) => {
+    canGoBackRef.current = Boolean(navState?.canGoBack);
+  }, []);
 
   // Loading timers belong to one attempt: a retry starts a fresh timeout,
   // and reaching READY or ERROR cancels it.
@@ -51,7 +150,11 @@ export function HarveyTaxiShell() {
 
   const retry = useCallback(() => dispatch({ type: 'RETRY' }), []);
 
-  const onLoad = useCallback(() => dispatch({ type: 'LOADED' }), []);
+  const onLoad = useCallback(() => {
+    dispatch({ type: 'LOADED' });
+    // The dashboard the launch check redirected to has loaded.
+    if (launchRef.current === LAUNCH.REDIRECTING) setLaunch(LAUNCH.DONE);
+  }, []);
 
   const onError = useCallback((event) => {
     const { nativeEvent } = event;
@@ -91,8 +194,12 @@ export function HarveyTaxiShell() {
       <View style={styles.content}>
         <WebView
           key={state.attempt}
+          ref={webViewRef}
           testID="harvey-webview"
-          source={{ uri: START_URL }}
+          source={{ uri: sourceUrl }}
+          injectedJavaScript={PAGE_STATE_SCRIPT}
+          onMessage={onMessage}
+          onNavigationStateChange={onNavigationStateChange}
           style={styles.webview}
           containerStyle={styles.webviewContainer}
           originWhitelist={['*']}
@@ -112,7 +219,9 @@ export function HarveyTaxiShell() {
           automaticallyAdjustContentInsets={false}
           contentInsetAdjustmentBehavior="never"
         />
-        {state.phase === PHASE.LOADING && <LoadingScreen slow={state.slow} />}
+        {(state.phase === PHASE.LOADING || (state.phase === PHASE.READY && launch !== LAUNCH.DONE)) && (
+          <LoadingScreen slow={state.slow} />
+        )}
         {state.phase === PHASE.ERROR && <ErrorScreen kind={state.errorKind} onRetry={retry} />}
       </View>
     </SafeAreaView>

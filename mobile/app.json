@@ -2,7 +2,7 @@
   "expo": {
     "name": "Harvey Taxi",
     "slug": "harvey-taxi",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "icon": "./assets/icon.png",
@@ -37,6 +37,7 @@
       "eas": {
         "projectId": "ae7e5a71-4f7c-45d8-8b7e-e0ef4de507b2"
       }
-    }
+    },
+    "scheme": "harveytaxi"
   }
 }
