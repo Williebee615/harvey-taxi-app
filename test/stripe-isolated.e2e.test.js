@@ -311,6 +311,243 @@ describeIsolated(`card flow in an isolated environment (Stripe: ${STRIPE_MODE})`
       expect(Number((await q("select count(*) from public.payments where id = $1", [pi.id]))[0].count)).toBe(1);
     }
   });
+  // ---- Untracked-hold fix: persist before returning the client secret,
+  // cancel or alert on failure, Stripe-side reconciliation. ----
+
+  const SIM_ONLY = KEY_IS_TEST ? test.skip : test;
+  const TRIP = { pickup: "100 Main St", destination: "200 Elm St", pickup_lat: 36.16, pickup_lng: -86.78, destination_lat: 36.17, destination_lng: -86.79, ride_type: "standard" };
+
+  async function createIntent({ headers = {}, riderId, key, server = app } = {}) {
+    const est = await request(server).post("/api/rides/estimate").set(headers).send({ ...TRIP, miles: 5, minutes: 12, ...(riderId ? { rider_id: riderId } : {}) });
+    expect(est.status).toBe(200);
+    const res = await request(server)
+      .post("/api/rides/payment-intent")
+      .set(headers)
+      .send({ ...TRIP, miles: 5, minutes: 12, estimate_token: est.body.estimate_token, idempotency_key: key || `k-${Math.random()}`, ...(riderId ? { rider_id: riderId } : {}) });
+    if (res.body.payment_intent_id) created.push(res.body.payment_intent_id);
+    return res;
+  }
+
+  async function rejectCreatedRecordWrites(on) {
+    if (on) {
+      await env.db.query(`create or replace function public.test_reject_created() returns trigger language plpgsql as $$ begin raise exception 'simulated payments write failure'; end $$;
+        drop trigger if exists test_reject_created on public.payments;
+        create trigger test_reject_created before insert on public.payments for each row when (new.status = 'created') execute function public.test_reject_created();`);
+    } else {
+      await env.db.query("drop trigger if exists test_reject_created on public.payments");
+    }
+  }
+
+  const setFlag = (key, value) => env.db.query("insert into public.system_flags(key, value) values ($1, $2) on conflict (key) do update set value = excluded.value", [key, value]);
+  const ownOnly = (ids) => (pi) => ids.includes(pi.id);
+  const reconcile = (opts) => require("../server").reconcileStripeHolds({ minAgeMs: 0, ...opts });
+
+  // Regression for the reproduced gap: a failed background write used to
+  // leave a confirmed hold that nothing tracked.
+  test("REGRESSION: a payments-write failure never leaves a usable, untracked intent", async () => {
+    await reset([]);
+    await rejectCreatedRecordWrites(true);
+    try {
+      const res = await createIntent({ headers: riderAuthHeaders(signTestRiderToken("RIDER_1")), riderId: "RIDER_1" });
+      expect(res.status).toBe(503);
+      expect(res.body.retry_with_new_key).toBe(true);
+      expect(JSON.stringify(res.body)).not.toMatch(/_secret_/);
+      expect(res.body.client_secret).toBeUndefined();
+    } finally {
+      await rejectCreatedRecordWrites(false);
+    }
+    // The intent the server created was cancelled at Stripe.
+    const own = (await stripe.paymentIntents.list({ limit: 5 })).data.filter((pi) => pi.metadata?.account === "harvey_taxi_service");
+    expect(own.length).toBeGreaterThan(0);
+    expect(own[0].status).toBe("canceled");
+    created.push(own[0].id);
+    expect(await q("select 1 from public.payments")).toHaveLength(0);
+  });
+
+  SIM_ONLY("write failure AND cancel failure: no secret, redacted alert, recovered by reconciliation", async () => {
+    await reset([]);
+    const alerts = [];
+    const spy = jest.spyOn(console, "error").mockImplementation((tag, payload) => {
+      if (tag === "🚨 PAYMENT_OPS_ALERT") alerts.push(payload);
+    });
+    await rejectCreatedRecordWrites(true);
+    stripe._failCancel("*", true);
+    let res;
+    try {
+      res = await createIntent({ headers: riderAuthHeaders(signTestRiderToken("RIDER_1")), riderId: "RIDER_1" });
+    } finally {
+      stripe._failCancel("*", false);
+      await rejectCreatedRecordWrites(false);
+      spy.mockRestore();
+    }
+    expect(res.status).toBe(503);
+    expect(JSON.stringify(res.body)).not.toMatch(/_secret_/);
+    expect(alerts).toHaveLength(1);
+    const alert = JSON.parse(alerts[0]);
+    expect(alert).toMatchObject({ event: "payment_intent_untracked", reason: "record_write_failed_and_cancel_failed" });
+    expect(alerts[0]).not.toMatch(/_secret_|example\.test/);
+    const piId = alert.payment_intent_id;
+    expect((await stripe.paymentIntents.retrieve(piId)).status).toBe("requires_payment_method");
+    expect(await paymentRow(piId)).toBeUndefined();
+
+    // Reconciliation (cleanup off) records it; with cleanup on, cancels it.
+    const dry = await reconcile({ intentFilter: ownOnly([piId]) });
+    expect(dry).toMatchObject({ newly_tracked: 1, would_release: 1, released: 0, cleanup_enabled: false });
+    expect(await paymentRow(piId)).toMatchObject({ status: "created", rider_id: "RIDER_1" });
+    await setFlag("unused_hold_sweep_enabled", "true");
+    const live = await reconcile({ intentFilter: ownOnly([piId]) });
+    expect(live).toMatchObject({ released: 1, cleanup_enabled: true });
+    expect((await stripe.paymentIntents.retrieve(piId)).status).toBe("canceled");
+  });
+
+  test("app termination after the card hold: the record already exists; reconciliation cancels only when cleanup is on", async () => {
+    await reset([]);
+    const res = await createIntent({ headers: riderAuthHeaders(signTestRiderToken("RIDER_1")), riderId: "RIDER_1" });
+    expect(res.status).toBe(200);
+    const piId = res.body.payment_intent_id;
+    // Persisted before the response -- no waiting.
+    expect(await paymentRow(piId)).toMatchObject({ status: "created", rider_id: "RIDER_1", client_secret: null });
+    await stripe.paymentIntents.confirm(piId, { payment_method: "pm_card_visa" });
+    // ...and the app is killed: no release call, no booking.
+
+    const dry = await reconcile({ intentFilter: ownOnly([piId]) });
+    expect(dry).toMatchObject({ would_release: 1, released: 0, cleanup_enabled: false });
+    expect((await stripe.paymentIntents.retrieve(piId)).status).toBe("requires_capture");
+
+    await setFlag("unused_hold_sweep_enabled", "true");
+    const live = await reconcile({ intentFilter: ownOnly([piId]) });
+    expect(live.released).toBe(1);
+    expect((await stripe.paymentIntents.retrieve(piId)).status).toBe("canceled");
+    expect((await paymentRow(piId)).status).toBe("released");
+  });
+
+  test("missing rider identity: tracked as unidentified; a client-claimed rider_id never proves ownership", async () => {
+    await reset([]);
+    const anon = await createIntent({});
+    expect(anon.status).toBe(200);
+    expect(await paymentRow(anon.body.payment_intent_id)).toMatchObject({ status: "created", rider_id: "unidentified" });
+    const anonPi = await stripe.paymentIntents.retrieve(anon.body.payment_intent_id);
+    expect(anonPi.metadata).toMatchObject({ app: "harvey_taxi", account: "harvey_taxi_service", rider_verified: "false" });
+
+    // Sessionless request naming RIDER_1: recorded, but not verified.
+    const claimed = await createIntent({ riderId: "RIDER_1" });
+    const claimedPi = await stripe.paymentIntents.retrieve(claimed.body.payment_intent_id);
+    expect(claimedPi.metadata).toMatchObject({ rider_id: "RIDER_1", rider_verified: "false" });
+    const asRider = riderAuthHeaders(signTestRiderToken("RIDER_1"));
+    expect((await request(app).post(`/api/payments/holds/${claimedPi.id}/release`).set(asRider).send({})).status).toBe(404);
+    // The browser that created it (holds the client secret) can release it.
+    expect((await request(app).post(`/api/payments/holds/${claimedPi.id}/release`).send({ client_secret: claimed.body.client_secret })).status).toBe(200);
+
+    // A verified session's own hold can be released by that session.
+    const verified = await createIntent({ headers: asRider, riderId: "RIDER_1" });
+    expect((await stripe.paymentIntents.retrieve(verified.body.payment_intent_id)).metadata.rider_verified).toBe("true");
+    expect((await request(app).post(`/api/payments/holds/${verified.body.payment_intent_id}/release`).set(asRider).send({})).status).toBe(200);
+  });
+
+  test("duplicate requests with one idempotency key: one intent, one record, same secret", async () => {
+    await reset([]);
+    const headers = riderAuthHeaders(signTestRiderToken("RIDER_1"));
+    const est = await request(app).post("/api/rides/estimate").set(headers).send({ ...TRIP, miles: 5, minutes: 12, rider_id: "RIDER_1" });
+    const body = { ...TRIP, miles: 5, minutes: 12, rider_id: "RIDER_1", estimate_token: est.body.estimate_token, idempotency_key: `dup-${Date.now()}` };
+    const results = await Promise.all([1, 2, 3].map(() => request(app).post("/api/rides/payment-intent").set(headers).send(body)));
+    expect(results.map((r) => r.status)).toEqual([200, 200, 200]);
+    const ids = new Set(results.map((r) => r.body.payment_intent_id));
+    expect(ids.size).toBe(1);
+    const [piId] = [...ids];
+    created.push(piId);
+    expect(Number((await q("select count(*) from public.payments where id = $1", [piId]))[0].count)).toBe(1);
+    // A retry after the intent was released is refused, and the client is
+    // told to start a new attempt (no cancelled intent is handed out).
+    await request(app).post(`/api/payments/holds/${piId}/release`).send({ client_secret: results[0].body.client_secret });
+    const retry = await request(app).post("/api/rides/payment-intent").set(headers).send(body);
+    expect(retry.status).toBe(409);
+    expect(retry.body.retry_with_new_key).toBe(true);
+    expect(retry.body.client_secret).toBeUndefined();
+  });
+
+  test("uncertain attachment or ownership is flagged for review, never cancelled", async () => {
+    await reset([]);
+    await setFlag("unused_hold_sweep_enabled", "true");
+    const alerts = [];
+    const spy = jest.spyOn(console, "error").mockImplementation((tag, payload) => {
+      if (tag === "🚨 PAYMENT_OPS_ALERT") alerts.push(payload);
+    });
+    try {
+      // Stripe names a ride the database never bound.
+      const named = await createIntent({ headers: riderAuthHeaders(signTestRiderToken("RIDER_1")), riderId: "RIDER_1" });
+      await stripe.paymentIntents.confirm(named.body.payment_intent_id, { payment_method: "pm_card_visa" });
+      await stripe.paymentIntents.update(named.body.payment_intent_id, { metadata: { ride_id: "RIDE_UNKNOWN" } });
+      // A Harvey Taxi hold without the account tag (pre-fix metadata).
+      const legacy = await hold();
+      const ids = [named.body.payment_intent_id, legacy.id];
+      const summary = await reconcile({ intentFilter: ownOnly(ids) });
+      expect(summary).toMatchObject({ review: 2, released: 0 });
+      for (const id of ids) {
+        expect((await paymentRow(id)).status).toBe("review_required");
+        expect((await stripe.paymentIntents.retrieve(id)).status).toBe("requires_capture");
+      }
+      expect(alerts.filter((a) => JSON.parse(a).event === "payment_hold_review_required")).toHaveLength(2);
+      // Flagged once: a second pass does not alert again.
+      await reconcile({ intentFilter: ownOnly(ids) });
+      expect(alerts).toHaveLength(2);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  test("reconciliation pages through Stripe's list", async () => {
+    await reset([]);
+    const ids = [];
+    for (let i = 0; i < 5; i++) {
+      const pi = await stripe.paymentIntents.create(
+        { amount: 2000, currency: "usd", capture_method: "manual", metadata: { app: "harvey_taxi", account: "harvey_taxi_service", rider_id: "RIDER_1", rider_verified: "false" } },
+        {}
+      );
+      created.push(pi.id);
+      ids.push(pi.id);
+    }
+    const summary = await reconcile({ pageSize: 2, intentFilter: ownOnly(ids) });
+    expect(summary.pages).toBeGreaterThanOrEqual(3);
+    expect(summary.newly_tracked).toBe(5);
+    expect(summary.would_release).toBe(5);
+    expect(Number((await q("select count(*) from public.payments where id = any($1)", [ids]))[0].count)).toBe(5);
+  });
+
+  // Head starts (ms) for authorization; across them both interleavings occur
+  // (measured locally: reconciliation wins at 0 ms most often, authorization
+  // at 20 ms), and every run must have exactly one winner.
+  test.each([0, 3, 6, 10, 20])("reconciliation (instance B) vs authorization (instance A) race, authorization head start %i ms: exactly one wins", async (delay) => {
+    let serverB;
+    jest.isolateModules(() => {
+      serverB = require("../server");
+    });
+    await reset([ride()]);
+    await setFlag("unused_hold_sweep_enabled", "true");
+    const res = await createIntent({ headers: riderAuthHeaders(signTestRiderToken("RIDER_1")), riderId: "RIDER_1" });
+    const piId = res.body.payment_intent_id;
+    const confirmed = await stripe.paymentIntents.confirm(piId, { payment_method: "pm_card_visa" });
+    // The ride's fare must match the route-priced hold, or authorization
+    // would fail for that reason instead of racing.
+    await env.db.query("update public.rides set estimated_fare = $1 where id = 'RIDE_1'", [confirmed.amount / 100]);
+    const [summary, auth] = await Promise.all([
+      new Promise((r) => setTimeout(r, delay)).then(() => serverB.reconcileStripeHolds({ minAgeMs: 0, intentFilter: ownOnly([piId]) })),
+      authorize("RIDE_1", piId)
+    ]);
+    const atStripe = await stripe.paymentIntents.retrieve(piId);
+    const r = await rideRow();
+    if (r.payment_id === piId) {
+      expect(auth.status).toBe(200);
+      expect(summary.released).toBe(0);
+      expect(atStripe.status).toBe("requires_capture");
+      expect(await pendingOffers()).toBe(1);
+    } else {
+      expect(summary.released).toBe(1);
+      expect(auth.status).not.toBe(200);
+      expect(atStripe.status).toBe("canceled");
+      expect(r.status).toBe("payment_required");
+      expect(await pendingOffers()).toBe(0);
+    }
+  });
 });
 
 test("guard: a live Stripe key is never accepted", () => {

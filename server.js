@@ -496,7 +496,11 @@ const {
   buildCreatedPaymentRecord,
   buildAuthorizedPaymentRecord,
   decideHoldRelease,
-  releaseIdempotencyKey
+  releaseIdempotencyKey,
+  RELEASABLE_INTENT_STATUSES,
+  buildIntentMetadata,
+  decideReconciliation,
+  buildPaymentOpsAlert
 } = require("./lib/unusedHolds");
 
 // AI Agent Manager (docs/ai-agent-manager.md). No OpenAI/Anthropic
@@ -11749,12 +11753,15 @@ app.post(
       }
     }
 
+    // Verified only when a valid rider session (whether or not sign-in is
+    // enforced) names the same rider; a client-supplied rider_id alone
+    // never counts.
+    const sessionRider = req.rider || (riderId ? await resolveVerifiedRiderSession(req) : null);
+    const riderVerified = Boolean(sessionRider?.id) && String(sessionRider.id) === String(riderId);
+
     let paymentIntent;
-
     try {
-
       paymentIntent =
-
         await stripe.paymentIntents.create({
 
           amount:
@@ -11778,23 +11785,14 @@ app.post(
           },
 
           ...attachmentFields,
-
-          metadata: {
-
-            app:
-
-              "harvey_taxi",
-
-            ride_type:
-
-              rideType,
-
-            rider_id:
-
-              riderId
-
-          }
-
+          // Explicit app/account tags (reconciliation acts only on these),
+          // and rider_verified = whether rider_id came from a verified
+          // session rather than the client.
+          metadata: buildIntentMetadata({
+            rideType,
+            riderId,
+            riderVerified
+          })
         }, idempotencyKey ? { idempotencyKey } : undefined);
 
     } catch (error) {
@@ -11825,15 +11823,34 @@ app.post(
 
     }
 
-    // Best effort: the record lets an unused hold be found and released
-    // later. The ride's authorization step creates it if this fails.
-    if (riderId) {
-      recordCreatedPayment({
-        intent: paymentIntent,
-        riderId,
-        rideType,
-        stripeCustomerId: attachmentFields.customer || null
-      }).catch(() => {});
+    // A retried request whose Stripe idempotency key belongs to an intent
+    // this server already cancelled (see below) gets that cancelled intent
+    // back from Stripe. Never hand it out; the client starts a new attempt.
+    if (!RELEASABLE_INTENT_STATUSES.includes(paymentIntent.status)) {
+      return fail(res, "This payment attempt can no longer be used. Please try again.", 409, { retry_with_new_key: true });
+    }
+
+    // Every intent is recorded BEFORE its client secret leaves the server,
+    // so no hold can exist that the database doesn't know about. This is a
+    // reliability rule, not part of the (flagged) cleanup feature.
+    const persisted = await persistCreatedPaymentRecord({
+      intent: paymentIntent,
+      riderId,
+      rideType,
+      stripeCustomerId: attachmentFields.customer || null
+    });
+    if (!persisted.ok) {
+      if (persisted.reason === "record_not_reusable") {
+        return fail(res, "This payment attempt can no longer be used. Please try again.", 409, { retry_with_new_key: true });
+      }
+      if (persisted.reason === "record_unreadable") {
+        // The record exists (so the intent is tracked) but couldn't be read
+        // back; another request may already be using this intent, so it is
+        // not cancelled. The client simply retries.
+        return fail(res, "Payment could not be started. Please try again.", 503);
+      }
+      await abandonUntrackedIntent(paymentIntent);
+      return fail(res, "Payment could not be started. Please try again.", 503, { retry_with_new_key: true });
     }
 
     auditLog({
@@ -23310,20 +23327,95 @@ app.get(
 /* =========================================================
    PAYMENT RECORDS AND UNUSED CARD HOLDS
    See lib/unusedHolds.js and docs/unused-card-holds.md.
-   - recordCreatedPayment(): payments row for a new PaymentIntent.
+   - persistCreatedPaymentRecord(): payments row for a new PaymentIntent,
+     written before its client secret is returned.
+   - reconcileStripeHolds(): Stripe-side reconciliation of holds.
    - bindPaymentRecordToRide(): makes rides.payment_id's foreign key
      satisfiable and claims the hold for the ride.
    - releaseUnusedHold(): cancels an uncaptured hold that never became a
      ride, for its owner or the sweep. Both entry points are off unless
      their system flag is "true".
 ========================================================= */
-async function recordCreatedPayment({ intent, riderId, rideType, stripeCustomerId }) {
-  const { error } = await supabase
-    .from("payments")
-    .insert(buildCreatedPaymentRecord({ intent, riderId, rideType, stripeCustomerId }));
-  if (error && error.code !== "23505") {
-    console.warn("⚠️ Payment record not created:", error.code || "unknown");
+// Redacted operational alert: an allow-listed payload (never a client
+// secret, card detail or contact detail) to the server log, the audit trail
+// and, best effort, the admin inbox.
+async function paymentOpsAlert(event, fields) {
+  const alert = buildPaymentOpsAlert(event, fields);
+  console.error("🚨 PAYMENT_OPS_ALERT", JSON.stringify(alert));
+  await auditLog({ action: `payment_ops_alert_${alert.event}`, actor_type: "system", actor_id: "payments", metadata: alert }).catch(() => {});
+  await sendEmail({
+    to: ADMIN_EMAIL,
+    subject: `Harvey Taxi payment alert: ${alert.event}`,
+    text: Object.entries(alert).map(([k, v]) => `${k}: ${v}`).join("\n")
+  }).catch(() => {});
+  return alert;
+}
+
+// The payments row for a newly created PaymentIntent, written before the
+// client secret is returned. A duplicate request (same Stripe idempotency
+// key -> same intent) finds its own row and succeeds; a row that has moved
+// on (in release, or released) is not reused.
+async function persistCreatedPaymentRecord({ intent, riderId, rideType, stripeCustomerId }) {
+  let error;
+  try {
+    ({ error } = await supabase
+      .from("payments")
+      .insert(buildCreatedPaymentRecord({ intent, riderId, rideType, stripeCustomerId })));
+  } catch (err) {
+    error = err || { code: "exception" };
   }
+  if (!error) return { ok: true };
+  if (error.code === "23505") {
+    const { data: existing, error: readError } = await supabase.from("payments").select("id,status").eq("id", intent.id).maybeSingle();
+    if (readError || !existing) return { ok: false, reason: "record_unreadable" };
+    if (BINDABLE_RECORD_STATUSES.includes(existing.status)) return { ok: true, duplicate: true };
+    return { ok: false, reason: "record_not_reusable" };
+  }
+  return { ok: false, reason: "record_write_failed" };
+}
+
+// Persistence failed: the intent must not be used. Cancel it; if Stripe
+// can't cancel it either, raise an alert. Its app/account metadata lets
+// reconciliation (reconcileStripeHolds) find and record it later.
+async function abandonUntrackedIntent(intent) {
+  try {
+    await stripe.paymentIntents.cancel(intent.id, { cancellation_reason: "abandoned" }, { idempotencyKey: `harvey-untracked-cancel-${intent.id}` });
+    console.warn("⚠️ Payment record not written; new PaymentIntent cancelled:", intent.id);
+    return { cancelled: true };
+  } catch (err) {
+    await paymentOpsAlert("payment_intent_untracked", {
+      payment_intent_id: intent.id,
+      reason: "record_write_failed_and_cancel_failed",
+      amount_cents: intent.amount,
+      intent_status: intent.status,
+      action_needed: "reconciliation will record it; check Stripe if this repeats"
+    });
+    return { cancelled: false };
+  }
+}
+
+// Marks a hold for a person to decide (conditional: never overrides a ride
+// binding or an in-flight release). Alerts once, on the transition.
+async function flagHoldForReview({ intent, reason }) {
+  const { data: rows } = await supabase
+    .from("payments")
+    .update({ status: PAYMENT_RECORD_STATUS.REVIEW_REQUIRED, failure_message: String(reason).slice(0, 120), updated_at: nowIso() })
+    .eq("id", intent.id)
+    .is("ride_id", null)
+    .in("status", [PAYMENT_RECORD_STATUS.CREATED, PAYMENT_RECORD_STATUS.RELEASE_FAILED])
+    .select("id");
+  const flagged = Array.isArray(rows) && rows.length === 1;
+  if (flagged) {
+    await paymentOpsAlert("payment_hold_review_required", {
+      payment_intent_id: intent.id,
+      reason,
+      amount_cents: intent.amount,
+      intent_status: intent.status,
+      age_minutes: Math.round((Date.now() - Number(intent.created) * 1000) / 60000),
+      action_needed: "decide in Stripe whether to keep or cancel this hold"
+    });
+  }
+  return flagged;
 }
 
 async function bindPaymentRecordToRide({ intent, ride }) {
@@ -23377,7 +23469,7 @@ async function unbindPaymentRecordFromRide({ paymentIntentId, rideId }) {
 }
 
 // Shared by the rider route and the sweep. Returns { released, reason, statusCode }.
-async function releaseUnusedHold({ paymentIntentId, requester, trigger, req = null }) {
+async function releaseUnusedHold({ paymentIntentId, requester, trigger, req = null, minAgeMs = DEFAULT_SWEEP_MIN_AGE_MS }) {
   let intent;
   try {
     intent = await stripe.paymentIntents.retrieve(paymentIntentId);
@@ -23395,7 +23487,8 @@ async function releaseUnusedHold({ paymentIntentId, requester, trigger, req = nu
     intent,
     boundRideIds: (boundRides || []).map((r) => r.id),
     record: record || null,
-    requester
+    requester,
+    minAgeMs
   });
   if (!decision.release) {
     const statusCode = decision.reason === "not_owner" || decision.reason === "not_a_harvey_taxi_payment" ? 404 : 409;
@@ -23439,7 +23532,30 @@ async function releaseUnusedHold({ paymentIntentId, requester, trigger, req = nu
       .eq("status", PAYMENT_RECORD_STATUS.RELEASE_PENDING);
     return { released: false, reason: "bound_to_ride", statusCode: 409 };
   }
-
+  // Re-check Stripe after the claim: the hold may have been captured,
+  // cancelled or changed since the decision above.
+  let fresh;
+  try {
+    fresh = await stripe.paymentIntents.retrieve(paymentIntentId);
+  } catch {
+    fresh = null;
+  }
+  if (!fresh || !RELEASABLE_INTENT_STATUSES.includes(fresh.status)) {
+    const settled = Boolean(fresh) && fresh.status === "canceled";
+    await supabase
+      .from("payments")
+      .update({ status: settled ? PAYMENT_RECORD_STATUS.RELEASED : PAYMENT_RECORD_STATUS.REVIEW_REQUIRED, failure_message: settled ? null : "status_changed_before_cancel", updated_at: nowIso() })
+      .eq("id", paymentIntentId)
+      .eq("status", PAYMENT_RECORD_STATUS.RELEASE_PENDING);
+    if (!settled) {
+      await paymentOpsAlert("payment_hold_review_required", {
+        payment_intent_id: paymentIntentId,
+        reason: fresh ? `status_changed_to_${fresh.status}` : "intent_unreadable_after_claim",
+        action_needed: "check this payment in Stripe"
+      });
+    }
+    return { released: false, reason: settled ? "already_cancelled" : "status_changed", statusCode: 409 };
+  }
   try {
     await stripe.paymentIntents.cancel(
       paymentIntentId,
@@ -24312,8 +24428,118 @@ app.post(
 
 app.get("/admin-operations", (req, res) => sendStaticPage(res, "admin-operations.html"));
 
-/* =========================================================
+// Stripe-side reconciliation. Stripe, not the database, is the source of
+// truth for which holds exist, so this walks Harvey Taxi's own uncaptured
+// PaymentIntents (explicit app/account metadata), oldest window first,
+// with pagination:
+//   - records any intent the database doesn't know about (tracking is
+//     always on; it is a reliability function, not cleanup);
+//   - keeps anything bound to a ride;
+//   - flags uncertain ownership/attachment for a person (alert, no action);
+//   - cancels an unused hold ONLY when unused_hold_sweep_enabled is "true"
+//     (off by default), through releaseUnusedHold(), which claims the
+//     payments row (the same row a ride's authorization must claim, so the
+//     two can't both win across server instances), re-checks the rides
+//     table, and re-checks Stripe immediately before cancelling.
+let stripeReconcileRunning = false;
+const RECONCILE_LOOKBACK_MS = 8 * 24 * 60 * 60 * 1000; // card authorizations expire after ~7 days
 
+// intentFilter: test-only scoping (e.g. to a run's own intents in a shared
+// Stripe test account); production passes none.
+async function reconcileStripeHolds({ minAgeMs = DEFAULT_SWEEP_MIN_AGE_MS, lookbackMs = RECONCILE_LOOKBACK_MS, pageSize = 100, maxPages = 20, allowRelease = true, now = Date.now(), intentFilter = null } = {}) {
+  if (!stripe) return { skipped: true, reason: "stripe_not_configured" };
+  if (stripeReconcileRunning) return { skipped: true, reason: "already_running" };
+  stripeReconcileRunning = true;
+  const summary = { scanned: 0, harvey_holds: 0, newly_tracked: 0, kept: 0, review: 0, would_release: 0, released: 0, release_refused: 0, errors: 0, pages: 0, truncated: false, cleanup_enabled: false };
+  try {
+    summary.cleanup_enabled = allowRelease && (await getSystemFlag("unused_hold_sweep_enabled", "false")) === "true";
+    const created = { lte: Math.floor((now - minAgeMs) / 1000), gte: Math.floor((now - lookbackMs) / 1000) };
+    let startingAfter;
+    let hasMore = true;
+    while (hasMore && summary.pages < maxPages) {
+      const page = await stripe.paymentIntents.list({ created, limit: pageSize, ...(startingAfter ? { starting_after: startingAfter } : {}) });
+      summary.pages += 1;
+      const items = page?.data || [];
+      hasMore = Boolean(page?.has_more) && items.length > 0;
+      if (items.length) startingAfter = items[items.length - 1].id;
+      for (const intent of items) {
+        summary.scanned += 1;
+        if (intent?.metadata?.app !== "harvey_taxi" || !RELEASABLE_INTENT_STATUSES.includes(intent.status)) continue;
+        if (intentFilter && !intentFilter(intent)) continue;
+        summary.harvey_holds += 1;
+        try {
+          await reconcileOneHold({ intent, summary, now, minAgeMs });
+        } catch {
+          summary.errors += 1;
+        }
+      }
+    }
+    if (hasMore) {
+      summary.truncated = true;
+      await paymentOpsAlert("payment_reconciliation_truncated", { reason: `stopped after ${summary.pages} pages`, action_needed: "run reconciliation again" });
+    }
+    return summary;
+  } finally {
+    stripeReconcileRunning = false;
+  }
+}
+
+async function loadHoldState(paymentIntentId) {
+  const [{ data: rides, error: ridesError }, { data: record, error: recordError }] = await Promise.all([
+    supabase.from("rides").select("id").eq("payment_id", paymentIntentId),
+    supabase.from("payments").select("id,status,ride_id,rider_id").eq("id", paymentIntentId).maybeSingle()
+  ]);
+  if (ridesError || recordError) throw new Error("hold_state_unavailable");
+  return { boundRideIds: (rides || []).map((r) => r.id), record: record || null };
+}
+
+async function reconcileOneHold({ intent, summary, now, minAgeMs }) {
+  let { boundRideIds, record } = await loadHoldState(intent.id);
+  if (!record) {
+    const { error } = await supabase.from("payments").insert(
+      buildCreatedPaymentRecord({ intent, riderId: intent.metadata?.rider_id, rideType: intent.metadata?.ride_type })
+    );
+    if (!error) summary.newly_tracked += 1;
+    ({ boundRideIds, record } = await loadHoldState(intent.id));
+  }
+  const decision = decideReconciliation({ intent, boundRideIds, record, now, minAgeMs });
+  if (decision.action === "ignore") return;
+  if (decision.action === "keep") {
+    summary.kept += 1;
+    return;
+  }
+  if (decision.action === "review") {
+    summary.review += 1;
+    await flagHoldForReview({ intent, reason: decision.reason });
+    return;
+  }
+  if (!summary.cleanup_enabled) {
+    summary.would_release += 1;
+    return;
+  }
+  const outcome = await releaseUnusedHold({ paymentIntentId: intent.id, requester: { kind: "sweep" }, trigger: "reconciliation", minAgeMs });
+  if (outcome.released) summary.released += 1;
+  else summary.release_refused += 1;
+}
+
+/* =========================================================
+   ADMIN: STRIPE HOLD RECONCILIATION (on demand)
+   Dry run by default: reports what reconciliation found without
+   cancelling anything. With dry_run=false it may cancel unused holds, and
+   only when unused_hold_sweep_enabled is "true". Tracking and review
+   flags happen either way.
+========================================================= */
+app.post(
+  "/api/admin/payments/reconcile",
+  requireAdmin,
+  asyncRoute(async (req, res) => {
+    const dryRun = req.body?.dry_run !== false;
+    const summary = await reconcileStripeHolds({ allowRelease: !dryRun });
+    return ok(res, { dry_run: dryRun, reconciliation: summary });
+  })
+);
+
+/* =========================================================
    API 404 HANDLER
 
 ========================================================= */
@@ -24816,6 +25042,13 @@ async function startServer() {
         runAgentCoordinationSweep().catch(() => {});
       }, 60_000);
 
+      // Stripe-side reconciliation: records any Harvey Taxi hold the
+      // database is missing and flags uncertain ones for review. It cancels
+      // nothing unless unused_hold_sweep_enabled is "true" (off by default).
+      setInterval(() => {
+        reconcileStripeHolds().catch(() => {});
+      }, 30 * 60_000);
+
     }
 
   );
@@ -24839,4 +25072,4 @@ if (require.main === module) {
 // runOfferExpirySweep is exported only so tests can drive the real
 // Supabase adapters for the offer-expiry sweep; production runs it on the
 // interval set up under require.main === module below.
-module.exports = { app, runOfferExpirySweep, runUnusedHoldSweep, runAgentCoordinationSweep };
+module.exports = { app, runOfferExpirySweep, runUnusedHoldSweep, runAgentCoordinationSweep, reconcileStripeHolds };

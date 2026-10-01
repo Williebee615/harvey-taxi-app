@@ -23,7 +23,17 @@
 ## 2. What this PR changes
 
 ### Payment record (`payments`, id = PaymentIntent id)
-- **At PaymentIntent creation** (`POST /api/rides/payment-intent`): a `created` record is written when a rider ID is known. This is best effort and never fails the request.
+- **At PaymentIntent creation** (`POST /api/rides/payment-intent`), the `created` record is written **before the client secret is returned**, for every intent, including sessionless ones (`rider_id = "unidentified"` when no rider is named).
+  - This is a reliability rule and is **not** behind any flag.
+  - **If the write fails:**
+    - the new intent is cancelled at Stripe;
+    - the client gets a 503 with `retry_with_new_key: true` and **no client secret**, so no card can be confirmed against it;
+    - the dashboard then starts a fresh attempt.
+  - **If the cancellation also fails:**
+    - a **redacted operational alert** goes out (`🚨 PAYMENT_OPS_ALERT` in the server log, `payment_ops_alert_payment_intent_untracked` in `audit_logs`, and a best-effort email to the admin address);
+    - reconciliation records the intent later from its Stripe metadata.
+  - **A duplicate request** with the same idempotency key gets the same intent and record. A retry whose intent was already cancelled or released gets a 409 with `retry_with_new_key`, never a dead intent.
+  - Until this change, the write happened in the background after the response. If it failed, a confirmed hold existed that only the rider's own release request could reach.
 - **At authorization:**
   - the record is inserted, or conditionally updated, to `authorized` with `ride_id`;
   - this happens **before** the ride references it, so the foreign key is satisfied;
@@ -44,10 +54,40 @@ A hold is cancelled only if **every** one of these holds:
 2. Its Stripe status is uncaptured and cancellable: `requires_payment_method`, `requires_confirmation`, `requires_action` or `requires_capture`. It is never cancelled when `succeeded` or `processing`.
 3. **It is not bound to any ride.** No `rides.payment_id` references it and its payment record has no `ride_id`. This applies whatever the ride's status, so the hold of an active or in-progress ride is never touched. The hold of a cancelled ride stays with the existing ride-cancellation void workflow.
 4. Ownership:
-   - **Rider route:** either the verified rider session is the intent's rider, or the caller presents the intent's client secret (timing-safe comparison). Only the browser that created the hold has the secret. A `rider_id` in the request body is never accepted. Failures return "not found".
+   - **Rider route:** either the verified rider session is the intent's rider **and** the intent was created under a verified session (`metadata.rider_verified = "true"`, written only by the server), or the caller presents the intent's client secret (timing-safe comparison). Only the browser that created the hold has the secret.
+     - A client-supplied `rider_id`, whether in this request or when the intent was created, never proves ownership.
+     - Failures return "not found".
    - **Sweep:** the hold must be at least 2 hours old.
 5. **Claim before cancelling.** A conditional update of the payment record to `release_pending` (only from `created` or `release_failed`, with no `ride_id`) succeeds, or a record is inserted when none exists. Binding to a ride needs the same row in `created` or `authorized`, so **exactly one of "bind to ride" and "release" can win**. The `rides` table is re-checked after the claim.
-6. Stripe cancellation runs with an idempotency key (`harvey-hold-release-<id>`) and `cancellation_reason: "abandoned"`. A Stripe failure leaves the record `release_failed`, which can be retried; it is never left half done.
+6. **Stripe is re-checked after the claim, immediately before cancelling.** If the intent has meanwhile been captured or changed, nothing is cancelled: the record goes to `review_required` and an alert is raised. If it is already cancelled, the record goes to `released`.
+7. Stripe cancellation runs with an idempotency key (`harvey-hold-release-<id>`) and `cancellation_reason: "abandoned"`. A Stripe failure leaves the record `release_failed`, which can be retried; it is never left half done.
+
+### Intent metadata
+Every intent carries:
+- `app: "harvey_taxi"` and `account: "harvey_taxi_service"`, which identify this application's own intents in a shared Stripe account;
+- `metadata_version: "2"`;
+- `ride_type`;
+- `rider_id`, which is still used by authorization's ride-match check;
+- `rider_verified`.
+
+### Stripe-side reconciliation (`reconcileStripeHolds`)
+Stripe, not the database, is the source of truth for which holds exist.
+- **Schedule:** every 30 minutes, plus on demand through `POST /api/admin/payments/reconcile` (admin only; `dry_run` defaults to true).
+- **Scope:** Harvey Taxi intents created between 8 days ago (card authorizations expire after about 7) and 2 hours ago. It pages through Stripe's list (100 per page, at most 20 pages per run) and raises an alert if it had to stop early.
+
+| Situation | Action |
+|---|---|
+| Intent unknown to the database | **Recorded.** This is always on; it is tracking, not cleanup. |
+| Bound to a ride, being released, or awaiting review | Kept |
+| Two rides reference it; the record and the ride disagree; the record says authorized/released but Stripe still holds funds; **no account tag** (pre-change metadata); Stripe names a ride with no database binding; rider mismatch | **`review_required` plus one alert.** Never cancelled automatically. A person decides in Stripe. |
+| Unused, unbound, past the window, ours | **Cancelled only when `unused_hold_sweep_enabled` is `"true"` (off by default).** Otherwise it is counted as `would_release`. |
+
+**Protection when several server instances run at once:** cancellation goes through `releaseUnusedHold()`:
+1. It claims the payment record with a conditional write. Ride attachment must claim that same row, so exactly one of them can win, on any number of instances.
+2. It re-checks `rides`.
+3. It re-checks Stripe immediately before cancelling.
+
+A `review_required` hold can still be attached by a genuine booking; authorization runs its own ownership and amount checks.
 
 The rider notice changes to "has been cancelled" **only after** the server confirms the cancellation. Otherwise it keeps saying the hold "has not been used or cancelled". It never promises when the bank will remove a pending amount.
 
@@ -56,7 +96,8 @@ The rider notice changes to "has been cancelled" **only after** the server confi
 2. Confirm whether live Stripe and the payment gate are enabled in Render. If they are, this PR is required for real card bookings to complete.
 3. Run a Stripe test-mode booking end to end on staging: authorize → ride `payment_authorized` → `payments` row `authorized`.
 4. Turn on `unused_hold_release_enabled`, then test-mode: card step → Back → the hold shows as cancelled in the Stripe test dashboard.
-5. Turn on `unused_hold_sweep_enabled` only after reviewing a day of release logs (`audit_logs.action = 'unused_card_hold_released'`).
+5. After deploy, run `POST /api/admin/payments/reconcile` (a dry run) and review its summary and any `payment_ops_alert_*` audit rows.
+6. Turn on `unused_hold_sweep_enabled` only after reviewing a day of release logs (`audit_logs.action = 'unused_card_hold_released'`) and reconciliation dry runs.
 
 **Rollback:**
 - Set either flag to `"false"`; it takes effect immediately.
@@ -64,7 +105,7 @@ The rider notice changes to "has been cancelled" **only after** the server confi
 
 ## 4. Not covered
 - Updating `payments` on capture and on ride-cancellation voids. The ride columns remain the source of truth for those workflows.
-- Holds created before this change have no payment record. Find them in the Stripe Dashboard; the sweep only sees recorded holds.
+- Holds created before this change carry no `account` tag. Reconciliation records them and flags them for review rather than cancelling them.
 - Stripe's own expiry of uncaptured authorizations, and the issuer's timing for removing a pending amount, are outside the app's control and are not promised to riders.
 
 ## 5. Stripe test-mode validation (required before enabling)
@@ -101,6 +142,15 @@ STRIPE_TEST_SECRET_KEY=sk_test_... npx jest test/stripe-test-mode --runInBand
 - SMS, email, web push, identity, background-check, AI, routing and Redis credentials are removed before the server loads. The suite asserts that the integrations report them as off.
 
 **Scenarios:**
+- **untracked-hold fix:**
+  - a payments-write failure never leaves a usable, untracked intent (**regression test** for the reproduced gap);
+  - a write failure plus a cancellation failure gives no secret and a redacted alert, and reconciliation recovers the intent (simulated Stripe only);
+  - app termination after the card hold: reconciliation cancels only with cleanup on;
+  - missing or claimed rider identity: ownership is never proved by a client-supplied id;
+  - duplicate requests on one idempotency key;
+  - uncertain attachment or ownership is flagged for review and never cancelled;
+  - pagination;
+  - reconciliation on one instance against authorization on another, with authorization head starts of 0, 3, 6, 10 and 20 ms. Both outcomes occur, and exactly one wins every time.
 - **full booking flow through the server's own routes:** estimate → payment-intent (the `created` record) → card confirmed → ride request → authorize (record bound, one offer) → test driver accepts → a release attempt is refused → the rider cancels, and the existing void workflow cancels the hold;
 - **two server instances** sharing the database, racing one authorization (×3): exactly one dispatch and one payment record;
 - isolation;
@@ -125,7 +175,7 @@ npx jest test/stripe-isolated --runInBand
 - Report back only the `Tests:` summary line and the names of any failing tests.
 
 **Status:**
-- **Simulated Stripe:** 16/16 passed locally against the real database, on three consecutive runs. CI's `db-functions` job now runs this mode on every push.
+- **Simulated Stripe:** 28/28 passed locally against the real database, on three consecutive runs. CI's `db-functions` job runs this mode on every push.
 - **Stripe test mode:** not yet run. This build environment's network policy blocks `api.stripe.com`.
 
 ### Scope of each suite (what a pass does and does not prove)

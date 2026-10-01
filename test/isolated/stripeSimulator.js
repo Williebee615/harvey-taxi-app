@@ -21,6 +21,9 @@ function stripeError(type, code, message) {
 function createStripeSimulator() {
   const intents = new Map();
   const idempotent = new Map();
+  const createKeys = new Map();
+  const failCancelFor = new Set();
+  let seq = 0;
   const copy = (pi) => JSON.parse(JSON.stringify(pi));
   const tick = () => new Promise((r) => setImmediate(r));
 
@@ -31,9 +34,13 @@ function createStripeSimulator() {
   }
 
   const paymentIntents = {
-    async create(params = {}) {
+    async create(params = {}, options = {}) {
       await tick();
+      // Stripe idempotency: the same key returns the same intent.
+      const key = options && options.idempotencyKey;
+      if (key && createKeys.has(key)) return copy(intents.get(createKeys.get(key)));
       const id = `pi_sim_${crypto.randomBytes(8).toString("hex")}`;
+      if (key) createKeys.set(key, id);
       const pi = {
         id,
         object: "payment_intent",
@@ -46,7 +53,8 @@ function createStripeSimulator() {
         status: "requires_payment_method",
         client_secret: `${id}_secret_${crypto.randomBytes(8).toString("hex")}`,
         livemode: false,
-        created: Math.floor(Date.now() / 1000)
+        created: Math.floor(Date.now() / 1000),
+        _seq: ++seq
       };
       intents.set(id, pi);
       return copy(pi);
@@ -79,6 +87,9 @@ function createStripeSimulator() {
       const key = options && options.idempotencyKey;
       if (key && idempotent.has(key)) return copy(idempotent.get(key));
       const pi = get(id);
+      if (failCancelFor.has(id) || failCancelFor.has("*")) {
+        throw stripeError("api_error", "simulated_outage", "Simulated Stripe outage.");
+      }
       if (!CANCELLABLE.has(pi.status)) {
         throw stripeError("invalid_request_error", "payment_intent_unexpected_state", `This PaymentIntent's status is ${pi.status}.`);
       }
@@ -88,12 +99,36 @@ function createStripeSimulator() {
       if (key) idempotent.set(key, copy(pi));
       return copy(pi);
     },
+    // Newest first, like Stripe; starting_after continues to older ones.
+    async list({ created = {}, limit = 10, starting_after: startingAfter } = {}) {
+      await tick();
+      let all = [...intents.values()]
+        .filter((pi) => (created.lte === undefined || pi.created <= created.lte) && (created.gte === undefined || pi.created >= created.gte))
+        .sort((a, b) => b.created - a.created || b._seq - a._seq);
+      if (startingAfter) {
+        const idx = all.findIndex((pi) => pi.id === startingAfter);
+        all = idx >= 0 ? all.slice(idx + 1) : [];
+      }
+      const page = all.slice(0, limit);
+      return { object: "list", data: page.map(copy), has_more: all.length > limit };
+    },
     async capture() {
       throw stripeError("invalid_request_error", "not_simulated", "Capture is not part of this suite.");
     }
   };
 
-  return { paymentIntents, _intents: intents };
+  return {
+    paymentIntents,
+    _intents: intents,
+    // Test controls (not part of Stripe's API).
+    _age(id, seconds) {
+      get(id).created -= seconds;
+    },
+    _failCancel(id, on = true) {
+      if (on) failCancelFor.add(id);
+      else failCancelFor.delete(id);
+    }
+  };
 }
 
 module.exports = { createStripeSimulator };

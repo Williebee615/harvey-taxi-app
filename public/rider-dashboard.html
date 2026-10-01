@@ -8457,6 +8457,12 @@
       } catch (error) {
         state.payment.authorized = false;
 
+        // The server cancelled (or refused to reuse) that payment attempt;
+        // the next try must create a new one, not get the old one back.
+        if (error?.data?.retry_with_new_key) {
+          state.payment.idempotencyKey = null;
+        }
+
         setBadge("Payment Failed");
 
         setTimeline(
