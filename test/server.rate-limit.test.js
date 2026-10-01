@@ -65,3 +65,17 @@ test("in an explicitly isolated test environment the raised limit applies", asyn
     expect((await request(app).get("/api/rider/auth-ui-config")).status).toBe(200);
   }
 });
+
+test("payment configuration status is admin-only and contains no key material", async () => {
+  const app = loadServer({
+    STRIPE_SECRET_KEY: "sk_test_" + "k".repeat(30),
+    STRIPE_PUBLISHABLE_KEY: "pk_test_" + "p".repeat(30),
+    STRIPE_WEBHOOK_SECRET: "whsec_" + "w".repeat(30),
+    ENABLE_PAYMENT_GATE: "true"
+  });
+  expect((await request(app).get("/api/admin/payments/config-status")).status).toBe(401);
+  const res = await request(app).get("/api/admin/payments/config-status").set("x-admin-token", "test-admin-token");
+  expect(res.status).toBe(200);
+  expect(res.body.payments).toMatchObject({ secret_key_mode: "test", publishable_key_mode: "test", key_modes_match: true, webhook_secret_set: true, live_card_payments_effective: false });
+  expect(JSON.stringify(res.body)).not.toMatch(/kkkk|pppp|wwww|sk_test|pk_test|whsec/);
+});
