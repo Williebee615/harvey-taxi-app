@@ -891,7 +891,7 @@
 <body>
   <div class="shell">
 
-    <div id="appReviewBanner" role="status" hidden style="position:sticky; top:0; z-index:50; margin:0 0 12px; padding:10px 14px; border-radius:12px; border:1px solid rgba(255,196,0,0.55); background:rgba(255,196,0,0.14); color:#ffe59a; font-weight:700; text-align:center;">
+    <div id="appReviewBanner" role="status" hidden style="position:sticky; top:0; z-index:50; margin:0 0 12px; padding:10px 14px; border-radius:12px; border:1px solid rgba(255,196,0,0.55); background:#2b2410; color:#ffe59a; font-weight:700; text-align:center;">
       App Review mode — rides, payments and earnings are simulated. No real rider is picked up and no payout is made.
     </div>
 
@@ -1818,6 +1818,8 @@
         destination: dropoffAddress,
         pickupAddress,
         dropoffAddress,
+        // Set by the server from the rider's account (App Review rides).
+        isReviewRide: ride.is_review_ride === true,
         fare: Number(ride.estimated_fare || ride.fare || 0),
         payout: Number(ride.driver_payout || ride.estimated_fare || ride.fare || 0),
         notes: ride.notes || "No notes provided",
@@ -2011,6 +2013,7 @@
               <h4 style="font-size: 1.1rem; margin-top: 4px;">Est. Return: $${m.payout.toFixed(2)}</h4>
             </div>
             <div class="pill ${badgeClass}">${m.status.toUpperCase()}</div>
+            ${m.isReviewRide ? '<div class="pill pill-gold" id="missionSimulatedTag">SIMULATED</div>' : ""}
           </div>
 
           <div class="mission-route">
