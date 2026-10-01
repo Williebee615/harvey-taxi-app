@@ -1713,6 +1713,54 @@
       gap: 7px;
     }
 
+    #rideWizardOverlay .geo-suggestions {
+      display: grid;
+      gap: 2px;
+      margin-top: 6px;
+      padding: 6px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: #0b1427;
+    }
+
+    #rideWizardOverlay .geo-suggestions[hidden] {
+      display: none;
+    }
+
+    #rideWizardOverlay .geo-suggestion {
+      text-align: left;
+      padding: 10px 12px;
+      border: 0;
+      border-radius: 10px;
+      background: transparent;
+      color: var(--text-main);
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    #rideWizardOverlay .geo-suggestion:hover,
+    #rideWizardOverlay .geo-suggestion:focus {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    #rideWizardOverlay .geo-attribution {
+      margin: 6px 0 0;
+      font-size: 11px;
+      color: var(--text-soft);
+    }
+
+    #rideWizardOverlay .geo-attribution a {
+      color: inherit;
+      text-decoration: underline;
+      margin-right: 6px;
+    }
+
+    /* .field sets display:grid, which otherwise overrides the hidden
+       attribute (e.g. the card field hidden for App Review riders). */
+    #rideWizardOverlay .field[hidden] {
+      display: none;
+    }
+
     #rideWizardOverlay .field label {
       color: #dfeaff;
       font-size: 0.82rem;
@@ -4256,6 +4304,8 @@
                 hidden
               ></span>
 
+              <p class="geo-attribution">Address search and routes: <a href="https://www.mapbox.com/about/maps/" target="_blank" rel="noopener">© Mapbox</a> <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a> <a href="https://www.mapbox.com/map-feedback/" target="_blank" rel="noopener">Improve this map</a></p>
+
               <!-- GPS STATUS -->
               <div class="gps-status">
 
@@ -4311,6 +4361,8 @@
                 role="alert"
                 hidden
               ></span>
+
+              <p class="geo-attribution">Address search and routes: <a href="https://www.mapbox.com/about/maps/" target="_blank" rel="noopener">© Mapbox</a> <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a> <a href="https://www.mapbox.com/map-feedback/" target="_blank" rel="noopener">Improve this map</a></p>
 
             </div>
 
@@ -4581,6 +4633,7 @@
               <p id="breakdownMinimumNote" class="fare-breakdown-note hidden">
                 Minimum fare applied.
               </p>
+              <p class="geo-attribution">Address search and routes: <a href="https://www.mapbox.com/about/maps/" target="_blank" rel="noopener">© Mapbox</a> <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a> <a href="https://www.mapbox.com/map-feedback/" target="_blank" rel="noopener">Improve this map</a></p>
             </div>
 
             <div class="actions">
@@ -5796,90 +5849,12 @@
     // a ride exists. Uses a straight dashed line between the two points
     // rather than a routed path — that's an honest "as the crow flies"
     // connector, not a claim about the driver's actual road route.
-    function updateLiveTrackingMap(data) {
-      if (!els.liveTrackingMap) return;
-
-      const tracking = data?.tracking;
-      const driverLoc = data?.driver?.location;
-
-      const targetLoc =
-        tracking?.target === "store" || tracking?.target === "pickup"
-          ? data?.pickup_location
-          : data?.destination_location;
-
-      const canRender =
-        window.__HARVEY_MAPS_ENABLED__ &&
-        window.google?.maps &&
-        tracking &&
-        driverLoc &&
-        Number.isFinite(Number(driverLoc.lat)) &&
-        Number.isFinite(Number(driverLoc.lng)) &&
-        targetLoc &&
-        Number.isFinite(Number(targetLoc.lat)) &&
-        Number.isFinite(Number(targetLoc.lng));
-
-      if (!canRender) {
+    // No in-app map: Mapbox is used server-side for address search and
+    // routing only, so tracking shows the text status, not a map.
+    function updateLiveTrackingMap() {
+      if (els.liveTrackingMap) {
         els.liveTrackingMap.classList.add("hidden");
-        return;
       }
-
-      els.liveTrackingMap.classList.remove("hidden");
-
-      const driverPos = { lat: Number(driverLoc.lat), lng: Number(driverLoc.lng) };
-      const targetPos = { lat: Number(targetLoc.lat), lng: Number(targetLoc.lng) };
-      const targetTitle =
-        tracking.target === "store" ? "Store" :
-        tracking.target === "customer" ? "You" :
-        tracking.target === "pickup" ? "Pickup" :
-        "Destination";
-
-      const tm = state.trackingMap;
-
-      if (!tm.instance) {
-        tm.instance = new google.maps.Map(els.liveTrackingMap, {
-          center: driverPos,
-          zoom: 13,
-          disableDefaultUI: true,
-          zoomControl: true,
-          streetViewControl: false,
-          mapTypeControl: false,
-          fullscreenControl: true
-        });
-
-        tm.driverMarker = new google.maps.Marker({
-          position: driverPos,
-          map: tm.instance,
-          title: "Your driver",
-          icon: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png"
-        });
-
-        tm.targetMarker = new google.maps.Marker({
-          position: targetPos,
-          map: tm.instance,
-          title: targetTitle
-        });
-
-        tm.line = new google.maps.Polyline({
-          path: [driverPos, targetPos],
-          strokeOpacity: 0,
-          icons: [{
-            icon: { path: "M 0,-1 0,1", strokeOpacity: 0.55, scale: 3 },
-            offset: "0",
-            repeat: "12px"
-          }],
-          map: tm.instance
-        });
-      } else {
-        tm.driverMarker.setPosition(driverPos);
-        tm.targetMarker.setPosition(targetPos);
-        tm.targetMarker.setTitle(targetTitle);
-        tm.line.setPath([driverPos, targetPos]);
-      }
-
-      const bounds = new google.maps.LatLngBounds();
-      bounds.extend(driverPos);
-      bounds.extend(targetPos);
-      tm.instance.fitBounds(bounds, 40);
     }
 
     function updateDeliveryInfo(status, delivery) {
@@ -6260,71 +6235,13 @@
       els.merchantSelectedBadge.classList.remove("hidden");
     }
 
-    function canUsePlacesAutocomplete() {
-      return Boolean(
-        window.__HARVEY_MAPS_ENABLED__ &&
-        window.google &&
-        window.google.maps &&
-        window.google.maps.places
-      );
-    }
 
-    function initMerchantAutocomplete() {
-      if (state.merchantAutocomplete || !els.merchantSearchInput) return;
-      if (!canUsePlacesAutocomplete()) return;
+    // Store search by name needs a points-of-interest search, which the
+    // address geocoder doesn't provide. Riders pick a quick pick or type the
+    // store name and its address; the address is resolved like any other.
+    function initMerchantAutocomplete() {}
 
-      try {
-        const autocomplete = new google.maps.places.Autocomplete(
-          els.merchantSearchInput,
-          { types: ["establishment"], fields: ["name", "formatted_address", "geometry"] }
-        );
-
-        if (state.pickup.latitude !== null && state.pickup.longitude !== null) {
-          const center = new google.maps.LatLng(state.pickup.latitude, state.pickup.longitude);
-          const circle = new google.maps.Circle({ center, radius: 15000 });
-          autocomplete.setBounds(circle.getBounds());
-        }
-
-        autocomplete.addListener("place_changed", () => {
-          const place = autocomplete.getPlace();
-          if (!place || !place.name) return;
-
-          state.merchant.name = place.name;
-          state.merchant.lat = place.geometry?.location?.lat() ?? null;
-          state.merchant.lng = place.geometry?.location?.lng() ?? null;
-
-          if (els.pickupAddress && place.formatted_address) {
-            els.pickupAddress.value = place.formatted_address;
-            state.pickup.address = place.formatted_address;
-          }
-
-          if (state.merchant.lat !== null && state.merchant.lng !== null) {
-            state.pickup.latitude = state.merchant.lat;
-            state.pickup.longitude = state.merchant.lng;
-            state.pickup.source = "merchant_search";
-          }
-
-          showMerchantSelected(place.name);
-
-          if (els.merchantPickerHint) {
-            els.merchantPickerHint.textContent =
-              "Pickup address filled in automatically. You can edit it below if needed.";
-          }
-        });
-
-        state.merchantAutocomplete = autocomplete;
-      } catch (err) {
-        // Places failed to initialize (e.g. billing/quota issue upstream).
-        // Manual search-box typing and quick picks still work without it.
-        state.merchantAutocomplete = null;
-      }
-    }
-
-    window.addEventListener("harvey-maps-ready", () => {
-      if (state.mode === "food" || state.mode === "grocery") {
-        initMerchantAutocomplete();
-      }
-
+    window.addEventListener("harvey-geo-ready", () => {
       initAddressAutocompletes();
     });
 
@@ -6333,45 +6250,101 @@
     // searches for restaurants/stores). Every rider-facing service —
     // taxi, food, grocery — routes pickup/destination through these same
     // two inputs, so binding it once here covers all of them.
+    // Address suggestions while typing, from GET /api/geo/suggest (Mapbox,
+    // server-side). Suggestions are "temporary" results under Mapbox's
+    // terms: choosing one only fills in the text. The address the ride is
+    // booked with is resolved (and may be stored) when the rider continues
+    // -- see ensureEndpointCoordinates().
     function bindAddressAutocomplete(inputEl, target, stateKey) {
-      if (!inputEl || state[stateKey] || !canUsePlacesAutocomplete()) return;
+      if (!inputEl || state[stateKey] || !geoAvailable()) return;
 
-      try {
-        const autocomplete = new google.maps.places.Autocomplete(
-          inputEl,
-          { fields: ["formatted_address", "geometry"] }
-        );
+      const list = document.createElement("div");
+      list.className = "geo-suggestions";
+      list.id = `${inputEl.id}Suggestions`;
+      list.setAttribute("role", "listbox");
+      list.hidden = true;
+      inputEl.setAttribute("aria-autocomplete", "list");
+      inputEl.setAttribute("aria-controls", list.id);
+      const anchor = document.getElementById(`${inputEl.id}Error`) || inputEl;
+      anchor.insertAdjacentElement("afterend", list);
 
-        autocomplete.addListener("place_changed", () => {
-          const place = autocomplete.getPlace();
-          const lat = place?.geometry?.location?.lat() ?? null;
-          const lng = place?.geometry?.location?.lng() ?? null;
+      let timer = null;
+      let lastQuery = "";
 
-          if (lat === null || lng === null) return;
+      const hide = () => {
+        list.hidden = true;
+        list.innerHTML = "";
+      };
 
-          target.latitude = lat;
-          target.longitude = lng;
-          target.source = "autocomplete";
+      const choose = (label) => {
+        inputEl.value = label;
+        target.address = label;
+        target.latitude = null;
+        target.longitude = null;
+        target.source = "suggestion";
+        lastQuery = label;
+        hide();
+        resetEstimateAndPayment("Trip details changed. Please get a fresh estimate.");
+      };
 
-          if (place.formatted_address) {
-            inputEl.value = place.formatted_address;
-            target.address = place.formatted_address;
-          }
-
-          resetEstimateAndPayment(
-            "Trip details changed. Please get a fresh estimate."
-          );
-
-          scheduleRouteRecalc(0);
+      const render = (results) => {
+        list.innerHTML = "";
+        if (!results.length) {
+          hide();
+          return;
+        }
+        results.forEach((result) => {
+          const option = document.createElement("button");
+          option.type = "button";
+          option.className = "geo-suggestion";
+          option.setAttribute("role", "option");
+          option.textContent = result.label;
+          // mousedown, not click: fires before the input's blur hides the list.
+          option.addEventListener("mousedown", (event) => {
+            event.preventDefault();
+            choose(result.label);
+          });
+          list.appendChild(option);
         });
+        const credit = document.createElement("div");
+        credit.className = "geo-attribution";
+        credit.innerHTML = GEO_ATTRIBUTION_HTML;
+        list.appendChild(credit);
+        list.hidden = false;
+      };
 
-        state[stateKey] = autocomplete;
-      } catch (err) {
-        // Places failed to initialize (e.g. billing/quota issue upstream).
-        // Manual typing + the forward-geocode fallback in
-        // ensureTripDistance() below still work without it.
-        state[stateKey] = null;
-      }
+      const search = async () => {
+        const query = safeTrim(inputEl.value);
+        if (query.length < 3 || query === lastQuery) return;
+        lastQuery = query;
+        const near =
+          target !== state.pickup && state.pickup.latitude !== null
+            ? `&lat=${encodeURIComponent(state.pickup.latitude)}&lng=${encodeURIComponent(state.pickup.longitude)}`
+            : "";
+        try {
+          const data = await apiFetch(`/api/geo/suggest?q=${encodeURIComponent(query)}${near}`);
+          if (safeTrim(inputEl.value) === query) {
+            render(Array.isArray(data?.results) ? data.results : []);
+          }
+        } catch {
+          hide();
+        }
+      };
+
+      inputEl.addEventListener("input", () => {
+        clearTimeout(timer);
+        if (safeTrim(inputEl.value).length < 3) {
+          hide();
+          return;
+        }
+        timer = setTimeout(search, 300);
+      });
+      inputEl.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") hide();
+      });
+      inputEl.addEventListener("blur", () => setTimeout(hide, 150));
+
+      state[stateKey] = { list };
     }
 
     function initAddressAutocompletes() {
@@ -6401,33 +6374,28 @@
     // Forward-geocodes a free-typed address string into coordinates —
     // the fallback for when a rider types an address and tabs away
     // without picking an Autocomplete suggestion.
-    function geocodeAddressString(address) {
-      if (
-        !window.__HARVEY_MAPS_ENABLED__ ||
-        !window.google ||
-        !window.google.maps ||
-        !window.google.maps.Geocoder ||
-        !safeTrim(address)
-      ) {
-        return Promise.resolve(null);
+    // Resolves typed text to the address and coordinates the ride is booked
+    // with, via POST /api/geo/resolve (a "permanent" Mapbox result, which
+    // may be stored). Returns { lat, lng, label }, or null when the address
+    // isn't found or the service is down (geoAvailable() tells which).
+    async function geocodeAddressString(address) {
+      if (!geoAvailable()) return null;
+      const near =
+        state.pickup.latitude !== null
+          ? { lat: state.pickup.latitude, lng: state.pickup.longitude }
+          : undefined;
+      try {
+        const data = await apiPost("/api/geo/resolve", { query: address, near });
+        state.geoServiceDown = false;
+        const place = data?.place;
+        if (!place || !Number.isFinite(Number(place.lat)) || !Number.isFinite(Number(place.lng))) {
+          return null;
+        }
+        return { lat: Number(place.lat), lng: Number(place.lng), label: place.label || "" };
+      } catch (err) {
+        noteGeoFailure(err);
+        return null;
       }
-
-      if (!geocoder) {
-        geocoder = new window.google.maps.Geocoder();
-      }
-
-      return new Promise((resolve) => {
-        geocoder.geocode({ address }, (results, status) => {
-          if (status === "OK" && results && results[0]?.geometry?.location) {
-            resolve({
-              lat: results[0].geometry.location.lat(),
-              lng: results[0].geometry.location.lng()
-            });
-          } else {
-            resolve(null);
-          }
-        });
-      });
     }
 
     async function ensureEndpointCoordinates(target, addressEl) {
@@ -6447,6 +6415,12 @@
       target.longitude = geocoded.lng;
       target.source = "geocoded";
 
+      // Book with the resolved address text, not the typed or suggested one.
+      if (geocoded.label) {
+        target.address = geocoded.label;
+        if (addressEl) addressEl.value = geocoded.label;
+      }
+
       return true;
     }
 
@@ -6462,70 +6436,60 @@
     // show a concise error next to the specific address that failed
     // (field: "pickup" | "destination" | "route" | "maps") instead of one
     // generic "something went wrong" banner repeated at every later stage.
+    // Real driving distance/duration between pickup and destination, from
+    // POST /api/geo/route (Mapbox Directions, server-side), stored on
+    // state.estimate.distanceMiles/durationMinutes -- the fields
+    // buildTripPayload() sends to the fare estimate.
+    //
+    // Returns a structured result so callers can show a concise error next
+    // to the address that failed (field: "pickup" | "destination" |
+    // "route"), or a "temporarily unavailable" message (field: null) when
+    // the lookup service itself is down -- never blaming a good address.
     async function ensureTripDistance() {
       if (state.estimate.distanceKnown) {
         return { ok: true };
       }
 
-      if (
-        !window.__HARVEY_MAPS_ENABLED__ ||
-        !window.google ||
-        !window.google.maps
-      ) {
+      if (!geoAvailable()) {
         return { ok: false, field: null, reason: "maps_unavailable" };
       }
 
       const hasPickup = await ensureEndpointCoordinates(state.pickup, els.pickupAddress);
-
       if (!hasPickup) {
-        return { ok: false, field: "pickup", reason: "pickup_geocode_failed" };
+        return geoAvailable()
+          ? { ok: false, field: "pickup", reason: "pickup_geocode_failed" }
+          : { ok: false, field: null, reason: "maps_unavailable" };
       }
 
       const hasDestination = await ensureEndpointCoordinates(state.destination, els.destinationAddress);
-
       if (!hasDestination) {
-        return { ok: false, field: "destination", reason: "destination_geocode_failed" };
+        return geoAvailable()
+          ? { ok: false, field: "destination", reason: "destination_geocode_failed" }
+          : { ok: false, field: null, reason: "maps_unavailable" };
       }
 
-      if (!window.google.maps.DistanceMatrixService) {
-        return { ok: false, field: null, reason: "maps_unavailable" };
+      try {
+        const data = await apiPost("/api/geo/route", {
+          from: { lat: state.pickup.latitude, lng: state.pickup.longitude },
+          to: { lat: state.destination.latitude, lng: state.destination.longitude }
+        });
+        state.geoServiceDown = false;
+        const miles = Number(data?.distance_miles);
+        const minutes = Number(data?.duration_minutes);
+        if (!Number.isFinite(miles) || !Number.isFinite(minutes)) {
+          return { ok: false, field: "route", reason: "distance_matrix_failed", detail: "bad_response" };
+        }
+        state.estimate.distanceMiles = miles;
+        state.estimate.durationMinutes = minutes;
+        state.estimate.distanceKnown = true;
+        return { ok: true };
+      } catch (err) {
+        if (err?.status === 422) {
+          return { ok: false, field: "route", reason: "distance_matrix_failed", detail: "no_route" };
+        }
+        noteGeoFailure(err);
+        return { ok: false, field: null, reason: "maps_unavailable", detail: `http_${err?.status || 0}` };
       }
-
-      return new Promise((resolve) => {
-        const service = new google.maps.DistanceMatrixService();
-
-        service.getDistanceMatrix(
-          {
-            origins: [{ lat: state.pickup.latitude, lng: state.pickup.longitude }],
-            destinations: [{ lat: state.destination.latitude, lng: state.destination.longitude }],
-            travelMode: google.maps.TravelMode.DRIVING,
-            unitSystem: google.maps.UnitSystem.IMPERIAL
-          },
-          (response, status) => {
-            const element = response?.rows?.[0]?.elements?.[0];
-
-            if (status !== "OK" || !element || element.status !== "OK") {
-              resolve({
-                ok: false,
-                field: "route",
-                reason: "distance_matrix_failed",
-                detail: `${status}/${element?.status || "no_element"}`
-              });
-              return;
-            }
-
-            state.estimate.distanceMiles =
-              Number((element.distance.value / 1609.34).toFixed(2));
-
-            state.estimate.durationMinutes =
-              Number((element.duration.value / 60).toFixed(1));
-
-            state.estimate.distanceKnown = true;
-
-            resolve({ ok: true });
-          }
-        );
-      });
     }
 
     // Best-effort, silent report of a client-side Google Maps routing
@@ -6593,6 +6557,44 @@
     // Pickup / Edit Destination / Retry Route recovery actions — replacing
     // the old pattern of one large "we couldn't calculate a route..."
     // paragraph repeated across every later wizard stage.
+    // Mapbox attribution, required next to search and route results when
+    // they're shown without a Mapbox map.
+    const GEO_ATTRIBUTION_HTML =
+      'Address search and routes: <a href="https://www.mapbox.com/about/maps/" target="_blank" rel="noopener">© Mapbox</a> ' +
+      '<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a> ' +
+      '<a href="https://www.mapbox.com/map-feedback/" target="_blank" rel="noopener">Improve this map</a>';
+
+    // Address search/routing availability: configured on the server
+    // (GET /api/geo/status) and not currently failing.
+    function geoAvailable() {
+      return window.__HARVEY_GEO_ENABLED__ === true && state.geoServiceDown !== true;
+    }
+
+    // A 503 (not configured / provider down) or network failure marks the
+    // service down so riders get "temporarily unavailable", not "bad
+    // address". A later success clears it.
+    function noteGeoFailure(err) {
+      const status = Number(err?.status || 0);
+      if (status === 0 || status >= 500) {
+        state.geoServiceDown = true;
+        if (err?.data?.code === "geo_not_configured") {
+          window.__HARVEY_GEO_CONFIG_ERROR__ = true;
+        }
+      }
+    }
+
+    // Shown when Google Maps itself is unavailable, so the rider isn't told
+    // their (perfectly good) address couldn't be found.
+    function mapsUnavailableMessage() {
+      return "Address lookup and fare estimates are temporarily unavailable. Please try again later or contact support.";
+    }
+
+    function showMapsUnavailable() {
+      setBadge("Maps Unavailable");
+      showNotice(mapsUnavailableMessage(), "error");
+      reportRouteFailure("maps_unavailable");
+    }
+
     function showRouteFailure(result) {
       setBadge("Distance Unavailable");
       setDispatchState("Distance Unavailable");
@@ -6626,6 +6628,8 @@
         message = "Check your destination address below, then retry.";
       } else if (result.field === "route") {
         message = "We couldn't find a driving route between these two addresses. Please double-check both, then retry.";
+      } else if (result.reason === "maps_unavailable") {
+        message = mapsUnavailableMessage();
       }
 
       showNotice(message, "error");
@@ -8783,43 +8787,21 @@
       stopRidePolling();
     }
 
-    function canUseGoogleMaps() {
-      return Boolean(
-        window.__HARVEY_MAPS_ENABLED__ &&
-        window.google &&
-        window.google.maps &&
-        els.pickupMap
-      );
-    }
 
     let geocoder = null;
 
-    function reverseGeocode(lat, lng) {
-      if (
-        !window.__HARVEY_MAPS_ENABLED__ ||
-        !window.google ||
-        !window.google.maps ||
-        !window.google.maps.Geocoder
-      ) {
-        return Promise.resolve(null);
+    // Street address for the rider's GPS position ("Use My Location"),
+    // via POST /api/geo/reverse (permanent Mapbox result).
+    async function reverseGeocode(lat, lng) {
+      if (!geoAvailable()) return null;
+      try {
+        const data = await apiPost("/api/geo/reverse", { lat, lng });
+        state.geoServiceDown = false;
+        return data?.place?.label || null;
+      } catch (err) {
+        noteGeoFailure(err);
+        return null;
       }
-
-      if (!geocoder) {
-        geocoder = new window.google.maps.Geocoder();
-      }
-
-      return new Promise((resolve) => {
-        geocoder.geocode(
-          { location: { lat, lng } },
-          (results, status) => {
-            if (status === "OK" && results && results[0]) {
-              resolve(results[0].formatted_address);
-            } else {
-              resolve(null);
-            }
-          }
-        );
-      });
     }
 
     function hideMapFallback() {
@@ -8840,61 +8822,19 @@
       }
     }
 
+    // No in-app map (see updateLiveTrackingMap): the map area shows the
+    // location status card instead.
     function initOrUpdateMap() {
+      showMapFallback();
       if (
         state.pickup.latitude === null ||
         state.pickup.longitude === null
       ) {
-        showMapFallback();
         setMapBadge("Map Standby");
         return;
       }
-
-      const center = {
-        lat: Number(state.pickup.latitude),
-        lng: Number(state.pickup.longitude)
-      };
-
       updateLocationMeta();
-
-      if (!canUseGoogleMaps()) {
-        showMapFallback();
-        setMapBadge("GPS Captured");
-        return;
-      }
-
-      hideMapFallback();
-      setMapBadge("Live Map");
-
-      if (!state.map.instance) {
-        state.map.instance = new google.maps.Map(
-          els.pickupMap,
-          {
-            center,
-            zoom: CONFIG.MAP_DEFAULT_ZOOM,
-            disableDefaultUI: true,
-            zoomControl: true,
-            streetViewControl: false,
-            mapTypeControl: false,
-            fullscreenControl: true
-          }
-        );
-
-        state.map.marker = new google.maps.Marker({
-          position: center,
-          map: state.map.instance,
-          title: "Harvey Taxi Pickup Location"
-        });
-
-        state.map.loaded = true;
-        return;
-      }
-
-      state.map.instance.setCenter(center);
-
-      if (state.map.marker) {
-        state.map.marker.setPosition(center);
-      }
+      setMapBadge("Location Captured");
     }
 
     function detectLocation() {
@@ -9063,6 +9003,11 @@
 
         setBusy(els.stagePickupContinueBtn, false);
 
+        if (!resolved && !geoAvailable()) {
+          showMapsUnavailable();
+          return;
+        }
+
         if (!resolved) {
           setFieldError(
             els.pickupAddressError,
@@ -9094,6 +9039,11 @@
         const resolved = await ensureEndpointCoordinates(state.destination, els.destinationAddress);
 
         setBusy(els.stageDestinationContinueBtn, false);
+
+        if (!resolved && !geoAvailable()) {
+          showMapsUnavailable();
+          return;
+        }
 
         if (!resolved) {
           setFieldError(
@@ -9520,7 +9470,7 @@
       activeRequestLastStatus: "",
       savedPlaces: [],
       trackingMap: { instance: null, driverMarker: null, targetMarker: null, line: null },
-      mapsEnabled: false,
+      geoEnabled: false,
       htafApplication: null
     };
 
@@ -11024,116 +10974,28 @@
     // line between driver and current target" honesty (not a routed
     // path), just rendered directly on the dashboard instead of only
     // behind the "Open Live Tracking" deep link.
-    function renderActiveRequestMap(data) {
-      if (!els.activeRequestMap) return;
-
-      const tracking = data?.tracking;
-      const driverLoc = data?.driver?.location;
-
-      const targetLoc =
-        tracking?.target === "store" || tracking?.target === "pickup"
-          ? data?.pickup_location
-          : data?.destination_location;
-
-      const canRender =
-        state.mapsEnabled &&
-        window.google?.maps &&
-        tracking &&
-        driverLoc &&
-        Number.isFinite(Number(driverLoc.lat)) &&
-        Number.isFinite(Number(driverLoc.lng)) &&
-        targetLoc &&
-        Number.isFinite(Number(targetLoc.lat)) &&
-        Number.isFinite(Number(targetLoc.lng));
-
-      if (!canRender) {
+    // No in-app map; the active request card shows text status only.
+    function renderActiveRequestMap() {
+      if (els.activeRequestMap) {
         els.activeRequestMap.classList.add("hidden");
-        return;
       }
-
-      els.activeRequestMap.classList.remove("hidden");
-
-      const driverPos = { lat: Number(driverLoc.lat), lng: Number(driverLoc.lng) };
-      const targetPos = { lat: Number(targetLoc.lat), lng: Number(targetLoc.lng) };
-      const tm = state.trackingMap;
-
-      if (!tm.instance) {
-        tm.instance = new google.maps.Map(els.activeRequestMap, {
-          center: driverPos,
-          zoom: 13,
-          disableDefaultUI: true,
-          zoomControl: true,
-          streetViewControl: false,
-          mapTypeControl: false
-        });
-
-        tm.driverMarker = new google.maps.Marker({
-          position: driverPos,
-          map: tm.instance,
-          title: "Your driver",
-          icon: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png"
-        });
-
-        tm.targetMarker = new google.maps.Marker({
-          position: targetPos,
-          map: tm.instance
-        });
-
-        tm.line = new google.maps.Polyline({
-          path: [driverPos, targetPos],
-          strokeOpacity: 0,
-          icons: [{
-            icon: { path: "M 0,-1 0,1", strokeOpacity: 0.55, scale: 3 },
-            offset: "0",
-            repeat: "12px"
-          }],
-          map: tm.instance
-        });
-      } else {
-        tm.driverMarker.setPosition(driverPos);
-        tm.targetMarker.setPosition(targetPos);
-        tm.line.setPath([driverPos, targetPos]);
-      }
-
-      const bounds = new google.maps.LatLngBounds();
-      bounds.extend(driverPos);
-      bounds.extend(targetPos);
-      tm.instance.fitBounds(bounds, 40);
     }
 
-    async function loadGoogleMaps() {
-      // Guard against double-injection: the merged ride wizard (below)
-      // also depends on window.google.maps and shares this single load
-      // rather than injecting its own competing <script> tag, which
-      // used to trigger Google's "included the Maps API multiple times"
-      // warning and unpredictable re-initialization when both loaded.
-      if (window.google && window.google.maps) {
-        state.mapsEnabled = true;
-        window.__HARVEY_MAPS_ENABLED__ = true;
-        return;
-      }
-
+    // Whether address search and routing (Mapbox, server-side) are
+    // configured. Boolean only; the token never reaches the browser.
+    async function loadGeoStatus() {
       try {
-        const res = await fetch(`${apiBase()}/api/maps-key`);
-        const data = await res.json();
-
-        if (!data?.key) return;
-
-        const script = document.createElement("script");
-        // libraries=places is required by the merged ride wizard's
-        // address autocomplete (google.maps.places.Autocomplete).
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(data.key)}&libraries=places`;
-        script.async = true;
-        script.onload = () => {
-          state.mapsEnabled = true;
-          window.__HARVEY_MAPS_ENABLED__ = true;
-          window.dispatchEvent(new Event("harvey-maps-ready"));
-        };
-        script.onerror = () => {
-          window.__HARVEY_MAPS_ENABLED__ = false;
-        };
-        document.head.appendChild(script);
-      } catch {}
+        const res = await fetch(`${apiBase()}/api/geo/status`);
+        const data = await res.json().catch(() => ({}));
+        const configured = res.ok && data?.configured === true;
+        state.geoEnabled = configured;
+        window.__HARVEY_GEO_ENABLED__ = configured;
+        window.__HARVEY_GEO_CONFIG_ERROR__ = res.ok && data?.configured === false;
+      } catch {
+        state.geoEnabled = false;
+        window.__HARVEY_GEO_ENABLED__ = false;
+      }
+      window.dispatchEvent(new Event("harvey-geo-ready"));
     }
 
     // ---- Notifications: in-page feed + browser push ----
@@ -11842,7 +11704,7 @@
       bindAuthEvents();
       setAuthChannel("phone");
       renderNotificationFeed();
-      loadGoogleMaps();
+      loadGeoStatus();
 
       // Always attempt the server-verified session check first,
       // regardless of rider_auth_ui_enabled. That flag only controls
